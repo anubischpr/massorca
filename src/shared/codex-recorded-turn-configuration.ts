@@ -29,3 +29,31 @@ export function readRecordedChildTurnConfiguration(
   }
   return current
 }
+
+export const MAX_RECORDED_CHILD_TURNS = 32
+
+/** Keep contexts the cursor consumes before their turn notifications arrive. */
+export function retainRecordedChildTurnConfigurations(
+  records: readonly JsonRecord[],
+  configurations: Map<string, RecordedAgentTurnConfiguration>
+): void {
+  for (const row of records) {
+    const turnId = record(row.payload)?.turn_id
+    if (row.type !== 'turn_context' || typeof turnId !== 'string') {
+      continue
+    }
+    const previous = configurations.get(turnId)
+    const next = readRecordedChildTurnConfiguration([row], turnId, previous)
+    if (!next || next.turnId !== turnId || next === previous) {
+      continue
+    }
+    configurations.delete(turnId)
+    configurations.set(turnId, next)
+    if (configurations.size > MAX_RECORDED_CHILD_TURNS) {
+      const oldest = configurations.keys().next().value
+      if (oldest !== undefined) {
+        configurations.delete(oldest)
+      }
+    }
+  }
+}
