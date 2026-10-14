@@ -236,10 +236,11 @@ function NativeChatSessionOptionPickersInner({
   const optionsMenuFocus = useNativeChatPickerFocusReturn(focusComposer)
   const model = snapshot.find((descriptor) => descriptor.category === 'model')
   const options = sortNativeChatSessionOptions(snapshot)
-  if (!surface || !model) {
+  if (!surface || (!model && options.length === 0)) {
     return null
   }
-  const requestedModelSequence = pickerRequest?.id === model.id ? pickerRequest.sequence : null
+  const requestedModelSequence =
+    model && pickerRequest?.id === model.id ? pickerRequest.sequence : null
   const requestedOptionsSequence = options.some((descriptor) => descriptor.id === pickerRequest?.id)
     ? (pickerRequest?.sequence ?? null)
     : null
@@ -251,17 +252,19 @@ function NativeChatSessionOptionPickersInner({
     runSurfaceCall(descriptor.id, setPendingId, () => surface.invokeAction(descriptor.id))
   }
 
-  const modelReason = nativeChatSessionOptionDisabledReason(model.disabledReason)
+  const modelReason = model ? nativeChatSessionOptionDisabledReason(model.disabledReason) : null
   const modelPickerKey = `model:${requestedModelSequence ?? 'idle'}`
   // Read only when a request remounts the picker.
   const modelPickerDefaultOpen = requestedModelSequence !== null
-  const modelTrigger = {
-    label: nativeChatModelPillLabel(model),
-    tooltipLabel: translate('components.native-chat.composer.model', 'Model'),
-    disabled: isWorking || pendingId !== null,
-    disabledReason: modelReason,
-    dispatched: sessionOptionDispatchUnconfirmed(model)
-  }
+  const modelTrigger = model
+    ? {
+        label: nativeChatModelPillLabel(model),
+        tooltipLabel: translate('components.native-chat.composer.model', 'Model'),
+        disabled: isWorking || pendingId !== null,
+        disabledReason: modelReason,
+        dispatched: sessionOptionDispatchUnconfirmed(model)
+      }
+    : null
   const optionsTooltip = nativeChatOptionsPillTitle(options)
   const optionsReason =
     options.length > 0 && options.every((descriptor) => !descriptor.settable)
@@ -270,7 +273,7 @@ function NativeChatSessionOptionPickersInner({
 
   return (
     <div className="flex min-w-0 items-center gap-0.5 text-chat-foreground-faint">
-      {model.kind.type === 'select' && !model.action ? (
+      {model && modelTrigger && model.kind.type === 'select' && !model.action ? (
         <NativeChatModelCombobox
           key={modelPickerKey}
           defaultOpen={modelPickerDefaultOpen}
@@ -284,7 +287,7 @@ function NativeChatSessionOptionPickersInner({
             <PickerTrigger Trigger={PopoverTrigger} {...modelTrigger} onKeyDown={onKeyDown} />
           )}
         />
-      ) : (
+      ) : model && modelTrigger ? (
         <DropdownMenu key={modelPickerKey} defaultOpen={modelPickerDefaultOpen}>
           <PickerTrigger Trigger={DropdownMenuTrigger} {...modelTrigger} />
           <DropdownMenuContent
@@ -306,7 +309,7 @@ function NativeChatSessionOptionPickersInner({
             />
           </DropdownMenuContent>
         </DropdownMenu>
-      )}
+      ) : null}
       {options.length > 0 ? (
         <DropdownMenu
           key={`options:${requestedOptionsSequence ?? 'idle'}`}

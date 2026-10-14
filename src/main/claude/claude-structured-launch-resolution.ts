@@ -36,6 +36,7 @@ import {
 import { claudeStructuredLaunchArgs } from './claude-structured-launch-args'
 import type { ClaudeCliFlagSupport } from './claude-cli-flag-support'
 import { resolveClaudeLaunchFlags } from './claude-structured-launch-flags'
+import { resolveAgentSessionFullAccess } from '../../shared/agent-session-access-mode'
 import {
   withNativeChatVisualsEnv,
   type PrepareNativeChatVisuals
@@ -283,8 +284,14 @@ export function createClaudeStructuredLaunchResolver(
       ...(deps.attachmentDirectory ? [deps.attachmentDirectory] : []),
       ...(visuals ? [visuals.visuals.folder] : [])
     ]
+    const inheritedPermissionMode = (await deps.resolvePermissionMode?.()) ?? 'default'
     const permission = claudeStructuredPermissionOptions(
-      (await deps.resolvePermissionMode?.()) ?? 'default'
+      resolveAgentSessionFullAccess(
+        record.options?.accessMode,
+        inheritedPermissionMode === 'bypassPermissions'
+      )
+        ? 'bypassPermissions'
+        : 'default'
     )
     // A start that failed before its first turn wrote no transcript, and `--resume` of an absent
     // one exits; launch that id fresh instead. With a transcript, `--session-id` would collide.

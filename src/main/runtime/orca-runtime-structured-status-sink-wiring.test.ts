@@ -81,8 +81,8 @@ describe('every host that constructs a runtime wires the agent-status store', ()
       expect(construction).toContain('publishChildWork: (subject, evidence, provider) =>')
       expect(construction).toContain('ingestStructuredChildWork(subject, evidence, provider)')
       // Without it the summary and the chat strip read no child records on that entry point.
-      expect(construction).toContain(
-        'readChildWork: (subject) => agentHookServer.getStructuredChildWorkViews(subject)'
+      expect(construction).toMatch(
+        /readChildWork:\s*\(subject,\s*includeForegroundCommands\)\s*=>\s*agentHookServer\.getStructuredChildWorkViews\(subject,\s*includeForegroundCommands\)/
       )
     }
   )

@@ -55,7 +55,9 @@ describe('electron-builder config', () => {
     for (const stagingPath of [
       '.build/release-javascript/release-javascript.tar.gz',
       '.build/release-javascript/manifest.json',
-      '.build/release-javascript-123/out/main/index.js'
+      '.build/release-javascript-123/out/main/index.js',
+      'dist/previous-candidate/win-unpacked/Orca.exe',
+      'dist/previous-candidate/win-unpacked/resources/app.asar'
     ]) {
       expect(isPacked(join('/app', stagingPath), { isDirectory: () => false })).toBe(false)
     }
@@ -66,6 +68,23 @@ describe('electron-builder config', () => {
     ]) {
       expect(isPacked(join('/app', runtimePath), { isDirectory: () => false })).toBe(true)
     }
+  })
+
+  it('excludes private task tracking and live codegraph files from app.asar', () => {
+    const matcher = new FileMatcher('/app', '/dest', (value) => value, electronBuilderConfig.files)
+    matcher.prependPattern('**/*')
+    const isPacked = matcher.createFilter()
+    for (const repoPath of [
+      'odd/tasks/session-access-options.md',
+      '.codegraph/codegraph.db',
+      '.codegraph/codegraph.db-wal'
+    ]) {
+      expect(isPacked(join('/app', repoPath), { isDirectory: () => false }), repoPath).toBe(false)
+    }
+    for (const repoPath of ['odd', '.codegraph']) {
+      expect(isPacked(join('/app', repoPath), { isDirectory: () => true }), repoPath).toBe(false)
+    }
+    expect(isPacked(join('/app', 'out/main/index.js'), { isDirectory: () => false })).toBe(true)
   })
 
   it('keeps local agent tooling out of app.asar', () => {

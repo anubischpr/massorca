@@ -1,3 +1,4 @@
+import { readRecordedAgentTurnConfiguration } from './agent-recorded-turn-configuration'
 import {
   AGENT_CHILD_WORK_DESCRIPTION_MAX_LENGTH,
   AGENT_CHILD_WORK_INVOCATION_HISTORY_MAX,
@@ -167,6 +168,7 @@ export function parseAgentChildWorkInput(value: unknown): AgentChildWorkInput | 
         'description',
         'agentType',
         'model',
+        'recordedConfiguration',
         'totalTokens',
         'providerTiming',
         'parentChildWorkId',
@@ -177,6 +179,9 @@ export function parseAgentChildWorkInput(value: unknown): AgentChildWorkInput | 
         'previousInvocations'
       ]
     ) ||
+    (value.recordedConfiguration !== undefined &&
+      value.recordedConfiguration !== null &&
+      readRecordedAgentTurnConfiguration(value.recordedConfiguration) === null) ||
     !isBoundedString(value.childWorkId) ||
     !isBoundedString(value.provider) ||
     !isKind(value.kind) ||
@@ -274,6 +279,9 @@ export function parseAgentChildWorkInput(value: unknown): AgentChildWorkInput | 
     ...(labels.description ? { description: labels.description } : {}),
     ...(labels.agentType ? { agentType: labels.agentType } : {}),
     ...(labels.model ? { model: labels.model } : {}),
+    ...(value.recordedConfiguration !== undefined
+      ? { recordedConfiguration: readRecordedAgentTurnConfiguration(value.recordedConfiguration) }
+      : {}),
     ...(typeof value.totalTokens === 'number' ? { totalTokens: value.totalTokens } : {}),
     ...(timing ? { providerTiming: timing } : {}),
     ...activity,

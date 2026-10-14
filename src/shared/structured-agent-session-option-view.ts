@@ -25,6 +25,7 @@ export function structuredAgentSessionOptionView(
 ): StructuredAgentSessionOptionState {
   const unconfirmedSeed = seed !== undefined && state.record.model === undefined
   const hasHeld = Object.keys(held).length > 0
+  const hasAccessModePick = seed?.accessMode !== undefined || held.accessMode !== undefined
   // A saved pick the host's list does not name would show its raw id or another model's label.
   if (
     unconfirmedSeed &&
@@ -32,14 +33,14 @@ export function structuredAgentSessionOptionView(
     !hasHeld &&
     !catalogListsSeedModel(state, seed)
   ) {
-    return { ...state, catalogSource: 'seed' }
+    return structuredAgentSessionOptionView({ ...state, catalogSource: 'seed' }, seed, held)
   }
   // Only a host's or the session's list names a saved pick: a built-in label may be replaced.
   const seeded =
     unconfirmedSeed &&
     (state.catalogSource === 'host' || state.catalogSource === 'live') &&
     catalogListsSeedModel(state, seed)
-  if (!state.catalog || (!seeded && !hasHeld)) {
+  if ((!state.catalog && !hasAccessModePick) || (!seeded && !hasHeld && !hasAccessModePick)) {
     return state
   }
   let view: StructuredAgentSessionOptionState = {
@@ -48,6 +49,8 @@ export function structuredAgentSessionOptionView(
   }
   if (seeded) {
     view = commitStructuredAgentSessionOptionValues(view, seed)
+  } else if (seed?.accessMode !== undefined) {
+    view = commitStructuredAgentSessionOptionValues(view, { accessMode: seed.accessMode })
   }
   return { ...commitStructuredAgentSessionOptionValues(view, held), pendingId: state.pendingId }
 }

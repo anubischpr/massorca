@@ -16,7 +16,8 @@ export const CODEX_STRUCTURED_AGENT: DirectoryAccountAgentDefinition = {
     imagePrompts: true,
     steering: 'inject',
     // Approval and sandbox policy ride on the thread; the app-server enforces them.
-    approvalEnforcement: 'provider'
+    approvalEnforcement: 'provider',
+    supportedAccessModes: ['default', 'full-access']
   },
   restingOptions: {
     acceptsKey: isCodexTurnOptionKey,

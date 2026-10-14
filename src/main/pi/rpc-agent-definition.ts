@@ -11,7 +11,8 @@ export const PI_RPC_AGENT: DirectoryAccountAgentDefinition = {
     contextUsage: true,
     imagePrompts: true,
     steering: 'inject',
-    approvalEnforcement: 'provider'
+    approvalEnforcement: 'provider',
+    supportedAccessModes: ['full-access']
   },
   restingOptions: {
     acceptsKey: (key) => key === 'model' || key === 'effort',
