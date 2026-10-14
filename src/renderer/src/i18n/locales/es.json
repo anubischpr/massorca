@@ -17982,6 +17982,12 @@
         "effort": "Esfuerzo",
         "fastMode": "Modo rápido",
         "thinking": "Razonamiento",
+        "accessMode": "Acceso",
+        "accessModeValue": {
+          "inherit": "Heredar configuración global",
+          "default": "Valor predeterminado del proveedor",
+          "fullAccess": "Acceso completo"
+        },
         "options": "Opciones",
         "sessionOptions": "Opciones de sesión",
         "chooseInAgentPicker": "Elegir en el selector del agente…",
