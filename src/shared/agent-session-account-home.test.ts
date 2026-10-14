@@ -1,13 +1,58 @@
 import { describe, expect, it } from 'vitest'
 import {
   agentSessionAccountHome,
-  agentSessionAccountHomesEqual
+  agentSessionAccountHomesEqual,
+  agentPinsAccountHome,
+  isAgentSessionAccountHome
 } from './agent-session-account-home'
 import { isPersistedAgentSessionRecord } from './agent-session-record'
 import { agentSessionRecordFixture } from './agent-session-record.test-fixture'
 import { encodeAgentSessionRecord } from './agent-session-record-stored-form'
 
 describe('agent session account home', () => {
+  it('pins Antigravity account authority without changing legacy records', () => {
+    const home = {
+      kind: 'antigravity',
+      locator: {
+        home: '/host/home',
+        credentialStore: 'file',
+        issuer: 'https://accounts.google.com',
+        subject: 'account-a',
+        authMethod: 'consumer'
+      }
+    } as const
+    const record = encodeAgentSessionRecord(agentSessionRecordFixture())
+    expect(isPersistedAgentSessionRecord({ ...record, accountHome: home })).toBe(true)
+    expect(
+      agentPinsAccountHome(
+        { agent: 'antigravity', handleTransport: 'stream-json', accountLocatorKind: 'antigravity' },
+        home
+      )
+    ).toBe(true)
+    expect(
+      agentPinsAccountHome(
+        { agent: 'opencode', handleTransport: 'acp', accountLocatorKind: 'opencode' },
+        home
+      )
+    ).toBe(false)
+    expect(agentSessionAccountHomesEqual(home, structuredClone(home))).toBe(true)
+    expect(
+      agentSessionAccountHomesEqual(home, { kind: 'opencode', locator: { kind: 'unmanaged' } })
+    ).toBe(false)
+    for (const patch of [
+      { home: '' },
+      { credentialStore: 'unknown' },
+      { issuer: 'untrusted' },
+      { subject: '' },
+      { subject: 'x'.repeat(513) },
+      { authMethod: '\u0000' }
+    ]) {
+      expect(isAgentSessionAccountHome({ ...home, locator: { ...home.locator, ...patch } })).toBe(
+        false
+      )
+    }
+  })
+
   it('stores the variable and path exactly as older builds wrote them', () => {
     expect(
       JSON.stringify(

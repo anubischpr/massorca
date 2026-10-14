@@ -83,7 +83,7 @@ export function openCodeAcpAccountBinding(
     resolve: async () =>
       resolveStructuredOpenCodeAccountHome({ managedAccounts: managedAccounts() }),
     environment: (home, env) => {
-      if (isLegacyAgentSessionAccountHome(home)) {
+      if (isLegacyAgentSessionAccountHome(home) || home.kind !== 'opencode') {
         throw new Error('OpenCode chat requires a pinned data account')
       }
       return environmentForStructuredOpenCodeAccountHome(home, {

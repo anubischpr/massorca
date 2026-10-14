@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { AntigravityAccountState } from '../../shared/antigravity-account-types'
+import type { AntigravityAccountLocator } from '../../shared/agent-session-account-home'
 import {
   parseAntigravityNativeCredential,
   type AntigravityNativeCredential
@@ -33,6 +34,23 @@ export class AntigravityAccountService {
 
   listAccounts(): Promise<AntigravityAccountState> {
     return this.serialize(async () => this.state(await this.reconcile()))
+  }
+
+  /** Account labels only: never reconciles snapshots or changes the selected login. */
+  readIdentity(): Promise<Pick<
+    AntigravityAccountLocator,
+    'issuer' | 'subject' | 'authMethod'
+  > | null> {
+    return this.serialize(async () => {
+      const current = await this.backend.read()
+      return current?.identity
+        ? {
+            issuer: current.identity.issuer,
+            subject: current.identity.subject,
+            authMethod: current.authMethod
+          }
+        : null
+    })
   }
 
   addCurrentAccount(): Promise<AntigravityAccountState> {
