@@ -65,7 +65,10 @@ function parseGentleShellPiVersion(output: string): string | null {
   const wrapperLine =
     /^gentle-shell(?:\s+version)?\s+(v?\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?)$/i
   const piLine = /^pi(?:\s+version)?\s+(v?\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?)$/i
-  if (lines.length !== 2 || !wrapperLine.test(lines[0]) || !piLine.test(lines[1])) {
+  const hasValidLineCount =
+    lines.length === 2 ||
+    (lines.length === 3 && /^home isolated \S.*$/i.test(lines[2]))
+  if (!hasValidLineCount || !wrapperLine.test(lines[0]) || !piLine.test(lines[1])) {
     return null
   }
   return parseCliVersion(lines[1])
