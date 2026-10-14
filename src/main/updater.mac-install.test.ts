@@ -66,6 +66,7 @@ const {
     appMock: {
       isPackaged: true,
       getVersion: vi.fn(() => '1.0.51'),
+      getAppPath: vi.fn(() => process.cwd()),
       on: appOn,
       prependListener: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
         appEventHandlers.set(event, [handler, ...(appEventHandlers.get(event) ?? [])])

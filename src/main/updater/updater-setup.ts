@@ -124,6 +124,9 @@ export class UpdaterSetup extends UpdaterDownloadInstall {
     this.getReleaseChannelOverride = opts?.getReleaseChannelOverride ?? null
     this.updateInstallMode = opts?.installMode ?? 'interactive'
     this.lastInstallDeferralVersion = { download: null, install: null }
+    if (this.blockManagedUpdate()) {
+      return
+    }
 
     const serveHandoffFailure = getServeUpdateHandoffFailure()
     if (serveHandoffFailure) {

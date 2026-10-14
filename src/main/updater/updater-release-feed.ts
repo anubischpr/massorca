@@ -114,6 +114,9 @@ export abstract class UpdaterReleaseFeed extends UpdaterInstallExecution {
   protected async pinDefaultReleaseFeed(
     variant: UpdateCheckVariant = 'default'
   ): Promise<'ready' | 'not-available'> {
+    if (this.blockManagedUpdate()) {
+      return 'not-available'
+    }
     const attemptId = this.activeUpdateCheckAttemptId
     const autoUpdater = this.getAutoUpdater()
     // Why: the latest/download redirect can move between check and download, so pin the concrete tag (prerelease users resolve any channel, stable only stable).
@@ -223,6 +226,9 @@ export abstract class UpdaterReleaseFeed extends UpdaterInstallExecution {
     failureKey: string,
     sourceError?: unknown
   ): boolean {
+    if (this.blockManagedUpdate()) {
+      return false
+    }
     if (
       !this.pendingPrereleaseFallback ||
       this.pendingPrereleaseFallback.retryLaunched ||

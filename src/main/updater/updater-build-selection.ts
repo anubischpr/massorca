@@ -23,6 +23,9 @@ export abstract class UpdaterBuildSelection extends UpdaterMenuChecks {
   )
 
   protected async checkForLocalBuildFromMenu(): Promise<void> {
+    if (this.blockManagedUpdate(true)) {
+      return
+    }
     if (process.platform !== 'darwin') {
       this.sendLocalBuildErrorAndRestore(
         'Local build switching is currently available only on macOS.',
@@ -85,11 +88,17 @@ export abstract class UpdaterBuildSelection extends UpdaterMenuChecks {
     channel: ReleaseChannel,
     options?: ReleaseBuildListOptions
   ): Promise<ReleaseBuild[]> {
+    if (this.blockManagedUpdate()) {
+      return []
+    }
     return this.releaseBuildCache.list(channel, options)
   }
 
   /** Pins the updater at one exact release tag and checks it, so a dev can move to any published build on any channel — including an older one. */
   protected async checkForPinnedBuild(channel: ReleaseChannel, tag: string): Promise<void> {
+    if (this.blockManagedUpdate(true)) {
+      return
+    }
     if (!app.isPackaged || is.dev) {
       this.sendStatus({ state: 'not-available', userInitiated: true })
       return

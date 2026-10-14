@@ -17,6 +17,9 @@ import { UpdaterPackageRecovery } from './updater-package-recovery'
 
 export abstract class UpdaterInstallExecution extends UpdaterPackageRecovery {
   protected async performQuitAndInstall(): Promise<void> {
+    if (this.blockManagedUpdate(true)) {
+      return
+    }
     if (this.quitAndInstallInProgress) {
       recordUpdaterLifecycle('quit_and_install_ignored', { reason: 'already-in-progress' })
       return
