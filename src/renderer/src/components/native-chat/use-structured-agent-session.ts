@@ -271,6 +271,8 @@ export function useStructuredAgentSession(args: {
     settledTurns: transportState.turnTiming.settledTurns,
     turnActivity: transportState.turnActivity,
     backgroundTasks: transportState.backgroundTasks,
+    commandActivity: transportState.commandActivity,
+    backgroundTaskRoster: transportState.backgroundTaskRoster,
     turnId: transportState.turnId,
     ...structuredAgentSessionStopControl({
       published: transportEnabled,
