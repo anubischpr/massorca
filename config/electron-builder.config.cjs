@@ -187,18 +187,20 @@ const windowsRuntimeResources = existsSync(
   ? createPackagedRuntimeNodeModuleResources('win32')
   : []
 
+const extraMetadata = {
+  ...(devChannelBuildVersion || localBuildVersion
+    ? { version: devChannelBuildVersion || localBuildVersion }
+    : {}),
+  ...distributionMetadata(process.env)
+}
+
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
   appId,
   productName: 'Orca',
   protocols: [{ name: 'Orca', schemes: ['orca'] }],
   toolsets: { appimage: '1.0.3' },
-  extraMetadata: {
-    ...(devChannelBuildVersion || localBuildVersion
-      ? { version: devChannelBuildVersion || localBuildVersion }
-      : {}),
-    ...distributionMetadata(process.env)
-  },
+  extraMetadata: Object.keys(extraMetadata).length ? extraMetadata : undefined,
   directories: {
     buildResources: 'resources/build'
   },
