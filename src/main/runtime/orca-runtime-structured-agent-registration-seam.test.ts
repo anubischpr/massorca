@@ -87,7 +87,7 @@ describe('the structured agent registration list', () => {
     const pi = structuredAgentRuntimeRegistration('pi')!
     const commandSettings = { agentCmdOverrides: { pi: 'gentle-shell' } }
     const settings = { agentDefaultEnv: { pi: { PI_CODING_AGENT_DIR: '' } }, ...commandSettings }
-    vi.spyOn(pi, 'resolveAccountHome').mockResolvedValue({
+    const resolveAccountHome = vi.spyOn(pi, 'resolveAccountHome').mockResolvedValue({
       variable: 'PI_CODING_AGENT_DIR',
       path: '/home/user/.gentle-shell/agent'
     })
@@ -95,7 +95,7 @@ describe('the structured agent registration list', () => {
 
     await runtime.resolveStructuredAgentAccountHome('pi')
 
-    expect(pi.resolveAccountHome.mock.calls[0]?.[0]).toMatchObject({ commandSettings })
+    expect(resolveAccountHome.mock.calls[0]?.[0]).toMatchObject({ commandSettings })
   })
 
   it('selects the Gentle-Shell home through the runtime registration while preserving an override', async () => {
