@@ -47,3 +47,21 @@ export function codexStructuredPermissionPolicyForSettings(
     ? BYPASS_POLICY
     : MANUAL_POLICY
 }
+
+/** Explicit session presets override only this thread's policy; `inherit` uses the global setting. */
+export function codexStructuredPermissionPolicyForSession(
+  accessMode: string | undefined,
+  inherited: CodexStructuredPermissionPolicy | undefined
+): CodexStructuredPermissionPolicy | undefined {
+  switch (accessMode) {
+    case undefined:
+    case 'inherit':
+      return inherited
+    case 'default':
+      return MANUAL_POLICY
+    case 'full-access':
+      return BYPASS_POLICY
+    default:
+      throw new Error('agent session access mode is invalid')
+  }
+}
