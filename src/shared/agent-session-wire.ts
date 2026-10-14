@@ -39,6 +39,7 @@ import type { AgentSessionHandoffStage, AgentSessionRecord } from './agent-sessi
 import type { AgentProviderSessionMetadata } from './agent-session-resume'
 import type { NativeChatSubagentEntry } from './native-chat-types'
 import type { StructuredAgentSessionProjectedStatus } from './structured-agent-session-projection'
+import type { AgentSessionAccessOptions } from './agent-session-access-mode'
 
 /** `agentSession.handoffStatus`. Named for the removed terminal handoff; released desktop clients
  *  still read `owner`. Clients parse the reply as unknown, since older hosts sent more fields. */
@@ -463,20 +464,14 @@ export type AgentSessionCommandsResult = {
 /** Longest objective a client may send; matches the provider's own limit. */
 export const AGENT_SESSION_THREAD_GOAL_OBJECTIVE_MAX_LENGTH = 4000
 
-/** A client's change to the thread goal. `set` replaces the objective and makes
- *  it active, which the provider pursues without a separate turn. */
-export type AgentSessionThreadGoalChange =
-  | { kind: 'set'; objective: string }
-  | { kind: 'status'; status: 'active' | 'paused' }
-  | { kind: 'clear' }
-
-export type AgentSessionThreadGoalResult = {
-  change: AgentSessionThreadGoalChange['kind']
-}
+export type {
+  AgentSessionThreadGoalChange,
+  AgentSessionThreadGoalResult
+} from './agent-session-thread-goal-change'
 
 /** Provider-reported choices and effective next-turn values. Additive read-only
  *  surface so older hosts can reject it without changing structured v1 writes. */
-export type AgentSessionOptionsResult = {
+export type AgentSessionOptionsResult = AgentSessionAccessOptions & {
   rewind?: AgentSessionRewindSupport
   conversationCommands?: readonly AgentSessionConversationCommand[]
   /** Present only where this session can change its goal, so a host without

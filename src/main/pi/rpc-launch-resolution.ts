@@ -22,6 +22,7 @@ import {
 import type { AgentSessionRecordStore } from '../runtime/agent-session-record-store'
 import { isWindowsProcessStartTimeAvailable } from '../windows/windows-process-table'
 import type { PiRpcLaunchOptions } from './rpc-launch'
+import { resolveAgentSessionFullAccess } from '../../shared/agent-session-access-mode'
 
 export type PiRpcResolvedLaunch = PiRpcLaunchOptions & {
   previous: AgentSessionProviderHandleLink | null
@@ -242,7 +243,10 @@ export function createPiRpcLaunchResolver(
       command,
       cwd,
       env,
-      fullAccess: deps.resolveFullAccess?.() ?? true,
+      fullAccess: resolveAgentSessionFullAccess(
+        record.options?.accessMode,
+        deps.resolveFullAccess?.() ?? true
+      ),
       previous,
       ...(sessionFile ? { sessionFile } : {}),
       ...(forkFile ? { forkFile } : {}),

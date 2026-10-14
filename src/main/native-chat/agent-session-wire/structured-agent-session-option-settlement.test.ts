@@ -20,7 +20,10 @@ import {
   hostTestOperationId,
   resetHostTestOperationIds
 } from './structured-agent-session-host-test-data'
-import { openTestJournalHostDatabase } from '../agent-session-journal/journal-host-database-test-support'
+import {
+  openTestJournalHostDatabase,
+  closeTestJournalHostDatabase
+} from '../agent-session-journal/journal-host-database-test-support'
 import { createStructuredAgentSessionLogger } from './structured-agent-session-logger'
 import { codexProviderHandle } from '../../../shared/agent-session-provider-handle-encoding'
 import { NO_STRUCTURED_AGENTS } from './structured-agent-session-adapter-router-test-support'
@@ -145,10 +148,23 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await host.flushAllStreamedEvents()
+  closeTestJournalHostDatabase(root)
   await rm(root, { recursive: true, force: true })
 })
 
 describe('structured session options and close', () => {
+  it('refuses live access changes without invoking or persisting provider options', async () => {
+    const fields = { key: 'accessMode', value: 'full-access' }
+    const before = store.getRecord(SESSION)?.options
+    expect(
+      await host.setOption(CALLER, {
+        envelope: envelope('agentSession.setOption', fields),
+        ...fields
+      })
+    ).toMatchObject({ ok: false, refusal: { code: 'agent_session_operation_invalid' } })
+    expect(router.setOption).not.toHaveBeenCalled()
+    expect(store.getRecord(SESSION)?.options).toEqual(before)
+  })
   it('publishes an acknowledged model without waiting for journal traffic', async () => {
     const body = {
       kind: 'message' as const,

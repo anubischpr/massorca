@@ -17978,6 +17978,12 @@
         "effort": "推理强度",
         "fastMode": "快速模式",
         "thinking": "思考",
+        "accessMode": "访问权限",
+        "accessModeValue": {
+          "inherit": "继承全局设置",
+          "default": "提供方默认值",
+          "fullAccess": "完全访问权限"
+        },
         "options": "选项",
         "sessionOptions": "会话选项",
         "chooseInAgentPicker": "在智能体选择器中选择…",

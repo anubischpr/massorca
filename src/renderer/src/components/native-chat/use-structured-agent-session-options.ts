@@ -1,3 +1,4 @@
+import { lockStructuredAgentSessionAccessOptions } from '../../../../shared/structured-agent-session-access-option'
 import { toast } from 'sonner'
 import { useCallback, useMemo } from 'react'
 import type {
@@ -25,6 +26,7 @@ import type { StructuredAgentSessionMutate } from './use-structured-agent-sessio
 import { useHostModelCatalogUpgrade } from './use-host-model-catalog-upgrade'
 import { useStructuredAgentSessionOptionState } from './use-structured-agent-session-option-state'
 import { agentSessionWriteFailureText } from './agent-session-write-notice-text'
+import { useHostStructuredAgent } from '@/runtime/use-host-structured-agent'
 import type { StructuredAgentSessionLaunchView } from './use-native-chat-provisional-launch'
 import {
   getStructuredAgentSessionLaunchSelection,
@@ -62,6 +64,8 @@ export function useStructuredAgentSessionOptions(args: {
   } = args
   const launchSeedOptions = launch?.seedOptions
   const held = launch?.heldOptions ?? NO_HELD_OPTIONS
+  const registeredAgent = useHostStructuredAgent(target, agent)
+  const accessModes = registeredAgent?.capabilities?.supportedAccessModes
   // Published but not attached: the launch no longer holds picks and there is no fence to send one.
   const acceptsPicks = !transportEnabled || fence !== null
   const optionCatalog = useMemo(() => structuredAgentSessionSeedCatalog(agent), [agent])
@@ -89,6 +93,7 @@ export function useStructuredAgentSessionOptions(args: {
     // A new chat's host knows nothing of its model before the provider starts; a resumed one's
     // holds the model it ran, so only the former waits rather than show the host's guess.
     readsBeforeStart: launch?.kind !== 'new',
+    accessModes,
     turnId,
     unloadedTurnRevisions: args.unloadedTurnRevisions
   })
@@ -214,15 +219,26 @@ export function useStructuredAgentSessionOptions(args: {
     const snapshot = structuredAgentSessionOptionSnapshot(
       structuredAgentSessionOptionView(optionState, launchSeedOptions, held)
     )
-    return acceptsPicks ? snapshot : lockedStructuredAgentSessionOptionSnapshot(snapshot)
-  }, [acceptsPicks, held, launchSeedOptions, optionState])
+    const locked = acceptsPicks ? snapshot : lockedStructuredAgentSessionOptionSnapshot(snapshot)
+    return args.providerRunning || args.providerStarting
+      ? lockStructuredAgentSessionAccessOptions(locked)
+      : locked
+  }, [
+    acceptsPicks,
+    args.providerRunning,
+    args.providerStarting,
+    held,
+    launchSeedOptions,
+    optionState
+  ])
   const setStructuredOption = useCallback(
     async (id: string, value: string | boolean): Promise<boolean> => {
       const view = structuredAgentSessionOptionView(optionStateRef.current, launchSeedOptions, held)
       const encoded = encodeStructuredAgentSessionOptionValue(id, value)
       if (
-        !optionCatalog ||
         encoded === null ||
+        (id === 'accessMode' && (args.providerRunning || args.providerStarting)) ||
+        (id !== 'accessMode' && !optionCatalog) ||
         !canSetStructuredAgentSessionOption(view, id, value)
       ) {
         return false
@@ -239,6 +255,8 @@ export function useStructuredAgentSessionOptions(args: {
       return sendStructuredOption(id, encoded)
     },
     [
+      args.providerRunning,
+      args.providerStarting,
       fence,
       held,
       launchSeedOptions,
