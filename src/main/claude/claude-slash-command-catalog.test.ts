@@ -14,6 +14,35 @@ function init(overrides: Record<string, unknown> = {}): Record<string, unknown> 
 }
 
 describe('claude slash command catalog', () => {
+  it('classifies live functions without changing the executable command surface', () => {
+    const catalog = new ClaudeSlashCommandCatalog(init({ skills: ['ref-oss'] }))
+    expect(catalog.commands?.map((entry) => entry.name)).not.toContain('doctor')
+    expect(catalog.functions).toMatchObject([
+      { name: 'clear', availability: 'available', provenance: 'provider-session' },
+      { name: 'opsx:apply', availability: 'available' },
+      { name: 'doctor', availability: 'terminal-only', execution: { kind: 'terminal' } }
+    ])
+    expect(catalog.functions?.some((entry) => entry.name === 'ref-oss')).toBe(false)
+    expect(catalog.observe({ type: 'system', subtype: 'commands_changed', commands: [] })).toBe(
+      true
+    )
+    expect(catalog.functions).toEqual([])
+  })
+
+  it('publishes a terminal-only change even when executable names remain unchanged', () => {
+    const catalog = new ClaudeSlashCommandCatalog(init({ skills: [] }))
+    expect(
+      catalog.observe(init({ skills: [], slash_commands: ['clear', 'ref-oss', 'opsx:apply'] }))
+    ).toBe(true)
+    expect(catalog.functions?.some((entry) => entry.name === 'doctor')).toBe(false)
+  })
+
+  it('does not turn a terminal-only skill into a function', () => {
+    expect(
+      new ClaudeSlashCommandCatalog(init()).functions?.some((entry) => entry.name === 'doctor')
+    ).toBe(false)
+  })
+
   it('tags reported skills and drops the commands reserved for a terminal UI', () => {
     expect(readClaudeSlashCommands(init())).toEqual([
       { name: 'clear', kind: 'command' },

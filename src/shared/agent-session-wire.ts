@@ -1,4 +1,5 @@
 import type { AgentSessionUnavailable } from './agent-session-availability'
+import type { AgentSessionProviderFunction } from './agent-session-provider-functions'
 import type {
   AgentSessionBackgroundTask,
   AgentSessionBackgroundTaskState
@@ -455,6 +456,8 @@ export type AgentSessionSlashCommand = {
  *  keeps rendering its curated catalog. */
 export type AgentSessionCommandsResult = {
   commands?: AgentSessionSlashCommand[]
+  /** Separate from executable commands so old clients cannot dispatch terminal-only functions. */
+  functions?: AgentSessionProviderFunction[]
 }
 
 /** Longest objective a client may send; matches the provider's own limit. */
