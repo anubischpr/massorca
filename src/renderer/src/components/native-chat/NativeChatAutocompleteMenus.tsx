@@ -180,6 +180,7 @@ function PickerOption({
   onChoose: (item: NativeChatPickerItem) => void
 }): React.JSX.Element {
   const annotation = getPickerAnnotation(item)
+  const providerFunction = item.kind === 'command' ? item.providerFunction : undefined
   const description =
     item.kind === 'command' &&
     item.name === 'clear' &&
@@ -205,6 +206,16 @@ function PickerOption({
             </span>
           ) : null}
         </span>
+        {providerFunction ? (
+          <span className="block text-[11px] text-muted-foreground">
+            {providerFunction.provenance === 'orca' ? 'Orca' : 'Provider'}
+            {providerFunction.availability === 'terminal-only'
+              ? ' · Terminal only'
+              : providerFunction.availability === 'unverified'
+                ? ' · Unverified'
+                : ''}
+          </span>
+        ) : null}
         {description ? (
           <span className="block truncate text-xs text-muted-foreground">{description}</span>
         ) : null}

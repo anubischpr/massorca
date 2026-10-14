@@ -4,6 +4,7 @@
 // mirrored copy to drift, unlike the agent-specific parsers in src/shared that
 // Metro forces us to duplicate.
 
+import type { AgentSessionProviderFunction } from './agent-session-provider-functions'
 import type { AgentSessionSlashCommand } from './agent-session-wire'
 import type { AgentType } from './agent-status-types'
 
@@ -21,6 +22,7 @@ export type SlashCommandSuggestion = {
   /** Provider-authored argument sketch, e.g. `<objective>`. */
   argumentHint?: string
   kindUnspecified?: true
+  providerFunction?: AgentSessionProviderFunction
   /** Declared only on curated rows; a surface that cannot show the reply drops the row. */
   reply?: NativeChatCommandReply
 }

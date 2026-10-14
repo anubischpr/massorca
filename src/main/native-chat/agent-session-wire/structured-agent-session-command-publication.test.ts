@@ -14,6 +14,7 @@ import {
 } from '../../../shared/structured-agent-session-reducer'
 import { createTrackedJournalOpener } from '../agent-session-journal/journal-host-database-test-support'
 import { AgentSessionSubscribers } from './structured-agent-session-subscribers'
+import type { AgentSessionProviderFunction } from '../../../shared/agent-session-provider-functions'
 import {
   adapterFor,
   fakeClaude,
@@ -67,8 +68,17 @@ it('delivers catalog changes through existing frames without resending them on o
       { name: 'loaded', kind: 'command', kindUnspecified: true }
     ]
     let roster: AgentSessionBackgroundTaskState | null = null
+    let functions: AgentSessionProviderFunction[] | undefined = [
+      {
+        name: 'loaded',
+        provenance: 'provider-session',
+        availability: 'available',
+        execution: { kind: 'provider-prompt' }
+      }
+    ]
     const subscribers = new AgentSessionSubscribers({
       readCommands: () => commands,
+      readFunctions: () => functions,
       readBackgroundTasks: () => roster
     })
     const republishRoster = (): void => {
@@ -88,6 +98,22 @@ it('delivers catalog changes through existing frames without resending them on o
     }
     coalescer.flush()
     expect(events.filter((event) => 'commands' in event)).toHaveLength(1)
+    expect(state.functions).toEqual(functions)
+    expect(events.filter((event) => 'functions' in event)).toHaveLength(1)
+    functions = [
+      {
+        name: 'doctor',
+        provenance: 'provider-session',
+        availability: 'terminal-only',
+        execution: { kind: 'terminal' }
+      }
+    ]
+    subscribers.republishCommands()
+    republishRoster()
+    coalescer.flush()
+    expect(state.functions).toEqual(functions)
+    expect(events.filter((event) => 'commands' in event)).toHaveLength(1)
+    expect(events.filter((event) => 'functions' in event)).toHaveLength(2)
     commands = []
     subscribers.publish(sessionId, journal)
     republishRoster()
@@ -95,9 +121,11 @@ it('delivers catalog changes through existing frames without resending them on o
     expect(state.commands).toEqual([])
     expect(events.filter((event) => 'commands' in event)).toHaveLength(2)
     commands = undefined
+    functions = undefined
     subscribers.publish(sessionId, journal)
     coalescer.flush()
     expect(state.commands).toBeNull()
+    expect(state.functions).toBeNull()
     close()
     commands = [{ name: 'reconnected', kind: 'skill' }]
     subscribers.open({

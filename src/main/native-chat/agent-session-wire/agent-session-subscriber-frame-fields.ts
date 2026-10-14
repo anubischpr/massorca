@@ -4,6 +4,7 @@
 // subscriber — never advanced on a frame that withheld the field, or the final
 // replacement would be suppressed — and each attaches whole to hydrating frames.
 
+import type { AgentSessionProviderFunction } from '../../../shared/agent-session-provider-functions'
 import type {
   AgentSessionBackgroundTaskState,
   AgentSessionSlashCommand,
@@ -14,6 +15,7 @@ import type { QueuePublication } from './structured-agent-session-queued-publica
 export type SubscriberFieldState = {
   sessionId: string
   commands?: AgentSessionSlashCommand[] | null
+  functions?: AgentSessionProviderFunction[] | null
   /** The last queue publication actually SENT. */
   queuePublication?: QueuePublication
   /** Fingerprint of the roster last SENT; absent until this subscriber's first frame. */
@@ -22,6 +24,7 @@ export type SubscriberFieldState = {
 
 export type SubscriberFieldHooks = {
   readCommands?: (sessionId: string) => AgentSessionSlashCommand[] | undefined
+  readFunctions?: (sessionId: string) => AgentSessionProviderFunction[] | undefined
   readQueuePublication?: (sessionId: string) => QueuePublication | undefined
   /** Built from the host's child records, so it is read only when a frame owes it: never per token. */
   readBackgroundTasks?: (sessionId: string) => AgentSessionBackgroundTaskState | null
@@ -30,6 +33,7 @@ export type SubscriberFieldHooks = {
 export type SubscriberFrame = {
   frame: AgentSessionSubscribeEvent
   commands: AgentSessionSlashCommand[] | null
+  functions: AgentSessionProviderFunction[] | null
   attachedQueued: boolean
   queued: QueuePublication | undefined
   /** The attached roster's fingerprint; undefined when the frame carries none. */
@@ -53,6 +57,11 @@ export function buildSubscriberFrame(
     hooks.readCommands !== undefined &&
     event.type !== 'end' &&
     (event.type !== 'batch' || commands !== subscriber.commands)
+  const functions = hooks.readFunctions?.(subscriber.sessionId) ?? null
+  const includeFunctions =
+    hooks.readFunctions !== undefined &&
+    event.type !== 'end' &&
+    (event.type !== 'batch' || functions !== subscriber.functions)
   // Withheld on intermediate catch-up pages (the caller says so), attached to
   // every hydrating frame, and to batches only when the list changed.
   const queued = withholdQueued ? undefined : hooks.readQueuePublication?.(subscriber.sessionId)
@@ -65,6 +74,7 @@ export function buildSubscriberFrame(
     frame: {
       ...event,
       ...(includeCommands ? { commands: commands ?? null } : {}),
+      ...(includeFunctions ? { functions } : {}),
       ...(attachedQueued && queued
         ? {
             queuedMessages: queued.queuedMessages,
@@ -75,6 +85,7 @@ export function buildSubscriberFrame(
       ...(backgroundTasks !== undefined ? { backgroundTasks } : {})
     },
     commands,
+    functions,
     attachedQueued,
     queued,
     backgroundTasks:

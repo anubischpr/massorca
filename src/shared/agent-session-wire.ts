@@ -188,6 +188,7 @@ export type AgentSessionSubscribeEvent =
       queuedMessages?: AgentSessionQueuedMessage[] | null
       /** Omitted when unchanged; null clears a previous provider catalog. */
       commands?: AgentSessionSlashCommand[] | null
+      functions?: AgentSessionProviderFunction[] | null
       /** Latest provider-authored turn activity; optional for mixed-version hosts. */
       activity?: AgentSessionTurnActivity | null
     } & AgentSessionFrameFields)
@@ -203,6 +204,7 @@ export type AgentSessionSubscribeEvent =
       queuedMessages?: AgentSessionQueuedMessage[] | null
       /** Omitted when unchanged; null clears a previous provider catalog. */
       commands?: AgentSessionSlashCommand[] | null
+      functions?: AgentSessionProviderFunction[] | null
       /** Additive ephemeral state; it never creates or advances journal rows. */
       activity?: AgentSessionTurnActivity | null
       /** Rides every batch that carries rows, removals or submissions, so absent there means an
@@ -220,6 +222,7 @@ export type AgentSessionSubscribeEvent =
       queuedMessages?: AgentSessionQueuedMessage[] | null
       /** Omitted when unchanged; null clears a previous provider catalog. */
       commands?: AgentSessionSlashCommand[] | null
+      functions?: AgentSessionProviderFunction[] | null
       activity?: AgentSessionTurnActivity | null
     } & AgentSessionFrameFields)
   | { type: 'end' }

@@ -1,3 +1,4 @@
+import type { AgentSessionProviderFunction } from './agent-session-provider-functions'
 import {
   getHostClaimedNativeChatCommands,
   getTextDrivenNativeChatCommands
@@ -30,6 +31,8 @@ export const STRUCTURED_AGENT_SESSION_SLASH_COMMANDS: readonly SlashCommandSugge
 
 export type StructuredAgentSessionComposerOptions = {
   agent?: AgentType
+  functions?: readonly AgentSessionProviderFunction[]
+  skills?: readonly string[]
   snapshot: readonly SessionOptionDescriptor[]
   invokeAction: (id: string) => Promise<boolean>
   setOption: (id: string, value: SessionOptionValue) => Promise<boolean>
@@ -167,6 +170,25 @@ export async function dispatchStructuredAgentSessionComposerCommand(
   controller: StructuredAgentSessionComposerOptions
 ): Promise<StructuredAgentSessionCommandOutcome> {
   const command = commandParts(text)
+  if (command && controller.functions !== undefined) {
+    const entry = controller.functions.find((entry) => entry.name === command.name)
+    if (!entry && controller.skills?.includes(command.name)) {
+      return { handled: false, accepted: false, error: null }
+    }
+    if (!entry || entry.availability !== 'available') {
+      return {
+        handled: true,
+        accepted: false,
+        error:
+          entry?.execution.kind === 'terminal'
+            ? `/${command.name} is available in Terminal only.`
+            : `/${command.name} is not verified for this chat session.`
+      }
+    }
+    if (entry.execution.kind === 'provider-prompt') {
+      return { handled: false, accepted: false, error: null }
+    }
+  }
   if (command?.name === 'goal' && controller.setThreadGoalObjective) {
     if (!command.argument) {
       return { handled: true, accepted: false, error: 'Describe the goal after /goal.' }

@@ -213,6 +213,7 @@ export class ClaudeStructuredSessionAdapter implements StructuredAgentSessionAda
     this.sessions.has(sessionId) ? { supportsTaskStop: true, supportsStopAll: true } : undefined
   readCommands: NonNullable<StructuredAgentSessionAdapter['readCommands']> = (sessionId) =>
     this.sessions.get(sessionId)?.commands.commands
+  readFunctions = (sessionId: string) => this.sessions.get(sessionId)?.commands.functions
   readonly atRestCommands: ClaudeStructuredSessionAdapterDeps['atRestCommands']
   holdsDispatch = (sessionId: string): boolean => {
     const session = this.sessions.get(sessionId)

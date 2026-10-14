@@ -1,3 +1,4 @@
+import type { AgentSessionProviderFunction } from './agent-session-provider-functions'
 import type {
   AgentJournalCursor,
   AgentJournalRenderItem,
@@ -66,6 +67,7 @@ export type StructuredAgentSessionState = {
   /** Published with the list: the card the queue sends next once nothing runs, else null. */
   nextQueuedMessageId?: string | null
   commands?: AgentSessionSlashCommand[] | null
+  functions?: AgentSessionProviderFunction[] | null
   activity?: AgentSessionTurnActivity | null
   /** Absent until a frame from a host that stamps `hostNow` has been applied. */
   hostClock?: StructuredAgentHostClock
@@ -193,6 +195,7 @@ export function reduceStructuredAgentSession(
     return {
       ...replacePage(action.page, action.page.fence ?? null, state.backgroundTasks, state.activity),
       commands: state.commands,
+      functions: state.functions,
       // Live subscription state stays authoritative over a possibly stale history answer.
       ...queuePublicationField(state, action.page),
       ...hostClockField(action.page.hostNow, receivedAt, state.hostClock)
@@ -235,6 +238,7 @@ export function reduceStructuredAgentSession(
         event.activity
       ),
       commands: event.commands,
+      functions: event.functions,
       // A snapshot omits the list when unchanged since the last frame sent to this subscriber.
       ...queuePublicationField(event, event.page, state),
       ...hostClockField(event.hostNow, receivedAt, state.hostClock)
@@ -270,6 +274,7 @@ export function reduceStructuredAgentSession(
     subagentRoster === (state.subagentRoster ?? NO_STRUCTURED_AGENT_SUBAGENT_ROSTER) &&
     (event.fence === undefined || event.fence === state.fence) &&
     (event.commands === undefined || event.commands === state.commands) &&
+    (event.functions === undefined || event.functions === state.functions) &&
     (event.queuedMessages === undefined || event.queuedMessages === state.queuedMessages) &&
     (event.queuePause === undefined || event.queuePause === state.queuePause) &&
     (event.nextQueuedMessageId === undefined ||
@@ -309,6 +314,7 @@ export function reduceStructuredAgentSession(
     error: undefined,
     readRefusal: undefined,
     commands: event.commands !== undefined ? event.commands : state.commands,
+    functions: event.functions !== undefined ? event.functions : state.functions,
     latestTurn: latestTurnAfterStructuredAgentSessionBatch(state.latestTurn, event),
     ...queuePublicationField(event, state),
     backgroundTasks,

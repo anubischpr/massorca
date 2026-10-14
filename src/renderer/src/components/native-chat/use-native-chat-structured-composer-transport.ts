@@ -51,6 +51,10 @@ export function useNativeChatStructuredComposerTransport(args: {
       dispatchCommand: (text: string) =>
         dispatchStructuredAgentSessionComposerCommand(text, {
           agent: props.agent,
+          functions: controller.sessionFunctions,
+          skills: controller.sessionCommands
+            ?.filter((entry) => entry.kind === 'skill')
+            .map((entry) => entry.name),
           snapshot: controller.optionSnapshot,
           invokeAction: async (id) => {
             setOptionPickerRequest((current) => ({ id, sequence: (current?.sequence ?? 0) + 1 }))
@@ -68,6 +72,7 @@ export function useNativeChatStructuredComposerTransport(args: {
       optionSnapshot: controller.optionSnapshot,
       optionPickerRequest,
       sessionCommands: controller.sessionCommands,
+      sessionFunctions: controller.sessionFunctions,
       acceptsImages,
       contextUsage: controller.contextUsage,
       worktreeId,

@@ -24,6 +24,7 @@ export type NativeChatPickerItem =
       /** How the provider says the command is invoked, e.g. `<objective>`. */
       argumentHint?: string
       skillCollision: boolean
+      providerFunction?: SlashCommandSuggestion['providerFunction']
     }
   | {
       kind: 'skill'
@@ -85,7 +86,8 @@ export function buildNativeChatPickerItems(
         argumentHint: command.argumentHint
           ? sanitizePickerText(command.argumentHint, 80)
           : undefined,
-        skillCollision: sharedSigil && skillNames.has(command.name)
+        skillCollision: sharedSigil && skillNames.has(command.name),
+        providerFunction: command.providerFunction
       },
       stableOrder: index
     })),

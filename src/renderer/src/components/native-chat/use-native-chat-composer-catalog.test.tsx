@@ -14,6 +14,32 @@ function transport(sessionCommands?: NativeChatStructuredComposerTransport['sess
 }
 
 describe('composer catalog authority', () => {
+  it('projects function origin and availability and drops the prior session catalog', () => {
+    const functions: NonNullable<NativeChatStructuredComposerTransport['sessionFunctions']> = [
+      {
+        name: 'model',
+        provenance: 'orca',
+        availability: 'available',
+        execution: { kind: 'host-operation', operation: 'model' }
+      },
+      {
+        name: 'doctor',
+        provenance: 'provider-session',
+        availability: 'terminal-only',
+        execution: { kind: 'terminal' }
+      }
+    ]
+    const { result, rerender } = renderHook(
+      ({ functions }) =>
+        useNativeChatComposerCatalog('pi', { ...transport(), sessionFunctions: functions }),
+      { initialProps: { functions } }
+    )
+    const items = buildNativeChatPickerItems(result.current.agentCommands, [], '', '/')
+    expect(items.map((entry) => entry.name)).toEqual(['model', 'doctor'])
+    expect(items[1]).toMatchObject({ providerFunction: { availability: 'terminal-only' } })
+    rerender({ functions: [] })
+    expect(result.current.agentCommands).toEqual([])
+  })
   it('keeps PTY and unsupported structured providers on their original catalogs', () => {
     const pty = renderHook(() => useNativeChatComposerCatalog('claude'))
     expect(pty.result.current.agentCommands).toEqual(getVerifiedNativeChatCommands('claude'))

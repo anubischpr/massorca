@@ -7,6 +7,45 @@ import {
 } from './structured-agent-session-composer'
 
 describe('structuredSlashCommands', () => {
+  it('honors executable provider functions and blocks terminal, unverified and unknown routes', async () => {
+    const controller = {
+      snapshot: [],
+      invokeAction: vi.fn(async () => true),
+      setOption: vi.fn(async () => true),
+      skills: ['skill:search'],
+      functions: [
+        {
+          name: 'review',
+          provenance: 'provider-session',
+          availability: 'available',
+          execution: { kind: 'provider-prompt' }
+        },
+        {
+          name: 'doctor',
+          provenance: 'provider-session',
+          availability: 'terminal-only',
+          execution: { kind: 'terminal' }
+        },
+        {
+          name: 'deploy',
+          provenance: 'provider-files',
+          availability: 'unverified',
+          execution: { kind: 'provider-prompt' }
+        }
+      ] as const
+    }
+    for (const name of ['doctor', 'deploy', 'missing']) {
+      expect(
+        await dispatchStructuredAgentSessionComposerCommand(`/${name}`, controller)
+      ).toMatchObject({ handled: true, accepted: false })
+    }
+    for (const name of ['review', 'skill:search']) {
+      expect(
+        await dispatchStructuredAgentSessionComposerCommand(`/${name}`, controller)
+      ).toMatchObject({ handled: false })
+    }
+    expect(controller.setOption).not.toHaveBeenCalled()
+  })
   const hostController = {
     snapshot: [],
     invokeAction: async () => true,

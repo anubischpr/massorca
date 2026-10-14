@@ -4,6 +4,7 @@
 // ago gets a reset while a caught-up one gets a batch from the same publish.
 // Nothing raw reaches a subscriber — every event carries reducer output.
 
+import type { AgentSessionProviderFunction } from '../../../shared/agent-session-provider-functions'
 import type { AgentJournalCursor } from '../../../shared/agent-session-journal-types'
 import type {
   AgentSessionSlashCommand,
@@ -38,6 +39,7 @@ export type Subscriber = {
   cursor: AgentJournalCursor
   fence: number
   commands?: AgentSessionSlashCommand[] | null
+  functions?: AgentSessionProviderFunction[] | null
   /** The last draft list actually SENT — never advanced on a page that withheld
    *  it, or the final replacement would be suppressed by the identity dedup. */
   queuePublication?: QueuePublication
@@ -47,6 +49,7 @@ export type Subscriber = {
 
 export type AgentSessionSubscribersHooks = {
   readCommands?: (sessionId: string) => AgentSessionSlashCommand[] | undefined
+  readFunctions?: (sessionId: string) => AgentSessionProviderFunction[] | undefined
   /** Revision-stable per emit: an unchanged list keeps its reference, so token
    *  streams never re-serialize it; any draft-table write changes it. */
   readQueuePublication?: (sessionId: string) => QueuePublication | undefined
@@ -202,7 +205,10 @@ export class AgentSessionSubscribers {
     const hostNow = this.now()
     for (const sessionId of this.bySession.keys()) {
       for (const subscriber of this.subscribers(sessionId)) {
-        if ((this.hooks.readCommands?.(sessionId) ?? null) !== subscriber.commands) {
+        if (
+          (this.hooks.readCommands?.(sessionId) ?? null) !== subscriber.commands ||
+          (this.hooks.readFunctions?.(sessionId) ?? null) !== subscriber.functions
+        ) {
           this.emit(subscriber, {
             type: 'batch',
             sessionId,
@@ -258,6 +264,7 @@ export class AgentSessionSubscribers {
       )
       subscriber.emit(built.frame)
       subscriber.commands = built.commands
+      subscriber.functions = built.functions
       if (built.attachedQueued) {
         subscriber.queuePublication = built.queued
       }

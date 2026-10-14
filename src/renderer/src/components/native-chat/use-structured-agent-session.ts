@@ -308,6 +308,7 @@ export function useStructuredAgentSession(args: {
     optionSnapshot,
     optionSurface,
     sessionCommands: transportEnabled ? (state.commands ?? undefined) : undefined,
+    sessionFunctions: transportEnabled ? (state.functions ?? undefined) : undefined,
     setStructuredOption,
     /** Why the host's catalog probe says no chat can start here; the chat shows it as a notice. */
     unavailable,
