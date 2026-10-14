@@ -24,18 +24,34 @@ type Fixture = {
   terminateTree: ReturnType<typeof vi.fn>
 }
 
+function assertNullFreeStreams(
+  child: ChildProcess,
+  expected: Pick<ChildProcessWithoutNullStreams, 'stdin' | 'stdout' | 'stderr' | 'stdio'>
+): asserts child is ChildProcessWithoutNullStreams {
+  if (
+    child.stdin !== expected.stdin ||
+    child.stdout !== expected.stdout ||
+    child.stderr !== expected.stderr ||
+    child.stdio !== expected.stdio
+  ) {
+    throw new Error('fixture child streams were not installed')
+  }
+}
+
 function fixture(maxLineBytes?: number): Fixture {
   const stdout = new PassThrough()
   const stdin = new PassThrough()
   const stderr = new PassThrough()
   const stdio: ChildProcessWithoutNullStreams['stdio'] = [stdin, stdout, stderr, null, null]
-  const child: ChildProcessWithoutNullStreams = Object.assign(new ChildProcess(), {
-    pid: 123,
-    stdin,
-    stdout,
-    stderr,
-    stdio
+  const child = new ChildProcess()
+  Object.defineProperties(child, {
+    pid: { value: 123 },
+    stdin: { value: stdin },
+    stdout: { value: stdout },
+    stderr: { value: stderr },
+    stdio: { value: stdio }
   })
+  assertNullFreeStreams(child, { stdin, stdout, stderr, stdio })
   vi.spyOn(child, 'kill').mockReturnValue(true)
   const written: string[] = []
   stdin.setEncoding('utf8').on('data', (chunk: string) => written.push(chunk))
