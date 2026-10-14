@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events'
 import { afterAll, vi } from 'vitest'
 import type { Mock } from 'vitest'
+import type { UpdaterAppMock as AppMock } from './updater-test-app'
 import { clearTrackedRealTimers, trackRealTimers } from './updater-test-timer-tracking'
 
 /** Loose spy signature for the electron/electron-updater calls the suites only assert on. */
@@ -23,16 +24,6 @@ type AutoUpdaterMock = {
   updateConfigPath: string | undefined
   emit: (event: string, ...args: unknown[]) => void
   reset: () => void
-}
-
-type AppMock = {
-  isPackaged: boolean
-  getVersion: Mock<() => string>
-  getAppPath: Mock<() => string>
-  on: Mock<(event: string, handler: (...args: unknown[]) => void) => AppMock>
-  prependListener: Mock<(event: string, handler: (...args: unknown[]) => void) => AppMock>
-  emit: (event: string, ...args: unknown[]) => void
-  quit: UpdaterSpy
 }
 
 type UpdaterModuleFactories = {
