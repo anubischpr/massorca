@@ -20,9 +20,23 @@ export type OpenCodeAgentSessionAccountHome = {
   locator: OpenCodeAccountLocator
 }
 
+export type AntigravityAccountLocator = {
+  home: string
+  credentialStore: 'file' | 'macos-keychain'
+  issuer: 'https://accounts.google.com'
+  subject: string
+  authMethod: string
+}
+
+export type AntigravityAgentSessionAccountHome = {
+  kind: 'antigravity'
+  locator: AntigravityAccountLocator
+}
+
 export type AgentSessionAccountHome =
   | LegacyAgentSessionAccountHome
   | OpenCodeAgentSessionAccountHome
+  | AntigravityAgentSessionAccountHome
 
 export function isLegacyAgentSessionAccountHome(
   home: AgentSessionAccountHome
@@ -51,6 +65,19 @@ export function agentSessionAccountHomesEqual(
     )
   }
   if (isLegacyAgentSessionAccountHome(right)) {
+    return false
+  }
+  if (left.kind === 'antigravity') {
+    return (
+      right.kind === 'antigravity' &&
+      left.locator.home === right.locator.home &&
+      left.locator.credentialStore === right.locator.credentialStore &&
+      left.locator.issuer === right.locator.issuer &&
+      left.locator.subject === right.locator.subject &&
+      left.locator.authMethod === right.locator.authMethod
+    )
+  }
+  if (right.kind !== 'opencode') {
     return false
   }
   if (left.locator.kind === 'managed') {
@@ -111,16 +138,32 @@ export function isAgentSessionAccountHome(value: unknown): value is AgentSession
     )
   }
   if (
-    value.kind !== 'opencode' ||
+    (value.kind !== 'opencode' && value.kind !== 'antigravity') ||
     !('locator' in value) ||
     typeof value.locator !== 'object' ||
     value.locator === null ||
-    Array.isArray(value.locator) ||
-    !('kind' in value.locator)
+    Array.isArray(value.locator)
   ) {
     return false
   }
   const locator = value.locator
+  if (value.kind === 'antigravity') {
+    return (
+      'home' in locator &&
+      isBoundedAccountString(locator.home, MAX_PATH_LENGTH) &&
+      'credentialStore' in locator &&
+      (locator.credentialStore === 'file' || locator.credentialStore === 'macos-keychain') &&
+      'issuer' in locator &&
+      locator.issuer === 'https://accounts.google.com' &&
+      'subject' in locator &&
+      isBoundedAccountString(locator.subject, 512) &&
+      'authMethod' in locator &&
+      isBoundedAccountString(locator.authMethod, 128)
+    )
+  }
+  if (!('kind' in locator)) {
+    return false
+  }
   if (locator.kind === 'managed') {
     return (
       'managedProfileId' in locator &&
