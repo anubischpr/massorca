@@ -33,6 +33,7 @@ import {
 } from '../agent-session-journal/journal-host-database-test-support'
 import { claudeProviderHandle } from '../../../shared/agent-session-provider-handle-encoding'
 import { NO_STRUCTURED_AGENTS } from './structured-agent-session-adapter-router-test-support'
+import type { AgentSessionProviderFunction } from '../../../shared/agent-session-provider-functions'
 
 const caller = { callerKey: 'desktop' }
 const CLAUDE_SESSION = '819cf9f8-e43c-4ad7-b50f-54aa158a726a'
@@ -158,6 +159,66 @@ afterEach(async () => {
 })
 
 describe("a Claude chat whose Claude isn't running shows the `/` surface from its folders", () => {
+  it('publishes function-only changes while retaining command identity and common precedence', async () => {
+    await host.flushAllStreamedEvents()
+    const catalog = catalogFor(workspace)
+    const commands: AgentSessionSlashCommand[] = [{ name: 'review', kind: 'command' }]
+    let functions: AgentSessionProviderFunction[] = [
+      {
+        name: 'review',
+        provenance: 'provider-files',
+        availability: 'unverified',
+        execution: { kind: 'provider-prompt' }
+      }
+    ]
+    let changed = (): void => {}
+    vi.spyOn(catalog, 'read').mockReturnValue(commands)
+    vi.spyOn(catalog, 'readFunctions').mockImplementation(() => functions)
+    vi.spyOn(catalog, 'onChange').mockImplementation((listener) => {
+      changed = listener
+      return () => {}
+    })
+    await openHost(catalog)
+    const events: AgentSessionSubscribeEvent[] = []
+    const unsubscribe = await host.subscribe({
+      id: 'function-pane',
+      sessionId: SESSION,
+      emit: (event) => events.push(event)
+    })
+    const initial = host.readCommands(SESSION).functions
+    expect(initial).toContainEqual(functions[0])
+    expect(host.readCommands(SESSION).commands).toBe(commands)
+    functions = [
+      {
+        name: 'review',
+        provenance: 'provider-files',
+        availability: 'terminal-only',
+        execution: { kind: 'terminal' }
+      },
+      {
+        name: 'clear',
+        provenance: 'provider-files',
+        availability: 'terminal-only',
+        execution: { kind: 'terminal' }
+      }
+    ]
+    changed()
+    await vi.waitFor(() => expect(events.filter((event) => 'functions' in event)).toHaveLength(2))
+    const refreshed = host.readCommands(SESSION)
+    expect(refreshed.commands).toBe(commands)
+    expect(refreshed.functions).not.toBe(initial)
+    expect(refreshed.functions).toContainEqual(functions[0])
+    expect(refreshed.functions?.find((entry) => entry.name === 'clear')).toMatchObject({
+      provenance: 'orca',
+      availability: 'available'
+    })
+    functions = functions.map((entry) => ({ ...entry }))
+    expect(host.readCommands(SESSION).functions).toBe(refreshed.functions)
+    changed()
+    expect(events.filter((event) => 'functions' in event)).toHaveLength(2)
+    unsubscribe()
+  })
+
   it('after /clear, before the fresh agent context starts', async () => {
     const cleared = await host.conversationCommand(caller, {
       command: 'clear',

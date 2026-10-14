@@ -30,7 +30,10 @@ import {
 
 /** Owns every host-to-client publication edge, including compatibility waits. */
 export class StructuredAgentSessionClientDelivery {
-  private readonly functionCatalogs = new Map<string, AgentSessionCommandsResult>()
+  private readonly functionCatalogs = new Map<
+    string,
+    AgentSessionCommandsResult & { reportedFingerprint: string | undefined }
+  >()
   readonly subscribers: AgentSessionSubscribers
   readonly waitForSendSettlement: StructuredAgentSessionSendSettlement['wait']
   private stopAtRestCommandUpdates: () => void = () => undefined
@@ -102,14 +105,21 @@ export class StructuredAgentSessionClientDelivery {
   readFunctions(sessionId: string) {
     const { adapter, store, agents } = this.deps()
     const commands = this.readCommands(sessionId)
-    const cached = this.functionCatalogs.get(sessionId)
-    if (cached && cached.commands === commands) {
-      return cached.functions
-    }
     const record = store.getRecord(sessionId)
     const definition = record && agents.definition(record.provider)
     if (!record || !definition) {
       return undefined
+    }
+    const reportedCatalog =
+      adapter.readFunctions?.(sessionId) ?? adapter.atRestCommands?.readFunctions?.(record)
+    const reportedFingerprint = JSON.stringify(reportedCatalog)
+    const cached = this.functionCatalogs.get(sessionId)
+    if (
+      cached &&
+      cached.commands === commands &&
+      cached.reportedFingerprint === reportedFingerprint
+    ) {
+      return cached.functions
     }
     const commonCommands = structuredSlashCommands(
       definition.capabilities.compact ? ['clear', 'compact'] : ['clear'],
@@ -120,8 +130,7 @@ export class StructuredAgentSessionClientDelivery {
       []
     const names = new Set(common.map((entry) => entry.name))
     const reported =
-      adapter.readFunctions?.(sessionId) ??
-      adapter.atRestCommands?.readFunctions?.(record) ??
+      reportedCatalog ??
       classifyAgentSessionFunctions({
         commands: commands ?? [],
         source:
@@ -129,7 +138,7 @@ export class StructuredAgentSessionClientDelivery {
       }) ??
       []
     const functions = [...common, ...reported.filter((entry) => !names.has(entry.name))]
-    this.functionCatalogs.set(sessionId, { commands, functions })
+    this.functionCatalogs.set(sessionId, { commands, functions, reportedFingerprint })
     return functions
   }
 
