@@ -95,6 +95,7 @@ function decodeView(value: unknown): AgentChildWorkView | null {
   const model = text(view.model)
   const lastMessage = text(view.lastMessage)
   const parentChildWorkId = text(view.parentChildWorkId)
+  const ownership = arm(['main', 'child', 'unverifiable'] as const, view.ownership)
   const totalTokens = clock(view.totalTokens)
   return {
     id,
@@ -108,6 +109,7 @@ function decodeView(value: unknown): AgentChildWorkView | null {
       : {}),
     ...(lastMessage ? { lastMessage } : {}),
     ...(parentChildWorkId ? { parentChildWorkId } : {}),
+    ...(view.ownership !== undefined ? { ownership: ownership ?? 'unverifiable' } : {}),
     kind: arm(KINDS, view.kind) ?? 'unknown',
     state: settled ? 'done' : state,
     membership: membership ?? 'live',
@@ -167,6 +169,7 @@ function viewsEqual(a: AgentChildWorkView, b: AgentChildWorkView, clockTolerance
     operationsEqual(a.operation, b.operation, clockToleranceMs) &&
     a.lastMessage === b.lastMessage &&
     a.parentChildWorkId === b.parentChildWorkId &&
+    a.ownership === b.ownership &&
     a.firstObservedAt === b.firstObservedAt &&
     Math.abs(a.observedAt - b.observedAt) <= clockToleranceMs &&
     a.settledAt === b.settledAt &&

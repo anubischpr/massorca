@@ -38,6 +38,14 @@ const SETTLED: AgentChildWorkView = {
 }
 
 describe('decodeAgentChildWorkViews', () => {
+  it('preserves explicit ownership and degrades unknown future provenance', () => {
+    expect(decodeAgentChildWorkViews([{ ...LIVE, ownership: 'main' }])?.[0].ownership).toBe('main')
+    expect(decodeAgentChildWorkViews([{ ...LIVE, ownership: 'future-owner' }])?.[0].ownership).toBe(
+      'unverifiable'
+    )
+    expect(decodeAgentChildWorkViews([LIVE])?.[0].ownership).toBeUndefined()
+    expect(agentChildWorkViewsEqual([LIVE], [{ ...LIVE, ownership: 'main' }])).toBe(false)
+  })
   it('reads what this build publishes unchanged', () => {
     expect(decodeAgentChildWorkViews(JSON.parse(JSON.stringify([LIVE, SETTLED])))).toEqual([
       LIVE,

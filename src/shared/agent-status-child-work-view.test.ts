@@ -66,6 +66,17 @@ function alias(
 }
 
 describe('projectAgentChildWorkViews', () => {
+  it('preserves main versus unresolved child ownership provenance', () => {
+    const views = projectAgentChildWorkViews(
+      [
+        record('main'),
+        record('owned', { parentChildWorkId: 'main' }),
+        record('orphan', { parentChildWorkId: 'missing' })
+      ],
+      []
+    )
+    expect(views.map((view) => view.ownership)).toEqual(['main', 'child', 'unverifiable'])
+  })
   it('keeps Codex foreground commands in status records but out of all surface views', () => {
     const foreground = record('foreground', {
       provider: 'codex',
@@ -113,6 +124,7 @@ describe('projectAgentChildWorkViews', () => {
     )
     expect(view).toEqual({
       id: 'child-1',
+      ownership: 'main',
       providerId: 'task-1',
       kind: 'agent',
       name: 'researcher',
