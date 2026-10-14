@@ -5,6 +5,7 @@ import {
   requireLegacyAgentSessionAccountHome
 } from '../../shared/agent-session-account-home'
 import type { AgentSessionSlashCommand } from '../../shared/agent-session-wire'
+import { classifyAgentSessionFunctions } from '../../shared/agent-session-provider-functions'
 import { structuredSlashCommands } from '../../shared/structured-agent-session-composer'
 import { discoverSkills } from '../skills/discovery'
 import { scanClaudeCommandFolders } from './claude-command-folder-scan'
@@ -82,6 +83,18 @@ export class ClaudeAtRestCommandCatalog {
   onChange = (listener: () => void): (() => void) => {
     this.listeners.add(listener)
     return () => this.listeners.delete(listener)
+  }
+
+  readFunctions = (record: AgentSessionRecord) => {
+    const commands = this.read(record)
+    const commonNames = new Set(
+      structuredSlashCommands(['clear', 'compact'], 'claude').map((c) => c.name)
+    )
+    return classifyAgentSessionFunctions({
+      commands,
+      source: 'provider-files',
+      commonCommands: commands?.filter((command) => commonNames.has(command.name))
+    })
   }
 
   private scanInto(entry: Entry, record: AgentSessionRecord): void {

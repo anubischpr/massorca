@@ -27,7 +27,10 @@ import {
   hostTestOperationId,
   resetHostTestOperationIds
 } from './structured-agent-session-host-test-data'
-import { openTestJournalHostDatabase } from '../agent-session-journal/journal-host-database-test-support'
+import {
+  closeTestJournalHostDatabase,
+  openTestJournalHostDatabase
+} from '../agent-session-journal/journal-host-database-test-support'
 import { claudeProviderHandle } from '../../../shared/agent-session-provider-handle-encoding'
 import { NO_STRUCTURED_AGENTS } from './structured-agent-session-adapter-router-test-support'
 
@@ -40,6 +43,7 @@ let account: string
 let clock: number
 let store: AgentSessionRecordStore
 let host: StructuredAgentSessionHost
+let activeCatalog: ClaudeAtRestCommandCatalog
 
 /** Claude is never running here, so the only `/` surface is the one read from its folders. */
 function adapter(catalog: ClaudeAtRestCommandCatalog): StructuredAgentSessionAdapter {
@@ -84,6 +88,7 @@ function catalogFor(workspacePath: string): ClaudeAtRestCommandCatalog {
 }
 
 async function openHost(catalog = catalogFor(workspace)): Promise<void> {
+  activeCatalog = catalog
   store = await openTestAgentSessionRecordStore(directory)
   host = new StructuredAgentSessionHost({
     agents: NO_STRUCTURED_AGENTS,
@@ -148,6 +153,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await host.flushAllStreamedEvents()
+  closeTestJournalHostDatabase(directory)
   await rm(directory, { recursive: true, force: true })
 })
 
@@ -172,6 +178,16 @@ describe("a Claude chat whose Claude isn't running shows the `/` surface from it
     expect(namesOf(menu, 'skill')).toEqual(['review-pr'])
     // Everything the menu offered before a list existed, then what the folders add.
     expect(namesOf(menu, 'command')).toEqual(['model', 'effort', 'clear', 'compact', 'deploy'])
+    const functions = activeCatalog.readFunctions(store.getRecord(SESSION)!)
+    expect(functions?.find((entry) => entry.name === 'model')).toMatchObject({
+      provenance: 'orca',
+      availability: 'available'
+    })
+    expect(functions?.find((entry) => entry.name === 'deploy')).toMatchObject({
+      provenance: 'provider-files',
+      availability: 'unverified'
+    })
+    expect(functions?.some((entry) => entry.name === 'review-pr')).toBe(false)
   })
 
   it('keeps a slow scan once it answers, never a staler one after a newer, and runs at most two', async () => {

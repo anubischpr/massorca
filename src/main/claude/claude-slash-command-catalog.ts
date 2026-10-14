@@ -1,4 +1,5 @@
 import type { AgentSessionSlashCommand } from '../../shared/agent-session-wire'
+import { classifyAgentSessionFunctions } from '../../shared/agent-session-provider-functions'
 
 // Stream init carries name arrays; control initialization and reloads carry descriptors.
 const MAX_COMMANDS = 512
@@ -107,6 +108,8 @@ export class ClaudeSlashCommandCatalog {
   private hasSkillClassification = false
   private hidden = new Set<string>()
   private commandNames = new Set<string>()
+  private reportedNames = new Set<string>()
+  private reportedSkills = new Set<string>()
   private details = new Map<string, CommandDetail>()
 
   constructor(initMessage?: Record<string, unknown>, initialization?: unknown) {
@@ -118,6 +121,7 @@ export class ClaudeSlashCommandCatalog {
       Array.isArray(initialization.commands)
     ) {
       const catalog = descriptorCatalog(initialization.commands)
+      this.reportedNames = new Set(catalog.names)
       this.details = catalog.details
       this.entries = this.describe(
         catalog.names.map((name) => ({
@@ -136,6 +140,16 @@ export class ClaudeSlashCommandCatalog {
     return this.entries
   }
 
+  get functions() {
+    return classifyAgentSessionFunctions({
+      commands: this.entries,
+      source: this.hasSkillClassification ? 'provider-session' : 'provider-initialization',
+      terminalCommands: [...this.hidden]
+        .filter((name) => this.reportedNames.has(name) && !this.reportedSkills.has(name))
+        .map((name) => ({ name, ...this.details.get(name) }))
+    })
+  }
+
   /** Provider row text, carried across the name-only frames that never restate it. */
   private describe(entries: AgentSessionSlashCommand[]): AgentSessionSlashCommand[] {
     return entries.map((entry) => ({ ...entry, ...this.details.get(entry.name) }))
@@ -143,10 +157,14 @@ export class ClaudeSlashCommandCatalog {
 
   /** True when this frame replaced the catalog with a different one. */
   observe(message: Record<string, unknown>): boolean {
+    const previousEntries = this.entries
+    const previousFunctions = JSON.stringify(this.functions)
     let next: AgentSessionSlashCommand[]
     if (carriesCommandCatalog(message)) {
       this.hasSkillClassification = true
       this.hidden = new Set(names(message.terminal_slash_commands))
+      this.reportedNames = new Set(names(message.slash_commands))
+      this.reportedSkills = new Set(names(message.skills))
       next = this.describe(readClaudeSlashCommands(message))
       this.commandNames = new Set(
         next.filter((entry) => entry.kind === 'command').map((entry) => entry.name)
@@ -157,6 +175,7 @@ export class ClaudeSlashCommandCatalog {
       Array.isArray(message.commands)
     ) {
       const catalog = descriptorCatalog(message.commands)
+      this.reportedNames = new Set(catalog.names)
       this.details = catalog.details
       next = this.describe(
         catalog.names
@@ -170,21 +189,23 @@ export class ClaudeSlashCommandCatalog {
     } else {
       return false
     }
+    this.entries = next
     if (
-      this.entries !== undefined &&
-      next.length === this.entries.length &&
+      previousFunctions === JSON.stringify(this.functions) &&
+      previousEntries !== undefined &&
+      next.length === previousEntries.length &&
       next.every(
         (entry, index) =>
-          entry.name === this.entries?.[index]?.name &&
-          entry.kind === this.entries?.[index]?.kind &&
-          entry.kindUnspecified === this.entries?.[index]?.kindUnspecified &&
-          entry.description === this.entries?.[index]?.description &&
-          entry.argumentHint === this.entries?.[index]?.argumentHint
+          entry.name === previousEntries[index]?.name &&
+          entry.kind === previousEntries[index]?.kind &&
+          entry.kindUnspecified === previousEntries[index]?.kindUnspecified &&
+          entry.description === previousEntries[index]?.description &&
+          entry.argumentHint === previousEntries[index]?.argumentHint
       )
     ) {
+      this.entries = previousEntries
       return false
     }
-    this.entries = next
     return true
   }
 }
