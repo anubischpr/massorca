@@ -219,6 +219,7 @@ module.exports = {
     '!config{,/**/*}',
     // Release archives and other build staging are not runtime resources.
     '!.build{,/**/*}',
+    '!dist{,/**/*}',
     '!docs{,/**/*}',
     '!mobile{,/**/*}',
     '!native{,/**/*}',
@@ -239,6 +240,8 @@ module.exports = {
     '!pr-evidence{,/**/*}',
     // Local build logs and rollback copies are never application resources.
     '!notes{,/**/*}',
+    // Private task records and live SQLite indexes are never runtime inputs.
+    '!{odd,.codegraph}{,/**/*}',
     // Why: local agent/tooling directories may contain worktree symlink loops;
     // they are never runtime inputs and must not be traversed by electron-builder.
     '!{.claude,.grok,.agents,.codex}{,/**/*}',
