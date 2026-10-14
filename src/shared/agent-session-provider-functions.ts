@@ -17,7 +17,7 @@ export type AgentSessionProviderFunction = FunctionDescription &
         execution: { kind: 'provider-prompt' }
       }
     | {
-        provenance: ProviderSource
+        provenance: ProviderSource | 'orca'
         availability: 'terminal-only'
         execution: { kind: 'terminal' }
       }
