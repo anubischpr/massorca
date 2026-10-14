@@ -54,6 +54,7 @@ export type AgentSessionSubscribersHooks = {
    *  streams never re-serialize it; any draft-table write changes it. */
   readQueuePublication?: (sessionId: string) => QueuePublication | undefined
   readBackgroundTasks?: SubscriberFieldHooks['readBackgroundTasks']
+  readCommandActivity?: SubscriberFieldHooks['readCommandActivity']
   /** Fires after publications that can change journal content. */
   onJournalPublished?: (sessionId: string, journal: AgentSessionJournal) => void
   now?: () => number
@@ -182,7 +183,11 @@ export class AgentSessionSubscribers {
     if (state === undefined) {
       return
     }
-    const fingerprint = backgroundTaskFingerprint(state)
+    const fingerprint =
+      backgroundTaskFingerprint(state) +
+      (this.hooks.readCommandActivity
+        ? JSON.stringify(this.hooks.readCommandActivity(sessionId))
+        : '')
     const hostNow = this.now()
     for (const subscriber of this.subscribers(sessionId)) {
       if (subscriber.backgroundTasks === fingerprint) {
@@ -269,7 +274,11 @@ export class AgentSessionSubscribers {
         subscriber.queuePublication = built.queued
       }
       if (built.backgroundTasks !== undefined) {
-        subscriber.backgroundTasks = built.backgroundTasks
+        subscriber.backgroundTasks =
+          built.backgroundTasks +
+          (this.hooks.readCommandActivity
+            ? JSON.stringify(this.hooks.readCommandActivity(subscriber.sessionId))
+            : '')
       }
     } catch {
       this.drop(subscriber)

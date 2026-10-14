@@ -20,6 +20,8 @@ vi.mock('node:fs', async (importOriginal) => {
 
 import {
   createCodexSubagentTranscriptState,
+  createCodexChildConfigurationReader,
+  readRecordedChildTurnConfiguration,
   hasTrackedCodexTranscriptSubagents,
   reconcileCodexSubagentTranscript
 } from './codex-subagent-transcript'
@@ -287,5 +289,78 @@ describe('Codex subagent transcript reconciliation', () => {
       expect(openSyncCalls).toHaveBeenCalledTimes(2)
       expect(codexRosterToSnapshots(roster)?.[0]?.model).toBe('gpt-5.6-terra')
     })
+  })
+})
+
+describe('recorded managed-child configuration', () => {
+  const dirs: string[] = []
+  afterEach(() => {
+    for (const dir of dirs.splice(0)) {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+  const context = (turn: string, fields: Record<string, unknown> = {}) => ({
+    type: 'turn_context',
+    timestamp: '2026-10-14T01:00:00Z',
+    payload: { turn_id: turn, ...fields }
+  })
+  it('retains same-turn values but never borrows a preceding turn or parent configuration', () => {
+    const previous = readRecordedChildTurnConfiguration(
+      [context('one', { model: 'child-model', effort: 'medium' })],
+      'one'
+    )
+    expect(previous).toMatchObject({
+      source: 'recorded-turn-context',
+      model: 'child-model',
+      effort: 'medium'
+    })
+    expect(readRecordedChildTurnConfiguration([], 'one', previous)).toEqual(previous)
+    expect(readRecordedChildTurnConfiguration([], 'two', previous)).toBeNull()
+    expect(
+      readRecordedChildTurnConfiguration([context('parent', { model: 'parent-model' })], 'two')
+    ).toBeNull()
+    expect(readRecordedChildTurnConfiguration([context('two')], 'two', previous)).toEqual({
+      source: 'recorded-turn-context',
+      turnId: 'two',
+      observedAt: Date.parse('2026-10-14T01:00:00Z')
+    })
+  })
+  it('updates same-turn changes and rejects missing timestamps', () => {
+    const old = readRecordedChildTurnConfiguration(
+      [context('one', { model: 'old', effort: 'low' })],
+      'one'
+    )
+    expect(
+      readRecordedChildTurnConfiguration([context('one', { model: 'new' })], 'one', old)
+    ).toMatchObject({ model: 'new', effort: 'low' })
+    expect(
+      readRecordedChildTurnConfiguration(
+        [{ type: 'turn_context', payload: { turn_id: 'one', model: 'unknown' } }],
+        'one'
+      )
+    ).toBeNull()
+  })
+  it('reads only the named child file incrementally and clears on a new run', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'codex-recorded-config-'))
+    dirs.push(dir)
+    const parentPath = join(dir, 'rollout-parent.jsonl')
+    writeFileSync(parentPath, jsonl([context('root', { model: 'parent-secret-model' })]))
+    const childPath = join(dir, `rollout-child-${CHILD_ID}.jsonl`)
+    writeFileSync(childPath, jsonl([context('one', { model: 'child-model', effort: 'medium' })]))
+    const read = createCodexChildConfigurationReader(parentPath)
+    expect(read(CHILD_ID, 'one')).toMatchObject({ model: 'child-model', effort: 'medium' })
+    expect(read(CHILD_ID, 'one')).toMatchObject({ model: 'child-model' })
+    expect(read(CHILD_ID, 'two')).toBeNull()
+    expect(read('other-child', 'one')).toBeNull()
+    expect(read('../outside', 'one')).toBeNull()
+    writeFileSync(
+      childPath,
+      jsonl([
+        context('one', { model: 'child-model', effort: 'medium' }),
+        context('two', { effort: 'high' })
+      ])
+    )
+    expect(read(CHILD_ID, 'two')).toMatchObject({ effort: 'high' })
+    expect(read(CHILD_ID, 'two')?.model).toBeUndefined()
   })
 })

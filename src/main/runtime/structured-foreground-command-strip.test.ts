@@ -66,7 +66,8 @@ describe('foreground commands in the background-task channel', () => {
         forget: (subject) => server.dropStructuredStatus(subject),
         publishChildWork: (subject, evidence, provider) =>
           server.ingestStructuredChildWork(subject, evidence, provider),
-        readChildWork: (subject) => server.getStructuredChildWorkViews(subject)
+        readChildWork: (subject, includeForeground) =>
+          server.getStructuredChildWorkViews(subject, includeForeground)
       }
     })
     const params = hostTestAttachParams(null, { providerHandle: undefined })
@@ -94,9 +95,9 @@ describe('foreground commands in the background-task channel', () => {
     }
     const turn = (method: string, id: string) =>
       notify(method, { threadId: THREAD_ID, turn: { id, status: 'completed' } })
-    const command = (method: string, id: string, turnId = 'turn-1') =>
+    const command = (method: string, id: string, turnId = 'turn-1', threadId = THREAD_ID) =>
       notify(method, {
-        threadId: THREAD_ID,
+        threadId,
         turnId,
         item: {
           type: 'commandExecution',
@@ -106,7 +107,7 @@ describe('foreground commands in the background-task channel', () => {
           status: method === 'item/completed' ? 'completed' : 'inProgress'
         }
       })
-    return { host, rosters, turn, command }
+    return { host, rosters, turn, command, notify }
   }
 
   it('never publishes a strip between a quick command starting and completing', async () => {
@@ -123,7 +124,13 @@ describe('foreground commands in the background-task channel', () => {
       // Observe every publication, including the start frame before the completion arrives.
       expect(rosters.every((roster) => roster === null)).toBe(true)
       expect(page.page.backgroundTasks).toBeNull()
+      expect(page.page.commandActivity).toContainEqual(
+        expect.objectContaining({ kind: 'command', ownership: 'main', membership: 'live' })
+      )
       await command('item/completed', id)
+      expect(
+        (await host.history({ sessionId: SESSION, direction: 'tail' })).page.commandActivity
+      ).toEqual([])
     }
     await turn('turn/completed', 'turn-1')
     expect(rosters.every((roster) => roster === null)).toBe(true)
@@ -143,5 +150,47 @@ describe('foreground commands in the background-task channel', () => {
     await command('item/completed', 'pwd', 'turn-2')
     await command('item/completed', 'server')
     expect(rosters.at(-1)).toBeNull()
+  })
+  it('publishes root and explicitly owned child commands while preserving the strip', async () => {
+    const { host, turn, command, notify } = await rig()
+    const child = 'owned-child'
+    await turn('turn/started', 'turn-1')
+    await notify('item/started', {
+      threadId: THREAD_ID,
+      turnId: 'turn-1',
+      item: {
+        type: 'subAgentActivity',
+        id: 'spawn-child',
+        kind: 'started',
+        agentThreadId: child,
+        agentPath: '/root/worker'
+      }
+    })
+    await notify('turn/started', {
+      threadId: child,
+      turn: { id: 'child-turn', status: 'inProgress' }
+    })
+    await command('item/started', 'main-command')
+    await command('item/started', 'child-command', 'child-turn', child)
+    const page = await host.history({ sessionId: SESSION, direction: 'tail' })
+    const views = page.page.commandActivity ?? []
+    expect(views.filter((v) => v.kind === 'command')).toHaveLength(2)
+    const agent = views.find((v) => v.kind === 'agent')
+    expect(agent).toBeDefined()
+    expect(
+      views.find((v) => v.description === 'git status --short --branch' && v.ownership === 'child')
+        ?.parentChildWorkId
+    ).toBe(agent?.id)
+    expect(page.page.backgroundTasks?.children?.every((v) => v.kind !== 'command')).toBe(true)
+    await command('item/completed', 'main-command')
+    await command('item/completed', 'child-command', 'child-turn', child)
+    await notify('turn/completed', {
+      threadId: child,
+      turn: { id: 'child-turn', status: 'completed' }
+    })
+    await turn('turn/completed', 'turn-1')
+    expect(
+      (await host.history({ sessionId: SESSION, direction: 'tail' })).page.commandActivity
+    ).toEqual([])
   })
 })

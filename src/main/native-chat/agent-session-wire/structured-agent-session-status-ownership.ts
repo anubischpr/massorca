@@ -24,7 +24,10 @@ export type StructuredAgentSessionStatusSink = {
     provider: AgentSessionRecord['provider']
   ) => void
   /** The child records the sink holds for that subject, as the views every surface reads. */
-  readChildWork?: (subject: AgentStatusStructuredSessionSubject) => AgentChildWorkView[]
+  readChildWork?: (
+    subject: AgentStatusStructuredSessionSubject,
+    includeForegroundCommands?: boolean
+  ) => AgentChildWorkView[]
 }
 
 /** Retain the owner address because record removal may precede the final status callback. */
@@ -90,9 +93,14 @@ export class StructuredAgentSessionStatusOwnership {
   }
 
   /** Undefined until the parent row has landed: a sink holds no children for a parent it lacks. */
-  readChildWork(sessionId: string): AgentChildWorkView[] | undefined {
+  readChildWork(
+    sessionId: string,
+    includeForegroundCommands = false
+  ): AgentChildWorkView[] | undefined {
     const subject = this.subjects.get(sessionId)
-    return subject && this.landed.has(sessionId) ? this.sink()?.readChildWork?.(subject) : undefined
+    return subject && this.landed.has(sessionId)
+      ? this.sink()?.readChildWork?.(subject, includeForegroundCommands)
+      : undefined
   }
 
   forget(sessionId: string): void {

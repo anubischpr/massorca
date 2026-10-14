@@ -7,6 +7,7 @@ import { structuredSlashCommands } from '../../../shared/structured-agent-sessio
 import { isTuiAgent } from '../../../shared/tui-agent-config'
 import { AgentSessionRefusalError } from '../../../shared/agent-session-wire-refusals'
 import type { AgentChildWorkEvidence } from '../../../shared/agent-status-child-work-evidence'
+import { structuredRunningChildWork } from '../../../shared/agent-child-work-listing'
 import type { AgentChildWorkView } from '../../../shared/agent-status-child-work-view'
 import type { AgentSessionJournal } from '../agent-session-journal/journal-store'
 import type { SubscriberFieldHooks } from './agent-session-subscriber-frame-fields'
@@ -78,6 +79,8 @@ export class StructuredAgentSessionClientDelivery {
           structuredQueueSendGate(this.deps().store, sessionId)
         ),
       readBackgroundTasks,
+      readCommandActivity: (sessionId) =>
+        structuredRunningChildWork(this.readChildWork(sessionId, true) ?? []),
       onJournalPublished: (sessionId, journal) => this.publishJournal(sessionId, journal)
     })
   }
@@ -154,8 +157,11 @@ export class StructuredAgentSessionClientDelivery {
     return projection?.stopping === true && projection.state.summary.status === 'working'
   }
 
-  readChildWork = (sessionId: string): AgentChildWorkView[] | undefined =>
-    this.statusFeed.readChildWork(sessionId)
+  readChildWork = (
+    sessionId: string,
+    includeForegroundCommands = false
+  ): AgentChildWorkView[] | undefined =>
+    this.statusFeed.readChildWork(sessionId, includeForegroundCommands)
 
   publishStatusAndSettlement = (sessionId: string): void => {
     this.statusFeed.publish(sessionId)

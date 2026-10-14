@@ -1,4 +1,6 @@
 import { basename, dirname, extname, isAbsolute, join } from 'node:path'
+import type { RecordedAgentTurnConfiguration } from './agent-recorded-turn-configuration'
+import { retainRecordedChildTurnConfigurations } from './codex-recorded-turn-configuration'
 
 import {
   readJsonlCursor,
@@ -152,6 +154,36 @@ function readChildModel(records: JsonRecord[]): string | undefined {
     }
   }
   return model
+}
+
+export { readRecordedChildTurnConfiguration } from './codex-recorded-turn-configuration'
+
+/** Bound to a provider-owned parent rollout and only explicitly announced child ids. */
+export function createCodexChildConfigurationReader(parentPath: string | undefined) {
+  const children = new Map<
+    string,
+    { cursor: JsonlCursor; configurations: Map<string, RecordedAgentTurnConfiguration> }
+  >()
+  return (threadId: string, turnId: string): RecordedAgentTurnConfiguration | null => {
+    const parent = normalizedTranscriptPath(parentPath)
+    if (!parent || !SAFE_THREAD_ID.test(threadId)) {
+      return null
+    }
+    let child = children.get(threadId)
+    if (!child) {
+      if (children.size >= 128) {
+        return null
+      }
+      child = { cursor: { offset: 0, carry: '' }, configurations: new Map() }
+      children.set(threadId, child)
+    }
+    child.cursor.filePath ??= resolveChildTranscript(parent, threadId, Date.now(), new Map())
+    const records = readJsonlCursor(child.cursor, isCodexStatusTranscriptLine)
+    if (records) {
+      retainRecordedChildTurnConfigurations(records, child.configurations)
+    }
+    return child.configurations.get(turnId) ?? null
+  }
 }
 
 function normalizedTranscriptPath(transcriptPath: string | undefined): string | undefined {

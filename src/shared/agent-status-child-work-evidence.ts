@@ -1,3 +1,4 @@
+import type { RecordedAgentTurnConfiguration } from './agent-recorded-turn-configuration'
 // What a structured provider said about its child work, in the child-work vocabulary.
 //
 // A producer decodes provider frames into these edges and the host folds them into the one
@@ -34,6 +35,7 @@ export type AgentChildWorkLiveObservation = {
   name?: string
   description?: string
   agentType?: string
+  recordedConfiguration?: RecordedAgentTurnConfiguration | null
   totalTokens?: number
   /** `null`: the operation that was open has ended. Absent: this edge says nothing about it. */
   operation?: AgentChildWorkOperation | null

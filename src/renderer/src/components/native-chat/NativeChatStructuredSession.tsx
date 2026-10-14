@@ -58,6 +58,8 @@ import { useNativeChatHostOutageNotice } from './use-native-chat-host-outage-not
 import { useNativeChatAvailabilityNotice } from './use-native-chat-availability-notice'
 import { useStructuredAgentSessionStartFailureFacts } from './use-structured-agent-session-start-failure-facts'
 import { pendingPromptsAllUnanswerableHere } from '../../../../shared/agent-session-approval-subject'
+import { NativeChatCodexBackgroundPanel } from './NativeChatCodexBackgroundPanel'
+import { useStructuredSessionChildRowContext } from './use-structured-session-child-row-context'
 
 export function NativeChatStructuredSession(
   props: Omit<NativeChatStructuredViewProps, 'mode'>
@@ -72,6 +74,7 @@ export function NativeChatStructuredSession(
     () => structuredAgentSessionPaneKey(props.tabId, props.sessionId),
     [props.sessionId, props.tabId]
   )
+  const backgroundRowContext = useStructuredSessionChildRowContext(paneKey)
   // Chat-wide: absent means on; only an explicit off keeps mid-turn sends immediate.
   const queueFollowUps = useAppStore((store) => store.settings?.nativeChatQueueFollowUps !== false)
   const composerRef = useRef<NativeChatComposerHandle>(null)
@@ -261,47 +264,58 @@ export function NativeChatStructuredSession(
       style={appearanceStyle}
       data-native-chat-scheme={appearanceStyle.colorScheme}
     >
-      <div className="relative flex min-h-0 flex-1 flex-col">
-        {find.isOpen ? <NativeChatFindBar find={find} isVisible={props.isVisible} /> : null}
-        {viewState.kind === 'loading' || (viewState.kind === 'error' && !readFailure) ? (
-          loadingPane
-        ) : viewState.kind === 'error' ? (
-          <NativeChatEmptyState
-            kind="error"
-            retrying={!readFailure?.final}
-            {...(readFailure?.named ? { headline: readFailure.text } : {})}
+      <div className="flex min-h-0 flex-1">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+          {find.isOpen ? <NativeChatFindBar find={find} isVisible={props.isVisible} /> : null}
+          {viewState.kind === 'loading' || (viewState.kind === 'error' && !readFailure) ? (
+            loadingPane
+          ) : viewState.kind === 'error' ? (
+            <NativeChatEmptyState
+              kind="error"
+              retrying={!readFailure?.final}
+              {...(readFailure?.named ? { headline: readFailure.text } : {})}
+            />
+          ) : viewState.kind === 'empty' ? (
+            <NativeChatEmptyState kind="empty" agent={props.agent} />
+          ) : (
+            <NativeChatRewindContext.Provider value={controller.rewind.surface}>
+              <NativeChatOrcaStopContext.Provider value={continuation.view}>
+                <NativeChatMessageList
+                  // A rewind replaces the conversation; nothing the old transcript held carries over.
+                  key={controller.epoch ?? undefined}
+                  ref={submits.messageListRef}
+                  session={session}
+                  journalItems={controller.journalItems}
+                  journalSubmissions={controller.submissions}
+                  journalLatestTurn={controller.latestTurn}
+                  subagentRoster={controller.subagentRoster}
+                  railOutline={controller.railOutline}
+                  isVisible={props.isVisible}
+                  isWorking={controller.isWorking}
+                  expandSignal={false}
+                  workingStartedAt={controller.workingStartedAt}
+                  settledTurns={controller.settledTurns}
+                  awaitingInput={prompt === null ? null : 'shown'}
+                  turnActivity={controller.turnActivity}
+                  stopping={stopControls.stopping}
+                  onLinkClick={onLinkClick}
+                  allowFileUriLinks={onLinkClick !== undefined}
+                  runtimeContext={imageRuntimeContext}
+                  deliveryNotices={deliveryNotices}
+                />
+              </NativeChatOrcaStopContext.Provider>
+            </NativeChatRewindContext.Provider>
+          )}
+        </div>
+        {props.agent === 'codex' ? (
+          <NativeChatCodexBackgroundPanel
+            journalItems={controller.journalItems}
+            commandActivity={controller.commandActivity}
+            roster={controller.backgroundTaskRoster}
+            context={backgroundRowContext}
+            isVisible={props.isVisible}
           />
-        ) : viewState.kind === 'empty' ? (
-          <NativeChatEmptyState kind="empty" agent={props.agent} />
-        ) : (
-          <NativeChatRewindContext.Provider value={controller.rewind.surface}>
-            <NativeChatOrcaStopContext.Provider value={continuation.view}>
-              <NativeChatMessageList
-                // A rewind replaces the conversation; nothing the old transcript held carries over.
-                key={controller.epoch ?? undefined}
-                ref={submits.messageListRef}
-                session={session}
-                journalItems={controller.journalItems}
-                journalSubmissions={controller.submissions}
-                journalLatestTurn={controller.latestTurn}
-                subagentRoster={controller.subagentRoster}
-                railOutline={controller.railOutline}
-                isVisible={props.isVisible}
-                isWorking={controller.isWorking}
-                expandSignal={false}
-                workingStartedAt={controller.workingStartedAt}
-                settledTurns={controller.settledTurns}
-                awaitingInput={prompt === null ? null : 'shown'}
-                turnActivity={controller.turnActivity}
-                stopping={stopControls.stopping}
-                onLinkClick={onLinkClick}
-                allowFileUriLinks={onLinkClick !== undefined}
-                runtimeContext={imageRuntimeContext}
-                deliveryNotices={deliveryNotices}
-              />
-            </NativeChatOrcaStopContext.Provider>
-          </NativeChatRewindContext.Provider>
-        )}
+        ) : null}
       </div>
       {readFailedFinally ? null : (
         <>

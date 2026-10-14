@@ -36,7 +36,10 @@ export class StructuredAgentSessionBackgroundTaskChannel {
     private readonly conversation: (
       sessionId: string
     ) => Promise<StructuredAgentSessionHostSession>,
-    private readonly readChildWork: (sessionId: string) => AgentChildWorkView[] | undefined
+    private readonly readChildWork: (
+      sessionId: string,
+      includeForegroundCommands?: boolean
+    ) => AgentChildWorkView[] | undefined
   ) {}
 
   /** `scope` is for in-process readers; a wire request reads every agent's rows. */
@@ -71,7 +74,10 @@ export class StructuredAgentSessionBackgroundTaskChannel {
               nextQueuedMessageId: queue.nextQueuedMessageId
             }
           : {}),
-        backgroundTasks
+        backgroundTasks,
+        commandActivity: structuredRunningChildWork(
+          this.readChildWork(request.sessionId, true) ?? []
+        )
       }
     }
   }
