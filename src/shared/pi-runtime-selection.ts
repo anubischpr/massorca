@@ -14,6 +14,10 @@ export function selectedPiRuntime(command: string | undefined): PiRuntimeSelecti
 export function piRuntimeCommandSettings<
   T extends { agentCmdOverrides?: Partial<Record<string, string>> }
 >(settings: T, runtime: PiRuntimeSelection) {
+  const configured = settings.agentCmdOverrides?.pi
+  if (configured && selectedPiRuntime(configured) === runtime) {
+    return settings
+  }
   const agentCmdOverrides = { ...settings.agentCmdOverrides }
   if (runtime === 'pi') {
     delete agentCmdOverrides.pi
