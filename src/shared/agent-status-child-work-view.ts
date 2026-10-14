@@ -1,3 +1,4 @@
+import type { RecordedAgentTurnConfiguration } from './agent-recorded-turn-configuration'
 import {
   AGENT_CHILD_WORK_ALIAS_KINDS,
   type AgentChildWorkAliasInput,
@@ -30,6 +31,7 @@ export type AgentChildWorkView = {
   description?: string
   agentType?: string
   model?: string
+  recordedConfiguration?: RecordedAgentTurnConfiguration | null
   state: AgentChildWorkState
   membership: AgentChildWorkMembership
   outcome?: AgentChildWorkOutcome
@@ -130,6 +132,9 @@ export function projectAgentChildWorkViews(
       ...(record.description !== undefined ? { description: record.description } : {}),
       ...(record.agentType !== undefined ? { agentType: record.agentType } : {}),
       ...(record.model !== undefined ? { model: record.model } : {}),
+      ...(record.recordedConfiguration !== undefined
+        ? { recordedConfiguration: record.recordedConfiguration }
+        : {}),
       state: record.state,
       membership: record.membership,
       ...(record.outcome !== undefined ? { outcome: record.outcome } : {}),

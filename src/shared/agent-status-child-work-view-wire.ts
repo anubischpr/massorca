@@ -1,3 +1,4 @@
+import { readRecordedAgentTurnConfiguration } from './agent-recorded-turn-configuration'
 // How a child-work view crosses a client/host boundary.
 //
 // Views reach clients from hosts of any version, so they are read permissively: unknown keys are
@@ -102,6 +103,9 @@ function decodeView(value: unknown): AgentChildWorkView | null {
     ...(description ? { description } : {}),
     ...(agentType ? { agentType } : {}),
     ...(model ? { model } : {}),
+    ...(view.recordedConfiguration !== undefined
+      ? { recordedConfiguration: readRecordedAgentTurnConfiguration(view.recordedConfiguration) }
+      : {}),
     ...(lastMessage ? { lastMessage } : {}),
     ...(parentChildWorkId ? { parentChildWorkId } : {}),
     kind: arm(KINDS, view.kind) ?? 'unknown',
@@ -156,6 +160,7 @@ function viewsEqual(a: AgentChildWorkView, b: AgentChildWorkView, clockTolerance
     a.description === b.description &&
     a.agentType === b.agentType &&
     a.model === b.model &&
+    JSON.stringify(a.recordedConfiguration) === JSON.stringify(b.recordedConfiguration) &&
     a.state === b.state &&
     a.membership === b.membership &&
     a.outcome === b.outcome &&
