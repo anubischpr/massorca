@@ -19,6 +19,7 @@ export type StructuredAgentLaunchPersistedRecord = {
   executionHostId: ExecutionHostId
   agent: TuiAgent
   piRuntime?: PiRuntimeSelection
+  accessMode?: 'default' | 'full-access'
   lifecycle: StructuredAgentLaunchPersistedLifecycle
   clientOperationId: string
   payloadFingerprint: string
@@ -43,6 +44,7 @@ export function structuredAgentLaunchRecordFor(
     executionHostId: intent.executionHostId,
     agent: intent.agent,
     ...(intent.params.piRuntime ? { piRuntime: intent.params.piRuntime } : {}),
+    ...(intent.params.accessMode ? { accessMode: intent.params.accessMode } : {}),
     lifecycle,
     clientOperationId: envelope.clientOperationId,
     payloadFingerprint: envelope.payloadFingerprint,
@@ -91,9 +93,12 @@ function validRecord(value: unknown): value is Omit<
   } = value
   const resumeFrom = 'resumeFrom' in value ? value.resumeFrom : undefined
   const piRuntime = 'piRuntime' in value ? value.piRuntime : undefined
+  const accessMode = 'accessMode' in value ? value.accessMode : undefined
   const executionHostId = 'executionHostId' in value ? value.executionHostId : undefined
   const failedAt = 'failedAt' in value ? value.failedAt : undefined
   return (
+    (accessMode === undefined ||
+      (agent === 'pi' && (accessMode === 'default' || accessMode === 'full-access'))) &&
     (executionHostId === undefined ||
       (typeof executionHostId === 'string' && parseExecutionHostId(executionHostId) !== null)) &&
     typeof sessionId === 'string' &&

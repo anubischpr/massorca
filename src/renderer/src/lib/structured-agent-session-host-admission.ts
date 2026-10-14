@@ -6,6 +6,12 @@ import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import { callStructuredAgentSession } from '@/runtime/structured-agent-session-client'
 import { selectedPiRuntime, type PiRuntimeSelection } from '../../../shared/pi-runtime-selection'
 import { useAppStore } from '@/store'
+import type { StructuredAgentSessionCreateParams } from '../../../shared/structured-agent-session-create'
+import { readAgentSessionErrorRefusal } from '../../../shared/agent-session-write-failure'
+import {
+  StructuredAgentSessionCreateRefusalError,
+  StructuredAgentSessionCreateUnknownOutcomeError
+} from './structured-agent-session-launch-errors'
 
 /** The host answers a worktree selector it cannot resolve yet with this rather than a verdict. */
 const SELECTOR_NOT_RESOLVABLE_CODE = 'selector_not_found'
@@ -39,6 +45,7 @@ export type StructuredLaunchAdmission =
 
 export type HostCreateSupport =
   | Exclude<StructuredLaunchAdmission, { kind: 'unreachable' }>
+  | { kind: 'policy-unsupported'; seedOptions?: Readonly<Record<string, string>> }
   | { kind: 'unreachable'; code: string; message: string; error: unknown }
 
 /**
@@ -51,7 +58,8 @@ export async function askHostCreateSupport(
   target: RuntimeClientTarget,
   worktree: string,
   agent: TuiAgent,
-  piRuntime?: PiRuntimeSelection
+  piRuntime?: PiRuntimeSelection,
+  accessMode?: 'default' | 'full-access'
 ): Promise<HostCreateSupport> {
   for (let attempt = 0; ; attempt += 1) {
     try {
@@ -62,9 +70,16 @@ export async function askHostCreateSupport(
       }>(target, 'agentSession.createSupport', {
         worktree,
         agent,
-        ...(piRuntime === 'gentle-shell' ? { piRuntime } : {})
+        ...(piRuntime === 'gentle-shell' ? { piRuntime } : {}),
+        ...(accessMode ? { accessMode } : {})
       })
       if (support.supported !== true) {
+        if (support.reason === 'access') {
+          return {
+            kind: 'policy-unsupported',
+            seedOptions: parseStructuredLaunchSeedOptions(support.seedOptions)
+          }
+        }
         return piRuntime === 'gentle-shell'
           ? {
               kind: 'unreachable',
@@ -101,6 +116,48 @@ export async function askHostCreateSupport(
  *  launch treats the host as unable to answer, and the chat's own create keeps asking. */
 export const LOCAL_ADMISSION_WAIT_MS = 3_000
 
+/** Refuses a create before reservation; policy refusal keeps its provisional picker editable. */
+export async function requireStructuredAgentLaunchSupport(
+  intent: {
+    target: RuntimeClientTarget
+    agent: TuiAgent
+    params: StructuredAgentSessionCreateParams
+  },
+  abandon: () => void
+): Promise<Readonly<Record<string, string>> | undefined> {
+  const support = await askHostCreateSupport(
+    intent.target,
+    intent.params.worktree,
+    intent.agent,
+    intent.params.piRuntime,
+    intent.params.accessMode
+  )
+  if (support.kind === 'policy-unsupported') {
+    const error = new StructuredAgentSessionCreateRefusalError(
+      'Pi chat does not support restricted access. Choose Full access explicitly, or use the terminal.',
+      'structured_agent_session_unsupported',
+      { code: 'structured_agent_session_unsupported', details: { reason: 'hostUnsupported' } }
+    )
+    error.accessPolicyUnsupported = true
+    throw error
+  }
+  if (support.kind === 'unreachable') {
+    throw new StructuredAgentSessionCreateUnknownOutcomeError(
+      support.message,
+      support.code,
+      readAgentSessionErrorRefusal(support.error)
+    )
+  }
+  if (support.kind === 'declined' || support.kind === 'workspace-unresolved') {
+    abandon()
+    throw new StructuredAgentSessionCreateRefusalError(
+      'structured_agent_session_unsupported',
+      'structured_agent_session_unsupported'
+    )
+  }
+  return support.seedOptions
+}
+
 /** Asks a host to admit a chat before the client commits any of it. */
 export async function admitStructuredLaunchOnHost(
   target: RuntimeClientTarget,
@@ -113,7 +170,14 @@ export async function admitStructuredLaunchOnHost(
       : undefined
   const asked = askHostCreateSupport(target, worktree, agent, piRuntime).then(
     (support): StructuredLaunchAdmission =>
-      support.kind === 'unreachable' ? { kind: 'unreachable' } : support
+      support.kind === 'unreachable'
+        ? { kind: 'unreachable' }
+        : support.kind === 'policy-unsupported'
+          ? {
+              kind: 'admitted',
+              seedOptions: { ...support.seedOptions, piRuntime: piRuntime ?? 'pi' }
+            }
+          : support
   )
   if (target.kind !== 'local') {
     return asked

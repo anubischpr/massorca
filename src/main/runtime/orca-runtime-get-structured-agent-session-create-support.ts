@@ -1,5 +1,6 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
 import { agentSessionRefusalError } from '../../shared/agent-session-wire-refusals'
+import type { StructuredAgentSessionCreateIntentInput } from './structured-agent-session-create-intent-types'
 import { OrcaRuntimeWithGetWorktreePs } from './orca-runtime-get-worktree-ps'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
 import {
@@ -14,7 +15,10 @@ import {
   registeredStructuredAccountHomeResolver,
   requireStructuredAgentDefinition
 } from './structured-agent-account-home-registration'
-import { resolveHostStructuredAgentCreateSupport } from './structured-agent-launch-support'
+import {
+  resolveHostStructuredAgentCreateSupport,
+  resolvedPiChatAccessMode
+} from './structured-agent-launch-support'
 import { resolveStructuredLaunchSeedOptions } from '../../shared/native-chat-session-option-defaults'
 import { hasPersistedStructuredAgentSessionStore as hasPersistedStructuredAgentSessionStoreOnDisk } from './structured-agent-session-runtime'
 import { ensureStructuredAgentSessionHostUnlessRefused } from './structured-agent-session-host-refusal'
@@ -43,11 +47,13 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
   async getStructuredAgentSessionCreateSupport(
     worktreeSelector: string,
     agent: StructuredAgentId,
-    piRuntime?: PiRuntimeSelection
-  ): Promise<{ supported: boolean; reason?: 'agent' | 'remote' | 'wsl' }> {
+    piRuntime?: PiRuntimeSelection,
+    accessMode?: 'default' | 'full-access'
+  ): Promise<{ supported: boolean; reason?: 'agent' | 'remote' | 'wsl' | 'access' }> {
     return resolveHostStructuredAgentCreateSupport({
       agent,
       piRuntime,
+      accessMode,
       worktreeSelector,
       location: await this.resolveStructuredAgentSessionLocation(worktreeSelector),
       runtime: this,
@@ -83,12 +89,19 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
   /** The saved selection a new chat here starts with. createSupport reports it too, so a client's
    *  picker shows what create will run; one resolver keeps the two from drifting. */
   structuredAgentSessionLaunchSeedOptions(
-    agent: StructuredAgentId
+    agent: StructuredAgentId,
+    accessMode?: 'default' | 'full-access'
   ): Record<string, string> | undefined {
-    return resolveStructuredLaunchSeedOptions(
+    const seed = resolveStructuredLaunchSeedOptions(
       this.requireStore().getSettings().nativeChatSessionOptions,
       agent
     )
+    return agent === 'pi'
+      ? {
+          ...seed,
+          accessMode: resolvedPiChatAccessMode(this.requireStore().getSettings(), accessMode)
+        }
+      : seed
   }
 
   protected async resolveStructuredAgentSessionLocation(worktreeSelector: string) {
@@ -131,14 +144,9 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
     return (await this.resolveRuntimeFileTarget(worktreeSelector)).worktree.path
   }
 
-  async resolveStructuredAgentSessionCreateIntent(input: {
-    envelope: { sessionId: string; clientOperationId: string }
-    worktree: string
-    agent: StructuredAgentId
-    piRuntime?: PiRuntimeSelection
-    callerKey?: string
-    resumeFrom?: { providerSessionId: string }
-  }): Promise<AgentSessionAttachParams & { hostLaunchDirectory?: string }> {
+  async resolveStructuredAgentSessionCreateIntent(
+    input: StructuredAgentSessionCreateIntentInput
+  ): Promise<AgentSessionAttachParams & { hostLaunchDirectory?: string }> {
     const hostLaunchDirectory = isFloatingWorkspaceSelector(input.worktree)
       ? (await this.resolveRuntimeFileTarget(input.worktree)).worktree.path
       : undefined
@@ -183,14 +191,7 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
   }
 
   protected async resolveStructuredAgentSessionIntent(
-    input: {
-      envelope: { sessionId: string; clientOperationId: string }
-      worktree: string
-      agent: StructuredAgentId
-      piRuntime?: PiRuntimeSelection
-      callerKey?: string
-      resumeFrom?: { providerSessionId: string }
-    },
+    input: StructuredAgentSessionCreateIntentInput,
     resolveAccountHome: (context: {
       launchEnv: NodeJS.ProcessEnv
       commandSettings: ReturnType<
@@ -207,7 +208,8 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
     const support = await this.getStructuredAgentSessionCreateSupport(
       input.worktree,
       input.agent,
-      input.piRuntime
+      input.piRuntime,
+      input.accessMode
     )
     // Adopting a conversation reads the agent's own transcript, which only Claude and Codex have
     // importers for.
@@ -222,7 +224,7 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
         ? piRuntimeCommandSettings(currentSettings, input.piRuntime ?? 'pi')
         : currentSettings
     const launchEnv = resolveTuiAgentLaunchEnv(input.agent, settings.agentDefaultEnv)
-    const seed = this.structuredAgentSessionLaunchSeedOptions(input.agent)
+    const seed = this.structuredAgentSessionLaunchSeedOptions(input.agent, input.accessMode)
     const options = input.agent === 'pi' ? { ...seed, piRuntime: input.piRuntime ?? 'pi' } : seed
     const location = await this.resolveStructuredAgentSessionLocation(input.worktree)
     const definition = requireStructuredAgentDefinition(input.agent)

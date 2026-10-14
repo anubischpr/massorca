@@ -54,6 +54,7 @@ export function structuredAgentSessionCreateIntentFingerprint(params: {
   worktree: string
   agent: string
   piRuntime?: PiRuntimeSelection
+  accessMode?: 'default' | 'full-access'
   resumeFrom?: StructuredAgentSessionResumeSource
   tabId?: string
 }): string {
@@ -64,6 +65,7 @@ export function structuredAgentSessionCreateIntentFingerprint(params: {
       worktree: params.worktree,
       agent: params.agent,
       piRuntime: params.piRuntime,
+      accessMode: params.accessMode,
       resumeFrom: params.resumeFrom,
       tabId: params.tabId
     }
@@ -80,6 +82,7 @@ export async function prepareStructuredAgentSessionCreateForWorktree(args: {
   worktree: string
   agent: StructuredAgentId
   piRuntime?: PiRuntimeSelection
+  accessMode?: 'default' | 'full-access'
   caller: StructuredAgentSessionCaller
   resumeFrom?: StructuredAgentSessionResumeSource
   /** Replaces the seed options the host resolves from settings. Orchestration passes the
@@ -97,6 +100,7 @@ export async function prepareStructuredAgentSessionCreateForWorktree(args: {
     worktree: args.worktree,
     agent: args.agent,
     ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
+    ...(args.accessMode ? { accessMode: args.accessMode } : {}),
     callerKey: args.caller.callerKey,
     ...(args.resumeFrom ? { resumeFrom: args.resumeFrom } : {})
   })
@@ -126,6 +130,9 @@ export async function prepareStructuredAgentSessionCreateForWorktree(args: {
               ...args.options,
               ...(resolvedAttach.options?.piRuntime
                 ? { piRuntime: resolvedAttach.options.piRuntime }
+                : {}),
+              ...(args.agent === 'pi' && resolvedAttach.options?.accessMode
+                ? { accessMode: resolvedAttach.options.accessMode }
                 : {})
             }
           }

@@ -9,7 +9,7 @@ import {
 
 export type StructuredAgentSessionCreateSupport = {
   supported: boolean
-  reason?: 'agent' | 'remote' | 'wsl'
+  reason?: 'agent' | 'remote' | 'wsl' | 'access'
 }
 
 /**
