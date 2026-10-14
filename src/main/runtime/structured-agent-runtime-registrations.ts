@@ -80,6 +80,8 @@ export type StructuredAgentRuntimeAdapter = StructuredAgentSessionAdapter & {
 /** Which account home a chat of an agent pins, asked on the host that runs it. */
 export type StructuredAgentAccountHomeRequest = {
   launchEnv: NodeJS.ProcessEnv
+  /** The same selected per-agent command used by the launch and model catalog. */
+  commandSettings?: StructuredAgentCommandSettings
   /** Where the chat runs; null for a read with no workspace (the model catalog). */
   location: AgentSessionExecutionLocation | null
   /** A `read` has no side effects: it syncs no home, starts no bridge, clears no selection. */

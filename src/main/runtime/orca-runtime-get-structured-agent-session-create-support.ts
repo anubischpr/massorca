@@ -64,10 +64,11 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
       readCodexLaunchHome: this.resolveCodexStructuredLaunchHomeFn,
       workspaceTrustSettings: () => this.requireStore().getSettings()
     }
-    return async ({ launchEnv, location }) =>
+    return async ({ launchEnv, location, commandSettings }) =>
       registration.resolveAccountHome(
         {
           launchEnv,
+          ...(commandSettings ? { commandSettings } : {}),
           location: location ?? null,
           purpose,
           workspacePath:
@@ -187,7 +188,11 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
       agent,
       this.requireStore().getSettings().agentDefaultEnv
     )
-    return resolveAccountHome({ launchEnv, location: null })
+    return resolveAccountHome({
+      launchEnv,
+      location: null,
+      commandSettings: this.requireStore().getSettings()
+    })
   }
 
   protected async resolveStructuredAgentSessionIntent(
@@ -200,6 +205,9 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
     },
     resolveAccountHome: (context: {
       launchEnv: NodeJS.ProcessEnv
+      commandSettings: ReturnType<
+        NonNullable<StructuredAgentSessionRuntimeDeps['resolveAgentCommandSettings']>
+      >
       location: {
         executionHostId: string
         wslDistro: string | null
@@ -231,7 +239,11 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
     if (committedReplay) {
       return committedReplay
     }
-    const selectedAccountHome = await resolveAccountHome({ launchEnv, location })
+    const selectedAccountHome = await resolveAccountHome({
+      launchEnv,
+      location,
+      commandSettings: settings
+    })
     if (input.resumeFrom && !isLegacyAgentSessionAccountHome(selectedAccountHome)) {
       throw agentSessionRefusalError('structured_agent_session_unsupported', {
         reason: 'hostUnsupported'

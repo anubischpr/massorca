@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { runProcess } from '../../shared/child-process/run-process'
 import { PI_RPC_RUNTIME_REGISTRATION } from './rpc-runtime-registration'
+import { piAgentHome } from './rpc-launch-resolution'
 
 vi.mock('../../shared/child-process/run-process', () => ({ runProcess: vi.fn() }))
 
@@ -17,6 +18,7 @@ function supportsLaunch(launch: LaunchInput): Promise<boolean> {
 }
 let root: string
 let stockPi: string
+let gentleShell: string
 
 function prints(stdout: string, result: Partial<Awaited<ReturnType<typeof runProcess>>> = {}) {
   vi.mocked(runProcess).mockResolvedValue({
@@ -35,8 +37,11 @@ beforeEach(async () => {
   vi.spyOn(console, 'info').mockImplementation(() => {})
   root = await mkdtemp(join(tmpdir(), 'orca-pi-support-'))
   stockPi = join(root, process.platform === 'win32' ? 'pi.cmd' : 'pi')
+  gentleShell = join(root, process.platform === 'win32' ? 'gentle-shell.cmd' : 'gentle-shell')
   await writeFile(stockPi, '')
+  await writeFile(gentleShell, '')
   await chmod(stockPi, 0o755)
+  await chmod(gentleShell, 0o755)
 })
 afterEach(async () => {
   vi.restoreAllMocks()
@@ -66,6 +71,48 @@ describe('Pi launch support before session creation', () => {
       })
     }
   )
+
+  it('uses the embedded Pi version from the recognized Gentle-Shell wrapper output', async () => {
+    prints('Gentle-Shell 4.1.0\npi 1.1.0\n')
+    await expect(
+      supportsLaunch({
+        ...input({ agentCmdOverrides: { pi: gentleShell } }),
+        env: { PATH: root, HOME: '/host/home' }
+      })
+    ).resolves.toBe(true)
+    expect(runProcess).toHaveBeenCalledWith(
+      expect.objectContaining({ program: gentleShell, args: ['--version'] })
+    )
+  })
+
+  it.each(['Gentle-Shell 4.1.0', 'Gentle-Shell 4.1.0\npi unknown', 'wrapper 4.1.0\npi 1.1.0'])(
+    'rejects an unrecognized Gentle-Shell version shape: %s',
+    async (output) => {
+      prints(output)
+      await expect(
+        supportsLaunch({
+          ...input({ agentCmdOverrides: { pi: gentleShell } }),
+          env: { PATH: root, HOME: '/host/home' }
+        })
+      ).resolves.toBe(false)
+    }
+  )
+
+  it('keeps Pi and Gentle-Shell homes isolated and preserves an explicit home', () => {
+    const env = { PATH: root, HOME: '/host/home' }
+    expect(piAgentHome(env)).toBe(join('/host/home', '.pi', 'agent'))
+    expect(piAgentHome(env, { agentCmdOverrides: { pi: gentleShell } })).toBe(
+      join('/host/home', '.gentle-shell', 'agent')
+    )
+    expect(
+      piAgentHome(
+        { ...env, PI_CODING_AGENT_DIR: '/custom/pi-agent' },
+        {
+          agentCmdOverrides: { pi: gentleShell }
+        }
+      )
+    ).toBe('/custom/pi-agent')
+  })
 
   it.each([
     '0.73.1',

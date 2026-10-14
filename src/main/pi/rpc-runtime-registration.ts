@@ -1,5 +1,3 @@
-import { homedir } from 'node:os'
-import { join } from 'node:path'
 import { agentSessionAccountHome } from '../../shared/agent-session-account-home'
 import { isAgentSessionPreSpawnError } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import { supportsSupervisedProviderChildLocation } from '../provider-process/supervised-provider-child-location'
@@ -12,6 +10,7 @@ import type {
 import { PI_RPC_AGENT } from './rpc-agent-definition'
 import {
   createPiRpcLaunchResolver,
+  piAgentHome,
   piRpcVersionSupported,
   resolvePiRpcCommand
 } from './rpc-launch-resolution'
@@ -86,9 +85,6 @@ export const PI_RPC_RUNTIME_REGISTRATION: StructuredAgentRuntimeRegistration = {
     }
     return piRpcVersionSupported({ command, cwd, env })
   },
-  resolveAccountHome: async ({ launchEnv }) =>
-    agentSessionAccountHome(
-      PI_RPC_AGENT,
-      launchEnv.PI_CODING_AGENT_DIR?.trim() || join(homedir(), '.pi', 'agent')
-    )
+  resolveAccountHome: async ({ launchEnv, commandSettings }) =>
+    agentSessionAccountHome(PI_RPC_AGENT, piAgentHome(launchEnv, commandSettings))
 }

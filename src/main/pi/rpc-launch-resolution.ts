@@ -1,5 +1,8 @@
 import { open, realpath } from 'node:fs/promises'
-import { isAbsolute, normalize } from 'node:path'
+import { homedir } from 'node:os'
+import { basename, isAbsolute, join, normalize } from 'node:path'
+import { runProcess } from '../../shared/child-process/run-process'
+import { parseCliVersion } from '../../shared/app-version'
 import { z } from 'zod'
 import { agentSessionRefusalError } from '../../shared/agent-session-wire-refusals'
 import {
@@ -46,9 +49,56 @@ function supportsPiRpcVersion(version: string): boolean {
   return PI_RPC_RELEASE_LINES.some((line) => isStableCliVersionOnLine(version, line))
 }
 
+function isGentleShellCommand(command: string): boolean {
+  return (
+    basename(command)
+      .toLowerCase()
+      .replace(/\.(?:cmd|bat|exe)$/, '') === 'gentle-shell'
+  )
+}
+
+function parseGentleShellPiVersion(output: string): string | null {
+  const lines = output
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+  const wrapperLine =
+    /^gentle-shell(?:\s+version)?\s+(v?\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?)$/i
+  const piLine = /^pi(?:\s+version)?\s+(v?\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?)$/i
+  if (lines.length !== 2 || !wrapperLine.test(lines[0]) || !piLine.test(lines[1])) {
+    return null
+  }
+  return parseCliVersion(lines[1])
+}
+
+async function probeGentleShellPiVersion(launch: {
+  command: string
+  cwd: string
+  env: Record<string, string>
+}): Promise<string | null> {
+  let result
+  try {
+    result = await runProcess({
+      program: launch.command,
+      cwd: launch.cwd,
+      env: launch.env,
+      args: ['--version'],
+      timeoutMs: 5_000,
+      maxOutputBytes: 4_096,
+      killOnOutputLimit: true
+    })
+  } catch {
+    return null
+  }
+  if (result.code !== 0 || result.timedOut || result.outputTruncated) {
+    return null
+  }
+  return parseGentleShellPiVersion(result.stdout)
+}
+
 /** The binary a Pi launch with `env` spawns; create support resolves through here too. */
 export function resolvePiRpcCommand(
-  env: Readonly<Record<string, string>>,
+  env: Readonly<Record<string, string | undefined>>,
   commandSettings: StructuredAgentCommandSettings = {},
   resolve?: typeof resolveCliCommand
 ): string {
@@ -65,7 +115,29 @@ export function piRpcVersionSupported(
   launch: { command: string; cwd: string; env: Record<string, string> },
   probe: typeof probeAgentCliVersion = probeAgentCliVersion
 ): Promise<boolean> {
+  if (isGentleShellCommand(launch.command)) {
+    return probeGentleShellPiVersion(launch).then(
+      (version) => version !== null && supportsPiRpcVersion(version)
+    )
+  }
   return probe({ program: launch.command, cwd: launch.cwd, env: launch.env }, supportsPiRpcVersion)
+}
+
+export function piAgentHome(
+  launchEnv: Readonly<Record<string, string | undefined>>,
+  commandSettings: StructuredAgentCommandSettings = {}
+): string {
+  const configured = launchEnv.PI_CODING_AGENT_DIR?.trim()
+  if (configured) {
+    return configured
+  }
+  const home = launchEnv.HOME ?? launchEnv.USERPROFILE
+  const root = home?.trim() || homedir()
+  return join(
+    root,
+    isGentleShellCommand(resolvePiRpcCommand(launchEnv, commandSettings)) ? '.gentle-shell' : '.pi',
+    'agent'
+  )
 }
 
 const headerSchema = z.object({ type: z.literal('session'), cwd: z.string().min(1) })
