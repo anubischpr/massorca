@@ -71,6 +71,8 @@ export function useStructuredAgentSessionTransportState(
     /** Working only because the queue is about to send: nothing is in flight to stop yet. */
     queueSendsNext,
     backgroundTasks,
+    commandActivity: enabled ? state.commandActivity : undefined,
+    backgroundTaskRoster: enabled ? state.backgroundTasks : null,
     conversationBusy: Boolean(turnId || backgroundTasks.isMonitoring)
   }
 }
