@@ -19,6 +19,7 @@ import { resolvePinnedCodexRolloutProof } from './codex-pinned-rollout-proof'
 import { codexStructuredLaunchArgs } from './codex-structured-launch-args'
 import { CODEX_STRUCTURED_AGENT } from './codex-structured-agent-definition'
 import type { PrepareNativeChatVisuals } from '../native-chat/native-chat-visuals-delivery'
+import { codexStructuredPermissionPolicyForSession } from './codex-structured-permission-policy'
 
 export type CodexStructuredLaunchResolverDeps = {
   store: Pick<AgentSessionRecordStore, 'getRecord' | 'pinLaunchDirectory'>
@@ -90,7 +91,10 @@ export function createCodexStructuredLaunchResolver(
     }
     const { command, environment } = await resolveCodexStructuredInvocation(deps)
     const args = codexStructuredLaunchArgs(await deps.resolveLaunchArgs())
-    const permissionPolicy = deps.resolvePermissionPolicy?.()
+    const permissionPolicy = codexStructuredPermissionPolicyForSession(
+      record.options?.accessMode,
+      deps.resolvePermissionPolicy?.()
+    )
     const head = agentSessionProviderHandleChainHead(record.providerHandleChain)
     // A Codex record's chain holds only Codex handles; the attach admission refuses anything else.
     const resumeThreadId = head?.handle.nativeId ?? null

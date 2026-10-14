@@ -10,6 +10,7 @@
 
 import { z } from 'zod'
 import type { AgentSessionCapabilities } from './agent-session-capabilities'
+import { AGENT_SESSION_ACCESS_MODES } from './agent-session-access-mode'
 import { isStructuredAgentId } from './agent-session-provider-handle-encoding'
 import { openEnum } from './zod-salvage'
 
@@ -45,7 +46,8 @@ const registeredAgentSchema = z.object({
     // `orca` claims only that Orca answers the agent's requests, never that it confines the agent.
     approvalEnforcement: openEnum(['provider', 'orca'] as const, 'orca')
       .optional()
-      .default('orca')
+      .default('orca'),
+    supportedAccessModes: z.array(z.enum(AGENT_SESSION_ACCESS_MODES)).max(2).optional()
   })
 })
 

@@ -4,6 +4,10 @@ import type {
   AgentSessionOptionCatalog
 } from './agent-session-option-catalog'
 import type { SessionOptionValue, SessionOptionValueSource } from './native-chat-session-options'
+import {
+  isAgentSessionAccessModeValue,
+  type AgentSessionAccessModeValue
+} from './agent-session-access-mode'
 
 export type TrackedNativeChatSessionOption = {
   value: SessionOptionValue
@@ -13,6 +17,10 @@ export type TrackedNativeChatSessionOption = {
 export type NativeChatSessionOptionRecord = {
   agent: AgentType
   model?: TrackedNativeChatSessionOption
+  accessMode?: {
+    value: AgentSessionAccessModeValue
+    source: TrackedNativeChatSessionOption['source']
+  }
   valuesByModel: Record<string, Record<string, TrackedNativeChatSessionOption>>
 }
 
@@ -28,6 +36,7 @@ export function cloneNativeChatSessionOptionRecord(
   return {
     agent: record.agent,
     ...(record.model ? { model: { ...record.model } } : {}),
+    ...(record.accessMode ? { accessMode: { ...record.accessMode } } : {}),
     valuesByModel: Object.fromEntries(
       Object.entries(record.valuesByModel).map(([modelId, values]) => [
         modelId,
@@ -48,6 +57,9 @@ export function getTrackedSessionOption(
   modelId: string | null,
   optionId: string
 ): TrackedNativeChatSessionOption | undefined {
+  if (optionId === 'accessMode') {
+    return record.accessMode
+  }
   return modelId ? record.valuesByModel[modelId]?.[optionId] : undefined
 }
 
@@ -89,6 +101,12 @@ export function setTrackedSessionOption(
    *  value set against a CLI default would be dispatched and then silently forgotten. */
   fallbackModelId: string | null = null
 ): string | null {
+  if (optionId === 'accessMode') {
+    if (typeof value === 'string' && isAgentSessionAccessModeValue(value)) {
+      record.accessMode = { value, source }
+    }
+    return null
+  }
   if (optionId === 'model') {
     record.model = { value, source }
     return typeof value === 'string' ? value : null
@@ -111,6 +129,7 @@ export function flattenNativeChatSessionOptionRecord(
 ): Record<string, SessionOptionValue> {
   return {
     model: modelId,
+    ...(record.accessMode ? { accessMode: record.accessMode.value } : {}),
     ...Object.fromEntries(
       Object.entries(record.valuesByModel[modelId] ?? {}).map(([id, tracked]) => [
         id,
@@ -129,16 +148,25 @@ export function applyNativeChatReportedSessionOptions(
 ): boolean {
   const sourceFor = (id: string): TrackedNativeChatSessionOption['source'] =>
     confirmed === undefined || confirmed.includes(id) ? 'reported' : 'dispatched'
+  let changed = false
+  const accessMode = values.accessMode
+  if (typeof accessMode === 'string' && isAgentSessionAccessModeValue(accessMode)) {
+    const source = sourceFor('accessMode')
+    if (record.accessMode?.value !== accessMode || record.accessMode.source !== source) {
+      changed = true
+    }
+    record.accessMode = { value: accessMode, source }
+  }
   const modelId = typeof values.model === 'string' ? values.model : null
   if (!modelId) {
-    return false
+    return changed
   }
   const modelChanged = record.model?.value !== modelId
-  let changed = modelChanged || record.model?.source !== sourceFor('model')
+  changed = changed || modelChanged || record.model?.source !== sourceFor('model')
   record.model = { value: modelId, source: sourceFor('model') }
   const modelValues = modelChanged ? {} : { ...record.valuesByModel[modelId] }
   for (const [id, value] of Object.entries(values)) {
-    if (id === 'model') {
+    if (id === 'model' || id === 'accessMode') {
       continue
     }
     const current = modelValues[id]

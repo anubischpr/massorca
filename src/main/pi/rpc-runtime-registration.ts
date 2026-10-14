@@ -35,6 +35,9 @@ function createPiRpcAdapter(context: StructuredAgentAdapterContext): StructuredA
       store: context.store,
       resolveWorkspacePath: deps.resolveWorkspacePath,
       resolveEnvironment: piEnvironment(context),
+      ...(deps.resolveAgentFullAccess
+        ? { resolveFullAccess: () => deps.resolveAgentFullAccess!('pi') }
+        : {}),
       ...(deps.resolveAgentCommandSettings
         ? { resolveCommandSettings: deps.resolveAgentCommandSettings }
         : {})
