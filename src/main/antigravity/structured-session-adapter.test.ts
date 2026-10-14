@@ -4,7 +4,10 @@ import {
   closeProviderTimelineRigs
 } from '../native-chat/agent-session-timeline/provider-timeline-assembler-test-support'
 import { AgentSessionOptionRejectedError } from '../native-chat/agent-session-wire/structured-agent-session-option-error'
-import type { StructuredAgentSessionAcquireInput } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
+import {
+  AgentSessionPreSpawnError,
+  type StructuredAgentSessionAcquireInput
+} from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import { AntigravityStructuredSessionAdapter } from './structured-session-adapter'
 import { antigravityTestProcess } from './structured-session-test-process'
 import { ANTIGRAVITY_STRUCTURED_AGENT } from './structured-agent-definition'
@@ -16,7 +19,9 @@ afterEach(async () => {
   }
   await closeProviderTimelineRigs()
 })
-async function setup() {
+type ProcesslessTiming = 'before-cleanup' | 'after-cleanup-start'
+
+async function createHarness(processlessTiming?: ProcesslessTiming) {
   const rig = await openProviderTimelineRig({ agent: 'antigravity', sessionId: 'session-timeline' })
   const processes: ReturnType<typeof antigravityTestProcess>[] = []
   const settled = vi.fn(),
@@ -39,9 +44,16 @@ async function setup() {
     resolveLaunch,
     readProcessStartTime: async () => 100,
     processFactory: () => {
-      const process = antigravityTestProcess()
+      const process = antigravityTestProcess(
+        'conversation-1',
+        processlessTiming ? { processlessTiming } : {}
+      )
       processes.push(process)
-      process.initialize()
+      if (processlessTiming === 'before-cleanup') {
+        process.failSpawn()
+      } else if (!processlessTiming) {
+        process.initialize()
+      }
       return process.managed
     },
     onLifecycle: lifecycle,
@@ -49,9 +61,10 @@ async function setup() {
     onIdle: vi.fn(),
     logger: { warn: vi.fn(), error: vi.fn() }
   })
-  const acquired = await adapter.acquire(input)
   cleanups.push(async () => {
-    await adapter.closeAll()
+    if (!processlessTiming) {
+      await adapter.closeAll()
+    }
     await adapter.drainObservedExits()
     adapter.acknowledgeSessionRelease('session-timeline')
   })
@@ -63,8 +76,37 @@ async function setup() {
       requestedAt: 123,
       body: { kind: 'message', role: 'user', blocks: [{ type: 'text', text: 'question' }] }
     })
-  return { adapter, processes, settled, lifecycle, input, acquired, send, resolveLaunch }
+  return { adapter, processes, settled, lifecycle, input, send, resolveLaunch }
 }
+
+async function setup() {
+  const harness = await createHarness()
+  const acquired = await harness.adapter.acquire(harness.input)
+  return { ...harness, acquired }
+}
+
+it('classifies a processless close observed before acquisition cleanup', async () => {
+  const h = await createHarness('before-cleanup')
+  await expect(h.adapter.acquire(h.input)).rejects.toBeInstanceOf(AgentSessionPreSpawnError)
+  expect(h.processes[0].managed.processless).toBe(true)
+  expect(h.processes[0].managed.rootExitObserved).toBe(false)
+  await expect(h.adapter.closeSession('session-timeline')).rejects.toBeInstanceOf(
+    AgentSessionPreSpawnError
+  )
+})
+
+it('waits for processless close observed after acquisition cleanup starts', async () => {
+  const h = await createHarness('after-cleanup-start')
+  await expect(h.adapter.acquire(h.input)).rejects.toBeInstanceOf(AgentSessionPreSpawnError)
+  expect(h.processes[0].events.indexOf('processless-close')).toBeGreaterThan(
+    h.processes[0].events.indexOf('terminate')
+  )
+  expect(h.processes[0].managed.processless).toBe(true)
+  expect(h.processes[0].managed.rootExitObserved).toBe(false)
+  await expect(h.adapter.closeSession('session-timeline')).rejects.toBeInstanceOf(
+    AgentSessionPreSpawnError
+  )
+})
 
 it('acquires only a validated init and settles dispatch only after its user-input echo', async () => {
   const h = await setup()

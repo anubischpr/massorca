@@ -159,11 +159,11 @@ export class AntigravityStructuredSession {
   async close(requested = true): Promise<boolean> {
     this.requestedClose ||= requested
     const tree = await this.transport.terminate()
-    if (tree === 'exited') {
+    if (tree === 'exited' || this.process.child.pid === undefined) {
       await this.process.exitPromise
     }
     await this.exitDelivery
-    return tree === 'exited' && this.process.rootVerdict === 'exited'
+    return tree === 'exited' && this.process.rootExitObserved
   }
   drainObservedExit(): Promise<void> {
     return this.exitDelivery

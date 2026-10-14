@@ -5,20 +5,29 @@ import type {
   ProviderProcessExit
 } from '../provider-process/managed-provider-process'
 
+export type AntigravityTestProcessOptions = {
+  processlessTiming?: 'before-cleanup' | 'after-cleanup-start'
+}
+
 /** An owned child fixture; no executable, credential or remote host is used. */
-export function antigravityTestProcess(conversationId = 'conversation-1') {
+export function antigravityTestProcess(
+  conversationId = 'conversation-1',
+  options: AntigravityTestProcessOptions = {}
+) {
   const stdout = new PassThrough(),
     stdin = new PassThrough(),
     stderr = new PassThrough()
   const stdio: ChildProcessWithoutNullStreams['stdio'] = [stdin, stdout, stderr, null, null]
   const child: ChildProcessWithoutNullStreams = Object.assign(new ChildProcess(), {
-    pid: 1234,
+    pid: options.processlessTiming ? undefined : 1234,
     stdin,
     stdout,
     stderr,
     stdio
   })
   let root: 'live' | 'exited' = 'live'
+  let observedExit: ProviderProcessExit | null = null
+  const events: string[] = []
   let resolveExit = () => {}
   const exitPromise = new Promise<void>((resolve) => {
     resolveExit = resolve
@@ -27,38 +36,61 @@ export function antigravityTestProcess(conversationId = 'conversation-1') {
   const written: string[] = []
   stdin.setEncoding('utf8').on('data', (chunk: string) => written.push(chunk))
   const emit = (value: unknown) => stdout.write(`${JSON.stringify(value)}\n`)
-  const exit = () => {
-    if (root === 'exited') {
+  const observeExit = (value: ProviderProcessExit) => {
+    if (observedExit) {
       return
     }
+    observedExit = value
     root = 'exited'
     resolveExit()
     for (const listener of listeners) {
-      listener({ code: 0, signal: null, processless: false })
+      listener(value)
     }
+  }
+  const exit = () => observeExit({ code: 0, signal: null, processless: false })
+  const failSpawn = () => {
+    events.push('processless-close')
+    observeExit({ code: null, signal: null, processless: true })
   }
   const managed: ManagedProviderProcess = {
     child,
     supervised: true,
-    processless: false,
+    get processless() {
+      return observedExit?.processless ?? false
+    },
     get rootVerdict() {
       return root
     },
     get rootExitObserved() {
-      return root === 'exited'
+      return observedExit !== null && !observedExit.processless
     },
     lastCloseResult: null,
     exitPromise,
     executableMissing: false,
     stderrTail: () => '',
     onExit: (listener) => {
-      listeners.push(listener)
+      if (observedExit) {
+        listener(observedExit)
+      } else {
+        listeners.push(listener)
+      }
     },
     terminateTree: async () => {
+      events.push('terminate')
+      if (options.processlessTiming === 'after-cleanup-start' && !observedExit) {
+        queueMicrotask(failSpawn)
+        return 'unverifiable'
+      }
+      if (options.processlessTiming) {
+        return 'unverifiable'
+      }
       exit()
       return 'exited'
     },
     close: async () => {
+      if (options.processlessTiming) {
+        return { root, tree: null }
+      }
       exit()
       return { root: 'exited', tree: 'exited' }
     }
@@ -87,5 +119,5 @@ export function antigravityTestProcess(conversationId = 'conversation-1') {
         num_turns: numTurns
       }
     })
-  return { managed, initialize, emit, echo, result, exit, written }
+  return { managed, initialize, emit, echo, result, exit, failSpawn, events, written }
 }
