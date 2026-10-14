@@ -1,9 +1,4 @@
-import {
-  createIncrementalNdjsonFramer,
-  encodeNdjson,
-  NDJSON_MAX_LINE_BYTES,
-  type IncrementalNdjsonFramer
-} from '../../shared/main-process-ndjson-framer'
+import { encodeNdjson, type IncrementalNdjsonFramer } from '../../shared/main-process-ndjson-framer'
 import {
   spawnManagedProviderProcess,
   type ManagedProviderProcess
@@ -24,6 +19,7 @@ import type {
   AntigravityStreamTransportEvent
 } from './antigravity-stream-json-transport-contract'
 import { AntigravityStreamFailure, asAntigravityError } from './antigravity-stream-json-failure'
+import { createAntigravityStreamFramer } from './antigravity-stream-json-framing'
 
 export {
   AntigravityStreamProtocolError,
@@ -58,6 +54,7 @@ export class AntigravityStreamJsonTransport {
   private hasTerminalResult = false
   private failure!: AntigravityStreamFailure
   private closed = false
+  private expectedExit = false
 
   constructor(private readonly options: AntigravityStreamJsonTransportOptions) {
     this.process = (
@@ -69,19 +66,10 @@ export class AntigravityStreamJsonTransport {
       this.rejectReady = reject
     })
     void this.ready.catch(() => {})
-    this.framer = createIncrementalNdjsonFramer(
+    this.framer = createAntigravityStreamFramer(
       (record) => this.acceptRecord(record),
-      (rejected) =>
-        this.failure.fail(
-          rejected.kind === 'invalid-json'
-            ? new AntigravityStreamProtocolError(
-                `Invalid Antigravity NDJSON: ${rejected.error.message}`
-              )
-            : new AntigravityStreamProtocolError(
-                `Antigravity NDJSON line exceeded ${rejected.maxLineBytes} bytes`
-              )
-        ),
-      { maxLineBytes: options.maxLineBytes ?? NDJSON_MAX_LINE_BYTES }
+      (error) => this.failure.fail(error),
+      options.maxLineBytes
     )
     this.failure = new AntigravityStreamFailure({
       process: this.process,
@@ -95,6 +83,7 @@ export class AntigravityStreamJsonTransport {
         }
       },
       hasPending: () => this.active !== null || this.queue.length > 0 || !this.conversationId,
+      isExpectedExit: () => this.expectedExit,
       onError: options.onError,
       ...(options.onExit ? { onExit: options.onExit } : {})
     })
@@ -138,10 +127,13 @@ export class AntigravityStreamJsonTransport {
       return Promise.reject(error)
     }
     this.closed = true
+    this.expectedExit = this.conversationId !== null
     return this.process.close()
   }
 
   terminate(): Promise<ProviderProcessTeardownVerdict> {
+    this.expectedExit =
+      this.conversationId !== null && this.active === null && this.queue.length === 0
     this.closed = true
     return this.process.terminateTree()
   }
