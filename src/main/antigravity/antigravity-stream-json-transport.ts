@@ -75,13 +75,7 @@ export class AntigravityStreamJsonTransport {
       process: this.process,
       framer: this.framer,
       rejectReady: (error) => this.rejectReady(error),
-      rejectPending: (error) => {
-        this.active?.reject(error)
-        this.active = null
-        for (const pending of this.queue.splice(0)) {
-          pending.reject(error)
-        }
-      },
+      rejectPending: (error) => this.rejectPending(error),
       hasPending: () => this.active !== null || this.queue.length > 0 || !this.conversationId,
       isExpectedExit: () => this.expectedExit,
       onError: options.onError,
@@ -131,6 +125,21 @@ export class AntigravityStreamJsonTransport {
     return this.process.close()
   }
 
+  cancel(): Promise<ProviderProcessCloseResult> {
+    this.closed = true
+    this.expectedExit = true
+    this.rejectPending(new Error('Antigravity prompt was cancelled'))
+    return this.process.close()
+  }
+
+  private rejectPending(error: Error): void {
+    this.active?.reject(error)
+    this.active = null
+    for (const pending of this.queue.splice(0)) {
+      pending.reject(error)
+    }
+  }
+
   terminate(): Promise<ProviderProcessTeardownVerdict> {
     this.expectedExit =
       this.conversationId !== null && this.active === null && this.queue.length === 0
@@ -139,7 +148,7 @@ export class AntigravityStreamJsonTransport {
   }
 
   private acceptRecord(value: unknown): void {
-    if (this.failure.error) {
+    if (this.closed || this.failure.error) {
       return
     }
     let record: AntigravityStreamWireRecord

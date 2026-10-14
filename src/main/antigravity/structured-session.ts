@@ -156,6 +156,13 @@ export class AntigravityStructuredSession {
     })
   }
 
+  async cancel(): Promise<boolean> {
+    this.requestedClose = true
+    const result = await this.transport.cancel()
+    await this.exitDelivery
+    return result.root === 'exited' && this.process.rootExitObserved
+  }
+
   async close(requested = true): Promise<boolean> {
     this.requestedClose ||= requested
     const tree = await this.transport.terminate()

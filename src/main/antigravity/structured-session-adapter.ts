@@ -144,7 +144,7 @@ export class AntigravityStructuredSessionAdapter implements StructuredAgentSessi
     if (!turnId && session.pending.size === 0) {
       return { cancelled: false }
     }
-    const cancelled = await session.close()
+    const cancelled = await session.cancel()
     return { cancelled, ...(turnId ? { turnId } : {}) }
   }
   stopEndsSession(): boolean {

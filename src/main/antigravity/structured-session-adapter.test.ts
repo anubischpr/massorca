@@ -186,3 +186,36 @@ it('advertises only supported stream capabilities and refuses stale dispatch fen
   ).rejects.toThrow('not live under this fence')
   expect(h.processes[0].written).toEqual([])
 })
+
+it('cancels through managed close without requiring descendant release proof', async () => {
+  const h = await setup()
+  const process = h.processes[0]
+  const terminate = vi.fn(async () => null)
+  process.managed.terminateTree = terminate
+  process.managed.close = vi.fn(async () => {
+    process.exit()
+    return { root: 'exited', tree: null } as const
+  })
+  await h.send('cancel-managed')
+  expect(await h.adapter.cancelTurn({ sessionId: 'session-timeline', fence: 7 })).toEqual({
+    cancelled: true
+  })
+  expect(process.managed.close).toHaveBeenCalled()
+  expect(terminate).not.toHaveBeenCalled()
+  expect(process.managed.rootExitObserved).toBe(true)
+  await expect(h.adapter.releaseAcquisition({ sessionId: 'session-timeline' })).rejects.toThrow(
+    'Antigravity root exit observed'
+  )
+  h.adapter.acknowledgeSessionRelease('session-timeline')
+})
+
+it('does not acknowledge cancellation when managed close cannot observe root exit', async () => {
+  const h = await setup()
+  const process = h.processes[0]
+  process.managed.close = vi.fn(async () => ({ root: 'live', tree: 'unverifiable' }) as const)
+  await h.send('cancel-unproven')
+  expect(await h.adapter.cancelTurn({ sessionId: 'session-timeline', fence: 7 })).toEqual({
+    cancelled: false
+  })
+  expect(process.managed.rootExitObserved).toBe(false)
+})
