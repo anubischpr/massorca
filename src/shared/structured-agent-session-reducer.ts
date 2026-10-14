@@ -1,4 +1,10 @@
+import { readCommandActivity } from './structured-agent-session-command-activity'
 import type { AgentSessionProviderFunction } from './agent-session-provider-functions'
+import {
+  decodeAgentChildWorkViews,
+  agentChildWorkViewsEqual
+} from './agent-status-child-work-view-wire'
+import type { AgentChildWorkView } from './agent-status-child-work-view'
 import type {
   AgentJournalCursor,
   AgentJournalRenderItem,
@@ -59,6 +65,7 @@ export type StructuredAgentSessionState = {
   error?: string
   /** The refusal the failed read met, when the host sent one; cleared with `error`. */
   readRefusal?: AgentSessionRefusalReference
+  commandActivity?: AgentChildWorkView[]
   backgroundTasks?: AgentSessionBackgroundTaskState | null
   /** Host-held drafts. Absent = no claim yet (older host); `[]`/null = empty. */
   queuedMessages?: AgentSessionQueuedMessage[] | null
@@ -129,6 +136,7 @@ function replacePage(
     retainedItemCap: Math.max(MAX_RETAINED_ITEMS, page.items.length),
     hasOlder: page.hasOlder,
     status: 'ready',
+    commandActivity: decodeAgentChildWorkViews(page.commandActivity),
     subagentRoster: foldStructuredAgentSubagentRosterPage(undefined, page),
     activity: activity ?? null,
     ...(page.latestTurn !== undefined ? { latestTurn: page.latestTurn } : {}),
@@ -196,6 +204,8 @@ export function reduceStructuredAgentSession(
       ...replacePage(action.page, action.page.fence ?? null, state.backgroundTasks, state.activity),
       commands: state.commands,
       functions: state.functions,
+      commandActivity:
+        state.commandActivity ?? decodeAgentChildWorkViews(action.page.commandActivity),
       // Live subscription state stays authoritative over a possibly stale history answer.
       ...queuePublicationField(state, action.page),
       ...hostClockField(action.page.hostNow, receivedAt, state.hostClock)
@@ -239,6 +249,9 @@ export function reduceStructuredAgentSession(
       ),
       commands: event.commands,
       functions: event.functions,
+      commandActivity: decodeAgentChildWorkViews(
+        event.commandActivity ?? event.page.commandActivity
+      ),
       // A snapshot omits the list when unchanged since the last frame sent to this subscriber.
       ...queuePublicationField(event, event.page, state),
       ...hostClockField(event.hostNow, receivedAt, state.hostClock)
@@ -256,6 +269,7 @@ export function reduceStructuredAgentSession(
       : action.opensSubscription
         ? undefined
         : state.backgroundTasks
+  const commandActivity = readCommandActivity(state, event, action.opensSubscription)
   const activity = event.activity !== undefined ? event.activity : state.activity
   const liveItems = liveItemsWithinWindow(state, event.batch.items)
   // Every roster revision, the window's or not: a trimmed roster row keeps its sequence.
@@ -279,6 +293,7 @@ export function reduceStructuredAgentSession(
     (event.queuePause === undefined || event.queuePause === state.queuePause) &&
     (event.nextQueuedMessageId === undefined ||
       event.nextQueuedMessageId === state.nextQueuedMessageId) &&
+    agentChildWorkViewsEqual(commandActivity, state.commandActivity) &&
     backgroundTaskStatesEqual(backgroundTasks, state.backgroundTasks) &&
     activity?.turnId === state.activity?.turnId &&
     activity?.text === state.activity?.text &&
@@ -318,6 +333,7 @@ export function reduceStructuredAgentSession(
     latestTurn: latestTurnAfterStructuredAgentSessionBatch(state.latestTurn, event),
     ...queuePublicationField(event, state),
     backgroundTasks,
+    commandActivity,
     ...(activity !== undefined ? { activity } : {}),
     ...(lostTurnRow ? { unloadedTurnRevisions: (state.unloadedTurnRevisions ?? 0) + 1 } : {}),
     ...hostClockField(event.hostNow, receivedAt, state.hostClock)

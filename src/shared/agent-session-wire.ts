@@ -1,3 +1,4 @@
+import type { AgentSessionFrameFields } from './agent-session-frame-fields'
 import type { AgentSessionUnavailable } from './agent-session-availability'
 import type { AgentSessionProviderFunction } from './agent-session-provider-functions'
 import type {
@@ -9,8 +10,7 @@ import type { AgentSessionWireRefusal } from './agent-session-wire-refusals'
 import type { AgentChildWorkView } from './agent-status-child-work-view'
 import type {
   AgentSessionQueuedMessage,
-  AgentSessionQueuePause,
-  AgentSessionQueuePublicationFields
+  AgentSessionQueuePause
 } from './agent-session-queued-message-wire'
 
 export * from './agent-session-wire-refusals'
@@ -131,6 +131,7 @@ export type AgentSessionHistoryPage = {
   hasOlder: boolean
   hasNewer: boolean
   /** Present on hosts that expose provider-owned background task lifecycle. */
+  commandActivity?: AgentChildWorkView[]
   backgroundTasks?: AgentSessionBackgroundTaskState | null
   /** The host's queued drafts. Absent = no claim (older host); `[]`/null = empty.
    *  Live subscription state stays authoritative over a stale history answer. */
@@ -172,10 +173,6 @@ export type AgentSessionJournalBatch = {
   removedItemIds: string[]
   submissions: AgentJournalSubmission[]
 }
-
-/** Every published frame: the host wall clock (ms epoch, see `AgentSessionHistoryPage`), and what
- *  rides beside its `queuedMessages`. */
-type AgentSessionFrameFields = { hostNow?: number } & AgentSessionQueuePublicationFields
 
 export type AgentSessionSubscribeEvent =
   | ({

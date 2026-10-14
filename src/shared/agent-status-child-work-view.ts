@@ -39,6 +39,8 @@ export type AgentChildWorkView = {
   lastMessage?: string
   /** Present only when the owner is in the same projection; otherwise the main agent owns it. */
   parentChildWorkId?: AgentChildWorkId
+  /** Explicit host provenance; absent on older hosts, never inferred from a missing owner. */
+  ownership?: 'main' | 'child' | 'unverifiable'
   firstObservedAt: number
   observedAt: number
   settledAt?: number
@@ -113,11 +115,15 @@ function resolvedOwner(
 /** Every surface starts here; foreground Codex tools stay in status records and tool rows. */
 export function projectAgentChildWorkViews(
   records: readonly AgentChildWorkInput[],
-  aliases: readonly AgentChildWorkViewAlias[]
+  aliases: readonly AgentChildWorkViewAlias[],
+  includeForegroundCommands = false
 ): AgentChildWorkView[] {
   const visible = records.filter(
     (record) =>
-      record.provider !== 'codex' || record.kind !== 'command' || record.residency !== 'foreground'
+      includeForegroundCommands ||
+      record.provider !== 'codex' ||
+      record.kind !== 'command' ||
+      record.residency !== 'foreground'
   )
   const byId = new Map(visible.map((record) => [record.childWorkId, record]))
   const aliasesByChild = groupedBy(aliases, (alias) => alias.childWorkId)
@@ -141,6 +147,7 @@ export function projectAgentChildWorkViews(
       ...(record.operation !== undefined ? { operation: { ...record.operation } } : {}),
       ...(record.lastMessage !== undefined ? { lastMessage: record.lastMessage } : {}),
       ...(owner !== undefined ? { parentChildWorkId: owner } : {}),
+      ownership: record.parentChildWorkId === undefined ? 'main' : owner ? 'child' : 'unverifiable',
       firstObservedAt: record.firstObservedAt,
       observedAt: record.observedAt,
       ...(record.settledAt !== undefined ? { settledAt: record.settledAt } : {}),
