@@ -12,7 +12,10 @@ import type { AgentSessionProviderHandle } from '../../../shared/agent-session-p
 import type { AgentSessionRecordStore } from '../../runtime/agent-session-record-store'
 import { openTestAgentSessionRecordStore } from '../../runtime/agent-session-record-store-test-harness'
 import { STRUCTURED_AGENT_RUNTIME_REGISTRATIONS } from '../../runtime/structured-agent-runtime-registrations'
-import { openTestJournalHostDatabase } from '../agent-session-journal/journal-host-database-test-support'
+import {
+  openTestJournalHostDatabase,
+  closeTestJournalHostDatabase
+} from '../agent-session-journal/journal-host-database-test-support'
 import type { StructuredAgentDefinition } from './structured-agent-definition'
 import { StructuredAgentRegistry } from './structured-agent-registry'
 import type {
@@ -43,15 +46,29 @@ let root: string | null = null
 
 afterEach(async () => {
   if (root) {
+    closeTestJournalHostDatabase(root)
     await rm(root, { recursive: true, force: true })
     root = null
   }
 })
 
 function accountHome(definition: StructuredAgentDefinition): AgentSessionAccountHome {
-  return definition.accountLocatorKind === 'opencode'
-    ? { kind: 'opencode', locator: { kind: 'unmanaged' } }
-    : { variable: definition.accountHomeVariable, path: `/home/dev/.${definition.agent}` }
+  if (definition.accountHomeVariable !== undefined) {
+    return { variable: definition.accountHomeVariable, path: `/home/dev/.${definition.agent}` }
+  }
+  if (definition.accountLocatorKind === 'antigravity') {
+    return {
+      kind: 'antigravity',
+      locator: {
+        home: '/home/dev',
+        credentialStore: 'file',
+        issuer: 'https://accounts.google.com',
+        subject: 'synthetic-account',
+        authMethod: 'consumer'
+      }
+    }
+  }
+  return { kind: 'opencode', locator: { kind: 'unmanaged' } }
 }
 
 function handle(definition: StructuredAgentDefinition): AgentSessionProviderHandle {

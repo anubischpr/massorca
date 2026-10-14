@@ -4,6 +4,23 @@ import { parseAntigravityNativeCredential } from './native-credential-codec'
 import { credential, harness } from './native-account-test-fixtures'
 
 describe('Antigravity native account identity and selection', () => {
+  it('reads only stable metadata without reconciling or touching the vault', async () => {
+    const h = harness()
+    const first = await h.service.readIdentity()
+    h.setNative(credential('a', 2, 'renamed@example.invalid'))
+    expect(await h.service.readIdentity()).toEqual(first)
+    expect(first).toEqual({
+      issuer: 'https://accounts.google.com',
+      subject: 'a',
+      authMethod: 'consumer'
+    })
+    expect(h.store.read).not.toHaveBeenCalled()
+    expect(h.store.write).not.toHaveBeenCalled()
+    expect(h.backend.write).not.toHaveBeenCalled()
+    h.setNative(null)
+    expect(await h.service.readIdentity()).toBeNull()
+  })
+
   it('keeps one stable account through access, refresh, expiry, ID-token and email rotation', async () => {
     const h = harness()
     const first = await h.service.addCurrentAccount()

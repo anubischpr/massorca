@@ -17,7 +17,7 @@ export type AgentSessionStoredAgent = {
   | {
       /** The agent's account is more than one directory: its records pin a tagged locator of this
        *  kind instead (`AgentSessionAccountHome`). */
-      accountLocatorKind: 'opencode'
+      accountLocatorKind: 'opencode' | 'antigravity'
       accountHomeVariable?: never
     }
 )
