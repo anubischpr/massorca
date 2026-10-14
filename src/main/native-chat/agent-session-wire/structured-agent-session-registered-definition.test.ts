@@ -120,7 +120,7 @@ describe('a registered definition', () => {
     const options = await readAtRest(agents)
     expect(options.models.map((model) => model.id)).toEqual(['pilot-model'])
     // No pick for effort: the registered rules read the model's default.
-    expect(options.current).toEqual({ model: 'pilot-model', effort: 'low' })
+    expect(options.current).toEqual({ model: 'pilot-model', effort: 'low', accessMode: 'inherit' })
     expect(options.threadGoal).toEqual({ current: null })
   })
 
