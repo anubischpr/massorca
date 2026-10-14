@@ -5,19 +5,35 @@ import type {
   ProviderProcessExit
 } from '../provider-process/managed-provider-process'
 
+function assertNullFreeStreams(
+  child: ChildProcess,
+  expected: Pick<ChildProcessWithoutNullStreams, 'stdin' | 'stdout' | 'stderr' | 'stdio'>
+): asserts child is ChildProcessWithoutNullStreams {
+  if (
+    child.stdin !== expected.stdin ||
+    child.stdout !== expected.stdout ||
+    child.stderr !== expected.stderr ||
+    child.stdio !== expected.stdio
+  ) {
+    throw new Error('fixture child streams were not installed')
+  }
+}
+
 /** An owned child fixture; no executable, credential or remote host is used. */
 export function antigravityTestProcess(conversationId = 'conversation-1') {
   const stdout = new PassThrough(),
     stdin = new PassThrough(),
     stderr = new PassThrough()
   const stdio: ChildProcessWithoutNullStreams['stdio'] = [stdin, stdout, stderr, null, null]
-  const child: ChildProcessWithoutNullStreams = Object.assign(new ChildProcess(), {
-    pid: 1234,
-    stdin,
-    stdout,
-    stderr,
-    stdio
+  const child = new ChildProcess()
+  Object.defineProperties(child, {
+    pid: { value: 1234 },
+    stdin: { value: stdin },
+    stdout: { value: stdout },
+    stderr: { value: stderr },
+    stdio: { value: stdio }
   })
+  assertNullFreeStreams(child, { stdin, stdout, stderr, stdio })
   let root: 'live' | 'exited' = 'live'
   let resolveExit = () => {}
   const exitPromise = new Promise<void>((resolve) => {
