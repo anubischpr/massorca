@@ -33,6 +33,7 @@ import { readCodexThreadItem } from './codex-structured-item-translation'
 import { codexThreadWaitsOnUser, readCodexTurnId } from './codex-structured-thread-facts'
 import { CODEX_TOKEN_USAGE_METHOD, readCodexThreadTokenTotal } from './codex-subagent-activity'
 import type { CodexExecutionChild, CodexSubagentExecutions } from './codex-subagent-executions'
+import type { RecordedAgentTurnConfiguration } from '../../shared/agent-recorded-turn-configuration'
 
 /** The executions' own child bound. */
 const MAX_CHILD_FACTS = 128
@@ -91,7 +92,11 @@ export class CodexChildWorkEvidence {
   constructor(
     private readonly primaryThreadId: string,
     private readonly executions: CodexSubagentExecutions,
-    private readonly liveCommands: (threadId: string) => readonly CodexBackgroundCommandChange[]
+    private readonly liveCommands: (threadId: string) => readonly CodexBackgroundCommandChange[],
+    private readonly readConfiguration?: (
+      threadId: string,
+      turnId: string
+    ) => RecordedAgentTurnConfiguration | null
   ) {}
 
   /** After the tracker applied the frame: which command processes it saw start or stop, and the
@@ -264,6 +269,9 @@ export class CodexChildWorkEvidence {
       ...(child.label ? { description: child.label } : {}),
       ...(facts.totalTokens !== undefined ? { totalTokens: facts.totalTokens } : {}),
       ...(lastMessage ? { lastMessage } : {}),
+      ...(this.readConfiguration
+        ? { recordedConfiguration: this.readConfiguration(threadId, turnId) }
+        : {}),
       ...(spawner && spawner !== this.primaryThreadId ? { ownerId: spawner } : {}),
       stoppable: false
     }

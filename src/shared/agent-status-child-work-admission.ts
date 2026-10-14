@@ -1,3 +1,4 @@
+import type { RecordedAgentTurnConfiguration } from './agent-recorded-turn-configuration'
 import type { AgentChildWorkAliasKind } from './agent-status-child-work-alias'
 import type {
   AgentChildWorkId,
@@ -44,6 +45,7 @@ export type AgentChildWorkObservationFields = {
   description?: string
   agentType?: string
   model?: string
+  recordedConfiguration?: RecordedAgentTurnConfiguration | null
   totalTokens?: number
   providerTiming?: AgentChildWorkProviderTiming
   parentChildWorkId?: AgentChildWorkId

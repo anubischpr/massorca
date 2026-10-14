@@ -1,3 +1,4 @@
+import type { RecordedAgentTurnConfiguration } from './agent-recorded-turn-configuration'
 /**
  * One row model for every surface that lists child work (the sidebar's child rows and the chat
  * strip), with one builder per shape a host may publish. All three name a row with one label rule
@@ -55,6 +56,7 @@ export type AgentChildRowModel = {
   name: string
   agentType?: string
   model?: string
+  recordedConfiguration?: RecordedAgentTurnConfiguration | null
   detail: AgentChildRowDetail | null
   /** When the child was first seen: the elapsed anchor. */
   firstObservedAt: number
@@ -226,6 +228,9 @@ function rowFromView(
     name,
     ...(view.agentType !== undefined ? { agentType: view.agentType } : {}),
     ...(view.model !== undefined ? { model: view.model } : {}),
+    ...(view.recordedConfiguration !== undefined
+      ? { recordedConfiguration: view.recordedConfiguration }
+      : {}),
     detail: agentChildRowDetail(
       {
         evidence: 'child',
@@ -369,9 +374,4 @@ export function buildLegacyTaskRowModels(
   return [...rows.values()]
 }
 
-/** Every row of a tree, owners before what they own. */
-export function flattenAgentChildRowModels(
-  rows: readonly AgentChildRowModel[]
-): AgentChildRowModel[] {
-  return rows.flatMap((row) => [row, ...flattenAgentChildRowModels(row.owned)])
-}
+export { flattenAgentChildRowModels } from './agent-child-row-traversal'

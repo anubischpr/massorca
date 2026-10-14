@@ -1,3 +1,6 @@
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createAgentChildWorkAdmission } from '../../shared/agent-status-child-work-admission'
 import type { AgentChildWorkRecord } from '../../shared/agent-status-child-work'
@@ -70,8 +73,8 @@ function shell(id: string, command: string, status = 'inProgress', source = 'age
   return { type: 'commandExecution', id, command, source, status }
 }
 
-function harness() {
-  const tracker = new CodexBackgroundTaskTracker(PRIMARY)
+function harness(parentRolloutPath?: string) {
+  const tracker = new CodexBackgroundTaskTracker(PRIMARY, undefined, undefined, parentRolloutPath)
   const store = createAgentStatusStore({ epoch: 'epoch-1', mode: 'authority' })
   expect(store.applyMutation({ parent: { subject: parent } })).not.toBeNull()
   let minted = 0
@@ -620,4 +623,40 @@ describe('Codex child-work evidence', () => {
       expect.objectContaining({ kind: 'agent', membership: 'settled', outcome: 'unknown' })
     ])
   })
+})
+
+it('bridges only the child recorded configuration through host admission and clears a new turn', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'managed-child-metadata-'))
+  try {
+    const parentPath = join(dir, 'rollout-parent.jsonl')
+    const childPath = join(dir, `rollout-child-${CHILD}.jsonl`)
+    const context = (turnId: string, fields: Record<string, unknown>) =>
+      [
+        JSON.stringify({
+          type: 'turn_context',
+          timestamp: '2026-10-14T01:00:00Z',
+          payload: { turn_id: turnId, ...fields }
+        }),
+        ''
+      ].join('\n')
+    writeFileSync(parentPath, context(PARENT_TURN, { model: 'parent-model', effort: 'max' }))
+    const first = context('child-turn', { model: 'child-model', effort: 'medium' })
+    writeFileSync(childPath, first)
+    const h = harness(parentPath)
+    h.send(spawned(), turn('turn/started', CHILD, 'child-turn', 'inProgress'))
+    expect(h.byKind('agent')[0]?.recordedConfiguration).toMatchObject({
+      source: 'recorded-turn-context',
+      turnId: 'child-turn',
+      model: 'child-model',
+      effort: 'medium'
+    })
+    h.send(turn('turn/completed', CHILD, 'child-turn'))
+    writeFileSync(childPath, first + context('child-turn-two', {}))
+    h.send(turn('turn/started', CHILD, 'child-turn-two', 'inProgress'))
+    expect(h.byKind('agent')[0]?.recordedConfiguration).toMatchObject({ turnId: 'child-turn-two' })
+    expect(h.byKind('agent')[0]?.recordedConfiguration?.model).toBeUndefined()
+    expect(h.byKind('agent')[0]?.recordedConfiguration?.effort).toBeUndefined()
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 })

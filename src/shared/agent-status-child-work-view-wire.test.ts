@@ -108,3 +108,33 @@ describe('agentChildWorkViewsEqual', () => {
     expect(agentChildWorkViewsEqual(undefined, [])).toBe(false)
   })
 })
+
+describe('recorded configuration wire compatibility', () => {
+  const configuration = {
+    source: 'recorded-turn-context',
+    turnId: 'turn-child',
+    observedAt: 120,
+    model: 'child-model',
+    effort: 'medium'
+  }
+  it('preserves recorded provenance and notices configuration-only changes', () => {
+    const decoded = decodeAgentChildWorkViews([{ ...LIVE, recordedConfiguration: configuration }])
+    expect(decoded?.[0].recordedConfiguration).toEqual(configuration)
+    expect(
+      agentChildWorkViewsEqual(
+        decoded,
+        decodeAgentChildWorkViews([
+          { ...LIVE, recordedConfiguration: { ...configuration, effort: 'high' } }
+        ])
+      )
+    ).toBe(false)
+  })
+  it('degrades old hosts and unknown authority without guessing metadata', () => {
+    expect(decodeAgentChildWorkViews([LIVE])?.[0].recordedConfiguration).toBeUndefined()
+    expect(
+      decodeAgentChildWorkViews([
+        { ...LIVE, recordedConfiguration: { ...configuration, source: 'spawn-request' } }
+      ])?.[0].recordedConfiguration
+    ).toBeNull()
+  })
+})
