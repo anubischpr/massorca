@@ -173,7 +173,8 @@ it('advertises only supported stream capabilities and refuses stale dispatch fen
     contextUsage: false,
     imagePrompts: false,
     steering: 'queue',
-    approvalEnforcement: 'provider'
+    approvalEnforcement: 'provider',
+    supportedAccessModes: ['default', 'full-access']
   })
   const h = await setup()
   await expect(
@@ -218,4 +219,20 @@ it('does not acknowledge cancellation when managed close cannot observe root exi
     cancelled: false
   })
   expect(process.managed.rootExitObserved).toBe(false)
+})
+
+it('rejects live access widening without starting another child', async () => {
+  const h = await setup()
+  await expect(
+    h.adapter.setOption({
+      sessionId: 'session-timeline',
+      fence: 7,
+      key: 'accessMode',
+      value: 'full-access'
+    })
+  ).rejects.toBeInstanceOf(AgentSessionOptionRejectedError)
+  expect(h.processes).toHaveLength(1)
+  expect(h.adapter.readAcquisitionOptions({ sessionId: 'session-timeline', fence: 7 })).toEqual(
+    h.input.options
+  )
 })

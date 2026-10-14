@@ -143,3 +143,25 @@ it('lists bounded account-scoped models with the existing agy parser', async () 
     expect.objectContaining({ site: 'antigravity-model-catalog' })
   )
 })
+
+it.each([
+  ['inherit', false, false],
+  ['inherit', true, true],
+  ['default', false, false],
+  ['default', true, false],
+  ['full-access', false, true],
+  ['full-access', true, true]
+] as const)(
+  'maps Antigravity session access %s with inherited %s to full access %s',
+  async (mode, inherited, full) => {
+    const h = await setup()
+    const options = { accessMode: mode }
+    vi.spyOn(h.store, 'getRecord').mockReturnValue({ ...h.record, options })
+    const launch = await createAntigravityLaunchResolver({
+      ...h.deps,
+      resolveFullAccess: () => inherited
+    })(identity)
+    expect(launch.args.includes('--dangerously-skip-permissions')).toBe(full)
+    expect(options).toEqual({ accessMode: mode })
+  }
+)
