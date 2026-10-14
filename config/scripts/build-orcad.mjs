@@ -48,6 +48,7 @@ import {
   orcadRipgrepArtifact
 } from '../../src/shared/orcad-artifacts.ts'
 import { computeOrcadFullVersion } from './orcad-artifact-version.mjs'
+import { stageOrcadClaudeSdk } from './orcad-claude-sdk-package.mjs'
 import { NODE_RUNTIME_ASSETS, NODE_RUNTIME_PIN } from '../../src/shared/node-runtime-pin.ts'
 import { findSlotProblems, readManifest } from './orcad-prebuild-slot-contents.mjs'
 import { orcadAgentBrowserNativeName } from '../../src/shared/orcad-agent-browser-name.ts'
@@ -149,6 +150,7 @@ function stageNodePty(target) {
 
 rmSync(OUT_DIR, { recursive: true, force: true })
 mkdirSync(OUT_DIR, { recursive: true })
+stageOrcadClaudeSdk(ROOT, OUT_DIR)
 writeFileSync(join(OUT_DIR, ORCAD_SERVER_TARGET_FILENAME), `${BUILD_TARGET}\n`)
 writeFileSync(
   join(OUT_DIR, ORCAD_NODE_RUNTIME_MARKER_FILENAME),
