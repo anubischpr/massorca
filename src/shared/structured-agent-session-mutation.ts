@@ -1,4 +1,5 @@
 import { sha256 } from './sha256'
+import type { PiRuntimeSelection } from './pi-runtime-selection'
 import {
   isAgentSessionHandleProvider,
   type StructuredAgentId
@@ -46,6 +47,7 @@ export function structuredAgentSessionCreateFingerprint(input: {
   sessionId: string
   worktree: string
   agent: StructuredAgentId
+  piRuntime?: PiRuntimeSelection
   resumeFrom?: { providerSessionId: string }
   tabId?: string
 }): string {
@@ -55,6 +57,7 @@ export function structuredAgentSessionCreateFingerprint(input: {
     fields: {
       worktree: input.worktree,
       agent: input.agent,
+      piRuntime: input.piRuntime,
       // `canonicalize` drops undefined, so a plain create keeps the digest it has always had.
       // Adopting a conversation is a different intent and must not replay as a blank create.
       resumeFrom: input.resumeFrom,

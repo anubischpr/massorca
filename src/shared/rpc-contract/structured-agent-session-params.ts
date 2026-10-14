@@ -1,3 +1,5 @@
+import { MutationEnvelope } from './structured-agent-session-mutation-params'
+export { MutationEnvelope } from './structured-agent-session-mutation-params'
 import {
   Identifier,
   JournalCursor,
@@ -39,18 +41,6 @@ export const MAX_OPTION_LABEL = 512
 
 /** One relaunch cannot offer more chats than a profile plausibly holds. */
 export const MAX_RESTART_RESUME_SESSIONS = 512
-
-export const MutationEnvelope = z
-  .object({
-    sessionId: SessionId,
-    clientOperationId: Identifier('Invalid client operation id'),
-    /** Null is the "must not exist yet" case; every other call fences. */
-    expectedRuntimeFence: z.number().int().positive().nullable(),
-    payloadFingerprint: z
-      .string()
-      .regex(/^[0-9a-f]{64}$/, 'Payload fingerprint must be a sha256 hex digest')
-  })
-  .strict()
 
 export const ProviderHandle = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('codex'), threadId: Identifier('Invalid thread id') }).strict(),
@@ -119,6 +109,7 @@ export const CreateIntentParams = z
     envelope: MutationEnvelope,
     worktree: Identifier('Invalid worktree selector'),
     agent: StructuredAgent,
+    piRuntime: z.enum(['pi', 'gentle-shell']).optional(),
     resumeFrom: ResumeSource.optional(),
     /**
      * The tab id the client reserved for this chat, so it can place the tab before the reply. The
@@ -131,15 +122,24 @@ export const CreateIntentParams = z
     tabId: z.string().refine(isAgentSessionSurfaceTabId, 'Invalid chat tab ID').optional()
   })
   .strict()
+  .refine(
+    (value) => value.piRuntime === undefined || value.agent === 'pi',
+    'Pi runtime requires the Pi agent'
+  )
 
 export const CreateParams = z.union([AttachParams, CreateIntentParams])
 
 export const CreateSupportParams = z
   .object({
     worktree: Identifier('Invalid worktree selector'),
-    agent: StructuredAgent
+    agent: StructuredAgent,
+    piRuntime: z.enum(['pi', 'gentle-shell']).optional()
   })
   .strict()
+  .refine(
+    (value) => value.piRuntime === undefined || value.agent === 'pi',
+    'Pi runtime requires the Pi agent'
+  )
 
 /** Clients may only author user turns. Accepting an assistant or tool role here
  *  would let one client write words into the agent's mouth in another's
