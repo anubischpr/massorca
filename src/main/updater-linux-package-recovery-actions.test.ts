@@ -41,6 +41,7 @@ const {
     appMock: {
       isPackaged: true,
       getVersion: vi.fn(() => '1.0.51'),
+      getAppPath: vi.fn(() => process.cwd()),
       on: vi.fn(),
       prependListener: vi.fn(),
       quit: vi.fn()
