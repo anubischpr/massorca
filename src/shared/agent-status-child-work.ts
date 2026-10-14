@@ -1,3 +1,4 @@
+import type { RecordedAgentTurnConfiguration } from './agent-recorded-turn-configuration'
 import { agentStatusSubjectsEqual, type AgentStatusSubject } from './agent-status-subject'
 
 export const AGENT_CHILD_WORK_KINDS = [
@@ -83,6 +84,7 @@ export type AgentChildWorkInput = {
   description?: string
   agentType?: string
   model?: string
+  recordedConfiguration?: RecordedAgentTurnConfiguration | null
   totalTokens?: number
   providerTiming?: AgentChildWorkProviderTiming
   /** The child that owns this invocation (a nested agent's spawner, or the agent that launched a

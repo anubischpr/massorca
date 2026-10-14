@@ -29,7 +29,7 @@ const TARGET_CLASS =
   'min-w-0 truncate text-chat-foreground transition-colors group-hover/tool-line:text-chat-foreground-strong'
 
 /** What an opened row shows. Its own component so a row diffs only while it is open. */
-function ToolLineDetail({
+export function NativeChatToolLineDetail({
   block,
   body,
   fullCommand,
@@ -186,7 +186,7 @@ export function NativeChatToolLine({
       </button>
       {hasDetail ? (
         <NativeChatExpandable open={expanded}>
-          <ToolLineDetail
+          <NativeChatToolLineDetail
             block={block}
             body={body}
             fullCommand={fullCommand}

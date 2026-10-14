@@ -246,7 +246,12 @@ export async function acquireCodexStructuredSession(input: {
       ...(catalogAccess ? { catalogAccess } : {}),
       dispatchEchoes,
       translator,
-      backgroundTasks: new CodexBackgroundTaskTracker(opened.threadId, subagentExecutions, sink),
+      backgroundTasks: new CodexBackgroundTaskTracker(
+        opened.threadId,
+        subagentExecutions,
+        sink,
+        typeof opened.thread?.path === 'string' ? opened.thread.path : undefined
+      ),
       forceCloseUnexpected: (reason) =>
         input.forceCloseUnexpected(
           sessionId,

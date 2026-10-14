@@ -19050,6 +19050,26 @@
       "important": "Important",
       "warning": "Warning",
       "caution": "Caution"
+    },
+    "nativeChatBackground": {
+      "viewActivity": "View activity: {{label}}",
+      "recorded": "Recorded turn configuration",
+      "recordedUnavailable": "Recorded turn configuration unavailable",
+      "modelUnavailable": "Model unavailable",
+      "effortUnavailable": "Effort unavailable",
+      "details": "Activity details",
+      "back": "Back",
+      "hostUnavailable": "Host activity cannot currently be verified.",
+      "outputUnavailable": "Command output unavailable.",
+      "commandDetails": "Command details",
+      "statusUnavailable": "Status unavailable",
+      "noOutput": "No command output received.",
+      "title": "Background activity",
+      "empty": "No background work reported.",
+      "main": "Main agent",
+      "originUnavailable": "Origin unavailable",
+      "subagentLabel": "Subagent: {{label}}",
+      "subagent": "Subagent"
     }
   },
   "dashboardPopout": {

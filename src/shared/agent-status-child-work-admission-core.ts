@@ -1,3 +1,5 @@
+import { rejectAgentChildWorkAdmission } from './agent-status-child-work-admission-result'
+import { readRecordedAgentTurnConfiguration } from './agent-recorded-turn-configuration'
 import {
   agentChildWorkEndingConflicts,
   mergedAgentChildWorkEnding
@@ -49,11 +51,7 @@ import { agentStatusSubjectsEqual, type AgentStatusSubject } from './agent-statu
 
 const MAX_ALIASES_PER_ADMISSION = 32
 
-export function rejectAgentChildWorkAdmission(
-  reason: Extract<AgentChildWorkAdmissionResult, { accepted: false }>['reason']
-) {
-  return { accepted: false, reason } as const
-}
+export { rejectAgentChildWorkAdmission } from './agent-status-child-work-admission-result'
 
 export function findAgentChildWork(
   store: AgentStatusStore,
@@ -182,6 +180,10 @@ function parseObservationFacts(
     ),
     agentType: normalizeChildWorkText(request.agentType, AGENT_CHILD_WORK_LABEL_MAX_LENGTH),
     model: normalizeChildWorkText(request.model, AGENT_CHILD_WORK_LABEL_MAX_LENGTH),
+    recordedConfiguration:
+      request.recordedConfiguration === undefined
+        ? undefined
+        : readRecordedAgentTurnConfiguration(request.recordedConfiguration),
     totalTokens: isChildWorkTokenCount(request.totalTokens) ? request.totalTokens : undefined,
     providerTiming: timing ?? undefined,
     parentChildWorkId: isAgentChildWorkOwner(request.parentChildWorkId, host.childWorkId)
@@ -209,6 +211,10 @@ function mergeObservationFacts(
     description: said.description ?? prior?.description,
     agentType: said.agentType ?? prior?.agentType,
     model: said.model ?? prior?.model,
+    recordedConfiguration:
+      said.recordedConfiguration !== undefined
+        ? said.recordedConfiguration
+        : run?.recordedConfiguration,
     residency: said.residency ?? prior?.residency,
     // Cumulative, so a late or duplicate frame never shrinks it.
     totalTokens:
