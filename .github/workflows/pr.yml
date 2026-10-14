@@ -270,7 +270,11 @@ jobs:
         if: needs.code_paths.outputs.static_analysis == 'true'
         run: |
           pnpm run check:reliability-gates
-          pnpm run check:process-host-imports
+          if [ -e src/packages/process-host ]; then
+            pnpm run check:process-host-imports
+          else
+            echo "Process-host import check is not applicable: this baseline has no process-host package."
+          fi
 
       - name: Enforce dead design-system classes
         if: needs.code_paths.outputs.static_analysis == 'true'
