@@ -11,7 +11,8 @@ export const ANTIGRAVITY_STRUCTURED_AGENT: StructuredAgentDefinition = {
     contextUsage: false,
     imagePrompts: false,
     steering: 'queue',
-    approvalEnforcement: 'provider'
+    approvalEnforcement: 'provider',
+    supportedAccessModes: ['default', 'full-access']
   },
   restingOptions: {
     acceptsKey: (key) => key === 'model' || key === 'effort',

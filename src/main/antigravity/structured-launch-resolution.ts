@@ -1,3 +1,4 @@
+import { resolveAgentSessionFullAccess } from '../../shared/agent-session-access-mode'
 import { randomUUID } from 'node:crypto'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import {
@@ -114,7 +115,12 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
         ...(previous ? ['--conversation', previous.handle.nativeId] : []),
         ...(options.model ? ['--model', options.model] : []),
         ...(options.effort ? ['--effort', options.effort] : []),
-        ...(deps.resolveFullAccess?.() === true ? ['--dangerously-skip-permissions'] : [])
+        ...(resolveAgentSessionFullAccess(
+          record.options?.accessMode,
+          deps.resolveFullAccess?.() === true
+        )
+          ? ['--dangerously-skip-permissions']
+          : [])
       ]
     }
   }
