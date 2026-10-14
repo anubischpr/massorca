@@ -4,6 +4,7 @@ import type { AgentSessionOptionsResult } from '../../../../shared/agent-session
 import type { AgentSessionRewindSupport } from '../../../../shared/agent-session-rewind'
 import type { AgentType } from '../../../../shared/agent-status-types'
 import type { AgentSessionOptionCatalog } from '../../../../shared/agent-session-option-catalog'
+import type { AgentSessionAccessMode } from '../../../../shared/agent-session-access-mode'
 import { structuredAgentSessionSeedCatalog } from '../../../../shared/structured-agent-session-seed-catalog'
 import {
   applyStructuredAgentSessionModelCatalog,
@@ -24,10 +25,11 @@ import {
 function firstFrameOptionState(
   agent: AgentType,
   target: RuntimeClientTarget,
-  launch: { newLaunch: boolean; worktree?: string; seedsModel: boolean }
+  launch: { newLaunch: boolean; worktree?: string; seedsModel: boolean },
+  accessModes?: readonly AgentSessionAccessMode[]
 ): StructuredAgentSessionOptionState {
   const seed = structuredAgentSessionSeedCatalog(agent)
-  const seeded = createStructuredAgentSessionOptionState(agent, seed)
+  const seeded = createStructuredAgentSessionOptionState(agent, seed, accessModes)
   const snapshot = readHostModelCatalogSnapshot(target, agent, launch)
   return snapshot ? applyStructuredAgentSessionModelCatalog(seeded, seed, snapshot, launch) : seeded
 }
@@ -48,6 +50,7 @@ export function useStructuredAgentSessionOptionState(args: {
   providerVisible: boolean
   providerStarting: boolean
   readsBeforeStart: boolean
+  accessModes?: readonly AgentSessionAccessMode[]
   turnId: string | null
   unloadedTurnRevisions: number | undefined
 }) {
@@ -64,7 +67,8 @@ export function useStructuredAgentSessionOptionState(args: {
     sessionId,
     target,
     turnId,
-    worktree
+    worktree,
+    accessModes
   } = args
   const [conversationSupport, setConversationSupport] = useState<{
     sessionId: string
@@ -80,17 +84,22 @@ export function useStructuredAgentSessionOptionState(args: {
   // The first frame is the final one when the renderer holds the host's list; otherwise the quiet
   // placeholder stands until the host answers, never a built-in label the host may replace.
   const [optionState, setOptionState] = useState(() =>
-    firstFrameOptionState(agent, target, {
-      newLaunch,
-      seedsModel,
-      ...(worktree ? { worktree } : {})
-    })
+    firstFrameOptionState(
+      agent,
+      target,
+      {
+        newLaunch,
+        seedsModel,
+        ...(worktree ? { worktree } : {})
+      },
+      accessModes
+    )
   )
   // Read only when a fence or session resets the state, so a new target alone resets nothing.
-  const firstFrameLaunch = useRef({ target, newLaunch, worktree, seedsModel })
+  const firstFrameLaunch = useRef({ target, newLaunch, worktree, seedsModel, accessModes })
   useEffect(() => {
-    firstFrameLaunch.current = { target, newLaunch, worktree, seedsModel }
-  }, [newLaunch, seedsModel, target, worktree])
+    firstFrameLaunch.current = { target, newLaunch, worktree, seedsModel, accessModes }
+  }, [accessModes, newLaunch, seedsModel, target, worktree])
   const optionStateRef = useRef(optionState)
   const activeOptionRecordRef = useRef(optionState.record)
   const pendingOptionRef = useRef<string | null>(null)
@@ -103,17 +112,31 @@ export function useStructuredAgentSessionOptionState(args: {
     },
     []
   )
+  useEffect(() => {
+    if (accessModes !== undefined) {
+      updateOptionState((current) => ({
+        ...current,
+        accessModes,
+        accessModeSettable: current.accessModeSettable || current.catalogSource !== 'live'
+      }))
+    }
+  }, [accessModes, updateOptionState])
   const optionIdentityRef = useRef(identity)
   useEffect(() => {
     const previous = optionStateRef.current
     const sameSession = optionIdentityRef.current === identity
     optionIdentityRef.current = identity
     const launch = firstFrameLaunch.current
-    const seeded = firstFrameOptionState(agent, launch.target, {
-      newLaunch: launch.newLaunch,
-      seedsModel: launch.seedsModel,
-      ...(launch.worktree ? { worktree: launch.worktree } : {})
-    })
+    const seeded = firstFrameOptionState(
+      agent,
+      launch.target,
+      {
+        newLaunch: launch.newLaunch,
+        seedsModel: launch.seedsModel,
+        ...(launch.worktree ? { worktree: launch.worktree } : {})
+      },
+      launch.accessModes
+    )
     // A host answer is the account's, not the fence's: keep it rather than blank the default.
     const next =
       sameSession && (previous.catalogSource === 'host' || previous.catalogSource === 'builtin')

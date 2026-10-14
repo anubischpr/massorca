@@ -1,3 +1,4 @@
+import type { AgentSessionFrameFields } from './agent-session-frame-fields'
 import type { AgentSessionUnavailable } from './agent-session-availability'
 import type { AgentSessionProviderFunction } from './agent-session-provider-functions'
 import type {
@@ -9,8 +10,7 @@ import type { AgentSessionWireRefusal } from './agent-session-wire-refusals'
 import type { AgentChildWorkView } from './agent-status-child-work-view'
 import type {
   AgentSessionQueuedMessage,
-  AgentSessionQueuePause,
-  AgentSessionQueuePublicationFields
+  AgentSessionQueuePause
 } from './agent-session-queued-message-wire'
 
 export * from './agent-session-wire-refusals'
@@ -39,6 +39,7 @@ import type { AgentSessionHandoffStage, AgentSessionRecord } from './agent-sessi
 import type { AgentProviderSessionMetadata } from './agent-session-resume'
 import type { NativeChatSubagentEntry } from './native-chat-types'
 import type { StructuredAgentSessionProjectedStatus } from './structured-agent-session-projection'
+import type { AgentSessionAccessOptions } from './agent-session-access-mode'
 
 /** `agentSession.handoffStatus`. Named for the removed terminal handoff; released desktop clients
  *  still read `owner`. Clients parse the reply as unknown, since older hosts sent more fields. */
@@ -131,6 +132,7 @@ export type AgentSessionHistoryPage = {
   hasOlder: boolean
   hasNewer: boolean
   /** Present on hosts that expose provider-owned background task lifecycle. */
+  commandActivity?: AgentChildWorkView[]
   backgroundTasks?: AgentSessionBackgroundTaskState | null
   /** The host's queued drafts. Absent = no claim (older host); `[]`/null = empty.
    *  Live subscription state stays authoritative over a stale history answer. */
@@ -172,10 +174,6 @@ export type AgentSessionJournalBatch = {
   removedItemIds: string[]
   submissions: AgentJournalSubmission[]
 }
-
-/** Every published frame: the host wall clock (ms epoch, see `AgentSessionHistoryPage`), and what
- *  rides beside its `queuedMessages`. */
-type AgentSessionFrameFields = { hostNow?: number } & AgentSessionQueuePublicationFields
 
 export type AgentSessionSubscribeEvent =
   | ({
@@ -466,20 +464,14 @@ export type AgentSessionCommandsResult = {
 /** Longest objective a client may send; matches the provider's own limit. */
 export const AGENT_SESSION_THREAD_GOAL_OBJECTIVE_MAX_LENGTH = 4000
 
-/** A client's change to the thread goal. `set` replaces the objective and makes
- *  it active, which the provider pursues without a separate turn. */
-export type AgentSessionThreadGoalChange =
-  | { kind: 'set'; objective: string }
-  | { kind: 'status'; status: 'active' | 'paused' }
-  | { kind: 'clear' }
-
-export type AgentSessionThreadGoalResult = {
-  change: AgentSessionThreadGoalChange['kind']
-}
+export type {
+  AgentSessionThreadGoalChange,
+  AgentSessionThreadGoalResult
+} from './agent-session-thread-goal-change'
 
 /** Provider-reported choices and effective next-turn values. Additive read-only
  *  surface so older hosts can reject it without changing structured v1 writes. */
-export type AgentSessionOptionsResult = {
+export type AgentSessionOptionsResult = AgentSessionAccessOptions & {
   rewind?: AgentSessionRewindSupport
   conversationCommands?: readonly AgentSessionConversationCommand[]
   /** Present only where this session can change its goal, so a host without

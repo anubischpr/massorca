@@ -1,3 +1,4 @@
+import type { AgentChildWorkView } from '../../../shared/agent-status-child-work-view'
 // Which per-emit fields ride one subscriber frame: the provider command catalog,
 // the queue publication (the draft list with the queue's pause) and the strip's
 // background-task roster. Each is deduplicated against the LAST VALUE SENT to that
@@ -23,6 +24,7 @@ export type SubscriberFieldState = {
 }
 
 export type SubscriberFieldHooks = {
+  readCommandActivity?: (sessionId: string) => AgentChildWorkView[] | undefined
   readCommands?: (sessionId: string) => AgentSessionSlashCommand[] | undefined
   readFunctions?: (sessionId: string) => AgentSessionProviderFunction[] | undefined
   readQueuePublication?: (sessionId: string) => QueuePublication | undefined
@@ -73,6 +75,9 @@ export function buildSubscriberFrame(
   return {
     frame: {
       ...event,
+      ...(event.type !== 'end' && hooks.readCommandActivity
+        ? { commandActivity: hooks.readCommandActivity(subscriber.sessionId) }
+        : {}),
       ...(includeCommands ? { commands: commands ?? null } : {}),
       ...(includeFunctions ? { functions } : {}),
       ...(attachedQueued && queued

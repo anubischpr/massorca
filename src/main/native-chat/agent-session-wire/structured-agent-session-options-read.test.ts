@@ -8,9 +8,15 @@ import {
   type AgentModelCatalogSuccess
 } from '../agent-model-catalog/agent-model-catalog-store'
 import type { StructuredAgentSessionMutationContext } from './structured-agent-session-host-mutations'
-import { readStructuredAgentSessionOptions } from './structured-agent-session-options-read'
+import {
+  readStructuredAgentSessionOptions,
+  recordStructuredAgentSessionOptionIntent
+} from './structured-agent-session-options-read'
 import { StructuredAgentSessionTaskQueue } from './structured-agent-session-task-queue'
-import { NO_STRUCTURED_AGENTS } from './structured-agent-session-adapter-router-test-support'
+import {
+  NO_STRUCTURED_AGENTS,
+  claudeAndCodexDeclared
+} from './structured-agent-session-adapter-router-test-support'
 
 const SESSION = 'session-1'
 
@@ -25,6 +31,54 @@ function restingRecord(): AgentSessionRecord {
 }
 
 describe('options at rest', () => {
+  it('persists access only on the named session and rejects invalid presets', async () => {
+    const record = restingRecord()
+    const other = restingRecord()
+    const persistOptions = vi.fn(async (options: Record<string, string>) => {
+      record.options = options
+    })
+    const ctx = { sessionId: SESSION, persistOptions, publish: vi.fn() }
+    const deps = { store: { getRecord: () => record }, agents: claudeAndCodexDeclared() }
+    expect(
+      await recordStructuredAgentSessionOptionIntent(deps, ctx, {
+        key: 'accessMode',
+        value: 'default'
+      })
+    ).toMatchObject({ ok: true })
+    expect(record.options).toEqual({ accessMode: 'default' })
+    expect(other.options).toEqual({})
+    expect(
+      await recordStructuredAgentSessionOptionIntent(deps, ctx, {
+        key: 'accessMode',
+        value: 'invalid'
+      })
+    ).toMatchObject({ ok: false })
+    expect(persistOptions).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([false, true])('reports access without a model catalog, live=%s', async (running) => {
+    const record = { ...restingRecord(), options: { accessMode: 'default' } }
+    const session = {
+      child: running ? { fence: 1 } : null,
+      params: { provider: 'codex' },
+      journal: { context: { floor: () => null }, threadGoal: () => null, contextUsage: () => null }
+    }
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the options read uses only these declared context members.
+    const context = {
+      deps: {
+        adapter: { readOptions: async () => ({ models: [], current: {} }) },
+        agents: claudeAndCodexDeclared(),
+        store: { getRecord: () => record }
+      },
+      serialize: (_id: string, task: () => Promise<unknown>) => task(),
+      openConversation: async () => session,
+      conversation: async () => session
+    } as unknown as StructuredAgentSessionMutationContext
+    expect(await readStructuredAgentSessionOptions(context, SESSION)).toMatchObject({
+      current: { accessMode: 'default' },
+      accessModeSupport: { modes: ['default', 'full-access'], settable: !running }
+    })
+  })
   it.each(['codex', 'omp', 'grok', 'opencode'] as const)(
     'omits an unknown model for %s while the catalog is unavailable',
     async (provider) => {

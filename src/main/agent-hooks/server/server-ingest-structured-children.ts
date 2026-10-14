@@ -63,11 +63,15 @@ export abstract class AgentHookServerIngestStructuredChildren extends AgentHookS
   }
 
   /** The same records as the views every surface reads; the one record-to-view projection. */
-  getStructuredChildWorkViews(subject: AgentStatusStructuredSessionSubject): AgentChildWorkView[] {
+  getStructuredChildWorkViews(
+    subject: AgentStatusStructuredSessionSubject,
+    includeForegroundCommands = false
+  ): AgentChildWorkView[] {
     const children = this.getStructuredChildWork(subject)
     return projectAgentChildWorkViews(
       children,
-      children.flatMap((child) => this.canonicalStatusStore.getAliasesForChild(child.childWorkId))
+      children.flatMap((child) => this.canonicalStatusStore.getAliasesForChild(child.childWorkId)),
+      includeForegroundCommands
     )
   }
 }

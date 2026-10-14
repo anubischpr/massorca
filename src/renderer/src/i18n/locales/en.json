@@ -18262,6 +18262,12 @@
         "effort": "Effort",
         "fastMode": "Fast mode",
         "thinking": "Thinking",
+        "accessMode": "Access",
+        "accessModeValue": {
+          "inherit": "Inherit global setting",
+          "default": "Provider default",
+          "fullAccess": "Full access"
+        },
         "options": "Options",
         "sessionOptions": "Session options",
         "chooseInAgentPicker": "Choose in agent picker…",
@@ -19044,6 +19050,26 @@
       "important": "Important",
       "warning": "Warning",
       "caution": "Caution"
+    },
+    "nativeChatBackground": {
+      "viewActivity": "View activity: {{label}}",
+      "recorded": "Recorded turn configuration",
+      "recordedUnavailable": "Recorded turn configuration unavailable",
+      "modelUnavailable": "Model unavailable",
+      "effortUnavailable": "Effort unavailable",
+      "details": "Activity details",
+      "back": "Back",
+      "hostUnavailable": "Host activity cannot currently be verified.",
+      "outputUnavailable": "Command output unavailable.",
+      "commandDetails": "Command details",
+      "statusUnavailable": "Status unavailable",
+      "noOutput": "No command output received.",
+      "title": "Background activity",
+      "empty": "No background work reported.",
+      "main": "Main agent",
+      "originUnavailable": "Origin unavailable",
+      "subagentLabel": "Subagent: {{label}}",
+      "subagent": "Subagent"
     }
   },
   "dashboardPopout": {

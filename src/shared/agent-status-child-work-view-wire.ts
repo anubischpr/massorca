@@ -1,3 +1,4 @@
+import { readRecordedAgentTurnConfiguration } from './agent-recorded-turn-configuration'
 // How a child-work view crosses a client/host boundary.
 //
 // Views reach clients from hosts of any version, so they are read permissively: unknown keys are
@@ -94,6 +95,7 @@ function decodeView(value: unknown): AgentChildWorkView | null {
   const model = text(view.model)
   const lastMessage = text(view.lastMessage)
   const parentChildWorkId = text(view.parentChildWorkId)
+  const ownership = arm(['main', 'child', 'unverifiable'] as const, view.ownership)
   const totalTokens = clock(view.totalTokens)
   return {
     id,
@@ -102,8 +104,12 @@ function decodeView(value: unknown): AgentChildWorkView | null {
     ...(description ? { description } : {}),
     ...(agentType ? { agentType } : {}),
     ...(model ? { model } : {}),
+    ...(view.recordedConfiguration !== undefined
+      ? { recordedConfiguration: readRecordedAgentTurnConfiguration(view.recordedConfiguration) }
+      : {}),
     ...(lastMessage ? { lastMessage } : {}),
     ...(parentChildWorkId ? { parentChildWorkId } : {}),
+    ...(view.ownership !== undefined ? { ownership: ownership ?? 'unverifiable' } : {}),
     kind: arm(KINDS, view.kind) ?? 'unknown',
     state: settled ? 'done' : state,
     membership: membership ?? 'live',
@@ -156,12 +162,14 @@ function viewsEqual(a: AgentChildWorkView, b: AgentChildWorkView, clockTolerance
     a.description === b.description &&
     a.agentType === b.agentType &&
     a.model === b.model &&
+    JSON.stringify(a.recordedConfiguration) === JSON.stringify(b.recordedConfiguration) &&
     a.state === b.state &&
     a.membership === b.membership &&
     a.outcome === b.outcome &&
     operationsEqual(a.operation, b.operation, clockToleranceMs) &&
     a.lastMessage === b.lastMessage &&
     a.parentChildWorkId === b.parentChildWorkId &&
+    a.ownership === b.ownership &&
     a.firstObservedAt === b.firstObservedAt &&
     Math.abs(a.observedAt - b.observedAt) <= clockToleranceMs &&
     a.settledAt === b.settledAt &&

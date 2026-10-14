@@ -5,6 +5,8 @@
  * name. A running session may narrow a declared capability (a Codex thread with legacy history
  * cannot rewind) but never widens one. Plain data, so a host can send it to clients as it is.
  */
+import type { AgentSessionAccessMode } from './agent-session-access-mode'
+
 export type AgentSessionCapabilities = {
   /** Roll the conversation back to before a turn. */
   rewind: boolean
@@ -26,4 +28,6 @@ export type AgentSessionCapabilities = {
    * WHEN it asks, so only what it asks about is covered, never a sandbox.
    */
   approvalEnforcement: 'provider' | 'orca'
+  /** Explicit presets this provider can apply at launch. `inherit` is universal and not listed. */
+  supportedAccessModes?: readonly AgentSessionAccessMode[]
 }

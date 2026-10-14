@@ -11,6 +11,7 @@ import { CodexSubagentExecutions } from './codex-subagent-executions'
 import { CodexBackgroundCommandTracker } from './codex-background-command-tracker'
 import { CodexChildWorkEvidence } from './codex-child-work-evidence'
 import type { CodexAbandonedCommand } from './codex-prompt-registry'
+import { createCodexChildConfigurationReader } from '../../shared/codex-subagent-transcript'
 import type { CodexStructuredSessionAdapterDeps } from './codex-structured-session-state'
 import { boundSubagentField } from '../native-chat/agent-session-journal/journal-subagent-group-body'
 
@@ -40,11 +41,15 @@ export class CodexBackgroundTaskTracker {
   constructor(
     private readonly primaryThreadId: string,
     private readonly executions = new CodexSubagentExecutions(),
-    private readonly childWorkSink?: CodexChildWorkSink
+    private readonly childWorkSink?: CodexChildWorkSink,
+    parentRolloutPath?: string
   ) {
     this.commands = new CodexBackgroundCommandTracker(primaryThreadId)
-    this.childWork = new CodexChildWorkEvidence(primaryThreadId, executions, (threadId) =>
-      this.commands.threadCommands(threadId)
+    this.childWork = new CodexChildWorkEvidence(
+      primaryThreadId,
+      executions,
+      (threadId) => this.commands.threadCommands(threadId),
+      parentRolloutPath ? createCodexChildConfigurationReader(parentRolloutPath) : undefined
     )
   }
 

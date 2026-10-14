@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
+import { chmod, mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -8,7 +8,11 @@ import { agentSessionProviderHandleKey } from '../../shared/agent-session-provid
 import { closeTestJournalHostDatabase } from '../native-chat/agent-session-journal/journal-host-database-test-support'
 import { openTestAgentSessionRecordStore } from '../runtime/agent-session-record-store-test-harness'
 import { buildPiRpcLaunch } from './rpc-launch'
-import { createPiRpcLaunchResolver, piRpcProviderLink } from './rpc-launch-resolution'
+import {
+  createPiRpcLaunchResolver,
+  piRpcProviderLink,
+  piRpcVersionSupported
+} from './rpc-launch-resolution'
 
 const probeVersion = vi.fn(async (..._input: unknown[]) => true)
 
@@ -27,6 +31,71 @@ beforeEach(async () => {
 afterEach(async () => {
   closeTestJournalHostDatabase(root)
   await rm(root, { recursive: true, force: true })
+})
+
+describe('Gentle Shell Pi version output', () => {
+  it.each([
+    [
+      'accepts the isolated-home metadata emitted by the current wrapper',
+      [
+        'gentle-shell version 4.1.0',
+        'pi version 1.1.0',
+        'home isolated /home/christian/.gentle-shell/agent'
+      ],
+      true
+    ],
+    [
+      'continues accepting the two-line version output',
+      ['gentle-shell version 4.1.0', 'pi version 1.1.0'],
+      true
+    ],
+    [
+      'rejects a malformed wrapper version',
+      ['gentle-shell version 4.1', 'pi version 1.1.0'],
+      false
+    ],
+    [
+      'rejects a mismatched wrapper label',
+      ['other-shell version 4.1.0', 'pi version 1.1.0'],
+      false
+    ],
+    [
+      'rejects a malformed Pi version',
+      ['gentle-shell version 4.1.0', 'pi version latest'],
+      false
+    ],
+    [
+      'rejects unknown metadata',
+      ['gentle-shell version 4.1.0', 'pi version 1.1.0', 'using isolated home /tmp/agent'],
+      false
+    ]
+  ] as const)('%s', async (_case, lines, expected) => {
+    const command = join(root, process.platform === 'win32' ? 'gentle-shell.cmd' : 'gentle-shell')
+    const output = `${lines.join('\n')}\n`
+    if (process.platform === 'win32') {
+      await writeFile(
+        command,
+        `@echo off\r\n${lines.map((line) => `echo ${line}`).join('\r\n')}\r\n`,
+        'utf8'
+      )
+    } else {
+      await writeFile(
+        command,
+        `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(output)})\n`,
+        'utf8'
+      )
+      await chmod(command, 0o755)
+    }
+
+    const env: Record<string, string> = {}
+    for (const [key, value] of Object.entries(process.env)) {
+      if (value !== undefined) {
+        env[key] = value
+      }
+    }
+
+    await expect(piRpcVersionSupported({ command, cwd: root, env })).resolves.toBe(expected)
+  })
 })
 
 async function setup() {

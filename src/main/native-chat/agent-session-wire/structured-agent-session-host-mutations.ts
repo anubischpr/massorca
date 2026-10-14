@@ -8,6 +8,7 @@
 // an operation only the provider can perform starts it before admission.
 
 import type { AgentJournalMessageItem } from '../../../shared/agent-session-journal-types'
+import { refuse } from '../../../shared/agent-session-wire'
 import type {
   AgentSessionCancelResult,
   AgentSessionMutationEnvelope,
@@ -192,6 +193,16 @@ export async function setStructuredAgentSessionOption(
       run: async (ctx) => {
         if (atRest()) {
           return recordStructuredAgentSessionOptionIntent(context.deps, ctx, params)
+        }
+        if (params.key === 'accessMode') {
+          return {
+            ok: false,
+            refusal: refuse(
+              'agent_session_operation_invalid',
+              { reason: 'optionRejected' },
+              'Access mode can only be changed while the session is at rest'
+            )
+          }
         }
         // Held where a start is, so a close, a Stop admitted now or quit ends the wait from outside.
         const wait = context.acquireAborts.begin(params.envelope.sessionId)
