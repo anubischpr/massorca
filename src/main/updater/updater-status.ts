@@ -3,9 +3,39 @@ import { statusesEqual } from '../updater-fallback'
 import type { UpdateCheckOptions, UpdateStatus } from '../../shared/update-status-types'
 import type { UpdateCheckVariant } from './updater-types'
 import { UpdaterState as BaseUpdaterState } from './updater-state'
+import { MANUAL_UPDATE_MESSAGE, readDistributionUpdatePolicy } from './distribution-policy'
 
 export abstract class UpdaterStatus extends BaseUpdaterState {
+  private automaticUpdatesAllowed: boolean | undefined
+
+  protected allowsManagedUpdates(): boolean {
+    this.automaticUpdatesAllowed ??= readDistributionUpdatePolicy()
+    return this.automaticUpdatesAllowed
+  }
+
+  protected blockManagedUpdate(userInitiated = false): boolean {
+    if (this.allowsManagedUpdates()) {
+      return false
+    }
+    if (userInitiated) {
+      this.sendStatus({
+        state: 'error',
+        message: MANUAL_UPDATE_MESSAGE,
+        userInitiated: true,
+        retryable: false
+      })
+    }
+    return true
+  }
+
+  protected assertManagedUpdatesAllowed(): void {
+    if (!this.allowsManagedUpdates()) {
+      throw new Error(MANUAL_UPDATE_MESSAGE)
+    }
+  }
+
   protected getAutoUpdater(): ElectronAutoUpdater {
+    this.assertManagedUpdatesAllowed()
     if (!this.autoUpdater) {
       this.autoUpdater = loadElectronAutoUpdater()
     }

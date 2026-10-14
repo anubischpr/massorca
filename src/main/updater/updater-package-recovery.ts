@@ -97,6 +97,7 @@ export abstract class UpdaterPackageRecovery extends UpdaterInstallSupport {
   }
 
   protected async getLinuxPackageInstallInstructions(): Promise<LinuxPackageInstallInstructions> {
+    this.assertManagedUpdatesAllowed()
     const recovery = this.getActiveLinuxPackageRecovery()
     if (!recovery) {
       throw new Error('No package install recovery is available.')
@@ -127,6 +128,7 @@ export abstract class UpdaterPackageRecovery extends UpdaterInstallSupport {
   }
 
   protected async showLinuxPackage(): Promise<void> {
+    this.assertManagedUpdatesAllowed()
     const recovery = this.getActiveLinuxPackageRecovery()
     if (!recovery) {
       throw new Error('No package install recovery is available.')

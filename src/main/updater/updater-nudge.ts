@@ -7,6 +7,9 @@ import { UpdaterBuildSelection } from './updater-build-selection'
 /** Polls update campaigns and exposes their dismissal actions. */
 export abstract class UpdaterNudge extends UpdaterBuildSelection {
   protected async checkForUpdateNudge(): Promise<void> {
+    if (this.blockManagedUpdate()) {
+      return
+    }
     if (!app.isPackaged || is.dev) {
       return
     }
@@ -49,6 +52,9 @@ export abstract class UpdaterNudge extends UpdaterBuildSelection {
   }
 
   protected scheduleUpdateNudgeCheck(): void {
+    if (this.blockManagedUpdate()) {
+      return
+    }
     if (this.nudgeCheckTimer) {
       clearTimeout(this.nudgeCheckTimer)
     }

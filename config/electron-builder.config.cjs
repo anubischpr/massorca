@@ -38,6 +38,7 @@ const {
 const { verifySkillsCliRuntime } = require('./scripts/verify-skills-cli-runtime.cjs')
 const { verifyStaticAppImagePackage } = require('./scripts/static-appimage-package-contract.cjs')
 const { signWindowsUninstallerViaSignPath } = require('./scripts/windows-uninstaller-signing.cjs')
+const { distributionMetadata } = require('./distribution-policy.cjs')
 
 // Why: dev-channel builds must carry the *release* identity — same bundle id,
 // Developer ID signature, and notarization ticket — or Squirrel.Mac refuses to
@@ -192,11 +193,12 @@ module.exports = {
   productName: 'Orca',
   protocols: [{ name: 'Orca', schemes: ['orca'] }],
   toolsets: { appimage: '1.0.3' },
-  ...(devChannelBuildVersion
-    ? { extraMetadata: { version: devChannelBuildVersion } }
-    : localBuildVersion
-      ? { extraMetadata: { version: localBuildVersion } }
+  extraMetadata: {
+    ...(devChannelBuildVersion || localBuildVersion
+      ? { version: devChannelBuildVersion || localBuildVersion }
       : {}),
+    ...distributionMetadata(process.env)
+  },
   directories: {
     buildResources: 'resources/build'
   },

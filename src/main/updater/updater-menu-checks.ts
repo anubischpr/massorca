@@ -8,6 +8,9 @@ import { UpdaterScheduling } from './updater-scheduling'
 /** Handles checks initiated from the desktop menu and modifier-key variants. */
 export abstract class UpdaterMenuChecks extends UpdaterScheduling {
   protected checkForUpdatesFromMenu(options?: UpdateCheckOptions): void {
+    if (this.blockManagedUpdate(true)) {
+      return
+    }
     if (
       this.pendingQuitAndInstallTimer ||
       this.quitAndInstallInProgress ||

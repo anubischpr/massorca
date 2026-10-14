@@ -28,6 +28,7 @@ type AutoUpdaterMock = {
 type AppMock = {
   isPackaged: boolean
   getVersion: Mock<() => string>
+  getAppPath: Mock<() => string>
   on: Mock<(event: string, handler: (...args: unknown[]) => void) => AppMock>
   prependListener: Mock<(event: string, handler: (...args: unknown[]) => void) => AppMock>
   emit: (event: string, ...args: unknown[]) => void
@@ -195,6 +196,7 @@ export function createUpdaterMocks(): UpdaterMocks {
   const appMock: AppMock = {
     isPackaged: true,
     getVersion: vi.fn(() => '1.0.51'),
+    getAppPath: vi.fn(() => process.cwd()),
     on: appOn,
     prependListener: appPrependListener,
     emit: appEmit,
