@@ -17,8 +17,14 @@ function fixture() {
       hostHome: home,
       platform: 'linux' as const,
       kernelRelease: 'generic',
-      readIdentity: vi.fn(async () => identity),
-      readModelProvider: vi.fn(() => undefined)
+      readIdentity: vi.fn(
+        async (): Promise<{
+          issuer: typeof identity.issuer
+          subject: string
+          authMethod: string
+        }> => identity
+      ),
+      readModelProvider: vi.fn((): unknown => undefined)
     }
   }
 }
@@ -114,5 +120,53 @@ describe('Antigravity execution-host account binding', () => {
       reason: 'managedAccountUnsupported',
       message: 'Antigravity credential authority could not be verified.'
     })
+  })
+
+  it('binds verified systemd file fallback and rechecks host and child authority on resume', async () => {
+    const { deps } = fixture()
+    const launchEnv = { HOME: home, DISPLAY: ':99' }
+    const verifyAuthority = vi.fn(async () => 'verified-file-fallback')
+    const options = { ...deps, hostEnv: launchEnv, verifyAuthority }
+    const previous = await readAntigravityAccountBinding({ launchEnv }, options)
+    expect(previous.locator.credentialStore).toBe('file')
+    expect(verifyAuthority).toHaveBeenCalledTimes(4)
+    verifyAuthority.mockRejectedValue(new Error('native authority now available'))
+    await expect(
+      readAntigravityAccountBinding({ launchEnv, previous }, options)
+    ).rejects.toMatchObject({
+      reason: 'managedAccountUnsupported'
+    })
+  })
+
+  it('refuses authority and account races during metadata acquisition', async () => {
+    for (const change of ['authority', 'identity', 'provider', 'home'] as const) {
+      const { input, deps } = fixture()
+      const verifyAuthority = vi.fn(async () => 'file')
+      if (change === 'authority') {
+        verifyAuthority
+          .mockResolvedValueOnce('file')
+          .mockResolvedValueOnce('file')
+          .mockResolvedValue('changed')
+      }
+      if (change === 'identity') {
+        deps.readIdentity
+          .mockResolvedValueOnce(identity)
+          .mockResolvedValue({ ...identity, subject: 'account-b' })
+      }
+      if (change === 'provider') {
+        deps.readModelProvider.mockReturnValueOnce(undefined).mockReturnValue('gemini')
+      }
+      if (change === 'home') {
+        deps.readIdentity.mockImplementation(async () => {
+          input.launchEnv.HOME = resolve('/changed')
+          return identity
+        })
+      }
+      await expect(
+        readAntigravityAccountBinding(input, { ...deps, verifyAuthority })
+      ).rejects.toMatchObject({
+        reason: 'managedAccountUnsupported'
+      })
+    }
   })
 })
