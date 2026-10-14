@@ -208,11 +208,13 @@ function PickerOption({
         </span>
         {providerFunction ? (
           <span className="block text-[11px] text-muted-foreground">
-            {providerFunction.provenance === 'orca' ? 'Orca' : 'Provider'}
+            {providerFunction.provenance === 'orca'
+              ? translate('components.native-chat.composer.providerFunctionOrca', 'Orca')
+              : translate('components.native-chat.composer.providerFunctionProvider', 'Provider')}
             {providerFunction.availability === 'terminal-only'
-              ? ' · Terminal only'
+              ? ` · ${translate('components.native-chat.composer.providerFunctionTerminalOnly', 'Terminal only')}`
               : providerFunction.availability === 'unverified'
-                ? ' · Unverified'
+                ? ` · ${translate('components.native-chat.composer.providerFunctionUnverified', 'Unverified')}`
                 : ''}
           </span>
         ) : null}
