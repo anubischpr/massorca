@@ -43,6 +43,7 @@ describe('Antigravity stream-json protocol parser', () => {
   })
 
   it.each([
+    [{ conversation_id: '', step_index: 0, state: 'DONE', step_type: 'tool' }],
     [{ conversation_id: 'conv-1', step_index: -1, state: 'DONE', step_type: 'tool' }],
     [{ conversation_id: 'conv-1', step_index: 1.5, state: 'DONE', step_type: 'tool' }],
     [{ conversation_id: 'conv-1', step_index: 1, state: 'WAITING', step_type: 'tool' }],
@@ -95,6 +96,12 @@ describe('Antigravity stream-json protocol parser', () => {
         result: { ...validResult, status: 'UNKNOWN' }
       })
     ).toThrow(AntigravityStreamProtocolError)
+    expect(() =>
+      parseAntigravityStreamRecord({
+        event: 'result',
+        result: { ...validResult, conversation_id: '' }
+      })
+    ).toThrow('Antigravity result has invalid fields')
     expect(() =>
       parseAntigravityStreamRecord({
         event: 'result',

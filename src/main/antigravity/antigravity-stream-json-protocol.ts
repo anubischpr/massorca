@@ -134,6 +134,7 @@ export function parseAntigravityStreamRecord(value: unknown): AntigravityStreamW
     if (
       !isObject(step) ||
       typeof step.conversation_id !== 'string' ||
+      step.conversation_id.length === 0 ||
       !isSafeNonNegativeInteger(step.step_index) ||
       (step.state !== 'ACTIVE' && step.state !== 'DONE') ||
       typeof step.step_type !== 'string' ||
@@ -167,6 +168,7 @@ export function parseAntigravityStreamRecord(value: unknown): AntigravityStreamW
     if (
       !isObject(result) ||
       typeof result.conversation_id !== 'string' ||
+      result.conversation_id.length === 0 ||
       !isStatus(result.status) ||
       typeof result.response !== 'string' ||
       !isSafeNonNegativeInteger(result.num_turns) ||
