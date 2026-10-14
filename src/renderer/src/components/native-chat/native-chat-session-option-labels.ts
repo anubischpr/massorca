@@ -15,6 +15,8 @@ export function nativeChatSessionOptionLabel(descriptor: SessionOptionDescriptor
       return translate('components.native-chat.composer.fastMode', 'Fast mode')
     case 'thinking':
       return translate('components.native-chat.composer.thinking', 'Thinking')
+    case 'accessMode':
+      return translate('components.native-chat.composer.accessMode', 'Access')
     default:
       return descriptor.label
   }
@@ -22,6 +24,18 @@ export function nativeChatSessionOptionLabel(descriptor: SessionOptionDescriptor
 
 export function nativeChatSessionChoiceLabel(choice: SessionOptionSelectChoice): string {
   switch (choice.value) {
+    case 'inherit':
+      return translate(
+        'components.native-chat.composer.accessModeValue.inherit',
+        'Inherit global setting'
+      )
+    case 'default':
+      return translate(
+        'components.native-chat.composer.accessModeValue.default',
+        'Provider default'
+      )
+    case 'full-access':
+      return translate('components.native-chat.composer.accessModeValue.fullAccess', 'Full access')
     case 'minimal':
       return translate('components.native-chat.composer.optionValue.minimal', 'Minimal')
     case 'low':

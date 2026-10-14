@@ -107,6 +107,9 @@ function liveFields(
     ...(child.name !== undefined ? { name: child.name } : {}),
     ...(child.description !== undefined ? { description: child.description } : {}),
     ...(child.agentType !== undefined ? { agentType: child.agentType } : {}),
+    ...(child.recordedConfiguration !== undefined
+      ? { recordedConfiguration: child.recordedConfiguration }
+      : {}),
     ...(child.totalTokens !== undefined ? { totalTokens: child.totalTokens } : {}),
     ...(owner !== undefined ? { parentChildWorkId: owner } : {}),
     residency: child.residency,

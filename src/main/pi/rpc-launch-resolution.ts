@@ -22,6 +22,7 @@ import {
 import type { AgentSessionRecordStore } from '../runtime/agent-session-record-store'
 import { isWindowsProcessStartTimeAvailable } from '../windows/windows-process-table'
 import type { PiRpcLaunchOptions } from './rpc-launch'
+import { resolveAgentSessionFullAccess } from '../../shared/agent-session-access-mode'
 
 export type PiRpcResolvedLaunch = PiRpcLaunchOptions & {
   previous: AgentSessionProviderHandleLink | null
@@ -65,7 +66,10 @@ function parseGentleShellPiVersion(output: string): string | null {
   const wrapperLine =
     /^gentle-shell(?:\s+version)?\s+(v?\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?)$/i
   const piLine = /^pi(?:\s+version)?\s+(v?\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?)$/i
-  if (lines.length !== 2 || !wrapperLine.test(lines[0]) || !piLine.test(lines[1])) {
+  const hasValidLineCount =
+    lines.length === 2 ||
+    (lines.length === 3 && /^home isolated \S.*$/i.test(lines[2]))
+  if (!hasValidLineCount || !wrapperLine.test(lines[0]) || !piLine.test(lines[1])) {
     return null
   }
   return parseCliVersion(lines[1])
@@ -239,7 +243,10 @@ export function createPiRpcLaunchResolver(
       command,
       cwd,
       env,
-      fullAccess: deps.resolveFullAccess?.() ?? true,
+      fullAccess: resolveAgentSessionFullAccess(
+        record.options?.accessMode,
+        deps.resolveFullAccess?.() ?? true
+      ),
       previous,
       ...(sessionFile ? { sessionFile } : {}),
       ...(forkFile ? { forkFile } : {}),

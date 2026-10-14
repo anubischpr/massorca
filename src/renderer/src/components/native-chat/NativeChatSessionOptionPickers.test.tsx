@@ -258,6 +258,18 @@ const fast: SessionOptionDescriptor = {
 afterEach(() => cleanup())
 
 describe('NativeChatSessionOptionPickers', () => {
+  it('renders a localized access selector without a model descriptor', () => {
+    const snapshot = structuredAgentSessionOptionSnapshot(
+      createStructuredAgentSessionOptionState('agy', null, ['default', 'full-access'])
+    )
+    render(
+      <NativeChatSessionOptionPickers surface={surface} snapshot={snapshot} isWorking={false} />
+    )
+    expect(screen.getByText('Access')).toBeTruthy()
+    expect(screen.getAllByText('Inherit global setting').length).toBeGreaterThan(0)
+    expect(screen.getByText('Provider default')).toBeTruthy()
+    expect(screen.getByText('Full access')).toBeTruthy()
+  })
   it('opens the native picker requested by a structured slash command', async () => {
     const { rerender } = render(
       <NativeChatSessionOptionPickers

@@ -233,7 +233,7 @@ describe('claude structured launch resolution', () => {
 
     expect(launch.env).toMatchObject({
       ORCA_AGENT_SESSION_ID: SESSION_ID,
-      ORCA_CLI_COMMAND: expect.stringMatching(/^[^:;]*[\\/]cli[\\/]bin[\\/]orca-dev$/)
+      ORCA_CLI_COMMAND: expect.stringMatching(/[\\/]cli[\\/]bin[\\/]orca-dev(?:\.cmd)?$/)
     })
     expect(launch.env?.ORCA_AGENT_SESSION_ID).not.toBe(launch.providerSessionId)
   })
@@ -339,6 +339,23 @@ describe('claude structured launch resolution', () => {
       'dangerously-skip-permissions': null
     })
   })
+
+  it.each(['default', 'full-access'] as const)(
+    'applies the session %s preset without changing global args',
+    async (accessMode) => {
+      const globalArgs = { claude: '--dangerously-skip-permissions' }
+      const launch = await resolverFor(
+        record({ options: { accessMode } }),
+        undefined,
+        false,
+        globalArgs
+      )({ identity: IDENTITY })
+      expect(launch.options.extraArgs?.['dangerously-skip-permissions']).toBe(
+        accessMode === 'full-access' ? null : undefined
+      )
+      expect(globalArgs.claude).toBe('--dangerously-skip-permissions')
+    }
+  )
 
   // Manual is stored as an empty string, which owns the key and so beats the shipped default.
   it.each([[''], ['--model Opus']])(

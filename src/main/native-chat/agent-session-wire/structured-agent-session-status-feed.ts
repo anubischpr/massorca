@@ -318,9 +318,12 @@ export class StructuredAgentSessionStatusFeed {
 
   /** The session's child records as views, once its parent row has landed; the one read every
    *  surface of them shares. */
-  readChildWork(sessionId: string): AgentChildWorkView[] | undefined {
+  readChildWork(
+    sessionId: string,
+    includeForegroundCommands = false
+  ): AgentChildWorkView[] | undefined {
     try {
-      return this.ownership.readChildWork(sessionId)
+      return this.ownership.readChildWork(sessionId, includeForegroundCommands)
     } catch (error) {
       this.logFailure('child-work-read', 'child work read failed', sessionId, error)
       return undefined

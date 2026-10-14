@@ -18013,6 +18013,12 @@
         "effort": "推論レベル",
         "fastMode": "高速モード",
         "thinking": "思考",
+        "accessMode": "アクセス",
+        "accessModeValue": {
+          "inherit": "グローバル設定を継承",
+          "default": "プロバイダーの既定値",
+          "fullAccess": "フルアクセス"
+        },
         "options": "オプション",
         "sessionOptions": "セッションオプション",
         "chooseInAgentPicker": "Agent の選択画面で選ぶ…",

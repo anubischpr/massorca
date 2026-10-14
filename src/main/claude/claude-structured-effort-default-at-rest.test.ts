@@ -382,7 +382,7 @@ describe('Claude effort default at rest', () => {
 
     const result = await readAtRest(store, record)
 
-    expect(result.current).toEqual({ model: 'gpt-5.5' })
+    expect(result.current).toEqual({ model: 'gpt-5.5', accessMode: 'inherit' })
   })
 
   it("never saves the applied effort as the chat's pick, yet shows it at rest", async () => {
