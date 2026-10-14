@@ -1,3 +1,4 @@
+import { structuredAgentSessionAccessOption } from './structured-agent-session-access-option'
 import type {
   AgentSessionOptionCatalog,
   CatalogModel,
@@ -15,7 +16,7 @@ import {
   setTrackedSessionOption,
   type NativeChatSessionOptionRecord
 } from './native-chat-session-option-state'
-import { STRUCTURED_LAUNCH_SEED_OPTION_IDS } from './native-chat-session-option-defaults'
+import { STRUCTURED_GLOBAL_OPTION_PICK_IDS } from './native-chat-session-option-defaults'
 import type { SessionOptionDescriptor, SessionOptionValue } from './native-chat-session-options'
 import type {
   AgentSessionModelCatalogResult,
@@ -25,6 +26,8 @@ import {
   decodeStructuredAgentSessionOptionValue,
   encodeStructuredAgentSessionOptionValue
 } from './structured-agent-session-option-codec'
+import type { AgentSessionAccessMode } from './agent-session-access-mode'
+import { supportsAgentSessionAccessMode } from './agent-session-access-mode'
 
 function effortOption(model: AgentSessionOptionsResult['models'][number]): CatalogOption | null {
   if (model.efforts.length <= 1) {
@@ -95,6 +98,9 @@ export type StructuredAgentSessionOptionState = {
    *  same list once the host said it has none, usable but naming nothing the host may replace. */
   catalogSource: 'seed' | 'builtin' | 'host' | 'live' | null
   record: NativeChatSessionOptionRecord
+  /** Provider-declared modes, independent of model catalog availability. */
+  accessModes?: readonly AgentSessionAccessMode[]
+  accessModeSettable: boolean
   pendingId: string | null
 }
 
@@ -102,12 +108,15 @@ export type StructuredAgentSessionOptionState = {
  *  the quiet placeholder until the host answers; every later source only upgrades it. */
 export function createStructuredAgentSessionOptionState(
   agent = 'codex',
-  seedCatalog?: AgentSessionOptionCatalog | null
+  seedCatalog?: AgentSessionOptionCatalog | null,
+  accessModes?: readonly AgentSessionAccessMode[]
 ): StructuredAgentSessionOptionState {
   return {
     catalog: seedCatalog ?? null,
     catalogSource: seedCatalog ? 'seed' : null,
     record: createNativeChatSessionOptionRecord(agent),
+    ...(accessModes ? { accessModes } : {}),
+    accessModeSettable: accessModes !== undefined,
     pendingId: null
   }
 }
@@ -173,6 +182,7 @@ export function applyStructuredAgentSessionOptions(
   applyNativeChatReportedSessionOptions(
     state.record,
     {
+      ...(result.current.accessMode ? { accessMode: result.current.accessMode } : {}),
       ...(result.current.model ? { model: result.current.model } : {}),
       ...(result.current.effort ? { effort: result.current.effort } : {}),
       ...(result.current.fastMode !== undefined ? { fastMode: result.current.fastMode } : {})
@@ -181,6 +191,12 @@ export function applyStructuredAgentSessionOptions(
   )
   return {
     ...state,
+    ...(result.accessModeSupport
+      ? {
+          accessModes: result.accessModeSupport.modes,
+          accessModeSettable: result.accessModeSupport.settable
+        }
+      : {}),
     catalog: structuredAgentSessionOptionCatalog(seed, result),
     catalogSource: 'live'
   }
@@ -202,12 +218,15 @@ const PROVIDER_DEFAULT_MODEL_PLACEHOLDER: SessionOptionDescriptor = {
 export function structuredAgentSessionOptionSnapshot(
   state: StructuredAgentSessionOptionState
 ): SessionOptionDescriptor[] {
+  const accessMode = structuredAgentSessionAccessOption(state)
   if (!state.catalog) {
-    return []
+    return accessMode ? [accessMode] : []
   }
   // Until the host answers, the built-in list would paint a label its list may replace.
   if (state.catalogSource === 'seed') {
-    return [PROVIDER_DEFAULT_MODEL_PLACEHOLDER]
+    return accessMode
+      ? [PROVIDER_DEFAULT_MODEL_PLACEHOLDER, accessMode]
+      : [PROVIDER_DEFAULT_MODEL_PLACEHOLDER]
   }
   const snapshot = buildNativeChatSessionOptionSnapshot({
     catalog: state.catalog,
@@ -218,9 +237,11 @@ export function structuredAgentSessionOptionSnapshot(
     modelLabel: 'Model',
     liveTransport: 'agent-session'
   })
-  return snapshot.length > 0 || state.catalogSource === 'live'
-    ? snapshot
-    : [PROVIDER_DEFAULT_MODEL_PLACEHOLDER]
+  const options =
+    snapshot.length > 0 || state.catalogSource === 'live'
+      ? snapshot
+      : [PROVIDER_DEFAULT_MODEL_PLACEHOLDER]
+  return accessMode ? [...options, accessMode] : options
 }
 
 /** No launch holds a pick and no fence can carry one yet, so the picker only shows. */
@@ -241,7 +262,8 @@ export function canSetStructuredAgentSessionOption(
 ): boolean {
   const descriptor = structuredAgentSessionOptionSnapshot(state).find((entry) => entry.id === id)
   return Boolean(
-    state.catalog &&
+    (id === 'accessMode' || state.catalog) &&
+    (id !== 'accessMode' || descriptor?.settable) &&
     state.pendingId === null &&
     ((typeof value === 'string' &&
       descriptor?.kind.type === 'select' &&
@@ -255,35 +277,24 @@ export function commitStructuredAgentSessionOption(
   id: string,
   value: string
 ): StructuredAgentSessionOptionState {
-  if (!state.catalog) {
+  if (id !== 'accessMode' && !state.catalog) {
     return state
   }
-  const effectiveModel = resolveEffectiveNativeChatModelId(
-    state.catalog,
-    state.catalog.models,
-    state.record
-  )
   const decoded = decodeStructuredAgentSessionOptionValue(id, value)
   if (decoded === null) {
     return { ...state, pendingId: null }
   }
+  if (id === 'accessMode' && !supportsAgentSessionAccessMode(value, state.accessModes)) {
+    return { ...state, pendingId: null }
+  }
+  const effectiveModel = state.catalog
+    ? resolveEffectiveNativeChatModelId(state.catalog, state.catalog.models, state.record)
+    : null
   setTrackedSessionOption(state.record, id, decoded, 'dispatched', effectiveModel)
   return { ...state, pendingId: null }
 }
 
-export function commitStructuredAgentSessionOptionValues(
-  state: StructuredAgentSessionOptionState,
-  values: Readonly<Record<string, string>>
-): StructuredAgentSessionOptionState {
-  let next = state
-  for (const id of STRUCTURED_LAUNCH_SEED_OPTION_IDS) {
-    const value = values[id]
-    if (value !== undefined) {
-      next = commitStructuredAgentSessionOption(next, id, value)
-    }
-  }
-  return next
-}
+export { commitStructuredAgentSessionOptionValues } from './structured-agent-session-option-values'
 
 export type StructuredSessionOptionPick = {
   modelId: string
@@ -320,7 +331,7 @@ export function structuredAgentSessionOptionPicks(
   if (!modelId) {
     return []
   }
-  return STRUCTURED_LAUNCH_SEED_OPTION_IDS.flatMap((optionId) => {
+  return STRUCTURED_GLOBAL_OPTION_PICK_IDS.flatMap((optionId) => {
     const value = committed[optionId]
     if (value === undefined) {
       return []

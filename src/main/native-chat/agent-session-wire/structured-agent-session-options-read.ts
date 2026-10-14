@@ -12,6 +12,7 @@ import {
 } from '../../../shared/agent-session-wire'
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
 import { decodeStructuredAgentSessionOptionValue } from '../../../shared/structured-agent-session-option-codec'
+import { supportsAgentSessionAccessMode } from '../../../shared/agent-session-access-mode'
 import type { AgentSessionRecordStore } from '../../runtime/agent-session-record-store'
 import { journalOpenReadRefusal } from '../agent-session-journal/journal-open-failure'
 import type { StructuredAgentDefinition } from './structured-agent-definition'
@@ -86,7 +87,19 @@ export async function recordStructuredAgentSessionOptionIntent(
   input: { key: string; value: string }
 ): Promise<TurnOutcome<AgentSessionOptionResult>> {
   const record = deps.store.getRecord(ctx.sessionId)
-  if (!record || !restingOptionRules(deps.agents, record)?.acceptsKey(input.key)) {
+  const accessModes = record
+    ? deps.agents.definition(record.provider)?.capabilities.supportedAccessModes
+    : undefined
+  const acceptsAccessMode =
+    input.key === 'accessMode' &&
+    accessModes !== undefined &&
+    supportsAgentSessionAccessMode(input.value, accessModes)
+  if (
+    !record ||
+    !(input.key === 'accessMode'
+      ? acceptsAccessMode
+      : restingOptionRules(deps.agents, record)?.acceptsKey(input.key))
+  ) {
     return {
       ok: false,
       refusal: refuse(
@@ -157,11 +170,26 @@ export async function readStructuredAgentSessionOptions(
   const session = await context.conversation(sessionId)
   const phase = store.getRecord(sessionId)?.rewind?.phase
   const agent = session.params.provider
+  const record = store.getRecord(sessionId)
+  const accessModes = agents.definition(agent)?.capabilities.supportedAccessModes
   const capabilities = agents.capabilities(agent)
   const floor = session.journal.context.floor()
   const contextFloor = floor ? { contextFloor: floor } : {}
   return {
     ...options,
+    ...(accessModes
+      ? {
+          accessModeSupport: { modes: accessModes, settable: !session.child },
+          current: {
+            ...options.current,
+            accessMode:
+              record?.options?.accessMode &&
+              supportsAgentSessionAccessMode(record.options.accessMode, accessModes)
+                ? record.options.accessMode
+                : 'inherit'
+          }
+        }
+      : {}),
     rewind:
       phase === 'prepared' || phase === 'provider-succeeded'
         ? { supported: false, reason: 'outcome-unknown' }
