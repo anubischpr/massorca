@@ -1,3 +1,4 @@
+import type { AgentSessionProviderFunction } from '../../../shared/agent-session-provider-functions'
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
 import type { AgentSessionSlashCommand } from '../../../shared/agent-session-wire'
 
@@ -5,5 +6,6 @@ import type { AgentSessionSlashCommand } from '../../../shared/agent-session-wir
  *  this host. `read` is undefined until known; `onChange` fires when it changes. */
 export type StructuredAgentSessionAtRestCommands = {
   read(record: AgentSessionRecord): AgentSessionSlashCommand[] | undefined
+  readFunctions?(record: AgentSessionRecord): AgentSessionProviderFunction[] | undefined
   onChange(listener: () => void): () => void
 }

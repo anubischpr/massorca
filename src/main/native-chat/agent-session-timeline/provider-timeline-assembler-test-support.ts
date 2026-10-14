@@ -244,6 +244,8 @@ export async function openProviderTimelineRig(
   deferred.bind({ journal, fence: 1, publish: () => {} })
   cleanups.push(async () => {
     deferred.close()
+    await journal.close()
+    closeTestJournalHostDatabase(root)
     await rm(root, { recursive: true, force: true })
   })
   const sink = providerTimelineSink(deferred.sink)

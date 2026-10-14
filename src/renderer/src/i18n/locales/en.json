@@ -18296,7 +18296,11 @@
         "attachmentUnreadable": "Couldn't read the dropped files.",
         "tooManyAttachments": "Attach {{value0}} or fewer files at a time.",
         "pasteFailed": "Paste failed.",
-        "commandAttachmentsUnsupported": "Remove attachments before using a chat-session command."
+        "commandAttachmentsUnsupported": "Remove attachments before using a chat-session command.",
+        "providerFunctionOrca": "Orca",
+        "providerFunctionProvider": "Provider",
+        "providerFunctionTerminalOnly": "Terminal only",
+        "providerFunctionUnverified": "Unverified"
       },
       "tool": {
         "exitCode": "exit {{value0}}",

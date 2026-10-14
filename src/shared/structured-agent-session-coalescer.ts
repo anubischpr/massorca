@@ -34,6 +34,9 @@ function mergeBatch(
     ...(right.commands !== undefined || left.commands !== undefined
       ? { commands: right.commands !== undefined ? right.commands : left.commands }
       : {}),
+    ...(right.functions !== undefined || left.functions !== undefined
+      ? { functions: right.functions !== undefined ? right.functions : left.functions }
+      : {}),
     sessionId: right.sessionId,
     batch: {
       cursor: right.batch.cursor,

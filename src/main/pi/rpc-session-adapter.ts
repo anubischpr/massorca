@@ -1,3 +1,4 @@
+import { classifyAgentSessionFunctions } from '../../shared/agent-session-provider-functions'
 import { randomUUID } from 'node:crypto'
 import { waitForPromiseWithSignal } from '../../shared/abort-signal-reason'
 import type { AgentSessionUnavailable } from '../../shared/agent-session-availability'
@@ -231,6 +232,8 @@ export class PiRpcSessionAdapter implements StructuredAgentSessionAdapter {
       await readPiRpcSessionOptions(this.session(input.sessionId, input.fence).connection)
     )
   readCommands = (id: string) => this.sessions.get(id)?.commands
+  readFunctions = (id: string) =>
+    classifyAgentSessionFunctions({ commands: this.readCommands(id), source: 'provider-session' })
   readOptionRestoreFailures(id: string): readonly string[] {
     return this.sessions.get(id)?.skipped ?? []
   }

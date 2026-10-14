@@ -189,6 +189,62 @@ describe('NativeChatPickerMenu', () => {
     )
   })
 
+  it('localizes provider-function origin and availability labels', () => {
+    const autocompleteValue = autocomplete({
+      items: buildNativeChatPickerItems(
+        [
+          {
+            name: 'model',
+            providerFunction: {
+              name: 'model',
+              provenance: 'orca',
+              availability: 'available',
+              execution: { kind: 'host-operation', operation: 'model' }
+            }
+          },
+          {
+            name: 'doctor',
+            providerFunction: {
+              name: 'doctor',
+              provenance: 'provider-session',
+              availability: 'terminal-only',
+              execution: { kind: 'terminal' }
+            }
+          },
+          {
+            name: 'unknown',
+            providerFunction: {
+              name: 'unknown',
+              provenance: 'provider-session',
+              availability: 'unverified',
+              execution: { kind: 'provider-prompt' }
+            }
+          }
+        ],
+        [],
+        '',
+        '/'
+      )
+    })
+    render(
+      <NativeChatPickerMenu
+        autocomplete={autocompleteValue}
+        activeIndex={0}
+        listboxId="picker"
+        onChoose={vi.fn()}
+        onRetry={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole('option', { name: /model/ }).textContent).toContain('Orca')
+    expect(screen.getByRole('option', { name: /doctor/ }).textContent).toContain(
+      'Provider · Terminal only'
+    )
+    expect(screen.getByRole('option', { name: /unknown/ }).textContent).toContain(
+      'Provider · Unverified'
+    )
+  })
+
   it('announces a successful empty skill result distinctly from loading', () => {
     render(
       <NativeChatPickerMenu

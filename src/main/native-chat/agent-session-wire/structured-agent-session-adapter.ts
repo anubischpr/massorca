@@ -1,3 +1,4 @@
+import type { AgentSessionProviderFunction } from '../../../shared/agent-session-provider-functions'
 import type {
   AgentSessionAccountKind,
   AgentSessionUnavailable
@@ -400,6 +401,7 @@ export type StructuredAgentSessionAdapter = StructuredAgentSessionAdapterStop & 
   /** The `/` surface the running provider reports for itself. Undefined when the
    *  provider never reports one, which is what keeps the client on its catalog. */
   readCommands?(sessionId: string): AgentSessionSlashCommand[] | undefined
+  readFunctions?(sessionId: string): AgentSessionProviderFunction[] | undefined
   /** The `/` surface of a chat whose agent is not running; absent when the provider has none. */
   atRestCommands?: StructuredAgentSessionAtRestCommands
   /** Claims the live callback, builds the provider reply, commits the journal CAS while that claim is

@@ -1,4 +1,10 @@
-import type { AgentSessionStatusSummary } from '../../../shared/agent-session-wire'
+import type {
+  AgentSessionStatusSummary,
+  AgentSessionCommandsResult
+} from '../../../shared/agent-session-wire'
+import { classifyAgentSessionFunctions } from '../../../shared/agent-session-provider-functions'
+import { structuredSlashCommands } from '../../../shared/structured-agent-session-composer'
+import { isTuiAgent } from '../../../shared/tui-agent-config'
 import { AgentSessionRefusalError } from '../../../shared/agent-session-wire-refusals'
 import type { AgentChildWorkEvidence } from '../../../shared/agent-status-child-work-evidence'
 import type { AgentChildWorkView } from '../../../shared/agent-status-child-work-view'
@@ -24,6 +30,10 @@ import {
 
 /** Owns every host-to-client publication edge, including compatibility waits. */
 export class StructuredAgentSessionClientDelivery {
+  private readonly functionCatalogs = new Map<
+    string,
+    AgentSessionCommandsResult & { reportedFingerprint: string | undefined }
+  >()
   readonly subscribers: AgentSessionSubscribers
   readonly waitForSendSettlement: StructuredAgentSessionSendSettlement['wait']
   private stopAtRestCommandUpdates: () => void = () => undefined
@@ -61,6 +71,7 @@ export class StructuredAgentSessionClientDelivery {
     this.waitForSendSettlement = this.sendSettlement.wait
     this.subscribers = new AgentSessionSubscribers({
       readCommands: (sessionId) => this.readCommands(sessionId),
+      readFunctions: (sessionId) => this.readFunctions(sessionId),
       readQueuePublication: (sessionId) =>
         tryReadQueuePublication(
           sessions.get(sessionId)?.journal,
@@ -90,6 +101,46 @@ export class StructuredAgentSessionClientDelivery {
   }
 
   publishStatus = (sessionId: string): void => this.statusFeed.publish(sessionId)
+
+  readFunctions(sessionId: string) {
+    const { adapter, store, agents } = this.deps()
+    const commands = this.readCommands(sessionId)
+    const record = store.getRecord(sessionId)
+    const definition = record && agents.definition(record.provider)
+    if (!record || !definition) {
+      return undefined
+    }
+    const reportedCatalog =
+      adapter.readFunctions?.(sessionId) ?? adapter.atRestCommands?.readFunctions?.(record)
+    const reportedFingerprint = JSON.stringify(reportedCatalog)
+    const cached = this.functionCatalogs.get(sessionId)
+    if (
+      cached &&
+      cached.commands === commands &&
+      cached.reportedFingerprint === reportedFingerprint
+    ) {
+      return cached.functions
+    }
+    const commonCommands = structuredSlashCommands(
+      definition.capabilities.compact ? ['clear', 'compact'] : ['clear'],
+      isTuiAgent(record.provider) ? record.provider : undefined
+    ).map((entry) => ({ ...entry, kind: 'command' as const }))
+    const common =
+      classifyAgentSessionFunctions({ commands: [], commonCommands, source: 'provider-session' }) ??
+      []
+    const names = new Set(common.map((entry) => entry.name))
+    const reported =
+      reportedCatalog ??
+      classifyAgentSessionFunctions({
+        commands: commands ?? [],
+        source:
+          adapter.readCommands?.(sessionId) === undefined ? 'provider-files' : 'provider-session'
+      }) ??
+      []
+    const functions = [...common, ...reported.filter((entry) => !names.has(entry.name))]
+    this.functionCatalogs.set(sessionId, { commands, functions, reportedFingerprint })
+    return functions
+  }
 
   publishConversationName = (sessionId: string): void =>
     this.statusFeed.publishConversationName(sessionId)
@@ -133,6 +184,7 @@ export class StructuredAgentSessionClientDelivery {
   /** The conversation's handle closed. Its status row stays in every session list; the
    *  agent-status store keeps it too while the chat still has a tab to show it in. */
   closeSession(sessionId: string, options: { listed: boolean }): void {
+    this.functionCatalogs.delete(sessionId)
     this.sendSettlement.closeSession(sessionId)
     if (options.listed) {
       this.statusFeed.revokeLive(sessionId)
@@ -144,6 +196,7 @@ export class StructuredAgentSessionClientDelivery {
   }
 
   closeAll(): void {
+    this.functionCatalogs.clear()
     this.stopAtRestCommandUpdates()
     this.sendSettlement.closeAll()
   }

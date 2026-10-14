@@ -1,3 +1,4 @@
+import type { AgentSessionProviderFunction } from '../../../../shared/agent-session-provider-functions'
 import type { NativeChatQueueResume } from './native-chat-composer-primary-action'
 import type { NativeChatComposerNotice } from './native-chat-composer-notice'
 import type { AgentSessionConversationCommand } from '../../../../shared/agent-session-conversation-command'
@@ -53,6 +54,7 @@ export type NativeChatStructuredComposerTransport = {
   /** The `/` surface the running session reports. Absent keeps the curated
    *  per-agent catalog, which is what an older host leaves the client with. */
   sessionCommands?: readonly AgentSessionSlashCommand[]
+  sessionFunctions?: readonly AgentSessionProviderFunction[]
   /** False when the agent takes no image input, as its host registered it. */
   acceptsImages?: boolean
   /** The session's context usage; null until the journal can state it. */
