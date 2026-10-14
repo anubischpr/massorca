@@ -5,6 +5,7 @@ type ProjectedTool = {
   item: string
   name: string
   input: unknown
+  callId: string
 }
 
 /** Converts validated Antigravity stream events into the shared timeline grammar. */
@@ -69,7 +70,15 @@ export class AntigravityStreamEventProjector {
       })
     }
     if (step.step_type === 'tool') {
-      events.push(...this.projectTool(step.step_index, step.tool_name, step.tool_info, step.state))
+      events.push(
+        ...this.projectTool(
+          step.step_index,
+          step.tool_name,
+          step.tool_info,
+          step.state,
+          clientMessageId
+        )
+      )
     }
     return events
   }
@@ -78,7 +87,8 @@ export class AntigravityStreamEventProjector {
     stepIndex: number,
     declaredName: string | undefined,
     rawInfo: unknown,
-    state: 'ACTIVE' | 'DONE'
+    state: 'ACTIVE' | 'DONE',
+    clientMessageId: string
   ): ProviderTimelineEvent[] {
     const info = isObject(rawInfo) ? rawInfo : null
     const name = declaredName ?? (typeof info?.name === 'string' ? info.name : undefined)
@@ -89,9 +99,10 @@ export class AntigravityStreamEventProjector {
     }
     const existing = this.tools.get(stepIndex)
     const tool: ProjectedTool = existing ?? {
-      item: `antigravity:${this.conversationId}:tool:${stepIndex}`,
+      item: `antigravity:${this.conversationId}:tool:${clientMessageId}:${stepIndex}`,
       name,
-      input: info?.parameters ?? null
+      input: info?.parameters ?? null,
+      callId: String(stepIndex)
     }
     const failed = info?.error !== undefined && info.error !== null
     const body = {
@@ -158,6 +169,25 @@ export class AntigravityStreamEventProjector {
 
     const events: ProviderTimelineEvent[] = []
     this.ensureTurnOpen(events)
+    const endedAs =
+      result.status === 'CANCELED' || result.status === 'INTERRUPTED'
+        ? 'interrupted'
+        : 'unverifiable'
+    for (const tool of this.tools.values()) {
+      events.push({
+        type: 'item.close',
+        item: tool.item,
+        body: {
+          kind: 'tool-call',
+          name: tool.name,
+          callId: tool.callId,
+          input: tool.input,
+          state: 'failed',
+          endedAs
+        }
+      })
+    }
+    this.tools.clear()
     if (this.streamedText) {
       events.push({
         type: 'text.close',

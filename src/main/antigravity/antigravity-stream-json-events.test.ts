@@ -140,7 +140,7 @@ describe('Antigravity stream-json event projection', () => {
     })
     expect(opened).toContainEqual({
       type: 'item.open',
-      item: 'antigravity:conv-1:tool:1',
+      item: 'antigravity:conv-1:tool:send-1:1',
       body: {
         kind: 'tool-call',
         name: 'run_command',
@@ -174,6 +174,82 @@ describe('Antigravity stream-json event projection', () => {
       })
     )
     expect(closed.some((event) => event.type === 'request.open')).toBe(false)
+  })
+
+  it('settles active tools at terminal results and isolates later turns', () => {
+    const events = projector()
+    events.apply(input('send-1'))
+    events.apply({
+      type: 'step_update',
+      clientMessageId: 'send-1',
+      requestedAt: 100,
+      step: {
+        conversation_id: 'conv-1',
+        step_index: 1,
+        state: 'ACTIVE',
+        step_type: 'tool',
+        tool_name: 'first_tool',
+        tool_info: { parameters: { value: 'first' } }
+      }
+    })
+    expect(
+      events.apply({ ...result('WAITING'), clientMessageId: 'send-1', terminal: false })
+    ).toEqual([])
+    expect(
+      events.apply({ ...result('RUNNING'), clientMessageId: 'send-1', terminal: false })
+    ).toEqual([])
+
+    const terminal = events.apply({ ...result('SUCCESS'), clientMessageId: 'send-1' })
+    expect(terminal).toContainEqual({
+      type: 'item.close',
+      item: 'antigravity:conv-1:tool:send-1:1',
+      body: {
+        kind: 'tool-call',
+        name: 'first_tool',
+        callId: '1',
+        input: { value: 'first' },
+        state: 'failed',
+        endedAs: 'unverifiable'
+      }
+    })
+    expect(terminal.at(-1)).toMatchObject({ type: 'turn.end' })
+
+    events.apply(input('send-2'))
+    const nextTool = events.apply({
+      type: 'step_update',
+      clientMessageId: 'send-2',
+      requestedAt: 200,
+      step: {
+        conversation_id: 'conv-1',
+        step_index: 1,
+        state: 'ACTIVE',
+        step_type: 'tool',
+        tool_name: 'second_tool',
+        tool_info: { parameters: { value: 'second' } }
+      }
+    })
+    expect(nextTool).toContainEqual(
+      expect.objectContaining({
+        type: 'item.open',
+        item: 'antigravity:conv-1:tool:send-2:1',
+        body: expect.objectContaining({ name: 'second_tool', input: { value: 'second' } })
+      })
+    )
+    expect(nextTool.some((event) => event.type === 'item.update')).toBe(false)
+    expect(() =>
+      events.apply({
+        type: 'step_update',
+        clientMessageId: 'send-1',
+        requestedAt: 100,
+        step: {
+          conversation_id: 'conv-1',
+          step_index: 1,
+          state: 'DONE',
+          step_type: 'tool',
+          tool_name: 'first_tool'
+        }
+      })
+    ).toThrow('does not match an accepted active input')
   })
 
   it.each([

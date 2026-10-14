@@ -227,6 +227,52 @@ describe('Antigravity stream-json transport', () => {
     expect(rig.errors).toHaveLength(1)
   })
 
+  it('rejects prompts after the child exits while idle', async () => {
+    const rig = fixture()
+    emitJson(rig.stdout, init())
+    await expect(rig.transport.ready).resolves.toBe('conversation-1')
+
+    rig.exit({ code: 0, signal: null, processless: false })
+
+    const latePrompt = rig.transport.submitPrompt('send-1', 'late prompt')
+    const outcome = await Promise.race([
+      latePrompt.then(
+        () => 'resolved',
+        (error: Error) => error.message
+      ),
+      nextTurn().then(() => 'still pending')
+    ])
+    expect(outcome).toContain('exited unexpectedly while idle')
+    expect(rig.written).toHaveLength(0)
+    expect(rig.errors).toHaveLength(1)
+  })
+
+  it('does not report an exit after an intentional close', async () => {
+    const rig = fixture()
+    emitJson(rig.stdout, init())
+    await expect(rig.transport.ready).resolves.toBe('conversation-1')
+    await rig.transport.close()
+
+    rig.exit({ code: 0, signal: null, processless: false })
+
+    expect(rig.errors).toHaveLength(0)
+  })
+
+  it('rejects an in-flight prompt when its process is terminated', async () => {
+    const rig = fixture()
+    const turn = rig.transport.submitPrompt('send-1', 'hello')
+    emitJson(rig.stdout, init())
+    await nextTurn()
+    emitJson(rig.stdout, step('conversation-1', 0, 'user_input'))
+    await nextTurn()
+
+    const terminated = rig.transport.terminate()
+    rig.exit({ code: null, signal: 'SIGTERM', processless: false })
+
+    await expect(turn).rejects.toThrow('without a terminal result')
+    await terminated
+  })
+
   it('does not complete a turn on WAITING or RUNNING result envelopes', async () => {
     const rig = fixture()
     const turn = rig.transport.submitPrompt('send-1', 'hello')

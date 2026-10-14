@@ -14,6 +14,7 @@ export type AntigravityStreamFailureOptions = {
   rejectReady: (error: Error) => void
   rejectPending: (error: Error) => void
   hasPending: () => boolean
+  isExpectedExit: () => boolean
   onError: (error: Error) => void
   onExit?: (exit: ProviderProcessExit) => void
 }
@@ -29,10 +30,13 @@ export class AntigravityStreamFailure {
     } catch {
       // Exit observers cannot change the provider's result.
     }
-    if (!this.error && this.options.hasPending()) {
+    if (!this.error && !this.options.isExpectedExit()) {
+      const reason = this.options.hasPending()
+        ? 'exited without a terminal result'
+        : 'exited unexpectedly while idle'
       this.fail(
         new Error(
-          `Antigravity process exited without a terminal result (code=${String(exit.code)}, signal=${String(exit.signal)})`
+          `Antigravity process ${reason} (code=${String(exit.code)}, signal=${String(exit.signal)})`
         )
       )
     }
