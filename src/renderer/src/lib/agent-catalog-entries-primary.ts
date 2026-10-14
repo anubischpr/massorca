@@ -121,8 +121,9 @@ export function primaryAgentCatalogEntries(): AgentCatalogEntry[] {
     },
     {
       id: 'pi',
-      label: translate('auto.lib.agent.catalog.302934c5d9', 'Pi'),
+      label: `${translate('auto.lib.agent.catalog.302934c5d9', 'Pi')} / Gentle Shell`,
       cmd: 'pi',
+      searchAliases: ['gentle-shell', 'gentle shell'],
       homepageUrl: 'https://pi.dev'
     },
     {

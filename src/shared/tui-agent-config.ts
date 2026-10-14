@@ -1,4 +1,5 @@
 import type { TuiAgent } from './tui-agent'
+import { PI_TUI_AGENT_CONFIG } from './pi-tui-agent-config'
 import { getOrcaCliCommandNameForPlatform } from './orca-cli-command-name'
 import type { TuiAgentConfig } from './tui-agent-config-types'
 
@@ -133,14 +134,7 @@ const TUI_AGENT_CONFIG_SOURCE: Record<TuiAgent, TuiAgentConfigSource> = {
     // Why: mirrors opencode's cursor-gated signal by parity; mimo's startup stream isn't separately validated.
     draftPasteReadySignal: 'render-cursor-after-bracketed-paste'
   },
-  pi: {
-    detectCmd: 'pi',
-    promptInjectionMode: 'argv',
-    // Why: pi has no `--prefill` and paste-after-ready races its long startup; the orca-prefill extension seeds this env var instead.
-    draftPromptEnvVar: 'ORCA_PI_PREFILL',
-    // Why: Pi decodes CSI-u; Esc+CR submits after tool subprocesses reset live KKP state (#9703).
-    windowsShiftEnterEncoding: 'csi-u'
-  },
+  pi: PI_TUI_AGENT_CONFIG,
   omp: {
     detectCmd: 'omp',
     promptInjectionMode: 'argv',
