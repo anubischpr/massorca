@@ -4,6 +4,8 @@ import { parseStructuredLaunchSeedOptions } from '../../../shared/native-chat-se
 import { hasRuntimeRpcErrorCode } from '../../../shared/runtime-rpc-error-code'
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import { callStructuredAgentSession } from '@/runtime/structured-agent-session-client'
+import { selectedPiRuntime, type PiRuntimeSelection } from '../../../shared/pi-runtime-selection'
+import { useAppStore } from '@/store'
 
 /** The host answers a worktree selector it cannot resolve yet with this rather than a verdict. */
 const SELECTOR_NOT_RESOLVABLE_CODE = 'selector_not_found'
@@ -48,7 +50,8 @@ export type HostCreateSupport =
 export async function askHostCreateSupport(
   target: RuntimeClientTarget,
   worktree: string,
-  agent: TuiAgent
+  agent: TuiAgent,
+  piRuntime?: PiRuntimeSelection
 ): Promise<HostCreateSupport> {
   for (let attempt = 0; ; attempt += 1) {
     try {
@@ -56,12 +59,25 @@ export async function askHostCreateSupport(
         supported: boolean
         reason?: string
         seedOptions?: unknown
-      }>(target, 'agentSession.createSupport', { worktree, agent })
+      }>(target, 'agentSession.createSupport', {
+        worktree,
+        agent,
+        ...(piRuntime === 'gentle-shell' ? { piRuntime } : {})
+      })
       if (support.supported !== true) {
-        return { kind: 'declined' }
+        return piRuntime === 'gentle-shell'
+          ? {
+              kind: 'unreachable',
+              code: 'pi_runtime_unsupported',
+              message: 'This host cannot run the selected Gentle Shell runtime in chat.',
+              error: new Error('Gentle Shell structured runtime unavailable')
+            }
+          : { kind: 'declined' }
       }
       const seedOptions = parseStructuredLaunchSeedOptions(support.seedOptions)
-      return seedOptions ? { kind: 'admitted', seedOptions } : { kind: 'admitted' }
+      const retainedSeed =
+        agent === 'pi' ? { ...seedOptions, piRuntime: piRuntime ?? 'pi' } : seedOptions
+      return retainedSeed ? { kind: 'admitted', seedOptions: retainedSeed } : { kind: 'admitted' }
     } catch (error) {
       if (hasRuntimeRpcErrorCode(error, SELECTOR_NOT_RESOLVABLE_CODE)) {
         const retryDelayMs = CREATE_SUPPORT_RETRY_DELAYS_MS[attempt]
@@ -91,7 +107,11 @@ export async function admitStructuredLaunchOnHost(
   worktree: string,
   agent: TuiAgent
 ): Promise<StructuredLaunchAdmission> {
-  const asked = askHostCreateSupport(target, worktree, agent).then(
+  const piRuntime =
+    agent === 'pi'
+      ? selectedPiRuntime(useAppStore.getState().settings?.agentCmdOverrides?.pi)
+      : undefined
+  const asked = askHostCreateSupport(target, worktree, agent, piRuntime).then(
     (support): StructuredLaunchAdmission =>
       support.kind === 'unreachable' ? { kind: 'unreachable' } : support
   )
