@@ -99,10 +99,13 @@ export class AntigravityStructuredSessionAdapter implements StructuredAgentSessi
         throw new AgentSessionPreSpawnError(error)
       }
       const proven = await session.close(false).catch(() => false)
+      if (session.process.processless) {
+        throw new AgentSessionPreSpawnError(error)
+      }
       if (proven) {
         throw new AgentSessionAcquisitionExitProvenError(error)
       }
-      if (session.process.rootVerdict === 'exited') {
+      if (session.process.rootExitObserved) {
         throw new AgentSessionAcquisitionRootExitObservedError(error)
       }
       throw new AgentSessionAcquisitionExitUnprovenError(error)
@@ -141,7 +144,7 @@ export class AntigravityStructuredSessionAdapter implements StructuredAgentSessi
     if (!turnId && session.pending.size === 0) {
       return { cancelled: false }
     }
-    const cancelled = await session.close()
+    const cancelled = await session.cancel()
     return { cancelled, ...(turnId ? { turnId } : {}) }
   }
   stopEndsSession(): boolean {
@@ -171,7 +174,10 @@ export class AntigravityStructuredSessionAdapter implements StructuredAgentSessi
     if (await session.close(requested)) {
       return true
     }
-    if (session.process.rootVerdict === 'exited') {
+    if (session.process.processless) {
+      throw new AgentSessionPreSpawnError('Antigravity process could not start')
+    }
+    if (session.process.rootExitObserved) {
       throw new AgentSessionAcquisitionRootExitObservedError('Antigravity root exit observed')
     }
     return false

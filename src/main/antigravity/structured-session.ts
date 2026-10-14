@@ -156,14 +156,21 @@ export class AntigravityStructuredSession {
     })
   }
 
+  async cancel(): Promise<boolean> {
+    this.requestedClose = true
+    const result = await this.transport.cancel()
+    await this.exitDelivery
+    return result.root === 'exited' && this.process.rootExitObserved
+  }
+
   async close(requested = true): Promise<boolean> {
     this.requestedClose ||= requested
     const tree = await this.transport.terminate()
-    if (tree === 'exited') {
+    if (tree === 'exited' || this.process.child.pid === undefined) {
       await this.process.exitPromise
     }
     await this.exitDelivery
-    return tree === 'exited' && this.process.rootVerdict === 'exited'
+    return tree === 'exited' && this.process.rootExitObserved
   }
   drainObservedExit(): Promise<void> {
     return this.exitDelivery
