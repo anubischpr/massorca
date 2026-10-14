@@ -23,6 +23,20 @@ const PROVIDER_SESSION = '019fd532-7c11-7a90-b6de-4e1a2c3d5f60'
 describe('structured AI Vault ownership', () => {
   afterEach(() => setStructuredAgentSessionHost(null))
 
+  it.each(['pi', 'antigravity'] as const)(
+    'reveals the existing %s chat through its ownership pointer',
+    (provider) => {
+      const result = listResult()
+      const nativeId = provider === 'pi' ? result.sessions[0]!.filePath : PROVIDER_SESSION
+      installOwnership({ provider, providerSessionId: nativeId })
+      result.sessions[0] = { ...result.sessions[0]!, agent: provider }
+      expect(projectStructuredAiVaultSessions(result, true).sessions[0]).toMatchObject({
+        structuredSession: { sessionId: 'session-alpha', workspaceId: 'workspace-1' }
+      })
+      expect(projectStructuredAiVaultSessions(result, false).sessions).toEqual([])
+    }
+  )
+
   it('hides owned rows from legacy clients and annotates them for capable clients', () => {
     installOwnership()
     const result = listResult()
@@ -235,9 +249,16 @@ function installOwnership(overrides: Partial<StructuredProviderSessionOwnership>
               {
                 ...record.providerHandleChain[0]!,
                 handle:
-                  ownership.provider === 'claude'
-                    ? claudeProviderHandle(ownership.providerSessionId, null)
-                    : codexProviderHandle(ownership.providerSessionId)
+                  ownership.provider === 'pi' || ownership.provider === 'antigravity'
+                    ? {
+                        transport:
+                          ownership.provider === 'pi' ? 'jsonl-rpc' : 'antigravity-stream-json',
+                        agent: ownership.provider,
+                        nativeId: ownership.providerSessionId
+                      }
+                    : ownership.provider === 'claude'
+                      ? claudeProviderHandle(ownership.providerSessionId, null)
+                      : codexProviderHandle(ownership.providerSessionId)
               }
             ],
             lease: { ...ownership.lease, sessionId: ownership.sessionId },

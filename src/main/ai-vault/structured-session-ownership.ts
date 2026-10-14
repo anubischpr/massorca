@@ -80,7 +80,11 @@ function ownedTitle(ownership: StructuredProviderSessionOwnership) {
 
 /** One index per projection: a list holds hundreds of rows, each once searched every record. */
 function ownershipLookup():
-  | ((row: { agent: string; sessionId: string }) => StructuredProviderSessionOwnership | null)
+  | ((row: {
+      agent: string
+      sessionId: string
+      filePath?: string
+    }) => StructuredProviderSessionOwnership | null)
   | null {
   if (!getStructuredAgentSessionHost()) {
     return null
@@ -92,10 +96,12 @@ function ownershipLookup():
       byProviderSession.set(key, ownership)
     }
   }
+  // Every registered provider publishes a handle. Pi's handle names its canonical transcript
+  // file, while its scanner row names the session header id; both are host-owned identities.
   return (row) =>
-    row.agent === 'codex' || row.agent === 'claude'
-      ? (byProviderSession.get(`${row.agent}\0${row.sessionId}`) ?? null)
-      : null
+    byProviderSession.get(`${row.agent}\0${row.sessionId}`) ??
+    (row.filePath ? byProviderSession.get(`${row.agent}\0${row.filePath}`) : undefined) ??
+    null
 }
 
 export function assertLegacyAiVaultResumeAllowed(args: AiVaultPrepareSessionResumeArgs): void {
