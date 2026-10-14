@@ -9,8 +9,10 @@ import {
   type AntigravityAgentSessionAccountHome
 } from '../../shared/agent-session-account-home'
 import { AgentSessionPreSpawnError } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
-import { isAntigravityFileStorageHost } from './native-credential-backend'
-import { getAntigravityAccountService } from './native-account-host'
+import {
+  readAntigravityFileIdentity,
+  verifyAntigravityFileAuthority
+} from './file-credential-authority'
 import type { AntigravityAccountService } from './native-account-service'
 
 type BindingDeps = {
@@ -18,8 +20,9 @@ type BindingDeps = {
   hostHome: string
   platform: NodeJS.Platform
   kernelRelease: string
-  readIdentity: AntigravityAccountService['readIdentity']
+  readIdentity: (home: string) => ReturnType<AntigravityAccountService['readIdentity']>
   readModelProvider: (home: string) => unknown
+  verifyAuthority?: typeof verifyAntigravityFileAuthority
 }
 
 function readModelProvider(home: string): unknown {
@@ -46,7 +49,7 @@ export async function readAntigravityAccountBinding(
     hostHome: getAppEnvironment().getPath('home'),
     platform: process.platform,
     kernelRelease: release(),
-    readIdentity: () => getAntigravityAccountService({ runtime: 'host' }).readIdentity(),
+    readIdentity: readAntigravityFileIdentity,
     readModelProvider
   }
 ): Promise<AntigravityAgentSessionAccountHome> {
@@ -59,30 +62,37 @@ export async function readAntigravityAccountBinding(
       }
     )
   }
-  // A systemd/Xvfb host is not an SSH host merely because someone inspected it over SSH.
-  if (
-    deps.platform === 'win32' ||
-    !isAntigravityFileStorageHost(deps.hostEnv, deps.kernelRelease) ||
-    !isAntigravityFileStorageHost(input.launchEnv, deps.kernelRelease)
-  ) {
-    throw new AgentSessionPreSpawnError(
-      new Error(
-        'Antigravity structured account binding requires verified file credential authority on this execution host.'
-      ),
-      {
-        reason: 'managedAccountUnsupported'
-      }
-    )
-  }
   let identity
   try {
+    const verify = deps.verifyAuthority ?? verifyAntigravityFileAuthority
+    const authority = async () => {
+      if (resolve(deps.hostEnv.HOME ?? deps.hostEnv.USERPROFILE ?? '') !== resolve(home)) {
+        throw new Error('Antigravity host changed credential home.')
+      }
+      const host = await verify(deps.hostEnv, deps.platform, deps.kernelRelease)
+      const child = await verify(input.launchEnv, deps.platform, deps.kernelRelease)
+      if (host !== child) {
+        throw new Error('Antigravity launch changed credential authority.')
+      }
+      return host
+    }
+    const before = await authority()
     const provider = deps.readModelProvider(home)
     if (provider !== undefined && provider !== '') {
       throw new Error(
         'Antigravity alternate model-provider authentication cannot be bound to a Google account.'
       )
     }
-    identity = await deps.readIdentity()
+    identity = await deps.readIdentity(home)
+    const confirmed = await deps.readIdentity(home)
+    if (
+      (await authority()) !== before ||
+      JSON.stringify(identity) !== JSON.stringify(confirmed) ||
+      (input.launchEnv.HOME ?? input.launchEnv.USERPROFILE) !== home ||
+      deps.readModelProvider(home) !== provider
+    ) {
+      throw new Error('Antigravity credential authority changed during acquisition.')
+    }
   } catch {
     throw new AgentSessionPreSpawnError(
       new Error('Antigravity credential authority could not be verified.'),
