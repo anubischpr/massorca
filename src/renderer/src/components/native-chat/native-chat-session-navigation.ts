@@ -1,3 +1,4 @@
+import { translate } from '@/i18n/i18n'
 import type { SlashCommandSuggestion } from '../../../../shared/native-chat-slash-commands'
 import { sessionSlashCommandSuggestions } from '../../../../shared/native-chat-slash-commands'
 import { getHostClaimedNativeChatCommands } from '../../../../shared/native-chat-agent-profiles'
@@ -6,10 +7,24 @@ import type { AgentType } from '../../../../shared/agent-status-types'
 import type { NativeChatStructuredComposerTransport } from './native-chat-composer-types'
 
 /** These are window actions, independent of a provider's RPC command registry. */
-export const NATIVE_CHAT_SESSION_COMMANDS: readonly SlashCommandSuggestion[] = [
-  { name: 'resume', description: 'Choose an existing session in the Sessions panel' },
-  { name: 'session', description: 'Browse sessions in the Sessions panel' }
-]
+function nativeChatSessionCommands(): readonly SlashCommandSuggestion[] {
+  return [
+    {
+      name: 'resume',
+      description: translate(
+        'components.native-chat.composer.resumeWindowDescription',
+        'Choose an existing session in the Sessions panel'
+      )
+    },
+    {
+      name: 'session',
+      description: translate(
+        'components.native-chat.composer.sessionWindowDescription',
+        'Browse sessions in the Sessions panel'
+      )
+    }
+  ]
+}
 
 export function isNativeChatSessionNavigation(text: string): boolean {
   return /^\/(?:resume|session)\s*$/i.test(text.trim())
@@ -26,7 +41,8 @@ export function withNativeChatSessionCommands(
   commands: readonly SlashCommandSuggestion[],
   agent?: AgentType
 ): readonly SlashCommandSuggestion[] {
-  const names = new Set(NATIVE_CHAT_SESSION_COMMANDS.map((entry) => entry.name))
+  const sessionCommands = nativeChatSessionCommands()
+  const names = new Set(sessionCommands.map((entry) => entry.name))
   const offered = new Set([...names, ...commands.map((entry) => entry.name)])
   const terminalCommands: SlashCommandSuggestion[] = (
     agent ? getHostClaimedNativeChatCommands(agent) : []
@@ -44,7 +60,7 @@ export function withNativeChatSessionCommands(
     }))
   return [
     ...commands.filter((entry) => !names.has(entry.name)),
-    ...NATIVE_CHAT_SESSION_COMMANDS,
+    ...sessionCommands,
     ...terminalCommands
   ]
 }
