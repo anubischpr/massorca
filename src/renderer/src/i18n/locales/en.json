@@ -317,7 +317,10 @@
       },
       "piRuntime": "Pi runtime",
       "piRuntimeDescription": "Choose stock Pi or Gentle Shell. Both use Pi chat sessions; command paths can be customized below.",
-      "customCommand": "Custom command"
+      "customCommand": "Custom command",
+      "stockPi": "Pi",
+      "gentleShell": "Gentle Shell",
+      "piAndGentleShell": "Pi / Gentle Shell"
     },
     "followSymlinkedDirectoriesKeywords": {
       "symlink": "symlink",
@@ -18700,7 +18703,8 @@
         "failed": "Couldn't continue this chat. Try again, or send a message.",
         "explanation": "Continue, and the agent first checks whether its last step finished."
       },
-      "piRestrictedAccessUnsupported": "Pi chat does not support restricted access. Choose Full access explicitly, or use the terminal."
+      "piRestrictedAccessUnsupported": "Pi chat does not support restricted access. Choose Full access explicitly, or use the terminal.",
+      "piRuntimeUnsupported": "This host cannot run the selected Gentle Shell runtime in chat."
     },
     "tab": {
       "bar": {
