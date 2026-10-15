@@ -52,6 +52,9 @@ describe('bounded Pi runtime selection', () => {
       codex: '/host/codex'
     })
     expect(host.agentCmdOverrides.pi).toBe('/host/pi')
+    expect(piRuntimeCommandSettings(host, 'pi')).toBe(host)
+    const gentleHost = { agentCmdOverrides: { pi: '/host/gentle-shell' } }
+    expect(piRuntimeCommandSettings(gentleHost, 'gentle-shell')).toBe(gentleHost)
     expect(selectedPiRuntime('C:\\tools\\gentle-shell.cmd')).toBe('gentle-shell')
     expect(selectedPiRuntime(undefined)).toBe('pi')
     expect(isPiRuntimeSelection('gentle-shell')).toBe(true)
