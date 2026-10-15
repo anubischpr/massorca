@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
   composerIsComposing: null as (() => boolean) | null,
   attachmentIsComposing: null as (() => boolean) | null,
   flushPendingAttachments: vi.fn(),
-  fieldProps: null as {
+  fieldProps: ((): {
     onSend?: () => void
     onStop?: () => void
     imeEnterGesture?: {
@@ -28,7 +28,7 @@ const mocks = vi.hoisted(() => ({
     attachDisabled?: boolean
     sendButtonDisabled?: boolean
     autocomplete?: { mode: string; items?: NativeChatPickerItem[] }
-  } | null,
+  } | null => null)(),
   modelSwitchOutcome: 'applied' as 'applied' | 'rejected' | 'unknown',
   confirmationObserver: null as {
     ready: Promise<void>

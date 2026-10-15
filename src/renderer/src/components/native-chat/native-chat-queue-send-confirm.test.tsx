@@ -350,7 +350,7 @@ describe('sending while the queue is held', () => {
     await waitFor(() => expect(free.send).toHaveBeenCalledWith('plain send', []))
     expect(screen.queryByRole('dialog')).toBeNull()
     cleanup()
-    const held = transport(heldQueue(2))
+    const held = { ...transport(heldQueue(2)), conversationCommands: ['compact'] as const }
     const commandInput = renderComposer(held)
     changePrompt(commandInput, '/compact')
     await act(async () => pressEnter(commandInput))
