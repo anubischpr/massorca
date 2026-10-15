@@ -28,6 +28,7 @@ import type { StructuredAgentSessionCaller } from '../../../native-chat/agent-se
 import type { StructuredAgentSessionResumeSource } from '../../../../shared/structured-agent-session-create'
 import type { OrcaRuntimeService } from '../../orca-runtime'
 import type { StructuredAgentId } from '../../../../shared/agent-session-provider-handle'
+import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 import {
   resolveUncommittedStructuredCreate,
   type StructuredCreateRefused
@@ -52,6 +53,7 @@ export function structuredAgentSessionCreateIntentFingerprint(params: {
   envelope: AgentSessionMutationEnvelope
   worktree: string
   agent: string
+  piRuntime?: PiRuntimeSelection
   resumeFrom?: StructuredAgentSessionResumeSource
   tabId?: string
 }): string {
@@ -61,6 +63,7 @@ export function structuredAgentSessionCreateIntentFingerprint(params: {
     fields: {
       worktree: params.worktree,
       agent: params.agent,
+      piRuntime: params.piRuntime,
       resumeFrom: params.resumeFrom,
       tabId: params.tabId
     }
@@ -76,6 +79,7 @@ export async function prepareStructuredAgentSessionCreateForWorktree(args: {
   envelope: AgentSessionMutationEnvelope
   worktree: string
   agent: StructuredAgentId
+  piRuntime?: PiRuntimeSelection
   caller: StructuredAgentSessionCaller
   resumeFrom?: StructuredAgentSessionResumeSource
   /** Replaces the seed options the host resolves from settings. Orchestration passes the
@@ -92,6 +96,7 @@ export async function prepareStructuredAgentSessionCreateForWorktree(args: {
     envelope: args.envelope,
     worktree: args.worktree,
     agent: args.agent,
+    ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
     callerKey: args.caller.callerKey,
     ...(args.resumeFrom ? { resumeFrom: args.resumeFrom } : {})
   })
@@ -115,7 +120,16 @@ export async function prepareStructuredAgentSessionCreateForWorktree(args: {
       // After the fingerprint, deliberately: `attachFingerprintFields` excludes options because
       // they are the session's initial state, not its identity, so a retry that re-resolves them
       // must replay rather than conflict.
-      ...(args.options ? { options: args.options } : {}),
+      ...(args.options
+        ? {
+            options: {
+              ...args.options,
+              ...(resolvedAttach.options?.piRuntime
+                ? { piRuntime: resolvedAttach.options.piRuntime }
+                : {})
+            }
+          }
+        : {}),
       ...(args.tabId ? { surfaceTabId: args.tabId } : {}),
       provider: resolved.provider,
       agent: resolved.agent,

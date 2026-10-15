@@ -1,5 +1,6 @@
 import type { StructuredAgentId } from './agent-session-provider-handle'
 import type { AgentSessionMutationEnvelope } from './agent-session-wire'
+import type { PiRuntimeSelection } from './pi-runtime-selection'
 import {
   createStructuredAgentSessionOperationId,
   structuredAgentSessionCreateFingerprint
@@ -22,6 +23,7 @@ export type StructuredAgentSessionCreateParams = {
   envelope: AgentSessionMutationEnvelope
   worktree: string
   agent: StructuredAgentId
+  piRuntime?: PiRuntimeSelection
   resumeFrom?: StructuredAgentSessionResumeSource
   /** Sent only to a host advertising `AGENT_SESSION_CREATE_TAB_ID_RUNTIME_CAPABILITY`. */
   tabId?: string
@@ -53,6 +55,7 @@ export function structuredAgentSessionCreateParams(args: {
   sessionId: string
   worktree: string
   agent: StructuredAgentId
+  piRuntime?: PiRuntimeSelection
   resumeFrom?: StructuredAgentSessionResumeSource
   tabId?: string
   randomUuid: () => string
@@ -61,6 +64,7 @@ export function structuredAgentSessionCreateParams(args: {
   const fields = {
     worktree: args.worktree,
     agent: args.agent,
+    ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
     ...(args.resumeFrom ? { resumeFrom: args.resumeFrom } : {}),
     ...(args.tabId ? { tabId: args.tabId } : {})
   }
