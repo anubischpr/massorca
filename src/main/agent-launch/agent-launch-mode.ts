@@ -213,7 +213,7 @@ async function readStructuredCreateSupport(
   runtime: Pick<OrcaRuntimeService, 'getStructuredAgentSessionCreateSupport'>,
   worktreeId: string,
   agent: TuiAgent | undefined
-): Promise<{ supported: boolean; reason?: 'agent' | 'remote' | 'wsl' } | null> {
+): Promise<{ supported: boolean; reason?: 'agent' | 'remote' | 'wsl' | 'access' } | null> {
   if (!agent || !REGISTERED_STRUCTURED_AGENTS.includes(agent)) {
     return { supported: false, reason: 'agent' }
   }
@@ -230,7 +230,7 @@ async function readStructuredCreateSupport(
  */
 export function downgradeAgentLaunchModeForHost(
   receipt: AgentLaunchModeReceipt,
-  support: { supported: boolean; reason?: 'agent' | 'remote' | 'wsl' } | null,
+  support: { supported: boolean; reason?: 'agent' | 'remote' | 'wsl' | 'access' } | null,
   vocabulary: AgentLaunchModeVocabulary = DEFAULT_LAUNCH_VOCABULARY
 ): AgentLaunchModeReceipt {
   if (receipt.mode !== 'structured' || support?.supported) {

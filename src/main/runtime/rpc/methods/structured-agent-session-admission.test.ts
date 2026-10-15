@@ -201,7 +201,7 @@ describe("createSupport's launch seed", () => {
     )
 
     expect(response).toMatchObject({ ok: true, result: { supported: true, seedOptions: SEED } })
-    expect(seedOptions).toHaveBeenCalledWith('codex')
+    expect(seedOptions).toHaveBeenCalledWith('codex', undefined)
   })
 
   it('carries none when the chat is not supported', async () => {

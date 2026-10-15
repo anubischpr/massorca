@@ -37,10 +37,15 @@ function nativeChatLaunchNotice({
         )
   const cause =
     lifecycle === 'failed' && failure
-      ? (failure.authStartupMessage ??
-        agentSessionWriteNoticeText(
-          agentSessionRefusalCauseParts(failure, agentLabel ? { agentName: agentLabel } : {})
-        ))
+      ? failure.accessPolicyUnsupported
+        ? translate(
+            'components.native-chat.piRestrictedAccessUnsupported',
+            'Pi chat does not support restricted access. Choose Full access explicitly, or use the terminal.'
+          )
+        : (failure.authStartupMessage ??
+          agentSessionWriteNoticeText(
+            agentSessionRefusalCauseParts(failure, agentLabel ? { agentName: agentLabel } : {})
+          ))
       : ''
   // An argument problem already says the start failed; the generic lead would repeat it.
   const saysStartFailure =

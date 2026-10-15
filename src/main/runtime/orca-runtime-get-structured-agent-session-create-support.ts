@@ -1,5 +1,6 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
 import { agentSessionRefusalError } from '../../shared/agent-session-wire-refusals'
+import type { StructuredAgentSessionCreateIntentInput } from './structured-agent-session-create-intent-types'
 import { OrcaRuntimeWithGetWorktreePs } from './orca-runtime-get-worktree-ps'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
 import {
@@ -10,8 +11,14 @@ import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import { getLocalProjectWorktreeGitOptions } from '../project-runtime-git-options'
 import type { AgentSessionAttachParams } from '../native-chat/agent-session-wire/structured-agent-session-attach'
 import { resolveTuiAgentLaunchEnv } from '../../shared/tui-agent-launch-defaults'
-import { resolveHostStructuredAgentCreateSupport } from './structured-agent-launch-support'
-import { structuredAgentRuntimeRegistration } from './structured-agent-runtime-registrations'
+import {
+  registeredStructuredAccountHomeResolver,
+  requireStructuredAgentDefinition
+} from './structured-agent-account-home-registration'
+import {
+  resolveHostStructuredAgentCreateSupport,
+  resolvedPiChatAccessMode
+} from './structured-agent-launch-support'
 import { resolveStructuredLaunchSeedOptions } from '../../shared/native-chat-session-option-defaults'
 import { hasPersistedStructuredAgentSessionStore as hasPersistedStructuredAgentSessionStoreOnDisk } from './structured-agent-session-runtime'
 import { ensureStructuredAgentSessionHostUnlessRefused } from './structured-agent-session-host-refusal'
@@ -31,14 +38,22 @@ import {
   type StructuredAgentId
 } from '../../shared/agent-session-provider-handle'
 import { agentSessionWireProviderHandle } from '../../shared/agent-session-provider-handle-encoding'
+import {
+  piRuntimeCommandSettings,
+  type PiRuntimeSelection
+} from '../../shared/pi-runtime-selection'
 
 export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaRuntimeWithGetWorktreePs {
   async getStructuredAgentSessionCreateSupport(
     worktreeSelector: string,
-    agent: StructuredAgentId
-  ): Promise<{ supported: boolean; reason?: 'agent' | 'remote' | 'wsl' }> {
+    agent: StructuredAgentId,
+    piRuntime?: PiRuntimeSelection,
+    accessMode?: 'default' | 'full-access'
+  ): Promise<{ supported: boolean; reason?: 'agent' | 'remote' | 'wsl' | 'access' }> {
     return resolveHostStructuredAgentCreateSupport({
       agent,
+      piRuntime,
+      accessMode,
       worktreeSelector,
       location: await this.resolveStructuredAgentSessionLocation(worktreeSelector),
       runtime: this,
@@ -54,55 +69,39 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
     purpose: 'launch' | 'read',
     hostLaunchDirectory?: string
   ) {
-    const registration = structuredAgentRuntimeRegistration(agent)
-    if (!registration) {
-      return null
-    }
-    const services = {
-      getClaudeConfigDirectory: (target) => this.accounts.getClaudeConfigDirectory(target),
-      prepareCodexLaunchHome: this.prepareCodexStructuredLaunchFn,
-      readCodexLaunchHome: this.resolveCodexStructuredLaunchHomeFn,
-      workspaceTrustSettings: () => this.requireStore().getSettings()
-    }
-    return async ({ launchEnv, location, commandSettings }) =>
-      registration.resolveAccountHome(
-        {
-          launchEnv,
-          ...(commandSettings ? { commandSettings } : {}),
-          location: location ?? null,
-          purpose,
-          workspacePath:
-            purpose === 'launch'
-              ? async () =>
-                  hostLaunchDirectory ??
-                  (await this.resolveRuntimeFileTarget(worktree)).worktree.path
-              : null
-        },
-        services
-      )
-  }
-
-  /** The definition this runtime registers for `agent`: what its account home pins. Read from the
-   *  registration list, so neither create nor a catalog read installs the host to learn it. */
-  protected requireRegisteredStructuredAgent(agent: StructuredAgentId) {
-    const definition = structuredAgentRuntimeRegistration(agent)?.definition
-    if (!definition) {
-      throw agentSessionRefusalError('structured_agent_session_unsupported', {
-        reason: 'hostUnsupported'
-      })
-    }
-    return definition
+    return registeredStructuredAccountHomeResolver({
+      agent,
+      purpose,
+      workspacePath:
+        purpose === 'launch'
+          ? async () =>
+              hostLaunchDirectory ?? (await this.resolveRuntimeFileTarget(worktree)).worktree.path
+          : null,
+      services: {
+        getClaudeConfigDirectory: (target) => this.accounts.getClaudeConfigDirectory(target),
+        prepareCodexLaunchHome: this.prepareCodexStructuredLaunchFn,
+        readCodexLaunchHome: this.resolveCodexStructuredLaunchHomeFn,
+        workspaceTrustSettings: () => this.requireStore().getSettings()
+      }
+    })
   }
 
   /** The saved selection a new chat here starts with. createSupport reports it too, so a client's
    *  picker shows what create will run; one resolver keeps the two from drifting. */
   structuredAgentSessionLaunchSeedOptions(
-    agent: StructuredAgentId
+    agent: StructuredAgentId,
+    accessMode?: 'default' | 'full-access'
   ): Record<string, string> | undefined {
-    return resolveStructuredLaunchSeedOptions(
+    const seed = resolveStructuredLaunchSeedOptions(
       this.requireStore().getSettings().nativeChatSessionOptions,
       agent
     )
+    return agent === 'pi'
+      ? {
+          ...seed,
+          accessMode: resolvedPiChatAccessMode(this.requireStore().getSettings(), accessMode)
+        }
+      : seed
   }
 
   protected async resolveStructuredAgentSessionLocation(worktreeSelector: string) {
@@ -145,13 +144,9 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
     return (await this.resolveRuntimeFileTarget(worktreeSelector)).worktree.path
   }
 
-  async resolveStructuredAgentSessionCreateIntent(input: {
-    envelope: { sessionId: string; clientOperationId: string }
-    worktree: string
-    agent: StructuredAgentId
-    callerKey?: string
-    resumeFrom?: { providerSessionId: string }
-  }): Promise<AgentSessionAttachParams & { hostLaunchDirectory?: string }> {
+  async resolveStructuredAgentSessionCreateIntent(
+    input: StructuredAgentSessionCreateIntentInput
+  ): Promise<AgentSessionAttachParams & { hostLaunchDirectory?: string }> {
     const hostLaunchDirectory = isFloatingWorkspaceSelector(input.worktree)
       ? (await this.resolveRuntimeFileTarget(input.worktree)).worktree.path
       : undefined
@@ -196,13 +191,7 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
   }
 
   protected async resolveStructuredAgentSessionIntent(
-    input: {
-      envelope: { sessionId: string; clientOperationId: string }
-      worktree: string
-      agent: StructuredAgentId
-      callerKey?: string
-      resumeFrom?: { providerSessionId: string }
-    },
+    input: StructuredAgentSessionCreateIntentInput,
     resolveAccountHome: (context: {
       launchEnv: NodeJS.ProcessEnv
       commandSettings: ReturnType<
@@ -216,7 +205,12 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
       }
     }) => AgentSessionAccountHome | Promise<AgentSessionAccountHome>
   ): Promise<AgentSessionAttachParams> {
-    const support = await this.getStructuredAgentSessionCreateSupport(input.worktree, input.agent)
+    const support = await this.getStructuredAgentSessionCreateSupport(
+      input.worktree,
+      input.agent,
+      input.piRuntime,
+      input.accessMode
+    )
     // Adopting a conversation reads the agent's own transcript, which only Claude and Codex have
     // importers for.
     if (!support.supported || (input.resumeFrom && !isAgentSessionHandleProvider(input.agent))) {
@@ -224,11 +218,16 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
         reason: 'hostUnsupported'
       })
     }
-    const settings = this.requireStore().getSettings()
+    const currentSettings = this.requireStore().getSettings()
+    const settings =
+      input.agent === 'pi'
+        ? piRuntimeCommandSettings(currentSettings, input.piRuntime ?? 'pi')
+        : currentSettings
     const launchEnv = resolveTuiAgentLaunchEnv(input.agent, settings.agentDefaultEnv)
-    const options = this.structuredAgentSessionLaunchSeedOptions(input.agent)
+    const seed = this.structuredAgentSessionLaunchSeedOptions(input.agent, input.accessMode)
+    const options = input.agent === 'pi' ? { ...seed, piRuntime: input.piRuntime ?? 'pi' } : seed
     const location = await this.resolveStructuredAgentSessionLocation(input.worktree)
-    const definition = this.requireRegisteredStructuredAgent(input.agent)
+    const definition = requireStructuredAgentDefinition(input.agent)
     const host = getStructuredAgentSessionHost()
     const committedReplay = resolveCommittedStructuredAgentSessionAdoptionIntent({
       host,

@@ -23,6 +23,7 @@ import type { AgentSessionRecordStore } from '../runtime/agent-session-record-st
 import { isWindowsProcessStartTimeAvailable } from '../windows/windows-process-table'
 import type { PiRpcLaunchOptions } from './rpc-launch'
 import { resolveAgentSessionFullAccess } from '../../shared/agent-session-access-mode'
+import { isPiRuntimeSelection, piRuntimeCommandSettings } from '../../shared/pi-runtime-selection'
 
 export type PiRpcResolvedLaunch = PiRpcLaunchOptions & {
   previous: AgentSessionProviderHandleLink | null
@@ -67,8 +68,7 @@ function parseGentleShellPiVersion(output: string): string | null {
     /^gentle-shell(?:\s+version)?\s+(v?\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?)$/i
   const piLine = /^pi(?:\s+version)?\s+(v?\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?)$/i
   const hasValidLineCount =
-    lines.length === 2 ||
-    (lines.length === 3 && /^home isolated \S.*$/i.test(lines[2]))
+    lines.length === 2 || (lines.length === 3 && /^home isolated \S.*$/i.test(lines[2]))
   if (!hasValidLineCount || !wrapperLine.test(lines[0]) || !piLine.test(lines[1])) {
     return null
   }
@@ -232,7 +232,16 @@ export function createPiRpcLaunchResolver(
         forkFile = source
       }
     }
-    const command = resolvePiRpcCommand(env, deps.resolveCommandSettings?.(), deps.resolveCommand)
+    const settings = deps.resolveCommandSettings?.() ?? {}
+    const selection = record.options?.piRuntime
+    if (selection !== undefined && !isPiRuntimeSelection(selection)) {
+      throw new Error('Pi session has an invalid runtime selection')
+    }
+    const command = resolvePiRpcCommand(
+      env,
+      selection ? piRuntimeCommandSettings(settings, selection) : settings,
+      deps.resolveCommand
+    )
     // Again at every launch: the binary on PATH may have changed since the chat was created.
     if (!(await piRpcVersionSupported({ command, cwd, env }, deps.probeVersion))) {
       throw agentSessionRefusalError('structured_agent_session_unsupported', {

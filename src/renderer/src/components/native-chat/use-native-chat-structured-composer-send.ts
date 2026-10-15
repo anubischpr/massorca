@@ -20,6 +20,7 @@ import {
 } from './native-chat-composer-draft-store'
 import { nativeChatComposerDraftLeftAfterSend } from './native-chat-composer-draft-comparison'
 import type { NativeChatComposerDraft } from './native-chat-composer-draft-storage'
+import { isNativeChatSessionNavigation } from './native-chat-session-navigation'
 
 export type UseNativeChatStructuredComposerSendArgs = {
   agent: AgentType
@@ -39,6 +40,7 @@ export function isNativeChatStructuredHostCommand(
   transport: NativeChatStructuredComposerTransport
 ): boolean {
   return (
+    isNativeChatSessionNavigation(text) ||
     isStructuredAgentSessionComposerCommand(text, agent) ||
     (transport.threadGoal !== undefined && isStructuredAgentSessionGoalCommand(text))
   )
@@ -91,7 +93,7 @@ export function useNativeChatStructuredComposerSend({
         structuredTransport.onSubmitted?.()
       }
       const submitted = sentFrom ?? readNativeChatComposerDraft(draftScopeKey)
-      await dispatchNativeChatStructuredComposerText(structuredTransport, text, attachments)
+      await dispatchNativeChatStructuredComposerText(structuredTransport, text, attachments, agent)
         .then(({ accepted, error, refusedWhile, revealsTranscript }) => {
           structuredTransport.onError(error, refusedWhile ? { refusedWhile } : undefined)
           if (!accepted) {

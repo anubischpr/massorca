@@ -1,4 +1,9 @@
 import type { TuiAgent } from '../../../shared/tui-agent'
+import {
+  isPiRuntimeSelection,
+  selectedPiRuntime,
+  type PiRuntimeSelection
+} from '../../../shared/pi-runtime-selection'
 import type {
   AgentSessionAttachResult,
   AgentSessionMutationResult
@@ -30,7 +35,7 @@ import {
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import type { ExecutionHostId } from '../../../shared/execution-host'
 import { createBrowserUuid } from '@/lib/browser-uuid'
-import { askHostCreateSupport } from '@/lib/structured-agent-session-host-admission'
+import { requireStructuredAgentLaunchSupport } from '@/lib/structured-agent-session-host-admission'
 import {
   StructuredAgentSessionCreateError,
   StructuredAgentSessionCreateRefusalError,
@@ -137,9 +142,19 @@ function buildStructuredAgentSessionLaunchIntent(
   agent: TuiAgent,
   sessionId: string,
   resumeFrom: StructuredAgentSessionResumeSource | undefined,
-  hostSeedOptions: LaunchSeed
+  hostSeedOptions: LaunchSeed,
+  retainedRuntime?: { value?: PiRuntimeSelection; accessMode?: 'default' | 'full-access' }
 ): StructuredAgentSessionLaunchIntent {
   const state = useAppStore.getState()
+  const piRuntime = retainedRuntime
+    ? retainedRuntime.value
+    : agent === 'pi'
+      ? isPiRuntimeSelection(hostSeedOptions?.piRuntime)
+        ? hostSeedOptions.piRuntime
+        : selectedPiRuntime(state.settings?.agentCmdOverrides?.pi)
+      : undefined
+  const accessMode =
+    agent === 'pi' ? (retainedRuntime?.accessMode ?? hostSeedOptions?.accessMode) : undefined
   recordWebSessionFocusIntent(
     structuredAgentSessionFocusOwner(owner.target),
     worktreeId,
@@ -157,6 +172,8 @@ function buildStructuredAgentSessionLaunchIntent(
       sessionId,
       worktree: toRuntimeWorktreeSelector(worktreeId),
       agent,
+      ...(piRuntime === 'gentle-shell' ? { piRuntime } : {}),
+      ...(accessMode === 'default' || accessMode === 'full-access' ? { accessMode } : {}),
       ...(resumeFrom ? { resumeFrom } : {}),
       randomUuid: createBrowserUuid
     }),
@@ -166,7 +183,8 @@ function buildStructuredAgentSessionLaunchIntent(
 
 /** A definitive refusal consumed its operation id, but the provisional tab still owns its session. */
 export function retryStructuredAgentSessionLaunchIntent(
-  intent: StructuredAgentSessionLaunchIntent
+  intent: StructuredAgentSessionLaunchIntent,
+  accessMode?: string
 ): StructuredAgentSessionLaunchIntent {
   return buildStructuredAgentSessionLaunchIntent(
     intent.worktreeId,
@@ -174,7 +192,14 @@ export function retryStructuredAgentSessionLaunchIntent(
     intent.agent,
     intent.sessionId,
     intent.params.resumeFrom,
-    intent.seedOptions
+    intent.seedOptions,
+    {
+      value: intent.params.piRuntime,
+      accessMode:
+        accessMode === 'default' || accessMode === 'full-access'
+          ? accessMode
+          : intent.params.accessMode
+    }
   )
 }
 
@@ -184,6 +209,8 @@ export function restoreStructuredAgentSessionLaunchIntent(args: {
   executionHostId: ExecutionHostId
   sessionId: string
   agent: TuiAgent
+  piRuntime?: PiRuntimeSelection
+  accessMode?: 'default' | 'full-access'
   clientOperationId: string
   payloadFingerprint: string
   expectedRuntimeFence: number | null
@@ -215,6 +242,8 @@ export function restoreStructuredAgentSessionLaunchIntent(args: {
       },
       worktree: toRuntimeWorktreeSelector(args.worktreeId),
       agent: args.agent,
+      ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
+      ...(args.accessMode ? { accessMode: args.accessMode } : {}),
       ...(args.resumeFrom ? { resumeFrom: args.resumeFrom } : {})
     },
     ...launchSeedOptions(state, { target }, args.agent, args.seedOptions)
@@ -231,34 +260,6 @@ export function abandonStructuredAgentSessionLaunchIntent(
   )
 }
 
-/**
- * Only the host that will execute the session can answer whether it supports creating one there.
- * Both providers ask: the host classifies per agent, and Codex inherits the
- * unresolvable-selector retry above along with the probe. The unknown branch stays on the chat for
- * reconciliation: a retry may follow a create whose reply was lost. Answers the seed create will use.
- */
-async function requireHostCreateSupport(
-  intent: StructuredAgentSessionLaunchIntent
-): Promise<LaunchSeed> {
-  const support = await askHostCreateSupport(intent.target, intent.params.worktree, intent.agent)
-  if (support.kind === 'unreachable') {
-    throw new StructuredAgentSessionCreateUnknownOutcomeError(
-      support.message,
-      support.code,
-      readAgentSessionErrorRefusal(support.error)
-    )
-  }
-  // A workspace the host still cannot resolve is refused here, as before; Retry asks again.
-  if (support.kind === 'declined' || support.kind === 'workspace-unresolved') {
-    abandonStructuredAgentSessionLaunchIntent(intent)
-    throw new StructuredAgentSessionCreateRefusalError(
-      'structured_agent_session_unsupported',
-      'structured_agent_session_unsupported'
-    )
-  }
-  return support.seedOptions
-}
-
 /** Told the seed a paired server says this create will use, which may differ from an earlier
  *  attempt's; a local launch reads its own settings instead. */
 export type StructuredLaunchHostSeedListener = (seedOptions: LaunchSeed) => void
@@ -267,7 +268,9 @@ export async function launchStructuredAgentSession(
   intent: StructuredAgentSessionLaunchIntent,
   onHostSeed?: StructuredLaunchHostSeedListener
 ): Promise<Pick<AgentSessionAttachResult, 'sessionId' | 'fence'>> {
-  const hostSeed = await requireHostCreateSupport(intent)
+  const hostSeed = await requireStructuredAgentLaunchSupport(intent, () =>
+    abandonStructuredAgentSessionLaunchIntent(intent)
+  )
   if (intent.target.kind !== 'local') {
     onHostSeed?.(hostSeed)
   }

@@ -3,11 +3,10 @@ import type { AgentType } from '../../../../shared/agent-status-types'
 import { getVerifiedNativeChatCommands } from '../../../../shared/native-chat-agent-profiles'
 import {
   sessionReportedSkillNames,
-  sessionSlashCommandSuggestions,
   type SlashCommandSuggestion
 } from '../../../../shared/native-chat-slash-commands'
-import { structuredSlashCommands } from '../../../../shared/structured-agent-session-composer'
 import type { NativeChatStructuredComposerTransport } from './native-chat-composer-types'
+import { nativeChatStructuredCatalog } from './native-chat-session-navigation'
 
 export type NativeChatComposerCatalog = {
   agentCommands: readonly SlashCommandSuggestion[]
@@ -31,13 +30,13 @@ export function useNativeChatComposerCatalog(
   const conversationCommands = structuredTransport?.conversationCommands
   const agentCommands = useMemo(
     () =>
-      functions !== undefined
-        ? functions.map((entry) => ({ ...entry, providerFunction: entry }))
-        : !structured
-          ? getVerifiedNativeChatCommands(agent)
-          : reported !== undefined
-            ? sessionSlashCommandSuggestions(agent, reported)
-            : structuredSlashCommands(conversationCommands, agent),
+      structured
+        ? nativeChatStructuredCatalog(agent, {
+            sessionFunctions: functions,
+            sessionCommands: reported,
+            conversationCommands
+          })
+        : getVerifiedNativeChatCommands(agent),
     [agent, conversationCommands, functions, reported, structured]
   )
   const sessionSkillNames = useMemo(

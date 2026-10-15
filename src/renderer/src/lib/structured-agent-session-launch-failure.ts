@@ -7,7 +7,10 @@ import {
   type AgentSessionWriteRefusal
 } from '../../../shared/agent-session-write-failure'
 
-export type StructuredLaunchFailure = AgentSessionWriteRefusal & { authStartupMessage?: string }
+export type StructuredLaunchFailure = AgentSessionWriteRefusal & {
+  authStartupMessage?: string
+  accessPolicyUnsupported?: boolean
+}
 
 /** The host's refusal behind a failed launch; undefined when the failure carried none. */
 export function structuredLaunchFailure(error: unknown): StructuredLaunchFailure | undefined {
@@ -19,6 +22,13 @@ export function structuredLaunchFailure(error: unknown): StructuredLaunchFailure
     return undefined
   }
   const failure = agentSessionRefusalFailure(refusal)
+  if (
+    error instanceof Error &&
+    'accessPolicyUnsupported' in error &&
+    error.accessPolicyUnsupported === true
+  ) {
+    return { ...failure, accessPolicyUnsupported: true }
+  }
   const message = error instanceof Error ? error.message : undefined
   return failure.code === 'agent_session_operation_invalid' &&
     failure.details?.reason === 'notSignedIn' &&

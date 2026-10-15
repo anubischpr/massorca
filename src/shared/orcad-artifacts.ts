@@ -152,6 +152,21 @@ export const ORCAD_NATIVE_CHAT_VISUALS_ARTIFACTS = [
   'native-chat-visuals/skills/orca-chat-visuals/SKILL.md'
 ] as const
 
+/** The pinned SDK stays ESM: bundling its createRequire(import.meta.filename) into CJS loses its identity. */
+export const ORCAD_CLAUDE_SDK_ARTIFACTS = [
+  'package.json',
+  'sdk.mjs',
+  'core.mjs',
+  'core-3ctbshc7.mjs',
+  'core-eg2e19h0.mjs',
+  'bridge.mjs',
+  'browser-sdk.js',
+  'extractFromBunfs.js',
+  'manifest.json',
+  'manifest.zst.json',
+  'LICENSE.md'
+].map((file) => `node_modules/@anthropic-ai/claude-agent-sdk/${file}`)
+
 export type OrcadArtifact = {
   filename: string
   /**
@@ -187,7 +202,8 @@ export const ORCAD_ARTIFACTS: readonly OrcadArtifact[] = [
   { filename: ORCAD_EMOJI_SHORTCODE_DATASET },
   ...ORCAD_NODE_PTY_JS_ARTIFACTS.map((filename) => ({ filename })),
   ...ORCAD_RIPGREP_LICENSE_ARTIFACTS.map((filename) => ({ filename })),
-  ...ORCAD_NATIVE_CHAT_VISUALS_ARTIFACTS.map((filename) => ({ filename }))
+  ...ORCAD_NATIVE_CHAT_VISUALS_ARTIFACTS.map((filename) => ({ filename })),
+  ...ORCAD_CLAUDE_SDK_ARTIFACTS.map((filename) => ({ filename }))
 ]
 
 /** Written after the artifacts, so it is never an input to its own hash. */

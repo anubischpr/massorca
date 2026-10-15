@@ -18,6 +18,65 @@ vi.mock('@/runtime/structured-agent-session-client', () => ({
 }))
 
 describe('structured agent session launch', () => {
+  it('refuses restricted Pi policy before create and retains an explicit choice on retry', async () => {
+    vi.mocked(callStructuredAgentSession).mockResolvedValue({
+      supported: false,
+      reason: 'access',
+      seedOptions: { accessMode: 'default' }
+    })
+    const intent = createStructuredAgentSessionLaunchIntent(
+      'workspace-1',
+      'pi',
+      'local',
+      undefined,
+      { accessMode: 'default' }
+    )
+    await expect(launchStructuredAgentSession(intent)).rejects.toMatchObject({
+      accessPolicyUnsupported: true
+    })
+    expect(vi.mocked(callStructuredAgentSession).mock.calls.map(([, method]) => method)).toEqual([
+      'agentSession.createSupport'
+    ])
+    const retry = retryStructuredAgentSessionLaunchIntent(intent, 'full-access')
+    expect(retry.params.accessMode).toBe('full-access')
+    expect(retry.params.envelope.clientOperationId).not.toBe(
+      intent.params.envelope.clientOperationId
+    )
+    expect(retry.params.envelope.payloadFingerprint).not.toBe(
+      intent.params.envelope.payloadFingerprint
+    )
+  })
+
+  it('retains the admitted Pi runtime through a changed preference and retry', async () => {
+    const initial = useAppStore.getState()
+    const settings = initial.settings!
+    try {
+      useAppStore.setState({
+        settings: { ...settings, agentCmdOverrides: { pi: 'gentle-shell' } }
+      })
+      vi.mocked(callStructuredAgentSession).mockResolvedValue({ supported: true })
+      const admission = await admitStructuredLaunchOnHost(
+        { kind: 'environment', environmentId: 'server-1' },
+        'id:workspace-1',
+        'pi'
+      )
+      expect(admission.kind).toBe('admitted')
+      useAppStore.setState({ settings: { ...settings, agentCmdOverrides: {} } })
+      const seed = admission.kind === 'admitted' ? admission.seedOptions : undefined
+      const intent = createStructuredAgentSessionLaunchIntent(
+        'workspace-1',
+        'pi',
+        'local',
+        undefined,
+        seed
+      )
+      expect(intent.params.piRuntime).toBe('gentle-shell')
+      expect(retryStructuredAgentSessionLaunchIntent(intent).params.piRuntime).toBe('gentle-shell')
+    } finally {
+      useAppStore.setState(initial, true)
+    }
+  })
+
   beforeEach(() => {
     vi.mocked(callStructuredAgentSession).mockReset()
   })
