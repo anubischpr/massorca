@@ -10,6 +10,8 @@ import {
 import { createAntigravityModelCatalogProbe } from './model-catalog-probe'
 import { supportsSupervisedProviderChildLocation } from '../provider-process/supervised-provider-child-location'
 import { isAgentSessionPreSpawnError } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
+import { createStructuredAgentEnvironmentResolvers } from '../runtime/structured-agent-shell-environment'
+import { nativeChatShellEnvironmentPolicy } from '../../shared/native-chat-shell-environment'
 import type {
   StructuredAgentRuntimeRegistration,
   StructuredAgentModelCatalogContext
@@ -39,15 +41,21 @@ export const ANTIGRAVITY_RUNTIME_REGISTRATION: StructuredAgentRuntimeRegistratio
       throw error
     }
   },
-  resolveAccountHome: async ({ launchEnv, purpose }) => {
+  resolveAccountHome: async ({ launchEnv, purpose }, services) => {
+    // Create/catalog requests carry agent overrides, while account binding requires the child's full environment.
+    const environment = createStructuredAgentEnvironmentResolvers({
+      resolveShellEnvironmentPolicy: () =>
+        nativeChatShellEnvironmentPolicy(services.workspaceTrustSettings())
+    })
+    const env = { ...(await environment.resolveBaseEnvironment()), ...launchEnv }
     if (purpose === 'launch') {
       await prepareAntigravityAccountForLaunch({
         launchAgent: 'antigravity',
-        env: launchEnv,
+        env,
         envIsComplete: true
       })
     }
-    return readAntigravityAccountBinding({ launchEnv })
+    return readAntigravityAccountBinding({ launchEnv: env })
   },
   modelCatalog: (context) => ({
     kind: 'probe',

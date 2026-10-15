@@ -8,13 +8,14 @@ import type {
 } from '../../../../shared/native-chat-session-options'
 import { clearNativeChatSessionOptionCacheForTests } from './native-chat-session-option-cache'
 import { clearNativeChatModelEnrichmentForTests } from './native-chat-session-option-enrichment'
+import type { NativeChatPickerItem } from './native-chat-picker-items'
 
 const mocks = vi.hoisted(() => ({
   cancelPendingSends: vi.fn(),
   composerIsComposing: null as (() => boolean) | null,
   attachmentIsComposing: null as (() => boolean) | null,
   flushPendingAttachments: vi.fn(),
-  fieldProps: null as {
+  fieldProps: ((): {
     onSend?: () => void
     onStop?: () => void
     imeEnterGesture?: {
@@ -26,8 +27,8 @@ const mocks = vi.hoisted(() => ({
     sessionOptionsSnapshot?: SessionOptionDescriptor[]
     attachDisabled?: boolean
     sendButtonDisabled?: boolean
-    autocomplete?: { mode: string; items?: { kind: string; name: string }[] }
-  } | null,
+    autocomplete?: { mode: string; items?: NativeChatPickerItem[] }
+  } | null => null)(),
   modelSwitchOutcome: 'applied' as 'applied' | 'rejected' | 'unknown',
   confirmationObserver: null as {
     ready: Promise<void>
@@ -324,14 +325,13 @@ describe('NativeChatComposer', () => {
     expect(mocks.setDraft).toHaveBeenCalledWith('')
   })
 
-  // The structured menu offers only what a pick can carry out: the host's own
-  // commands, plus the ones the agent itself runs from message text (Codex `/goal`).
-  // Listing the agent's whole TUI catalog here answered every pick with
-  // "not available in chat sessions".
+  // Actionable entries include host window commands and provider operations.
+  // Native TUI entries may be discoverable as Terminal only, but must not be
+  // counted as actions the structured composer can execute.
   it.each([
     ['claude', 'compact', ['model', 'effort']],
     ['codex', 'vim', ['model', 'effort', 'goal']]
-  ] as const)('offers %s only actionable structured slash commands', (agent, withheld, offered) => {
+  ] as const)('offers %s actionable commands and window actions', (agent, withheld, offered) => {
     mocks.draft = '/'
     render(
       <NativeChatComposer
@@ -359,8 +359,9 @@ describe('NativeChatComposer', () => {
 
     const names = (mocks.fieldProps?.autocomplete?.items ?? [])
       .filter((item) => item.kind === 'command')
+      .filter((item) => item.providerFunction?.availability !== 'terminal-only')
       .map((item) => item.name)
-    expect(names).toEqual([...offered])
+    expect(names).toEqual([...offered, 'resume', 'session'])
     expect(names).not.toContain(withheld)
   })
 

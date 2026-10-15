@@ -127,14 +127,20 @@ export const STRUCTURED_AGENT_SESSION_METHODS = [
     params: CreateSupportParams,
     handler: async (params, ctx) => {
       requireStructuredCreateSupportAdmission(ctx, params.agent)
-      const support = await ctx.runtime.getStructuredAgentSessionCreateSupport(
-        params.worktree,
-        params.agent
-      )
+      const support =
+        params.piRuntime || params.accessMode
+          ? await ctx.runtime.getStructuredAgentSessionCreateSupport(
+              params.worktree,
+              params.agent,
+              params.piRuntime,
+              params.accessMode
+            )
+          : await ctx.runtime.getStructuredAgentSessionCreateSupport(params.worktree, params.agent)
       // Optional: older clients ignore it, and a client seeds its picker with what create will use.
-      const seedOptions = support.supported
-        ? ctx.runtime.structuredAgentSessionLaunchSeedOptions(params.agent)
-        : undefined
+      const seedOptions =
+        support.supported || support.reason === 'access'
+          ? ctx.runtime.structuredAgentSessionLaunchSeedOptions(params.agent, params.accessMode)
+          : undefined
       return seedOptions ? { ...support, seedOptions } : support
     }
   }),
@@ -169,6 +175,8 @@ export const STRUCTURED_AGENT_SESSION_METHODS = [
             envelope: params.envelope,
             worktree: params.worktree,
             agent: params.agent,
+            ...(params.piRuntime ? { piRuntime: params.piRuntime } : {}),
+            ...(params.accessMode ? { accessMode: params.accessMode } : {}),
             caller: callerFor(ctx),
             ...(params.resumeFrom ? { resumeFrom: params.resumeFrom } : {}),
             ...(params.tabId ? { tabId: params.tabId } : {})

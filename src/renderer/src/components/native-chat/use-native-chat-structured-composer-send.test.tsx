@@ -137,7 +137,7 @@ describe('reports the sends that bring the latest into view', () => {
     send('/permissions', [])
     await vi.waitFor(() =>
       expect(structuredTransport.onError).toHaveBeenCalledWith(
-        expect.stringContaining('not available in chat sessions'),
+        expect.stringContaining('available in Terminal only'),
         undefined
       )
     )

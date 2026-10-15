@@ -726,7 +726,7 @@ describe('startStructuredAgentLaunch', () => {
     await flushLaunchSettlement()
 
     expect(mocks.createIntent).toHaveBeenCalledOnce()
-    expect(mocks.retryIntent).toHaveBeenCalledWith(first)
+    expect(mocks.retryIntent).toHaveBeenCalledWith(first, undefined)
     expect(mocks.launch.mock.calls[0]?.[0]).toBe(first)
     expect(mocks.launch.mock.calls[1]?.[0]).toMatchObject({ sessionId: first.sessionId })
     expect(mocks.launch.mock.calls[1]?.[0].params.envelope.clientOperationId).not.toBe(
@@ -793,7 +793,7 @@ describe('startStructuredAgentLaunch', () => {
     expect(retryStructuredAgentSessionLaunch(worktreeId, intent.sessionId)).toBe(true)
     await flushLaunchSettlement()
     expect(mocks.createIntent).toHaveBeenCalledOnce()
-    expect(mocks.retryIntent).toHaveBeenCalledWith(intent)
+    expect(mocks.retryIntent).toHaveBeenCalledWith(intent, undefined)
   })
 
   it("reports a repeated request's prompt as undelivered to both callers after refusal", async () => {

@@ -6,8 +6,21 @@ import { useNativeChatComposerKeyDown } from './use-native-chat-composer-keydown
 import { useNativeChatComposerCatalog } from './use-native-chat-composer-catalog'
 import type { NativeChatStructuredComposerTransport } from './native-chat-composer-types'
 import { getVerifiedNativeChatCommands } from '../../../../shared/native-chat-agent-profiles'
+import type { SlashCommandSuggestion } from '../../../../shared/native-chat-slash-commands'
 import { sessionSlashCommandSuggestions } from '../../../../shared/native-chat-slash-commands'
 import { structuredSlashCommands } from '../../../../shared/structured-agent-session-composer'
+
+function providerCommands(commands: readonly SlashCommandSuggestion[]) {
+  return commands.filter(
+    (entry) =>
+      entry.name !== 'resume' &&
+      entry.name !== 'session' &&
+      !(
+        entry.providerFunction?.provenance === 'orca' &&
+        entry.providerFunction.execution.kind === 'terminal'
+      )
+  )
+}
 
 function transport(sessionCommands?: NativeChatStructuredComposerTransport['sessionCommands']) {
   return { sessionCommands } as NativeChatStructuredComposerTransport
@@ -34,18 +47,25 @@ describe('composer catalog authority', () => {
         useNativeChatComposerCatalog('pi', { ...transport(), sessionFunctions: functions }),
       { initialProps: { functions } }
     )
-    const items = buildNativeChatPickerItems(result.current.agentCommands, [], '', '/')
+    const items = buildNativeChatPickerItems(
+      providerCommands(result.current.agentCommands),
+      [],
+      '',
+      '/'
+    )
     expect(items.map((entry) => entry.name)).toEqual(['model', 'doctor'])
     expect(items[1]).toMatchObject({ providerFunction: { availability: 'terminal-only' } })
     rerender({ functions: [] })
-    expect(result.current.agentCommands).toEqual([])
+    expect(providerCommands(result.current.agentCommands)).toEqual([])
   })
   it('keeps PTY and unsupported structured providers on their original catalogs', () => {
     const pty = renderHook(() => useNativeChatComposerCatalog('claude'))
     expect(pty.result.current.agentCommands).toEqual(getVerifiedNativeChatCommands('claude'))
     expect(pty.result.current.sessionSkillNames).toBeUndefined()
     const oldHost = renderHook(() => useNativeChatComposerCatalog('claude', transport()))
-    expect(oldHost.result.current.agentCommands).toEqual(structuredSlashCommands())
+    expect(providerCommands(oldHost.result.current.agentCommands)).toEqual(
+      structuredSlashCommands()
+    )
     expect(oldHost.result.current.sessionSkillNames).toBeUndefined()
   })
   it('offers supported conversation commands when the host has no reported catalog', () => {
@@ -60,14 +80,14 @@ describe('composer catalog authority', () => {
         }
       }
     )
-    expect(result.current.agentCommands.map(({ name }) => name)).toEqual([
+    expect(providerCommands(result.current.agentCommands).map(({ name }) => name)).toEqual([
       'model',
       'effort',
       'clear',
       'compact'
     ])
     rerender({ conversationCommands: ['clear'] })
-    expect(result.current.agentCommands.map(({ name }) => name)).toEqual([
+    expect(providerCommands(result.current.agentCommands).map(({ name }) => name)).toEqual([
       'model',
       'effort',
       'clear'
@@ -77,20 +97,21 @@ describe('composer catalog authority', () => {
   // agent has to reach structuredSlashCommands or `/goal` is invisible there.
   it('offers Codex the commands its model runs from message text', () => {
     const { result } = renderHook(() => useNativeChatComposerCatalog('codex', transport()))
-    expect(result.current.agentCommands).toEqual(structuredSlashCommands([], 'codex'))
-    expect(result.current.agentCommands.map(({ name }) => name)).toContain('goal')
+    expect(providerCommands(result.current.agentCommands)).toEqual(
+      structuredSlashCommands([], 'codex')
+    )
+    expect(providerCommands(result.current.agentCommands).map(({ name }) => name)).toContain('goal')
   })
   it('leaves the Claude route on its own commands, reported or not', () => {
     const reported = [{ name: 'init', kind: 'command' as const }]
     const withReport = renderHook(() => useNativeChatComposerCatalog('claude', transport(reported)))
-    expect(withReport.result.current.agentCommands).toEqual(
+    expect(providerCommands(withReport.result.current.agentCommands)).toEqual(
       sessionSlashCommandSuggestions('claude', reported)
     )
     const withoutReport = renderHook(() => useNativeChatComposerCatalog('claude', transport()))
-    expect(withoutReport.result.current.agentCommands.map(({ name }) => name)).toEqual([
-      'model',
-      'effort'
-    ])
+    expect(
+      providerCommands(withoutReport.result.current.agentCommands).map(({ name }) => name)
+    ).toEqual(['model', 'effort'])
   })
   it('respects empty catalogs and command-only catalogs without reviving disk skills', () => {
     const { result, rerender } = renderHook(
@@ -101,12 +122,11 @@ describe('composer catalog authority', () => {
         }
       }
     )
-    expect(result.current).toEqual({ agentCommands: [], sessionSkillNames: [] })
+    expect(providerCommands(result.current.agentCommands)).toEqual([])
+    expect(result.current.sessionSkillNames).toEqual([])
     rerender({ reported: [{ name: 'custom-command', kind: 'command' }] })
-    expect(result.current).toEqual({
-      agentCommands: [{ name: 'custom-command' }],
-      sessionSkillNames: []
-    })
+    expect(providerCommands(result.current.agentCommands)).toEqual([{ name: 'custom-command' }])
+    expect(result.current.sessionSkillNames).toEqual([])
   })
 })
 
@@ -156,7 +176,8 @@ it('Enter completes a known pre-init skill while still dispatching a built-in co
         },
         mentionFiles: { files: [], loading: false, failed: false },
         completeMention: vi.fn(),
-        activeSuggestion,
+        activeSuggestion:
+          activeSuggestion === 1 ? items.findIndex((item) => item.kind === 'skill') : 0,
         draft: '/',
         isComposing: () => false,
         completePickerItem: complete,
