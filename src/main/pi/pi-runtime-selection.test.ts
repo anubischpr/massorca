@@ -18,6 +18,7 @@ describe('bounded Pi runtime selection', () => {
       worktree: 'id:workspace',
       agent: 'pi',
       piRuntime: 'gentle-shell',
+      accessMode: 'full-access',
       randomUuid: () => '01234567-89ab-cdef-0123-456789abcdef'
     })
     expect(CreateIntentParams.safeParse(params).success).toBe(true)
@@ -32,6 +33,20 @@ describe('bounded Pi runtime selection', () => {
     expect(CreateSupportParams.parse({ worktree: 'id:workspace', agent: 'pi' })).not.toHaveProperty(
       'piRuntime'
     )
+    expect(
+      CreateSupportParams.safeParse({
+        worktree: 'id:workspace',
+        agent: 'pi',
+        accessMode: 'inherit'
+      }).success
+    ).toBe(false)
+    expect(
+      CreateSupportParams.safeParse({
+        worktree: 'id:workspace',
+        agent: 'codex',
+        accessMode: 'full-access'
+      }).success
+    ).toBe(false)
     for (const piRuntime of ['gentle-shell --unsafe', '/bin/bash', 'stock-pi', 7]) {
       expect(
         CreateSupportParams.safeParse({ worktree: 'id:workspace', agent: 'pi', piRuntime }).success

@@ -24,6 +24,7 @@ export type StructuredAgentSessionCreateParams = {
   worktree: string
   agent: StructuredAgentId
   piRuntime?: PiRuntimeSelection
+  accessMode?: 'default' | 'full-access'
   resumeFrom?: StructuredAgentSessionResumeSource
   /** Sent only to a host advertising `AGENT_SESSION_CREATE_TAB_ID_RUNTIME_CAPABILITY`. */
   tabId?: string
@@ -56,6 +57,7 @@ export function structuredAgentSessionCreateParams(args: {
   worktree: string
   agent: StructuredAgentId
   piRuntime?: PiRuntimeSelection
+  accessMode?: 'default' | 'full-access'
   resumeFrom?: StructuredAgentSessionResumeSource
   tabId?: string
   randomUuid: () => string
@@ -65,6 +67,7 @@ export function structuredAgentSessionCreateParams(args: {
     worktree: args.worktree,
     agent: args.agent,
     ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
+    ...(args.accessMode ? { accessMode: args.accessMode } : {}),
     ...(args.resumeFrom ? { resumeFrom: args.resumeFrom } : {}),
     ...(args.tabId ? { tabId: args.tabId } : {})
   }

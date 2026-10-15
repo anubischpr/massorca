@@ -137,7 +137,10 @@ function resetStructuredLaunchCallers(state: StructuredLaunchState): void {
 function restartStructuredLaunchState(state: StructuredLaunchState): void {
   const wasVisibilityUnknown = state.visibilityUnknown
   if (!wasVisibilityUnknown) {
-    state.intent = retryStructuredAgentSessionLaunchIntent(state.intent)
+    state.intent = retryStructuredAgentSessionLaunchIntent(
+      state.intent,
+      state.selection.held.accessMode
+    )
   }
   resetStructuredLaunchCallers(state)
   delete state.failure

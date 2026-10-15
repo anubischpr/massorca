@@ -30,6 +30,7 @@ export function restorePersistedStructuredLaunchState(
       sessionId: record.sessionId,
       agent: record.agent,
       ...(record.piRuntime ? { piRuntime: record.piRuntime } : {}),
+      ...(record.accessMode ? { accessMode: record.accessMode } : {}),
       clientOperationId: record.clientOperationId,
       payloadFingerprint: record.payloadFingerprint,
       expectedRuntimeFence: record.expectedRuntimeFence,

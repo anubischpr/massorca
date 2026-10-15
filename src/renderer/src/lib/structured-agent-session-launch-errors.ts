@@ -17,6 +17,7 @@ export class StructuredAgentSessionCreateError extends Error {
  * `launchStructuredAgentSession` is the only place that decides it against the shared allowlist.
  */
 export class StructuredAgentSessionCreateRefusalError extends StructuredAgentSessionCreateError {
+  accessPolicyUnsupported = false
   constructor(
     message: string,
     code: string = 'structured_agent_session_unsupported',

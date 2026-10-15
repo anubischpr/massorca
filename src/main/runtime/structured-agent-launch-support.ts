@@ -3,7 +3,10 @@ import type { StructuredAgentId } from '../../shared/agent-session-provider-hand
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import { nativeChatShellEnvironmentPolicy } from '../../shared/native-chat-shell-environment'
 import { isTuiAgent } from '../../shared/tui-agent-config'
-import { resolveTuiAgentLaunchEnv } from '../../shared/tui-agent-launch-defaults'
+import {
+  resolveTuiAgentLaunchEnv,
+  resolvedTuiAgentArgsBypassPermissions
+} from '../../shared/tui-agent-launch-defaults'
 import type { ClaudeManagedAccountGateSettings } from '../native-chat/claude-structured-managed-account-support'
 import {
   resolveStructuredAgentSessionCreateSupport,
@@ -22,7 +25,19 @@ type LaunchEnvironmentSettings = Pick<
   GlobalSettings,
   'agentDefaultEnv' | 'nativeChatInheritShellEnvironment' | 'nativeChatShellEnvironmentVariables'
 > &
-  Partial<Pick<GlobalSettings, 'agentCmdOverrides'>>
+  Partial<Pick<GlobalSettings, 'agentCmdOverrides' | 'agentDefaultArgs' | 'terminalWindowsShell'>>
+
+export function resolvedPiChatAccessMode(
+  settings: LaunchEnvironmentSettings,
+  requested?: 'default' | 'full-access'
+) {
+  return (
+    requested ??
+    (resolvedTuiAgentArgsBypassPermissions('pi', settings, process.platform)
+      ? 'full-access'
+      : 'default')
+  )
+}
 
 /** The environment every agent's launch on this host starts from, for a check made before the
  *  session host is built. */
@@ -74,12 +89,20 @@ export async function structuredAgentSupportsLaunch(
 export async function resolveHostStructuredAgentCreateSupport(input: {
   agent: StructuredAgentId
   piRuntime?: PiRuntimeSelection
+  accessMode?: 'default' | 'full-access'
   worktreeSelector: string
   location: AgentSessionExecutionLocation
   runtime: LaunchSupportRuntime
   getSettings: () => ClaudeManagedAccountGateSettings
 }): Promise<StructuredAgentSessionCreateSupport> {
   const { agent, location } = input
+  if (
+    agent === 'pi' &&
+    resolvedPiChatAccessMode(input.runtime.requireStore().getSettings(), input.accessMode) !==
+      'full-access'
+  ) {
+    return { supported: false, reason: 'access' }
+  }
   const supportsLocation =
     structuredAgentRuntimeRegistration(agent)?.supportsLocation(location) ?? false
   const supportsLaunch =
