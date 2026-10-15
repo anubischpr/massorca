@@ -6,6 +6,7 @@ import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import { callStructuredAgentSession } from '@/runtime/structured-agent-session-client'
 import { selectedPiRuntime, type PiRuntimeSelection } from '../../../shared/pi-runtime-selection'
 import { useAppStore } from '@/store'
+import { translate } from '@/i18n/i18n'
 
 /** The host answers a worktree selector it cannot resolve yet with this rather than a verdict. */
 const SELECTOR_NOT_RESOLVABLE_CODE = 'selector_not_found'
@@ -69,7 +70,10 @@ export async function askHostCreateSupport(
           ? {
               kind: 'unreachable',
               code: 'pi_runtime_unsupported',
-              message: 'This host cannot run the selected Gentle Shell runtime in chat.',
+              message: translate(
+                'components.native-chat.piRuntimeUnsupported',
+                'This host cannot run the selected Gentle Shell runtime in chat.'
+              ),
               error: new Error('Gentle Shell structured runtime unavailable')
             }
           : { kind: 'declined' }
