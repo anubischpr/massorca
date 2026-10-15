@@ -62,10 +62,21 @@ describe('client session navigation', () => {
     async (text) => {
       const dispatchCommand = vi.fn(),
         send = vi.fn()
-      const transport = {
+      const transport: NativeChatStructuredComposerTransport = {
         dispatchCommand,
-        send
-      } as unknown as NativeChatStructuredComposerTransport
+        send,
+        optionsSurface: {
+          getSnapshot: () => [],
+          setOption: vi.fn(),
+          invokeAction: vi.fn(),
+          subscribe: () => () => {}
+        },
+        optionSnapshot: [],
+        onError: vi.fn(),
+        runtime: 'local',
+        sessionId: 'navigation-test',
+        runtimeEnvironmentId: null
+      }
       expect(await dispatchNativeChatStructuredComposerText(transport, text)).toEqual({
         accepted: true,
         error: null,
