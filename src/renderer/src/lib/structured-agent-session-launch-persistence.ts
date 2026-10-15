@@ -1,4 +1,5 @@
 import { isTuiAgent } from '../../../shared/tui-agent-config'
+import { isPiRuntimeSelection, type PiRuntimeSelection } from '../../../shared/pi-runtime-selection'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import type { StructuredAgentSessionResumeSource } from '../../../shared/structured-agent-session-create'
 import { parseStructuredLaunchSeedOptions } from '../../../shared/native-chat-session-option-defaults'
@@ -17,6 +18,7 @@ export type StructuredAgentLaunchPersistedRecord = {
    *  it and load as local, the only host a chat could then be launched on. */
   executionHostId: ExecutionHostId
   agent: TuiAgent
+  piRuntime?: PiRuntimeSelection
   lifecycle: StructuredAgentLaunchPersistedLifecycle
   clientOperationId: string
   payloadFingerprint: string
@@ -40,6 +42,7 @@ export function structuredAgentLaunchRecordFor(
     sessionId: intent.sessionId,
     executionHostId: intent.executionHostId,
     agent: intent.agent,
+    ...(intent.params.piRuntime ? { piRuntime: intent.params.piRuntime } : {}),
     lifecycle,
     clientOperationId: envelope.clientOperationId,
     payloadFingerprint: envelope.payloadFingerprint,
@@ -87,6 +90,7 @@ function validRecord(value: unknown): value is Omit<
     expectedRuntimeFence
   } = value
   const resumeFrom = 'resumeFrom' in value ? value.resumeFrom : undefined
+  const piRuntime = 'piRuntime' in value ? value.piRuntime : undefined
   const executionHostId = 'executionHostId' in value ? value.executionHostId : undefined
   const failedAt = 'failedAt' in value ? value.failedAt : undefined
   return (
@@ -95,6 +99,7 @@ function validRecord(value: unknown): value is Omit<
     typeof sessionId === 'string' &&
     sessionId.length > 0 &&
     isTuiAgent(agent) &&
+    (piRuntime === undefined || (agent === 'pi' && isPiRuntimeSelection(piRuntime))) &&
     (lifecycle === 'pending' || lifecycle === 'visibility-unknown' || lifecycle === 'failed') &&
     typeof clientOperationId === 'string' &&
     typeof payloadFingerprint === 'string' &&

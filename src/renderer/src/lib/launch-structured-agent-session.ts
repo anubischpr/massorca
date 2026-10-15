@@ -1,4 +1,9 @@
 import type { TuiAgent } from '../../../shared/tui-agent'
+import {
+  isPiRuntimeSelection,
+  selectedPiRuntime,
+  type PiRuntimeSelection
+} from '../../../shared/pi-runtime-selection'
 import type {
   AgentSessionAttachResult,
   AgentSessionMutationResult
@@ -137,9 +142,17 @@ function buildStructuredAgentSessionLaunchIntent(
   agent: TuiAgent,
   sessionId: string,
   resumeFrom: StructuredAgentSessionResumeSource | undefined,
-  hostSeedOptions: LaunchSeed
+  hostSeedOptions: LaunchSeed,
+  retainedRuntime?: { value?: PiRuntimeSelection }
 ): StructuredAgentSessionLaunchIntent {
   const state = useAppStore.getState()
+  const piRuntime = retainedRuntime
+    ? retainedRuntime.value
+    : agent === 'pi'
+      ? isPiRuntimeSelection(hostSeedOptions?.piRuntime)
+        ? hostSeedOptions.piRuntime
+        : selectedPiRuntime(state.settings?.agentCmdOverrides?.pi)
+      : undefined
   recordWebSessionFocusIntent(
     structuredAgentSessionFocusOwner(owner.target),
     worktreeId,
@@ -157,6 +170,7 @@ function buildStructuredAgentSessionLaunchIntent(
       sessionId,
       worktree: toRuntimeWorktreeSelector(worktreeId),
       agent,
+      ...(piRuntime === 'gentle-shell' ? { piRuntime } : {}),
       ...(resumeFrom ? { resumeFrom } : {}),
       randomUuid: createBrowserUuid
     }),
@@ -174,7 +188,8 @@ export function retryStructuredAgentSessionLaunchIntent(
     intent.agent,
     intent.sessionId,
     intent.params.resumeFrom,
-    intent.seedOptions
+    intent.seedOptions,
+    { value: intent.params.piRuntime }
   )
 }
 
@@ -184,6 +199,7 @@ export function restoreStructuredAgentSessionLaunchIntent(args: {
   executionHostId: ExecutionHostId
   sessionId: string
   agent: TuiAgent
+  piRuntime?: PiRuntimeSelection
   clientOperationId: string
   payloadFingerprint: string
   expectedRuntimeFence: number | null
@@ -215,6 +231,7 @@ export function restoreStructuredAgentSessionLaunchIntent(args: {
       },
       worktree: toRuntimeWorktreeSelector(args.worktreeId),
       agent: args.agent,
+      ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
       ...(args.resumeFrom ? { resumeFrom: args.resumeFrom } : {})
     },
     ...launchSeedOptions(state, { target }, args.agent, args.seedOptions)
@@ -240,7 +257,12 @@ export function abandonStructuredAgentSessionLaunchIntent(
 async function requireHostCreateSupport(
   intent: StructuredAgentSessionLaunchIntent
 ): Promise<LaunchSeed> {
-  const support = await askHostCreateSupport(intent.target, intent.params.worktree, intent.agent)
+  const support = await askHostCreateSupport(
+    intent.target,
+    intent.params.worktree,
+    intent.agent,
+    intent.params.piRuntime
+  )
   if (support.kind === 'unreachable') {
     throw new StructuredAgentSessionCreateUnknownOutcomeError(
       support.message,

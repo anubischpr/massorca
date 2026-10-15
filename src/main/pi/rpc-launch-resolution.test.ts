@@ -59,11 +59,7 @@ describe('Gentle Shell Pi version output', () => {
       ['other-shell version 4.1.0', 'pi version 1.1.0'],
       false
     ],
-    [
-      'rejects a malformed Pi version',
-      ['gentle-shell version 4.1.0', 'pi version latest'],
-      false
-    ],
+    ['rejects a malformed Pi version', ['gentle-shell version 4.1.0', 'pi version latest'], false],
     [
       'rejects unknown metadata',
       ['gentle-shell version 4.1.0', 'pi version 1.1.0', 'using isolated home /tmp/agent'],
@@ -152,10 +148,48 @@ async function setup() {
   const withPrior = (link: AgentSessionProviderHandleLink) => {
     vi.spyOn(store, 'getRecord').mockReturnValue({ ...record, providerHandleChain: [link] })
   }
-  return { store, record, workspace, resolver, resolveCommand, settings, prior, withPrior }
+  return {
+    store,
+    record,
+    workspace,
+    resolver,
+    resolveCommand,
+    resolveEnvironment,
+    settings,
+    prior,
+    withPrior
+  }
 }
 
 describe('Pi host launch resolution', () => {
+  it('retains the session runtime and account home when the host preference changes', async () => {
+    const h = await setup()
+    const command = join(root, process.platform === 'win32' ? 'gentle-shell.cmd' : 'gentle-shell')
+    await writeFile(
+      command,
+      process.platform === 'win32'
+        ? '@echo off\r\necho gentle-shell version 4.1.0\r\necho pi version 1.1.0\r\n'
+        : '#!/bin/sh\necho gentle-shell version 4.1.0\necho pi version 1.1.0\n'
+    )
+    if (process.platform !== 'win32') {
+      await chmod(command, 0o755)
+    }
+    h.resolveEnvironment.mockResolvedValue({
+      PATH: root,
+      HOME: '/host/home',
+      PI_CODING_AGENT_DIR: '/inherited/wrong'
+    })
+    vi.spyOn(h.store, 'getRecord').mockReturnValue({
+      ...h.record,
+      options: { piRuntime: 'gentle-shell' }
+    })
+    h.settings.agentCmdOverrides = { pi: '/changed/stock-pi' }
+    await expect(h.resolver(identity)).resolves.toMatchObject({
+      env: { PI_CODING_AGENT_DIR: '/host/account' }
+    })
+    await expect(h.resolver(identity)).resolves.toMatchObject({ command })
+  })
+
   it('refuses acquisition if the selected binary was replaced by an unsupported version', async () => {
     const h = await setup()
     probeVersion.mockResolvedValue(false)
