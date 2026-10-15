@@ -1,6 +1,6 @@
 import { MutationEnvelope } from './structured-agent-session-mutation-params'
 import {
-  PiLaunchPolicyShape,
+  PiLaunchPolicyParams,
   piLaunchPolicyMatchesAgent
 } from './structured-agent-session-launch-policy-params'
 export { MutationEnvelope } from './structured-agent-session-mutation-params'
@@ -113,7 +113,7 @@ export const CreateIntentParams = z
     envelope: MutationEnvelope,
     worktree: Identifier('Invalid worktree selector'),
     agent: StructuredAgent,
-    ...PiLaunchPolicyShape,
+    ...PiLaunchPolicyParams,
     resumeFrom: ResumeSource.optional(),
     /**
      * The tab id the client reserved for this chat, so it can place the tab before the reply. The
@@ -134,7 +134,7 @@ export const CreateSupportParams = z
   .object({
     worktree: Identifier('Invalid worktree selector'),
     agent: StructuredAgent,
-    ...PiLaunchPolicyShape
+    ...PiLaunchPolicyParams
   })
   .strict()
   .refine(piLaunchPolicyMatchesAgent, 'Pi launch policy requires the Pi agent')
