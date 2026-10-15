@@ -36,6 +36,34 @@ const COMMON_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'help', description: 'Show available commands' }
 ]
 
+// Pi 1.1.0's BUILTIN_SLASH_COMMANDS; get_commands reports extensions/skills, not these TUI actions.
+const PI_COMMANDS: readonly SlashCommandSuggestion[] = [
+  { name: 'settings', description: 'Open settings' },
+  { name: 'model', description: 'Choose the model' },
+  { name: 'tree', description: 'Navigate session branches' },
+  { name: 'thinking', description: 'Set thinking level' },
+  { name: 'scoped-models', description: 'Choose models for cycling' },
+  { name: 'export', description: 'Export the session' },
+  { name: 'import', description: 'Import a session from JSONL' },
+  { name: 'share', description: 'Share the session as a secret gist' },
+  { name: 'bug', description: 'Report a Pi bug' },
+  { name: 'copy', description: 'Copy the last response' },
+  { name: 'name', description: 'Rename the session' },
+  { name: 'session', description: 'Show session information' },
+  { name: 'changelog', description: 'Show the changelog' },
+  { name: 'hotkeys', description: 'Show keyboard shortcuts' },
+  { name: 'fork', description: 'Fork from a previous message' },
+  { name: 'clone', description: 'Duplicate the current session' },
+  { name: 'trust', description: 'Save project trust' },
+  { name: 'login', description: 'Configure provider authentication' },
+  { name: 'logout', description: 'Remove provider authentication' },
+  { name: 'new', description: 'Start a new session' },
+  { name: 'compact', description: 'Compact conversation context' },
+  { name: 'resume', description: 'Resume a session' },
+  { name: 'reload', description: 'Reload extensions and settings' },
+  { name: 'quit', description: 'Quit Pi' }
+]
+
 const CLAUDE_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'clear', description: 'Clear conversation history' },
   { name: 'compact', description: 'Summarize and compact the conversation' },
@@ -129,6 +157,7 @@ const OMP_COMMANDS: readonly SlashCommandSuggestion[] = [
 ]
 
 const COMMANDS_BY_AGENT: Partial<Record<AgentType, readonly SlashCommandSuggestion[]>> = {
+  pi: PI_COMMANDS,
   claude: CLAUDE_COMMANDS,
   openclaude: OPENCLAUDE_COMMANDS,
   codex: CODEX_COMMANDS,
