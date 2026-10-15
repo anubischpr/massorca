@@ -6,6 +6,8 @@ import { supportsClaudeStructuredLocation } from '../claude/claude-structured-lo
 import { supportsSupervisedProviderChildLocation } from '../provider-process/supervised-provider-child-location'
 import { applyStructuredCodexWorkspaceTrust } from '../agent-workspace-trust-spawn'
 import type { AgentSessionExecutionLocation } from '../../shared/agent-session-record'
+import type { StructuredAgentAccountHomeServices } from './structured-agent-account-home-services'
+export type { StructuredAgentAccountHomeServices } from './structured-agent-account-home-services'
 import {
   agentSessionAccountHome,
   type AgentSessionAccountHome
@@ -37,9 +39,7 @@ import type { createStructuredAgentEnvironmentResolvers } from './structured-age
 import { createStructuredClaudeRuntimeAdapter } from './structured-claude-runtime-adapter'
 import {
   resolveStructuredClaudeAccountHomePath,
-  resolveStructuredCodexAccountHomePath,
-  type StructuredClaudeAccountHomeDeps,
-  type StructuredCodexAccountHomeDeps
+  resolveStructuredCodexAccountHomePath
 } from './structured-agent-account-home'
 import { ACP_LAUNCH_SPECS, type AcpLaunchSpec } from '../acp/acp-launch-specs'
 import { acpStructuredAgentDefinition } from '../acp/acp-structured-agent-definitions'
@@ -89,15 +89,6 @@ export type StructuredAgentAccountHomeRequest = {
   purpose: 'launch' | 'read'
   /** The launch's workspace directory on this host; a read has none. */
   workspacePath: (() => Promise<string>) | null
-}
-
-/** What resolving an account may ask of the runtime around it. */
-export type StructuredAgentAccountHomeServices = {
-  getClaudeConfigDirectory: StructuredClaudeAccountHomeDeps['getClaudeConfigDirectory']
-  /** Codex's home for a launch, prepared for it; and the same answer with no side effects. */
-  prepareCodexLaunchHome: StructuredCodexAccountHomeDeps['resolveLaunchHome']
-  readCodexLaunchHome: StructuredCodexAccountHomeDeps['resolveLaunchHome']
-  workspaceTrustSettings: () => Parameters<typeof applyStructuredCodexWorkspaceTrust>[0]['settings']
 }
 
 /** What a catalog probe is built from: the same runtime resolvers its sessions launch through. */
