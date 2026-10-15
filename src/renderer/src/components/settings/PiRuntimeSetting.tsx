@@ -44,8 +44,10 @@ export function PiRuntimeSetting({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="pi">Pi</SelectItem>
-            <SelectItem value="gentle-shell">Gentle Shell</SelectItem>
+            <SelectItem value="pi">{translate('settings.agents.stockPi', 'Pi')}</SelectItem>
+            <SelectItem value="gentle-shell">
+              {translate('settings.agents.gentleShell', 'Gentle Shell')}
+            </SelectItem>
             {custom && (
               <SelectItem value="custom">
                 {translate('settings.agents.customCommand', 'Custom command')}
