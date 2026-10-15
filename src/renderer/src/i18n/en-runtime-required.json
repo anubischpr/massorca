@@ -3083,7 +3083,9 @@
         "waitForStart": "Wait for the agent to finish starting.",
         "waitForTurn": "Wait for the agent to finish responding, or stop it.",
         "waitMoment": "Wait a moment."
-      }
+      },
+      "piRuntimeUnsupported": "This host cannot run the selected Gentle Shell runtime in chat.",
+      "piRestrictedAccessUnsupported": "Pi chat does not support restricted access. Choose Full access explicitly, or use the terminal."
     },
     "onboarding": {
       "integrations": {
@@ -3176,6 +3178,14 @@
         "probeSkippedHosts": "Hosts routed without the connection check (Try anyway):",
         "title": "Browse through SSH workspace hosts"
       }
+    },
+    "agents": {
+      "stockPi": "Pi",
+      "gentleShell": "Gentle Shell",
+      "piAndGentleShell": "Pi / Gentle Shell",
+      "customCommand": "Custom command",
+      "piRuntime": "Pi runtime",
+      "piRuntimeDescription": "Choose stock Pi or Gentle Shell. Both use Pi chat sessions; command paths can be customized below."
     }
   },
   "sparsePreset": {
