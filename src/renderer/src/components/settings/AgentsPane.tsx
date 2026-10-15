@@ -51,6 +51,7 @@ import {
 import { AgentAvailabilityControl, type AgentCatalogRowProps } from './AgentCatalogRow'
 import { AgentDefaultSetting } from './AgentDefaultSetting'
 import { AgentDetectionCatalog } from './AgentDetectionCatalog'
+import { PiRuntimeSetting } from './PiRuntimeSetting'
 
 export {
   buildAgentAvailabilitySettingsUpdate,
@@ -242,6 +243,11 @@ export function AgentsPane({
 
   return (
     <div className="space-y-8">
+      <PiRuntimeSetting
+        settings={settings}
+        updateSettings={updateSettings}
+        refresh={refreshTargetAgents}
+      />
       <AgentDefaultSetting
         defaultAgent={defaultAgent}
         detectedIds={detectedIds}

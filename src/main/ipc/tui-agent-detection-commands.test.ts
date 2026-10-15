@@ -6,6 +6,13 @@ import {
 } from './tui-agent-detection-commands'
 
 describe('tui agent detection commands', () => {
+  it('detects the Pi runtime family when only Gentle Shell is installed', () => {
+    const commands = KNOWN_TUI_AGENT_DETECTION_COMMANDS.filter((entry) => entry.id === 'pi')
+    expect(resolveDetectedTuiAgentIds(commands, new Set(['gentle-shell']), 'linux')).toEqual(['pi'])
+    expect(resolveDetectedTuiAgentIds(commands, new Set(['pi', 'gentle-shell']), 'linux')).toEqual([
+      'pi'
+    ])
+  })
   it.each(['darwin', 'linux', 'win32', 'wsl'] as const)(
     'detects modern and legacy Qoder once on %s',
     (runtime) => {
