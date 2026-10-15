@@ -314,7 +314,10 @@
       "codexSharedServerWarning": {
         "title": "Warn when a Codex tab shares a server",
         "description": "Shows a notice on a Codex you started yourself when it shares a server with other tabs, because its agent status may be wrong."
-      }
+      },
+      "piRuntime": "Pi runtime",
+      "piRuntimeDescription": "Choose stock Pi or Gentle Shell. Both use Pi chat sessions; command paths can be customized below.",
+      "customCommand": "Custom command"
     },
     "followSymlinkedDirectoriesKeywords": {
       "symlink": "symlink",
@@ -18306,7 +18309,10 @@
         "providerFunctionOrca": "Orca",
         "providerFunctionProvider": "Provider",
         "providerFunctionTerminalOnly": "Terminal only",
-        "providerFunctionUnverified": "Unverified"
+        "providerFunctionUnverified": "Unverified",
+        "resumeWindowDescription": "Choose an existing session in the Sessions panel",
+        "sessionWindowDescription": "Browse sessions in the Sessions panel",
+        "providerFunctionTerminalOnlyError": "{{command}} is available in Terminal only."
       },
       "tool": {
         "exitCode": "exit {{value0}}",
@@ -18693,7 +18699,8 @@
         "continue": "Continue",
         "failed": "Couldn't continue this chat. Try again, or send a message.",
         "explanation": "Continue, and the agent first checks whether its last step finished."
-      }
+      },
+      "piRestrictedAccessUnsupported": "Pi chat does not support restricted access. Choose Full access explicitly, or use the terminal."
     },
     "tab": {
       "bar": {
