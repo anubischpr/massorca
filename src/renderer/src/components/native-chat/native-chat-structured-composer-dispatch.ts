@@ -2,8 +2,8 @@ import type { StructuredAgentSessionCommandOutcome } from '../../../../shared/st
 import type { NativeChatStructuredComposerTransport } from './native-chat-composer-types'
 import type { NativeChatComposerImageAttachment } from './NativeChatComposerField'
 import type { AgentType } from '../../../../shared/agent-status-types'
-import { nativeChatStructuredCatalog } from './native-chat-session-navigation'
 import {
+  nativeChatStructuredCatalog,
   isNativeChatSessionNavigation,
   openNativeChatSessionNavigation
 } from './native-chat-session-navigation'
