@@ -1,3 +1,4 @@
+import { translate } from '@/i18n/i18n'
 import type { StructuredAgentSessionCommandOutcome } from '../../../../shared/structured-agent-session-composer'
 import type { NativeChatStructuredComposerTransport } from './native-chat-composer-types'
 import type { NativeChatComposerImageAttachment } from './NativeChatComposerField'
@@ -18,7 +19,10 @@ export async function dispatchNativeChatStructuredComposerText(
     if (attachments.length > 0) {
       return {
         accepted: false,
-        error: 'Remove attachments before using a chat-session command.',
+        error: translate(
+          'components.native-chat.composer.commandAttachmentsUnsupported',
+          'Remove attachments before using a chat-session command.'
+        ),
         revealsTranscript: false
       }
     }
@@ -33,7 +37,11 @@ export async function dispatchNativeChatStructuredComposerText(
   if (entry && entry.providerFunction?.availability === 'terminal-only') {
     return {
       accepted: false,
-      error: `/${name} is available in Terminal only.`,
+      error: translate(
+        'components.native-chat.composer.providerFunctionTerminalOnlyError',
+        '{{command}} is available in Terminal only.',
+        { command: `/${name}` }
+      ),
       revealsTranscript: false
     }
   }
