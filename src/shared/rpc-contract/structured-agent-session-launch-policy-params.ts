@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const PiLaunchPolicyShape = {
+export const PiLaunchPolicyParams = {
   piRuntime: z.enum(['pi', 'gentle-shell']).optional(),
   accessMode: z.enum(['default', 'full-access']).optional()
 }
