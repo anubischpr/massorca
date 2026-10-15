@@ -6,6 +6,7 @@ import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import { callStructuredAgentSession } from '@/runtime/structured-agent-session-client'
 import { selectedPiRuntime, type PiRuntimeSelection } from '../../../shared/pi-runtime-selection'
 import { useAppStore } from '@/store'
+import { translate } from '@/i18n/i18n'
 import type { StructuredAgentSessionCreateParams } from '../../../shared/structured-agent-session-create'
 import { readAgentSessionErrorRefusal } from '../../../shared/agent-session-write-failure'
 import {
@@ -84,7 +85,10 @@ export async function askHostCreateSupport(
           ? {
               kind: 'unreachable',
               code: 'pi_runtime_unsupported',
-              message: 'This host cannot run the selected Gentle Shell runtime in chat.',
+              message: translate(
+                'components.native-chat.piRuntimeUnsupported',
+                'This host cannot run the selected Gentle Shell runtime in chat.'
+              ),
               error: new Error('Gentle Shell structured runtime unavailable')
             }
           : { kind: 'declined' }
