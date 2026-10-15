@@ -2744,6 +2744,11 @@
             "ca40ffcbec": "PR"
           }
         }
+      },
+      "agent": {
+        "catalog": {
+          "302934c5d9": "Pi"
+        }
       }
     },
     "runtime": {
