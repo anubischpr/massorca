@@ -50,3 +50,23 @@ describe('createClaudeControlSurface cancelAsyncMessage', () => {
     ).resolves.toBe(false)
   })
 })
+
+describe('createClaudeControlSurface MCP status', () => {
+  it('uses the SDK status method and bounds a lost reply', async () => {
+    vi.useFakeTimers()
+    const mcpServerStatus = vi
+      .fn()
+      .mockResolvedValueOnce([{ name: 'docs', status: 'connected' }])
+      .mockImplementationOnce(() => new Promise(() => {}))
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: this test calls only the SDK MCP status method.
+    const controls = createClaudeControlSurface({ mcpServerStatus } as unknown as Query)
+    await expect(controls.mcpServerStatus?.({ timeoutMs: 25 })).resolves.toEqual([
+      { name: 'docs', status: 'connected' }
+    ])
+    const timedOut = expect(controls.mcpServerStatus?.({ timeoutMs: 25 })).rejects.toThrow(
+      'claude mcp_status request timed out'
+    )
+    await vi.advanceTimersByTimeAsync(25)
+    await timedOut
+  })
+})

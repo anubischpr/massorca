@@ -100,6 +100,7 @@ export function useStructuredAgentSession(args: {
     setStructuredOption,
     unavailable,
     threadGoal: threadGoalSupport,
+    connectors,
     contextUsage: contextUsageSupport,
     rewind: rewindSupport
   } = useStructuredAgentSessionOptions({
@@ -315,6 +316,7 @@ export function useStructuredAgentSession(args: {
     /** Why the host's catalog probe says no chat can start here; the chat shows it as a notice. */
     unavailable,
     threadGoal,
-    contextUsage
+    contextUsage,
+    connectors
   }
 }

@@ -72,8 +72,10 @@ export function useStructuredAgentSessionOptionState(args: {
   } = args
   const [conversationSupport, setConversationSupport] = useState<{
     sessionId: string
+    target: RuntimeClientTarget
     commands: readonly AgentSessionConversationCommand[]
     threadGoal: AgentSessionOptionsResult['threadGoal']
+    connectors: AgentSessionOptionsResult['connectors']
     contextUsage: AgentSessionOptionsResult['contextUsage']
     rewind: AgentSessionRewindSupport
     /** The fence the read answered for; rewind support is only that runtime's. */
@@ -167,8 +169,10 @@ export function useStructuredAgentSessionOptionState(args: {
       if (!stale && optionMutationGeneration.current === readGeneration) {
         setConversationSupport({
           sessionId,
+          target,
           commands: result.conversationCommands ?? [],
           threadGoal: result.threadGoal,
+          connectors: result.connectors,
           contextUsage: result.contextUsage,
           // A host that predates rewind does not name it.
           rewind: result.rewind ?? { supported: false, reason: 'unsupported' },
@@ -211,6 +215,15 @@ export function useStructuredAgentSessionOptionState(args: {
 
   return {
     conversationSupport,
+    connectors:
+      conversationSupport?.sessionId === sessionId &&
+      conversationSupport.fence === fence &&
+      conversationSupport.target.kind === target.kind &&
+      (conversationSupport.target.kind === 'local' ||
+        (target.kind === 'environment' &&
+          conversationSupport.target.environmentId === target.environmentId))
+        ? conversationSupport.connectors
+        : undefined,
     optionState,
     optionStateRef,
     activeOptionRecordRef,
