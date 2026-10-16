@@ -1,3 +1,4 @@
+import { readAgentSessionConnectorSnapshot } from '../../shared/agent-session-connectors'
 import type { AgentSessionFastModeState } from '../../shared/agent-session-wire'
 import {
   currentModelId,
@@ -218,15 +219,23 @@ export async function readClaudeStructuredSessionOptions(
 ): Promise<StructuredAgentSessionLiveOptions> {
   const readMutationSequence = session.optionMutationSequence
   // Before startup both requests would wait on initialize; answer from the saved options.
-  const [catalog, settings] =
+  const [catalog, settings, connectorRows] =
     session.startup.state === 'proven'
       ? await Promise.all([
           session.connection.supportedModels({ timeoutMs }).catch(() => null),
-          session.connection.getSettings({ timeoutMs }).catch(() => null)
+          session.connection.getSettings({ timeoutMs }).catch(() => null),
+          session.connection.mcpServerStatus?.({ timeoutMs }).catch(() => null) ?? null
         ])
-      : [null, null]
+      : [null, null, null]
   observeClaudeSettingsReadback(session, settings, readMutationSequence)
-  return claudeStructuredSessionOptionsFrom(session, catalog, readMutationSequence)
+  const connectors = readAgentSessionConnectorSnapshot({
+    observedAt: Date.now(),
+    servers: connectorRows
+  })
+  return {
+    ...claudeStructuredSessionOptionsFrom(session, catalog, readMutationSequence),
+    ...(connectors ? { connectors } : {})
+  }
 }
 
 function observeClaudeSettingsReadback(

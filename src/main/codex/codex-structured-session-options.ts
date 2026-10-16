@@ -1,3 +1,4 @@
+import { readCodexSessionConnectors } from './codex-session-connectors'
 import type { AgentSessionOptionsResult } from '../../shared/agent-session-wire'
 import type { CodexAppServerConnection } from './codex-app-server-connection'
 import type { CodexSession } from './codex-structured-session-state'
@@ -149,8 +150,14 @@ export async function prepareLiveCodexSessionOptions(
   session: CodexSession,
   timeoutMs: number | undefined
 ): Promise<() => AgentSessionOptionsResult> {
-  const listing = await codexSessionCatalogListingForPicker(session, timeoutMs)
-  return () => applyLiveCodexCatalog(session, listing)
+  const [listing, connectors] = await Promise.all([
+    codexSessionCatalogListingForPicker(session, timeoutMs),
+    readCodexSessionConnectors(session.connection, session.threadId, timeoutMs)
+  ])
+  return () => ({
+    ...applyLiveCodexCatalog(session, listing),
+    ...(connectors ? { connectors } : {})
+  })
 }
 
 export async function applyCodexStructuredSessionOption(

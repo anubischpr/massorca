@@ -433,3 +433,28 @@ describe('Claude structured option write under the request deadline', () => {
     ).rejects.toBeInstanceOf(ClaudeControlRequestTimeoutError)
   })
 })
+
+describe('Claude connector observations', () => {
+  it('reports SDK status without credential configuration or raw failure text', async () => {
+    const session = sessionFor(vi.fn())
+    session.connection.getSettings = async () => ({})
+    session.connection.mcpServerStatus = vi.fn().mockResolvedValue([
+      { name: 'plugin-server', status: 'connected', config: { token: 'private' } },
+      { name: 'broken', status: 'failed', error: 'token=veryprivate' }
+    ])
+    expect((await readClaudeStructuredSessionOptions(session, 25)).connectors?.servers).toEqual([
+      { name: 'plugin-server', status: 'connected' },
+      { name: 'broken', status: 'failed', error: 'token=[redacted]' }
+    ])
+    expect(session.connection.mcpServerStatus).toHaveBeenCalledWith({ timeoutMs: 25 })
+    session.connection.mcpServerStatus = vi.fn().mockRejectedValue(new Error('unsupported'))
+    expect((await readClaudeStructuredSessionOptions(session, 25)).connectors).toBeUndefined()
+  })
+  it('does not ask a starting child for connection status', async () => {
+    const session = sessionFor(vi.fn())
+    session.startup = createClaudeSessionStartup()
+    session.connection.mcpServerStatus = vi.fn()
+    expect((await readClaudeStructuredSessionOptions(session, 25)).connectors).toBeUndefined()
+    expect(session.connection.mcpServerStatus).not.toHaveBeenCalled()
+  })
+})

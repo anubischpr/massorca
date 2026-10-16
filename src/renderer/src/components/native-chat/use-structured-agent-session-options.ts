@@ -77,7 +77,8 @@ export function useStructuredAgentSessionOptions(args: {
     pendingOptionRef,
     optionMutationGeneration,
     updateOptionState,
-    conversationSupport
+    conversationSupport,
+    connectors
   } = useStructuredAgentSessionOptionState({
     agent,
     optionCatalog,
@@ -303,6 +304,7 @@ export function useStructuredAgentSessionOptions(args: {
     /** Absent unless this host and session can change the goal. */
     threadGoal: support?.threadGoal,
     /** Absent from a host that predates it or a session that writes no context facts. */
+    connectors: transportEnabled ? connectors : undefined,
     contextUsage: support?.contextUsage,
     /** Undefined until this fence's options read answers. */
     rewind: support?.fence === fence ? support.rewind : undefined,

@@ -1,3 +1,4 @@
+import type { AgentSessionConnectorSnapshot } from './agent-session-connectors'
 import type { AgentSessionFrameFields } from './agent-session-frame-fields'
 import type { AgentSessionUnavailable } from './agent-session-availability'
 import type { AgentSessionProviderFunction } from './agent-session-provider-functions'
@@ -472,6 +473,7 @@ export type {
 /** Provider-reported choices and effective next-turn values. Additive read-only
  *  surface so older hosts can reject it without changing structured v1 writes. */
 export type AgentSessionOptionsResult = AgentSessionAccessOptions & {
+  connectors?: AgentSessionConnectorSnapshot
   rewind?: AgentSessionRewindSupport
   conversationCommands?: readonly AgentSessionConversationCommand[]
   /** Present only where this session can change its goal, so a host without
