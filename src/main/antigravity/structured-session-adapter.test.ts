@@ -85,6 +85,26 @@ async function setup() {
   return { ...harness, acquired }
 }
 
+it('preserves the provider diagnostic on an unexpected exit without guessing its cause', async () => {
+  const h = await setup()
+  h.processes[0].managed.stderrTail = () =>
+    'The selected model is unavailable. Choose another model.'
+  h.processes[0].exit()
+  await h.adapter.drainObservedExits()
+  expect(h.lifecycle).toHaveBeenCalledWith(
+    expect.objectContaining({
+      cause: 'unexpected-exit',
+      failure: {
+        kind: 'providerExited',
+        detail: {
+          text: 'The selected model is unavailable. Choose another model.',
+          audience: 'person'
+        }
+      }
+    })
+  )
+})
+
 it('classifies a processless close observed before acquisition cleanup', async () => {
   const h = await createHarness('before-cleanup')
   await expect(h.adapter.acquire(h.input)).rejects.toBeInstanceOf(AgentSessionPreSpawnError)

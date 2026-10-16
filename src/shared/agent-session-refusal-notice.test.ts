@@ -356,6 +356,14 @@ describe('the notice for every reason a host names', () => {
       if (failure.code !== 'structured_agent_session_unsupported') {
         continue
       }
+      if (failure.details?.reason === 'antigravityWindowsUnsupported') {
+        expect(parts, cell).toEqual([
+          'antigravityWindowsUnsupported',
+          NOT_DONE[write],
+          'useAntigravityTerminal'
+        ])
+        continue
+      }
       if (failure.details?.reason === 'hostUnsupported') {
         expect(parts, cell).toEqual(['cannotRunHere', NOT_DONE[write]])
         continue
@@ -454,6 +462,7 @@ describe('the notice for every reason a host names', () => {
       const unsupported =
         failure.code === 'structured_agent_session_unsupported' &&
         failure.details?.reason !== 'hostUnsupported' &&
+        failure.details?.reason !== 'antigravityWindowsUnsupported' &&
         write !== 'read-history'
       const saysNotDone =
         write === 'read-history' && failure.code === 'agent_session_journal_unreadable'
