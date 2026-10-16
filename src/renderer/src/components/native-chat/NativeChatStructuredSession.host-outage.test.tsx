@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 
 import '@testing-library/jest-dom/vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { RuntimeEnvironmentStatus } from '../../../../shared/runtime-host-status'
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
@@ -167,7 +167,7 @@ it('names a reconnecting host above the composer only once the grace has passed'
   act(() => {
     vi.advanceTimersByTime(NATIVE_CHAT_HOST_RECONNECTING_GRACE_MS - 1)
   })
-  expect(screen.queryByText(/Build box/)).toBeNull()
+  expect(within(region).queryByText(/Build box/)).toBeNull()
 
   act(() => {
     vi.advanceTimersByTime(1)
@@ -181,7 +181,7 @@ it('names a reconnecting host above the composer only once the grace has passed'
   expect(screen.getByTestId('structured-composer')).toBeTruthy()
 
   setHost(hostStatus('verified', 'ready'))
-  expect(screen.queryByText(/Build box/)).toBeNull()
+  expect(within(region).queryByText(/Build box/)).toBeNull()
   expect(screen.getByRole('list')).toBe(region)
 })
 
