@@ -1,3 +1,5 @@
+import { writeCodexContextUsage } from './codex-context-usage'
+import { CODEX_JOURNAL_ADMITTED } from './codex-structured-journal-contracts'
 // The translator's writers, built once. Split out so the translator reads as
 // routing, and so one place shows that every writer is handed the same
 // row attribution: the roster's producer, which knows each child thread, and the turn scope.
@@ -53,8 +55,19 @@ export function createCodexJournalTranslatorWriters(deps: CodexJournalTranslator
     attributionFor,
     genericFrames,
     items,
-    compactions: new CodexJournalCompactions(deps.sink, activeTurn, attributionFor, (turnId) =>
-      commands.compacted(turnId)
+    compactions: new CodexJournalCompactions(
+      deps.sink,
+      activeTurn,
+      attributionFor,
+      (turnId) => commands.compacted(turnId),
+      (threadId, turnId) =>
+        deps.sessionId
+          ? writeCodexContextUsage(
+              deps,
+              { sessionId: deps.sessionId, threadId, turnId },
+              { used: { kind: 'unknown', capturedAt: deps.now?.() ?? Date.now() } }
+            )
+          : CODEX_JOURNAL_ADMITTED
     ),
     goals: new CodexJournalGoals(deps.sink, attributionFor),
     prompts: new CodexJournalPrompts(

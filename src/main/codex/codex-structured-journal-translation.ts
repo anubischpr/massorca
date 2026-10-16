@@ -1,4 +1,5 @@
 import { createCodexProviderActivityReader } from '../native-chat/agent-session-wire/provider-frame-activity'
+import { recordCodexContextUsage } from './codex-context-usage'
 import { CODEX_TOKEN_USAGE_METHOD } from './codex-subagent-activity'
 import {
   CODEX_JOURNAL_ADMITTED,
@@ -236,6 +237,10 @@ export function createCodexJournalTranslator(
       if (event.method === CODEX_TOKEN_USAGE_METHOD) {
         // Classified `status-chrome`, so the generic-frame path swallows it
         // before the journal. The roster consumes it as a typed notification.
+        const contextAdmission = recordCodexContextUsage(deps, event)
+        if (!contextAdmission.accepted) {
+          return contextAdmission
+        }
         const admission = subagents.handleTokenUsage(event.params)
         if (admission) {
           return admission

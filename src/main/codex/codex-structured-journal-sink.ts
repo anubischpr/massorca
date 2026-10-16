@@ -1,3 +1,7 @@
+import {
+  agentJournalTurnRowReservedBytes,
+  resolveAgentJournalTurnRowWrite
+} from '../native-chat/agent-session-timeline/agent-journal-turn-row-revision'
 import type {
   AgentJournalItemBody,
   AgentJournalItemIdentity,
@@ -28,7 +32,48 @@ export function appendCodexLifecycleMutations(
     return ADMITTED
   }
   let admission: StructuredAgentSessionSinkAdmission = ADMITTED
-  if (sink.tryAppendLifecycleBatch) {
+  // Resolve lifecycle turn rows at execution so a completion keeps context measured mid-turn.
+  if (
+    sink.tryAppendTransition &&
+    mutations.some((row) => row.kind === 'item' && row.body.kind === 'turn')
+  ) {
+    const reservedBytes =
+      Buffer.byteLength(JSON.stringify(mutations), 'utf8') +
+      mutations.reduce(
+        (total, row) =>
+          total +
+          (row.kind === 'item' && row.body.kind === 'turn'
+            ? agentJournalTurnRowReservedBytes({ identity: row.identity }, { lifecycle: row.body })
+            : 0),
+        0
+      )
+    admission = sink.tryAppendTransition({
+      lifecycle: true,
+      publish: false,
+      steps: [
+        {
+          kind: 'settlement',
+          settlementId,
+          reservedBytes,
+          resolve: (journal) =>
+            mutations.map((row) => {
+              if (row.kind !== 'item' || row.body.kind !== 'turn') {
+                return row
+              }
+              const target = { identity: row.identity }
+              const write = { lifecycle: row.body }
+              const resolved = resolveAgentJournalTurnRowWrite(
+                journal,
+                target,
+                write,
+                agentJournalTurnRowReservedBytes(target, write)
+              )
+              return resolved ? { ...row, body: resolved.body } : row
+            })
+        }
+      ]
+    })
+  } else if (sink.tryAppendLifecycleBatch) {
     admission = sink.tryAppendLifecycleBatch(settlementId, mutations, { lifecycle: true })
   } else if (sink.appendLifecycleBatch) {
     admission = sink.appendLifecycleBatch(settlementId, mutations, { lifecycle: true }) ?? ADMITTED
