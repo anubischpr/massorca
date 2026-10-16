@@ -4,6 +4,7 @@ import { Progress } from '@/components/ui/progress'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import {
+  formatContextPercentage,
   formatContextTokenCount,
   type NativeChatContextUsageSummary
 } from './native-chat-context-usage-summary'
@@ -90,7 +91,7 @@ export function NativeChatContextUsageRing({
   const label = translate(
     'components.native-chat.contextUsage.label',
     'Context {{used}} of {{window}} tokens, {{percent}}% used',
-    { used, window, percent: String(usage.percentage) }
+    { used, window, percent: formatContextPercentage(usage.percentage) }
   )
   const { open, setOpen, setOpenAfterHover } = useContextCardOpen()
   const rows = keyRows(usage.rows)
@@ -186,7 +187,7 @@ export function NativeChatContextUsageRing({
                   <li key={key} className="flex items-baseline justify-between gap-3">
                     <span className="min-w-0 truncate text-foreground">{row.name}</span>
                     <span className="shrink-0 tabular-nums text-muted-foreground">
-                      {row.percentage}%
+                      {formatContextPercentage(row.percentage)}%
                     </span>
                   </li>
                 ))}

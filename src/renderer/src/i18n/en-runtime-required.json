@@ -3132,6 +3132,11 @@
           "readyOneOne": "1 workspace found, with 1 cleanup suggestion."
         }
       }
+    },
+    "nativeChatSummary": {
+      "connectorEvidence": "MCP calls recorded in this chat. Current connection and plugin status are not reported.",
+      "reported_one": "{{count}} reported",
+      "reported_other": "{{count}} reported"
     }
   },
   "dashboard": {

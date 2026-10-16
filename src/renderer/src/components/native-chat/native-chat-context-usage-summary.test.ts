@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { formatContextTokenCount, summarizeContextUsage } from './native-chat-context-usage-summary'
+import {
+  formatContextPercentage,
+  formatContextTokenCount,
+  summarizeContextUsage
+} from './native-chat-context-usage-summary'
 
 describe('summarizeContextUsage', () => {
   it('lists every non-empty CLI category, deferred ones included, largest first', () => {
@@ -36,5 +40,23 @@ describe('formatContextTokenCount', () => {
     expect(formatContextTokenCount(1_000_000)).toBe('1M')
     expect(formatContextTokenCount(1_500_000)).toBe('1.5M')
     expect(formatContextTokenCount(-5)).toBe('0')
+  })
+})
+
+describe('formatContextPercentage', () => {
+  it('bounds display precision without clamping or changing provider facts', () => {
+    expect(formatContextPercentage(2.7539000000000002)).toBe('2.8')
+    expect(formatContextPercentage(0)).toBe('0')
+    expect(formatContextPercentage(100)).toBe('100')
+    expect(formatContextPercentage(125.25)).toBe('125.3')
+    const usage = summarizeContextUsage({
+      usedTokens: 27_539,
+      windowTokens: 1_000_000,
+      percentage: 2.7539000000000002,
+      estimated: false,
+      categories: []
+    })
+    expect(usage.percentage).toBe(2.7539000000000002)
+    expect(usage.usedTokens).toBe(27_539)
   })
 })
