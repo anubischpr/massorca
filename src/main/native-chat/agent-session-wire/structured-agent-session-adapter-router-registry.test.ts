@@ -193,7 +193,7 @@ describe('structured agent definitions', () => {
       rewind: true,
       compact: true,
       threadGoal: true,
-      contextUsage: false,
+      contextUsage: true,
       imagePrompts: true,
       steering: 'inject',
       approvalEnforcement: 'provider',

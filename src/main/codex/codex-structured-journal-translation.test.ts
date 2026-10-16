@@ -106,6 +106,7 @@ function deferredTarget(
     fence: 7,
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: a double for the journal members this path calls; the helper adds the in-order ones.
     journal: withJournalQueueMembers({
+      itemBody: vi.fn(() => null),
       appendItem: vi.fn(async (_identity: AgentJournalItemIdentity, body: AgentJournalItemBody) => {
         log.push(body)
         return { cursor: { epoch: 'e', sequence: log.length } }
