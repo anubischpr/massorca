@@ -1,4 +1,5 @@
 import type { AgentSessionAccountHome } from '../../../shared/agent-session-account-home'
+import type { PiRuntimeSelection } from '../../../shared/pi-runtime-selection'
 import type { AgentModelCatalogPersistence } from './agent-model-catalog-persistence'
 import { startSpan } from '../../observability/tracer'
 import {
@@ -52,7 +53,7 @@ export const AGENT_MODEL_CATALOG_MAX_ENTRIES = 256
  *  stops the listing and its child once the host that asked is going away. */
 export type AgentModelCatalogProbe = (
   accountHome: AgentSessionAccountHome,
-  options?: { signal?: AbortSignal }
+  options?: { signal?: AbortSignal; piRuntime?: PiRuntimeSelection }
 ) => Promise<AgentModelCatalogSuccess>
 
 /** Who lists, by identity: a live session's per-spawn handle, or the session-less probe. */

@@ -103,6 +103,7 @@ export type ClaudeControlSurface = {
     options?: ClaudeControlOptions
   ) => Promise<void>
   stopTask: (taskId: string, options?: ClaudeControlOptions) => Promise<void>
+  mcpServerStatus?: (options?: ClaudeControlOptions) => Promise<unknown[]>
   supportedModels: (options?: ClaudeControlOptions) => Promise<unknown[]>
   /** Untimed: a slow start is still a start, and the child's exit closes the query under it. */
   initializationResult: () => Promise<unknown>
@@ -154,6 +155,8 @@ export function createClaudeControlSurface(query: Query): ClaudeControlSurface {
       runClaudeControl('stop_task', () => query.stopTask(taskId), options?.timeoutMs).then(
         () => {}
       ),
+    mcpServerStatus: (options) =>
+      runClaudeControl('mcp_status', () => query.mcpServerStatus(), options?.timeoutMs),
     supportedModels: (options) =>
       runClaudeControl('list_models', () => query.supportedModels(), options?.timeoutMs),
     initializationResult: () =>

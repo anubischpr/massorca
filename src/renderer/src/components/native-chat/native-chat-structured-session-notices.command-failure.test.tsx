@@ -44,3 +44,25 @@ it('reads naturally where no agent name is known', () => {
     "The agent's Command in Settings → Agents must be a program path or name Orca can find, with no arguments or variables. Change it or reset it."
   )
 })
+
+it('shows the safe typed Windows Antigravity cause through the launch notice', () => {
+  const failure = agentSessionRefusalFailure({
+    code: 'structured_agent_session_unsupported',
+    details: { reason: 'antigravityWindowsUnsupported' }
+  })
+  render(
+    <NativeChatComposerNotices
+      notices={structuredSessionNotices({
+        launch: { lifecycle: 'failed', failure, retry: () => {} },
+        agentLabel: 'Antigravity',
+        sessionError: null,
+        composerError: null
+      })}
+    />
+  )
+  expect(
+    screen.getByText(
+      'Chat could not be started. Antigravity chat cannot verify Windows credential storage. Run Antigravity in a terminal on this PC.'
+    )
+  ).toBeTruthy()
+})

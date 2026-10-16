@@ -12,6 +12,7 @@ import type { StructuredAgentCommandSettings } from '../native-chat/structured-a
 import { buildPiRpcLaunch } from './rpc-launch'
 import { piRpcVersionSupported, resolvePiRpcCommand } from './rpc-launch-resolution'
 import { PI_UNMAPPED_THINKING_LEVELS } from './rpc-options'
+import { piRuntimeCommandSettings } from '../../shared/pi-runtime-selection'
 
 export type PiModelCatalogProbeDeps = {
   resolveEnvironment: () => Promise<NodeJS.ProcessEnv>
@@ -46,7 +47,12 @@ export function createPiModelCatalogProbe(deps: PiModelCatalogProbeDeps): AgentM
       }
     }
     env.PI_CODING_AGENT_DIR = requireLegacyAgentSessionAccountHome(accountHome).path
-    const command = resolvePiRpcCommand(env, deps.resolveCommandSettings?.(), deps.resolveCommand)
+    const settings = deps.resolveCommandSettings?.() ?? {}
+    const command = resolvePiRpcCommand(
+      env,
+      options?.piRuntime ? piRuntimeCommandSettings(settings, options.piRuntime) : settings,
+      deps.resolveCommand
+    )
     const cwd = deps.homePath ?? homedir()
     if (!(await piRpcVersionSupported({ command, cwd, env }, deps.probeVersion))) {
       throw new Error(`pi at ${command} does not run structured chats`)

@@ -1,3 +1,4 @@
+import { agentSessionRefusalError } from '../../shared/agent-session-wire-refusals'
 import { existsSync, lstatSync, readFileSync } from 'node:fs'
 import { release } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
@@ -61,6 +62,11 @@ export async function readAntigravityAccountBinding(
         reason: 'managedAccountEnvOverride'
       }
     )
+  }
+  if (deps.platform === 'win32') {
+    throw agentSessionRefusalError('structured_agent_session_unsupported', {
+      reason: 'antigravityWindowsUnsupported'
+    })
   }
   let identity
   try {

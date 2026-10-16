@@ -41,6 +41,12 @@ const Used = z.discriminatedUnion('kind', [
     capturedAt: CapturedAt
   }),
   z.object({ kind: z.literal('estimate'), usage: TokenUsage, capturedAt: CapturedAt }),
+  z.object({
+    kind: z.literal('snapshot'),
+    usedTokens: TokenCount,
+    windowTokens: WindowTokens,
+    capturedAt: CapturedAt
+  }),
   z.object({ kind: z.literal('unknown'), capturedAt: CapturedAt })
 ])
 

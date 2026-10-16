@@ -123,7 +123,8 @@ export const AGENT_SESSION_REFUSAL_REASONS = {
   structured_agent_session_unsupported: [
     'clientCapabilityMissing',
     'hostDisabled',
-    'hostUnsupported'
+    'hostUnsupported',
+    'antigravityWindowsUnsupported'
   ],
   // Sent with no reason when starting the agent for an operation throws; older clients read it too.
   agent_session_owner_restart_failed: []

@@ -104,3 +104,11 @@ describe('desktop words for a write that did not happen', () => {
     ).toBe("您的訊息未傳送。Claude couldn't start. Send your message to try again.")
   })
 })
+
+it('shows the typed Windows Antigravity limitation without raw diagnostics', () => {
+  expect(
+    agentSessionWriteNoticeText(['antigravityWindowsUnsupported', 'useAntigravityTerminal'])
+  ).toBe(
+    'Antigravity chat cannot verify Windows credential storage. Run Antigravity in a terminal on this PC.'
+  )
+})

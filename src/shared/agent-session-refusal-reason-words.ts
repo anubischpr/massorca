@@ -178,7 +178,12 @@ const REASON_WORDS = {
   structured_agent_session_unsupported: {
     clientCapabilityMissing: causeWords('notAvailable', 'hostFinding'),
     hostDisabled: causeWords('notAvailable', 'hostFinding'),
-    hostUnsupported: causeWords('cannotRunHere', 'hostFinding')
+    hostUnsupported: causeWords('cannotRunHere', 'hostFinding'),
+    antigravityWindowsUnsupported: causeWords(
+      'antigravityWindowsUnsupported',
+      'goElsewhere',
+      'useAntigravityTerminal'
+    )
   },
   agent_session_owner_restart_failed: {}
 } satisfies {

@@ -5,6 +5,7 @@ import type { CodexAppServerConnection } from './codex-app-server-connection'
 import { CodexAcquisitionWindow } from './codex-structured-acquisition-window'
 import {
   applyCodexStructuredSessionOption,
+  prepareLiveCodexSessionOptions,
   readLiveCodexSessionOptions
 } from './codex-structured-session-options'
 import { fetchCodexModelCatalogListing } from './codex-structured-model-catalog'
@@ -356,4 +357,16 @@ describe('first-turn catalog deadline', () => {
       clock.mockRestore()
     }
   })
+})
+
+it('adds the MCP runtime observation on the session read without re-listing warm models', async () => {
+  const store = new AgentModelCatalogStore()
+  seedEntry(store, 'gpt-live')
+  const request = vi.fn(async () => ({
+    data: [{ name: 'docs', runtimeStatus: 'connected' }],
+    nextCursor: null
+  }))
+  const apply = await prepareLiveCodexSessionOptions(storeSession(request, store), 25)
+  expect(apply().connectors?.servers).toEqual([{ name: 'docs', status: 'connected' }])
+  expect(modelListCalls(request)).toBe(0)
 })

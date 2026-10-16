@@ -47,6 +47,11 @@ export function formatContextTokenCount(tokens: number): string {
   return String(Math.round(safe))
 }
 
+/** Display precision only; provider percentages and token counts remain unchanged. */
+export function formatContextPercentage(percentage: number): string {
+  return trimZero(percentage.toFixed(1))
+}
+
 function trimZero(value: string): string {
   return value.endsWith('.0') ? value.slice(0, -2) : value
 }

@@ -17,6 +17,16 @@ import { joinSentences } from '../../../../shared/sentence-joining'
 import { sayAgentSessionFailureTranslated } from './agent-session-failure-words-text'
 
 const SENTENCES: Record<AgentSessionWriteNoticeSentence, () => string> = {
+  useAntigravityTerminal: () =>
+    translate(
+      'components.native-chat.writeNotice.useAntigravityTerminal',
+      COPY.useAntigravityTerminal
+    ),
+  antigravityWindowsUnsupported: () =>
+    translate(
+      'components.native-chat.writeNotice.antigravityWindowsUnsupported',
+      COPY.antigravityWindowsUnsupported
+    ),
   notDoneReadHistory: () =>
     translate('components.native-chat.writeNotice.notDoneReadHistory', COPY.notDoneReadHistory),
   notDoneSend: () => translate('components.native-chat.writeNotice.notDoneSend', COPY.notDoneSend),

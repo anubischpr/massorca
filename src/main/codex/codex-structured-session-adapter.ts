@@ -16,8 +16,7 @@ import { supportsCodexStructuredLocation } from './codex-structured-location-sup
 import { CodexStructuredSessionTeardown } from './codex-structured-session-teardown'
 import {
   applyCodexStructuredSessionOption,
-  prepareLiveCodexSessionOptions,
-  readLiveCodexSessionOptions
+  prepareLiveCodexSessionOptions
 } from './codex-structured-session-options'
 import {
   CodexAcquisitionRegistry,
@@ -286,8 +285,13 @@ export class CodexStructuredSessionAdapter implements StructuredAgentSessionAdap
     return applyCodexStructuredSessionOption(this.session(input.sessionId), input.key, input.value)
   }
 
-  readOptions = (input: { sessionId: string; fence: number }) =>
-    readLiveCodexSessionOptions(this.session(input.sessionId), this.deps.requestTimeoutMs)
+  readOptions = async (input: { sessionId: string; fence: number }) =>
+    (
+      await prepareLiveCodexSessionOptions(
+        this.session(input.sessionId),
+        this.deps.requestTimeoutMs
+      )
+    )()
 
   prepareReadOptions = (input: { sessionId: string; fence: number }) =>
     prepareLiveCodexSessionOptions(this.session(input.sessionId), this.deps.requestTimeoutMs)

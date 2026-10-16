@@ -611,3 +611,24 @@ describe('useStructuredAgentSessionOptions', () => {
     })
   })
 })
+
+it('carries a connector observation only for the attached fence and clears a failed provider read', async () => {
+  mocks.call.mockReset()
+  resetHostModelCatalogSnapshotsForTests()
+  let connectors: unknown = { observedAt: 100, servers: [{ name: 'server', status: 'connected' }] }
+  answer({
+    options: async () => ({ ...LIVE_OPTIONS, connectors }),
+    modelCatalog: async () => HOST_CATALOG
+  })
+  const { result, rerender } = renderOptions(ATTACHED, mutateWith(async () => null).mutate)
+  await waitFor(() => expect(result.current.connectors).toEqual(connectors))
+  connectors = undefined
+  rerender({ ...ATTACHED, fence: 2 })
+  expect(result.current.connectors).toBeUndefined()
+  await waitFor(() =>
+    expect(
+      mocks.call.mock.calls.filter(([, method]) => method === 'agentSession.options').length
+    ).toBeGreaterThan(1)
+  )
+  expect(result.current.connectors).toBeUndefined()
+})

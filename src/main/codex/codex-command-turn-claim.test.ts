@@ -46,15 +46,23 @@ type Written = { key: string; body: AgentJournalItemBody; turnScope?: AgentJourn
 /** Records every write with the scope it states; the journal holds the running command turn. */
 function recorder(refuseRevisions = 0) {
   const writes: Written[] = []
+  let commandTurn: AgentJournalItemBody = RUNNING
   const record = (
     identity: AgentJournalItemIdentity,
     body: AgentJournalItemBody,
     turnScope?: AgentJournalTurnScope
-  ) => writes.push({ key: agentJournalItemKey(identity), body, turnScope })
-  const commandTurn: AgentJournalItemBody = RUNNING
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the claim resolver reads only `itemBody`.
+  ) => {
+    const key = agentJournalItemKey(identity)
+    writes.push({ key, body, turnScope })
+    if (key === COMMAND_TURN_KEY) {
+      commandTurn = body
+    }
+  }
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: claim and context resolvers read only the keyed row and visitItems provided here.
   const journal = {
-    itemBody: (itemId: string) => (itemId === COMMAND_TURN_KEY ? commandTurn : null)
+    itemBody: (itemId: string) => (itemId === COMMAND_TURN_KEY ? commandTurn : null),
+    visitItems: (visit: (itemId: string, sequence: number, body: AgentJournalItemBody) => void) =>
+      visit(COMMAND_TURN_KEY, 1, commandTurn)
   } as unknown as StructuredAgentSessionRevisionJournal
   let refusals = refuseRevisions
   const sink: StructuredAgentSessionEventSink = {

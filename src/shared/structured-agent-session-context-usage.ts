@@ -94,6 +94,15 @@ function summarizeStructuredAgentContextFacts({
       categories: fact.categories
     }
   }
+  if (fact?.kind === 'snapshot') {
+    return {
+      usedTokens: fact.usedTokens,
+      windowTokens: fact.windowTokens,
+      percentage: Math.round((fact.usedTokens / fact.windowTokens) * 100),
+      estimated: false,
+      categories: []
+    }
+  }
   // `unknown`, or a kind a newer host writes that this client cannot measure.
   if (fact?.kind !== 'estimate') {
     return null
