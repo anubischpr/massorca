@@ -50,6 +50,31 @@ const CODEX_HOME = (path: string): { variable: 'CODEX_HOME'; path: string } => (
 })
 
 describe('agent model catalog service', () => {
+  it('probes the pinned Pi runtime and isolates its failures from stock Pi in the same home', async () => {
+    const store = new AgentModelCatalogStore()
+    const pinned: AgentSessionRecord = {
+      ...record('/homes/shared'),
+      provider: 'pi',
+      accountHome: { variable: 'PI_CODING_AGENT_DIR', path: '/homes/shared' },
+      options: { piRuntime: 'gentle-shell' }
+    }
+    const probe = vi.fn(async (_home: AgentSessionAccountHome) => listing('gentle-model'))
+    const service = createAgentModelCatalogService({
+      store,
+      getRecord: () => pinned,
+      drivesRecord: () => true,
+      resolveAccountHome: async () => pinned.accountHome,
+      probes: { pi: probe }
+    })
+    expect(agentModelCatalogFingerprintForRecord(pinned)).not.toEqual(
+      agentModelCatalogFingerprintForRecord({ ...pinned, options: { piRuntime: 'pi' } })
+    )
+    await service.read({ agent: 'pi', sessionId: pinned.sessionId, waitForListing: true })
+    expect(probe).toHaveBeenCalledWith(pinned.accountHome, {
+      signal: expect.any(AbortSignal),
+      piRuntime: 'gentle-shell'
+    })
+  })
   it('answers unknown and kicks one probe for a session whose key has never listed', async () => {
     const store = new AgentModelCatalogStore()
     const probe = vi.fn(async (_home: AgentSessionAccountHome) => listing('gpt-a'))

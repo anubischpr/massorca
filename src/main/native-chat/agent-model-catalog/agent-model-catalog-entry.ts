@@ -1,6 +1,7 @@
 import type { AgentSessionUnavailable } from '../../../shared/agent-session-availability'
 import type {
   AgentSessionFastModeSupport,
+  AgentSessionModelCatalogResult,
   AgentSessionModelOption
 } from '../../../shared/agent-session-wire'
 
@@ -250,4 +251,23 @@ export function agentModelCatalogListingKey(entry: AgentModelCatalogEntry): stri
     facts(entry.live),
     configuredDefaultFacts(entry.configured)
   ])
+}
+
+export function agentModelCatalogResultFromEntry(
+  entry: AgentModelCatalogEntry,
+  namesDefault: boolean,
+  listingNamesConfiguredModel: boolean
+): Exclude<AgentSessionModelCatalogResult, { origin: 'unknown' }> {
+  // A CLI-resolved default names the configured model even where the listing names none.
+  const namesConfigured = listingNamesConfiguredModel || entry.configured !== null
+  return {
+    origin: entry.origin,
+    // Without a default the picker names nothing until the chat reports its model.
+    models: entry.models.map((model) =>
+      namesDefault ? { ...model } : { ...model, isDefault: false }
+    ),
+    ...(entry.fastModeSupport ? { fastModeSupport: entry.fastModeSupport } : {}),
+    fetchedAt: entry.fetchedAt,
+    listingNamesConfiguredModel: namesDefault && namesConfigured
+  }
 }

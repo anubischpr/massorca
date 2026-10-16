@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createPiModelCatalogProbe, piModelCatalogFromListing } from './rpc-model-catalog-probe'
+import * as launchResolution from './rpc-launch-resolution'
 
 const TABLE = [
   'provider   model            context  max-out  thinking  images',
@@ -8,6 +9,35 @@ const TABLE = [
 ].join('\n')
 
 describe('Pi model catalog', () => {
+  it('uses the session-selected Gentle Shell command instead of the host stock Pi', async () => {
+    const resolve = vi
+      .spyOn(launchResolution, 'resolvePiRpcCommand')
+      .mockReturnValue('/opt/gentle-shell')
+    const supports = vi.spyOn(launchResolution, 'piRpcVersionSupported').mockResolvedValue(true)
+    const runListing = vi.fn(async () => TABLE)
+    try {
+      const probe = createPiModelCatalogProbe({ resolveEnvironment: async () => ({}), runListing })
+      await probe(
+        { variable: 'PI_CODING_AGENT_DIR', path: '/homes/gentle' },
+        { piRuntime: 'gentle-shell' }
+      )
+      expect(resolve).toHaveBeenCalledWith(
+        expect.any(Object),
+        { agentCmdOverrides: { pi: 'gentle-shell' } },
+        undefined
+      )
+      expect(runListing).toHaveBeenCalledWith(
+        expect.objectContaining({
+          command: '/opt/gentle-shell',
+          env: expect.objectContaining({ PI_CODING_AGENT_DIR: '/homes/gentle' })
+        }),
+        expect.any(Object)
+      )
+    } finally {
+      resolve.mockRestore()
+      supports.mockRestore()
+    }
+  })
   it('reuses the listing identity, with the levels every reasoning model keeps and no default', () => {
     expect(piModelCatalogFromListing(TABLE)).toEqual([
       {
