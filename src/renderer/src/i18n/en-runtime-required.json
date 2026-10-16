@@ -3087,7 +3087,9 @@
         "waitForCommand": "Wait for the /compact or /clear to finish.",
         "waitForStart": "Wait for the agent to finish starting.",
         "waitForTurn": "Wait for the agent to finish responding, or stop it.",
-        "waitMoment": "Wait a moment."
+        "waitMoment": "Wait a moment.",
+        "antigravityWindowsUnsupported": "Antigravity chat cannot verify Windows credential storage.",
+        "useAntigravityTerminal": "Run Antigravity in a terminal on this PC."
       },
       "piRuntimeUnsupported": "This host cannot run the selected Gentle Shell runtime in chat.",
       "piRestrictedAccessUnsupported": "Pi chat does not support restricted access. Choose Full access explicitly, or use the terminal."
@@ -3130,6 +3132,11 @@
           "readyOneOne": "1 workspace found, with 1 cleanup suggestion."
         }
       }
+    },
+    "nativeChatSummary": {
+      "connectorEvidence": "MCP calls recorded in this chat. Current connection and plugin status are not reported.",
+      "reported_one": "{{count}} reported",
+      "reported_other": "{{count}} reported"
     }
   },
   "dashboard": {
