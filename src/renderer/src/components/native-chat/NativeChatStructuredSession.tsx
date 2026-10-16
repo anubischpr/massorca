@@ -58,7 +58,7 @@ import { useNativeChatHostOutageNotice } from './use-native-chat-host-outage-not
 import { useNativeChatAvailabilityNotice } from './use-native-chat-availability-notice'
 import { useStructuredAgentSessionStartFailureFacts } from './use-structured-agent-session-start-failure-facts'
 import { pendingPromptsAllUnanswerableHere } from '../../../../shared/agent-session-approval-subject'
-import { NativeChatCodexBackgroundPanel } from './NativeChatCodexBackgroundPanel'
+import { NativeChatSessionSummary } from './NativeChatSessionSummary'
 import { useStructuredSessionChildRowContext } from './use-structured-session-child-row-context'
 
 export function NativeChatStructuredSession(
@@ -307,15 +307,20 @@ export function NativeChatStructuredSession(
             </NativeChatRewindContext.Provider>
           )}
         </div>
-        {props.agent === 'codex' ? (
-          <NativeChatCodexBackgroundPanel
-            journalItems={controller.journalItems}
-            commandActivity={controller.commandActivity}
-            roster={controller.backgroundTaskRoster}
-            context={backgroundRowContext}
-            isVisible={props.isVisible}
-          />
-        ) : null}
+        <NativeChatSessionSummary
+          key={props.sessionId}
+          target={props.target}
+          fileContext={fileLinkContext}
+          connectorSnapshot={controller.connectors}
+          contextUsage={controller.contextUsage}
+          subagentRoster={controller.subagentRoster}
+          onLinkClick={onLinkClick}
+          journalItems={controller.journalItems}
+          commandActivity={controller.commandActivity}
+          roster={controller.backgroundTaskRoster}
+          context={backgroundRowContext}
+          isVisible={props.isVisible}
+        />
       </div>
       {readFailedFinally ? null : (
         <>

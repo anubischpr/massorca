@@ -35,6 +35,38 @@ import { structuredAgentSessionPaneKey } from '../../../../shared/structured-age
 import { structuredAgentSessionDraftScopeKey } from './native-chat-composer-draft-store'
 
 describe('NativeChatStructuredSession', () => {
+  it.each(['codex', 'claude', 'pi', 'antigravity'] as const)(
+    'mounts the compact seven-section summary for %s before a first turn',
+    (agent) => {
+      render(
+        <NativeChatStructuredSession
+          isVisible
+          isFocusedGroup
+          tabId={`summary-${agent}`}
+          sessionId={`session-${agent}`}
+          target={{ kind: 'local' }}
+          agent={agent}
+        />
+      )
+      const summary = screen.getByRole('complementary', { name: 'Chat summary' })
+      expect(summary.className.split(' ')).not.toContain('h-full')
+      for (const name of [
+        'Environment',
+        'Context',
+        'Results',
+        'Subagents',
+        'Connectors',
+        'Background tasks',
+        'QA servers'
+      ]) {
+        expect(screen.getByRole('button', { name: new RegExp(`^${name}`) })).toBeDefined()
+      }
+      fireEvent.click(screen.getByRole('button', { name: /^Context/ }))
+      expect(screen.getByText('The provider has not reported context occupancy.')).toBeDefined()
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+      expect(screen.getByRole('button', { name: /^Environment/ })).toBeDefined()
+    }
+  )
   it('applies persisted appearance at the chat root and updates it live', () => {
     const original = useAppStore.getState().settings
     useAppStore.setState({

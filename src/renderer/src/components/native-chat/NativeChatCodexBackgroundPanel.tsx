@@ -102,6 +102,8 @@ export function NativeChatCodexBackgroundPanel(props: {
   roster: AgentSessionBackgroundTaskState | null | undefined
   context?: AgentChildRowContext
   isVisible: boolean
+  section?: 'agents' | 'commands'
+  embedded?: boolean
 }): React.JSX.Element {
   const { t } = useTranslation()
   const [selected, setSelected] = useState<{
@@ -126,9 +128,13 @@ export function NativeChatCodexBackgroundPanel(props: {
   }, [props.roster, views, context])
   const now = useNow(1_000, props.isVisible && rows.some((row) => !row.settled))
   const mainIds = new Set(views?.filter((view) => view.ownership === 'main').map((view) => view.id))
-  const main = rows.filter((row) => row.kind !== 'agent' && mainIds.has(row.id))
-  const unknown = rows.filter((row) => row.kind !== 'agent' && !mainIds.has(row.id))
-  const agents = rows.filter((row) => row.kind === 'agent')
+  const main = rows.filter(
+    (row) => props.section !== 'agents' && row.kind !== 'agent' && mainIds.has(row.id)
+  )
+  const unknown = rows.filter(
+    (row) => props.section !== 'agents' && row.kind !== 'agent' && !mainIds.has(row.id)
+  )
+  const agents = rows.filter((row) => props.section !== 'commands' && row.kind === 'agent')
   const onSelect = (row: AgentChildRowModel) => setSelected({ row, views: views ?? [] })
   if (selected) {
     const detailViews = [
@@ -144,7 +150,11 @@ export function NativeChatCodexBackgroundPanel(props: {
     return (
       <aside
         aria-label={t('components.nativeChatBackground.details', 'Activity details')}
-        className="scrollbar-sleek h-full min-h-0 w-80 shrink-0 overflow-auto border-l border-border bg-background p-3 text-xs"
+        className={
+          props.embedded
+            ? 'space-y-3 text-xs'
+            : 'scrollbar-sleek h-full min-h-0 w-80 shrink-0 overflow-auto border-l border-border bg-background p-3 text-xs'
+        }
       >
         <Button variant="ghost" size="xs" onClick={() => setSelected(null)}>
           <ArrowLeft />
@@ -153,6 +163,14 @@ export function NativeChatCodexBackgroundPanel(props: {
         <h2 className="my-3 font-medium text-foreground">
           {selected.row.name || t('components.nativeChatBackground.details', 'Activity details')}
         </h2>
+        {selectedView?.description ? (
+          <p className="mb-3 whitespace-pre-wrap break-words">{selectedView.description}</p>
+        ) : null}
+        {selectedView?.operation ? (
+          <p className="mb-3 whitespace-pre-wrap break-words">
+            {selectedView.operation.toolName}: {selectedView.operation.input}
+          </p>
+        ) : null}
         {context.transportObservation === 'unverifiable' || !context.parentEvidenceFresh ? (
           <p className="mb-3 text-muted-foreground">
             {t(
@@ -212,7 +230,11 @@ export function NativeChatCodexBackgroundPanel(props: {
   return (
     <aside
       aria-label={t('components.nativeChatBackground.title', 'Background activity')}
-      className="scrollbar-sleek mt-3 mr-3 max-h-64 w-80 max-w-full shrink-0 self-start overflow-auto rounded-xl border border-border bg-card p-3 text-xs text-card-foreground"
+      className={
+        props.embedded
+          ? 'space-y-3 text-xs'
+          : 'scrollbar-sleek mt-3 mr-3 max-h-64 w-80 max-w-full shrink-0 self-start overflow-auto rounded-xl border border-border bg-card p-3 text-xs text-card-foreground'
+      }
     >
       <h2 className="mb-3 font-medium text-foreground">
         {t('components.nativeChatBackground.title', 'Background activity')}
