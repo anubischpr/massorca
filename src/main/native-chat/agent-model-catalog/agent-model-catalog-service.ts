@@ -8,7 +8,10 @@ import {
   agentModelCatalogFingerprint,
   agentModelCatalogFingerprintForRecord
 } from './agent-model-catalog-fingerprint'
-import type { AgentModelCatalogConfiguredChoice } from './agent-model-catalog-entry'
+import {
+  agentModelCatalogResultFromEntry,
+  type AgentModelCatalogConfiguredChoice
+} from './agent-model-catalog-entry'
 import type {
   AgentModelCatalogEntry,
   AgentModelCatalogLiveListing,
@@ -17,6 +20,7 @@ import type {
   AgentModelCatalogSuccess
 } from './agent-model-catalog-store'
 import { AgentModelCatalogListingStoppedError } from './agent-model-catalog-failures'
+import { isPiRuntimeSelection, type PiRuntimeSelection } from '../../../shared/pi-runtime-selection'
 
 export type AgentModelCatalogServiceDeps = {
   store: AgentModelCatalogStore
@@ -69,31 +73,12 @@ export type AgentModelCatalogService = {
   stop: () => void
   /** A chat under this record's account proved its start: a held reason is re-checked sooner. */
   providerStarted: (
-    record: Pick<AgentSessionRecord, 'provider' | 'accountHome' | 'location'>
+    record: Pick<AgentSessionRecord, 'provider' | 'accountHome' | 'location' | 'options'>
   ) => void
 }
 
 // At most this many agents list at once: each listing spawns that agent's CLI.
 const PREWARM_CONCURRENCY = 2
-
-function resultFromEntry(
-  entry: AgentModelCatalogEntry,
-  namesDefault: boolean,
-  listingNamesConfiguredModel: boolean
-): Exclude<AgentSessionModelCatalogResult, { origin: 'unknown' }> {
-  // A CLI-resolved default names the configured model even where the listing names none.
-  const namesConfigured = listingNamesConfiguredModel || entry.configured !== null
-  return {
-    origin: entry.origin,
-    // Without a default the picker names nothing until the chat reports its model.
-    models: entry.models.map((model) =>
-      namesDefault ? { ...model } : { ...model, isDefault: false }
-    ),
-    ...(entry.fastModeSupport ? { fastModeSupport: entry.fastModeSupport } : {}),
-    fetchedAt: entry.fetchedAt,
-    listingNamesConfiguredModel: namesDefault && namesConfigured
-  }
-}
 
 /** A named workspace keeps the listed default only when none of its own config can replace it. */
 async function workspaceKeepsListedDefault(
@@ -199,13 +184,19 @@ export function createAgentModelCatalogService(
   // answers after it, so the chat that reported it is followed by an answer naming it.
   const recordingDefaults = new Map<string, Promise<void>>()
   const listWith =
-    (probe: AgentModelCatalogProbe, home: AgentSessionAccountHome) =>
+    (
+      probe: AgentModelCatalogProbe,
+      home: AgentSessionAccountHome,
+      piRuntime?: PiRuntimeSelection
+    ) =>
     (): Promise<AgentModelCatalogSuccess> =>
-      probe(home, { signal: lifetime.signal }).catch((error: unknown) => {
-        throw lifetime.signal.aborted
-          ? new AgentModelCatalogListingStoppedError(String(error))
-          : error
-      })
+      probe(home, { signal: lifetime.signal, ...(piRuntime ? { piRuntime } : {}) }).catch(
+        (error: unknown) => {
+          throw lifetime.signal.aborted
+            ? new AgentModelCatalogListingStoppedError(String(error))
+            : error
+        }
+      )
   return {
     providerStarted(record) {
       deps.store.expireFailure(agentModelCatalogFingerprintForRecord(record))
@@ -235,6 +226,10 @@ export function createAgentModelCatalogService(
       let entry = deps.store.get(fingerprint)
       const probe = deps.probes?.[params.agent]
       const home = probeHome
+      const runtime =
+        scoped?.provider === 'pi' && isPiRuntimeSelection(scoped.options?.piRuntime)
+          ? scoped.options.piRuntime
+          : undefined
       // Every answer carries the reason the probe last found, read when the answer is made.
       const answer = async (
         listed: AgentModelCatalogEntry | null,
@@ -242,7 +237,7 @@ export function createAgentModelCatalogService(
       ): Promise<AgentSessionModelCatalogResult> => {
         const unavailable = deps.store.failure(fingerprint)?.unavailable
         const result = listed
-          ? resultFromEntry(
+          ? agentModelCatalogResultFromEntry(
               listed,
               await workspaceKeepsListedDefault(
                 deps,
@@ -269,7 +264,12 @@ export function createAgentModelCatalogService(
       // Past its TTL, only the probe re-derives a held reason. The reason is served meanwhile;
       // only a read that asks waits for the probe's answer.
       if (probe && home && !lifetime.signal.aborted && deps.store.heldReasonDue(fingerprint)) {
-        const probing = deps.store.refresh(fingerprint, params.agent, probe, listWith(probe, home))
+        const probing = deps.store.refresh(
+          fingerprint,
+          params.agent,
+          probe,
+          listWith(probe, home, runtime)
+        )
         if (!params.waitForListing) {
           return answer(entry, { listingInProgress: true })
         }
@@ -280,9 +280,9 @@ export function createAgentModelCatalogService(
       let listing = !entry && home ? deps.store.pendingListing(fingerprint) : null
       if (probe && home && !lifetime.signal.aborted) {
         if (entry && deps.store.shouldRefresh(fingerprint)) {
-          void deps.store.refresh(fingerprint, params.agent, probe, listWith(probe, home))
+          void deps.store.refresh(fingerprint, params.agent, probe, listWith(probe, home, runtime))
         } else if (!entry && !listing && !deps.store.hasActiveFailure(fingerprint)) {
-          void deps.store.refresh(fingerprint, params.agent, probe, listWith(probe, home))
+          void deps.store.refresh(fingerprint, params.agent, probe, listWith(probe, home, runtime))
           listing = deps.store.pendingListing(fingerprint)
         }
       }
