@@ -99,8 +99,8 @@ it('settles a refused Codex exit through the host in one commit, then permits a 
     sessionId: SESSION,
     logger: recording.logger,
     onFailed,
-    // Small budget exercises the production refusal without multi-megabyte fixtures.
-    watermarks: { maxLifecycleQueuedBytes: 16_384 }
+    // Admit the maximum context-preserving turn revision, but refuse the 201-call exit batch.
+    watermarks: { maxLifecycleQueuedBytes: 65_536 }
   })
   deferred.bind({ journal, fence: 7, publish: () => undefined })
   const translator = createCodexJournalTranslator({

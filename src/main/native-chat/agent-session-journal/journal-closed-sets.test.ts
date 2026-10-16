@@ -94,16 +94,17 @@ const SNAPSHOT = {
   closed: {
     'row.kind': ['dispatch', 'epoch', 'item', 'lifecycle-batch', 'submission', 'tombstone'],
     'row.mutations[].kind': ['item', 'tombstone'],
-    'body.contextUsage.used.kind': ['estimate', 'report', 'unknown'],
+    // Context is a discardable annotation: older v3 readers drop an unknown snapshot, not the turn.
+    'body.contextUsage.used.kind': ['estimate', 'report', 'snapshot', 'unknown'],
     'body.contextUsage.used.categories[].deferred': [true]
   },
   catchAll: ['body.blocks[].type', 'body.subject.kind', 'body.threadGoal.state', 'body.kind']
 }
 
-it('changes no closed set of a journal row without the row version', () => {
+it('pins closed sets with their row-version compatibility decision', () => {
   expect(
     journalClosedSets(),
     'A new closed-set value without a row-version bump makes older builds call the chat ' +
-      'damaged, where with the bump they say to update Orca. Bump v, then update this snapshot.'
+      'damaged, except discardable context annotations. Decide compatibility before updating this snapshot.'
   ).toEqual(SNAPSHOT)
 })

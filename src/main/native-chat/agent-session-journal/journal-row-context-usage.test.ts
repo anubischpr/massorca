@@ -41,6 +41,7 @@ const FACTS: AgentSessionContextUsage[] = [
   { window: { tokens: 1_000_000, capturedAt: 3 } },
   { used: { kind: 'estimate', usage: USAGE, capturedAt: 4 } },
   { used: { kind: 'unknown', capturedAt: 5 } },
+  { used: { kind: 'snapshot', usedTokens: 40_000, windowTokens: 200_000, capturedAt: 5 } },
   {
     used: {
       kind: 'report',

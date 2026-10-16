@@ -1,4 +1,8 @@
 import {
+  agentJournalTurnRowReservedBytes,
+  resolveAgentJournalTurnRowWrite
+} from '../native-chat/agent-session-timeline/agent-journal-turn-row-revision'
+import {
   AGENT_JOURNAL_THREAD_SCOPE,
   type AgentJournalItemIdentity,
   type AgentJournalTurnItem,
@@ -115,7 +119,19 @@ export function publishCodexTurnLifecycle(input: {
       ? { observedAt: input.startedAt }
       : {})
   }
-  if (input.sink.tryAppendItem) {
+  if (input.sink.tryReviseResolvedItem) {
+    const target = { identity }
+    const write = { lifecycle: body }
+    const reservedBytes = agentJournalTurnRowReservedBytes(target, write)
+    const admission = input.sink.tryReviseResolvedItem(
+      reservedBytes,
+      (journal) => resolveAgentJournalTurnRowWrite(journal, target, write, reservedBytes),
+      appendOptions
+    )
+    if (!admission.accepted) {
+      return admission
+    }
+  } else if (input.sink.tryAppendItem) {
     const admission = input.sink.tryAppendItem(identity, body, appendOptions)
     if (!admission.accepted) {
       return admission

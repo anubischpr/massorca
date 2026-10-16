@@ -55,6 +55,8 @@ export type AgentSessionContextUsed =
   /** The newest main-thread response, whatever its blocks: its input is the
    *  live context size. A subagent's measures its own window. */
   | { kind: 'estimate'; usage: AgentSessionTokenUsage; capturedAt: number }
+  /** The provider's active-context total, without an input/output breakdown. */
+  | { kind: 'snapshot'; usedTokens: number; windowTokens: number; capturedAt: number }
   /** Compaction, a conversation reset or a model change: unknown until a response or report restates it. */
   | { kind: 'unknown'; capturedAt: number }
 

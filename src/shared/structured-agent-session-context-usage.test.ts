@@ -190,3 +190,19 @@ describe('latestStructuredAgentContextFacts', () => {
     expect(latestStructuredAgentContextFacts([])).toEqual({})
   })
 })
+
+it('reads a provider active-context snapshot without inventing an input breakdown or reusing an older window', () => {
+  const rows = [
+    turn(1, { window: WINDOW, used: estimate(90_000) }),
+    turn(2, {
+      used: { kind: 'snapshot', usedTokens: 40_000, windowTokens: 200_000, capturedAt: 2 }
+    })
+  ]
+  expect(selectStructuredAgentContextUsage(rows)).toEqual({
+    usedTokens: 40_000,
+    windowTokens: 200_000,
+    percentage: 20,
+    estimated: false,
+    categories: []
+  })
+})

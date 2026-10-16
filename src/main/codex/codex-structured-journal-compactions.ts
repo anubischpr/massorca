@@ -26,7 +26,11 @@ export class CodexJournalCompactions {
     private readonly activeTurn: (threadId: string) => string | null,
     private readonly attributionFor: CodexRowAttribution,
     /** Evidence for a conversation command the turn carries; its marker is the command's result. */
-    private readonly compacted: (turnId: string) => void
+    private readonly compacted: (turnId: string) => void,
+    private readonly invalidateContext?: (
+      threadId: string,
+      turnId: string
+    ) => CodexJournalTranslationAdmission
   ) {}
 
   handle(event: {
@@ -63,6 +67,12 @@ export class CodexJournalCompactions {
     const published = publishCodexLifecycle(this.sink)
     if (!published.accepted) {
       return published
+    }
+    if (previous === undefined) {
+      const invalidated = this.invalidateContext?.(event.threadId, turnId)
+      if (invalidated && !invalidated.accepted) {
+        return invalidated
+      }
     }
     this.turns.set(key, source)
     while (this.turns.size > MAX_CODEX_GENERIC_TURN_BUCKETS) {
