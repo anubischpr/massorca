@@ -30,6 +30,18 @@ function fixture() {
 }
 
 describe('Antigravity execution-host account binding', () => {
+  it('names the Windows limitation and terminal continuation without reading credentials', async () => {
+    const { input, deps } = fixture()
+    await expect(
+      readAntigravityAccountBinding(input, { ...deps, platform: 'win32' })
+    ).rejects.toMatchObject({
+      refusal: {
+        code: 'structured_agent_session_unsupported',
+        details: { reason: 'antigravityWindowsUnsupported' }
+      }
+    })
+    expect(deps.readIdentity).not.toHaveBeenCalled()
+  })
   it('resumes only the same authority and keeps rotating secrets out of the locator', async () => {
     const { input, deps } = fixture()
     const previous = await readAntigravityAccountBinding(input, deps)
@@ -55,7 +67,16 @@ describe('Antigravity execution-host account binding', () => {
       const env = { HOME: home }
       await expect(
         readAntigravityAccountBinding({ launchEnv: env }, { ...deps, platform, hostEnv: env })
-      ).rejects.toMatchObject({ reason: 'managedAccountUnsupported' })
+      ).rejects.toMatchObject(
+        platform === 'win32'
+          ? {
+              refusal: {
+                code: 'structured_agent_session_unsupported',
+                details: { reason: 'antigravityWindowsUnsupported' }
+              }
+            }
+          : { reason: 'managedAccountUnsupported' }
+      )
       expect(deps.readIdentity).not.toHaveBeenCalled()
     }
   )

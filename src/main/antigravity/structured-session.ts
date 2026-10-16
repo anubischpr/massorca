@@ -13,6 +13,7 @@ import {
 import type { ProviderProcessLaunch } from '../provider-process/provider-process-launch'
 import { AntigravityStreamJsonTransport } from './antigravity-stream-json-transport'
 import { AntigravityStreamEventProjector } from './antigravity-stream-json-events'
+import { agentSessionFailureFact, providerDiagnostic } from '../../shared/agent-session-failure'
 
 export type AntigravitySessionDeps = {
   processFactory?: (launch: ProviderProcessLaunch) => ManagedProviderProcess
@@ -231,7 +232,12 @@ export class AntigravityStructuredSession {
       acquisitionGeneration: this.generation,
       observedAt: Date.now(),
       cause: this.requestedClose ? 'requested-close' : 'unexpected-exit',
-      reason: 'Antigravity process exited'
+      reason: 'Antigravity process exited',
+      failure: this.requestedClose
+        ? agentSessionFailureFact('hostFault')
+        : agentSessionFailureFact('providerExited', {
+            detail: providerDiagnostic(this.process.stderrTail(), 'person')
+          })
     })
   }
 }
