@@ -51,7 +51,6 @@ export function NativeChatPromptEditor({
   const placeholderRef = useRef(placeholder)
   placeholderRef.current = placeholder
   const ghostTextRef = useRef(ghostText)
-  ghostTextRef.current = ghostText
   const editor = useEditor(
     {
       extensions: [
@@ -149,6 +148,7 @@ export function NativeChatPromptEditor({
 
   // The placeholder recomputes on a transaction, and a prop change makes none.
   useLayoutEffect(() => {
+    ghostTextRef.current = ghostText
     if (editor && !editor.isDestroyed) {
       editor.view.dispatch(editor.state.tr.setMeta('addToHistory', false))
     }
