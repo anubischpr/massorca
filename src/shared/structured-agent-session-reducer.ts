@@ -31,6 +31,9 @@ import {
   trimRetainedItems
 } from './structured-agent-session-item-retention'
 import { compareAgentJournalItems } from './agent-session-journal-position'
+import { hostClockField, type StructuredAgentHostClock } from './agent-session-host-clock'
+import { nextReplySuggestion, sameReplySuggestion } from './native-chat-reply-suggestion'
+import type { NativeChatReplySuggestion } from './native-chat-reply-suggestion'
 import { readAgentJournalTurn } from './agent-session-turn-record'
 import { queuePublicationField } from './structured-agent-session-queue-publication-field'
 import { latestTurnAfterStructuredAgentSessionBatch } from './structured-agent-session-live-turn'
@@ -41,12 +44,7 @@ import {
   type StructuredAgentSubagentRoster
 } from './structured-agent-session-subagent-roster'
 
-/** The last host clock sample: `hostNow - receivedAt` is the client's skew from the host,
- *  which is what lets a client attaching mid-turn anchor its live counter on the real start. */
-export type StructuredAgentHostClock = {
-  hostNow: number
-  receivedAt: number
-}
+export type { StructuredAgentHostClock }
 
 export type StructuredAgentSessionState = {
   epoch: string | null
@@ -76,6 +74,8 @@ export type StructuredAgentSessionState = {
   commands?: AgentSessionSlashCommand[] | null
   functions?: AgentSessionProviderFunction[] | null
   activity?: AgentSessionTurnActivity | null
+  /** The host's suggested next user message; null or absent when it holds none. */
+  promptSuggestion?: NativeChatReplySuggestion | null | undefined
   /** Absent until a frame from a host that stamps `hostNow` has been applied. */
   hostClock?: StructuredAgentHostClock
   /** Every subagent a roster row this client received named, by agent id; not trimmed with
@@ -108,16 +108,6 @@ export const EMPTY_STRUCTURED_AGENT_SESSION: StructuredAgentSessionState = {
   retainedItemCap: MAX_RETAINED_ITEMS,
   hasOlder: false,
   status: 'idle'
-}
-
-/** A frame without `hostNow` (older host) leaves the previous sample in place. */
-function hostClockField(
-  hostNow: number | undefined,
-  receivedAt: number,
-  previous: StructuredAgentHostClock | undefined
-): { hostClock?: StructuredAgentHostClock } {
-  const hostClock = hostNow !== undefined ? { hostNow, receivedAt } : previous
-  return hostClock ? { hostClock } : {}
 }
 
 function replacePage(
@@ -202,6 +192,7 @@ export function reduceStructuredAgentSession(
   if (action.type === 'history-page') {
     return {
       ...replacePage(action.page, action.page.fence ?? null, state.backgroundTasks, state.activity),
+      promptSuggestion: state.promptSuggestion,
       commands: state.commands,
       functions: state.functions,
       commandActivity:
@@ -247,6 +238,7 @@ export function reduceStructuredAgentSession(
         admitAgentSessionBackgroundTaskState(event.backgroundTasks),
         event.activity
       ),
+      promptSuggestion: event.promptSuggestion ?? null,
       commands: event.commands,
       functions: event.functions,
       commandActivity: decodeAgentChildWorkViews(
@@ -271,6 +263,7 @@ export function reduceStructuredAgentSession(
         : state.backgroundTasks
   const commandActivity = readCommandActivity(state, event, action.opensSubscription)
   const activity = event.activity !== undefined ? event.activity : state.activity
+  const promptSuggestion = nextReplySuggestion(state, event, action.opensSubscription)
   const liveItems = liveItemsWithinWindow(state, event.batch.items)
   // Every roster revision, the window's or not: a trimmed roster row keeps its sequence.
   const subagentRoster = foldStructuredAgentSubagentRoster(
@@ -297,6 +290,7 @@ export function reduceStructuredAgentSession(
     backgroundTaskStatesEqual(backgroundTasks, state.backgroundTasks) &&
     activity?.turnId === state.activity?.turnId &&
     activity?.text === state.activity?.text &&
+    sameReplySuggestion(promptSuggestion, state.promptSuggestion) &&
     state.status === 'ready' &&
     state.error === undefined
   ) {
@@ -335,6 +329,7 @@ export function reduceStructuredAgentSession(
     backgroundTasks,
     commandActivity,
     ...(activity !== undefined ? { activity } : {}),
+    promptSuggestion,
     ...(lostTurnRow ? { unloadedTurnRevisions: (state.unloadedTurnRevisions ?? 0) + 1 } : {}),
     ...hostClockField(event.hostNow, receivedAt, state.hostClock)
   }

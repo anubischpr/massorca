@@ -1,0 +1,190 @@
+import { describe, expect, it, vi } from 'vitest'
+import type { SleepingAgentSessionRecord } from '../../../../shared/agent-session-resume'
+import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
+import {
+  createStructuredChatPaneActions,
+  type StructuredChatPaneActionsDeps,
+  type StructuredChatPaneActionsInput
+} from './structured-chat-pane-actions'
+
+const LOCAL: RuntimeClientTarget = { kind: 'local' }
+
+function input(
+  overrides: Partial<StructuredChatPaneActionsInput> = {}
+): StructuredChatPaneActionsInput {
+  return {
+    tabId: 'agent-session-tab-1',
+    groupId: 'group-1',
+    worktreeId: 'repo::/work/feature',
+    sessionId: 'session-1',
+    paneKey: 'agent-session-tab-1:session-1',
+    target: LOCAL,
+    agent: 'claude',
+    providerSession: { key: 'session_id', id: 'provider-1' },
+    workspacePath: '/work/feature',
+    capturedText: 'user: hello',
+    ...overrides
+  }
+}
+
+function deps(
+  overrides: Partial<StructuredChatPaneActionsDeps> = {},
+  calls: string[] = []
+): StructuredChatPaneActionsDeps {
+  return {
+    splitRight: vi.fn(() => true),
+    closeTab: vi.fn(() => {
+      calls.push('closeTab')
+    }),
+    releaseProviderChild: vi.fn(async () => {
+      calls.push('release')
+      return 'closed' as const
+    }),
+    launchResume: vi.fn((_record: SleepingAgentSessionRecord) => {
+      calls.push('launch')
+      return true
+    }),
+    prepareContinuation: vi.fn(() => null),
+    onTerminalViewReleaseFailed: vi.fn(),
+    onTerminalViewLaunchFailed: vi.fn(),
+    ...overrides
+  }
+}
+
+describe('createStructuredChatPaneActions', () => {
+  it('splits the chat tab to the right within its group', () => {
+    const d = deps()
+    createStructuredChatPaneActions(input(), d).splitRight()
+    expect(d.splitRight).toHaveBeenCalledWith('agent-session-tab-1', 'group-1')
+  })
+
+  it('does not split a chat that has no group', () => {
+    const d = deps()
+    createStructuredChatPaneActions(input({ groupId: null }), d).splitRight()
+    expect(d.splitRight).not.toHaveBeenCalled()
+  })
+
+  it('closes through the tab close path for the chat tab', () => {
+    const d = deps()
+    createStructuredChatPaneActions(input(), d).close()
+    expect(d.closeTab).toHaveBeenCalledWith('agent-session-tab-1')
+  })
+
+  it('leaves the provider child running when the terminal view is unavailable', async () => {
+    const d = deps()
+    const actions = createStructuredChatPaneActions(input({ providerSession: undefined }), d)
+    expect(actions.terminalView).toEqual({ enabled: false, reason: 'no-provider-session' })
+    await expect(actions.showTerminal()).resolves.toBe(false)
+    expect(d.releaseProviderChild).not.toHaveBeenCalled()
+    expect(d.launchResume).not.toHaveBeenCalled()
+    expect(d.closeTab).not.toHaveBeenCalled()
+  })
+
+  it('releases the provider child before launching the terminal resume, then closes the chat tab', async () => {
+    const calls: string[] = []
+    const d = deps({}, calls)
+    const launched = createStructuredChatPaneActions(input(), d)
+    await expect(launched.showTerminal()).resolves.toBe(true)
+    expect(calls).toEqual(['release', 'launch', 'closeTab'])
+    expect(d.launchResume).toHaveBeenCalledWith(
+      expect.objectContaining({
+        worktreeId: 'repo::/work/feature',
+        agent: 'claude',
+        providerSession: { key: 'session_id', id: 'provider-1' },
+        paneKey: 'agent-session-tab-1:session-1'
+      })
+    )
+  })
+
+  it('keeps the chat open and reports the failure when the release is unsupported', async () => {
+    const calls: string[] = []
+    const d = deps(
+      {
+        releaseProviderChild: vi.fn(async () => {
+          calls.push('release')
+          return 'unsupported' as const
+        })
+      },
+      calls
+    )
+    await expect(createStructuredChatPaneActions(input(), d).showTerminal()).resolves.toBe(false)
+    expect(calls).toEqual(['release'])
+    expect(d.onTerminalViewReleaseFailed).toHaveBeenCalledTimes(1)
+    expect(d.onTerminalViewLaunchFailed).not.toHaveBeenCalled()
+  })
+
+  it('keeps the chat open when the release throws, before anything launches', async () => {
+    const calls: string[] = []
+    const failure = new Error('host unreachable')
+    const d = deps(
+      {
+        releaseProviderChild: vi.fn(async () => {
+          calls.push('release')
+          throw failure
+        })
+      },
+      calls
+    )
+    await expect(createStructuredChatPaneActions(input(), d).showTerminal()).resolves.toBe(false)
+    expect(d.onTerminalViewReleaseFailed).toHaveBeenCalledTimes(1)
+    expect(calls).toEqual(['release'])
+    expect(d.closeTab).not.toHaveBeenCalled()
+  })
+
+  it('keeps the chat tab open and says the child was released when the terminal cannot launch', async () => {
+    const d = deps({ launchResume: vi.fn(() => false) })
+    await expect(createStructuredChatPaneActions(input(), d).showTerminal()).resolves.toBe(false)
+    expect(d.closeTab).not.toHaveBeenCalled()
+    expect(d.onTerminalViewLaunchFailed).toHaveBeenCalledTimes(1)
+    expect(d.onTerminalViewReleaseFailed).not.toHaveBeenCalled()
+  })
+
+  it('shows and releases a paired-server chat on its environment, before launching on that host', async () => {
+    const calls: string[] = []
+    const env = { kind: 'environment' as const, environmentId: 'env-1' }
+    const d = deps(
+      {
+        releaseProviderChild: vi.fn(async (target: RuntimeClientTarget) => {
+          calls.push(`release:${target.kind}`)
+          return 'closed' as const
+        })
+      },
+      calls
+    )
+    const actions = createStructuredChatPaneActions(input({ target: env }), d)
+    expect(actions.terminalView.enabled).toBe(true)
+    await expect(actions.showTerminal()).resolves.toBe(true)
+    expect(calls).toEqual(['release:environment', 'launch', 'closeTab'])
+    expect(d.releaseProviderChild).toHaveBeenCalledWith(env, 'session-1')
+  })
+
+  it('hands off a chat with its transcript path and conversation text', () => {
+    const d = deps({
+      prepareContinuation: vi.fn(() => null)
+    })
+    createStructuredChatPaneActions(
+      input({ providerSession: { key: 'session_id', id: 'p', transcriptPath: '/t/p.jsonl' } }),
+      d
+    ).handOff()
+    expect(d.prepareContinuation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: expect.objectContaining({
+          sourceAgent: 'claude',
+          capturedText: 'user: hello',
+          transcriptPath: '/t/p.jsonl',
+          sourceWorkingDirectory: '/work/feature'
+        }),
+        worktreeId: 'repo::/work/feature',
+        groupId: 'group-1'
+      })
+    )
+  })
+
+  it('does not hand off an agent that is not a terminal agent', () => {
+    const d = deps()
+    expect(
+      createStructuredChatPaneActions(input({ agent: 'not-an-agent' }), d).handOff()
+    ).toBeNull()
+    expect(d.prepareContinuation).not.toHaveBeenCalled()
+  })
+})

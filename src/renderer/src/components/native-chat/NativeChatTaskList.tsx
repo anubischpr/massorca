@@ -64,7 +64,7 @@ function TaskRow({ task, label }: { task: NativeChatTask; label?: string }): Rea
   )
 }
 
-function Checklist({ list }: { list: TaskList }): React.JSX.Element {
+export function Checklist({ list }: { list: TaskList }): React.JSX.Element {
   return list.tasks.length === 0 ? (
     <p className="text-xs text-muted-foreground">
       {translate('components.native-chat.taskList.empty', 'No tasks')}

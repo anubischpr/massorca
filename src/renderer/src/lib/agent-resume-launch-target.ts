@@ -22,6 +22,8 @@ export type AgentResumeLaunchTargetArgs = {
   terminalWindowsShell: string | null | undefined
   /** Per-tab Windows shell override, which beats the global setting at spawn time. */
   tabShellOverride?: string | null
+  /** Last verified OS of a paired runtime host that owns the workspace; null when not known. */
+  runtimeHostPlatform?: NodeJS.Platform | null
 }
 
 function resolveResumeLaunchPlatform(args: AgentResumeLaunchTargetArgs): NodeJS.Platform {
@@ -34,7 +36,8 @@ function resolveResumeLaunchPlatform(args: AgentResumeLaunchTargetArgs): NodeJS.
   if (args.connectionId || (args.worktreePath && isWslUncPath(args.worktreePath))) {
     return 'linux'
   }
-  return CLIENT_PLATFORM
+  // Why: the resume line is typed into the paired host's shell, so its quoting follows that host's OS, not this client's.
+  return args.runtimeHostPlatform ?? CLIENT_PLATFORM
 }
 
 /**

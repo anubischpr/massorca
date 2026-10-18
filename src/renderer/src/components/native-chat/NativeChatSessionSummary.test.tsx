@@ -1,35 +1,71 @@
 // @vitest-environment happy-dom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
+import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
+import type { StructuredAgentContextSummary } from '../../../../shared/structured-agent-session-context-usage'
 import { NativeChatSessionSummary } from './NativeChatSessionSummary'
+
+const { store } = vi.hoisted(() => {
+  const repos: unknown[] = []
+  const settings: unknown = { activeRuntimeEnvironmentId: null }
+  const worktreesByRepo: Record<string, unknown[]> = {}
+  return { store: { repos, settings, worktreesByRepo } }
+})
 vi.mock('@/store', () => ({
-  useAppStore: (selector: (state: unknown) => unknown) => selector({ worktreesByRepo: {} })
+  useAppStore: (selector: (state: unknown) => unknown) => selector(store)
 }))
+vi.mock('@/lib/repo-slug-index', () => ({ useRepoSlugIndex: () => ({ ready: true }) }))
 vi.mock('./use-structured-agent-session-host-label', () => ({
   useStructuredAgentSessionHostLabel: () => 'Development VPS'
 }))
 vi.mock('./NativeChatSessionServers', () => ({
   NativeChatSessionServers: () => <div>QA servers</div>
 }))
-vi.mock('./NativeChatCodexBackgroundPanel', () => ({ NativeChatCodexBackgroundPanel: () => null }))
-afterEach(cleanup)
+vi.mock('./NativeChatCodexBackgroundPanel', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  NativeChatCodexBackgroundPanel: () => null
+}))
+afterEach(() => {
+  cleanup()
+  store.repos = []
+  store.worktreesByRepo = {}
+})
+
+const connectorCall: AgentJournalRenderItem = {
+  itemId: 'call',
+  sequence: 1,
+  revision: 1,
+  observedAt: 10,
+  body: { kind: 'tool-call', name: 'mcp__history__search', input: {}, state: 'completed' }
+}
+const todoPlan: AgentJournalRenderItem = {
+  itemId: 'todo',
+  sequence: 2,
+  revision: 1,
+  observedAt: 20,
+  body: {
+    kind: 'tool-call',
+    name: 'TodoWrite',
+    input: {
+      todos: [
+        { content: 'Read the spec', status: 'completed' },
+        { content: 'Write the fix', status: 'in_progress', activeForm: 'Writing the fix' },
+        { content: 'Run tests', status: 'pending' }
+      ]
+    },
+    state: 'completed'
+  }
+}
 const props = {
   target: { kind: 'environment', environmentId: 'opaque-id' } as const,
   fileContext: null,
-  contextUsage: null,
+  contextSummary: null,
   roster: undefined,
   isVisible: true,
   onLinkClick: undefined,
-  journalItems: [
-    {
-      itemId: 'call',
-      sequence: 1,
-      revision: 1,
-      observedAt: 10,
-      body: { kind: 'tool-call', name: 'mcp__history__search', input: {}, state: 'completed' }
-    }
-  ] as const
+  journalItems: [connectorCall]
 }
+
 it('keeps historical success separate from unknown current connector status', () => {
   render(<NativeChatSessionSummary {...props} />)
   expect(screen.getByText('Development VPS')).toBeTruthy()
@@ -42,19 +78,21 @@ it('keeps historical success separate from unknown current connector status', ()
   expect(screen.getByText('Recorded calls (historical)')).toBeTruthy()
   expect(screen.getByText('completed')).toBeTruthy()
 })
-it('shows provider connection states in compact cards and suppresses disconnected transport claims', () => {
+
+it('shows humanized connector names with their status and the raw key on hover', () => {
   const connectorSnapshot = {
     observedAt: 10,
     servers: [
       { name: 'docs', status: 'connected' as const },
-      { name: 'broken', status: 'failed' as const }
+      { name: 'openmetadata-escritura', status: 'failed' as const }
     ]
   }
   const { rerender } = render(
     <NativeChatSessionSummary {...props} connectorSnapshot={connectorSnapshot} />
   )
-  expect(screen.getByText('docs · Connected')).toBeTruthy()
-  expect(screen.getByText('broken · Failed')).toBeTruthy()
+  expect(screen.getByText('Docs · Connected')).toBeTruthy()
+  expect(screen.getByText('Openmetadata escritura · Failed')).toBeTruthy()
+  expect(screen.getByTitle('openmetadata-escritura')).toBeTruthy()
   expect(screen.getByText(/Provider status at/)).toBeTruthy()
   rerender(
     <NativeChatSessionSummary
@@ -68,11 +106,12 @@ it('shows provider connection states in compact cards and suppresses disconnecte
       }}
     />
   )
-  expect(screen.queryByText('docs · Connected')).toBeNull()
+  expect(screen.queryByText('Docs · Connected')).toBeNull()
   expect(
     screen.getByText('Current connector status is not reported by this provider or host.')
   ).toBeTruthy()
 })
+
 it('distinguishes a confirmed empty connector inventory from unavailable data', () => {
   render(
     <NativeChatSessionSummary {...props} connectorSnapshot={{ observedAt: 10, servers: [] }} />
@@ -86,18 +125,161 @@ it('distinguishes a confirmed empty connector inventory from unavailable data', 
   ).toBeTruthy()
 })
 
-it('uses bounded context percentages in the compact card and expanded detail', () => {
-  const contextUsage = {
+it('uses bounded context percentages in the compact card and expanded token detail', () => {
+  const contextSummary: StructuredAgentContextSummary = {
     usedTokens: 27_539,
     windowTokens: 1_000_000,
     percentage: 2.7539000000000002,
     estimated: false,
-    categories: []
+    categories: [],
+    observedAt: 10
   }
-  render(<NativeChatSessionSummary {...props} contextUsage={contextUsage} />)
+  render(<NativeChatSessionSummary {...props} contextSummary={contextSummary} />)
   expect(screen.getByText('2.8%')).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: /Context/ }))
-  expect(screen.getByText(/2\.8% ·/)).toBeTruthy()
+  expect(screen.getByText(/27,?539 tokens/)).toBeTruthy()
+  expect(screen.getByText(/1,?000,?000 tokens/)).toBeTruthy()
   expect(screen.queryByText(/2\.7539000000000002/)).toBeNull()
-  expect(contextUsage.percentage).toBe(2.7539000000000002)
+})
+
+it('shows used tokens without a percentage when the window is not known', () => {
+  const contextSummary: StructuredAgentContextSummary = {
+    usedTokens: 18_600,
+    windowTokens: null,
+    percentage: null,
+    estimated: true,
+    categories: [],
+    observedAt: 10
+  }
+  render(<NativeChatSessionSummary {...props} contextSummary={contextSummary} />)
+  expect(screen.getByText('~18.6k tokens')).toBeTruthy()
+  expect(screen.queryByText(/%/)).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: /Context/ }))
+  expect(screen.getByText('Not reported by the provider.')).toBeTruthy()
+  expect(screen.getByText(/Estimated from the last provider response/)).toBeTruthy()
+})
+
+it('shows plan progress and the current item, then the full checklist inline', () => {
+  render(<NativeChatSessionSummary {...props} journalItems={[todoPlan]} />)
+  const plan = screen.getByRole('button', { name: /^Plan/ })
+  expect(plan.textContent).toContain('1 of 3')
+  expect(screen.getByText('Writing the fix')).toBeTruthy()
+  fireEvent.click(plan)
+  expect(screen.getByText('Read the spec').className).toContain('line-through')
+  expect(screen.getByText('Run tests').className).not.toContain('line-through')
+})
+
+it('says so when the provider reported no plan', () => {
+  render(<NativeChatSessionSummary {...props} />)
+  expect(screen.getByText('No plan reported')).toBeTruthy()
+})
+
+it('expands sections inline, several at once, and collapses each without a back action', () => {
+  render(
+    <NativeChatSessionSummary
+      {...props}
+      contextSummary={{
+        usedTokens: 1_000,
+        windowTokens: 10_000,
+        percentage: 10,
+        estimated: false,
+        categories: [],
+        observedAt: 10
+      }}
+    />
+  )
+  const context = screen.getByRole('button', { name: /Context/ })
+  const connectors = screen.getByRole('button', { name: /Connectors/ })
+  expect(context.getAttribute('aria-expanded')).toBe('false')
+  fireEvent.click(context)
+  fireEvent.click(connectors)
+  expect(context.getAttribute('aria-expanded')).toBe('true')
+  expect(connectors.getAttribute('aria-expanded')).toBe('true')
+  expect(screen.queryByRole('button', { name: 'Back' })).toBeNull()
+  fireEvent.click(context)
+  expect(context.getAttribute('aria-expanded')).toBe('false')
+  expect(connectors.getAttribute('aria-expanded')).toBe('true')
+})
+
+it('shows the project and branch compactly and every workspace field when expanded', () => {
+  store.repos = [
+    { id: 'repo', path: 'C:/repos/orca', displayName: 'Orca', badgeColor: '#000', addedAt: 0 }
+  ]
+  store.worktreesByRepo = {
+    repo: [
+      {
+        id: 'repo::C:/repos/orca/feature-wt',
+        repoId: 'repo',
+        path: 'C:/repos/orca/feature-wt',
+        branch: 'refs/heads/feature/x',
+        displayName: 'Feature worktree'
+      }
+    ]
+  }
+  render(
+    <NativeChatSessionSummary
+      {...props}
+      fileContext={{
+        worktreeId: 'repo::C:/repos/orca/feature-wt',
+        worktreePath: 'C:/repos/orca/feature-wt',
+        runtimeEnvironmentId: null
+      }}
+    />
+  )
+  expect(screen.getByText('Orca')).toBeTruthy()
+  expect(screen.getByText('feature/x')).toBeTruthy()
+  expect(screen.queryByText('refs/heads/feature/x')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: /^Environment/ }))
+  expect(screen.getByText('feature-wt')).toBeTruthy()
+  expect(screen.getByText('C:/repos/orca/feature-wt')).toBeTruthy()
+  expect(screen.getByText('Feature worktree')).toBeTruthy()
+  expect(screen.getByText('Branch')).toBeTruthy()
+})
+
+it('shows a folder workspace by its folder and path, without a branch', () => {
+  store.repos = [
+    {
+      id: 'folder-repo',
+      path: '/notes',
+      displayName: 'Notes',
+      badgeColor: '#000',
+      addedAt: 0,
+      kind: 'folder'
+    }
+  ]
+  store.worktreesByRepo = {
+    'folder-repo': [
+      {
+        id: 'folder-repo::/notes',
+        repoId: 'folder-repo',
+        path: '/notes',
+        branch: '',
+        displayName: 'Notes'
+      }
+    ]
+  }
+  render(
+    <NativeChatSessionSummary
+      {...props}
+      fileContext={{
+        worktreeId: 'folder-repo::/notes',
+        worktreePath: '/notes',
+        runtimeEnvironmentId: null
+      }}
+    />
+  )
+  expect(screen.getByText('notes')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: /^Environment/ }))
+  expect(screen.getByText('/notes')).toBeTruthy()
+  expect(screen.queryByText('Branch')).toBeNull()
+})
+
+it('reports zero running subagents and background tasks when the host confirms none', () => {
+  render(<NativeChatSessionSummary {...props} commandActivity={[]} />)
+  expect(screen.getByRole('button', { name: /^Subagents/ }).textContent).toContain('0 running')
+  expect(screen.getByText('No running subagents')).toBeTruthy()
+  expect(screen.getByRole('button', { name: /^Background tasks/ }).textContent).toContain(
+    '0 running'
+  )
+  expect(screen.getByText('No background work reported.')).toBeTruthy()
 })

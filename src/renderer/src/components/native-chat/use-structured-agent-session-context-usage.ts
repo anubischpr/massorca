@@ -2,20 +2,24 @@ import { useMemo } from 'react'
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
 import type { AgentSessionOptionsResult } from '../../../../shared/agent-session-wire'
 import {
-  selectStructuredAgentContextUsage,
+  selectStructuredAgentContextSummary,
+  structuredAgentContextUsageOf,
+  type StructuredAgentContextSummary,
   type StructuredAgentContextUsage
 } from '../../../../shared/structured-agent-session-context-usage'
 
-/** The ring's usage: the loaded window's facts, with the host's whole-journal answer
- *  filling a part the window lacks. A host without that answer leaves the window's alone. */
-export function useStructuredAgentSessionContextUsage(
+/** The context readings, selected from one pass over the journal: the summary, and the ring's usage derived from it. */
+export function useStructuredAgentSessionContextReadings(
   journalItems: readonly AgentJournalRenderItem[],
   support: AgentSessionOptionsResult['contextUsage'],
   journalEpoch?: string | null
-): StructuredAgentContextUsage | null {
-  return useMemo(
+): {
+  summary: StructuredAgentContextSummary | null
+  usage: StructuredAgentContextUsage | null
+} {
+  const summary = useMemo(
     () =>
-      selectStructuredAgentContextUsage(
+      selectStructuredAgentContextSummary(
         journalItems,
         support?.current,
         support?.contextFloor && (!journalEpoch || support.contextFloor.epoch === journalEpoch)
@@ -24,4 +28,6 @@ export function useStructuredAgentSessionContextUsage(
       ),
     [journalItems, support, journalEpoch]
   )
+  const usage = useMemo(() => structuredAgentContextUsageOf(summary), [summary])
+  return useMemo(() => ({ summary, usage }), [summary, usage])
 }

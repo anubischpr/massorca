@@ -4,16 +4,20 @@ import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ImeInput } from '@/lib/ime-text-field'
 import { translate } from '@/i18n/i18n'
+import { cn } from '@/lib/utils'
 import type { NativeChatFind } from './use-native-chat-find'
 import { useNativeChatFindMatches } from './use-native-chat-find-matches'
 
 /** Find over the chat transcript, at the top-right of the transcript area like the terminal's search. */
 export function NativeChatFindBar({
   find,
-  isVisible
+  isVisible,
+  className
 }: {
   find: NativeChatFind
   isVisible: boolean
+  /** Placement override, e.g. `top-10` to sit below a pane header. */
+  className?: string
 }): React.JSX.Element {
   const { query, setQuery, close, rootRef, barRef, inputRef, revealMatch } = find
   const { matchCount, activeIndex, step } = useNativeChatFindMatches({
@@ -44,7 +48,10 @@ export function NativeChatFindBar({
       // The chat sends clicks on its plain surface to the composer; the bar's are its own.
       data-native-chat-typing-redirect-ignore="true"
       data-native-chat-find-bar="true"
-      className="absolute top-2 right-4 z-20 flex w-85 max-w-[calc(100%-2rem)] items-center gap-1 rounded-lg border border-border bg-popover/95 px-2 py-1 text-popover-foreground shadow-floating backdrop-blur-sm"
+      className={cn(
+        'absolute top-2 right-4 z-20 flex w-85 max-w-[calc(100%-2rem)] items-center gap-1 rounded-lg border border-border bg-popover/95 px-2 py-1 text-popover-foreground shadow-floating backdrop-blur-sm',
+        className
+      )}
       onMouseDown={(event) => {
         // A press on the count or padding keeps typing in the find input.
         if (!(event.target instanceof Element) || !event.target.closest('button, input')) {

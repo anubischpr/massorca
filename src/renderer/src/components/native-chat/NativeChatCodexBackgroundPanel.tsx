@@ -20,11 +20,21 @@ import { AgentChildRowContent } from '@/components/AgentChildRowContent'
 import { agentChildRowName } from '@/components/agent-child-row-text'
 import { useNow } from '@/hooks/use-now'
 
-const UNVERIFIABLE: AgentChildRowContext = {
+export const UNVERIFIABLE: AgentChildRowContext = {
   parentEvidenceFresh: false,
   transportObservation: 'unverifiable',
   parentObservedAt: 0,
   hostClockOffsetMs: 0
+}
+
+/** Only a row the host reports as working now; waiting, blocked, monitoring and unverifiable rows are not. */
+export function isRunningChildRow(row: Pick<AgentChildRowModel, 'displayState'>): boolean {
+  return row.displayState === 'working'
+}
+
+/** Sort comparator that lists running work ahead of settled work and keeps host order within each group. */
+export function runningChildRowsFirst(left: AgentChildRowModel, right: AgentChildRowModel): number {
+  return Number(isRunningChildRow(right)) - Number(isRunningChildRow(left))
 }
 
 function BackgroundRow({
@@ -128,13 +138,15 @@ export function NativeChatCodexBackgroundPanel(props: {
   }, [props.roster, views, context])
   const now = useNow(1_000, props.isVisible && rows.some((row) => !row.settled))
   const mainIds = new Set(views?.filter((view) => view.ownership === 'main').map((view) => view.id))
-  const main = rows.filter(
-    (row) => props.section !== 'agents' && row.kind !== 'agent' && mainIds.has(row.id)
-  )
-  const unknown = rows.filter(
-    (row) => props.section !== 'agents' && row.kind !== 'agent' && !mainIds.has(row.id)
-  )
-  const agents = rows.filter((row) => props.section !== 'commands' && row.kind === 'agent')
+  const main = rows
+    .filter((row) => props.section !== 'agents' && row.kind !== 'agent' && mainIds.has(row.id))
+    .sort(runningChildRowsFirst)
+  const unknown = rows
+    .filter((row) => props.section !== 'agents' && row.kind !== 'agent' && !mainIds.has(row.id))
+    .sort(runningChildRowsFirst)
+  const agents = rows
+    .filter((row) => props.section !== 'commands' && row.kind === 'agent')
+    .sort(runningChildRowsFirst)
   const onSelect = (row: AgentChildRowModel) => setSelected({ row, views: views ?? [] })
   if (selected) {
     const detailViews = [
@@ -236,9 +248,11 @@ export function NativeChatCodexBackgroundPanel(props: {
           : 'scrollbar-sleek mt-3 mr-3 max-h-64 w-80 max-w-full shrink-0 self-start overflow-auto rounded-xl border border-border bg-card p-3 text-xs text-card-foreground'
       }
     >
-      <h2 className="mb-3 font-medium text-foreground">
-        {t('components.nativeChatBackground.title', 'Background activity')}
-      </h2>
+      {props.embedded ? null : (
+        <h2 className="mb-3 font-medium text-foreground">
+          {t('components.nativeChatBackground.title', 'Background activity')}
+        </h2>
+      )}
       {context.transportObservation === 'unverifiable' || !context.parentEvidenceFresh ? (
         <p className="mb-3 text-muted-foreground">
           {t(
