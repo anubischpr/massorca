@@ -37,6 +37,7 @@ export function claudeStructuredPermissionModeForPreset(
       return 'acceptEdits'
     case 'plan':
       return 'plan'
+    case undefined:
     default:
       return undefined
   }
