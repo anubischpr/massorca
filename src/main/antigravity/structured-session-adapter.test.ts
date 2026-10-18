@@ -194,8 +194,7 @@ it('advertises only supported stream capabilities and refuses stale dispatch fen
     imagePrompts: false,
     steering: 'queue',
     approvalEnforcement: 'provider',
-    supportedAccessModes: ['default', 'full-access'],
-    supportedPermissionPresets: ['auto', 'accept-edits', 'plan']
+    supportedAccessModes: ['default', 'full-access']
   })
   const h = await setup()
   await expect(
