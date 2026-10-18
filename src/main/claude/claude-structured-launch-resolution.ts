@@ -34,9 +34,13 @@ import {
   type ClaudeEnvDeps
 } from './claude-structured-child-env'
 import { claudeStructuredLaunchArgs } from './claude-structured-launch-args'
-import type { ClaudeCliFlagSupport } from './claude-cli-flag-support'
+import {
+  CLAUDE_PROMPT_SUGGESTIONS_FLAG,
+  type ClaudeCliFlagSupport
+} from './claude-cli-flag-support'
 import { resolveClaudeLaunchFlags } from './claude-structured-launch-flags'
 import { resolveAgentSessionFullAccess } from '../../shared/agent-session-access-mode'
+import { claudeStructuredPermissionModeForPreset } from './claude-structured-permission-mode'
 import {
   withNativeChatVisualsEnv,
   type PrepareNativeChatVisuals
@@ -67,6 +71,7 @@ export type ClaudeStructuredSdkOptions = Pick<
   | 'model'
   | 'effort'
   | 'permissionMode'
+  | 'promptSuggestions'
   | 'allowDangerouslySkipPermissions'
   | 'settings'
   | 'sessionId'
@@ -140,6 +145,9 @@ export type ClaudeStructuredLaunchResolverDeps = {
   resolveAuthPolicy: () => Promise<ClaudeStructuredAuthPolicy> | ClaudeStructuredAuthPolicy
   /** The user's Agent Permissions setting, re-read per acquisition. Absent means prompting. */
   resolvePermissionMode?: () => Promise<PermissionMode> | PermissionMode
+  /** The user's reply-suggestions setting for the agent's own predictions, re-read per
+   *  acquisition. Absent means off. */
+  resolvePromptSuggestions?: () => Promise<boolean> | boolean
   /** How long an in-flight account switch may hold a launch before it is refused. */
   authSwitchSettleTimeoutMs?: number
   /** Account state for the managed-account gate; null when it cannot be read, which refuses. */
@@ -284,6 +292,10 @@ export function createClaudeStructuredLaunchResolver(
       ...(deps.attachmentDirectory ? [deps.attachmentDirectory] : []),
       ...(visuals ? [visuals.visuals.folder] : [])
     ]
+    // The CLI predicts the next message after each turn from its prompt cache, at little cost.
+    const promptSuggestions =
+      (await deps.resolvePromptSuggestions?.()) === true &&
+      (await deps.cliFlags?.supports(CLAUDE_PROMPT_SUGGESTIONS_FLAG, probeLaunch)) === true
     const inheritedPermissionMode = (await deps.resolvePermissionMode?.()) ?? 'default'
     const permission = claudeStructuredPermissionOptions(
       resolveAgentSessionFullAccess(
@@ -293,6 +305,7 @@ export function createClaudeStructuredLaunchResolver(
         ? 'bypassPermissions'
         : 'default'
     )
+    const presetPermissionMode = claudeStructuredPermissionModeForPreset(record.options?.accessMode)
     // A start that failed before its first turn wrote no transcript, and `--resume` of an absent
     // one exits; launch that id fresh instead. With a transcript, `--session-id` would collide.
     const leafUuid = head ? claudeProviderHandleLeafUuid(head) : null
@@ -333,6 +346,8 @@ export function createClaudeStructuredLaunchResolver(
       options: {
         ...CLAUDE_STRUCTURED_BASE_OPTIONS,
         ...permission,
+        ...(presetPermissionMode ? { permissionMode: presetPermissionMode } : {}),
+        ...(promptSuggestions ? { promptSuggestions } : {}),
         ...(additionalDirectories.length ? { additionalDirectories } : {}),
         ...(visuals?.pluginDir ? { plugins: [{ type: 'local', path: visuals.pluginDir }] } : {}),
         extraArgs: {

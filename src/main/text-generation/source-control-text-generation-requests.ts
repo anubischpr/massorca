@@ -61,6 +61,8 @@ export async function executeGenerationPlan(input: {
   emptyResultName: string
   operation: TextGenerationOperation
   spawnAgent: SpawnSourceControlAgent
+  /** A local run's cap; absent keeps the source-control default. */
+  timeoutMs?: number
 }): Promise<InternalTextGenerationResult> {
   const execute = (plan: CommitMessagePlan): Promise<InternalTextGenerationResult> =>
     input.target.kind === 'remote'
@@ -76,7 +78,8 @@ export async function executeGenerationPlan(input: {
           target: input.target,
           emptyResultName: input.emptyResultName,
           operation: input.operation,
-          spawnAgent: input.spawnAgent
+          spawnAgent: input.spawnAgent,
+          ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {})
         })
   let result = await execute(input.plan)
   if (!result.success && input.params.agentId === 'opencode') {

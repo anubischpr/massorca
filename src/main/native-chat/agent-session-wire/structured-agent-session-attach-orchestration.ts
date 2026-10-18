@@ -31,6 +31,7 @@ import {
   structuredAgentSessionConversationFence
 } from './structured-agent-session-provider-child'
 import type { DeferredStructuredAgentSessionEventSink } from './structured-agent-session-event-sink'
+import type { StructuredAgentSessionPromptSuggestion } from './structured-agent-session-event-sink-prompt-suggestion'
 import { noteStructuredAgentSessionProviderStarted } from './structured-agent-session-provider-started'
 import type { AgentSessionJournal } from '../agent-session-journal/journal-store'
 import { isStructuredAgentSessionStartupExpired } from './structured-agent-session-startup-attempt'
@@ -235,8 +236,16 @@ async function runAttachUnderAbort(
             failureTextContext: structuredAgentSessionFailureWordsContext(priorRecord)
           })
         }
-        await bindAndDrain(eventSink, attached.journal, fence, (activity) =>
-          context.subscribers.publish(sessionId, attached.journal, activity)
+        await bindAndDrain(
+          eventSink,
+          attached.journal,
+          fence,
+          (activity) => context.subscribers.publish(sessionId, attached.journal, activity),
+          (suggestion) =>
+            context.subscribers.promptSuggestions.publish(
+              sessionId,
+              suggestion && { ...suggestion, source: 'native' }
+            )
         )
         attempt.candidate = {
           sink: eventSink,
@@ -300,9 +309,10 @@ async function bindAndDrain(
   eventSink: DeferredStructuredAgentSessionEventSink,
   journal: AgentSessionJournal,
   fence: number,
-  publish: (activity?: AgentSessionTurnActivity | null) => void
+  publish: (activity?: AgentSessionTurnActivity | null) => void,
+  publishPromptSuggestion: (suggestion: StructuredAgentSessionPromptSuggestion | null) => void
 ): Promise<void> {
-  eventSink.bind({ journal, fence, publish })
+  eventSink.bind({ journal, fence, publish, publishPromptSuggestion })
   const barrier = await eventSink.drained()
   if (!barrier.ok) {
     throw barrier.error

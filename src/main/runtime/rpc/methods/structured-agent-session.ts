@@ -12,6 +12,7 @@ import {
   projectBackgroundTaskEvent,
   projectBackgroundTaskHistory
 } from './structured-agent-session-background-task-capability'
+import { projectPromptSuggestionEvent } from './structured-agent-session-prompt-suggestion-capability'
 import {
   projectTurnItemEvent,
   projectTurnItemHistory
@@ -266,10 +267,13 @@ export const STRUCTURED_AGENT_SESSION_METHODS = [
         sessionId: params.sessionId,
         emit: (event) =>
           emit(
-            projectTurnItemEvent(
-              projectBackgroundTaskEvent(event, ctx),
-              ctx,
-              host.sessionAgent(params.sessionId)
+            projectPromptSuggestionEvent(
+              projectTurnItemEvent(
+                projectBackgroundTaskEvent(event, ctx),
+                ctx,
+                host.sessionAgent(params.sessionId)
+              ),
+              ctx
             )
           ),
         ...(params.cursor ? { cursor: params.cursor } : {})

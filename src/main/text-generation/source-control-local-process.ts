@@ -95,6 +95,7 @@ export function runLocalSourceControlPlan(input: {
   wslDistro?: string
   holdHomeLockUntilExit: boolean
   spawnAgent: SpawnSourceControlAgent
+  timeoutMs?: number
 }): LocalProcessExecution<InternalTextGenerationResult> {
   const { plan, cwd, operation, holdHomeLockUntilExit } = input
   let markProcessClosed!: () => void
@@ -173,13 +174,14 @@ export function runLocalSourceControlPlan(input: {
       finalize({ success: false, error: 'Generation canceled.', canceled: true })
     }
     setLocalGenerationCancelToken(laneKey, cancel)
+    const timeoutMs = input.timeoutMs ?? SOURCE_CONTROL_GENERATION_TIMEOUT_MS
     timer = setTimeout(() => {
       startTermination()
       finalize({
         success: false,
-        error: `Generation timed out after ${SOURCE_CONTROL_GENERATION_TIMEOUT_MS / 1000}s.`
+        error: `Generation timed out after ${timeoutMs / 1000}s.`
       })
-    }, SOURCE_CONTROL_GENERATION_TIMEOUT_MS)
+    }, timeoutMs)
 
     const onStdoutData = (chunk: Buffer): void => {
       stdoutBytes += chunk.byteLength

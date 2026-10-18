@@ -30,6 +30,8 @@ type Props = Omit<HTMLAttributes<HTMLDivElement>, 'onChange' | 'onSelect'> & {
   initialValue: string
   disabled: boolean
   placeholder: string
+  /** A suggested message drawn in the placeholder's place while the editor is empty. */
+  ghostText?: string | null
   onChange: (input: NativeChatComposerInput) => void
   onSelect: (input: NativeChatComposerInput) => void
 }
@@ -40,6 +42,7 @@ export function NativeChatPromptEditor({
   initialValue,
   disabled,
   placeholder,
+  ghostText = null,
   onChange,
   onSelect,
   className,
@@ -47,6 +50,7 @@ export function NativeChatPromptEditor({
 }: Props): React.JSX.Element {
   const placeholderRef = useRef(placeholder)
   placeholderRef.current = placeholder
+  const ghostTextRef = useRef(ghostText)
   const editor = useEditor(
     {
       extensions: [
@@ -69,7 +73,10 @@ export function NativeChatPromptEditor({
           trailingNode: false
         }),
         NativeChatSkill,
-        Placeholder.configure({ placeholder: () => placeholderRef.current })
+        Placeholder.configure({
+          // The ghost text is the placeholder's slot: shown only while the document is empty.
+          placeholder: () => ghostTextRef.current ?? placeholderRef.current
+        })
       ],
       content:
         (scopeKey && readNativeChatDraftDocument(scopeKey, initialValue)) ||
@@ -138,6 +145,14 @@ export function NativeChatPromptEditor({
   useLayoutEffect(() => {
     editor?.setEditable(!disabled, false)
   }, [disabled, editor])
+
+  // The placeholder recomputes on a transaction, and a prop change makes none.
+  useLayoutEffect(() => {
+    ghostTextRef.current = ghostText
+    if (editor && !editor.isDestroyed) {
+      editor.view.dispatch(editor.state.tr.setMeta('addToHistory', false))
+    }
+  }, [editor, ghostText])
 
   const input = useMemo<NativeChatComposerInput | null>(
     () =>

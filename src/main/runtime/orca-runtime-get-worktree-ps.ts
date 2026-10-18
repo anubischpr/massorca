@@ -30,6 +30,8 @@ import { maybeAutoRenameWorkspaceOnFirstStructuredTurn } from '../agent-hooks/fi
 import { firstWorkRenameDeps } from '../agent-hooks/first-work-rename-runtime'
 import { createStructuredChatNamingHandler } from '../native-chat/structured-chat-naming'
 import { structuredChatNamingDeps } from './structured-chat-naming-runtime'
+import { createStructuredReplySuggestionHandler } from '../native-chat/structured-reply-suggestion'
+import { structuredReplySuggestionDeps } from './structured-reply-suggestion-runtime'
 import { getProfileUserDataPath } from '../orca-profiles/profile-storage-paths'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import { buildWorktreeListingPage } from './worktree-listing-host-scope'
@@ -207,6 +209,21 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVis
         logger
       )
     )
+    const suggestReply = createStructuredReplySuggestionHandler(
+      structuredReplySuggestionDeps(
+        () => this.requireStore(),
+        {
+          resolveWorkspace: async (workspaceId) => {
+            const target = await this.resolveRuntimeFileTarget(`id:${workspaceId}`)
+            return { path: target.worktree.path, executionHostId: target.executionHostId }
+          },
+          getAgentEnvResolvers: () => this.getCommitMessageAgentEnvironmentResolvers(),
+          hasOpenDispatch: (record) =>
+            structuredWorkerOwesWork(this.getOrchestrationDbIfAvailable?.() ?? null, record)
+        },
+        logger
+      )
+    )
     await installStructuredAgentSessionHost({
       stateDirectory: getProfileUserDataPath(),
       hostId: LOCAL_EXECUTION_HOST_ID,
@@ -242,6 +259,15 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVis
         claudeStructuredAuthPolicyForSettings(this.requireStore().getSettings()),
       // Re-read per acquisition, like the auth policy above it: the Agent Permissions setting is
       // the one copy of this fact, even when Arguments contain permission flags.
+      replySuggestions: {
+        isEnabled: (source) => {
+          const settings = this.requireStore().getSettings()
+          return (
+            settings.nativeChatReplySuggestions !== false &&
+            (source === 'native' || settings.nativeChatEmulatedReplySuggestions !== false)
+          )
+        }
+      },
       resolveClaudePermissionMode: () =>
         claudeStructuredPermissionModeForSettings(this.requireStore().getSettings()),
       resolveCodexPermissionPolicy: () =>
@@ -271,6 +297,7 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVis
       onSessionStatusChanged: (summary, options) => {
         this.onStructuredSessionStatusForMail(summary)
         nameChat(summary, options)
+        suggestReply(summary, options)
         void maybeAutoRenameWorkspaceOnFirstStructuredTurn(
           summary,
           options,

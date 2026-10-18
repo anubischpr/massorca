@@ -29,6 +29,7 @@ import {
 import { ClaudeOpenTurn } from './claude-open-turn'
 import { claudeCommandCurrentTurn, observeClaudeCommandFrame } from './claude-command-turn'
 import { ClaudeContextFacts } from './claude-context-facts'
+import { claudePromptSuggestion } from './claude-prompt-suggestion-frame'
 import { claudeSessionStateEndsTurn } from './claude-session-state-turn-over'
 import { ClaudeJournalPrompts } from './claude-structured-journal-prompts'
 import { claudeChildToolQueries } from './claude-child-tool-queries'
@@ -145,6 +146,8 @@ export function createClaudeJournalTranslator(
     }
   }
 
+  let lastTurnId: string | null = null
+
   const handleStream = (message: Record<string, unknown>, observedAt: number): boolean => {
     const delta = streamedBlocks.observe(message, observedAt)
     const thinking = streamedThinking.observe(message, observedAt)
@@ -185,6 +188,12 @@ export function createClaudeJournalTranslator(
 
   return {
     handle: (event) => {
+      lastTurnId = turn.id ?? lastTurnId
+      if (event.type === 'message' && event.message.type === 'prompt_suggestion') {
+        // Ephemeral: the next user message is a prediction, never a journal row.
+        deps.sink.setPromptSuggestion?.(claudePromptSuggestion(event.message, lastTurnId))
+        return
+      }
       if (event.type === 'ended') {
         prompts.retryPendingCancellations()
         flush()

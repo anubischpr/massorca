@@ -3114,16 +3114,6 @@
         }
       }
     },
-    "settings": {
-      "nativeChat": {
-        "emulatedReplySuggestionsCopy": "Ask a model for the suggestion when the agent does not offer one. Each suggestion costs one short model call on the machine the chat runs on, using the agent's own account.",
-        "emulatedReplySuggestionsTitle": "Suggest replies for agents without their own",
-        "emulatedReplySuggestionsToggleLabel": "Toggle suggestions for agents without their own",
-        "replySuggestionsCopy": "After the agent finishes a turn, show a suggested next message as ghost text in the empty message box. Press Tab to accept it or Esc to dismiss it.",
-        "replySuggestionsTitle": "Reply suggestions",
-        "replySuggestionsToggleLabel": "Toggle reply suggestions"
-      }
-    },
     "workspace": {
       "cleanup": {
         "browse": {

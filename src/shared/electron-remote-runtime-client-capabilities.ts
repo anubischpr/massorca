@@ -12,6 +12,7 @@ import {
   STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY,
   WORKTREE_BACKGROUND_REMOVAL_RUNTIME_CAPABILITY
 } from './protocol-version'
+import { AGENT_SESSION_PROMPT_SUGGESTION_RUNTIME_CAPABILITY } from './structured-agent-session-surface-capabilities'
 import { AGENT_SESSION_OPTIONAL_MODEL_CLIENT_CAPABILITY } from './agent-session-optional-model-capability'
 
 // Electron clients can decode client-hosted page placement; becoming a page
@@ -27,6 +28,8 @@ export const ELECTRON_REMOTE_RUNTIME_CLIENT_CAPABILITIES = [
   // Same renderer: it reads each host's `agentSession.agents` and renders any agent listed there.
   STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY,
   PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY,
+  // The renderer draws a host's suggested next message as ghost text in an empty composer.
+  AGENT_SESSION_PROMPT_SUGGESTION_RUNTIME_CAPABILITY,
   // The desktop picks each launch's mode from its own settings before asking the host.
   STRUCTURED_AGENT_SESSION_CLIENT_LAUNCH_MODE_CAPABILITY,
   BROWSER_CLIENT_HOST_RUNTIME_CAPABILITY,
