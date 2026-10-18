@@ -44,6 +44,28 @@ function child(id: string, changes: Partial<AgentChildWorkView> = {}): AgentChil
   }
 }
 describe('Codex background sidebar', () => {
+  it('omits its own heading when embedded beneath a summary section', () => {
+    render(<NativeChatCodexBackgroundPanel roster={null} context={fresh} isVisible embedded />)
+    expect(screen.queryByRole('heading', { name: 'Background activity' })).toBeNull()
+    expect(screen.getByText('No background work reported.')).toBeDefined()
+  })
+  it('lists running work ahead of work that has already settled', () => {
+    render(
+      <NativeChatCodexBackgroundPanel
+        context={fresh}
+        isVisible
+        roster={{
+          state: 'monitoring',
+          children: [child('finished'), child('running', { state: 'working' })]
+        }}
+      />
+    )
+    expect(
+      screen
+        .getAllByRole('button', { name: /View activity/ })
+        .map((button) => button.getAttribute('aria-label'))
+    ).toEqual(['View activity: running', 'View activity: finished'])
+  })
   it('shows an honest empty state', () => {
     render(<NativeChatCodexBackgroundPanel roster={null} context={fresh} isVisible />)
     expect(screen.getByText('No background work reported.')).toBeDefined()

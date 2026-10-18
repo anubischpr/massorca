@@ -46,11 +46,16 @@ export function mcpToolIdentity(
   if (!server || !tool) {
     return null
   }
-  const label = server.replace(/[_-]+/g, ' ')
   return {
-    server: label.charAt(0).toUpperCase() + label.slice(1),
+    server: humanizeServerName(server),
     tool: tool.replace(/[_-]+/g, ' ')
   }
+}
+
+/** `openmetadata-escritura` reads as `Openmetadata escritura`; the raw key stays the identity. */
+export function humanizeServerName(server: string): string {
+  const label = server.replace(/[_-]+/g, ' ')
+  return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
 export const MAX_TOOL_SEARCH_RESULTS = 5

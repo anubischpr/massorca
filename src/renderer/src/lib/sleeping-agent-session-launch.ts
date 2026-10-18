@@ -7,7 +7,11 @@ import {
   resolveAgentResumeLaunchTarget,
   type AgentResumeLaunchTarget
 } from '@/lib/agent-resume-launch-target'
-import { getExecutionHostIdForWorktree } from '@/lib/worktree-runtime-owner'
+import {
+  getExecutionHostIdForWorktree,
+  getRuntimeEnvironmentIdForWorktree
+} from '@/lib/worktree-runtime-owner'
+import { lastVerifiedRuntimeStatus } from '../../../shared/runtime-host-status'
 import { getLocalProjectExecutionRuntimeContext } from '@/lib/local-preflight-context'
 import {
   resolveTuiAgentLaunchArgs,
@@ -32,13 +36,18 @@ function getResumeLaunchTarget(worktreeId: string): AgentResumeLaunchTarget {
   const state = useAppStore.getState()
   const worktree = state.getKnownWorktreeById(worktreeId)
   const repo = worktree ? state.repos.find((entry) => entry.id === worktree.repoId) : null
+  const runtimeEnvironmentId = getRuntimeEnvironmentIdForWorktree(state, worktreeId)
   // The resume tab is created without a shell override, so the global Windows shell wins.
   return resolveAgentResumeLaunchTarget({
     projectRuntime: getLocalProjectExecutionRuntimeContext(state, worktreeId),
     connectionId: repo?.connectionId,
     executionHostId: getExecutionHostIdForWorktree(state, worktreeId),
     worktreePath: worktree?.path,
-    terminalWindowsShell: state.settings?.terminalWindowsShell
+    terminalWindowsShell: state.settings?.terminalWindowsShell,
+    runtimeHostPlatform: runtimeEnvironmentId
+      ? (lastVerifiedRuntimeStatus(state.runtimeStatusByEnvironmentId.get(runtimeEnvironmentId))
+          ?.hostPlatform ?? null)
+      : null
   })
 }
 

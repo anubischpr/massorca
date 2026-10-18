@@ -25,7 +25,7 @@ import { useStructuredAgentSessionTransport } from './use-structured-agent-sessi
 import { useStructuredAgentSessionOptions } from './use-structured-agent-session-options'
 import type { StructuredAgentSessionLaunchView } from './use-native-chat-provisional-launch'
 import { useStructuredAgentSessionThreadGoal } from './use-structured-agent-session-thread-goal'
-import { useStructuredAgentSessionContextUsage } from './use-structured-agent-session-context-usage'
+import { useStructuredAgentSessionContextReadings } from './use-structured-agent-session-context-usage'
 import { useStructuredAgentSessionRailOutline } from './use-structured-agent-session-rail-outline'
 import { useStructuredAgentSessionQueuedMessages } from './use-structured-agent-session-queued-messages'
 import { structuredConversationCommandRunner } from './structured-conversation-command-send'
@@ -161,7 +161,7 @@ export function useStructuredAgentSession(args: {
     support: threadGoalSupport,
     mutate
   })
-  const contextUsage = useStructuredAgentSessionContextUsage(
+  const { summary: contextSummary, usage: contextUsage } = useStructuredAgentSessionContextReadings(
     transportState.journalItems,
     contextUsageSupport,
     state.epoch
@@ -271,6 +271,7 @@ export function useStructuredAgentSession(args: {
     workingStartedAt: transportState.turnTiming.workingStartedAt,
     settledTurns: transportState.turnTiming.settledTurns,
     turnActivity: transportState.turnActivity,
+    promptSuggestion: transportState.promptSuggestion,
     backgroundTasks: transportState.backgroundTasks,
     commandActivity: transportState.commandActivity,
     backgroundTaskRoster: transportState.backgroundTaskRoster,
@@ -317,6 +318,7 @@ export function useStructuredAgentSession(args: {
     unavailable,
     threadGoal,
     contextUsage,
+    contextSummary,
     connectors
   }
 }

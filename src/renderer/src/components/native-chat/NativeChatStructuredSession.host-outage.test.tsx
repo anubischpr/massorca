@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 
 import '@testing-library/jest-dom/vitest'
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { renderAtAppRoot as render } from './native-chat-app-root-render.test-support'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { RuntimeEnvironmentStatus } from '../../../../shared/runtime-host-status'
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'

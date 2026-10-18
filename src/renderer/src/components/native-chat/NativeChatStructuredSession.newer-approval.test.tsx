@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
-import { cleanup, render } from '@testing-library/react'
+import { cleanup } from '@testing-library/react'
+import { renderAtAppRoot as render } from './native-chat-app-root-render.test-support'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
 

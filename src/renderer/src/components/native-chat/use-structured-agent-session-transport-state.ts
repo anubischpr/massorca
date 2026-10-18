@@ -72,6 +72,7 @@ export function useStructuredAgentSessionTransportState(
     queueSendsNext,
     backgroundTasks,
     commandActivity: enabled ? state.commandActivity : undefined,
+    promptSuggestion: (enabled ? state.promptSuggestion : null) ?? null,
     backgroundTaskRoster: enabled ? state.backgroundTasks : null,
     conversationBusy: Boolean(turnId || backgroundTasks.isMonitoring)
   }

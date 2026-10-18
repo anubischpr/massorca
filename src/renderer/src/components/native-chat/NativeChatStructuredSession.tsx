@@ -59,6 +59,7 @@ import { useNativeChatAvailabilityNotice } from './use-native-chat-availability-
 import { useStructuredAgentSessionStartFailureFacts } from './use-structured-agent-session-start-failure-facts'
 import { pendingPromptsAllUnanswerableHere } from '../../../../shared/agent-session-approval-subject'
 import { NativeChatSessionSummary } from './NativeChatSessionSummary'
+import { NativeChatStructuredPaneHeaderBar } from './NativeChatStructuredPaneHeaderBar'
 import { useStructuredSessionChildRowContext } from './use-structured-session-child-row-context'
 
 export function NativeChatStructuredSession(
@@ -266,7 +267,15 @@ export function NativeChatStructuredSession(
     >
       <div className="flex min-h-0 flex-1">
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-          {find.isOpen ? <NativeChatFindBar find={find} isVisible={props.isVisible} /> : null}
+          <NativeChatStructuredPaneHeaderBar
+            {...props}
+            worktreeId={ownerWorktreeId ?? ''}
+            journalItems={controller.journalItems}
+            reportNotice={reportComposerError}
+          />
+          {find.isOpen ? (
+            <NativeChatFindBar find={find} isVisible={props.isVisible} className="top-10" />
+          ) : null}
           {viewState.kind === 'loading' || (viewState.kind === 'error' && !readFailure) ? (
             loadingPane
           ) : viewState.kind === 'error' ? (
@@ -312,7 +321,7 @@ export function NativeChatStructuredSession(
           target={props.target}
           fileContext={fileLinkContext}
           connectorSnapshot={controller.connectors}
-          contextUsage={controller.contextUsage}
+          contextSummary={controller.contextSummary}
           subagentRoster={controller.subagentRoster}
           onLinkClick={onLinkClick}
           journalItems={controller.journalItems}

@@ -5,33 +5,43 @@ import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
 import { workspacePortScanKeyForTarget } from '@/lib/workspace-port-actions'
 import { editFilesFromToolPair } from '../../../../shared/native-chat-edit-normalize'
 import { toolFilePath } from '../../../../shared/native-chat-tool-summary'
+import { CODEX_PLAN_UPDATED_FRAME_KIND } from '../../../../shared/native-chat-provider-frame-summary'
+import {
+  normalizeNativeChatTaskList,
+  type NativeChatTaskList
+} from '../../../../shared/native-chat-task-list'
+import { branchName } from '@/lib/git-utils'
 
-/** Only explicit journal records are results; prose mentioning a file is not a file change. */
+/** Only explicit journal records are results; prose mentioning a file is not a file change. Newest touch first. */
 export function nativeChatSessionResults(items: readonly AgentJournalRenderItem[]): string[] {
-  return [
-    ...new Set(
-      items.flatMap(({ body }) => {
-        if (body.kind === 'diff') {
-          return [body.path]
-        }
-        if (body.kind !== 'tool-call') {
-          return []
-        }
-        return (
-          editFilesFromToolPair({
-            name: body.name,
-            input: body.input,
-            state: body.state,
-            ...(body.output
-              ? { result: { output: body.output.head, isError: body.state === 'failed' } }
-              : {})
-          }) ?? []
-        )
-          .filter((file) => file.path !== 'file' || toolFilePath(body.input) === 'file')
-          .map((file) => file.path)
-      })
+  const lastTouch = new Map<string, number>()
+  for (const [index, path] of changedFilePaths(items).entries()) {
+    lastTouch.set(path, index)
+  }
+  return [...lastTouch].sort(([, left], [, right]) => right - left).map(([path]) => path)
+}
+
+function changedFilePaths(items: readonly AgentJournalRenderItem[]): string[] {
+  return items.flatMap(({ body }) => {
+    if (body.kind === 'diff') {
+      return [body.path]
+    }
+    if (body.kind !== 'tool-call') {
+      return []
+    }
+    return (
+      editFilesFromToolPair({
+        name: body.name,
+        input: body.input,
+        state: body.state,
+        ...(body.output
+          ? { result: { output: body.output.head, isError: body.state === 'failed' } }
+          : {})
+      }) ?? []
     )
-  ]
+      .filter((file) => file.path !== 'file' || toolFilePath(body.input) === 'file')
+      .map((file) => file.path)
+  })
 }
 
 /** A tool result is historical evidence, never a claim that its connector is connected now. */
@@ -71,4 +81,46 @@ export function nativeChatSessionServers(
         (port) => port.kind === 'workspace' && port.owner.worktreeId === worktreeId
       ) ?? []
   }
+}
+
+/** The main agent's plan as last reported: a TodoWrite or update_plan call, or Codex's plan notification.
+ *  Subagent rows, failed calls and truncated notifications never replace it. */
+export function nativeChatSessionPlan(
+  items: readonly AgentJournalRenderItem[]
+): NativeChatTaskList | null {
+  let plan: NativeChatTaskList | null = null
+  for (const { body, agentId } of items) {
+    if (agentId !== undefined) {
+      continue
+    }
+    if (body.kind === 'tool-call') {
+      const list =
+        body.state === 'failed' ? null : normalizeNativeChatTaskList(body.name, body.input)
+      plan = list ?? plan
+    } else if (
+      body.kind === 'status' &&
+      body.providerFrame?.provider === 'codex' &&
+      body.providerFrame.kind === CODEX_PLAN_UPDATED_FRAME_KIND &&
+      !body.providerFrame.payload.truncated
+    ) {
+      plan = normalizeNativeChatTaskList('update_plan', body.providerFrame.payload.head) ?? plan
+    }
+  }
+  return plan
+}
+
+/** The folder a workspace path ends in, on either separator; null for an empty path. */
+export function workspaceFolderName(path: string): string | null {
+  return /([^\\/]+)[\\/]*$/.exec(path)?.[1] ?? null
+}
+
+/** The branch a git workspace is on without its `refs/heads/` prefix; null when none is reported. */
+export function workspaceBranchName(branch: string | null | undefined): string | null {
+  const trimmed = branch?.trim()
+  return trimmed ? branchName(trimmed) : null
+}
+
+/** The `owner/repo` of a cached GitHub identity key, which keeps a host segment only off github.com. */
+export function githubSlugFromIdentityKey(key: string): string {
+  return key.split('/').slice(-2).join('/')
 }

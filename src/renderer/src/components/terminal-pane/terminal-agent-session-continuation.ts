@@ -3,7 +3,8 @@ import type { ManagedPane } from '@/lib/pane-manager/pane-manager'
 import {
   buildAgentSessionContinuationPrompt,
   resolveAgentSessionContinuationTranscriptPath,
-  type AgentSessionContinuationRequest
+  type AgentSessionContinuationRequest,
+  type AgentSessionContinuationSource
 } from '@/lib/agent-session-continuation'
 import { useAppStore } from '@/store'
 import { makePaneKey } from '../../../../shared/stable-pane-id'
@@ -59,33 +60,53 @@ export function prepareAgentSessionContinuationFromPane({
     transcriptPath: status?.providerSession?.transcriptPath
   })
   const capturedText = transcriptPath ? '' : pane.serializeAddon.serialize({ scrollback: 800 })
-  const source = {
-    // Why: prefer the same-host transcript so opening the dialog does not serialize large scrollback.
-    capturedText,
-    sourceAgent,
-    sourceLabel: paneKey,
-    sourceWorkingDirectory: initialCwd || workspacePath,
-    transcriptPath,
-    lastPrompt: status?.prompt,
-    lastAssistantMessage: status?.lastAssistantMessage
+  const request = prepareAgentSessionContinuationFromSource({
+    source: {
+      // Why: prefer the same-host transcript so opening the dialog does not serialize large scrollback.
+      capturedText,
+      sourceAgent,
+      sourceLabel: paneKey,
+      sourceWorkingDirectory: initialCwd || workspacePath,
+      transcriptPath,
+      lastPrompt: status?.prompt,
+      lastAssistantMessage: status?.lastAssistantMessage
+    },
+    worktreeId,
+    groupId,
+    workspacePath,
+    initialCwd: initialCwd || workspacePath,
+    launchSource: 'terminal_context_menu'
+  })
+  if (!request) {
+    pane.terminal.focus()
   }
-  if (!buildAgentSessionContinuationPrompt(source, 'focused')) {
+  return request
+}
+
+/** Builds the continuation request from a captured source, or toasts when it has no context to continue from. */
+export function prepareAgentSessionContinuationFromSource(args: {
+  source: AgentSessionContinuationSource
+  worktreeId: string
+  groupId: string | null
+  workspacePath: string
+  initialCwd: string
+  launchSource: AgentSessionContinuationRequest['launchSource']
+}): AgentSessionContinuationRequest | null {
+  if (!buildAgentSessionContinuationPrompt(args.source, 'focused')) {
     toast.error(
       translate(
         'components.agentSessionContinuation.noContext',
         'No session context is available to continue in a new session.'
       )
     )
-    pane.terminal.focus()
     return null
   }
-
   return {
-    source,
-    worktreeId,
-    groupId,
-    workspacePath,
-    initialCwd: initialCwd || workspacePath,
-    launchSource: 'terminal_context_menu'
+    source: args.source,
+    worktreeId: args.worktreeId,
+    groupId: args.groupId,
+    workspacePath: args.workspacePath,
+    initialCwd: args.initialCwd,
+    launchSource: args.launchSource
   }
 }

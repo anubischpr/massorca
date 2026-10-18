@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
-import { act, cleanup, render, screen } from '@testing-library/react'
+import { act, cleanup, screen } from '@testing-library/react'
+import { renderAtAppRoot as render } from './native-chat-app-root-render.test-support'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { StructuredAgentSessionCommandRefusalCause } from '../../../../shared/structured-agent-session-composer'
 

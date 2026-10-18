@@ -147,3 +147,28 @@ describe('resolveAgentResumeLaunchTarget off Windows', () => {
     ).resolves.toEqual({ platform: 'darwin', shell: undefined })
   })
 })
+
+describe('resolveAgentResumeLaunchTarget for a paired runtime host', () => {
+  let restoreNavigator = (): void => {}
+
+  beforeEach(() => {
+    vi.resetModules()
+    restoreNavigator = setNavigatorUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
+  })
+
+  afterEach(() => {
+    restoreNavigator()
+  })
+
+  it('quotes for the paired host OS, not the Windows client, when the host platform is known', async () => {
+    await expect(
+      resolveWith({ executionHostId: 'runtime:env-1', runtimeHostPlatform: 'linux' })
+    ).resolves.toEqual({ platform: 'linux', shell: undefined })
+  })
+
+  it('keeps the client platform when the paired host platform is not verified', async () => {
+    await expect(
+      resolveWith({ executionHostId: 'runtime:env-1', runtimeHostPlatform: null })
+    ).resolves.toEqual({ platform: 'win32', shell: undefined })
+  })
+})

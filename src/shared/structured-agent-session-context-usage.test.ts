@@ -5,8 +5,10 @@ import type {
   AgentSessionContextWindow
 } from './agent-session-context-usage'
 import type { AgentJournalItemBody, AgentJournalRenderItem } from './agent-session-journal-types'
+import { contextTokensFromUsage } from './agent-session-context-usage'
 import {
   latestStructuredAgentContextFacts,
+  selectStructuredAgentContextSummary,
   selectStructuredAgentContextUsage
 } from './structured-agent-session-context-usage'
 
@@ -51,6 +53,32 @@ function turn(sequence: number, contextUsage: AgentSessionContextUsage): AgentJo
     contextUsage
   })
 }
+
+describe('selectStructuredAgentContextSummary', () => {
+  it('reports estimated tokens without inventing a window or percentage', () => {
+    const rows = [turn(1, { used: estimate(18_600) })]
+    expect(selectStructuredAgentContextSummary(rows)).toEqual({
+      usedTokens: contextTokensFromUsage({
+        inputTokens: 18_600,
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+        outputTokens: 4
+      }),
+      windowTokens: null,
+      percentage: null,
+      estimated: true,
+      categories: [],
+      observedAt: 1
+    })
+    expect(selectStructuredAgentContextUsage(rows)).toBeNull()
+  })
+
+  it('carries the window and percentage once the serving window is known', () => {
+    expect(
+      selectStructuredAgentContextSummary([turn(1, { used: estimate(20_000), window: WINDOW })])
+    ).toMatchObject({ windowTokens: 1_000_000, percentage: 2, estimated: true })
+  })
+})
 
 describe('selectStructuredAgentContextUsage', () => {
   it('reads the report on the newest turn that carries a used count', () => {
