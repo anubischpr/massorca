@@ -5,9 +5,13 @@ import '../unused-default-rpc-methods.test-fixture'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-host'
 import { setStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
-import { recordingStructuredAgentSessionLogger } from '../../../native-chat/agent-session-wire/structured-agent-session-logger-test-support'
+import {
+  recordingStructuredAgentSessionLogger,
+  type RecordedStructuredAgentSessionLog
+} from '../../../native-chat/agent-session-wire/structured-agent-session-logger-test-support'
 import { computeAgentSessionPayloadFingerprint } from '../../../../shared/agent-session-mutation-envelope'
 import { isDefinitiveAgentSessionCreateRefusal } from '../../../../shared/agent-session-definitive-refusal'
+import { AgentSessionPreSpawnError } from '../../../native-chat/agent-session-wire/structured-agent-session-adapter'
 import { STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY } from '../../../../shared/protocol-version'
 import type { OrcaRuntimeService } from '../../orca-runtime'
 import type { RpcResponse } from '../core'
@@ -42,6 +46,7 @@ function createParams(overrides: Record<string, unknown> = {}) {
 }
 
 let attach: ReturnType<typeof vi.fn>
+let hostLog: RecordedStructuredAgentSessionLog[]
 
 function hostStub(): StructuredAgentSessionHost {
   attach = vi.fn(async () => ({
@@ -51,10 +56,12 @@ function hostStub(): StructuredAgentSessionHost {
     cursor: { epoch: 'epoch-a', sequence: 0 },
     value: { sessionId: SESSION, fence: 1, page: {}, unconfirmedClientMessageIds: [] }
   }))
+  const recording = recordingStructuredAgentSessionLogger()
+  hostLog = recording.entries
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: create reaches only attach, and the logger a failure past it reports to.
   return {
     attach,
-    deps: { logger: recordingStructuredAgentSessionLogger().logger }
+    deps: { logger: recording.logger }
   } as unknown as StructuredAgentSessionHost
 }
 
@@ -108,11 +115,16 @@ async function create(
 }
 
 /** The refusal a client can act on, or null when the reply was not one. */
-function refusalOf(response: RpcResponse): { code: string; message: string } | null {
+function refusalOf(
+  response: RpcResponse
+): { code: string; message: string; details?: { reason?: string } } | null {
   if (!response.ok) {
     return null
   }
-  const result = response.result as { ok: boolean; refusal?: { code: string; message: string } }
+  const result = response.result as {
+    ok: boolean
+    refusal?: { code: string; message: string; details?: { reason?: string } }
+  }
   return result.ok ? null : (result.refusal ?? null)
 }
 
@@ -156,6 +168,72 @@ describe('a create refused before it commits', () => {
     expect(refusal?.message).not.toContain('Codex')
     expect(refusal?.message).toContain('No worktree matches id:workspace-1')
     expect(attach).not.toHaveBeenCalled()
+  })
+
+  it('keeps the typed reason of a pre-spawn refusal, and stays definitive', async () => {
+    const response = await create({
+      resolveStructuredAgentSessionCreateIntent: vi.fn(async () => {
+        throw new AgentSessionPreSpawnError(
+          new Error('Antigravity credential authority could not be verified.'),
+          { reason: 'managedAccountUnsupported' }
+        )
+      })
+    })
+
+    const refusal = refusalOf(response)
+    expect(refusal?.code).toBe('structured_agent_session_unsupported')
+    expect(refusal?.details?.reason).toBe('managedAccountUnsupported')
+    expect(isDefinitiveAgentSessionCreateRefusal(refusal?.code)).toBe(true)
+    expect(attach).not.toHaveBeenCalled()
+  })
+
+  it('keeps the reason of a pre-spawn refusal that wraps another one', async () => {
+    const response = await create({
+      resolveStructuredAgentSessionCreateIntent: vi.fn(async () => {
+        throw new AgentSessionPreSpawnError(
+          new AgentSessionPreSpawnError(new Error('inner'), { reason: 'cliMissing' })
+        )
+      })
+    })
+
+    expect(refusalOf(response)?.details?.reason).toBe('cliMissing')
+  })
+
+  it('sends no reason for a pre-spawn refusal that names none', async () => {
+    const response = await create({
+      resolveStructuredAgentSessionCreateIntent: vi.fn(async () => {
+        throw new AgentSessionPreSpawnError(new Error('Orca-internal'))
+      })
+    })
+
+    expect(refusalOf(response)?.details).toBeUndefined()
+  })
+
+  it('writes an uncoded refusal to the host log, not only the console', async () => {
+    await create({
+      resolveStructuredAgentSessionCreateIntent: vi.fn(async () => {
+        throw new AgentSessionPreSpawnError(new Error('credential check failed'), {
+          reason: 'managedAccountUnsupported'
+        })
+      })
+    })
+
+    expect(hostLog).toHaveLength(1)
+    expect(hostLog[0]).toMatchObject({
+      level: 'warn',
+      fields: { scope: 'create.precommitRefused', refusalReason: 'managedAccountUnsupported' }
+    })
+    expect(console.warn).not.toHaveBeenCalled()
+  })
+
+  it('does not log a refusal the host raised by code', async () => {
+    await create({
+      resolveStructuredAgentSessionCreateIntent: vi.fn(async () => {
+        throw new Error('structured_agent_session_unsupported')
+      })
+    })
+
+    expect(hostLog).toHaveLength(0)
   })
 
   it('answers a host that will not install as a definitive envelope', async () => {

@@ -36,6 +36,9 @@ export function managedAccountUnsupportedSentence(
   context: AgentSessionFailureWordsContext,
   say: AgentSessionFailureSay
 ): string {
+  if (context.agentName === TUI_AGENT_DISPLAY_NAMES.antigravity) {
+    return say('managedAccountUnsupportedAntigravity', agentValues(say, context))
+  }
   if (!claudeAccountWords(context)) {
     return say('managedAccountUnsupportedAgent', agentValues(say, context))
   }

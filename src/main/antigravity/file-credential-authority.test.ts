@@ -127,4 +127,34 @@ describe('Antigravity file credential authority', () => {
     await expect(verifyAntigravityFileAuthority(env, 'darwin', '', deps)).rejects.toThrow()
     await expect(verifyAntigravityFileAuthority(env, 'win32', '', deps)).rejects.toThrow()
   })
+
+  it('treats the Chromium disabled session-bus marker as no bus, without mutating the caller env', async () => {
+    const deps = fixture()
+    const marked = { ...env, DBUS_SESSION_BUS_ADDRESS: 'disabled:' }
+    expect(await verifyAntigravityFileAuthority(marked, 'linux', 'generic', deps)).toBe(
+      await verifyAntigravityFileAuthority(env, 'linux', 'generic', fixture())
+    )
+    expect(marked.DBUS_SESSION_BUS_ADDRESS).toBe('disabled:')
+    for (const [, childEnv] of deps.inventory.mock.calls) {
+      expect(childEnv.DBUS_SESSION_BUS_ADDRESS).toBeUndefined()
+    }
+  })
+
+  it('still refuses a real session bus address and look-alike markers', async () => {
+    for (const address of [
+      'unix:path=/run/user/1000/bus',
+      'disabled',
+      'disabled:x',
+      ' disabled:'
+    ]) {
+      await expect(
+        verifyAntigravityFileAuthority(
+          { ...env, DBUS_SESSION_BUS_ADDRESS: address },
+          'linux',
+          'generic',
+          fixture()
+        )
+      ).rejects.toThrow()
+    }
+  })
 })

@@ -70,6 +70,19 @@ const CAUSES: Partial<Record<AgentSessionWireRefusalCode, AgentSessionWriteNotic
   structured_agent_session_unsupported: 'unsupported'
 }
 
+// Start refusals a create meets before it commits, carried under the unsupported code so the
+// client may fall back; no chat write meets them, and the failure words own their sentences.
+const CREATE_ONLY_START_REASONS = new Set<string>([
+  'managedAccountEnvOverride',
+  'accountSwitchInProgress',
+  'managedAccountUnsupported',
+  'launchFolderMissing',
+  'historyInOtherAccount',
+  'agentCommandNotRunnable',
+  'cliMissing',
+  'antigravityCliVersionUnsupported'
+])
+
 function isCause(part: unknown): boolean {
   return typeof part === 'string' && !part.startsWith('notDone') && part !== 'tryAgainComposerSend'
 }
@@ -368,6 +381,9 @@ describe('the notice for every reason a host names', () => {
         expect(parts, cell).toEqual(['cannotRunHere', NOT_DONE[write]])
         continue
       }
+      if (CREATE_ONLY_START_REASONS.has(failure.details?.reason ?? '')) {
+        continue
+      }
       expect(parts, cell).toEqual(
         write === 'read-history' ? ['notDoneReadHistory'] : ['notAvailable']
       )
@@ -455,6 +471,9 @@ describe('the notice for every reason a host names', () => {
       )
       if (failure.code === 'agent_session_operation_unknown') {
         expect(parts, cell).toEqual(['outcomeUnknown'])
+        continue
+      }
+      if (CREATE_ONLY_START_REASONS.has(failure.details?.reason ?? '')) {
         continue
       }
       const notDone = parts.filter((part) => typeof part === 'string' && part.startsWith('notDone'))

@@ -66,3 +66,25 @@ it('shows the safe typed Windows Antigravity cause through the launch notice', (
     )
   ).toBeTruthy()
 })
+
+it('shows the typed Antigravity credential-storage cause of a refused create', () => {
+  const failure = agentSessionRefusalFailure({
+    code: 'structured_agent_session_unsupported',
+    details: { reason: 'managedAccountUnsupported' }
+  })
+  render(
+    <NativeChatComposerNotices
+      notices={structuredSessionNotices({
+        launch: { lifecycle: 'failed', failure, retry: () => {} },
+        agentLabel: 'Antigravity',
+        sessionError: null,
+        composerError: null
+      })}
+    />
+  )
+  expect(
+    screen.getByText(
+      "Chat could not be started. Orca could not verify Antigravity's credential storage on this computer. Check Antigravity in a terminal there, then try again."
+    )
+  ).toBeTruthy()
+})

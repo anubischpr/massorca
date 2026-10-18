@@ -2912,6 +2912,7 @@
         "managedAccountEnvOverrideAgent": "This {{agent}} launch uses a different home folder or sign-in storage than its selected account. Remove that override, then try again.",
         "managedAccountUnsupported": "While a Claude account is added in WSL, Claude chats need a Windows Claude account.",
         "managedAccountUnsupportedAgent": "{{agent}} cannot run this chat with the account selected on this computer. Choose an account that runs here, then try again.",
+        "managedAccountUnsupportedAntigravity": "Orca could not verify {{agent}}'s credential storage on this computer. Check {{agent}} in a terminal there, then try again.",
         "noTurnToStop": "{{agent}} had no turn running to stop.",
         "notDelivered": "This message was not delivered.",
         "notDeliveredSendAgain": "This message was not delivered. Send it again to continue.",

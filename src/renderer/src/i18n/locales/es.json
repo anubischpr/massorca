@@ -17816,6 +17816,7 @@
         "antigravityCliVersionUnsupported": "{{agent}} en este equipo no informó una CLI estable {{version}} o más reciente: puede estar desactualizada, o su comprobación de versión falló o agotó el tiempo. Revísela en una terminal e inténtelo de nuevo.",
         "managedAccountEnvOverrideAgent": "Este inicio de {{agent}} usa una carpeta personal o un almacenamiento de inicio de sesión distinto al de su cuenta seleccionada. Quite esa anulación e inténtelo de nuevo.",
         "managedAccountUnsupportedAgent": "{{agent}} no puede ejecutar este chat con la cuenta seleccionada en este equipo. Elija una cuenta que funcione aquí e inténtelo de nuevo.",
+        "managedAccountUnsupportedAntigravity": "Orca no pudo verificar el almacenamiento de credenciales de {{agent}} en este equipo. Revise {{agent}} en un terminal allí e inténtelo de nuevo.",
         "historyInOtherAccountAgent": "El historial de este chat está en otra cuenta de {{agent}}. Cambie a esa cuenta para continuarlo.",
         "chooseClaudeAccount": "Elija o agregue una en la configuración de Cuentas de Claude.",
         "chooseClaudeAccountThenRunCommand": "Elija o agregue una en la configuración de Cuentas de Claude y vuelva a ejecutar /{{command}}.",

@@ -63,6 +63,8 @@ export const AGENT_SESSION_FAILURE_COPY = {
     'This {{agent}} launch uses a different home folder or sign-in storage than its selected account. Remove that override, then try again.',
   managedAccountUnsupportedAgent:
     '{{agent}} cannot run this chat with the account selected on this computer. Choose an account that runs here, then try again.',
+  managedAccountUnsupportedAntigravity:
+    "Orca could not verify {{agent}}'s credential storage on this computer. Check {{agent}} in a terminal there, then try again.",
   historyInOtherAccountAgent:
     "This chat's history is in another {{agent}} account. Switch back to that account to continue it.",
   antigravityCliVersionUnsupported:

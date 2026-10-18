@@ -374,6 +374,17 @@ describe('agent-aware managed-account and agent CLI words', () => {
     }
   })
 
+  it('words an Antigravity credential-storage refusal as unverified storage, not an account choice', () => {
+    expect(
+      agentSessionFailureWords(
+        { kind: 'managedAccountUnsupported' },
+        { surface: 'row', agentName: 'Antigravity' }
+      ).text
+    ).toBe(
+      "Orca could not verify Antigravity's credential storage on this computer. Check Antigravity in a terminal there, then try again."
+    )
+  })
+
   it('names the agent and the required stable CLI version when it cannot run', () => {
     expect(
       agentSessionFailureWords(
