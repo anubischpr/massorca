@@ -161,19 +161,71 @@ async function setup() {
   }
 }
 
+async function installGentleShellStub(): Promise<string> {
+  const command = join(root, process.platform === 'win32' ? 'gentle-shell.cmd' : 'gentle-shell')
+  await writeFile(
+    command,
+    process.platform === 'win32'
+      ? '@echo off\r\necho gentle-shell version 4.1.0\r\necho pi version 1.1.0\r\n'
+      : '#!/bin/sh\necho gentle-shell version 4.1.0\necho pi version 1.1.0\n'
+  )
+  if (process.platform !== 'win32') {
+    await chmod(command, 0o755)
+  }
+  return command
+}
+
 describe('Pi host launch resolution', () => {
+  it.each([
+    [undefined, false, 'normal'],
+    ['inherit', true, 'yolo'],
+    ['inherit', false, 'normal'],
+    ['default', true, 'normal'],
+    ['auto', false, 'auto'],
+    ['full-access', false, 'yolo']
+  ] as const)(
+    'resolves Gentle Shell access %s (inherited full access %s) to its %s mode, never refusing the launch',
+    async (accessMode, inherited, mode) => {
+      const h = await setup()
+      await installGentleShellStub()
+      h.resolveEnvironment.mockResolvedValue({
+        PATH: root,
+        HOME: '/host/home',
+        PI_CODING_AGENT_DIR: '/inherited/wrong'
+      })
+      vi.spyOn(h.store, 'getRecord').mockReturnValue({
+        ...h.record,
+        options: { piRuntime: 'gentle-shell', ...(accessMode ? { accessMode } : {}) }
+      })
+      const resolver = createPiRpcLaunchResolver({
+        store: h.store,
+        resolveWorkspacePath: async () => h.workspace,
+        resolveEnvironment: h.resolveEnvironment,
+        resolveCommandSettings: () => h.settings,
+        resolveFullAccess: () => inherited
+      })
+      await expect(resolver(identity)).resolves.toMatchObject({
+        fullAccess: true,
+        gentleMode: mode
+      })
+    }
+  )
+
+  it('gives stock Pi no Gentle Shell mode and leaves a preset it does not have restricted', async () => {
+    const h = await setup()
+    vi.spyOn(h.store, 'getRecord').mockReturnValue({ ...h.record, options: { accessMode: 'auto' } })
+    // The launch builder refuses a restricted stock Pi, so the preset never widens to full access.
+    await expect(h.resolver(identity)).resolves.toMatchObject({ fullAccess: false })
+    vi.spyOn(h.store, 'getRecord').mockReturnValue({
+      ...h.record,
+      options: { accessMode: 'full-access' }
+    })
+    expect((await h.resolver(identity)).gentleMode).toBeUndefined()
+  })
+
   it('retains the session runtime and account home when the host preference changes', async () => {
     const h = await setup()
-    const command = join(root, process.platform === 'win32' ? 'gentle-shell.cmd' : 'gentle-shell')
-    await writeFile(
-      command,
-      process.platform === 'win32'
-        ? '@echo off\r\necho gentle-shell version 4.1.0\r\necho pi version 1.1.0\r\n'
-        : '#!/bin/sh\necho gentle-shell version 4.1.0\necho pi version 1.1.0\n'
-    )
-    if (process.platform !== 'win32') {
-      await chmod(command, 0o755)
-    }
+    const command = await installGentleShellStub()
     h.resolveEnvironment.mockResolvedValue({
       PATH: root,
       HOME: '/host/home',

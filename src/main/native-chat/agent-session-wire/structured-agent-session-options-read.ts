@@ -12,12 +12,19 @@ import {
 } from '../../../shared/agent-session-wire'
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
 import { decodeStructuredAgentSessionOptionValue } from '../../../shared/structured-agent-session-option-codec'
-import { supportsAgentSessionAccessMode } from '../../../shared/agent-session-access-mode'
+import {
+  agentSessionDeclaredAccess,
+  supportsAgentSessionAccessMode,
+  type AgentSessionExplicitAccess
+} from '../../../shared/agent-session-access-mode'
 import type { AgentSessionRecordStore } from '../../runtime/agent-session-record-store'
 import { journalOpenReadRefusal } from '../agent-session-journal/journal-open-failure'
 import type { StructuredAgentDefinition } from './structured-agent-definition'
 import type { StructuredAgentRegistry } from './structured-agent-registry'
-import type { StructuredAgentSessionLiveOptions } from './structured-agent-session-adapter'
+import type {
+  StructuredAgentSessionAdapter,
+  StructuredAgentSessionLiveOptions
+} from './structured-agent-session-adapter'
 import type { StructuredAgentSessionHostDeps } from './structured-agent-session-host-types'
 import { structuredAgentSessionOptionModels } from './structured-agent-session-option-models'
 import type { AgentSessionTurnContext, TurnOutcome } from './structured-agent-session-turns'
@@ -77,6 +84,27 @@ async function readStructuredAgentSessionOptionsAtRest(
   }
 }
 
+/** The modes a running child may switch to now: what its adapter can apply, within what the agent
+ *  declares for this session's runtime. Empty for a session at rest. */
+export function liveStructuredAgentSessionAccessModes(
+  deps: {
+    store: Pick<AgentSessionRecordStore, 'getRecord'>
+    agents: Pick<StructuredAgentRegistry, 'definition'>
+    adapter: Pick<StructuredAgentSessionAdapter, 'liveAccessModes'>
+  },
+  sessionId: string
+): readonly AgentSessionExplicitAccess[] {
+  const record = deps.store.getRecord(sessionId)
+  const declared = record
+    ? agentSessionDeclaredAccess(
+        deps.agents.definition(record.provider)?.capabilities,
+        record.options?.piRuntime
+      )
+    : undefined
+  const live = deps.adapter.liveAccessModes?.(sessionId) ?? []
+  return declared ? live.filter((mode) => declared.explicit.includes(mode)) : []
+}
+
 /** Records a pick for the next start. Only a key the provider would accept is kept. */
 export async function recordStructuredAgentSessionOptionIntent(
   deps: {
@@ -87,13 +115,16 @@ export async function recordStructuredAgentSessionOptionIntent(
   input: { key: string; value: string }
 ): Promise<TurnOutcome<AgentSessionOptionResult>> {
   const record = deps.store.getRecord(ctx.sessionId)
-  const accessModes = record
-    ? deps.agents.definition(record.provider)?.capabilities.supportedAccessModes
+  const declared = record
+    ? agentSessionDeclaredAccess(
+        deps.agents.definition(record.provider)?.capabilities,
+        record.options?.piRuntime
+      )
     : undefined
   const acceptsAccessMode =
     input.key === 'accessMode' &&
-    accessModes !== undefined &&
-    supportsAgentSessionAccessMode(input.value, accessModes)
+    declared !== undefined &&
+    supportsAgentSessionAccessMode(input.value, declared.explicit)
   if (
     !record ||
     !(input.key === 'accessMode'
@@ -171,20 +202,31 @@ export async function readStructuredAgentSessionOptions(
   const phase = store.getRecord(sessionId)?.rewind?.phase
   const agent = session.params.provider
   const record = store.getRecord(sessionId)
-  const accessModes = agents.definition(agent)?.capabilities.supportedAccessModes
+  const declaredAccess = agentSessionDeclaredAccess(
+    agents.definition(agent)?.capabilities,
+    record?.options?.piRuntime
+  )
+  const liveAccessModes = liveStructuredAgentSessionAccessModes(context.deps, sessionId)
   const capabilities = agents.capabilities(agent)
   const floor = session.journal.context.floor()
   const contextFloor = floor ? { contextFloor: floor } : {}
   return {
     ...options,
-    ...(accessModes
+    ...(declaredAccess
       ? {
-          accessModeSupport: { modes: accessModes, settable: !session.child },
+          accessModeSupport: {
+            modes: declaredAccess.modes,
+            // Absent when the agent declares none; a client that predates presets ignores it.
+            ...(declaredAccess.presets.length > 0 ? { presets: declaredAccess.presets } : {}),
+            settable: !session.child,
+            // `settable` keeps its meaning for older clients; a newer one adds what may change live.
+            ...(session.child && liveAccessModes.length > 0 ? { liveModes: liveAccessModes } : {})
+          },
           current: {
             ...options.current,
             accessMode:
               record?.options?.accessMode &&
-              supportsAgentSessionAccessMode(record.options.accessMode, accessModes)
+              supportsAgentSessionAccessMode(record.options.accessMode, declaredAccess.explicit)
                 ? record.options.accessMode
                 : 'inherit'
           }

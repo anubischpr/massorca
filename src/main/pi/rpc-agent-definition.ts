@@ -12,7 +12,9 @@ export const PI_RPC_AGENT: DirectoryAccountAgentDefinition = {
     imagePrompts: true,
     steering: 'inject',
     approvalEnforcement: 'provider',
-    supportedAccessModes: ['full-access']
+    supportedAccessModes: ['full-access'],
+    // Gentle Shell keeps its own permission modes (`/gentle:mode`, `/gentle:yolo`); stock Pi has none.
+    runtimeAccess: { 'gentle-shell': { modes: ['default', 'full-access'], presets: ['auto'] } }
   },
   restingOptions: {
     acceptsKey: (key) => key === 'model' || key === 'effort',

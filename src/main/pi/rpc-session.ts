@@ -19,6 +19,7 @@ import { PiRpcTurns } from './rpc-turns'
 import { PiRpcDialogCallbacks } from './rpc-dialog-callbacks'
 import { piRpcStateSchema } from './rpc-protocol'
 import { applyPiRpcSessionOption, readPiRpcCommands, readPiRpcSessionOptions } from './rpc-options'
+import { GentleShellModeControl, type GentleShellMode } from './gentle-shell-permission-mode'
 
 export type PiRpcConnection = Pick<
   JsonlRpcAgentConnection,
@@ -56,6 +57,7 @@ export class PiRpcSession {
   readonly lane: JsonlRpcTimelineLane
   readonly turns: PiRpcTurns
   readonly dialogs: PiRpcDialogCallbacks
+  readonly gentle: GentleShellModeControl
   readonly selected = new Map<string, string>()
   readonly skipped: string[] = []
   commands?: AgentSessionSlashCommand[]
@@ -137,12 +139,30 @@ export class PiRpcSession {
           .finally(() => this.releaseAfterExit?.())
       }
     })
+    this.gentle = new GentleShellModeControl({
+      enabled: input.options?.piRuntime === 'gentle-shell',
+      rpc: this.connection,
+      commands: () => this.commands,
+      busy: () => this.turns.working || this.turns.holdsDispatch,
+      warn: (message, fields) =>
+        deps.logger.warn(message, {
+          scope: 'pi-gentle-mode',
+          sessionId: input.identity.sessionId,
+          ...fields
+        }),
+      notice: (text) => this.lane.apply([{ type: 'activity', text }])
+    })
   }
 
-  async start(): Promise<string> {
+  async start(gentleMode?: GentleShellMode): Promise<string> {
     const state = piRpcStateSchema.parse(await this.connection.request('get_state'))
     this.lane.apply(this.turns.context.setModel(state.model ?? undefined, Date.now()))
     for (const [key, value] of Object.entries(this.input.options ?? {})) {
+      // Orca's own launch selections: the child never takes them as options, and a record that
+      // dropped them would restart the chat as another runtime or access.
+      if (key === 'accessMode' || key === 'piRuntime') {
+        continue
+      }
       if (!['model', 'effort'].includes(key)) {
         this.skipped.push(key)
         continue
@@ -168,6 +188,9 @@ export class PiRpcSession {
         sessionId: this.input.identity.sessionId,
         error
       })
+    }
+    if (gentleMode && !(await this.gentle.applyAtStart(gentleMode))) {
+      this.skipped.push('accessMode')
     }
     return state.sessionFile
   }

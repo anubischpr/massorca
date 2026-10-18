@@ -4,7 +4,10 @@ import type { AgentSessionOptionsResult } from '../../../../shared/agent-session
 import type { AgentSessionRewindSupport } from '../../../../shared/agent-session-rewind'
 import type { AgentType } from '../../../../shared/agent-status-types'
 import type { AgentSessionOptionCatalog } from '../../../../shared/agent-session-option-catalog'
-import type { AgentSessionAccessMode } from '../../../../shared/agent-session-access-mode'
+import type {
+  AgentSessionAccessMode,
+  AgentSessionPermissionPreset
+} from '../../../../shared/agent-session-access-mode'
 import { structuredAgentSessionSeedCatalog } from '../../../../shared/structured-agent-session-seed-catalog'
 import {
   applyStructuredAgentSessionModelCatalog,
@@ -15,6 +18,8 @@ import {
 import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
 import { callStructuredAgentSession } from '@/runtime/structured-agent-session-client'
 import { readHostModelCatalogSnapshot } from '@/runtime/host-model-catalog-snapshots'
+import { structuredAgentInheritedAccess } from '@/lib/structured-agent-inherited-access'
+import { useAppStore } from '@/store'
 import {
   createCoalescedPollRunner,
   type CoalescedPollRunner
@@ -26,10 +31,16 @@ function firstFrameOptionState(
   agent: AgentType,
   target: RuntimeClientTarget,
   launch: { newLaunch: boolean; worktree?: string; seedsModel: boolean },
-  accessModes?: readonly AgentSessionAccessMode[]
+  accessModes?: readonly AgentSessionAccessMode[],
+  permissionPresets?: readonly AgentSessionPermissionPreset[]
 ): StructuredAgentSessionOptionState {
   const seed = structuredAgentSessionSeedCatalog(agent)
-  const seeded = createStructuredAgentSessionOptionState(agent, seed, accessModes)
+  const seeded = createStructuredAgentSessionOptionState(
+    agent,
+    seed,
+    accessModes,
+    permissionPresets
+  )
   const snapshot = readHostModelCatalogSnapshot(target, agent, launch)
   return snapshot ? applyStructuredAgentSessionModelCatalog(seeded, seed, snapshot, launch) : seeded
 }
@@ -51,6 +62,7 @@ export function useStructuredAgentSessionOptionState(args: {
   providerStarting: boolean
   readsBeforeStart: boolean
   accessModes?: readonly AgentSessionAccessMode[]
+  permissionPresets?: readonly AgentSessionPermissionPreset[]
   turnId: string | null
   unloadedTurnRevisions: number | undefined
 }) {
@@ -68,7 +80,8 @@ export function useStructuredAgentSessionOptionState(args: {
     target,
     turnId,
     worktree,
-    accessModes
+    accessModes,
+    permissionPresets
   } = args
   const [conversationSupport, setConversationSupport] = useState<{
     sessionId: string
@@ -94,14 +107,29 @@ export function useStructuredAgentSessionOptionState(args: {
         seedsModel,
         ...(worktree ? { worktree } : {})
       },
-      accessModes
+      accessModes,
+      permissionPresets
     )
   )
   // Read only when a fence or session resets the state, so a new target alone resets nothing.
-  const firstFrameLaunch = useRef({ target, newLaunch, worktree, seedsModel, accessModes })
+  const firstFrameLaunch = useRef({
+    target,
+    newLaunch,
+    worktree,
+    seedsModel,
+    accessModes,
+    permissionPresets
+  })
   useEffect(() => {
-    firstFrameLaunch.current = { target, newLaunch, worktree, seedsModel, accessModes }
-  }, [accessModes, newLaunch, seedsModel, target, worktree])
+    firstFrameLaunch.current = {
+      target,
+      newLaunch,
+      worktree,
+      seedsModel,
+      accessModes,
+      permissionPresets
+    }
+  }, [accessModes, newLaunch, permissionPresets, seedsModel, target, worktree])
   const optionStateRef = useRef(optionState)
   const activeOptionRecordRef = useRef(optionState.record)
   const pendingOptionRef = useRef<string | null>(null)
@@ -114,15 +142,26 @@ export function useStructuredAgentSessionOptionState(args: {
     },
     []
   )
+  const settings = useAppStore((state) => state.settings)
+  const inheritedAccess = structuredAgentInheritedAccess(agent, target, settings)
   useEffect(() => {
     if (accessModes !== undefined) {
       updateOptionState((current) => ({
         ...current,
-        accessModes,
-        accessModeSettable: current.accessModeSettable || current.catalogSource !== 'live'
+        // A live read's answer is the host's own, per runtime; the capability only seeds the first frames.
+        accessModes:
+          current.catalogSource === 'live' && current.accessModes
+            ? current.accessModes
+            : accessModes,
+        permissionPresets:
+          current.catalogSource === 'live' && current.accessModes
+            ? current.permissionPresets
+            : permissionPresets,
+        accessModeSettable: current.accessModeSettable || current.catalogSource !== 'live',
+        inheritedAccess
       }))
     }
-  }, [accessModes, updateOptionState])
+  }, [accessModes, inheritedAccess, permissionPresets, updateOptionState])
   const optionIdentityRef = useRef(identity)
   useEffect(() => {
     const previous = optionStateRef.current
@@ -137,7 +176,8 @@ export function useStructuredAgentSessionOptionState(args: {
         seedsModel: launch.seedsModel,
         ...(launch.worktree ? { worktree: launch.worktree } : {})
       },
-      launch.accessModes
+      launch.accessModes,
+      launch.permissionPresets
     )
     // A host answer is the account's, not the fence's: keep it rather than blank the default.
     const next =

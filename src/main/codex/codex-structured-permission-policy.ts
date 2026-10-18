@@ -4,6 +4,8 @@ import { resolvedTuiAgentArgsBypassPermissions } from '../../shared/tui-agent-la
 export type CodexStructuredPermissionPolicy =
   | { approvalPolicy: 'never'; sandbox: 'danger-full-access' }
   | { approvalPolicy: 'on-request'; sandbox: 'workspace-write' }
+  | { approvalPolicy: 'on-request'; sandbox: 'workspace-write'; approvalsReviewer: 'auto_review' }
+  | { approvalPolicy: 'on-request'; sandbox: 'read-only' }
 
 /** Yolo: no approval prompts, no sandbox. */
 const BYPASS_POLICY = { approvalPolicy: 'never', sandbox: 'danger-full-access' } as const
@@ -25,6 +27,16 @@ const BYPASS_POLICY = { approvalPolicy: 'never', sandbox: 'danger-full-access' }
  * need an approval it did not need before. This still resets Yolo's `danger-full-access`.
  */
 const MANUAL_POLICY = { approvalPolicy: 'on-request', sandbox: 'workspace-write' } as const
+
+/** Auto ("Approve for me"): requests are routed to Codex's automatic reviewer instead of the user. */
+const AUTO_REVIEW_POLICY = {
+  approvalPolicy: 'on-request',
+  sandbox: 'workspace-write',
+  approvalsReviewer: 'auto_review'
+} as const
+
+/** Read only: nothing is written, and any request still asks. */
+const READ_ONLY_POLICY = { approvalPolicy: 'on-request', sandbox: 'read-only' } as const
 
 /**
  * The Agent Permissions setting as app-server thread policy.
@@ -61,6 +73,10 @@ export function codexStructuredPermissionPolicyForSession(
       return MANUAL_POLICY
     case 'full-access':
       return BYPASS_POLICY
+    case 'auto':
+      return AUTO_REVIEW_POLICY
+    case 'read-only':
+      return READ_ONLY_POLICY
     default:
       throw new Error('agent session access mode is invalid')
   }

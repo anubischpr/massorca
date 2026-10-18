@@ -23,11 +23,14 @@ import type { AgentSessionRecordStore } from '../runtime/agent-session-record-st
 import { isWindowsProcessStartTimeAvailable } from '../windows/windows-process-table'
 import type { PiRpcLaunchOptions } from './rpc-launch'
 import { resolveAgentSessionFullAccess } from '../../shared/agent-session-access-mode'
+import { gentleShellModeForAccess, type GentleShellMode } from './gentle-shell-permission-mode'
 import { isPiRuntimeSelection, piRuntimeCommandSettings } from '../../shared/pi-runtime-selection'
 
 export type PiRpcResolvedLaunch = PiRpcLaunchOptions & {
   previous: AgentSessionProviderHandleLink | null
   replacement?: 'unsaved' | 'restore-failed'
+  /** Set only for Gentle Shell: the permission mode applied once the child is up. */
+  gentleMode?: GentleShellMode
 }
 export type PiRpcLaunchResolverDeps = {
   store: AgentSessionRecordStore
@@ -252,10 +255,22 @@ export function createPiRpcLaunchResolver(
       command,
       cwd,
       env,
-      fullAccess: resolveAgentSessionFullAccess(
-        record.options?.accessMode,
-        deps.resolveFullAccess?.() ?? true
-      ),
+      // Why: Gentle Shell's posture is a mode command sent after start, never a launch flag, so
+      // its launch is always allowed; stock Pi has no restricted mode and keeps the full-access rule.
+      fullAccess:
+        selection === 'gentle-shell' ||
+        resolveAgentSessionFullAccess(
+          record.options?.accessMode,
+          deps.resolveFullAccess?.() ?? true
+        ),
+      ...(selection === 'gentle-shell'
+        ? {
+            gentleMode: gentleShellModeForAccess(
+              record.options?.accessMode,
+              deps.resolveFullAccess?.() ?? false
+            )
+          }
+        : {}),
       previous,
       ...(sessionFile ? { sessionFile } : {}),
       ...(forkFile ? { forkFile } : {}),

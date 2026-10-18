@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { OMP_SESSION_OPTION_CATALOG } from '../../../../shared/agent-session-option-catalog-omp'
 import {
   applyStructuredAgentSessionOptions,
+  commitStructuredAgentSessionOption,
   createStructuredAgentSessionOptionState,
   structuredAgentSessionOptionSnapshot
 } from '../../../../shared/structured-agent-session-options'
@@ -267,9 +268,75 @@ describe('NativeChatSessionOptionPickers', () => {
     )
     expect(screen.getByText('Access')).toBeTruthy()
     expect(screen.getAllByText('Inherit global setting').length).toBeGreaterThan(0)
-    expect(screen.getByText('Provider default')).toBeTruthy()
+    expect(screen.getByText('Ask for approval')).toBeTruthy()
     expect(screen.getByText('Full access')).toBeTruthy()
+    // An older host declares no presets, so only the two legacy modes are offered.
+    expect(screen.queryByText('Auto')).toBeNull()
+    expect(screen.queryByText('Plan')).toBeNull()
   })
+
+  it('offers each declared preset under its shared label and colours Auto as the success', () => {
+    const snapshot = structuredAgentSessionOptionSnapshot(
+      commitStructuredAgentSessionOption(
+        createStructuredAgentSessionOptionState(
+          'claude',
+          null,
+          ['default', 'full-access'],
+          ['auto', 'accept-edits', 'plan']
+        ),
+        'accessMode',
+        'auto'
+      )
+    )
+    render(
+      <NativeChatSessionOptionPickers surface={surface} snapshot={snapshot} isWorking={false} />
+    )
+    for (const label of ['Ask for approval', 'Accept edits', 'Plan', 'Full access']) {
+      expect(screen.getAllByText(label).length).toBeGreaterThan(0)
+    }
+    expect(screen.queryByText('Read only')).toBeNull()
+    const trigger = screen.getByRole('button', { name: 'Access Auto' })
+    expect(trigger.querySelector('.text-status-success')).not.toBeNull()
+    expect(trigger.querySelector('.text-status-warning')).toBeNull()
+  })
+  it('keeps a running child to the modes it can switch to and explains the rest', () => {
+    const running = applyStructuredAgentSessionOptions(
+      createStructuredAgentSessionOptionState(
+        'claude',
+        null,
+        ['default', 'full-access'],
+        ['auto', 'plan']
+      ),
+      OMP_SESSION_OPTION_CATALOG,
+      {
+        models: [],
+        current: {},
+        accessModeSupport: {
+          modes: ['default', 'full-access'],
+          presets: ['auto', 'plan'],
+          settable: false,
+          liveModes: ['default', 'auto', 'plan']
+        }
+      }
+    )
+    render(
+      <NativeChatSessionOptionPickers
+        surface={surface}
+        snapshot={structuredAgentSessionOptionSnapshot(running)}
+        isWorking={false}
+      />
+    )
+    const disabled = (name: string) =>
+      screen
+        .getAllByRole('radio')
+        .find((radio) => radio.textContent?.includes(name))
+        ?.hasAttribute('disabled')
+    expect(disabled('Plan')).toBe(false)
+    expect(disabled('Full access')).toBe(true)
+    expect(disabled('Inherit global setting')).toBe(true)
+    expect(screen.getByText('Dimmed modes can only be set when the session starts.')).toBeTruthy()
+  })
+
   it('opens the native picker requested by a structured slash command', async () => {
     const { rerender } = render(
       <NativeChatSessionOptionPickers

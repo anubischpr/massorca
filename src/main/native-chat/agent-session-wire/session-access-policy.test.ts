@@ -37,6 +37,35 @@ describe('session access policy', () => {
     )
   })
 
+  it.each([true, false])(
+    'never reads a preset as full access, whatever is inherited (%s)',
+    (global) => {
+      for (const preset of ['auto', 'accept-edits', 'plan', 'read-only']) {
+        expect(resolveAgentSessionFullAccess(preset, global)).toBe(false)
+        expect(supportsAgentSessionAccessMode(preset, ['default', 'full-access'])).toBe(false)
+        expect(supportsAgentSessionAccessMode(preset, ['default', 'full-access', 'auto'])).toBe(
+          preset === 'auto'
+        )
+      }
+    }
+  )
+
+  it('maps Codex Auto to the automatic reviewer and Read only to the read-only sandbox', () => {
+    const inherited = { approvalPolicy: 'never', sandbox: 'danger-full-access' } as const
+    expect(codexStructuredPermissionPolicyForSession('auto', inherited)).toEqual({
+      approvalPolicy: 'on-request',
+      sandbox: 'workspace-write',
+      approvalsReviewer: 'auto_review'
+    })
+    expect(codexStructuredPermissionPolicyForSession('read-only', inherited)).toEqual({
+      approvalPolicy: 'on-request',
+      sandbox: 'read-only'
+    })
+    expect(() => codexStructuredPermissionPolicyForSession('plan', inherited)).toThrow(
+      'access mode is invalid'
+    )
+  })
+
   it('seeds session access without adopting a global per-model access value', () => {
     const settings = {
       codex: {
