@@ -2,6 +2,8 @@ import { useCallback, useMemo, useState } from 'react'
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
 import { launchSleepingAgentSession } from '@/lib/sleeping-agent-session-launch'
+import { useStructuredAgentSessionLaunchSelection } from '@/lib/structured-agent-session-launch-options'
+import { structuredChatPiRuntime } from './structured-agent-declared-access'
 import type { AgentSessionContinuationRequest } from '@/lib/agent-session-continuation'
 import type { AgentJournalItemBody } from '../../../../shared/agent-session-journal-types'
 import { closeStructuredAgentSession } from '../../runtime/structured-agent-session-close'
@@ -55,6 +57,10 @@ export function useStructuredChatPaneActions(args: {
     journalItems,
     reportNotice
   } = args
+  // Why: the launch's seed carries a Pi chat's runtime while the launch lives; a reopened chat falls back to the Pi command setting.
+  const launchSeedOptions = useStructuredAgentSessionLaunchSelection(sessionId)?.seed
+  const piCommand = useAppStore((state) => state.settings?.agentCmdOverrides?.pi)
+  const piRuntime = structuredChatPiRuntime({ agent, launchSeedOptions, piCommand })
   const providerSession = useAppStore(
     (state) => state.agentStatusByPaneKey[paneKey]?.providerSession
   )
@@ -77,6 +83,7 @@ export function useStructuredChatPaneActions(args: {
           paneKey,
           target,
           agent,
+          piRuntime,
           providerSession,
           workspacePath,
           capturedText,
@@ -120,6 +127,7 @@ export function useStructuredChatPaneActions(args: {
       lastAssistantMessage,
       lastPrompt,
       paneKey,
+      piRuntime,
       providerSession,
       reportNotice,
       sessionId,

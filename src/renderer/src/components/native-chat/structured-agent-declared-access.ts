@@ -1,5 +1,9 @@
 import { agentSessionDeclaredAccess } from '../../../../shared/agent-session-access-mode'
-import { isPiRuntimeSelection, selectedPiRuntime } from '../../../../shared/pi-runtime-selection'
+import {
+  isPiRuntimeSelection,
+  selectedPiRuntime,
+  type PiRuntimeSelection
+} from '../../../../shared/pi-runtime-selection'
 import type { SessionOptionDescriptor } from '../../../../shared/native-chat-session-options'
 import { lockStructuredAgentSessionAccessOptions } from '../../../../shared/structured-agent-session-access-option'
 import type { StructuredAgentSessionOptionState } from '../../../../shared/structured-agent-session-options'
@@ -27,6 +31,20 @@ export function useStructuredAgentDeclaredAccess(args: {
           ? selectedPiRuntime(piCommand)
           : undefined
   return agentSessionDeclaredAccess(registeredAgent?.capabilities, piRuntime)
+}
+
+/** The Pi runtime a structured chat runs on: its launch seed, else the Pi command the settings name
+ *  (the same rule host admission applies to a new Pi chat). Undefined for every other agent. */
+export function structuredChatPiRuntime(args: {
+  agent: string
+  launchSeedOptions: Readonly<Record<string, string>> | undefined
+  piCommand: string | undefined
+}): PiRuntimeSelection | undefined {
+  if (args.agent !== 'pi') {
+    return undefined
+  }
+  const seeded = args.launchSeedOptions?.piRuntime
+  return isPiRuntimeSelection(seeded) ? seeded : selectedPiRuntime(args.piCommand)
 }
 
 type ProviderPhase = { providerStarting?: boolean; providerRunning?: boolean }

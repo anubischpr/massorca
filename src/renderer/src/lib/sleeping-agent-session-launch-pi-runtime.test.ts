@@ -1,0 +1,100 @@
+// The terminal view's resume must launch the chat's own Pi runtime command (Gentle Shell or stock pi).
+
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { SleepingAgentSessionRecord } from '../../../shared/agent-session-resume'
+
+const mockCreateTab = vi.fn()
+
+const store = {
+  settings: {
+    agentCmdOverrides: {} as Record<string, string>,
+    agentDefaultArgs: {} as Record<string, string>,
+    agentDefaultEnv: {} as Record<string, Record<string, string>>,
+    activeRuntimeEnvironmentId: null as string | null,
+    terminalWindowsShell: undefined as string | undefined
+  },
+  repos: [{ id: 'repo-1', connectionId: null as string | null, path: '/home/neil/repo' }],
+  worktreesByRepo: {
+    'repo-1': [{ id: 'wt-1', repoId: 'repo-1', path: '/home/neil/repo/feature', displayName: 'f' }]
+  } as Record<string, { id: string; repoId: string; path: string; displayName: string }[]>,
+  getKnownWorktreeById: (id: string) =>
+    Object.values(store.worktreesByRepo)
+      .flat()
+      .find((worktree) => worktree.id === id),
+  tabsByWorktree: { 'wt-1': [{ id: 'tab-1' }] },
+  openFiles: [] as { id: string; worktreeId: string }[],
+  browserTabsByWorktree: {} as Record<string, { id: string }[]>,
+  tabBarOrderByWorktree: {} as Record<string, string[]>,
+  createTab: mockCreateTab,
+  claimAutomaticAgentResume: vi.fn(),
+  clearSleepingAgentSession: vi.fn(),
+  setActiveTabType: vi.fn(),
+  setTabBarOrder: vi.fn()
+}
+
+vi.mock('@/store', () => ({ useAppStore: { getState: () => store } }))
+vi.mock('@/lib/new-workspace', () => ({ CLIENT_PLATFORM: 'linux' }))
+vi.mock('sonner', () => ({ toast: { message: vi.fn(), error: vi.fn() } }))
+vi.mock('@/lib/telemetry', () => ({
+  track: vi.fn(),
+  tuiAgentToAgentKind: (agent: string) => agent
+}))
+vi.mock('@/components/tab-bar/reconcile-order', () => ({
+  reconcileTabOrder: vi.fn((_stored, termIds: string[]) => [...termIds])
+}))
+
+const TRANSCRIPT = '/home/neil/.pi/agent/sessions/session-1.jsonl'
+
+const record: SleepingAgentSessionRecord = {
+  paneKey: 'tab-1::leaf-1',
+  tabId: 'tab-1',
+  worktreeId: 'wt-1',
+  agent: 'pi',
+  providerSession: { key: 'session_id', id: 'session-1', transcriptPath: TRANSCRIPT },
+  prompt: '',
+  state: 'done',
+  capturedAt: 1,
+  updatedAt: 1
+}
+
+async function launchedCommand(sessionRecord: SleepingAgentSessionRecord): Promise<string> {
+  const { launchSleepingAgentSession } = await import('./sleeping-agent-session-launch')
+  expect(launchSleepingAgentSession(sessionRecord)).toBe(true)
+  const options = mockCreateTab.mock.calls.at(-1)?.[3] as
+    | { pendingStartup?: { command: string } }
+    | undefined
+  return options?.pendingStartup?.command ?? ''
+}
+
+describe('launchSleepingAgentSession for Pi runtimes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    store.settings = {
+      agentCmdOverrides: {},
+      agentDefaultArgs: {},
+      agentDefaultEnv: {},
+      activeRuntimeEnvironmentId: null,
+      terminalWindowsShell: undefined
+    }
+    mockCreateTab.mockReturnValue({ id: 'tab-2' })
+  })
+
+  it('resumes a stock pi chat through pi', async () => {
+    expect(await launchedCommand({ ...record, piRuntime: 'pi' })).toBe(
+      `pi '--session' '${TRANSCRIPT}'`
+    )
+  })
+
+  it('resumes a Gentle Shell chat through gentle-shell with pi args after --', async () => {
+    expect(await launchedCommand({ ...record, piRuntime: 'gentle-shell' })).toBe(
+      `gentle-shell '--' '--session' '${TRANSCRIPT}'`
+    )
+  })
+
+  it('resumes a Gentle Shell chat through the configured Gentle Shell command', async () => {
+    store.settings.agentCmdOverrides = { pi: '/opt/gentle/gentle-shell' }
+    expect(await launchedCommand({ ...record, piRuntime: 'gentle-shell' })).toBe(
+      `/opt/gentle/gentle-shell '--' '--session' '${TRANSCRIPT}'`
+    )
+  })
+})

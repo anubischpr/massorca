@@ -6,6 +6,7 @@ import {
   type SleepingAgentSessionRecord
 } from '../../../../shared/agent-session-resume'
 import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
+import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 
 export type StructuredChatTerminalViewBlock = 'no-worktree' | 'agent' | 'no-provider-session'
 
@@ -39,6 +40,8 @@ export type ShowStructuredChatInTerminalArgs = {
   sessionId: string
   agent: ResumableTuiAgent
   providerSession: AgentProviderSessionMetadata
+  /** Pi-only: the chat's runtime, so the terminal resumes the same command. */
+  piRuntime?: PiRuntimeSelection
 }
 
 export type ShowStructuredChatInTerminalDeps = {
@@ -81,6 +84,7 @@ export async function showStructuredChatInTerminal(
     worktreeId: args.worktreeId,
     agent: args.agent,
     providerSession: args.providerSession,
+    ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
     prompt: '',
     state: 'done',
     capturedAt: now,

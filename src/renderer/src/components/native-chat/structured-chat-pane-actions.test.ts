@@ -80,6 +80,37 @@ describe('createStructuredChatPaneActions', () => {
     expect(d.closeTab).not.toHaveBeenCalled()
   })
 
+  it('resumes a Gentle Shell chat in the terminal with its runtime', async () => {
+    const d = deps()
+    const actions = createStructuredChatPaneActions(
+      input({
+        agent: 'pi',
+        piRuntime: 'gentle-shell',
+        providerSession: { key: 'session_id', id: 'provider-1', transcriptPath: '/t/s.jsonl' }
+      }),
+      d
+    )
+    await expect(actions.showTerminal()).resolves.toBe(true)
+    expect(d.launchResume).toHaveBeenCalledWith(
+      expect.objectContaining({ agent: 'pi', piRuntime: 'gentle-shell' })
+    )
+  })
+
+  it('omits the runtime from the terminal resume of a Pi chat without one', async () => {
+    const d = deps()
+    const actions = createStructuredChatPaneActions(
+      input({
+        agent: 'pi',
+        providerSession: { key: 'session_id', id: 'provider-1', transcriptPath: '/t/s.jsonl' }
+      }),
+      d
+    )
+    await expect(actions.showTerminal()).resolves.toBe(true)
+    const record = vi.mocked(d.launchResume).mock.calls[0]?.[0]
+    expect(record).toBeDefined()
+    expect(record).not.toHaveProperty('piRuntime')
+  })
+
   it('releases the provider child before launching the terminal resume, then closes the chat tab', async () => {
     const calls: string[] = []
     const d = deps({}, calls)

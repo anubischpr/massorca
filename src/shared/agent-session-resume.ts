@@ -1,6 +1,7 @@
 import type { AgentHookSource } from './agent-hook-relay'
 import type { AgentStatusState } from './agent-status-types'
 import type { AgentMainAgentStatus } from './main-agent-status'
+import type { PiRuntimeSelection } from './pi-runtime-selection'
 import type { TuiAgent } from './tui-agent'
 
 export const RESUMABLE_TUI_AGENTS = [
@@ -71,6 +72,8 @@ export type SleepingAgentSessionRecord = {
   mainAgent?: AgentMainAgentStatus
   connectionId?: string | null
   launchConfig?: SleepingAgentLaunchConfig
+  /** Pi-only: which Pi-protocol runtime the chat ran on, so its resume launches that command. */
+  piRuntime?: PiRuntimeSelection
   /** How the record was captured. Worktree-sleep records (legacy records have
    *  no origin) are consumed by worktree activation, which opens a fresh tab.
    *  Quit/live records describe panes that still exist in the restored session,
