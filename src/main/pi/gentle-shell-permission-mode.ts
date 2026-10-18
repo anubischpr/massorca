@@ -117,9 +117,7 @@ export class GentleShellModeControl {
       return true
     } catch (error) {
       this.host.warn('Gentle Shell mode could not be applied', { mode, error })
-      this.host.notice(
-        'Gentle Shell kept its previous permission mode: the selected mode could not be applied.'
-      )
+      this.host.notice('Gentle Shell could not apply the selected permission mode.')
       return false
     }
   }

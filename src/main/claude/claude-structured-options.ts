@@ -31,12 +31,23 @@ const CONTEXT_WINDOW_KEYS: ReadonlySet<string> = new Set(['model', 'permissionMo
 export function restoredClaudeStructuredSessionOptions(
   options: Readonly<Record<string, string>> | undefined
 ): Map<string, string> {
-  return new Map(
+  const restored = new Map(
     OPTION_ORDER.flatMap((key) => {
       const value = options?.[key]
       return value ? [[key, value] as const] : []
     })
   )
+  // An explicit access pick is the one source: it replaces any permissionMode kept from before it,
+  // and a preset launches the child in its mode instead of silently starting as default.
+  const access = options?.accessMode
+  if (access && access !== 'inherit') {
+    restored.delete('permissionMode')
+    const mode = claudeStructuredPermissionModeForPreset(access)
+    if (mode) {
+      restored.set('permissionMode', mode)
+    }
+  }
+  return restored
 }
 
 /** The keys `setClaudeStructuredOption` writes; a pick made at rest is checked against these. */

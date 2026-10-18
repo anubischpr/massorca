@@ -28,8 +28,12 @@ const state = {
 }
 const cleanups: (() => Promise<void>)[] = []
 let listedCommands: { name: string }[] = [{ name: 'help' }]
+let promptReply: unknown = { disposition: 'handled' }
+const opened: { closed: boolean }[] = []
 afterEach(async () => {
   listedCommands = [{ name: 'help' }]
+  promptReply = { disposition: 'handled' }
+  opened.length = 0
   for (const cleanup of cleanups.splice(0)) {
     await cleanup()
   }
@@ -55,7 +59,7 @@ class FakeConnection implements PiRpcConnection {
     this.requests.push(command)
     if (command === 'prompt') {
       this.prompts.push(String(params?.message))
-      return { disposition: 'handled' }
+      return promptReply
     }
     const override = this.requestOverride?.(command)
     if (override) {
@@ -151,6 +155,7 @@ async function setup(
     (_launch: ProviderProcessLaunch, handlers: JsonlRpcAgentConnectionOptions) => {
       const connection = new FakeConnection(handlers)
       connections.push(connection)
+      opened.push(connection)
       return connection
     }
   )
@@ -221,8 +226,34 @@ describe('Gentle Shell permission modes over Pi RPC', () => {
     expect(h.connection.prompts).toEqual([])
   })
 
-  it('sends nothing and drops the pick when the child does not list the commands', async () => {
-    const h = await setup(GENTLE_OPTIONS, undefined, { gentleMode: 'auto' })
+  it.each(['normal', 'auto'] as const)(
+    'fails the start and stops the child when %s cannot be applied',
+    async (gentleMode) => {
+      const options = {
+        ...GENTLE_OPTIONS,
+        accessMode: gentleMode === 'normal' ? 'default' : 'auto'
+      }
+      // The child does not list the mode commands, so nothing can narrow it from full access.
+      await expect(setup(options, undefined, { gentleMode })).rejects.toBeInstanceOf(
+        AgentSessionAcquisitionRootExitObservedError
+      )
+      expect(opened.map((connection) => connection.closed)).toEqual([true])
+    }
+  )
+
+  it('fails the start when a mode command does not run', async () => {
+    listedCommands = GENTLE_COMMANDS
+    promptReply = { disposition: 'rejected' }
+    await expect(setup(GENTLE_OPTIONS, undefined, { gentleMode: 'auto' })).rejects.toBeInstanceOf(
+      AgentSessionAcquisitionRootExitObservedError
+    )
+    expect(opened.map((connection) => connection.closed)).toEqual([true])
+  })
+
+  it('lets Full access start without commands, dropping only the pick record', async () => {
+    const h = await setup({ ...GENTLE_OPTIONS, accessMode: 'full-access' }, undefined, {
+      gentleMode: 'yolo'
+    })
     expect(h.connection.prompts).toEqual([])
     expect(h.adapter.readOptionRestoreFailures(sessionId)).toEqual(['accessMode'])
   })

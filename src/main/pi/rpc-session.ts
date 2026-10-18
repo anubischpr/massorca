@@ -190,6 +190,10 @@ export class PiRpcSession {
       })
     }
     if (gentleMode && !(await this.gentle.applyAtStart(gentleMode))) {
+      // The child starts in full access, so only that pick may run without its narrowing.
+      if (gentleMode !== 'yolo') {
+        throw new Error('Gentle Shell could not apply the selected permission mode')
+      }
       this.skipped.push('accessMode')
     }
     return state.sessionFile

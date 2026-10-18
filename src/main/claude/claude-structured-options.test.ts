@@ -5,6 +5,8 @@ import {
   setClaudeStructuredOption
 } from './claude-structured-options'
 import type { ClaudeSession } from './claude-structured-session-state'
+import { CLAUDE_STRUCTURED_BASE_OPTIONS } from './claude-structured-launch-resolution'
+import { claudeStructuredSpawnOptions } from './claude-structured-spawn-options'
 import {
   ClaudeControlRequestError,
   ClaudeControlRequestTimeoutError
@@ -531,5 +533,42 @@ describe('Claude connector observations', () => {
     session.connection.mcpServerStatus = vi.fn()
     expect((await readClaudeStructuredSessionOptions(session, 25)).connectors).toBeUndefined()
     expect(session.connection.mcpServerStatus).not.toHaveBeenCalled()
+  })
+})
+
+describe('Claude start with a stored access preset', () => {
+  const launch = {
+    options: {
+      ...CLAUDE_STRUCTURED_BASE_OPTIONS,
+      extraArgs: {
+        ...CLAUDE_STRUCTURED_BASE_OPTIONS.extraArgs,
+        'dangerously-skip-permissions': null
+      }
+    },
+    resumesTranscript: false
+  }
+
+  it.each([
+    ['auto', 'auto'],
+    ['accept-edits', 'acceptEdits'],
+    ['plan', 'plan']
+  ] as const)('launches the %s preset as permission mode %s without bypass', (accessMode, mode) => {
+    const spawn = claudeStructuredSpawnOptions({
+      launch,
+      saved: { accessMode, permissionMode: 'bypassPermissions' }
+    })
+    expect(spawn.sdkOptions.permissionMode).toBe(mode)
+    expect(spawn.sdkOptions.extraArgs).not.toHaveProperty('dangerously-skip-permissions')
+    expect(spawn.skipped).toEqual([])
+  })
+
+  it('drops a permission mode kept before an explicit default or full-access pick', () => {
+    for (const accessMode of ['default', 'full-access']) {
+      const spawn = claudeStructuredSpawnOptions({
+        launch,
+        saved: { accessMode, permissionMode: 'plan' }
+      })
+      expect(spawn.sdkOptions.permissionMode).toBeUndefined()
+    }
   })
 })
