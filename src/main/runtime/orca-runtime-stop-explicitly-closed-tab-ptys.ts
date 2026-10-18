@@ -37,6 +37,8 @@ export class OrcaRuntimeWithStopExplicitlyClosedTabPtys extends OrcaRuntimeWithF
       if (this.ptyController?.stopAndWait) {
         try {
           stopped = await this.ptyController.stopAndWait(ptyId, { deadlineMs })
+          // Why: only stopAndWait's own true is an observed exit or an absent inventory entry.
+          exitConfirmed = stopped
         } catch (error) {
           this.markPtyLivenessUnverifiable(
             ptyId,
@@ -52,8 +54,6 @@ export class OrcaRuntimeWithStopExplicitlyClosedTabPtys extends OrcaRuntimeWithF
         ) {
           stopped = true
         }
-        // Why: stopAndWait settles true only on an observed exit or an absent inventory entry.
-        exitConfirmed = stopped
         if (!stopped) {
           const verdict = this.getPtyLivenessVerdict(ptyId)
           const providerAlreadyRetiredPty =

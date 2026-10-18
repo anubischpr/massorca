@@ -357,6 +357,22 @@ describe('terminal close and handle incarnation continuity', () => {
     expect(harness.kill).toHaveBeenCalledWith(PTY_ID)
   })
 
+  it('does not publish ptyExitConfirmed from a cached exit verdict after an unconfirmed stop', async () => {
+    const harness = createHarness()
+    const [{ handle }] = (await harness.runtime.listTerminals(`id:${WORKTREE_ID}`)).terminals
+    harness.setStopAndWaitAction((stoppingPtyId) =>
+      harness.runtime.onPtyExit(stoppingPtyId, 0, INCARNATION_ID)
+    )
+    harness.setVerifiedStopResult(false)
+
+    const closing = harness.runtime.closeTerminal(handle)
+    await vi.waitFor(() => expect(harness.closeTerminalTab).toHaveBeenCalled())
+    harness.retirePersistedTab()
+    harness.acknowledged.resolve()
+
+    expect(await closing).not.toHaveProperty('ptyExitConfirmed')
+  })
+
   it('reports an unconfirmed stop on the close receipt rather than a bare uncertain false', async () => {
     const harness = createHarness()
     const [{ handle }] = (await harness.runtime.listTerminals(`id:${WORKTREE_ID}`)).terminals
