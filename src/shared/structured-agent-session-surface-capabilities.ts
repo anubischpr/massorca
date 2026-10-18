@@ -32,11 +32,18 @@ export const STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY =
 export const AGENT_SESSION_MODEL_CATALOG_SAVED_ONLY_RUNTIME_CAPABILITY =
   'agent-session.model-catalog.saved-only.v1' as const
 
+// Why: `promptSuggestion` rides the subscribe frames as an optional field. An older reader ignores
+// the unknown key, so the host withholds it from a client that does not advertise this rather than
+// spend a frame on state nobody draws; a client sees the host's copy to know suggestions can arrive.
+export const AGENT_SESSION_PROMPT_SUGGESTION_RUNTIME_CAPABILITY =
+  'agent-session.structured.prompt-suggestion.v1' as const
+
 export const STRUCTURED_AGENT_SESSION_SURFACE_RUNTIME_CAPABILITIES = [
   STRUCTURED_AGENT_SESSION_HOLD_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_REVEAL_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY,
   PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY,
-  AGENT_SESSION_MODEL_CATALOG_SAVED_ONLY_RUNTIME_CAPABILITY
+  AGENT_SESSION_MODEL_CATALOG_SAVED_ONLY_RUNTIME_CAPABILITY,
+  AGENT_SESSION_PROMPT_SUGGESTION_RUNTIME_CAPABILITY
 ] as const

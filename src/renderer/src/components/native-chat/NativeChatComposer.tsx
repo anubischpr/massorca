@@ -15,6 +15,7 @@ import { nativeChatImageSendBlock } from './native-chat-image-reattach'
 import { useNativeChatComposerHandle } from './use-native-chat-composer-handle'
 import { useNativeChatFileDrops } from './use-native-chat-file-drops'
 import { useNativeChatComposerKeyDown } from './use-native-chat-composer-keydown'
+import { useNativeChatComposerReplySuggestion } from './use-native-chat-composer-reply-suggestion'
 import { useNativeChatSendLifecycle } from './use-native-chat-send-lifecycle'
 import { useNativeChatSessionOptions } from './use-native-chat-session-options'
 import { useNativeChatDictation } from './use-native-chat-dictation'
@@ -320,6 +321,15 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       [dispatchPtyPickerCommand, sendStructured, structuredTransport]
     )
 
+    const replySuggestion = useNativeChatComposerReplySuggestion({
+      offered: structuredTransport?.replySuggestion,
+      draft,
+      inputBusy: disabled || imageAttachments.length > 0 || autocomplete.mode !== 'none',
+      textareaRef,
+      setDraft,
+      setCaret
+    })
+
     const handleKeyDown = useNativeChatComposerKeyDown({
       autocomplete,
       mentionFiles,
@@ -327,6 +337,7 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
       activeSuggestion,
       draft,
       recall: recall.recall,
+      replySuggestion,
       isComposing: imeEnterGesture.isComposing,
       completePickerItem: goalMode.interceptPick(completeItem),
       dispatchPickerCommand: goalMode.interceptPick(dispatchPickerCommand),
@@ -355,6 +366,7 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
         draftScopeKey={draftScopeKey}
         textareaRef={textareaRef}
         draft={draft}
+        replySuggestionText={replySuggestion?.text ?? null}
         disabled={disabled}
         hasPty={hasPty}
         canSend={canSend}

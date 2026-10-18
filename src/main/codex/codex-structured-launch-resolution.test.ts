@@ -282,6 +282,39 @@ describe('codex structured launch resolution', () => {
     })
   })
 
+  it('maps Auto to the automatic reviewer and Read only to the read-only sandbox', async () => {
+    const globalBypass = { codex: '--dangerously-bypass-approvals-and-sandbox' }
+    const auto = await resolverFor(
+      record({ options: { accessMode: 'auto' } }),
+      undefined,
+      undefined,
+      globalBypass
+    )({ identity: IDENTITY })
+    expect(auto.permissionPolicy).toEqual({
+      approvalPolicy: 'on-request',
+      sandbox: 'workspace-write',
+      approvalsReviewer: 'auto_review'
+    })
+    const readOnly = await resolverFor(
+      record({ options: { accessMode: 'read-only' } }),
+      undefined,
+      undefined,
+      globalBypass
+    )({ identity: IDENTITY })
+    expect(readOnly.permissionPolicy).toEqual({
+      approvalPolicy: 'on-request',
+      sandbox: 'read-only'
+    })
+  })
+
+  it('refuses a preset Codex does not declare rather than widening to a default', async () => {
+    for (const accessMode of ['plan', 'accept-edits']) {
+      await expect(
+        resolverFor(record({ options: { accessMode } }))({ identity: IDENTITY })
+      ).rejects.toThrow('agent session access mode is invalid')
+    }
+  })
+
   // A thread opened on the configured default and then given a turn on the saved model reads to
   // Codex as a model switch, and it injects the saved model's whole prompt a second time.
   it('opens the thread on the model the record saved', async () => {

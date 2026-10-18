@@ -357,6 +357,32 @@ describe('claude structured launch resolution', () => {
     }
   )
 
+  it.each([
+    ['auto', 'auto'],
+    ['accept-edits', 'acceptEdits'],
+    ['plan', 'plan']
+  ] as const)(
+    'launches the %s preset in permission mode %s, never in bypass',
+    async (accessMode, mode) => {
+      const launch = await resolverFor(record({ options: { accessMode } }), undefined, false, {
+        claude: '--dangerously-skip-permissions'
+      })({ identity: IDENTITY })
+      expect(launch.options.permissionMode).toBe(mode)
+      expect(launch.options.extraArgs?.['dangerously-skip-permissions']).toBeUndefined()
+    }
+  )
+
+  it('leaves the CLI default for Ask for approval and sets no permission mode', async () => {
+    const launch = await resolverFor(
+      record({ options: { accessMode: 'default' } }),
+      undefined,
+      false,
+      { claude: '--dangerously-skip-permissions' }
+    )({ identity: IDENTITY })
+    expect(launch.options.permissionMode).toBeUndefined()
+    expect(launch.options.extraArgs?.['dangerously-skip-permissions']).toBeUndefined()
+  })
+
   // Manual is stored as an empty string, which owns the key and so beats the shipped default.
   it.each([[''], ['--model Opus']])(
     'leaves a Manual session prompting for args %s',

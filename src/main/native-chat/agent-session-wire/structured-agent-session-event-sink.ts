@@ -10,6 +10,11 @@ import type { AgentSessionJournal } from '../agent-session-journal/journal-store
 import type { JournalLifecycleIdentityMutationInput } from '../agent-session-journal/journal-row-builders'
 import { estimateStructuredAgentSessionItemBytes } from './structured-agent-session-event-sink-estimate'
 import { StructuredAgentSessionSinkQueue } from './structured-agent-session-event-sink-queue'
+import { DEFAULT_WATERMARKS } from './structured-agent-session-event-sink-watermarks'
+import {
+  promptSuggestionSinkMember,
+  type StructuredAgentSessionPromptSuggestion
+} from './structured-agent-session-event-sink-prompt-suggestion'
 import { structuredAgentSessionJournalAppendOptions } from './structured-agent-session-journal-append-options'
 import { createStructuredAgentSessionResolvedAppend } from './structured-agent-session-resolved-append'
 import {
@@ -103,6 +108,8 @@ export type StructuredAgentSessionEventSink = StructuredAgentSessionTransitionSi
    *  failed or a close dropped it unwritten. */
   written?(): Promise<StructuredAgentSessionSinkBarrier>
   setActivity?(activity: AgentSessionTurnActivity | null): void
+  /** The provider's own suggested next user message (null clears it). Ephemeral: no journal row. */
+  setPromptSuggestion?(suggestion: StructuredAgentSessionPromptSuggestion | null): void
   tryAppendItem?(
     identity: AgentJournalItemIdentity,
     body: AgentJournalItemBody,
@@ -167,6 +174,7 @@ export type StructuredAgentSessionEventTarget = {
   journal: AgentSessionJournal
   fence: number
   publish: (activity?: AgentSessionTurnActivity | null) => void
+  publishPromptSuggestion?: (suggestion: StructuredAgentSessionPromptSuggestion | null) => void
 }
 
 export type DeferredStructuredAgentSessionEventSink = {
@@ -193,17 +201,6 @@ export type StructuredAgentSessionSinkWatermarks = {
 export type StructuredAgentSessionReadingControl = {
   pauseReading(): void
   resumeReading(): void
-}
-
-const DEFAULT_WATERMARKS: StructuredAgentSessionSinkWatermarks = {
-  pauseQueuedBytes: 16 * 1024 * 1024,
-  maxQueuedBytes: 32 * 1024 * 1024,
-  lowQueuedBytes: 8 * 1024 * 1024,
-  pauseQueuedOperations: 512,
-  maxQueuedOperations: 1_024,
-  lowQueuedOperations: 256,
-  maxLifecycleQueuedBytes: 16 * 1024 * 1024,
-  maxLifecycleQueuedOperations: 1_024
 }
 
 export function createDeferredStructuredAgentSessionEventSink(deps: {
@@ -336,6 +333,7 @@ export function createDeferredStructuredAgentSessionEventSink(deps: {
           run: (bound) => bound.publish(activity)
         })
       },
+      ...promptSuggestionSinkMember(queue),
       tryPublish: publish
     },
     bind: (next) => queue.bind(next),

@@ -24,6 +24,8 @@ export type UseNativeChatComposerKeyDownArgs = {
   /** Image chips count as composer content, like typed text. */
   hasAttachments?: boolean
   recall?: NativeChatComposerRecall | undefined
+  /** The ghost text showing in the empty composer: Tab takes it into the draft, Esc drops it. */
+  replySuggestion?: { accept: () => void; dismiss: () => void } | null | undefined
   isComposing: () => boolean
   completePickerItem: (item: NativeChatPickerItem) => void
   dispatchPickerCommand: (item: Extract<NativeChatPickerItem, { kind: 'command' }>) => void
@@ -46,6 +48,7 @@ export function useNativeChatComposerKeyDown({
   draft,
   hasAttachments = false,
   recall,
+  replySuggestion,
   isComposing,
   completePickerItem,
   dispatchPickerCommand,
@@ -118,6 +121,23 @@ export function useNativeChatComposerKeyDown({
         }
       }
 
+      if (replySuggestion && autocomplete.mode === 'none') {
+        const plainTab =
+          event.key === 'Tab' &&
+          !event.shiftKey &&
+          !event.altKey &&
+          !event.ctrlKey &&
+          !event.metaKey
+        if (plainTab || event.key === 'Escape') {
+          event.preventDefault()
+          if (plainTab) {
+            replySuggestion.accept()
+          } else {
+            replySuggestion.dismiss()
+          }
+          return
+        }
+      }
       if (event.key === 'Escape') {
         event.preventDefault()
         interrupt()
@@ -177,6 +197,7 @@ export function useNativeChatComposerKeyDown({
       interrupt,
       isComposing,
       mentionFiles,
+      replySuggestion,
       send,
       steerQueued,
       setActiveSuggestion,

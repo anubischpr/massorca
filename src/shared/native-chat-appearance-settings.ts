@@ -15,6 +15,12 @@ export type NativeChatGlobalSettings = {
   nativeChatAppearance?: NativeChatAppearanceSettings
   /** Off keeps chats unnamed without running a naming agent. Absent means on. */
   nativeChatAutoName?: boolean
+  /** Show the agent's own suggested next message as ghost text in an empty composer.
+   *  Absent means on. */
+  nativeChatReplySuggestions?: boolean
+  /** Also ask a model for a suggestion when the agent offers none; each costs a short model call
+   *  on the chat's host. Absent means on. */
+  nativeChatEmulatedReplySuggestions?: boolean
 }
 
 export const DEFAULT_NATIVE_CHAT_FONT_SIZE = 14

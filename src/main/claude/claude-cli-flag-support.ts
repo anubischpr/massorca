@@ -17,6 +17,14 @@ export const CLAUDE_PLUGIN_DIR_FLAG: ClaudeCliFlag = {
   firstVersion: '2.0.25'
 }
 
+// Why: not a CLI flag but a field of the SDK's initialize request; the option name only labels this gate. The
+// floor is conservative and not read from a published package: a CLI below it merely gets no
+// suggestions, and one at or above it that predates the field ignores the unknown key.
+export const CLAUDE_PROMPT_SUGGESTIONS_FLAG: ClaudeCliFlag = {
+  option: 'promptSuggestions',
+  firstVersion: '2.1.0'
+}
+
 /** How long a launch waits on a binary nothing is known about yet. A warm probe answers in tens of
  *  milliseconds; this covers a cold disk, a node install and an antivirus scan, paid once per key
  *  during a start that already takes seconds. */

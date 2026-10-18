@@ -8,6 +8,7 @@ import type {
   AgentSessionWireRefusal
 } from '../../../shared/agent-session-wire'
 import type { AgentSessionJournal } from '../agent-session-journal/journal-store'
+import type { NativeChatReplySuggestion } from '../../../shared/native-chat-reply-suggestion'
 import type {
   StructuredAgentSessionHostDeps,
   StructuredAgentSessionHostSession
@@ -28,6 +29,9 @@ export type StructuredAgentSessionAttachContext = {
       journal: AgentSessionJournal,
       activity?: AgentSessionTurnActivity | null
     ) => void
+    promptSuggestions: {
+      publish: (sessionId: string, suggestion: NativeChatReplySuggestion | null) => void
+    }
   }
   tasks: StructuredAgentSessionTaskQueue
   reconcileLeases: (sessionId: string) => Promise<AgentSessionWireRefusal | null>

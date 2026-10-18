@@ -18,6 +18,7 @@ import type { NativeChatComposerImageAttachment } from './NativeChatComposerFiel
 import type { NativeChatAfterStopSend } from './native-chat-composer-target'
 import type { NativeChatLocalCommandAnswer } from './use-native-chat-local-command-answer'
 import type { NativeChatRecallSource } from './native-chat-sent-prompt-history'
+import type { NativeChatReplySuggestionView } from './use-native-chat-reply-suggestion'
 
 export type NativeChatComposerErrorDetail = {
   /** Error text Orca did not write, shown apart and copyable. */
@@ -70,6 +71,9 @@ export type NativeChatStructuredComposerTransport = {
   sessionId: string
   /** Owning runtime for that report; null is the local runtime. */
   runtimeEnvironmentId: string | null
+  /** The host's suggested next message for this idle chat; shown as ghost text in an empty
+   *  composer. Absent or null when there is none to show. */
+  replySuggestion?: NativeChatReplySuggestionView | null
   /** Present while the queue is held: a message sent now first asks whether to clear its cards. */
   queueHold?: NativeChatQueueHold
   /** Present while the host holds the queue and no turn runs: an empty composer's primary

@@ -7,6 +7,7 @@ import type {
 } from './native-chat-composer-types'
 import type { NativeChatStructuredViewProps } from './native-chat-view-types'
 import type { useStructuredAgentSession } from './use-structured-agent-session'
+import { useNativeChatReplySuggestion } from './use-native-chat-reply-suggestion'
 import type { StructuredAgentSessionQueuedMessagesController } from './use-structured-agent-session-queued-messages'
 
 /** What the composer of a structured chat sends, picks and runs through, from the chat's controller. */
@@ -31,6 +32,11 @@ export function useNativeChatStructuredComposerTransport(args: {
   const { props, controller, sendThroughLaunch, starting, worktreeId, optionPickerRequest } = args
   const { setOptionPickerRequest, onError, onSubmitted, queuedMessages } = args
   const acceptsImages = useStructuredAgentAcceptsImages(props.target, props.agent)
+  const replySuggestion = useNativeChatReplySuggestion({
+    sessionId: props.sessionId,
+    suggestion: controller.promptSuggestion,
+    idle: !controller.isWorking && !controller.queueSendsNext && !starting
+  })
   return useMemo((): NativeChatStructuredComposerTransport => {
     const threadGoal = controller.threadGoal
     const setThreadGoalObjective = threadGoal
@@ -82,6 +88,7 @@ export function useNativeChatStructuredComposerTransport(args: {
       sessionId: props.sessionId,
       runtimeEnvironmentId:
         props.target.kind === 'local' ? null : (props.target.environmentId ?? null),
+      replySuggestion,
       queueHold: queuedMessages.queueHold,
       queueResume: queuedMessages.queueResume
     }
@@ -96,6 +103,7 @@ export function useNativeChatStructuredComposerTransport(args: {
     props.sessionId,
     props.target,
     queuedMessages,
+    replySuggestion,
     sendThroughLaunch,
     setOptionPickerRequest,
     starting

@@ -39,6 +39,8 @@ export type NativeChatComposerFieldProps = {
   draftScopeKey: string
   textareaRef: RefObject<NativeChatComposerInput | null>
   draft: string
+  /** Ghost text for the empty composer (Tab takes it); null shows the ordinary placeholder. */
+  replySuggestionText?: string | null
   disabled: boolean
   hasPty: boolean
   canSend: boolean
@@ -129,6 +131,7 @@ export function NativeChatComposerField({
   draftScopeKey,
   textareaRef,
   draft,
+  replySuggestionText = null,
   disabled,
   hasPty,
   canSend,
@@ -338,6 +341,7 @@ export function NativeChatComposerField({
                   ? `${pickerListboxId}-option-${Math.min(activeSuggestion, optionCount - 1)}`
                   : undefined
               }
+              ghostText={replySuggestionText}
               placeholder={
                 goalMode?.active
                   ? translate(
