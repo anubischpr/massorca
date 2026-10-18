@@ -64,7 +64,8 @@ export function antigravityCliVersionOutcome(
   )
 }
 
-/** The reason a chat names when its agy CLI cannot run: missing, or not a supported version. */
+/** The reason a chat names when its agy CLI cannot run: missing, or ran without reporting a supported
+ *  version (outdated, failed, timed out, or printed none); the copy names all of those. */
 export function antigravityCliUnavailableReason(
   outcome: Exclude<AgentCliVersionProbeOutcome, 'supported'>
 ): AgentSessionPreSpawnReason {

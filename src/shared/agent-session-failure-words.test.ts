@@ -381,7 +381,7 @@ describe('agent-aware managed-account and agent CLI words', () => {
         { surface: 'row', agentName: 'Antigravity' }
       ).text
     ).toBe(
-      'Antigravity needs stable CLI 1.3.5 or newer on this computer. Update it, then try again.'
+      'Antigravity on this computer did not report a stable CLI 1.3.5 or newer: it may be outdated, or its version check failed or timed out. Check it in a terminal, then try again.'
     )
   })
 })

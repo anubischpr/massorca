@@ -18041,7 +18041,7 @@
         "launchFolderMissing": "The folder this chat ran in no longer exists. Restore it to continue this chat.",
         "historyInOtherAccount": "This chat's history is in another Claude account. Switch back to that account to continue it.",
         "agentCommandNotRunnable": "{{agent}}'s Command in Settings → Agents must be a program path or name Orca can find, with no arguments or variables. Change it or reset it.",
-        "antigravityCliVersionUnsupported": "{{agent}} needs stable CLI {{version}} or newer on this computer. Update it, then try again.",
+        "antigravityCliVersionUnsupported": "{{agent}} on this computer did not report a stable CLI {{version}} or newer: it may be outdated, or its version check failed or timed out. Check it in a terminal, then try again.",
         "managedAccountEnvOverrideAgent": "This {{agent}} launch uses a different home folder or sign-in storage than its selected account. Remove that override, then try again.",
         "managedAccountUnsupportedAgent": "{{agent}} cannot run this chat with the account selected on this computer. Choose an account that runs here, then try again.",
         "historyInOtherAccountAgent": "This chat's history is in another {{agent}} account. Switch back to that account to continue it.",

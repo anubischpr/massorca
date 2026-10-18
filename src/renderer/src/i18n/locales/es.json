@@ -17813,7 +17813,7 @@
         "launchFolderMissing": "La carpeta en la que se ejecutaba este chat ya no existe. Restáurela para continuar este chat.",
         "historyInOtherAccount": "El historial de este chat está en otra cuenta de Claude. Vuelva a esa cuenta para continuarlo.",
         "agentCommandNotRunnable": "{{agent}}: el Comando en Ajustes → Agentes debe ser la ruta o el nombre de un programa que Orca pueda encontrar, sin argumentos ni variables. Cámbielo o restablézcalo con Reiniciar.",
-        "antigravityCliVersionUnsupported": "{{agent}} necesita la CLI estable {{version}} o una más reciente en este equipo. Actualícela e inténtelo de nuevo.",
+        "antigravityCliVersionUnsupported": "{{agent}} en este equipo no informó una CLI estable {{version}} o más reciente: puede estar desactualizada, o su comprobación de versión falló o agotó el tiempo. Revísela en una terminal e inténtelo de nuevo.",
         "managedAccountEnvOverrideAgent": "Este inicio de {{agent}} usa una carpeta personal o un almacenamiento de inicio de sesión distinto al de su cuenta seleccionada. Quite esa anulación e inténtelo de nuevo.",
         "managedAccountUnsupportedAgent": "{{agent}} no puede ejecutar este chat con la cuenta seleccionada en este equipo. Elija una cuenta que funcione aquí e inténtelo de nuevo.",
         "historyInOtherAccountAgent": "El historial de este chat está en otra cuenta de {{agent}}. Cambie a esa cuenta para continuarlo.",
