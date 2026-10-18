@@ -121,11 +121,26 @@ function refusalOf(
   if (!response.ok) {
     return null
   }
-  const result = response.result as {
-    ok: boolean
-    refusal?: { code: string; message: string; details?: { reason?: string } }
+  const result: unknown = response.result
+  return isRefusedResult(result) ? result.refusal : null
+}
+
+type ClientRefusal = { code: string; message: string; details?: { reason?: string } }
+
+function isRefusedResult(value: unknown): value is { ok: false; refusal: ClientRefusal } {
+  if (typeof value !== 'object' || value === null || !('ok' in value) || value.ok !== false) {
+    return false
   }
-  return result.ok ? null : (result.refusal ?? null)
+  if (!('refusal' in value) || typeof value.refusal !== 'object' || value.refusal === null) {
+    return false
+  }
+  const refusal = value.refusal
+  return (
+    'code' in refusal &&
+    typeof refusal.code === 'string' &&
+    'message' in refusal &&
+    typeof refusal.message === 'string'
+  )
 }
 
 beforeEach(() => {
