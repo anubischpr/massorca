@@ -38,6 +38,7 @@ import { agentSessionWriteFailureText } from './agent-session-write-notice-text'
 import { NativeChatModelCombobox } from './NativeChatModelCombobox'
 import { useNativeChatPickerFocusReturn } from './native-chat-picker-focus-return'
 import { NativeChatSessionOptionChoiceBody } from './NativeChatSessionOptionChoiceBody'
+import { NativeChatAccessModePicker } from './NativeChatAccessModePicker'
 
 export type NativeChatSessionOptionPickersProps = {
   surface: SessionOptionsSurface | null
@@ -234,9 +235,12 @@ function NativeChatSessionOptionPickersInner({
   const [pendingId, setPendingId] = useState<string | null>(null)
   const modelMenuFocus = useNativeChatPickerFocusReturn(focusComposer)
   const optionsMenuFocus = useNativeChatPickerFocusReturn(focusComposer)
+  const access = snapshot.find((descriptor) => descriptor.id === 'accessMode')
   const model = snapshot.find((descriptor) => descriptor.category === 'model')
-  const options = sortNativeChatSessionOptions(snapshot)
-  if (!surface || (!model && options.length === 0)) {
+  const options = sortNativeChatSessionOptions(
+    snapshot.filter((descriptor) => descriptor !== access)
+  )
+  if (!surface || (!model && !access && options.length === 0)) {
     return null
   }
   const requestedModelSequence =
@@ -273,6 +277,14 @@ function NativeChatSessionOptionPickersInner({
 
   return (
     <div className="flex min-w-0 items-center gap-0.5 text-chat-foreground-faint">
+      {access ? (
+        <NativeChatAccessModePicker
+          descriptor={access}
+          busy={isWorking || pendingId !== null}
+          onSelect={(value) => setOption(access, value)}
+          focusComposer={focusComposer}
+        />
+      ) : null}
       {model && modelTrigger && model.kind.type === 'select' && !model.action ? (
         <NativeChatModelCombobox
           key={modelPickerKey}

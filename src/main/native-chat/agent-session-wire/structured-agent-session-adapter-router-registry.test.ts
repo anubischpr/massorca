@@ -187,7 +187,8 @@ describe('structured agent definitions', () => {
       imagePrompts: true,
       steering: 'inject',
       approvalEnforcement: 'provider',
-      supportedAccessModes: ['default', 'full-access']
+      supportedAccessModes: ['default', 'full-access'],
+      supportedPermissionPresets: ['auto', 'accept-edits', 'plan']
     })
     expect(CODEX_STRUCTURED_AGENT.capabilities).toEqual({
       rewind: true,
@@ -197,7 +198,8 @@ describe('structured agent definitions', () => {
       imagePrompts: true,
       steering: 'inject',
       approvalEnforcement: 'provider',
-      supportedAccessModes: ['default', 'full-access']
+      supportedAccessModes: ['default', 'full-access'],
+      supportedPermissionPresets: ['auto', 'read-only']
     })
   })
 

@@ -1,7 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
-import { setClaudeStructuredOption } from './claude-structured-options'
+import {
+  claudeStructuredLiveAccessModes,
+  setClaudeStructuredAccessMode,
+  setClaudeStructuredOption
+} from './claude-structured-options'
 import type { ClaudeSession } from './claude-structured-session-state'
-import { ClaudeControlRequestTimeoutError } from './claude-agent-sdk-control-requests'
+import { CLAUDE_STRUCTURED_BASE_OPTIONS } from './claude-structured-launch-resolution'
+import { claudeStructuredSpawnOptions } from './claude-structured-spawn-options'
+import {
+  ClaudeControlRequestError,
+  ClaudeControlRequestTimeoutError
+} from './claude-agent-sdk-control-requests'
 import { ClaudeBackgroundTaskTracker } from './claude-background-task-tracker'
 import { ClaudeChildWorkDecoder } from './claude-child-work-decoder'
 import { ClaudeSlashCommandCatalog } from './claude-slash-command-catalog'
@@ -67,6 +76,74 @@ describe('Claude structured option mutation fencing', () => {
     releaseFirst()
     await expect(first).resolves.toEqual({ model: 'new' })
     expect(session.options).toEqual(new Map([['model', 'new']]))
+  })
+})
+
+describe('Claude live access mode', () => {
+  function accessSession(setPermissionMode: ClaudeSession['connection']['setPermissionMode']) {
+    const session = sessionFor(vi.fn(async () => undefined))
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: only the permission write is called.
+    session.connection = { ...session.connection, setPermissionMode } as ClaudeSession['connection']
+    session.options.set('model', 'opus')
+    return session
+  }
+
+  it.each([
+    ['default', 'default'],
+    ['auto', 'auto'],
+    ['accept-edits', 'acceptEdits'],
+    ['plan', 'plan']
+  ] as const)(
+    'switches to %s through permission mode %s and keeps no CLI-level copy',
+    async (value, mode) => {
+      const setPermissionMode = vi.fn<ClaudeSession['connection']['setPermissionMode']>(
+        async () => undefined
+      )
+      const session = accessSession(setPermissionMode)
+      await expect(setClaudeStructuredAccessMode(session, value, undefined)).resolves.toEqual({
+        model: 'opus'
+      })
+      expect(setPermissionMode).toHaveBeenCalledWith(mode, { timeoutMs: undefined })
+      expect(session.options.has('permissionMode')).toBe(false)
+    }
+  )
+
+  it('never switches to bypass or to a mode Claude does not declare', async () => {
+    const setPermissionMode = vi.fn<ClaudeSession['connection']['setPermissionMode']>(
+      async () => undefined
+    )
+    const session = accessSession(setPermissionMode)
+    for (const value of ['full-access', 'inherit', 'read-only', 'bypassPermissions']) {
+      await expect(setClaudeStructuredAccessMode(session, value, undefined)).rejects.toThrow(
+        'cannot switch'
+      )
+    }
+    expect(setPermissionMode).not.toHaveBeenCalled()
+  })
+
+  it('offers live switching only once the child has proven its start', () => {
+    const session = accessSession(vi.fn(async () => undefined))
+    expect(claudeStructuredLiveAccessModes(session)).toEqual([
+      'default',
+      'auto',
+      'accept-edits',
+      'plan'
+    ])
+    expect(claudeStructuredLiveAccessModes(session)).not.toContain('full-access')
+    session.startup = { ...session.startup, state: 'pending' }
+    expect(claudeStructuredLiveAccessModes(session)).toEqual([])
+    expect(claudeStructuredLiveAccessModes(undefined)).toEqual([])
+  })
+
+  it('surfaces the CLI refusal of Auto as a typed option rejection and keeps the previous mode', async () => {
+    const setPermissionMode = vi.fn<ClaudeSession['connection']['setPermissionMode']>(async () => {
+      throw new ClaudeControlRequestError('error', 'auto mode is not available for this account')
+    })
+    const session = accessSession(setPermissionMode)
+    await expect(setClaudeStructuredAccessMode(session, 'auto', undefined)).rejects.toMatchObject({
+      name: 'AgentSessionOptionRejectedError'
+    })
+    expect(session.options.has('permissionMode')).toBe(false)
   })
 })
 
@@ -456,5 +533,42 @@ describe('Claude connector observations', () => {
     session.connection.mcpServerStatus = vi.fn()
     expect((await readClaudeStructuredSessionOptions(session, 25)).connectors).toBeUndefined()
     expect(session.connection.mcpServerStatus).not.toHaveBeenCalled()
+  })
+})
+
+describe('Claude start with a stored access preset', () => {
+  const launch = {
+    options: {
+      ...CLAUDE_STRUCTURED_BASE_OPTIONS,
+      extraArgs: {
+        ...CLAUDE_STRUCTURED_BASE_OPTIONS.extraArgs,
+        'dangerously-skip-permissions': null
+      }
+    },
+    resumesTranscript: false
+  }
+
+  it.each([
+    ['auto', 'auto'],
+    ['accept-edits', 'acceptEdits'],
+    ['plan', 'plan']
+  ] as const)('launches the %s preset as permission mode %s without bypass', (accessMode, mode) => {
+    const spawn = claudeStructuredSpawnOptions({
+      launch,
+      saved: { accessMode, permissionMode: 'bypassPermissions' }
+    })
+    expect(spawn.sdkOptions.permissionMode).toBe(mode)
+    expect(spawn.sdkOptions.extraArgs).not.toHaveProperty('dangerously-skip-permissions')
+    expect(spawn.skipped).toEqual([])
+  })
+
+  it('drops a permission mode kept before an explicit default or full-access pick', () => {
+    for (const accessMode of ['default', 'full-access']) {
+      const spawn = claudeStructuredSpawnOptions({
+        launch,
+        saved: { accessMode, permissionMode: 'plan' }
+      })
+      expect(spawn.sdkOptions.permissionMode).toBeUndefined()
+    }
   })
 })

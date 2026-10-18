@@ -1,3 +1,4 @@
+import type { AgentSessionExplicitAccess } from '../../shared/agent-session-access-mode'
 import { classifyAgentSessionFunctions } from '../../shared/agent-session-provider-functions'
 import { randomUUID } from 'node:crypto'
 import { waitForPromiseWithSignal } from '../../shared/abort-signal-reason'
@@ -16,6 +17,7 @@ import {
 import { providerSpawnedProcessIdentity } from '../provider-process/provider-spawned-process-identity'
 import { ProviderAcquisitionStarts } from '../provider-process/provider-acquisition-starts'
 import { compactPiRpcSession } from './rpc-compaction'
+import { awaitPiRpcStopCheckpoint } from './rpc-stop-checkpoint'
 import { buildPiRpcLaunch } from './rpc-launch'
 import { piRpcProviderLink, type PiRpcResolvedLaunch } from './rpc-launch-resolution'
 import { PiRpcSession, type PiRpcSessionDeps, type PiRpcConnection } from './rpc-session'
@@ -96,7 +98,7 @@ export class PiRpcSessionAdapter implements StructuredAgentSessionAdapter {
         await spawned.onSpawned(session.connection.pid)
       }
       const process = await spawned.read(session.connection.pid)
-      const file = await waitForPromiseWithSignal(session.start(), attempt.signal)
+      const file = await waitForPromiseWithSignal(session.start(launch.gentleMode), attempt.signal)
       if (session.connection.closed || attempt.signal.aborted) {
         throw new Error('Pi exited while starting')
       }
@@ -179,32 +181,8 @@ export class PiRpcSessionAdapter implements StructuredAgentSessionAdapter {
   awaitStoppedRequestEnd: NonNullable<StructuredAgentSessionAdapter['awaitStoppedRequestEnd']> =
     async (id, at) => {
       const session = this.sessions.get(id)
-      const turn = session?.lane.openTurnId
-      if (!session) {
-        return
-      }
-      let timer: ReturnType<typeof setTimeout> | undefined
-      try {
-        if (turn) {
-          await Promise.race([
-            session.lane.whenTurnLeaves(turn),
-            new Promise<void>((resolve) => {
-              timer = setTimeout(resolve, Math.max(0, at + 2_000 - Date.now()))
-              timer.unref()
-            })
-          ])
-        }
-      } finally {
-        clearTimeout(timer)
-      }
-      try {
-        await session.connection.request('get_state', {}, { timeoutMs: 1_000 })
-      } catch (error) {
-        this.deps.logger.warn('Pi checkpoint could not be read before stopping', {
-          scope: 'pi-stop-checkpoint',
-          sessionId: id,
-          error
-        })
+      if (session) {
+        await awaitPiRpcStopCheckpoint(session, id, at, this.deps.logger)
       }
     }
   routePromptCancel(): { kind: 'dismiss' } {
@@ -223,9 +201,19 @@ export class PiRpcSessionAdapter implements StructuredAgentSessionAdapter {
       input.response,
       input.commit
     )
-  setOption: StructuredAgentSessionAdapter['setOption'] = (input) => {
+  setOption: StructuredAgentSessionAdapter['setOption'] = async (input) => {
     const session = this.session(input.sessionId, input.fence)
+    if (input.key === 'accessMode') {
+      await session.gentle.switchTo(input.value)
+      return Object.fromEntries(session.selected)
+    }
     return applyPiRpcSessionOption(session.connection, session.selected, input.key, input.value)
+  }
+  liveAccessModes = (id: string): readonly AgentSessionExplicitAccess[] => {
+    const session = this.sessions.get(id)
+    return session?.gentle.enabled && !session.connection.closed
+      ? ['default', 'auto', 'full-access']
+      : []
   }
   readOptions: NonNullable<StructuredAgentSessionAdapter['readOptions']> = async (input) =>
     withLiveCatalogListing(

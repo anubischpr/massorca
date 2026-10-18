@@ -11,7 +11,11 @@ import { claudeHoldsDispatch } from './claude-command-lifecycle'
 import { releaseClaudeAcquisition } from './claude-structured-acquisition-release'
 import { acquireClaudeSession } from './claude-structured-session-acquisition'
 import { supportsClaudeStructuredLocation } from './claude-structured-location-support'
-import { setClaudeStructuredSessionOption } from './claude-structured-options'
+import {
+  claudeStructuredLiveAccessModes,
+  setClaudeStructuredAccessMode,
+  setClaudeStructuredSessionOption
+} from './claude-structured-options'
 import { readClaudeStructuredSessionOptions } from './claude-structured-session-options'
 import { claudeStartupSettledWithin } from './claude-structured-session-startup-state'
 import { CLAUDE_DEFAULT_REQUEST_TIMEOUT_MS } from './claude-agent-sdk-control-requests'
@@ -230,11 +234,19 @@ export class ClaudeStructuredSessionAdapter implements StructuredAgentSessionAda
   answerPrompt: StructuredAgentSessionAdapter['answerPrompt'] = (request) =>
     settleClaudePromptFreeingChild(this.asker(request), answerClaudeStructuredPrompt)
   setOption: StructuredAgentSessionAdapter['setOption'] = (input) =>
-    setClaudeStructuredSessionOption(
-      this.session(input.sessionId),
-      input,
-      this.deps.requestTimeoutMs
-    )
+    input.key === 'accessMode'
+      ? setClaudeStructuredAccessMode(
+          this.session(input.sessionId),
+          input.value,
+          this.deps.requestTimeoutMs
+        )
+      : setClaudeStructuredSessionOption(
+          this.session(input.sessionId),
+          input,
+          this.deps.requestTimeoutMs
+        )
+  liveAccessModes = (sessionId: string) =>
+    claudeStructuredLiveAccessModes(this.sessions.get(sessionId))
   startAnswered = (sessionId: string): boolean | undefined =>
     this.sessions.get(sessionId)?.startup.answered
   awaitOptionWritable = (sessionId: string): Promise<void> =>

@@ -47,6 +47,7 @@ export type { StructuredAgentSessionMutationContext } from './structured-agent-s
 import type { StructuredAgentSessionCaller } from './structured-agent-session-host-types'
 import {
   readStructuredAgentSessionOptions,
+  liveStructuredAgentSessionAccessModes,
   recordStructuredAgentSessionOptionIntent
 } from './structured-agent-session-options-read'
 
@@ -194,7 +195,12 @@ export async function setStructuredAgentSessionOption(
         if (atRest()) {
           return recordStructuredAgentSessionOptionIntent(context.deps, ctx, params)
         }
-        if (params.key === 'accessMode') {
+        if (
+          params.key === 'accessMode' &&
+          !liveStructuredAgentSessionAccessModes(context.deps, params.envelope.sessionId).some(
+            (mode) => mode === params.value
+          )
+        ) {
           return {
             ok: false,
             refusal: refuse(

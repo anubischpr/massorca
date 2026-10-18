@@ -24,3 +24,21 @@ export function claudeStructuredPermissionModeForSettings(
     ? 'bypassPermissions'
     : 'default'
 }
+
+/** The CLI permission mode a session-level preset launches with. `default` and `full-access` stay
+ *  with the bypass flag the launch resolver already owns; a preset never reaches bypass. */
+export function claudeStructuredPermissionModeForPreset(
+  accessMode: string | undefined
+): PermissionMode | undefined {
+  switch (accessMode) {
+    case 'auto':
+      return 'auto'
+    case 'accept-edits':
+      return 'acceptEdits'
+    case 'plan':
+      return 'plan'
+    case undefined:
+    default:
+      return undefined
+  }
+}

@@ -1,4 +1,5 @@
 import type { AgentType } from './agent-status-types'
+import type { AgentSessionAccessMode } from './agent-session-access-mode'
 
 export type SessionOptionValue = string | boolean
 
@@ -6,6 +7,8 @@ export type SessionOptionSelectChoice = {
   value: string
   label: string
   description?: string
+  /** Shown but not pickable now, while the rest of the descriptor is. */
+  disabled?: boolean
 }
 
 /** `default` is the catalog's own value shown before anything is observed —
@@ -27,6 +30,9 @@ export type NativeChatLiveOptionTransport = 'catalog' | 'agent-session'
 export type SessionOptionDisabledReason =
   | 'available-after-session-start'
   | 'set-when-session-starts'
+
+/** Closed set of facts about an option's scope that its surface states beside the choices. */
+export type SessionOptionNote = 'no-restricted-mode' | 'start-only-modes'
 
 export type SessionOptionDescriptor = {
   id: string
@@ -52,6 +58,9 @@ export type SessionOptionDescriptor = {
   transport: NativeChatLiveOptionTransport
   settable: boolean
   disabledReason?: SessionOptionDisabledReason
+  note?: SessionOptionNote
+  /** For `accessMode`: the mode `inherit` resolves to, present only when this client can know it. */
+  inheritedAccess?: AgentSessionAccessMode
   /** Why: picker-only and toggle-only PTY commands cannot be represented as
    * a truthful radio/checkbox state, so the producer exposes an action row. */
   action?: { type: 'agent-picker' | 'toggle-command' }

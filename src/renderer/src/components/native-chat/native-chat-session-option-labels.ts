@@ -1,9 +1,26 @@
 import type {
   SessionOptionDescriptor,
   SessionOptionDisabledReason,
+  SessionOptionNote,
   SessionOptionSelectChoice
 } from '../../../../shared/native-chat-session-options'
 import { translate } from '@/i18n/i18n'
+
+export function nativeChatSessionOptionNote(note: SessionOptionNote): string {
+  // Exhaustive over SessionOptionNote, like the disabled-reason labels below.
+  switch (note) {
+    case 'no-restricted-mode':
+      return translate(
+        'components.native-chat.composer.optionNote.noRestrictedMode',
+        'Pi chat has no restricted mode.'
+      )
+    case 'start-only-modes':
+      return translate(
+        'components.native-chat.composer.optionNote.startOnlyModes',
+        'Dimmed modes can only be set when the session starts.'
+      )
+  }
+}
 
 export function nativeChatSessionOptionLabel(descriptor: SessionOptionDescriptor): string {
   switch (descriptor.id) {
@@ -32,8 +49,19 @@ export function nativeChatSessionChoiceLabel(choice: SessionOptionSelectChoice):
     case 'default':
       return translate(
         'components.native-chat.composer.accessModeValue.default',
-        'Provider default'
+        'Ask for approval'
       )
+    case 'auto':
+      return translate('components.native-chat.composer.accessModeValue.auto', 'Auto')
+    case 'accept-edits':
+      return translate(
+        'components.native-chat.composer.accessModeValue.acceptEdits',
+        'Accept edits'
+      )
+    case 'plan':
+      return translate('components.native-chat.composer.accessModeValue.plan', 'Plan')
+    case 'read-only':
+      return translate('components.native-chat.composer.accessModeValue.readOnly', 'Read only')
     case 'full-access':
       return translate('components.native-chat.composer.accessModeValue.fullAccess', 'Full access')
     case 'minimal':

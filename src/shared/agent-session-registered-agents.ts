@@ -10,7 +10,10 @@
 
 import { z } from 'zod'
 import type { AgentSessionCapabilities } from './agent-session-capabilities'
-import { AGENT_SESSION_ACCESS_MODES } from './agent-session-access-mode'
+import {
+  AGENT_SESSION_ACCESS_MODES,
+  isAgentSessionPermissionPreset
+} from './agent-session-access-mode'
 import { isStructuredAgentId } from './agent-session-provider-handle-encoding'
 import { openEnum } from './zod-salvage'
 
@@ -27,6 +30,12 @@ export type AgentSessionAgentsResult = {
 
 /** Bounds one reply; no host registers anywhere near this many agents. */
 const MAX_REGISTERED_AGENTS = 128
+
+// A preset this build does not know is dropped, so a newer host's extra preset costs only that preset.
+const permissionPresets = z
+  .array(z.string())
+  .max(16)
+  .transform((values) => values.filter(isAgentSessionPermissionPreset))
 
 // An absent flag is a capability the host did not claim.
 const capabilityFlag = z.boolean().optional().default(false)
@@ -47,7 +56,17 @@ const registeredAgentSchema = z.object({
     approvalEnforcement: openEnum(['provider', 'orca'] as const, 'orca')
       .optional()
       .default('orca'),
-    supportedAccessModes: z.array(z.enum(AGENT_SESSION_ACCESS_MODES)).max(2).optional()
+    supportedAccessModes: z.array(z.enum(AGENT_SESSION_ACCESS_MODES)).max(2).optional(),
+    supportedPermissionPresets: permissionPresets.optional(),
+    runtimeAccess: z
+      .record(
+        z.string().max(64),
+        z.object({
+          modes: z.array(z.enum(AGENT_SESSION_ACCESS_MODES)).max(2),
+          presets: permissionPresets.optional()
+        })
+      )
+      .optional()
   })
 })
 

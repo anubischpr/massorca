@@ -27,7 +27,13 @@ const state = {
   model: { provider: 'anthropic', id: 'model-1' }
 }
 const cleanups: (() => Promise<void>)[] = []
+let listedCommands: { name: string }[] = [{ name: 'help' }]
+let promptReply: unknown = { disposition: 'handled' }
+const opened: { closed: boolean }[] = []
 afterEach(async () => {
+  listedCommands = [{ name: 'help' }]
+  promptReply = { disposition: 'handled' }
+  opened.length = 0
   for (const cleanup of cleanups.splice(0)) {
     await cleanup()
   }
@@ -44,12 +50,17 @@ class FakeConnection implements PiRpcConnection {
   closeResult: Awaited<ReturnType<PiRpcConnection['close']>> = { root: 'exited', tree: 'exited' }
   readonly sent: JsonlRpcRecord[] = []
   readonly requests: string[] = []
+  readonly prompts: string[] = []
   private readonly exitListeners: (() => void)[] = []
   requestOverride?: (command: string) => Promise<unknown> | undefined
   abortRequest?: () => void
   constructor(readonly handlers: JsonlRpcAgentConnectionOptions) {}
-  async request(command: string): Promise<unknown> {
+  async request(command: string, params?: Record<string, unknown>): Promise<unknown> {
     this.requests.push(command)
+    if (command === 'prompt') {
+      this.prompts.push(String(params?.message))
+      return promptReply
+    }
     const override = this.requestOverride?.(command)
     if (override) {
       return override
@@ -61,7 +72,7 @@ class FakeConnection implements PiRpcConnection {
       return { models: [state.model] }
     }
     if (command === 'get_commands') {
-      return { commands: [{ name: 'help' }] }
+      return { commands: listedCommands }
     }
     if (command === 'set_thinking_level') {
       throw new Error('saved effort unavailable')
@@ -108,7 +119,8 @@ class FakeConnection implements PiRpcConnection {
 
 async function setup(
   options: Readonly<Record<string, string>> = {},
-  eventSink?: (sink: StructuredAgentSessionEventSink) => StructuredAgentSessionEventSink
+  eventSink?: (sink: StructuredAgentSessionEventSink) => StructuredAgentSessionEventSink,
+  launchExtras: { gentleMode?: 'normal' | 'auto' | 'yolo' } = {}
 ) {
   const rig = await openProviderTimelineRig({ agent: 'pi', sessionId })
   const connections: FakeConnection[] = []
@@ -136,12 +148,14 @@ async function setup(
     command: '/host/bin/pi',
     cwd: '/host/folder',
     fullAccess: true,
-    previous: null
+    previous: null,
+    ...launchExtras
   }))
   const openConnection = vi.fn(
     (_launch: ProviderProcessLaunch, handlers: JsonlRpcAgentConnectionOptions) => {
       const connection = new FakeConnection(handlers)
       connections.push(connection)
+      opened.push(connection)
       return connection
     }
   )
@@ -179,6 +193,95 @@ async function setup(
     connections
   }
 }
+
+const GENTLE_COMMANDS = [{ name: 'gentle:mode' }, { name: 'gentle:yolo' }]
+const GENTLE_OPTIONS = { piRuntime: 'gentle-shell', accessMode: 'auto' }
+
+describe('Gentle Shell permission modes over Pi RPC', () => {
+  it('applies the resolved mode through extension commands right after start', async () => {
+    listedCommands = GENTLE_COMMANDS
+    const h = await setup(GENTLE_OPTIONS, undefined, { gentleMode: 'auto' })
+    expect(h.connection.prompts).toEqual(['/gentle:yolo disable', '/gentle:mode auto'])
+    // Orca's own launch selections are not options the child failed to take.
+    expect(h.adapter.readOptionRestoreFailures(sessionId)).toEqual([])
+    expect(h.adapter.liveAccessModes(sessionId)).toEqual(['default', 'auto', 'full-access'])
+  })
+
+  it('enables YOLO for Full access with one command', async () => {
+    listedCommands = GENTLE_COMMANDS
+    const h = await setup({ ...GENTLE_OPTIONS, accessMode: 'full-access' }, undefined, {
+      gentleMode: 'yolo'
+    })
+    expect(h.connection.prompts).toEqual(['/gentle:yolo enable'])
+  })
+
+  it('never sends a mode command to stock Pi, even when the child lists one', async () => {
+    listedCommands = GENTLE_COMMANDS
+    const h = await setup({ accessMode: 'full-access' })
+    expect(h.connection.prompts).toEqual([])
+    expect(h.adapter.liveAccessModes(sessionId)).toEqual([])
+    await expect(
+      h.adapter.setOption({ sessionId, fence: 7, key: 'accessMode', value: 'auto' })
+    ).rejects.toThrow('no permission modes')
+    expect(h.connection.prompts).toEqual([])
+  })
+
+  it.each(['normal', 'auto'] as const)(
+    'fails the start and stops the child when %s cannot be applied',
+    async (gentleMode) => {
+      const options = {
+        ...GENTLE_OPTIONS,
+        accessMode: gentleMode === 'normal' ? 'default' : 'auto'
+      }
+      // The child does not list the mode commands, so nothing can narrow it from full access.
+      await expect(setup(options, undefined, { gentleMode })).rejects.toBeInstanceOf(
+        AgentSessionAcquisitionRootExitObservedError
+      )
+      expect(opened.map((connection) => connection.closed)).toEqual([true])
+    }
+  )
+
+  it('fails the start when a mode command does not run', async () => {
+    listedCommands = GENTLE_COMMANDS
+    promptReply = { disposition: 'rejected' }
+    await expect(setup(GENTLE_OPTIONS, undefined, { gentleMode: 'auto' })).rejects.toBeInstanceOf(
+      AgentSessionAcquisitionRootExitObservedError
+    )
+    expect(opened.map((connection) => connection.closed)).toEqual([true])
+  })
+
+  it('lets Full access start without commands, dropping only the pick record', async () => {
+    const h = await setup({ ...GENTLE_OPTIONS, accessMode: 'full-access' }, undefined, {
+      gentleMode: 'yolo'
+    })
+    expect(h.connection.prompts).toEqual([])
+    expect(h.adapter.readOptionRestoreFailures(sessionId)).toEqual(['accessMode'])
+  })
+
+  it('switches live with the same commands and returns the child options', async () => {
+    listedCommands = GENTLE_COMMANDS
+    const h = await setup(GENTLE_OPTIONS, undefined, { gentleMode: 'auto' })
+    h.connection.prompts.length = 0
+    await h.adapter.setOption({ sessionId, fence: 7, key: 'accessMode', value: 'default' })
+    expect(h.connection.prompts).toEqual(['/gentle:yolo disable', '/gentle:mode normal'])
+  })
+
+  it('refuses a live switch while a turn is in flight and keeps the previous mode', async () => {
+    listedCommands = GENTLE_COMMANDS
+    const h = await setup(GENTLE_OPTIONS, undefined, { gentleMode: 'auto' })
+    await h.adapter.dispatch({
+      sessionId,
+      fence: 7,
+      clientMessageId: 'busy',
+      body: { kind: 'message', role: 'user', blocks: [{ type: 'text', text: 'work' }] }
+    })
+    h.connection.prompts.length = 0
+    await expect(
+      h.adapter.setOption({ sessionId, fence: 7, key: 'accessMode', value: 'full-access' })
+    ).rejects.toThrow('once the current turn ends')
+    expect(h.connection.prompts).toEqual([])
+  })
+})
 
 describe('Pi RPC session ownership and delivery', () => {
   it('does not spawn a start cancelled while resolving its workspace', async () => {

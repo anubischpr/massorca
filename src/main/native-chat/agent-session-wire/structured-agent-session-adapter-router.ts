@@ -4,6 +4,7 @@ import type {
   AgentSessionAccountHome,
   AgentSessionExecutionLocation
 } from '../../../shared/agent-session-record'
+import type { AgentSessionExplicitAccess } from '../../../shared/agent-session-access-mode'
 import type { StructuredAgentSessionAdapter } from './structured-agent-session-adapter'
 import { readNativeSessionOptions } from './structured-agent-session-option-restoration'
 import type {
@@ -172,6 +173,8 @@ export class StructuredAgentSessionAdapterRouter implements StructuredAgentSessi
     this.liveOwnerOrNull(sessionId)?.awaitOptionWritable?.(sessionId) ?? Promise.resolve()
   startAnswered = (sessionId: string): boolean | undefined =>
     this.liveOwnerOrNull(sessionId)?.startAnswered?.(sessionId)
+  liveAccessModes = (sessionId: string): readonly AgentSessionExplicitAccess[] =>
+    this.liveOwnerOrNull(sessionId)?.liveAccessModes?.(sessionId) ?? []
 
   prepareReadOptions = (input: { sessionId: string; fence: number }) =>
     this.liveOwnerOrNull(input.sessionId)?.prepareReadOptions?.(input)

@@ -1,9 +1,9 @@
 import { structuredAgentSessionAccessOption } from './structured-agent-session-access-option'
-import type {
-  AgentSessionOptionCatalog,
-  CatalogModel,
-  CatalogOption
-} from './agent-session-option-catalog'
+import type { AgentSessionOptionCatalog } from './agent-session-option-catalog'
+import {
+  discoveredModel,
+  structuredAgentSessionOptionCatalog
+} from './structured-agent-session-option-catalog'
 import {
   buildNativeChatSessionOptionSnapshot,
   resolveEffectiveNativeChatModelId,
@@ -26,70 +26,12 @@ import {
   decodeStructuredAgentSessionOptionValue,
   encodeStructuredAgentSessionOptionValue
 } from './structured-agent-session-option-codec'
-import type { AgentSessionAccessMode } from './agent-session-access-mode'
+import type {
+  AgentSessionAccessMode,
+  AgentSessionExplicitAccess,
+  AgentSessionPermissionPreset
+} from './agent-session-access-mode'
 import { supportsAgentSessionAccessMode } from './agent-session-access-mode'
-
-function effortOption(model: AgentSessionOptionsResult['models'][number]): CatalogOption | null {
-  if (model.efforts.length <= 1) {
-    return null
-  }
-  return {
-    id: 'effort',
-    label: 'Reasoning effort',
-    category: 'thought_level',
-    kind: {
-      type: 'select',
-      choices: model.efforts,
-      defaultValue: model.defaultEffort ?? model.efforts[0]!.value,
-      ...(model.defaultEffort ? { defaultIsCliDefault: true as const } : {})
-    },
-    apply: { midSession: { kind: 'command', build: (value) => `/effort ${String(value)}` } }
-  }
-}
-
-function fastModeOption(): CatalogOption {
-  return {
-    id: 'fastMode',
-    label: 'Fast mode',
-    category: 'mode',
-    kind: { type: 'boolean', defaultValue: false },
-    apply: {}
-  }
-}
-
-function discoveredModel(
-  model: AgentSessionOptionsResult['models'][number],
-  sessionSupportsFastMode: boolean
-): CatalogModel {
-  const effort = effortOption(model)
-  return {
-    id: model.id,
-    label: model.label,
-    ...(model.description ? { description: model.description } : {}),
-    ...(model.isDefault ? { isDefault: true } : {}),
-    options: [
-      ...(effort ? [effort] : []),
-      ...(sessionSupportsFastMode && model.supportsFastMode === true ? [fastModeOption()] : [])
-    ]
-  }
-}
-
-export function structuredAgentSessionOptionCatalog(
-  seed: AgentSessionOptionCatalog,
-  result: AgentSessionOptionsResult
-): AgentSessionOptionCatalog {
-  const models: CatalogModel[] = result.models.map((model) =>
-    discoveredModel(model, result.fastModeSupport?.supported === true)
-  )
-  if (result.current.model && !models.some((model) => model.id === result.current.model)) {
-    models.push({
-      id: result.current.model,
-      label: result.current.model,
-      options: seed.unknownModelOptions ?? []
-    })
-  }
-  return { ...seed, models, defaultModelIsCliDefault: true }
-}
 
 export type StructuredAgentSessionOptionState = {
   catalog: AgentSessionOptionCatalog | null
@@ -100,7 +42,13 @@ export type StructuredAgentSessionOptionState = {
   record: NativeChatSessionOptionRecord
   /** Provider-declared modes, independent of model catalog availability. */
   accessModes?: readonly AgentSessionAccessMode[]
+  /** Presets the host declares beyond the two legacy modes; absent from an older host. */
+  permissionPresets?: readonly AgentSessionPermissionPreset[]
+  /** Modes a running child can still switch to; the rest are set when the session starts. */
+  liveAccessModes?: readonly AgentSessionExplicitAccess[]
   accessModeSettable: boolean
+  /** What `inherit` resolves to on this client, when it can know; absent otherwise. */
+  inheritedAccess?: AgentSessionAccessMode | null
   pendingId: string | null
 }
 
@@ -109,13 +57,15 @@ export type StructuredAgentSessionOptionState = {
 export function createStructuredAgentSessionOptionState(
   agent = 'codex',
   seedCatalog?: AgentSessionOptionCatalog | null,
-  accessModes?: readonly AgentSessionAccessMode[]
+  accessModes?: readonly AgentSessionAccessMode[],
+  permissionPresets?: readonly AgentSessionPermissionPreset[]
 ): StructuredAgentSessionOptionState {
   return {
     catalog: seedCatalog ?? null,
     catalogSource: seedCatalog ? 'seed' : null,
     record: createNativeChatSessionOptionRecord(agent),
     ...(accessModes ? { accessModes } : {}),
+    ...(accessModes && permissionPresets?.length ? { permissionPresets } : {}),
     accessModeSettable: accessModes !== undefined,
     pendingId: null
   }
@@ -194,6 +144,8 @@ export function applyStructuredAgentSessionOptions(
     ...(result.accessModeSupport
       ? {
           accessModes: result.accessModeSupport.modes,
+          permissionPresets: result.accessModeSupport.presets ?? [],
+          liveAccessModes: result.accessModeSupport.liveModes ?? [],
           accessModeSettable: result.accessModeSupport.settable
         }
       : {}),
@@ -267,7 +219,7 @@ export function canSetStructuredAgentSessionOption(
     state.pendingId === null &&
     ((typeof value === 'string' &&
       descriptor?.kind.type === 'select' &&
-      descriptor.kind.choices.some((choice) => choice.value === value)) ||
+      descriptor.kind.choices.some((choice) => choice.value === value && !choice.disabled)) ||
       (typeof value === 'boolean' && descriptor?.kind.type === 'boolean'))
   )
 }
@@ -284,7 +236,13 @@ export function commitStructuredAgentSessionOption(
   if (decoded === null) {
     return { ...state, pendingId: null }
   }
-  if (id === 'accessMode' && !supportsAgentSessionAccessMode(value, state.accessModes)) {
+  if (
+    id === 'accessMode' &&
+    !supportsAgentSessionAccessMode(
+      value,
+      state.accessModes && [...state.accessModes, ...(state.permissionPresets ?? [])]
+    )
+  ) {
     return { ...state, pendingId: null }
   }
   const effectiveModel = state.catalog

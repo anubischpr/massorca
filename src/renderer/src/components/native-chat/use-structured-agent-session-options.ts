@@ -1,5 +1,3 @@
-import { lockStructuredAgentSessionAccessOptions } from '../../../../shared/structured-agent-session-access-option'
-import { toast } from 'sonner'
 import { useCallback, useMemo } from 'react'
 import type {
   AgentSessionOptionResult,
@@ -13,25 +11,25 @@ import {
   canSetStructuredAgentSessionOption,
   commitStructuredAgentSessionOptionValues,
   lockedStructuredAgentSessionOptionSnapshot,
-  structuredAgentSessionOptionPicks,
-  structuredAgentSessionOptionSnapshot,
-  type StructuredAgentSessionOptionState
+  structuredAgentSessionOptionSnapshot
 } from '../../../../shared/structured-agent-session-options'
 import { structuredAgentSessionOptionView } from '../../../../shared/structured-agent-session-option-view'
 import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
 import { callStructuredAgentSession } from '@/runtime/structured-agent-session-client'
-import { enqueueSessionOptionSettingsWrite } from './native-chat-session-option-settings-write'
 import { encodeStructuredAgentSessionOptionValue } from '../../../../shared/structured-agent-session-option-codec'
 import type { StructuredAgentSessionMutate } from './use-structured-agent-session-mutate'
 import { useHostModelCatalogUpgrade } from './use-host-model-catalog-upgrade'
 import { useStructuredAgentSessionOptionState } from './use-structured-agent-session-option-state'
-import { agentSessionWriteFailureText } from './agent-session-write-notice-text'
-import { useHostStructuredAgent } from '@/runtime/use-host-structured-agent'
+import { useStructuredAgentOptionPickMemory } from './use-structured-agent-option-pick-memory'
+import {
+  accessPickBlockedByProvider,
+  lockAccessWhileProviderRuns,
+  useStructuredAgentDeclaredAccess
+} from './structured-agent-declared-access'
 import type { StructuredAgentSessionLaunchView } from './use-native-chat-provisional-launch'
 import {
   getStructuredAgentSessionLaunchSelection,
-  holdStructuredAgentSessionLaunchOption,
-  type StructuredLaunchOptionOutcome
+  holdStructuredAgentSessionLaunchOption
 } from '@/lib/structured-agent-session-launch-options'
 
 const NO_HELD_OPTIONS: Readonly<Record<string, string>> = {}
@@ -64,8 +62,14 @@ export function useStructuredAgentSessionOptions(args: {
   } = args
   const launchSeedOptions = launch?.seedOptions
   const held = launch?.heldOptions ?? NO_HELD_OPTIONS
-  const registeredAgent = useHostStructuredAgent(target, agent)
-  const accessModes = registeredAgent?.capabilities?.supportedAccessModes
+  const declaredAccess = useStructuredAgentDeclaredAccess({
+    agent,
+    target,
+    launchSeedOptions,
+    launching: launch !== undefined
+  })
+  const accessModes = declaredAccess?.modes
+  const permissionPresets = declaredAccess?.presets
   // Published but not attached: the launch no longer holds picks and there is no fence to send one.
   const acceptsPicks = !transportEnabled || fence !== null
   const optionCatalog = useMemo(() => structuredAgentSessionSeedCatalog(agent), [agent])
@@ -95,6 +99,7 @@ export function useStructuredAgentSessionOptions(args: {
     // holds the model it ran, so only the former waits rather than show the host's guess.
     readsBeforeStart: launch?.kind !== 'new',
     accessModes,
+    permissionPresets,
     turnId,
     unloadedTurnRevisions: args.unloadedTurnRevisions
   })
@@ -119,16 +124,12 @@ export function useStructuredAgentSessionOptions(args: {
     updateOptionState
   })
 
-  // What a settled pick must remember so the next launch starts where the user left off.
-  const rememberOptionPicks = useCallback(
-    (view: StructuredAgentSessionOptionState, committed: Readonly<Record<string, string>>) => {
-      const picks = structuredAgentSessionOptionPicks(view, committed)
-      if (picks.length > 0) {
-        void enqueueSessionOptionSettingsWrite(target, { type: 'apply-picks', agent, picks })
-      }
-    },
-    [agent, target]
-  )
+  const { rememberOptionPicks, settleLaunchOptionPick } = useStructuredAgentOptionPickMemory({
+    agent,
+    target,
+    optionStateRef,
+    launchSeedOptions
+  })
   const sendStructuredOption = useCallback(
     async (id: string, encoded: string): Promise<boolean> => {
       const currentState = optionStateRef.current
@@ -199,31 +200,16 @@ export function useStructuredAgentSessionOptions(args: {
       updateOptionState
     ]
   )
-  const settleLaunchOptionPick = useCallback(
-    (outcome: StructuredLaunchOptionOutcome) => {
-      if (outcome.kind === 'refused') {
-        toast.error(agentSessionWriteFailureText(outcome.failure, 'option'))
-      } else if (outcome.kind === 'accepted') {
-        rememberOptionPicks(
-          structuredAgentSessionOptionView(
-            optionStateRef.current,
-            launchSeedOptions,
-            NO_HELD_OPTIONS
-          ),
-          outcome.options
-        )
-      }
-    },
-    [launchSeedOptions, optionStateRef, rememberOptionPicks]
-  )
   const optionSnapshot = useMemo(() => {
     const snapshot = structuredAgentSessionOptionSnapshot(
       structuredAgentSessionOptionView(optionState, launchSeedOptions, held)
     )
     const locked = acceptsPicks ? snapshot : lockedStructuredAgentSessionOptionSnapshot(snapshot)
-    return args.providerRunning || args.providerStarting
-      ? lockStructuredAgentSessionAccessOptions(locked)
-      : locked
+    return lockAccessWhileProviderRuns(
+      locked,
+      { providerStarting: args.providerStarting, providerRunning: args.providerRunning },
+      optionState
+    )
   }, [
     acceptsPicks,
     args.providerRunning,
@@ -238,7 +224,12 @@ export function useStructuredAgentSessionOptions(args: {
       const encoded = encodeStructuredAgentSessionOptionValue(id, value)
       if (
         encoded === null ||
-        (id === 'accessMode' && (args.providerRunning || args.providerStarting)) ||
+        (id === 'accessMode' &&
+          accessPickBlockedByProvider(
+            { providerStarting: args.providerStarting, providerRunning: args.providerRunning },
+            optionStateRef.current,
+            value
+          )) ||
         (id !== 'accessMode' && !optionCatalog) ||
         !canSetStructuredAgentSessionOption(view, id, value)
       ) {

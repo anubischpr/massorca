@@ -15,6 +15,8 @@ import {
   type StructuredAgentSessionResumeSource
 } from '../../../shared/structured-agent-session-create'
 import { resolveStructuredLaunchSeedOptions } from '../../../shared/native-chat-session-option-defaults'
+import { createAccessModeFor } from '../../../shared/structured-agent-session-access-option'
+import { accessRuntimeDeclaredByHost } from '@/runtime/host-structured-agent-access'
 import { hasRuntimeRpcErrorCode } from '../../../shared/runtime-rpc-error-code'
 import { isDefinitiveAgentSessionCreateRefusal } from '../../../shared/agent-session-definitive-refusal'
 import { readAgentSessionRefusalReference } from '../../../shared/agent-session-wire-refusals'
@@ -154,7 +156,13 @@ function buildStructuredAgentSessionLaunchIntent(
         : selectedPiRuntime(state.settings?.agentCmdOverrides?.pi)
       : undefined
   const accessMode =
-    agent === 'pi' ? (retainedRuntime?.accessMode ?? hostSeedOptions?.accessMode) : undefined
+    agent === 'pi'
+      ? createAccessModeFor(
+          agent,
+          retainedRuntime?.accessMode ?? hostSeedOptions?.accessMode,
+          accessRuntimeDeclaredByHost(owner.target, agent, piRuntime)
+        )
+      : undefined
   recordWebSessionFocusIntent(
     structuredAgentSessionFocusOwner(owner.target),
     worktreeId,
@@ -195,10 +203,13 @@ export function retryStructuredAgentSessionLaunchIntent(
     intent.seedOptions,
     {
       value: intent.params.piRuntime,
+      // A preset is told to create as its never-wider legacy value; the preset itself follows as a pick.
       accessMode:
-        accessMode === 'default' || accessMode === 'full-access'
-          ? accessMode
-          : intent.params.accessMode
+        createAccessModeFor(
+          intent.agent,
+          accessMode,
+          accessRuntimeDeclaredByHost(intent.target, intent.agent, intent.params.piRuntime)
+        ) ?? intent.params.accessMode
     }
   )
 }
@@ -220,6 +231,11 @@ export function restoreStructuredAgentSessionLaunchIntent(args: {
 }): StructuredAgentSessionLaunchIntent {
   const state = useAppStore.getState()
   const { target } = structuredAgentSessionOwnerTarget(args.worktreeId, args.executionHostId)
+  const accessMode = createAccessModeFor(
+    args.agent,
+    args.accessMode,
+    accessRuntimeDeclaredByHost(target, args.agent, args.piRuntime)
+  )
   recordWebSessionFocusIntent(
     structuredAgentSessionFocusOwner(target),
     args.worktreeId,
@@ -243,7 +259,7 @@ export function restoreStructuredAgentSessionLaunchIntent(args: {
       worktree: toRuntimeWorktreeSelector(args.worktreeId),
       agent: args.agent,
       ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
-      ...(args.accessMode ? { accessMode: args.accessMode } : {}),
+      ...(accessMode ? { accessMode } : {}),
       ...(args.resumeFrom ? { resumeFrom: args.resumeFrom } : {})
     },
     ...launchSeedOptions(state, { target }, args.agent, args.seedOptions)

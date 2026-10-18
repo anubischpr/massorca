@@ -5,7 +5,10 @@
  * name. A running session may narrow a declared capability (a Codex thread with legacy history
  * cannot rewind) but never widens one. Plain data, so a host can send it to clients as it is.
  */
-import type { AgentSessionAccessMode } from './agent-session-access-mode'
+import type {
+  AgentSessionAccessMode,
+  AgentSessionPermissionPreset
+} from './agent-session-access-mode'
 
 export type AgentSessionCapabilities = {
   /** Roll the conversation back to before a turn. */
@@ -30,4 +33,16 @@ export type AgentSessionCapabilities = {
   approvalEnforcement: 'provider' | 'orca'
   /** Explicit presets this provider can apply at launch. `inherit` is universal and not listed. */
   supportedAccessModes?: readonly AgentSessionAccessMode[]
+  /** Presets beyond the two legacy modes. Absent from an older host, whose clients then offer none. */
+  supportedPermissionPresets?: readonly AgentSessionPermissionPreset[]
+  /** Replaces the two declarations above for a session on that runtime (Pi's Gentle Shell). */
+  runtimeAccess?: Readonly<
+    Record<
+      string,
+      {
+        modes: readonly AgentSessionAccessMode[]
+        presets?: readonly AgentSessionPermissionPreset[]
+      }
+    >
+  >
 }

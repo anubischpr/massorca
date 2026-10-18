@@ -42,9 +42,8 @@ describe('structured agent session launch', () => {
     expect(retry.params.envelope.clientOperationId).not.toBe(
       intent.params.envelope.clientOperationId
     )
-    expect(retry.params.envelope.payloadFingerprint).not.toBe(
-      intent.params.envelope.payloadFingerprint
-    )
+    // Pi asks for full access on both attempts, so the retried create carries the same payload.
+    expect(retry.params.envelope.payloadFingerprint).toBe(intent.params.envelope.payloadFingerprint)
   })
 
   it('retains the admitted Pi runtime through a changed preference and retry', async () => {
@@ -540,6 +539,52 @@ describe('structured agent session launch', () => {
     expect(error).toMatchObject({ code: 'agent_session_operation_unknown' })
   })
 
+  it('asks a Pi chat to start in full access, the only access Pi has', () => {
+    expect(createStructuredAgentSessionLaunchIntent('workspace-1', 'pi').params.accessMode).toBe(
+      'full-access'
+    )
+    expect(
+      createStructuredAgentSessionLaunchIntent('workspace-1', 'pi', 'local', undefined, {
+        accessMode: 'inherit'
+      }).params.accessMode
+    ).toBe('full-access')
+    expect(
+      createStructuredAgentSessionLaunchIntent('workspace-1', 'codex').params.accessMode
+    ).toBeUndefined()
+  })
+
+  it('retries a Pi chat in full access after a restricted-access refusal', () => {
+    const intent = createStructuredAgentSessionLaunchIntent('workspace-1', 'pi')
+    expect(retryStructuredAgentSessionLaunchIntent(intent).params.accessMode).toBe('full-access')
+    expect(retryStructuredAgentSessionLaunchIntent(intent, 'default').params.accessMode).toBe(
+      'full-access'
+    )
+  })
+
+  it('restores a persisted Pi launch in full access even when it stored no choice', () => {
+    const restored = restoreStructuredAgentSessionLaunchIntent({
+      worktreeId: 'workspace-1',
+      executionHostId: 'local',
+      sessionId: 'pi_1',
+      agent: 'pi',
+      clientOperationId: 'operation-pi',
+      payloadFingerprint: 'fingerprint-pi',
+      expectedRuntimeFence: null
+    })
+    expect(restored.params.accessMode).toBe('full-access')
+  })
+
+  it('asks a host about full access when it admits a Pi chat', async () => {
+    const server = { kind: 'environment' as const, environmentId: 'server-1' }
+    vi.mocked(callStructuredAgentSession).mockResolvedValueOnce({ supported: true })
+    await admitStructuredLaunchOnHost(server, 'id:wt-1', 'pi')
+    expect(callStructuredAgentSession).toHaveBeenCalledWith(
+      server,
+      'agentSession.createSupport',
+      expect.objectContaining({ agent: 'pi', accessMode: 'full-access' })
+    )
+  })
+
   /** The class is the verdict, so a refusal message that happens to end in a definitive token
    *  must not be re-read into one by the transport-error matcher. */
   it('keeps an unknown outcome unknown even when its message ends in a definitive token', async () => {
@@ -599,5 +644,35 @@ describe('structured agent session launch', () => {
     ).catch((caught: unknown) => caught)
 
     expect(transportError).not.toBeInstanceOf(StructuredAgentSessionCreateRefusalError)
+  })
+
+  it('names the cause a host gives for an agent CLI that cannot run, and no unknown one', async () => {
+    vi.mocked(callStructuredAgentSession).mockResolvedValue({
+      supported: false,
+      reason: 'agent',
+      cause: 'antigravityCliVersionUnsupported'
+    })
+    await expect(
+      launchStructuredAgentSession(
+        createStructuredAgentSessionLaunchIntent('workspace-cause', 'antigravity')
+      )
+    ).rejects.toMatchObject({
+      code: 'agent_session_operation_invalid',
+      refusal: {
+        code: 'agent_session_operation_invalid',
+        details: { reason: 'antigravityCliVersionUnsupported' }
+      }
+    })
+
+    vi.mocked(callStructuredAgentSession).mockResolvedValue({
+      supported: false,
+      reason: 'agent',
+      cause: 'someReportFromANewerHost'
+    })
+    await expect(
+      launchStructuredAgentSession(
+        createStructuredAgentSessionLaunchIntent('workspace-cause-unknown', 'antigravity')
+      )
+    ).rejects.toMatchObject({ code: 'structured_agent_session_unsupported' })
   })
 })

@@ -1,6 +1,12 @@
 import type { TuiAgent } from '../../../shared/tui-agent'
 import { isDefinitiveAgentSessionCreateRefusal } from '../../../shared/agent-session-definitive-refusal'
 import { parseStructuredLaunchSeedOptions } from '../../../shared/native-chat-session-option-defaults'
+import { createAccessModeFor } from '../../../shared/structured-agent-session-access-option'
+import { accessRuntimeDeclaredByHost } from '@/runtime/host-structured-agent-access'
+import {
+  isAgentSessionRefusalReason,
+  type AgentSessionRefusalReason
+} from '../../../shared/agent-session-refusal-details'
 import { hasRuntimeRpcErrorCode } from '../../../shared/runtime-rpc-error-code'
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import { callStructuredAgentSession } from '@/runtime/structured-agent-session-client'
@@ -39,7 +45,8 @@ function runtimeErrorCode(error: unknown): string {
  *  An admitting host also names the saved selection create will seed, when it is new enough to. */
 export type StructuredLaunchAdmission =
   | { kind: 'admitted'; seedOptions?: Readonly<Record<string, string>> }
-  | { kind: 'declined' }
+  /** `cause`: why the agent's CLI cannot run on the host, when the host named it. */
+  | { kind: 'declined'; cause?: AgentSessionRefusalReason<'agent_session_operation_invalid'> }
   | { kind: 'unreachable' }
   /** The host still could not resolve the workspace after the retries: not yet, rather than no. */
   | { kind: 'workspace-unresolved' }
@@ -48,6 +55,13 @@ export type HostCreateSupport =
   | Exclude<StructuredLaunchAdmission, { kind: 'unreachable' }>
   | { kind: 'policy-unsupported'; seedOptions?: Readonly<Record<string, string>> }
   | { kind: 'unreachable'; code: string; message: string; error: unknown }
+
+/** A decline that names its cause only when the host sent a reason this build knows. */
+function declinedWithCause(cause: unknown): HostCreateSupport {
+  return isAgentSessionRefusalReason('agent_session_operation_invalid', cause)
+    ? { kind: 'declined', cause }
+    : { kind: 'declined' }
+}
 
 /**
  * Whether the executing host supports creating this session, retrying only while the host cannot
@@ -68,6 +82,7 @@ export async function askHostCreateSupport(
         supported: boolean
         reason?: string
         seedOptions?: unknown
+        cause?: unknown
       }>(target, 'agentSession.createSupport', {
         worktree,
         agent,
@@ -91,7 +106,7 @@ export async function askHostCreateSupport(
               ),
               error: new Error('Gentle Shell structured runtime unavailable')
             }
-          : { kind: 'declined' }
+          : declinedWithCause(support.cause)
       }
       const seedOptions = parseStructuredLaunchSeedOptions(support.seedOptions)
       const retainedSeed =
@@ -152,6 +167,14 @@ export async function requireStructuredAgentLaunchSupport(
       readAgentSessionErrorRefusal(support.error)
     )
   }
+  if (support.kind === 'declined' && support.cause) {
+    abandon()
+    throw new StructuredAgentSessionCreateRefusalError(
+      'This chat cannot start on this computer.',
+      'agent_session_operation_invalid',
+      { code: 'agent_session_operation_invalid', details: { reason: support.cause } }
+    )
+  }
   if (support.kind === 'declined' || support.kind === 'workspace-unresolved') {
     abandon()
     throw new StructuredAgentSessionCreateRefusalError(
@@ -172,16 +195,21 @@ export async function admitStructuredLaunchOnHost(
     agent === 'pi'
       ? selectedPiRuntime(useAppStore.getState().settings?.agentCmdOverrides?.pi)
       : undefined
-  const asked = askHostCreateSupport(target, worktree, agent, piRuntime).then(
-    (support): StructuredLaunchAdmission =>
-      support.kind === 'unreachable'
-        ? { kind: 'unreachable' }
-        : support.kind === 'policy-unsupported'
-          ? {
-              kind: 'admitted',
-              seedOptions: { ...support.seedOptions, piRuntime: piRuntime ?? 'pi' }
-            }
-          : support
+  const asked = askHostCreateSupport(
+    target,
+    worktree,
+    agent,
+    piRuntime,
+    createAccessModeFor(agent, undefined, accessRuntimeDeclaredByHost(target, agent, piRuntime))
+  ).then((support): StructuredLaunchAdmission =>
+    support.kind === 'unreachable'
+      ? { kind: 'unreachable' }
+      : support.kind === 'policy-unsupported'
+        ? {
+            kind: 'admitted',
+            seedOptions: { ...support.seedOptions, piRuntime: piRuntime ?? 'pi' }
+          }
+        : support
   )
   if (target.kind !== 'local') {
     return asked

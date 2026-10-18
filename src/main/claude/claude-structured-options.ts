@@ -11,6 +11,8 @@ import {
   readClaudeSettingsFastMode
 } from './claude-structured-session-options'
 import type { ClaudeSession } from './claude-structured-session-state'
+import type { AgentSessionExplicitAccess } from '../../shared/agent-session-access-mode'
+import { claudeStructuredPermissionModeForPreset } from './claude-structured-permission-mode'
 import { decodeStructuredAgentSessionOptionValue } from '../../shared/structured-agent-session-option-codec'
 
 const OPTION_ORDER = ['model', 'effort', 'fastMode', 'permissionMode'] as const
@@ -29,12 +31,23 @@ const CONTEXT_WINDOW_KEYS: ReadonlySet<string> = new Set(['model', 'permissionMo
 export function restoredClaudeStructuredSessionOptions(
   options: Readonly<Record<string, string>> | undefined
 ): Map<string, string> {
-  return new Map(
+  const restored = new Map(
     OPTION_ORDER.flatMap((key) => {
       const value = options?.[key]
       return value ? [[key, value] as const] : []
     })
   )
+  // An explicit access pick is the one source: it replaces any permissionMode kept from before it,
+  // and a preset launches the child in its mode instead of silently starting as default.
+  const access = options?.accessMode
+  if (access && access !== 'inherit') {
+    restored.delete('permissionMode')
+    const mode = claudeStructuredPermissionModeForPreset(access)
+    if (mode) {
+      restored.set('permissionMode', mode)
+    }
+  }
+  return restored
 }
 
 /** The keys `setClaudeStructuredOption` writes; a pick made at rest is checked against these. */
@@ -60,6 +73,38 @@ export function setClaudeStructuredSessionOption(
     )
   }
   return setClaudeStructuredOption(session, input, timeoutMs)
+}
+
+/** Access modes a started Claude child can switch to through `set_permission_mode`. Bypass is the
+ *  Agent Permissions setting's to grant at launch, and a child that left it cannot return. */
+const CLAUDE_LIVE_ACCESS_MODES = ['default', 'auto', 'accept-edits', 'plan'] as const
+
+export function claudeStructuredLiveAccessModes(
+  session: Pick<ClaudeSession, 'startup'> | undefined
+): readonly AgentSessionExplicitAccess[] {
+  return session?.startup.state === 'proven' ? CLAUDE_LIVE_ACCESS_MODES : []
+}
+
+/** A live access pick as a permission-mode write. The record keeps `accessMode` as the one source,
+ *  so the CLI-level `permissionMode` it set is not kept beside it to contradict a later pick. */
+export async function setClaudeStructuredAccessMode(
+  session: ClaudeSession,
+  value: string,
+  timeoutMs: number | undefined
+): Promise<Readonly<Record<string, string>>> {
+  const mode =
+    value === 'default'
+      ? 'default'
+      : CLAUDE_LIVE_ACCESS_MODES.some((live) => live === value)
+        ? claudeStructuredPermissionModeForPreset(value)
+        : undefined
+  if (!mode) {
+    throw new AgentSessionOptionRejectedError(`claude cannot switch to ${value} while it runs`)
+  }
+  await setClaudeStructuredSessionOption(session, { key: 'permissionMode', value: mode }, timeoutMs)
+  session.options.delete('permissionMode')
+  session.confirmedOptions.delete('permissionMode')
+  return Object.fromEntries(session.options)
 }
 
 export async function setClaudeStructuredOption(
