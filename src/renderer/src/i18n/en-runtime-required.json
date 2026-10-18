@@ -2702,6 +2702,11 @@
       }
     },
     "lib": {
+      "agent": {
+        "catalog": {
+          "302934c5d9": "Pi"
+        }
+      },
       "browser": {
         "cookie": {
           "import": {
@@ -2743,11 +2748,6 @@
             "9ccec2316b": "Issue",
             "ca40ffcbec": "PR"
           }
-        }
-      },
-      "agent": {
-        "catalog": {
-          "302934c5d9": "Pi"
         }
       }
     },
@@ -2799,6 +2799,9 @@
     }
   },
   "components": {
+    "agentSessionContinuation": {
+      "handOffUnavailable": "This agent cannot start a new session from its chat."
+    },
     "native-chat": {
       "ask": {
         "asked": "Asked:",
@@ -2852,8 +2855,19 @@
         "workflow": "Background workflow"
       },
       "composer": {
+        "accessModeValue": {
+          "acceptEdits": "Accept edits",
+          "auto": "Auto",
+          "default": "Ask for approval",
+          "plan": "Plan",
+          "readOnly": "Read only"
+        },
         "effort": "Effort",
-        "imageUnsupported": "Image paste is not supported for this agent."
+        "imageUnsupported": "Image paste is not supported for this agent.",
+        "optionNote": {
+          "noRestrictedMode": "Pi chat has no restricted mode.",
+          "startOnlyModes": "Dimmed modes can only be set when the session starts."
+        }
       },
       "failureWords": {
         "accountSwitchInProgress": "A Claude account switch is in progress. Try again after it finishes.",
@@ -2861,6 +2875,7 @@
         "agentCommandNotSignedIn": "Sign in to {{agent}} with `{{loginCommand}}` on the computer running this chat.",
         "agentNotSignedIn": "Sign in to {{agent}}.",
         "answerUnconfirmed": "Your answer was recorded but the agent did not confirm it.",
+        "antigravityCliVersionUnsupported": "{{agent}} on this computer did not report a stable CLI {{version}} or newer: it may be outdated, or its version check failed or timed out. Check it in a terminal, then try again.",
         "argumentsMissingValue": "Saved Arguments need a value for {{option}}.",
         "argumentsMultipleValues": "Saved Arguments give {{option}} more than one value.",
         "argumentsPositionalPrompt": "Saved Arguments include a prompt.",
@@ -2899,6 +2914,7 @@
         "editSavedArguments": "Edit them in Settings > Agents > Arguments.",
         "emptyMessage": "This message is empty, so it was not sent.",
         "historyInOtherAccount": "This chat's history is in another Claude account. Switch back to that account to continue it.",
+        "historyInOtherAccountAgent": "This chat's history is in another {{agent}} account. Switch back to that account to continue it.",
         "historyTooLarge": "This conversation's history is too large to restore here.",
         "hostFault": "Orca ran into a problem, so this didn't go through.",
         "hostFaultTryAgain": "Orca ran into a problem, so this didn't go through. Try again.",
@@ -2907,7 +2923,9 @@
         "interactiveAgentNotSignedIn": "Sign in to {{agent}} by running `{{loginCommand}}` and using `{{slashCommand}}` on the computer running this chat.",
         "launchFolderMissing": "The folder this chat ran in no longer exists. Restore it to continue this chat.",
         "managedAccountEnvOverride": "This Claude launch sets its own Anthropic sign-in variables. Remove them to use a managed Claude account.",
+        "managedAccountEnvOverrideAgent": "This {{agent}} launch uses a different home folder or sign-in storage than its selected account. Remove that override, then try again.",
         "managedAccountUnsupported": "While a Claude account is added in WSL, Claude chats need a Windows Claude account.",
+        "managedAccountUnsupportedAgent": "{{agent}} cannot run this chat with the account selected on this computer. Choose an account that runs here, then try again.",
         "noTurnToStop": "{{agent}} had no turn running to stop.",
         "notDelivered": "This message was not delivered.",
         "notDeliveredSendAgain": "This message was not delivered. Send it again to continue.",
@@ -2998,6 +3016,13 @@
         },
         "tokens": "{{value0}} tokens"
       },
+      "toggle": {
+        "terminalViewAgent": "This agent cannot resume its chat in the terminal.",
+        "terminalViewLaunchFailed": "Could not open this chat in the terminal. Its agent process was released; the chat history is kept.",
+        "terminalViewNoSession": "This chat has not reported its agent session yet.",
+        "terminalViewNoWorktree": "This chat's workspace is not known yet.",
+        "terminalViewReleaseFailed": "Could not open this chat in the terminal. The chat was left open."
+      },
       "tool": {
         "countN": "{{value0}} tool calls",
         "countOne": "1 tool call",
@@ -3023,6 +3048,7 @@
         "agentStarting": "The agent is still starting.",
         "agentStillWorking": "The agent is still working.",
         "answerFirst": "Answer the question or approval first.",
+        "antigravityWindowsUnsupported": "Antigravity chat cannot verify Windows credential storage.",
         "attachmentExpired": "This attachment expired.",
         "backgroundTasksRunning": "Background tasks are still running.",
         "cannotRunHere": "Orca can't run this agent in a chat here.",
@@ -3083,16 +3109,37 @@
         "unsupported": "This needs a newer Orca on the computer running this chat. Update Orca there, then try again.",
         "updateOrcaToKeepUsing": "Update Orca to keep using them.",
         "updateOrcaToOpenChat": "Update Orca to open it.",
+        "useAntigravityTerminal": "Run Antigravity in a terminal on this PC.",
         "waitForBackgroundTasks": "Wait for the background tasks to finish.",
         "waitForCommand": "Wait for the /compact or /clear to finish.",
         "waitForStart": "Wait for the agent to finish starting.",
         "waitForTurn": "Wait for the agent to finish responding, or stop it.",
-        "waitMoment": "Wait a moment.",
-        "antigravityWindowsUnsupported": "Antigravity chat cannot verify Windows credential storage.",
-        "useAntigravityTerminal": "Run Antigravity in a terminal on this PC."
-      },
-      "piRuntimeUnsupported": "This host cannot run the selected Gentle Shell runtime in chat.",
-      "piRestrictedAccessUnsupported": "Pi chat does not support restricted access. Choose Full access explicitly, or use the terminal."
+        "waitMoment": "Wait a moment."
+      }
+    },
+    "nativeChatSummary": {
+      "backgroundUnknown": "Background task information is not reported by this provider or host.",
+      "connectorEvidence": "MCP calls recorded in this chat. Current connection and plugin status are not reported.",
+      "copyPath": "Copy path",
+      "detectedCount": "{{count}} detected",
+      "folder": "Folder",
+      "noRunningAgents": "No running subagents",
+      "noSubagents": "No subagents reported.",
+      "observed": "Observed",
+      "path": "Path",
+      "plan": "Plan",
+      "planNone": "No plan reported",
+      "planNoneInProgress": "No item in progress",
+      "planProgress": "{{completed}} of {{total}}",
+      "project": "Project",
+      "reported_one": "{{count}} reported",
+      "reported_other": "{{count}} reported",
+      "runningCount": "{{count}} running",
+      "source": "Source",
+      "used": "Used",
+      "window": "Window",
+      "windowUnknown": "Not reported by the provider.",
+      "worktree": "Worktree"
     },
     "onboarding": {
       "integrations": {
@@ -3102,6 +3149,16 @@
           "reviewStatus": "See issue state, review status, and CI checks on every worktree",
           "startWorkspaceFromIssue": "Start a workspace from any GitHub issue or pull request, prefilled with its title and context"
         }
+      }
+    },
+    "settings": {
+      "nativeChat": {
+        "emulatedReplySuggestionsCopy": "Ask a model for the suggestion when the agent does not offer one. Each suggestion costs one short model call on the machine the chat runs on, using the agent's own account.",
+        "emulatedReplySuggestionsTitle": "Suggest replies for agents without their own",
+        "emulatedReplySuggestionsToggleLabel": "Toggle suggestions for agents without their own",
+        "replySuggestionsCopy": "After the agent finishes a turn, show a suggested next message as ghost text in the empty message box. Press Tab to accept it or Esc to dismiss it.",
+        "replySuggestionsTitle": "Reply suggestions",
+        "replySuggestionsToggleLabel": "Toggle reply suggestions"
       }
     },
     "workspace": {
@@ -3132,11 +3189,6 @@
           "readyOneOne": "1 workspace found, with 1 cleanup suggestion."
         }
       }
-    },
-    "nativeChatSummary": {
-      "connectorEvidence": "MCP calls recorded in this chat. Current connection and plugin status are not reported.",
-      "reported_one": "{{count}} reported",
-      "reported_other": "{{count}} reported"
     }
   },
   "dashboard": {
@@ -3190,14 +3242,6 @@
         "probeSkippedHosts": "Hosts routed without the connection check (Try anyway):",
         "title": "Browse through SSH workspace hosts"
       }
-    },
-    "agents": {
-      "stockPi": "Pi",
-      "gentleShell": "Gentle Shell",
-      "piAndGentleShell": "Pi / Gentle Shell",
-      "customCommand": "Custom command",
-      "piRuntime": "Pi runtime",
-      "piRuntimeDescription": "Choose stock Pi or Gentle Shell. Both use Pi chat sessions; command paths can be customized below."
     }
   },
   "sparsePreset": {
