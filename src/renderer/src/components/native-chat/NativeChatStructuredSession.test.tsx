@@ -2,7 +2,8 @@ import * as terminalThemeSelection from '../../../../shared/terminal-theme-selec
 import { getDefaultSettings } from '../../../../shared/constants'
 // @vitest-environment happy-dom
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
+import { renderAtAppRoot as render } from './native-chat-app-root-render.test-support'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
 import { useAppStore } from '@/store'
@@ -36,7 +37,7 @@ import { structuredAgentSessionDraftScopeKey } from './native-chat-composer-draf
 
 describe('NativeChatStructuredSession', () => {
   it.each(['codex', 'claude', 'pi', 'antigravity'] as const)(
-    'mounts the compact seven-section summary for %s before a first turn',
+    'mounts the compact eight-section summary for %s before a first turn',
     (agent) => {
       render(
         <NativeChatStructuredSession
@@ -52,6 +53,7 @@ describe('NativeChatStructuredSession', () => {
       expect(summary.className.split(' ')).not.toContain('h-full')
       for (const name of [
         'Environment',
+        'Plan',
         'Context',
         'Results',
         'Subagents',
@@ -63,7 +65,9 @@ describe('NativeChatStructuredSession', () => {
       }
       fireEvent.click(screen.getByRole('button', { name: /^Context/ }))
       expect(screen.getByText('The provider has not reported context occupancy.')).toBeDefined()
-      fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+      expect(screen.getByRole('button', { name: /^Context/ }).getAttribute('aria-expanded')).toBe(
+        'true'
+      )
       expect(screen.getByRole('button', { name: /^Environment/ })).toBeDefined()
     }
   )
