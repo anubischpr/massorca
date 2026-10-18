@@ -255,12 +255,12 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
     const adoption =
       input.resumeFrom && isLegacyAgentSessionAccountHome(selectedAccountHome)
         ? await resolveStructuredAgentSessionAdoptionForCreate({
-            host,
             settings,
             agent: input.agent,
             providerSessionId: input.resumeFrom.providerSessionId,
             selfSessionId: input.envelope.sessionId,
-            selectedAccountHomePath: selectedAccountHome.path
+            selectedAccountHomePath: selectedAccountHome.path,
+            providerSessionRows: this.getAgentProviderSessionRows()
           })
         : null
     return {

@@ -7,9 +7,19 @@ import type { RuntimePtyTabCloseAuthority } from './runtime-terminal-state-recor
 import { parsePaneKey } from '../../shared/stable-pane-id'
 
 /** How an explicit close's stop of its addressed PTY ended. */
-type ExplicitCloseStop = { stopped: boolean; pendingKillRecorded: boolean }
+type ExplicitCloseStop = {
+  stopped: boolean
+  pendingKillRecorded: boolean
+  /** The host observed the exit or found the PTY absent from its inventory. */
+  exitConfirmed: boolean
+}
 
-const NO_STOP: ExplicitCloseStop = { stopped: false, pendingKillRecorded: false }
+// Why: a leaf with no PTY id proves nothing about a process this host has not yet registered.
+const NO_STOP: ExplicitCloseStop = {
+  stopped: false,
+  pendingKillRecorded: false,
+  exitConfirmed: false
+}
 
 export class OrcaRuntimeWithStopExplicitlyClosedTabPtys extends OrcaRuntimeWithFocusTerminal {
   protected async stopExplicitlyClosedTabPtys(
@@ -23,6 +33,7 @@ export class OrcaRuntimeWithStopExplicitlyClosedTabPtys extends OrcaRuntimeWithF
       const expectedIncarnationId = this.ptysById.get(ptyId)?.incarnationId
       let stopped = false
       let pendingKillRecorded = false
+      let exitConfirmed = false
       if (this.ptyController?.stopAndWait) {
         try {
           stopped = await this.ptyController.stopAndWait(ptyId, { deadlineMs })
@@ -41,6 +52,8 @@ export class OrcaRuntimeWithStopExplicitlyClosedTabPtys extends OrcaRuntimeWithF
         ) {
           stopped = true
         }
+        // Why: stopAndWait settles true only on an observed exit or an absent inventory entry.
+        exitConfirmed = stopped
         if (!stopped) {
           const verdict = this.getPtyLivenessVerdict(ptyId)
           const providerAlreadyRetiredPty =
@@ -62,7 +75,7 @@ export class OrcaRuntimeWithStopExplicitlyClosedTabPtys extends OrcaRuntimeWithF
         stopped = this.ptyController?.kill(ptyId) ?? false
       }
       if (ptyId === addressedPtyId) {
-        addressedPtyStop = { stopped, pendingKillRecorded }
+        addressedPtyStop = { stopped, pendingKillRecorded, exitConfirmed }
       }
     }
     return addressedPtyStop
@@ -78,7 +91,8 @@ export class OrcaRuntimeWithStopExplicitlyClosedTabPtys extends OrcaRuntimeWithF
       handle,
       tabId,
       ptyKilled: stop.stopped,
-      ...(stop.pendingKillRecorded ? { pendingKillRecorded: true as const } : {})
+      ...(stop.pendingKillRecorded ? { pendingKillRecorded: true as const } : {}),
+      ...(stop.exitConfirmed ? { ptyExitConfirmed: true as const } : {})
     }
     if (stop.stopped || !ptyId) {
       return close

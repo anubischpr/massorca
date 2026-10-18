@@ -5,9 +5,10 @@ import type { TerminalIntentionalStopKind } from '../../../runtime/terminal-inte
 import type { IPtyProvider } from '../../../providers/types'
 import { parseAppSshPtyId } from '../../../providers/ssh-pty-id'
 import { SSH_PROVIDER_UNREGISTERED_REASON } from '../../../../shared/pty-liveness-verdict'
+import type { PtyKillOptions, PtyKillResult } from '../../../../shared/pty-kill-result'
 import { ptyIncarnationById, ptyOwnership } from '../provider/ownership-state'
 import { getProviderForPty, sshProviders, tryGetProviderForPty } from '../provider/registry'
-import { finishPtyShutdown, isPtyAlreadyGoneError } from '../provider/liveness'
+import { finishPtyShutdown, isPtyAlreadyGoneError, verifyPtyStopped } from '../provider/liveness'
 import { recordUndeliveredSshPtyKill } from '../runtime/undelivered-ssh-kill'
 
 export type PtyKillIpcDeps = {
@@ -27,7 +28,7 @@ export type PtyKillIpcDeps = {
  *  implementation from `killPtyFromRuntimeController`. Both have to record an undelivered SSH stop,
  *  and this is the one ordinary tab close actually reaches. */
 export function installPtyKillIpcHandler(deps: PtyKillIpcDeps): void {
-  getPtyIpc().handle('pty:kill', (_event, args: { id: string; keepHistory?: boolean }) =>
+  getPtyIpc().handle('pty:kill', (_event, args: { id: string } & PtyKillOptions) =>
     stopRendererOwnedPty(deps, args)
   )
 }
@@ -41,17 +42,17 @@ export async function stopReplacedPanePty(deps: PtyKillIpcDeps, id: string): Pro
 /** Stops a renderer-owned PTY and settles only once its shutdown has been observed or synthesized. */
 export async function stopRendererOwnedPty(
   deps: PtyKillIpcDeps,
-  args: { id: string; keepHistory?: boolean }
-): Promise<void> {
+  args: { id: string } & PtyKillOptions
+): Promise<PtyKillResult> {
   // Why: only hibernation passes keepHistory, and its exit must keep the pane's wake binding.
-  await stopRendererOwnedPtyAs(deps, args, args?.keepHistory === true ? 'reversible' : null)
+  return stopRendererOwnedPtyAs(deps, args, args?.keepHistory === true ? 'reversible' : null)
 }
 
 async function stopRendererOwnedPtyAs(
   deps: PtyKillIpcDeps,
-  args: { id: string; keepHistory?: boolean },
+  args: { id: string } & PtyKillOptions,
   intentionalStop: TerminalIntentionalStopKind | null
-): Promise<void> {
+): Promise<PtyKillResult> {
   if (typeof args?.id !== 'string' || !args.id || args.id.startsWith('remote:')) {
     // Why: runtime terminal handles belong to terminal.close; unowned PTY routing could target the local provider.
     throw new Error('Invalid PTY provider id')
@@ -65,8 +66,9 @@ async function stopRendererOwnedPtyAs(
     : undefined
   let stopped = false
   try {
-    await stopRendererOwnedPtyProcess(deps, args)
+    const result = await stopRendererOwnedPtyProcess(deps, args)
     stopped = true
+    return result
   } finally {
     settleStop?.(stopped)
   }
@@ -74,8 +76,8 @@ async function stopRendererOwnedPtyAs(
 
 async function stopRendererOwnedPtyProcess(
   deps: PtyKillIpcDeps,
-  args: { id: string; keepHistory?: boolean }
-): Promise<void> {
+  args: { id: string } & PtyKillOptions
+): Promise<PtyKillResult> {
   const {
     store,
     runtime,
@@ -119,7 +121,8 @@ async function stopRendererOwnedPtyProcess(
       code: -1,
       ...(incarnationId ? { incarnationId } : {})
     })
-    return
+    // The relay was never asked, so nothing can vouch for the remote process.
+    return { exitConfirmed: false }
   }
   const shutdownProvider = provider ?? getProviderForPty(args.id)
   let providerExitObserved = false
@@ -138,6 +141,11 @@ async function stopRendererOwnedPtyProcess(
     }
     /* session already dead — cleanup below handles the rest */
   }
+  let exitConfirmed = providerExitObserved
+  if (!exitConfirmed && args.confirmExit === true) {
+    // Why: before finishPtyShutdown, which drops the ownership the inventory check routes by.
+    exitConfirmed = await verifyPtyAbsentFromHost(shutdownProvider, args.id, reversible)
+  }
   // Why: some shutdown paths do not emit onExit through the provider listener.
   // Explicit cleanup is idempotent and covers already-dead PTYs.
   const incarnationId = finishPtyShutdown(args.id, connectionId, store)
@@ -149,5 +157,20 @@ async function stopRendererOwnedPtyProcess(
       code: -1,
       ...(incarnationId ? { incarnationId } : {})
     })
+  }
+  return { exitConfirmed }
+}
+
+/** Asks the provider host's own process inventory whether the PTY is gone. */
+async function verifyPtyAbsentFromHost(
+  provider: IPtyProvider,
+  id: string,
+  keepHistory: boolean
+): Promise<boolean> {
+  try {
+    return await verifyPtyStopped(provider, id, { keepHistory })
+  } catch {
+    // Loss of contact is never evidence of death.
+    return false
   }
 }

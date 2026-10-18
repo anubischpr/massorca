@@ -131,7 +131,9 @@ function createDefaultDependencies(): KillAllTerminalSurfaceDependencies {
     killDaemonSessions: () => window.api.pty.management.killAll(),
     notifyInventoryInvalidated: notifyDaemonSessionInventoryInvalidated,
     closeSurface: closeTerminalTab,
-    killPty: (ptyId) => window.api.pty.kill(ptyId),
+    killPty: async (ptyId) => {
+      await window.api.pty.kill(ptyId)
+    },
     now: () => globalThis.performance?.now() ?? Date.now(),
     yieldToRenderer: () =>
       new Promise((resolve) => {

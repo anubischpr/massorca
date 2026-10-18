@@ -448,7 +448,9 @@ describe('registerPtyHandlers', () => {
       listenerFor('pty:signal')(null, { id: 'remote-pty', signal: 'SIGINT' })
     ).not.toThrow()
 
-    await expect(handlers.get('pty:kill')!(null, { id: 'remote-pty' })).resolves.toBeUndefined()
+    await expect(handlers.get('pty:kill')!(null, { id: 'remote-pty' })).resolves.toEqual({
+      exitConfirmed: false
+    })
     expect(store.markSshRemotePtyLease).toHaveBeenCalledWith('ssh-1', 'remote-pty', 'terminated')
   })
   it('returns idle process inspection results for detached SSH PTYs without a provider', async () => {

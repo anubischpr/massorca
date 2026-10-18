@@ -11,6 +11,7 @@ import type {
 import type { ProjectExecutionRuntimeResolution } from '../../shared/project-execution-runtime'
 import type { PtyListedSession, PtySessionListScope } from '../../shared/pty-listed-session'
 import type { PtyMainDeliveryDiagnostics } from '../../shared/pty-delivery-diagnostics'
+import type { PtyKillOptions, PtyKillResult } from '../../shared/pty-kill-result'
 import type { PtyModelRestoreNeededEvent } from '../../shared/pty-model-restore-marker'
 import type {
   PtyRendererDeliveryHealthReply,
@@ -99,7 +100,7 @@ export type PtyApi = {
   signal: (id: string, signal: string) => void
   clearBuffer: (id: string) => void
   resetInputModes: (id: string) => void
-  kill: (id: string, opts?: { keepHistory?: boolean }) => Promise<void>
+  kill: (id: string, opts?: PtyKillOptions) => Promise<PtyKillResult>
   ackColdRestore: (id: string) => void
   ackData: (id: string, charCount: number, processedChars?: number) => void
   onDeliveryResyncRequest: (callback: (payload: { requestId: number }) => void) => () => void

@@ -19,7 +19,8 @@ export function createPtyApi(): NonNullable<Partial<PreloadApi>['pty']> {
     clearBuffer: () => {},
     // Likewise terminal.resetInputModes.
     resetInputModes: () => {},
-    kill: () => Promise.resolve(),
+    // Exit proof for a paired host's PTY comes from terminal.close, never from this local stub.
+    kill: () => Promise.resolve({ exitConfirmed: false }),
     ackColdRestore: () => {},
     ackData: () => {},
     onDeliveryResyncRequest: () => noopUnsubscribe,
