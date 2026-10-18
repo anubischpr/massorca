@@ -6,6 +6,7 @@ import {
   type StructuredChatPaneActionsDeps,
   type StructuredChatPaneActionsInput
 } from './structured-chat-pane-actions'
+import { structuredChatPiRuntime } from './structured-agent-declared-access'
 
 const LOCAL: RuntimeClientTarget = { kind: 'local' }
 
@@ -217,5 +218,44 @@ describe('createStructuredChatPaneActions', () => {
       createStructuredChatPaneActions(input({ agent: 'not-an-agent' }), d).handOff()
     ).toBeNull()
     expect(d.prepareContinuation).not.toHaveBeenCalled()
+  })
+})
+
+describe('structuredChatPiRuntime', () => {
+  it('prefers a valid launch seed over the configured Pi command', () => {
+    expect(
+      structuredChatPiRuntime({
+        agent: 'pi',
+        launchSeedOptions: { piRuntime: 'gentle-shell' },
+        piCommand: 'pi'
+      })
+    ).toBe('gentle-shell')
+  })
+
+  it('falls back to the configured Pi command when the seed is missing or invalid', () => {
+    expect(
+      structuredChatPiRuntime({
+        agent: 'pi',
+        launchSeedOptions: undefined,
+        piCommand: 'gentle-shell'
+      })
+    ).toBe('gentle-shell')
+    expect(
+      structuredChatPiRuntime({
+        agent: 'pi',
+        launchSeedOptions: { piRuntime: 'not-a-runtime' },
+        piCommand: undefined
+      })
+    ).toBe('pi')
+  })
+
+  it('is undefined for agents other than Pi', () => {
+    expect(
+      structuredChatPiRuntime({
+        agent: 'claude',
+        launchSeedOptions: { piRuntime: 'gentle-shell' },
+        piCommand: 'gentle-shell'
+      })
+    ).toBeUndefined()
   })
 })
