@@ -18884,6 +18884,27 @@
       "important": "Importante",
       "warning": "Advertencia",
       "caution": "Precaución"
+    },
+    "nativeChatSummary": {
+      "backgroundUnknown": "El proveedor o el host no informan sobre las tareas en segundo plano.",
+      "copyPath": "Copiar ruta",
+      "detectedCount": "{{count}} detectados",
+      "folder": "Carpeta",
+      "noRunningAgents": "No hay subagentes en curso",
+      "noSubagents": "No hay subagentes informados.",
+      "observed": "Observado",
+      "path": "Ruta",
+      "plan": "Plan",
+      "planNone": "No se informó ningún plan",
+      "planNoneInProgress": "Ningún elemento en curso",
+      "planProgress": "{{completed}} de {{total}}",
+      "project": "Proyecto",
+      "runningCount": "{{count}} en curso",
+      "source": "Origen",
+      "used": "Consumido",
+      "window": "Ventana",
+      "windowUnknown": "No lo informa el proveedor.",
+      "worktree": "Worktree"
     }
   },
   "dashboardPopout": {
@@ -19117,27 +19138,6 @@
     }
   },
   "featureTips": {
-    "nativeChatSummary": {
-      "backgroundUnknown": "El proveedor o el host no informan sobre las tareas en segundo plano.",
-      "copyPath": "Copiar ruta",
-      "detectedCount": "{{count}} detectados",
-      "folder": "Carpeta",
-      "noRunningAgents": "No hay subagentes en curso",
-      "noSubagents": "No hay subagentes informados.",
-      "observed": "Observado",
-      "path": "Ruta",
-      "plan": "Plan",
-      "planNone": "No se informó ningún plan",
-      "planNoneInProgress": "Ningún elemento en curso",
-      "planProgress": "{{completed}} de {{total}}",
-      "project": "Proyecto",
-      "runningCount": "{{count}} en curso",
-      "source": "Origen",
-      "used": "Consumido",
-      "window": "Ventana",
-      "windowUnknown": "No lo informa el proveedor.",
-      "worktree": "Worktree"
-    },
     "nativeChatUpgrade": {
       "eyebrow": "Nuevo",
       "title": "El chat nativo mejora",
