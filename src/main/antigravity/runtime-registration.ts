@@ -3,9 +3,10 @@ import { prepareAntigravityAccountForLaunch } from './native-account-launch'
 import { ANTIGRAVITY_STRUCTURED_AGENT } from './structured-agent-definition'
 import { AntigravityStructuredSessionAdapter } from './structured-session-adapter'
 import {
+  antigravityCliUnavailableReason,
+  antigravityCliVersionOutcome,
   createAntigravityLaunchResolver,
-  resolveAntigravityCommand,
-  antigravityStructuredVersionSupported
+  resolveAntigravityCommand
 } from './structured-launch-resolution'
 import { createAntigravityModelCatalogProbe } from './model-catalog-probe'
 import { supportsSupervisedProviderChildLocation } from '../provider-process/supervised-provider-child-location'
@@ -29,11 +30,12 @@ export const ANTIGRAVITY_RUNTIME_REGISTRATION: StructuredAgentRuntimeRegistratio
   supportsLocation: supportsSupervisedProviderChildLocation,
   supportsLaunch: async ({ cwd, env, commandSettings }) => {
     try {
-      return await antigravityStructuredVersionSupported({
+      const outcome = await antigravityCliVersionOutcome({
         cwd,
         env,
         command: resolveAntigravityCommand(env, commandSettings)
       })
+      return outcome === 'supported' ? true : antigravityCliUnavailableReason(outcome)
     } catch (error) {
       if (isAgentSessionPreSpawnError(error)) {
         return true

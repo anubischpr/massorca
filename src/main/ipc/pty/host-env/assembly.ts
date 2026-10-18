@@ -3,6 +3,7 @@ import {
   detectExplicitPiAgentKindFromCommand,
   isPiCompatibleAgentType
 } from '../../../../shared/pi-agent-kind'
+import { selectedPiRuntime } from '../../../../shared/pi-runtime-selection'
 import { applyTerminalGitCredentialPromptGuard } from '../../terminal-git-credential-guard'
 import { ensureOpenCodeStartupPromptForLaunch } from '../../../opencode/opencode-startup-prompt-installer'
 import { mimoCodeHookService } from '../../../mimo/hook-service'
@@ -55,6 +56,8 @@ export function buildPtyHostEnv(
       ? detectExplicitPiAgentKindFromCommand(launchCommandHint)
       : null
   const piAgentKind = explicitPiAgentKind ?? 'pi'
+  // Why: Gentle Shell reads and writes its own agent home; stock Pi keeps ~/.pi.
+  const piRuntime = selectedPiRuntime(launchCommandHint)
   const hasLaunchCommand =
     typeof launchCommandHint === 'string' && launchCommandHint.trim().length > 0
 
@@ -121,9 +124,7 @@ export function buildPtyHostEnv(
       // Why: hook POSTs to 127.0.0.1 die inside WSL's NAT namespace; use the guest-resident relay's endpoint instead of the Windows one.
       const distro = opts.wslDistro ?? null
       const wslLaunchKind =
-        explicitPiAgentKind === 'pi' || explicitPiAgentKind === 'omp'
-          ? explicitPiAgentKind
-          : undefined
+        explicitPiAgentKind === 'pi' ? piRuntime : explicitPiAgentKind === 'omp' ? 'omp' : undefined
       wslHookRelayManager.ensureForDistro(distro, opts.selectedCodexHomePath, wslLaunchKind)
       const guestEndpoint = wslHookRelayManager.getGuestEndpointFilePath(distro)
       if (guestEndpoint) {
@@ -158,7 +159,9 @@ export function buildPtyHostEnv(
     // status so a typed `omp` still gets the shell wrapper extension).
     if (shouldInstallPiExtensions && piAgentKind === 'pi') {
       const piEnv = piTitlebarExtensionService.buildPtyEnv(id, preexistingPiAgentDir, 'pi', {
-        materializeDefaultHome: explicitPiAgentKind === 'pi'
+        materializeDefaultHome: explicitPiAgentKind === 'pi',
+        // Why: stock Pi keeps the existing options shape; only Gentle Shell names its home.
+        ...(piRuntime === 'gentle-shell' ? { piRuntime } : {})
       })
       Object.assign(baseEnv, piEnv)
       exposePiManagedExtensionEnv(baseEnv, 'pi', piEnv)
@@ -215,7 +218,7 @@ export function buildPtyHostEnv(
   if (opts.isWsl && opts.agentStatusHooksEnabled) {
     const distro = opts.wslDistro ?? null
     if (explicitPiAgentKind === 'pi') {
-      const guestPiDir = wslHookRelayManager.getGuestAgentPath(distro, 'pi')
+      const guestPiDir = wslHookRelayManager.getGuestAgentPath(distro, piRuntime)
       if (guestPiDir) {
         baseEnv.ORCA_PI_SOURCE_AGENT_DIR = guestPiDir
       }

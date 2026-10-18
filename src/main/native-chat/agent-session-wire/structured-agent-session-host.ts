@@ -350,6 +350,9 @@ export class StructuredAgentSessionHost {
   subscribeStatus = this.clientDelivery.subscribeStatus
   publishConversationName = this.clientDelivery.publishConversationName
 
+  /** Each session's suggested next user message: read, set and clear. */
+  promptSuggestions = this.subscribers.promptSuggestions
+
   /** Turns that settle, and prompts raised, from now on. Live-only: nothing missed is replayed. */
   subscribeTurnCompletions = this.clientDelivery.subscribeTurnCompletions
   readStatusSummary = this.clientDelivery.readStatusSummary

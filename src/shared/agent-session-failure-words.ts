@@ -19,6 +19,12 @@ import {
 } from './agent-session-failure'
 import type { AgentSessionConversationCommand } from './agent-session-conversation-command'
 import { cliMissingSentence, notSignedInSentence } from './agent-session-availability-sentences'
+import { ANTIGRAVITY_STABLE_CLI_FLOOR } from './antigravity-cli-version-floor'
+import {
+  historyInOtherAccountSentence,
+  managedAccountEnvOverrideSentence,
+  managedAccountUnsupportedSentence
+} from './agent-session-managed-account-sentences'
 import {
   sayAgentSessionFailureEnglish,
   type AgentSessionFailureCopyId,
@@ -217,21 +223,21 @@ const FAILURE_SENTENCES = {
   cliMissing: (context, _fact, _surface, say) => cliMissingSentence(context, say),
   historyTooLarge: (_context, _fact, _surface, say) =>
     joinSentences([say('historyTooLarge'), say('startNewChat')]),
-  managedAccountEnvOverride: (_context, _fact, _surface, say) => say('managedAccountEnvOverride'),
+  managedAccountEnvOverride: (context, _fact, _surface, say) =>
+    managedAccountEnvOverrideSentence(context, say),
   accountSwitchInProgress: (_context, _fact, _surface, say) => say('accountSwitchInProgress'),
   launchFolderMissing: (_context, _fact, _surface, say) => say('launchFolderMissing'),
-  historyInOtherAccount: (_context, _fact, _surface, say) => say('historyInOtherAccount'),
+  historyInOtherAccount: (context, _fact, _surface, say) =>
+    historyInOtherAccountSentence(context, say),
   agentCommandNotRunnable: (context, _fact, _surface, say) =>
     say('agentCommandNotRunnable', agent(say, context)),
+  antigravityCliVersionUnsupported: (context, _fact, _surface, say) =>
+    say('antigravityCliVersionUnsupported', {
+      ...agent(say, context),
+      version: ANTIGRAVITY_STABLE_CLI_FLOOR
+    }),
   managedAccountUnsupported: (context, _fact, _surface, say) =>
-    joinSentences([
-      say('managedAccountUnsupported'),
-      context.retryControl || context.messageSubmitted === false
-        ? say('chooseClaudeAccount')
-        : context.command
-          ? say('chooseClaudeAccountThenRunCommand', { command: context.command })
-          : say('chooseClaudeAccountThenSend')
-    ]),
+    managedAccountUnsupportedSentence(context, say),
   providerExited: (context, _fact, surface, say) =>
     say(surface === 'row' ? 'providerExitedRow' : 'providerExitedRejection', agent(say, context)),
   restartFailed: couldNot('couldNotRestart'),

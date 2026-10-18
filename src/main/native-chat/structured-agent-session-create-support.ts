@@ -6,10 +6,13 @@ import {
   structuredClaudeMatchesActiveManagedAccount,
   type ClaudeManagedAccountGateSettings
 } from './claude-structured-managed-account-support'
+import type { AgentSessionPreSpawnReason } from './agent-session-wire/structured-agent-session-adapter'
 
 export type StructuredAgentSessionCreateSupport = {
   supported: boolean
   reason?: 'agent' | 'remote' | 'wsl' | 'access'
+  /** Why the installed agent cannot run here, when its check named one (`reason: 'agent'`). */
+  cause?: AgentSessionPreSpawnReason
 }
 
 /**

@@ -33,7 +33,8 @@ const TYPED_START_REFUSALS = [
   'managedAccountUnsupported',
   'launchFolderMissing',
   'historyInOtherAccount',
-  'agentCommandNotRunnable'
+  'agentCommandNotRunnable',
+  'antigravityCliVersionUnsupported'
 ] as const satisfies readonly (AgentSessionFailureKind &
   AgentSessionRefusalReason<'agent_session_operation_invalid'>)[]
 

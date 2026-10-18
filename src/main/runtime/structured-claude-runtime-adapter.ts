@@ -40,6 +40,7 @@ export type StructuredClaudeRuntimeAdapterDeps = {
   resolveClaudeAuthPolicy: () => Promise<ClaudeStructuredAuthPolicy> | ClaudeStructuredAuthPolicy
   /** The user's Agent Permissions setting for Claude; absent means prompting. */
   resolveClaudePermissionMode?: () => Promise<PermissionMode> | PermissionMode
+  resolveClaudePromptSuggestions?: () => boolean
   readClaudeManagedAccountGate?: () => ClaudeManagedAccountGateSettings | null
   /** Where the host stores chat attachments; granted to the agent as a readable directory. */
   attachmentDirectory?: string
@@ -119,6 +120,9 @@ export function createStructuredClaudeRuntimeAdapter(
       resolveAuthPolicy: deps.resolveClaudeAuthPolicy,
       ...(deps.resolveClaudePermissionMode
         ? { resolvePermissionMode: deps.resolveClaudePermissionMode }
+        : {}),
+      ...(deps.resolveClaudePromptSuggestions
+        ? { resolvePromptSuggestions: deps.resolveClaudePromptSuggestions }
         : {}),
       ...(deps.readClaudeManagedAccountGate
         ? { readManagedAccountGate: deps.readClaudeManagedAccountGate }

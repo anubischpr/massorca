@@ -57,6 +57,22 @@ describe.skipIf(process.platform === 'win32')('createInstallPluginsHandler (gues
     })
   })
 
+  it('materializes Gentle Shell status in its own guest home, separate from stock Pi', () => {
+    withHome((home) => {
+      const install = createInstallPluginsHandler(new PluginOverlayManager({ homeDir: home }), {
+        HOME: home,
+        ORCA_WSL_HOOK_INSTANCE: 'inst-gentle'
+      })
+      const source = '// @orca-managed-pi-extension\nexport default {}\n'
+      const res = install({ piExtensionSource: source, launchKind: 'gentle-shell' })
+      expect(res.overlayDirs.gentleShell).toBe(join(home, '.gentle-shell', 'agent'))
+      expect(res.overlayDirs.pi).toBeUndefined()
+      const extension = join(home, '.gentle-shell', 'agent', 'extensions', 'orca-agent-status.ts')
+      expect(readFileSync(extension, 'utf8')).toContain(source)
+      expect(existsSync(join(home, '.pi'))).toBe(false)
+    })
+  })
+
   it('writes the OpenCode 2 plugin to its separate overlay', () => {
     withHome((home) => {
       const install = createInstallPluginsHandler(new PluginOverlayManager({ homeDir: home }), {

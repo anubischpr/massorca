@@ -1,4 +1,5 @@
 import type { AgentSessionProviderFunction } from '../../../shared/agent-session-provider-functions'
+import type { AgentSessionPreSpawnReason } from './agent-session-pre-spawn-reason'
 import type {
   AgentSessionAccountKind,
   AgentSessionUnavailable
@@ -15,6 +16,7 @@ import type {
 // take this?" — and it answers `unknown` rather than guessing, because the
 // journal renders that as delivery unconfirmed instead of as failure.
 
+import type { AgentSessionExplicitAccess } from '../../../shared/agent-session-access-mode'
 import type { AgentSessionBackgroundTaskStops } from '../../../shared/agent-child-work-stop-targets'
 import type {
   AgentJournalAnsweredTurnIdentity,
@@ -142,16 +144,7 @@ export type AgentSessionAcquisition = {
   providerChildPhase?: StructuredAgentSessionProviderChildPhase
 }
 
-/** A refusal before spawn that a person can act on; the site that refused names it. */
-export type AgentSessionPreSpawnReason = Extract<
-  AgentSessionRefusalReason<'agent_session_operation_invalid'>,
-  | 'managedAccountEnvOverride'
-  | 'accountSwitchInProgress'
-  | 'managedAccountUnsupported'
-  | 'launchFolderMissing'
-  | 'historyInOtherAccount'
-  | 'agentCommandNotRunnable'
->
+export type { AgentSessionPreSpawnReason } from './agent-session-pre-spawn-reason'
 
 /** Acquisition failed with first-hand proof that no provider process existed. */
 export class AgentSessionPreSpawnError extends Error {
@@ -420,6 +413,9 @@ export type StructuredAgentSessionAdapter = StructuredAgentSessionAdapterStop & 
   ): Promise<void | Readonly<Record<string, string>>>
   /** Resolves once a live session can take an option write, or after a bound; never rejects. */
   awaitOptionWritable?(sessionId: string): Promise<void>
+  /** Explicit access modes this running child can switch to without a restart; absent or empty
+   *  means the mode is fixed until the session next starts. */
+  liveAccessModes?(sessionId: string): readonly AgentSessionExplicitAccess[]
   /** False while the live child has not answered its start, so it has run nothing it was handed.
    *  Absent or undefined reads as answered. */
   startAnswered?(sessionId: string): boolean | undefined

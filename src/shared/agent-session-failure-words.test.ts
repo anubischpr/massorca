@@ -339,3 +339,49 @@ describe('an attachment problem as a reader meets it', () => {
     ).toEqual({ kind: 'attachmentInvalid' })
   })
 })
+
+describe('agent-aware managed-account and agent CLI words', () => {
+  it('keeps the Claude managed-account words for a Claude chat', () => {
+    expect(
+      agentSessionFailureWords(
+        { kind: 'managedAccountEnvOverride' },
+        { surface: 'row', agentName: 'Claude' }
+      ).text
+    ).toBe(
+      'This Claude launch sets its own Anthropic sign-in variables. Remove them to use a managed Claude account.'
+    )
+  })
+
+  it('words an Antigravity launch-environment mismatch without Claude or WSL text', () => {
+    const text = agentSessionFailureWords(
+      { kind: 'managedAccountEnvOverride' },
+      { surface: 'row', agentName: 'Antigravity' }
+    ).text
+    expect(text).toBe(
+      'This Antigravity launch uses a different home folder or sign-in storage than its selected account. Remove that override, then try again.'
+    )
+    expect(text).not.toMatch(/Claude|WSL/)
+  })
+
+  it('words an Antigravity history or account refusal without the Claude account chooser', () => {
+    for (const kind of ['managedAccountUnsupported', 'historyInOtherAccount'] as const) {
+      const text = agentSessionFailureWords(
+        { kind },
+        { surface: 'row', agentName: 'Antigravity' }
+      ).text
+      expect(text).toContain('Antigravity')
+      expect(text).not.toMatch(/Claude|WSL/)
+    }
+  })
+
+  it('names the agent and the required stable CLI version when it cannot run', () => {
+    expect(
+      agentSessionFailureWords(
+        { kind: 'antigravityCliVersionUnsupported' },
+        { surface: 'row', agentName: 'Antigravity' }
+      ).text
+    ).toBe(
+      'Antigravity on this computer did not report a stable CLI 1.3.5 or newer: it may be outdated, or its version check failed or timed out. Check it in a terminal, then try again.'
+    )
+  })
+})

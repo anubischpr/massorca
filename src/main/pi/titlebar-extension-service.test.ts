@@ -151,6 +151,33 @@ describe('PiTitlebarExtensionService', () => {
     }
   })
 
+  it('installs Gentle Shell status into its own agent home and leaves ~/.pi alone', () => {
+    const fakeHome = mkdtempSync(join(tmpdir(), 'orca-gentle-shell-home-'))
+    homedirOverride.current = fakeHome
+    try {
+      const service = new PiTitlebarExtensionService()
+      expect(
+        service.buildPtyEnv('pty-bare-gentle', undefined, 'pi', {
+          materializeDefaultHome: false,
+          piRuntime: 'gentle-shell'
+        })
+      ).toEqual({})
+      expect(existsSync(join(fakeHome, '.gentle-shell'))).toBe(false)
+
+      const env = service.buildPtyEnv('pty-gentle', undefined, 'pi', {
+        materializeDefaultHome: true,
+        piRuntime: 'gentle-shell'
+      })
+      const agentDir = join(fakeHome, '.gentle-shell', 'agent')
+      expect(env.ORCA_PI_SOURCE_AGENT_DIR).toBe(agentDir)
+      expect(existsSync(join(agentDir, 'extensions', 'orca-agent-status.ts'))).toBe(true)
+      expect(existsSync(join(fakeHome, '.pi'))).toBe(false)
+    } finally {
+      homedirOverride.current = ''
+      rmSync(fakeHome, { recursive: true, force: true })
+    }
+  })
+
   it('does not use the daemon ambient PI_CONFIG_DIR when launch root is omitted', () => {
     const fakeHome = mkdtempSync(join(tmpdir(), 'orca-omp-ambient-root-'))
     homedirOverride.current = fakeHome

@@ -18,7 +18,8 @@ import {
   safeRemoveOverlay
 } from '../pty/overlay-mirror'
 import { migrateLegacyOmpOverlayState } from './legacy-omp-overlay-migration'
-import type { PiAgentKind } from '../../shared/pi-agent-kind'
+import { piAgentHomeDirName, type PiAgentKind } from '../../shared/pi-agent-kind'
+import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
 
 // Why: the Pi test suite imports `isSafeDescendCandidate` from this module's
 // public surface to lock in the Windows-junction ordering invariant against
@@ -49,19 +50,14 @@ const OVERLAY_ROOT_DIR_NAME: Record<LegacyOverlayAgentKind, string> = {
 }
 
 // Why: the managed extension target is chosen by which agent is being launched, NOT
-// by which `~/.<agent>/agent` dir happens to exist on disk first. A
-// cross-agent fallback (Pi -> OMP or vice versa) silently shadows the other
-// agent's user extensions when both are installed and the user picks the
-// shadowed one in Orca's per-launch agent picker.
-const AGENT_HOME_DIR_NAME: Record<PiAgentKind, string> = {
-  pi: '.pi',
-  omp: '.omp',
-  'prime-agent': '.prime'
-}
-
-function getDefaultPiAgentDir(kind: PiAgentKind, configDirName: string | undefined): string {
-  const root = kind === 'omp' ? configDirName || AGENT_HOME_DIR_NAME.omp : AGENT_HOME_DIR_NAME[kind]
-  return join(homedir(), root, PI_AGENT_SUBDIR)
+// by which `~/.<agent>/agent` dir happens to exist on disk first (a cross-agent
+// fallback silently shadows the other agent's user extensions).
+function getDefaultPiAgentDir(
+  kind: PiAgentKind,
+  configDirName: string | undefined,
+  piRuntime: PiRuntimeSelection
+): string {
+  return join(homedir(), piAgentHomeDirName(kind, configDirName, piRuntime), PI_AGENT_SUBDIR)
 }
 
 function toSafeOverlayDirName(ptyId: string): string {
@@ -187,11 +183,17 @@ export class PiTitlebarExtensionService {
     ptyId: string,
     existingAgentDir: string | undefined,
     kind: PiAgentKind,
-    options?: { materializeDefaultHome?: boolean; configDirName?: string }
+    options?: {
+      materializeDefaultHome?: boolean
+      configDirName?: string
+      piRuntime?: PiRuntimeSelection
+    }
   ): Record<string, string> {
     const freshConfigEnv = kind === 'omp' ? this.buildFreshOmpEnv() : {}
     // The caller resolves the effective launch environment before this point.
-    const sourceAgentDir = existingAgentDir || getDefaultPiAgentDir(kind, options?.configDirName)
+    const sourceAgentDir =
+      existingAgentDir ||
+      getDefaultPiAgentDir(kind, options?.configDirName, options?.piRuntime ?? 'pi')
     if (kind !== 'prime-agent') {
       try {
         this.safeRemoveOverlay(this.getPtyOverlayDir(ptyId, kind), kind)

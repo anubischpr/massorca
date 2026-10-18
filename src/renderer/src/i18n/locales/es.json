@@ -17813,6 +17813,10 @@
         "launchFolderMissing": "La carpeta en la que se ejecutaba este chat ya no existe. Restáurela para continuar este chat.",
         "historyInOtherAccount": "El historial de este chat está en otra cuenta de Claude. Vuelva a esa cuenta para continuarlo.",
         "agentCommandNotRunnable": "{{agent}}: el Comando en Ajustes → Agentes debe ser la ruta o el nombre de un programa que Orca pueda encontrar, sin argumentos ni variables. Cámbielo o restablézcalo con Reiniciar.",
+        "antigravityCliVersionUnsupported": "{{agent}} en este equipo no informó una CLI estable {{version}} o más reciente: puede estar desactualizada, o su comprobación de versión falló o agotó el tiempo. Revísela en una terminal e inténtelo de nuevo.",
+        "managedAccountEnvOverrideAgent": "Este inicio de {{agent}} usa una carpeta personal o un almacenamiento de inicio de sesión distinto al de su cuenta seleccionada. Quite esa anulación e inténtelo de nuevo.",
+        "managedAccountUnsupportedAgent": "{{agent}} no puede ejecutar este chat con la cuenta seleccionada en este equipo. Elija una cuenta que funcione aquí e inténtelo de nuevo.",
+        "historyInOtherAccountAgent": "El historial de este chat está en otra cuenta de {{agent}}. Cambie a esa cuenta para continuarlo.",
         "chooseClaudeAccount": "Elija o agregue una en la configuración de Cuentas de Claude.",
         "chooseClaudeAccountThenRunCommand": "Elija o agregue una en la configuración de Cuentas de Claude y vuelva a ejecutar /{{command}}.",
         "chooseClaudeAccountThenSend": "Elija o agregue una en la configuración de Cuentas de Claude y vuelva a enviar su mensaje.",
@@ -17985,8 +17989,16 @@
         "accessMode": "Acceso",
         "accessModeValue": {
           "inherit": "Heredar configuración global",
-          "default": "Valor predeterminado del proveedor",
+          "default": "Pedir aprobación",
+          "auto": "Automático",
+          "acceptEdits": "Aceptar ediciones",
+          "plan": "Plan",
+          "readOnly": "Solo lectura",
           "fullAccess": "Acceso completo"
+        },
+        "optionNote": {
+          "noRestrictedMode": "El chat de Pi no tiene modo restringido.",
+          "startOnlyModes": "Los modos atenuados solo se pueden establecer al iniciar la sesión."
         },
         "options": "Opciones",
         "sessionOptions": "Opciones de sesión",
@@ -18155,7 +18167,12 @@
       "transcriptLabel": "Conversación",
       "toggle": {
         "showTerminal": "Mostrar terminal",
-        "showChat": "Mostrar vista de chat"
+        "showChat": "Mostrar vista de chat",
+        "terminalViewReleaseFailed": "No se pudo abrir este chat en la terminal. El chat quedó abierto.",
+        "terminalViewLaunchFailed": "No se pudo abrir este chat en la terminal. Su proceso de agente se liberó; el historial del chat se conserva.",
+        "terminalViewNoWorktree": "Aún no se conoce el espacio de trabajo de este chat.",
+        "terminalViewAgent": "Este agente no puede reanudar su chat en la terminal.",
+        "terminalViewNoSession": "Este chat aún no ha informado su sesión del agente."
       },
       "state": {
         "loading": {
@@ -18753,6 +18770,7 @@
       "startSession": "Iniciar sesión nueva",
       "starting": "Iniciando…",
       "noContext": "No hay contexto de sesión disponible para continuar en una sesión nueva.",
+      "handOffUnavailable": "Este agente no puede iniciar una sesión nueva desde su chat.",
       "agentDisabled": "{{agent}} está deshabilitado en la configuración de agentes.",
       "agentUnavailable": "No se detectó {{agent}} en el host de este espacio de trabajo.",
       "sent": "El contexto de la sesión se envió a {{agent}} en una sesión nueva.",
@@ -18775,7 +18793,13 @@
       "nativeChat": {
         "queueFollowUpsTitle": "Poner mensajes en cola",
         "queueFollowUpsCopy": "Los mensajes que envías mientras el agente trabaja esperan como tarjetas que puedes enviar ahora, editar o eliminar. Los mensajes con imágenes se envían de inmediato.",
-        "queueFollowUpsToggleLabel": "Alternar la cola de mensajes"
+        "queueFollowUpsToggleLabel": "Alternar la cola de mensajes",
+        "replySuggestionsTitle": "Sugerencias de respuesta",
+        "replySuggestionsCopy": "Cuando el agente termina un turno, muestra un mensaje siguiente sugerido como texto fantasma en el cuadro de mensaje vacío. Pulsa Tab para aceptarlo o Esc para descartarlo.",
+        "replySuggestionsToggleLabel": "Alternar las sugerencias de respuesta",
+        "emulatedReplySuggestionsTitle": "Sugerir respuestas para agentes que no las ofrecen",
+        "emulatedReplySuggestionsCopy": "Pide la sugerencia a un modelo cuando el agente no ofrece una. Cada sugerencia cuesta una llamada breve a un modelo en la máquina donde se ejecuta el chat, con la cuenta del propio agente.",
+        "emulatedReplySuggestionsToggleLabel": "Alternar las sugerencias para agentes que no las ofrecen"
       },
       "TerminalInteraction": {
         "copyTrimsGutter": "Recortar margen al copiar",
@@ -18860,6 +18884,27 @@
       "important": "Importante",
       "warning": "Advertencia",
       "caution": "Precaución"
+    },
+    "nativeChatSummary": {
+      "backgroundUnknown": "El proveedor o el host no informan sobre las tareas en segundo plano.",
+      "copyPath": "Copiar ruta",
+      "detectedCount": "{{count}} detectados",
+      "folder": "Carpeta",
+      "noRunningAgents": "No hay subagentes en curso",
+      "noSubagents": "No hay subagentes informados.",
+      "observed": "Observado",
+      "path": "Ruta",
+      "plan": "Plan",
+      "planNone": "No se informó ningún plan",
+      "planNoneInProgress": "Ningún elemento en curso",
+      "planProgress": "{{completed}} de {{total}}",
+      "project": "Proyecto",
+      "runningCount": "{{count}} en curso",
+      "source": "Origen",
+      "used": "Consumido",
+      "window": "Ventana",
+      "windowUnknown": "No lo informa el proveedor.",
+      "worktree": "Worktree"
     }
   },
   "dashboardPopout": {

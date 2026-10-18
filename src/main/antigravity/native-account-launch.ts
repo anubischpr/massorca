@@ -5,6 +5,7 @@ import { recognizeAgentProcessFromCommandLine } from '../../shared/agent-process
 import { isAntigravityFileStorageHost } from './native-credential-backend'
 import { createEncryptedAntigravityAccountStore } from './native-account-store'
 import { getAntigravityAccountService, getAntigravityAccountVaultPath } from './native-account-host'
+import { AgentSessionPreSpawnError } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 
 export async function prepareAntigravityAccountForLaunch(args: {
   launchAgent?: string
@@ -39,9 +40,11 @@ export async function prepareAntigravityAccountForLaunch(args: {
     (home && resolve(home) !== resolve(getAppEnvironment().getPath('home'))) ||
     isAntigravityFileStorageHost(env) !== isAntigravityFileStorageHost(process.env)
   ) {
-    throw new Error(
-      'This agy launch uses a different credential authority from the selected Antigravity account.'
-    )
+    throw new AgentSessionPreSpawnError(undefined, {
+      reason: 'managedAccountEnvOverride',
+      message:
+        'This agy launch uses a different credential authority from the selected Antigravity account.'
+    })
   }
   await getAntigravityAccountService({ runtime: 'host' }).prepareForLaunch()
 }

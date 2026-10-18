@@ -33,7 +33,7 @@ import {
   resolveWslDefaultDistro,
   resumeWslStoppedRelays
 } from './wsl-hook-relay-state-machine'
-import type { WslRelayDistroState } from './wsl-hook-relay-state'
+import type { WslHookLaunchKind, WslRelayDistroState } from './wsl-hook-relay-state'
 export class WslHookRelayManager {
   private deps: WslHookRelayManagerDeps
   private recovery: WslRelayRecovery
@@ -65,7 +65,7 @@ export class WslHookRelayManager {
   async ensureForDistro(
     distro: string | null,
     codexHomePath?: string | null,
-    launchKind?: 'pi' | 'omp'
+    launchKind?: WslHookLaunchKind
   ): Promise<void> {
     if (this.disposed || !isWslHookRelayAllowed(this.deps)) {
       return
@@ -93,8 +93,11 @@ export class WslHookRelayManager {
       ? (state?.opencode2OverlayDir ?? null)
       : (state?.opencodeOverlayDir ?? null)
   }
-  getGuestAgentPath(distro: string | null, kind: 'pi' | 'omp'): string | null {
+  getGuestAgentPath(distro: string | null, kind: WslHookLaunchKind): string | null {
     const state = this.stateFor(distro)
+    if (kind === 'gentle-shell') {
+      return state?.gentleShellAgentDir ?? null
+    }
     return kind === 'pi' ? (state?.piAgentDir ?? null) : (state?.ompStatusExtension ?? null)
   }
   /** Kills every live relay. Non-permanent (hooks switched off mid-session) leaves the
@@ -121,7 +124,7 @@ export class WslHookRelayManager {
   private async ensureInternal(
     requestedDistro: string | null,
     requestedCodexHomePath?: string,
-    launchKind?: 'pi' | 'omp'
+    launchKind?: WslHookLaunchKind
   ): Promise<void> {
     const distro = requestedDistro ?? (await this.resolveDefaultDistro())
     if (!distro || this.disposed) {
@@ -178,6 +181,7 @@ export class WslHookRelayManager {
       opencodeOverlayDir: existing?.opencodeOverlayDir,
       opencode2OverlayDir: existing?.opencode2OverlayDir,
       piAgentDir: existing?.piAgentDir,
+      gentleShellAgentDir: existing?.gentleShellAgentDir,
       ompStatusExtension: existing?.ompStatusExtension,
       launchKinds: new Set(existing?.launchKinds ?? (launchKind ? [launchKind] : [])),
       codexHomePath: requestedCodexHomePath ?? existing?.codexHomePath,

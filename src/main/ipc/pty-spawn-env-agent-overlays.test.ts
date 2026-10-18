@@ -306,6 +306,21 @@ describe('registerPtyHandlers', () => {
       })
       expect(env.ORCA_PI_SOURCE_AGENT_DIR).toBe('/tmp/default-pi-agent')
     })
+    it('materializes the Gentle Shell home for an explicit Pi launch through its command', async () => {
+      await spawnAndGetEnv(
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        'gentle-shell --resume',
+        'pi'
+      )
+
+      expect(piBuildPtyEnvMock).toHaveBeenCalledWith(expect.any(String), undefined, 'pi', {
+        materializeDefaultHome: true,
+        piRuntime: 'gentle-shell'
+      })
+    })
     it.each([
       'omp',
       withFreshOmpLaunch('omp', 'posix'),

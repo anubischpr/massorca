@@ -1,14 +1,22 @@
+import { getCommandTokenPathBasename, getFirstCommandToken } from './command-token-scanner'
+
 export type PiRuntimeSelection = 'pi' | 'gentle-shell'
+
+/** The agent home each Pi-protocol runtime keeps under the user's home directory. */
+export const PI_RUNTIME_HOME_DIR_NAME: Readonly<Record<PiRuntimeSelection, string>> = {
+  pi: '.pi',
+  'gentle-shell': '.gentle-shell'
+}
 
 export function isPiRuntimeSelection(value: unknown): value is PiRuntimeSelection {
   return value === 'pi' || value === 'gentle-shell'
 }
 
-/** The client sends an identity; the executing host resolves its own executable path. */
+/** The client sends an identity; the executing host resolves its own executable path.
+ *  Reads the launch binary, so a TUI launch carrying arguments resolves too. */
 export function selectedPiRuntime(command: string | undefined): PiRuntimeSelection {
-  return /(?:^|[/\\])gentle-shell(?:\.(?:cmd|bat|exe))?$/i.test(command?.trim() ?? '')
-    ? 'gentle-shell'
-    : 'pi'
+  const binary = getCommandTokenPathBasename(getFirstCommandToken(command ?? '')).toLowerCase()
+  return /^gentle-shell(?:\.(?:cmd|bat|exe))?$/.test(binary) ? 'gentle-shell' : 'pi'
 }
 
 export function piRuntimeCommandSettings<

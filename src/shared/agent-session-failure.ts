@@ -35,6 +35,7 @@ export const AGENT_SESSION_FAILURE_KINDS = [
   'launchFolderMissing',
   'historyInOtherAccount',
   'agentCommandNotRunnable',
+  'antigravityCliVersionUnsupported',
   'providerExited',
   'restartFailed',
   'providerRejected',

@@ -81,6 +81,8 @@ export class StructuredAgentSessionClientDelivery {
       readBackgroundTasks,
       readCommandActivity: (sessionId) =>
         structuredRunningChildWork(this.readChildWork(sessionId, true) ?? []),
+      isPromptSuggestionEnabled: (source) =>
+        this.deps().replySuggestions?.isEnabled(source) ?? true,
       onJournalPublished: (sessionId, journal) => this.publishJournal(sessionId, journal)
     })
   }
