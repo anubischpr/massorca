@@ -72,10 +72,19 @@ const record: SleepingAgentSessionRecord = {
 async function launchedCommand(sessionRecord: SleepingAgentSessionRecord): Promise<string> {
   const { launchSleepingAgentSession } = await import('./sleeping-agent-session-launch')
   expect(launchSleepingAgentSession(sessionRecord)).toBe(true)
-  const options = mockCreateTab.mock.calls.at(-1)?.[3] as
-    | { pendingStartup?: { command: string } }
-    | undefined
-  return options?.pendingStartup?.command ?? ''
+  const options: unknown = mockCreateTab.mock.calls.at(-1)?.[3]
+  return pendingStartupCommand(options)
+}
+
+function pendingStartupCommand(options: unknown): string {
+  if (typeof options !== 'object' || options === null || !('pendingStartup' in options)) {
+    return ''
+  }
+  const startup = options.pendingStartup
+  if (typeof startup !== 'object' || startup === null || !('command' in startup)) {
+    return ''
+  }
+  return typeof startup.command === 'string' ? startup.command : ''
 }
 
 describe('launchSleepingAgentSession for Pi runtimes', () => {
