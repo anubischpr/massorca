@@ -3,8 +3,10 @@ import {
   isPiCompatibleAgentType,
   type PiAgentKind
 } from '../../shared/pi-agent-kind'
+import { selectedPiRuntime } from '../../shared/pi-runtime-selection'
 import type { TuiAgent } from '../../shared/tui-agent'
 import { wslHookRelayManager, type WslHookRelayManager } from './wsl-hook-relay-manager'
+import type { WslHookLaunchKind } from './wsl-hook-relay-state'
 
 export async function awaitExplicitPiOmpGuestReadiness(args: {
   isWsl: boolean
@@ -27,16 +29,18 @@ export async function awaitExplicitPiOmpGuestReadiness(args: {
   if (kind !== 'pi' && kind !== 'omp') {
     return true
   }
+  // Why: a Gentle Shell launch waits on its own guest home, not the stock Pi one.
+  const wslKind: WslHookLaunchKind = kind === 'pi' ? selectedPiRuntime(args.launchCommand) : kind
   const distro = args.distro ?? null
   const manager = args.manager ?? wslHookRelayManager
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
     return await Promise.race([
       manager
-        .ensureForDistro(distro, args.codexHomePath, kind)
+        .ensureForDistro(distro, args.codexHomePath, wslKind)
         .then(() =>
           Boolean(
-            manager.getGuestEndpointFilePath(distro) && manager.getGuestAgentPath(distro, kind)
+            manager.getGuestEndpointFilePath(distro) && manager.getGuestAgentPath(distro, wslKind)
           )
         ),
       new Promise<boolean>((resolve) => {

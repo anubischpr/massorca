@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   isStableCliVersionFrom,
   isStableCliVersionOnLine,
-  probeAgentCliVersion
+  probeAgentCliVersion,
+  probeAgentCliVersionOutcome
 } from './agent-cli-version-probe'
 
 const { runProcess } = vi.hoisted(() => ({ runProcess: vi.fn() }))
@@ -114,5 +115,30 @@ describe('isStableCliVersionFrom', () => {
     ['18.0.0-beta.1', false]
   ])('%s -> %s', (version, supported) => {
     expect(isStableCliVersionFrom(version, '17.0.5')).toBe(supported)
+  })
+})
+
+describe('probeAgentCliVersionOutcome', () => {
+  beforeEach(() => runProcess.mockReset())
+
+  it('reports a supported version as supported', async () => {
+    prints('1.18.31\n')
+    expect(await probeAgentCliVersionOutcome(INPUT, anyVersion)).toBe('supported')
+  })
+
+  it('reports a program that did not start as did-not-start', async () => {
+    runProcess.mockImplementationOnce(() => {
+      throw new Error('spawn agent ENOENT')
+    })
+    expect(await probeAgentCliVersionOutcome(INPUT, anyVersion)).toBe('did-not-start')
+  })
+
+  it('reports a program that failed, printed no version, or was refused as unsupported', async () => {
+    prints('', { code: 1, stderr: 'boom' })
+    expect(await probeAgentCliVersionOutcome(INPUT, anyVersion)).toBe('unsupported')
+    prints('no version here\n')
+    expect(await probeAgentCliVersionOutcome(INPUT, anyVersion)).toBe('unsupported')
+    prints('0.9.0\n')
+    expect(await probeAgentCliVersionOutcome(INPUT, () => false)).toBe('unsupported')
   })
 })

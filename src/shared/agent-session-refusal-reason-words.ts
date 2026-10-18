@@ -102,6 +102,10 @@ const REASON_WORDS = {
     launchFolderMissing: { fact: 'launchFolderMissing', action: 'actFirst' },
     historyInOtherAccount: { fact: 'historyInOtherAccount', action: 'actFirst' },
     agentCommandNotRunnable: { fact: 'agentCommandNotRunnable', action: 'actFirst' },
+    antigravityCliVersionUnsupported: {
+      fact: 'antigravityCliVersionUnsupported',
+      action: 'actFirst'
+    },
     attachFailed: codeWords('retry')
   },
   agent_session_ownership_unknown: {

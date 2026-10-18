@@ -18041,6 +18041,10 @@
         "launchFolderMissing": "The folder this chat ran in no longer exists. Restore it to continue this chat.",
         "historyInOtherAccount": "This chat's history is in another Claude account. Switch back to that account to continue it.",
         "agentCommandNotRunnable": "{{agent}}'s Command in Settings → Agents must be a program path or name Orca can find, with no arguments or variables. Change it or reset it.",
+        "antigravityCliVersionUnsupported": "{{agent}} needs stable CLI {{version}} or newer on this computer. Update it, then try again.",
+        "managedAccountEnvOverrideAgent": "This {{agent}} launch uses a different home folder or sign-in storage than its selected account. Remove that override, then try again.",
+        "managedAccountUnsupportedAgent": "{{agent}} cannot run this chat with the account selected on this computer. Choose an account that runs here, then try again.",
+        "historyInOtherAccountAgent": "This chat's history is in another {{agent}} account. Switch back to that account to continue it.",
         "chooseClaudeAccount": "Choose or add one in Claude Accounts settings.",
         "chooseClaudeAccountThenRunCommand": "Choose or add one in Claude Accounts settings, then run /{{command}} again.",
         "chooseClaudeAccountThenSend": "Choose or add one in Claude Accounts settings, then send your message again.",
@@ -18273,8 +18277,16 @@
         "accessMode": "Access",
         "accessModeValue": {
           "inherit": "Inherit global setting",
-          "default": "Provider default",
+          "default": "Ask for approval",
+          "auto": "Auto",
+          "acceptEdits": "Accept edits",
+          "plan": "Plan",
+          "readOnly": "Read only",
           "fullAccess": "Full access"
+        },
+        "optionNote": {
+          "noRestrictedMode": "Pi chat has no restricted mode.",
+          "startOnlyModes": "Dimmed modes can only be set when the session starts."
         },
         "options": "Options",
         "sessionOptions": "Session options",
@@ -18486,7 +18498,12 @@
       "transcriptLabel": "Conversation",
       "toggle": {
         "showTerminal": "Show terminal",
-        "showChat": "Show chat view"
+        "showChat": "Show chat view",
+        "terminalViewReleaseFailed": "Could not open this chat in the terminal. The chat was left open.",
+        "terminalViewLaunchFailed": "Could not open this chat in the terminal. Its agent process was released; the chat history is kept.",
+        "terminalViewNoWorktree": "This chat's workspace is not known yet.",
+        "terminalViewAgent": "This agent cannot resume its chat in the terminal.",
+        "terminalViewNoSession": "This chat has not reported its agent session yet."
       },
       "state": {
         "loading": {
@@ -18998,6 +19015,7 @@
       "startSession": "Start New Session",
       "starting": "Starting…",
       "noContext": "No session context is available to continue in a new session.",
+      "handOffUnavailable": "This agent cannot start a new session from its chat.",
       "agentDisabled": "{{agent}} is disabled in Agent settings.",
       "agentUnavailable": "{{agent}} was not detected on this workspace host.",
       "sent": "Session context sent to {{agent}} in a new session.",
@@ -19051,7 +19069,13 @@
         "inlineVisualsCopy": "Let the agent show charts, diagrams and mockups inside its replies. Applies to newly started chats.",
         "inlineVisualsToggleLabel": "Toggle inline visuals",
         "queueFollowUpsCopy": "Messages you send while the agent is working wait as cards you can steer, edit, or delete. Messages with images send right away.",
-        "queueFollowUpsToggleLabel": "Toggle queue follow-ups"
+        "queueFollowUpsToggleLabel": "Toggle queue follow-ups",
+        "replySuggestionsTitle": "Reply suggestions",
+        "replySuggestionsCopy": "After the agent finishes a turn, show a suggested next message as ghost text in the empty message box. Press Tab to accept it or Esc to dismiss it.",
+        "replySuggestionsToggleLabel": "Toggle reply suggestions",
+        "emulatedReplySuggestionsTitle": "Suggest replies for agents without their own",
+        "emulatedReplySuggestionsCopy": "Ask a model for the suggestion when the agent does not offer one. Each suggestion costs one short model call on the machine the chat runs on, using the agent's own account.",
+        "emulatedReplySuggestionsToggleLabel": "Toggle suggestions for agents without their own"
       }
     },
     "agentChildRow": {
@@ -19109,6 +19133,25 @@
       "title": "Chat summary",
       "tokens": "tokens",
       "unavailable": "Unavailable",
+      "backgroundUnknown": "Background task information is not reported by this provider or host.",
+      "copyPath": "Copy path",
+      "detectedCount": "{{count}} detected",
+      "folder": "Folder",
+      "noRunningAgents": "No running subagents",
+      "noSubagents": "No subagents reported.",
+      "observed": "Observed",
+      "path": "Path",
+      "plan": "Plan",
+      "planNone": "No plan reported",
+      "planNoneInProgress": "No item in progress",
+      "planProgress": "{{completed}} of {{total}}",
+      "project": "Project",
+      "runningCount": "{{count}} running",
+      "source": "Source",
+      "used": "Used",
+      "window": "Window",
+      "windowUnknown": "Not reported by the provider.",
+      "worktree": "Worktree",
       "workspace": "Workspace"
     },
     "nativeChatBackground": {

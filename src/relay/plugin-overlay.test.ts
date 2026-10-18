@@ -393,6 +393,29 @@ describe('PluginOverlayManager', () => {
       expect(extensions).not.toContain('omp-ext')
     })
 
+    it('installs Gentle Shell status into its own home and leaves ~/.pi/agent alone', () => {
+      seedAgentDir('.pi', 'pi')
+
+      manager.setSources({ piExtensionSource: '// pi extension' })
+      expect(
+        manager.materializePi('tab-relay-gentle-bare:0', undefined, 'pi', {
+          materializeDefaultHome: false,
+          piRuntime: 'gentle-shell'
+        })
+      ).toBeNull()
+
+      const gentle = manager.materializePi('tab-relay-gentle:0', undefined, 'pi', {
+        materializeDefaultHome: true,
+        piRuntime: 'gentle-shell'
+      })
+      const gentleDir = join(homeDir, '.gentle-shell', 'agent')
+      expect(gentle?.sourceAgentDir).toBe(gentleDir)
+      expect(readFileSync(join(gentleDir, 'extensions', 'orca-agent-status.ts'), 'utf8')).toContain(
+        '// pi extension'
+      )
+      expect(readdirSync(join(homeDir, '.pi', 'agent', 'extensions'))).toEqual(['pi-ext'])
+    })
+
     it('launching omp with both ~/.pi/agent and ~/.omp/agent present installs into ~/.omp/agent', () => {
       seedAgentDir('.pi', 'pi')
       seedAgentDir('.omp', 'omp')

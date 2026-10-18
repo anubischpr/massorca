@@ -22,6 +22,8 @@ import type { AgentSessionJournal } from '../agent-session-journal/journal-store
 import { emptyAgentSessionBatch } from './agent-session-empty-batch'
 import { readAgentSessionHydrationPage } from './agent-session-history-page'
 import { rememberSessionActivity } from './structured-agent-session-activity-retention'
+import { StructuredAgentSessionPromptSuggestions } from './structured-agent-session-prompt-suggestions'
+import type { NativeChatReplySuggestion } from '../../../shared/native-chat-reply-suggestion'
 import { refreshDerivedStopNotes } from './agent-session-stop-note-refresh'
 
 export type AgentSessionSubscriberEmit = (event: AgentSessionSubscribeEvent) => void
@@ -55,6 +57,7 @@ export type AgentSessionSubscribersHooks = {
   readQueuePublication?: (sessionId: string) => QueuePublication | undefined
   readBackgroundTasks?: SubscriberFieldHooks['readBackgroundTasks']
   readCommandActivity?: SubscriberFieldHooks['readCommandActivity']
+  isPromptSuggestionEnabled?: (source: NativeChatReplySuggestion['source']) => boolean
   /** Fires after publications that can change journal content. */
   onJournalPublished?: (sessionId: string, journal: AgentSessionJournal) => void
   now?: () => number
@@ -63,6 +66,12 @@ export type AgentSessionSubscribersHooks = {
 export class AgentSessionSubscribers {
   private readonly bySession = new Map<string, Map<string, Subscriber>>()
   private readonly activityBySession = new Map<string, AgentSessionTurnActivity>()
+  readonly promptSuggestions = new StructuredAgentSessionPromptSuggestions({
+    subscribers: (sessionId) => this.subscribers(sessionId),
+    emit: (subscriber, event) => this.emit(subscriber, event),
+    now: () => this.now(),
+    isEnabled: (source) => this.hooks.isPromptSuggestionEnabled?.(source) ?? true
+  })
 
   constructor(private readonly hooks: AgentSessionSubscribersHooks = {}) {}
 
@@ -114,9 +123,13 @@ export class AgentSessionSubscribers {
         page,
         fence: input.fence,
         hostNow,
-        ...this.activityField(input.sessionId)
+        ...this.activityField(input.sessionId),
+        ...this.promptSuggestions.openingField(input.sessionId)
       })
       subscriber.cursor = page.liveCursor ?? page.window.nextCursor
+    }
+    if (input.cursor) {
+      this.promptSuggestions.resend(subscriber, hostNow)
     }
     const { sessionId, id } = subscriber
     return () => this.close(sessionId, id)
@@ -168,7 +181,8 @@ export class AgentSessionSubscribers {
         page,
         fence,
         hostNow,
-        ...this.activityField(sessionId)
+        ...this.activityField(sessionId),
+        ...this.promptSuggestions.openingField(sessionId)
       })
       subscriber.cursor = page.liveCursor ?? page.window.nextCursor
       subscriber.fence = fence

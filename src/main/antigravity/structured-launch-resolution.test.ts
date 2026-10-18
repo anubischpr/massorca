@@ -64,7 +64,7 @@ async function setup() {
   })
   const readBinding = vi.fn(async () => binding)
   const prepareAccount = vi.fn(async () => {})
-  const probeVersion = vi.fn(async () => true)
+  const probeVersion = vi.fn(async () => 'supported' as const)
   const deps = {
     store,
     resolveWorkspacePath: async () => '/host/workspace',
@@ -129,7 +129,7 @@ it('lists bounded account-scoped models with the existing agy parser', async () 
   const probe = createAntigravityModelCatalogProbe({
     resolveEnvironment: async () => ({ HOME: '/host/home' }),
     readBinding: async () => binding,
-    probeVersion: async () => true,
+    probeVersion: async () => 'supported' as const,
     runListing
   })
   const listing = await probe(binding)
@@ -163,5 +163,43 @@ it.each([
     })(identity)
     expect(launch.args.includes('--dangerously-skip-permissions')).toBe(full)
     expect(options).toEqual({ accessMode: mode })
+  }
+)
+
+it.each([
+  ['auto', ['--mode', 'auto']],
+  ['accept-edits', ['--mode', 'accept-edits']],
+  ['plan', ['--mode', 'plan']]
+] as const)('launches the %s preset with %j and never the skip flag', async (mode, flags) => {
+  const h = await setup()
+  vi.spyOn(h.store, 'getRecord').mockReturnValue({ ...h.record, options: { accessMode: mode } })
+  const launch = await createAntigravityLaunchResolver({
+    ...h.deps,
+    resolveFullAccess: () => true
+  })(identity)
+  expect(launch.args.slice(-2)).toEqual(flags)
+  expect(launch.args).not.toContain('--dangerously-skip-permissions')
+})
+
+it('adds no mode flag for Ask for approval', async () => {
+  const h = await setup()
+  vi.spyOn(h.store, 'getRecord').mockReturnValue({
+    ...h.record,
+    options: { accessMode: 'default' }
+  })
+  const launch = await createAntigravityLaunchResolver(h.deps)(identity)
+  expect(launch.args).not.toContain('--mode')
+})
+
+it.each([
+  ['did-not-start', 'cliMissing'],
+  ['unsupported', 'antigravityCliVersionUnsupported']
+] as const)(
+  'refuses a launch whose agy CLI is %s with the %s reason, before anything spawns',
+  async (outcome, reason) => {
+    const h = await setup()
+    await expect(
+      createAntigravityLaunchResolver({ ...h.deps, probeVersion: async () => outcome })(identity)
+    ).rejects.toMatchObject({ name: 'AgentSessionPreSpawnError', reason })
   }
 )

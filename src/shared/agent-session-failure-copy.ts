@@ -59,6 +59,14 @@ export const AGENT_SESSION_FAILURE_COPY = {
     'The folder this chat ran in no longer exists. Restore it to continue this chat.',
   historyInOtherAccount:
     "This chat's history is in another Claude account. Switch back to that account to continue it.",
+  managedAccountEnvOverrideAgent:
+    'This {{agent}} launch uses a different home folder or sign-in storage than its selected account. Remove that override, then try again.',
+  managedAccountUnsupportedAgent:
+    '{{agent}} cannot run this chat with the account selected on this computer. Choose an account that runs here, then try again.',
+  historyInOtherAccountAgent:
+    "This chat's history is in another {{agent}} account. Switch back to that account to continue it.",
+  antigravityCliVersionUnsupported:
+    '{{agent}} needs stable CLI {{version}} or newer on this computer. Update it, then try again.',
   agentCommandNotRunnable:
     "{{agent}}'s Command in Settings → Agents must be a program path or name Orca can find, with no arguments or variables. Change it or reset it.",
   chooseClaudeAccount: 'Choose or add one in Claude Accounts settings.',
@@ -141,6 +149,7 @@ export type AgentSessionFailureCopyValues = {
   option?: string
   limit?: string
   size?: string
+  version?: string
   attempt?: string
   maxRetries?: string
 }

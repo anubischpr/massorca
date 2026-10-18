@@ -11,12 +11,15 @@ function warnRefused(program: string, why: string, output = ''): void {
   console.warn(`[agent-cli-version] ${program} --version: ${why}${said ? `: ${said}` : ''}`)
 }
 
-/** Runs `<program> --version` on this host and asks `supports` about the version it prints. False
- *  when it cannot tell: a failed spawn, a non-zero exit, a timeout, or output with no version. */
-export async function probeAgentCliVersion(
+/** `did-not-start`: no program ran to ask, so the CLI is not installed or not runnable here.
+ *  `unsupported`: it ran but failed, printed no version, or printed one `supports` refused. */
+export type AgentCliVersionProbeOutcome = 'supported' | 'did-not-start' | 'unsupported'
+
+/** Runs `<program> --version` on this host and asks `supports` about the version it prints. */
+export async function probeAgentCliVersionOutcome(
   input: Pick<ProcessSpec, 'program' | 'cwd' | 'env'>,
   supports: (version: string) => boolean
-): Promise<boolean> {
+): Promise<AgentCliVersionProbeOutcome> {
   let result
   try {
     result = await runProcess({
@@ -28,7 +31,7 @@ export async function probeAgentCliVersion(
     })
   } catch (error) {
     warnRefused(input.program, `did not start (${String(error)})`)
-    return false
+    return 'did-not-start'
   }
   const output = `${result.stdout}\n${result.stderr}`
   if (result.timedOut || result.outputTruncated || result.code !== 0) {
@@ -38,19 +41,28 @@ export async function probeAgentCliVersion(
         ? 'printed too much'
         : `exited ${result.code ?? result.signal}`
     warnRefused(input.program, why, output)
-    return false
+    return 'unsupported'
   }
   const version = parseCliVersion(result.stdout)
   if (version === null) {
     warnRefused(input.program, 'printed no version', output)
-    return false
+    return 'unsupported'
   }
   if (!supports(version)) {
     warnRefused(input.program, `${version} is not a supported release`)
-    return false
+    return 'unsupported'
   }
   console.info(`[agent-cli-version] ${input.program} --version: ${version} is supported`)
-  return true
+  return 'supported'
+}
+
+/** Runs `<program> --version` on this host and asks `supports` about the version it prints. False
+ *  when it cannot tell: a failed spawn, a non-zero exit, a timeout, or output with no version. */
+export async function probeAgentCliVersion(
+  input: Pick<ProcessSpec, 'program' | 'cwd' | 'env'>,
+  supports: (version: string) => boolean
+): Promise<boolean> {
+  return (await probeAgentCliVersionOutcome(input, supports)) === 'supported'
 }
 
 /** A stable release at or after `floor`, on any later major line too. */

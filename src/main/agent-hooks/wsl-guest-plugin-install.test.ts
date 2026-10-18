@@ -2,9 +2,10 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { requestGuestOpenCodeOverlayDir } from './wsl-guest-plugin-install'
 import type { SshChannelMultiplexer } from '../ssh/ssh-channel-multiplexer'
+import { AGENT_HOOK_INSTALL_PLUGINS_METHOD } from '../../shared/agent-hook-relay'
 
 function fakeMux(
-  request: () => Promise<unknown>,
+  request: (method: string, params: unknown) => Promise<unknown>,
   isDisposed = false
 ): { mux: SshChannelMultiplexer } {
   return { mux: { request, isDisposed: () => isDisposed } as unknown as SshChannelMultiplexer }
@@ -18,6 +19,20 @@ function deps() {
 }
 
 describe('requestGuestOpenCodeOverlayDir', () => {
+  it('asks for and reports the Gentle Shell guest home under its own launch kind', async () => {
+    const request = vi.fn(async (_method: string, _params: unknown) => ({
+      overlayDirs: { gentleShell: '/home/jin/.gentle-shell/agent' }
+    }))
+    const { mux } = fakeMux(request)
+    await expect(
+      requestGuestOpenCodeOverlayDir(mux, deps(), 'Ubuntu', 'gentle-shell')
+    ).resolves.toEqual({ kind: 'dir', gentleShellDir: '/home/jin/.gentle-shell/agent' })
+    expect(request).toHaveBeenCalledWith(
+      AGENT_HOOK_INSTALL_PLUGINS_METHOD,
+      expect.objectContaining({ launchKind: 'gentle-shell' })
+    )
+  })
+
   it('reports the guest overlay dir', async () => {
     const { mux } = fakeMux(async () => ({ overlayDirs: { opencode: '/home/jin/.orca-relay/x' } }))
     await expect(requestGuestOpenCodeOverlayDir(mux, deps(), 'Ubuntu')).resolves.toEqual({

@@ -6,6 +6,7 @@ import { supportsClaudeStructuredLocation } from '../claude/claude-structured-lo
 import { supportsSupervisedProviderChildLocation } from '../provider-process/supervised-provider-child-location'
 import { applyStructuredCodexWorkspaceTrust } from '../agent-workspace-trust-spawn'
 import type { AgentSessionExecutionLocation } from '../../shared/agent-session-record'
+import type { AgentSessionPreSpawnReason } from '../native-chat/agent-session-wire/agent-session-pre-spawn-reason'
 import type { StructuredAgentAccountHomeServices } from './structured-agent-account-home-services'
 export type { StructuredAgentAccountHomeServices } from './structured-agent-account-home-services'
 import {
@@ -107,11 +108,12 @@ export type StructuredAgentRuntimeRegistration = {
   supportsLocation: (location: AgentSessionExecutionLocation) => boolean
   /** Whether the agent installed on this host runs a structured chat, asked at create with the
    *  environment a launch starts from; absent when the location alone decides. */
+  /** `true` when the agent's CLI runs here; otherwise `false`, or the reason it cannot. */
   supportsLaunch?: (input: {
     cwd: string
     env: Record<string, string>
     commandSettings: StructuredAgentCommandSettings
-  }) => Promise<boolean>
+  }) => Promise<boolean | AgentSessionPreSpawnReason>
   /** The account a chat of this agent pins; see `StructuredAgentAccountHomeRequest`. */
   resolveAccountHome: (
     request: StructuredAgentAccountHomeRequest,
@@ -182,6 +184,8 @@ function createClaudeAdapter(
     ...(deps.resolveClaudePermissionMode
       ? { resolveClaudePermissionMode: deps.resolveClaudePermissionMode }
       : {}),
+    // Claude's own predictions cost the CLI a cache-backed call per turn; off unless the user allows them.
+    resolveClaudePromptSuggestions: () => deps.replySuggestions?.isEnabled('native') === true,
     ...(deps.getClaudeManagedAccountGateSettings
       ? {
           readClaudeManagedAccountGate: () =>

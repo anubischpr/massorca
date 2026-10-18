@@ -9,7 +9,9 @@ import { piAgentHome } from './rpc-launch-resolution'
 vi.mock('../../shared/child-process/run-process', () => ({ runProcess: vi.fn() }))
 
 type LaunchInput = Parameters<NonNullable<typeof PI_RPC_RUNTIME_REGISTRATION.supportsLaunch>>[0]
-function supportsLaunch(launch: LaunchInput): Promise<boolean> {
+function supportsLaunch(
+  launch: LaunchInput
+): ReturnType<NonNullable<typeof PI_RPC_RUNTIME_REGISTRATION.supportsLaunch>> {
   const check = PI_RPC_RUNTIME_REGISTRATION.supportsLaunch
   if (!check) {
     throw new Error('Pi registers a launch check')

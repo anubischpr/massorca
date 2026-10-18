@@ -207,6 +207,7 @@ describe('WslHookRelayManager', () => {
           opencode: opencodeOverlayDir,
           opencode2: opencode2OverlayDir,
           pi: `${home}/.pi/agent`,
+          gentleShell: `${home}/.gentle-shell/agent`,
           omp: `${home}/.omp/agent/extensions/orca-agent-status.ts`
         }
       }))
@@ -310,6 +311,23 @@ describe('WslHookRelayManager', () => {
     } finally {
       manager.disposeAll()
     }
+  })
+
+  it('waits for the Gentle Shell guest home, not the stock Pi one', async () => {
+    const { manager } = createManager({})
+    await expect(
+      awaitExplicitPiOmpGuestReadiness({
+        isWsl: true,
+        distro: 'Ubuntu',
+        codexHomePath: codexHome,
+        launchAgent: 'pi',
+        launchCommand: 'gentle-shell --resume',
+        manager
+      })
+    ).resolves.toBe(true)
+    expect(manager.getGuestAgentPath('Ubuntu', 'gentle-shell')).toBe(`${home}/.gentle-shell/agent`)
+    expect(manager.getGuestAgentPath('Ubuntu', 'pi')).toBeNull()
+    manager.disposeAll()
   })
 
   it('waits for guest materialization when an explicit Pi or OMP launch needs it', async () => {

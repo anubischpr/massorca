@@ -4,8 +4,8 @@ import type { AgentModelCatalogProbe } from '../native-chat/agent-model-catalog/
 import { runAgentModelCatalogListing } from '../native-chat/agent-model-catalog/agent-model-catalog-probe-runner'
 import type { AntigravityLaunchDeps } from './structured-launch-resolution'
 import {
-  resolveAntigravityCommand,
-  antigravityStructuredVersionSupported
+  antigravityCliVersionOutcome,
+  resolveAntigravityCommand
 } from './structured-launch-resolution'
 import { readAntigravityAccountBinding } from './structured-account-binding'
 
@@ -30,7 +30,8 @@ export function createAntigravityModelCatalogProbe(
     })
     const command = resolveAntigravityCommand(env, deps.resolveCommandSettings?.())
     const cwd = homedir()
-    if (!(await antigravityStructuredVersionSupported({ command, cwd, env }, deps.probeVersion))) {
+    const outcome = await antigravityCliVersionOutcome({ command, cwd, env }, deps.probeVersion)
+    if (outcome !== 'supported') {
       throw new Error('Antigravity CLI does not support structured chats')
     }
     const output = await (deps.runListing ?? runAgentModelCatalogListing)(

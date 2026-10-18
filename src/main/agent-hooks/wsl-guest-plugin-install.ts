@@ -7,6 +7,7 @@ import { AGENT_HOOK_INSTALL_PLUGINS_METHOD } from '../../shared/agent-hook-relay
 import { selectOpenCodePluginSources } from './opencode-plugin-settings'
 import type { ManagedHookDetectionSettings } from './managed-hook-detection-commands'
 import type { PluginSources } from '../../relay/plugin-overlay'
+import type { WslHookLaunchKind } from './wsl-hook-relay-state'
 
 /** Structural, not the deps type itself, so this stays free of the deps module. */
 type GuestPluginInstallDeps = {
@@ -19,7 +20,14 @@ type GuestPluginInstallDeps = {
  *  with `unavailable` (no handler / teardown): only `none` means the previously
  *  recorded dir is now unusable and must stop being advertised to PTYs. */
 export type GuestOverlayResult =
-  | { kind: 'dir'; dir?: string; dir2?: string; piDir?: string; ompDir?: string }
+  | {
+      kind: 'dir'
+      dir?: string
+      dir2?: string
+      piDir?: string
+      ompDir?: string
+      gentleShellDir?: string
+    }
   | { kind: 'none' }
   | { kind: 'unavailable' }
 
@@ -27,7 +35,7 @@ export async function requestGuestOpenCodeOverlayDir(
   mux: SshChannelMultiplexer,
   deps: GuestPluginInstallDeps,
   distro: string,
-  launchKind?: 'pi' | 'omp'
+  launchKind?: WslHookLaunchKind
 ): Promise<GuestOverlayResult> {
   try {
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Runtime validation or the local test fixture establishes the asserted shape.
@@ -35,23 +43,33 @@ export async function requestGuestOpenCodeOverlayDir(
       ...selectOpenCodePluginSources(deps.pluginSources(), deps.managedHookSettings?.() ?? null),
       ...(launchKind ? { launchKind } : {})
     })) as {
-      overlayDirs?: { opencode?: unknown; opencode2?: unknown; pi?: unknown; omp?: unknown }
+      overlayDirs?: {
+        opencode?: unknown
+        opencode2?: unknown
+        pi?: unknown
+        omp?: unknown
+        gentleShell?: unknown
+      }
     }
     const dir = res?.overlayDirs?.opencode
     const dir2 = res?.overlayDirs?.opencode2
     const piDir = res?.overlayDirs?.pi
     const ompDir = res?.overlayDirs?.omp
+    const gentleShellDir = res?.overlayDirs?.gentleShell
     const opencodeDir = typeof dir === 'string' && dir.length > 0 ? dir : undefined
     const opencode2Dir = typeof dir2 === 'string' && dir2.length > 0 ? dir2 : undefined
     const guestPiDir = typeof piDir === 'string' && piDir.length > 0 ? piDir : undefined
     const guestOmpDir = typeof ompDir === 'string' && ompDir.length > 0 ? ompDir : undefined
-    return opencodeDir || opencode2Dir || guestPiDir || guestOmpDir
+    const guestGentleShellDir =
+      typeof gentleShellDir === 'string' && gentleShellDir.length > 0 ? gentleShellDir : undefined
+    return opencodeDir || opencode2Dir || guestPiDir || guestOmpDir || guestGentleShellDir
       ? {
           kind: 'dir',
           ...(opencodeDir ? { dir: opencodeDir } : {}),
           ...(opencode2Dir ? { dir2: opencode2Dir } : {}),
           ...(guestPiDir ? { piDir: guestPiDir } : {}),
-          ...(guestOmpDir ? { ompDir: guestOmpDir } : {})
+          ...(guestOmpDir ? { ompDir: guestOmpDir } : {}),
+          ...(guestGentleShellDir ? { gentleShellDir: guestGentleShellDir } : {})
         }
       : { kind: 'none' }
   } catch (err) {

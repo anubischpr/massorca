@@ -208,7 +208,15 @@ describe('desktop words for a failure fact', () => {
     expect(sentence('providerStartFailed', 'compact')).toBe(
       'Codex は起動が完了する前に停止しました。/compact をもう一度実行してください。'
     )
-    expect(sentence('managedAccountUnsupported', 'compact')).toBe(
+    // The managed-account refusal is Claude's own, so its chat names Claude.
+    expect(
+      agentSessionFailureSentence(
+        { kind: 'managedAccountUnsupported' },
+        'row',
+        { agentName: 'Claude', command: 'compact' },
+        sayAgentSessionFailureTranslated
+      )
+    ).toBe(
       'WSL に Claude アカウントが追加されている間、Claude チャットには Windows の Claude アカウントが必要です。Claude アカウントの設定で選択または追加してから、/compact をもう一度実行してください。'
     )
   })

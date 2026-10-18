@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  PI_RUNTIME_HOME_DIR_NAME,
   isPiRuntimeSelection,
   piRuntimeCommandSettings,
   selectedPiRuntime
@@ -73,5 +74,14 @@ describe('bounded Pi runtime selection', () => {
     expect(selectedPiRuntime('C:\\tools\\gentle-shell.cmd')).toBe('gentle-shell')
     expect(selectedPiRuntime(undefined)).toBe('pi')
     expect(isPiRuntimeSelection('gentle-shell')).toBe(true)
+  })
+  it('reads the launch binary of a TUI command that carries arguments', () => {
+    expect(selectedPiRuntime('gentle-shell --model provider/model')).toBe('gentle-shell')
+    expect(selectedPiRuntime('"C:\\Program Files\\Gentle\\gentle-shell.cmd" --resume')).toBe(
+      'gentle-shell'
+    )
+    expect(selectedPiRuntime('pi --resume gentle-shell')).toBe('pi')
+    expect(selectedPiRuntime('my-gentle-shell-wrapper')).toBe('pi')
+    expect(PI_RUNTIME_HOME_DIR_NAME).toEqual({ pi: '.pi', 'gentle-shell': '.gentle-shell' })
   })
 })

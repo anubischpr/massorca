@@ -1,6 +1,7 @@
 import { isFreshOmpLaunchCommand } from './omp-fresh-launch'
 import { TUI_AGENT_CONFIG } from './tui-agent-config'
 import { getCommandTokenPathBasename, getFirstCommandToken } from './command-token-scanner'
+import { PI_RUNTIME_HOME_DIR_NAME, type PiRuntimeSelection } from './pi-runtime-selection'
 
 /**
  * Pi-compatible agent kinds. Both Pi and OMP (omp.sh) consume the same
@@ -24,6 +25,26 @@ export const SOURCE_AGENT_DIR_ENV_BY_KIND: Readonly<Record<PiAgentKind, string>>
   pi: 'ORCA_PI_SOURCE_AGENT_DIR',
   omp: 'ORCA_OMP_SOURCE_AGENT_DIR',
   'prime-agent': 'ORCA_PRIME_AGENT_SOURCE_AGENT_DIR'
+}
+
+const AGENT_HOME_DIR_NAME: Readonly<Record<'omp' | 'prime-agent', string>> = {
+  omp: '.omp',
+  'prime-agent': '.prime'
+}
+
+/**
+ * The `~/<dir>` whose `agent/` holds a Pi-family launch's default agent dir. Gentle Shell
+ * (`piRuntime`) keeps its own home; OMP's `PI_CONFIG_DIR` (`configDirName`) reroutes only OMP.
+ */
+export function piAgentHomeDirName(
+  kind: PiAgentKind,
+  configDirName: string | undefined,
+  piRuntime: PiRuntimeSelection = 'pi'
+): string {
+  if (kind === 'pi') {
+    return PI_RUNTIME_HOME_DIR_NAME[piRuntime]
+  }
+  return kind === 'omp' ? configDirName || AGENT_HOME_DIR_NAME.omp : AGENT_HOME_DIR_NAME[kind]
 }
 
 /**

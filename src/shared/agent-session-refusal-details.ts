@@ -68,6 +68,8 @@ export const AGENT_SESSION_REFUSAL_REASONS = {
     'historyInOtherAccount',
     /** Settings → Agents → Command names no program this host can run. */
     'agentCommandNotRunnable',
+    /** The agy CLI ran here but is not a stable version the Antigravity chat runs on. */
+    'antigravityCliVersionUnsupported',
     /** The agent started, then Orca could not open the chat's conversation for it. */
     'attachFailed'
   ],

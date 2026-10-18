@@ -23,7 +23,13 @@ export type InstallPluginsResult = {
     omp: boolean
     primeAgent: boolean
   }
-  overlayDirs: { opencode?: string; opencode2?: string; pi?: string; omp?: string }
+  overlayDirs: {
+    opencode?: string
+    opencode2?: string
+    pi?: string
+    omp?: string
+    gentleShell?: string
+  }
 }
 
 export type InstallPluginsHandler = (params: Record<string, unknown>) => InstallPluginsResult
@@ -67,9 +73,14 @@ export function createInstallPluginsHandler(
     })
     let opencodeDir: string | undefined
     const launchKind =
-      params.launchKind === 'pi' || params.launchKind === 'omp' ? params.launchKind : undefined
+      params.launchKind === 'pi' ||
+      params.launchKind === 'omp' ||
+      params.launchKind === 'gentle-shell'
+        ? params.launchKind
+        : undefined
     let piDir: string | undefined
     let ompDir: string | undefined
+    let gentleShellDir: string | undefined
     if (pluginOverlay.hasOpenCodeSource()) {
       // An omitted source leaves the manager's cache untouched, so it counts as unchanged.
       const incoming = typeof opencode === 'string' ? opencode : null
@@ -125,8 +136,15 @@ export function createInstallPluginsHandler(
       }
     }
     // Materialize only the explicitly requested agent. Bare shells must not create
-    // ~/.pi/agent or ~/.omp/agent (#10196).
-    if (launchKind === 'pi' || launchKind === 'omp') {
+    // ~/.pi/agent, ~/.gentle-shell/agent or ~/.omp/agent (#10196).
+    if (launchKind === 'gentle-shell') {
+      if (typeof pi === 'string') {
+        gentleShellDir = pluginOverlay.materializePi('wsl-gentle-shell', undefined, 'pi', {
+          materializeDefaultHome: true,
+          piRuntime: 'gentle-shell'
+        })?.sourceAgentDir
+      }
+    } else if (launchKind === 'pi' || launchKind === 'omp') {
       const source = launchKind === 'pi' ? pi : omp
       if (typeof source === 'string') {
         const result = pluginOverlay.materializePi(`wsl-${launchKind}`, undefined, launchKind, {
@@ -171,7 +189,8 @@ export function createInstallPluginsHandler(
         ...(opencodeDir ? { opencode: opencodeDir } : {}),
         ...(opencode2Dir ? { opencode2: opencode2Dir } : {}),
         ...(piDir ? { pi: piDir } : {}),
-        ...(ompDir ? { omp: ompDir } : {})
+        ...(ompDir ? { omp: ompDir } : {}),
+        ...(gentleShellDir ? { gentleShell: gentleShellDir } : {})
       }
     }
   }

@@ -1,5 +1,8 @@
 import type { SshChannelMultiplexer } from '../ssh/ssh-channel-multiplexer'
 
+/** Agent launches a WSL relay materializes status for; Gentle Shell keeps its own guest home. */
+export type WslHookLaunchKind = 'pi' | 'omp' | 'gentle-shell'
+
 export type WslRelayDistroState = {
   distro: string
   phase: 'starting' | 'running' | 'failed'
@@ -11,8 +14,9 @@ export type WslRelayDistroState = {
   opencodeOverlayDir?: string
   opencode2OverlayDir?: string
   piAgentDir?: string
+  gentleShellAgentDir?: string
   ompStatusExtension?: string
-  launchKinds: Set<'pi' | 'omp'>
+  launchKinds: Set<WslHookLaunchKind>
   startup?: Promise<void>
   installation?: Promise<void>
   failures: number

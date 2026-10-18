@@ -10,11 +10,13 @@ import {
 } from '../../../../shared/agent-session-failure-copy'
 import { AVAILABILITY_PIECES } from './agent-session-availability-words-text'
 import { ATTACHMENT_FAILURE_PIECES } from './agent-session-failure-attachment-words-text'
+import { AGENT_NAMED_FAILURE_PIECES } from './agent-session-managed-account-words-text'
 
 // The pieces a refusal notice says too keep the notice's keys, so each has one translation.
 const PIECES: Record<AgentSessionFailureCopyId, (values: AgentSessionFailureCopyValues) => string> =
   {
     theAgent: () => translate('components.native-chat.failureWords.theAgent', COPY.theAgent),
+    ...AGENT_NAMED_FAILURE_PIECES,
     providerStartFailed: (values) =>
       translate(
         'components.native-chat.failureWords.providerStartFailed',

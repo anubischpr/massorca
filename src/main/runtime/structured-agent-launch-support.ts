@@ -15,6 +15,7 @@ import {
 } from '../native-chat/structured-agent-session-create-support'
 import { resolveLoginShellEnvironment } from '../startup/login-shell-environment'
 import { structuredAgentRuntimeRegistration } from './structured-agent-runtime-registrations'
+import type { AgentSessionPreSpawnReason } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import { structuredAgentBaseEnvironment } from './structured-agent-shell-environment'
 import {
   piRuntimeCommandSettings,
@@ -64,7 +65,7 @@ export async function structuredAgentSupportsLaunch(
   worktreeSelector: string,
   runtime: LaunchSupportRuntime,
   piRuntime?: PiRuntimeSelection
-): Promise<boolean> {
+): Promise<boolean | AgentSessionPreSpawnReason> {
   const supportsLaunch = structuredAgentRuntimeRegistration(agent)?.supportsLaunch
   if (!supportsLaunch) {
     return true
@@ -96,8 +97,10 @@ export async function resolveHostStructuredAgentCreateSupport(input: {
   getSettings: () => ClaudeManagedAccountGateSettings
 }): Promise<StructuredAgentSessionCreateSupport> {
   const { agent, location } = input
+  // Why: only stock Pi lacks a restricted mode; Gentle Shell applies its own Normal mode.
   if (
     agent === 'pi' &&
+    input.piRuntime !== 'gentle-shell' &&
     resolvedPiChatAccessMode(input.runtime.requireStore().getSettings(), input.accessMode) !==
       'full-access'
   ) {
@@ -105,14 +108,15 @@ export async function resolveHostStructuredAgentCreateSupport(input: {
   }
   const supportsLocation =
     structuredAgentRuntimeRegistration(agent)?.supportsLocation(location) ?? false
-  const supportsLaunch =
-    supportsLocation &&
-    (await structuredAgentSupportsLaunch(
-      agent,
-      input.worktreeSelector,
-      input.runtime,
-      input.piRuntime
-    ))
+  const launch = supportsLocation
+    ? await structuredAgentSupportsLaunch(
+        agent,
+        input.worktreeSelector,
+        input.runtime,
+        input.piRuntime
+      )
+    : false
+  const supportsLaunch = launch === true
   const support = resolveStructuredAgentSessionCreateSupport({
     agent,
     location,
@@ -124,5 +128,6 @@ export async function resolveHostStructuredAgentCreateSupport(input: {
     support,
     !supportsLocation ? 'location' : !supportsLaunch ? 'installed-agent' : 'managed-account'
   )
-  return support
+  // Why: a CLI that cannot run here names its cause, so the chat says that rather than a bare decline.
+  return !support.supported && typeof launch === 'string' ? { ...support, cause: launch } : support
 }

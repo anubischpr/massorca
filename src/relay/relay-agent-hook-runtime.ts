@@ -21,6 +21,7 @@ import {
   detectExplicitPiAgentKindFromCommand,
   isPiCompatibleAgentType
 } from '../shared/pi-agent-kind'
+import { selectedPiRuntime } from '../shared/pi-runtime-selection'
 import { resolveSetupAgentSequenceLaunchCommand } from '../shared/setup-agent-sequencing'
 import { selectOpenCodeHookAgent } from '../shared/opencode-launch-command'
 import { relayLogLine } from './relay-diagnostic-log'
@@ -151,8 +152,10 @@ export class RelayAgentHookRuntime {
     }
     if (kind === 'pi') {
       const sourceDir = resolvePiSourceAgentDir(context.env, context.shell, 'pi')
+      const piRuntime = selectedPiRuntime(launchCommandHint)
       const result = this.pluginOverlay.materializePi(overlayId, sourceDir, 'pi', {
-        materializeDefaultHome: explicitKind === 'pi'
+        materializeDefaultHome: explicitKind === 'pi',
+        ...(piRuntime === 'gentle-shell' ? { piRuntime } : {})
       })
       if (result?.sourceAgentDir) {
         env.ORCA_PI_SOURCE_AGENT_DIR = result.sourceAgentDir

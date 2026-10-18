@@ -151,6 +151,11 @@ export type StructuredAgentSessionHostDeps = {
   hasOpenDispatch?: (record: AgentSessionRecord) => boolean
   /** A chat tab left the screen: closed, or its workspace removed. Advisory; a throw is logged. */
   onSessionTabHidden?: (sessionId: string) => void
+  /** Whether the user allows suggested next messages from a source (native: the agent's own;
+   *  emulated: asked of a model). Absent allows both. Re-read per suggestion. */
+  replySuggestions?: {
+    isEnabled: (source: 'native' | 'emulated') => boolean
+  }
   /** Where every failure the host carries on past is reported. Required: a host without one would
    *  drop exactly the failures nobody sees in the UI. */
   logger: StructuredAgentSessionLogger

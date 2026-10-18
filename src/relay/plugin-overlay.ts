@@ -28,7 +28,8 @@ import { writeOverlayOpenCodePluginAtomically } from '../shared/opencode-plugin-
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { safeRemoveOverlay } from '../main/pty/overlay-mirror'
-import type { PiAgentKind } from '../shared/pi-agent-kind'
+import { piAgentHomeDirName, type PiAgentKind } from '../shared/pi-agent-kind'
+import type { PiRuntimeSelection } from '../shared/pi-runtime-selection'
 import {
   installOpenCodePluginInCanonicalConfig,
   isRelayOpenCodeOverlayPath,
@@ -64,17 +65,6 @@ function withOrcaManagedPiExtensionMarker(source: string): string {
   return source.includes(ORCA_MANAGED_EXTENSION_MARKER)
     ? source
     : `// ${ORCA_MANAGED_EXTENSION_MARKER}\n${source}`
-}
-// Why: source-dir resolution is keyed off the launching agent (Pi or OMP).
-// Both consume `PI_CODING_AGENT_DIR` but default to different `~/.<kind>/agent`
-// paths on the remote disk. The renderer-chosen launch command flows in via
-// the relay PtyEnvAugmenter ctx; never derived from disk presence (a
-// cross-agent fallback shadows the other agent's user extensions when both
-// are installed).
-const PI_AGENT_HOME_DIR_NAME: Record<PiAgentKind, string> = {
-  pi: '.pi',
-  omp: '.omp',
-  'prime-agent': '.prime'
 }
 function safeDirName(input: string): string {
   // Why: paneKey embeds tabId:paneId where tabId may itself contain
@@ -281,12 +271,6 @@ export class PluginOverlayManager {
     return this.materializeOpenCode(id, existingConfigDir, 'opencode2')
   }
 
-  private getDefaultPiAgentDir(kind: PiAgentKind, configDirName?: string): string {
-    const root =
-      kind === 'omp' ? configDirName || PI_AGENT_HOME_DIR_NAME.omp : PI_AGENT_HOME_DIR_NAME[kind]
-    return join(this.homeDir, root, PI_AGENT_SUBDIR)
-  }
-
   private canOverwritePiExtension(path: string): boolean {
     try {
       return readFileSync(path, 'utf8').includes(ORCA_MANAGED_EXTENSION_MARKER)
@@ -306,15 +290,19 @@ export class PluginOverlayManager {
     id: string,
     existingAgentDir?: string,
     kind: PiAgentKind = 'pi',
-    options?: { materializeDefaultHome?: boolean; configDirName?: string }
+    options?: {
+      materializeDefaultHome?: boolean
+      configDirName?: string
+      piRuntime?: PiRuntimeSelection
+    }
   ): MaterializePiResult | null {
     const extensionSource = this.getPiExtensionSource(kind)
     if (!extensionSource || !isUsableId(id)) {
       return null
     }
     try {
-      const sourceAgentDir =
-        existingAgentDir ?? this.getDefaultPiAgentDir(kind, options?.configDirName)
+      const homeDirName = piAgentHomeDirName(kind, options?.configDirName, options?.piRuntime)
+      const sourceAgentDir = existingAgentDir ?? join(this.homeDir, homeDirName, PI_AGENT_SUBDIR)
       if (existingAgentDir && !existsSync(existingAgentDir)) {
         return null
       }

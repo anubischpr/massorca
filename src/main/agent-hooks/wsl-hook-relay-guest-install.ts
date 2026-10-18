@@ -10,6 +10,7 @@ import { REINSTALL_MIN_INTERVAL_MS, type WslHookRelayManagerDeps } from './wsl-h
 import type { SshChannelMultiplexer } from '../ssh/ssh-channel-multiplexer'
 import { openCodePluginSettingsKey } from './opencode-plugin-settings'
 import type { PluginSources } from '../../relay/plugin-overlay'
+import type { WslHookLaunchKind } from './wsl-hook-relay-state'
 
 /** Structural slice of WslHookRelayManagerDeps — only what an install pass uses. */
 type GuestInstallDeps = {
@@ -29,17 +30,18 @@ type GuestInstallState = {
   opencodeOverlayDir?: string
   opencode2OverlayDir?: string
   piAgentDir?: string
+  gentleShellAgentDir?: string
   ompStatusExtension?: string
   lastInstallAt?: number
   lastOpenCodeSettings?: string
   // Failed attempts throttle retries without claiming the guest accepted those settings.
   lastAttemptOpenCodeSettings?: string
   lastInstallMux?: SshChannelMultiplexer
-  launchKinds?: Set<'pi' | 'omp'>
+  launchKinds?: Set<WslHookLaunchKind>
   installation?: Promise<void>
 }
 
-function* requestedKinds(state: GuestInstallState): Generator<'pi' | 'omp' | undefined> {
+function* requestedKinds(state: GuestInstallState): Generator<WslHookLaunchKind | undefined> {
   if (!state.launchKinds?.size) {
     yield undefined
   }
@@ -125,6 +127,8 @@ async function installGuestHooksAndPlugins(
       state.opencode2OverlayDir = overlay.kind === 'dir' ? overlay.dir2 : undefined
       if (kind === 'pi') {
         state.piAgentDir = overlay.kind === 'dir' ? overlay.piDir : undefined
+      } else if (kind === 'gentle-shell') {
+        state.gentleShellAgentDir = overlay.kind === 'dir' ? overlay.gentleShellDir : undefined
       } else if (kind === 'omp') {
         state.ompStatusExtension = overlay.kind === 'dir' ? overlay.ompDir : undefined
       }
