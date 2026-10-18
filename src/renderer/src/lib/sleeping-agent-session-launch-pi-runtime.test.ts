@@ -5,26 +5,38 @@ import type { SleepingAgentSessionRecord } from '../../../shared/agent-session-r
 
 const mockCreateTab = vi.fn()
 
+type TestWorktree = { id: string; repoId: string; path: string; displayName: string }
+const agentCmdOverrides: Record<string, string> = {}
+const agentDefaultArgs: Record<string, string> = {}
+const agentDefaultEnv: Record<string, Record<string, string>> = {}
+const activeRuntimeEnvironmentId: string | null = null
+const terminalWindowsShell: string | undefined = undefined
+const repoConnectionId: string | null = null
+const worktreesByRepo: Record<string, TestWorktree[]> = {
+  'repo-1': [{ id: 'wt-1', repoId: 'repo-1', path: '/home/neil/repo/feature', displayName: 'f' }]
+}
+const openFiles: { id: string; worktreeId: string }[] = []
+const browserTabsByWorktree: Record<string, { id: string }[]> = {}
+const tabBarOrderByWorktree: Record<string, string[]> = {}
+
 const store = {
   settings: {
-    agentCmdOverrides: {} as Record<string, string>,
-    agentDefaultArgs: {} as Record<string, string>,
-    agentDefaultEnv: {} as Record<string, Record<string, string>>,
-    activeRuntimeEnvironmentId: null as string | null,
-    terminalWindowsShell: undefined as string | undefined
+    agentCmdOverrides,
+    agentDefaultArgs,
+    agentDefaultEnv,
+    activeRuntimeEnvironmentId,
+    terminalWindowsShell
   },
-  repos: [{ id: 'repo-1', connectionId: null as string | null, path: '/home/neil/repo' }],
-  worktreesByRepo: {
-    'repo-1': [{ id: 'wt-1', repoId: 'repo-1', path: '/home/neil/repo/feature', displayName: 'f' }]
-  } as Record<string, { id: string; repoId: string; path: string; displayName: string }[]>,
+  repos: [{ id: 'repo-1', connectionId: repoConnectionId, path: '/home/neil/repo' }],
+  worktreesByRepo,
   getKnownWorktreeById: (id: string) =>
     Object.values(store.worktreesByRepo)
       .flat()
       .find((worktree) => worktree.id === id),
   tabsByWorktree: { 'wt-1': [{ id: 'tab-1' }] },
-  openFiles: [] as { id: string; worktreeId: string }[],
-  browserTabsByWorktree: {} as Record<string, { id: string }[]>,
-  tabBarOrderByWorktree: {} as Record<string, string[]>,
+  openFiles,
+  browserTabsByWorktree,
+  tabBarOrderByWorktree,
   createTab: mockCreateTab,
   claimAutomaticAgentResume: vi.fn(),
   clearSleepingAgentSession: vi.fn(),
