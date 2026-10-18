@@ -2799,9 +2799,6 @@
     }
   },
   "components": {
-    "agentSessionContinuation": {
-      "handOffUnavailable": "This agent cannot start a new session from its chat."
-    },
     "native-chat": {
       "ask": {
         "asked": "Asked:",
@@ -3005,13 +3002,6 @@
         },
         "tokens": "{{value0}} tokens"
       },
-      "toggle": {
-        "terminalViewAgent": "This agent cannot resume its chat in the terminal.",
-        "terminalViewLaunchFailed": "Could not open this chat in the terminal. Its agent process was released; the chat history is kept.",
-        "terminalViewNoSession": "This chat has not reported its agent session yet.",
-        "terminalViewNoWorktree": "This chat's workspace is not known yet.",
-        "terminalViewReleaseFailed": "Could not open this chat in the terminal. The chat was left open."
-      },
       "tool": {
         "countN": "{{value0}} tool calls",
         "countOne": "1 tool call",
@@ -3107,28 +3097,12 @@
       }
     },
     "nativeChatSummary": {
-      "backgroundUnknown": "Background task information is not reported by this provider or host.",
       "connectorEvidence": "MCP calls recorded in this chat. Current connection and plugin status are not reported.",
-      "copyPath": "Copy path",
-      "detectedCount": "{{count}} detected",
-      "folder": "Folder",
-      "noRunningAgents": "No running subagents",
-      "noSubagents": "No subagents reported.",
-      "observed": "Observed",
-      "path": "Path",
-      "plan": "Plan",
-      "planNone": "No plan reported",
-      "planNoneInProgress": "No item in progress",
-      "planProgress": "{{completed}} of {{total}}",
-      "project": "Project",
+      "directory": "Working directory",
+      "noBranch": "No branch reported (folder workspaces may have none).",
       "reported_one": "{{count}} reported",
       "reported_other": "{{count}} reported",
-      "runningCount": "{{count}} running",
-      "source": "Source",
-      "used": "Used",
-      "window": "Window",
-      "windowUnknown": "Not reported by the provider.",
-      "worktree": "Worktree"
+      "workspace": "Workspace"
     },
     "onboarding": {
       "integrations": {
