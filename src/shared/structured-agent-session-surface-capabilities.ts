@@ -38,6 +38,12 @@ export const AGENT_SESSION_MODEL_CATALOG_SAVED_ONLY_RUNTIME_CAPABILITY =
 export const AGENT_SESSION_PROMPT_SUGGESTION_RUNTIME_CAPABILITY =
   'agent-session.structured.prompt-suggestion.v1' as const
 
+// Why: `commandActivity` used to list running children only; with this, a client also gets the
+// finished ones and groups them. A reader that predates the grouping would draw them as work in
+// progress, so the host withholds them from a client that does not advertise this.
+export const AGENT_SESSION_SETTLED_CHILD_WORK_RUNTIME_CAPABILITY =
+  'agent-session.structured.settled-child-work.v1' as const
+
 export const STRUCTURED_AGENT_SESSION_SURFACE_RUNTIME_CAPABILITIES = [
   STRUCTURED_AGENT_SESSION_HOLD_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_REVEAL_RUNTIME_CAPABILITY,
@@ -45,5 +51,6 @@ export const STRUCTURED_AGENT_SESSION_SURFACE_RUNTIME_CAPABILITIES = [
   PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY,
   AGENT_SESSION_MODEL_CATALOG_SAVED_ONLY_RUNTIME_CAPABILITY,
-  AGENT_SESSION_PROMPT_SUGGESTION_RUNTIME_CAPABILITY
+  AGENT_SESSION_PROMPT_SUGGESTION_RUNTIME_CAPABILITY,
+  AGENT_SESSION_SETTLED_CHILD_WORK_RUNTIME_CAPABILITY
 ] as const

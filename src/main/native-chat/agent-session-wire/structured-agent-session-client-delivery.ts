@@ -7,7 +7,6 @@ import { structuredSlashCommands } from '../../../shared/structured-agent-sessio
 import { isTuiAgent } from '../../../shared/tui-agent-config'
 import { AgentSessionRefusalError } from '../../../shared/agent-session-wire-refusals'
 import type { AgentChildWorkEvidence } from '../../../shared/agent-status-child-work-evidence'
-import { structuredRunningChildWork } from '../../../shared/agent-child-work-listing'
 import type { AgentChildWorkView } from '../../../shared/agent-status-child-work-view'
 import type { AgentSessionJournal } from '../agent-session-journal/journal-store'
 import type { SubscriberFieldHooks } from './agent-session-subscriber-frame-fields'
@@ -79,8 +78,8 @@ export class StructuredAgentSessionClientDelivery {
           structuredQueueSendGate(this.deps().store, sessionId)
         ),
       readBackgroundTasks,
-      readCommandActivity: (sessionId) =>
-        structuredRunningChildWork(this.readChildWork(sessionId, true) ?? []),
+      // Settled children too: the chat's expanded Background tasks lists them as finished.
+      readCommandActivity: (sessionId) => this.readChildWork(sessionId, true) ?? [],
       isPromptSuggestionEnabled: (source) =>
         this.deps().replySuggestions?.isEnabled(source) ?? true,
       onJournalPublished: (sessionId, journal) => this.publishJournal(sessionId, journal)

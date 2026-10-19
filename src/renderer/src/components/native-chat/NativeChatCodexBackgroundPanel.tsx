@@ -19,6 +19,7 @@ import {
 import { AgentChildRowContent } from '@/components/AgentChildRowContent'
 import { agentChildRowName } from '@/components/agent-child-row-text'
 import { useNow } from '@/hooks/use-now'
+import { NativeChatFinishedBackgroundGroup } from './NativeChatFinishedBackgroundGroup'
 
 export const UNVERIFIABLE: AgentChildRowContext = {
   parentEvidenceFresh: false,
@@ -30,6 +31,17 @@ export const UNVERIFIABLE: AgentChildRowContext = {
 /** Only a row the host reports as working now; waiting, blocked, monitoring and unverifiable rows are not. */
 export function isRunningChildRow(row: Pick<AgentChildRowModel, 'displayState'>): boolean {
   return row.displayState === 'working'
+}
+
+/** A settled row with nothing left running: it moves under the collapsed "finished" group. */
+export function isFinishedChildRow(row: Pick<AgentChildRowModel, 'displayState' | 'settled'>) {
+  return (
+    row.settled &&
+    (row.displayState === 'done' ||
+      row.displayState === 'failed' ||
+      row.displayState === 'interrupted' ||
+      row.displayState === 'idle')
+  )
 }
 
 /** Sort comparator that lists running work ahead of settled work and keeps host order within each group. */
@@ -138,15 +150,17 @@ export function NativeChatCodexBackgroundPanel(props: {
   }, [props.roster, views, context])
   const now = useNow(1_000, props.isVisible && rows.some((row) => !row.settled))
   const mainIds = new Set(views?.filter((view) => view.ownership === 'main').map((view) => view.id))
-  const main = rows
-    .filter((row) => props.section !== 'agents' && row.kind !== 'agent' && mainIds.has(row.id))
+  const commandRows = rows.filter((row) => props.section !== 'agents' && row.kind !== 'agent')
+  const main = commandRows
+    .filter((row) => !isFinishedChildRow(row) && mainIds.has(row.id))
     .sort(runningChildRowsFirst)
-  const unknown = rows
-    .filter((row) => props.section !== 'agents' && row.kind !== 'agent' && !mainIds.has(row.id))
+  const unknown = commandRows
+    .filter((row) => !isFinishedChildRow(row) && !mainIds.has(row.id))
     .sort(runningChildRowsFirst)
-  const agents = rows
-    .filter((row) => props.section !== 'commands' && row.kind === 'agent')
-    .sort(runningChildRowsFirst)
+  const finishedCommands = commandRows.filter(isFinishedChildRow)
+  const allAgents = rows.filter((row) => props.section !== 'commands' && row.kind === 'agent')
+  const agents = allAgents.filter((row) => !isFinishedChildRow(row)).sort(runningChildRowsFirst)
+  const finishedAgents = allAgents.filter(isFinishedChildRow)
   const onSelect = (row: AgentChildRowModel) => setSelected({ row, views: views ?? [] })
   if (selected) {
     const detailViews = [
@@ -308,6 +322,20 @@ export function NativeChatCodexBackgroundPanel(props: {
           </ul>
         </section>
       ))}
+      {finishedCommands.length > 0 ? (
+        <NativeChatFinishedBackgroundGroup count={finishedCommands.length}>
+          {finishedCommands.map((row) => (
+            <BackgroundRow key={row.id} row={row} now={now} onSelect={onSelect} />
+          ))}
+        </NativeChatFinishedBackgroundGroup>
+      ) : null}
+      {finishedAgents.length > 0 ? (
+        <NativeChatFinishedBackgroundGroup count={finishedAgents.length}>
+          {finishedAgents.map((row) => (
+            <BackgroundRow key={row.id} row={row} now={now} onSelect={onSelect} />
+          ))}
+        </NativeChatFinishedBackgroundGroup>
+      ) : null}
     </aside>
   )
 }

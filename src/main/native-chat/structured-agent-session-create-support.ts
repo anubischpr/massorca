@@ -6,6 +6,7 @@ import {
   structuredClaudeMatchesActiveManagedAccount,
   type ClaudeManagedAccountGateSettings
 } from './claude-structured-managed-account-support'
+import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
 import type { AgentSessionPreSpawnReason } from './agent-session-wire/structured-agent-session-adapter'
 
 export type StructuredAgentSessionCreateSupport = {
@@ -13,6 +14,8 @@ export type StructuredAgentSessionCreateSupport = {
   reason?: 'agent' | 'remote' | 'wsl' | 'access'
   /** Why the installed agent cannot run here, when its check named one (`reason: 'agent'`). */
   cause?: AgentSessionPreSpawnReason
+  /** Pi only: the runtime a request that named none resolved to, when it is not stock Pi. */
+  piRuntime?: PiRuntimeSelection
 }
 
 /**

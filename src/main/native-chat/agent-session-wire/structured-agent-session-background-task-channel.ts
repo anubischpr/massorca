@@ -75,9 +75,8 @@ export class StructuredAgentSessionBackgroundTaskChannel {
             }
           : {}),
         backgroundTasks,
-        commandActivity: structuredRunningChildWork(
-          this.readChildWork(request.sessionId, true) ?? []
-        )
+        // Settled children too: the chat's expanded Background tasks lists them as finished.
+        commandActivity: this.readChildWork(request.sessionId, true) ?? []
       }
     }
   }

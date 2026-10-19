@@ -194,4 +194,47 @@ describe('structured agent session event coalescer', () => {
     expect(events).toHaveLength(1)
     expect(events[0]).not.toHaveProperty('latestTurn')
   })
+
+  describe.each(['native', 'emulated'] as const)('a %s reply suggestion frame', (source) => {
+    const suggestion = { turnId: 'turn-1', text: 'Run it', source }
+    const withSuggestion = (sequence: number) => ({
+      ...batch(sequence),
+      promptSuggestion: suggestion
+    })
+    const carried = (events: AgentSessionSubscribeEvent[]) =>
+      events.map((event) => ('promptSuggestion' in event ? event.promptSuggestion : null))
+
+    it('survives the assistant text batch that was waiting to merge with it', () => {
+      const events: AgentSessionSubscribeEvent[] = []
+      const coalescer = createStructuredAgentSessionEventCoalescer((event) => events.push(event))
+
+      coalescer.push(batch(1))
+      coalescer.push(withSuggestion(2))
+      coalescer.flush()
+
+      expect(carried(events)).toEqual([null, suggestion])
+    })
+
+    it('is not lost to a batch that follows it within the window', () => {
+      const events: AgentSessionSubscribeEvent[] = []
+      const coalescer = createStructuredAgentSessionEventCoalescer((event) => events.push(event))
+
+      coalescer.push(withSuggestion(1))
+      coalescer.push(batch(2))
+      coalescer.flush()
+
+      expect(carried(events)).toEqual([suggestion, null])
+    })
+
+    it('keeps an explicit clear', () => {
+      const events: AgentSessionSubscribeEvent[] = []
+      const coalescer = createStructuredAgentSessionEventCoalescer((event) => events.push(event))
+
+      coalescer.push(batch(1))
+      coalescer.push({ ...batch(2), promptSuggestion: null })
+      coalescer.flush()
+
+      expect(events.at(-1)).toMatchObject({ promptSuggestion: null })
+    })
+  })
 })

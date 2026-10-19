@@ -125,6 +125,9 @@ export type AgentSessionAccessOptions = {
     settable: boolean
     /** Explicit modes that may still be picked while a provider child runs. */
     liveModes?: readonly AgentSessionExplicitAccess[]
+    /** Picks (`inherit` included) a running child already satisfies: taking one changes only what
+     *  the session records, not what the child does. Absent from an older host. */
+    recordOnlyModes?: readonly AgentSessionAccessModeValue[]
   }
   /** Session-only preset; absent from an older host's reply. */
   current: { accessMode?: AgentSessionAccessModeValue }

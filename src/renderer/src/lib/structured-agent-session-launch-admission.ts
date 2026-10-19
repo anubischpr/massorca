@@ -49,7 +49,30 @@ type AdmittedLaunch = {
 const DELIVERED: StructuredPromptDeliveryResult = { delivered: true, failureNotified: false }
 const NOT_DELIVERED: StructuredPromptDeliveryResult = { delivered: false, failureNotified: false }
 
-function notifyHostDeclined(agent: TuiAgent): void {
+/** Why the server said no, in words: its CLI is missing when the host named that, else the generic
+ *  line an older host (which names no cause) also gets. */
+function hostDeclinedDescription(agent: TuiAgent, cause: string | undefined): string {
+  const agentLabel = structuredAgentLabel(agent)
+  if (cause === 'cliMissing') {
+    return agent === 'pi'
+      ? translate(
+          'components.native-chat.structuredSessionHostDeclinedPiMissing',
+          'Neither Pi nor Gentle Shell is installed on this server.'
+        )
+      : translate(
+          'components.native-chat.structuredSessionHostDeclinedCliMissing',
+          '{{value0}} is not installed on this server.',
+          { value0: agentLabel }
+        )
+  }
+  return translate(
+    'components.native-chat.structuredSessionHostDeclinedDescription',
+    "This server can't run a {{value0}} chat in this workspace.",
+    { value0: agentLabel }
+  )
+}
+
+function notifyHostDeclined(agent: TuiAgent, cause?: string): void {
   const agentLabel = structuredAgentLabel(agent)
   toast.info(
     translate(
@@ -57,13 +80,7 @@ function notifyHostDeclined(agent: TuiAgent): void {
       'Opened {{value0}} in a terminal',
       { value0: agentLabel }
     ),
-    {
-      description: translate(
-        'components.native-chat.structuredSessionHostDeclinedDescription',
-        "This server can't run a {{value0}} chat in this workspace.",
-        { value0: agentLabel }
-      )
-    }
+    { description: hostDeclinedDescription(agent, cause) }
   )
 }
 
@@ -199,7 +216,7 @@ export function beginHostAdmittedStructuredLaunch(args: {
         }
         // The notice explains a server's refusal; on this machine the terminal opening is the answer.
         if (paired) {
-          notifyHostDeclined(plan.agent)
+          notifyHostDeclined(plan.agent, admission.cause)
         }
         const terminal = await args.onHostDeclined(args.target)
         void (

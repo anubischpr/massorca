@@ -47,29 +47,36 @@ export function structuredChatPiRuntime(args: {
   return isPiRuntimeSelection(seeded) ? seeded : selectedPiRuntime(args.piCommand)
 }
 
+/** The picks a running child accepts: modes it can switch to live, and picks it already satisfies. */
+function runningSwitchableModes(
+  state: Pick<StructuredAgentSessionOptionState, 'liveAccessModes' | 'recordOnlyAccessModes'>
+): readonly string[] {
+  return [...(state.liveAccessModes ?? []), ...(state.recordOnlyAccessModes ?? [])]
+}
+
 type ProviderPhase = { providerStarting?: boolean; providerRunning?: boolean }
 
 /** A starting child takes no access pick; a running one only the modes it can switch to live. */
 export function lockAccessWhileProviderRuns(
   snapshot: SessionOptionDescriptor[],
   phase: ProviderPhase,
-  state: Pick<StructuredAgentSessionOptionState, 'liveAccessModes'>
+  state: Pick<StructuredAgentSessionOptionState, 'liveAccessModes' | 'recordOnlyAccessModes'>
 ): SessionOptionDescriptor[] {
   if (phase.providerStarting) {
     return lockStructuredAgentSessionAccessOptions(snapshot)
   }
   return phase.providerRunning
-    ? lockStructuredAgentSessionAccessOptions(snapshot, state.liveAccessModes)
+    ? lockStructuredAgentSessionAccessOptions(snapshot, runningSwitchableModes(state))
     : snapshot
 }
 
 export function accessPickBlockedByProvider(
   phase: ProviderPhase,
-  state: Pick<StructuredAgentSessionOptionState, 'liveAccessModes'>,
+  state: Pick<StructuredAgentSessionOptionState, 'liveAccessModes' | 'recordOnlyAccessModes'>,
   value: string | boolean
 ): boolean {
   return Boolean(
     phase.providerStarting ||
-    (phase.providerRunning && !(state.liveAccessModes ?? []).some((mode) => mode === value))
+    (phase.providerRunning && !runningSwitchableModes(state).some((mode) => mode === value))
   )
 }

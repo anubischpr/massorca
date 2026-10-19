@@ -26,6 +26,7 @@ import { settleStaleStructuredAgentSessionState } from './structured-agent-sessi
 import { structuredAgentSessionFailureWordsContext } from './structured-agent-session-send-preparation'
 import type { StructuredAgentSessionAttachContext } from './structured-agent-session-attach-context'
 import type { StructuredAgentSessionProviderChild } from './structured-agent-session-host-types'
+import { launchedAccessPosture } from './structured-agent-session-access-posture'
 import {
   indexProviderChild,
   structuredAgentSessionConversationFence
@@ -247,9 +248,13 @@ async function runAttachUnderAbort(
               suggestion && { ...suggestion, source: 'native' }
             )
         )
+        const accessPosture = acquiredOwner
+          ? launchedAccessPosture(context.deps, sessionId)
+          : current?.accessPosture
         attempt.candidate = {
           sink: eventSink,
           child: {
+            ...(accessPosture ? { accessPosture } : {}),
             generation: acquisitionGeneration ?? current?.generation ?? null,
             fence,
             // A re-attach to a live child keeps what that child already proved, and its cause.

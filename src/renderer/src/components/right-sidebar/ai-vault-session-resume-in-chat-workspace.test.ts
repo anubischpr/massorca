@@ -5,6 +5,7 @@ import type { AiVaultSession } from '../../../../shared/ai-vault-types'
 const mocks = vi.hoisted(() => ({
   owner: vi.fn<() => string | null>(() => 'local'),
   localCapabilities: vi.fn<() => readonly string[] | null>(() => []),
+  route: vi.fn<() => 'structured-native-chat' | 'terminal-tui'>(() => 'structured-native-chat'),
   state: { runtimeStatusByEnvironmentId: new Map<string, unknown>() }
 }))
 
@@ -17,10 +18,14 @@ vi.mock('@/runtime/local-runtime-capabilities', () => ({
 }))
 // The route's own feasibility is pinned elsewhere; this suite pins the host rule on top of it.
 vi.mock('@/lib/agent-session-launch-plan', () => ({
-  structuredAgentSessionLaunchFeasible: () => true
+  structuredAgentSessionLaunchFeasible: () => true,
+  resolveAgentSessionLaunchRoute: mocks.route
 }))
 
-import { resolveAiVaultSessionResumeInChatForWorkspace } from './ai-vault-session-resume-in-chat-workspace'
+import {
+  resolveAiVaultPrimaryResumeSurface,
+  resolveAiVaultSessionResumeInChatForWorkspace
+} from './ai-vault-session-resume-in-chat-workspace'
 
 const PAIRED_WORKSPACE = 'repo-1::/srv/orca'
 
@@ -48,6 +53,7 @@ function resumeInChat() {
 }
 
 beforeEach(() => {
+  mocks.route.mockReturnValue('structured-native-chat')
   mocks.localCapabilities.mockReturnValue([
     STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY
   ])
@@ -80,4 +86,75 @@ describe('resuming a conversation from history in a chat', () => {
 
     expect(resumeInChat()).toEqual({ available: false, reason: 'workspace' })
   })
+})
+
+function rowFor(agent: string, cwd = '/Users/me/orca'): AiVaultSession {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: only the fields eligibility reads are staged.
+  return {
+    id: `${agent}-1`,
+    agent,
+    executionHostId: 'local',
+    cwd,
+    filePath: `/Users/me/.${agent}/sessions/session-1.jsonl`,
+    messageCount: 4,
+    previewMessages: []
+  } as unknown as AiVaultSession
+}
+
+function primarySurface(session: AiVaultSession) {
+  return resolveAiVaultPrimaryResumeSurface({
+    session,
+    targetWorkspaceId: PAIRED_WORKSPACE,
+    targetState: {
+      folderWorkspaces: [],
+      projectGroups: [],
+      repos: [],
+      worktreesByRepo: {}
+    },
+    settings: { experimentalNativeChat: true }
+  })
+}
+
+// The primary Resume continues the conversation in a chat exactly when a new launch of that agent
+// would open a chat, and the host can adopt the conversation; otherwise it opens the terminal.
+describe('the surface a history row primary Resume opens', () => {
+  it('opens a Codex chat in the target workspace when the host adopts and Chat is on', () => {
+    mocks.owner.mockReturnValue('local')
+    expect(primarySurface(rowFor('codex'))).toEqual({
+      surface: 'chat',
+      workspaceId: PAIRED_WORKSPACE
+    })
+  })
+
+  // Claude looks its transcript up under the launch directory, so it resumes only from the
+  // workspace it was recorded in; any other target keeps the terminal.
+  it('keeps the terminal for a Claude row recorded in another directory', () => {
+    mocks.owner.mockReturnValue('local')
+    expect(primarySurface(rowFor('claude'))).toEqual({ surface: 'terminal' })
+  })
+
+  it.each(['claude', 'codex', 'antigravity', 'pi'])(
+    'opens the terminal for %s when the Chat UI switch routes launches there',
+    (agent) => {
+      mocks.owner.mockReturnValue('local')
+      mocks.route.mockReturnValue('terminal-tui')
+      expect(primarySurface(rowFor(agent))).toEqual({ surface: 'terminal' })
+    }
+  )
+
+  it('opens the terminal when the host does not advertise resume-history support', () => {
+    mocks.owner.mockReturnValue('local')
+    mocks.localCapabilities.mockReturnValue([])
+    expect(primarySurface(rowFor('codex'))).toEqual({ surface: 'terminal' })
+  })
+
+  // The host adopts a conversation only for Claude and Codex: Antigravity and Pi have no wire
+  // handle, no adopted-link arm and no transcript importer, so the host would refuse the create.
+  it.each(['antigravity', 'pi'])(
+    'keeps the terminal for %s, which the host cannot adopt',
+    (agent) => {
+      mocks.owner.mockReturnValue('local')
+      expect(primarySurface(rowFor(agent))).toEqual({ surface: 'terminal' })
+    }
+  )
 })

@@ -5,7 +5,7 @@ import type { NativeChatReplySuggestion } from '../../../../shared/native-chat-r
 /** What the composer draws as ghost text and answers Tab/Esc with. */
 export type NativeChatReplySuggestionView = {
   text: string
-  /** Hides this suggestion until the host publishes another; Esc and an accepted Tab both use it. */
+  /** Hides this suggestion until the host publishes another; only Esc uses it. */
   dismiss: () => void
 }
 

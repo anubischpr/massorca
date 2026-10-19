@@ -10,7 +10,11 @@ import {
 import { hasRuntimeRpcErrorCode } from '../../../shared/runtime-rpc-error-code'
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import { callStructuredAgentSession } from '@/runtime/structured-agent-session-client'
-import { selectedPiRuntime, type PiRuntimeSelection } from '../../../shared/pi-runtime-selection'
+import {
+  isPiRuntimeSelection,
+  selectedPiRuntime,
+  type PiRuntimeSelection
+} from '../../../shared/pi-runtime-selection'
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
 import type { StructuredAgentSessionCreateParams } from '../../../shared/structured-agent-session-create'
@@ -55,6 +59,14 @@ export type HostCreateSupport =
   | Exclude<StructuredLaunchAdmission, { kind: 'unreachable' }>
   | { kind: 'policy-unsupported'; seedOptions?: Readonly<Record<string, string>> }
   | { kind: 'unreachable'; code: string; message: string; error: unknown }
+
+/** The Pi runtime a host's reply says create will run; absent from a host that never falls back. */
+function hostResolvedPiRuntime(seedOptions: unknown): PiRuntimeSelection | undefined {
+  if (!seedOptions || typeof seedOptions !== 'object' || !('piRuntime' in seedOptions)) {
+    return undefined
+  }
+  return isPiRuntimeSelection(seedOptions.piRuntime) ? seedOptions.piRuntime : undefined
+}
 
 /** A decline that names its cause only when the host sent a reason this build knows. */
 function declinedWithCause(cause: unknown): HostCreateSupport {
@@ -109,8 +121,18 @@ export async function askHostCreateSupport(
           : declinedWithCause(support.cause)
       }
       const seedOptions = parseStructuredLaunchSeedOptions(support.seedOptions)
+      // Why: a client never sends stock Pi, so the host may have resolved that request to Gentle
+      // Shell; the chat, its create and its terminal must run what the host will.
       const retainedSeed =
-        agent === 'pi' ? { ...seedOptions, piRuntime: piRuntime ?? 'pi' } : seedOptions
+        agent === 'pi'
+          ? {
+              ...seedOptions,
+              piRuntime:
+                piRuntime === 'gentle-shell'
+                  ? piRuntime
+                  : (hostResolvedPiRuntime(support.seedOptions) ?? 'pi')
+            }
+          : seedOptions
       return retainedSeed ? { kind: 'admitted', seedOptions: retainedSeed } : { kind: 'admitted' }
     } catch (error) {
       if (hasRuntimeRpcErrorCode(error, SELECTOR_NOT_RESOLVABLE_CODE)) {

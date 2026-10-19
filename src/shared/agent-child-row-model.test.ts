@@ -382,3 +382,31 @@ describe('agentChildRowContextForParent: the reader clock', () => {
     })
   })
 })
+
+describe('settled background work by provider shape', () => {
+  // Claude settles a background shell or monitor on its end edge; Codex settles a subagent but
+  // drops a stopped command's record; Pi, Gentle Shell and Antigravity publish no child records.
+  it('keeps settled commands, monitors and agents as terminal rows', () => {
+    const rows = buildAgentChildRowModels(
+      [
+        settled('claude-shell', 'succeeded', { kind: 'command' }),
+        settled('claude-monitor', 'failed', { kind: 'monitor' }),
+        settled('codex-agent', 'cancelled', { kind: 'agent' })
+      ],
+      FRESH
+    )
+    expect(rows.map((row) => [row.id, row.kind, row.settled])).toEqual([
+      ['claude-shell', 'command', true],
+      ['claude-monitor', 'monitor', true],
+      ['codex-agent', 'agent', true]
+    ])
+    expect(rows.map((row) => row.displayState)).toEqual(['done', 'failed', 'interrupted'])
+  })
+  it('keeps a settled task of a host that only sends the legacy roster', () => {
+    const rows = buildLegacyTaskRowModels(
+      [],
+      [{ id: 'old-shell', kind: 'command', description: 'old shell', state: 'done' }]
+    )
+    expect(rows).toEqual([expect.objectContaining({ id: 'old-shell', settled: true })])
+  })
+})

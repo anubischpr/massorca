@@ -18710,7 +18710,9 @@
       "thought": "Thought",
       "thoughtForDuration": "Thought for {{duration}}",
       "structuredSessionHostDeclined": "Opened {{value0}} in a terminal",
+      "structuredSessionHostDeclinedCliMissing": "{{value0}} is not installed on this server.",
       "structuredSessionHostDeclinedDescription": "This server can't run a {{value0}} chat in this workspace.",
+      "structuredSessionHostDeclinedPiMissing": "Neither Pi nor Gentle Shell is installed on this server.",
       "structuredSessionHostUnreachable": "Could not reach {{value0}}",
       "structuredSessionHostUnreachableDescription": "Orca did not open a {{value0}} chat. Check the connection to the server and try again.",
       "hostOutage": {
@@ -19173,7 +19175,10 @@
       "main": "Main agent",
       "originUnavailable": "Origin unavailable",
       "subagentLabel": "Subagent: {{label}}",
-      "subagent": "Subagent"
+      "subagent": "Subagent",
+      "finishedCount": "{{count}} finished",
+      "finishedCount_one": "{{count}} finished",
+      "finishedCount_other": "{{count}} finished"
     }
   },
   "dashboardPopout": {

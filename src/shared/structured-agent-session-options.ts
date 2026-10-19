@@ -28,6 +28,7 @@ import {
 } from './structured-agent-session-option-codec'
 import type {
   AgentSessionAccessMode,
+  AgentSessionAccessModeValue,
   AgentSessionExplicitAccess,
   AgentSessionPermissionPreset
 } from './agent-session-access-mode'
@@ -46,6 +47,8 @@ export type StructuredAgentSessionOptionState = {
   permissionPresets?: readonly AgentSessionPermissionPreset[]
   /** Modes a running child can still switch to; the rest are set when the session starts. */
   liveAccessModes?: readonly AgentSessionExplicitAccess[]
+  /** Picks a running child already satisfies, so they change only the record; see the wire field. */
+  recordOnlyAccessModes?: readonly AgentSessionAccessModeValue[]
   accessModeSettable: boolean
   /** What `inherit` resolves to on this client, when it can know; absent otherwise. */
   inheritedAccess?: AgentSessionAccessMode | null
@@ -146,6 +149,7 @@ export function applyStructuredAgentSessionOptions(
           accessModes: result.accessModeSupport.modes,
           permissionPresets: result.accessModeSupport.presets ?? [],
           liveAccessModes: result.accessModeSupport.liveModes ?? [],
+          recordOnlyAccessModes: result.accessModeSupport.recordOnlyModes ?? [],
           accessModeSettable: result.accessModeSupport.settable
         }
       : {}),
