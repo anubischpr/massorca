@@ -7,6 +7,7 @@ import type {
   StructuredAgentSessionLifecycleEvent,
   AgentSessionDispatchOutcome
 } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
+import type { AgentChildWorkEvidence } from '../../shared/agent-status-child-work-evidence'
 import type { StructuredAgentSessionLogger } from '../native-chat/agent-session-wire/structured-agent-session-logger'
 import { providerTimelineSink } from '../native-chat/agent-session-timeline/provider-timeline-plan'
 import { JsonlRpcTimelineLane } from '../jsonl-rpc/timeline-lane'
@@ -48,6 +49,8 @@ export type PiRpcSessionDeps = {
     outcome: AgentSessionDispatchOutcome
   }) => void
   onIdle: (input: { sessionId: string }) => void
+  /** The host's sink for a session's child work (Gentle Shell background jobs). */
+  onChildWorkEvidence?: (sessionId: string, evidence: AgentChildWorkEvidence[]) => void
   logger: StructuredAgentSessionLogger
 }
 
@@ -106,6 +109,13 @@ export class PiRpcSession {
         deps.onIdle({ sessionId: input.identity.sessionId })
       },
       failed: (error) => this.fail(error),
+      acceptsAgentWake: input.options?.piRuntime === 'gentle-shell',
+      ...(deps.onChildWorkEvidence
+        ? {
+            childWork: (evidence) =>
+              deps.onChildWorkEvidence?.(input.identity.sessionId, evidence)
+          }
+        : {}),
       diagnostic: (error) =>
         deps.logger.warn('Pi context usage could not be read', {
           scope: 'pi-context-usage',
@@ -182,7 +192,7 @@ export class PiRpcSession {
       }
     }
     this.options = await readPiRpcSessionOptions(this.connection)
-    await this.turns.resyncUsage(true)
+    await this.turns.usage.resync(true)
     try {
       this.commands = (await readPiRpcCommands(this.connection)).commands
     } catch (error) {

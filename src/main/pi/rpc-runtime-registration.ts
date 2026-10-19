@@ -57,6 +57,8 @@ function createPiRpcAdapter(context: StructuredAgentAdapterContext): StructuredA
       })
     },
     onIdle: context.followUps.releaseUnansweredDispatches,
+    onChildWorkEvidence: (sessionId, evidence) =>
+      context.host()?.publishChildWorkEvidence(sessionId, evidence),
     logger: deps.logger
   })
 }

@@ -216,7 +216,7 @@ export class PiRpcSessionAdapter implements StructuredAgentSessionAdapter {
       input.value
     )
     if (input.key === 'model') {
-      void session.turns.resyncUsage()
+      void session.turns.usage.resync()
     }
     return selected
   }
