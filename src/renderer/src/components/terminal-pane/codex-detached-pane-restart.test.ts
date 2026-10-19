@@ -405,7 +405,7 @@ describe('codex detached pane restart executor', () => {
   it('rejects a detached spawn after the tab generation and leaf owner change', async () => {
     seedQueuedRestart()
     const pendingSpawn = deferred<{ id: string }>()
-    const pendingKill = deferred<void>()
+    const pendingKill = deferred<{ exitConfirmed: boolean }>()
     vi.mocked(window.api.pty.spawn).mockReturnValue(pendingSpawn.promise)
     vi.mocked(window.api.pty.kill).mockReturnValue(pendingKill.promise)
 
@@ -435,7 +435,7 @@ describe('codex detached pane restart executor', () => {
     expect(after.terminalLayoutsByTabId['tab-1']?.ptyIdsByLeafId?.[LEAF_ID]).toBe('wt1@@successor')
     expect(awaitsCodexRestartAnswer(after.codexRestartNoticeByPtyId['wt1@@successor'])).toBe(true)
     await restart
-    pendingKill.resolve()
+    pendingKill.resolve({ exitConfirmed: false })
   })
 
   it('leaves a sleep-retained pending id alone so wake can migrate it', async () => {
@@ -518,7 +518,7 @@ describe('codex detached pane restart executor', () => {
 
   it('publishes a rootless replacement startup before waiting for old PTY teardown', async () => {
     seedQueuedRestart({ leafId: null })
-    const pendingKill = deferred<void>()
+    const pendingKill = deferred<{ exitConfirmed: boolean }>()
     vi.mocked(window.api.pty.kill).mockReturnValue(pendingKill.promise)
 
     const restart = sweepUnclaimedCodexPaneRestarts()
@@ -531,6 +531,6 @@ describe('codex detached pane restart executor', () => {
     })
     expect(useAppStore.getState().suppressedPtyExitIds[OLD_PTY]).toBeUndefined()
     await restart
-    pendingKill.resolve()
+    pendingKill.resolve({ exitConfirmed: false })
   })
 })

@@ -11,6 +11,7 @@ import type {
   SleepingAgentLaunchConfig
 } from '../../shared/agent-session-resume'
 import type { TuiAgent } from '../../shared/tui-agent'
+import type { PtyKillOptions, PtyKillResult } from '../../shared/pty-kill-result'
 import type { PtyListedSession, PtySessionListScope } from '../../shared/pty-listed-session'
 import type {
   PtyRendererDeliveryHealthReply,
@@ -158,8 +159,12 @@ export const ptySessionControlApi = {
   publishTerminalViewAttributes: (attributes: TerminalViewAttributes): void => {
     ipcRenderer.send('pty:terminalViewAttributes', attributes)
   },
-  kill: (id: string, opts?: { keepHistory?: boolean }): Promise<void> =>
-    ipcRenderer.invoke('pty:kill', { id, keepHistory: opts?.keepHistory ?? false }),
+  kill: (id: string, opts?: PtyKillOptions): Promise<PtyKillResult> =>
+    ipcRenderer.invoke('pty:kill', {
+      id,
+      keepHistory: opts?.keepHistory ?? false,
+      ...(opts?.confirmExit === true ? { confirmExit: true } : {})
+    }),
   listSessions: (scope?: PtySessionListScope): Promise<PtyListedSession[]> =>
     ipcRenderer.invoke('pty:listSessions', scope),
   getAuthoritativeBufferSnapshotCapabilities: (

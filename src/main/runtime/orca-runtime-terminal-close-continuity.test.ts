@@ -327,6 +327,52 @@ describe('terminal close and handle incarnation continuity', () => {
     expect(harness.kill).not.toHaveBeenCalled()
   })
 
+  it('publishes ptyExitConfirmed only when the host confirmed the stop', async () => {
+    const harness = createHarness()
+    const [{ handle }] = (await harness.runtime.listTerminals(`id:${WORKTREE_ID}`)).terminals
+    harness.setVerifiedStopResult(true)
+
+    const closing = harness.runtime.closeTerminal(handle)
+    await vi.waitFor(() => expect(harness.closeTerminalTab).toHaveBeenCalled())
+    harness.retirePersistedTab()
+    harness.acknowledged.resolve()
+
+    await expect(closing).resolves.toMatchObject({ ptyKilled: true, ptyExitConfirmed: true })
+  })
+
+  it('omits ptyExitConfirmed when the stop was not confirmed', async () => {
+    const harness = createHarness()
+    const [{ handle }] = (await harness.runtime.listTerminals(`id:${WORKTREE_ID}`)).terminals
+    harness.kill.mockReturnValue(true)
+    harness.setVerifiedStopResult(false)
+
+    const closing = harness.runtime.closeTerminal(handle)
+    await vi.waitFor(() => expect(harness.closeTerminalTab).toHaveBeenCalled())
+    harness.retirePersistedTab()
+    harness.acknowledged.resolve()
+
+    const close = await closing
+    // Absent, never false: older clients must see an unchanged shape.
+    expect(close).not.toHaveProperty('ptyExitConfirmed')
+    expect(harness.kill).toHaveBeenCalledWith(PTY_ID)
+  })
+
+  it('does not publish ptyExitConfirmed from a cached exit verdict after an unconfirmed stop', async () => {
+    const harness = createHarness()
+    const [{ handle }] = (await harness.runtime.listTerminals(`id:${WORKTREE_ID}`)).terminals
+    harness.setStopAndWaitAction((stoppingPtyId) =>
+      harness.runtime.onPtyExit(stoppingPtyId, 0, INCARNATION_ID)
+    )
+    harness.setVerifiedStopResult(false)
+
+    const closing = harness.runtime.closeTerminal(handle)
+    await vi.waitFor(() => expect(harness.closeTerminalTab).toHaveBeenCalled())
+    harness.retirePersistedTab()
+    harness.acknowledged.resolve()
+
+    expect(await closing).not.toHaveProperty('ptyExitConfirmed')
+  })
+
   it('reports an unconfirmed stop on the close receipt rather than a bare uncertain false', async () => {
     const harness = createHarness()
     const [{ handle }] = (await harness.runtime.listTerminals(`id:${WORKTREE_ID}`)).terminals

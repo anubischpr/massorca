@@ -12,6 +12,9 @@ import {
   resolveStructuredAgentSessionAdoption,
   structuredAdoptionConflictError
 } from '../native-chat/structured-agent-session-history-adoption'
+import { getPtyIdForPaneKey } from '../ipc/pty/pane/key-state'
+import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
+import { assertNoLiveTerminalHoldsProviderSession } from './structured-adoption-live-terminal-guard'
 import { resolveSessionFilePath } from '../native-chat/session-file-resolver'
 import { configuredAdditionalCodexHomePaths } from '../ai-vault/cached-session-list'
 import { getOrcaManagedCodexHomePath, getSystemCodexHomePath } from '../codex/codex-home-paths'
@@ -62,24 +65,36 @@ export function resolveCommittedStructuredAgentSessionAdoptionIntent(input: {
 }
 
 export async function resolveStructuredAgentSessionAdoptionForCreate(input: {
-  host: StructuredAgentSessionHost | null
+  /** The structured host whose records may already hold the conversation; the registered one by default. */
+  host?: StructuredAgentSessionHost | null
   settings: AdoptionSettings
   agent: 'claude' | 'codex'
   providerSessionId: string
   selfSessionId: string
   selectedAccountHomePath: string
+  /** Provider-session rows this host holds, including those of terminal panes. */
+  providerSessionRows: readonly { paneKey: string; providerSession?: { id: string } }[]
 }) {
-  const conflict = input.host
+  const host = input.host === undefined ? getStructuredAgentSessionHost() : input.host
+  const conflict = host
     ? findConflictingStructuredAdoption({
         agent: input.agent,
         providerSessionId: input.providerSessionId,
         selfSessionId: input.selfSessionId,
-        ownership: listStructuredProviderSessionOwnership(input.host.deps.store.listRecords())
+        ownership: listStructuredProviderSessionOwnership(host.deps.store.listRecords())
       })
     : null
   if (conflict) {
     throw structuredAdoptionConflictError(conflict)
   }
+  assertNoLiveTerminalHoldsProviderSession({
+    identities: input.providerSessionRows.flatMap((row) =>
+      row.providerSession ? [{ paneKey: row.paneKey, sessionId: row.providerSession.id }] : []
+    ),
+    providerSessionId: input.providerSessionId,
+    // The pane-to-PTY map is cleared on PTY teardown, so a mapped pane has a live PTY.
+    isPaneKeyPtyLive: (paneKey) => getPtyIdForPaneKey(paneKey) !== undefined
+  })
   return resolveStructuredAgentSessionAdoption({
     agent: input.agent,
     providerSessionId: input.providerSessionId,

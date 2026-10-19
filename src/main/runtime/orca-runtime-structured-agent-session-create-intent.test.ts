@@ -4,6 +4,7 @@ const applyAgentWorkspaceTrust = vi.hoisted(() => vi.fn(async () => ({})))
 vi.mock('../agent-workspace-trust', () => ({ applyAgentWorkspaceTrust }))
 
 import { OrcaRuntimeService } from './orca-runtime'
+import { paneKeyPtyId } from '../ipc/pty/pane/key-state'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../shared/constants'
 import { attachFingerprintFields } from '../native-chat/agent-session-wire/structured-agent-session-attach'
 
@@ -288,6 +289,72 @@ describe('structured agent-session create intent', () => {
     expect(intent.accountHome).toEqual({
       variable: 'CLAUDE_CONFIG_DIR',
       path: '/accounts/managed/claude-home'
+    })
+  })
+})
+
+describe('structured adoption while a terminal runs the session', () => {
+  const TERMINAL_PANE_KEY = 'terminal-tab:terminal-leaf'
+  const PROVIDER_SESSION_ID = 'provider-session-held-by-tui'
+
+  function createAdoptionRuntime() {
+    const runtime = new OrcaRuntimeService(
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: create intent only reads getSettings from the store.
+      {
+        getSettings: () => ({
+          agentDefaultEnv: { claude: { CLAUDE_CONFIG_DIR: '/configured/claude-home' } }
+        })
+      } as never,
+      undefined,
+      {
+        getAgentProviderSessionSnapshot: () =>
+          // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the guard reads only paneKey and providerSession.id.
+          [
+            {
+              paneKey: TERMINAL_PANE_KEY,
+              providerSession: { key: 'claude', id: PROVIDER_SESSION_ID }
+            }
+          ] as never
+      }
+    )
+    vi.spyOn(runtime, 'getStructuredAgentSessionCreateSupport').mockResolvedValue({
+      supported: true
+    })
+    Object.assign(runtime, {
+      resolveStructuredAgentSessionLocation: vi.fn(async () => ({
+        executionHostId: 'local',
+        wslDistro: null,
+        workspaceId: 'workspace-1',
+        workspaceKind: 'git-worktree' as const
+      })),
+      resolveRuntimeFileTarget: vi.fn(async () => ({ worktree: { path: '/repos/workspace-1' } }))
+    })
+    return () =>
+      runtime.resolveStructuredAgentSessionCreateIntent({
+        envelope: { sessionId: 'session-1', clientOperationId: 'operation-1' },
+        worktree: 'id:workspace-1',
+        agent: 'claude',
+        resumeFrom: { providerSessionId: PROVIDER_SESSION_ID }
+      })
+  }
+
+  it('refuses while the pane that reports the session still has a PTY', async () => {
+    paneKeyPtyId.set(TERMINAL_PANE_KEY, 'pty-held-by-tui')
+    try {
+      await expect(createAdoptionRuntime()()).rejects.toMatchObject({
+        refusal: { code: 'agent_session_conflict', details: { reason: 'ownerAlive' } }
+      })
+    } finally {
+      paneKeyPtyId.delete(TERMINAL_PANE_KEY)
+    }
+  })
+
+  it('does not refuse for the terminal once its PTY is gone', async () => {
+    const createIntent = createAdoptionRuntime()
+
+    // The conversation has no transcript in this fixture, so adoption fails later and for another reason.
+    await expect(createIntent()).rejects.not.toMatchObject({
+      refusal: { details: { reason: 'ownerAlive' } }
     })
   })
 })
