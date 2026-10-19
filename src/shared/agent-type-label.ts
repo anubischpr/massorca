@@ -1,4 +1,5 @@
 import type { AgentType } from './agent-status-types'
+import { piRuntimeForSessionFilePath } from './pi-runtime-selection'
 
 // Shared so the desktop renderer and the mobile app show the same agent name
 // (e.g. native chat's empty state on both surfaces) from one source of truth.
@@ -36,10 +37,23 @@ const WELL_KNOWN_LABELS: Record<string, string> = {
   jcode: 'Jcode'
 }
 
+export const GENTLE_SHELL_LABEL = 'Gentle Shell'
+
 export function formatAgentTypeLabel(agentType: AgentType | null | undefined): string {
   if (!agentType || agentType === 'unknown') {
     return 'Agent'
   }
   // Capitalize well-known names nicely; pass through custom names as-is
   return WELL_KNOWN_LABELS[agentType] ?? agentType
+}
+
+/** A Pi-protocol row names the runtime its session lives in: Gentle Shell keeps its own identity. */
+export function formatAgentRowTypeLabel(row: {
+  agentType: AgentType | null | undefined
+  entry?: { providerSession?: { transcriptPath?: string } }
+}): string {
+  return row.agentType === 'pi' &&
+    piRuntimeForSessionFilePath(row.entry?.providerSession?.transcriptPath) === 'gentle-shell'
+    ? GENTLE_SHELL_LABEL
+    : formatAgentTypeLabel(row.agentType)
 }

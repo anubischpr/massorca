@@ -59,6 +59,23 @@ describe('buildAgentResumeStartupPlan for pi runtimes', () => {
     expect(piPlan({ piRuntime: 'pi' })).toBe(`pi '--session' '${TRANSCRIPT}'`)
   })
 
+  it('reads Gentle Shell from its own transcript when a saved record carries no runtime', () => {
+    const gentleTranscript = '/home/christian/.gentle-shell/agent/sessions/--w--/s.jsonl'
+    const plan = (cmdOverrides: Record<string, string>) =>
+      buildAgentResumeStartupPlan({
+        agent: 'pi',
+        providerSession: { ...PI_SESSION, transcriptPath: gentleTranscript },
+        cmdOverrides,
+        platform: 'linux'
+      })?.launchCommand
+    expect(plan({})).toBe(`gentle-shell '--' '--session' '${gentleTranscript}'`)
+    // The client's stock pi command never resumes a Gentle Shell transcript.
+    expect(plan({ pi: '/usr/bin/pi' })).toBe(`gentle-shell '--' '--session' '${gentleTranscript}'`)
+    expect(plan({ pi: '/opt/gentle/bin/gentle-shell' })).toBe(
+      `/opt/gentle/bin/gentle-shell '--' '--session' '${gentleTranscript}'`
+    )
+  })
+
   it('launches the default Gentle Shell command with its pi args after --', () => {
     expect(piPlan({ piRuntime: 'gentle-shell' })).toBe(
       `gentle-shell '--' '--session' '${TRANSCRIPT}'`

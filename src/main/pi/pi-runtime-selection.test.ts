@@ -3,6 +3,7 @@ import {
   PI_RUNTIME_HOME_DIR_NAME,
   isPiRuntimeSelection,
   piRuntimeCommandSettings,
+  resolvePiSessionRuntime,
   selectedPiRuntime
 } from '../../shared/pi-runtime-selection'
 import {
@@ -83,5 +84,21 @@ describe('bounded Pi runtime selection', () => {
     expect(selectedPiRuntime('pi --resume gentle-shell')).toBe('pi')
     expect(selectedPiRuntime('my-gentle-shell-wrapper')).toBe('pi')
     expect(PI_RUNTIME_HOME_DIR_NAME).toEqual({ pi: '.pi', 'gentle-shell': '.gentle-shell' })
+  })
+  it('resolves an existing chat from its session before the client Pi setting', () => {
+    const gentle = '/home/u/.gentle-shell/agent/sessions/--w--/s.jsonl'
+    const stock = '/home/u/.pi/agent/sessions/--w--/s.jsonl'
+    expect(resolvePiSessionRuntime({ transcriptPath: gentle, command: 'pi' })).toBe('gentle-shell')
+    expect(resolvePiSessionRuntime({ transcriptPath: stock, command: 'gentle-shell' })).toBe('pi')
+    expect(resolvePiSessionRuntime({ hostRuntime: 'gentle-shell', transcriptPath: stock })).toBe(
+      'gentle-shell'
+    )
+    expect(resolvePiSessionRuntime({ launchSeed: 'gentle-shell', transcriptPath: stock })).toBe(
+      'gentle-shell'
+    )
+    expect(resolvePiSessionRuntime({ hostRuntime: 'nope', command: 'gentle-shell' })).toBe(
+      'gentle-shell'
+    )
+    expect(resolvePiSessionRuntime({})).toBe('pi')
   })
 })

@@ -4,7 +4,7 @@ import { AgentStateDot, agentStateLabel } from '@/components/AgentStateDot'
 import { AgentChildRowContent } from '@/components/AgentChildRowContent'
 import type { DashboardAgentRow as DashboardAgentRowData } from '@/components/dashboard/useDashboardData'
 import { AgentIcon } from '@/lib/agent-catalog'
-import { agentTypeToIconAgent, formatAgentTypeLabel } from '@/lib/agent-status'
+import { agentTypeToIconAgent, formatAgentRowTypeLabel } from '@/lib/agent-status'
 import { cn } from '@/lib/utils'
 import { getAgentDotState } from './worktree-card-agent-summary'
 import { getAgentRowPrimaryText } from '@/lib/agent-row-primary-text'
@@ -61,7 +61,7 @@ export function getCompactAgentSecondary(
   if (agent.rowSource === 'subagent' && agent.entry.prompt?.trim() === agent.agentType.trim()) {
     return ''
   }
-  return formatAgentTypeLabel(agent.agentType)
+  return formatAgentRowTypeLabel(agent)
 }
 
 function getCompactAgentTime(agent: DashboardAgentRowData, now: number): string | null {
@@ -220,7 +220,7 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
             tooltipSide="right"
           />
           {!hideIcon && (
-            <span className="inline-flex shrink-0" title={formatAgentTypeLabel(agent.agentType)}>
+            <span className="inline-flex shrink-0" title={formatAgentRowTypeLabel(agent)}>
               <AgentIcon agent={agentTypeToIconAgent(agent.agentType)} size={13} />
             </span>
           )}

@@ -1,6 +1,6 @@
 import type { AgentDotState } from '@/components/AgentStateDot'
 import type { DashboardAgentRow as DashboardAgentRowData } from '@/components/dashboard/useDashboardData'
-import { formatAgentTypeLabel } from '@/lib/agent-status'
+import { formatAgentRowTypeLabel } from '@/lib/agent-status'
 import { agentRowDisplayDotState } from '@/lib/agent-row-dot-state'
 
 export type SummaryAgentGroup = {
@@ -98,7 +98,7 @@ export function summarizeAgents(agents: DashboardAgentRowData[], subjectLabel: s
 export function summarizeAgentIdentities(agents: DashboardAgentRowData[]): string {
   return agents
     .map((agent) => {
-      const agentLabel = formatAgentTypeLabel(agent.agentType)
+      const agentLabel = formatAgentRowTypeLabel(agent)
       const stateLabel = formatSummaryStateLabel(getAgentDotState(agent))
       return `${agentLabel} ${stateLabel}`
     })

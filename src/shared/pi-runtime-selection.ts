@@ -26,6 +26,30 @@ export function piRuntimeForSessionFilePath(
   return filePath && /[\\/]\.gentle-shell[\\/]/.test(filePath) ? 'gentle-shell' : 'pi'
 }
 
+/**
+ * The runtime an existing Pi chat runs on. The session's own evidence wins over the client's global
+ * Pi command: a Gentle Shell chat never resumes as stock `pi` because this client names no runtime.
+ * Order: the host's recorded runtime, a `.gentle-shell` transcript, the launch seed, a known stock
+ * transcript, then the command setting (only for a chat that has no session evidence yet).
+ */
+export function resolvePiSessionRuntime(args: {
+  hostRuntime?: unknown
+  transcriptPath?: string | null
+  launchSeed?: unknown
+  command?: string
+}): PiRuntimeSelection {
+  if (isPiRuntimeSelection(args.hostRuntime)) {
+    return args.hostRuntime
+  }
+  if (piRuntimeForSessionFilePath(args.transcriptPath) === 'gentle-shell') {
+    return 'gentle-shell'
+  }
+  if (isPiRuntimeSelection(args.launchSeed)) {
+    return args.launchSeed
+  }
+  return args.transcriptPath ? 'pi' : selectedPiRuntime(args.command)
+}
+
 export function piRuntimeCommandSettings<
   T extends { agentCmdOverrides?: Partial<Record<string, string>> }
 >(settings: T, runtime: PiRuntimeSelection) {

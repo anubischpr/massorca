@@ -1,6 +1,7 @@
 import { agentSessionDeclaredAccess } from '../../../../shared/agent-session-access-mode'
 import {
   isPiRuntimeSelection,
+  resolvePiSessionRuntime,
   selectedPiRuntime,
   type PiRuntimeSelection
 } from '../../../../shared/pi-runtime-selection'
@@ -33,18 +34,25 @@ export function useStructuredAgentDeclaredAccess(args: {
   return agentSessionDeclaredAccess(registeredAgent?.capabilities, piRuntime)
 }
 
-/** The Pi runtime a structured chat runs on: its launch seed, else the Pi command the settings name
- *  (the same rule host admission applies to a new Pi chat). Undefined for every other agent. */
+/** The Pi runtime a structured chat runs on, read from the session before the client's Pi command
+ *  setting: the host-recorded runtime, the session transcript's home, then the launch seed. Undefined
+ *  for every other agent. */
 export function structuredChatPiRuntime(args: {
   agent: string
   launchSeedOptions: Readonly<Record<string, string>> | undefined
   piCommand: string | undefined
+  transcriptPath?: string | null
+  hostRuntime?: unknown
 }): PiRuntimeSelection | undefined {
   if (args.agent !== 'pi') {
     return undefined
   }
-  const seeded = args.launchSeedOptions?.piRuntime
-  return isPiRuntimeSelection(seeded) ? seeded : selectedPiRuntime(args.piCommand)
+  return resolvePiSessionRuntime({
+    hostRuntime: args.hostRuntime,
+    transcriptPath: args.transcriptPath,
+    launchSeed: args.launchSeedOptions?.piRuntime,
+    command: args.piCommand
+  })
 }
 
 /** The picks a running child accepts: modes it can switch to live, and picks it already satisfies. */

@@ -252,6 +252,49 @@ describe('structuredChatPiRuntime', () => {
     ).toBe('pi')
   })
 
+  it('reads Gentle Shell from the session transcript when no seed or setting names it', () => {
+    const transcriptPath = '/home/christian/.gentle-shell/agent/sessions/--w--/2026_s.jsonl'
+    expect(
+      structuredChatPiRuntime({
+        agent: 'pi',
+        launchSeedOptions: undefined,
+        piCommand: undefined,
+        transcriptPath
+      })
+    ).toBe('gentle-shell')
+    expect(
+      structuredChatPiRuntime({
+        agent: 'pi',
+        launchSeedOptions: undefined,
+        piCommand: 'pi',
+        transcriptPath: String.raw`C:\Users\me\.gentle-shell\agent\sessions\s.jsonl`
+      })
+    ).toBe('gentle-shell')
+  })
+
+  it('never lets the client Pi command override a stock Pi transcript', () => {
+    expect(
+      structuredChatPiRuntime({
+        agent: 'pi',
+        launchSeedOptions: undefined,
+        piCommand: 'gentle-shell',
+        transcriptPath: '/home/christian/.pi/agent/sessions/--w--/s.jsonl'
+      })
+    ).toBe('pi')
+  })
+
+  it('prefers the host-recorded runtime over every client-side guess', () => {
+    expect(
+      structuredChatPiRuntime({
+        agent: 'pi',
+        launchSeedOptions: undefined,
+        piCommand: 'pi',
+        transcriptPath: '/custom/agent/sessions/s.jsonl',
+        hostRuntime: 'gentle-shell'
+      })
+    ).toBe('gentle-shell')
+  })
+
   it('is undefined for agents other than Pi', () => {
     expect(
       structuredChatPiRuntime({

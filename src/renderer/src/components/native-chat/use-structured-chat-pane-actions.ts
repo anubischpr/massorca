@@ -57,13 +57,18 @@ export function useStructuredChatPaneActions(args: {
     journalItems,
     reportNotice
   } = args
-  // Why: the launch's seed carries a Pi chat's runtime while the launch lives; a reopened chat falls back to the Pi command setting.
+  // Why: a Pi chat's runtime comes from its own session (transcript home, launch seed); the Pi command setting only names it before the session has any evidence.
   const launchSeedOptions = useStructuredAgentSessionLaunchSelection(sessionId)?.seed
   const piCommand = useAppStore((state) => state.settings?.agentCmdOverrides?.pi)
-  const piRuntime = structuredChatPiRuntime({ agent, launchSeedOptions, piCommand })
   const providerSession = useAppStore(
     (state) => state.agentStatusByPaneKey[paneKey]?.providerSession
   )
+  const piRuntime = structuredChatPiRuntime({
+    agent,
+    launchSeedOptions,
+    piCommand,
+    transcriptPath: providerSession?.transcriptPath
+  })
   const lastPrompt = useAppStore((state) => state.agentStatusByPaneKey[paneKey]?.prompt)
   const lastAssistantMessage = useAppStore(
     (state) => state.agentStatusByPaneKey[paneKey]?.lastAssistantMessage
