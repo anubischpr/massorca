@@ -14,6 +14,10 @@ import {
 } from './structured-agent-session-background-task-capability'
 import { projectPromptSuggestionEvent } from './structured-agent-session-prompt-suggestion-capability'
 import {
+  projectSettledChildWorkEvent,
+  projectSettledChildWorkHistory
+} from './structured-agent-session-settled-child-work-capability'
+import {
   projectTurnItemEvent,
   projectTurnItemHistory
 } from './structured-agent-session-turn-item-capability'
@@ -244,7 +248,10 @@ export const STRUCTURED_AGENT_SESSION_METHODS = [
     handler: async (params, ctx) => {
       const host = await requireInstalledHost(ctx, params.sessionId)
       return projectTurnItemHistory(
-        projectBackgroundTaskHistory(await host.history(params), ctx),
+        projectBackgroundTaskHistory(
+          projectSettledChildWorkHistory(await host.history(params), ctx),
+          ctx
+        ),
         ctx,
         host.sessionAgent(params.sessionId)
       )
@@ -272,7 +279,7 @@ export const STRUCTURED_AGENT_SESSION_METHODS = [
           emit(
             projectPromptSuggestionEvent(
               projectTurnItemEvent(
-                projectBackgroundTaskEvent(event, ctx),
+                projectBackgroundTaskEvent(projectSettledChildWorkEvent(event, ctx), ctx),
                 ctx,
                 host.sessionAgent(params.sessionId)
               ),
