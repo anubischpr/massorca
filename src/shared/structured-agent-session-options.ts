@@ -49,6 +49,8 @@ export type StructuredAgentSessionOptionState = {
   liveAccessModes?: readonly AgentSessionExplicitAccess[]
   /** Picks a running child already satisfies, so they change only the record; see the wire field. */
   recordOnlyAccessModes?: readonly AgentSessionAccessModeValue[]
+  /** Picks a running child takes at its next start, not live; see the wire field. */
+  nextStartAccessModes?: readonly AgentSessionAccessModeValue[]
   accessModeSettable: boolean
   /** What `inherit` resolves to on this client, when it can know; absent otherwise. */
   inheritedAccess?: AgentSessionAccessMode | null
@@ -150,6 +152,7 @@ export function applyStructuredAgentSessionOptions(
           permissionPresets: result.accessModeSupport.presets ?? [],
           liveAccessModes: result.accessModeSupport.liveModes ?? [],
           recordOnlyAccessModes: result.accessModeSupport.recordOnlyModes ?? [],
+          nextStartAccessModes: result.accessModeSupport.nextStartModes ?? [],
           accessModeSettable: result.accessModeSupport.settable
         }
       : {}),

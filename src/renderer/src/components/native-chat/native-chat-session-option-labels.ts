@@ -19,6 +19,11 @@ export function nativeChatSessionOptionNote(note: SessionOptionNote): string {
         'components.native-chat.composer.optionNote.startOnlyModes',
         'Dimmed modes can only be set when the session starts.'
       )
+    case 'applies-on-next-start':
+      return translate(
+        'components.native-chat.composer.optionNote.appliesOnNextStart',
+        'Changes apply when the session next starts.'
+      )
   }
 }
 

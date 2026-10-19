@@ -60,6 +60,7 @@ export function structuredAgentSessionAccessOption(
   const settable = state.accessModeSettable || live.length > 0
   const startOnly = (mode: string) =>
     !state.accessModeSettable && !live.some((liveMode) => liveMode === mode)
+  const nextStart = (state.nextStartAccessModes?.length ?? 0) > 0
   const recorded = state.record.accessMode
   const fixed = providerFixedAccessMode(modes)
   if (fixed) {
@@ -97,7 +98,9 @@ export function structuredAgentSessionAccessOption(
     settable,
     ...(state.inheritedAccess ? { inheritedAccess: state.inheritedAccess } : {}),
     ...(!settable ? { disabledReason: 'set-when-session-starts' as const } : {}),
-    ...(settable && !state.accessModeSettable ? { note: 'start-only-modes' as const } : {})
+    ...(settable && !state.accessModeSettable
+      ? { note: nextStart ? ('applies-on-next-start' as const) : ('start-only-modes' as const) }
+      : {})
   }
 }
 
@@ -116,7 +119,7 @@ export function lockStructuredAgentSessionAccessOptions(
     return {
       ...descriptor,
       settable: true,
-      note: 'start-only-modes',
+      note: descriptor.note === 'applies-on-next-start' ? descriptor.note : 'start-only-modes',
       kind: {
         ...descriptor.kind,
         choices: descriptor.kind.choices.map((choice) =>

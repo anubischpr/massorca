@@ -194,7 +194,14 @@ export async function readStructuredAgentSessionOptions(
       // What a running child listed is its account's catalog too, so the next chat opens warm.
       context.deps.modelCatalog?.recordLiveListing(sessionId, catalogListing)
     }
-    options = answer
+    // A child that opts in lists no models of its own, so its picker reads the resting catalog.
+    options =
+      answer.models.length > 0 || adapter.modelsFromRestingCatalog?.(sessionId) !== true
+        ? answer
+        : {
+            ...answer,
+            models: (await readStructuredAgentSessionOptionsAtRest(context.deps, sessionId)).models
+          }
   } else {
     options = await readStructuredAgentSessionOptionsAtRest(context.deps, sessionId)
   }
@@ -208,15 +215,26 @@ export async function readStructuredAgentSessionOptions(
     record?.options?.piRuntime
   )
   const liveAccessModes = liveStructuredAgentSessionAccessModes(context.deps, sessionId)
+  const candidates = declaredAccess ? ['inherit' as const, ...declaredAccess.explicit] : []
+  // A child whose access is fixed at launch takes each declared pick at its next start, not live.
+  const nextStartModes =
+    session.child && adapter.takesAccessAtNextStart?.(sessionId) === true
+      ? candidates.filter((mode) => !liveAccessModes.some((live) => live === mode))
+      : []
   // Picks the running child already satisfies: they only move the record, so they may be taken live.
-  const recordOnlyModes = session.child
+  const satisfiedModes = session.child
     ? recordOnlyAccessPicks({
         deps: context.deps,
         sessionId,
         running: session.child.accessPosture,
-        candidates: declaredAccess ? ['inherit' as const, ...declaredAccess.explicit] : []
-      }).filter((mode) => !liveAccessModes.some((live) => live === mode))
+        candidates
+      })
     : []
+  const recordOnlyModes = candidates.filter(
+    (mode) =>
+      (satisfiedModes.includes(mode) || nextStartModes.includes(mode)) &&
+      !liveAccessModes.some((live) => live === mode)
+  )
   const capabilities = agents.capabilities(agent)
   const floor = session.journal.context.floor()
   const contextFloor = floor ? { contextFloor: floor } : {}
@@ -231,7 +249,9 @@ export async function readStructuredAgentSessionOptions(
             settable: !session.child,
             // `settable` keeps its meaning for older clients; a newer one adds what may change live.
             ...(session.child && liveAccessModes.length > 0 ? { liveModes: liveAccessModes } : {}),
-            ...(recordOnlyModes.length > 0 ? { recordOnlyModes } : {})
+            ...(recordOnlyModes.length > 0 ? { recordOnlyModes } : {}),
+            // Picks the running child takes at its next start, so the client can say so beside them.
+            ...(nextStartModes.length > 0 ? { nextStartModes } : {})
           },
           current: {
             ...options.current,

@@ -181,6 +181,12 @@ export class CodexStructuredSessionAdapter implements StructuredAgentSessionAdap
     )
   }
 
+  // Codex applies access when a thread opens, so a running thread takes a pick at its next start.
+  takesAccessAtNextStart = (sessionId: string): boolean => {
+    const session = this.sessions.get(sessionId)
+    return session !== undefined && !session.ended
+  }
+
   // Codex exposes no honest stop for a child thread or a persistent command.
   backgroundTaskStops: NonNullable<StructuredAgentSessionAdapter['backgroundTaskStops']> = (
     sessionId

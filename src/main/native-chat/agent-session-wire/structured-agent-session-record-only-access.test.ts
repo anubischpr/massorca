@@ -41,6 +41,7 @@ async function runningChat(input: {
   accessMode?: string
   inheritedFullAccess?: boolean
   liveModes?: readonly ('default' | 'auto' | 'plan' | 'full-access')[]
+  takesNextStart?: boolean
 }): Promise<Rig> {
   const root = await mkdtemp(join(tmpdir(), 'orca-record-only-access-'))
   resetHostTestOperationIds()
@@ -64,6 +65,7 @@ async function runningChat(input: {
     setOption,
     readOptions: vi.fn(async () => ({ current: {}, models: [] })),
     liveAccessModes: () => input.liveModes ?? ['auto'],
+    takesAccessAtNextStart: () => input.takesNextStart === true,
     closeSession: vi.fn(async () => true),
     rewind: vi.fn(),
     recoverRewind: vi.fn(),
@@ -196,5 +198,36 @@ describe('picking an access mode the running child already satisfies', () => {
     expect(
       (await chat.host.readOptions(SESSION)).accessModeSupport?.recordOnlyModes
     ).toBeUndefined()
+  })
+})
+
+describe('picking an access mode a running child takes at its next start', () => {
+  it('records the pick for the next start and leaves the running child alone', async () => {
+    const chat = await runningChat({ accessMode: 'default', liveModes: [], takesNextStart: true })
+    expect((await chat.host.readOptions(SESSION)).accessModeSupport).toMatchObject({
+      settable: false,
+      recordOnlyModes: expect.arrayContaining(['full-access']),
+      nextStartModes: expect.arrayContaining(['full-access'])
+    })
+
+    expect(await pick(chat, 'full-access')).toMatchObject({ ok: true })
+
+    expect(recorded(chat)).toBe('full-access')
+    expect(chat.setOption).not.toHaveBeenCalled()
+  })
+
+  it('still refuses a mode the agent does not declare', async () => {
+    const chat = await runningChat({ accessMode: 'default', liveModes: [], takesNextStart: true })
+
+    expect(await pick(chat, 'not-a-mode')).toMatchObject({ ok: false })
+    expect(recorded(chat)).toBe('default')
+  })
+
+  it('reports no next-start picks, and refuses a widening, when the child cannot take them at its start', async () => {
+    const chat = await runningChat({ accessMode: 'default', liveModes: [] })
+
+    expect((await chat.host.readOptions(SESSION)).accessModeSupport?.nextStartModes).toBeUndefined()
+    expect(await pick(chat, 'full-access')).toMatchObject({ ok: false })
+    expect(recorded(chat)).toBe('default')
   })
 })

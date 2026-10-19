@@ -18294,7 +18294,8 @@
         },
         "optionNote": {
           "noRestrictedMode": "Pi chat has no restricted mode.",
-          "startOnlyModes": "Dimmed modes can only be set when the session starts."
+          "startOnlyModes": "Dimmed modes can only be set when the session starts.",
+          "appliesOnNextStart": "Changes apply when the session next starts."
         },
         "options": "Options",
         "sessionOptions": "Session options",

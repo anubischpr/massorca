@@ -175,6 +175,10 @@ export class StructuredAgentSessionAdapterRouter implements StructuredAgentSessi
     this.liveOwnerOrNull(sessionId)?.startAnswered?.(sessionId)
   liveAccessModes = (sessionId: string): readonly AgentSessionExplicitAccess[] =>
     this.liveOwnerOrNull(sessionId)?.liveAccessModes?.(sessionId) ?? []
+  takesAccessAtNextStart = (sessionId: string): boolean =>
+    this.liveOwnerOrNull(sessionId)?.takesAccessAtNextStart?.(sessionId) ?? false
+  modelsFromRestingCatalog = (sessionId: string): boolean =>
+    this.liveOwnerOrNull(sessionId)?.modelsFromRestingCatalog?.(sessionId) ?? false
 
   prepareReadOptions = (input: { sessionId: string; fence: number }) =>
     this.liveOwnerOrNull(input.sessionId)?.prepareReadOptions?.(input)

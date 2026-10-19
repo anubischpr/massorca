@@ -416,6 +416,12 @@ export type StructuredAgentSessionAdapter = StructuredAgentSessionAdapterStop & 
   /** Explicit access modes this running child can switch to without a restart; absent or empty
    *  means the mode is fixed until the session next starts. */
   liveAccessModes?(sessionId: string): readonly AgentSessionExplicitAccess[]
+  /** True when a running child takes an access pick at its next start instead of live: the host
+   *  records the pick, and the child keeps its posture until then. Absent or false refuses it. */
+  takesAccessAtNextStart?(sessionId: string): boolean
+  /** True when a running child lists no models of its own, so the host fills the picker from the
+   *  account's catalog as at rest. Absent or false keeps the child's own list, even when empty. */
+  modelsFromRestingCatalog?(sessionId: string): boolean
   /** False while the live child has not answered its start, so it has run nothing it was handed.
    *  Absent or undefined reads as answered. */
   startAnswered?(sessionId: string): boolean | undefined
