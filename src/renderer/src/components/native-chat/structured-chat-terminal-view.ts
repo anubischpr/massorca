@@ -9,6 +9,14 @@ import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
 import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 import type { StructuredChatTerminalLink } from '../../store/terminals/terminal-contracts'
 
+/** The agents with a structured adapter on this build; their chat can be revealed by session id. */
+const STRUCTURED_CHAT_RETURN_AGENTS: ReadonlySet<string> = new Set([
+  'claude',
+  'codex',
+  'pi',
+  'antigravity'
+])
+
 export type StructuredChatTerminalViewBlock = 'no-worktree' | 'agent' | 'no-provider-session'
 
 export type StructuredChatTerminalViewState =
@@ -111,7 +119,8 @@ export async function showStructuredChatInTerminal(
     deps.onLaunchFailedAfterRelease()
     return false
   }
-  if (launchedTab.tabId !== null) {
+  // Why: a terminal can return only to a chat the host can reveal, so an agent without a structured adapter keeps a plain terminal.
+  if (launchedTab.tabId !== null && STRUCTURED_CHAT_RETURN_AGENTS.has(args.agent)) {
     deps.recordTerminalLink(launchedTab.tabId, {
       agent: args.agent,
       providerSessionId: args.providerSession.id,
