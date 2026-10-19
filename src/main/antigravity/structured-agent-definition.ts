@@ -8,7 +8,7 @@ export const ANTIGRAVITY_STRUCTURED_AGENT: StructuredAgentDefinition = {
     rewind: false,
     compact: false,
     threadGoal: false,
-    contextUsage: false,
+    contextUsage: true,
     imagePrompts: false,
     steering: 'queue',
     approvalEnforcement: 'provider',
