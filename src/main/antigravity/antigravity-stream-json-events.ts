@@ -1,10 +1,5 @@
-import {
-  boundPayload,
-  DEFAULT_JOURNAL_PAYLOAD_LIMITS
-} from '../native-chat/agent-session-journal/journal-payload-bounds'
 import type { ProviderTimelineEvent } from '../native-chat/agent-session-timeline/provider-timeline-event'
-import type { AgentSessionContextUsed } from '../../shared/agent-session-context-usage'
-import type { AntigravityStreamUsage } from './antigravity-stream-json-protocol'
+import { antigravityTokenCount, antigravityToolOutput } from './antigravity-stream-json-facts'
 import type { AntigravityStreamTransportEvent } from './antigravity-stream-json-transport'
 
 type ProjectedTool = {
@@ -123,9 +118,7 @@ export class AntigravityStreamEventProjector {
           : failed
             ? ('failed' as const)
             : ('completed' as const),
-      ...(shown === undefined || shown === null
-        ? {}
-        : { output: boundPayload(toolOutputText(shown), DEFAULT_JOURNAL_PAYLOAD_LIMITS) })
+      ...(shown === undefined || shown === null ? {} : { output: antigravityToolOutput(shown) })
     }
     const events: ProviderTimelineEvent[] = []
     if (state === 'ACTIVE') {
@@ -220,7 +213,7 @@ export class AntigravityStreamEventProjector {
         frameKind: 'usage.cumulative',
         payload: { scope: 'conversation', num_turns: result.num_turns, usage: result.usage }
       })
-      const used = this.tokenCount(result.usage)
+      const used = antigravityTokenCount(result.usage, this.now())
       if (used) {
         events.push({ type: 'context.usage', usage: { used } })
       }
@@ -260,27 +253,6 @@ export class AntigravityStreamEventProjector {
     return events
   }
 
-  /** A token count with no window: agy reports none, so none is invented. */
-  private tokenCount(usage: AntigravityStreamUsage): AgentSessionContextUsed | null {
-    const output = (usage.output_tokens ?? 0) + (usage.thinking_tokens ?? 0)
-    const cacheRead = usage.cache_read_tokens ?? 0
-    // Only a total says anything when agy sent no input split.
-    const input = usage.input_tokens ?? (cacheRead + output === 0 ? (usage.total_tokens ?? 0) : 0)
-    if (input + cacheRead + output === 0) {
-      return null
-    }
-    return {
-      kind: 'estimate',
-      usage: {
-        inputTokens: input,
-        outputTokens: output,
-        cacheCreationInputTokens: 0,
-        cacheReadInputTokens: cacheRead
-      },
-      capturedAt: this.now()
-    }
-  }
-
   private ensureTurnOpen(events: ProviderTimelineEvent[]): void {
     if (this.turnOpen) {
       return
@@ -308,17 +280,6 @@ export class AntigravityStreamEventProjector {
   private responseItemId(clientMessageId: string): string {
     return `antigravity:${this.conversationId}:message:${clientMessageId}`
   }
-}
-
-/** The text a tool row shows: a string as is, an error's message, else the value as JSON. */
-function toolOutputText(value: unknown): string {
-  if (typeof value === 'string') {
-    return value
-  }
-  if (isObject(value) && typeof value.message === 'string') {
-    return value.message
-  }
-  return JSON.stringify(value) ?? String(value)
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
