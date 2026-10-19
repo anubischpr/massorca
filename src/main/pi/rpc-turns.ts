@@ -164,7 +164,9 @@ export class PiRpcTurns {
               : undefined
         }
         this.deps.lane.apply(this.messages.message(frame, at))
-        this.jobs.observeFrame(frame)
+        if (frame.type === 'message_end') {
+          this.jobs.observeFrame(frame)
+        }
         return
       }
       case 'tool_execution_start':
