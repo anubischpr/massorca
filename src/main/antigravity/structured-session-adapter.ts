@@ -19,6 +19,12 @@ import {
 import { supportsSupervisedProviderChildLocation } from '../provider-process/supervised-provider-child-location'
 import { AntigravityStructuredSession, type AntigravitySessionDeps } from './structured-session'
 import {
+  antigravityLaunchOptionProblem,
+  antigravityLiveOptions,
+  antigravityOptionsInForce,
+  isAntigravityLaunchOptionKey
+} from './antigravity-session-options'
+import {
   antigravityProviderLink,
   type AntigravityResolvedLaunch
 } from './structured-launch-resolution'
@@ -153,8 +159,34 @@ export class AntigravityStructuredSessionAdapter implements StructuredAgentSessi
   answerPrompt: StructuredAgentSessionAdapter['answerPrompt'] = async (input) => {
     throw new AgentSessionPromptUnavailableError(input.itemId)
   }
-  setOption: StructuredAgentSessionAdapter['setOption'] = async () => {
-    throw new AgentSessionOptionRejectedError('Antigravity options apply on the next acquisition')
+  setOption: StructuredAgentSessionAdapter['setOption'] = async (input) => {
+    if (input.key === 'accessMode') {
+      // Why: agy fixes its access mode at launch, so the host records that pick for the next start.
+      throw new AgentSessionOptionRejectedError('Antigravity access mode applies on the next start')
+    }
+    const session = this.session(input.sessionId, input.fence)
+    if (!isAntigravityLaunchOptionKey(input.key)) {
+      throw new AgentSessionOptionRejectedError(
+        `Antigravity has no session option named ${input.key}`
+      )
+    }
+    const problem = antigravityLaunchOptionProblem(input.key, input.value)
+    if (problem) {
+      throw new AgentSessionOptionRejectedError(problem)
+    }
+    session.picks.set(input.key, input.value)
+    return antigravityOptionsInForce(session.input.options, session.picks)
+  }
+  readOptions: NonNullable<StructuredAgentSessionAdapter['readOptions']> = async (input) => {
+    const session = this.session(input.sessionId, input.fence)
+    return antigravityLiveOptions(session.input.options, session.picks)
+  }
+  /** agy fixes its access mode at launch: a running child only records the pick for its next start. */
+  takesAccessAtNextStart = (sessionId: string): boolean => this.hasLiveChild(sessionId)
+  /** agy lists no models over its stream, so a running chat's picker reads the account's catalog. */
+  modelsFromRestingCatalog = (sessionId: string): boolean => this.hasLiveChild(sessionId)
+  private hasLiveChild(sessionId: string): boolean {
+    return this.sessions.get(sessionId)?.process.rootVerdict === 'live'
   }
   readAcquisitionOptions: NonNullable<StructuredAgentSessionAdapter['readAcquisitionOptions']> = (
     input
