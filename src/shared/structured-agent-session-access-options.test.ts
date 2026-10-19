@@ -16,6 +16,23 @@ import {
 
 const MODES = ['default', 'full-access'] as const
 
+/** A running child whose access applies at its next start, as agy and Codex fix it at launch. */
+const nextStartChild = () =>
+  applyStructuredAgentSessionOptions(
+    createStructuredAgentSessionOptionState('antigravity', null, MODES),
+    CODEX_SESSION_OPTION_CATALOG,
+    {
+      models: [],
+      current: {},
+      accessModeSupport: {
+        modes: MODES,
+        settable: false,
+        recordOnlyModes: MODES,
+        nextStartModes: MODES
+      }
+    }
+  )
+
 describe('model-independent access options', () => {
   it.each([null, CODEX_SESSION_OPTION_CATALOG])(
     'offers access before model discovery',
@@ -262,6 +279,23 @@ describe('permission presets in the access option', () => {
       disabledReason: 'set-when-session-starts'
     })
     expect(canSetStructuredAgentSessionOption(running, 'accessMode', 'default')).toBe(false)
+  })
+
+  it('labels picks a running child takes at its next start, and keeps them pickable', () => {
+    const running = nextStartChild()
+    expect(access(running)).toMatchObject({ settable: true, note: 'applies-on-next-start' })
+    expect(canSetStructuredAgentSessionOption(running, 'accessMode', 'full-access')).toBe(true)
+  })
+
+  it('keeps the next-start label when the lock narrows a running child to its switchable modes', () => {
+    const locked = lockStructuredAgentSessionAccessOptions(
+      structuredAgentSessionOptionSnapshot(nextStartChild()),
+      MODES
+    )
+    expect(locked.find((option) => option.id === 'accessMode')).toMatchObject({
+      settable: true,
+      note: 'applies-on-next-start'
+    })
   })
 
   it('locks only the non-live modes while the client sees the child run', () => {

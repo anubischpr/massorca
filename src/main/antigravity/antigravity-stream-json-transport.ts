@@ -7,11 +7,11 @@ import type { ProviderProcessCloseResult } from '../provider-process/provider-pr
 import type { ProviderProcessTeardownVerdict } from '../provider-process/provider-process-teardown'
 import {
   AntigravityStreamProtocolError,
+  AntigravityStreamStepFrameError,
   isAntigravityTerminalStatus,
   parseAntigravityStreamRecord,
   type AntigravityStreamResult,
-  type AntigravityStreamStepUpdate,
-  type AntigravityStreamWireRecord
+  type AntigravityStreamStepUpdate
 } from './antigravity-stream-json-protocol'
 import type {
   AntigravityPendingPrompt,
@@ -151,9 +151,8 @@ export class AntigravityStreamJsonTransport {
     if (this.closed || this.failure.error) {
       return
     }
-    let record: AntigravityStreamWireRecord
     try {
-      record = parseAntigravityStreamRecord(value)
+      const record = parseAntigravityStreamRecord(value)
       if (record.event === 'init') {
         if (this.conversationId !== null) {
           throw new AntigravityStreamProtocolError('Antigravity emitted more than one init event')
@@ -179,6 +178,10 @@ export class AntigravityStreamJsonTransport {
         this.acceptResult(record.result)
       }
     } catch (error) {
+      if (error instanceof AntigravityStreamStepFrameError) {
+        this.emit({ type: 'unclassified_step', field: error.field, fieldKinds: error.fieldKinds })
+        return
+      }
       this.failure.fail(asAntigravityError(error))
     }
   }

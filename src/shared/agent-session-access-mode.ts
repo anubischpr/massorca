@@ -128,6 +128,9 @@ export type AgentSessionAccessOptions = {
     /** Picks (`inherit` included) a running child already satisfies: taking one changes only what
      *  the session records, not what the child does. Absent from an older host. */
     recordOnlyModes?: readonly AgentSessionAccessModeValue[]
+    /** Picks a running child takes at its next start instead of live (a subset of `recordOnlyModes`).
+     *  Absent from an older host. */
+    nextStartModes?: readonly AgentSessionAccessModeValue[]
   }
   /** Session-only preset; absent from an older host's reply. */
   current: { accessMode?: AgentSessionAccessModeValue }

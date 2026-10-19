@@ -32,7 +32,7 @@ export type SessionOptionDisabledReason =
   | 'set-when-session-starts'
 
 /** Closed set of facts about an option's scope that its surface states beside the choices. */
-export type SessionOptionNote = 'no-restricted-mode' | 'start-only-modes'
+export type SessionOptionNote = 'no-restricted-mode' | 'start-only-modes' | 'applies-on-next-start'
 
 export type SessionOptionDescriptor = {
   id: string

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { AntigravityStreamEventProjector } from './antigravity-stream-json-events'
 import type { AntigravityStreamTransportEvent } from './antigravity-stream-json-transport'
-import type { AntigravityStreamStatus } from './antigravity-stream-json-protocol'
+import type {
+  AntigravityStreamStatus,
+  AntigravityStreamStepState
+} from './antigravity-stream-json-protocol'
 
 type StepEvent = Extract<AntigravityStreamTransportEvent, { type: 'step_update' }>
 type ResultEvent = Extract<AntigravityStreamTransportEvent, { type: 'result' }>
@@ -40,6 +43,26 @@ function result(
       response,
       num_turns: 1,
       ...overrides
+    }
+  }
+}
+
+function toolStep(
+  stepIndex: number,
+  state: AntigravityStreamStepState,
+  toolInfo?: unknown
+): StepEvent {
+  return {
+    type: 'step_update',
+    clientMessageId: 'send-1',
+    requestedAt: 100,
+    step: {
+      conversation_id: 'conv-1',
+      step_index: stepIndex,
+      state,
+      step_type: 'tool',
+      tool_name: 'view_file',
+      ...(toolInfo === undefined ? {} : { tool_info: toolInfo })
     }
   }
 }
@@ -380,5 +403,50 @@ describe('Antigravity stream-json event projection', () => {
         step: { ...input().step, conversation_id: 'other' }
       })
     ).toThrow('mismatched conversation identity')
+  })
+
+  it('closes a tool step whose state names a failure as failed, even with no error payload', () => {
+    const events = projector()
+    events.apply(input())
+    events.apply(toolStep(1, 'ACTIVE', { parameters: { path: 'missing.ts' } }))
+    expect(events.apply(toolStep(1, 'FAILED'))).toContainEqual({
+      type: 'item.close',
+      item: 'antigravity:conv-1:tool:send-1:1',
+      body: expect.objectContaining({ kind: 'tool-call', name: 'view_file', state: 'failed' })
+    })
+  })
+
+  it('keeps a tool step with an unknown state open and records the frame as unclassified', () => {
+    const events = projector()
+    events.apply(input())
+    events.apply(toolStep(1, 'ACTIVE'))
+    expect(events.apply(toolStep(1, 'UNKNOWN'))).toContainEqual({
+      type: 'provider.frame',
+      frameKind: 'step.unclassified',
+      payload: { stepIndex: 1 }
+    })
+    expect(events.apply(toolStep(1, 'UNKNOWN'))).not.toContainEqual(
+      expect.objectContaining({ type: 'item.close' })
+    )
+  })
+
+  it('projects an unreadable step frame as a raw provider frame with its field and shape', () => {
+    const events = projector()
+    expect(
+      events.apply({
+        type: 'unclassified_step',
+        field: 'step_index',
+        fieldKinds: { conversation_id: 'string', step_index: 'string' }
+      })
+    ).toEqual([
+      {
+        type: 'provider.frame',
+        frameKind: 'step.unclassified',
+        payload: {
+          field: 'step_index',
+          fieldKinds: { conversation_id: 'string', step_index: 'string' }
+        }
+      }
+    ])
   })
 })

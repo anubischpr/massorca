@@ -172,17 +172,59 @@ it('serializes follow-ups and keeps an echoed but not yet running prompt stoppab
   expect(h.lifecycle).toHaveBeenCalledWith(expect.objectContaining({ cause: 'requested-close' }))
 })
 
-it('rejects live options without respawning and releases proven-dead acquisitions', async () => {
+it('records a live model pick for the next start without respawning, and reports it as current', async () => {
   const h = await setup()
   await expect(
     h.adapter.setOption({ sessionId: 'session-timeline', fence: 7, key: 'model', value: 'other' })
-  ).rejects.toBeInstanceOf(AgentSessionOptionRejectedError)
+  ).resolves.toEqual({ model: 'other', effort: 'high' })
+  await expect(h.adapter.readOptions({ sessionId: 'session-timeline', fence: 7 })).resolves.toEqual(
+    {
+      models: [],
+      current: { model: 'other', effort: 'high' }
+    }
+  )
   expect(h.processes).toHaveLength(1)
   expect(await h.adapter.closeSession('session-timeline')).toBe(true)
   h.adapter.acknowledgeSessionRelease('session-timeline')
-  await h.adapter.acquire(h.input)
-  expect(h.resolveLaunch).toHaveBeenCalledTimes(2)
+  await h.adapter.acquire({ ...h.input, options: { model: 'other', effort: 'high' } })
+  expect(h.resolveLaunch).toHaveBeenLastCalledWith(h.input.identity, {
+    model: 'other',
+    effort: 'high'
+  })
   expect(h.processes).toHaveLength(2)
+})
+
+it('refuses an effort agy does not launch with and an unknown option, leaving the child and its values alone', async () => {
+  const h = await setup()
+  await expect(
+    h.adapter.setOption({
+      sessionId: 'session-timeline',
+      fence: 7,
+      key: 'effort',
+      value: 'maximum'
+    })
+  ).rejects.toBeInstanceOf(AgentSessionOptionRejectedError)
+  await expect(
+    h.adapter.setOption({ sessionId: 'session-timeline', fence: 7, key: 'fastMode', value: 'true' })
+  ).rejects.toBeInstanceOf(AgentSessionOptionRejectedError)
+  expect(h.processes).toHaveLength(1)
+  expect(h.adapter.readAcquisitionOptions({ sessionId: 'session-timeline', fence: 7 })).toEqual(
+    h.input.options
+  )
+  await expect(h.adapter.readOptions({ sessionId: 'session-timeline', fence: 7 })).resolves.toEqual(
+    {
+      models: [],
+      current: { model: 'model-id', effort: 'high' }
+    }
+  )
+})
+
+it('takes access picks at the next start and reads the catalog only for a live child', async () => {
+  const h = await setup()
+  expect(h.adapter.takesAccessAtNextStart('session-timeline')).toBe(true)
+  expect(h.adapter.modelsFromRestingCatalog('session-timeline')).toBe(true)
+  expect(h.adapter.takesAccessAtNextStart('unknown-session')).toBe(false)
+  expect(h.adapter.modelsFromRestingCatalog('unknown-session')).toBe(false)
 })
 
 it('advertises only supported stream capabilities and refuses stale dispatch fences', async () => {

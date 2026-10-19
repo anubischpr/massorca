@@ -4,6 +4,7 @@ import type {
 } from '../provider-process/managed-provider-process'
 import type { ProviderProcessLaunch } from '../provider-process/provider-process-launch'
 import type {
+  AntigravityFrameFieldKinds,
   AntigravityStreamResult,
   AntigravityStreamStepUpdate
 } from './antigravity-stream-json-protocol'
@@ -22,6 +23,8 @@ export type AntigravityStreamTransportEvent =
       clientMessageId: string
       terminal: boolean
     }
+  /** A step frame that could not be read; the session continues without it. */
+  | { type: 'unclassified_step'; field: string; fieldKinds: AntigravityFrameFieldKinds }
 
 export type AntigravityStreamJsonTransportOptions = {
   launch: ProviderProcessLaunch

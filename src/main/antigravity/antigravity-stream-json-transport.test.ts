@@ -166,6 +166,48 @@ describe('Antigravity stream-json transport', () => {
     ])
   })
 
+  it('keeps the turn running past a failed view_file step and an unreadable step frame', async () => {
+    const rig = fixture()
+    const turn = rig.transport.submitPrompt('send-1', 'read the file')
+    rig.stdout.write(`${JSON.stringify(init())}\n`)
+    await expect(rig.transport.ready).resolves.toBe('conversation-1')
+    await nextTurn()
+    emitJson(rig.stdout, step('conversation-1', 0, 'user_input'))
+    emitJson(rig.stdout, {
+      event: 'step_update',
+      step_update: {
+        conversation_id: 'conversation-1',
+        step_index: 1,
+        state: 'ERROR',
+        step_type: 'tool',
+        tool_name: null,
+        duration_seconds: null,
+        tool_info: { name: 'view_file', error: 'no such file or directory' }
+      }
+    })
+    emitJson(rig.stdout, {
+      event: 'step_update',
+      step_update: {
+        conversation_id: 'conversation-1',
+        step_index: 'two',
+        state: 'DONE',
+        step_type: 'tool'
+      }
+    })
+    emitJson(rig.stdout, step('conversation-1', 2, 'agent_response', 'ACTIVE', 'Done.'))
+    emitJson(rig.stdout, result('conversation-1', 1, 'Done.'))
+    await expect(turn).resolves.toMatchObject({ status: 'SUCCESS', response: 'Done.' })
+    expect(rig.errors).toEqual([])
+    expect(rig.events.filter((event) => event.type === 'step_update')).toHaveLength(3)
+    expect(rig.events.filter((event) => event.type === 'unclassified_step')).toEqual([
+      {
+        type: 'unclassified_step',
+        field: 'step_index',
+        fieldKinds: expect.objectContaining({ step_index: 'string' })
+      }
+    ])
+  })
+
   it('serializes concurrent prompts until the preceding terminal result', async () => {
     const rig = fixture()
     const first = rig.transport.submitPrompt('send-1', 'first')

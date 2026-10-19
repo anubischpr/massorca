@@ -18006,7 +18006,8 @@
         },
         "optionNote": {
           "noRestrictedMode": "El chat de Pi no tiene modo restringido.",
-          "startOnlyModes": "Los modos atenuados solo se pueden establecer al iniciar la sesión."
+          "startOnlyModes": "Los modos atenuados solo se pueden establecer al iniciar la sesión.",
+          "appliesOnNextStart": "Los cambios se aplican cuando la sesión vuelva a iniciarse."
         },
         "options": "Opciones",
         "sessionOptions": "Opciones de sesión",

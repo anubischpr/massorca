@@ -212,7 +212,8 @@ export async function setStructuredAgentSessionOption(
             running: context.sessions.get(sessionId)?.child?.accessPosture,
             candidates: [params.value]
           })
-          if (recordOnly.length > 0) {
+          // A child whose access is fixed at launch takes the pick at its next start; it runs on until then.
+          if (recordOnly.length > 0 || context.deps.adapter.takesAccessAtNextStart?.(sessionId)) {
             return recordStructuredAgentSessionOptionIntent(context.deps, ctx, params)
           }
           return {

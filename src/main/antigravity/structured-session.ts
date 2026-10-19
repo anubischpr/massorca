@@ -13,6 +13,7 @@ import {
 import type { ProviderProcessLaunch } from '../provider-process/provider-process-launch'
 import { AntigravityStreamJsonTransport } from './antigravity-stream-json-transport'
 import { AntigravityStreamEventProjector } from './antigravity-stream-json-events'
+import type { AntigravityLaunchOptionKey } from './antigravity-session-options'
 import { agentSessionFailureFact, providerDiagnostic } from '../../shared/agent-session-failure'
 
 export type AntigravitySessionDeps = {
@@ -33,6 +34,8 @@ export class AntigravityStructuredSession {
   readonly transport: AntigravityStreamJsonTransport
   readonly lane: JsonlRpcTimelineLane
   readonly pending = new Set<string>()
+  /** Model and effort picks made since launch; each takes effect at the child's next start. */
+  readonly picks = new Map<AntigravityLaunchOptionKey, string>()
   private readonly unacknowledged = new Set<string>()
   private readonly echoed = new Set<string>()
   private readonly requestedAt = new Map<string, number>()
