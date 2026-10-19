@@ -1,4 +1,4 @@
-import type { AgentSessionHandleProvider } from '../../shared/agent-session-provider-handle'
+import { isTuiAgent } from '../../shared/tui-agent-config'
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import { resolveTuiAgentLaunchArgs } from '../../shared/tui-agent-launch-defaults'
 import { tokenizeStartupCommand } from '../../shared/tui-agent-startup-shell'
@@ -6,10 +6,14 @@ import { resolveLocalWindowsAgentStartupShell } from '../../shared/windows-termi
 
 /** Use the same grouping rules as terminal launches before the provider filters its owned flags. */
 export function structuredAgentConfiguredArgs(
-  agent: AgentSessionHandleProvider,
+  agent: string,
   settings: Partial<Pick<GlobalSettings, 'agentDefaultArgs' | 'terminalWindowsShell'>>,
   platform: NodeJS.Platform = process.platform
 ): string[] {
+  // Structured-only agents have no terminal Arguments setting.
+  if (!isTuiAgent(agent)) {
+    return []
+  }
   const shell =
     resolveLocalWindowsAgentStartupShell({
       platform,

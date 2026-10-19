@@ -26,6 +26,7 @@ import {
 import type { AgentSessionRecordStore } from '../runtime/agent-session-record-store'
 import { isWindowsProcessStartTimeAvailable } from '../windows/windows-process-table'
 import type { PiRpcLaunchOptions } from './rpc-launch'
+import { piStructuredLaunchArgs } from './rpc-saved-arguments'
 import { resolveAgentSessionFullAccess } from '../../shared/agent-session-access-mode'
 import { gentleShellModeForAccess, type GentleShellMode } from './gentle-shell-permission-mode'
 import { isPiRuntimeSelection, piRuntimeCommandSettings } from '../../shared/pi-runtime-selection'
@@ -45,6 +46,8 @@ export type PiRpcLaunchResolverDeps = {
   resolveCommand?: typeof resolveCliCommand
   probeVersion?: typeof probeAgentCliVersion
   resolveFullAccess?: () => boolean
+  /** The user's saved Arguments tokens for Pi, re-read per acquisition. */
+  resolveLaunchArgs?: () => Promise<string[]> | string[]
 }
 
 // Stable releases from 0.84.0 emit agent_settled after retries and detached compaction; older
@@ -209,6 +212,7 @@ export function createPiRpcLaunchResolver(
         forkFile = source
       }
     }
+    const extraArgs = piStructuredLaunchArgs((await deps.resolveLaunchArgs?.()) ?? [])
     const settings = deps.resolveCommandSettings?.() ?? {}
     const selection = record.options?.piRuntime
     if (selection !== undefined && !isPiRuntimeSelection(selection)) {
@@ -245,6 +249,7 @@ export function createPiRpcLaunchResolver(
             )
           }
         : {}),
+      ...(extraArgs.length > 0 ? { extraArgs } : {}),
       previous,
       ...(sessionFile ? { sessionFile } : {}),
       ...(forkFile ? { forkFile } : {}),

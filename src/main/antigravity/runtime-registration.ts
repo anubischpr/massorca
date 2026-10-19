@@ -80,7 +80,8 @@ export const ANTIGRAVITY_RUNTIME_REGISTRATION: StructuredAgentRuntimeRegistratio
           : {}),
         ...(context.deps.resolveAgentFullAccess
           ? { resolveFullAccess: () => context.deps.resolveAgentFullAccess!('antigravity') }
-          : {})
+          : {}),
+        resolveLaunchArgs: () => context.deps.resolveLaunchArgs('antigravity')
       }),
       ...(context.deps.readProcessStartTime
         ? { readProcessStartTime: context.deps.readProcessStartTime }

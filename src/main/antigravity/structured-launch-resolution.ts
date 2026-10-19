@@ -22,6 +22,7 @@ import {
   AgentSessionPreSpawnError,
   type AgentSessionPreSpawnReason
 } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
+import { structuredPassthroughLaunchArgs } from '../native-chat/structured-agent-passthrough-launch-args'
 import { readAntigravityAccountBinding } from './structured-account-binding'
 import { prepareAntigravityAccountForLaunch } from './native-account-launch'
 
@@ -34,6 +35,8 @@ export type AntigravityLaunchDeps = {
   resolveEnvironment: () => Promise<NodeJS.ProcessEnv>
   resolveCommandSettings?: () => StructuredAgentCommandSettings
   resolveFullAccess?: () => boolean
+  /** The user's saved Arguments tokens for agy, re-read per acquisition. */
+  resolveLaunchArgs?: () => Promise<string[]> | string[]
   readBinding?: typeof readAntigravityAccountBinding
   prepareAccount?: typeof prepareAntigravityAccountForLaunch
   probeVersion?: typeof probeAgentCliVersionOutcome
@@ -122,12 +125,14 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
     if (options.effort && !['low', 'medium', 'high'].includes(options.effort)) {
       throw new Error('Antigravity reasoning effort is unsupported')
     }
+    const savedArgs = antigravitySavedLaunchArgs((await deps.resolveLaunchArgs?.()) ?? [], options)
     return {
       command,
       cwd,
       env,
       previous,
       args: [
+        ...savedArgs,
         '--input-format',
         'stream-json',
         '--output-format',
@@ -139,6 +144,42 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
       ]
     }
   }
+}
+
+/** Transport, session and permission options the structured launch sets itself. */
+const ANTIGRAVITY_OWNED_VALUE_FLAGS = [
+  '--input-format',
+  '--output-format',
+  '--conversation',
+  '--mode'
+]
+const ANTIGRAVITY_OWNED_SWITCHES = [
+  '--dangerously-skip-permissions',
+  '--print',
+  '-p',
+  '--continue',
+  '-c',
+  '--resume',
+  '-r',
+  '--help',
+  '-h',
+  '--version',
+  '-v'
+]
+
+/** Saved Arguments minus what Orca owns; a model or effort the chat picked beats the saved one. */
+function antigravitySavedLaunchArgs(
+  tokens: readonly string[],
+  options: Readonly<Record<string, string>>
+): string[] {
+  return structuredPassthroughLaunchArgs('Antigravity', tokens, {
+    valueFlags: new Set([
+      ...ANTIGRAVITY_OWNED_VALUE_FLAGS,
+      ...(options.model ? ['--model', '-m'] : []),
+      ...(options.effort ? ['--effort'] : [])
+    ]),
+    switches: new Set(ANTIGRAVITY_OWNED_SWITCHES)
+  })
 }
 
 const ANTIGRAVITY_MODE_FLAGS = {
