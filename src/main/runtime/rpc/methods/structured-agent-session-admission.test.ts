@@ -204,6 +204,29 @@ describe("createSupport's launch seed", () => {
     expect(seedOptions).toHaveBeenCalledWith('codex', undefined)
   })
 
+  it('seeds with the Pi runtime the host fell back to, and no other host call changes', async () => {
+    const seedOptions = vi.fn(() => SEED)
+    const response = await call(
+      CREATE_SUPPORT.method,
+      CREATE_SUPPORT.params,
+      MODE_CHOOSING_CLIENT,
+      {
+        ...SETTING_ON,
+        getStructuredAgentSessionCreateSupport: vi.fn(async () => ({
+          supported: true,
+          piRuntime: 'gentle-shell'
+        })),
+        structuredAgentSessionLaunchSeedOptions: seedOptions
+      }
+    )
+
+    expect(seedOptions).toHaveBeenCalledWith('codex', undefined)
+    expect(response).toMatchObject({
+      ok: true,
+      result: { supported: true, seedOptions: { ...SEED, piRuntime: 'gentle-shell' } }
+    })
+  })
+
   it('carries none when the chat is not supported', async () => {
     const seedOptions = vi.fn(() => SEED)
     const response = await call(

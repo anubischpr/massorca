@@ -113,6 +113,9 @@ export type StructuredAgentRuntimeRegistration = {
     cwd: string
     env: Record<string, string>
     commandSettings: StructuredAgentCommandSettings
+    /** A Command that names no runnable program counts as not installed, instead of passing so the
+     *  launch can state its own refusal; set when probing a candidate the user never configured. */
+    candidate?: boolean
   }) => Promise<boolean | AgentSessionPreSpawnReason>
   /** The account a chat of this agent pins; see `StructuredAgentAccountHomeRequest`. */
   resolveAccountHome: (

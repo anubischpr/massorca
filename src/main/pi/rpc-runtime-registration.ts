@@ -11,7 +11,7 @@ import { PI_RPC_AGENT } from './rpc-agent-definition'
 import {
   createPiRpcLaunchResolver,
   piAgentHome,
-  piRpcVersionSupported,
+  piRpcLaunchOutcome,
   resolvePiRpcCommand
 } from './rpc-launch-resolution'
 import { PiRpcSessionAdapter } from './rpc-session-adapter'
@@ -75,18 +75,20 @@ export const PI_RPC_RUNTIME_REGISTRATION: StructuredAgentRuntimeRegistration = {
     })
   }),
   supportsLocation: supportsSupervisedProviderChildLocation,
-  supportsLaunch: async ({ cwd, env, commandSettings }) => {
+  supportsLaunch: async ({ cwd, env, commandSettings, candidate }) => {
     let command: string
     try {
       command = resolvePiRpcCommand(env, commandSettings)
     } catch (error) {
       // An unrunnable Command setting is the launch's refusal to state, not a terminal.
       if (isAgentSessionPreSpawnError(error)) {
-        return true
+        return candidate ? 'cliMissing' : true
       }
       throw error
     }
-    return piRpcVersionSupported({ command, cwd, env })
+    const outcome = await piRpcLaunchOutcome({ command, cwd, env })
+    // Only a binary that never ran is "not installed"; one that ran unsupported keeps the generic line.
+    return outcome === 'supported' ? true : outcome === 'did-not-start' ? 'cliMissing' : false
   },
   resolveAccountHome: async ({ launchEnv, commandSettings }) =>
     agentSessionAccountHome(PI_RPC_AGENT, piAgentHome(launchEnv, commandSettings))

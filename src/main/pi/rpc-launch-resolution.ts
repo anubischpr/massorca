@@ -1,8 +1,6 @@
 import { open, realpath } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, isAbsolute, join, normalize } from 'node:path'
-import { runProcess } from '../../shared/child-process/run-process'
-import { parseCliVersion } from '../../shared/app-version'
 import { z } from 'zod'
 import { agentSessionRefusalError } from '../../shared/agent-session-wire-refusals'
 import {
@@ -10,11 +8,17 @@ import {
   agentSessionProviderHandleKey,
   type AgentSessionProviderHandleLink
 } from '../../shared/agent-session-provider-handle'
+import { probeGentleShellPiOutcome } from './gentle-shell-version-probe'
 import { isLegacyAgentSessionAccountHome } from '../../shared/agent-session-account-home'
 import type { AgentSessionJournalIdentity } from '../../shared/agent-session-journal-types'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import type { resolveCliCommand } from '../../shared/node-cli-command-resolution'
-import { isStableCliVersionOnLine, probeAgentCliVersion } from '../agent-cli-version-probe'
+import {
+  isStableCliVersionOnLine,
+  probeAgentCliVersion,
+  probeAgentCliVersionOutcome,
+  type AgentCliVersionProbeOutcome
+} from '../agent-cli-version-probe'
 import {
   resolveStructuredAgentCommand,
   type StructuredAgentCommandSettings
@@ -62,47 +66,6 @@ function isGentleShellCommand(command: string): boolean {
   )
 }
 
-function parseGentleShellPiVersion(output: string): string | null {
-  const lines = output
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-  const wrapperLine =
-    /^gentle-shell(?:\s+version)?\s+(v?\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?)$/i
-  const piLine = /^pi(?:\s+version)?\s+(v?\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?)$/i
-  const hasValidLineCount =
-    lines.length === 2 || (lines.length === 3 && /^home isolated \S.*$/i.test(lines[2]))
-  if (!hasValidLineCount || !wrapperLine.test(lines[0]) || !piLine.test(lines[1])) {
-    return null
-  }
-  return parseCliVersion(lines[1])
-}
-
-async function probeGentleShellPiVersion(launch: {
-  command: string
-  cwd: string
-  env: Record<string, string>
-}): Promise<string | null> {
-  let result
-  try {
-    result = await runProcess({
-      program: launch.command,
-      cwd: launch.cwd,
-      env: launch.env,
-      args: ['--version'],
-      timeoutMs: 5_000,
-      maxOutputBytes: 4_096,
-      killOnOutputLimit: true
-    })
-  } catch {
-    return null
-  }
-  if (result.code !== 0 || result.timedOut || result.outputTruncated) {
-    return null
-  }
-  return parseGentleShellPiVersion(result.stdout)
-}
-
 /** The binary a Pi launch with `env` spawns; create support resolves through here too. */
 export function resolvePiRpcCommand(
   env: Readonly<Record<string, string | undefined>>,
@@ -118,13 +81,24 @@ export function resolvePiRpcCommand(
   )
 }
 
+/** Whether the Pi binary ran and is a supported release; `did-not-start` means it is not installed
+ *  or not runnable here. */
+export function piRpcLaunchOutcome(
+  launch: { command: string; cwd: string; env: Record<string, string> },
+  probe: typeof probeAgentCliVersionOutcome = probeAgentCliVersionOutcome
+): Promise<AgentCliVersionProbeOutcome> {
+  return isGentleShellCommand(launch.command)
+    ? probeGentleShellPiOutcome(launch, supportsPiRpcVersion)
+    : probe({ program: launch.command, cwd: launch.cwd, env: launch.env }, supportsPiRpcVersion)
+}
+
 export function piRpcVersionSupported(
   launch: { command: string; cwd: string; env: Record<string, string> },
   probe: typeof probeAgentCliVersion = probeAgentCliVersion
 ): Promise<boolean> {
   if (isGentleShellCommand(launch.command)) {
-    return probeGentleShellPiVersion(launch).then(
-      (version) => version !== null && supportsPiRpcVersion(version)
+    return probeGentleShellPiOutcome(launch, supportsPiRpcVersion).then(
+      (outcome) => outcome === 'supported'
     )
   }
   return probe({ program: launch.command, cwd: launch.cwd, env: launch.env }, supportsPiRpcVersion)

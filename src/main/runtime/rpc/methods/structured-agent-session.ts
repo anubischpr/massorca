@@ -138,10 +138,13 @@ export const STRUCTURED_AGENT_SESSION_METHODS = [
             )
           : await ctx.runtime.getStructuredAgentSessionCreateSupport(params.worktree, params.agent)
       // Optional: older clients ignore it, and a client seeds its picker with what create will use.
-      const seedOptions =
+      const hostSeed =
         support.supported || support.reason === 'access'
           ? ctx.runtime.structuredAgentSessionLaunchSeedOptions(params.agent, params.accessMode)
           : undefined
+      // Why: a Pi request naming no runtime may have fallen back, which the client must run too.
+      const seedOptions =
+        hostSeed && support.piRuntime ? { ...hostSeed, piRuntime: support.piRuntime } : hostSeed
       return seedOptions ? { ...support, seedOptions } : support
     }
   }),

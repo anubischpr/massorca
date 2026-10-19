@@ -18442,7 +18442,9 @@
         "attachmentsUnsupported": "Elimina los adjuntos antes de establecer un objetivo."
       },
       "structuredSessionHostDeclined": "Se abrió {{value0}} en una terminal",
+      "structuredSessionHostDeclinedCliMissing": "{{value0}} no está instalado en este servidor.",
       "structuredSessionHostDeclinedDescription": "Este servidor no puede ejecutar un chat de {{value0}} en este espacio de trabajo.",
+      "structuredSessionHostDeclinedPiMissing": "Ni Pi ni Gentle Shell están instalados en este servidor.",
       "structuredSessionHostUnreachable": "No se pudo contactar con {{value0}}",
       "structuredSessionHostUnreachableDescription": "Orca no abrió un chat de {{value0}}. Comprueba la conexión con el servidor y vuelve a intentarlo.",
       "hostOutage": {

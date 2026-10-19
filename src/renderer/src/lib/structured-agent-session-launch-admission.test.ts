@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   createSupport: vi.fn(),
+  create: vi.fn(),
   toastInfo: vi.fn(),
   toastError: vi.fn(),
   launchAgentInNewTab: vi.fn()
@@ -15,9 +16,12 @@ vi.mock('@/lib/ai-vault-session-resume-preparation', () => ({
   prepareAiVaultSessionForResume: async () => ({ sessionId: 'provider-1' })
 }))
 vi.mock('@/runtime/structured-agent-session-client', () => ({
-  callStructuredAgentSession: vi.fn(async (_target: unknown, method: string) => {
+  callStructuredAgentSession: vi.fn(async (_target: unknown, method: string, params: unknown) => {
     if (method === 'agentSession.createSupport') {
       return mocks.createSupport()
+    }
+    if (method === 'agentSession.create') {
+      mocks.create(params)
     }
     return new Promise(() => undefined)
   })
@@ -54,6 +58,18 @@ function pairedPlan(
 }
 
 const localPlan = () => pairedPlan({ executionHostId: 'local' })
+
+function piPlan(executionHostId: 'local' | 'runtime:server-1') {
+  return adoptAgentSessionLaunchVerdict({
+    requestId: 'request-pi',
+    route: 'structured-native-chat',
+    agent: 'pi',
+    worktreeId: WORKTREE,
+    executionHostId,
+    prompt: 'fix the flaky test',
+    promptDelivery: 'auto-submit'
+  })
+}
 
 /** Nothing of a chat exists on this machine: no tab, launch, record, queued prompt or intent. */
 function expectNoChatCommitted(): void {
@@ -227,6 +243,84 @@ describe('a structured chat launch on a paired server', () => {
       ])
     )
     launch?.cancel()
+  })
+})
+
+// A Windows client asks for stock Pi (it names no runtime); a server that only has Gentle Shell
+// resolves it, and the chat, its create and its terminal must all follow that answer.
+describe('a Pi chat launch the server resolves to Gentle Shell', () => {
+  it.each([
+    ['a paired server', 'runtime:server-1' as const],
+    ['this machine', 'local' as const]
+  ])('opens the chat on Gentle Shell and creates it with that runtime on %s', async (_, host) => {
+    mocks.createSupport.mockResolvedValue({
+      supported: true,
+      seedOptions: { accessMode: 'full-access', piRuntime: 'gentle-shell' }
+    })
+
+    const launch = beginStructuredAgentSessionProvisionalLaunch({
+      plan: piPlan(host),
+      hooks: {},
+      onHostDeclined: vi.fn()
+    })
+    await vi.waitFor(() =>
+      expect(useAppStore.getState().unifiedTabsByWorktree[WORKTREE]).toHaveLength(1)
+    )
+    const sessionId = useAppStore.getState().unifiedTabsByWorktree[WORKTREE]![0]!.entityId
+
+    expect(getStructuredAgentSessionLaunchSelection(sessionId)?.seed).toMatchObject({
+      piRuntime: 'gentle-shell'
+    })
+    await vi.waitFor(() => expect(mocks.create).toHaveBeenCalledOnce())
+    expect(mocks.create.mock.calls[0]![0]).toMatchObject({ agent: 'pi', piRuntime: 'gentle-shell' })
+    launch?.cancel()
+  })
+
+  it('keeps stock Pi for a host that names no runtime', async () => {
+    mocks.createSupport.mockResolvedValue({ supported: true })
+
+    const launch = beginStructuredAgentSessionProvisionalLaunch({
+      plan: piPlan('runtime:server-1'),
+      hooks: {},
+      onHostDeclined: vi.fn()
+    })
+    await vi.waitFor(() => expect(mocks.create).toHaveBeenCalledOnce())
+    expect(mocks.create.mock.calls[0]![0]).not.toHaveProperty('piRuntime')
+    launch?.cancel()
+  })
+
+  it('says Pi or Gentle Shell is not installed when the server names a missing CLI', async () => {
+    mocks.createSupport.mockResolvedValue({
+      supported: false,
+      reason: 'agent',
+      cause: 'cliMissing'
+    })
+
+    const launch = beginStructuredAgentSessionProvisionalLaunch({
+      plan: piPlan('runtime:server-1'),
+      hooks: {},
+      onHostDeclined: vi.fn(() => ({ opened: true }))
+    })
+    await expect(launch?.settlement).resolves.toEqual({ kind: 'terminal' })
+
+    expect(mocks.toastInfo).toHaveBeenCalledWith(expect.any(String), {
+      description: 'Neither Pi nor Gentle Shell is installed on this server.'
+    })
+  })
+
+  it('keeps the generic line for a decline that names no cause', async () => {
+    mocks.createSupport.mockResolvedValue({ supported: false, reason: 'agent' })
+
+    const launch = beginStructuredAgentSessionProvisionalLaunch({
+      plan: piPlan('runtime:server-1'),
+      hooks: {},
+      onHostDeclined: vi.fn(() => ({ opened: true }))
+    })
+    await expect(launch?.settlement).resolves.toEqual({ kind: 'terminal' })
+
+    expect(mocks.toastInfo).toHaveBeenCalledWith(expect.any(String), {
+      description: "This server can't run a Pi / Gentle Shell chat in this workspace."
+    })
   })
 })
 

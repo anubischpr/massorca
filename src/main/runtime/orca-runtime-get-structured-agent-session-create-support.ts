@@ -49,7 +49,7 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
     agent: StructuredAgentId,
     piRuntime?: PiRuntimeSelection,
     accessMode?: 'default' | 'full-access'
-  ): Promise<{ supported: boolean; reason?: 'agent' | 'remote' | 'wsl' | 'access' }> {
+  ): Promise<Awaited<ReturnType<typeof resolveHostStructuredAgentCreateSupport>>> {
     return resolveHostStructuredAgentCreateSupport({
       agent,
       piRuntime,
@@ -211,6 +211,7 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
       input.piRuntime,
       input.accessMode
     )
+    const piRuntime = input.piRuntime ?? support.piRuntime ?? 'pi'
     // Adopting a conversation reads the agent's own transcript, which only Claude and Codex have
     // importers for.
     if (!support.supported || (input.resumeFrom && !isAgentSessionHandleProvider(input.agent))) {
@@ -220,12 +221,10 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
     }
     const currentSettings = this.requireStore().getSettings()
     const settings =
-      input.agent === 'pi'
-        ? piRuntimeCommandSettings(currentSettings, input.piRuntime ?? 'pi')
-        : currentSettings
+      input.agent === 'pi' ? piRuntimeCommandSettings(currentSettings, piRuntime) : currentSettings
     const launchEnv = resolveTuiAgentLaunchEnv(input.agent, settings.agentDefaultEnv)
     const seed = this.structuredAgentSessionLaunchSeedOptions(input.agent, input.accessMode)
-    const options = input.agent === 'pi' ? { ...seed, piRuntime: input.piRuntime ?? 'pi' } : seed
+    const options = input.agent === 'pi' ? { ...seed, piRuntime } : seed
     const location = await this.resolveStructuredAgentSessionLocation(input.worktree)
     const definition = requireStructuredAgentDefinition(input.agent)
     const host = getStructuredAgentSessionHost()

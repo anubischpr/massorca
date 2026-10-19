@@ -14,7 +14,7 @@ import {
   type StructuredAgentSessionCreateParams,
   type StructuredAgentSessionResumeSource
 } from '../../../shared/structured-agent-session-create'
-import { resolveStructuredLaunchSeedOptions } from '../../../shared/native-chat-session-option-defaults'
+import { launchSeedOptions, type LaunchSeed } from '@/lib/structured-agent-launch-seed-options'
 import { createAccessModeFor } from '../../../shared/structured-agent-session-access-option'
 import { accessRuntimeDeclaredByHost } from '@/runtime/host-structured-agent-access'
 import { hasRuntimeRpcErrorCode } from '../../../shared/runtime-rpc-error-code'
@@ -63,23 +63,6 @@ export type StructuredAgentSessionLaunchIntent = {
   params: StructuredAgentSessionCreateParams
   /** The saved selection create seeds, read when the intent is built. */
   seedOptions?: Readonly<Record<string, string>>
-}
-
-type LaunchSeed = Readonly<Record<string, string>> | undefined
-
-/** What create will seed: this machine's saved selection for its own chats; for a paired server's,
- *  the server's own, which it reports when it admits the chat (absent from an older server). */
-function launchSeedOptions(
-  state: ReturnType<typeof useAppStore.getState>,
-  owner: Pick<StructuredAgentSessionLaunchIntent, 'target'>,
-  agent: TuiAgent,
-  hostSeedOptions: LaunchSeed
-): { seedOptions?: Readonly<Record<string, string>> } {
-  const seedOptions =
-    owner.target.kind === 'local'
-      ? resolveStructuredLaunchSeedOptions(state.settings?.nativeChatSessionOptions, agent)
-      : hostSeedOptions
-  return seedOptions ? { seedOptions } : {}
 }
 
 function structuredAgentSessionOwnerTarget(
@@ -185,7 +168,7 @@ function buildStructuredAgentSessionLaunchIntent(
       ...(resumeFrom ? { resumeFrom } : {}),
       randomUuid: createBrowserUuid
     }),
-    ...launchSeedOptions(state, owner, agent, hostSeedOptions)
+    ...launchSeedOptions(state.settings?.nativeChatSessionOptions, owner, agent, hostSeedOptions)
   }
 }
 
@@ -262,7 +245,14 @@ export function restoreStructuredAgentSessionLaunchIntent(args: {
       ...(accessMode ? { accessMode } : {}),
       ...(args.resumeFrom ? { resumeFrom: args.resumeFrom } : {})
     },
-    ...launchSeedOptions(state, { target }, args.agent, args.seedOptions)
+    ...launchSeedOptions(
+      state.settings?.nativeChatSessionOptions,
+      { target },
+      args.agent,
+      args.piRuntime === 'gentle-shell'
+        ? { ...args.seedOptions, piRuntime: args.piRuntime }
+        : args.seedOptions
+    )
   }
 }
 

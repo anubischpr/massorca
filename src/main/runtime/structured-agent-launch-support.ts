@@ -64,7 +64,8 @@ export async function structuredAgentSupportsLaunch(
   agent: string,
   worktreeSelector: string,
   runtime: LaunchSupportRuntime,
-  piRuntime?: PiRuntimeSelection
+  piRuntime?: PiRuntimeSelection,
+  candidate?: boolean
 ): Promise<boolean | AgentSessionPreSpawnReason> {
   const supportsLaunch = structuredAgentRuntimeRegistration(agent)?.supportsLaunch
   if (!supportsLaunch) {
@@ -80,13 +81,45 @@ export async function structuredAgentSupportsLaunch(
     cwd,
     env,
     commandSettings:
-      agent === 'pi' ? piRuntimeCommandSettings(settings, piRuntime ?? 'pi') : settings
+      agent === 'pi' ? piRuntimeCommandSettings(settings, piRuntime ?? 'pi') : settings,
+    ...(candidate ? { candidate } : {})
   })
+}
+
+/** The Pi runtime a create with none named runs on this host: stock Pi when it can run, else Gentle
+ *  Shell when that can. An explicit choice is never replaced. `launch` is the verdict for the
+ *  chosen runtime; when neither is installed it says so, which is the one cause worth naming. */
+async function resolveHostPiRuntime(input: {
+  piRuntime?: PiRuntimeSelection
+  worktreeSelector: string
+  runtime: LaunchSupportRuntime
+}): Promise<{ piRuntime?: PiRuntimeSelection; launch: boolean | AgentSessionPreSpawnReason }> {
+  const stock = await structuredAgentSupportsLaunch(
+    'pi',
+    input.worktreeSelector,
+    input.runtime,
+    input.piRuntime
+  )
+  if (input.piRuntime !== undefined || stock === true) {
+    return { ...(input.piRuntime ? { piRuntime: input.piRuntime } : {}), launch: stock }
+  }
+  const gentle = await structuredAgentSupportsLaunch(
+    'pi',
+    input.worktreeSelector,
+    input.runtime,
+    'gentle-shell',
+    true
+  )
+  if (gentle === true) {
+    return { piRuntime: 'gentle-shell', launch: true }
+  }
+  return { launch: stock === 'cliMissing' && gentle === 'cliMissing' ? 'cliMissing' : stock }
 }
 
 /** `agentSession.createSupport` on this host: every refusal it can know before spawning. The
  *  agent's location rule and installed-agent check from its registration, without installing the
- *  host, then Claude's managed-account gate. A refusal logs which check said no. */
+ *  host, then Claude's managed-account gate. A refusal logs which check said no. A Pi request that
+ *  names no runtime resolves to Gentle Shell when only that is installed, and the reply says so. */
 export async function resolveHostStructuredAgentCreateSupport(input: {
   agent: StructuredAgentId
   piRuntime?: PiRuntimeSelection
@@ -97,25 +130,28 @@ export async function resolveHostStructuredAgentCreateSupport(input: {
   getSettings: () => ClaudeManagedAccountGateSettings
 }): Promise<StructuredAgentSessionCreateSupport> {
   const { agent, location } = input
+  const supportsLocation =
+    structuredAgentRuntimeRegistration(agent)?.supportsLocation(location) ?? false
+  let piRuntime = input.piRuntime
+  let launch: boolean | AgentSessionPreSpawnReason = false
+  if (supportsLocation) {
+    if (agent === 'pi') {
+      const resolved = await resolveHostPiRuntime(input)
+      piRuntime = resolved.piRuntime
+      launch = resolved.launch
+    } else {
+      launch = await structuredAgentSupportsLaunch(agent, input.worktreeSelector, input.runtime)
+    }
+  }
   // Why: only stock Pi lacks a restricted mode; Gentle Shell applies its own Normal mode.
   if (
     agent === 'pi' &&
-    input.piRuntime !== 'gentle-shell' &&
+    piRuntime !== 'gentle-shell' &&
     resolvedPiChatAccessMode(input.runtime.requireStore().getSettings(), input.accessMode) !==
       'full-access'
   ) {
     return { supported: false, reason: 'access' }
   }
-  const supportsLocation =
-    structuredAgentRuntimeRegistration(agent)?.supportsLocation(location) ?? false
-  const launch = supportsLocation
-    ? await structuredAgentSupportsLaunch(
-        agent,
-        input.worktreeSelector,
-        input.runtime,
-        input.piRuntime
-      )
-    : false
   const supportsLaunch = launch === true
   const support = resolveStructuredAgentSessionCreateSupport({
     agent,
@@ -128,6 +164,12 @@ export async function resolveHostStructuredAgentCreateSupport(input: {
     support,
     !supportsLocation ? 'location' : !supportsLaunch ? 'installed-agent' : 'managed-account'
   )
-  // Why: a CLI that cannot run here names its cause, so the chat says that rather than a bare decline.
-  return !support.supported && typeof launch === 'string' ? { ...support, cause: launch } : support
+  if (!support.supported) {
+    // Why: a CLI that cannot run here names its cause, so the chat says that rather than a bare decline.
+    return typeof launch === 'string' ? { ...support, cause: launch } : support
+  }
+  // Why: only a fallback is reported; an explicit runtime is already what the caller holds.
+  return agent === 'pi' && input.piRuntime === undefined && piRuntime
+    ? { ...support, piRuntime }
+    : support
 }
