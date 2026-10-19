@@ -21,6 +21,7 @@ import {
 import { STRUCTURED_AGENT_SESSION_REVEAL_RUNTIME_CAPABILITY } from '../../../shared/protocol-version'
 import { isRuntimeCompatBlockError } from '@/runtime/runtime-protocol-compat'
 import { executionHostIdForStructuredTarget } from '@/runtime/structured-agent-session-owner'
+import { refreshWebRuntimeSessionTabsSnapshot } from '@/runtime/web-runtime-session-snapshot'
 
 const STRUCTURED_SESSION_RESTORE_TIMEOUT_MS = 5_000
 
@@ -273,6 +274,14 @@ export async function refreshStructuredSessionTabs(
     getActiveRuntimeTarget({
       activeRuntimeEnvironmentId: getRuntimeEnvironmentIdForWorktree(state, worktreeId)
     })
+  if (host.kind === 'environment') {
+    // Why: a paired host's inventory reaches the mirror only through its host-scoped refresh, which
+    // applies the snapshot before this resolves, so a caller can activate the tab right after.
+    await withStructuredSessionRestoreTimeout(
+      refreshWebRuntimeSessionTabsSnapshot(host.environmentId, worktreeId, { errorMode: 'throw' })
+    )
+    return
+  }
   // Every other caller that applies an inventory fences it on the sync generation. Structured chat
   // can be switched off while this call is in flight, which wipes the mirror; without this the
   // answer would land afterwards and re-seed a chat row into a renderer that just discarded them.
@@ -285,10 +294,9 @@ export async function refreshStructuredSessionTabs(
       { timeoutMs: STRUCTURED_SESSION_RESTORE_TIMEOUT_MS }
     )
   )
-  if (host.kind !== 'local' || !isCurrentLocalStructuredSessionGeneration(generation)) {
+  if (!isCurrentLocalStructuredSessionGeneration(generation)) {
     return
   }
-  // Paired inventories arrive through their existing host-scoped subscription.
   applyStructuredSessionTabSnapshots([snapshot])
 }
 

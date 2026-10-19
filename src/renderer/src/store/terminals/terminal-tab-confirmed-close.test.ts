@@ -86,14 +86,15 @@ describe('closeTerminalTabConfirmingExit', () => {
     mockApi.pty.kill.mockResolvedValue({ exitConfirmed: false })
 
     await expect(closeTerminalTabConfirmingExit(store.getState(), 'tab-a')).resolves.toBe(false)
-    expect(openTabIds(store)).toEqual(['tab-b'])
+    expect(openTabIds(store)).toEqual(['tab-a', 'tab-b'])
   })
 
-  it('does not confirm when the local kill is rejected', async () => {
+  it('does not confirm when the local kill is rejected, and keeps the tab', async () => {
     const store = storeWithTabs(['pty-1'])
     mockApi.pty.kill.mockRejectedValue(new Error('pty gone'))
 
     await expect(closeTerminalTabConfirmingExit(store.getState(), 'tab-a')).resolves.toBe(false)
+    expect(openTabIds(store)).toEqual(['tab-a', 'tab-b'])
   })
 
   it('confirms only when every process of the tab confirmed', async () => {
@@ -138,21 +139,32 @@ describe('closeTerminalTabConfirmingExit', () => {
     await expect(closeTerminalTabConfirmingExit(store.getState(), 'tab-a')).resolves.toBe(false)
   })
 
-  it('does not confirm a tab that holds no process, and still removes it', async () => {
+  it('does not confirm a tab that holds no process, and keeps it open', async () => {
     const store = storeWithTabs([])
 
     await expect(closeTerminalTabConfirmingExit(store.getState(), 'tab-a')).resolves.toBe(false)
-    expect(openTabIds(store)).toEqual(['tab-b'])
+    expect(openTabIds(store)).toEqual(['tab-a', 'tab-b'])
   })
 
-  it('forgets the structured chat link of the closing tab only', () => {
-    const store = storeWithTabs([])
+  it('forgets the structured chat link of the closing tab only, once its exit is confirmed', async () => {
+    const store = storeWithTabs(['pty-1'])
     store.getState().linkStructuredChatTerminalTab('tab-a', LINK)
     store.getState().linkStructuredChatTerminalTab('tab-b', LINK)
 
-    void closeTerminalTabConfirmingExit(store.getState(), 'tab-a')
+    await expect(closeTerminalTabConfirmingExit(store.getState(), 'tab-a')).resolves.toBe(true)
 
     expect(store.getState().structuredChatTerminalLinksByTabId).toEqual({ 'tab-b': LINK })
+  })
+
+  it('keeps the tab and its link while the exit is still unconfirmed', async () => {
+    const store = storeWithTabs(['pty-1'])
+    store.getState().linkStructuredChatTerminalTab('tab-a', LINK)
+    mockApi.pty.kill.mockResolvedValue({ exitConfirmed: false })
+
+    await expect(closeTerminalTabConfirmingExit(store.getState(), 'tab-a')).resolves.toBe(false)
+
+    expect(openTabIds(store)).toEqual(['tab-a', 'tab-b'])
+    expect(store.getState().structuredChatTerminalLinksByTabId).toEqual({ 'tab-a': LINK })
   })
 
   it('keeps the ordinary close teardown unconfirmed and fire-and-forget', () => {

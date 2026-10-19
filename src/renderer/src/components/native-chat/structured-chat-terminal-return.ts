@@ -12,7 +12,10 @@ import {
   refreshStructuredSessionTabs,
   revealStructuredSession
 } from '@/lib/activate-ai-vault-structured-session'
-import { activateStructuredAgentSessionById } from '@/lib/structured-agent-session-tab-activation'
+import {
+  activateStructuredAgentSessionById,
+  structuredAgentSessionTabListed
+} from '@/lib/structured-agent-session-tab-activation'
 import { isAgentSessionHandleProvider } from '../../../../shared/agent-session-provider-handle'
 import { readAgentSessionRefusalDetails } from '../../../../shared/agent-session-refusal-details'
 import type { StructuredChatTerminalLink } from '../../store/terminals/terminal-contracts'
@@ -24,24 +27,33 @@ export type StructuredChatTerminalReturnArgs = {
   link: StructuredChatTerminalLink
 }
 
+/** The structured chat a terminal returns to, named by its session id. */
+export type StructuredChatRef = { worktreeId: string; sessionId: string }
+
+/** `ready` means the chat is listed and can be shown; the other three say why it cannot be. */
+export type StructuredChatRevealOutcome = 'ready' | 'gone' | 'host-cannot-open' | 'unreachable'
+
 export type StructuredChatTerminalReturnDeps = {
   /** Removes the terminal tab; resolves true only when every process it held confirmed its exit. */
   closeTerminalTabConfirmingExit: (tabId: string) => Promise<boolean>
+  /** Lists the chat's own record without showing it, so no provider child starts. */
+  revealStructuredChat: (chat: StructuredChatRef) => Promise<StructuredChatRevealOutcome>
+  /** Shows a chat the inventory lists; false when it does not. */
+  activateStructuredChat: (chat: StructuredChatRef) => boolean
   /** Null when the chat's launch never began. */
   resumeInStructuredChat: (
     args: ResumeProviderSessionInNewChatArgs
   ) => Pick<StructuredAgentSessionProvisionalLaunch, 'sessionId'> | null
-  /** Reopens the chat's own structured session by id; false when the host could not reveal it. */
-  reopenStructuredSession: (args: { worktreeId: string; sessionId: string }) => Promise<boolean>
   newRequestId: () => AgentLaunchRequestId
 }
 
-/** The real close and adoption; the terminal pane hook passes these, tests pass their own. */
+/** The real close, reveal and activation; the terminal pane hook passes these, tests pass their own. */
 export const structuredChatTerminalReturnDeps: StructuredChatTerminalReturnDeps = {
   closeTerminalTabConfirmingExit: (tabId) =>
     closeTerminalTabConfirmingExit(useAppStore.getState(), tabId),
+  revealStructuredChat: revealStructuredChatTab,
+  activateStructuredChat: (chat) => activateStructuredAgentSessionById(chat),
   resumeInStructuredChat: resumeProviderSessionInNewStructuredChat,
-  reopenStructuredSession: reopenStructuredChatSession,
   newRequestId: newAgentLaunchRequestId
 }
 
@@ -49,9 +61,10 @@ export const structuredChatTerminalReturnDeps: StructuredChatTerminalReturnDeps 
 const returnsInFlight = new Set<string>()
 
 /**
- * Goes back from a terminal to the structured chat it was opened from. The adoption starts only
- * after every process of the terminal confirmed it stopped, so one provider session is never held
- * by two live processes. Resolves true when the chat's launch started.
+ * Goes back from a terminal to the structured chat it was opened from. The chat is revealed first,
+ * so a chat that cannot be shown leaves the terminal running. The terminal is stopped next, and the
+ * chat is shown only after every process confirmed its exit, since showing it re-acquires the
+ * provider session. Resolves true when the chat's return started.
  */
 export async function returnTerminalToStructuredChat(
   args: StructuredChatTerminalReturnArgs,
@@ -62,6 +75,18 @@ export async function returnTerminalToStructuredChat(
   }
   returnsInFlight.add(args.tabId)
   try {
+    const chat: StructuredChatRef = {
+      worktreeId: args.link.worktreeId,
+      sessionId: args.link.structuredSessionId
+    }
+    const reveal = await deps.revealStructuredChat(chat)
+    // Why: only a handle-backed agent can adopt its provider session as a new chat; any other chat
+    // that cannot be listed leaves the terminal running.
+    if (reveal !== 'ready' && !isAgentSessionHandleProvider(args.link.agent)) {
+      showRevealFailedToast(reveal)
+      return false
+    }
+    const { agent } = args.link
     const exitConfirmed = await deps.closeTerminalTabConfirmingExit(args.tabId)
     if (!exitConfirmed) {
       toast.error(
@@ -72,22 +97,25 @@ export async function returnTerminalToStructuredChat(
       )
       return false
     }
-    // Why: the chat's own record survives the terminal's release, so the same session id reopens —
-    // for every agent. Only a handle-backed agent that the host cannot reveal falls back to adoption.
-    if (
-      await deps.reopenStructuredSession({
-        worktreeId: args.link.worktreeId,
-        sessionId: args.link.structuredSessionId
-      })
-    ) {
-      return true
+    if (reveal === 'ready') {
+      if (deps.activateStructuredChat(chat)) {
+        return true
+      }
+      toast.error(
+        translate(
+          'components.native-chat.toggle.terminalReturnNotShown',
+          'The terminal was closed, but this chat could not be shown. Its conversation is kept.'
+        )
+      )
+      return false
     }
-    if (!isAgentSessionHandleProvider(args.link.agent)) {
+    // Why: a handle-backed chat the host cannot list is adopted as a new chat, only after the exit.
+    if (!isAgentSessionHandleProvider(agent)) {
       showReturnFailedToast()
       return false
     }
     const launch = deps.resumeInStructuredChat({
-      agent: args.link.agent,
+      agent,
       worktreeId: args.link.worktreeId,
       providerSessionId: args.link.providerSessionId,
       requestId: deps.newRequestId(),
@@ -120,24 +148,27 @@ export function canReturnTerminalToStructuredChat(args: {
 }
 
 /**
- * Reopens a chat's own structured session by id, the way an Agent Session History row does: its tab
- * when the inventory still holds it, otherwise the host republishes the tab from its record. Opening
- * the tab starts no provider child; the chat attaches (and the adapter re-acquires) when it mounts.
+ * Lists a chat's own record in the inventory so it can be shown. Opening the tab starts no provider
+ * child; the chat attaches (and the adapter re-acquires) only when it mounts.
  */
-export async function reopenStructuredChatSession(args: {
-  worktreeId: string
-  sessionId: string
-}): Promise<boolean> {
-  if (activateStructuredAgentSessionById(args)) {
-    return true
+export async function revealStructuredChatTab(
+  chat: StructuredChatRef
+): Promise<StructuredChatRevealOutcome> {
+  if (structuredAgentSessionTabListed(chat)) {
+    return 'ready'
   }
-  if ((await revealStructuredSession(args)) !== 'revealed') {
-    return false
+  const outcome = await revealStructuredSession(chat)
+  if (outcome !== 'revealed') {
+    return outcome
   }
-  // The host has published the tab; the inventory catches up on refresh. The chat is open either way.
-  await refreshStructuredSessionTabs(args.worktreeId).catch(() => undefined)
-  activateStructuredAgentSessionById(args)
-  return true
+  try {
+    // Why: a paired host's tab reaches the inventory only through this refresh, so it is applied
+    // before activation looks for it.
+    await refreshStructuredSessionTabs(chat.worktreeId)
+  } catch {
+    return 'unreachable'
+  }
+  return structuredAgentSessionTabListed(chat) ? 'ready' : 'unreachable'
 }
 
 /** A terminal the structured chat opened returns to that chat; every other toggle keeps the legacy chat view. */
@@ -150,6 +181,33 @@ export function terminalChatToggleRoute(args: {
     return { kind: 'return-to-structured-chat', link: args.link }
   }
   return { kind: 'legacy-toggle' }
+}
+
+function showRevealFailedToast(outcome: Exclude<StructuredChatRevealOutcome, 'ready'>): void {
+  if (outcome === 'gone') {
+    toast.error(
+      translate(
+        'components.native-chat.toggle.terminalReturnChatGone',
+        'This chat is no longer on this host, so it cannot be reopened here. The terminal was kept.'
+      )
+    )
+    return
+  }
+  if (outcome === 'host-cannot-open') {
+    toast.error(
+      translate(
+        'components.native-chat.toggle.terminalReturnChatHostCannotOpen',
+        "This chat can't be reopened until Orca is updated. The terminal was kept."
+      )
+    )
+    return
+  }
+  toast.error(
+    translate(
+      'components.native-chat.toggle.terminalReturnChatUnreachable',
+      'Could not reach the host to reopen this chat. The terminal was kept; try again in a moment.'
+    )
+  )
 }
 
 function notifyReturnFailure(error: unknown): void {

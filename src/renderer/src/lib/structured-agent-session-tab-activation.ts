@@ -61,6 +61,21 @@ export function activateStructuredAgentSessionTab(args: {
   return true
 }
 
+/** Whether the inventory holds the chat's tab, without showing it. */
+export function structuredAgentSessionTabListed(args: {
+  worktreeId: string
+  sessionId: string
+  target?: RuntimeClientTarget
+}): boolean {
+  return (
+    findStructuredAgentSessionTab(useAppStore.getState().unifiedTabsByWorktree, {
+      workspaceId: args.worktreeId,
+      sessionId: args.sessionId,
+      target: args.target
+    }) !== null
+  )
+}
+
 export function activateStructuredAgentSessionById(args: {
   worktreeId: string
   sessionId: string

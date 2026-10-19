@@ -18181,7 +18181,11 @@
         "terminalViewLaunchFailed": "No se pudo abrir este chat en la terminal. Su proceso de agente se liberó; el historial del chat se conserva.",
         "terminalViewNoWorktree": "Aún no se conoce el espacio de trabajo de este chat.",
         "terminalViewAgent": "Este agente no puede reanudar su chat en la terminal.",
-        "terminalViewNoSession": "Este chat aún no ha informado su sesión del agente."
+        "terminalViewNoSession": "Este chat aún no ha informado su sesión del agente.",
+        "terminalReturnChatGone": "Este chat ya no está en este host, así que no se puede reabrir aquí. La terminal se mantuvo abierta.",
+        "terminalReturnChatHostCannotOpen": "Este chat no se puede reabrir hasta que se actualice Orca. La terminal se mantuvo abierta.",
+        "terminalReturnChatUnreachable": "No se pudo contactar con el host para reabrir este chat. La terminal se mantuvo abierta; inténtalo de nuevo en un momento.",
+        "terminalReturnNotShown": "La terminal se cerró, pero no se pudo mostrar este chat. Su conversación se conserva."
       },
       "state": {
         "loading": {

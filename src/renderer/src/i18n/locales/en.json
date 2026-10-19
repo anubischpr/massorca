@@ -18515,7 +18515,11 @@
         "terminalViewNoSession": "This chat has not reported its agent session yet.",
         "terminalReturnUnconfirmed": "Could not confirm the terminal stopped, so this chat was not reopened. The terminal may still be running.",
         "terminalReturnHeldByTerminal": "This conversation is still running in a terminal, so the chat was not reopened.",
-        "terminalReturnFailed": "Could not reopen this chat. Its terminal was closed and the conversation is kept."
+        "terminalReturnFailed": "Could not reopen this chat. Its terminal was closed and the conversation is kept.",
+        "terminalReturnChatGone": "This chat is no longer on this host, so it cannot be reopened here. The terminal was kept.",
+        "terminalReturnChatHostCannotOpen": "This chat can't be reopened until Orca is updated. The terminal was kept.",
+        "terminalReturnChatUnreachable": "Could not reach the host to reopen this chat. The terminal was kept; try again in a moment.",
+        "terminalReturnNotShown": "The terminal was closed, but this chat could not be shown. Its conversation is kept."
       },
       "state": {
         "loading": {
