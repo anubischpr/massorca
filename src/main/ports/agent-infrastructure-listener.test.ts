@@ -2,12 +2,21 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { isAgentInfrastructureListener } from './agent-infrastructure-listener'
 import { scanWorkspacePorts } from './local-workspace-port-scanner'
 import { resetWorkspacePortScanTimeoutBackoffForTests } from './local-workspace-port-scan-state'
-import { noteStructuredProviderProcess } from './structured-provider-process-pids'
+import {
+  noteStructuredProviderProcess,
+  releaseStructuredProviderProcess,
+  structuredProviderProcessPids
+} from './structured-provider-process-pids'
 
 const runPortScanCommandMock = vi.hoisted(() => vi.fn())
 vi.mock('./port-scan-command-client', () => ({
   runPortScanCommand: runPortScanCommandMock,
   isPortScanWorkerUnavailableError: () => false
+}))
+
+vi.mock('../runtime/agent-session-process-identity-probe', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  readProcessStartTimeMs: async () => 1000
 }))
 
 const none = new Set<number>()
@@ -53,7 +62,7 @@ describe('scanWorkspacePorts agent listeners', () => {
 
   it('lists only the dev server, not agent or structured-child listeners in the workspace', async () => {
     vi.spyOn(process, 'platform', 'get').mockReturnValue('darwin')
-    noteStructuredProviderProcess(process.pid)
+    noteStructuredProviderProcess({ pid: process.pid, processStartTimeMs: 1000 })
     runPortScanCommandMock.mockImplementation(async (command: string, args: string[]) => {
       if (command === 'lsof' && args.includes('-iTCP')) {
         return {
@@ -88,5 +97,28 @@ describe('scanWorkspacePorts agent listeners', () => {
     )
     expect(scan.ports.map((port) => port.port)).toEqual([5173])
     expect(scan.ports[0]?.kind).toBe('workspace')
+  })
+})
+
+describe('structured provider process registry', () => {
+  it('releases a pid on request', async () => {
+    noteStructuredProviderProcess({ pid: 501, processStartTimeMs: 10 })
+    releaseStructuredProviderProcess(501)
+    expect((await structuredProviderProcessPids(async () => 10)).has(501)).toBe(false)
+  })
+
+  it('drops an entry on any failed probe, not only a missing process', async () => {
+    noteStructuredProviderProcess({ pid: 502, processStartTimeMs: 10 })
+    const denied = Object.assign(new Error('denied'), { code: 'EPERM' })
+    expect((await structuredProviderProcessPids(() => Promise.reject(denied))).has(502)).toBe(false)
+    noteStructuredProviderProcess({ pid: 503, processStartTimeMs: 10 })
+    expect((await structuredProviderProcessPids(async () => null)).has(503)).toBe(false)
+  })
+
+  it('stops trusting a pid the OS reused for a different process', async () => {
+    noteStructuredProviderProcess({ pid: 504, processStartTimeMs: 10_000 })
+    expect((await structuredProviderProcessPids(async () => 10_000)).has(504)).toBe(true)
+    expect((await structuredProviderProcessPids(async () => 90_000)).has(504)).toBe(false)
+    expect((await structuredProviderProcessPids(async () => 10_000)).has(504)).toBe(false)
   })
 })

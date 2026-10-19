@@ -37,7 +37,7 @@ export async function scanWorkspacePorts(
   try {
     const scanned = await scanPlatformListeningPorts(options)
     const { metadataAvailable } = scanned
-    const providerPids = structuredProviderProcessPids()
+    const providerPids = await structuredProviderProcessPids()
     const rawPorts = scanned.ports.filter(
       (port) => !isAgentInfrastructureListener(port, providerPids)
     )

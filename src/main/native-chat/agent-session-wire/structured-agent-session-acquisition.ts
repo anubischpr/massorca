@@ -66,7 +66,7 @@ export async function acquireOwner(
       ...(progress ? { onOutput: progress.output } : {}),
       ...(input.recordPhase ? { recordPhase: input.recordPhase } : {}),
       onSpawned: async (process) => {
-        noteStructuredProviderProcess(process.pid)
+        noteStructuredProviderProcess(process)
         progress?.spawned()
         record = await input.store.commitProcessIdentity({
           sessionId: record.sessionId,
@@ -98,7 +98,7 @@ export async function acquireOwner(
               input.acquireSignal
             )
           })
-    noteStructuredProviderProcess(acquired.process.pid)
+    noteStructuredProviderProcess(acquired.process)
     if (record.lease.ownerProcess === null) {
       await input.store.commitProcessIdentity({
         sessionId: record.sessionId,
