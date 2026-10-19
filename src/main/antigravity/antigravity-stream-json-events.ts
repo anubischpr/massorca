@@ -1,3 +1,7 @@
+import {
+  boundPayload,
+  DEFAULT_JOURNAL_PAYLOAD_LIMITS
+} from '../native-chat/agent-session-journal/journal-payload-bounds'
 import type { ProviderTimelineEvent } from '../native-chat/agent-session-timeline/provider-timeline-event'
 import type { AntigravityStreamTransportEvent } from './antigravity-stream-json-transport'
 
@@ -105,6 +109,7 @@ export class AntigravityStreamEventProjector {
       callId: String(stepIndex)
     }
     const failed = info?.error !== undefined && info.error !== null
+    const shown = failed ? info.error : info?.output
     const body = {
       kind: 'tool-call' as const,
       name: tool.name,
@@ -115,7 +120,10 @@ export class AntigravityStreamEventProjector {
           ? ('running' as const)
           : failed
             ? ('failed' as const)
-            : ('completed' as const)
+            : ('completed' as const),
+      ...(shown === undefined || shown === null
+        ? {}
+        : { output: boundPayload(toolOutputText(shown), DEFAULT_JOURNAL_PAYLOAD_LIMITS) })
     }
     const events: ProviderTimelineEvent[] = []
     if (state === 'ACTIVE') {
@@ -273,6 +281,17 @@ export class AntigravityStreamEventProjector {
   private responseItemId(clientMessageId: string): string {
     return `antigravity:${this.conversationId}:message:${clientMessageId}`
   }
+}
+
+/** The text a tool row shows: a string as is, an error's message, else the value as JSON. */
+function toolOutputText(value: unknown): string {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (isObject(value) && typeof value.message === 'string') {
+    return value.message
+  }
+  return JSON.stringify(value) ?? String(value)
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

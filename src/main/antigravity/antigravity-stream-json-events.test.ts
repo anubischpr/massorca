@@ -176,6 +176,55 @@ describe('Antigravity stream-json event projection', () => {
     expect(closed.some((event) => event.type === 'request.open')).toBe(false)
   })
 
+  it('shows a tool result on the tool row, text as is and structured values as JSON', () => {
+    const done = (index: number, tool_info: unknown) => ({
+      type: 'step_update' as const,
+      clientMessageId: 'send-1',
+      requestedAt: 100,
+      step: {
+        conversation_id: 'conv-1',
+        step_index: index,
+        state: 'DONE' as const,
+        step_type: 'tool' as const,
+        tool_name: 'run_command',
+        tool_info
+      }
+    })
+    const events = projector()
+    events.apply(input())
+    const text = events.apply(done(1, { output: 'hello' }))
+    expect(text).toContainEqual(
+      expect.objectContaining({
+        type: 'item.close',
+        body: expect.objectContaining({
+          state: 'completed',
+          output: expect.objectContaining({ head: 'hello', truncated: false })
+        })
+      })
+    )
+    const structured = events.apply(done(2, { output: { exit_code: 0 } }))
+    expect(structured).toContainEqual(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          output: expect.objectContaining({ head: '{"exit_code":0}' })
+        })
+      })
+    )
+    const failed = events.apply(done(3, { error: { type: 'denied', message: 'not allowed' } }))
+    expect(failed).toContainEqual(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          state: 'failed',
+          output: expect.objectContaining({ head: 'not allowed' })
+        })
+      })
+    )
+    const silent = events.apply(done(4, { name: 'run_command' }))
+    expect(silent).toContainEqual(
+      expect.objectContaining({ body: expect.not.objectContaining({ output: expect.anything() }) })
+    )
+  })
+
   it('settles active tools at terminal results and isolates later turns', () => {
     const events = projector()
     events.apply(input('send-1'))
