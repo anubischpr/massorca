@@ -94,7 +94,8 @@ describe('createStructuredChatPaneActions', () => {
     )
     await expect(actions.showTerminal()).resolves.toBe(true)
     expect(d.launchResume).toHaveBeenCalledWith(
-      expect.objectContaining({ agent: 'pi', piRuntime: 'gentle-shell' })
+      expect.objectContaining({ agent: 'pi', piRuntime: 'gentle-shell' }),
+      expect.anything()
     )
   })
 
