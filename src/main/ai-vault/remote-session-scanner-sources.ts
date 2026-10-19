@@ -28,6 +28,7 @@ import {
   primeAgentParser,
   remoteOmpSessionsSegments,
   remotePathSegments,
+  remoteGentleShellSessionsSegments,
   remotePiSessionsSegments,
   remotePrimeAgentSessionsSegments
 } from './remote-session-scanner-source-parsers'
@@ -141,6 +142,7 @@ export function remoteSessionSources(
       (path) => remotePathSegments(path).pop()?.startsWith('session_') === true
     ),
     jsonlSource('pi', remoteHome, hostPlatform, remotePiSessionsSegments(), piParser),
+    jsonlSource('pi', remoteHome, hostPlatform, remoteGentleShellSessionsSegments(), piParser),
     {
       ...jsonlSource('omp', remoteHome, hostPlatform, remoteOmpSessionsSegments(), ompParser),
       // Same posture as Claude above: OMP stores task-subagent transcripts in

@@ -7,6 +7,7 @@ import {
 } from './antigravity-session-origin'
 import { normalizeAiVaultResumeFilePath } from './ai-vault-resume-path'
 import { TUI_AGENT_CONFIG } from './tui-agent-config'
+import { piRuntimeForSessionFilePath, selectedPiRuntime } from './pi-runtime-selection'
 import {
   clearEnvCommand,
   commandSeparator,
@@ -30,15 +31,21 @@ export function buildAiVaultResumeCommand(args: {
 }): string {
   const { agent, sessionId, cwd, platform, commandOverride, codexHome, resumeFilePath, shell } =
     args
-  const baseCommand = commandOverride?.trim() || defaultAiVaultResumeCommandBase(agent)
+  // Why: a Gentle Shell transcript resumes through Gentle Shell's own `-- --session <file>` form.
+  const isGentleShellSession =
+    agent === 'pi' && piRuntimeForSessionFilePath(resumeFilePath) === 'gentle-shell'
+  const baseCommand = isGentleShellSession
+    ? gentleShellResumeBaseCommand(commandOverride)
+    : commandOverride?.trim() || defaultAiVaultResumeCommandBase(agent)
   // Why: OMP's and Prime Agent's `--resume` accept an absolute transcript path,
   // which resolves regardless of which session-dir root (custom
   // OMP_CODING_AGENT_DIR / PRIME_AGENT_CODING_AGENT_DIR / WSL home) the file was
   // discovered under, where an id-prefix lookup scoped to the default store
   // would miss it. Falls back to the id if no path is known.
+  const transcriptTarget = resumeFilePath?.trim()
   const resumeTarget =
-    (agent === 'omp' || agent === 'prime-agent') && resumeFilePath?.trim()
-      ? resumeFilePath.trim()
+    transcriptTarget && (agent === 'omp' || agent === 'prime-agent' || isGentleShellSession)
+      ? transcriptTarget
       : sessionId
   const sessionArg =
     shell === 'cmd'
@@ -184,6 +191,13 @@ export function realHomeCodexResumeEnvDeletion(
     return {}
   }
   return { envToDelete: ['CODEX_HOME', 'ORCA_CODEX_HOME'] }
+}
+
+function gentleShellResumeBaseCommand(commandOverride: string | null | undefined): string {
+  const override = commandOverride?.trim()
+  return override && selectedPiRuntime(override) === 'gentle-shell'
+    ? `${override} --`
+    : 'gentle-shell --'
 }
 
 function defaultAiVaultResumeCommandBase(agent: AiVaultAgent): string {

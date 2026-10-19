@@ -19,6 +19,13 @@ export function selectedPiRuntime(command: string | undefined): PiRuntimeSelecti
   return /^gentle-shell(?:\.(?:cmd|bat|exe))?$/.test(binary) ? 'gentle-shell' : 'pi'
 }
 
+/** The runtime whose session store holds a Pi-protocol transcript, read from its `.gentle-shell` home segment. */
+export function piRuntimeForSessionFilePath(
+  filePath: string | null | undefined
+): PiRuntimeSelection {
+  return filePath && /[\\/]\.gentle-shell[\\/]/.test(filePath) ? 'gentle-shell' : 'pi'
+}
+
 export function piRuntimeCommandSettings<
   T extends { agentCmdOverrides?: Partial<Record<string, string>> }
 >(settings: T, runtime: PiRuntimeSelection) {
