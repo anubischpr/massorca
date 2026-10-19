@@ -1,7 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
-import { launchSleepingAgentSession } from '@/lib/sleeping-agent-session-launch'
+import {
+  launchFreshAgentSession,
+  launchSleepingAgentSession
+} from '@/lib/sleeping-agent-session-launch'
 import { useStructuredAgentSessionLaunchSelection } from '@/lib/structured-agent-session-launch-options'
 import { structuredChatPiRuntime } from './structured-agent-declared-access'
 import type { AgentSessionContinuationRequest } from '@/lib/agent-session-continuation'
@@ -106,6 +109,7 @@ export function useStructuredChatPaneActions(args: {
           },
           releaseProviderChild: closeStructuredAgentSession,
           launchResume: (record, options) => launchSleepingAgentSession(record, options),
+          launchFresh: (request, options) => launchFreshAgentSession(request, options),
           recordTerminalLink: (terminalTabId, link) =>
             useAppStore.getState().linkStructuredChatTerminalTab(terminalTabId, link),
           // Why: no structured-chat launch source exists yet; 'unknown' is honest telemetry.

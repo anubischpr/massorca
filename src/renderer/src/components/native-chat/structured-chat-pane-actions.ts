@@ -37,6 +37,7 @@ export type StructuredChatPaneActionsDeps = {
   closeTab: (tabId: string) => void
   releaseProviderChild: ShowStructuredChatInTerminalDeps['releaseProviderChild']
   launchResume: ShowStructuredChatInTerminalDeps['launchResume']
+  launchFresh: ShowStructuredChatInTerminalDeps['launchFresh']
   recordTerminalLink: ShowStructuredChatInTerminalDeps['recordTerminalLink']
   prepareContinuation: (args: {
     source: AgentSessionContinuationSource
@@ -89,13 +90,13 @@ export function createStructuredChatPaneActions(
           worktreeId: input.worktreeId,
           paneKey: input.paneKey,
           sessionId: input.sessionId,
-          agent: terminalView.agent,
-          providerSession: terminalView.providerSession,
+          launch: terminalView.launch,
           ...(input.piRuntime ? { piRuntime: input.piRuntime } : {})
         },
         {
           releaseProviderChild: deps.releaseProviderChild,
           launchResume: deps.launchResume,
+          launchFresh: deps.launchFresh,
           recordTerminalLink: deps.recordTerminalLink,
           closeChatTab: deps.closeTab,
           onReleaseFailed: deps.onTerminalViewReleaseFailed,

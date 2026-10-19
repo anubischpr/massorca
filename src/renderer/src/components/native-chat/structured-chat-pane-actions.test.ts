@@ -45,6 +45,10 @@ function deps(
       calls.push('launch')
       return true
     }),
+    launchFresh: vi.fn(() => {
+      calls.push('launchFresh')
+      return true
+    }),
     recordTerminalLink: vi.fn(),
     prepareContinuation: vi.fn(() => null),
     onTerminalViewReleaseFailed: vi.fn(),
@@ -72,14 +76,49 @@ describe('createStructuredChatPaneActions', () => {
     expect(d.closeTab).toHaveBeenCalledWith('agent-session-tab-1')
   })
 
-  it('leaves the provider child running when the terminal view is unavailable', async () => {
+  it('leaves the provider child running when a session cannot be resumed in the terminal', async () => {
     const d = deps()
-    const actions = createStructuredChatPaneActions(input({ providerSession: undefined }), d)
+    const actions = createStructuredChatPaneActions(
+      input({ agent: 'pi', providerSession: { key: 'session_id', id: 'provider-1' } }),
+      d
+    )
     expect(actions.terminalView).toEqual({ enabled: false, reason: 'no-provider-session' })
     await expect(actions.showTerminal()).resolves.toBe(false)
     expect(d.releaseProviderChild).not.toHaveBeenCalled()
     expect(d.launchResume).not.toHaveBeenCalled()
+    expect(d.launchFresh).not.toHaveBeenCalled()
     expect(d.closeTab).not.toHaveBeenCalled()
+  })
+
+  it('starts a fresh terminal of the agent for a chat with no provider session yet', async () => {
+    const calls: string[] = []
+    const d = deps({}, calls)
+    const actions = createStructuredChatPaneActions(input({ providerSession: undefined }), d)
+    expect(actions.terminalView).toEqual({
+      enabled: true,
+      launch: { mode: 'fresh', agent: 'claude' }
+    })
+    await expect(actions.showTerminal()).resolves.toBe(true)
+    expect(calls).toEqual(['release', 'launchFresh', 'closeTab'])
+    expect(d.launchFresh).toHaveBeenCalledWith(
+      { worktreeId: 'repo::/work/feature', agent: 'claude' },
+      expect.objectContaining({ onSessionLaunched: expect.any(Function) })
+    )
+    expect(d.launchResume).not.toHaveBeenCalled()
+    expect(d.recordTerminalLink).not.toHaveBeenCalled()
+  })
+
+  it('starts a fresh Gentle Shell terminal for a Gentle Shell chat with no session yet', async () => {
+    const d = deps()
+    const actions = createStructuredChatPaneActions(
+      input({ agent: 'pi', piRuntime: 'gentle-shell', providerSession: undefined }),
+      d
+    )
+    await expect(actions.showTerminal()).resolves.toBe(true)
+    expect(d.launchFresh).toHaveBeenCalledWith(
+      { worktreeId: 'repo::/work/feature', agent: 'pi', piRuntime: 'gentle-shell' },
+      expect.anything()
+    )
   })
 
   it('resumes a Gentle Shell chat in the terminal with its runtime', async () => {
