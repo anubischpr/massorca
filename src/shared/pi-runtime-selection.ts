@@ -50,6 +50,26 @@ export function resolvePiSessionRuntime(args: {
   return args.transcriptPath ? 'pi' : selectedPiRuntime(args.command)
 }
 
+/** The Pi runtime a host runs for a terminal launch: stock `pi`, Gentle Shell, neither, or `unknown`
+ *  when the host did not say (an older host, an unreachable one), which keeps the stock command. */
+export type HostPiTerminalRuntime = PiRuntimeSelection | 'cliMissing' | 'unknown'
+
+export function hasExplicitPiCommand(cmdOverrides: Partial<Record<string, string>>): boolean {
+  return Boolean(cmdOverrides.pi?.trim())
+}
+
+/** The Pi command settings a terminal launch uses. A command the client names is always kept; without
+ *  one, a host that runs only Gentle Shell gets Gentle Shell, never a stock `pi` it does not have. */
+export function piTerminalCommandOverrides<T extends Partial<Record<string, string>>>(
+  cmdOverrides: T,
+  hostRuntime: HostPiTerminalRuntime
+): T {
+  if (hasExplicitPiCommand(cmdOverrides) || hostRuntime !== 'gentle-shell') {
+    return cmdOverrides
+  }
+  return { ...cmdOverrides, pi: 'gentle-shell' }
+}
+
 export function piRuntimeCommandSettings<
   T extends { agentCmdOverrides?: Partial<Record<string, string>> }
 >(settings: T, runtime: PiRuntimeSelection) {
