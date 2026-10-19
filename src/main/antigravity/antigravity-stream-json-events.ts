@@ -1,5 +1,6 @@
 import type { ProviderTimelineEvent } from '../native-chat/agent-session-timeline/provider-timeline-event'
 import { antigravityTokenCount, antigravityToolOutput } from './antigravity-stream-json-facts'
+import type { AntigravityStreamStepState } from './antigravity-stream-json-protocol'
 import type { AntigravityStreamTransportEvent } from './antigravity-stream-json-transport'
 
 type ProjectedTool = {
@@ -35,6 +36,15 @@ export class AntigravityStreamEventProjector {
     }
     if (event.type === 'step_update') {
       return this.projectStep(event)
+    }
+    if (event.type === 'unclassified_step') {
+      return [
+        {
+          type: 'provider.frame',
+          frameKind: 'step.unclassified',
+          payload: { field: event.field, fieldKinds: event.fieldKinds }
+        }
+      ]
     }
     return this.projectResult(event)
   }
@@ -88,9 +98,12 @@ export class AntigravityStreamEventProjector {
     stepIndex: number,
     declaredName: string | undefined,
     rawInfo: unknown,
-    state: 'ACTIVE' | 'DONE',
+    state: AntigravityStreamStepState,
     clientMessageId: string
   ): ProviderTimelineEvent[] {
+    if (state === 'UNKNOWN') {
+      return [{ type: 'provider.frame', frameKind: 'step.unclassified', payload: { stepIndex } }]
+    }
     const info = isObject(rawInfo) ? rawInfo : null
     const name = declaredName ?? (typeof info?.name === 'string' ? info.name : undefined)
     if (!name) {
@@ -105,8 +118,9 @@ export class AntigravityStreamEventProjector {
       input: info?.parameters ?? null,
       callId: String(stepIndex)
     }
-    const failed = info?.error !== undefined && info.error !== null
-    const shown = failed ? info.error : info?.output
+    const error = info?.error
+    const failed = state === 'FAILED' || (error !== undefined && error !== null)
+    const shown = error ?? info?.output
     const body = {
       kind: 'tool-call' as const,
       name: tool.name,
@@ -136,7 +150,7 @@ export class AntigravityStreamEventProjector {
       events.push({
         type: 'provider.frame',
         frameKind: 'tool.error',
-        payload: { stepIndex, toolName: name, error: info.error }
+        payload: { stepIndex, toolName: name, error: error ?? null }
       })
     } else if (info?.output !== undefined) {
       events.push({
