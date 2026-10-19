@@ -6,6 +6,7 @@ import {
   resumeProviderSessionInNewStructuredChat,
   type ResumeProviderSessionInNewChatArgs
 } from '@/lib/provider-session-structured-chat-resume'
+import type { StructuredAgentSessionProvisionalLaunch } from '@/lib/structured-agent-session-provisional-tab'
 import { StructuredAgentSessionCreateError } from '@/lib/structured-agent-session-launch-errors'
 import { readAgentSessionRefusalDetails } from '../../../../shared/agent-session-refusal-details'
 import type { StructuredChatTerminalLink } from '../../store/terminals/terminal-contracts'
@@ -20,7 +21,10 @@ export type StructuredChatTerminalReturnArgs = {
 export type StructuredChatTerminalReturnDeps = {
   /** Removes the terminal tab; resolves true only when every process it held confirmed its exit. */
   closeTerminalTabConfirmingExit: (tabId: string) => Promise<boolean>
-  resumeInStructuredChat: (args: ResumeProviderSessionInNewChatArgs) => unknown
+  /** Null when the chat's launch never began. */
+  resumeInStructuredChat: (
+    args: ResumeProviderSessionInNewChatArgs
+  ) => Pick<StructuredAgentSessionProvisionalLaunch, 'sessionId'> | null
   newRequestId: () => AgentLaunchRequestId
 }
 
@@ -59,13 +63,18 @@ export async function returnTerminalToStructuredChat(
       )
       return false
     }
-    deps.resumeInStructuredChat({
+    const launch = deps.resumeInStructuredChat({
       agent: args.link.agent,
       worktreeId: args.link.worktreeId,
       providerSessionId: args.link.providerSessionId,
       requestId: deps.newRequestId(),
       onFailed: notifyReturnFailure
     })
+    if (!launch) {
+      // Why: the terminal is already closed, so a launch that never began must say so.
+      showReturnFailedToast()
+      return false
+    }
     return true
   } catch (error) {
     notifyReturnFailure(error)
@@ -79,12 +88,21 @@ export type TerminalChatToggleRoute =
   | { kind: 'return-to-structured-chat'; link: StructuredChatTerminalLink }
   | { kind: 'legacy-toggle' }
 
+/** Only a single-pane terminal returns as a whole: its return retires every pane of the tab. */
+export function canReturnTerminalToStructuredChat(args: {
+  link: StructuredChatTerminalLink | undefined
+  paneCount: number
+}): boolean {
+  return args.link !== undefined && args.paneCount === 1
+}
+
 /** A terminal the structured chat opened returns to that chat; every other toggle keeps the legacy chat view. */
 export function terminalChatToggleRoute(args: {
   link: StructuredChatTerminalLink | undefined
   chatViewActive: boolean
+  paneCount: number
 }): TerminalChatToggleRoute {
-  if (args.link && !args.chatViewActive) {
+  if (args.link && !args.chatViewActive && canReturnTerminalToStructuredChat(args)) {
     return { kind: 'return-to-structured-chat', link: args.link }
   }
   return { kind: 'legacy-toggle' }
@@ -100,6 +118,10 @@ function notifyReturnFailure(error: unknown): void {
     )
     return
   }
+  showReturnFailedToast()
+}
+
+function showReturnFailedToast(): void {
   toast.error(
     translate(
       'components.native-chat.toggle.terminalReturnFailed',

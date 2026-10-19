@@ -25,6 +25,8 @@ const LINK: StructuredChatTerminalLink = {
   providerSessionId: 'thread-7',
   worktreeId: 'repo::/work/feature'
 }
+/** The launch of a chat that began. */
+const BEGUN = { sessionId: 'session-1' }
 const UNCONFIRMED =
   'Could not confirm the terminal stopped, so this chat was not reopened. The terminal may still be running.'
 const HELD_BY_TERMINAL =
@@ -36,7 +38,7 @@ function deps(
 ): StructuredChatTerminalReturnDeps {
   return {
     closeTerminalTabConfirmingExit: vi.fn(async () => true),
-    resumeInStructuredChat: vi.fn((_args: ResumeProviderSessionInNewChatArgs) => null),
+    resumeInStructuredChat: vi.fn((_args: ResumeProviderSessionInNewChatArgs) => BEGUN),
     newRequestId: vi.fn(() => 'request-1'),
     ...overrides
   }
@@ -56,7 +58,7 @@ describe('returnTerminalToStructuredChat', () => {
       }),
       resumeInStructuredChat: vi.fn((_args: ResumeProviderSessionInNewChatArgs) => {
         order.push('resumed')
-        return null
+        return BEGUN
       })
     })
 
@@ -96,7 +98,7 @@ describe('returnTerminalToStructuredChat', () => {
             details: { reason: 'ownerAlive' }
           })
         )
-        return null
+        return BEGUN
       })
     })
 
@@ -109,7 +111,7 @@ describe('returnTerminalToStructuredChat', () => {
     const d = deps({
       resumeInStructuredChat: vi.fn((args: ResumeProviderSessionInNewChatArgs) => {
         args.onFailed(new Error('host unreachable'))
-        return null
+        return BEGUN
       })
     })
 
@@ -128,6 +130,20 @@ describe('returnTerminalToStructuredChat', () => {
     await expect(
       returnTerminalToStructuredChat({ tabId: 'terminal-tab-1', link: LINK }, d)
     ).resolves.toBe(false)
+    expect(mocks.toastError).toHaveBeenCalledWith(FAILED)
+  })
+
+  it('says the chat did not reopen and resolves false when the launch never began', async () => {
+    const d = deps({
+      resumeInStructuredChat: vi.fn((_args: ResumeProviderSessionInNewChatArgs) => null)
+    })
+
+    await expect(
+      returnTerminalToStructuredChat({ tabId: 'terminal-tab-1', link: LINK }, d)
+    ).resolves.toBe(false)
+
+    expect(d.closeTerminalTabConfirmingExit).toHaveBeenCalledWith('terminal-tab-1')
+    expect(mocks.toastError).toHaveBeenCalledTimes(1)
     expect(mocks.toastError).toHaveBeenCalledWith(FAILED)
   })
 
@@ -155,21 +171,27 @@ describe('returnTerminalToStructuredChat', () => {
 })
 
 describe('terminalChatToggleRoute', () => {
-  it('returns a terminal the structured chat opened to that chat', () => {
-    expect(terminalChatToggleRoute({ link: LINK, chatViewActive: false })).toEqual({
+  it('returns a single-pane terminal the structured chat opened to that chat', () => {
+    expect(terminalChatToggleRoute({ link: LINK, chatViewActive: false, paneCount: 1 })).toEqual({
       kind: 'return-to-structured-chat',
       link: LINK
     })
   })
 
-  it('keeps the legacy toggle for a terminal no structured chat opened', () => {
-    expect(terminalChatToggleRoute({ link: undefined, chatViewActive: false })).toEqual({
+  it('keeps the legacy toggle for a split terminal, even one the structured chat opened', () => {
+    expect(terminalChatToggleRoute({ link: LINK, chatViewActive: false, paneCount: 2 })).toEqual({
       kind: 'legacy-toggle'
     })
   })
 
+  it('keeps the legacy toggle for a terminal no structured chat opened', () => {
+    expect(
+      terminalChatToggleRoute({ link: undefined, chatViewActive: false, paneCount: 1 })
+    ).toEqual({ kind: 'legacy-toggle' })
+  })
+
   it('leaves an open legacy chat view to the legacy toggle, even for a linked terminal', () => {
-    expect(terminalChatToggleRoute({ link: LINK, chatViewActive: true })).toEqual({
+    expect(terminalChatToggleRoute({ link: LINK, chatViewActive: true, paneCount: 1 })).toEqual({
       kind: 'legacy-toggle'
     })
   })

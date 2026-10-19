@@ -208,8 +208,8 @@ describe('terminal chat ownership lifecycle', () => {
     expect(mocks.state.unifiedTabsByWorktree.wt[0].viewMode).toBe('chat')
   })
 
-  it('returns a linked terminal to its structured chat, and keeps the toggle for it', () => {
-    const fixture = makeFixture()
+  it('returns a single-pane linked terminal to its structured chat, and keeps the toggle for it', () => {
+    const fixture = { ...makeFixture(), paneCount: 1 }
     const link = { agent: 'claude' as const, providerSessionId: 'session-1', worktreeId: 'wt' }
     mocks.state.setTabViewMode('tab', 'terminal')
     // Why: setState, not a mutation of mocks.state; earlier tests replace the store's state object.
@@ -220,6 +220,18 @@ describe('terminal chat ownership lifecycle', () => {
     act(() => hook.result.current.toggleNativeChatForLeaf(LEFT))
     expect(returnMocks.returnTerminalToStructuredChat).toHaveBeenCalledWith({ tabId: 'tab', link })
     expect(mocks.state.unifiedTabsByWorktree.wt[0].viewMode).toBe('terminal')
+  })
+
+  it('keeps a linked terminal split into two panes on the legacy chat toggle', () => {
+    const fixture = { ...makeFixture(), paneCount: 2 }
+    const link = { agent: 'claude' as const, providerSessionId: 'session-1', worktreeId: 'wt' }
+    mocks.state.setTabViewMode('tab', 'terminal')
+    useAppStore.setState({ structuredChatTerminalLinksByTabId: { tab: link } })
+    const hook = renderHook(() => useFixture(fixture, null))
+    hook.rerender()
+    act(() => hook.result.current.toggleNativeChatForLeaf(RIGHT))
+    expect(returnMocks.returnTerminalToStructuredChat).not.toHaveBeenCalled()
+    expect(mocks.state.unifiedTabsByWorktree.wt[0].viewMode).toBe('chat')
   })
 
   it('clears ownership when the tab-bar turns chat off, then targets the active sibling', () => {
