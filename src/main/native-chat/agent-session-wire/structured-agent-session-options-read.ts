@@ -28,6 +28,7 @@ import type {
 import type { StructuredAgentSessionHostDeps } from './structured-agent-session-host-types'
 import { structuredAgentSessionOptionModels } from './structured-agent-session-option-models'
 import type { AgentSessionTurnContext, TurnOutcome } from './structured-agent-session-turns'
+import { recordOnlyAccessPicks } from './structured-agent-session-access-posture'
 import type { StructuredAgentSessionMutationContext } from './structured-agent-session-host-mutations'
 
 type RestingOptions = Pick<AgentSessionOptionsResult, 'models' | 'fastModeSupport' | 'current'>
@@ -207,6 +208,15 @@ export async function readStructuredAgentSessionOptions(
     record?.options?.piRuntime
   )
   const liveAccessModes = liveStructuredAgentSessionAccessModes(context.deps, sessionId)
+  // Picks the running child already satisfies: they only move the record, so they may be taken live.
+  const recordOnlyModes = session.child
+    ? recordOnlyAccessPicks({
+        deps: context.deps,
+        sessionId,
+        running: session.child.accessPosture,
+        candidates: declaredAccess ? ['inherit' as const, ...declaredAccess.explicit] : []
+      }).filter((mode) => !liveAccessModes.some((live) => live === mode))
+    : []
   const capabilities = agents.capabilities(agent)
   const floor = session.journal.context.floor()
   const contextFloor = floor ? { contextFloor: floor } : {}
@@ -220,7 +230,8 @@ export async function readStructuredAgentSessionOptions(
             ...(declaredAccess.presets.length > 0 ? { presets: declaredAccess.presets } : {}),
             settable: !session.child,
             // `settable` keeps its meaning for older clients; a newer one adds what may change live.
-            ...(session.child && liveAccessModes.length > 0 ? { liveModes: liveAccessModes } : {})
+            ...(session.child && liveAccessModes.length > 0 ? { liveModes: liveAccessModes } : {}),
+            ...(recordOnlyModes.length > 0 ? { recordOnlyModes } : {})
           },
           current: {
             ...options.current,

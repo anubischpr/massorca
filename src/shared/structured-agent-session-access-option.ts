@@ -56,7 +56,7 @@ export function structuredAgentSessionAccessOption(
     ...(state.permissionPresets ?? [])
   ]
   // A running child keeps its mode unless its adapter can switch it; the rest wait for a start.
-  const live = state.liveAccessModes ?? []
+  const live = [...(state.liveAccessModes ?? []), ...(state.recordOnlyAccessModes ?? [])]
   const settable = state.accessModeSettable || live.length > 0
   const startOnly = (mode: string) =>
     !state.accessModeSettable && !live.some((liveMode) => liveMode === mode)

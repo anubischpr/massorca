@@ -43,6 +43,8 @@ import { runQueueableStructuredAgentSessionSend } from './structured-agent-sessi
 import { cancelStructuredAgentSessionPrompt } from './structured-agent-session-prompt-cancel'
 import { mutateWithChatStop } from './structured-agent-session-chat-stop'
 import { performSetOption } from './structured-agent-session-turns-options'
+import { agentSessionAccessPosture } from '../../../shared/agent-session-access-equivalence'
+import { recordOnlyAccessPicks } from './structured-agent-session-access-posture'
 export type { StructuredAgentSessionMutationContext } from './structured-agent-session-mutation-context'
 import type { StructuredAgentSessionCaller } from './structured-agent-session-host-types'
 import {
@@ -195,12 +197,24 @@ export async function setStructuredAgentSessionOption(
         if (atRest()) {
           return recordStructuredAgentSessionOptionIntent(context.deps, ctx, params)
         }
+        const sessionId = params.envelope.sessionId
         if (
           params.key === 'accessMode' &&
-          !liveStructuredAgentSessionAccessModes(context.deps, params.envelope.sessionId).some(
+          !liveStructuredAgentSessionAccessModes(context.deps, sessionId).some(
             (mode) => mode === params.value
           )
         ) {
+          // The running child already holds this posture, so the pick is the record's alone: later
+          // starts and global changes follow it, and no live widening happens.
+          const recordOnly = recordOnlyAccessPicks({
+            deps: context.deps,
+            sessionId,
+            running: context.sessions.get(sessionId)?.child?.accessPosture,
+            candidates: [params.value]
+          })
+          if (recordOnly.length > 0) {
+            return recordStructuredAgentSessionOptionIntent(context.deps, ctx, params)
+          }
           return {
             ok: false,
             refusal: refuse(
@@ -213,7 +227,16 @@ export async function setStructuredAgentSessionOption(
         // Held where a start is, so a close, a Stop admitted now or quit ends the wait from outside.
         const wait = context.acquireAborts.begin(params.envelope.sessionId)
         try {
-          return await performSetOption(ctx, params, wait.signal)
+          const outcome = await performSetOption(ctx, params, wait.signal)
+          const child = context.sessions.get(sessionId)?.child
+          const taken =
+            outcome.ok && params.key === 'accessMode'
+              ? agentSessionAccessPosture(params.value, false)
+              : null
+          if (child && taken) {
+            child.accessPosture = taken
+          }
+          return outcome
         } finally {
           wait.end()
           // Whatever the write's outcome, the child may hold what it asked for now.

@@ -296,3 +296,55 @@ describe('what a create is told for Gentle Shell and presets', () => {
     }
   })
 })
+
+// A chat that has not started takes every declared pick whatever Inherit resolves to; one whose
+// child runs takes the picks its child already satisfies, and nothing wider.
+const AGENT_ACCESS = [
+  ['claude', ['default', 'full-access'], ['auto', 'accept-edits', 'plan']],
+  ['codex', ['default', 'full-access'], ['auto', 'read-only']],
+  ['antigravity', ['default', 'full-access'], ['auto', 'accept-edits', 'plan']],
+  ['gentle-shell', ['default', 'full-access'], ['auto']]
+] as const
+
+describe.each(AGENT_ACCESS)('%s access picker around Inherit', (agent, modes, presets) => {
+  const base = createStructuredAgentSessionOptionState(agent, null, modes, presets)
+
+  it('lets every declared mode be picked before the session starts, Inherit resolving to full access', () => {
+    const state = { ...base, inheritedAccess: 'full-access' as const }
+    for (const mode of ['full-access', 'default', ...presets]) {
+      expect(canSetStructuredAgentSessionOption(state, 'accessMode', mode), mode).toBe(true)
+    }
+  })
+
+  it('lets Inherit and Full access trade places on a running child that satisfies both', () => {
+    const running = {
+      ...base,
+      accessModeSettable: false,
+      liveAccessModes: [],
+      recordOnlyAccessModes: ['full-access'] as const,
+      inheritedAccess: 'full-access' as const
+    }
+    expect(canSetStructuredAgentSessionOption(running, 'accessMode', 'full-access')).toBe(true)
+    expect(canSetStructuredAgentSessionOption(running, 'accessMode', 'default')).toBe(false)
+    expect(canSetStructuredAgentSessionOption(running, 'accessMode', 'inherit')).toBe(false)
+  })
+
+  it('keeps Full access start-only on a running child that Inherit resolves narrower than', () => {
+    const running = {
+      ...base,
+      accessModeSettable: false,
+      liveAccessModes: [],
+      recordOnlyAccessModes: ['default'] as const,
+      inheritedAccess: 'default' as const
+    }
+    expect(canSetStructuredAgentSessionOption(running, 'accessMode', 'full-access')).toBe(false)
+    expect(canSetStructuredAgentSessionOption(running, 'accessMode', 'default')).toBe(true)
+  })
+
+  it('treats a host that predates record-only picks as before: a running child takes none', () => {
+    const running = { ...base, accessModeSettable: false }
+    for (const mode of ['full-access', 'default', 'inherit']) {
+      expect(canSetStructuredAgentSessionOption(running, 'accessMode', mode), mode).toBe(false)
+    }
+  })
+})

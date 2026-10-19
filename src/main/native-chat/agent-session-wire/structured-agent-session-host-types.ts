@@ -3,6 +3,7 @@ import type { SubmissionRejectionFact } from '../../../shared/agent-session-fail
 import type { AgentSessionOwnerProbe } from '../../../shared/agent-session-lease-adjudication'
 import type { AgentJournalCursor } from '../../../shared/agent-session-journal-types'
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
+import type { AgentSessionExplicitAccess } from '../../../shared/agent-session-access-mode'
 import type {
   AgentSessionStatusSummary,
   AgentSessionWireRefusal
@@ -73,6 +74,9 @@ export type StructuredAgentSessionProviderChild = StructuredAgentSessionProvider
   /** The queued message whose delivery started this child, fixed when the start is made; absent
    *  for any other start. In memory only: it tells a restart offer its own start from another. */
   readonly startedFor?: string
+  /** The access this child runs as now: what its start applied, or the last live pick it took.
+   *  In memory only; absent when it cannot be resolved, which never counts as equivalent to anything. */
+  accessPosture?: AgentSessionExplicitAccess
   close?: StructuredAgentSessionChildClose
 }
 
@@ -151,6 +155,9 @@ export type StructuredAgentSessionHostDeps = {
   hasOpenDispatch?: (record: AgentSessionRecord) => boolean
   /** A chat tab left the screen: closed, or its workspace removed. Advisory; a throw is logged. */
   onSessionTabHidden?: (sessionId: string) => void
+  /** What `inherit` access resolves to for a provider right now: whether the global setting means
+   *  full access. Absent, an `inherit` session's posture is unknown and no pick is record-only. */
+  resolveInheritedFullAccess?: (provider: AgentSessionRecord['provider']) => boolean
   /** Whether the user allows suggested next messages from a source (native: the agent's own;
    *  emulated: asked of a model). Absent allows both. Re-read per suggestion. */
   replySuggestions?: {
