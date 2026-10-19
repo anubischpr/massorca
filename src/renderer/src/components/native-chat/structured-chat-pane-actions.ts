@@ -7,6 +7,7 @@ import type {
   SleepingAgentSessionRecord
 } from '../../../../shared/agent-session-resume'
 import { isTuiAgent } from '../../../../shared/tui-agent-config'
+import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
 import {
   showStructuredChatInTerminal,
@@ -24,6 +25,8 @@ export type StructuredChatPaneActionsInput = {
   paneKey: string
   target: RuntimeClientTarget
   agent: string
+  /** Pi-only: the chat's runtime; undefined for every other agent. */
+  piRuntime?: PiRuntimeSelection
   providerSession: AgentProviderSessionMetadata | undefined
   workspacePath: string
   /** The conversation as plain text, for a hand-off when the provider has no transcript file. */
@@ -89,7 +92,8 @@ export function createStructuredChatPaneActions(
           paneKey: input.paneKey,
           sessionId: input.sessionId,
           agent: terminalView.agent,
-          providerSession: terminalView.providerSession
+          providerSession: terminalView.providerSession,
+          ...(input.piRuntime ? { piRuntime: input.piRuntime } : {})
         },
         {
           releaseProviderChild: deps.releaseProviderChild,

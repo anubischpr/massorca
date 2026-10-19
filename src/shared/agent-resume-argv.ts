@@ -1,4 +1,5 @@
 import type { AgentProviderSessionMetadata, ResumableTuiAgent } from './agent-session-resume'
+import type { PiRuntimeSelection } from './pi-runtime-selection'
 
 /** The argv that re-enters an existing session, per agent. Split from
  *  `agent-session-resume.ts` so adding an agent does not push that module past its line
@@ -6,7 +7,9 @@ import type { AgentProviderSessionMetadata, ResumableTuiAgent } from './agent-se
 export function getAgentResumeArgv(
   agent: ResumableTuiAgent,
   providerSession: AgentProviderSessionMetadata,
-  ompResumeFilePath?: string | null
+  ompResumeFilePath?: string | null,
+  // Why: Gentle Shell is launched with its pi args after `--` (`gentle-shell [options] -- pi-args`).
+  piRuntime: PiRuntimeSelection = 'pi'
 ): string[] | null {
   const id = providerSession.id
   switch (agent) {
@@ -33,10 +36,14 @@ export function getAgentResumeArgv(
     case 'opencode2':
       // Why: the launch command owns standalone/shared mode, including user overrides.
       return providerSession.key === 'session_id' ? ['opencode2', '--session', id] : null
-    case 'pi':
-      return providerSession.key === 'session_id' && providerSession.transcriptPath
-        ? ['pi', '--session', providerSession.transcriptPath]
-        : null
+    case 'pi': {
+      if (providerSession.key !== 'session_id' || !providerSession.transcriptPath) {
+        return null
+      }
+      return piRuntime === 'gentle-shell'
+        ? ['gentle-shell', '--', '--session', providerSession.transcriptPath]
+        : ['pi', '--session', providerSession.transcriptPath]
+    }
     case 'prime-agent':
       return providerSession.key === 'session_id' && providerSession.transcriptPath
         ? ['prime-agent', '--resume', providerSession.transcriptPath]

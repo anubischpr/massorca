@@ -6,6 +6,7 @@ import {
   type StructuredChatPaneActionsDeps,
   type StructuredChatPaneActionsInput
 } from './structured-chat-pane-actions'
+import { structuredChatPiRuntime } from './structured-agent-declared-access'
 
 const LOCAL: RuntimeClientTarget = { kind: 'local' }
 
@@ -78,6 +79,37 @@ describe('createStructuredChatPaneActions', () => {
     expect(d.releaseProviderChild).not.toHaveBeenCalled()
     expect(d.launchResume).not.toHaveBeenCalled()
     expect(d.closeTab).not.toHaveBeenCalled()
+  })
+
+  it('resumes a Gentle Shell chat in the terminal with its runtime', async () => {
+    const d = deps()
+    const actions = createStructuredChatPaneActions(
+      input({
+        agent: 'pi',
+        piRuntime: 'gentle-shell',
+        providerSession: { key: 'session_id', id: 'provider-1', transcriptPath: '/t/s.jsonl' }
+      }),
+      d
+    )
+    await expect(actions.showTerminal()).resolves.toBe(true)
+    expect(d.launchResume).toHaveBeenCalledWith(
+      expect.objectContaining({ agent: 'pi', piRuntime: 'gentle-shell' })
+    )
+  })
+
+  it('omits the runtime from the terminal resume of a Pi chat without one', async () => {
+    const d = deps()
+    const actions = createStructuredChatPaneActions(
+      input({
+        agent: 'pi',
+        providerSession: { key: 'session_id', id: 'provider-1', transcriptPath: '/t/s.jsonl' }
+      }),
+      d
+    )
+    await expect(actions.showTerminal()).resolves.toBe(true)
+    const record = vi.mocked(d.launchResume).mock.calls[0]?.[0]
+    expect(record).toBeDefined()
+    expect(record).not.toHaveProperty('piRuntime')
   })
 
   it('releases the provider child before launching the terminal resume, then closes the chat tab', async () => {
@@ -186,5 +218,44 @@ describe('createStructuredChatPaneActions', () => {
       createStructuredChatPaneActions(input({ agent: 'not-an-agent' }), d).handOff()
     ).toBeNull()
     expect(d.prepareContinuation).not.toHaveBeenCalled()
+  })
+})
+
+describe('structuredChatPiRuntime', () => {
+  it('prefers a valid launch seed over the configured Pi command', () => {
+    expect(
+      structuredChatPiRuntime({
+        agent: 'pi',
+        launchSeedOptions: { piRuntime: 'gentle-shell' },
+        piCommand: 'pi'
+      })
+    ).toBe('gentle-shell')
+  })
+
+  it('falls back to the configured Pi command when the seed is missing or invalid', () => {
+    expect(
+      structuredChatPiRuntime({
+        agent: 'pi',
+        launchSeedOptions: undefined,
+        piCommand: 'gentle-shell'
+      })
+    ).toBe('gentle-shell')
+    expect(
+      structuredChatPiRuntime({
+        agent: 'pi',
+        launchSeedOptions: { piRuntime: 'not-a-runtime' },
+        piCommand: undefined
+      })
+    ).toBe('pi')
+  })
+
+  it('is undefined for agents other than Pi', () => {
+    expect(
+      structuredChatPiRuntime({
+        agent: 'claude',
+        launchSeedOptions: { piRuntime: 'gentle-shell' },
+        piCommand: 'gentle-shell'
+      })
+    ).toBeUndefined()
   })
 })

@@ -76,6 +76,7 @@ export function launchSleepingAgentSession(
     ...(launchConfig?.ompResumeFilePath
       ? { ompResumeFilePath: launchConfig.ompResumeFilePath }
       : {}),
+    ...(record.piRuntime ? { piRuntime: record.piRuntime } : {}),
     platform: resumeTarget.platform,
     shell: resumeTarget.shell
   })
