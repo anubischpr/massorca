@@ -9,11 +9,13 @@ export type NativeChatTaskChange = {
   kind: 'added' | 'removed' | 'started' | 'completed' | 'pending' | 'updated'
   task: NativeChatTask
 }
-export type NativeChatTaskListTool = 'todowrite' | 'update_plan'
+export type NativeChatTaskListTool = 'todowrite' | 'update_plan' | 'todo'
 
 export function nativeChatTaskListTool(name: string): NativeChatTaskListTool | null {
   const normalized = name.trim().toLowerCase()
-  return normalized === 'todowrite' || normalized === 'update_plan' ? normalized : null
+  return normalized === 'todowrite' || normalized === 'update_plan' || normalized === 'todo'
+    ? normalized
+    : null
 }
 
 function record(value: unknown): Record<string, unknown> | null {
@@ -24,6 +26,33 @@ function record(value: unknown): Record<string, unknown> | null {
 
 function nonemptyString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+/** Gentle Shell's `todo` tool is an action stream: only the snapshot its result carries (`gentleTodo`,
+ *  attached by the host) is a plan, never the call's own arguments. A blocked task is open and reads
+ *  as pending; a dropped one is neither open nor done, so it is left out. */
+function gentleTodoList(value: Record<string, unknown> | null): NativeChatTaskList | null {
+  const entries = record(value?.gentleTodo)?.tasks
+  if (!Array.isArray(entries)) {
+    return null
+  }
+  const tasks: NativeChatTask[] = []
+  for (const entry of entries) {
+    const item = record(entry)
+    const content = nonemptyString(item?.title)
+    if (!item || !content || item.status === 'dropped') {
+      continue
+    }
+    const status =
+      item.status === 'in_progress'
+        ? 'in_progress'
+        : item.status === 'done'
+          ? 'completed'
+          : 'pending'
+    const activeForm = status === 'in_progress' ? nonemptyString(item.note) : undefined
+    tasks.push({ content, status, ...(activeForm ? { activeForm } : {}) })
+  }
+  return { tasks }
 }
 
 export function normalizeNativeChatTaskList(
@@ -42,6 +71,9 @@ export function normalizeNativeChatTaskList(
     }
   }
   const value = record(input)
+  if (tool === 'todo') {
+    return gentleTodoList(value)
+  }
   const entries = tool === 'todowrite' ? value?.todos : value?.plan
   if (!Array.isArray(entries)) {
     return null

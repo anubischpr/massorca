@@ -7,11 +7,28 @@ import {
 } from '../native-chat/agent-session-journal/journal-payload-bounds'
 import type { ProviderTimelineEvent } from '../native-chat/agent-session-timeline/provider-timeline-event'
 import { piRpcMessageEventSchema, piRpcToolEventSchema } from './rpc-protocol'
+import { GENTLE_TODO_TOOL, readGentleTodoSnapshot } from './gentle-shell-todo-details'
 import type { PiRpcContextUsage } from './rpc-context-usage'
 
 const resultSchema = z.object({
   content: z.array(z.object({ type: z.string(), text: z.string().optional() }))
 })
+const resultDetailsSchema = z.object({ details: z.unknown() })
+
+/** A Gentle Shell `todo` result holds the whole list; the call's arguments are only one action on it.
+ *  The snapshot rides beside the arguments so the plan is read from what the tool reported. */
+function withGentleTodoSnapshot(toolName: string, input: unknown, result: unknown): unknown {
+  if (toolName !== GENTLE_TODO_TOOL) {
+    return input
+  }
+  const details = resultDetailsSchema.safeParse(result)
+  const tasks = details.success ? readGentleTodoSnapshot(details.data.details) : undefined
+  if (!tasks) {
+    return input
+  }
+  const base = input !== null && typeof input === 'object' && !Array.isArray(input) ? input : {}
+  return { ...base, gentleTodo: { tasks } }
+}
 
 /** Pi does not name assistant messages; ordinals are local to this exact child. */
 export class PiRpcMessages {
@@ -113,14 +130,15 @@ export class PiRpcMessages {
           : JSON.stringify(result)
     const state =
       event.type === 'tool_execution_end' ? (event.isError ? 'failed' : 'completed') : 'running'
+    const input =
+      event.args === undefined
+        ? (previous?.input ?? null)
+        : boundToolInput(event.args, DEFAULT_JOURNAL_PAYLOAD_LIMITS)
     const body: AgentJournalToolCallItem = {
       kind: 'tool-call',
       name: event.toolName,
       callId: event.toolCallId,
-      input:
-        event.args === undefined
-          ? (previous?.input ?? null)
-          : boundToolInput(event.args, DEFAULT_JOURNAL_PAYLOAD_LIMITS),
+      input: state === 'completed' ? withGentleTodoSnapshot(event.toolName, input, result) : input,
       state,
       ...(output === undefined
         ? previous?.output

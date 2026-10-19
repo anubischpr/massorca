@@ -126,6 +126,35 @@ describe('selected chat summary evidence', () => {
 })
 
 describe('selected chat summary plan', () => {
+  it('reports a Gentle Shell todo list from the snapshot its result carried', () => {
+    const gentleTodo = (tasks: unknown[]) => ({ action: 'write', gentleTodo: { tasks } })
+    expect(
+      nativeChatSessionPlan([
+        item({
+          kind: 'tool-call',
+          name: 'todo',
+          input: gentleTodo([
+            { title: 'Parse', status: 'done' },
+            { title: 'Test', status: 'in_progress', note: 'writing RED' },
+            { title: 'Ship', status: 'pending' }
+          ]),
+          state: 'completed'
+        }),
+        // A running call only holds the action, and a later list read changes nothing.
+        item(
+          { kind: 'tool-call', name: 'todo', input: { action: 'update', id: 2 }, state: 'running' },
+          2
+        )
+      ])
+    ).toEqual({
+      tasks: [
+        { content: 'Parse', status: 'completed' },
+        { content: 'Test', status: 'in_progress', activeForm: 'writing RED' },
+        { content: 'Ship', status: 'pending' }
+      ]
+    })
+  })
+
   it('reports the latest TodoWrite plan and ignores a failed call', () => {
     expect(
       nativeChatSessionPlan([
