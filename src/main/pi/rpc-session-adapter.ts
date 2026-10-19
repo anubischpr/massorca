@@ -207,7 +207,16 @@ export class PiRpcSessionAdapter implements StructuredAgentSessionAdapter {
       await session.gentle.switchTo(input.value)
       return Object.fromEntries(session.selected)
     }
-    return applyPiRpcSessionOption(session.connection, session.selected, input.key, input.value)
+    const selected = await applyPiRpcSessionOption(
+      session.connection,
+      session.selected,
+      input.key,
+      input.value
+    )
+    if (input.key === 'model') {
+      void session.resyncUsage()
+    }
+    return selected
   }
   liveAccessModes = (id: string): readonly AgentSessionExplicitAccess[] => {
     const session = this.sessions.get(id)

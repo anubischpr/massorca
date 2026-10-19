@@ -180,6 +180,7 @@ export class PiRpcSession {
       }
     }
     this.options = await readPiRpcSessionOptions(this.connection)
+    await this.resyncUsage(true)
     try {
       this.commands = (await readPiRpcCommands(this.connection)).commands
     } catch (error) {
@@ -197,6 +198,20 @@ export class PiRpcSession {
       this.skipped.push('accessMode')
     }
     return state.sessionFile
+  }
+
+  /** Re-reads the live model and context usage; a failed read leaves the last report in place. */
+  async resyncUsage(force = false): Promise<void> {
+    try {
+      const state = piRpcStateSchema.parse(await this.connection.request('get_state'))
+      this.turns.syncModel(state.model ?? undefined, force)
+    } catch (error) {
+      this.deps.logger.warn('Pi context usage could not be read', {
+        scope: 'pi-context-usage',
+        sessionId: this.input.identity.sessionId,
+        error
+      })
+    }
   }
 
   async close(requested = true): ReturnType<PiRpcConnection['close']> {

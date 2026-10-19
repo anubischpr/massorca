@@ -54,6 +54,7 @@ class FakeConnection implements PiRpcConnection {
   private readonly exitListeners: (() => void)[] = []
   requestOverride?: (command: string) => Promise<unknown> | undefined
   abortRequest?: () => void
+  model: { provider: string; id: string } = state.model
   constructor(readonly handlers: JsonlRpcAgentConnectionOptions) {}
   async request(command: string, params?: Record<string, unknown>): Promise<unknown> {
     this.requests.push(command)
@@ -65,11 +66,18 @@ class FakeConnection implements PiRpcConnection {
     if (override) {
       return override
     }
+    if (command === 'set_model') {
+      this.model = { provider: String(params?.provider), id: String(params?.modelId) }
+      return {}
+    }
     if (command === 'get_state') {
-      return state
+      return { ...state, model: this.model }
     }
     if (command === 'get_available_models') {
       return { models: [state.model] }
+    }
+    if (command === 'get_session_stats') {
+      return { contextUsage: { tokens: 29_441, contextWindow: 1_000_000, percent: 2.9 } }
     }
     if (command === 'get_commands') {
       return { commands: listedCommands }
@@ -661,6 +669,24 @@ describe('Pi RPC session ownership and delivery', () => {
     const other = await setup()
     other.connection.closeResult = { root: 'unverifiable', tree: null }
     expect(await other.adapter.closeSession(sessionId)).toBe(false)
+  })
+})
+
+describe('Pi RPC context usage refresh', () => {
+  it('reads context usage right after start and after a live model change', async () => {
+    const h = await setup()
+    await vi.waitFor(() =>
+      expect(h.connection.requests.filter((r) => r === 'get_session_stats')).toHaveLength(1)
+    )
+    await h.adapter.setOption({
+      sessionId,
+      fence: 7,
+      key: 'model',
+      value: 'anthropic/model-2'
+    })
+    await vi.waitFor(() =>
+      expect(h.connection.requests.filter((r) => r === 'get_session_stats')).toHaveLength(2)
+    )
   })
 })
 
