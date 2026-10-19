@@ -18504,7 +18504,10 @@
         "terminalViewLaunchFailed": "Could not open this chat in the terminal. Its agent process was released; the chat history is kept.",
         "terminalViewNoWorktree": "This chat's workspace is not known yet.",
         "terminalViewAgent": "This agent cannot resume its chat in the terminal.",
-        "terminalViewNoSession": "This chat has not reported its agent session yet."
+        "terminalViewNoSession": "This chat has not reported its agent session yet.",
+        "terminalReturnUnconfirmed": "Could not confirm the terminal stopped, so this chat was not reopened. The terminal may still be running.",
+        "terminalReturnHeldByTerminal": "This conversation is still running in a terminal, so the chat was not reopened.",
+        "terminalReturnFailed": "Could not reopen this chat. Its terminal was closed and the conversation is kept."
       },
       "state": {
         "loading": {

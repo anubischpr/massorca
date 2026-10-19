@@ -2,10 +2,7 @@ import type {
   AgentSessionContinuationRequest,
   AgentSessionContinuationSource
 } from '@/lib/agent-session-continuation'
-import type {
-  AgentProviderSessionMetadata,
-  SleepingAgentSessionRecord
-} from '../../../../shared/agent-session-resume'
+import type { AgentProviderSessionMetadata } from '../../../../shared/agent-session-resume'
 import { isTuiAgent } from '../../../../shared/tui-agent-config'
 import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
@@ -39,7 +36,8 @@ export type StructuredChatPaneActionsDeps = {
   splitRight: (tabId: string, groupId: string) => boolean
   closeTab: (tabId: string) => void
   releaseProviderChild: ShowStructuredChatInTerminalDeps['releaseProviderChild']
-  launchResume: (record: SleepingAgentSessionRecord) => boolean
+  launchResume: ShowStructuredChatInTerminalDeps['launchResume']
+  recordTerminalLink: ShowStructuredChatInTerminalDeps['recordTerminalLink']
   prepareContinuation: (args: {
     source: AgentSessionContinuationSource
     worktreeId: string
@@ -98,6 +96,7 @@ export function createStructuredChatPaneActions(
         {
           releaseProviderChild: deps.releaseProviderChild,
           launchResume: deps.launchResume,
+          recordTerminalLink: deps.recordTerminalLink,
           closeChatTab: deps.closeTab,
           onReleaseFailed: deps.onTerminalViewReleaseFailed,
           onLaunchFailedAfterRelease: deps.onTerminalViewLaunchFailed

@@ -33,6 +33,7 @@ const UNTOUCHED_FIELDS = [
   'directSshLivePtyBindingByTabId',
   'pendingStartupByTabId',
   'automaticAgentResumeClaimsByTabId',
+  'structuredChatTerminalLinksByTabId',
   'nativeChatLaunchPromptByTabId',
   'nativeChatLaunchDraftByTabId',
   'pendingInitialCwdByTabId',

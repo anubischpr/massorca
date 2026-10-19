@@ -38,7 +38,8 @@ export function createTerminalTabCloseActions(
       let closingWorktreeId: string | null = null
       // Why: a parked tab has no mounted TerminalPane cleanup, so revoke its observer/candidate state before provider exit races.
       retireParkedTerminalTab(tabId)
-      if (retiresSession) {
+      // Why: a caller that awaits its own confirmed teardown (structured chat return) owns these PTYs; a second kill would race it.
+      if (retiresSession && opts?.providerRetirementOwnedByCaller !== true) {
         startTerminalTabProviderRetirement({
           localPtyTeardownOwnedExternally: opts?.localPtyTeardownOwnedExternally === true,
           remoteCloseOwnedByHost: opts?.remoteCloseOwnedByHost === true,
@@ -145,6 +146,9 @@ export function createTerminalTabCloseActions(
         const nextAutomaticAgentResumeClaimsByTabId = omitByTabId(
           s.automaticAgentResumeClaimsByTabId
         )
+        const nextStructuredChatTerminalLinksByTabId = omitByTabId(
+          s.structuredChatTerminalLinksByTabId
+        )
         const nextNativeChatLaunchPromptByTabId = omitByTabId(s.nativeChatLaunchPromptByTabId)
         const nextNativeChatLaunchDraftByTabId = omitByTabId(s.nativeChatLaunchDraftByTabId)
         const nextPendingInitialCwdByTabId = omitByTabId(s.pendingInitialCwdByTabId)
@@ -233,6 +237,7 @@ export function createTerminalTabCloseActions(
           localOnlyScrollbackByTabId: nextLocalOnlyScrollback,
           pendingStartupByTabId: nextPendingStartupByTabId,
           automaticAgentResumeClaimsByTabId: nextAutomaticAgentResumeClaimsByTabId,
+          structuredChatTerminalLinksByTabId: nextStructuredChatTerminalLinksByTabId,
           nativeChatLaunchPromptByTabId: nextNativeChatLaunchPromptByTabId,
           nativeChatLaunchDraftByTabId: nextNativeChatLaunchDraftByTabId,
           pendingInitialCwdByTabId: nextPendingInitialCwdByTabId,

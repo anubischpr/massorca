@@ -12,6 +12,7 @@ export function createTerminalEphemeralActions(
   | 'setHydrationSucceeded'
   | 'setRecentQuickCommandForGroup'
   | 'claimAutomaticAgentResume'
+  | 'linkStructuredChatTerminalTab'
   | 'seedNativeChatLaunchPrompt'
   | 'markNativeChatLaunchPromptFailed'
   | 'clearNativeChatLaunchPrompt'
@@ -55,6 +56,14 @@ export function createTerminalEphemeralActions(
         automaticAgentResumeClaimsByTabId: {
           ...s.automaticAgentResumeClaimsByTabId,
           [tabId]: claim
+        }
+      }))
+    },
+    linkStructuredChatTerminalTab: (tabId, link) => {
+      set((s) => ({
+        structuredChatTerminalLinksByTabId: {
+          ...s.structuredChatTerminalLinksByTabId,
+          [tabId]: link
         }
       }))
     },

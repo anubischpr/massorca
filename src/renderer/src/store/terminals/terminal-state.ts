@@ -18,7 +18,11 @@ import type {
 } from '../slices/direct-ssh-terminal-recovery'
 import type { NativeChatLaunchDraft, NativeChatLaunchPrompt } from '@/lib/native-chat-launch-prompt'
 import type { HostSessionSlices } from '@/lib/workspace-session-host-split'
-import type { AutomaticAgentResumeClaim, CodexRestartNotice } from './terminal-contracts'
+import type {
+  AutomaticAgentResumeClaim,
+  CodexRestartNotice,
+  StructuredChatTerminalLink
+} from './terminal-contracts'
 import type { StateCreator } from 'zustand'
 import type { AppState } from '../types'
 import type { TerminalActions } from './terminal-actions'
@@ -57,6 +61,8 @@ export type TerminalState = {
   recentQuickCommandIdByGroup: Record<string, string>
   /** Runtime-only claim bridging startup payload consumption until terminal hooks mount. */
   automaticAgentResumeClaimsByTabId: Record<string, AutomaticAgentResumeClaim>
+  /** Terminal tabs "Show terminal" opened for a structured chat; cleared when the tab closes. */
+  structuredChatTerminalLinksByTabId: Record<string, StructuredChatTerminalLink>
   nativeChatLaunchPromptByTabId: Record<string, NativeChatLaunchPrompt>
   nativeChatLaunchDraftByTabId: Record<string, NativeChatLaunchDraft>
   pendingStartupByTabId: Record<

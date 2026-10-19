@@ -4,6 +4,7 @@ import {
 } from '@/runtime/runtime-environment-revision'
 import type { AppState } from '../types'
 import { callRuntimeRpc, ensureRuntimeEnvironmentCompatible } from '@/runtime/runtime-rpc-client'
+import type { RuntimeTerminalClose } from '../../../../shared/runtime-terminal-contracts'
 import { resolveTerminalWorktreeRoute } from '@/lib/terminal-worktree-route'
 import {
   classifyTerminalRetirementWorktree,
@@ -25,9 +26,7 @@ export function startTerminalTabProviderRetirement({
   tabId: string
   canRetireRuntimeTerminal?: () => boolean
 }): void {
-  const fallbackWorktreeRoute = retirementPlan.worktreeId
-    ? resolveTerminalWorktreeRoute(state, retirementPlan.worktreeId)
-    : { runtimeEnvironmentId: null }
+  const fallbackWorktreeRoute = fallbackRuntimeRouteFor(state, retirementPlan)
   const retirementTasks: Promise<unknown>[] = localPtyTeardownOwnedExternally
     ? []
     : retirementPlan.localOrSshPtyIds.map(async (ptyId) => window.api.pty.kill(ptyId))
@@ -69,16 +68,80 @@ export function startTerminalTabProviderRetirement({
   })
 }
 
+/**
+ * The awaited variant of `startTerminalTabProviderRetirement` over the same plan. Resolves true only
+ * when every process the plan reaches confirmed its exit. A PTY this plan cannot reach (shared with
+ * another tab, no owner, no route) keeps its process alive, so it counts as unconfirmed.
+ */
+export function startConfirmedTerminalTabProviderRetirement({
+  canRetireRuntimeTerminal,
+  retirementPlan,
+  state
+}: {
+  canRetireRuntimeTerminal?: () => boolean
+  retirementPlan: TerminalTabRetirementPlan
+  state: AppState
+}): Promise<boolean> {
+  const fallbackWorktreeRoute = fallbackRuntimeRouteFor(state, retirementPlan)
+  let unreachableCount = retirementPlan.sharedPtyIds.length + retirementPlan.unroutablePtyIds.length
+  const confirmations: Promise<boolean>[] = retirementPlan.localOrSshPtyIds.map((ptyId) =>
+    confirmLocalPtyStopped(ptyId)
+  )
+  for (const terminal of retirementPlan.runtimeTerminals) {
+    if (!terminal.environmentId && !fallbackWorktreeRoute) {
+      unreachableCount += 1
+      continue
+    }
+    const environmentId = terminal.environmentId ?? fallbackWorktreeRoute?.runtimeEnvironmentId
+    confirmations.push(
+      confirmRuntimeTerminalStopped(environmentId, terminal.handle, canRetireRuntimeTerminal)
+    )
+  }
+  return Promise.all(confirmations).then(
+    (results) => unreachableCount === 0 && results.length > 0 && results.every(Boolean)
+  )
+}
+
+/** The route a runtime PTY falls back to when its own id names no environment. */
+function fallbackRuntimeRouteFor(state: AppState, retirementPlan: TerminalTabRetirementPlan) {
+  return retirementPlan.worktreeId
+    ? resolveTerminalWorktreeRoute(state, retirementPlan.worktreeId)
+    : { runtimeEnvironmentId: null }
+}
+
+async function confirmLocalPtyStopped(ptyId: string): Promise<boolean> {
+  try {
+    const result = await window.api.pty.kill(ptyId, { confirmExit: true })
+    return result.exitConfirmed === true
+  } catch {
+    return false
+  }
+}
+
+async function confirmRuntimeTerminalStopped(
+  environmentId: string | null | undefined,
+  handle: string,
+  canRetire?: () => boolean
+): Promise<boolean> {
+  try {
+    // Why: a close the host did not confirm, and every older host that omits the field, stay unconfirmed.
+    const close = await retireRuntimeTerminal(environmentId, handle, canRetire)
+    return close?.ptyExitConfirmed === true
+  } catch {
+    return false
+  }
+}
+
 async function retireRuntimeTerminal(
   environmentId: string | null | undefined,
   handle: string,
   canRetire?: () => boolean
-): Promise<unknown> {
+): Promise<RuntimeTerminalClose | undefined> {
   const target = environmentId
     ? { kind: 'environment' as const, environmentId }
     : { kind: 'local' as const }
   if (!canRetire) {
-    return callRuntimeRpc(target, 'terminal.close', { terminal: handle })
+    return callRuntimeRpc<RuntimeTerminalClose>(target, 'terminal.close', { terminal: handle })
   }
   const revision = environmentId
     ? captureRuntimeEnvironmentRequestRevision(environmentId)
@@ -92,10 +155,10 @@ async function retireRuntimeTerminal(
     (environmentId && getRuntimeEnvironmentRevision(environmentId) !== revision) ||
     !canRetire()
   ) {
-    return
+    return undefined
   }
   // Compatibility was checked above; recheck pane ownership at the actual dispatch boundary.
-  return callRuntimeRpc(
+  return callRuntimeRpc<RuntimeTerminalClose>(
     target,
     'terminal.close',
     { terminal: handle },

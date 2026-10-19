@@ -1,5 +1,6 @@
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import type { AgentProviderSessionMetadata } from '../../../../shared/agent-session-resume'
+import type { AgentSessionHandleProvider } from '../../../../shared/agent-session-provider-handle'
 import type { DirectSshAuthority } from '../../../../shared/ssh-types'
 import type { ExecutionHostId } from '../../../../shared/execution-host'
 import type { WorkspaceSessionHydrationOptions } from '@/lib/workspace-session-hydration-keys'
@@ -10,6 +11,13 @@ export type AutomaticAgentResumeClaim = {
   worktreeId: string
   launchAgent: TuiAgent
   providerSession: AgentProviderSessionMetadata
+}
+
+/** A terminal "Show terminal" opened for a structured chat; back-to-chat reopens that chat. Never persisted. */
+export type StructuredChatTerminalLink = {
+  agent: AgentSessionHandleProvider
+  providerSessionId: string
+  worktreeId: string
 }
 
 export type CodexRestartNotice = {

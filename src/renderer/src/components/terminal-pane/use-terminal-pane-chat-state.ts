@@ -14,6 +14,11 @@ import {
   resolveNativeChatLeafRoute,
   type NativeChatLeafRoute
 } from '../native-chat/native-chat-leaf-routing'
+import {
+  returnTerminalToStructuredChat,
+  terminalChatToggleRoute
+} from '../native-chat/structured-chat-terminal-return'
+import type { StructuredChatTerminalLink } from '../../store/terminals/terminal-contracts'
 import type { TerminalPaneTitleController } from './use-terminal-pane-title-state'
 
 export function useTerminalPaneChatState(controller: TerminalPaneTitleController) {
@@ -59,6 +64,10 @@ export function useTerminalPaneChatState(controller: TerminalPaneTitleController
     )
   )
   const savedLayout = useAppStore((store) => store.terminalLayoutsByTabId[tabId] ?? EMPTY_LAYOUT)
+  const structuredChatTerminalLink = useAppStore(
+    (store): StructuredChatTerminalLink | undefined =>
+      store.structuredChatTerminalLinksByTabId[tabId]
+  )
   const terminalTab = useAppStore((store) =>
     getCachedTerminalTabForWorktree(store.tabsByWorktree, worktreeId, tabId)
   )
@@ -205,9 +214,11 @@ export function useTerminalPaneChatState(controller: TerminalPaneTitleController
     (leafId: string | null): boolean => {
       // Scope the "always allow toggling back" rule to the leaf showing chat; must not make an unsupported sibling look eligible.
       const isChatViewForLeaf = effectiveChatViewMode && leafId !== null && chatLeafId === leafId
-      return isChatViewForLeaf || isChatEligibleForLeaf(leafId)
+      // Why: a terminal the structured chat opened can always return to that chat, whatever the legacy transcript allows.
+      const returnsToStructuredChat = leafId !== null && structuredChatTerminalLink !== undefined
+      return isChatViewForLeaf || returnsToStructuredChat || isChatEligibleForLeaf(leafId)
     },
-    [chatLeafId, effectiveChatViewMode, isChatEligibleForLeaf]
+    [chatLeafId, effectiveChatViewMode, isChatEligibleForLeaf, structuredChatTerminalLink]
   )
   const toggleNativeChatForLeaf = useCallback(
     (leafId: string) => {
@@ -219,12 +230,28 @@ export function useTerminalPaneChatState(controller: TerminalPaneTitleController
         toggleTabViewMode(unifiedTabId)
         return
       }
+      const route = terminalChatToggleRoute({
+        link: structuredChatTerminalLink,
+        chatViewActive: effectiveChatViewMode
+      })
+      if (route.kind === 'return-to-structured-chat') {
+        void returnTerminalToStructuredChat({ tabId, link: route.link })
+        return
+      }
       setChatLeafId(leafId)
       if (!effectiveChatViewMode) {
         toggleTabViewMode(unifiedTabId)
       }
     },
-    [chatLeafId, effectiveChatViewMode, setChatLeafId, toggleTabViewMode, unifiedTabId]
+    [
+      chatLeafId,
+      effectiveChatViewMode,
+      setChatLeafId,
+      structuredChatTerminalLink,
+      tabId,
+      toggleTabViewMode,
+      unifiedTabId
+    ]
   )
   const handleToggleNativeChat = useCallback(() => {
     const activeLeafId = managerRef.current?.getActivePane()?.leafId ?? null
