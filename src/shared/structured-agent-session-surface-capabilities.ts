@@ -44,7 +44,32 @@ export const AGENT_SESSION_PROMPT_SUGGESTION_RUNTIME_CAPABILITY =
 export const AGENT_SESSION_SETTLED_CHILD_WORK_RUNTIME_CAPABILITY =
   'agent-session.structured.settled-child-work.v1' as const
 
+import { isAgentSessionAdoptableProvider } from './agent-session-provider-handle'
+
+// Why: an Antigravity conversation can be adopted into a structured chat only where its wire kind
+// (`antigravity` handles, and `antigravity` as an attach provider) is understood. An older host
+// refuses those as schema errors, so a client offers the chat only after this is advertised.
+export const STRUCTURED_AGENT_SESSION_ADOPT_ANTIGRAVITY_RUNTIME_CAPABILITY =
+  'agent-session.structured.adopt-antigravity.v1' as const
+
+/** Whether a structured chat can adopt this agent's existing conversation on a host advertising
+ *  `hostCapabilities`. Antigravity needs its own capability; the others were always adoptable. */
+export function structuredAgentSessionAdoptsAgent(
+  agent: string,
+  hostCapabilities: readonly string[] | null | undefined
+): boolean {
+  if (!isAgentSessionAdoptableProvider(agent)) {
+    return false
+  }
+  return (
+    agent !== 'antigravity' ||
+    hostCapabilities?.includes(STRUCTURED_AGENT_SESSION_ADOPT_ANTIGRAVITY_RUNTIME_CAPABILITY) ===
+      true
+  )
+}
+
 export const STRUCTURED_AGENT_SESSION_SURFACE_RUNTIME_CAPABILITIES = [
+  STRUCTURED_AGENT_SESSION_ADOPT_ANTIGRAVITY_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_HOLD_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_REVEAL_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY,

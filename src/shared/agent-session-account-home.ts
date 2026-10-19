@@ -44,6 +44,12 @@ export function isLegacyAgentSessionAccountHome(
   return !('kind' in home)
 }
 
+export function isAntigravityAgentSessionAccountHome(
+  home: AgentSessionAccountHome
+): home is AntigravityAgentSessionAccountHome {
+  return 'kind' in home && home.kind === 'antigravity'
+}
+
 export function requireLegacyAgentSessionAccountHome(
   home: AgentSessionAccountHome
 ): LegacyAgentSessionAccountHome {
