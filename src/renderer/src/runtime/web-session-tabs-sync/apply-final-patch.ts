@@ -42,6 +42,8 @@ export function buildWebSessionTabsFinalPatch(
     nextPendingStartupByTabId,
     automaticAgentResumeClaimsByTabId,
     nextAutomaticAgentResumeClaimsByTabId,
+    structuredChatTerminalLinks,
+    nextStructuredChatTerminalLinks,
     nextBrowserPagesByWorkspace,
     nextRemoteBrowserPageHandlesByPageId,
     nextBrowserCertificateFailuresByPageId,
@@ -130,6 +132,9 @@ export function buildWebSessionTabsFinalPatch(
       : {}),
     ...(nextAutomaticAgentResumeClaimsByTabId !== automaticAgentResumeClaimsByTabId
       ? { automaticAgentResumeClaimsByTabId: nextAutomaticAgentResumeClaimsByTabId }
+      : {}),
+    ...(nextStructuredChatTerminalLinks !== structuredChatTerminalLinks
+      ? { structuredChatTerminalLinksByTabId: nextStructuredChatTerminalLinks }
       : {}),
     ...(nextBrowserPagesByWorkspace !== state.browserPagesByWorkspace
       ? { browserPagesByWorkspace: nextBrowserPagesByWorkspace }

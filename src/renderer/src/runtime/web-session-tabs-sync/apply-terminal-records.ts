@@ -1,4 +1,5 @@
 import { terminalLayoutEqual } from '@/lib/terminal-layout-equality'
+import { toWebTerminalSurfaceTabId } from '../web-runtime-session'
 import type { prepareWebSessionTabsSnapshotGroups } from './apply-preparation-groups'
 import { sameStringArray, writableWebSessionTabsRecord } from './state-equality-core'
 
@@ -12,7 +13,8 @@ export function applyTerminalRecordUpdates(context: TerminalRecordContext) {
     mirroredTerminalTabs,
     removedTerminalResourceIds,
     removedTerminalIds,
-    exactProvisionalHandoffs
+    exactProvisionalHandoffs,
+    provisionalHandoffHostTabIds
   } = context
 
   let nextPtyIdsByTabId = state.ptyIdsByTabId
@@ -117,8 +119,28 @@ export function applyTerminalRecordUpdates(context: TerminalRecordContext) {
     }
   }
 
+  // Why: a structured chat's terminal link is keyed by the provisional tab id, which the remote
+  // handoff replaces with the mirrored surface id; carry it over so the back-to-chat toggle survives.
+  const structuredChatTerminalLinks = state.structuredChatTerminalLinksByTabId ?? {}
+  let nextStructuredChatTerminalLinks = structuredChatTerminalLinks
+  for (const [provisionalTabId, hostTabId] of provisionalHandoffHostTabIds) {
+    const link = structuredChatTerminalLinks[provisionalTabId]
+    const mirroredTabId = toWebTerminalSurfaceTabId(hostTabId)
+    if (!link || mirroredTabId === provisionalTabId) {
+      continue
+    }
+    nextStructuredChatTerminalLinks =
+      nextStructuredChatTerminalLinks === structuredChatTerminalLinks
+        ? writableWebSessionTabsRecord(state, 'structuredChatTerminalLinksByTabId', batchContext)
+        : nextStructuredChatTerminalLinks
+    nextStructuredChatTerminalLinks[mirroredTabId] = link
+    delete nextStructuredChatTerminalLinks[provisionalTabId]
+  }
+
   return {
     ...context,
+    structuredChatTerminalLinks,
+    nextStructuredChatTerminalLinks,
     nextPtyIdsByTabId,
     nextTerminalLayoutsByTabId,
     nextLocalOnlyScrollbackByTabId,

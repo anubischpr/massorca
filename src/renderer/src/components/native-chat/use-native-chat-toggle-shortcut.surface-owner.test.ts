@@ -23,6 +23,7 @@ vi.mock('../../store', () => {
     useAppStore: {
       getState: () => ({
         activeWorktreeId: state.activeWorktreeId,
+        structuredChatTerminalLinksByTabId: chatLinks.links,
         activeGroupIdByWorktree: {
           'wt-main': main.groups[0].id,
           [FLOATING_TERMINAL_WORKTREE_ID]: floating.groups[0].id
@@ -57,7 +58,17 @@ vi.mock('@/lib/native-chat-transcript-readability', () => ({
 }))
 vi.mock('@/lib/connection-context', () => ({ getConnectionIdFromState: () => null }))
 
+import type { StructuredChatTerminalLink } from '../../store/terminals/terminal-contracts'
 import { useNativeChatToggleShortcut } from './use-native-chat-toggle-shortcut'
+
+const chatLinks: { links: Record<string, StructuredChatTerminalLink> } = vi.hoisted(() => ({
+  links: {}
+}))
+const returnToStructuredChat = vi.hoisted(() => vi.fn())
+vi.mock('./structured-chat-terminal-return', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  returnTerminalToStructuredChat: returnToStructuredChat
+}))
 
 function pressToggleFrom(target: HTMLElement): void {
   target.dispatchEvent(new KeyboardEvent('keydown', { key: 'j', bubbles: true }))
@@ -69,6 +80,8 @@ describe('native chat toggle with the floating panel on screen', () => {
   afterEach(() => {
     cleanup()
     toggleTabViewMode.mockClear()
+    returnToStructuredChat.mockClear()
+    chatLinks.links = {}
     document.body.replaceChildren()
   })
 
@@ -98,5 +111,21 @@ describe('native chat toggle with the floating panel on screen', () => {
     pressToggleFrom(mainButton)
 
     expect(toggleTabViewMode.mock.calls).toEqual([['wt-main-tab']])
+  })
+
+  it('returns a terminal the structured chat opened to that chat instead of toggling the legacy view', () => {
+    const link: StructuredChatTerminalLink = {
+      agent: 'claude',
+      providerSessionId: 'session-1',
+      worktreeId: 'wt-main',
+      structuredSessionId: 'claude-chat-1'
+    }
+    chatLinks.links = { 'wt-main-terminal': link }
+    const { mainButton } = mountBothSurfaces()
+
+    pressToggleFrom(mainButton)
+
+    expect(returnToStructuredChat.mock.calls).toEqual([[{ tabId: 'wt-main-terminal', link }]])
+    expect(toggleTabViewMode).not.toHaveBeenCalled()
   })
 })

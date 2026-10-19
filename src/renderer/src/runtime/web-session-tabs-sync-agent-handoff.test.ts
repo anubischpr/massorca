@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Tab } from '../../../shared/tab-types'
 import type { TerminalTab } from '../../../shared/terminal-tab-types'
+import type { StructuredChatTerminalLink } from '../store/terminals/terminal-contracts'
 import {
   confirmWebAgentSessionHandoffAfterCreate,
   MAX_WEB_AGENT_SESSION_HANDOFFS,
   recordWebAgentSessionHandoff,
   resolveWebAgentSessionHandoff
 } from './web-agent-session-handoff'
+import { toWebTerminalSurfaceTabId } from './web-runtime-session'
 import { applyWebSessionTabsSnapshot } from './web-session-tabs-sync/snapshot-api'
 import { resolveHostSessionTabIdForWebSessionTab } from './web-session-tabs-sync/tracking-mappings'
 import type { WebSessionTabsSyncState } from './web-session-tabs-sync/state'
@@ -317,5 +319,63 @@ describe('applyWebSessionTabsSnapshot', () => {
         tabId: 'provisional-agent-tab'
       })
     ).toBe('canonical-host-tab')
+  })
+})
+
+describe('structured chat terminal links across a provisional handoff', () => {
+  beforeEach(resetWebSessionTabsSyncTestState)
+
+  it('moves the back-to-chat link from the provisional tab to the mirrored surface', () => {
+    const link: StructuredChatTerminalLink = {
+      agent: 'codex',
+      providerSessionId: 'thread-7',
+      worktreeId: WT,
+      structuredSessionId: 'codex-chat-1'
+    }
+    const provisional: TerminalTab = {
+      id: 'provisional-b',
+      ptyId: null,
+      worktreeId: WT,
+      title: 'Codex',
+      defaultTitle: 'Codex',
+      customTitle: null,
+      color: null,
+      sortOrder: 0,
+      createdAt: NOW,
+      launchAgent: 'codex'
+    }
+    recordWebAgentSessionHandoff({
+      environmentId: ENV,
+      worktreeId: WT,
+      provisionalTabId: 'provisional-b',
+      hostTabId: 'host-tab-1',
+      hostTerminalHandle: 'term_host-1'
+    })
+
+    const patch: Partial<WebSessionTabsSyncState> = applyWebSessionTabsSnapshot(
+      makeState({
+        tabsByWorktree: { [WT]: [provisional] },
+        structuredChatTerminalLinksByTabId: { 'provisional-b': link }
+      }),
+      makeSnapshot([
+        {
+          type: 'terminal',
+          id: HOST_SURFACE_ID,
+          title: 'Codex',
+          parentTabId: 'host-tab-1',
+          leafId: LEAF_ID,
+          isActive: true,
+          launchAgent: 'codex',
+          status: 'ready',
+          terminal: 'terminal-1'
+        }
+      ]),
+      ENV,
+      NOW
+    )
+
+    expect(patch.structuredChatTerminalLinksByTabId).toEqual({
+      [toWebTerminalSurfaceTabId('host-tab-1')]: link
+    })
   })
 })

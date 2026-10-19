@@ -12,7 +12,10 @@ const mocks = vi.hoisted(() => ({ toastError: vi.fn<(message: string) => void>()
 vi.mock('sonner', () => ({ toast: { error: mocks.toastError } }))
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
 // Why: the default dependencies are never used here (each test passes its own), so the store graph stays unloaded.
-vi.mock('@/store', () => ({ useAppStore: { getState: () => ({}) } }))
+const openChats: { tabs: Record<string, unknown[]> } = vi.hoisted(() => ({ tabs: {} }))
+vi.mock('@/store', () => ({
+  useAppStore: { getState: () => ({ unifiedTabsByWorktree: openChats.tabs }) }
+}))
 vi.mock('../../store/terminals/terminal-tab-confirmed-close', () => ({
   closeTerminalTabConfirmingExit: vi.fn()
 }))
@@ -23,7 +26,8 @@ vi.mock('@/lib/provider-session-structured-chat-resume', () => ({
 const LINK: StructuredChatTerminalLink = {
   agent: 'codex',
   providerSessionId: 'thread-7',
-  worktreeId: 'repo::/work/feature'
+  worktreeId: 'repo::/work/feature',
+  structuredSessionId: 'codex-chat-1'
 }
 /** The launch of a chat that began. */
 const BEGUN = { sessionId: 'session-1' }
@@ -39,6 +43,7 @@ function deps(
   return {
     closeTerminalTabConfirmingExit: vi.fn(async () => true),
     resumeInStructuredChat: vi.fn((_args: ResumeProviderSessionInNewChatArgs) => BEGUN),
+    reactivateStructuredSession: vi.fn(() => false),
     newRequestId: vi.fn(() => 'request-1'),
     ...overrides
   }
@@ -47,6 +52,7 @@ function deps(
 describe('returnTerminalToStructuredChat', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    openChats.tabs = {}
   })
 
   it('adopts the linked session into a new chat only after the terminal confirmed its exit', async () => {
@@ -194,5 +200,57 @@ describe('terminalChatToggleRoute', () => {
     expect(terminalChatToggleRoute({ link: LINK, chatViewActive: true, paneCount: 1 })).toEqual({
       kind: 'legacy-toggle'
     })
+  })
+})
+
+describe('structured chat terminal return for Pi and Antigravity chats', () => {
+  const PI_LINK: StructuredChatTerminalLink = {
+    agent: 'pi',
+    providerSessionId: 'pi-session-9',
+    worktreeId: 'repo::/work/feature',
+    structuredSessionId: 'pi-chat-1'
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    openChats.tabs = {}
+  })
+
+  it('reactivates the chat tab that is still open instead of adopting a new one', async () => {
+    const d = deps({
+      closeTerminalTabConfirmingExit: vi.fn(async () => true),
+      reactivateStructuredSession: vi.fn(() => true)
+    })
+
+    await expect(
+      returnTerminalToStructuredChat({ tabId: 'tab-1', link: PI_LINK }, d)
+    ).resolves.toBe(true)
+    expect(d.reactivateStructuredSession).toHaveBeenCalledWith({
+      worktreeId: 'repo::/work/feature',
+      sessionId: 'pi-chat-1'
+    })
+    expect(d.resumeInStructuredChat).not.toHaveBeenCalled()
+  })
+
+  it('does not offer a return when the Pi chat tab is gone, so the terminal stays open', () => {
+    expect(terminalChatToggleRoute({ link: PI_LINK, chatViewActive: false, paneCount: 1 })).toEqual(
+      { kind: 'legacy-toggle' }
+    )
+  })
+
+  it('offers the return while the Pi chat tab is open', () => {
+    openChats.tabs = {
+      'repo::/work/feature': [
+        {
+          id: 'chat-tab',
+          contentType: 'agent-session',
+          entityId: 'pi-chat-1',
+          worktreeId: 'repo::/work/feature'
+        }
+      ]
+    }
+    expect(terminalChatToggleRoute({ link: PI_LINK, chatViewActive: false, paneCount: 1 })).toEqual(
+      { kind: 'return-to-structured-chat', link: PI_LINK }
+    )
   })
 })

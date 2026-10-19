@@ -29,7 +29,12 @@ vi.mock('@/runtime/runtime-rpc-client', async (importOriginal) => ({
 const mockApi = createStoreCascadesMockApi()
 
 const WORKTREE = 'repo::/tmp/app'
-const LINK = { agent: 'claude' as const, providerSessionId: 'session-1', worktreeId: WORKTREE }
+const LINK = {
+  agent: 'claude' as const,
+  providerSessionId: 'session-1',
+  worktreeId: WORKTREE,
+  structuredSessionId: 'claude-chat-1'
+}
 
 function storeWithTabs(ptyIds: string[]): ReturnType<typeof createTestStore> {
   const store = createTestStore()

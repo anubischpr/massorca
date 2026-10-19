@@ -8,6 +8,11 @@ import {
 } from '@/lib/provider-session-structured-chat-resume'
 import type { StructuredAgentSessionProvisionalLaunch } from '@/lib/structured-agent-session-provisional-tab'
 import { StructuredAgentSessionCreateError } from '@/lib/structured-agent-session-launch-errors'
+import {
+  activateStructuredAgentSessionById,
+  findStructuredAgentSessionTab
+} from '@/lib/structured-agent-session-tab-activation'
+import { isAgentSessionHandleProvider } from '../../../../shared/agent-session-provider-handle'
 import { readAgentSessionRefusalDetails } from '../../../../shared/agent-session-refusal-details'
 import type { StructuredChatTerminalLink } from '../../store/terminals/terminal-contracts'
 import { closeTerminalTabConfirmingExit } from '../../store/terminals/terminal-tab-confirmed-close'
@@ -25,6 +30,8 @@ export type StructuredChatTerminalReturnDeps = {
   resumeInStructuredChat: (
     args: ResumeProviderSessionInNewChatArgs
   ) => Pick<StructuredAgentSessionProvisionalLaunch, 'sessionId'> | null
+  /** Reveals the chat's own tab when it is still open; false when no such tab exists. */
+  reactivateStructuredSession: (args: { worktreeId: string; sessionId: string }) => boolean
   newRequestId: () => AgentLaunchRequestId
 }
 
@@ -33,6 +40,7 @@ export const structuredChatTerminalReturnDeps: StructuredChatTerminalReturnDeps 
   closeTerminalTabConfirmingExit: (tabId) =>
     closeTerminalTabConfirmingExit(useAppStore.getState(), tabId),
   resumeInStructuredChat: resumeProviderSessionInNewStructuredChat,
+  reactivateStructuredSession: (args) => activateStructuredAgentSessionById(args),
   newRequestId: newAgentLaunchRequestId
 }
 
@@ -61,6 +69,18 @@ export async function returnTerminalToStructuredChat(
           'Could not confirm the terminal stopped, so this chat was not reopened. The terminal may still be running.'
         )
       )
+      return false
+    }
+    if (
+      deps.reactivateStructuredSession({
+        worktreeId: args.link.worktreeId,
+        sessionId: args.link.structuredSessionId
+      })
+    ) {
+      return true
+    }
+    if (!isAgentSessionHandleProvider(args.link.agent)) {
+      showReturnFailedToast()
       return false
     }
     const launch = deps.resumeInStructuredChat({
@@ -93,7 +113,18 @@ export function canReturnTerminalToStructuredChat(args: {
   link: StructuredChatTerminalLink | undefined
   paneCount: number
 }): boolean {
-  return args.link !== undefined && args.paneCount === 1
+  return args.link !== undefined && args.paneCount === 1 && canReopenStructuredChat(args.link)
+}
+
+/** A handle-backed chat is re-adopted from its provider id; any other chat needs its own tab still open to return to. */
+function canReopenStructuredChat(link: StructuredChatTerminalLink): boolean {
+  return (
+    isAgentSessionHandleProvider(link.agent) ||
+    findStructuredAgentSessionTab(useAppStore.getState().unifiedTabsByWorktree, {
+      workspaceId: link.worktreeId,
+      sessionId: link.structuredSessionId
+    }) !== null
+  )
 }
 
 /** A terminal the structured chat opened returns to that chat; every other toggle keeps the legacy chat view. */
