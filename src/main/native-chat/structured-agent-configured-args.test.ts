@@ -20,6 +20,16 @@ describe('structured chat configured Arguments', () => {
     }
   )
 
+  it.each(['antigravity', 'pi'] as const)('reads the %s Arguments setting', (agent) => {
+    expect(
+      structuredAgentConfiguredArgs(agent, { agentDefaultArgs: { [agent]: '--add-dir "a b"' } })
+    ).toEqual(['--add-dir', 'a b'])
+  })
+
+  it('has no Arguments for an agent without a terminal setting', () => {
+    expect(structuredAgentConfiguredArgs('not-a-terminal-agent', {})).toEqual([])
+  })
+
   it('uses the existing default when the Arguments key is absent', () => {
     expect(structuredAgentConfiguredArgs('claude', {})).toEqual(['--dangerously-skip-permissions'])
   })

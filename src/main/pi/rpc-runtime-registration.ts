@@ -40,7 +40,8 @@ function createPiRpcAdapter(context: StructuredAgentAdapterContext): StructuredA
         : {}),
       ...(deps.resolveAgentCommandSettings
         ? { resolveCommandSettings: deps.resolveAgentCommandSettings }
-        : {})
+        : {}),
+      resolveLaunchArgs: () => deps.resolveLaunchArgs('pi')
     }),
     ...(deps.openPiConnection ? { openConnection: deps.openPiConnection } : {}),
     ...(deps.readProcessStartTime ? { readProcessStartTime: deps.readProcessStartTime } : {}),

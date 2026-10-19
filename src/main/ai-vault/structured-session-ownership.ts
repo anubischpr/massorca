@@ -139,7 +139,7 @@ function isPotentialStructuredResumeCommand(command: string): boolean {
 function findResumeOwnership(
   args: AiVaultPrepareSessionResumeArgs
 ): StructuredProviderSessionOwnership | null {
-  if (args.agent !== 'codex' && args.agent !== 'claude') {
+  if (!STRUCTURED_RESUME_AGENTS.has(args.agent)) {
     return null
   }
   const host = getStructuredAgentSessionHost()
@@ -150,24 +150,54 @@ function findResumeOwnership(
   if (exact) {
     return exact
   }
+  // Pi's handle is its session file, so the row's path names it.
+  const pathOwner = args.agent === 'pi' ? findOwnership(args.agent, args.filePath) : null
+  if (pathOwner) {
+    return pathOwner
+  }
   const fileName = args.filePath.split(/[\\/]/).at(-1) ?? ''
   return (
     listOwnership().find(
       (ownership) =>
-        ownership.provider === args.agent && fileName.includes(ownership.providerSessionId)
+        ownership.provider === args.agent &&
+        ownership.providerSessionId.length > 0 &&
+        fileName.includes(ownership.providerSessionId)
     ) ?? null
   )
 }
 
 function findOwnership(
-  provider: 'claude' | 'codex',
+  provider: string,
   providerSessionId: string
 ): StructuredProviderSessionOwnership | null {
   return (
     listOwnership().find(
       (ownership) =>
-        ownership.provider === provider && ownership.providerSessionId === providerSessionId
+        ownership.provider === provider && resumeTargetMatches(ownership, providerSessionId)
     ) ?? null
+  )
+}
+
+/** Pi names a session by its file (any path spelling) or by the id inside the file's name. */
+function resumeTargetMatches(
+  ownership: StructuredProviderSessionOwnership,
+  target: string
+): boolean {
+  if (ownership.providerSessionId === target) {
+    return true
+  }
+  if (ownership.provider !== 'pi') {
+    return false
+  }
+  const comparable = (value: string): string =>
+    process.platform === 'win32' ? value.replaceAll('\\', '/').toLowerCase() : value
+  if (comparable(ownership.providerSessionId) === comparable(target)) {
+    return true
+  }
+  return (
+    target.length > 0 &&
+    !/[\\/]/.test(target) &&
+    (ownership.providerSessionId.split(/[\\/]/).at(-1) ?? '').includes(target)
   )
 }
 
@@ -187,12 +217,61 @@ function isResumeCommandFor(
   // A target-less resume (--last, --continue, or a bare --resume/-r) may pick
   // any provider session, so it cannot be admitted while one is structured.
   // Only an explicit target that differs from this owned session is safe.
-  return invocation.target === null || invocation.target === ownership.providerSessionId
+  return invocation.target === null || resumeTargetMatches(ownership, invocation.target)
 }
 
 type ResumeInvocation = {
-  provider: 'codex' | 'claude'
+  provider: 'codex' | 'claude' | 'antigravity' | 'pi'
   target: string | null
+}
+
+const STRUCTURED_RESUME_AGENTS: ReadonlySet<string> = new Set([
+  'codex',
+  'claude',
+  'antigravity',
+  'pi'
+])
+
+const RESUME_EXECUTABLE_PATTERN =
+  /(?:^|[\\/])(?:codex|claude|agy|pi|gentle-shell)(?:\.(?:exe|cmd|bat))?$/i
+
+function resumeProviderOf(executable: string): ResumeInvocation['provider'] {
+  const name = (executable.split(/[\\/]/).at(-1) ?? '')
+    .toLowerCase()
+    .replace(/\.(?:exe|cmd|bat)$/, '')
+  if (name === 'codex' || name === 'claude') {
+    return name
+  }
+  return name === 'agy' ? 'antigravity' : 'pi'
+}
+
+/** `agy --conversation <id>` and `pi|gentle-shell ... --session <file>`; a fork or a new
+ *  session writes elsewhere, and a flag that picks the latest or asks the user has no target. */
+function parseAntigravityOrPiInvocation(
+  provider: 'antigravity' | 'pi',
+  args: readonly string[]
+): ResumeInvocation | null {
+  const lowered = args.map((token) => token.toLowerCase())
+  if (
+    provider === 'pi' &&
+    lowered.some((token) => token === '--fork' || token === '--no-session')
+  ) {
+    return null
+  }
+  const flag = provider === 'pi' ? '--session' : '--conversation'
+  const inlineIndex = lowered.findIndex((token) => token.startsWith(`${flag}=`))
+  if (inlineIndex !== -1) {
+    const target = args[inlineIndex]!.slice(flag.length + 1)
+    return { provider, target: target.length > 0 ? target : null }
+  }
+  const markerIndex = lowered.indexOf(flag)
+  if (markerIndex !== -1) {
+    const candidate = args[markerIndex + 1]
+    return { provider, target: candidate && !candidate.startsWith('-') ? candidate : null }
+  }
+  const targetless =
+    provider === 'pi' ? ['--continue', '-c', '--resume', '-r'] : ['--continue', '-c']
+  return lowered.some((token) => targetless.includes(token)) ? { provider, target: null } : null
 }
 
 function parseResumeInvocation(command: string): ResumeInvocation | null {
@@ -201,14 +280,15 @@ function parseResumeInvocation(command: string): ResumeInvocation | null {
   // treated as proof that a different session is being resumed.
   const tokens = command.match(/"[^"\\]*(?:\\.[^"\\]*)*"|'[^']*'|[^\s]+/g) ?? []
   const normalized = tokens.map((token) => token.replace(/^['"]|['"]$/g, ''))
-  const executableIndex = normalized.findIndex((token) =>
-    /(?:^|[\\/])(?:codex|claude)(?:\.exe)?$/i.test(token)
-  )
+  const executableIndex = normalized.findIndex((token) => RESUME_EXECUTABLE_PATTERN.test(token))
   if (executableIndex === -1) {
     return null
   }
-  const provider = /codex(?:\.exe)?$/i.test(normalized[executableIndex]!) ? 'codex' : 'claude'
+  const provider = resumeProviderOf(normalized[executableIndex]!)
   const args = normalized.slice(executableIndex + 1)
+  if (provider === 'antigravity' || provider === 'pi') {
+    return parseAntigravityOrPiInvocation(provider, args)
+  }
   // `codex fork` already falls through below: it carries no `resume` marker.
   if (provider === 'claude' && isClaudeForkInvocation(args)) {
     return null

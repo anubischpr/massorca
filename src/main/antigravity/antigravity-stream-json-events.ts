@@ -1,4 +1,5 @@
 import type { ProviderTimelineEvent } from '../native-chat/agent-session-timeline/provider-timeline-event'
+import { antigravityTokenCount, antigravityToolOutput } from './antigravity-stream-json-facts'
 import type { AntigravityStreamTransportEvent } from './antigravity-stream-json-transport'
 
 type ProjectedTool = {
@@ -105,6 +106,7 @@ export class AntigravityStreamEventProjector {
       callId: String(stepIndex)
     }
     const failed = info?.error !== undefined && info.error !== null
+    const shown = failed ? info.error : info?.output
     const body = {
       kind: 'tool-call' as const,
       name: tool.name,
@@ -115,7 +117,8 @@ export class AntigravityStreamEventProjector {
           ? ('running' as const)
           : failed
             ? ('failed' as const)
-            : ('completed' as const)
+            : ('completed' as const),
+      ...(shown === undefined || shown === null ? {} : { output: antigravityToolOutput(shown) })
     }
     const events: ProviderTimelineEvent[] = []
     if (state === 'ACTIVE') {
@@ -210,6 +213,10 @@ export class AntigravityStreamEventProjector {
         frameKind: 'usage.cumulative',
         payload: { scope: 'conversation', num_turns: result.num_turns, usage: result.usage }
       })
+      const used = antigravityTokenCount(result.usage, this.now())
+      if (used) {
+        events.push({ type: 'context.usage', usage: { used } })
+      }
     }
     if (result.status === 'ERROR' || result.status === 'INVALID' || !isKnownStatus(result.status)) {
       events.push({

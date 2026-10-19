@@ -88,9 +88,52 @@ describe('Antigravity stream-json event projection', () => {
       frameKind: 'usage.cumulative',
       payload: { scope: 'conversation', usage: { input_tokens: 500 } }
     })
-    expect(final.some((event) => event.type === 'context.usage')).toBe(false)
+    // The count is reported without a window: agy names none.
+    expect(final).toContainEqual({
+      type: 'context.usage',
+      usage: {
+        used: {
+          kind: 'estimate',
+          usage: {
+            inputTokens: 500,
+            outputTokens: 0,
+            cacheCreationInputTokens: 0,
+            cacheReadInputTokens: 0
+          },
+          capturedAt: 250
+        }
+      }
+    })
     expect(final.at(-1)).toMatchObject({ type: 'turn.end', state: 'completed', outcome: 'success' })
     expect(events.apply(result('SUCCESS', 'complete'))).toEqual([])
+  })
+
+  it.each([
+    [
+      'folds thinking into output and keeps cache reads',
+      { input_tokens: 10, output_tokens: 4, thinking_tokens: 3, cache_read_tokens: 7 },
+      { inputTokens: 10, outputTokens: 7, cacheCreationInputTokens: 0, cacheReadInputTokens: 7 }
+    ],
+    [
+      'uses a lone total as the count',
+      { total_tokens: 42 },
+      { inputTokens: 42, outputTokens: 0, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 }
+    ]
+  ])('reports usage that %s', (_name, usage, expected) => {
+    const events = projector()
+    events.apply(input())
+    const final = events.apply(result('SUCCESS', 'done', { usage }))
+    expect(final).toContainEqual({
+      type: 'context.usage',
+      usage: { used: { kind: 'estimate', usage: expected, capturedAt: 250 } }
+    })
+  })
+
+  it('reports no context usage when agy sends an empty count', () => {
+    const events = projector()
+    events.apply(input())
+    const final = events.apply(result('SUCCESS', 'done', { usage: { input_tokens: 0 } }))
+    expect(final.some((event) => event.type === 'context.usage')).toBe(false)
   })
 
   it('emits a complete assistant item when the result is the only response text', () => {
@@ -174,6 +217,55 @@ describe('Antigravity stream-json event projection', () => {
       })
     )
     expect(closed.some((event) => event.type === 'request.open')).toBe(false)
+  })
+
+  it('shows a tool result on the tool row, text as is and structured values as JSON', () => {
+    const done = (index: number, tool_info: unknown) => ({
+      type: 'step_update' as const,
+      clientMessageId: 'send-1',
+      requestedAt: 100,
+      step: {
+        conversation_id: 'conv-1',
+        step_index: index,
+        state: 'DONE' as const,
+        step_type: 'tool' as const,
+        tool_name: 'run_command',
+        tool_info
+      }
+    })
+    const events = projector()
+    events.apply(input())
+    const text = events.apply(done(1, { output: 'hello' }))
+    expect(text).toContainEqual(
+      expect.objectContaining({
+        type: 'item.close',
+        body: expect.objectContaining({
+          state: 'completed',
+          output: expect.objectContaining({ head: 'hello', truncated: false })
+        })
+      })
+    )
+    const structured = events.apply(done(2, { output: { exit_code: 0 } }))
+    expect(structured).toContainEqual(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          output: expect.objectContaining({ head: '{"exit_code":0}' })
+        })
+      })
+    )
+    const failed = events.apply(done(3, { error: { type: 'denied', message: 'not allowed' } }))
+    expect(failed).toContainEqual(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          state: 'failed',
+          output: expect.objectContaining({ head: 'not allowed' })
+        })
+      })
+    )
+    const silent = events.apply(done(4, { name: 'run_command' }))
+    expect(silent).toContainEqual(
+      expect.objectContaining({ body: expect.not.objectContaining({ output: expect.anything() }) })
+    )
   })
 
   it('settles active tools at terminal results and isolates later turns', () => {

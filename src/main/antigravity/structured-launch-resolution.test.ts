@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { openTestAgentSessionRecordStore } from '../runtime/agent-session-record-store-test-harness'
 import { closeTestJournalHostDatabase } from '../native-chat/agent-session-journal/journal-host-database-test-support'
 import {
@@ -203,3 +203,52 @@ it.each([
     ).rejects.toMatchObject({ name: 'AgentSessionPreSpawnError', reason })
   }
 )
+
+describe('saved Arguments', () => {
+  it('passes user options through ahead of Orca-owned ones and drops what Orca owns', async () => {
+    const h = await setup()
+    const launch = await createAntigravityLaunchResolver({
+      ...h.deps,
+      resolveLaunchArgs: () => [
+        '--dangerously-skip-permissions',
+        '--mode',
+        'plan',
+        '--output-format',
+        'text',
+        '--add-dir',
+        '/extra'
+      ]
+    })(identity)
+    expect(launch.args).toEqual([
+      '--add-dir',
+      '/extra',
+      '--input-format',
+      'stream-json',
+      '--output-format',
+      'stream-json'
+    ])
+  })
+
+  it('lets the chat model beat a saved model but keeps a saved model otherwise', async () => {
+    const h = await setup()
+    const resolve = createAntigravityLaunchResolver({
+      ...h.deps,
+      resolveLaunchArgs: () => ['--model', 'saved']
+    })
+    expect((await resolve(identity)).args).toContain('saved')
+    const picked = (await resolve(identity, { model: 'chosen' })).args
+    expect(picked).not.toContain('saved')
+    expect(picked).toContain('chosen')
+  })
+
+  it('refuses a positional prompt with a typed Arguments problem', async () => {
+    const h = await setup()
+    const rejection = createAntigravityLaunchResolver({
+      ...h.deps,
+      resolveLaunchArgs: () => ['do the thing']
+    })(identity)
+    await expect(rejection).rejects.toMatchObject({
+      argumentProblem: { agent: 'Antigravity', option: 'prompt', problem: 'positionalPrompt' }
+    })
+  })
+})

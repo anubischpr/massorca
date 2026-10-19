@@ -363,6 +363,48 @@ describe('Pi host launch resolution', () => {
     expect(buildPiRpcLaunch(launch).args).toEqual(['--mode', 'rpc', '--session', file])
   })
 
+  it.each([undefined, 'gentle-shell'] as const)(
+    'passes saved Arguments through and drops owned options (runtime %s)',
+    async (piRuntime) => {
+      const h = await setup()
+      if (piRuntime) {
+        await installGentleShellStub()
+        h.resolveEnvironment.mockResolvedValue({
+          PATH: root,
+          HOME: '/host/home',
+          PI_CODING_AGENT_DIR: '/inherited/wrong'
+        })
+        vi.spyOn(h.store, 'getRecord').mockReturnValue({ ...h.record, options: { piRuntime } })
+      }
+      const resolver = createPiRpcLaunchResolver({
+        store: h.store,
+        resolveWorkspacePath: async () => h.workspace,
+        resolveEnvironment: h.resolveEnvironment,
+        resolveCommandSettings: () => h.settings,
+        ...(piRuntime ? {} : { resolveCommand: h.resolveCommand, probeVersion }),
+        resolveLaunchArgs: () => ['--mode', 'json', '--thinking', 'high', '--session', '/x', '-p']
+      })
+      const launch = await resolver(identity)
+      expect(launch.extraArgs).toEqual(['--thinking', 'high'])
+      expect(buildPiRpcLaunch(launch).args).toEqual(['--mode', 'rpc', '--thinking', 'high'])
+    }
+  )
+
+  it('refuses a saved positional prompt with a typed Arguments problem', async () => {
+    const h = await setup()
+    const resolver = createPiRpcLaunchResolver({
+      store: h.store,
+      resolveWorkspacePath: async () => h.workspace,
+      resolveEnvironment: async () => ({ PATH: '/host/bin' }),
+      resolveCommand: () => '/host/bin/pi',
+      probeVersion,
+      resolveLaunchArgs: () => ['@notes.md']
+    })
+    await expect(resolver(identity)).rejects.toMatchObject({
+      argumentProblem: { agent: 'Pi', option: 'prompt', problem: 'positionalPrompt' }
+    })
+  })
+
   it('distinguishes an unsaved creation from an existing session that could not restore', async () => {
     const h = await setup()
     const missing = join(root, 'missing.jsonl')
