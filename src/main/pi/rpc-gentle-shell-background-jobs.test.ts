@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   closeGentleShellTurnRigs,
   openGentleShellTurnRig,
@@ -184,5 +184,25 @@ describe('an agent run Gentle Shell starts itself', () => {
     expect(() => gentle.turns.receive({ type: 'agent_start' })).not.toThrow()
     const stock = await openGentleShellTurnRig()
     expect(() => stock.turns.receive({ type: 'agent_start' })).toThrow('unsolicited agent run')
+  })
+
+  it('journals the wake-up as an agent turn with no user message, then settles it', async () => {
+    const h = await openGentleShellTurnRig({ acceptsAgentWake: true })
+    h.turns.receive({ type: 'agent_start' })
+    h.turns.receive({ type: 'message_start', message: { role: 'assistant', content: [] } })
+    h.turns.receive({
+      type: 'message_end',
+      message: {
+        role: 'assistant',
+        content: [{ type: 'text', text: 'The suite passed: 12 tests.' }],
+        stopReason: 'stop'
+      }
+    })
+    h.turns.receive({ type: 'agent_end' })
+    h.turns.receive({ type: 'agent_settled' })
+    await vi.waitFor(async () => expect((await h.rig.turns())[0]?.outcome).toBe('success'))
+    const rows = await h.rig.rows()
+    expect(rows.some(({ body }) => body.kind === 'message' && body.role === 'user')).toBe(false)
+    expect(rows.some(({ body }) => body.kind === 'message' && body.role === 'assistant')).toBe(true)
   })
 })
