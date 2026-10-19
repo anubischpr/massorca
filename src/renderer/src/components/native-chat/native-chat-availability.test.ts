@@ -3,6 +3,23 @@ import { canToggleNativeChat } from './native-chat-availability'
 import { isNativeChatTranscriptLocalReadable } from '@/lib/native-chat-transcript-readability'
 
 describe('canToggleNativeChat', () => {
+  it('allows an Antigravity terminal once its transcript is local to this renderer', () => {
+    expect(
+      canToggleNativeChat({
+        contentType: 'terminal',
+        launchAgent: 'antigravity',
+        nativeChatTranscriptIsLocalReadable: true
+      })
+    ).toBe(true)
+    expect(
+      canToggleNativeChat({
+        contentType: 'terminal',
+        detectedAgent: 'antigravity',
+        nativeChatTranscriptIsLocalReadable: false
+      })
+    ).toBe(false)
+  })
+
   it('allows a terminal launched with a supported coding agent', () => {
     expect(
       canToggleNativeChat({

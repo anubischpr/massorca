@@ -1,4 +1,5 @@
 import { claudeProfileHistoryDirs } from '../claude-accounts/claude-profile-installed-router'
+import { stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, extname, join } from 'node:path'
 import type { AgentType } from '../../shared/native-chat-types'
@@ -8,6 +9,7 @@ import {
 } from '../../shared/native-chat-agent-support'
 import { isWslUncPath } from '../../shared/wsl-paths'
 import { walkSessionFiles } from '../ai-vault/session-scanner-discovery'
+import { antigravityTranscriptPathsForConversation } from '../ai-vault/session-scanner-antigravity-paths'
 import { OMP_SESSION_ARTIFACT_DIR_PATTERN } from '../ai-vault/session-scanner-omp-subagent-transcripts'
 import { resolveOmpSessionsDir } from '../ai-vault/omp-session-root'
 import { resolveOrcaManagedCodexHomePath } from '../codex/codex-home-paths'
@@ -77,6 +79,8 @@ export type ResolveSessionFileOptions = {
   grokSessionsDir?: string
   /** Override the omp sessions root (`~/.omp/agent/sessions`). */
   ompSessionsDir?: string
+  /** Home that holds the `.gemini/<origin>/brain` trees (tests / isolated scans). */
+  antigravityHomeDir?: string
   /** Authoritative transcript path reported by the agent hook
    *  (`providerSession.transcriptPath`). When set and the file exists, it is used
    *  directly — recent Claude Code names the transcript with a UUID that differs
@@ -195,6 +199,9 @@ async function resolveSessionFileById(
       signal
     )
   }
+  if (transcriptAgent === 'antigravity') {
+    return resolveAntigravitySessionFile(trimmedId, options.antigravityHomeDir ?? homedir())
+  }
   if (transcriptAgent === 'grok') {
     return resolveGrokSessionFile(trimmedId, options.grokSessionsDir ?? grokSessionsDir(), signal)
   }
@@ -209,6 +216,23 @@ async function resolveSessionFileById(
   // OMP's scan would search the wrong root with a foreign session id, so fail
   // the build here instead of resolving silently wrong at runtime.
   transcriptAgent satisfies never
+  return null
+}
+
+/** An Antigravity conversation id names one brain directory per install origin; the first transcript that exists wins. */
+async function resolveAntigravitySessionFile(
+  conversationId: string,
+  homeDir: string
+): Promise<string | null> {
+  for (const candidate of antigravityTranscriptPathsForConversation(conversationId, homeDir)) {
+    try {
+      if ((await stat(candidate)).isFile()) {
+        return candidate
+      }
+    } catch {
+      // A missing origin is the normal case; the next origin may hold the conversation.
+    }
+  }
   return null
 }
 

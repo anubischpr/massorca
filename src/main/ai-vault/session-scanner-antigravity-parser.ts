@@ -15,6 +15,7 @@ import {
 } from './session-scanner-accumulator'
 import { antigravityConversationIdFromTranscriptPath } from './session-scanner-antigravity-paths'
 import { antigravityHistoryPromptHash } from './antigravity-history-prompt'
+import { extractAntigravityUserRequest } from './antigravity-user-request'
 import type {
   FileWithMtime,
   ResumableSessionParseState,
@@ -129,17 +130,4 @@ function consumeAntigravityRecordLine(accumulator: SessionAccumulator, line: str
       timestamp: record.created_at
     })
   }
-}
-
-function extractAntigravityUserRequest(content: string): string | null {
-  const opener = '<USER_REQUEST>'
-  const startIndex = content.indexOf(opener)
-  if (startIndex === -1) {
-    return extractString(content)
-  }
-  const bodyStart = startIndex + opener.length
-  const endIndex = content.indexOf('</USER_REQUEST>', bodyStart)
-  return extractString(
-    endIndex === -1 ? content.slice(bodyStart) : content.slice(bodyStart, endIndex)
-  )
 }
