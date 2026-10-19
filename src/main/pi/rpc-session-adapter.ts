@@ -22,6 +22,7 @@ import { buildPiRpcLaunch } from './rpc-launch'
 import { piRpcProviderLink, type PiRpcResolvedLaunch } from './rpc-launch-resolution'
 import { PiRpcSession, type PiRpcSessionDeps, type PiRpcConnection } from './rpc-session'
 import { PiRpcPromptError, preparePiRpcPrompt } from './rpc-prompt'
+import { readPiConfiguredConnectors } from './rpc-configured-connectors'
 import { applyPiRpcSessionOption, readPiRpcSessionOptions } from './rpc-options'
 import { withLiveCatalogListing } from '../native-chat/agent-model-catalog/agent-model-catalog-store'
 import { supportsSupervisedProviderChildLocation } from '../provider-process/supervised-provider-child-location'
@@ -87,6 +88,7 @@ export class PiRpcSessionAdapter implements StructuredAgentSessionAdapter {
         structuredSession: { id, spawnToken: input.spawnToken }
       })
       session = new PiRpcSession(input, randomUUID(), spec, this.deps)
+      session.agentDir = launch.env?.PI_CODING_AGENT_DIR
       this.sessions.set(id, session)
       this.starts.track(attempt, session.connection)
       const spawned = providerSpawnedProcessIdentity(
@@ -214,7 +216,7 @@ export class PiRpcSessionAdapter implements StructuredAgentSessionAdapter {
       input.value
     )
     if (input.key === 'model') {
-      void session.resyncUsage()
+      void session.turns.resyncUsage()
     }
     return selected
   }
@@ -224,10 +226,14 @@ export class PiRpcSessionAdapter implements StructuredAgentSessionAdapter {
       ? ['default', 'auto', 'full-access']
       : []
   }
-  readOptions: NonNullable<StructuredAgentSessionAdapter['readOptions']> = async (input) =>
-    withLiveCatalogListing(
-      await readPiRpcSessionOptions(this.session(input.sessionId, input.fence).connection)
-    )
+  readOptions: NonNullable<StructuredAgentSessionAdapter['readOptions']> = async (input) => {
+    const session = this.session(input.sessionId, input.fence)
+    const options = withLiveCatalogListing(await readPiRpcSessionOptions(session.connection))
+    const connectors = session.agentDir
+      ? await readPiConfiguredConnectors(session.agentDir)
+      : undefined
+    return connectors ? { ...options, connectors } : options
+  }
   readCommands = (id: string) => this.sessions.get(id)?.commands
   readFunctions = (id: string) =>
     classifyAgentSessionFunctions({ commands: this.readCommands(id), source: 'provider-session' })

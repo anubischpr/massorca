@@ -17,7 +17,10 @@ describe('isAgentInfrastructureListener', () => {
     ['agy', '/usr/local/bin/agy chat'],
     ['claude', undefined],
     ['node', 'node /home/u/.nvm/lib/node_modules/@openai/codex/bin/codex.js'],
-    ['node', '/usr/bin/node /opt/node_modules/@mariozechner/pi-coding-agent/dist/cli.js --mode rpc'],
+    [
+      'node',
+      '/usr/bin/node /opt/node_modules/@mariozechner/pi-coding-agent/dist/cli.js --mode rpc'
+    ],
     ['node', String.raw`node C:\Users\u\gentle-pi\gentle-shell.js`],
     ['node', 'node /srv/npx/mcp-server-filesystem /repo'],
     ['node', 'node /x/node_modules/typescript/lib/tsserver.js'],

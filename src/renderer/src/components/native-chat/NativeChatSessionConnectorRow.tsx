@@ -56,15 +56,23 @@ export function NativeChatSessionConnectorRow({
     'needs-auth': t('components.nativeChatSummary.connectorStatus.needs-auth', 'Sign-in required'),
     pending: t('components.nativeChatSummary.connectorStatus.pending', 'Pending'),
     disabled: t('components.nativeChatSummary.connectorStatus.disabled', 'Disabled'),
-    unknown: t('components.nativeChatSummary.connectorStatus.unknown', 'Unknown')
+    unknown: t('components.nativeChatSummary.connectorStatus.unknown', 'Unknown'),
+    configured: t(
+      'components.nativeChatSummary.connectorStatus.configured',
+      'Configured (connection not reported)'
+    )
   }
+  const label =
+    connector.configured && connector.status === 'unknown'
+      ? labels.configured
+      : labels[connector.status]
   const Icon = CONNECTOR_ICONS[connectorIconKey(connector.name)]
   return (
     <div className="flex min-w-0 items-start gap-1.5">
       <Icon aria-hidden className="mt-0.5 size-3 shrink-0" />
       <div className="min-w-0 flex-1">
         <p className={expanded ? 'break-words' : 'truncate'} title={connector.name}>
-          {humanizeServerName(connector.name)} · {labels[connector.status]}
+          {humanizeServerName(connector.name)} · {label}
         </p>
         {expanded && connector.error ? (
           <p className="break-words text-muted-foreground">{connector.error}</p>

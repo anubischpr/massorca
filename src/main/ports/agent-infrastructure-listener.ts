@@ -26,7 +26,9 @@ function executableName(token: string): string {
 
 function launchedScript(tokens: string[]): string | undefined {
   const runtime = tokens[0] ? executableName(tokens[0]) : ''
-  return SCRIPT_RUNTIMES.has(runtime) ? tokens.slice(1).find((token) => !token.startsWith('-')) : undefined
+  return SCRIPT_RUNTIMES.has(runtime)
+    ? tokens.slice(1).find((token) => !token.startsWith('-'))
+    : undefined
 }
 
 /** Listeners that belong to an agent CLI, a structured chat child or tool infrastructure, never a user server. */

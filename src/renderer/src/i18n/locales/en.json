@@ -19115,6 +19115,7 @@
         "needs-auth": "Sign-in required",
         "pending": "Pending",
         "disabled": "Disabled",
+        "configured": "Configured (connection not reported)",
         "unknown": "Unknown"
       },
       "connectorEvidence": "MCP calls recorded in this chat. Current connection and plugin status are not reported.",

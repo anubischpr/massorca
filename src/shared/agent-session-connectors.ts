@@ -11,7 +11,14 @@ export type AgentSessionConnectorStatus =
   | 'unknown'
 export type AgentSessionConnectorSnapshot = {
   observedAt: number
-  servers: { name: string; status: AgentSessionConnectorStatus; error?: string }[]
+  servers: {
+    name: string
+    status: AgentSessionConnectorStatus
+    error?: string
+    /** Read from the agent's config file, not from a connection: status says nothing about it. Older
+     *  clients drop the flag and show the plain status. */
+    configured?: true
+  }[]
 }
 
 export function readAgentSessionConnectorSnapshot(
@@ -47,6 +54,9 @@ export function readAgentSessionConnectorSnapshot(
       // Reuse the existing bounded redactor; never transfer server config or endpoint credentials.
       ...(row.status === 'failed' && typeof row.error === 'string' && row.error.trim()
         ? { error: sanitizeCrashReportString(row.error.trim()) }
+        : {}),
+      ...(row.configured === true && (row.status === 'unknown' || row.status === 'disabled')
+        ? { configured: true as const }
         : {})
     })
   }

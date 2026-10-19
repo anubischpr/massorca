@@ -16,6 +16,15 @@ describe('NativeChatSessionConnectorRow', () => {
     expect(screen.getByTitle('openmetadata-escritura')).toBeTruthy()
   })
 
+  it('labels a configured-only server without claiming a connection', () => {
+    render(
+      <NativeChatSessionConnectorRow
+        connector={{ name: 'engram', status: 'unknown', configured: true }}
+      />
+    )
+    expect(screen.getByText('Engram · Configured (connection not reported)')).toBeTruthy()
+  })
+
   it('uses a known icon for well-known servers and the generic plug for any other', () => {
     expect(connectorIconKey('codegraph')).toBe('codegraph')
     expect(connectorIconKey('Context7-docs')).toBe('context7')

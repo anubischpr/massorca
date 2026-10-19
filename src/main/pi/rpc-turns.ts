@@ -11,7 +11,7 @@ import { PiRpcMessages } from './rpc-messages'
 import { PiRpcPromptDelivery, piRpcFailureFact } from './rpc-prompt-delivery'
 import { PiRpcIdleCheck } from './rpc-idle-check'
 import { piRpcRetryActivity } from './rpc-retry-activity'
-import { piRpcMessageSchema, type PiRpcModel } from './rpc-protocol'
+import { piRpcMessageSchema, piRpcStateSchema, type PiRpcModel } from './rpc-protocol'
 
 export type PiRpcTurnDeps = {
   lane: JsonlRpcTimelineLane
@@ -292,6 +292,16 @@ export class PiRpcTurns {
     this.deps.lane.apply(this.context.setModel(model, Date.now()))
     if (changed || force) {
       this.refreshUsage()
+    }
+  }
+
+  /** Re-reads the live model and usage; a failed read leaves the last report in place. */
+  async resyncUsage(force = false): Promise<void> {
+    try {
+      const state = piRpcStateSchema.parse(await this.deps.request('get_state'))
+      this.syncModel(state.model ?? undefined, force)
+    } catch (error) {
+      this.deps.diagnostic?.(error)
     }
   }
 

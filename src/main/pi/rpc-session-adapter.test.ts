@@ -1,3 +1,6 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { agentJournalItemKey } from '../../shared/agent-session-journal-item-key'
 import type { AgentSessionProcessIdentity } from '../../shared/agent-session-record'
@@ -128,7 +131,7 @@ class FakeConnection implements PiRpcConnection {
 async function setup(
   options: Readonly<Record<string, string>> = {},
   eventSink?: (sink: StructuredAgentSessionEventSink) => StructuredAgentSessionEventSink,
-  launchExtras: { gentleMode?: 'normal' | 'auto' | 'yolo' } = {}
+  launchExtras: { gentleMode?: 'normal' | 'auto' | 'yolo'; env?: Record<string, string> } = {}
 ) {
   const rig = await openProviderTimelineRig({ agent: 'pi', sessionId })
   const connections: FakeConnection[] = []
@@ -687,6 +690,24 @@ describe('Pi RPC context usage refresh', () => {
     await vi.waitFor(() =>
       expect(h.connection.requests.filter((r) => r === 'get_session_stats')).toHaveLength(2)
     )
+  })
+})
+
+describe('Pi configured connectors', () => {
+  it('publishes servers from the session agent dir as configured, never connected', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'pi-agent-'))
+    cleanups.push(() => rm(dir, { recursive: true, force: true }))
+    await writeFile(join(dir, 'mcp.json'), JSON.stringify({ mcpServers: { engram: {} } }))
+    const h = await setup({}, undefined, { env: { PI_CODING_AGENT_DIR: dir } })
+    const options = await h.adapter.readOptions({ sessionId, fence: 7 })
+    expect(options.connectors?.servers).toEqual([
+      { name: 'engram', status: 'unknown', configured: true }
+    ])
+  })
+
+  it('omits connectors when the agent dir has no mcp.json', async () => {
+    const h = await setup()
+    expect((await h.adapter.readOptions({ sessionId, fence: 7 })).connectors).toBeUndefined()
   })
 })
 

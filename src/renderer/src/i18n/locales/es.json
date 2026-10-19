@@ -18909,6 +18909,7 @@
         "needs-auth": "Requiere inicio de sesión",
         "pending": "Pendiente",
         "disabled": "Desactivado",
+        "configured": "Configurado (conexión no informada)",
         "unknown": "Desconocido"
       },
       "connectorEvidence": "Llamadas MCP registradas en este chat. No se informa el estado actual de conexión ni de los plugins.",
