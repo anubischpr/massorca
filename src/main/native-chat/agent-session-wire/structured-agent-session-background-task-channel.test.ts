@@ -70,6 +70,32 @@ describe('the background-task channel', () => {
     })
   })
 
+  it('states a provider that cannot stop a task as an explicit false, not an absent field', () => {
+    const { sessions, channel, session } = channelOver(undefined, () => ({
+      supportsTaskStop: false,
+      supportsStopAll: false
+    }))
+    sessions.set('session-1', session)
+
+    expect(channel.read('session-1')).toMatchObject({
+      state: 'monitoring',
+      supportsTaskStop: false,
+      supportsStopAll: false,
+      children: [child]
+    })
+  })
+
+  it('states no targeted stop for a live session whose provider offers none at all', () => {
+    const { sessions, channel, session } = channelOver(undefined, () => undefined)
+    sessions.set('session-1', session)
+
+    expect(channel.read('session-1')).toMatchObject({
+      state: 'monitoring',
+      supportsTaskStop: false,
+      supportsStopAll: false
+    })
+  })
+
   // A task that finished while no pane listened, then an idle sweep that stopped the provider:
   // a pane resuming must read "none", not silence it would take as "unchanged" (#24227).
   it('answers "none" for a conversation no provider holds, not "unknown"', () => {

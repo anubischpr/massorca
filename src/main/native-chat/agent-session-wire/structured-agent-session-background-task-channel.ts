@@ -115,7 +115,9 @@ export class StructuredAgentSessionBackgroundTaskChannel {
       state: 'monitoring',
       ...(tasks ? { tasks } : {}),
       ...(settledTasks ? { settledTasks } : {}),
-      ...(stops?.supportsTaskStop ? { supportsTaskStop: true } : {}),
+      // Explicit on every roster: `false` is the provider saying it cannot stop a task, which an older
+      // reader treats exactly as the absent field it used to get.
+      supportsTaskStop: stops?.supportsTaskStop === true,
       // A session no live provider holds has nothing a stop could reach.
       ...(stops?.supportsStopAll ? {} : { supportsStopAll: false }),
       children: views

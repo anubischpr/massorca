@@ -253,12 +253,34 @@ export function backgroundTaskRowMeta(row: AgentChildRowModel, now: number): str
     .join(' · ')
 }
 
-/** The provider id a row's Stop targets, or null when the row offers none. Only an explicit `false`
- *  withholds it: a Stop on a row the host cannot target resolves to an empty list and silently
- *  reports nothing cancelled. */
+/** A live row's Stop: none from a host that predates the field, a targeted stop, or a disabled one
+ *  that says why. A Stop on a row the host cannot target resolves to an empty list and silently
+ *  reports nothing cancelled, so that row never offers an enabled one. */
+export type BackgroundTaskRowStop =
+  | { kind: 'none' }
+  | { kind: 'stop'; taskId: string }
+  | { kind: 'unavailable'; reason: 'provider' | 'row' }
+
+export function backgroundTaskRowStop(
+  row: AgentChildRowModel,
+  supportsTaskStop: boolean | undefined
+): BackgroundTaskRowStop {
+  if (row.settled || supportsTaskStop === undefined) {
+    return { kind: 'none' }
+  }
+  if (!supportsTaskStop) {
+    return { kind: 'unavailable', reason: 'provider' }
+  }
+  return row.canStop && row.providerId !== undefined
+    ? { kind: 'stop', taskId: row.providerId }
+    : { kind: 'unavailable', reason: 'row' }
+}
+
+/** The provider id a row's enabled Stop targets, or null when the row offers none. */
 export function backgroundTaskRowStopId(
   row: AgentChildRowModel,
   supportsTaskStop: boolean
 ): string | null {
-  return !row.settled && supportsTaskStop && row.canStop ? (row.providerId ?? null) : null
+  const stop = backgroundTaskRowStop(row, supportsTaskStop)
+  return stop.kind === 'stop' ? stop.taskId : null
 }

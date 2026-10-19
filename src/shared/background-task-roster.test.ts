@@ -6,6 +6,7 @@ import { backgroundTasksHeaderContent as headerContent } from './background-task
 import {
   backgroundTaskCountedState as countedState,
   backgroundTaskRowMeta,
+  backgroundTaskRowStop,
   backgroundTaskRowStopId,
   backgroundTasksStripTicks,
   buildBackgroundTaskGroups as buildGroups,
@@ -343,5 +344,24 @@ describe('background task row meta and Stop', () => {
     expect(backgroundTaskRowStopId(a, true)).toBe('provider-a')
     expect(backgroundTaskRowStopId(a, false)).toBeNull()
     expect(backgroundTaskRowStopId(b, true)).toBeNull()
+  })
+
+  it('states an enabled Stop, or the reason a live row cannot be stopped', () => {
+    const [group] = buildBackgroundTaskGroupsFromViews([view('a'), view('b', { stoppable: false })])
+    const [a, b] = group.tasks.map((entry) => entry.row)
+    expect(backgroundTaskRowStop(a, true)).toEqual({ kind: 'stop', taskId: 'provider-a' })
+    expect(backgroundTaskRowStop(a, false)).toEqual({ kind: 'unavailable', reason: 'provider' })
+    expect(backgroundTaskRowStop(b, true)).toEqual({ kind: 'unavailable', reason: 'row' })
+  })
+
+  it('draws no Stop from a host that predates the field, or on a settled row', () => {
+    const [group] = buildBackgroundTaskGroupsFromViews([
+      view('a'),
+      view('done', { membership: 'settled', state: 'done', settledAt: NOW })
+    ])
+    const [a, done] = group.tasks.map((entry) => entry.row)
+    expect(backgroundTaskRowStop(a, undefined)).toEqual({ kind: 'none' })
+    expect(backgroundTaskRowStop(done, true)).toEqual({ kind: 'none' })
+    expect(backgroundTaskRowStop(done, false)).toEqual({ kind: 'none' })
   })
 })
