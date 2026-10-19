@@ -1,4 +1,5 @@
 import { dirname, join } from 'node:path'
+import { ANTIGRAVITY_HISTORY_ROOTS } from '../../shared/antigravity-session-origin'
 
 const ANTIGRAVITY_TRANSCRIPT_FILE = 'transcript.jsonl'
 const ANTIGRAVITY_SYSTEM_DIR = '.system_generated'
@@ -33,6 +34,33 @@ export function shouldDescendAntigravityBrainDirectory(name: string, depth: numb
     return name === ANTIGRAVITY_SYSTEM_DIR
   }
   return depth === 2 && name === ANTIGRAVITY_LOGS_DIR
+}
+
+/** Every transcript path a conversation id could live at under one home, one per brain origin. */
+export function antigravityTranscriptPathsForConversation(
+  conversationId: string,
+  homeDir: string
+): string[] {
+  if (
+    !conversationId ||
+    conversationId === '.' ||
+    conversationId === '..' ||
+    /[\\/]/.test(conversationId)
+  ) {
+    return []
+  }
+  return ANTIGRAVITY_HISTORY_ROOTS.map((origin) =>
+    join(
+      homeDir,
+      '.gemini',
+      origin,
+      'brain',
+      conversationId,
+      ANTIGRAVITY_SYSTEM_DIR,
+      ANTIGRAVITY_LOGS_DIR,
+      ANTIGRAVITY_TRANSCRIPT_FILE
+    )
+  )
 }
 
 export function antigravityHistoryPathForBrainDir(brainDir: string): string {
