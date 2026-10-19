@@ -1,3 +1,4 @@
+import { join } from 'node:path'
 import { agentSessionAccountHome } from '../../shared/agent-session-account-home'
 import { isAgentSessionPreSpawnError } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import { supportsSupervisedProviderChildLocation } from '../provider-process/supervised-provider-child-location'
@@ -16,6 +17,7 @@ import {
 } from './rpc-launch-resolution'
 import { PiRpcSessionAdapter } from './rpc-session-adapter'
 import { createPiModelCatalogProbe } from './rpc-model-catalog-probe'
+import { PiRpcCommandCatalog } from './rpc-command-catalog'
 
 /** The environment every Pi child starts from: a chat's launch and a catalog listing alike. */
 function piEnvironment({
@@ -31,6 +33,9 @@ function piEnvironment({
 function createPiRpcAdapter(context: StructuredAgentAdapterContext): StructuredAgentRuntimeAdapter {
   const { deps } = context
   return new PiRpcSessionAdapter({
+    commandCatalog: new PiRpcCommandCatalog(
+      deps.stateDirectory ? join(deps.stateDirectory, 'pi-slash-commands.json') : undefined
+    ),
     resolveLaunch: createPiRpcLaunchResolver({
       store: context.store,
       resolveWorkspacePath: deps.resolveWorkspacePath,
