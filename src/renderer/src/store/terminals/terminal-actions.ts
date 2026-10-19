@@ -32,13 +32,15 @@ import type {
   AutomaticAgentResumeClaim,
   CodexRestartNotice,
   HydrateWorkspaceSessionOptions,
-  ReconnectPersistedTerminalsOptions
+  ReconnectPersistedTerminalsOptions,
+  StructuredChatTerminalLink
 } from './terminal-contracts'
 
 export type TerminalActions = {
   setTerminalStartupRestorationReady: (value: boolean) => void
   setRecentQuickCommandForGroup: (groupId: string, quickCommandId: string) => void
   claimAutomaticAgentResume: (tabId: string, claim: AutomaticAgentResumeClaim) => void
+  linkStructuredChatTerminalTab: (tabId: string, link: StructuredChatTerminalLink) => void
   seedNativeChatLaunchPrompt: (prompt: NativeChatLaunchPrompt) => void
   markNativeChatLaunchPromptFailed: (tabId: string) => void
   clearNativeChatLaunchPrompt: (tabId: string) => void
@@ -97,6 +99,8 @@ export type TerminalActions = {
       captureRecentlyClosed?: boolean
       remoteCloseOwnedByHost?: boolean
       localPtyTeardownOwnedExternally?: boolean
+      /** The caller already retired this tab's providers (awaited), so the store must not kill them again. */
+      providerRetirementOwnedByCaller?: boolean
       precomputedRetirementPlan?: TerminalTabRetirementPlan
     }
   ) => void

@@ -50,6 +50,7 @@ export const createTerminalSlice: StateCreator<AppState, [], [], TerminalSlice> 
   pendingSetupSplitByTabId: {},
   pendingIssueCommandSplitByTabId: {},
   automaticAgentResumeClaimsByTabId: {},
+  structuredChatTerminalLinksByTabId: {},
   nativeChatLaunchPromptByTabId: {},
   nativeChatLaunchDraftByTabId: {},
   tabBarOrderByWorktree: {},

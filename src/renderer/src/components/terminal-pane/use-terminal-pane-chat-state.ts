@@ -14,6 +14,7 @@ import {
   resolveNativeChatLeafRoute,
   type NativeChatLeafRoute
 } from '../native-chat/native-chat-leaf-routing'
+import { useTerminalPaneChatToggle } from './use-terminal-pane-chat-toggle'
 import type { TerminalPaneTitleController } from './use-terminal-pane-title-state'
 
 export function useTerminalPaneChatState(controller: TerminalPaneTitleController) {
@@ -58,7 +59,13 @@ export function useTerminalPaneChatState(controller: TerminalPaneTitleController
       store.paneForegroundAgentByPaneKey
     )
   )
-  const savedLayout = useAppStore((store) => store.terminalLayoutsByTabId[tabId] ?? EMPTY_LAYOUT)
+  // Why one selector: each pane is held to a pinned store-subscription budget.
+  const { savedLayout, chatReturnLink } = useAppStore(
+    useShallow((store) => ({
+      savedLayout: store.terminalLayoutsByTabId[tabId] ?? EMPTY_LAYOUT,
+      chatReturnLink: store.structuredChatTerminalLinksByTabId[tabId]
+    }))
+  )
   const terminalTab = useAppStore((store) =>
     getCachedTerminalTabForWorktree(store.tabsByWorktree, worktreeId, tabId)
   )
@@ -201,31 +208,17 @@ export function useTerminalPaneChatState(controller: TerminalPaneTitleController
     onAgentExitedRef.current = handleConfirmedAgentExit
     // oxlint-disable-next-line react-hooks/exhaustive-deps -- Preserve the pre-split dependency contract.
   }, [handleConfirmedAgentExit])
-  const canToggleChatForLeaf = useCallback(
-    (leafId: string | null): boolean => {
-      // Scope the "always allow toggling back" rule to the leaf showing chat; must not make an unsupported sibling look eligible.
-      const isChatViewForLeaf = effectiveChatViewMode && leafId !== null && chatLeafId === leafId
-      return isChatViewForLeaf || isChatEligibleForLeaf(leafId)
-    },
-    [chatLeafId, effectiveChatViewMode, isChatEligibleForLeaf]
-  )
-  const toggleNativeChatForLeaf = useCallback(
-    (leafId: string) => {
-      if (!unifiedTabId) {
-        return
-      }
-      if (effectiveChatViewMode && chatLeafId === leafId) {
-        setChatLeafId(null)
-        toggleTabViewMode(unifiedTabId)
-        return
-      }
-      setChatLeafId(leafId)
-      if (!effectiveChatViewMode) {
-        toggleTabViewMode(unifiedTabId)
-      }
-    },
-    [chatLeafId, effectiveChatViewMode, setChatLeafId, toggleTabViewMode, unifiedTabId]
-  )
+  const { canToggleChatForLeaf, toggleNativeChatForLeaf } = useTerminalPaneChatToggle({
+    chatLeafId,
+    chatReturnLink,
+    effectiveChatViewMode,
+    isChatEligibleForLeaf,
+    paneCount,
+    setChatLeafId,
+    tabId,
+    toggleTabViewMode,
+    unifiedTabId
+  })
   const handleToggleNativeChat = useCallback(() => {
     const activeLeafId = managerRef.current?.getActivePane()?.leafId ?? null
     if (!activeLeafId) {

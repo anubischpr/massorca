@@ -45,6 +45,7 @@ function deps(
       calls.push('launch')
       return true
     }),
+    recordTerminalLink: vi.fn(),
     prepareContinuation: vi.fn(() => null),
     onTerminalViewReleaseFailed: vi.fn(),
     onTerminalViewLaunchFailed: vi.fn(),
@@ -93,7 +94,8 @@ describe('createStructuredChatPaneActions', () => {
     )
     await expect(actions.showTerminal()).resolves.toBe(true)
     expect(d.launchResume).toHaveBeenCalledWith(
-      expect.objectContaining({ agent: 'pi', piRuntime: 'gentle-shell' })
+      expect.objectContaining({ agent: 'pi', piRuntime: 'gentle-shell' }),
+      expect.anything()
     )
   })
 
@@ -124,7 +126,8 @@ describe('createStructuredChatPaneActions', () => {
         agent: 'claude',
         providerSession: { key: 'session_id', id: 'provider-1' },
         paneKey: 'agent-session-tab-1:session-1'
-      })
+      }),
+      expect.objectContaining({ onSessionLaunched: expect.any(Function) })
     )
   })
 

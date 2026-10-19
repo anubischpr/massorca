@@ -5,8 +5,10 @@ import {
   type ResumableTuiAgent,
   type SleepingAgentSessionRecord
 } from '../../../../shared/agent-session-resume'
+import { isAgentSessionHandleProvider } from '../../../../shared/agent-session-provider-handle'
 import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
 import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
+import type { StructuredChatTerminalLink } from '../../store/terminals/terminal-contracts'
 
 export type StructuredChatTerminalViewBlock = 'no-worktree' | 'agent' | 'no-provider-session'
 
@@ -44,12 +46,20 @@ export type ShowStructuredChatInTerminalArgs = {
   piRuntime?: PiRuntimeSelection
 }
 
+/** Resumes a sleeping session in a terminal; `onSessionLaunched` names the new tab before it returns. */
+export type StructuredChatTerminalLaunchResume = (
+  record: SleepingAgentSessionRecord,
+  options: { onSessionLaunched: (tabId: string) => void }
+) => boolean
+
 export type ShowStructuredChatInTerminalDeps = {
   releaseProviderChild: (
     target: RuntimeClientTarget,
     sessionId: string
   ) => Promise<'closed' | 'unsupported'>
-  launchResume: (record: SleepingAgentSessionRecord) => boolean
+  launchResume: StructuredChatTerminalLaunchResume
+  /** Lets the terminal's back-to-chat control reopen this structured chat. */
+  recordTerminalLink: (tabId: string, link: StructuredChatTerminalLink) => void
   closeChatTab: (tabId: string) => void
   /** The release itself failed: the provider child may still run, so the chat stays as it was. */
   onReleaseFailed: () => void
@@ -79,20 +89,36 @@ export async function showStructuredChatInTerminal(
     return false
   }
   const now = deps.now?.() ?? Date.now()
-  const launched = deps.launchResume({
-    paneKey: args.paneKey,
-    worktreeId: args.worktreeId,
-    agent: args.agent,
-    providerSession: args.providerSession,
-    ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
-    prompt: '',
-    state: 'done',
-    capturedAt: now,
-    updatedAt: now
-  })
+  const launchedTab: { tabId: string | null } = { tabId: null }
+  const launched = deps.launchResume(
+    {
+      paneKey: args.paneKey,
+      worktreeId: args.worktreeId,
+      agent: args.agent,
+      providerSession: args.providerSession,
+      ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
+      prompt: '',
+      state: 'done',
+      capturedAt: now,
+      updatedAt: now
+    },
+    {
+      onSessionLaunched: (tabId) => {
+        launchedTab.tabId = tabId
+      }
+    }
+  )
   if (!launched) {
     deps.onLaunchFailedAfterRelease()
     return false
+  }
+  // Why: only Claude and Codex have a structured adoption path, so other agents keep a plain terminal.
+  if (launchedTab.tabId !== null && isAgentSessionHandleProvider(args.agent)) {
+    deps.recordTerminalLink(launchedTab.tabId, {
+      agent: args.agent,
+      providerSessionId: args.providerSession.id,
+      worktreeId: args.worktreeId
+    })
   }
   // Why: the close RPC is idempotent on the host (an unknown session returns ok), so closing the tab after release is safe.
   deps.closeChatTab(args.tabId)

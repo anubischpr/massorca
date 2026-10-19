@@ -100,7 +100,9 @@ export function useStructuredChatPaneActions(args: {
             useAppStore.getState().closeUnifiedTab(closeTabId)
           },
           releaseProviderChild: closeStructuredAgentSession,
-          launchResume: (record) => launchSleepingAgentSession(record),
+          launchResume: (record, options) => launchSleepingAgentSession(record, options),
+          recordTerminalLink: (terminalTabId, link) =>
+            useAppStore.getState().linkStructuredChatTerminalTab(terminalTabId, link),
           // Why: no structured-chat launch source exists yet; 'unknown' is honest telemetry.
           prepareContinuation: (request) =>
             prepareAgentSessionContinuationFromSource({ ...request, launchSource: 'unknown' }),

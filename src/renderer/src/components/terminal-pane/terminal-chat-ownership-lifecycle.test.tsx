@@ -9,6 +9,8 @@ import { resolveNativeChatLeafRoute } from '../native-chat/native-chat-leaf-rout
 import { detachTerminalLayoutLeaf } from './terminal-layout-leaf-detach'
 import { parseWorkspaceSession } from '../../../../shared/workspace-session-schema'
 import type { RemotePaneLayoutPusher } from './remote-pane-layout-push'
+import type * as StructuredChatTerminalReturnModule from '../native-chat/structured-chat-terminal-return'
+import { useAppStore } from '../../store'
 
 const LEFT = '11111111-1111-4111-8111-111111111111'
 const RIGHT = '22222222-2222-4222-8222-222222222222'
@@ -24,6 +26,7 @@ const mocks = vi.hoisted(() => {
     runtimePaneTitlesByTabId: { tab: { 1: 'codex', 2: 'codex' } },
     agentStatusByPaneKey: {},
     paneForegroundAgentByPaneKey: {},
+    structuredChatTerminalLinksByTabId: {},
     setTabLayout: (_id: string, layout: TerminalLayoutSnapshot) => {
       layouts.tab = layout
     },
@@ -59,6 +62,13 @@ vi.mock('../../store', async () => {
   return { useAppStore }
 })
 vi.mock('@/runtime/web-runtime-session', () => ({ clearWebRuntimeTerminalBuffer: vi.fn() }))
+
+const returnMocks = vi.hoisted(() => ({ returnTerminalToStructuredChat: vi.fn() }))
+// Why: only the return call is observed here; the real toggle routing still runs.
+vi.mock('../native-chat/structured-chat-terminal-return', async (importOriginal) => ({
+  ...(await importOriginal<typeof StructuredChatTerminalReturnModule>()),
+  returnTerminalToStructuredChat: returnMocks.returnTerminalToStructuredChat
+}))
 
 function makeFixture(paneIds = [1, 2], remotePusher?: RemotePaneLayoutPusher) {
   const container = document.createElement('div')
@@ -135,6 +145,8 @@ function useFixture(fixture: ReturnType<typeof makeFixture>, initialOwner: strin
 }
 
 beforeEach(() => {
+  useAppStore.setState({ structuredChatTerminalLinksByTabId: {} })
+  returnMocks.returnTerminalToStructuredChat.mockReset()
   mocks.state.settings.experimentalNativeChat = true
   mocks.state.runtimePaneTitlesByTabId.tab = { 1: 'codex', 2: 'codex' }
   mocks.state.setTabViewMode('tab', 'chat')
@@ -193,6 +205,32 @@ describe('terminal chat ownership lifecycle', () => {
     expect(mocks.state.unifiedTabsByWorktree.wt[0].viewMode).toBe('terminal')
     expect(hook.result.current.canToggleChatForLeaf(RIGHT)).toBe(true)
     act(() => hook.result.current.toggleNativeChatForLeaf(RIGHT))
+    expect(mocks.state.unifiedTabsByWorktree.wt[0].viewMode).toBe('chat')
+  })
+
+  it('returns a single-pane linked terminal to its structured chat, and keeps the toggle for it', () => {
+    const fixture = { ...makeFixture(), paneCount: 1 }
+    const link = { agent: 'claude' as const, providerSessionId: 'session-1', worktreeId: 'wt' }
+    mocks.state.setTabViewMode('tab', 'terminal')
+    // Why: setState, not a mutation of mocks.state; earlier tests replace the store's state object.
+    useAppStore.setState({ structuredChatTerminalLinksByTabId: { tab: link } })
+    const hook = renderHook(() => useFixture(fixture, null))
+    hook.rerender()
+    expect(hook.result.current.canToggleChatForLeaf(LEFT)).toBe(true)
+    act(() => hook.result.current.toggleNativeChatForLeaf(LEFT))
+    expect(returnMocks.returnTerminalToStructuredChat).toHaveBeenCalledWith({ tabId: 'tab', link })
+    expect(mocks.state.unifiedTabsByWorktree.wt[0].viewMode).toBe('terminal')
+  })
+
+  it('keeps a linked terminal split into two panes on the legacy chat toggle', () => {
+    const fixture = { ...makeFixture(), paneCount: 2 }
+    const link = { agent: 'claude' as const, providerSessionId: 'session-1', worktreeId: 'wt' }
+    mocks.state.setTabViewMode('tab', 'terminal')
+    useAppStore.setState({ structuredChatTerminalLinksByTabId: { tab: link } })
+    const hook = renderHook(() => useFixture(fixture, null))
+    hook.rerender()
+    act(() => hook.result.current.toggleNativeChatForLeaf(RIGHT))
+    expect(returnMocks.returnTerminalToStructuredChat).not.toHaveBeenCalled()
     expect(mocks.state.unifiedTabsByWorktree.wt[0].viewMode).toBe('chat')
   })
 
