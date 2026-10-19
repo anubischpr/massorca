@@ -15,7 +15,18 @@ export function structuredAgentSessionProviderSessionMetadata(
   record: AgentSessionRecord | null
 ): AgentProviderSessionMetadata | undefined {
   const head = record ? agentSessionProviderHandleChainHead(record.providerHandleChain) : null
-  return head ? { key: 'session_id', id: head.handle.nativeId } : undefined
+  if (!head) {
+    return undefined
+  }
+  const { agent, nativeId } = head.handle
+  // Why: terminal resume keys differ per agent; Pi's native id is its session file, which its resume flag needs.
+  if (agent === 'antigravity') {
+    return { key: 'conversation_id', id: nativeId }
+  }
+  if (agent === 'pi') {
+    return { key: 'session_id', id: nativeId, transcriptPath: nativeId }
+  }
+  return { key: 'session_id', id: nativeId }
 }
 
 export function readStructuredAgentSessionHistoryResult(input: {
