@@ -11,7 +11,7 @@ import { PiRpcMessages } from './rpc-messages'
 import { PiRpcPromptDelivery, piRpcFailureFact } from './rpc-prompt-delivery'
 import { PiRpcIdleCheck } from './rpc-idle-check'
 import { piRpcRetryActivity } from './rpc-retry-activity'
-import { piRpcMessageSchema } from './rpc-protocol'
+import { piRpcMessageSchema, piRpcStateSchema, type PiRpcModel } from './rpc-protocol'
 
 export type PiRpcTurnDeps = {
   lane: JsonlRpcTimelineLane
@@ -51,7 +51,7 @@ export class PiRpcTurns {
       current: (revision) =>
         !this.ended && this.settling && !this.compacting && revision === this.revision,
       settled: (state) => {
-        this.deps.lane.apply(this.context.setModel(state.model ?? undefined, Date.now()))
+        this.syncModel(state.model ?? undefined)
         this.finish()
       },
       failed: deps.failed
@@ -286,7 +286,26 @@ export class PiRpcTurns {
     this.deps.idle()
   }
 
-  private refreshUsage(): void {
+  /** Records the live model; a real change clears the old report, so read the new one at once. */
+  syncModel(model: PiRpcModel | undefined, force = false): void {
+    const changed = this.context.modelChanged(model)
+    this.deps.lane.apply(this.context.setModel(model, Date.now()))
+    if (changed || force) {
+      this.refreshUsage()
+    }
+  }
+
+  /** Re-reads the live model and usage; a failed read leaves the last report in place. */
+  async resyncUsage(force = false): Promise<void> {
+    try {
+      const state = piRpcStateSchema.parse(await this.deps.request('get_state'))
+      this.syncModel(state.model ?? undefined, force)
+    } catch (error) {
+      this.deps.diagnostic?.(error)
+    }
+  }
+
+  refreshUsage(): void {
     void this.deps
       .request('get_session_stats')
       .then((value) => {

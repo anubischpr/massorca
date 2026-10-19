@@ -26,8 +26,13 @@ export class PiRpcContextUsage {
     this.compactedTokens = parsed.success ? parsed.data.estimatedTokensAfter : undefined
   }
 
+  /** True when the model differs from the one the last usage report was read against. */
+  modelChanged(model: PiRpcModel | undefined): boolean {
+    return model?.id !== this.model?.id || model?.provider !== this.model?.provider
+  }
+
   setModel(model: PiRpcModel | undefined, at: number): ProviderTimelineEvent[] {
-    const changed = model?.id !== this.model?.id || model?.provider !== this.model?.provider
+    const changed = this.modelChanged(model)
     this.model = model
     return model?.contextWindow && model.contextWindow > 0
       ? [

@@ -14,6 +14,22 @@ describe('session connector observation', () => {
       servers: [{ name: 'mcp', status: 'failed', error: 'token=[redacted]' }]
     })
   })
+  it('keeps the configured flag only on states that claim no connection', () => {
+    expect(
+      readAgentSessionConnectorSnapshot({
+        observedAt: 10,
+        servers: [
+          { name: 'a', status: 'unknown', configured: true },
+          { name: 'b', status: 'disabled', configured: true },
+          { name: 'c', status: 'connected', configured: true }
+        ]
+      })?.servers
+    ).toEqual([
+      { name: 'a', status: 'unknown', configured: true },
+      { name: 'b', status: 'disabled', configured: true },
+      { name: 'c', status: 'connected' }
+    ])
+  })
   it('keeps missing, malformed and empty distinct', () => {
     expect(readAgentSessionConnectorSnapshot(undefined)).toBeUndefined()
     expect(

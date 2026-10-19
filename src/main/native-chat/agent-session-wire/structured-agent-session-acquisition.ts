@@ -15,6 +15,7 @@ import type { AttachFlowInput } from './structured-agent-session-attach-flow'
 import { readNativeSessionOptions } from './structured-agent-session-option-restoration'
 import { withAgentSessionCreatePhase } from '../../observability/agent-session-instrumentation'
 import { mintStructuredAgentSessionStartupAttempt } from './structured-agent-session-startup-attempt'
+import { noteStructuredProviderProcess } from '../../ports/structured-provider-process-pids'
 
 /** The same process, whatever Orca runtime the store stamped on its record (`runtime`): that stamp
  *  is about who holds the process, not which process it is. */
@@ -65,6 +66,7 @@ export async function acquireOwner(
       ...(progress ? { onOutput: progress.output } : {}),
       ...(input.recordPhase ? { recordPhase: input.recordPhase } : {}),
       onSpawned: async (process) => {
+        noteStructuredProviderProcess(process)
         progress?.spawned()
         record = await input.store.commitProcessIdentity({
           sessionId: record.sessionId,
@@ -96,6 +98,7 @@ export async function acquireOwner(
               input.acquireSignal
             )
           })
+    noteStructuredProviderProcess(acquired.process)
     if (record.lease.ownerProcess === null) {
       await input.store.commitProcessIdentity({
         sessionId: record.sessionId,

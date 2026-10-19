@@ -62,6 +62,8 @@ export class PiRpcSession {
   readonly skipped: string[] = []
   commands?: AgentSessionSlashCommand[]
   options?: AgentSessionOptionsResult
+  /** The agent dir the child runs under, for config the child itself never reports. */
+  agentDir?: string
   requestedClose = false
   private publishedExit = false
   private failedCause?: Error
@@ -180,6 +182,7 @@ export class PiRpcSession {
       }
     }
     this.options = await readPiRpcSessionOptions(this.connection)
+    await this.turns.resyncUsage(true)
     try {
       this.commands = (await readPiRpcCommands(this.connection)).commands
     } catch (error) {

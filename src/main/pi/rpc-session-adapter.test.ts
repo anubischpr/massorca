@@ -1,3 +1,6 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { agentJournalItemKey } from '../../shared/agent-session-journal-item-key'
 import type { AgentSessionProcessIdentity } from '../../shared/agent-session-record'
@@ -54,6 +57,7 @@ class FakeConnection implements PiRpcConnection {
   private readonly exitListeners: (() => void)[] = []
   requestOverride?: (command: string) => Promise<unknown> | undefined
   abortRequest?: () => void
+  model: { provider: string; id: string } = state.model
   constructor(readonly handlers: JsonlRpcAgentConnectionOptions) {}
   async request(command: string, params?: Record<string, unknown>): Promise<unknown> {
     this.requests.push(command)
@@ -65,11 +69,18 @@ class FakeConnection implements PiRpcConnection {
     if (override) {
       return override
     }
+    if (command === 'set_model') {
+      this.model = { provider: String(params?.provider), id: String(params?.modelId) }
+      return {}
+    }
     if (command === 'get_state') {
-      return state
+      return { ...state, model: this.model }
     }
     if (command === 'get_available_models') {
       return { models: [state.model] }
+    }
+    if (command === 'get_session_stats') {
+      return { contextUsage: { tokens: 29_441, contextWindow: 1_000_000, percent: 2.9 } }
     }
     if (command === 'get_commands') {
       return { commands: listedCommands }
@@ -120,7 +131,7 @@ class FakeConnection implements PiRpcConnection {
 async function setup(
   options: Readonly<Record<string, string>> = {},
   eventSink?: (sink: StructuredAgentSessionEventSink) => StructuredAgentSessionEventSink,
-  launchExtras: { gentleMode?: 'normal' | 'auto' | 'yolo' } = {}
+  launchExtras: { gentleMode?: 'normal' | 'auto' | 'yolo'; env?: Record<string, string> } = {}
 ) {
   const rig = await openProviderTimelineRig({ agent: 'pi', sessionId })
   const connections: FakeConnection[] = []
@@ -661,6 +672,42 @@ describe('Pi RPC session ownership and delivery', () => {
     const other = await setup()
     other.connection.closeResult = { root: 'unverifiable', tree: null }
     expect(await other.adapter.closeSession(sessionId)).toBe(false)
+  })
+})
+
+describe('Pi RPC context usage refresh', () => {
+  it('reads context usage right after start and after a live model change', async () => {
+    const h = await setup()
+    await vi.waitFor(() =>
+      expect(h.connection.requests.filter((r) => r === 'get_session_stats')).toHaveLength(1)
+    )
+    await h.adapter.setOption({
+      sessionId,
+      fence: 7,
+      key: 'model',
+      value: 'anthropic/model-2'
+    })
+    await vi.waitFor(() =>
+      expect(h.connection.requests.filter((r) => r === 'get_session_stats')).toHaveLength(2)
+    )
+  })
+})
+
+describe('Pi configured connectors', () => {
+  it('publishes servers from the session agent dir as configured, never connected', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'pi-agent-'))
+    cleanups.push(() => rm(dir, { recursive: true, force: true }))
+    await writeFile(join(dir, 'mcp.json'), JSON.stringify({ mcpServers: { engram: {} } }))
+    const h = await setup({}, undefined, { env: { PI_CODING_AGENT_DIR: dir } })
+    const options = await h.adapter.readOptions({ sessionId, fence: 7 })
+    expect(options.connectors?.servers).toEqual([
+      { name: 'engram', status: 'unknown', configured: true }
+    ])
+  })
+
+  it('omits connectors when the agent dir has no mcp.json', async () => {
+    const h = await setup()
+    expect((await h.adapter.readOptions({ sessionId, fence: 7 })).connectors).toBeUndefined()
   })
 })
 

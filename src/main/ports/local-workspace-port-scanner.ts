@@ -16,6 +16,8 @@ import {
   warnWorkspacePortScanFailure,
   type WorkspacePortScanOptions
 } from './local-workspace-port-scan-state'
+import { isAgentInfrastructureListener } from './agent-infrastructure-listener'
+import { structuredProviderProcessPids } from './structured-provider-process-pids'
 const MAX_PORTS = 200
 
 export async function scanWorkspacePorts(
@@ -33,7 +35,12 @@ export async function scanWorkspacePorts(
   }
 
   try {
-    const { ports: rawPorts, metadataAvailable } = await scanPlatformListeningPorts(options)
+    const scanned = await scanPlatformListeningPorts(options)
+    const { metadataAvailable } = scanned
+    const providerPids = await structuredProviderProcessPids()
+    const rawPorts = scanned.ports.filter(
+      (port) => !isAgentInfrastructureListener(port, providerPids)
+    )
     recordWorkspacePortScanSuccess()
     const normalizedWorktrees = normalizeWorkspacePortProbes(worktrees)
     // Why (#11161): without cwd/command-line every port looks unattributed, and
