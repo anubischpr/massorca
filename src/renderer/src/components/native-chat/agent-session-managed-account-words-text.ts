@@ -13,6 +13,7 @@ export const AGENT_NAMED_FAILURE_PIECES: Pick<
   Record<AgentSessionFailureCopyId, AgentNamedPiece>,
   | 'managedAccountEnvOverrideAgent'
   | 'managedAccountUnsupportedAgent'
+  | 'managedAccountUnsupportedAntigravity'
   | 'historyInOtherAccountAgent'
   | 'antigravityCliVersionUnsupported'
 > = {
@@ -26,6 +27,12 @@ export const AGENT_NAMED_FAILURE_PIECES: Pick<
     translate(
       'components.native-chat.failureWords.managedAccountUnsupportedAgent',
       COPY.managedAccountUnsupportedAgent,
+      values
+    ),
+  managedAccountUnsupportedAntigravity: (values) =>
+    translate(
+      'components.native-chat.failureWords.managedAccountUnsupportedAntigravity',
+      COPY.managedAccountUnsupportedAntigravity,
       values
     ),
   historyInOtherAccountAgent: (values) =>

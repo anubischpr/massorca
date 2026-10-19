@@ -1,6 +1,7 @@
 import { statSync } from 'node:fs'
 import { join, posix } from 'node:path'
 import { runProcess } from '../../shared/child-process/run-process'
+import { removeChromiumDisabledSessionBus } from '../pty/chromium-session-bus-env'
 import {
   createAntigravityFileCredentialBackend,
   isAntigravityFileStorageHost
@@ -70,7 +71,7 @@ function secretServiceAbsent(output: string): boolean {
 
 /** agy 1.3.5 uses composite storage; an absent address variable alone does not bypass keyring. */
 export async function verifyAntigravityFileAuthority(
-  env: NodeJS.ProcessEnv,
+  rawEnv: NodeJS.ProcessEnv,
   platform: NodeJS.Platform,
   kernelRelease: string,
   deps: AuthorityDeps = { uid: process.getuid?.(), socketWitness, inventory }
@@ -78,6 +79,9 @@ export async function verifyAntigravityFileAuthority(
   if (platform === 'win32') {
     throw unsupported()
   }
+  // Electron writes `disabled:` here when it started without a session bus; it is not a bus.
+  const env = { ...rawEnv }
+  removeChromiumDisabledSessionBus(env)
   if (isAntigravityFileStorageHost(env, kernelRelease)) {
     return 'direct-file'
   }

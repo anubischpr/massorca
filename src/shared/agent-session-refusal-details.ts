@@ -126,7 +126,18 @@ export const AGENT_SESSION_REFUSAL_REASONS = {
     'clientCapabilityMissing',
     'hostDisabled',
     'hostUnsupported',
-    'antigravityWindowsUnsupported'
+    'antigravityWindowsUnsupported',
+    // Pre-commit start refusals, shared with `agent_session_operation_invalid`. They stay under
+    // this code so a create refused before it committed remains a definitive refusal a client may
+    // fall back from; an older client drops the unknown reason and shows the generic line.
+    'managedAccountEnvOverride',
+    'accountSwitchInProgress',
+    'managedAccountUnsupported',
+    'launchFolderMissing',
+    'historyInOtherAccount',
+    'agentCommandNotRunnable',
+    'cliMissing',
+    'antigravityCliVersionUnsupported'
   ],
   // Sent with no reason when starting the agent for an operation throws; older clients read it too.
   agent_session_owner_restart_failed: []

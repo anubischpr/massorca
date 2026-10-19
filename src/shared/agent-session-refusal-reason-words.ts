@@ -187,7 +187,18 @@ const REASON_WORDS = {
       'antigravityWindowsUnsupported',
       'goElsewhere',
       'useAntigravityTerminal'
-    )
+    ),
+    managedAccountEnvOverride: { fact: 'managedAccountEnvOverride', action: 'actFirst' },
+    accountSwitchInProgress: { fact: 'accountSwitchInProgress', action: 'wait' },
+    managedAccountUnsupported: { fact: 'managedAccountUnsupported', action: 'actFirst' },
+    launchFolderMissing: { fact: 'launchFolderMissing', action: 'actFirst' },
+    historyInOtherAccount: { fact: 'historyInOtherAccount', action: 'actFirst' },
+    agentCommandNotRunnable: { fact: 'agentCommandNotRunnable', action: 'actFirst' },
+    cliMissing: { fact: 'cliMissing', action: 'actFirst' },
+    antigravityCliVersionUnsupported: {
+      fact: 'antigravityCliVersionUnsupported',
+      action: 'actFirst'
+    }
   },
   agent_session_owner_restart_failed: {}
 } satisfies {

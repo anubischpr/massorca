@@ -14,10 +14,14 @@ import {
   AGENT_SESSION_WIRE_REFUSAL_CODES,
   agentSessionRefusalFromReference,
   isAgentSessionRefusalError,
+  refuse,
   refuseUnclassified,
   type AgentSessionWireRefusal,
   type AgentSessionWireRefusalCode
 } from '../../../../shared/agent-session-wire'
+import { isAgentSessionPreSpawnError } from '../../../native-chat/agent-session-wire/structured-agent-session-adapter'
+import { createStructuredAgentSessionLogger } from '../../../native-chat/agent-session-wire/structured-agent-session-logger'
+import { getStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
 
 export type StructuredCreateRefused = { refusal: AgentSessionWireRefusal }
 
@@ -55,13 +59,30 @@ function precommitRefusal(error: unknown): AgentSessionWireRefusal {
     return refuseUnclassified(code, PRECOMMIT_REFUSAL_MESSAGE)
   }
   const message = error instanceof Error ? error.message : String(error)
+  const wording = `Orca could not prepare a structured agent chat for this workspace: ${message}`
+  // A pre-spawn refusal proved no process existed and names its situation, which the client words.
+  const reason = isAgentSessionPreSpawnError(error) ? error.reason : undefined
   // A code-less failure here is often a defect, not a policy answer; the refusal keeps the user
-  // moving, the log keeps the cause findable. Nothing names its situation, so it carries no reason.
-  console.warn('[agent-session] create refused before it committed anything', error)
-  return refuseUnclassified(
-    UNCODED_PRECOMMIT_REFUSAL_CODE,
-    `Orca could not prepare a structured agent chat for this workspace: ${message}`
-  )
+  // moving, the log keeps the cause findable.
+  logPrecommitRefusal(error, reason)
+  return reason
+    ? refuse(UNCODED_PRECOMMIT_REFUSAL_CODE, { reason }, wording)
+    : refuseUnclassified(UNCODED_PRECOMMIT_REFUSAL_CODE, wording)
+}
+
+/** To the host's trace file, not just the console: a packaged service's stdout is often discarded. */
+function logPrecommitRefusal(error: unknown, reason: string | undefined): void {
+  try {
+    const logger =
+      getStructuredAgentSessionHost()?.deps.logger ?? createStructuredAgentSessionLogger()
+    logger.warn('create refused before it committed anything', {
+      scope: 'create.precommitRefused',
+      error,
+      ...(reason ? { refusalReason: reason } : {})
+    })
+  } catch {
+    // Reporting must never replace the refusal the client is waiting for.
+  }
 }
 
 /**
