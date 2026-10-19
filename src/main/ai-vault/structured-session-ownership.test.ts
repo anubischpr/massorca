@@ -225,6 +225,96 @@ describe('structured AI Vault ownership', () => {
   })
 })
 
+describe('structured AI Vault ownership for Antigravity and Pi chats', () => {
+  afterEach(() => setStructuredAgentSessionHost(null))
+  const PI_FILE = '/home/u/.pi/agent/sessions/2026-08-11T00-00-00_abc123.jsonl'
+  const cases = [
+    { provider: 'antigravity' as const, owned: PROVIDER_SESSION, other: 'conv-other' },
+    { provider: 'pi' as const, owned: PI_FILE, other: '/home/u/.pi/agent/sessions/other.jsonl' }
+  ]
+  const commandsFor = (provider: 'antigravity' | 'pi', target: string): string[] =>
+    provider === 'antigravity'
+      ? [`agy --conversation ${target}`, `agy --conversation=${target}`]
+      : [
+          `pi --session ${target}`,
+          `pi --session=${target}`,
+          `gentle-shell -- --session '${target}'`,
+          `C:\\tools\\pi.cmd --session ${target}`
+        ]
+
+  it.each(cases)('refuses a terminal resume of an owned $provider chat', async (c) => {
+    installOwnership({ provider: c.provider, providerSessionId: c.owned })
+    for (const command of commandsFor(c.provider, c.owned)) {
+      await expect(
+        assertLegacyAiVaultResumeCommandAllowed(command, async () => undefined)
+      ).rejects.toThrow('agent_session_conflict')
+    }
+  })
+
+  it.each(cases)('allows a resume of a different $provider session', async (c) => {
+    installOwnership({ provider: c.provider, providerSessionId: c.owned })
+    for (const command of commandsFor(c.provider, c.other)) {
+      await expect(
+        assertLegacyAiVaultResumeCommandAllowed(command, async () => undefined)
+      ).resolves.toBeUndefined()
+    }
+  })
+
+  it.each([
+    { provider: 'antigravity' as const, owned: PROVIDER_SESSION, command: 'agy --continue' },
+    { provider: 'antigravity' as const, owned: PROVIDER_SESSION, command: 'agy -c' },
+    { provider: 'pi' as const, owned: PI_FILE, command: 'pi --continue' },
+    { provider: 'pi' as const, owned: PI_FILE, command: 'pi -r' },
+    { provider: 'pi' as const, owned: PI_FILE, command: 'gentle-shell -- --resume' }
+  ])('refuses a target-less resume: $command', async ({ provider, owned, command }) => {
+    installOwnership({ provider, providerSessionId: owned })
+    await expect(
+      assertLegacyAiVaultResumeCommandAllowed(command, async () => undefined)
+    ).rejects.toThrow('agent_session_conflict')
+  })
+
+  it('names a Pi session by the id inside its file name, and lets a fork or new session pass', async () => {
+    installOwnership({ provider: 'pi', providerSessionId: PI_FILE })
+    await expect(
+      assertLegacyAiVaultResumeCommandAllowed('pi --session abc123', async () => undefined)
+    ).rejects.toThrow('agent_session_conflict')
+    for (const command of [`pi --fork ${PI_FILE}`, 'pi --no-session', 'pi', 'agy']) {
+      await expect(
+        assertLegacyAiVaultResumeCommandAllowed(command, async () => undefined)
+      ).resolves.toBeUndefined()
+    }
+  })
+
+  it('does not let an owned chat of one provider block another', async () => {
+    installOwnership({ provider: 'pi', providerSessionId: PI_FILE })
+    await expect(
+      assertLegacyAiVaultResumeCommandAllowed(
+        `agy --conversation ${PI_FILE}`,
+        async () => undefined
+      )
+    ).resolves.toBeUndefined()
+  })
+
+  it('refuses a vault resume of an owned row by id or by file, and still allows its fork', () => {
+    installOwnership({ provider: 'antigravity', providerSessionId: PROVIDER_SESSION })
+    const agy = {
+      agent: 'antigravity' as const,
+      sessionId: PROVIDER_SESSION,
+      filePath: '/agy/conversation.pb',
+      codexHome: null,
+      executionHostId: 'local' as const
+    }
+    expect(() => assertLegacyAiVaultResumeAllowed(agy)).toThrow('agent_session_conflict')
+    expect(() => assertLegacyAiVaultResumeAllowed({ ...agy, fork: true })).not.toThrow()
+    installOwnership({ provider: 'pi', providerSessionId: PI_FILE })
+    const pi = { ...agy, agent: 'pi' as const, sessionId: 'abc123', filePath: PI_FILE }
+    expect(() => assertLegacyAiVaultResumeAllowed(pi)).toThrow('agent_session_conflict')
+    expect(() =>
+      assertLegacyAiVaultResumeAllowed({ ...pi, sessionId: 'zzz', filePath: '/home/u/other.jsonl' })
+    ).not.toThrow()
+  })
+})
+
 function installOwnership(overrides: Partial<StructuredProviderSessionOwnership> = {}): void {
   const ownership: StructuredProviderSessionOwnership = {
     sessionId: 'session-alpha',
