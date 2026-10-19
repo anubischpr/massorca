@@ -1,3 +1,4 @@
+import { AntigravityProviderHandle } from './antigravity-provider-handle-params'
 import { MutationEnvelope } from './structured-agent-session-mutation-params'
 import {
   PiLaunchPolicyParams,
@@ -48,6 +49,7 @@ export const MAX_RESTART_RESUME_SESSIONS = 512
 
 export const ProviderHandle = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('codex'), threadId: Identifier('Invalid thread id') }).strict(),
+  AntigravityProviderHandle,
   z
     .object({
       kind: z.literal('claude'),
@@ -91,7 +93,7 @@ export const AttachParams = z
   .object({
     envelope: MutationEnvelope,
     location: ExecutionLocation,
-    provider: z.enum(['codex', 'claude']),
+    provider: z.enum(['codex', 'claude', 'antigravity']),
     agent: Identifier('Invalid agent'),
     accountHome: AccountHome,
     runtimeKind: z.literal('native'),

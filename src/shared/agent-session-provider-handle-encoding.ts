@@ -82,6 +82,16 @@ export function codexProviderHandle(threadId: string): AgentSessionProviderHandl
   return { ...CODEX_STRUCTURED_HANDLE_NAMESPACE, nativeId: threadId }
 }
 
+/** Antigravity's `agy --conversation <id>` id; stored in the neutral form, sent as its own wire kind. */
+export const ANTIGRAVITY_STRUCTURED_HANDLE_NAMESPACE = {
+  transport: 'antigravity-stream-json',
+  agent: 'antigravity'
+} as const satisfies AgentSessionProviderHandleNamespace
+
+export function antigravityProviderHandle(conversationId: string): AgentSessionProviderHandle {
+  return { ...ANTIGRAVITY_STRUCTURED_HANDLE_NAMESPACE, nativeId: conversationId }
+}
+
 // ─── Validation ─────────────────────────────────────────────────────────────
 
 const MAX_HANDLE_FIELD_LENGTH = 512
@@ -271,14 +281,21 @@ export function agentSessionProviderHandleRoot(handle: AgentSessionProviderHandl
 // ─── Wire and journal forms ─────────────────────────────────────────────────
 
 /** A handle as `agentSession.attach` carries it and an attach fingerprint covers it. */
-export type AgentSessionWireProviderHandle = Exclude<
-  AgentSessionJournalProviderHandle,
-  { kind: 'opaque' }
->
+export type AgentSessionAntigravityWireProviderHandle = {
+  kind: 'antigravity'
+  conversationId: string
+}
+
+export type AgentSessionWireProviderHandle =
+  | Exclude<AgentSessionJournalProviderHandle, { kind: 'opaque' }>
+  | AgentSessionAntigravityWireProviderHandle
 
 export function agentSessionProviderHandleFromWire(
   wire: AgentSessionWireProviderHandle
 ): AgentSessionProviderHandle {
+  if (wire.kind === 'antigravity') {
+    return antigravityProviderHandle(wire.conversationId)
+  }
   return wire.kind === 'claude'
     ? claudeProviderHandle(wire.sessionId, wire.leafUuid)
     : codexProviderHandle(wire.threadId)
@@ -288,6 +305,11 @@ export function agentSessionProviderHandleFromWire(
 export function agentSessionWireProviderHandle(
   handle: AgentSessionProviderHandle
 ): AgentSessionWireProviderHandle | null {
+  if (isAgentSessionProviderHandleInNamespace(handle, ANTIGRAVITY_STRUCTURED_HANDLE_NAMESPACE)) {
+    return isAgentSessionProviderHandleField(handle.nativeId)
+      ? { kind: 'antigravity', conversationId: handle.nativeId }
+      : null
+  }
   const stored = encodePersistedAgentSessionProviderHandle(handle)
   if (!('provider' in stored)) {
     return null
@@ -313,11 +335,14 @@ export function agentSessionJournalProviderHandle(
       value: AGENT_SESSION_PENDING_PROVIDER_HANDLE_VALUE
     }
   }
-  return (
-    agentSessionWireProviderHandle(handle) ?? {
-      kind: 'opaque',
-      agent: handle.agent,
-      value: handle.nativeId
-    }
-  )
+  const wire = agentSessionWireProviderHandle(handle)
+  // Antigravity's wire kind is not a journal kind; its rows keep the neutral form they always had.
+  if (wire && wire.kind !== 'antigravity') {
+    return wire
+  }
+  return {
+    kind: 'opaque',
+    agent: handle.agent,
+    value: handle.nativeId
+  }
 }
