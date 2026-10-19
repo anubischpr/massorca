@@ -112,3 +112,22 @@ describe('readAiVaultSessionTitlesFromFiles', () => {
     expect(parseAgentSessionFileCached).toHaveBeenCalledTimes(64)
   })
 })
+
+describe('readAiVaultSessionTitlesFromFiles title agents', () => {
+  it('reads a Pi title from its transcript the same way as claude and codex', async () => {
+    const path = await transcriptPath()
+    parseAgentSessionFileCached.mockResolvedValue({
+      agent: 'pi',
+      sessionId: 'pi-1',
+      title: 'Gentle chat'
+    })
+
+    await expect(
+      readAiVaultSessionTitlesFromFiles([{ agent: 'pi', sessionId: 'pi-1', transcriptPath: path }])
+    ).resolves.toEqual({ titles: [{ agent: 'pi', sessionId: 'pi-1', title: 'Gentle chat' }] })
+    expect(parseAgentSessionFileCached).toHaveBeenCalledWith(
+      expect.objectContaining({ agent: 'pi' }),
+      expect.any(String)
+    )
+  })
+})

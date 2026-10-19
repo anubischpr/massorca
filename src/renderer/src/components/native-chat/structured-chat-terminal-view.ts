@@ -5,10 +5,17 @@ import {
   type ResumableTuiAgent,
   type SleepingAgentSessionRecord
 } from '../../../../shared/agent-session-resume'
-import { isAgentSessionHandleProvider } from '../../../../shared/agent-session-provider-handle'
 import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
 import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 import type { StructuredChatTerminalLink } from '../../store/terminals/terminal-contracts'
+
+/** The agents with a structured adapter on this build; their chat can be revealed by session id. */
+const STRUCTURED_CHAT_RETURN_AGENTS: ReadonlySet<string> = new Set([
+  'claude',
+  'codex',
+  'pi',
+  'antigravity'
+])
 
 export type StructuredChatTerminalViewBlock = 'no-worktree' | 'agent' | 'no-provider-session'
 
@@ -112,12 +119,13 @@ export async function showStructuredChatInTerminal(
     deps.onLaunchFailedAfterRelease()
     return false
   }
-  // Why: only Claude and Codex have a structured adoption path, so other agents keep a plain terminal.
-  if (launchedTab.tabId !== null && isAgentSessionHandleProvider(args.agent)) {
+  // Why: a terminal can return only to a chat the host can reveal, so an agent without a structured adapter keeps a plain terminal.
+  if (launchedTab.tabId !== null && STRUCTURED_CHAT_RETURN_AGENTS.has(args.agent)) {
     deps.recordTerminalLink(launchedTab.tabId, {
       agent: args.agent,
       providerSessionId: args.providerSession.id,
-      worktreeId: args.worktreeId
+      worktreeId: args.worktreeId,
+      structuredSessionId: args.sessionId
     })
   }
   // Why: the close RPC is idempotent on the host (an unknown session returns ok), so closing the tab after release is safe.

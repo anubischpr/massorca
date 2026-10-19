@@ -34,3 +34,14 @@ describe('remoteSessionSources devin transcripts root', () => {
     ])
   })
 })
+
+describe('remoteSessionSources Gentle Shell sessions root', () => {
+  it('scans the Gentle Shell store as a second pi root on a POSIX remote', () => {
+    const hostPlatform = getRemoteHostPlatform('linux-x64')
+    const piRoots = remoteSessionSources('/home/dev', hostPlatform)
+      .filter((source) => source.agent === 'pi')
+      .map((source) => source.rootDir)
+    expect(piRoots.some((root) => root.endsWith('/.gentle-shell/agent/sessions'))).toBe(true)
+    expect(piRoots.some((root) => root.endsWith('/.pi/agent/sessions'))).toBe(true)
+  })
+})

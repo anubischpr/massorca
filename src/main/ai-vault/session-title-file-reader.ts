@@ -1,3 +1,4 @@
+import { homedir } from 'node:os'
 import { wslGatedLstat } from '../native-chat/wsl-transcript-fs-access'
 import {
   AI_VAULT_SESSION_TITLE_REQUEST_MAX_COUNT,
@@ -6,12 +7,34 @@ import {
   type AiVaultSessionTitlesResult
 } from '../../shared/ai-vault-session-title'
 import { parseAgentSessionFileCached } from './session-scanner-parse-cache'
+import { antigravityTranscriptPathsForConversation } from './session-scanner-antigravity-paths'
 
 const TITLE_PARSE_CONCURRENCY = 4
 
 export type AiVaultSessionTitleCache = {
   get(request: AiVaultSessionTitleRequest): AiVaultSessionTitle | null
   set(title: AiVaultSessionTitle): void
+}
+
+/** The request's transcript, or for Antigravity (which sends only the conversation id) the one brain file that exists. */
+async function resolveTitleTranscriptPath(
+  request: AiVaultSessionTitleRequest,
+  signal: AbortSignal | undefined
+): Promise<string | null> {
+  const explicit = request.transcriptPath?.trim()
+  if (explicit || request.agent !== 'antigravity') {
+    return explicit || null
+  }
+  for (const candidate of antigravityTranscriptPathsForConversation(request.sessionId, homedir())) {
+    try {
+      if ((await wslGatedLstat(candidate, 'scan', signal)).isFile()) {
+        return candidate
+      }
+    } catch {
+      // Why: a missing origin root is the normal case; try the next brain.
+    }
+  }
+  return null
 }
 
 async function readOneTitle(
@@ -22,7 +45,7 @@ async function readOneTitle(
   if (signal?.aborted) {
     return null
   }
-  const transcriptPath = request.transcriptPath?.trim()
+  const transcriptPath = await resolveTitleTranscriptPath(request, signal)
   if (!transcriptPath) {
     return cache?.get(request) ?? null
   }
@@ -31,9 +54,8 @@ async function readOneTitle(
     if (!stats.isFile() || signal?.aborted) {
       return null
     }
-    // Why: this key is a raw lstat with no content dependency, so it only
-    // matches the scanner's for providers that declare none — today claude and
-    // codex, which is all this request type carries.
+    // Why: this key is a raw lstat with no content dependency, which matches the
+    // scanner's key for every title agent (none declares a content dependency).
     const session = await parseAgentSessionFileCached(
       {
         agent: request.agent,

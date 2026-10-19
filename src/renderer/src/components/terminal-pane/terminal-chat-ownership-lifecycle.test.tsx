@@ -210,7 +210,12 @@ describe('terminal chat ownership lifecycle', () => {
 
   it('returns a single-pane linked terminal to its structured chat, and keeps the toggle for it', () => {
     const fixture = { ...makeFixture(), paneCount: 1 }
-    const link = { agent: 'claude' as const, providerSessionId: 'session-1', worktreeId: 'wt' }
+    const link = {
+      agent: 'claude' as const,
+      providerSessionId: 'session-1',
+      worktreeId: 'wt',
+      structuredSessionId: 'claude-chat-1'
+    }
     mocks.state.setTabViewMode('tab', 'terminal')
     // Why: setState, not a mutation of mocks.state; earlier tests replace the store's state object.
     useAppStore.setState({ structuredChatTerminalLinksByTabId: { tab: link } })
@@ -224,7 +229,12 @@ describe('terminal chat ownership lifecycle', () => {
 
   it('keeps a linked terminal split into two panes on the legacy chat toggle', () => {
     const fixture = { ...makeFixture(), paneCount: 2 }
-    const link = { agent: 'claude' as const, providerSessionId: 'session-1', worktreeId: 'wt' }
+    const link = {
+      agent: 'claude' as const,
+      providerSessionId: 'session-1',
+      worktreeId: 'wt',
+      structuredSessionId: 'claude-chat-1'
+    }
     mocks.state.setTabViewMode('tab', 'terminal')
     useAppStore.setState({ structuredChatTerminalLinksByTabId: { tab: link } })
     const hook = renderHook(() => useFixture(fixture, null))

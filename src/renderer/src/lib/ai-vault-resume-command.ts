@@ -23,6 +23,7 @@ import type { AgentStartupShell } from '../../../shared/tui-agent-startup-shell'
 import type { AppState } from '@/store/types'
 import type { AiVaultSessionDragPayload } from '@/lib/ai-vault-session-drag'
 import { buildAgentResumeStartupPlan } from '@/lib/tui-agent-startup'
+import { piRuntimeForSessionFilePath } from '../../../shared/pi-runtime-selection'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../shared/execution-host'
 import { resolveAiVaultResumeStartupShell } from '@/lib/ai-vault-resume-shell'
 import { getAiVaultResumeCodexHome, getAiVaultResumePlatform } from '@/lib/ai-vault-resume-platform'
@@ -176,6 +177,9 @@ function buildAiVaultResumeForWorktree(
       resumeInLaunchCwd: true,
       ...(args.session.agent === 'omp' && resumeFilePath
         ? { ompResumeFilePath: resumeFilePath }
+        : {}),
+      ...(args.session.agent === 'pi'
+        ? { piRuntime: piRuntimeForSessionFilePath(resumeFilePath) }
         : {})
     })
     if (startupPlan) {

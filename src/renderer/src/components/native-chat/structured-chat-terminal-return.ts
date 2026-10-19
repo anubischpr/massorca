@@ -8,6 +8,12 @@ import {
 } from '@/lib/provider-session-structured-chat-resume'
 import type { StructuredAgentSessionProvisionalLaunch } from '@/lib/structured-agent-session-provisional-tab'
 import { StructuredAgentSessionCreateError } from '@/lib/structured-agent-session-launch-errors'
+import {
+  refreshStructuredSessionTabs,
+  revealStructuredSession
+} from '@/lib/activate-ai-vault-structured-session'
+import { activateStructuredAgentSessionById } from '@/lib/structured-agent-session-tab-activation'
+import { isAgentSessionHandleProvider } from '../../../../shared/agent-session-provider-handle'
 import { readAgentSessionRefusalDetails } from '../../../../shared/agent-session-refusal-details'
 import type { StructuredChatTerminalLink } from '../../store/terminals/terminal-contracts'
 import { closeTerminalTabConfirmingExit } from '../../store/terminals/terminal-tab-confirmed-close'
@@ -25,6 +31,8 @@ export type StructuredChatTerminalReturnDeps = {
   resumeInStructuredChat: (
     args: ResumeProviderSessionInNewChatArgs
   ) => Pick<StructuredAgentSessionProvisionalLaunch, 'sessionId'> | null
+  /** Reopens the chat's own structured session by id; false when the host could not reveal it. */
+  reopenStructuredSession: (args: { worktreeId: string; sessionId: string }) => Promise<boolean>
   newRequestId: () => AgentLaunchRequestId
 }
 
@@ -33,6 +41,7 @@ export const structuredChatTerminalReturnDeps: StructuredChatTerminalReturnDeps 
   closeTerminalTabConfirmingExit: (tabId) =>
     closeTerminalTabConfirmingExit(useAppStore.getState(), tabId),
   resumeInStructuredChat: resumeProviderSessionInNewStructuredChat,
+  reopenStructuredSession: reopenStructuredChatSession,
   newRequestId: newAgentLaunchRequestId
 }
 
@@ -61,6 +70,20 @@ export async function returnTerminalToStructuredChat(
           'Could not confirm the terminal stopped, so this chat was not reopened. The terminal may still be running.'
         )
       )
+      return false
+    }
+    // Why: the chat's own record survives the terminal's release, so the same session id reopens —
+    // for every agent. Only a handle-backed agent that the host cannot reveal falls back to adoption.
+    if (
+      await deps.reopenStructuredSession({
+        worktreeId: args.link.worktreeId,
+        sessionId: args.link.structuredSessionId
+      })
+    ) {
+      return true
+    }
+    if (!isAgentSessionHandleProvider(args.link.agent)) {
+      showReturnFailedToast()
       return false
     }
     const launch = deps.resumeInStructuredChat({
@@ -94,6 +117,27 @@ export function canReturnTerminalToStructuredChat(args: {
   paneCount: number
 }): boolean {
   return args.link !== undefined && args.paneCount === 1
+}
+
+/**
+ * Reopens a chat's own structured session by id, the way an Agent Session History row does: its tab
+ * when the inventory still holds it, otherwise the host republishes the tab from its record. Opening
+ * the tab starts no provider child; the chat attaches (and the adapter re-acquires) when it mounts.
+ */
+export async function reopenStructuredChatSession(args: {
+  worktreeId: string
+  sessionId: string
+}): Promise<boolean> {
+  if (activateStructuredAgentSessionById(args)) {
+    return true
+  }
+  if ((await revealStructuredSession(args)) !== 'revealed') {
+    return false
+  }
+  // The host has published the tab; the inventory catches up on refresh. The chat is open either way.
+  await refreshStructuredSessionTabs(args.worktreeId).catch(() => undefined)
+  activateStructuredAgentSessionById(args)
+  return true
 }
 
 /** A terminal the structured chat opened returns to that chat; every other toggle keeps the legacy chat view. */

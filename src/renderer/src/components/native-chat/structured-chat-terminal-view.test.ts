@@ -52,8 +52,8 @@ function deps(
 }
 
 describe('showStructuredChatInTerminal', () => {
-  it.each(['claude', 'codex'] as const)(
-    'links the %s terminal to its provider session, then closes the chat',
+  it.each(['claude', 'codex', 'pi', 'antigravity'] as const)(
+    'links the %s terminal to its provider session and structured chat, then closes the chat',
     async (agent) => {
       const d = deps()
 
@@ -62,13 +62,14 @@ describe('showStructuredChatInTerminal', () => {
       expect(d.recordTerminalLink).toHaveBeenCalledWith('terminal-tab-9', {
         agent,
         providerSessionId: 'provider-1',
-        worktreeId: 'repo::/work/feature'
+        worktreeId: 'repo::/work/feature',
+        structuredSessionId: 'session-1'
       })
       expect(d.closeChatTab).toHaveBeenCalledWith('agent-session-tab-1')
     }
   )
 
-  it('records no link for an agent that structured adoption does not support', async () => {
+  it('records no link for an agent with no structured adapter on this build', async () => {
     const d = deps()
 
     await expect(showStructuredChatInTerminal(args({ agent: 'gemini' }), d)).resolves.toBe(true)

@@ -92,8 +92,12 @@ export function resolveTabSessionHistorySubject(
   const titleRequest = collectAiVaultTitleRequests(state).find(
     (candidate) => candidate.tabId === args.tab.id
   )
-  const target = titleRequest ? workspace(titleRequest.worktreeId, 'cli') : null
-  return titleRequest && target
+  // Why: only handle-backed agents have a CLI-to-chat move; a title-only agent has none.
+  if (!titleRequest || !isAgentSessionHandleProvider(titleRequest.agent)) {
+    return null
+  }
+  const target = workspace(titleRequest.worktreeId, 'cli')
+  return target
     ? {
         ...target,
         kind: 'cli',

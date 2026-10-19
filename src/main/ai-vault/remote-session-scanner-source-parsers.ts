@@ -70,6 +70,10 @@ export function remotePiSessionsSegments(): string[] {
   return normalizeAgentSessionsDir('/.pi/agent/sessions', '.pi').split('/').filter(Boolean)
 }
 
+export function remoteGentleShellSessionsSegments(): string[] {
+  return ['.gentle-shell', 'agent', 'sessions']
+}
+
 export function remoteOmpSessionsSegments(): string[] {
   return normalizeAgentSessionsDir('/.omp/agent/sessions', '.omp').split('/').filter(Boolean)
 }

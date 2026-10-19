@@ -270,3 +270,44 @@ describe('buildAiVaultResumeShellCommand env removal', () => {
     )
   })
 })
+
+describe('buildAiVaultResumeCommand Gentle Shell transcripts', () => {
+  const gentleFile = '/home/ada/.gentle-shell/agent/sessions/repo/session.jsonl'
+
+  it('resumes a Gentle Shell transcript through gentle-shell with its own session file', () => {
+    expect(
+      buildAiVaultResumeCommand({
+        agent: 'pi',
+        sessionId: 'pi-session-1',
+        cwd: '/repo/app',
+        platform: 'darwin',
+        resumeFilePath: gentleFile
+      })
+    ).toBe(`cd '/repo/app' && gentle-shell -- --session '${gentleFile}'`)
+  })
+
+  it('keeps the stock pi resume for a transcript outside the Gentle Shell store', () => {
+    const command = buildAiVaultResumeCommand({
+      agent: 'pi',
+      sessionId: 'pi-session-1',
+      cwd: '/repo/app',
+      platform: 'darwin',
+      resumeFilePath: '/home/ada/.pi/agent/sessions/repo/session.jsonl'
+    })
+    expect(command).toContain("pi --session 'pi-session-1'")
+    expect(command).not.toContain('gentle-shell')
+  })
+
+  it('reuses a command override only when it already names Gentle Shell', () => {
+    expect(
+      buildAiVaultResumeCommand({
+        agent: 'pi',
+        sessionId: 'pi-session-1',
+        cwd: null,
+        platform: 'darwin',
+        commandOverride: 'pi',
+        resumeFilePath: gentleFile
+      })
+    ).toBe(`gentle-shell -- --session '${gentleFile}'`)
+  })
+})

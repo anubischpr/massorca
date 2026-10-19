@@ -12,6 +12,11 @@ import {
   isNativeChatTabWideFallbackSafe,
   resolveNativeChatActiveLayoutLeafId
 } from './native-chat-leaf-routing'
+import {
+  returnTerminalToStructuredChat,
+  terminalChatToggleRoute
+} from './structured-chat-terminal-return'
+import { collectLeafIdsInOrder } from '../terminal-pane/terminal-layout-leaf-ids'
 
 export function resolveNativeChatToggleShortcutDetectedAgent({
   terminalTabId,
@@ -77,6 +82,18 @@ export function useNativeChatToggleShortcut(worktreeId: string, isWorktreeActive
       // the unified tab id.
       const terminalLayout = state.terminalLayoutsByTabId[tab.entityId]
       const tabWideFallbackSafe = isNativeChatTabWideFallbackSafe(terminalLayout)
+      // Why: the chord follows the pane button's route, so a terminal the structured chat opened returns to it.
+      const chatReturnRoute = terminalChatToggleRoute({
+        link: state.structuredChatTerminalLinksByTabId[tab.entityId],
+        chatViewActive: tab.viewMode === 'chat',
+        paneCount: terminalLayout?.root ? collectLeafIdsInOrder(terminalLayout.root).length : 1
+      })
+      if (chatReturnRoute.kind === 'return-to-structured-chat') {
+        e.preventDefault()
+        e.stopPropagation()
+        void returnTerminalToStructuredChat({ tabId: tab.entityId, link: chatReturnRoute.link })
+        return
+      }
       const detectedAgent = resolveNativeChatToggleShortcutDetectedAgent({
         terminalTabId: tab.entityId,
         terminalLayout,

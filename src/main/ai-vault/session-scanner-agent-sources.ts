@@ -42,6 +42,7 @@ const OPENCLAW_STATE_DIR = resolveAbsoluteDirOverride(
   process.env.OPENCLAW_STATE_DIR,
   join(homedir(), '.openclaw')
 )
+const GENTLE_SHELL_SESSIONS_DIR = join(homedir(), '.gentle-shell', 'agent', 'sessions')
 const PI_SESSIONS_DIR = normalizeAgentSessionsDir(
   process.env.PI_CODING_AGENT_DIR?.trim() || join(homedir(), '.pi', 'agent', 'sessions'),
   '.pi'
@@ -238,12 +239,19 @@ export const AI_VAULT_AGENT_SOURCES: AiVaultAgentSourceTable = {
     filePredicate: (filePath) => basename(filePath) === 'metadata.json'
   },
   pi: {
-    rootDirs: (options, wslHomeDirs) =>
-      sessionRootDirs(options.piSessionsDir ?? PI_SESSIONS_DIR, wslHomeDirs, [
+    // Why: Gentle Shell runs the same Pi protocol and keeps its own session store; its rows are agent `pi`.
+    rootDirs: (options, wslHomeDirs) => [
+      ...sessionRootDirs(options.piSessionsDir ?? PI_SESSIONS_DIR, wslHomeDirs, [
         '.pi',
         'agent',
         'sessions'
       ]),
+      ...sessionRootDirs(GENTLE_SHELL_SESSIONS_DIR, wslHomeDirs, [
+        '.gentle-shell',
+        'agent',
+        'sessions'
+      ])
+    ],
     extensions: ['.jsonl']
   },
   omp: {

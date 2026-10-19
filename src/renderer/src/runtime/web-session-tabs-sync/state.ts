@@ -244,6 +244,7 @@ export type WebSessionTabsSyncState = Pick<
       | 'recentlyRetiredAgentStatusPaneKeys'
       | 'retainedAgentsByPaneKey'
       | 'retentionSuppressedPaneKeys'
+      | 'structuredChatTerminalLinksByTabId'
     >
   >
 
@@ -264,6 +265,7 @@ export type WebSessionTabsBatchRecordKey =
   | 'pendingStartupByTabId'
   | 'ptyIdsByTabId'
   | 'remoteBrowserPageHandlesByPageId'
+  | 'structuredChatTerminalLinksByTabId'
   | 'tabBarOrderByWorktree'
   | 'tabsByWorktree'
   | 'terminalLayoutsByTabId'
