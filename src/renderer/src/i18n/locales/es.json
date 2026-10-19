@@ -18947,6 +18947,7 @@
       "detectedCount": "{{count}} detectados",
       "folder": "Carpeta",
       "noRunningAgents": "No hay subagentes en curso",
+      "noRunningBackground": "No hay tareas en segundo plano en curso",
       "noSubagents": "No hay subagentes informados.",
       "observed": "Observado",
       "path": "Ruta",
@@ -18966,7 +18967,9 @@
     "nativeChatBackground": {
       "finishedCount": "{{count}} finalizadas",
       "finishedCount_one": "{{count}} finalizada",
-      "finishedCount_other": "{{count}} finalizadas"
+      "finishedCount_other": "{{count}} finalizadas",
+      "stopProviderUnavailable": "Este proveedor no puede detener tareas en segundo plano.",
+      "stopRowUnavailable": "Esta tarea no se puede detener por separado."
     }
   },
   "dashboardPopout": {

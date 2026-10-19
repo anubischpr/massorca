@@ -20,6 +20,10 @@ import { AgentChildRowContent } from '@/components/AgentChildRowContent'
 import { agentChildRowName } from '@/components/agent-child-row-text'
 import { useNow } from '@/hooks/use-now'
 import { NativeChatFinishedBackgroundGroup } from './NativeChatFinishedBackgroundGroup'
+import {
+  NativeChatBackgroundTaskStopControl,
+  type NativeChatBackgroundStop
+} from './NativeChatBackgroundTaskStopControl'
 
 export const UNVERIFIABLE: AgentChildRowContext = {
   parentEvidenceFresh: false,
@@ -52,65 +56,78 @@ export function runningChildRowsFirst(left: AgentChildRowModel, right: AgentChil
 function BackgroundRow({
   row,
   now,
-  onSelect
+  onSelect,
+  stop
 }: {
   row: AgentChildRowModel
   now: number
   onSelect: (row: AgentChildRowModel) => void
+  /** Only a commands list offers a Stop; the subagent list draws none. */
+  stop?: NativeChatBackgroundStop
 }) {
   const { t } = useTranslation()
   return (
     <li className="space-y-1">
-      <button
-        type="button"
-        className="flex w-full min-w-0 items-center gap-2 text-left"
-        data-background-state={row.displayState}
-        onClick={() => onSelect(row)}
-        aria-label={t('components.nativeChatBackground.viewActivity', 'View activity: {{label}}', {
-          label: row.name || row.id
-        })}
-      >
-        {row.kind === 'agent' ? (
-          <>
-            <AgentStateDot state={row.displayState} size="sm" />
-            <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="min-w-24 max-w-full flex-1 truncate" title={agentChildRowName(row)}>
-                {agentChildRowName(row)}
+      <div className="flex min-w-0 items-center gap-2">
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          data-background-state={row.displayState}
+          onClick={() => onSelect(row)}
+          aria-label={t(
+            'components.nativeChatBackground.viewActivity',
+            'View activity: {{label}}',
+            {
+              label: row.name || row.id
+            }
+          )}
+        >
+          {row.kind === 'agent' ? (
+            <>
+              <AgentStateDot state={row.displayState} size="sm" />
+              <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                <span
+                  className="min-w-24 max-w-full flex-1 truncate"
+                  title={agentChildRowName(row)}
+                >
+                  {agentChildRowName(row)}
+                </span>
+                <span
+                  className="max-w-full shrink-0 break-words text-muted-foreground"
+                  title={
+                    row.recordedConfiguration
+                      ? t('components.nativeChatBackground.recorded', 'Recorded turn configuration')
+                      : t(
+                          'components.nativeChatBackground.recordedUnavailable',
+                          'Recorded turn configuration unavailable'
+                        )
+                  }
+                >
+                  {row.recordedConfiguration?.model ??
+                    t('components.nativeChatBackground.modelUnavailable', 'Model unavailable')}{' '}
+                  ·{' '}
+                  {row.recordedConfiguration?.effort ??
+                    t('components.nativeChatBackground.effortUnavailable', 'Effort unavailable')}
+                </span>
               </span>
-              <span
-                className="max-w-full shrink-0 break-words text-muted-foreground"
-                title={
-                  row.recordedConfiguration
-                    ? t('components.nativeChatBackground.recorded', 'Recorded turn configuration')
-                    : t(
-                        'components.nativeChatBackground.recordedUnavailable',
-                        'Recorded turn configuration unavailable'
-                      )
-                }
-              >
-                {row.recordedConfiguration?.model ??
-                  t('components.nativeChatBackground.modelUnavailable', 'Model unavailable')}{' '}
-                ·{' '}
-                {row.recordedConfiguration?.effort ??
-                  t('components.nativeChatBackground.effortUnavailable', 'Effort unavailable')}
-              </span>
-            </span>
-          </>
-        ) : (
-          <AgentChildRowContent
-            row={row}
-            now={now}
-            leadClassName="text-foreground"
-            trailClassName="text-muted-foreground"
-            separator=" · "
-            lineTitle
-          />
-        )}
-      </button>
+            </>
+          ) : (
+            <AgentChildRowContent
+              row={row}
+              now={now}
+              leadClassName="text-foreground"
+              trailClassName="text-muted-foreground"
+              separator=" · "
+              lineTitle
+            />
+          )}
+        </button>
+        {stop ? <NativeChatBackgroundTaskStopControl row={row} stop={stop} /> : null}
+      </div>
       {row.owned.length > 0 ? (
         <ul className="ml-3 space-y-2 border-l border-border pl-3">
           {row.owned.map((owned) => (
-            <BackgroundRow key={owned.id} row={owned} now={now} onSelect={onSelect} />
+            <BackgroundRow key={owned.id} row={owned} now={now} onSelect={onSelect} stop={stop} />
           ))}
         </ul>
       ) : null}
@@ -126,6 +143,8 @@ export function NativeChatCodexBackgroundPanel(props: {
   isVisible: boolean
   section?: 'agents' | 'commands'
   embedded?: boolean
+  /** Stops for the commands list. Finished tasks never get one. */
+  stop?: NativeChatBackgroundStop
 }): React.JSX.Element {
   const { t } = useTranslation()
   const [selected, setSelected] = useState<{
@@ -287,7 +306,13 @@ export function NativeChatCodexBackgroundPanel(props: {
           </h3>
           <ul className="space-y-2">
             {main.map((row) => (
-              <BackgroundRow key={row.id} row={row} now={now} onSelect={onSelect} />
+              <BackgroundRow
+                key={row.id}
+                row={row}
+                now={now}
+                onSelect={onSelect}
+                stop={props.stop}
+              />
             ))}
           </ul>
         </section>
@@ -301,7 +326,13 @@ export function NativeChatCodexBackgroundPanel(props: {
           </h3>
           <ul className="space-y-2">
             {unknown.map((row) => (
-              <BackgroundRow key={row.id} row={row} now={now} onSelect={onSelect} />
+              <BackgroundRow
+                key={row.id}
+                row={row}
+                now={now}
+                onSelect={onSelect}
+                stop={props.stop}
+              />
             ))}
           </ul>
         </section>

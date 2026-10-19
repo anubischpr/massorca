@@ -326,7 +326,7 @@ export function NativeChatStructuredSession(
           onLinkClick={onLinkClick}
           journalItems={controller.journalItems}
           commandActivity={controller.commandActivity}
-          roster={controller.backgroundTaskRoster}
+          {...controller.backgroundSummary}
           context={backgroundRowContext}
           isVisible={props.isVisible}
         />
@@ -348,7 +348,7 @@ export function NativeChatStructuredSession(
             paneKey={paneKey}
             isVisible={props.isVisible}
             backgroundTasks={controller.backgroundTasks}
-            stopBackgroundTask={controller.stopBackgroundTask}
+            backgroundStops={controller.backgroundStops}
           />
           {!prompt && controller.threadGoal?.goal ? (
             <NativeChatThreadGoalBanner

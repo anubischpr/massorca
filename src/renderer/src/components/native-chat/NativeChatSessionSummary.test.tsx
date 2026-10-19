@@ -1,8 +1,11 @@
 // @vitest-environment happy-dom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
+import type { AgentChildRowContext } from '../../../../shared/agent-child-row-model'
+import type { AgentChildWorkView } from '../../../../shared/agent-status-child-work-view'
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
 import type { StructuredAgentContextSummary } from '../../../../shared/structured-agent-session-context-usage'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { NativeChatSessionSummary } from './NativeChatSessionSummary'
 
 const { store } = vi.hoisted(() => {
@@ -281,5 +284,71 @@ it('reports zero running subagents and background tasks when the host confirms n
   expect(screen.getByRole('button', { name: /^Background tasks/ }).textContent).toContain(
     '0 running'
   )
-  expect(screen.getByText('No background work reported.')).toBeTruthy()
+  expect(screen.getByText('No running background tasks')).toBeTruthy()
+})
+
+const liveContext: AgentChildRowContext = {
+  parentEvidenceFresh: true,
+  transportObservation: 'live',
+  parentObservedAt: 1_000,
+  hostClockOffsetMs: 0
+}
+function commandView(id: string, changes: Partial<AgentChildWorkView> = {}): AgentChildWorkView {
+  return {
+    id,
+    providerId: `task-${id}`,
+    kind: 'command',
+    description: id,
+    state: 'working',
+    membership: 'live',
+    firstObservedAt: 100,
+    observedAt: 1_000,
+    stoppable: true,
+    invocation: { invocationId: id, generation: 1 },
+    ...changes
+  }
+}
+
+it('lists running background tasks in the collapsed card, each with a Stop that names it', () => {
+  const onStop = vi.fn()
+  render(
+    <TooltipProvider>
+      <NativeChatSessionSummary
+        {...props}
+        context={liveContext}
+        roster={{ state: 'monitoring', supportsTaskStop: true }}
+        commandActivity={[
+          commandView('build'),
+          commandView('tail', { membership: 'settled', state: 'done', settledAt: 900 })
+        ]}
+        backgroundStop={{ stoppingTaskIds: new Set(), onStop }}
+      />
+    </TooltipProvider>
+  )
+
+  expect(screen.getByRole('button', { name: /^Background tasks/ }).textContent).toContain(
+    '1 running'
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Stop build' }))
+  expect(onStop).toHaveBeenCalledWith('task-build')
+  expect(screen.queryByRole('button', { name: 'Stop tail' })).toBeNull()
+})
+
+it('shows running background tasks without a Stop from a host that predates the field', () => {
+  render(
+    <TooltipProvider>
+      <NativeChatSessionSummary
+        {...props}
+        context={liveContext}
+        roster={{ state: 'monitoring' }}
+        commandActivity={[commandView('build')]}
+        backgroundStop={{ stoppingTaskIds: new Set(), onStop: vi.fn() }}
+      />
+    </TooltipProvider>
+  )
+
+  expect(screen.getByRole('button', { name: /^Background tasks/ }).textContent).toContain(
+    '1 running'
+  )
+  expect(screen.queryByRole('button', { name: 'Stop build' })).toBeNull()
 })

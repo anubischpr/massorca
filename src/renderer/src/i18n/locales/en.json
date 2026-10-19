@@ -19153,6 +19153,7 @@
       "detectedCount": "{{count}} detected",
       "folder": "Folder",
       "noRunningAgents": "No running subagents",
+      "noRunningBackground": "No running background tasks",
       "noSubagents": "No subagents reported.",
       "observed": "Observed",
       "path": "Path",
@@ -19190,7 +19191,9 @@
       "subagent": "Subagent",
       "finishedCount": "{{count}} finished",
       "finishedCount_one": "{{count}} finished",
-      "finishedCount_other": "{{count}} finished"
+      "finishedCount_other": "{{count}} finished",
+      "stopProviderUnavailable": "This provider cannot stop background tasks.",
+      "stopRowUnavailable": "This task cannot be stopped on its own."
     }
   },
   "dashboardPopout": {

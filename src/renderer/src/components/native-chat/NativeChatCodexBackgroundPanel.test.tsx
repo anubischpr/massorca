@@ -7,6 +7,7 @@ import type * as AgentStateDotModule from '../AgentStateDot'
 import type { AgentChildWorkView } from '../../../../shared/agent-status-child-work-view'
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
 import type { AgentChildRowContext } from '../../../../shared/agent-child-row-model'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { NativeChatCodexBackgroundPanel } from './NativeChatCodexBackgroundPanel'
 
 vi.mock('@/components/AgentChildRowContent', () => ({
@@ -372,4 +373,85 @@ it('uses localized accessible labels and interpolates only the activity name', a
   )
   expect(screen.getByRole('complementary', { name: 'Localized activity' })).toBeDefined()
   expect(screen.getByRole('button', { name: 'Inspect local-command' })).toBeDefined()
+})
+
+describe('background task Stop controls', () => {
+  const live = (id: string, changes: Partial<AgentChildWorkView> = {}) =>
+    child(id, { state: 'working', stoppable: true, providerId: `provider-${id}`, ...changes })
+  const stopHandlers = (supportsTaskStop: boolean | undefined, onStop = vi.fn()) => ({
+    supportsTaskStop,
+    stoppingTaskIds: new Set<string>(),
+    onStop
+  })
+  function renderStops(
+    activity: AgentChildWorkView[],
+    stop: ReturnType<typeof stopHandlers> | undefined
+  ) {
+    render(
+      <TooltipProvider>
+        <NativeChatCodexBackgroundPanel
+          context={fresh}
+          isVisible
+          roster={null}
+          commandActivity={activity}
+          stop={stop}
+        />
+      </TooltipProvider>
+    )
+  }
+
+  it('draws a Stop that names each live task by its provider id, and none on a finished one', () => {
+    const onStop = vi.fn()
+    renderStops(
+      [
+        live('running'),
+        live('done-one', {
+          membership: 'settled',
+          state: 'done',
+          outcome: 'succeeded',
+          settledAt: 900
+        })
+      ],
+      stopHandlers(true, onStop)
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop running' }))
+    expect(onStop).toHaveBeenCalledWith('provider-running')
+
+    fireEvent.click(screen.getByRole('button', { name: '1 finished' }))
+    expect(screen.getByText('done-one: done')).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Stop done-one' })).toBeNull()
+  })
+
+  it('draws a disabled Stop that says why when the provider cannot stop', () => {
+    renderStops([live('running')], stopHandlers(false))
+    const stop = screen.getByRole('button', { name: 'Stop running' })
+    expect(stop.hasAttribute('disabled')).toBe(true)
+    expect(stop.getAttribute('aria-description')).toBe(
+      'This provider cannot stop background tasks.'
+    )
+  })
+
+  it('draws a disabled Stop with its own reason for a task the host cannot target', () => {
+    renderStops([live('in-turn', { stoppable: false })], stopHandlers(true))
+    const stop = screen.getByRole('button', { name: 'Stop in-turn' })
+    expect(stop.hasAttribute('disabled')).toBe(true)
+    expect(stop.getAttribute('aria-description')).toBe('This task cannot be stopped on its own.')
+  })
+
+  it('draws no Stop from a host that predates the field, or when no stop is handed in', () => {
+    renderStops([live('running')], stopHandlers(undefined))
+    expect(screen.queryByRole('button', { name: 'Stop running' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'View activity: running' })).toBeDefined()
+
+    cleanup()
+    renderStops([live('running')], undefined)
+    expect(screen.queryByRole('button', { name: 'Stop running' })).toBeNull()
+  })
+
+  it('keeps the activity button beside a Stop, so the row still opens its activity', () => {
+    renderStops([live('running')], stopHandlers(true))
+    fireEvent.click(screen.getByRole('button', { name: 'View activity: running' }))
+    expect(screen.getByRole('complementary', { name: 'Activity details' })).toBeDefined()
+  })
 })

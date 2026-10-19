@@ -26,6 +26,7 @@ import type {
   SessionOptionValue
 } from '../../../../shared/native-chat-session-options'
 import { absent, nullable, widened } from './native-chat-mock-slot-types.test-support'
+import { useBackgroundTaskStopping } from './use-background-task-stopping'
 
 type StopBackgroundTaskSpy = (sessionId: string, taskId?: string) => unknown
 
@@ -196,6 +197,11 @@ export function createStructuredSessionMocks() {
           transportEnabled?: boolean
         }) => {
           mocks.controllerProps = props
+          const backgroundStops = useBackgroundTaskStopping({
+            sessionId: props.sessionId,
+            stopBackgroundTask: async (taskId?: string) =>
+              mocks.stopBackgroundTask(props.sessionId, taskId)
+          })
           return {
             journalItems: mocks.journalItems,
             messages: mocks.messages ?? [
@@ -262,6 +268,7 @@ export function createStructuredSessionMocks() {
             cancel: mocks.cancel,
             stopBackgroundTask: (taskId?: string) =>
               mocks.stopBackgroundTask(props.sessionId, taskId),
+            backgroundStops,
             respond: mocks.respond,
             optionSnapshot: [
               {

@@ -25,9 +25,12 @@ import type { NativeChatFileLinkContext } from './native-chat-file-link'
 import {
   NativeChatCodexBackgroundPanel,
   isRunningChildRow,
-  runningChildRowsFirst,
   UNVERIFIABLE
 } from './NativeChatCodexBackgroundPanel'
+import {
+  NativeChatBackgroundTaskStopControl,
+  type NativeChatBackgroundStop
+} from './NativeChatBackgroundTaskStopControl'
 import { NativeChatSessionConnectorRow } from './NativeChatSessionConnectorRow'
 import { NativeChatSessionContextSection } from './NativeChatSessionContextSection'
 import { NativeChatSessionEnvironment } from './NativeChatSessionEnvironment'
@@ -69,6 +72,8 @@ export function NativeChatSessionSummary(props: {
   subagentRoster?: StructuredAgentSubagentRoster
   isVisible: boolean
   onLinkClick: CommentMarkdownLinkClickHandler | undefined
+  /** In-flight stops and the stop action; absent where this card cannot stop tasks. */
+  backgroundStop?: Omit<NativeChatBackgroundStop, 'supportsTaskStop'>
 }): React.JSX.Element {
   const { t } = useTranslation()
   const hostLabel = useStructuredAgentSessionHostLabel(props.target)
@@ -92,15 +97,10 @@ export function NativeChatSessionSummary(props: {
   const rows = useMemo(() => allChildRows(childRows), [childRows])
   const now = useNow(1_000, props.isVisible && rows.some((row) => !row.settled))
   const runningAgents = rows.filter((row) => row.kind === 'agent' && isRunningChildRow(row))
-  const runningBackgroundCount = rows.filter(
-    (row) => row.kind !== 'agent' && isRunningChildRow(row)
-  ).length
+  const runningBackground = rows.filter((row) => row.kind !== 'agent' && isRunningChildRow(row))
   const hasAgentRows = rows.some((row) => row.kind === 'agent')
   const viewAgentCount = views?.filter((entry) => entry.kind === 'agent').length ?? 0
   const legacyAgents = viewAgentCount === 0 ? [...(props.subagentRoster?.values() ?? [])] : []
-  const latestBackground = childRows
-    .filter((row) => row.kind !== 'agent')
-    .sort(runningChildRowsFirst)[0]
 
   const unavailable = t('components.nativeChatSummary.unavailable', 'Unavailable')
   const count = (value: number) =>
@@ -260,21 +260,31 @@ export function NativeChatSessionSummary(props: {
     </>
   )
 
+  const backgroundStopState: NativeChatBackgroundStop | undefined = props.backgroundStop
+    ? { ...props.backgroundStop, supportsTaskStop: props.roster?.supportsTaskStop }
+    : undefined
   const backgroundCompact = !views ? (
     <p>{backgroundUnknown}</p>
-  ) : latestBackground ? (
-    <div className="truncate">
-      <AgentChildRowContent
-        row={latestBackground}
-        now={now}
-        leadClassName="text-foreground"
-        trailClassName="text-muted-foreground"
-        separator=" · "
-        lineTitle
-      />
-    </div>
+  ) : runningBackground.length === 0 ? (
+    <p>{t('components.nativeChatSummary.noRunningBackground', 'No running background tasks')}</p>
   ) : (
-    <p>{t('components.nativeChatBackground.empty', 'No background work reported.')}</p>
+    runningBackground.slice(0, 3).map((row) => (
+      <div key={row.id} className="flex min-w-0 items-center gap-1">
+        <div className="min-w-0 flex-1 truncate">
+          <AgentChildRowContent
+            row={row}
+            now={now}
+            leadClassName="text-foreground"
+            trailClassName="text-muted-foreground"
+            separator=" · "
+            lineTitle
+          />
+        </div>
+        {backgroundStopState ? (
+          <NativeChatBackgroundTaskStopControl row={row} stop={backgroundStopState} />
+        ) : null}
+      </div>
+    ))
   )
   const backgroundExpanded =
     views || props.roster ? (
@@ -286,6 +296,7 @@ export function NativeChatSessionSummary(props: {
         isVisible={props.isVisible}
         section="commands"
         embedded
+        stop={backgroundStopState}
       />
     ) : (
       <p className="text-muted-foreground">{backgroundUnknown}</p>
@@ -326,7 +337,7 @@ export function NativeChatSessionSummary(props: {
         </NativeChatSessionSection>
         <NativeChatSessionSection
           title={t('components.nativeChatSummary.commands', 'Background tasks')}
-          summary={views ? running(runningBackgroundCount) : unavailable}
+          summary={views ? running(runningBackground.length) : unavailable}
           compact={backgroundCompact}
         >
           {backgroundExpanded}
