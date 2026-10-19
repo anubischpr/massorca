@@ -20,7 +20,7 @@ export type StructuredChatTerminalLink = {
   agent: ResumableTuiAgent
   providerSessionId: string
   worktreeId: string
-  /** The structured chat the terminal came from; back-to-chat reactivates its tab while it is open. */
+  /** The structured chat the terminal came from; back-to-chat reopens that same session by id. */
   structuredSessionId: string
 }
 
