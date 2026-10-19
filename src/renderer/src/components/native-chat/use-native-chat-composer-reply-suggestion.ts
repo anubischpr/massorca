@@ -12,6 +12,7 @@ export type NativeChatComposerReplySuggestion = {
  * The host's suggestion as this composer offers it: ghost text over an empty draft, Tab to take it
  * into the draft and Esc to drop it. Typing hides it and clearing the draft shows the same text
  * again, because the suggestion itself is the host's cached copy and nothing here refetches it.
+ * Taking it spends nothing: sending the text starts a turn, which is what replaces the suggestion.
  */
 export function useNativeChatComposerReplySuggestion(args: {
   offered: NativeChatReplySuggestionView | null | undefined
@@ -39,7 +40,6 @@ export function useNativeChatComposerReplySuggestion(args: {
               }
               setDraft(visible.text)
               setCaret(visible.text.length)
-              visible.dismiss()
             }
           }
         : null,

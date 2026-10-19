@@ -52,14 +52,14 @@ describe('useNativeChatComposerReplySuggestion', () => {
     expect(setup('', true).result.current).toBeNull()
   })
 
-  it('accepting puts the text in the draft with the caret after it, and spends the suggestion', () => {
+  it('accepting puts the text in the draft with the caret after it, and spends nothing', () => {
     const { result, input, setDraft, setCaret, offered } = setup('')
     act(() => result.current?.accept())
     expect(input.value).toBe('Run the tests')
     expect(input.setSelectionRange).toHaveBeenCalledWith(13, 13)
     expect(setDraft).toHaveBeenCalledWith('Run the tests')
     expect(setCaret).toHaveBeenCalledWith(13)
-    expect(offered?.dismiss).toHaveBeenCalledTimes(1)
+    expect(offered?.dismiss).not.toHaveBeenCalled()
   })
 
   it('dismissing spends the suggestion without touching the draft', () => {

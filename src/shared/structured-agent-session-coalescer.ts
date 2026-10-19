@@ -9,6 +9,9 @@ function bypassCoalescing(event: AgentSessionSubscribeEvent): boolean {
     // A queue list lands at once: held, the card would be missing for a moment after the send's
     // own "Sending…" card went with its queued answer.
     event.queuedMessages !== undefined ||
+    // A suggestion frame states one value beside the journal; merged into a neighbour it would be
+    // dropped with the frame that carried it, so it lands on its own after whatever it held.
+    event.promptSuggestion !== undefined ||
     event.batch.items.some((item) => item.body.kind !== 'message' || item.body.role !== 'assistant')
   )
 }
