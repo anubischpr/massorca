@@ -63,8 +63,13 @@ export function useTerminalPaneChatState(controller: TerminalPaneTitleController
       store.paneForegroundAgentByPaneKey
     )
   )
-  const savedLayout = useAppStore((store) => store.terminalLayoutsByTabId[tabId] ?? EMPTY_LAYOUT)
-  const chatReturnLink = useAppStore((store) => store.structuredChatTerminalLinksByTabId[tabId])
+  // Why one selector: each pane is held to a pinned store-subscription budget.
+  const { savedLayout, chatReturnLink } = useAppStore(
+    useShallow((store) => ({
+      savedLayout: store.terminalLayoutsByTabId[tabId] ?? EMPTY_LAYOUT,
+      chatReturnLink: store.structuredChatTerminalLinksByTabId[tabId]
+    }))
+  )
   const terminalTab = useAppStore((store) =>
     getCachedTerminalTabForWorktree(store.tabsByWorktree, worktreeId, tabId)
   )
