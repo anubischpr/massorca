@@ -9,11 +9,11 @@ import {
   beginStructuredAgentSessionProvisionalLaunch,
   type StructuredAgentSessionProvisionalLaunch
 } from '@/lib/structured-agent-session-provisional-tab'
-import type { AgentSessionHandleProvider } from '../../../shared/agent-session-provider-handle'
+import type { AgentSessionAdoptableProvider } from '../../../shared/agent-session-provider-handle'
 import { parseWorkspaceKey } from '../../../shared/workspace-scope'
 
 export type ResumeProviderSessionInNewChatArgs = {
-  agent: AgentSessionHandleProvider
+  agent: AgentSessionAdoptableProvider
   worktreeId: string
   /** The provider's own conversation id; the host resumes exactly this conversation. */
   providerSessionId: string

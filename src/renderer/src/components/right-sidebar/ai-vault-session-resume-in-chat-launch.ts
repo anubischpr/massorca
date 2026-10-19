@@ -1,7 +1,7 @@
 import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import type { AiVaultSession } from '../../../../shared/ai-vault-types'
-import type { AgentSessionHandleProvider } from '../../../../shared/agent-session-provider-handle'
+import type { AgentSessionAdoptableProvider } from '../../../../shared/agent-session-provider-handle'
 import { hasRuntimeRpcErrorCode } from '../../../../shared/runtime-rpc-error-code'
 import { prepareAiVaultSessionForResume } from '@/lib/ai-vault-session-resume-preparation'
 import type { AgentLaunchRequestId } from '@/lib/agent-launch-request-id'
@@ -21,7 +21,7 @@ export function activateAiVaultResumeWorkspace(workspaceId: string): boolean {
  *  would hide the refusal the user needs to see. */
 export async function resumeAiVaultSessionInNewChat(
   session: AiVaultSession,
-  agent: AgentSessionHandleProvider,
+  agent: AgentSessionAdoptableProvider,
   worktreeId: string,
   requestId: AgentLaunchRequestId
 ): Promise<void> {
