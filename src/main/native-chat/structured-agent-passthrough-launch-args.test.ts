@@ -10,12 +10,8 @@ const owned = {
 describe('structuredPassthroughLaunchArgs', () => {
   it('keeps options and their values in order', () => {
     expect(
-      structuredPassthroughLaunchArgs(
-        'Pi',
-        ['--thinking', 'high', '--verbose', '-e', 'a', 'b'],
-        owned
-      )
-    ).toEqual(['--thinking', 'high', '--verbose', '-e', 'a', 'b'])
+      structuredPassthroughLaunchArgs('Pi', ['--thinking', 'high', '--verbose', '-e', 'a'], owned)
+    ).toEqual(['--thinking', 'high', '--verbose', '-e', 'a'])
   })
 
   it('drops Orca-owned options with their value and keeps what follows', () => {
@@ -43,7 +39,9 @@ describe('structuredPassthroughLaunchArgs', () => {
   it.each([
     ['leading prompt', ['hello']],
     ['prompt after an owned switch', ['--print', 'hello']],
-    ['second operand of an owned value option', ['--mode', 'plan', 'hello']]
+    ['second operand of an owned value option', ['--mode', 'plan', 'hello']],
+    ['second operand of a kept option', ['--thinking', 'high', 'hello']],
+    ['operand after a kept inline value', ['--thinking=high', 'hello']]
   ])('refuses a positional prompt: %s', (_name, tokens) => {
     try {
       structuredPassthroughLaunchArgs('Pi', tokens, owned)

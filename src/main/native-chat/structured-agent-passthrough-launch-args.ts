@@ -19,7 +19,7 @@ export function structuredPassthroughLaunchArgs(
   owned: StructuredPassthroughOwnedFlags
 ): string[] {
   const kept: string[] = []
-  // What a bare (non-dash) token belongs to: the last kept option, a dropped one, or nothing.
+  // What the next bare (non-dash) token belongs to: one value of the last kept or dropped option, or nothing.
   let operand: 'kept' | 'drop-one' | 'none' = 'none'
   for (const token of tokens) {
     if (token === '--') {
@@ -34,12 +34,13 @@ export function structuredPassthroughLaunchArgs(
         operand = 'none'
       } else {
         kept.push(token)
-        operand = 'kept'
+        operand = inline ? 'none' : 'kept'
       }
       continue
     }
     if (operand === 'kept') {
       kept.push(token)
+      operand = 'none'
     } else if (operand === 'drop-one') {
       operand = 'none'
     } else {
