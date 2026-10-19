@@ -45,7 +45,7 @@ function storeWithTabs(ptyIds: string[]): ReturnType<typeof createTestStore> {
       ]
     }
   })
-  store.setState({ ptyIdsByTabId: { 'tab-a': ptyIds } } as never)
+  store.setState({ ptyIdsByTabId: { 'tab-a': ptyIds } })
   return store
 }
 
