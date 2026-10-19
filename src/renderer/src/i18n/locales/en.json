@@ -19175,7 +19175,10 @@
       "main": "Main agent",
       "originUnavailable": "Origin unavailable",
       "subagentLabel": "Subagent: {{label}}",
-      "subagent": "Subagent"
+      "subagent": "Subagent",
+      "finishedCount": "{{count}} finished",
+      "finishedCount_one": "{{count}} finished",
+      "finishedCount_other": "{{count}} finished"
     }
   },
   "dashboardPopout": {

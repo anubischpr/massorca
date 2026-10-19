@@ -3097,6 +3097,10 @@
         "waitMoment": "Wait a moment."
       }
     },
+    "nativeChatBackground": {
+      "finishedCount_one": "{{count}} finished",
+      "finishedCount_other": "{{count}} finished"
+    },
     "nativeChatSummary": {
       "connectorEvidence": "MCP calls recorded in this chat. Current connection and plugin status are not reported.",
       "directory": "Working directory",

@@ -189,8 +189,10 @@ describe('foreground commands in the background-task channel', () => {
       turn: { id: 'child-turn', status: 'completed' }
     })
     await turn('turn/completed', 'turn-1')
-    expect(
-      (await host.history({ sessionId: SESSION, direction: 'tail' })).page.commandActivity
-    ).toEqual([])
+    // Codex drops a stopped command's record; the finished subagent stays for the finished group.
+    const after = (await host.history({ sessionId: SESSION, direction: 'tail' })).page
+    expect(after.commandActivity).toEqual([
+      expect.objectContaining({ kind: 'agent', membership: 'settled', state: 'done' })
+    ])
   })
 })

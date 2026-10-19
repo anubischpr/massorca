@@ -18953,6 +18953,11 @@
       "windowUnknown": "No lo informa el proveedor.",
       "worktree": "Worktree",
       "workspace": "Espacio de trabajo"
+    },
+    "nativeChatBackground": {
+      "finishedCount": "{{count}} finalizadas",
+      "finishedCount_one": "{{count}} finalizada",
+      "finishedCount_other": "{{count}} finalizadas"
     }
   },
   "dashboardPopout": {

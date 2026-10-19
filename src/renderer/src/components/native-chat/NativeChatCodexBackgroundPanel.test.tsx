@@ -150,7 +150,8 @@ describe('Codex background sidebar', () => {
         }}
       />
     )
-    expect(screen.getByText('Origin unavailable')).toBeDefined()
+    expect(screen.queryByText('finished: done')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '1 finished' }))
     expect(screen.getByText('finished: done')).toBeDefined()
   })
   it('uses the separate command activity view and degrades it after disconnect', () => {
