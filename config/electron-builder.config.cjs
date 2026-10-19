@@ -13,6 +13,7 @@ const {
   verifyPackagedMainRuntimeDeps
 } = require('./packaged-runtime-node-modules.cjs')
 const { verifyLinuxGlibcFloor } = require('./scripts/verify-linux-glibc-floor.cjs')
+const { verifyLinuxPackagedNodePty } = require('./scripts/verify-linux-packaged-node-pty.cjs')
 const { writeMacBuildCompatibility } = require('./scripts/mac-build-compatibility.cjs')
 const {
   MOBILE_WEB_BUNDLE_DIR,
@@ -403,6 +404,8 @@ module.exports = {
       verifyLinuxGlibcFloor(context.appOutDir, {
         targetArch: { 1: 'x64', 3: 'arm64' }[context.arch]
       })
+      // Why: the daemon must resolve a node-pty with its addon, or PTY spawn fails at runtime.
+      verifyLinuxPackagedNodePty(resourcesDir)
     }
     verifyPackagedMainRuntimeDeps(resourcesDir)
     // Why: boot the packaged daemon-entry under plain Node, but only for the
@@ -634,6 +637,11 @@ module.exports = {
     artifactName: 'orca-macos-${arch}.${ext}'
   },
   linux: {
+    // Why: electron-builder unpacks a package whole once one of its files is a .node binary, so a
+    // packed node-pty lands in app.asar.unpacked, which the daemon resolves before
+    // resources/node_modules. Linux ships its addon through extraResources instead, so keep the
+    // package out of app.asar here only.
+    files: ['!node_modules/node-pty{,/**/*}'],
     // Why mimeTypes and not fileAssociations: shared-mime-info already maps *.md/*.markdown to
     // text/markdown, so reusing that type puts Orca in the Open With list without shipping a glob
     // override. A desktop entry's MimeType only adds a handler - mimeapps.list still owns the
