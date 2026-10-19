@@ -1,5 +1,6 @@
 import type { StructuredAgentSessionResumeSource } from '../../../shared/structured-agent-session-create'
 import type { TuiAgent } from '../../../shared/tui-agent'
+import { structuredAgentLabel } from '@/lib/structured-agent-session-launch-label'
 import { parseExecutionHostId, type ExecutionHostId } from '../../../shared/execution-host'
 import { STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY } from '../../../shared/protocol-version'
 import { toast } from 'sonner'
@@ -56,6 +57,8 @@ export type AgentSessionLaunchVerdict = {
   resumeFrom?: StructuredAgentSessionResumeSource
   onPromptDelivered?: () => void
   promptKeptByCaller?: true
+  /** The route fell back to a terminal only because the host never answered whether it runs chats. */
+  hostAnswerUnknown?: true
 }
 
 export type AgentSessionStructuredFeasibilityRequest = AgentLaunchRouteArgs & {
@@ -225,6 +228,23 @@ function structuredRouteAwaits(
     : null
 }
 
+/** How long a launch waits for its host's answer before deciding without it; the same bound a
+ *  local chat's admission waits. */
+export const STRUCTURED_HOST_ANSWER_WAIT_MS = 3_000
+
+/** Tells the user a launch opened a terminal because its host never said whether it runs chats,
+ *  instead of leaving a silent downgrade; one notice however many launches fall back. */
+export function notifyStructuredHostAnswerUnknown(agent: TuiAgent): void {
+  toast.warning(
+    translate(
+      'auto.lib.agent.session.launch.plan.hostAnswerUnknown',
+      'Orca could not confirm this host supports chat for {{agent}}, so it opened a terminal. Open a new chat in a moment to try again.',
+      { agent: structuredAgentLabel(agent) }
+    ),
+    { id: 'structured-host-answer-unknown' }
+  )
+}
+
 /** When a launch's chat route waits only on its host's answer (the agent list, or this
  *  computer's runtime capabilities during a slow startup), asks for it and resolves once it came
  *  or after `waitMs`, whichever is first; null when the route waits on neither. The caller then
@@ -268,6 +288,17 @@ export function awaitStructuredRouteHostAnswer(
   })
 }
 
+/** `planAgentSessionLaunch` for a caller that can wait: gives the host its bounded moment to
+ *  answer first, then decides on whatever is known. `getStore` reads the store after the wait. */
+export async function planAgentSessionLaunchOnceHostAnswered(
+  getStore: () => AgentLaunchRouteStore,
+  request: AgentSessionLaunchRequest,
+  waitMs: number = STRUCTURED_HOST_ANSWER_WAIT_MS
+): Promise<AgentSessionLaunchPlan> {
+  await awaitStructuredRouteHostAnswer(getStore(), request, waitMs)
+  return planAgentSessionLaunch(getStore(), request)
+}
+
 /** The one place a launch route is decided. Delivery mode is fixed here too, so the settle loop
  *  later receives exactly the prompt and mode the route was decided on. */
 export function planAgentSessionLaunch(
@@ -279,8 +310,10 @@ export function planAgentSessionLaunch(
   reportStructuredLaunchDowngrade(store, input, route)
   const executionHostId =
     route === 'structured-native-chat' ? parseExecutionHostId(input.executionHostId)?.id : undefined
+  const hostAnswerUnknown = route !== 'structured-native-chat' && structuredRouteAwaits(input)
   return adoptAgentSessionLaunchVerdict({
     route,
+    ...(hostAnswerUnknown ? { hostAnswerUnknown: true as const } : {}),
     requestId: request.requestId,
     agent: request.agent,
     ...(executionHostId ? { executionHostId } : {}),

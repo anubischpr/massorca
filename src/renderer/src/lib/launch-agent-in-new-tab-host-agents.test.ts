@@ -17,8 +17,10 @@ const SETTINGS = {
 
 const mocks = vi.hoisted(() => {
   const state: { current: Record<string, unknown> } = { current: {} }
-  return { callRuntimeRpc: vi.fn(), state }
+  return { callRuntimeRpc: vi.fn(), state, toastWarning: vi.fn() }
 })
+
+vi.mock('sonner', () => ({ toast: { warning: mocks.toastWarning, error: vi.fn() } }))
 
 vi.mock('@/store', () => ({ useAppStore: { getState: () => mocks.state.current } }))
 vi.mock('@/lib/worktree-runtime-owner', () => ({ getExecutionHostIdForWorktree: vi.fn() }))
@@ -36,6 +38,11 @@ import {
   setLocalRuntimeCapabilitiesForTests
 } from '@/runtime/local-runtime-capabilities'
 import type { LaunchAgentInNewTabArgs } from './launch-agent-in-new-tab'
+import {
+  notifyStructuredHostAnswerUnknown,
+  planAgentSessionLaunch,
+  planAgentSessionLaunchOnceHostAnswered
+} from './agent-session-launch-plan'
 import type { AgentLaunchRouteArgs } from './agent-launch-route-input'
 import {
   HOST_ANSWER_WAIT_MS,
@@ -160,6 +167,48 @@ describe('a new tab whose chat route waits on the host agent list', () => {
         request
       )
     ).toMatchObject({ plan: { route: 'terminal-tui' } })
+  })
+})
+
+describe('a planned launch whose host never said whether it runs chats', () => {
+  const plannedRequest = { requestId: 'request-1', ...request }
+
+  it('waits for the host list before deciding, then plans the chat', async () => {
+    const store = storeWithSettings(SETTINGS)
+    const plan = await planAgentSessionLaunchOnceHostAnswered(() => store, plannedRequest)
+
+    expect(plan.route).toBe('structured-native-chat')
+    expect(plan.hostAnswerUnknown).toBeUndefined()
+  })
+
+  it('marks the terminal fallback as unanswered once the bounded wait runs out', async () => {
+    vi.useFakeTimers()
+    mocks.callRuntimeRpc.mockReturnValue(new Promise(() => {}))
+    const store = storeWithSettings(SETTINGS)
+    const planned = planAgentSessionLaunchOnceHostAnswered(() => store, plannedRequest)
+    await vi.advanceTimersByTimeAsync(HOST_ANSWER_WAIT_MS)
+
+    await expect(planned).resolves.toMatchObject({
+      route: 'terminal-tui',
+      hostAnswerUnknown: true
+    })
+  })
+
+  it('does not mark a terminal route the user chose, or a host that answered', () => {
+    expect(
+      planAgentSessionLaunch(
+        storeWithSettings({ ...SETTINGS, experimentalNativeChat: false }),
+        plannedRequest
+      )
+    ).not.toHaveProperty('hostAnswerUnknown')
+  })
+
+  it('says so visibly, once, naming the agent', () => {
+    notifyStructuredHostAnswerUnknown('opencode')
+    expect(mocks.toastWarning).toHaveBeenCalledWith(
+      expect.stringContaining('could not confirm this host supports chat'),
+      { id: 'structured-host-answer-unknown' }
+    )
   })
 })
 

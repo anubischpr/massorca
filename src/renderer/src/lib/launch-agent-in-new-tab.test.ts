@@ -96,9 +96,10 @@ vi.mock('@/store', () => ({
 }))
 
 const mockToastError = vi.fn()
+const mockToastWarning = vi.fn()
 
 vi.mock('sonner', () => ({
-  toast: { message: mockToastMessage, error: mockToastError }
+  toast: { message: mockToastMessage, error: mockToastError, warning: mockToastWarning }
 }))
 
 vi.mock('@/components/tab-bar/reconcile-order', () => ({
@@ -206,6 +207,26 @@ describe('launchAgentInNewTab', () => {
       launchAgent: 'codex'
     })
   })
+  it('says why a terminal opened when the host never answered whether it runs chats', async () => {
+    const { adoptAgentSessionLaunchVerdict } = await import('./agent-session-launch-plan')
+    const { launchAgentInNewTab } = await import('./launch-agent-in-new-tab')
+    const verdict = {
+      route: 'terminal-tui' as const,
+      requestId: 'request-1',
+      agent: 'codex' as const
+    }
+    const launch = (hostAnswerUnknown?: true) =>
+      launchAgentInNewTab({
+        agentSessionLaunchPlan: adoptAgentSessionLaunchVerdict({ ...verdict, hostAnswerUnknown }),
+        agent: 'codex',
+        worktreeId: 'wt-1'
+      })
+    launch()
+    expect(mockToastWarning).not.toHaveBeenCalled()
+    launch(true)
+    expect(mockToastWarning).toHaveBeenCalledOnce()
+  })
+
   it('keeps Floating Workspace authority on native Windows beside an active WSL project', async () => {
     store.projects = [
       {

@@ -24,7 +24,10 @@ import { launchStructuredAgentFromNewTab } from '@/lib/launch-agent-in-new-tab-s
 import type { StructuredAgentLaunchSettlement } from '@/lib/structured-agent-launch-settlement'
 import type { StructuredLaunchTerminal } from '@/lib/structured-agent-session-launch-admission'
 import { workspaceKindForWorktreeId } from '@/lib/agent-launch-route-input'
-import type { AgentSessionLaunchPlan } from '@/lib/agent-session-launch-plan'
+import {
+  notifyStructuredHostAnswerUnknown,
+  type AgentSessionLaunchPlan
+} from '@/lib/agent-session-launch-plan'
 import {
   launchOnceHostAnswered,
   routeNewTabLaunch
@@ -205,6 +208,9 @@ function launchAgentInNewTabInternal(args: LaunchAgentInNewTabArgs): LaunchAgent
     return structured && { ...structured, startupPlan }
   }
 
+  if (plan?.hostAnswerUnknown) {
+    notifyStructuredHostAnswerUnknown(agent)
+  }
   const runtimeEnvironmentId = getRuntimeEnvironmentIdForWorktree(store, worktreeId)
   if (isWebRuntimeSessionActive(runtimeEnvironmentId)) {
     if (beforeSurfaceOpen?.({ kind: 'host-published' }) === false) {

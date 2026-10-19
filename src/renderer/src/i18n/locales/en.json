@@ -696,6 +696,13 @@
     },
     "lib": {
       "agent": {
+        "session": {
+          "launch": {
+            "plan": {
+              "hostAnswerUnknown": "Orca could not confirm this host supports chat for {{agent}}, so it opened a terminal. Open a new chat in a moment to try again."
+            }
+          }
+        },
         "catalog": {
           "5dff448636": "OpenClaw",
           "8a9ba743cc": "Hermes",

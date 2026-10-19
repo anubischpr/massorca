@@ -3,6 +3,7 @@ import type { AgentStartupPlan } from '@/lib/tui-agent-startup'
 import {
   awaitStructuredRouteHostAnswer,
   planAgentSessionLaunch,
+  STRUCTURED_HOST_ANSWER_WAIT_MS,
   type AgentSessionLaunchPlan,
   type AgentSessionLaunchRequest
 } from '@/lib/agent-session-launch-plan'
@@ -13,9 +14,7 @@ import type {
   LaunchAgentInNewTabResult
 } from '@/lib/launch-agent-in-new-tab'
 
-/** How long a new tab waits for its host's answer before deciding without it; the same bound a
- *  local chat's admission waits. */
-export const HOST_ANSWER_WAIT_MS = 3_000
+export const HOST_ANSWER_WAIT_MS = STRUCTURED_HOST_ANSWER_WAIT_MS
 
 const DELIVERED: StructuredPromptDeliveryResult = { delivered: true, failureNotified: false }
 const NOT_DELIVERED: StructuredPromptDeliveryResult = { delivered: false, failureNotified: false }
