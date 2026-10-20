@@ -481,3 +481,79 @@ describe('background task Stop controls', () => {
     expect(screen.getByRole('complementary', { name: 'Activity details' })).toBeDefined()
   })
 })
+
+describe('subagent detail view', () => {
+  const recorded = (model: string, effort?: string) => ({
+    source: 'recorded-turn-context' as const,
+    turnId: 't',
+    observedAt: 1_000,
+    model,
+    ...(effort ? { effort } : {})
+  })
+  const shapes: [string, Partial<AgentChildWorkView>, string[], string[]][] = [
+    [
+      'Codex',
+      {
+        description: 'resumen_carpeta',
+        agentType: 'explorer',
+        state: 'done',
+        membership: 'settled',
+        settledAt: 5_100,
+        recordedConfiguration: recorded('gpt-6.1-sol', 'high'),
+        lastMessage: 'Resumen listo'
+      },
+      ['gpt-6.1-sol · high', 'Resumen listo', 'Result'],
+      []
+    ],
+    [
+      'Claude Task',
+      {
+        description: 'Map the auth flow',
+        agentType: 'Explore',
+        state: 'working',
+        lastMessage: 'Reading lib/auth.ts'
+      },
+      ['Explore', 'Reading lib/auth.ts', 'Latest'],
+      ['Result']
+    ],
+    [
+      'Gentle Shell worker',
+      {
+        name: 'gentle-ai-explore',
+        description: 'summarize current project',
+        agentType: 'gentle-ai-explore',
+        state: 'done',
+        membership: 'settled',
+        settledAt: 70_000,
+        lastMessage: 'Project summary'
+      },
+      ['gentle-ai-explore', 'Project summary'],
+      ['Command output unavailable.']
+    ]
+  ]
+  it.each(shapes)('describes a %s child without command wording', (_name, changes, present, absent) => {
+    render(
+      <NativeChatCodexBackgroundPanel
+        roster={null}
+        isVisible
+        context={fresh}
+        commandActivity={[child('agent-1', { kind: 'agent', ...changes })]}
+      />
+    )
+    if (changes.membership === 'settled') {
+      fireEvent.click(screen.getByRole('button', { name: '1 finished' }))
+    }
+    fireEvent.click(screen.getByRole('button', { name: /View activity/ }))
+    const details = screen.getByRole('complementary', { name: 'Activity details' })
+    for (const text of present) {
+      expect(details.textContent).toContain(text)
+    }
+    for (const text of absent) {
+      expect(details.textContent).not.toContain(text)
+    }
+    expect(details.textContent).not.toContain('Command output unavailable.')
+    expect(details.textContent).not.toContain('unavailable')
+    const title = changes.description ?? ''
+    expect(details.textContent?.split(title).length).toBe(2)
+  })
+})

@@ -5,6 +5,8 @@ import type { AgentJournalRenderItem } from '../../../../shared/agent-session-jo
 import { ArrowLeft } from 'lucide-react'
 import { AgentStateDot } from '@/components/AgentStateDot'
 import { Button } from '@/components/ui/button'
+import { NativeChatAgentChildDetails } from './NativeChatAgentChildDetails'
+import { recordedConfigurationText } from './native-chat-recorded-configuration'
 import { NativeChatToolLineDetail } from './NativeChatToolLine'
 import { NativeChatCommandMetadata } from './NativeChatToolAnnotations'
 import { nativeChatFullCommand } from './native-chat-tool-input-text'
@@ -25,12 +27,6 @@ import {
   NativeChatBackgroundTaskStopControl,
   type NativeChatBackgroundStop
 } from './NativeChatBackgroundTaskStopControl'
-
-/** The recorded model and effort a subagent row states; an unreported part is left out, not named. */
-function recordedConfigurationText(row: AgentChildRowModel): string {
-  const { model, effort } = row.recordedConfiguration ?? {}
-  return [model, effort].filter(Boolean).join(' · ')
-}
 
 export const UNVERIFIABLE: AgentChildRowContext = {
   parentEvidenceFresh: false,
@@ -209,10 +205,13 @@ export function NativeChatCodexBackgroundPanel(props: {
         <h2 className="my-3 font-medium text-foreground">
           {selected.row.name || t('components.nativeChatBackground.details', 'Activity details')}
         </h2>
-        {selectedView?.description ? (
+        {selected.row.kind === 'agent' ? (
+          <NativeChatAgentChildDetails row={selected.row} view={selectedView} now={now} />
+        ) : null}
+        {selected.row.kind !== 'agent' && selectedView?.description ? (
           <p className="mb-3 whitespace-pre-wrap break-words">{selectedView.description}</p>
         ) : null}
-        {selectedView?.operation ? (
+        {selected.row.kind !== 'agent' && selectedView?.operation ? (
           <p className="mb-3 whitespace-pre-wrap break-words">
             {selectedView.operation.toolName}: {selectedView.operation.input}
           </p>
@@ -225,7 +224,7 @@ export function NativeChatCodexBackgroundPanel(props: {
             )}
           </p>
         ) : null}
-        {commands.length === 0 ? (
+        {selected.row.kind !== 'agent' && commands.length === 0 ? (
           <p className="text-muted-foreground">
             {t('components.nativeChatBackground.outputUnavailable', 'Command output unavailable.')}
           </p>
