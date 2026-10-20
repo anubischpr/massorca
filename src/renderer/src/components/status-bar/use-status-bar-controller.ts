@@ -11,12 +11,17 @@ import { getUsageProviderAccountsSectionId } from './usage-provider-settings-tar
 import { useStatusBarMenuFocusHandoff } from './ProviderDetailsMenu'
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/close-all-context-menus'
 import { useStatusBarDensity } from './status-bar-density'
+import { useEffectiveRateLimits } from './use-effective-rate-limits'
 
 export function useStatusBarController(floatingTerminalOpen: boolean) {
   const floatingTerminalShortcut = useShortcutLabel('floatingTerminal.toggle')
-  const rateLimits = useAppStore((s) => s.rateLimits)
   const settings = useAppStore((s) => s.settings)
-  const refreshRateLimits = useAppStore((s) => s.refreshRateLimits)
+  const {
+    rateLimits,
+    source: usageSource,
+    hostLabel: usageHostLabel,
+    refresh: refreshRateLimits
+  } = useEffectiveRateLimits(settings)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const usagePercentageDisplay = normalizeUsagePercentageDisplay(
@@ -35,7 +40,9 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   const floatingTerminalTriggerLocation =
     settings?.floatingTerminalTriggerLocation ?? 'floating-button'
   // Why: gate per-CLI bars on PATH detection so an uninstalled agent isn't shown a noisy empty bar (auto re-shows when installed).
-  const detectedAgentIds = useAppStore((s) => s.detectedAgentIds)
+  const localDetectedAgentIds = useAppStore((s) => s.detectedAgentIds)
+  // Why: PATH detection describes this desktop; a host snapshot already reports its own unavailable providers.
+  const detectedAgentIds = usageSource === 'host' ? null : localDetectedAgentIds
   const ensureDetectedAgents = useAppStore((s) => s.ensureDetectedAgents)
   // Why: pet segment is driven purely by experimentalPet, not statusBarItems, to avoid double-toggling the surface (see design doc).
   const petEnabled = useAppStore((s) => s.settings?.experimentalPet === true)
@@ -92,8 +99,19 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     return null
   }
 
-  const { claude, codex, gemini, opencodeGo, kimi, antigravity, minimax, grok, cursor, zcode, nan } =
-    rateLimits
+  const {
+    claude,
+    codex,
+    gemini,
+    opencodeGo,
+    kimi,
+    antigravity,
+    minimax,
+    grok,
+    cursor,
+    zcode,
+    nan
+  } = rateLimits
 
   // Why: a bar is earned by a live snapshot or durable Settings setup; detection-gating hides per-CLI bars when the agent isn't on PATH.
   // Why: Antigravity has no persisted credential, so a checked status item + detected CLI is the durable "show its slot" signal.
@@ -103,6 +121,15 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   // Why: thread non-GlobalSettings durability flags so bars stay visible across reloads and snapshot refreshes.
   const usageSettings = {
     ...settings,
+    // Why: desktop-managed accounts and credentials say nothing about the host's providers.
+    ...(usageSource === 'host'
+      ? {
+          claudeManagedAccounts: [],
+          codexManagedAccounts: [],
+          opencodeSessionCookie: '',
+          geminiCliOAuthEnabled: false
+        }
+      : {}),
     antigravityUsageConfigured,
     minimaxCookieConfigured: rateLimits.minimaxCookieConfigured,
     minimaxApiKeyConfigured: rateLimits.minimaxApiKeyConfigured,
@@ -290,6 +317,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     statusBarUsageMode,
     toggleStatusBarItem,
     usageMenuFocusHandoff,
+    usageHostLabel,
     usageMenuOpen,
     usagePercentageDisplay,
     usageRef,

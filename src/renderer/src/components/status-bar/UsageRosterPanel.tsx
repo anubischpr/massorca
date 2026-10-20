@@ -203,6 +203,7 @@ export function UsageRow({
  */
 export function UsageRosterPanel({
   providers,
+  sourceLabel,
   display,
   statusBarUsageMode,
   onStatusBarUsageModeChange,
@@ -216,6 +217,8 @@ export function UsageRosterPanel({
   renderRow
 }: {
   providers: ProviderRateLimits[]
+  // Paired host the numbers come from; null/absent for this desktop.
+  sourceLabel?: string | null
   display: UsagePercentageDisplay
   statusBarUsageMode: StatusBarUsageMode
   onStatusBarUsageModeChange: (mode: StatusBarUsageMode) => void
@@ -250,7 +253,8 @@ export function UsageRosterPanel({
         </span>
         <div className="flex items-center gap-2 text-muted-foreground">
           <span className="text-[11px]">
-            {translate('auto.components.status.bar.UsageRosterPanel.allAgents', 'all agents')}
+            {sourceLabel ??
+              translate('auto.components.status.bar.UsageRosterPanel.allAgents', 'all agents')}
           </span>
           <DropdownMenuItem
             onSelect={(event) => {
