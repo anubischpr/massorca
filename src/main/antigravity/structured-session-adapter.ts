@@ -24,6 +24,7 @@ import {
   antigravityOptionsInForce,
   isAntigravityLaunchOptionKey
 } from './antigravity-session-options'
+import { readAntigravityConfiguredConnectors } from './antigravity-configured-connectors'
 import {
   antigravityProviderLink,
   type AntigravityResolvedLaunch
@@ -177,9 +178,14 @@ export class AntigravityStructuredSessionAdapter implements StructuredAgentSessi
     session.picks.set(input.key, input.value)
     return antigravityOptionsInForce(session.input.options, session.picks)
   }
+  /** Configured servers are re-read from the child's home on each options read; no watcher. */
   readOptions: NonNullable<StructuredAgentSessionAdapter['readOptions']> = async (input) => {
     const session = this.session(input.sessionId, input.fence)
-    return antigravityLiveOptions(session.input.options, session.picks)
+    const options = antigravityLiveOptions(session.input.options, session.picks)
+    const connectors = session.configHome
+      ? await readAntigravityConfiguredConnectors(session.configHome)
+      : undefined
+    return connectors ? { ...options, connectors } : options
   }
   /** agy fixes its access mode at launch: a running child only records the pick for its next start. */
   takesAccessAtNextStart = (sessionId: string): boolean => this.hasLiveChild(sessionId)
