@@ -18,7 +18,7 @@ const sidecarSchema = z.looseObject({
   userFacing: z.boolean().optional()
 })
 
-function sidecarOf(path: string): z.infer<typeof sidecarSchema> | null {
+export function readAntigravityArtifactSidecar(path: string): z.infer<typeof sidecarSchema> | null {
   const sidecarPath = `${path}.metadata.json`
   try {
     if (statSync(sidecarPath).size > MAX_SIDECAR_BYTES) {
@@ -41,7 +41,7 @@ export function withAntigravityArtifactMetadata(name: string, input: unknown): u
   if (typeof path !== 'string' || !isAbsolute(path)) {
     return input
   }
-  const sidecar = sidecarOf(path)
+  const sidecar = readAntigravityArtifactSidecar(path)
   if (!sidecar) {
     return input
   }

@@ -198,8 +198,36 @@ describe('selected chat plan document', () => {
     expect(document).toEqual({
       file: { absolutePath: '/ws/docs/plan.md', displayPath: 'docs/plan.md' },
       summary: 'New',
-      awaitingApproval: true
+      awaitingApproval: true,
+      revisionKey: '3:1'
     })
+  })
+
+  it('shows only the file name for a document outside the workspace, full path as tooltip', () => {
+    const document = nativeChatSessionPlanDocument(
+      [
+        written(
+          '/home/u/.gemini/antigravity-cli/brain/c1/implementation_plan.md',
+          { userFacing: true, requestFeedback: true },
+          1
+        )
+      ],
+      '/ws'
+    )
+    expect(document?.file).toEqual({
+      absolutePath: '/home/u/.gemini/antigravity-cli/brain/c1/implementation_plan.md',
+      displayPath: 'implementation_plan.md'
+    })
+  })
+
+  it('changes its revision key when the document is rewritten', () => {
+    const artifact = { userFacing: true }
+    const first = nativeChatSessionPlanDocument([written('/ws/p.md', artifact, 1)], '/ws')
+    const second = nativeChatSessionPlanDocument(
+      [written('/ws/p.md', artifact, 1), written('/ws/p.md', artifact, 2)],
+      '/ws'
+    )
+    expect(second?.revisionKey).not.toBe(first?.revisionKey)
   })
 
   it('is absent without a flagged artifact', () => {

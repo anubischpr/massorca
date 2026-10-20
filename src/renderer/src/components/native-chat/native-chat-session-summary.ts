@@ -39,10 +39,22 @@ function nativeChatResultFile(path: string, workspaceRoot: string | null): Nativ
   return { absolutePath, displayPath: relative || absolutePath }
 }
 
+/** Inside the workspace, the Results card's relative path; outside it only the file name, since
+ *  agy keeps its documents in its own state folder. The full path stays the tooltip. */
+function planDocumentFile(path: string, workspaceRoot: string | null): NativeChatResultFile {
+  const file = nativeChatResultFile(path, workspaceRoot)
+  const inside = workspaceRoot ? toWorktreeRelativePath(file.absolutePath, workspaceRoot) : null
+  return inside
+    ? file
+    : { ...file, displayPath: workspaceFolderName(file.absolutePath) ?? file.displayPath }
+}
+
 export type NativeChatSessionPlanDocument = {
   file: NativeChatResultFile
   summary: string
   awaitingApproval: boolean
+  /** Changes whenever the agent rewrites the document, so a viewer reads it again. */
+  revisionKey: string
 }
 
 /** The newest Antigravity plan document the main agent wrote: a completed write the host marked
@@ -51,17 +63,19 @@ export function nativeChatSessionPlanDocument(
   items: readonly AgentJournalRenderItem[],
   workspaceRoot: string | null
 ): NativeChatSessionPlanDocument | null {
-  let latest: NativeChatPlanDocument | null = null
-  for (const { body, agentId } of items) {
+  let latest: (NativeChatPlanDocument & { revisionKey: string }) | null = null
+  for (const { body, agentId, itemId, revision } of items) {
     if (agentId === undefined && body.kind === 'tool-call' && body.state === 'completed') {
-      latest = nativeChatPlanDocumentFromCall(body.name, body.input) ?? latest
+      const document = nativeChatPlanDocumentFromCall(body.name, body.input)
+      latest = document ? { ...document, revisionKey: `${itemId}:${revision}` } : latest
     }
   }
   return latest
     ? {
-        file: nativeChatResultFile(latest.path, workspaceRoot),
+        file: planDocumentFile(latest.path, workspaceRoot),
         summary: latest.summary,
-        awaitingApproval: latest.awaitingApproval
+        awaitingApproval: latest.awaitingApproval,
+        revisionKey: latest.revisionKey
       }
     : null
 }

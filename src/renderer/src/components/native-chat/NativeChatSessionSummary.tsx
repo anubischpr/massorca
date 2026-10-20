@@ -63,6 +63,8 @@ function subagentLine(row: AgentChildRowModel): string {
 /** The chat's summary rail: a stack of inline-expanding sections, each compact until opened. */
 export function NativeChatSessionSummary(props: {
   target: RuntimeClientTarget
+  /** The structured session whose host serves the plan document. */
+  sessionId?: string
   fileContext: NativeChatFileLinkContext | null
   journalItems: readonly AgentJournalRenderItem[]
   connectorSnapshot?: AgentSessionConnectorSnapshot
@@ -325,7 +327,9 @@ export function NativeChatSessionSummary(props: {
         <NativeChatSessionPlanSection
           list={plan}
           document={planDocument}
-          onLinkClick={props.onLinkClick}
+          viewer={
+            props.sessionId ? { target: props.target, sessionId: props.sessionId } : undefined
+          }
         />
         <NativeChatSessionContextSection summary={props.contextSummary} />
         <NativeChatSessionSection

@@ -1,45 +1,51 @@
+import { useState } from 'react'
 import { CircleDot } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import {
   nativeChatTaskLabel,
   type NativeChatTaskList
 } from '../../../../shared/native-chat-task-list'
-import { createNativeChatFileHref } from '../../../../shared/native-chat-href-routing'
 import { Badge } from '@/components/ui/badge'
-import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
+import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import type { NativeChatSessionPlanDocument } from './native-chat-session-summary'
 import { Checklist } from './NativeChatTaskList'
+import { NativeChatPlanDocumentViewer } from './NativeChatPlanDocumentViewer'
 import { NativeChatSessionSection } from './NativeChatSessionSection'
 
 /** The main agent's task plan as the provider reported it; without a report, the section says so. */
 export function NativeChatSessionPlanSection({
   list,
   document,
-  onLinkClick
+  viewer
 }: {
   list: NativeChatTaskList | null
   /** Antigravity's plan-mode document; a checklist plan takes precedence over it. */
   document?: NativeChatSessionPlanDocument | null
-  onLinkClick?: CommentMarkdownLinkClickHandler
+  /** Where the document is read from; without it the document is listed but not opened. */
+  viewer?: { target: RuntimeClientTarget; sessionId: string }
 }): React.JSX.Element {
   const { t } = useTranslation()
+  const [viewerOpen, setViewerOpen] = useState(false)
   const title = t('components.nativeChatSummary.plan', 'Plan')
   const noPlan = t('components.nativeChatSummary.planNone', 'No plan reported')
   if (!list && document) {
-    const href = createNativeChatFileHref(document.file.absolutePath, 'literal')
     const awaiting = t(
       'components.nativeChatSummary.planDocumentAwaiting',
       'Awaiting your approval'
     )
-    const link = (
-      <a
-        className="block break-words underline"
+    const link = viewer ? (
+      <button
+        type="button"
+        className="block break-words text-left underline"
         title={document.file.absolutePath}
-        href={href}
-        onClick={(event) => onLinkClick?.(event, href)}
+        onClick={() => setViewerOpen(true)}
       >
         {document.file.displayPath}
-      </a>
+      </button>
+    ) : (
+      <p className="break-words" title={document.file.absolutePath}>
+        {document.file.displayPath}
+      </p>
     )
     return (
       <NativeChatSessionSection
@@ -57,6 +63,17 @@ export function NativeChatSessionPlanSection({
           <p className="whitespace-pre-wrap break-words text-muted-foreground">
             {document.summary}
           </p>
+        ) : null}
+        {viewer ? (
+          <NativeChatPlanDocumentViewer
+            open={viewerOpen}
+            onOpenChange={setViewerOpen}
+            target={viewer.target}
+            sessionId={viewer.sessionId}
+            path={document.file.absolutePath}
+            fileName={document.file.displayPath}
+            refreshKey={document.revisionKey}
+          />
         ) : null}
       </NativeChatSessionSection>
     )
