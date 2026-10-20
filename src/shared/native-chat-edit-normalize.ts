@@ -13,7 +13,15 @@ import type { NativeChatEditPatch } from './native-chat-types'
 // `NotebookEdit` is deliberately absent: its input carries only the new cell
 // source, so a card would render an unchanged cell as wholly added. It falls
 // through to the generic tool view instead.
-const CLAUDE_EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'str_replace'])
+const CLAUDE_EDIT_TOOLS = new Set([
+  'Edit',
+  'MultiEdit',
+  'Write',
+  'str_replace',
+  // Gentle Shell (Pi): `write` {path, content}, `edit` {path, edits: [{oldText, newText}]}.
+  'write',
+  'edit'
+])
 /** Command tools, which run a patch as one of many things they can run, so a
  *  quoted envelope is not evidence that one was applied. */
 const COMMAND_PATCH_TOOLS = new Set(['exec', 'shell', 'local_shell'])
@@ -95,8 +103,8 @@ function multiEditFiles(input: Record<string, unknown>, path: string): NativeCha
   let truncated = false
   for (const entry of input.edits) {
     const edit = record(entry)
-    const oldString = text(edit?.old_string) ?? text(edit?.oldString)
-    const newString = text(edit?.new_string) ?? text(edit?.newString)
+    const oldString = text(edit?.old_string) ?? text(edit?.oldString) ?? text(edit?.oldText)
+    const newString = text(edit?.new_string) ?? text(edit?.newString) ?? text(edit?.newText)
     if (oldString === null && newString === null) {
       continue
     }
@@ -127,8 +135,8 @@ function claudeEditFiles(
   input: Record<string, unknown>,
   output: string | undefined
 ): NativeChatEditFile[] | null {
-  const path = text(input.file_path) ?? text(input.path) ?? 'file'
-  if (name === 'MultiEdit') {
+  const path = text(input.file_path) ?? text(input.filePath) ?? text(input.path) ?? 'file'
+  if (name === 'MultiEdit' || (name === 'edit' && Array.isArray(input.edits))) {
     return multiEditFiles(input, path)
   }
   const oldString = text(input.old_string) ?? text(input.oldString)
@@ -206,6 +214,19 @@ function codexChangeFiles(changes: unknown[]): NativeChatEditFile[] {
   })
 }
 
+/** A card states the edit as made, so it takes evidence that it landed: the provider reporting the
+ *  call complete, or a result that is not an error. Anything else — failed, still running, or a
+ *  turn that stopped before the call was answered — keeps the generic tool view and its error body. */
+export function editLanded(pair: {
+  state?: 'running' | 'completed' | 'failed'
+  result?: { isError?: boolean }
+}): boolean {
+  if (pair.state === 'failed' || pair.state === 'running' || pair.result?.isError === true) {
+    return false
+  }
+  return pair.state === 'completed' || pair.result !== undefined
+}
+
 /** One diff model for a tool call and its result, across every shape the
  *  supported agents use to report a file edit. */
 export function editFilesFromToolPair(pair: {
@@ -215,14 +236,7 @@ export function editFilesFromToolPair(pair: {
   state?: 'running' | 'completed' | 'failed'
   result?: { output?: string; isError?: boolean; editPatch?: NativeChatEditPatch }
 }): NativeChatEditFile[] | null {
-  // A card states the edit as made, so it takes evidence that it landed: the
-  // provider reporting the call complete, or a result that is not an error.
-  // Anything else — failed, still running, or a turn that stopped before the
-  // call was answered — keeps the generic tool view and its error body.
-  if (pair.state === 'failed' || pair.state === 'running' || pair.result?.isError === true) {
-    return null
-  }
-  if (pair.state !== 'completed' && pair.result === undefined) {
+  if (!editLanded(pair)) {
     return null
   }
   const input = record(pair.input)

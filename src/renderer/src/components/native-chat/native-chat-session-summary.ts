@@ -3,7 +3,7 @@ import { mcpToolIdentity } from '../../../../shared/native-chat-tool-identity'
 import type { WorkspacePortScanResult } from '../../../../shared/workspace-ports'
 import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
 import { workspacePortScanKeyForTarget } from '@/lib/workspace-port-actions'
-import { editFilesFromToolPair } from '../../../../shared/native-chat-edit-normalize'
+import { editedPathsFromToolPair } from '../../../../shared/native-chat-edit-paths'
 import { toolFilePath } from '../../../../shared/native-chat-tool-summary'
 import { CODEX_PLAN_UPDATED_FRAME_KIND } from '../../../../shared/native-chat-provider-frame-summary'
 import {
@@ -36,18 +36,14 @@ function changedFilePaths(items: readonly AgentJournalRenderItem[]): string[] {
     if (body.kind !== 'tool-call') {
       return []
     }
-    return (
-      editFilesFromToolPair({
-        name: body.name,
-        input: body.input,
-        state: body.state,
-        ...(body.output
-          ? { result: { output: body.output.head, isError: body.state === 'failed' } }
-          : {})
-      }) ?? []
-    )
-      .filter((file) => file.path !== 'file' || toolFilePath(body.input) === 'file')
-      .map((file) => file.path)
+    return editedPathsFromToolPair({
+      name: body.name,
+      input: body.input,
+      state: body.state,
+      ...(body.output
+        ? { result: { output: body.output.head, isError: body.state === 'failed' } }
+        : {})
+    }).filter((path) => path !== 'file' || toolFilePath(body.input) === 'file')
   })
 }
 
