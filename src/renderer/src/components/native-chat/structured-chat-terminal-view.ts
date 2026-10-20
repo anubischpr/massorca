@@ -172,15 +172,15 @@ export async function showStructuredChatInTerminal(
     deps.onLaunchFailedAfterRelease()
     return false
   }
-  // Why: a terminal returns to its chat only by a provider session the host can reveal, so a fresh terminal (no session yet) records no link.
+  // Why: a fresh terminal has no provider session yet, but its chat is still listed by id, so back-to-chat reopens it by that id alone.
   if (
-    launch.mode === 'resume' &&
     launchedTab.tabId !== null &&
+    isResumableTuiAgent(launch.agent) &&
     STRUCTURED_CHAT_RETURN_AGENTS.has(launch.agent)
   ) {
     deps.recordTerminalLink(launchedTab.tabId, {
       agent: launch.agent,
-      providerSessionId: launch.providerSession.id,
+      ...(launch.mode === 'resume' ? { providerSessionId: launch.providerSession.id } : {}),
       worktreeId: args.worktreeId,
       structuredSessionId: args.sessionId
     })

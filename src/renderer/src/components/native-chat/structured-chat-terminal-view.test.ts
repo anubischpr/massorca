@@ -166,7 +166,7 @@ describe('showStructuredChatInTerminal', () => {
   )
 
   it.each(['claude', 'codex', 'pi', 'antigravity', 'gemini'] as const)(
-    'starts a fresh %s terminal in the chat worktree, records no link, and closes the empty chat',
+    'starts a fresh %s terminal in the chat worktree and closes the empty chat',
     async (agent) => {
       const d = deps()
       const launch: StructuredChatTerminalLaunch = { mode: 'fresh', agent }
@@ -181,7 +181,16 @@ describe('showStructuredChatInTerminal', () => {
           : { worktreeId: 'repo::/work/feature', agent },
         { onSessionLaunched: expect.any(Function) }
       )
-      expect(d.recordTerminalLink).not.toHaveBeenCalled()
+      // Why: a fresh terminal of a structured agent still returns to its chat, by session id alone.
+      if (agent === 'gemini') {
+        expect(d.recordTerminalLink).not.toHaveBeenCalled()
+      } else {
+        expect(d.recordTerminalLink).toHaveBeenCalledWith('terminal-tab-9', {
+          agent,
+          worktreeId: 'repo::/work/feature',
+          structuredSessionId: 'session-1'
+        })
+      }
       expect(d.closeChatTab).toHaveBeenCalledWith('agent-session-tab-1')
     }
   )

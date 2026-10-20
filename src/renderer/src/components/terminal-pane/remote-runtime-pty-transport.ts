@@ -2779,8 +2779,12 @@ export function createRemoteRuntimePtyTransport(
           ? agentResumeHostAuthorityCapability(launchAgentToSend)
           : undefined
         // Why: host authority rebuilds the command from the host's settings, which drops Gentle Shell for stock `pi`.
+        const gentleShellLegacyLaunch = launchCarriesGentleShellCommand(
+          launchAgentToSend,
+          commandToSend
+        )
         const created =
-          launchAgentToSend && !launchCarriesGentleShellCommand(launchAgentToSend, commandToSend)
+          launchAgentToSend && !gentleShellLegacyLaunch
             ? agentSessionRequiresHostAuthorityReplay
               ? await hostAuthorityCreate()
               : await runRemoteAgentSessionLaunch<RemoteAgentSessionLaunchResult | null>({
@@ -2801,7 +2805,12 @@ export function createRemoteRuntimePtyTransport(
         }
         const createdTerminal = created.terminal
         adoptExecutionMetadata(createdTerminal)
-        if (created.disposition !== undefined && tabId && createdTerminal.tabId) {
+        // Why: the legacy Gentle Shell launch places the same provisional tab, so it hands off too and keeps the back-to-chat link.
+        if (
+          (created.disposition !== undefined || gentleShellLegacyLaunch) &&
+          tabId &&
+          createdTerminal.tabId
+        ) {
           recordWebAgentSessionHandoff({
             environmentId: createEnvironmentId,
             worktreeId,

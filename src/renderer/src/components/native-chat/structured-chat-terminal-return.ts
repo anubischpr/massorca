@@ -82,7 +82,10 @@ export async function returnTerminalToStructuredChat(
     const reveal = await deps.revealStructuredChat(chat)
     // Why: only a handle-backed agent can adopt its provider session as a new chat; any other chat
     // that cannot be listed leaves the terminal running.
-    if (reveal !== 'ready' && !isAgentSessionHandleProvider(args.link.agent)) {
+    if (
+      reveal !== 'ready' &&
+      (!isAgentSessionHandleProvider(args.link.agent) || !args.link.providerSessionId)
+    ) {
       showRevealFailedToast(reveal)
       return false
     }
@@ -110,14 +113,15 @@ export async function returnTerminalToStructuredChat(
       return false
     }
     // Why: a handle-backed chat the host cannot list is adopted as a new chat, only after the exit.
-    if (!isAgentSessionHandleProvider(agent)) {
+    const { providerSessionId } = args.link
+    if (!isAgentSessionHandleProvider(agent) || !providerSessionId) {
       showReturnFailedToast()
       return false
     }
     const launch = deps.resumeInStructuredChat({
       agent,
       worktreeId: args.link.worktreeId,
-      providerSessionId: args.link.providerSessionId,
+      providerSessionId,
       requestId: deps.newRequestId(),
       onFailed: notifyReturnFailure
     })

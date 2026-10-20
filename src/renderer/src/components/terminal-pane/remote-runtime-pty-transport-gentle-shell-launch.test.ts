@@ -89,6 +89,46 @@ describe('createRemoteRuntimePtyTransport Gentle Shell launch', () => {
     )
   })
 
+  it('hands the provisional tab to the host tab so the back-to-chat link follows it', async () => {
+    runtimeCall.mockImplementation(async (args: { method?: string }) =>
+      args.method === 'status.get'
+        ? {
+            id: 'rpc-status',
+            ok: true,
+            result: {
+              runtimeProtocolVersion: 3,
+              minCompatibleRuntimeClientVersion: 2,
+              capabilities: ['agent-session.host-authority.v1']
+            },
+            _meta: { runtimeId: 'runtime-remote' }
+          }
+        : {
+            id: 'rpc-create',
+            ok: true,
+            result: {
+              terminal: {
+                handle: 'term-remote',
+                tabId: 'host-tab-1',
+                worktreeId: 'repo1::/remote/wt',
+                title: null,
+                surface: 'background'
+              }
+            },
+            _meta: { runtimeId: 'runtime-remote' }
+          }
+    )
+    await connectPiLaunch('gentle-shell')
+
+    const { resolveWebAgentSessionHandoff } = await import('@/runtime/web-agent-session-handoff')
+    expect(
+      resolveWebAgentSessionHandoff({
+        environmentId: 'env-1',
+        worktreeId: 'repo1::/remote/wt',
+        provisionalTabId: 'tab-1'
+      })
+    ).toBe('host-tab-1')
+  })
+
   it('resumes a Gentle Shell session with its own command', async () => {
     await connectPiLaunch(
       "gentle-shell -- --session '/home/u/.gentle-shell/agent/sessions/a.jsonl'",
