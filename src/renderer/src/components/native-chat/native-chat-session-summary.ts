@@ -18,14 +18,35 @@ import {
   observeNativeChatTaskResult
 } from '../../../../shared/native-chat-task-ledger'
 import { branchName } from '@/lib/git-utils'
+import { resolveExplicitFileLinkTargetPath } from '@/lib/explicit-file-link-target'
+import { toWorktreeRelativePath } from '@/lib/terminal-links'
 
-/** Only explicit journal records are results; prose mentioning a file is not a file change. Newest touch first. */
-export function nativeChatSessionResults(items: readonly AgentJournalRenderItem[]): string[] {
-  const lastTouch = new Map<string, number>()
+/** One changed file: the path to open, and the shorter one to show. */
+export type NativeChatResultFile = { absolutePath: string; displayPath: string }
+
+/** Only explicit journal records are results; prose mentioning a file is not a file change. Newest
+ *  touch first. With the chat's workspace root, a file reported relative by one tool and absolute by
+ *  another is one row, shown relative to that root unless it lies outside it. */
+export function nativeChatSessionResultFiles(
+  items: readonly AgentJournalRenderItem[],
+  workspaceRoot: string | null
+): NativeChatResultFile[] {
+  const lastTouch = new Map<string, { index: number; file: NativeChatResultFile }>()
   for (const [index, path] of changedFilePaths(items).entries()) {
-    lastTouch.set(path, index)
+    const absolutePath = workspaceRoot
+      ? (resolveExplicitFileLinkTargetPath(path, workspaceRoot) ?? path)
+      : path
+    const relative = workspaceRoot ? toWorktreeRelativePath(absolutePath, workspaceRoot) : null
+    lastTouch.set(absolutePath, {
+      index,
+      file: { absolutePath, displayPath: relative || absolutePath }
+    })
   }
-  return [...lastTouch].sort(([, left], [, right]) => right - left).map(([path]) => path)
+  return [...lastTouch.values()].sort((left, right) => right.index - left.index).map((entry) => entry.file)
+}
+
+export function nativeChatSessionResults(items: readonly AgentJournalRenderItem[]): string[] {
+  return nativeChatSessionResultFiles(items, null).map((file) => file.absolutePath)
 }
 
 function changedFilePaths(items: readonly AgentJournalRenderItem[]): string[] {

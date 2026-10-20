@@ -5,6 +5,7 @@ import {
   githubSlugFromIdentityKey,
   nativeChatSessionConnectors,
   nativeChatSessionPlan,
+  nativeChatSessionResultFiles,
   nativeChatSessionResults,
   nativeChatSessionServers,
   workspaceBranchName,
@@ -67,6 +68,51 @@ describe('selected chat summary evidence', () => {
         item({ kind: 'diff', path: 'first.txt', patch }, 3)
       ])
     ).toEqual(['first.txt', 'second.txt'])
+  })
+
+  describe('result paths relative to the workspace root', () => {
+    const patch = { head: '+x', byteLength: 2, digest: 'digest', truncated: false }
+    const diffs = (...paths: string[]) =>
+      paths.map((path, index) => item({ kind: 'diff', path, patch }, index + 1))
+
+    it('shows a file under a remote POSIX root relatively, one row for relative and absolute reports', () => {
+      expect(
+        nativeChatSessionResultFiles(
+          diffs(
+            '/home/u/ws/resultados/agy-demo.md',
+            'resultados/agy-demo.md',
+            'resultados/./agy-demo.md'
+          ),
+          '/home/u/ws'
+        )
+      ).toEqual([
+        {
+          absolutePath: '/home/u/ws/resultados/agy-demo.md',
+          displayPath: 'resultados/agy-demo.md'
+        }
+      ])
+    })
+
+    it('keeps a file outside the root absolute and opens the absolute path', () => {
+      expect(nativeChatSessionResultFiles(diffs('/etc/hosts', '../other/a.md'), '/home/u/ws')).toEqual(
+        [
+          { absolutePath: '/home/u/other/a.md', displayPath: '/home/u/other/a.md' },
+          { absolutePath: '/etc/hosts', displayPath: '/etc/hosts' }
+        ]
+      )
+    })
+
+    it('reads Windows roots with either separator, ignoring drive-letter case', () => {
+      expect(
+        nativeChatSessionResultFiles(diffs(String.raw`c:\Repo\src\a.ts`, 'src/a.ts'), 'C:/Repo')
+      ).toEqual([{ absolutePath: 'C:/Repo/src/a.ts', displayPath: 'src/a.ts' }])
+    })
+
+    it('leaves paths as reported when the chat has no workspace root', () => {
+      expect(nativeChatSessionResultFiles(diffs('resultados/a.md'), null)).toEqual([
+        { absolutePath: 'resultados/a.md', displayPath: 'resultados/a.md' }
+      ])
+    })
   })
 
   it('uses explicit MCP identity and retains the most recent failure without claiming connection', () => {
