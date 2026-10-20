@@ -17,6 +17,10 @@ import {
   observeNativeChatTaskCall,
   observeNativeChatTaskResult
 } from '../../../../shared/native-chat-task-ledger'
+import {
+  nativeChatPlanDocumentFromCall,
+  type NativeChatPlanDocument
+} from '../../../../shared/native-chat-plan-document'
 import { branchName } from '@/lib/git-utils'
 import { resolveExplicitFileLinkTargetPath } from '@/lib/explicit-file-link-target'
 import { toWorktreeRelativePath } from '@/lib/terminal-links'
@@ -27,22 +31,53 @@ export type NativeChatResultFile = { absolutePath: string; displayPath: string }
 /** Only explicit journal records are results; prose mentioning a file is not a file change. Newest
  *  touch first. With the chat's workspace root, a file reported relative by one tool and absolute by
  *  another is one row, shown relative to that root unless it lies outside it. */
+function nativeChatResultFile(path: string, workspaceRoot: string | null): NativeChatResultFile {
+  const absolutePath = workspaceRoot
+    ? (resolveExplicitFileLinkTargetPath(path, workspaceRoot) ?? path)
+    : path
+  const relative = workspaceRoot ? toWorktreeRelativePath(absolutePath, workspaceRoot) : null
+  return { absolutePath, displayPath: relative || absolutePath }
+}
+
+export type NativeChatSessionPlanDocument = {
+  file: NativeChatResultFile
+  summary: string
+  awaitingApproval: boolean
+}
+
+/** The newest Antigravity plan document the main agent wrote: a completed write the host marked
+ *  user-facing from the artifact's own metadata. Rewrites replace it; failed calls never do. */
+export function nativeChatSessionPlanDocument(
+  items: readonly AgentJournalRenderItem[],
+  workspaceRoot: string | null
+): NativeChatSessionPlanDocument | null {
+  let latest: NativeChatPlanDocument | null = null
+  for (const { body, agentId } of items) {
+    if (agentId === undefined && body.kind === 'tool-call' && body.state === 'completed') {
+      latest = nativeChatPlanDocumentFromCall(body.name, body.input) ?? latest
+    }
+  }
+  return latest
+    ? {
+        file: nativeChatResultFile(latest.path, workspaceRoot),
+        summary: latest.summary,
+        awaitingApproval: latest.awaitingApproval
+      }
+    : null
+}
+
 export function nativeChatSessionResultFiles(
   items: readonly AgentJournalRenderItem[],
   workspaceRoot: string | null
 ): NativeChatResultFile[] {
   const lastTouch = new Map<string, { index: number; file: NativeChatResultFile }>()
   for (const [index, path] of changedFilePaths(items).entries()) {
-    const absolutePath = workspaceRoot
-      ? (resolveExplicitFileLinkTargetPath(path, workspaceRoot) ?? path)
-      : path
-    const relative = workspaceRoot ? toWorktreeRelativePath(absolutePath, workspaceRoot) : null
-    lastTouch.set(absolutePath, {
-      index,
-      file: { absolutePath, displayPath: relative || absolutePath }
-    })
+    const file = nativeChatResultFile(path, workspaceRoot)
+    lastTouch.set(file.absolutePath, { index, file })
   }
-  return [...lastTouch.values()].sort((left, right) => right.index - left.index).map((entry) => entry.file)
+  return [...lastTouch.values()]
+    .sort((left, right) => right.index - left.index)
+    .map((entry) => entry.file)
 }
 
 export function nativeChatSessionResults(items: readonly AgentJournalRenderItem[]): string[] {

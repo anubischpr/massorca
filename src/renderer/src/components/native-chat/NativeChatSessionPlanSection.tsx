@@ -4,18 +4,63 @@ import {
   nativeChatTaskLabel,
   type NativeChatTaskList
 } from '../../../../shared/native-chat-task-list'
+import { createNativeChatFileHref } from '../../../../shared/native-chat-href-routing'
+import { Badge } from '@/components/ui/badge'
+import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
+import type { NativeChatSessionPlanDocument } from './native-chat-session-summary'
 import { Checklist } from './NativeChatTaskList'
 import { NativeChatSessionSection } from './NativeChatSessionSection'
 
 /** The main agent's task plan as the provider reported it; without a report, the section says so. */
 export function NativeChatSessionPlanSection({
-  list
+  list,
+  document,
+  onLinkClick
 }: {
   list: NativeChatTaskList | null
+  /** Antigravity's plan-mode document; a checklist plan takes precedence over it. */
+  document?: NativeChatSessionPlanDocument | null
+  onLinkClick?: CommentMarkdownLinkClickHandler
 }): React.JSX.Element {
   const { t } = useTranslation()
   const title = t('components.nativeChatSummary.plan', 'Plan')
   const noPlan = t('components.nativeChatSummary.planNone', 'No plan reported')
+  if (!list && document) {
+    const href = createNativeChatFileHref(document.file.absolutePath, 'literal')
+    const awaiting = t(
+      'components.nativeChatSummary.planDocumentAwaiting',
+      'Awaiting your approval'
+    )
+    const link = (
+      <a
+        className="block break-words underline"
+        title={document.file.absolutePath}
+        href={href}
+        onClick={(event) => onLinkClick?.(event, href)}
+      >
+        {document.file.displayPath}
+      </a>
+    )
+    return (
+      <NativeChatSessionSection
+        title={title}
+        summary={t('components.nativeChatSummary.planDocument', 'Plan document')}
+        compact={
+          <p className="truncate" title={document.file.absolutePath}>
+            {document.file.displayPath}
+          </p>
+        }
+      >
+        {link}
+        {document.awaitingApproval ? <Badge variant="secondary">{awaiting}</Badge> : null}
+        {document.summary ? (
+          <p className="whitespace-pre-wrap break-words text-muted-foreground">
+            {document.summary}
+          </p>
+        ) : null}
+      </NativeChatSessionSection>
+    )
+  }
   if (!list) {
     return (
       <NativeChatSessionSection title={title} compact={<p>{noPlan}</p>}>

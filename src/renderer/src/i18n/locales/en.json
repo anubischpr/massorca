@@ -19172,6 +19172,8 @@
       "plan": "Plan",
       "planNone": "No plan reported",
       "planNoneInProgress": "No item in progress",
+      "planDocument": "Plan document",
+      "planDocumentAwaiting": "Awaiting your approval",
       "planProgress": "{{completed}} of {{total}}",
       "project": "Project",
       "runningCount": "{{count}} running",

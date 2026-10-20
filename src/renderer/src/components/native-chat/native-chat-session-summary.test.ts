@@ -5,6 +5,7 @@ import {
   githubSlugFromIdentityKey,
   nativeChatSessionConnectors,
   nativeChatSessionPlan,
+  nativeChatSessionPlanDocument,
   nativeChatSessionResultFiles,
   nativeChatSessionResults,
   nativeChatSessionServers,
@@ -94,12 +95,12 @@ describe('selected chat summary evidence', () => {
     })
 
     it('keeps a file outside the root absolute and opens the absolute path', () => {
-      expect(nativeChatSessionResultFiles(diffs('/etc/hosts', '../other/a.md'), '/home/u/ws')).toEqual(
-        [
-          { absolutePath: '/home/u/other/a.md', displayPath: '/home/u/other/a.md' },
-          { absolutePath: '/etc/hosts', displayPath: '/etc/hosts' }
-        ]
-      )
+      expect(
+        nativeChatSessionResultFiles(diffs('/etc/hosts', '../other/a.md'), '/home/u/ws')
+      ).toEqual([
+        { absolutePath: '/home/u/other/a.md', displayPath: '/home/u/other/a.md' },
+        { absolutePath: '/etc/hosts', displayPath: '/etc/hosts' }
+      ])
     })
 
     it('reads Windows roots with either separator, ignoring drive-letter case', () => {
@@ -168,6 +169,41 @@ describe('selected chat summary evidence', () => {
     expect(
       nativeChatSessionServers(scans, { kind: 'environment', environmentId: 'missing' }, 'selected')
     ).toEqual({ scan: undefined, ports: [] })
+  })
+})
+
+describe('selected chat plan document', () => {
+  const written = (path: string, artifact: unknown, sequence: number, extra = {}) =>
+    item(
+      {
+        kind: 'tool-call',
+        name: 'write_file',
+        input: { Path: path, ...(artifact ? { antigravityArtifact: artifact } : {}) },
+        state: 'completed',
+        ...extra
+      },
+      sequence
+    )
+
+  it('shows the newest user-facing artifact relative to the workspace, awaiting approval', () => {
+    const document = nativeChatSessionPlanDocument(
+      [
+        written('/ws/old.md', { userFacing: true, summary: 'Old' }, 1),
+        written('/ws/notes.md', undefined, 2),
+        written('/ws/docs/plan.md', { userFacing: true, requestFeedback: true, summary: 'New' }, 3),
+        written('/ws/failed.md', { userFacing: true }, 4, { state: 'failed' })
+      ],
+      '/ws'
+    )
+    expect(document).toEqual({
+      file: { absolutePath: '/ws/docs/plan.md', displayPath: 'docs/plan.md' },
+      summary: 'New',
+      awaitingApproval: true
+    })
+  })
+
+  it('is absent without a flagged artifact', () => {
+    expect(nativeChatSessionPlanDocument([written('/ws/a.md', undefined, 1)], '/ws')).toBeNull()
   })
 })
 

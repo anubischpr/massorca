@@ -18960,6 +18960,8 @@
       "plan": "Plan",
       "planNone": "No se informó ningún plan",
       "planNoneInProgress": "Ningún elemento en curso",
+      "planDocument": "Documento del plan",
+      "planDocumentAwaiting": "Esperando tu aprobación",
       "planProgress": "{{completed}} de {{total}}",
       "project": "Proyecto",
       "runningCount": "{{count}} en curso",

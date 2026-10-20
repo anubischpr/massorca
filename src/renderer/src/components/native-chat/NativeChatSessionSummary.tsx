@@ -40,6 +40,7 @@ import { NativeChatSessionServers } from './NativeChatSessionServers'
 import {
   nativeChatSessionConnectors,
   nativeChatSessionPlan,
+  nativeChatSessionPlanDocument,
   nativeChatSessionResultFiles
 } from './native-chat-session-summary'
 
@@ -88,6 +89,10 @@ export function NativeChatSessionSummary(props: {
     [props.journalItems]
   )
   const plan = useMemo(() => nativeChatSessionPlan(props.journalItems), [props.journalItems])
+  const planDocument = useMemo(
+    () => nativeChatSessionPlanDocument(props.journalItems, workspaceRoot),
+    [props.journalItems, workspaceRoot]
+  )
   const connectorSnapshot =
     props.context?.transportObservation === 'unverifiable'
       ? undefined
@@ -317,7 +322,11 @@ export function NativeChatSessionSummary(props: {
       </h2>
       <div className="space-y-2">
         <NativeChatSessionEnvironment fileContext={props.fileContext} host={host} />
-        <NativeChatSessionPlanSection list={plan} />
+        <NativeChatSessionPlanSection
+          list={plan}
+          document={planDocument}
+          onLinkClick={props.onLinkClick}
+        />
         <NativeChatSessionContextSection summary={props.contextSummary} />
         <NativeChatSessionSection
           title={t('components.nativeChatSummary.results', 'Results')}

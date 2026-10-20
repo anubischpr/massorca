@@ -1,4 +1,5 @@
 import type { ProviderTimelineEvent } from '../native-chat/agent-session-timeline/provider-timeline-event'
+import { withAntigravityArtifactMetadata } from './antigravity-artifact-metadata'
 import { antigravityTokenCount, antigravityToolOutput } from './antigravity-stream-json-facts'
 import type { AntigravityStreamStepState } from './antigravity-stream-json-protocol'
 import type { AntigravityStreamTransportEvent } from './antigravity-stream-json-transport'
@@ -125,7 +126,10 @@ export class AntigravityStreamEventProjector {
       kind: 'tool-call' as const,
       name: tool.name,
       callId: String(stepIndex),
-      input: tool.input,
+      input:
+        state === 'DONE' && !failed
+          ? withAntigravityArtifactMetadata(tool.name, tool.input)
+          : tool.input,
       state:
         state === 'ACTIVE'
           ? ('running' as const)
