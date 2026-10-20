@@ -3,7 +3,8 @@ import { useSortable } from '@dnd-kit/sortable'
 import { X, Minimize2, Pin } from 'lucide-react'
 import { stripLeadingAgentTitleDecoration } from '../../../../shared/agent-title-decoration'
 import { useTabAgent } from '@/lib/use-tab-agent'
-import { getAgentLabel } from '@/lib/agent-catalog'
+import { getAgentDisplayLabel } from '@/lib/agent-catalog'
+import { usePiRuntime } from '@/lib/use-pi-runtime'
 import { basename } from '@/lib/path'
 import { isImeCompositionKeyDown } from '@/lib/ime-composition-keyboard-event'
 import { Input } from '@/components/ui/input'
@@ -95,6 +96,7 @@ export default function SortableTab({
   canSplitTerminal = true,
   structuredSessionId
 }: SortableTabProps): React.JSX.Element {
+  const piRuntime = usePiRuntime()
   // Why: agent-completion unread exists even with terminal-attention off; collapse both sources to one primitive so unrelated tabs don't re-render.
   const hasUnreadActivity = useAppStore((s) =>
     terminalTabHasUnreadActivity({
@@ -368,7 +370,7 @@ export default function SortableTab({
             title={displayTitle}
             programName={
               tabAgent
-                ? getAgentLabel(tabAgent)
+                ? getAgentDisplayLabel(tabAgent, piRuntime)
                 : shellForIcon
                   ? basename(shellForIcon)
                   : translate('tabHoverCard.terminal', 'Terminal')

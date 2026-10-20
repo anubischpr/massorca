@@ -149,7 +149,10 @@
       "codexSharedServerWarning": {
         "title": "Avisar cuando una pestaña de Codex comparte un servidor",
         "description": "Muestra un aviso en un Codex que usted mismo inició cuando comparte un servidor con otras pestañas, porque su estado de agente puede ser incorrecto."
-      }
+      },
+      "stockPi": "Pi",
+      "gentleShell": "Gentle Shell",
+      "piAndGentleShell": "Pi / Gentle Shell"
     },
     "followSymlinkedDirectoriesKeywords": {
       "symlink": "enlace simbólico",

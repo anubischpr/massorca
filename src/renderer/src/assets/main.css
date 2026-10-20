@@ -203,6 +203,10 @@
   --muted-foreground: #737373;
   --accent: #f5f5f5;
   --accent-foreground: #171717;
+  /* Gentle Shell brand row. Pastel #f59ac0 is 2.05:1 on white, so the resting text uses a deeper pink (5.87:1). */
+  --agent-gentle-shell-fg: #c2185b;
+  --agent-gentle-shell-hover-bg: #fff0f6;
+  --agent-gentle-shell-hover-fg: #4a1630;
   --border: #e5e5e5;
   --input: #e5e5e5;
   --ring: #a1a1a1;
@@ -320,6 +324,9 @@
   --muted-foreground: #a1a1a1;
   --accent: #404040;
   --accent-foreground: #fafafa;
+  --agent-gentle-shell-fg: #f59ac0;
+  --agent-gentle-shell-hover-bg: color-mix(in srgb, #f59ac0 10%, var(--popover));
+  --agent-gentle-shell-hover-fg: #f59ac0;
   --border: rgb(255 255 255 / 0.07);
   --input: rgb(255 255 255 / 0.15);
   --ring: #737373;
@@ -1335,6 +1342,20 @@ html.native-shell .app-layout {
 .editor-header-copy-toast.is-visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* ── Gentle Shell agent row ───────────────────────────── */
+
+/* Why: the brand color and pale-pink highlight are scoped to the one Gentle Shell menu row.
+   data-highlighted is set by Radix for both pointer hover and keyboard focus, so they match. */
+[role='menuitem'][data-agent-brand='gentle-shell'] {
+  color: var(--agent-gentle-shell-fg);
+}
+
+[role='menuitem'][data-agent-brand='gentle-shell']:hover,
+[role='menuitem'][data-agent-brand='gentle-shell'][data-highlighted] {
+  background: var(--agent-gentle-shell-hover-bg);
+  color: var(--agent-gentle-shell-hover-fg);
 }
 
 /* ── Content ─────────────────────────────────────────── */
