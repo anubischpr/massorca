@@ -87,6 +87,8 @@ export const ANTIGRAVITY_RUNTIME_REGISTRATION: StructuredAgentRuntimeRegistratio
         ? { readProcessStartTime: context.deps.readProcessStartTime }
         : {}),
       logger: context.deps.logger,
+      onChildWorkEvidence: (sessionId, evidence) =>
+        context.host()?.publishChildWorkEvidence(sessionId, evidence),
       onLifecycle: context.deliverLifecycle,
       onIdle: context.followUps.releaseUnansweredDispatches,
       onSettled: ({ sessionId, clientMessageId, outcome }) => {

@@ -13,8 +13,10 @@ import {
 import type { ProviderProcessLaunch } from '../provider-process/provider-process-launch'
 import { AntigravityStreamJsonTransport } from './antigravity-stream-json-transport'
 import { AntigravityStreamEventProjector } from './antigravity-stream-json-events'
+import { AntigravitySubagentChildWork } from './antigravity-subagent-child-work'
 import type { AntigravityLaunchOptionKey } from './antigravity-session-options'
 import { agentSessionFailureFact, providerDiagnostic } from '../../shared/agent-session-failure'
+import type { AgentChildWorkEvidence } from '../../shared/agent-status-child-work-evidence'
 
 export type AntigravitySessionDeps = {
   processFactory?: (launch: ProviderProcessLaunch) => ManagedProviderProcess
@@ -25,6 +27,7 @@ export type AntigravitySessionDeps = {
     outcome: AgentSessionDispatchOutcome
   }) => void
   onIdle: (input: { sessionId: string }) => void
+  onChildWorkEvidence?: (sessionId: string, evidence: AgentChildWorkEvidence[]) => void
   logger: StructuredAgentSessionLogger
 }
 
@@ -39,6 +42,7 @@ export class AntigravityStructuredSession {
   private readonly unacknowledged = new Set<string>()
   private readonly echoed = new Set<string>()
   private readonly requestedAt = new Map<string, number>()
+  private readonly subagents = new AntigravitySubagentChildWork()
   private ended = false
   private requestedClose = false
   private exitDelivery: Promise<void> = Promise.resolve()
@@ -101,6 +105,7 @@ export class AntigravityStructuredSession {
               : event
           )
         )
+        this.publishChildWork(this.subagents.observe(event))
         if (event.type === 'result' && event.terminal) {
           this.pending.delete(event.clientMessageId)
           this.requestedAt.delete(event.clientMessageId)
@@ -196,11 +201,26 @@ export class AntigravityStructuredSession {
     )
   }
 
+  private publishChildWork(evidence: AgentChildWorkEvidence[]): void {
+    if (evidence.length === 0) {
+      return
+    }
+    try {
+      this.deps.onChildWorkEvidence?.(this.input.identity.sessionId, evidence)
+    } catch (error: unknown) {
+      this.deps.logger.error('Antigravity child work publication failed', {
+        scope: 'antigravity-child-work',
+        error
+      })
+    }
+  }
+
   private async publishExit(): Promise<void> {
     if (this.ended) {
       return
     }
     this.ended = true
+    this.publishChildWork(this.subagents.sessionEnded())
     this.lane.finalize()
     this.lane.apply([
       { type: 'session.ended', verdict: { state: 'interrupted', completedAt: Date.now() } }
