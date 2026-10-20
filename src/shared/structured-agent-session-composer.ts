@@ -1,5 +1,6 @@
 import type { AgentSessionProviderFunction } from './agent-session-provider-functions'
 import {
+  getAgentCliCommands,
   getHostClaimedNativeChatCommands,
   getTextDrivenNativeChatCommands
 } from './native-chat-agent-profiles'
@@ -86,10 +87,16 @@ export function structuredSlashCommands(
   ]
   // Why: a host with no catalog to report would otherwise hide the commands the
   // agent itself implements, e.g. Codex's `/goal`.
-  return [
+  const offered = [
     ...hostOwned,
     ...getTextDrivenNativeChatCommands(agent).filter(
-      (entry) => !hostOwned.some((offered) => offered.name === entry.name)
+      (entry) => !hostOwned.some((owned) => owned.name === entry.name)
+    )
+  ]
+  return [
+    ...offered,
+    ...getAgentCliCommands(agent).filter(
+      (entry) => !offered.some((listed) => listed.name === entry.name)
     )
   ]
 }

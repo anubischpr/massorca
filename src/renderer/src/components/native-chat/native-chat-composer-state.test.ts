@@ -125,6 +125,28 @@ describe('deriveComposerAutocomplete — one grammar for every agent', () => {
   it('does not fire inside shell-style text', () => {
     expect(deriveComposerAutocomplete('price$tag', 9, COMMANDS, skills, codex).mode).toBe('none')
   })
+
+  it('offers Antigravity built-in skills under `/`, inserted as the token agy expands', () => {
+    const builtin = skill({
+      name: 'grill-me',
+      sourceKind: 'plugin',
+      rootPath: '/home/ada/.gemini/antigravity-cli/builtin/skills',
+      directoryPath: '/home/ada/.gemini/antigravity-cli/builtin/skills/grill-me',
+      skillFilePath: '/home/ada/.gemini/antigravity-cli/builtin/skills/grill-me/SKILL.md'
+    })
+    const result = deriveComposerAutocomplete(
+      'please /gr',
+      10,
+      COMMANDS,
+      [builtin],
+      getNativeChatAgentProfile('antigravity')
+    )
+    expect(result.mode).toBe('slash')
+    if (result.mode !== 'slash') {
+      return
+    }
+    expect(result.items.map((entry) => entry.token)).toEqual(['/grill-me'])
+  })
 })
 
 describe('filterSlashCommands', () => {

@@ -59,7 +59,7 @@ describe('structuredSlashCommands', () => {
   // a Claude session was offered Codex-only tokens that missed the command guard
   // and reached the model as literal prompt text instead of erroring. A row is
   // honored either way now: the host answers it, or it passes through to the agent.
-  it.each(['codex', 'claude'] as const)(
+  it.each(['codex', 'claude', 'antigravity'] as const)(
     'offers %s only commands the host answers or the agent runs',
     async (agent) => {
       const offered = structuredSlashCommands(['clear', 'compact'], agent)
@@ -90,6 +90,29 @@ describe('structuredSlashCommands', () => {
     )
     // Picking it must reach the model, not the host's refusal.
     expect(isStructuredAgentSessionComposerCommand('/goal', 'codex')).toBe(false)
+  })
+
+  // agy reports no command list on its stream; its `/help` list is the menu's own commands, once
+  // each, with the host's model and effort kept as the host answers them.
+  it('offers Antigravity the commands its /help lists, after the host commands', () => {
+    expect(
+      structuredSlashCommands(['clear', 'compact'], 'antigravity').map((command) => command.name)
+    ).toEqual([
+      'model',
+      'effort',
+      'clear',
+      'compact',
+      'agents',
+      'changelog',
+      'config',
+      'credits',
+      'help',
+      'hooks',
+      'permissions',
+      'plugin',
+      'skills',
+      'usage'
+    ])
   })
 
   it('adds nothing for an agent whose own harness expands its commands', () => {

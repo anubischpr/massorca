@@ -357,6 +357,32 @@ describe("a Claude chat whose Claude isn't running shows the `/` surface from it
     expect(namesOf(menu, 'command')).toContain('deploy')
   })
 
+  it('offers the commands of the plugins the account enables, named plugin:command', async () => {
+    const plugin = join(directory, 'plugins', 'demo', '1.0.0')
+    const disabled = join(directory, 'plugins', 'off')
+    await writeCommand(join(plugin, 'commands'), 'review.md')
+    await writeCommand(join(disabled, 'commands'), 'hidden.md')
+    await mkdir(join(account, 'plugins'), { recursive: true })
+    await writeFile(
+      join(account, 'plugins', 'installed_plugins.json'),
+      JSON.stringify({
+        version: 2,
+        plugins: {
+          'demo@market': [{ scope: 'user', installPath: plugin }],
+          'off@market': [{ scope: 'user', installPath: disabled }]
+        }
+      })
+    )
+    await writeFile(
+      join(account, 'settings.json'),
+      JSON.stringify({ enabledPlugins: { 'demo@market': true, 'off@market': false } })
+    )
+    await openHost()
+    const menu = await menuOf(SESSION)
+    expect(namesOf(menu, 'command')).toEqual(expect.arrayContaining(['demo:review']))
+    expect(namesOf(menu, 'command')).not.toContain('off:hidden')
+  })
+
   it('with a command added on disk, pushed to a pane already showing the chat', async () => {
     let commands: AgentSessionSlashCommand[] | null | undefined
     await host.subscribe({

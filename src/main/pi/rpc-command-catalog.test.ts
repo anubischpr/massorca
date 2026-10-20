@@ -27,6 +27,20 @@ describe('Pi runtime command catalog', () => {
     expect(onChange).toHaveBeenCalledTimes(1)
   })
 
+  it('reads a list saved with skills as commands, since Pi runs each skill as a command', async () => {
+    const file = await scratch()
+    await writeFile(
+      file,
+      JSON.stringify({
+        version: 1,
+        runtimes: { 'gentle-shell': [{ name: 'skill:review', kind: 'skill' }] }
+      })
+    )
+    const catalog = new PiRpcCommandCatalog(file)
+    await vi.waitFor(() => expect(catalog.read('gentle-shell')).toBeDefined())
+    expect(catalog.read('gentle-shell')).toEqual([{ name: 'skill:review', kind: 'command' }])
+  })
+
   it('survives a restart and lets a fresh report win over the saved one', async () => {
     const file = await scratch()
     const first = new PiRpcCommandCatalog(file)

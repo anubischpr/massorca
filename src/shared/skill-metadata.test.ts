@@ -44,3 +44,12 @@ it.each(['', '\uFEFF'])('preserves the last CRLF frontmatter field with BOM %j',
     })
   }
 })
+
+it('marks only a skill whose frontmatter keeps it out of the slash menu', () => {
+  expect(
+    summarizeSkillMarkdown('---\nname: ui-navigation\ndisable-slash-command: true\n---\nBody')
+  ).toMatchObject({ name: 'ui-navigation', disableSlashCommand: true })
+  expect(summarizeSkillMarkdown('---\nname: review\n---\nBody')).not.toHaveProperty(
+    'disableSlashCommand'
+  )
+})

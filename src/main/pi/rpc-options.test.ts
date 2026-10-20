@@ -95,10 +95,11 @@ describe('Pi RPC session options', () => {
         ]
       }
     })
+    // Pi runs a skill as a command of its own name, so the menu offers it as one.
     expect(await readPiRpcCommands(rpc)).toEqual({
       commands: [
         { name: 'review', kind: 'command', description: 'Review changes' },
-        { name: 'search', kind: 'skill' }
+        { name: 'search', kind: 'command' }
       ]
     })
   })

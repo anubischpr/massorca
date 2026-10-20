@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   getAgentAnsweredNativeChatCommands,
+  getAgentCliCommands,
   getHostClaimedNativeChatCommands,
   getNativeChatAgentProfile,
   getNativeChatCommandReply,
@@ -29,6 +30,13 @@ describe('native chat agent picker profiles', () => {
     })
   })
 
+  it('writes Antigravity skills as slash tokens owned by Antigravity', () => {
+    expect(getNativeChatAgentProfile('antigravity')).toMatchObject({
+      skillPrefix: '/',
+      skillSourceOwner: 'antigravity'
+    })
+  })
+
   it('does not grant custom or unverified agents a skill grammar', () => {
     expect(getNativeChatAgentProfile('custom-agent')).toBeNull()
   })
@@ -51,6 +59,11 @@ describe('host-claimed native chat commands', () => {
     expect(names('codex')).toContain('vim')
     expect(names('codex')).not.toContain('goal')
     expect(getVerifiedNativeChatCommands('codex').map((command) => command.name)).toContain('goal')
+  })
+
+  // Antigravity expands `/name` in print mode, so its catalog passes through like Claude's.
+  it('claims nothing from the Antigravity catalog', () => {
+    expect(names('antigravity')).toEqual([])
   })
 
   it('claims the whole catalog for agents with no pass-through policy', () => {
@@ -90,5 +103,13 @@ describe('native chat command replies', () => {
     expect(getAgentAnsweredNativeChatCommands('codex')).toEqual(
       getVerifiedNativeChatCommands('codex')
     )
+  })
+})
+
+describe('the CLI command list a structured chat offers', () => {
+  it('offers Antigravity the list its own /help reports, and no list for other agents', () => {
+    expect(getAgentCliCommands('antigravity').map((command) => command.name)).toContain('usage')
+    expect(getAgentCliCommands('codex')).toEqual([])
+    expect(getAgentCliCommands(null)).toEqual([])
   })
 })

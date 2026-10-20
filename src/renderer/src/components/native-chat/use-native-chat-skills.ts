@@ -66,7 +66,8 @@ export function isNativeChatSkillForAgent(
   result?: Pick<SkillDiscoveryResult, 'sources'>
 ): boolean {
   const profile = getNativeChatAgentProfile(agent)
-  if (!profile) {
+  // Why: the skill stays in the disk inventory; only the `/` menu leaves it out.
+  if (!profile || skill.disableSlashCommand) {
     return false
   }
   if (!result) {

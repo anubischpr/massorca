@@ -8,7 +8,8 @@ import type { AgentSessionSlashCommand } from '../../shared/agent-session-wire'
 import { classifyAgentSessionFunctions } from '../../shared/agent-session-provider-functions'
 import { structuredSlashCommands } from '../../shared/structured-agent-session-composer'
 import { discoverSkills } from '../skills/discovery'
-import { scanClaudeCommandFolders } from './claude-command-folder-scan'
+import { discoverClaudePluginCommandRoots } from '../skills/claude-plugin-skill-sources'
+import { scanClaudeCommandFolders, scanClaudePluginCommands } from './claude-command-folder-scan'
 import { supportsClaudeStructuredLocation } from './claude-structured-location-support'
 import { agentSessionPinnedLaunchDirectory } from '../runtime/agent-session-record-launch-directory'
 
@@ -38,9 +39,9 @@ type Entry = {
 
 /**
  * The `/` surface of a Claude chat whose Claude is not running, read from the folders Claude reads
- * its own from on the host that runs it: the account's and the workspace's command folders and
- * skills, beside the commands the chat's menu always offers. Nothing until the first scan lands;
- * `onChange` fires when a scan finds something different.
+ * its own from on the host that runs it: the account's and the workspace's command folders, the
+ * enabled plugins' commands, and skills, beside the commands the chat's menu always offers. Nothing
+ * until the first scan lands; `onChange` fires when a scan finds something different.
  */
 export class ClaudeAtRestCommandCatalog {
   private readonly entries = new Map<string, Entry>()
@@ -137,13 +138,14 @@ export class ClaudeAtRestCommandCatalog {
       agentSessionPinnedLaunchDirectory(record) ??
       (await this.deps.resolveWorkspacePath(record.location.workspaceId))
     const account = requireLegacyAgentSessionAccountHome(record.accountHome).path
-    const [custom, discovered] = await Promise.all([
+    const [custom, discovered, plugin] = await Promise.all([
       scanClaudeCommandFolders([join(cwd, '.claude', 'commands'), join(account, 'commands')]),
       (this.deps.discover ?? discoverSkills)({
         repos: [],
         cwd,
         providerRootOverrides: { claude: join(account, 'skills') }
-      })
+      }),
+      discoverClaudePluginCommandRoots({ configDir: account, cwd }).then(scanClaudePluginCommands)
     ])
     // What the menu offers a Claude chat at rest without a list, so reading one loses none of it.
     const builtIn = structuredSlashCommands(['clear', 'compact'], 'claude').map(
@@ -153,7 +155,13 @@ export class ClaudeAtRestCommandCatalog {
         ...(command.description ? { description: command.description } : {})
       })
     )
-    const names = new Set(builtIn.map((command) => command.name))
+    // Why: a name keeps its first owner: Orca's own commands, then the user's folders, then plugins.
+    const commands = new Map<string, AgentSessionSlashCommand>()
+    for (const command of [...builtIn, ...custom, ...plugin]) {
+      if (!commands.has(command.name)) {
+        commands.set(command.name, command)
+      }
+    }
     const skills = discovered.skills
       .filter((skill) => skill.providers.includes('claude'))
       .map((skill): AgentSessionSlashCommand => ({
@@ -161,7 +169,7 @@ export class ClaudeAtRestCommandCatalog {
         kind: 'skill',
         ...(skill.description ? { description: skill.description } : {})
       }))
-    return [...builtIn, ...custom.filter((command) => !names.has(command.name)), ...skills]
+    return [...commands.values(), ...skills]
   }
 
   private now(): number {

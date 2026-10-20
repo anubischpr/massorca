@@ -105,6 +105,10 @@ export function summarizeSkillMarkdown(markdown: string): SkillFrontmatterSummar
       : firstParagraph(body)
   return {
     name: name || null,
-    description: description || null
+    description: description || null,
+    // Why: agy's own flag for a skill it keeps out of the `/` menu; other agents never set it.
+    ...(frontmatter['disable-slash-command'] === 'true'
+      ? { disableSlashCommand: true as const }
+      : {})
   }
 }

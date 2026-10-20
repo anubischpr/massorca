@@ -115,6 +115,7 @@ async function pathExists(pathValue: string): Promise<boolean> {
 async function readSkillSummary(skillFilePath: string): Promise<{
   name: string | null
   description: string | null
+  disableSlashCommand?: true
   updatedAt: number | null
 } | null> {
   try {
@@ -173,6 +174,7 @@ async function scanRoot(root: SkillScanRoot, signal: AbortSignal): Promise<Scann
         skillFilePath,
         installed: true,
         updatedAt: summary.updatedAt,
+        ...(summary.disableSlashCommand ? { disableSlashCommand: true as const } : {}),
         canonicalSkillFilePath
       } satisfies ScannedSkill
     })

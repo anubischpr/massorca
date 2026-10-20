@@ -156,6 +156,26 @@ const OMP_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'hotkeys', description: 'Show keyboard shortcuts in Terminal' }
 ]
 
+// agy 1.4.3's own `/help` list, read in print mode (no model turn). Its stream reports no command
+// list, so the structured chat offers this one as the CLI's own commands.
+export const ANTIGRAVITY_CLI_COMMANDS: readonly SlashCommandSuggestion[] = [
+  { name: 'agents', description: 'List available custom agents' },
+  { name: 'changelog', description: 'Show release notes and changes' },
+  { name: 'config', description: 'Open settings panel' },
+  { name: 'credits', description: 'Show remaining G1 credits and purchase link' },
+  { name: 'effort', description: 'Set the reasoning effort' },
+  { name: 'help', description: 'Show available commands and keybindings' },
+  { name: 'hooks', description: 'Manage hook configurations for tool events' },
+  { name: 'model', description: 'Set a model, or run a single prompt on another model' },
+  { name: 'permissions', description: 'Manage tool permissions' },
+  {
+    name: 'plugin',
+    description: 'Manage, discover, install, uninstall, enable, and disable plugins'
+  },
+  { name: 'skills', description: 'List available skills' },
+  { name: 'usage', description: 'View model quota usage' }
+]
+
 const COMMANDS_BY_AGENT: Partial<Record<AgentType, readonly SlashCommandSuggestion[]>> = {
   pi: PI_COMMANDS,
   claude: CLAUDE_COMMANDS,
