@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   PI_RUNTIME_HOME_DIR_NAME,
   isPiRuntimeSelection,
+  launchCarriesGentleShellCommand,
   piRuntimeCommandSettings,
   piRuntimeFromSessionEvidence,
   piTerminalCommandOverrides,
@@ -138,5 +139,14 @@ describe('bounded Pi runtime selection', () => {
     expect(piTerminalCommandOverrides(none, 'cliMissing')).toBe(none)
     const gentle = { pi: 'gentle-shell' }
     expect(piTerminalCommandOverrides(gentle, 'unknown')).toBe(gentle)
+  })
+  it('marks only a Pi launch whose prepared command is Gentle Shell', () => {
+    expect(launchCarriesGentleShellCommand('pi', 'gentle-shell')).toBe(true)
+    expect(launchCarriesGentleShellCommand('pi', "gentle-shell -- --session '/h/a.jsonl'")).toBe(
+      true
+    )
+    expect(launchCarriesGentleShellCommand('pi', 'pi')).toBe(false)
+    expect(launchCarriesGentleShellCommand('pi', undefined)).toBe(false)
+    expect(launchCarriesGentleShellCommand('claude', 'gentle-shell')).toBe(false)
   })
 })

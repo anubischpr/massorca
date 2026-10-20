@@ -105,6 +105,7 @@ import {
   refreshRuntimeEnvironmentsAfterPairingChange,
   runtimeEnvironmentPairingChangedError
 } from '@/runtime/runtime-environment-pairing-refresh'
+import { launchCarriesGentleShellCommand } from '../../../../shared/pi-runtime-selection'
 
 const REMOTE_TERMINAL_INPUT_FLUSH_MS = 8
 const REMOTE_TERMINAL_VIEWPORT_FLUSH_MS = 33
@@ -2777,18 +2778,20 @@ export function createRemoteRuntimePtyTransport(
         const resumeHostAuthorityCapability = resumeProviderSessionToSend
           ? agentResumeHostAuthorityCapability(launchAgentToSend)
           : undefined
-        const created = launchAgentToSend
-          ? agentSessionRequiresHostAuthorityReplay
-            ? await hostAuthorityCreate()
-            : await runRemoteAgentSessionLaunch<RemoteAgentSessionLaunchResult | null>({
-                environmentId: createEnvironmentId,
-                hostAuthority: hostAuthorityCreate,
-                ...(resumeHostAuthorityCapability
-                  ? { hostAuthorityCapability: resumeHostAuthorityCapability }
-                  : {}),
-                legacy: legacyCreate
-              })
-          : await legacyCreate()
+        // Why: host authority rebuilds the command from the host's settings, which drops Gentle Shell for stock `pi`.
+        const created =
+          launchAgentToSend && !launchCarriesGentleShellCommand(launchAgentToSend, commandToSend)
+            ? agentSessionRequiresHostAuthorityReplay
+              ? await hostAuthorityCreate()
+              : await runRemoteAgentSessionLaunch<RemoteAgentSessionLaunchResult | null>({
+                  environmentId: createEnvironmentId,
+                  hostAuthority: hostAuthorityCreate,
+                  ...(resumeHostAuthorityCapability
+                    ? { hostAuthorityCapability: resumeHostAuthorityCapability }
+                    : {}),
+                  legacy: legacyCreate
+                })
+            : await legacyCreate()
         if (!created) {
           if (!destroyed && lifecycleEpoch === connectLifecycleEpoch) {
             connecting = false

@@ -19,6 +19,15 @@ export function selectedPiRuntime(command: string | undefined): PiRuntimeSelecti
   return /^gentle-shell(?:\.(?:cmd|bat|exe))?$/.test(binary) ? 'gentle-shell' : 'pi'
 }
 
+/** A paired host rebuilds an agent launch from its own settings, which cannot name the client's Gentle
+ *  Shell choice, so a Gentle Shell launch must travel as its prepared command. */
+export function launchCarriesGentleShellCommand(
+  agent: string | undefined,
+  command: string | undefined
+): boolean {
+  return agent === 'pi' && selectedPiRuntime(command) === 'gentle-shell'
+}
+
 /** The runtime whose session store holds a Pi-protocol transcript, read from its `.gentle-shell` home segment. */
 export function piRuntimeForSessionFilePath(
   filePath: string | null | undefined
