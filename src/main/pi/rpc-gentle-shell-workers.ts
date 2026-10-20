@@ -31,7 +31,6 @@ type LiveWorker = {
   task?: string
   taskId?: string
   background: boolean
-  state: 'working' | 'waiting'
 }
 
 export type WorkerEdge = (observedAt: number) => AgentChildWorkEvidence
@@ -126,7 +125,6 @@ export class PiRpcGentleWorkers {
       handleId: `gentle-worker:${this.generation}:${event.toolCallId}`,
       runId: event.toolCallId,
       background: false,
-      state: 'working',
       ...(agent ? { agent } : {}),
       ...(name ? { name } : {}),
       ...(task ? { task } : {})
@@ -157,7 +155,6 @@ export class PiRpcGentleWorkers {
   private track(worker: LiveWorker, facts: GentleWorkerFacts): void {
     worker.taskId = facts.taskId
     worker.background = facts.mode === 'background'
-    worker.state = facts.status === 'waiting' ? 'waiting' : 'working'
     this.byTask.set(facts.taskId, worker)
   }
 
@@ -206,7 +203,8 @@ export class PiRpcGentleWorkers {
         handle: { idKind: 'task_id', id: worker.handleId, runId: worker.runId },
         kind: 'agent',
         residency: worker.background ? 'background' : 'foreground',
-        state: worker.state,
+        // A worker `waiting` asks its parent agent, not the user, so it never reads as `waiting`.
+        state: 'working',
         ...(worker.name ? { name: worker.name } : {}),
         ...(worker.agent ? { agentType: worker.agent } : {}),
         ...(worker.task ? { description: worker.task } : {}),
