@@ -41,6 +41,16 @@ describe('getStatusBarToggles', () => {
     expect(toggle?.keywords).toEqual(expect.arrayContaining(['zcode', 'zai', 'glm']))
   })
 
+  it('includes NaN gateway usage in Appearance search', () => {
+    const toggle = getStatusBarToggles().find((entry) => entry.id === 'nan')
+
+    expect(toggle).toMatchObject({
+      title: 'NaN Usage',
+      toggleDescription: 'Show NaN Builders subscription usage.'
+    })
+    expect(toggle?.keywords).toEqual(expect.arrayContaining(['nan', 'gentle shell']))
+  })
+
   it('includes MiniMax usage so Appearance can toggle the default-on status item', () => {
     const miniMaxToggle = getStatusBarToggles().find((entry) => entry.id === 'minimax')
 

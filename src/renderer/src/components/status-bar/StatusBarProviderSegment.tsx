@@ -161,6 +161,8 @@ function getProviderLetter(provider: ProviderRateLimits['provider']): string {
       return 'U'
     case 'zcode':
       return 'Z'
+    case 'nan':
+      return 'N'
     case 'codex':
       return 'X'
   }
@@ -182,6 +184,10 @@ const STATUS_BAR_BUCKET_NAMES = new Set(['Flash', 'Pro', '1.5 Pro'])
 function isVisibleStatusBarBucket(name: string, provider: ProviderRateLimits['provider']): boolean {
   if (provider === 'antigravity') {
     return true
+  }
+  // Why: NaN lists a pool per model; the footer shows the most-used one as the monthly chip, the roster lists them all.
+  if (provider === 'nan') {
+    return false
   }
   return STATUS_BAR_BUCKET_NAMES.has(name) || isCursorUsageBucket(name)
 }

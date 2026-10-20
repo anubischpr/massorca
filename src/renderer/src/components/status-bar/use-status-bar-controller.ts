@@ -92,7 +92,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     return null
   }
 
-  const { claude, codex, gemini, opencodeGo, kimi, antigravity, minimax, grok, cursor, zcode } =
+  const { claude, codex, gemini, opencodeGo, kimi, antigravity, minimax, grok, cursor, zcode, nan } =
     rateLimits
 
   // Why: a bar is earned by a live snapshot or durable Settings setup; detection-gating hides per-CLI bars when the agent isn't on PATH.
@@ -109,7 +109,8 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     opencodeGoApiKeyConfigured: rateLimits.opencodeGoApiKeyConfigured,
     grokAuthConfigured: rateLimits.grokAuthConfigured,
     cursorAuthConfigured: rateLimits.cursorAuthConfigured,
-    zcodePlanApiKeyConfigured: rateLimits.zcodePlanApiKeyConfigured
+    zcodePlanApiKeyConfigured: rateLimits.zcodePlanApiKeyConfigured,
+    nanGatewayKeyConfigured: rateLimits.nanGatewayKeyConfigured
   }
   const visibleClaude = getVisibleUsageProvider('claude', claude, usageSettings)
   const visibleCodex = getVisibleUsageProvider('codex', codex, usageSettings)
@@ -120,6 +121,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   const visibleGrok = getVisibleUsageProvider('grok', grok, usageSettings)
   const visibleCursor = getVisibleUsageProvider('cursor', cursor, usageSettings)
   const visibleZcode = getVisibleUsageProvider('zcode', zcode, usageSettings)
+  const visibleNan = getVisibleUsageProvider('nan', nan, usageSettings)
   const showClaude =
     visibleClaude !== null &&
     statusBarItems.includes('claude') &&
@@ -155,6 +157,8 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     visibleZcode !== null &&
     statusBarItems.includes('zcode') &&
     (rateLimits.zcodePlanApiKeyConfigured || isStatusBarItemAvailable('zcode', detectedAgentIds))
+  // Why: the NaN gateway key is account auth, not a CLI on PATH, so detection-gating doesn't apply.
+  const showNan = visibleNan !== null && statusBarItems.includes('nan')
   // Why: OpenCode Go is web/cookie-auth, not a CLI on PATH, so detection-gating doesn't apply.
   const visibleOpencodeGo = getVisibleUsageProvider('opencode-go', opencodeGo, usageSettings)
   const showOpencodeGo = visibleOpencodeGo !== null && statusBarItems.includes('opencode-go')
@@ -174,11 +178,12 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     showMiniMax ||
     showGrok ||
     showCursor ||
-    showZcode
+    showZcode ||
+    showNan
   const anyVisible = hasVisibleUsageMeters || showResourceUsage
   // Why: include Settings so durable managed accounts count — a configured user isn't shown the empty state while snapshots hydrate.
   const isEmptyUsageState = isUsageEmptyState(
-    { claude, codex, gemini, opencodeGo, kimi, antigravity, minimax, grok, cursor, zcode },
+    { claude, codex, gemini, opencodeGo, kimi, antigravity, minimax, grok, cursor, zcode, nan },
     usageSettings
   )
   // Why: one-time nudge — once dismissed, stays hidden even if providers reconnect later.
@@ -193,7 +198,8 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     minimax?.status === 'fetching' ||
     grok?.status === 'fetching' ||
     cursor?.status === 'fetching' ||
-    zcode?.status === 'fetching'
+    zcode?.status === 'fetching' ||
+    nan?.status === 'fetching'
 
   const floatingTerminalActionLabel = floatingTerminalOpen
     ? 'Minimize Floating Workspace'
@@ -212,7 +218,8 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     showMiniMax ? visibleMiniMax : null,
     showGrok ? visibleGrok : null,
     showCursor ? visibleCursor : null,
-    showZcode ? visibleZcode : null
+    showZcode ? visibleZcode : null,
+    showNan ? visibleNan : null
   ].filter((p): p is ProviderRateLimits => p !== null)
 
   const handleManageAccounts = (): void => {
@@ -262,6 +269,8 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     isRefreshing,
     menuOpen,
     menuPoint,
+    // Why: the toggle only means something once Gentle Shell has a NaN key on this host.
+    nanUsageAvailable: visibleNan !== null,
     overflowing,
     petEnabled,
     recordFeatureInteraction,

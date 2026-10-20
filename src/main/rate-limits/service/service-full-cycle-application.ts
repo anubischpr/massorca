@@ -39,6 +39,7 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
       grokResultPromise,
       cursorResultPromise,
       zcodeResultPromise,
+      nanResultPromise,
       antigravityResultPromise
     } = prepared
     if (signal.aborted) {
@@ -191,18 +192,21 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
         : this.state.minimax
     })
 
-    const [grokSettled, cursorSettled, zcodeSettled, antigravitySettled] = await Promise.all([
-      grokResultPromise,
-      cursorResultPromise,
-      zcodeResultPromise,
-      antigravityResultPromise
-    ])
+    const [grokSettled, cursorSettled, zcodeSettled, nanSettled, antigravitySettled] =
+      await Promise.all([
+        grokResultPromise,
+        cursorResultPromise,
+        zcodeResultPromise,
+        nanResultPromise,
+        antigravityResultPromise
+      ])
     if (signal.aborted) {
       return
     }
     const grok = settleSiblingProviderResult('grok', grokSettled)
     const cursor = settleSiblingProviderResult('cursor', cursorSettled)
     const zcode = settleSiblingProviderResult('zcode', zcodeSettled)
+    const nan = settleSiblingProviderResult('nan', nanSettled)
     const shouldApplyZcode = zcodeGeneration === this.zcodeFetchGeneration
     const antigravity = settleSiblingProviderResult('antigravity', antigravitySettled)
     // Why: the stale policy keeps a recent snapshot through a failed refresh, but
@@ -227,6 +231,7 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
     if (shouldApplyZcode) {
       this.trackActiveFailureStreak('zcode', zcode)
     }
+    this.trackActiveFailureStreak('nan', nan)
     this.trackActiveFailureStreak('antigravity', antigravity)
     this.updateState({
       ...this.state,
@@ -239,6 +244,7 @@ export abstract class RateLimitServiceFullCycleApplication extends RateLimitServ
           : zcode.status === 'error' && !sameZcodeAccount
             ? zcode
             : this.applyStalePolicy(zcode, previousState.zcode),
+      nan: this.applyStalePolicy(nan, previousState.nan),
       antigravity: this.applyStalePolicy(antigravity, previousState.antigravity)
     })
   }

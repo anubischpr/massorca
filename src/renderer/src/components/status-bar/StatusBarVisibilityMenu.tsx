@@ -21,6 +21,7 @@ export function StatusBarVisibilityMenu({
     detectedAgentIds,
     menuOpen,
     menuPoint,
+    nanUsageAvailable,
     recordFeatureInteraction,
     setMenuOpen,
     statusBarItems,
@@ -143,6 +144,18 @@ export function StatusBarVisibilityMenu({
           >
             <AgentIcon agent="zcode" size={14} />
             {translate('auto.components.status.bar.StatusBar.zcodeUsageMenu', 'ZCode Usage')}
+          </DropdownMenuCheckboxItem>
+        )}
+        {nanUsageAvailable && (
+          <DropdownMenuCheckboxItem
+            checked={statusBarItems.includes('nan')}
+            onCheckedChange={() => {
+              recordFeatureInteraction('usage-tracking')
+              toggleStatusBarItem('nan')
+            }}
+          >
+            <AgentIcon agent="pi" size={14} />
+            {translate('auto.components.status.bar.StatusBar.nanUsageMenu', 'NaN Usage')}
           </DropdownMenuCheckboxItem>
         )}
         <DropdownMenuCheckboxItem

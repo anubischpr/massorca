@@ -41,6 +41,10 @@ vi.mock('./zcode-usage-fetcher', () => ({
   fetchZcodeRateLimits: vi.fn(),
   hasZcodeCliPlanCredentials: vi.fn(() => false)
 }))
+// Why: keep the NaN meter offline; a real Gentle Shell key on the dev machine must not reach the network.
+vi.mock('./nan-gateway-credentials', () => ({
+  readNanGatewayCredential: vi.fn(async () => ({ status: 'missing' }))
+}))
 
 vi.mock('./minimax/minimax-fetcher', () => ({
   fetchMiniMaxRateLimits: vi.fn()

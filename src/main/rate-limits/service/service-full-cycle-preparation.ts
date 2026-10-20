@@ -6,6 +6,8 @@ import { readGrokAuthSession } from '../grok-auth'
 import { fetchCursorRateLimits } from '../cursor-fetcher'
 import { readCursorAuthSession } from '../cursor-auth'
 import { fetchZcodeRateLimits } from '../zcode-usage-fetcher'
+import { fetchNanRateLimits } from '../nan-usage-fetcher'
+import { readNanGatewayCredential } from '../nan-gateway-credentials'
 import { fetchAntigravityRateLimits } from '../antigravity-usage-fetcher'
 import { antigravityUsageDisabledSnapshot } from '../antigravity-usage-snapshot'
 import { ZCODE_PLAN_SITE_BASE_URLS } from '../../../shared/zcode-plan-sites'
@@ -51,6 +53,7 @@ export type FetchAllCyclePrepared = {
   grokResultPromise: Promise<SettledProviderResult>
   cursorResultPromise: Promise<SettledProviderResult>
   zcodeResultPromise: Promise<SettledProviderResult>
+  nanResultPromise: Promise<SettledProviderResult>
   antigravityResultPromise: Promise<SettledProviderResult>
 }
 
@@ -166,7 +169,8 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
       cursor: this.withFetchingStatus(previousState.cursor, 'cursor'),
       zcode: zcodeConfigChanged
         ? this.withFetchingStatus(null, 'zcode')
-        : this.withFetchingStatus(previousState.zcode, 'zcode')
+        : this.withFetchingStatus(previousState.zcode, 'zcode'),
+      nan: this.withFetchingStatus(previousState.nan, 'nan')
     })
 
     // Why its own promise: the keychain read and the desktop state.vscdb read
@@ -189,6 +193,17 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
       (value) => ({ status: 'fulfilled', value }) as const,
       (reason) => ({ status: 'rejected', reason }) as const
     )
+
+    // Why its own promise: the key read must not delay other providers.
+    const nanResultPromise = readNanGatewayCredential()
+      .then((credential) => {
+        this.nanGatewayKeyConfigured = credential.status === 'ok'
+        return fetchNanRateLimits({ signal, credential })
+      })
+      .then(
+        (value) => ({ status: 'fulfilled', value }) as const,
+        (reason) => ({ status: 'rejected', reason }) as const
+      )
 
     // Hidden meters avoid the CLI spawn; the separate promise keeps other providers responsive.
     const antigravityResultPromise = (
@@ -309,6 +324,7 @@ export abstract class RateLimitServiceFullCyclePreparation extends RateLimitServ
       grokResultPromise,
       cursorResultPromise,
       zcodeResultPromise,
+      nanResultPromise,
       antigravityResultPromise
     }
   }

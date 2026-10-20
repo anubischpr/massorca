@@ -111,6 +111,9 @@ export function ProviderIcon({ provider }: { provider: string }): React.JSX.Elem
   if (provider === 'cursor') {
     return <AgentIcon agent="cursor" size={13} />
   }
+  if (provider === 'nan') {
+    return <AgentIcon agent="pi" size={13} />
+  }
   return <ClaudeIcon size={13} />
 }
 
@@ -162,7 +165,8 @@ export function getWindowSections(
       ...bucketSections,
       // Why: Cursor reports the plan total in `monthly` and its pools as buckets,
       // so dropping it here would hide the number closest to the user's cap.
-      ...(p.monthly
+      // Why: NaN's monthly figure repeats its most-used model bucket, so listing it again adds a duplicate row.
+      ...(p.monthly && p.provider !== 'nan'
         ? [
             {
               label:
