@@ -4,6 +4,7 @@ import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { RateLimitState } from '../../../../shared/rate-limit-types'
 import { createEmptyRateLimitState } from '../../../../shared/rate-limit-state-factory'
 import { getActiveRuntimeTarget } from '../../runtime/runtime-client-target'
+import { getRuntimeEnvironmentIdForWorktree } from '../../lib/worktree-runtime-owner'
 import {
   refreshHostRateLimits,
   watchHostRateLimits,
@@ -35,10 +36,10 @@ function applyEvent(environmentId: string, event: HostRateLimitEvent): void {
 }
 
 /**
- * The status bar reads usage from whichever runtime owns the active workspace:
- * the paired host when one is active (same owner as the account switchers,
- * covering folder workspaces too since the host runs them), else this desktop.
- * SSH workspaces keep the desktop owner, matching claudeTarget/codexTarget.
+ * The status bar reads usage from whichever runtime owns the active workspace
+ * (worktree or folder workspace placed on a paired host), else the global
+ * active environment, else this desktop. SSH workspaces keep the desktop
+ * owner, matching claudeTarget/codexTarget.
  */
 export function useEffectiveRateLimits(
   settings: Pick<GlobalSettings, 'activeRuntimeEnvironmentId'> | null | undefined
@@ -46,8 +47,17 @@ export function useEffectiveRateLimits(
   const localRateLimits = useAppStore((s) => s.rateLimits)
   const refreshLocal = useAppStore((s) => s.refreshRateLimits)
   const environments = useAppStore((s) => s.runtimeEnvironments)
+  // Why: a workspace placed on a paired host does not set the global active environment, so the active workspace's owner decides first.
+  const workspaceOwnerId = useAppStore((s) =>
+    s.activeWorktreeId ? getRuntimeEnvironmentIdForWorktree(s, s.activeWorktreeId) : undefined
+  )
   const target = getActiveRuntimeTarget(settings)
-  const environmentId = target.kind === 'environment' ? target.environmentId : null
+  const environmentId =
+    workspaceOwnerId !== undefined
+      ? workspaceOwnerId
+      : target.kind === 'environment'
+        ? target.environmentId
+        : null
   const entry = useHostRateLimitCache((s) =>
     environmentId ? s.byEnvironmentId[environmentId] : undefined
   )

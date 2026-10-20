@@ -9,7 +9,12 @@ import { useHostRateLimitCache } from './host-rate-limit-cache'
 
 const mocks = vi.hoisted(() => ({
   watchHostRateLimits: vi.fn(),
-  refreshHostRateLimits: vi.fn()
+  refreshHostRateLimits: vi.fn(),
+  getRuntimeEnvironmentIdForWorktree: vi.fn()
+}))
+
+vi.mock('../../lib/worktree-runtime-owner', () => ({
+  getRuntimeEnvironmentIdForWorktree: mocks.getRuntimeEnvironmentIdForWorktree
 }))
 
 vi.mock('../../runtime/host-rate-limit-watcher', () => ({
@@ -43,6 +48,7 @@ const stopWatch = vi.fn()
 beforeEach(() => {
   mocks.watchHostRateLimits.mockReset()
   mocks.refreshHostRateLimits.mockReset()
+  mocks.getRuntimeEnvironmentIdForWorktree.mockReset()
   stopWatch.mockReset()
   mocks.watchHostRateLimits.mockImplementation(
     (_id: string, onEvent: (e: HostRateLimitEvent) => void) => {
@@ -73,6 +79,18 @@ afterEach(() => {
 })
 
 describe('useEffectiveRateLimits', () => {
+  it('follows the active workspace owner even when the global active environment is unset', () => {
+    useAppStore.setState({ activeWorktreeId: 'wt-1' })
+    mocks.getRuntimeEnvironmentIdForWorktree.mockReturnValue('env-1')
+    const { result } = renderHook(() =>
+      useEffectiveRateLimits({ activeRuntimeEnvironmentId: null })
+    )
+    expect(mocks.watchHostRateLimits).toHaveBeenCalledWith('env-1', expect.any(Function))
+    act(() => emit({ type: 'state', state: host }))
+    expect(result.current.source).toBe('host')
+    expect(result.current.rateLimits.nan?.provider).toBe('nan')
+  })
+
   it('uses the local snapshot without watching a host for local workspaces', () => {
     const { result } = renderHook(() =>
       useEffectiveRateLimits({ activeRuntimeEnvironmentId: null })
