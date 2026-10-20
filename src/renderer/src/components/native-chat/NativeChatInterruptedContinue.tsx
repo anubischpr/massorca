@@ -117,7 +117,7 @@ export function NativeChatInterruptedContinue({
     'Continue, and the agent first checks whether its last step finished.'
   )
   return (
-    <div className="mx-auto flex w-full max-w-4xl items-center justify-end px-4 py-1">
+    <div className="mx-auto flex w-full max-w-(--chat-content-max-width) items-center justify-end px-4 py-1">
       <Tooltip>
         <TooltipTrigger asChild>
           <Button

@@ -234,16 +234,15 @@ export function NativeChatStructuredSession(
     submissions: controller.submissions,
     deliveryNotices
   })
+  const steerQueued = stopControls.stopping ? undefined : submits.queuedMessages.steerNewest
   const notices = structuredSessionNotices({
     launch,
     agentLabel,
     sessionError,
     composerError: composerError ?? continuation.continueError,
-    availability
+    availability,
+    hostNotice
   })
-  if (hostNotice) {
-    notices.push(hostNotice)
-  }
   return (
     <div
       ref={rootRef}
@@ -313,6 +312,84 @@ export function NativeChatStructuredSession(
               </NativeChatOrcaStopContext.Provider>
             </NativeChatRewindContext.Provider>
           )}
+          {readFailedFinally ? null : (
+            <>
+              <NativeChatInterruptedContinue continuation={continuation} />
+              {/* Host-held drafts, never transcript rows. Above the status area, so running shells and agents sit next to the composer. */}
+              <NativeChatQueuedMessageList
+                controller={submits.queuedMessages}
+                chatWorktreeId={ownerWorktreeId ?? null}
+                agentName={agentLabel}
+                statedFailures={startFailures}
+                steerHeld={stopControls.stopping}
+                focusComposer={focusComposer}
+              />
+              <NativeChatStructuredSessionStatus
+                sessionId={props.sessionId}
+                paneKey={paneKey}
+                isVisible={props.isVisible}
+                backgroundTasks={controller.backgroundTasks}
+                backgroundStops={controller.backgroundStops}
+              />
+              {!prompt && controller.threadGoal?.goal ? (
+                <NativeChatThreadGoalBanner
+                  key={props.sessionId}
+                  goal={controller.threadGoal.goal}
+                  pending={controller.threadGoal.pending}
+                  isVisible={props.isVisible}
+                  runningTurn={
+                    controller.turnId === null
+                      ? null
+                      : { startedAt: controller.workingStartedAt ?? null }
+                  }
+                  onChange={(change) => void controller.threadGoal?.change(change)}
+                />
+              ) : null}
+              {/* Prompt cards take the composer's slot, below the background-task dock. */}
+              {composerShown ? null : <NativeChatPromptSlotNotices notices={notices} />}
+              {prompt && approval ? (
+                <NativeChatApprovalCard
+                  key={`${prompt.itemId}:${prompt.revision}`}
+                  approval={approval}
+                  onChoose={(optionId) =>
+                    void promptResponse.respond(prompt, { kind: 'option', optionId })
+                  }
+                  isSubmitting={promptResponse.holds(prompt)}
+                  onCancel={cancelPrompt}
+                  shouldFocus={!promptsUnanswerable && props.isVisible && props.isFocusedGroup}
+                  onLinkClick={onLinkClick}
+                  allowFileUriLinks={onLinkClick !== undefined}
+                />
+              ) : null}
+              {prompt && questionBody ? (
+                <NativeChatStructuredQuestionCard
+                  key={`${prompt.itemId}:${prompt.revision}`}
+                  questions={questions}
+                  onAnswer={(response) => void promptResponse.respond(prompt, response)}
+                  isSubmitting={promptResponse.holds(prompt)}
+                  onCancel={cancelPrompt}
+                  shouldFocus={!promptsUnanswerable && props.isVisible && props.isFocusedGroup}
+                  answerInputRef={questionAnswerInputRef}
+                />
+              ) : null}
+              {composerShown ? (
+                <NativeChatComposer
+                  ref={composerRef}
+                  terminalTabId={props.tabId}
+                  paneKey={paneKey}
+                  draftScopeKey={structuredAgentSessionDraftScopeKey(props.sessionId)}
+                  targetPtyId={null}
+                  agent={props.agent}
+                  {...stopControls.composer}
+                  steerQueued={steerQueued}
+                  structuredTransport={structuredTransport}
+                  launchSeed={{ ...launchDraftSignal, ownsTabWideLaunchDraft: true }}
+                  notices={notices}
+                  recallSource={{ messages: session.messages }}
+                />
+              ) : null}
+            </>
+          )}
         </div>
         <NativeChatSessionSummary
           key={props.sessionId}
@@ -330,84 +407,6 @@ export function NativeChatStructuredSession(
           isVisible={props.isVisible}
         />
       </div>
-      {readFailedFinally ? null : (
-        <>
-          <NativeChatInterruptedContinue continuation={continuation} />
-          {/* Host-held drafts, never transcript rows. Above the status area, so running shells and agents sit next to the composer. */}
-          <NativeChatQueuedMessageList
-            controller={submits.queuedMessages}
-            chatWorktreeId={ownerWorktreeId ?? null}
-            agentName={agentLabel}
-            statedFailures={startFailures}
-            steerHeld={stopControls.stopping}
-            focusComposer={focusComposer}
-          />
-          <NativeChatStructuredSessionStatus
-            sessionId={props.sessionId}
-            paneKey={paneKey}
-            isVisible={props.isVisible}
-            backgroundTasks={controller.backgroundTasks}
-            backgroundStops={controller.backgroundStops}
-          />
-          {!prompt && controller.threadGoal?.goal ? (
-            <NativeChatThreadGoalBanner
-              key={props.sessionId}
-              goal={controller.threadGoal.goal}
-              pending={controller.threadGoal.pending}
-              isVisible={props.isVisible}
-              runningTurn={
-                controller.turnId === null
-                  ? null
-                  : { startedAt: controller.workingStartedAt ?? null }
-              }
-              onChange={(change) => void controller.threadGoal?.change(change)}
-            />
-          ) : null}
-          {/* Prompt cards take the composer's slot, below the background-task dock. */}
-          {composerShown ? null : <NativeChatPromptSlotNotices notices={notices} />}
-          {prompt && approval ? (
-            <NativeChatApprovalCard
-              key={`${prompt.itemId}:${prompt.revision}`}
-              approval={approval}
-              onChoose={(optionId) =>
-                void promptResponse.respond(prompt, { kind: 'option', optionId })
-              }
-              isSubmitting={promptResponse.holds(prompt)}
-              onCancel={cancelPrompt}
-              shouldFocus={!promptsUnanswerable && props.isVisible && props.isFocusedGroup}
-              onLinkClick={onLinkClick}
-              allowFileUriLinks={onLinkClick !== undefined}
-            />
-          ) : null}
-          {prompt && questionBody ? (
-            <NativeChatStructuredQuestionCard
-              key={`${prompt.itemId}:${prompt.revision}`}
-              questions={questions}
-              onAnswer={(response) => void promptResponse.respond(prompt, response)}
-              isSubmitting={promptResponse.holds(prompt)}
-              onCancel={cancelPrompt}
-              shouldFocus={!promptsUnanswerable && props.isVisible && props.isFocusedGroup}
-              answerInputRef={questionAnswerInputRef}
-            />
-          ) : null}
-          {composerShown ? (
-            <NativeChatComposer
-              ref={composerRef}
-              terminalTabId={props.tabId}
-              paneKey={paneKey}
-              draftScopeKey={structuredAgentSessionDraftScopeKey(props.sessionId)}
-              targetPtyId={null}
-              agent={props.agent}
-              {...stopControls.composer}
-              steerQueued={stopControls.stopping ? undefined : submits.queuedMessages.steerNewest}
-              structuredTransport={structuredTransport}
-              launchSeed={{ ...launchDraftSignal, ownsTabWideLaunchDraft: true }}
-              notices={notices}
-              recallSource={{ messages: session.messages }}
-            />
-          ) : null}
-        </>
-      )}
       {paneCommands.menu}
       <LinkActionPopover request={linkActionRequest} onClose={closeLinkActions} />
     </div>
