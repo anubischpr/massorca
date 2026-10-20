@@ -4,6 +4,7 @@ import { AgentStateDot, agentStateLabel } from '@/components/AgentStateDot'
 import { AgentChildRowContent } from '@/components/AgentChildRowContent'
 import type { DashboardAgentRow as DashboardAgentRowData } from '@/components/dashboard/useDashboardData'
 import { AgentIcon } from '@/lib/agent-catalog'
+import { piRuntimeForSessionFilePath } from '../../../../shared/pi-runtime-selection'
 import { agentTypeToIconAgent, formatAgentRowTypeLabel } from '@/lib/agent-status'
 import { cn } from '@/lib/utils'
 import { getAgentDotState } from './worktree-card-agent-summary'
@@ -221,7 +222,15 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
           />
           {!hideIcon && (
             <span className="inline-flex shrink-0" title={formatAgentRowTypeLabel(agent)}>
-              <AgentIcon agent={agentTypeToIconAgent(agent.agentType)} size={13} />
+              <AgentIcon
+                agent={agentTypeToIconAgent(agent.agentType)}
+                size={13}
+                chatPiRuntime={
+                  agent.agentType === 'pi' && agent.entry.providerSession?.transcriptPath
+                    ? piRuntimeForSessionFilePath(agent.entry.providerSession.transcriptPath)
+                    : undefined
+                }
+              />
             </span>
           )}
           <span

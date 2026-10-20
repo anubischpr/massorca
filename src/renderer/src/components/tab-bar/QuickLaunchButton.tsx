@@ -3,8 +3,8 @@ import { Settings as SettingsIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { DropdownMenuItem, DropdownMenuShortcut } from '@/components/ui/dropdown-menu'
 import { getAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
-import { piRuntimeLabel } from '@/lib/pi-agent-display'
-import { usePiRuntime } from '@/lib/use-pi-runtime'
+import { agentBrandRowAttribute, piRuntimeLabel } from '@/lib/pi-agent-display'
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { useAppStore } from '@/store'
 import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
 import { useDetectedAgents } from '@/hooks/useDetectedAgents'
@@ -126,7 +126,7 @@ function QuickLaunchAgentMenuItemsInner({
   )
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
-  const piRuntime = usePiRuntime()
+  const piRuntime = usePiDisplayRuntime({ worktreeId })
   const newAgentShortcut = useOptionalShortcutLabel('tab.newAgent')
 
   const openAgentSettings = useCallback(() => {
@@ -243,7 +243,6 @@ function QuickLaunchAgentMenuItemsInner({
       {agents.map((agent) => {
         const entry = getCatalogEntry(agent)
         const label = agent === 'pi' ? piRuntimeLabel(piRuntime) : (entry?.label ?? agent)
-        const isGentleShellEntry = agent === 'pi' && piRuntime === 'gentle-shell'
         const showsDefaultAgentShortcut =
           newAgentShortcut !== null && defaultAgent !== 'blank' && agent === defaultAgent
         return (
@@ -251,7 +250,7 @@ function QuickLaunchAgentMenuItemsInner({
             key={agent}
             disabled={disabled}
             onSelect={() => runLaunch(agent)}
-            data-agent-brand={isGentleShellEntry ? 'gentle-shell' : undefined}
+            data-agent-brand={agentBrandRowAttribute(agent, piRuntime)}
             className="gap-2 rounded-[7px] px-2 py-1.5 text-[12px] leading-5 font-medium"
             title={translate(
               'auto.components.tab.bar.QuickLaunchButton.ec2adf093e',

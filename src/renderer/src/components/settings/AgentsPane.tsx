@@ -3,7 +3,7 @@ import { Info } from 'lucide-react'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import { getAgentCatalog, getAgentDisplayLabel } from '@/lib/agent-catalog'
-import { usePiRuntime } from '@/lib/use-pi-runtime'
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { useDetectedAgents, type AgentDetectionTarget } from '@/hooks/useDetectedAgents'
 import { useAppStore } from '@/store'
 import { AgentAwakeSetting } from './AgentAwakeSetting'
@@ -180,7 +180,7 @@ export function AgentsPane({
     [detectedList]
   )
   const catalog = getAgentCatalog()
-  const piRuntime = usePiRuntime()
+  const piRuntime = usePiDisplayRuntime()
   const defaultAgent = settings.defaultTuiAgent
   const cmdOverrides = settings.agentCmdOverrides ?? {}
   const agentDefaultArgs = settings.agentDefaultArgs ?? {}

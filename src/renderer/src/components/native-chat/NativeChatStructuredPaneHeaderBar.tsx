@@ -67,6 +67,7 @@ export function NativeChatStructuredPaneHeaderBar({
         <AgentSessionContinuationDialog
           open
           request={handOffRequest}
+          sourceChatPiRuntime={controller.hostPiRuntime}
           onOpenChange={(open) => {
             if (!open) {
               closeHandOff()

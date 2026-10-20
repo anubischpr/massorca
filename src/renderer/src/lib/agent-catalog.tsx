@@ -17,7 +17,8 @@ import { AGENT_FAVICON_ASSETS } from './agent-favicon-assets'
 import { buildAgentCatalogEntries } from './agent-catalog-entries'
 import { GentleShellIcon } from './agent-icon-gentle-shell'
 import { piRuntimeLabel, type PiDisplayRuntime } from './pi-agent-display'
-import { usePiRuntime } from './use-pi-runtime'
+import { usePiDisplayRuntime } from './use-pi-runtime'
+import type { PiRuntimeSelection } from '../../../shared/pi-runtime-selection'
 
 export type AgentCatalogEntry = {
   id: TuiAgent
@@ -49,12 +50,18 @@ export function getAgentDisplayLabel(agent: TerminalAgent, piRuntime: PiDisplayR
 
 export function AgentIcon({
   agent,
-  size = 14
+  size = 14,
+  chatPiRuntime
 }: {
   agent: TerminalAgent | null | undefined
   size?: number
+  /** The Pi runtime a chat recorded, for a row that shows that chat; otherwise the workspace's runtime is used. */
+  chatPiRuntime?: PiRuntimeSelection
 }): React.JSX.Element {
-  const piRuntime = usePiRuntime()
+  const piRuntime = usePiDisplayRuntime({
+    enabled: agent === 'pi',
+    chatRuntime: chatPiRuntime
+  })
   // Why: render a neutral question-mark glyph when the agent identity is not
   // yet known. Before, the caller coerced null → 'claude', which caused Codex
   // panes to briefly show the Claude icon until the first hook callback
@@ -72,11 +79,7 @@ export function AgentIcon({
     return <DroidIcon size={size} />
   }
   if (agent === 'pi') {
-    return piRuntime === 'gentle-shell' ? (
-      <GentleShellIcon size={size} />
-    ) : (
-      <PiIcon size={size} />
-    )
+    return piRuntime === 'gentle-shell' ? <GentleShellIcon size={size} /> : <PiIcon size={size} />
   }
   if (agent === 'omp') {
     return <OmpIcon size={size} />

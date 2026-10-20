@@ -325,8 +325,8 @@
   --accent: #404040;
   --accent-foreground: #fafafa;
   --agent-gentle-shell-fg: #f59ac0;
-  --agent-gentle-shell-hover-bg: color-mix(in srgb, #f59ac0 10%, var(--popover));
-  --agent-gentle-shell-hover-fg: #f59ac0;
+  --agent-gentle-shell-hover-bg: #fff0f6;
+  --agent-gentle-shell-hover-fg: #4a1630;
   --border: rgb(255 255 255 / 0.07);
   --input: rgb(255 255 255 / 0.15);
   --ring: #737373;
@@ -1346,14 +1346,16 @@ html.native-shell .app-layout {
 
 /* ── Gentle Shell agent row ───────────────────────────── */
 
-/* Why: the brand color and pale-pink highlight are scoped to the one Gentle Shell menu row.
-   data-highlighted is set by Radix for both pointer hover and keyboard focus, so they match. */
-[role='menuitem'][data-agent-brand='gentle-shell'] {
+/* Why: brand text and a pale-pink highlight are scoped to rows marked data-agent-brand. data-highlighted (Radix)
+   and data-selected (cmdk) cover pointer and keyboard highlight alike, so they match hover. */
+[data-agent-brand='gentle-shell'] {
   color: var(--agent-gentle-shell-fg);
 }
 
-[role='menuitem'][data-agent-brand='gentle-shell']:hover,
-[role='menuitem'][data-agent-brand='gentle-shell'][data-highlighted] {
+[data-agent-brand='gentle-shell']:hover,
+[data-agent-brand='gentle-shell'][data-highlighted],
+[data-agent-brand='gentle-shell'][data-selected='true'],
+[data-agent-brand='gentle-shell'][aria-selected='true'] {
   background: var(--agent-gentle-shell-hover-bg);
   color: var(--agent-gentle-shell-hover-fg);
 }

@@ -27,6 +27,7 @@ import {
   useStructuredAgentDeclaredAccess
 } from './structured-agent-declared-access'
 import type { StructuredAgentSessionLaunchView } from './use-native-chat-provisional-launch'
+import { useRecordChatPiRuntime } from '@/lib/chat-pi-runtime-record'
 import {
   getStructuredAgentSessionLaunchSelection,
   holdStructuredAgentSessionLaunchOption
@@ -290,6 +291,8 @@ export function useStructuredAgentSessionOptions(args: {
 
   const support =
     transportEnabled && conversationSupport?.sessionId === sessionId ? conversationSupport : null
+  // Why: a tab and a hand-off label name the chat's own Pi runtime, which only this chat's options read knows.
+  useRecordChatPiRuntime(sessionId, support?.piRuntime)
   return {
     conversationCommands: support?.commands ?? [],
     /** Absent unless this host and session can change the goal. */

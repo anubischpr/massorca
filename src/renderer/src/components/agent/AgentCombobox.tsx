@@ -15,7 +15,9 @@ import {
   ContextMenuTrigger
 } from '@/components/ui/context-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { AgentIcon, type AgentCatalogEntry } from '@/lib/agent-catalog'
+import { AgentIcon, getAgentDisplayLabel, type AgentCatalogEntry } from '@/lib/agent-catalog'
+import { agentBrandRowAttribute } from '@/lib/pi-agent-display'
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import {
   agentPickerBlankTerminalMatches,
   getAgentPickerCommandValue,
@@ -67,6 +69,8 @@ type ItemRenderArgs = {
   onSetDefault?: () => void
   icon: React.ReactNode
   label: string
+  /** `data-agent-brand` for the row; set on the Gentle Shell entry only. */
+  brand?: 'gentle-shell'
 }
 
 type AgentDefaultContextMenuProps = {
@@ -123,13 +127,15 @@ function renderItem({
   onSelect,
   onSetDefault,
   icon,
-  label
+  label,
+  brand
 }: ItemRenderArgs): React.ReactNode {
   const row = (
     <CommandItem
       key={key}
       value={itemValue}
       onSelect={onSelect}
+      data-agent-brand={brand}
       className="items-center gap-2 px-3 py-1.5"
     >
       <Check
@@ -171,6 +177,7 @@ export default function AgentCombobox({
   const inputRef = React.useRef<HTMLInputElement | null>(null)
   const focusFrameRef = React.useRef<number | null>(null)
 
+  const piRuntime = usePiDisplayRuntime()
   const selectedAgent = useMemo<AgentCatalogEntry | null>(
     () => (value ? (agents.find((agent) => agent.id === value) ?? null) : null),
     [agents, value]
@@ -338,7 +345,7 @@ export default function AgentCombobox({
               {selectedAgent ? (
                 <AgentIconLabel
                   icon={<AgentIcon agent={selectedAgent.id} size={14} />}
-                  label={selectedAgent.label}
+                  label={getAgentDisplayLabel(selectedAgent.id, piRuntime)}
                 />
               ) : (
                 <AgentIconLabel
@@ -406,7 +413,8 @@ export default function AgentCombobox({
                   onSelect: () => handleSelect(agent.id),
                   onSetDefault: onSetDefault ? () => onSetDefault(agent.id) : undefined,
                   icon: <AgentIcon agent={agent.id} />,
-                  label: agent.label
+                  label: getAgentDisplayLabel(agent.id, piRuntime),
+                  brand: agentBrandRowAttribute(agent.id, piRuntime)
                 })
               )}
             </CommandList>

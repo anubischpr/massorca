@@ -5,7 +5,9 @@ import {
   getTerminalQuickCommandBody,
   isTerminalAgentQuickCommand
 } from '../../../../shared/terminal-quick-commands'
-import { AgentIcon, getAgentLabel } from '@/lib/agent-catalog'
+import { AgentIcon, getAgentDisplayLabel } from '@/lib/agent-catalog'
+import { agentBrandRowAttribute } from '@/lib/pi-agent-display'
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { translate } from '@/i18n/i18n'
 import { useClipboardTextCopyFeedback } from '@/hooks/use-clipboard-text-copy-feedback'
 import type { HostedTerminalQuickCommand } from '@/hooks/use-terminal-quick-command-hosts'
@@ -54,10 +56,19 @@ export function TabBarQuickCommandItem({
               'Nothing to copy'
             )
 
+  const piRuntime = usePiDisplayRuntime({
+    enabled: isTerminalAgentQuickCommand(command) && command.agent === 'pi'
+  })
+
   return (
     <CommandItem
       value={entry.key}
       onSelect={onRun}
+      data-agent-brand={
+        isTerminalAgentQuickCommand(command)
+          ? agentBrandRowAttribute(command.agent, piRuntime)
+          : undefined
+      }
       className="group/qc mx-1 my-0.5 cursor-pointer items-center gap-2 rounded-[7px] px-2 py-1.5 text-[12px] leading-5 data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
     >
       {isTerminalAgentQuickCommand(command) ? (
@@ -82,7 +93,7 @@ export function TabBarQuickCommandItem({
         </span>
         <span className="block truncate font-mono text-[11px] text-muted-foreground">
           {isTerminalAgentQuickCommand(command)
-            ? `${getAgentLabel(command.agent)}: ${command.prompt}`
+            ? `${getAgentDisplayLabel(command.agent, piRuntime)}: ${command.prompt}`
             : command.command}
         </span>
       </span>

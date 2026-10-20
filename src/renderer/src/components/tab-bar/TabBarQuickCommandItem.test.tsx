@@ -24,7 +24,8 @@ vi.mock('@/i18n/i18n', () => ({
 
 vi.mock('@/lib/agent-catalog', () => ({
   AgentIcon: () => null,
-  getAgentLabel: (agent: string) => agent
+  getAgentLabel: (agent: string) => agent,
+  getAgentDisplayLabel: (agent: string) => agent
 }))
 
 const entry: HostedTerminalQuickCommand = {
