@@ -22,7 +22,7 @@ export type StructuredChatPaneActionsInput = {
   paneKey: string
   target: RuntimeClientTarget
   agent: string
-  /** Pi-only: the chat's runtime; undefined for every other agent. */
+  /** Pi-only: the runtime the chat's own session names; undefined for another agent or a session with no evidence. */
   piRuntime?: PiRuntimeSelection
   providerSession: AgentProviderSessionMetadata | undefined
   workspacePath: string
@@ -38,6 +38,7 @@ export type StructuredChatPaneActionsDeps = {
   releaseProviderChild: ShowStructuredChatInTerminalDeps['releaseProviderChild']
   launchResume: ShowStructuredChatInTerminalDeps['launchResume']
   launchFresh: ShowStructuredChatInTerminalDeps['launchFresh']
+  resolvePiRuntime: ShowStructuredChatInTerminalDeps['resolvePiRuntime']
   recordTerminalLink: ShowStructuredChatInTerminalDeps['recordTerminalLink']
   prepareContinuation: (args: {
     source: AgentSessionContinuationSource
@@ -97,6 +98,7 @@ export function createStructuredChatPaneActions(
           releaseProviderChild: deps.releaseProviderChild,
           launchResume: deps.launchResume,
           launchFresh: deps.launchFresh,
+          resolvePiRuntime: deps.resolvePiRuntime,
           recordTerminalLink: deps.recordTerminalLink,
           closeChatTab: deps.closeTab,
           onReleaseFailed: deps.onTerminalViewReleaseFailed,

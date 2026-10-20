@@ -76,6 +76,42 @@ describe('structured agent session launch', () => {
     }
   })
 
+  describe('the Pi runtime of a new chat', () => {
+    function intentWith(pi: string | undefined, seed?: Record<string, string>) {
+      const initial = useAppStore.getState()
+      const settings = initial.settings!
+      try {
+        useAppStore.setState({
+          settings: { ...settings, agentCmdOverrides: pi ? { pi } : {} }
+        })
+        return createStructuredAgentSessionLaunchIntent(
+          'workspace-1',
+          'pi',
+          'local',
+          undefined,
+          seed
+        )
+      } finally {
+        useAppStore.setState(initial, true)
+      }
+    }
+
+    it('creates a Gentle Shell chat from the host seed when the client names no Pi command', () => {
+      expect(intentWith(undefined, { piRuntime: 'gentle-shell' }).params.piRuntime).toBe(
+        'gentle-shell'
+      )
+    })
+
+    it('never sends stock pi: a stock seed beats a Gentle Shell setting without being named', () => {
+      expect(intentWith('gentle-shell', { piRuntime: 'pi' }).params.piRuntime).toBeUndefined()
+    })
+
+    it('honors an explicit Gentle Shell setting when nothing else names the runtime', () => {
+      expect(intentWith('gentle-shell').params.piRuntime).toBe('gentle-shell')
+      expect(intentWith(undefined).params.piRuntime).toBeUndefined()
+    })
+  })
+
   beforeEach(() => {
     vi.mocked(callStructuredAgentSession).mockReset()
   })

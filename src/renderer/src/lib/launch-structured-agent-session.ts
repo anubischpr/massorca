@@ -1,9 +1,5 @@
 import type { TuiAgent } from '../../../shared/tui-agent'
-import {
-  isPiRuntimeSelection,
-  selectedPiRuntime,
-  type PiRuntimeSelection
-} from '../../../shared/pi-runtime-selection'
+import { resolvePiRuntime, type PiRuntimeSelection } from '../../../shared/pi-runtime-selection'
 import type {
   AgentSessionAttachResult,
   AgentSessionMutationResult
@@ -134,9 +130,10 @@ function buildStructuredAgentSessionLaunchIntent(
   const piRuntime = retainedRuntime
     ? retainedRuntime.value
     : agent === 'pi'
-      ? isPiRuntimeSelection(hostSeedOptions?.piRuntime)
-        ? hostSeedOptions.piRuntime
-        : selectedPiRuntime(state.settings?.agentCmdOverrides?.pi)
+      ? resolvePiRuntime({
+          launchSeed: hostSeedOptions?.piRuntime,
+          command: state.settings?.agentCmdOverrides?.pi
+        })
       : undefined
   const accessMode =
     agent === 'pi'

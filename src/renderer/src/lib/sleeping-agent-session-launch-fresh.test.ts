@@ -101,6 +101,26 @@ describe('launchFreshAgentSession', () => {
     )
   })
 
+  it('starts gentle-shell for a Gentle Shell chat whose client names no Pi command', async () => {
+    store.settings.agentCmdOverrides = {}
+
+    expect(await freshCommand({ worktreeId: 'wt-1', agent: 'pi', piRuntime: 'gentle-shell' })).toBe(
+      'gentle-shell'
+    )
+  })
+
+  it('starts stock pi for a stock Pi chat even when the client Pi command names Gentle Shell', async () => {
+    store.settings.agentCmdOverrides = { pi: 'gentle-shell' }
+
+    expect(await freshCommand({ worktreeId: 'wt-1', agent: 'pi', piRuntime: 'pi' })).toBe('pi')
+  })
+
+  it('honors the client Pi command for a chat whose session names no runtime', async () => {
+    store.settings.agentCmdOverrides = { pi: 'gentle-shell' }
+
+    expect(await freshCommand({ worktreeId: 'wt-1', agent: 'pi' })).toBe('gentle-shell')
+  })
+
   it('starts the configured Gentle Shell command for a Gentle Shell chat', async () => {
     store.settings.agentCmdOverrides = { pi: '/opt/gentle/gentle-shell' }
 

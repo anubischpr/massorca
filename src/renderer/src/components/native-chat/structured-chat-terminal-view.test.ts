@@ -47,6 +47,7 @@ function deps(
       opened(options)
     ),
     launchFresh: vi.fn((_request: unknown, options: LaunchOptions) => opened(options)),
+    resolvePiRuntime: vi.fn(async ({ sessionRuntime }) => sessionRuntime ?? 'pi'),
     recordTerminalLink: vi.fn(),
     closeChatTab: vi.fn(),
     onReleaseFailed: vi.fn(),
@@ -175,13 +176,59 @@ describe('showStructuredChatInTerminal', () => {
       expect(d.releaseProviderChild).toHaveBeenCalledWith(LOCAL, 'session-1')
       expect(d.launchResume).not.toHaveBeenCalled()
       expect(d.launchFresh).toHaveBeenCalledWith(
-        { worktreeId: 'repo::/work/feature', agent },
+        agent === 'pi'
+          ? { worktreeId: 'repo::/work/feature', agent, piRuntime: 'pi' }
+          : { worktreeId: 'repo::/work/feature', agent },
         { onSessionLaunched: expect.any(Function) }
       )
       expect(d.recordTerminalLink).not.toHaveBeenCalled()
       expect(d.closeChatTab).toHaveBeenCalledWith('agent-session-tab-1')
     }
   )
+
+  it('resolves the Pi runtime before it releases the chat, and starts that runtime when the chat has no evidence', async () => {
+    const order: string[] = []
+    const d = deps({
+      releaseProviderChild: vi.fn(async () => {
+        order.push('release')
+        return 'closed' as const
+      }),
+      resolvePiRuntime: vi.fn(async () => {
+        order.push('resolve')
+        return 'gentle-shell' as const
+      })
+    })
+
+    await showStructuredChatInTerminal(args({ launch: { mode: 'fresh', agent: 'pi' } }), d)
+
+    expect(d.resolvePiRuntime).toHaveBeenCalledWith({ worktreeId: 'repo::/work/feature' })
+    expect(order).toEqual(['resolve', 'release'])
+    expect(d.launchFresh).toHaveBeenCalledWith(
+      { worktreeId: 'repo::/work/feature', agent: 'pi', piRuntime: 'gentle-shell' },
+      { onSessionLaunched: expect.any(Function) }
+    )
+  })
+
+  it('hands the runtime the session named to the resolver and keeps it for the resume', async () => {
+    const d = deps()
+
+    await showStructuredChatInTerminal(
+      args({
+        launch: { mode: 'resume', agent: 'pi', providerSession: SESSIONS.pi },
+        piRuntime: 'gentle-shell'
+      }),
+      d
+    )
+
+    expect(d.resolvePiRuntime).toHaveBeenCalledWith({
+      worktreeId: 'repo::/work/feature',
+      sessionRuntime: 'gentle-shell'
+    })
+    expect(d.launchResume).toHaveBeenCalledWith(
+      expect.objectContaining({ agent: 'pi', piRuntime: 'gentle-shell' }),
+      { onSessionLaunched: expect.any(Function) }
+    )
+  })
 
   it('passes the Gentle Shell runtime to a fresh Pi terminal', async () => {
     const d = deps()

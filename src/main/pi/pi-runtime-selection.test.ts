@@ -3,7 +3,9 @@ import {
   PI_RUNTIME_HOME_DIR_NAME,
   isPiRuntimeSelection,
   piRuntimeCommandSettings,
-  resolvePiSessionRuntime,
+  piRuntimeFromSessionEvidence,
+  piTerminalCommandOverrides,
+  resolvePiRuntime,
   selectedPiRuntime
 } from '../../shared/pi-runtime-selection'
 import {
@@ -88,17 +90,53 @@ describe('bounded Pi runtime selection', () => {
   it('resolves an existing chat from its session before the client Pi setting', () => {
     const gentle = '/home/u/.gentle-shell/agent/sessions/--w--/s.jsonl'
     const stock = '/home/u/.pi/agent/sessions/--w--/s.jsonl'
-    expect(resolvePiSessionRuntime({ transcriptPath: gentle, command: 'pi' })).toBe('gentle-shell')
-    expect(resolvePiSessionRuntime({ transcriptPath: stock, command: 'gentle-shell' })).toBe('pi')
-    expect(resolvePiSessionRuntime({ hostRuntime: 'gentle-shell', transcriptPath: stock })).toBe(
+    expect(resolvePiRuntime({ transcriptPath: gentle, command: 'pi' })).toBe('gentle-shell')
+    expect(resolvePiRuntime({ transcriptPath: stock, command: 'gentle-shell' })).toBe('pi')
+    expect(resolvePiRuntime({ hostRecorded: 'gentle-shell', transcriptPath: stock })).toBe(
       'gentle-shell'
     )
-    expect(resolvePiSessionRuntime({ launchSeed: 'gentle-shell', transcriptPath: stock })).toBe(
+    expect(resolvePiRuntime({ launchSeed: 'gentle-shell', transcriptPath: stock })).toBe(
       'gentle-shell'
     )
-    expect(resolvePiSessionRuntime({ hostRuntime: 'nope', command: 'gentle-shell' })).toBe(
+    expect(resolvePiRuntime({ hostRecorded: 'nope', command: 'gentle-shell' })).toBe('gentle-shell')
+    expect(resolvePiRuntime({})).toBe('pi')
+  })
+  it('reads each source in order: host record, transcript, seed, host answer (no client command), setting, stock', () => {
+    const stock = '/home/u/.pi/agent/sessions/--w--/s.jsonl'
+    const gentle = '/home/u/.gentle-shell/agent/sessions/--w--/s.jsonl'
+    expect(resolvePiRuntime({ hostRecorded: 'pi', transcriptPath: gentle })).toBe('pi')
+    expect(resolvePiRuntime({ transcriptPath: gentle, launchSeed: 'pi' })).toBe('gentle-shell')
+    expect(resolvePiRuntime({ launchSeed: 'gentle-shell', hostAnswer: 'pi' })).toBe('gentle-shell')
+    expect(resolvePiRuntime({ transcriptPath: stock, hostAnswer: 'gentle-shell' })).toBe('pi')
+    expect(resolvePiRuntime({ hostAnswer: 'gentle-shell', command: 'pi' })).toBe('pi')
+    expect(resolvePiRuntime({ hostAnswer: 'gentle-shell' })).toBe('gentle-shell')
+    expect(resolvePiRuntime({ hostAnswer: 'pi', command: 'gentle-shell' })).toBe('gentle-shell')
+    expect(resolvePiRuntime({ hostAnswer: 'cliMissing', command: 'gentle-shell' })).toBe(
       'gentle-shell'
     )
-    expect(resolvePiSessionRuntime({})).toBe('pi')
+    expect(resolvePiRuntime({ hostAnswer: 'unknown' })).toBe('pi')
+    expect(resolvePiRuntime({ command: 'gentle-shell --x' })).toBe('gentle-shell')
+  })
+  it('names a session runtime only from the session itself', () => {
+    expect(piRuntimeFromSessionEvidence({})).toBeUndefined()
+    expect(piRuntimeFromSessionEvidence({ launchSeed: 'nope' })).toBeUndefined()
+    expect(piRuntimeFromSessionEvidence({ transcriptPath: '/home/u/.pi/s.jsonl' })).toBe('pi')
+    expect(piRuntimeFromSessionEvidence({ hostRecorded: 'gentle-shell' })).toBe('gentle-shell')
+  })
+  it('gives a terminal launch the host Gentle Shell fallback only when the client names no command', () => {
+    expect(piTerminalCommandOverrides({}, 'gentle-shell')).toEqual({ pi: 'gentle-shell' })
+    expect(piTerminalCommandOverrides({ claude: 'c' }, 'gentle-shell')).toEqual({
+      claude: 'c',
+      pi: 'gentle-shell'
+    })
+    const named = { pi: '/opt/pi --flag' }
+    expect(piTerminalCommandOverrides(named, 'gentle-shell')).toBe(named)
+    const stockHost = { pi: '/opt/pi' }
+    expect(piTerminalCommandOverrides(stockHost, 'pi')).toBe(stockHost)
+    expect(piTerminalCommandOverrides(stockHost, 'unknown')).toBe(stockHost)
+    const none = {}
+    expect(piTerminalCommandOverrides(none, 'cliMissing')).toBe(none)
+    const gentle = { pi: 'gentle-shell' }
+    expect(piTerminalCommandOverrides(gentle, 'unknown')).toBe(gentle)
   })
 })

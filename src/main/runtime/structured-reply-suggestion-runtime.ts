@@ -1,6 +1,6 @@
 import { LOCAL_EXECUTION_HOST_ID, type ExecutionHostId } from '../../shared/execution-host'
 import { lastReplySuggestionExchange } from '../../shared/native-chat-reply-suggestion'
-import { isPiRuntimeSelection, selectedPiRuntime } from '../../shared/pi-runtime-selection'
+import { resolvePiRuntime } from '../../shared/pi-runtime-selection'
 import type { ResolvedSourceControlAiGenerationParams } from '../../shared/source-control-ai'
 import { resolveGenerationTarget } from '../agent-hooks/first-work-generation-target'
 import type { StructuredAgentSessionLogger } from '../native-chat/agent-session-wire/structured-agent-session-logger'
@@ -60,9 +60,10 @@ export function structuredReplySuggestionDeps(
                 'models' in catalog ? catalog.models.map((model) => model.id) : []
               )
           : []
-      const piRuntime = isPiRuntimeSelection(storedRuntime)
-        ? storedRuntime
-        : selectedPiRuntime(settings.agentCmdOverrides?.pi)
+      const piRuntime = resolvePiRuntime({
+        hostRecorded: storedRuntime,
+        command: settings.agentCmdOverrides?.pi
+      })
       const agent = selectReplySuggestionAgent({
         provider: record.provider,
         sessionModel: record.options?.model,

@@ -68,7 +68,7 @@ export type ShowStructuredChatInTerminalArgs = {
   paneKey: string
   sessionId: string
   launch: StructuredChatTerminalLaunch
-  /** Pi-only: the chat's runtime, so the terminal starts the same command. */
+  /** Pi-only: the runtime the chat's own session names; absent until it has evidence, when the host decides. */
   piRuntime?: PiRuntimeSelection
 }
 
@@ -85,6 +85,11 @@ export type StructuredChatTerminalLaunchFresh = (
 ) => boolean
 
 export type ShowStructuredChatInTerminalDeps = {
+  /** Pi-only: the runtime the terminal runs. The session's own runtime wins; without one, the host decides. */
+  resolvePiRuntime: (args: {
+    worktreeId: string
+    sessionRuntime?: PiRuntimeSelection
+  }) => Promise<PiRuntimeSelection>
   releaseProviderChild: (
     target: RuntimeClientTarget,
     sessionId: string
@@ -110,6 +115,14 @@ export async function showStructuredChatInTerminal(
   args: ShowStructuredChatInTerminalArgs,
   deps: ShowStructuredChatInTerminalDeps
 ): Promise<boolean> {
+  // Why first: the host may need a beat to answer, and the chat must not be released until the terminal can start.
+  const piRuntime =
+    args.launch.agent === 'pi'
+      ? await deps.resolvePiRuntime({
+          worktreeId: args.worktreeId,
+          ...(args.piRuntime ? { sessionRuntime: args.piRuntime } : {})
+        })
+      : undefined
   let released: 'closed' | 'unsupported'
   try {
     released = await deps.releaseProviderChild(args.target, args.sessionId)
@@ -137,7 +150,7 @@ export async function showStructuredChatInTerminal(
         worktreeId: args.worktreeId,
         agent: launch.agent,
         providerSession: launch.providerSession,
-        ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
+        ...(piRuntime ? { piRuntime } : {}),
         prompt: '',
         state: 'done',
         capturedAt: now,
@@ -150,7 +163,7 @@ export async function showStructuredChatInTerminal(
       {
         worktreeId: args.worktreeId,
         agent: launch.agent,
-        ...(args.piRuntime ? { piRuntime: args.piRuntime } : {})
+        ...(piRuntime ? { piRuntime } : {})
       },
       options
     )

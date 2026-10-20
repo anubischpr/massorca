@@ -297,6 +297,8 @@ export function useStructuredAgentSessionOptions(args: {
     /** Absent from a host that predates it or a session that writes no context facts. */
     connectors: transportEnabled ? connectors : undefined,
     contextUsage: support?.contextUsage,
+    /** The Pi runtime the host recorded for this chat; absent until its options read answers. */
+    hostPiRuntime: support?.piRuntime,
     /** Undefined until this fence's options read answers. */
     rewind: support?.fence === fence ? support.rewind : undefined,
     optionSnapshot,

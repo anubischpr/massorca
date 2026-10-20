@@ -79,6 +79,41 @@ describe('options at rest', () => {
       accessModeSupport: { modes: ['default', 'full-access'], settable: !running }
     })
   })
+  it.each([
+    ['gentle-shell', 'pi', 'gentle-shell'],
+    ['pi', 'pi', 'pi'],
+    ['gentle-shell', 'codex', undefined],
+    ['not-a-runtime', 'pi', undefined]
+  ] as const)(
+    'publishes the recorded Pi runtime %s of a %s chat as %s',
+    async (recorded, provider, published) => {
+      const record = { ...restingRecord(), provider, options: { piRuntime: recorded } }
+      const session = {
+        child: null,
+        params: { provider },
+        journal: { context: { floor: () => null } }
+      }
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the resting read touches only these members.
+      const context = {
+        deps: {
+          adapter: {},
+          agents: NO_STRUCTURED_AGENTS,
+          store: { getRecord: () => record }
+        },
+        serialize: (_sessionId: string, task: () => Promise<unknown>) => task(),
+        openConversation: async () => session,
+        conversation: async () => session
+      } as unknown as StructuredAgentSessionMutationContext
+
+      const result = await readStructuredAgentSessionOptions(context, SESSION)
+      if (published) {
+        expect(result.piRuntime).toBe(published)
+      } else {
+        expect(result).not.toHaveProperty('piRuntime')
+      }
+    }
+  )
+
   it.each(['codex', 'omp', 'grok', 'opencode'] as const)(
     'omits an unknown model for %s while the catalog is unavailable',
     async (provider) => {

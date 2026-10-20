@@ -22,7 +22,9 @@ import {
   hasExplicitPiCommand,
   isPiRuntimeSelection,
   piTerminalCommandOverrides,
-  type HostPiTerminalRuntime
+  resolvePiRuntime,
+  type HostPiTerminalRuntime,
+  type PiRuntimeSelection
 } from '../../../shared/pi-runtime-selection'
 
 /** A new-tab launch's arguments, plus the host's answer for which Pi a terminal launch runs. */
@@ -101,6 +103,32 @@ export async function askHostPiTerminalRuntime(
   } finally {
     clearTimeout(timer)
   }
+}
+
+/**
+ * The Pi runtime an existing chat's terminal runs: what its session names, else what the workspace's
+ * host runs, else the client's Pi command. The terminal view resolves here, so a chat whose session
+ * names nothing yet still never starts stock `pi` on a host that only has Gentle Shell.
+ */
+export async function resolvePiRuntimeForLaunch(args: {
+  worktreeId: string
+  /** A runtime the session already named; it is final. */
+  sessionRuntime?: PiRuntimeSelection
+}): Promise<PiRuntimeSelection> {
+  if (args.sessionRuntime) {
+    return args.sessionRuntime
+  }
+  const state = useAppStore.getState()
+  const command = state.settings?.agentCmdOverrides?.pi
+  const hostTarget = piTerminalHostTargetToAsk(state, {
+    worktreeId: args.worktreeId,
+    agent: 'pi',
+    cmdOverrides: { pi: command ?? '' }
+  })
+  const hostAnswer = hostTarget
+    ? await askHostPiTerminalRuntime(hostTarget, args.worktreeId)
+    : undefined
+  return resolvePiRuntime({ hostAnswer, command })
 }
 
 /** Tells the user that no Pi runs on the host, the same cause a declined chat names. */

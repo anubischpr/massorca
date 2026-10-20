@@ -258,6 +258,47 @@ describe('launchAgentInNewTab for Pi on the host that runs the terminal', () => 
     expect(mockToastError).not.toHaveBeenCalled()
   })
 
+  it('launches Gentle Shell for a hand-off to Pi on a host that has only Gentle Shell', async () => {
+    hostAnswers('gentle-shell')
+    const { launchAgentInNewTab } = await import('./launch-agent-in-new-tab')
+    const { newAgentLaunchRequestId } = await import('./agent-launch-request-id')
+
+    launchAgentInNewTab({
+      requestId: newAgentLaunchRequestId(),
+      agent: 'pi',
+      worktreeId: 'wt-1',
+      prompt: 'Continue this session',
+      promptDelivery: 'submit-after-ready',
+      launchSource: 'sidebar'
+    })
+
+    await expectQueuedPiCommand(/^gentle-shell(\s|$)/)
+    expect(mockQueueTabStartupCommand).not.toHaveBeenCalledWith(
+      'tab-1',
+      expect.objectContaining({ command: expect.stringMatching(/^pi(\s|$)/) })
+    )
+  })
+
+  it('opens Gentle Shell, not stock pi, when a declined chat falls back to its terminal', async () => {
+    hostAnswers('gentle-shell')
+    const { adoptAgentSessionLaunchVerdict } = await import('./agent-session-launch-plan')
+    const { openDeclinedStructuredLaunchTerminal } =
+      await import('./structured-agent-session-launch-admission')
+
+    const terminal = await openDeclinedStructuredLaunchTerminal({
+      plan: adoptAgentSessionLaunchVerdict({
+        route: 'structured-native-chat',
+        requestId: 'pi-chat',
+        agent: 'pi',
+        worktreeId: 'wt-1'
+      }),
+      worktreeId: 'wt-1'
+    })
+
+    expect(terminal.opened).toBe(true)
+    await expectQueuedPiCommand(/^gentle-shell(\s|$)/)
+  })
+
   it('launches stock pi when the host has stock pi', async () => {
     hostAnswers('pi')
 

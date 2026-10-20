@@ -21,6 +21,7 @@ import type { SleepingAgentSessionRecord } from '../../../shared/agent-session-r
 import type { TuiAgent } from '../../../shared/tui-agent'
 import {
   piRuntimeCommandSettings,
+  resolvePiRuntime,
   type PiRuntimeSelection
 } from '../../../shared/pi-runtime-selection'
 import { translate } from '@/i18n/i18n'
@@ -139,11 +140,16 @@ export function launchFreshAgentSession(
   options?: { onSessionLaunched?: (tabId: string) => void }
 ): boolean {
   const state = useAppStore.getState()
-  const cmdOverrides = request.piRuntime
-    ? piRuntimeCommandSettings(
-        { agentCmdOverrides: state.settings?.agentCmdOverrides },
-        request.piRuntime
-      ).agentCmdOverrides
+  const piRuntime =
+    request.agent === 'pi'
+      ? resolvePiRuntime({
+          launchSeed: request.piRuntime,
+          command: state.settings?.agentCmdOverrides?.pi
+        })
+      : undefined
+  const cmdOverrides = piRuntime
+    ? piRuntimeCommandSettings({ agentCmdOverrides: state.settings?.agentCmdOverrides }, piRuntime)
+        .agentCmdOverrides
     : state.settings?.agentCmdOverrides
   const launchTarget = getResumeLaunchTarget(request.worktreeId)
   const startupPlan = buildAgentStartupPlan({

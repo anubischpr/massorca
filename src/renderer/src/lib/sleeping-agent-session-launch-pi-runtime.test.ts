@@ -112,6 +112,22 @@ describe('launchSleepingAgentSession for Pi runtimes', () => {
     )
   })
 
+  const GENTLE_TRANSCRIPT = '/home/neil/.gentle-shell/agent/sessions/session-1.jsonl'
+
+  it('resumes a record that saved no runtime through gentle-shell when its transcript lives in the Gentle Shell home and the client names no Pi command', async () => {
+    expect(
+      await launchedCommand({
+        ...record,
+        providerSession: { ...record.providerSession, transcriptPath: GENTLE_TRANSCRIPT }
+      })
+    ).toBe(`gentle-shell '--' '--session' '${GENTLE_TRANSCRIPT}'`)
+  })
+
+  it('resumes a stock transcript through pi even when the client Pi command names Gentle Shell', async () => {
+    store.settings.agentCmdOverrides = { pi: 'gentle-shell' }
+    expect(await launchedCommand(record)).toBe(`pi '--session' '${TRANSCRIPT}'`)
+  })
+
   it('resumes a Gentle Shell chat through the configured Gentle Shell command', async () => {
     store.settings.agentCmdOverrides = { pi: '/opt/gentle/gentle-shell' }
     expect(await launchedCommand({ ...record, piRuntime: 'gentle-shell' })).toBe(

@@ -270,7 +270,7 @@ export function NativeChatStructuredSession(
           <NativeChatStructuredPaneHeaderBar
             {...props}
             worktreeId={ownerWorktreeId ?? ''}
-            journalItems={controller.journalItems}
+            controller={controller}
             reportNotice={reportComposerError}
           />
           {find.isOpen ? (

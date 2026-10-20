@@ -73,6 +73,34 @@ function buildQueuedAiVaultResumeCommand(
   return buildAiVaultResumeStartupForWorktree(args).command
 }
 
+describe('ai vault resume of Pi transcripts', () => {
+  const GENTLE_FILE = '/home/ada/.gentle-shell/agent/sessions/repo/session.jsonl'
+  const STOCK_FILE = '/home/ada/.pi/agent/sessions/repo/session.jsonl'
+
+  function piStartup(filePath: string, piCommand?: string) {
+    const state = makeState({ worktreePath: String.raw`C:\Users\alice\repo` })
+    if (piCommand && state.settings) {
+      state.settings.agentCmdOverrides = { pi: piCommand }
+    }
+    return buildAiVaultResumeStartupForWorktree({
+      state,
+      worktreeId: 'repo-1::worktree-1',
+      session: { agent: 'pi', sessionId: 'pi-1', cwd: null, codexHome: null, filePath }
+    })
+  }
+
+  it('resumes a Gentle Shell transcript through gentle-shell when the client names no Pi command', () => {
+    expect(piStartup(GENTLE_FILE).command).toContain("gentle-shell '--' '--session'")
+    expect(piStartup(GENTLE_FILE).command).not.toMatch(/(^|[\s&;])pi '--session'/)
+  })
+
+  it('resumes a stock transcript through pi even when the client Pi command names Gentle Shell', () => {
+    const command = piStartup(STOCK_FILE, 'gentle-shell').command
+    expect(command).toContain("pi '--session'")
+    expect(command).not.toContain('gentle-shell')
+  })
+})
+
 describe('ai vault resume command runtime', () => {
   it.each(['local', 'ssh:reference-host'] as const)(
     'starts a fresh IDE reference on %s with model and environment preserved',

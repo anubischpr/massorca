@@ -103,6 +103,7 @@ export function useStructuredAgentSession(args: {
     threadGoal: threadGoalSupport,
     connectors,
     contextUsage: contextUsageSupport,
+    hostPiRuntime,
     rewind: rewindSupport
   } = useStructuredAgentSessionOptions({
     agent,
@@ -332,6 +333,7 @@ export function useStructuredAgentSession(args: {
     threadGoal,
     contextUsage,
     contextSummary,
-    connectors
+    connectors,
+    hostPiRuntime
   }
 }

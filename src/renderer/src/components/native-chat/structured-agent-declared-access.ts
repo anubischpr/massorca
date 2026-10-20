@@ -1,8 +1,8 @@
 import { agentSessionDeclaredAccess } from '../../../../shared/agent-session-access-mode'
 import {
   isPiRuntimeSelection,
-  resolvePiSessionRuntime,
-  selectedPiRuntime,
+  piRuntimeFromSessionEvidence,
+  resolvePiRuntime,
   type PiRuntimeSelection
 } from '../../../../shared/pi-runtime-selection'
 import type { SessionOptionDescriptor } from '../../../../shared/native-chat-session-options'
@@ -24,34 +24,28 @@ export function useStructuredAgentDeclaredAccess(args: {
   const registeredAgent = useHostStructuredAgent(target, agent)
   const piCommand = useAppStore((state) => state.settings?.agentCmdOverrides?.pi)
   const piRuntime =
-    agent !== 'pi'
+    agent !== 'pi' || !(launching || isPiRuntimeSelection(launchSeedOptions?.piRuntime))
       ? undefined
-      : isPiRuntimeSelection(launchSeedOptions?.piRuntime)
-        ? launchSeedOptions.piRuntime
-        : launching
-          ? selectedPiRuntime(piCommand)
-          : undefined
+      : resolvePiRuntime({ launchSeed: launchSeedOptions?.piRuntime, command: piCommand })
   return agentSessionDeclaredAccess(registeredAgent?.capabilities, piRuntime)
 }
 
-/** The Pi runtime a structured chat runs on, read from the session before the client's Pi command
- *  setting: the host-recorded runtime, the session transcript's home, then the launch seed. Undefined
- *  for every other agent. */
+/** The Pi runtime a structured chat's own session names: the host-recorded runtime, the session
+ *  transcript's home, then the launch seed. Undefined for another agent and for a session with no
+ *  evidence yet, which leaves the host and the client's Pi command to decide at launch. */
 export function structuredChatPiRuntime(args: {
   agent: string
   launchSeedOptions: Readonly<Record<string, string>> | undefined
-  piCommand: string | undefined
   transcriptPath?: string | null
   hostRuntime?: unknown
 }): PiRuntimeSelection | undefined {
   if (args.agent !== 'pi') {
     return undefined
   }
-  return resolvePiSessionRuntime({
-    hostRuntime: args.hostRuntime,
+  return piRuntimeFromSessionEvidence({
+    hostRecorded: args.hostRuntime,
     transcriptPath: args.transcriptPath,
-    launchSeed: args.launchSeedOptions?.piRuntime,
-    command: args.piCommand
+    launchSeed: args.launchSeedOptions?.piRuntime
   })
 }
 

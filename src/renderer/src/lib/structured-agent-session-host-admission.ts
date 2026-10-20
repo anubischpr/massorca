@@ -12,7 +12,7 @@ import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import { callStructuredAgentSession } from '@/runtime/structured-agent-session-client'
 import {
   isPiRuntimeSelection,
-  selectedPiRuntime,
+  resolvePiRuntime,
   type PiRuntimeSelection
 } from '../../../shared/pi-runtime-selection'
 import { useAppStore } from '@/store'
@@ -215,7 +215,7 @@ export async function admitStructuredLaunchOnHost(
 ): Promise<StructuredLaunchAdmission> {
   const piRuntime =
     agent === 'pi'
-      ? selectedPiRuntime(useAppStore.getState().settings?.agentCmdOverrides?.pi)
+      ? resolvePiRuntime({ command: useAppStore.getState().settings?.agentCmdOverrides?.pi })
       : undefined
   const asked = askHostCreateSupport(
     target,
