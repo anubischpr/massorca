@@ -126,6 +126,33 @@ describe('selected chat summary evidence', () => {
 })
 
 describe('selected chat summary plan', () => {
+  it('builds a Claude TaskCreate/TaskUpdate list and ignores subagent and failed calls', () => {
+    const call = (name: string, input: unknown, sequence: number, extra = {}) =>
+      item(
+        { kind: 'tool-call', name, input, state: 'completed', callId: `c${sequence}`, ...extra },
+        sequence
+      )
+    const made = (subject: string, id: string, sequence: number) =>
+      call('TaskCreate', { subject, description: 'd' }, sequence, {
+        output: { head: `Task #${id} created successfully: ${subject}`, truncated: false }
+      })
+    expect(
+      nativeChatSessionPlan([
+        made('Split picker', '1', 1),
+        made('Add tests', '2', 2),
+        call('TaskUpdate', { taskId: '1', status: 'completed' }, 3),
+        call('TaskUpdate', { taskId: '2', status: 'in_progress' }, 4, { state: 'failed' }),
+        { ...call('TaskCreate', { subject: 'Child' }, 5), agentId: 'sub' },
+        call('TaskList', {}, 6)
+      ])
+    ).toEqual({
+      tasks: [
+        { content: 'Split picker', status: 'completed' },
+        { content: 'Add tests', status: 'pending' }
+      ]
+    })
+  })
+
   it('reports a Gentle Shell todo list from the snapshot its result carried', () => {
     const gentleTodo = (tasks: unknown[]) => ({ action: 'write', gentleTodo: { tasks } })
     expect(
