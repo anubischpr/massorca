@@ -20,6 +20,11 @@ import { isAgentSessionHandleProvider } from '../../../../shared/agent-session-p
 import { readAgentSessionRefusalDetails } from '../../../../shared/agent-session-refusal-details'
 import type { StructuredChatTerminalLink } from '../../store/terminals/terminal-contracts'
 import { closeTerminalTabConfirmingExit } from '../../store/terminals/terminal-tab-confirmed-close'
+import {
+  chatTransitionKeyForSession,
+  chatTransitionKeyForTerminalTab,
+  runChatTransition
+} from './structured-chat-transition-guard'
 
 export type StructuredChatTerminalReturnArgs = {
   /** The terminal tab the user is leaving for the structured chat it came from. */
@@ -57,9 +62,6 @@ export const structuredChatTerminalReturnDeps: StructuredChatTerminalReturnDeps 
   newRequestId: newAgentLaunchRequestId
 }
 
-/** Terminal tabs whose return is already running; a repeat click on the same tab is dropped. */
-const returnsInFlight = new Set<string>()
-
 /**
  * Goes back from a terminal to the structured chat it was opened from. The chat is revealed first,
  * so a chat that cannot be shown leaves the terminal running. The terminal is stopped next, and the
@@ -70,10 +72,21 @@ export async function returnTerminalToStructuredChat(
   args: StructuredChatTerminalReturnArgs,
   deps: StructuredChatTerminalReturnDeps = structuredChatTerminalReturnDeps
 ): Promise<boolean> {
-  if (returnsInFlight.has(args.tabId)) {
-    return false
-  }
-  returnsInFlight.add(args.tabId)
+  // Why: held under the chat's key too, so a chat-to-terminal switch and this return never overlap.
+  const outcome = await runChatTransition(
+    [
+      chatTransitionKeyForSession(args.link.structuredSessionId),
+      chatTransitionKeyForTerminalTab(args.tabId)
+    ],
+    () => returnToChat(args, deps)
+  )
+  return outcome ?? false
+}
+
+async function returnToChat(
+  args: StructuredChatTerminalReturnArgs,
+  deps: StructuredChatTerminalReturnDeps
+): Promise<boolean> {
   try {
     const chat: StructuredChatRef = {
       worktreeId: args.link.worktreeId,
@@ -134,8 +147,6 @@ export async function returnTerminalToStructuredChat(
   } catch (error) {
     notifyReturnFailure(error)
     return false
-  } finally {
-    returnsInFlight.delete(args.tabId)
   }
 }
 

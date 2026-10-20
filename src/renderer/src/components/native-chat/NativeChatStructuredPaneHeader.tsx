@@ -1,5 +1,11 @@
 import type { ReactNode } from 'react'
-import { MessageSquarePlus, SquareSplitVertical, SquareTerminal, X } from 'lucide-react'
+import {
+  LoaderCircle,
+  MessageSquarePlus,
+  SquareSplitVertical,
+  SquareTerminal,
+  X
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
@@ -13,6 +19,8 @@ export type NativeChatStructuredPaneHeaderProps = {
   terminalView: StructuredChatTerminalViewState
   onHandOff: () => void
   onShowTerminal: () => void
+  /** The switch to the terminal is underway; the button shows it and takes no further click. */
+  terminalPending?: boolean
   onSplitRight: () => void
   onClose: () => void
 }
@@ -41,10 +49,12 @@ function HeaderAction({
   label,
   icon,
   disabledReason,
+  pending = false,
   onClick
 }: {
   label: string
   icon: ReactNode
+  pending?: boolean
   /** Set when the action cannot run; the tooltip then says why. */
   disabledReason?: string
   onClick: () => void
@@ -56,13 +66,14 @@ function HeaderAction({
       variant="ghost"
       size="icon-xs"
       aria-label={label}
-      disabled={disabled}
+      aria-busy={pending || undefined}
+      disabled={disabled || pending}
       onClick={(event) => {
         event.stopPropagation()
         onClick()
       }}
     >
-      {icon}
+      {pending ? <LoaderCircle className="size-3 animate-spin" /> : icon}
     </Button>
   )
   return (
@@ -97,6 +108,7 @@ export function NativeChatStructuredPaneHeader({
   terminalView,
   onHandOff,
   onShowTerminal,
+  terminalPending = false,
   onSplitRight,
   onClose
 }: NativeChatStructuredPaneHeaderProps): React.JSX.Element {
@@ -140,6 +152,7 @@ export function NativeChatStructuredPaneHeader({
         {...(terminalView.enabled
           ? {}
           : { disabledReason: terminalViewBlockText(terminalView.reason) })}
+        pending={terminalPending}
         onClick={onShowTerminal}
       />
       <HeaderAction

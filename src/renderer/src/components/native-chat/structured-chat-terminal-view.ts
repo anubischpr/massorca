@@ -10,6 +10,7 @@ import { isTuiAgent } from '../../../../shared/tui-agent-config'
 import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
 import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 import type { StructuredChatTerminalLink } from '../../store/terminals/terminal-contracts'
+import { chatTransitionKeyForSession, runChatTransition } from './structured-chat-transition-guard'
 
 /** The agents with a structured adapter on this build; their chat can be revealed by session id. */
 const STRUCTURED_CHAT_RETURN_AGENTS: ReadonlySet<string> = new Set([
@@ -112,6 +113,18 @@ export type ShowStructuredChatInTerminalDeps = {
  * hold one session at once. The chat tab closes only after the terminal has been launched.
  */
 export async function showStructuredChatInTerminal(
+  args: ShowStructuredChatInTerminalArgs,
+  deps: ShowStructuredChatInTerminalDeps
+): Promise<boolean> {
+  // Why: a repeat click while the switch runs would otherwise start one more terminal per click.
+  return (
+    (await runChatTransition([chatTransitionKeyForSession(args.sessionId)], () =>
+      switchStructuredChatToTerminal(args, deps)
+    )) ?? false
+  )
+}
+
+async function switchStructuredChatToTerminal(
   args: ShowStructuredChatInTerminalArgs,
   deps: ShowStructuredChatInTerminalDeps
 ): Promise<boolean> {

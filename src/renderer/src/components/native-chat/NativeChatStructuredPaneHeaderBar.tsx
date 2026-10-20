@@ -5,6 +5,10 @@ import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
 import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 import { NativeChatStructuredPaneHeader } from './NativeChatStructuredPaneHeader'
 import { useStructuredChatPaneActions } from './use-structured-chat-pane-actions'
+import {
+  chatTransitionKeyForSession,
+  useChatTransitionPending
+} from './structured-chat-transition-guard'
 
 /** A structured chat's header and its hand-off dialog. The header shows only while the pane is visible. */
 export function NativeChatStructuredPaneHeaderBar({
@@ -45,6 +49,7 @@ export function NativeChatStructuredPaneHeaderBar({
     journalItems: controller.journalItems,
     hostPiRuntime: controller.hostPiRuntime
   })
+  const terminalPending = useChatTransitionPending(chatTransitionKeyForSession(sessionId))
   return (
     <>
       {isVisible ? (
@@ -53,6 +58,7 @@ export function NativeChatStructuredPaneHeaderBar({
           terminalView={actions.terminalView}
           onHandOff={startHandOff}
           onShowTerminal={() => void actions.showTerminal()}
+          terminalPending={terminalPending}
           onSplitRight={actions.splitRight}
           onClose={actions.close}
         />
