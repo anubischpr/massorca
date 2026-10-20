@@ -51,9 +51,7 @@ export class AntigravityStructuredSessionAdapter implements StructuredAgentSessi
 
   async acquire(input: StructuredAgentSessionAcquireInput): Promise<AgentSessionAcquisition> {
     const id = input.identity.sessionId
-    if (this.acquiring.has(id) || this.sessions.has(id)) {
-      throw new AgentSessionPreSpawnError('Antigravity session already owns a child')
-    }
+    this.releasePreviousChild(id)
     this.acquiring.add(id)
     let session: AntigravityStructuredSession | undefined
     try {
@@ -237,6 +235,26 @@ export class AntigravityStructuredSessionAdapter implements StructuredAgentSessi
   }
   async drainObservedExits(): Promise<void> {
     await Promise.all([...this.sessions.values()].map((session) => session.drainObservedExit()))
+  }
+  /** A previous child the host stopped leaves its record here until the host acknowledges it, and the
+   *  host may never. Its root exit observed, the record goes; a child still running or starting refuses. */
+  private releasePreviousChild(id: string): void {
+    if (this.acquiring.has(id)) {
+      throw new AgentSessionAcquisitionExitUnprovenError(
+        new Error('Previous Antigravity start has not exited')
+      )
+    }
+    const previous = this.sessions.get(id)
+    if (!previous) {
+      return
+    }
+    if (previous.process.rootVerdict !== 'exited') {
+      throw new AgentSessionAcquisitionExitUnprovenError(
+        new Error('Previous Antigravity child has not exited')
+      )
+    }
+    previous.retire()
+    this.sessions.delete(id)
   }
   private session(id: string, fence: number): AntigravityStructuredSession {
     const session = this.sessions.get(id)

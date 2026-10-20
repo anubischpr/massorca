@@ -8,6 +8,7 @@ import {
 } from '../native-chat/agent-session-timeline/provider-timeline-assembler-test-support'
 import { AgentSessionOptionRejectedError } from '../native-chat/agent-session-wire/structured-agent-session-option-error'
 import {
+  AgentSessionAcquisitionExitUnprovenError,
   AgentSessionPreSpawnError,
   type StructuredAgentSessionAcquireInput
 } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
@@ -307,6 +308,21 @@ it('publishes the MCP servers agy configures under the launch home with its opti
       }
     }
   )
+})
+
+it('starts a new child once the previous child exit is observed, without the host acknowledging it', async () => {
+  const h = await setup()
+  h.processes[0].exit()
+  await expect(h.adapter.acquire(h.input)).resolves.toBeDefined()
+  expect(h.processes).toHaveLength(2)
+})
+
+it('refuses a new child while the previous one still runs, as an unproven exit', async () => {
+  const h = await setup()
+  await expect(h.adapter.acquire(h.input)).rejects.toBeInstanceOf(
+    AgentSessionAcquisitionExitUnprovenError
+  )
+  expect(h.processes).toHaveLength(1)
 })
 
 it('takes access picks at the next start and reads the catalog only for a live child', async () => {
