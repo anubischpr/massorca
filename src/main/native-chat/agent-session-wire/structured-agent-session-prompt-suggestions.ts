@@ -15,7 +15,8 @@ export type PromptSuggestionPort = {
 /**
  * Each session's suggested next user message, held so a subscriber that opens after it arrived
  * still gets it with no new generation, and sent to the live ones as frames that advance nothing.
- * The next turn clears it.
+ * The next turn clears it. Held in memory only: a host restart drops it, and nothing regenerates
+ * it until the next turn settles.
  */
 export class StructuredAgentSessionPromptSuggestions {
   private readonly held = new Map<string, NativeChatReplySuggestion>()

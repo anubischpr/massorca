@@ -136,4 +136,42 @@ describe('AgentSessionSubscribers prompt suggestion', () => {
     subscribers.promptSuggestions.publish(SESSION, { ...suggestion, source: 'emulated' })
     expect(suggestionsIn(events)).toHaveLength(1)
   })
+
+  it('does not restate a suggestion cleared while the subscriber was away', async () => {
+    const journal = await openJournal('cleared-while-away')
+    const subscribers = new AgentSessionSubscribers()
+    subscribers.promptSuggestions.publish(SESSION, suggestion)
+    subscribers.promptSuggestions.publish(SESSION, null)
+
+    const resumed: AgentSessionSubscribeEvent[] = []
+    subscribers.open({
+      id: 's2',
+      sessionId: SESSION,
+      journal,
+      fence: 1,
+      cursor: journal.cursor(),
+      emit: (event) => resumed.push(event)
+    })
+    expect(suggestionsIn(resumed)).toEqual([])
+  })
+
+  it('holds nothing across a host restart, so a resumed subscriber is restated none', async () => {
+    const journal = await openJournal('restarted-host')
+    const previous = new AgentSessionSubscribers()
+    previous.promptSuggestions.publish(SESSION, suggestion)
+
+    // Suggestions are not persisted: a new host holds none and must not invent one.
+    const restarted = new AgentSessionSubscribers()
+    const resumed: AgentSessionSubscribeEvent[] = []
+    restarted.open({
+      id: 's1',
+      sessionId: SESSION,
+      journal,
+      fence: 1,
+      cursor: journal.cursor(),
+      emit: (event) => resumed.push(event)
+    })
+    expect(suggestionsIn(resumed)).toEqual([])
+    expect(restarted.promptSuggestions.get(SESSION)).toBeUndefined()
+  })
 })

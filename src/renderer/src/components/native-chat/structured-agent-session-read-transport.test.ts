@@ -4,6 +4,7 @@ import {
   reduceStructuredAgentSession
 } from '../../../../shared/structured-agent-session-reducer'
 import type { AgentJournalCursor } from '../../../../shared/agent-session-journal-types'
+import type { NativeChatReplySuggestion } from '../../../../shared/native-chat-reply-suggestion'
 import type {
   AgentSessionHistoryPage,
   AgentSessionSubscribeEvent
@@ -52,6 +53,30 @@ function snapshot(sequence: number): AgentSessionSubscribeEvent {
 async function flushPromises(): Promise<void> {
   await Promise.resolve()
   await Promise.resolve()
+}
+
+const SUGGESTION: NativeChatReplySuggestion = {
+  turnId: 'turn-1',
+  text: 'Run the tests',
+  source: 'native'
+}
+
+/** A caught-up frame; the host attaches a suggestion field only when it states one. */
+function caughtUpBatch(
+  sequence: number,
+  promptSuggestion?: NativeChatReplySuggestion | null
+): AgentSessionSubscribeEvent {
+  return {
+    type: 'batch',
+    sessionId: 'session-a',
+    batch: {
+      cursor: { epoch: 'epoch-a', sequence },
+      items: [],
+      removedItemIds: [],
+      submissions: []
+    },
+    ...(promptSuggestion !== undefined ? { promptSuggestion } : {})
+  }
 }
 
 describe('structured agent-session read transport generations', () => {
@@ -226,6 +251,71 @@ describe('structured agent-session read transport generations', () => {
       await vi.advanceTimersByTimeAsync(750)
       attempts[1].onEvent(batch(4))
       expect(applied.at(-1)).toEqual([4, true])
+      transport.dispose()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('restores a held suggestion after a reconnect once the resumed host restates it', async () => {
+    vi.useFakeTimers()
+    try {
+      let state = EMPTY_STRUCTURED_AGENT_SESSION
+      const transport = startStructuredAgentSessionReadTransport({
+        applyEvent: (event, options) => {
+          state = reduceStructuredAgentSession(state, { type: 'event', event, ...options })
+        },
+        applyError: vi.fn(),
+        getCursor: () => state.cursor,
+        onHistoryReadInvalidated: () => undefined,
+        sessionId: 'session-a',
+        target
+      })
+      attempts[0].onEvent(snapshot(100))
+      attempts[0].closed.resolve({ unsubscribe: attempts[0].unsubscribe })
+      await flushPromises()
+      attempts[0].onEvent(caughtUpBatch(100, SUGGESTION))
+      expect(state.promptSuggestion).toEqual(SUGGESTION)
+
+      attempts[0].onClose()
+      await vi.advanceTimersByTimeAsync(750)
+      expect(mocks.subscribe.mock.calls[1]?.[1]).toEqual({
+        sessionId: 'session-a',
+        cursor: { epoch: 'epoch-a', sequence: 100 }
+      })
+      // The resumed opening frame, then the host's resend of the suggestion it still holds.
+      attempts[1].onEvent(caughtUpBatch(100))
+      attempts[1].onEvent(caughtUpBatch(100, SUGGESTION))
+      expect(state.promptSuggestion).toEqual(SUGGESTION)
+      transport.dispose()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('clears a held suggestion when the resumed host no longer holds one', async () => {
+    vi.useFakeTimers()
+    try {
+      let state = EMPTY_STRUCTURED_AGENT_SESSION
+      const transport = startStructuredAgentSessionReadTransport({
+        applyEvent: (event, options) => {
+          state = reduceStructuredAgentSession(state, { type: 'event', event, ...options })
+        },
+        applyError: vi.fn(),
+        getCursor: () => state.cursor,
+        onHistoryReadInvalidated: () => undefined,
+        sessionId: 'session-a',
+        target
+      })
+      attempts[0].onEvent(snapshot(100))
+      attempts[0].closed.resolve({ unsubscribe: attempts[0].unsubscribe })
+      await flushPromises()
+      attempts[0].onEvent(caughtUpBatch(100, SUGGESTION))
+      attempts[0].onClose()
+      await vi.advanceTimersByTimeAsync(750)
+      // Cleared while away: the resumed opening frame states no suggestion and nothing restates it.
+      attempts[1].onEvent(caughtUpBatch(100))
+      expect(state.promptSuggestion).toBeNull()
       transport.dispose()
     } finally {
       vi.useRealTimers()
