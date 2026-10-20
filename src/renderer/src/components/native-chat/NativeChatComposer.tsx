@@ -383,6 +383,7 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
         afterStop={afterStop}
         attachDisabled={disabled}
         dictationDisabled={dictation.dictationDisabled}
+        dictationUnavailableReason={dictation.dictationUnavailableReason}
         isDictating={dictation.isDictating}
         isDictationHoldMode={dictation.isDictationHoldMode}
         imeEnterGesture={imeEnterGesture}

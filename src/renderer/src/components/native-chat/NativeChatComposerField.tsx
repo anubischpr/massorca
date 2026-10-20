@@ -1,3 +1,4 @@
+import type { DictationUnavailableReason } from './dictation-unavailable-reason'
 import { NativeChatPromptEditor } from './NativeChatPromptEditor'
 import type { NativeChatComposerInput } from './native-chat-composer-input'
 import type { ClipboardEventHandler, KeyboardEventHandler, RefObject } from 'react'
@@ -62,6 +63,7 @@ export type NativeChatComposerFieldProps = {
   afterStop?: NativeChatAfterStopSend
   attachDisabled: boolean
   dictationDisabled: boolean
+  dictationUnavailableReason?: DictationUnavailableReason | null
   isDictating: boolean
   isDictationHoldMode: boolean
   imeEnterGesture: ReturnType<typeof useImeEnterGestureOwnership>
@@ -148,6 +150,7 @@ export function NativeChatComposerField({
   afterStop,
   attachDisabled,
   dictationDisabled,
+  dictationUnavailableReason,
   isDictating,
   isDictationHoldMode,
   imeEnterGesture,
@@ -365,6 +368,7 @@ export function NativeChatComposerField({
               <NativeChatComposerActions
                 attachDisabled={attachDisabled}
                 dictationDisabled={dictationDisabled}
+                dictationUnavailableReason={dictationUnavailableReason}
                 sendDisabled={primary.disabled}
                 primaryAction={primary.action}
                 sendBlockedReason={sendBlockedReason}
