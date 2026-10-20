@@ -24,6 +24,9 @@ export type CodexOpenedThread = {
   serviceTier?: string | null
 }
 
+// Codex 0.162 leaves update_plan out of a thread's tools unless asked, so no plan reaches the chat.
+const PLAN_TOOL_CONFIG = { 'tools.update_plan.enabled': true }
+
 function nonEmptyString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value : null
 }
@@ -100,7 +103,7 @@ export async function openCodexThread(
   const threadSettings = {
     cwd: launch.cwd,
     ...launch.permissionPolicy,
-    ...(launch.threadConfig ? { config: launch.threadConfig } : {})
+    config: { ...PLAN_TOOL_CONFIG, ...launch.threadConfig }
   }
   const startThread = (): Promise<unknown> =>
     connection.request(

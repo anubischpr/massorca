@@ -14,6 +14,8 @@ function connectionFor(
   return { request }
 }
 
+const PLAN = { config: { 'tools.update_plan.enabled': true } }
+
 describe('openCodexThread', () => {
   it('applies the resolved permission policy when starting and resuming a thread', async () => {
     const request = vi.fn(async (method: string) => ({
@@ -39,7 +41,7 @@ describe('openCodexThread', () => {
     expect(request).toHaveBeenNthCalledWith(
       1,
       'thread/start',
-      { cwd: '/workspace', approvalPolicy: 'never', sandbox: 'danger-full-access' },
+      { cwd: '/workspace', approvalPolicy: 'never', sandbox: 'danger-full-access', ...PLAN },
       { timeoutMs: 2_000 }
     )
     expect(request).toHaveBeenNthCalledWith(
@@ -50,6 +52,7 @@ describe('openCodexThread', () => {
         cwd: '/workspace',
         approvalPolicy: 'never',
         sandbox: 'danger-full-access',
+        ...PLAN,
         excludeTurns: true
       },
       { timeoutMs: 2_000 }
@@ -119,6 +122,7 @@ describe('openCodexThread', () => {
         threadId: 'thread-1',
         cwd: '/workspace',
         path: '/history/thread-1.jsonl',
+        ...PLAN,
         excludeTurns: true
       },
       { timeoutMs: 2_000 }
@@ -153,8 +157,8 @@ describe('openCodexThread', () => {
     expect(second.thread?.turns).toHaveLength(1)
     expect(request.mock.calls.map(([, params]) => params)).toEqual([
       expect.objectContaining({ excludeTurns: true }),
-      { threadId: 'thread-1', cwd: '/workspace' },
-      { threadId: 'thread-1', cwd: '/workspace' }
+      { threadId: 'thread-1', cwd: '/workspace', ...PLAN },
+      { threadId: 'thread-1', cwd: '/workspace', ...PLAN }
     ])
   })
 
@@ -253,7 +257,7 @@ describe('openCodexThread', () => {
       ])
       expect(request).toHaveBeenLastCalledWith(
         'thread/start',
-        { cwd: '/workspace' },
+        { cwd: '/workspace', ...PLAN },
         {
           timeoutMs: 2_000
         }
@@ -278,7 +282,7 @@ describe('openCodexThread', () => {
       expect(request.mock.calls[0]?.[1]).not.toHaveProperty('model')
       expect(request).toHaveBeenLastCalledWith(
         'thread/start',
-        { cwd: '/workspace', model: 'gpt-chosen' },
+        { cwd: '/workspace', model: 'gpt-chosen', ...PLAN },
         { timeoutMs: 2_000 }
       )
     })
@@ -356,6 +360,24 @@ describe('openCodexThread', () => {
       } finally {
         await connection.close()
       }
+    })
+  })
+
+  it('lets a caller config override the plan tool default and keeps its other keys', async () => {
+    const request = vi.fn(async () => ({ thread: { id: 'thread-1' } }))
+
+    await openCodexThread(
+      connectionFor(request),
+      {
+        cwd: '/workspace',
+        resumeThreadId: null,
+        threadConfig: { 'tools.update_plan.enabled': false, 'x.y': 1 }
+      },
+      2_000
+    )
+
+    expect(request.mock.calls[0]?.[1]).toMatchObject({
+      config: { 'tools.update_plan.enabled': false, 'x.y': 1 }
     })
   })
 })
