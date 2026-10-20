@@ -56,9 +56,9 @@ describe('Gentle Shell workers', () => {
           kind: 'agent',
           residency: 'foreground',
           state: 'working',
-          name: 'map auth',
+          name: 'explore',
           agentType: 'explore',
-          description: 'Explore how auth works',
+          description: 'map auth',
           stoppable: false
         }
       }

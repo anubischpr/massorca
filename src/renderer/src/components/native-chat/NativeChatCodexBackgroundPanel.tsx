@@ -14,6 +14,7 @@ import {
   buildAgentChildRowModels,
   buildLegacyTaskRowModels,
   type AgentChildRowContext,
+  usableAgentChildLabel,
   type AgentChildRowModel
 } from '../../../../shared/agent-child-row-model'
 import { AgentChildRowContent } from '@/components/AgentChildRowContent'
@@ -24,6 +25,12 @@ import {
   NativeChatBackgroundTaskStopControl,
   type NativeChatBackgroundStop
 } from './NativeChatBackgroundTaskStopControl'
+
+/** The recorded model and effort a subagent row states; an unreported part is left out, not named. */
+function recordedConfigurationText(row: AgentChildRowModel): string {
+  const { model, effort } = row.recordedConfiguration ?? {}
+  return [model, effort].filter(Boolean).join(' · ')
+}
 
 export const UNVERIFIABLE: AgentChildRowContext = {
   parentEvidenceFresh: false,
@@ -92,23 +99,17 @@ function BackgroundRow({
                 >
                   {agentChildRowName(row)}
                 </span>
-                <span
-                  className="max-w-full shrink-0 break-words text-muted-foreground"
-                  title={
-                    row.recordedConfiguration
-                      ? t('components.nativeChatBackground.recorded', 'Recorded turn configuration')
-                      : t(
-                          'components.nativeChatBackground.recordedUnavailable',
-                          'Recorded turn configuration unavailable'
-                        )
-                  }
-                >
-                  {row.recordedConfiguration?.model ??
-                    t('components.nativeChatBackground.modelUnavailable', 'Model unavailable')}{' '}
-                  ·{' '}
-                  {row.recordedConfiguration?.effort ??
-                    t('components.nativeChatBackground.effortUnavailable', 'Effort unavailable')}
-                </span>
+                {recordedConfigurationText(row) ? (
+                  <span
+                    className="max-w-full shrink-0 break-words text-muted-foreground"
+                    title={t(
+                      'components.nativeChatBackground.recorded',
+                      'Recorded turn configuration'
+                    )}
+                  >
+                    {recordedConfigurationText(row)}
+                  </span>
+                ) : null}
               </span>
             </>
           ) : (
@@ -346,7 +347,8 @@ export function NativeChatCodexBackgroundPanel(props: {
           className="mt-3"
         >
           <h3 className="mb-2 font-medium text-muted-foreground">
-            {t('components.nativeChatBackground.subagent', 'Subagent')}
+            {usableAgentChildLabel(row.agentType) ??
+              t('components.nativeChatBackground.subagent', 'Subagent')}
           </h3>
           <ul>
             <BackgroundRow row={row} now={now} onSelect={onSelect} />

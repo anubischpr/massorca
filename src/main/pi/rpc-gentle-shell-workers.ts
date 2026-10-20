@@ -27,8 +27,7 @@ type LiveWorker = {
   handleId: string
   runId: string
   agent?: string
-  name?: string
-  task?: string
+  description?: string
   taskId?: string
   background: boolean
 }
@@ -119,15 +118,15 @@ export class PiRpcGentleWorkers {
     }
     const args = isRecord(event.args) ? event.args : {}
     const agent = text(args.agent)
-    const name = text(args.label) ?? agent
     const task = text(args.task)
+    // The row titles itself by its description: the short label, else the task's first line.
+    const description = text(args.label) ?? task?.split(/\r?\n/).find((line) => line.trim())?.trim()
     const worker: LiveWorker = {
       handleId: `gentle-worker:${this.generation}:${event.toolCallId}`,
       runId: event.toolCallId,
       background: false,
       ...(agent ? { agent } : {}),
-      ...(name ? { name } : {}),
-      ...(task ? { task } : {})
+      ...(description ? { description } : {})
     }
     this.starting.set(event.toolCallId, worker)
     return [(observedAt) => this.liveEdge(worker, observedAt)]
@@ -205,9 +204,8 @@ export class PiRpcGentleWorkers {
         residency: worker.background ? 'background' : 'foreground',
         // A worker `waiting` asks its parent agent, not the user, so it never reads as `waiting`.
         state: 'working',
-        ...(worker.name ? { name: worker.name } : {}),
-        ...(worker.agent ? { agentType: worker.agent } : {}),
-        ...(worker.task ? { description: worker.task } : {}),
+        ...(worker.agent ? { name: worker.agent, agentType: worker.agent } : {}),
+        ...(worker.description ? { description: worker.description } : {}),
         // Gentle Shell cancels a worker only through its model tool (`subagent_cancel`).
         stoppable: false
       }

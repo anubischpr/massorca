@@ -327,6 +327,31 @@ describe('panel-specific recorded agent metadata', () => {
       'nested command'
     )
   })
+  it('names a subagent by its agent type and states only the configuration it recorded', () => {
+    render(
+      <NativeChatCodexBackgroundPanel
+        roster={null}
+        isVisible
+        context={fresh}
+        commandActivity={[
+          child('worker', {
+            kind: 'agent',
+            description: 'map auth',
+            agentType: 'gentle-ai-explore',
+            recordedConfiguration: {
+              source: 'recorded-turn-context',
+              turnId: 't',
+              observedAt: 1_000,
+              model: 'only-model'
+            }
+          })
+        ]}
+      />
+    )
+    expect(screen.getByRole('heading', { name: 'gentle-ai-explore' })).toBeDefined()
+    expect(screen.getByText('only-model')).toBeDefined()
+    expect(screen.queryByText(/Effort unavailable/)).toBeNull()
+  })
   it('never promotes a legacy model or stale parent setting to recorded effort', () => {
     render(
       <NativeChatCodexBackgroundPanel
@@ -336,7 +361,8 @@ describe('panel-specific recorded agent metadata', () => {
         commandActivity={[child('worker', { kind: 'agent', model: 'requested-model' })]}
       />
     )
-    expect(screen.getByText('Model unavailable · Effort unavailable')).toBeDefined()
+    expect(screen.queryByText(/unavailable ·/)).toBeNull()
+    expect(screen.queryByTitle('Recorded turn configuration')).toBeNull()
     expect(screen.queryByText('requested-model')).toBeNull()
     expect(screen.getByText('Host activity cannot currently be verified.')).toBeDefined()
   })
