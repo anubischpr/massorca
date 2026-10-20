@@ -63,11 +63,9 @@ describe('closeTerminalTabConfirmingExit', () => {
     vi.clearAllMocks()
     mockApi.worktrees.updateMeta.mockResolvedValue({})
     mockApi.pty.kill.mockResolvedValue({ exitConfirmed: true })
+    // Why: the host answers `terminal.close` as `{ close }`, not the close record itself.
     runtimeMocks.callRuntimeRpc.mockResolvedValue({
-      handle: 'handle-1',
-      tabId: 'tab-a',
-      ptyKilled: true,
-      ptyExitConfirmed: true
+      close: { handle: 'handle-1', tabId: 'tab-a', ptyKilled: true, ptyExitConfirmed: true }
     })
   })
 
@@ -123,13 +121,23 @@ describe('closeTerminalTabConfirmingExit', () => {
 
   it('does not confirm a runtime terminal the host omits the exit proof for', async () => {
     runtimeMocks.callRuntimeRpc.mockResolvedValue({
-      handle: 'handle-1',
-      tabId: 'tab-a',
-      ptyKilled: true
+      close: { handle: 'handle-1', tabId: 'tab-a', ptyKilled: true }
     })
     const store = storeWithTabs([toRemoteRuntimePtyId('handle-1', 'env-1')])
 
     await expect(closeTerminalTabConfirmingExit(store.getState(), 'tab-a')).resolves.toBe(false)
+  })
+
+  it('still reads the exit proof from an older reply that is the close record itself', async () => {
+    runtimeMocks.callRuntimeRpc.mockResolvedValue({
+      handle: 'handle-1',
+      tabId: 'tab-a',
+      ptyKilled: true,
+      ptyExitConfirmed: true
+    })
+    const store = storeWithTabs([toRemoteRuntimePtyId('handle-1', 'env-1')])
+
+    await expect(closeTerminalTabConfirmingExit(store.getState(), 'tab-a')).resolves.toBe(true)
   })
 
   it('does not confirm a runtime terminal whose close is rejected', async () => {

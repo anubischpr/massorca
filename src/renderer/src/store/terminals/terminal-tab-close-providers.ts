@@ -4,7 +4,6 @@ import {
 } from '@/runtime/runtime-environment-revision'
 import type { AppState } from '../types'
 import { callRuntimeRpc, ensureRuntimeEnvironmentCompatible } from '@/runtime/runtime-rpc-client'
-import type { RuntimeTerminalClose } from '../../../../shared/runtime-terminal-contracts'
 import { resolveTerminalWorktreeRoute } from '@/lib/terminal-worktree-route'
 import {
   classifyTerminalRetirementWorktree,
@@ -118,6 +117,17 @@ async function confirmLocalPtyStopped(ptyId: string): Promise<boolean> {
   }
 }
 
+/** `terminal.close` answers `{ close }`; a reply that is the close itself is read the same way. */
+function replyConfirmsExit(reply: unknown): boolean {
+  if (typeof reply !== 'object' || reply === null) {
+    return false
+  }
+  if ('close' in reply) {
+    return replyConfirmsExit(reply.close)
+  }
+  return 'ptyExitConfirmed' in reply && reply.ptyExitConfirmed === true
+}
+
 async function confirmRuntimeTerminalStopped(
   environmentId: string | null | undefined,
   handle: string,
@@ -125,8 +135,8 @@ async function confirmRuntimeTerminalStopped(
 ): Promise<boolean> {
   try {
     // Why: a close the host did not confirm, and every older host that omits the field, stay unconfirmed.
-    const close = await retireRuntimeTerminal(environmentId, handle, canRetire)
-    return close?.ptyExitConfirmed === true
+    const reply = await retireRuntimeTerminal(environmentId, handle, canRetire)
+    return replyConfirmsExit(reply)
   } catch {
     return false
   }
@@ -136,12 +146,12 @@ async function retireRuntimeTerminal(
   environmentId: string | null | undefined,
   handle: string,
   canRetire?: () => boolean
-): Promise<RuntimeTerminalClose | undefined> {
+): Promise<unknown> {
   const target = environmentId
     ? { kind: 'environment' as const, environmentId }
     : { kind: 'local' as const }
   if (!canRetire) {
-    return callRuntimeRpc<RuntimeTerminalClose>(target, 'terminal.close', { terminal: handle })
+    return callRuntimeRpc<unknown>(target, 'terminal.close', { terminal: handle })
   }
   const revision = environmentId
     ? captureRuntimeEnvironmentRequestRevision(environmentId)
@@ -158,7 +168,7 @@ async function retireRuntimeTerminal(
     return undefined
   }
   // Compatibility was checked above; recheck pane ownership at the actual dispatch boundary.
-  return callRuntimeRpc<RuntimeTerminalClose>(
+  return callRuntimeRpc<unknown>(
     target,
     'terminal.close',
     { terminal: handle },
