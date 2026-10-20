@@ -68,6 +68,7 @@ export const NODE_RUNTIME_INCLUDE = [
   'src/main/native-chat/agent-session-wire/structured-agent-session-live-access-mode.test.ts',
   'src/main/native-chat/agent-session-wire/structured-agent-session-record-only-access.test.ts',
   'src/main/native-chat/agent-session-wire/structured-agent-session-subscribers-prompt-suggestion.test.ts',
+  'src/main/native-chat/agent-session-wire/structured-agent-session-prompt-suggestion-restore.test.ts',
   'src/main/native-chat/agent-session-wire/structured-agent-session-status-feed.test.ts',
   'src/main/native-chat/agent-session-wire/structured-agent-session-status-feed-conversation-name.test.ts',
   'src/main/native-chat/agent-session-wire/structured-agent-session-status-first-input-identity.test.ts',

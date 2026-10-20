@@ -23,6 +23,7 @@ import { emptyAgentSessionBatch } from './agent-session-empty-batch'
 import { readAgentSessionHydrationPage } from './agent-session-history-page'
 import { rememberSessionActivity } from './structured-agent-session-activity-retention'
 import { StructuredAgentSessionPromptSuggestions } from './structured-agent-session-prompt-suggestions'
+import type { PromptSuggestionRows } from '../agent-session-journal/prompt-suggestion-rows'
 import type { NativeChatReplySuggestion } from '../../../shared/native-chat-reply-suggestion'
 import { refreshDerivedStopNotes } from './agent-session-stop-note-refresh'
 
@@ -60,6 +61,10 @@ export type AgentSessionSubscribersHooks = {
   isPromptSuggestionEnabled?: (source: NativeChatReplySuggestion['source']) => boolean
   /** Fires after publications that can change journal content. */
   onJournalPublished?: (sessionId: string, journal: AgentSessionJournal) => void
+  /** The chat's live journal, when the host has it open. */
+  readJournal?: (sessionId: string) => AgentSessionJournal | undefined
+  /** The host database's per-chat row for the held reply suggestion. */
+  promptSuggestionRows?: PromptSuggestionRows
   now?: () => number
 }
 
@@ -70,7 +75,14 @@ export class AgentSessionSubscribers {
     subscribers: (sessionId) => this.subscribers(sessionId),
     emit: (subscriber, event) => this.emit(subscriber, event),
     now: () => this.now(),
-    isEnabled: (source) => this.hooks.isPromptSuggestionEnabled?.(source) ?? true
+    isEnabled: (source) => this.hooks.isPromptSuggestionEnabled?.(source) ?? true,
+    journalOf: (sessionId) => this.hooks.readJournal?.(sessionId),
+    queuedCount: (sessionId) =>
+      this.hooks.readQueuePublication?.(sessionId)?.queuedMessages.length ?? 0,
+    rows: {
+      read: (sessionId) => this.hooks.promptSuggestionRows?.read(sessionId) ?? null,
+      write: (sessionId, value) => this.hooks.promptSuggestionRows?.write(sessionId, value)
+    }
   })
 
   constructor(private readonly hooks: AgentSessionSubscribersHooks = {}) {}
@@ -103,6 +115,7 @@ export class AgentSessionSubscribers {
     session.set(input.id, subscriber)
     this.bySession.set(input.sessionId, session)
 
+    this.promptSuggestions.restore(input.sessionId, input.journal)
     const hostNow = this.now()
     if (input.cursor) {
       this.deliver(subscriber, input.journal, hostNow, true)
@@ -166,12 +179,14 @@ export class AgentSessionSubscribers {
       this.deliver(subscriber, journal, hostNow, false, activity)
     }
     if (activity === undefined) {
+      this.promptSuggestions.observeJournal(sessionId, journal)
       this.hooks.onJournalPublished?.(sessionId, journal)
     }
   }
 
   /** Every subscriber back to a bounded tail page. */
   snapshot(sessionId: string, journal: AgentSessionJournal, fence: number): void {
+    this.promptSuggestions.restore(sessionId, journal)
     const page = readAgentSessionHydrationPage(journal, fence)
     const hostNow = this.now()
     for (const subscriber of this.subscribers(sessionId)) {

@@ -38,8 +38,10 @@ export function useNativeChatReplySuggestion(args: {
   suggestion: NativeChatReplySuggestion | null
   /** No turn runs and none is about to: a suggestion never shows over live work. */
   idle: boolean
+  /** Told of an Esc, so the host can keep the suggestion dismissed across its own restarts. */
+  onDismissed?: (suggestion: NativeChatReplySuggestion) => void
 }): NativeChatReplySuggestionView | null {
-  const { sessionId, suggestion, idle } = args
+  const { sessionId, suggestion, idle, onDismissed } = args
   const enabled = useAppStore((store) => store.settings?.nativeChatReplySuggestions !== false)
   const emulatedEnabled = useAppStore(
     (store) => store.settings?.nativeChatEmulatedReplySuggestions !== false
@@ -47,11 +49,12 @@ export function useNativeChatReplySuggestion(args: {
   const [dismissed, setDismissed] = useState(() => dismissedBySession.get(sessionId) ?? null)
   const key = suggestion ? suggestionKey(suggestion) : null
   const dismiss = useCallback((): void => {
-    if (key !== null) {
+    if (key !== null && suggestion) {
       rememberDismissal(sessionId, key)
       setDismissed(key)
+      onDismissed?.(suggestion)
     }
-  }, [key, sessionId])
+  }, [key, onDismissed, sessionId, suggestion])
   return useMemo(
     () =>
       suggestion &&

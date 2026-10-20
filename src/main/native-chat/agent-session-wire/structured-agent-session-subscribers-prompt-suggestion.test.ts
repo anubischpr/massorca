@@ -155,12 +155,12 @@ describe('AgentSessionSubscribers prompt suggestion', () => {
     expect(suggestionsIn(resumed)).toEqual([])
   })
 
-  it('holds nothing across a host restart, so a resumed subscriber is restated none', async () => {
+  it('restates none after a restart when no row store kept it', async () => {
     const journal = await openJournal('restarted-host')
     const previous = new AgentSessionSubscribers()
     previous.promptSuggestions.publish(SESSION, suggestion)
 
-    // Suggestions are not persisted: a new host holds none and must not invent one.
+    // Without the host's row store nothing survives a restart, and a new host must not invent one.
     const restarted = new AgentSessionSubscribers()
     const resumed: AgentSessionSubscribeEvent[] = []
     restarted.open({
