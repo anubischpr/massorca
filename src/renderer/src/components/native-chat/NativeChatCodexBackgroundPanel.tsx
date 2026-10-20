@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import type { AgentChildWorkView } from '../../../../shared/agent-status-child-work-view'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
 import { ArrowLeft } from 'lucide-react'
 import { AgentStateDot } from '@/components/AgentStateDot'
@@ -76,6 +76,7 @@ function BackgroundRow({
           type="button"
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
           data-background-state={row.displayState}
+          data-child-row-id={row.id}
           onClick={() => onSelect(row)}
           aria-label={t(
             'components.nativeChatBackground.viewActivity',
@@ -148,6 +149,20 @@ export function NativeChatCodexBackgroundPanel(props: {
     row: AgentChildRowModel
     views: readonly AgentChildWorkView[]
   } | null>(null)
+  // Held here, not in the groups: they unmount while a detail view is shown.
+  const [finishedOpen, setFinishedOpen] = useState({ commands: false, agents: false })
+  const openedFrom = useRef<string | null>(null)
+  const listRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (selected || openedFrom.current === null) {
+      return
+    }
+    const id = openedFrom.current
+    openedFrom.current = null
+    listRef.current
+      ?.querySelector<HTMLElement>(`[data-child-row-id="${CSS.escape(id)}"]`)
+      ?.focus()
+  }, [selected])
   const context = props.context ?? UNVERIFIABLE
   const views = props.commandActivity ?? props.roster?.children
   const rows = useMemo(() => {
@@ -177,7 +192,10 @@ export function NativeChatCodexBackgroundPanel(props: {
   const allAgents = rows.filter((row) => props.section !== 'commands' && row.kind === 'agent')
   const agents = allAgents.filter((row) => !isFinishedChildRow(row)).sort(runningChildRowsFirst)
   const finishedAgents = allAgents.filter(isFinishedChildRow)
-  const onSelect = (row: AgentChildRowModel) => setSelected({ row, views: views ?? [] })
+  const onSelect = (row: AgentChildRowModel) => {
+    openedFrom.current = row.id
+    setSelected({ row, views: views ?? [] })
+  }
   if (selected) {
     const detailViews = [
       ...new Map([...selected.views, ...(views ?? [])].map((view) => [view.id, view])).values()
@@ -274,6 +292,7 @@ export function NativeChatCodexBackgroundPanel(props: {
   }
   return (
     <aside
+      ref={listRef}
       aria-label={t('components.nativeChatBackground.title', 'Background activity')}
       className={
         props.embedded
@@ -355,14 +374,22 @@ export function NativeChatCodexBackgroundPanel(props: {
         </section>
       ))}
       {finishedCommands.length > 0 ? (
-        <NativeChatFinishedBackgroundGroup count={finishedCommands.length}>
+        <NativeChatFinishedBackgroundGroup
+          count={finishedCommands.length}
+          open={finishedOpen.commands}
+          onOpenChange={(open) => setFinishedOpen((state) => ({ ...state, commands: open }))}
+        >
           {finishedCommands.map((row) => (
             <BackgroundRow key={row.id} row={row} now={now} onSelect={onSelect} />
           ))}
         </NativeChatFinishedBackgroundGroup>
       ) : null}
       {finishedAgents.length > 0 ? (
-        <NativeChatFinishedBackgroundGroup count={finishedAgents.length}>
+        <NativeChatFinishedBackgroundGroup
+          count={finishedAgents.length}
+          open={finishedOpen.agents}
+          onOpenChange={(open) => setFinishedOpen((state) => ({ ...state, agents: open }))}
+        >
           {finishedAgents.map((row) => (
             <BackgroundRow key={row.id} row={row} now={now} onSelect={onSelect} />
           ))}

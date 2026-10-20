@@ -557,3 +557,31 @@ describe('subagent detail view', () => {
     expect(details.textContent?.split(title).length).toBe(2)
   })
 })
+
+describe('finished history across a detail view', () => {
+  it.each(['agent', 'command'] as const)(
+    'keeps the expanded %s history open, and refocuses the row, after Back',
+    (kind) => {
+      render(
+        <NativeChatCodexBackgroundPanel
+          roster={null}
+          isVisible
+          context={fresh}
+          commandActivity={[
+            child('done-one', { kind, state: 'done', membership: 'settled', settledAt: 500 })
+          ]}
+        />
+      )
+      fireEvent.click(screen.getByRole('button', { name: '1 finished' }))
+      const row = screen.getByRole('button', { name: 'View activity: done-one' })
+      fireEvent.click(row)
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+      expect(screen.getByRole('button', { name: '1 finished' }).getAttribute('aria-expanded')).toBe(
+        'true'
+      )
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: 'View activity: done-one' })
+      )
+    }
+  )
+})
