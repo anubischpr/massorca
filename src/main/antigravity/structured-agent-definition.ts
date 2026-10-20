@@ -1,3 +1,7 @@
+import {
+  antigravitySelectionForPicker,
+  groupAntigravityModelVariants
+} from '../../shared/antigravity-model-variants'
 import type { StructuredAgentDefinition } from '../native-chat/agent-session-wire/structured-agent-definition'
 
 export const ANTIGRAVITY_STRUCTURED_AGENT: StructuredAgentDefinition = {
@@ -18,6 +22,16 @@ export const ANTIGRAVITY_STRUCTURED_AGENT: StructuredAgentDefinition = {
   restingOptions: {
     acceptsKey: (key) => key === 'model' || key === 'effort',
     fallbackModels: () => null,
-    effortDefaultsToModel: false
+    effortDefaultsToModel: false,
+    presentPicker: ({ models, current }) => {
+      const grouped = groupAntigravityModelVariants(models)
+      return {
+        models: grouped,
+        current: {
+          ...current,
+          ...antigravitySelectionForPicker(current.model, current.effort, grouped)
+        }
+      }
+    }
   }
 }

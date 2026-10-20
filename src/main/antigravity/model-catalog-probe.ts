@@ -1,4 +1,5 @@
 import { homedir } from 'node:os'
+import { groupAntigravityModelVariants } from '../../shared/antigravity-model-variants'
 import { parseAntigravityModels } from '../../shared/commit-message-model-parsers'
 import type { AgentModelCatalogProbe } from '../native-chat/agent-model-catalog/agent-model-catalog-store'
 import { runAgentModelCatalogListing } from '../native-chat/agent-model-catalog/agent-model-catalog-probe-runner'
@@ -41,12 +42,7 @@ export function createAntigravityModelCatalogProbe(
         signal: options?.signal
       }
     )
-    const models = parseAntigravityModels(output).map((model) => ({
-      id: model.id,
-      label: model.label,
-      isDefault: false,
-      efforts: ['low', 'medium', 'high'].map((value) => ({ value, label: value }))
-    }))
+    const models = groupAntigravityModelVariants(parseAntigravityModels(output))
     if (models.length === 0) {
       throw new Error('Antigravity listed no models')
     }

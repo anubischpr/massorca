@@ -240,8 +240,12 @@ export async function readStructuredAgentSessionOptions(
   const recordedPiRuntime = record?.options?.piRuntime
   const floor = session.journal.context.floor()
   const contextFloor = floor ? { contextFloor: floor } : {}
+  const presentPicker = agents.definition(agent)?.restingOptions.presentPicker
+  const shown = presentPicker
+    ? { ...options, ...presentPicker({ models: options.models, current: options.current }) }
+    : options
   return {
-    ...options,
+    ...shown,
     // The runtime the host recorded for this chat, so a client that never held it resumes the same one.
     ...(agent === 'pi' && isPiRuntimeSelection(recordedPiRuntime)
       ? { piRuntime: recordedPiRuntime }
@@ -260,7 +264,7 @@ export async function readStructuredAgentSessionOptions(
             ...(nextStartModes.length > 0 ? { nextStartModes } : {})
           },
           current: {
-            ...options.current,
+            ...shown.current,
             accessMode:
               record?.options?.accessMode &&
               supportsAgentSessionAccessMode(record.options.accessMode, declaredAccess.explicit)

@@ -19,6 +19,12 @@ export type StructuredAgentDefinition = AgentSessionStoredAgent & {
     fallbackModels: () => AgentSessionModelOption[] | null
     /** An unpicked effort reads as the model's default effort, as a running child reports it. */
     effortDefaultsToModel: boolean
+    /** Reshapes what the picker is told, for an agent whose own listing flattens a choice; the
+     *  stored picks stay as the agent takes them. */
+    presentPicker?: (options: {
+      models: AgentSessionModelOption[]
+      current: { model?: string; effort?: string }
+    }) => { models: AgentSessionModelOption[]; current: { model?: string; effort?: string } }
   }
 }
 

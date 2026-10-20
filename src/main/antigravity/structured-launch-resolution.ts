@@ -23,6 +23,7 @@ import {
   type AgentSessionPreSpawnReason
 } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import { structuredPassthroughLaunchArgs } from '../native-chat/structured-agent-passthrough-launch-args'
+import { antigravityModelIdAtEffort } from '../../shared/antigravity-model-variants'
 import { readAntigravityAccountBinding } from './structured-account-binding'
 import { prepareAntigravityAccountForLaunch } from './native-account-launch'
 
@@ -138,7 +139,9 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
         '--output-format',
         'stream-json',
         ...(previous ? ['--conversation', previous.handle.nativeId] : []),
-        ...(options.model ? ['--model', options.model] : []),
+        ...(options.model
+          ? ['--model', antigravityModelIdAtEffort(options.model, options.effort)]
+          : []),
         ...(options.effort ? ['--effort', options.effort] : []),
         ...antigravityAccessArgs(record.options?.accessMode, deps.resolveFullAccess?.() === true)
       ]
