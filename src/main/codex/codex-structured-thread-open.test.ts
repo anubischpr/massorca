@@ -364,7 +364,9 @@ describe('openCodexThread', () => {
   })
 
   it('lets a caller config override the plan tool default and keeps its other keys', async () => {
-    const request = vi.fn(async () => ({ thread: { id: 'thread-1' } }))
+    const request = vi.fn(async (_method: string, _params?: Record<string, unknown>) => ({
+      thread: { id: 'thread-1' }
+    }))
 
     await openCodexThread(
       connectionFor(request),
