@@ -6,7 +6,7 @@ import {
 } from './native-chat-agent-profiles'
 import type { AgentType } from './agent-status-types'
 import type { SessionOptionDescriptor, SessionOptionValue } from './native-chat-session-options'
-import type { SlashCommandSuggestion } from './native-chat-slash-commands'
+import { hostCommandAlias, type SlashCommandSuggestion } from './native-chat-slash-commands'
 import type { AgentSessionConversationCommand } from './agent-session-conversation-command'
 
 const MODEL_COMMAND: SlashCommandSuggestion = {
@@ -126,13 +126,15 @@ export function isStructuredAgentSessionComposerCommand(
   )
 }
 
-/** `/clear` or `/compact` alone: a conversation command with nothing after it. */
-export function isLoneStructuredAgentSessionConversationCommand(text: string): boolean {
+/** `/clear` or `/compact` alone, or a host alias of either: a conversation command with nothing after it. */
+export function isLoneStructuredAgentSessionConversationCommand(
+  text: string,
+  agent?: AgentType
+): boolean {
   const command = commandParts(text.trim())
+  const name = command && (hostCommandAlias(agent, command.name) ?? command.name)
   return Boolean(
-    command &&
-    command.argument === '' &&
-    CONVERSATION_COMMANDS.some((entry) => entry.name === command.name)
+    command && command.argument === '' && CONVERSATION_COMMANDS.some((entry) => entry.name === name)
   )
 }
 
@@ -141,12 +143,16 @@ export function isStructuredAgentSessionGoalCommand(text: string): boolean {
   return commandParts(text)?.name === 'goal'
 }
 
-/** `/clear`, `/compact` and `/goal …` change the conversation; option and picker commands do not. */
-export function structuredAgentSessionCommandChangesConversation(text: string): boolean {
+/** `/clear`, `/compact` (or their aliases) and `/goal …` change the conversation; options do not. */
+export function structuredAgentSessionCommandChangesConversation(
+  text: string,
+  agent?: AgentType
+): boolean {
   const command = commandParts(text)
+  const target = command && (hostCommandAlias(agent, command.name) ?? command.name)
   return (
-    command?.name === 'clear' ||
-    command?.name === 'compact' ||
+    target === 'clear' ||
+    target === 'compact' ||
     (command?.name === 'goal' && command.argument !== '')
   )
 }
@@ -210,39 +216,38 @@ export async function dispatchStructuredAgentSessionComposerCommand(
   if (!command || !isStructuredAgentSessionComposerCommand(text, controller.agent)) {
     return { handled: false, accepted: false, error: null }
   }
-  if (command.name === 'clear' || command.name === 'compact') {
+  // A host alias (Pi's `/new`, `/thinking`) runs the shared command it names; the typed name stays in messages.
+  const target = hostCommandAlias(controller.agent, command.name) ?? command.name
+  if (target === 'clear' || target === 'compact') {
     if (command.argument) {
       return { handled: true, accepted: false, error: `Use /${command.name} without arguments.` }
     }
-    if (
-      !controller.conversationCommands?.includes(command.name) ||
-      !controller.runConversationCommand
-    ) {
+    if (!controller.conversationCommands?.includes(target) || !controller.runConversationCommand) {
       return {
         handled: true,
         accepted: false,
         error: `/${command.name} is not supported by this chat host.`
       }
     }
-    return { handled: true, ...(await controller.runConversationCommand(command.name)) }
+    return { handled: true, ...(await controller.runConversationCommand(target)) }
   }
-  if (command.name !== 'model' && command.name !== 'effort') {
+  if (target !== 'model' && target !== 'effort') {
     return unavailable(command.name)
   }
-  const descriptor = controller.snapshot.find((entry) => entry.id === command.name)
+  const descriptor = controller.snapshot.find((entry) => entry.id === target)
   if (!descriptor || descriptor.kind.type !== 'select') {
     return {
       handled: true,
       accepted: true,
-      error: `${command.name === 'model' ? 'Models' : 'Reasoning effort'} are unavailable for this chat session.`
+      error: `${target === 'model' ? 'Models' : 'Reasoning effort'} are unavailable for this chat session.`
     }
   }
   if (!command.argument) {
-    const opened = await controller.invokeAction(command.name)
+    const opened = await controller.invokeAction(target)
     return {
       handled: true,
       accepted: opened,
-      error: opened ? null : `Could not open the ${command.name} picker.`
+      error: opened ? null : `Could not open the ${target} picker.`
     }
   }
   const normalized = command.argument.toLowerCase()
@@ -253,13 +258,13 @@ export async function dispatchStructuredAgentSessionComposerCommand(
     return {
       handled: true,
       accepted: false,
-      error: `${command.argument} is not an available ${command.name} for this chat session.`
+      error: `${command.argument} is not an available ${target} for this chat session.`
     }
   }
-  const applied = await controller.setOption(command.name, choice.value)
+  const applied = await controller.setOption(target, choice.value)
   return {
     handled: true,
     accepted: applied,
-    error: applied ? null : `Could not apply ${command.name} ${choice.label}.`
+    error: applied ? null : `Could not apply ${target} ${choice.label}.`
   }
 }

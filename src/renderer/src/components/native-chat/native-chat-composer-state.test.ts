@@ -149,6 +149,23 @@ describe('deriveComposerAutocomplete — one grammar for every agent', () => {
   })
 })
 
+describe('buildNativeChatPickerItems and host aliases', () => {
+  it('lists the shared command and hides the alias that names it', () => {
+    const items = buildNativeChatPickerItems(
+      [
+        { name: 'effort', description: 'Set the reasoning effort' },
+        { name: 'thinking', description: 'Set thinking level', hidden: true }
+      ],
+      [],
+      '',
+      '/'
+    )
+    expect(items.flatMap((item) => (item.kind === 'command' ? [item.name] : []))).toEqual([
+      'effort'
+    ])
+  })
+})
+
 describe('filterSlashCommands', () => {
   it('is case-insensitive prefix match', () => {
     expect(filterSlashCommands(COMMANDS, 'C').map((c) => c.name)).toEqual(['clear', 'compact'])

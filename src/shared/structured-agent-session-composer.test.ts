@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { SessionOptionDescriptor } from './native-chat-session-options'
 import {
   dispatchStructuredAgentSessionComposerCommand,
+  isLoneStructuredAgentSessionConversationCommand,
   isStructuredAgentSessionComposerCommand,
+  structuredAgentSessionCommandChangesConversation,
   structuredAgentSessionGoalObjective,
   structuredSlashCommands
 } from './structured-agent-session-composer'
@@ -311,5 +314,78 @@ describe('agent-implemented commands pass through to the agent', () => {
       error:
         '/permissions is not available in chat sessions. Use the slash menu to see available commands.'
     })
+  })
+})
+
+// Pi names two commands Orca offers under other names; each answers as its shared command.
+describe('Pi host aliases', () => {
+  const effort: SessionOptionDescriptor = {
+    id: 'effort',
+    label: 'Reasoning effort',
+    kind: {
+      type: 'select',
+      choices: [
+        { value: 'off', label: 'Off' },
+        { value: 'high', label: 'High' }
+      ]
+    },
+    valueSource: 'reported',
+    transport: 'agent-session',
+    settable: true
+  }
+  const piController = () => ({
+    agent: 'pi' as const,
+    snapshot: [effort],
+    invokeAction: vi.fn(async () => true),
+    setOption: vi.fn(async () => true),
+    conversationCommands: ['clear', 'compact'] as const,
+    runConversationCommand: vi.fn(async () => ({ accepted: true, error: null }))
+  })
+
+  it('answers /thinking as the shared effort option, with an argument or a picker', async () => {
+    const controller = piController()
+    expect(
+      await dispatchStructuredAgentSessionComposerCommand('/thinking high', controller)
+    ).toEqual({ handled: true, accepted: true, error: null })
+    expect(controller.setOption).toHaveBeenCalledWith('effort', 'high')
+    expect(await dispatchStructuredAgentSessionComposerCommand('/thinking', controller)).toEqual({
+      handled: true,
+      accepted: true,
+      error: null
+    })
+    expect(controller.invokeAction).toHaveBeenCalledWith('effort')
+  })
+
+  it('answers /new as a fresh context, as /clear does, and refuses an argument', async () => {
+    const controller = piController()
+    expect(await dispatchStructuredAgentSessionComposerCommand('/new', controller)).toEqual({
+      handled: true,
+      accepted: true,
+      error: null
+    })
+    expect(controller.runConversationCommand).toHaveBeenCalledWith('clear')
+    expect(
+      await dispatchStructuredAgentSessionComposerCommand('/new keep this', controller)
+    ).toEqual({ handled: true, accepted: false, error: 'Use /new without arguments.' })
+    expect(controller.runConversationCommand).toHaveBeenCalledTimes(1)
+  })
+
+  it('claims the aliases on Pi only, and counts /new as a conversation change only there', () => {
+    expect(isStructuredAgentSessionComposerCommand('/thinking', 'pi')).toBe(true)
+    expect(isStructuredAgentSessionComposerCommand('/new', 'pi')).toBe(true)
+    expect(isStructuredAgentSessionComposerCommand('/thinking', 'codex')).toBe(false)
+    expect(structuredAgentSessionCommandChangesConversation('/new', 'pi')).toBe(true)
+    expect(structuredAgentSessionCommandChangesConversation('/new', 'codex')).toBe(false)
+    expect(structuredAgentSessionCommandChangesConversation('/new')).toBe(false)
+    expect(isLoneStructuredAgentSessionConversationCommand('/new', 'pi')).toBe(true)
+    expect(isLoneStructuredAgentSessionConversationCommand('/new')).toBe(false)
+  })
+
+  it('leaves /thinking to the agent on other agents', async () => {
+    const controller = { ...piController(), agent: 'codex' as const }
+    expect(
+      await dispatchStructuredAgentSessionComposerCommand('/thinking high', controller)
+    ).toEqual({ handled: false, accepted: false, error: null })
+    expect(controller.setOption).not.toHaveBeenCalled()
   })
 })

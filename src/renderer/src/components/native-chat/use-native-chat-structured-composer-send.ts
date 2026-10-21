@@ -89,7 +89,7 @@ export function useNativeChatStructuredComposerSend({
         return
       }
       // A conversation command reveals at the press, not after its round trip; options move nothing.
-      if (hostCommand && structuredAgentSessionCommandChangesConversation(text)) {
+      if (hostCommand && structuredAgentSessionCommandChangesConversation(text, agent)) {
         structuredTransport.onSubmitted?.()
       }
       const submitted = sentFrom ?? readNativeChatComposerDraft(draftScopeKey)

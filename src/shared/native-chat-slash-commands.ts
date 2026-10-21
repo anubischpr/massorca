@@ -25,6 +25,8 @@ export type SlashCommandSuggestion = {
   providerFunction?: AgentSessionProviderFunction
   /** Declared only on curated rows; a surface that cannot show the reply drops the row. */
   reply?: NativeChatCommandReply
+  /** Claimed so a typed alias is answered here, but never listed beside the command it names. */
+  hidden?: true
 }
 
 // Best-effort, curated per-agent catalogs. The CLIs ship no machine-readable
@@ -41,7 +43,7 @@ const PI_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'settings', description: 'Open settings' },
   { name: 'model', description: 'Choose the model' },
   { name: 'tree', description: 'Navigate session branches' },
-  { name: 'thinking', description: 'Set thinking level' },
+  { name: 'thinking', description: 'Set thinking level', hidden: true },
   { name: 'scoped-models', description: 'Choose models for cycling' },
   { name: 'export', description: 'Export the session' },
   { name: 'import', description: 'Import a session from JSONL' },
@@ -57,7 +59,7 @@ const PI_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'trust', description: 'Save project trust' },
   { name: 'login', description: 'Configure provider authentication' },
   { name: 'logout', description: 'Remove provider authentication' },
-  { name: 'new', description: 'Start a new session' },
+  { name: 'new', description: 'Start a new session', hidden: true },
   { name: 'compact', description: 'Compact conversation context' },
   { name: 'resume', description: 'Resume a session' },
   { name: 'reload', description: 'Reload extensions and settings' },
@@ -189,6 +191,20 @@ const COMMANDS_BY_AGENT: Partial<Record<AgentType, readonly SlashCommandSuggesti
 
 /** Known slash commands for an agent, falling back to a small common set so the
  *  `/` menu is never empty for a recognized agent. */
+/** Pi names two commands Orca already offers under other names: `/thinking` sets the effort and
+ *  `/new` starts a fresh context, as the shared `/effort` and `/clear` do. */
+const HOST_COMMAND_ALIASES: Partial<Record<AgentType, ReadonlyMap<string, string>>> = {
+  pi: new Map([
+    ['thinking', 'effort'],
+    ['new', 'clear']
+  ])
+}
+
+/** The shared command a host alias answers with, or undefined for any other name. */
+export function hostCommandAlias(agent: AgentType | undefined, name: string): string | undefined {
+  return agent ? HOST_COMMAND_ALIASES[agent]?.get(name) : undefined
+}
+
 export function getAgentSlashCommands(agent: AgentType): readonly SlashCommandSuggestion[] {
   return COMMANDS_BY_AGENT[agent] ?? COMMON_COMMANDS
 }
