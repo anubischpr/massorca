@@ -37,11 +37,48 @@ describe('codex mutating provider commands', () => {
     expect(outcome).toMatchObject({ ok: true, conversationName: 'Parser' })
   })
 
-  it('forks and hands the new conversation id to the client', async () => {
-    const request = vi.fn(async () => ({ thread: { id: 'thread-2' } }))
+  it('forks, lets this app-server release the fork, and hands its id to the client', async () => {
+    let loaded = ['thread-1', 'thread-2']
+    const request = vi.fn(async (method: string) => {
+      if (method === 'thread/fork') {
+        return { thread: { id: 'thread-2' } }
+      }
+      if (method === 'thread/unsubscribe') {
+        return { status: 'unsubscribed' }
+      }
+      if (method === 'thread/loaded/list') {
+        const answer = { data: loaded }
+        loaded = ['thread-1']
+        return answer
+      }
+      return {}
+    })
     const outcome = await run(session(request), { command: 'fork' }, 1000)
-    expect(lastCall(request)).toEqual(['thread/fork', { threadId: 'thread-1' }])
+    expect(request.mock.calls.map((call) => call[0])).toEqual([
+      'thread/fork',
+      'thread/unsubscribe',
+      'thread/loaded/list',
+      'thread/loaded/list'
+    ])
+    expect(request).toHaveBeenCalledWith(
+      'thread/unsubscribe',
+      { threadId: 'thread-2' },
+      { timeoutMs: 1000 }
+    )
     expect(outcome).toMatchObject({ ok: true, forkedProviderSessionId: 'thread-2' })
+  })
+
+  it('still returns the fork when it cannot be released', async () => {
+    const request = vi.fn(async (method: string) => {
+      if (method === 'thread/fork') {
+        return { thread: { id: 'thread-2' } }
+      }
+      throw new Error('no such method')
+    })
+    expect(await run(session(request), { command: 'fork' }, 1000)).toMatchObject({
+      ok: true,
+      forkedProviderSessionId: 'thread-2'
+    })
   })
 
   it('starts an inline review of the changes, or of the instructions given', async () => {

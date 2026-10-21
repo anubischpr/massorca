@@ -68,6 +68,30 @@ function unsupported(command: AgentSessionProviderCommand): AgentSessionProvider
   return notice(`/${command} is not supported by this version of Codex.`, { tone: 'warning' })
 }
 
+const FORK_RELEASE_POLLS = 20
+const FORK_RELEASE_POLL_MS = 150
+
+/** `thread/fork` leaves the new thread loaded, and writable, in this chat's app-server. The chat
+ *  that adopts it starts an app-server of its own, whose `thread/resume` is refused ("already has an
+ *  active writer") until this one has let go. */
+async function releaseForkedThread(
+  request: (method: string, params: Record<string, unknown>) => Promise<unknown>,
+  threadId: string
+): Promise<void> {
+  try {
+    await request('thread/unsubscribe', { threadId })
+    for (let poll = 0; poll < FORK_RELEASE_POLLS; poll += 1) {
+      const loaded = readRecord(await request('thread/loaded/list', {})).data
+      if (!Array.isArray(loaded) || !loaded.includes(threadId)) {
+        return
+      }
+      await new Promise((resolve) => setTimeout(resolve, FORK_RELEASE_POLL_MS))
+    }
+  } catch {
+    // The fork exists either way; an adopter that still finds it held reports that itself.
+  }
+}
+
 /** Runs one provider command on a live Codex thread. */
 export async function run(
   session: CodexCommandSession,
@@ -112,10 +136,12 @@ export async function run(
       case 'fork': {
         const response = await request('thread/fork', { threadId })
         const forked = readString(readRecord(readRecord(response).thread), 'id')
-        return forked === null
-          ? { ok: false, rejected: 'Codex did not name the forked conversation.' }
-          : // No row: the fork opens as its own chat, and a row here would move the chat the user is reading.
-            { ok: true, forkedProviderSessionId: forked }
+        if (forked === null) {
+          return { ok: false, rejected: 'Codex did not name the forked conversation.' }
+        }
+        await releaseForkedThread(request, forked)
+        // No row: the fork opens as its own chat, and a row here would move the chat the user is reading.
+        return { ok: true, forkedProviderSessionId: forked }
       }
       case 'review':
         // Inline: the review runs as a turn of this thread, so its items stream into this chat.
