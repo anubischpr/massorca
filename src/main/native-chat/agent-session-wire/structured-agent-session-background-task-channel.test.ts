@@ -48,7 +48,7 @@ function channelOver(
     async () => {
       throw new Error('not opened here')
     },
-    children
+    { readChildWork: children, readChildWorkHistory: children }
   )
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the map reads only the journal's commit observer and the session's provider.
   const session = {

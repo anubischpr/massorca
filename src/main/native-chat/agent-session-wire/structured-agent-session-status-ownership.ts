@@ -5,6 +5,7 @@ import type {
 import type { AgentSessionStatusSummary } from '../../../shared/agent-session-wire'
 import type { AgentChildWorkEvidence } from '../../../shared/agent-status-child-work-evidence'
 import type { AgentChildWorkView } from '../../../shared/agent-status-child-work-view'
+import type { StructuredAgentSessionChildWorkHistory } from './structured-agent-session-child-work-history'
 import {
   parseAgentStatusSubject,
   serializeAgentStatusSubject,
@@ -38,7 +39,12 @@ export class StructuredAgentSessionStatusOwnership {
   // publish that returned proves that, and only that proof may suppress the re-offer below.
   private readonly landed = new Set<string>()
 
-  constructor(private readonly sink: () => StructuredAgentSessionStatusSink | undefined) {}
+  constructor(
+    private readonly sink: () => StructuredAgentSessionStatusSink | undefined,
+    /** Finished children outlive the sink's records; it is told of every change to them. */
+    private readonly history: () => StructuredAgentSessionChildWorkHistory | undefined = () =>
+      undefined
+  ) {}
 
   matchesLocation(sessionId: string, location: AgentSessionExecutionLocation): boolean {
     const subject = this.subjects.get(sessionId)
@@ -88,8 +94,17 @@ export class StructuredAgentSessionStatusOwnership {
   ): void {
     const subject = this.subjects.get(sessionId)
     if (subject && this.landed.has(sessionId)) {
+      // The sink drops its settled children on this edge, so they are taken first.
+      if (evidence.some((edge) => edge.type === 'turn-started')) {
+        this.observeHistory(sessionId)
+      }
       this.sink()?.publishChildWork?.(subject, evidence, provider)
+      this.observeHistory(sessionId)
     }
+  }
+
+  private observeHistory(sessionId: string): void {
+    this.history()?.observe(sessionId, this.readChildWork(sessionId, true) ?? [])
   }
 
   /** Undefined until the parent row has landed: a sink holds no children for a parent it lacks. */
@@ -108,6 +123,8 @@ export class StructuredAgentSessionStatusOwnership {
     if (!subject) {
       return
     }
+    this.observeHistory(sessionId)
+    this.history()?.interrupt(sessionId)
     this.landed.delete(sessionId)
     this.sink()?.forget(subject)
     this.subjects.delete(sessionId)

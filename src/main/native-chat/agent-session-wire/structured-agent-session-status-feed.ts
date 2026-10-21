@@ -28,6 +28,7 @@ import {
 } from './structured-agent-session-status-journal-projection'
 import { structuredStatusSummariesEqual } from './structured-agent-session-status-summary-equality'
 import type { StructuredAgentSessionLogger } from './structured-agent-session-logger'
+import type { StructuredAgentSessionChildWorkHistory } from './structured-agent-session-child-work-history'
 import {
   StructuredAgentSessionStatusOwnership,
   type StructuredAgentSessionStatusSink
@@ -64,6 +65,8 @@ export type StructuredAgentSessionStatusFeedDeps = {
   /** Resolved on every call: the host builds this feed in a field initializer, before its own
    *  deps are assigned. The sink holds the session's child records; the summary reads them there. */
   statusSink?: () => StructuredAgentSessionStatusSink | undefined
+  /** Finished child work outlives the store's records; see the history's own comment. */
+  childWorkHistory?: StructuredAgentSessionChildWorkHistory
   /** The session's child records changed, so every other reader of them republishes. */
   onChildWorkChanged?: (sessionId: string) => void
   /** The session's agent proved a start: its row's phase became `ready`. */
@@ -71,8 +74,9 @@ export type StructuredAgentSessionStatusFeedDeps = {
 }
 
 export class StructuredAgentSessionStatusFeed {
-  private readonly ownership = new StructuredAgentSessionStatusOwnership(() =>
-    this.deps.statusSink?.()
+  private readonly ownership = new StructuredAgentSessionStatusOwnership(
+    () => this.deps.statusSink?.(),
+    () => this.deps.childWorkHistory
   )
   private readonly subscribers = new Map<string, StructuredAgentSessionStatusSubscriber>()
   // Never evicted: chats are named only while in here, and AI Vault reads closed ones' names here.
