@@ -28,6 +28,7 @@ const ARGUMENT_RULES: Record<
   skills: { kind: 'none' },
   plugins: { kind: 'none' },
   fork: { kind: 'none' },
+  side: { kind: 'none' },
   approve: { kind: 'none' },
   stop: { kind: 'none' },
   memories: { kind: 'toggle' },

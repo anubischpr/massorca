@@ -22,6 +22,7 @@ export const CODEX_PROVIDER_COMMANDS = [
   'memories',
   'rename',
   'fork',
+  'side',
   'review',
   'approve',
   'stop'
@@ -162,6 +163,14 @@ export async function run(
         // No row: the fork opens as its own chat, and a row here would move the chat the user is reading.
         return forked === null
           ? { ok: false, rejected: 'Codex did not name the forked conversation.' }
+          : { ok: true, forkedProviderSessionId: forked }
+      }
+      case 'side': {
+        // A side conversation is an ephemeral fork (`ephemeral` on Codex's thread/fork); it opens as its own chat.
+        const response = await request('thread/fork', { threadId, ephemeral: true })
+        const forked = readString(readRecord(readRecord(response).thread), 'id')
+        return forked === null
+          ? { ok: false, rejected: 'Codex did not name the side conversation.' }
           : { ok: true, forkedProviderSessionId: forked }
       }
       case 'review':

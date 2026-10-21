@@ -27,6 +27,7 @@ function noticeIdentity(clientOperationId: string): AgentJournalItemIdentity {
 /** Commands that start provider work or create something: running one twice is not the same as once. */
 const REPEAT_UNSAFE: ReadonlySet<AgentSessionProviderCommand> = new Set([
   'fork',
+  'side',
   'review',
   'approve'
 ])
