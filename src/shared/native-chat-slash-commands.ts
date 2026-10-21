@@ -156,8 +156,10 @@ const OMP_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'hotkeys', description: 'Show keyboard shortcuts in Terminal' }
 ]
 
-// agy 1.4.3's own `/help` list, read in print mode (no model turn). Its stream reports no command
-// list, so the structured chat offers this one as the CLI's own commands.
+// agy 1.4.3's own `/help` list, read in print mode (no model turn), plus `/grill-me`, a TUI prompt
+// command: its instruction body is in the binary and expands like a skill in print mode. Its interview
+// relies on the `ask_question` tool, which headless runs have not been seen to answer. Its stream
+// reports no command list, so the structured chat offers this one as the CLI's own commands.
 export const ANTIGRAVITY_CLI_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'agents', description: 'List available custom agents' },
   { name: 'changelog', description: 'Show release notes and changes' },
@@ -173,7 +175,8 @@ export const ANTIGRAVITY_CLI_COMMANDS: readonly SlashCommandSuggestion[] = [
     description: 'Manage, discover, install, uninstall, enable, and disable plugins'
   },
   { name: 'skills', description: 'List available skills' },
-  { name: 'usage', description: 'View model quota usage' }
+  { name: 'usage', description: 'View model quota usage' },
+  { name: 'grill-me', description: 'Interview me to align on a plan.' }
 ]
 
 const COMMANDS_BY_AGENT: Partial<Record<AgentType, readonly SlashCommandSuggestion[]>> = {

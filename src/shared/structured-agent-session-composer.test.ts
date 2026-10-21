@@ -92,9 +92,9 @@ describe('structuredSlashCommands', () => {
     expect(isStructuredAgentSessionComposerCommand('/goal', 'codex')).toBe(false)
   })
 
-  // agy reports no command list on its stream; its `/help` list is the menu's own commands, once
-  // each, with the host's model and effort kept as the host answers them.
-  it('offers Antigravity the commands its /help lists, after the host commands', () => {
+  // agy reports no command list on its stream; its `/help` list and its prompt command `/grill-me`
+  // are the menu's own commands, once each, with the host's model and effort kept as the host answers them.
+  it('offers Antigravity the commands its /help lists and grill-me, after the host commands', () => {
     expect(
       structuredSlashCommands(['clear', 'compact'], 'antigravity').map((command) => command.name)
     ).toEqual([
@@ -111,7 +111,8 @@ describe('structuredSlashCommands', () => {
       'permissions',
       'plugin',
       'skills',
-      'usage'
+      'usage',
+      'grill-me'
     ])
   })
 
