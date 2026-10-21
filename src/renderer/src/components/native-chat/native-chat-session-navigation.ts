@@ -43,6 +43,15 @@ export async function openNativeChatSessionNavigation(): Promise<void> {
   state.setRightSidebarOpen(true)
 }
 
+/** `/diff`: the workspace's source-control view, in the right sidebar. */
+export async function openNativeChatSourceControl(): Promise<boolean> {
+  const { useAppStore } = await import('@/store')
+  const state = useAppStore.getState()
+  state.setRightSidebarTab('source-control')
+  state.setRightSidebarOpen(true)
+  return true
+}
+
 export function withNativeChatSessionCommands(
   commands: readonly SlashCommandSuggestion[],
   agent?: AgentType

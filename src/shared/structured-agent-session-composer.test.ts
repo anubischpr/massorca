@@ -86,7 +86,9 @@ describe('structuredSlashCommands', () => {
       'effort',
       'clear',
       'compact',
-      'goal'
+      'goal',
+      'init',
+      'recap'
     ])
     expect(offered.find((command) => command.name === 'goal')?.description).toBe(
       'set or view the goal for a long-running task'

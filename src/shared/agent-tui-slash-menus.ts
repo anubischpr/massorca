@@ -2,22 +2,30 @@
 // Codex 0.162.1). Kept apart from native-chat-slash-commands.ts, which is at its line limit.
 import type { SlashCommandSuggestion } from './native-chat-slash-commands'
 
+// Codex's `/init` and `/recap`: the app-server takes them as literal text. Unverified: the TUI's own
+// prompts are not reproduced, so the model receives the command name only.
+export const CODEX_TEXT_COMMANDS: readonly SlashCommandSuggestion[] = [
+  { name: 'init', description: 'create an AGENTS.md file with instructions for Codex' },
+  { name: 'recap', description: 'summarize the current conversation now' }
+]
+
 // agy 1.4.3's TUI "/" menu, captured in the preview HOME with verbatim wording. Prompt and skill
 // commands expand from text, so they are listed; TUI-only entries (settings, panels, login, purchase)
 // are left out. Skills on disk and plugin skills come from skill discovery, not from this list. None
-// has been run over stream-json, and the capture cuts two descriptions at 140 characters.
+// has been run over stream-json. agy-customizations takes its full description from its SKILL.md;
+// antigravity-guide keeps the captured text, which the capture cut at 140 characters.
 export const ANTIGRAVITY_CLI_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'model', description: 'Set a model, or run a single prompt on another model' },
   { name: 'effort', description: 'Set the reasoning effort' },
   {
     name: 'agy-customizations',
     description:
-      'Comprehensive guide and reference for the Antigravity Customization System. Use to explain how customizations work, their loading priority, '
+      'Comprehensive guide and reference for the Antigravity Customization System. Use to explain how customizations work, their loading priority, discovery mechanisms, and to guide the creation of skills, rules, plugins, hooks, and MCP servers.'
   },
   {
     name: 'antigravity-guide',
     description:
-      'Provides a comprehensive guide, quick reference, and sitemap for Google Antigravity (AGY), including the Antigravity CLI (agy), Antigravity '
+      'Provides a comprehensive guide, quick reference, and sitemap for Google Antigravity (AGY), including the Antigravity CLI (agy), Antigravity…'
   },
   { name: 'boost', description: 'Invoke the Boost multi-agent orchestrator for complex tasks.' },
   { name: 'browser', description: 'Invoke a browser agent for web tasks.' },

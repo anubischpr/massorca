@@ -112,7 +112,7 @@ describe('the CLI command list a structured chat offers', () => {
     expect(names).toEqual(expect.arrayContaining(['boost', 'grill-me', 'teamwork']))
     // The captured 1.4.3 menu lists neither /usage nor /config, and its TUI-only entries stay out.
     expect(names).not.toEqual(expect.arrayContaining(['usage', 'config', 'help']))
-    expect(getAgentCliCommands('codex')).toEqual([])
+    expect(getAgentCliCommands('codex').map((command) => command.name)).toEqual(['init', 'recap'])
     expect(getAgentCliCommands(null)).toEqual([])
   })
 })
