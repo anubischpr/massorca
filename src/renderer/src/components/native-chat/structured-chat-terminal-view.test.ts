@@ -65,6 +65,20 @@ const SESSIONS: Record<'claude' | 'codex' | 'pi' | 'antigravity', AgentProviderS
   antigravity: { key: 'conversation_id', id: 'provider-1' }
 }
 
+describe('showStructuredChatInTerminal release failure', () => {
+  it('hands the release error to onReleaseFailed, so the toast can name the host refusal', async () => {
+    const refusal = new Error('agent_session_ownership_unknown')
+    const d = deps({
+      releaseProviderChild: vi.fn(async () => {
+        throw refusal
+      })
+    })
+    await expect(showStructuredChatInTerminal(args(), d)).resolves.toBe(false)
+    expect(d.onReleaseFailed).toHaveBeenCalledWith(refusal)
+    expect(d.launchResume).not.toHaveBeenCalled()
+  })
+})
+
 describe('structuredChatTerminalViewState', () => {
   it.each(['claude', 'codex', 'pi', 'antigravity'] as const)(
     'resumes the %s provider session when the chat has one',

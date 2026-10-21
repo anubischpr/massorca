@@ -9,6 +9,7 @@ import {
 import { AgentSessionOptionRejectedError } from '../native-chat/agent-session-wire/structured-agent-session-option-error'
 import {
   AgentSessionAcquisitionExitUnprovenError,
+  AgentSessionAcquisitionRootExitObservedError,
   AgentSessionPreSpawnError,
   type StructuredAgentSessionAcquireInput
 } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
@@ -323,6 +324,19 @@ it('refuses a new child while the previous one still runs, as an unproven exit',
     AgentSessionAcquisitionExitUnprovenError
   )
   expect(h.processes).toHaveLength(1)
+})
+
+it('proves a close by the root exit when the teardown could not verify the descendants', async () => {
+  const h = await setup()
+  const [child] = h.processes
+  child.managed.terminateTree = async () => {
+    setTimeout(() => child.exit(), 20)
+    return 'unverifiable'
+  }
+  await expect(h.adapter.closeSession('session-timeline')).rejects.toBeInstanceOf(
+    AgentSessionAcquisitionRootExitObservedError
+  )
+  h.adapter.acknowledgeSessionRelease('session-timeline')
 })
 
 it('takes access picks at the next start and reads the catalog only for a live child', async () => {

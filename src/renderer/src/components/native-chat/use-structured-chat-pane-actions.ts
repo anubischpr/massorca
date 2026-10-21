@@ -20,6 +20,7 @@ import {
   createStructuredChatPaneActions,
   type StructuredChatPaneActions
 } from './structured-chat-pane-actions'
+import { structuredChatReleaseFailureNotice } from './structured-chat-release-failure-notice'
 
 type StructuredChatJournalRow = { readonly body: AgentJournalItemBody }
 
@@ -120,13 +121,8 @@ export function useStructuredChatPaneActions(args: {
           // Why: no structured-chat launch source exists yet; 'unknown' is honest telemetry.
           prepareContinuation: (request) =>
             prepareAgentSessionContinuationFromSource({ ...request, launchSource: 'unknown' }),
-          onTerminalViewReleaseFailed: () =>
-            reportNotice(
-              translate(
-                'components.native-chat.toggle.terminalViewReleaseFailed',
-                'Could not open this chat in the terminal. The chat was left open.'
-              )
-            ),
+          onTerminalViewReleaseFailed: (error) =>
+            reportNotice(structuredChatReleaseFailureNotice(error)),
           onTerminalViewLaunchFailed: () =>
             reportNotice(
               translate(

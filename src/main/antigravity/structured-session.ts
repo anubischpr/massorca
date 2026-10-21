@@ -12,12 +12,16 @@ import {
   type ManagedProviderProcess
 } from '../provider-process/managed-provider-process'
 import type { ProviderProcessLaunch } from '../provider-process/provider-process-launch'
+import { waitForProcessExitUntil } from '../provider-process/provider-process-exit-deadline'
 import { AntigravityStreamJsonTransport } from './antigravity-stream-json-transport'
 import { AntigravityStreamEventProjector } from './antigravity-stream-json-events'
 import { AntigravitySubagentChildWork } from './antigravity-subagent-child-work'
 import type { AntigravityLaunchOptionKey } from './antigravity-session-options'
 import { agentSessionFailureFact, providerDiagnostic } from '../../shared/agent-session-failure'
 import type { AgentChildWorkEvidence } from '../../shared/agent-status-child-work-evidence'
+
+/** How long a close waits for the root's exit after the teardown signalled it; a killed root exits in ms. */
+const ROOT_EXIT_GRACE_MS = 2_000
 
 export type AntigravitySessionDeps = {
   processFactory?: (launch: ProviderProcessLaunch) => ManagedProviderProcess
@@ -180,9 +184,9 @@ export class AntigravityStructuredSession {
   async close(requested = true): Promise<boolean> {
     this.requestedClose ||= requested
     const tree = await this.transport.terminate()
-    if (tree === 'exited' || this.process.child.pid === undefined) {
-      await this.process.exitPromise
-    }
+    // The teardown has signalled the root, which may exit on the signal or once its descendants are
+    // gone. A bounded wait lets that exit count, instead of judging before it lands.
+    await waitForProcessExitUntil(this.process.exitPromise, ROOT_EXIT_GRACE_MS)
     await this.exitDelivery
     return tree === 'exited' && this.process.rootExitObserved
   }

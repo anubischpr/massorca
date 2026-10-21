@@ -47,7 +47,7 @@ export type StructuredChatPaneActionsDeps = {
     workspacePath: string
     initialCwd: string
   }) => AgentSessionContinuationRequest | null
-  onTerminalViewReleaseFailed: () => void
+  onTerminalViewReleaseFailed: (error?: unknown) => void
   onTerminalViewLaunchFailed: () => void
 }
 

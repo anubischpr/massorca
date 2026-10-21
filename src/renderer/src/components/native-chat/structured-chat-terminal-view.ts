@@ -100,8 +100,9 @@ export type ShowStructuredChatInTerminalDeps = {
   /** Lets the terminal's back-to-chat control reopen this structured chat. */
   recordTerminalLink: (tabId: string, link: StructuredChatTerminalLink) => void
   closeChatTab: (tabId: string) => void
-  /** The release itself failed: the provider child may still run, so the chat stays as it was. */
-  onReleaseFailed: () => void
+  /** The release itself failed: the provider child may still run, so the chat stays as it was. The
+   *  error, when there is one, carries the host's refusal reason for the toast. */
+  onReleaseFailed: (error?: unknown) => void
   /** The child is released but the terminal did not start; the chat stays open and says so. */
   onLaunchFailedAfterRelease: () => void
   now?: () => number
@@ -139,8 +140,8 @@ async function switchStructuredChatToTerminal(
   let released: 'closed' | 'unsupported'
   try {
     released = await deps.releaseProviderChild(args.target, args.sessionId)
-  } catch {
-    deps.onReleaseFailed()
+  } catch (error) {
+    deps.onReleaseFailed(error)
     return false
   }
   if (released !== 'closed') {
