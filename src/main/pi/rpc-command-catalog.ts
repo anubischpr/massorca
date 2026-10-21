@@ -68,15 +68,17 @@ export class PiRpcCommandCatalog {
     return () => this.listeners.delete(listener)
   }
 
-  /** The `/` surface of a Pi chat whose child is not running: what its runtime last reported, offered
-   *  as unverified until a child answers for this session. */
+  /** The `/` surface of a Pi chat whose child is not running: what its runtime last reported. */
   atRestCommands(): StructuredAgentSessionAtRestCommands {
     const read = (record: AgentSessionRecord) =>
       record.provider === 'pi' ? this.read(runtimeOf(record.options)) : undefined
     return {
       read,
+      // Pi's own child reported this list for this runtime, so a name on it is sent as a prompt (the
+      // send starts the child); a Stop ends a Pi session, and every command would otherwise be
+      // refused until the next message. Once a child runs, its report replaces this one.
       readFunctions: (record) =>
-        classifyAgentSessionFunctions({ commands: read(record), source: 'provider-files' }),
+        classifyAgentSessionFunctions({ commands: read(record), source: 'provider-session' }),
       onChange: (listener) => this.onChange(listener)
     }
   }

@@ -399,4 +399,36 @@ describe('Pi host aliases', () => {
     })
     expect(outcome.handled).toBe(false)
   })
+
+  it('never lets the hidden Pi aliases shadow namespaced extension commands', async () => {
+    const extension = (name: string) => ({
+      name,
+      provenance: 'provider-session' as const,
+      availability: 'available' as const,
+      execution: { kind: 'provider-prompt' as const }
+    })
+    const controller = {
+      agent: 'pi' as const,
+      functions: [extension('btw:new'), extension('btw:thinking')],
+      snapshot: [],
+      invokeAction: async () => true,
+      setOption: async () => true,
+      conversationCommands: ['clear', 'compact'] as const,
+      runConversationCommand: vi.fn(async () => ({ accepted: true, error: null }))
+    }
+    for (const name of ['btw:new', 'btw:thinking']) {
+      expect(await dispatchStructuredAgentSessionComposerCommand(`/${name}`, controller)).toEqual({
+        handled: false,
+        accepted: false,
+        error: null
+      })
+    }
+    expect(controller.runConversationCommand).not.toHaveBeenCalled()
+    // The bare aliases still answer as the shared commands.
+    await dispatchStructuredAgentSessionComposerCommand('/new', {
+      ...controller,
+      functions: undefined
+    })
+    expect(controller.runConversationCommand).toHaveBeenCalledWith('clear')
+  })
 })
