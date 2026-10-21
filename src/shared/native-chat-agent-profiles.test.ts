@@ -107,8 +107,11 @@ describe('native chat command replies', () => {
 })
 
 describe('the CLI command list a structured chat offers', () => {
-  it('offers Antigravity the list its own /help reports, and no list for other agents', () => {
-    expect(getAgentCliCommands('antigravity').map((command) => command.name)).toContain('usage')
+  it('offers Antigravity the captured TUI prompt and skill commands, and no list for other agents', () => {
+    const names = getAgentCliCommands('antigravity').map((command) => command.name)
+    expect(names).toEqual(expect.arrayContaining(['boost', 'grill-me', 'teamwork']))
+    // The captured 1.4.3 menu lists neither /usage nor /config, and its TUI-only entries stay out.
+    expect(names).not.toEqual(expect.arrayContaining(['usage', 'config', 'help']))
     expect(getAgentCliCommands('codex')).toEqual([])
     expect(getAgentCliCommands(null)).toEqual([])
   })

@@ -89,15 +89,15 @@ describe('structuredSlashCommands', () => {
       'goal'
     ])
     expect(offered.find((command) => command.name === 'goal')?.description).toBe(
-      'Set or view the goal'
+      'set or view the goal for a long-running task'
     )
     // Picking it must reach the model, not the host's refusal.
     expect(isStructuredAgentSessionComposerCommand('/goal', 'codex')).toBe(false)
   })
 
-  // agy reports no command list on its stream; its `/help` list and its skill commands `/grill-me` and
-  // `/boost` are the menu's own commands, once each, with the host's model and effort kept as the host answers them.
-  it('offers Antigravity the commands its /help lists, grill-me and boost, after the host commands', () => {
+  // agy reports no command list on its stream; its menu is the captured TUI list of prompt and skill
+  // commands, once each, with the host's model, effort, clear and compact kept as the host answers them.
+  it('offers Antigravity the captured TUI prompt and skill commands, after the host commands', () => {
     expect(
       structuredSlashCommands(['clear', 'compact'], 'antigravity').map((command) => command.name)
     ).toEqual([
@@ -105,18 +105,17 @@ describe('structuredSlashCommands', () => {
       'effort',
       'clear',
       'compact',
-      'agents',
-      'changelog',
-      'config',
-      'credits',
-      'help',
-      'hooks',
-      'permissions',
-      'plugin',
-      'skills',
-      'usage',
+      'agy-customizations',
+      'antigravity-guide',
+      'boost',
+      'browser',
+      'btw',
+      'goal',
       'grill-me',
-      'boost'
+      'learn',
+      'plan',
+      'schedule',
+      'teamwork'
     ])
   })
 
@@ -371,15 +370,26 @@ describe('Pi host aliases', () => {
     expect(controller.runConversationCommand).toHaveBeenCalledTimes(1)
   })
 
-  it('claims the aliases on Pi only, and counts /new as a conversation change only there', () => {
+  it('claims the aliases on Pi and Codex, and counts /new as a conversation change there', () => {
     expect(isStructuredAgentSessionComposerCommand('/thinking', 'pi')).toBe(true)
     expect(isStructuredAgentSessionComposerCommand('/new', 'pi')).toBe(true)
     expect(isStructuredAgentSessionComposerCommand('/thinking', 'codex')).toBe(false)
     expect(structuredAgentSessionCommandChangesConversation('/new', 'pi')).toBe(true)
-    expect(structuredAgentSessionCommandChangesConversation('/new', 'codex')).toBe(false)
+    expect(structuredAgentSessionCommandChangesConversation('/new', 'codex')).toBe(true)
     expect(structuredAgentSessionCommandChangesConversation('/new')).toBe(false)
     expect(isLoneStructuredAgentSessionConversationCommand('/new', 'pi')).toBe(true)
+    expect(isLoneStructuredAgentSessionConversationCommand('/new', 'codex')).toBe(true)
     expect(isLoneStructuredAgentSessionConversationCommand('/new')).toBe(false)
+  })
+
+  it('answers Codex /new as a fresh context, as /clear does', async () => {
+    const controller = { ...piController(), agent: 'codex' as const }
+    expect(await dispatchStructuredAgentSessionComposerCommand('/new', controller)).toEqual({
+      handled: true,
+      accepted: true,
+      error: null
+    })
+    expect(controller.runConversationCommand).toHaveBeenCalledWith('clear')
   })
 
   it('leaves /thinking to the agent on other agents', async () => {

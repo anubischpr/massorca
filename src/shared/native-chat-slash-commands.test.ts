@@ -11,11 +11,12 @@ import {
 } from './native-chat-slash-commands'
 
 describe('host command aliases', () => {
-  it('maps Pi /thinking and /new to the shared commands, and only for Pi', () => {
+  it('maps Pi /thinking and /new, and Codex /new, to the shared commands and no others', () => {
     expect(hostCommandAlias('pi', 'thinking')).toBe('effort')
     expect(hostCommandAlias('pi', 'new')).toBe('clear')
     expect(hostCommandAlias('pi', 'resume')).toBeUndefined()
-    expect(hostCommandAlias('codex', 'new')).toBeUndefined()
+    expect(hostCommandAlias('codex', 'new')).toBe('clear')
+    expect(hostCommandAlias('codex', 'thinking')).toBeUndefined()
     expect(hostCommandAlias(undefined, 'thinking')).toBeUndefined()
   })
 
@@ -38,6 +39,50 @@ describe('Pi built-in descriptions', () => {
       'Export session (HTML default, or specify path: .html/.jsonl)'
     )
     expect(described.get('quit')).toBe('Quit pi')
+  })
+})
+
+describe('Codex captured menu', () => {
+  it('lists the host-owned and app-server commands, and keeps the rest claimed but hidden', () => {
+    const codex = getAgentSlashCommands('codex')
+    expect(
+      codex.filter((command) => command.hidden !== true).map((command) => command.name)
+    ).toEqual([
+      'approve',
+      'clear',
+      'compact',
+      'fork',
+      'goal',
+      'memories',
+      'model',
+      'plugins',
+      'rename',
+      'review',
+      'skills',
+      'stop'
+    ])
+    const hidden = codex.filter((command) => command.hidden === true).map((command) => command.name)
+    expect(hidden).toEqual(
+      expect.arrayContaining([
+        'delete',
+        'archive',
+        'exit',
+        'logout',
+        'fast',
+        'import',
+        'new',
+        'vim'
+      ])
+    )
+  })
+
+  it('uses the wording the 0.162.1 menu shows, verbatim', () => {
+    const described = new Map(
+      getAgentSlashCommands('codex').map((command) => [command.name, command.description])
+    )
+    expect(described.get('review')).toBe('review my current changes and find issues')
+    expect(described.get('goal')).toBe('set or view the goal for a long-running task')
+    expect(described.get('fast')).toBe('2x speed, increased usage')
   })
 })
 
