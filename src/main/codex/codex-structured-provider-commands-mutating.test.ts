@@ -1,0 +1,150 @@
+import { describe, expect, it, vi } from 'vitest'
+import { codexReviewItemBody } from './codex-review-item-translation'
+import {
+  available,
+  observe,
+  run,
+  CODEX_PROVIDER_COMMANDS
+} from './codex-structured-provider-commands'
+
+function session(request: (method: string, params?: Record<string, unknown>) => Promise<unknown>) {
+  return {
+    threadId: 'thread-1',
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the commands under test call only `request`.
+    connection: { request } as never
+  }
+}
+
+function lastCall(request: ReturnType<typeof vi.fn>): [string, Record<string, unknown>] {
+  const call = request.mock.calls.at(-1)
+  return [call?.[0], call?.[1]]
+}
+
+describe('codex mutating provider commands', () => {
+  it('sets the memory mode per thread', async () => {
+    const request = vi.fn(async () => ({}))
+    await run(session(request), { command: 'memories', argument: 'off' }, 1000)
+    expect(lastCall(request)).toEqual([
+      'thread/memoryMode/set',
+      { threadId: 'thread-1', mode: 'disabled' }
+    ])
+  })
+
+  it('renames the thread and returns the name for the chat title', async () => {
+    const request = vi.fn(async () => ({}))
+    const outcome = await run(session(request), { command: 'rename', argument: 'Parser' }, 1000)
+    expect(lastCall(request)).toEqual(['thread/name/set', { threadId: 'thread-1', name: 'Parser' }])
+    expect(outcome).toMatchObject({ ok: true, conversationName: 'Parser' })
+  })
+
+  it('forks and hands the new conversation id to the client', async () => {
+    const request = vi.fn(async () => ({ thread: { id: 'thread-2' } }))
+    const outcome = await run(session(request), { command: 'fork' }, 1000)
+    expect(lastCall(request)).toEqual(['thread/fork', { threadId: 'thread-1' }])
+    expect(outcome).toMatchObject({ ok: true, forkedProviderSessionId: 'thread-2' })
+  })
+
+  it('starts an inline review of the changes, or of the instructions given', async () => {
+    const request = vi.fn(async () => ({}))
+    await run(session(request), { command: 'review' }, 1000)
+    expect(lastCall(request)[1]).toEqual({
+      threadId: 'thread-1',
+      delivery: 'inline',
+      target: { type: 'uncommittedChanges' }
+    })
+    await run(session(request), { command: 'review', argument: 'the parser' }, 1000)
+    expect(lastCall(request)[1]).toMatchObject({
+      target: { type: 'custom', instructions: 'the parser' }
+    })
+  })
+
+  it('cleans the background terminals', async () => {
+    const request = vi.fn(async () => ({}))
+    await run(session(request), { command: 'stop' }, 1000)
+    expect(lastCall(request)).toEqual([
+      'thread/backgroundTerminals/clean',
+      { threadId: 'thread-1' }
+    ])
+  })
+})
+
+describe('codex /approve', () => {
+  const denial = {
+    threadId: 'thread-1',
+    reviewId: 'review-1',
+    turnId: 'turn-1',
+    targetItemId: 'item-1',
+    decisionSource: 'agent',
+    review: { status: 'denied', riskLevel: 'high', rationale: 'deletes files' },
+    action: { type: 'applyPatch', cwd: '/repo', files: ['a.ts'] }
+  }
+
+  it('is offered only while a denied action waits, and a new turn withdraws it', () => {
+    const request = vi.fn(async () => ({}))
+    const codex = session(request)
+    expect(available(codex)).not.toContain('approve')
+    observe(codex, 'item/autoApprovalReview/completed', denial)
+    expect(available(codex)).toEqual(CODEX_PROVIDER_COMMANDS)
+    observe(codex, 'turn/started', {})
+    expect(available(codex)).not.toContain('approve')
+    expect(available(undefined)).not.toContain('approve')
+  })
+
+  it('sends the denied assessment once, then has nothing to approve', async () => {
+    const request = vi.fn(async () => ({}))
+    const codex = session(request)
+    observe(codex, 'item/autoApprovalReview/completed', denial)
+
+    await run(codex, { command: 'approve' }, 1000)
+
+    expect(lastCall(request)).toEqual([
+      'thread/approveGuardianDeniedAction',
+      {
+        threadId: 'thread-1',
+        event: {
+          id: 'review-1',
+          target_item_id: 'item-1',
+          turn_id: 'turn-1',
+          status: 'denied',
+          risk_level: 'high',
+          user_authorization: null,
+          rationale: 'deletes files',
+          decision_source: 'agent',
+          action: { type: 'apply_patch', cwd: '/repo', files: ['a.ts'] }
+        }
+      }
+    ])
+    const again = await run(codex, { command: 'approve' }, 1000)
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(again).toMatchObject({
+      ok: true,
+      notice: { text: expect.stringContaining('No denied') }
+    })
+  })
+
+  it('ignores approved reviews and other threads', () => {
+    const codex = session(vi.fn())
+    observe(codex, 'item/autoApprovalReview/completed', {
+      ...denial,
+      review: { status: 'approved' }
+    })
+    observe(codex, 'item/autoApprovalReview/completed', { ...denial, threadId: 'other' })
+    expect(available(codex)).not.toContain('approve')
+  })
+})
+
+describe('codex review items', () => {
+  it('names the review on entry and shows its findings as an assistant message on exit', () => {
+    expect(
+      codexReviewItemBody({ type: 'enteredReviewMode', id: 'i1', review: 'current changes' })
+    ).toEqual({ kind: 'status', tone: 'notice', text: 'Reviewing: current changes' })
+    expect(
+      codexReviewItemBody({ type: 'exitedReviewMode', id: 'i2', review: '**P1** bug in a.ts' })
+    ).toEqual({
+      kind: 'message',
+      role: 'assistant',
+      blocks: [{ type: 'text', text: '**P1** bug in a.ts' }]
+    })
+    expect(codexReviewItemBody({ type: 'agentMessage', id: 'i3', text: 'x' })).toBeNull()
+  })
+})

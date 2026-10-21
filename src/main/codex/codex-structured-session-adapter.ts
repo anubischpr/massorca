@@ -39,7 +39,7 @@ import {
 import { createCodexStructuredNotificationRetry } from './codex-structured-notification-retry'
 import { acquireCodexStructuredSession } from './codex-structured-session-acquire'
 import { changeCodexThreadGoal } from './codex-structured-thread-goal'
-import { runCodexProviderCommand } from './codex-structured-provider-commands'
+import * as providerCommands from './codex-structured-provider-commands'
 import {
   answerCodexStructuredPrompt,
   cancelCodexStructuredTurn
@@ -127,6 +127,7 @@ export class CodexStructuredSessionAdapter implements StructuredAgentSessionAdap
     }
     if (event.type === 'notification') {
       noteCodexTurnOpened(session, event.method, event.params)
+      providerCommands.observe(session, event.method, event.params)
     }
     const admission = session.translator?.handle(event) ?? { accepted: true }
     if (!admission.accepted) {
@@ -276,7 +277,9 @@ export class CodexStructuredSessionAdapter implements StructuredAgentSessionAdap
     changeCodexThreadGoal(this.session(input.sessionId), input, this.deps.requestTimeoutMs)
 
   runProviderCommand: NonNullable<StructuredAgentSessionAdapter['runProviderCommand']> = (input) =>
-    runCodexProviderCommand(this.session(input.sessionId), input, this.deps.requestTimeoutMs)
+    providerCommands.run(this.session(input.sessionId), input, this.deps.requestTimeoutMs)
+
+  availableProviderCommands = (id: string) => providerCommands.available(this.sessions.get(id))
 
   answerPrompt: StructuredAgentSessionAdapter['answerPrompt'] = (request) =>
     answerCodexStructuredPrompt({ request, sessions: this.sessions })

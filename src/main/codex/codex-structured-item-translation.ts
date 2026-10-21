@@ -8,6 +8,7 @@ import {
 } from '../native-chat/agent-session-journal/journal-payload-bounds'
 import { unhandledProviderFrameJournalItem } from '../native-chat/agent-session-wire/unhandled-provider-frame'
 import { codexImageItemBody } from './codex-image-item-translation'
+import { codexReviewItemBody } from './codex-review-item-translation'
 import { commandActionFacts } from './codex-command-action-class'
 import {
   codexCollabAgentToolCallBody,
@@ -279,6 +280,10 @@ export function codexJournalItem(
       readTextContent(item, 'summary') ??
       readTextContent(item, 'content')
     return { body: journalReasoningBody(text), handled: true }
+  }
+  const review = codexReviewItemBody(item)
+  if (review) {
+    return { body: review, handled: true }
   }
   const unhandled = unhandledProviderFrameJournalItem('codex', `item:${item.type}`, item)
   return unhandled ? { body: unhandled.body, handled: false } : { body: null, handled: true }

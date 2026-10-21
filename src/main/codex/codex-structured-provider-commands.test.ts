@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { CodexAppServerRequestError } from './codex-app-server-request-error'
 import { codexPluginsListing, codexSkillsListing } from './codex-provider-command-listings'
-import { runCodexProviderCommand } from './codex-structured-provider-commands'
+import { run } from './codex-structured-provider-commands'
 
 function session(request: (method: string, params?: Record<string, unknown>) => Promise<unknown>) {
   return {
@@ -46,17 +46,17 @@ describe('codex skills and plugins listings', () => {
   })
 })
 
-describe('runCodexProviderCommand', () => {
+describe('run', () => {
   it('answers usage with the card presentation and no provider call', async () => {
     const request = vi.fn()
-    const outcome = await runCodexProviderCommand(session(request), { command: 'usage' }, 1000)
+    const outcome = await run(session(request), { command: 'usage' }, 1000)
     expect(outcome).toMatchObject({ ok: true, notice: { presentation: 'codex-usage' } })
     expect(request).not.toHaveBeenCalled()
   })
 
   it('reads skills from the app-server', async () => {
     const request = vi.fn(async () => ({ data: [] }))
-    const outcome = await runCodexProviderCommand(session(request), { command: 'skills' }, 1000)
+    const outcome = await run(session(request), { command: 'skills' }, 1000)
     expect(request).toHaveBeenCalledWith('skills/list', {}, { timeoutMs: 1000 })
     expect(outcome).toMatchObject({ ok: true, notice: { text: 'Skills: none.' } })
   })
@@ -65,7 +65,7 @@ describe('runCodexProviderCommand', () => {
     const request = async () => {
       throw new CodexAppServerRequestError('plugin/list', -32601, 'Method not found')
     }
-    const outcome = await runCodexProviderCommand(session(request), { command: 'plugins' }, 1000)
+    const outcome = await run(session(request), { command: 'plugins' }, 1000)
     expect(outcome).toEqual({
       ok: true,
       notice: { text: '/plugins is not supported by this version of Codex.', tone: 'warning' }
@@ -76,7 +76,7 @@ describe('runCodexProviderCommand', () => {
     const request = async () => {
       throw new CodexAppServerRequestError('plugin/list', -32000, 'boom')
     }
-    expect(await runCodexProviderCommand(session(request), { command: 'plugins' }, 1000)).toEqual({
+    expect(await run(session(request), { command: 'plugins' }, 1000)).toEqual({
       ok: false,
       rejected: 'boom'
     })
