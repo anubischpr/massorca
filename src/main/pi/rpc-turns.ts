@@ -1,4 +1,3 @@
-import { agentSessionFailureWords } from '../../shared/agent-session-failure-words'
 import type {
   AgentSessionDispatchOutcome,
   StructuredAgentSessionCommandRun
@@ -11,10 +10,11 @@ import { PiRpcMessages } from './rpc-messages'
 import { PiRpcBackgroundJobs } from './rpc-background-jobs'
 import { PiRpcUsageSync } from './rpc-usage-sync'
 import type { AgentChildWorkEvidence } from '../../shared/agent-status-child-work-evidence'
-import { PiRpcPromptDelivery, piRpcFailureFact } from './rpc-prompt-delivery'
+import { PiRpcPromptDelivery } from './rpc-prompt-delivery'
 import { PiRpcIdleCheck } from './rpc-idle-check'
 import { piRpcRetryActivity } from './rpc-retry-activity'
 import { piRpcMessageSchema } from './rpc-protocol'
+import { PiRpcNotices, piRpcFailureEvent } from './rpc-notices'
 
 export type PiRpcTurnDeps = {
   lane: JsonlRpcTimelineLane
@@ -44,6 +44,7 @@ export class PiRpcTurns {
   private readonly delivery: PiRpcPromptDelivery
   private readonly idleCheck: PiRpcIdleCheck
   private readonly jobs: PiRpcBackgroundJobs
+  readonly notices: PiRpcNotices
   private revision = 0
   private turn = 0
   private active?: string
@@ -56,6 +57,7 @@ export class PiRpcTurns {
 
   constructor(private readonly deps: PiRpcTurnDeps) {
     this.messages = new PiRpcMessages(deps.generation, this.context)
+    this.notices = new PiRpcNotices(deps.lane, () => this.active, () => this.delivery.holdsDispatch)
     this.jobs = new PiRpcBackgroundJobs({
       generation: deps.generation,
       drained: () => deps.lane.drained(),
@@ -86,8 +88,10 @@ export class PiRpcTurns {
       accepted: (id, at) => {
         this.open(at)
         this.deps.lane.apply([{ type: 'input.accepted', clientMessageId: id, requestedAt: at }])
+        this.notices.flush()
       },
-      commandOnly: () => {
+      commandOnly: (message) => {
+        this.notices.panelOnly(message)
         this.skipInitialUserEcho = false
         this.settling = true
         this.probe()
@@ -289,16 +293,7 @@ export class PiRpcTurns {
         : 'success'
     const events: ProviderTimelineEvent[] = []
     if (outcome === 'failure' && this.failure) {
-      const fact = piRpcFailureFact(this.failure)
-      events.push({
-        type: 'item.close',
-        item: `error:${this.active}`,
-        body: {
-          kind: 'status',
-          tone: 'error',
-          ...agentSessionFailureWords(fact, { agentName: 'Pi', surface: 'row' })
-        }
-      })
+      events.push(piRpcFailureEvent(this.active, this.failure))
     }
     events.push({
       type: 'turn.end',

@@ -113,3 +113,9 @@ export const piRpcDialogSchema = z.discriminatedUnion('method', [
   })
 ])
 export type PiRpcDialog = z.infer<typeof piRpcDialogSchema>
+
+export const piRpcNoticeSchema = z.object({
+  method: z.literal('notify'),
+  message: z.string(),
+  notifyType: z.enum(['info', 'warning', 'error']).optional()
+})

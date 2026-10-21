@@ -140,9 +140,11 @@ export class PiRpcSession {
     )(launch, {
       ...(input.onOutput ? { onOutput: input.onOutput } : {}),
       onRecord: (frame) =>
-        frame.type === 'extension_ui_request'
-          ? this.dialogs.receive(frame)
-          : this.turns.receive(frame),
+        frame.type !== 'extension_ui_request'
+          ? this.turns.receive(frame)
+          : frame.method === 'notify'
+            ? this.turns.notices.receive(frame)
+            : this.dialogs.receive(frame),
       onClose: (error) => this.fail(error),
       onDiagnostic: (message) =>
         deps.logger.warn(message, { scope: 'pi-rpc', sessionId: input.identity.sessionId }),

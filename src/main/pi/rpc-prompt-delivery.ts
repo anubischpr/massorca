@@ -15,7 +15,7 @@ type Submission = {
 type DeliveryDeps = {
   send: (frame: JsonlRpcRecord) => Promise<void>
   accepted: (id: string, at: number) => void
-  commandOnly: () => void
+  commandOnly: (message: unknown) => void
   rejectedAfterAcceptance: (error: string) => void
   settled: (id: string, outcome: AgentSessionDispatchOutcome) => void
   failed: (error: Error) => void
@@ -135,10 +135,11 @@ export class PiRpcPromptDelivery {
       }
       return
     }
+    const message = submission.frame?.message
     this.releaseFrame(submission)
     if (reply.data?.disposition === 'handled' || reply.data?.agentInvoked === false) {
       this.accept(submission)
-      this.deps.commandOnly()
+      this.deps.commandOnly(message)
     }
     this.finishIfConsumed(submission)
   }
