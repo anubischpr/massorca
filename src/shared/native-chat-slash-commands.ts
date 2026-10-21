@@ -165,10 +165,12 @@ const OMP_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'hotkeys', description: 'Show keyboard shortcuts in Terminal' }
 ]
 
-// agy 1.4.3's own `/help` list, read in print mode (no model turn), plus `/grill-me`, a TUI prompt
-// command: its instruction body is in the binary and expands like a skill in print mode. Its interview
-// relies on the `ask_question` tool, which headless runs have not been seen to answer. Its stream
-// reports no command list, so the structured chat offers this one as the CLI's own commands.
+// agy 1.4.3's own `/help` list, read in print mode (no model turn), plus the skill commands its TUI
+// menu lists and print mode does not: `/grill-me` and `/boost`. Skills expand in print mode, so both
+// reach the agent as text. `/grill-me`'s interview relies on the `ask_question` tool, which headless
+// runs have not been seen to answer. `/boost` is classified from the TUI wording (pv18 report) and
+// has not been run over stream-json. Its stream reports no command list, so the structured chat
+// offers these as the CLI's own commands.
 export const ANTIGRAVITY_CLI_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'agents', description: 'List available custom agents' },
   { name: 'changelog', description: 'Show release notes and changes' },
@@ -185,7 +187,8 @@ export const ANTIGRAVITY_CLI_COMMANDS: readonly SlashCommandSuggestion[] = [
   },
   { name: 'skills', description: 'List available skills' },
   { name: 'usage', description: 'View model quota usage' },
-  { name: 'grill-me', description: 'Interview me to align on a plan.' }
+  { name: 'grill-me', description: 'Interview me to align on a plan.' },
+  { name: 'boost', description: 'Invoke the Boost multi-agent orchestrator for complex tasks.' }
 ]
 
 const COMMANDS_BY_AGENT: Partial<Record<AgentType, readonly SlashCommandSuggestion[]>> = {

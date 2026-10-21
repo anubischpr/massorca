@@ -95,9 +95,9 @@ describe('structuredSlashCommands', () => {
     expect(isStructuredAgentSessionComposerCommand('/goal', 'codex')).toBe(false)
   })
 
-  // agy reports no command list on its stream; its `/help` list and its prompt command `/grill-me`
-  // are the menu's own commands, once each, with the host's model and effort kept as the host answers them.
-  it('offers Antigravity the commands its /help lists and grill-me, after the host commands', () => {
+  // agy reports no command list on its stream; its `/help` list and its skill commands `/grill-me` and
+  // `/boost` are the menu's own commands, once each, with the host's model and effort kept as the host answers them.
+  it('offers Antigravity the commands its /help lists, grill-me and boost, after the host commands', () => {
     expect(
       structuredSlashCommands(['clear', 'compact'], 'antigravity').map((command) => command.name)
     ).toEqual([
@@ -115,7 +115,8 @@ describe('structuredSlashCommands', () => {
       'plugin',
       'skills',
       'usage',
-      'grill-me'
+      'grill-me',
+      'boost'
     ])
   })
 
@@ -430,5 +431,16 @@ describe('Pi host aliases', () => {
       functions: undefined
     })
     expect(controller.runConversationCommand).toHaveBeenCalledWith('clear')
+  })
+
+  it('passes agy boost through as text, as a skill command the agent expands', async () => {
+    const outcome = await dispatchStructuredAgentSessionComposerCommand('/boost fix the parser', {
+      agent: 'antigravity',
+      functions: [],
+      snapshot: [],
+      invokeAction: async () => true,
+      setOption: async () => true
+    })
+    expect(outcome.handled).toBe(false)
   })
 })
