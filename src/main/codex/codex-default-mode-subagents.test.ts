@@ -448,7 +448,7 @@ describe('Codex default-mode helpers', () => {
     // exit on the helper's thread, and that exit is what ends the command.
     expect(run.commands()).toEqual([expect.objectContaining({ membership: 'live' })])
     run.send(helperShell('item/completed'))
-    expect(run.commands()).toEqual([])
+    expect(run.commands()).toEqual([expect.objectContaining({ membership: 'settled' })])
     expect(run.strip()).toEqual([])
   })
 

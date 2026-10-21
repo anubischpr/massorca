@@ -144,7 +144,8 @@ export class CodexChildWorkEvidence {
   }
 
   /** A command belongs to the child thread that launched it; the session's own agent is no owner.
-   *  A stopped command leaves no record: it has nothing left to report. */
+   *  A command that ran inside its turn leaves no record; one that outlived it settles with the
+   *  outcome its exit code gave, or `unknown` when it was cut off. */
   private queueCommands(commands: readonly CodexBackgroundCommandChange[]): void {
     for (const command of commands) {
       if (command.type === 'started') {
@@ -153,11 +154,12 @@ export class CodexChildWorkEvidence {
         continue
       }
       const { taskId } = command
-      this.pending.push((observedAt) => ({
-        type: 'removed',
-        observedAt,
-        handle: { idKind: 'task_id', id: taskId }
-      }))
+      const handle = { idKind: 'task_id', id: taskId } as const
+      this.pending.push((observedAt) =>
+        command.settles
+          ? { type: 'ended', observedAt, handle, outcome: command.outcome ?? 'unknown' }
+          : { type: 'removed', observedAt, handle }
+      )
     }
   }
 
