@@ -776,7 +776,8 @@ describe('captureAllSleepingAgentSessions', () => {
       )
 
     const entry = store.getState().agentStatusByPaneKey['tab-1:leaf-1']
-    expect(entry?.providerSession).toBeUndefined()
+    // The chat continues the same conversation across turns; only its launch config is not reused.
+    expect(entry?.providerSession).toEqual({ key: 'session_id', id: 'codex-session-1' })
     expect(entry).not.toHaveProperty('launchConfig')
     expect(
       store.getState().sleepingAgentSessionsByPaneKey['tab-1:leaf-1']?.launchConfig

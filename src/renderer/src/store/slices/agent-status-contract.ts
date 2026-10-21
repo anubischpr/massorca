@@ -106,6 +106,9 @@ export type AgentStatusMetadata = {
   /** Structured status rows remain fresh while the host owns the session; cleared on feed loss. */
   structuredHostOwned?: true
   providerSession?: AgentProviderSessionMetadata
+  /** The writer holds the chat's whole provider-session state: no `providerSession` here means the
+   *  chat has none yet, so the last one is cleared rather than kept. */
+  providerSessionAuthoritative?: true
   launchConfig?: SleepingAgentLaunchConfig
   launchToken?: string
   terminalResumeEligible?: false

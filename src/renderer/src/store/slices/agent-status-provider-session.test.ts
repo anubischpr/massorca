@@ -118,9 +118,35 @@ describe('recordAgentProviderSession', () => {
     )
   })
 
-  // Why: retention stops at the turn boundary. A metadata-less `working` after `done` starts
-  // fresh work, so the finished session must not ride along into it.
-  it('does not carry a completed session into the next turn', () => {
+  // Why: a metadata-less `working` after `done` is the same chat taking its next turn, so the
+  // session it resumes must stay; the terminal resumes it instead of opening a fresh conversation.
+  it('keeps the provider session into the next turn when nothing names another one', () => {
+    const store = createTestStore()
+    const providerSession = { key: 'session_id' as const, id: 'claude-session-1' }
+
+    store
+      .getState()
+      .setAgentStatus(
+        'tab-1:leaf-1',
+        { state: 'working', prompt: 'first', agentType: 'claude' },
+        'Claude',
+        { updatedAt: 10, stateStartedAt: 10 },
+        undefined,
+        { providerSession }
+      )
+    store
+      .getState()
+      .setAgentStatus('tab-1:leaf-1', { state: 'done', prompt: 'first', agentType: 'claude' })
+    store
+      .getState()
+      .setAgentStatus('tab-1:leaf-1', { state: 'working', prompt: 'second', agentType: 'claude' })
+
+    expect(store.getState().agentStatusByPaneKey['tab-1:leaf-1']?.providerSession).toEqual(
+      providerSession
+    )
+  })
+
+  it('replaces the provider session when a rebuild names another one', () => {
     const store = createTestStore()
 
     store
@@ -135,10 +161,64 @@ describe('recordAgentProviderSession', () => {
       )
     store
       .getState()
-      .setAgentStatus('tab-1:leaf-1', { state: 'done', prompt: 'first', agentType: 'claude' })
+      .setAgentStatus(
+        'tab-1:leaf-1',
+        { state: 'working', prompt: 'second', agentType: 'claude' },
+        'Claude',
+        { updatedAt: 20, stateStartedAt: 20 },
+        undefined,
+        { providerSession: { key: 'session_id' as const, id: 'claude-session-2' } }
+      )
+
+    expect(store.getState().agentStatusByPaneKey['tab-1:leaf-1']?.providerSession).toEqual({
+      key: 'session_id',
+      id: 'claude-session-2'
+    })
+  })
+
+  it('clears the provider session when the writer says the chat has none', () => {
+    const store = createTestStore()
+
     store
       .getState()
-      .setAgentStatus('tab-1:leaf-1', { state: 'working', prompt: 'second', agentType: 'claude' })
+      .setAgentStatus(
+        'tab-1:leaf-1',
+        { state: 'working', prompt: 'first', agentType: 'claude' },
+        'Claude',
+        { updatedAt: 10, stateStartedAt: 10 },
+        undefined,
+        { providerSession: { key: 'session_id' as const, id: 'claude-session-1' } }
+      )
+    store
+      .getState()
+      .setAgentStatus(
+        'tab-1:leaf-1',
+        { state: 'working', prompt: 'new conversation', agentType: 'claude' },
+        'Claude',
+        { updatedAt: 20, stateStartedAt: 20 },
+        undefined,
+        { providerSessionAuthoritative: true }
+      )
+
+    expect(store.getState().agentStatusByPaneKey['tab-1:leaf-1']?.providerSession).toBeUndefined()
+  })
+
+  it('does not carry a provider session to a different agent', () => {
+    const store = createTestStore()
+
+    store
+      .getState()
+      .setAgentStatus(
+        'tab-1:leaf-1',
+        { state: 'working', prompt: 'first', agentType: 'claude' },
+        'Claude',
+        { updatedAt: 10, stateStartedAt: 10 },
+        undefined,
+        { providerSession: { key: 'session_id' as const, id: 'claude-session-1' } }
+      )
+    store
+      .getState()
+      .setAgentStatus('tab-1:leaf-1', { state: 'working', prompt: 'second', agentType: 'codex' })
 
     expect(store.getState().agentStatusByPaneKey['tab-1:leaf-1']?.providerSession).toBeUndefined()
   })
