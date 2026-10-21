@@ -1,3 +1,4 @@
+import { PI_PROVIDER_COMMANDS } from './rpc-provider-commands'
 import type { DirectoryAccountAgentDefinition } from '../native-chat/agent-session-wire/structured-agent-definition'
 
 export const PI_RPC_AGENT: DirectoryAccountAgentDefinition = {
@@ -8,6 +9,7 @@ export const PI_RPC_AGENT: DirectoryAccountAgentDefinition = {
     rewind: false,
     compact: true,
     threadGoal: false,
+    providerCommands: PI_PROVIDER_COMMANDS,
     contextUsage: true,
     imagePrompts: true,
     steering: 'inject',
