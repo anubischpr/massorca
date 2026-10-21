@@ -12,6 +12,7 @@ import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection
 import type { AgentSessionContinuationRequest } from '@/lib/agent-session-continuation'
 import type { AgentJournalItemBody } from '../../../../shared/agent-session-journal-types'
 import { closeStructuredAgentSession } from '../../runtime/structured-agent-session-close'
+import { readStructuredAgentSessionProviderSession } from '../../runtime/structured-agent-session-provider-session'
 import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
 import { prepareAgentSessionContinuationFromSource } from '../terminal-pane/terminal-agent-session-continuation'
 import { runNativeChatSplitTarget } from './native-chat-layout-actions'
@@ -113,6 +114,7 @@ export function useStructuredChatPaneActions(args: {
             useAppStore.getState().closeUnifiedTab(closeTabId)
           },
           releaseProviderChild: closeStructuredAgentSession,
+          readRecordedProviderSession: readStructuredAgentSessionProviderSession,
           launchResume: (record, options) => launchSleepingAgentSession(record, options),
           launchFresh: (request, options) => launchFreshAgentSession(request, options),
           resolvePiRuntime: resolvePiRuntimeForLaunch,

@@ -41,6 +41,7 @@ function deps(
       calls.push('release')
       return 'closed' as const
     }),
+    readRecordedProviderSession: vi.fn(async () => undefined),
     launchResume: vi.fn((_record: SleepingAgentSessionRecord) => {
       calls.push('launch')
       return true
@@ -110,6 +111,28 @@ describe('createStructuredChatPaneActions', () => {
     )
     expect(d.launchResume).not.toHaveBeenCalled()
     expect(d.recordTerminalLink).not.toHaveBeenCalled()
+  })
+
+  it('resumes the session the host records when the status has none, reading it before release', async () => {
+    const calls: string[] = []
+    const d = deps(
+      {
+        readRecordedProviderSession: vi.fn(async () => {
+          calls.push('read')
+          return { key: 'session_id' as const, id: 'recorded-1' }
+        })
+      },
+      calls
+    )
+    const actions = createStructuredChatPaneActions(input({ providerSession: undefined }), d)
+    await expect(actions.showTerminal()).resolves.toBe(true)
+    expect(d.readRecordedProviderSession).toHaveBeenCalledWith(LOCAL, 'session-1')
+    expect(calls).toEqual(['read', 'release', 'launch', 'closeTab'])
+    expect(d.launchResume).toHaveBeenCalledWith(
+      expect.objectContaining({ providerSession: { key: 'session_id', id: 'recorded-1' } }),
+      expect.anything()
+    )
+    expect(d.launchFresh).not.toHaveBeenCalled()
   })
 
   it('starts a fresh Gentle Shell terminal for a Gentle Shell chat with no session yet', async () => {

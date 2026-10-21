@@ -36,6 +36,7 @@ export type StructuredChatPaneActionsDeps = {
   splitRight: (tabId: string, groupId: string) => boolean
   closeTab: (tabId: string) => void
   releaseProviderChild: ShowStructuredChatInTerminalDeps['releaseProviderChild']
+  readRecordedProviderSession: ShowStructuredChatInTerminalDeps['readRecordedProviderSession']
   launchResume: ShowStructuredChatInTerminalDeps['launchResume']
   launchFresh: ShowStructuredChatInTerminalDeps['launchFresh']
   resolvePiRuntime: ShowStructuredChatInTerminalDeps['resolvePiRuntime']
@@ -96,6 +97,7 @@ export function createStructuredChatPaneActions(
         },
         {
           releaseProviderChild: deps.releaseProviderChild,
+          readRecordedProviderSession: deps.readRecordedProviderSession,
           launchResume: deps.launchResume,
           launchFresh: deps.launchFresh,
           resolvePiRuntime: deps.resolvePiRuntime,
