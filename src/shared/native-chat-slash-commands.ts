@@ -38,32 +38,39 @@ const COMMON_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'help', description: 'Show available commands' }
 ]
 
-// Pi 1.1.0's BUILTIN_SLASH_COMMANDS; get_commands reports extensions/skills, not these TUI actions.
+// Pi 1.3.0's BUILTIN_SLASH_COMMANDS in its own wording (the build gentle-pi 4.3.0 installs);
+// get_commands reports extensions/skills, not these TUI actions.
 const PI_COMMANDS: readonly SlashCommandSuggestion[] = [
-  { name: 'settings', description: 'Open settings' },
-  { name: 'model', description: 'Choose the model' },
-  { name: 'tree', description: 'Navigate session branches' },
+  { name: 'settings', description: 'Open settings menu' },
+  { name: 'model', description: 'Select model (opens selector UI)' },
+  { name: 'tree', description: 'Navigate session tree (switch branches)' },
   { name: 'thinking', description: 'Set thinking level', hidden: true },
-  { name: 'scoped-models', description: 'Choose models for cycling' },
-  { name: 'export', description: 'Export the session' },
-  { name: 'import', description: 'Import a session from JSONL' },
-  { name: 'share', description: 'Share the session as a secret gist' },
-  { name: 'bug', description: 'Report a Pi bug' },
-  { name: 'copy', description: 'Copy the last response' },
-  { name: 'name', description: 'Rename the session' },
-  { name: 'session', description: 'Show session information' },
-  { name: 'changelog', description: 'Show the changelog' },
-  { name: 'hotkeys', description: 'Show keyboard shortcuts' },
-  { name: 'fork', description: 'Fork from a previous message' },
-  { name: 'clone', description: 'Duplicate the current session' },
-  { name: 'trust', description: 'Save project trust' },
+  { name: 'scoped-models', description: 'Enable/disable models for Ctrl+P cycling' },
+  {
+    name: 'export',
+    description: 'Export session (HTML default, or specify path: .html/.jsonl)'
+  },
+  { name: 'import', description: 'Import and resume a session from a JSONL file' },
+  { name: 'share', description: 'Share session via a Radius artifact or a GitHub gist' },
+  { name: 'bug', description: 'Report a bug to the Pi developers' },
+  { name: 'copy', description: 'Copy last agent message to clipboard' },
+  { name: 'name', description: 'Set session display name' },
+  { name: 'session', description: 'Show session info and stats' },
+  { name: 'changelog', description: 'Show changelog entries' },
+  { name: 'hotkeys', description: 'Show all keyboard shortcuts' },
+  { name: 'fork', description: 'Create a new fork from a previous user message' },
+  { name: 'clone', description: 'Duplicate the current session at the current position' },
+  { name: 'trust', description: 'Save project trust decision for future sessions' },
   { name: 'login', description: 'Configure provider authentication' },
   { name: 'logout', description: 'Remove provider authentication' },
   { name: 'new', description: 'Start a new session', hidden: true },
-  { name: 'compact', description: 'Compact conversation context' },
-  { name: 'resume', description: 'Resume a session' },
-  { name: 'reload', description: 'Reload extensions and settings' },
-  { name: 'quit', description: 'Quit Pi' }
+  { name: 'compact', description: 'Manually compact the session context' },
+  { name: 'resume', description: 'Resume a different session' },
+  {
+    name: 'reload',
+    description: 'Reload keybindings, extensions, skills, prompts, themes, and context files'
+  },
+  { name: 'quit', description: 'Quit pi' }
 ]
 
 const CLAUDE_COMMANDS: readonly SlashCommandSuggestion[] = [

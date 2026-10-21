@@ -27,6 +27,20 @@ describe('host command aliases', () => {
   })
 })
 
+describe('Pi built-in descriptions', () => {
+  it('uses the wording of pi-coding-agent 1.3.0', () => {
+    const described = new Map(
+      getAgentSlashCommands('pi').map((command) => [command.name, command.description])
+    )
+    expect(described.get('model')).toBe('Select model (opens selector UI)')
+    expect(described.get('name')).toBe('Set session display name')
+    expect(described.get('export')).toBe(
+      'Export session (HTML default, or specify path: .html/.jsonl)'
+    )
+    expect(described.get('quit')).toBe('Quit pi')
+  })
+})
+
 describe('getAgentSlashCommands', () => {
   it('returns Codex-specific commands (e.g. /model, /resume) for codex', () => {
     const names = getAgentSlashCommands('codex').map((c) => c.name)
