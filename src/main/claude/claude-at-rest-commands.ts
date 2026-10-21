@@ -9,6 +9,7 @@ import { classifyAgentSessionFunctions } from '../../shared/agent-session-provid
 import { structuredSlashCommands } from '../../shared/structured-agent-session-composer'
 import { discoverSkills } from '../skills/discovery'
 import { discoverClaudePluginCommandRoots } from '../skills/claude-plugin-skill-sources'
+import { CLAUDE_BUILT_IN_COMMANDS } from './claude-cli-built-in-commands'
 import { scanClaudeCommandFolders, scanClaudePluginCommands } from './claude-command-folder-scan'
 import { supportsClaudeStructuredLocation } from './claude-structured-location-support'
 import { agentSessionPinnedLaunchDirectory } from '../runtime/agent-session-record-launch-directory'
@@ -148,13 +149,20 @@ export class ClaudeAtRestCommandCatalog {
       discoverClaudePluginCommandRoots({ configDir: account, cwd }).then(scanClaudePluginCommands)
     ])
     // What the menu offers a Claude chat at rest without a list, so reading one loses none of it.
-    const builtIn = structuredSlashCommands(['clear', 'compact'], 'claude').map(
-      (command): AgentSessionSlashCommand => ({
+    const builtIn: AgentSessionSlashCommand[] = [
+      ...structuredSlashCommands(['clear', 'compact'], 'claude').map(
+        (command): AgentSessionSlashCommand => ({
+          name: command.name,
+          kind: 'command',
+          ...(command.description ? { description: command.description } : {})
+        })
+      ),
+      ...CLAUDE_BUILT_IN_COMMANDS.map((command): AgentSessionSlashCommand => ({
         name: command.name,
         kind: 'command',
-        ...(command.description ? { description: command.description } : {})
-      })
-    )
+        description: command.description
+      }))
+    ]
     // Why: a name keeps its first owner: Orca's own commands, then the user's folders, then plugins.
     const commands = new Map<string, AgentSessionSlashCommand>()
     for (const command of [...builtIn, ...custom, ...plugin]) {
