@@ -1,9 +1,7 @@
 import { useMemo, type Dispatch, type SetStateAction } from 'react'
 import { dispatchStructuredAgentSessionComposerCommand } from '../../../../shared/structured-agent-session-composer'
 import { useStructuredAgentAcceptsImages } from '@/runtime/use-host-structured-agent'
-import { callStructuredAgentSession } from '@/runtime/structured-agent-session-client'
-import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
-import type { NativeChatReplySuggestion } from '../../../../shared/native-chat-reply-suggestion'
+import { reportReplySuggestionDismissed } from './native-chat-reply-suggestion-dismissal'
 import type {
   NativeChatOptionPickerRequest,
   NativeChatStructuredComposerTransport
@@ -12,20 +10,6 @@ import type { NativeChatStructuredViewProps } from './native-chat-view-types'
 import type { useStructuredAgentSession } from './use-structured-agent-session'
 import { useNativeChatReplySuggestion } from './use-native-chat-reply-suggestion'
 import type { StructuredAgentSessionQueuedMessagesController } from './use-structured-agent-session-queued-messages'
-
-/** Tells the host the chat dismissed a suggestion, so a host restart does not bring it back. An
- *  older host has no such method and refuses it, which leaves the chat's own dismissal in place. */
-function reportSuggestionDismissed(
-  target: RuntimeClientTarget,
-  sessionId: string,
-  suggestion: NativeChatReplySuggestion
-): void {
-  void callStructuredAgentSession(target, 'agentSession.dismissPromptSuggestion', {
-    sessionId,
-    turnId: suggestion.turnId,
-    text: suggestion.text
-  }).catch(() => undefined)
-}
 
 /** What the composer of a structured chat sends, picks and runs through, from the chat's controller. */
 export function useNativeChatStructuredComposerTransport(args: {
@@ -54,7 +38,7 @@ export function useNativeChatStructuredComposerTransport(args: {
     suggestion: controller.promptSuggestion,
     idle: !controller.isWorking && !controller.queueSendsNext && !starting,
     onDismissed: (suggestion) =>
-      reportSuggestionDismissed(props.target, props.sessionId, suggestion)
+      reportReplySuggestionDismissed(props.target, props.sessionId, suggestion)
   })
   return useMemo((): NativeChatStructuredComposerTransport => {
     const threadGoal = controller.threadGoal

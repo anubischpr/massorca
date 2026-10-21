@@ -4,8 +4,10 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type {
   AgentJournalItemBody,
-  AgentJournalItemIdentity
+  AgentJournalItemIdentity,
+  AgentJournalMessageItem
 } from '../../../shared/agent-session-journal-types'
+import type { AgentSessionQueuedMessage } from '../../../shared/agent-session-queued-message-wire'
 import { AGENT_JOURNAL_THREAD_SCOPE } from '../../../shared/agent-session-journal-types'
 import type { AgentSessionSubscribeEvent } from '../../../shared/agent-session-wire'
 import type { NativeChatReplySuggestion } from '../../../shared/native-chat-reply-suggestion'
@@ -16,6 +18,7 @@ import {
   createTrackedJournalOpener,
   openTestJournalHostDatabase
 } from '../agent-session-journal/journal-host-database-test-support'
+import { writeAgentSessionStoreRows } from '../../runtime/agent-session-record-rows'
 import {
   promptSuggestionRowsIn,
   readPromptSuggestionRow
@@ -230,4 +233,59 @@ describe('restart-safe prompt suggestion', () => {
       await stopHost(after.journal, dir)
     }
   })
+
+  it('does not restore while a queued draft waits to be sent', async () => {
+    const dir = join(root, 'queued-draft')
+    const before = await startHost(dir)
+    await finishTurn(before.journal, 'turn-1')
+    before.subscribers.promptSuggestions.publish(SESSION, SUGGESTION, before.journal)
+    await stopHost(before.journal, dir)
+
+    const journal = await journals.open({ identity: IDENTITY, stateDirectory: dir })
+    const rows = promptSuggestionRowsIn(openTestJournalHostDatabase(dir))
+    const draft: AgentSessionQueuedMessage = {
+      messageId: 'draft-1',
+      position: 0,
+      body: draftBody('Also check the logs'),
+      state: 'waiting'
+    }
+    const withDraft = new AgentSessionSubscribers({
+      promptSuggestionRows: rows,
+      readQueuePublication: () => ({
+        queuedMessages: [draft],
+        queuePause: null,
+        nextQueuedMessageId: draft.messageId
+      })
+    })
+    expect(openSubscriber(withDraft, journal)[0]).not.toHaveProperty('promptSuggestion')
+
+    // The same stored row restores once no draft waits: the queue alone was the refusal.
+    const withoutDraft = new AgentSessionSubscribers({ promptSuggestionRows: rows })
+    expect(openSubscriber(withoutDraft, journal)[0]).toMatchObject({
+      promptSuggestion: SUGGESTION
+    })
+  })
 })
+
+describe('deleted chat row cleanup', () => {
+  it('removes the held suggestion row together with the chat record', () => {
+    const dir = join(root, 'deleted-chat')
+    const database = openTestJournalHostDatabase(dir)
+    promptSuggestionRowsIn(database).write(SESSION, '{"v":1}')
+    expect(readPromptSuggestionRow(database.db, SESSION)).not.toBeNull()
+
+    database.transaction((db) =>
+      writeAgentSessionStoreRows(db, {
+        records: { upsert: [], remove: [SESSION] },
+        operations: { upsert: [], remove: [] },
+        retiredClaimKeys: null,
+        sessionTabs: null
+      })
+    )
+    expect(readPromptSuggestionRow(database.db, SESSION)).toBeNull()
+  })
+})
+
+function draftBody(text: string): AgentJournalMessageItem {
+  return { kind: 'message', role: 'user', blocks: [{ type: 'text', text }] }
+}
