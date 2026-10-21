@@ -330,7 +330,11 @@ describe('NativeChatComposer', () => {
   // counted as actions the structured composer can execute.
   it.each([
     ['claude', 'compact', ['model', 'effort']],
-    ['codex', 'vim', ['model', 'effort', 'goal']]
+    [
+      'codex',
+      'vim',
+      ['model', 'effort', 'goal', 'plan', 'copy', 'export', 'mention', 'permissions', 'status']
+    ]
   ] as const)('offers %s actionable commands and window actions', (agent, withheld, offered) => {
     mocks.draft = '/'
     render(

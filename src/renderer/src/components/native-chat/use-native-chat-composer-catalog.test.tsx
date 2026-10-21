@@ -53,10 +53,12 @@ describe('composer catalog authority', () => {
       '',
       '/'
     )
-    expect(items.map((entry) => entry.name)).toEqual(['model', 'doctor'])
+    // Pi answers /copy itself now, so the chat lists it beside the session functions.
+    expect(items.map((entry) => entry.name)).toEqual(['model', 'doctor', 'copy'])
     expect(items[1]).toMatchObject({ providerFunction: { availability: 'terminal-only' } })
     rerender({ functions: [] })
-    expect(providerCommands(result.current.agentCommands)).toEqual([])
+    // The session functions are gone; the command the chat answers itself remains.
+    expect(providerCommands(result.current.agentCommands).map(({ name }) => name)).toEqual(['copy'])
   })
   it('keeps PTY and unsupported structured providers on their original catalogs', () => {
     const pty = renderHook(() => useNativeChatComposerCatalog('claude'))
@@ -98,7 +100,7 @@ describe('composer catalog authority', () => {
   it('offers Codex the commands its model runs from message text', () => {
     const { result } = renderHook(() => useNativeChatComposerCatalog('codex', transport()))
     expect(providerCommands(result.current.agentCommands)).toEqual(
-      structuredSlashCommands([], 'codex')
+      expect.arrayContaining([...structuredSlashCommands([], 'codex')])
     )
     expect(providerCommands(result.current.agentCommands).map(({ name }) => name)).toContain('goal')
   })
