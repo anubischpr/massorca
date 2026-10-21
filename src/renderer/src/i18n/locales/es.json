@@ -18510,7 +18510,9 @@
         "updated": "Actualizado {{time}}",
         "used": "{{percent}}% usado",
         "usedResets": "{{percent}}% usado · se restablece en {{duration}}"
-      }
+      },
+      "showEarlierConversation": "Mostrar conversación anterior",
+      "hideEarlierConversation": "Ocultar conversación anterior"
     },
     "tab": {
       "bar": {

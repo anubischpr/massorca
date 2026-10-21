@@ -13,6 +13,7 @@ type StructuredChatController = Pick<
   | 'loadingOlder'
   | 'olderHistoryGeneration'
   | 'loadOlder'
+  | 'earlierContext'
 >
 
 /** The structured chat as the shared transcript reads it: its rows, and a status that stays
@@ -41,7 +42,12 @@ export function useStructuredChatLiveSession(
       agent,
       ...(controller.error ? { error: controller.error } : {}),
       // Older pages can't load while the host is unreachable, so the row waits for it.
-      hasMore: controller.hasOlder && hostReachable,
+      // Collapsed behind a /clear, older pages are not wanted: they would only load unseen rows.
+      hasMore:
+        controller.hasOlder &&
+        hostReachable &&
+        (!controller.earlierContext || controller.earlierContext.shown),
+      ...(controller.earlierContext ? { earlierContext: controller.earlierContext } : {}),
       loadingEarlier: controller.loadingOlder,
       olderHistoryGeneration: controller.olderHistoryGeneration,
       loadEarlier: controller.loadOlder,

@@ -7,6 +7,7 @@ import type {
 } from './agent-session-journal-types'
 import {
   agentSessionCurrentContextRows,
+  agentSessionTranscriptSinceClear,
   isAgentSessionContextClear,
   isNativeChatContextClear,
   latestAgentSessionContextClearSequence
@@ -168,5 +169,38 @@ describe('completed context clear projections', () => {
       items: [],
       submissions: []
     })
+  })
+})
+
+describe('the transcript since the newest clear', () => {
+  const after = row(7, { kind: 'message', role: 'user', blocks: [{ type: 'text', text: 'New' }] })
+  const newSend: AgentJournalSubmission = {
+    ...oldSend,
+    clientMessageId: 'new',
+    acceptedSequence: 7
+  }
+  const unsent: AgentJournalSubmission = {
+    ...oldSend,
+    clientMessageId: 'unsent',
+    acceptedSequence: undefined
+  }
+
+  it('starts at the clear row, keeping its divider, and drops what came before it', () => {
+    const since = agentSessionTranscriptSinceClear(
+      [user, goalRow, clear, after],
+      [oldSend, newSend, unsent]
+    )
+    expect(since.boundary).toBe(5)
+    expect(since.items.map((item) => item.sequence)).toEqual([5, 7])
+    expect(since.submissions.map((submission) => submission.clientMessageId)).toEqual([
+      'new',
+      'unsent'
+    ])
+  })
+
+  it('changes nothing for rows that hold no clear', () => {
+    const items = [user, after]
+    const since = agentSessionTranscriptSinceClear(items, [oldSend])
+    expect(since).toEqual({ boundary: 0, items, submissions: [oldSend] })
   })
 })

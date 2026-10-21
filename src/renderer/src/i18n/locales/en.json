@@ -18768,7 +18768,9 @@
         "updated": "Updated {{time}}",
         "used": "{{percent}}% used",
         "usedResets": "{{percent}}% used · resets in {{duration}}"
-      }
+      },
+      "showEarlierConversation": "Show earlier conversation",
+      "hideEarlierConversation": "Hide earlier conversation"
     },
     "tab": {
       "bar": {

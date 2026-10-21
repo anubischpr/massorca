@@ -228,6 +228,8 @@ export function createStructuredSessionMocks() {
             prompts: mocks.promptItems,
             pending: [],
             submissions: mocks.submissions,
+            transcriptSubmissions: mocks.submissions,
+            earlierContext: null,
             send: mocks.send,
             isWorking: mocks.isWorking,
             backgroundTasks: {

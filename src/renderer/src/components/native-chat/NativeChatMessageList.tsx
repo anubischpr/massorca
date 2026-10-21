@@ -373,10 +373,12 @@ export function NativeChatMessageList({
             // Browser anchoring would add unattributed movement beside the virtualizer's anchor.
             className="scrollbar-sleek relative h-full overflow-y-auto [overflow-anchor:none] [scrollbar-gutter:stable_both-edges] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
           >
-            {showOlderHistory ? (
+            {showOlderHistory || session.earlierContext ? (
               <NativeChatOlderHistoryRow
                 olderHistory={olderHistory}
                 loadingEarlier={loadingEarlier}
+                hasOlder={showOlderHistory}
+                earlierContext={session.earlierContext ?? null}
               />
             ) : null}
             <div className={NATIVE_CHAT_TRANSCRIPT_OUTER_CLASS}>

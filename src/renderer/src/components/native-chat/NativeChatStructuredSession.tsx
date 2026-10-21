@@ -292,7 +292,7 @@ export function NativeChatStructuredSession(
                   ref={submits.messageListRef}
                   session={session}
                   journalItems={controller.journalItems}
-                  journalSubmissions={controller.submissions}
+                  journalSubmissions={controller.transcriptSubmissions}
                   journalLatestTurn={controller.latestTurn}
                   subagentRoster={controller.subagentRoster}
                   railOutline={controller.railOutline}
