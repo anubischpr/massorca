@@ -88,6 +88,7 @@ describe('structuredSlashCommands', () => {
       'compact',
       'goal',
       'init',
+      'plan',
       'recap'
     ])
     expect(offered.find((command) => command.name === 'goal')?.description).toBe(

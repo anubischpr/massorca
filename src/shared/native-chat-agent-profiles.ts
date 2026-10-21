@@ -26,9 +26,10 @@ const NATIVE_CHAT_AGENT_PROFILES: Partial<Record<AgentType, NativeChatAgentProfi
     skillPrefix: '$',
     skillSourceOwner: 'codex',
     // The app-server has no slash parser, but the model owns goal tools and
-    // calls create_goal itself when `/goal <objective>` reaches it as prose. `/init` and `/recap`
-    // reach it as the same literal text (unverified: the TUI's own prompts are not reproduced).
-    textDrivenCommands: ['goal', 'init', 'recap'],
+    // calls create_goal itself when `/goal <objective>` reaches it as prose. `/init`, `/recap` and
+    // `/plan` reach it as the same literal text: unverified, since the schema of Codex 0.159.2 has no
+    // request that sets the collaboration mode for the next turn, and the TUI's prompts are not reproduced.
+    textDrivenCommands: ['goal', 'init', 'recap', 'plan'],
     cliCommands: CODEX_TEXT_COMMANDS
   },
   claude: {

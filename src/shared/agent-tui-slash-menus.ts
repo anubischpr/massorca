@@ -99,7 +99,7 @@ export const CODEX_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'new', description: 'start a new chat during a conversation', hidden: true },
   { name: 'permissions', description: 'choose what Codex is allowed to do', hidden: true },
   { name: 'pets', description: 'choose or hide the terminal pet', hidden: true },
-  { name: 'plan', description: 'switch to Plan mode', hidden: true },
+  { name: 'plan', description: 'switch to Plan mode' },
   { name: 'plugins', description: 'browse plugins' },
   { name: 'ps', description: 'list background terminals', hidden: true },
   { name: 'pwd', description: 'show the current working directory', hidden: true },
