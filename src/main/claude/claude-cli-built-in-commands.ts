@@ -20,7 +20,6 @@ export const CLAUDE_BUILT_IN_COMMANDS: readonly ClaudeBuiltInCommand[] = [
   { name: 'color', description: 'Set the prompt bar color for this session' },
   { name: 'config', description: 'Set a setting by key' },
   { name: 'context', description: 'Show current context usage' },
-  { name: 'focus', description: 'Toggle focus view: just your prompt, summary, and response' },
   { name: 'goal', description: 'Set a goal — keep working until the condition is met' },
   { name: 'init', description: 'Initialize a new CLAUDE.md file with codebase documentation' },
   { name: 'insights', description: 'Generate a report analyzing your Claude Code sessions' },
@@ -29,7 +28,6 @@ export const CLAUDE_BUILT_IN_COMMANDS: readonly ClaudeBuiltInCommand[] = [
     description: 'List subagents, teammates, and other Claude sessions you can message'
   },
   { name: 'mcp', description: 'Manage MCP servers' },
-  { name: 'output-style', description: 'List output styles or switch to one' },
   { name: 'recap', description: 'Generate a one-line session recap now' },
   {
     name: 'reload-plugins',

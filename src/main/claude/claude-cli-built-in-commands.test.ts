@@ -12,7 +12,7 @@ describe('Claude built-in commands a session runs as text', () => {
     }
   })
 
-  it('leaves out the commands the chat host owns and the ones only the terminal UI runs', () => {
+  it('leaves out host-owned, terminal-only, and absent commands', () => {
     const excluded = [
       'clear',
       'compact',
@@ -38,7 +38,10 @@ describe('Claude built-in commands a session runs as text', () => {
       'session',
       'btw',
       'login',
-      'logout'
+      'logout',
+      // focus is a local-jsx command (needs the TUI's ink renderer); 2.1.296 has no output-style command
+      'focus',
+      'output-style'
     ]
     for (const name of excluded) {
       expect(names).not.toContain(name)
