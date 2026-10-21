@@ -7,6 +7,7 @@ import {
   type SkillPathSemantics
 } from '../../../shared/skill-path-containment'
 import { toWindowsWslPath } from '../../../shared/wsl-paths'
+import { discoverAntigravityPluginSkillSources } from '../antigravity-plugin-skill-sources'
 import { discoverClaudePluginSkillSources } from '../claude-plugin-skill-sources'
 import { discoverClaudePluginSkillSourcesInWsl } from '../claude-plugin-skill-sources-wsl'
 import { buildSkillDiscoverySources, type SkillScanRoot } from '../skill-discovery-sources'
@@ -67,7 +68,12 @@ export async function buildSkillDeleteRootSet(input: {
         repos: cwd ? [] : [...input.repos],
         providerRootOverrides: input.providerRootOverrides
       }),
-      ...(cwd ? await discoverClaudePluginSkillSources({ homeDir: home, cwd }).catch(() => []) : [])
+      ...(cwd
+        ? await discoverClaudePluginSkillSources({ homeDir: home, cwd }).catch(() => [])
+        : []),
+      // Why: the same workspace-scoped plugin roots the picker scans, so a plugin skill it offers
+      // reaches the plugin guard instead of counting as unowned.
+      ...(cwd ? await discoverAntigravityPluginSkillSources({ homeDir: home }).catch(() => []) : [])
     ],
     semantics: nativeSkillPathSemantics(),
     toFilesystemPath: (path) => path

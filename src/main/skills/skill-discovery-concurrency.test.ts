@@ -159,7 +159,10 @@ describe('bounded concurrent skill discovery', () => {
     readdirPaths.length = 0
     const afterRefresh = await discoverSkills({ homeDir: home, repos: [], cwd: noWorkspace })
     expect(afterRefresh.skills.map((skill) => skill.name)).toContain('added-later')
-    expect(readdirPaths).toEqual([])
+    // Why: the Antigravity plugin registry is listed on every workspace scan, as the Claude plugin
+    // metadata is read every time; only a walk of a skill root is what this test forbids.
+    const pluginRegistry = join('.gemini', 'config', 'plugins')
+    expect(readdirPaths.filter((path) => !path.endsWith(pluginRegistry))).toEqual([])
   })
 
   it('gives every caller its own arrays so a shared scan cannot be mutated across results', async () => {

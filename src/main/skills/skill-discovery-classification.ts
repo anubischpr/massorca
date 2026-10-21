@@ -36,6 +36,11 @@ export function sourceLabelForSkill(root: SkillScanRoot, sourceKind: SkillSource
   return sourceKind === 'bundled' ? `${root.label} bundled` : root.label
 }
 
+/** A plugin skill is listed as `plugin:skill`, unless its own name already carries that prefix. */
+export function qualifiedSkillName(namePrefix: string | undefined, name: string): string {
+  return !namePrefix || name.startsWith(`${namePrefix}:`) ? name : `${namePrefix}:${name}`
+}
+
 export function sortDiscoveredSkills(skills: DiscoveredSkill[]): DiscoveredSkill[] {
   if (skills.length < 2) {
     return skills

@@ -33,6 +33,8 @@ export type SkillDiscoverySource = {
   providers: SkillProvider[]
   /** Agent that owns this root; null is the explicit shared-skills scope. */
   owner: AgentType | null
+  /** The plugin whose skills this root holds: each is listed as `plugin:skill`. */
+  namePrefix?: string
   exists: boolean
   /** `unavailable`: the root did not answer in time, so its skills are unknown rather than absent. */
   skippedReason?: 'missing' | 'remote-repo' | 'unavailable'
