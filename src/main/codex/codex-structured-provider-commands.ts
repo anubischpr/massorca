@@ -114,10 +114,8 @@ export async function run(
         const forked = readString(readRecord(readRecord(response).thread), 'id')
         return forked === null
           ? { ok: false, rejected: 'Codex did not name the forked conversation.' }
-          : {
-              ...notice('Forked this chat. The fork opens as a new chat.'),
-              forkedProviderSessionId: forked
-            }
+          : // No row: the fork opens as its own chat, and a row here would move the chat the user is reading.
+            { ok: true, forkedProviderSessionId: forked }
       }
       case 'review':
         // Inline: the review runs as a turn of this thread, so its items stream into this chat.
