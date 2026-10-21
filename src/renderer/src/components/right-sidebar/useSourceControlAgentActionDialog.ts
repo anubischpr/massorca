@@ -1,3 +1,4 @@
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { getAgentCatalog } from '@/lib/agent-catalog'
 import {
@@ -17,9 +18,9 @@ import { sourceControlLaunchAppliesAgentArgs } from './source-control-launch-age
 import { useSavedSourceControlAgentActionAutoStart } from './useSavedSourceControlAgentActionAutoStart'
 import {
   buildSourceControlAgentSaveTargets,
-  buildSourceControlAgentScopeNote,
   buildSourceControlAgentStatusCopy,
-  isSourceControlAgentDetectedAndEnabled
+  isSourceControlAgentDetectedAndEnabled,
+  useSourceControlAgentScopeNote
 } from './source-control-agent-action-dialog-support'
 import { useSourceControlAgentActionStart } from './useSourceControlAgentActionStart'
 
@@ -46,6 +47,7 @@ export function useSourceControlAgentActionDialog({
   onLaunched,
   onStart
 }: SourceControlAgentActionDialogProps): UseSourceControlAgentActionDialogResult {
+  const piRuntime = usePiDisplayRuntime()
   const settings = useAppStore((state) => state.settings)
   const repo = useRepoById(repoId ?? null)
   const launchAgentScope = useMemo(
@@ -268,7 +270,8 @@ export function useSourceControlAgentActionDialog({
     selectedAgentUnavailable,
     connectionUnavailable,
     hasEnabledAgents,
-    detecting
+    detecting,
+    piRuntime
   })
 
   // Why: editing any launch field invalidates the previewed delivery plan.
@@ -291,10 +294,7 @@ export function useSourceControlAgentActionDialog({
     [resetPlanAfter]
   )
 
-  const agentScopeNote = useMemo(
-    () => buildSourceControlAgentScopeNote(launchAgentScope),
-    [launchAgentScope]
-  )
+  const agentScopeNote = useSourceControlAgentScopeNote(launchAgentScope)
 
   return {
     handleOpenChange,

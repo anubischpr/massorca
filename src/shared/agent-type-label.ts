@@ -1,5 +1,5 @@
 import type { AgentType } from './agent-status-types'
-import { piRuntimeForSessionFilePath } from './pi-runtime-selection'
+import { piRuntimeForSessionFilePath, type PiRuntimeSelection } from './pi-runtime-selection'
 
 // Shared so the desktop renderer and the mobile app show the same agent name
 // (e.g. native chat's empty state on both surfaces) from one source of truth.
@@ -38,6 +38,7 @@ const WELL_KNOWN_LABELS: Record<string, string> = {
 }
 
 export const GENTLE_SHELL_LABEL = 'Gentle Shell'
+const PI_OR_GENTLE_SHELL_LABEL = 'Pi / Gentle Shell'
 
 export function formatAgentTypeLabel(agentType: AgentType | null | undefined): string {
   if (!agentType || agentType === 'unknown') {
@@ -47,13 +48,30 @@ export function formatAgentTypeLabel(agentType: AgentType | null | undefined): s
   return WELL_KNOWN_LABELS[agentType] ?? agentType
 }
 
-/** A Pi-protocol row names the runtime its session lives in: Gentle Shell keeps its own identity. */
-export function formatAgentRowTypeLabel(row: {
-  agentType: AgentType | null | undefined
-  entry?: { providerSession?: { transcriptPath?: string } }
-}): string {
-  return row.agentType === 'pi' &&
-    piRuntimeForSessionFilePath(row.entry?.providerSession?.transcriptPath) === 'gentle-shell'
-    ? GENTLE_SHELL_LABEL
-    : formatAgentTypeLabel(row.agentType)
+/** The Pi runtime a row's label names: a stock or Gentle Shell answer, or unknown while none is known. */
+export type PiRowRuntime = PiRuntimeSelection | 'unknown'
+
+/**
+ * A Pi-protocol row names the runtime its session lives in, or else the runtime the caller resolved for its
+ * workspace. Gentle Shell keeps its own identity; an unknown runtime reads as the neutral combined name.
+ */
+export function formatAgentRowTypeLabel(
+  row: {
+    agentType: AgentType | null | undefined
+    entry?: { providerSession?: { transcriptPath?: string } }
+  },
+  piRuntime?: PiRowRuntime
+): string {
+  if (row.agentType !== 'pi') {
+    return formatAgentTypeLabel(row.agentType)
+  }
+  const transcriptPath = row.entry?.providerSession?.transcriptPath
+  const runtime = transcriptPath ? piRuntimeForSessionFilePath(transcriptPath) : piRuntime
+  if (runtime === 'gentle-shell') {
+    return GENTLE_SHELL_LABEL
+  }
+  if (runtime === 'unknown') {
+    return PI_OR_GENTLE_SHELL_LABEL
+  }
+  return formatAgentTypeLabel(row.agentType)
 }

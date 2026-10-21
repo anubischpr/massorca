@@ -1,3 +1,4 @@
+import type { PiRowRuntime } from '../../../../shared/agent-type-label'
 import type { AgentDotState } from '@/components/AgentStateDot'
 import type { DashboardAgentRow as DashboardAgentRowData } from '@/components/dashboard/useDashboardData'
 import { formatAgentRowTypeLabel } from '@/lib/agent-status'
@@ -95,10 +96,13 @@ export function summarizeAgents(agents: DashboardAgentRowData[], subjectLabel: s
   return `${subjectLabel}: ${parts.join(', ')}`
 }
 
-export function summarizeAgentIdentities(agents: DashboardAgentRowData[]): string {
+export function summarizeAgentIdentities(
+  agents: DashboardAgentRowData[],
+  piRuntime?: PiRowRuntime
+): string {
   return agents
     .map((agent) => {
-      const agentLabel = formatAgentRowTypeLabel(agent)
+      const agentLabel = formatAgentRowTypeLabel(agent, piRuntime)
       const stateLabel = formatSummaryStateLabel(getAgentDotState(agent))
       return `${agentLabel} ${stateLabel}`
     })

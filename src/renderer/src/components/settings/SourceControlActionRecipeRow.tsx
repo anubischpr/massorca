@@ -1,3 +1,4 @@
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { Terminal } from 'lucide-react'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { TuiAgent } from '../../../../shared/tui-agent'
@@ -75,13 +76,18 @@ export function SourceControlActionRecipeRow<ActionId extends AiActionId>({
   onDiscard,
   onSave
 }: SourceControlActionRecipeRowProps<ActionId>): React.JSX.Element {
+  const piRuntime = usePiDisplayRuntime()
   const templateDirty =
     hasUnsavedChanges ?? JSON.stringify(draftValue) !== JSON.stringify(baseValue)
   const agentArgsPlaceholder = getSourceControlAgentArgsPlaceholder(
     resolveAgentArgsPlaceholderAgent(selectedAgent, defaultTuiAgent)
   )
   const agentOptions = getAgentCatalogForAction(actionId, selectedAgent)
-  const agentWarningText = getSourceControlActionAgentWarningText(actionId, selectedAgent)
+  const agentWarningText = getSourceControlActionAgentWarningText(
+    actionId,
+    selectedAgent,
+    piRuntime
+  )
   const agentSupportText = getSourceControlActionAgentSupportText(actionId)
 
   return (

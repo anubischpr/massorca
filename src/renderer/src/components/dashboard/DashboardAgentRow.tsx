@@ -1,3 +1,4 @@
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import React, { useState, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { AgentStateDot, agentStateLabel, type AgentDotState } from '@/components/AgentStateDot'
@@ -99,6 +100,10 @@ const DashboardAgentRow = React.memo(function DashboardAgentRow({
   sendTargetDisabledReason,
   onSendTargetClick
 }: Props) {
+  const piRuntime = usePiDisplayRuntime({
+    worktreeId: agent.tab.worktreeId,
+    enabled: agent.agentType === 'pi'
+  })
   const hasChildDisclosure =
     typeof childAgentCount === 'number' &&
     childAgentCount > 0 &&
@@ -167,10 +172,10 @@ const DashboardAgentRow = React.memo(function DashboardAgentRow({
   const participatesInLineage = isLineageChild || lineageChildCount > 0
   const identityTitle =
     lineageChildCount > 0
-      ? `${formatAgentRowTypeLabel(agent)} - dispatched ${lineageChildCount} ${
+      ? `${formatAgentRowTypeLabel(agent, piRuntime)} - dispatched ${lineageChildCount} ${
           lineageChildCount === 1 ? 'agent' : 'agents'
         }`
-      : [formatAgentRowTypeLabel(agent), model].filter(Boolean).join(' · ')
+      : [formatAgentRowTypeLabel(agent, piRuntime), model].filter(Boolean).join(' · ')
   // Why: a stop or a failure is a terminal outcome, so surface it in the leading state dot; a
   // failure does so even while subagents still run.
   const dotState: AgentDotState = agentRowDisplayDotState(agent)

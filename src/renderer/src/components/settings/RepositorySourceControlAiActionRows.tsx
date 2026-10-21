@@ -1,3 +1,4 @@
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import type React from 'react'
 import { Terminal } from 'lucide-react'
 import type { TuiAgent } from '../../../../shared/tui-agent'
@@ -73,6 +74,7 @@ export function RepositorySourceControlAiActionRows({
   onActionDiscard,
   onActionSave
 }: RepositorySourceControlAiActionRowsProps): React.JSX.Element {
+  const piRuntime = usePiDisplayRuntime()
   return (
     <div className="space-y-3">
       <Label className="text-xs font-medium">
@@ -101,7 +103,11 @@ export function RepositorySourceControlAiActionRows({
                 resolveAgentArgsPlaceholderAgent(effectiveAgent, source, actionId, defaultTuiAgent)
               )
         const agentOptions = getAgentCatalogForAction(actionId, effectiveAgent)
-        const agentWarningText = getSourceControlActionAgentWarningText(actionId, effectiveAgent)
+        const agentWarningText = getSourceControlActionAgentWarningText(
+          actionId,
+          effectiveAgent,
+          piRuntime
+        )
         const agentSupportText = getSourceControlActionAgentSupportText(actionId)
         const actionDirty = actionDirtyById[actionId]
         const isSavingAction = savingActionIds[actionId] === true

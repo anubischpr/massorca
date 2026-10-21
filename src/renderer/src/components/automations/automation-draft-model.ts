@@ -1,3 +1,4 @@
+import { piRuntimeLabel, type PiDisplayRuntime } from '@/lib/pi-agent-display'
 import { getAgentCatalog } from '@/lib/agent-catalog'
 import type { AutomationPrecheck } from '../../../../shared/automations-types'
 import { buildAutomationCronSchedule } from '../../../../shared/automation-schedule-occurrences'
@@ -51,8 +52,10 @@ export function buildHermesCronSchedule(draft: AutomationDraft): string {
   })
 }
 
-export function getAgentLabel(agentId: string): string {
-  return getAgentCatalog().find((agent) => agent.id === agentId)?.label ?? agentId
+export function getAgentLabel(agentId: string, piRuntime: PiDisplayRuntime = 'unknown'): string {
+  return agentId === 'pi'
+    ? piRuntimeLabel(piRuntime)
+    : (getAgentCatalog().find((agent) => agent.id === agentId)?.label ?? agentId)
 }
 
 /** The field's error, or null when the draft's extras can be saved. */

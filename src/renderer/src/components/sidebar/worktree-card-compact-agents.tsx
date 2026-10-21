@@ -1,3 +1,4 @@
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import React, { useCallback, useRef } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { AgentStateDot } from '@/components/AgentStateDot'
@@ -81,13 +82,17 @@ export function CompactAgentSummaryButton({
   expanded,
   onToggle
 }: CompactAgentSummaryButtonProps): React.JSX.Element {
+  const piRuntime = usePiDisplayRuntime({
+    worktreeId: agents[0]?.tab.worktreeId,
+    enabled: agents.some((agent) => agent.agentType === 'pi')
+  })
   const summary = summarizeAgents(agents, subjectLabel)
   const groups = buildSummaryAgentGroups(agents)
   const visibleGroups = groups.slice(0, 3)
   const hiddenGroupAgentCount = groups
     .slice(visibleGroups.length)
     .reduce((count, group) => count + group.agents.length, 0)
-  const agentIdentitySummary = summarizeAgentIdentities(agents)
+  const agentIdentitySummary = summarizeAgentIdentities(agents, piRuntime)
   const stopPointerPropagation = useCallback((e: React.SyntheticEvent) => {
     e.stopPropagation()
   }, [])

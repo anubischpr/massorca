@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  allowHostPiRuntimeRetryOnActivation,
   readHostPiRuntimeAnswer,
   recordHostPiRuntimeAnswer,
   requestHostPiRuntimeAnswer,
@@ -45,12 +46,26 @@ describe('requestHostPiRuntimeAnswer', () => {
     expect(ask).toHaveBeenCalledTimes(2)
   })
 
-  it('treats a failed ask as an unknown answer, which is not asked again', async () => {
+  it('treats a failed ask as unknown and asks again only after the next activation, once', async () => {
     const ask = vi.fn().mockRejectedValue(new Error('offline'))
     requestHostPiRuntimeAnswer('wt-4', ask)
     await flush()
     expect(readHostPiRuntimeAnswer('wt-4')).toBe('unknown')
     requestHostPiRuntimeAnswer('wt-4', ask)
+    expect(ask).toHaveBeenCalledTimes(1)
+    allowHostPiRuntimeRetryOnActivation('wt-4')
+    requestHostPiRuntimeAnswer('wt-4', ask)
+    requestHostPiRuntimeAnswer('wt-4', ask)
+    await flush()
+    expect(ask).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps a definitive cliMissing answer without asking again on activation', async () => {
+    const ask = vi.fn().mockResolvedValue('cliMissing')
+    requestHostPiRuntimeAnswer('wt-5', ask)
+    await flush()
+    allowHostPiRuntimeRetryOnActivation('wt-5')
+    requestHostPiRuntimeAnswer('wt-5', ask)
     expect(ask).toHaveBeenCalledTimes(1)
   })
 

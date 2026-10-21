@@ -1,3 +1,4 @@
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import type { JSX } from 'react'
 import { Terminal } from 'lucide-react'
 import { CUSTOM_PROMPT_PLACEHOLDER } from '../../../../shared/commit-message-prompt'
@@ -45,6 +46,7 @@ export function AiCommitPrSettingsFields({
   onThinkingChange,
   writeConfig
 }: AiCommitPrSettingsFieldsProps): JSX.Element {
+  const piRuntime = usePiDisplayRuntime()
   return (
     <div className="flex flex-col gap-2.5">
       <div className="grid grid-cols-[92px_minmax(0,1fr)] items-center gap-3">
@@ -63,7 +65,7 @@ export function AiCommitPrSettingsFields({
                 <>
                   <AgentIcon agent={activeCapability.id} size={14} />
                   <span className="truncate">
-                    {commitMessageAgentLabel(activeCapability.id, activeCapability)}
+                    {commitMessageAgentLabel(activeCapability.id, activeCapability, piRuntime)}
                   </span>
                 </>
               ) : isCustom ? (
@@ -97,7 +99,7 @@ export function AiCommitPrSettingsFields({
               <SelectItem key={capability.id} value={capability.id} className="cursor-pointer">
                 <span className="flex items-center gap-2">
                   <AgentIcon agent={capability.id} size={14} />
-                  <span>{commitMessageAgentLabel(capability.id, capability)}</span>
+                  <span>{commitMessageAgentLabel(capability.id, capability, piRuntime)}</span>
                 </span>
               </SelectItem>
             ))}

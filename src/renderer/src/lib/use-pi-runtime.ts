@@ -2,7 +2,11 @@ import { useEffect } from 'react'
 import { useAppStore } from '@/store'
 import type { PiRuntimeSelection } from '../../../shared/pi-runtime-selection'
 import { resolvePiDisplayRuntime, type PiDisplayRuntime } from './pi-agent-display'
-import { requestHostPiRuntimeAnswer, useHostPiRuntimeAnswer } from './pi-host-runtime-answer'
+import {
+  allowHostPiRuntimeRetryOnActivation,
+  requestHostPiRuntimeAnswer,
+  useHostPiRuntimeAnswer
+} from './pi-host-runtime-answer'
 import { askHostPiRuntimeForWorktree } from './pi-terminal-host-runtime'
 
 export type PiDisplayRuntimeOptions = {
@@ -27,10 +31,14 @@ export function usePiDisplayRuntime(options: PiDisplayRuntimeOptions = {}): PiDi
   const hostAnswer = useHostPiRuntimeAnswer(worktreeId)
   const commandSet = Boolean(command?.trim())
   useEffect(() => {
+    // Why: an active workspace's (re)mount or activation allows one retry of a failed host answer.
+    if (worktreeId && worktreeId === activeWorktreeId) {
+      allowHostPiRuntimeRetryOnActivation(worktreeId)
+    }
     if (worktreeId && settingsLoaded && !commandSet) {
       requestHostPiRuntimeAnswer(worktreeId, askHostPiRuntimeForWorktree)
     }
-  }, [worktreeId, settingsLoaded, commandSet])
+  }, [worktreeId, activeWorktreeId, settingsLoaded, commandSet])
   return resolvePiDisplayRuntime({
     hostRecorded: options.chatRuntime,
     command,

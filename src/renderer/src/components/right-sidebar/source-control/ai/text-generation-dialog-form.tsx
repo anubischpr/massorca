@@ -1,3 +1,5 @@
+import type { PiDisplayRuntime } from '@/lib/pi-agent-display'
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import React, { useCallback, useMemo, useState } from 'react'
 import { RefreshCw, Save, Sparkles, Terminal, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -11,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { getAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
+import { getAgentDisplayLabel, AgentIcon } from '@/lib/agent-catalog'
 import { planSourceControlTextGeneration } from '@/lib/source-control-generation-plan'
 import {
   CUSTOM_AGENT_ID,
@@ -74,8 +76,8 @@ export function getDefaultSourceControlTextGenerationSaveTargetKey(
   return defaultTarget ? sourceControlTextGenerationSaveTargetKey(defaultTarget.target) : 'global'
 }
 
-function agentLabel(agentId: TuiAgent): string {
-  return getAgentCatalog().find((agent) => agent.id === agentId)?.label ?? agentId
+function agentLabel(agentId: TuiAgent, piRuntime: PiDisplayRuntime): string {
+  return getAgentDisplayLabel(agentId, piRuntime)
 }
 
 export function SourceControlTextGenerationDialogForm({
@@ -91,6 +93,7 @@ export function SourceControlTextGenerationDialogForm({
   onOpenChange,
   onSaveDefaults
 }: SourceControlTextGenerationDialogFormProps): React.JSX.Element {
+  const piRuntime = usePiDisplayRuntime()
   const capabilities = useMemo(() => listCommitMessageAgentCapabilities(), [])
   const showCustomAgent = Boolean(
     baseParams && (isCustomAgentId(baseParams.agentId) || baseParams.customAgentCommand?.trim())
@@ -243,7 +246,7 @@ export function SourceControlTextGenerationDialogForm({
                 <SelectItem key={capability.id} value={capability.id}>
                   <span className="flex items-center gap-2">
                     <AgentIcon agent={capability.id} size={14} />
-                    {agentLabel(capability.id)}
+                    {agentLabel(capability.id, piRuntime)}
                   </span>
                 </SelectItem>
               ))}

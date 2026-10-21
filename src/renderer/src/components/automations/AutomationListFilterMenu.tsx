@@ -16,7 +16,9 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { AgentIcon, getAgentCatalog } from '@/lib/agent-catalog'
+import { AgentIcon, getAgentCatalog, getAgentDisplayLabel } from '@/lib/agent-catalog'
+import { agentBrandRowAttribute } from '@/lib/pi-agent-display'
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { searchAgentPickerEntries } from '@/lib/agent-picker-search'
 import { translate } from '@/i18n/i18n'
 import type { AutomationHostCatalogEntry } from './automation-host-catalog-types'
@@ -95,10 +97,9 @@ export function AutomationListFilterPills({
         : filter.lastRun === 'never'
           ? translate('auto.components.automations.AutomationListFilterMenu.neverRan', 'Never ran')
           : null
+  const piRuntime = usePiDisplayRuntime({ enabled: filter.agentIds.includes('pi') })
   const agentValueLabel = filter.agentIds.length
-    ? filter.agentIds
-        .map((agentId) => getAgentCatalog().find((agent) => agent.id === agentId)?.label ?? agentId)
-        .join(', ')
+    ? filter.agentIds.map((agentId) => getAgentDisplayLabel(agentId, piRuntime)).join(', ')
     : null
   const hostPillLabel = onClearHost ? (hostLabel ?? null) : null
   if (!statusValueLabel && !lastRunValueLabel && !agentValueLabel && !hostPillLabel) {
@@ -166,6 +167,7 @@ export function AutomationListFilterMenu({
     'auto.components.automations.AutomationListFilterMenu.agent',
     'Agent'
   )
+  const piRuntime = usePiDisplayRuntime()
   const agents = getAgentCatalog()
   const selectedAgentIds = filter.agentIds
   const [agentQuery, setAgentQuery] = React.useState('')
@@ -316,11 +318,12 @@ export function AutomationListFilterMenu({
                 checked={selectedAgentIds.includes(agent.id)}
                 onCheckedChange={() => toggleAgent(agent.id)}
                 onSelect={(event) => event.preventDefault()}
+                data-agent-brand={agentBrandRowAttribute(agent.id, piRuntime)}
               >
                 <span className="inline-flex size-3.5 shrink-0 items-center justify-center [&_img]:size-3.5 [&_svg]:size-3.5!">
                   <AgentIcon agent={agent.id} size={14} />
                 </span>
-                {agent.label}
+                {getAgentDisplayLabel(agent.id, piRuntime)}
               </DropdownMenuCheckboxItem>
             ))}
             {filteredAgents.length === 0 ? (
