@@ -265,6 +265,7 @@ export function createStructuredSessionMocks() {
                 : undefined
             },
             threadGoal: mocks.threadGoal,
+            providerCommands: { available: [], pending: false, run: async () => null },
             cancel: mocks.cancel,
             stopBackgroundTask: (taskId?: string) =>
               mocks.stopBackgroundTask(props.sessionId, taskId),

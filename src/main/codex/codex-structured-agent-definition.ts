@@ -12,6 +12,7 @@ export const CODEX_STRUCTURED_AGENT: DirectoryAccountAgentDefinition = {
     compact: true,
     // A goal change at rest starts the agent first.
     threadGoal: true,
+    providerCommands: ['usage', 'skills', 'plugins', 'memories'],
     contextUsage: true,
     imagePrompts: true,
     steering: 'inject',

@@ -19,6 +19,7 @@ import { callStructuredAgentSession } from '@/runtime/structured-agent-session-c
 import { encodeStructuredAgentSessionOptionValue } from '../../../../shared/structured-agent-session-option-codec'
 import type { StructuredAgentSessionMutate } from './use-structured-agent-session-mutate'
 import { useHostModelCatalogUpgrade } from './use-host-model-catalog-upgrade'
+import { useStructuredAgentSessionProviderCommands } from './use-structured-agent-session-provider-commands'
 import { useStructuredAgentSessionOptionState } from './use-structured-agent-session-option-state'
 import { useStructuredAgentOptionPickMemory } from './use-structured-agent-option-pick-memory'
 import {
@@ -293,8 +294,13 @@ export function useStructuredAgentSessionOptions(args: {
     transportEnabled && conversationSupport?.sessionId === sessionId ? conversationSupport : null
   // Why: a tab and a hand-off label name the chat's own Pi runtime, which only this chat's options read knows.
   useRecordChatPiRuntime(sessionId, support?.piRuntime)
+  const providerCommands = useStructuredAgentSessionProviderCommands({
+    available: support?.providerCommands,
+    mutate
+  })
   return {
     conversationCommands: support?.commands ?? [],
+    providerCommands,
     /** Absent unless this host and session can change the goal. */
     threadGoal: support?.threadGoal,
     /** Absent from a host that predates it or a session that writes no context facts. */

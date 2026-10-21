@@ -2,6 +2,7 @@ import type { AgentSessionProviderFunction } from '../../../../shared/agent-sess
 import type { NativeChatQueueResume } from './native-chat-composer-primary-action'
 import type { NativeChatComposerNotice } from './native-chat-composer-notice'
 import type { AgentSessionConversationCommand } from '../../../../shared/agent-session-conversation-command'
+import type { AgentSessionProviderCommand } from '../../../../shared/agent-session-provider-command'
 import type { StructuredAgentContextUsage } from '../../../../shared/structured-agent-session-context-usage'
 import type { AgentSessionSlashCommand } from '../../../../shared/agent-session-wire'
 import type { AgentType } from '../../../../shared/agent-status-types'
@@ -42,6 +43,10 @@ export type NativeChatQueueHold = {
 
 export type NativeChatStructuredComposerTransport = {
   conversationCommands?: readonly AgentSessionConversationCommand[]
+  /** The provider commands the host reported this session can run now. */
+  providerCommands?: readonly AgentSessionProviderCommand[]
+  /** `/ps` is offered where the chat can show its background tasks. */
+  backgroundTasksReveal?: boolean
   send: (
     text: string,
     attachments: readonly NativeChatComposerImageAttachment[]

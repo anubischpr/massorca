@@ -17,6 +17,8 @@ import { nativeChatOrcaStopRowText } from './native-chat-orca-stop-words'
 import { AGENT_SESSION_ORCA_STOP_PRESENTATION } from '../../../../shared/agent-session-orca-stop'
 import { GENTLE_SHELL_USAGE_PRESENTATION } from '../../../../shared/gentle-shell-usage-presentation'
 import { NativeChatGentleUsageCard } from './NativeChatGentleUsageCard'
+import { CODEX_USAGE_NOTICE_PRESENTATION } from '../../../../shared/agent-session-provider-command'
+import { NativeChatCodexUsageCard } from './NativeChatCodexUsageCard'
 import { ProviderFrameRow } from './NativeChatTranscriptChrome'
 import { readWholeAgentSessionFailureFact } from '../../../../shared/agent-session-failure'
 import { agentSessionFailureSentence } from '../../../../shared/agent-session-failure-words'
@@ -68,6 +70,9 @@ export function NativeChatNoticeRow({
   if (block.presentation === GENTLE_SHELL_USAGE_PRESENTATION) {
     return (
       <NativeChatGentleUsageCard
+  if (block.presentation === CODEX_USAGE_NOTICE_PRESENTATION) {
+    return (
+      <NativeChatCodexUsageCard
         fallback={
           <NativeChatNoticeRow
             block={{ ...block, presentation: undefined }}

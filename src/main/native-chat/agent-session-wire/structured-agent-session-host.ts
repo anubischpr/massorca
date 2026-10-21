@@ -304,7 +304,7 @@ export class StructuredAgentSessionHost {
 
   waitForSendSettlement = this.clientDelivery.waitForSendSettlement
 
-  private mutations = structuredAgentSessionMutationDelegates(() => this.mutationContext())
+  readonly mutations = structuredAgentSessionMutationDelegates(() => this.mutationContext())
   cancel = this.mutations.cancel
   respondToPrompt = this.mutations.respondToPrompt
   setOption = this.mutations.setOption

@@ -34,8 +34,7 @@ export function codexThreadGoalRequests(
 
 export async function changeCodexThreadGoal(
   session: Pick<CodexSession, 'connection' | 'threadId'>,
-  change: AgentSessionThreadGoalChange,
-  replacesGoal: boolean,
+  { change, replacesGoal }: { change: AgentSessionThreadGoalChange; replacesGoal: boolean },
   timeoutMs: number | undefined
 ): Promise<{ ok: true } | { ok: false; rejected: string }> {
   try {

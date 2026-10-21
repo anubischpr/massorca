@@ -35,3 +35,4 @@ export {
 } from '../../../../shared/rpc-contract/structured-agent-session-params'
 export { ContinueInterruptedParams } from '../../../../shared/rpc-contract/structured-agent-session-continue-params'
 export { DismissPromptSuggestionParams } from '../../../../shared/rpc-contract/structured-agent-session-prompt-suggestion-params'
+export { ProviderCommandParams } from '../../../../shared/rpc-contract/structured-agent-session-provider-command-params'

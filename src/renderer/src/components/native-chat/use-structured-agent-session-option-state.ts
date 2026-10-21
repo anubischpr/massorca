@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AgentSessionConversationCommand } from '../../../../shared/agent-session-conversation-command'
+import {
+  isAgentSessionProviderCommand,
+  type AgentSessionProviderCommand
+} from '../../../../shared/agent-session-provider-command'
 import type { AgentSessionOptionsResult } from '../../../../shared/agent-session-wire'
 import type { AgentSessionRewindSupport } from '../../../../shared/agent-session-rewind'
 import type { AgentType } from '../../../../shared/agent-status-types'
@@ -87,6 +91,7 @@ export function useStructuredAgentSessionOptionState(args: {
     sessionId: string
     target: RuntimeClientTarget
     commands: readonly AgentSessionConversationCommand[]
+    providerCommands: readonly AgentSessionProviderCommand[]
     threadGoal: AgentSessionOptionsResult['threadGoal']
     connectors: AgentSessionOptionsResult['connectors']
     contextUsage: AgentSessionOptionsResult['contextUsage']
@@ -213,6 +218,8 @@ export function useStructuredAgentSessionOptionState(args: {
           sessionId,
           target,
           commands: result.conversationCommands ?? [],
+          // A command this build does not know is never offered.
+          providerCommands: (result.providerCommands ?? []).filter(isAgentSessionProviderCommand),
           threadGoal: result.threadGoal,
           connectors: result.connectors,
           contextUsage: result.contextUsage,

@@ -237,6 +237,10 @@ export async function readStructuredAgentSessionOptions(
       !liveAccessModes.some((live) => live === mode)
   )
   const capabilities = agents.capabilities(agent)
+  const runnable = adapter.availableProviderCommands?.(sessionId)
+  const declaredProviderCommands = (capabilities?.providerCommands ?? []).filter(
+    (command) => runnable === undefined || runnable.includes(command)
+  )
   const recordedPiRuntime = record?.options?.piRuntime
   const floor = session.journal.context.floor()
   const contextFloor = floor ? { contextFloor: floor } : {}
@@ -281,6 +285,7 @@ export async function readStructuredAgentSessionOptions(
             reason: 'unsupported'
           }),
     conversationCommands: capabilities?.compact ? ['clear', 'compact'] : ['clear'],
+    ...(declaredProviderCommands.length > 0 ? { providerCommands: declaredProviderCommands } : {}),
     ...(capabilities?.threadGoal
       ? { threadGoal: { current: session.journal.threadGoal(), ...contextFloor } }
       : {}),
