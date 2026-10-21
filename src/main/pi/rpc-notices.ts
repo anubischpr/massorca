@@ -1,3 +1,4 @@
+import { GENTLE_SHELL_USAGE_PRESENTATION } from '../../shared/gentle-shell-usage-presentation'
 import { agentSessionFailureWords } from '../../shared/agent-session-failure-words'
 import type { ProviderTimelineEvent } from '../native-chat/agent-session-timeline/provider-timeline-event'
 import type { JsonlRpcRecord } from '../jsonl-rpc/peer'
@@ -10,7 +11,7 @@ const TERMINAL_PANEL_COMMANDS = new Set(['gentle:usage', 'gentle:commands', 'gen
 const MAX_HELD_NOTICES = 32
 const MAX_NOTICE_CHARS = 8000
 
-type Notice = { tone: 'notice' | 'warning' | 'error'; text: string }
+type Notice = { tone: 'notice' | 'warning' | 'error'; text: string; presentation?: string }
 
 /** Shows Pi `notify` output (what slash commands print) as rows of the turn that ran them. */
 export class PiRpcNotices {
@@ -56,6 +57,7 @@ export class PiRpcNotices {
       this.show([
         {
           tone: 'notice',
+          ...(name === 'gentle:usage' ? { presentation: GENTLE_SHELL_USAGE_PRESENTATION } : {}),
           text: `/${name} opens a panel that only the Gentle Shell terminal can draw, so it shows nothing here. Run it in the terminal.`
         }
       ])
@@ -71,7 +73,7 @@ export class PiRpcNotices {
       notices.map((notice) => ({
         type: 'item.close' as const,
         item: `notice:${turn}:${this.count++}`,
-        body: { kind: 'status' as const, tone: notice.tone, text: notice.text }
+        body: { kind: 'status' as const, ...notice }
       }))
     )
   }

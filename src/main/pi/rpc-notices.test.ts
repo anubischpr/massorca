@@ -33,7 +33,13 @@ describe('Pi notify output', () => {
 
   it('explains a terminal-only panel that printed nothing', async () => {
     const rows = await runCommand('/gentle:usage', [])
-    expect(rows).toMatchObject([{ tone: 'notice', text: expect.stringContaining('/gentle:usage') }])
+    expect(rows).toMatchObject([
+      {
+        tone: 'notice',
+        presentation: 'gentle-shell-usage',
+        text: expect.stringContaining('/gentle:usage')
+      }
+    ])
   })
 
   it('does not add the explanation when the panel command printed its own words', async () => {

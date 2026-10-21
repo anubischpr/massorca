@@ -18752,7 +18752,14 @@
         "explanation": "Continue, and the agent first checks whether its last step finished."
       },
       "piRestrictedAccessUnsupported": "Pi chat does not support restricted access. Choose Full access explicitly, or use the terminal.",
-      "piRuntimeUnsupported": "This host cannot run the selected Gentle Shell runtime in chat."
+      "piRuntimeUnsupported": "This host cannot run the selected Gentle Shell runtime in chat.",
+      "gentleUsage": {
+        "refresh": "Refresh usage",
+        "title": "Subscriptions",
+        "updated": "nan · updated {{time}}",
+        "used": "{{percent}}% used",
+        "usedResets": "{{percent}}% used · resets in {{duration}}"
+      }
     },
     "tab": {
       "bar": {
