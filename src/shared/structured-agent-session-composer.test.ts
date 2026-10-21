@@ -388,4 +388,15 @@ describe('Pi host aliases', () => {
     ).toEqual({ handled: false, accepted: false, error: null })
     expect(controller.setOption).not.toHaveBeenCalled()
   })
+
+  it('passes agy grill-me through as text when the session reports functions without it', async () => {
+    const outcome = await dispatchStructuredAgentSessionComposerCommand('/grill-me', {
+      agent: 'antigravity',
+      functions: [],
+      snapshot: [],
+      invokeAction: async () => true,
+      setOption: async () => true
+    })
+    expect(outcome.handled).toBe(false)
+  })
 })

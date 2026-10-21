@@ -36,6 +36,21 @@ describe('client session navigation', () => {
         ?.providerFunction
     ).toBeUndefined()
   })
+  it('offers agy grill-me beside a live session that reports its own functions', () => {
+    const common = {
+      name: 'clear',
+      provenance: 'orca' as const,
+      availability: 'available' as const,
+      execution: { kind: 'host-operation' as const, operation: 'clear' as const }
+    }
+    for (const transport of [{ sessionFunctions: [common] }, { sessionCommands: [] }, {}]) {
+      const row = nativeChatStructuredCatalog('antigravity', transport).find(
+        (entry) => entry.name === 'grill-me'
+      )
+      expect(row?.description).toBe('Interview me to align on a plan.')
+      expect(row?.providerFunction).toBeUndefined()
+    }
+  })
   it('keeps window actions when a provider reports an empty or conflicting registry', () => {
     expect(withNativeChatSessionCommands([]).map((x) => x.name)).toEqual(['resume', 'session'])
     expect(

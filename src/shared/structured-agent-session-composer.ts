@@ -188,6 +188,10 @@ export async function dispatchStructuredAgentSessionComposerCommand(
     if (!entry && controller.skills?.includes(command.name)) {
       return { handled: false, accepted: false, error: null }
     }
+    // The CLI's own commands expand from message text; the session's report never lists them.
+    if (!entry && getAgentCliCommands(controller.agent).some((cli) => cli.name === command.name)) {
+      return { handled: false, accepted: false, error: null }
+    }
     if (!entry || entry.availability !== 'available') {
       return {
         handled: true,
