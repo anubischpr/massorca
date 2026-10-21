@@ -27,8 +27,8 @@ export type NativeChatTurnFoldRow = {
   /** Whether a system row reports a failure. It competes with prose to be the
    *  turn's answer, so a turn that failed shows the error as its end. */
   reportsFailure: boolean
-  /** Whether the row explains what became of the turn: a compaction's result, or
-   *  that the response was interrupted. It never folds: hiding it would leave the
+  /** Whether the row explains what became of the turn: a compaction's result, a command's
+   *  output, or that the response was interrupted. It never folds: hiding it would leave the
    *  turn's status as the only trace of it. */
   explainsTurn: boolean
 }

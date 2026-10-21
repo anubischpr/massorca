@@ -1,3 +1,4 @@
+import { AGENT_SESSION_COMMAND_RESULT_PRESENTATION } from '../../shared/native-chat-command-result'
 import { GENTLE_SHELL_USAGE_PRESENTATION } from '../../shared/gentle-shell-usage-presentation'
 import { agentSessionFailureWords } from '../../shared/agent-session-failure-words'
 import type { ProviderTimelineEvent } from '../native-chat/agent-session-timeline/provider-timeline-event'
@@ -39,7 +40,8 @@ export class PiRpcNotices {
     if (this.activeTurn()) {
       this.show([notice])
     } else if (this.promptPending() && this.held.length < MAX_HELD_NOTICES) {
-      this.held.push(notice)
+      // Output before the prompt is accepted is its command's result.
+      this.held.push({ ...notice, presentation: AGENT_SESSION_COMMAND_RESULT_PRESENTATION })
     }
   }
 
@@ -57,7 +59,10 @@ export class PiRpcNotices {
       this.show([
         {
           tone: 'notice',
-          ...(name === 'gentle:usage' ? { presentation: GENTLE_SHELL_USAGE_PRESENTATION } : {}),
+          presentation:
+            name === 'gentle:usage'
+              ? GENTLE_SHELL_USAGE_PRESENTATION
+              : AGENT_SESSION_COMMAND_RESULT_PRESENTATION,
           text: `/${name} opens a panel that only the Gentle Shell terminal can draw, so it shows nothing here. Run it in the terminal.`
         }
       ])

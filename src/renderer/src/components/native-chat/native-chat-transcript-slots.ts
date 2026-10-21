@@ -11,6 +11,7 @@ import type {
   AgentJournalRenderItem,
   AgentJournalSubmission
 } from '../../../../shared/agent-session-journal-types'
+import { isNativeChatCommandResultPresentation } from '../../../../shared/native-chat-command-result'
 import { AGENT_SESSION_ORCA_STOP_PRESENTATION } from '../../../../shared/agent-session-orca-stop'
 import { AGENT_SESSION_COMPACTION_SKIPPED_PRESENTATION } from '../../../../shared/agent-session-compaction'
 import {
@@ -165,7 +166,8 @@ export function buildNativeChatTranscriptSlots(
         block.type === 'text' &&
         (block.presentation === 'compaction' ||
           block.presentation === AGENT_SESSION_COMPACTION_SKIPPED_PRESENTATION ||
-          block.presentation === AGENT_SESSION_ORCA_STOP_PRESENTATION)
+          block.presentation === AGENT_SESSION_ORCA_STOP_PRESENTATION ||
+          isNativeChatCommandResultPresentation(block.presentation))
     )
   }))
   // Liveness is the turn's, not any one call's: the run at the frontier stays
