@@ -17,6 +17,18 @@ export type NativeChatComposerInput = Pick<
   isCaretOnVisualEdge?: (edge: 'start' | 'end') => boolean
 }
 
+/** `/mention` and `/open`: an `@` and its query at the caret, which opens the file picker as typing `@` does. */
+export function insertNativeChatMention(
+  input: NativeChatComposerInput | null,
+  query: string
+): void {
+  if (!input || input.disabled || !input.insertText) {
+    return
+  }
+  input.focus()
+  input.insertText(`@${query}`)
+}
+
 export function insertNativeChatPastedText(
   input: NativeChatComposerInput | null,
   text: string

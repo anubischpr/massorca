@@ -1,13 +1,18 @@
 import { ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import {
+  useNativeChatOpenSurfaceRequests,
+  type NativeChatOpenSurface
+} from './native-chat-open-surface'
 
 /** One summary card: a header with its headline value, a compact preview, and inline expansion. */
 export function NativeChatSessionSection({
   title,
   summary,
   compact,
-  children
+  children,
+  openRequest
 }: {
   title: string
   /** Headline value beside the title, such as a count or progress. */
@@ -16,8 +21,15 @@ export function NativeChatSessionSection({
   compact?: React.ReactNode
   /** Shown only while expanded. */
   children: React.ReactNode
+  /** Expands the section when the chat asks its surface to open. */
+  openRequest?: { sessionId: string; surface: NativeChatOpenSurface }
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
+  useNativeChatOpenSurfaceRequests(
+    openRequest?.sessionId ?? null,
+    openRequest?.surface ?? 'context',
+    () => setOpen(true)
+  )
   return (
     <section className="rounded-xl border border-border bg-card p-1 text-card-foreground shadow-xs">
       <Collapsible open={open} onOpenChange={setOpen}>

@@ -6,15 +6,19 @@ import {
 } from './native-chat-context-usage-summary'
 import { NativeChatSessionField, NativeChatSessionSection } from './NativeChatSessionSection'
 
-/** Context occupancy: a percentage when the window is known, otherwise the used tokens alone. */
+/** Context occupancy: a percentage when the window is known, otherwise the used tokens alone. `/context`
+ *  expands it when the chat has a session id to name it by. */
 export function NativeChatSessionContextSection({
-  summary
+  summary,
+  sessionId
 }: {
   summary: StructuredAgentContextSummary | null
+  sessionId?: string
 }): React.JSX.Element {
   const { t } = useTranslation()
   const title = t('components.nativeChatSummary.context', 'Context')
   const tokensLabel = t('components.nativeChatSummary.tokens', 'tokens')
+  const openRequest = sessionId ? { sessionId, surface: 'context' as const } : undefined
   if (!summary) {
     const message = t(
       'components.nativeChatSummary.contextUnavailable',
@@ -25,6 +29,7 @@ export function NativeChatSessionContextSection({
         title={title}
         summary={t('components.nativeChatSummary.unavailable', 'Unavailable')}
         compact={<p>{message}</p>}
+        openRequest={openRequest}
       >
         <p>{message}</p>
       </NativeChatSessionSection>
@@ -36,7 +41,7 @@ export function NativeChatSessionContextSection({
       ? `${estimate}${formatContextPercentage(summary.percentage)}%`
       : `${estimate}${formatContextTokenCount(summary.usedTokens)} ${tokensLabel}`
   return (
-    <NativeChatSessionSection title={title} summary={headline}>
+    <NativeChatSessionSection title={title} summary={headline} openRequest={openRequest}>
       <dl className="space-y-2">
         <NativeChatSessionField
           label={t('components.nativeChatSummary.used', 'Used')}
