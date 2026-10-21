@@ -18559,6 +18559,18 @@
         "copied": "Copied",
         "copy": "Copy message"
       },
+      "commands": {
+        "copied": "Copied",
+        "exportCopied": "Copied the chat as Markdown. Orca cannot save Markdown files yet.",
+        "exportYou": "You",
+        "notReported": "Not reported",
+        "statusAgent": "Agent",
+        "statusModel": "Model",
+        "statusEffort": "Reasoning effort",
+        "statusAccess": "Access",
+        "statusWorkspace": "Workspace",
+        "statusSession": "Chat session"
+      },
       "scrollMessageToTop": "Scroll this message to top",
       "loadingEarlier": "Loading…",
       "loadEarlier": "Load earlier messages",

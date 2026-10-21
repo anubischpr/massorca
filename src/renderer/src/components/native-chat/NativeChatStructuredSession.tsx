@@ -215,6 +215,7 @@ export function NativeChatStructuredSession(
     sendThroughLaunch: provisionalLaunch.sendThroughLaunch,
     starting: provisionalLaunch.starting,
     worktreeId: ownerWorktreeId ?? undefined,
+    workspacePath: fileLinkContext?.worktreePath ?? null,
     optionPickerRequest,
     setOptionPickerRequest,
     onError: reportComposerError,

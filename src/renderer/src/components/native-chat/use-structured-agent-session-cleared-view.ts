@@ -11,6 +11,10 @@ import {
   setNativeChatEarlierContextShown,
   useNativeChatEarlierContextShown
 } from './native-chat-earlier-context-store'
+import {
+  useNativeChatCommandResultRows,
+  withNativeChatCommandResultRows
+} from './native-chat-command-result-rows'
 
 export type NativeChatEarlierContext = {
   /** What came before the newest /clear is on screen. */
@@ -30,10 +34,15 @@ export function useStructuredAgentSessionClearedView(
   earlierContext: NativeChatEarlierContext | null
 } {
   const shown = useNativeChatEarlierContextShown(sessionId)
-  // The journal plus the one notice a cut turn with no row gets.
+  const commandResults = useNativeChatCommandResultRows(sessionId)
+  // The journal plus the one notice a cut turn with no row gets, and the results of commands the chat answered.
   const items = useMemo(
-    () => withNativeChatCutTurnNotices(journalItems, { agentName: structuredAgentLabel(agent) }),
-    [agent, journalItems]
+    () =>
+      withNativeChatCommandResultRows(
+        withNativeChatCutTurnNotices(journalItems, { agentName: structuredAgentLabel(agent) }),
+        commandResults
+      ),
+    [agent, commandResults, journalItems]
   )
   return useMemo(() => {
     const since = agentSessionTranscriptSinceClear(items, submissions)
