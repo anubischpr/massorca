@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import * as forkProcess from './codex-forked-thread-process'
 import { codexReviewItemBody } from './codex-review-item-translation'
 import {
   available,
@@ -20,7 +21,24 @@ function lastCall(request: ReturnType<typeof vi.fn>): [string, Record<string, un
   return [call?.[0], call?.[1]]
 }
 
+vi.mock('./codex-forked-thread-process', () => ({
+  forkCodexThreadInOwnProcess: vi.fn(async () => null)
+}))
+
 describe('codex mutating provider commands', () => {
+  it('forks in a process of its own and leaves this app-server out of it', async () => {
+    vi.mocked(forkProcess.forkCodexThreadInOwnProcess).mockResolvedValueOnce('thread-9')
+    const request = vi.fn(async () => ({}))
+    const outcome = await run(session(request), { sessionId: 'session-1', command: 'fork' }, 1000)
+    expect(forkProcess.forkCodexThreadInOwnProcess).toHaveBeenCalledWith(
+      'session-1',
+      'thread-1',
+      1000
+    )
+    expect(request).not.toHaveBeenCalled()
+    expect(outcome).toEqual({ ok: true, forkedProviderSessionId: 'thread-9' })
+  })
+
   it('sets the memory mode per thread', async () => {
     const request = vi.fn(async () => ({}))
     await run(session(request), { command: 'memories', argument: 'off' }, 1000)

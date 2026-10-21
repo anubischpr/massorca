@@ -6,6 +6,7 @@
 // must name the thread this session actually proved — never one a caller asks
 // for, which is how a resume becomes a fork wearing a resume's name.
 
+import { rememberCodexSessionLaunch } from './codex-forked-thread-process'
 import type { AgentSessionJournalIdentity } from '../../shared/agent-session-journal-types'
 import { requireLegacyAgentSessionAccountHome } from '../../shared/agent-session-account-home'
 import { agentSessionProviderHandleChainHead } from '../../shared/agent-session-provider-handle'
@@ -101,7 +102,7 @@ export function createCodexStructuredLaunchResolver(
     // The same saved options every turn sends, so the thread and its turns name one model.
     const model = record.options?.model
     const visuals = (await deps.prepareVisuals?.(record.sessionId)) ?? null
-    return {
+    const launch: CodexStructuredLaunch = {
       command,
       args: [...args, 'app-server'],
       cwd: await resolveAgentSessionLaunchDirectory(deps, record),
@@ -125,5 +126,7 @@ export function createCodexStructuredLaunchResolver(
           }
         : {})
     }
+    rememberCodexSessionLaunch(identity.sessionId, launch)
+    return launch
   }
 }

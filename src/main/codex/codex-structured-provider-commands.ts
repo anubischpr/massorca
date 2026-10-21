@@ -7,6 +7,7 @@ import {
   codexGuardianDenialOf,
   type CodexGuardianDenial
 } from './codex-guardian-denial'
+import { forkCodexThreadInOwnProcess } from './codex-forked-thread-process'
 import { readRecord, readString } from './codex-item-field-readers'
 import { codexPluginsListing, codexSkillsListing } from './codex-provider-command-listings'
 import type { CodexSession } from './codex-structured-session-state'
@@ -92,10 +93,33 @@ async function releaseForkedThread(
   }
 }
 
+/** Forks in a process of its own so the fork is not left held here; in this one only when that
+ *  cannot be done. Asking for no turns keeps Codex from hydrating the whole history (which it
+ *  deprecates for paginated threads and says so in the chat it was asked from). */
+async function forkThread(
+  request: (method: string, params: Record<string, unknown>) => Promise<unknown>,
+  sessionId: string | undefined,
+  threadId: string,
+  timeoutMs: number | undefined
+): Promise<string | null> {
+  const own = sessionId ? await forkCodexThreadInOwnProcess(sessionId, threadId, timeoutMs) : null
+  if (own !== null) {
+    return own
+  }
+  const fork = (params: Record<string, unknown>): Promise<unknown> =>
+    request('thread/fork', { threadId, ...params })
+  const response = await fork({ excludeTurns: true }).catch(() => fork({}))
+  const forked = readString(readRecord(readRecord(response).thread), 'id')
+  if (forked !== null) {
+    await releaseForkedThread(request, forked)
+  }
+  return forked
+}
+
 /** Runs one provider command on a live Codex thread. */
 export async function run(
   session: CodexCommandSession,
-  input: { command: AgentSessionProviderCommand; argument?: string },
+  input: { sessionId?: string; command: AgentSessionProviderCommand; argument?: string },
   timeoutMs: number | undefined
 ): Promise<AgentSessionProviderCommandOutcome> {
   const { command, argument } = input
@@ -134,14 +158,11 @@ export async function run(
         await request('thread/name/set', { threadId, name: argument })
         return { ...notice(`Renamed this chat to "${argument}".`), conversationName: argument }
       case 'fork': {
-        const response = await request('thread/fork', { threadId })
-        const forked = readString(readRecord(readRecord(response).thread), 'id')
-        if (forked === null) {
-          return { ok: false, rejected: 'Codex did not name the forked conversation.' }
-        }
-        await releaseForkedThread(request, forked)
+        const forked = await forkThread(request, input.sessionId, threadId, timeoutMs)
         // No row: the fork opens as its own chat, and a row here would move the chat the user is reading.
-        return { ok: true, forkedProviderSessionId: forked }
+        return forked === null
+          ? { ok: false, rejected: 'Codex did not name the forked conversation.' }
+          : { ok: true, forkedProviderSessionId: forked }
       }
       case 'review':
         // Inline: the review runs as a turn of this thread, so its items stream into this chat.
