@@ -16,7 +16,7 @@ import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Button } from '../ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import { AgentIcon } from '@/lib/agent-catalog'
+import { AgentIcon, getAgentDisplayLabel } from '@/lib/agent-catalog'
 import { SourceControlActionVariableChips } from '../source-control/SourceControlActionVariableChips'
 import {
   getActionDescriptions,
@@ -207,7 +207,7 @@ export function RepositorySourceControlAiActionRows({
                       <SelectItem key={agent.id} value={agent.id}>
                         <span className="flex items-center gap-2">
                           <AgentIcon agent={agent.id} size={14} />
-                          {agent.label}
+                          {getAgentDisplayLabel(agent.id, piRuntime)}
                         </span>
                       </SelectItem>
                     ))}

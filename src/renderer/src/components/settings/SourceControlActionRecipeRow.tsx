@@ -8,7 +8,7 @@ import {
   SOURCE_CONTROL_ACTION_LABELS,
   type AiActionId
 } from '../../../../shared/source-control-ai-actions'
-import { AgentIcon } from '@/lib/agent-catalog'
+import { AgentIcon, getAgentDisplayLabel } from '@/lib/agent-catalog'
 import { SourceControlActionVariableChips } from '../source-control/SourceControlActionVariableChips'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -130,7 +130,7 @@ export function SourceControlActionRecipeRow<ActionId extends AiActionId>({
                 <SelectItem key={agent.id} value={agent.id}>
                   <span className="flex items-center gap-2">
                     <AgentIcon agent={agent.id} size={14} />
-                    {agent.label}
+                    {getAgentDisplayLabel(agent.id, piRuntime)}
                   </span>
                 </SelectItem>
               ))}

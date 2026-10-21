@@ -1,3 +1,4 @@
+import { currentPiDisplayRuntime } from '@/lib/pi-display-runtime-now'
 import type { DashboardAgentRow } from '@/components/dashboard/useDashboardData'
 import { formatAgentTypeLabel, isClaudeManagementTitle } from '@/lib/agent-status'
 import { isCursorAgentTitle } from '../../../../shared/agent-title-core'
@@ -165,7 +166,12 @@ function buildTitleDerivedAgentRow(args: {
   const titleStatus = isClaudeAgentsTitle
     ? 'idle'
     : (classifyTitleActivity(title) ?? (isCursorAgentTitle(title) ? 'idle' : null))
-  const label = isClaudeAgentsTitle ? 'Claude Code' : resolveTitleActivityLabel(title)
+  const label = isClaudeAgentsTitle
+    ? 'Claude Code'
+    : resolveTitleActivityLabel(
+        title,
+        title === 'pi' ? currentPiDisplayRuntime({ worktreeId: args.tab.worktreeId }) : 'unknown'
+      )
   if (!isTerminalLeafId(args.leafId)) {
     return null
   }

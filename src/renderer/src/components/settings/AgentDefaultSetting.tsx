@@ -1,7 +1,8 @@
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { Check, Terminal } from 'lucide-react'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import type { AgentCatalogEntry } from '@/lib/agent-catalog'
-import { AgentIcon } from '@/lib/agent-catalog'
+import { AgentIcon, getAgentDisplayLabel } from '@/lib/agent-catalog'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
 import { SettingsSubsectionHeader } from './SettingsFormControls'
@@ -50,6 +51,7 @@ export function AgentDefaultSetting({
   description: string
   onSetDefault: (agent: TuiAgent | 'blank' | null) => void
 }): React.JSX.Element {
+  const piRuntime = usePiDisplayRuntime()
   const storedDefaultAgent =
     defaultAgent !== null && defaultAgent !== 'blank'
       ? catalog.find((agent) => agent.id === defaultAgent)
@@ -93,7 +95,7 @@ export function AgentDefaultSetting({
               }
             >
               <AgentIcon agent={agent.id} size={14} />
-              {agent.label}
+              {getAgentDisplayLabel(agent.id, piRuntime)}
               {isActive && <Check className="size-3.5" />}
             </DefaultAgentPill>
           )

@@ -1,7 +1,7 @@
 import { isAiVaultDeletableAgent } from '../../../../shared/ai-vault-session-deletion'
 import type { AiVaultSession } from '../../../../shared/ai-vault-types'
 import { translate } from '@/i18n/i18n'
-import { agentLabel } from './ai-vault-session-filters'
+import { aiVaultSessionAgentLabel } from './ai-vault-session-filters'
 import {
   canUseLocalAiVaultSessionPathActions,
   isSyntheticAiVaultSessionPath
@@ -37,7 +37,7 @@ export function aiVaultSessionDeleteBlockedReason(
     return translate(
       'auto.components.right.sidebar.AiVaultSessionRow.deleteReasonUnsupportedAgent',
       "{{value0}} sessions can't be deleted from Orca.",
-      { value0: agentLabel(session.agent) }
+      { value0: aiVaultSessionAgentLabel(session) }
     )
   }
   return null

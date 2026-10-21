@@ -1,3 +1,5 @@
+import { agentBrandRowAttribute } from '@/lib/pi-agent-display'
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import type React from 'react'
 import {
   ArchiveRestore,
@@ -29,7 +31,7 @@ import {
   type AiVaultScope
 } from '../../../../shared/ai-vault-types'
 import { getExecutionHostLabel, type ExecutionHostScope } from '../../../../shared/execution-host'
-import { agentLabel, type AiVaultSessionGroup } from './ai-vault-session-filters'
+import { aiVaultAgentDisplayLabel, type AiVaultSessionGroup } from './ai-vault-session-filters'
 import { translate } from '@/i18n/i18n'
 import type { AiVaultHostScopeOption } from './ai-vault-host-scope'
 import { AiVaultSessionLimitMenu } from './AiVaultSessionLimitMenu'
@@ -227,6 +229,7 @@ export function VaultViewMenu({
   onSessionLimitChange: (limit: AiVaultSessionLimit) => void
   onReset: () => void
 }): React.JSX.Element {
+  const piRuntime = usePiDisplayRuntime()
   const allAgentsSelected = agents.length === AI_VAULT_AGENTS.length
   const noAgentsSelected = agents.length === 0
 
@@ -303,9 +306,10 @@ export function VaultViewMenu({
             checked={agents.includes(agent)}
             onCheckedChange={(checked) => onAgentEnabledChange(agent, checked === true)}
             onSelect={(event) => event.preventDefault()}
+            data-agent-brand={agentBrandRowAttribute(agent, piRuntime)}
           >
             <AgentIcon agent={agent} size={14} />
-            {agentLabel(agent)}
+            {aiVaultAgentDisplayLabel(agent, piRuntime)}
           </DropdownMenuCheckboxItem>
         ))}
         {!searching && (

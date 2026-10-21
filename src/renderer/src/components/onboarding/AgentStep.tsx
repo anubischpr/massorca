@@ -1,6 +1,12 @@
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { useId, useState } from 'react'
 import { Check, ExternalLink } from 'lucide-react'
-import { getAgentCatalog, AgentIcon, type AgentCatalogEntry } from '@/lib/agent-catalog'
+import {
+  getAgentCatalog,
+  getAgentDisplayLabel,
+  AgentIcon,
+  type AgentCatalogEntry
+} from '@/lib/agent-catalog'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -198,11 +204,13 @@ function AgentButton({
   selected: boolean
   onClick: () => void
 }) {
+  const piRuntime = usePiDisplayRuntime({ enabled: agent.id === 'pi' })
+  const label = getAgentDisplayLabel(agent.id, piRuntime)
   return (
     <button
       type="button"
       aria-pressed={selected}
-      title={agent.label}
+      title={label}
       className={cn(
         'flex min-w-0 items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -213,9 +221,7 @@ function AgentButton({
       <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted text-foreground">
         <AgentIcon agent={agent.id} size={16} />
       </span>
-      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-        {agent.label}
-      </span>
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{label}</span>
       {selected ? (
         <span className="grid size-4 shrink-0 place-items-center rounded-full bg-foreground text-background">
           <Check className="size-2.5" strokeWidth={3} />
