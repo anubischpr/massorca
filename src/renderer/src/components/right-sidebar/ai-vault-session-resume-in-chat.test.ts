@@ -36,6 +36,39 @@ function eligibility(
 }
 
 describe('resolveAiVaultSessionResumeInChatEligibility', () => {
+  const CLI_ANTIGRAVITY_FILE =
+    '/home/dev/.gemini/antigravity-cli/brain/c47de08c-23c6-4c39-8c1f-3d449b9066ba/.system_generated/logs/transcript.jsonl'
+  const IDE_ANTIGRAVITY_FILE =
+    '/home/dev/.gemini/antigravity-ide/brain/c47de08c-23c6-4c39-8c1f-3d449b9066ba/.system_generated/logs/transcript.jsonl'
+
+  it('offers the chat for a local Antigravity CLI conversation when its host can adopt it', () => {
+    expect(
+      eligibility({
+        session: session({ agent: 'antigravity', filePath: CLI_ANTIGRAVITY_FILE }),
+        structuredRouteAvailable: true
+      })
+    ).toEqual({ available: true, workspaceId: 'repo-1::/repo/orca' })
+  })
+
+  it('keeps an Antigravity conversation on the terminal when its host lacks the capability', () => {
+    // The route is false exactly when the owning host does not advertise the adoption capability.
+    expect(
+      eligibility({
+        session: session({ agent: 'antigravity', filePath: CLI_ANTIGRAVITY_FILE }),
+        structuredRouteAvailable: false
+      })
+    ).toEqual({ available: false, reason: 'workspace' })
+  })
+
+  it('refuses an Antigravity IDE conversation, which is not the agy conversation the chat pins', () => {
+    expect(
+      eligibility({
+        session: session({ agent: 'antigravity', filePath: IDE_ANTIGRAVITY_FILE }),
+        structuredRouteAvailable: true
+      })
+    ).toEqual({ available: false, reason: 'agent' })
+  })
+
   it('offers the chat for a local Claude row in its own workspace', () => {
     expect(eligibility()).toEqual({ available: true, workspaceId: 'repo-1::/repo/orca' })
   })

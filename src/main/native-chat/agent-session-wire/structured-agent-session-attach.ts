@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { activeProviderContext } from '../../../shared/agent-session-provider-context'
 // Attach: reserve the session record, then open its journal.
 //
@@ -15,6 +16,7 @@ import type {
 import {
   agentSessionProviderHandleBelongsTo,
   agentSessionProviderHandleFromWire,
+  antigravityProviderHandle,
   type AgentSessionWireProviderHandle
 } from '../../../shared/agent-session-provider-handle-encoding'
 import { claudeProviderHandleLink } from '../../claude/claude-structured-owner-identity'
@@ -285,6 +287,15 @@ function adoptedProviderHandleLink(
   handle: AgentSessionWireProviderHandle,
   observedAt: number
 ): AgentSessionProviderHandleLink {
+  if (handle.kind === 'antigravity') {
+    return {
+      linkId: randomUUID(),
+      handle: antigravityProviderHandle(handle.conversationId),
+      origin: 'adopted',
+      mintedAtFence: ADOPTED_HANDLE_FENCE,
+      observedAt
+    }
+  }
   return handle.kind === 'claude'
     ? claudeProviderHandleLink({
         sessionId: handle.sessionId,

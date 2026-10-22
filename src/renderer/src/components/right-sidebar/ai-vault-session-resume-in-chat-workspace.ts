@@ -8,8 +8,9 @@ import { resolveStructuredAgentSessionOwner } from '@/runtime/structured-agent-s
 import { useAppStore } from '@/store'
 import type { AiVaultSession } from '../../../../shared/ai-vault-types'
 import { normalizeExecutionHostId } from '../../../../shared/execution-host'
-import { isAgentSessionHandleProvider } from '../../../../shared/agent-session-provider-handle'
+import { isAgentSessionAdoptableProvider } from '../../../../shared/agent-session-provider-handle'
 import { STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY } from '../../../../shared/protocol-version'
+import { structuredAgentSessionAdoptsAgent } from '../../../../shared/structured-agent-session-surface-capabilities'
 import { resolveAiVaultTargetWorkspacePath } from './ai-vault-session-launch-target'
 import {
   resolveAiVaultSessionResumeInChatEligibility,
@@ -20,6 +21,16 @@ import {
   type AiVaultSessionResumeState,
   type AiVaultSessionResumeTargetState
 } from './ai-vault-session-resume'
+
+/** Whether the host that owns this worktree's chats can adopt a conversation of this agent into one. */
+export function canAdoptAiVaultSessionOnWorktreeHost(agent: string, worktreeId: string): boolean {
+  const state = useAppStore.getState()
+  const owner = resolveStructuredAgentSessionOwner(state, worktreeId)
+  return structuredAgentSessionAdoptsAgent(
+    agent,
+    owner ? resolveHostCapabilities(state, owner) : null
+  )
+}
 
 /** Whether the host that recorded the conversation, and would run its chat, can adopt it. */
 function aiVaultStructuredRouteAvailable(
@@ -33,8 +44,9 @@ function aiVaultStructuredRouteAvailable(
   const targetOwner = targetWorkspaceId
     ? resolveStructuredAgentSessionOwner(state, targetWorkspaceId)
     : null
+  const hostCapabilities = targetOwner ? resolveHostCapabilities(state, targetOwner) : null
   return (
-    isAgentSessionHandleProvider(session.agent) &&
+    structuredAgentSessionAdoptsAgent(session.agent, hostCapabilities) &&
     targetWorkspaceId !== null &&
     targetOwner !== null &&
     targetOwner === normalizeExecutionHostId(session.executionHostId) &&
@@ -46,9 +58,7 @@ function aiVaultStructuredRouteAvailable(
       },
       settings
     }) &&
-    resolveHostCapabilities(state, targetOwner)?.includes(
-      STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY
-    ) === true
+    hostCapabilities?.includes(STRUCTURED_AGENT_SESSION_RESUME_HISTORY_RUNTIME_CAPABILITY) === true
   )
 }
 
@@ -75,7 +85,7 @@ export function resolveAiVaultPrimaryResumeSurface(args: {
   })
   if (
     !eligibility.available ||
-    !isAgentSessionHandleProvider(session.agent) ||
+    !isAgentSessionAdoptableProvider(session.agent) ||
     resolveAgentSessionLaunchRoute(useAppStore.getState(), {
       agent: session.agent,
       workspace: {

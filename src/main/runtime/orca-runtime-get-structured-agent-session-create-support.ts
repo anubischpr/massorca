@@ -5,7 +5,7 @@ import { OrcaRuntimeWithGetWorktreePs } from './orca-runtime-get-worktree-ps'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
 import {
   resolveCommittedStructuredAgentSessionAdoptionIntent,
-  resolveStructuredAgentSessionAdoptionForCreate
+  resolveResumeFromAdoptionForCreate
 } from './structured-agent-session-create-adoption'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import { getLocalProjectWorktreeGitOptions } from '../project-runtime-git-options'
@@ -29,12 +29,9 @@ import {
   isFloatingWorkspaceSelector
 } from '../../shared/floating-workspace-worktree'
 import { parseWorkspaceKey } from '../../shared/workspace-scope'
+import type { AgentSessionAccountHome } from '../../shared/agent-session-account-home'
 import {
-  isLegacyAgentSessionAccountHome,
-  type AgentSessionAccountHome
-} from '../../shared/agent-session-account-home'
-import {
-  isAgentSessionHandleProvider,
+  isAgentSessionAdoptableProvider,
   type StructuredAgentId
 } from '../../shared/agent-session-provider-handle'
 import { agentSessionWireProviderHandle } from '../../shared/agent-session-provider-handle-encoding'
@@ -212,9 +209,9 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
       input.accessMode
     )
     const piRuntime = input.piRuntime ?? support.piRuntime ?? 'pi'
-    // Adopting a conversation reads the agent's own transcript, which only Claude and Codex have
-    // importers for.
-    if (!support.supported || (input.resumeFrom && !isAgentSessionHandleProvider(input.agent))) {
+    // Adopting a conversation reads the agent's own transcript, which only the adoptable agents have
+    // importers for. Antigravity is adoptable only from a client that negotiated its capability.
+    if (!support.supported || (input.resumeFrom && !isAgentSessionAdoptableProvider(input.agent))) {
       throw agentSessionRefusalError('structured_agent_session_unsupported', {
         reason: 'hostUnsupported'
       })
@@ -242,26 +239,18 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
       location,
       commandSettings: settings
     })
-    if (input.resumeFrom && !isLegacyAgentSessionAccountHome(selectedAccountHome)) {
-      throw agentSessionRefusalError('structured_agent_session_unsupported', {
-        reason: 'hostUnsupported'
-      })
-    }
-    // Adopting pins the account home to wherever the conversation actually lives, which is not
-    // necessarily the one a fresh create would pick: Codex resolves its rollout under
-    // `accountHome.path`, and Claude reads its transcript under `<home>/projects`. Resuming under
-    // the wrong home finds nothing and lands the user in a blank chat wearing the old chat's name.
-    const adoption =
-      input.resumeFrom && isLegacyAgentSessionAccountHome(selectedAccountHome)
-        ? await resolveStructuredAgentSessionAdoptionForCreate({
-            settings,
-            agent: input.agent,
-            providerSessionId: input.resumeFrom.providerSessionId,
-            selfSessionId: input.envelope.sessionId,
-            selectedAccountHomePath: selectedAccountHome.path,
-            providerSessionRows: this.getAgentProviderSessionRows()
-          })
-        : null
+    // Adoption pins the account home to where the conversation lives (see the resolver); a fresh
+    // create keeps the home it picked.
+    const adoption = input.resumeFrom
+      ? await resolveResumeFromAdoptionForCreate({
+          settings,
+          agent: input.agent,
+          providerSessionId: input.resumeFrom.providerSessionId,
+          selfSessionId: input.envelope.sessionId,
+          selectedAccountHome,
+          providerSessionRows: this.getAgentProviderSessionRows()
+        })
+      : null
     return {
       envelope: {
         sessionId: input.envelope.sessionId,
@@ -272,10 +261,7 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
       location,
       provider: input.agent,
       agent: input.agent,
-      accountHome:
-        adoption && isLegacyAgentSessionAccountHome(selectedAccountHome)
-          ? { variable: selectedAccountHome.variable, path: adoption.accountHomePath }
-          : selectedAccountHome,
+      accountHome: adoption ? adoption.accountHome : selectedAccountHome,
       ...(options ? { options } : {}),
       ...(input.resumeFrom && adoption
         ? {

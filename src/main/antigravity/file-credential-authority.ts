@@ -69,6 +69,23 @@ function secretServiceAbsent(output: string): boolean {
   return !names.includes('org.freedesktop.secrets')
 }
 
+/** Only a plain `unix:path=` session bus address names a bus this check can inventory. */
+function sessionBusPathFromAddress(address: string): string {
+  const match = /^unix:path=([^,;%=\0]+)$/.exec(address)
+  if (!match || !posix.isAbsolute(match[1])) {
+    throw unsupported()
+  }
+  return match[1]
+}
+
+function busPath(env: NodeJS.ProcessEnv, uid: number): string {
+  if (env.DBUS_SESSION_BUS_ADDRESS) {
+    return sessionBusPathFromAddress(env.DBUS_SESSION_BUS_ADDRESS)
+  }
+  const runtime = env.XDG_RUNTIME_DIR
+  return runtime ? posix.join(posix.resolve(runtime), 'bus') : `/run/user/${uid}/bus`
+}
+
 /** agy 1.3.5 uses composite storage; an absent address variable alone does not bypass keyring. */
 export async function verifyAntigravityFileAuthority(
   rawEnv: NodeJS.ProcessEnv,
@@ -85,14 +102,15 @@ export async function verifyAntigravityFileAuthority(
   if (isAntigravityFileStorageHost(env, kernelRelease)) {
     return 'direct-file'
   }
-  if (platform !== 'linux' || env.DBUS_SESSION_BUS_ADDRESS || deps.uid === undefined) {
+  if (platform !== 'linux' || deps.uid === undefined) {
     throw unsupported()
   }
   const runtime = env.XDG_RUNTIME_DIR
   if (runtime && !posix.isAbsolute(runtime)) {
     throw unsupported()
   }
-  const path = runtime ? posix.join(posix.resolve(runtime), 'bus') : `/run/user/${deps.uid}/bus`
+  // Why: a bus address names the bus itself, so its inventory decides, not the runtime-dir guess.
+  const path = busPath(env, deps.uid)
   if (/[,%=;\0]/.test(path)) {
     throw unsupported()
   }

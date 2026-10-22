@@ -48,6 +48,18 @@ export const AGENT_SESSION_PROVIDER_HANDLE_PROVIDERS = ['claude', 'codex'] as co
 
 export type AgentSessionHandleProvider = (typeof AGENT_SESSION_PROVIDER_HANDLE_PROVIDERS)[number]
 
+/** Agents whose existing conversation a structured chat can adopt. Antigravity joins only where the
+ *  host advertises `STRUCTURED_AGENT_SESSION_ADOPT_ANTIGRAVITY_RUNTIME_CAPABILITY`; a client without it keeps the terminal. */
+export const AGENT_SESSION_ADOPTABLE_PROVIDERS = ['claude', 'codex', 'antigravity'] as const
+
+export type AgentSessionAdoptableProvider = (typeof AGENT_SESSION_ADOPTABLE_PROVIDERS)[number]
+
+export function isAgentSessionAdoptableProvider(
+  value: unknown
+): value is AgentSessionAdoptableProvider {
+  return value === 'claude' || value === 'codex' || value === 'antigravity'
+}
+
 /** A structured agent a host registered: one of the built-ins or any agent id the host lists.
  *  Checked as a slug by `isStructuredAgentId`; whether a host runs it is its registry's answer. */
 export type StructuredAgentId = string

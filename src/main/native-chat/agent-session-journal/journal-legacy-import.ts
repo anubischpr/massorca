@@ -22,6 +22,7 @@ import type { NativeChatBlock, NativeChatMessage } from '../../../shared/native-
 import { resolveNativeChatTranscriptAgent } from '../../../shared/native-chat-agent-support'
 import { resolveSessionFilePath, type ResolveSessionFileOptions } from '../session-file-resolver'
 import {
+  decodeAntigravityTranscriptLine,
   decodeClaudeTranscriptLine,
   decodeCodexTranscriptLine,
   decodeGrokTranscriptLine,
@@ -146,6 +147,7 @@ export async function prepareLegacyTranscriptImport(input: {
 }
 
 const TRANSCRIPT_DECODERS = {
+  antigravity: decodeAntigravityTranscriptLine,
   claude: decodeClaudeTranscriptLine,
   codex: decodeCodexTranscriptLine,
   grok: decodeGrokTranscriptLine,

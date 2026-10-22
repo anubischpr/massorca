@@ -22,13 +22,16 @@ import {
   notifyAiVaultSessionPreparationFailure,
   resolveAiVaultSessionLaunchTargetOrNotify
 } from './ai-vault-session-launch-notices'
-import { resolveAiVaultPrimaryResumeSurface } from './ai-vault-session-resume-in-chat-workspace'
+import {
+  canAdoptAiVaultSessionOnWorktreeHost,
+  resolveAiVaultPrimaryResumeSurface
+} from './ai-vault-session-resume-in-chat-workspace'
 import { describeAiVaultCliForkFailure } from './ai-vault-session-cli-fork'
 import type { AiVaultSessionResumeTargetState } from './ai-vault-session-resume'
 import { prepareAiVaultSessionContinuation } from './ai-vault-session-continuation'
 import type { AgentSessionContinuationRequest } from '@/lib/agent-session-continuation'
 import { activateAiVaultStructuredSession } from '@/lib/activate-ai-vault-structured-session'
-import { isAgentSessionHandleProvider } from '../../../../shared/agent-session-provider-handle'
+import { isAgentSessionAdoptableProvider } from '../../../../shared/agent-session-provider-handle'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import {
   activateAiVaultResumeWorkspace,
@@ -158,7 +161,7 @@ export function useAiVaultSessionLaunchActions({
 
   const handleResumeInNewChat = useCallback(
     (session: AiVaultSession, targetWorktreeId?: string): void => {
-      if (!isAgentSessionHandleProvider(session.agent)) {
+      if (!isAgentSessionAdoptableProvider(session.agent)) {
         return
       }
       const worktreeId = targetWorktreeId ?? activeWorktreeId ?? activeWorktree?.id ?? null
@@ -169,6 +172,10 @@ export function useAiVaultSessionLaunchActions({
             'Open a workspace before resuming a session.'
           )
         )
+        return
+      }
+      // Antigravity is adoptable only on a host that advertises its capability; otherwise the terminal stays.
+      if (!canAdoptAiVaultSessionOnWorktreeHost(session.agent, worktreeId)) {
         return
       }
       void resumeAiVaultSessionInNewChat(

@@ -13,7 +13,7 @@ const env = { HOME: '/synthetic', DISPLAY: ':99' }
 function fixture() {
   return {
     uid: 1000,
-    socketWitness: vi.fn((): string | null => '1:2'),
+    socketWitness: vi.fn((_path: string, _uid: number): string | null => '1:2'),
     inventory: vi.fn(
       async (_path: string, _env: NodeJS.ProcessEnv, _method: string) =>
         'as 2 "org.freedesktop.DBus" ":1.1"'
@@ -113,7 +113,6 @@ describe('Antigravity file credential authority', () => {
       'direct-file'
     )
     for (const input of [
-      { ...env, DBUS_SESSION_BUS_ADDRESS: 'unix:path=/another/bus' },
       { ...env, XDG_RUNTIME_DIR: 'relative' },
       { ...env, XDG_RUNTIME_DIR: '/runtime,address' }
     ]) {
@@ -140,9 +139,78 @@ describe('Antigravity file credential authority', () => {
     }
   })
 
-  it('still refuses a real session bus address and look-alike markers', async () => {
+  it('inventories the bus named by a plain session bus address, not the runtime directory', async () => {
+    const deps = fixture()
+    expect(
+      await verifyAntigravityFileAuthority(
+        {
+          ...env,
+          XDG_RUNTIME_DIR: '/synthetic/runtime',
+          DBUS_SESSION_BUS_ADDRESS: 'unix:path=/synthetic/bus'
+        },
+        'linux',
+        'generic',
+        deps
+      )
+    ).toBe('unavailable-secret-service:/synthetic/bus:1:2')
+    expect(deps.inventory.mock.calls.map((call) => call[0])).toEqual([
+      '/synthetic/bus',
+      '/synthetic/bus',
+      '/synthetic/bus'
+    ])
+    expect(deps.socketWitness.mock.calls.map((call) => call[0])).toEqual([
+      '/synthetic/bus',
+      '/synthetic/bus'
+    ])
+  })
+
+  it('refuses a session bus that has a Secret Service present or activatable', async () => {
+    const deps = fixture()
+    deps.inventory.mockResolvedValue('as 1 "org.freedesktop.secrets"')
+    await expect(
+      verifyAntigravityFileAuthority(
+        { ...env, DBUS_SESSION_BUS_ADDRESS: 'unix:path=/run/user/1000/bus' },
+        'linux',
+        'generic',
+        deps
+      )
+    ).rejects.toThrow()
+    const activatable = fixture()
+    activatable.inventory.mockImplementation(async (_path, _env, method) =>
+      method === 'ListActivatableNames' ? 'as 1 "org.freedesktop.secrets"' : 'as 0'
+    )
+    await expect(
+      verifyAntigravityFileAuthority(
+        { ...env, DBUS_SESSION_BUS_ADDRESS: 'unix:path=/run/user/1000/bus' },
+        'linux',
+        'generic',
+        activatable
+      )
+    ).rejects.toThrow()
+  })
+
+  it('treats a plain session bus address with no socket as no bus, without querying it', async () => {
+    const deps = fixture()
+    deps.socketWitness.mockReturnValue(null)
+    expect(
+      await verifyAntigravityFileAuthority(
+        { ...env, DBUS_SESSION_BUS_ADDRESS: 'unix:path=/synthetic/bus' },
+        'linux',
+        'generic',
+        deps
+      )
+    ).toBe('no-bus:/synthetic/bus')
+    expect(deps.inventory).not.toHaveBeenCalled()
+  })
+
+  it('still refuses session bus addresses that are not plain unix:path= and look-alike markers', async () => {
     for (const address of [
-      'unix:path=/run/user/1000/bus',
+      'unix:abstract=/tmp/bus',
+      'unix:path=relative/bus',
+      'unix:path=/run/user/1000/bus,guid=abc',
+      'unix:path=/run/user/1000/bus;unix:path=/other',
+      'unix:path=/run/user/%31000/bus',
+      'tcp:host=localhost,port=4000',
       'disabled',
       'disabled:x',
       ' disabled:'

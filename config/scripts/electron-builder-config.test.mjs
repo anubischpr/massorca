@@ -11,7 +11,7 @@ const SRC_MAIN_DIR = join(REPO_ROOT, 'src', 'main')
 
 const require = createRequire(import.meta.url)
 const electronBuilderConfig = require('../electron-builder.config.cjs')
-const { copyFiles, FileMatcher } = require('app-builder-lib/out/fileMatcher')
+const { copyFiles, FileMatcher, getFileMatchers } = require('app-builder-lib/out/fileMatcher')
 const FpmTarget = require('app-builder-lib/out/targets/FpmTarget').default
 const electronBuilderNativeRebuild = require('./electron-builder-native-rebuild.cjs')
 
@@ -297,6 +297,34 @@ describe('electron-builder config', () => {
       serveSimTarget
     )
     expect(electronBuilderConfig.win.extraResources.map((r) => r.to)).not.toContain(serveSimTarget)
+  })
+
+  // Why: electron-builder unpacks a whole package once one of its files is a .node binary, so a
+  // packed node-pty lands in app.asar.unpacked, which the Linux daemon resolves first. Drive the
+  // real merge of the shared `files` list with each platform's overrides.
+  it('keeps node-pty out of the Linux app.asar and leaves Windows packing it', () => {
+    const packsOn = (platformConfig, repoPath) => {
+      const [matcher] = getFileMatchers(electronBuilderConfig, 'files', '/dest', {
+        macroExpander: (value) => value,
+        customBuildOptions: platformConfig,
+        defaultSrc: '/app',
+        globalOutDir: '/out'
+      })
+      matcher.prependPattern('**/*')
+      return matcher.createFilter()(join('/app', repoPath), { isDirectory: () => false })
+    }
+
+    for (const repoPath of [
+      'node_modules/node-pty/package.json',
+      'node_modules/node-pty/lib/index.js',
+      'node_modules/node-pty/build/Release/pty.node'
+    ]) {
+      expect(packsOn(electronBuilderConfig.linux, repoPath), repoPath).toBe(false)
+      expect(packsOn(electronBuilderConfig.win, repoPath), repoPath).toBe(true)
+    }
+    // A platform `files` entry is added to the shared list, not substituted for it.
+    expect(packsOn(electronBuilderConfig.linux, 'src/main/index.ts')).toBe(false)
+    expect(packsOn(electronBuilderConfig.linux, 'node_modules/ws/index.js')).toBe(true)
   })
 
   // Why: the Windows CLI shim is delivered only via extraResources to

@@ -411,6 +411,7 @@ describe('packaged runtime resources', () => {
           { recursive: true }
         )
         await seedBundledRipgrep(resourcesDir)
+        await seedLinuxNodePty(resourcesDir)
 
         const unpackedMainDir = join(resourcesDir, 'app.asar.unpacked', 'out', 'main')
         await mkdir(unpackedMainDir, { recursive: true })
@@ -468,6 +469,7 @@ describe('packaged runtime resources', () => {
     'marks packaged Unix CLI launchers executable',
     async () => {
       const root = await mkdtemp(join(tmpdir(), 'orca-electron-builder-config-'))
+      const previousPath = process.env.PATH
       try {
         const resourcesDir = join(root, 'linux-unpacked', 'resources')
         const launcherPath = join(resourcesDir, 'bin', 'orca-ide')
@@ -478,6 +480,12 @@ describe('packaged runtime resources', () => {
           { recursive: true }
         )
         await seedBundledRipgrep(resourcesDir)
+        await seedLinuxNodePty(resourcesDir)
+        // Why: the fixture's pty.node is only an ELF header, which a real objdump rejects.
+        const stubBinDir = join(root, 'bin-stub')
+        await mkdir(stubBinDir)
+        await writeFile(join(stubBinDir, 'objdump'), '#!/bin/sh\nexit 0\n', { mode: 0o755 })
+        process.env.PATH = `${stubBinDir}${delimiter}${previousPath ?? ''}`
         await mkdir(join(resourcesDir, 'node_modules', 'zod', 'src'), { recursive: true })
         // Why: afterPack now fails hard when the unpacked daemon entry is
         // missing, so the fixture must carry one like a real package layout.
@@ -521,11 +529,28 @@ describe('packaged runtime resources', () => {
         ).resolves.toContain('"version": "9.9.9"')
         await expect(readFile(join(resourcesDir, 'package-type'), 'utf8')).resolves.toBe('AppImage')
       } finally {
+        process.env.PATH = previousPath
         await removeTree(root)
       }
     }
   )
 })
+
+// Why: afterPack verifies the packaged daemon resolves a node-pty that carries its Linux addon.
+async function seedLinuxNodePty(resourcesDir) {
+  const packageDir = join(resourcesDir, 'node_modules', 'node-pty')
+  await mkdir(join(packageDir, 'lib'), { recursive: true })
+  await mkdir(join(packageDir, 'build', 'Release'), { recursive: true })
+  await writeFile(
+    join(packageDir, 'package.json'),
+    JSON.stringify({ name: 'node-pty', version: '1.1.0', main: './lib/index.js' })
+  )
+  await writeFile(join(packageDir, 'lib', 'index.js'), 'module.exports = {}\n')
+  await writeFile(
+    join(packageDir, 'build', 'Release', 'pty.node'),
+    Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0x02, 0x01, 0x01, 0x00])
+  )
+}
 
 // Why source-anchored: the bundler renames a createRequire()'d require, so
 // verifyPackagedMainRuntimeDeps' `require("x")` scan cannot see these specifiers — packaging
