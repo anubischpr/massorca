@@ -24,7 +24,11 @@ beforeEach(async () => {
 })
 afterEach(() => rm(root, { recursive: true, force: true }))
 
-async function artifact(name: string, text: string, sidecar: object | null = SIDECAR) {
+async function artifact(
+  name: string,
+  text: string,
+  sidecar: Partial<typeof SIDECAR> | null = SIDECAR
+) {
   const path = join(folder, name)
   await writeFile(path, text)
   if (sidecar) {

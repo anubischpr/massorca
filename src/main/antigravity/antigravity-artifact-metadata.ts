@@ -18,6 +18,9 @@ const sidecarSchema = z.looseObject({
   userFacing: z.boolean().optional()
 })
 
+// The write tools' parameters carry the artifact `Path`; anything else is left untouched.
+const artifactWriteInputSchema = z.looseObject({ Path: z.string().optional() })
+
 export function readAntigravityArtifactSidecar(path: string): z.infer<typeof sidecarSchema> | null {
   const sidecarPath = `${path}.metadata.json`
   try {
@@ -34,11 +37,12 @@ export function readAntigravityArtifactSidecar(path: string): z.infer<typeof sid
 /** A completed artifact write's input, with the sidecar's fields beside `Path`. Any other call, a
  *  write with no readable sidecar, or a sidecar that does not match is returned unchanged. */
 export function withAntigravityArtifactMetadata(name: string, input: unknown): unknown {
-  if (!ARTIFACT_WRITE_TOOLS.has(name) || input === null || typeof input !== 'object') {
+  const written = artifactWriteInputSchema.safeParse(input)
+  if (!ARTIFACT_WRITE_TOOLS.has(name) || !written.success) {
     return input
   }
-  const path = Reflect.get(input, 'Path')
-  if (typeof path !== 'string' || !isAbsolute(path)) {
+  const path = written.data.Path
+  if (path === undefined || !isAbsolute(path)) {
     return input
   }
   const sidecar = readAntigravityArtifactSidecar(path)
@@ -46,7 +50,7 @@ export function withAntigravityArtifactMetadata(name: string, input: unknown): u
     return input
   }
   return {
-    ...input,
+    ...written.data,
     [ANTIGRAVITY_ARTIFACT_INPUT_KEY]: {
       userFacing: sidecar.userFacing === true,
       requestFeedback: sidecar.requestFeedback === true,
