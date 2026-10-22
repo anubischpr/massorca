@@ -110,6 +110,34 @@ export async function applyPiRpcSessionOption(
   return Object.fromEntries(selected)
 }
 
+/** Re-applies a saved chat's model and effort; returns the saved keys the child did not take. */
+export async function restorePiRpcSessionOptions(
+  rpc: PiRpcRequester,
+  selected: Map<string, string>,
+  saved: Readonly<Record<string, string>>,
+  rejected: (key: string, error: unknown) => void
+): Promise<string[]> {
+  const skipped: string[] = []
+  for (const [key, value] of Object.entries(saved)) {
+    // Orca's own launch selections: the child never takes them as options, and a record that
+    // dropped them would restart the chat as another runtime or access.
+    if (key === 'accessMode' || key === 'piRuntime') {
+      continue
+    }
+    if (key !== 'model' && key !== 'effort') {
+      skipped.push(key)
+      continue
+    }
+    try {
+      await applyPiRpcSessionOption(rpc, selected, key, value)
+    } catch (error) {
+      skipped.push(key)
+      rejected(key, error)
+    }
+  }
+  return skipped
+}
+
 export async function readPiRpcCommands(rpc: PiRpcRequester): Promise<AgentSessionCommandsResult> {
   const { commands } = commandsSchema.parse(await rpc.request('get_commands'))
   return {

@@ -8,7 +8,6 @@ import {
   resolveTuiAgentLaunchEnv
 } from '../../../shared/tui-agent-launch-defaults'
 import { buildAgentResumeStartupPlan } from '@/lib/tui-agent-startup'
-import { piRuntimeForSessionFilePath } from '../../../shared/pi-runtime-selection'
 import {
   getAiVaultAgentProviderSession,
   resolveAiVaultResumeHost,
@@ -44,8 +43,7 @@ export function buildAiVaultForkStartupForWorktree(
     agentArgs: resolveTuiAgentLaunchArgs(session.agent, state.settings?.agentDefaultArgs),
     agentEnv: resolveTuiAgentLaunchEnv(session.agent, state.settings?.agentDefaultEnv),
     resumeInLaunchCwd: true,
-    fork: true,
-    ...(session.agent === 'pi' ? { piRuntime: piRuntimeForSessionFilePath(session.filePath) } : {})
+    fork: true
   })
   if (!plan) {
     return null

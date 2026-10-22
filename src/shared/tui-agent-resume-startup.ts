@@ -11,7 +11,11 @@ import type { AgentStartupPlan } from './tui-agent-startup'
 import { resolveStartupShell, type AgentStartupShell } from './tui-agent-startup-shell'
 import { TUI_AGENT_CONFIG } from './tui-agent-config'
 import type { TuiAgent } from './tui-agent'
-import { piRuntimeCommandSettings, type PiRuntimeSelection } from './pi-runtime-selection'
+import {
+  piRuntimeCommandSettings,
+  resolvePiRuntime,
+  type PiRuntimeSelection
+} from './pi-runtime-selection'
 import { buildAgentResumeLaunchCommand } from './agent-resume-launch-command'
 
 export function buildAgentResumeStartupPlan(args: {
@@ -34,8 +38,16 @@ export function buildAgentResumeStartupPlan(args: {
   /** Pi-only: a Gentle Shell session resumes through Gentle Shell's own command, not `pi`. */
   piRuntime?: PiRuntimeSelection
 }): AgentStartupPlan | null {
-  // Why: an explicit runtime picks its command (Gentle Shell or stock pi) even when the global override names the other one.
-  const piRuntime = args.agent === 'pi' ? args.piRuntime : undefined
+  // Why: the session's own runtime (its record, then its transcript's home) picks the command even when the global override names the other one;
+  // a record that never saved its runtime (persisted records drop the field) is read from its transcript.
+  const piRuntime =
+    args.agent === 'pi'
+      ? resolvePiRuntime({
+          hostRecorded: args.piRuntime,
+          transcriptPath: args.providerSession.transcriptPath,
+          command: args.cmdOverrides.pi
+        })
+      : undefined
   const cmdOverrides = piRuntime
     ? piRuntimeCommandSettings({ agentCmdOverrides: args.cmdOverrides }, piRuntime)
         .agentCmdOverrides

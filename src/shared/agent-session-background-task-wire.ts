@@ -43,7 +43,9 @@ export type AgentSessionBackgroundTaskState = {
   /** Terminal-state siblings of a still-live roster, kept apart from `tasks`
    *  so old clients keep rendering exactly the live set they render today. */
   settledTasks?: AgentSessionBackgroundTask[]
-  /** Optional so clients only send targeted stops to hosts that accept them. */
+  /** A roster from a host that has this field always carries it: `false` means this provider cannot
+   *  stop a task, which a reader draws as a disabled Stop. Absent means a host that predates it, so
+   *  a reader draws no per-task Stop; only `true` lets a client send targeted stops. */
   supportsTaskStop?: boolean
   /** Whether an untargeted "stop everything" is available at all. Absent means
    *  yes: every host that predates this field accepted one, and a client that

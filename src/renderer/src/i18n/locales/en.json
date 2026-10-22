@@ -18507,15 +18507,21 @@
       "transcriptLabel": "Conversation",
       "toggle": {
         "showTerminal": "Show terminal",
+        "startTerminal": "Start a new session in the terminal",
         "showChat": "Show chat view",
         "terminalViewReleaseFailed": "Could not open this chat in the terminal. The chat was left open.",
         "terminalViewLaunchFailed": "Could not open this chat in the terminal. Its agent process was released; the chat history is kept.",
         "terminalViewNoWorktree": "This chat's workspace is not known yet.",
-        "terminalViewAgent": "This agent cannot resume its chat in the terminal.",
-        "terminalViewNoSession": "This chat has not reported its agent session yet.",
+        "terminalViewAgent": "This agent cannot run in the terminal.",
+        "terminalViewNoSession": "This chat's agent session cannot be opened in the terminal.",
         "terminalReturnUnconfirmed": "Could not confirm the terminal stopped, so this chat was not reopened. The terminal may still be running.",
         "terminalReturnHeldByTerminal": "This conversation is still running in a terminal, so the chat was not reopened.",
-        "terminalReturnFailed": "Could not reopen this chat. Its terminal was closed and the conversation is kept."
+        "terminalReturnFailed": "Could not reopen this chat. Its terminal was closed and the conversation is kept.",
+        "terminalReturnChatGone": "This chat is no longer on this host, so it cannot be reopened here. The terminal was kept.",
+        "terminalReturnChatHostCannotOpen": "This chat can't be reopened until Orca is updated. The terminal was kept.",
+        "terminalReturnChatUnreachable": "Could not reach the host to reopen this chat. The terminal was kept; try again in a moment.",
+        "terminalReturnNotShown": "The terminal was closed, but this chat could not be shown. Its conversation is kept.",
+        "terminalFreshLaunchFailed": "This agent could not start in the terminal."
       },
       "state": {
         "loading": {
@@ -19153,6 +19159,7 @@
       "detectedCount": "{{count}} detected",
       "folder": "Folder",
       "noRunningAgents": "No running subagents",
+      "noRunningBackground": "No running background tasks",
       "noSubagents": "No subagents reported.",
       "observed": "Observed",
       "path": "Path",
@@ -19190,7 +19197,9 @@
       "subagent": "Subagent",
       "finishedCount": "{{count}} finished",
       "finishedCount_one": "{{count}} finished",
-      "finishedCount_other": "{{count}} finished"
+      "finishedCount_other": "{{count}} finished",
+      "stopProviderUnavailable": "This provider cannot stop background tasks.",
+      "stopRowUnavailable": "This task cannot be stopped on its own."
     }
   },
   "dashboardPopout": {

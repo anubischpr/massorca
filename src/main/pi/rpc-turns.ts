@@ -8,10 +8,13 @@ import type { JsonlRpcRecord } from '../jsonl-rpc/peer'
 import type { JsonlRpcTimelineLane } from '../jsonl-rpc/timeline-lane'
 import { PiRpcContextUsage } from './rpc-context-usage'
 import { PiRpcMessages } from './rpc-messages'
+import { PiRpcBackgroundJobs } from './rpc-background-jobs'
+import { PiRpcUsageSync } from './rpc-usage-sync'
+import type { AgentChildWorkEvidence } from '../../shared/agent-status-child-work-evidence'
 import { PiRpcPromptDelivery, piRpcFailureFact } from './rpc-prompt-delivery'
 import { PiRpcIdleCheck } from './rpc-idle-check'
 import { piRpcRetryActivity } from './rpc-retry-activity'
-import { piRpcMessageSchema, piRpcStateSchema, type PiRpcModel } from './rpc-protocol'
+import { piRpcMessageSchema } from './rpc-protocol'
 
 export type PiRpcTurnDeps = {
   lane: JsonlRpcTimelineLane
@@ -26,14 +29,21 @@ export type PiRpcTurnDeps = {
   idle: () => void
   failed: (error: Error) => void
   diagnostic?: (error: unknown) => void
+  /** Where the session's background-job child work goes; absent when the host publishes none. */
+  childWork?: (evidence: AgentChildWorkEvidence[]) => void
+  /** Gentle Shell wakes its own agent when a background job ends, so an agent run Orca did not
+   *  dispatch is its normal operation there and a protocol violation on stock Pi. */
+  acceptsAgentWake?: boolean
 }
 
 /** Prompt replies can be idless and arrive after dialogs; they have no elapsed-time deadline. */
 export class PiRpcTurns {
   readonly context = new PiRpcContextUsage()
+  readonly usage: PiRpcUsageSync
   private readonly messages: PiRpcMessages
   private readonly delivery: PiRpcPromptDelivery
   private readonly idleCheck: PiRpcIdleCheck
+  private readonly jobs: PiRpcBackgroundJobs
   private revision = 0
   private turn = 0
   private active?: string
@@ -46,12 +56,24 @@ export class PiRpcTurns {
 
   constructor(private readonly deps: PiRpcTurnDeps) {
     this.messages = new PiRpcMessages(deps.generation, this.context)
+    this.jobs = new PiRpcBackgroundJobs({
+      generation: deps.generation,
+      drained: () => deps.lane.drained(),
+      deliver: deps.childWork,
+      diagnostic: deps.diagnostic
+    })
+    this.usage = new PiRpcUsageSync(this.context, {
+      lane: deps.lane,
+      request: (command) => deps.request(command),
+      diagnostic: deps.diagnostic,
+      ended: () => this.ended
+    })
     this.idleCheck = new PiRpcIdleCheck({
       request: () => deps.request('get_state'),
       current: (revision) =>
         !this.ended && this.settling && !this.compacting && revision === this.revision,
       settled: (state) => {
-        this.syncModel(state.model ?? undefined)
+        this.usage.syncModel(state.model ?? undefined)
         this.finish()
       },
       failed: deps.failed
@@ -114,7 +136,7 @@ export class PiRpcTurns {
         }
         return
       case 'agent_start':
-        if (!this.active && !this.delivery.holdsDispatch) {
+        if (!this.active && !this.delivery.holdsDispatch && !this.deps.acceptsAgentWake) {
           throw new Error('Pi started an unsolicited agent run')
         }
         this.touch()
@@ -142,6 +164,9 @@ export class PiRpcTurns {
               : undefined
         }
         this.deps.lane.apply(this.messages.message(frame, at))
+        if (frame.type === 'message_end') {
+          this.jobs.observeFrame(frame)
+        }
         return
       }
       case 'tool_execution_start':
@@ -149,9 +174,10 @@ export class PiRpcTurns {
       case 'tool_execution_end':
         this.touch()
         this.deps.lane.apply(this.messages.tool(frame))
+        this.jobs.observeFrame(frame)
         return
       case 'turn_end':
-        this.refreshUsage()
+        this.usage.refresh()
         break
       case 'agent_end':
         // This can precede automatic retry or detached compaction.
@@ -174,7 +200,7 @@ export class PiRpcTurns {
           this.failure = undefined
           this.lastStopReason = undefined
         }
-        this.refreshUsage()
+        this.usage.refresh()
         if (this.settling) {
           this.probe()
         }
@@ -227,6 +253,7 @@ export class PiRpcTurns {
   }
 
   end(): void {
+    this.jobs.clear()
     this.ended = true
     this.revision++
     this.idleCheck.dispose()
@@ -286,35 +313,6 @@ export class PiRpcTurns {
     this.deps.idle()
   }
 
-  /** Records the live model; a real change clears the old report, so read the new one at once. */
-  syncModel(model: PiRpcModel | undefined, force = false): void {
-    const changed = this.context.modelChanged(model)
-    this.deps.lane.apply(this.context.setModel(model, Date.now()))
-    if (changed || force) {
-      this.refreshUsage()
-    }
-  }
-
-  /** Re-reads the live model and usage; a failed read leaves the last report in place. */
-  async resyncUsage(force = false): Promise<void> {
-    try {
-      const state = piRpcStateSchema.parse(await this.deps.request('get_state'))
-      this.syncModel(state.model ?? undefined, force)
-    } catch (error) {
-      this.deps.diagnostic?.(error)
-    }
-  }
-
-  refreshUsage(): void {
-    void this.deps
-      .request('get_session_stats')
-      .then((value) => {
-        if (!this.ended) {
-          this.deps.lane.apply(this.context.stats(value, Date.now()))
-        }
-      })
-      .catch((error: unknown) => this.deps.diagnostic?.(error))
-  }
   private touch(): void {
     this.revision++
     this.settling = false

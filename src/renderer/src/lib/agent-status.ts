@@ -95,7 +95,7 @@ export function getWorkingAgentsPerWorktree({
 }
 
 // Re-export: shared so mobile shows the same agent labels; kept here for existing importers.
-export { formatAgentTypeLabel } from '../../../shared/agent-type-label'
+export { formatAgentRowTypeLabel, formatAgentTypeLabel } from '../../../shared/agent-type-label'
 
 // Why: the record requires every recognized terminal agent to have an icon.
 const ICONABLE_AGENT_TYPES: Record<TerminalAgent, true> = {

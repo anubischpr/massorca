@@ -148,4 +148,34 @@ describe('launchAgentInNewTab paired web runtime', () => {
     })
     expect(mocks.createTab).not.toHaveBeenCalled()
   })
+
+  it('sends a Gentle Shell Pi launch as its prepared command, never as an agent-only launch the host rebuilds as pi', async () => {
+    store.settings.agentCmdOverrides = { pi: 'gentle-shell' }
+    const { launchAgentInNewTab } = await import('./launch-agent-in-new-tab')
+
+    launchAgentInNewTab({ requestId: 'request-3', agent: 'pi', worktreeId: 'wt-1' })
+
+    expect(mocks.createWebRuntimeSessionTerminal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        launchAgent: 'pi',
+        command: 'gentle-shell',
+        preparedAgentCommand: true
+      })
+    )
+    expect(mocks.createWebRuntimeSessionTerminal.mock.calls[0]?.[0]).not.toHaveProperty('agent')
+  })
+
+  it('keeps a stock Pi launch agent-only so the host builds it', async () => {
+    store.settings.agentCmdOverrides = { pi: 'pi' }
+    const { launchAgentInNewTab } = await import('./launch-agent-in-new-tab')
+
+    launchAgentInNewTab({ requestId: 'request-4', agent: 'pi', worktreeId: 'wt-1' })
+
+    expect(mocks.createWebRuntimeSessionTerminal).toHaveBeenCalledWith(
+      expect.objectContaining({ agent: 'pi' })
+    )
+    expect(mocks.createWebRuntimeSessionTerminal.mock.calls[0]?.[0]).not.toHaveProperty(
+      'preparedAgentCommand'
+    )
+  })
 })

@@ -27,12 +27,12 @@ function terminalViewBlockText(reason: StructuredChatTerminalViewBlock): string 
     case 'agent':
       return translate(
         'components.native-chat.toggle.terminalViewAgent',
-        'This agent cannot resume its chat in the terminal.'
+        'This agent cannot run in the terminal.'
       )
     case 'no-provider-session':
       return translate(
         'components.native-chat.toggle.terminalViewNoSession',
-        'This chat has not reported its agent session yet.'
+        "This chat's agent session cannot be opened in the terminal."
       )
   }
 }
@@ -104,7 +104,13 @@ export function NativeChatStructuredPaneHeader({
     'components.agentSessionContinuation.handOffToAnotherAgent',
     'Hand Off to Another Agent'
   )
-  const showTerminalLabel = translate('components.native-chat.toggle.showTerminal', 'Show terminal')
+  const showTerminalLabel =
+    terminalView.enabled && terminalView.launch.mode === 'fresh'
+      ? translate(
+          'components.native-chat.toggle.startTerminal',
+          'Start a new session in the terminal'
+        )
+      : translate('components.native-chat.toggle.showTerminal', 'Show terminal')
   const splitRightLabel = translate(
     'auto.components.terminal.pane.TerminalContextMenu.20e565d865',
     'Split Terminal Right'

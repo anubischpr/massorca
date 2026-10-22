@@ -33,6 +33,11 @@ import {
   routeNewTabLaunch
 } from '@/lib/launch-agent-in-new-tab-host-agents'
 import type { AgentLaunchRequestId } from '@/lib/agent-launch-request-id'
+import {
+  deferPiTerminalForHostAnswer,
+  hostPiCommandOverrides,
+  type PiTerminalLaunchArgs
+} from '@/lib/pi-terminal-host-runtime'
 
 /** The user action this launch serves: minted where that action is handled, or carried by the
  *  route the caller already planned for it. */
@@ -114,7 +119,7 @@ export function shouldQueueTerminalFocusAfterMenuClose(
  *
  * Returns `null` when no startup plan can be built (e.g. a whitespace-only prompt).
  */
-function launchAgentInNewTabInternal(args: LaunchAgentInNewTabArgs): LaunchAgentInNewTabResult {
+function launchAgentInNewTabInternal(args: PiTerminalLaunchArgs): LaunchAgentInNewTabResult {
   const {
     agent,
     worktreeId,
@@ -140,7 +145,7 @@ function launchAgentInNewTabInternal(args: LaunchAgentInNewTabArgs): LaunchAgent
       ...(launchPlatform ? { launchPlatform } : {})
     }
   )
-  const cmdOverrides = store.settings?.agentCmdOverrides ?? {}
+  const cmdOverrides = hostPiCommandOverrides(store.settings?.agentCmdOverrides ?? {}, args)
   const effectiveAgentArgs =
     agentArgs !== undefined
       ? agentArgs
@@ -210,6 +215,10 @@ function launchAgentInNewTabInternal(args: LaunchAgentInNewTabArgs): LaunchAgent
 
   if (plan?.hostAnswerUnknown) {
     notifyStructuredHostAnswerUnknown(agent)
+  }
+  const deferred = deferPiTerminalForHostAnswer(args, startupPlan, launchAgentInNewTabInternal)
+  if (deferred !== undefined) {
+    return deferred
   }
   const runtimeEnvironmentId = getRuntimeEnvironmentIdForWorktree(store, worktreeId)
   if (isWebRuntimeSessionActive(runtimeEnvironmentId)) {

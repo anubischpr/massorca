@@ -90,6 +90,8 @@ export function useStructuredAgentSessionOptionState(args: {
     threadGoal: AgentSessionOptionsResult['threadGoal']
     connectors: AgentSessionOptionsResult['connectors']
     contextUsage: AgentSessionOptionsResult['contextUsage']
+    /** The Pi runtime the host recorded for this chat. */
+    piRuntime: AgentSessionOptionsResult['piRuntime']
     rewind: AgentSessionRewindSupport
     /** The fence the read answered for; rewind support is only that runtime's. */
     fence: number | null
@@ -214,6 +216,7 @@ export function useStructuredAgentSessionOptionState(args: {
           threadGoal: result.threadGoal,
           connectors: result.connectors,
           contextUsage: result.contextUsage,
+          piRuntime: result.piRuntime,
           // A host that predates rewind does not name it.
           rewind: result.rewind ?? { supported: false, reason: 'unsupported' },
           fence

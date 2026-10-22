@@ -5,6 +5,8 @@ import {
   type ResumableTuiAgent,
   type SleepingAgentSessionRecord
 } from '../../../../shared/agent-session-resume'
+import type { TuiAgent } from '../../../../shared/tui-agent'
+import { isTuiAgent } from '../../../../shared/tui-agent-config'
 import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
 import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 import type { StructuredChatTerminalLink } from '../../store/terminals/terminal-contracts'
@@ -19,11 +21,20 @@ const STRUCTURED_CHAT_RETURN_AGENTS: ReadonlySet<string> = new Set([
 
 export type StructuredChatTerminalViewBlock = 'no-worktree' | 'agent' | 'no-provider-session'
 
+/** What the terminal starts: the chat's provider session resumed, or a fresh TUI of its agent. */
+export type StructuredChatTerminalLaunch =
+  | { mode: 'resume'; agent: ResumableTuiAgent; providerSession: AgentProviderSessionMetadata }
+  | { mode: 'fresh'; agent: TuiAgent }
+
 export type StructuredChatTerminalViewState =
-  | { enabled: true; agent: ResumableTuiAgent; providerSession: AgentProviderSessionMetadata }
+  | { enabled: true; launch: StructuredChatTerminalLaunch }
   | { enabled: false; reason: StructuredChatTerminalViewBlock }
 
-/** Whether this chat can be shown in the terminal view, and if not, the one reason the button names. */
+/**
+ * Whether this chat can be shown in the terminal view, and if not, the one reason the button names.
+ * A chat that has not reported a provider session yet, before its first turn, opens a fresh TUI of
+ * its agent. A chat that has one never starts fresh, since that would abandon its conversation.
+ */
 export function structuredChatTerminalViewState(args: {
   worktreeId: string
   agent: string
@@ -32,13 +43,22 @@ export function structuredChatTerminalViewState(args: {
   if (!args.worktreeId) {
     return { enabled: false, reason: 'no-worktree' }
   }
+  if (!isTuiAgent(args.agent)) {
+    return { enabled: false, reason: 'agent' }
+  }
+  if (!args.providerSession) {
+    return { enabled: true, launch: { mode: 'fresh', agent: args.agent } }
+  }
   if (!isResumableTuiAgent(args.agent)) {
     return { enabled: false, reason: 'agent' }
   }
-  if (!args.providerSession || !getAgentResumeArgv(args.agent, args.providerSession)) {
+  if (!getAgentResumeArgv(args.agent, args.providerSession)) {
     return { enabled: false, reason: 'no-provider-session' }
   }
-  return { enabled: true, agent: args.agent, providerSession: args.providerSession }
+  return {
+    enabled: true,
+    launch: { mode: 'resume', agent: args.agent, providerSession: args.providerSession }
+  }
 }
 
 export type ShowStructuredChatInTerminalArgs = {
@@ -47,9 +67,8 @@ export type ShowStructuredChatInTerminalArgs = {
   worktreeId: string
   paneKey: string
   sessionId: string
-  agent: ResumableTuiAgent
-  providerSession: AgentProviderSessionMetadata
-  /** Pi-only: the chat's runtime, so the terminal resumes the same command. */
+  launch: StructuredChatTerminalLaunch
+  /** Pi-only: the runtime the chat's own session names; absent until it has evidence, when the host decides. */
   piRuntime?: PiRuntimeSelection
 }
 
@@ -59,12 +78,24 @@ export type StructuredChatTerminalLaunchResume = (
   options: { onSessionLaunched: (tabId: string) => void }
 ) => boolean
 
+/** Starts a fresh TUI of `agent` in the chat's worktree; `onSessionLaunched` names the new tab first. */
+export type StructuredChatTerminalLaunchFresh = (
+  request: { worktreeId: string; agent: TuiAgent; piRuntime?: PiRuntimeSelection },
+  options: { onSessionLaunched: (tabId: string) => void }
+) => boolean
+
 export type ShowStructuredChatInTerminalDeps = {
+  /** Pi-only: the runtime the terminal runs. The session's own runtime wins; without one, the host decides. */
+  resolvePiRuntime: (args: {
+    worktreeId: string
+    sessionRuntime?: PiRuntimeSelection
+  }) => Promise<PiRuntimeSelection>
   releaseProviderChild: (
     target: RuntimeClientTarget,
     sessionId: string
   ) => Promise<'closed' | 'unsupported'>
   launchResume: StructuredChatTerminalLaunchResume
+  launchFresh: StructuredChatTerminalLaunchFresh
   /** Lets the terminal's back-to-chat control reopen this structured chat. */
   recordTerminalLink: (tabId: string, link: StructuredChatTerminalLink) => void
   closeChatTab: (tabId: string) => void
@@ -76,14 +107,22 @@ export type ShowStructuredChatInTerminalDeps = {
 }
 
 /**
- * Releases the chat's provider child, then resumes the same provider session in a terminal. The
- * release is awaited first so two provider processes never hold one session at once. The chat tab
- * closes only after the terminal resume has been launched.
+ * Releases the chat's provider child, then starts its terminal: the same provider session resumed,
+ * or a fresh TUI of the same agent. The release is awaited first so two provider processes never
+ * hold one session at once. The chat tab closes only after the terminal has been launched.
  */
 export async function showStructuredChatInTerminal(
   args: ShowStructuredChatInTerminalArgs,
   deps: ShowStructuredChatInTerminalDeps
 ): Promise<boolean> {
+  // Why first: the host may need a beat to answer, and the chat must not be released until the terminal can start.
+  const piRuntime =
+    args.launch.agent === 'pi'
+      ? await deps.resolvePiRuntime({
+          worktreeId: args.worktreeId,
+          ...(args.piRuntime ? { sessionRuntime: args.piRuntime } : {})
+        })
+      : undefined
   let released: 'closed' | 'unsupported'
   try {
     released = await deps.releaseProviderChild(args.target, args.sessionId)
@@ -95,35 +134,53 @@ export async function showStructuredChatInTerminal(
     deps.onReleaseFailed()
     return false
   }
-  const now = deps.now?.() ?? Date.now()
   const launchedTab: { tabId: string | null } = { tabId: null }
-  const launched = deps.launchResume(
-    {
-      paneKey: args.paneKey,
-      worktreeId: args.worktreeId,
-      agent: args.agent,
-      providerSession: args.providerSession,
-      ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
-      prompt: '',
-      state: 'done',
-      capturedAt: now,
-      updatedAt: now
-    },
-    {
-      onSessionLaunched: (tabId) => {
-        launchedTab.tabId = tabId
-      }
+  const options = {
+    onSessionLaunched: (tabId: string) => {
+      launchedTab.tabId = tabId
     }
-  )
+  }
+  const { launch } = args
+  let launched: boolean
+  if (launch.mode === 'resume') {
+    const now = deps.now?.() ?? Date.now()
+    launched = deps.launchResume(
+      {
+        paneKey: args.paneKey,
+        worktreeId: args.worktreeId,
+        agent: launch.agent,
+        providerSession: launch.providerSession,
+        ...(piRuntime ? { piRuntime } : {}),
+        prompt: '',
+        state: 'done',
+        capturedAt: now,
+        updatedAt: now
+      },
+      options
+    )
+  } else {
+    launched = deps.launchFresh(
+      {
+        worktreeId: args.worktreeId,
+        agent: launch.agent,
+        ...(piRuntime ? { piRuntime } : {})
+      },
+      options
+    )
+  }
   if (!launched) {
     deps.onLaunchFailedAfterRelease()
     return false
   }
-  // Why: a terminal can return only to a chat the host can reveal, so an agent without a structured adapter keeps a plain terminal.
-  if (launchedTab.tabId !== null && STRUCTURED_CHAT_RETURN_AGENTS.has(args.agent)) {
+  // Why: a terminal returns to its chat only by a provider session the host can reveal, so a fresh terminal (no session yet) records no link.
+  if (
+    launch.mode === 'resume' &&
+    launchedTab.tabId !== null &&
+    STRUCTURED_CHAT_RETURN_AGENTS.has(launch.agent)
+  ) {
     deps.recordTerminalLink(launchedTab.tabId, {
-      agent: args.agent,
-      providerSessionId: args.providerSession.id,
+      agent: launch.agent,
+      providerSessionId: launch.providerSession.id,
       worktreeId: args.worktreeId,
       structuredSessionId: args.sessionId
     })

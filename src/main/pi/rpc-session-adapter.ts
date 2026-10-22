@@ -1,5 +1,4 @@
 import type { AgentSessionExplicitAccess } from '../../shared/agent-session-access-mode'
-import { classifyAgentSessionFunctions } from '../../shared/agent-session-provider-functions'
 import { randomUUID } from 'node:crypto'
 import { waitForPromiseWithSignal } from '../../shared/abort-signal-reason'
 import type { AgentSessionUnavailable } from '../../shared/agent-session-availability'
@@ -40,7 +39,11 @@ export class PiRpcSessionAdapter implements StructuredAgentSessionAdapter {
   private readonly acquiring = new Set<string>()
   private readonly starts = new ProviderAcquisitionStarts<PiRpcConnection>()
   private readonly retiring = new Set<Promise<void>>()
-  constructor(private readonly deps: PiRpcSessionAdapterDeps) {}
+  readonly atRestCommands: StructuredAgentSessionAdapter['atRestCommands']
+  /** A chat whose child is not running offers what its runtime last reported. */
+  constructor(private readonly deps: PiRpcSessionAdapterDeps) {
+    this.atRestCommands = deps.commandCatalog?.atRestCommands()
+  }
 
   supportsLocation = supportsSupervisedProviderChildLocation
   supportsCreate: NonNullable<StructuredAgentSessionAdapter['supportsCreate']> = (
@@ -87,7 +90,7 @@ export class PiRpcSessionAdapter implements StructuredAgentSessionAdapter {
         ...launch,
         structuredSession: { id, spawnToken: input.spawnToken }
       })
-      session = new PiRpcSession(input, randomUUID(), spec, this.deps)
+      session = new PiRpcSession(input, randomUUID(), spec, this.deps, launch.piRuntime)
       session.agentDir = launch.env?.PI_CODING_AGENT_DIR
       this.sessions.set(id, session)
       this.starts.track(attempt, session.connection)
@@ -216,7 +219,7 @@ export class PiRpcSessionAdapter implements StructuredAgentSessionAdapter {
       input.value
     )
     if (input.key === 'model') {
-      void session.turns.resyncUsage()
+      void session.turns.usage.resync()
     }
     return selected
   }
@@ -234,9 +237,8 @@ export class PiRpcSessionAdapter implements StructuredAgentSessionAdapter {
       : undefined
     return connectors ? { ...options, connectors } : options
   }
-  readCommands = (id: string) => this.sessions.get(id)?.commands
-  readFunctions = (id: string) =>
-    classifyAgentSessionFunctions({ commands: this.readCommands(id), source: 'provider-session' })
+  readCommands = (id: string) => this.sessions.get(id)?.slash.list
+  readFunctions = (id: string) => this.sessions.get(id)?.slash.functions
   readOptionRestoreFailures(id: string): readonly string[] {
     return this.sessions.get(id)?.skipped ?? []
   }

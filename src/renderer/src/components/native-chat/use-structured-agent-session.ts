@@ -1,5 +1,6 @@
 import { useMemo, useRef } from 'react'
 import { useStructuredAgentSessionSends } from './use-structured-agent-session-sends'
+import { useBackgroundTaskStopping } from './use-background-task-stopping'
 import { useStructuredAgentSessionCommandWrite } from './use-structured-agent-session-command-write'
 import { structuredAgentSessionNewSendsQueue } from './structured-agent-session-queue-request'
 import type { AgentType } from '../../../../shared/agent-status-types'
@@ -102,6 +103,7 @@ export function useStructuredAgentSession(args: {
     threadGoal: threadGoalSupport,
     connectors,
     contextUsage: contextUsageSupport,
+    hostPiRuntime,
     rewind: rewindSupport
   } = useStructuredAgentSessionOptions({
     agent,
@@ -221,6 +223,17 @@ export function useStructuredAgentSession(args: {
     composerScopeKey,
     mutate
   })
+  const stopBackgroundTask = (taskId?: string) =>
+    mutate('agentSession.cancel', 'agentSession.cancel', {
+      turnId: 'background-tasks',
+      scope: 'background-tasks',
+      ...(taskId ? { taskId } : {})
+    })
+  // One copy of the stops still in flight, read by both the strip and the summary card.
+  const backgroundStops = useBackgroundTaskStopping({
+    sessionId: args.sessionId,
+    stopBackgroundTask
+  })
   return {
     epoch: state.epoch,
     rewind,
@@ -275,6 +288,11 @@ export function useStructuredAgentSession(args: {
     backgroundTasks: transportState.backgroundTasks,
     commandActivity: transportState.commandActivity,
     backgroundTaskRoster: transportState.backgroundTaskRoster,
+    // The summary card's background half: the roster it lists and the stops it draws.
+    backgroundSummary: {
+      roster: transportState.backgroundTaskRoster,
+      backgroundStop: backgroundStops
+    },
     turnId: transportState.turnId,
     ...structuredAgentSessionStopControl({
       published: transportEnabled,
@@ -301,12 +319,8 @@ export function useStructuredAgentSession(args: {
         ...(promptSupported ? { prompt } : {})
       })
     },
-    stopBackgroundTask: (taskId?: string) =>
-      mutate('agentSession.cancel', 'agentSession.cancel', {
-        turnId: 'background-tasks',
-        scope: 'background-tasks',
-        ...(taskId ? { taskId } : {})
-      }),
+    stopBackgroundTask,
+    backgroundStops,
     respond: (item: StructuredPromptItem, response: AgentSessionPromptResponse) =>
       respondToStructuredAgentSessionPrompt({ item, response, target, mutate }),
     optionSnapshot,
@@ -319,6 +333,7 @@ export function useStructuredAgentSession(args: {
     threadGoal,
     contextUsage,
     contextSummary,
-    connectors
+    connectors,
+    hostPiRuntime
   }
 }

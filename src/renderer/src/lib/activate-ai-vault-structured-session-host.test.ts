@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => {
     call: vi.fn(),
     supports: vi.fn(),
     apply: vi.fn(),
+    refreshPaired: vi.fn(
+      async (_environmentId: string, _worktreeId: string, _options: unknown) => undefined
+    ),
     activateTab: vi.fn(),
     focusGroup: vi.fn(),
     setActiveTabType: vi.fn(),
@@ -31,6 +34,9 @@ vi.mock('@/runtime/runtime-rpc-client', async (original) => ({
   ...(await original<Record<string, unknown>>()),
   callRuntimeRpc: mocks.call,
   runtimeEnvironmentSupportsCapability: mocks.supports
+}))
+vi.mock('@/runtime/web-runtime-session-snapshot', () => ({
+  refreshWebRuntimeSessionTabsSnapshot: mocks.refreshPaired
 }))
 vi.mock('@/runtime/local-structured-session-tabs-sync', async (original) => ({
   ...(await original<Record<string, unknown>>()),
@@ -84,10 +90,12 @@ it('keeps the known host through the default refresh/reveal/activation path with
     STRUCTURED_AGENT_SESSION_REVEAL_RUNTIME_CAPABILITY,
     expect.any(Number)
   )
+  // Why: the paired inventory is applied by the host-scoped refresh before activation looks for the tab.
+  expect(mocks.refreshPaired).toHaveBeenCalledWith('remote-2', 'workspace', {
+    errorMode: 'throw'
+  })
   expect(mocks.call.mock.calls.map(([host, method]) => [host, method])).toEqual([
-    [TARGET, 'session.tabs.list'],
     [TARGET, 'agentSession.reveal'],
-    [TARGET, 'session.tabs.list'],
     [TARGET, 'session.tabs.activate']
   ])
   expect(mocks.apply).not.toHaveBeenCalled()

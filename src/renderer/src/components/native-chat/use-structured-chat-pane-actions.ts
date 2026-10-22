@@ -1,9 +1,14 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
-import { launchSleepingAgentSession } from '@/lib/sleeping-agent-session-launch'
+import {
+  launchFreshAgentSession,
+  launchSleepingAgentSession
+} from '@/lib/sleeping-agent-session-launch'
 import { useStructuredAgentSessionLaunchSelection } from '@/lib/structured-agent-session-launch-options'
 import { structuredChatPiRuntime } from './structured-agent-declared-access'
+import { resolvePiRuntimeForLaunch } from '@/lib/pi-terminal-host-runtime'
+import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 import type { AgentSessionContinuationRequest } from '@/lib/agent-session-continuation'
 import type { AgentJournalItemBody } from '../../../../shared/agent-session-journal-types'
 import { closeStructuredAgentSession } from '../../runtime/structured-agent-session-close'
@@ -38,6 +43,8 @@ export function useStructuredChatPaneActions(args: {
   target: RuntimeClientTarget
   agent: string
   journalItems: readonly StructuredChatJournalRow[]
+  /** The Pi runtime the host recorded for this chat, once its options read answered. */
+  hostPiRuntime?: PiRuntimeSelection
   /** The chat's own notice line, so a failed terminal view says so in the chat. */
   reportNotice: (text: string) => void
 }): {
@@ -55,15 +62,20 @@ export function useStructuredChatPaneActions(args: {
     target,
     agent,
     journalItems,
+    hostPiRuntime,
     reportNotice
   } = args
-  // Why: the launch's seed carries a Pi chat's runtime while the launch lives; a reopened chat falls back to the Pi command setting.
+  // Why: a Pi chat's runtime comes from its own session (host record, transcript home, launch seed); a session with none lets the host decide at click time.
   const launchSeedOptions = useStructuredAgentSessionLaunchSelection(sessionId)?.seed
-  const piCommand = useAppStore((state) => state.settings?.agentCmdOverrides?.pi)
-  const piRuntime = structuredChatPiRuntime({ agent, launchSeedOptions, piCommand })
   const providerSession = useAppStore(
     (state) => state.agentStatusByPaneKey[paneKey]?.providerSession
   )
+  const piRuntime = structuredChatPiRuntime({
+    agent,
+    launchSeedOptions,
+    hostRuntime: hostPiRuntime,
+    transcriptPath: providerSession?.transcriptPath
+  })
   const lastPrompt = useAppStore((state) => state.agentStatusByPaneKey[paneKey]?.prompt)
   const lastAssistantMessage = useAppStore(
     (state) => state.agentStatusByPaneKey[paneKey]?.lastAssistantMessage
@@ -101,6 +113,8 @@ export function useStructuredChatPaneActions(args: {
           },
           releaseProviderChild: closeStructuredAgentSession,
           launchResume: (record, options) => launchSleepingAgentSession(record, options),
+          launchFresh: (request, options) => launchFreshAgentSession(request, options),
+          resolvePiRuntime: resolvePiRuntimeForLaunch,
           recordTerminalLink: (terminalTabId, link) =>
             useAppStore.getState().linkStructuredChatTerminalTab(terminalTabId, link),
           // Why: no structured-chat launch source exists yet; 'unknown' is honest telemetry.

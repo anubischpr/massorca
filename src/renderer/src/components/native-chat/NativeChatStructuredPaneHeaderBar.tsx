@@ -2,6 +2,7 @@ import type { AgentJournalItemBody } from '../../../../shared/agent-session-jour
 import { structuredAgentSessionPaneKey } from '../../../../shared/structured-agent-session-projection'
 import { AgentSessionContinuationDialog } from '@/components/agent-session-continuation/AgentSessionContinuationDialog'
 import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
+import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 import { NativeChatStructuredPaneHeader } from './NativeChatStructuredPaneHeader'
 import { useStructuredChatPaneActions } from './use-structured-chat-pane-actions'
 
@@ -14,7 +15,7 @@ export function NativeChatStructuredPaneHeaderBar({
   sessionId,
   target,
   agent,
-  journalItems,
+  controller,
   reportNotice
 }: {
   isVisible: boolean
@@ -25,7 +26,11 @@ export function NativeChatStructuredPaneHeaderBar({
   sessionId: string
   target: RuntimeClientTarget
   agent: string
-  journalItems: readonly { readonly body: AgentJournalItemBody }[]
+  controller: {
+    journalItems: readonly { readonly body: AgentJournalItemBody }[]
+    /** The Pi runtime the host recorded for this chat, once its options read answered. */
+    hostPiRuntime: PiRuntimeSelection | undefined
+  }
   reportNotice: (text: string) => void
 }): React.JSX.Element {
   const { actions, handOffRequest, startHandOff, closeHandOff } = useStructuredChatPaneActions({
@@ -37,7 +42,8 @@ export function NativeChatStructuredPaneHeaderBar({
     paneKey: structuredAgentSessionPaneKey(tabId, sessionId),
     target,
     agent,
-    journalItems
+    journalItems: controller.journalItems,
+    hostPiRuntime: controller.hostPiRuntime
   })
   return (
     <>

@@ -11,6 +11,7 @@ import {
   type AgentSessionOptionsResult
 } from '../../../shared/agent-session-wire'
 import type { AgentSessionRecord } from '../../../shared/agent-session-record'
+import { isPiRuntimeSelection } from '../../../shared/pi-runtime-selection'
 import { decodeStructuredAgentSessionOptionValue } from '../../../shared/structured-agent-session-option-codec'
 import {
   agentSessionDeclaredAccess,
@@ -236,10 +237,15 @@ export async function readStructuredAgentSessionOptions(
       !liveAccessModes.some((live) => live === mode)
   )
   const capabilities = agents.capabilities(agent)
+  const recordedPiRuntime = record?.options?.piRuntime
   const floor = session.journal.context.floor()
   const contextFloor = floor ? { contextFloor: floor } : {}
   return {
     ...options,
+    // The runtime the host recorded for this chat, so a client that never held it resumes the same one.
+    ...(agent === 'pi' && isPiRuntimeSelection(recordedPiRuntime)
+      ? { piRuntime: recordedPiRuntime }
+      : {}),
     ...(declaredAccess
       ? {
           accessModeSupport: {

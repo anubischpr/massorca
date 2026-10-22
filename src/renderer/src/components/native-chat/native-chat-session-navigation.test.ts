@@ -89,6 +89,52 @@ describe('client session navigation', () => {
     }
   )
 
+  it('offers Gentle Shell commands from the session report and sends them as ordinary Pi prompts', async () => {
+    const sessionFunctions = [
+      {
+        name: 'gentle:jobs',
+        description: 'Show background jobs',
+        provenance: 'provider-session' as const,
+        availability: 'available' as const,
+        execution: { kind: 'provider-prompt' as const }
+      },
+      {
+        name: 'gentle:status',
+        provenance: 'provider-files' as const,
+        availability: 'unverified' as const,
+        execution: { kind: 'provider-prompt' as const }
+      }
+    ]
+    const names = nativeChatStructuredCatalog('pi', { sessionFunctions }).map((entry) => entry.name)
+    expect(names).toEqual(expect.arrayContaining(['gentle:jobs', 'gentle:status']))
+    const dispatchCommand = vi.fn(async () => ({ handled: false, accepted: false, error: null }))
+    const send = vi.fn(() => true)
+    const transport: NativeChatStructuredComposerTransport = {
+      dispatchCommand,
+      send,
+      sessionFunctions,
+      optionsSurface: {
+        getSnapshot: () => [],
+        setOption: vi.fn(),
+        invokeAction: vi.fn(),
+        subscribe: () => () => {}
+      },
+      optionSnapshot: [],
+      onError: vi.fn(),
+      runtime: 'local',
+      sessionId: 'gentle-commands',
+      runtimeEnvironmentId: null
+    }
+    for (const text of ['/gentle:jobs', '/gentle:status now']) {
+      expect(await dispatchNativeChatStructuredComposerText(transport, text, [], 'pi')).toEqual({
+        accepted: true,
+        error: null,
+        revealsTranscript: true
+      })
+      expect(send).toHaveBeenLastCalledWith(text, [])
+    }
+  })
+
   it('leaves arguments and unrelated commands to their existing dispatcher', () => {
     expect(isNativeChatSessionNavigation('/resume another-session')).toBe(false)
     expect(isNativeChatSessionNavigation('/session-info')).toBe(false)

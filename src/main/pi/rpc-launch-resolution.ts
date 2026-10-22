@@ -29,9 +29,16 @@ import type { PiRpcLaunchOptions } from './rpc-launch'
 import { piStructuredLaunchArgs } from './rpc-saved-arguments'
 import { resolveAgentSessionFullAccess } from '../../shared/agent-session-access-mode'
 import { gentleShellModeForAccess, type GentleShellMode } from './gentle-shell-permission-mode'
-import { isPiRuntimeSelection, piRuntimeCommandSettings } from '../../shared/pi-runtime-selection'
+import {
+  isPiRuntimeSelection,
+  piRuntimeCommandSettings,
+  resolvePiRuntime,
+  type PiRuntimeSelection
+} from '../../shared/pi-runtime-selection'
 
 export type PiRpcResolvedLaunch = PiRpcLaunchOptions & {
+  /** The runtime the launch spawns, from the same evidence that picked its command. */
+  piRuntime: PiRuntimeSelection
   previous: AgentSessionProviderHandleLink | null
   replacement?: 'unsaved' | 'restore-failed'
   /** Set only for Gentle Shell: the permission mode applied once the child is up. */
@@ -214,13 +221,20 @@ export function createPiRpcLaunchResolver(
     }
     const extraArgs = piStructuredLaunchArgs((await deps.resolveLaunchArgs?.()) ?? [])
     const settings = deps.resolveCommandSettings?.() ?? {}
-    const selection = record.options?.piRuntime
-    if (selection !== undefined && !isPiRuntimeSelection(selection)) {
+    const recorded = record.options?.piRuntime
+    if (recorded !== undefined && !isPiRuntimeSelection(recorded)) {
       throw new Error('Pi session has an invalid runtime selection')
     }
+    // Why: a saved record can lack piRuntime, so the transcript being resumed and the host's Pi
+    // command name the runtime too; the command, access rule and wake gate all read this one answer.
+    const piRuntime = resolvePiRuntime({
+      hostRecorded: recorded,
+      transcriptPath: sessionFile ?? forkFile,
+      command: settings.agentCmdOverrides?.pi
+    })
     const command = resolvePiRpcCommand(
       env,
-      selection ? piRuntimeCommandSettings(settings, selection) : settings,
+      piRuntimeCommandSettings(settings, piRuntime),
       deps.resolveCommand
     )
     // Again at every launch: the binary on PATH may have changed since the chat was created.
@@ -233,15 +247,16 @@ export function createPiRpcLaunchResolver(
       command,
       cwd,
       env,
+      piRuntime,
       // Why: Gentle Shell's posture is a mode command sent after start, never a launch flag, so
       // its launch is always allowed; stock Pi has no restricted mode and keeps the full-access rule.
       fullAccess:
-        selection === 'gentle-shell' ||
+        piRuntime === 'gentle-shell' ||
         resolveAgentSessionFullAccess(
           record.options?.accessMode,
           deps.resolveFullAccess?.() ?? true
         ),
-      ...(selection === 'gentle-shell'
+      ...(piRuntime === 'gentle-shell'
         ? {
             gentleMode: gentleShellModeForAccess(
               record.options?.accessMode,

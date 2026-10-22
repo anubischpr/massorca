@@ -1,13 +1,12 @@
-import type {
-  AgentSessionOptionsResult,
-  AgentSessionSlashCommand
-} from '../../shared/agent-session-wire'
+import type { AgentSessionOptionsResult } from '../../shared/agent-session-wire'
 import type {
   StructuredAgentSessionAcquireInput,
   StructuredAgentSessionLifecycleEvent,
   AgentSessionDispatchOutcome
 } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
+import type { AgentChildWorkEvidence } from '../../shared/agent-status-child-work-evidence'
 import type { StructuredAgentSessionLogger } from '../native-chat/agent-session-wire/structured-agent-session-logger'
+import type { PiRpcCommandCatalog } from './rpc-command-catalog'
 import { providerTimelineSink } from '../native-chat/agent-session-timeline/provider-timeline-plan'
 import { JsonlRpcTimelineLane } from '../jsonl-rpc/timeline-lane'
 import {
@@ -16,10 +15,13 @@ import {
 } from '../jsonl-rpc/agent-connection'
 import type { ProviderProcessLaunch } from '../provider-process/provider-process-launch'
 import { PiRpcTurns } from './rpc-turns'
+import { awaitTimelineDrain } from './rpc-exit-drain'
+import { PiRpcSessionCommands } from './rpc-session-commands'
 import { PiRpcDialogCallbacks } from './rpc-dialog-callbacks'
 import { piRpcStateSchema } from './rpc-protocol'
-import { applyPiRpcSessionOption, readPiRpcCommands, readPiRpcSessionOptions } from './rpc-options'
+import { readPiRpcSessionOptions, restorePiRpcSessionOptions } from './rpc-options'
 import { GentleShellModeControl, type GentleShellMode } from './gentle-shell-permission-mode'
+import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
 
 export type PiRpcConnection = Pick<
   JsonlRpcAgentConnection,
@@ -48,6 +50,10 @@ export type PiRpcSessionDeps = {
     outcome: AgentSessionDispatchOutcome
   }) => void
   onIdle: (input: { sessionId: string }) => void
+  /** The host's sink for a session's child work (Gentle Shell background jobs). */
+  onChildWorkEvidence?: (sessionId: string, evidence: AgentChildWorkEvidence[]) => void
+  /** Remembers what a running child reports as its `/` commands, for a chat whose child is not running. */
+  commandCatalog?: Pick<PiRpcCommandCatalog, 'record' | 'atRestCommands'>
   logger: StructuredAgentSessionLogger
 }
 
@@ -60,7 +66,7 @@ export class PiRpcSession {
   readonly gentle: GentleShellModeControl
   readonly selected = new Map<string, string>()
   readonly skipped: string[] = []
-  commands?: AgentSessionSlashCommand[]
+  readonly slash: PiRpcSessionCommands
   options?: AgentSessionOptionsResult
   /** The agent dir the child runs under, for config the child itself never reports. */
   agentDir?: string
@@ -74,7 +80,9 @@ export class PiRpcSession {
     readonly input: StructuredAgentSessionAcquireInput,
     readonly generation: string,
     launch: ProviderProcessLaunch,
-    private readonly deps: PiRpcSessionDeps
+    private readonly deps: PiRpcSessionDeps,
+    /** The runtime the launch spawned; a saved record's options may not name it. */
+    readonly piRuntime: PiRuntimeSelection
   ) {
     const sink = input.events && providerTimelineSink(input.events)
     if (!sink) {
@@ -103,9 +111,18 @@ export class PiRpcSession {
       settled: (id, outcome) => this.settle(id, outcome),
       idle: () => {
         this.dialogs.cancelAll()
+        if (this.slash.list === undefined) {
+          void this.slash.read()
+        }
         deps.onIdle({ sessionId: input.identity.sessionId })
       },
       failed: (error) => this.fail(error),
+      acceptsAgentWake: piRuntime === 'gentle-shell',
+      ...(deps.onChildWorkEvidence
+        ? {
+            childWork: (evidence) => deps.onChildWorkEvidence?.(input.identity.sessionId, evidence)
+          }
+        : {}),
       diagnostic: (error) =>
         deps.logger.warn('Pi context usage could not be read', {
           scope: 'pi-context-usage',
@@ -141,10 +158,17 @@ export class PiRpcSession {
           .finally(() => this.releaseAfterExit?.())
       }
     })
-    this.gentle = new GentleShellModeControl({
-      enabled: input.options?.piRuntime === 'gentle-shell',
+    this.slash = new PiRpcSessionCommands({
       rpc: this.connection,
-      commands: () => this.commands,
+      runtime: piRuntime,
+      catalog: deps.commandCatalog,
+      logger: deps.logger,
+      sessionId: input.identity.sessionId
+    })
+    this.gentle = new GentleShellModeControl({
+      enabled: piRuntime === 'gentle-shell',
+      rpc: this.connection,
+      commands: () => this.slash.list,
       busy: () => this.turns.working || this.turns.holdsDispatch,
       warn: (message, fields) =>
         deps.logger.warn(message, {
@@ -159,39 +183,23 @@ export class PiRpcSession {
   async start(gentleMode?: GentleShellMode): Promise<string> {
     const state = piRpcStateSchema.parse(await this.connection.request('get_state'))
     this.lane.apply(this.turns.context.setModel(state.model ?? undefined, Date.now()))
-    for (const [key, value] of Object.entries(this.input.options ?? {})) {
-      // Orca's own launch selections: the child never takes them as options, and a record that
-      // dropped them would restart the chat as another runtime or access.
-      if (key === 'accessMode' || key === 'piRuntime') {
-        continue
-      }
-      if (!['model', 'effort'].includes(key)) {
-        this.skipped.push(key)
-        continue
-      }
-      try {
-        await applyPiRpcSessionOption(this.connection, this.selected, key, value)
-      } catch (error) {
-        this.skipped.push(key)
-        this.deps.logger.warn('Pi rejected a saved option', {
-          scope: 'pi-option-restore',
-          sessionId: this.input.identity.sessionId,
-          key,
-          error
-        })
-      }
-    }
+    this.skipped.push(
+      ...(await restorePiRpcSessionOptions(
+        this.connection,
+        this.selected,
+        this.input.options ?? {},
+        (key, error) =>
+          this.deps.logger.warn('Pi rejected a saved option', {
+            scope: 'pi-option-restore',
+            sessionId: this.input.identity.sessionId,
+            key,
+            error
+          })
+      ))
+    )
     this.options = await readPiRpcSessionOptions(this.connection)
-    await this.turns.resyncUsage(true)
-    try {
-      this.commands = (await readPiRpcCommands(this.connection)).commands
-    } catch (error) {
-      this.deps.logger.warn('Pi commands could not be read', {
-        scope: 'pi-commands',
-        sessionId: this.input.identity.sessionId,
-        error
-      })
-    }
+    await this.turns.usage.resync(true)
+    await this.slash.read()
     if (gentleMode && !(await this.gentle.applyAtStart(gentleMode))) {
       // The child starts in full access, so only that pick may run without its narrowing.
       if (gentleMode !== 'yolo') {
@@ -264,24 +272,12 @@ export class PiRpcSession {
       { type: 'session.ended', verdict: { state: 'interrupted', completedAt: Date.now() } }
     ])
     this.lane.flush()
-    let timer: ReturnType<typeof setTimeout> | undefined
-    try {
-      await Promise.race([
-        this.lane.drained(),
-        new Promise<void>((resolve) => {
-          timer = setTimeout(() => {
-            this.deps.logger.warn('Pi final timeline did not drain before exit publication', {
-              scope: 'pi-exit-drain',
-              sessionId: this.input.identity.sessionId
-            })
-            resolve()
-          }, 2_000)
-          timer.unref()
-        })
-      ])
-    } finally {
-      clearTimeout(timer)
-    }
+    await awaitTimelineDrain(this.lane, () =>
+      this.deps.logger.warn('Pi final timeline did not drain before exit publication', {
+        scope: 'pi-exit-drain',
+        sessionId: this.input.identity.sessionId
+      })
+    )
     this.deps.onLifecycle({
       type: 'ended',
       sessionId: this.input.identity.sessionId,

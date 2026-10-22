@@ -1,6 +1,6 @@
 import { toast } from 'sonner'
 import { useAppStore } from '@/store'
-import { buildAgentResumeStartupPlan } from '@/lib/tui-agent-startup'
+import { buildAgentResumeStartupPlan, buildAgentStartupPlan } from '@/lib/tui-agent-startup'
 import { tuiAgentToAgentKind } from '@/lib/telemetry'
 import { persistAgentLaunchTabOrder } from '@/lib/launch-agent-tab-order'
 import {
@@ -18,6 +18,12 @@ import {
   resolveTuiAgentLaunchEnv
 } from '../../../shared/tui-agent-launch-defaults'
 import type { SleepingAgentSessionRecord } from '../../../shared/agent-session-resume'
+import type { TuiAgent } from '../../../shared/tui-agent'
+import {
+  piRuntimeCommandSettings,
+  resolvePiRuntime,
+  type PiRuntimeSelection
+} from '../../../shared/pi-runtime-selection'
 import { translate } from '@/i18n/i18n'
 
 export type ResumeSleepingAgentSessionsOptions = {
@@ -121,6 +127,69 @@ export function launchSleepingAgentSession(
     state.setActiveTabType('terminal', record.worktreeId)
   }
   persistAgentLaunchTabOrder(record.worktreeId, tab.id)
+  options?.onSessionLaunched?.(tab.id)
+  return true
+}
+
+/**
+ * Starts a fresh TUI of `agent` in the worktree, for a chat that has no provider session yet. A Pi
+ * chat's runtime is applied to the command settings, so Gentle Shell starts `gentle-shell`, never stock `pi`.
+ */
+export function launchFreshAgentSession(
+  request: { worktreeId: string; agent: TuiAgent; piRuntime?: PiRuntimeSelection },
+  options?: { onSessionLaunched?: (tabId: string) => void }
+): boolean {
+  const state = useAppStore.getState()
+  const piRuntime =
+    request.agent === 'pi'
+      ? resolvePiRuntime({
+          launchSeed: request.piRuntime,
+          command: state.settings?.agentCmdOverrides?.pi
+        })
+      : undefined
+  const cmdOverrides = piRuntime
+    ? piRuntimeCommandSettings({ agentCmdOverrides: state.settings?.agentCmdOverrides }, piRuntime)
+        .agentCmdOverrides
+    : state.settings?.agentCmdOverrides
+  const launchTarget = getResumeLaunchTarget(request.worktreeId)
+  const startupPlan = buildAgentStartupPlan({
+    agent: request.agent,
+    prompt: '',
+    allowEmptyPromptLaunch: true,
+    cmdOverrides: cmdOverrides ?? {},
+    agentArgs: resolveTuiAgentLaunchArgs(request.agent, state.settings?.agentDefaultArgs),
+    agentEnv: resolveTuiAgentLaunchEnv(request.agent, state.settings?.agentDefaultEnv),
+    platform: launchTarget.platform,
+    shell: launchTarget.shell
+  })
+  if (!startupPlan) {
+    toast.error(
+      translate(
+        'components.native-chat.toggle.terminalFreshLaunchFailed',
+        'This agent could not start in the terminal.'
+      )
+    )
+    return false
+  }
+  const tab = state.createTab(request.worktreeId, undefined, undefined, {
+    launchAgent: request.agent,
+    pendingStartup: {
+      command: startupPlan.launchCommand,
+      ...(startupPlan.env ? { env: startupPlan.env } : {}),
+      launchConfig: startupPlan.launchConfig,
+      launchAgent: request.agent,
+      ...(startupPlan.startupCommandDelivery
+        ? { startupCommandDelivery: startupPlan.startupCommandDelivery }
+        : {}),
+      telemetry: {
+        agent_kind: tuiAgentToAgentKind(request.agent),
+        launch_source: 'sidebar',
+        request_kind: 'new'
+      }
+    }
+  })
+  state.setActiveTabType('terminal', request.worktreeId)
+  persistAgentLaunchTabOrder(request.worktreeId, tab.id)
   options?.onSessionLaunched?.(tab.id)
   return true
 }

@@ -28,8 +28,11 @@ afterEach(() => {
 
 const ENABLED: StructuredChatTerminalViewState = {
   enabled: true,
-  agent: 'claude',
-  providerSession: { key: 'session_id', id: 'session-1' }
+  launch: {
+    mode: 'resume',
+    agent: 'claude',
+    providerSession: { key: 'session_id', id: 'session-1' }
+  }
 }
 
 function render(props: Partial<Parameters<typeof NativeChatStructuredPaneHeader>[0]> = {}) {
@@ -90,7 +93,9 @@ describe('NativeChatStructuredPaneHeader', () => {
     })
     const toggle = button(container, 'Show terminal')
     expect(toggle.disabled).toBe(true)
-    expect(container.textContent).toContain('This chat has not reported its agent session yet.')
+    expect(container.textContent).toContain(
+      "This chat's agent session cannot be opened in the terminal."
+    )
     act(() => toggle.click())
     expect(handlers.onShowTerminal).not.toHaveBeenCalled()
   })

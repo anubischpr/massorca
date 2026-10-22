@@ -1,3 +1,5 @@
+import type { PiRuntimeSelection } from './pi-runtime-selection'
+
 /** Session-scoped access presets. `inherit` is universal; providers declare the explicit modes
  * they can apply before a session starts. */
 export const AGENT_SESSION_ACCESS_MODES = ['default', 'full-access'] as const
@@ -117,6 +119,9 @@ export function resolveAgentSessionFullAccess(
 }
 
 export type AgentSessionAccessOptions = {
+  /** The Pi runtime these access options are declared for, as the host recorded it for the chat; absent
+   *  for other agents and from an older host. */
+  piRuntime?: PiRuntimeSelection
   /** Advertised independently of model discovery; false while a provider child runs. `presets` is
    *  absent from an older host, which then offers only the two legacy modes. */
   accessModeSupport?: {

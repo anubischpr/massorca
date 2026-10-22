@@ -3,7 +3,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { agentJournalItemKey } from '../../shared/agent-session-journal-item-key'
-import type { AgentSessionProcessIdentity } from '../../shared/agent-session-record'
+import type {
+  AgentSessionProcessIdentity,
+  AgentSessionRecord
+} from '../../shared/agent-session-record'
 import { agentJournalTurnBody } from '../../shared/agent-session-turn-record'
 import {
   AgentSessionAcquisitionRootExitObservedError,
@@ -20,6 +23,7 @@ import type { PiRpcConnection } from './rpc-session'
 import type { ProviderProcessLaunch } from '../provider-process/provider-process-launch'
 import type { StructuredAgentSessionEventSink } from '../native-chat/agent-session-wire/structured-agent-session-event-sink'
 import { PiRpcSessionAdapter } from './rpc-session-adapter'
+import { PiRpcCommandCatalog } from './rpc-command-catalog'
 
 const sessionId = 'session-timeline'
 const file = '/host/account/sessions/session.jsonl'
@@ -30,7 +34,7 @@ const state = {
   model: { provider: 'anthropic', id: 'model-1' }
 }
 const cleanups: (() => Promise<void>)[] = []
-let listedCommands: { name: string }[] = [{ name: 'help' }]
+let listedCommands: { name: string; description?: string; source?: string }[] = [{ name: 'help' }]
 let promptReply: unknown = { disposition: 'handled' }
 const opened: { closed: boolean }[] = []
 afterEach(async () => {
@@ -131,7 +135,12 @@ class FakeConnection implements PiRpcConnection {
 async function setup(
   options: Readonly<Record<string, string>> = {},
   eventSink?: (sink: StructuredAgentSessionEventSink) => StructuredAgentSessionEventSink,
-  launchExtras: { gentleMode?: 'normal' | 'auto' | 'yolo'; env?: Record<string, string> } = {}
+  launchExtras: {
+    gentleMode?: 'normal' | 'auto' | 'yolo'
+    env?: Record<string, string>
+    piRuntime?: 'pi' | 'gentle-shell'
+  } = {},
+  adapterExtras: Pick<ConstructorParameters<typeof PiRpcSessionAdapter>[0], 'commandCatalog'> = {}
 ) {
   const rig = await openProviderTimelineRig({ agent: 'pi', sessionId })
   const connections: FakeConnection[] = []
@@ -160,6 +169,7 @@ async function setup(
     cwd: '/host/folder',
     fullAccess: true,
     previous: null,
+    piRuntime: options.piRuntime === 'gentle-shell' ? ('gentle-shell' as const) : ('pi' as const),
     ...launchExtras
   }))
   const openConnection = vi.fn(
@@ -177,7 +187,8 @@ async function setup(
     onLifecycle: lifecycle,
     onSettled: settled,
     onIdle: idle,
-    logger: { warn: vi.fn(), error: vi.fn() }
+    logger: { warn: vi.fn(), error: vi.fn() },
+    ...adapterExtras
   })
   const acquired = await adapter.acquire(input)
   const connection = connections[0]
@@ -204,6 +215,85 @@ async function setup(
     connections
   }
 }
+
+function restingRecord(piRuntime?: string): AgentSessionRecord {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the at-rest read looks only at the record's provider and options.
+  return {
+    sessionId,
+    provider: 'pi',
+    ...(piRuntime ? { options: { piRuntime } } : {})
+  } as AgentSessionRecord
+}
+
+describe('Pi agent wake gate', () => {
+  // Why: a saved record can lack options.piRuntime, so the launch's resolved runtime decides.
+  it('lets a Gentle Shell launch take a wake when the record names no runtime', async () => {
+    const h = await setup({}, undefined, { piRuntime: 'gentle-shell' })
+    h.connection.receive({ type: 'agent_start' })
+    await h.adapter.drainObservedExits()
+    expect(h.connection.closed).toBe(false)
+    expect(h.lifecycle).not.toHaveBeenCalled()
+  })
+
+  it('still refuses an agent run nobody asked for from stock Pi', async () => {
+    const h = await setup({}, undefined, { piRuntime: 'pi' })
+    expect(() => h.connection.receive({ type: 'agent_start' })).toThrow('unsolicited agent run')
+  })
+})
+
+describe('Pi slash commands for a chat whose child is not running', () => {
+  it('remembers what a running Gentle Shell child lists and offers it at rest, per runtime', async () => {
+    const catalog = new PiRpcCommandCatalog()
+    const onChange = vi.fn()
+    catalog.onChange(onChange)
+    listedCommands = [
+      { name: 'gentle:mode', source: 'extension' },
+      { name: 'gentle:yolo', source: 'extension' },
+      { name: 'gentle:jobs', description: 'Show background jobs', source: 'extension' },
+      { name: 'gentle:status', source: 'extension' }
+    ]
+    const h = await setup(
+      GENTLE_OPTIONS,
+      undefined,
+      { gentleMode: 'auto' },
+      { commandCatalog: catalog }
+    )
+    expect(onChange).toHaveBeenCalledTimes(1)
+    const rest = h.adapter.atRestCommands
+    if (!rest) {
+      throw new Error('the catalog offers no at-rest commands')
+    }
+    expect(rest.read(restingRecord('gentle-shell'))?.map((command) => command.name)).toEqual([
+      'gentle:mode',
+      'gentle:yolo',
+      'gentle:jobs',
+      'gentle:status'
+    ])
+    expect(rest.readFunctions?.(restingRecord('gentle-shell'))?.slice(2)).toEqual([
+      expect.objectContaining({
+        name: 'gentle:jobs',
+        description: 'Show background jobs',
+        provenance: 'provider-files',
+        availability: 'unverified',
+        execution: { kind: 'provider-prompt' }
+      }),
+      expect.objectContaining({ name: 'gentle:status', availability: 'unverified' })
+    ])
+    // Stock Pi never borrows Gentle Shell's commands, and a record with no runtime is stock Pi.
+    expect(rest.read(restingRecord('pi'))).toBeUndefined()
+    expect(rest.read(restingRecord())).toBeUndefined()
+    // A running child's own report stays the verified one.
+    expect(h.adapter.readFunctions(sessionId)?.at(-1)).toMatchObject({
+      name: 'gentle:status',
+      availability: 'available'
+    })
+  })
+
+  it('offers nothing at rest without a catalog', async () => {
+    const h = await setup()
+    expect(h.adapter.atRestCommands).toBeUndefined()
+  })
+})
 
 const GENTLE_COMMANDS = [{ name: 'gentle:mode' }, { name: 'gentle:yolo' }]
 const GENTLE_OPTIONS = { piRuntime: 'gentle-shell', accessMode: 'auto' }

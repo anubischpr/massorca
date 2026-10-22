@@ -12,6 +12,7 @@ import type { TuiAgent } from '../../../shared/tui-agent'
 import type { AgentPromptDelivery } from '../../../shared/agent-session-host-authority'
 import { translate } from '@/i18n/i18n'
 import { toAgentLaunchPreferences } from '../../../shared/agent-launch-preferences'
+import { launchCarriesGentleShellCommand } from '../../../shared/pi-runtime-selection'
 
 function removeStaleLocalAgentTabsForWebHostLaunch(worktreeId: string): void {
   const state = useAppStore.getState()
@@ -67,6 +68,8 @@ export function launchAgentInWebHostTab(args: {
   const structuredPromptDelivery: AgentPromptDelivery =
     promptDelivery === 'draft' ? 'draft' : 'auto-submit'
   removeStaleLocalAgentTabsForWebHostLaunch(worktreeId)
+  // Why: the paired host rebuilds an agent-only launch from its own settings, which drops Gentle Shell for stock `pi`.
+  const gentleShellCommand = launchCarriesGentleShellCommand(agent, startupPlan.launchCommand)
   const launch = {
     worktreeId,
     environmentId,
@@ -75,9 +78,10 @@ export function launchAgentInWebHostTab(args: {
     ...(cwd?.trim() ? { cwd } : {}),
     ...(viewMode ? { viewMode } : {}),
     agentSessionKind: 'fresh',
-    ...(hasPrompt
+    ...(hasPrompt || gentleShellCommand
       ? {
           launchAgent: agent,
+          ...(gentleShellCommand ? { preparedAgentCommand: true } : {}),
           command: startupPlan.launchCommand,
           ...(startupPlan.env ? { env: startupPlan.env } : {}),
           launchConfig: startupPlan.launchConfig,

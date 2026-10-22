@@ -1,7 +1,8 @@
 import { agentSessionDeclaredAccess } from '../../../../shared/agent-session-access-mode'
 import {
   isPiRuntimeSelection,
-  selectedPiRuntime,
+  piRuntimeFromSessionEvidence,
+  resolvePiRuntime,
   type PiRuntimeSelection
 } from '../../../../shared/pi-runtime-selection'
 import type { SessionOptionDescriptor } from '../../../../shared/native-chat-session-options'
@@ -23,28 +24,29 @@ export function useStructuredAgentDeclaredAccess(args: {
   const registeredAgent = useHostStructuredAgent(target, agent)
   const piCommand = useAppStore((state) => state.settings?.agentCmdOverrides?.pi)
   const piRuntime =
-    agent !== 'pi'
+    agent !== 'pi' || !(launching || isPiRuntimeSelection(launchSeedOptions?.piRuntime))
       ? undefined
-      : isPiRuntimeSelection(launchSeedOptions?.piRuntime)
-        ? launchSeedOptions.piRuntime
-        : launching
-          ? selectedPiRuntime(piCommand)
-          : undefined
+      : resolvePiRuntime({ launchSeed: launchSeedOptions?.piRuntime, command: piCommand })
   return agentSessionDeclaredAccess(registeredAgent?.capabilities, piRuntime)
 }
 
-/** The Pi runtime a structured chat runs on: its launch seed, else the Pi command the settings name
- *  (the same rule host admission applies to a new Pi chat). Undefined for every other agent. */
+/** The Pi runtime a structured chat's own session names: the host-recorded runtime, the session
+ *  transcript's home, then the launch seed. Undefined for another agent and for a session with no
+ *  evidence yet, which leaves the host and the client's Pi command to decide at launch. */
 export function structuredChatPiRuntime(args: {
   agent: string
   launchSeedOptions: Readonly<Record<string, string>> | undefined
-  piCommand: string | undefined
+  transcriptPath?: string | null
+  hostRuntime?: unknown
 }): PiRuntimeSelection | undefined {
   if (args.agent !== 'pi') {
     return undefined
   }
-  const seeded = args.launchSeedOptions?.piRuntime
-  return isPiRuntimeSelection(seeded) ? seeded : selectedPiRuntime(args.piCommand)
+  return piRuntimeFromSessionEvidence({
+    hostRecorded: args.hostRuntime,
+    transcriptPath: args.transcriptPath,
+    launchSeed: args.launchSeedOptions?.piRuntime
+  })
 }
 
 /** The picks a running child accepts: modes it can switch to live, and picks it already satisfies. */
