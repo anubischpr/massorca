@@ -230,3 +230,10 @@ mobile/
 │   └── mock-server.ts     # Standalone mock WebSocket server
 └── assets/                # App icons and splash screen
 ```
+
+## App Identity: MassOrca
+
+- Display name is `MassOrca` on Android and iOS. Icons are generated from `resources/branding/massorca-rose.svg`; see `resources/branding/README.md`.
+- Android package is `io.github.anubischpr.massorca`. The iOS bundle id stays `com.stably.orca.mobile`.
+- Push notifications are not configured for the Android package. `mobile/google-services.json` is registered for `com.stably.orca.mobile`, so `app.json` no longer references it. Without Firebase config the native push token stays unavailable and the app skips push registration. To enable push later, register `io.github.anubischpr.massorca` in your own Firebase project, download its `google-services.json` into `mobile/`, and set `android.googleServicesFile` in `app.json`.
+- The `orca://` URL scheme is unchanged, so existing pairing links keep working.

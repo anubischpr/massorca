@@ -1,4 +1,5 @@
 import { app, type BrowserWindow } from 'electron'
+import { PRODUCT_DISPLAY_NAME } from '../../shared/product-identity'
 import { relaunchApp } from '../app-relaunch'
 import { destroySystemTray } from '../tray/system-tray'
 import { applyGpuFallbackCommandLineSwitches } from './gpu-fallback-switches'
@@ -42,7 +43,7 @@ export function createGpuCrashDiagnosticsRecorder(): GpuCrashDiagnosticsRecorder
 export function updateGpuAccelerationAboutPanel(): void {
   app.setAboutPanelOptions(
     createGpuAccelerationAboutPanelOptions({
-      appName: app.name,
+      appName: PRODUCT_DISPLAY_NAME,
       appVersion: app.getVersion(),
       platform: process.platform,
       gpuFallbackActive: state.gpuFallbackActiveThisLaunch,

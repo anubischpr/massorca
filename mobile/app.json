@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Orca",
+    "name": "MassOrca",
     "slug": "orca-mobile",
     "version": "0.0.51",
     "orientation": "default",
@@ -69,14 +69,14 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#111111"
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png",
+        "backgroundColor": "#00000000"
       },
       "usesCleartextTraffic": true,
       "allowBackup": false,
       "permissions": ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS"],
-      "package": "com.stably.orca.mobile",
-      "versionCode": 18,
-      "googleServicesFile": "./google-services.json"
+      "package": "io.github.anubischpr.massorca",
+      "versionCode": 18
     },
     "plugins": [
       "expo-router",

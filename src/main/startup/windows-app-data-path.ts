@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs'
 import { win32 } from 'node:path'
+import { PRODUCTION_USER_DATA_DIR_NAME } from '../../shared/product-identity'
 
 export type WindowsAppDataPathHost = {
   getPath(name: 'appData'): string
@@ -55,6 +56,6 @@ export function ensureWindowsAppDataPath(
   if (host.commandLine.hasSwitch('user-data-dir')) {
     return
   }
-  // Same value Electron's own provider computes; setting it skips that provider entirely.
-  host.setPath('userData', win32.join(appData, host.getName()))
+  // Same directory the production profile has always used; setting it skips Electron's provider.
+  host.setPath('userData', win32.join(appData, PRODUCTION_USER_DATA_DIR_NAME))
 }

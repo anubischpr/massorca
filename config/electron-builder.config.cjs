@@ -198,8 +198,12 @@ const extraMetadata = {
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
   appId,
+  // Why: productName keeps the install identity. electron-builder derives the Linux install directory
+  // (/opt/<productName>), the Windows install folder and the Windows version-info name from it, so it
+  // stays 'Orca'. The MassOrca display name is set per surface: shortcuts, the uninstall entry, the
+  // Linux desktop entry, the protocol description and the macOS CFBundleDisplayName.
   productName: 'Orca',
-  protocols: [{ name: 'Orca', schemes: ['orca'] }],
+  protocols: [{ name: 'MassOrca', schemes: ['orca'] }],
   toolsets: { appimage: '1.0.3' },
   extraMetadata: Object.keys(extraMetadata).length ? extraMetadata : undefined,
   directories: {
@@ -520,8 +524,9 @@ module.exports = {
   },
   nsis: {
     artifactName: 'orca-windows-setup.${ext}',
-    shortcutName: '${productName}',
-    uninstallDisplayName: '${productName}',
+    // Why: display names only; the install folder and registry key follow productFilename and appId.
+    shortcutName: 'MassOrca',
+    uninstallDisplayName: 'MassOrca',
     createDesktopShortcut: 'always',
     // Why: electron-builder allows one include, so both Windows installer hooks live in it -
     // the relocated-daemon uninstall sweep (guarded by ${isUpdated} so it never runs during an
@@ -531,6 +536,9 @@ module.exports = {
     include: resolve(__dirname, 'nsis', 'orca-installer-hooks.nsh')
   },
   mac: {
+    // Why: keeps Orca.app as the bundle and binary name, so existing installs and the CLI launcher
+    // keep finding it. The display name is set via CFBundleDisplayName below.
+    executableName: 'Orca',
     // Why rank Alternate: Orca joins Finder's "Open With" list without claiming
     // LSHandlerRank ownership, so whichever editor the user already prefers stays the default.
     // Why one entry per extension: app-builder-lib globs `*.${ext}`, which an array would break.
@@ -555,6 +563,10 @@ module.exports = {
     entitlementsInherit: 'resources/build/entitlements.mac.plist',
     signIgnore: [...bundledRipgrepMacSignIgnore, ...orcadTemplateMacSignIgnore],
     extendInfo: {
+      // Why: macOS derives the safeStorage Keychain item name from CFBundleName, which electron-builder
+      // would otherwise set to productName. Keeping 'Orca' here keeps the stored secrets reachable.
+      CFBundleName: 'Orca',
+      CFBundleDisplayName: 'MassOrca',
       NSAppleEventsUsageDescription:
         'Orca allows terminal-launched developer tools to automate local apps when you request it.',
       NSBluetoothAlwaysUsageDescription:
@@ -658,7 +670,9 @@ module.exports = {
       entry: {
         // Why: Electron reports WM_CLASS=orca for the visible Linux window;
         // GNOME docks need an exact match to group it with orca-ide.desktop.
-        StartupWMClass: 'orca'
+        StartupWMClass: 'orca',
+        // Why: productName stays 'Orca' for the /opt install path, so the menu name is set here.
+        Name: 'MassOrca'
       }
     },
     extraResources: [
