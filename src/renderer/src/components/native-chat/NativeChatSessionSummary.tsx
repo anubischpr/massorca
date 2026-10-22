@@ -40,6 +40,7 @@ import { NativeChatSessionServers } from './NativeChatSessionServers'
 import {
   nativeChatSessionConnectors,
   nativeChatSessionPlan,
+  nativeChatSessionPlanDocument,
   nativeChatSessionResultFiles
 } from './native-chat-session-summary'
 
@@ -62,6 +63,8 @@ function subagentLine(row: AgentChildRowModel): string {
 /** The chat's summary rail: a stack of inline-expanding sections, each compact until opened. */
 export function NativeChatSessionSummary(props: {
   target: RuntimeClientTarget
+  /** The structured session whose host serves the plan document. */
+  sessionId?: string
   fileContext: NativeChatFileLinkContext | null
   journalItems: readonly AgentJournalRenderItem[]
   connectorSnapshot?: AgentSessionConnectorSnapshot
@@ -88,6 +91,10 @@ export function NativeChatSessionSummary(props: {
     [props.journalItems]
   )
   const plan = useMemo(() => nativeChatSessionPlan(props.journalItems), [props.journalItems])
+  const planDocument = useMemo(
+    () => nativeChatSessionPlanDocument(props.journalItems, workspaceRoot),
+    [props.journalItems, workspaceRoot]
+  )
   const connectorSnapshot =
     props.context?.transportObservation === 'unverifiable'
       ? undefined
@@ -317,7 +324,13 @@ export function NativeChatSessionSummary(props: {
       </h2>
       <div className="space-y-2">
         <NativeChatSessionEnvironment fileContext={props.fileContext} host={host} />
-        <NativeChatSessionPlanSection list={plan} />
+        <NativeChatSessionPlanSection
+          list={plan}
+          document={planDocument}
+          viewer={
+            props.sessionId ? { target: props.target, sessionId: props.sessionId } : undefined
+          }
+        />
         <NativeChatSessionContextSection summary={props.contextSummary} />
         <NativeChatSessionSection
           title={t('components.nativeChatSummary.results', 'Results')}

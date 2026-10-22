@@ -84,6 +84,20 @@ function usageSettings(overrides: Partial<UsageProviderSettings> = {}): UsagePro
 }
 
 describe('hasUsageProviderSettings', () => {
+  it('shows the NaN meter only once Gentle Shell has a gateway key on the host', () => {
+    const settings = usageSettings({ nanGatewayKeyConfigured: true })
+    expect(hasUsageProviderSettings(settings)).toBe(true)
+    expect(getVisibleUsageProvider('nan', null, settings)).toMatchObject({
+      provider: 'nan',
+      status: 'fetching',
+      buckets: []
+    })
+    expect(getVisibleUsageProvider('nan', null, usageSettings())).toBeNull()
+    expect(
+      getVisibleUsageProvider('nan', provider('unavailable', { provider: 'nan' }), usageSettings())
+    ).toBeNull()
+  })
+
   it('keeps a linked GLM plan visible without CLI detection or a first quota result', () => {
     const settings = usageSettings({ zcodePlanApiKeyConfigured: true })
     expect(hasUsageProviderSettings(settings)).toBe(true)

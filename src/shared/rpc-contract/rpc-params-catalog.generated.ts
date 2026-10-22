@@ -48,6 +48,7 @@ import {
   AttachmentUploadStartParams
 } from './agent-session-attachment-params'
 import { CreateAgentSessionParams, EnsureAgentSessionParams } from './agent-session-params'
+import { ReadPlanDocumentParams } from './agent-session-plan-document-params'
 import { ReadVisualParams } from './agent-session-visual-params'
 import {
   AiVaultListSessionsParams,
@@ -625,6 +626,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'agentSession.queuedMessageDelete': QueuedMessageActionParams,
   'agentSession.queuedMessageSend': QueuedMessageActionParams,
   'agentSession.queuedMessagesResume': QueuedMessagesResumeParams,
+  'agentSession.readPlanDocument': ReadPlanDocumentParams,
   'agentSession.readVisual': ReadVisualParams,
   'agentSession.release': HoldParams,
   'agentSession.respondToApproval': RespondParams,

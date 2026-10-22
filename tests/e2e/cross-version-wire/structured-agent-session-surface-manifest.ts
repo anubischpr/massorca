@@ -172,6 +172,11 @@ export function paramsFor(method: string): unknown {
       return { agent: 'codex', sessionId: SESSION }
     case 'agentSession.readVisual':
       return { sessionId: SESSION, file: 'usage-chart.html' }
+    case 'agentSession.readPlanDocument':
+      return {
+        sessionId: SESSION,
+        path: '/home/dev/.gemini/antigravity-cli/brain/conversation-1/implementation_plan.md'
+      }
     case 'agentSession.hold':
     case 'agentSession.release':
       return { sessionId: SESSION, holderId: 'surface-1' }

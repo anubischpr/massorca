@@ -225,7 +225,8 @@
         "antigravityToggleDescription": "Show Antigravity subscription usage for the active workspace.",
         "grokToggleDescription": "Show Grok subscription credit usage when signed in via Grok CLI.",
         "cursorToggleDescription": "Show Cursor plan usage when signed in through cursor-agent or Cursor IDE.",
-        "zcodeToggleDescription": "Show ZCode Coding Plan quota usage."
+        "zcodeToggleDescription": "Show ZCode Coding Plan quota usage.",
+        "nanToggleDescription": "Show NaN Builders subscription usage."
       },
       "menuBarIcon": {
         "title": "Show Menu Bar Icon",
@@ -4003,7 +4004,8 @@
             "codexSignInError": "Codex sign-in failed. Please try again.",
             "cursorUsageMenu": "Cursor Usage",
             "hiddenUsageProviders": "Also: {{value0}}",
-            "zcodeUsageMenu": "ZCode Usage"
+            "zcodeUsageMenu": "ZCode Usage",
+            "nanUsageMenu": "NaN Usage"
           },
           "StatusBarUsageEmptyCta": {
             "828c764a79": "Connect an account",
@@ -9630,7 +9632,11 @@
               "kw": {
                 "cursor": "cursor"
               }
-            }
+            },
+            "nanUsageTitle": "NaN Usage",
+            "nanUsageDescription": "Show NaN Builders subscription usage for Gentle Shell in the status bar.",
+            "nan": "nan",
+            "gentleShell": "gentle shell"
           }
         },
         "auto": {
@@ -19166,6 +19172,12 @@
       "plan": "Plan",
       "planNone": "No plan reported",
       "planNoneInProgress": "No item in progress",
+      "planDocument": "Plan document",
+      "planDocumentAwaiting": "Awaiting your approval",
+      "planDocumentLoading": "Loading…",
+      "planDocumentRefused": "This plan document is no longer available.",
+      "planDocumentUnavailable": "Could not load the plan document.",
+      "planDocumentUnsupported": "This host does not support viewing plan documents.",
       "planProgress": "{{completed}} of {{total}}",
       "project": "Project",
       "runningCount": "{{count}} running",

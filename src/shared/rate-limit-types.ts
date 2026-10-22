@@ -85,6 +85,7 @@ export type ProviderRateLimits = {
     | 'antigravity'
     | 'cursor'
     | 'zcode'
+    | 'nan'
   /** 5-hour session window, null if not available. */
   session: RateLimitWindow | null
   /** 7-day weekly window, null if not available. */
@@ -169,6 +170,8 @@ export type RateLimitState = {
   grok: ProviderRateLimits | null
   cursor: ProviderRateLimits | null
   zcode: ProviderRateLimits | null
+  /** Absent when the host predates the NaN meter (mixed-version paired hosts). */
+  nan?: ProviderRateLimits | null
   /**
    * True when a MiniMax session cookie is persisted on disk. The cookie lives
    * outside GlobalSettings, so this flag is the durable signal that the
@@ -204,6 +207,11 @@ export type RateLimitState = {
    * keep the ZCode bar visible across reloads between snapshot refreshes.
    */
   zcodePlanApiKeyConfigured?: boolean
+  /**
+   * True when main finds the NaN gateway key Gentle Shell uses (its stored
+   * credential or NAN_API_KEY). The key never leaves main.
+   */
+  nanGatewayKeyConfigured?: boolean
   claudeTarget: RateLimitRuntimeTarget
   codexTarget: RateLimitRuntimeTarget
   inactiveClaudeAccounts: InactiveAccountUsage[]

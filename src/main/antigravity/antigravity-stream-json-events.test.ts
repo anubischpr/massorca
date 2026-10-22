@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { AntigravityStreamEventProjector } from './antigravity-stream-json-events'
 import type { AntigravityStreamTransportEvent } from './antigravity-stream-json-transport'
@@ -240,6 +243,54 @@ describe('Antigravity stream-json event projection', () => {
       })
     )
     expect(closed.some((event) => event.type === 'request.open')).toBe(false)
+  })
+
+  it('carries the artifact sidecar on a completed write_file close, never on the open', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'agy-plan-'))
+    try {
+      const path = join(dir, 'plan.md')
+      writeFileSync(
+        `${path}.metadata.json`,
+        JSON.stringify({ summary: 'S', requestFeedback: true, userFacing: true })
+      )
+      const events = projector()
+      events.apply(input())
+      const step = (state: 'ACTIVE' | 'DONE') => ({
+        type: 'step_update' as const,
+        clientMessageId: 'send-1',
+        requestedAt: 100,
+        step: {
+          conversation_id: 'conv-1',
+          step_index: 1,
+          state,
+          step_type: 'tool' as const,
+          tool_name: 'write_file',
+          tool_info: { name: 'write_file', parameters: { Path: path } }
+        }
+      })
+      const opened = events.apply(step('ACTIVE'))
+      expect(opened).toContainEqual(
+        expect.objectContaining({
+          type: 'item.open',
+          body: expect.objectContaining({ input: { Path: path } })
+        })
+      )
+      expect(JSON.stringify(opened)).not.toContain('antigravityArtifact')
+      const closed = events.apply(step('DONE'))
+      expect(closed).toContainEqual(
+        expect.objectContaining({
+          type: 'item.close',
+          body: expect.objectContaining({
+            input: {
+              Path: path,
+              antigravityArtifact: { userFacing: true, requestFeedback: true, summary: 'S' }
+            }
+          })
+        })
+      )
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 
   it('shows a tool result on the tool row, text as is and structured values as JSON', () => {

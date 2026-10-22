@@ -11,6 +11,8 @@ describe('getUsageProviderAccountsSectionId', () => {
     expect(getUsageProviderAccountsSectionId('grok')).toBe('accounts-grok')
     expect(getUsageProviderAccountsSectionId('cursor')).toBe('accounts-cursor')
     expect(getUsageProviderAccountsSectionId('zcode')).toBe('accounts-zcode')
+    // Why: Gentle Shell owns the NaN key, so Orca has no accounts section to open.
+    expect(getUsageProviderAccountsSectionId('nan')).toBeNull()
   })
 
   it('does not invent an Accounts section for CLI-owned credentials', () => {

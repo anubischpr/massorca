@@ -19,6 +19,8 @@ export type UsageProviderSettings = Pick<
   // Why: the GLM Coding Plan key lives in its own safeStorage file; main
   // reports presence so the ZCode bar survives reloads before the first poll.
   zcodePlanApiKeyConfigured: boolean
+  // Why: Gentle Shell's NaN key lives in its own auth file, invisible to the renderer; main reports presence. Optional for hosts that predate the meter.
+  nanGatewayKeyConfigured?: boolean
   // Why: the OpenCode Go key can live in OPENCODE_API_KEY or in OpenCode's own
   // store, neither of which the renderer can see; main reports presence.
   opencodeGoApiKeyConfigured: boolean
@@ -37,6 +39,7 @@ type UsageProviderSnapshots = {
   grok: ProviderRateLimits | null | undefined
   cursor: ProviderRateLimits | null | undefined
   zcode?: ProviderRateLimits | null
+  nan?: ProviderRateLimits | null
 }
 
 type UsageProviderId = ProviderRateLimits['provider']
@@ -89,7 +92,8 @@ export function hasUsageProviderSettings(
     settings?.minimaxApiKeyConfigured === true ||
     settings?.grokAuthConfigured === true ||
     settings?.cursorAuthConfigured === true ||
-    settings?.zcodePlanApiKeyConfigured === true
+    settings?.zcodePlanApiKeyConfigured === true ||
+    settings?.nanGatewayKeyConfigured === true
   )
 }
 
@@ -132,6 +136,9 @@ export function hasUsageProviderSettingsForProvider(
   if (providerId === 'zcode') {
     return settings.zcodePlanApiKeyConfigured === true
   }
+  if (providerId === 'nan') {
+    return settings.nanGatewayKeyConfigured === true
+  }
   return false
 }
 
@@ -143,7 +150,10 @@ function createPendingProviderSnapshot(providerId: UsageProviderId): ProviderRat
     ...(providerId === 'opencode-go' ? { monthly: null } : {}),
     // Why antigravity joins these: it reports one pool per model group, so its pending skeleton
     // has to be bucket-shaped too or the segment changes shape once the first reading lands.
-    ...(providerId === 'gemini' || providerId === 'cursor' || providerId === 'antigravity'
+    ...(providerId === 'gemini' ||
+    providerId === 'cursor' ||
+    providerId === 'antigravity' ||
+    providerId === 'nan'
       ? { buckets: [] }
       : {}),
     updatedAt: 0,
@@ -191,7 +201,8 @@ export function isUsageEmptyState(
     isProviderSnapshotPending(providers.minimax) ||
     isProviderSnapshotPending(providers.grok) ||
     isProviderSnapshotPending(providers.cursor) ||
-    (providers.zcode !== undefined && isProviderSnapshotPending(providers.zcode))
+    (providers.zcode !== undefined && isProviderSnapshotPending(providers.zcode)) ||
+    (providers.nan !== undefined && isProviderSnapshotPending(providers.nan))
   ) {
     return false
   }
@@ -206,6 +217,7 @@ export function isUsageEmptyState(
     !isProviderConfigured(providers.minimax) &&
     !isProviderConfigured(providers.grok) &&
     !isProviderConfigured(providers.cursor) &&
-    !isProviderConfigured(providers.zcode)
+    !isProviderConfigured(providers.zcode) &&
+    !isProviderConfigured(providers.nan)
   )
 }

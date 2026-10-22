@@ -118,6 +118,14 @@ export const STRUCTURED_CALLS: {
     hostMethod: null,
     result: { ok: false, error: 'session_not_found' }
   },
+  // One Antigravity plan-mode document, read on the host that owns the chat. A bare addition like
+  // the visual read: an older host answers `method_not_found`, which the client shows as "not
+  // supported by this host". The stub host holds no record, so the typed refusal is the answer.
+  {
+    method: 'agentSession.readPlanDocument',
+    hostMethod: null,
+    result: { ok: false, error: 'session_not_found' }
+  },
   // A no-op on a host that starts an agent only for work; it still builds the host.
   { method: 'agentSession.hold', hostMethod: null, result: { held: true } },
   // The restart-resume surface. Bare additions, not capability-negotiated: an RPC method's

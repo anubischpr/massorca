@@ -141,6 +141,7 @@ export abstract class RateLimitServiceConfiguration extends RateLimitServiceAcco
       minimaxCookieConfigured: hasMiniMaxSessionCookie(),
       minimaxApiKeyConfigured: hasMiniMaxApiKey(),
       zcodePlanApiKeyConfigured: hasZcodePlanApiKey(),
+      nanGatewayKeyConfigured: this.nanGatewayKeyConfigured,
       opencodeGoApiKeyConfigured: this.openCodeGoApiKeyConfigured,
       grokAuthConfigured: this.grokAuthConfigured,
       cursorAuthConfigured: this.cursorAuthConfigured,

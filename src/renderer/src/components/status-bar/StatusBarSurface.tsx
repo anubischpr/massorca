@@ -78,6 +78,7 @@ export function StatusBarSurface({
     overflowing,
     petEnabled,
     rosterProviders,
+    usageHostLabel,
     segmentsIconOnly,
     segmentsRef,
     setMenuOpen,
@@ -184,6 +185,7 @@ export function StatusBarSurface({
                 >
                   <UsageRosterPanel
                     providers={rosterProviders}
+                    sourceLabel={usageHostLabel}
                     display={usagePercentageDisplay}
                     statusBarUsageMode={statusBarUsageMode}
                     onStatusBarUsageModeChange={setStatusBarUsageMode}

@@ -34,6 +34,10 @@ vi.mock('./kimi-fetcher', () => ({
 vi.mock('./cursor-fetcher', () => ({ fetchCursorRateLimits: vi.fn() }))
 vi.mock('./cursor-auth', () => ({ readCursorAuthSession: vi.fn() }))
 vi.mock('./zcode-usage-fetcher', () => ({ fetchZcodeRateLimits: vi.fn() }))
+// Why: keep the NaN meter offline; a real Gentle Shell key on the dev machine must not reach the network.
+vi.mock('./nan-gateway-credentials', () => ({
+  readNanGatewayCredential: vi.fn(async () => ({ status: 'missing' }))
+}))
 vi.mock('./antigravity-usage-fetcher', () => ({ fetchAntigravityRateLimits: vi.fn() }))
 
 vi.mock('./opencode-go-usage-source-selection', () => ({

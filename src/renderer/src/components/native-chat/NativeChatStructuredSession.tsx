@@ -68,7 +68,6 @@ export function NativeChatStructuredSession(
   const ownerWorktreeId = useNativeChatTabOwnerWorktreeId(props.tabId)
   const fileLinkContext = useNativeChatFileLinkContext(props.tabId)
   const provisionalLaunch = useNativeChatProvisionalLaunch(ownerWorktreeId, props.sessionId)
-  const { sendThroughLaunch } = provisionalLaunch
   // The host's own word on whether the provider child has answered startup yet.
   const hostExecution = useStructuredAgentSessionHostExecution(props.sessionId, props.target)
   const paneKey = useMemo(
@@ -213,7 +212,7 @@ export function NativeChatStructuredSession(
   const structuredTransport = useNativeChatStructuredComposerTransport({
     props,
     controller,
-    sendThroughLaunch,
+    sendThroughLaunch: provisionalLaunch.sendThroughLaunch,
     starting: provisionalLaunch.starting,
     worktreeId: ownerWorktreeId ?? undefined,
     optionPickerRequest,
@@ -222,7 +221,6 @@ export function NativeChatStructuredSession(
     onSubmitted: revealLatest,
     queuedMessages: submits.queuedMessages
   })
-
   // Said once: on the pane when the failure took it, else in the composer's notices.
   const sessionError =
     viewState.kind === 'error' || !readFailure ? controller.error : readFailure.text
@@ -319,6 +317,7 @@ export function NativeChatStructuredSession(
         <NativeChatSessionSummary
           key={props.sessionId}
           target={props.target}
+          sessionId={props.sessionId}
           fileContext={fileLinkContext}
           connectorSnapshot={controller.connectors}
           contextSummary={controller.contextSummary}

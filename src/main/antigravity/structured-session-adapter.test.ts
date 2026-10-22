@@ -1,3 +1,6 @@
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
 import {
   openProviderTimelineRig,
@@ -5,6 +8,7 @@ import {
 } from '../native-chat/agent-session-timeline/provider-timeline-assembler-test-support'
 import { AgentSessionOptionRejectedError } from '../native-chat/agent-session-wire/structured-agent-session-option-error'
 import {
+  AgentSessionAcquisitionExitUnprovenError,
   AgentSessionPreSpawnError,
   type StructuredAgentSessionAcquireInput
 } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
@@ -21,7 +25,10 @@ afterEach(async () => {
 })
 type ProcesslessTiming = 'before-cleanup' | 'after-cleanup-start'
 
-async function createHarness(processlessTiming?: ProcesslessTiming) {
+async function createHarness(
+  processlessTiming?: ProcesslessTiming,
+  launchEnv?: Record<string, string>
+) {
   const rig = await openProviderTimelineRig({ agent: 'antigravity', sessionId: 'session-timeline' })
   const processes: ReturnType<typeof antigravityTestProcess>[] = []
   const settled = vi.fn(),
@@ -40,7 +47,12 @@ async function createHarness(processlessTiming?: ProcesslessTiming) {
     events: rig.eventSink,
     options: { model: 'model-id', effort: 'high' }
   }
-  const resolveLaunch = vi.fn(async () => ({ command: 'agy', args: [], previous: null }))
+  const resolveLaunch = vi.fn(async () => ({
+    command: 'agy',
+    args: [],
+    previous: null,
+    ...(launchEnv ? { env: launchEnv } : {})
+  }))
   const adapter = new AntigravityStructuredSessionAdapter({
     resolveLaunch,
     readProcessStartTime: async () => 100,
@@ -274,6 +286,43 @@ it('refuses an effort agy does not launch with and an unknown option, leaving th
       current: { model: 'model-id', effort: 'high' }
     }
   )
+})
+
+it('publishes the MCP servers agy configures under the launch home with its options', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'agy-adapter-home-'))
+  cleanups.push(() => rm(home, { recursive: true, force: true }))
+  await mkdir(join(home, '.gemini', 'config'), { recursive: true })
+  await writeFile(
+    join(home, '.gemini', 'config', 'mcp_config.json'),
+    JSON.stringify({ mcpServers: { codegraph: { command: 'codegraph', disabled: false } } })
+  )
+  const h = await createHarness(undefined, { HOME: home })
+  await h.adapter.acquire(h.input)
+  await expect(h.adapter.readOptions({ sessionId: 'session-timeline', fence: 7 })).resolves.toEqual(
+    {
+      models: [],
+      current: { model: 'model-id', effort: 'high' },
+      connectors: {
+        observedAt: expect.any(Number),
+        servers: [{ name: 'codegraph', status: 'unknown', configured: true }]
+      }
+    }
+  )
+})
+
+it('starts a new child once the previous child exit is observed, without the host acknowledging it', async () => {
+  const h = await setup()
+  h.processes[0].exit()
+  await expect(h.adapter.acquire(h.input)).resolves.toBeDefined()
+  expect(h.processes).toHaveLength(2)
+})
+
+it('refuses a new child while the previous one still runs, as an unproven exit', async () => {
+  const h = await setup()
+  await expect(h.adapter.acquire(h.input)).rejects.toBeInstanceOf(
+    AgentSessionAcquisitionExitUnprovenError
+  )
+  expect(h.processes).toHaveLength(1)
 })
 
 it('takes access picks at the next start and reads the catalog only for a live child', async () => {

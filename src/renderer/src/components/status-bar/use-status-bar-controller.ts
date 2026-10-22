@@ -11,12 +11,17 @@ import { getUsageProviderAccountsSectionId } from './usage-provider-settings-tar
 import { useStatusBarMenuFocusHandoff } from './ProviderDetailsMenu'
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/close-all-context-menus'
 import { useStatusBarDensity } from './status-bar-density'
+import { useEffectiveRateLimits } from './use-effective-rate-limits'
 
 export function useStatusBarController(floatingTerminalOpen: boolean) {
   const floatingTerminalShortcut = useShortcutLabel('floatingTerminal.toggle')
-  const rateLimits = useAppStore((s) => s.rateLimits)
   const settings = useAppStore((s) => s.settings)
-  const refreshRateLimits = useAppStore((s) => s.refreshRateLimits)
+  const {
+    rateLimits,
+    source: usageSource,
+    hostLabel: usageHostLabel,
+    refresh: refreshRateLimits
+  } = useEffectiveRateLimits(settings)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const usagePercentageDisplay = normalizeUsagePercentageDisplay(
@@ -35,7 +40,9 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   const floatingTerminalTriggerLocation =
     settings?.floatingTerminalTriggerLocation ?? 'floating-button'
   // Why: gate per-CLI bars on PATH detection so an uninstalled agent isn't shown a noisy empty bar (auto re-shows when installed).
-  const detectedAgentIds = useAppStore((s) => s.detectedAgentIds)
+  const localDetectedAgentIds = useAppStore((s) => s.detectedAgentIds)
+  // Why: PATH detection describes this desktop; a host snapshot already reports its own unavailable providers.
+  const detectedAgentIds = usageSource === 'host' ? null : localDetectedAgentIds
   const ensureDetectedAgents = useAppStore((s) => s.ensureDetectedAgents)
   // Why: pet segment is driven purely by experimentalPet, not statusBarItems, to avoid double-toggling the surface (see design doc).
   const petEnabled = useAppStore((s) => s.settings?.experimentalPet === true)
@@ -92,8 +99,19 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     return null
   }
 
-  const { claude, codex, gemini, opencodeGo, kimi, antigravity, minimax, grok, cursor, zcode } =
-    rateLimits
+  const {
+    claude,
+    codex,
+    gemini,
+    opencodeGo,
+    kimi,
+    antigravity,
+    minimax,
+    grok,
+    cursor,
+    zcode,
+    nan
+  } = rateLimits
 
   // Why: a bar is earned by a live snapshot or durable Settings setup; detection-gating hides per-CLI bars when the agent isn't on PATH.
   // Why: Antigravity has no persisted credential, so a checked status item + detected CLI is the durable "show its slot" signal.
@@ -103,13 +121,23 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   // Why: thread non-GlobalSettings durability flags so bars stay visible across reloads and snapshot refreshes.
   const usageSettings = {
     ...settings,
+    // Why: desktop-managed accounts and credentials say nothing about the host's providers.
+    ...(usageSource === 'host'
+      ? {
+          claudeManagedAccounts: [],
+          codexManagedAccounts: [],
+          opencodeSessionCookie: '',
+          geminiCliOAuthEnabled: false
+        }
+      : {}),
     antigravityUsageConfigured,
     minimaxCookieConfigured: rateLimits.minimaxCookieConfigured,
     minimaxApiKeyConfigured: rateLimits.minimaxApiKeyConfigured,
     opencodeGoApiKeyConfigured: rateLimits.opencodeGoApiKeyConfigured,
     grokAuthConfigured: rateLimits.grokAuthConfigured,
     cursorAuthConfigured: rateLimits.cursorAuthConfigured,
-    zcodePlanApiKeyConfigured: rateLimits.zcodePlanApiKeyConfigured
+    zcodePlanApiKeyConfigured: rateLimits.zcodePlanApiKeyConfigured,
+    nanGatewayKeyConfigured: rateLimits.nanGatewayKeyConfigured
   }
   const visibleClaude = getVisibleUsageProvider('claude', claude, usageSettings)
   const visibleCodex = getVisibleUsageProvider('codex', codex, usageSettings)
@@ -120,6 +148,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
   const visibleGrok = getVisibleUsageProvider('grok', grok, usageSettings)
   const visibleCursor = getVisibleUsageProvider('cursor', cursor, usageSettings)
   const visibleZcode = getVisibleUsageProvider('zcode', zcode, usageSettings)
+  const visibleNan = getVisibleUsageProvider('nan', nan, usageSettings)
   const showClaude =
     visibleClaude !== null &&
     statusBarItems.includes('claude') &&
@@ -155,6 +184,8 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     visibleZcode !== null &&
     statusBarItems.includes('zcode') &&
     (rateLimits.zcodePlanApiKeyConfigured || isStatusBarItemAvailable('zcode', detectedAgentIds))
+  // Why: the NaN gateway key is account auth, not a CLI on PATH, so detection-gating doesn't apply.
+  const showNan = visibleNan !== null && statusBarItems.includes('nan')
   // Why: OpenCode Go is web/cookie-auth, not a CLI on PATH, so detection-gating doesn't apply.
   const visibleOpencodeGo = getVisibleUsageProvider('opencode-go', opencodeGo, usageSettings)
   const showOpencodeGo = visibleOpencodeGo !== null && statusBarItems.includes('opencode-go')
@@ -174,11 +205,12 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     showMiniMax ||
     showGrok ||
     showCursor ||
-    showZcode
+    showZcode ||
+    showNan
   const anyVisible = hasVisibleUsageMeters || showResourceUsage
   // Why: include Settings so durable managed accounts count — a configured user isn't shown the empty state while snapshots hydrate.
   const isEmptyUsageState = isUsageEmptyState(
-    { claude, codex, gemini, opencodeGo, kimi, antigravity, minimax, grok, cursor, zcode },
+    { claude, codex, gemini, opencodeGo, kimi, antigravity, minimax, grok, cursor, zcode, nan },
     usageSettings
   )
   // Why: one-time nudge — once dismissed, stays hidden even if providers reconnect later.
@@ -193,7 +225,8 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     minimax?.status === 'fetching' ||
     grok?.status === 'fetching' ||
     cursor?.status === 'fetching' ||
-    zcode?.status === 'fetching'
+    zcode?.status === 'fetching' ||
+    nan?.status === 'fetching'
 
   const floatingTerminalActionLabel = floatingTerminalOpen
     ? 'Minimize Floating Workspace'
@@ -212,7 +245,8 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     showMiniMax ? visibleMiniMax : null,
     showGrok ? visibleGrok : null,
     showCursor ? visibleCursor : null,
-    showZcode ? visibleZcode : null
+    showZcode ? visibleZcode : null,
+    showNan ? visibleNan : null
   ].filter((p): p is ProviderRateLimits => p !== null)
 
   const handleManageAccounts = (): void => {
@@ -262,6 +296,8 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     isRefreshing,
     menuOpen,
     menuPoint,
+    // Why: the toggle only means something once Gentle Shell has a NaN key on this host.
+    nanUsageAvailable: visibleNan !== null,
     overflowing,
     petEnabled,
     recordFeatureInteraction,
@@ -281,6 +317,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     statusBarUsageMode,
     toggleStatusBarItem,
     usageMenuFocusHandoff,
+    usageHostLabel,
     usageMenuOpen,
     usagePercentageDisplay,
     usageRef,

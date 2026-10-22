@@ -272,8 +272,12 @@ export class StructuredAgentSessionAdapterRouter implements StructuredAgentSessi
     return this.closePromise
   }
 
-  /** Drops a per-session stop receipt after the host releases its durable owner. */
+  /** The host released its durable owner: each adapter drops what it kept for the session's child
+   *  (an adapter that still holds it refuses the next start), then the route's stop receipt goes. */
   acknowledgeSessionRelease = (sessionId: string): void => {
+    for (const adapter of this.adapters()) {
+      adapter.acknowledgeSessionRelease?.(sessionId)
+    }
     this.routes.delete(sessionId)
   }
 

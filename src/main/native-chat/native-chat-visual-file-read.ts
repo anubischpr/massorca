@@ -159,12 +159,23 @@ export function nativeChatVisualRevision(buffer: Buffer): string {
   return createHash('sha256').update(buffer).digest('hex').slice(0, REVISION_HEX_LENGTH)
 }
 
+export type ContainedTextFileLimits = {
+  maxBytes: number
+  isAllowedName: (file: string) => boolean
+}
+
+const VISUAL_LIMITS: ContainedTextFileLimits = {
+  maxBytes: NATIVE_CHAT_VISUAL_MAX_BYTES,
+  isAllowedName: isNativeChatVisualFileName
+}
+
 async function readContained(
   folder: string,
   file: string,
-  knownRevision: string | undefined
+  knownRevision: string | undefined,
+  limits: ContainedTextFileLimits
 ): Promise<AgentSessionReadVisualResult> {
-  if (!isNativeChatVisualFileName(file)) {
+  if (!limits.isAllowedName(file)) {
     refuse('outside_folder')
   }
   const folderReal = await canonicalFolder(folder)
@@ -178,13 +189,13 @@ async function readContained(
     if (!stats.isFile()) {
       refuse('not_a_file')
     }
-    if (stats.size > NATIVE_CHAT_VISUAL_MAX_BYTES) {
+    if (stats.size > limits.maxBytes) {
       refuse('too_large')
     }
     await assertStillContained(folder, candidate, folderReal, file, stats)
     let buffer: Buffer
     try {
-      buffer = await readLocalFileBounded(handle, NATIVE_CHAT_VISUAL_MAX_BYTES, stats.size)
+      buffer = await readLocalFileBounded(handle, limits.maxBytes, stats.size)
     } catch (error) {
       if (error instanceof Error && error.message.startsWith('File too large')) {
         refuse('too_large')
@@ -212,8 +223,18 @@ export async function readNativeChatVisualFile(
   file: string,
   knownRevision?: string
 ): Promise<AgentSessionReadVisualResult> {
+  return readNativeChatContainedTextFile(folder, file, knownRevision, VISUAL_LIMITS)
+}
+
+/** The same boundary for another folder's file, with that caller's own name rule and byte cap. */
+export async function readNativeChatContainedTextFile(
+  folder: string,
+  file: string,
+  knownRevision: string | undefined,
+  limits: ContainedTextFileLimits
+): Promise<AgentSessionReadVisualResult> {
   try {
-    return await readContained(folder, file, knownRevision)
+    return await readContained(folder, file, knownRevision, limits)
   } catch (error) {
     if (error instanceof VisualReadRefusal) {
       return { ok: false, error: error.refusal }

@@ -20,8 +20,10 @@ export function getUsageProviderAccountsSectionId(
       return 'accounts-cursor'
     case 'antigravity':
     case 'kimi':
+    case 'nan':
       // Why: Orca must not mutate Kimi's CLI-owned credential lifecycle.
       // Antigravity credentials live in the agy CLI; quota is fetched directly via agy.
+      // NaN's key belongs to Gentle Shell, so Orca has no settings section for it.
       return null
     case 'zcode':
       return 'accounts-zcode'

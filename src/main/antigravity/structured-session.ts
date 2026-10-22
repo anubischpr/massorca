@@ -1,3 +1,4 @@
+import { isAbsolute } from 'node:path'
 import type {
   StructuredAgentSessionAcquireInput,
   StructuredAgentSessionLifecycleEvent,
@@ -39,6 +40,8 @@ export class AntigravityStructuredSession {
   readonly pending = new Set<string>()
   /** Model and effort picks made since launch; each takes effect at the child's next start. */
   readonly picks = new Map<AntigravityLaunchOptionKey, string>()
+  /** The child's home, where agy reads its MCP configuration; undefined when the launch names none. */
+  readonly configHome: string | undefined
   private readonly unacknowledged = new Set<string>()
   private readonly echoed = new Set<string>()
   private readonly requestedAt = new Map<string, number>()
@@ -53,6 +56,8 @@ export class AntigravityStructuredSession {
     launch: ProviderProcessLaunch,
     private readonly deps: AntigravitySessionDeps
   ) {
+    const home = launch.env?.HOME ?? launch.env?.USERPROFILE
+    this.configHome = home && isAbsolute(home) ? home : undefined
     const sink = input.events && providerTimelineSink(input.events)
     if (!sink) {
       throw new Error('Antigravity structured chat requires the shared timeline sink')

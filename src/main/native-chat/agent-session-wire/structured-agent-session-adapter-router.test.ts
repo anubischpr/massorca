@@ -63,6 +63,20 @@ describe('StructuredAgentSessionAdapterRouter.releaseAcquisition', () => {
   })
 })
 
+describe('StructuredAgentSessionAdapterRouter.acknowledgeSessionRelease', () => {
+  it('forwards the host release to every adapter, so the owner drops the child it kept', async () => {
+    const claude = { ...adapterOf(vi.fn(async () => false)), acknowledgeSessionRelease: vi.fn() }
+    const codex = { ...adapterOf(vi.fn(async () => false)), acknowledgeSessionRelease: vi.fn() }
+    const router = claudeAndCodexRouter({ claude, codex }, async () => {})
+    await router.acquire({ identity: claudeIdentity('session-1'), fence: 1, spawnToken: 'spawn-1' })
+
+    router.acknowledgeSessionRelease('session-1')
+
+    expect(claude.acknowledgeSessionRelease).toHaveBeenCalledWith('session-1')
+    expect(codex.acknowledgeSessionRelease).toHaveBeenCalledWith('session-1')
+  })
+})
+
 describe('StructuredAgentSessionAdapterRouter.readAcquisitionOptions', () => {
   it('keeps the existing live read for providers without acquisition options', async () => {
     const claude = adapterOf(vi.fn(async () => true))
