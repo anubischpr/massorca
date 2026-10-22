@@ -1,4 +1,4 @@
-import { BrowserWindow, Menu, app } from 'electron'
+import { BrowserWindow, Menu } from 'electron'
 import {
   formatKeybindingList,
   getEffectiveKeybindingsForAction,
@@ -6,8 +6,10 @@ import {
   type KeybindingOverrides
 } from '../../shared/keybindings'
 import type { UpdateCheckOptions } from '../../shared/update-status-types'
+import { PRODUCT_DISPLAY_NAME } from '../../shared/product-identity'
 import { translateMain } from '../i18n/main-i18n'
 import { createAppMenuSelectionItem } from './app-menu-selection-item'
+import { createAboutAppMenuItem, createHideAppMenuItem } from './app-menu-identity-items'
 import { createAppMenuQuitItem } from './app-menu-quit-item'
 import { createAppWindowMenu } from './app-menu-window'
 
@@ -150,19 +152,19 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
   // redundant "Orca" entry with roles that don't apply, so we omit it there
   // and distribute its items across File / Help instead.
   const macAppMenu: Electron.MenuItemConstructorOptions = {
-    label: options.appMenuLabel ?? app.name,
+    label: options.appMenuLabel ?? PRODUCT_DISPLAY_NAME,
     submenu: [
-      { role: 'about' },
+      createAboutAppMenuItem(),
       checkForUpdatesItem,
       settingsItem,
       { type: 'separator' },
       { role: 'services' },
       { type: 'separator' },
-      { role: 'hide' },
+      createHideAppMenuItem(),
       { role: 'hideOthers' },
       { role: 'unhide' },
       { type: 'separator' },
-      createAppMenuQuitItem(options.onQuit, options.appMenuLabel ?? app.name)
+      createAppMenuQuitItem(options.onQuit, options.appMenuLabel ?? PRODUCT_DISPLAY_NAME)
     ]
   }
 
@@ -330,7 +332,7 @@ function buildAndApplyMenu(options: RegisterAppMenuOptions): void {
         ? []
         : ([
             { type: 'separator' },
-            { role: 'about' },
+            createAboutAppMenuItem(),
             checkForUpdatesItem
           ] satisfies Electron.MenuItemConstructorOptions[]))
     ]

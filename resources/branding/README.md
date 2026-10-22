@@ -26,5 +26,6 @@ The script rasterizes the SVG paths itself and writes with the repo's `pngjs` de
 
 - `mobile/assets/icon.png` must stay opaque: iOS app icons cannot carry an alpha channel, so it is written as RGB. Its #111111 background matches the splash background.
 - Android adaptive background is `#00000000` (transparent). Launchers draw the rose over the wallpaper with no shape mask, because the rose is the whole icon. Set `android.adaptiveIcon.backgroundColor` back to a solid color if a masked tile is wanted.
-- Desktop changes are icon files only. `productName`, `appId`, the executable name, and userData paths are unchanged.
+- Desktop display name is MassOrca: `productName`, window titles, menu labels, the About panel, shortcuts, the installer caption and the Linux desktop entry. Install identity is unchanged, so an installed Orca upgrades in place: `appId` (and so the NSIS registry key), the Windows install folder and `Orca.exe` (`win.executableName`), the macOS bundle `Orca.app` with `CFBundleName` kept as `Orca` for the Keychain item, the Linux `orca-ide` binary and packages, the `orca://` scheme, and the production profile `<appData>/orca`, which `configure-process.ts` pins explicitly.
+- Release artifact file names (`orca-windows-setup.exe`, `orca-linux.AppImage`, `orca-macos-*.dmg`) are unchanged. The in-app updater and the release workflows match them by name.
 - `resources/icon-source/generate.sh` (macOS Icon Composer) still produces the previous logo. Do not run it for these assets, or it will overwrite the rose.

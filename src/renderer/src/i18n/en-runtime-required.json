@@ -3177,6 +3177,8 @@
     }
   },
   "menu": {
+    "aboutApp": "About {{appName}}",
+    "hideApp": "Hide {{appName}}",
     "quitApp": "Quit {{appName}}"
   },
   "runtimeRpc": {

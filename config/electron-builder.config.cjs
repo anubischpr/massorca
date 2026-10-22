@@ -198,8 +198,10 @@ const extraMetadata = {
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
   appId,
-  productName: 'Orca',
-  protocols: [{ name: 'Orca', schemes: ['orca'] }],
+  // Why: the display name. appId, the executable names and the userData directory stay as they were,
+  // so an installed Orca upgrades in place (see main/startup/configure-process.ts for the profile pin).
+  productName: 'MassOrca',
+  protocols: [{ name: 'MassOrca', schemes: ['orca'] }],
   toolsets: { appimage: '1.0.3' },
   extraMetadata: Object.keys(extraMetadata).length ? extraMetadata : undefined,
   directories: {
@@ -531,6 +533,9 @@ module.exports = {
     include: resolve(__dirname, 'nsis', 'orca-installer-hooks.nsh')
   },
   mac: {
+    // Why: keeps Orca.app as the bundle and binary name, so existing installs and the CLI launcher
+    // keep finding it. The display name is set via CFBundleDisplayName below.
+    executableName: 'Orca',
     // Why rank Alternate: Orca joins Finder's "Open With" list without claiming
     // LSHandlerRank ownership, so whichever editor the user already prefers stays the default.
     // Why one entry per extension: app-builder-lib globs `*.${ext}`, which an array would break.
@@ -555,6 +560,10 @@ module.exports = {
     entitlementsInherit: 'resources/build/entitlements.mac.plist',
     signIgnore: [...bundledRipgrepMacSignIgnore, ...orcadTemplateMacSignIgnore],
     extendInfo: {
+      // Why: macOS derives the safeStorage Keychain item name from CFBundleName, which electron-builder
+      // would otherwise set to productName. Keeping 'Orca' here keeps the stored secrets reachable.
+      CFBundleName: 'Orca',
+      CFBundleDisplayName: 'MassOrca',
       NSAppleEventsUsageDescription:
         'Orca allows terminal-launched developer tools to automate local apps when you request it.',
       NSBluetoothAlwaysUsageDescription:
