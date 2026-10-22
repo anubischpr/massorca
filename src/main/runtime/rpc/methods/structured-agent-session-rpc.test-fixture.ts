@@ -156,6 +156,7 @@ export function hostStub(): StructuredAgentSessionHost {
       }
     })),
     rewind: vi.fn(async () => ({ ok: true, value: { itemId: 'chosen', epoch: 'next' } })),
+    mutations: { runProviderCommand: vi.fn(async () => ({ ok: true, replayed: false })) },
     send: vi.fn(async () => ({
       ok: true,
       replayed: false,

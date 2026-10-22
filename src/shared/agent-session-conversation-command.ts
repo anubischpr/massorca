@@ -1,8 +1,17 @@
 import type { AgentSessionFailureFact } from './agent-session-failure'
 import type { AgentSessionFailureSentence } from './agent-session-failure-words'
+import type { AgentSessionProviderCommand } from './agent-session-provider-command'
 import type { AgentSessionQueuedSendReceipt } from './agent-session-wire'
 
 export type AgentSessionConversationCommand = 'clear' | 'compact'
+
+/** The commands `agentSession.options` reports a session can run. */
+export type ConversationCommandSupport = {
+  conversationCommands?: readonly AgentSessionConversationCommand[]
+  /** The provider commands this session can run now; absent from a host that predates them, whose
+   *  client then offers none. */
+  providerCommands?: readonly AgentSessionProviderCommand[]
+}
 
 /** How long a client waits for a conversation command: the host may first start an agent at rest. */
 export const AGENT_SESSION_CONVERSATION_COMMAND_TIMEOUT_MS = 195_000

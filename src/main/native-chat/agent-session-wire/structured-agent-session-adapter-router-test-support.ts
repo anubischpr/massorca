@@ -60,6 +60,7 @@ export function claudeAndCodexDeclared(): StructuredAgentRegistry {
     ...NO_METHODS,
     compact: unused,
     changeThreadGoal: unused,
+    runProviderCommand: unused,
     rewind: unused,
     recoverRewind: unused
   })
@@ -77,14 +78,15 @@ function implementedBy(
   definition: StructuredAgentDefinition,
   adapter: StructuredAgentSessionAdapter
 ): StructuredAgentDefinition {
-  const declared = definition.capabilities
+  const { providerCommands, ...declared } = definition.capabilities
   return {
     ...definition,
     capabilities: {
       ...declared,
       compact: declared.compact && Boolean(adapter.compact),
       threadGoal: declared.threadGoal && Boolean(adapter.changeThreadGoal),
-      rewind: declared.rewind && Boolean(adapter.rewind && adapter.recoverRewind)
+      rewind: declared.rewind && Boolean(adapter.rewind && adapter.recoverRewind),
+      ...(providerCommands && adapter.runProviderCommand ? { providerCommands } : {})
     }
   }
 }

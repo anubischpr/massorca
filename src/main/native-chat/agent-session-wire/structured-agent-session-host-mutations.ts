@@ -21,6 +21,11 @@ import type {
 } from '../../../shared/agent-session-wire'
 import type { AgentSessionPromptRequest } from './structured-agent-session-turns-prompt'
 import { threadGoalPlan } from './structured-agent-session-thread-goal'
+import { providerCommandPlan } from './structured-agent-session-provider-command'
+import type {
+  AgentSessionProviderCommand,
+  AgentSessionProviderCommandResult
+} from '../../../shared/agent-session-provider-command'
 import {
   mutateStructuredAgentSession,
   type StructuredAgentSessionMutationContext
@@ -263,6 +268,39 @@ export function changeStructuredAgentSessionThreadGoal(
   )
 }
 
+export function runStructuredAgentSessionProviderCommand(
+  context: StructuredAgentSessionMutationContext,
+  caller: StructuredAgentSessionCaller,
+  params: {
+    envelope: AgentSessionMutationEnvelope
+    command: AgentSessionProviderCommand
+    argument?: string
+  }
+): Promise<AgentSessionMutationResult<AgentSessionProviderCommandResult>> {
+  const plan = providerCommandPlan(params)
+  return mutateStructuredAgentSession(
+    context,
+    caller,
+    params.envelope,
+    {
+      ...plan,
+      // A rename the provider accepted is the chat's title too: the record keeps it, the feed shows it.
+      run: async (ctx) => {
+        const outcome = await plan.run(ctx)
+        if (outcome.ok && outcome.value.conversationName) {
+          await context.deps.store.setConversationName(
+            params.envelope.sessionId,
+            outcome.value.conversationName
+          )
+          ctx.publish()
+        }
+        return outcome
+      }
+    },
+    openWithAgent(context, params.envelope)
+  )
+}
+
 /** The host's thin mutation surface. Each call re-reads the context, so a session
  *  map or fence that moves between calls is never captured by a stale closure. */
 export function structuredAgentSessionMutationDelegates(
@@ -285,6 +323,10 @@ export function structuredAgentSessionMutationDelegates(
       caller: StructuredAgentSessionCaller,
       params: Parameters<typeof changeStructuredAgentSessionThreadGoal>[2]
     ) => changeStructuredAgentSessionThreadGoal(context(), caller, params),
+    runProviderCommand: (
+      caller: StructuredAgentSessionCaller,
+      params: Parameters<typeof runStructuredAgentSessionProviderCommand>[2]
+    ) => runStructuredAgentSessionProviderCommand(context(), caller, params),
     readOptions: (sessionId: string) => readStructuredAgentSessionOptions(context(), sessionId)
   }
 }

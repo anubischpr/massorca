@@ -47,6 +47,7 @@ const GROK: StructuredAgentDefinition = {
     ...CODEX_STRUCTURED_AGENT.capabilities,
     rewind: false,
     compact: false,
+    providerCommands: [],
     threadGoal: false
   },
   restingOptions: {

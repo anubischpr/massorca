@@ -518,6 +518,7 @@ import {
   UnsubscribeParams
 } from './structured-agent-session-params'
 import { DismissPromptSuggestionParams } from './structured-agent-session-prompt-suggestion-params'
+import { ProviderCommandParams } from './structured-agent-session-provider-command-params'
 import { TerminalAdoptOrphans } from './terminal-orphan-params'
 import { TerminalQuickCommandsUpdate } from './terminal-quick-command-params'
 import {
@@ -625,6 +626,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'agentSession.hold': HoldParams,
   'agentSession.modelCatalog': ModelCatalogParams,
   'agentSession.options': OptionsParams,
+  'agentSession.providerCommand': ProviderCommandParams,
   'agentSession.queuedMessageDelete': QueuedMessageActionParams,
   'agentSession.queuedMessageSend': QueuedMessageActionParams,
   'agentSession.queuedMessagesResume': QueuedMessagesResumeParams,

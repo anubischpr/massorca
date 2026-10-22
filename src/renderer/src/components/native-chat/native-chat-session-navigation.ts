@@ -1,6 +1,9 @@
 import { translate } from '@/i18n/i18n'
 import type { SlashCommandSuggestion } from '../../../../shared/native-chat-slash-commands'
-import { sessionSlashCommandSuggestions } from '../../../../shared/native-chat-slash-commands'
+import {
+  getAgentSlashCommands,
+  sessionSlashCommandSuggestions
+} from '../../../../shared/native-chat-slash-commands'
 import {
   getAgentCliCommands,
   getHostClaimedNativeChatCommands
@@ -68,11 +71,47 @@ export function withNativeChatSessionCommands(
   ]
 }
 
+const PROVIDER_COMMAND_ARGUMENT_HINTS: Partial<Record<string, string>> = {
+  rename: '<name>',
+  name: '<name>',
+  review: '[instructions]',
+  memories: '[on|off]',
+  export: '[path]'
+}
+
+/** The rows for commands the host runs for this session, described as the agent's catalog does. */
+function providerCommandRows(
+  agent: AgentType,
+  transport: Pick<
+    NativeChatStructuredComposerTransport,
+    'providerCommands' | 'backgroundTasksReveal'
+  >
+): SlashCommandSuggestion[] {
+  const names = [
+    ...(transport.providerCommands ?? []),
+    ...(transport.backgroundTasksReveal ? ['ps'] : [])
+  ]
+  const catalog = getAgentSlashCommands(agent)
+  return names.map((name) => {
+    const hint = PROVIDER_COMMAND_ARGUMENT_HINTS[name]
+    const description = catalog.find((entry) => entry.name === name)?.description
+    return {
+      name,
+      ...(description ? { description } : {}),
+      ...(hint ? { argumentHint: hint } : {})
+    }
+  })
+}
+
 export function nativeChatStructuredCatalog(
   agent: AgentType,
   transport: Pick<
     NativeChatStructuredComposerTransport,
-    'sessionFunctions' | 'sessionCommands' | 'conversationCommands'
+    | 'sessionFunctions'
+    | 'sessionCommands'
+    | 'conversationCommands'
+    | 'providerCommands'
+    | 'backgroundTasksReveal'
   >
 ): readonly SlashCommandSuggestion[] {
   const { sessionFunctions, sessionCommands, conversationCommands } = transport
@@ -83,9 +122,17 @@ export function nativeChatStructuredCatalog(
         ? sessionSlashCommandSuggestions(agent, sessionCommands)
         : structuredSlashCommands(conversationCommands, agent)
   // A running session reports no CLI-owned commands (agy's `/grill-me`), so they join every report.
+  const extra = [...providerCommandRows(agent, transport), ...getAgentCliCommands(agent)]
   const listed = new Set(base.map((entry) => entry.name))
   return withNativeChatSessionCommands(
-    [...base, ...getAgentCliCommands(agent).filter((row) => !listed.has(row.name))],
+    [
+      ...base,
+      ...extra.filter((row) => {
+        const fresh = !listed.has(row.name)
+        listed.add(row.name)
+        return fresh
+      })
+    ],
     agent
   )
 }

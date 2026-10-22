@@ -51,7 +51,11 @@ describe('codex thread goal requests', () => {
   it('sends each request in order with the session deadline', async () => {
     const request = vi.fn(async () => ({ goal: null }))
     await expect(
-      changeCodexThreadGoal(session(request), { kind: 'set', objective: 'Ship it' }, true, 5_000)
+      changeCodexThreadGoal(
+        session(request),
+        { change: { kind: 'set', objective: 'Ship it' }, replacesGoal: true },
+        5_000
+      )
     ).resolves.toEqual({ ok: true })
     expect(request.mock.calls).toEqual([
       ['thread/goal/clear', { threadId: THREAD }, { timeoutMs: 5_000 }],
@@ -71,7 +75,11 @@ describe('codex thread goal requests', () => {
       return { goal: null }
     })
     await expect(
-      changeCodexThreadGoal(session(request), { kind: 'set', objective: 'Ship it' }, true, 5_000)
+      changeCodexThreadGoal(
+        session(request),
+        { change: { kind: 'set', objective: 'Ship it' }, replacesGoal: true },
+        5_000
+      )
     ).resolves.toEqual({ ok: false, rejected: 'goals are disabled' })
     expect(request).toHaveBeenCalledTimes(1)
   })
@@ -81,14 +89,18 @@ describe('codex thread goal requests', () => {
       throw new CodexAppServerRequestError('thread/goal/set', -32600, 'goals feature is disabled')
     })
     await expect(
-      changeCodexThreadGoal(refused, { kind: 'set', objective: 'Ship it' }, false, undefined)
+      changeCodexThreadGoal(
+        refused,
+        { change: { kind: 'set', objective: 'Ship it' }, replacesGoal: false },
+        undefined
+      )
     ).resolves.toEqual({ ok: false, rejected: 'goals feature is disabled' })
 
     const lost = session(async () => {
       throw new Error('codex app-server request timed out')
     })
-    await expect(changeCodexThreadGoal(lost, { kind: 'clear' }, false, undefined)).rejects.toThrow(
-      'timed out'
-    )
+    await expect(
+      changeCodexThreadGoal(lost, { change: { kind: 'clear' }, replacesGoal: false }, undefined)
+    ).rejects.toThrow('timed out')
   })
 })

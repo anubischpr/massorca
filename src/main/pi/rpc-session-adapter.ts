@@ -16,6 +16,7 @@ import {
 import { providerSpawnedProcessIdentity } from '../provider-process/provider-spawned-process-identity'
 import { ProviderAcquisitionStarts } from '../provider-process/provider-acquisition-starts'
 import { compactPiRpcSession } from './rpc-compaction'
+import { runPiProviderCommand } from './rpc-provider-commands'
 import { awaitPiRpcStopCheckpoint } from './rpc-stop-checkpoint'
 import { buildPiRpcLaunch } from './rpc-launch'
 import { piRpcProviderLink, type PiRpcResolvedLaunch } from './rpc-launch-resolution'
@@ -180,9 +181,9 @@ export class PiRpcSessionAdapter implements StructuredAgentSessionAdapter {
     await session.connection.request('abort', {}, { timeoutMs: 2_000 })
     return { cancelled: true, ...(turnId ? { turnId } : {}) }
   }
-  stopEndsSession(): boolean {
-    return true
-  }
+  stopEndsSession = (): boolean => true
+  runProviderCommand: NonNullable<StructuredAgentSessionAdapter['runProviderCommand']> = (input) =>
+    runPiProviderCommand(this.session(input.sessionId, input.fence), input)
   awaitStoppedRequestEnd: NonNullable<StructuredAgentSessionAdapter['awaitStoppedRequestEnd']> =
     async (id, at) => {
       const session = this.sessions.get(id)

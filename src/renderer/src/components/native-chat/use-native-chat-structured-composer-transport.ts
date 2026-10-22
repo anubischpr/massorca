@@ -8,6 +8,9 @@ import type {
 } from './native-chat-composer-types'
 import type { NativeChatStructuredViewProps } from './native-chat-view-types'
 import type { useStructuredAgentSession } from './use-structured-agent-session'
+import { getHostClaimedNativeChatCommands } from '../../../../shared/native-chat-agent-profiles'
+import { requestNativeChatBackgroundTasksReveal } from './native-chat-background-tasks-reveal'
+import { useNativeChatProviderCommandRunner } from './use-native-chat-provider-command-runner'
 import { useNativeChatReplySuggestion } from './use-native-chat-reply-suggestion'
 import type { StructuredAgentSessionQueuedMessagesController } from './use-structured-agent-session-queued-messages'
 
@@ -32,6 +35,29 @@ export function useNativeChatStructuredComposerTransport(args: {
 }): NativeChatStructuredComposerTransport {
   const { props, controller, sendThroughLaunch, starting, worktreeId, optionPickerRequest } = args
   const { setOptionPickerRequest, onError, onSubmitted, queuedMessages } = args
+  const claimsPs = getHostClaimedNativeChatCommands(props.agent).some(
+    (entry) => entry.name === 'ps'
+  )
+  const backgroundTasksShown = controller.backgroundTasks.show
+  const sessionId = props.sessionId
+  // `/ps` is the chat's own where the agent's `ps` lists background work the strip shows.
+  const revealBackgroundTasks = useMemo(
+    () =>
+      claimsPs
+        ? () => {
+            if (backgroundTasksShown) {
+              requestNativeChatBackgroundTasksReveal(sessionId)
+            }
+            return backgroundTasksShown
+          }
+        : undefined,
+    [backgroundTasksShown, claimsPs, sessionId]
+  )
+  const runProviderCommand = useNativeChatProviderCommandRunner({
+    agent: props.agent,
+    worktreeId,
+    commands: controller.providerCommands
+  })
   const acceptsImages = useStructuredAgentAcceptsImages(props.target, props.agent)
   const replySuggestion = useNativeChatReplySuggestion({
     sessionId: props.sessionId,
@@ -72,12 +98,17 @@ export function useNativeChatStructuredComposerTransport(args: {
           setOption: controller.setStructuredOption,
           conversationCommands: controller.conversationCommands,
           runConversationCommand: controller.runConversationCommand,
+          providerCommands: controller.providerCommands.available,
+          runProviderCommand,
+          ...(revealBackgroundTasks ? { revealBackgroundTasks } : {}),
           ...(setThreadGoalObjective ? { setThreadGoalObjective } : {})
         }),
       ...(setThreadGoalObjective ? { threadGoal: { setObjective: setThreadGoalObjective } } : {}),
       sendOut: controller.sendOut || starting,
       optionsSurface: controller.optionSurface,
       conversationCommands: controller.conversationCommands,
+      providerCommands: controller.providerCommands.available,
+      ...(revealBackgroundTasks ? { backgroundTasksReveal: true } : {}),
       optionSnapshot: controller.optionSnapshot,
       optionPickerRequest,
       sessionCommands: controller.sessionCommands,
@@ -107,6 +138,8 @@ export function useNativeChatStructuredComposerTransport(args: {
     props.target,
     queuedMessages,
     replySuggestion,
+    revealBackgroundTasks,
+    runProviderCommand,
     sendThroughLaunch,
     setOptionPickerRequest,
     starting

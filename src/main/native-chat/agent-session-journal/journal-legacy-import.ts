@@ -19,6 +19,7 @@ import type {
   AgentJournalItemIdentity
 } from '../../../shared/agent-session-journal-types'
 import type { NativeChatBlock, NativeChatMessage } from '../../../shared/native-chat-types'
+import { openCodexRolloutHistory } from '../codex-forked-rollout-history'
 import { resolveNativeChatTranscriptAgent } from '../../../shared/native-chat-agent-support'
 import { resolveSessionFilePath, type ResolveSessionFileOptions } from '../session-file-resolver'
 import {
@@ -173,7 +174,11 @@ async function decodeWithIdentities(input: {
   let lineIndex = 0
 
   // Count raw bytes while reading: the source can grow after the stat check.
-  const stream = createReadStream(input.filePath)
+  // A forked Codex thread's rollout holds only what came after the fork.
+  const stream =
+    input.transcriptAgent === 'codex'
+      ? await openCodexRolloutHistory(input.filePath)
+      : createReadStream(input.filePath)
   const { messages } = await decodeTranscriptStream(
     stream,
     input.filePath,

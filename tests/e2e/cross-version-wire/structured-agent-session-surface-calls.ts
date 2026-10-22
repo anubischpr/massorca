@@ -133,6 +133,14 @@ export const STRUCTURED_CALLS: {
     hostMethod: 'promptSuggestionDismiss',
     result: { dismissed: true }
   },
+  // A command the provider answers for its own chat (Codex `/usage`, Pi `/name`). A bare addition
+  // that a client sends only where `agentSession.options` reported it, so an older host is never
+  // asked: its options carry no `providerCommands`, which the journey below pins.
+  {
+    method: 'agentSession.providerCommand',
+    hostMethod: 'runProviderCommand',
+    result: { ok: true, replayed: false }
+  },
   // A no-op on a host that starts an agent only for work; it still builds the host.
   { method: 'agentSession.hold', hostMethod: null, result: { held: true } },
   // The restart-resume surface. Bare additions, not capability-negotiated: an RPC method's

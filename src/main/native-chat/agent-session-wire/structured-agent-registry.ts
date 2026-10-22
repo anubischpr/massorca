@@ -21,6 +21,7 @@ function requiredAdapterMethods(capabilities: AgentSessionCapabilities): Adapter
   return [
     ...(capabilities.compact ? (['compact'] as const) : []),
     ...(capabilities.threadGoal ? (['changeThreadGoal'] as const) : []),
+    ...(capabilities.providerCommands?.length ? (['runProviderCommand'] as const) : []),
     ...(capabilities.rewind ? (['rewind', 'recoverRewind'] as const) : [])
   ]
 }

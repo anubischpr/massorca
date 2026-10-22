@@ -111,6 +111,19 @@ export class StructuredAgentSessionAdapterRouter implements StructuredAgentSessi
     return change(input)
   }
 
+  runProviderCommand: NonNullable<StructuredAgentSessionAdapter['runProviderCommand']> = (
+    input
+  ) => {
+    const run = this.owner(input.sessionId).runProviderCommand
+    if (!run) {
+      return Promise.resolve({ ok: false, rejected: 'This provider has no chat commands.' })
+    }
+    return run(input)
+  }
+
+  availableProviderCommands = (sessionId: string) =>
+    this.liveOwnerOrNull(sessionId)?.availableProviderCommands?.(sessionId)
+
   stopBackgroundTasks: NonNullable<StructuredAgentSessionAdapter['stopBackgroundTasks']> = (
     input
   ) => {

@@ -1,5 +1,6 @@
 import type { DirectoryAccountAgentDefinition } from '../native-chat/agent-session-wire/structured-agent-definition'
 import { CODEX_STRUCTURED_HANDLE_NAMESPACE } from '../../shared/agent-session-provider-handle-encoding'
+import { CODEX_PROVIDER_COMMANDS } from './codex-structured-provider-commands'
 import { isCodexTurnOptionKey } from './codex-structured-turn-start'
 
 export const CODEX_STRUCTURED_AGENT: DirectoryAccountAgentDefinition = {
@@ -12,6 +13,7 @@ export const CODEX_STRUCTURED_AGENT: DirectoryAccountAgentDefinition = {
     compact: true,
     // A goal change at rest starts the agent first.
     threadGoal: true,
+    providerCommands: CODEX_PROVIDER_COMMANDS,
     contextUsage: true,
     imagePrompts: true,
     steering: 'inject',

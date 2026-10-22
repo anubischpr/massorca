@@ -33,6 +33,7 @@ import type {
   AgentSessionExecutionLocation,
   AgentSessionProcessIdentity
 } from '../../../shared/agent-session-record'
+import type { ProviderCommandAdapter } from './structured-agent-session-provider-command-adapter'
 import type { StructuredAgentSessionAtRestCommands } from './structured-agent-session-at-rest-commands'
 import type {
   AgentSessionOptionsResult,
@@ -293,175 +294,176 @@ export type StructuredAgentSessionSetOptionInput = {
   signal?: AbortSignal
 }
 
-export type StructuredAgentSessionAdapter = StructuredAgentSessionAdapterStop & {
-  /** Provider-aware capability check for hosts that route more than one adapter. */
-  supportsCreate?(location: AgentSessionExecutionLocation, agent: string): boolean
-  /** Provider/runtime support, kept here so remote enablement changes adapter data, not UI logic. */
-  supportsLocation?(location: AgentSessionExecutionLocation): boolean
-  /** Makes the reservation real. Called once per reservation, with the spawn
-   *  token the lease was reserved under and the fence the handle must be minted
-   *  at — the store rejects a link minted at any other fence. */
-  acquire(input: StructuredAgentSessionAcquireInput): Promise<AgentSessionAcquisition>
-  /** Reaps an acquired provider when the host cannot commit or prove its lease.
-   *  Returns true only after provider child exit is proven. Throws
-   *  `AgentSessionAcquisitionRootExitObservedError` when the provider root's own
-   *  exit was observed first-hand but its descendants were not proven gone. */
-  releaseAcquisition?(input: { sessionId: string }): Promise<boolean>
-  dispatch(input: {
-    sessionId: string
-    clientMessageId: string
-    body: AgentJournalMessageItem
-    fence: number
-    /** Host clock on the submission row this send came from; the origin the turn
-     *  it opens records as `requestedAt`. */
-    requestedAt?: number
-    /** Revalidate after preparation, immediately before writing to the provider. */
-    beforeDispatch?: () => Promise<void>
-  }): Promise<AgentSessionDispatchOutcome>
-  /** How this session narrows its agent's declared rewind; `agent` answers for one with no child
-   *  running. The router applies the declaration first, so an adapter's answer never widens it. */
-  rewindSupport?(sessionId: string, agent?: string): AgentSessionRewindSupport
-  recoverRewind?(input: {
-    sessionId: string
-    fence: number
-    beforeTurnId: string
-  }): Promise<
-    | { ok: true; items: { identity: AgentJournalItemIdentity; body: AgentJournalItemBody }[] }
-    | { ok: false; reason: AgentSessionRewindReason }
-  >
-  rewind?(input: {
-    sessionId: string
-    fence: number
-    beforeTurnId: string
-    onPrepared?: (
-      items: { identity: AgentJournalItemIdentity; body: AgentJournalItemBody }[]
-    ) => Promise<void>
-  }): Promise<
-    | { ok: true; items?: { identity: AgentJournalItemIdentity; body: AgentJournalItemBody }[] }
-    | { ok: false; reason: AgentSessionRewindReason }
-  >
-  /** Sends a conversation compaction and answers with the provider's receipt of it, as a dispatch
-   *  does. The command's turn is the child's journal translator's to end, from the provider's own
-   *  frames; a child that ends first leaves it to the host's settlement of that child. */
-  compact?(input: {
-    sessionId: string
-    fence: number
-    command: StructuredAgentSessionCommandRun
-  }): Promise<AgentSessionCommandAdmission>
-  /** Cancels one turn, not the session: a session-wide interrupt would also kill
-   *  a turn the client never asked to stop. With no `turnId` the conversation asked to stop
-   *  everything it has in flight — a running turn, or a dispatch whose turn has not opened yet. */
-  cancelTurn(input: {
-    sessionId: string
-    turnId?: string
-    fence: number
-    prompt?: { itemId: string }
-    /** Latest journal submission for this fence, when the host has one. */
-    dispatchStatus?: { state: AgentJournalDispatchState; recovered: boolean } | null
-    /** Re-reads the turn the published journal says is running — the only turn a client
-     *  could have named. A function, not a value, because the guard reads it when the
-     *  interrupt is issued. Absent for direct callers with no journal. */
-    resolveLiveTurnId?: () => string | null
-  }): Promise<AgentSessionCancelOutcome>
-  /** Changes the provider thread's goal. `rejected` is the provider refusing the
-   *  change; a throw leaves its effect unknown. Absent where no goal exists. */
-  changeThreadGoal?(input: {
-    sessionId: string
-    fence: number
-    change: AgentSessionThreadGoalChange
-    /** True when the journal records a goal, whatever its status: a `set` must
-     *  start a new goal rather than rewrite that one's objective in place. */
-    replacesGoal: boolean
-  }): Promise<{ ok: true } | { ok: false; rejected: string }>
-  /** Stops exactly the tasks `taskIds` names, which the host resolves from its child records. */
-  stopBackgroundTasks?(input: {
-    sessionId: string
-    fence: number
-    taskIds: readonly string[]
-  }): Promise<{ cancelled: boolean }>
-  /** The stops this provider honours for a live session's background work; undefined when the
-   *  adapter holds no live session for it. */
-  backgroundTaskStops?(sessionId: string): AgentSessionBackgroundTaskStops | undefined
-  /** The provider reported taking a send it has neither answered nor ended, as a queued follow-up
-   *  or a silent retry does. Derived from the live child; false with none. */
-  holdsDispatch?(sessionId: string): boolean
-  /** The adapter's own child for this exact acquisition has a pid and its root exit has not been
-   *  seen: first-hand proof of life for lease renewal. Absent or false falls back to a PID probe. */
-  holdsLiveProviderProcess?(sessionId: string, acquisitionGeneration: string): boolean
-  /** Why the session's running child can take no turn, as its own start found; undefined when
-   *  unknown or no child runs. Lives and dies with that child. */
-  startUnavailable?(sessionId: string): AgentSessionUnavailable | undefined
-  /** The `/` surface the running provider reports for itself. Undefined when the
-   *  provider never reports one, which is what keeps the client on its catalog. */
-  readCommands?(sessionId: string): AgentSessionSlashCommand[] | undefined
-  readFunctions?(sessionId: string): AgentSessionProviderFunction[] | undefined
-  /** The `/` surface of a chat whose agent is not running; absent when the provider has none. */
-  atRestCommands?: StructuredAgentSessionAtRestCommands
-  /** Claims the live callback, builds the provider reply, commits the journal CAS while that claim is
-   *  held, then answers it. A reply that cannot be built throws `AgentSessionPromptAnswerRejectedError`
-   *  before the commit. A prompt cancel claims the same callback, so only one operation can commit. */
-  answerPrompt(input: {
-    sessionId: string
-    itemId: string
-    kind: 'approval' | 'question'
-    response: AgentSessionPromptResponse
-    fence: number
-    commit: () => Promise<void>
-  }): Promise<void>
-  setOption(
-    input: StructuredAgentSessionSetOptionInput
-  ): Promise<void | Readonly<Record<string, string>>>
-  /** Resolves once a live session can take an option write, or after a bound; never rejects. */
-  awaitOptionWritable?(sessionId: string): Promise<void>
-  /** Explicit access modes this running child can switch to without a restart; absent or empty
-   *  means the mode is fixed until the session next starts. */
-  liveAccessModes?(sessionId: string): readonly AgentSessionExplicitAccess[]
-  /** True when a running child takes an access pick at its next start instead of live: the host
-   *  records the pick, and the child keeps its posture until then. Absent or false refuses it. */
-  takesAccessAtNextStart?(sessionId: string): boolean
-  /** True when a running child lists no models of its own, so the host fills the picker from the
-   *  account's catalog as at rest. Absent or false keeps the child's own list, even when empty. */
-  modelsFromRestingCatalog?(sessionId: string): boolean
-  /** False while the live child has not answered its start, so it has run nothing it was handed.
-   *  Absent or undefined reads as answered. */
-  startAnswered?(sessionId: string): boolean | undefined
-  /** Fetch off the lane, then apply the result under the same child's fence. */
-  prepareReadOptions?(input: {
-    sessionId: string
-    fence: number
-  }): Promise<() => AgentSessionOptionsResult> | undefined
-  readOptions?(input: {
-    sessionId: string
-    fence: number
-  }): Promise<StructuredAgentSessionLiveOptions>
-  /** Effective options already known after acquisition, without discovering picker choices. */
-  readAcquisitionOptions?(input: {
-    sessionId: string
-    fence: number
-    priorOptions?: Readonly<Record<string, string>>
-  }):
-    | Promise<Readonly<Record<string, string>> | undefined>
-    | Readonly<Record<string, string>>
-    | undefined
-  /** Option keys skipped after a provider rejected their persisted restore value. */
-  readOptionRestoreFailures?(sessionId: string): readonly string[]
-  /** Provider history for restart reconciliation, bounded to what the provider
-   *  recorded after the journal's last committed item. Only the adapter can say
-   *  whether the read has a proven start and whether a turn is still running, so
-   *  it owns both flags. Omit where the provider records no boundary-consistent
-   *  history; an omitted window leaves every unsettled submission `unknown`. */
-  providerHistoryWindow?(input: {
-    identity: AgentSessionJournalIdentity
-    accountHome: AgentSessionAccountHome
-  }): Promise<ProviderHistoryWindow | null>
-  /** Gracefully stops the structured owner after its event stream is drained. */
-  /** Returns true only after the provider child exit is proven. A root-exit or processless verdict
-   *  is thrown only once the session is finalized; read it through `stopAgentSessionProviderRoot`. */
-  closeSession?(sessionId: string): Promise<boolean>
-  /** Stops a provider after a sink failure; the resulting exit is recovered as unexpected. */
-  forceCloseSession?(sessionId: string): Promise<boolean>
-  /** Stops a provider child for teardown without requiring a future-resume cursor. */
-  disposeSession?(sessionId: string): Promise<boolean>
-  /** Host acknowledgement that the proven-dead child, lease and journal owner are released. */
-  acknowledgeSessionRelease?(sessionId: string): void
-}
+export type StructuredAgentSessionAdapter = StructuredAgentSessionAdapterStop &
+  ProviderCommandAdapter & {
+    /** Provider-aware capability check for hosts that route more than one adapter. */
+    supportsCreate?(location: AgentSessionExecutionLocation, agent: string): boolean
+    /** Provider/runtime support, kept here so remote enablement changes adapter data, not UI logic. */
+    supportsLocation?(location: AgentSessionExecutionLocation): boolean
+    /** Makes the reservation real. Called once per reservation, with the spawn
+     *  token the lease was reserved under and the fence the handle must be minted
+     *  at — the store rejects a link minted at any other fence. */
+    acquire(input: StructuredAgentSessionAcquireInput): Promise<AgentSessionAcquisition>
+    /** Reaps an acquired provider when the host cannot commit or prove its lease.
+     *  Returns true only after provider child exit is proven. Throws
+     *  `AgentSessionAcquisitionRootExitObservedError` when the provider root's own
+     *  exit was observed first-hand but its descendants were not proven gone. */
+    releaseAcquisition?(input: { sessionId: string }): Promise<boolean>
+    dispatch(input: {
+      sessionId: string
+      clientMessageId: string
+      body: AgentJournalMessageItem
+      fence: number
+      /** Host clock on the submission row this send came from; the origin the turn
+       *  it opens records as `requestedAt`. */
+      requestedAt?: number
+      /** Revalidate after preparation, immediately before writing to the provider. */
+      beforeDispatch?: () => Promise<void>
+    }): Promise<AgentSessionDispatchOutcome>
+    /** How this session narrows its agent's declared rewind; `agent` answers for one with no child
+     *  running. The router applies the declaration first, so an adapter's answer never widens it. */
+    rewindSupport?(sessionId: string, agent?: string): AgentSessionRewindSupport
+    recoverRewind?(input: {
+      sessionId: string
+      fence: number
+      beforeTurnId: string
+    }): Promise<
+      | { ok: true; items: { identity: AgentJournalItemIdentity; body: AgentJournalItemBody }[] }
+      | { ok: false; reason: AgentSessionRewindReason }
+    >
+    rewind?(input: {
+      sessionId: string
+      fence: number
+      beforeTurnId: string
+      onPrepared?: (
+        items: { identity: AgentJournalItemIdentity; body: AgentJournalItemBody }[]
+      ) => Promise<void>
+    }): Promise<
+      | { ok: true; items?: { identity: AgentJournalItemIdentity; body: AgentJournalItemBody }[] }
+      | { ok: false; reason: AgentSessionRewindReason }
+    >
+    /** Sends a conversation compaction and answers with the provider's receipt of it, as a dispatch
+     *  does. The command's turn is the child's journal translator's to end, from the provider's own
+     *  frames; a child that ends first leaves it to the host's settlement of that child. */
+    compact?(input: {
+      sessionId: string
+      fence: number
+      command: StructuredAgentSessionCommandRun
+    }): Promise<AgentSessionCommandAdmission>
+    /** Cancels one turn, not the session: a session-wide interrupt would also kill
+     *  a turn the client never asked to stop. With no `turnId` the conversation asked to stop
+     *  everything it has in flight — a running turn, or a dispatch whose turn has not opened yet. */
+    cancelTurn(input: {
+      sessionId: string
+      turnId?: string
+      fence: number
+      prompt?: { itemId: string }
+      /** Latest journal submission for this fence, when the host has one. */
+      dispatchStatus?: { state: AgentJournalDispatchState; recovered: boolean } | null
+      /** Re-reads the turn the published journal says is running — the only turn a client
+       *  could have named. A function, not a value, because the guard reads it when the
+       *  interrupt is issued. Absent for direct callers with no journal. */
+      resolveLiveTurnId?: () => string | null
+    }): Promise<AgentSessionCancelOutcome>
+    /** Changes the provider thread's goal. `rejected` is the provider refusing the
+     *  change; a throw leaves its effect unknown. Absent where no goal exists. */
+    changeThreadGoal?(input: {
+      sessionId: string
+      fence: number
+      change: AgentSessionThreadGoalChange
+      /** True when the journal records a goal, whatever its status: a `set` must
+       *  start a new goal rather than rewrite that one's objective in place. */
+      replacesGoal: boolean
+    }): Promise<{ ok: true } | { ok: false; rejected: string }>
+    /** Stops exactly the tasks `taskIds` names, which the host resolves from its child records. */
+    stopBackgroundTasks?(input: {
+      sessionId: string
+      fence: number
+      taskIds: readonly string[]
+    }): Promise<{ cancelled: boolean }>
+    /** The stops this provider honours for a live session's background work; undefined when the
+     *  adapter holds no live session for it. */
+    backgroundTaskStops?(sessionId: string): AgentSessionBackgroundTaskStops | undefined
+    /** The provider reported taking a send it has neither answered nor ended, as a queued follow-up
+     *  or a silent retry does. Derived from the live child; false with none. */
+    holdsDispatch?(sessionId: string): boolean
+    /** The adapter's own child for this exact acquisition has a pid and its root exit has not been
+     *  seen: first-hand proof of life for lease renewal. Absent or false falls back to a PID probe. */
+    holdsLiveProviderProcess?(sessionId: string, acquisitionGeneration: string): boolean
+    /** Why the session's running child can take no turn, as its own start found; undefined when
+     *  unknown or no child runs. Lives and dies with that child. */
+    startUnavailable?(sessionId: string): AgentSessionUnavailable | undefined
+    /** The `/` surface the running provider reports for itself. Undefined when the
+     *  provider never reports one, which is what keeps the client on its catalog. */
+    readCommands?(sessionId: string): AgentSessionSlashCommand[] | undefined
+    readFunctions?(sessionId: string): AgentSessionProviderFunction[] | undefined
+    /** The `/` surface of a chat whose agent is not running; absent when the provider has none. */
+    atRestCommands?: StructuredAgentSessionAtRestCommands
+    /** Claims the live callback, builds the provider reply, commits the journal CAS while that claim is
+     *  held, then answers it. A reply that cannot be built throws `AgentSessionPromptAnswerRejectedError`
+     *  before the commit. A prompt cancel claims the same callback, so only one operation can commit. */
+    answerPrompt(input: {
+      sessionId: string
+      itemId: string
+      kind: 'approval' | 'question'
+      response: AgentSessionPromptResponse
+      fence: number
+      commit: () => Promise<void>
+    }): Promise<void>
+    setOption(
+      input: StructuredAgentSessionSetOptionInput
+    ): Promise<void | Readonly<Record<string, string>>>
+    /** Resolves once a live session can take an option write, or after a bound; never rejects. */
+    awaitOptionWritable?(sessionId: string): Promise<void>
+    /** Explicit access modes this running child can switch to without a restart; absent or empty
+     *  means the mode is fixed until the session next starts. */
+    liveAccessModes?(sessionId: string): readonly AgentSessionExplicitAccess[]
+    /** True when a running child takes an access pick at its next start instead of live: the host
+     *  records the pick, and the child keeps its posture until then. Absent or false refuses it. */
+    takesAccessAtNextStart?(sessionId: string): boolean
+    /** True when a running child lists no models of its own, so the host fills the picker from the
+     *  account's catalog as at rest. Absent or false keeps the child's own list, even when empty. */
+    modelsFromRestingCatalog?(sessionId: string): boolean
+    /** False while the live child has not answered its start, so it has run nothing it was handed.
+     *  Absent or undefined reads as answered. */
+    startAnswered?(sessionId: string): boolean | undefined
+    /** Fetch off the lane, then apply the result under the same child's fence. */
+    prepareReadOptions?(input: {
+      sessionId: string
+      fence: number
+    }): Promise<() => AgentSessionOptionsResult> | undefined
+    readOptions?(input: {
+      sessionId: string
+      fence: number
+    }): Promise<StructuredAgentSessionLiveOptions>
+    /** Effective options already known after acquisition, without discovering picker choices. */
+    readAcquisitionOptions?(input: {
+      sessionId: string
+      fence: number
+      priorOptions?: Readonly<Record<string, string>>
+    }):
+      | Promise<Readonly<Record<string, string>> | undefined>
+      | Readonly<Record<string, string>>
+      | undefined
+    /** Option keys skipped after a provider rejected their persisted restore value. */
+    readOptionRestoreFailures?(sessionId: string): readonly string[]
+    /** Provider history for restart reconciliation, bounded to what the provider
+     *  recorded after the journal's last committed item. Only the adapter can say
+     *  whether the read has a proven start and whether a turn is still running, so
+     *  it owns both flags. Omit where the provider records no boundary-consistent
+     *  history; an omitted window leaves every unsettled submission `unknown`. */
+    providerHistoryWindow?(input: {
+      identity: AgentSessionJournalIdentity
+      accountHome: AgentSessionAccountHome
+    }): Promise<ProviderHistoryWindow | null>
+    /** Gracefully stops the structured owner after its event stream is drained. */
+    /** Returns true only after the provider child exit is proven. A root-exit or processless verdict
+     *  is thrown only once the session is finalized; read it through `stopAgentSessionProviderRoot`. */
+    closeSession?(sessionId: string): Promise<boolean>
+    /** Stops a provider after a sink failure; the resulting exit is recovered as unexpected. */
+    forceCloseSession?(sessionId: string): Promise<boolean>
+    /** Stops a provider child for teardown without requiring a future-resume cursor. */
+    disposeSession?(sessionId: string): Promise<boolean>
+    /** Host acknowledgement that the proven-dead child, lease and journal owner are released. */
+    acknowledgeSessionRelease?(sessionId: string): void
+  }

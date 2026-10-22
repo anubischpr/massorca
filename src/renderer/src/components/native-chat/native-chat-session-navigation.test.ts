@@ -51,6 +51,23 @@ describe('client session navigation', () => {
       expect(row?.providerFunction).toBeUndefined()
     }
   })
+  it('offers the commands the host runs as plain rows, and /ps where the strip shows', () => {
+    const catalog = nativeChatStructuredCatalog('codex', {
+      providerCommands: ['rename', 'usage'],
+      backgroundTasksReveal: true
+    })
+    const rename = catalog.find((entry) => entry.name === 'rename')
+    expect(rename).toMatchObject({
+      argumentHint: '<name>',
+      description: 'Rename the current thread'
+    })
+    expect(rename?.providerFunction).toBeUndefined()
+    expect(catalog.find((entry) => entry.name === 'ps')?.providerFunction).toBeUndefined()
+    // A claimed command the host did not report stays terminal-only.
+    expect(catalog.find((entry) => entry.name === 'skills')?.providerFunction).toMatchObject({
+      availability: 'terminal-only'
+    })
+  })
   it('keeps window actions when a provider reports an empty or conflicting registry', () => {
     expect(withNativeChatSessionCommands([]).map((x) => x.name)).toEqual(['resume', 'session'])
     expect(

@@ -5,6 +5,7 @@
  * name. A running session may narrow a declared capability (a Codex thread with legacy history
  * cannot rewind) but never widens one. Plain data, so a host can send it to clients as it is.
  */
+import type { AgentSessionProviderCommand } from './agent-session-provider-command'
 import type {
   AgentSessionAccessMode,
   AgentSessionPermissionPreset
@@ -17,6 +18,9 @@ export type AgentSessionCapabilities = {
   compact: boolean
   /** A goal the user can set and change on the thread. */
   threadGoal: boolean
+  /** Commands the provider answers for its chat: each needs the adapter's `runProviderCommand`.
+   *  A session offers only those it can run now. */
+  providerCommands?: readonly AgentSessionProviderCommand[]
   /** Turns report how much of the context window they used. */
   contextUsage: boolean
   /** Prompts may carry images. */

@@ -1,6 +1,5 @@
 import { useMemo, useRef } from 'react'
 import { useStructuredAgentSessionSends } from './use-structured-agent-session-sends'
-import { useBackgroundTaskStopping } from './use-background-task-stopping'
 import { useStructuredAgentSessionCommandWrite } from './use-structured-agent-session-command-write'
 import { structuredAgentSessionNewSendsQueue } from './structured-agent-session-queue-request'
 import type { AgentType } from '../../../../shared/agent-status-types'
@@ -38,6 +37,7 @@ import { hostStatesTurnScopes } from '../../../../shared/native-chat-turn-member
 import { pendingPromptsAllUnanswerableHere } from '../../../../shared/agent-session-approval-subject'
 import { withNativeChatCutTurnNotices } from '../../../../shared/native-chat-cut-turn-notice'
 import { useStructuredAgentSessionRewind } from './use-structured-agent-session-rewind'
+import { useStructuredAgentSessionBackgroundStops } from './use-structured-agent-session-background-stops'
 import type { NativeChatRewindHost } from './use-native-chat-rewind'
 
 export type { StructuredPromptItem } from './structured-agent-session-message-projection'
@@ -96,6 +96,7 @@ export function useStructuredAgentSession(args: {
   const transportState = useStructuredAgentSessionTransportState(state, transportEnabled)
   const {
     conversationCommands,
+    providerCommands,
     optionSnapshot,
     optionSurface,
     setStructuredOption,
@@ -223,17 +224,10 @@ export function useStructuredAgentSession(args: {
     composerScopeKey,
     mutate
   })
-  const stopBackgroundTask = (taskId?: string) =>
-    mutate('agentSession.cancel', 'agentSession.cancel', {
-      turnId: 'background-tasks',
-      scope: 'background-tasks',
-      ...(taskId ? { taskId } : {})
-    })
-  // One copy of the stops still in flight, read by both the strip and the summary card.
-  const backgroundStops = useBackgroundTaskStopping({
-    sessionId: args.sessionId,
-    stopBackgroundTask
-  })
+  const { stopBackgroundTask, backgroundStops } = useStructuredAgentSessionBackgroundStops(
+    args.sessionId,
+    mutate
+  )
   return {
     epoch: state.epoch,
     rewind,
@@ -331,6 +325,7 @@ export function useStructuredAgentSession(args: {
     /** Why the host's catalog probe says no chat can start here; the chat shows it as a notice. */
     unavailable,
     threadGoal,
+    providerCommands,
     contextUsage,
     contextSummary,
     connectors,

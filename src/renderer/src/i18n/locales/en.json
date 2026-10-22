@@ -18347,7 +18347,9 @@
         "providerFunctionUnverified": "Unverified",
         "resumeWindowDescription": "Choose an existing session in the Sessions panel",
         "sessionWindowDescription": "Browse sessions in the Sessions panel",
-        "providerFunctionTerminalOnlyError": "{{command}} is available in Terminal only."
+        "providerFunctionTerminalOnlyError": "{{command}} is available in Terminal only.",
+        "forkNotOpened": "The fork was created, but this chat cannot open it. Find it in Sessions.",
+        "forkOpenFailed": "The fork was created, but it could not be opened. Find it in Sessions."
       },
       "tool": {
         "exitCode": "exit {{value0}}",
@@ -18757,6 +18759,13 @@
         "refresh": "Refresh usage",
         "title": "Subscriptions",
         "updated": "nan · updated {{time}}",
+        "used": "{{percent}}% used",
+        "usedResets": "{{percent}}% used · resets in {{duration}}"
+      },
+      "codexUsage": {
+        "refresh": "Refresh usage",
+        "title": "Codex usage",
+        "updated": "Updated {{time}}",
         "used": "{{percent}}% used",
         "usedResets": "{{percent}}% used · resets in {{duration}}"
       }

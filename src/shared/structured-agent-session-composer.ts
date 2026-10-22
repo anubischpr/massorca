@@ -8,6 +8,11 @@ import type { AgentType } from './agent-status-types'
 import type { SessionOptionDescriptor, SessionOptionValue } from './native-chat-session-options'
 import { hostCommandAlias, type SlashCommandSuggestion } from './native-chat-slash-commands'
 import type { AgentSessionConversationCommand } from './agent-session-conversation-command'
+import { isAgentSessionProviderCommand } from './agent-session-provider-command'
+import {
+  dispatchStructuredAgentSessionProviderCommand,
+  type StructuredAgentSessionProviderCommandSurface
+} from './structured-agent-session-provider-command-dispatch'
 
 const MODEL_COMMAND: SlashCommandSuggestion = {
   name: 'model',
@@ -30,7 +35,7 @@ export const STRUCTURED_AGENT_SESSION_SLASH_COMMANDS: readonly SlashCommandSugge
   EFFORT_COMMAND
 ]
 
-export type StructuredAgentSessionComposerOptions = {
+export type StructuredAgentSessionComposerOptions = StructuredAgentSessionProviderCommandSurface & {
   agent?: AgentType
   functions?: readonly AgentSessionProviderFunction[]
   skills?: readonly string[]
@@ -153,7 +158,9 @@ export function structuredAgentSessionCommandChangesConversation(
   return (
     target === 'clear' ||
     target === 'compact' ||
-    (command?.name === 'goal' && command.argument !== '')
+    (command?.name === 'goal' && command.argument !== '') ||
+    // A provider command answers with a row at the end of the transcript.
+    (command !== null && command.name !== 'fork' && isAgentSessionProviderCommand(command.name))
   )
 }
 
@@ -183,6 +190,12 @@ export async function dispatchStructuredAgentSessionComposerCommand(
   controller: StructuredAgentSessionComposerOptions
 ): Promise<StructuredAgentSessionCommandOutcome> {
   const command = commandParts(text)
+  const providerOutcome = command
+    ? await dispatchStructuredAgentSessionProviderCommand(command, controller)
+    : null
+  if (providerOutcome) {
+    return providerOutcome
+  }
   if (command && controller.functions !== undefined) {
     const entry = controller.functions.find((entry) => entry.name === command.name)
     if (!entry && controller.skills?.includes(command.name)) {

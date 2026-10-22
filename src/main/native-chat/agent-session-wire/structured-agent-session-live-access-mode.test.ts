@@ -72,7 +72,8 @@ function adapter(): StructuredAgentSessionAdapter {
     rewind: vi.fn(),
     recoverRewind: vi.fn(),
     compact: vi.fn(),
-    changeThreadGoal: vi.fn()
+    changeThreadGoal: vi.fn(),
+    runProviderCommand: vi.fn()
   }
 }
 
