@@ -490,7 +490,7 @@ describe('subagent detail view', () => {
     model,
     ...(effort ? { effort } : {})
   })
-  const shapes: [string, Partial<AgentChildWorkView>, string[], string[]][] = [
+  const childCases: [string, Partial<AgentChildWorkView>, string[], string[]][] = [
     [
       'Codex',
       {
@@ -531,31 +531,34 @@ describe('subagent detail view', () => {
       ['Command output unavailable.']
     ]
   ]
-  it.each(shapes)('describes a %s child without command wording', (_name, changes, present, absent) => {
-    render(
-      <NativeChatCodexBackgroundPanel
-        roster={null}
-        isVisible
-        context={fresh}
-        commandActivity={[child('agent-1', { kind: 'agent', ...changes })]}
-      />
-    )
-    if (changes.membership === 'settled') {
-      fireEvent.click(screen.getByRole('button', { name: '1 finished' }))
+  it.each(childCases)(
+    'describes a %s child without command wording',
+    (_name, changes, present, absent) => {
+      render(
+        <NativeChatCodexBackgroundPanel
+          roster={null}
+          isVisible
+          context={fresh}
+          commandActivity={[child('agent-1', { kind: 'agent', ...changes })]}
+        />
+      )
+      if (changes.membership === 'settled') {
+        fireEvent.click(screen.getByRole('button', { name: '1 finished' }))
+      }
+      fireEvent.click(screen.getByRole('button', { name: /View activity/ }))
+      const details = screen.getByRole('complementary', { name: 'Activity details' })
+      for (const text of present) {
+        expect(details.textContent).toContain(text)
+      }
+      for (const text of absent) {
+        expect(details.textContent).not.toContain(text)
+      }
+      expect(details.textContent).not.toContain('Command output unavailable.')
+      expect(details.textContent).not.toContain('unavailable')
+      const title = changes.description ?? ''
+      expect(details.textContent?.split(title).length).toBe(2)
     }
-    fireEvent.click(screen.getByRole('button', { name: /View activity/ }))
-    const details = screen.getByRole('complementary', { name: 'Activity details' })
-    for (const text of present) {
-      expect(details.textContent).toContain(text)
-    }
-    for (const text of absent) {
-      expect(details.textContent).not.toContain(text)
-    }
-    expect(details.textContent).not.toContain('Command output unavailable.')
-    expect(details.textContent).not.toContain('unavailable')
-    const title = changes.description ?? ''
-    expect(details.textContent?.split(title).length).toBe(2)
-  })
+  )
 })
 
 describe('finished history across a detail view', () => {
