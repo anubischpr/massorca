@@ -8,15 +8,15 @@ function snake(value: string): string {
 }
 
 /** Keys become snake_case at every depth; the values that name a variant (`type`, `source`) too. */
-function toCoreShape(value: unknown, key?: string): unknown {
+function toCoreSpelling(value: unknown, key?: string): unknown {
   if (Array.isArray(value)) {
-    return value.map((entry) => toCoreShape(entry))
+    return value.map((entry) => toCoreSpelling(entry))
   }
   if (typeof value === 'object' && value !== null) {
     return Object.fromEntries(
       Object.entries(value).map(([entryKey, entry]) => [
         snake(entryKey),
-        toCoreShape(entry, entryKey)
+        toCoreSpelling(entry, entryKey)
       ])
     )
   }
@@ -51,6 +51,6 @@ export function codexGuardianAssessmentEvent(denial: CodexGuardianDenial): Recor
     rationale: review.rationale ?? null,
     decision_source:
       typeof params.decisionSource === 'string' ? snake(params.decisionSource) : null,
-    action: toCoreShape(params.action)
+    action: toCoreSpelling(params.action)
   }
 }

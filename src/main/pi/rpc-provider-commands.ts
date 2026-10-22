@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import type { AgentSessionProviderCommand } from '../../shared/agent-session-provider-command'
 import type { AgentSessionProviderCommandOutcome } from '../native-chat/agent-session-wire/structured-agent-session-provider-command-adapter'
 import { JsonlRpcResponseError } from '../jsonl-rpc/peer'
@@ -16,9 +17,11 @@ function notice(
   return { ok: true, notice: { text, tone } }
 }
 
+const exportedPathSchema = z.looseObject({ path: z.string().min(1) })
+
 function exportedPath(data: unknown): string | null {
-  const path = typeof data === 'object' && data !== null ? Reflect.get(data, 'path') : null
-  return typeof path === 'string' && path.length > 0 ? path : null
+  const exported = exportedPathSchema.safeParse(data)
+  return exported.success ? exported.data.path : null
 }
 
 /** Runs `/name` and `/export` on a live Pi session. */

@@ -2,6 +2,7 @@ import { createReadStream } from 'node:fs'
 import { open } from 'node:fs/promises'
 import { basename, dirname } from 'node:path'
 import { Readable } from 'node:stream'
+import { z } from 'zod'
 import { resolveSessionFilePath } from './session-file-resolver'
 
 // A Codex thread forked in `paginated` history mode writes a rollout that holds only what happened
@@ -38,23 +39,24 @@ async function readFirstLine(path: string): Promise<string | null> {
   }
 }
 
+const rolloutMetaSchema = z.looseObject({
+  payload: z.looseObject({
+    history_base: z.looseObject({
+      thread_id: z.string(),
+      end_byte_offset: z.number().refine((end) => Number.isSafeInteger(end) && end > 0)
+    })
+  })
+})
+
 /** The thread and parent-rollout byte count a forked rollout inherits, or null for any other rollout. */
 function historyBase(metaLine: string): { threadId: string; endByteOffset: number } | null {
   try {
-    const meta: unknown = JSON.parse(metaLine)
-    const payload = typeof meta === 'object' && meta !== null ? Reflect.get(meta, 'payload') : null
-    const base =
-      typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'history_base') : null
-    const threadId =
-      typeof base === 'object' && base !== null ? Reflect.get(base, 'thread_id') : null
-    const end =
-      typeof base === 'object' && base !== null ? Reflect.get(base, 'end_byte_offset') : null
-    return typeof threadId === 'string' &&
-      typeof end === 'number' &&
-      Number.isSafeInteger(end) &&
-      end > 0
-      ? { threadId, endByteOffset: end }
-      : null
+    const meta = rolloutMetaSchema.safeParse(JSON.parse(metaLine))
+    if (!meta.success) {
+      return null
+    }
+    const base = meta.data.payload.history_base
+    return { threadId: base.thread_id, endByteOffset: base.end_byte_offset }
   } catch {
     return null
   }
