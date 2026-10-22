@@ -431,6 +431,34 @@ describe('cross-version structured agent sessions', () => {
       expect(dismissalRpc.call).toHaveBeenCalledTimes(1)
     })
 
+    // A client offers a provider command only where the host's options reported it, so the
+    // method is never called on a host that predates it. Pin both halves: the old host reports no
+    // commands, and the old dispatcher would refuse the call if one were sent anyway.
+    it('is never asked for a provider command by a host whose options report none', async () => {
+      const method = 'agentSession.providerCommand'
+      const client = { clientKind: 'runtime' as const, clientCapabilities: current.capabilities }
+      const hostCalls = structuredHostStub(SESSION, WORKSPACE)
+      await baseline.installStructuredHost(installableHost(hostCalls))
+      try {
+        if (baseline.methodNames.includes('agentSession.options')) {
+          const [options] = await callBuild(
+            baseline,
+            'agentSession.options',
+            paramsFor('agentSession.options'),
+            client
+          )
+          expect(options?.ok, JSON.stringify(options)).toBe(true)
+          expect(options?.result).not.toHaveProperty('providerCommands')
+        }
+        if (!baselineStructuredMethods().includes(method)) {
+          const [reply] = await callBuild(baseline, method, paramsFor(method), client)
+          expect(reply).toMatchObject({ ok: false, error: { code: 'method_not_found' } })
+        }
+      } finally {
+        await baseline.installStructuredHost(null)
+      }
+    })
+
     it('takes structured question answers exactly where the host advertises them', async () => {
       // A client sends `answers` only on this capability, so the two must never disagree:
       // a strict older schema refuses the field and the answer is lost rather than degraded.

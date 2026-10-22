@@ -70,7 +70,8 @@ async function runningChat(input: {
     rewind: vi.fn(),
     recoverRewind: vi.fn(),
     compact: vi.fn(),
-    changeThreadGoal: vi.fn()
+    changeThreadGoal: vi.fn(),
+    runProviderCommand: vi.fn()
   }
   const host = new StructuredAgentSessionHost({
     agents: new StructuredAgentRegistry([{ definition: CODEX_STRUCTURED_AGENT, adapter: native }]),

@@ -347,7 +347,13 @@ it('refuses the command for an agent that does not declare compaction, whatever 
     {
       definition: {
         ...CODEX_STRUCTURED_AGENT,
-        capabilities: { ...declared, compact: false, threadGoal: false, rewind: false }
+        capabilities: {
+          ...declared,
+          compact: false,
+          threadGoal: false,
+          rewind: false,
+          providerCommands: []
+        }
       },
       adapter: state.host.deps.adapter
     }

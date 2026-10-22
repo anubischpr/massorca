@@ -4,6 +4,7 @@ import type { AgentSessionExecutionLocation } from '../../../shared/agent-sessio
 import { claudeProviderHandle } from '../../../shared/agent-session-provider-handle-encoding'
 import { CLAUDE_STRUCTURED_AGENT } from '../../claude/claude-structured-agent-definition'
 import { CODEX_STRUCTURED_AGENT } from '../../codex/codex-structured-agent-definition'
+import { CODEX_PROVIDER_COMMANDS } from '../../codex/codex-structured-provider-commands'
 import type {
   AgentSessionAcquisition,
   StructuredAgentSessionAdapter
@@ -84,6 +85,7 @@ function declaringAdapter(
   return fakeAdapter({
     compact: vi.fn(),
     changeThreadGoal: vi.fn(),
+    runProviderCommand: vi.fn(),
     rewind: vi.fn(),
     recoverRewind: vi.fn(),
     ...overrides
@@ -144,6 +146,21 @@ describe('StructuredAgentSessionAdapterRouter registry', () => {
     expect(() => new StructuredAgentRegistry([{ definition: PILOT, adapter }])).not.toThrow()
   })
 
+  it('refuses declared provider commands whose adapter has no runProviderCommand', () => {
+    const declared: StructuredAgentDefinition = {
+      ...PILOT,
+      capabilities: { ...PILOT.capabilities, providerCommands: ['name'] }
+    }
+    const adapter = declaringAdapter({ runProviderCommand: undefined })
+
+    expect(() => new StructuredAgentRegistry([{ definition: declared, adapter }])).toThrow(
+      'structured agent grok declares a capability its adapter has no runProviderCommand for'
+    )
+    expect(
+      () => new StructuredAgentRegistry([{ definition: declared, adapter: declaringAdapter() }])
+    ).not.toThrow()
+  })
+
   it('answers what each registered agent declares, and nothing for an unregistered one', () => {
     const agents = claudeAndCodex()
 
@@ -194,6 +211,7 @@ describe('structured agent definitions', () => {
       rewind: true,
       compact: true,
       threadGoal: true,
+      providerCommands: CODEX_PROVIDER_COMMANDS,
       contextUsage: true,
       imagePrompts: true,
       steering: 'inject',
