@@ -1,22 +1,27 @@
 import { createRequire } from 'node:module'
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import { PRODUCT_DISPLAY_NAME } from '../../shared/product-identity'
 import { getDevInstanceIdentity } from './dev-instance-identity'
+
+const builderConfigSchema = z.object({
+  appId: z.string(),
+  productName: z.string(),
+  protocols: z.array(z.object({ name: z.string(), schemes: z.array(z.string()) })),
+  win: z.object({ executableName: z.string() }),
+  mac: z.object({ executableName: z.string(), extendInfo: z.record(z.string(), z.unknown()) }),
+  linux: z.object({ executableName: z.string() }),
+  deb: z.object({ packageName: z.string() }),
+  rpm: z.object({ packageName: z.string() }),
+  nsis: z.object({ artifactName: z.string() })
+})
 
 // Why: the packaged build config is CommonJS and the only source for artifact, executable and
 // installer identity, so the contract test reads it directly instead of duplicating its values.
 const require = createRequire(import.meta.url)
-const builderConfig = require('../../../config/electron-builder.config.cjs') as {
-  appId: string
-  productName: string
-  protocols: { name: string; schemes: string[] }[]
-  win: { executableName: string }
-  mac: { executableName: string; extendInfo: Record<string, string> }
-  linux: { executableName: string }
-  deb: { packageName: string }
-  rpm: { packageName: string }
-  nsis: { artifactName: string }
-}
+const builderConfig = builderConfigSchema.parse(
+  require('../../../config/electron-builder.config.cjs')
+)
 
 describe('desktop identity contract', () => {
   it('shows MassOrca to people while keeping the install identity', () => {
