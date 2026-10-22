@@ -415,9 +415,11 @@ describe('MobileNativeChatComposer', () => {
       .findAll((node) => node.type === 'Text')
       .map((node) => (node.props as { children?: unknown }).children)
     // Codex-only commands from the shared catalog, with their description rows —
-    // and none of the old hardcoded provider-agnostic list's phantom entries.
-    expect(texts).toContain('/permissions')
-    expect(texts).toContain('Choose what Codex is allowed to do')
+    // and none of the old hardcoded provider-agnostic list's phantom entries,
+    // nor a hidden row such as /permissions.
+    expect(texts).toContain('/plan')
+    expect(texts).toContain('switch to Plan mode')
+    expect(texts).not.toContain('/permissions')
     expect(texts).not.toContain('/cost')
   })
 
