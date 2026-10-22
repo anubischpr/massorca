@@ -17,7 +17,8 @@ vi.mock('electron', () => {
       disableHardwareAcceleration: vi.fn(),
       commandLine: {
         appendSwitch: vi.fn(),
-        getSwitchValue: vi.fn(() => '')
+        getSwitchValue: vi.fn(() => ''),
+        hasSwitch: vi.fn(() => false)
       }
     }
   }
@@ -352,14 +353,33 @@ describe('configureDevUserDataPath', () => {
     expect(app.setPath).toHaveBeenCalledWith('userData', join('/tmp/app-data', 'orca-dev'))
   })
 
-  it('leaves packaged runs on the default userData path', async () => {
+  it('pins packaged runs to the existing orca profile directory', async () => {
     const { app } = await import('electron')
     const { configureDevUserDataPath } = await import('./configure-process')
 
     vi.mocked(app.setPath).mockClear()
     configureDevUserDataPath(false)
 
-    expect(app.setPath).not.toHaveBeenCalled()
+    // Why: the display name is MassOrca, but the profile must stay at <appData>/orca so upgrades read existing data.
+    expect(app.setPath).toHaveBeenCalledWith('userData', join('/tmp/app-data', 'orca'))
+    expect(app.setPath).not.toHaveBeenCalledWith('userData', join('/tmp/app-data', 'orca-dev'))
+  })
+
+  it('leaves packaged runs with an explicit --user-data-dir switch alone', async () => {
+    const { app } = await import('electron')
+    const { configureDevUserDataPath } = await import('./configure-process')
+
+    vi.mocked(app.setPath).mockClear()
+    vi.mocked(app.commandLine.hasSwitch).mockImplementation(
+      (name: string) => name === 'user-data-dir'
+    )
+    try {
+      configureDevUserDataPath(false)
+    } finally {
+      vi.mocked(app.commandLine.hasSwitch).mockImplementation(() => false)
+    }
+
+    expect(app.setPath).not.toHaveBeenCalledWith('userData', expect.anything())
   })
 })
 
