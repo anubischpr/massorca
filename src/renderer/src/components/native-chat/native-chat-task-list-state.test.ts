@@ -10,6 +10,27 @@ function call(content: string, status = 'pending'): NativeChatBlock {
 }
 
 describe('nativeChatTaskListState', () => {
+  it('folds Claude TaskCreate/TaskUpdate calls across messages into one list', () => {
+    const create = (subject: string, callId: string, id: string): NativeChatBlock[] => [
+      { type: 'tool-call', name: 'TaskCreate', callId, input: { subject, description: 'd' } },
+      { type: 'tool-result', callId, output: `Task #${id} created successfully: ${subject}` }
+    ]
+    const first = message('first', [...create('Read', 'a', '1'), ...create('Write', 'b', '2')])
+    const second = message('second', [
+      {
+        type: 'tool-call',
+        name: 'TaskUpdate',
+        callId: 'c',
+        input: { taskId: '1', status: 'completed' }
+      },
+      { type: 'tool-result', callId: 'c', output: 'Updated task #1 status' }
+    ])
+    expect(nativeChatTaskListState([first, second]).list?.tasks).toEqual([
+      { content: 'Read', status: 'completed' },
+      { content: 'Write', status: 'pending' }
+    ])
+  })
+
   it('projects one latest snapshot, preserves prose and leaves source messages unchanged', () => {
     const first = message('first', [call('Read')])
     const last = message('last', [

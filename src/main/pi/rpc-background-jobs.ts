@@ -14,9 +14,10 @@ import {
   type GentleJobFacts
 } from './gentle-shell-job-details'
 import { piRpcToolEventSchema, type PiRpcToolEvent } from './rpc-protocol'
+import { PiRpcGentleWorkers } from './rpc-gentle-shell-workers'
 
 // Gentle Shell's background jobs (`bash_background`, `monitor`), read as the child work the chat's
-// Background tasks lists. A job is live from the tool result that started it until its own exit
+// Background tasks lists; its workers (`subagent_run`) ride the same sink as subagents. A job is live from the tool result that started it until its own exit
 // notice, a `job_stop` result, or the end of the session. Only what Gentle Shell published is used:
 // the start result's job id, the call's command and label, and the notice's outcome and output tail.
 
@@ -90,14 +91,18 @@ function outcomeOf(facts: GentleJobFacts): AgentChildWorkOutcome {
 export class PiRpcBackgroundJobs {
   private readonly args = new Map<string, { command?: string; label?: string }>()
   private readonly live = new Map<string, LiveJob>()
+  private readonly workers: PiRpcGentleWorkers
   private pending: PendingEdge[] = []
   /** Batches deliver one after another, so an `ended` edge never overtakes its `live` edge. */
   private publishing: Promise<void> = Promise.resolve()
 
-  constructor(private readonly deps: PiRpcBackgroundJobsDeps) {}
+  constructor(private readonly deps: PiRpcBackgroundJobsDeps) {
+    this.workers = new PiRpcGentleWorkers(deps.generation)
+  }
 
   /** A frame the turn machine received: a job's tool call or result, or a custom message. */
   observeFrame(frame: JsonlRpcRecord): void {
+    this.pending.push(...this.workers.observeFrame(frame))
     const tool = piRpcToolEventSchema.safeParse(frame)
     if (tool.success) {
       this.observeTool(tool.data)
@@ -111,6 +116,7 @@ export class PiRpcBackgroundJobs {
   clear(): void {
     this.args.clear()
     this.live.clear()
+    this.workers.clear()
     this.pending.push((observedAt) => ({ type: 'session-ended', observedAt }))
     this.publish()
   }

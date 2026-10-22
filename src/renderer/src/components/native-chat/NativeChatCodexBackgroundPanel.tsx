@@ -1,10 +1,12 @@
 import { useTranslation } from 'react-i18next'
 import type { AgentChildWorkView } from '../../../../shared/agent-status-child-work-view'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
 import { ArrowLeft } from 'lucide-react'
 import { AgentStateDot } from '@/components/AgentStateDot'
 import { Button } from '@/components/ui/button'
+import { NativeChatAgentChildDetails } from './NativeChatAgentChildDetails'
+import { recordedConfigurationText } from './native-chat-recorded-configuration'
 import { NativeChatToolLineDetail } from './NativeChatToolLine'
 import { NativeChatCommandMetadata } from './NativeChatToolAnnotations'
 import { nativeChatFullCommand } from './native-chat-tool-input-text'
@@ -14,6 +16,7 @@ import {
   buildAgentChildRowModels,
   buildLegacyTaskRowModels,
   type AgentChildRowContext,
+  usableAgentChildLabel,
   type AgentChildRowModel
 } from '../../../../shared/agent-child-row-model'
 import { AgentChildRowContent } from '@/components/AgentChildRowContent'
@@ -73,6 +76,7 @@ function BackgroundRow({
           type="button"
           className="flex min-w-0 flex-1 items-center gap-2 text-left"
           data-background-state={row.displayState}
+          data-child-row-id={row.id}
           onClick={() => onSelect(row)}
           aria-label={t(
             'components.nativeChatBackground.viewActivity',
@@ -92,23 +96,17 @@ function BackgroundRow({
                 >
                   {agentChildRowName(row)}
                 </span>
-                <span
-                  className="max-w-full shrink-0 break-words text-muted-foreground"
-                  title={
-                    row.recordedConfiguration
-                      ? t('components.nativeChatBackground.recorded', 'Recorded turn configuration')
-                      : t(
-                          'components.nativeChatBackground.recordedUnavailable',
-                          'Recorded turn configuration unavailable'
-                        )
-                  }
-                >
-                  {row.recordedConfiguration?.model ??
-                    t('components.nativeChatBackground.modelUnavailable', 'Model unavailable')}{' '}
-                  ·{' '}
-                  {row.recordedConfiguration?.effort ??
-                    t('components.nativeChatBackground.effortUnavailable', 'Effort unavailable')}
-                </span>
+                {recordedConfigurationText(row) ? (
+                  <span
+                    className="max-w-full shrink-0 break-words text-muted-foreground"
+                    title={t(
+                      'components.nativeChatBackground.recorded',
+                      'Recorded turn configuration'
+                    )}
+                  >
+                    {recordedConfigurationText(row)}
+                  </span>
+                ) : null}
               </span>
             </>
           ) : (
@@ -151,6 +149,20 @@ export function NativeChatCodexBackgroundPanel(props: {
     row: AgentChildRowModel
     views: readonly AgentChildWorkView[]
   } | null>(null)
+  // Held here, not in the groups: they unmount while a detail view is shown.
+  const [finishedOpen, setFinishedOpen] = useState({ commands: false, agents: false })
+  const openedFrom = useRef<string | null>(null)
+  const listRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (selected || openedFrom.current === null) {
+      return
+    }
+    const id = openedFrom.current
+    openedFrom.current = null
+    listRef.current
+      ?.querySelector<HTMLElement>(`[data-child-row-id="${CSS.escape(id)}"]`)
+      ?.focus()
+  }, [selected])
   const context = props.context ?? UNVERIFIABLE
   const views = props.commandActivity ?? props.roster?.children
   const rows = useMemo(() => {
@@ -180,7 +192,10 @@ export function NativeChatCodexBackgroundPanel(props: {
   const allAgents = rows.filter((row) => props.section !== 'commands' && row.kind === 'agent')
   const agents = allAgents.filter((row) => !isFinishedChildRow(row)).sort(runningChildRowsFirst)
   const finishedAgents = allAgents.filter(isFinishedChildRow)
-  const onSelect = (row: AgentChildRowModel) => setSelected({ row, views: views ?? [] })
+  const onSelect = (row: AgentChildRowModel) => {
+    openedFrom.current = row.id
+    setSelected({ row, views: views ?? [] })
+  }
   if (selected) {
     const detailViews = [
       ...new Map([...selected.views, ...(views ?? [])].map((view) => [view.id, view])).values()
@@ -208,10 +223,13 @@ export function NativeChatCodexBackgroundPanel(props: {
         <h2 className="my-3 font-medium text-foreground">
           {selected.row.name || t('components.nativeChatBackground.details', 'Activity details')}
         </h2>
-        {selectedView?.description ? (
+        {selected.row.kind === 'agent' ? (
+          <NativeChatAgentChildDetails row={selected.row} view={selectedView} now={now} />
+        ) : null}
+        {selected.row.kind !== 'agent' && selectedView?.description ? (
           <p className="mb-3 whitespace-pre-wrap break-words">{selectedView.description}</p>
         ) : null}
-        {selectedView?.operation ? (
+        {selected.row.kind !== 'agent' && selectedView?.operation ? (
           <p className="mb-3 whitespace-pre-wrap break-words">
             {selectedView.operation.toolName}: {selectedView.operation.input}
           </p>
@@ -224,7 +242,7 @@ export function NativeChatCodexBackgroundPanel(props: {
             )}
           </p>
         ) : null}
-        {commands.length === 0 ? (
+        {selected.row.kind !== 'agent' && commands.length === 0 ? (
           <p className="text-muted-foreground">
             {t('components.nativeChatBackground.outputUnavailable', 'Command output unavailable.')}
           </p>
@@ -274,6 +292,7 @@ export function NativeChatCodexBackgroundPanel(props: {
   }
   return (
     <aside
+      ref={listRef}
       aria-label={t('components.nativeChatBackground.title', 'Background activity')}
       className={
         props.embedded
@@ -346,7 +365,8 @@ export function NativeChatCodexBackgroundPanel(props: {
           className="mt-3"
         >
           <h3 className="mb-2 font-medium text-muted-foreground">
-            {t('components.nativeChatBackground.subagent', 'Subagent')}
+            {usableAgentChildLabel(row.agentType) ??
+              t('components.nativeChatBackground.subagent', 'Subagent')}
           </h3>
           <ul>
             <BackgroundRow row={row} now={now} onSelect={onSelect} />
@@ -354,14 +374,22 @@ export function NativeChatCodexBackgroundPanel(props: {
         </section>
       ))}
       {finishedCommands.length > 0 ? (
-        <NativeChatFinishedBackgroundGroup count={finishedCommands.length}>
+        <NativeChatFinishedBackgroundGroup
+          count={finishedCommands.length}
+          open={finishedOpen.commands}
+          onOpenChange={(open) => setFinishedOpen((state) => ({ ...state, commands: open }))}
+        >
           {finishedCommands.map((row) => (
             <BackgroundRow key={row.id} row={row} now={now} onSelect={onSelect} />
           ))}
         </NativeChatFinishedBackgroundGroup>
       ) : null}
       {finishedAgents.length > 0 ? (
-        <NativeChatFinishedBackgroundGroup count={finishedAgents.length}>
+        <NativeChatFinishedBackgroundGroup
+          count={finishedAgents.length}
+          open={finishedOpen.agents}
+          onOpenChange={(open) => setFinishedOpen((state) => ({ ...state, agents: open }))}
+        >
           {finishedAgents.map((row) => (
             <BackgroundRow key={row.id} row={row} now={now} onSelect={onSelect} />
           ))}

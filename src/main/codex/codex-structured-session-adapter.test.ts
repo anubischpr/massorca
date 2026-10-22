@@ -148,7 +148,7 @@ describe('CodexStructuredSessionAdapter.acquire', () => {
     expect(codex.connections[0].launch.cwd).toBe('/work/repo')
     expect(codex.connections[0].calls[0]).toEqual({
       method: 'thread/start',
-      params: { cwd: '/work/repo' }
+      params: { cwd: '/work/repo', config: { 'tools.update_plan.enabled': true } }
     })
     expect(acquisition.process).toEqual({
       hostId: 'host-1',
@@ -176,7 +176,11 @@ describe('CodexStructuredSessionAdapter.acquire', () => {
 
     expect(codex.connections[0].calls[0]).toEqual({
       method: 'thread/start',
-      params: { cwd: '/work/repo', model: 'gpt-chosen' }
+      params: {
+        cwd: '/work/repo',
+        model: 'gpt-chosen',
+        config: { 'tools.update_plan.enabled': true }
+      }
     })
   })
 

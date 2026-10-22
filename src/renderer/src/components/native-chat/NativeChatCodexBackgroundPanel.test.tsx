@@ -327,6 +327,31 @@ describe('panel-specific recorded agent metadata', () => {
       'nested command'
     )
   })
+  it('names a subagent by its agent type and states only the configuration it recorded', () => {
+    render(
+      <NativeChatCodexBackgroundPanel
+        roster={null}
+        isVisible
+        context={fresh}
+        commandActivity={[
+          child('worker', {
+            kind: 'agent',
+            description: 'map auth',
+            agentType: 'gentle-ai-explore',
+            recordedConfiguration: {
+              source: 'recorded-turn-context',
+              turnId: 't',
+              observedAt: 1_000,
+              model: 'only-model'
+            }
+          })
+        ]}
+      />
+    )
+    expect(screen.getByRole('heading', { name: 'gentle-ai-explore' })).toBeDefined()
+    expect(screen.getByText('only-model')).toBeDefined()
+    expect(screen.queryByText(/Effort unavailable/)).toBeNull()
+  })
   it('never promotes a legacy model or stale parent setting to recorded effort', () => {
     render(
       <NativeChatCodexBackgroundPanel
@@ -336,7 +361,8 @@ describe('panel-specific recorded agent metadata', () => {
         commandActivity={[child('worker', { kind: 'agent', model: 'requested-model' })]}
       />
     )
-    expect(screen.getByText('Model unavailable · Effort unavailable')).toBeDefined()
+    expect(screen.queryByText(/unavailable ·/)).toBeNull()
+    expect(screen.queryByTitle('Recorded turn configuration')).toBeNull()
     expect(screen.queryByText('requested-model')).toBeNull()
     expect(screen.getByText('Host activity cannot currently be verified.')).toBeDefined()
   })
@@ -454,4 +480,111 @@ describe('background task Stop controls', () => {
     fireEvent.click(screen.getByRole('button', { name: 'View activity: running' }))
     expect(screen.getByRole('complementary', { name: 'Activity details' })).toBeDefined()
   })
+})
+
+describe('subagent detail view', () => {
+  const recorded = (model: string, effort?: string) => ({
+    source: 'recorded-turn-context' as const,
+    turnId: 't',
+    observedAt: 1_000,
+    model,
+    ...(effort ? { effort } : {})
+  })
+  const childCases: [string, Partial<AgentChildWorkView>, string[], string[]][] = [
+    [
+      'Codex',
+      {
+        description: 'resumen_carpeta',
+        agentType: 'explorer',
+        state: 'done',
+        membership: 'settled',
+        settledAt: 5_100,
+        recordedConfiguration: recorded('gpt-6.1-sol', 'high'),
+        lastMessage: 'Resumen listo'
+      },
+      ['gpt-6.1-sol · high', 'Resumen listo', 'Result'],
+      []
+    ],
+    [
+      'Claude Task',
+      {
+        description: 'Map the auth flow',
+        agentType: 'Explore',
+        state: 'working',
+        lastMessage: 'Reading lib/auth.ts'
+      },
+      ['Explore', 'Reading lib/auth.ts', 'Latest'],
+      ['Result']
+    ],
+    [
+      'Gentle Shell worker',
+      {
+        name: 'gentle-ai-explore',
+        description: 'summarize current project',
+        agentType: 'gentle-ai-explore',
+        state: 'done',
+        membership: 'settled',
+        settledAt: 70_000,
+        lastMessage: 'Project summary'
+      },
+      ['gentle-ai-explore', 'Project summary'],
+      ['Command output unavailable.']
+    ]
+  ]
+  it.each(childCases)(
+    'describes a %s child without command wording',
+    (_name, changes, present, absent) => {
+      render(
+        <NativeChatCodexBackgroundPanel
+          roster={null}
+          isVisible
+          context={fresh}
+          commandActivity={[child('agent-1', { kind: 'agent', ...changes })]}
+        />
+      )
+      if (changes.membership === 'settled') {
+        fireEvent.click(screen.getByRole('button', { name: '1 finished' }))
+      }
+      fireEvent.click(screen.getByRole('button', { name: /View activity/ }))
+      const details = screen.getByRole('complementary', { name: 'Activity details' })
+      for (const text of present) {
+        expect(details.textContent).toContain(text)
+      }
+      for (const text of absent) {
+        expect(details.textContent).not.toContain(text)
+      }
+      expect(details.textContent).not.toContain('Command output unavailable.')
+      expect(details.textContent).not.toContain('unavailable')
+      const title = changes.description ?? ''
+      expect(details.textContent?.split(title).length).toBe(2)
+    }
+  )
+})
+
+describe('finished history across a detail view', () => {
+  it.each(['agent', 'command'] as const)(
+    'keeps the expanded %s history open, and refocuses the row, after Back',
+    (kind) => {
+      render(
+        <NativeChatCodexBackgroundPanel
+          roster={null}
+          isVisible
+          context={fresh}
+          commandActivity={[
+            child('done-one', { kind, state: 'done', membership: 'settled', settledAt: 500 })
+          ]}
+        />
+      )
+      fireEvent.click(screen.getByRole('button', { name: '1 finished' }))
+      const row = screen.getByRole('button', { name: 'View activity: done-one' })
+      fireEvent.click(row)
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+      expect(screen.getByRole('button', { name: '1 finished' }).getAttribute('aria-expanded')).toBe(
+        'true'
+      )
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: 'View activity: done-one' })
+      )
+    }
+  )
 })

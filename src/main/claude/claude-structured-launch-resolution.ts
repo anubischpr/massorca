@@ -58,6 +58,9 @@ export { claudeSessionIdForOrcaSession }
 
 export const CLAUDE_DEFAULT_SETTING_SOURCES = ['user', 'project', 'local'] as const
 export const CLAUDE_SESSION_STATE_EVENTS_ENV = 'CLAUDE_CODE_EMIT_SESSION_STATE_EVENTS'
+// Headless Claude Code enables neither TaskCreate nor TodoWrite for models newer than its legacy
+// list unless opted in; the chat's Plan card reads whichever the CLI then offers.
+export const CLAUDE_TODO_TOOLS_ENV = 'CLAUDE_CODE_ENABLE_TODO_TOOLS'
 
 export type ClaudeStructuredSdkOptions = Pick<
   ClaudeAgentSdkOptions,
@@ -331,7 +334,8 @@ export function createClaudeStructuredLaunchResolver(
             {
               ...base,
               // The turn translator relies on Claude's authoritative idle frame when no result arrives.
-              [CLAUDE_SESSION_STATE_EVENTS_ENV]: '1'
+              [CLAUDE_SESSION_STATE_EVENTS_ENV]: '1',
+              [CLAUDE_TODO_TOOLS_ENV]: base[CLAUDE_TODO_TOOLS_ENV] ?? '1'
             },
             visuals?.visuals ?? null
           )

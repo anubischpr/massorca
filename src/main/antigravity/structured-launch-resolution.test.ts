@@ -124,6 +124,44 @@ it('refuses unknown account authority before probing or launching', async () => 
   expect(h.deps.probeVersion).not.toHaveBeenCalled()
 })
 
+it('launches the model variant for the picked effort', async () => {
+  const h = await setup()
+  const resolve = createAntigravityLaunchResolver(h.deps)
+  const flagValue = (args: readonly string[], flag: string) => args[args.indexOf(flag) + 1]
+
+  const picked = (await resolve(identity, { model: 'gemini-4-argon-medium', effort: 'high' })).args
+  expect(flagValue(picked, '--model')).toBe('gemini-4-argon-high')
+  expect(flagValue(picked, '--effort')).toBe('high')
+
+  const stored = (await resolve(identity, { model: 'gemini-4-argon-high' })).args
+  expect(flagValue(stored, '--model')).toBe('gemini-4-argon-high')
+  expect(stored).not.toContain('--effort')
+})
+
+it('lists each model once, with its efforts, from the agy listing', async () => {
+  const probe = createAntigravityModelCatalogProbe({
+    resolveEnvironment: async () => ({ HOME: '/host/home' }),
+    readBinding: async () => binding,
+    probeVersion: async () => 'supported' as const,
+    runListing: vi.fn(
+      async () =>
+        'gemini-4-argon-medium\tGemini 4 Argon (Medium)\ngemini-4-argon-low\tGemini 4 Argon (Low)\n'
+    )
+  })
+  const listing = await probe(binding)
+  expect(listing.models).toEqual([
+    expect.objectContaining({
+      id: 'gemini-4-argon-medium',
+      label: 'Gemini 4 Argon',
+      defaultEffort: 'medium',
+      efforts: [
+        { value: 'low', label: 'low' },
+        { value: 'medium', label: 'medium' }
+      ]
+    })
+  ])
+})
+
 it('lists bounded account-scoped models with the existing agy parser', async () => {
   const runListing = vi.fn(async () => 'gemini-id\tGemini Example\n')
   const probe = createAntigravityModelCatalogProbe({

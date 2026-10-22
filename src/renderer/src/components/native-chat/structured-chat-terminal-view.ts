@@ -10,6 +10,7 @@ import { isTuiAgent } from '../../../../shared/tui-agent-config'
 import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
 import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 import type { StructuredChatTerminalLink } from '../../store/terminals/terminal-contracts'
+import { chatTransitionKeyForSession, runChatTransition } from './structured-chat-transition-guard'
 
 /** The agents with a structured adapter on this build; their chat can be revealed by session id. */
 const STRUCTURED_CHAT_RETURN_AGENTS: ReadonlySet<string> = new Set([
@@ -115,6 +116,18 @@ export async function showStructuredChatInTerminal(
   args: ShowStructuredChatInTerminalArgs,
   deps: ShowStructuredChatInTerminalDeps
 ): Promise<boolean> {
+  // Why: a repeat click while the switch runs would otherwise start one more terminal per click.
+  return (
+    (await runChatTransition([chatTransitionKeyForSession(args.sessionId)], () =>
+      switchStructuredChatToTerminal(args, deps)
+    )) ?? false
+  )
+}
+
+async function switchStructuredChatToTerminal(
+  args: ShowStructuredChatInTerminalArgs,
+  deps: ShowStructuredChatInTerminalDeps
+): Promise<boolean> {
   // Why first: the host may need a beat to answer, and the chat must not be released until the terminal can start.
   const piRuntime =
     args.launch.agent === 'pi'
@@ -172,15 +185,15 @@ export async function showStructuredChatInTerminal(
     deps.onLaunchFailedAfterRelease()
     return false
   }
-  // Why: a terminal returns to its chat only by a provider session the host can reveal, so a fresh terminal (no session yet) records no link.
+  // Why: a fresh terminal has no provider session yet, but its chat is still listed by id, so back-to-chat reopens it by that id alone.
   if (
-    launch.mode === 'resume' &&
     launchedTab.tabId !== null &&
+    isResumableTuiAgent(launch.agent) &&
     STRUCTURED_CHAT_RETURN_AGENTS.has(launch.agent)
   ) {
     deps.recordTerminalLink(launchedTab.tabId, {
       agent: launch.agent,
-      providerSessionId: launch.providerSession.id,
+      ...(launch.mode === 'resume' ? { providerSessionId: launch.providerSession.id } : {}),
       worktreeId: args.worktreeId,
       structuredSessionId: args.sessionId
     })

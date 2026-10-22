@@ -232,6 +232,11 @@ export function createPiRpcLaunchResolver(
       transcriptPath: sessionFile ?? forkFile,
       command: settings.agentCmdOverrides?.pi
     })
+    if (piRuntime === 'gentle-shell') {
+      // Why: without it Gentle Shell reports its question tools as unavailable ("no TUI") and
+      // asks in prose; with it they use the RPC dialogs the chat renders as question cards.
+      env.GENTLE_SHELL_INTERACTIVE_HOST = '1'
+    }
     const command = resolvePiRpcCommand(
       env,
       piRuntimeCommandSettings(settings, piRuntime),

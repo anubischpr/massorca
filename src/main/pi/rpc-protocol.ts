@@ -83,19 +83,24 @@ export const piRpcPromptReplySchema = z.object({
     .optional()
 })
 
+/** Pi resolves a dialog itself once `timeout` (ms) passes, so the host must withdraw the card. */
+const dialogTimeout = z.number().positive().optional()
+
 export const piRpcDialogSchema = z.discriminatedUnion('method', [
   z.object({
     id: z.union([z.string(), z.number()]),
     method: z.literal('confirm'),
     title: z.string(),
-    message: z.string().optional()
+    message: z.string().optional(),
+    timeout: dialogTimeout
   }),
   z.object({
     id: z.union([z.string(), z.number()]),
     method: z.literal('select'),
     title: z.string(),
     message: z.string().optional(),
-    options: z.array(z.string()).min(1).max(64)
+    options: z.array(z.string()).min(1).max(64),
+    timeout: dialogTimeout
   }),
   z.object({
     id: z.union([z.string(), z.number()]),
@@ -103,7 +108,8 @@ export const piRpcDialogSchema = z.discriminatedUnion('method', [
     title: z.string(),
     message: z.string().optional(),
     placeholder: z.string().optional(),
-    prefill: z.string().optional()
+    prefill: z.string().optional(),
+    timeout: dialogTimeout
   })
 ])
 export type PiRpcDialog = z.infer<typeof piRpcDialogSchema>

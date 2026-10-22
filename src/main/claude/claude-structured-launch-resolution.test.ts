@@ -11,6 +11,7 @@ import type { ClaudeManagedAccountGateSettings } from '../native-chat/claude-str
 import {
   CLAUDE_DEFAULT_SETTING_SOURCES,
   CLAUDE_SESSION_STATE_EVENTS_ENV,
+  CLAUDE_TODO_TOOLS_ENV,
   CLAUDE_STRUCTURED_BASE_OPTIONS,
   claudeSessionIdForOrcaSession,
   createClaudeStructuredLaunchResolver,
@@ -152,7 +153,10 @@ describe('claude structured launch resolution', () => {
     })
     expect(first.options.resume).toBeUndefined()
     expect(CLAUDE_STRUCTURED_BASE_OPTIONS.includePartialMessages).toBe(true)
-    expect(first.env).toMatchObject({ [CLAUDE_SESSION_STATE_EVENTS_ENV]: '1' })
+    expect(first.env).toMatchObject({
+      [CLAUDE_SESSION_STATE_EVENTS_ENV]: '1',
+      [CLAUDE_TODO_TOOLS_ENV]: '1'
+    })
   })
 
   it.each([false, true])(
@@ -236,6 +240,14 @@ describe('claude structured launch resolution', () => {
       ORCA_CLI_COMMAND: expect.stringMatching(/[\\/]cli[\\/]bin[\\/]orca-dev(?:\.cmd)?$/)
     })
     expect(launch.env?.ORCA_AGENT_SESSION_ID).not.toBe(launch.providerSessionId)
+  })
+
+  it('opts into the plan tools unless the user already chose', async () => {
+    const launch = await resolverFor(record(), () => ({ [CLAUDE_TODO_TOOLS_ENV]: 'false' }))({
+      identity: IDENTITY
+    })
+
+    expect(launch.env).toMatchObject({ [CLAUDE_TODO_TOOLS_ENV]: 'false' })
   })
 
   it('forces session-state events on when the inherited overlay disables them', async () => {

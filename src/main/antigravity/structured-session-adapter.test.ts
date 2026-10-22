@@ -25,7 +25,8 @@ async function createHarness(processlessTiming?: ProcesslessTiming) {
   const rig = await openProviderTimelineRig({ agent: 'antigravity', sessionId: 'session-timeline' })
   const processes: ReturnType<typeof antigravityTestProcess>[] = []
   const settled = vi.fn(),
-    lifecycle = vi.fn()
+    lifecycle = vi.fn(),
+    childWork = vi.fn()
   const input: StructuredAgentSessionAcquireInput = {
     identity: {
       sessionId: 'session-timeline',
@@ -59,6 +60,7 @@ async function createHarness(processlessTiming?: ProcesslessTiming) {
     onLifecycle: lifecycle,
     onSettled: settled,
     onIdle: vi.fn(),
+    onChildWorkEvidence: childWork,
     logger: { warn: vi.fn(), error: vi.fn() }
   })
   cleanups.push(async () => {
@@ -76,7 +78,7 @@ async function createHarness(processlessTiming?: ProcesslessTiming) {
       requestedAt: 123,
       body: { kind: 'message', role: 'user', blocks: [{ type: 'text', text: 'question' }] }
     })
-  return { adapter, processes, settled, lifecycle, input, send, resolveLaunch }
+  return { adapter, processes, settled, lifecycle, childWork, input, send, resolveLaunch }
 }
 
 async function setup() {
@@ -156,6 +158,61 @@ it('acquires only a validated init and settles dispatch only after its user-inpu
   expect(h.adapter.holdsDispatch('session-timeline')).toBe(true)
   h.processes[0].result()
   expect(h.adapter.holdsDispatch('session-timeline')).toBe(false)
+})
+
+it('publishes an agy subagent from its invoke_subagent step and settles it when the turn ends', async () => {
+  const h = await setup()
+  expect(await h.send('message-1')).toEqual({ state: 'admitted' })
+  h.processes[0].echo()
+  h.processes[0].emit({
+    event: 'step_update',
+    step_update: {
+      conversation_id: 'conversation-1',
+      step_index: 2,
+      state: 'ACTIVE',
+      step_type: 'tool',
+      tool_name: 'invoke_subagent',
+      tool_info: { parameters: { Role: 'research worker', TypeName: 'research' } }
+    }
+  })
+  const handle = { idKind: 'task_id', id: 'antigravity:conversation-1:subagent:2' }
+  expect(h.childWork).toHaveBeenLastCalledWith('session-timeline', [
+    expect.objectContaining({
+      type: 'live',
+      child: expect.objectContaining({
+        handle,
+        kind: 'agent',
+        residency: 'background',
+        state: 'working',
+        agentType: 'research'
+      })
+    })
+  ])
+  h.processes[0].result()
+  expect(h.childWork).toHaveBeenLastCalledWith('session-timeline', [
+    expect.objectContaining({ type: 'ended', handle, outcome: 'unknown' })
+  ])
+})
+
+it('ends an agy subagent still open as its session ends when the process exits', async () => {
+  const h = await setup()
+  expect(await h.send('message-1')).toEqual({ state: 'admitted' })
+  h.processes[0].echo()
+  h.processes[0].emit({
+    event: 'step_update',
+    step_update: {
+      conversation_id: 'conversation-1',
+      step_index: 2,
+      state: 'ACTIVE',
+      step_type: 'tool',
+      tool_name: 'invoke_subagent',
+      tool_info: { parameters: {} }
+    }
+  })
+  h.processes[0].exit()
+  expect(h.childWork).toHaveBeenLastCalledWith('session-timeline', [
+    { type: 'session-ended', observedAt: expect.any(Number) }
+  ])
 })
 
 it('serializes follow-ups and keeps an echoed but not yet running prompt stoppable', async () => {

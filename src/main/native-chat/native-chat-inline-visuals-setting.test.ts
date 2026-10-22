@@ -129,9 +129,12 @@ describe('inline visuals launch preference', () => {
       expect(disabled.calls.slice(0, openIndex).map(({ method }) => method)).not.toContain(
         'config/read'
       )
-      expect(
-        disabled.calls.find(({ method }) => method === 'thread/start')?.params
-      ).not.toHaveProperty('config')
+      // Why: the visuals preference adds no config of its own; the only config a thread opens
+      // with is the plan tool every Codex thread asks for.
+      expect(disabled.calls.find(({ method }) => method === 'thread/start')?.params).toHaveProperty(
+        'config',
+        { 'tools.update_plan.enabled': true }
+      )
       expect(existsSync(nativeChatVisualsFolderFor(stateDirectory, 'disabled'))).toBe(false)
       expect(first.closed).toBe(false)
       expect(first.calls).toEqual(firstCalls)

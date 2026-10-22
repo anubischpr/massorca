@@ -331,6 +331,78 @@ describe('returnTerminalToStructuredChat', () => {
   })
 })
 
+describe('returnTerminalToStructuredChat while a switch of the same chat is underway', () => {
+  it('ignores a return from another terminal of the same chat until the first settles', async () => {
+    let finishClose: (confirmed: boolean) => void = () => {}
+    const d = deps({
+      closeTerminalTabConfirmingExit: vi.fn(
+        () =>
+          new Promise<boolean>((resolve) => {
+            finishClose = resolve
+          })
+      )
+    })
+
+    const first = returnTerminalToStructuredChat({ tabId: 'terminal-tab-2', link: LINKS.codex }, d)
+    await vi.waitFor(() => expect(d.closeTerminalTabConfirmingExit).toHaveBeenCalledTimes(1))
+    await expect(
+      returnTerminalToStructuredChat({ tabId: 'terminal-tab-3', link: LINKS.codex }, d)
+    ).resolves.toBe(false)
+    finishClose(true)
+    await expect(first).resolves.toBe(true)
+
+    expect(d.activateStructuredChat).toHaveBeenCalledTimes(1)
+  })
+
+  it('accepts a return again after the first one failed', async () => {
+    const d = deps({ closeTerminalTabConfirmingExit: vi.fn(async () => false) })
+
+    await expect(
+      returnTerminalToStructuredChat({ tabId: 'terminal-tab-2', link: LINKS.claude }, d)
+    ).resolves.toBe(false)
+    await expect(
+      returnTerminalToStructuredChat({ tabId: 'terminal-tab-2', link: LINKS.claude }, d)
+    ).resolves.toBe(false)
+    expect(d.closeTerminalTabConfirmingExit).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('returnTerminalToStructuredChat for a fresh Gentle Shell terminal', () => {
+  const FRESH: StructuredChatTerminalLink = {
+    agent: 'pi',
+    worktreeId: WORKTREE,
+    structuredSessionId: 'gentle-shell-chat-2'
+  }
+
+  it('offers the return toggle for a link that names no provider session', () => {
+    expect(terminalChatToggleRoute({ link: FRESH, chatViewActive: false, paneCount: 1 })).toEqual({
+      kind: 'return-to-structured-chat',
+      link: FRESH
+    })
+  })
+
+  it('reopens the chat by its session id', async () => {
+    const steps: string[] = []
+    const d = deps({}, steps)
+
+    await expect(
+      returnTerminalToStructuredChat({ tabId: 'terminal-tab-1', link: FRESH }, d)
+    ).resolves.toBe(true)
+
+    expect(steps).toEqual(['revealed', 'closed', 'activated'])
+  })
+
+  it('keeps the terminal when the chat cannot be listed, since there is no provider session to adopt', async () => {
+    const d = deps({ revealStructuredChat: vi.fn(async () => 'gone' as const) })
+
+    await expect(
+      returnTerminalToStructuredChat({ tabId: 'terminal-tab-1', link: FRESH }, d)
+    ).resolves.toBe(false)
+
+    expect(d.closeTerminalTabConfirmingExit).not.toHaveBeenCalled()
+  })
+})
+
 describe('terminalChatToggleRoute', () => {
   it('returns a single-pane terminal the structured chat opened to that chat', () => {
     expect(

@@ -1,6 +1,7 @@
 import { ImeInput } from '@/lib/ime-text-field'
 import type { CSSProperties, RefObject } from 'react'
 import {
+  LoaderCircle,
   MessageSquare,
   MessageSquarePlus,
   SquareSplitVertical,
@@ -11,6 +12,10 @@ import type { ManagedPane, PaneManager } from '@/lib/pane-manager/pane-manager'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
+import {
+  chatTransitionKeyForTerminalTab,
+  useChatTransitionPending
+} from '../native-chat/structured-chat-transition-guard'
 import { isImeCompositionKeyDown } from '@/lib/ime-composition-keyboard-event'
 import type { PtyTransport } from './pty-transport'
 import { TerminalPaneHeaderDropSurface } from './TerminalPaneHeaderDropSurface'
@@ -107,6 +112,8 @@ export default function TerminalPaneHeaderOverlay({
   onRenameCancel,
   onRenameBlur
 }: TerminalPaneHeaderOverlayProps): React.JSX.Element {
+  // Why: a return to the structured chat stops this terminal first, which takes a moment.
+  const chatReturnPending = useChatTransitionPending(chatTransitionKeyForTerminalTab(tabId))
   const splitRightLabel = translate(
     'auto.components.terminal.pane.TerminalContextMenu.20e565d865',
     'Split Terminal Right'
@@ -276,12 +283,16 @@ export default function TerminalPaneHeaderOverlay({
                                 )
                           }
                           aria-pressed={isChatViewMode}
+                          aria-busy={chatReturnPending || undefined}
+                          disabled={chatReturnPending}
                           onClick={(event) => {
                             event.stopPropagation()
                             onToggleNativeChat?.()
                           }}
                         >
-                          {isChatViewMode ? (
+                          {chatReturnPending ? (
+                            <LoaderCircle className="size-3 animate-spin" />
+                          ) : isChatViewMode ? (
                             <SquareTerminal className="size-3" />
                           ) : (
                             <MessageSquare className="size-3" />

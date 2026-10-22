@@ -1,18 +1,21 @@
 import { ChevronRight } from 'lucide-react'
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
-/** Finished background work under its own toggle, collapsed so running work stays the focus. */
+/** Finished background work under its own toggle, collapsed so running work stays the focus. The
+ *  owner holds `open`, so it survives the group unmounting while a detail view is shown. */
 export function NativeChatFinishedBackgroundGroup({
   count,
+  open,
+  onOpenChange: setOpen,
   children
 }: {
   count: number
+  open: boolean
+  onOpenChange: (open: boolean) => void
   children: React.ReactNode
 }): React.JSX.Element {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="mt-3">
       <CollapsibleTrigger asChild>

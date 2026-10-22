@@ -18,7 +18,8 @@ export type AutomaticAgentResumeClaim = {
 /** A terminal "Show terminal" opened for a structured chat; back-to-chat reopens that chat. Never persisted. */
 export type StructuredChatTerminalLink = {
   agent: ResumableTuiAgent
-  providerSessionId: string
+  /** Absent for a fresh terminal, which has no provider session to adopt. */
+  providerSessionId?: string
   worktreeId: string
   /** The structured chat the terminal came from; back-to-chat reopens that same session by id. */
   structuredSessionId: string

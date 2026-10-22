@@ -10,6 +10,7 @@ import {
   type CodexAppServerConnection
 } from './codex-app-server-connection'
 import type { CodexStructuredPermissionPolicy } from './codex-structured-permission-policy'
+import { requestWithPlanTool } from './codex-structured-plan-tool'
 import { readCodexThreadId } from './codex-structured-thread-facts'
 
 export type CodexOpenedThread = {
@@ -43,23 +44,21 @@ function isExcludeTurnsUnsupported(error: unknown): boolean {
 async function resumeCodexThread(
   connection: Pick<CodexAppServerConnection, 'request'>,
   params: Record<string, unknown>,
-  timeoutMs: number | undefined
+  planTool: Parameters<typeof requestWithPlanTool>[3]
 ): Promise<unknown> {
+  const resume = (resumeParams: Record<string, unknown>): Promise<unknown> =>
+    requestWithPlanTool(connection, 'thread/resume', resumeParams, planTool)
   if (resumeMetadataUnsupported.has(connection)) {
-    return connection.request('thread/resume', params, { timeoutMs })
+    return resume(params)
   }
   try {
-    return await connection.request(
-      'thread/resume',
-      { ...params, excludeTurns: true },
-      { timeoutMs }
-    )
+    return await resume({ ...params, excludeTurns: true })
   } catch (error) {
     if (!isExcludeTurnsUnsupported(error)) {
       throw error
     }
     resumeMetadataUnsupported.add(connection)
-    return connection.request('thread/resume', params, { timeoutMs })
+    return resume(params)
   }
 }
 
@@ -99,14 +98,18 @@ export async function openCodexThread(
   const resumeThreadId = launch.resumeThreadId
   const threadSettings = {
     cwd: launch.cwd,
-    ...launch.permissionPolicy,
-    ...(launch.threadConfig ? { config: launch.threadConfig } : {})
+    ...launch.permissionPolicy
+  }
+  const planTool = {
+    threadConfig: launch.threadConfig,
+    timeoutMs
   }
   const startThread = (): Promise<unknown> =>
-    connection.request(
+    requestWithPlanTool(
+      connection,
       'thread/start',
       { ...threadSettings, ...(launch.model ? { model: launch.model } : {}) },
-      { timeoutMs }
+      planTool
     )
   let supersededThreadId: string | undefined
   let opened: unknown
@@ -120,7 +123,7 @@ export async function openCodexThread(
       ...(launch.resumePath ? { path: launch.resumePath } : {})
     }
     try {
-      opened = await resumeCodexThread(connection, resumeParams, timeoutMs)
+      opened = await resumeCodexThread(connection, resumeParams, planTool)
     } catch (error) {
       if (!launch.supersedeIfUnsaved || !isCodexNoRolloutError(error, resumeThreadId)) {
         throw error

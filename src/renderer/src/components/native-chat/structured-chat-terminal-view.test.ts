@@ -166,7 +166,7 @@ describe('showStructuredChatInTerminal', () => {
   )
 
   it.each(['claude', 'codex', 'pi', 'antigravity', 'gemini'] as const)(
-    'starts a fresh %s terminal in the chat worktree, records no link, and closes the empty chat',
+    'starts a fresh %s terminal in the chat worktree and closes the empty chat',
     async (agent) => {
       const d = deps()
       const launch: StructuredChatTerminalLaunch = { mode: 'fresh', agent }
@@ -181,7 +181,16 @@ describe('showStructuredChatInTerminal', () => {
           : { worktreeId: 'repo::/work/feature', agent },
         { onSessionLaunched: expect.any(Function) }
       )
-      expect(d.recordTerminalLink).not.toHaveBeenCalled()
+      // Why: a fresh terminal of a structured agent still returns to its chat, by session id alone.
+      if (agent === 'gemini') {
+        expect(d.recordTerminalLink).not.toHaveBeenCalled()
+      } else {
+        expect(d.recordTerminalLink).toHaveBeenCalledWith('terminal-tab-9', {
+          agent,
+          worktreeId: 'repo::/work/feature',
+          structuredSessionId: 'session-1'
+        })
+      }
       expect(d.closeChatTab).toHaveBeenCalledWith('agent-session-tab-1')
     }
   )
@@ -311,5 +320,77 @@ describe('showStructuredChatInTerminal', () => {
 
     expect(d.launchFresh).not.toHaveBeenCalled()
     expect(d.onReleaseFailed).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('showStructuredChatInTerminal while a switch is underway', () => {
+  it.each(['claude', 'codex', 'pi', 'antigravity'] as const)(
+    'starts one %s terminal however many times the button is clicked',
+    async (agent) => {
+      let finishRelease: (value: 'closed') => void = () => {}
+      const d = deps({
+        releaseProviderChild: vi.fn(
+          () =>
+            new Promise<'closed'>((resolve) => {
+              finishRelease = resolve
+            })
+        )
+      })
+      const launch: StructuredChatTerminalLaunch = { mode: 'fresh', agent }
+
+      const first = showStructuredChatInTerminal(args({ launch }), d)
+      const repeats = await Promise.all([
+        showStructuredChatInTerminal(args({ launch }), d),
+        showStructuredChatInTerminal(args({ launch }), d)
+      ])
+      finishRelease('closed')
+
+      expect(repeats).toEqual([false, false])
+      await expect(first).resolves.toBe(true)
+      expect(d.releaseProviderChild).toHaveBeenCalledTimes(1)
+      expect(d.launchFresh).toHaveBeenCalledTimes(1)
+      expect(d.closeChatTab).toHaveBeenCalledTimes(1)
+    }
+  )
+
+  it('accepts the next switch once the first has settled', async () => {
+    const d = deps()
+
+    await expect(showStructuredChatInTerminal(args(), d)).resolves.toBe(true)
+    await expect(showStructuredChatInTerminal(args(), d)).resolves.toBe(true)
+    expect(d.launchResume).toHaveBeenCalledTimes(2)
+  })
+
+  it('accepts the next switch after one that failed', async () => {
+    const d = deps({ releaseProviderChild: vi.fn(async () => 'unsupported' as const) })
+
+    await expect(showStructuredChatInTerminal(args(), d)).resolves.toBe(false)
+    await expect(showStructuredChatInTerminal(args(), d)).resolves.toBe(false)
+    expect(d.releaseProviderChild).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not hold chats apart: another chat switches while the first is underway', async () => {
+    let finishRelease: (value: 'closed') => void = () => {}
+    const d = deps({
+      releaseProviderChild: vi
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<'closed'>((resolve) => {
+              finishRelease = resolve
+            })
+        )
+        .mockResolvedValue('closed')
+    })
+
+    const first = showStructuredChatInTerminal(args(), d)
+    await expect(
+      showStructuredChatInTerminal(
+        args({ sessionId: 'session-2', tabId: 'agent-session-tab-2' }),
+        d
+      )
+    ).resolves.toBe(true)
+    finishRelease('closed')
+    await expect(first).resolves.toBe(true)
   })
 })

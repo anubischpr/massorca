@@ -40,7 +40,7 @@ import { NativeChatSessionServers } from './NativeChatSessionServers'
 import {
   nativeChatSessionConnectors,
   nativeChatSessionPlan,
-  nativeChatSessionResults
+  nativeChatSessionResultFiles
 } from './native-chat-session-summary'
 
 /** Every row in a tree, owned rows included, so running counts cover nested subagents too. */
@@ -78,7 +78,11 @@ export function NativeChatSessionSummary(props: {
   const { t } = useTranslation()
   const hostLabel = useStructuredAgentSessionHostLabel(props.target)
   const worktreeId = props.fileContext?.worktreeId
-  const results = useMemo(() => nativeChatSessionResults(props.journalItems), [props.journalItems])
+  const workspaceRoot = props.fileContext?.worktreePath ?? null
+  const results = useMemo(
+    () => nativeChatSessionResultFiles(props.journalItems, workspaceRoot),
+    [props.journalItems, workspaceRoot]
+  )
   const connectors = useMemo(
     () => nativeChatSessionConnectors(props.journalItems),
     [props.journalItems]
@@ -134,9 +138,9 @@ export function NativeChatSessionSummary(props: {
     results.length === 0 ? (
       <p>{noResults}</p>
     ) : (
-      results.slice(0, 3).map((path) => (
-        <p key={path} className="truncate" title={path}>
-          {path}
+      results.slice(0, 3).map((file) => (
+        <p key={file.absolutePath} className="truncate" title={file.absolutePath}>
+          {file.displayPath}
         </p>
       ))
     )
@@ -151,16 +155,17 @@ export function NativeChatSessionSummary(props: {
       {results.length === 0 ? (
         <p>{noResults}</p>
       ) : (
-        results.map((path) => (
+        results.map((file) => (
           <a
-            key={path}
+            key={file.absolutePath}
             className="block break-words underline"
-            href={createNativeChatFileHref(path, 'literal')}
+            title={file.absolutePath}
+            href={createNativeChatFileHref(file.absolutePath, 'literal')}
             onClick={(event) =>
-              props.onLinkClick?.(event, createNativeChatFileHref(path, 'literal'))
+              props.onLinkClick?.(event, createNativeChatFileHref(file.absolutePath, 'literal'))
             }
           >
-            {path}
+            {file.displayPath}
           </a>
         ))
       )}

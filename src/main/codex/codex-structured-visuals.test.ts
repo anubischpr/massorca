@@ -175,7 +175,14 @@ describe('a Codex chat acquisition with visuals', () => {
     const methods = connection.calls.map((call) => call.method)
     expect(methods[0]).toBe('thread/start')
     expect(methods).not.toContain('skills/extraRoots/set')
-    expect(connection.calls[0]?.params).not.toHaveProperty('config')
+    // Only the plan tool default rides the thread config; no visuals writable roots.
+    expect(connection.calls[0]?.params).toMatchObject({
+      config: { 'tools.update_plan.enabled': true }
+    })
+    expect(connection.calls[0]?.params).not.toHaveProperty([
+      'config',
+      'sandbox_workspace_write.writable_roots'
+    ])
     expect(connection.launch.env).not.toHaveProperty(NATIVE_CHAT_VISUALS_DIR_ENV)
   })
 })

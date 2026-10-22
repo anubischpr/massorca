@@ -20,6 +20,11 @@ import { isAgentSessionHandleProvider } from '../../../../shared/agent-session-p
 import { readAgentSessionRefusalDetails } from '../../../../shared/agent-session-refusal-details'
 import type { StructuredChatTerminalLink } from '../../store/terminals/terminal-contracts'
 import { closeTerminalTabConfirmingExit } from '../../store/terminals/terminal-tab-confirmed-close'
+import {
+  chatTransitionKeyForSession,
+  chatTransitionKeyForTerminalTab,
+  runChatTransition
+} from './structured-chat-transition-guard'
 
 export type StructuredChatTerminalReturnArgs = {
   /** The terminal tab the user is leaving for the structured chat it came from. */
@@ -57,9 +62,6 @@ export const structuredChatTerminalReturnDeps: StructuredChatTerminalReturnDeps 
   newRequestId: newAgentLaunchRequestId
 }
 
-/** Terminal tabs whose return is already running; a repeat click on the same tab is dropped. */
-const returnsInFlight = new Set<string>()
-
 /**
  * Goes back from a terminal to the structured chat it was opened from. The chat is revealed first,
  * so a chat that cannot be shown leaves the terminal running. The terminal is stopped next, and the
@@ -70,10 +72,21 @@ export async function returnTerminalToStructuredChat(
   args: StructuredChatTerminalReturnArgs,
   deps: StructuredChatTerminalReturnDeps = structuredChatTerminalReturnDeps
 ): Promise<boolean> {
-  if (returnsInFlight.has(args.tabId)) {
-    return false
-  }
-  returnsInFlight.add(args.tabId)
+  // Why: held under the chat's key too, so a chat-to-terminal switch and this return never overlap.
+  const outcome = await runChatTransition(
+    [
+      chatTransitionKeyForSession(args.link.structuredSessionId),
+      chatTransitionKeyForTerminalTab(args.tabId)
+    ],
+    () => returnToChat(args, deps)
+  )
+  return outcome ?? false
+}
+
+async function returnToChat(
+  args: StructuredChatTerminalReturnArgs,
+  deps: StructuredChatTerminalReturnDeps
+): Promise<boolean> {
   try {
     const chat: StructuredChatRef = {
       worktreeId: args.link.worktreeId,
@@ -82,7 +95,10 @@ export async function returnTerminalToStructuredChat(
     const reveal = await deps.revealStructuredChat(chat)
     // Why: only a handle-backed agent can adopt its provider session as a new chat; any other chat
     // that cannot be listed leaves the terminal running.
-    if (reveal !== 'ready' && !isAgentSessionHandleProvider(args.link.agent)) {
+    if (
+      reveal !== 'ready' &&
+      (!isAgentSessionHandleProvider(args.link.agent) || !args.link.providerSessionId)
+    ) {
       showRevealFailedToast(reveal)
       return false
     }
@@ -110,14 +126,15 @@ export async function returnTerminalToStructuredChat(
       return false
     }
     // Why: a handle-backed chat the host cannot list is adopted as a new chat, only after the exit.
-    if (!isAgentSessionHandleProvider(agent)) {
+    const { providerSessionId } = args.link
+    if (!isAgentSessionHandleProvider(agent) || !providerSessionId) {
       showReturnFailedToast()
       return false
     }
     const launch = deps.resumeInStructuredChat({
       agent,
       worktreeId: args.link.worktreeId,
-      providerSessionId: args.link.providerSessionId,
+      providerSessionId,
       requestId: deps.newRequestId(),
       onFailed: notifyReturnFailure
     })
@@ -130,8 +147,6 @@ export async function returnTerminalToStructuredChat(
   } catch (error) {
     notifyReturnFailure(error)
     return false
-  } finally {
-    returnsInFlight.delete(args.tabId)
   }
 }
 

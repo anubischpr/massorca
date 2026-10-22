@@ -211,6 +211,25 @@ describe('Pi host launch resolution', () => {
     }
   )
 
+  it('tells only Gentle Shell that its host answers questions', async () => {
+    const h = await setup()
+    await installGentleShellStub()
+    h.resolveEnvironment.mockResolvedValue({
+      PATH: root,
+      HOME: '/host/home',
+      PI_CODING_AGENT_DIR: '/inherited/wrong'
+    })
+    vi.spyOn(h.store, 'getRecord').mockReturnValue({
+      ...h.record,
+      options: { piRuntime: 'gentle-shell' }
+    })
+    await expect(h.resolver(identity)).resolves.toMatchObject({
+      env: { GENTLE_SHELL_INTERACTIVE_HOST: '1' }
+    })
+    vi.spyOn(h.store, 'getRecord').mockReturnValue(h.record)
+    expect((await h.resolver(identity)).env).not.toHaveProperty('GENTLE_SHELL_INTERACTIVE_HOST')
+  })
+
   it('gives stock Pi no Gentle Shell mode and leaves a preset it does not have restricted', async () => {
     const h = await setup()
     vi.spyOn(h.store, 'getRecord').mockReturnValue({ ...h.record, options: { accessMode: 'auto' } })

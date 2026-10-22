@@ -18971,6 +18971,13 @@
       "workspace": "Espacio de trabajo"
     },
     "nativeChatBackground": {
+      "back": "Volver",
+      "agentDetails": "Detalles del subagente",
+      "agentTask": "Tarea",
+      "agentResult": "Resultado",
+      "agentLatest": "Último",
+      "ranFor": "Se ejecutó durante {{duration}}",
+      "runningFor": "En ejecución desde hace {{duration}}",
       "finishedCount": "{{count}} finalizadas",
       "finishedCount_one": "{{count}} finalizada",
       "finishedCount_other": "{{count}} finalizadas",
