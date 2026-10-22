@@ -19,12 +19,11 @@ export type StructuredAgentSessionProviderCommands = {
 }
 
 /** Provider commands run one at a time: a second press while one is out is not sent. */
-export function useStructuredAgentSessionProviderCommands(args: {
-  available: readonly AgentSessionProviderCommand[] | undefined
+export function useStructuredProviderCommands(
+  reported: readonly AgentSessionProviderCommand[] | undefined,
   mutate: StructuredAgentSessionMutate
-}): StructuredAgentSessionProviderCommands {
-  const { mutate } = args
-  const available = args.available ?? NO_COMMANDS
+): StructuredAgentSessionProviderCommands {
+  const available = reported ?? NO_COMMANDS
   const [pending, setPending] = useState(false)
   const pendingRef = useRef(false)
   const run = useCallback(

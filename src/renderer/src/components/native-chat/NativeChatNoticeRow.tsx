@@ -67,12 +67,16 @@ export function NativeChatNoticeRow({
       </div>
     )
   }
-  if (block.presentation === GENTLE_SHELL_USAGE_PRESENTATION) {
+  if (
+    block.presentation === GENTLE_SHELL_USAGE_PRESENTATION ||
+    block.presentation === CODEX_USAGE_NOTICE_PRESENTATION
+  ) {
+    const UsageCard =
+      block.presentation === CODEX_USAGE_NOTICE_PRESENTATION
+        ? NativeChatCodexUsageCard
+        : NativeChatGentleUsageCard
     return (
-      <NativeChatGentleUsageCard
-  if (block.presentation === CODEX_USAGE_NOTICE_PRESENTATION) {
-    return (
-      <NativeChatCodexUsageCard
+      <UsageCard
         fallback={
           <NativeChatNoticeRow
             block={{ ...block, presentation: undefined }}

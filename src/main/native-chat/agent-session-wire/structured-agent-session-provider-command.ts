@@ -9,6 +9,7 @@ import type {
   AgentSessionProviderCommandResult
 } from '../../../shared/agent-session-provider-command'
 import type { AgentSessionMutationEnvelope } from '../../../shared/agent-session-wire'
+import { AGENT_SESSION_COMMAND_RESULT_PRESENTATION } from '../../../shared/native-chat-command-result'
 import type { MutationPlan } from './structured-agent-session-mutation-plans'
 import type { AgentSessionTurnContext, TurnOutcome } from './structured-agent-session-turns'
 
@@ -55,7 +56,8 @@ export async function performProviderCommand(
       {
         kind: 'status',
         text,
-        ...(presentation ? { presentation } : {}),
+        // Shown outside the work fold, as what the command printed.
+        presentation: presentation ?? AGENT_SESSION_COMMAND_RESULT_PRESENTATION,
         ...(tone ? { tone } : {})
       },
       { fence: ctx.fence, turnScope: ctx.journal.liveTurnScope() }
