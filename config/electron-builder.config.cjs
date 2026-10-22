@@ -198,9 +198,11 @@ const extraMetadata = {
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
   appId,
-  // Why: the display name. appId, the executable names and the userData directory stay as they were,
-  // so an installed Orca upgrades in place (see main/startup/configure-process.ts for the profile pin).
-  productName: 'MassOrca',
+  // Why: productName keeps the install identity. electron-builder derives the Linux install directory
+  // (/opt/<productName>), the Windows install folder and the Windows version-info name from it, so it
+  // stays 'Orca'. The MassOrca display name is set per surface: shortcuts, the uninstall entry, the
+  // Linux desktop entry, the protocol description and the macOS CFBundleDisplayName.
+  productName: 'Orca',
   protocols: [{ name: 'MassOrca', schemes: ['orca'] }],
   toolsets: { appimage: '1.0.3' },
   extraMetadata: Object.keys(extraMetadata).length ? extraMetadata : undefined,
@@ -522,8 +524,9 @@ module.exports = {
   },
   nsis: {
     artifactName: 'orca-windows-setup.${ext}',
-    shortcutName: '${productName}',
-    uninstallDisplayName: '${productName}',
+    // Why: display names only; the install folder and registry key follow productFilename and appId.
+    shortcutName: 'MassOrca',
+    uninstallDisplayName: 'MassOrca',
     createDesktopShortcut: 'always',
     // Why: electron-builder allows one include, so both Windows installer hooks live in it -
     // the relocated-daemon uninstall sweep (guarded by ${isUpdated} so it never runs during an
@@ -667,7 +670,9 @@ module.exports = {
       entry: {
         // Why: Electron reports WM_CLASS=orca for the visible Linux window;
         // GNOME docks need an exact match to group it with orca-ide.desktop.
-        StartupWMClass: 'orca'
+        StartupWMClass: 'orca',
+        // Why: productName stays 'Orca' for the /opt install path, so the menu name is set here.
+        Name: 'MassOrca'
       }
     },
     extraResources: [
