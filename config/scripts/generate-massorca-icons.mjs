@@ -14,7 +14,7 @@ const SOURCE_SVG = join(ROOT, 'resources/branding/massorca-rose.svg')
 const CUBIC_STEPS = 16
 const SUBSCANLINES = 4
 
-const DESKTOP_FILL = 0.9
+const DESKTOP_FILL = 0.94
 const MOBILE_ICON_FILL = 0.5
 const MOBILE_BACKGROUND = [17, 17, 17] // #111111, matches app.json splash and adaptive backgrounds
 const ADAPTIVE_SAFE_RADIUS = 320 / 1024 // 66% safe-zone circle, as a fraction of the canvas side
