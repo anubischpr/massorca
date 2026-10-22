@@ -90,7 +90,7 @@ export class PiRpcSessionAdapter implements StructuredAgentSessionAdapter {
         ...launch,
         structuredSession: { id, spawnToken: input.spawnToken }
       })
-      session = new PiRpcSession(input, randomUUID(), spec, this.deps)
+      session = new PiRpcSession(input, randomUUID(), spec, this.deps, launch.piRuntime)
       session.agentDir = launch.env?.PI_CODING_AGENT_DIR
       this.sessions.set(id, session)
       this.starts.track(attempt, session.connection)

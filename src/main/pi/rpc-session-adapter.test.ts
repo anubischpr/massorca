@@ -135,7 +135,11 @@ class FakeConnection implements PiRpcConnection {
 async function setup(
   options: Readonly<Record<string, string>> = {},
   eventSink?: (sink: StructuredAgentSessionEventSink) => StructuredAgentSessionEventSink,
-  launchExtras: { gentleMode?: 'normal' | 'auto' | 'yolo'; env?: Record<string, string> } = {},
+  launchExtras: {
+    gentleMode?: 'normal' | 'auto' | 'yolo'
+    env?: Record<string, string>
+    piRuntime?: 'pi' | 'gentle-shell'
+  } = {},
   adapterExtras: Pick<ConstructorParameters<typeof PiRpcSessionAdapter>[0], 'commandCatalog'> = {}
 ) {
   const rig = await openProviderTimelineRig({ agent: 'pi', sessionId })
@@ -165,6 +169,7 @@ async function setup(
     cwd: '/host/folder',
     fullAccess: true,
     previous: null,
+    piRuntime: options.piRuntime === 'gentle-shell' ? ('gentle-shell' as const) : ('pi' as const),
     ...launchExtras
   }))
   const openConnection = vi.fn(
@@ -219,6 +224,22 @@ function restingRecord(piRuntime?: string): AgentSessionRecord {
     ...(piRuntime ? { options: { piRuntime } } : {})
   } as AgentSessionRecord
 }
+
+describe('Pi agent wake gate', () => {
+  // Why: a saved record can lack options.piRuntime, so the launch's resolved runtime decides.
+  it('lets a Gentle Shell launch take a wake when the record names no runtime', async () => {
+    const h = await setup({}, undefined, { piRuntime: 'gentle-shell' })
+    h.connection.receive({ type: 'agent_start' })
+    await h.adapter.drainObservedExits()
+    expect(h.connection.closed).toBe(false)
+    expect(h.lifecycle).not.toHaveBeenCalled()
+  })
+
+  it('still refuses an agent run nobody asked for from stock Pi', async () => {
+    const h = await setup({}, undefined, { piRuntime: 'pi' })
+    expect(() => h.connection.receive({ type: 'agent_start' })).toThrow('unsolicited agent run')
+  })
+})
 
 describe('Pi slash commands for a chat whose child is not running', () => {
   it('remembers what a running Gentle Shell child lists and offers it at rest, per runtime', async () => {

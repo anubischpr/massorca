@@ -21,6 +21,7 @@ import { PiRpcDialogCallbacks } from './rpc-dialog-callbacks'
 import { piRpcStateSchema } from './rpc-protocol'
 import { readPiRpcSessionOptions, restorePiRpcSessionOptions } from './rpc-options'
 import { GentleShellModeControl, type GentleShellMode } from './gentle-shell-permission-mode'
+import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
 
 export type PiRpcConnection = Pick<
   JsonlRpcAgentConnection,
@@ -52,7 +53,7 @@ export type PiRpcSessionDeps = {
   /** The host's sink for a session's child work (Gentle Shell background jobs). */
   onChildWorkEvidence?: (sessionId: string, evidence: AgentChildWorkEvidence[]) => void
   /** Remembers what a running child reports as its `/` commands, for a chat whose child is not running. */
-  commandCatalog?: Pick<PiRpcCommandCatalog, 'recordFor' | 'atRestCommands'>
+  commandCatalog?: Pick<PiRpcCommandCatalog, 'record' | 'atRestCommands'>
   logger: StructuredAgentSessionLogger
 }
 
@@ -79,7 +80,9 @@ export class PiRpcSession {
     readonly input: StructuredAgentSessionAcquireInput,
     readonly generation: string,
     launch: ProviderProcessLaunch,
-    private readonly deps: PiRpcSessionDeps
+    private readonly deps: PiRpcSessionDeps,
+    /** The runtime the launch spawned; a saved record's options may not name it. */
+    readonly piRuntime: PiRuntimeSelection
   ) {
     const sink = input.events && providerTimelineSink(input.events)
     if (!sink) {
@@ -114,7 +117,7 @@ export class PiRpcSession {
         deps.onIdle({ sessionId: input.identity.sessionId })
       },
       failed: (error) => this.fail(error),
-      acceptsAgentWake: input.options?.piRuntime === 'gentle-shell',
+      acceptsAgentWake: piRuntime === 'gentle-shell',
       ...(deps.onChildWorkEvidence
         ? {
             childWork: (evidence) => deps.onChildWorkEvidence?.(input.identity.sessionId, evidence)
@@ -157,13 +160,13 @@ export class PiRpcSession {
     })
     this.slash = new PiRpcSessionCommands({
       rpc: this.connection,
-      sessionOptions: input.options,
+      runtime: piRuntime,
       catalog: deps.commandCatalog,
       logger: deps.logger,
       sessionId: input.identity.sessionId
     })
     this.gentle = new GentleShellModeControl({
-      enabled: input.options?.piRuntime === 'gentle-shell',
+      enabled: piRuntime === 'gentle-shell',
       rpc: this.connection,
       commands: () => this.slash.list,
       busy: () => this.turns.working || this.turns.holdsDispatch,

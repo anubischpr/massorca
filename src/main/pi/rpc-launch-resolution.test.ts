@@ -223,6 +223,54 @@ describe('Pi host launch resolution', () => {
     expect((await h.resolver(identity)).gentleMode).toBeUndefined()
   })
 
+  // Why: a saved record can drop options.piRuntime; the transcript it resumes still names the runtime.
+  it('resumes a Gentle Shell transcript as Gentle Shell when the record names no runtime', async () => {
+    const h = await setup()
+    const command = await installGentleShellStub()
+    h.resolveEnvironment.mockResolvedValue({
+      PATH: root,
+      HOME: '/host/home',
+      PI_CODING_AGENT_DIR: '/inherited/wrong'
+    })
+    const sessions = join(root, '.gentle-shell', 'agent', 'sessions')
+    await mkdir(sessions, { recursive: true })
+    const file = join(sessions, 'conversation.jsonl')
+    await writeFile(
+      file,
+      `${JSON.stringify({ type: 'session', cwd: h.workspace })}
+`
+    )
+    h.withPrior(h.prior(file))
+    const resolver = createPiRpcLaunchResolver({
+      store: h.store,
+      resolveWorkspacePath: async () => h.workspace,
+      resolveEnvironment: h.resolveEnvironment,
+      resolveCommandSettings: () => h.settings
+    })
+    await expect(resolver(identity)).resolves.toMatchObject({
+      piRuntime: 'gentle-shell',
+      command,
+      gentleMode: 'normal',
+      sessionFile: file
+    })
+  })
+
+  it('keeps a stock Pi transcript on stock Pi when the record names no runtime', async () => {
+    const h = await setup()
+    const sessions = join(root, '.pi', 'agent', 'sessions')
+    await mkdir(sessions, { recursive: true })
+    const file = join(sessions, 'conversation.jsonl')
+    await writeFile(
+      file,
+      `${JSON.stringify({ type: 'session', cwd: h.workspace })}
+`
+    )
+    h.withPrior(h.prior(file))
+    const launch = await h.resolver(identity)
+    expect(launch.piRuntime).toBe('pi')
+    expect(launch.gentleMode).toBeUndefined()
+  })
+
   it('retains the session runtime and account home when the host preference changes', async () => {
     const h = await setup()
     const command = await installGentleShellStub()
