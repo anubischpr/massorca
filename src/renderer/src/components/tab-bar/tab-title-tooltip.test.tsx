@@ -87,8 +87,11 @@ vi.mock('./shell-icons', () => ({
   ShellIcon: () => <span data-shell-icon />
 }))
 
+vi.mock('@/lib/use-pi-runtime', () => ({ usePiDisplayRuntime: () => 'unknown' }))
+
 vi.mock('@/lib/agent-catalog', () => ({
   getAgentLabel: (agent: string) => (agent === 'claude' ? 'Claude' : agent),
+  getAgentDisplayLabel: (agent: string) => (agent === 'claude' ? 'Claude' : agent),
   AgentIcon: ({ agent }: { agent: string }) => <span data-agent-catalog-icon={agent} />
 }))
 

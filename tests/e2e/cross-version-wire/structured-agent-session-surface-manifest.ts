@@ -172,6 +172,8 @@ export function paramsFor(method: string): unknown {
       return { agent: 'codex', sessionId: SESSION }
     case 'agentSession.readVisual':
       return { sessionId: SESSION, file: 'usage-chart.html' }
+    case 'agentSession.dismissPromptSuggestion':
+      return { sessionId: SESSION, turnId: 'turn-1', text: 'Run the tests' }
     case 'agentSession.readPlanDocument':
       return {
         sessionId: SESSION,

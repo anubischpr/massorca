@@ -126,6 +126,13 @@ export const STRUCTURED_CALLS: {
     hostMethod: null,
     result: { ok: false, error: 'session_not_found' }
   },
+  // Esc on a suggested next message, kept dismissed across host restarts. A bare addition: an older
+  // host answers `method_not_found` and the client keeps its own dismissal.
+  {
+    method: 'agentSession.dismissPromptSuggestion',
+    hostMethod: 'promptSuggestionDismiss',
+    result: { dismissed: true }
+  },
   // A no-op on a host that starts an agent only for work; it still builds the host.
   { method: 'agentSession.hold', hostMethod: null, result: { held: true } },
   // The restart-resume surface. Bare additions, not capability-negotiated: an RPC method's
