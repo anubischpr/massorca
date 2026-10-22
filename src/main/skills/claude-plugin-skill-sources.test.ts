@@ -1,6 +1,12 @@
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { resolveClaudePluginSkillSources } from './claude-plugin-skill-sources'
+import {
+  discoverClaudePluginCommandRoots,
+  resolveClaudePluginCommandRoots,
+  resolveClaudePluginSkillSources
+} from './claude-plugin-skill-sources'
 
 function installedPlugins(installs: Record<string, Record<string, unknown>[]>): string {
   return JSON.stringify({ version: 2, plugins: installs })
@@ -118,5 +124,58 @@ describe('Claude plugin skill sources', () => {
     })
 
     expect(roots[0]?.path).toBe(join('/home/alice/.claude/plugins/cache/compound/new', 'skills'))
+  })
+
+  it('names each enabled plugin commands folder after the plugin, as Claude prefixes them', () => {
+    const roots = resolveClaudePluginCommandRoots({
+      cwd,
+      metadata: {
+        installedPlugins: installedPlugins({
+          [pluginId]: [
+            {
+              scope: 'user',
+              installPath: '/home/alice/.claude/plugins/cache/compound/3.14.3'
+            }
+          ],
+          'disabled@compound-engineering-plugin': [
+            { scope: 'user', installPath: '/home/alice/.claude/plugins/cache/disabled' }
+          ],
+          'two words@market': [{ scope: 'user', installPath: '/home/alice/.claude/plugins/x' }]
+        }),
+        settings: [
+          settings({
+            [pluginId]: true,
+            'two words@market': true,
+            'disabled@compound-engineering-plugin': false
+          })
+        ]
+      }
+    })
+
+    expect(roots).toEqual([
+      {
+        pluginName: 'compound-engineering',
+        path: join('/home/alice/.claude/plugins/cache/compound/3.14.3', 'commands')
+      }
+    ])
+  })
+
+  it('reads plugin metadata from a Claude config directory and the workspace settings', async () => {
+    const configDir = await mkdtemp(join(tmpdir(), 'orca-claude-config-'))
+    try {
+      const installPath = join(configDir, 'plugins', 'cache', 'compound', '3.14.3')
+      await mkdir(join(configDir, 'plugins'), { recursive: true })
+      await writeFile(
+        join(configDir, 'plugins', 'installed_plugins.json'),
+        installedPlugins({ [pluginId]: [{ scope: 'user', installPath }] })
+      )
+      await writeFile(join(configDir, 'settings.json'), settings({ [pluginId]: true }))
+
+      expect(await discoverClaudePluginCommandRoots({ configDir, cwd })).toEqual([
+        { pluginName: 'compound-engineering', path: join(installPath, 'commands') }
+      ])
+    } finally {
+      await rm(configDir, { recursive: true, force: true })
+    }
   })
 })

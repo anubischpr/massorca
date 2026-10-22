@@ -6,6 +6,7 @@ import type { Repo } from '../../shared/repo-types'
 import { getRepoExecutionHostId, LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import type { SkillProviderRootOverrides } from './skill-provider-destinations'
 import { stablePathId } from './skill-discovery-classification'
+import { antigravitySkillSources } from './antigravity-skill-sources'
 import {
   resolveDefaultHermesSkillsRoot,
   resolveEnvironmentHermesSkillsRoot,
@@ -149,6 +150,7 @@ export function buildSkillDiscoverySources(
       ['agent-skills'],
       'antigravity'
     ),
+    ...antigravitySkillSources(home, pathApi),
     source(
       'home-cursor',
       'Cursor home',

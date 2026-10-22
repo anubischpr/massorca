@@ -14,6 +14,7 @@ import {
   CLAUDE_AT_REST_COMMANDS_TTL_MS,
   ClaudeAtRestCommandCatalog
 } from '../../claude/claude-at-rest-commands'
+import { CLAUDE_BUILT_IN_COMMANDS } from '../../claude/claude-cli-built-in-commands'
 import type { AgentSessionRecordStore } from '../../runtime/agent-session-record-store'
 import { openTestAgentSessionRecordStore } from '../../runtime/agent-session-record-store-test-harness'
 import type { StructuredAgentSessionAdapter } from './structured-agent-session-adapter'
@@ -237,8 +238,15 @@ describe("a Claude chat whose Claude isn't running shows the `/` surface from it
     const replacement = SESSION
     const menu = await menuOf(replacement)
     expect(namesOf(menu, 'skill')).toEqual(['review-pr'])
-    // Everything the menu offered before a list existed, then what the folders add.
-    expect(namesOf(menu, 'command')).toEqual(['model', 'effort', 'clear', 'compact', 'deploy'])
+    // Everything the menu offered before a list existed, then the CLI's own built-ins, then what the folders add.
+    expect(namesOf(menu, 'command')).toEqual([
+      'model',
+      'effort',
+      'clear',
+      'compact',
+      ...CLAUDE_BUILT_IN_COMMANDS.map((command) => command.name),
+      'deploy'
+    ])
     const functions = activeCatalog.readFunctions(store.getRecord(SESSION)!)
     expect(functions?.find((entry) => entry.name === 'model')).toMatchObject({
       provenance: 'orca',
@@ -355,6 +363,40 @@ describe("a Claude chat whose Claude isn't running shows the `/` surface from it
     const menu = await menuOf(SESSION)
     expect(namesOf(menu, 'skill')).toEqual(['review-pr'])
     expect(namesOf(menu, 'command')).toContain('deploy')
+  })
+
+  it('offers the built-ins Claude runs as text, and not the ones only its terminal UI runs', async () => {
+    await openHost()
+    const commands = namesOf(await menuOf(SESSION), 'command')
+    expect(commands).toEqual(expect.arrayContaining(['context', 'init', 'security-review']))
+    expect(commands).not.toContain('memory')
+    expect(commands.filter((name) => name === 'clear')).toHaveLength(1)
+  })
+
+  it('offers the commands of the plugins the account enables, named plugin:command', async () => {
+    const plugin = join(directory, 'plugins', 'demo', '1.0.0')
+    const disabled = join(directory, 'plugins', 'off')
+    await writeCommand(join(plugin, 'commands'), 'review.md')
+    await writeCommand(join(disabled, 'commands'), 'hidden.md')
+    await mkdir(join(account, 'plugins'), { recursive: true })
+    await writeFile(
+      join(account, 'plugins', 'installed_plugins.json'),
+      JSON.stringify({
+        version: 2,
+        plugins: {
+          'demo@market': [{ scope: 'user', installPath: plugin }],
+          'off@market': [{ scope: 'user', installPath: disabled }]
+        }
+      })
+    )
+    await writeFile(
+      join(account, 'settings.json'),
+      JSON.stringify({ enabledPlugins: { 'demo@market': true, 'off@market': false } })
+    )
+    await openHost()
+    const menu = await menuOf(SESSION)
+    expect(namesOf(menu, 'command')).toEqual(expect.arrayContaining(['demo:review']))
+    expect(namesOf(menu, 'command')).not.toContain('off:hidden')
   })
 
   it('with a command added on disk, pushed to a pane already showing the chat', async () => {

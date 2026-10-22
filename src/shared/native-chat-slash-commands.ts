@@ -25,6 +25,8 @@ export type SlashCommandSuggestion = {
   providerFunction?: AgentSessionProviderFunction
   /** Declared only on curated rows; a surface that cannot show the reply drops the row. */
   reply?: NativeChatCommandReply
+  /** Claimed so a typed alias is answered here, but never listed beside the command it names. */
+  hidden?: true
 }
 
 // Best-effort, curated per-agent catalogs. The CLIs ship no machine-readable
@@ -36,32 +38,39 @@ const COMMON_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'help', description: 'Show available commands' }
 ]
 
-// Pi 1.1.0's BUILTIN_SLASH_COMMANDS; get_commands reports extensions/skills, not these TUI actions.
+// Pi 1.3.0's BUILTIN_SLASH_COMMANDS in its own wording (the build gentle-pi 4.3.0 installs);
+// get_commands reports extensions/skills, not these TUI actions.
 const PI_COMMANDS: readonly SlashCommandSuggestion[] = [
-  { name: 'settings', description: 'Open settings' },
-  { name: 'model', description: 'Choose the model' },
-  { name: 'tree', description: 'Navigate session branches' },
-  { name: 'thinking', description: 'Set thinking level' },
-  { name: 'scoped-models', description: 'Choose models for cycling' },
-  { name: 'export', description: 'Export the session' },
-  { name: 'import', description: 'Import a session from JSONL' },
-  { name: 'share', description: 'Share the session as a secret gist' },
-  { name: 'bug', description: 'Report a Pi bug' },
-  { name: 'copy', description: 'Copy the last response' },
-  { name: 'name', description: 'Rename the session' },
-  { name: 'session', description: 'Show session information' },
-  { name: 'changelog', description: 'Show the changelog' },
-  { name: 'hotkeys', description: 'Show keyboard shortcuts' },
-  { name: 'fork', description: 'Fork from a previous message' },
-  { name: 'clone', description: 'Duplicate the current session' },
-  { name: 'trust', description: 'Save project trust' },
+  { name: 'settings', description: 'Open settings menu' },
+  { name: 'model', description: 'Select model (opens selector UI)' },
+  { name: 'tree', description: 'Navigate session tree (switch branches)' },
+  { name: 'thinking', description: 'Set thinking level', hidden: true },
+  { name: 'scoped-models', description: 'Enable/disable models for Ctrl+P cycling' },
+  {
+    name: 'export',
+    description: 'Export session (HTML default, or specify path: .html/.jsonl)'
+  },
+  { name: 'import', description: 'Import and resume a session from a JSONL file' },
+  { name: 'share', description: 'Share session via a Radius artifact or a GitHub gist' },
+  { name: 'bug', description: 'Report a bug to the Pi developers' },
+  { name: 'copy', description: 'Copy last agent message to clipboard' },
+  { name: 'name', description: 'Set session display name' },
+  { name: 'session', description: 'Show session info and stats' },
+  { name: 'changelog', description: 'Show changelog entries' },
+  { name: 'hotkeys', description: 'Show all keyboard shortcuts' },
+  { name: 'fork', description: 'Create a new fork from a previous user message' },
+  { name: 'clone', description: 'Duplicate the current session at the current position' },
+  { name: 'trust', description: 'Save project trust decision for future sessions' },
   { name: 'login', description: 'Configure provider authentication' },
   { name: 'logout', description: 'Remove provider authentication' },
-  { name: 'new', description: 'Start a new session' },
-  { name: 'compact', description: 'Compact conversation context' },
-  { name: 'resume', description: 'Resume a session' },
-  { name: 'reload', description: 'Reload extensions and settings' },
-  { name: 'quit', description: 'Quit Pi' }
+  { name: 'new', description: 'Start a new session', hidden: true },
+  { name: 'compact', description: 'Manually compact the session context' },
+  { name: 'resume', description: 'Resume a different session' },
+  {
+    name: 'reload',
+    description: 'Reload keybindings, extensions, skills, prompts, themes, and context files'
+  },
+  { name: 'quit', description: 'Quit pi' }
 ]
 
 const CLAUDE_COMMANDS: readonly SlashCommandSuggestion[] = [
@@ -156,6 +165,29 @@ const OMP_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'hotkeys', description: 'Show keyboard shortcuts in Terminal' }
 ]
 
+// agy 1.4.3's own `/help` list, read in print mode (no model turn), plus `/grill-me`, a TUI prompt
+// command: its instruction body is in the binary and expands like a skill in print mode. Its interview
+// relies on the `ask_question` tool, which headless runs have not been seen to answer. Its stream
+// reports no command list, so the structured chat offers this one as the CLI's own commands.
+export const ANTIGRAVITY_CLI_COMMANDS: readonly SlashCommandSuggestion[] = [
+  { name: 'agents', description: 'List available custom agents' },
+  { name: 'changelog', description: 'Show release notes and changes' },
+  { name: 'config', description: 'Open settings panel' },
+  { name: 'credits', description: 'Show remaining G1 credits and purchase link' },
+  { name: 'effort', description: 'Set the reasoning effort' },
+  { name: 'help', description: 'Show available commands and keybindings' },
+  { name: 'hooks', description: 'Manage hook configurations for tool events' },
+  { name: 'model', description: 'Set a model, or run a single prompt on another model' },
+  { name: 'permissions', description: 'Manage tool permissions' },
+  {
+    name: 'plugin',
+    description: 'Manage, discover, install, uninstall, enable, and disable plugins'
+  },
+  { name: 'skills', description: 'List available skills' },
+  { name: 'usage', description: 'View model quota usage' },
+  { name: 'grill-me', description: 'Interview me to align on a plan.' }
+]
+
 const COMMANDS_BY_AGENT: Partial<Record<AgentType, readonly SlashCommandSuggestion[]>> = {
   pi: PI_COMMANDS,
   claude: CLAUDE_COMMANDS,
@@ -166,6 +198,20 @@ const COMMANDS_BY_AGENT: Partial<Record<AgentType, readonly SlashCommandSuggesti
 
 /** Known slash commands for an agent, falling back to a small common set so the
  *  `/` menu is never empty for a recognized agent. */
+/** Pi names two commands Orca already offers under other names: `/thinking` sets the effort and
+ *  `/new` starts a fresh context, as the shared `/effort` and `/clear` do. */
+const HOST_COMMAND_ALIASES: Partial<Record<AgentType, ReadonlyMap<string, string>>> = {
+  pi: new Map([
+    ['thinking', 'effort'],
+    ['new', 'clear']
+  ])
+}
+
+/** The shared command a host alias answers with, or undefined for any other name. */
+export function hostCommandAlias(agent: AgentType | undefined, name: string): string | undefined {
+  return agent ? HOST_COMMAND_ALIASES[agent]?.get(name) : undefined
+}
+
 export function getAgentSlashCommands(agent: AgentType): readonly SlashCommandSuggestion[] {
   return COMMANDS_BY_AGENT[agent] ?? COMMON_COMMANDS
 }

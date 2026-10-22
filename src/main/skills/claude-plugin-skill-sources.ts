@@ -30,11 +30,20 @@ export function getClaudePluginMetadataPaths(
   cwd: string,
   pathApi: SkillDiscoveryPathApi = defaultPathApi
 ): { installedPlugins: string; settings: string[] } {
+  return getClaudeConfigPluginMetadataPaths(pathApi.join(homeDir, '.claude'), cwd, pathApi)
+}
+
+/** Plugin metadata under a Claude config directory (`CLAUDE_CONFIG_DIR`), read for `cwd`. */
+export function getClaudeConfigPluginMetadataPaths(
+  configDir: string,
+  cwd: string,
+  pathApi: SkillDiscoveryPathApi = defaultPathApi
+): { installedPlugins: string; settings: string[] } {
   return {
-    installedPlugins: pathApi.join(homeDir, '.claude', 'plugins', 'installed_plugins.json'),
+    installedPlugins: pathApi.join(configDir, 'plugins', 'installed_plugins.json'),
     // Claude merges user, project, then project-local settings in this order.
     settings: [
-      pathApi.join(homeDir, '.claude', 'settings.json'),
+      pathApi.join(configDir, 'settings.json'),
       pathApi.join(cwd, '.claude', 'settings.json'),
       pathApi.join(cwd, '.claude', 'settings.local.json')
     ]
@@ -150,27 +159,43 @@ function safePluginLabel(pluginId: string, pathApi: SkillDiscoveryPathApi): stri
   return safeLabel || 'plugin'
 }
 
+/** The applicable install of each enabled plugin, in installed-plugins file order. */
+function activeClaudePluginInstalls(
+  metadata: ClaudePluginMetadata,
+  cwd: string,
+  pathApi: SkillDiscoveryPathApi
+): { pluginId: string; installPath: string }[] {
+  const installed = parseJsonObject(metadata.installedPlugins)?.plugins
+  if (!installed || typeof installed !== 'object' || Array.isArray(installed)) {
+    return []
+  }
+  const enabled = readEnabledPlugins(metadata.settings)
+  const active: { pluginId: string; installPath: string }[] = []
+  for (const [pluginId, rawInstalls] of Object.entries(installed)) {
+    if (enabled.get(pluginId) !== true || !Array.isArray(rawInstalls)) {
+      continue
+    }
+    const install = selectActiveInstall(rawInstalls, cwd, pathApi)
+    if (install) {
+      active.push({ pluginId, installPath: install.installPath })
+    }
+  }
+  return active
+}
+
 export function resolveClaudePluginSkillSources(args: {
   metadata: ClaudePluginMetadata
   cwd: string
   pathApi?: SkillDiscoveryPathApi
 }): SkillScanRoot[] {
   const pathApi = args.pathApi ?? defaultPathApi
-  const installed = parseJsonObject(args.metadata.installedPlugins)?.plugins
-  if (!installed || typeof installed !== 'object' || Array.isArray(installed)) {
-    return []
-  }
-  const enabled = readEnabledPlugins(args.metadata.settings)
   const roots = new Map<string, SkillScanRoot>()
-  for (const [pluginId, rawInstalls] of Object.entries(installed)) {
-    if (enabled.get(pluginId) !== true || !Array.isArray(rawInstalls)) {
-      continue
-    }
-    const install = selectActiveInstall(rawInstalls, args.cwd, pathApi)
-    if (!install) {
-      continue
-    }
-    const skillsPath = pathApi.join(install.installPath, 'skills')
+  for (const { pluginId, installPath } of activeClaudePluginInstalls(
+    args.metadata,
+    args.cwd,
+    pathApi
+  )) {
+    const skillsPath = pathApi.join(installPath, 'skills')
     if (!roots.has(skillsPath)) {
       roots.set(skillsPath, {
         id: `claude-plugin-${stablePathId(skillsPath)}`,
@@ -183,6 +208,29 @@ export function resolveClaudePluginSkillSources(args: {
     }
   }
   return [...roots.values()]
+}
+
+/** A plugin's commands folder; Claude names each command `plugin:command`. */
+export type ClaudePluginCommandRoot = {
+  pluginName: string
+  path: string
+}
+
+// Why: the name prefixes each command token, so only a name the picker inserts unchanged counts.
+const SAFE_PLUGIN_NAME = /^[A-Za-z0-9._-]+$/u
+
+export function resolveClaudePluginCommandRoots(args: {
+  metadata: ClaudePluginMetadata
+  cwd: string
+  pathApi?: SkillDiscoveryPathApi
+}): ClaudePluginCommandRoot[] {
+  const pathApi = args.pathApi ?? defaultPathApi
+  return activeClaudePluginInstalls(args.metadata, args.cwd, pathApi)
+    .map(({ pluginId, installPath }) => ({
+      pluginName: pluginId.split('@')[0] ?? '',
+      path: pathApi.join(installPath, 'commands')
+    }))
+    .filter((root) => SAFE_PLUGIN_NAME.test(root.pluginName))
 }
 
 async function readMetadataFile(pathValue: string): Promise<string | null> {
@@ -204,16 +252,35 @@ async function readMetadataFile(pathValue: string): Promise<string | null> {
   }
 }
 
+async function readClaudePluginMetadata(paths: {
+  installedPlugins: string
+  settings: string[]
+}): Promise<ClaudePluginMetadata> {
+  const [installedPlugins, ...settings] = await Promise.all(
+    [paths.installedPlugins, ...paths.settings].map(readMetadataFile)
+  )
+  return { installedPlugins, settings }
+}
+
 export async function discoverClaudePluginSkillSources(args: {
   homeDir: string
   cwd: string
 }): Promise<SkillScanRoot[]> {
-  const paths = getClaudePluginMetadataPaths(args.homeDir, args.cwd)
-  const [installedPlugins, ...settings] = await Promise.all(
-    [paths.installedPlugins, ...paths.settings].map(readMetadataFile)
-  )
   return resolveClaudePluginSkillSources({
-    metadata: { installedPlugins, settings },
+    metadata: await readClaudePluginMetadata(getClaudePluginMetadataPaths(args.homeDir, args.cwd)),
+    cwd: args.cwd
+  })
+}
+
+/** The commands the enabled plugins of a Claude config directory ship, for a chat at rest. */
+export async function discoverClaudePluginCommandRoots(args: {
+  configDir: string
+  cwd: string
+}): Promise<ClaudePluginCommandRoot[]> {
+  return resolveClaudePluginCommandRoots({
+    metadata: await readClaudePluginMetadata(
+      getClaudeConfigPluginMetadataPaths(args.configDir, args.cwd)
+    ),
     cwd: args.cwd
   })
 }

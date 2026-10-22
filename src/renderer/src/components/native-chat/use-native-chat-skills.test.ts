@@ -56,6 +56,13 @@ describe('isNativeChatSkillForAgent', () => {
     expect(isNativeChatSkillForAgent('codex', skill({ providers: ['claude'] }))).toBe(false)
   })
 
+  it('keeps a skill its frontmatter excludes from the slash menu out of the picker', () => {
+    expect(isNativeChatSkillForAgent('codex', skill({ providers: ['codex'] }))).toBe(true)
+    expect(
+      isNativeChatSkillForAgent('codex', skill({ providers: ['codex'], disableSlashCommand: true }))
+    ).toBe(false)
+  })
+
   it('does not enable skill autocomplete for other agents yet', () => {
     expect(isNativeChatSkillForAgent('claude', skill({ providers: ['agent-skills'] }))).toBe(false)
   })

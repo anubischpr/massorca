@@ -69,8 +69,11 @@ export function buildNativeChatPickerItems(
     skillSigil
   )
   const skillNames = new Set(mergedSkills.map((skill) => skill.name))
+  // A hidden alias stays claimed for dispatch but is never listed beside the command it names.
   const resolvedCommands = commands.filter(
-    (command) => !(sharedSigil && command.kindUnspecified && skillNames.has(command.name))
+    (command) =>
+      command.hidden !== true &&
+      !(sharedSigil && command.kindUnspecified && skillNames.has(command.name))
   )
   const commandNames = new Set(resolvedCommands.map((command) => command.name))
   const commandItems = rankItems(

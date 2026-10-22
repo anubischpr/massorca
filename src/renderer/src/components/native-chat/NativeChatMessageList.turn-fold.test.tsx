@@ -256,4 +256,74 @@ describe('NativeChatMessageList settled turn fold', () => {
     expect(screen.getByText(ANSWER)).toBeInTheDocument()
     expect(screen.queryByText(NARRATION)).toBeNull()
   })
+
+  // A turn that only ran a slash command has no prose: what the command printed is its result, so
+  // it stays under the command instead of behind "Worked for 0s".
+  it.each(['command-result', 'gentle-shell-usage', 'command-output'])(
+    'shows the %s row of a command-only turn without opening the fold',
+    (presentation) => {
+      const startedAt = Date.now() - 3000
+      const base = session(startedAt)
+      render(
+        <NativeChatMessageList
+          session={{
+            ...base,
+            messages: [
+              base.messages[0]!,
+              {
+                id: 'result-1',
+                role: 'system',
+                blocks: [{ type: 'text', text: 'doctor says fine', tone: 'notice', presentation }],
+                timestamp: startedAt + 1,
+                source: 'transcript'
+              },
+              {
+                id: 'work-only',
+                role: 'assistant',
+                blocks: [
+                  { type: 'tool-call', name: 'shell', input: { command: 'ls' }, state: 'completed' },
+                  { type: 'tool-result', output: 'a.txt' }
+                ],
+                timestamp: startedAt + 2,
+                source: 'transcript'
+              }
+            ]
+          }}
+          isWorking={false}
+          workingStartedAt={startedAt}
+          expandSignal={false}
+        />
+      )
+
+      expect(screen.getByText(/doctor says fine/)).toBeInTheDocument()
+      expect(screen.queryByText('a.txt')).toBeNull()
+    }
+  )
+
+  it('keeps an ordinary notice row of a no-prose turn folded', () => {
+    const startedAt = Date.now() - 3000
+    const base = session(startedAt)
+    render(
+      <NativeChatMessageList
+        session={{
+          ...base,
+          messages: [
+            base.messages[0]!,
+            {
+              id: 'plain-notice',
+              role: 'system',
+              blocks: [{ type: 'text', text: 'plain notice', tone: 'notice' }],
+              timestamp: startedAt + 1,
+              source: 'transcript'
+            }
+          ]
+        }}
+        isWorking={false}
+        workingStartedAt={startedAt}
+        expandSignal={false}
+      />
+    )
+
+    expect(screen.queryByText('plain notice')).toBeNull()
+  })
 })

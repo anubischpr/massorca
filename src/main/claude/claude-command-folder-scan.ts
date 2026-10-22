@@ -3,6 +3,7 @@ import { opendir, readFile } from 'node:fs/promises'
 import { join, relative, sep } from 'node:path'
 import type { AgentSessionSlashCommand } from '../../shared/agent-session-wire'
 import { summarizeSkillMarkdown } from '../../shared/skill-metadata'
+import type { ClaudePluginCommandRoot } from '../skills/claude-plugin-skill-sources'
 
 const MARKDOWN_EXTENSION = '.md'
 const MAX_SCAN_DEPTH = 24
@@ -82,6 +83,22 @@ export async function scanClaudeCommandFolders(
       }
       const description = await describe(file)
       commands.set(name, { name, kind: 'command', ...(description ? { description } : {}) })
+    }
+  }
+  return [...commands.values()]
+}
+
+/** Commands the enabled plugins ship, each named `plugin:command` as Claude's own menu names it. */
+export async function scanClaudePluginCommands(
+  roots: readonly ClaudePluginCommandRoot[]
+): Promise<AgentSessionSlashCommand[]> {
+  const commands = new Map<string, AgentSessionSlashCommand>()
+  for (const root of roots) {
+    for (const command of await scanClaudeCommandFolders([root.path])) {
+      const name = `${root.pluginName}:${command.name}`
+      if (!commands.has(name)) {
+        commands.set(name, { ...command, name })
+      }
     }
   }
   return [...commands.values()]

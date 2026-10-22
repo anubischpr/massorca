@@ -115,7 +115,11 @@ export class PiRpcCommandCatalog {
       for (const [runtime, commands] of Object.entries(parsed.data.runtimes)) {
         // A report this process already holds is newer than the saved one.
         if (isPiRuntimeSelection(runtime) && !this.lists.has(runtime) && commands.length > 0) {
-          this.lists.set(runtime, commands)
+          // Why: a list saved before skills were offered as commands still shows them at rest.
+          this.lists.set(
+            runtime,
+            commands.map((command) => ({ ...command, kind: 'command' as const }))
+          )
           changed = true
         }
       }

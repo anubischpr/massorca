@@ -1,5 +1,6 @@
 import type { AgentType } from './agent-status-types'
 import {
+  ANTIGRAVITY_CLI_COMMANDS,
   getAgentSlashCommands,
   type NativeChatCommandReply,
   type SlashCommandSuggestion
@@ -15,6 +16,8 @@ export type NativeChatAgentProfile = {
   /** Catalog commands the model acts on when they arrive as prose, even though
    *  the runtime has no slash parser of its own. */
   textDrivenCommands?: readonly string[]
+  /** The CLI's own command list, offered by a structured chat whose session reports none. */
+  cliCommands?: readonly SlashCommandSuggestion[]
 }
 
 const NATIVE_CHAT_AGENT_PROFILES: Partial<Record<AgentType, NativeChatAgentProfile>> = {
@@ -44,7 +47,22 @@ const NATIVE_CHAT_AGENT_PROFILES: Partial<Record<AgentType, NativeChatAgentProfi
   grok: {
     skillPrefix: '/',
     skillSourceOwner: 'grok'
+  },
+  // Why: agy expands `/name` commands and skills in print mode unless `--disable-slash-commands`
+  // is passed, and Orca never passes it (see antigravity-usage-command.ts, verified on agy 1.2.11).
+  antigravity: {
+    skillPrefix: '/',
+    skillSourceOwner: 'antigravity',
+    expandsSlashCommandsFromText: true,
+    cliCommands: ANTIGRAVITY_CLI_COMMANDS
   }
+}
+
+/** The CLI's own commands, for a structured chat whose session reports none (agy: its `/help`). */
+export function getAgentCliCommands(
+  agent: AgentType | null | undefined
+): readonly SlashCommandSuggestion[] {
+  return (agent ? getNativeChatAgentProfile(agent)?.cliCommands : undefined) ?? []
 }
 
 export function getNativeChatAgentProfile(

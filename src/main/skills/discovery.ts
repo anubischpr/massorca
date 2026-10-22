@@ -20,6 +20,8 @@ import {
 } from './skill-discovery-sources'
 import { rootMayContainSourceKind } from './skill-discovery-source-filter'
 import { discoverClaudePluginSkillSources } from './claude-plugin-skill-sources'
+import { discoverAntigravityPluginSkillSources } from './antigravity-plugin-skill-sources'
+import { qualifiedSkillName } from './skill-discovery-classification'
 import { findSkillFiles } from './skill-root-file-walk'
 import { runSkillCandidateTasks } from './skill-candidate-concurrency'
 import {
@@ -115,6 +117,7 @@ async function pathExists(pathValue: string): Promise<boolean> {
 async function readSkillSummary(skillFilePath: string): Promise<{
   name: string | null
   description: string | null
+  disableSlashCommand?: true
   updatedAt: number | null
 } | null> {
   try {
@@ -161,7 +164,7 @@ async function scanRoot(root: SkillScanRoot, signal: AbortSignal): Promise<Scann
       const sourceKind = sourceKindForSkill(root, skillFilePath, { relative, sep })
       return {
         id: stablePathId(canonicalSkillFilePath),
-        name: summary.name ?? basename(directoryPath),
+        name: qualifiedSkillName(root.namePrefix, summary.name ?? basename(directoryPath)),
         description: summary.description,
         // Copy: `root.providers` is shared across every skill/source from this
         // root, so the dedup merge below must not mutate the aliased array.
@@ -173,6 +176,7 @@ async function scanRoot(root: SkillScanRoot, signal: AbortSignal): Promise<Scann
         skillFilePath,
         installed: true,
         updatedAt: summary.updatedAt,
+        ...(summary.disableSlashCommand ? { disableSlashCommand: true as const } : {}),
         canonicalSkillFilePath
       } satisfies ScannedSkill
     })
@@ -184,7 +188,7 @@ async function scanRoot(root: SkillScanRoot, signal: AbortSignal): Promise<Scann
 // and a repo root when the home dir is the workspace), and their scan differs
 // only by depth, which `sourceKind` decides.
 function rootScanKey(root: SkillScanRoot): string {
-  return `${root.sourceKind}\0${root.path}`
+  return `${root.sourceKind}\0${root.path}\0${root.namePrefix ?? ''}`
 }
 
 async function scanRootShared(
@@ -272,15 +276,16 @@ export async function discoverSkills(args: {
   const startedAt = Date.now()
   const homeDir = args.homeDir ?? homedir()
   const refresh = args.refresh === true
+  // Why: plugin discovery is native-chat data keyed to an explicit workspace.
+  // Untargeted scans (Settings) keep their pre-picker inventory and cost.
+  const pluginCwd =
+    args.includeCwd !== false && (!args.sourceKinds?.length || args.sourceKinds.includes('plugin'))
+      ? args.cwd
+      : undefined
   const roots = [
     ...buildSkillDiscoverySources({ ...args, homeDir }),
-    // Why: plugin discovery is native-chat data keyed to an explicit workspace.
-    // Untargeted scans (Settings) keep their pre-picker inventory and cost.
-    ...(args.cwd &&
-    args.includeCwd !== false &&
-    (!args.sourceKinds?.length || args.sourceKinds.includes('plugin'))
-      ? await discoverClaudePluginSkillSources({ homeDir, cwd: args.cwd })
-      : [])
+    ...(pluginCwd ? await discoverClaudePluginSkillSources({ homeDir, cwd: pluginCwd }) : []),
+    ...(pluginCwd ? await discoverAntigravityPluginSkillSources({ homeDir }) : [])
   ].filter((root) => rootMayContainSourceKind(root, args.sourceKinds))
   const scans = await Promise.all(roots.map((root) => scanRootShared(root, refresh)))
   const sources: SkillDiscoverySource[] = roots.map((root, index) => ({

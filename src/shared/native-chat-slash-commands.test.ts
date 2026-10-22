@@ -3,11 +3,43 @@ import {
   applySlashSuggestion,
   filterSlashCommands,
   getAgentSlashCommands,
+  hostCommandAlias,
   isSlashCommandDraft,
   sessionReportedSkillNames,
   sessionSlashCommandSuggestions,
   slashCommandDispatchText
 } from './native-chat-slash-commands'
+
+describe('host command aliases', () => {
+  it('maps Pi /thinking and /new to the shared commands, and only for Pi', () => {
+    expect(hostCommandAlias('pi', 'thinking')).toBe('effort')
+    expect(hostCommandAlias('pi', 'new')).toBe('clear')
+    expect(hostCommandAlias('pi', 'resume')).toBeUndefined()
+    expect(hostCommandAlias('codex', 'new')).toBeUndefined()
+    expect(hostCommandAlias(undefined, 'thinking')).toBeUndefined()
+  })
+
+  it('keeps the aliases in the Pi list as hidden rows and lists nothing else hidden', () => {
+    const hidden = getAgentSlashCommands('pi')
+      .filter((command) => command.hidden === true)
+      .map((command) => command.name)
+    expect(hidden).toEqual(['thinking', 'new'])
+  })
+})
+
+describe('Pi built-in descriptions', () => {
+  it('uses the wording of pi-coding-agent 1.3.0', () => {
+    const described = new Map(
+      getAgentSlashCommands('pi').map((command) => [command.name, command.description])
+    )
+    expect(described.get('model')).toBe('Select model (opens selector UI)')
+    expect(described.get('name')).toBe('Set session display name')
+    expect(described.get('export')).toBe(
+      'Export session (HTML default, or specify path: .html/.jsonl)'
+    )
+    expect(described.get('quit')).toBe('Quit pi')
+  })
+})
 
 describe('getAgentSlashCommands', () => {
   it('returns Codex-specific commands (e.g. /model, /resume) for codex', () => {

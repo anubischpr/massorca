@@ -21,6 +21,8 @@ export type DiscoveredSkill = {
   skillFilePath: string
   installed: boolean
   updatedAt: number | null
+  /** Frontmatter `disable-slash-command: true`: discoverable, but not offered in a `/` menu. */
+  disableSlashCommand?: true
 }
 
 export type SkillDiscoverySource = {
@@ -31,6 +33,8 @@ export type SkillDiscoverySource = {
   providers: SkillProvider[]
   /** Agent that owns this root; null is the explicit shared-skills scope. */
   owner: AgentType | null
+  /** The plugin whose skills this root holds: each is listed as `plugin:skill`. */
+  namePrefix?: string
   exists: boolean
   /** `unavailable`: the root did not answer in time, so its skills are unknown rather than absent. */
   skippedReason?: 'missing' | 'remote-repo' | 'unavailable'
@@ -118,4 +122,5 @@ export const SkillDiscoveryTargetSchema: z.ZodType<SkillDiscoveryTarget> = z.obj
 export type SkillFrontmatterSummary = {
   name: string | null
   description: string | null
+  disableSlashCommand?: true
 }

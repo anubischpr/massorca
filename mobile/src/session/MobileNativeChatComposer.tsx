@@ -137,12 +137,14 @@ export function MobileNativeChatComposer({
       return []
     }
     if (trigger.kind === 'slash') {
-      const commands =
+      // Why: a hidden row is a typed alias the chat answers but never lists, same as desktop.
+      const commands = (
         structuredCommands !== undefined
           ? structuredSlashCommands(structuredCommands, agent)
           : agent
             ? getMobileNativeChatCommands(agent)
             : []
+      ).filter((command) => command.hidden !== true)
       // Why: Codex's catalog is 45 commands and this list is a plain ScrollView
       // (~5 rows visible), so an uncapped `/` would mount every row and
       // re-reconcile them on each streaming tick right above the transcript.

@@ -1,7 +1,10 @@
 import { translate } from '@/i18n/i18n'
 import type { SlashCommandSuggestion } from '../../../../shared/native-chat-slash-commands'
 import { sessionSlashCommandSuggestions } from '../../../../shared/native-chat-slash-commands'
-import { getHostClaimedNativeChatCommands } from '../../../../shared/native-chat-agent-profiles'
+import {
+  getAgentCliCommands,
+  getHostClaimedNativeChatCommands
+} from '../../../../shared/native-chat-agent-profiles'
 import { structuredSlashCommands } from '../../../../shared/structured-agent-session-composer'
 import type { AgentType } from '../../../../shared/agent-status-types'
 import type { NativeChatStructuredComposerTransport } from './native-chat-composer-types'
@@ -73,12 +76,16 @@ export function nativeChatStructuredCatalog(
   >
 ): readonly SlashCommandSuggestion[] {
   const { sessionFunctions, sessionCommands, conversationCommands } = transport
-  return withNativeChatSessionCommands(
+  const base: readonly SlashCommandSuggestion[] =
     sessionFunctions !== undefined
       ? sessionFunctions.map((entry) => ({ ...entry, providerFunction: entry }))
       : sessionCommands !== undefined
         ? sessionSlashCommandSuggestions(agent, sessionCommands)
-        : structuredSlashCommands(conversationCommands, agent),
+        : structuredSlashCommands(conversationCommands, agent)
+  // A running session reports no CLI-owned commands (agy's `/grill-me`), so they join every report.
+  const listed = new Set(base.map((entry) => entry.name))
+  return withNativeChatSessionCommands(
+    [...base, ...getAgentCliCommands(agent).filter((row) => !listed.has(row.name))],
     agent
   )
 }

@@ -143,7 +143,9 @@ export async function readPiRpcCommands(rpc: PiRpcRequester): Promise<AgentSessi
   return {
     commands: commands.map((command) => ({
       name: command.name,
-      kind: command.source === 'skill' ? 'skill' : 'command',
+      // Why: Pi lists a skill as `skill:<name>` beside its commands and runs it as `/skill:<name>`;
+      // the chat has no skill grammar for Pi, so the `/` menu offers it as a command.
+      kind: 'command',
       ...(command.source === undefined ? { kindUnspecified: true as const } : {}),
       ...(command.description ? { description: command.description } : {})
     }))
