@@ -55,6 +55,7 @@ describe('Codex captured menu', () => {
       'goal',
       'memories',
       'model',
+      'plan',
       'plugins',
       'rename',
       'review',
