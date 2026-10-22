@@ -278,8 +278,8 @@ describe('the chat strip and the session list read the same host child records',
     })
     expect(parentRow()).toMatchObject({ state: 'done' })
     // Nothing runs: the sidebar and the strip list nothing, and the strip hides. The finished
-    // child's record stays in the store until the user's next turn; the dev server's record went
-    // when its process exited.
+    // child's record and the dev server's, settled when its process exited, stay in the store
+    // until the user's next turn.
     expect(summaries.at(-1)).not.toHaveProperty('children')
     expect(strip.at(-1)).toBeNull()
     const stored = () => rows(server.getStructuredChildWorkViews(parentSubject(summaries)))
@@ -290,13 +290,21 @@ describe('the chat strip and the session list read the same host child records',
         state: 'done',
         membership: 'settled',
         outcome: 'succeeded'
+      },
+      {
+        kind: 'command',
+        description: 'npm run dev',
+        state: 'done',
+        membership: 'settled',
+        outcome: 'succeeded',
+        owner: 'review'
       }
     ])
 
     // A turn nobody sent retires nothing: only the user's next message does.
     await notify('turn/started', { threadId: THREAD, turn: { id: 'p-own', status: 'inProgress' } })
     await notify('turn/completed', { threadId: THREAD, turn: { id: 'p-own', status: 'completed' } })
-    expect(stored()).toHaveLength(1)
+    expect(stored()).toHaveLength(2)
     // The user's next message, which Codex takes into its next turn.
     const body = hostTestMessage('check it again')
     const clientOperationId = `${Date.now()}-${'2'.padStart(32, '0')}`
