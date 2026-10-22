@@ -65,4 +65,34 @@ describe('Pi runtime command catalog', () => {
     await writeFile(file, 'not json')
     await expect(new PiRpcCommandCatalog(file).flush()).resolves.toBeUndefined()
   })
+
+  it('writes only entries it will read back, so one bad report keeps no runtime from loading', async () => {
+    const file = await scratch()
+    const first = new PiRpcCommandCatalog(file)
+    first.record('gentle-shell', [
+      { name: 'gentle:jobs', kind: 'command' },
+      { name: 'gentle:long', kind: 'command', description: 'x'.repeat(3_000) }
+    ])
+    first.record('pi', [{ name: 'settings', kind: 'command' }])
+    await first.flush()
+    const second = new PiRpcCommandCatalog(file)
+    await vi.waitFor(() =>
+      expect(second.read('pi')).toEqual([{ name: 'settings', kind: 'command' }])
+    )
+    expect(second.read('gentle-shell')).toEqual([{ name: 'gentle:jobs', kind: 'command' }])
+  })
+
+  it('flush waits for a save that is already under way', async () => {
+    vi.useFakeTimers()
+    try {
+      const file = await scratch()
+      const catalog = new PiRpcCommandCatalog(file)
+      catalog.record('gentle-shell', [{ name: 'gentle:jobs', kind: 'command' }])
+      await vi.advanceTimersByTimeAsync(600)
+      await catalog.flush()
+      expect(JSON.parse(await readFile(file, 'utf8')).runtimes['gentle-shell']).toHaveLength(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })

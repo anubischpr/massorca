@@ -63,7 +63,8 @@ export async function openGentleShellTurnRig(options: { acceptsAgentWake?: boole
     async flush() {
       lane.flush()
       await lane.drained()
-      await Promise.resolve()
+      // Child-work batches deliver after the journal drains, one batch at a time.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
     }
   }
 }

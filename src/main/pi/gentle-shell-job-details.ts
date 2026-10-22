@@ -21,6 +21,25 @@ const jobDetailsSchema = z.looseObject({
   })
 })
 
+const unreadableExitSchema = z.looseObject({
+  gentleJobs: z.looseObject({
+    jobId: z.string().min(1).max(256),
+    status: z.string().min(1),
+    event: z.unknown().optional()
+  })
+})
+
+/** The job id of an exit notice whose status the strict reader does not know, or undefined. A
+ *  `running` status or an `event` field is never an exit. */
+export function readGentleJobUnreadableExit(details: unknown): string | undefined {
+  const parsed = unreadableExitSchema.safeParse(details)
+  if (!parsed.success) {
+    return undefined
+  }
+  const { jobId, status, event } = parsed.data.gentleJobs
+  return status === 'running' || event !== undefined ? undefined : jobId
+}
+
 export type GentleJobFacts = {
   jobId: string
   kind: 'command' | 'monitor'

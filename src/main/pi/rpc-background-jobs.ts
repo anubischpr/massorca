@@ -10,6 +10,7 @@ import {
   GENTLE_JOB_STOP_TOOL,
   GENTLE_MONITOR_TOOL,
   readGentleJobFacts,
+  readGentleJobUnreadableExit,
   type GentleJobFacts
 } from './gentle-shell-job-details'
 import { piRpcToolEventSchema, type PiRpcToolEvent } from './rpc-protocol'
@@ -90,6 +91,8 @@ export class PiRpcBackgroundJobs {
   private readonly args = new Map<string, { command?: string; label?: string }>()
   private readonly live = new Map<string, LiveJob>()
   private pending: PendingEdge[] = []
+  /** Batches deliver one after another, so an `ended` edge never overtakes its `live` edge. */
+  private publishing: Promise<void> = Promise.resolve()
 
   constructor(private readonly deps: PiRpcBackgroundJobsDeps) {}
 
@@ -130,8 +133,18 @@ export class PiRpcBackgroundJobs {
       return
     }
     const facts = readGentleJobFacts(message.details, 'command')
-    const job = facts && this.live.get(facts.jobId)
-    if (!facts || !job) {
+    if (!facts) {
+      // A status this build does not know still names the job it ends; leaving it live would
+      // show it working until the session ends.
+      const unreadableExit = readGentleJobUnreadableExit(message.details)
+      const unreadableJob = unreadableExit && this.live.get(unreadableExit)
+      if (unreadableExit && unreadableJob) {
+        this.end(unreadableJob, unreadableExit, 'unknown')
+      }
+      return
+    }
+    const job = this.live.get(facts.jobId)
+    if (!job) {
       return
     }
     const content = typeof message.content === 'string' ? message.content : ''
@@ -232,12 +245,9 @@ export class PiRpcBackgroundJobs {
     if (edges.length === 0 || !deliver) {
       return
     }
-    void this.deps.drained().then(() => {
-      try {
-        deliver(edges.map((edge) => edge(Date.now())))
-      } catch (error) {
-        this.deps.diagnostic?.(error)
-      }
-    })
+    this.publishing = this.publishing
+      .then(() => this.deps.drained())
+      .then(() => deliver(edges.map((edge) => edge(Date.now()))))
+      .catch((error: unknown) => this.deps.diagnostic?.(error))
   }
 }

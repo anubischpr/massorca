@@ -37,6 +37,8 @@ export class PiRpcCommandCatalog {
   private readonly lists = new Map<PiRuntimeSelection, AgentSessionSlashCommand[]>()
   private readonly listeners = new Set<() => void>()
   private saveTimer: ReturnType<typeof setTimeout> | undefined
+  /** Saves run one after another, so a flush can wait for one already under way. */
+  private saving: Promise<void> = Promise.resolve()
   private readonly loaded: Promise<void>
 
   constructor(private readonly file?: string) {
@@ -59,14 +61,6 @@ export class PiRpcCommandCatalog {
     this.lists.set(runtime, next)
     this.notify()
     this.scheduleSave()
-  }
-
-  /** Remembers what the child of a session with these options reported. */
-  recordFor(
-    options: Readonly<Record<string, string>> | undefined,
-    commands: readonly AgentSessionSlashCommand[]
-  ): void {
-    this.record(runtimeOf(options), commands)
   }
 
   onChange(listener: () => void): () => void {
@@ -93,8 +87,13 @@ export class PiRpcCommandCatalog {
     if (this.saveTimer) {
       clearTimeout(this.saveTimer)
       this.saveTimer = undefined
-      await this.save()
+      this.queueSave()
     }
+    await this.saving
+  }
+
+  private queueSave(): void {
+    this.saving = this.saving.then(() => this.save())
   }
 
   private notify(): void {
@@ -135,7 +134,7 @@ export class PiRpcCommandCatalog {
     clearTimeout(this.saveTimer)
     this.saveTimer = setTimeout(() => {
       this.saveTimer = undefined
-      void this.save()
+      this.queueSave()
     }, SAVE_COALESCE_MS)
     this.saveTimer.unref()
   }
@@ -146,10 +145,17 @@ export class PiRpcCommandCatalog {
       return
     }
     try {
-      const body = JSON.stringify({
-        version: SCHEMA_VERSION,
-        runtimes: Object.fromEntries(this.lists)
-      })
+      // Only entries the loader accepts are written: one it would reject discards every runtime's list.
+      const runtimes = Object.fromEntries(
+        [...this.lists].map(([runtime, commands]) => [
+          runtime,
+          commands.flatMap((command) => {
+            const saved = savedCommandSchema.safeParse(command)
+            return saved.success ? [saved.data] : []
+          })
+        ])
+      )
+      const body = JSON.stringify({ version: SCHEMA_VERSION, runtimes })
       const temporary = `${file}.${process.pid}.tmp`
       await mkdir(dirname(file), { recursive: true })
       await writeFile(temporary, body, 'utf8')

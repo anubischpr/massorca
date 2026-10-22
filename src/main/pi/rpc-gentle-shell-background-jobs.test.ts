@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { AgentChildWorkEvidence } from '../../shared/agent-status-child-work-evidence'
+import { PiRpcBackgroundJobs } from './rpc-background-jobs'
 import {
   closeGentleShellTurnRigs,
   openGentleShellTurnRig,
@@ -204,5 +206,123 @@ describe('an agent run Gentle Shell starts itself', () => {
     const rows = await h.rig.rows()
     expect(rows.some(({ body }) => body.kind === 'message' && body.role === 'user')).toBe(false)
     expect(rows.some(({ body }) => body.kind === 'message' && body.role === 'assistant')).toBe(true)
+  })
+
+  it('ends a live job as unknown when its exit notice carries a status this build does not know', async () => {
+    const h = await openGentleShellTurnRig()
+    await h.openTurn()
+    startJob(h, 'c1', 'bash_background', 'job-1', 'sleep 900', 'sleeper')
+    h.turns.receive(
+      notice('Background job job-1 ("sleeper") ended.', {
+        jobId: 'job-1',
+        kind: 'command',
+        status: 'vanished'
+      })
+    )
+    await h.flush()
+    expect(h.evidence.map((edge) => edge.type)).toEqual(['live', 'ended'])
+    expect(h.evidence[1]).toMatchObject({ outcome: 'unknown' })
+  })
+
+  it('keeps a job live through a notice of a kind this build does not know', async () => {
+    const h = await openGentleShellTurnRig()
+    await h.openTurn()
+    startJob(h, 'c1', 'bash_background', 'job-1', 'sleep 900', 'sleeper')
+    h.turns.receive(
+      notice('Background job job-1 reported something new.', {
+        jobId: 'job-1',
+        status: 'vanished',
+        event: 'novel'
+      })
+    )
+    await h.flush()
+    expect(h.evidence.map((edge) => edge.type)).toEqual(['live'])
+  })
+})
+
+describe('Gentle Shell background job publishing', () => {
+  const start = (jobs: PiRpcBackgroundJobs, id: string) => {
+    jobs.observeFrame({
+      type: 'tool_execution_start',
+      toolCallId: id,
+      toolName: 'bash_background',
+      args: { command: `run ${id}`, label: id }
+    })
+    jobs.observeFrame({
+      type: 'tool_execution_end',
+      toolCallId: id,
+      toolName: 'bash_background',
+      isError: false,
+      result: startResult(id, 'command', id)
+    })
+  }
+
+  it('reports a failed drain once and still delivers the batches after it', async () => {
+    const delivered: AgentChildWorkEvidence[][] = []
+    const diagnostic = vi.fn()
+    const drained = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error('drain failed'))
+      .mockResolvedValue(undefined)
+    const jobs = new PiRpcBackgroundJobs({
+      generation: 'gen-1',
+      drained,
+      deliver: (batch) => delivered.push(batch),
+      diagnostic
+    })
+    start(jobs, 'job-1')
+    start(jobs, 'job-2')
+    await vi.waitFor(() => expect(delivered.length).toBeGreaterThan(0))
+    expect(diagnostic).toHaveBeenCalledTimes(1)
+  })
+
+  it('waits for one batch to deliver before it asks the journal about the next', async () => {
+    const delivered: string[] = []
+    const releases: (() => void)[] = []
+    const jobs = new PiRpcBackgroundJobs({
+      generation: 'gen-1',
+      drained: () => new Promise<void>((resolve) => releases.push(resolve)),
+      deliver: (batch) => delivered.push(...batch.map((edge) => edge.type))
+    })
+    start(jobs, 'job-1')
+    jobs.observeFrame(
+      notice('Background job job-1 exited with code 0.', {
+        jobId: 'job-1',
+        kind: 'command',
+        status: 'exited',
+        exitCode: 0
+      })
+    )
+    await vi.waitFor(() => expect(releases).toHaveLength(1))
+    expect(delivered).toEqual([])
+    releases[0]?.()
+    await vi.waitFor(() => expect(releases).toHaveLength(2))
+    expect(delivered).toEqual(['live'])
+    releases[1]?.()
+    await vi.waitFor(() => expect(delivered).toEqual(['live', 'ended']))
+  })
+
+  it('stops tracking past 64 live jobs and ignores the exit of one it dropped', async () => {
+    const delivered: AgentChildWorkEvidence[] = []
+    const jobs = new PiRpcBackgroundJobs({
+      generation: 'gen-1',
+      drained: async () => {},
+      deliver: (batch) => delivered.push(...batch)
+    })
+    for (let index = 0; index < 65; index += 1) {
+      start(jobs, `job-${index}`)
+    }
+    jobs.observeFrame(
+      notice('Background job job-64 exited with code 0.', {
+        jobId: 'job-64',
+        kind: 'command',
+        status: 'exited',
+        exitCode: 0
+      })
+    )
+    await vi.waitFor(() =>
+      expect(delivered.filter((edge) => edge.type === 'live')).toHaveLength(64)
+    )
+    expect(delivered.some((edge) => edge.type === 'ended')).toBe(false)
   })
 })
