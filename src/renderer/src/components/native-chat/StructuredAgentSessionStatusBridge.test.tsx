@@ -623,6 +623,21 @@ describe('StructuredAgentSessionStatusBridge', () => {
     ])
   })
 
+  it('clears the provider session the host no longer reports for the chat', async () => {
+    render(<StructuredAgentSessionStatusBridge />)
+    await waitFor(() => expect(mocks.subscribeStatus).toHaveBeenCalledOnce())
+    act(() => feed().emit({ type: 'status', session: summary({ updatedAt: 100 }) }))
+    expect(statuses()[0]?.providerSession).toEqual(providerSession)
+    act(() =>
+      feed().emit({
+        type: 'status',
+        session: summary({ updatedAt: 200, providerSession: undefined })
+      })
+    )
+    expect(statuses()).toEqual([expect.objectContaining({ state: 'working', updatedAt: 200 })])
+    expect(statuses()[0]?.providerSession).toBeUndefined()
+  })
+
   it('accepts an authoritative older journal age after a host upgrade reconnect', async () => {
     render(<StructuredAgentSessionStatusBridge />)
     await waitFor(() => expect(mocks.subscribeStatus).toHaveBeenCalledOnce())

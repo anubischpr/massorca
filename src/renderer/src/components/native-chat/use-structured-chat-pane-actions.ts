@@ -12,6 +12,7 @@ import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection
 import type { AgentSessionContinuationRequest } from '@/lib/agent-session-continuation'
 import type { AgentJournalItemBody } from '../../../../shared/agent-session-journal-types'
 import { closeStructuredAgentSession } from '../../runtime/structured-agent-session-close'
+import { readStructuredAgentSessionProviderSession } from '../../runtime/structured-agent-session-provider-session'
 import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
 import { prepareAgentSessionContinuationFromSource } from '../terminal-pane/terminal-agent-session-continuation'
 import { runNativeChatSplitTarget } from './native-chat-layout-actions'
@@ -20,6 +21,7 @@ import {
   createStructuredChatPaneActions,
   type StructuredChatPaneActions
 } from './structured-chat-pane-actions'
+import { structuredChatReleaseFailureNotice } from './structured-chat-release-failure-notice'
 
 type StructuredChatJournalRow = { readonly body: AgentJournalItemBody }
 
@@ -112,6 +114,7 @@ export function useStructuredChatPaneActions(args: {
             useAppStore.getState().closeUnifiedTab(closeTabId)
           },
           releaseProviderChild: closeStructuredAgentSession,
+          readRecordedProviderSession: readStructuredAgentSessionProviderSession,
           launchResume: (record, options) => launchSleepingAgentSession(record, options),
           launchFresh: (request, options) => launchFreshAgentSession(request, options),
           resolvePiRuntime: resolvePiRuntimeForLaunch,
@@ -120,13 +123,8 @@ export function useStructuredChatPaneActions(args: {
           // Why: no structured-chat launch source exists yet; 'unknown' is honest telemetry.
           prepareContinuation: (request) =>
             prepareAgentSessionContinuationFromSource({ ...request, launchSource: 'unknown' }),
-          onTerminalViewReleaseFailed: () =>
-            reportNotice(
-              translate(
-                'components.native-chat.toggle.terminalViewReleaseFailed',
-                'Could not open this chat in the terminal. The chat was left open.'
-              )
-            ),
+          onTerminalViewReleaseFailed: (error) =>
+            reportNotice(structuredChatReleaseFailureNotice(error)),
           onTerminalViewLaunchFailed: () =>
             reportNotice(
               translate(

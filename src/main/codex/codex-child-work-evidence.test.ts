@@ -435,7 +435,10 @@ describe('Codex child-work evidence', () => {
         exitCode: 1
       })
     )
-    expect(byKind('command')).toEqual([])
+    // The command outlived its turn, so its exit stays as a finished command.
+    expect(byKind('command')).toEqual([
+      expect.objectContaining({ membership: 'settled', outcome: 'failed' })
+    ])
     expect(display(agent!.childWorkId)).toBe('done')
   })
 
@@ -458,12 +461,35 @@ describe('Codex child-work evidence', () => {
         shell('exec-2', 'npm run dev', 'completed', 'unifiedExecStartup')
       )
     )
-    expect(byKind('command')).toEqual([])
+    // No exit code was reported, so how it ended is unknown.
+    expect(byKind('command')).toEqual([
+      expect.objectContaining({ membership: 'settled', outcome: 'unknown' })
+    ])
     expect(display(agent!.childWorkId)).toBe('done')
     expect(tracker.state).toBeNull()
   })
 
-  it("removes a closed thread's running commands: Codex stops them and never reports their exit", () => {
+  it('settles a background command as succeeded when its process exits with code 0', () => {
+    const { send, byKind } = runningChild()
+    send(
+      item(
+        'item/started',
+        CHILD,
+        'c1',
+        shell('exec-3', 'npm run build', 'inProgress', 'unifiedExecStartup')
+      ),
+      turn('turn/completed', CHILD, 'c1'),
+      item('item/completed', CHILD, 'c1', {
+        ...shell('exec-3', 'npm run build', 'completed', 'unifiedExecStartup'),
+        exitCode: 0
+      })
+    )
+    expect(byKind('command')).toEqual([
+      expect.objectContaining({ membership: 'settled', outcome: 'succeeded' })
+    ])
+  })
+
+  it("settles a closed thread's running commands as unknown: Codex stops them and never reports their exit", () => {
     const { send, tracker, byKind, display } = runningChild()
     send(
       item(
@@ -478,10 +504,11 @@ describe('Codex child-work evidence', () => {
     const [agent] = byKind('agent')
     expect(display(agent!.childWorkId)).toBe('monitoring')
     send({ method: 'thread/closed', threadId: CHILD, params: { threadId: CHILD } })
-    expect(byKind('command')).toEqual([])
+    const finished = [expect.objectContaining({ membership: 'settled', outcome: 'unknown' })]
+    expect(byKind('command')).toEqual(finished)
     expect(display(agent!.childWorkId)).toBe('done')
     expect(tracker.state).toBeNull()
-    // The exit Codex could not deliver starts nothing if it ever arrives.
+    // The exit Codex could not deliver starts nothing, and ends nothing twice, if it arrives.
     send(
       item(
         'item/completed',
@@ -490,7 +517,7 @@ describe('Codex child-work evidence', () => {
         shell('exec-1', 'npm run dev', 'completed', 'unifiedExecStartup')
       )
     )
-    expect(byKind('command')).toEqual([])
+    expect(byKind('command')).toEqual(finished)
   })
 
   it("names the owner of a command launched before the host held its child's record", () => {
@@ -590,7 +617,7 @@ describe('Codex child-work evidence', () => {
     expect(tracker.drainChildWorkEvidence(1)).toEqual([])
   })
 
-  it('settles every live child with no reported outcome, and removes every command, when the provider session ends', () => {
+  it('settles every live child and background command with no reported outcome when the provider session ends', () => {
     const { send, tracker, records, store } = runningChild()
     send(
       item(
@@ -606,9 +633,10 @@ describe('Codex child-work evidence', () => {
     const evidence = tracker.drainChildWorkEvidence(9_000)
     expect(evidence).toEqual([
       {
-        type: 'removed',
+        type: 'ended',
         observedAt: 9_000,
-        handle: { idKind: 'task_id', id: 'codex-command:primary:exec-1' }
+        handle: { idKind: 'task_id', id: 'codex-command:primary:exec-1' },
+        outcome: 'unknown'
       },
       { type: 'session-ended', observedAt: 9_000 }
     ])
@@ -620,7 +648,8 @@ describe('Codex child-work evidence', () => {
       evidence
     })
     expect(records()).toEqual([
-      expect.objectContaining({ kind: 'agent', membership: 'settled', outcome: 'unknown' })
+      expect.objectContaining({ kind: 'agent', membership: 'settled', outcome: 'unknown' }),
+      expect.objectContaining({ kind: 'command', membership: 'settled', outcome: 'unknown' })
     ])
   })
 })

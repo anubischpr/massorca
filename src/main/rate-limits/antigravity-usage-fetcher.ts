@@ -37,6 +37,16 @@ const UNSUPPORTED_USAGE_COMMAND_REASON =
  */
 let usageCommandUnsupported = false
 
+// Why a short pause: a hung request is usually a stalled connection, and an immediate respawn lands on the same stall.
+const ANTIGRAVITY_TIMEOUT_RETRY_DELAY_MS = 1_500
+
+// Why serialized: two agy probes share one credential store and language-server state, and overlapping runs were seen starting seconds apart.
+let probeQueue: Promise<unknown> = Promise.resolve()
+
+function sleep(ms: number): Promise<void> {
+  return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve()
+}
+
 /** Clears the unsupported latch. Tests only — a live process has no way back. */
 export function resetAntigravityUsageSupportForTests(): void {
   usageCommandUnsupported = false
@@ -49,6 +59,8 @@ export type AntigravityUsageDependencies = {
   resolveEnvironment?: () => Promise<NodeJS.ProcessEnv>
   platform?: NodeJS.Platform
   now?: () => number
+  /** Pause before the single retry of a timed-out probe; tests pass 0. */
+  retryDelayMs?: number
 }
 
 export type FetchAntigravityRateLimitsOptions = AntigravityUsageDependencies & {
@@ -107,8 +119,16 @@ function failed(
  * This runs on whichever machine owns execution; the caller is responsible for not asking a local
  * agy about a remote workspace's quota.
  */
-export async function fetchAntigravityRateLimits(
+export function fetchAntigravityRateLimits(
   options: FetchAntigravityRateLimitsOptions = {}
+): Promise<ProviderRateLimits> {
+  const result = probeQueue.then(() => readAntigravityRateLimits(options))
+  probeQueue = result.catch(() => undefined)
+  return result
+}
+
+async function readAntigravityRateLimits(
+  options: FetchAntigravityRateLimitsOptions
 ): Promise<ProviderRateLimits> {
   const now = options.now ?? Date.now
   if (usageCommandUnsupported) {
@@ -160,9 +180,8 @@ export async function fetchAntigravityRateLimits(
     )
   }
 
-  let result: Awaited<ReturnType<typeof runProcess>>
-  try {
-    result = await run({
+  const runUsage = (): ReturnType<typeof runProcess> =>
+    run({
       program,
       args: ANTIGRAVITY_USAGE_ARGS,
       env,
@@ -170,6 +189,16 @@ export async function fetchAntigravityRateLimits(
       maxOutputBytes: ANTIGRAVITY_USAGE_MAX_OUTPUT_BYTES,
       signal: options.signal
     })
+  let result: Awaited<ReturnType<typeof runProcess>>
+  try {
+    result = await runUsage()
+    // Why one retry: a probe that merely hung (not a signed-out or malformed answer) often succeeds on a fresh process.
+    if (result.timedOut && !options.signal?.aborted) {
+      await sleep(options.retryDelayMs ?? ANTIGRAVITY_TIMEOUT_RETRY_DELAY_MS)
+      if (!options.signal?.aborted) {
+        result = await runUsage()
+      }
+    }
   } catch (error) {
     return failed(spawnFailureMessage(error), 'cli-unavailable', now())
   }

@@ -106,6 +106,21 @@ export async function askHostPiTerminalRuntime(
 }
 
 /**
+ * The Pi runtime this workspace's host runs, for labels. Null while the host cannot be asked yet (its owner
+ * is unknown, or an SSH host has no runtime to ask), so the caller asks again later instead of caching it.
+ */
+export async function askHostPiRuntimeForWorktree(
+  worktreeId: string
+): Promise<HostPiTerminalRuntime | null> {
+  const hostTarget = piTerminalHostTargetToAsk(useAppStore.getState(), {
+    worktreeId,
+    agent: 'pi',
+    cmdOverrides: {}
+  })
+  return hostTarget ? askHostPiTerminalRuntime(hostTarget, worktreeId) : null
+}
+
+/**
  * The Pi runtime an existing chat's terminal runs: what its session names, else what the workspace's
  * host runs, else the client's Pi command. The terminal view resolves here, so a chat whose session
  * names nothing yet still never starts stock `pi` on a host that only has Gentle Shell.

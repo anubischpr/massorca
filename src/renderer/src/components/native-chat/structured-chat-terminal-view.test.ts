@@ -43,6 +43,7 @@ function deps(
   }
   return {
     releaseProviderChild: vi.fn(async () => 'closed' as const),
+    readRecordedProviderSession: vi.fn(async () => undefined),
     launchResume: vi.fn((_record: SleepingAgentSessionRecord, options: LaunchOptions) =>
       opened(options)
     ),
@@ -64,6 +65,94 @@ const SESSIONS: Record<'claude' | 'codex' | 'pi' | 'antigravity', AgentProviderS
   pi: { key: 'session_id', id: 'provider-1', transcriptPath: '/home/u/.pi/agent/s.jsonl' },
   antigravity: { key: 'conversation_id', id: 'provider-1' }
 }
+
+describe('showStructuredChatInTerminal release failure', () => {
+  it('hands the release error to onReleaseFailed, so the toast can name the host refusal', async () => {
+    const refusal = new Error('agent_session_ownership_unknown')
+    const d = deps({
+      releaseProviderChild: vi.fn(async () => {
+        throw refusal
+      })
+    })
+    await expect(showStructuredChatInTerminal(args(), d)).resolves.toBe(false)
+    expect(d.onReleaseFailed).toHaveBeenCalledWith(refusal)
+    expect(d.launchResume).not.toHaveBeenCalled()
+  })
+})
+
+describe('showStructuredChatInTerminal provider session fallback', () => {
+  it.each(['claude', 'codex', 'pi', 'antigravity'] as const)(
+    'resumes the %s session the host records when the status has none',
+    async (agent) => {
+      const order: string[] = []
+      const d = deps({
+        readRecordedProviderSession: vi.fn(async () => {
+          order.push('read')
+          return SESSIONS[agent]
+        }),
+        releaseProviderChild: vi.fn(async () => {
+          order.push('release')
+          return 'closed' as const
+        })
+      })
+      await expect(
+        showStructuredChatInTerminal(args({ launch: { mode: 'fresh', agent } }), d)
+      ).resolves.toBe(true)
+      expect(d.readRecordedProviderSession).toHaveBeenCalledWith(LOCAL, 'session-1')
+      expect(order).toEqual(['read', 'release'])
+      expect(d.launchResume).toHaveBeenCalledWith(
+        expect.objectContaining({ agent, providerSession: SESSIONS[agent] }),
+        expect.anything()
+      )
+      expect(d.launchFresh).not.toHaveBeenCalled()
+    }
+  )
+
+  it('starts fresh only when the host records no conversation either', async () => {
+    const d = deps({ readRecordedProviderSession: vi.fn(async () => undefined) })
+    await expect(
+      showStructuredChatInTerminal(args({ launch: { mode: 'fresh', agent: 'claude' } }), d)
+    ).resolves.toBe(true)
+    expect(d.releaseProviderChild).toHaveBeenCalledTimes(1)
+    expect(d.launchFresh).toHaveBeenCalledWith(
+      expect.objectContaining({ agent: 'claude' }),
+      expect.anything()
+    )
+    expect(d.launchResume).not.toHaveBeenCalled()
+  })
+
+  it('keeps the chat open when the host cannot say what the chat holds', async () => {
+    const unreadable = new Error('history unavailable')
+    const d = deps({
+      readRecordedProviderSession: vi.fn(async () => {
+        throw unreadable
+      })
+    })
+    await expect(
+      showStructuredChatInTerminal(args({ launch: { mode: 'fresh', agent: 'claude' } }), d)
+    ).resolves.toBe(false)
+    expect(d.onReleaseFailed).toHaveBeenCalledWith(unreadable)
+    expect(d.releaseProviderChild).not.toHaveBeenCalled()
+    expect(d.launchFresh).not.toHaveBeenCalled()
+    expect(d.launchResume).not.toHaveBeenCalled()
+  })
+
+  it('keeps the chat open when the recorded session cannot be resumed by its agent', async () => {
+    const d = deps({ readRecordedProviderSession: vi.fn(async () => SESSION) })
+    await expect(
+      showStructuredChatInTerminal(args({ launch: { mode: 'fresh', agent: 'aider' } }), d)
+    ).resolves.toBe(false)
+    expect(d.onReleaseFailed).toHaveBeenCalledWith()
+    expect(d.releaseProviderChild).not.toHaveBeenCalled()
+    expect(d.launchFresh).not.toHaveBeenCalled()
+  })
+
+  it('does not read the host record when the status already names the session', async () => {
+    const d = deps()
+    await expect(showStructuredChatInTerminal(args(), d)).resolves.toBe(true)
+    expect(d.readRecordedProviderSession).not.toHaveBeenCalled()
+  })
+})
 
 describe('structuredChatTerminalViewState', () => {
   it.each(['claude', 'codex', 'pi', 'antigravity'] as const)(

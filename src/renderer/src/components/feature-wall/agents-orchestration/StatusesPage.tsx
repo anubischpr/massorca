@@ -1,9 +1,15 @@
 /* oxlint-disable react-doctor/no-adjust-state-on-prop-change -- Why: this page is a timed storyboard; reveal state intentionally resets when the active/reduced-motion gates change. */
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { useEffect, useRef, useState } from 'react'
 import type { JSX, ReactNode } from 'react'
 import { Wrench } from 'lucide-react'
 import { AgentStateDot } from '@/components/AgentStateDot'
-import { getAgentCatalog, AgentIcon, type AgentCatalogEntry } from '@/lib/agent-catalog'
+import {
+  getAgentCatalog,
+  getAgentDisplayLabel,
+  AgentIcon,
+  type AgentCatalogEntry
+} from '@/lib/agent-catalog'
 import { ClaudeIcon, OpenAIIcon } from '../../status-bar/icons'
 import { installWindowVisibilityInterval } from '@/lib/window-visibility-interval'
 import { cn } from '@/lib/utils'
@@ -210,6 +216,7 @@ function Skel(props: { widthPct: number }): JSX.Element {
 // Long horizontal scroller of supported agent pills. Track is duplicated so a
 // -50% translate loop reads as seamless infinite scroll.
 function SupportedAgentsMarquee(props: { reducedMotion: boolean }): JSX.Element {
+  const piRuntime = usePiDisplayRuntime()
   const trackRef = useRef<HTMLDivElement | null>(null)
   const agentCatalog = getAgentCatalog()
   return (
@@ -231,10 +238,18 @@ function SupportedAgentsMarquee(props: { reducedMotion: boolean }): JSX.Element 
           )}
         >
           {agentCatalog.map((agent) => (
-            <MarqueePill key={`a-${agent.id}`} agentId={agent.id} label={agent.label} />
+            <MarqueePill
+              key={`a-${agent.id}`}
+              agentId={agent.id}
+              label={getAgentDisplayLabel(agent.id, piRuntime)}
+            />
           ))}
           {agentCatalog.map((agent) => (
-            <MarqueePill key={`b-${agent.id}`} agentId={agent.id} label={agent.label} />
+            <MarqueePill
+              key={`b-${agent.id}`}
+              agentId={agent.id}
+              label={getAgentDisplayLabel(agent.id, piRuntime)}
+            />
           ))}
         </div>
       </div>

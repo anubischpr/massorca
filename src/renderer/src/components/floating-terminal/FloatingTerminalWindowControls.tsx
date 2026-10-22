@@ -1,9 +1,10 @@
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { useCallback, useMemo } from 'react'
 import { Maximize2, Minimize2, Minus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { getAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
+import { getAgentDisplayLabel, AgentIcon } from '@/lib/agent-catalog'
 import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
@@ -39,6 +40,7 @@ export function FloatingTerminalWindowControls({
   onMinimize
 }: FloatingTerminalWindowControlsProps): React.JSX.Element {
   const defaultTuiAgent = useAppStore((s) => s.settings?.defaultTuiAgent ?? null)
+  const piRuntime = usePiDisplayRuntime({ enabled: defaultTuiAgent === 'pi' })
   const setActiveTabForWorktree = useAppStore((s) => s.setActiveTabForWorktree)
   const activateTab = useAppStore((s) => s.activateTab)
   const maximizeShortcutLabel = useOptionalShortcutLabel('floatingWorkspace.maximize')
@@ -54,11 +56,8 @@ export function FloatingTerminalWindowControls({
       ? defaultTuiAgent
       : null
   const defaultAgentLabel = useMemo(
-    () =>
-      defaultAgent
-        ? (getAgentCatalog().find((agent) => agent.id === defaultAgent)?.label ?? defaultAgent)
-        : null,
-    [defaultAgent]
+    () => (defaultAgent ? getAgentDisplayLabel(defaultAgent, piRuntime) : null),
+    [defaultAgent, piRuntime]
   )
 
   const launchDefaultAgent = useCallback(() => {

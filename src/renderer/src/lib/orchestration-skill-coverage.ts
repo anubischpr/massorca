@@ -1,8 +1,9 @@
+import { currentPiDisplayRuntime } from '@/lib/pi-display-runtime-now'
 import type { AgentType } from '../../../shared/agent-status-types'
 import type { DiscoveredSkill, SkillDiscoverySource } from '../../../shared/skills'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import { ORCHESTRATION_SKILL_NAME } from '@/lib/agent-feature-install-commands'
-import { getAgentLabel } from '@/lib/agent-catalog'
+import { getAgentDisplayLabel } from '@/lib/agent-catalog'
 import { TUI_AGENT_AUTO_PICK_ORDER } from '../../../shared/tui-agent-selection'
 
 export type OrchestrationSkillAgentStatus = {
@@ -82,7 +83,7 @@ export function getOrchestrationSkillAgentStatuses(
 ): OrchestrationSkillAgentStatus[] {
   return sortOrchestrationAgents(detectedAgents).map((agent) => ({
     agent,
-    label: getAgentLabel(agent),
+    label: getAgentDisplayLabel(agent, agent === 'pi' ? currentPiDisplayRuntime() : 'unknown'),
     installed: agentHasOrchestrationSkill(agent, skills, sources)
   }))
 }

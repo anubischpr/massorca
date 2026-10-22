@@ -20,7 +20,8 @@ vi.mock('@/lib/launch-agent-session-continuation', () => ({
 }))
 vi.mock('@/lib/agent-catalog', () => ({
   getAgentCatalog: () => [{ id: 'codex', label: 'Codex' }],
-  getAgentLabel: () => 'Codex'
+  getAgentLabel: () => 'Codex',
+  getAgentDisplayLabel: () => 'Codex'
 }))
 vi.mock('@/components/agent/AgentCombobox', () => ({
   default: ({ value }: { value: string | null }) =>

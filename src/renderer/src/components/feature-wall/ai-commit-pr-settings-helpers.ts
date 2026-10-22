@@ -1,3 +1,4 @@
+import { piRuntimeLabel, type PiDisplayRuntime } from '@/lib/pi-agent-display'
 import type { CommitMessageAiSettings } from '../../../../shared/commit-message-ai-types'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { TuiAgent } from '../../../../shared/tui-agent'
@@ -25,8 +26,12 @@ export function readCommitMessageAiSettings(settings: GlobalSettings): CommitMes
 
 export function commitMessageAgentLabel(
   agentId: TuiAgent,
-  capability: CommitMessageAgentCapability
+  capability: CommitMessageAgentCapability,
+  piRuntime: PiDisplayRuntime
 ): string {
+  if (agentId === 'pi') {
+    return piRuntimeLabel(piRuntime)
+  }
   return getAgentCatalog().find((a) => a.id === agentId)?.label ?? capability.label
 }
 

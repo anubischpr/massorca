@@ -1,3 +1,4 @@
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import type React from 'react'
 import { Terminal } from 'lucide-react'
 import type { TuiAgent } from '../../../../shared/tui-agent'
@@ -15,7 +16,7 @@ import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Button } from '../ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import { AgentIcon } from '@/lib/agent-catalog'
+import { AgentIcon, getAgentDisplayLabel } from '@/lib/agent-catalog'
 import { SourceControlActionVariableChips } from '../source-control/SourceControlActionVariableChips'
 import {
   getActionDescriptions,
@@ -73,6 +74,7 @@ export function RepositorySourceControlAiActionRows({
   onActionDiscard,
   onActionSave
 }: RepositorySourceControlAiActionRowsProps): React.JSX.Element {
+  const piRuntime = usePiDisplayRuntime()
   return (
     <div className="space-y-3">
       <Label className="text-xs font-medium">
@@ -101,7 +103,11 @@ export function RepositorySourceControlAiActionRows({
                 resolveAgentArgsPlaceholderAgent(effectiveAgent, source, actionId, defaultTuiAgent)
               )
         const agentOptions = getAgentCatalogForAction(actionId, effectiveAgent)
-        const agentWarningText = getSourceControlActionAgentWarningText(actionId, effectiveAgent)
+        const agentWarningText = getSourceControlActionAgentWarningText(
+          actionId,
+          effectiveAgent,
+          piRuntime
+        )
         const agentSupportText = getSourceControlActionAgentSupportText(actionId)
         const actionDirty = actionDirtyById[actionId]
         const isSavingAction = savingActionIds[actionId] === true
@@ -201,7 +207,7 @@ export function RepositorySourceControlAiActionRows({
                       <SelectItem key={agent.id} value={agent.id}>
                         <span className="flex items-center gap-2">
                           <AgentIcon agent={agent.id} size={14} />
-                          {agent.label}
+                          {getAgentDisplayLabel(agent.id, piRuntime)}
                         </span>
                       </SelectItem>
                     ))}

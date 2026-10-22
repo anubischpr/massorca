@@ -1,3 +1,4 @@
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, Play } from 'lucide-react'
 import {
@@ -18,7 +19,7 @@ import {
   getTerminalQuickCommandBody,
   isTerminalAgentQuickCommand
 } from '../../../../shared/terminal-quick-commands'
-import { getAgentLabel } from '@/lib/agent-catalog'
+import { getAgentDisplayLabel } from '@/lib/agent-catalog'
 import { TabBarQuickCommandItem } from './TabBarQuickCommandItem'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
@@ -60,6 +61,7 @@ export function TabBarQuickCommandsMenu({
   onMenuOpen,
   onRunCommand
 }: TabBarQuickCommandsMenuProps): React.JSX.Element {
+  const piRuntime = usePiDisplayRuntime()
   const openMenuShortcutCombos = useShortcutKeyComboDetails('tab.openQuickCommandsMenu')
   const [menuOpen, setMenuOpen] = useState(false)
   const [moreCommandsTooltipOpen, setMoreCommandsTooltipOpen] = useState(false)
@@ -223,7 +225,7 @@ export function TabBarQuickCommandsMenu({
                   'auto.components.tab.bar.TabBarQuickCommandsButton.77ac113df0',
                   'Start {{value0}}: {{value1}}',
                   {
-                    value0: getAgentLabel(mostRecent.command.agent),
+                    value0: getAgentDisplayLabel(mostRecent.command.agent, piRuntime),
                     value1: getTerminalQuickCommandBody(mostRecent.command)
                   }
                 )

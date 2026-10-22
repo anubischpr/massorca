@@ -67,4 +67,19 @@ describe('useNativeChatReplySuggestion', () => {
     const next = render({ ...native, turnId: 'turn-2' })
     expect(next.result.current?.text).toBe('Run it')
   })
+
+  it('tells the caller which suggestion was dismissed, once', () => {
+    const onDismissed = vi.fn()
+    const hook = renderHook(
+      (props: { suggestion: NativeChatReplySuggestion | null }) =>
+        useNativeChatReplySuggestion({ sessionId, idle: true, onDismissed, ...props }),
+      { initialProps: { suggestion: native } }
+    )
+
+    act(() => hook.result.current?.dismiss())
+    act(() => hook.result.current?.dismiss())
+
+    expect(onDismissed).toHaveBeenCalledTimes(1)
+    expect(onDismissed).toHaveBeenCalledWith(native)
+  })
 })

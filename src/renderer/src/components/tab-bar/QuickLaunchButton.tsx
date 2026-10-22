@@ -3,6 +3,8 @@ import { Settings as SettingsIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { DropdownMenuItem, DropdownMenuShortcut } from '@/components/ui/dropdown-menu'
 import { getAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
+import { agentBrandRowAttribute, piRuntimeLabel } from '@/lib/pi-agent-display'
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { useAppStore } from '@/store'
 import { useAgentDetectionTargetForWorktree } from '@/hooks/useAgentDetectionTarget'
 import { useDetectedAgents } from '@/hooks/useDetectedAgents'
@@ -124,6 +126,7 @@ function QuickLaunchAgentMenuItemsInner({
   )
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
+  const piRuntime = usePiDisplayRuntime({ worktreeId })
   const newAgentShortcut = useOptionalShortcutLabel('tab.newAgent')
 
   const openAgentSettings = useCallback(() => {
@@ -239,7 +242,7 @@ function QuickLaunchAgentMenuItemsInner({
       ) : null}
       {agents.map((agent) => {
         const entry = getCatalogEntry(agent)
-        const label = entry?.label ?? agent
+        const label = agent === 'pi' ? piRuntimeLabel(piRuntime) : (entry?.label ?? agent)
         const showsDefaultAgentShortcut =
           newAgentShortcut !== null && defaultAgent !== 'blank' && agent === defaultAgent
         return (
@@ -247,6 +250,7 @@ function QuickLaunchAgentMenuItemsInner({
             key={agent}
             disabled={disabled}
             onSelect={() => runLaunch(agent)}
+            data-agent-brand={agentBrandRowAttribute(agent, piRuntime)}
             className="gap-2 rounded-[7px] px-2 py-1.5 text-[12px] leading-5 font-medium"
             title={translate(
               'auto.components.tab.bar.QuickLaunchButton.ec2adf093e',

@@ -141,15 +141,15 @@ export function buildAgentStatusLiveEntry(
     payloadMergedOrchestration ??
     runtimeMergedOrchestration ??
     (payload.state === 'done' ? existing?.orchestration : undefined)
-  const canReuseExistingProviderSession =
-    existing?.agentType === identity.agentType &&
-    (existing.state !== 'done' || payload.state === 'done')
+  // Why: a rebuild without session metadata says nothing about the conversation, so the last known
+  // session stays in every state; only a writer that holds the chat's whole state clears it.
+  const sameAgentAsExisting = existing?.agentType === identity.agentType
+  const existingProviderSession = sameAgentAsExisting ? existing.providerSession : undefined
   const providerSession =
     metadata?.providerSession ??
-    (canReuseExistingProviderSession ? existing.providerSession : undefined)
-  const existingProviderSession = canReuseExistingProviderSession
-    ? existing.providerSession
-    : undefined
+    (sameAgentAsExisting && metadata?.providerSessionAuthoritative !== true
+      ? existing.providerSession
+      : undefined)
   const providerSessionChanged =
     Boolean(metadata?.providerSession && existingProviderSession) &&
     !agentProviderSessionsEqual(
@@ -178,15 +178,18 @@ export function buildAgentStatusLiveEntry(
     isResumableTuiAgent(identity.agentType) &&
     providerSession !== undefined &&
     getAgentResumeArgv(identity.agentType, providerSession) !== null
+  // Why: only a session the writer names restores a sleeping record's launch config; one carried over
+  // from the last turn is the same chat continuing, so it must not bring the completed run's config back.
+  const namedProviderSession = metadata?.providerSession
   const matchedSleepingLaunchConfig =
     (payload.state !== 'done' || retainsResumableRecoveryIdentity) &&
     existingSleepingRecord?.launchConfig &&
     existingSleepingRecord.agent === identity.agentType &&
-    providerSession &&
+    namedProviderSession &&
     agentProviderSessionsEqual(
       identity.agentType,
       existingSleepingRecord.providerSession,
-      providerSession
+      namedProviderSession
     )
       ? existingSleepingRecord.launchConfig
       : undefined

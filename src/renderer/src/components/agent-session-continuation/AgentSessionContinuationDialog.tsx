@@ -18,7 +18,9 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { translate } from '@/i18n/i18n'
-import { getAgentCatalog, getAgentLabel } from '@/lib/agent-catalog'
+import { getAgentCatalog, getAgentDisplayLabel } from '@/lib/agent-catalog'
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
+import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 import {
   buildAgentSessionContinuationPrompt,
   hasFullAgentSessionContext,
@@ -38,6 +40,8 @@ type AgentSessionContinuationDialogProps = {
   open: boolean
   request: AgentSessionContinuationRequest | null
   onOpenChange: (open: boolean) => void
+  /** The Pi runtime the source chat recorded, so its label names that runtime. */
+  sourceChatPiRuntime?: PiRuntimeSelection
 }
 
 const EMPTY_DISABLED_AGENTS: TuiAgent[] = []
@@ -45,9 +49,14 @@ const EMPTY_DISABLED_AGENTS: TuiAgent[] = []
 export function AgentSessionContinuationDialog({
   open,
   request,
-  onOpenChange
+  onOpenChange,
+  sourceChatPiRuntime
 }: AgentSessionContinuationDialogProps): React.JSX.Element {
   const settings = useAppStore((state) => state.settings)
+  const sourcePiRuntime = usePiDisplayRuntime({
+    enabled: request?.source.sourceAgent === 'pi',
+    chatRuntime: sourceChatPiRuntime
+  })
   const [detectedAgents, setDetectedAgents] = useState<TuiAgent[]>([])
   const [selectedAgent, setSelectedAgent] = useState<TuiAgent | null>(null)
   const [contextMode, setContextMode] = useState<AgentSessionContinuationContextMode>('focused')
@@ -145,7 +154,7 @@ export function AgentSessionContinuationDialog({
 
   const sourceName = request?.source.sourceTitle?.trim()
   const sourceAgentLabel = request?.source.sourceAgent
-    ? getAgentLabel(request.source.sourceAgent)
+    ? getAgentDisplayLabel(request.source.sourceAgent, sourcePiRuntime)
     : null
   const startDisabled = detecting || starting || agents.length === 0 || !selectedAgent
 

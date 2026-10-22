@@ -3,6 +3,7 @@ import {
   deferredStructuredAgentSessionLogger,
   type StructuredAgentSessionLogger
 } from './structured-agent-session-logger'
+import type { StructuredAgentSessionChildWorkHistory } from './structured-agent-session-child-work-history'
 import {
   StructuredAgentSessionStatusFeed,
   type StructuredAgentSessionStatusFeedDeps,
@@ -23,6 +24,7 @@ export function createStructuredAgentSessionHostStatusFeed(args: {
   }
   onAgentStarted?: (sessionId: string) => void
   onChildWorkChanged?: (sessionId: string) => void
+  childWorkHistory?: StructuredAgentSessionChildWorkHistory
 }): StructuredAgentSessionStatusFeed {
   return new StructuredAgentSessionStatusFeed({
     sessions: args.sessions,
@@ -34,6 +36,7 @@ export function createStructuredAgentSessionHostStatusFeed(args: {
     // field initializer, before its constructor parameters are assigned.
     statusSink: () => args.deps().statusSink,
     ...(args.onAgentStarted ? { onAgentStarted: args.onAgentStarted } : {}),
-    ...(args.onChildWorkChanged ? { onChildWorkChanged: args.onChildWorkChanged } : {})
+    ...(args.onChildWorkChanged ? { onChildWorkChanged: args.onChildWorkChanged } : {}),
+    ...(args.childWorkHistory ? { childWorkHistory: args.childWorkHistory } : {})
   })
 }

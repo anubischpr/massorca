@@ -1,3 +1,4 @@
+import { piRuntimeLabel, type PiDisplayRuntime } from '@/lib/pi-agent-display'
 import type { AgentStatus } from '../../../shared/agent-detection'
 import { detectAgentStatusFromTitle, getAgentLabel } from '../../../shared/agent-detection'
 import { resolveExplicitTerminalTitleAgentType } from '../../../shared/terminal-title-agent-type'
@@ -52,8 +53,11 @@ export function classifyTitleActivity(title: string): AgentStatus | null {
  * of who. Consumers historically split on this by accident; pick the facet
  * that matches the product rule, never both out of habit.
  */
-export function resolveTitleActivityLabel(title: string): string | null {
-  return getAgentLabel(title)
+export function resolveTitleActivityLabel(
+  title: string,
+  piRuntime: PiDisplayRuntime = 'unknown'
+): string | null {
+  return title === 'pi' ? piRuntimeLabel(piRuntime) : getAgentLabel(title)
 }
 
 /** See resolveTitleActivityLabel — the strict facet for identity decisions. */

@@ -1,3 +1,4 @@
+import type { PiDisplayRuntime } from '@/lib/pi-agent-display'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import {
   AI_TEXT_ACTION_IDS,
@@ -11,7 +12,7 @@ import {
   isCustomAgentId,
   listCommitMessageAgentCapabilities
 } from '../../../../shared/commit-message-agent-spec'
-import { getAgentCatalog, type AgentCatalogEntry } from '@/lib/agent-catalog'
+import { getAgentDisplayLabel, getAgentCatalog, type AgentCatalogEntry } from '@/lib/agent-catalog'
 import { createLocalizedCatalog } from '@/i18n/localized-catalog'
 import { translate } from '@/i18n/i18n'
 
@@ -137,7 +138,8 @@ export function getSourceControlActionAgentSupportText(actionId: AiActionId): st
 
 export function getSourceControlActionAgentWarningText(
   actionId: AiActionId,
-  selectedAgent: TuiAgent | CustomAgentId | null | undefined
+  selectedAgent: TuiAgent | CustomAgentId | null | undefined,
+  piRuntime: PiDisplayRuntime
 ): string | null {
   if (!AI_TEXT_ACTION_ID_SET.has(actionId)) {
     return null
@@ -147,7 +149,7 @@ export function getSourceControlActionAgentWarningText(
     if (TEXT_GENERATION_AGENT_ID_SET.has(selectedAgent)) {
       return null
     }
-    const agentLabel = getAgentCatalog().find((agent) => agent.id === selectedAgent)?.label
+    const agentLabel = getAgentDisplayLabel(selectedAgent, piRuntime)
     return translate(
       'auto.components.settings.source.control.action.recipe.options.unsupportedSavedAgent',
       '{{value0}} cannot run this text-generation recipe. Pick one of the supported agents below.',

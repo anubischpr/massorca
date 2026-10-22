@@ -245,7 +245,8 @@ async function runAttachUnderAbort(
           (suggestion) =>
             context.subscribers.promptSuggestions.publish(
               sessionId,
-              suggestion && { ...suggestion, source: 'native' }
+              suggestion && { ...suggestion, source: 'native' },
+              attached.journal
             )
         )
         const accessPosture = acquiredOwner

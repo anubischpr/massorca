@@ -440,7 +440,11 @@ describe('Codex structured child-work producer', () => {
         live: null,
         parent: { stateName: 'done' },
         check: () => {
-          expect(byDescription('npm run dev')).toBeUndefined()
+          // The command settles when its process exits and stays beside the finished child.
+          expect(byDescription('npm run dev')).toMatchObject({
+            membership: 'settled',
+            outcome: 'succeeded'
+          })
           expect(display('review')).toBe('interrupted')
         }
       }
@@ -487,6 +491,7 @@ describe('Codex structured child-work producer', () => {
       }))
     ).toEqual([
       { description: 'review', membership: 'settled', outcome: 'cancelled' },
+      { description: 'npm run dev', membership: 'settled', outcome: 'succeeded' },
       { description: 'test', membership: 'settled', outcome: 'failed' },
       { description: 'lint', membership: 'settled', outcome: 'failed' }
     ])

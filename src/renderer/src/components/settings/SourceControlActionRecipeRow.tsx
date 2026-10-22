@@ -1,3 +1,4 @@
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { Terminal } from 'lucide-react'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import type { TuiAgent } from '../../../../shared/tui-agent'
@@ -7,7 +8,7 @@ import {
   SOURCE_CONTROL_ACTION_LABELS,
   type AiActionId
 } from '../../../../shared/source-control-ai-actions'
-import { AgentIcon } from '@/lib/agent-catalog'
+import { AgentIcon, getAgentDisplayLabel } from '@/lib/agent-catalog'
 import { SourceControlActionVariableChips } from '../source-control/SourceControlActionVariableChips'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -75,13 +76,18 @@ export function SourceControlActionRecipeRow<ActionId extends AiActionId>({
   onDiscard,
   onSave
 }: SourceControlActionRecipeRowProps<ActionId>): React.JSX.Element {
+  const piRuntime = usePiDisplayRuntime()
   const templateDirty =
     hasUnsavedChanges ?? JSON.stringify(draftValue) !== JSON.stringify(baseValue)
   const agentArgsPlaceholder = getSourceControlAgentArgsPlaceholder(
     resolveAgentArgsPlaceholderAgent(selectedAgent, defaultTuiAgent)
   )
   const agentOptions = getAgentCatalogForAction(actionId, selectedAgent)
-  const agentWarningText = getSourceControlActionAgentWarningText(actionId, selectedAgent)
+  const agentWarningText = getSourceControlActionAgentWarningText(
+    actionId,
+    selectedAgent,
+    piRuntime
+  )
   const agentSupportText = getSourceControlActionAgentSupportText(actionId)
 
   return (
@@ -124,7 +130,7 @@ export function SourceControlActionRecipeRow<ActionId extends AiActionId>({
                 <SelectItem key={agent.id} value={agent.id}>
                   <span className="flex items-center gap-2">
                     <AgentIcon agent={agent.id} size={14} />
-                    {agent.label}
+                    {getAgentDisplayLabel(agent.id, piRuntime)}
                   </span>
                 </SelectItem>
               ))}

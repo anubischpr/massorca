@@ -136,4 +136,42 @@ describe('AgentSessionSubscribers prompt suggestion', () => {
     subscribers.promptSuggestions.publish(SESSION, { ...suggestion, source: 'emulated' })
     expect(suggestionsIn(events)).toHaveLength(1)
   })
+
+  it('does not restate a suggestion cleared while the subscriber was away', async () => {
+    const journal = await openJournal('cleared-while-away')
+    const subscribers = new AgentSessionSubscribers()
+    subscribers.promptSuggestions.publish(SESSION, suggestion)
+    subscribers.promptSuggestions.publish(SESSION, null)
+
+    const resumed: AgentSessionSubscribeEvent[] = []
+    subscribers.open({
+      id: 's2',
+      sessionId: SESSION,
+      journal,
+      fence: 1,
+      cursor: journal.cursor(),
+      emit: (event) => resumed.push(event)
+    })
+    expect(suggestionsIn(resumed)).toEqual([])
+  })
+
+  it('restates none after a restart when no row store kept it', async () => {
+    const journal = await openJournal('restarted-host')
+    const previous = new AgentSessionSubscribers()
+    previous.promptSuggestions.publish(SESSION, suggestion)
+
+    // Without the host's row store nothing survives a restart, and a new host must not invent one.
+    const restarted = new AgentSessionSubscribers()
+    const resumed: AgentSessionSubscribeEvent[] = []
+    restarted.open({
+      id: 's1',
+      sessionId: SESSION,
+      journal,
+      fence: 1,
+      cursor: journal.cursor(),
+      emit: (event) => resumed.push(event)
+    })
+    expect(suggestionsIn(resumed)).toEqual([])
+    expect(restarted.promptSuggestions.get(SESSION)).toBeUndefined()
+  })
 })

@@ -47,8 +47,11 @@ vi.mock('@/lib/launch-agent-in-new-tab', () => ({
   launchAgentInNewTab: mocks.launchAgentInNewTab
 }))
 
+vi.mock('@/lib/use-pi-runtime', () => ({ usePiDisplayRuntime: () => 'unknown' }))
+
 vi.mock('@/lib/agent-catalog', () => ({
   getAgentCatalog: () => [{ id: 'claude', label: 'Claude' }],
+  getAgentDisplayLabel: (agent: string) => (agent === 'claude' ? 'Claude' : agent),
   AgentIcon: function AgentIcon() {
     return null
   }

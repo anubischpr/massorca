@@ -33,8 +33,8 @@ export type StructuredChatTerminalViewState =
 
 /**
  * Whether this chat can be shown in the terminal view, and if not, the one reason the button names.
- * A chat that has not reported a provider session yet, before its first turn, opens a fresh TUI of
- * its agent. A chat that has one never starts fresh, since that would abandon its conversation.
+ * Without a provider session in the status the launch is provisional: showing the terminal reads the
+ * host's record first, and starts fresh only when that holds no conversation either.
  */
 export function structuredChatTerminalViewState(args: {
   worktreeId: string
@@ -95,13 +95,20 @@ export type ShowStructuredChatInTerminalDeps = {
     target: RuntimeClientTarget,
     sessionId: string
   ) => Promise<'closed' | 'unsupported'>
+  /** The provider session the host's record holds, read when the status has none. Throws when the host
+   *  cannot say, and the chat then stays open rather than starting fresh. */
+  readRecordedProviderSession: (
+    target: RuntimeClientTarget,
+    sessionId: string
+  ) => Promise<AgentProviderSessionMetadata | undefined>
   launchResume: StructuredChatTerminalLaunchResume
   launchFresh: StructuredChatTerminalLaunchFresh
   /** Lets the terminal's back-to-chat control reopen this structured chat. */
   recordTerminalLink: (tabId: string, link: StructuredChatTerminalLink) => void
   closeChatTab: (tabId: string) => void
-  /** The release itself failed: the provider child may still run, so the chat stays as it was. */
-  onReleaseFailed: () => void
+  /** The release itself failed: the provider child may still run, so the chat stays as it was. The
+   *  error, when there is one, carries the host's refusal reason for the toast. */
+  onReleaseFailed: (error?: unknown) => void
   /** The child is released but the terminal did not start; the chat stays open and says so. */
   onLaunchFailedAfterRelease: () => void
   now?: () => number
@@ -109,8 +116,10 @@ export type ShowStructuredChatInTerminalDeps = {
 
 /**
  * Releases the chat's provider child, then starts its terminal: the same provider session resumed,
- * or a fresh TUI of the same agent. The release is awaited first so two provider processes never
- * hold one session at once. The chat tab closes only after the terminal has been launched.
+ * or a fresh TUI of the same agent. The session is the status's, or the host record's when the status
+ * has none, and the chat is released only once that is known. The release is awaited first so two
+ * provider processes never hold one session at once. The chat tab closes only after the terminal has
+ * been launched.
  */
 export async function showStructuredChatInTerminal(
   args: ShowStructuredChatInTerminalArgs,
@@ -124,13 +133,48 @@ export async function showStructuredChatInTerminal(
   )
 }
 
+/**
+ * The launch the chat's host record supports. A status without a session falls back to the record's,
+ * so a chat starts fresh only when it has no conversation. Null when that session cannot be resumed.
+ */
+async function launchFromRecordedSession(
+  args: ShowStructuredChatInTerminalArgs,
+  deps: ShowStructuredChatInTerminalDeps
+): Promise<StructuredChatTerminalLaunch | null> {
+  if (args.launch.mode === 'resume') {
+    return args.launch
+  }
+  const recorded = await deps.readRecordedProviderSession(args.target, args.sessionId)
+  if (!recorded) {
+    return args.launch
+  }
+  const view = structuredChatTerminalViewState({
+    worktreeId: args.worktreeId,
+    agent: args.launch.agent,
+    providerSession: recorded
+  })
+  return view.enabled ? view.launch : null
+}
+
 async function switchStructuredChatToTerminal(
   args: ShowStructuredChatInTerminalArgs,
   deps: ShowStructuredChatInTerminalDeps
 ): Promise<boolean> {
-  // Why first: the host may need a beat to answer, and the chat must not be released until the terminal can start.
+  // Why first: the host answers before anything is released, so a chat it cannot describe stays open.
+  let launch: StructuredChatTerminalLaunch | null
+  try {
+    launch = await launchFromRecordedSession(args, deps)
+  } catch (error) {
+    deps.onReleaseFailed(error)
+    return false
+  }
+  if (!launch) {
+    deps.onReleaseFailed()
+    return false
+  }
+  // Why: the host may need a beat to answer, and the chat must not be released until the terminal can start.
   const piRuntime =
-    args.launch.agent === 'pi'
+    launch.agent === 'pi'
       ? await deps.resolvePiRuntime({
           worktreeId: args.worktreeId,
           ...(args.piRuntime ? { sessionRuntime: args.piRuntime } : {})
@@ -139,8 +183,8 @@ async function switchStructuredChatToTerminal(
   let released: 'closed' | 'unsupported'
   try {
     released = await deps.releaseProviderChild(args.target, args.sessionId)
-  } catch {
-    deps.onReleaseFailed()
+  } catch (error) {
+    deps.onReleaseFailed(error)
     return false
   }
   if (released !== 'closed') {
@@ -153,7 +197,6 @@ async function switchStructuredChatToTerminal(
       launchedTab.tabId = tabId
     }
   }
-  const { launch } = args
   let launched: boolean
   if (launch.mode === 'resume') {
     const now = deps.now?.() ?? Date.now()

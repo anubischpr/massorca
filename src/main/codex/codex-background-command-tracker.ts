@@ -9,6 +9,7 @@ import { readCodexThreadItem } from './codex-structured-item-translation'
 import { MAX_CODEX_ITEM_STREAM_METADATA_BYTES } from './codex-item-stream-retention'
 import type { CodexAbandonedCommand } from './codex-prompt-registry'
 import { readCodexTurnId } from './codex-structured-thread-facts'
+import type { AgentChildWorkOutcome } from '../../shared/agent-status-child-work'
 import { codexPrimaryCommandTaskId } from '../../shared/structured-session-foreground-commands'
 
 const MAX_SETTLED_COMMANDS = 128
@@ -30,7 +31,15 @@ export type CodexBackgroundCommandChange =
       backgrounded: boolean
       task: AgentSessionBackgroundTask
     }
-  | { type: 'ended'; threadId: string; taskId: string }
+  | {
+      type: 'ended'
+      threadId: string
+      taskId: string
+      /** Background work keeps an ending; a process that ran inside its turn leaves none. */
+      settles: boolean
+      /** From the process's exit code; absent when it was cut off or never reported one. */
+      outcome?: AgentChildWorkOutcome
+    }
 
 export class CodexBackgroundCommandTracker {
   private readonly commands = new Map<string, Command>()
@@ -65,7 +74,7 @@ export class CodexBackgroundCommandTracker {
     }
     const { key, command, completed } = parsed
     if (completed) {
-      return this.end(key)
+      return this.end(key, parsed.outcome)
     }
     if (this.commands.has(key)) {
       return null
@@ -110,7 +119,7 @@ export class CodexBackgroundCommandTracker {
 
   /** Its approval went unanswered until its turn ended, so its process never started. */
   endUnapproved(command: CodexAbandonedCommand): CodexBackgroundCommandChange | null {
-    return this.end(JSON.stringify([command.threadId, command.itemId]))
+    return this.end(JSON.stringify([command.threadId, command.itemId]), undefined, false)
   }
 
   tasks(
@@ -140,10 +149,11 @@ export class CodexBackgroundCommandTracker {
   /** The session ended, and every command with it. */
   clear(): CodexBackgroundCommandChange[] {
     const ended = [...this.commands.values()].map(
-      ({ threadId, task }): CodexBackgroundCommandChange => ({
+      ({ threadId, task, backgrounded }): CodexBackgroundCommandChange => ({
         type: 'ended',
         threadId,
-        taskId: task.id
+        taskId: task.id,
+        settles: backgrounded
       })
     )
     this.commands.clear()
@@ -154,7 +164,11 @@ export class CodexBackgroundCommandTracker {
   }
 
   /** Retires the key so a replayed frame cannot start the command again. */
-  private end(key: string): CodexBackgroundCommandChange | null {
+  private end(
+    key: string,
+    outcome?: AgentChildWorkOutcome,
+    background = true
+  ): CodexBackgroundCommandChange | null {
     const existing = this.commands.get(key)
     if (existing) {
       this.liveBytes -= existing.bytes
@@ -162,7 +176,13 @@ export class CodexBackgroundCommandTracker {
     }
     this.rememberSettled(key)
     return existing
-      ? { type: 'ended', threadId: existing.threadId, taskId: existing.task.id }
+      ? {
+          type: 'ended',
+          threadId: existing.threadId,
+          taskId: existing.task.id,
+          settles: existing.backgrounded && background,
+          ...(outcome ? { outcome } : {})
+        }
       : null
   }
 
@@ -198,7 +218,7 @@ export class CodexBackgroundCommandTracker {
 
   private parse(
     event: CodexBackgroundTaskEvent
-  ): { key: string; command: Command; completed: boolean } | null {
+  ): { key: string; command: Command; completed: boolean; outcome?: AgentChildWorkOutcome } | null {
     if (event.method !== 'item/started' && event.method !== 'item/completed') {
       return null
     }
@@ -226,9 +246,11 @@ export class CodexBackgroundCommandTracker {
         ...(description ? { description } : {})
       }
     }
+    const { exitCode } = item
     return {
       key,
       completed,
+      ...(typeof exitCode === 'number' ? { outcome: exitCode === 0 ? 'succeeded' : 'failed' } : {}),
       command: {
         ...value,
         bytes:

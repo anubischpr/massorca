@@ -1,5 +1,6 @@
+import { currentPiDisplayRuntime } from '@/lib/pi-display-runtime-now'
 import { toast } from 'sonner'
-import { getAgentLabel } from '@/lib/agent-catalog'
+import { getAgentDisplayLabel } from '@/lib/agent-catalog'
 import { getConnectionIdFromState } from '@/lib/connection-context'
 import { launchAgentInNewTab } from '@/lib/launch-agent-in-new-tab'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
@@ -34,7 +35,10 @@ export async function detectAgentSessionContinuationAgents(
 
 async function ensureAgentAvailable(agent: TuiAgent, worktreeId: string): Promise<boolean> {
   const state = useAppStore.getState()
-  const label = getAgentLabel(agent)
+  const label = getAgentDisplayLabel(
+    agent,
+    agent === 'pi' ? currentPiDisplayRuntime({ worktreeId }) : 'unknown'
+  )
   if (!isTuiAgentEnabled(agent, state.settings?.disabledTuiAgents)) {
     toast.error(
       translate(
@@ -79,7 +83,10 @@ export async function launchAgentSessionContinuation({
     return false
   }
 
-  const label = getAgentLabel(agent)
+  const label = getAgentDisplayLabel(
+    agent,
+    agent === 'pi' ? currentPiDisplayRuntime({ worktreeId }) : 'unknown'
+  )
   // Why: the paste helper writes blind when the agent's composer was never observed, so a
   // written prompt is not a delivered one. Claiming success there is how the whole handoff
   // could vanish silently (#22479).

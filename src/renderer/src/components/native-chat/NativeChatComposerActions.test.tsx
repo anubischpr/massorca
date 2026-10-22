@@ -31,7 +31,11 @@ vi.mock('./NativeChatSessionOptionPickers', () => ({
   NativeChatSessionOptionPickers: () => <div data-testid="session-option-pickers" />
 }))
 
+const { openVoiceSettings } = vi.hoisted(() => ({ openVoiceSettings: vi.fn() }))
+vi.mock('@/components/dictation/dictation-start-error-toast', () => ({ openVoiceSettings }))
+
 import { NativeChatComposerActions } from './NativeChatComposerActions'
+import type { DictationUnavailableReason } from './dictation-unavailable-reason'
 
 afterEach(() => cleanup())
 
@@ -82,7 +86,7 @@ describe('NativeChatComposerActions', () => {
 
     const pickers = screen.getByTestId('session-option-pickers')
     const dictation = screen.getByRole('button', { name: 'Start dictation' })
-    expect(pickers.nextElementSibling).toBe(dictation)
+    expect(pickers.nextElementSibling).toBe(dictation.parentElement)
   })
 
   it('marks the streaming Stop control as the critical hit target', () => {
@@ -242,5 +246,63 @@ describe('NativeChatComposerActions', () => {
       expect(onStop).toHaveBeenCalledTimes(1)
       expect(onResume).not.toHaveBeenCalled()
     })
+  })
+
+  it.each<[DictationUnavailableReason, string]>([
+    ['off', 'Turn on dictation in Settings › Voice'],
+    ['no-model', 'Choose and download a speech model in Settings › Voice'],
+    ['missing-api-key', 'Add your OpenAI API key in Settings › Voice to use this speech model']
+  ])('explains the next step and opens Voice settings when dictation is %s', (reason, hint) => {
+    openVoiceSettings.mockClear()
+    render(
+      <NativeChatComposerActions
+        attachDisabled={false}
+        dictationDisabled
+        dictationUnavailableReason={reason}
+        sendDisabled={false}
+        primaryAction="send"
+        isWorking={false}
+        isDictating={false}
+        isDictationHoldMode={false}
+        onAttach={vi.fn()}
+        onDictationToggle={vi.fn()}
+        onDictationHoldStart={vi.fn()}
+        onDictationHoldEnd={vi.fn()}
+        onSend={vi.fn()}
+        sessionOptionsSurface={null}
+        sessionOptionsSnapshot={[]}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: hint }).hasAttribute('disabled')).toBe(true)
+    expect(screen.getAllByText(hint).length).toBeGreaterThan(0)
+    fireEvent.click(screen.getByTestId('native-chat-dictation-trigger'))
+    expect(openVoiceSettings).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the plain dictation label and no settings shortcut when dictation is available', () => {
+    openVoiceSettings.mockClear()
+    render(
+      <NativeChatComposerActions
+        attachDisabled={false}
+        dictationDisabled={false}
+        sendDisabled={false}
+        primaryAction="send"
+        isWorking={false}
+        isDictating={false}
+        isDictationHoldMode={false}
+        onAttach={vi.fn()}
+        onDictationToggle={vi.fn()}
+        onDictationHoldStart={vi.fn()}
+        onDictationHoldEnd={vi.fn()}
+        onSend={vi.fn()}
+        sessionOptionsSurface={null}
+        sessionOptionsSnapshot={[]}
+      />
+    )
+
+    fireEvent.click(screen.getByTestId('native-chat-dictation-trigger'))
+    expect(openVoiceSettings).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Start dictation' })).toBeTruthy()
   })
 })

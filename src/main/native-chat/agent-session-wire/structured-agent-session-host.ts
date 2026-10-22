@@ -102,7 +102,7 @@ export class StructuredAgentSessionHost {
       this.sessions,
       this.subscribers,
       (sessionId) => this.lifetime.conversation(sessionId),
-      this.clientDelivery.readChildWork
+      this.clientDelivery
     )
     this.runtimeState = new StructuredAgentSessionHostRuntimeState(
       deps,

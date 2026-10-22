@@ -12,7 +12,11 @@ import {
 import type { AgentChildWorkView } from '../../../shared/agent-status-child-work-view'
 import { createJournalOpenReadRefusals } from '../agent-session-journal/journal-open-failure'
 import type { StructuredAgentSessionConversations } from './structured-agent-session-conversations'
-import { releaseLeaseOfEndedStructuredAgentSessionChild } from './structured-agent-session-child-close'
+import {
+  previousExitUnverifiableRefusal,
+  releaseLeaseOfEndedStructuredAgentSessionChild
+} from './structured-agent-session-child-close'
+import { StructuredAgentSessionEvictionError } from './structured-agent-session-eviction'
 import {
   holdClosedStructuredAgentSessionSends,
   closeStructuredAgentSessionConversationUnderSerialize,
@@ -27,6 +31,19 @@ import { AGENT_SESSION_NOT_ATTACHED } from './structured-agent-session-mutation-
 import { deferredStructuredAgentSessionLogger } from './structured-agent-session-logger'
 import { sameProviderChild } from './structured-agent-session-provider-child'
 import type { StructuredAgentSessionExpiredStartup } from './structured-agent-session-startup-attempt'
+
+/** A person's close that could not prove the agent exited answers the typed refusal the chat shows,
+ *  in place of the eviction step's text. Every other failure, and every other cause, passes through. */
+export function unprovenStopAsRefusal(
+  cause: StructuredAgentSessionCloseCause,
+  error: unknown
+): unknown {
+  return cause === 'user-close' &&
+    error instanceof StructuredAgentSessionEvictionError &&
+    error.step === 'stop-provider-child'
+    ? new AgentSessionRefusalError(previousExitUnverifiableRefusal())
+    : error
+}
 
 export type StructuredAgentSessionConversationLifetime = ReturnType<
   typeof createStructuredAgentSessionConversationLifetime
@@ -186,7 +203,11 @@ export function createStructuredAgentSessionConversationLifetime(host: {
             mark: 'always'
           })
         }
-        await stopStructuredAgentSessionAgentUnderSerialize(host.context(), sessionId, { cause })
+        try {
+          await stopStructuredAgentSessionAgentUnderSerialize(host.context(), sessionId, { cause })
+        } catch (error) {
+          throw unprovenStopAsRefusal(cause, error)
+        }
         await closeConversation(sessionId)
       })
     }

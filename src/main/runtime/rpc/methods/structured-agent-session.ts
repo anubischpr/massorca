@@ -43,6 +43,7 @@ import { STRUCTURED_AGENT_SESSION_HOLD_METHODS } from './structured-agent-sessio
 import { STRUCTURED_AGENT_SESSION_PROMPT_RESPONSE_METHODS } from './structured-agent-session-prompt-response'
 import { STRUCTURED_AGENT_SESSION_REVEAL_METHODS } from './structured-agent-session-reveal'
 import { STRUCTURED_AGENT_SESSION_QUEUED_METHODS } from './structured-agent-session-queued-methods'
+import { STRUCTURED_AGENT_SESSION_PROMPT_SUGGESTION_METHODS } from './structured-agent-session-prompt-suggestion-methods'
 import { STRUCTURED_AGENT_SESSION_RESTART_RESUME_METHODS } from './structured-agent-session-restart-resume'
 import { resolveUncommittedStructuredCreate } from './structured-agent-session-precommit-refusal'
 import {
@@ -222,6 +223,7 @@ export const STRUCTURED_AGENT_SESSION_METHODS = [
     params: CancelParams,
     handler: async (params, ctx) => requireStructuredCleanupHost(ctx).cancel(callerFor(ctx), params)
   }),
+  ...STRUCTURED_AGENT_SESSION_PROMPT_SUGGESTION_METHODS,
   ...STRUCTURED_AGENT_SESSION_QUEUED_METHODS,
   defineMethod({
     // Releasing a chat view, not ending a conversation: the record and journal stay on disk so the

@@ -1,3 +1,4 @@
+import type { PiDisplayRuntime } from '@/lib/pi-agent-display'
 import { getAutomationRunRepoId } from '../../../../shared/automation-run-identity'
 import type { Automation } from '../../../../shared/automations-types'
 import type { Repo } from '../../../../shared/repo-types'
@@ -31,6 +32,8 @@ export type AutomationWorkspaceNameLookup = ReadonlyMap<string, { displayName?: 
 export type AutomationSearchRowContext = {
   repoMap: ReadonlyMap<string, Repo>
   worktreeMap?: AutomationWorkspaceNameLookup
+  /** The Pi runtime the search reads for Pi rows; unknown keeps the neutral name. */
+  piRuntime?: PiDisplayRuntime
 }
 
 function buildAutomationWorkspaceSearchText(
@@ -60,7 +63,7 @@ export function buildAutomationSearchFields(
       path: repo?.path
     }),
     workspace: buildAutomationWorkspaceSearchText(automation, context.worktreeMap),
-    agent: getAgentLabel(automation.agentId),
+    agent: getAgentLabel(automation.agentId, context.piRuntime ?? 'unknown'),
     // The row's own host: a lookup by automation id would give two hosts' rows
     // one label, so a search for host B could only ever match host A's row.
     host: row.hostLabel,

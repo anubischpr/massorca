@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import type { AiVaultSession } from '../../../../shared/ai-vault-types'
-import { agentLabel } from './ai-vault-session-filters'
+import { aiVaultSessionAgentLabel } from './ai-vault-session-filters'
 import { translate } from '@/i18n/i18n'
 import { SessionActionMenuItems } from './AiVaultSessionActionMenuItems'
 import {
@@ -212,7 +212,7 @@ export function SessionRowTrailingActions({
             aria-label={translate(
               'auto.components.right.sidebar.AiVaultSessionRow.toggleSessionDetails',
               '{{value0}} session details',
-              { value0: agentLabel(session.agent) }
+              { value0: aiVaultSessionAgentLabel(session) }
             )}
             aria-expanded={detailsExpanded}
             aria-controls={detailsId}

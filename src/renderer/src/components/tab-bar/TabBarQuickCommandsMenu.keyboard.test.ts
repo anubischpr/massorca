@@ -82,8 +82,12 @@ vi.mock('../../../../shared/terminal-quick-commands', () => ({
 
 vi.mock('@/lib/agent-catalog', () => ({
   getAgentLabel: () => '',
+  getAgentDisplayLabel: () => '',
   AgentIcon: () => null
 }))
+
+// Why: the keyboard effect is the test's only effect; the Pi runtime hook's effect would shift it.
+vi.mock('@/lib/use-pi-runtime', () => ({ usePiDisplayRuntime: () => 'unknown' }))
 
 vi.mock('./TabBarQuickCommandItem', () => ({
   TabBarQuickCommandItem: () => null

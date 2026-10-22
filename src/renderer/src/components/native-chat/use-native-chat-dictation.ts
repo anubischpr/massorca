@@ -2,10 +2,15 @@ import type { NativeChatComposerInput } from './native-chat-composer-input'
 import { useCallback, useState, type RefObject } from 'react'
 import { useAppStore } from '../../store'
 import { dispatchDictationControl } from '../dictation/dictation-control-events'
+import {
+  getDictationUnavailableReason,
+  type DictationUnavailableReason
+} from './dictation-unavailable-reason'
 
 /** Whether the composer can dictate and is dictating now, and the controls that start and stop it. */
 export function useNativeChatDictation(textareaRef: RefObject<NativeChatComposerInput | null>): {
   dictationDisabled: boolean
+  dictationUnavailableReason: DictationUnavailableReason | null
   isDictating: boolean
   isDictationHoldMode: boolean
   toggleDictation: () => void
@@ -29,8 +34,10 @@ export function useNativeChatDictation(textareaRef: RefObject<NativeChatComposer
     setDictationPressed(false)
     dispatchDictationControl('stop')
   }, [])
+  const dictationUnavailableReason = getDictationUnavailableReason(voiceSettings)
   return {
-    dictationDisabled: voiceSettings?.enabled !== true || !voiceSettings.sttModel,
+    dictationDisabled: dictationUnavailableReason !== null,
+    dictationUnavailableReason,
     isDictating:
       dictationPressed ||
       dictationState === 'starting' ||

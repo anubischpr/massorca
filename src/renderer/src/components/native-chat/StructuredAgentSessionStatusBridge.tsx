@@ -280,6 +280,8 @@ function projectStatus(
     { tabId: tab.id, worktreeId: tab.worktreeId },
     {
       ...(summary.providerSession ? { providerSession: summary.providerSession } : {}),
+      // Why: the host's record is the chat's whole provider-session state, so an absent one means none.
+      providerSessionAuthoritative: true,
       terminalResumeEligible: false,
       ...(summary.hostExecutionOwned ? { structuredHostOwned: true as const } : {})
     }

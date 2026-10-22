@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import type { AiVaultSession } from '../../../../shared/ai-vault-types'
 import { translate } from '@/i18n/i18n'
 import { useConfirmationDialog } from '@/components/confirmation-dialog-context'
-import { agentLabel } from './ai-vault-session-filters'
+import { aiVaultSessionAgentLabel } from './ai-vault-session-filters'
 
 /**
  * Confirms, then deletes an AI Vault session: toasts the outcome and forces a
@@ -28,7 +28,7 @@ export function useAiVaultSessionDeleteAction({
         description: translate(
           'auto.components.right.sidebar.AiVaultSessionDeleteDialog.description',
           '"{{value0}}" will be deleted. Once deleted, it will no longer be resumable from {{value1}}\'s own command line either.',
-          { value0: session.title, value1: agentLabel(session.agent) }
+          { value0: session.title, value1: aiVaultSessionAgentLabel(session) }
         ),
         confirmLabel: translate(
           'auto.components.right.sidebar.AiVaultSessionDeleteDialog.confirm',

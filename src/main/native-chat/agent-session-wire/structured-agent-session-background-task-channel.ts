@@ -3,7 +3,6 @@ import type {
   AgentSessionHistoryRequest,
   AgentSessionHistoryResult
 } from '../../../shared/agent-session-wire'
-import type { AgentChildWorkView } from '../../../shared/agent-status-child-work-view'
 import { structuredChildWorkLegacyTasks } from '../../../shared/structured-agent-session-child-work-legacy'
 import { structuredRunningChildWork } from '../../../shared/agent-child-work-listing'
 import { readStructuredAgentSessionHistoryResult } from './structured-agent-session-history-result'
@@ -16,6 +15,7 @@ import type {
   AgentSessionSubscribers,
   AgentSessionSubscribeInput
 } from './structured-agent-session-subscribers'
+import type { StructuredAgentSessionClientDelivery } from './structured-agent-session-client-delivery'
 import type { StructuredAgentSessionConversations } from './structured-agent-session-conversations'
 import type {
   StructuredAgentSessionHostDeps,
@@ -36,10 +36,10 @@ export class StructuredAgentSessionBackgroundTaskChannel {
     private readonly conversation: (
       sessionId: string
     ) => Promise<StructuredAgentSessionHostSession>,
-    private readonly readChildWork: (
-      sessionId: string,
-      includeForegroundCommands?: boolean
-    ) => AgentChildWorkView[] | undefined
+    private readonly childWork: Pick<
+      StructuredAgentSessionClientDelivery,
+      'readChildWork' | 'readChildWorkHistory'
+    >
   ) {}
 
   /** `scope` is for in-process readers; a wire request reads every agent's rows. */
@@ -76,7 +76,7 @@ export class StructuredAgentSessionBackgroundTaskChannel {
           : {}),
         backgroundTasks,
         // Settled children too: the chat's expanded Background tasks lists them as finished.
-        commandActivity: this.readChildWork(request.sessionId, true) ?? []
+        commandActivity: this.childWork.readChildWorkHistory(request.sessionId) ?? []
       }
     }
   }
@@ -105,7 +105,9 @@ export class StructuredAgentSessionBackgroundTaskChannel {
    *  holds the session, and a parent row the store lacks has no children in it. */
   read(sessionId: string): AgentSessionBackgroundTaskState | null {
     const session = this.sessions.get(sessionId)
-    const views = structuredRunningChildWork((session && this.readChildWork(sessionId)) ?? [])
+    const views = structuredRunningChildWork(
+      (session && this.childWork.readChildWork(sessionId)) ?? []
+    )
     if (!session || views.length === 0) {
       return null
     }

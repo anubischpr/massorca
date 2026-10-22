@@ -2,7 +2,7 @@ import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
 
-function openVoiceSettings(): void {
+export function openVoiceSettings(): void {
   useAppStore.getState().openSettingsTarget({ pane: 'voice', repoId: null })
   useAppStore.getState().openSettingsPage()
 }

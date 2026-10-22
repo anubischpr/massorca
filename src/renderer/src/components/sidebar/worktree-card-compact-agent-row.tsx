@@ -1,9 +1,12 @@
+import type { PiRowRuntime } from '../../../../shared/agent-type-label'
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import React, { useCallback, useEffect, useRef } from 'react'
 import { DashboardAgentChildDisclosure } from '@/components/dashboard/DashboardAgentChildDisclosure'
 import { AgentStateDot, agentStateLabel } from '@/components/AgentStateDot'
 import { AgentChildRowContent } from '@/components/AgentChildRowContent'
 import type { DashboardAgentRow as DashboardAgentRowData } from '@/components/dashboard/useDashboardData'
 import { AgentIcon } from '@/lib/agent-catalog'
+import { piRuntimeForSessionFilePath } from '../../../../shared/pi-runtime-selection'
 import { agentTypeToIconAgent, formatAgentRowTypeLabel } from '@/lib/agent-status'
 import { cn } from '@/lib/utils'
 import { getAgentDotState } from './worktree-card-agent-summary'
@@ -29,7 +32,8 @@ function getCompactAgentPrimary(
 export function getCompactAgentSecondary(
   agent: DashboardAgentRowData,
   now: number,
-  lastAssistantMessageOverride?: string
+  lastAssistantMessageOverride?: string,
+  piRuntime?: PiRowRuntime
 ): string {
   const verdictLine = agentVerdictStatusLine(agent.entry)
   if (verdictLine) {
@@ -61,7 +65,7 @@ export function getCompactAgentSecondary(
   if (agent.rowSource === 'subagent' && agent.entry.prompt?.trim() === agent.agentType.trim()) {
     return ''
   }
-  return formatAgentRowTypeLabel(agent)
+  return formatAgentRowTypeLabel(agent, piRuntime)
 }
 
 function getCompactAgentTime(agent: DashboardAgentRowData, now: number): string | null {
@@ -106,6 +110,10 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
   cacheTimerActive = true,
   isUnvisited = false
 }: CompactAgentRowProps) {
+  const piRuntime = usePiDisplayRuntime({
+    worktreeId: agent.tab.worktreeId,
+    enabled: agent.agentType === 'pi'
+  })
   const hasChildDisclosure =
     typeof childAgentCount === 'number' &&
     childAgentCount > 0 &&
@@ -137,7 +145,7 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
   const held = heldMessageRef.current
   const stableMessage =
     turnHoldable && !currentMessage && held?.turn === turn ? held.message : undefined
-  const secondary = getCompactAgentSecondary(agent, now, stableMessage)
+  const secondary = getCompactAgentSecondary(agent, now, stableMessage, piRuntime)
   const { leadingText, trailingText } = getCompactAgentLineOrder(
     agent,
     dotState,
@@ -220,8 +228,19 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
             tooltipSide="right"
           />
           {!hideIcon && (
-            <span className="inline-flex shrink-0" title={formatAgentRowTypeLabel(agent)}>
-              <AgentIcon agent={agentTypeToIconAgent(agent.agentType)} size={13} />
+            <span
+              className="inline-flex shrink-0"
+              title={formatAgentRowTypeLabel(agent, piRuntime)}
+            >
+              <AgentIcon
+                agent={agentTypeToIconAgent(agent.agentType)}
+                size={13}
+                chatPiRuntime={
+                  agent.agentType === 'pi' && agent.entry.providerSession?.transcriptPath
+                    ? piRuntimeForSessionFilePath(agent.entry.providerSession.transcriptPath)
+                    : undefined
+                }
+              />
             </span>
           )}
           <span

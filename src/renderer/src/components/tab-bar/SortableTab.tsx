@@ -3,7 +3,9 @@ import { useSortable } from '@dnd-kit/sortable'
 import { X, Minimize2, Pin } from 'lucide-react'
 import { stripLeadingAgentTitleDecoration } from '../../../../shared/agent-title-decoration'
 import { useTabAgent } from '@/lib/use-tab-agent'
-import { getAgentLabel } from '@/lib/agent-catalog'
+import { getAgentDisplayLabel } from '@/lib/agent-catalog'
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
+import { useChatPiRuntime } from '@/lib/chat-pi-runtime-record'
 import { basename } from '@/lib/path'
 import { isImeCompositionKeyDown } from '@/lib/ime-composition-keyboard-event'
 import { Input } from '@/components/ui/input'
@@ -95,6 +97,8 @@ export default function SortableTab({
   canSplitTerminal = true,
   structuredSessionId
 }: SortableTabProps): React.JSX.Element {
+  const chatPiRuntime = useChatPiRuntime(structuredSessionId)
+  const piRuntime = usePiDisplayRuntime({ chatRuntime: chatPiRuntime })
   // Why: agent-completion unread exists even with terminal-attention off; collapse both sources to one primitive so unrelated tabs don't re-render.
   const hasUnreadActivity = useAppStore((s) =>
     terminalTabHasUnreadActivity({
@@ -239,6 +243,7 @@ export default function SortableTab({
         shell={shellForIcon}
         showUnreadActivity={showUnreadActivity}
         isActive={isActive}
+        chatPiRuntime={chatPiRuntime}
       />
       {isPinned && !isEditing && (
         <Pin className="mr-1 size-3 shrink-0 text-muted-foreground" aria-hidden />
@@ -368,7 +373,7 @@ export default function SortableTab({
             title={displayTitle}
             programName={
               tabAgent
-                ? getAgentLabel(tabAgent)
+                ? getAgentDisplayLabel(tabAgent, piRuntime)
                 : shellForIcon
                   ? basename(shellForIcon)
                   : translate('tabHoverCard.terminal', 'Terminal')
@@ -380,6 +385,7 @@ export default function SortableTab({
                 shell={shellForIcon}
                 showUnreadActivity={false}
                 isActive
+                chatPiRuntime={chatPiRuntime}
               />
             }
           >

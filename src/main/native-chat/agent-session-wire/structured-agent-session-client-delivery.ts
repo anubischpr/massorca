@@ -9,6 +9,8 @@ import { AgentSessionRefusalError } from '../../../shared/agent-session-wire-ref
 import type { AgentChildWorkEvidence } from '../../../shared/agent-status-child-work-evidence'
 import type { AgentChildWorkView } from '../../../shared/agent-status-child-work-view'
 import type { AgentSessionJournal } from '../agent-session-journal/journal-store'
+import { childWorkHistoryRowsIn } from '../agent-session-journal/child-work-history-rows'
+import { promptSuggestionRowsIn } from '../agent-session-journal/prompt-suggestion-rows'
 import type { SubscriberFieldHooks } from './agent-session-subscriber-frame-fields'
 import { AgentSessionSubscribers } from './structured-agent-session-subscribers'
 import {
@@ -20,6 +22,7 @@ import type {
   StructuredAgentSessionHostSession
 } from './structured-agent-session-host-types'
 import { AGENT_SESSION_NOT_ATTACHED } from './structured-agent-session-mutation-admission'
+import { StructuredAgentSessionChildWorkHistory } from './structured-agent-session-child-work-history'
 import { StructuredAgentSessionSendSettlement } from './structured-agent-session-send-settlement'
 import type { StructuredAgentSessionStatusSubscriber } from './structured-agent-session-status-feed'
 import { createStructuredAgentSessionHostStatusFeed } from './structured-agent-session-host-status-feed'
@@ -37,6 +40,10 @@ export class StructuredAgentSessionClientDelivery {
   readonly subscribers: AgentSessionSubscribers
   readonly waitForSendSettlement: StructuredAgentSessionSendSettlement['wait']
   private stopAtRestCommandUpdates: () => void = () => undefined
+  private readonly childWorkHistory = new StructuredAgentSessionChildWorkHistory({
+    read: (sessionId) => this.childWorkRows().read(sessionId),
+    write: (sessionId, value) => this.childWorkRows().write(sessionId, value)
+  })
   private readonly statusFeed
   private readonly turnCompletionFeed
   private readonly sendSettlement
@@ -57,7 +64,8 @@ export class StructuredAgentSessionClientDelivery {
       now,
       deps,
       onAgentStarted,
-      onChildWorkChanged
+      onChildWorkChanged,
+      childWorkHistory: this.childWorkHistory
     })
     this.turnCompletionFeed = new StructuredAgentSessionTurnCompletionFeed({
       sessions,
@@ -79,11 +87,32 @@ export class StructuredAgentSessionClientDelivery {
         ),
       readBackgroundTasks,
       // Settled children too: the chat's expanded Background tasks lists them as finished.
-      readCommandActivity: (sessionId) => this.readChildWork(sessionId, true) ?? [],
+      readCommandActivity: (sessionId) => this.readChildWorkHistory(sessionId) ?? [],
       isPromptSuggestionEnabled: (source) =>
         this.deps().replySuggestions?.isEnabled(source) ?? true,
+      readJournal: (sessionId) => sessions.get(sessionId)?.journal,
+      promptSuggestionRows: {
+        read: (sessionId) => this.suggestionRows().read(sessionId),
+        write: (sessionId, value) => this.suggestionRows().write(sessionId, value)
+      },
       onJournalPublished: (sessionId, journal) => this.publishJournal(sessionId, journal)
     })
+  }
+
+  /** The held reply suggestion's row in the host database; a failed write is logged, not retried. */
+  private suggestionRows() {
+    const { journalDatabase, logger } = this.deps()
+    return promptSuggestionRowsIn(journalDatabase, (error) =>
+      logger.warn('Reply suggestion row did not save', { scope: 'reply-suggestion', error })
+    )
+  }
+
+  /** The chat's finished child work in the host database; a failed write is logged, not retried. */
+  private childWorkRows() {
+    const { journalDatabase, logger } = this.deps()
+    return childWorkHistoryRowsIn(journalDatabase, (error) =>
+      logger.warn('Child work history row did not save', { scope: 'child-work-history', error })
+    )
   }
 
   /** Re-sends the `/` surface whenever the provider's at-rest one changes. */
@@ -148,6 +177,11 @@ export class StructuredAgentSessionClientDelivery {
 
   publishConversationName = (sessionId: string): void =>
     this.statusFeed.publishConversationName(sessionId)
+
+  /** The running-child records with the finished children the status store let go of: what the
+   *  chat's Subagents and Background tasks cards list. Running-child checks read the store alone. */
+  readChildWorkHistory = (sessionId: string): AgentChildWorkView[] =>
+    this.childWorkHistory.compose(sessionId, this.readChildWork(sessionId, true) ?? [])
 
   publishChildWork = (sessionId: string, evidence: AgentChildWorkEvidence[]): void =>
     this.statusFeed.publishChildWork(sessionId, evidence)

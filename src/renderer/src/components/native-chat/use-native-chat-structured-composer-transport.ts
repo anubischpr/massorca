@@ -1,6 +1,7 @@
 import { useMemo, type Dispatch, type SetStateAction } from 'react'
 import { dispatchStructuredAgentSessionComposerCommand } from '../../../../shared/structured-agent-session-composer'
 import { useStructuredAgentAcceptsImages } from '@/runtime/use-host-structured-agent'
+import { reportReplySuggestionDismissed } from './native-chat-reply-suggestion-dismissal'
 import type {
   NativeChatOptionPickerRequest,
   NativeChatStructuredComposerTransport
@@ -35,7 +36,9 @@ export function useNativeChatStructuredComposerTransport(args: {
   const replySuggestion = useNativeChatReplySuggestion({
     sessionId: props.sessionId,
     suggestion: controller.promptSuggestion,
-    idle: !controller.isWorking && !controller.queueSendsNext && !starting
+    idle: !controller.isWorking && !controller.queueSendsNext && !starting,
+    onDismissed: (suggestion) =>
+      reportReplySuggestionDismissed(props.target, props.sessionId, suggestion)
   })
   return useMemo((): NativeChatStructuredComposerTransport => {
     const threadGoal = controller.threadGoal

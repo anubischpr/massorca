@@ -2,6 +2,11 @@ import { ArrowUp, CircleAlert, Mic, Play, Plus, Square } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
+import { openVoiceSettings } from '@/components/dictation/dictation-start-error-toast'
+import {
+  dictationUnavailableHint,
+  type DictationUnavailableReason
+} from './dictation-unavailable-reason'
 import type {
   SessionOptionDescriptor,
   SessionOptionsSurface
@@ -16,6 +21,8 @@ import type { NativeChatComposerPrimaryAction } from './native-chat-composer-pri
 export type NativeChatComposerActionsProps = {
   attachDisabled: boolean
   dictationDisabled: boolean
+  /** Why dictation is disabled; the mic tooltip names the next step and opens Settings > Voice. */
+  dictationUnavailableReason?: DictationUnavailableReason | null
   sendDisabled: boolean
   /** What the primary button does (`nativeChatComposerPrimaryAction`). */
   primaryAction: NativeChatComposerPrimaryAction
@@ -49,6 +56,7 @@ export type NativeChatComposerActionsProps = {
 export function NativeChatComposerActions({
   attachDisabled,
   dictationDisabled,
+  dictationUnavailableReason = null,
   sendDisabled,
   primaryAction,
   sendBlockedReason,
@@ -90,6 +98,9 @@ export function NativeChatComposerActions({
   const dictationLabel = isDictating
     ? translate('components.native-chat.composer.stopDictation', 'Stop dictation')
     : translate('components.native-chat.composer.startDictation', 'Start dictation')
+  const dictationHint = dictationUnavailableReason
+    ? dictationUnavailableHint(dictationUnavailableReason)
+    : null
   const sendReason = stops || resumes ? null : (sendBlockedReason ?? null)
   const sendButton = (
     <Button
@@ -156,46 +167,53 @@ export function NativeChatComposerActions({
         {contextUsage ? <NativeChatContextUsageRing usage={contextUsage} /> : null}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              type="button"
-              variant={isDictating ? 'secondary' : 'ghost'}
-              size="icon-sm"
-              aria-label={dictationLabel}
-              disabled={dictationDisabled}
-              onClick={isDictationHoldMode ? undefined : onDictationToggle}
-              onPointerDown={(event) => {
-                if (!isDictationHoldMode || dictationDisabled) {
-                  return
-                }
-                event.preventDefault()
-                onDictationHoldStart()
-              }}
-              onPointerUp={() => {
-                if (isDictationHoldMode && !dictationDisabled) {
-                  onDictationHoldEnd()
-                }
-              }}
-              onPointerCancel={() => {
-                if (isDictationHoldMode && !dictationDisabled) {
-                  onDictationHoldEnd()
-                }
-              }}
-              onPointerLeave={(event) => {
-                if (isDictationHoldMode && event.buttons === 1 && !dictationDisabled) {
-                  onDictationHoldEnd()
-                }
-              }}
-              className="pointer-coarse:size-11"
+            {/* A disabled button gets no pointer events, so the wrapper carries hover and the click. */}
+            <span
+              className="inline-flex"
+              data-testid="native-chat-dictation-trigger"
+              onClick={dictationHint ? openVoiceSettings : undefined}
             >
-              {isDictating ? (
-                <Square className="size-3.5 fill-current" />
-              ) : (
-                <Mic className="size-4" />
-              )}
-            </Button>
+              <Button
+                type="button"
+                variant={isDictating ? 'secondary' : 'ghost'}
+                size="icon-sm"
+                aria-label={dictationHint ?? dictationLabel}
+                disabled={dictationDisabled}
+                onClick={isDictationHoldMode ? undefined : onDictationToggle}
+                onPointerDown={(event) => {
+                  if (!isDictationHoldMode || dictationDisabled) {
+                    return
+                  }
+                  event.preventDefault()
+                  onDictationHoldStart()
+                }}
+                onPointerUp={() => {
+                  if (isDictationHoldMode && !dictationDisabled) {
+                    onDictationHoldEnd()
+                  }
+                }}
+                onPointerCancel={() => {
+                  if (isDictationHoldMode && !dictationDisabled) {
+                    onDictationHoldEnd()
+                  }
+                }}
+                onPointerLeave={(event) => {
+                  if (isDictationHoldMode && event.buttons === 1 && !dictationDisabled) {
+                    onDictationHoldEnd()
+                  }
+                }}
+                className="pointer-coarse:size-11"
+              >
+                {isDictating ? (
+                  <Square className="size-3.5 fill-current" />
+                ) : (
+                  <Mic className="size-4" />
+                )}
+              </Button>
+            </span>
           </TooltipTrigger>
           <TooltipContent side="top" sideOffset={4}>
-            {dictationLabel}
+            {dictationHint ?? dictationLabel}
           </TooltipContent>
         </Tooltip>
         <DraftNotSavedIcon shown={draftNotSaved === true} />

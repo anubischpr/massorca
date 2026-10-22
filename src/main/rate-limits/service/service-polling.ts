@@ -58,6 +58,10 @@ export abstract class RateLimitServicePolling extends RateLimitServiceFetchQueue
   }
 
   protected shouldBackgroundPoll(): boolean {
+    // Why: a state listener is a remote client (accounts.subscribe) watching this host; a headless serve host has no focused window, so without this its meters go stale.
+    if (this.stateListeners.size > 0) {
+      return true
+    }
     if (!this.mainWindow || this.mainWindow.isDestroyed()) {
       return false
     }

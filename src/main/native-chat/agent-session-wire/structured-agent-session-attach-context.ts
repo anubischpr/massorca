@@ -30,7 +30,11 @@ export type StructuredAgentSessionAttachContext = {
       activity?: AgentSessionTurnActivity | null
     ) => void
     promptSuggestions: {
-      publish: (sessionId: string, suggestion: NativeChatReplySuggestion | null) => void
+      publish: (
+        sessionId: string,
+        suggestion: NativeChatReplySuggestion | null,
+        journal?: AgentSessionJournal
+      ) => void
     }
   }
   tasks: StructuredAgentSessionTaskQueue

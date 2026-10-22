@@ -24,6 +24,8 @@ export function structuredHostStub(
     restartResumableDismiss: vi.fn(async () => 0),
     restartResumeAll: vi.fn(async () => []),
     restartContinueAll: vi.fn(async () => ({ resumed: [], continued: [] })),
+    // The suggestion store hangs off a host member too; the flat spy lets the manifest name it.
+    promptSuggestionDismiss: vi.fn(() => true),
     continueInterrupted: vi.fn(async () => ({ sessionId, outcome: 'superseded' })),
     attach: vi.fn(async () => ({ ok: true, replayed: false, value: { sessionId } })),
     // Attach-shaped entries take a client-supplied location, so the host is asked whether it
@@ -112,6 +114,7 @@ export function installableHost(
     ...hostCalls,
     // The catalog read checks the session's record for a floating chat's own folder; none here.
     deps: { modelCatalog: { read: hostCalls.modelCatalog }, store: { getRecord: () => null } },
+    promptSuggestions: { dismiss: hostCalls.promptSuggestionDismiss },
     restartResume: {
       list: hostCalls.restartResumableList,
       listFailures: hostCalls.restartResumableFailures,

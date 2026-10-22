@@ -33,6 +33,7 @@ vi.mock('../quick-open-file-list', () => ({
 }))
 vi.mock('@/lib/agent-catalog', () => ({
   getAgentCatalog: () => [],
+  getAgentDisplayLabel: (agent: string) => agent,
   AgentIcon: () => null
 }))
 

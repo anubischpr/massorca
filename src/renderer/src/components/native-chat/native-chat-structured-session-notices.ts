@@ -67,7 +67,8 @@ export function structuredSessionNotices({
   agentLabel,
   sessionError,
   composerError,
-  availability = null
+  availability = null,
+  hostNotice = null
 }: {
   launch: {
     lifecycle: StructuredAgentSessionLaunchLifecycle | null
@@ -79,6 +80,8 @@ export function structuredSessionNotices({
   composerError: (NativeChatComposerNoticeContent & { onDismiss: () => void }) | null
   /** Why the host says no chat can start here, from `useNativeChatAvailabilityNotice`. */
   availability?: NativeChatComposerNotice | null
+  /** Why the host connection is out, last so it reads after the session's own notices. */
+  hostNotice?: NativeChatComposerNotice | null
 }): NativeChatComposerNotice[] {
   const launchNotice = nativeChatLaunchNotice({
     lifecycle: launch.lifecycle,
@@ -90,6 +93,7 @@ export function structuredSessionNotices({
     ...(availability ? [availability] : []),
     ...(launchNotice ? [launchNotice] : []),
     ...(sessionError ? [{ key: 'session', kind: 'error' as const, text: sessionError }] : []),
-    ...(composerError ? [{ key: 'composer-error', kind: 'error' as const, ...composerError }] : [])
+    ...(composerError ? [{ key: 'composer-error', kind: 'error' as const, ...composerError }] : []),
+    ...(hostNotice ? [hostNotice] : [])
   ]
 }

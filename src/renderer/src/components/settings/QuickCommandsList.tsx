@@ -1,3 +1,4 @@
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { Check, Copy, Pencil, TerminalSquare, Trash2 } from 'lucide-react'
 import type { Repo } from '../../../../shared/repo-types'
 import type {
@@ -9,7 +10,7 @@ import {
   getTerminalQuickCommandScope,
   isTerminalAgentQuickCommand
 } from '../../../../shared/terminal-quick-commands'
-import { AgentIcon, getAgentLabel } from '@/lib/agent-catalog'
+import { AgentIcon, getAgentDisplayLabel } from '@/lib/agent-catalog'
 import { useClipboardTextCopyFeedback } from '@/hooks/use-clipboard-text-copy-feedback'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
@@ -49,6 +50,7 @@ function QuickCommandRow({
   onEdit: (command: TerminalQuickCommand) => void
   onRemove: (command: TerminalQuickCommand) => void
 }): React.JSX.Element {
+  const piRuntime = usePiDisplayRuntime()
   const scope = getTerminalQuickCommandScope(command)
   const body = getTerminalQuickCommandBody(command)
   const { canCopy, copyText, status } = useClipboardTextCopyFeedback(body)
@@ -97,7 +99,7 @@ function QuickCommandRow({
           ) : null}
           <span className={cn('truncate', isTerminalAgentQuickCommand(command) ? '' : 'font-mono')}>
             {isTerminalAgentQuickCommand(command)
-              ? `${getAgentLabel(command.agent)}: ${body}`
+              ? `${getAgentDisplayLabel(command.agent, piRuntime)}: ${body}`
               : body ||
                 translate(
                   'auto.components.settings.QuickCommandsPane.0252ddd578',

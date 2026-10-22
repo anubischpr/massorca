@@ -3,7 +3,9 @@ import { Pencil, Pause, Play, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { getAgentCatalog, AgentIcon } from '@/lib/agent-catalog'
+import { AgentIcon } from '@/lib/agent-catalog'
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
+import { getAgentLabel } from './automation-draft-model'
 import type { Automation, AutomationRun } from '../../../../shared/automations-types'
 import { formatUiAutomationSchedule } from './automation-schedule-label'
 import { formatAutomationPrecheckTimeout } from '../../../../shared/automation-precheck'
@@ -114,6 +116,7 @@ export function AutomationDetail({
   onToggle,
   onDelete
 }: AutomationDetailProps): React.JSX.Element {
+  const piRuntime = usePiDisplayRuntime({ enabled: automation?.agentId === 'pi' })
   if (!automation) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -131,8 +134,7 @@ export function AutomationDetail({
       : usageSummary.unavailableRuns > 0
         ? 'Unavailable'
         : 'No runs'
-  const agentLabel =
-    getAgentCatalog().find((agent) => agent.id === automation.agentId)?.label ?? automation.agentId
+  const agentLabel = getAgentLabel(automation.agentId, piRuntime)
   const runLocationLabel =
     automation.workspaceMode === 'new_per_run'
       ? (automation.baseBranch ?? projectDefaultBaseRef ?? 'Project default')

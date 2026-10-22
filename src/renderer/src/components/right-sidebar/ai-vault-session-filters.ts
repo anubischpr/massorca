@@ -1,6 +1,9 @@
 import { useMemo } from 'react'
-import type { AiVaultGroup, AiVaultSession } from '../../../../shared/ai-vault-types'
+import type { AiVaultAgent, AiVaultGroup, AiVaultSession } from '../../../../shared/ai-vault-types'
+import { piRuntimeForSessionFilePath } from '../../../../shared/pi-runtime-selection'
+import { piRuntimeLabel, type PiDisplayRuntime } from '@/lib/pi-agent-display'
 import {
+  agentLabel as sharedAgentLabel,
   filterAiVaultSessions,
   groupAiVaultSessions,
   type AiVaultSessionFilterState
@@ -88,4 +91,18 @@ export function useAiVaultPanelSessions(
     [searching, filteredSessions, group, projectLabelByKey, sessionProjectById]
   )
   return { filteredSessions, groups }
+}
+
+/** A session's agent name: a Pi session names the runtime its own transcript lives under. */
+export function aiVaultSessionAgentLabel(
+  session: Pick<AiVaultSession, 'agent' | 'filePath'>
+): string {
+  return session.agent === 'pi'
+    ? piRuntimeLabel(piRuntimeForSessionFilePath(session.filePath))
+    : sharedAgentLabel(session.agent)
+}
+
+/** An agent's name in a list of agents, named by the workspace's Pi runtime for Pi. */
+export function aiVaultAgentDisplayLabel(agent: AiVaultAgent, piRuntime: PiDisplayRuntime): string {
+  return agent === 'pi' ? piRuntimeLabel(piRuntime) : sharedAgentLabel(agent)
 }

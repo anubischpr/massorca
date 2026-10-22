@@ -1,3 +1,4 @@
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { useCallback, useState } from 'react'
 import type { CommitMessageAiSettings } from '../../../../shared/commit-message-ai-types'
 import type { TuiAgent } from '../../../../shared/tui-agent'
@@ -7,7 +8,7 @@ import {
   isCustomAgentId,
   resolveCommitMessageAgentChoice
 } from '../../../../shared/commit-message-agent-spec'
-import { getAgentCatalog } from '@/lib/agent-catalog'
+import { getAgentDisplayLabel } from '@/lib/agent-catalog'
 import { useAppStore } from '@/store'
 import {
   EMPTY_COMMIT_MESSAGE_AI_SETTINGS,
@@ -35,6 +36,7 @@ export type AiCommitPrSettingsViewModel = {
 }
 
 export function useAiCommitPrSettings(): AiCommitPrSettingsViewModel {
+  const piRuntime = usePiDisplayRuntime()
   const settings = useAppStore((s) => s.settings)
   const updateSettings = useAppStore((s) => s.updateSettings)
   const [selectPortalRoot, setSelectPortalRoot] = useState<HTMLElement | null>(null)
@@ -58,8 +60,7 @@ export function useAiCommitPrSettings(): AiCommitPrSettingsViewModel {
   const unsupportedConfiguredAgent =
     resolvedAgentId && !isCustom && !activeCapability ? resolvedAgentId : null
   const unsupportedConfiguredAgentLabel = unsupportedConfiguredAgent
-    ? (getAgentCatalog().find((a) => a.id === unsupportedConfiguredAgent)?.label ??
-      unsupportedConfiguredAgent)
+    ? getAgentDisplayLabel(unsupportedConfiguredAgent, piRuntime)
     : null
   const agentSelectValue = activeCapability
     ? activeCapability.id
@@ -80,8 +81,7 @@ export function useAiCommitPrSettings(): AiCommitPrSettingsViewModel {
       ? settings.defaultTuiAgent
       : null
   const unsupportedDefaultAgentLabel = unsupportedDefaultAgent
-    ? (getAgentCatalog().find((a) => a.id === unsupportedDefaultAgent)?.label ??
-      unsupportedDefaultAgent)
+    ? getAgentDisplayLabel(unsupportedDefaultAgent, piRuntime)
     : null
   const unsupportedAgentLabel = unsupportedConfiguredAgentLabel ?? unsupportedDefaultAgentLabel
 

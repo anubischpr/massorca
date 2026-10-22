@@ -9,7 +9,9 @@ import {
   Smartphone,
   TerminalSquare
 } from 'lucide-react'
-import { AgentIcon } from '@/lib/agent-catalog'
+import { AgentIcon, getAgentDisplayLabel } from '@/lib/agent-catalog'
+import { agentBrandRowAttribute, type PiDisplayRuntime } from '@/lib/pi-agent-display'
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { cn } from '@/lib/utils'
 import { FilePathCursorTooltip, FilenameFirstPath } from '@/components/file-path-cursor-tooltip'
 import { translate } from '@/i18n/i18n'
@@ -58,7 +60,12 @@ export function EntryActionRow({
   option: ActiveOption
   selected: boolean
 }): React.JSX.Element {
-  const presentation = getActionPresentation(option, labelOverride)
+  const piRuntime = usePiDisplayRuntime({
+    enabled: option.kind === 'agent' && option.option.agent === 'pi'
+  })
+  const presentation = getActionPresentation(option, labelOverride, piRuntime)
+  const brand =
+    option.kind === 'agent' ? agentBrandRowAttribute(option.option.agent, piRuntime) : undefined
 
   const row = (
     <button
@@ -66,6 +73,7 @@ export function EntryActionRow({
       id={id}
       role="option"
       aria-selected={selected}
+      data-agent-brand={brand}
       disabled={disabled}
       className={cn(
         'flex h-6 w-full items-center gap-1.5 rounded-[7px] px-1 text-left text-[11px] leading-5 outline-none disabled:cursor-not-allowed disabled:opacity-50',
@@ -139,7 +147,8 @@ function getOpenTabIcon(option: Extract<ActiveOption, { kind: 'tab' }>['option']
 
 function getActionPresentation(
   option: ActiveOption,
-  labelOverride?: string
+  labelOverride: string | undefined,
+  piRuntime: PiDisplayRuntime
 ): {
   detail: string
   icon: React.ReactNode
@@ -191,7 +200,7 @@ function getActionPresentation(
   }
   if (option.kind === 'agent') {
     return {
-      detail: option.option.label,
+      detail: getAgentDisplayLabel(option.option.agent, piRuntime),
       icon: <AgentIcon agent={option.option.agent} size={14} />,
       label:
         labelOverride ??

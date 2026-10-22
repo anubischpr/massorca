@@ -15,7 +15,8 @@ const store = vi.hoisted(() => ({
 vi.mock('@/store', () => ({ useAppStore: { getState: () => store } }))
 vi.mock('@/lib/launch-agent-in-new-tab', () => ({ launchAgentInNewTab }))
 vi.mock('@/lib/agent-catalog', () => ({
-  getAgentLabel: (agent: string) => (agent === 'codex' ? 'Codex' : 'Claude')
+  getAgentLabel: (agent: string) => (agent === 'codex' ? 'Codex' : 'Claude'),
+  getAgentDisplayLabel: (agent: string) => (agent === 'codex' ? 'Codex' : 'Claude')
 }))
 vi.mock('@/lib/connection-context', () => ({
   getConnectionIdFromState: () => connectionId.value

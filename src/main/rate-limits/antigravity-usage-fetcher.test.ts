@@ -74,7 +74,8 @@ function harness(
         resolveCommand,
         resolveEnvironment,
         platform: 'darwin',
-        now: () => 1_700_000_000_000
+        now: () => 1_700_000_000_000,
+        retryDelayMs: 0
       })
   }
 }
@@ -418,5 +419,76 @@ describe('quota read safety and diagnostic precedence', () => {
     expect((await h.fetch()).status).toBe('unavailable')
     expect((await h.fetch()).status).toBe('ok')
     expect(runCommand).toHaveBeenCalledTimes(3)
+  })
+})
+
+const VERSION_STDOUT = 'agy version 1.2.11\n'
+
+describe('fetchAntigravityRateLimits timeout retry and serialization', () => {
+  beforeEach(() => {
+    resetAntigravityUsageSupportForTests()
+  })
+
+  function usageCalls(h: ReturnType<typeof harness>): number {
+    return h.runCommand.mock.calls.filter(([spec]) => spec.args?.[0] !== '--version').length
+  }
+
+  it('retries a timed-out probe once and publishes the second reading', async () => {
+    let usageRuns = 0
+    const runCommand = vi.fn().mockImplementation(async (spec: { args?: readonly string[] }) => {
+      if (spec.args?.[0] === '--version') {
+        return processResult({ stdout: VERSION_STDOUT })
+      }
+      usageRuns += 1
+      return usageRuns === 1
+        ? processResult({ timedOut: true, code: null })
+        : processResult({ stdout: USAGE_ENVELOPE })
+    })
+    const h = harness({ runCommand })
+
+    const result = await h.fetch()
+
+    expect(result.status).toBe('ok')
+    expect(usageCalls(h)).toBe(2)
+  })
+
+  it('reports the timeout after one failed retry, without a third attempt', async () => {
+    const h = harness({ result: processResult({ timedOut: true, code: null }) })
+
+    const result = await h.fetch()
+
+    expect(result.status).toBe('error')
+    expect(result.error).toContain('did not answer in time')
+    expect(usageCalls(h)).toBe(2)
+  })
+
+  it('does not retry a signed-out answer', async () => {
+    const h = harness({ result: processResult({ stderr: 'You are not logged into Antigravity.' }) })
+
+    const result = await h.fetch()
+
+    expect(result.status).toBe('unavailable')
+    expect(usageCalls(h)).toBe(1)
+  })
+
+  it('never overlaps two probes', async () => {
+    let active = 0
+    let maxActive = 0
+    const runCommand = vi.fn().mockImplementation(async (spec: { args?: readonly string[] }) => {
+      if (spec.args?.[0] === '--version') {
+        return processResult({ stdout: VERSION_STDOUT })
+      }
+      active += 1
+      maxActive = Math.max(maxActive, active)
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      active -= 1
+      return processResult({ stdout: USAGE_ENVELOPE })
+    })
+    const h = harness({ runCommand })
+
+    const results = await Promise.all([h.fetch(), h.fetch(), h.fetch()])
+
+    expect(results.map((r) => r.status)).toEqual(['ok', 'ok', 'ok'])
+    expect(maxActive).toBe(1)
   })
 })

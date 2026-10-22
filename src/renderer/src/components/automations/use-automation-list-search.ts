@@ -1,3 +1,4 @@
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { useDeferredValue, useEffect, useMemo, useRef } from 'react'
 import type { Repo } from '../../../../shared/repo-types'
 import { resolveAutomationListSearchQuery } from './automation-list-search'
@@ -86,9 +87,10 @@ export function useAutomationListSearch({
     deferredListSearchResolution.status === 'active' ? deferredListSearchResolution.query : null
   const isListSearchActive = activeListSearchQuery !== null
 
+  const piRuntime = usePiDisplayRuntime()
   const automationSearchSources = useMemo(
-    () => buildAutomationSearchRowSources(rows, { repoMap, worktreeMap }),
-    [rows, repoMap, worktreeMap]
+    () => buildAutomationSearchRowSources(rows, { repoMap, worktreeMap, piRuntime }),
+    [rows, repoMap, worktreeMap, piRuntime]
   )
   const automationSearchRows = useAutomationSearchRows(automationSearchSources)
 

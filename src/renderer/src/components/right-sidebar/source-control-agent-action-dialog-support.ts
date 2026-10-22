@@ -1,10 +1,24 @@
-import { getAgentCatalog } from '@/lib/agent-catalog'
+import { useMemo } from 'react'
+import type { PiDisplayRuntime } from '@/lib/pi-agent-display'
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
+import { getAgentDisplayLabel } from '@/lib/agent-catalog'
 import { isTuiAgentEnabled } from '../../../../shared/tui-agent-selection'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import type { SourceControlAiWriteTarget } from '../../../../shared/source-control-ai-recipe-save'
 import { translate } from '@/i18n/i18n'
 import type { SourceControlAgentActionDeliveryPlanState } from './SourceControlAgentActionDialogForm'
 import type { SourceControlAgentScopeNote } from './source-control-agent-action-dialog-result'
+
+/** The agent scope note for the launch, read with the workspace's Pi runtime. */
+export function useSourceControlAgentScopeNote(
+  launchAgentScope: Parameters<typeof buildSourceControlAgentScopeNote>[0]
+): SourceControlAgentScopeNote | null {
+  const piRuntime = usePiDisplayRuntime()
+  return useMemo(
+    () => buildSourceControlAgentScopeNote(launchAgentScope, piRuntime),
+    [launchAgentScope, piRuntime]
+  )
+}
 
 export function isSourceControlAgentDetectedAndEnabled(
   agent: TuiAgent | null,
@@ -81,6 +95,7 @@ export function buildSourceControlAgentStatusCopy(args: {
   connectionUnavailable: boolean
   hasEnabledAgents: boolean
   detecting: boolean
+  piRuntime: PiDisplayRuntime
 }): string | null {
   const {
     selectedAgent,
@@ -90,7 +105,7 @@ export function buildSourceControlAgentStatusCopy(args: {
     detecting
   } = args
   if (selectedAgentUnavailable) {
-    return `${getAgentCatalog().find((entry) => entry.id === selectedAgent)?.label ?? selectedAgent} is not enabled or was not detected on this workspace host.`
+    return `${selectedAgent ? getAgentDisplayLabel(selectedAgent, args.piRuntime) : ''} is not enabled or was not detected on this workspace host.`
   }
   if (connectionUnavailable) {
     return 'Unable to resolve the workspace connection.'
@@ -102,17 +117,19 @@ export function buildSourceControlAgentStatusCopy(args: {
 }
 
 /** Names the agent this action will really use when the repo overrides the global default. */
-export function buildSourceControlAgentScopeNote(launchAgentScope: {
-  overridesGlobalAgent: boolean
-  effectiveAgentId: TuiAgent | null
-  globalAgentId: TuiAgent | null
-}): SourceControlAgentScopeNote | null {
+export function buildSourceControlAgentScopeNote(
+  launchAgentScope: {
+    overridesGlobalAgent: boolean
+    effectiveAgentId: TuiAgent | null
+    globalAgentId: TuiAgent | null
+  },
+  piRuntime: PiDisplayRuntime
+): SourceControlAgentScopeNote | null {
   if (!launchAgentScope.overridesGlobalAgent) {
     return null
   }
-  const catalog = getAgentCatalog()
   const labelFor = (agentId: TuiAgent | null): string =>
-    catalog.find((entry) => entry.id === agentId)?.label ?? agentId ?? ''
+    agentId ? getAgentDisplayLabel(agentId, piRuntime) : ''
   return {
     effectiveAgentLabel: labelFor(launchAgentScope.effectiveAgentId),
     globalAgentLabel: labelFor(launchAgentScope.globalAgentId)

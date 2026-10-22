@@ -73,8 +73,13 @@ import { NO_STRUCTURED_AGENTS } from '../../../src/main/native-chat/agent-sessio
 import { describeReleasedStopNoteProjection } from './cross-version-stop-note-scenarios'
 import { readNativeChatPlanDocument } from '../../../src/renderer/src/components/native-chat/native-chat-plan-document-read-client'
 import { RuntimeRpcCallError } from '../../../src/renderer/src/runtime/runtime-rpc-result'
+import { reportReplySuggestionDismissed } from '../../../src/renderer/src/components/native-chat/native-chat-reply-suggestion-dismissal'
 
-// The client's call helper, answered by the baseline's own dispatcher in the journey below.
+// The clients' call helpers, answered by the baseline's own dispatcher in the journeys below.
+const dismissalRpc = vi.hoisted(() => ({ call: vi.fn() }))
+vi.mock('@/runtime/structured-agent-session-client', () => ({
+  callStructuredAgentSession: (...args: unknown[]) => dismissalRpc.call(...args)
+}))
 const planDocumentRpc = vi.hoisted(() => ({ call: vi.fn() }))
 vi.mock('@/runtime/runtime-rpc-client', () => ({
   callRuntimeRpc: (...args: unknown[]) => planDocumentRpc.call(...args)
@@ -386,6 +391,44 @@ describe('cross-version structured agent sessions', () => {
         })
         expect(outcome).toEqual({ kind: 'unsupported' })
       }
+    })
+
+    // Dismissing a suggestion tells the host so a restart does not bring it back. A host that
+    // predates the method refuses it, and the chat keeps its own dismissal without an error.
+    it('takes the refusal of a host that predates the suggestion dismissal without an error', async () => {
+      const method = 'agentSession.dismissPromptSuggestion'
+      const [reply] = await callBuild(baseline, method, paramsFor(method), {
+        clientKind: 'runtime',
+        clientCapabilities: current.capabilities
+      })
+      const answered = (async () => {
+        if (!reply?.ok) {
+          throw new RuntimeRpcCallError({
+            id: reply?.id ?? 'dismissal',
+            ok: false,
+            error: reply?.error ?? { code: 'no_reply', message: 'no reply' }
+          })
+        }
+        return reply.result
+      })()
+      dismissalRpc.call.mockReturnValueOnce(answered)
+      reportReplySuggestionDismissed({ kind: 'local' }, SESSION, {
+        turnId: 'turn-1',
+        text: 'Run the tests',
+        source: 'emulated'
+      })
+      if (baselineStructuredMethods().includes(method)) {
+        await expect(answered).resolves.toBeDefined()
+      } else {
+        expect(reply, 'the old dispatcher must answer').toMatchObject({
+          ok: false,
+          error: { code: 'method_not_found' }
+        })
+        await expect(answered).rejects.toBeInstanceOf(RuntimeRpcCallError)
+      }
+      // The client swallowed the refusal: nothing is left unhandled for the runner to flag.
+      await new Promise((resolve) => setTimeout(resolve, 0))
+      expect(dismissalRpc.call).toHaveBeenCalledTimes(1)
     })
 
     it('takes structured question answers exactly where the host advertises them', async () => {

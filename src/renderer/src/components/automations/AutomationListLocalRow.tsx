@@ -1,3 +1,4 @@
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import React from 'react'
 import { MoreHorizontal, Pause, Pencil, Play, Trash2 } from 'lucide-react'
 import {
@@ -157,7 +158,8 @@ export function AutomationListLocalRow({
     ? formatAutomationDateTimeWithRelative(automation.nextRunAt, relativeNow)
     : translate('auto.components.automations.enablement.paused', 'Paused')
   const isSelected = isSelectedLocal && selectedRowKey === row.key
-  const agentLabel = getAgentLabel(automation.agentId)
+  const piRuntime = usePiDisplayRuntime({ enabled: automation.agentId === 'pi' })
+  const agentLabel = getAgentLabel(automation.agentId, piRuntime)
   const hostId =
     automation.runContext?.hostId ??
     (automationRepo ? getRepoExecutionHostId(automationRepo) : null)

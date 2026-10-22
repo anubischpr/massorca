@@ -14,6 +14,8 @@ import type Database from '../sqlite/sync-database'
 import type { SqliteRow } from '../sqlite/sqlite-statement'
 import type { AgentSessionStoreState } from './agent-session-store-state'
 import type { AgentSessionStoreRowWrites } from './agent-session-store-draft'
+import { writeChildWorkHistoryRow } from '../native-chat/agent-session-journal/child-work-history-rows'
+import { writePromptSuggestionRow } from '../native-chat/agent-session-journal/prompt-suggestion-rows'
 import {
   isReadableAgentSessionStoreOperation,
   isReadableAgentSessionStoreRecord,
@@ -191,6 +193,9 @@ export function writeAgentSessionStoreRows(
   }
   for (const sessionId of writes.records.remove) {
     db.prepare('DELETE FROM agent_session_records WHERE session_id = ?').run(sessionId)
+    // The held reply suggestion belongs to the chat, so it goes with the chat's record.
+    writePromptSuggestionRow(db, sessionId, null)
+    writeChildWorkHistoryRow(db, sessionId, null)
   }
   const upsertOperation = db.prepare(
     'INSERT INTO agent_session_operations (operation_key, row_json) VALUES (?, ?) ON CONFLICT(operation_key) DO UPDATE SET row_json = excluded.row_json'
