@@ -82,3 +82,25 @@ describe('run', () => {
     })
   })
 })
+
+describe('run side', () => {
+  it('forks an ephemeral side conversation and names it for the chat to open', async () => {
+    const request = vi.fn(async (_method: string, _params?: Record<string, unknown>) => ({
+      thread: { id: 'side-thread-1' }
+    }))
+    const outcome = await run(session(request), { command: 'side' }, undefined)
+    expect(request.mock.calls[0]?.slice(0, 2)).toEqual([
+      'thread/fork',
+      { threadId: 'thread-1', ephemeral: true }
+    ])
+    expect(outcome).toEqual({ ok: true, forkedProviderSessionId: 'side-thread-1' })
+  })
+
+  it('refuses when Codex names no side conversation', async () => {
+    const request = vi.fn(async (_method: string, _params?: Record<string, unknown>) => ({}))
+    expect(await run(session(request), { command: 'side' }, undefined)).toEqual({
+      ok: false,
+      rejected: 'Codex did not name the side conversation.'
+    })
+  })
+})

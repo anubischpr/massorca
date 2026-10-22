@@ -35,6 +35,8 @@ export type NativeChatAccessModePickerProps = {
   busy: boolean
   onSelect: (value: SessionOptionValue) => void
   focusComposer?: () => void
+  /** Open at mount, when a request such as `/permissions` asked for the picker. */
+  defaultOpen?: boolean
 }
 
 /** The access control beside the model: a shield whose colour names the risk of the mode it runs in. */
@@ -42,7 +44,8 @@ export function NativeChatAccessModePicker({
   descriptor,
   busy,
   onSelect,
-  focusComposer
+  focusComposer,
+  defaultOpen
 }: NativeChatAccessModePickerProps): React.JSX.Element | null {
   const focus = useNativeChatPickerFocusReturn(focusComposer)
   if (descriptor.kind.type !== 'select') {
@@ -58,7 +61,7 @@ export function NativeChatAccessModePicker({
   )
   const reason = nativeChatSessionOptionDisabledReason(descriptor.disabledReason)
   return (
-    <DropdownMenu>
+    <DropdownMenu defaultOpen={defaultOpen}>
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild disabled={busy}>

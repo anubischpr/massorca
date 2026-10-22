@@ -63,3 +63,28 @@ export function agentSessionCurrentContextRows(
       }
     : { items, submissions }
 }
+
+/** What a chat draws once its newest `/clear` boundary is the top of the screen: the boundary row
+ *  itself, so the divider stays, and everything after it. A send not yet accepted is kept, since it
+ *  is newer than any boundary. `boundary` is 0 when the loaded rows hold no clear. */
+export function agentSessionTranscriptSinceClear(
+  items: readonly AgentJournalRenderItem[],
+  submissions: readonly AgentJournalSubmission[]
+): {
+  boundary: number
+  items: readonly AgentJournalRenderItem[]
+  submissions: readonly AgentJournalSubmission[]
+} {
+  const boundary = latestAgentSessionContextClearSequence(items)
+  if (boundary === 0) {
+    return { boundary, items, submissions }
+  }
+  return {
+    boundary,
+    items: items.filter((item) => item.sequence >= boundary),
+    submissions: submissions.filter(
+      (submission) =>
+        submission.acceptedSequence === undefined || submission.acceptedSequence > boundary
+    )
+  }
+}

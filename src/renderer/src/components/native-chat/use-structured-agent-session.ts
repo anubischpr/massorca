@@ -35,7 +35,7 @@ import {
 } from './structured-agent-session-queued-cards'
 import { hostStatesTurnScopes } from '../../../../shared/native-chat-turn-membership'
 import { pendingPromptsAllUnanswerableHere } from '../../../../shared/agent-session-approval-subject'
-import { withNativeChatCutTurnNotices } from '../../../../shared/native-chat-cut-turn-notice'
+import { useStructuredAgentSessionClearedView } from './use-structured-agent-session-cleared-view'
 import { useStructuredAgentSessionRewind } from './use-structured-agent-session-rewind'
 import { useStructuredAgentSessionBackgroundStops } from './use-structured-agent-session-background-stops'
 import type { NativeChatRewindHost } from './use-native-chat-rewind'
@@ -200,18 +200,20 @@ export function useStructuredAgentSession(args: {
     () => pendingSendsOutsideQueuedCards(pending, queuedMessageIds, isWorking),
     [isWorking, pending, queuedMessageIds]
   )
-  // What the transcript reads: the journal plus the one notice a cut turn with no row gets.
-  const transcriptItems = useMemo(
-    () =>
-      withNativeChatCutTurnNotices(transportState.journalItems, {
-        agentName: structuredAgentLabel(agent)
-      }),
-    [agent, transportState.journalItems]
+  const {
+    items: transcriptItems,
+    submissions: transcriptSubmissions,
+    earlierContext
+  } = useStructuredAgentSessionClearedView(
+    sessionId,
+    agent,
+    transportState.journalItems,
+    transportState.submissions
   )
   const messages = useStructuredAgentSessionMessages(
     transcriptItems,
     transcriptPending,
-    transportState.submissions
+    transcriptSubmissions
   )
   const queuedController = useStructuredAgentSessionQueuedMessages({
     // Its published list, pause and submissions; the rest is named below.
@@ -267,6 +269,8 @@ export function useStructuredAgentSession(args: {
     sendOut: sending || sends.held,
     /** The journal's rows for sent messages, which carry a rejected message's whole fact. */
     submissions: transportState.submissions,
+    transcriptSubmissions,
+    earlierContext,
     // A message typed during a command queues behind it on the host.
     send: (...input: Parameters<typeof sends.send>) =>
       // Legacy: an older host refuses sends while a command runs; removable once those hosts age out.

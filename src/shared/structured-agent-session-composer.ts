@@ -10,6 +10,10 @@ import { hostCommandAlias, type SlashCommandSuggestion } from './native-chat-sla
 import type { AgentSessionConversationCommand } from './agent-session-conversation-command'
 import { isAgentSessionProviderCommand } from './agent-session-provider-command'
 import {
+  dispatchStructuredAgentSessionClientCommand,
+  type StructuredAgentSessionClientCommandSurface
+} from './structured-agent-session-client-command-dispatch'
+import {
   dispatchStructuredAgentSessionProviderCommand,
   type StructuredAgentSessionProviderCommandSurface
 } from './structured-agent-session-provider-command-dispatch'
@@ -35,21 +39,22 @@ export const STRUCTURED_AGENT_SESSION_SLASH_COMMANDS: readonly SlashCommandSugge
   EFFORT_COMMAND
 ]
 
-export type StructuredAgentSessionComposerOptions = StructuredAgentSessionProviderCommandSurface & {
-  agent?: AgentType
-  functions?: readonly AgentSessionProviderFunction[]
-  skills?: readonly string[]
-  snapshot: readonly SessionOptionDescriptor[]
-  invokeAction: (id: string) => Promise<boolean>
-  setOption: (id: string, value: SessionOptionValue) => Promise<boolean>
-  conversationCommands?: readonly AgentSessionConversationCommand[]
-  runConversationCommand?: (
-    command: AgentSessionConversationCommand
-  ) => Promise<Omit<StructuredAgentSessionCommandOutcome, 'handled'>>
-  /** Present only where the host can set this session's goal; otherwise `/goal`
-   *  stays message text the agent acts on itself. */
-  setThreadGoalObjective?: (objective: string) => Promise<boolean>
-}
+export type StructuredAgentSessionComposerOptions = StructuredAgentSessionProviderCommandSurface &
+  StructuredAgentSessionClientCommandSurface & {
+    agent?: AgentType
+    functions?: readonly AgentSessionProviderFunction[]
+    skills?: readonly string[]
+    snapshot: readonly SessionOptionDescriptor[]
+    invokeAction: (id: string) => Promise<boolean>
+    setOption: (id: string, value: SessionOptionValue) => Promise<boolean>
+    conversationCommands?: readonly AgentSessionConversationCommand[]
+    runConversationCommand?: (
+      command: AgentSessionConversationCommand
+    ) => Promise<Omit<StructuredAgentSessionCommandOutcome, 'handled'>>
+    /** Present only where the host can set this session's goal; otherwise `/goal`
+     *  stays message text the agent acts on itself. */
+    setThreadGoalObjective?: (objective: string) => Promise<boolean>
+  }
 
 /** What the chat shows a refused command waiting on: the agent working, a pending prompt, its
  *  background tasks, a message of this window's still being sent, or one showing its Retry. */
@@ -159,8 +164,11 @@ export function structuredAgentSessionCommandChangesConversation(
     target === 'clear' ||
     target === 'compact' ||
     (command?.name === 'goal' && command.argument !== '') ||
-    // A provider command answers with a row at the end of the transcript.
-    (command !== null && command.name !== 'fork' && isAgentSessionProviderCommand(command.name))
+    // A provider command answers with a row at the end of the transcript; a fork or side opens its own chat.
+    (command !== null &&
+      command.name !== 'fork' &&
+      command.name !== 'side' &&
+      isAgentSessionProviderCommand(command.name))
   )
 }
 
@@ -195,6 +203,13 @@ export async function dispatchStructuredAgentSessionComposerCommand(
     : null
   if (providerOutcome) {
     return providerOutcome
+  }
+  // Before the reported functions: a command the chat answers is never refused as unverified.
+  const clientOutcome = command
+    ? await dispatchStructuredAgentSessionClientCommand(command, controller)
+    : null
+  if (clientOutcome) {
+    return clientOutcome
   }
   if (command && controller.functions !== undefined) {
     const entry = controller.functions.find((entry) => entry.name === command.name)

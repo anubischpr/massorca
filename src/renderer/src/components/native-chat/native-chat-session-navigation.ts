@@ -11,6 +11,7 @@ import {
 import { structuredSlashCommands } from '../../../../shared/structured-agent-session-composer'
 import type { AgentType } from '../../../../shared/agent-status-types'
 import type { NativeChatStructuredComposerTransport } from './native-chat-composer-types'
+import { nativeChatClientCommandRows } from './native-chat-client-commands'
 
 /** These are window actions, independent of a provider's RPC command registry. */
 function nativeChatSessionCommands(): readonly SlashCommandSuggestion[] {
@@ -41,6 +42,15 @@ export async function openNativeChatSessionNavigation(): Promise<void> {
   const state = useAppStore.getState()
   state.setRightSidebarTab('vault')
   state.setRightSidebarOpen(true)
+}
+
+/** `/diff`: the workspace's source-control view, in the right sidebar. */
+export async function openNativeChatSourceControl(): Promise<boolean> {
+  const { useAppStore } = await import('@/store')
+  const state = useAppStore.getState()
+  state.setRightSidebarTab('source-control')
+  state.setRightSidebarOpen(true)
+  return true
 }
 
 export function withNativeChatSessionCommands(
@@ -122,7 +132,11 @@ export function nativeChatStructuredCatalog(
         ? sessionSlashCommandSuggestions(agent, sessionCommands)
         : structuredSlashCommands(conversationCommands, agent)
   // A running session reports no CLI-owned commands (agy's `/grill-me`), so they join every report.
-  const extra = [...providerCommandRows(agent, transport), ...getAgentCliCommands(agent)]
+  const extra = [
+    ...providerCommandRows(agent, transport),
+    ...nativeChatClientCommandRows(agent),
+    ...getAgentCliCommands(agent)
+  ]
   const listed = new Set(base.map((entry) => entry.name))
   return withNativeChatSessionCommands(
     [

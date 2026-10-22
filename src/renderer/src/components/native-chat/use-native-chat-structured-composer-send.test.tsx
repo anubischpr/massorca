@@ -134,7 +134,7 @@ describe('reports the sends that bring the latest into view', () => {
   it('reports nothing for a host command chat sessions do not run', async () => {
     const onSubmitted = vi.fn()
     const { send, structuredTransport } = harness('codex', undefined, onSubmitted)
-    send('/permissions', [])
+    send('/hooks', [])
     await vi.waitFor(() =>
       expect(structuredTransport.onError).toHaveBeenCalledWith(
         expect.stringContaining('available in Terminal only'),

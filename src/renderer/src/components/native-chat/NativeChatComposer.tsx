@@ -1,5 +1,6 @@
 import { useNativeChatComposerNotice } from './use-native-chat-composer-notice'
-import type { NativeChatComposerInput } from './native-chat-composer-input'
+import { insertNativeChatMention, type NativeChatComposerInput } from './native-chat-composer-input'
+import { useNativeChatOpenSurfaceRequests } from './native-chat-open-surface'
 import { forwardRef, useCallback, useState } from 'react'
 import { useNativeChatComposerInterrupt } from './use-native-chat-composer-interrupt'
 import { useNativeChatContextUsageSummary } from './use-native-chat-context-usage-summary'
@@ -99,6 +100,9 @@ const NativeChatComposerPane = forwardRef<NativeChatComposerHandle, NativeChatCo
     const [activeSuggestion, setActiveSuggestion] = useState(0)
     const { notices, setNotice } = useNativeChatComposerNotice(chatNotices)
     const { textareaRef } = useNativeChatComposerAppMenuSelection(imeEnterGesture.isComposing)
+    useNativeChatOpenSurfaceRequests(structuredTransport?.sessionId ?? null, 'mention', (query) =>
+      insertNativeChatMention(textareaRef.current, query)
+    )
     const recall = useNativeChatComposerRecall({
       draft,
       source: recallSource,

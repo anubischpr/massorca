@@ -331,7 +331,10 @@ export function NativeChatSessionSummary(props: {
             props.sessionId ? { target: props.target, sessionId: props.sessionId } : undefined
           }
         />
-        <NativeChatSessionContextSection summary={props.contextSummary} />
+        <NativeChatSessionContextSection
+          summary={props.contextSummary}
+          sessionId={props.sessionId}
+        />
         <NativeChatSessionSection
           title={t('components.nativeChatSummary.results', 'Results')}
           summary={count(results.length)}

@@ -56,6 +56,7 @@ export async function runPiProviderCommand(
       case 'memories':
       case 'rename':
       case 'fork':
+      case 'side':
       case 'review':
       case 'approve':
       case 'stop':

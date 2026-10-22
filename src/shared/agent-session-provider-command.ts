@@ -8,6 +8,7 @@ export const AGENT_SESSION_PROVIDER_COMMANDS = [
   'memories',
   'rename',
   'fork',
+  'side',
   'review',
   'approve',
   'stop',

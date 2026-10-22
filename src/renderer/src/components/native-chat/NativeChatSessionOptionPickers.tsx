@@ -245,6 +245,9 @@ function NativeChatSessionOptionPickersInner({
   }
   const requestedModelSequence =
     model && pickerRequest?.id === model.id ? pickerRequest.sequence : null
+  // `/permissions` asks for the access picker the way `/model` asks for the model picker.
+  const requestedAccessSequence =
+    access && pickerRequest?.id === access.id ? pickerRequest.sequence : null
   const requestedOptionsSequence = options.some((descriptor) => descriptor.id === pickerRequest?.id)
     ? (pickerRequest?.sequence ?? null)
     : null
@@ -279,6 +282,8 @@ function NativeChatSessionOptionPickersInner({
     <div className="flex min-w-0 items-center gap-0.5 text-chat-foreground-faint">
       {access ? (
         <NativeChatAccessModePicker
+          key={`access:${requestedAccessSequence ?? 'idle'}`}
+          defaultOpen={requestedAccessSequence !== null}
           descriptor={access}
           busy={isWorking || pendingId !== null}
           onSelect={(value) => setOption(access, value)}

@@ -13,7 +13,10 @@ import {
   slashCommandDispatchText,
   type SlashCommandSuggestion
 } from './native-chat-composer-state'
-import { sessionSlashCommandSuggestions } from '../../../../shared/native-chat-slash-commands'
+import {
+  getAgentSlashCommands,
+  sessionSlashCommandSuggestions
+} from '../../../../shared/native-chat-slash-commands'
 import type { DiscoveredSkill } from '../../../../shared/skills'
 import { getNativeChatAgentProfile } from '../../../../shared/native-chat-agent-profiles'
 
@@ -163,6 +166,17 @@ describe('buildNativeChatPickerItems and host aliases', () => {
     expect(items.flatMap((item) => (item.kind === 'command' ? [item.name] : []))).toEqual([
       'effort'
     ])
+  })
+})
+
+describe('buildNativeChatPickerItems and the captured Codex menu', () => {
+  it('lists the Codex rows the app-server answers, and never a hidden one', () => {
+    const names = buildNativeChatPickerItems(getAgentSlashCommands('codex'), [], '', '/').flatMap(
+      (item) => (item.kind === 'command' ? [item.name] : [])
+    )
+    expect(names).toEqual(expect.arrayContaining(['clear', 'compact', 'goal', 'review']))
+    expect(names).not.toContain('delete')
+    expect(names).not.toContain('new')
   })
 })
 

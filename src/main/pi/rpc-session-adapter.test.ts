@@ -273,11 +273,11 @@ describe('Pi slash commands for a chat whose child is not running', () => {
       expect.objectContaining({
         name: 'gentle:jobs',
         description: 'Show background jobs',
-        provenance: 'provider-files',
-        availability: 'unverified',
+        provenance: 'provider-session',
+        availability: 'available',
         execution: { kind: 'provider-prompt' }
       }),
-      expect.objectContaining({ name: 'gentle:status', availability: 'unverified' })
+      expect.objectContaining({ name: 'gentle:status', availability: 'available' })
     ])
     // Stock Pi never borrows Gentle Shell's commands, and a record with no runtime is stock Pi.
     expect(rest.read(restingRecord('pi'))).toBeUndefined()

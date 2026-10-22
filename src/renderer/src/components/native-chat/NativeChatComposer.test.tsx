@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { act, cleanup, render, waitFor } from '@testing-library/react'
+import type { ComponentProps } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   SessionOptionDescriptor,
@@ -159,6 +160,32 @@ vi.mock('./use-native-chat-send-lifecycle', () => ({
 
 import { NativeChatComposer } from './NativeChatComposer'
 import { sendRuntimePtyInput } from '@/runtime/runtime-terminal-inspection'
+
+type StructuredTransport = NonNullable<
+  ComponentProps<typeof NativeChatComposer>['structuredTransport']
+>
+
+/** A local structured transport that handles nothing, with `overrides` for what a test watches. */
+function structuredTransportFixture(
+  overrides: Partial<StructuredTransport> = {}
+): StructuredTransport {
+  return {
+    send: vi.fn(() => true),
+    dispatchCommand: vi.fn(async () => ({ handled: false, accepted: false, error: null })),
+    optionsSurface: {
+      getSnapshot: () => [],
+      setOption: vi.fn(),
+      invokeAction: vi.fn(),
+      subscribe: () => () => {}
+    },
+    optionSnapshot: [],
+    onError: vi.fn(),
+    runtime: 'local',
+    sessionId: 'session-test',
+    runtimeEnvironmentId: null,
+    ...overrides
+  }
+}
 
 describe('NativeChatComposer', () => {
   beforeEach(() => {
@@ -330,7 +357,11 @@ describe('NativeChatComposer', () => {
   // counted as actions the structured composer can execute.
   it.each([
     ['claude', 'compact', ['model', 'effort']],
-    ['codex', 'vim', ['model', 'effort', 'goal']]
+    [
+      'codex',
+      'vim',
+      ['model', 'effort', 'goal', 'plan', 'copy', 'export', 'mention', 'permissions', 'status']
+    ]
   ] as const)('offers %s actionable commands and window actions', (agent, withheld, offered) => {
     mocks.draft = '/'
     render(
@@ -339,21 +370,7 @@ describe('NativeChatComposer', () => {
         paneKey={`tab-1:structured-${agent}`}
         targetPtyId={null}
         agent={agent}
-        structuredTransport={{
-          send: vi.fn(() => true),
-          dispatchCommand: vi.fn(async () => ({ handled: false, accepted: false, error: null })),
-          optionsSurface: {
-            getSnapshot: () => [],
-            setOption: vi.fn(),
-            invokeAction: vi.fn(),
-            subscribe: () => () => {}
-          },
-          optionSnapshot: [],
-          onError: vi.fn(),
-          runtime: 'local',
-          sessionId: 'session-test',
-          runtimeEnvironmentId: null
-        }}
+        structuredTransport={structuredTransportFixture()}
       />
     )
 
@@ -375,26 +392,7 @@ describe('NativeChatComposer', () => {
         paneKey="tab-1:structured"
         targetPtyId={null}
         agent="codex"
-        structuredTransport={{
-          send,
-          dispatchCommand: vi.fn(async () => ({
-            handled: false,
-            accepted: false,
-            error: null
-          })),
-          optionsSurface: {
-            getSnapshot: () => [],
-            setOption: vi.fn(),
-            invokeAction: vi.fn(),
-            subscribe: () => () => {}
-          },
-          optionSnapshot: [],
-          worktreeId: 'wt-1',
-          onError: vi.fn(),
-          runtime: 'local',
-          sessionId: 'session-test',
-          runtimeEnvironmentId: null
-        }}
+        structuredTransport={structuredTransportFixture({ send, worktreeId: 'wt-1' })}
       />
     )
 

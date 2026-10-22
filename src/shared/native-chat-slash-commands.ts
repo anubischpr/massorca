@@ -12,6 +12,10 @@ import type { AgentType } from './agent-status-types'
  *  `composer`: the chat answers from state it holds and never sends the command.
  *  `transcript`: the agent writes its reply as a transcript row the chat shows.
  *  Absent: the agent answers in its own terminal, or the effect is the answer. */
+import { ANTIGRAVITY_CLI_COMMANDS, CODEX_COMMANDS } from './agent-tui-slash-menus'
+
+export { ANTIGRAVITY_CLI_COMMANDS }
+
 export type NativeChatCommandReply = 'composer' | 'transcript'
 
 export type SlashCommandSuggestion = {
@@ -87,54 +91,6 @@ const OPENCLAUDE_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'context', description: 'Show context usage', reply: 'transcript' }
 ]
 
-const CODEX_COMMANDS: readonly SlashCommandSuggestion[] = [
-  { name: 'model', description: 'Choose the model and reasoning effort' },
-  { name: 'ide', description: 'Include IDE context' },
-  { name: 'permissions', description: 'Choose what Codex is allowed to do' },
-  { name: 'keymap', description: 'Remap TUI shortcuts' },
-  { name: 'vim', description: 'Toggle Vim mode' },
-  { name: 'experimental', description: 'Toggle experimental features' },
-  { name: 'approve', description: 'Approve one auto-review retry' },
-  { name: 'memories', description: 'Configure memory use' },
-  { name: 'skills', description: 'Manage and use skills' },
-  { name: 'import', description: 'Import setup from Claude Code' },
-  { name: 'hooks', description: 'View lifecycle hooks' },
-  { name: 'review', description: 'Review the current changes' },
-  { name: 'rename', description: 'Rename the current thread' },
-  { name: 'new', description: 'Start a new chat' },
-  { name: 'archive', description: 'Archive this session and exit' },
-  { name: 'delete', description: 'Delete this session and exit' },
-  { name: 'resume', description: 'Resume a saved chat' },
-  { name: 'fork', description: 'Fork the current chat' },
-  { name: 'app', description: 'Continue in Codex Desktop' },
-  { name: 'init', description: 'Create an AGENTS.md file' },
-  { name: 'compact', description: 'Compact the conversation' },
-  { name: 'plan', description: 'Switch to Plan mode' },
-  { name: 'goal', description: 'Set or view the goal' },
-  { name: 'agent', description: 'Switch the active agent thread' },
-  { name: 'side', description: 'Start a side conversation' },
-  { name: 'copy', description: 'Copy the last response as markdown' },
-  { name: 'raw', description: 'Toggle raw scrollback mode' },
-  { name: 'diff', description: 'Show the working diff' },
-  { name: 'mention', description: 'Mention a file' },
-  { name: 'status', description: 'Show session configuration and usage' },
-  { name: 'usage', description: 'View account usage' },
-  { name: 'title', description: 'Configure the terminal title' },
-  { name: 'statusline', description: 'Configure the status line' },
-  { name: 'theme', description: 'Choose a syntax highlighting theme' },
-  { name: 'pets', description: 'Choose or hide the terminal pet' },
-  { name: 'mcp', description: 'List configured MCP tools' },
-  { name: 'plugins', description: 'Browse plugins' },
-  { name: 'logout', description: 'Log out of Codex' },
-  { name: 'exit', description: 'Exit Codex' },
-  { name: 'feedback', description: 'Send logs to maintainers' },
-  { name: 'ps', description: 'List background terminals' },
-  { name: 'stop', description: 'Stop all background terminals' },
-  { name: 'clear', description: 'Clear the terminal and start a new chat' },
-  { name: 'personality', description: 'Choose a communication style' },
-  { name: 'subagents', description: 'Switch the active agent thread' }
-]
-
 // OMP built-in registry; interactive commands still execute in its terminal.
 const OMP_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'model', description: 'Open the model selector in Terminal' },
@@ -165,29 +121,6 @@ const OMP_COMMANDS: readonly SlashCommandSuggestion[] = [
   { name: 'hotkeys', description: 'Show keyboard shortcuts in Terminal' }
 ]
 
-// agy 1.4.3's own `/help` list, read in print mode (no model turn), plus `/grill-me`, a TUI prompt
-// command: its instruction body is in the binary and expands like a skill in print mode. Its interview
-// relies on the `ask_question` tool, which headless runs have not been seen to answer. Its stream
-// reports no command list, so the structured chat offers this one as the CLI's own commands.
-export const ANTIGRAVITY_CLI_COMMANDS: readonly SlashCommandSuggestion[] = [
-  { name: 'agents', description: 'List available custom agents' },
-  { name: 'changelog', description: 'Show release notes and changes' },
-  { name: 'config', description: 'Open settings panel' },
-  { name: 'credits', description: 'Show remaining G1 credits and purchase link' },
-  { name: 'effort', description: 'Set the reasoning effort' },
-  { name: 'help', description: 'Show available commands and keybindings' },
-  { name: 'hooks', description: 'Manage hook configurations for tool events' },
-  { name: 'model', description: 'Set a model, or run a single prompt on another model' },
-  { name: 'permissions', description: 'Manage tool permissions' },
-  {
-    name: 'plugin',
-    description: 'Manage, discover, install, uninstall, enable, and disable plugins'
-  },
-  { name: 'skills', description: 'List available skills' },
-  { name: 'usage', description: 'View model quota usage' },
-  { name: 'grill-me', description: 'Interview me to align on a plan.' }
-]
-
 const COMMANDS_BY_AGENT: Partial<Record<AgentType, readonly SlashCommandSuggestion[]>> = {
   pi: PI_COMMANDS,
   claude: CLAUDE_COMMANDS,
@@ -201,6 +134,7 @@ const COMMANDS_BY_AGENT: Partial<Record<AgentType, readonly SlashCommandSuggesti
 /** Pi names two commands Orca already offers under other names: `/thinking` sets the effort and
  *  `/new` starts a fresh context, as the shared `/effort` and `/clear` do. */
 const HOST_COMMAND_ALIASES: Partial<Record<AgentType, ReadonlyMap<string, string>>> = {
+  codex: new Map([['new', 'clear']]),
   pi: new Map([
     ['thinking', 'effort'],
     ['new', 'clear']

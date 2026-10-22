@@ -1,3 +1,4 @@
+import type { NativeChatEarlierContext } from './use-structured-agent-session-cleared-view'
 // What a live native-chat session publishes to the view: the session itself, its
 // raw read phase, and the older-history pagination controls.
 
@@ -40,6 +41,8 @@ export type NativeChatLiveSession = NativeChatSession & {
   /** Page in older history. Resolves once the page has landed (or not); a call while
    *  one is in flight joins it. */
   loadEarlier: () => Promise<NativeChatOlderPageResult>
+  /** A structured chat hiding what came before its newest /clear; absent where there is none. */
+  earlierContext?: NativeChatEarlierContext
   /** Raw initial-read phase. `status` is not a substitute: a live 'working' hook
    *  outranks (and so hides) 'loading', which would let a consumer deciding from
    *  an empty list treat an in-flight transcript as real history. */

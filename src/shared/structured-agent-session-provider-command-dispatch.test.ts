@@ -14,6 +14,82 @@ function controller(overrides: Record<string, unknown> = {}) {
   }
 }
 
+describe('host surfaces answer /diff, /tasks and /ps', () => {
+  it('opens source control for /diff, and refuses an argument', async () => {
+    const openSourceControl = vi.fn(async () => true)
+    const options = controller({ openSourceControl, providerCommands: [] })
+    expect(await dispatchStructuredAgentSessionComposerCommand('/diff', options)).toEqual({
+      handled: true,
+      accepted: true,
+      error: null
+    })
+    expect(openSourceControl).toHaveBeenCalledTimes(1)
+    expect(await dispatchStructuredAgentSessionComposerCommand('/diff main', options)).toEqual({
+      handled: true,
+      accepted: false,
+      error: 'Use /diff without arguments.'
+    })
+    expect(openSourceControl).toHaveBeenCalledTimes(1)
+  })
+
+  it('reveals the background tasks for /tasks and /ps alike', async () => {
+    const revealBackgroundTasks = vi.fn(() => true)
+    const options = controller({ revealBackgroundTasks, providerCommands: [] })
+    expect(await dispatchStructuredAgentSessionComposerCommand('/tasks', options)).toEqual({
+      handled: true,
+      accepted: true,
+      error: null
+    })
+    expect(await dispatchStructuredAgentSessionComposerCommand('/ps', options)).toEqual({
+      handled: true,
+      accepted: true,
+      error: null
+    })
+    expect(revealBackgroundTasks).toHaveBeenCalledTimes(2)
+  })
+
+  it('says so when there are no background tasks to show', async () => {
+    const options = controller({ revealBackgroundTasks: () => false, providerCommands: [] })
+    expect(await dispatchStructuredAgentSessionComposerCommand('/tasks', options)).toEqual({
+      handled: true,
+      accepted: false,
+      error: 'No background tasks are running.'
+    })
+  })
+
+  it('leaves /tasks and /diff to an agent that has no host surface for them', async () => {
+    // A session that reports no functions, as agy's does, passes unlisted commands to the agent.
+    const options = {
+      ...controller({ agent: 'antigravity' as const, providerCommands: [] }),
+      functions: undefined
+    }
+    expect(await dispatchStructuredAgentSessionComposerCommand('/tasks', options)).toEqual({
+      handled: false,
+      accepted: false,
+      error: null
+    })
+    expect(await dispatchStructuredAgentSessionComposerCommand('/diff', options)).toEqual({
+      handled: false,
+      accepted: false,
+      error: null
+    })
+  })
+
+  it('sends Codex /init and /recap to the agent as text', async () => {
+    const options = controller({ providerCommands: [] })
+    expect(await dispatchStructuredAgentSessionComposerCommand('/init', options)).toEqual({
+      handled: false,
+      accepted: false,
+      error: null
+    })
+    expect(await dispatchStructuredAgentSessionComposerCommand('/recap', options)).toEqual({
+      handled: false,
+      accepted: false,
+      error: null
+    })
+  })
+})
+
 describe('provider command dispatch', () => {
   it('runs a command the host reported, with its argument', async () => {
     const options = controller()

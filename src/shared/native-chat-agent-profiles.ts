@@ -1,4 +1,5 @@
 import type { AgentType } from './agent-status-types'
+import { CODEX_TEXT_COMMANDS } from './agent-tui-slash-menus'
 import {
   ANTIGRAVITY_CLI_COMMANDS,
   getAgentSlashCommands,
@@ -25,8 +26,11 @@ const NATIVE_CHAT_AGENT_PROFILES: Partial<Record<AgentType, NativeChatAgentProfi
     skillPrefix: '$',
     skillSourceOwner: 'codex',
     // The app-server has no slash parser, but the model owns goal tools and
-    // calls create_goal itself when `/goal <objective>` reaches it as prose.
-    textDrivenCommands: ['goal']
+    // calls create_goal itself when `/goal <objective>` reaches it as prose. `/init`, `/recap` and
+    // `/plan` reach it as the same literal text: unverified, since the schema of Codex 0.159.2 has no
+    // request that sets the collaboration mode for the next turn, and the TUI's prompts are not reproduced.
+    textDrivenCommands: ['goal', 'init', 'recap', 'plan'],
+    cliCommands: CODEX_TEXT_COMMANDS
   },
   claude: {
     skillPrefix: '/',

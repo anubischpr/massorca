@@ -13,8 +13,10 @@ export type StructuredAgentSessionProviderCommandSurface = {
   /** The commands the host reported this session can run now. */
   providerCommands?: readonly AgentSessionProviderCommand[]
   runProviderCommand?: ProviderCommandRun
-  /** `/ps`: shows the background tasks the chat lists; false when it has none to show. */
+  /** `/ps` and `/tasks`: shows the background tasks the chat lists; false when it has none to show. */
   revealBackgroundTasks?: () => boolean
+  /** `/diff`: opens the workspace's source-control view; false when it cannot open. */
+  openSourceControl?: () => Promise<boolean>
 }
 
 /** What a command takes after its name: nothing, one required text, one optional text, or a choice. */
@@ -26,6 +28,7 @@ const ARGUMENT_RULES: Record<
   skills: { kind: 'none' },
   plugins: { kind: 'none' },
   fork: { kind: 'none' },
+  side: { kind: 'none' },
   approve: { kind: 'none' },
   stop: { kind: 'none' },
   memories: { kind: 'toggle' },
@@ -59,15 +62,26 @@ function providerCommandArgument(
   }
 }
 
-/** Answers `/name` when it is a provider command this session runs (or the local `/ps`);
- *  null leaves it to the next handler. */
+/** Answers `/name` when it is a provider command this session runs, or one the host answers with a
+ *  surface it has (`/ps`, `/tasks`, `/diff`); null leaves it to the next handler. */
 export async function dispatchStructuredAgentSessionProviderCommand(
   command: { name: string; argument: string },
   surface: StructuredAgentSessionProviderCommandSurface
 ): Promise<StructuredAgentSessionCommandOutcome | null> {
-  if (command.name === 'ps' && surface.revealBackgroundTasks) {
+  if (command.name === 'diff' && surface.openSourceControl) {
     if (command.argument !== '') {
-      return { handled: true, accepted: false, error: 'Use /ps without arguments.' }
+      return { handled: true, accepted: false, error: 'Use /diff without arguments.' }
+    }
+    const opened = await surface.openSourceControl()
+    return {
+      handled: true,
+      accepted: opened,
+      error: opened ? null : 'Could not open source control.'
+    }
+  }
+  if ((command.name === 'ps' || command.name === 'tasks') && surface.revealBackgroundTasks) {
+    if (command.argument !== '') {
+      return { handled: true, accepted: false, error: `Use /${command.name} without arguments.` }
     }
     const shown = surface.revealBackgroundTasks()
     return {

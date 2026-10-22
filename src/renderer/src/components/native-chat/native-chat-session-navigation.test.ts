@@ -59,10 +59,13 @@ describe('client session navigation', () => {
     const rename = catalog.find((entry) => entry.name === 'rename')
     expect(rename).toMatchObject({
       argumentHint: '<name>',
-      description: 'Rename the current thread'
+      description: 'rename the current thread'
     })
     expect(rename?.providerFunction).toBeUndefined()
     expect(catalog.find((entry) => entry.name === 'ps')?.providerFunction).toBeUndefined()
+    expect(catalog.find((entry) => entry.name === 'ps')?.description).toBe(
+      'list background terminals'
+    )
     // A claimed command the host did not report stays terminal-only.
     expect(catalog.find((entry) => entry.name === 'skills')?.providerFunction).toMatchObject({
       availability: 'terminal-only'
