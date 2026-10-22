@@ -469,6 +469,7 @@ describe('packaged runtime resources', () => {
     'marks packaged Unix CLI launchers executable',
     async () => {
       const root = await mkdtemp(join(tmpdir(), 'orca-electron-builder-config-'))
+      const previousPath = process.env.PATH
       try {
         const resourcesDir = join(root, 'linux-unpacked', 'resources')
         const launcherPath = join(resourcesDir, 'bin', 'orca-ide')
@@ -480,6 +481,11 @@ describe('packaged runtime resources', () => {
         )
         await seedBundledRipgrep(resourcesDir)
         await seedLinuxNodePty(resourcesDir)
+        // Why: the fixture's pty.node is only an ELF header, which a real objdump rejects.
+        const stubBinDir = join(root, 'bin-stub')
+        await mkdir(stubBinDir)
+        await writeFile(join(stubBinDir, 'objdump'), '#!/bin/sh\nexit 0\n', { mode: 0o755 })
+        process.env.PATH = `${stubBinDir}${delimiter}${previousPath ?? ''}`
         await mkdir(join(resourcesDir, 'node_modules', 'zod', 'src'), { recursive: true })
         // Why: afterPack now fails hard when the unpacked daemon entry is
         // missing, so the fixture must carry one like a real package layout.
@@ -523,6 +529,7 @@ describe('packaged runtime resources', () => {
         ).resolves.toContain('"version": "9.9.9"')
         await expect(readFile(join(resourcesDir, 'package-type'), 'utf8')).resolves.toBe('AppImage')
       } finally {
+        process.env.PATH = previousPath
         await removeTree(root)
       }
     }
