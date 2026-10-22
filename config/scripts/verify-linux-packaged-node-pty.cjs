@@ -1,6 +1,5 @@
 const { closeSync, existsSync, openSync, readSync } = require('node:fs')
-const { createRequire } = require('node:module')
-const { basename, dirname, isAbsolute, join, relative, sep } = require('node:path')
+const { dirname, isAbsolute, join, relative, sep } = require('node:path')
 
 const TAG = '[verify-linux-packaged-node-pty]'
 // node-pty ships no Linux prebuild, so build/Release is the only layout a Linux package carries.
@@ -17,11 +16,13 @@ function isElfObject(filePath) {
   }
 }
 
-// require.resolve returns node-pty's entry file (lib/index.js), so walk up to the package root.
-function nodePtyPackageDir(entryPath) {
-  for (let dir = dirname(entryPath); ; dir = dirname(dir)) {
-    if (basename(dir) === 'node-pty' && basename(dirname(dir)) === 'node_modules') {
-      return dir
+// Why a manual walk: require.resolve also consults NODE_PATH, ~/.node_modules and Bun's global
+// install cache, so a build host could certify a package that carries no node-pty of its own.
+function findNodePtyPackageDir(fromDir) {
+  for (let dir = fromDir; ; dir = dirname(dir)) {
+    const candidate = join(dir, 'node_modules', 'node-pty')
+    if (existsSync(join(candidate, 'package.json'))) {
+      return candidate
     }
     if (dirname(dir) === dir) {
       return null
@@ -50,29 +51,25 @@ function verifyLinuxPackagedNodePty(resourcesDir) {
     )
   }
 
-  // Why createRequire from the daemon: it is forked from app.asar.unpacked/out/main, so its bare
+  // Why the daemon's directory: it is forked from app.asar.unpacked/out/main, so its bare
   // require('node-pty') walks that directory's node_modules chain.
-  const daemonEntry = join(unpackedDir, 'out', 'main', 'daemon-entry.js')
-  let resolved
-  try {
-    resolved = createRequire(daemonEntry).resolve('node-pty')
-  } catch (error) {
-    throw new Error(`${TAG} node-pty cannot be resolved from the packaged daemon: ${error.message}`)
+  const daemonDir = join(unpackedDir, 'out', 'main')
+  const packageDir = findNodePtyPackageDir(daemonDir)
+  if (packageDir === null) {
+    throw new Error(
+      `${TAG} node-pty cannot be resolved from the packaged daemon: no node_modules/node-pty above ${daemonDir}`
+    )
   }
-  const relativeToResources = relative(resourcesDir, resolved)
+  const relativeToResources = relative(resourcesDir, packageDir)
   if (
     isAbsolute(relativeToResources) ||
     relativeToResources === '..' ||
     relativeToResources.startsWith(`..${sep}`)
   ) {
     throw new Error(
-      `${TAG} node-pty resolves to ${resolved}, outside ${resourcesDir}, so the packaged daemon ` +
+      `${TAG} node-pty resolves to ${packageDir}, outside ${resourcesDir}, so the packaged daemon ` +
         'would load a copy from the build host.'
     )
-  }
-  const packageDir = nodePtyPackageDir(resolved)
-  if (packageDir === null) {
-    throw new Error(`${TAG} cannot locate the node-pty package root for ${resolved}`)
   }
   const addon = join(packageDir, ...LINUX_ADDON_SEGMENTS)
   if (!existsSync(addon)) {
