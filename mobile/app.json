@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "MassOrca",
-    "slug": "orca-mobile",
+    "slug": "massorca",
     "owner": "palominoc",
     "version": "0.0.51",
     "orientation": "default",
@@ -128,7 +128,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "90938ae1-dc7d-453a-8898-f819ba733674"
+        "projectId": "b9403048-0a4c-47b6-85a0-6a7855543bef"
       }
     }
   }
