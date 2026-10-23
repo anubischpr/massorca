@@ -32,6 +32,7 @@ import {
   getActiveCodexAccountIdForRateLimitTarget,
   getCodexResetCreditSummary
 } from '../../../src/components/codex-reset-credit'
+import { MobileAccountsHostUsageSection } from '../../../src/accounts/MobileAccountsHostUsageSection'
 import { CodexResetCreditAction } from '../../../src/components/CodexResetCreditAction'
 import { useCodexResetCreditAction } from '../../../src/components/use-codex-reset-credit-action'
 
@@ -381,6 +382,7 @@ export default function AccountsScreen() {
           <>
             {renderProviderSection('claude', 'Claude')}
             {renderProviderSection('codex', 'Codex')}
+            <MobileAccountsHostUsageSection snapshot={snapshot} now={now} />
             <View style={styles.footerHint}>
               <User size={14} color={colors.textMuted} />
               <Text style={styles.footerHintText}>

@@ -40,7 +40,9 @@ export const ProviderRateLimitsSchema = z
       'minimax',
       'grok',
       'antigravity',
-      'cursor'
+      'cursor',
+      'zcode',
+      'nan'
     ]),
     session: RateLimitWindowSchema.nullable(),
     weekly: RateLimitWindowSchema.nullable(),
