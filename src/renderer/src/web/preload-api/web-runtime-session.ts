@@ -162,7 +162,7 @@ export function requireActiveEnvironment(): StoredWebRuntimeEnvironment {
   webRuntimeState.activeEnvironment =
     webRuntimeState.activeEnvironment ?? readStoredWebRuntimeEnvironment()
   if (!webRuntimeState.activeEnvironment) {
-    throw new Error('Pair this web client with an MassOrca server first.')
+    throw new Error('Pair this web client with a MassOrca server first.')
   }
   return webRuntimeState.activeEnvironment
 }

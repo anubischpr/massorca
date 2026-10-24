@@ -80,9 +80,12 @@ function orcaStopRow(cause: string): AgentJournalStatusItem {
 
 describe('the row an Orca stop leaves', () => {
   it.each([
-    ['update', 'Orca on studio-mac restarted for an update while this response was in progress.'],
-    ['quit', 'Orca on studio-mac was closed while this response was in progress.'],
-    ['crash', 'Orca on studio-mac stopped unexpectedly while this response was in progress.']
+    [
+      'update',
+      'MassOrca on studio-mac restarted for an update while this response was in progress.'
+    ],
+    ['quit', 'MassOrca on studio-mac was closed while this response was in progress.'],
+    ['crash', 'MassOrca on studio-mac stopped unexpectedly while this response was in progress.']
   ])('names a %s and the machine, muted', (cause, sentence) => {
     renderStatus(orcaStopRow(cause), 'studio-mac')
     const row = screen.getByText(`${sentence} You can continue in this conversation.`)
@@ -94,7 +97,7 @@ describe('the row an Orca stop leaves', () => {
     renderStatus(orcaStopRow('update'), 'studio-mac', true)
     expect(
       screen.getByText(
-        'Orca on studio-mac restarted for an update while this response was in progress.'
+        'MassOrca on studio-mac restarted for an update while this response was in progress.'
       )
     ).toBeInTheDocument()
   })
@@ -112,7 +115,7 @@ describe('the row an Orca stop leaves', () => {
     renderStatus(represented, 'studio-mac', true)
     expect(
       screen.getByText(
-        'Orca on studio-mac stopped unexpectedly while this response was in progress.'
+        'MassOrca on studio-mac stopped unexpectedly while this response was in progress.'
       ).parentElement?.parentElement
     ).toHaveClass('text-muted-foreground')
     cleanup()

@@ -92,7 +92,7 @@ export function parseHostAccessLink(input: string): ParseHostAccessLinkResult {
     return {
       ok: false,
       kind: 'invalid-input',
-      message: 'Enter an MassOrca access link or bare pairing code.'
+      message: 'Enter a MassOrca access link or bare pairing code.'
     }
   }
   if (pairing.scope === 'mobile') {

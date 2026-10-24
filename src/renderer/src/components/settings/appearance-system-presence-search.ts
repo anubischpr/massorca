@@ -52,7 +52,7 @@ const getMenuBarIconEntryCatalog = createLocalizedCatalog((): SettingsSearchEntr
     title: translate('settings.appearance.menuBarIcon.title', 'Show Menu Bar Icon'),
     description: translate(
       'settings.appearance.menuBarIcon.description',
-      'Keep an MassOrca shortcut and activity indicator in the macOS menu bar.'
+      'Keep a MassOrca shortcut and activity indicator in the macOS menu bar.'
     ),
     keywords: [
       ...translateSearchKeyword('settings.appearance.menuBarIcon.keyword.menuBar', 'menu bar', {

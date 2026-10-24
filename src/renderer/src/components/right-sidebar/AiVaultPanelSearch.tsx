@@ -111,7 +111,7 @@ export function AiVaultPanelSearch({
   } else if (unavailable === 'no-service') {
     message = translate(
       'sessionSearch.panel.noService',
-      'Search is unavailable on this computer. It may need an MassOrca update or a runtime with search support.'
+      'Search is unavailable on this computer. It may need a MassOrca update or a runtime with search support.'
     )
   } else if (unavailable === 'unsupported-agent') {
     message = translate(

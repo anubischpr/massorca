@@ -1885,7 +1885,7 @@
           "sshPersistenceDefault": "Remote terminals on this host stay alive until you end them or reset the relay."
         },
         "AddRepoHostSelector": {
-          "addRemoteHostTooltip": "Choose SSH for a machine you can log into, or remote server for an MassOrca server.",
+          "addRemoteHostTooltip": "Choose SSH for a machine you can log into, or remote server for a MassOrca server.",
           "local": "Local",
           "runtime": "Server",
           "ssh": "SSH"

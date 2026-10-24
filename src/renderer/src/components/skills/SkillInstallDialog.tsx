@@ -89,7 +89,7 @@ export function SkillInstallDialog({
       setError(
         translate(
           'auto.components.skills.install.enterShareLink',
-          'Enter an MassOrca skill share link.'
+          'Enter a MassOrca skill share link.'
         )
       )
       return

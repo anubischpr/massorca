@@ -72,25 +72,6 @@
         }
       }
     },
-    "0a65128f608d": {
-      "crash": {
-        "$rpc": "null"
-      },
-      "elements": {
-        "Pressable": 2,
-        "Text": 6,
-        "View": 3
-      },
-      "labels": ["Send test notification"],
-      "text": [
-        "Having trouble receiving alerts?",
-        "Send a test through MassOrca’s push service.",
-        "Send test notification",
-        "Send test notification",
-        "Troubleshooting",
-        "Accepted by Orca’s push service. Check for the notification."
-      ]
-    },
     "0bfc5a373e4d": {
       "name": "notifications.testPush#1",
       "ordinal": 1,
@@ -293,6 +274,25 @@
         "Troubleshooting"
       ]
     },
+    "8136a9c34410": {
+      "crash": {
+        "$rpc": "null"
+      },
+      "elements": {
+        "Pressable": 2,
+        "Text": 6,
+        "View": 3
+      },
+      "labels": ["Send test notification"],
+      "text": [
+        "Having trouble receiving alerts?",
+        "Send a test through MassOrca’s push service.",
+        "Send test notification",
+        "Send test notification",
+        "Troubleshooting",
+        "Accepted by MassOrca’s push service. Check for the notification."
+      ]
+    },
     "95172d96bab4": {
       "name": "notifications.testPush#1",
       "ordinal": 1,
@@ -401,25 +401,6 @@
         "Troubleshooting"
       ]
     },
-    "c1db1da3a003": {
-      "crash": {
-        "$rpc": "null"
-      },
-      "elements": {
-        "Pressable": 2,
-        "Text": 6,
-        "View": 3
-      },
-      "labels": ["Send test notification"],
-      "text": [
-        "Having trouble receiving alerts?",
-        "Send a test through MassOrca’s push service.",
-        "Send test notification",
-        "Send test notification",
-        "Troubleshooting",
-        "Could not send through Orca’s push service. Try again."
-      ]
-    },
     "c37bd4097e53": {
       "name": "notifications.testPush#1",
       "ordinal": 1,
@@ -491,6 +472,25 @@
           "ok": false
         }
       }
+    },
+    "c70e63b23475": {
+      "crash": {
+        "$rpc": "null"
+      },
+      "elements": {
+        "Pressable": 2,
+        "Text": 6,
+        "View": 3
+      },
+      "labels": ["Send test notification"],
+      "text": [
+        "Having trouble receiving alerts?",
+        "Send a test through MassOrca’s push service.",
+        "Send test notification",
+        "Send test notification",
+        "Troubleshooting",
+        "Could not send through MassOrca’s push service. Try again."
+      ]
     },
     "e9e1e5c311b4": {
       "crash": {
@@ -598,7 +598,7 @@
             "mount": "eb79a9b3682a",
             "press": "eb79a9b3682a"
           },
-          "state": "0a65128f608d",
+          "state": "8136a9c34410",
           "effects": []
         }
       },
@@ -611,7 +611,7 @@
             "mount": "eb79a9b3682a",
             "press": "eb79a9b3682a"
           },
-          "state": "c1db1da3a003",
+          "state": "c70e63b23475",
           "effects": []
         }
       },
@@ -624,7 +624,7 @@
             "mount": "eb79a9b3682a",
             "press": "eb79a9b3682a"
           },
-          "state": "c1db1da3a003",
+          "state": "c70e63b23475",
           "effects": []
         }
       },
@@ -637,7 +637,7 @@
             "mount": "eb79a9b3682a",
             "press": "eb79a9b3682a"
           },
-          "state": "c1db1da3a003",
+          "state": "c70e63b23475",
           "effects": []
         }
       },
@@ -650,7 +650,7 @@
             "mount": "eb79a9b3682a",
             "press": "eb79a9b3682a"
           },
-          "state": "c1db1da3a003",
+          "state": "c70e63b23475",
           "effects": []
         }
       },
@@ -663,7 +663,7 @@
             "mount": "eb79a9b3682a",
             "press": "eb79a9b3682a"
           },
-          "state": "c1db1da3a003",
+          "state": "c70e63b23475",
           "effects": []
         }
       },

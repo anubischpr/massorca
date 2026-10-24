@@ -94,7 +94,10 @@ function renderLoadedChatThenFailedRead(
 
 it.each([
   ['journalCorrupt', 'Unable to load this chat.'],
-  ['journalWrittenByNewerOrca', 'This chat was saved by a newer Orca. Update Orca to open it.']
+  [
+    'journalWrittenByNewerOrca',
+    'This chat was saved by a newer MassOrca. Update MassOrca to open it.'
+  ]
 ] as const)('a %s read after the transcript loaded leaves only its words', (reason, words) => {
   renderLoadedChatThenFailedRead(reason)
 

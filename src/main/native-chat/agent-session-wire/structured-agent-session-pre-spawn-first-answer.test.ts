@@ -174,7 +174,7 @@ describe('a create that fails before any process spawns', () => {
       'a Command setting that names no runnable program',
       'the claude Command setting is not a runnable program',
       'agentCommandNotRunnable',
-      "Claude's Command in Settings → Agents must be a program path or name Orca can find, with no arguments or variables. Change it or reset it."
+      "Claude's Command in Settings → Agents must be a program path or name MassOrca can find, with no arguments or variables. Change it or reset it."
     ],
     [
       "Orca's own reason",

@@ -168,7 +168,7 @@ test.describe('SSH config host import (bulk + settings re-adopt)', () => {
     const alphaRow = configHostRow(picker, hosts.alpha)
     await expect(alphaRow).toBeVisible()
     await expect(alphaRow).toBeEnabled()
-    await expect(alphaRow.getByText('Removed from Orca', { exact: true })).toBeVisible()
+    await expect(alphaRow.getByText('Removed from MassOrca', { exact: true })).toBeVisible()
     await expect(alphaRow.getByText('In Orca', { exact: true })).toHaveCount(0)
     await expect(configHostRow(picker, hosts.bravo)).toBeVisible()
     await expect(

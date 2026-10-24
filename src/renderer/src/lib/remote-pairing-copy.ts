@@ -10,7 +10,7 @@ export function translateHostAccessLinkError(kind: HostAccessLinkErrorKind): str
     case 'invalid-input':
       return translate(
         'auto.lib.remotePairingCopy.invalidInput',
-        'Enter an MassOrca access link or bare pairing code.'
+        'Enter a MassOrca access link or bare pairing code.'
       )
     case 'mobile-only':
       return translate(

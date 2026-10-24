@@ -36,7 +36,7 @@ function operationError(status: string): string {
       )
     : translate(
         'auto.components.skills.SkillShareDialog.unconfigured',
-        'Connect an MassOrca Cloud account before sharing.'
+        'Connect a MassOrca Cloud account before sharing.'
       )
 }
 
