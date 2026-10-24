@@ -70,15 +70,6 @@
         "startedAt": 0
       }
     },
-    "14804a5e414f": {
-      "status": "fulfilled",
-      "startedAt": 0,
-      "settledAt": 0,
-      "value": {
-        "kind": "unavailable",
-        "message": "Update MassOrca desktop to review changes on mobile."
-      }
-    },
     "15f193a5a1c7": {
       "name": "git.branchCompare#1",
       "ordinal": 9,
@@ -481,14 +472,6 @@
       "ordinal": 7,
       "json": "{\"id\":\"frame-3\",\"deviceToken\":\"recording-device\",\"method\":\"repo.list\"}"
     },
-    "55c07df45014": {
-      "branchCompare": "unloaded",
-      "diff": "unloaded",
-      "snapshot": {
-        "kind": "unavailable",
-        "message": "Update MassOrca desktop to review changes on mobile."
-      }
-    },
     "5a46fcc976ac": {
       "name": "git.status#1",
       "ordinal": 1,
@@ -537,6 +520,14 @@
         "category": "Error",
         "message": "Unable to load changes",
         "isRpcDeliveryUnknown": false
+      }
+    },
+    "87b1fc6da297": {
+      "branchCompare": "unloaded",
+      "diff": "unloaded",
+      "snapshot": {
+        "kind": "unavailable",
+        "message": "Update MassOrca desktop to review changes on mobile."
       }
     },
     "880bffe257f0": {
@@ -631,6 +622,15 @@
         "category": "Error",
         "message": "transport failure",
         "isRpcDeliveryUnknown": true
+      }
+    },
+    "af52279cafd2": {
+      "status": "fulfilled",
+      "startedAt": 0,
+      "settledAt": 0,
+      "value": {
+        "kind": "unavailable",
+        "message": "Update MassOrca desktop to review changes on mobile."
       }
     },
     "b2181825a3ca": {
@@ -1073,9 +1073,9 @@
           "sender": ["45d1ea7c0b42"],
           "payloads": ["168d1f64ca9b"],
           "settlements": {
-            "snapshot": "14804a5e414f"
+            "snapshot": "af52279cafd2"
           },
-          "state": "55c07df45014",
+          "state": "87b1fc6da297",
           "effects": []
         }
       },
