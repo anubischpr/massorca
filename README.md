@@ -38,7 +38,7 @@
 
 Monitor and steer your agents from your phone — get notified when an agent finishes and send follow-ups from anywhere.
 
-[Android APK](https://github.com/anubischpr/massorca/releases) · [Docs →](https://www.onorca.dev/docs/mobile)
+[Android APK](https://github.com/anubischpr/massorca/releases?q=mobile-android) · [Install and pairing guide →](docs/readme/massorca-mobile.md)
 
 </td>
 <td width="50%">
@@ -225,7 +225,7 @@ Works with **any CLI agent** — if it runs in a terminal, it runs in MassOrca.
 
 Pair with your desktop app to monitor and steer your agents from your phone.
 
-- **Android:** download the APK from [GitHub Releases](https://github.com/anubischpr/massorca/releases) · [Install guide](https://www.onorca.dev/docs/android-apk)
+- **Android:** download the APK from [GitHub Releases](https://github.com/anubischpr/massorca/releases) · [Install guide](docs/readme/massorca-mobile.md#android)
 
 ---
 
