@@ -99,7 +99,7 @@ test.describe('SSH config host picker', () => {
     await expect(
       hostList.getByText(hostEndpointSummary(hosts.bravo), { exact: true })
     ).toBeVisible()
-    await expect(picker.getByRole('button', { name: 'Add all 2 to Orca' })).toBeEnabled()
+    await expect(picker.getByRole('button', { name: 'Add all 2 to MassOrca' })).toBeEnabled()
   })
 
   // ── P3 + N3 ────────────────────────────────────────────────────────
