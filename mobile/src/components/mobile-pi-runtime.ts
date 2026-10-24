@@ -2,8 +2,11 @@ import { formatAgentRowTypeLabel, type PiRowRuntime } from '../../../src/shared/
 import { piRuntimeForSessionFilePath } from '../../../src/shared/pi-runtime-selection'
 
 // Why: the host sends `piRuntime` only for Gentle Shell; stock Pi and older hosts omit it and keep the Pi identity.
-export function mobilePiRuntimeFromMarker(wireRow: object): PiRowRuntime {
-  return 'piRuntime' in wireRow && wireRow.piRuntime === 'gentle-shell' ? 'gentle-shell' : 'pi'
+/** A host row or chat tab that may carry the Gentle Shell marker; unknown values read as stock Pi. */
+export type MobilePiRuntimeMarker = { readonly piRuntime?: unknown }
+
+export function mobilePiRuntimeFromMarker(marker: MobilePiRuntimeMarker): PiRowRuntime {
+  return marker.piRuntime === 'gentle-shell' ? 'gentle-shell' : 'pi'
 }
 
 export function mobilePiRuntimeFromTranscriptPath(

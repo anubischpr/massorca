@@ -7,14 +7,13 @@ import {
 
 describe('mobilePiRuntimeFromMarker', () => {
   it('reads Gentle Shell from the host marker', () => {
-    expect(mobilePiRuntimeFromMarker({ agentType: 'pi', piRuntime: 'gentle-shell' })).toBe(
-      'gentle-shell'
-    )
+    expect(mobilePiRuntimeFromMarker({ piRuntime: 'gentle-shell' })).toBe('gentle-shell')
   })
 
   it('keeps the stock Pi identity for stock rows and hosts that never send the marker', () => {
-    expect(mobilePiRuntimeFromMarker({ agentType: 'pi' })).toBe('pi')
+    expect(mobilePiRuntimeFromMarker({})).toBe('pi')
     expect(mobilePiRuntimeFromMarker({ piRuntime: undefined })).toBe('pi')
+    expect(mobilePiRuntimeFromMarker({ piRuntime: 'future-pi' })).toBe('pi')
   })
 })
 
