@@ -7,7 +7,6 @@ import {
   saveAppUpdateCheck,
   saveDismissedAppUpdateVersion
 } from '../storage/app-update-preferences'
-import { appStoreUpdateSource } from './app-store-update-source'
 import { createAppUpdateChecker, type AppUpdateState } from './app-update-checker'
 import type { AppUpdateSource } from './app-update-source'
 import { githubReleaseUpdateSource } from './github-release-update-source'
@@ -19,13 +18,10 @@ import { githubReleaseUpdateSource } from './github-release-update-source'
  */
 export const installedAppVersion: string | null = Constants.expoConfig?.version ?? null
 
-/** The channel that installed this binary. */
+/** The channel that installed this binary. MassOrca has no App Store listing, so iOS has no feed. */
 function resolveAppUpdateSource(): AppUpdateSource | null {
   if (Platform.OS === 'android') {
     return githubReleaseUpdateSource
-  }
-  if (Platform.OS === 'ios') {
-    return appStoreUpdateSource
   }
   return null
 }
@@ -53,7 +49,7 @@ export function useAppUpdateState(): AppUpdateState {
   return useSyncExternalStore(appUpdateChecker.subscribe, appUpdateChecker.getSnapshot)
 }
 
-/** Opens the channel's page for the update: the GitHub release (Android) or App Store (iOS). */
+/** Opens the channel's page for the update: the GitHub release. */
 export function openAppUpdate(url: string): void {
   void Linking.openURL(url).catch(() => {})
 }

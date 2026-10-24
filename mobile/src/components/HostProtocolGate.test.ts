@@ -108,7 +108,7 @@ describe('HostProtocolGate', () => {
     renderer = await renderGate()
     const output = renderedText(renderer)
     expect(output).toContain('Update MassOrca Mobile')
-    expect(output).toContain('Open App Store')
+    expect(output).toContain('Open GitHub Releases')
     expect(output).not.toContain('HostContent')
   })
 
