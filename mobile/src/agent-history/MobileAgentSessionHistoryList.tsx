@@ -115,7 +115,7 @@ function AgentHistoryCardRow({
       onPress={onPress}
     >
       <View style={styles.cardTopRow}>
-        <MobileAgentIcon agentId={card.agent} size={16} />
+        <MobileAgentIcon agentId={card.agent} size={16} piRuntime={card.piRuntime} />
         <Text style={styles.cardTitle} numberOfLines={1}>
           {card.title}
         </Text>

@@ -5,6 +5,7 @@ import { colors, radii, spacing } from '../theme/mobile-theme'
 import { agentDotState } from '../worktree/agent-row-display'
 import { AgentStateDot } from './AgentStateDot'
 import { MobileAgentIcon } from './MobileAgentIcon'
+import { mobilePiRuntimeFromMarker } from './mobile-pi-runtime'
 
 const MAX_VISIBLE_AGENTS = 3
 
@@ -42,7 +43,13 @@ export function WorktreeAgentSummary({ agents, expanded, now, onToggle }: Props)
           {visibleAgents.map((agent) => (
             <View key={agent.paneKey} style={styles.agentStatus}>
               <AgentStateDot state={agentDotState(agent, now)} />
-              {agent.agentType ? <MobileAgentIcon agentId={agent.agentType} size={13} /> : null}
+              {agent.agentType ? (
+                <MobileAgentIcon
+                  agentId={agent.agentType}
+                  size={13}
+                  piRuntime={mobilePiRuntimeFromMarker(agent)}
+                />
+              ) : null}
             </View>
           ))}
           {hiddenCount > 0 ? <Text style={styles.hiddenCount}>+{hiddenCount}</Text> : null}

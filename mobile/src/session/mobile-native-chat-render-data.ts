@@ -1,4 +1,4 @@
-import { formatAgentTypeLabel } from '../../../src/shared/agent-type-label'
+import { formatAgentRowTypeLabel, type PiRowRuntime } from '../../../src/shared/agent-type-label'
 import {
   formatNativeChatEmptyStateCopy,
   type NativeChatEmptyStateCopy
@@ -21,9 +21,11 @@ import type { MobileNativeChatStatus } from './use-mobile-native-chat-session'
 export function mobileNativeChatEmptyState(
   status: MobileNativeChatStatus,
   agent: string | null,
-  error?: string
+  error?: string,
+  /** Names a Gentle Shell chat; omitted reads as stock Pi. */
+  piRuntime?: PiRowRuntime
 ): NativeChatEmptyStateCopy | null {
-  const agentLabel = agent ? formatAgentTypeLabel(agent) : 'the agent'
+  const agentLabel = agent ? formatAgentRowTypeLabel({ agentType: agent }, piRuntime) : 'the agent'
   switch (status) {
     // A live agent with no transcript yet — an unwritten transcript file, or a
     // loaded-but-empty one — is "start a chat"; invite the first message instead

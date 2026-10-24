@@ -49,3 +49,6 @@ export const MOBILE_AGENT_ICON_ASSETS: Partial<Record<TuiAgent, ImageSourcePropT
   openclaw: require('../../../src/shared/agent-icons/openclaw.png'),
   jcode: require('../../../src/shared/agent-icons/jcode.png')
 }
+
+/** Gentle Shell is a Pi runtime, not a TUI agent id, so its rose is kept beside the agent map. */
+export const MOBILE_GENTLE_SHELL_ICON_ASSET: ImageSourcePropType = require('../../../src/shared/agent-icons/gentle-shell.png')

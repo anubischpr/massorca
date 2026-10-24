@@ -14,9 +14,11 @@ import { MobileSessionHeaderIconButton } from './MobileSessionHeaderIconButton'
 import { triggerMediumImpact } from '../platform/haptics'
 import { StatusDot } from '../components/StatusDot'
 import { MobileAgentIcon } from '../components/MobileAgentIcon'
+import { mobilePiRuntimeFromMarker } from '../components/mobile-pi-runtime'
 import {
   getMobileSessionTabTitle,
-  resolveMobileTerminalTabAgentId
+  resolveMobileTerminalTabAgentId,
+  resolveMobileTerminalTabPiRuntime
 } from './mobile-terminal-tab-agent'
 import { colors } from '../theme/mobile-theme'
 import { QuickCommandsTabButton } from './QuickCommandsTabButton'
@@ -171,11 +173,23 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
                   {t.type === 'file' && (
                     <File size={13} color={colors.textSecondary} strokeWidth={2.1} />
                   )}
-                  {t.type === 'agent-session' && <MobileAgentIcon agentId={t.agent} size={13} />}
+                  {t.type === 'agent-session' && (
+                    <MobileAgentIcon
+                      agentId={t.agent}
+                      size={13}
+                      piRuntime={mobilePiRuntimeFromMarker(t)}
+                    />
+                  )}
                   {t.type === 'terminal' &&
                     (() => {
                       const agentId = resolveMobileTerminalTabAgentId(t)
-                      return agentId ? <MobileAgentIcon agentId={agentId} size={13} /> : null
+                      return agentId ? (
+                        <MobileAgentIcon
+                          agentId={agentId}
+                          size={13}
+                          piRuntime={resolveMobileTerminalTabPiRuntime(t)}
+                        />
+                      ) : null
                     })()}
                   <Text
                     style={[styles.tabText, t.id === activeSessionTabId && styles.tabTextActive]}

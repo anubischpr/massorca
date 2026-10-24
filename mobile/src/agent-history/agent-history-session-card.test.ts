@@ -60,6 +60,22 @@ describe('buildMobileAgentHistoryCard', () => {
     expect(card.title).toBe('Untitled session')
     expect(card.isCurrentWorktree).toBe(false)
   })
+
+  it('names a Gentle Shell session from its transcript home and keeps stock Pi as Pi', () => {
+    const gentleShell = buildMobileAgentHistoryCard(
+      session({ agent: 'pi', filePath: '/Users/ada/.gentle-shell/agent/sessions/s.jsonl' }),
+      null,
+      NOW
+    )
+    expect(gentleShell).toMatchObject({ agentLabel: 'Gentle Shell', piRuntime: 'gentle-shell' })
+    const stockPi = buildMobileAgentHistoryCard(
+      session({ agent: 'pi', filePath: '/Users/ada/.pi/agent/sessions/s.jsonl' }),
+      null,
+      NOW
+    )
+    expect(stockPi).toMatchObject({ agentLabel: 'Pi', piRuntime: 'pi' })
+    expect(buildMobileAgentHistoryCard(session(), null, NOW)).not.toHaveProperty('piRuntime')
+  })
 })
 
 describe('buildMobileAgentHistoryResumeActionState', () => {

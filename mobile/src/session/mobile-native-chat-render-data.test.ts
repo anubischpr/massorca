@@ -52,6 +52,13 @@ describe('mobileNativeChatEmptyState', () => {
     )
   })
 
+  it('names a Gentle Shell chat with its own label and leaves stock Pi as Pi', () => {
+    expect(mobileNativeChatEmptyState('ready', 'pi', undefined, 'gentle-shell')?.title).toBe(
+      'Start a chat with Gentle Shell'
+    )
+    expect(mobileNativeChatEmptyState('ready', 'pi')?.title).toBe('Start a chat with Pi')
+  })
+
   it('returns null for states that show no empty copy', () => {
     expect(mobileNativeChatEmptyState('loading', 'claude')).toBeNull()
     expect(mobileNativeChatEmptyState('idle', 'claude')).toBeNull()

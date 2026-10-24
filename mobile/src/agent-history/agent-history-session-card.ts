@@ -2,12 +2,19 @@ import { isPathInsideOrEqual } from '../../../src/shared/cross-platform-path'
 import { latestSessionConversationTurn } from '../../../src/shared/ai-vault-session-display'
 import { aiVaultAgentLabel } from '../../../src/shared/ai-vault-types'
 import type { AiVaultSession } from '../../../src/shared/ai-vault-types'
+import type { PiRowRuntime } from '../../../src/shared/agent-type-label'
+import {
+  mobilePiAgentLabel,
+  mobilePiRuntimeFromTranscriptPath
+} from '../components/mobile-pi-runtime'
 import { formatTimeAgo } from '../worktree/agent-row-display'
 
 export type MobileAgentHistoryCard = {
   id: string
   agent: AiVaultSession['agent']
   agentLabel: string
+  /** Set only for a Pi session; the runtime its icon and label name. */
+  piRuntime?: PiRowRuntime
   title: string
   lastMessage: string
   messageCount: number
@@ -40,10 +47,13 @@ export function buildMobileAgentHistoryCard(
 ): MobileAgentHistoryCard {
   const latestTurn = latestSessionConversationTurn(session)
   const updatedAtMs = Date.parse(session.updatedAt ?? session.modifiedAt)
+  const piRuntime =
+    session.agent === 'pi' ? mobilePiRuntimeFromTranscriptPath(session.filePath) : undefined
   return {
     id: session.id,
     agent: session.agent,
-    agentLabel: aiVaultAgentLabel(session.agent),
+    agentLabel: piRuntime ? mobilePiAgentLabel(piRuntime) : aiVaultAgentLabel(session.agent),
+    ...(piRuntime ? { piRuntime } : {}),
     title: session.title || 'Untitled session',
     lastMessage: latestTurn?.text.trim() ?? '',
     messageCount: session.messageCount,
