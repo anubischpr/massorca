@@ -1,4 +1,5 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
+import type { PiRowRuntime } from '../../../src/shared/agent-type-label'
 import type {
   AskAnswerSelection,
   AskPrompt,
@@ -28,6 +29,7 @@ export type MobileNativeChatController = {
   showNativeChatRef: MutableRefObject<boolean>
   /** Resolved agent for the active chat tab (names the empty-state copy). */
   nativeChatAgent: string | null
+  nativeChatPiRuntime?: PiRowRuntime
   chatComposerText: string
   setChatComposerText: Dispatch<SetStateAction<string>>
   getChatComposerEditGeneration: () => number

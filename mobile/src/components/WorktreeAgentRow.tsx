@@ -11,6 +11,7 @@ import {
 } from '../worktree/agent-row-display'
 import { AgentStateDot } from './AgentStateDot'
 import { MobileAgentIcon } from './MobileAgentIcon'
+import { mobilePiRuntimeFromMarker } from './mobile-pi-runtime'
 
 const INDENT_PER_DEPTH = 14
 
@@ -43,7 +44,13 @@ function WorktreeAgentRowComponent({ agent, depth, now, unvisited }: Props) {
       <AgentStateDot state={dotState} />
       {/* Agent identity logo (Claude/Codex/…), matching the desktop sidebar's
           agent icons instead of a two-letter text code. */}
-      {agent.agentType ? <MobileAgentIcon agentId={agent.agentType} size={13} /> : null}
+      {agent.agentType ? (
+        <MobileAgentIcon
+          agentId={agent.agentType}
+          size={13}
+          piRuntime={mobilePiRuntimeFromMarker(agent)}
+        />
+      ) : null}
       <Text style={[styles.label, unvisited && styles.labelUnvisited]} numberOfLines={1}>
         {label}
       </Text>

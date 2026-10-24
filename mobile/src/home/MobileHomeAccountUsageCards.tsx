@@ -8,6 +8,7 @@ import {
   type AccountsSnapshot,
   type ProviderKey
 } from '../components/AccountUsage'
+import { MobileHostUsageMeterRows } from '../components/MobileHostUsageMeterRows'
 import { colors, radii, spacing } from '../theme/mobile-theme'
 import type { HostProfile } from '../transport/types'
 
@@ -82,6 +83,7 @@ export function MobileHomeAccountUsageCards(props: {
                 </View>
               )
             })}
+            <MobileHostUsageMeterRows snapshot={snapshot} />
           </Pressable>
         )
       })}

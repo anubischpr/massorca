@@ -5,6 +5,43 @@ import { OrcaRuntimeService } from './orca-runtime'
 afterEach(() => setStructuredAgentSessionHost(null))
 
 describe('structured session cold restoration', () => {
+  it('marks a Gentle Shell chat tab from its record and leaves a stock Pi tab unmarked', async () => {
+    const record = (workspaceId: string, piRuntime: string) => ({
+      provider: 'pi',
+      location: { workspaceId },
+      options: { piRuntime }
+    })
+    const records: Record<string, ReturnType<typeof record>> = {
+      'gentle-session': record('workspace-gentle', 'gentle-shell'),
+      'stock-session': record('workspace-stock', 'pi')
+    }
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: tab projection reads only each record's provider and options from this host stub.
+    setStructuredAgentSessionHost({
+      deps: { store: { getRecord: (sessionId: string) => records[sessionId] } },
+      conversationReplacements: () => []
+    } as never)
+    const runtime = new OrcaRuntimeService()
+    runtime.projectStructuredAgentSessionTab({
+      activate: false,
+      sessionId: 'gentle-session',
+      workspaceId: 'workspace-gentle',
+      agent: 'pi'
+    })
+    runtime.projectStructuredAgentSessionTab({
+      activate: false,
+      sessionId: 'stock-session',
+      workspaceId: 'workspace-stock',
+      agent: 'pi'
+    })
+    const gentle = await runtime.listMobileSessionTabs('id:workspace-gentle')
+    const stock = await runtime.listMobileSessionTabs('id:workspace-stock')
+    expect(gentle.tabs[0]).toMatchObject({
+      id: 'agent-session:gentle-session',
+      piRuntime: 'gentle-shell'
+    })
+    expect(stock.tabs[0]).not.toHaveProperty('piRuntime')
+  })
+
   it('publishes a versioned title change and derives listAll titles from the record', async () => {
     const runtime = new OrcaRuntimeService()
     runtime.projectStructuredAgentSessionTab({

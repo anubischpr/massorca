@@ -21,4 +21,6 @@ export type RuntimeWorktreeAgentSource = {
   updatedAt: number
   /** Projected by the structured session host; `owned` rows stay fresh past the staleness window. */
   structuredHost?: StructuredHostStatus
+  /** Gentle Shell marks a Pi row, from its structured record or transcript; stock Pi omits it. */
+  piRuntime?: 'gentle-shell'
 }

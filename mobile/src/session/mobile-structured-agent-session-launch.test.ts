@@ -122,6 +122,81 @@ describe('mobile structured agent-session launch', () => {
     })
   })
 
+  it('creates a Pi chat in the Gentle Shell runtime the host answered for an unnamed probe', async () => {
+    const client = clientReturning(
+      { ok: true, result: { supported: true, piRuntime: 'gentle-shell' } },
+      {
+        ok: true,
+        result: {
+          ...acceptedCreateResult,
+          value: { ...acceptedCreateResult.value, sessionId: 'pi_session_1' }
+        }
+      }
+    )
+
+    await expect(
+      createMobileStructuredAgentSession(client, 'workspace-1', 'pi')
+    ).resolves.toMatchObject({ kind: 'created', sessionId: 'pi_session_1' })
+    expect(client.sendRequest).toHaveBeenNthCalledWith(1, 'agentSession.createSupport', {
+      worktree: 'id:workspace-1',
+      agent: 'pi'
+    })
+    expect(client.sendRequest.mock.calls[1]?.[1]).toMatchObject({
+      agent: 'pi',
+      piRuntime: 'gentle-shell'
+    })
+  })
+
+  it('takes the Pi runtime from the seed options when the probe answers only there', async () => {
+    const client = clientReturning(
+      { ok: true, result: { supported: true, seedOptions: { piRuntime: 'gentle-shell' } } },
+      acceptedCreate
+    )
+
+    await createMobileStructuredAgentSession(client, 'workspace-1', 'pi')
+    expect(client.sendRequest.mock.calls[1]?.[1]).toMatchObject({ piRuntime: 'gentle-shell' })
+  })
+
+  it('forwards no runtime for another agent or for an answer that names none', async () => {
+    const codex = clientReturning(
+      { ok: true, result: { supported: true, piRuntime: 'gentle-shell' } },
+      acceptedCreate
+    )
+    await createMobileStructuredAgentSession(codex, 'workspace-1', 'codex')
+    expect(codex.sendRequest.mock.calls[1]?.[1]).not.toHaveProperty('piRuntime')
+
+    const invalid = clientReturning(
+      { ok: true, result: { supported: true, piRuntime: 'bogus' } },
+      acceptedCreate
+    )
+    await createMobileStructuredAgentSession(invalid, 'workspace-1', 'pi')
+    expect(invalid.sendRequest.mock.calls[1]?.[1]).not.toHaveProperty('piRuntime')
+  })
+
+  it('reports a stock Pi chat that needs full access as unsupported with that reason', async () => {
+    const client = clientReturning({ ok: true, result: { supported: false, reason: 'access' } })
+
+    await expect(createMobileStructuredAgentSession(client, 'workspace-1', 'pi')).resolves.toEqual({
+      kind: 'unsupported',
+      reason: 'access'
+    })
+    expect(client.sendRequest).toHaveBeenCalledTimes(1)
+  })
+
+  it('names an agent with no display-table entry by its id in the unconfirmed copy', async () => {
+    const client = clientReturning(
+      { ok: true, result: { supported: true } },
+      { ok: true, result: { ok: 'yes' } }
+    )
+
+    await expect(
+      createMobileStructuredAgentSession(client, 'workspace-1', 'acme-agent')
+    ).resolves.toEqual({
+      kind: 'unknown',
+      message: 'The acme-agent chat result could not be confirmed.'
+    })
+  })
+
   it('names the refusing agent in the failure copy rather than always saying Codex', async () => {
     const client = clientReturning(
       { ok: true, result: { supported: true } },

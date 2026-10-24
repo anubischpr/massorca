@@ -4,6 +4,8 @@ import type { AgentStatusEntry } from '../../../src/shared/agent-status-types'
 import type { TuiAgent } from '../../../src/shared/tui-agent'
 import { isBlankBrowserUrl } from '../browser/browser-url'
 import type { MobileSessionTab } from './mobile-session-route-types'
+import type { PiRowRuntime } from '../../../src/shared/agent-type-label'
+import { mobilePiRuntimeFromTranscriptPath } from '../components/mobile-pi-runtime'
 
 // Why: tab identity + title cleaning uses the same shared glyph/label maps as
 // desktop, so the two platforms do not drift on which titles identify agents.
@@ -43,6 +45,15 @@ export function resolveMobileTerminalTabAgentId(
     return ownedAgent
   }
   return resolveExplicitTerminalTitleAgentType(tab.title)
+}
+
+type MobileTerminalTabPiIdentity = {
+  agentStatus?: { providerSession?: { transcriptPath?: string } } | null
+}
+
+/** The Pi runtime a terminal tab runs, read from the transcript its agent status names; no transcript is stock Pi. */
+export function resolveMobileTerminalTabPiRuntime(tab: MobileTerminalTabPiIdentity): PiRowRuntime {
+  return mobilePiRuntimeFromTranscriptPath(tab.agentStatus?.providerSession?.transcriptPath)
 }
 
 export function getMobileSessionTabTitle(tab: MobileSessionTab): string {

@@ -99,7 +99,7 @@ export function useMobileStructuredSendWithOutcome(args: {
         fence: currentFence,
         pending: commandPending,
         controller: {
-          agent: agent === 'claude' ? 'claude' : 'codex',
+          ...(agent ? { agent } : {}),
           ...controller
         },
         busy: () =>

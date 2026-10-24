@@ -33,6 +33,8 @@ export type RuntimeWorktreeAgentRow = {
   /** The structured session host still runs this row's provider child, so it is fresh regardless
    *  of age. Optional on the wire: old hosts never send it. */
   structuredHostOwned?: true
+  /** Gentle Shell marks a Pi row; stock Pi and other agents omit it. Optional on the wire: old hosts never send it. */
+  piRuntime?: 'gentle-shell'
 }
 
 export type RuntimeWorktreePsSummary = {

@@ -61,6 +61,7 @@ type Props = ComposerTrayProps & {
   readFailedFinally?: boolean
   /** Resolved agent for this chat; names the empty-state copy (desktop parity). */
   agent?: string | null
+  piRuntime?: Parameters<typeof mobileNativeChatEmptyState>[3]
   agentWorking?: boolean
   canStop?: boolean
   /** Structured lane: per-turn "Working for N" status plus live tool progress,
@@ -157,6 +158,7 @@ export function MobileNativeChatView({
   error,
   readFailedFinally = false,
   agent,
+  piRuntime,
   agentWorking,
   canStop = agentWorking,
   structuredActivityUi = false,
@@ -321,7 +323,7 @@ export function MobileNativeChatView({
     />
   ) : null
 
-  const emptyState = mobileNativeChatEmptyState(status, agent ?? null, error)
+  const emptyState = mobileNativeChatEmptyState(status, agent ?? null, error, piRuntime)
   const showLoading = status === 'loading' && messages.length === 0
 
   const lockReason = useSettledMobileNativeChatInputLock(inputLockReason)

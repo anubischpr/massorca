@@ -7,7 +7,11 @@ import {
   AGENT_SESSION_STATUS_FEED_RUNTIME_CAPABILITY,
   AGENT_SESSION_REPEATED_STOP_RUNTIME_CAPABILITY
 } from '../../../src/shared/protocol-version'
-import { structuredAgentSessionHostSupport } from './mobile-structured-agent-session-host-support'
+import { STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY } from '../../../src/shared/structured-agent-session-surface-capabilities'
+import {
+  structuredAgentSessionHostSupport,
+  structuredChatOfferedFor
+} from './mobile-structured-agent-session-host-support'
 
 describe('structuredAgentSessionHostSupport', () => {
   it('reads each structured-session feature from the host capability list', () => {
@@ -38,5 +42,20 @@ describe('structuredAgentSessionHostSupport', () => {
     expect(
       structuredAgentSessionHostSupport([AGENT_SESSION_STATUS_FEED_RUNTIME_CAPABILITY])
     ).toEqual({ ...none, statusFeed: true })
+  })
+})
+
+describe('structuredChatOfferedFor', () => {
+  const registered = [STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY]
+
+  it('offers Claude and Codex chats on every host, listed or not', () => {
+    expect(structuredChatOfferedFor('claude', [])).toBe(true)
+    expect(structuredChatOfferedFor('codex', null)).toBe(true)
+  })
+
+  it('offers another agent a chat only on a host that lists registered agents', () => {
+    expect(structuredChatOfferedFor('pi', registered)).toBe(true)
+    expect(structuredChatOfferedFor('pi', [])).toBe(false)
+    expect(structuredChatOfferedFor('pi', undefined)).toBe(false)
   })
 })

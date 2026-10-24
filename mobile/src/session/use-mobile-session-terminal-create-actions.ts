@@ -11,7 +11,7 @@ import type { MobileNewTabAgentOption } from './mobile-new-tab-agent-options'
 import type { TerminalQuickCommand } from '../../../src/shared/terminal-quick-command-types'
 import type { MobileSessionTab, Terminal } from './mobile-session-route-types'
 import type { MobileSessionAttachmentsModel } from './use-mobile-session-attachments'
-import { isAgentSessionHandleProvider } from '../../../src/shared/agent-session-provider-handle'
+import { structuredChatOfferedFor } from './mobile-structured-agent-session-host-support'
 import { createMobileStructuredAgentSession } from './mobile-structured-agent-session-launch'
 import { launchesThroughHost, launchNewTabAgentThroughHost } from './new-tab-agent-host-launch'
 import {
@@ -108,7 +108,7 @@ export function useMobileSessionTerminalCreateActions(scope: MobileSessionAttach
       }
       // COMPAT(agent.launch.v2): hosts before v1.4.206 keep the paths below; remove once none remain.
       // Bare structured-provider launches follow host createSupport; prompted launches keep their startup semantics.
-      if (isAgentSessionHandleProvider(agent) && options === undefined) {
+      if (agent && structuredChatOfferedFor(agent, hostCapabilities) && options === undefined) {
         // Armed before asking with nothing to match yet, so a tab picked meanwhile still wins.
         pendingSelectionRef.current = launchedSelection(clientMutationId, {}, null)
         const structured = await createMobileStructuredAgentSession(client, worktreeId, agent)

@@ -101,6 +101,8 @@ export type RuntimeMobileSessionAgentTab = {
   /** An agent the host registered. Beyond Claude and Codex, published only to clients advertising
    *  the registered-agents capability. */
   agent: StructuredAgentId
+  /** Gentle Shell marks a Pi chat; stock Pi and other agents omit it. Optional on the wire: old hosts never send it. */
+  piRuntime?: 'gentle-shell'
   color?: string | null
   isPinned?: boolean
   isActive: boolean

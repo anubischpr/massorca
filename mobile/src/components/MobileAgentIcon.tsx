@@ -2,10 +2,14 @@ import { Image, StyleSheet, Text, View } from 'react-native'
 import type { ImageSourcePropType } from 'react-native'
 import { Terminal } from 'lucide-react-native'
 import type { TuiAgent } from '../../../src/shared/tui-agent'
+import type { PiRowRuntime } from '../../../src/shared/agent-type-label'
 import Svg, { Defs, G, LinearGradient, Path, Stop } from 'react-native-svg'
 import { colors } from '../theme/mobile-theme'
 import { MOBILE_AGENT_CATALOG } from '../tasks/mobile-agent-catalog'
-import { MOBILE_AGENT_ICON_ASSETS } from './mobile-agent-icon-assets'
+import {
+  MOBILE_AGENT_ICON_ASSETS,
+  MOBILE_GENTLE_SHELL_ICON_ASSET
+} from './mobile-agent-icon-assets'
 import { ClaudeIcon, OpenAIIcon } from './AgentIcons'
 
 // Why: agent branding should match the desktop/new-worktree picker everywhere
@@ -85,7 +89,16 @@ function AgentLetterIcon({ letter, size = 16 }: { letter: string; size?: number 
   )
 }
 
-export function MobileAgentIcon({ agentId, size = 16 }: { agentId: string; size?: number }) {
+export function MobileAgentIcon({
+  agentId,
+  size = 16,
+  piRuntime
+}: {
+  agentId: string
+  size?: number
+  /** A Pi-protocol row's runtime; Gentle Shell keeps its own mark, as on desktop. */
+  piRuntime?: PiRowRuntime
+}) {
   if (agentId === 'claude' || agentId === 'claude-agent-teams') {
     return <ClaudeIcon size={size} />
   }
@@ -93,7 +106,11 @@ export function MobileAgentIcon({ agentId, size = 16 }: { agentId: string; size?
     return <OpenAIIcon size={size} />
   }
   if (agentId === 'pi') {
-    return <PiIcon size={size} />
+    return piRuntime === 'gentle-shell' ? (
+      <BundledIcon source={MOBILE_GENTLE_SHELL_ICON_ASSET} size={size} />
+    ) : (
+      <PiIcon size={size} />
+    )
   }
   if (agentId === 'omp') {
     return <OmpIcon size={size} />

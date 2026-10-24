@@ -84,4 +84,31 @@ describe('worktree agent source admission', () => {
     })
     expect(providerSessionOnly.size).toBe(0)
   })
+
+  it('marks a Pi row Gentle Shell only from its own transcript', () => {
+    const pi = { ...hookRow, agentType: 'pi' }
+    const withTranscript = (agentType: string, transcriptPath: string): AgentStatusIpcPayload => ({
+      ...hookRow,
+      agentType,
+      providerSession: { key: 'session_id', id: 'session', transcriptPath }
+    })
+    const piRuntimeOf = (row: AgentStatusIpcPayload) =>
+      collectRuntimeWorktreeAgentSources({ ...connected, hookSnapshots: [row] }).get(paneKey)
+        ?.piRuntime
+    const gentleShellHome = '/home/ada/.gentle-shell/agent/sessions/s.jsonl'
+
+    expect(piRuntimeOf(withTranscript('pi', gentleShellHome))).toBe('gentle-shell')
+    expect(
+      piRuntimeOf(withTranscript('pi', 'C:\\Users\\ada\\.gentle-shell\\sessions\\s.jsonl'))
+    ).toBe('gentle-shell')
+    expect(
+      piRuntimeOf(withTranscript('pi', '/home/ada/.pi/agent/sessions/s.jsonl'))
+    ).toBeUndefined()
+    expect(piRuntimeOf(withTranscript('codex', gentleShellHome))).toBeUndefined()
+    expect(piRuntimeOf(pi)).toBeUndefined()
+    // A structured row skips the PTY gate and reads the same transcript evidence.
+    expect(piRuntimeOf({ ...withTranscript('pi', gentleShellHome), structuredHost: 'owned' })).toBe(
+      'gentle-shell'
+    )
+  })
 })

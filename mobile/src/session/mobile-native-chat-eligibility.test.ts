@@ -168,13 +168,34 @@ describe('resolveMobileNativeChat', () => {
     })
   })
 
-  it('rejects structured agent-session tabs whose provider the reducer cannot replay', () => {
+  it('resolves structured agent-session tabs for any agent id the host sent', () => {
+    for (const agent of ['antigravity', 'grok']) {
+      expect(
+        resolveMobileNativeChat({ type: 'agent-session', sessionId: 'structured-1', agent })
+      ).toEqual({ agent, sessionId: 'structured-1', transcriptPath: null })
+    }
+  })
+
+  it('names the Pi runtime of a structured Pi chat from the host marker', () => {
+    const tab = { type: 'agent-session', sessionId: 'pi_1', agent: 'pi' }
+    expect(resolveMobileNativeChat(tab)?.piRuntime).toBe('pi')
+    expect(resolveMobileNativeChat({ ...tab, piRuntime: 'gentle-shell' })?.piRuntime).toBe(
+      'gentle-shell'
+    )
+    // An unknown marker from a newer host keeps the stock identity rather than failing.
+    expect(resolveMobileNativeChat({ ...tab, piRuntime: 'future-pi' })?.piRuntime).toBe('pi')
+  })
+
+  it('rejects structured agent-session tabs whose agent is not an agent id', () => {
     expect(
       resolveMobileNativeChat({
         type: 'agent-session',
         sessionId: 'structured-1',
-        agent: 'grok'
+        agent: 'not an agent'
       })
+    ).toBeNull()
+    expect(
+      resolveMobileNativeChat({ type: 'agent-session', sessionId: 'structured-1', agent: null })
     ).toBeNull()
   })
 

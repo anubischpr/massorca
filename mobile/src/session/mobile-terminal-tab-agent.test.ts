@@ -5,7 +5,8 @@ import type { MobileSessionTab } from './mobile-session-route-types'
 import {
   getMobileSessionTabTitle,
   resolveMobileTerminalTabAgentId,
-  resolveMobileTerminalTabOwnedAgentId
+  resolveMobileTerminalTabOwnedAgentId,
+  resolveMobileTerminalTabPiRuntime
 } from './mobile-terminal-tab-agent'
 
 function agentStatus(agentType: string | undefined): AgentStatusEntry {
@@ -132,5 +133,34 @@ describe('getMobileSessionTabTitle', () => {
         isActive: true
       })
     ).toBe('Codex Chat')
+  })
+})
+
+describe('resolveMobileTerminalTabPiRuntime', () => {
+  function transcriptTab(transcriptPath: string): Extract<MobileSessionTab, { type: 'terminal' }> {
+    return {
+      ...terminalTab('Terminal', { agentType: 'pi' }),
+      agentStatus: {
+        ...agentStatus('pi'),
+        providerSession: { key: 'session_id', id: 'session-1', transcriptPath }
+      }
+    }
+  }
+
+  it('reads Gentle Shell from the transcript the agent status names', () => {
+    expect(
+      resolveMobileTerminalTabPiRuntime(
+        transcriptTab('/home/ada/.gentle-shell/agent/sessions/s.jsonl')
+      )
+    ).toBe('gentle-shell')
+  })
+
+  it('reads a stock Pi transcript, or no transcript yet, as stock Pi', () => {
+    expect(
+      resolveMobileTerminalTabPiRuntime(transcriptTab('/home/ada/.pi/agent/sessions/s.jsonl'))
+    ).toBe('pi')
+    expect(resolveMobileTerminalTabPiRuntime(terminalTab('Terminal', { agentType: 'pi' }))).toBe(
+      'pi'
+    )
   })
 })

@@ -2,6 +2,7 @@
 import { defaultAgentChatLabel } from '../../shared/agent-session-chat-label'
 import { OrcaRuntimeWithGetStructuredAgentSessionCreateSupport } from './orca-runtime-get-structured-agent-session-create-support'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
+import { structuredAgentSessionGentleShellMarker } from '../native-chat/agent-session-wire/structured-agent-session-pi-runtime'
 import { collectSavedStructuredAgentSessionIds } from './saved-structured-agent-session-restoration'
 import { seedStructuredAgentSessionTabIndex } from './structured-agent-session-tab-index-seed'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
@@ -139,12 +140,16 @@ export class OrcaRuntimeWithRestoreStructuredAgentSessionTabsOnce extends OrcaRu
       }
       return
     }
+    const piRuntime = structuredAgentSessionGentleShellMarker(
+      getStructuredAgentSessionHost()?.deps?.store?.getRecord(input.sessionId)
+    )
     const tab: RuntimeMobileSessionAgentTab = {
       type: 'agent-session',
       id,
       title: defaultAgentChatLabel(input.agent),
       sessionId: input.sessionId,
       agent: input.agent,
+      ...(piRuntime ? { piRuntime } : {}),
       isActive: input.activate
     }
     const tabs = [...(existing?.tabs ?? [])].map((candidate) => ({
