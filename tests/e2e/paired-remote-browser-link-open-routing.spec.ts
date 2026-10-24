@@ -560,3 +560,5 @@ test('opens a remote pane link on the pane runtime and refuses to fall back to t
     await fixture.close()
   }
 })
+
+// CI baseline probe for anubischpr/massorca#72; not for merge.
