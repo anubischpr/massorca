@@ -236,6 +236,7 @@ export function MobileNativeChatView({
   const {
     listRef,
     showJumpToTail,
+    listScrollProps,
     pinToTail,
     pinToTailAfterContentResize,
     jumpToTail,
@@ -359,15 +360,12 @@ export function MobileNativeChatView({
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
               contentContainerStyle={styles.listContent}
-              // Let link/file taps land while the composer keyboard is up
-              // instead of being swallowed by the dismiss gesture.
-              keyboardShouldPersistTaps="handled"
+              {...listScrollProps}
               onScroll={onScroll}
               onScrollBeginDrag={beginUserScroll}
               onScrollEndDrag={endUserDrag}
               onMomentumScrollBegin={beginMomentum}
               onMomentumScrollEnd={endMomentum}
-              scrollEventThrottle={32}
               onContentSizeChange={pinToTailAfterContentResize}
               onLayout={pinToTail}
               ListHeaderComponent={

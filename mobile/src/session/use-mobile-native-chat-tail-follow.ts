@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import type { FlatList, NativeScrollEvent } from 'react-native'
+import { mobileNativeChatListScrollProps } from './mobile-native-chat-list-scroll-props'
 
 /** Distance from the bottom, in points, still treated as "at the tail". */
 const AT_TAIL_SLOP = 80
@@ -32,6 +33,8 @@ export type MobileNativeChatTailFollow<TItem> = {
   listRef: RefObject<FlatList<TItem> | null>
   /** Render flag for the jump-to-latest control. */
   showJumpToTail: boolean
+  /** Spread onto the transcript list; anchors visible rows only once the tail is left. */
+  listScrollProps: ReturnType<typeof mobileNativeChatListScrollProps>
   /** Passive maintenance: re-pin after the viewport resizes. */
   pinToTail: (event?: TailLayoutEvent) => void
   /** Content-size maintenance using the list's authoritative measured height. */
@@ -240,6 +243,7 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   return {
     listRef,
     showJumpToTail: !following && !atTail,
+    listScrollProps: mobileNativeChatListScrollProps(following),
     pinToTail,
     pinToTailAfterContentResize,
     jumpToTail,

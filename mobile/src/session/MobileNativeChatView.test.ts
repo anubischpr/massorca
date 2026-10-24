@@ -355,6 +355,25 @@ describe('MobileNativeChatView', () => {
     expect(listIds()).toEqual(['a1', 'streaming'])
   })
 
+  it('keeps rows attached, and anchors visible rows only once the user leaves the tail', async () => {
+    await render({ folded: [assistantTurn('a1', 'History')] })
+
+    expect(list().props.removeClippedSubviews).toBe(false)
+    expect(list().props.keyboardShouldPersistTaps).toBe('handled')
+    // While following, the tail pin owns the position; anchoring too made a jump bounce.
+    expect(list().props.maintainVisibleContentPosition).toBeUndefined()
+
+    await scrollAwayFromTail()
+    expect(list().props.maintainVisibleContentPosition).toEqual({ minIndexForVisible: 0 })
+
+    const chevron = renderer!.root.find(
+      (node) => node.props.accessibilityLabel === 'Scroll to latest'
+    )
+    act(() => chevron.props.onPress())
+    expect(list().props.maintainVisibleContentPosition).toBeUndefined()
+    expect(list().props.removeClippedSubviews).toBe(false)
+  })
+
   it('lets content growth own streaming tail-follow without a delayed animated command', async () => {
     vi.useFakeTimers()
     try {

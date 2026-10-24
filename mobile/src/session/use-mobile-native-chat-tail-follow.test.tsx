@@ -126,6 +126,24 @@ describe('useMobileNativeChatTailFollow', () => {
     expect(scrollToEnd).not.toHaveBeenCalled()
   })
 
+  it('settles a jump from far up with one pin per re-measure, never fighting a row anchor', () => {
+    act(() => latest!.beginUserScroll())
+    act(() => latest!.endMomentum(scrollEvent(200, 2000, 600)))
+    expect(latest!.listScrollProps).toHaveProperty('maintainVisibleContentPosition')
+    scrollToEnd.mockClear()
+
+    act(() => latest!.jumpToTail())
+    expect(latest!.listScrollProps).not.toHaveProperty('maintainVisibleContentPosition')
+    // Rows near the end measure after the jump; each real change re-pins once, then it holds.
+    for (const height of [2600, 2600.2, 2750, 2750]) {
+      latest!.pinToTailAfterContentResize(400, height)
+      latest!.pinToTailAfterContentResize(400, height)
+      flushFrames()
+    }
+
+    expect(scrollToEnd).toHaveBeenCalledTimes(3)
+  })
+
   it('jumps to the tail immediately on an explicit jump and resumes following', () => {
     act(() => latest!.beginUserScroll())
     act(() => latest!.endMomentum(scrollEvent(200, 2000, 600)))
