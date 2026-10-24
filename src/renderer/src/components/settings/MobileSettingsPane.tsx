@@ -9,10 +9,14 @@ import {
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { MobileRelayBetaNotice } from './MobileRelayBetaNotice'
-import { MASSORCA_MOBILE_ANDROID_RELEASES_URL } from '../../../../shared/massorca-distribution'
+import {
+  MASSORCA_MOBILE_ANDROID_RELEASES_URL,
+  MASSORCA_MOBILE_GUIDE_URL
+} from '../../../../shared/massorca-distribution'
 export { getMobileSettingsPaneSearchEntries }
 
-const ORCA_IOS_APP_STORE_URL = 'https://apps.apple.com/app/orca-ide/id6766130217'
+// Why: MassOrca has no App Store listing; the guide says where iOS stands.
+const MASSORCA_IOS_STATUS_URL = `${MASSORCA_MOBILE_GUIDE_URL}#ios`
 const ORCA_ANDROID_APK_URL = MASSORCA_MOBILE_ANDROID_RELEASES_URL
 
 export function MobileSettingsPane(): React.JSX.Element {
@@ -38,10 +42,13 @@ export function MobileSettingsPane(): React.JSX.Element {
             )}{' '}
             <button
               type="button"
-              onClick={() => void window.api.shell.openUrl(ORCA_IOS_APP_STORE_URL)}
+              onClick={() => void window.api.shell.openUrl(MASSORCA_IOS_STATUS_URL)}
               className="cursor-pointer underline underline-offset-2 hover:text-foreground"
             >
-              {translate('auto.components.settings.MobileSettingsPane.b5a2ed83ff', 'App Store')}
+              {translate(
+                'auto.components.settings.MobileSettingsPane.iosStatusLabel',
+                'iOS status'
+              )}
             </button>
             {' · '}
             <button
