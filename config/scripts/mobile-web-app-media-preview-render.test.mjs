@@ -159,7 +159,7 @@ describeRender('mobile media under the shipped shell policy', () => {
   it('explains the required app update when an older shell blocks Blob playback', async () => {
     const { page } = await openMedia('music.wav', wavFixture(), true)
     await page
-      .getByText('Update Orca Mobile to play media in this workspace', { exact: true })
+      .getByText('Update MassOrca Mobile to play media in this workspace', { exact: true })
       .waitFor()
     await page.close()
   }, 60_000)

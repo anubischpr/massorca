@@ -329,7 +329,7 @@ describe('RuntimeClient orchestration recovery identity', () => {
     expect(error).toBeInstanceOf(RuntimeClientError)
     expect(error).not.toBeInstanceOf(RuntimeRpcFailureError)
     expectPromptRetryBlockedJson(error, 'prompt-downgraded-lost-reply')
-    expect(JSON.stringify((error as RuntimeClientError).data)).not.toContain('Update MassOrca')
+    expect(JSON.stringify((error as RuntimeClientError).data)).not.toContain('Update Orca')
   })
 
   it('reports an unknown legacy prompt outcome without advertising an unsafe retry', async () => {

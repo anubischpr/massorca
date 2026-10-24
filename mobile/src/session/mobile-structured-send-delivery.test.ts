@@ -111,7 +111,7 @@ describe('mobileStructuredSendDelivery', () => {
       mobileStructuredSendDelivery(accepted('rejected', 'provider_write_failed: broken pipe'))
     ).toEqual({
       outcome: 'rejected',
-      error: "Orca couldn't reach the agent. Your message was not sent. Send it again."
+      error: "MassOrca couldn't reach the agent. Your message was not sent. Send it again."
     })
   })
 
