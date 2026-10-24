@@ -31,6 +31,7 @@ import {
   forgetMobileCreatedStructuredSession,
   mobileCreatedStructuredSession
 } from './mobile-created-structured-sessions'
+import { rememberMobileStructuredPiRuntime } from './mobile-structured-pi-runtime-record'
 import { encodeStructuredAgentSessionOptionValue } from '../../../src/shared/structured-agent-session-option-codec'
 
 type StructuredOptionsController = {
@@ -128,6 +129,7 @@ export function useMobileStructuredAgentOptions(args: {
       .then((result) => {
         // This view keeps its latch; a later one may run a model picked here.
         forgetMobileCreatedStructuredSession(sessionId)
+        rememberMobileStructuredPiRuntime(sessionId, result.piRuntime)
         if (!stale && optionMutationGeneration.current === readGeneration) {
           setConversationSupport({ sessionId, commands: result.conversationCommands ?? [] })
           updateOptionState((current) =>

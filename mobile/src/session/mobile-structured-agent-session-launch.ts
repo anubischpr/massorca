@@ -22,6 +22,7 @@ import {
 } from './mobile-session-launch-operations'
 import { structuredSessionRandomUuid } from './structured-session-operation-id'
 import { rememberMobileCreatedStructuredSession } from './mobile-created-structured-sessions'
+import { rememberMobileStructuredPiRuntime } from './mobile-structured-pi-runtime-record'
 
 type StructuredCreateSupport = {
   supported?: boolean
@@ -202,5 +203,6 @@ export async function createMobileStructuredAgentSession(
   ) {
     return unknownCreateResult(agent, new Error(unconfirmedMessage(agent)))
   }
+  rememberMobileStructuredPiRuntime(result.value.sessionId, params.piRuntime)
   return { kind: 'created', sessionId: result.value.sessionId }
 }

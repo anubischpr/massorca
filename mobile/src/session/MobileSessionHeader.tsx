@@ -14,7 +14,10 @@ import { MobileSessionHeaderIconButton } from './MobileSessionHeaderIconButton'
 import { triggerMediumImpact } from '../platform/haptics'
 import { StatusDot } from '../components/StatusDot'
 import { MobileAgentIcon } from '../components/MobileAgentIcon'
-import { mobilePiRuntimeFromMarker } from '../components/mobile-pi-runtime'
+import {
+  resolveMobileChatTabPiRuntime,
+  useMobileStructuredPiRuntimeVersion
+} from './mobile-structured-pi-runtime-record'
 import {
   getMobileSessionTabTitle,
   resolveMobileTerminalTabAgentId,
@@ -62,6 +65,8 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
     showHeaderMoreButton
   } = controller
   const tabBarKeepsKeyboard = useKeyboardPersistingTaps('handled')
+  // A chat's options may name Gentle Shell after its tab was listed without a marker.
+  useMobileStructuredPiRuntimeVersion()
   return (
     <SafeAreaView style={styles.sessionChrome} edges={['top']}>
       <View style={styles.sessionTopBar}>
@@ -177,7 +182,7 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
                     <MobileAgentIcon
                       agentId={t.agent}
                       size={13}
-                      piRuntime={mobilePiRuntimeFromMarker(t)}
+                      piRuntime={resolveMobileChatTabPiRuntime(t)}
                     />
                   )}
                   {t.type === 'terminal' &&
