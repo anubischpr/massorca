@@ -86,7 +86,7 @@
         "MODIFY_AUDIO_SETTINGS"
       ],
       "package": "io.github.anubischpr.massorca",
-      "versionCode": 18
+      "versionCode": 21
     },
     "plugins": [
       "expo-router",
