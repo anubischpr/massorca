@@ -124,6 +124,20 @@ describe('worktree ps reports structured sessions', () => {
     expect(row.agents[0]?.updatedAt).toBe(1_757_030_400_000)
     expect(row.agents[0]?.stateStartedAt).toBe(1_757_030_400_000)
   })
+
+  it('marks a Gentle Shell Pi row from its transcript and leaves a stock Pi row unmarked', () => {
+    const withTranscript = (transcriptPath: string) =>
+      summary({
+        agent: 'pi',
+        providerSession: { key: 'session_id', id: 'session', transcriptPath }
+      })
+    expect(
+      attach([withTranscript('/home/ada/.gentle-shell/agent/sessions/s.jsonl')]).agents[0]
+    ).toMatchObject({ agentType: 'pi', piRuntime: 'gentle-shell' })
+    expect(
+      attach([withTranscript('/home/ada/.pi/agent/sessions/s.jsonl')]).agents[0]
+    ).not.toHaveProperty('piRuntime')
+  })
 })
 
 /**

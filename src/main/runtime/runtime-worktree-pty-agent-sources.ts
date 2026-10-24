@@ -6,6 +6,7 @@ import {
 import { parseLegacyNumericPaneKey, parsePaneKey } from '../../shared/stable-pane-id'
 import { agentVerdictFields } from '../../shared/agent-main-agent-verdict'
 import { isWslHookRelayConnectionId } from '../../shared/wsl-hook-relay-contract'
+import { piRuntimeForSessionFilePath } from '../../shared/pi-runtime-selection'
 import type { RuntimeWorktreeAgentSource } from './runtime-worktree-agent-source'
 
 export type ConnectedPtyEvidence = {
@@ -53,7 +54,8 @@ export function collectRuntimeWorktreePtyAgentSources(args: {
       stateStartedAt: entry.stateStartedAt,
       // A replay advances delivery order, not the age of the evidence shown by worktree.ps.
       updatedAt: entry.evidenceObservedAt ?? entry.receivedAt,
-      ...(entry.structuredHost ? { structuredHost: entry.structuredHost } : {})
+      ...(entry.structuredHost ? { structuredHost: entry.structuredHost } : {}),
+      ...(isGentleShellPiEntry(entry) ? { piRuntime: 'gentle-shell' as const } : {})
     })
   }
   const sources: RuntimeWorktreeAgentSource[] = []
@@ -81,4 +83,12 @@ export function collectRuntimeWorktreePtyAgentSources(args: {
     sources.push({ ...source, tabId, worktreeId })
   }
   return sources
+}
+
+/** A Pi row runs Gentle Shell when the transcript its provider session reports lives in that home. */
+function isGentleShellPiEntry(entry: AgentStatusIpcPayload): boolean {
+  return (
+    entry.agentType === 'pi' &&
+    piRuntimeForSessionFilePath(entry.providerSession?.transcriptPath) === 'gentle-shell'
+  )
 }
