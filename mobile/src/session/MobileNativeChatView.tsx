@@ -21,7 +21,6 @@ import type { NativeChatTurnJournal } from '../../../src/shared/native-chat-turn
 import { colors } from '../theme/mobile-theme'
 import { styles } from './mobile-native-chat-view-styles'
 import { mobileNativeChatListFooter } from './mobile-native-chat-list-footer'
-import { MOBILE_NATIVE_CHAT_LIST_SCROLL_PROPS } from './mobile-native-chat-list-scroll-props'
 import {
   buildMobileNativeChatTransientData,
   mobileNativeChatEmptyState,
@@ -237,6 +236,7 @@ export function MobileNativeChatView({
   const {
     listRef,
     showJumpToTail,
+    listScrollProps,
     pinToTail,
     pinToTailAfterContentResize,
     jumpToTail,
@@ -360,7 +360,7 @@ export function MobileNativeChatView({
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
               contentContainerStyle={styles.listContent}
-              {...MOBILE_NATIVE_CHAT_LIST_SCROLL_PROPS}
+              {...listScrollProps}
               onScroll={onScroll}
               onScrollBeginDrag={beginUserScroll}
               onScrollEndDrag={endUserDrag}
