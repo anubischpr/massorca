@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "MassOrca",
-    "slug": "orca-mobile",
+    "slug": "massorca",
+    "owner": "palominoc",
     "version": "0.0.51",
     "orientation": "default",
     "icon": "./assets/icon.png",
@@ -76,7 +77,7 @@
       "allowBackup": false,
       "permissions": ["RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS"],
       "package": "io.github.anubischpr.massorca",
-      "versionCode": 18
+      "versionCode": 21
     },
     "plugins": [
       "expo-router",
@@ -114,6 +115,12 @@
           }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b9403048-0a4c-47b6-85a0-6a7855543bef"
+      }
+    }
   }
 }
