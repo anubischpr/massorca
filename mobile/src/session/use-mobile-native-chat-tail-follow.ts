@@ -1,10 +1,28 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
-import type { FlatList, NativeScrollEvent, NativeSyntheticEvent } from 'react-native'
+import type { FlatList, NativeScrollEvent } from 'react-native'
 
 /** Distance from the bottom, in points, still treated as "at the tail". */
 const AT_TAIL_SLOP = 80
+/** A re-measure smaller than this is not a resize worth re-pinning for. */
+const RESIZE_EPSILON = 1
 
-function isAtTail(event: NativeScrollEvent): boolean {
+type PinnedGeometry = { content: number | null; viewport: number | null }
+/** The scroll geometry the hook reads; RN scroll events carry it. */
+type TailScrollMetrics = Pick<
+  NativeScrollEvent,
+  'contentOffset' | 'contentSize' | 'layoutMeasurement'
+>
+type TailScrollEvent = { nativeEvent: TailScrollMetrics }
+/** The viewport size the hook reads; RN layout events carry it. */
+type TailLayoutEvent = { nativeEvent: { layout: { height: number } } }
+
+function sameExtent(left: number | null, right: number | null): boolean {
+  return (
+    left === right || (left !== null && right !== null && Math.abs(left - right) < RESIZE_EPSILON)
+  )
+}
+
+function isAtTail(event: TailScrollMetrics): boolean {
   const { contentOffset, contentSize, layoutMeasurement } = event
   return contentSize.height - (contentOffset.y + layoutMeasurement.height) <= AT_TAIL_SLOP
 }
@@ -15,18 +33,18 @@ export type MobileNativeChatTailFollow<TItem> = {
   /** Render flag for the jump-to-latest control. */
   showJumpToTail: boolean
   /** Passive maintenance: re-pin after the viewport resizes. */
-  pinToTail: () => void
+  pinToTail: (event?: TailLayoutEvent) => void
   /** Content-size maintenance using the list's authoritative measured height. */
   pinToTailAfterContentResize: (_width: number, height: number) => void
   /** Explicit jump — send, or the jump-to-latest control. Resumes following. */
   jumpToTail: () => void
   beginUserScroll: () => void
-  endUserDrag: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
+  endUserDrag: (event: TailScrollEvent) => void
   beginMomentum: () => void
-  endMomentum: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
+  endMomentum: (event: TailScrollEvent) => void
   /** Leave the tail deliberately, e.g. before prepending older history. */
   detachFromTail: () => void
-  recordScrollMetrics: (event: NativeScrollEvent) => void
+  recordScrollMetrics: (event: TailScrollMetrics) => void
 }
 
 /** Sole owner of transcript scroll position.
@@ -41,6 +59,11 @@ export type MobileNativeChatTailFollow<TItem> = {
  *  scroll reports metrics like any other, so letting metrics decide intent let
  *  the view argue with itself. Only the user's own gestures and explicit jumps
  *  move intent; metrics only decide where a *released* gesture leaves us.
+ *
+ *  Passive pins fire only for a real resize, once per frame, and land on the list's
+ *  own end: pinning to the raw content height overshot the end by a viewport, the
+ *  virtualized list re-windowed and re-measured, and that re-measure pinned again,
+ *  so the view bounced even with nothing streaming.
  */
 export function useMobileNativeChatTailFollow<TItem>(args: {
   /** Guards `scrollToEnd` against an empty list. */
@@ -55,6 +78,9 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   const atTailRef = useRef(true)
   const userScrollActiveRef = useRef(false)
   const userScrollSettleFrameRef = useRef<number | null>(null)
+  const passivePinFrameRef = useRef<number | null>(null)
+  const geometryRef = useRef<PinnedGeometry>({ content: null, viewport: null })
+  const pinnedGeometryRef = useRef<PinnedGeometry | null>(null)
 
   // Single writer, so the event-time ref and the render flag cannot disagree.
   const setFollowing = useCallback((next: boolean) => {
@@ -73,21 +99,57 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     setAtTailFlag(next)
   }, [])
 
-  const pinToTail = useCallback(() => {
+  const clearPassivePin = useCallback(() => {
+    if (passivePinFrameRef.current !== null) {
+      cancelAnimationFrame(passivePinFrameRef.current)
+      passivePinFrameRef.current = null
+    }
+  }, [])
+
+  const scrollToTailNow = useCallback(() => {
+    clearPassivePin()
     if (!followingRef.current || !hasItems) {
       return
     }
+    pinnedGeometryRef.current = { ...geometryRef.current }
     listRef.current?.scrollToEnd({ animated: false })
-  }, [hasItems])
+  }, [clearPassivePin, hasItems])
+
+  const schedulePassivePin = useCallback(() => {
+    if (!followingRef.current || !hasItems || passivePinFrameRef.current !== null) {
+      return
+    }
+    const pinned = pinnedGeometryRef.current
+    const geometry = geometryRef.current
+    if (
+      pinned &&
+      sameExtent(pinned.content, geometry.content) &&
+      sameExtent(pinned.viewport, geometry.viewport)
+    ) {
+      return
+    }
+    passivePinFrameRef.current = requestAnimationFrame(() => {
+      passivePinFrameRef.current = null
+      scrollToTailNow()
+    })
+  }, [hasItems, scrollToTailNow])
+
+  const pinToTail = useCallback(
+    (event?: TailLayoutEvent) => {
+      if (event) {
+        geometryRef.current = { ...geometryRef.current, viewport: event.nativeEvent.layout.height }
+      }
+      schedulePassivePin()
+    },
+    [schedulePassivePin]
+  )
 
   const pinToTailAfterContentResize = useCallback(
     (_width: number, height: number) => {
-      if (!followingRef.current || !hasItems) {
-        return
-      }
-      listRef.current?.scrollToOffset({ animated: false, offset: height })
+      geometryRef.current = { ...geometryRef.current, content: height }
+      schedulePassivePin()
     },
-    [hasItems]
+    [schedulePassivePin]
   )
 
   const clearUserScrollSettle = useCallback(() => {
@@ -98,7 +160,7 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   }, [])
 
   const recordScrollMetrics = useCallback(
-    (event: NativeScrollEvent) => setAtTail(isAtTail(event)),
+    (event: TailScrollMetrics) => setAtTail(isAtTail(event)),
     [setAtTail]
   )
 
@@ -107,14 +169,15 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
     userScrollActiveRef.current = false
     setAtTail(true)
     setFollowing(true)
-    pinToTail()
-  }, [clearUserScrollSettle, pinToTail, setAtTail, setFollowing])
+    scrollToTailNow()
+  }, [clearUserScrollSettle, scrollToTailNow, setAtTail, setFollowing])
 
   const beginUserScroll = useCallback(() => {
     clearUserScrollSettle()
+    clearPassivePin()
     userScrollActiveRef.current = true
     setFollowing(false)
-  }, [clearUserScrollSettle, setFollowing])
+  }, [clearPassivePin, clearUserScrollSettle, setFollowing])
 
   const finishUserScroll = useCallback(
     (finishedAtTail: boolean) => {
@@ -126,14 +189,14 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
       setAtTail(finishedAtTail)
       setFollowing(finishedAtTail)
       if (finishedAtTail) {
-        pinToTail()
+        scrollToTailNow()
       }
     },
-    [clearUserScrollSettle, pinToTail, setAtTail, setFollowing]
+    [clearUserScrollSettle, scrollToTailNow, setAtTail, setFollowing]
   )
 
   const endUserDrag = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    (event: TailScrollEvent) => {
       if (!userScrollActiveRef.current) {
         return
       }
@@ -154,19 +217,25 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   }, [clearUserScrollSettle])
 
   const endMomentum = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) =>
-      finishUserScroll(isAtTail(event.nativeEvent)),
+    (event: TailScrollEvent) => finishUserScroll(isAtTail(event.nativeEvent)),
     [finishUserScroll]
   )
 
   const detachFromTail = useCallback(() => {
     clearUserScrollSettle()
+    clearPassivePin()
     userScrollActiveRef.current = false
     setAtTail(false)
     setFollowing(false)
-  }, [clearUserScrollSettle, setAtTail, setFollowing])
+  }, [clearPassivePin, clearUserScrollSettle, setAtTail, setFollowing])
 
-  useEffect(() => clearUserScrollSettle, [clearUserScrollSettle])
+  useEffect(
+    () => () => {
+      clearUserScrollSettle()
+      clearPassivePin()
+    },
+    [clearPassivePin, clearUserScrollSettle]
+  )
 
   return {
     listRef,
