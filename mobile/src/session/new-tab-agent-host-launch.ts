@@ -69,7 +69,7 @@ export async function launchNewTabAgentThroughHost(args: {
 }): Promise<boolean> {
   const { options, pendingSelectionRef, showToast } = args
   const prompt = options?.agentPrompt ?? options?.initialPrompt
-  const reservation = reserveMobileAgentLaunch(args.agent)
+  const reservation = reserveMobileAgentLaunch(args.agent, undefined, args.hostCapabilities)
   // An older host would drop it anyway; asking only a host that reads it keeps the request as before.
   const afterTabId = args.hostCapabilities?.includes(AGENT_LAUNCH_PLACEMENT_RUNTIME_CAPABILITY)
     ? hostTabIdOf(args.getSessionTabs(), args.activeSessionTabId)

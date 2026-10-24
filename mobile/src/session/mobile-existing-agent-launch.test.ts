@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { isTerminalLeafId } from '../../../src/shared/stable-pane-id'
 import { isValidHostTerminalTabId } from '../../../src/shared/terminal-tab-id'
+import { STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY } from '../../../src/shared/structured-agent-session-surface-capabilities'
 import { structuredSessionOperationId } from './structured-session-operation-id'
 import type { RpcClient } from '../transport/rpc-client'
 import { markRpcDeliveryUnknown } from '../transport/rpc-delivery-ambiguity'
@@ -119,6 +120,12 @@ describe('reserveMobileAgentLaunch', () => {
     expect(mobileCreatedStructuredSession(reservation.sessionId!)).toMatchObject({
       worktree: expect.stringMatching(/^id:/)
     })
+  })
+
+  it('reserves a chat for Pi only on a host that lists registered agents', () => {
+    const registered = [STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY]
+    expect(reserveMobileAgentLaunch('pi', undefined, registered).sessionId).toMatch(/^pi_/)
+    expect(reserveMobileAgentLaunch('pi', undefined, []).sessionId).toBeNull()
   })
 
   it('asks for the new tab after the one the user is on', async () => {

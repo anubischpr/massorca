@@ -11,6 +11,10 @@ import {
   AGENT_LAUNCH_TAB_CLOSED_CLIENT_CAPABILITY,
   AGENT_LAUNCH_UNSTARTED_TAB_CLIENT_CAPABILITY
 } from '../../../src/shared/agent-launch-runtime-capability'
+import {
+  PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY,
+  STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY
+} from '../../../src/shared/structured-agent-session-surface-capabilities'
 import { remoteRuntimeClientCapabilities } from '../../../src/shared/remote-runtime-client-capabilities'
 
 export const MOBILE_RUNTIME_CLIENT_CAPABILITIES = remoteRuntimeClientCapabilities([
@@ -28,7 +32,11 @@ export const MOBILE_RUNTIME_CLIENT_CAPABILITIES = remoteRuntimeClientCapabilitie
   // Reads a listed launch tab with no terminal yet as not started, so the host may show it early.
   AGENT_LAUNCH_UNSTARTED_TAB_CLIENT_CAPABILITY,
   // Reads `agent_launch_tab_closed` (a user closed its tab, which stopped it) as a definite answer.
-  AGENT_LAUNCH_TAB_CLOSED_CLIENT_CAPABILITY
+  AGENT_LAUNCH_TAB_CLOSED_CLIENT_CAPABILITY,
+  // Renders a structured chat of any agent the host registers, not only Claude and Codex.
+  STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY,
+  // Answers Pi's select, confirm, input and editor dialogs, so the host may give Pi a chat.
+  PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY
 ])
 
 export const MOBILE_RUNTIME_CLIENT_CAPABILITY_UPDATE_METHOD =

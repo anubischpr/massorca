@@ -1,4 +1,4 @@
-import type { AgentSessionHandleProvider } from '../../../src/shared/agent-session-provider-handle'
+import type { StructuredAgentId } from '../../../src/shared/agent-session-provider-handle'
 import type {
   AgentSessionAttachResult,
   AgentSessionMutationResult
@@ -9,7 +9,11 @@ import {
   structuredAgentSessionCreateParams,
   type StructuredAgentSessionCreateParams
 } from '../../../src/shared/structured-agent-session-create'
-import { TUI_AGENT_DISPLAY_NAMES } from '../../../src/shared/tui-agent-display-names'
+import { formatAgentTypeLabel } from '../../../src/shared/agent-type-label'
+import {
+  isPiRuntimeSelection,
+  type PiRuntimeSelection
+} from '../../../src/shared/pi-runtime-selection'
 import { hasRuntimeRpcErrorCode } from '../../../src/shared/runtime-rpc-error-code'
 import type { RpcClient } from '../transport/rpc-client'
 import {
@@ -21,7 +25,10 @@ import { rememberMobileCreatedStructuredSession } from './mobile-created-structu
 
 type StructuredCreateSupport = {
   supported?: boolean
-  reason?: 'agent' | 'remote' | 'wsl'
+  reason?: 'agent' | 'remote' | 'wsl' | 'access'
+  /** The Pi runtime a probe that named none fell back to; the create must run that same runtime. */
+  piRuntime?: unknown
+  seedOptions?: { piRuntime?: unknown }
 }
 
 const SELECTOR_NOT_RESOLVABLE_CODE = 'selector_not_found'
@@ -38,37 +45,45 @@ export type MobileStructuredAgentLaunchResult =
   | { kind: 'unknown'; message: string }
 
 function createParamsFor(
-  agent: AgentSessionHandleProvider,
-  worktree: string
+  agent: StructuredAgentId,
+  worktree: string,
+  piRuntime: PiRuntimeSelection | undefined
 ): StructuredAgentSessionCreateParams {
   return structuredAgentSessionCreateParams({
     sessionId: createStructuredAgentSessionId(agent, structuredSessionRandomUuid),
     worktree,
     agent,
+    ...(piRuntime ? { piRuntime } : {}),
     randomUuid: structuredSessionRandomUuid
   })
 }
 
+/** The Pi runtime the host answered in its support reply, accepted only when it names a runtime. */
+function hostAnsweredPiRuntime(support: StructuredCreateSupport): PiRuntimeSelection | undefined {
+  const answered = support.piRuntime ?? support.seedOptions?.piRuntime
+  return isPiRuntimeSelection(answered) ? answered : undefined
+}
+
 function unknownCreateResult(
-  agent: AgentSessionHandleProvider,
+  agent: StructuredAgentId,
   error: unknown
 ): MobileStructuredAgentLaunchResult {
   const message = error instanceof Error ? error.message.trim() : ''
   return { kind: 'unknown', message: message || unconfirmedMessage(agent) }
 }
 
-function unconfirmedMessage(agent: AgentSessionHandleProvider): string {
-  return `The ${TUI_AGENT_DISPLAY_NAMES[agent]} chat result could not be confirmed.`
+function unconfirmedMessage(agent: StructuredAgentId): string {
+  return `The ${formatAgentTypeLabel(agent)} chat result could not be confirmed.`
 }
 
-function failedMessage(agent: AgentSessionHandleProvider): string {
-  return `Could not open ${TUI_AGENT_DISPLAY_NAMES[agent]} chat.`
+function failedMessage(agent: StructuredAgentId): string {
+  return `Could not open ${formatAgentTypeLabel(agent)} chat.`
 }
 
 /** Only a refusal the host names as definitive may become `failed`; anything else keeps the
  *  outcome unknown so no legacy sibling terminal is created for a session that may exist. */
 function classifyCreateRefusal(
-  agent: AgentSessionHandleProvider,
+  agent: StructuredAgentId,
   code: string,
   message: string
 ): MobileStructuredAgentLaunchResult {
@@ -81,7 +96,7 @@ function classifyCreateRefusal(
 export async function createMobileStructuredAgentSession(
   client: RpcClient,
   worktreeId: string,
-  agent: AgentSessionHandleProvider
+  agent: StructuredAgentId
 ): Promise<MobileStructuredAgentLaunchResult> {
   const worktree = `id:${worktreeId}`
   let supportResponse
@@ -122,7 +137,12 @@ export async function createMobileStructuredAgentSession(
     return { kind: 'unsupported', reason: support?.reason }
   }
 
-  const params = createParamsFor(agent, worktree)
+  // Why: a Pi probe that named no runtime may have fallen back to Gentle Shell; the create must run that one.
+  const params = createParamsFor(
+    agent,
+    worktree,
+    agent === 'pi' ? hostAnsweredPiRuntime(support) : undefined
+  )
   rememberMobileCreatedStructuredSession(params.envelope.sessionId, worktree)
   let response
   try {

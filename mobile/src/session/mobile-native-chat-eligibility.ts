@@ -1,6 +1,8 @@
-import { isAgentSessionHandleProvider } from '../../../src/shared/agent-session-provider-handle'
+import { isStructuredAgentId } from '../../../src/shared/agent-session-provider-handle'
 import type { AgentStatusEntry } from '../../../src/shared/agent-status-types'
 import { isRuntimeOwnedSshTargetId } from '../../../src/shared/execution-host'
+import type { PiRowRuntime } from '../../../src/shared/agent-type-label'
+import { mobilePiRuntimeFromMarker } from '../components/mobile-pi-runtime'
 import {
   isNativeChatSupportedAgent,
   nativeChatRequiresLocalTranscript
@@ -24,6 +26,8 @@ export type MobileNativeChatResolution = {
   /** Hook-reported transcript path. Recent Claude sessions cannot always be
    *  resolved from the provider session id, so mobile forwards this to runtime. */
   transcriptPath: string | null
+  /** Set for a structured Pi chat, so a Gentle Shell chat is named as one. */
+  piRuntime?: PiRowRuntime
 }
 
 export type MobileNativeChatTab = {
@@ -35,6 +39,7 @@ export type MobileNativeChatTab = {
   launchDraftCreatedAt?: number
   sessionId?: string | null
   agent?: string | null
+  piRuntime?: string
 }
 
 /** Resolve a session tab to the transcript identity native chat needs, or
@@ -49,10 +54,15 @@ export function resolveMobileNativeChat(
     return null
   }
   if (tab.type === 'agent-session') {
-    // Structured tabs are journal-backed, so any provider the shared reducer can
-    // replay renders here — there is no per-agent transcript layout to know.
-    return tab.sessionId && isAgentSessionHandleProvider(tab.agent)
-      ? { agent: tab.agent, sessionId: tab.sessionId, transcriptPath: null }
+    // Structured tabs are journal-backed, so any agent id the host sent renders here: there is no
+    // per-agent transcript layout to know. The create path, not this display gate, checks the host.
+    return tab.sessionId && isStructuredAgentId(tab.agent)
+      ? {
+          agent: tab.agent,
+          sessionId: tab.sessionId,
+          transcriptPath: null,
+          ...(tab.agent === 'pi' ? { piRuntime: mobilePiRuntimeFromMarker(tab) } : {})
+        }
       : null
   }
   if (tab.type !== 'terminal') {

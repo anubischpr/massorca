@@ -6,6 +6,7 @@ import type { RpcClient } from '../transport/rpc-client'
 import { markRpcDeliveryUnknown } from '../transport/rpc-delivery-ambiguity'
 import { useMobileSessionTerminalCreateActions } from './use-mobile-session-terminal-create-actions'
 import { SESSION_TABS_SPLIT_GROUP_PLACEMENT_RUNTIME_CAPABILITY } from '../../../src/shared/protocol-version'
+import { STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY } from '../../../src/shared/structured-agent-session-surface-capabilities'
 
 type PlacementTab = { id: string; parentTabId?: string }
 type PlacementUpdater = (previous: PlacementTab[]) => PlacementTab[]
@@ -80,6 +81,53 @@ function createScope(client: RpcClient) {
 describe('mobile + Codex tab creation routing', () => {
   let renderer: ReactTestRenderer | undefined
   afterEach(() => renderer?.unmount())
+
+  async function launchBareAgent(
+    client: RpcClient,
+    hostCapabilities: string[],
+    agent: 'pi'
+  ): Promise<void> {
+    const scope = { ...createScope(client), hostCapabilities }
+    let actions: ReturnType<typeof useMobileSessionTerminalCreateActions> | undefined
+    function Harness() {
+      actions = useMobileSessionTerminalCreateActions(scope as never)
+      return null
+    }
+    await act(async () => {
+      renderer = create(createElement(Harness))
+    })
+    await act(async () => {
+      await actions?.handleCreateTerminal(agent)
+    })
+  }
+
+  it('keeps a bare Pi launch off the chat probe when the host lists no registered agents', async () => {
+    const client = clientReturning(terminalCreateResponse())
+
+    await launchBareAgent(client, [], 'pi')
+
+    expect(client.sendRequest.mock.calls.map(([method]) => method)).not.toContain(
+      'agentSession.createSupport'
+    )
+  })
+
+  it('probes for a Pi chat first when the host lists registered agents', async () => {
+    const client = clientReturning(
+      { ok: true, result: { supported: false, reason: 'agent' } },
+      terminalCreateResponse()
+    )
+
+    await launchBareAgent(
+      client,
+      [STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY],
+      'pi'
+    )
+
+    expect(client.sendRequest).toHaveBeenNthCalledWith(1, 'agentSession.createSupport', {
+      worktree: 'id:workspace-1',
+      agent: 'pi'
+    })
+  })
 
   it('uses the structured agent-session path for a bare Codex launch', async () => {
     const client = clientReturning(

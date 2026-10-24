@@ -92,6 +92,7 @@ export function MobileNativeChatOverlay({
           error={session.error}
           readFailedFinally={session.readFailedFinally === true}
           agent={controller.nativeChatAgent}
+          piRuntime={controller.nativeChatPiRuntime}
           agentWorking={controller.nativeChatAgentWorking}
           canStop={controller.nativeChatCanStop}
           structuredActivityUi={controller.nativeChatStructured}

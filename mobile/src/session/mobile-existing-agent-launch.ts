@@ -11,7 +11,7 @@ import type {
   AgentLaunchPrompt,
   AgentLaunchResult
 } from '../../../src/shared/agent-launch-intent'
-import { isAgentSessionHandleProvider } from '../../../src/shared/agent-session-provider-handle'
+import { structuredChatOfferedFor } from './mobile-structured-agent-session-host-support'
 import { AGENT_LAUNCH_TAB_CLOSED_CODE } from '../../../src/shared/agent-launch-tab-closed'
 import { makePaneKey } from '../../../src/shared/stable-pane-id'
 import { createStructuredAgentSessionId } from '../../../src/shared/structured-agent-session-create'
@@ -65,11 +65,12 @@ export type MobileAgentLaunchReservation = {
 
 export function reserveMobileAgentLaunch(
   agent: TuiAgent,
-  randomUuid: () => string = structuredSessionRandomUuid
+  randomUuid: () => string = structuredSessionRandomUuid,
+  hostCapabilities?: readonly string[] | null
 ): MobileAgentLaunchReservation {
   return {
     pane: { tabId: randomUuid(), leafId: randomUuid() },
-    sessionId: isAgentSessionHandleProvider(agent)
+    sessionId: structuredChatOfferedFor(agent, hostCapabilities)
       ? createStructuredAgentSessionId(agent, randomUuid)
       : null
   }

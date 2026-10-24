@@ -6,6 +6,7 @@ import {
   AGENT_SESSION_STATUS_FEED_RUNTIME_CAPABILITY,
   AGENT_SESSION_REPEATED_STOP_RUNTIME_CAPABILITY
 } from '../../../src/shared/protocol-version'
+import { STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY } from '../../../src/shared/structured-agent-session-surface-capabilities'
 
 /** Structured-session features the connected host advertised; null until the status probe answers. */
 export type StructuredAgentSessionHostSupport = {
@@ -33,4 +34,19 @@ export function structuredAgentSessionHostSupport(
     statusFeed: capabilities.includes(AGENT_SESSION_STATUS_FEED_RUNTIME_CAPABILITY),
     quietRepeatedStop: capabilities.includes(AGENT_SESSION_REPEATED_STOP_RUNTIME_CAPABILITY)
   }
+}
+
+/** Whether a chat may be offered for `agent` on a host advertising `capabilities`. */
+export function structuredChatOfferedFor(
+  agent: string,
+  capabilities: readonly string[] | null | undefined
+): boolean {
+  // Why: only a host that lists registered agents runs a chat for one beyond Claude and Codex;
+  // an older host keeps that agent on the terminal.
+  if (agent === 'claude' || agent === 'codex') {
+    return true
+  }
+  return (
+    capabilities?.includes(STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY) === true
+  )
 }

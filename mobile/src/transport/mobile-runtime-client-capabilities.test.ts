@@ -11,6 +11,10 @@ import {
   AGENT_LAUNCH_TAB_CLOSED_CLIENT_CAPABILITY,
   AGENT_LAUNCH_UNSTARTED_TAB_CLIENT_CAPABILITY
 } from '../../../src/shared/agent-launch-runtime-capability'
+import {
+  PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY,
+  STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY
+} from '../../../src/shared/structured-agent-session-surface-capabilities'
 import { MOBILE_RUNTIME_CLIENT_CAPABILITIES } from './mobile-runtime-client-capabilities'
 
 /** Mirrors the host's `parseRuntimeClientCapabilities`, which returns an EMPTY list — silently
@@ -36,6 +40,15 @@ describe('mobile runtime client capabilities', () => {
     // Why: `supportsAgentLaunch` refuses the method outright unless the client claims it, so
     // without this every mobile create with an agent stays a terminal no matter the user default.
     expect(MOBILE_RUNTIME_CLIENT_CAPABILITIES).toContain(AGENT_LAUNCH_RUNTIME_CAPABILITY)
+  })
+
+  it('advertises the registered-agents lane and Pi dialog cards so the host may give Pi a chat', () => {
+    expect(MOBILE_RUNTIME_CLIENT_CAPABILITIES).toEqual(
+      expect.arrayContaining([
+        STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY,
+        PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY
+      ])
+    )
   })
 
   it('reads an early launch tab as not started and a closed one as stopped', () => {
