@@ -355,6 +355,14 @@ describe('MobileNativeChatView', () => {
     expect(listIds()).toEqual(['a1', 'streaming'])
   })
 
+  it('keeps rows attached and the visible row anchored while the user drags', async () => {
+    await render({ folded: [assistantTurn('a1', 'History')] })
+
+    expect(list().props.removeClippedSubviews).toBe(false)
+    expect(list().props.maintainVisibleContentPosition).toEqual({ minIndexForVisible: 0 })
+    expect(list().props.keyboardShouldPersistTaps).toBe('handled')
+  })
+
   it('lets content growth own streaming tail-follow without a delayed animated command', async () => {
     vi.useFakeTimers()
     try {

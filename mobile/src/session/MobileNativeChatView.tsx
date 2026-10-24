@@ -21,6 +21,7 @@ import type { NativeChatTurnJournal } from '../../../src/shared/native-chat-turn
 import { colors } from '../theme/mobile-theme'
 import { styles } from './mobile-native-chat-view-styles'
 import { mobileNativeChatListFooter } from './mobile-native-chat-list-footer'
+import { MOBILE_NATIVE_CHAT_LIST_SCROLL_PROPS } from './mobile-native-chat-list-scroll-props'
 import {
   buildMobileNativeChatTransientData,
   mobileNativeChatEmptyState,
@@ -359,15 +360,12 @@ export function MobileNativeChatView({
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
               contentContainerStyle={styles.listContent}
-              // Let link/file taps land while the composer keyboard is up
-              // instead of being swallowed by the dismiss gesture.
-              keyboardShouldPersistTaps="handled"
+              {...MOBILE_NATIVE_CHAT_LIST_SCROLL_PROPS}
               onScroll={onScroll}
               onScrollBeginDrag={beginUserScroll}
               onScrollEndDrag={endUserDrag}
               onMomentumScrollBegin={beginMomentum}
               onMomentumScrollEnd={endMomentum}
-              scrollEventThrottle={32}
               onContentSizeChange={pinToTailAfterContentResize}
               onLayout={pinToTail}
               ListHeaderComponent={
