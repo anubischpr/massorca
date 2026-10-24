@@ -83,9 +83,9 @@ describe('ProtocolBlockScreen', () => {
     })
     expect(mobile).toContain('Update MassOrca Mobile')
     expect(mobile).toContain(
-      'This desktop needs a newer MassOrca Mobile app. Update MassOrca Mobile from the App Store, then try this host again.'
+      'This desktop needs a newer MassOrca Mobile app. Update MassOrca Mobile from GitHub Releases, then try this host again.'
     )
-    expect(mobile).toContain('Open App Store')
+    expect(mobile).toContain('Open GitHub Releases')
     act(() => renderer?.unmount())
 
     const desktop = render({
@@ -118,9 +118,9 @@ describe('ProtocolBlockScreen', () => {
     })
     expect(output).toContain('Update MassOrca Mobile')
     expect(output).toContain(
-      "This desktop's mobile workspace needs a newer MassOrca Mobile app. Update MassOrca Mobile from the App Store, then try this host again."
+      "This desktop's mobile workspace needs a newer MassOrca Mobile app. Update MassOrca Mobile from GitHub Releases, then try this host again."
     )
-    expect(primaryActionUrl()).toBe('itms-apps://apps.apple.com/app/orca-ide/id6766130217')
+    expect(primaryActionUrl()).toBe(RELEASES_URL)
   })
 
   it('offers no download for a cached bundle the host outgrew, because none would clear it', () => {
@@ -222,9 +222,9 @@ describe('ProtocolBlockScreen', () => {
   })
 
   it.each([
-    ['ios', 'Open App Store', 'itms-apps://apps.apple.com/app/orca-ide/id6766130217'],
+    ['ios', 'Open GitHub Releases', RELEASES_URL],
     ['android', 'Open GitHub Releases', RELEASES_URL]
-  ] as const)('keeps the %s store link when no release is known', (os, label, url) => {
+  ] as const)('opens the fork releases on %s when no release is known', (os, label, url) => {
     nativeTestState.platform.OS = os
     const output = render(
       { kind: 'blocked', reason: 'mobile-too-old', desktopVersion: 5, requiredMobileVersion: 9 },
