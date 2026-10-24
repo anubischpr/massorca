@@ -51,7 +51,7 @@ describe('getHostUsageMeters', () => {
 
     expect(meters.map((meter) => [meter.key, meter.label, meter.iconAgentId])).toEqual([
       ['antigravity', 'Antigravity', 'antigravity'],
-      ['nan', 'NaN', 'pi']
+      ['nan', 'NaN Builders', 'pi']
     ])
     expect(meters[0].windows.map((w) => w.label)).toEqual(['5h', '7d'])
     expect(meters[1].windows.map((w) => w.label)).toEqual(['30d'])

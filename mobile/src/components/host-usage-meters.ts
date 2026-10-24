@@ -10,7 +10,7 @@ import {
 const HOST_USAGE_METERS = [
   { key: 'antigravity', label: 'Antigravity', iconAgentId: 'antigravity' },
   // Desktop draws the NaN meter with the Pi mark.
-  { key: 'nan', label: 'NaN', iconAgentId: 'pi' }
+  { key: 'nan', label: 'NaN Builders', iconAgentId: 'pi' }
 ] as const
 
 const USAGE_WINDOWS: readonly { key: UsageWindowKey; label: string }[] = [
