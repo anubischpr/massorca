@@ -230,7 +230,7 @@ describe('a worker cannot tell which mode it is running in', () => {
     // A session worker is named by its Orca session ID; a terminal worker's text is main's.
     expect(structuredPreamble).toContain(`${selfLine}\n`)
     expect(structuredPreamble).not.toContain(STRUCTURED_HANDLE)
-    expect(terminalPreamble).not.toContain('Orca session ID')
+    expect(terminalPreamble).not.toContain('MassOrca session ID')
     // Only the surface words differ: a chat is told about its chat, a terminal keeps main's text.
     expect(structuredPreamble).toContain(CHAT_REDISPATCH_PARAGRAPH)
     expect(terminalPreamble).toContain(TERMINAL_REDISPATCH_PARAGRAPH)

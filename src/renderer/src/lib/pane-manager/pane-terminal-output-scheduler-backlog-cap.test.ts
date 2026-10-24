@@ -107,7 +107,7 @@ describe('pane terminal output scheduler', () => {
     vi.advanceTimersByTime(0)
 
     let output = terminal.write.mock.calls.map(([data]) => data).join('')
-    expect(output).not.toContain('Orca skipped')
+    expect(output).not.toContain('MassOrca skipped')
     expect(output).toContain('x'.repeat(1024))
 
     // But the scaled cap still bounds a runaway flood.

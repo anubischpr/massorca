@@ -120,7 +120,7 @@ describe('CSV range routing', () => {
         0,
         3
       )
-    ).rejects.toThrow('newer Orca server')
+    ).rejects.toThrow('newer MassOrca server')
     expect(fsReadFile).not.toHaveBeenCalled()
     expect(fsReadFileChunk).not.toHaveBeenCalled()
   })

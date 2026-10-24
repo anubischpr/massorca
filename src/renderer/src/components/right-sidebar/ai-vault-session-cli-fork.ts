@@ -25,7 +25,7 @@ export function describeAiVaultCliForkFailure(message: string): string {
   return code === 'agent_session_conflict' || code === 'agent_session_ownership_unknown'
     ? translate(
         'auto.components.right.sidebar.AiVaultPanel.resumeInNewCliHostTooOld',
-        'Update Orca on the host that runs this chat to resume it in a new CLI.'
+        'Update MassOrca on the host that runs this chat to resume it in a new CLI.'
       )
     : message
 }

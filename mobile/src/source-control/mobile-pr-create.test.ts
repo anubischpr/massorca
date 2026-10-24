@@ -142,7 +142,7 @@ describe('mobile create form gating parity', () => {
         blockedReason: null
       })
     ).toBe(
-      'Orca could not confirm whether this branch already has a pull request. Try again in a moment.'
+      'MassOrca could not confirm whether this branch already has a pull request. Try again in a moment.'
     )
     expect(
       getMobilePrCreateBlockMessage({
@@ -154,7 +154,7 @@ describe('mobile create form gating parity', () => {
         blockedReason: 'needs_push'
       })
     ).toBe(
-      'Orca could not confirm whether this branch already has a pull request. Try again in a moment.'
+      'MassOrca could not confirm whether this branch already has a pull request. Try again in a moment.'
     )
   })
 
@@ -172,7 +172,7 @@ describe('mobile create form gating parity', () => {
         reviewLookupOutcome: 'unavailable'
       })
     ).toBe(
-      'Orca could not confirm whether this branch already has a pull request. Try again in a moment.'
+      'MassOrca could not confirm whether this branch already has a pull request. Try again in a moment.'
     )
   })
 
@@ -344,7 +344,7 @@ describe('resolveMobilePrPrefill', () => {
   // Three ways eligibility fails to arrive, one answer: say so, rather than claim the branch is
   // not ready. Only a host that actually determined `canCreate: false` gets the blocked copy.
   const UNCONFIRMED =
-    'Orca could not confirm whether this branch already has a pull request. Try again in a moment.'
+    'MassOrca could not confirm whether this branch already has a pull request. Try again in a moment.'
 
   it.each([
     { name: 'a malformed reply', responses: [ok({ provider: 7 })] },

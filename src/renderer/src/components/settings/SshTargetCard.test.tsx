@@ -110,7 +110,7 @@ describe('the Host Node runtime on an SSH target card', () => {
 
     const note = container.querySelector('[data-ssh-host-node-runtime]')
     expect(note?.textContent).toContain('Unsupported configuration')
-    expect(note?.textContent).toContain('Orca-managed Node isn’t available')
+    expect(note?.textContent).toContain('MassOrca-managed Node isn’t available')
     expect(note?.textContent).not.toContain('Set Runtime to Auto')
   })
 

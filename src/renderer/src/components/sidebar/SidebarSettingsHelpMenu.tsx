@@ -148,7 +148,10 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
     }
     setIsRestartingOrca(true)
     toast.info(
-      translate('auto.components.sidebar.SidebarSettingsHelpMenu.5161eef55d', 'Restarting Orca…')
+      translate(
+        'auto.components.sidebar.SidebarSettingsHelpMenu.5161eef55d',
+        'Restarting MassOrca…'
+      )
     )
     void window.api.app.restart().catch((error) => {
       if (mountedRef.current) {
@@ -156,7 +159,7 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
         toast.error(
           translate(
             'auto.components.sidebar.SidebarSettingsHelpMenu.4e8f5710d3',
-            "Couldn't restart Orca."
+            "Couldn't restart MassOrca."
           ),
           {
             description: error instanceof Error ? error.message : undefined
@@ -266,7 +269,7 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
                   src={logo}
                   alt=""
                   aria-hidden="true"
-                  className="size-3.5 object-contain invert opacity-55 dark:invert-0"
+                  className="size-3.5 object-contain opacity-55"
                 />
                 {translate(
                   'auto.components.sidebar.SidebarSettingsHelpMenu.f8a2c91d4e',
@@ -348,7 +351,7 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
               <RotateCw className="size-3.5" />
               {translate(
                 'auto.components.sidebar.SidebarSettingsHelpMenu.ad3d3ed7f1',
-                'Restart Orca'
+                'Restart MassOrca'
               )}
             </DropdownMenuItem>
           </DropdownMenuContent>

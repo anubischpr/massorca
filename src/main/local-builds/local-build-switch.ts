@@ -8,7 +8,7 @@ export async function chooseLocalBuild(
   window: BrowserWindow | null
 ): Promise<LocalBuildCandidate | null> {
   const openDialogOptions: Electron.OpenDialogOptions = {
-    title: 'Choose a Local Orca Build',
+    title: 'Choose a Local MassOrca Build',
     buttonLabel: 'Choose Build',
     properties: ['openFile'],
     filters: [{ name: 'Orca update manifest', extensions: ['yml'] }]
@@ -36,7 +36,7 @@ export async function chooseLocalBuild(
           } will reconnect after restart.`
     const messageBoxOptions: Electron.MessageBoxOptions = {
       type: 'question',
-      title: 'Use Local Orca Build?',
+      title: 'Use Local MassOrca Build?',
       message: `${app.getVersion()} → ${candidate.version}`,
       detail: `${terminalSummary}\nWorkspace cards and settings are compatible with state schema ${SCHEMA_VERSION}.\n\nThe build must have the same valid code signature as Orca or installation will stop.`,
       buttons: ['Use Local Build', 'Cancel'],

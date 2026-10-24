@@ -330,11 +330,11 @@ export function SshTargetCard({
             {target.remoteRuntime === 'legacy'
               ? translate(
                   'auto.components.settings.SshTargetCard.hostNodeUnsupported',
-                  'Unsupported configuration: Orca runs on this host’s Node.js with terminal support installed by npm on the host. Set Runtime to Auto in this host’s SSH settings to use Orca-managed Node.'
+                  'Unsupported configuration: MassOrca runs on this host’s Node.js with terminal support installed by npm on the host. Set Runtime to Auto in this host’s SSH settings to use MassOrca-managed Node.'
                 )
               : translate(
                   'auto.components.settings.SshTargetCard.hostNodeFallback',
-                  'Unsupported configuration: Orca-managed Node isn’t available for this connection, so Orca runs on this host’s Node.js with terminal support installed by npm on the host.'
+                  'Unsupported configuration: MassOrca-managed Node isn’t available for this connection, so MassOrca runs on this host’s Node.js with terminal support installed by npm on the host.'
                 )}
           </p>
         ) : null}

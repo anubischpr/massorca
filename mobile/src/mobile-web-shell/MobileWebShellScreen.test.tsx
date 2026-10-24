@@ -68,7 +68,7 @@ describe('the hybrid shell screen', () => {
       kind: 'wall',
       verdict: { kind: 'blocked', reason: 'bundle-unavailable' }
     })
-    expect(textOf(tree)).toContain('Update Orca on your computer')
+    expect(textOf(tree)).toContain('Update MassOrca on your computer')
     expect(byName(tree, 'ShellViewProbe')).toEqual([])
   })
 

@@ -144,7 +144,7 @@ async function wakeIfStopped(
       if (await input.probe(input.environment, PROBE_TIMEOUT_MS)) {
         return { state: 'serving' }
       }
-      const detail = 'The managed Orca server process is live but is not answering.'
+      const detail = 'The managed MassOrca server process is live but is not answering.'
       console.warn(`[ssh] The managed Orca server on ${label} is not answering: ${detail}`)
       return { state: 'unverifiable', detail }
     }

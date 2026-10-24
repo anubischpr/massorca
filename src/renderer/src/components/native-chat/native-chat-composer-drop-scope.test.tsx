@@ -259,7 +259,7 @@ describe('native chat composer drop scoping', () => {
     await dropTwoImages(view.container.querySelector('[data-pane="chat-a"] .ProseMirror')!)
 
     expect(toast.error).toHaveBeenCalledWith(
-      "Orca couldn't read a path for the dropped files.",
+      "MassOrca couldn't read a path for the dropped files.",
       expect.any(Object)
     )
     expect(electron.send).not.toHaveBeenCalled()

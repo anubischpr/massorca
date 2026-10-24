@@ -60,10 +60,10 @@ function RendererRoot(): React.JSX.Element {
     <RecoverableRenderErrorBoundary
       boundaryId="app.root"
       surface="app-root"
-      title={translate('app.recoverableError.rootTitle', 'Orca hit a renderer error.')}
+      title={translate('app.recoverableError.rootTitle', 'MassOrca hit a renderer error.')}
       description={translate(
         'app.recoverableError.rootDescription',
-        'The app shell could not finish rendering. Retry to remount it, or relaunch Orca if the error persists.'
+        'The app shell could not finish rendering. Retry to remount it, or relaunch MassOrca if the error persists.'
       )}
     >
       <App />

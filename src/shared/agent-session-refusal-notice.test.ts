@@ -275,7 +275,7 @@ describe('agentSessionRefusalNotice', () => {
           agentSessionWriteNoticeEnglish(
             agentSessionWriteNoticeParts(agentSessionRpcErrorFailure(code), write)
           )
-        ).toBe("Orca couldn't confirm what happened. Check the chat.")
+        ).toBe("MassOrca couldn't confirm what happened. Check the chat.")
       }
     }
   )
@@ -602,33 +602,33 @@ describe('a chat whose history the host could not open', () => {
     [
       'journalUnavailable',
       'read-history',
-      "Orca couldn't open this chat's history right now. Try again."
+      "MassOrca couldn't open this chat's history right now. Try again."
     ],
     [
       'journalUnavailable',
       'send',
-      "Orca couldn't open this chat's history right now. Your message was not sent. Try again."
+      "MassOrca couldn't open this chat's history right now. Your message was not sent. Try again."
     ],
     // Only an update gets past it, so it never says to try again. A read meets it on one chat.
     [
       'journalWrittenByNewerOrca',
       'read-history',
-      'This chat was saved by a newer Orca. Update Orca to open it.'
+      'This chat was saved by a newer MassOrca. Update MassOrca to open it.'
     ],
     [
       'journalWrittenByNewerOrca',
       'send',
-      'Chats were saved by a newer Orca. Your message was not sent. Update Orca to keep using them.'
+      'Chats were saved by a newer MassOrca. Your message was not sent. Update MassOrca to keep using them.'
     ],
     [
       'journalWrittenByNewerOrca',
       'stop',
-      "Chats were saved by a newer Orca. The agent wasn't stopped. Update Orca to keep using them."
+      "Chats were saved by a newer MassOrca. The agent wasn't stopped. Update MassOrca to keep using them."
     ],
     [
       'journalWrittenByNewerOrca',
       'answer',
-      'Chats were saved by a newer Orca. Your answer was not sent. Update Orca to keep using them.'
+      'Chats were saved by a newer MassOrca. Your answer was not sent. Update MassOrca to keep using them.'
     ]
   ] as const)('%s on %s', (reason, write, expected) => {
     expect(notice({ reason }, write)).toBe(expected)
@@ -639,9 +639,11 @@ describe('a chat whose history the host could not open', () => {
     ['an older host', undefined],
     ['a reason an unreleased build wrote', { reason: 'journalUnreadable' }]
   ])('promises nothing for a refusal that names no reason: %s', (_label, details) => {
-    expect(notice(details, 'read-history')).toBe("Orca couldn't read this chat's saved history.")
+    expect(notice(details, 'read-history')).toBe(
+      "MassOrca couldn't read this chat's saved history."
+    )
     expect(notice(details, 'send')).toBe(
-      "Orca couldn't read this chat's saved history. Your message was not sent."
+      "MassOrca couldn't read this chat's saved history. Your message was not sent."
     )
     expect(
       agentSessionReadHistoryRefusalParts('agent_session_journal_unreadable', details)

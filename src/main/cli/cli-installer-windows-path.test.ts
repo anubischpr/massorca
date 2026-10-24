@@ -166,7 +166,7 @@ describe('CliInstaller', () => {
       commandPathOverride: installPath,
       userPathReader: async () => ({
         state: 'unknown',
-        detail: 'Orca could not read the Windows user PATH registry value.'
+        detail: 'MassOrca could not read the Windows user PATH registry value.'
       })
     })
 
@@ -190,7 +190,7 @@ describe('CliInstaller', () => {
       commandPathOverride: join(fixture.root, 'Programs', 'Orca', 'bin', 'orca.cmd'),
       userPathReader: async () => ({
         state: 'unknown',
-        detail: 'Orca could not read the Windows user PATH registry value.'
+        detail: 'MassOrca could not read the Windows user PATH registry value.'
       }),
       userPathWriter
     })
@@ -322,7 +322,7 @@ describe('CliInstaller', () => {
       appPath: fixture.appPath,
       userPathReader: async () => ({
         state: 'unknown',
-        detail: 'Orca could not read the Windows user PATH registry value.'
+        detail: 'MassOrca could not read the Windows user PATH registry value.'
       })
     })
 

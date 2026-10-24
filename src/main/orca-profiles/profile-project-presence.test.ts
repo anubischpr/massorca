@@ -113,7 +113,7 @@ describe('profile project presence', () => {
 
   it('keeps SSH projects separate from local projects with the same path', async () => {
     writeProfileState('personal', [
-      makeRepo({ id: 'local-repo', path: '/srv/orca', displayName: 'Local Orca' })
+      makeRepo({ id: 'local-repo', path: '/srv/orca', displayName: 'Local MassOrca' })
     ])
     writeProfileState('work', [
       makeRepo({

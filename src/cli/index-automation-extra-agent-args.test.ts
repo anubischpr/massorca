@@ -111,7 +111,7 @@ describe('orca cli automation extra agent args', () => {
 
     expect(callMock).toHaveBeenCalledTimes(1)
     expect([...logSpy.mock.calls, ...errSpy.mock.calls].flat().join('\n')).toContain(
-      'Update Orca on this host to use extra arguments.'
+      'Update MassOrca on this host to use extra arguments.'
     )
     process.exitCode = priorExitCode
   })

@@ -153,8 +153,8 @@ describe('runtime RPC startup failure reporting', () => {
       parentWindow,
       expect.objectContaining({
         type: 'error',
-        title: 'Orca CLI unavailable',
-        message: "Orca couldn't start its local command transport.",
+        title: 'MassOrca CLI unavailable',
+        message: "MassOrca couldn't start its local command transport.",
         detail: expect.stringMatching(
           /orca status.*orca terminal.*orchestration.*Cause: metadata write failed/s
         )

@@ -469,7 +469,7 @@ describe('HtmlDocPreview failure messages', () => {
       emitFailure({ grantId: GRANT_ID, relativePath: ENTRY_RELATIVE_PATH, reason: 'unreadable' })
     })
 
-    expect(container.textContent).toContain('Orca could not read this file from the workspace.')
+    expect(container.textContent).toContain('MassOrca could not read this file from the workspace.')
   })
 
   it('ignores a failure minted for another preview tab', async () => {

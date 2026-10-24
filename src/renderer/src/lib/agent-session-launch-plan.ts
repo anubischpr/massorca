@@ -137,7 +137,7 @@ function beginStructuredPlanLaunch(
     toast.error(
       translate(
         'auto.store.slices.workspace.cleanup.hostUnresolved',
-        'Orca cannot tell which host owns this workspace. Refresh projects and review it again.'
+        'MassOrca cannot tell which host owns this workspace. Refresh projects and review it again.'
       )
     )
     return null
@@ -238,7 +238,7 @@ export function notifyStructuredHostAnswerUnknown(agent: TuiAgent): void {
   toast.warning(
     translate(
       'auto.lib.agent.session.launch.plan.hostAnswerUnknown',
-      'Orca could not confirm this host supports chat for {{agent}}, so it opened a terminal. Open a new chat in a moment to try again.',
+      'MassOrca could not confirm this host supports chat for {{agent}}, so it opened a terminal. Open a new chat in a moment to try again.',
       { agent: structuredAgentLabel(agent) }
     ),
     { id: 'structured-host-answer-unknown' }

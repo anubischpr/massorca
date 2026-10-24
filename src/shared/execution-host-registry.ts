@@ -180,7 +180,7 @@ function addRuntimeHost(
     id: hostId,
     kind: 'runtime',
     label,
-    detail: 'Orca server',
+    detail: 'MassOrca server',
     health: controlHealth ?? runtimeHealth(status, compatibility, remoteControl),
     compatibility: compatibility ?? undefined,
     capabilities: metadata?.capabilities,

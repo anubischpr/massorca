@@ -199,7 +199,7 @@ describe('MobileNativeChatPermission', () => {
   })
 
   describe("a subject of a kind this build cannot draw: a newer Orca's", () => {
-    const NEEDS_NEWER_ORCA = 'This request needs a newer version of Orca.'
+    const NEEDS_NEWER_ORCA = 'This request needs a newer version of MassOrca.'
 
     async function renderNewer(detail: string | undefined) {
       const onRespond = vi.fn(async () => true)

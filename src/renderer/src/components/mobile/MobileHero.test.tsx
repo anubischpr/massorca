@@ -189,7 +189,7 @@ describe('HeroFlow height', () => {
     expect(notice).toHaveTextContent('Use LAN')
     expect(screen.getByText('No pairing code available')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Generate code' })).not.toBeInTheDocument()
-    expect(screen.getByText('Orca Relay is in beta.')).toBeInTheDocument()
+    expect(screen.getByText('MassOrca Relay is in beta.')).toBeInTheDocument()
   })
 
   it('explains an empty QR frame when no code has been generated yet', () => {
@@ -225,11 +225,11 @@ describe('HeroFlow height', () => {
       relayMintFailure: {
         code: 'relay_provider_unavailable',
         stage: 'provider_missing',
-        message: 'Orca Relay is not available on this desktop'
+        message: 'MassOrca Relay is not available on this desktop'
       }
     })
     expect(screen.getByRole('alert')).toHaveTextContent(
-      'Orca Relay isn’t available on this desktop'
+      'MassOrca Relay isn’t available on this desktop'
     )
     expect(screen.queryByRole('button', { name: 'Retry Relay' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Use LAN' })).toBeEnabled()

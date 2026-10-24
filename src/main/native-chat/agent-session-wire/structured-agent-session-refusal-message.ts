@@ -82,7 +82,7 @@ export function structuredAgentSessionRefusalMessage(
   if (code === 'execution_owner_reconciling') {
     return {
       message:
-        'Orca is still working out who owns this session on this machine. Reopen the chat in a moment.',
+        'MassOrca is still working out who owns this session on this machine. Reopen the chat in a moment.',
       reference: { code, details: { reason: 'hostReconciling' } }
     }
   }

@@ -209,7 +209,7 @@ function PickerOption({
         {providerFunction ? (
           <span className="block text-[11px] text-muted-foreground">
             {providerFunction.provenance === 'orca'
-              ? translate('components.native-chat.composer.providerFunctionOrca', 'Orca')
+              ? translate('components.native-chat.composer.providerFunctionOrca', 'MassOrca')
               : translate('components.native-chat.composer.providerFunctionProvider', 'Provider')}
             {providerFunction.availability === 'terminal-only'
               ? ` · ${translate('components.native-chat.composer.providerFunctionTerminalOnly', 'Terminal only')}`

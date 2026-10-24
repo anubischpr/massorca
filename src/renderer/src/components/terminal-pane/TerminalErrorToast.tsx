@@ -128,7 +128,7 @@ export function isPaneOwnerUnverifiedError(error: string): boolean {
 function humanizeUnreattachableSession(error: string): string {
   const explanation = translate(
     'auto.components.terminal.pane.TerminalErrorToast.sessionUnavailable',
-    "Orca couldn't reattach to this pane's terminal session on the host. Open a new terminal to continue."
+    "MassOrca couldn't reattach to this pane's terminal session on the host. Open a new terminal to continue."
   )
   // Why a replacer: a translation containing `$&` or `$1` would otherwise be read as a substitution.
   return UNREATTACHABLE_SESSION_REPLACE_PATTERNS.reduce(
@@ -157,11 +157,11 @@ export function humanizeTerminalError(error: string): string {
     const explanation = isPaneOwnerUnverifiedError(humanized)
       ? translate(
           'auto.components.terminal.pane.TerminalErrorToast.42b283ecfc',
-          "Orca couldn't safely reconnect this terminal because the host couldn't verify its saved session. Orca left the saved session unchanged. Click Retry to try reconnecting now. If it still cannot reconnect, open a new terminal."
+          "MassOrca couldn't safely reconnect this terminal because the host couldn't verify its saved session. MassOrca left the saved session unchanged. Click Retry to try reconnecting now. If it still cannot reconnect, open a new terminal."
         )
       : translate(
           'auto.components.terminal.pane.TerminalErrorToast.ownerUnknown',
-          "Orca couldn't verify this terminal's owner."
+          "MassOrca couldn't verify this terminal's owner."
         )
     humanized = humanized.replaceAll(PANE_OWNER_UNVERIFIED_MARKER, () => explanation)
   }
@@ -174,13 +174,13 @@ export function humanizeTerminalError(error: string): string {
   humanized = humanized.replace(HELD_BY_PREVIOUS_RELAY_REPLACE_PATTERN, () =>
     translate(
       'auto.components.terminal.pane.TerminalErrorToast.heldByPreviousRelay',
-      'This terminal is still running on the host under the previous Orca version, which this version cannot connect to. It keeps running until it exits. Open a new terminal to keep working here.'
+      'This terminal is still running on the host under the previous MassOrca version, which this version cannot connect to. It keeps running until it exits. Open a new terminal to keep working here.'
     )
   )
   humanized = humanized.replace(OWNER_HOST_MISMATCH_REPLACE_PATTERN, () =>
     translate(
       'auto.components.terminal.pane.TerminalErrorToast.ownerHostMismatch',
-      "This terminal's saved session belongs to another host connection, so Orca can't reattach it here. Open a new terminal to continue."
+      "This terminal's saved session belongs to another host connection, so MassOrca can't reattach it here. Open a new terminal to continue."
     )
   )
   if (humanized.includes(REMOTE_TERMINAL_CLOSED_MARKER)) {

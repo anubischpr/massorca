@@ -1,6 +1,6 @@
 // Host-published English copy; the renderer matches it to show a translation (#9194).
 export const PTY_ALLOCATION_HINT =
-  'Your system cannot allocate any more pty devices. Close some terminals you are not using, in Orca or another program, then try again.'
+  'Your system cannot allocate any more pty devices. Close some terminals you are not using, in MassOrca or another program, then try again.'
 
 export const TERMINAL_PROCESS_LIMIT_HINT =
   'Your system cannot start another terminal process. Close unused terminals or quit unused processes, then try again.'

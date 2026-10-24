@@ -58,7 +58,7 @@ describe('the one-time move offer toast', () => {
     applySshManagedServerTransition('ssh-1', undefined, offer)
     expect(mocks.toast).toHaveBeenCalledTimes(1)
     expect(mocks.toast.mock.calls[0][0]).toBe(
-      'Move Box to a managed Orca server for more reliable connections. Its 3 open terminals will restart.'
+      'Move Box to a managed MassOrca server for more reliable connections. Its 3 open terminals will restart.'
     )
     expect(lastToastOptions().action.label).toBe('Move')
     expect(lastToastOptions().cancel.label).toBe('Not now')
@@ -89,7 +89,7 @@ describe('the one-time move offer toast', () => {
     lastToastOptions().action.onClick()
     await vi.waitFor(() => expect(mocks.toast.success).toHaveBeenCalled())
     expect(moveToManagedServer).toHaveBeenCalledWith({ targetId: 'ssh-1' })
-    expect(mocks.toast.success).toHaveBeenCalledWith('Box now runs a managed Orca server.', {
+    expect(mocks.toast.success).toHaveBeenCalledWith('Box now runs a managed MassOrca server.', {
       id: 'progress'
     })
   })
@@ -116,7 +116,7 @@ describe('the one-time move offer toast', () => {
     lastToastOptions().action.onClick()
     await vi.waitFor(() => expect(mocks.toast.error).toHaveBeenCalled())
     expect(mocks.toast.error.mock.calls[0][0]).toBe(
-      'Not moved: Orca couldn’t confirm that the terminals on Box stopped.'
+      'Not moved: MassOrca couldn’t confirm that the terminals on Box stopped.'
     )
   })
 })

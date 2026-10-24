@@ -64,13 +64,13 @@ export const AGENT_SESSION_FAILURE_COPY = {
   managedAccountUnsupportedAgent:
     '{{agent}} cannot run this chat with the account selected on this computer. Choose an account that runs here, then try again.',
   managedAccountUnsupportedAntigravity:
-    "Orca could not verify {{agent}}'s credential storage on this computer. Check {{agent}} in a terminal there, then try again.",
+    "MassOrca could not verify {{agent}}'s credential storage on this computer. Check {{agent}} in a terminal there, then try again.",
   historyInOtherAccountAgent:
     "This chat's history is in another {{agent}} account. Switch back to that account to continue it.",
   antigravityCliVersionUnsupported:
     '{{agent}} on this computer did not report a stable CLI {{version}} or newer: it may be outdated, or its version check failed or timed out. Check it in a terminal, then try again.',
   agentCommandNotRunnable:
-    "{{agent}}'s Command in Settings → Agents must be a program path or name Orca can find, with no arguments or variables. Change it or reset it.",
+    "{{agent}}'s Command in Settings → Agents must be a program path or name MassOrca can find, with no arguments or variables. Change it or reset it.",
   chooseClaudeAccount: 'Choose or add one in Claude Accounts settings.',
   chooseClaudeAccountThenRunCommand:
     'Choose or add one in Claude Accounts settings, then run /{{command}} again.',
@@ -101,10 +101,10 @@ export const AGENT_SESSION_FAILURE_COPY = {
     "An attachment on this message couldn't be read, so the message was not sent.",
   emptyMessage: 'This message is empty, so it was not sent.',
   queueFull: 'Too many messages were waiting for the agent, so this one was not sent.',
-  writeFailed: "Orca couldn't hand this message to the agent, so it was not sent.",
+  writeFailed: "MassOrca couldn't hand this message to the agent, so it was not sent.",
   cancelled: 'This message was withdrawn before the agent started it.',
   chatClosed: 'The chat closed before this message was sent.',
-  hostRestarted: 'Orca restarted before this message was sent.',
+  hostRestarted: 'MassOrca restarted before this message was sent.',
   notDelivered: 'This message was not delivered.',
   notDeliveredSendAgain: 'This message was not delivered. Send it again to continue.',
   commandRefused: "This command didn't run.",
@@ -125,9 +125,9 @@ export const AGENT_SESSION_FAILURE_COPY = {
   stopRefusedQuoted: "{{agent}} didn't stop: {{detail}}.",
   noTurnToStop: '{{agent}} had no turn running to stop.',
   answerUnconfirmed: 'Your answer was recorded but the agent did not confirm it.',
-  hostFault: "Orca ran into a problem, so this didn't go through.",
-  hostFaultTryAgain: "Orca ran into a problem, so this didn't go through. Try again.",
-  hostStopped: '{{agent}} never finished starting, so Orca stopped it.',
+  hostFault: "MassOrca ran into a problem, so this didn't go through.",
+  hostFaultTryAgain: "MassOrca ran into a problem, so this didn't go through. Try again.",
+  hostStopped: '{{agent}} never finished starting, so MassOrca stopped it.',
   providerRateLimited: '{{agent}} is rate-limited and retrying.',
   providerRetrying: '{{agent}} hit a temporary problem and is retrying.',
   providerRetryingQuoted: '{{agent}} is retrying: {{detail}}.',

@@ -13,12 +13,12 @@ export function managedServerMoveOfferText(host: string, terminals: number | und
   return terminals
     ? translate(
         'auto.ssh.managedServerMove.offer',
-        'Move {{host}} to a managed Orca server for more reliable connections. Its {{count}} open terminals will restart.',
+        'Move {{host}} to a managed MassOrca server for more reliable connections. Its {{count}} open terminals will restart.',
         { host, count: terminals }
       )
     : translate(
         'auto.ssh.managedServerMove.offerUncounted',
-        'Move {{host}} to a managed Orca server for more reliable connections. Its open terminals will restart.',
+        'Move {{host}} to a managed MassOrca server for more reliable connections. Its open terminals will restart.',
         { host }
       )
 }
@@ -33,7 +33,7 @@ export function describeManagedServerMove(
         level: 'success',
         message: translate(
           'auto.ssh.managedServerMove.moved',
-          '{{host}} now runs a managed Orca server.',
+          '{{host}} now runs a managed MassOrca server.',
           { host }
         )
       }
@@ -66,12 +66,12 @@ function refusedMoveText(
   return result.terminals > 0
     ? translate(
         'auto.ssh.managedServerMove.refusedUnverifiable',
-        'Not moved: Orca couldn’t confirm that {{count}} terminals on {{host}} stopped.',
+        'Not moved: MassOrca couldn’t confirm that {{count}} terminals on {{host}} stopped.',
         { host, count: result.terminals }
       )
     : translate(
         'auto.ssh.managedServerMove.refusedUnverifiableUncounted',
-        'Not moved: Orca couldn’t confirm that the terminals on {{host}} stopped.',
+        'Not moved: MassOrca couldn’t confirm that the terminals on {{host}} stopped.',
         { host }
       )
 }
@@ -115,9 +115,13 @@ export async function moveSshHostFromToast(targetId: string, host: string): Prom
     return
   }
   const progressId = toast.loading(
-    translate('auto.ssh.managedServerMove.running', 'Moving {{host}} to a managed Orca server…', {
-      host
-    })
+    translate(
+      'auto.ssh.managedServerMove.running',
+      'Moving {{host}} to a managed MassOrca server…',
+      {
+        host
+      }
+    )
   )
   try {
     const report = describeManagedServerMove(host, await move)

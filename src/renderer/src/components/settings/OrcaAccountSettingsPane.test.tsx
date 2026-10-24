@@ -77,7 +77,7 @@ describe('OrcaAccountSettingsPane', () => {
     expect(screen.getByText('Ada Lovelace')).toBeInTheDocument()
     expect(screen.getByText('ada@example.com')).toBeInTheDocument()
     expect(screen.getByText('Artifact sharing')).toBeInTheDocument()
-    expect(screen.getByText('Orca Relay')).toBeInTheDocument()
+    expect(screen.getByText('MassOrca Relay')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Sign out' }))
     await user.click(screen.getByRole('button', { name: 'Confirm sign out' }))
@@ -92,13 +92,13 @@ describe('OrcaAccountSettingsPane', () => {
 
     expect(
       screen.getByText(
-        'Sign in to extend Orca with cloud features, including Artifacts and Orca Relay.'
+        'Sign in to extend MassOrca with cloud features, including Artifacts and MassOrca Relay.'
       )
     ).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Sign in to Orca' }))
+    await user.click(screen.getByRole('button', { name: 'Sign in to MassOrca' }))
     expect(mocks.connect).toHaveBeenCalledOnce()
-    expect(screen.getByRole('button', { name: 'Sign in to Orca' })).toBeEnabled()
-    await user.click(screen.getByRole('button', { name: 'Sign in to Orca' }))
+    expect(screen.getByRole('button', { name: 'Sign in to MassOrca' })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: 'Sign in to MassOrca' }))
     expect(mocks.connect).toHaveBeenCalledTimes(2)
   })
 
@@ -107,6 +107,6 @@ describe('OrcaAccountSettingsPane', () => {
     render(<OrcaAccountSettingsPane />)
 
     expect(mocks.fetchAuthStatus).toHaveBeenCalledOnce()
-    expect(screen.getByRole('button', { name: 'Sign in to Orca' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Sign in to MassOrca' })).toBeDisabled()
   })
 })

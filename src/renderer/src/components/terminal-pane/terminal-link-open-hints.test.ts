@@ -36,14 +36,14 @@ describe('getTerminalUrlOpenHint', () => {
   it('names Orca when inverting and links open externally', () => {
     stubPlatform(true)
     expect(getTerminalUrlOpenHint({ openLinksInApp: false, modifierInverts: true })).toBe(
-      'Click for actions, ⌘+click to open, or ⇧⌘+click to open in Orca'
+      'Click for actions, ⌘+click to open, or ⇧⌘+click to open in MassOrca'
     )
   })
 
   it('uses the Ctrl chord off macOS', () => {
     stubPlatform(false)
     expect(getTerminalUrlOpenHint({ openLinksInApp: false, modifierInverts: true })).toBe(
-      'Click for actions, Ctrl+click to open, or Shift+Ctrl+click to open in Orca'
+      'Click for actions, Ctrl+click to open, or Shift+Ctrl+click to open in MassOrca'
     )
   })
 
@@ -55,7 +55,7 @@ describe('getTerminalUrlOpenHint', () => {
         modifierInverts: true,
         showActions: false
       })
-    ).toBe('Ctrl+click to open, or Shift+Ctrl+click to open in Orca')
+    ).toBe('Ctrl+click to open, or Shift+Ctrl+click to open in MassOrca')
   })
 })
 
@@ -136,7 +136,7 @@ describe('terminalUrlOpenHintOptionsFor', () => {
     )
 
     expect(options.modifierInverts).toBe(true)
-    expect(getTerminalUrlOpenHint(options)).toContain('to open in Orca')
+    expect(getTerminalUrlOpenHint(options)).toContain('to open in MassOrca')
   })
 
   it('keeps inversion for a runtime pane when its host can open an Orca browser', () => {

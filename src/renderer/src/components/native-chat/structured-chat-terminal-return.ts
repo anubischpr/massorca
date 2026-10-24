@@ -212,7 +212,7 @@ function showRevealFailedToast(outcome: Exclude<StructuredChatRevealOutcome, 're
     toast.error(
       translate(
         'components.native-chat.toggle.terminalReturnChatHostCannotOpen',
-        "This chat can't be reopened until Orca is updated. The terminal was kept."
+        "This chat can't be reopened until MassOrca is updated. The terminal was kept."
       )
     )
     return

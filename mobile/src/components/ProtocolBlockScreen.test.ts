@@ -81,9 +81,9 @@ describe('ProtocolBlockScreen', () => {
       desktopVersion: 5,
       requiredMobileVersion: 99
     })
-    expect(mobile).toContain('Update Orca Mobile')
+    expect(mobile).toContain('Update MassOrca Mobile')
     expect(mobile).toContain(
-      'This desktop needs a newer Orca Mobile app. Update Orca Mobile from the App Store, then try this host again.'
+      'This desktop needs a newer MassOrca Mobile app. Update MassOrca Mobile from the App Store, then try this host again.'
     )
     expect(mobile).toContain('Open App Store')
     act(() => renderer?.unmount())
@@ -94,18 +94,18 @@ describe('ProtocolBlockScreen', () => {
       desktopVersion: 0,
       requiredDesktopVersion: 2
     })
-    expect(desktop).toContain('Update Orca on your computer')
+    expect(desktop).toContain('Update MassOrca on your computer')
     expect(desktop).toContain(
-      'This paired desktop app is too old for your current Orca Mobile app. Update Orca on your computer, then try this host again.'
+      'This paired desktop app is too old for your current MassOrca Mobile app. Update MassOrca on your computer, then try this host again.'
     )
     expect(desktop).toContain('Open GitHub Releases')
   })
 
   it('sends a host without a bundle to the desktop update', () => {
     const output = render({ kind: 'blocked', reason: 'bundle-unavailable' })
-    expect(output).toContain('Update Orca on your computer')
+    expect(output).toContain('Update MassOrca on your computer')
     expect(output).toContain(
-      'This paired desktop app does not include the mobile workspace yet. Update Orca on your computer, then try this host again.'
+      'This paired desktop app does not include the mobile workspace yet. Update MassOrca on your computer, then try this host again.'
     )
     expect(primaryActionUrl()).toBe(RELEASES_URL)
   })
@@ -116,9 +116,9 @@ describe('ProtocolBlockScreen', () => {
       reason: 'bundle-shell-too-old',
       schemaVersion: 2
     })
-    expect(output).toContain('Update Orca Mobile')
+    expect(output).toContain('Update MassOrca Mobile')
     expect(output).toContain(
-      "This desktop's mobile workspace needs a newer Orca Mobile app. Update Orca Mobile from the App Store, then try this host again."
+      "This desktop's mobile workspace needs a newer MassOrca Mobile app. Update MassOrca Mobile from the App Store, then try this host again."
     )
     expect(primaryActionUrl()).toBe('itms-apps://apps.apple.com/app/orca-ide/id6766130217')
   })
@@ -139,7 +139,7 @@ describe('ProtocolBlockScreen', () => {
     // A store update cannot replace a stale cache, so neither store link is offered.
     expect(output).not.toContain('Open App Store')
     expect(output).not.toContain('Open GitHub Releases')
-    expect(output).not.toContain('Update Orca')
+    expect(output).not.toContain('Update MassOrca')
     // Back to hosts is the only button left, and it is not a download.
     expect(pressableCount()).toBe(1)
     expect(output).toContain('Back to hosts')
@@ -156,8 +156,10 @@ describe('ProtocolBlockScreen', () => {
       hostProtocolVersion: 1,
       requiredHostProtocolVersion: 2
     })
-    expect(output).toContain('Update Orca on your computer')
-    expect(output).toContain('This paired desktop app is too old for your current Orca Mobile app')
+    expect(output).toContain('Update MassOrca on your computer')
+    expect(output).toContain(
+      'This paired desktop app is too old for your current MassOrca Mobile app'
+    )
     expect(primaryActionUrl()).toBe(RELEASES_URL)
   })
 
@@ -169,8 +171,10 @@ describe('ProtocolBlockScreen', () => {
       pageVersion: 0,
       requiredPageVersion: 1
     })
-    expect(output).toContain('Update Orca on your computer')
-    expect(output).toContain('This paired desktop app is too old for your current Orca Mobile app')
+    expect(output).toContain('Update MassOrca on your computer')
+    expect(output).toContain(
+      'This paired desktop app is too old for your current MassOrca Mobile app'
+    )
     expect(primaryActionUrl()).toBe(RELEASES_URL)
   })
 
@@ -181,7 +185,7 @@ describe('ProtocolBlockScreen', () => {
       reason: 'bundle-shell-too-old',
       schemaVersion: 2
     })
-    expect(output).toContain('Update Orca Mobile from GitHub Releases')
+    expect(output).toContain('Update MassOrca Mobile from GitHub Releases')
     expect(primaryActionUrl()).toBe(RELEASES_URL)
   })
 
@@ -204,7 +208,7 @@ describe('ProtocolBlockScreen', () => {
         { kind: 'blocked', reason: 'bundle-shell-too-old', schemaVersion: 2 },
         release
       )
-      expect(output).toContain('Get Orca 0.0.52')
+      expect(output).toContain('Get MassOrca 0.0.52')
       expect(output).not.toContain('Open App Store')
       expect(output).not.toContain('Open GitHub Releases')
       expect(primaryActionUrl()).toBe(release.url)
@@ -212,7 +216,7 @@ describe('ProtocolBlockScreen', () => {
 
     it('leaves the desktop wall on the desktop releases', () => {
       const output = render({ kind: 'blocked', reason: 'bundle-unavailable' }, release)
-      expect(output).not.toContain('Get Orca')
+      expect(output).not.toContain('Get MassOrca')
       expect(primaryActionUrl()).toBe(RELEASES_URL)
     })
   })
@@ -227,7 +231,7 @@ describe('ProtocolBlockScreen', () => {
       null
     )
     expect(output).toContain(label)
-    expect(output).not.toContain('Get Orca')
+    expect(output).not.toContain('Get MassOrca')
     expect(primaryActionUrl()).toBe(url)
   })
 })

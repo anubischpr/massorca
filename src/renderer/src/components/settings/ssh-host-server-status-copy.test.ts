@@ -49,13 +49,13 @@ describe('SSH host server status line', () => {
       })
     ).toEqual({
       tone: 'warning',
-      text: 'Orca couldn’t confirm that the managed server is answering.',
+      text: 'MassOrca couldn’t confirm that the managed server is answering.',
       detail
     })
   })
 
   it.each([
-    'The managed Orca server process is live but is not answering.',
+    'The managed MassOrca server process is live but is not answering.',
     'SSH operation was cancelled',
     'SSH transport closed before the server answered'
   ])('does not infer process exit from unverifiable contact: %s', (detail) => {
@@ -70,7 +70,7 @@ describe('SSH host server status line', () => {
       })
     ).toEqual({
       tone: 'warning',
-      text: 'Orca couldn’t confirm that the managed server is answering.',
+      text: 'MassOrca couldn’t confirm that the managed server is answering.',
       detail
     })
   })
@@ -112,7 +112,7 @@ describe('SSH host server status line', () => {
       sshHostServerStatusLine(plain, {
         managedServer: { kind: 'managed', environmentId: 'e', update }
       })
-    expect(managed({ state: 'host-newer' })?.text).toContain('from a newer Orca')
+    expect(managed({ state: 'host-newer' })?.text).toContain('from a newer MassOrca')
     expect(managed({ state: 'deferred', detail: '2 terminals are running.' })).toMatchObject({
       tone: 'muted',
       detail: '2 terminals are running.'
@@ -133,7 +133,7 @@ describe('SSH host server status line', () => {
       }
     })
     expect(line?.text).toBe(
-      'Runs the relay while 1 terminal another Orca desktop or session opened on this host is running.'
+      'Runs the relay while 1 terminal another MassOrca desktop or session opened on this host is running.'
     )
     expect(line).not.toHaveProperty('action')
   })
@@ -155,7 +155,7 @@ describe('SSH host server status line', () => {
       'Runs the relay until its 2 open terminals are closed, then moves to a managed server.'
     )
     expect(live(3, true)).toBe(
-      'Runs the relay while 3 terminals another Orca desktop or session opened on this host are running.'
+      'Runs the relay while 3 terminals another MassOrca desktop or session opened on this host are running.'
     )
   })
 

@@ -64,7 +64,7 @@ describe('SshManagedServerMoveDialog', () => {
     const container = render()
     expect(container.textContent).toContain('Move to managed server')
     expect(container.textContent).toContain(
-      'Move Box to a managed Orca server for more reliable connections. Its 3 open terminals will restart.'
+      'Move Box to a managed MassOrca server for more reliable connections. Its 3 open terminals will restart.'
     )
     expect(button(container, 'Not now')).toBeTruthy()
   })
@@ -96,7 +96,7 @@ describe('SshManagedServerMoveDialog', () => {
     const container = render(onClose)
     await act(async () => button(container, 'Move').click())
     expect(container.textContent).toContain(
-      'Not moved: Orca couldn’t confirm that 2 terminals on Box stopped.'
+      'Not moved: MassOrca couldn’t confirm that 2 terminals on Box stopped.'
     )
     expect(onClose).not.toHaveBeenCalled()
     expect(button(container, 'Close')).toBeTruthy()

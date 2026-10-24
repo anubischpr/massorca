@@ -42,7 +42,7 @@ describe('OnboardingFlow', () => {
 
     expect(html).toContain('Set up notifications')
     expect(html).not.toContain('Set up Orca for agents')
-    expect(html).not.toContain('Explore Orca')
+    expect(html).not.toContain('Explore MassOrca')
     expect(html).not.toContain('Take the tour')
     expect(html).toContain('Add your first project')
     expect(html).not.toContain('Point Orca at some code')
@@ -67,7 +67,7 @@ describe('OnboardingFlow', () => {
 
       expect(html).toContain(title)
       expect(html).not.toContain('Set up Orca for agents')
-      expect(html).not.toContain('Explore Orca')
+      expect(html).not.toContain('Explore MassOrca')
     }
   )
 
@@ -90,7 +90,7 @@ describe('OnboardingFlow', () => {
 
       expect(html).toContain(title)
       expect(html).not.toContain('Set up Orca for agents')
-      expect(html).not.toContain('Explore Orca')
+      expect(html).not.toContain('Explore MassOrca')
     }
   )
 
@@ -224,7 +224,7 @@ describe('OnboardingFlow', () => {
     expect(html).toContain('data-onboarding-modal="true"')
     expect(html).toContain('h-[calc(100vh-2rem)]')
     expect(html).toContain('rounded-xl')
-    expect(html).toContain('h-7 w-auto shrink-0 invert dark:invert-0')
+    expect(html).toContain('class="h-7 w-auto shrink-0"')
     expect(html).not.toContain('min-h-screen')
     expect(html).not.toContain('background-color:#12181e')
   })

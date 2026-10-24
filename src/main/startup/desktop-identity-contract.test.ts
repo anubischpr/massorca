@@ -1,4 +1,6 @@
+import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { PRODUCT_DISPLAY_NAME } from '../../shared/product-identity'
@@ -82,4 +84,32 @@ describe('desktop identity contract', () => {
       appName: 'Orca'
     })
   })
+
+  it('titles the renderer windows MassOrca', () => {
+    for (const page of ['index.html', 'popout.html']) {
+      const html = readFileSync(join(RENDERER_DIR, page), 'utf8')
+      expect(html).toMatch(new RegExp(`<title>${PRODUCT_DISPLAY_NAME}\\b`))
+    }
+  })
+
+  it('never shows the bare Orca brand in the English UI catalog', () => {
+    const catalog: unknown = JSON.parse(
+      readFileSync(join(RENDERER_DIR, 'src', 'i18n', 'locales', 'en.json'), 'utf8')
+    )
+    // Why: paths and file names such as /opt/Orca or Orca.app are identifiers, not branding.
+    const bareBrand = /(?<![\w/.-])Orca\b(?![\\/]|\.[A-Za-z])/
+    expect(collectStrings(catalog).filter((value) => bareBrand.test(value))).toEqual([])
+  })
 })
+
+const RENDERER_DIR = join(import.meta.dirname, '..', '..', 'renderer')
+
+function collectStrings(value: unknown): string[] {
+  if (typeof value === 'string') {
+    return [value]
+  }
+  if (value !== null && typeof value === 'object') {
+    return Object.values(value).flatMap(collectStrings)
+  }
+  return []
+}
