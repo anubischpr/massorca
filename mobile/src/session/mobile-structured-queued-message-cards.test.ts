@@ -294,7 +294,7 @@ describe('mobileQueuedMessageCards', () => {
       [],
       { pendingPrompt: false }
     )
-    expect(card?.caption).toBe('Orca restarted before this message was sent.')
+    expect(card?.caption).toBe('MassOrca restarted before this message was sent.')
   })
 
   it("keeps a provider's log-only detail off the card", () => {

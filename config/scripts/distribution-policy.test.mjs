@@ -5,7 +5,7 @@ import policy from '../distribution-policy.cjs'
 const require = createRequire(import.meta.url)
 const builderConfigPath = require.resolve('../electron-builder.config.cjs')
 const forkMetadata = {
-  orcaDistribution: { repository: 'anubischpr/orca', updatePolicy: 'manual' }
+  orcaDistribution: { repository: 'anubischpr/massorca', updatePolicy: 'manual' }
 }
 
 describe('distribution packaging metadata', () => {
@@ -14,7 +14,7 @@ describe('distribution packaging metadata', () => {
   })
   it('embeds a persistent manual fork identity', () => {
     expect(policy.distributionMetadata({ ORCA_MANUAL_UPDATES: '1' })).toEqual({
-      orcaDistribution: { repository: 'anubischpr/orca', updatePolicy: 'manual' }
+      orcaDistribution: { repository: 'anubischpr/massorca', updatePolicy: 'manual' }
     })
   })
   it('rejects ambiguous values instead of producing an unprotected fork build', () => {

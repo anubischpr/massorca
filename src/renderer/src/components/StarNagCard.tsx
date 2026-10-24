@@ -4,8 +4,9 @@ import { Card } from './ui/card'
 import { Button } from './ui/button'
 import { useMountedRef } from '@/hooks/useMountedRef'
 import { translate } from '@/i18n/i18n'
+import { MASSORCA_REPO_URL } from '../../../shared/massorca-distribution'
 
-const ORCA_REPO_URL = 'https://github.com/stablyai/orca'
+const ORCA_REPO_URL = MASSORCA_REPO_URL
 type StarNagMode = 'gh' | 'web'
 
 /**
@@ -147,7 +148,7 @@ export function StarNagCard(): React.JSX.Element | null {
             <div className="flex items-center gap-2">
               <Star className="size-4 fill-amber-400/60 text-amber-400/80" />
               <h3 id="star-nag-heading" className="text-sm font-semibold">
-                {translate('auto.components.StarNagCard.5f6df21046', 'Enjoying Orca?')}
+                {translate('auto.components.StarNagCard.5f6df21046', 'Enjoying MassOrca?')}
               </h3>
             </div>
             <Button
@@ -165,7 +166,7 @@ export function StarNagCard(): React.JSX.Element | null {
           <p className="text-sm text-muted-foreground">
             {translate(
               'auto.components.StarNagCard.30c36231c1',
-              'Orca is open source. If it helped today, a GitHub star helps other developers find it.'
+              'MassOrca is open source. If it helped today, a GitHub star helps other developers find it.'
             )}
           </p>
 

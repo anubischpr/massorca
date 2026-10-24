@@ -82,7 +82,9 @@ it("names a history that couldn't open right now once, in its one line", () => {
 
   renderPane()
 
-  expect(screen.getAllByText("Orca couldn't open this chat's history right now.")).toHaveLength(1)
+  expect(screen.getAllByText("MassOrca couldn't open this chat's history right now.")).toHaveLength(
+    1
+  )
   expect(screen.queryByText('Could not load conversation')).toBeNull()
   expect(screen.queryByText(/keeps trying/)).toBeNull()
   expect(screen.queryByText(/Try again/)).toBeNull()
@@ -117,10 +119,10 @@ it('says why the history did not load for a chat its host cannot run', () => {
 
   expect(
     screen.getAllByText(
-      "Orca can't run this agent in a chat here. This chat's history couldn't be loaded."
+      "MassOrca can't run this agent in a chat here. This chat's history couldn't be loaded."
     )
   ).toHaveLength(1)
-  expect(screen.queryByText(/isn't available|newer Orca/)).toBeNull()
+  expect(screen.queryByText(/isn't available|newer MassOrca/)).toBeNull()
 })
 
 it('says once that a newer Orca saved the chat and only an update opens it, with no composer', () => {
@@ -131,7 +133,7 @@ it('says once that a newer Orca saved the chat and only an update opens it, with
   renderPane()
 
   expect(
-    screen.getAllByText('This chat was saved by a newer Orca. Update Orca to open it.')
+    screen.getAllByText('This chat was saved by a newer MassOrca. Update MassOrca to open it.')
   ).toHaveLength(1)
   expect(screen.queryByText('Could not load conversation')).toBeNull()
   expect(screen.queryByText(/keeps trying/)).toBeNull()
@@ -166,5 +168,5 @@ it('words a failed reconnect beside a transcript it keeps', () => {
   renderPane()
 
   expect(screen.getByTestId('message-list')).toBeTruthy()
-  expect(screen.getByText("Orca couldn't open this chat's history right now.")).toBeTruthy()
+  expect(screen.getByText("MassOrca couldn't open this chat's history right now.")).toBeTruthy()
 })

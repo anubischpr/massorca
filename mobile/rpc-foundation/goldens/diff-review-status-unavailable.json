@@ -4,15 +4,6 @@
   "family": "session.diff-review",
   "namedDeltas": [],
   "values": {
-    "14804a5e414f": {
-      "status": "fulfilled",
-      "startedAt": 0,
-      "settledAt": 0,
-      "value": {
-        "kind": "unavailable",
-        "message": "Update Orca desktop to review changes on mobile."
-      }
-    },
     "168d1f64ca9b": {
       "name": "git.status#1",
       "ordinal": 2,
@@ -53,12 +44,21 @@
         }
       }
     },
-    "55c07df45014": {
+    "87b1fc6da297": {
       "branchCompare": "unloaded",
       "diff": "unloaded",
       "snapshot": {
         "kind": "unavailable",
-        "message": "Update Orca desktop to review changes on mobile."
+        "message": "Update MassOrca desktop to review changes on mobile."
+      }
+    },
+    "af52279cafd2": {
+      "status": "fulfilled",
+      "startedAt": 0,
+      "settledAt": 0,
+      "value": {
+        "kind": "unavailable",
+        "message": "Update MassOrca desktop to review changes on mobile."
       }
     }
   },
@@ -71,9 +71,9 @@
           "sender": ["45d1ea7c0b42"],
           "payloads": ["168d1f64ca9b"],
           "settlements": {
-            "unavailable": "14804a5e414f"
+            "unavailable": "af52279cafd2"
           },
-          "state": "55c07df45014",
+          "state": "87b1fc6da297",
           "effects": []
         }
       }

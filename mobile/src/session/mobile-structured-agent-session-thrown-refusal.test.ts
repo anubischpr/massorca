@@ -99,12 +99,12 @@ describe('a write refused on a journal a newer Orca wrote', () => {
     [
       'agentSession.send',
       { body: { kind: 'message', role: 'user', blocks: [{ type: 'text', text: 'hello' }] } },
-      'Chats were saved by a newer Orca. Your message was not sent. Update Orca to keep using them.'
+      'Chats were saved by a newer MassOrca. Your message was not sent. Update MassOrca to keep using them.'
     ],
     [
       'agentSession.cancel',
       { turnId: 'turn-1' },
-      "Chats were saved by a newer Orca. The agent wasn't stopped. Update Orca to keep using them."
+      "Chats were saved by a newer MassOrca. The agent wasn't stopped. Update MassOrca to keep using them."
     ]
   ] as const)('says to update Orca for %s', async (method, fields, message) => {
     const result = await requestStructuredAgentSessionMutation({

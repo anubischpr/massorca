@@ -245,7 +245,7 @@ describe.skipIf(process.platform === 'win32')('frozen Codex hook command under /
   }
 
   it.each([
-    ['outside Orca', {}, ''],
+    ['outside MassOrca', {}, ''],
     ['a pane with hooks off', { ORCA_PANE_KEY: 'tab:leaf' }, ''],
     ['a pane with hooks on', { ORCA_PANE_KEY: 'tab:leaf', ORCA_AGENT_HOOK_PORT: '1' }, 'shared'],
     [

@@ -49,7 +49,8 @@ const NOT_SHOWN =
   'The terminal was closed, but this chat could not be shown. Its conversation is kept.'
 const GONE =
   'This chat is no longer on this host, so it cannot be reopened here. The terminal was kept.'
-const HOST_CANNOT_OPEN = "This chat can't be reopened until Orca is updated. The terminal was kept."
+const HOST_CANNOT_OPEN =
+  "This chat can't be reopened until MassOrca is updated. The terminal was kept."
 const UNREACHABLE =
   'Could not reach the host to reopen this chat. The terminal was kept; try again in a moment.'
 

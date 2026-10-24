@@ -54,7 +54,7 @@ export default function AboutScreen({
 
       <View style={styles.brand}>
         <OrcaLogo size={28} />
-        <Text style={styles.brandName}>Orca</Text>
+        <Text style={styles.brandName}>MassOrca</Text>
         <Text style={styles.brandSub}>Open-source agent IDE for 100x builders</Text>
       </View>
 
@@ -62,7 +62,7 @@ export default function AboutScreen({
         <Pressable
           style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
           accessibilityRole="button"
-          accessibilityLabel="Orca website"
+          accessibilityLabel="Upstream Orca website"
           onPress={() => openLink('https://onOrca.dev')}
         >
           <Globe size={16} color={colors.textSecondary} />
@@ -72,17 +72,17 @@ export default function AboutScreen({
         <Pressable
           style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
           accessibilityRole="button"
-          accessibilityLabel="Orca source code"
-          onPress={() => openLink('https://github.com/stablyai/orca')}
+          accessibilityLabel="MassOrca source code"
+          onPress={() => openLink('https://github.com/anubischpr/massorca')}
         >
           <GithubIcon />
-          <Text style={styles.rowValue}>stablyai/orca</Text>
+          <Text style={styles.rowValue}>anubischpr/massorca</Text>
         </Pressable>
         <View style={styles.separator} />
         <Pressable
           style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
           accessibilityRole="button"
-          accessibilityLabel="Orca on X"
+          accessibilityLabel="Upstream Orca on X"
           onPress={() => openLink('https://x.com/orca_build')}
         >
           <XIcon />

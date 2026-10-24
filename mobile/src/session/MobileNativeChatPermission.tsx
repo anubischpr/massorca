@@ -140,7 +140,7 @@ function MobileNativeChatPermissionContext({
       ) : null}
       {newerSubject ? (
         <Text testID="native-chat-approval-needs-newer-orca" style={styles.detail}>
-          This request needs a newer version of Orca.
+          This request needs a newer version of MassOrca.
         </Text>
       ) : null}
     </ScrollView>

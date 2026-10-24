@@ -94,7 +94,7 @@ describe('a structured chat tab', () => {
     renderToStaticMarkup(<StructuredChatTab />)
 
     const item = items.list.find(
-      (candidate) => childrenText(candidate.children) === 'Copy Orca Session ID'
+      (candidate) => childrenText(candidate.children) === 'Copy MassOrca Session ID'
     )
     item?.onSelect?.()
 

@@ -125,7 +125,7 @@ export function SshHostAdvancedFields({
               <Label className="text-xs font-medium">
                 {translate(
                   'auto.components.settings.SshTargetForm.allowRemoteCliControl',
-                  "Allow this host's orca CLI to control Orca"
+                  "Allow this host's orca CLI to control MassOrca"
                 )}
               </Label>
               <p className="text-muted-foreground">
@@ -146,7 +146,7 @@ export function SshHostAdvancedFields({
               }
               ariaLabel={translate(
                 'auto.components.settings.SshTargetForm.allowRemoteCliControl',
-                "Allow this host's orca CLI to control Orca"
+                "Allow this host's orca CLI to control MassOrca"
               )}
             />
           </div>
@@ -246,7 +246,7 @@ function SshRemoteRuntimeField({
         <p className="text-muted-foreground">
           {translate(
             'auto.components.settings.SshTargetForm.remoteRuntimeHelp',
-            'Which Node.js runs Orca on this host. Orca-managed Node uploads its own and needs no npm; Host Node uses the Node.js already installed there.'
+            'Which Node.js runs MassOrca on this host. MassOrca-managed Node uploads its own and needs no npm; Host Node uses the Node.js already installed there.'
           )}
         </p>
       </div>
@@ -269,7 +269,7 @@ function SshRemoteRuntimeField({
           <SelectItem value="pinned-node">
             {translate(
               'auto.components.settings.SshTargetForm.remoteRuntimePinnedNode',
-              'Orca-managed Node'
+              'MassOrca-managed Node'
             )}
           </SelectItem>
           <SelectItem value="legacy">

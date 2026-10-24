@@ -62,7 +62,7 @@ export function readPersistedEnvironmentStore(
   } catch {
     throw new RuntimeEnvironmentStoreError(
       'runtime_error',
-      `Could not read Orca environments at ${path}; the file is invalid.`
+      `Could not read MassOrca environments at ${path}; the file is invalid.`
     )
   }
 }
@@ -107,7 +107,7 @@ export function writeEnvironmentStore(userDataPath: string, store: RuntimeEnviro
     if (error instanceof JsonStringifyByteLimitError) {
       throw new RuntimeEnvironmentStoreError(
         'runtime_error',
-        `Could not write Orca environments at ${path}; the store exceeds its durable capacity.`
+        `Could not write MassOrca environments at ${path}; the store exceeds its durable capacity.`
       )
     }
     throw error

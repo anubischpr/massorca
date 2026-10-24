@@ -21,8 +21,8 @@ describe('profile state startup recovery dialog', () => {
       buttons: ['Copy recovery command', 'Quit'],
       defaultId: 1,
       cancelId: 1,
-      title: 'Orca profile state cannot be opened',
-      message: 'Orca cannot safely open this profile.',
+      title: 'MassOrca profile state cannot be opened',
+      message: 'MassOrca cannot safely open this profile.',
       detail:
         'SQLite state is unreadable.\nSQLite path: /tmp/profile-state.db\n\nCopy the recovery command, then run it after Orca closes.'
     })

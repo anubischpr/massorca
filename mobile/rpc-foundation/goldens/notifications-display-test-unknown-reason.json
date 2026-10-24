@@ -78,7 +78,7 @@
         }
       }
     },
-    "6967f95147f9": {
+    "6a492753f89e": {
       "crash": {
         "$rpc": "null"
       },
@@ -90,13 +90,13 @@
       "labels": ["Sending…"],
       "text": [
         "Having trouble receiving alerts?",
-        "Send a test through Orca’s push service.",
+        "Send a test through MassOrca’s push service.",
         "Send test notification",
         "Sending…",
         "Troubleshooting"
       ]
     },
-    "d86c08a509c4": {
+    "a287c2a20266": {
       "crash": {
         "$rpc": "null"
       },
@@ -108,21 +108,13 @@
       "labels": ["Send test notification"],
       "text": [
         "Having trouble receiving alerts?",
-        "Send a test through Orca’s push service.",
+        "Send a test through MassOrca’s push service.",
         "Send test notification",
         "Send test notification",
         "Troubleshooting"
       ]
     },
-    "eb79a9b3682a": {
-      "status": "fulfilled",
-      "startedAt": 0,
-      "settledAt": 0,
-      "value": {
-        "$rpc": "undefined"
-      }
-    },
-    "f3e2e816b496": {
+    "c70e63b23475": {
       "crash": {
         "$rpc": "null"
       },
@@ -134,12 +126,20 @@
       "labels": ["Send test notification"],
       "text": [
         "Having trouble receiving alerts?",
-        "Send a test through Orca’s push service.",
+        "Send a test through MassOrca’s push service.",
         "Send test notification",
         "Send test notification",
         "Troubleshooting",
-        "Could not send through Orca’s push service. Try again."
+        "Could not send through MassOrca’s push service. Try again."
       ]
+    },
+    "eb79a9b3682a": {
+      "status": "fulfilled",
+      "startedAt": 0,
+      "settledAt": 0,
+      "value": {
+        "$rpc": "undefined"
+      }
     },
     "f68b017d64bd": {
       "name": "notifications.testPush#1",
@@ -158,7 +158,7 @@
           "settlements": {
             "mount": "eb79a9b3682a"
           },
-          "state": "d86c08a509c4",
+          "state": "a287c2a20266",
           "effects": []
         }
       },
@@ -171,7 +171,7 @@
             "mount": "eb79a9b3682a",
             "press": "eb79a9b3682a"
           },
-          "state": "6967f95147f9",
+          "state": "6a492753f89e",
           "effects": []
         }
       },
@@ -184,7 +184,7 @@
             "mount": "eb79a9b3682a",
             "press": "eb79a9b3682a"
           },
-          "state": "f3e2e816b496",
+          "state": "c70e63b23475",
           "effects": ["14bb4c669631"]
         }
       }

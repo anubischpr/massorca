@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { CliInstallStatus } from '../../../../shared/cli-install-types'
 import { readCliInstallFailure, readCliInstallRejection } from './cli-install-failure'
 
-const FALLBACK = 'Orca could not finish CLI registration and reported no reason.'
+const FALLBACK = 'MassOrca could not finish CLI registration and reported no reason.'
 
 function cliStatus(overrides: Partial<CliInstallStatus> = {}): CliInstallStatus {
   return {

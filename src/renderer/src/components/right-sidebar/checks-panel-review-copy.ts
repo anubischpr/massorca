@@ -22,28 +22,28 @@ export function concurrentLookupDetail(input: ChecksPanelReviewStateInput): stri
   if (input.reviewLookup === 'positive_unresolved') {
     return translate(
       'auto.components.right.sidebar.checks.panel.review.detail.positive',
-      'Orca also has saved {{reviewLabel}} information that it could not verify.',
+      'MassOrca also has saved {{reviewLabel}} information that it could not verify.',
       { reviewLabel }
     )
   }
   if (isRateLimitRefresh(refresh)) {
     return translate(
       'auto.components.right.sidebar.checks.panel.review.detail.rate_limited',
-      'Orca also could not check {{reviewLabel}} status because {{provider}} is temporarily limiting requests.',
+      'MassOrca also could not check {{reviewLabel}} status because {{provider}} is temporarily limiting requests.',
       { reviewLabel, provider: providerName }
     )
   }
   if (refresh?.errorType === 'network') {
     return translate(
       'auto.components.right.sidebar.checks.panel.review.detail.network',
-      'Orca also could not check {{reviewLabel}} status because this environment could not reach {{provider}}.',
+      'MassOrca also could not check {{reviewLabel}} status because this environment could not reach {{provider}}.',
       { reviewLabel, provider: providerName }
     )
   }
   if (refresh?.status === 'error' || isHardRefreshError(refresh)) {
     return translate(
       'auto.components.right.sidebar.checks.panel.review.detail.untyped',
-      'Orca also could not confirm whether this branch already has a {{reviewLabel}}.',
+      'MassOrca also could not confirm whether this branch already has a {{reviewLabel}}.',
       { reviewLabel }
     )
   }
@@ -112,7 +112,7 @@ export function transientRefreshState(
       ),
       description: translate(
         'auto.components.right.sidebar.checks.panel.review.unknown_error.body',
-        'The lookup failed, so Orca could not confirm whether this branch already has a {{reviewLabel}}.',
+        'The lookup failed, so MassOrca could not confirm whether this branch already has a {{reviewLabel}}.',
         { reviewLabel }
       )
     }
@@ -126,7 +126,7 @@ export function transientRefreshState(
     ),
     description: translate(
       'auto.components.right.sidebar.checks.panel.review.untyped.body',
-      'Orca could not confirm whether this branch already has a {{reviewLabel}}. Retry to check again.',
+      'MassOrca could not confirm whether this branch already has a {{reviewLabel}}. Retry to check again.',
       { reviewLabel }
     )
   }
@@ -180,7 +180,7 @@ const HARD_ERROR_COPY: Record<
     body: {
       key: 'auto.components.right.sidebar.checks.panel.review.cli.body',
       fallback:
-        'Orca could not run {{provider}} CLI in this environment. Set it up here, then retry.'
+        'MassOrca could not run {{provider}} CLI in this environment. Set it up here, then retry.'
     }
   }
 }
@@ -215,7 +215,7 @@ const SKIPPED_COPY: Partial<
     body: {
       key: 'auto.components.right.sidebar.checks.panel.review.skipped.disconnected.body',
       fallback:
-        "This repository's execution host is disconnected, so Orca cannot refresh {{reviewLabel}} status."
+        "This repository's execution host is disconnected, so MassOrca cannot refresh {{reviewLabel}} status."
     },
     recovery: ['retry']
   },
@@ -237,7 +237,7 @@ const SKIPPED_COPY: Partial<
     },
     body: {
       key: 'auto.components.right.sidebar.checks.panel.review.skipped.archived.body',
-      fallback: 'This repository is archived, so Orca is not refreshing {{reviewLabel}} status.'
+      fallback: 'This repository is archived, so MassOrca is not refreshing {{reviewLabel}} status.'
     },
     recovery: []
   },
@@ -248,7 +248,8 @@ const SKIPPED_COPY: Partial<
     },
     body: {
       key: 'auto.components.right.sidebar.checks.panel.review.skipped.not_git.body',
-      fallback: 'Orca could not treat this folder as a Git repository for {{reviewLabel}} status.'
+      fallback:
+        'MassOrca could not treat this folder as a Git repository for {{reviewLabel}} status.'
     },
     recovery: []
   },
@@ -260,7 +261,7 @@ const SKIPPED_COPY: Partial<
     body: {
       key: 'auto.components.right.sidebar.checks.panel.review.skipped.remote.body',
       fallback:
-        'Orca could not refresh {{reviewLabel}} status for this remote context. Retry after the host is available.'
+        'MassOrca could not refresh {{reviewLabel}} status for this remote context. Retry after the host is available.'
     },
     recovery: ['retry']
   }

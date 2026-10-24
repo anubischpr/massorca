@@ -100,7 +100,7 @@ export function SshManagedServerMoveDialog({
             <Loader2 className="size-4 animate-spin" />
             {translate(
               'auto.ssh.managedServerMove.running',
-              'Moving {{host}} to a managed Orca server…',
+              'Moving {{host}} to a managed MassOrca server…',
               { host }
             )}
           </div>

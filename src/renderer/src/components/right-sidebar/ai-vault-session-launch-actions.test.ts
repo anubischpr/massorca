@@ -137,7 +137,7 @@ describe('Resume in New CLI launch', () => {
 
     await waitFor(() => expect(mocks.toastError).toHaveBeenCalledTimes(1))
     expect(mocks.toastError).toHaveBeenCalledWith(
-      'Update Orca on the host that runs this chat to resume it in a new CLI.'
+      'Update MassOrca on the host that runs this chat to resume it in a new CLI.'
     )
     expect(mocks.toastSuccess).not.toHaveBeenCalled()
   })
@@ -149,7 +149,7 @@ describe('Resume in New CLI launch', () => {
 
     await waitFor(() => expect(mocks.toastError).toHaveBeenCalledTimes(1))
     expect(mocks.toastError).toHaveBeenCalledWith(
-      'Update Orca on the host that runs this chat to resume it in a new CLI.'
+      'Update MassOrca on the host that runs this chat to resume it in a new CLI.'
     )
     expect(mocks.launchAiVaultSessionInNewTab).not.toHaveBeenCalled()
   })

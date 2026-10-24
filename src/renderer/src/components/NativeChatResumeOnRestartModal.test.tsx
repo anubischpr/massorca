@@ -499,7 +499,7 @@ it('reports the chats a lost resume request named once, as failed, until it is r
   continueFails = false
   await act(async () => show?.())
   expect(document.querySelector('[role="dialog"]')?.textContent).toContain(
-    'Orca couldn’t resume this chat. Open it to continue manually.'
+    'MassOrca couldn’t resume this chat. Open it to continue manually.'
   )
   await act(async () => button('Retry').click())
   expect(calls().at(-1)).toEqual(['agentSession.restartContinue', { sessionIds: ['b'] }])

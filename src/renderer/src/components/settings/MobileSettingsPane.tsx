@@ -9,11 +9,11 @@ import {
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { MobileRelayBetaNotice } from './MobileRelayBetaNotice'
+import { MASSORCA_MOBILE_ANDROID_RELEASES_URL } from '../../../../shared/massorca-distribution'
 export { getMobileSettingsPaneSearchEntries }
 
 const ORCA_IOS_APP_STORE_URL = 'https://apps.apple.com/app/orca-ide/id6766130217'
-const ORCA_ANDROID_APK_URL =
-  'https://github.com/stablyai/orca/releases/download/mobile-android-v0.0.52/app-release.apk'
+const ORCA_ANDROID_APK_URL = MASSORCA_MOBILE_ANDROID_RELEASES_URL
 
 export function MobileSettingsPane(): React.JSX.Element {
   const showMobileButton = useAppStore((s) => s.settings?.showMobileButton !== false)
@@ -34,7 +34,7 @@ export function MobileSettingsPane(): React.JSX.Element {
           <p>
             {translate(
               'auto.components.settings.MobileSettingsPane.installIntro',
-              'Install Orca Mobile from the'
+              'Install MassOrca Mobile from the'
             )}{' '}
             <button
               type="button"
@@ -68,11 +68,11 @@ export function MobileSettingsPane(): React.JSX.Element {
       <SearchableSetting
         title={translate(
           'auto.components.settings.MobileSettingsPane.1de96ec8a6',
-          'Show Orca Mobile Button'
+          'Show MassOrca Mobile Button'
         )}
         description={translate(
           'auto.components.settings.MobileSettingsPane.682293cadf',
-          'Show the Orca Mobile button at the top of the left sidebar.'
+          'Show the MassOrca Mobile button at the top of the left sidebar.'
         )}
         keywords={getMobileSidebarShortcutSearchEntry().keywords}
       >
@@ -80,11 +80,11 @@ export function MobileSettingsPane(): React.JSX.Element {
         <SettingsSwitchRow
           label={translate(
             'auto.components.settings.MobileSettingsPane.1de96ec8a6',
-            'Show Orca Mobile Button'
+            'Show MassOrca Mobile Button'
           )}
           description={translate(
             'auto.components.settings.MobileSettingsPane.d4f2b65f30',
-            'Show the Orca Mobile shortcut in the sidebar.'
+            'Show the MassOrca Mobile shortcut in the sidebar.'
           )}
           checked={showMobileButton}
           onChange={() => updateSettings({ showMobileButton: !showMobileButton })}

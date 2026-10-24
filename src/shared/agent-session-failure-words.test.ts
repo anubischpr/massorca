@@ -381,7 +381,7 @@ describe('agent-aware managed-account and agent CLI words', () => {
         { surface: 'row', agentName: 'Antigravity' }
       ).text
     ).toBe(
-      "Orca could not verify Antigravity's credential storage on this computer. Check Antigravity in a terminal there, then try again."
+      "MassOrca could not verify Antigravity's credential storage on this computer. Check Antigravity in a terminal there, then try again."
     )
   })
 

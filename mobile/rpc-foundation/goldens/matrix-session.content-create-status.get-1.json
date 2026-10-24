@@ -85,13 +85,6 @@
         "message": "Unknown method"
       }
     },
-    "32afb7dc375d": {
-      "name": "toast",
-      "ordinal": 3,
-      "value": {
-        "message": "Remote file changes require a newer Orca server. Update the HUB and try again."
-      }
-    },
     "37185d7089db": {
       "createError": "The host sent a reply this app could not read (status.get)",
       "creatingBrowser": false,
@@ -191,12 +184,11 @@
         "$rpc": "null"
       }
     },
-    "7799ca596f0c": {
-      "createError": "Remote file changes require a newer Orca server. Update the HUB and try again.",
-      "creatingBrowser": false,
-      "creatingMarkdown": false,
-      "pendingBrowserFocusPageId": {
-        "$rpc": "null"
+    "70094898a6fe": {
+      "name": "toast",
+      "ordinal": 3,
+      "value": {
+        "message": "Remote file changes require a newer MassOrca server. Update the HUB and try again."
       }
     },
     "7f0419402be8": {
@@ -531,6 +523,14 @@
         "$rpc": "undefined"
       }
     },
+    "f0c9aa89c671": {
+      "createError": "Remote file changes require a newer MassOrca server. Update the HUB and try again.",
+      "creatingBrowser": false,
+      "creatingMarkdown": false,
+      "pendingBrowserFocusPageId": {
+        "$rpc": "null"
+      }
+    },
     "f1279bf9f173": {
       "name": "files.createFile#1",
       "ordinal": 6,
@@ -656,8 +656,8 @@
           "settlements": {
             "markdown": "eb79a9b3682a"
           },
-          "state": "7799ca596f0c",
-          "effects": ["32afb7dc375d"]
+          "state": "f0c9aa89c671",
+          "effects": ["70094898a6fe"]
         }
       },
       {
@@ -668,8 +668,8 @@
           "settlements": {
             "markdown": "eb79a9b3682a"
           },
-          "state": "7799ca596f0c",
-          "effects": ["32afb7dc375d"]
+          "state": "f0c9aa89c671",
+          "effects": ["70094898a6fe"]
         }
       },
       {
@@ -680,8 +680,8 @@
           "settlements": {
             "markdown": "eb79a9b3682a"
           },
-          "state": "7799ca596f0c",
-          "effects": ["32afb7dc375d"]
+          "state": "f0c9aa89c671",
+          "effects": ["70094898a6fe"]
         }
       },
       {

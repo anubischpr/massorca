@@ -54,7 +54,7 @@ export function applySshManagedServerTransition(
     toast.error(
       translate(
         'auto.hooks.ipcEvents.sshManagedServer.refusedBlocked',
-        'This SSH host could not move to a managed Orca server. SSH Hosts in Settings shows why.'
+        'This SSH host could not move to a managed MassOrca server. SSH Hosts in Settings shows why.'
       )
     )
   }

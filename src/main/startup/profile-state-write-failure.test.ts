@@ -84,7 +84,7 @@ it('attaches the alert to the visible main window and explains an unconfirmed wr
   expect(fixture.show).toHaveBeenCalledWith(window, {
     type: 'error',
     title: 'Saving stopped',
-    message: 'Orca has stopped saving this profile.',
+    message: 'MassOrca has stopped saving this profile.',
     detail:
       'Orca could not confirm whether your most recent change was saved. New changes will not be saved until you restart Orca.',
     buttons: ['OK']

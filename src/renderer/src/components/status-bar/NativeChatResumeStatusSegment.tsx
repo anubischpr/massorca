@@ -99,7 +99,7 @@ function failedText(count: number): SegmentText {
           ),
     tooltip: translate(
       'auto.components.status.bar.NativeChatResumeStatusSegment.failedTooltip',
-      'Chats Orca could not resume after the restart. Click for details.'
+      'Chats MassOrca could not resume after the restart. Click for details.'
     )
   }
 }
@@ -131,7 +131,7 @@ function checkText(count: number): SegmentText {
           ),
     tooltip: translate(
       'auto.components.status.bar.NativeChatResumeStatusSegment.checkTooltip',
-      'Chats Orca couldn’t resume, or couldn’t confirm it resumed, after the restart. Click for details.'
+      'Chats MassOrca couldn’t resume, or couldn’t confirm it resumed, after the restart. Click for details.'
     )
   }
 }

@@ -8,9 +8,10 @@ import { Separator } from '../ui/separator'
 import { SearchableSetting } from './SearchableSetting'
 import { SettingsSubsectionHeader } from './SettingsFormControls'
 import { translate } from '@/i18n/i18n'
+import { MASSORCA_REPO_URL } from '../../../../shared/massorca-distribution'
 
 // Do not deep-link to /stargazers: GitHub 404s that page for users without repo write access.
-const ORCA_GITHUB_URL = 'https://github.com/stablyai/orca'
+const ORCA_GITHUB_URL = MASSORCA_REPO_URL
 
 type SupportState =
   | 'loading'
@@ -123,7 +124,7 @@ function SupportSection({
             <SettingsSubsectionHeader
               title={translate(
                 'auto.components.settings.GeneralSupportSection.55a87e5fd1',
-                'Support Orca'
+                'Support MassOrca'
               )}
             />
             {state === 'loading' ? <SupportRowSkeleton /> : null}
@@ -160,7 +161,7 @@ function SupportRow({
     <SearchableSetting
       title={translate(
         'auto.components.settings.GeneralSupportSection.6922c1fa2b',
-        'Star Orca on GitHub'
+        'Star MassOrca on GitHub'
       )}
       description={translate(
         'auto.components.settings.GeneralSupportSection.511782265b',
@@ -172,7 +173,7 @@ function SupportRow({
       <Label>
         {translate(
           'auto.components.settings.GeneralSupportSection.6922c1fa2b',
-          'Star Orca on GitHub'
+          'Star MassOrca on GitHub'
         )}
       </Label>
       {state === 'starred' ? (

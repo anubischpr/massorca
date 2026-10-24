@@ -27,7 +27,7 @@ function setup(verdicts: OrcadTunnelIdentity[], rereadPort: number) {
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: a test double for the two members forwarding calls.
     forwards: { addForward, removeForwardAndWait } as unknown as SshPortForwardManager,
     localPort: 46_768,
-    label: 'Managed Orca server',
+    label: 'Managed MassOrca server',
     remotePort: 6_768,
     rereadRemotePort,
     verify,

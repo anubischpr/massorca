@@ -154,7 +154,7 @@ describe('a chat agent and a terminal agent see the same text but for how each i
     const terminal = await renderPreamble('terminal')
     const withoutRedispatch = chat.replace(CHAT_REDISPATCH, TERMINAL_REDISPATCH)
 
-    expect(terminal).not.toContain('Orca session ID')
+    expect(terminal).not.toContain('MassOrca session ID')
     expect(chat).toContain(`Your task ID is: task_1${SELF_LINE}\n`)
     expect(chat).not.toContain(CHAT_WORKER_HANDLE)
     expect(chat).not.toContain('this terminal')

@@ -421,7 +421,7 @@ describe('useNativeChatContextMenu', () => {
     expect(markup).not.toContain('Fork Agent Session')
   })
 
-  describe('Copy Orca Session ID', () => {
+  describe('Copy MassOrca Session ID', () => {
     const orcaSessionId = 'orca_session_id:4a1f6c2e-8b3d-4e7a-9c15-0d2b6e8f1a37'
     const writeClipboardText = vi.fn()
 
@@ -439,7 +439,7 @@ describe('useNativeChatContextMenu', () => {
 
     function copyItem(): ItemProps | undefined {
       return items.list.find(
-        (candidate) => childrenText(candidate.children) === 'Copy Orca Session ID'
+        (candidate) => childrenText(candidate.children) === 'Copy MassOrca Session ID'
       )
     }
 
@@ -448,17 +448,19 @@ describe('useNativeChatContextMenu', () => {
 
       copyItem()?.onSelect?.()
 
-      await vi.waitFor(() => expect(toasts.success).toHaveBeenCalledWith('Orca session ID copied'))
+      await vi.waitFor(() =>
+        expect(toasts.success).toHaveBeenCalledWith('MassOrca session ID copied')
+      )
       expect(writeClipboardText).toHaveBeenCalledWith(orcaSessionId)
       expect(tooltips.list.map(childrenText)).toContain(
-        "Orca's ID for this chat, separate from the agent CLI's own session ID. Agents use it to refer to each other through Orca."
+        "MassOrca's ID for this chat, separate from the agent CLI's own session ID. Agents use it to refer to each other through MassOrca."
       )
     })
 
     it('is absent for a chat with no Orca session ID', () => {
       renderToStaticMarkup(<Harness structured />)
 
-      expect(labels()).not.toContain('Copy Orca Session ID')
+      expect(labels()).not.toContain('Copy MassOrca Session ID')
     })
 
     it('reports a failed copy instead of claiming success', async () => {
@@ -468,7 +470,7 @@ describe('useNativeChatContextMenu', () => {
       copyItem()?.onSelect?.()
 
       await vi.waitFor(() =>
-        expect(toasts.error).toHaveBeenCalledWith('Unable to copy Orca session ID')
+        expect(toasts.error).toHaveBeenCalledWith('Unable to copy MassOrca session ID')
       )
       expect(toasts.success).not.toHaveBeenCalled()
     })

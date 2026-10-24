@@ -90,7 +90,7 @@ test('adopts a recipe-provisioned SSH root without creating a linked worktree', 
     ).toBe(expectedRefHead)
 
     const removeDialog = orcaPage.getByRole('dialog', { name: 'Remove Project' })
-    const removeMenuItem = orcaPage.getByRole('menuitem', { name: 'Remove Project from Orca' })
+    const removeMenuItem = orcaPage.getByRole('menuitem', { name: 'Remove Project from MassOrca' })
     await expect(async () => {
       await orcaPage
         .getByRole('option', { name: new RegExp(workspaceName) })

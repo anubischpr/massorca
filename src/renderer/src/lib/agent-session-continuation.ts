@@ -70,7 +70,7 @@ export function buildAgentSessionContinuationPrompt(
   const sourceLines = [
     source.sourceAgent ? `Original agent: ${source.sourceAgent}` : null,
     source.sourceTitle?.trim() ? `Session: ${source.sourceTitle.trim()}` : null,
-    source.sourceLabel ? `Orca pane: ${source.sourceLabel}` : null,
+    source.sourceLabel ? `MassOrca pane: ${source.sourceLabel}` : null,
     source.sourceWorkingDirectory?.trim()
       ? `Original working directory: ${source.sourceWorkingDirectory.trim()}`
       : null

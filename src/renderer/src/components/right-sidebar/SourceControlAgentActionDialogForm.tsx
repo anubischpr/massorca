@@ -209,7 +209,7 @@ export function SourceControlAgentActionDialogForm({
               <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
                 {translate(
                   'auto.components.right.sidebar.SourceControlAgentActionDialogForm.5c75b24735',
-                  'Customize what the agent receives before Orca starts it.'
+                  'Customize what the agent receives before MassOrca starts it.'
                 )}
               </p>
             </div>
@@ -250,7 +250,7 @@ export function SourceControlAgentActionDialogForm({
               <span>
                 {translate(
                   'auto.components.right.sidebar.SourceControlAgentActionDialogForm.23280cbab1',
-                  "This template does not include {basePrompt}, so the agent will not receive Orca's default prompt."
+                  "This template does not include {basePrompt}, so the agent will not receive MassOrca's default prompt."
                 )}
               </span>
             </p>

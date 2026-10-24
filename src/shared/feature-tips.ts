@@ -70,7 +70,7 @@ export const FEATURE_TIPS = [
     id: 'orca-cli',
     priority: 'new',
     eyebrow: 'Tip',
-    title: 'Let agents drive Orca with the Orca CLI',
+    title: 'Let agents drive MassOrca with the MassOrca CLI',
     description: 'Enable agents to coordinate child worktrees and communicate between worktrees.',
     action: 'setup-cli',
     ctaLabel: 'Install CLI & Skills',

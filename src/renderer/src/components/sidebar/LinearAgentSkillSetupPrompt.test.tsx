@@ -233,7 +233,7 @@ describe('LinearAgentSkillSetupPrompt', () => {
 
     expect(rendered.textContent).toContain('Set up Linear agent skill')
     expect(rendered.textContent).toContain('Linear agent skill is missing.')
-    expect(rendered.textContent).not.toContain('Orca CLI')
+    expect(rendered.textContent).not.toContain('MassOrca CLI')
     expect(rendered.textContent).toContain('Install it for host agent handoffs')
     expectNoCliStatusQuery()
     expect(mocks.useInstalledAgentSkillNames).toHaveBeenCalledWith(

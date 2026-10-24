@@ -29,7 +29,7 @@ export function sshHostServerStatusLine(
       tone: 'warning',
       text: translate(
         'auto.components.settings.sshHostServer.notServing',
-        'Orca couldn’t confirm that the managed server is answering.'
+        'MassOrca couldn’t confirm that the managed server is answering.'
       ),
       detail: status.serving.detail
     }
@@ -61,7 +61,7 @@ function sourceChangedLine(): SshHostServerStatusLine {
     tone: 'warning',
     text: translate(
       'auto.components.settings.sshHostServer.sourceChanged',
-      'Changed on an older Orca: runs the relay until it is moved to its managed server again.'
+      'Changed on an older MassOrca: runs the relay until it is moved to its managed server again.'
     )
   }
 }
@@ -77,7 +77,7 @@ function unavailableLine(reason: string | undefined): SshHostServerStatusLine {
       tone: 'muted',
       text: translate(
         'auto.components.settings.sshHostServer.unavailable',
-        'Runs the relay: a managed Orca server can’t run on this host ({{reason}}).',
+        'Runs the relay: a managed MassOrca server can’t run on this host ({{reason}}).',
         { reason: cause }
       )
     }
@@ -86,7 +86,7 @@ function unavailableLine(reason: string | undefined): SshHostServerStatusLine {
     tone: 'muted',
     text: translate(
       'auto.components.settings.sshHostServer.unavailableUnknown',
-      'Runs the relay: a managed Orca server can’t run on this host.'
+      'Runs the relay: a managed MassOrca server can’t run on this host.'
     ),
     ...(reason ? { detail: reason } : {})
   }
@@ -97,17 +97,17 @@ function unavailableCause(reason: string): string | null {
     case 'unsupported_host':
       return translate(
         'auto.components.settings.sshHostServer.cause.unsupportedHost',
-        'Orca has no server build for this system'
+        'MassOrca has no server build for this system'
       )
     case 'artifacts_unavailable':
       return translate(
         'auto.components.settings.sshHostServer.cause.artifactsUnavailable',
-        'this Orca build doesn’t include the server'
+        'this MassOrca build doesn’t include the server'
       )
     case 'libc_unidentified':
       return translate(
         'auto.components.settings.sshHostServer.cause.libcUnidentified',
-        'Orca couldn’t identify the host’s system libraries'
+        'MassOrca couldn’t identify the host’s system libraries'
       )
     case 'runtime_self_test':
       return translate(
@@ -134,7 +134,7 @@ function tunnelUnavailableLine(): SshHostServerStatusLine {
     tone: 'warning',
     text: translate(
       'auto.components.settings.sshHostServer.tunnelUnavailable',
-      'Runs the relay: this host’s SSH server doesn’t allow port forwarding, and Orca couldn’t reach a managed server through the SSH session either.'
+      'Runs the relay: this host’s SSH server doesn’t allow port forwarding, and MassOrca couldn’t reach a managed server through the SSH session either.'
     )
   }
 }
@@ -156,7 +156,7 @@ function managedUpdateLine(update: SshManagedServerUpdateNote): SshHostServerSta
         tone: 'muted',
         text: translate(
           'auto.components.settings.sshHostServer.hostNewer',
-          'Runs a managed Orca server from a newer Orca; it keeps that version.'
+          'Runs a managed MassOrca server from a newer MassOrca; it keeps that version.'
         )
       }
     case 'deferred':
@@ -164,7 +164,7 @@ function managedUpdateLine(update: SshManagedServerUpdateNote): SshHostServerSta
         tone: 'muted',
         text: translate(
           'auto.components.settings.sshHostServer.updateDeferredLater',
-          'Runs a managed Orca server; it updates on a later connect.'
+          'Runs a managed MassOrca server; it updates on a later connect.'
         ),
         ...withDetail(update.detail)
       }
@@ -173,7 +173,7 @@ function managedUpdateLine(update: SshManagedServerUpdateNote): SshHostServerSta
         tone: 'warning',
         text: translate(
           'auto.components.settings.sshHostServer.updateFailedPrevious',
-          'Runs a managed Orca server on its previous version; updating it failed.'
+          'Runs a managed MassOrca server on its previous version; updating it failed.'
         ),
         ...withDetail(update.detail)
       }
@@ -185,17 +185,17 @@ function settingUpLabel(phase: (typeof SSH_MANAGED_SERVER_PHASES)[number]): stri
     case 'deploying':
       return translate(
         'auto.components.settings.sshHostServer.deploying',
-        'Setting up a managed Orca server…'
+        'Setting up a managed MassOrca server…'
       )
     case 'converting':
       return translate(
         'auto.components.settings.sshHostServer.converting',
-        'Moving this host’s projects to its managed Orca server…'
+        'Moving this host’s projects to its managed MassOrca server…'
       )
     case 'connecting':
       return translate(
         'auto.components.settings.sshHostServer.connecting',
-        'Connecting to the managed Orca server…'
+        'Connecting to the managed MassOrca server…'
       )
     case 'updating':
       return translate(
@@ -238,7 +238,7 @@ function relayLine(
         tone: 'muted',
         text: translate(
           'auto.components.settings.sshHostServer.terminalsUnverifiable',
-          'Runs the relay: Orca couldn’t confirm its terminals are closed. It moves on a later connect.'
+          'Runs the relay: MassOrca couldn’t confirm its terminals are closed. It moves on a later connect.'
         )
       }
     case 'orcad_unavailable':
@@ -270,11 +270,11 @@ function terminalsElsewhereText(terminals: number | undefined): string {
   return terminals
     ? translate(
         'auto.components.settings.sshHostServer.terminalsElsewhere',
-        'Runs the relay while {{count}} terminals another Orca desktop or session opened on this host are running.',
+        'Runs the relay while {{count}} terminals another MassOrca desktop or session opened on this host are running.',
         { count: terminals }
       )
     : translate(
         'auto.components.settings.sshHostServer.terminalsElsewhereUncounted',
-        'Runs the relay while terminals another Orca desktop or session opened on this host are running.'
+        'Runs the relay while terminals another MassOrca desktop or session opened on this host are running.'
       )
 }

@@ -114,7 +114,7 @@ describe('a chat write the host refused', () => {
     })
 
     expect(mocks.toastError).toHaveBeenCalledWith(
-      "Orca couldn't confirm what happened. Check the chat."
+      "MassOrca couldn't confirm what happened. Check the chat."
     )
   })
 
@@ -154,7 +154,7 @@ describe('a chat write the host refused', () => {
     })
 
     expect(mocks.toastError).toHaveBeenCalledExactlyOnceWith(
-      "Orca couldn't open this chat's history right now. The agent wasn't stopped. Try again."
+      "MassOrca couldn't open this chat's history right now. The agent wasn't stopped. Try again."
     )
   })
 
@@ -186,7 +186,7 @@ describe('a chat write the host refused', () => {
     })
 
     expect(mocks.toastError).toHaveBeenCalledExactlyOnceWith(
-      "Chats were saved by a newer Orca. The agent wasn't stopped. Update Orca to keep using them."
+      "Chats were saved by a newer MassOrca. The agent wasn't stopped. Update MassOrca to keep using them."
     )
   })
 

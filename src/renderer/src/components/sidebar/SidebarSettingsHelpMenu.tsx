@@ -35,6 +35,7 @@ import { lazyWithRetry } from '@/lib/lazy-with-retry'
 import type * as SidebarFeedbackDialogModule from './SidebarFeedbackDialog'
 import { translate } from '@/i18n/i18n'
 import { getUpdateCheckClickOptions, getUpdateCheckHint } from '@/lib/update-check-click-options'
+import { MASSORCA_REPO_URL } from '../../../../shared/massorca-distribution'
 
 // Why lazy: the feedback form is only reachable from this menu's own item, so it does not
 // belong on the renderer boot graph. Shared with the menu-open warm below so both hit the
@@ -49,7 +50,7 @@ const SidebarFeedbackDialog = lazyWithRetry(
 
 const DOCS_URL = 'https://www.onorca.dev/docs'
 const CHANGELOG_URL = 'https://onorca.dev/changelog'
-const GITHUB_URL = 'https://github.com/stablyai/orca'
+const GITHUB_URL = MASSORCA_REPO_URL
 const DISCORD_URL = 'https://discord.gg/fzjDKHxv8Q'
 const X_URL = 'https://x.com/orca_build'
 const NO_UPDATE_CHECK_MODIFIERS = {
@@ -148,7 +149,10 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
     }
     setIsRestartingOrca(true)
     toast.info(
-      translate('auto.components.sidebar.SidebarSettingsHelpMenu.5161eef55d', 'Restarting Orca…')
+      translate(
+        'auto.components.sidebar.SidebarSettingsHelpMenu.5161eef55d',
+        'Restarting MassOrca…'
+      )
     )
     void window.api.app.restart().catch((error) => {
       if (mountedRef.current) {
@@ -156,7 +160,7 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
         toast.error(
           translate(
             'auto.components.sidebar.SidebarSettingsHelpMenu.4e8f5710d3',
-            "Couldn't restart Orca."
+            "Couldn't restart MassOrca."
           ),
           {
             description: error instanceof Error ? error.message : undefined
@@ -266,7 +270,7 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
                   src={logo}
                   alt=""
                   aria-hidden="true"
-                  className="size-3.5 object-contain invert opacity-55 dark:invert-0"
+                  className="size-3.5 object-contain opacity-55"
                 />
                 {translate(
                   'auto.components.sidebar.SidebarSettingsHelpMenu.f8a2c91d4e',
@@ -348,7 +352,7 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
               <RotateCw className="size-3.5" />
               {translate(
                 'auto.components.sidebar.SidebarSettingsHelpMenu.ad3d3ed7f1',
-                'Restart Orca'
+                'Restart MassOrca'
               )}
             </DropdownMenuItem>
           </DropdownMenuContent>

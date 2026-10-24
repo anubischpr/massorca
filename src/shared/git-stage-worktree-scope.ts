@@ -15,7 +15,7 @@ export function parseGitStageWorktreeScope(value: unknown): GitStageWorktreeScop
 }
 
 export const GIT_STAGE_WORKTREE_SCOPE_UNSUPPORTED_MESSAGE =
-  'The Orca version running this workspace cannot stage changes beyond the ones listed, so nothing was staged. Update Orca on that host, or stage from a terminal.'
+  'The MassOrca version running this workspace cannot stage changes beyond the ones listed, so nothing was staged. Update MassOrca on that host, or stage from a terminal.'
 
 /**
  * Why: an older host strips `scope` and stages only `filePaths`, which scoped callers send empty,

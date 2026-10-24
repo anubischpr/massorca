@@ -140,7 +140,7 @@ describe('Pi session changes', () => {
     const harness = createPi(async () => {
       attempts += 1
       if (attempts >= 3 && attempts <= 6) {
-        throw new Error('Orca down')
+        throw new Error('MassOrca down')
       }
       return { ok: true }
     })

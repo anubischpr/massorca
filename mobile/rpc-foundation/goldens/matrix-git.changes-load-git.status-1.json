@@ -184,15 +184,6 @@
         }
       }
     },
-    "25657dcfb625": {
-      "branchCompareState": {
-        "kind": "idle"
-      },
-      "screenState": {
-        "kind": "unavailable",
-        "message": "Update Orca desktop to use Source Control on mobile."
-      }
-    },
     "2673423361c6": {
       "name": "repo.list#1",
       "ordinal": 4,
@@ -294,6 +285,15 @@
             "repos": []
           }
         }
+      }
+    },
+    "5a397ceb961b": {
+      "branchCompareState": {
+        "kind": "idle"
+      },
+      "screenState": {
+        "kind": "unavailable",
+        "message": "Update MassOrca desktop to use Source Control on mobile."
       }
     },
     "5aa0b968f37f": {
@@ -1004,7 +1004,7 @@
           "settlements": {
             "mount": "eb79a9b3682a"
           },
-          "state": "25657dcfb625",
+          "state": "5a397ceb961b",
           "effects": []
         }
       },
@@ -1016,7 +1016,7 @@
           "settlements": {
             "mount": "eb79a9b3682a"
           },
-          "state": "25657dcfb625",
+          "state": "5a397ceb961b",
           "effects": []
         }
       },

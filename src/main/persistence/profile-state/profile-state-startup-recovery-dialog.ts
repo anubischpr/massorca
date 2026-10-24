@@ -23,8 +23,8 @@ export async function presentProfileStateStartupRecoveryDialog(
     buttons,
     defaultId: buttons.length - 1,
     cancelId: buttons.length - 1,
-    title: 'Orca profile state cannot be opened',
-    message: 'Orca cannot safely open this profile.',
+    title: 'MassOrca profile state cannot be opened',
+    message: 'MassOrca cannot safely open this profile.',
     detail
   })
   if (response === 0 && deps.recoveryCommand) {

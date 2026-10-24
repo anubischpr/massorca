@@ -101,14 +101,14 @@ function createRuntimeRpcStartupFailureDialogOptions(error: unknown): MessageBox
     defaultId: 0,
     cancelId: 0,
     noLink: true,
-    title: translateMain('runtimeRpc.startupFailure.title', 'Orca CLI unavailable'),
+    title: translateMain('runtimeRpc.startupFailure.title', 'MassOrca CLI unavailable'),
     message: translateMain(
       'runtimeRpc.startupFailure.message',
-      "Orca couldn't start its local command transport."
+      "MassOrca couldn't start its local command transport."
     ),
     detail: translateMain(
       'runtimeRpc.startupFailure.detail',
-      'Orca will continue to work, but commands such as orca status, orca terminal, and orchestration are unavailable for this session.\n\n{{guidance}}\n\nCause: {{cause}}',
+      'MassOrca will continue to work, but commands such as orca status, orca terminal, and orchestration are unavailable for this session.\n\n{{guidance}}\n\nCause: {{cause}}',
       { cause, guidance: translateMain(key, fallback) }
     )
   }

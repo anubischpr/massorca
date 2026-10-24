@@ -50,7 +50,7 @@ export function TerminalSessionStateSaveFailureDialog({
                 )
               : translate(
                   'terminal.sessionSaveFailure.unknown',
-                  'Orca could not save the terminal state. Try again. If this continues, share the Orca logs with support so we can identify the cause.'
+                  'MassOrca could not save the terminal state. Try again. If this continues, share the MassOrca logs with support so we can identify the cause.'
                 )}
           </DialogDescription>
         </DialogHeader>

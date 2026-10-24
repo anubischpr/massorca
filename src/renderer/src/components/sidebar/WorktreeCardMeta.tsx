@@ -260,7 +260,7 @@ export function WorktreeCardDetailsHover({
                           <MetadataActionIcon
                             label={translate(
                               'auto.components.sidebar.WorktreeCardMeta.2c67730e07',
-                              'Open in Orca'
+                              'Open in MassOrca'
                             )}
                             onClick={dismissAndRun(onOpenLinearIssueInOrca)}
                           >

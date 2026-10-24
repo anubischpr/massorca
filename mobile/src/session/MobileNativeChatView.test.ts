@@ -294,7 +294,7 @@ describe('MobileNativeChatView', () => {
     expect(renderer!.root.findAllByProps({ accessibilityLabel: 'Stop the agent' })).toHaveLength(0)
 
     // A failure that can clear keeps the transcript and the composer.
-    await update({ ...failure, error: "Orca couldn't open this chat's history right now." })
+    await update({ ...failure, error: "MassOrca couldn't open this chat's history right now." })
     expect(listIds()).toEqual(['m1'])
     expect(composers()).toHaveLength(1)
     expect(banners()).toHaveLength(1)

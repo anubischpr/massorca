@@ -73,7 +73,7 @@ describe('humanizeTerminalError', () => {
     const humanized = humanizeTerminalError('terminal_pane_owner_unverified')
     expect(humanized).not.toContain('terminal_pane_owner_unverified')
     expect(humanized).toContain('Click Retry to try reconnecting now')
-    expect(humanized).toContain('Orca left the saved session unchanged')
+    expect(humanized).toContain('MassOrca left the saved session unchanged')
     expect(humanized).not.toContain('was not closed or deleted')
   })
 
@@ -86,7 +86,7 @@ describe('humanizeTerminalError', () => {
   it('humanizes an owner marker without classifying mixed errors as safe warnings', () => {
     const mixed = humanizeTerminalError('Paste failed.\nterminal_pane_owner_unverified')
     expect(mixed).toContain('Paste failed.')
-    expect(mixed).toContain("Orca couldn't verify this terminal's owner.")
+    expect(mixed).toContain("MassOrca couldn't verify this terminal's owner.")
     expect(mixed).not.toContain('terminal_pane_owner_unverified')
     expect(isPaneOwnerUnverifiedError('Paste failed.\nterminal_pane_owner_unverified')).toBe(false)
   })
@@ -200,7 +200,7 @@ describe('humanizeTerminalError', () => {
     const humanized = humanizeTerminalError(raw)
     expect(humanized).not.toContain('SSH_PTY_HELD_BY_PREVIOUS_RELAY')
     expect(humanized).not.toContain('pty2:old-epoch:1')
-    expect(humanized).toContain('previous Orca version')
+    expect(humanized).toContain('previous MassOrca version')
     expect(humanized).toContain('still running')
     expect(isExplainedTerminalError(raw)).toBe(true)
   })
@@ -373,7 +373,7 @@ describe('TerminalErrorToast environment footer', () => {
       })
     )
 
-    expect(view.container.textContent).toContain('previous Orca version')
+    expect(view.container.textContent).toContain('previous MassOrca version')
     await waitFor(() => expect(environmentMocks.resolveFooter).not.toHaveBeenCalled())
     expect(view.container.textContent).not.toContain('OS:')
   })
@@ -418,7 +418,7 @@ describe('TerminalErrorToast environment footer', () => {
     const toast = view.container.querySelector('[data-terminal-error-toast]')
     expect(toast?.getAttribute('data-terminal-error-kind')).toBe('owner-unverified')
     expect(toast?.querySelector('a')).toBeNull()
-    expect(toast?.textContent).toContain('Orca left the saved session unchanged')
+    expect(toast?.textContent).toContain('MassOrca left the saved session unchanged')
     expect(view.getByRole('button', { name: 'Retry' }).getAttribute('data-slot')).toBe('button')
     fireEvent.click(view.getByRole('button', { name: 'Retry' }))
     expect(onRetry).toHaveBeenCalledTimes(1)
@@ -471,7 +471,7 @@ describe('TerminalErrorToast folder workspace path errors', () => {
 
     expect(humanized).not.toContain('folder_workspace_path_missing')
     expect(humanized).toBe(
-      "Error invoking remote method 'pty:spawn': Error: Orca cannot find /Users/me/ara_company. Remove and re-import the folder."
+      "Error invoking remote method 'pty:spawn': Error: MassOrca cannot find /Users/me/ara_company. Remove and re-import the folder."
     )
   })
 
@@ -493,7 +493,7 @@ describe('TerminalErrorToast folder workspace path errors', () => {
 
     const toast = view.container.querySelector('[data-terminal-error-toast]')
     expect(toast?.textContent).toContain(
-      'Orca cannot tell which SSH connection owns this folder scope.'
+      'MassOrca cannot tell which SSH connection owns this folder scope.'
     )
     expect(toast?.textContent).not.toContain('folder_workspace_connection_ambiguous')
     expect(toast?.querySelector('a')).toBeNull()

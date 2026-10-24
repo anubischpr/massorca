@@ -540,7 +540,7 @@ describeRender('the Route A page in a real browser', () => {
     const { entry, errors, text, url } = await renderWithoutTree({ shellRoute: null })
     expect(entry).toBe('shell-too-old')
     expect(errors).toEqual([])
-    expect(text).toContain('Update Orca to open this workspace')
+    expect(text).toContain('Update MassOrca to open this workspace')
     // Never the route tree at `/`: that is the Unmatched screen with a worse explanation.
     expect(text).not.toContain(UNMATCHED)
     expect(url).toBe('/')

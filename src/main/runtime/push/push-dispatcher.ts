@@ -1,4 +1,5 @@
 import { reserveNotificationCooldown } from '../../../shared/notification-burst-cooldown'
+import { PRODUCT_DISPLAY_NAME } from '../../../shared/product-identity'
 // Why: the out-of-band leg of the mobile notification fan-out. Every event that
 // already went to connected sockets is offered to the push gateway so a phone
 // with Orca closed still hears about it. Fire-and-forget by construction: the
@@ -139,7 +140,7 @@ export class PushDispatcher {
           notificationEpoch: target.notificationEpoch,
           source: 'agent-task-complete',
           agentState: null,
-          title: 'Orca',
+          title: PRODUCT_DISPLAY_NAME,
           body: '',
           sound: false
         }

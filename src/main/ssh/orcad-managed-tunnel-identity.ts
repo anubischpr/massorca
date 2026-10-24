@@ -96,7 +96,10 @@ export function deployedOrcadTunnelChecks(
       const pairing = parsePairingCode(tunneledOrcadPairingCode(readiness, localPort))
       return pairing
         ? verifyOrcadPairingIdentity(pairing, { runtimeId: readiness.runtimeId || null })
-        : { verdict: 'foreign', detail: 'The managed Orca server published an invalid pairing.' }
+        : {
+            verdict: 'foreign',
+            detail: 'The managed MassOrca server published an invalid pairing.'
+          }
     }
   }
 }

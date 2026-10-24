@@ -25,8 +25,9 @@ import { FEEDBACK_PAYLOAD_TOO_LARGE_STATUS } from '../../../../shared/feedback-i
 import { SidebarFeedbackImageAttachments } from './SidebarFeedbackImageAttachments'
 import { useSidebarFeedbackEnvironmentPrefill } from './use-sidebar-feedback-environment-prefill'
 import { useSidebarFeedbackImages } from './use-sidebar-feedback-images'
+import { MASSORCA_ISSUES_URL } from '../../../../shared/massorca-distribution'
 
-const GITHUB_ISSUES_URL = 'https://github.com/stablyai/orca/issues/'
+const GITHUB_ISSUES_URL = `${MASSORCA_ISSUES_URL}/`
 const DISCORD_URL = 'https://discord.gg/fzjDKHxv8Q'
 const X_URL = 'https://x.com/orca_build'
 
@@ -284,7 +285,7 @@ export function SidebarFeedbackDialog({
           <DialogDescription className="text-xs">
             {translate(
               'auto.components.sidebar.SidebarFeedbackDialog.a828fa4aee',
-              "Share what's working, what's broken, or what Orca should do next."
+              "Share what's working, what's broken, or what MassOrca should do next."
             )}
           </DialogDescription>
         </DialogHeader>

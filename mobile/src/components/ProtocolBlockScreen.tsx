@@ -5,8 +5,9 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import type { CompatVerdict } from '../transport/protocol-compat'
 import type { MobileWebBundleCompatVerdict } from '../transport/mobile-web-bundle-compat'
+import { MASSORCA_RELEASES_URL } from '../../../src/shared/massorca-distribution'
 
-const RELEASES_URL = 'https://github.com/stablyai/orca/releases'
+const RELEASES_URL = MASSORCA_RELEASES_URL
 const IOS_APP_STORE_URL = 'itms-apps://apps.apple.com/app/orca-ide/id6766130217'
 
 /** Every wall this screen renders: the protocol one and the bundle one. Both are terminal — there
@@ -20,7 +21,7 @@ type Props = {
 }
 
 const DESKTOP_TOO_OLD_BODY =
-  'This paired desktop app is too old for your current Orca Mobile app. Update Orca on your computer, then try this host again.'
+  'This paired desktop app is too old for your current MassOrca Mobile app. Update MassOrca on your computer, then try this host again.'
 
 /** What clears the wall. `refresh-bundle` is the one that no store can: the cached workspace is
  *  older than this host's client floor, so a download fixes it and an app update does not. */
@@ -42,9 +43,9 @@ function blockRemedy(verdict: BlockedVerdict): BlockRemedy {
 function blockTitle(remedy: BlockRemedy): string {
   switch (remedy) {
     case 'update-mobile':
-      return 'Update Orca Mobile'
+      return 'Update MassOrca Mobile'
     case 'update-desktop':
-      return 'Update Orca on your computer'
+      return 'Update MassOrca on your computer'
     case 'refresh-bundle':
       return 'Refresh the mobile workspace'
   }
@@ -55,13 +56,13 @@ function blockBody(verdict: BlockedVerdict, remedy: BlockRemedy, storeName: stri
     return 'The workspace cached for this host is older than the desktop expects. Reconnect to this host to download the current one.'
   }
   if (verdict.reason === 'mobile-too-old') {
-    return `This desktop needs a newer Orca Mobile app. Update Orca Mobile from ${storeName}, then try this host again.`
+    return `This desktop needs a newer MassOrca Mobile app. Update MassOrca Mobile from ${storeName}, then try this host again.`
   }
   if (verdict.reason === 'bundle-unavailable') {
-    return 'This paired desktop app does not include the mobile workspace yet. Update Orca on your computer, then try this host again.'
+    return 'This paired desktop app does not include the mobile workspace yet. Update MassOrca on your computer, then try this host again.'
   }
   if (remedy === 'update-mobile') {
-    return `This desktop's mobile workspace needs a newer Orca Mobile app. Update Orca Mobile from ${storeName}, then try this host again.`
+    return `This desktop's mobile workspace needs a newer MassOrca Mobile app. Update MassOrca Mobile from ${storeName}, then try this host again.`
   }
   return DESKTOP_TOO_OLD_BODY
 }
@@ -76,7 +77,7 @@ export function ProtocolBlockScreen({ verdict }: Props) {
       ? { label: 'Open App Store', url: IOS_APP_STORE_URL, storeName: 'the App Store' }
       : { label: 'Open GitHub Releases', url: RELEASES_URL, storeName: 'GitHub Releases' }
   const mobileAction = mobileUpdate
-    ? { label: `Get Orca ${mobileUpdate.version}`, url: mobileUpdate.url }
+    ? { label: `Get MassOrca ${mobileUpdate.version}`, url: mobileUpdate.url }
     : { label: mobileUpdateTarget.label, url: mobileUpdateTarget.url }
   // No download to offer when the fix is a refetch: reconnecting is what this screen leaves you to do.
   const primaryAction =

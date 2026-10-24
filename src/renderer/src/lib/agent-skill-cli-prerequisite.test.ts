@@ -87,7 +87,7 @@ describe('ensureOrcaCliAvailableForAgentSkillTerminal', () => {
     const initial = cliStatus({
       platform: 'win32',
       pathConfigured: null,
-      detail: 'Orca could not read the Windows user PATH registry value.'
+      detail: 'MassOrca could not read the Windows user PATH registry value.'
     })
     const install = vi.fn()
     vi.stubGlobal('window', {

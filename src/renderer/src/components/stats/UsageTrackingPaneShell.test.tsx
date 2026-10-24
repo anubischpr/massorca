@@ -35,7 +35,7 @@ function renderEnabled({
           label="Scope"
           value="orca"
           options={[
-            { value: 'orca', label: 'Orca worktrees only' },
+            { value: 'orca', label: 'MassOrca worktrees only' },
             { value: 'all', label: 'All local usage' }
           ]}
           onValueChange={onScopeChange}

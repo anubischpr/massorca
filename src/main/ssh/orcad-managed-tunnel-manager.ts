@@ -150,7 +150,7 @@ export class OrcadManagedTunnelManager {
       connection,
       forwards: this.forwards,
       localPort: 0,
-      label: 'Managed Orca server',
+      label: 'Managed MassOrca server',
       remotePort,
       rereadRemotePort: checks.rereadRemotePort,
       verify: checks.verify,

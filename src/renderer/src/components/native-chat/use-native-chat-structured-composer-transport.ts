@@ -145,7 +145,7 @@ export function useNativeChatStructuredComposerTransport(args: {
         toast.success(
           translate(
             'components.native-chat.commands.exportCopied',
-            'Copied the chat as Markdown. Orca cannot save Markdown files yet.'
+            'Copied the chat as Markdown. MassOrca cannot save Markdown files yet.'
           )
         )
         return true

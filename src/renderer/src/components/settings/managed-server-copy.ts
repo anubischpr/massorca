@@ -100,7 +100,7 @@ export function conversionBlockerLabel(blocker: OrcadMigrationBlocker): string {
     case 'orcad_migration_dependency_unverifiable':
       return translate(
         'auto.components.settings.managedServers.blocker.unverifiable',
-        'Orca could not read its saved {{sources}}, so it cannot tell what would move.',
+        'MassOrca could not read its saved {{sources}}, so it cannot tell what would move.',
         { sources: blocker.sources.map(dependencyKindLabel).join(', ') }
       )
   }
@@ -156,7 +156,7 @@ export function managedServerOutcomeLabel(result: {
   if (result.verdict === 'unverifiable' || UNVERIFIABLE_CODES.has(code)) {
     return translate(
       'auto.components.settings.managedServers.outcome.unverifiable',
-      'Not done: Orca couldn’t confirm what is running on this server. Try again when the host is reachable.'
+      'Not done: MassOrca couldn’t confirm what is running on this server. Try again when the host is reachable.'
     )
   }
   if (MIGRATION_CODES.has(code)) {
@@ -173,6 +173,6 @@ export function managedServerOutcomeLabel(result: {
   }
   return translate(
     'auto.components.settings.managedServers.outcome.failed',
-    'Orca couldn’t finish this on the server. Try again.'
+    'MassOrca couldn’t finish this on the server. Try again.'
   )
 }

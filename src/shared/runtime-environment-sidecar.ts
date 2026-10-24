@@ -58,7 +58,7 @@ type RuntimeEnvironmentSidecar = z.infer<typeof SidecarSchema>
 
 export class RuntimeEnvironmentSidecarInvalidError extends Error {
   constructor(path: string) {
-    super(`Could not read Orca environment links at ${path}; the file is invalid.`)
+    super(`Could not read MassOrca environment links at ${path}; the file is invalid.`)
     this.name = 'RuntimeEnvironmentSidecarInvalidError'
   }
 }
