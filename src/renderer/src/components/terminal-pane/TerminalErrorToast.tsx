@@ -14,6 +14,7 @@ import {
   localizeTerminalSpawnHints,
   withoutTerminalSpawnIssueRequest
 } from './terminal-spawn-error-display'
+import { MASSORCA_ISSUES_URL } from '../../../../shared/massorca-distribution'
 
 const SSH_PREFIX = 'SSH connection is not active'
 // Produced by pty-connection.ts reportError() when a PTY reattach can't reach its SSH host.
@@ -334,7 +335,7 @@ export function TerminalErrorToast({
                 'If this persists, please'
               )}{' '}
               <a
-                href="https://github.com/stablyai/orca/issues"
+                href={MASSORCA_ISSUES_URL}
                 style={{ color: 'inherit', textDecoration: 'underline' }}
               >
                 {translate(

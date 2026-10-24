@@ -5,8 +5,9 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import type { CompatVerdict } from '../transport/protocol-compat'
 import type { MobileWebBundleCompatVerdict } from '../transport/mobile-web-bundle-compat'
+import { MASSORCA_RELEASES_URL } from '../../../src/shared/massorca-distribution'
 
-const RELEASES_URL = 'https://github.com/stablyai/orca/releases'
+const RELEASES_URL = MASSORCA_RELEASES_URL
 const IOS_APP_STORE_URL = 'itms-apps://apps.apple.com/app/orca-ide/id6766130217'
 
 /** Every wall this screen renders: the protocol one and the bundle one. Both are terminal — there

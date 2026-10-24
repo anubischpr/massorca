@@ -8,8 +8,9 @@ import { GhAuthErrorHelp } from './GhAuthErrorHelp'
 import { isRenderableProjectViewLayout } from '../../../../shared/github/project-types'
 import type { GitHubProjectViewSummary } from '../../../../shared/github/project-types'
 import type { GitHubProjectViewError } from '../../../../shared/github/project-result-types'
+import { MASSORCA_ISSUES_URL } from '../../../../shared/massorca-distribution'
 
-const ORCA_FEATURE_REQUEST_URL = 'https://github.com/stablyai/orca/issues/new'
+const ORCA_FEATURE_REQUEST_URL = `${MASSORCA_ISSUES_URL}/new`
 
 export function ProjectViewTabStrip({
   views,

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Shield, LifeBuoy } from 'lucide-react-native'
 import { MobileSettingsFrame, MobileSettingsSection } from './mobile-settings-menu'
 import { mobileSettingsMenuItems } from './mobile-settings-menu-items'
+import { MASSORCA_ISSUES_URL } from '../../../src/shared/massorca-distribution'
 
 export default function SettingsMenuScreen({
   push,
@@ -33,7 +34,7 @@ export default function SettingsMenuScreen({
             label: 'Support',
             icon: LifeBuoy,
             external: true,
-            onPress: () => void openExternal('https://github.com/stablyai/orca/issues')
+            onPress: () => void openExternal(MASSORCA_ISSUES_URL)
           }
         ]}
       />

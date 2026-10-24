@@ -219,7 +219,7 @@ export function CardFooter(props: {
         >
           {translate(
             'auto.components.stats.share.card.utils.19f4b4dc75',
-            'github.com/stablyai/orca'
+            'github.com/anubischpr/massorca'
           )}
         </span>
       </div>

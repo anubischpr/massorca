@@ -35,7 +35,7 @@ vi.mock('expo-router', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn(), back: vi.fn(), dismissTo: vi.fn() })
 }))
 
-const RELEASES_URL = 'https://github.com/stablyai/orca/releases'
+const RELEASES_URL = 'https://github.com/anubischpr/massorca/releases'
 
 let renderer: ReactTestRenderer | null = null
 
@@ -199,7 +199,7 @@ describe('ProtocolBlockScreen', () => {
   describe('with the newest release known', () => {
     const release = {
       version: '0.0.52',
-      url: 'https://github.com/stablyai/orca/releases/tag/mobile-v0.0.52'
+      url: 'https://github.com/anubischpr/massorca/releases/tag/mobile-v0.0.52'
     }
 
     it.each(['ios', 'android'] as const)('opens that exact release on %s', (os) => {

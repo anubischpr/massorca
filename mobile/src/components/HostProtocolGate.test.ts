@@ -128,7 +128,7 @@ describe('HostProtocolGate', () => {
     expect(output).not.toContain('HostContent')
     act(() => renderer?.root.findAllByType('Pressable')[0]?.props.onPress())
     expect(nativeTestState.openUrl).toHaveBeenCalledWith(
-      'https://github.com/stablyai/orca/releases'
+      'https://github.com/anubischpr/massorca/releases'
     )
   })
 

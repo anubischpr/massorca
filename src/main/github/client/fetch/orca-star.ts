@@ -1,5 +1,6 @@
+import { MASSORCA_GITHUB_REPO } from '../../../../shared/massorca-distribution'
 import { ghExecFileAsync, acquire, release } from '../../gh-utils'
-export const ORCA_REPO = 'stablyai/orca'
+export const ORCA_REPO = MASSORCA_GITHUB_REPO
 
 /**
  * Deadline for the two star-nag gh calls.
