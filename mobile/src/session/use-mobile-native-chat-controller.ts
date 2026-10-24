@@ -19,6 +19,7 @@ import { useMobileBridgeChatPromptWrites } from './use-mobile-bridge-chat-prompt
 import { useMobileNativeChatActiveResolution } from './use-mobile-native-chat-active-resolution'
 import { useMobileNativeChatPromptCards } from './use-mobile-native-chat-prompt-cards'
 import { mobileNativeChatScopeKey } from './mobile-native-chat-scope-key'
+import { useMobileChatPiRuntime } from './mobile-structured-pi-runtime-record'
 
 export type { MobileNativeChatController } from './mobile-native-chat-controller-contract'
 
@@ -84,6 +85,7 @@ export function useMobileNativeChatController(args: {
     activeHandleRef,
     nativeChatTranscriptIsLocalReadable
   })
+  const nativeChatPiRuntime = useMobileChatPiRuntime(activeChatResolution)
 
   // The lane runs before the drafts hook (fixed hook order); Edit's composer
   // append reaches the drafts state through this ref, set below once they exist.
@@ -287,7 +289,7 @@ export function useMobileNativeChatController(args: {
     showNativeChat,
     showNativeChatRef,
     nativeChatAgent: activeChatResolution?.agent ?? null,
-    nativeChatPiRuntime: activeChatResolution?.piRuntime,
+    nativeChatPiRuntime,
     chatComposerText,
     setChatComposerText,
     getChatComposerEditGeneration,
