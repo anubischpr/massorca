@@ -8,6 +8,7 @@ import { RepoForkIndicator } from '@/components/repo/repo-fork-indicator'
 import type { FolderWorkspacePathStatus } from '../../../../../../shared/folder-workspace-path-status'
 import { isConfirmedStaleFolderPathStatus } from '../../../../../../shared/folder-workspace-path-status'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
+import { ghAccountBindingLabel } from '../../../../../../shared/github/account-binding'
 import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import { getProjectGroupHostId } from '@/store/slices/project-group-owner-routing'
 import type {
@@ -331,9 +332,23 @@ export function renderWorktreeSectionHeaderRow(args: {
 
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-1.5">
-              <div className="min-w-0 truncate text-[13px] font-semibold leading-none">
+              {/* Why: the name keeps its width; the account truncates first. */}
+              <div
+                className={cn(
+                  'min-w-0 truncate text-[13px] font-semibold leading-none',
+                  row.repo?.ghAccount && 'max-w-[70%] shrink-0'
+                )}
+              >
                 {row.label}
               </div>
+              {row.repo?.ghAccount ? (
+                <span
+                  className="min-w-0 shrink truncate text-xs leading-none text-muted-foreground"
+                  title={`${row.repo.ghAccount.user} (${row.repo.ghAccount.host})`}
+                >
+                  {ghAccountBindingLabel(row.repo.ghAccount)}
+                </span>
+              ) : null}
               <RepoForkIndicator upstream={row.repo?.upstream} />
               <FolderPathStatusIndicator status={projectGroupPathStatus} />
               {isRepoHeader ? <RepoScanUnavailableIndicator repo={row.repo!} /> : null}

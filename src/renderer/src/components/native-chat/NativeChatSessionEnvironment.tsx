@@ -5,6 +5,7 @@ import { useAppStore } from '@/store'
 import { useRepoSlugIndex } from '@/lib/repo-slug-index'
 import { readRepoSlugCache, settingsForRepoOwner, slugCacheKey } from '@/lib/repo-slug-cache'
 import { isFolderRepo } from '../../../../shared/repo-kind'
+import { ghAccountBindingLabel } from '../../../../shared/github/account-binding'
 import type { NativeChatFileLinkContext } from './native-chat-file-link'
 import { NativeChatSessionField, NativeChatSessionSection } from './NativeChatSessionSection'
 import {
@@ -43,12 +44,17 @@ export function NativeChatSessionEnvironment({
   const isFolderWorkspace = repo ? isFolderRepo(repo) : false
   const branch = workspaceBranchName(worktree?.branch)
   const worktreeName = worktree?.displayName.trim() || null
+  // Why: the bound per-project account only; never the globally active gh account.
+  const githubAccount = repo?.ghAccount ? ghAccountBindingLabel(repo.ghAccount) : null
+  const noGithubAccount = t('components.nativeChatSummary.noGithubAccount', 'No account bound')
   const compact = (
     <>
+      <p className="truncate">{githubAccount ?? noGithubAccount}</p>
       <p className="truncate">{project}</p>
       <p className="truncate">
         {isFolderWorkspace ? (folder ?? unavailable) : (branch ?? unavailable)}
       </p>
+      <p className="truncate">{worktreeName ?? unavailable}</p>
     </>
   )
   return (
@@ -61,6 +67,10 @@ export function NativeChatSessionEnvironment({
         <NativeChatSessionField
           label={t('components.nativeChatSummary.host', 'Execution host')}
           value={host}
+        />
+        <NativeChatSessionField
+          label={t('components.nativeChatSummary.githubAccount', 'GitHub account')}
+          value={githubAccount ?? noGithubAccount}
         />
         <NativeChatSessionField
           label={t('components.nativeChatSummary.project', 'Project')}

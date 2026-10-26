@@ -43,6 +43,11 @@ export function ghAccountBindingsEqual(
   return a.host === b.host && a.user === b.user
 }
 
+/** Login alone for github.com; `login@host` elsewhere so GHES accounts stay distinguishable. */
+export function ghAccountBindingLabel(binding: GhAccountBinding): string {
+  return binding.host === 'github.com' ? binding.user : `${binding.user}@${binding.host}`
+}
+
 /**
  * Choose the env var gh uses for a bound host.
  *

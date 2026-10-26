@@ -1,9 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ghAccountBindingLabel,
   ghAccountBindingsEqual,
   ghTokenEnvVarForHost,
   normalizeGhAccountBinding
 } from './account-binding'
+
+describe('ghAccountBindingLabel', () => {
+  it('shows only the login for github.com', () => {
+    expect(ghAccountBindingLabel({ host: 'github.com', user: 'Alice' })).toBe('Alice')
+  })
+
+  it('qualifies other hosts with the host', () => {
+    expect(ghAccountBindingLabel({ host: 'github.acme.com', user: 'svc_build' })).toBe(
+      'svc_build@github.acme.com'
+    )
+  })
+})
 
 describe('normalizeGhAccountBinding', () => {
   it('trims, lowercases host, and preserves user case', () => {
@@ -26,7 +39,12 @@ describe('normalizeGhAccountBinding', () => {
       host: 'github.acme.com',
       user: 'svc_build'
     })
-    expect(normalizeGhAccountBinding({ host: 'github.acme.com', user: 'first.last' })).toEqual({
+    expect(
+      normalizeGhAccountBinding({
+        host: 'github.acme.com',
+        user: 'first.last'
+      })
+    ).toEqual({
       host: 'github.acme.com',
       user: 'first.last'
     })
