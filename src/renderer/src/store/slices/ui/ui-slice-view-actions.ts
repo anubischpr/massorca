@@ -92,6 +92,12 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
         activeView: state.previousViewBeforeArtifacts,
         worktreeNavHistoryIndex: rewindHistoryIndexPastView(state, 'artifacts')
       })),
+    // Why: not recorded in worktree nav history; back/forward would reopen a blank draft.
+    openCreateChatPage: () =>
+      set((state) => ({
+        activeView: 'create-chat',
+        createChatResetNonce: state.createChatResetNonce + 1
+      })),
     openMobilePage: () =>
       set((state) => ({
         activeView: 'mobile',
