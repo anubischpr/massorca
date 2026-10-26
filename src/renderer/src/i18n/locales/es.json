@@ -9898,7 +9898,9 @@
             "running_terminal": "correr",
             "command": "dominio",
             "confirm": "confirmar",
-            "omp": "OMP"
+            "omp": "OMP",
+            "bd8d308c73": "Carpeta de chats sin proyecto",
+            "8fb288fbed": "La ubicación donde se guardan los chats iniciados fuera de un proyecto, una carpeta por día."
           }
         },
         "git": {
@@ -11097,6 +11099,12 @@
         },
         "computerUseSkillRuntime": {
           "thisDevice": "Este dispositivo"
+        },
+        "ProjectlessChatsDirectorySetting": {
+          "c5ef89ab92": "Carpeta de chats sin proyecto",
+          "b6dd0334f6": "La ubicación donde se guardan los chats iniciados fuera de un proyecto, una carpeta por día.",
+          "a43dc59fe4": "Cambiar",
+          "43545b7a79": "Restablecer"
         },
         "WorkspaceDirectorySetting": {
           "1a2b3c4d5e": "Predeterminado del cliente",

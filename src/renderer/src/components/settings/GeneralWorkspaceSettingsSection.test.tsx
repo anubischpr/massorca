@@ -9,6 +9,9 @@ import type { ReactNode } from 'react'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
 
 vi.mock('./WorkspaceDirectorySetting', () => ({ WorkspaceDirectorySetting: () => null }))
+vi.mock('./ProjectlessChatsDirectorySetting', () => ({
+  ProjectlessChatsDirectorySetting: () => null
+}))
 vi.mock('./OpenInMenuSetting', () => ({ OpenInMenuSetting: () => null }))
 vi.mock('@/components/ui/tooltip', () => ({
   Tooltip: ({ children }: { children: ReactNode }) => <>{children}</>,

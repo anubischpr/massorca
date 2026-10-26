@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_TERMINAL_INACTIVE_PANE_OPACITY, getDefaultSettings } from './constants'
+import {
+  DEFAULT_TERMINAL_INACTIVE_PANE_OPACITY,
+  getDefaultProjectlessChatsDir,
+  getDefaultSettings,
+  normalizeProjectlessChatsDir
+} from './constants'
 import { getDefaultNotificationSettings } from './notification-settings-defaults'
 import {
   getDefaultPrimarySelectionMiddleClickPaste,
@@ -12,6 +17,21 @@ describe('getDefaultSettings', () => {
     expect(getDefaultSettings('C:\\Users\\alice').workspaceDir).toBe(
       'C:\\Users\\alice\\orca\\workspaces'
     )
+  })
+
+  it('defaults the projectless chats folder beside the workspace root', () => {
+    expect(getDefaultSettings('/Users/alice').projectlessChatsDir).toBe('/Users/alice/orca/chats')
+    expect(getDefaultSettings('C:\\Users\\alice\\').projectlessChatsDir).toBe(
+      'C:\\Users\\alice\\orca\\chats'
+    )
+  })
+
+  it('falls back to the stock projectless chats folder for blank or relative input', () => {
+    expect(normalizeProjectlessChatsDir('  ', '/home/bob')).toBe('/home/bob/orca/chats')
+    expect(normalizeProjectlessChatsDir(42, '/home/bob')).toBe('/home/bob/orca/chats')
+    expect(normalizeProjectlessChatsDir('chats', '/home/bob')).toBe('/home/bob/orca/chats')
+    expect(normalizeProjectlessChatsDir('~/notes/chats', '/home/bob')).toBe('~/notes/chats')
+    expect(getDefaultProjectlessChatsDir('/home/bob/')).toBe('/home/bob/orca/chats')
   })
 
   it('enables gitignored file decorations by default', () => {

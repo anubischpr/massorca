@@ -1,5 +1,7 @@
+import { homedir } from 'node:os'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { GlobalSettings } from '../../shared/global-settings-types'
+import { getDefaultProjectlessChatsDir } from '../../shared/constants'
 
 const {
   applyAppIconMock,
@@ -490,6 +492,25 @@ describe('registerSettingsHandlers', () => {
 
     await handler(settingsInvokeEvent, { workspaceDir: '/workspaces', nestWorkspaces: false })
 
+    expect(prepareLocalWorktreeRootsForReposMock).not.toHaveBeenCalled()
+  })
+
+  it('normalizes a blank projectless chats folder without touching worktree roots', async () => {
+    store.getSettings.mockReturnValue({ projectlessChatsDir: '/chats' })
+    store.updateSettings.mockReturnValue({ projectlessChatsDir: '/chats' })
+    registerSettingsHandlers(store as never)
+
+    const handler = handleMock.mock.calls.find((call) => call[0] === 'settings:set')?.[1] as (
+      _event: unknown,
+      args: unknown
+    ) => Promise<unknown>
+
+    await handler(settingsInvokeEvent, { projectlessChatsDir: '   ' })
+
+    expect(store.updateSettings).toHaveBeenCalledWith(
+      { projectlessChatsDir: getDefaultProjectlessChatsDir(homedir()) },
+      expect.anything()
+    )
     expect(prepareLocalWorktreeRootsForReposMock).not.toHaveBeenCalled()
   })
 

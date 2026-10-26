@@ -10186,7 +10186,9 @@
             "command": "command",
             "confirm": "confirm",
             "close": "close",
-            "omp": "OMP"
+            "omp": "OMP",
+            "bd8d308c73": "Projectless chats folder",
+            "8fb288fbed": "Where chats started outside a project are stored, one folder per day."
           }
         },
         "git": {
@@ -12699,6 +12701,12 @@
           "offCount": "{{count}} off",
           "machines": "Machines",
           "machinesDescription": "Choose which machines can show notifications on this computer. A paired server’s switch also covers work reached through it."
+        },
+        "ProjectlessChatsDirectorySetting": {
+          "c5ef89ab92": "Projectless chats folder",
+          "b6dd0334f6": "Where chats started outside a project are stored, one folder per day.",
+          "a43dc59fe4": "Change",
+          "43545b7a79": "Reset"
         }
       },
       "right": {

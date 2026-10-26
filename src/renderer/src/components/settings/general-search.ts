@@ -25,6 +25,20 @@ export const getGeneralWorkspaceSearchEntries = createLocalizedCatalog(() => [
   },
   {
     title: translate(
+      'auto.components.settings.general.search.bd8d308c73',
+      'Projectless chats folder'
+    ),
+    description: translate(
+      'auto.components.settings.general.search.8fb288fbed',
+      'Where chats started outside a project are stored, one folder per day.'
+    ),
+    keywords: [
+      ...translateSearchKeyword('auto.components.settings.general.search.7887a2c262', 'folder'),
+      ...translateSearchKeyword('auto.components.settings.general.search.fb4f338a3d', 'path')
+    ]
+  },
+  {
+    title: translate(
       'auto.components.settings.general.search.externalWorktrees',
       'External worktrees'
     ),

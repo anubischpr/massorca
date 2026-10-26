@@ -49,6 +49,8 @@ export type MiniMaxEndpoint = 'overseas' | 'cn'
 
 export type GlobalSettings = NativeChatGlobalSettings & {
   workspaceDir: string
+  /** Root folder for chats started without a project: `<root>/<YYYY-MM-DD>/<chat-slug>`. */
+  projectlessChatsDir: string
   /** Host-owned defaults used when a repository has no explicit visibility override. */
   worktreeVisibilityDefaults?: WorktreeVisibilityDefaults
   /** Per-host overrides keyed by ExecutionHostId. Effective value for a
