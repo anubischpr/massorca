@@ -296,6 +296,7 @@ export function MobileNativeChatComposer({
             {sessionOptions ? (
               <MobileNativeChatSessionOptionPickers
                 {...sessionOptions}
+                agent={agent}
                 sendInFlight={sending || isAttaching}
               />
             ) : null}
@@ -413,7 +414,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm
+    gap: spacing.xs
   },
   actionSpacer: {
     flex: 1

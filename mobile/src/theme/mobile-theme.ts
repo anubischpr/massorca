@@ -25,6 +25,8 @@ export const colors = {
   statusGreen: '#22c55e',
   statusAmber: '#f59e0b',
   statusRed: '#ef4444',
+  // Full-access wash behind the red access lock, same rgba form as the diff tints below.
+  statusRedTint: 'rgba(239, 68, 68, 0.14)',
   // Merge CTA fill + its on-fill text, mirroring the desktop ChecksPanel's
   // bg-green-600 "Squash and merge" button (green-600 / white).
   mergeGreen: '#16a34a',

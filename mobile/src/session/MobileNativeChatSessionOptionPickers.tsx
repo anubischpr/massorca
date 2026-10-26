@@ -10,16 +10,28 @@ import {
 } from '../../../src/shared/native-chat-session-options'
 import {
   mobileModelPillLabel,
-  mobileOptionsPillLabel,
-  mobileSessionOptionSummaryValue,
-  mobileSessionOptionDisabledReason
+  mobileSelectedChoiceLabel,
+  mobileSessionOptionDisabledReason,
+  mobileSessionOptionNote,
+  mobileSessionOptionSheetTitle,
+  mobileSessionOptionSummaryValue
 } from './mobile-native-chat-session-option-labels'
 import {
+  mobileAccessChoiceLabel,
+  mobileAccessCurrentValue,
+  mobileAccessDescriptorWithLabels,
+  mobileAccessDisplay
+} from './mobile-native-chat-access-mode-display'
+import { effortMeterLevel } from './mobile-native-chat-effort-meter'
+import { isMobileFastModeOn } from './mobile-native-chat-fast-mode'
+import {
   DescriptorRows,
-  Pill,
   SessionOptionCaption,
   SessionOptionSummaryRow
 } from './MobileNativeChatSessionOptionRows'
+import { MobileNativeChatModelPill } from './MobileNativeChatModelPill'
+import { MobileNativeChatEffortButton } from './MobileNativeChatEffortButton'
+import { MobileNativeChatAccessButton } from './MobileNativeChatAccessButton'
 import { sortNativeChatSessionOptions } from '../../../src/shared/native-chat-session-option-snapshot'
 import type { MobileNativeChatSessionOptionsController } from './use-mobile-native-chat-session-options'
 
@@ -33,38 +45,68 @@ export type MobileNativeChatSessionOptionPickersProps = {
    *  window would be submitted as part of the user's prompt. The composer blocks
    *  the reverse direction on `pendingId`; this is the same guard mirrored. */
   sendInFlight?: boolean
+  /** The chat's agent id; its icon leads the model pill. Absent renders no icon. */
+  agent?: string | null
 }
 
-/** Combined model/session-option trigger and its mobile bottom drawer. */
+// Why: full access is the one access choice that must read as a risk before it is picked.
+function accessChoiceLabelColor(value: string): string | undefined {
+  return value === 'full-access' ? colors.statusRed : undefined
+}
+
+/** Model pill, effort and access buttons, and the bottom sheet each one opens. */
 export function MobileNativeChatSessionOptionPickers({
   controller,
   isWorking,
-  sendInFlight = false
+  sendInFlight = false,
+  agent = null
 }: MobileNativeChatSessionOptionPickersProps): React.JSX.Element | null {
   const [openDescriptorId, setOpenDescriptorId] = useState<string | null>(null)
+  // A sheet opened from the model list returns there; the toolbar sheets close instead.
+  const [returnsToModels, setReturnsToModels] = useState(false)
   const [lastRequest, setLastRequest] = useState(controller.optionPickerRequest)
   if (controller.optionPickerRequest && lastRequest !== controller.optionPickerRequest) {
     setLastRequest(controller.optionPickerRequest)
     setOpenDescriptorId(controller.optionPickerRequest.id)
+    setReturnsToModels(true)
   }
   const { snapshot, pendingId } = controller
   const model = snapshot.find((descriptor) => descriptor.category === 'model')
-  const options = sortNativeChatSessionOptions(snapshot)
   if (!model) {
     return null
   }
+  const effort = snapshot.find((descriptor) => descriptor.id === 'effort')
+  const access = snapshot.find((descriptor) => descriptor.id === 'accessMode')
+  // Effort and access have their own buttons, so the model sheet lists only the rest.
+  const summaryOptions = sortNativeChatSessionOptions(snapshot).filter(
+    (descriptor) => descriptor.id !== 'effort' && descriptor.id !== 'accessMode'
+  )
   const disabled = isWorking || pendingId !== null || sendInFlight
   const activeDescriptor = snapshot.find((descriptor) => descriptor.id === openDescriptorId)
   const modelView = activeDescriptor?.id === model.id
-  const modelLabel = mobileModelPillLabel(model)
-  const optionsLabel = options.length > 0 ? mobileOptionsPillLabel(options) : null
-  const pillLabel = optionsLabel ? `${modelLabel} ${optionsLabel}` : modelLabel
+  const backToModels = activeDescriptor !== undefined && !modelView && returnsToModels
+  const accessSheet = activeDescriptor?.id === 'accessMode'
   const reason = mobileSessionOptionDisabledReason(activeDescriptor?.disabledReason)
+  const modelLabel = mobileModelPillLabel(model)
+  const fast = isMobileFastModeOn(snapshot)
+  const effortLabel = (effort ? mobileSelectedChoiceLabel(effort) : null) ?? 'Effort'
+  const accessValue = access ? mobileAccessCurrentValue(access) : 'inherit'
+  const accessLabel = mobileAccessChoiceLabel(accessValue) ?? accessValue
 
   const closePicker = (): void => setOpenDescriptorId(null)
-  const openPicker = (): void => {
+  const openModels = (): void => {
     Keyboard.dismiss()
+    setReturnsToModels(false)
     setOpenDescriptorId(model.id)
+  }
+  const openToolbarSheet = (descriptor: SessionOptionDescriptor): void => {
+    Keyboard.dismiss()
+    setReturnsToModels(false)
+    setOpenDescriptorId(descriptor.id)
+  }
+  const openSummaryOption = (descriptor: SessionOptionDescriptor): void => {
+    setReturnsToModels(true)
+    setOpenDescriptorId(descriptor.id)
   }
 
   const applyOption = (descriptor: SessionOptionDescriptor, value: SessionOptionValue): void => {
@@ -92,32 +134,50 @@ export function MobileNativeChatSessionOptionPickers({
   }
 
   return (
-    <View>
-      <Pill
-        label={pillLabel}
-        accessibleName={`Model, ${pillLabel}`}
+    <>
+      <MobileNativeChatModelPill
+        agent={agent}
+        label={modelLabel}
+        fast={fast}
+        accessibleName={`Model, ${modelLabel}${fast ? ', fast mode' : ''}`}
         disabled={disabled}
-        onPress={openPicker}
+        onPress={openModels}
       />
+      {effort ? (
+        <MobileNativeChatEffortButton
+          accessibleName={`Effort, ${effortLabel}`}
+          level={effortMeterLevel(effort)}
+          disabled={disabled}
+          onPress={() => openToolbarSheet(effort)}
+        />
+      ) : null}
+      {access ? (
+        <MobileNativeChatAccessButton
+          accessibleName={`Access, ${accessLabel}`}
+          display={mobileAccessDisplay(accessValue, access.inheritedAccess)}
+          disabled={disabled}
+          onPress={() => openToolbarSheet(access)}
+        />
+      ) : null}
       <BottomDrawer visible={activeDescriptor !== undefined} onClose={closePicker}>
         {activeDescriptor ? (
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
               <Pressable
-                accessibilityLabel={modelView ? 'Close picker' : 'Back to models'}
+                accessibilityLabel={backToModels ? 'Back to models' : 'Close picker'}
                 accessibilityRole="button"
                 style={({ pressed }) => [styles.sheetNav, pressed && styles.pressed]}
-                onPress={modelView ? closePicker : () => setOpenDescriptorId(model.id)}
+                onPress={backToModels ? openModels : closePicker}
                 hitSlop={8}
               >
-                {modelView ? (
-                  <X size={18} color={colors.textSecondary} strokeWidth={2.2} />
-                ) : (
+                {backToModels ? (
                   <ChevronLeft size={18} color={colors.textSecondary} strokeWidth={2.2} />
+                ) : (
+                  <X size={18} color={colors.textSecondary} strokeWidth={2.2} />
                 )}
               </Pressable>
               <Text style={styles.sheetTitle}>
-                {modelView ? 'Select model' : `Select ${activeDescriptor.label.toLowerCase()}`}
+                {modelView ? 'Select model' : mobileSessionOptionSheetTitle(activeDescriptor)}
               </Text>
               <View style={styles.sheetHeaderSide}>
                 {pendingId !== null ? (
@@ -128,26 +188,36 @@ export function MobileNativeChatSessionOptionPickers({
             {sessionOptionDispatchUnconfirmed(activeDescriptor) ? (
               <SessionOptionCaption>Sent to the agent — not confirmed</SessionOptionCaption>
             ) : null}
+            {activeDescriptor.note ? (
+              <SessionOptionCaption>
+                {mobileSessionOptionNote(activeDescriptor.note)}
+              </SessionOptionCaption>
+            ) : null}
             {reason ? <SessionOptionCaption>{reason}</SessionOptionCaption> : null}
             <View style={styles.choiceGroup}>
               <DescriptorRows
-                descriptor={activeDescriptor}
+                descriptor={
+                  accessSheet
+                    ? mobileAccessDescriptorWithLabels(activeDescriptor)
+                    : activeDescriptor
+                }
                 disabled={disabled}
                 grouped
+                choiceLabelColor={accessSheet ? accessChoiceLabelColor : undefined}
                 onSetOption={(value) => applyOption(activeDescriptor, value)}
                 onInvokeAction={() => invokeAction(activeDescriptor)}
               />
             </View>
-            {modelView && options.length > 0 ? (
+            {modelView && summaryOptions.length > 0 ? (
               <View style={styles.optionGroup}>
-                {options.map((descriptor, index) => (
+                {summaryOptions.map((descriptor, index) => (
                   <SessionOptionSummaryRow
                     key={descriptor.id}
                     label={descriptor.label}
                     value={mobileSessionOptionSummaryValue(descriptor)}
                     disabled={disabled}
-                    divided={index < options.length - 1}
-                    onPress={() => setOpenDescriptorId(descriptor.id)}
+                    divided={index < summaryOptions.length - 1}
+                    onPress={() => openSummaryOption(descriptor)}
                   />
                 ))}
               </View>
@@ -155,7 +225,7 @@ export function MobileNativeChatSessionOptionPickers({
           </View>
         ) : null}
       </BottomDrawer>
-    </View>
+    </>
   )
 }
 

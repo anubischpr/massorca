@@ -2,7 +2,7 @@
 // beside it so the card file stays about layout and apply wiring.
 
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native'
-import { Check, ChevronDown, ChevronRight } from 'lucide-react-native'
+import { Check, ChevronRight } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import {
   sessionOptionValueMarker,
@@ -16,39 +16,6 @@ export function SessionOptionCaption({ children }: { children: string }): React.
   return <Text style={styles.caption}>{children}</Text>
 }
 
-export function Pill({
-  label,
-  accessibleName,
-  disabled,
-  onPress
-}: {
-  label: string
-  accessibleName: string
-  disabled: boolean
-  onPress: () => void
-}): React.JSX.Element {
-  return (
-    <Pressable
-      accessibilityLabel={accessibleName}
-      accessibilityRole="button"
-      accessibilityState={{ disabled }}
-      style={({ pressed }) => [styles.pill, pressed && !disabled && styles.pressed]}
-      onPress={onPress}
-      disabled={disabled}
-      hitSlop={6}
-    >
-      <Text
-        style={[styles.pillText, disabled && styles.pillTextDisabled]}
-        numberOfLines={1}
-        ellipsizeMode="tail"
-      >
-        {label}
-      </Text>
-      <ChevronDown size={12} color={disabled ? colors.textMuted : colors.textSecondary} />
-    </Pressable>
-  )
-}
-
 function ChoiceRow({
   label,
   description,
@@ -56,6 +23,7 @@ function ChoiceRow({
   disabled,
   grouped,
   divided,
+  labelColor,
   onPress
 }: {
   label: string
@@ -64,6 +32,7 @@ function ChoiceRow({
   disabled: boolean
   grouped: boolean
   divided: boolean
+  labelColor?: string
   onPress: () => void
 }): React.JSX.Element {
   return (
@@ -84,7 +53,7 @@ function ChoiceRow({
         {selected ? <Check size={12} color={colors.bgBase} strokeWidth={3} /> : null}
       </View>
       <View style={styles.rowBody}>
-        <Text style={styles.rowLabel}>{label}</Text>
+        <Text style={[styles.rowLabel, labelColor ? { color: labelColor } : null]}>{label}</Text>
         {description ? (
           <Text style={styles.rowDescription} numberOfLines={2}>
             {description}
@@ -197,12 +166,15 @@ export function DescriptorRows({
   descriptor,
   disabled,
   grouped = false,
+  choiceLabelColor,
   onSetOption,
   onInvokeAction
 }: {
   descriptor: SessionOptionDescriptor
   disabled: boolean
   grouped?: boolean
+  /** Tints a choice's label, e.g. full access in the danger colour. */
+  choiceLabelColor?: (value: string) => string | undefined
   onSetOption: (value: SessionOptionValue) => void
   onInvokeAction: () => void
 }): React.JSX.Element {
@@ -253,9 +225,10 @@ export function DescriptorRows({
           label={choice.label}
           description={choice.description}
           selected={choice.value === currentValue}
-          disabled={locked}
+          disabled={locked || choice.disabled === true}
           grouped={grouped}
           divided={grouped && index < choices.length - 1}
+          labelColor={choiceLabelColor?.(choice.value)}
           onPress={() => onSetOption(choice.value)}
         />
       ))}
@@ -264,28 +237,6 @@ export function DescriptorRows({
 }
 
 const styles = StyleSheet.create({
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    maxWidth: 180,
-    minHeight: 28,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radii.button,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.bgRaised
-  },
-  pillText: {
-    color: colors.textSecondary,
-    fontSize: typography.metaSize,
-    fontWeight: '600',
-    flexShrink: 1
-  },
-  pillTextDisabled: {
-    color: colors.textMuted
-  },
   pressed: {
     opacity: 0.7
   },
