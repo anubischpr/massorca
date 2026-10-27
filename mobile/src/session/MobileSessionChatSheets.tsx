@@ -54,6 +54,7 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
         onOpenPlan={openPlanSheet}
         onOpenSummary={openSummary}
         onOpenArtifacts={openArtifacts}
+        onOpenAgentHistory={openAgentSessionHistory}
         onOpenBranch={openBranch}
         onOpenChecks={() => handlePanelTap('pr')}
         onClose={() => setShowHeaderMoreActions(false)}

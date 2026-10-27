@@ -34,8 +34,15 @@ vi.mock('../components/AgentStateDot', () => ({
 vi.mock('../components/BottomDrawer', async () => {
   const React = await import('react')
   return {
-    BottomDrawer: ({ visible, children }: { visible: boolean; children?: ReactNode }) =>
-      visible ? React.createElement('BottomDrawer', { visible }, children) : null
+    BottomDrawer: ({
+      visible,
+      onClose,
+      children
+    }: {
+      visible: boolean
+      onClose?: () => void
+      children?: ReactNode
+    }) => (visible ? React.createElement('BottomDrawer', { visible, onClose }, children) : null)
   }
 })
 vi.mock('../hooks/use-now', () => ({ useNow: () => NOW }))
@@ -435,4 +442,39 @@ describe('MobileNativeChatBackgroundTasks', () => {
     expect(dots.map((dot) => dot.props.state)).toEqual(['unverifiable', 'unverifiable'])
     expect(textOf(mounted.root)).toContain('review a · No update in 0m')
   })
+
+  it('closes the sheet through its drawer, and a later roster does not bring it back', () => {
+    const working = { state: 'monitoring' as const, children: [view('a')] }
+    const mounted = mount(tasksFor(working))
+    expand(mounted)
+    expect(sheetTitles(mounted)).toHaveLength(1)
+    act(() => drawerOf(mounted).props.onClose())
+    expect(sheetTitles(mounted)).toHaveLength(0)
+    rerender(mounted, null)
+    rerender(mounted, working)
+    expect(
+      mounted.root.findAll((node) => node.props.testID === 'background-tasks-strip')
+    ).toHaveLength(1)
+    expect(sheetTitles(mounted)).toHaveLength(0)
+  })
+
+  it('keeps the sheet open across a roster that empties between children', () => {
+    // A sequential fan-out empties the roster between its children; the open sheet waits for the next.
+    const mounted = mount(tasksFor({ state: 'monitoring', children: [view('a')] }))
+    expand(mounted)
+    rerender(mounted, null)
+    expect(sheetTitles(mounted)).toHaveLength(0)
+    rerender(mounted, { state: 'monitoring', children: [view('b')] })
+    expect(sheetTitles(mounted)).toHaveLength(1)
+  })
+
+  function rerender(mounted: ReactTestRenderer, state: AgentSessionBackgroundTaskState | null) {
+    act(() => {
+      mounted.update(createElement(MobileNativeChatBackgroundTasks, { tasks: tasksFor(state) }))
+    })
+  }
+
+  function drawerOf(mounted: ReactTestRenderer): ReactTestInstance {
+    return mounted.root.find((node) => String(node.type) === 'BottomDrawer')
+  }
 })

@@ -18,6 +18,7 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     visibleTabs,
     activeSessionTabId,
     showChecksAction,
+    showAgentSessionHistoryAction,
     isFolderWorkspaceRoute,
     isFloatingWorkspaceRoute,
     hostId,
@@ -86,6 +87,7 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
   useEffect(() => () => clearMobileChatSurfaceSnapshot(surfaceKey), [surfaceKey])
   const headerMenu = resolveMobileSessionHeaderMenu({
     showNativeChat,
+    showAgentHistory: showAgentSessionHistoryAction,
     hasSourceControl: !isFolderWorkspaceRoute && !isFloatingWorkspaceRoute,
     showChecks: showChecksAction,
     hasPlan: plan !== null

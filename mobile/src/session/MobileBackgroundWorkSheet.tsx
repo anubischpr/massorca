@@ -73,7 +73,7 @@ export function MobileBackgroundWorkSheet({
           <View style={styles.group}>{agentRows.map(renderRow)}</View>
         </View>
       ) : null}
-      {groups.length === 0 ? (
+      {taskRows.length === 0 && agentRows.length === 0 ? (
         <Text style={styles.unavailable}>{say('detailsUnavailable')}</Text>
       ) : null}
       {!view.supportsStop && view.supportsStopAll ? (
