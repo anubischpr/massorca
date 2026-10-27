@@ -1,4 +1,9 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  clearMobileChatSurfaceSnapshot,
+  mobileChatSurfaceKey,
+  publishMobileChatSurfaceSnapshot
+} from './mobile-chat-surface-snapshot'
 import { mobileNativeChatPlan, mobileNativeChatPlanProgress } from './mobile-native-chat-plan'
 import { mobileNativeChatRecordedFileCount } from './mobile-native-chat-recorded-files'
 import { resolveMobileSessionHeaderMenu } from './mobile-session-header-menu'
@@ -51,6 +56,34 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     () => (showNativeChat ? mobileNativeChatRecordedFileCount(messages) : 0),
     [messages, showNativeChat]
   )
+  // The Summary and Artifacts screens read the chat from here: they push over this screen, so the
+  // snapshot is the chat on screen, without a second transcript subscription.
+  const surfaceKey = mobileChatSurfaceKey(hostId, worktreeId, activeSessionTabId ?? '')
+  const surfaceAgent = nativeChatController.nativeChatAgent
+  const surfaceWorkingStartedAt = nativeChatController.nativeChatWorkingStartedAt
+  const surfaceRecordedSource = nativeChatController.nativeChatVisualSource
+  useEffect(() => {
+    if (!showNativeChat || !activeSessionTabId) {
+      return
+    }
+    publishMobileChatSurfaceSnapshot(surfaceKey, {
+      messages,
+      agent: surfaceAgent,
+      working,
+      workingStartedAt: working ? surfaceWorkingStartedAt : null,
+      recordedSource: surfaceRecordedSource
+    })
+  }, [
+    surfaceKey,
+    activeSessionTabId,
+    showNativeChat,
+    messages,
+    surfaceAgent,
+    working,
+    surfaceWorkingStartedAt,
+    surfaceRecordedSource
+  ])
+  useEffect(() => () => clearMobileChatSurfaceSnapshot(surfaceKey), [surfaceKey])
   const headerMenu = resolveMobileSessionHeaderMenu({
     showNativeChat,
     hasSourceControl: !isFolderWorkspaceRoute && !isFloatingWorkspaceRoute,

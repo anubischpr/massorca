@@ -3,12 +3,21 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
 import { firstParam } from '../../../../src/navigation/route-param-reader'
+import { MobileChatSummaryView } from '../../../../src/session/MobileChatSummaryView'
 import { colors, spacing, typography } from '../../../../src/theme/mobile-theme'
 
-/** The chat summary. Placeholder: the screen body lands with the summary build. */
+/** The chat summary: the agent, its environment, what it wrote and what it is connected to. */
 export default function MobileChatSummaryScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ name?: string | string[] }>()
+  const params = useLocalSearchParams<{
+    hostId?: string | string[]
+    worktreeId?: string | string[]
+    name?: string | string[]
+    tab?: string | string[]
+  }>()
+  const hostId = firstParam(params.hostId) ?? ''
+  const worktreeId = firstParam(params.worktreeId) ?? ''
+  const tabId = firstParam(params.tab) ?? ''
   const name = firstParam(params.name)
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -31,6 +40,18 @@ export default function MobileChatSummaryScreen() {
           ) : null}
         </View>
       </View>
+      <MobileChatSummaryView
+        hostId={hostId}
+        worktreeId={worktreeId}
+        tabId={tabId}
+        onSeeAllResults={() =>
+          router.push(
+            `/h/${encodeURIComponent(hostId)}/chat-artifacts/${encodeURIComponent(worktreeId)}?${new URLSearchParams(
+              { ...(name ? { name } : {}), tab: tabId }
+            ).toString()}`
+          )
+        }
+      />
     </SafeAreaView>
   )
 }
