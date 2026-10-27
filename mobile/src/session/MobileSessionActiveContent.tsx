@@ -1,9 +1,10 @@
+import { useContext } from 'react'
 import { Animated, View, Text, Pressable, ActivityIndicator } from 'react-native'
 import { saveTerminalTextScale } from '../storage/preferences'
 import { MobileBrowserPane } from '../browser/MobileBrowserPane'
 import { TerminalPaneView } from './TerminalPaneView'
 import { MobileNativeChatOverlay } from './MobileNativeChatOverlay'
-import { MOBILE_CHAT_CHROME_CONTENT_TOP } from './mobile-chat-chrome-layout'
+import { MobileChatChromeLayoutContext, mobileChatContentTop } from './mobile-chat-chrome-layout'
 import { colors } from '../theme/mobile-theme'
 import { styles } from './mobile-session-styles'
 import type { MobileSessionController } from './use-mobile-session-controller'
@@ -15,6 +16,7 @@ export function MobileSessionActiveContent({
 }: {
   controller: MobileSessionController
 }) {
+  const chromeLayout = useContext(MobileChatChromeLayoutContext)
   const {
     worktreeId,
     insets,
@@ -242,7 +244,9 @@ export function MobileSessionActiveContent({
         sendSurfaceId={controller.nativeChatScopeKey ?? ''}
         getSendCompletionGeneration={controller.getSendCompletionGeneration}
         keyboardInset={keyboardLift}
-        chromeTopInset={showSessionSwitcherChip ? insets.top + MOBILE_CHAT_CHROME_CONTENT_TOP : 0}
+        chromeTopInset={
+          showSessionSwitcherChip ? mobileChatContentTop(chromeLayout.height, insets.top) : 0
+        }
         onOpenArtifact={openArtifactViewer}
       />
       {toastMessage && (

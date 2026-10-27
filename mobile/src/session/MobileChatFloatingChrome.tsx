@@ -1,8 +1,11 @@
-import { Pressable, StyleSheet, View, type ViewStyle } from 'react-native'
+import { useContext, useEffect } from 'react'
+import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ChevronLeft, Folder, GitBranch, MessageSquare, MoreHorizontal } from 'lucide-react-native'
-import { colors, spacing } from '../theme/mobile-theme'
+import { colors, spacing, typography } from '../theme/mobile-theme'
+import { StatusDot } from '../components/StatusDot'
 import { MobileSessionSwitcherChip } from './MobileSessionSwitcherChip'
+import { MobileChatChromeLayoutContext } from './mobile-chat-chrome-layout'
 import {
   mobileChatChromeSegmentPanel,
   resolveMobileChatChromeSegments,
@@ -21,7 +24,9 @@ const SEGMENT_ICONS = {
 
 /**
  * The chat's floating controls over the transcript, which runs edge to edge beneath them: back,
- * the Chat / Files / Source control segments, the ⋯ menu, and the session chip.
+ * the Chat / Files / Source control segments, the ⋯ menu, the session chip, and the connection state
+ * when a retry is offered. Drawn inside the content column, so it never covers the docked panel. Its
+ * measured height is published so the banner and the transcript start beneath it.
  */
 export function MobileChatFloatingChrome({ controller }: { controller: MobileSessionController }) {
   const {
@@ -35,11 +40,18 @@ export function MobileChatFloatingChrome({ controller }: { controller: MobileSes
     setShowHeaderMoreActions,
     activeSessionRow,
     sessionRows,
-    openSessionsSheet
+    openSessionsSheet,
+    hostId,
+    connState,
+    showConnectionRetry,
+    forceReconnectHost
   } = controller
   const insets = useSafeAreaInsets()
+  const { setHeight } = useContext(MobileChatChromeLayoutContext)
   // The header this replaces held the subscription that names a Gentle Shell tab; keep it mounted.
   useMobileStructuredPiRuntimeVersion()
+  // Gone with the chrome: the banner and transcript must not keep an offset for controls not drawn.
+  useEffect(() => () => setHeight(0), [setHeight])
   const segments = resolveMobileChatChromeSegments({
     activePanel,
     showFiles: !isFloatingWorkspaceRoute,
@@ -56,7 +68,11 @@ export function MobileChatFloatingChrome({ controller }: { controller: MobileSes
   }
 
   return (
-    <View pointerEvents="box-none" style={[styles.layer, { paddingTop: insets.top + BAR_TOP }]}>
+    <View
+      pointerEvents="box-none"
+      onLayout={(event) => setHeight(event.nativeEvent.layout.height)}
+      style={[styles.layer, { paddingTop: insets.top + BAR_TOP }]}
+    >
       <View style={styles.bar}>
         <FloatingRound
           label="Back to worktrees"
@@ -100,6 +116,21 @@ export function MobileChatFloatingChrome({ controller }: { controller: MobileSes
           tabCount={sessionRows.length}
           onPress={openSessionsSheet}
         />
+        {showConnectionRetry ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Reconnect to desktop"
+            onPress={() => {
+              if (hostId && forceReconnectHost) {
+                void forceReconnectHost(hostId)
+              }
+            }}
+            style={({ pressed }) => [styles.reconnect, pressed && styles.pressed]}
+          >
+            <StatusDot state={connState} />
+            <Text style={styles.reconnectText}>Reconnect to desktop</Text>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   )
@@ -181,6 +212,20 @@ const styles = StyleSheet.create({
   },
   chipRow: {
     alignItems: 'center',
+    gap: spacing.sm,
     marginTop: spacing.sm + spacing.xs
+  },
+  reconnect: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 999,
+    ...glass
+  },
+  reconnectText: {
+    color: colors.textPrimary,
+    fontSize: typography.metaSize
   }
 })

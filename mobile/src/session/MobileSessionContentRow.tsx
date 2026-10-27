@@ -1,3 +1,4 @@
+import { useContext } from 'react'
 import { View, Text, Pressable } from 'react-native'
 import { AlertTriangle, X } from 'lucide-react-native'
 import { SessionDockColumn } from './SessionDockColumn'
@@ -7,6 +8,8 @@ import { styles } from './mobile-session-styles'
 import type { MobileSessionController } from './use-mobile-session-controller'
 import { MobileSessionActiveContent } from './MobileSessionActiveContent'
 import { MobileSessionCommandDock } from './MobileSessionCommandDock'
+import { MobileChatFloatingChrome } from './MobileChatFloatingChrome'
+import { MobileChatChromeLayoutContext } from './mobile-chat-chrome-layout'
 
 export function MobileSessionContentRow({ controller }: { controller: MobileSessionController }) {
   const {
@@ -21,13 +24,17 @@ export function MobileSessionContentRow({ controller }: { controller: MobileSess
     createWarning,
     handleFileOpenStart,
     handleOpenedFileDiff,
-    handleSessionContentRowLayout
+    handleSessionContentRowLayout,
+    showSessionSwitcherChip
   } = controller
+  // The floating controls cover the top of this column; the banner starts beneath them.
+  const chromeLayout = useContext(MobileChatChromeLayoutContext)
   return (
     <View style={styles.sessionContentRow} onLayout={handleSessionContentRowLayout}>
       <View style={styles.sessionContentMain}>
+        {showSessionSwitcherChip ? <MobileChatFloatingChrome controller={controller} /> : null}
         {createWarning ? (
-          <View style={styles.createWarningBanner}>
+          <View style={[styles.createWarningBanner, { marginTop: chromeLayout.height }]}>
             <AlertTriangle size={16} color={colors.statusAmber} strokeWidth={2.2} />
             <Text style={styles.createWarningText}>{createWarning}</Text>
             <Pressable
