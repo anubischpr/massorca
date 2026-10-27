@@ -40,18 +40,7 @@ export default function MobileChatSummaryScreen() {
           ) : null}
         </View>
       </View>
-      <MobileChatSummaryView
-        hostId={hostId}
-        worktreeId={worktreeId}
-        tabId={tabId}
-        onSeeAllResults={() =>
-          router.push(
-            `/h/${encodeURIComponent(hostId)}/chat-artifacts/${encodeURIComponent(worktreeId)}?${new URLSearchParams(
-              { ...(name ? { name } : {}), tab: tabId }
-            ).toString()}`
-          )
-        }
-      />
+      <MobileChatSummaryView hostId={hostId} worktreeId={worktreeId} tabId={tabId} />
     </SafeAreaView>
   )
 }

@@ -42,7 +42,6 @@ vi.mock('../components/BottomDrawer', async () => {
 const FULL: MobileSessionHeaderMenu = {
   showButton: true,
   chat: {
-    sessions: true,
     agentHistory: false,
     plan: true,
     summary: true,
@@ -73,10 +72,8 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
     const props = {
       visible: true,
       menu: FULL,
-      tabCount: 4,
       planHint: '2 of 5 done',
       recordedFileCount: 7,
-      onOpenSessions: vi.fn(),
       onOpenPlan: vi.fn(),
       onOpenSummary,
       onOpenArtifacts: vi.fn(),
@@ -109,7 +106,6 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
   it('lists the chat surfaces, then the environment, each with its count', () => {
     const { mounted } = mount()
     expect(rowLabels(mounted)).toEqual([
-      'Sessions',
       'Plan',
       'Summary',
       'Artifacts',
@@ -118,7 +114,7 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
       'Checks'
     ])
     const labels = mounted.root.findAll((node) => String(node.type) === 'Text').map(textOf)
-    expect(labels).toEqual(expect.arrayContaining(['Chat', 'Environment', '4', '2 of 5 done', '7']))
+    expect(labels).toEqual(expect.arrayContaining(['Chat', 'Environment', '2 of 5 done', '7']))
   })
 
   it('leaves out the plan row when the chat has no plan', () => {
@@ -153,7 +149,6 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
       menu: {
         showButton: true,
         chat: {
-          sessions: false,
           agentHistory: true,
           plan: false,
           summary: false,
@@ -173,7 +168,6 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
       menu: {
         showButton: true,
         chat: {
-          sessions: false,
           agentHistory: true,
           plan: false,
           summary: false,

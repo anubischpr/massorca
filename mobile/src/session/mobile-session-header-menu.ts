@@ -13,7 +13,6 @@ export type MobileSessionHeaderMenu = {
   /** The ⋯ button shows when at least one item applies, in any workspace kind. */
   showButton: boolean
   chat: {
-    sessions: boolean
     /** Only without a native chat: beside one, Sessions holds the resume row instead. */
     agentHistory: boolean
     plan: boolean
@@ -29,7 +28,6 @@ export function resolveMobileSessionHeaderMenu(
   input: MobileSessionHeaderMenuInput
 ): MobileSessionHeaderMenu {
   const chat = {
-    sessions: input.showNativeChat,
     agentHistory: !input.showNativeChat && input.showAgentHistory,
     plan: input.showNativeChat,
     summary: input.showNativeChat,

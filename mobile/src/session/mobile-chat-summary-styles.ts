@@ -122,46 +122,6 @@ export const summaryStyles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: typography.bodySize
   },
-  strip: {
-    gap: spacing.sm,
-    paddingVertical: spacing.xs
-  },
-  thumb: {
-    width: 96,
-    gap: spacing.xs
-  },
-  thumbArt: {
-    height: 96,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radii.card,
-    backgroundColor: colors.bgPanel,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderSubtle
-  },
-  thumbName: {
-    color: colors.textSecondary,
-    fontSize: 11
-  },
-  seeAll: {
-    width: 96,
-    height: 96,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-    borderRadius: radii.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderSubtle
-  },
-  seeAllCount: {
-    color: colors.textPrimary,
-    fontSize: 18,
-    fontWeight: '600'
-  },
-  seeAllText: {
-    color: colors.textSecondary,
-    fontSize: typography.metaSize
-  },
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',

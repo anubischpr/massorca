@@ -199,7 +199,7 @@ describe('useMobileSessionChatSurfaces', () => {
   it('builds the header menu from the workspace, its checks, and its agent history', () => {
     const chat = latest(mountSurfaces(scopeFor({ showChecks: true })))
     expect(chat.headerMenu.environment).toEqual({ branch: true, checks: true })
-    expect(chat.headerMenu.chat.sessions).toBe(true)
+    expect(chat.headerMenu.chat).not.toHaveProperty('sessions')
     expect(chat.showHeaderMoreButton).toBe(true)
 
     const folder = latest(mountSurfaces(scopeFor({ folderWorkspace: true })))
@@ -208,7 +208,7 @@ describe('useMobileSessionChatSurfaces', () => {
     const history = latest(
       mountSurfaces(scopeFor({ showNativeChat: false, showAgentHistory: true }))
     )
-    expect(history.headerMenu.chat).toMatchObject({ sessions: false, agentHistory: true })
+    expect(history.headerMenu.chat).toMatchObject({ agentHistory: true })
     expect(history.showHeaderMoreButton).toBe(true)
   })
 
@@ -227,7 +227,7 @@ describe('useMobileSessionChatSurfaces', () => {
     expect(surfaces.planSteps).toBeNull()
     expect(surfaces.recordedFileCount).toBe(0)
     expect(surfaces.showSessionSwitcherChip).toBe(false)
-    expect(surfaces.headerMenu.chat.sessions).toBe(false)
+    expect(surfaces.headerMenu.chat).not.toHaveProperty('sessions')
     expect(surfaces.sessionRows.map((row) => row.status)).toEqual(['idle', 'terminal'])
   })
 })

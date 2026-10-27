@@ -1,14 +1,6 @@
 import { type ComponentType, useRef } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import {
-  Files,
-  GitBranch,
-  ListChecks,
-  ListTodo,
-  MessagesSquare,
-  ScrollText,
-  Zap
-} from 'lucide-react-native'
+import { Files, GitBranch, ListChecks, ListTodo, ScrollText, Zap } from 'lucide-react-native'
 import { MobileAgentSessionHistoryIcon } from '../agent-history/MobileAgentSessionHistoryIcon'
 import { BottomDrawer } from '../components/BottomDrawer'
 import { SheetSectionLabel } from '../components/SheetSectionLabel'
@@ -30,11 +22,9 @@ type MenuItem = {
 type Props = {
   visible: boolean
   menu: MobileSessionHeaderMenu
-  tabCount: number
   /** "2 of 5 done" on the plan row; absent when the chat has no plan. */
   planHint?: string
   recordedFileCount: number
-  onOpenSessions: () => void
   onOpenPlan: () => void
   onOpenSummary: () => void
   onOpenArtifacts: () => void
@@ -52,10 +42,8 @@ type Props = {
 export function MobileSessionHeaderMoreActionsSheet({
   visible,
   menu,
-  tabCount,
   planHint,
   recordedFileCount,
-  onOpenSessions,
   onOpenPlan,
   onOpenSummary,
   onOpenArtifacts,
@@ -72,14 +60,6 @@ export function MobileSessionHeaderMoreActionsSheet({
     onClose()
   }
   const chatItems = shown([
-    {
-      show: menu.chat.sessions,
-      key: 'sessions',
-      label: 'Sessions',
-      hint: String(tabCount),
-      icon: MessagesSquare,
-      onPress: onOpenSessions
-    },
     {
       show: menu.chat.plan,
       key: 'plan',

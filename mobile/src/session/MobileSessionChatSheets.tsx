@@ -23,7 +23,6 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
     sessionRows,
     sessionsSheetOpen,
     setSessionsSheetOpen,
-    openSessionsSheet,
     planSteps,
     planProgress,
     openPlanSheet,
@@ -60,10 +59,8 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
       <MobileSessionHeaderMoreActionsSheet
         visible={showHeaderMoreActions}
         menu={headerMenu}
-        tabCount={sessionRows.length}
         planHint={planProgress ? `${planProgress.done} of ${planProgress.total} done` : undefined}
         recordedFileCount={recordedFileCount}
-        onOpenSessions={openSessionsSheet}
         onOpenPlan={openPlanSheet}
         onOpenSummary={openSummary}
         onOpenArtifacts={openArtifacts}

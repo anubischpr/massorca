@@ -1,11 +1,4 @@
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
-import {
-  mobileNativeChatRecordedFiles,
-  type MobileNativeChatRecordedFile
-} from './mobile-native-chat-recorded-files'
-
-/** Thumbnails the Summary's results strip shows before "See all". */
-export const SUMMARY_RESULT_PREVIEW_COUNT = 6
 
 /** `mcp__<server>__<tool>`; a server name may hold a single underscore. */
 const CONNECTOR_TOOL_NAME = /^mcp__(.+?)__/
@@ -20,10 +13,6 @@ export type MobileChatSummaryModel = {
   model: string | null
   connectors: MobileChatConnector[]
   runningSubagents: MobileChatSubagent[]
-  results: {
-    total: number
-    preview: MobileNativeChatRecordedFile[]
-  }
 }
 
 /** `m:ss` under an hour, `h:mm:ss` from there. A clock that reads before its start reads zero. */
@@ -128,15 +117,10 @@ export function runningSubagents(messages: readonly NativeChatMessage[]): Mobile
 export function buildMobileChatSummaryModel(input: {
   messages: readonly NativeChatMessage[]
 }): MobileChatSummaryModel {
-  const files = mobileNativeChatRecordedFiles(input.messages)
   return {
     title: chatTitleFromMessages(input.messages),
     model: chatModelLabel(input.messages),
     connectors: chatConnectors(input.messages),
-    runningSubagents: runningSubagents(input.messages),
-    results: {
-      total: files.length,
-      preview: files.slice(0, SUMMARY_RESULT_PREVIEW_COUNT)
-    }
+    runningSubagents: runningSubagents(input.messages)
   }
 }
