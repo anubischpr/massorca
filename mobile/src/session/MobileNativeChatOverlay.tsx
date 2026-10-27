@@ -103,7 +103,11 @@ export function MobileNativeChatOverlay({
       // The indicator's `stopping` is the display status, decided once in the session hook.
       steerHeld: controller.nativeChatTurnIndicator?.stopping === true
     },
-    backgroundTasks: controller.nativeChatBackgroundTasks
+    backgroundTasks: controller.nativeChatBackgroundTasks,
+    turn: {
+      working: controller.nativeChatAgentWorking,
+      startedAt: controller.nativeChatWorkingStartedAt
+    }
   })
   const visuals = useMobileNativeChatVisualRenderer(controller.nativeChatVisualSource)
   if (!controller.showNativeChat) {

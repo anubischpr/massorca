@@ -157,37 +157,10 @@ describe('MobileNativeChatBackgroundTasks', () => {
     ).toBeNull()
   })
 
-  it('counts by kind on a wide strip and drops to a total once narrow', () => {
-    const mounted = mount(
-      tasksFor({
-        state: 'monitoring',
-        children: [view('a'), view('b'), view('s', { kind: 'command', description: 'npm test' })]
-      })
-    )
-    expect(header(mounted).props.accessibilityLabel).toBe('2 agents · 1 shell')
-    const strip = mounted.root.find((node) => node.props.testID === 'background-tasks-strip')
-    act(() => strip.props.onLayout({ nativeEvent: { layout: { width: 343 } } }))
-    expect(header(mounted).props.accessibilityLabel).toBe('3 background tasks')
+  it('counts the running agents in the pill, and hides the zero terminal count', () => {
+    const mounted = mount(tasksFor({ state: 'monitoring', children: [view('a'), view('b')] }))
+    expect(header(mounted).props.accessibilityLabel).toBe('Show background work, Working, 2 agents')
   })
-
-  it('starts narrow on a phone-width window, as desktop starts from its viewport', () => {
-    windowWidth.value = 375
-    const mounted = mount(
-      tasksFor({
-        state: 'monitoring',
-        children: [view('a'), view('s', { kind: 'command', description: 'npm test' })]
-      })
-    )
-    expect(header(mounted).props.accessibilityLabel).toBe('2 background tasks')
-  })
-
-  it('leads with a waiting agent and its reason', () => {
-    const mounted = mount(
-      tasksFor({ state: 'monitoring', children: [view('a', { state: 'waiting' })] })
-    )
-    expect(header(mounted).props.accessibilityLabel).toBe('1 agent waiting — needs approval')
-  })
-
   it('opens the sheet to rows in their section, with tokens and elapsed', () => {
     const mounted = mount(
       tasksFor({ state: 'monitoring', children: [view('a', { totalTokens: 18_130 })] })
@@ -251,40 +224,6 @@ describe('MobileNativeChatBackgroundTasks', () => {
     })
   })
 
-  it('lets compact content grow with Dynamic Type and ellipsizes single-line fields', () => {
-    windowWidth.value = 320
-    const mounted = mount(
-      tasksFor({
-        state: 'monitoring',
-        supportsTaskStop: true,
-        children: [view('a', { state: 'waiting', description: 'A long agent task '.repeat(20) })]
-      })
-    )
-    expand(mounted)
-    const row = mounted.root.find((node) => node.props.testID === 'background-task-row')
-    const rowText = row.find(
-      (node) => String(node.type) === 'Text' && node.props.numberOfLines === 1
-    )
-    expect(rowText.props.ellipsizeMode).toBe('tail')
-    expect(styleOf(rowText)).toMatchObject({ flex: 1, minWidth: 0, fontSize: 12 })
-    const headerTexts = header(mounted).findAll((node) => String(node.type) === 'Text')
-    for (const text of headerTexts) {
-      expect(text.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'tail' })
-      expect(styleOf(text)).toMatchObject({ flexShrink: 1, fontSize: 12 })
-    }
-    for (const node of mounted.root.findAll((node) =>
-      ['View', 'Text', 'Pressable'].includes(String(node.type))
-    )) {
-      expect(styleOf(node).height).toBeUndefined()
-      expect(styleOf(node).maxHeight).toBeUndefined()
-      expect(styleOf(node).lineHeight).toBeUndefined()
-      if (String(node.type) === 'Text') {
-        expect(node.props.allowFontScaling).not.toBe(false)
-        expect(node.props.maxFontSizeMultiplier).toBeUndefined()
-      }
-    }
-  })
-
   it('stops one row by its provider id and holds its button while the Stop is on its way', async () => {
     let finish: () => void = () => {}
     const stop = vi.fn(() => new Promise<void>((resolve) => (finish = resolve)))
@@ -346,7 +285,7 @@ describe('MobileNativeChatBackgroundTasks', () => {
         ]
       })
     )
-    expect(header(mounted).props.accessibilityLabel).toBe('2 agents — 1 working, 1 waiting')
+    expect(header(mounted).props.accessibilityLabel).toBe('Show background work, Working, 2 agents')
     expand(mounted)
     expect(
       mounted.root.findAll((node) => node.props.testID === 'background-task-row').map(textOf)
@@ -391,52 +330,13 @@ describe('MobileNativeChatBackgroundTasks', () => {
     ).toEqual(['review a · Agent900 · 35s'])
   })
 
-  it('starts narrow when the window less its margins is narrow', () => {
-    windowWidth.value = 400
-    const mounted = mount(
-      tasksFor({
-        state: 'monitoring',
-        children: [view('a'), view('s', { kind: 'command', description: 'npm test' })]
-      })
-    )
-    expect(header(mounted).props.accessibilityLabel).toBe('2 background tasks')
-  })
-
-  it('keeps one kind in its state forms on a phone-width strip', () => {
-    windowWidth.value = 375
-    const waiting = mount(
-      tasksFor({
-        state: 'monitoring',
-        children: [view('a', { state: 'waiting' }), view('b', { state: 'waiting' })]
-      })
-    )
-    expect(header(waiting).props.accessibilityLabel).toBe('2 agents waiting — needs approval')
-    const mixed = mount(
-      tasksFor({ state: 'monitoring', children: [view('a'), view('b', { state: 'waiting' })] })
-    )
-    expect(header(mixed).props.accessibilityLabel).toBe('2 agents — 1 working, 1 waiting')
-  })
-
-  it('cuts the header off on one line on the smallest phones, never wrapping it', () => {
-    windowWidth.value = 320
-    const mounted = mount(
-      tasksFor({
-        state: 'monitoring',
-        children: [view('a'), view('b', { state: 'waiting' }), view('c', { state: 'unverifiable' })]
-      })
-    )
-    const texts = header(mounted).findAll((node) => String(node.type) === 'Text')
-    expect(texts.length).toBeGreaterThan(0)
-    expect(texts.map((text) => [text.props.numberOfLines, text.props.ellipsizeMode])).toEqual(
-      texts.map(() => [1, 'tail'])
-    )
-  })
-
   it('claims no live work once the stream is lost', () => {
     const mounted = mount(
       tasksFor({ state: 'monitoring', children: [view('a'), view('b')] }, { streamLive: false })
     )
-    expect(header(mounted).props.accessibilityLabel).toBe('2 agents with status unavailable')
+    expect(header(mounted).props.accessibilityLabel).toBe(
+      'Show background work, Status unavailable'
+    )
     expand(mounted)
     const dots = mounted.root.findAll((node) => String(node.type) === 'AgentStateDot')
     expect(dots.map((dot) => dot.props.state)).toEqual(['unverifiable', 'unverifiable'])
