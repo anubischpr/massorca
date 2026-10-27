@@ -121,6 +121,30 @@ describe('splitModelSheet', () => {
     expect(splitModelSheet(descriptor, 'gemini').more).toBeNull()
   })
 
+  it('does not feature a model whose value and label match only across the join', () => {
+    const split = splitModelSheet(
+      modelWith([
+        { value: 'claude-opus-5', label: '5 Fable' },
+        { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5' }
+      ]),
+      'claude'
+    )
+    expect(valuesOf(split.featured)).toEqual(['claude-sonnet-5-5'])
+    expect(valuesOf(split.more)).toEqual(['claude-opus-5'])
+  })
+
+  it('does not feature a Codex model whose value and label match only across the join', () => {
+    const split = splitModelSheet(
+      modelWith([
+        { value: 'gpt-6', label: '1 Sol' },
+        { value: 'gpt-6-astra', label: 'GPT-6 Astra' }
+      ]),
+      'codex'
+    )
+    expect(valuesOf(split.featured)).toEqual(['gpt-6-astra'])
+    expect(valuesOf(split.more)).toEqual(['gpt-6'])
+  })
+
   it('leaves an agent-picker model descriptor whole', () => {
     const descriptor: SessionOptionDescriptor = {
       ...modelWith(CLAUDE_CHOICES),

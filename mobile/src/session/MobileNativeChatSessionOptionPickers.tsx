@@ -69,6 +69,11 @@ function accessChoiceLabelColor(value: string): string | undefined {
   return value === 'full-access' ? colors.statusRed : undefined
 }
 
+// Why: effort and access have their own buttons, so their sheets close instead of returning to models.
+function isToolbarOption(descriptorId: string): boolean {
+  return descriptorId === 'effort' || descriptorId === 'accessMode'
+}
+
 /** The glyph before each sheet row: the effort level's meter, or the access mode's icon. */
 function choiceLeadingFor(
   descriptor: SessionOptionDescriptor
@@ -104,10 +109,14 @@ export function MobileNativeChatSessionOptionPickers({
   const [inMoreModels, setInMoreModels] = useState(false)
   const [lastRequest, setLastRequest] = useState(controller.optionPickerRequest)
   if (controller.optionPickerRequest && lastRequest !== controller.optionPickerRequest) {
+    const requestedId = controller.optionPickerRequest.id
     setLastRequest(controller.optionPickerRequest)
-    setOpenDescriptorId(controller.optionPickerRequest.id)
-    setReturnsToModels(true)
-    setInMoreModels(false)
+    // Why: an absent descriptor is ignored, so a later snapshot cannot open it unasked.
+    if (controller.snapshot.some((descriptor) => descriptor.id === requestedId)) {
+      setOpenDescriptorId(requestedId)
+      setReturnsToModels(!isToolbarOption(requestedId))
+      setInMoreModels(false)
+    }
   }
   const { snapshot, pendingId } = controller
   const model = snapshot.find((descriptor) => descriptor.category === 'model')
@@ -134,9 +143,10 @@ export function MobileNativeChatSessionOptionPickers({
   const reason = mobileSessionOptionDisabledReason(activeDescriptor?.disabledReason)
   const modelLabel = mobileModelPillLabel(model)
   const fast = isMobileFastModeOn(snapshot)
-  const effortLabel = (effort ? mobileSelectedChoiceLabel(effort) : null) ?? 'Effort'
+  const effortLabel = (effort ? mobileSelectedChoiceLabel(effort) : null) ?? 'Not set'
   const accessValue = access ? mobileAccessCurrentValue(access) : 'inherit'
-  const accessLabel = mobileAccessChoiceLabel(accessValue) ?? accessValue
+  // Why: a transport token with no human label is never announced; "Custom mode" stands in for it.
+  const accessLabel = mobileAccessChoiceLabel(accessValue) ?? 'Custom mode'
 
   const closePicker = (): void => {
     setOpenDescriptorId(null)

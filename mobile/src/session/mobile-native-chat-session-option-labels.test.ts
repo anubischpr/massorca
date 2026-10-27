@@ -44,9 +44,17 @@ describe('mobileSelectedChoiceLabel', () => {
 })
 
 describe('mobileSessionOptionNote', () => {
-  it('states why dimmed modes cannot be picked now', () => {
-    expect(mobileSessionOptionNote('start-only-modes')).toBe(
-      'Dimmed modes can only be set when the session starts.'
-    )
+  it.each([
+    { note: 'no-restricted-mode' as const, text: 'Pi chat has no restricted mode.' },
+    {
+      note: 'start-only-modes' as const,
+      text: 'Dimmed modes can only be set when the session starts.'
+    },
+    {
+      note: 'applies-on-next-start' as const,
+      text: 'Changes apply when the session next starts.'
+    }
+  ])('states the $note note', ({ note, text }) => {
+    expect(mobileSessionOptionNote(note)).toBe(text)
   })
 })

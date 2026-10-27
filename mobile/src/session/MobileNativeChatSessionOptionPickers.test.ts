@@ -8,6 +8,7 @@ import { MobileNativeChatEffortMeter } from './MobileNativeChatEffortMeter'
 import { MobileNativeChatSessionOptionPickers } from './MobileNativeChatSessionOptionPickers'
 import type { MobileNativeChatSessionOptionsController } from './use-mobile-native-chat-session-options'
 
+const viewport = vi.hoisted(() => ({ width: 390 }))
 vi.mock('react-native', () => ({
   ActivityIndicator: 'ActivityIndicator',
   Keyboard: { dismiss: vi.fn() },
@@ -15,7 +16,7 @@ vi.mock('react-native', () => ({
   StyleSheet: { create: (styles: unknown) => styles, hairlineWidth: 1 },
   Switch: 'Switch',
   Text: 'Text',
-  useWindowDimensions: () => ({ width: 390, height: 844 }),
+  useWindowDimensions: () => ({ width: viewport.width, height: 844 }),
   View: 'View'
 }))
 vi.mock('lucide-react-native', () => ({
@@ -159,28 +160,48 @@ describe('MobileNativeChatSessionOptionPickers', () => {
   const setOption = vi.fn<MobileNativeChatSessionOptionsController['setOption']>()
   const invokeAction = vi.fn<MobileNativeChatSessionOptionsController['invokeAction']>()
 
+  const pickers = (
+    snapshot: SessionOptionDescriptor[],
+    optionPickerRequest: MobileNativeChatSessionOptionsController['optionPickerRequest'] = null,
+    isWorking = false,
+    agent: string | null = null,
+    piRuntime?: PiRowRuntime
+  ): React.ReactElement => {
+    const controller: MobileNativeChatSessionOptionsController = {
+      snapshot,
+      pendingId: null,
+      setOption,
+      invokeAction,
+      recordCommand: vi.fn(),
+      optionPickerRequest
+    }
+    return createElement(MobileNativeChatSessionOptionPickers, {
+      controller,
+      isWorking,
+      agent,
+      piRuntime
+    })
+  }
+
   const mount = (
     snapshot: SessionOptionDescriptor[],
     isWorking = false,
     agent: string | null = null,
     piRuntime?: PiRowRuntime
   ): void => {
-    const controller: MobileNativeChatSessionOptionsController = {
-      snapshot,
-      pendingId: null,
-      setOption,
-      invokeAction,
-      recordCommand: vi.fn()
-    }
     act(() => {
-      renderer = create(
-        createElement(MobileNativeChatSessionOptionPickers, {
-          controller,
-          isWorking,
-          agent,
-          piRuntime
-        })
-      )
+      renderer = create(pickers(snapshot, null, isWorking, agent, piRuntime))
+    })
+  }
+
+  // A new request object is what the host sends for each external request.
+  const requestPicker = (
+    snapshot: SessionOptionDescriptor[],
+    id: string,
+    sequence: number
+  ): void => {
+    act(() => {
+      renderer!.update(pickers(snapshot, { id, sequence }))
     })
   }
 
@@ -235,6 +256,7 @@ describe('MobileNativeChatSessionOptionPickers', () => {
   }
 
   beforeEach(() => {
+    viewport.width = 390
     setOption.mockReset()
     setOption.mockResolvedValue(true)
     invokeAction.mockReset()
@@ -608,5 +630,98 @@ describe('MobileNativeChatSessionOptionPickers', () => {
     )
     await act(async () => control('Model').props.onPress())
     expect(controls('More models')).toHaveLength(0)
+  })
+  it('opens an externally requested effort sheet with the close control, not back to models', () => {
+    const snapshot = [MODEL_DESCRIPTOR, EFFORT_DESCRIPTOR]
+    mount(snapshot)
+    requestPicker(snapshot, 'effort', 1)
+    expect(renderer!.root.findByType('BottomDrawer').props.visible).toBe(true)
+    expect(texts()).toContain('Select effort')
+    expect(control('Close picker').props.accessibilityLabel).toBe('Close picker')
+    expect(controls('Back to models')).toHaveLength(0)
+  })
+
+  it('opens an externally requested access sheet with the close control, not back to models', () => {
+    const snapshot = [MODEL_DESCRIPTOR, accessWith('default')]
+    mount(snapshot)
+    requestPicker(snapshot, 'accessMode', 1)
+    expect(texts()).toContain('Select access')
+    expect(control('Close picker').props.accessibilityLabel).toBe('Close picker')
+    expect(controls('Back to models')).toHaveLength(0)
+  })
+
+  it('keeps Back to models for an externally requested option from the model sheet', () => {
+    const snapshot = [MODEL_DESCRIPTOR, SERVICE_TIER_DESCRIPTOR]
+    mount(snapshot)
+    requestPicker(snapshot, 'serviceTier', 1)
+    expect(texts()).toContain('Select service tier')
+    expect(control('Back to models').props.accessibilityLabel).toBe('Back to models')
+  })
+
+  it('ignores a request for a descriptor missing from the snapshot and still opens a later valid one', () => {
+    const snapshot = [MODEL_DESCRIPTOR, EFFORT_DESCRIPTOR]
+    mount(snapshot)
+    requestPicker(snapshot, 'serviceTier', 1)
+    expect(renderer!.root.findAll((node) => node.type === 'BottomDrawer')).toHaveLength(0)
+    requestPicker(snapshot, 'effort', 2)
+    expect(renderer!.root.findByType('BottomDrawer').props.visible).toBe(true)
+    expect(texts()).toContain('Select effort')
+  })
+
+  it('drops the model name from the pill below 360pt but keeps the icon and the model in its name', () => {
+    viewport.width = 320
+    mount([MODEL_DESCRIPTOR], false, 'claude')
+    expect(renderer!.root.findByType('MobileAgentIcon')).toBeDefined()
+    expect(texts()).not.toContain('Sonnet 5')
+    expect(control('Model').props.accessibilityLabel).toBe('Model, Sonnet 5')
+  })
+
+  it('shows the model name in the pill at 390pt', () => {
+    mount([MODEL_DESCRIPTOR], false, 'claude')
+    expect(texts()).toContain('Sonnet 5')
+  })
+
+  it('always shows the model name in the pill when no agent icon can stand in', () => {
+    viewport.width = 320
+    mount([MODEL_DESCRIPTOR])
+    expect(texts()).toContain('Sonnet 5')
+  })
+
+  it.each([
+    { note: 'no-restricted-mode' as const, text: 'Pi chat has no restricted mode.' },
+    {
+      note: 'start-only-modes' as const,
+      text: 'Dimmed modes can only be set when the session starts.'
+    },
+    { note: 'applies-on-next-start' as const, text: 'Changes apply when the session next starts.' }
+  ])('captions a sheet whose descriptor carries the $note note', async ({ note, text }) => {
+    mount([MODEL_DESCRIPTOR, { ...SERVICE_TIER_DESCRIPTOR, note }])
+    await act(async () => control('Model').props.onPress())
+    await act(async () => rowByText('Service tier').props.onPress())
+    expect(texts()).toContain(text)
+  })
+
+  it.each([
+    { value: 'full-access', tinted: true },
+    { value: 'auto', tinted: false },
+    { value: 'default', tinted: false }
+  ])('tints the access button background only for danger, not for $value', ({ value, tinted }) => {
+    mount([MODEL_DESCRIPTOR, accessWith(value)])
+    const style = control('Access').props.style({ pressed: false }) as unknown[]
+    if (tinted) {
+      expect(style).toContainEqual({ backgroundColor: colors.statusRedTint })
+    } else {
+      expect(style).not.toContainEqual({ backgroundColor: colors.statusRedTint })
+    }
+  })
+
+  it('names an effort with no reported value "Effort, Not set" rather than "Effort, Effort"', () => {
+    mount([MODEL_DESCRIPTOR, { ...EFFORT_DESCRIPTOR, valueSource: 'unknown' }])
+    expect(control('Effort').props.accessibilityLabel).toBe('Effort, Not set')
+  })
+
+  it('names an access mode with no human label "Custom mode" instead of its transport token', () => {
+    mount([MODEL_DESCRIPTOR, accessWith('acceptEditsLegacy')])
+    expect(control('Access').props.accessibilityLabel).toBe('Access, Custom mode')
   })
 })

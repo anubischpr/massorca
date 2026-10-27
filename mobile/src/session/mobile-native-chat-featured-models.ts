@@ -13,28 +13,28 @@ export type ModelSheetSplit = {
   moreCount: number
 }
 
-// Value and label as lower-case words, padded so a match always spans whole words.
-function paddedWords(choice: SessionOptionSelectChoice): string {
-  const words = `${choice.value} ${choice.label}`.toLowerCase().replace(/[^a-z0-9]+/g, ' ')
-  return ` ${words} `
+// Each field as lower-case words, padded so a match always spans whole words within that field.
+function paddedWords(text: string): string {
+  return ` ${text.toLowerCase().replace(/[^a-z0-9]+/g, ' ')} `
+}
+
+// Why: value and label are matched separately, so a phrase can never splice across the two fields.
+function hasPhrase(choice: SessionOptionSelectChoice, phrase: string): boolean {
+  return [choice.value, choice.label].some((text) => paddedWords(text).includes(phrase))
 }
 
 // Claude's 5.5 generation (`Opus 5.5`, `claude-sonnet-5-5`); Fable 5.1 and bare aliases fold away.
-const isClaudeFiveFive: FeaturedRule = (choice) => paddedWords(choice).includes(' 5 5 ')
+const isClaudeFiveFive: FeaturedRule = (choice) => hasPhrase(choice, ' 5 5 ')
 
 // Codex's 6.1 models plus GPT-6 Astra and Luna; GPT-5.6 Luna and GPT-6 Sol fold away.
-const isCodexFeatured: FeaturedRule = (choice) => {
-  const words = paddedWords(choice)
-  return (
-    words.includes(' 6 1 ') || words.includes(' gpt 6 astra ') || words.includes(' gpt 6 luna ')
-  )
-}
+const isCodexFeatured: FeaturedRule = (choice) =>
+  hasPhrase(choice, ' 6 1 ') ||
+  hasPhrase(choice, ' gpt 6 astra ') ||
+  hasPhrase(choice, ' gpt 6 luna ')
 
 // Antigravity's Gemini 4 Argon and Gemini 3.8 Flash, whichever effort suffix their id carries.
-const isAntigravityFeatured: FeaturedRule = (choice) => {
-  const words = paddedWords(choice)
-  return words.includes(' gemini 4 argon ') || words.includes(' gemini 3 8 flash ')
-}
+const isAntigravityFeatured: FeaturedRule = (choice) =>
+  hasPhrase(choice, ' gemini 4 argon ') || hasPhrase(choice, ' gemini 3 8 flash ')
 
 function featuredRuleFor(agent: string | null): FeaturedRule | null {
   switch (agent) {
