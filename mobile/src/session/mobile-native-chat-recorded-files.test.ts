@@ -34,6 +34,27 @@ function write(path: string, callId: string, agentId?: string): NativeChatMessag
   ]
 }
 
+/** A write whose result came back as an error, while its call block still reads completed. */
+function erroredWrite(path: string, callId: string): NativeChatMessage[] {
+  return [
+    message(`${callId}-call`, [
+      { type: 'tool-call', name: 'write_file', input: { Path: path }, callId, state: 'completed' }
+    ]),
+    message(`${callId}-result`, [
+      { type: 'tool-result', output: 'Permission denied', callId, isError: true }
+    ])
+  ]
+}
+
+/** A write still in flight: its call block reads running and no result has arrived. */
+function runningWrite(path: string, callId: string): NativeChatMessage[] {
+  return [
+    message(`${callId}-call`, [
+      { type: 'tool-call', name: 'write_file', input: { Path: path }, callId, state: 'running' }
+    ])
+  ]
+}
+
 describe('mobileNativeChatRecordedFileCount', () => {
   it('is zero when no call changed a file', () => {
     expect(
@@ -56,6 +77,24 @@ describe('mobileNativeChatRecordedFileCount', () => {
       mobileNativeChatRecordedFileCount([
         ...write('src/a.ts', 'c1'),
         ...write('src/child.ts', 'c2', 'agent-1')
+      ])
+    ).toBe(1)
+  })
+
+  it('leaves out a write whose result came back as an error', () => {
+    expect(
+      mobileNativeChatRecordedFileCount([
+        ...write('src/a.ts', 'c1'),
+        ...erroredWrite('src/b.ts', 'c2')
+      ])
+    ).toBe(1)
+  })
+
+  it('leaves out a write still running, with no result yet', () => {
+    expect(
+      mobileNativeChatRecordedFileCount([
+        ...write('src/a.ts', 'c1'),
+        ...runningWrite('src/b.ts', 'c2')
       ])
     ).toBe(1)
   })

@@ -35,7 +35,7 @@ export function mobileNativeChatRecordedFiles(
         name: block.name,
         input: block.input,
         state: block.state,
-        ...(result ? { result: { output: result.output, isError: block.state === 'failed' } } : {})
+        ...(result ? { result: { output: result.output, isError: result.isError } } : {})
       }
       const diffs = editFilesFromToolPair(pair)
       for (const path of editedPathsFromToolPair(pair)) {
