@@ -2,6 +2,7 @@
 export const HOST_STACK_SCREENS = [
   { name: '[hostId]/index', title: 'Host' },
   { name: '[hostId]/edit', title: 'Edit host' },
+  { name: '[hostId]/new-session', title: 'New session' },
   { name: '[hostId]/accounts', title: 'Accounts' },
   { name: '[hostId]/tasks', title: 'Tasks' },
   { name: '[hostId]/session/[worktreeId]', title: 'Terminal' },

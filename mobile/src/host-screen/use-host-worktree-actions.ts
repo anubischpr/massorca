@@ -7,7 +7,7 @@ import { removeHostAndCloseClient } from '../transport/host-removal-lifecycle'
 import { isPageHostRemovalUnavailable } from '../transport/page-host-removal-refusal'
 import type { RpcClient } from '../transport/rpc-client'
 import type { ConnectionState } from '../transport/types'
-import { setHostRouteNewWorktreeVisible } from '../host-route-action-state'
+import { hostNewSessionRoute, setHostRouteNewWorktreeVisible } from '../host-route-action-state'
 import { leaveHostRoute } from '../host-route-exit'
 import { getWorktreeRowIdentity, removeWorktreeRow } from '../worktree/worktree-host-row-identity'
 import { isWorktreePinned, type Worktree } from '../worktree/workspace-list-sections'
@@ -205,6 +205,10 @@ export function useHostWorktreeActions(args: {
     [client, connState, hostId, navigateFromHostList]
   )
 
+  const openNewSession = useCallback(() => {
+    navigateFromHostList(hostNewSessionRoute(hostId ?? ''))
+  }, [hostId, navigateFromHostList])
+
   const openFloatingWorkspace = useCallback(() => {
     // Why: no worktree.activate here — the floating sentinel has no worktree
     // record; session.tabs.list hydrates its host-owned tabs on open.
@@ -217,6 +221,7 @@ export function useHostWorktreeActions(args: {
     leaveHost,
     navigateFromHostList,
     openFloatingWorkspace,
+    openNewSession,
     openNewWorktreeModal,
     openWorktreeSession,
     setShowNewWorktreeVisible,

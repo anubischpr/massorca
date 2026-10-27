@@ -1,4 +1,3 @@
-import type { TuiAgent } from '../../../src/shared/tui-agent'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcResponse } from '../transport/types'
 import {
@@ -37,7 +36,13 @@ import {
 // worktree.ps. Retry by appending -2, -3, ... mirroring the desktop createWorktree
 // loop in src/renderer/src/store/slices/worktrees.ts.
 export type WorktreeCreateResult =
-  | { worktreeId: string; name: string; warning?: string }
+  | {
+      worktreeId: string
+      name: string
+      warning?: string
+      promptDelivered?: boolean
+      paneKey?: string
+    }
   | { error: string }
 
 export type CreateWorktreeWithNameRetryArgs = {
@@ -90,7 +95,7 @@ export async function createWorktreeWithNameRetry(
     const launchOperationId = launch?.replay ? mintLaunchOperationId() : null
     const sent = await sendWorktreeCreateResilient(
       client,
-      launch?.agent ?? null,
+      launch,
       launchOperationId,
       params,
       worktreeCreateIdempotency
@@ -104,6 +109,10 @@ export async function createWorktreeWithNameRetry(
         ? isAgentLaunchReplayUnsupportedRefusal(response.error)
         : isAgentLaunchUnsupportedRefusal(response.error))
     ) {
+      // A caller whose first message cannot ride `worktree.create` must not get a bare agent.
+      if (args.agentLaunch?.refuseDowngrade) {
+        return { error: args.agentLaunch.refuseDowngrade }
+      }
       // The probe said the host knows `agent.launch` but it refused the call — most likely this
       // client's capability list had not landed yet. Downgrade for good rather than fail a create.
       launch = null
@@ -120,7 +129,11 @@ export async function createWorktreeWithNameRetry(
         return {
           worktreeId: created.worktreeId,
           name: created.displayName?.trim() ? created.displayName : candidateName,
-          ...(created.warning ? { warning: created.warning } : {})
+          ...(created.warning ? { warning: created.warning } : {}),
+          ...(created.promptDelivered !== undefined
+            ? { promptDelivered: created.promptDelivered }
+            : {}),
+          ...(created.paneKey ? { paneKey: created.paneKey } : {})
         }
       }
       lastError = 'Failed to create workspace'
@@ -137,12 +150,26 @@ export async function createWorktreeWithNameRetry(
 
 async function resolveAgentLaunchRoute(
   launch: WorktreeCreateAgentLaunch | undefined
-): Promise<{ agent: TuiAgent; replay: boolean } | null> {
+): Promise<ResolvedAgentLaunchRoute | null> {
   if (!launch) {
     return null
   }
   const support = await launch.supported
-  return support ? { agent: launch.agent, replay: support.replay } : null
+  return support
+    ? {
+        agent: launch.agent,
+        replay: support.replay,
+        ...(launch.prompt ? { prompt: launch.prompt } : {}),
+        ...(launch.sessionOptions ? { sessionOptions: launch.sessionOptions } : {})
+      }
+    : null
+}
+
+type ResolvedAgentLaunchRoute = Pick<
+  WorktreeCreateAgentLaunch,
+  'agent' | 'prompt' | 'sessionOptions'
+> & {
+  replay: boolean
 }
 
 // A launch receipt carries no display name, so the candidate stands in; the session route
@@ -151,7 +178,13 @@ async function resolveAgentLaunchRoute(
 function readCreateResult(
   response: RpcResponse,
   launch: { replay: boolean } | null
-): { worktreeId: string; displayName?: string; warning?: string } | null {
+): {
+  worktreeId: string
+  displayName?: string
+  warning?: string
+  promptDelivered?: boolean
+  paneKey?: string
+} | null {
   if (launch) {
     const operation = launch.replay ? agentLaunchReplayRun : agentLaunchRun
     return readAgentLaunchCreateOutcome(operation.interpret(response))
@@ -187,13 +220,13 @@ function readCreateResult(
 // A definite failure (never sent, or a server error response) is returned to the caller untouched.
 function sendWorktreeCreateResilient(
   client: RpcClient,
-  launchAgent: TuiAgent | null,
+  launchRoute: ResolvedAgentLaunchRoute | null,
   launchOperationId: string | null,
   params: WorkspaceCreateParams,
   worktreeCreateIdempotency: WorktreeCreateIdempotencySupport | false
 ): Promise<{ response: RpcResponse; replayed: boolean }> {
   // Only the selected method's receipt can authorize replay after an ambiguous delivery.
-  const replay: AmbiguousDeliveryReplay | null = launchAgent
+  const replay: AmbiguousDeliveryReplay | null = launchRoute
     ? launchOperationId
       ? { kind: 'durable' }
       : null
@@ -203,19 +236,19 @@ function sendWorktreeCreateResilient(
   return sendReplayingAmbiguousDelivery(
     client,
     () =>
-      launchAgent
+      launchRoute
         ? launchOperationId
           ? agentLaunchReplayRun.request(
               client,
               {
-                ...agentLaunchCreateParams(launchAgent, params),
+                ...agentLaunchCreateParams(launchRoute.agent, params, null, launchRoute),
                 operationId: launchOperationId
               },
               { timeoutMs: WORKTREE_CREATE_TIMEOUT_MS }
             )
           : agentLaunchRun.request(
               client,
-              agentLaunchCreateParams(launchAgent, params, launchOperationId),
+              agentLaunchCreateParams(launchRoute.agent, params, launchOperationId, launchRoute),
               { timeoutMs: WORKTREE_CREATE_TIMEOUT_MS }
             )
         : worktreeCreateRun.request(client, params, {

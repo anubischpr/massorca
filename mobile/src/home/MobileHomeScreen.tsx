@@ -6,7 +6,7 @@ import { getProvenCachedWorktrees } from '../cache/worktree-cache'
 import { ActionSheetModal } from '../components/ActionSheetModal'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { getHostListActionSheetActions } from '../host-list-action-sheet-actions'
-import { hostNewWorktreeRoute } from '../host-route-action-state'
+import { hostNewSessionRoute } from '../host-route-action-state'
 import { hostRouteWithNotice } from '../host-route-notice'
 import { useResponsiveLayout } from '../layout/responsive-layout'
 import { triggerMediumImpact } from '../platform/haptics'
@@ -133,7 +133,7 @@ export function MobileHomeScreen() {
               primaryHost={data.primaryHost}
               primaryTaskProviders={data.primaryTaskProviders}
               resumeCard={data.resumeCard}
-              onCreateWorkspace={(hostId) => data.router.push(hostNewWorktreeRoute(hostId))}
+              onCreateWorkspace={(hostId) => data.router.push(hostNewSessionRoute(hostId))}
               onOpenAccounts={openMobileAccounts}
               onOpenResume={openResume}
               onOpenTasks={openTasks}
