@@ -140,6 +140,7 @@ function mounted(strict = false) {
       connState: 'connected',
       showLoadingState: false,
       activeSessionTab: null,
+      visibleTabs: [],
       requestLeaveSession: () => undefined,
       nativeChatController: { showNativeChat: false, nativeChatSession: { status: 'ready' } }
     } as unknown as SurfaceController

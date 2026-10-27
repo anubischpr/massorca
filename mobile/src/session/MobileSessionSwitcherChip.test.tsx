@@ -84,3 +84,28 @@ describe('mobileSessionSwitcherChipAlignment', () => {
     expect(mobileSessionSwitcherChipAlignment(true)).toBe('center')
   })
 })
+
+describe('MobileSessionSwitcherChip placement', () => {
+  function alignSelfOf(centered: boolean): unknown {
+    let mounted: ReactTestRenderer | undefined
+    act(() => {
+      mounted = create(
+        createElement(MobileSessionSwitcherChip, {
+          activeRow: null,
+          tabCount: 1,
+          onPress: vi.fn(),
+          centered
+        })
+      )
+    })
+    const pressable = mounted!.root.find((node) => node.type === 'Pressable')
+    const style = pressable.props.style({ pressed: false }) as Array<Record<string, unknown>>
+    act(() => mounted!.unmount())
+    return style.find((part) => 'alignSelf' in part)?.alignSelf
+  }
+
+  it('applies the centred alignment to its own style, and the start alignment by default', () => {
+    expect(alignSelfOf(true)).toBe('center')
+    expect(alignSelfOf(false)).toBe('flex-start')
+  })
+})

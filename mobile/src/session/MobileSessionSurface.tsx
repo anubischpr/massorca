@@ -15,6 +15,7 @@ export function MobileSessionSurface({ controller }: { controller: MobileSession
     showLoadingState,
     connState,
     activeSessionTab,
+    visibleTabs,
     nativeChatController,
     requestLeaveSession
   } = controller
@@ -29,6 +30,7 @@ export function MobileSessionSurface({ controller }: { controller: MobileSession
     showNativeChat: nativeChatController.showNativeChat,
     connected: connState === 'connected',
     tabsLoading: showLoadingState,
+    hasTabs: visibleTabs.length > 0,
     activeTabType: activeSessionTab?.type ?? null,
     chatResolving: nativeChatController.nativeChatSession.status === 'loading'
   })

@@ -1,12 +1,18 @@
+import type { MobileSessionTab } from './mobile-session-route-types'
+
 /**
  * Which top chrome a session screen draws, decided from what is known on its first render:
  *
  * - `chat`: a native chat is on screen; the floating controls draw.
- * - `terminal`: a terminal or document tab is on screen, or no tab is pending; the classic header draws.
- * - `pending`: the session kind is not known yet (tabs loading, connecting, or a chat still resolving);
- *   a neutral bar with only Back draws, so neither the old header nor the new controls flash.
+ * - `terminal`: the active tab is known and is not a chat that is still resolving, or the session
+ *   has loaded with no tabs at all (so Back and the empty state are reachable); the classic header draws.
+ * - `pending`: the session kind is not known yet (connecting, tabs loading, a tab listed without the
+ *   active one, or a chat still resolving); a neutral bar with only Back draws, so neither the old
+ *   header nor the new controls flash.
  */
 export type MobileSessionChromeMode = 'pending' | 'chat' | 'terminal'
+
+export type MobileSessionTabType = MobileSessionTab['type']
 
 export type MobileSessionChromeModeInput = {
   /** A native chat is on screen for the active tab. */
@@ -14,8 +20,10 @@ export type MobileSessionChromeModeInput = {
   connected: boolean
   /** The tabs have not loaded yet (the screen's own loading state). */
   tabsLoading: boolean
+  /** Whether any tab is listed, possibly from a cached snapshot. */
+  hasTabs: boolean
   /** The active tab's type, or null while the active tab is not known. */
-  activeTabType: string | null
+  activeTabType: MobileSessionTabType | null
   /** The active agent-session tab's transcript is still resolving. */
   chatResolving: boolean
 }
@@ -27,7 +35,11 @@ export function resolveMobileSessionChromeMode(
     return 'chat'
   }
   if (input.activeTabType === null) {
-    return input.connected && !input.tabsLoading ? 'terminal' : 'pending'
+    // Tabs listed but none is the active one: the active tab's kind is unknown, so a chat may be coming.
+    if (input.hasTabs || !input.connected || input.tabsLoading) {
+      return 'pending'
+    }
+    return 'terminal'
   }
   if (input.activeTabType === 'agent-session' && input.chatResolving) {
     return 'pending'
