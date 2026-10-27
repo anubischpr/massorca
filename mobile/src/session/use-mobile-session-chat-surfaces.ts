@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { mobileNativeChatPlan, mobileNativeChatPlanProgress } from './mobile-native-chat-plan'
+import { mobileNativeChatRecordedFileCount } from './mobile-native-chat-recorded-files'
+import { resolveMobileSessionHeaderMenu } from './mobile-session-header-menu'
 import { mobileSessionSwitcherRows } from './mobile-session-switcher-rows'
 import type { MobileSessionPanelRouteActionsModel } from './use-mobile-session-panel-route-actions'
 
@@ -10,8 +12,14 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     nativeChatController,
     visibleTabs,
     activeSessionTabId,
-    showAgentSessionHistoryAction,
-    showChecksAction
+    showChecksAction,
+    isFolderWorkspaceRoute,
+    isFloatingWorkspaceRoute,
+    hostId,
+    worktreeId,
+    worktreeName,
+    router,
+    handlePanelTap
   } = scope
   const [sessionsSheetOpen, setSessionsSheetOpen] = useState(false)
   const [planSheetOpen, setPlanSheetOpen] = useState(false)
@@ -39,9 +47,34 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
   )
   const plan = transcriptPlan && transcriptPlan.tasks.length > 0 ? transcriptPlan : null
   const planProgress = useMemo(() => (plan ? mobileNativeChatPlanProgress(plan) : null), [plan])
+  const recordedFileCount = useMemo(
+    () => (showNativeChat ? mobileNativeChatRecordedFileCount(messages) : 0),
+    [messages, showNativeChat]
+  )
+  const headerMenu = resolveMobileSessionHeaderMenu({
+    showNativeChat,
+    hasSourceControl: !isFolderWorkspaceRoute && !isFloatingWorkspaceRoute,
+    showChecks: showChecksAction,
+    hasPlan: plan !== null
+  })
 
   const openSessionsSheet = useCallback(() => setSessionsSheetOpen(true), [])
   const openPlanSheet = useCallback(() => setPlanSheetOpen(true), [])
+  // The active tab names which chat the summary or the artifacts belong to.
+  const openChatRoute = useCallback(
+    (surface: 'chat-summary' | 'chat-artifacts') => {
+      const params = new URLSearchParams({ name: worktreeName || '' })
+      if (activeSessionTabId) {
+        params.set('tab', activeSessionTabId)
+      }
+      router.push(`/h/${hostId}/${surface}/${encodeURIComponent(worktreeId)}?${params.toString()}`)
+    },
+    [activeSessionTabId, hostId, router, worktreeId, worktreeName]
+  )
+  const openSummary = useCallback(() => openChatRoute('chat-summary'), [openChatRoute])
+  const openArtifacts = useCallback(() => openChatRoute('chat-artifacts'), [openChatRoute])
+  const openBranch = useCallback(() => handlePanelTap('sourceControl'), [handlePanelTap])
+
   return {
     sessionRows,
     activeSessionRow: sessionRows.find((row) => row.isActive) ?? null,
@@ -54,6 +87,11 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     openPlanSheet,
     planSheetOpen,
     setPlanSheetOpen,
-    showHeaderMoreButton: showAgentSessionHistoryAction || showChecksAction || plan !== null
+    headerMenu,
+    recordedFileCount,
+    openSummary,
+    openArtifacts,
+    openBranch,
+    showHeaderMoreButton: headerMenu.showButton
   }
 }

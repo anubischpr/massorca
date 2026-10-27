@@ -11,17 +11,22 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
     handlePanelTap,
     openAgentSessionHistory,
     showAgentSessionHistoryAction,
-    showChecksAction,
     switchSessionTab,
     setShowCreateTabDrawer,
     sessionRows,
     sessionsSheetOpen,
     setSessionsSheetOpen,
+    openSessionsSheet,
     planSteps,
     planProgress,
     openPlanSheet,
     planSheetOpen,
-    setPlanSheetOpen
+    setPlanSheetOpen,
+    headerMenu,
+    recordedFileCount,
+    openSummary,
+    openArtifacts,
+    openBranch
   } = controller
   return (
     <>
@@ -41,12 +46,15 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
       />
       <MobileSessionHeaderMoreActionsSheet
         visible={showHeaderMoreActions}
-        showPlan={planSteps !== null}
+        menu={headerMenu}
+        tabCount={sessionRows.length}
         planHint={planProgress ? `${planProgress.done} of ${planProgress.total} done` : undefined}
-        showAgentSessionHistory={showAgentSessionHistoryAction}
-        showChecks={showChecksAction}
+        recordedFileCount={recordedFileCount}
+        onOpenSessions={openSessionsSheet}
         onOpenPlan={openPlanSheet}
-        onOpenAgentSessionHistory={openAgentSessionHistory}
+        onOpenSummary={openSummary}
+        onOpenArtifacts={openArtifacts}
+        onOpenBranch={openBranch}
         onOpenChecks={() => handlePanelTap('pr')}
         onClose={() => setShowHeaderMoreActions(false)}
       />
