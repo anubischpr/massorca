@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { RefreshCw } from 'lucide-react-native'
-import { MobileHtmlPreview } from '../components/MobileHtmlPreview'
 import { MobileFileMarkdownPreview } from '../files/MobileFileMarkdownPreview'
 import { MobileFilePreviewSourceText } from '../files/MobileFilePreviewSourceText'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
-import { viewerKindOf, type MobileArtifactTarget } from './mobile-chat-artifacts-model'
+import { fileNameOf, viewerKindOf, type MobileArtifactTarget } from './mobile-chat-artifacts-model'
 import { mobileChatSurfaceKey, useMobileChatSurfaceSnapshot } from './mobile-chat-surface-snapshot'
+import { MobileArtifactHtmlPage } from './MobileArtifactHtmlPage'
 import { MobileNativeChatVisualFrame } from './MobileNativeChatVisualFrame'
 import { RECORDED_FILE_REFUSAL_COPY } from './mobile-recorded-file-read'
 import { useMobileNativeChatVisual } from './use-mobile-native-chat-visual'
@@ -150,7 +150,8 @@ function ReadyContent({ path, content }: { path: string; content: string }) {
   const size = { truncated: false, byteLength: content.length }
   if (kind === 'html') {
     return (
-      <MobileHtmlPreview
+      <MobileArtifactHtmlPage
+        title={fileNameOf(path)}
         html={content}
         renderSource={() => (
           <MobileFilePreviewSourceText relativePath={path} content={content} {...size} />

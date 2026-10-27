@@ -56,6 +56,11 @@ describe('viewerKindOf', () => {
     expect(viewerKindOf('README.md')).toEqual({ kind: 'markdown', label: 'Markdown' })
     expect(viewerKindOf('app.ts')).toEqual({ kind: 'source', label: 'Source' })
   })
+
+  it('reads the extension without regard to case, and treats a dotfile as source', () => {
+    expect(viewerKindOf('PAGE.HTM')).toEqual({ kind: 'html', label: 'HTML' })
+    expect(viewerKindOf('.html')).toEqual({ kind: 'source', label: 'Source' })
+  })
 })
 
 describe('groupRecordedFilesByDay', () => {
