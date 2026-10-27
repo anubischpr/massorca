@@ -26,6 +26,7 @@ describe('web GitHub preload API', () => {
         'addIssueCommentBySlug',
         'addPRReviewComment',
         'addPRReviewCommentReply',
+        'applyAccountGitConfig',
         'checkOrcaStarred',
         'clearProjectItemField',
         'countWorkItems',
@@ -57,6 +58,7 @@ describe('web GitHub preload API', () => {
         'prForBranch',
         'projectWorkItemDetailsBySlug',
         'rateLimit',
+        'readAccountGitConfig',
         'refreshPRNow',
         'removePRReviewers',
         'repoSlug',
@@ -383,6 +385,28 @@ describe('web GitHub preload API', () => {
         args: { repoPath, host: 'github.com', user: 'octocat' },
         expectedMethod: 'github.validateAccountBinding',
         expectedParams: withRepo({ repoPath, host: 'github.com', user: 'octocat' })
+      },
+      {
+        key: 'applyAccountGitConfig',
+        args: {
+          repoPath,
+          next: { host: 'github.com', user: 'octocat' },
+          previous: null,
+          setIdentity: true
+        },
+        expectedMethod: 'github.applyAccountGitConfig',
+        expectedParams: withRepo({
+          repoPath,
+          next: { host: 'github.com', user: 'octocat' },
+          previous: null,
+          setIdentity: true
+        })
+      },
+      {
+        key: 'readAccountGitConfig',
+        args: { repoPath },
+        expectedMethod: 'github.readAccountGitConfig',
+        expectedParams: withRepo({ repoPath })
       },
       {
         key: 'listAccessibleProjects',

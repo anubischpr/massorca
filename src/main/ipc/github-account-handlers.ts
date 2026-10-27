@@ -7,6 +7,10 @@ import {
   listGhAccountBindingInventory,
   validateGhAccountBinding
 } from '../github/gh-account-binding-inventory'
+import {
+  applyGhAccountGitConfig,
+  readRepoGhAccountGitConfig
+} from '../github/gh-account-git-config'
 import { getRateLimit } from '../github/rate-limit'
 import type { Store } from '../persistence'
 import { getCohortAtEmit } from '../telemetry/cohort-classifier'
@@ -58,6 +62,35 @@ export function registerGitHubAccountHandlers(store: Store): void {
         getGitHubLocalGitOptionArgs(store, repo)[0] ?? {},
         requiredHost ? { requiredHost } : {}
       )
+    }
+  )
+
+  ipcMain.handle(
+    'gh:applyAccountGitConfig',
+    (
+      _event,
+      args: {
+        repoPath: string
+        repoId?: string
+        next: { host: string; user: string } | null
+        previous: { host: string; user: string } | null
+        setIdentity: boolean
+      }
+    ) => {
+      const repo = assertRegisteredGitHubRepo(args, store)
+      return applyGhAccountGitConfig(
+        repo,
+        { next: args.next, previous: args.previous, setIdentity: args.setIdentity },
+        getGitHubLocalGitOptionArgs(store, repo)[0] ?? {}
+      )
+    }
+  )
+
+  ipcMain.handle(
+    'gh:readAccountGitConfig',
+    (_event, args: { repoPath: string; repoId?: string }) => {
+      const repo = assertRegisteredGitHubRepo(args, store)
+      return readRepoGhAccountGitConfig(repo, getGitHubLocalGitOptionArgs(store, repo)[0] ?? {})
     }
   )
 }

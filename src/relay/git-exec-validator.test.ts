@@ -129,6 +129,20 @@ describe('validateGitExecArgs', () => {
         'git config write operations are not allowed'
       )
     })
+
+    it('allows only the exact GitHub-account pin writes', () => {
+      expectAllowed(['config', '--local', '--replace-all', 'gh.account', 'palominoc'])
+      expectAllowed(['config', '--local', '--add', 'credential.https://github.com.helper', ''])
+      expectAllowed(['config', '--local', '-z', '--list'])
+      expectBlocked(
+        ['config', '--local', '--replace-all', 'core.sshCommand', 'evil'],
+        'restricted to read-only operations'
+      )
+      expectBlocked(
+        ['config', '--local', '--add', 'credential.https://github.com.helper', '!evil'],
+        'restricted to read-only operations'
+      )
+    })
   })
 
   describe('git branch', () => {

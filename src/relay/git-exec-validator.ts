@@ -9,6 +9,7 @@ import {
   isSafeGitRemoteName,
   isSafePushTargetRemoteUrl
 } from '../shared/git-push-target-validation'
+import { isAllowedGhAccountGitConfigWrite } from '../shared/github/gh-account-git-config'
 
 // Why: only read-only git subcommands are allowed via exec, except for the
 // exact init/empty-commit shapes used by SSH Create Project after the parent
@@ -173,6 +174,10 @@ export function validateGitExecArgs(args: string[]): void {
     throw new Error('Dangerous git flags are not allowed via exec')
   }
 
+  // Why: the Settings GitHub-account pin writes only these exact repo-local shapes.
+  if (subcommand === 'config' && isAllowedGhAccountGitConfigWrite(restArgs)) {
+    return
+  }
   if (subcommand === 'config') {
     if (!restArgs.some((a) => CONFIG_READ_ONLY_FLAGS.has(a))) {
       throw new Error('git config is restricted to read-only operations (--get, --list, etc.)')

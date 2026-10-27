@@ -16,6 +16,10 @@ import {
   listRepositoryGhBindableAccounts,
   validateRepositoryGhAccountBinding
 } from './repository-github-account'
+import {
+  RepositoryGitHubAccountGitConfigControls,
+  useRepositoryGhAccountGitConfig
+} from './RepositoryGitHubAccountGitConfig'
 
 type RepositoryGitHubAccountSectionProps = {
   repo: Repo
@@ -52,6 +56,7 @@ export function RepositoryGitHubAccountSection({
     () => getActiveRuntimeTarget({ activeRuntimeEnvironmentId }),
     [activeRuntimeEnvironmentId]
   )
+  const gitConfig = useRepositoryGhAccountGitConfig(runtimeTarget, repo)
 
   const loadInventory = useCallback(
     async (refreshCapability = false) => {
@@ -156,6 +161,7 @@ export function RepositoryGitHubAccountSection({
         )
         return
       }
+      await gitConfig.apply(resolved, repo.ghAccount ?? null, gitConfig.identityOptIn)
       const echoed = useAppStore.getState().repos.find((entry) => entry.id === repo.id)?.ghAccount
       if (!isGhAccountBindingEnforced(resolved, echoed)) {
         setNotEnforced(true)
@@ -203,7 +209,7 @@ export function RepositoryGitHubAccountSection({
           <p className="text-xs text-muted-foreground">
             {translate(
               'auto.components.settings.RepositoryGitHubAccountSection.longDescription',
-              'MassOrca injects a short-lived token from the selected keyring login into each gh call for this project. Project View stays on the ambient login.'
+              'MassOrca injects a short-lived token from the selected keyring login into each gh call for this project, and pins the repository’s git config to it. Project View stays on the ambient login.'
             )}
           </p>
         </div>
@@ -294,6 +300,12 @@ export function RepositoryGitHubAccountSection({
           </SelectContent>
         </Select>
       </div>
+
+      <RepositoryGitHubAccountGitConfigControls
+        gitConfig={gitConfig}
+        binding={repo.ghAccount ?? null}
+        disabled={loading || saving}
+      />
 
       {capabilityUnsupported ? (
         <p className="text-xs text-muted-foreground">
