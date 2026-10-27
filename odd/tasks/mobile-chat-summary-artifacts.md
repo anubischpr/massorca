@@ -39,36 +39,41 @@ sheet, a Summary screen, and an Artifacts list with a read-only viewer.
 - [x] T4 Plan sheet derived from the transcript (writer A)
 - [x] T5 Summary screen: agent status, environment tiles, results strip, connected chips (writer B). Commit `7bd476b208b`.
 - [x] T6 Artifacts screen (grouped grid + files list, filters) and read-only viewer (HTML in sandboxed WebView, source toggle), gated recorded-file read (writer B). Commit `bb0c2152f10`.
-- [ ] T7 Plan always in the ⋯ menu whenever the native chat is shown; Plan sheet shows a quiet "No plan yet" empty state (feedback from build pv32, writer C)
-- [ ] T8 Real previews in the Artifacts list: lazily rendered, cached per path, scaled non-interactive WebView thumbnails for HTML files; glyph fallback for any non-ready state; chat `::orca-visual` lines listed as Pages (writer C)
-- [ ] T9 Viewer correctness: HTML isolated and read-only (no in-page navigation, external links only, no file access); tests per viewer kind; commit only if a fix is needed (writer C)
-- [ ] T10 Chat screen chrome per the approved prototype: floating top controls (back, chat/folder/branch segmented control, ⋯), session switcher chip replaces the tab strip for structured chats, "+ new session" and terminal/panel switching kept reachable, status pill opens the background sheet, inline artifact card after a turn that wrote HTML or a visual; composer toolbar untouched (writer C)
+- [x] T7 Plan always in the ⋯ menu whenever the native chat is shown; Plan sheet shows a quiet "No plan yet" empty state (feedback from build pv32, writer C)
+- [x] T8 Real previews in the Artifacts list: lazily rendered, cached per path, scaled non-interactive WebView thumbnails for HTML files; glyph fallback for any non-ready state; chat `::orca-visual` lines listed as Pages (writer C)
+- [x] T9 Viewer correctness: HTML isolated and read-only (no in-page navigation, external links only, no file access); tests per viewer kind; commit only if a fix is needed (writer C)
+- [x] T10 Chat screen chrome per the approved prototype: floating top controls (back, chat/folder/branch segmented control, ⋯), session switcher chip replaces the tab strip for structured chats, "+ new session" and terminal/panel switching kept reachable, status pill opens the background sheet, inline artifact card after a turn that wrote HTML or a visual; composer toolbar untouched (writer C)
 
 ## Round 2 (device feedback on build pv32)
 
 Source of truth for the design: the approved prototype `Main.dc.html` in the session scratchpad (390x844 canvas). Each task is one Conventional Commit with its tests; no AI attribution lines. Checks per task in `mobile/`: `pnpm typecheck` exit 0, targeted `pnpm test <files>`, `pnpm exec oxfmt` and `pnpm exec oxlint` on changed files.
 
 ### T7 evidence
-- Route: writer C, direct edits to 4 or fewer files (menu resolver, chat-surfaces hook, Plan sheet, tests).
-- Commit: _pending_
-- Checks: _pending_
+- Route: inline, 5 source files (menu resolver, chat-surfaces hook, Plan sheet, tests).
+- Commit: `63c59d9b0c2` feat(mobile): always offer the plan in the chat menu with a no-plan state (doc plan `92f9f48c807`).
+- Checks: `pnpm typecheck` exit 0; `pnpm test` on the header-menu, Plan sheet and menu sheet suites: 3 files, 20 tests pass; oxfmt and oxlint clean.
 
 ### T8 evidence
-- Route: writer C, delegated-direct (more than 2 non-trivial files).
-- Commit: _pending_
-- Checks: _pending_
+- Route: inline (single writer), about 20 new and changed files.
+- Commit: `a7471f5ef60` feat(mobile): preview artifact pages as scaled thumbnails and list chat visuals.
+- Thumbnails: JS off, CSP blocks network, tile takes the tap, page laid out at 390px and scaled. Loads only near the viewport (measured), two at a time, cached per host, session and path; the viewer reads the same cache. Visuals from `::orca-visual` are listed as Pages and open in the visual frame.
+- Checks: `pnpm typecheck` exit 0; `pnpm test` on 14 suites (new pure modules, the thumbnail component, dependent chat-artifact and visual-read suites): 78 tests pass plus the component test; oxfmt and oxlint clean.
 
 ### T9 evidence
-- Route: writer C, verification-first; commit only if a fix is needed.
-- Commit: _pending_
-- Checks: _pending_
+- Route: inline; a fix was needed. The viewer's HTML and SVG pages rendered in a plain WebView with scripts on and no CSP, and its navigation guard covered only the top frame, so an iframe could load anything. Pages now render in the sandboxed chat frame (opaque origin, CSP, http and https links only, navigation refused) with a Preview and Source toggle.
+- Commit: `7f01b4e1d98` fix(mobile): render artifact pages in the sandboxed chat frame, not a page with scripts and network.
+- Checks: `pnpm typecheck` exit 0; `pnpm test` on 7 suites (viewer model, page component, frame, recorded and visual reads): 43 tests pass; oxfmt and oxlint clean.
+- Not changed: the workspace file preview (`MobileSessionFileReader`) still uses `MobileHtmlPreview` with scripts on; it is outside the chat viewer.
 
 ### T10 evidence
-- Route: writer C, delegated-direct (chrome, header, tab strip, card: 2+ non-trivial files).
-- Commit: _pending_
-- Checks: _pending_
+- Route: inline (single writer), about 30 files.
+- Commit: `877ffc63ebc` feat(mobile): float the chat controls over the transcript and show turn artifact cards.
+- Chrome: a structured chat shows the floating bar (back, Chat / Files / Source control segments, ⋯) and the session chip in place of the header and tab strip. Terminal sessions keep the classic header. The transcript and its load-earlier row start below the chrome (`MOBILE_CHAT_CHROME_CONTENT_TOP`). Quick commands moved into the ⋯ menu (same guard as the old tab button, `resolveMobileSessionQuickCommandsAction`); new session and terminal switching are in the Sessions sheet.
+- Inline card: after a turn that wrote an HTML page or showed a visual, a card with the thumbnail, name and kind opens the viewer.
+- Not done: the working strip keeps its current style and position above the composer; it was not restyled into the prototype's floating pill.
+- Checks: `pnpm typecheck` exit 0; `pnpm test` on 19 suites (chat view, overlay, surface, menu, chrome segments, turn cards, quick commands, page component): 136 tests pass; oxfmt and oxlint clean. Lint note: `MobileNativeChatView.tsx` is at the 400-line limit, so three pieces moved to their own files (load earlier, empty copy, jump to latest) instead of a disable.
 
-Engram mirror `odd/mobile-chat-summary-artifacts/tasks`: _pending_ until saved; mark as pending if mem_save is unavailable.
+Engram mirror `odd/mobile-chat-summary-artifacts/tasks`: pending (mem_save not loaded in this worker run).
 
 ## Acceptance
 
