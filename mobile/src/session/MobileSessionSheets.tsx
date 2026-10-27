@@ -1,8 +1,7 @@
 import { Platform } from 'react-native'
 import { useClipboardWriter } from '../platform/clipboard'
 import { Copy, FileText, Globe, RefreshCw, SquareTerminal } from 'lucide-react-native'
-import { MobileSessionHeaderMoreActionsSheet } from './MobileSessionHeaderMoreActionsSheet'
-import { MobileSessionsSheet } from './MobileSessionsSheet'
+import { MobileSessionChatSheets } from './MobileSessionChatSheets'
 import { QuickCommandsSheet } from './QuickCommandsSheet'
 import { triggerSuccess, triggerError } from '../platform/haptics'
 import { ActionSheetModal } from '../components/ActionSheetModal'
@@ -34,8 +33,6 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
     setShowQuickCommands,
     setShowCreateBrowserModal,
     showCreateBrowserModal,
-    showHeaderMoreActions,
-    setShowHeaderMoreActions,
     actionTarget,
     setActionTarget,
     markdownActionTarget,
@@ -85,36 +82,12 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
     bulkCloseActions,
     closeWithBulkActions,
     createTabAgentActions,
-    sendDiffNotesAgentActions,
-    handlePanelTap,
-    openAgentSessionHistory,
-    showAgentSessionHistoryAction,
-    showChecksAction,
-    switchSessionTab,
-    sessionRows,
-    sessionsSheetOpen,
-    setSessionsSheetOpen
+    sendDiffNotesAgentActions
   } = controller
   const clipboard = useClipboardWriter()
   return (
     <>
-      <MobileSessionsSheet
-        visible={sessionsSheetOpen}
-        rows={sessionRows}
-        showResume={showAgentSessionHistoryAction}
-        onClose={() => setSessionsSheetOpen(false)}
-        onSelect={switchSessionTab}
-        onNewTab={() => setShowCreateTabDrawer(true)}
-        onResume={openAgentSessionHistory}
-      />
-      <MobileSessionHeaderMoreActionsSheet
-        visible={showHeaderMoreActions}
-        showAgentSessionHistory={showAgentSessionHistoryAction}
-        showChecks={showChecksAction}
-        onOpenAgentSessionHistory={openAgentSessionHistory}
-        onOpenChecks={() => handlePanelTap('pr')}
-        onClose={() => setShowHeaderMoreActions(false)}
-      />
+      <MobileSessionChatSheets controller={controller} />
       <QuickCommandsSheet
         visible={showQuickCommands && quickCommandsSupported === true}
         onClose={() => setShowQuickCommands(false)}
