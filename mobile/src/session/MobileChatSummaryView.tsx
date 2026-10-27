@@ -1,15 +1,5 @@
-import { Pressable, ScrollView, Text, View } from 'react-native'
-import {
-  ChevronRight,
-  Folder,
-  FolderGit2,
-  FileCode,
-  FileText,
-  GitBranch,
-  Monitor,
-  Plug,
-  Users
-} from 'lucide-react-native'
+import { ScrollView, Text, View } from 'react-native'
+import { Folder, FolderGit2, GitBranch, Monitor, Plug, Users } from 'lucide-react-native'
 import { MobileAgentIcon } from '../components/MobileAgentIcon'
 import { SheetSectionLabel } from '../components/SheetSectionLabel'
 import { useNow } from '../hooks/use-now'
@@ -17,18 +7,12 @@ import { useHostClient } from '../transport/client-context'
 import { colors } from '../theme/mobile-theme'
 import { summaryStyles as styles } from './mobile-chat-summary-styles'
 import { useMobileChatSurfaceSnapshot, mobileChatSurfaceKey } from './mobile-chat-surface-snapshot'
-import {
-  buildMobileChatSummaryModel,
-  chatStatusLine,
-  type MobileChatSummaryModel
-} from './mobile-chat-summary-model'
+import { buildMobileChatSummaryModel, chatStatusLine } from './mobile-chat-summary-model'
 import {
   environmentTiles,
   type MobileChatEnvironmentIcon,
   type MobileChatEnvironmentTile
 } from './mobile-chat-environment'
-import { recordedFileKind, fileNameOf } from './mobile-chat-artifacts-model'
-import type { MobileNativeChatRecordedFile } from './mobile-native-chat-recorded-files'
 import {
   useMobileChatEnvironment,
   type MobileChatEnvironmentState
@@ -38,17 +22,11 @@ export type MobileChatSummaryViewProps = {
   hostId: string
   worktreeId: string
   tabId: string
-  onSeeAllResults: () => void
 }
 
 /** The chat's Summary body: agent status, the environment it runs in, what it wrote, and what it is
  *  connected to. It reads the chat from the snapshot the session screen publishes for this tab. */
-export function MobileChatSummaryView({
-  hostId,
-  worktreeId,
-  tabId,
-  onSeeAllResults
-}: MobileChatSummaryViewProps) {
+export function MobileChatSummaryView({ hostId, worktreeId, tabId }: MobileChatSummaryViewProps) {
   const snapshot = useMobileChatSurfaceSnapshot(mobileChatSurfaceKey(hostId, worktreeId, tabId))
   const { client } = useHostClient(hostId)
   const environment = useMobileChatEnvironment(client, worktreeId)
@@ -78,13 +56,6 @@ export function MobileChatSummaryView({
 
       <SheetSectionLabel label="Environment" count={tiles?.length} />
       <EnvironmentBody environment={environment} tiles={tiles} />
-
-      <SheetSectionLabel label="Results" count={model.results.total} />
-      {model.results.total === 0 ? (
-        <Text style={styles.emptyLine}>No files written in this chat yet.</Text>
-      ) : (
-        <ResultsStrip summary={model} onSeeAll={onSeeAllResults} />
-      )}
 
       <SheetSectionLabel label="Connected" count={connectedCount} />
       {connectedCount === 0 ? (
@@ -202,52 +173,4 @@ function TileGlyph({ icon }: { icon: MobileChatEnvironmentIcon }) {
     case 'host':
       return <Monitor {...props} />
   }
-}
-
-function ResultsStrip({
-  summary,
-  onSeeAll
-}: {
-  summary: MobileChatSummaryModel
-  onSeeAll: () => void
-}) {
-  const { preview, total } = summary.results
-  return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.strip}
-    >
-      {preview.map((file) => (
-        <RecordedThumb key={file.path} file={file} />
-      ))}
-      {total > preview.length ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`See all ${total} results`}
-          onPress={onSeeAll}
-          style={styles.seeAll}
-        >
-          <Text style={styles.seeAllCount}>{total}</Text>
-          <Text style={styles.seeAllText}>See all</Text>
-          <ChevronRight size={14} color={colors.textSecondary} strokeWidth={2.2} />
-        </Pressable>
-      ) : null}
-    </ScrollView>
-  )
-}
-
-function RecordedThumb({ file }: { file: MobileNativeChatRecordedFile }) {
-  const isPage = recordedFileKind(file.path) === 'page'
-  const Glyph = isPage ? FileCode : FileText
-  return (
-    <View style={styles.thumb}>
-      <View style={styles.thumbArt}>
-        <Glyph size={22} color={colors.textSecondary} strokeWidth={2} />
-      </View>
-      <Text style={styles.thumbName} numberOfLines={1}>
-        {fileNameOf(file.path)}
-      </Text>
-    </View>
-  )
 }

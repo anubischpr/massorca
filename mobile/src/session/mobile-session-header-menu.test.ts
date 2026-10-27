@@ -17,7 +17,6 @@ describe('resolveMobileSessionHeaderMenu', () => {
     const menu = resolveMobileSessionHeaderMenu({ ...none, showNativeChat: true })
     expect(menu.showButton).toBe(true)
     expect(menu.chat).toEqual({
-      sessions: true,
       agentHistory: false,
       plan: true,
       summary: true,
@@ -41,7 +40,6 @@ describe('resolveMobileSessionHeaderMenu', () => {
     const menu = resolveMobileSessionHeaderMenu({ ...none, hasSourceControl: true })
     expect(menu.showButton).toBe(true)
     expect(menu.chat).toEqual({
-      sessions: false,
       agentHistory: false,
       plan: false,
       summary: false,
@@ -59,7 +57,6 @@ describe('resolveMobileSessionHeaderMenu', () => {
     })
     expect(menu.showButton).toBe(true)
     expect(menu.chat).toEqual({
-      sessions: false,
       agentHistory: true,
       plan: false,
       summary: false,
@@ -75,7 +72,7 @@ describe('resolveMobileSessionHeaderMenu', () => {
       hasSourceControl: true,
       showAgentHistory: true
     })
-    expect(menu.chat.sessions).toBe(true)
+    expect(menu.chat).not.toHaveProperty('sessions')
     expect(menu.chat.agentHistory).toBe(false)
   })
 

@@ -92,8 +92,17 @@ export function mobileChatStatusPill(input: MobileStatusPillInput): MobileStatus
   }
 }
 
-/** The one line a screen reader hears for the pill, matching what it shows. */
-export function mobileStatusPillAccessibilityLabel(pill: MobileStatusPill): string {
+/** The pill of a lane that publishes no clock and no background roster: "Working" while a turn runs. */
+export function mobileBridgeStatusPill(): MobileStatusPill {
+  return { visible: true, label: 'Working', elapsed: null, terminals: null, agents: null }
+}
+
+/** The one line a screen reader hears for the pill, matching what it shows. A pill that opens the
+ *  background sheet says so; one that does not is only a status. */
+export function mobileStatusPillAccessibilityLabel(
+  pill: MobileStatusPill,
+  opensSheet = true
+): string {
   const parts: string[] = [pill.label]
   if (pill.elapsed) {
     parts.push(pill.elapsed)
@@ -104,5 +113,6 @@ export function mobileStatusPillAccessibilityLabel(pill: MobileStatusPill): stri
   if (pill.agents !== null) {
     parts.push(`${pill.agents} ${pill.agents === 1 ? 'agent' : 'agents'}`)
   }
-  return `Show background work, ${parts.join(', ')}`
+  const text = parts.join(', ')
+  return opensSheet ? `Show background work, ${text}` : text
 }

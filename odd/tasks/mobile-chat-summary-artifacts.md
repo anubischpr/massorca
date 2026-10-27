@@ -167,3 +167,44 @@ An independent review covered the branch from `7fc898a348f` to the T11 commits. 
 - Viewer opened without a tab param: skipped. `showNativeChat` requires an active tab id (`use-mobile-native-chat-active-resolution.ts`, `activeSessionTab && activeSessionTabId`), and the chat's cards and the ⋯ items exist only while a native chat is shown, so the opener cannot run without a tab.
 
 Checks (mobile/): `pnpm typecheck` exit 0 after each commit. Touched and dependent suites pass; oxfmt and oxlint clean on the changed files. Not verified on a device: the thumbnail limit under real Android memory pressure, the reconnect row's position beneath the chip, and the banner offset.
+
+## Round 4 (pv36 phone QA)
+
+Three units from the QA of build pv36 (`custom/pv27-unified` at `63d8b2ae231` includes this branch).
+
+- [x] T12 Centre the session chip in the floating chat controls. The chip's `alignSelf: flex-start` overrode the row's centring. The chip takes a `centered` prop; the floating controls pass it, and the classic header keeps its start alignment (its only other caller). Commit `3c30457ac29`. Checks: chip and chrome suites pass (8 tests), typecheck exit 0, oxfmt and oxlint clean.
+- [x] T13 Show the working status pill on every chat lane while a turn runs. The bridge (terminal-lane) chat showed "Agent is working" with Tools and Stop; the text is gone, and the pill replaces it: "Working", with no clock (the lane publishes no start), and no counts. Tools and Stop stay in the same row. The pill and the structured strip now share `MobileChatStatusPillView`. Commit `86f3b9bed45`. Not tappable on the bridge lane: that lane publishes no background roster, so there is no sheet to open. Checks: pill, strip and chat-view suites pass (68 tests), typecheck exit 0, oxlint clean. The old `MobileAgentWorkingIndicator` file is removed.
+- [x] T14 Stop the old session chrome flashing on open. `resolveMobileSessionChromeMode` picks the top bar from what is known on the first render: a native chat draws the floating controls, a terminal or document tab draws the classic header, and while the kind is still loading (tabs not loaded, or an agent-session transcript resolving) a neutral Back-only bar draws instead. Commit `0840ea0d652`. Checks: decision table (6 tests) and the surface test pass (15 tests), typecheck exit 0, oxlint clean.
+
+Pre-existing: `src/session/mobile-prompt-controller.test.ts` fails to load with `SyntaxError: Unexpected token 'typeof'`. It fails the same way at `3c30457ac29` with the pre-T13 chat view restored, so T13 did not cause it. Not bisected further back.
+
+Checks (mobile/, this round): `pnpm typecheck` exit 0; oxlint clean on the 20 changed TypeScript files; 17 dependent suites, 137 tests, pass.
+
+## Round 5 (advisory review of be86193b893..345b15b9c84, and T15 and T16)
+
+### Gentle AI reliability review findings
+
+The review approved the range and left non-blocking findings with locations only. Each was checked against the code. Fixed in `5b5a4f0a075`.
+
+- R3-001 WARNING, `mobile-session-chrome-mode.ts`: fixed. A cached tab list with no active tab read as terminal once connected, so the classic header could flash before the chat resolved. The decision now takes `hasTabs`; a listed tab set without its active tab stays pending, with Back on the neutral bar.
+- R3-002 WARNING, `mobile-session-chrome-mode.test.ts`: fixed. The table now covers an unknown active tab beside listed tabs, every non-chat tab type, an empty loaded session, and a resolving chat that does not affect a terminal tab.
+- R3-003 WARNING, `MobileChatStatusPillView.tsx`: fixed by tests, behaviour unchanged. The tappable pill is a button named with its sheet label; the static pill is one grouped status with no button role. Covered by `MobileChatStatusPillView.test.tsx`.
+- R3-004 WARNING, `MobileNativeChatView.waiting-rows.test.ts`: not an issue. That mock stands in for the bridge pill in a waiting-rows test. The pill's own behaviour is asserted where it matters: `MobileNativeChatView.turn-status.test.ts` counts the bridge lane's working indicator (length 1).
+- R3-005 SUGGESTION, `MobileSessionSwitcherChip.test.tsx`: fixed. The test renders the chip and asserts the alignment on its own style, not only the helper.
+- R3-006 SUGGESTION, `mobile-session-chrome-mode.ts`: fixed. `activeTabType` is typed with the tab union, not `string`.
+
+### T15: GitHub login beside the repo group name (`5c43a148ab6`)
+
+- The group header shows the repo's GitHub login, muted, from `Repo.ghAccount` in the existing `repo.list` reply. The reply already carries it: the mobile reply schema reads it through the shared `normalizeGhAccountBinding`, so the login is exact and nothing is fuzzy-matched. Folder groups and repos without an account show nothing.
+- No extra request, no per-render refetch, and nothing delays the list: the label rides the catalog the groups already load, cached per host screen.
+- Host change: the fallback needs none. The first source the coordinator named does not exist in this checkout: `github.readAccountGitConfig` is not defined in the host or in the mobile method allowlist, and nothing reads a `gh.account` git config. Using it needs a new host method and an allowlist entry, which is a host change; it is not added here.
+- Tests: `host-repo-group-account.test.ts` (exact login, near-miss names unmatched, folder and non-repo groups blank, schema reads present, absent and malformed accounts).
+
+### T16: Sessions out of the chat menu, Results out of the summary (`2358616d0cf`)
+
+- The chat ⋯ menu no longer has a Sessions item. The session chip opens the Sessions sheet, which holds the New tab row, a row for every tab (terminal switching), and the resume row when agent history applies (`MobileSessionsSheet.test.tsx`).
+- Agent history stays in the ⋯ menu when there is no native chat, where the chip does not exist; that is the R3-agent-history-reachability fix, tested in `mobile-session-header-menu.test.ts`.
+- Summary: the Results section is gone, with its strip, thumbnail, styles, the model's `results` field and its constant, and the route's "see all" prop. Environment, Connected and the agent card are unchanged.
+
+Checks (mobile/): `pnpm typecheck` exit 0 after each commit; oxfmt and oxlint clean on the changed files; the touched and dependent suites pass (menu, sessions sheet, chip, chat surfaces, summary model, environment, host list and reply schema).
+

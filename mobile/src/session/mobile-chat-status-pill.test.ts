@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatMobileStatusPillElapsed,
+  mobileBridgeStatusPill,
   mobileChatStatusPill,
   mobileStatusPillAccessibilityLabel,
   mobileStatusPillCounts
@@ -147,5 +148,21 @@ describe('mobileStatusPillAccessibilityLabel', () => {
         agents: null
       })
     ).toBe('Show background work, Working')
+  })
+})
+
+describe('mobileBridgeStatusPill', () => {
+  it('is Working with no clock and no counts on a lane that publishes neither', () => {
+    expect(mobileBridgeStatusPill()).toEqual({
+      visible: true,
+      label: 'Working',
+      elapsed: null,
+      terminals: null,
+      agents: null
+    })
+  })
+
+  it('names the status alone when the pill does not open the sheet', () => {
+    expect(mobileStatusPillAccessibilityLabel(mobileBridgeStatusPill(), false)).toBe('Working')
   })
 })

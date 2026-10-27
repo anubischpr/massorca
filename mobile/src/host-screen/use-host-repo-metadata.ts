@@ -6,6 +6,7 @@ import type { RpcAcceptedResult } from '../transport/rpc-accepted-result'
 import type { RpcClient } from '../transport/rpc-client'
 import type { ConnectionState, RpcResponse } from '../transport/types'
 import { repoColor } from '../worktree/repo-color'
+import { repoAccountsByName } from './host-repo-group-account'
 import {
   buildHostLabelById,
   buildRepoHostIdByRepoId
@@ -62,6 +63,7 @@ export function useHostRepoMetadata(args: {
     setRepoColorsByName,
     setRepoHostIdByRepoId,
     setRepoIconsByName,
+    setRepoAccountsByName,
     setRepoIdsByName
   } = state
 
@@ -115,6 +117,7 @@ export function useHostRepoMetadata(args: {
             )
           )
           setRepoIdsByName(new Map(catalog.map((repo) => [repo.displayName, repo.id])))
+          setRepoAccountsByName(repoAccountsByName(catalog))
           setRepoHostIdByRepoId(buildRepoHostIdByRepoId(catalog))
           // Why: rows only name their host when the list spans hosts, so a single-host
           // catalog never pays for the label lookups. Counted over repos, not the id-keyed

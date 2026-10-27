@@ -163,7 +163,7 @@ describe('runningSubagents', () => {
 })
 
 describe('buildMobileChatSummaryModel', () => {
-  it('gathers the sections, with the first six results in the preview', () => {
+  it('gathers the sections the summary shows', () => {
     const writes = Array.from({ length: 8 }, (_, index) =>
       writeOf(`out/file-${index}.ts`, `w${index}`)
     ).flat()
@@ -171,7 +171,5 @@ describe('buildMobileChatSummaryModel', () => {
       messages: [message('p', 'user', [{ type: 'text', text: 'Write files' }]), ...writes]
     })
     expect(model.title).toBe('Write files')
-    expect(model.results.total).toBe(8)
-    expect(model.results.preview).toHaveLength(6)
   })
 })

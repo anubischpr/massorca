@@ -51,6 +51,7 @@ vi.mock('../terminal/terminal-copy-gutter-preference', () => ({
 vi.mock('./mobile-session-styles', () => ({ styles: { container: {}, kavInner: {} } }))
 vi.mock('./MobileSessionHeader', () => ({ MobileSessionHeader: () => null }))
 vi.mock('./MobileChatFloatingChrome', () => ({ MobileChatFloatingChrome: () => null }))
+vi.mock('./MobileSessionPendingBar', () => ({ MobileSessionPendingBar: () => null }))
 vi.mock('./MobileSessionContentRow', () => ({ MobileSessionContentRow: () => null }))
 vi.mock('./MobileSessionSheets', () => ({ MobileSessionSheets: () => null }))
 import { useMobileSessionFeedbackCapabilities } from './use-mobile-session-feedback-capabilities'
@@ -132,7 +133,17 @@ function mounted(strict = false) {
     const result = { ...feedback, ...accessory }
     read.value = result
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Actual surface reads only setMobileSessionRootRef; its child components are isolated presentation stubs.
-    const controller = result as unknown as SurfaceController
+    // The chrome-mode fields the surface reads: a connected session with its tabs loaded and no chat.
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: The surface reads only the chrome-mode fields and the root ref added here.
+    const controller = {
+      ...result,
+      connState: 'connected',
+      showLoadingState: false,
+      activeSessionTab: null,
+      visibleTabs: [],
+      requestLeaveSession: () => undefined,
+      nativeChatController: { showNativeChat: false, nativeChatSession: { status: 'ready' } }
+    } as unknown as SurfaceController
     return visible ? createElement(MobileSessionSurface, { key: surfaceKey, controller }) : null
   }
   let root: ReturnType<typeof create> | undefined

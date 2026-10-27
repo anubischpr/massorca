@@ -22,6 +22,11 @@ export const hostScreenSecondaryStyles = StyleSheet.create({
   sectionRepoIcon: {
     marginRight: spacing.xs
   },
+  sectionAccount: {
+    flexShrink: 1,
+    color: colors.textMuted,
+    fontSize: typography.metaSize
+  },
   sectionTitle: {
     fontSize: 11,
     fontWeight: '600',
