@@ -6,6 +6,8 @@ export type NativeChatRecordedFileRequest = {
   path: string
   worktreeId: string
   worktreePath: string
+  /** The chat's own host: the global active runtime may be another one, or none. */
+  runtimeEnvironmentId: string | null
 }
 
 // Module state, not the app store: it is a transient "show this" that only the open chat renders.

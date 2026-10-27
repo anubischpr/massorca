@@ -68,7 +68,8 @@ export function useNativeChatFileLinkClick(
                   sessionId: context.sessionId ?? '',
                   path,
                   worktreeId: context.worktreeId,
-                  worktreePath: context.worktreePath
+                  worktreePath: context.worktreePath,
+                  runtimeEnvironmentId: context.runtimeEnvironmentId
                 })
             }
           : {}),

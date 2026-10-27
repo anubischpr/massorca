@@ -11,12 +11,18 @@ import {
   openNativeChatRecordedFile
 } from './native-chat-recorded-file-request'
 
-const mocks = vi.hoisted(() => ({ readPreview: vi.fn() }))
+const mocks = vi.hoisted(() => {
+  const settings: { activeRuntimeEnvironmentId: string | null } = {
+    activeRuntimeEnvironmentId: 'env-other'
+  }
+  return { readPreview: vi.fn(), settings }
+})
 
 vi.mock('@/runtime/runtime-file-client', () => ({ readRuntimeFilePreview: mocks.readPreview }))
 vi.mock('@/store', () => ({
-  useAppStore: { getState: () => ({ settings: { activeRuntimeEnvironmentId: 'env-1' } }) }
+  useAppStore: { getState: () => ({ settings: mocks.settings }) }
 }))
+vi.mock('@/lib/connection-context', () => ({ getConnectionId: () => null }))
 vi.mock('./NativeChatVisualFrame', () => ({
   NativeChatVisualFrame: (props: { document: { html: string } }) => (
     <div data-testid="frame">{props.document.html}</div>
@@ -28,18 +34,24 @@ vi.mock('./NativeChatMarkdown', () => ({
   )
 }))
 
-function open(path: string, sessionId = 'session-alpha'): void {
+function open(
+  path: string,
+  sessionId = 'session-alpha',
+  runtimeEnvironmentId: string | null = 'env-1'
+): void {
   act(() => {
     openNativeChatRecordedFile({
       sessionId,
       path,
       worktreeId: 'wt-1',
-      worktreePath: '/remote/repo'
+      worktreePath: '/remote/repo',
+      runtimeEnvironmentId
     })
   })
 }
 
 afterEach(() => {
+  mocks.settings = { activeRuntimeEnvironmentId: 'env-other' }
   act(() => closeNativeChatRecordedFile())
   cleanup()
   vi.clearAllMocks()
@@ -67,6 +79,36 @@ describe('NativeChatRecordedFileViewer', () => {
       '/home/me/informes/report.html'
     )
     expect(screen.getByText(/Read-only preview/)).toBeTruthy()
+  })
+
+  it.each([['env-other'], [null]])(
+    "reads from the chat's own host, not the global active runtime (%s)",
+    async (globalRuntime) => {
+      mocks.settings = { activeRuntimeEnvironmentId: globalRuntime }
+      mocks.readPreview.mockResolvedValue({ content: 'x', isBinary: false })
+      render(<NativeChatRecordedFileViewer sessionId="session-alpha" />)
+      open('/home/me/log.txt')
+      await screen.findByText('x')
+      expect(mocks.readPreview.mock.calls[0]?.[0].settings).toEqual({
+        activeRuntimeEnvironmentId: 'env-1'
+      })
+    }
+  )
+
+  it('shows the new read when the same file is opened again, never the previous one', async () => {
+    mocks.readPreview.mockResolvedValueOnce({ content: 'first', isBinary: false })
+    render(<NativeChatRecordedFileViewer sessionId="session-alpha" />)
+    open('/home/me/log.txt')
+    await screen.findByText('first')
+    act(() => closeNativeChatRecordedFile())
+
+    let finish: (value: unknown) => void = () => {}
+    mocks.readPreview.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)))
+    open('/home/me/log.txt')
+    expect(screen.queryByText('first')).toBeNull()
+    expect(screen.getByText('Loading…')).toBeTruthy()
+    await act(async () => finish({ content: 'second', isBinary: false }))
+    expect(await screen.findByText('second')).toBeTruthy()
   })
 
   it('renders markdown, images and plain text by what the file is', async () => {

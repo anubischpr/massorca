@@ -71,7 +71,11 @@ async function readRecordedSessionFile(
     )
   } catch (error) {
     // A host without the method, or one that does not let this client call it.
-    if (hasRuntimeRpcErrorCode(error, 'method_not_found')) {
+    // `structured_agent_session_unsupported`: the host does not serve structured chats to this client.
+    if (
+      hasRuntimeRpcErrorCode(error, 'method_not_found') ||
+      hasRuntimeRpcErrorCode(error, 'structured_agent_session_unsupported')
+    ) {
       throw new RecordedFileHostOutdatedError()
     }
     throw error

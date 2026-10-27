@@ -8,7 +8,7 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { basename } from '@/lib/path'
-import { useAppStore } from '@/store'
+import { buildWorkspaceFileContext } from '@/lib/workspace-file-host-routing'
 import { readRuntimeFilePreview } from '@/runtime/runtime-file-client'
 import {
   isOutsideRemoteWorkspaceError,
@@ -20,6 +20,7 @@ import { NativeChatMarkdown } from './NativeChatMarkdown'
 import { NativeChatVisualFrame } from './NativeChatVisualFrame'
 import {
   closeNativeChatRecordedFile,
+  type NativeChatRecordedFileRequest,
   useNativeChatRecordedFileRequest
 } from './native-chat-recorded-file-request'
 
@@ -97,25 +98,31 @@ function ViewerBody(props: { path: string; preview: RuntimeFilePreviewResult }):
 export function NativeChatRecordedFileViewer(props: { sessionId: string }): React.JSX.Element {
   const { t } = useTranslation()
   const request = useNativeChatRecordedFileRequest(props.sessionId)
-  const [loaded, setLoaded] = useState<{ path: string; outcome: Outcome } | null>(null)
+  // Keyed by the request itself, so reopening a file never shows the previous read of it.
+  const [loaded, setLoaded] = useState<{
+    request: NativeChatRecordedFileRequest
+    outcome: Outcome
+  } | null>(null)
   const path = request?.path ?? null
   useEffect(() => {
     if (!request) {
       return
     }
     let current = true
-    const { sessionId, worktreeId, worktreePath } = request
     const settle = (outcome: Outcome): void => {
       if (current) {
-        setLoaded({ path: request.path, outcome })
+        setLoaded({ request, outcome })
       }
     }
+    // The chat's own host, as the click that opened this resolved it.
     void readRuntimeFilePreview(
       {
-        settings: useAppStore.getState().settings,
-        worktreeId,
-        worktreePath,
-        agentSessionId: sessionId
+        ...buildWorkspaceFileContext(
+          request.worktreeId,
+          request.worktreePath,
+          request.runtimeEnvironmentId
+        ),
+        agentSessionId: request.sessionId
       },
       request.path
     ).then(
@@ -127,7 +134,7 @@ export function NativeChatRecordedFileViewer(props: { sessionId: string }): Reac
     }
   }, [request])
 
-  const outcome = loaded && loaded.path === path ? loaded.outcome : null
+  const outcome = loaded && loaded.request === request ? loaded.outcome : null
   const message =
     outcome?.kind === 'failed'
       ? {

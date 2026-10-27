@@ -343,7 +343,8 @@ describe('useNativeChatFileLinkClick', () => {
         sessionId: 'session-alpha',
         path: '/home/me/informes/report.html',
         worktreeId: 'wt-1',
-        worktreePath: '/repo'
+        worktreePath: '/repo',
+        runtimeEnvironmentId: 'env-1'
       })
     })
 

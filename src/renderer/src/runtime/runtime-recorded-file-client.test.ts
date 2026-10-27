@@ -126,6 +126,22 @@ describe('a chat file outside a paired host worktree', () => {
     expect(isOutsideRemoteWorkspaceError(error)).toBe(false)
   })
 
+  it('reads a host that will not serve structured chats to this client as needing an update', async () => {
+    runtimeEnvironmentCall.mockResolvedValueOnce({
+      id: 'rpc-1',
+      ok: false,
+      error: {
+        code: 'runtime_error',
+        message: 'structured_agent_session_unsupported'
+      },
+      _meta: { runtimeId: 'remote-runtime' }
+    })
+
+    await expect(statRuntimePath(chat, OUTSIDE)).rejects.toBeInstanceOf(
+      RecordedFileHostOutdatedError
+    )
+  })
+
   it('surfaces the host refusing a file it has no record of', async () => {
     answer({ ok: false, error: 'not_recorded' })
 
