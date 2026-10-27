@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { PiRowRuntime } from '../../../src/shared/agent-type-label'
 import type { SessionOptionDescriptor } from '../../../src/shared/native-chat-session-options'
 import { colors } from '../theme/mobile-theme'
 import { MobileNativeChatEffortMeter } from './MobileNativeChatEffortMeter'
@@ -135,6 +136,24 @@ const FAST_MODE_ON: SessionOptionDescriptor = {
   kind: { type: 'boolean', currentValue: true }
 }
 
+// A select-type option other than effort or access keeps its summary row and drill-in.
+const SERVICE_TIER_DESCRIPTOR: SessionOptionDescriptor = {
+  id: 'serviceTier',
+  label: 'Service tier',
+  category: 'mode',
+  kind: {
+    type: 'select',
+    currentValue: 'default',
+    choices: [
+      { value: 'default', label: 'Standard' },
+      { value: 'priority', label: 'Priority' }
+    ]
+  },
+  valueSource: 'reported',
+  transport: 'catalog',
+  settable: true
+}
+
 describe('MobileNativeChatSessionOptionPickers', () => {
   let renderer: ReactTestRenderer | null = null
   const setOption = vi.fn<MobileNativeChatSessionOptionsController['setOption']>()
@@ -143,7 +162,8 @@ describe('MobileNativeChatSessionOptionPickers', () => {
   const mount = (
     snapshot: SessionOptionDescriptor[],
     isWorking = false,
-    agent: string | null = null
+    agent: string | null = null,
+    piRuntime?: PiRowRuntime
   ): void => {
     const controller: MobileNativeChatSessionOptionsController = {
       snapshot,
@@ -154,7 +174,12 @@ describe('MobileNativeChatSessionOptionPickers', () => {
     }
     act(() => {
       renderer = create(
-        createElement(MobileNativeChatSessionOptionPickers, { controller, isWorking, agent })
+        createElement(MobileNativeChatSessionOptionPickers, {
+          controller,
+          isWorking,
+          agent,
+          piRuntime
+        })
       )
     })
   }
@@ -196,6 +221,17 @@ describe('MobileNativeChatSessionOptionPickers', () => {
       throw new Error(`No pressable row for ${text}`)
     }
     return parent
+  }
+
+  // The inline switch an open model sheet renders for a boolean option, found by its label.
+  const switchFor = (label: string): ReactTestInstance => {
+    const found = renderer!.root
+      .findByType('BottomDrawer')
+      .findAll((node) => node.type === 'Switch' && node.props.accessibilityLabel === label)
+    if (found.length !== 1) {
+      throw new Error(`Expected one switch labeled ${label}, found ${found.length}`)
+    }
+    return found[0]!
   }
 
   beforeEach(() => {
@@ -268,21 +304,73 @@ describe('MobileNativeChatSessionOptionPickers', () => {
     expect(setOption).toHaveBeenCalledWith('accessMode', 'auto')
   })
 
-  it('keeps fast mode in the model sheet and leaves effort and access out of it', async () => {
+  it('keeps fast mode in the model sheet as an inline switch and leaves effort and access out of it', async () => {
     mount([MODEL_DESCRIPTOR, EFFORT_DESCRIPTOR, accessWith('default'), FAST_MODE_DESCRIPTOR])
     await act(async () => control('Model').props.onPress())
-    expect(rowByText('Off').props.accessibilityLabel).toBe('Fast mode, Off')
+    expect(controls('Fast mode')).toHaveLength(0)
+    expect(switchFor('Fast mode').props.value).toBe(false)
     expect(texts()).not.toContain('Effort')
     expect(texts()).not.toContain('Access')
   })
 
-  it('returns from an option opened off the model sheet to the model list', async () => {
+  it('turns fast mode on inline without opening another view or closing the model sheet', async () => {
     mount([MODEL_DESCRIPTOR, FAST_MODE_DESCRIPTOR])
     await act(async () => control('Model').props.onPress())
-    await act(async () => rowByText('Off').props.onPress())
+    await act(async () => switchFor('Fast mode').props.onValueChange(true))
+    expect(setOption).toHaveBeenCalledWith('fastMode', true)
+    expect(renderer!.root.findByType('BottomDrawer').props.visible).toBe(true)
+    expect(texts()).toContain('Select model')
+    expect(controls('Back to models')).toHaveLength(0)
+  })
+
+  it('does not re-dispatch fast mode when its tracked value is picked again', async () => {
+    mount([MODEL_DESCRIPTOR, FAST_MODE_ON])
+    await act(async () => control('Model').props.onPress())
+    await act(async () => switchFor('Fast mode').props.onValueChange(true))
+    expect(setOption).not.toHaveBeenCalled()
+  })
+
+  it('locks the inline fast mode switch while the agent is working', async () => {
+    mount([MODEL_DESCRIPTOR, FAST_MODE_DESCRIPTOR], true)
+    await act(async () => control('Model').props.onPress())
+    expect(switchFor('Fast mode').props.disabled).toBe(true)
+  })
+
+  it('keeps a select option other than effort or access as a summary row that drills in', async () => {
+    mount([MODEL_DESCRIPTOR, SERVICE_TIER_DESCRIPTOR])
+    await act(async () => control('Model').props.onPress())
+    expect(controls('Service tier')).toHaveLength(1)
+    expect(renderer!.root.findAll((node) => node.type === 'Switch')).toHaveLength(0)
+  })
+
+  it('returns from an option opened off the model sheet to the model list', async () => {
+    mount([MODEL_DESCRIPTOR, SERVICE_TIER_DESCRIPTOR])
+    await act(async () => control('Model').props.onPress())
+    await act(async () => rowByText('Service tier').props.onPress())
     expect(control('Back to models').props.accessibilityLabel).toBe('Back to models')
     await act(async () => control('Back to models').props.onPress())
     expect(texts()).toContain('Select model')
+  })
+
+  it('shows the Gentle Shell icon for a Gentle Shell chat instead of the Pi mark', () => {
+    mount([MODEL_DESCRIPTOR], false, 'pi', 'gentle-shell')
+    expect(renderer!.root.findByType('MobileAgentIcon').props).toMatchObject({
+      agentId: 'pi',
+      piRuntime: 'gentle-shell'
+    })
+  })
+
+  it('keeps the Pi mark for a stock Pi chat with no runtime', () => {
+    mount([MODEL_DESCRIPTOR], false, 'pi', 'pi')
+    expect(renderer!.root.findByType('MobileAgentIcon').props).toMatchObject({
+      agentId: 'pi',
+      piRuntime: 'pi'
+    })
+  })
+
+  it('passes no runtime to the icon when a Pi chat reports none', () => {
+    mount([MODEL_DESCRIPTOR], false, 'pi')
+    expect(renderer!.root.findByType('MobileAgentIcon').props.piRuntime).toBeUndefined()
   })
 
   it('announces choice selection and disabled state', async () => {

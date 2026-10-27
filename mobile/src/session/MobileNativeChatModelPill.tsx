@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, useWindowDimensions } from 'react-native'
 import { ChevronDown, Zap } from 'lucide-react-native'
+import type { PiRowRuntime } from '../../../src/shared/agent-type-label'
 import { MobileAgentIcon } from '../components/MobileAgentIcon'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import { isModelPillIconOnly } from './mobile-native-chat-model-pill-width'
@@ -7,6 +8,7 @@ import { isModelPillIconOnly } from './mobile-native-chat-model-pill-width'
 /** Model selector: agent icon, model name and chevron. It is the only action-row item that shrinks. */
 export function MobileNativeChatModelPill({
   agent,
+  piRuntime,
   label,
   fast,
   accessibleName,
@@ -14,6 +16,8 @@ export function MobileNativeChatModelPill({
   onPress
 }: {
   agent: string | null
+  /** The chat's Pi runtime; Gentle Shell keeps its own icon instead of the Pi mark. */
+  piRuntime?: PiRowRuntime
   label: string
   fast: boolean
   accessibleName: string
@@ -32,7 +36,7 @@ export function MobileNativeChatModelPill({
       disabled={disabled}
       hitSlop={6}
     >
-      {agent ? <MobileAgentIcon agentId={agent} size={16} /> : null}
+      {agent ? <MobileAgentIcon agentId={agent} size={16} piRuntime={piRuntime} /> : null}
       {iconOnly ? null : (
         <Text
           style={[styles.label, disabled && styles.labelDisabled]}

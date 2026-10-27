@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ActivityIndicator, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { ChevronLeft, X } from 'lucide-react-native'
+import type { PiRowRuntime } from '../../../src/shared/agent-type-label'
 import { BottomDrawer } from '../components/BottomDrawer'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import {
@@ -52,6 +53,15 @@ export type MobileNativeChatSessionOptionPickersProps = {
   sendInFlight?: boolean
   /** The chat's agent id; its icon leads the model pill. Absent renders no icon. */
   agent?: string | null
+  /** The chat's Pi runtime, so a Gentle Shell chat keeps its own icon. */
+  piRuntime?: PiRowRuntime
+}
+
+const UNCONFIRMED_CAPTION = 'Sent to the agent — not confirmed'
+
+// Why: a boolean option (fast mode) is one switch, so it sits in the model sheet instead of its own panel.
+function isInlineSwitch(descriptor: SessionOptionDescriptor): boolean {
+  return descriptor.kind.type === 'boolean' && descriptor.action === undefined
 }
 
 // Why: full access is the one access choice that must read as a risk before it is picked.
@@ -84,7 +94,8 @@ export function MobileNativeChatSessionOptionPickers({
   controller,
   isWorking,
   sendInFlight = false,
-  agent = null
+  agent = null,
+  piRuntime
 }: MobileNativeChatSessionOptionPickersProps): React.JSX.Element | null {
   const [openDescriptorId, setOpenDescriptorId] = useState<string | null>(null)
   // A sheet opened from the model list returns there; the toolbar sheets close instead.
@@ -157,13 +168,16 @@ export function MobileNativeChatSessionOptionPickers({
     setOpenDescriptorId(descriptor.id)
   }
 
+  // Re-picking the tracked value is a no-op — never re-dispatch it.
+  const isTrackedValue = (
+    descriptor: SessionOptionDescriptor,
+    value: SessionOptionValue
+  ): boolean =>
+    descriptor.valueSource !== 'unknown' &&
+    (descriptor.kind.type === 'select' || descriptor.kind.type === 'boolean') &&
+    descriptor.kind.currentValue === value
   const applyOption = (descriptor: SessionOptionDescriptor, value: SessionOptionValue): void => {
-    // Re-picking the tracked value is a no-op — never re-dispatch it.
-    if (
-      descriptor.valueSource !== 'unknown' &&
-      descriptor.kind.type === 'select' &&
-      descriptor.kind.currentValue === value
-    ) {
+    if (isTrackedValue(descriptor, value)) {
       closePicker()
       return
     }
@@ -172,6 +186,33 @@ export function MobileNativeChatSessionOptionPickers({
         closePicker()
       }
     })
+  }
+  // A switch flips in place: the model sheet stays open while the value dispatches.
+  const toggleInline = (descriptor: SessionOptionDescriptor, value: SessionOptionValue): void => {
+    if (!isTrackedValue(descriptor, value)) {
+      void controller.setOption(descriptor.id, value)
+    }
+  }
+  const inlineSwitchRow = (
+    descriptor: SessionOptionDescriptor,
+    divided: boolean
+  ): React.JSX.Element => {
+    const reasonText = mobileSessionOptionDisabledReason(descriptor.disabledReason)
+    return (
+      <View key={descriptor.id} style={divided ? styles.dividedRow : null}>
+        {sessionOptionDispatchUnconfirmed(descriptor) ? (
+          <SessionOptionCaption>{UNCONFIRMED_CAPTION}</SessionOptionCaption>
+        ) : null}
+        {reasonText ? <SessionOptionCaption>{reasonText}</SessionOptionCaption> : null}
+        <DescriptorRows
+          descriptor={descriptor}
+          disabled={disabled}
+          grouped
+          onSetOption={(value) => toggleInline(descriptor, value)}
+          onInvokeAction={() => invokeAction(descriptor)}
+        />
+      </View>
+    )
   }
   const invokeAction = (descriptor: SessionOptionDescriptor): void => {
     void controller.invokeAction(descriptor.id).then((invoked) => {
@@ -196,6 +237,7 @@ export function MobileNativeChatSessionOptionPickers({
     <>
       <MobileNativeChatModelPill
         agent={agent}
+        piRuntime={piRuntime}
         label={modelLabel}
         fast={fast}
         accessibleName={`Model, ${modelLabel}${fast ? ', fast mode' : ''}`}
@@ -249,7 +291,7 @@ export function MobileNativeChatSessionOptionPickers({
               </View>
             </View>
             {sessionOptionDispatchUnconfirmed(activeDescriptor) ? (
-              <SessionOptionCaption>Sent to the agent — not confirmed</SessionOptionCaption>
+              <SessionOptionCaption>{UNCONFIRMED_CAPTION}</SessionOptionCaption>
             ) : null}
             {activeDescriptor.note ? (
               <SessionOptionCaption>
@@ -279,16 +321,20 @@ export function MobileNativeChatSessionOptionPickers({
                     onPress={openMoreModels}
                   />
                 ) : null}
-                {summaryOptions.map((descriptor, index) => (
-                  <SessionOptionSummaryRow
-                    key={descriptor.id}
-                    label={descriptor.label}
-                    value={mobileSessionOptionSummaryValue(descriptor)}
-                    disabled={disabled}
-                    divided={index < summaryOptions.length - 1}
-                    onPress={() => openSummaryOption(descriptor)}
-                  />
-                ))}
+                {summaryOptions.map((descriptor, index) =>
+                  isInlineSwitch(descriptor) ? (
+                    inlineSwitchRow(descriptor, index < summaryOptions.length - 1)
+                  ) : (
+                    <SessionOptionSummaryRow
+                      key={descriptor.id}
+                      label={descriptor.label}
+                      value={mobileSessionOptionSummaryValue(descriptor)}
+                      disabled={disabled}
+                      divided={index < summaryOptions.length - 1}
+                      onPress={() => openSummaryOption(descriptor)}
+                    />
+                  )
+                )}
               </View>
             ) : null}
           </View>
@@ -336,6 +382,10 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.borderSubtle,
     backgroundColor: colors.bgRaised
+  },
+  dividedRow: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderSubtle
   },
   optionGroup: {
     overflow: 'hidden',
