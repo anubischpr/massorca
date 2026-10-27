@@ -73,7 +73,7 @@ Source of truth for the design: the approved prototype `Main.dc.html` in the ses
 - Not done: the working strip keeps its current style and position above the composer; it was not restyled into the prototype's floating pill.
 - Checks: `pnpm typecheck` exit 0; `pnpm test` on 19 suites (chat view, overlay, surface, menu, chrome segments, turn cards, quick commands, page component): 136 tests pass; oxfmt and oxlint clean. Lint note: `MobileNativeChatView.tsx` is at the 400-line limit, so three pieces moved to their own files (load earlier, empty copy, jump to latest) instead of a disable.
 
-Engram mirror `odd/mobile-chat-summary-artifacts/tasks`: pending (mem_save not loaded in this worker run).
+Engram mirror `odd/mobile-chat-summary-artifacts/tasks`: saved as a condensed mirror (project resolved by session, not `massorca`); conflict candidate judged not_conflict. The verbatim doc is this file.
 
 ## Acceptance
 
