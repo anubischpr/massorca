@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { translate } from '@/i18n/i18n'
 import { RemoteFileBrowser } from './RemoteFileBrowser'
+import { getClonePreviewPath } from './clone-defaults'
 
 type CloneStepProps = {
   cloneUrl: string
@@ -47,6 +48,7 @@ export function CloneStep({
   const isRemoteClone = Boolean(runtimeEnvironmentId || sshTargetId)
   const canBrowseRemoteDestination = isRemoteClone
   const canClone = !!cloneUrl.trim() && !!cloneDestination.trim() && !isCloning
+  const clonePreviewPath = getClonePreviewPath(cloneUrl, cloneDestination)
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
       e.preventDefault()
@@ -191,6 +193,15 @@ export function CloneStep({
               <Folder className="size-3.5" />
             </Button>
           </div>
+          {clonePreviewPath ? (
+            <p className="text-[11px] text-muted-foreground break-all">
+              {translate(
+                'auto.components.sidebar.AddRepoSteps.clonePreviewPath',
+                'Clones into {{path}}',
+                { path: clonePreviewPath }
+              )}
+            </p>
+          ) : null}
         </div>
 
         {cloneError && <p className="text-[11px] text-destructive">{cloneError}</p>}

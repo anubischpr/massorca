@@ -5425,7 +5425,11 @@
         "AddRepoStepIndicator": {
           "3bb655c117": "Back"
         },
+        "cloneDefaults": {
+          "targetExists": "{{path}} already exists and is not empty. Pick another parent folder, or remove or rename that folder."
+        },
         "AddRepoSteps": {
+          "clonePreviewPath": "Clones into {{path}}",
           "569326d9cc": "Choose folder",
           "a93ef169b5": "Browse host filesystem",
           "2ce3f6edf8": "/path/to/destination",
