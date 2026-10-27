@@ -4,6 +4,10 @@ import type {
   GhAccountBindingInventory,
   GhAccountBindingValidationResult
 } from '../../../../shared/github/auth-types'
+import type {
+  GhAccountGitConfigResult,
+  GhAccountGitConfigState
+} from '../../../../shared/github/gh-account-git-config'
 import { ghAccountBindingsEqual } from '../../../../shared/github/account-binding'
 import { callRuntimeRpc, type getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
 
@@ -76,6 +80,50 @@ export function validateRepositoryGhAccountBinding(
     }),
     LOCAL_GH_ACCOUNT_IPC_TIMEOUT_MS,
     'validateAccountBinding'
+  )
+}
+
+/** Writes the repo-local git config pin on the repo's execution host. */
+export function applyRepositoryGhAccountGitConfig(
+  runtimeTarget: RuntimeTarget,
+  repo: Pick<Repo, 'id' | 'path'>,
+  request: {
+    next: GhAccountBinding | null
+    previous: GhAccountBinding | null
+    setIdentity: boolean
+  }
+): Promise<GhAccountGitConfigResult> {
+  if (runtimeTarget.kind === 'environment') {
+    return callRuntimeRpc<GhAccountGitConfigResult>(
+      runtimeTarget,
+      'github.applyAccountGitConfig',
+      { repo: repo.id, ...request },
+      { timeoutMs: LOCAL_GH_ACCOUNT_IPC_TIMEOUT_MS }
+    )
+  }
+  return withTimeout(
+    window.api.gh.applyAccountGitConfig({ repoPath: repo.path, repoId: repo.id, ...request }),
+    LOCAL_GH_ACCOUNT_IPC_TIMEOUT_MS,
+    'applyAccountGitConfig'
+  )
+}
+
+export function readRepositoryGhAccountGitConfig(
+  runtimeTarget: RuntimeTarget,
+  repo: Pick<Repo, 'id' | 'path'>
+): Promise<GhAccountGitConfigState | null> {
+  if (runtimeTarget.kind === 'environment') {
+    return callRuntimeRpc<GhAccountGitConfigState | null>(
+      runtimeTarget,
+      'github.readAccountGitConfig',
+      { repo: repo.id },
+      { timeoutMs: LOCAL_GH_ACCOUNT_IPC_TIMEOUT_MS }
+    )
+  }
+  return withTimeout(
+    window.api.gh.readAccountGitConfig({ repoPath: repo.path, repoId: repo.id }),
+    LOCAL_GH_ACCOUNT_IPC_TIMEOUT_MS,
+    'readAccountGitConfig'
   )
 }
 

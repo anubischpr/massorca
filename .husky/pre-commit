@@ -1,2 +1,7 @@
 #!/usr/bin/env sh
 pnpm exec lint-staged
+
+# ======== GGA START ========
+# Gentleman Guardian Angel - Code Review
+gga run || exit 1
+# ======== GGA END ========

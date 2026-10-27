@@ -12321,6 +12321,17 @@
           "auto": "Agent",
           "off": "Off"
         },
+        "RepositoryGitHubAccountGitConfig": {
+          "folderWorkspace": "Folder projects have no git config to update.",
+          "unsafeLogin": "This login contains characters that cannot be written to a git credential helper.",
+          "sshUnavailable": "The SSH connection for this project is not connected. Reconnect and pick the account again.",
+          "gitFailed": "Could not update the git config: {{message}}",
+          "identityUnavailable": "Account pinned, but its noreply email could not be looked up, so the commit author was left unchanged.",
+          "pinned": "Git config pins this repository to {{account}}: git push and the gh shell wrapper use that account.",
+          "notPinned": "Picking an account also writes gh.account and a credential helper to this repository’s local git config.",
+          "identityLabel": "Commit as this account",
+          "identityDescription": "Sets user.name and user.email to the account’s GitHub noreply address in this repository."
+        },
         "RepositoryGitHubAccountSection": {
           "unsupported": "This runtime’s GitHub CLI is too old for account binding (needs gh ≥ 2.40).",
           "capabilityUnknown": "Could not determine whether this runtime’s GitHub CLI supports account binding. Retry.",
@@ -12330,7 +12341,7 @@
           "saveFailed": "Could not save the GitHub account binding.",
           "title": "GitHub Account",
           "description": "Use a specific gh login for this project’s GitHub issue and pull request calls.",
-          "longDescription": "MassOrca injects a short-lived token from the selected keyring login into each gh call for this project. Project View stays on the ambient login.",
+          "longDescription": "MassOrca injects a short-lived token from the selected keyring login into each gh call for this project, and pins the repository’s git config to it. Project View stays on the ambient login.",
           "retry": "Retry",
           "selectLabel": "Account",
           "ambient": "Default (ambient gh login)",
