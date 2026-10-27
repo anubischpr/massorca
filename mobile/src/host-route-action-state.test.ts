@@ -24,6 +24,12 @@ describe('host route action state', () => {
     )
   })
 
+  it('opens the session on the tab the launch built', () => {
+    expect(hostNewWorktreeSessionRoute('local', 'wt-1', 'Otter', undefined, 'tab-1:leaf')).toBe(
+      '/h/local/session/wt-1?name=Otter&created=1&paneKey=tab-1%3Aleaf'
+    )
+  })
+
   // Why: the host reports a create that succeeded with a failed startup terminal via `warning`;
   // dropping it here is what lands the phone on an unexplained empty session.
   it('carries a host create warning into the session route', () => {

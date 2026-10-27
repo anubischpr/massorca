@@ -36,7 +36,13 @@ import {
 // worktree.ps. Retry by appending -2, -3, ... mirroring the desktop createWorktree
 // loop in src/renderer/src/store/slices/worktrees.ts.
 export type WorktreeCreateResult =
-  | { worktreeId: string; name: string; warning?: string; promptDelivered?: boolean }
+  | {
+      worktreeId: string
+      name: string
+      warning?: string
+      promptDelivered?: boolean
+      paneKey?: string
+    }
   | { error: string }
 
 export type CreateWorktreeWithNameRetryArgs = {
@@ -103,6 +109,10 @@ export async function createWorktreeWithNameRetry(
         ? isAgentLaunchReplayUnsupportedRefusal(response.error)
         : isAgentLaunchUnsupportedRefusal(response.error))
     ) {
+      // A caller whose first message cannot ride `worktree.create` must not get a bare agent.
+      if (args.agentLaunch?.refuseDowngrade) {
+        return { error: args.agentLaunch.refuseDowngrade }
+      }
       // The probe said the host knows `agent.launch` but it refused the call — most likely this
       // client's capability list had not landed yet. Downgrade for good rather than fail a create.
       launch = null
@@ -122,7 +132,8 @@ export async function createWorktreeWithNameRetry(
           ...(created.warning ? { warning: created.warning } : {}),
           ...(created.promptDelivered !== undefined
             ? { promptDelivered: created.promptDelivered }
-            : {})
+            : {}),
+          ...(created.paneKey ? { paneKey: created.paneKey } : {})
         }
       }
       lastError = 'Failed to create workspace'
@@ -172,6 +183,7 @@ function readCreateResult(
   displayName?: string
   warning?: string
   promptDelivered?: boolean
+  paneKey?: string
 } | null {
   if (launch) {
     const operation = launch.replay ? agentLaunchReplayRun : agentLaunchRun

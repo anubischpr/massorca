@@ -16,11 +16,16 @@ export function hostNewWorktreeSessionRoute(
   worktreeId: string,
   worktreeName: string,
   /** Host-reported create warning (e.g. the startup terminal failed to spawn). */
-  warning?: string
+  warning?: string,
+  /** The tab the launch built, so the session opens on it instead of the host active tab. */
+  paneKey?: string
 ): `/h/${string}/session/${string}?${string}` {
   const params = new URLSearchParams({ name: worktreeName, created: '1' })
   if (warning?.trim()) {
     params.set('warning', warning)
+  }
+  if (paneKey) {
+    params.set('paneKey', paneKey)
   }
   return `/h/${encodeURIComponent(hostId)}/session/${encodeURIComponent(worktreeId)}?${params}`
 }

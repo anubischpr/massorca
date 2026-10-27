@@ -83,11 +83,14 @@ export function useNewWorktreeRuntimeCapabilities(
 ): {
   tasksSupported: boolean
   hostPlatform: NodeJS.Platform | null
+  /** What the host launch supports once probed; null while the probe is still running. */
+  agentLaunch: AgentLaunchSupport | false | null
   getWorktreeCreateCutoverSupport: () => Promise<WorktreeCreateIdempotencySupport | false>
   getAgentLaunchSupport: () => Promise<AgentLaunchSupport | false>
 } {
   const [tasksSupported, setTasksSupported] = useState(false)
   const [hostPlatform, setHostPlatform] = useState<NodeJS.Platform | null>(null)
+  const [agentLaunch, setAgentLaunch] = useState<AgentLaunchSupport | false | null>(null)
   const capabilityProbeRef = useRef<{
     client: RpcClient | null
     promise: Promise<NewWorktreeRuntimeCapabilities>
@@ -115,6 +118,7 @@ export function useNewWorktreeRuntimeCapabilities(
       if (!stale) {
         setTasksSupported(capabilities.tasksSupported)
         setHostPlatform(capabilities.hostPlatform)
+        setAgentLaunch(capabilities.agentLaunch)
       }
     })
     return () => {
@@ -130,5 +134,11 @@ export function useNewWorktreeRuntimeCapabilities(
     () => getCapabilities().then((capabilities) => capabilities.agentLaunch),
     [getCapabilities]
   )
-  return { tasksSupported, hostPlatform, getWorktreeCreateCutoverSupport, getAgentLaunchSupport }
+  return {
+    tasksSupported,
+    hostPlatform,
+    agentLaunch,
+    getWorktreeCreateCutoverSupport,
+    getAgentLaunchSupport
+  }
 }
