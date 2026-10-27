@@ -9,25 +9,36 @@ import {
 } from './mobile-session-switcher-rows'
 import { getMobileSessionTabTitle } from './mobile-terminal-tab-agent'
 
+/**
+ * Where the chip sits in its row. The classic header keeps it at the start; the floating chat controls
+ * centre it over the transcript.
+ */
+export function mobileSessionSwitcherChipAlignment(centered: boolean): 'center' | 'flex-start' {
+  return centered ? 'center' : 'flex-start'
+}
+
 /** The active tab's status, title, and the tab count; tapping it opens the Sessions sheet. */
 export function MobileSessionSwitcherChip({
   activeRow,
   tabCount,
-  onPress
+  onPress,
+  centered = false
 }: {
   activeRow: MobileSessionSwitcherRow<MobileSessionTab> | null
   tabCount: number
   onPress: () => void
+  centered?: boolean
 }) {
   const title = activeRow ? getMobileSessionTabTitle(activeRow.tab) : 'Sessions'
   const dot = activeRow?.status ? mobileSessionSwitcherDot(activeRow.status) : null
+  const alignment = mobileSessionSwitcherChipAlignment(centered)
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Sessions, ${title}, ${tabCount} ${tabCount === 1 ? 'tab' : 'tabs'}`}
       hitSlop={spacing.xs}
       onPress={onPress}
-      style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.chip, { alignSelf: alignment }, pressed && styles.pressed]}
     >
       {dot ? <AgentStateDot state={dot} /> : null}
       <Text style={styles.title} numberOfLines={1}>
@@ -41,7 +52,6 @@ export function MobileSessionSwitcherChip({
 
 const styles = StyleSheet.create({
   chip: {
-    alignSelf: 'flex-start',
     maxWidth: '80%',
     minHeight: 32,
     flexDirection: 'row',

@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { mobileSessionSwitcherChipAlignment } from './MobileSessionSwitcherChip'
 import type { MobileSessionTab } from './mobile-session-route-types'
 import type { MobileSessionSwitcherRow } from './mobile-session-switcher-rows'
 import { MobileSessionSwitcherChip } from './MobileSessionSwitcherChip'
@@ -74,5 +75,12 @@ describe('MobileSessionSwitcherChip', () => {
     const mounted = mount({ activeRow: workingRow, tabCount: 1, onPress })
     act(() => chip(mounted).props.onPress())
     expect(onPress).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('mobileSessionSwitcherChipAlignment', () => {
+  it('keeps the classic header chip at the start, and centres it over a chat', () => {
+    expect(mobileSessionSwitcherChipAlignment(false)).toBe('flex-start')
+    expect(mobileSessionSwitcherChipAlignment(true)).toBe('center')
   })
 })

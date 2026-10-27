@@ -112,6 +112,7 @@ export function MobileChatFloatingChrome({ controller }: { controller: MobileSes
       </View>
       <View style={styles.chipRow}>
         <MobileSessionSwitcherChip
+          centered
           activeRow={activeSessionRow}
           tabCount={sessionRows.length}
           onPress={openSessionsSheet}
