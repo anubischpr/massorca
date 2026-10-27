@@ -4,6 +4,8 @@ import type { WorkspacePortScanResult } from '../../../../shared/workspace-ports
 import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
 import { workspacePortScanKeyForTarget } from '@/lib/workspace-port-actions'
 import { changedFilePathsFromJournalItems } from '../../../../shared/native-chat-journal-changed-paths'
+import { nativeChatProseToMarkdown } from '../../../../shared/native-chat-prose'
+import { nativeChatVisualDirectivesInReply } from '../../../../shared/native-chat-visual-directive'
 import { CODEX_PLAN_UPDATED_FRAME_KIND } from '../../../../shared/native-chat-provider-frame-summary'
 import {
   normalizeNativeChatTaskList,
@@ -91,6 +93,35 @@ export function nativeChatSessionResultFiles(
   return [...lastTouch.values()]
     .sort((left, right) => right.index - left.index)
     .map((entry) => entry.file)
+}
+
+/** A chat visual the Results card lists: the reply that names it, its file, and its title if any. */
+export type NativeChatSessionVisual = { messageId: string; file: string; title: string | null }
+
+/** The visuals the chat's own replies show, newest first, one row per file. Only main-agent assistant
+ *  replies count: a directive in a prompt or a tool output is text, and the file it names is no change. */
+export function nativeChatSessionVisuals(
+  items: readonly AgentJournalRenderItem[]
+): NativeChatSessionVisual[] {
+  const visuals = new Map<string, NativeChatSessionVisual>()
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    const { body, agentId, itemId } = items[index]!
+    if (agentId !== undefined || body.kind !== 'message' || body.role !== 'assistant') {
+      continue
+    }
+    const directives = nativeChatVisualDirectivesInReply(nativeChatProseToMarkdown(body.blocks))
+    for (let position = directives.length - 1; position >= 0; position -= 1) {
+      const { file, title } = directives[position]!
+      const seen = visuals.get(file)
+      if (!seen) {
+        visuals.set(file, { messageId: itemId, file, title })
+      } else if (seen.title === null) {
+        // A newer reply may omit the title an older one gave; keep the title it had.
+        seen.title = title
+      }
+    }
+  }
+  return [...visuals.values()]
 }
 
 export function nativeChatSessionResults(items: readonly AgentJournalRenderItem[]): string[] {

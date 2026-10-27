@@ -7,12 +7,14 @@ import type { AgentJournalRenderItem } from '../../../../shared/agent-session-jo
 import type { StructuredAgentContextSummary } from '../../../../shared/structured-agent-session-context-usage'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { NativeChatSessionSummary } from './NativeChatSessionSummary'
+import { NativeChatVisualOwnerContext } from './native-chat-visual-owner'
 
 const { store } = vi.hoisted(() => {
   const repos: unknown[] = []
   const settings: unknown = { activeRuntimeEnvironmentId: null }
   const worktreesByRepo: Record<string, unknown[]> = {}
-  return { store: { repos, settings, worktreesByRepo } }
+  const openRightSidebarVisual: (route: unknown) => void = () => {}
+  return { store: { repos, settings, worktreesByRepo, openRightSidebarVisual } }
 })
 vi.mock('@/store', () => ({
   useAppStore: (selector: (state: unknown) => unknown) => selector(store)
@@ -351,4 +353,67 @@ it('shows running background tasks without a Stop from a host that predates the 
     '1 running'
   )
   expect(screen.queryByRole('button', { name: 'Stop build' })).toBeNull()
+})
+
+const visualOwner = {
+  target: { kind: 'environment', environmentId: 'opaque-id' } as const,
+  sessionId: 'session-1',
+  tabId: 'tab-1',
+  worktreeId: 'repo::C:/repos/orca/feature-wt'
+}
+
+it('lists a visual the chat shows in Results and opens it in the sidebar', () => {
+  const openRightSidebarVisual = vi.fn()
+  store.openRightSidebarVisual = openRightSidebarVisual
+  const reply: AgentJournalRenderItem = {
+    itemId: 'reply-1',
+    sequence: 3,
+    revision: 1,
+    observedAt: 30,
+    body: {
+      kind: 'message',
+      role: 'assistant',
+      blocks: [
+        {
+          type: 'text',
+          text: 'Here is the chart.\n\n::orca-visual{file="usage-chart.html" title="Usage by day"}'
+        }
+      ]
+    }
+  }
+  render(
+    <NativeChatVisualOwnerContext.Provider value={visualOwner}>
+      <NativeChatSessionSummary {...props} journalItems={[reply]} />
+    </NativeChatVisualOwnerContext.Provider>
+  )
+  fireEvent.click(screen.getByRole('button', { name: /^Results/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Usage by day/ }))
+  expect(openRightSidebarVisual).toHaveBeenCalledWith({
+    target: visualOwner.target,
+    sessionId: 'session-1',
+    tabId: 'tab-1',
+    worktreeId: visualOwner.worktreeId,
+    messageId: 'reply-1',
+    file: 'usage-chart.html',
+    title: 'Usage by day'
+  })
+})
+
+it('does not list visuals outside a structured chat owner, where no visual can open', () => {
+  store.openRightSidebarVisual = vi.fn()
+  const reply: AgentJournalRenderItem = {
+    itemId: 'reply-1',
+    sequence: 3,
+    revision: 1,
+    observedAt: 30,
+    body: {
+      kind: 'message',
+      role: 'assistant',
+      blocks: [{ type: 'text', text: '::orca-visual{file="usage-chart.html"}' }]
+    }
+  }
+  render(<NativeChatSessionSummary {...props} journalItems={[reply]} />)
+  fireEvent.click(screen.getByRole('button', { name: /^Results/ }))
+  expect(screen.queryByRole('button', { name: /usage-chart/ })).toBeNull()
+  expect(screen.getByText('No file changes or visuals reported.')).toBeTruthy()
 })

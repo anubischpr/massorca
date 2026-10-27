@@ -17780,6 +17780,11 @@
     }
   },
   "components": {
+    "nativeChatSummary": {
+      "loadedResults": "已加载聊天记录中的文件更改和可视化内容",
+      "noResults": "未报告文件更改或可视化内容",
+      "visualKind": "可视化"
+    },
     "native-chat": {
       "reasoning": "推理",
       "contextMenu": {
