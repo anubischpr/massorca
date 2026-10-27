@@ -6,6 +6,12 @@ import type { MobileSessionController } from './use-mobile-session-controller'
 
 /** The sheets the native chat opens from its header: the session switcher, the plan, and the ⋯ menu. */
 export function MobileSessionChatSheets({ controller }: { controller: MobileSessionController }) {
+  // The guard the header's + and quick-commands buttons held: no new tab while one is being created, or offline.
+  const creationBlocked =
+    controller.creating ||
+    controller.creatingBrowser ||
+    controller.creatingMarkdown ||
+    controller.connState !== 'connected'
   const {
     showHeaderMoreActions,
     setShowHeaderMoreActions,
@@ -44,6 +50,7 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
         onNewTab={() => setShowCreateTabDrawer(true)}
         onResume={openAgentSessionHistory}
         onTabActions={openSessionTabActionSheetAfterKeyboardDismiss}
+        newTabDisabled={creationBlocked}
       />
       <MobilePlanSheet
         visible={planSheetOpen}
@@ -60,6 +67,7 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
         onOpenPlan={openPlanSheet}
         onOpenSummary={openSummary}
         onOpenArtifacts={openArtifacts}
+        quickCommandsDisabled={creationBlocked}
         onOpenQuickCommands={() =>
           resolveMobileSessionQuickCommandsAction(quickCommandsSupported, {
             open: () => setShowQuickCommands(true),

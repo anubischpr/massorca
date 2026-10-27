@@ -31,6 +31,8 @@ type Props = {
   onResume: () => void
   /** Close and rename for one tab, reached by holding its row. */
   onTabActions: (tab: MobileSessionTab) => void
+  /** A create is pending or the host is not connected: a new tab waits, as the header's + did. */
+  newTabDisabled?: boolean
 }
 
 /** The worktree's tabs as one list: pick one to switch to it, or start or resume a session. */
@@ -42,7 +44,8 @@ export function MobileSessionsSheet({
   onSelect,
   onNewTab,
   onResume,
-  onTabActions
+  onTabActions,
+  newTabDisabled = false
 }: Props) {
   // Why: iOS cannot present a second native modal until this sheet has unmounted, so the
   // follow-up action waits for onAfterClose.
@@ -67,6 +70,7 @@ export function MobileSessionsSheet({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="New tab"
+          disabled={newTabDisabled}
           hitSlop={spacing.sm}
           style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
           onPress={() => closeThen(onNewTab)}

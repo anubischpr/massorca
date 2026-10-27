@@ -194,4 +194,12 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
     act(() => drawer.props.onAfterClose?.())
     expect(onOpenAgentHistory).toHaveBeenCalledTimes(1)
   })
+  it('holds Quick commands while a create is pending or the host is offline', () => {
+    const { mounted } = mount({ quickCommandsDisabled: true })
+    const row = mounted.root.find(
+      (node) =>
+        String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Quick commands'
+    )
+    expect(row.props.disabled).toBe(true)
+  })
 })
