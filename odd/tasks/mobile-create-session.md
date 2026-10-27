@@ -36,10 +36,10 @@ advertises it): `target: create-worktree | existing`, `prompt: { delivery: 'subm
 
 ## Tasks
 
-- [ ] T1 Pure create-session model (selection defaults, host/project/workspace/agent rules, launch plan) with tests
-- [ ] T2 Draft option state (model catalog, effort, fast, access) and the create screen with its chips and sheets
-- [ ] T3 Submit, progress view and landing in the chat; error states keep the text
-- [ ] T4 Entry points rewired (FAB, header +, Home) and the old form reachable from ⋯
+- [x] T1 Pure create-session model (selection defaults, host/project/workspace/agent rules, launch plan) with tests - 6ed87388ad6
+- [x] T2 Draft option state (model catalog, effort, fast, access) and the create screen with its chips and sheets - b55ccb0f115 (launch plumbing), b209d614379 (picks and submit state), 61890a1888a (screen)
+- [x] T3 Submit, progress view and landing in the chat; error states keep the text - b55ccb0f115, b209d614379
+- [x] T4 Entry points rewired (FAB, header +, Home) and the old form reachable from ⋯ - 2a04f4f486d
 
 ## Acceptance
 
@@ -54,4 +54,8 @@ advertises it): `target: create-worktree | existing`, `prompt: { delivery: 'subm
 
 ## Evidence
 
-(filled in per task)
+- `pnpm typecheck` (mobile): same 7 errors as the base commit (router-seam-census, webview-document-census, web-entry), none in touched files.
+- `pnpm test` on create-session, tasks/agent-launch*, worktree-create*, session/mobile-existing-agent-launch, NewWorktreeModal, home, host-screen, host-route*, navigation/host-stack-navigation: 268 tests pass.
+- `src/tasks/agent-launch-mobile-replay.test.ts` cannot load here: it imports desktop main code that needs `smol-toml` from the root `node_modules`, which this worktree does not install. Environmental, unrelated to the change.
+- `oxfmt --check src app` and `oxlint` on touched paths: clean.
+- Engram mirror: pending (the memory server refused project `massorca` for this session).
