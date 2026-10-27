@@ -6,7 +6,8 @@ import {
   ListChecks,
   ListTodo,
   MessagesSquare,
-  ScrollText
+  ScrollText,
+  Zap
 } from 'lucide-react-native'
 import { MobileAgentSessionHistoryIcon } from '../agent-history/MobileAgentSessionHistoryIcon'
 import { BottomDrawer } from '../components/BottomDrawer'
@@ -23,6 +24,7 @@ type MenuItem = {
   hint?: string
   icon: ComponentType<MenuIconProps>
   onPress: () => void
+  disabled?: boolean
 }
 
 type Props = {
@@ -36,6 +38,9 @@ type Props = {
   onOpenPlan: () => void
   onOpenSummary: () => void
   onOpenArtifacts: () => void
+  onOpenQuickCommands: () => void
+  /** A create is pending or the host is not connected: quick commands wait, as the tab button did. */
+  quickCommandsDisabled?: boolean
   onOpenAgentHistory: () => void
   onOpenBranch: () => void
   onOpenChecks: () => void
@@ -54,6 +59,8 @@ export function MobileSessionHeaderMoreActionsSheet({
   onOpenPlan,
   onOpenSummary,
   onOpenArtifacts,
+  onOpenQuickCommands,
+  quickCommandsDisabled = false,
   onOpenAgentHistory,
   onOpenBranch,
   onOpenChecks,
@@ -95,6 +102,14 @@ export function MobileSessionHeaderMoreActionsSheet({
       hint: String(recordedFileCount),
       icon: Files,
       onPress: onOpenArtifacts
+    },
+    {
+      show: menu.chat.quickCommands,
+      key: 'quick-commands',
+      label: 'Quick commands',
+      icon: Zap,
+      onPress: onOpenQuickCommands,
+      disabled: quickCommandsDisabled
     },
     {
       show: menu.chat.agentHistory,
@@ -165,6 +180,7 @@ function MenuGroup({ items, onPick }: { items: MenuItem[]; onPick: (item: MenuIt
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={item.label}
+              disabled={item.disabled === true}
               style={({ pressed }) => [styles.row, pressed && styles.pressed]}
               onPress={() => onPick(item)}
             >

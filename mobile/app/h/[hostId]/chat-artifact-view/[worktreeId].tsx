@@ -4,7 +4,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
 import { firstParam } from '../../../../src/navigation/route-param-reader'
 import { MobileChatArtifactViewer } from '../../../../src/session/MobileChatArtifactViewer'
-import { fileNameOf, viewerKindOf } from '../../../../src/session/mobile-chat-artifacts-model'
+import {
+  artifactTargetName,
+  viewerKindOf,
+  type MobileArtifactTarget
+} from '../../../../src/session/mobile-chat-artifacts-model'
 import { colors, radii, spacing, typography } from '../../../../src/theme/mobile-theme'
 
 /** One file the chat's agent wrote, shown read-only. */
@@ -14,15 +18,19 @@ export default function MobileChatArtifactViewScreen() {
     hostId?: string | string[]
     worktreeId?: string | string[]
     path?: string | string[]
+    visual?: string | string[]
     name?: string | string[]
     tab?: string | string[]
   }>()
   const hostId = firstParam(params.hostId) ?? ''
   const worktreeId = firstParam(params.worktreeId) ?? ''
-  const path = firstParam(params.path) ?? ''
+  const visual = firstParam(params.visual)
+  const target: MobileArtifactTarget = visual
+    ? { kind: 'visual', file: visual }
+    : { kind: 'recorded', path: firstParam(params.path) ?? '' }
   const tabId = firstParam(params.tab) ?? ''
   const name = firstParam(params.name)
-  const kind = viewerKindOf(path)
+  const kind = viewerKindOf(artifactTargetName(target))
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <View style={styles.header}>
@@ -37,7 +45,7 @@ export default function MobileChatArtifactViewScreen() {
         </Pressable>
         <View style={styles.titleBlock}>
           <Text style={styles.title} numberOfLines={1}>
-            {fileNameOf(path) || 'File'}
+            {artifactTargetName(target) || 'File'}
           </Text>
           {name ? (
             <Text style={styles.subtitle} numberOfLines={1}>
@@ -49,7 +57,12 @@ export default function MobileChatArtifactViewScreen() {
           <Text style={styles.kindText}>{kind.label}</Text>
         </View>
       </View>
-      <MobileChatArtifactViewer hostId={hostId} worktreeId={worktreeId} tabId={tabId} path={path} />
+      <MobileChatArtifactViewer
+        hostId={hostId}
+        worktreeId={worktreeId}
+        tabId={tabId}
+        target={target}
+      />
     </SafeAreaView>
   )
 }

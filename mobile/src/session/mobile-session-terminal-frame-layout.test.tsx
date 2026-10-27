@@ -1,6 +1,7 @@
 import { createElement, type ReactNode } from 'react'
 import { act, create } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
+vi.mock('react-native-webview', () => ({ WebView: 'WebView' }))
 
 type LayoutEvent = { nativeEvent: { layout: { width: number; height: number } } }
 type ViewProps = { children?: ReactNode; onLayout?: (event: LayoutEvent) => void }

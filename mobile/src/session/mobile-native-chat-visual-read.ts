@@ -4,6 +4,7 @@ import { bindDeferredRpcOperation, defineRpcOperation } from '../transport/rpc-o
 import { rpcResultVariant } from '../transport/rpc-operation-result-reader'
 import { isMobileMethodUnavailableError } from '../transport/mobile-method-unavailable'
 import type { RpcClient } from '../transport/rpc-client'
+import { rpcClientKey } from './mobile-rpc-client-key'
 
 /** Where a chat's visuals are read from: the host that owns the structured session. */
 export type MobileNativeChatVisualSource = {
@@ -54,17 +55,8 @@ const inFlight = new Map<string, Promise<MobileNativeChatVisualRead>>()
 
 // The client stands for the host: each paired host has its own, so one host's visuals never
 // answer for another's even if two session ids collided.
-const clientKeys = new WeakMap<RpcClient, number>()
-let nextClientKey = 0
-
 function cacheKey(source: MobileNativeChatVisualSource, file: string): string {
-  let clientKey = clientKeys.get(source.client)
-  if (clientKey === undefined) {
-    nextClientKey += 1
-    clientKey = nextClientKey
-    clientKeys.set(source.client, clientKey)
-  }
-  return JSON.stringify([clientKey, source.sessionId, file])
+  return JSON.stringify([rpcClientKey(source.client), source.sessionId, file])
 }
 
 function remember(key: string, entry: CachedVisual): void {

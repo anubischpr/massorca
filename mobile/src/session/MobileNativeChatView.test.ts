@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+vi.mock('react-native-webview', () => ({ WebView: 'WebView' }))
 vi.mock('./MobileBackgroundWorkSheet', () => ({ MobileBackgroundWorkSheet: () => null }))
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import { MobileNativeChatView } from './MobileNativeChatView'
@@ -48,7 +49,14 @@ vi.mock('lucide-react-native', () => ({
   ArrowDown: 'ArrowDown',
   ChevronsDownUp: 'ChevronsDownUp',
   ChevronsUpDown: 'ChevronsUpDown',
-  Square: 'Square'
+  Square: 'Square',
+  ChevronRight: 'ChevronRight',
+  FileCode: 'FileCode',
+  ChevronLeft: 'ChevronLeft',
+  Folder: 'Folder',
+  GitBranch: 'GitBranch',
+  MessageSquare: 'MessageSquare',
+  MoreHorizontal: 'MoreHorizontal'
 }))
 
 vi.mock('./MobileNativeChatMessage', () => ({ MobileNativeChatMessage: 'ChatMessage' }))

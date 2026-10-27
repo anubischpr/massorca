@@ -1,6 +1,7 @@
 import { createElement, StrictMode } from 'react'
 import { act, create } from 'react-test-renderer'
 import { afterEach, expect, it, vi } from 'vitest'
+vi.mock('react-native-webview', () => ({ WebView: 'WebView' }))
 
 type AnimationStart = {
   options: { toValue: number; duration: number; useNativeDriver: boolean }
@@ -49,6 +50,7 @@ vi.mock('../terminal/terminal-copy-gutter-preference', () => ({
 }))
 vi.mock('./mobile-session-styles', () => ({ styles: { container: {}, kavInner: {} } }))
 vi.mock('./MobileSessionHeader', () => ({ MobileSessionHeader: () => null }))
+vi.mock('./MobileChatFloatingChrome', () => ({ MobileChatFloatingChrome: () => null }))
 vi.mock('./MobileSessionContentRow', () => ({ MobileSessionContentRow: () => null }))
 vi.mock('./MobileSessionSheets', () => ({ MobileSessionSheets: () => null }))
 import { useMobileSessionFeedbackCapabilities } from './use-mobile-session-feedback-capabilities'

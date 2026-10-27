@@ -7,6 +7,7 @@ import {
 import { mobileNativeChatPlan, mobileNativeChatPlanProgress } from './mobile-native-chat-plan'
 import { mobileNativeChatRecordedFileCount } from './mobile-native-chat-recorded-files'
 import { resolveMobileSessionHeaderMenu } from './mobile-session-header-menu'
+import type { MobileArtifactTarget } from './mobile-chat-artifacts-model'
 import { mobileSessionSwitcherRows } from './mobile-session-switcher-rows'
 import type { MobileSessionPanelRouteActionsModel } from './use-mobile-session-panel-route-actions'
 
@@ -89,8 +90,7 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     showNativeChat,
     showAgentHistory: showAgentSessionHistoryAction,
     hasSourceControl: !isFolderWorkspaceRoute && !isFloatingWorkspaceRoute,
-    showChecks: showChecksAction,
-    hasPlan: plan !== null
+    showChecks: showChecksAction
   })
 
   const openSessionsSheet = useCallback(() => setSessionsSheetOpen(true), [])
@@ -109,6 +109,22 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
   const openSummary = useCallback(() => openChatRoute('chat-summary'), [openChatRoute])
   const openArtifacts = useCallback(() => openChatRoute('chat-artifacts'), [openChatRoute])
   const openBranch = useCallback(() => handlePanelTap('sourceControl'), [handlePanelTap])
+  // Same route the Artifacts list opens, for a page tapped from the transcript.
+  const openArtifactViewer = useCallback(
+    (target: MobileArtifactTarget) => {
+      const params = new URLSearchParams(
+        target.kind === 'visual' ? { visual: target.file } : { path: target.path }
+      )
+      params.set('name', worktreeName || '')
+      if (activeSessionTabId) {
+        params.set('tab', activeSessionTabId)
+      }
+      router.push(
+        `/h/${hostId}/chat-artifact-view/${encodeURIComponent(worktreeId)}?${params.toString()}`
+      )
+    },
+    [activeSessionTabId, hostId, router, worktreeId, worktreeName]
+  )
 
   return {
     sessionRows,
@@ -126,6 +142,7 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     recordedFileCount,
     openSummary,
     openArtifacts,
+    openArtifactViewer,
     openBranch,
     showHeaderMoreButton: headerMenu.showButton
   }

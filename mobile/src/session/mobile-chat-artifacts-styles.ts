@@ -5,6 +5,9 @@ const PAGE_WIDTH = '48%'
 
 /** The Artifacts list and viewer styles, kept apart from the components. */
 export const artifactsStyles = StyleSheet.create({
+  viewport: {
+    flex: 1
+  },
   content: {
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
@@ -78,6 +81,7 @@ export const artifactsStyles = StyleSheet.create({
   },
   pageArt: {
     height: 110,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.sm,

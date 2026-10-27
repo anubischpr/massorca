@@ -17,7 +17,8 @@ vi.mock('lucide-react-native', () => ({
   ListChecks: 'ListChecks',
   ListTodo: 'ListTodo',
   MessagesSquare: 'MessagesSquare',
-  ScrollText: 'ScrollText'
+  ScrollText: 'ScrollText',
+  Zap: 'Zap'
 }))
 vi.mock('../agent-history/MobileAgentSessionHistoryIcon', () => ({
   MobileAgentSessionHistoryIcon: 'MobileAgentSessionHistoryIcon'
@@ -40,7 +41,14 @@ vi.mock('../components/BottomDrawer', async () => {
 
 const FULL: MobileSessionHeaderMenu = {
   showButton: true,
-  chat: { sessions: true, agentHistory: false, plan: true, summary: true, artifacts: true },
+  chat: {
+    sessions: true,
+    agentHistory: false,
+    plan: true,
+    summary: true,
+    artifacts: true,
+    quickCommands: true
+  },
   environment: { branch: true, checks: true }
 }
 
@@ -72,6 +80,7 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
       onOpenPlan: vi.fn(),
       onOpenSummary,
       onOpenArtifacts: vi.fn(),
+      onOpenQuickCommands: vi.fn(),
       onOpenAgentHistory: vi.fn(),
       onOpenBranch: vi.fn(),
       onOpenChecks: vi.fn(),
@@ -104,6 +113,7 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
       'Plan',
       'Summary',
       'Artifacts',
+      'Quick commands',
       'Branch',
       'Checks'
     ])
@@ -147,7 +157,8 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
           agentHistory: true,
           plan: false,
           summary: false,
-          artifacts: false
+          artifacts: false,
+          quickCommands: false
         },
         environment: { branch: true, checks: false }
       }
@@ -166,7 +177,8 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
           agentHistory: true,
           plan: false,
           summary: false,
-          artifacts: false
+          artifacts: false,
+          quickCommands: false
         },
         environment: { branch: false, checks: false }
       }
@@ -181,5 +193,13 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
     const drawer = mounted.root.find((node) => String(node.type) === 'BottomDrawer')
     act(() => drawer.props.onAfterClose?.())
     expect(onOpenAgentHistory).toHaveBeenCalledTimes(1)
+  })
+  it('holds Quick commands while a create is pending or the host is offline', () => {
+    const { mounted } = mount({ quickCommandsDisabled: true })
+    const row = mounted.root.find(
+      (node) =>
+        String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Quick commands'
+    )
+    expect(row.props.disabled).toBe(true)
   })
 })

@@ -39,6 +39,51 @@ sheet, a Summary screen, and an Artifacts list with a read-only viewer.
 - [x] T4 Plan sheet derived from the transcript (writer A)
 - [x] T5 Summary screen: agent status, environment tiles, results strip, connected chips (writer B). Commit `7bd476b208b`.
 - [x] T6 Artifacts screen (grouped grid + files list, filters) and read-only viewer (HTML in sandboxed WebView, source toggle), gated recorded-file read (writer B). Commit `bb0c2152f10`.
+- [x] T7 Plan always in the ⋯ menu whenever the native chat is shown; Plan sheet shows a quiet "No plan yet" empty state (feedback from build pv32, writer C)
+- [x] T8 Real previews in the Artifacts list: lazily rendered, cached per path, scaled non-interactive WebView thumbnails for HTML files; glyph fallback for any non-ready state; chat `::orca-visual` lines listed as Pages (writer C)
+- [x] T9 Viewer correctness: HTML isolated and read-only (no in-page navigation, external links only, no file access); tests per viewer kind; commit only if a fix is needed (writer C)
+- [x] T11 Floating status pill above the composer for structured chats: amber dot, "Working", elapsed clock (structured lane only), running terminal and agent counts (hidden at zero), tap opens the background sheet (coordinator request)
+- [x] T10 Chat screen chrome per the approved prototype: floating top controls (back, chat/folder/branch segmented control, ⋯), session switcher chip replaces the tab strip for structured chats, "+ new session" and terminal/panel switching kept reachable, status pill opens the background sheet, inline artifact card after a turn that wrote HTML or a visual; composer toolbar untouched (writer C)
+
+## Round 2 (device feedback on build pv32)
+
+Source of truth for the design: the approved prototype `Main.dc.html` in the session scratchpad (390x844 canvas). Each task is one Conventional Commit with its tests; no AI attribution lines. Checks per task in `mobile/`: `pnpm typecheck` exit 0, targeted `pnpm test <files>`, `pnpm exec oxfmt` and `pnpm exec oxlint` on changed files.
+
+### T7 evidence
+- Route: inline, 5 source files (menu resolver, chat-surfaces hook, Plan sheet, tests).
+- Commit: `63c59d9b0c2` feat(mobile): always offer the plan in the chat menu with a no-plan state (doc plan `92f9f48c807`).
+- Checks: `pnpm typecheck` exit 0; `pnpm test` on the header-menu, Plan sheet and menu sheet suites: 3 files, 20 tests pass; oxfmt and oxlint clean.
+
+### T8 evidence
+- Route: inline (single writer), about 20 new and changed files.
+- Commit: `a7471f5ef60` feat(mobile): preview artifact pages as scaled thumbnails and list chat visuals.
+- Thumbnails: JS off, CSP blocks network, tile takes the tap, page laid out at 390px and scaled. Loads only near the viewport (measured), two at a time, cached per host, session and path; the viewer reads the same cache. Visuals from `::orca-visual` are listed as Pages and open in the visual frame.
+- Checks: `pnpm typecheck` exit 0; `pnpm test` on 14 suites (new pure modules, the thumbnail component, dependent chat-artifact and visual-read suites): 78 tests pass plus the component test; oxfmt and oxlint clean.
+
+### T9 evidence
+- Route: inline; a fix was needed. The viewer's HTML and SVG pages rendered in a plain WebView with scripts on and no CSP, and its navigation guard covered only the top frame, so an iframe could load anything. Pages now render in the sandboxed chat frame (opaque origin, CSP, http and https links only, navigation refused) with a Preview and Source toggle.
+- Commit: `7f01b4e1d98` fix(mobile): render artifact pages in the sandboxed chat frame, not a page with scripts and network.
+- Checks: `pnpm typecheck` exit 0; `pnpm test` on 7 suites (viewer model, page component, frame, recorded and visual reads): 43 tests pass; oxfmt and oxlint clean.
+- Not changed: the workspace file preview (`MobileSessionFileReader`) still uses `MobileHtmlPreview` with scripts on; it is outside the chat viewer.
+
+### T10 evidence
+- Route: inline (single writer), about 30 files.
+- Commit: `877ffc63ebc` feat(mobile): float the chat controls over the transcript and show turn artifact cards.
+- Chrome: a structured chat shows the floating bar (back, Chat / Files / Source control segments, ⋯) and the session chip in place of the header and tab strip. Terminal sessions keep the classic header. The transcript and its load-earlier row start below the chrome (`MOBILE_CHAT_CHROME_CONTENT_TOP`). Quick commands moved into the ⋯ menu (same guard as the old tab button, `resolveMobileSessionQuickCommandsAction`); new session and terminal switching are in the Sessions sheet.
+- Inline card: after a turn that wrote an HTML page or showed a visual, a card with the thumbnail, name and kind opens the viewer.
+- Not done: the working strip keeps its current style and position above the composer; it was not restyled into the prototype's floating pill.
+- Checks: `pnpm typecheck` exit 0; `pnpm test` on 19 suites (chat view, overlay, surface, menu, chrome segments, turn cards, quick commands, page component): 136 tests pass; oxfmt and oxlint clean. Lint note: `MobileNativeChatView.tsx` is at the 400-line limit, so three pieces moved to their own files (load earlier, empty copy, jump to latest) instead of a disable.
+
+### T11 evidence
+- Route: inline (single writer). Coordinator request after T10.
+- Commit: `d9f9af068df` feat(mobile): restyle the chat's background work strip as a floating status pill.
+- Pill: glass capsule, left-aligned in the composer tray. Counts: terminals = running command and monitor tasks; agents = running agent tasks; other kinds stay in the sheet. Zero counts hidden. Time only on a lane that publishes a turn start, read on the host clock. When the roster stream is lost, the pill reads "Status unavailable" and states no count or clock; the sheet stays reachable.
+- Bottom inset: the pill sits in the tray in flow, above the composer and below the transcript, so the transcript already ends above it and nothing is covered. No inset change was needed.
+- Terminal sessions: unchanged (the strip mounts only on the structured lane).
+- Not changed: the chat's own working indicator on the non-structured lane (`MobileAgentWorkingIndicator`).
+- Checks: `pnpm typecheck` exit 0 (no TS errors); `pnpm test` on mobile-chat-status-pill (11 tests), MobileNativeChatBackgroundTasks (13 tests, four header-only cases removed and the rest moved to the pill label), composer tray (7), and 9 dependent chat and sheet suites (66 tests): all pass; oxfmt and oxlint clean.
+
+Engram mirror `odd/mobile-chat-summary-artifacts/tasks`: saved as a condensed mirror (project resolved by session, not `massorca`); conflict candidate judged not_conflict. The verbatim doc is this file.
 
 ## Acceptance
 
@@ -106,3 +151,19 @@ An automated reliability review covered this branch up to `7b44bb54ea4`. Each fi
 Desktop's `nativeChatSessionPlan` (`src/renderer/src/components/native-chat/native-chat-session-summary.ts`) still feeds the same synthetic success. Not changed here, since this branch is mobile-only.
 
 Checks (mobile/): `pnpm typecheck` exit 0. `pnpm check:tests-typecheck` ratchet OK; no touched file has a test type error. oxfmt and oxlint clean on every changed file. Vitest: 16 suites, 134 tests pass (the 9 touched suites and 7 dependent chat suites).
+
+### Round 3 review (7fc898a348f..HEAD)
+
+An independent review covered the branch from `7fc898a348f` to the T11 commits. Each finding was checked against the code first.
+
+- Thumbnail glyph latched when the source was null at mount (`use-mobile-artifact-thumbnail.ts`): fixed in `d185d7d2f8b`. The glyph is now derived per render from the source; the load runs once the source appears. Test: `use-mobile-artifact-thumbnail.test.tsx`, "loads once a source appears after mount".
+- Reconnect to desktop and the tab hold menu lost in the structured chat: fixed in `cdc4f7e5da6` (a tappable Reconnect row in the floating chrome, shown when a retry is offered, wired to `forceReconnectHost`; test `MobileChatFloatingChrome.test.tsx`) and `ad566deb733` (a hold on a Sessions sheet row opens close and rename after the sheet closes; test `MobileSessionsSheet.test.tsx`). Not restored: the haptic on hold.
+- Cached previews went stale after a later turn edited the file: fixed in `d185d7d2f8b`. The cached copy paints first; a recorded file is revalidated once per mount and per source (`readRecordedFilePreview` with `revalidate`). A visual is always asked of the host already. A host that gives no answer keeps the last copy, since a transient failure cannot be told from a deleted file.
+- Floating chrome covered the create-warning banner and the docked panel header, and the 128 inset was fixed: fixed in `cdc4f7e5da6`. The chrome now lives in the content column, so it no longer reaches the docked panel. It measures its own height (`onLayout`) and publishes it through `MobileChatChromeLayoutContext`; the banner and the transcript start beneath the measured height. The fixed 128 remains only as the estimate before the first measurement. Test: `mobile-chat-chrome-layout.test.ts`.
+- Status pill hid workflow and unknown tasks: fixed in `7008bb1545f`. The pill shows whenever the roster has non-done work (`view.show`); the counts are unchanged. Test: `mobile-chat-status-pill.test.ts`.
+- Thumbnail WebViews latched near and never unmounted: fixed in `d185d7d2f8b`. Viewport proximity is now tracked both ways, and at most six live previews hold a slot (`mobile-artifact-preview-slots.ts`); a preview past the cap shows the glyph and takes a slot when one frees. Tests: `mobile-artifact-preview-slots.test.ts`, `use-mobile-artifact-thumbnail.test.tsx`.
+- Thumbnail CSP depended on a `<head>` match: fixed in `d185d7d2f8b`. The policy is always the first meta, after a leading doctype only (a doctype must stay first). Test: `mobile-artifact-thumbnail-html.test.ts`, including a head inside a comment.
+- ⋯ quick commands lost the creating and not-connected guard: fixed in `5eda45bcacd`. The row is disabled under the same guard the tab button used. The Sessions sheet's New tab had lost the same guard and got it too.
+- Viewer opened without a tab param: skipped. `showNativeChat` requires an active tab id (`use-mobile-native-chat-active-resolution.ts`, `activeSessionTab && activeSessionTabId`), and the chat's cards and the ⋯ items exist only while a native chat is shown, so the opener cannot run without a tab.
+
+Checks (mobile/): `pnpm typecheck` exit 0 after each commit. Touched and dependent suites pass; oxfmt and oxlint clean on the changed files. Not verified on a device: the thumbnail limit under real Android memory pressure, the reconnect row's position beneath the chip, and the banner offset.

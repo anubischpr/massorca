@@ -26,7 +26,8 @@ export const NO_COMPOSER_TRAY: MobileNativeChatComposerTray = {}
 
 export function useMobileNativeChatComposerTray({
   queued,
-  backgroundTasks
+  backgroundTasks,
+  turn
 }: {
   queued: MobileNativeChatQueuedMessagesProps & {
     /** One card list per conversation: a pending action in one never disables another's. */
@@ -34,9 +35,13 @@ export function useMobileNativeChatComposerTray({
   }
   /** Null off the structured lane, which publishes no child work. */
   backgroundTasks: MobileStructuredBackgroundTasks | null
+  /** The turn's state for the status pill; null start where the lane publishes none. */
+  turn?: { working: boolean; startedAt: number | null }
 }): MobileNativeChatComposerTray {
   const { composerInputRef, editQueuedMessage } = useMobileNativeChatQueuedEditFocus(queued.onEdit)
   const { cards, onSend, onDelete, pause, onResume, sessionKey, steerHeld } = queued
+  const working = turn?.working ?? false
+  const startedAt = turn?.startedAt ?? null
   return useMemo(
     () => ({
       content: createElement(
@@ -48,7 +53,9 @@ export function useMobileNativeChatComposerTray({
             // and goes.
             createElement(MobileNativeChatBackgroundTasks, {
               key: `${backgroundTasks.sessionKey}:background-tasks`,
-              tasks: backgroundTasks
+              tasks: backgroundTasks,
+              working,
+              startedAt
             })
           : null,
         createElement(MobileNativeChatQueuedMessages, {
@@ -66,6 +73,8 @@ export function useMobileNativeChatComposerTray({
     }),
     [
       backgroundTasks,
+      working,
+      startedAt,
       cards,
       composerInputRef,
       editQueuedMessage,

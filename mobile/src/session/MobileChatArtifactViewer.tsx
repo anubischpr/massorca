@@ -1,31 +1,34 @@
+import { useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import { RefreshCw } from 'lucide-react-native'
-import { MobileHtmlPreview } from '../components/MobileHtmlPreview'
 import { MobileFileMarkdownPreview } from '../files/MobileFileMarkdownPreview'
 import { MobileFilePreviewSourceText } from '../files/MobileFilePreviewSourceText'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
-import { viewerKindOf } from './mobile-chat-artifacts-model'
+import { fileNameOf, viewerKindOf, type MobileArtifactTarget } from './mobile-chat-artifacts-model'
 import { mobileChatSurfaceKey, useMobileChatSurfaceSnapshot } from './mobile-chat-surface-snapshot'
+import { MobileArtifactHtmlPage } from './MobileArtifactHtmlPage'
+import { MobileNativeChatVisualFrame } from './MobileNativeChatVisualFrame'
 import { RECORDED_FILE_REFUSAL_COPY } from './mobile-recorded-file-read'
+import { useMobileNativeChatVisual } from './use-mobile-native-chat-visual'
 import { useMobileRecordedFile, type MobileRecordedFileState } from './use-mobile-recorded-file'
+import type { MobileChatSurfaceRecordedSource } from './mobile-chat-surface-snapshot'
 
 export type MobileChatArtifactViewerProps = {
   hostId: string
   worktreeId: string
   tabId: string
-  path: string
+  target: MobileArtifactTarget
 }
 
-/** One file the chat's agent wrote, read-only: a rendered page or Markdown, or its source. */
+/** One file the chat's agent wrote, or one visual its replies showed; read-only. */
 export function MobileChatArtifactViewer({
   hostId,
   worktreeId,
   tabId,
-  path
+  target
 }: MobileChatArtifactViewerProps) {
   const snapshot = useMobileChatSurfaceSnapshot(mobileChatSurfaceKey(hostId, worktreeId, tabId))
   const source = snapshot?.recordedSource ?? null
-  const { state, retry } = useMobileRecordedFile(source, path)
 
   if (!snapshot) {
     return <Notice title="Open this chat to read its files" />
@@ -36,7 +39,11 @@ export function MobileChatArtifactViewer({
   return (
     <View style={styles.container}>
       <View style={styles.body}>
-        <ViewerBody path={path} state={state} onRetry={retry} />
+        {target.kind === 'visual' ? (
+          <VisualBody source={source} file={target.file} />
+        ) : (
+          <RecordedBody source={source} path={target.path} />
+        )}
       </View>
       <View style={styles.footer}>
         <Text style={styles.readOnly}>Read-only</Text>
@@ -45,7 +52,41 @@ export function MobileChatArtifactViewer({
   )
 }
 
-function ViewerBody({
+function RecordedBody({ source, path }: { source: MobileChatSurfaceRecordedSource; path: string }) {
+  const { state, retry } = useMobileRecordedFile(source, path)
+  return <RecordedState path={path} state={state} onRetry={retry} />
+}
+
+/** A visual the chat showed, in the same sandboxed frame the transcript draws it with. */
+function VisualBody({ source, file }: { source: MobileChatSurfaceRecordedSource; file: string }) {
+  const { state, retry } = useMobileNativeChatVisual(source, file)
+  const [failed, setFailed] = useState(false)
+  if (state.kind === 'loading') {
+    return <Centered />
+  }
+  if (state.kind === 'unavailable' || failed) {
+    return (
+      <Notice title="This visual is not available" body="Check the connection, then try again.">
+        <RetryButton
+          onRetry={() => {
+            setFailed(false)
+            retry()
+          }}
+        />
+      </Notice>
+    )
+  }
+  return (
+    <MobileNativeChatVisualFrame
+      html={state.html}
+      title={file}
+      mode="fullscreen"
+      onFailed={() => setFailed(true)}
+    />
+  )
+}
+
+function RecordedState({
   path,
   state,
   onRetry
@@ -55,11 +96,7 @@ function ViewerBody({
   onRetry: () => void
 }) {
   if (state.kind === 'loading') {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.textMuted} />
-      </View>
-    )
+    return <Centered />
   }
   if (state.kind === 'ready') {
     return <ReadyContent path={path} content={state.content} />
@@ -85,11 +122,25 @@ function ViewerBody({
       title="Could not reach the paired computer"
       body="Check the connection, then try again."
     >
-      <Pressable accessibilityRole="button" onPress={onRetry} style={styles.retry}>
-        <RefreshCw size={14} color={colors.textPrimary} strokeWidth={2.2} />
-        <Text style={styles.retryText}>Retry</Text>
-      </Pressable>
+      <RetryButton onRetry={onRetry} />
     </Notice>
+  )
+}
+
+function RetryButton({ onRetry }: { onRetry: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" onPress={onRetry} style={styles.retry}>
+      <RefreshCw size={14} color={colors.textPrimary} strokeWidth={2.2} />
+      <Text style={styles.retryText}>Retry</Text>
+    </Pressable>
+  )
+}
+
+function Centered() {
+  return (
+    <View style={styles.center}>
+      <ActivityIndicator color={colors.textMuted} />
+    </View>
   )
 }
 
@@ -99,7 +150,8 @@ function ReadyContent({ path, content }: { path: string; content: string }) {
   const size = { truncated: false, byteLength: content.length }
   if (kind === 'html') {
     return (
-      <MobileHtmlPreview
+      <MobileArtifactHtmlPage
+        title={fileNameOf(path)}
         html={content}
         renderSource={() => (
           <MobileFilePreviewSourceText relativePath={path} content={content} {...size} />

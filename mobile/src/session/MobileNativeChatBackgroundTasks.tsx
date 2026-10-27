@@ -1,44 +1,41 @@
 import { memo, useMemo, useRef, useState } from 'react'
-import { Dimensions, type LayoutChangeEvent, Pressable, StyleSheet, Text, View } from 'react-native'
-import { ChevronUp } from 'lucide-react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Bot, SquareTerminal } from 'lucide-react-native'
 import { sayBackgroundTaskEnglish as say } from '../../../src/shared/background-task-copy'
-import {
-  backgroundTasksHeaderContent,
-  backgroundTasksHeaderText,
-  NARROW_BACKGROUND_TASKS_STRIP_REM
-} from '../../../src/shared/background-task-header-content'
 import {
   backgroundTasksStripTicks,
   buildBackgroundTaskGroups,
   buildBackgroundTaskGroupsFromViews
 } from '../../../src/shared/background-task-roster'
 import { useNow } from '../hooks/use-now'
-import { colors, radii, spacing, typography } from '../theme/mobile-theme'
-import { BackgroundTaskKindIcon } from './MobileBackgroundTaskKindIcon'
+import { colors, spacing, typography } from '../theme/mobile-theme'
 import { MobileBackgroundWorkSheet, type BackgroundWorkStopping } from './MobileBackgroundWorkSheet'
+import {
+  mobileChatStatusPill,
+  mobileStatusPillAccessibilityLabel,
+  mobileStatusPillCounts
+} from './mobile-chat-status-pill'
 import type { MobileStructuredBackgroundTasks } from './use-mobile-structured-background-tasks'
-
-// React Native has no root font; its points stand in for desktop's 16 px rem.
-const NARROW_STRIP_WIDTH = NARROW_BACKGROUND_TASKS_STRIP_REM * 16
 
 const NOT_STOPPING: BackgroundWorkStopping = { taskIds: new Set(), all: false }
 
-/** The session's running child work as one indicator above the composer. Desktop parity:
- *  `NativeChatBackgroundTasksStatus`, from the same host roster, shared grouping, header and Stop
- *  rules. Tapping it opens the background-work sheet, which holds the rows. Mounted per
- *  conversation, so its open and stopping state outlive the moment a sequential fan-out's roster
- *  empties between children. */
+/** The floating status pill above a structured chat's composer: "Working", the turn's clock, and the
+ *  running terminals and agents. A tap opens the background-work sheet, which holds the rows. Shown
+ *  while a turn runs or background work is running; a lane with no start shows no clock. Mounted per
+ *  conversation, so its open and stopping state outlive a roster that empties between children. */
 function MobileNativeChatBackgroundTasksImpl({
-  tasks
+  tasks,
+  working = false,
+  startedAt = null
 }: {
   tasks: MobileStructuredBackgroundTasks
+  /** The chat's turn is running. */
+  working?: boolean
+  /** Host-clock epoch ms the turn started, or null where the lane publishes none. */
+  startedAt?: number | null
 }): React.JSX.Element | null {
   const { view, rowContext, stop } = tasks
   const [sheetOpen, setSheetOpen] = useState(false)
-  // Before the first layout, the window less the strip's own margins, so it opens in its final form.
-  const [narrow, setNarrow] = useState(
-    () => Dimensions.get('window').width - 2 * spacing.lg < NARROW_STRIP_WIDTH
-  )
   const [stopping, setStopping] = useState<BackgroundWorkStopping>(NOT_STOPPING)
   const stoppingRef = useRef(NOT_STOPPING)
   const groups = useMemo(
@@ -48,13 +45,20 @@ function MobileNativeChatBackgroundTasksImpl({
         : buildBackgroundTaskGroups(view.tasks, view.settledTasks, say),
     [view.children, view.tasks, view.settledTasks, rowContext]
   )
-  const now = useNow(1_000, view.show && backgroundTasksStripTicks(groups, sheetOpen))
-  if (!view.show) {
+  const now = useNow(1_000, working || (view.show && backgroundTasksStripTicks(groups, sheetOpen)))
+  // Elapsed anchors are host-stamped; read them on the host's clock, as the turn's start is.
+  const hostNow = now - rowContext.hostClockOffsetMs
+  const pill = mobileChatStatusPill({
+    working,
+    startedAt,
+    now: hostNow,
+    counts: mobileStatusPillCounts(groups),
+    hasBackgroundWork: view.show,
+    live: rowContext.transportObservation === 'live'
+  })
+  if (!pill.visible) {
     return null
   }
-  // Elapsed anchors are host-stamped; read them on the host's clock, as the turn bar's start is.
-  const hostNow = now - rowContext.hostClockOffsetMs
-  const header = backgroundTasksHeaderContent(groups, { narrow, now: hostNow }, say)
 
   const updateStopping = (next: BackgroundWorkStopping): void => {
     stoppingRef.current = next
@@ -79,46 +83,33 @@ function MobileNativeChatBackgroundTasksImpl({
       updateStopping({ taskIds, all: taskId ? latest.all : false })
     })
   }
-  const onLayout = (event: LayoutChangeEvent): void => {
-    setNarrow(event.nativeEvent.layout.width < NARROW_STRIP_WIDTH)
-  }
 
   return (
-    <View style={styles.list} onLayout={onLayout} testID="background-tasks-strip">
-      <View style={styles.box}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={backgroundTasksHeaderText(header)}
-          hitSlop={spacing.xs}
-          style={({ pressed }) => [styles.header, pressed && styles.pressed]}
-          onPress={() => setSheetOpen(true)}
-        >
-          <View style={styles.headerText}>
-            {header.segments.map((segment, index) => {
-              return (
-                <View key={segment.kind ?? 'total'} style={styles.segment}>
-                  {index > 0 ? <Text style={styles.separator}>·</Text> : null}
-                  {segment.kind ? (
-                    // The turn owns the voice: same icons, dimmed until it ends.
-                    <View style={view.isMonitoring ? undefined : styles.dimmed}>
-                      <BackgroundTaskKindIcon kind={segment.kind} size={12} />
-                    </View>
-                  ) : null}
-                  <Text style={styles.segmentText} numberOfLines={1} ellipsizeMode="tail">
-                    {segment.text}
-                  </Text>
-                </View>
-              )
-            })}
-            {header.detail ? (
-              <Text style={styles.detail} numberOfLines={1} ellipsizeMode="tail">
-                {header.segments.length > 0 ? `— ${header.detail}` : header.detail}
-              </Text>
-            ) : null}
+    <View style={styles.list} testID="background-tasks-strip">
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={mobileStatusPillAccessibilityLabel(pill)}
+        hitSlop={spacing.xs}
+        style={({ pressed }) => [styles.pill, pressed && styles.pressed]}
+        onPress={() => setSheetOpen(true)}
+      >
+        <View style={styles.dot} />
+        <Text style={styles.label}>{pill.label}</Text>
+        {pill.elapsed ? <Text style={styles.elapsed}>{pill.elapsed}</Text> : null}
+        {pill.terminals !== null || pill.agents !== null ? <View style={styles.divider} /> : null}
+        {pill.terminals !== null ? (
+          <View style={styles.count}>
+            <SquareTerminal size={13} color={colors.textSecondary} strokeWidth={2} />
+            <Text style={styles.countText}>{pill.terminals}</Text>
           </View>
-          <ChevronUp size={14} color={colors.textMuted} strokeWidth={2} />
-        </Pressable>
-      </View>
+        ) : null}
+        {pill.agents !== null ? (
+          <View style={styles.count}>
+            <Bot size={13} color={colors.textSecondary} strokeWidth={2} />
+            <Text style={styles.countText}>{pill.agents}</Text>
+          </View>
+        ) : null}
+      </Pressable>
       <MobileBackgroundWorkSheet
         visible={sheetOpen}
         onClose={() => setSheetOpen(false)}
@@ -136,59 +127,55 @@ function MobileNativeChatBackgroundTasksImpl({
 export const MobileNativeChatBackgroundTasks = memo(MobileNativeChatBackgroundTasksImpl)
 
 const styles = StyleSheet.create({
+  // Left-aligned in the tray above the composer: the transcript ends above it, so it covers no message.
   list: {
+    alignItems: 'flex-start',
     marginHorizontal: spacing.lg,
     marginVertical: spacing.xs
   },
-  box: {
-    backgroundColor: colors.bgPanel,
-    borderRadius: radii.row,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderSubtle,
-    overflow: 'hidden'
-  },
-  header: {
+  pill: {
     minHeight: 36,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.md
-  },
-  headerText: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    overflow: 'hidden'
-  },
-  // Every piece may shrink, so large Dynamic Type ellipsizes the header instead of clipping it.
-  segment: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    flexShrink: 1,
-    minWidth: 0
-  },
-  separator: {
-    color: colors.textMuted,
-    fontSize: typography.metaSize
-  },
-  segmentText: {
-    flexShrink: 1,
-    color: colors.textPrimary,
-    fontSize: typography.metaSize,
-    fontWeight: '500'
-  },
-  detail: {
-    flexShrink: 1,
-    color: colors.textMuted,
-    fontSize: typography.metaSize
-  },
-  dimmed: {
-    opacity: 0.4
+    paddingLeft: spacing.sm + 2,
+    paddingRight: spacing.md,
+    borderRadius: 999,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgPanel
   },
   pressed: {
     backgroundColor: colors.bgRaised
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: colors.statusAmber
+  },
+  label: {
+    color: colors.textPrimary,
+    fontSize: typography.bodySize - 1,
+    fontWeight: '500'
+  },
+  elapsed: {
+    color: colors.textSecondary,
+    fontSize: typography.metaSize,
+    fontFamily: typography.monoFamily
+  },
+  divider: {
+    width: StyleSheet.hairlineWidth,
+    height: 12,
+    backgroundColor: colors.borderSubtle
+  },
+  count: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs
+  },
+  countText: {
+    color: colors.textSecondary,
+    fontSize: typography.metaSize
   }
 })

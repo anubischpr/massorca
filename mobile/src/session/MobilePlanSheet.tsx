@@ -12,7 +12,7 @@ import { mobileNativeChatPlanProgress } from './mobile-native-chat-plan'
 
 type Props = {
   visible: boolean
-  /** The chat's plan with at least one step; the menu offers this sheet only when one exists. */
+  /** The chat's plan with at least one step; null until the agent plans its work. */
   plan: NativeChatTaskList | null
   onClose: () => void
 }
@@ -25,30 +25,43 @@ export function MobilePlanSheet({ visible, plan, onClose }: Props): React.JSX.El
     <BottomDrawer visible={visible} onClose={onClose} dragContentToDismiss contentScrollable>
       <View style={styles.header}>
         <Text style={styles.title}>Plan</Text>
-        <Text style={styles.count}>{`${progress.done} of ${progress.total} done`}</Text>
+        {plan ? (
+          <Text style={styles.count}>{`${progress.done} of ${progress.total} done`}</Text>
+        ) : null}
       </View>
-      <View
-        style={styles.track}
-        accessibilityRole="progressbar"
-        accessibilityValue={{ min: 0, max: progress.total, now: progress.done }}
-      >
-        <View style={[styles.fill, { width: `${percent}%` }]} />
-      </View>
-      {plan?.explanation ? <Text style={styles.explanation}>{plan.explanation}</Text> : null}
-      <SheetSectionLabel label="Steps" count={progress.total} />
-      <View style={styles.group}>
-        {(plan?.tasks ?? []).map((task, index) => (
-          <View key={`${index}:${task.content}`} style={styles.step}>
-            <StepIcon task={task} />
-            <Text
-              style={[styles.stepText, task.status === 'completed' && styles.stepDone]}
-              numberOfLines={3}
-            >
-              {nativeChatTaskLabel(task)}
-            </Text>
+      {plan ? (
+        <>
+          <View
+            style={styles.track}
+            accessibilityRole="progressbar"
+            accessibilityValue={{ min: 0, max: progress.total, now: progress.done }}
+          >
+            <View style={[styles.fill, { width: `${percent}%` }]} />
           </View>
-        ))}
-      </View>
+          {plan.explanation ? <Text style={styles.explanation}>{plan.explanation}</Text> : null}
+          <SheetSectionLabel label="Steps" count={progress.total} />
+          <View style={styles.group}>
+            {plan.tasks.map((task, index) => (
+              <View key={`${index}:${task.content}`} style={styles.step}>
+                <StepIcon task={task} />
+                <Text
+                  style={[styles.stepText, task.status === 'completed' && styles.stepDone]}
+                  numberOfLines={3}
+                >
+                  {nativeChatTaskLabel(task)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : (
+        <View style={[styles.group, styles.empty]}>
+          <Text style={styles.emptyTitle}>No plan yet</Text>
+          <Text style={styles.emptyBody}>
+            The agent's steps appear here once it plans its work.
+          </Text>
+        </View>
+      )}
     </BottomDrawer>
   )
 }
@@ -119,5 +132,18 @@ const styles = StyleSheet.create({
   },
   stepDone: {
     color: colors.textMuted
+  },
+  empty: {
+    paddingVertical: spacing.md,
+    gap: spacing.xs
+  },
+  emptyTitle: {
+    color: colors.textPrimary,
+    fontSize: typography.bodySize,
+    fontWeight: '500'
+  },
+  emptyBody: {
+    color: colors.textMuted,
+    fontSize: typography.metaSize
   }
 })
