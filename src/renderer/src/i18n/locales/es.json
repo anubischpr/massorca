@@ -5181,7 +5181,11 @@
         "AddRepoStepIndicator": {
           "3bb655c117": "Atrás"
         },
+        "cloneDefaults": {
+          "targetExists": "{{path}} ya existe y no está vacía. Elige otra carpeta padre, o elimina o renombra esa carpeta."
+        },
         "AddRepoSteps": {
+          "clonePreviewPath": "Se clonará en {{path}}",
           "569326d9cc": "Elige carpeta",
           "a93ef169b5": "Explorar el sistema de archivos del host",
           "2ce3f6edf8": "/ruta/al/destino",

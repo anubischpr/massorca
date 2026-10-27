@@ -4,7 +4,8 @@ import { useAppStore } from '@/store'
 import { callRuntimeRpc, getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
 import type { AddRepoExistingWorkspaceSource } from '../../../../shared/telemetry-events'
 import type { Repo } from '../../../../shared/repo-types'
-import { getCloneDestinationAutoFill } from './clone-defaults'
+import { describeCloneFailure, getCloneDestinationAutoFill } from './clone-defaults'
+import { useCloneDestinationDefault } from './use-clone-destination-default'
 import type { AddRepoDialogStep } from './add-repo-dialog-types'
 import { translate } from '@/i18n/i18n'
 import { extractIpcErrorMessage } from '@/lib/ipc-error'
@@ -92,6 +93,14 @@ export function useAddRepoCloneFlow({
     cloneStepAutoFilledRef.current = true
     setCloneDestination(cloneDestinationAutoFill.destination)
   }
+
+  useCloneDestinationDefault({
+    step,
+    runtimeEnvironmentId: activeRuntimeEnvironmentId,
+    sshTargetId,
+    cloneDestination,
+    setCloneDestination
+  })
 
   const resetCloneFlow = useCallback((): void => {
     cloneGenRef.current++
@@ -191,7 +200,7 @@ export function useAddRepoCloneFlow({
         return
       }
       const message = extractIpcErrorMessage(err, String(err))
-      setCloneError(message)
+      setCloneError(describeCloneFailure(message, trimmedUrl, cloneDestination))
     } finally {
       if (gen === cloneGenRef.current && requestHostToken === hostTokenRef.current) {
         setIsCloning(false)
