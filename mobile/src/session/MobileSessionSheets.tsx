@@ -2,6 +2,7 @@ import { Platform } from 'react-native'
 import { useClipboardWriter } from '../platform/clipboard'
 import { Copy, FileText, Globe, RefreshCw, SquareTerminal } from 'lucide-react-native'
 import { MobileSessionHeaderMoreActionsSheet } from './MobileSessionHeaderMoreActionsSheet'
+import { MobileSessionsSheet } from './MobileSessionsSheet'
 import { QuickCommandsSheet } from './QuickCommandsSheet'
 import { triggerSuccess, triggerError } from '../platform/haptics'
 import { ActionSheetModal } from '../components/ActionSheetModal'
@@ -88,11 +89,24 @@ export function MobileSessionSheets({ controller }: { controller: MobileSessionC
     handlePanelTap,
     openAgentSessionHistory,
     showAgentSessionHistoryAction,
-    showChecksAction
+    showChecksAction,
+    switchSessionTab,
+    sessionRows,
+    sessionsSheetOpen,
+    setSessionsSheetOpen
   } = controller
   const clipboard = useClipboardWriter()
   return (
     <>
+      <MobileSessionsSheet
+        visible={sessionsSheetOpen}
+        rows={sessionRows}
+        showResume={showAgentSessionHistoryAction}
+        onClose={() => setSessionsSheetOpen(false)}
+        onSelect={switchSessionTab}
+        onNewTab={() => setShowCreateTabDrawer(true)}
+        onResume={openAgentSessionHistory}
+      />
       <MobileSessionHeaderMoreActionsSheet
         visible={showHeaderMoreActions}
         showAgentSessionHistory={showAgentSessionHistoryAction}

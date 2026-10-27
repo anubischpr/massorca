@@ -30,6 +30,7 @@ import { useMobileSessionCloseActions } from './use-mobile-session-close-actions
 import { useMobileSessionBulkClose } from './use-mobile-session-bulk-close'
 import { useMobileSessionPresentation } from './use-mobile-session-presentation'
 import { useMobileSessionPanelRouteActions } from './use-mobile-session-panel-route-actions'
+import { useMobileSessionChatSurfaces } from './use-mobile-session-chat-surfaces'
 
 export function useMobileSessionController() {
   const foundation = useMobileSessionFoundation()
@@ -120,7 +121,11 @@ export function useMobileSessionController() {
     presentation,
     useMobileSessionPanelRouteActions(presentation)
   )
-  return panelRouteActions
+  const chatSurfaces = Object.assign(
+    panelRouteActions,
+    useMobileSessionChatSurfaces(panelRouteActions)
+  )
+  return chatSurfaces
 }
 
 export type MobileSessionController = ReturnType<typeof useMobileSessionController>
