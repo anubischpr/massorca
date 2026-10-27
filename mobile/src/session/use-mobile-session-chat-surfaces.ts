@@ -89,8 +89,7 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     showNativeChat,
     showAgentHistory: showAgentSessionHistoryAction,
     hasSourceControl: !isFolderWorkspaceRoute && !isFloatingWorkspaceRoute,
-    showChecks: showChecksAction,
-    hasPlan: plan !== null
+    showChecks: showChecksAction
   })
 
   const openSessionsSheet = useCallback(() => setSessionsSheetOpen(true), [])

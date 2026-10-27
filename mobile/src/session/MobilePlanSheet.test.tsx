@@ -83,6 +83,16 @@ describe('MobilePlanSheet', () => {
     expect(steps).toEqual(['Read the spec', 'Writing the code', 'Run the tests'])
   })
 
+  it('says no plan exists yet, with no progress bar, when the chat has none', () => {
+    const mounted = mount(null)
+    const texts = mounted.root.findAll((node) => String(node.type) === 'Text').map(textOf)
+    expect(texts).toEqual(expect.arrayContaining(['Plan', 'No plan yet']))
+    expect(texts.some((text) => text.includes('done'))).toBe(false)
+    expect(mounted.root.findAll((node) => node.props.accessibilityRole === 'progressbar')).toEqual(
+      []
+    )
+  })
+
   it('shows the plan explanation above the steps', () => {
     const texts = mount(PLAN)
       .root.findAll((node) => String(node.type) === 'Text')

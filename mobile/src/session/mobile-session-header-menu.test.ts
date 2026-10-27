@@ -5,8 +5,7 @@ const none = {
   showNativeChat: false,
   showAgentHistory: false,
   hasSourceControl: false,
-  showChecks: false,
-  hasPlan: false
+  showChecks: false
 }
 
 describe('resolveMobileSessionHeaderMenu', () => {
@@ -20,20 +19,21 @@ describe('resolveMobileSessionHeaderMenu', () => {
     expect(menu.chat).toEqual({
       sessions: true,
       agentHistory: false,
-      plan: false,
+      plan: true,
       summary: true,
       artifacts: true
     })
     expect(menu.environment).toEqual({ branch: false, checks: false })
   })
 
-  it('shows the plan item only when the chat has a plan', () => {
-    const menu = resolveMobileSessionHeaderMenu({
-      ...none,
-      showNativeChat: true,
-      hasPlan: true
-    })
+  it('offers the plan beside any native chat, so the sheet can say no plan exists yet', () => {
+    const menu = resolveMobileSessionHeaderMenu({ ...none, showNativeChat: true })
     expect(menu.chat.plan).toBe(true)
+  })
+
+  it('never offers the plan without a native chat', () => {
+    const menu = resolveMobileSessionHeaderMenu({ ...none, hasSourceControl: true })
+    expect(menu.chat.plan).toBe(false)
   })
 
   it('keeps the environment items on a git terminal without a chat', () => {

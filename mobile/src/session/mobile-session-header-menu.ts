@@ -7,8 +7,6 @@ export type MobileSessionHeaderMenuInput = {
   hasSourceControl: boolean
   /** The hosted checks action, under the same provider and repo rules as before. */
   showChecks: boolean
-  /** The chat has a plan with at least one step. */
-  hasPlan: boolean
 }
 
 export type MobileSessionHeaderMenu = {
@@ -31,7 +29,7 @@ export function resolveMobileSessionHeaderMenu(
   const chat = {
     sessions: input.showNativeChat,
     agentHistory: !input.showNativeChat && input.showAgentHistory,
-    plan: input.showNativeChat && input.hasPlan,
+    plan: input.showNativeChat,
     summary: input.showNativeChat,
     artifacts: input.showNativeChat
   }
