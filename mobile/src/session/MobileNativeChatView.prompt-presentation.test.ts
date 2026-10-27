@@ -2,6 +2,7 @@ import { createElement, type ComponentProps } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { Pressable } from 'react-native'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+vi.mock('./MobileBackgroundWorkSheet', () => ({ MobileBackgroundWorkSheet: () => null }))
 import { MobileNativeChatView } from './MobileNativeChatView'
 import { useMobileNativeChatPromptPresentation } from './use-mobile-native-chat-prompt-presentation'
 import type { MobileChatPermission } from './mobile-native-chat-permission'

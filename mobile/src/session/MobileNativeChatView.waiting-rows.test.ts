@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, expect, it, vi } from 'vitest'
+vi.mock('./MobileBackgroundWorkSheet', () => ({ MobileBackgroundWorkSheet: () => null }))
 import type { AgentJournalRenderItem } from '../../../src/shared/agent-session-journal-types'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import { MobileNativeChatView } from './MobileNativeChatView'
