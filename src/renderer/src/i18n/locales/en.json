@@ -17994,6 +17994,40 @@
     }
   },
   "components": {
+    "createChat": {
+      "accessAcceptEditsDescription": "Apply file edits without asking. Commands still ask.",
+      "accessAria": "Permissions",
+      "accessDefaultDescription": "Ask before each edit or command.",
+      "accessFullAccessDescription": "Skip permission prompts. Use only in trusted projects.",
+      "accessPlanDescription": "Plan only. No edits or commands run.",
+      "agentAria": "Agent, model and effort",
+      "agentGroup": "Agent",
+      "composerHint": "Enter to create the session · Shift+Enter for a new line",
+      "composerPlaceholder": "Describe the task to start the session…",
+      "defaultModel": "Default model",
+      "effortGroup": "Effort",
+      "emptyHeading": "What do you want to build?",
+      "emptySubheading": "Pick where it runs, the project and the agent, then write the first message to create the session.",
+      "locationAria": "Location",
+      "modelGroup": "Model",
+      "noAgents": "No agents detected yet.",
+      "projectAria": "Project",
+      "projectChipChoose": "Choose a project",
+      "projectChipStandalone": "Standalone chat",
+      "projectNoRepos": "No projects on this location yet.",
+      "projectNone": "Work without a project",
+      "projectlessDescription": "Standalone chat, saved by date in {{directory}}",
+      "projectlessUnavailable": "Only available on this computer",
+      "sendAria": "Create session",
+      "sidebarCreate": "Create",
+      "workspaceAria": "Workspace mode",
+      "workspaceCurrentCheckout": "Current checkout",
+      "workspaceCurrentCheckoutDescription": "Work directly on the open branch",
+      "workspaceNewWorktree": "New worktree",
+      "workspaceNewWorktreeDescription": "Isolated branch created from the base branch",
+      "workspaceNoGit": "No Git",
+      "workspaceNoGitNote": "This folder is not a Git repository, so there is no branch to isolate."
+    },
     "onboarding": {
       "flow": {
         "stepTooltip": {
