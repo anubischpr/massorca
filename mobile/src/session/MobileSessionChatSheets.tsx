@@ -1,3 +1,4 @@
+import { resolveMobileSessionQuickCommandsAction } from './mobile-session-quick-commands-action'
 import { MobileSessionHeaderMoreActionsSheet } from './MobileSessionHeaderMoreActionsSheet'
 import { MobilePlanSheet } from './MobilePlanSheet'
 import { MobileSessionsSheet } from './MobileSessionsSheet'
@@ -26,7 +27,10 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
     recordedFileCount,
     openSummary,
     openArtifacts,
-    openBranch
+    openBranch,
+    quickCommandsSupported,
+    setShowQuickCommands,
+    showToast
   } = controller
   return (
     <>
@@ -54,6 +58,12 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
         onOpenPlan={openPlanSheet}
         onOpenSummary={openSummary}
         onOpenArtifacts={openArtifacts}
+        onOpenQuickCommands={() =>
+          resolveMobileSessionQuickCommandsAction(quickCommandsSupported, {
+            open: () => setShowQuickCommands(true),
+            toast: showToast
+          })
+        }
         onOpenAgentHistory={openAgentSessionHistory}
         onOpenBranch={openBranch}
         onOpenChecks={() => handlePanelTap('pr')}

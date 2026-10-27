@@ -3,6 +3,7 @@ import { saveTerminalTextScale } from '../storage/preferences'
 import { MobileBrowserPane } from '../browser/MobileBrowserPane'
 import { TerminalPaneView } from './TerminalPaneView'
 import { MobileNativeChatOverlay } from './MobileNativeChatOverlay'
+import { MOBILE_CHAT_CHROME_CONTENT_TOP } from './mobile-chat-chrome-layout'
 import { colors } from '../theme/mobile-theme'
 import { styles } from './mobile-session-styles'
 import type { MobileSessionController } from './use-mobile-session-controller'
@@ -17,6 +18,8 @@ export function MobileSessionActiveContent({
   const {
     worktreeId,
     insets,
+    showSessionSwitcherChip,
+    openArtifactViewer,
     connState,
     client,
     terminals,
@@ -239,6 +242,8 @@ export function MobileSessionActiveContent({
         sendSurfaceId={controller.nativeChatScopeKey ?? ''}
         getSendCompletionGeneration={controller.getSendCompletionGeneration}
         keyboardInset={keyboardLift}
+        chromeTopInset={showSessionSwitcherChip ? insets.top + MOBILE_CHAT_CHROME_CONTENT_TOP : 0}
+        onOpenArtifact={openArtifactViewer}
       />
       {toastMessage && (
         <Animated.View pointerEvents="none" style={[styles.toast, toastAnimatedStyle]}>

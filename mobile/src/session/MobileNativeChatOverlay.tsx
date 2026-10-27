@@ -2,6 +2,9 @@ import { useMemo } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { MobileNativeChatView, type MobileNativeChatInputLockReason } from './MobileNativeChatView'
 import { foldMobileNativeChatMessages } from './mobile-native-chat-render-data'
+import { mobileChatTurnArtifactCards } from './mobile-chat-turn-artifacts'
+import { MobileChatTurnArtifacts } from './MobileChatInlineArtifactCard'
+import type { MobileArtifactTarget } from './mobile-chat-artifacts-model'
 import type { MobileNativeChatImageAttachments } from './use-mobile-native-chat-image-attachments'
 import type { MobileNativeChatController } from './use-mobile-native-chat-controller'
 import { useMobileNativeChatStreamingBubble } from './use-mobile-native-chat-streaming-bubble'
@@ -32,6 +35,10 @@ type Props = {
   /** Reads the retained route's focus generation for accepted-send fencing. */
   getSendCompletionGeneration: () => number
   keyboardInset: number
+  /** Space the transcript leaves beneath the floating session controls. */
+  chromeTopInset?: number
+  /** Opens a page a turn wrote or showed, from its inline card. */
+  onOpenArtifact?: (target: MobileArtifactTarget) => void
 }
 
 /** Keeps the terminal mounted underneath chat so its PTY subscription survives
@@ -52,10 +59,30 @@ export function MobileNativeChatOverlay({
   onClearSendError,
   sendSurfaceId,
   getSendCompletionGeneration,
-  keyboardInset
+  keyboardInset,
+  chromeTopInset,
+  onOpenArtifact
 }: Props): React.JSX.Element | null {
   const session = controller.nativeChatSession
   const folded = useMemo(() => foldMobileNativeChatMessages(session.messages), [session.messages])
+  const artifactCards = useMemo(() => mobileChatTurnArtifactCards(folded), [folded])
+  const artifactSource = controller.nativeChatVisualSource
+  const renderTurnArtifacts = useMemo(
+    () =>
+      onOpenArtifact
+        ? (messageId: string) => {
+            const pages = artifactCards.get(messageId)
+            return pages ? (
+              <MobileChatTurnArtifacts
+                pages={pages}
+                source={artifactSource}
+                onOpen={onOpenArtifact}
+              />
+            ) : null
+          }
+        : undefined,
+    [artifactCards, artifactSource, onOpenArtifact]
+  )
   const streaming = useMobileNativeChatStreamingBubble(
     folded,
     controller.nativeChatStreamingText,
@@ -145,6 +172,8 @@ export function MobileNativeChatOverlay({
           onNeedFiles={controller.loadNativeChatFiles}
           sessionOptions={controller.nativeChatSessionOptions}
           keyboardInset={keyboardInset}
+          topInset={chromeTopInset}
+          renderTurnArtifacts={renderTurnArtifacts}
         />
       </MobileNativeChatVisualContext.Provider>
     </View>

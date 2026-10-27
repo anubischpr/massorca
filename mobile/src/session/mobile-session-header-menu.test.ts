@@ -21,7 +21,8 @@ describe('resolveMobileSessionHeaderMenu', () => {
       agentHistory: false,
       plan: true,
       summary: true,
-      artifacts: true
+      artifacts: true,
+      quickCommands: true
     })
     expect(menu.environment).toEqual({ branch: false, checks: false })
   })
@@ -44,7 +45,8 @@ describe('resolveMobileSessionHeaderMenu', () => {
       agentHistory: false,
       plan: false,
       summary: false,
-      artifacts: false
+      artifacts: false,
+      quickCommands: false
     })
     expect(menu.environment).toEqual({ branch: true, checks: false })
   })
@@ -61,7 +63,8 @@ describe('resolveMobileSessionHeaderMenu', () => {
       agentHistory: true,
       plan: false,
       summary: false,
-      artifacts: false
+      artifacts: false,
+      quickCommands: false
     })
   })
 

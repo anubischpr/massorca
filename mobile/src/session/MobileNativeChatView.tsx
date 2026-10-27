@@ -10,7 +10,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
-import { ArrowDown, ChevronsDownUp, ChevronsUpDown } from 'lucide-react-native'
+import { ChevronsDownUp, ChevronsUpDown } from 'lucide-react-native'
 import type { AskAnswerSelection, AskPrompt } from '../../../src/shared/native-chat-ask'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import type {
@@ -44,6 +44,9 @@ import type { MobileChatPermission } from './mobile-native-chat-permission'
 import type { MobileChatQuestion } from './mobile-native-chat-question'
 import type { MobileNativeChatSessionOptionPickersProps } from './MobileNativeChatSessionOptionPickers'
 import { MobileNativeChatMessage } from './MobileNativeChatMessage'
+import { MobileNativeChatLoadEarlier } from './MobileNativeChatLoadEarlier'
+import { MobileNativeChatEmptyCopy } from './MobileNativeChatEmptyCopy'
+import { MobileNativeChatJumpToLatest } from './MobileNativeChatJumpToLatest'
 import type { MobileNativeChatStatus } from './use-mobile-native-chat-session'
 
 /** Why the composer input is locked: the transport is disconnected, or the
@@ -149,6 +152,10 @@ type Props = ComposerTrayProps & {
   /** Pixels to lift the composer by when the soft keyboard is open. The route
    *  owns keyboard tracking (the app uses manual lift, not KeyboardAvoidingView). */
   keyboardInset?: number
+  /** Space above the first message, for floating controls the transcript runs beneath. */
+  topInset?: number
+  /** The inline cards a turn's last message carries; the overlay supplies them. */
+  renderTurnArtifacts?: (messageId: string) => React.ReactNode
 }
 
 export function MobileNativeChatView({
@@ -210,7 +217,9 @@ export function MobileNativeChatView({
   onRespondPermission,
   composerTray: { content: trayContent, composerInputRef: inputRef } = NO_COMPOSER_TRAY,
   onOpenFile,
-  keyboardInset = 0
+  keyboardInset = 0,
+  topInset = 0,
+  renderTurnArtifacts
 }: Props): React.JSX.Element {
   const insets = useSafeAreaInsets()
   const [toolsExpanded, setToolsExpanded] = useState(false)
@@ -301,18 +310,30 @@ export function MobileNativeChatView({
   })
 
   const renderItem = useCallback(
-    ({ item, index }: { item: NativeChatMessage; index: number }) => (
-      <MobileNativeChatMessage
-        message={item}
-        toolsExpanded={toolsExpanded}
-        fontScale={fontScale}
-        onOpenFile={onOpenFile}
-        structuredActivityUi={structuredActivityUi}
-        onToggleTurn={turns.onToggleTurn}
-        {...turns.resolveRow(index, item)}
-      />
-    ),
-    [toolsExpanded, fontScale, onOpenFile, structuredActivityUi, turns]
+    ({ item, index }: { item: NativeChatMessage; index: number }) => {
+      const message = (
+        <MobileNativeChatMessage
+          message={item}
+          toolsExpanded={toolsExpanded}
+          fontScale={fontScale}
+          onOpenFile={onOpenFile}
+          structuredActivityUi={structuredActivityUi}
+          onToggleTurn={turns.onToggleTurn}
+          {...turns.resolveRow(index, item)}
+        />
+      )
+      // Only a turn that wrote a page adds a sibling; every other row stays the message itself.
+      const artifacts = renderTurnArtifacts?.(item.id)
+      return artifacts ? (
+        <>
+          {message}
+          {artifacts}
+        </>
+      ) : (
+        message
+      )
+    },
+    [toolsExpanded, fontScale, onOpenFile, structuredActivityUi, turns, renderTurnArtifacts]
   )
 
   const liveStatus = turns.liveLine ? (
@@ -333,10 +354,7 @@ export function MobileNativeChatView({
   const expandedPromptOwnsSend =
     !structuredActivityUi && !collapsedPrompt && (ask ?? permission ?? question) != null
   const emptyStateView = emptyState ? (
-    <View style={styles.center}>
-      <Text style={styles.emptyTitle}>{emptyState.title}</Text>
-      <Text style={styles.emptySubtitle}>{emptyState.subtitle}</Text>
-    </View>
+    <MobileNativeChatEmptyCopy title={emptyState.title} subtitle={emptyState.subtitle} />
   ) : null
 
   // Whatever was already on screen: nothing here can act on a chat that cannot load, and its words
@@ -359,7 +377,7 @@ export function MobileNativeChatView({
               data={turns.listMessages}
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
-              contentContainerStyle={styles.listContent}
+              contentContainerStyle={[styles.listContent, { paddingTop: topInset }]}
               {...listScrollProps}
               onScroll={onScroll}
               onScrollBeginDrag={beginUserScroll}
@@ -370,17 +388,10 @@ export function MobileNativeChatView({
               onLayout={pinToTail}
               ListHeaderComponent={
                 hasMore ? (
-                  <Pressable
-                    style={styles.loadEarlier}
+                  <MobileNativeChatLoadEarlier
+                    loading={loadingEarlier === true}
                     onPress={loadEarlier}
-                    disabled={loadingEarlier}
-                  >
-                    {loadingEarlier ? (
-                      <ActivityIndicator size="small" color={colors.textMuted} />
-                    ) : (
-                      <Text style={styles.loadEarlierText}>Load earlier messages</Text>
-                    )}
-                  </Pressable>
+                  />
                 ) : null
               }
               ListFooterComponent={mobileNativeChatListFooter(
@@ -391,16 +402,7 @@ export function MobileNativeChatView({
               ListEmptyComponent={emptyStateView}
             />
           </GestureDetector>
-          {/* Jump-to-latest control. */}
-          {showJumpToTail ? (
-            <Pressable
-              accessibilityLabel="Scroll to latest"
-              style={[styles.fab, styles.fabBottom]}
-              onPress={jumpToTail}
-            >
-              <ArrowDown size={18} color={colors.textPrimary} strokeWidth={2.2} />
-            </Pressable>
-          ) : null}
+          {showJumpToTail ? <MobileNativeChatJumpToLatest onPress={jumpToTail} /> : null}
         </GestureHandlerRootView>
       )}
       {trayContent}

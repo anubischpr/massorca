@@ -6,7 +6,8 @@ import {
   ListChecks,
   ListTodo,
   MessagesSquare,
-  ScrollText
+  ScrollText,
+  Zap
 } from 'lucide-react-native'
 import { MobileAgentSessionHistoryIcon } from '../agent-history/MobileAgentSessionHistoryIcon'
 import { BottomDrawer } from '../components/BottomDrawer'
@@ -36,6 +37,7 @@ type Props = {
   onOpenPlan: () => void
   onOpenSummary: () => void
   onOpenArtifacts: () => void
+  onOpenQuickCommands: () => void
   onOpenAgentHistory: () => void
   onOpenBranch: () => void
   onOpenChecks: () => void
@@ -54,6 +56,7 @@ export function MobileSessionHeaderMoreActionsSheet({
   onOpenPlan,
   onOpenSummary,
   onOpenArtifacts,
+  onOpenQuickCommands,
   onOpenAgentHistory,
   onOpenBranch,
   onOpenChecks,
@@ -95,6 +98,13 @@ export function MobileSessionHeaderMoreActionsSheet({
       hint: String(recordedFileCount),
       icon: Files,
       onPress: onOpenArtifacts
+    },
+    {
+      show: menu.chat.quickCommands,
+      key: 'quick-commands',
+      label: 'Quick commands',
+      icon: Zap,
+      onPress: onOpenQuickCommands
     },
     {
       show: menu.chat.agentHistory,

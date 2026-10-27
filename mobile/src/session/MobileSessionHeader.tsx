@@ -26,6 +26,7 @@ import {
 import { colors } from '../theme/mobile-theme'
 import { QuickCommandsTabButton } from './QuickCommandsTabButton'
 import { MobileSessionSwitcherChip } from './MobileSessionSwitcherChip'
+import { resolveMobileSessionQuickCommandsAction } from './mobile-session-quick-commands-action'
 import { styles } from './mobile-session-styles'
 import { useKeyboardPersistingTaps } from '../platform/keyboard-persisting-taps'
 import type { MobileSessionController } from './use-mobile-session-controller'
@@ -240,16 +241,10 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
           <QuickCommandsTabButton
             disabled={creating || creatingBrowser || creatingMarkdown || connState !== 'connected'}
             onPress={() => {
-              if (quickCommandsSupported === true) {
-                setShowQuickCommands(true)
-                return
-              }
-              showToast(
-                quickCommandsSupported === false
-                  ? 'Desktop update required for quick commands'
-                  : 'Checking desktop capabilities — try again in a moment',
-                1600
-              )
+              resolveMobileSessionQuickCommandsAction(quickCommandsSupported, {
+                open: () => setShowQuickCommands(true),
+                toast: showToast
+              })
             }}
           />
         </View>
