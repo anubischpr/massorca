@@ -142,7 +142,8 @@ function createChatInNewWorktree(
       linkedIssueNumber: null,
       linkedPR: null
     }),
-    setupDecision: 'inherit',
+    // Why: a repo setup script opens its own terminal tab, and a chat-first create asks for the chat alone.
+    setupDecision: 'skip',
     agent: selection.agent,
     agentLaunchRoute: 'structured-native-chat',
     quickPrompt: draft,

@@ -174,7 +174,7 @@ describe('submitCreateChatDraft', () => {
         repoId: 'repo-1',
         executionHostId: 'local',
         name: 'fix-login',
-        setupDecision: 'inherit',
+        setupDecision: 'skip',
         agent: 'claude',
         agentLaunchRoute: 'structured-native-chat',
         quickPrompt: 'Fix login',
