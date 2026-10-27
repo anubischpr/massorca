@@ -246,7 +246,7 @@ export function MobileNativeChatView({
     endMomentum,
     detachFromTail,
     recordScrollMetrics
-  } = useMobileNativeChatTailFollow<NativeChatMessage>({ hasItems: data.length > 0 })
+  } = useMobileNativeChatTailFollow<NativeChatMessage>({ hasItems: data.length > 0, sendSurfaceId })
 
   const handleSend = useCallback(
     async (text: string): Promise<boolean> => {
@@ -285,7 +285,6 @@ export function MobileNativeChatView({
   // "Worked for N" row. The structured lane owns them; the bridge lane keeps its
   // three-dot indicator.
   // The display status, decided once in the session hook.
-  const stopping = turnIndicator?.stopping === true
   const turns = useMobileNativeChatTurnDisclosure({
     messages: data,
     enabled: structuredActivityUi,
@@ -295,7 +294,7 @@ export function MobileNativeChatView({
     turnJournal,
     thinking: turnIndicator?.thinking === true,
     activityText: turnIndicator?.activityText ?? null,
-    stopping,
+    stopping: turnIndicator?.stopping === true,
     lineYields: structuredActivityUi && (ask != null || permission != null || question != null),
     scopeKey: sendSurfaceId
   })
@@ -355,6 +354,8 @@ export function MobileNativeChatView({
         <GestureHandlerRootView style={styles.listWrap}>
           <GestureDetector gesture={pinchGesture}>
             <FlatList
+              // Why: a tab switch swapped conversations under one list that kept the old row metrics.
+              key={sendSurfaceId}
               ref={listRef}
               data={turns.listMessages}
               keyExtractor={(item) => item.id}

@@ -10,8 +10,11 @@ type Follow = MobileNativeChatTailFollow<string>
 
 let latest: Follow | null = null
 
-function Harness(props: { hasItems: boolean }) {
-  latest = useMobileNativeChatTailFollow<string>({ hasItems: props.hasItems })
+function Harness(props: { hasItems: boolean; scopeKey?: string }) {
+  latest = useMobileNativeChatTailFollow<string>({
+    hasItems: props.hasItems,
+    sendSurfaceId: props.scopeKey ?? 'tab-a'
+  })
   return null
 }
 
@@ -116,6 +119,23 @@ describe('useMobileNativeChatTailFollow', () => {
     expect(scrollToEnd).not.toHaveBeenCalled()
     expect(scrollToOffset).not.toHaveBeenCalled()
     expect(latest!.showJumpToTail).toBe(true)
+  })
+
+  it('follows the tail of a newly opened conversation even after the user left the old one', () => {
+    act(() => latest!.beginUserScroll())
+    act(() => latest!.endMomentum(scrollEvent(200, 2000, 600)))
+    expect(latest!.showJumpToTail).toBe(true)
+    scrollToEnd.mockClear()
+
+    act(() => renderer!.update(createElement(Harness, { hasItems: true, scopeKey: 'tab-b' })))
+    expect(latest!.showJumpToTail).toBe(false)
+    expect(latest!.listScrollProps).not.toHaveProperty('maintainVisibleContentPosition')
+
+    // The fresh list reports the same height the old one was pinned at; it still pins.
+    latest!.pinToTail(layout(600))
+    latest!.pinToTailAfterContentResize(400, 2000)
+    flushFrames()
+    expect(scrollToEnd).toHaveBeenCalledTimes(1)
   })
 
   it('drops a pin queued before the user grabbed the list', () => {
