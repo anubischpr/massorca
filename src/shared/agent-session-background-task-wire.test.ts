@@ -20,6 +20,14 @@ describe('agentSessionBackgroundTasksEqual origin', () => {
     )
   })
 
+  it('sees an exit code change so a settled setup row that finishes differently is not dropped', () => {
+    const settled: AgentSessionBackgroundTask = { ...agentRow, origin: 'orca', state: 'done' }
+    expect(agentSessionBackgroundTasksEqual([settled], [{ ...settled, exitCode: 0 }])).toBe(false)
+    expect(
+      agentSessionBackgroundTasksEqual([{ ...settled, exitCode: 0 }], [{ ...settled, exitCode: 0 }])
+    ).toBe(true)
+  })
+
   it('sees an origin change so a publish that only adds or removes the marker is not dropped', () => {
     const orca: AgentSessionBackgroundTask = { ...agentRow, kind: 'command', origin: 'orca' }
     expect(agentSessionBackgroundTasksEqual([agentRow], [orca])).toBe(false)

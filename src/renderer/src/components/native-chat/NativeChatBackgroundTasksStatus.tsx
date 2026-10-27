@@ -9,6 +9,7 @@ import type { AgentChildWorkView } from '../../../../shared/agent-status-child-w
 import { AgentChildRowContent } from '@/components/AgentChildRowContent'
 import { agentChildRowName } from '@/components/agent-child-row-text'
 import { Button } from '@/components/ui/button'
+import { translate } from '@/i18n/i18n'
 import { useNow } from '@/hooks/use-now'
 import {
   backgroundTasksHeaderText,
@@ -19,11 +20,13 @@ import {
   backgroundTaskRowStopId,
   backgroundTasksStripTicks,
   buildBackgroundTaskGroupsFromViews,
+  mergeBackgroundTaskGroups,
   type BackgroundTaskGroup
 } from '../../../../shared/background-task-roster'
 import { backgroundTasksHeaderContent } from './background-task-header-content'
 import { backgroundTaskGroupLabel, buildBackgroundTaskGroups } from './background-task-roster'
 import { sayBackgroundTaskTranslated as say } from './background-task-words-text'
+import { presentWorktreeSetupGroups } from './worktree-setup-row'
 
 /** Border-box width at the live root font size; no viewport media query, so a
  *  narrow split pane on a wide monitor behaves like a narrow window. */
@@ -79,11 +82,14 @@ function BackgroundTaskRow(props: {
   supportsTaskStop: boolean
   stoppingTaskIds: ReadonlySet<string>
   onStop: (taskId: string) => void
+  onShowOutput?: (taskId: string) => void
 }): React.JSX.Element {
   const { row, now } = props
   const Icon = KIND_ICONS[row.kind]
   const meta = backgroundTaskRowMeta(row, now)
   const stopId = backgroundTaskRowStopId(row, props.supportsTaskStop)
+  // Why: an Orca setup row's output is a terminal Orca holds; this reveals it in the tab strip.
+  const outputId = row.origin === 'orca' ? row.providerId : undefined
   return (
     <>
       <li className="flex h-6 min-w-0 items-center gap-2 text-foreground/80">
@@ -101,6 +107,16 @@ function BackgroundTaskRow(props: {
           <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
             {meta}
           </span>
+        ) : null}
+        {outputId !== undefined && props.onShowOutput ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            onClick={() => props.onShowOutput?.(outputId)}
+          >
+            {translate('components.native-chat.backgroundTasks.showOutput', 'Show output')}
+          </Button>
         ) : null}
         {stopId !== null ? (
           <Button
@@ -127,6 +143,7 @@ function BackgroundTaskRow(props: {
                 supportsTaskStop={props.supportsTaskStop}
                 stoppingTaskIds={props.stoppingTaskIds}
                 onStop={props.onStop}
+                onShowOutput={props.onShowOutput}
               />
             ))}
           </ul>
@@ -162,19 +179,30 @@ export function NativeChatBackgroundTasksStatus(props: {
   expanded: boolean
   onExpandedChange: (expanded: boolean) => void
   onStop: (taskId?: string) => void
+  /** Reveals an Orca setup row's terminal in the tab strip. */
+  onShowOutput?: (taskId: string) => void
 }): React.JSX.Element {
   const expanded = props.expanded
   const taskListId = useId()
   const stripRef = useRef<HTMLDivElement>(null)
   const narrow = useNarrowStrip(stripRef)
   // The 1 Hz elapsed tick must not re-group, re-sort and re-translate the whole roster.
-  const groups: BackgroundTaskGroup[] = useMemo(
-    () =>
-      props.childViews !== undefined
-        ? buildBackgroundTaskGroupsFromViews(props.childViews, props.childRowContext)
-        : buildBackgroundTaskGroups(props.tasks, props.settledTasks),
-    [props.childViews, props.childRowContext, props.tasks, props.settledTasks]
-  )
+  const groups: BackgroundTaskGroup[] = useMemo(() => {
+    if (props.childViews === undefined) {
+      return presentWorktreeSetupGroups(buildBackgroundTaskGroups(props.tasks, props.settledTasks))
+    }
+    // Why: the child views do not carry Orca's setup rows, which ride the legacy lists beside them.
+    const setupGroups = buildBackgroundTaskGroups(
+      props.tasks.filter((task) => task.origin === 'orca'),
+      props.settledTasks.filter((task) => task.origin === 'orca')
+    )
+    return presentWorktreeSetupGroups(
+      mergeBackgroundTaskGroups(
+        buildBackgroundTaskGroupsFromViews(props.childViews, props.childRowContext),
+        setupGroups
+      )
+    )
+  }, [props.childViews, props.childRowContext, props.tasks, props.settledTasks])
   const now = useNow(1_000, props.isVisible && backgroundTasksStripTicks(groups, expanded))
   const header = backgroundTasksHeaderContent(groups, { narrow, now })
   const headerText = backgroundTasksHeaderText(header)
@@ -262,6 +290,7 @@ export function NativeChatBackgroundTasksStatus(props: {
                           supportsTaskStop={props.supportsTaskStop}
                           stoppingTaskIds={props.stoppingTaskIds}
                           onStop={props.onStop}
+                          onShowOutput={props.onShowOutput}
                         />
                       ))}
                     </ul>

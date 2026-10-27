@@ -5,7 +5,11 @@ import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
 import { getSettingsForWorktreeRuntimeOwner } from '@/lib/worktree-runtime-owner'
 import { getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
 import { buildSetupCommand, getSetupTabTitle } from '@/lib/launch-worktree-background-terminals'
-import type { WorktreeSetupLaunch } from '../../../shared/worktree/launch-types'
+import { worktreeSetupPtyIdFromTaskId } from '../../../shared/worktree-setup-row'
+import type {
+  WorktreeDefaultTabsLaunch,
+  WorktreeSetupLaunch
+} from '../../../shared/worktree/launch-types'
 import type { Worktree } from '../../../shared/worktree/types'
 
 /**
@@ -51,20 +55,24 @@ export async function launchWorktreeSetupBackgroundRun(args: {
  * Starts a create-chat worktree's setup hidden and returns the part that stays visible: none. Any
  * other create keeps its setup as the visible terminal it always was.
  */
-export function routeCreateSetup(args: {
+export function routeCreateTerminals(args: {
   presentation: 'chat-background-task' | undefined
   worktree: Worktree
   setup: WorktreeSetupLaunch | undefined
-}): WorktreeSetupLaunch | undefined {
-  if (args.presentation !== 'chat-background-task' || !args.setup) {
-    return args.setup
+  defaultTabs: WorktreeDefaultTabsLaunch | undefined
+}): { setup: WorktreeSetupLaunch | undefined; defaultTabs: WorktreeDefaultTabsLaunch | undefined } {
+  if (args.presentation !== 'chat-background-task') {
+    return { setup: args.setup, defaultTabs: args.defaultTabs }
   }
-  launchWorktreeSetupBackgroundRun({ worktree: args.worktree, setup: args.setup }).catch(
-    (error: unknown) => {
-      console.error('worktree create: hidden setup run failed', args.worktree.id, error)
-    }
-  )
-  return undefined
+  if (args.setup) {
+    launchWorktreeSetupBackgroundRun({ worktree: args.worktree, setup: args.setup }).catch(
+      (error: unknown) => {
+        console.error('worktree create: hidden setup run failed', args.worktree.id, error)
+      }
+    )
+  }
+  // Why: a chat-first create opens the chat alone; the repo's default tabs are not created.
+  return { setup: undefined, defaultTabs: undefined }
 }
 
 /**
@@ -90,4 +98,14 @@ export function revealWorktreeSetupRun(args: { worktreeId: string; ptyId: string
   store.setTabLayout(tab.id, singlePaneLayoutSnapshot(leafId, args.ptyId))
   store.updateTabPtyId(tab.id, args.ptyId)
   return true
+}
+
+/** "Show output" on a setup row: main names the workspace the run belongs to, then it is revealed. */
+export async function revealWorktreeSetupOutput(taskId: string): Promise<boolean> {
+  const ptyId = worktreeSetupPtyIdFromTaskId(taskId)
+  if (ptyId === null) {
+    return false
+  }
+  const { worktreeId } = await window.api.worktreeSetupRuns.worktreeIdFor({ ptyId })
+  return worktreeId !== null && revealWorktreeSetupRun({ worktreeId, ptyId })
 }

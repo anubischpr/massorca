@@ -136,7 +136,16 @@ describe('create-chat opens only the chat tab', () => {
           'repo-1': [...(state.worktreesByRepo['repo-1'] ?? []), created]
         }
       }))
-      return { worktree: created, ...(args[3] === 'run' ? { setup: SETUP_SCRIPT } : {}) }
+      // Why: a repo with default tabs returns them too; a chat-first create must not open them.
+      return {
+        worktree: created,
+        ...(args[3] === 'run'
+          ? {
+              setup: SETUP_SCRIPT,
+              defaultTabs: { tabs: [{ title: 'Server', command: 'pnpm dev' }], runCommands: true }
+            }
+          : {})
+      }
     })
     useAppStore.setState({ createWorktree })
 

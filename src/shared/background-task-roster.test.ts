@@ -8,6 +8,7 @@ import {
   backgroundTaskRowMeta,
   backgroundTaskRowStop,
   backgroundTaskRowStopId,
+  mergeBackgroundTaskGroups,
   backgroundTasksStripTicks,
   buildBackgroundTaskGroups as buildGroups,
   buildBackgroundTaskGroupsFromViews,
@@ -354,6 +355,55 @@ describe('background task row meta and Stop', () => {
     expect(backgroundTaskRowStop(b, true)).toEqual({ kind: 'unavailable', reason: 'row' })
   })
 
+  it('stops an Orca setup row whatever the provider can stop, and never an agent row it cannot', () => {
+    const rows = buildBackgroundTaskGroups(
+      [
+        {
+          id: 'worktree-setup:pty-1',
+          kind: 'command',
+          state: 'working',
+          stoppable: true,
+          origin: 'orca'
+        },
+        agent('a', { stoppable: true })
+      ],
+      []
+    ).flatMap((group) => group.tasks.map((entry) => entry.row))
+    const setup = rows.find((row) => row.origin === 'orca')
+    const child = rows.find((row) => row.origin === undefined)
+    if (!setup || !child) {
+      throw new Error('expected one Orca row and one agent row')
+    }
+    expect(backgroundTaskRowStop(setup, false)).toEqual({
+      kind: 'stop',
+      taskId: 'worktree-setup:pty-1'
+    })
+    expect(backgroundTaskRowStop(setup, undefined)).toEqual({
+      kind: 'stop',
+      taskId: 'worktree-setup:pty-1'
+    })
+    expect(backgroundTaskRowStop(child, false)).toEqual({ kind: 'unavailable', reason: 'provider' })
+  })
+
+  it('draws no Stop on an Orca setup row that the host marked not stoppable', () => {
+    const [group] = buildBackgroundTaskGroups(
+      [
+        {
+          id: 'worktree-setup:pty-1',
+          kind: 'command',
+          state: 'working',
+          stoppable: false,
+          origin: 'orca'
+        }
+      ],
+      []
+    )
+    expect(backgroundTaskRowStop(group.tasks[0].row, true)).toEqual({
+      kind: 'unavailable',
+      reason: 'row'
+    })
+  })
+
   it('draws no Stop from a host that predates the field, or on a settled row', () => {
     const [group] = buildBackgroundTaskGroupsFromViews([
       view('a'),
@@ -363,5 +413,27 @@ describe('background task row meta and Stop', () => {
     expect(backgroundTaskRowStop(a, undefined)).toEqual({ kind: 'none' })
     expect(backgroundTaskRowStop(done, true)).toEqual({ kind: 'none' })
     expect(backgroundTaskRowStop(done, false)).toEqual({ kind: 'none' })
+  })
+})
+
+describe('mergeBackgroundTaskGroups', () => {
+  it("adds one roster's rows to the same kind of another, in the strip order", () => {
+    const views = buildBackgroundTaskGroups([agent('a')], [])
+    const setup = buildBackgroundTaskGroups(
+      [
+        {
+          id: 'worktree-setup:pty-1',
+          kind: 'command',
+          state: 'working',
+          stoppable: true,
+          origin: 'orca'
+        }
+      ],
+      []
+    )
+    const merged = mergeBackgroundTaskGroups(views, setup)
+
+    expect(merged.map((group) => group.kind)).toEqual(['agent', 'command'])
+    expect(merged[1].tasks.map((entry) => entry.row.id)).toEqual(['worktree-setup:pty-1'])
   })
 })

@@ -26,7 +26,7 @@ import { completeWorktreeCreation } from '@/lib/worktree-creation-completion'
 import { showWorktreeCreationReadyToast } from '@/lib/worktree-creation-ready-toast'
 import { mountCreatedWorktreeStartupTabsInBackground } from '@/lib/worktree-creation-background-mount'
 import { ensureWebRuntimeWorktreeTerminalAfterWake } from '@/lib/web-runtime-worktree-terminal-after-wake'
-import { routeCreateSetup } from '@/lib/worktree-setup-background-run'
+import { routeCreateTerminals } from '@/lib/worktree-setup-background-run'
 
 // Why: activePendingCreationId can outlive the terminal route when the user
 // switches app views; only the terminal route renders the creation panel.
@@ -240,15 +240,16 @@ export async function executeWorktreeCreation(
       }
     }
   } else {
-    // Why: a create-chat setup runs hidden here, so the visible terminal seeding below never sees it.
-    const visibleSetup = routeCreateSetup({
+    // Why: a create-chat's setup runs hidden and its default tabs stay closed, so the chat is the only tab.
+    const terminals = routeCreateTerminals({
       presentation: preparedRequest.setupPresentation,
       worktree,
-      setup: result.setup
+      setup: result.setup,
+      defaultTabs: result.defaultTabs
     })
     // Why: backgrounded creates still need explicit setup/issue terminals, but must not activate them.
     const hasExplicitTerminalWork = Boolean(
-      startupOpt || visibleSetup || preparedRequest.issueCommand || result.defaultTabs
+      startupOpt || terminals.setup || preparedRequest.issueCommand || terminals.defaultTabs
     )
     if (preparedRequest.agent === null || hasExplicitTerminalWork) {
       try {
@@ -256,9 +257,9 @@ export async function executeWorktreeCreation(
           useAppStore.getState(),
           worktree.id,
           startupOpt,
-          visibleSetup,
+          terminals.setup,
           preparedRequest.issueCommand,
-          result.defaultTabs,
+          terminals.defaultTabs,
           {
             activateCreatedTabs: false,
             ...(preparedRequest.agent !== null ? { callerProvidesSurface: true } : {}),

@@ -23,8 +23,9 @@ vi.mock('@/runtime/runtime-rpc-client', async (importOriginal) => ({
 
 import {
   launchWorktreeSetupBackgroundRun,
+  revealWorktreeSetupOutput,
   revealWorktreeSetupRun,
-  routeCreateSetup
+  routeCreateTerminals
 } from './worktree-setup-background-run'
 
 const initialAppStoreState = useAppStore.getState()
@@ -47,7 +48,10 @@ beforeEach(() => {
         spawn: vi.fn(async () => ({ id: 'pty-setup' })),
         kill: vi.fn(async () => undefined)
       },
-      worktreeSetupRuns: { register: vi.fn(async () => ({ ok: true })) }
+      worktreeSetupRuns: {
+        register: vi.fn(async () => ({ ok: true })),
+        worktreeIdFor: vi.fn(async () => ({ worktreeId: worktree.id }))
+      }
     }
   })
 })
@@ -103,17 +107,26 @@ describe('launchWorktreeSetupBackgroundRun', () => {
   })
 })
 
-describe('routeCreateSetup', () => {
-  it('hides a create-chat setup and leaves no visible setup for the caller to seed', async () => {
-    const visible = routeCreateSetup({ presentation: 'chat-background-task', worktree, setup })
+describe('routeCreateTerminals', () => {
+  const defaultTabs = { tabs: [{ title: 'Server', command: 'pnpm dev' }], runCommands: true }
 
-    expect(visible).toBeUndefined()
+  it('hides a create-chat setup, skips the default tabs, and leaves nothing visible to seed', async () => {
+    const routed = routeCreateTerminals({
+      presentation: 'chat-background-task',
+      worktree,
+      setup,
+      defaultTabs
+    })
+
+    expect(routed).toEqual({ setup: undefined, defaultTabs: undefined })
     await vi.waitFor(() => expect(window.api.worktreeSetupRuns.register).toHaveBeenCalledOnce())
     expect(terminalTabs()).toHaveLength(0)
   })
 
-  it('keeps the setup visible for any other create', () => {
-    expect(routeCreateSetup({ presentation: undefined, worktree, setup })).toBe(setup)
+  it('keeps the setup and the default tabs visible for any other create', () => {
+    expect(routeCreateTerminals({ presentation: undefined, worktree, setup, defaultTabs })).toEqual(
+      { setup, defaultTabs }
+    )
     expect(window.api.pty.spawn).not.toHaveBeenCalled()
   })
 })
@@ -139,5 +152,21 @@ describe('revealWorktreeSetupRun', () => {
 
     expect(terminalTabs()).toHaveLength(1)
     expect(useAppStore.getState().activeTabIdByWorktree[worktree.id]).toBe(firstTabId)
+  })
+
+  it('reveals a setup row output in the workspace main says its run belongs to', async () => {
+    const revealed = await revealWorktreeSetupOutput('worktree-setup:pty-setup')
+
+    expect(revealed).toBe(true)
+    expect(window.api.worktreeSetupRuns.worktreeIdFor).toHaveBeenCalledWith({
+      ptyId: 'pty-setup'
+    })
+    expect(terminalTabs()).toHaveLength(1)
+    expect(terminalTabs()[0]).toMatchObject({ ptyId: 'pty-setup' })
+  })
+
+  it('reveals nothing for a task that is not a setup run', async () => {
+    expect(await revealWorktreeSetupOutput('agent-task-1')).toBe(false)
+    expect(window.api.worktreeSetupRuns.worktreeIdFor).not.toHaveBeenCalled()
   })
 })

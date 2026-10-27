@@ -37,6 +37,8 @@ export type AgentSessionBackgroundTask = {
   /** Who owns the row. Absent means the agent's provider reported it. `'orca'` marks a row Orca
    *  itself publishes (a create-chat worktree setup run); readers that predate it draw a plain row. */
   origin?: 'orca'
+  /** The exit code of an Orca row whose process finished on its own; absent while it runs or when stopped. */
+  exitCode?: number
 }
 
 export type AgentSessionBackgroundTaskState = {
@@ -75,7 +77,8 @@ function backgroundTaskFieldsEqual(
     left.startedAt === right.startedAt &&
     left.totalTokens === right.totalTokens &&
     left.stoppable === right.stoppable &&
-    left.origin === right.origin
+    left.origin === right.origin &&
+    left.exitCode === right.exitCode
   )
 }
 

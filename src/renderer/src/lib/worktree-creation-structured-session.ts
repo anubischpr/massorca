@@ -152,6 +152,14 @@ export async function launchStructuredWorktreeSession(
       if (launch.sessionId && args.request.structuredSeedPicks) {
         holdStructuredAgentSessionLaunchPicks(launch.sessionId, args.request.structuredSeedPicks)
       }
+      if (launch.sessionId && args.request.setupPresentation === 'chat-background-task') {
+        // Why: the chat roster shows its worktree's hidden setup run; a host-declined chat has no id to bind.
+        window.api.worktreeSetupRuns
+          .bindSession({ worktreeId: args.worktreeId, sessionId: launch.sessionId })
+          .catch((error: unknown) => {
+            console.error('worktree create: binding the setup run to the chat failed', error)
+          })
+      }
     }
   } catch (error) {
     // Why: nothing awaits this creation's caller, so an escaped throw would strand the panel

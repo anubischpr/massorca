@@ -27,6 +27,7 @@ import {
   agentStatusEvidenceObservedAt
 } from './agent-status-freshness'
 import type { AgentStatusEntry, AgentSubagentSnapshot } from './agent-status-types'
+import { worktreeSetupRowFields, type WorktreeSetupRowFields } from './worktree-setup-row'
 
 /** What a child row says beside its name. Surfaces format it; they never decide it. */
 export type AgentChildRowDetail =
@@ -71,7 +72,7 @@ export type AgentChildRowModel = {
   settled: boolean
   /** Work this child owns (a nested agent, a shell it launched), in host order. */
   owned: AgentChildRowModel[]
-}
+} & WorktreeSetupRowFields
 
 export type AgentChildRowContext = {
   /** A stale parent makes every live claim beneath it unverifiable. */
@@ -349,6 +350,7 @@ function legacyTaskRow(task: AgentSessionBackgroundTask, settled: boolean): Agen
     // Absent means stoppable: a host predating the field published only rows its stop could act on.
     canStop: task.stoppable !== false,
     settled,
+    ...worktreeSetupRowFields(task),
     owned: []
   }
 }
