@@ -3,6 +3,7 @@ import type { SessionOptionDescriptor } from '../../../src/shared/native-chat-se
 import {
   mobileAccessChoiceLabel,
   mobileAccessCurrentValue,
+  mobileAccessDescription,
   mobileAccessDescriptorWithLabels,
   mobileAccessDisplay
 } from './mobile-native-chat-access-mode-display'
@@ -44,6 +45,37 @@ describe('mobileAccessChoiceLabel', () => {
 
   it('has no human label for a value it does not know', () => {
     expect(mobileAccessChoiceLabel('something-new')).toBeNull()
+  })
+})
+
+describe('mobileAccessDescription', () => {
+  it.each([
+    ['default', 'Asks before edits and commands'],
+    ['auto', 'Decides on its own what needs approval'],
+    ['accept-edits', 'Edits files freely, asks before commands'],
+    ['plan', 'Plans first, no edits until you approve'],
+    ['read-only', 'Reads only, never edits or runs commands'],
+    ['full-access', 'Never asks. Runs anything.']
+  ])('describes %s', (value, description) => {
+    expect(mobileAccessDescription(value, undefined)).toBe(description)
+  })
+
+  it.each([
+    {
+      inherited: 'full-access' as const,
+      description: 'Uses the global access setting (Full access)'
+    },
+    {
+      inherited: 'default' as const,
+      description: 'Uses the global access setting (Ask for approval)'
+    },
+    { inherited: undefined, description: 'Uses the global access setting' }
+  ])('describes inherit by what it resolves to: $description', ({ inherited, description }) => {
+    expect(mobileAccessDescription('inherit', inherited)).toBe(description)
+  })
+
+  it('has no description for a value it does not know', () => {
+    expect(mobileAccessDescription('something-new', undefined)).toBeNull()
   })
 })
 
@@ -96,18 +128,42 @@ describe('mobileAccessCurrentValue', () => {
 })
 
 describe('mobileAccessDescriptorWithLabels', () => {
-  it('replaces raw mode names with human labels and keeps the rest of the descriptor', () => {
+  it('replaces raw mode names with human labels and one-line descriptions', () => {
     const labelled = mobileAccessDescriptorWithLabels(accessDescriptor('default', 'full-access'))
     expect(labelled.kind).toEqual({
       type: 'select',
       currentValue: 'default',
       choices: [
-        { value: 'inherit', label: 'Inherit global setting' },
-        { value: 'default', label: 'Ask for approval' },
-        { value: 'full-access', label: 'Full access' }
+        {
+          value: 'inherit',
+          label: 'Inherit global setting',
+          description: 'Uses the global access setting (Full access)'
+        },
+        {
+          value: 'default',
+          label: 'Ask for approval',
+          description: 'Asks before edits and commands'
+        },
+        { value: 'full-access', label: 'Full access', description: 'Never asks. Runs anything.' }
       ]
     })
     expect(labelled.inheritedAccess).toBe('full-access')
     expect(labelled.id).toBe('accessMode')
+  })
+
+  it('keeps a choice description the mapping does not cover', () => {
+    const hostDescribed: SessionOptionDescriptor = {
+      ...accessDescriptor('default'),
+      kind: {
+        type: 'select',
+        currentValue: 'default',
+        choices: [{ value: 'something-new', label: 'Something new', description: 'Host text' }]
+      }
+    }
+    expect(mobileAccessDescriptorWithLabels(hostDescribed).kind).toEqual({
+      type: 'select',
+      currentValue: 'default',
+      choices: [{ value: 'something-new', label: 'Something new', description: 'Host text' }]
+    })
   })
 })

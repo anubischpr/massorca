@@ -6,6 +6,7 @@ import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import {
   sessionOptionDispatchUnconfirmed,
   type SessionOptionDescriptor,
+  type SessionOptionSelectChoice,
   type SessionOptionValue
 } from '../../../src/shared/native-chat-session-options'
 import {
@@ -22,8 +23,10 @@ import {
   mobileAccessDescriptorWithLabels,
   mobileAccessDisplay
 } from './mobile-native-chat-access-mode-display'
-import { effortMeterLevel } from './mobile-native-chat-effort-meter'
+import { mobileEffortDescriptorWithDescriptions } from './mobile-native-chat-effort-descriptions'
+import { effortMeterLevel, effortMeterLevelForValue } from './mobile-native-chat-effort-meter'
 import { isMobileFastModeOn } from './mobile-native-chat-fast-mode'
+import { splitModelSheet } from './mobile-native-chat-featured-models'
 import {
   DescriptorRows,
   SessionOptionCaption,
@@ -31,7 +34,9 @@ import {
 } from './MobileNativeChatSessionOptionRows'
 import { MobileNativeChatModelPill } from './MobileNativeChatModelPill'
 import { MobileNativeChatEffortButton } from './MobileNativeChatEffortButton'
+import { MobileNativeChatEffortMeter } from './MobileNativeChatEffortMeter'
 import { MobileNativeChatAccessButton } from './MobileNativeChatAccessButton'
+import { MobileNativeChatAccessIcon } from './MobileNativeChatAccessIcon'
 import { sortNativeChatSessionOptions } from '../../../src/shared/native-chat-session-option-snapshot'
 import type { MobileNativeChatSessionOptionsController } from './use-mobile-native-chat-session-options'
 
@@ -54,6 +59,26 @@ function accessChoiceLabelColor(value: string): string | undefined {
   return value === 'full-access' ? colors.statusRed : undefined
 }
 
+/** The glyph before each sheet row: the effort level's meter, or the access mode's icon. */
+function choiceLeadingFor(
+  descriptor: SessionOptionDescriptor
+): ((choice: SessionOptionSelectChoice) => React.ReactNode) | undefined {
+  if (descriptor.id === 'effort') {
+    return (choice) => (
+      <MobileNativeChatEffortMeter level={effortMeterLevelForValue(descriptor, choice.value)} />
+    )
+  }
+  if (descriptor.id === 'accessMode') {
+    return (choice) => (
+      <MobileNativeChatAccessIcon
+        display={mobileAccessDisplay(choice.value, descriptor.inheritedAccess)}
+        size={20}
+      />
+    )
+  }
+  return undefined
+}
+
 /** Model pill, effort and access buttons, and the bottom sheet each one opens. */
 export function MobileNativeChatSessionOptionPickers({
   controller,
@@ -64,11 +89,14 @@ export function MobileNativeChatSessionOptionPickers({
   const [openDescriptorId, setOpenDescriptorId] = useState<string | null>(null)
   // A sheet opened from the model list returns there; the toolbar sheets close instead.
   const [returnsToModels, setReturnsToModels] = useState(false)
+  // "More models" is a second view of the model sheet, not a sheet of its own.
+  const [inMoreModels, setInMoreModels] = useState(false)
   const [lastRequest, setLastRequest] = useState(controller.optionPickerRequest)
   if (controller.optionPickerRequest && lastRequest !== controller.optionPickerRequest) {
     setLastRequest(controller.optionPickerRequest)
     setOpenDescriptorId(controller.optionPickerRequest.id)
     setReturnsToModels(true)
+    setInMoreModels(false)
   }
   const { snapshot, pendingId } = controller
   const model = snapshot.find((descriptor) => descriptor.category === 'model')
@@ -85,6 +113,12 @@ export function MobileNativeChatSessionOptionPickers({
   const activeDescriptor = snapshot.find((descriptor) => descriptor.id === openDescriptorId)
   const modelView = activeDescriptor?.id === model.id
   const backToModels = activeDescriptor !== undefined && !modelView && returnsToModels
+  // Featured models lead; the rest fold behind "More models" until that view is open.
+  const modelSplit = splitModelSheet(model, agent)
+  const moreModels = modelView && inMoreModels ? modelSplit.more : null
+  const moreView = moreModels !== null
+  const modelRows = moreModels ?? modelSplit.featured
+  const navigatesBack = moreView || backToModels
   const accessSheet = activeDescriptor?.id === 'accessMode'
   const reason = mobileSessionOptionDisabledReason(activeDescriptor?.disabledReason)
   const modelLabel = mobileModelPillLabel(model)
@@ -93,11 +127,25 @@ export function MobileNativeChatSessionOptionPickers({
   const accessValue = access ? mobileAccessCurrentValue(access) : 'inherit'
   const accessLabel = mobileAccessChoiceLabel(accessValue) ?? accessValue
 
-  const closePicker = (): void => setOpenDescriptorId(null)
+  const closePicker = (): void => {
+    setOpenDescriptorId(null)
+    setInMoreModels(false)
+  }
   const openModels = (): void => {
     Keyboard.dismiss()
     setReturnsToModels(false)
+    setInMoreModels(false)
     setOpenDescriptorId(model.id)
+  }
+  const openMoreModels = (): void => setInMoreModels(true)
+  const onSheetNav = (): void => {
+    if (moreView) {
+      setInMoreModels(false)
+    } else if (backToModels) {
+      openModels()
+    } else {
+      closePicker()
+    }
   }
   const openToolbarSheet = (descriptor: SessionOptionDescriptor): void => {
     Keyboard.dismiss()
@@ -133,6 +181,17 @@ export function MobileNativeChatSessionOptionPickers({
     })
   }
 
+  // Access and effort rows gain labels and descriptions; the model sheet shows its current list.
+  const sheetRowsFor = (descriptor: SessionOptionDescriptor): SessionOptionDescriptor => {
+    if (descriptor.id === 'accessMode') {
+      return mobileAccessDescriptorWithLabels(descriptor)
+    }
+    if (descriptor.id === 'effort') {
+      return mobileEffortDescriptorWithDescriptions(descriptor)
+    }
+    return descriptor.id === model.id ? modelRows : descriptor
+  }
+
   return (
     <>
       <MobileNativeChatModelPill
@@ -164,20 +223,24 @@ export function MobileNativeChatSessionOptionPickers({
           <View style={styles.sheet}>
             <View style={styles.sheetHeader}>
               <Pressable
-                accessibilityLabel={backToModels ? 'Back to models' : 'Close picker'}
+                accessibilityLabel={navigatesBack ? 'Back to models' : 'Close picker'}
                 accessibilityRole="button"
                 style={({ pressed }) => [styles.sheetNav, pressed && styles.pressed]}
-                onPress={backToModels ? openModels : closePicker}
+                onPress={onSheetNav}
                 hitSlop={8}
               >
-                {backToModels ? (
+                {navigatesBack ? (
                   <ChevronLeft size={18} color={colors.textSecondary} strokeWidth={2.2} />
                 ) : (
                   <X size={18} color={colors.textSecondary} strokeWidth={2.2} />
                 )}
               </Pressable>
               <Text style={styles.sheetTitle}>
-                {modelView ? 'Select model' : mobileSessionOptionSheetTitle(activeDescriptor)}
+                {modelView
+                  ? moreView
+                    ? 'More models'
+                    : 'Select model'
+                  : mobileSessionOptionSheetTitle(activeDescriptor)}
               </Text>
               <View style={styles.sheetHeaderSide}>
                 {pendingId !== null ? (
@@ -196,20 +259,26 @@ export function MobileNativeChatSessionOptionPickers({
             {reason ? <SessionOptionCaption>{reason}</SessionOptionCaption> : null}
             <View style={styles.choiceGroup}>
               <DescriptorRows
-                descriptor={
-                  accessSheet
-                    ? mobileAccessDescriptorWithLabels(activeDescriptor)
-                    : activeDescriptor
-                }
+                descriptor={sheetRowsFor(activeDescriptor)}
                 disabled={disabled}
                 grouped
                 choiceLabelColor={accessSheet ? accessChoiceLabelColor : undefined}
+                choiceLeading={choiceLeadingFor(activeDescriptor)}
                 onSetOption={(value) => applyOption(activeDescriptor, value)}
                 onInvokeAction={() => invokeAction(activeDescriptor)}
               />
             </View>
-            {modelView && summaryOptions.length > 0 ? (
+            {modelView && !moreView && (modelSplit.moreCount > 0 || summaryOptions.length > 0) ? (
               <View style={styles.optionGroup}>
+                {modelSplit.moreCount > 0 ? (
+                  <SessionOptionSummaryRow
+                    label="More models"
+                    value={String(modelSplit.moreCount)}
+                    disabled={disabled}
+                    divided={summaryOptions.length > 0}
+                    onPress={openMoreModels}
+                  />
+                ) : null}
                 {summaryOptions.map((descriptor, index) => (
                   <SessionOptionSummaryRow
                     key={descriptor.id}

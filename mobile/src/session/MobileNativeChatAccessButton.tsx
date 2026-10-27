@@ -1,25 +1,7 @@
 import { Pressable, StyleSheet } from 'react-native'
-import { Eye, Lock, LockKeyhole, LockOpen, NotebookPen, type LucideIcon } from 'lucide-react-native'
 import { colors } from '../theme/mobile-theme'
-import type {
-  MobileAccessDisplay,
-  MobileAccessIconName,
-  MobileAccessTone
-} from './mobile-native-chat-access-mode-display'
-
-const ICONS: Record<MobileAccessIconName, LucideIcon> = {
-  Lock,
-  LockKeyhole,
-  NotebookPen,
-  Eye,
-  LockOpen
-}
-
-const TONE_COLORS: Record<MobileAccessTone, string> = {
-  neutral: colors.textSecondary,
-  caution: colors.statusAmber,
-  danger: colors.statusRed
-}
+import type { MobileAccessDisplay } from './mobile-native-chat-access-mode-display'
+import { MobileNativeChatAccessIcon } from './MobileNativeChatAccessIcon'
 
 /** Access as a 40pt lock button; its tone and tint name the risk of the mode it runs in. */
 export function MobileNativeChatAccessButton({
@@ -33,7 +15,6 @@ export function MobileNativeChatAccessButton({
   disabled: boolean
   onPress: () => void
 }): React.JSX.Element {
-  const Icon = ICONS[display.icon]
   return (
     <Pressable
       accessibilityLabel={accessibleName}
@@ -48,7 +29,7 @@ export function MobileNativeChatAccessButton({
       onPress={onPress}
       disabled={disabled}
     >
-      <Icon size={20} color={TONE_COLORS[display.tone]} strokeWidth={2} />
+      <MobileNativeChatAccessIcon display={display} size={20} />
     </Pressable>
   )
 }

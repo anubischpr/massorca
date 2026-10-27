@@ -3,6 +3,7 @@ import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SessionOptionDescriptor } from '../../../src/shared/native-chat-session-options'
 import { colors } from '../theme/mobile-theme'
+import { MobileNativeChatEffortMeter } from './MobileNativeChatEffortMeter'
 import { MobileNativeChatSessionOptionPickers } from './MobileNativeChatSessionOptionPickers'
 import type { MobileNativeChatSessionOptionsController } from './use-mobile-native-chat-session-options'
 
@@ -55,6 +56,22 @@ const MODEL_DESCRIPTOR: SessionOptionDescriptor = {
   settable: true
 }
 
+// Claude's list as the CLI reports it: the 5.5 generation, Fable 5.1, and the bare aliases.
+const claudeModels = (currentValue: string): SessionOptionDescriptor => ({
+  ...MODEL_DESCRIPTOR,
+  kind: {
+    type: 'select',
+    currentValue,
+    choices: [
+      { value: 'claude-opus-5-5', label: 'Opus 5.5' },
+      { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5' },
+      { value: 'fable', label: 'Fable 5.1' },
+      { value: 'opus', label: 'Opus' },
+      { value: 'haiku', label: 'Haiku' }
+    ]
+  }
+})
+
 const EFFORT_DESCRIPTOR: SessionOptionDescriptor = {
   id: 'effort',
   label: 'Effort',
@@ -70,6 +87,20 @@ const EFFORT_DESCRIPTOR: SessionOptionDescriptor = {
   valueSource: 'dispatched',
   transport: 'catalog',
   settable: true
+}
+
+const EFFORT_THREE_LEVELS: SessionOptionDescriptor = {
+  ...EFFORT_DESCRIPTOR,
+  kind: {
+    type: 'select',
+    currentValue: 'medium',
+    choices: [
+      { value: 'low', label: 'Low' },
+      { value: 'medium', label: 'Medium' },
+      { value: 'high', label: 'High' }
+    ]
+  },
+  valueSource: 'reported'
 }
 
 const ACCESS_CHOICES = [
@@ -385,5 +416,109 @@ describe('MobileNativeChatSessionOptionPickers', () => {
       (node) => node.type === 'Text' && node.props.children === 'Full access'
     )
     expect(label!.props.style).toEqual(expect.arrayContaining([{ color: colors.statusRed }]))
+  })
+
+  it('leads each effort row with its meter level and says what each level means', async () => {
+    mount([MODEL_DESCRIPTOR, EFFORT_THREE_LEVELS])
+    await act(async () => control('Effort').props.onPress())
+    const levels = renderer!.root
+      .findByType('BottomDrawer')
+      .findAll((node) => node.type === MobileNativeChatEffortMeter)
+      .map((node) => node.props.level)
+    expect(levels).toEqual([2, 3, 5])
+    expect(texts()).toEqual(
+      expect.arrayContaining([
+        'Quick replies, minimal thinking',
+        'Balanced thinking',
+        'Thinks longer before answering'
+      ])
+    )
+  })
+
+  it('draws each access row in its tone and says what each mode does', async () => {
+    mount([MODEL_DESCRIPTOR, accessWith('default')])
+    await act(async () => control('Access').props.onPress())
+    const sheet = renderer!.root.findByType('BottomDrawer')
+    const colorsOf = (glyph: string): unknown[] =>
+      sheet.findAll((node) => node.type === glyph).map((node) => node.props.color)
+    expect(colorsOf('LockOpen')).toEqual([colors.statusAmber, colors.statusRed])
+    expect(colorsOf('Lock')).toEqual([colors.textSecondary, colors.textSecondary])
+    expect(texts()).toEqual(
+      expect.arrayContaining([
+        'Uses the global access setting',
+        'Asks before edits and commands',
+        'Decides on its own what needs approval',
+        'Never asks. Runs anything.'
+      ])
+    )
+  })
+
+  it('describes an inherited access row by the mode it resolves to', async () => {
+    mount([MODEL_DESCRIPTOR, { ...accessWith('default'), inheritedAccess: 'full-access' }])
+    await act(async () => control('Access').props.onPress())
+    expect(texts()).toContain('Uses the global access setting (Full access)')
+  })
+
+  it('lists the featured Claude models and folds the rest behind More models with its count', async () => {
+    mount([claudeModels('claude-sonnet-5-5')], false, 'claude')
+    await act(async () => control('Model').props.onPress())
+    expect(rowByText('Sonnet 5.5').props.accessibilityState).toMatchObject({ checked: true })
+    expect(control('More models').props.accessibilityLabel).toBe('More models, 3')
+    expect(() => rowByText('Fable 5.1')).toThrow('No row labeled Fable 5.1')
+  })
+
+  it('opens More models, picks a folded model there, and applies it', async () => {
+    mount([claudeModels('claude-sonnet-5-5')], false, 'claude')
+    await act(async () => control('Model').props.onPress())
+    await act(async () => control('More models').props.onPress())
+    expect(texts()).toContain('More models')
+    expect(controls('More models')).toHaveLength(0)
+    await act(async () => rowByText('Fable 5.1').props.onPress())
+    expect(setOption).toHaveBeenCalledWith('model', 'fable')
+  })
+
+  it('returns from More models to the featured list with the back control', async () => {
+    mount([claudeModels('claude-sonnet-5-5')], false, 'claude')
+    await act(async () => control('Model').props.onPress())
+    await act(async () => control('More models').props.onPress())
+    await act(async () => control('Back to models').props.onPress())
+    expect(texts()).toContain('Select model')
+    expect(rowByText('Opus 5.5').props.accessibilityRole).toBe('radio')
+  })
+
+  it('keeps the selected folded model featured and counts only the rest under More models', async () => {
+    mount([claudeModels('haiku')], false, 'claude')
+    await act(async () => control('Model').props.onPress())
+    expect(rowByText('Haiku').props.accessibilityState).toMatchObject({ checked: true })
+    expect(control('More models').props.accessibilityLabel).toBe('More models, 2')
+  })
+
+  it('shows every model and no More models row for an agent without a featured rule', async () => {
+    mount([claudeModels('claude-sonnet-5-5')])
+    await act(async () => control('Model').props.onPress())
+    expect(controls('More models')).toHaveLength(0)
+    expect(rowByText('Fable 5.1').props.accessibilityRole).toBe('radio')
+  })
+
+  it('hides More models when every Claude model is featured', async () => {
+    mount(
+      [
+        {
+          ...MODEL_DESCRIPTOR,
+          kind: {
+            type: 'select',
+            currentValue: 'claude-opus-5-5',
+            choices: [
+              { value: 'claude-opus-5-5', label: 'Opus 5.5' },
+              { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5' }
+            ]
+          }
+        }
+      ],
+      false,
+      'claude'
+    )
+    await act(async () => control('Model').props.onPress())
+    expect(controls('More models')).toHaveLength(0)
   })
 })

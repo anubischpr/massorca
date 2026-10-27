@@ -30,6 +30,35 @@ export function mobileAccessChoiceLabel(value: string): string | null {
   }
 }
 
+/** One line on what an access mode does; `inherit` names what it resolves to, when known. */
+export function mobileAccessDescription(
+  value: string,
+  inheritedAccess: SessionOptionDescriptor['inheritedAccess']
+): string | null {
+  switch (value) {
+    case 'inherit': {
+      const resolved = inheritedAccess ? mobileAccessChoiceLabel(inheritedAccess) : null
+      return resolved
+        ? `Uses the global access setting (${resolved})`
+        : 'Uses the global access setting'
+    }
+    case 'default':
+      return 'Asks before edits and commands'
+    case 'auto':
+      return 'Decides on its own what needs approval'
+    case 'accept-edits':
+      return 'Edits files freely, asks before commands'
+    case 'plan':
+      return 'Plans first, no edits until you approve'
+    case 'read-only':
+      return 'Reads only, never edits or runs commands'
+    case 'full-access':
+      return 'Never asks. Runs anything.'
+    default:
+      return null
+  }
+}
+
 /** The access value in effect; a descriptor with no reported choice runs `inherit`, as on desktop. */
 export function mobileAccessCurrentValue(descriptor: SessionOptionDescriptor): string {
   return descriptor.kind.type === 'select' ? (descriptor.kind.currentValue ?? 'inherit') : 'inherit'
@@ -41,6 +70,7 @@ export function mobileAccessDisplay(
   inheritedAccess: SessionOptionDescriptor['inheritedAccess']
 ): MobileAccessDisplay {
   const effective = value === 'inherit' ? inheritedAccess : value
+  // Why: `auto` is every agent's auto-equivalent, so the caution tone needs no per-agent table.
   switch (effective) {
     case 'full-access':
       return { icon: 'LockOpen', tone: 'danger' }
@@ -57,7 +87,7 @@ export function mobileAccessDisplay(
   }
 }
 
-/** The access descriptor with human choice labels, so its sheet rows read like the desktop picker. */
+/** Access descriptor with human labels and one-line descriptions, as on the desktop picker. */
 export function mobileAccessDescriptorWithLabels(
   descriptor: SessionOptionDescriptor
 ): SessionOptionDescriptor {
@@ -70,7 +100,9 @@ export function mobileAccessDescriptorWithLabels(
       ...descriptor.kind,
       choices: descriptor.kind.choices.map((choice) => ({
         ...choice,
-        label: mobileAccessChoiceLabel(choice.value) ?? choice.label
+        label: mobileAccessChoiceLabel(choice.value) ?? choice.label,
+        description:
+          mobileAccessDescription(choice.value, descriptor.inheritedAccess) ?? choice.description
       }))
     }
   }

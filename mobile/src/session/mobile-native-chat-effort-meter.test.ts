@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SessionOptionDescriptor } from '../../../src/shared/native-chat-session-options'
-import { effortMeterLevel } from './mobile-native-chat-effort-meter'
+import { effortMeterLevel, effortMeterLevelForValue } from './mobile-native-chat-effort-meter'
 
 const effort = (
   choiceCount: number,
@@ -48,5 +48,19 @@ describe('effortMeterLevel', () => {
       settable: true
     }
     expect(effortMeterLevel(boolean)).toBe(0)
+  })
+})
+
+describe('effortMeterLevelForValue', () => {
+  it('lights a listed value by its place in the list, selected or not', () => {
+    const descriptor = effort(3, undefined)
+    expect(effortMeterLevelForValue(descriptor, 'level-0')).toBe(2)
+    expect(effortMeterLevelForValue(descriptor, 'level-1')).toBe(3)
+    expect(effortMeterLevelForValue(descriptor, 'level-2')).toBe(5)
+  })
+
+  it('lights no bars for a value the list does not hold, or for no value', () => {
+    expect(effortMeterLevelForValue(effort(3, undefined), 'missing')).toBe(0)
+    expect(effortMeterLevelForValue(effort(3, undefined), undefined)).toBe(0)
   })
 })

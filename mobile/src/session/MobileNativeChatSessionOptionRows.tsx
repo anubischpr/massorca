@@ -7,6 +7,7 @@ import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import {
   sessionOptionValueMarker,
   type SessionOptionDescriptor,
+  type SessionOptionSelectChoice,
   type SessionOptionValueMarker,
   type SessionOptionValue
 } from '../../../src/shared/native-chat-session-options'
@@ -19,6 +20,7 @@ export function SessionOptionCaption({ children }: { children: string }): React.
 function ChoiceRow({
   label,
   description,
+  leading,
   selected,
   disabled,
   grouped,
@@ -28,6 +30,7 @@ function ChoiceRow({
 }: {
   label: string
   description?: string
+  leading?: React.ReactNode
   selected: boolean
   disabled: boolean
   grouped: boolean
@@ -49,6 +52,7 @@ function ChoiceRow({
       onPress={onPress}
       disabled={disabled}
     >
+      {leading ? <View style={styles.leading}>{leading}</View> : null}
       <View style={[styles.radio, selected && styles.radioOn]}>
         {selected ? <Check size={12} color={colors.bgBase} strokeWidth={3} /> : null}
       </View>
@@ -167,6 +171,7 @@ export function DescriptorRows({
   disabled,
   grouped = false,
   choiceLabelColor,
+  choiceLeading,
   onSetOption,
   onInvokeAction
 }: {
@@ -175,6 +180,8 @@ export function DescriptorRows({
   grouped?: boolean
   /** Tints a choice's label, e.g. full access in the danger colour. */
   choiceLabelColor?: (value: string) => string | undefined
+  /** A glyph before each choice's radio: the effort meter level or the access icon. */
+  choiceLeading?: (choice: SessionOptionSelectChoice) => React.ReactNode
   onSetOption: (value: SessionOptionValue) => void
   onInvokeAction: () => void
 }): React.JSX.Element {
@@ -224,6 +231,7 @@ export function DescriptorRows({
           key={choice.value}
           label={choice.label}
           description={choice.description}
+          leading={choiceLeading?.(choice)}
           selected={choice.value === currentValue}
           disabled={locked || choice.disabled === true}
           grouped={grouped}
@@ -277,6 +285,11 @@ const styles = StyleSheet.create({
   },
   rowDisabled: {
     opacity: 0.5
+  },
+  leading: {
+    width: 24,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   radio: {
     width: 18,
