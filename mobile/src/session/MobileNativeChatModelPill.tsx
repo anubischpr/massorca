@@ -5,7 +5,7 @@ import { MobileAgentIcon } from '../components/MobileAgentIcon'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import { isModelPillIconOnly } from './mobile-native-chat-model-pill-width'
 
-/** Model selector: agent icon, model name and chevron. It is the only action-row item that shrinks. */
+/** Model selector: agent icon, model name and chevron. It fills the action row's free space and is the only item that shrinks. */
 export function MobileNativeChatModelPill({
   agent,
   piRuntime,
@@ -56,9 +56,10 @@ export function MobileNativeChatModelPill({
 
 const styles = StyleSheet.create({
   pill: {
+    flexGrow: 1,
     flexShrink: 1,
-    maxWidth: 180,
-    minHeight: 28,
+    minWidth: 0,
+    minHeight: 32,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
@@ -70,7 +71,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgRaised
   },
   label: {
-    flexShrink: 1,
+    flex: 1,
     color: colors.textSecondary,
     fontSize: typography.metaSize,
     fontWeight: '600'
