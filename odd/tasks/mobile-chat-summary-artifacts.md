@@ -42,6 +42,7 @@ sheet, a Summary screen, and an Artifacts list with a read-only viewer.
 - [x] T7 Plan always in the ⋯ menu whenever the native chat is shown; Plan sheet shows a quiet "No plan yet" empty state (feedback from build pv32, writer C)
 - [x] T8 Real previews in the Artifacts list: lazily rendered, cached per path, scaled non-interactive WebView thumbnails for HTML files; glyph fallback for any non-ready state; chat `::orca-visual` lines listed as Pages (writer C)
 - [x] T9 Viewer correctness: HTML isolated and read-only (no in-page navigation, external links only, no file access); tests per viewer kind; commit only if a fix is needed (writer C)
+- [x] T11 Floating status pill above the composer for structured chats: amber dot, "Working", elapsed clock (structured lane only), running terminal and agent counts (hidden at zero), tap opens the background sheet (coordinator request)
 - [x] T10 Chat screen chrome per the approved prototype: floating top controls (back, chat/folder/branch segmented control, ⋯), session switcher chip replaces the tab strip for structured chats, "+ new session" and terminal/panel switching kept reachable, status pill opens the background sheet, inline artifact card after a turn that wrote HTML or a visual; composer toolbar untouched (writer C)
 
 ## Round 2 (device feedback on build pv32)
@@ -72,6 +73,15 @@ Source of truth for the design: the approved prototype `Main.dc.html` in the ses
 - Inline card: after a turn that wrote an HTML page or showed a visual, a card with the thumbnail, name and kind opens the viewer.
 - Not done: the working strip keeps its current style and position above the composer; it was not restyled into the prototype's floating pill.
 - Checks: `pnpm typecheck` exit 0; `pnpm test` on 19 suites (chat view, overlay, surface, menu, chrome segments, turn cards, quick commands, page component): 136 tests pass; oxfmt and oxlint clean. Lint note: `MobileNativeChatView.tsx` is at the 400-line limit, so three pieces moved to their own files (load earlier, empty copy, jump to latest) instead of a disable.
+
+### T11 evidence
+- Route: inline (single writer). Coordinator request after T10.
+- Commit: `d9f9af068df` feat(mobile): restyle the chat's background work strip as a floating status pill.
+- Pill: glass capsule, left-aligned in the composer tray. Counts: terminals = running command and monitor tasks; agents = running agent tasks; other kinds stay in the sheet. Zero counts hidden. Time only on a lane that publishes a turn start, read on the host clock. When the roster stream is lost, the pill reads "Status unavailable" and states no count or clock; the sheet stays reachable.
+- Bottom inset: the pill sits in the tray in flow, above the composer and below the transcript, so the transcript already ends above it and nothing is covered. No inset change was needed.
+- Terminal sessions: unchanged (the strip mounts only on the structured lane).
+- Not changed: the chat's own working indicator on the non-structured lane (`MobileAgentWorkingIndicator`).
+- Checks: `pnpm typecheck` exit 0 (no TS errors); `pnpm test` on mobile-chat-status-pill (11 tests), MobileNativeChatBackgroundTasks (13 tests, four header-only cases removed and the rest moved to the pill label), composer tray (7), and 9 dependent chat and sheet suites (66 tests): all pass; oxfmt and oxlint clean.
 
 Engram mirror `odd/mobile-chat-summary-artifacts/tasks`: saved as a condensed mirror (project resolved by session, not `massorca`); conflict candidate judged not_conflict. The verbatim doc is this file.
 
