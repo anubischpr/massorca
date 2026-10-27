@@ -9,7 +9,10 @@ import {
   isSafeGitRemoteName,
   isSafePushTargetRemoteUrl
 } from '../shared/git-push-target-validation'
-import { isAllowedGhAccountGitConfigWrite } from '../shared/github/gh-account-git-config'
+import {
+  isAllowedGhAccountCloneConfigPair,
+  isAllowedGhAccountGitConfigWrite
+} from '../shared/github/gh-account-git-config'
 
 // Why: only read-only git subcommands are allowed via exec, except for the
 // exact init/empty-commit shapes used by SSH Create Project after the parent
@@ -109,10 +112,19 @@ function isAllowedRemoteWriteInvocation(args: string[]): boolean {
 
 function validateCloneArgs(args: string[]): void {
   // Why: project-host setup needs remote clone, but git.exec must not become a
-  // general write surface. Permit only `git clone [--progress] -- <url> <dir>`.
-  const allowed = args[1] === '--progress' ? args.slice(2) : args.slice(1)
+  // general write surface. Permit only `git clone [--progress] [-c <gh pin>]... -- <url> <dir>`.
+  let allowed = args[1] === '--progress' ? args.slice(2) : args.slice(1)
+  // Why: the GitHub-account pin on a new clone passes exact `-c` pairs before its first fetch.
+  while (allowed[0] === '-c') {
+    if (!isAllowedGhAccountCloneConfigPair(allowed[1] ?? '')) {
+      throw new Error('git clone -c is restricted to the GitHub account pin')
+    }
+    allowed = allowed.slice(2)
+  }
   if (allowed.length !== 3 || allowed[0] !== '--') {
-    throw new Error('git clone via exec is restricted to clone [--progress] -- <url> <dir>')
+    throw new Error(
+      'git clone via exec is restricted to clone [--progress] [-c <gh pin>]... -- <url> <dir>'
+    )
   }
   const targetDir = allowed[2]
   if (

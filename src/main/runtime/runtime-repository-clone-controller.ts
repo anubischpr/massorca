@@ -15,6 +15,7 @@ import {
   getClonePathComparisonKey
 } from '../git/repo-clone-path'
 import { gitSpawnAfterWindowsEnvironmentReady, promptGuardGitEnv } from '../git/runner'
+import { ghAccountCloneConfigArgs } from '../github/gh-account-clone-args'
 import { reuseSavedCloneTarget } from '../git/saved-clone-target'
 import { runWithGitReadCacheInvalidation } from '../git/status'
 import { invalidateAuthorizedRootsCache } from '../ipc/filesystem-auth'
@@ -40,7 +41,8 @@ export class RuntimeRepositoryCloneController {
   async clone(
     url: string,
     destination: string,
-    executionHostId?: ExecutionHostId | null
+    executionHostId?: ExecutionHostId | null,
+    ghAccount?: { host: string; user: string } | null
   ): Promise<Repo> {
     if (!this.deps.getStore()) {
       throw new Error('runtime_unavailable')
@@ -50,6 +52,7 @@ export class RuntimeRepositoryCloneController {
     if (!trimmedDestination) {
       throw new Error('Clone destination is required')
     }
+    const ghAccountArgs = ghAccountCloneConfigArgs(ghAccount)
     const clonePath = deriveValidatedClonePath({ url: trimmedUrl, destination: trimmedDestination })
     const clonePathKey = getClonePathComparisonKey(clonePath)
     const previous = this.inFlightByPath.get(clonePathKey) ?? Promise.resolve()
@@ -70,7 +73,8 @@ export class RuntimeRepositoryCloneController {
           trimmedDestination,
           clonePath,
           clonePathKey,
-          executionHostId
+          executionHostId,
+          ghAccountArgs
         )
       )
     } finally {
@@ -86,7 +90,8 @@ export class RuntimeRepositoryCloneController {
     trimmedDestination: string,
     clonePath: string,
     clonePathKey: string,
-    executionHostId?: ExecutionHostId | null
+    executionHostId: ExecutionHostId | null | undefined,
+    ghAccountArgs: string[]
   ): Promise<Repo> {
     const store = this.deps.getStore()
     if (!store) {
@@ -111,7 +116,7 @@ export class RuntimeRepositoryCloneController {
     let proc: Awaited<ReturnType<typeof gitSpawnAfterWindowsEnvironmentReady>>
     try {
       proc = await gitSpawnAfterWindowsEnvironmentReady(
-        ['clone', '--progress', '--', trimmedUrl, clonePath],
+        ['clone', '--progress', ...ghAccountArgs, '--', trimmedUrl, clonePath],
         {
           cwd: trimmedDestination,
           admissionTier: 'interactive',

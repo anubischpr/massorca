@@ -18,6 +18,7 @@ import { getActiveMultiplexer } from '../ssh'
 import { emitRepoAdded } from './repo-added-telemetry'
 import { addRemoteRepoFromPath } from './remote-repo-registration'
 import { resolveRemoteHomePath } from './remote-home-path'
+import { ghAccountCloneConfigArgs } from '../../github/gh-account-clone-args'
 
 type ActiveRemoteCloneMetadata = {
   connectionId: string
@@ -35,8 +36,10 @@ export async function cloneRemoteRepo(
     connectionId: string
     url: string
     destination: string
+    ghAccount?: { host: string; user: string }
   }
 ): Promise<Repo> {
+  const ghAccountArgs = ghAccountCloneConfigArgs(args.ghAccount)
   const gitProvider = getSshGitProvider(args.connectionId)
   if (!gitProvider) {
     throw new Error(`SSH connection "${args.connectionId}" not found or not connected`)
@@ -95,7 +98,7 @@ export async function cloneRemoteRepo(
     await fsProvider.createDir(trimmedDestination)
     // Why: the SSH relay runs git argv, not a shell; use the repo folder name so git creates it under the chosen parent.
     await gitProvider.clone(
-      ['clone', '--progress', '--', args.url.trim(), repoName],
+      ['clone', '--progress', ...ghAccountArgs, '--', args.url.trim(), repoName],
       trimmedDestination,
       {
         signal: controller.signal,

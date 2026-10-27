@@ -6431,6 +6431,17 @@
           "5d1c9f0a82": "Cancel",
           "3b7e4a1c96": "Hide external worktrees"
         },
+        "AddRepoGhAccountPicker": {
+          "label": "GitHub account",
+          "auto": "Automatic (from the remote URL)",
+          "none": "None (ambient gh login)",
+          "inferred": "Will use {{user}}.",
+          "lookup": "Checks which of your accounts belongs to this owner when you clone; pick one here if the repository is private."
+        },
+        "useAddRepoGhAccount": {
+          "chooseAccount": "Choose which GitHub account {{project}} uses in Settings → Projects → GitHub Account.",
+          "bindFailed": "Project added, but its GitHub account could not be set: {{message}}"
+        },
         "useAddRepoHostSelection": {
           "connectionFailed": "SSH connection failed."
         },

@@ -1,5 +1,7 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react'
 import { CloneStep } from './AddRepoCloneStep'
+import { AddRepoGhAccountPicker } from './AddRepoGhAccountPicker'
+import type { useAddRepoGhAccount } from './use-add-repo-gh-account'
 import { RemoteStep } from './AddRepoRemoteStep'
 import { CreateStep } from './AddRepoCreateStep'
 import { AddRepoLocalStartStep } from './AddRepoStartSteps'
@@ -44,6 +46,7 @@ type AddRepoDialogStepContentProps = {
   createError: string | null
   isCreating: boolean
   hostSelector?: ReactNode
+  ghAccount?: ReturnType<typeof useAddRepoGhAccount>
   showRemoteAction?: boolean
   canCreateProject?: boolean
   actionsDisabled?: boolean
@@ -114,6 +117,7 @@ export function AddRepoDialogStepContent({
   createError,
   isCreating,
   hostSelector,
+  ghAccount,
   showRemoteAction = true,
   canCreateProject = true,
   actionsDisabled = false,
@@ -228,6 +232,9 @@ export function AddRepoDialogStepContent({
         onPickDestination={onPickCloneDestination}
         onClone={onClone}
         submitDisabled={actionsDisabled}
+        accountPicker={
+          ghAccount ? <AddRepoGhAccountPicker ghAccount={ghAccount} cloneUrl={cloneUrl} /> : null
+        }
       />
     )
   }

@@ -34,6 +34,9 @@ type GitHubRepositoryQueryCommandName =
   | 'validateGitHubAccountBinding'
   | 'applyGitHubAccountGitConfig'
   | 'readGitHubAccountGitConfig'
+  | 'listHostGitHubBindableAccounts'
+  | 'listGitHubAccountOrgs'
+  | 'inferRepoGitHubAccount'
 
 export type RuntimeRepositoryCommandSurface = {
   listProjects: RuntimeProjectHostSetupController['listProjects']
@@ -164,6 +167,9 @@ export function installRuntimeRepositoryCommandSurface(
     validateGitHubAccountBinding: queries.validateGitHubAccountBinding.bind(queries),
     applyGitHubAccountGitConfig: queries.applyGitHubAccountGitConfig.bind(queries),
     readGitHubAccountGitConfig: queries.readGitHubAccountGitConfig.bind(queries),
+    listHostGitHubBindableAccounts: queries.listHostGitHubBindableAccounts.bind(queries),
+    listGitHubAccountOrgs: queries.listGitHubAccountOrgs.bind(queries),
+    inferRepoGitHubAccount: queries.inferRepoGitHubAccount.bind(queries),
     getRepoHooks: hooks.getRepoHooks.bind(hooks),
     checkRepoHooks: hooks.checkRepoHooks.bind(hooks),
     inspectRepoSetupScriptImports: hooks.inspectRepoSetupScriptImports.bind(hooks),

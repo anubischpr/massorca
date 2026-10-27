@@ -26,6 +26,7 @@ import { emitRepoAdded } from './repo-added-telemetry'
 import { notifyReposChanged } from './repos-changed-notification'
 import { runWithClonePathLock } from './clone-path-lock'
 import { abortActiveRemoteClone, cloneRemoteRepo } from './remote-repo-clone'
+import { ghAccountCloneConfigArgs } from '../../github/gh-account-clone-args'
 
 type ActiveCloneMetadata = {
   path: string
@@ -116,9 +117,13 @@ export function registerRepoCloneHandlers(mainWindow: BrowserWindow, store: Stor
 
   ipcMain.handle(
     'repos:clone',
-    async (_event, args: { url: string; destination: string }): Promise<Repo> => {
+    async (
+      _event,
+      args: { url: string; destination: string; ghAccount?: { host: string; user: string } }
+    ): Promise<Repo> => {
       // Why: derive the repo folder name from the URL's last segment, matching default git clone behavior.
       const clonePath = deriveValidatedClonePath(args)
+      const ghAccountArgs = ghAccountCloneConfigArgs(args.ghAccount)
       const clonePathKey = getClonePathComparisonKey(clonePath)
       // Remote projects can share this path string without belonging to this clone host.
       const findSaved = (): Repo | undefined =>
@@ -158,7 +163,7 @@ export function registerRepoCloneHandlers(mainWindow: BrowserWindow, store: Stor
             // Why: use the parent destination as cwd so the runner detects a WSL path and routes through wsl.exe.
             // Why: '--' isolates the URL so a malicious URL can't be read as git flags (command injection).
             proc = await gitSpawnAfterWindowsEnvironmentReady(
-              ['clone', '--progress', '--', args.url, clonePath],
+              ['clone', '--progress', ...ghAccountArgs, '--', args.url, clonePath],
               {
                 cwd: args.destination,
                 admissionTier: 'interactive',
@@ -314,7 +319,12 @@ export function registerRepoCloneHandlers(mainWindow: BrowserWindow, store: Stor
     'repos:cloneRemote',
     async (
       _event,
-      args: { connectionId: string; url: string; destination: string }
+      args: {
+        connectionId: string
+        url: string
+        destination: string
+        ghAccount?: { host: string; user: string }
+      }
     ): Promise<Repo> => {
       const repo = await cloneRemoteRepo(store, mainWindow, args)
       notifyReposChanged(mainWindow)

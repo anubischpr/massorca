@@ -3,6 +3,7 @@ import type {
   GhAccountGitConfigResult,
   GhAccountGitConfigState
 } from '../../shared/github/gh-account-git-config'
+import type { RepoGhAccountInference } from '../../shared/github/gh-account-inference'
 import type { Repo } from '../../shared/repo-types'
 import type { LocalProjectGhExecOptions } from '../project-runtime-git-options'
 import {
@@ -24,6 +25,8 @@ import {
   readRepoGhAccountGitConfig,
   type ApplyGhAccountGitConfigInput
 } from '../github/gh-account-git-config'
+import { inferRepoGhAccount } from '../github/gh-account-repo-inference'
+import { listGhAccountOrgs } from '../github/gh-account-orgs'
 import { getRateLimit } from '../github/rate-limit'
 import { githubHostFromIdentityKey } from '../../shared/github/repository-identity-key'
 import { getWorkItemDetails } from '../github/work-item-details'
@@ -197,5 +200,26 @@ export class RuntimeGitHubRepositoryQueryCommands {
   async readGitHubAccountGitConfig(repoSelector: string): Promise<GhAccountGitConfigState | null> {
     const repo = await this.deps.resolveRepo(repoSelector)
     return readRepoGhAccountGitConfig(repo, this.deps.getLocalGitArgs(repo)[0] ?? {})
+  }
+
+  // Why: used before a repo is registered, so there is no repo-scoped host to resolve.
+  listHostGitHubBindableAccounts(options?: {
+    refreshCapability?: boolean
+  }): Promise<Awaited<ReturnType<typeof listGhAccountBindingInventory>>> {
+    return listGhAccountBindingInventory(
+      {},
+      { refreshCapability: options?.refreshCapability === true }
+    )
+  }
+
+  listGitHubAccountOrgs(
+    accounts: { host: string; user: string }[]
+  ): Promise<Awaited<ReturnType<typeof listGhAccountOrgs>>> {
+    return listGhAccountOrgs(accounts)
+  }
+
+  async inferRepoGitHubAccount(repoSelector: string): Promise<RepoGhAccountInference> {
+    const repo = await this.deps.resolveRepo(repoSelector)
+    return inferRepoGhAccount(repo, this.deps.getLocalGitArgs(repo)[0] ?? {})
   }
 }

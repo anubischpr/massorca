@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, type ReactNode } from 'react'
 import { Folder } from 'lucide-react'
 import { DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -18,6 +18,8 @@ type CloneStepProps = {
   cloneTargetLabel?: string | null
   /** No host resolved yet (its server is still coming up): never clone onto this computer. */
   submitDisabled?: boolean
+  /** GitHub account choice; resolved before the clone so private repos authenticate. */
+  accountPicker?: ReactNode
   onUrlChange: (value: string) => void
   onDestChange: (value: string) => void
   onPickDestination: () => void
@@ -38,7 +40,8 @@ export function CloneStep({
   onDestChange,
   onPickDestination,
   onClone,
-  submitDisabled = false
+  submitDisabled = false,
+  accountPicker
 }: CloneStepProps): React.JSX.Element {
   const [browsingDestination, setBrowsingDestination] = useState(false)
   const isRemoteClone = Boolean(runtimeEnvironmentId || sshTargetId)
@@ -130,6 +133,8 @@ export function CloneStep({
             autoFocus
           />
         </div>
+
+        {accountPicker}
 
         <div className="space-y-1">
           <label className="text-[11px] font-medium text-muted-foreground">

@@ -6228,6 +6228,17 @@
           "5d1c9f0a82": "Cancelar",
           "3b7e4a1c96": "Ocultar worktrees externos"
         },
+        "AddRepoGhAccountPicker": {
+          "label": "Cuenta de GitHub",
+          "auto": "Automática (según la URL remota)",
+          "none": "Ninguna (sesión de gh activa)",
+          "inferred": "Se usará {{user}}.",
+          "lookup": "Al clonar se comprueba cuál de tus cuentas pertenece a este propietario; elige una aquí si el repositorio es privado."
+        },
+        "useAddRepoGhAccount": {
+          "chooseAccount": "Elige qué cuenta de GitHub usa {{project}} en Ajustes → Proyectos → Cuenta de GitHub.",
+          "bindFailed": "El proyecto se agregó, pero no se pudo asignar su cuenta de GitHub: {{message}}"
+        },
         "useAddRepoHostSelection": {
           "connectionFailed": "La conexión SSH falló."
         },

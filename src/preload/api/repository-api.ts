@@ -76,8 +76,17 @@ export type RepositoryApi = {
   pickFolder: () => Promise<string | null>
   pickFolders: () => Promise<string[]>
   pickDirectory: () => Promise<string | null>
-  clone: (args: { url: string; destination: string }) => Promise<Repo>
-  cloneRemote: (args: { connectionId: string; url: string; destination: string }) => Promise<Repo>
+  clone: (args: {
+    url: string
+    destination: string
+    ghAccount?: { host: string; user: string }
+  }) => Promise<Repo>
+  cloneRemote: (args: {
+    connectionId: string
+    url: string
+    destination: string
+    ghAccount?: { host: string; user: string }
+  }) => Promise<Repo>
   createRemote: (args: {
     connectionId: string
     parentPath: string

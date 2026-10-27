@@ -17,7 +17,8 @@ export const RepoCreate = z.object({
 
 export const RepoClone = z.object({
   url: requiredString('Missing clone URL'),
-  destination: requiredString('Missing clone destination')
+  destination: requiredString('Missing clone destination'),
+  ghAccount: z.object({ host: z.string(), user: z.string() }).optional()
 })
 
 export const RepoSetBaseRef = z.object({
