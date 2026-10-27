@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   createInitialHostRouteActionState,
+  hostNewSessionRoute,
   hostNewWorktreeRoute,
   hostNewWorktreeSessionRoute,
   resolveHostRouteActionState,
@@ -9,6 +10,10 @@ import {
 } from './host-route-action-state'
 
 describe('host route action state', () => {
+  it('encodes opaque host ids in the new-session route segment', () => {
+    expect(hostNewSessionRoute('relay/one#50%')).toBe('/h/relay%2Fone%2350%25/new-session')
+  })
+
   it('encodes opaque host ids in the new-worktree route segment', () => {
     expect(hostNewWorktreeRoute('relay/one#50%')).toBe('/h/relay%2Fone%2350%25?action=newWorktree')
   })

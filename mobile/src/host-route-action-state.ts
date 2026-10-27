@@ -3,6 +3,10 @@ export type HostRouteActionState = {
   showNewWorktree: boolean
 }
 
+export function hostNewSessionRoute(hostId: string): `/h/${string}/new-session` {
+  return `/h/${encodeURIComponent(hostId)}/new-session`
+}
+
 export function hostNewWorktreeRoute(hostId: string): `/h/${string}?action=newWorktree` {
   return `/h/${encodeURIComponent(hostId)}?action=newWorktree`
 }
