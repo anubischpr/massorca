@@ -167,3 +167,16 @@ An independent review covered the branch from `7fc898a348f` to the T11 commits. 
 - Viewer opened without a tab param: skipped. `showNativeChat` requires an active tab id (`use-mobile-native-chat-active-resolution.ts`, `activeSessionTab && activeSessionTabId`), and the chat's cards and the ⋯ items exist only while a native chat is shown, so the opener cannot run without a tab.
 
 Checks (mobile/): `pnpm typecheck` exit 0 after each commit. Touched and dependent suites pass; oxfmt and oxlint clean on the changed files. Not verified on a device: the thumbnail limit under real Android memory pressure, the reconnect row's position beneath the chip, and the banner offset.
+
+## Round 4 (pv36 phone QA)
+
+Three units from the QA of build pv36 (`custom/pv27-unified` at `63d8b2ae231` includes this branch).
+
+- [x] T12 Centre the session chip in the floating chat controls. The chip's `alignSelf: flex-start` overrode the row's centring. The chip takes a `centered` prop; the floating controls pass it, and the classic header keeps its start alignment (its only other caller). Commit `3c30457ac29`. Checks: chip and chrome suites pass (8 tests), typecheck exit 0, oxfmt and oxlint clean.
+- [x] T13 Show the working status pill on every chat lane while a turn runs. The bridge (terminal-lane) chat showed "Agent is working" with Tools and Stop; the text is gone, and the pill replaces it: "Working", with no clock (the lane publishes no start), and no counts. Tools and Stop stay in the same row. The pill and the structured strip now share `MobileChatStatusPillView`. Commit `86f3b9bed45`. Not tappable on the bridge lane: that lane publishes no background roster, so there is no sheet to open. Checks: pill, strip and chat-view suites pass (68 tests), typecheck exit 0, oxlint clean. The old `MobileAgentWorkingIndicator` file is removed.
+- [x] T14 Stop the old session chrome flashing on open. `resolveMobileSessionChromeMode` picks the top bar from what is known on the first render: a native chat draws the floating controls, a terminal or document tab draws the classic header, and while the kind is still loading (tabs not loaded, or an agent-session transcript resolving) a neutral Back-only bar draws instead. Commit `0840ea0d652`. Checks: decision table (6 tests) and the surface test pass (15 tests), typecheck exit 0, oxlint clean.
+
+Pre-existing: `src/session/mobile-prompt-controller.test.ts` fails to load with `SyntaxError: Unexpected token 'typeof'`. It fails the same way at `3c30457ac29` with the pre-T13 chat view restored, so T13 did not cause it. Not bisected further back.
+
+Checks (mobile/, this round): `pnpm typecheck` exit 0; oxlint clean on the 20 changed TypeScript files; 17 dependent suites, 137 tests, pass.
+
