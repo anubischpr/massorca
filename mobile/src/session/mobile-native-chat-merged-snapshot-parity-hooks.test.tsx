@@ -78,8 +78,9 @@ vi.mock('../components/ActionSheetModal', () => ({ ActionSheetModal: 'ActionShee
 vi.mock('./MobileNativeChatAsk', () => ({ MobileNativeChatAsk: 'ChatAsk' }))
 vi.mock('./MobileNativeChatPermission', () => ({ MobileNativeChatPermission: 'ChatPermission' }))
 vi.mock('./MobileNativeChatQuestion', () => ({ MobileNativeChatQuestion: 'ChatQuestion' }))
-vi.mock('./MobileAgentWorkingIndicator', () => ({
-  MobileAgentWorkingIndicator: 'WorkingIndicator'
+vi.mock('./MobileChatStatusPillView', () => ({
+  MobileChatStatusPillView: 'WorkingIndicator',
+  MobileBridgeWorkingPill: 'WorkingIndicator'
 }))
 
 const STOP_ROW = `stopped-before-start:orca:${NEVER_OPENED}`

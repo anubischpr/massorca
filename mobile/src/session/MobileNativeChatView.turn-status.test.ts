@@ -61,8 +61,9 @@ vi.mock('./MobileNativeChatAsk', () => ({ MobileNativeChatAsk: 'ChatAsk' }))
 vi.mock('./MobileNativeChatPermission', () => ({ MobileNativeChatPermission: 'ChatPermission' }))
 vi.mock('./MobileNativeChatQuestion', () => ({ MobileNativeChatQuestion: 'ChatQuestion' }))
 vi.mock('../components/ActionSheetModal', () => ({ ActionSheetModal: 'ActionSheetModal' }))
-vi.mock('./MobileAgentWorkingIndicator', () => ({
-  MobileAgentWorkingIndicator: 'WorkingIndicator'
+vi.mock('./MobileChatStatusPillView', () => ({
+  MobileChatStatusPillView: 'WorkingIndicator',
+  MobileBridgeWorkingPill: 'WorkingIndicator'
 }))
 
 // Stand-in composer: exposes the view's `handleSend` through a pressable, which is
@@ -321,7 +322,7 @@ describe('MobileNativeChatView', () => {
       expect(footerProps()).toMatchObject({ activityText: 'Running pnpm test' })
     })
 
-    it('keeps the bridge lane on the three-dot indicator with no turn status', async () => {
+    it('keeps the bridge lane on the status pill with no turn status', async () => {
       const folded = [userTurn('u1', 'go')]
       await render({ messages: folded, folded, agentWorking: true })
       const props = rowProps('u1')

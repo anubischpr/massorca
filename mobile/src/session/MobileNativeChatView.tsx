@@ -35,7 +35,7 @@ import {
 } from './use-mobile-native-chat-input-lease'
 import { MobileNativeChatLiveLine } from './MobileNativeChatLiveLine'
 import { MobileNativeChatStopButton } from './MobileNativeChatStopButton'
-import { MobileAgentWorkingIndicator } from './MobileAgentWorkingIndicator'
+import { MobileBridgeWorkingPill } from './MobileChatStatusPillView'
 import type { PendingNativeChatImage } from './mobile-native-chat-image-attachment'
 import { MobileNativeChatComposer } from './MobileNativeChatComposer'
 import { MobileNativeChatPromptCard } from './MobileNativeChatPromptCard'
@@ -414,7 +414,7 @@ export function MobileNativeChatView({
       />
       <View style={styles.chromeRow}>
         <View style={styles.chromeLeft}>
-          {agentWorking && !structuredActivityUi ? <MobileAgentWorkingIndicator /> : null}
+          {agentWorking && !structuredActivityUi ? <MobileBridgeWorkingPill /> : null}
           <Pressable
             style={({ pressed }) => [styles.chromeToggle, pressed && styles.pressed]}
             onPress={() => setToolsExpanded((v) => !v)}

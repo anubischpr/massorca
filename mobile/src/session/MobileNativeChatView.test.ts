@@ -61,8 +61,9 @@ vi.mock('./MobileNativeChatAsk', () => ({ MobileNativeChatAsk: 'ChatAsk' }))
 vi.mock('./MobileNativeChatPermission', () => ({ MobileNativeChatPermission: 'ChatPermission' }))
 vi.mock('./MobileNativeChatQuestion', () => ({ MobileNativeChatQuestion: 'ChatQuestion' }))
 vi.mock('../components/ActionSheetModal', () => ({ ActionSheetModal: 'ActionSheetModal' }))
-vi.mock('./MobileAgentWorkingIndicator', () => ({
-  MobileAgentWorkingIndicator: 'WorkingIndicator'
+vi.mock('./MobileChatStatusPillView', () => ({
+  MobileChatStatusPillView: 'WorkingIndicator',
+  MobileBridgeWorkingPill: 'WorkingIndicator'
 }))
 
 // Stand-in composer: exposes the view's `handleSend` through a pressable, which is

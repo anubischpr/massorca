@@ -61,7 +61,9 @@ vi.mock('lucide-react-native', () =>
       'Square',
       'X',
       'Check',
-      'CircleHelp'
+      'CircleHelp',
+      'Bot',
+      'SquareTerminal'
     ].map((x) => [x, x])
   )
 )
@@ -69,8 +71,9 @@ vi.mock('../MobileNativeChatMessage', () => ({ MobileNativeChatMessage: 'ChatMes
 vi.mock('../MobileNativeChatVisual', () => ({ useMobileNativeChatVisualRenderer: () => null }))
 vi.mock('../MobileNativeChatLiveLine', () => ({ MobileNativeChatLiveLine: 'LiveStatus' }))
 vi.mock('../MobileNativeChatAsk', () => ({ MobileNativeChatAsk: 'ChatAsk' }))
-vi.mock('../MobileAgentWorkingIndicator', () => ({
-  MobileAgentWorkingIndicator: 'WorkingIndicator'
+vi.mock('../MobileChatStatusPillView', () => ({
+  MobileChatStatusPillView: 'WorkingIndicator',
+  MobileBridgeWorkingPill: 'WorkingIndicator'
 }))
 vi.mock('../MobileNativeChatSessionOptionPickers', () => ({
   MobileNativeChatSessionOptionPickers: 'SessionOptions'
