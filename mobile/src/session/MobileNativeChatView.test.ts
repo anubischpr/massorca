@@ -6,6 +6,7 @@ import { MobileNativeChatView } from './MobileNativeChatView'
 
 const scrollToEnd = vi.hoisted(() => vi.fn())
 const scrollToOffset = vi.hoisted(() => vi.fn())
+const flatListMounts = vi.hoisted(() => ({ count: 0 }))
 
 vi.mock('react-native', async () => {
   const React = await import('react')
@@ -13,6 +14,9 @@ vi.mock('react-native', async () => {
     ActivityIndicator: 'ActivityIndicator',
     FlatList: React.forwardRef((props, ref) => {
       React.useImperativeHandle(ref, () => ({ scrollToEnd, scrollToOffset }), [])
+      React.useEffect(() => {
+        flatListMounts.count += 1
+      }, [])
       return React.createElement('FlatList', props)
     }),
     Pressable: 'Pressable',
@@ -353,6 +357,17 @@ describe('MobileNativeChatView', () => {
     await update({ folded, streaming: 'The tests' })
 
     expect(listIds()).toEqual(['a1', 'streaming'])
+  })
+
+  it('remounts the transcript list per conversation so row measurements never carry over', async () => {
+    flatListMounts.count = 0
+    const folded = [assistantTurn('a1', 'History')]
+    await render({ folded, sendSurfaceId: 'tab-a' })
+    await update({ folded: [...folded, assistantTurn('a2', 'More')], sendSurfaceId: 'tab-a' })
+    expect(flatListMounts.count).toBe(1)
+
+    await update({ folded: [assistantTurn('b1', 'Other tab')], sendSurfaceId: 'tab-b' })
+    expect(flatListMounts.count).toBe(2)
   })
 
   it('keeps rows attached, and anchors visible rows only once the user leaves the tail', async () => {
