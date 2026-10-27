@@ -27,6 +27,11 @@ function todoWrite(callId: string, todos: unknown[]): NativeChatMessage {
   return message(callId, [call('TodoWrite', { todos }, callId)])
 }
 
+/** The result that answers a call, carrying the provider's own error flag. */
+function result(callId: string, output: string, isError: boolean): NativeChatMessage {
+  return message(`${callId}-result`, [{ type: 'tool-result', output, callId, isError }])
+}
+
 const todos = [
   { content: 'Read the spec', status: 'completed', activeForm: 'Reading the spec' },
   { content: 'Write the code', status: 'in_progress', activeForm: 'Writing the code' },
@@ -129,5 +134,54 @@ describe('mobileNativeChatPlan', () => {
   it('counts completed steps against all steps', () => {
     const plan = mobileNativeChatPlan([todoWrite('t1', todos)])
     expect(plan && mobileNativeChatPlanProgress(plan)).toEqual({ done: 1, total: 3 })
+  })
+
+  it('never lets a snapshot whose result errored replace the plan', () => {
+    const plan = mobileNativeChatPlan([
+      todoWrite('t1', todos),
+      message('t2', [call('TodoWrite', { todos: [{ content: 'Oops', status: 'pending' }] }, 't2')]),
+      result('t2', 'Todo list rejected', true)
+    ])
+    expect(plan?.tasks.map((task) => task.content)).toEqual([
+      'Read the spec',
+      'Write the code',
+      'Run the tests'
+    ])
+  })
+
+  it('lists nothing for a TaskCreate whose result errored', () => {
+    expect(
+      mobileNativeChatPlan([
+        message('c1', [call('TaskCreate', { subject: 'Rejected step' }, 'c1')]),
+        result('c1', 'Invalid task subject', true)
+      ])
+    ).toBeNull()
+  })
+
+  it('lists a TaskCreate still in flight as pending, with no result to finish it', () => {
+    const plan = mobileNativeChatPlan([
+      message('c1', [call('TaskCreate', { subject: 'Still running' }, 'c1', 'running')])
+    ])
+    expect(plan?.tasks).toEqual([{ content: 'Still running', status: 'pending' }])
+  })
+
+  it('applies a completed TaskUpdate to the task its create named', () => {
+    const plan = mobileNativeChatPlan([
+      message('c1', [call('TaskCreate', { subject: 'Ship it' }, 'c1')]),
+      result('c1', 'Task #4 created successfully: Ship it', false),
+      message('u1', [call('TaskUpdate', { taskId: '4', status: 'completed' }, 'u1')]),
+      result('u1', 'Updated task #4 status', false)
+    ])
+    expect(plan?.tasks).toEqual([{ content: 'Ship it', status: 'completed' }])
+  })
+
+  it('keeps a task at its last status when the update that would change it errored', () => {
+    const plan = mobileNativeChatPlan([
+      message('c1', [call('TaskCreate', { subject: 'Ship it' }, 'c1')]),
+      result('c1', 'Task #4 created successfully: Ship it', false),
+      message('u1', [call('TaskUpdate', { taskId: '4', status: 'completed' }, 'u1')]),
+      result('u1', 'Task not found', true)
+    ])
+    expect(plan?.tasks).toEqual([{ content: 'Ship it', status: 'pending' }])
   })
 })

@@ -15,7 +15,8 @@ import { mobileNativeChatToolResults } from './mobile-native-chat-tool-results'
 
 /** The main agent's plan as last reported, read the way desktop's nativeChatSessionPlan reads its
  *  journal: a TodoWrite or update_plan call, a Codex plan notification, or the list Claude's
- *  TaskCreate/TaskUpdate calls build up. Subagent rows and failed calls never replace it. */
+ *  TaskCreate/TaskUpdate calls build up. Subagent rows, failed calls and errored results never
+ *  replace it. */
 export function mobileNativeChatPlan(
   messages: readonly NativeChatMessage[]
 ): NativeChatTaskList | null {
@@ -31,18 +32,22 @@ export function mobileNativeChatPlan(
       position += 1
       if (block.type === 'tool-call') {
         const callId = block.callId ?? `item:${position}`
+        const result = block.callId === undefined ? undefined : results.get(block.callId)
+        if (block.state === 'failed' || result?.isError === true) {
+          continue
+        }
         if (isNativeChatTaskLedgerTool(block.name)) {
-          if (block.state !== 'failed') {
-            const result = block.callId === undefined ? undefined : results.get(block.callId)
-            observeNativeChatTaskCall(ledger, { callId, name: block.name, input: block.input })
+          observeNativeChatTaskCall(ledger, { callId, name: block.name, input: block.input })
+          // Why: only a result that arrived may settle a create; an in-flight one stays pending.
+          if (result) {
             observeNativeChatTaskResult(ledger, {
               callId,
-              output: result?.output ?? '',
-              isError: false
+              output: result.output,
+              isError: result.isError
             })
           }
           plan = nativeChatTaskLedgerList(ledger) ?? plan
-        } else if (block.state !== 'failed') {
+        } else {
           plan = normalizeNativeChatTaskList(block.name, block.input) ?? plan
         }
         continue
