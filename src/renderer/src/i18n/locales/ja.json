@@ -17815,6 +17815,11 @@
         }
       }
     },
+    "nativeChatSummary": {
+      "loadedResults": "読み込んだチャット履歴に記録されたファイル変更とビジュアル",
+      "noResults": "報告されたファイル変更やビジュアルはありません",
+      "visualKind": "ビジュアル"
+    },
     "native-chat": {
       "reasoning": "推論",
       "contextMenu": {

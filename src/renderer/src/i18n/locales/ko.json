@@ -17815,6 +17815,11 @@
         }
       }
     },
+    "nativeChatSummary": {
+      "loadedResults": "불러온 채팅 기록에 남은 파일 변경과 시각화",
+      "noResults": "보고된 파일 변경이나 시각화가 없습니다",
+      "visualKind": "시각화"
+    },
     "native-chat": {
       "reasoning": "추론",
       "contextMenu": {

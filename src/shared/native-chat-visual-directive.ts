@@ -167,6 +167,38 @@ const FENCE_OPEN = /^ {0,3}(`{3,}(?=[^`]*$)|~{3,})/
 const FENCE_CLOSE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/
 
 /**
+ * The directives a reply's markdown names, in order: lines outside code fences, up to the per-reply
+ * cap the transcript mounts. A directive nested in a list or quote may still count here.
+ */
+export function nativeChatVisualDirectivesInReply(markdown: string): NativeChatVisualDirective[] {
+  if (!markdown.includes(NATIVE_CHAT_VISUAL_DIRECTIVE_MARKER)) {
+    return []
+  }
+  const directives: NativeChatVisualDirective[] = []
+  let fence: string | null = null
+  for (const line of markdown.split('\n')) {
+    const bare = line.replace(/\r$/, '')
+    if (fence) {
+      const closer = FENCE_CLOSE.exec(bare)?.[1]
+      if (closer && closer[0] === fence[0] && closer.length >= fence.length) {
+        fence = null
+      }
+      continue
+    }
+    const opener = FENCE_OPEN.exec(bare)?.[1]
+    if (opener) {
+      fence = opener
+      continue
+    }
+    const directive = parseNativeChatVisualDirectiveLine(line)
+    if (directive) {
+      directives.push(directive)
+    }
+  }
+  return directives.slice(0, NATIVE_CHAT_VISUAL_MAX_PER_MESSAGE)
+}
+
+/**
  * Reply text for plain-text surfaces (a sidebar row, a notification, a copy): the visual lines are
  * dropped, since only the transcript can show them. Lines inside fenced code stay, as the transcript
  * shows them too, and everything else keeps its spacing and indentation.

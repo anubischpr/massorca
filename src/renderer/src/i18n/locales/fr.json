@@ -17881,6 +17881,11 @@
     }
   },
   "components": {
+    "nativeChatSummary": {
+      "loadedResults": "Modifications de fichiers et visuels enregistrées dans l'historique chargé du chat.",
+      "noResults": "Aucune modification de fichier ni visuel signalé.",
+      "visualKind": "Visuel"
+    },
     "native-chat": {
       "reasoning": "Raisonnement",
       "contextMenu": {

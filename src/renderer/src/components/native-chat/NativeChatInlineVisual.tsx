@@ -3,11 +3,11 @@ import { Maximize2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
-import { useAppStore } from '@/store'
 import { NATIVE_CHAT_VISUAL_RESERVED_HEIGHT, NativeChatVisualFrame } from './NativeChatVisualFrame'
 import { observeTranscriptVisibility } from './NativeChatTranscriptChrome'
 import type { NativeChatVisualOwner } from './native-chat-visual-owner'
 import { useNativeChatVisualDocument } from './use-native-chat-visual-document'
+import { useOpenNativeChatVisual } from './use-native-chat-visual-open'
 
 export function NativeChatVisualUnavailable(): React.JSX.Element {
   return (
@@ -35,7 +35,7 @@ export function NativeChatInlineVisual({
   const boxRef = useRef<HTMLDivElement | null>(null)
   const [near, setNear] = useState(false)
   const [retired, setRetired] = useState(false)
-  const openRightSidebarVisual = useAppStore((state) => state.openRightSidebarVisual)
+  const openVisual = useOpenNativeChatVisual(owner)
   const state = useNativeChatVisualDocument(
     { target: owner.target, sessionId: owner.sessionId, file },
     near
@@ -77,17 +77,7 @@ export function NativeChatInlineVisual({
                   variant="outline"
                   size="icon-xs"
                   aria-label={openLabel}
-                  onClick={() =>
-                    openRightSidebarVisual({
-                      target: owner.target,
-                      sessionId: owner.sessionId,
-                      tabId: owner.tabId,
-                      worktreeId: owner.worktreeId,
-                      messageId,
-                      file,
-                      title
-                    })
-                  }
+                  onClick={() => openVisual({ messageId, file, title })}
                 >
                   <Maximize2 />
                 </Button>

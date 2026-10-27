@@ -8,13 +8,15 @@ import type { StructuredAgentContextSummary } from '../../../../shared/structure
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { clearRepoGhAccountGitConfigCache } from '@/lib/repo-gh-account-git-config-cache'
 import { NativeChatSessionSummary } from './NativeChatSessionSummary'
+import { NativeChatVisualOwnerContext } from './native-chat-visual-owner'
 
 const { store, readGitConfig } = vi.hoisted(() => {
   const repos: unknown[] = []
   const settings: unknown = { activeRuntimeEnvironmentId: null }
   const worktreesByRepo: Record<string, unknown[]> = {}
+  const openRightSidebarVisual: (route: unknown) => void = () => {}
   return {
-    store: { repos, settings, worktreesByRepo },
+    store: { repos, settings, worktreesByRepo, openRightSidebarVisual },
     readGitConfig: vi.fn<() => Promise<unknown>>(async () => null)
   }
 })
@@ -464,4 +466,67 @@ it('shows a repo gh.account pin even when no Orca binding is set', async () => {
   render(<NativeChatSessionSummary {...props} fileContext={environmentFileContext} />)
   expect(await screen.findByText('palominoc')).toBeTruthy()
   expect(screen.queryByText('No account bound')).toBeNull()
+})
+
+const visualOwner = {
+  target: { kind: 'environment', environmentId: 'opaque-id' } as const,
+  sessionId: 'session-1',
+  tabId: 'tab-1',
+  worktreeId: 'repo::C:/repos/orca/feature-wt'
+}
+
+it('lists a visual the chat shows in Results and opens it in the sidebar', () => {
+  const openRightSidebarVisual = vi.fn()
+  store.openRightSidebarVisual = openRightSidebarVisual
+  const reply: AgentJournalRenderItem = {
+    itemId: 'reply-1',
+    sequence: 3,
+    revision: 1,
+    observedAt: 30,
+    body: {
+      kind: 'message',
+      role: 'assistant',
+      blocks: [
+        {
+          type: 'text',
+          text: 'Here is the chart.\n\n::orca-visual{file="usage-chart.html" title="Usage by day"}'
+        }
+      ]
+    }
+  }
+  render(
+    <NativeChatVisualOwnerContext.Provider value={visualOwner}>
+      <NativeChatSessionSummary {...props} journalItems={[reply]} />
+    </NativeChatVisualOwnerContext.Provider>
+  )
+  fireEvent.click(screen.getByRole('button', { name: /^Results/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Usage by day/ }))
+  expect(openRightSidebarVisual).toHaveBeenCalledWith({
+    target: visualOwner.target,
+    sessionId: 'session-1',
+    tabId: 'tab-1',
+    worktreeId: visualOwner.worktreeId,
+    messageId: 'reply-1',
+    file: 'usage-chart.html',
+    title: 'Usage by day'
+  })
+})
+
+it('does not list visuals outside a structured chat owner, where no visual can open', () => {
+  store.openRightSidebarVisual = vi.fn()
+  const reply: AgentJournalRenderItem = {
+    itemId: 'reply-1',
+    sequence: 3,
+    revision: 1,
+    observedAt: 30,
+    body: {
+      kind: 'message',
+      role: 'assistant',
+      blocks: [{ type: 'text', text: '::orca-visual{file="usage-chart.html"}' }]
+    }
+  }
+  render(<NativeChatSessionSummary {...props} journalItems={[reply]} />)
+  fireEvent.click(screen.getByRole('button', { name: /^Results/ }))
+  expect(screen.queryByRole('button', { name: /usage-chart/ })).toBeNull()
+  expect(screen.getByText('No file changes or visuals reported.')).toBeTruthy()
 })

@@ -5,6 +5,7 @@ import {
   NATIVE_CHAT_VISUAL_TITLE_MAX_LENGTH,
   isNativeChatVisualFileName,
   isPendingNativeChatVisualDirectiveTail,
+  nativeChatVisualDirectivesInReply,
   parseNativeChatVisualDirectiveLine,
   withoutNativeChatVisualDirectiveLines,
   withoutPendingNativeChatVisualDirectiveTail
@@ -217,5 +218,25 @@ describe('withoutNativeChatVisualDirectiveLines', () => {
     expect(withoutNativeChatVisualDirectiveLines('  plain\n\n\n text  ')).toBe(
       '  plain\n\n\n text  '
     )
+  })
+})
+
+describe('nativeChatVisualDirectivesInReply', () => {
+  it('returns the directive lines outside code fences, in order', () => {
+    const reply = [
+      '::orca-visual{file="one.html" title="One"}',
+      '```',
+      '::orca-visual{file="fenced.html"}',
+      '```',
+      '::orca-visual{file="two.html"}'
+    ].join('\n')
+    expect(nativeChatVisualDirectivesInReply(reply)).toEqual([
+      { file: 'one.html', title: 'One' },
+      { file: 'two.html', title: null }
+    ])
+  })
+
+  it('returns nothing for text without the directive marker', () => {
+    expect(nativeChatVisualDirectivesInReply('plain **markdown**')).toEqual([])
   })
 })

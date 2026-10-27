@@ -37,11 +37,15 @@ import { NativeChatSessionEnvironment } from './NativeChatSessionEnvironment'
 import { NativeChatSessionPlanSection } from './NativeChatSessionPlanSection'
 import { NativeChatSessionSection } from './NativeChatSessionSection'
 import { NativeChatSessionServers } from './NativeChatSessionServers'
+import { NativeChatSessionVisualRow } from './NativeChatSessionVisualRow'
+import { useNativeChatVisualOwner } from './native-chat-visual-owner'
+import { useOpenNativeChatVisual } from './use-native-chat-visual-open'
 import {
   nativeChatSessionConnectors,
   nativeChatSessionPlan,
   nativeChatSessionPlanDocument,
-  nativeChatSessionResultFiles
+  nativeChatSessionResultFiles,
+  nativeChatSessionVisuals
 } from './native-chat-session-summary'
 
 /** Every row in a tree, owned rows included, so running counts cover nested subagents too. */
@@ -86,6 +90,14 @@ export function NativeChatSessionSummary(props: {
     () => nativeChatSessionResultFiles(props.journalItems, workspaceRoot),
     [props.journalItems, workspaceRoot]
   )
+  // Visuals list only under a structured chat's owner, where the transcript can mount them too.
+  const owner = useNativeChatVisualOwner()
+  const openVisual = useOpenNativeChatVisual(owner)
+  const visuals = useMemo(
+    () => (owner ? nativeChatSessionVisuals(props.journalItems) : []),
+    [owner, props.journalItems]
+  )
+  const resultCount = visuals.length + results.length
   const connectors = useMemo(
     () => nativeChatSessionConnectors(props.journalItems),
     [props.journalItems]
@@ -130,7 +142,10 @@ export function NativeChatSessionSummary(props: {
     'components.nativeChatSummary.backgroundUnknown',
     'Background task information is not reported by this provider or host.'
   )
-  const noResults = t('components.nativeChatSummary.noResults', 'No file changes reported.')
+  const noResults = t(
+    'components.nativeChatSummary.noResults',
+    'No file changes or visuals reported.'
+  )
   const connectorUnknown = t(
     'components.nativeChatSummary.connectorUnknown',
     'Current connector status is not reported by this provider or host.'
@@ -142,39 +157,54 @@ export function NativeChatSessionSummary(props: {
     : null
 
   const resultsCompact =
-    results.length === 0 ? (
+    resultCount === 0 ? (
       <p>{noResults}</p>
     ) : (
-      results.slice(0, 3).map((file) => (
-        <p key={file.absolutePath} className="truncate" title={file.absolutePath}>
-          {file.displayPath}
-        </p>
-      ))
+      [
+        ...visuals.map((visual) => (
+          <NativeChatSessionVisualRow key={`visual:${visual.file}`} visual={visual} />
+        )),
+        ...results.map((file) => (
+          <p key={file.absolutePath} className="truncate" title={file.absolutePath}>
+            {file.displayPath}
+          </p>
+        ))
+      ].slice(0, 3)
     )
   const resultsExpanded = (
     <>
       <p className="text-muted-foreground">
         {t(
           'components.nativeChatSummary.loadedResults',
-          'File changes recorded in the loaded chat history.'
+          'File changes and visuals recorded in the loaded chat history.'
         )}
       </p>
-      {results.length === 0 ? (
+      {resultCount === 0 ? (
         <p>{noResults}</p>
       ) : (
-        results.map((file) => (
-          <a
-            key={file.absolutePath}
-            className="block break-words underline"
-            title={file.absolutePath}
-            href={createNativeChatFileHref(file.absolutePath, 'literal')}
-            onClick={(event) =>
-              props.onLinkClick?.(event, createNativeChatFileHref(file.absolutePath, 'literal'))
-            }
-          >
-            {file.displayPath}
-          </a>
-        ))
+        <>
+          {visuals.map((visual) => (
+            <NativeChatSessionVisualRow
+              key={`visual:${visual.file}`}
+              visual={visual}
+              expanded
+              onOpen={openVisual}
+            />
+          ))}
+          {results.map((file) => (
+            <a
+              key={file.absolutePath}
+              className="block break-words underline"
+              title={file.absolutePath}
+              href={createNativeChatFileHref(file.absolutePath, 'literal')}
+              onClick={(event) =>
+                props.onLinkClick?.(event, createNativeChatFileHref(file.absolutePath, 'literal'))
+              }
+            >
+              {file.displayPath}
+            </a>
+          ))}
+        </>
       )}
     </>
   )
@@ -337,7 +367,7 @@ export function NativeChatSessionSummary(props: {
         />
         <NativeChatSessionSection
           title={t('components.nativeChatSummary.results', 'Results')}
-          summary={count(results.length)}
+          summary={count(resultCount)}
           compact={resultsCompact}
         >
           {resultsExpanded}

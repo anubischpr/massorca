@@ -9,6 +9,7 @@ import {
   nativeChatSessionResultFiles,
   nativeChatSessionResults,
   nativeChatSessionServers,
+  nativeChatSessionVisuals,
   workspaceBranchName,
   workspaceFolderName
 } from './native-chat-session-summary'
@@ -380,5 +381,92 @@ describe('selected chat workspace labels', () => {
   it('reads owner/repo from a cached identity key with or without a host', () => {
     expect(githubSlugFromIdentityKey('acme/app')).toBe('acme/app')
     expect(githubSlugFromIdentityKey('ghe.example.com/acme/app')).toBe('acme/app')
+  })
+})
+
+function reply(itemId: string, role: 'user' | 'assistant', text: string): AgentJournalRenderItem {
+  return {
+    itemId,
+    sequence: Number(itemId.replace(/\D/g, '')) || 1,
+    revision: 1,
+    observedAt: 100,
+    body: { kind: 'message', role, blocks: [{ type: 'text', text }] }
+  }
+}
+
+const chart = (file: string, title?: string) =>
+  title ? `::orca-visual{file="${file}" title="${title}"}` : `::orca-visual{file="${file}"}`
+
+describe('chat visuals in Results', () => {
+  it('lists a directive in an assistant reply with its title', () => {
+    expect(
+      nativeChatSessionVisuals([
+        reply('a1', 'assistant', `Here is the chart.\n\n${chart('usage.html', 'Usage by day')}`)
+      ])
+    ).toEqual([{ messageId: 'a1', file: 'usage.html', title: 'Usage by day' }])
+  })
+
+  it('ignores directive text in prompts, tool calls, and fenced code', () => {
+    expect(
+      nativeChatSessionVisuals([
+        reply('u1', 'user', chart('prompt.html')),
+        {
+          itemId: 't1',
+          sequence: 2,
+          revision: 1,
+          observedAt: 100,
+          body: {
+            kind: 'tool-call',
+            name: 'Bash',
+            input: { command: `echo '${chart('tool.html')}'` },
+            state: 'completed'
+          }
+        },
+        reply('a1', 'assistant', ['```html', chart('fenced.html'), '```'].join('\n'))
+      ])
+    ).toEqual([])
+  })
+
+  it('dedupes by file name, newest first, and keeps a title an older reply gave', () => {
+    expect(
+      nativeChatSessionVisuals([
+        reply('a1', 'assistant', chart('a.html', 'Old title')),
+        reply('a2', 'assistant', chart('b.html')),
+        reply('a3', 'assistant', chart('a.html'))
+      ])
+    ).toEqual([
+      { messageId: 'a3', file: 'a.html', title: 'Old title' },
+      { messageId: 'a2', file: 'b.html', title: null }
+    ])
+  })
+
+  it('mounts at most the per-reply cap, as the transcript does', () => {
+    const many = Array.from({ length: 9 }, (_, index) => chart(`v${index}.html`)).join('\n')
+    const files = nativeChatSessionVisuals([reply('a1', 'assistant', many)]).map(
+      (visual) => visual.file
+    )
+    expect(files).toHaveLength(8)
+    expect(files).not.toContain('v8.html')
+  })
+
+  it('leaves file results unchanged by visuals', () => {
+    const write: AgentJournalRenderItem = {
+      itemId: 'w1',
+      sequence: 1,
+      revision: 1,
+      observedAt: 100,
+      body: {
+        kind: 'tool-call',
+        name: 'Write',
+        input: { file_path: 'created.md', content: 'hello' },
+        state: 'completed'
+      }
+    }
+    expect(
+      nativeChatSessionResultFiles(
+        [write, reply('a1', 'assistant', chart('usage.html'))],
+        null
+      ).map((file) => file.absolutePath)
+    ).toEqual(['created.md'])
   })
 })
