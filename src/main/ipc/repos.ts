@@ -7,6 +7,7 @@ import { registerRepoCreationHandlers } from './repos/repo-creation-handlers'
 import { registerProjectGroupHandlers } from './repos/project-group-handlers'
 import { registerFolderWorkspaceHandlers } from './repos/folder-workspace-handlers'
 import { registerProjectlessChatHandlers } from './repos/projectless-chat-handlers'
+import { registerWorktreeSetupRunHandlers } from './worktree-setup-run-handlers'
 import { registerNestedRepoImportHandler } from './repos/nested-repo-import-handler'
 import { registerRepoUpdateHandler } from './repos/repo-update-handler'
 import { registerSparsePresetHandlers } from './repos/sparse-preset-handlers'
@@ -75,6 +76,7 @@ export function registerRepoHandlers(
   registerProjectGroupHandlers(mainWindow, store)
   registerFolderWorkspaceHandlers(mainWindow, store, runtime)
   registerProjectlessChatHandlers(mainWindow, store)
+  registerWorktreeSetupRunHandlers()
   registerNestedRepoImportHandler(mainWindow, store)
   registerRepoUpdateHandler(mainWindow, store)
   registerSparsePresetHandlers(mainWindow, store)

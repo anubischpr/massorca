@@ -66,6 +66,8 @@ export type WorktreeCreationRequest = {
   name: string
   /** True only when `name` came from the creature-name generator; gates host-side retirement. */
   nameWasGenerated?: boolean
+  /** Where the repo setup runs. `chat-background-task`: a hidden terminal the chat roster shows, no tab. */
+  setupPresentation?: 'chat-background-task'
   displayName?: string
   displayNameKind?: 'generated' | 'user'
   baseBranch?: string

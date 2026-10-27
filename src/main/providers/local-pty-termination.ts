@@ -224,10 +224,14 @@ export async function shutdownLocalPty(
   }
 }
 
-export function killOrphanedLocalPtys(currentGeneration: number): { id: string }[] {
+export function killOrphanedLocalPtys(
+  currentGeneration: number,
+  isKept: (id: string) => boolean = () => false
+): { id: string }[] {
   const killed: { id: string }[] = []
   for (const [id, proc] of ptyProcesses) {
-    if ((ptyLoadGeneration.get(id) ?? -1) < currentGeneration) {
+    // Why: a registered setup run has no tab to reattach it after a reload, so it is kept on purpose.
+    if (!isKept(id) && (ptyLoadGeneration.get(id) ?? -1) < currentGeneration) {
       requestPtyTermination(id, proc)
       killed.push({ id })
     }

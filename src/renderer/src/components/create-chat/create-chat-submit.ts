@@ -176,8 +176,9 @@ async function createChatInNewWorktree(
     // Why: a temporary creature name; the first agent message renames the branch and display name.
     name: await temporaryWorkspaceName(repo.repoId),
     nameWasGenerated: true,
-    // Why: a repo setup script opens its own terminal tab, and a chat-first create asks for the chat alone.
-    setupDecision: 'skip',
+    // Why: the repo setup runs in a hidden terminal the chat roster shows; the chat stays the only tab.
+    setupDecision: 'run',
+    setupPresentation: 'chat-background-task',
     agent: selection.agent,
     agentLaunchRoute: 'structured-native-chat',
     quickPrompt: draft,

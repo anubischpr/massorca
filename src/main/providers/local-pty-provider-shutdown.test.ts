@@ -225,6 +225,18 @@ describe('LocalPtyProvider', () => {
       expect(provider.hasPty(id)).toBe(false)
     })
 
+    it('spares a PTY the reload sweep is told to keep, and still sweeps it once it is not kept', async () => {
+      const killSpy = vi.fn()
+      mockProc.kill = killSpy
+      const { id } = await provider.spawn({ cols: 80, rows: 24 })
+
+      expect(provider.killOrphanedPtys(1, (ptyId) => ptyId === id)).toEqual([])
+      expect(provider.hasPty(id)).toBe(true)
+      expect(killSpy).not.toHaveBeenCalled()
+
+      expect(provider.killOrphanedPtys(1)).toEqual([{ id }])
+    })
+
     it('keeps physical-exit tracking when orphan cleanup races immediate shutdown', async () => {
       const killSpy = vi.fn(() => {
         queueMicrotask(() => exitCb?.({ exitCode: 137 }))

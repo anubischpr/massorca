@@ -204,9 +204,12 @@ export class LocalPtyProvider implements IPtyProvider {
 
   // ─── Local-only helpers (not part of IPtyProvider interface) ───────
 
-  /** Kill orphaned PTYs from previous page loads. */
-  killOrphanedPtys(currentGeneration: number): { id: string }[] {
-    return killOrphanedLocalPtys(currentGeneration)
+  /** Kill orphaned PTYs from previous page loads, except those `isKept` names. */
+  killOrphanedPtys(
+    currentGeneration: number,
+    isKept: (id: string) => boolean = () => false
+  ): { id: string }[] {
+    return killOrphanedLocalPtys(currentGeneration, isKept)
   }
 
   /** Advance the load generation counter (called on renderer reload). */

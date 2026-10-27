@@ -26,6 +26,7 @@ import { completeWorktreeCreation } from '@/lib/worktree-creation-completion'
 import { showWorktreeCreationReadyToast } from '@/lib/worktree-creation-ready-toast'
 import { mountCreatedWorktreeStartupTabsInBackground } from '@/lib/worktree-creation-background-mount'
 import { ensureWebRuntimeWorktreeTerminalAfterWake } from '@/lib/web-runtime-worktree-terminal-after-wake'
+import { routeCreateSetup } from '@/lib/worktree-setup-background-run'
 
 // Why: activePendingCreationId can outlive the terminal route when the user
 // switches app views; only the terminal route renders the creation panel.
@@ -239,9 +240,15 @@ export async function executeWorktreeCreation(
       }
     }
   } else {
+    // Why: a create-chat setup runs hidden here, so the visible terminal seeding below never sees it.
+    const visibleSetup = routeCreateSetup({
+      presentation: preparedRequest.setupPresentation,
+      worktree,
+      setup: result.setup
+    })
     // Why: backgrounded creates still need explicit setup/issue terminals, but must not activate them.
     const hasExplicitTerminalWork = Boolean(
-      startupOpt || result.setup || preparedRequest.issueCommand || result.defaultTabs
+      startupOpt || visibleSetup || preparedRequest.issueCommand || result.defaultTabs
     )
     if (preparedRequest.agent === null || hasExplicitTerminalWork) {
       try {
@@ -249,7 +256,7 @@ export async function executeWorktreeCreation(
           useAppStore.getState(),
           worktree.id,
           startupOpt,
-          result.setup,
+          visibleSetup,
           preparedRequest.issueCommand,
           result.defaultTabs,
           {

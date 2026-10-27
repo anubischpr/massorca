@@ -40,7 +40,7 @@ type BackgroundTerminalLaunch = {
   color?: string
 }
 
-function getSetupTabTitle(): string {
+export function getSetupTabTitle(): string {
   return translate('auto.lib.launch.worktree.background.terminals.setupTitle', 'Setup')
 }
 
@@ -97,7 +97,7 @@ function buildSplitLayout(
   }
 }
 
-function buildSetupCommand(setup: WorktreeSetupLaunch): string {
+export function buildSetupCommand(setup: WorktreeSetupLaunch): string {
   // Why: background setup tabs can launch later, so they must reuse the same shell chosen when the runner was written.
   return buildSetupRunnerCommand(
     setup.runnerScriptPath,

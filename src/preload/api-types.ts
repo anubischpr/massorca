@@ -66,6 +66,7 @@ import type { LocalhostWorktreeLabelsApi, WorkspacePortsApi } from './api/worksp
 import type { WorkspaceSessionApi } from './api/workspace-session-api'
 import type { FolderWorkspacesApi, SparsePresetsApi, WorktreeApi } from './api/worktree-api'
 import type { ProjectlessChatsApi } from './api/projectless-chats-api'
+import type { WorktreeSetupRunsApi } from './api/worktree-setup-runs-api'
 
 // Flattens contracts that share one PreloadApi key: an intersection is not type-identical to the flat shape.
 type Merged<T> = { [K in keyof T]: T[K] }
@@ -80,6 +81,7 @@ export type PreloadApi = {
   projectGroups: ProjectGroupsApi
   folderWorkspaces: FolderWorkspacesApi
   projectlessChats: ProjectlessChatsApi
+  worktreeSetupRuns: WorktreeSetupRunsApi
   sparsePresets: SparsePresetsApi
   worktrees: WorktreeApi
   workspaceCleanup: WorkspaceCleanupApi
