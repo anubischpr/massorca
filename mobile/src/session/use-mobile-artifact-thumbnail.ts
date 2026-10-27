@@ -1,20 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { artifactThumbnailLimiter } from './mobile-artifact-read-limiter'
+import { artifactPreviewSlots } from './mobile-artifact-preview-slots'
 import { viewerKindOf, type MobileArtifactTarget } from './mobile-chat-artifacts-model'
+import type { MobileChatSurfaceRecordedSource } from './mobile-chat-surface-snapshot'
 import {
   cachedMobileNativeChatVisual,
   readMobileNativeChatVisual,
   type MobileNativeChatVisualSource
 } from './mobile-native-chat-visual-read'
 import { cachedRecordedFileContent, readRecordedFilePreview } from './mobile-recorded-file-cache'
-import type { MobileChatSurfaceRecordedSource } from './mobile-chat-surface-snapshot'
+import { rpcClientKey } from './mobile-rpc-client-key'
 
-/** What a page's tile shows: its HTML once read, or the glyph when there is nothing to draw. */
-export type ArtifactThumbnailState =
-  | { kind: 'idle' }
-  | { kind: 'loading' }
-  | { kind: 'page'; html: string }
-  | { kind: 'glyph' }
+/** What a page's tile shows: its live HTML, or the glyph when there is nothing to draw now. */
+export type ArtifactThumbnailState = { kind: 'page'; html: string } | { kind: 'glyph' }
+
+const GLYPH: ArtifactThumbnailState = { kind: 'glyph' }
 
 /** Only HTML and SVG pages thumbnail; Markdown and source keep their glyph. */
 function isThumbnailable(target: MobileArtifactTarget): boolean {
@@ -31,6 +31,8 @@ function cachedHtml(
   return cachedRecordedFileContent(source, target.path)
 }
 
+/** A fresh read: a visual is always asked of the host, and a recorded file is revalidated, so a
+ *  later turn's edit reaches the thumbnail. Null when the host gave no answer for it. */
 function readHtml(
   source: MobileNativeChatVisualSource,
   target: MobileArtifactTarget
@@ -40,24 +42,17 @@ function readHtml(
       read.kind === 'ready' ? read.html : null
     )
   }
-  return readRecordedFilePreview(source, target.path)
-}
-
-function initialState(
-  source: MobileChatSurfaceRecordedSource | null,
-  target: MobileArtifactTarget
-): ArtifactThumbnailState {
-  if (!source || !isThumbnailable(target)) {
-    return { kind: 'glyph' }
-  }
-  const html = cachedHtml(source, target)
-  return html === null ? { kind: 'idle' } : { kind: 'page', html }
+  return readRecordedFilePreview(source, target.path, { revalidate: true })
 }
 
 /**
- * A page's thumbnail HTML. Reads start only while `active` (the tile is near the list), go through
- * a shared limiter, and settle once: a page that cannot be read keeps its glyph until the list
- * remounts it, so a host that refuses it is not asked in a loop.
+ * A page's thumbnail. The cached copy paints first; the host is asked once per mount and per source
+ * (so a session that reconnects is asked again) and the answer replaces the copy. A page the host
+ * cannot answer for keeps its last copy. A live WebView is drawn only while the page is near the
+ * list and holds one of the few preview slots; otherwise the glyph stands in.
+ *
+ * The source may arrive after mount (a cold open): the glyph is decided per render from the source,
+ * and the load runs as soon as it is there.
  */
 export function useArtifactThumbnail(
   target: MobileArtifactTarget,
@@ -66,29 +61,60 @@ export function useArtifactThumbnail(
 ): ArtifactThumbnailState {
   const client = source?.client ?? null
   const sessionId = source?.sessionId ?? null
+  const thumbnailable = isThumbnailable(target)
   const key = JSON.stringify(target)
-  const [state, setState] = useState(() => initialState(source, target))
+  const slotId = useId()
+  const [entry, setEntry] = useState<{ html: string | null }>(() => ({
+    html: source && thumbnailable ? cachedHtml(source, target) : null
+  }))
+  const mounted = useRef(false)
+  const requestedFor = useRef<string | null>(null)
 
   useEffect(() => {
-    if (!active || client === null || sessionId === null || !isThumbnailable(target)) {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!active || !thumbnailable || client === null || sessionId === null) {
       return
     }
-    if (state.kind === 'page' || state.kind === 'glyph') {
+    const token = `${rpcClientKey(client)}|${sessionId}|${key}`
+    if (requestedFor.current === token) {
       return
     }
-    let cancelled = false
-    setState({ kind: 'loading' })
+    requestedFor.current = token
     const read = { client, sessionId }
     void artifactThumbnailLimiter(() => readHtml(read, target)).then((html) => {
-      if (!cancelled) {
-        setState(html === null ? { kind: 'glyph' } : { kind: 'page', html })
+      if (!mounted.current || html === null) {
+        return
       }
+      setEntry({ html })
     })
-    return () => {
-      cancelled = true
-    }
     // The target enters through its key: its object identity changes on every render.
-  }, [active, client, sessionId, key])
+  }, [active, thumbnailable, client, sessionId, key])
 
-  return state
+  const wantsLive = active && thumbnailable && source !== null && entry.html !== null
+  const [slotHeld, setSlotHeld] = useState(false)
+  useEffect(() => {
+    if (!wantsLive) {
+      artifactPreviewSlots.release(slotId)
+      setSlotHeld(false)
+      return
+    }
+    const attempt = () => setSlotHeld(artifactPreviewSlots.acquire(slotId))
+    attempt()
+    const unsubscribe = artifactPreviewSlots.subscribe(attempt)
+    return () => {
+      unsubscribe()
+      artifactPreviewSlots.release(slotId)
+    }
+  }, [wantsLive, slotId])
+
+  if (!source || !thumbnailable || entry.html === null || !wantsLive || !slotHeld) {
+    return GLYPH
+  }
+  return { kind: 'page', html: entry.html }
 }

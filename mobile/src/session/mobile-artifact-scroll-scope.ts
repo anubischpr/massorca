@@ -19,8 +19,9 @@ export type ArtifactScrollScope = {
 export const ArtifactScrollScopeContext = createContext<ArtifactScrollScope | null>(null)
 
 /**
- * Whether a tile has come near the list's viewport. Latches once true, so a page that scrolled
- * away keeps its preview. Without a scope (a tile outside the list) it is near at once.
+ * Whether a tile is near the list's viewport, kept current as the list scrolls: a tile scrolled far
+ * away reports false, so its live preview can be released. Without a scope (a tile outside the list)
+ * it is near at once.
  */
 export function useArtifactTileNearViewport(): {
   ref: RefObject<View | null>
@@ -37,25 +38,23 @@ export function useArtifactTileNearViewport(): {
     }
     ref.current?.measureInWindow((_x, top, _width, height) => {
       scope.viewport.current?.measureInWindow((_viewX, viewTop, _viewWidth, viewHeight) => {
-        if (
+        setNear(
           isSpanNearViewport(
             { top, bottom: top + height },
             { top: viewTop, bottom: viewTop + viewHeight }
           )
-        ) {
-          setNear(true)
-        }
+        )
       })
     })
   }, [scope])
 
   useEffect(() => {
-    if (!scope || near) {
+    if (!scope) {
       return
     }
     check()
     return scope.subscribe(check)
-  }, [scope, near, check])
+  }, [scope, check])
 
   return { ref, near, onLayout: check }
 }

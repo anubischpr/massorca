@@ -43,15 +43,18 @@ function remember(key: string, content: string): void {
 
 /**
  * Reads one recorded file for preview. A ready text is kept for the next reader; anything else is
- * not cached, so a later attempt asks the host again. Concurrent reads share one request.
+ * not cached, so a later attempt asks the host again. Concurrent reads share one request. With
+ * `revalidate`, a cached text is not trusted: the host is asked, since a later turn may have edited
+ * the file.
  */
 export async function readRecordedFilePreview(
   source: MobileChatSurfaceRecordedSource,
-  path: string
+  path: string,
+  options: { revalidate?: boolean } = {}
 ): Promise<string | null> {
   const key = cacheKey(source, path)
   const hit = cache.get(key)
-  if (hit !== undefined) {
+  if (hit !== undefined && options.revalidate !== true) {
     return hit
   }
   const pending = inFlight.get(key)

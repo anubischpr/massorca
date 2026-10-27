@@ -6,12 +6,14 @@ export const THUMBNAIL_RENDER_WIDTH = 390
 const THUMBNAIL_POLICY =
   "default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; font-src data:"
 
-const HEAD_OPEN = /<head\b[^>]*>/i
+const DOCTYPE = /^\s*<!doctype[^>]*>/i
 const VIEWPORT_META = /<meta\b[^>]*name=["']viewport["']/i
 
 /**
- * The page as a thumbnail loads it: a Content-Security-Policy that blocks the network and scripts,
- * and a viewport that lays it out at the thumbnail's render width when the page has none.
+ * The page as a thumbnail loads it. The policy meta is always placed first, so it governs the whole
+ * document: after a doctype if one leads (a doctype must stay first, or the page drops to quirks
+ * mode), otherwise at the very start. Nothing in the page can precede it or hide it in a comment.
+ * A viewport meta lays the page out at the render width when the page declares none.
  */
 export function thumbnailDocument(html: string): string {
   const metas = [`<meta http-equiv="Content-Security-Policy" content="${THUMBNAIL_POLICY}">`]
@@ -19,9 +21,9 @@ export function thumbnailDocument(html: string): string {
     metas.push(`<meta name="viewport" content="width=${THUMBNAIL_RENDER_WIDTH}">`)
   }
   const inserted = metas.join('')
-  const head = HEAD_OPEN.exec(html)
-  if (head) {
-    const at = head.index + head[0].length
+  const doctype = DOCTYPE.exec(html)
+  if (doctype) {
+    const at = doctype[0].length
     return html.slice(0, at) + inserted + html.slice(at)
   }
   return inserted + html
