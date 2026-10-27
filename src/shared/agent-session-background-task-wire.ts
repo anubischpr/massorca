@@ -34,6 +34,9 @@ export type AgentSessionBackgroundTask = {
    *  a client that read absence as "not stoppable" would hide a working control
    *  on those hosts. A row the host cannot target sends `false`. */
   stoppable?: boolean
+  /** Who owns the row. Absent means the agent's provider reported it. `'orca'` marks a row Orca
+   *  itself publishes (a create-chat worktree setup run); readers that predate it draw a plain row. */
+  origin?: 'orca'
 }
 
 export type AgentSessionBackgroundTaskState = {
@@ -71,7 +74,8 @@ function backgroundTaskFieldsEqual(
     left.state === right.state &&
     left.startedAt === right.startedAt &&
     left.totalTokens === right.totalTokens &&
-    left.stoppable === right.stoppable
+    left.stoppable === right.stoppable &&
+    left.origin === right.origin
   )
 }
 
