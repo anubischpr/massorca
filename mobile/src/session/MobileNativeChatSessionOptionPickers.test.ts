@@ -58,18 +58,20 @@ const MODEL_DESCRIPTOR: SessionOptionDescriptor = {
   settable: true
 }
 
-// Claude's list as the CLI reports it: the 5.5 generation, Fable 5.1, and the bare aliases.
+// Claude's list as the host reports it: the built-in aliases beside pinned and 1M-context rows.
 const claudeModels = (currentValue: string): SessionOptionDescriptor => ({
   ...MODEL_DESCRIPTOR,
   kind: {
     type: 'select',
     currentValue,
     choices: [
-      { value: 'claude-opus-5-5', label: 'Opus 5.5' },
-      { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5' },
-      { value: 'fable', label: 'Fable 5.1' },
+      { value: 'default', label: 'Default (recommended)' },
       { value: 'opus', label: 'Opus' },
-      { value: 'haiku', label: 'Haiku' }
+      { value: 'opus[1m]', label: 'Opus (1M context)' },
+      { value: 'sonnet', label: 'Sonnet' },
+      { value: 'sonnet[1m]', label: 'Sonnet (1M context)' },
+      { value: 'haiku', label: 'Haiku' },
+      { value: 'fable', label: 'Fable' }
     ]
   }
 })
@@ -569,58 +571,62 @@ describe('MobileNativeChatSessionOptionPickers', () => {
     expect(texts()).toContain('Uses the global access setting (Full access)')
   })
 
-  it('lists the featured Claude models and folds the rest behind More models with its count', async () => {
-    mount([claudeModels('claude-sonnet-5-5')], false, 'claude')
+  it('lists the built-in Claude models and folds the host rows behind More models with its count', async () => {
+    mount([claudeModels('opus')], false, 'claude')
     await act(async () => control('Model').props.onPress())
-    expect(rowByText('Sonnet 5.5').props.accessibilityState).toMatchObject({ checked: true })
+    expect(rowByText('Opus').props.accessibilityState).toMatchObject({ checked: true })
     expect(control('More models').props.accessibilityLabel).toBe('More models, 3')
-    expect(() => rowByText('Fable 5.1')).toThrow('No row labeled Fable 5.1')
+    expect(() => rowByText('Opus (1M context)')).toThrow('No row labeled Opus (1M context)')
   })
 
   it('opens More models, picks a folded model there, and applies it', async () => {
-    mount([claudeModels('claude-sonnet-5-5')], false, 'claude')
+    mount([claudeModels('opus')], false, 'claude')
     await act(async () => control('Model').props.onPress())
     await act(async () => control('More models').props.onPress())
     expect(texts()).toContain('More models')
     expect(controls('More models')).toHaveLength(0)
-    await act(async () => rowByText('Fable 5.1').props.onPress())
-    expect(setOption).toHaveBeenCalledWith('model', 'fable')
+    await act(async () => rowByText('Sonnet (1M context)').props.onPress())
+    expect(setOption).toHaveBeenCalledWith('model', 'sonnet[1m]')
   })
 
   it('returns from More models to the featured list with the back control', async () => {
-    mount([claudeModels('claude-sonnet-5-5')], false, 'claude')
+    mount([claudeModels('opus')], false, 'claude')
     await act(async () => control('Model').props.onPress())
     await act(async () => control('More models').props.onPress())
     await act(async () => control('Back to models').props.onPress())
     expect(texts()).toContain('Select model')
-    expect(rowByText('Opus 5.5').props.accessibilityRole).toBe('radio')
+    expect(rowByText('Opus').props.accessibilityRole).toBe('radio')
   })
 
   it('keeps the selected folded model featured and counts only the rest under More models', async () => {
-    mount([claudeModels('haiku')], false, 'claude')
+    mount([claudeModels('sonnet[1m]')], false, 'claude')
     await act(async () => control('Model').props.onPress())
-    expect(rowByText('Haiku').props.accessibilityState).toMatchObject({ checked: true })
+    expect(rowByText('Sonnet (1M context)').props.accessibilityState).toMatchObject({
+      checked: true
+    })
     expect(control('More models').props.accessibilityLabel).toBe('More models, 2')
   })
 
   it('shows every model and no More models row for an agent without a featured rule', async () => {
-    mount([claudeModels('claude-sonnet-5-5')])
+    mount([claudeModels('opus')])
     await act(async () => control('Model').props.onPress())
     expect(controls('More models')).toHaveLength(0)
-    expect(rowByText('Fable 5.1').props.accessibilityRole).toBe('radio')
+    expect(rowByText('Opus (1M context)').props.accessibilityRole).toBe('radio')
   })
 
-  it('hides More models when every Claude model is featured', async () => {
+  it('hides More models when every Claude model is a built-in alias', async () => {
     mount(
       [
         {
           ...MODEL_DESCRIPTOR,
           kind: {
             type: 'select',
-            currentValue: 'claude-opus-5-5',
+            currentValue: 'opus',
             choices: [
-              { value: 'claude-opus-5-5', label: 'Opus 5.5' },
-              { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5' }
+              { value: 'opus', label: 'Opus' },
+              { value: 'sonnet', label: 'Sonnet' },
+              { value: 'haiku', label: 'Haiku' },
+              { value: 'fable', label: 'Fable' }
             ]
           }
         }

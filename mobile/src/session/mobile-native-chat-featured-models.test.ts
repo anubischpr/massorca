@@ -21,15 +21,16 @@ const modelWith = (
 const valuesOf = (descriptor: SessionOptionDescriptor | null): string[] =>
   descriptor?.kind.type === 'select' ? descriptor.kind.choices.map((choice) => choice.value) : []
 
+// A host's Claude listing: the built-in aliases beside pinned, 1M-context and versioned rows.
 const CLAUDE_CHOICES: SessionOptionSelectChoice[] = [
-  { value: 'claude-opus-5-5', label: 'Opus 5.5' },
-  { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5' },
-  { value: 'claude-opus-5-5[1m]', label: 'Opus 5.5 (1M context)' },
-  { value: 'claude-haiku-5-5', label: 'Haiku 5.5' },
-  { value: 'fable', label: 'Fable 5.1' },
+  { value: 'default', label: 'Default (recommended)' },
   { value: 'opus', label: 'Opus' },
+  { value: 'opus[1m]', label: 'Opus (1M context)' },
   { value: 'sonnet', label: 'Sonnet' },
-  { value: 'haiku', label: 'Haiku' }
+  { value: 'sonnet[1m]', label: 'Sonnet (1M context)' },
+  { value: 'haiku', label: 'Haiku' },
+  { value: 'fable', label: 'Fable' },
+  { value: 'claude-opus-5-5', label: 'Opus 5.5' }
 ]
 
 const CODEX_CHOICES: SessionOptionSelectChoice[] = [
@@ -50,16 +51,55 @@ const ANTIGRAVITY_CHOICES: SessionOptionSelectChoice[] = [
 ]
 
 describe('splitModelSheet', () => {
-  it('features the Claude 5.5 generation and folds Fable 5.1 and the bare aliases', () => {
+  it('features the built-in Claude aliases and folds the host rows behind them', () => {
     const split = splitModelSheet(modelWith(CLAUDE_CHOICES), 'claude')
-    expect(valuesOf(split.featured)).toEqual([
-      'claude-opus-5-5',
-      'claude-sonnet-5-5',
-      'claude-opus-5-5[1m]',
-      'claude-haiku-5-5'
-    ])
-    expect(valuesOf(split.more)).toEqual(['fable', 'opus', 'sonnet', 'haiku'])
+    expect(valuesOf(split.featured)).toEqual(['opus', 'sonnet', 'haiku', 'fable'])
+    expect(valuesOf(split.more)).toEqual(['default', 'opus[1m]', 'sonnet[1m]', 'claude-opus-5-5'])
     expect(split.moreCount).toBe(4)
+  })
+
+  it('keeps the selected folded model featured at its own place in the list', () => {
+    const split = splitModelSheet(modelWith(CLAUDE_CHOICES, 'opus[1m]'), 'claude')
+    expect(valuesOf(split.featured)).toEqual(['opus', 'opus[1m]', 'sonnet', 'haiku', 'fable'])
+    expect(valuesOf(split.more)).toEqual(['default', 'sonnet[1m]', 'claude-opus-5-5'])
+    expect(split.moreCount).toBe(3)
+  })
+
+  it('matches Claude rows by value, not by label', () => {
+    const split = splitModelSheet(
+      modelWith([
+        { value: 'claude-haiku', label: 'Haiku' },
+        { value: 'sonnet', label: 'Sonnet 5.5' }
+      ]),
+      'claude'
+    )
+    expect(valuesOf(split.featured)).toEqual(['sonnet'])
+    expect(valuesOf(split.more)).toEqual(['claude-haiku'])
+  })
+
+  it('folds nothing when the host lists no built-in Claude alias', () => {
+    const descriptor = modelWith([
+      { value: 'default', label: 'Default (recommended)' },
+      { value: 'claude-opus-5-5', label: 'Opus 5.5' }
+    ])
+    const split = splitModelSheet(descriptor, 'claude')
+    expect(split.featured).toBe(descriptor)
+    expect(split.more).toBeNull()
+    expect(split.moreCount).toBe(0)
+  })
+
+  it('folds nothing when every Claude model is a built-in alias', () => {
+    const split = splitModelSheet(
+      modelWith([
+        { value: 'opus', label: 'Opus' },
+        { value: 'sonnet', label: 'Sonnet' },
+        { value: 'haiku', label: 'Haiku' },
+        { value: 'fable', label: 'Fable' }
+      ]),
+      'claude'
+    )
+    expect(split.more).toBeNull()
+    expect(split.moreCount).toBe(0)
   })
 
   it('features Codex 6.1 models and the GPT-6 Astra and Luna variants only', () => {
@@ -78,59 +118,11 @@ describe('splitModelSheet', () => {
     expect(valuesOf(split.more)).toEqual(['claude-sonnet-5-5', 'gemini-3-pro'])
   })
 
-  it('keeps the selected folded model featured at its own place in the list', () => {
-    const choices: SessionOptionSelectChoice[] = [
-      { value: 'claude-opus-5-5', label: 'Opus 5.5' },
-      { value: 'opus', label: 'Opus' },
-      { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5' }
-    ]
-    const split = splitModelSheet(modelWith(choices, 'opus'), 'claude')
-    expect(valuesOf(split.featured)).toEqual(['claude-opus-5-5', 'opus', 'claude-sonnet-5-5'])
-    expect(valuesOf(split.more)).toEqual([])
-    expect(split.more).toBeNull()
-  })
-
-  it('folds nothing when the rule matches no model at all', () => {
-    const aliasesOnly: SessionOptionSelectChoice[] = [
-      { value: 'opus', label: 'Opus' },
-      { value: 'haiku', label: 'Haiku' }
-    ]
-    const descriptor = modelWith(aliasesOnly, 'haiku')
-    const split = splitModelSheet(descriptor, 'claude')
-    expect(split.featured).toBe(descriptor)
-    expect(split.more).toBeNull()
-    expect(split.moreCount).toBe(0)
-  })
-
-  it('folds nothing when every model already matches the rule', () => {
-    const split = splitModelSheet(
-      modelWith([
-        { value: 'claude-opus-5-5', label: 'Opus 5.5' },
-        { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5' }
-      ]),
-      'claude'
-    )
-    expect(split.more).toBeNull()
-    expect(split.moreCount).toBe(0)
-  })
-
   it('folds nothing for an agent without a featured rule, or with no agent', () => {
     const descriptor = modelWith(CLAUDE_CHOICES)
     expect(splitModelSheet(descriptor, 'gemini').featured).toBe(descriptor)
     expect(splitModelSheet(descriptor, null).featured).toBe(descriptor)
     expect(splitModelSheet(descriptor, 'gemini').more).toBeNull()
-  })
-
-  it('does not feature a model whose value and label match only across the join', () => {
-    const split = splitModelSheet(
-      modelWith([
-        { value: 'claude-opus-5', label: '5 Fable' },
-        { value: 'claude-sonnet-5-5', label: 'Sonnet 5.5' }
-      ]),
-      'claude'
-    )
-    expect(valuesOf(split.featured)).toEqual(['claude-sonnet-5-5'])
-    expect(valuesOf(split.more)).toEqual(['claude-opus-5'])
   })
 
   it('does not feature a Codex model whose value and label match only across the join', () => {

@@ -2,6 +2,7 @@ import type {
   SessionOptionDescriptor,
   SessionOptionSelectChoice
 } from '../../../src/shared/native-chat-session-options'
+import { structuredAgentSessionSeedCatalog } from '../../../src/shared/structured-agent-session-seed-catalog'
 
 type FeaturedRule = (choice: SessionOptionSelectChoice) => boolean
 
@@ -23,8 +24,12 @@ function hasPhrase(choice: SessionOptionSelectChoice, phrase: string): boolean {
   return [choice.value, choice.label].some((text) => paddedWords(text).includes(phrase))
 }
 
-// Claude's 5.5 generation (`Opus 5.5`, `claude-sonnet-5-5`); Fable 5.1 and bare aliases fold away.
-const isClaudeFiveFive: FeaturedRule = (choice) => hasPhrase(choice, ' 5 5 ')
+// Why: the shared catalog's built-in ids are Claude's main choices; a label is display text the host
+// may word differently, so only the value the host runs decides.
+function builtInRule(agent: string): FeaturedRule {
+  const ids = new Set(structuredAgentSessionSeedCatalog(agent).models.map((model) => model.id))
+  return (choice) => ids.has(choice.value)
+}
 
 // Codex's 6.1 models plus GPT-6 Astra and Luna; GPT-5.6 Luna and GPT-6 Sol fold away.
 const isCodexFeatured: FeaturedRule = (choice) =>
@@ -39,7 +44,7 @@ const isAntigravityFeatured: FeaturedRule = (choice) =>
 function featuredRuleFor(agent: string | null): FeaturedRule | null {
   switch (agent) {
     case 'claude':
-      return isClaudeFiveFive
+      return builtInRule('claude')
     case 'codex':
       return isCodexFeatured
     case 'antigravity':
