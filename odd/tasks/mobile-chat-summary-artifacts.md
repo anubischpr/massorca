@@ -37,8 +37,8 @@ sheet, a Summary screen, and an Artifacts list with a read-only viewer.
 - [x] T2 Session switcher chip + Sessions sheet; "Resume an earlier session" replaces Agent History (writer A)
 - [x] T3 Background sheet opened from the working/status indicator: running + finished tasks, background agents (writer A)
 - [x] T4 Plan sheet derived from the transcript (writer A)
-- [ ] T5 Summary screen: agent status, environment tiles, results strip, connected chips (writer B)
-- [ ] T6 Artifacts screen (grouped grid + files list, filters) and read-only viewer (HTML in sandboxed WebView, source toggle), gated recorded-file read (writer B)
+- [x] T5 Summary screen: agent status, environment tiles, results strip, connected chips (writer B). Commit `7bd476b208b`.
+- [x] T6 Artifacts screen (grouped grid + files list, filters) and read-only viewer (HTML in sandboxed WebView, source toggle), gated recorded-file read (writer B). Commit `bb0c2152f10`.
 
 ## Acceptance
 
@@ -59,12 +59,33 @@ Checks:
 - `pnpm typecheck:tests`: no errors in the touched test files; the baseline failures are unchanged.
 - `pnpm test src/session`: 247 of 248 files pass. `mobile-native-chat-merged-snapshot-parity.test.ts` times out at 5 s only under full-directory load; it passes alone (9 of 9) and imports none of the changed modules.
 
+- `7bd476b208b` feat(mobile): build the chat summary screen (T5). New pure tests: summary model (14), environment (10), environment read (3), surface snapshot (3); recorded-file list extended (6). Route body: `MobileChatSummaryView`.
+- `bb0c2152f10` feat(mobile): list chat artifacts and open them in a read-only viewer (T6). New tests: artifacts model (grouping, filters, viewer kind), recorded-file read (reply parsing, method-not-found, transport failure). Routes: `chat-artifacts` list and new `chat-artifact-view/[worktreeId]` viewer.
+
+T5 and T6 checks (mobile/):
+- `pnpm typecheck` (`tsc --noEmit`): exit 0 after the T6 commit.
+- `pnpm typecheck:tests`: no errors in any new or touched test file.
+- `vitest run` on the new and touched tests plus `mobile-web-shell-session-route.test.tsx` and `MobilePlanSheet.test.tsx`: 9 files, 65 tests pass.
+- oxfmt and oxlint on every changed file: clean. The `max-lines` error on the Summary view was fixed by moving styles to `mobile-chat-summary-styles.ts`, not by a disable.
+
+Deviations and gaps:
+- Summary and Artifacts read the chat from a per-tab snapshot the session screen publishes (`mobile-chat-surface-snapshot.ts`), not a second transcript subscription. Chat identity resolution lives in the session controller; a second route would fork it. Consequence: opening a Summary or Artifacts URL with no chat on screen shows "Open this chat".
+- `agentSession.readRecordedFile` is not in the generated typed params catalog on this branch (it is added with `feat/remote-session-file-read`). The call goes through `client.sendRequest` with the reply validated by zod. Switch to a typed `defineRpcOperation` after that branch is merged and the catalog regenerated.
+- Recorded files are read only for structured chats; a terminal-agent chat shows "does not share its files with the phone".
+- Session title is the chat's first prompt (mobile carries no tab title in the chat state). The working clock comes from the host's turn start and is absent on the terminal lane, where the status reads "Working" alone.
+- Host label: "This computer", or the SSH target's name. Desktop's "Local Mac" wording is not reproduced.
+- Connectors come from `mcp__<server>__<tool>` names in the transcript. Running subagents come from the transcript roster, so a subagent that finished before the transcript loaded does not appear.
+- `+/−` counts show only for edits that reported a diff; a write without one shows no counts.
+- HTML viewer reuses `MobileHtmlPreview` unchanged: JavaScript on, links opened externally, no added network lockdown.
+- The thumbnails and grid tiles are glyph placeholders; no live WebView is rendered in lists.
+- The `chat-summary` and `chat-artifacts` routes are file-based under `app/h/`; they are not listed in `_layout.tsx`, which corrects the T1 note.
+- Not run: `pnpm test` over all of `src/session` (the full-directory run is what made the parity test flaky before).
+
 Known gaps:
-- Summary and Artifacts are placeholder screens; T5 and T6 replace their bodies.
 - Plan and recorded-file counts come from the transcript pages the screen holds.
 - Sessions status for non-active structured tabs shows Idle: mobile carries no per-tab status for them.
 - Finished background tasks are not listed: the mobile roster carries running work only.
 
 ## Next step
 
-T5 and T6 via writer B, on `mobile/app/h/[hostId]/chat-summary/[worktreeId].tsx` and `mobile/app/h/[hostId]/chat-artifacts/[worktreeId].tsx`. The parent decides whether this document gets committed, and mirrors it to Engram.
+Parent: review the T5 and T6 commits, then decide whether to merge `feat/remote-session-file-read` and regenerate the params catalog so the recorded-file read becomes typed. Not yet checked on a device or simulator: the WebView preview, and the 2x2 tile and results-strip layout at phone width.
