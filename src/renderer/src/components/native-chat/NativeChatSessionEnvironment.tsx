@@ -1,6 +1,7 @@
 import { Copy } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { useRepoGhAccountDisplay } from '@/components/repo/use-repo-gh-account-display'
 import { useAppStore } from '@/store'
 import { useRepoSlugIndex } from '@/lib/repo-slug-index'
 import { readRepoSlugCache, settingsForRepoOwner, slugCacheKey } from '@/lib/repo-slug-cache'
@@ -44,8 +45,9 @@ export function NativeChatSessionEnvironment({
   const isFolderWorkspace = repo ? isFolderRepo(repo) : false
   const branch = workspaceBranchName(worktree?.branch)
   const worktreeName = worktree?.displayName.trim() || null
-  // Why: the bound per-project account only; never the globally active gh account.
-  const githubAccount = repo?.ghAccount ? ghAccountBindingLabel(repo.ghAccount) : null
+  // Why: the repo's own gh.account pin, else its Orca binding; never the globally active gh account.
+  const accountDisplay = useRepoGhAccountDisplay(repo)
+  const githubAccount = accountDisplay.label
   const noGithubAccount = t('components.nativeChatSummary.noGithubAccount', 'No account bound')
   const compact = (
     <>
@@ -70,7 +72,20 @@ export function NativeChatSessionEnvironment({
         />
         <NativeChatSessionField
           label={t('components.nativeChatSummary.githubAccount', 'GitHub account')}
-          value={githubAccount ?? noGithubAccount}
+          value={
+            <>
+              <span className="block">{githubAccount ?? noGithubAccount}</span>
+              {accountDisplay.mismatch && repo?.ghAccount ? (
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  {t(
+                    'components.nativeChatSummary.githubAccountMismatch',
+                    'Orca binding: {{account}}',
+                    { account: ghAccountBindingLabel(repo.ghAccount) }
+                  )}
+                </span>
+              ) : null}
+            </>
+          }
         />
         <NativeChatSessionField
           label={t('components.nativeChatSummary.project', 'Project')}

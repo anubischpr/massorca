@@ -6,16 +6,23 @@ import type { AgentChildWorkView } from '../../../../shared/agent-status-child-w
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
 import type { StructuredAgentContextSummary } from '../../../../shared/structured-agent-session-context-usage'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { clearRepoGhAccountGitConfigCache } from '@/lib/repo-gh-account-git-config-cache'
 import { NativeChatSessionSummary } from './NativeChatSessionSummary'
 
-const { store } = vi.hoisted(() => {
+const { store, readGitConfig } = vi.hoisted(() => {
   const repos: unknown[] = []
   const settings: unknown = { activeRuntimeEnvironmentId: null }
   const worktreesByRepo: Record<string, unknown[]> = {}
-  return { store: { repos, settings, worktreesByRepo } }
+  return {
+    store: { repos, settings, worktreesByRepo },
+    readGitConfig: vi.fn<() => Promise<unknown>>(async () => null)
+  }
 })
 vi.mock('@/store', () => ({
   useAppStore: (selector: (state: unknown) => unknown) => selector(store)
+}))
+vi.mock('@/components/settings/repository-github-account', () => ({
+  readRepositoryGhAccountGitConfig: readGitConfig
 }))
 vi.mock('@/lib/repo-slug-index', () => ({
   useRepoSlugIndex: () => ({ ready: true })
@@ -34,6 +41,9 @@ afterEach(() => {
   cleanup()
   store.repos = []
   store.worktreesByRepo = {}
+  clearRepoGhAccountGitConfigCache()
+  readGitConfig.mockReset()
+  readGitConfig.mockResolvedValue(null)
 })
 
 const connectorCall: AgentJournalRenderItem = {
@@ -391,7 +401,7 @@ const environmentWorktrees = {
   ]
 }
 
-it('leads the collapsed environment preview with the bound GitHub account', () => {
+it('falls back to the bound GitHub account when gh.account is not readable', () => {
   store.repos = [
     {
       id: 'repo',
@@ -424,4 +434,34 @@ it('says no account is bound instead of showing the active gh account', () => {
   fireEvent.click(screen.getByRole('button', { name: /^Environment/ }))
   expect(screen.getByText('GitHub account')).toBeTruthy()
   expect(screen.getByText('No account bound')).toBeTruthy()
+})
+
+it('shows the repo gh.account pin over a differing Orca binding and notes the binding', async () => {
+  readGitConfig.mockResolvedValue({ account: 'palominoc-perulaunch', identityManaged: false })
+  store.repos = [
+    {
+      id: 'repo',
+      path: 'C:/repos/orca',
+      displayName: 'Orca',
+      badgeColor: '#000',
+      addedAt: 0,
+      ghAccount: { host: 'github.com', user: 'palominoc' }
+    }
+  ]
+  store.worktreesByRepo = environmentWorktrees
+  render(<NativeChatSessionSummary {...props} fileContext={environmentFileContext} />)
+  expect(await screen.findByText('palominoc-perulaunch')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: /^Environment/ }))
+  expect(screen.getByText('Orca binding: palominoc')).toBeTruthy()
+})
+
+it('shows a repo gh.account pin even when no Orca binding is set', async () => {
+  readGitConfig.mockResolvedValue({ account: 'palominoc', identityManaged: false })
+  store.repos = [
+    { id: 'repo', path: 'C:/repos/orca', displayName: 'Orca', badgeColor: '#000', addedAt: 0 }
+  ]
+  store.worktreesByRepo = environmentWorktrees
+  render(<NativeChatSessionSummary {...props} fileContext={environmentFileContext} />)
+  expect(await screen.findByText('palominoc')).toBeTruthy()
+  expect(screen.queryByText('No account bound')).toBeNull()
 })

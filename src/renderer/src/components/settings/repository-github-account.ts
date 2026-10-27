@@ -10,6 +10,7 @@ import type {
 } from '../../../../shared/github/gh-account-git-config'
 import { ghAccountBindingsEqual } from '../../../../shared/github/account-binding'
 import { callRuntimeRpc, type getActiveRuntimeTarget } from '@/runtime/runtime-rpc-client'
+import { invalidateRepoGhAccountGitConfig } from '@/lib/repo-gh-account-git-config-cache'
 
 type RuntimeTarget = ReturnType<typeof getActiveRuntimeTarget>
 
@@ -93,19 +94,21 @@ export function applyRepositoryGhAccountGitConfig(
     setIdentity: boolean
   }
 ): Promise<GhAccountGitConfigResult> {
-  if (runtimeTarget.kind === 'environment') {
-    return callRuntimeRpc<GhAccountGitConfigResult>(
-      runtimeTarget,
-      'github.applyAccountGitConfig',
-      { repo: repo.id, ...request },
-      { timeoutMs: LOCAL_GH_ACCOUNT_IPC_TIMEOUT_MS }
-    )
-  }
-  return withTimeout(
-    window.api.gh.applyAccountGitConfig({ repoPath: repo.path, repoId: repo.id, ...request }),
-    LOCAL_GH_ACCOUNT_IPC_TIMEOUT_MS,
-    'applyAccountGitConfig'
-  )
+  const write: Promise<GhAccountGitConfigResult> =
+    runtimeTarget.kind === 'environment'
+      ? callRuntimeRpc<GhAccountGitConfigResult>(
+          runtimeTarget,
+          'github.applyAccountGitConfig',
+          { repo: repo.id, ...request },
+          { timeoutMs: LOCAL_GH_ACCOUNT_IPC_TIMEOUT_MS }
+        )
+      : withTimeout(
+          window.api.gh.applyAccountGitConfig({ repoPath: repo.path, repoId: repo.id, ...request }),
+          LOCAL_GH_ACCOUNT_IPC_TIMEOUT_MS,
+          'applyAccountGitConfig'
+        )
+  // Why: sidebar rows may have read gh.account before this write landed; they re-read once it settles.
+  return write.finally(() => invalidateRepoGhAccountGitConfig(repo.id))
 }
 
 export function readRepositoryGhAccountGitConfig(
