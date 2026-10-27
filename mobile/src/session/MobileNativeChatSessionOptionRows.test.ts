@@ -1,4 +1,4 @@
-import { createElement } from 'react'
+import { createElement, type ComponentProps } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import type { SessionOptionDescriptor } from '../../../src/shared/native-chat-session-options'
@@ -27,7 +27,10 @@ const FAST: SessionOptionDescriptor = {
   settable: true
 }
 
-function renderRows(descriptor: SessionOptionDescriptor): ReactTestRenderer {
+function renderRows(
+  descriptor: SessionOptionDescriptor,
+  extra: Partial<ComponentProps<typeof DescriptorRows>> = {}
+): ReactTestRenderer {
   let renderer: ReactTestRenderer | null = null
   act(() => {
     renderer = create(
@@ -35,7 +38,8 @@ function renderRows(descriptor: SessionOptionDescriptor): ReactTestRenderer {
         descriptor,
         disabled: false,
         onSetOption: vi.fn(),
-        onInvokeAction: vi.fn()
+        onInvokeAction: vi.fn(),
+        ...extra
       })
     )
   })
@@ -96,5 +100,99 @@ describe('DescriptorRows boolean', () => {
       valueSource: 'unknown'
     })
     expect(renderer.root.findByType('Switch').props.value).toBe(true)
+  })
+})
+
+describe('DescriptorRows select choices', () => {
+  const ACCESS: SessionOptionDescriptor = {
+    id: 'accessMode',
+    label: 'Access',
+    category: 'mode',
+    kind: {
+      type: 'select',
+      currentValue: 'default',
+      choices: [
+        { value: 'default', label: 'Ask for approval' },
+        { value: 'full-access', label: 'Full access', disabled: true }
+      ]
+    },
+    valueSource: 'reported',
+    transport: 'agent-session',
+    settable: true
+  }
+
+  function renderChoices(
+    choiceLabelColor?: (value: string) => string | undefined
+  ): ReactTestRenderer {
+    let renderer: ReactTestRenderer | null = null
+    act(() => {
+      renderer = create(
+        createElement(DescriptorRows, {
+          descriptor: ACCESS,
+          disabled: false,
+          grouped: true,
+          choiceLabelColor,
+          onSetOption: vi.fn(),
+          onInvokeAction: vi.fn()
+        })
+      )
+    })
+    if (!renderer) {
+      throw new Error('renderer did not mount')
+    }
+    return renderer
+  }
+
+  it('locks a choice flagged disabled and leaves its siblings pickable', () => {
+    const renderer = renderChoices()
+    const radios = renderer.root.findAll((node) => node.props.accessibilityRole === 'radio')
+    expect(radios.map((node) => node.props.accessibilityState.disabled)).toEqual([false, true])
+  })
+
+  it('tints the label of a choice the caller colours', () => {
+    const renderer = renderChoices((value) => (value === 'default' ? '#ef4444' : undefined))
+    const [label] = renderer.root.findAll(
+      (node) => node.type === 'Text' && node.props.children === 'Ask for approval'
+    )
+    expect(label!.props.style).toEqual(expect.arrayContaining([{ color: '#ef4444' }]))
+  })
+})
+
+describe('DescriptorRows leading glyphs and descriptions', () => {
+  const EFFORT: SessionOptionDescriptor = {
+    id: 'effort',
+    label: 'Effort',
+    category: 'thought_level',
+    kind: {
+      type: 'select',
+      currentValue: 'low',
+      choices: [
+        { value: 'low', label: 'Low', description: 'Quick replies, minimal thinking' },
+        { value: 'high', label: 'High' }
+      ]
+    },
+    valueSource: 'reported',
+    transport: 'catalog',
+    settable: true
+  }
+
+  it('draws each choice description under its label', () => {
+    expect(textOf(renderRows(EFFORT))).toEqual(
+      expect.arrayContaining(['Low', 'Quick replies, minimal thinking', 'High'])
+    )
+  })
+
+  it('places the caller leading node before each choice, in choice order', () => {
+    const renderer = renderRows(EFFORT, {
+      choiceLeading: (choice) => createElement('Glyph', { value: choice.value })
+    })
+    expect(
+      renderer.root.findAll((node) => node.type === 'Glyph').map((node) => node.props.value)
+    ).toEqual(['low', 'high'])
+  })
+
+  it('draws no leading node when the caller supplies none', () => {
+    const renderer = renderRows(EFFORT)
+    expect(renderer.root.findAll((node) => node.type === 'Glyph')).toHaveLength(0)
   })
 })

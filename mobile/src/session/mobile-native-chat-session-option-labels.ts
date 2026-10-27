@@ -5,6 +5,7 @@
 import type {
   SessionOptionDescriptor,
   SessionOptionDisabledReason,
+  SessionOptionNote,
   SessionOptionSelectChoice
 } from '../../../src/shared/native-chat-session-options'
 
@@ -22,7 +23,20 @@ export function mobileSessionOptionDisabledReason(
   }
 }
 
-function selectedChoiceLabel(descriptor: SessionOptionDescriptor): string | null {
+export function mobileSessionOptionNote(note: SessionOptionNote): string {
+  // Exhaustive over SessionOptionNote, like the disabled-reason labels above.
+  switch (note) {
+    case 'no-restricted-mode':
+      return 'Pi chat has no restricted mode.'
+    case 'start-only-modes':
+      return 'Dimmed modes can only be set when the session starts.'
+    case 'applies-on-next-start':
+      return 'Changes apply when the session next starts.'
+  }
+}
+
+/** The label of the choice a select descriptor holds, or null when nothing reported one. */
+export function mobileSelectedChoiceLabel(descriptor: SessionOptionDescriptor): string | null {
   if (
     descriptor.valueSource === 'unknown' ||
     descriptor.kind.type !== 'select' ||
@@ -39,7 +53,14 @@ function selectedChoiceLabel(descriptor: SessionOptionDescriptor): string | null
 
 /** Value-only pill text — the category lives on the sheet title, not the pill. */
 export function mobileModelPillLabel(descriptor: SessionOptionDescriptor): string {
-  return selectedChoiceLabel(descriptor) ?? 'Model'
+  return mobileSelectedChoiceLabel(descriptor) ?? 'Model'
+}
+
+/** Sheet title; the access descriptor's internal id would read as "accessmode", so it has its own. */
+export function mobileSessionOptionSheetTitle(descriptor: SessionOptionDescriptor): string {
+  return descriptor.id === 'accessMode'
+    ? 'Select access'
+    : `Select ${descriptor.label.toLowerCase()}`
 }
 
 export function mobileSessionOptionSummaryValue(descriptor: SessionOptionDescriptor): string {
@@ -52,27 +73,5 @@ export function mobileSessionOptionSummaryValue(descriptor: SessionOptionDescrip
   if (descriptor.valueSource === 'unknown') {
     return 'Not set'
   }
-  return selectedChoiceLabel(descriptor) ?? 'Not set'
-}
-
-export function mobileOptionsPillLabel(descriptors: readonly SessionOptionDescriptor[]): string {
-  const labels: string[] = []
-  for (const descriptor of descriptors) {
-    if (descriptor.valueSource === 'unknown') {
-      continue
-    }
-    if (descriptor.kind.type === 'select') {
-      const label = selectedChoiceLabel(descriptor)
-      if (label) {
-        labels.push(label)
-      }
-    } else if (descriptor.kind.currentValue === true) {
-      labels.push(descriptor.id === 'fastMode' ? 'Fast' : descriptor.label)
-    }
-  }
-  if (labels.length > 0) {
-    return labels.join(' · ')
-  }
-  const effort = descriptors.find((descriptor) => descriptor.id === 'effort')
-  return effort ? effort.label : 'Options'
+  return mobileSelectedChoiceLabel(descriptor) ?? 'Not set'
 }
