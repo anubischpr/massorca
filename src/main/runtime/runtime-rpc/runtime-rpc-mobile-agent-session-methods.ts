@@ -25,6 +25,8 @@ export const MOBILE_AGENT_SESSION_RPC_METHODS = [
   'agentSession.subscribeStatus',
   // One visual from the chat's own visuals folder, for the transcript's `::orca-visual` lines.
   'agentSession.readVisual',
+  // A file the chat's agent wrote, for the phone's Artifacts viewer; only journal-recorded paths.
+  'agentSession.readRecordedFile',
   // No-ops on a current host; kept until MIN_COMPATIBLE_RUNTIME_CLIENT_VERSION passes the
   // mobile builds that still call them.
   'agentSession.hold',
