@@ -3,12 +3,21 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ChevronLeft } from 'lucide-react-native'
 import { firstParam } from '../../../../src/navigation/route-param-reader'
+import { MobileChatArtifactsView } from '../../../../src/session/MobileChatArtifactsView'
 import { colors, spacing, typography } from '../../../../src/theme/mobile-theme'
 
-/** The chat artifacts. Placeholder: the list and viewer land with the artifacts build. */
+/** The chat's artifacts: the pages and files the agent wrote, opened in the read-only viewer. */
 export default function MobileChatArtifactsScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ name?: string | string[] }>()
+  const params = useLocalSearchParams<{
+    hostId?: string | string[]
+    worktreeId?: string | string[]
+    name?: string | string[]
+    tab?: string | string[]
+  }>()
+  const hostId = firstParam(params.hostId) ?? ''
+  const worktreeId = firstParam(params.worktreeId) ?? ''
+  const tabId = firstParam(params.tab) ?? ''
   const name = firstParam(params.name)
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -31,6 +40,18 @@ export default function MobileChatArtifactsScreen() {
           ) : null}
         </View>
       </View>
+      <MobileChatArtifactsView
+        hostId={hostId}
+        worktreeId={worktreeId}
+        tabId={tabId}
+        onOpenFile={(path) =>
+          router.push(
+            `/h/${encodeURIComponent(hostId)}/chat-artifact-view/${encodeURIComponent(worktreeId)}?${new URLSearchParams(
+              { path, tab: tabId, ...(name ? { name } : {}) }
+            ).toString()}`
+          )
+        }
+      />
     </SafeAreaView>
   )
 }
