@@ -28,6 +28,7 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
     openSummary,
     openArtifacts,
     openBranch,
+    openSessionTabActionSheetAfterKeyboardDismiss,
     quickCommandsSupported,
     setShowQuickCommands,
     showToast
@@ -42,6 +43,7 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
         onSelect={switchSessionTab}
         onNewTab={() => setShowCreateTabDrawer(true)}
         onResume={openAgentSessionHistory}
+        onTabActions={openSessionTabActionSheetAfterKeyboardDismiss}
       />
       <MobilePlanSheet
         visible={planSheetOpen}

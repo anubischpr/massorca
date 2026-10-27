@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { MobileSessionTab } from './mobile-session-route-types'
 import type { MobileSessionSwitcherRow } from './mobile-session-switcher-rows'
 import { MobileSessionsSheet } from './MobileSessionsSheet'
+import { getMobileSessionTabTitle } from './mobile-terminal-tab-agent'
 
 vi.mock('react-native', () => ({
   Pressable: 'Pressable',
@@ -84,6 +85,7 @@ function propsWith(overrides: Partial<Props>): Props {
     onSelect: vi.fn(),
     onNewTab: vi.fn(),
     onResume: vi.fn(),
+    onTabActions: vi.fn(),
     ...overrides
   }
 }
@@ -145,6 +147,20 @@ describe('MobileSessionsSheet', () => {
     expect(onNewTab).not.toHaveBeenCalled()
     act(() => drawerOf(mounted).props.onAfterClose())
     expect(onNewTab).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens a tab close and rename actions by a hold, only after the sheet has closed', () => {
+    const onTabActions = vi.fn()
+    const onClose = vi.fn()
+    const mounted = mount(propsWith({ onTabActions, onClose }))
+    const row = mounted.root.find(
+      (node) => node.props.accessibilityLabel === getMobileSessionTabTitle(chat)
+    )
+    act(() => row.props.onLongPress())
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(onTabActions).not.toHaveBeenCalled()
+    act(() => drawerOf(mounted).props.onAfterClose())
+    expect(onTabActions).toHaveBeenCalledWith(chat)
   })
 
   it('offers resume only where history applies, and runs it after the sheet closes', () => {

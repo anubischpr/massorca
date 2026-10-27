@@ -29,6 +29,8 @@ type Props = {
   onSelect: (tab: MobileSessionTab) => void
   onNewTab: () => void
   onResume: () => void
+  /** Close and rename for one tab, reached by holding its row. */
+  onTabActions: (tab: MobileSessionTab) => void
 }
 
 /** The worktree's tabs as one list: pick one to switch to it, or start or resume a session. */
@@ -39,7 +41,8 @@ export function MobileSessionsSheet({
   onClose,
   onSelect,
   onNewTab,
-  onResume
+  onResume,
+  onTabActions
 }: Props) {
   // Why: iOS cannot present a second native modal until this sheet has unmounted, so the
   // follow-up action waits for onAfterClose.
@@ -80,11 +83,14 @@ export function MobileSessionsSheet({
               accessibilityRole="button"
               accessibilityLabel={getMobileSessionTabTitle(row.tab)}
               accessibilityState={{ selected: row.isActive }}
+              accessibilityHint="Hold for close and rename"
               style={({ pressed }) => [styles.row, pressed && styles.pressed]}
               onPress={() => {
                 onSelect(row.tab)
                 onClose()
               }}
+              onLongPress={() => closeThen(() => onTabActions(row.tab))}
+              delayLongPress={400}
             >
               <TabKindIcon tab={row.tab} />
               <View style={styles.textBlock}>
