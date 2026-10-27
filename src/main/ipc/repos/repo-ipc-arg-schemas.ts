@@ -128,6 +128,11 @@ function assertFolderWorkspaceLinkedSourceContextMatch(
   }
 }
 
+export const ProjectlessChatCreateWorkspaceArgs = z.object({
+  title: z.string().optional(),
+  connectionId: z.string().nullable().optional()
+})
+
 export const FolderWorkspaceCreateArgs = z
   .object({
     projectGroupId: z.string().min(1),

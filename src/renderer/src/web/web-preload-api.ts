@@ -11,6 +11,7 @@ import {
   createMiniMaxCredentialsApi
 } from './preload-api/web-agent-accounts-api'
 import { createWebAgentStatusApi } from './preload-api/web-agent-status-api'
+import { createWebProjectlessChatsApi } from './preload-api/web-projectless-chats-api'
 import { createWebAiVaultApi } from './preload-api/web-ai-vault-api'
 import { createWebAppApi } from './preload-api/web-app-api'
 import { createBrowserApi, createEmulatorApi } from './preload-api/web-browser-api'
@@ -106,6 +107,7 @@ function createWebPreloadApi(): Partial<PreloadApi> {
     },
     aiVault: createWebAiVaultApi(),
     preflight: createPreflightApi(),
+    projectlessChats: createWebProjectlessChatsApi(),
     notifications: createNotificationsApi(),
     rateLimits: createRateLimitsApi(),
     opencodeGoCredentials: createOpenCodeGoCredentialsApi(),
