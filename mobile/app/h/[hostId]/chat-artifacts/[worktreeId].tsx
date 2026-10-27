@@ -19,6 +19,12 @@ export default function MobileChatArtifactsScreen() {
   const worktreeId = firstParam(params.worktreeId) ?? ''
   const tabId = firstParam(params.tab) ?? ''
   const name = firstParam(params.name)
+  const openViewer = (target: { path: string } | { visual: string }) =>
+    router.push(
+      `/h/${encodeURIComponent(hostId)}/chat-artifact-view/${encodeURIComponent(worktreeId)}?${new URLSearchParams(
+        { ...target, tab: tabId, ...(name ? { name } : {}) }
+      ).toString()}`
+    )
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
       <View style={styles.header}>
@@ -44,13 +50,10 @@ export default function MobileChatArtifactsScreen() {
         hostId={hostId}
         worktreeId={worktreeId}
         tabId={tabId}
-        onOpenFile={(path) =>
-          router.push(
-            `/h/${encodeURIComponent(hostId)}/chat-artifact-view/${encodeURIComponent(worktreeId)}?${new URLSearchParams(
-              { path, tab: tabId, ...(name ? { name } : {}) }
-            ).toString()}`
-          )
+        onOpenPage={(target) =>
+          openViewer(target.kind === 'visual' ? { visual: target.file } : { path: target.path })
         }
+        onOpenFile={(path) => openViewer({ path })}
       />
     </SafeAreaView>
   )

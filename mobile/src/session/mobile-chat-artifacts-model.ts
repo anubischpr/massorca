@@ -3,6 +3,20 @@ export type MobileRecordedFileKind = 'page' | 'file'
 
 export type MobileRecordedFilterId = 'all' | 'pages' | 'files'
 
+/** What the viewer opens: a file the chat's agent wrote, or a visual its replies showed. */
+export type MobileArtifactTarget =
+  | { kind: 'recorded'; path: string }
+  | { kind: 'visual'; file: string }
+
+/** A page on the Artifacts list: its target, its name and kind, and when the chat last touched it. */
+export type MobileArtifactPage = {
+  target: MobileArtifactTarget
+  name: string
+  kind: MobileViewerKind
+  label: string
+  timestamp: number | null
+}
+
 /** How the viewer shows a file: a rendered page, a rendered Markdown document, or its source. */
 export type MobileViewerKind = 'html' | 'markdown' | 'source'
 
@@ -128,4 +142,43 @@ export function groupRecordedFilesByDay<File extends { timestamp: number | null 
     groups.push({ key: UNDATED_KEY, label: 'Earlier', files: undated })
   }
   return groups
+}
+
+/** The name a target shows: the file name, read the same for recorded paths and visual files. */
+export function artifactTargetName(target: MobileArtifactTarget): string {
+  return fileNameOf(target.kind === 'recorded' ? target.path : target.file)
+}
+
+/**
+ * The Pages the list shows: recorded pages and the visuals the replies showed. A recorded page whose
+ * file name a visual already carries is that visual, so the chat shows it once.
+ */
+export function chatArtifactPages(
+  files: readonly { path: string; timestamp: number | null }[],
+  visuals: readonly { file: string; timestamp: number | null }[]
+): MobileArtifactPage[] {
+  const visualNames = new Set(visuals.map((visual) => visual.file))
+  const pages: MobileArtifactPage[] = []
+  for (const visual of visuals) {
+    pages.push(pageOf({ kind: 'visual', file: visual.file }, visual.timestamp))
+  }
+  for (const file of files) {
+    if (recordedFileKind(file.path) !== 'page' || visualNames.has(fileNameOf(file.path))) {
+      continue
+    }
+    pages.push(pageOf({ kind: 'recorded', path: file.path }, file.timestamp))
+  }
+  return pages
+}
+
+function pageOf(target: MobileArtifactTarget, timestamp: number | null): MobileArtifactPage {
+  // A visual is always an HTML page; a recorded file names its own viewer.
+  const viewer = viewerKindOf(target.kind === 'recorded' ? target.path : target.file)
+  return {
+    target,
+    name: artifactTargetName(target),
+    kind: viewer.kind,
+    label: viewer.label,
+    timestamp
+  }
 }

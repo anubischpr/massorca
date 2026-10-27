@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   artifactDayLabel,
+  artifactTargetName,
+  chatArtifactPages,
   filterRecordedFiles,
   groupRecordedFilesByDay,
   recordedFileKind,
@@ -104,5 +106,43 @@ describe('groupRecordedFilesByDay', () => {
 
   it('is empty for an empty list', () => {
     expect(groupRecordedFilesByDay([], now)).toEqual([])
+  })
+})
+
+describe('chatArtifactPages', () => {
+  it('lists visuals first-class and recorded pages after them, leaving out other files', () => {
+    const pages = chatArtifactPages(
+      [
+        { path: 'C:/work/notes.md', timestamp: 2 },
+        { path: 'C:/work/src/app.ts', timestamp: 3 }
+      ],
+      [{ file: 'usage-chart.html', timestamp: 1 }]
+    )
+    expect(pages.map((page) => page.target)).toEqual([
+      { kind: 'visual', file: 'usage-chart.html' },
+      { kind: 'recorded', path: 'C:/work/notes.md' }
+    ])
+    expect(pages[1]).toMatchObject({ name: 'notes.md', kind: 'markdown', label: 'Markdown' })
+  })
+
+  it('shows a recorded page once when a visual carries the same file name', () => {
+    const pages = chatArtifactPages(
+      [{ path: 'C:/work/.orca/visuals/usage-chart.html', timestamp: 1 }],
+      [{ file: 'usage-chart.html', timestamp: 2 }]
+    )
+    expect(pages).toEqual([
+      {
+        target: { kind: 'visual', file: 'usage-chart.html' },
+        name: 'usage-chart.html',
+        kind: 'html',
+        label: 'HTML',
+        timestamp: 2
+      }
+    ])
+  })
+
+  it('names a target by its file name, whichever kind it is', () => {
+    expect(artifactTargetName({ kind: 'recorded', path: 'C:\\a\\b\\page.svg' })).toBe('page.svg')
+    expect(artifactTargetName({ kind: 'visual', file: 'chart.html' })).toBe('chart.html')
   })
 })
