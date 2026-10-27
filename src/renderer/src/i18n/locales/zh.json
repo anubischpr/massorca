@@ -18377,7 +18377,15 @@
       "fileLinks": {
         "notFound": "未找到文件：{{value0}}",
         "unverifiable": "无法检查 {{value0}}：{{value1}}",
-        "unresolved": "无法在此工作区中解析 {{value0}}"
+        "unresolved": "无法在此工作区中解析 {{value0}}",
+        "outsideRemoteWorkspace": "此文件位于远程主机的工作区之外，Orca 无法打开。",
+        "remoteHostOutdated": "请更新远程主机上的 Orca，以打开智能体保存在工作区之外的文件。",
+        "viewerLoading": "正在加载…",
+        "viewerUnavailable": "无法加载此文件。",
+        "viewerNotFound": "此文件已不在远程主机上。",
+        "viewerTooLarge": "此文件过大，无法预览。",
+        "viewerUnsupportedType": "此处无法预览这种文件类型。",
+        "viewerReadOnly": "来自远程主机的只读预览"
       },
       "contextUsage": {
         "label": "上下文 {{used}}/{{window}} token，已用 {{percent}}%",

@@ -24,6 +24,26 @@ export function showFileLinkUnverifiableToast(filePath: string, error: unknown):
   )
 }
 
+/** The worktree is the boundary on a paired host, and the host has no record of the chat saving this. */
+export function showFileLinkOutsideRemoteWorkspaceToast(): void {
+  toast.error(
+    translate(
+      'components.native-chat.fileLinks.outsideRemoteWorkspace',
+      "This file is outside the workspace on the remote host, so Orca can't open it."
+    )
+  )
+}
+
+/** Only a newer host can read what the agent saved outside the workspace; this one answered no such method. */
+export function showFileLinkRemoteHostOutdatedToast(): void {
+  toast.error(
+    translate(
+      'components.native-chat.fileLinks.remoteHostOutdated',
+      'Update Orca on the remote host to open files the agent saved outside the workspace.'
+    )
+  )
+}
+
 /** e.g. `~/x` when the workspace gives no way to know the home folder. */
 export function showFileLinkUnresolvedToast(pathText: string): void {
   toast.error(

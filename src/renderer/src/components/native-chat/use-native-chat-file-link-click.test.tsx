@@ -7,6 +7,11 @@ import type { NativeChatFileLinkContext } from './native-chat-file-link'
 import { useNativeChatFileLinkClick } from './use-native-chat-file-link-click'
 import { NativeChatToolLine } from './NativeChatToolLine'
 import { NativeChatDiffCard } from './NativeChatDiffCard'
+import { RemoteFileOutsideWorktreeError } from '@/runtime/runtime-file-routing'
+import {
+  RecordedFileHostOutdatedError,
+  RecordedFileRefusedError
+} from '@/runtime/runtime-recorded-file-client'
 
 const mocks = vi.hoisted(() => {
   const noSettings: Record<string, unknown> = {}
@@ -14,7 +19,10 @@ const mocks = vi.hoisted(() => {
     openDetectedFilePath: vi.fn(),
     showNotFound: vi.fn(),
     showUnverifiable: vi.fn(),
+    showOutsideRemoteWorkspace: vi.fn(),
+    showRemoteHostOutdated: vi.fn(),
     showUnresolved: vi.fn(),
+    openRecordedFile: vi.fn(),
     buildFileLinkActions: vi.fn(),
     settings: noSettings
   }
@@ -32,7 +40,12 @@ vi.mock('./native-chat-http-link-source-owner', () => ({
 vi.mock('./native-chat-file-link-toasts', () => ({
   showFileLinkNotFoundToast: mocks.showNotFound,
   showFileLinkUnverifiableToast: mocks.showUnverifiable,
+  showFileLinkOutsideRemoteWorkspaceToast: mocks.showOutsideRemoteWorkspace,
+  showFileLinkRemoteHostOutdatedToast: mocks.showRemoteHostOutdated,
   showFileLinkUnresolvedToast: mocks.showUnresolved
+}))
+vi.mock('./native-chat-recorded-file-request', () => ({
+  openNativeChatRecordedFile: mocks.openRecordedFile
 }))
 vi.mock('@/store', () => ({
   useAppStore: Object.assign(
@@ -295,6 +308,79 @@ describe('useNativeChatFileLinkClick', () => {
 
     expect(mocks.showUnverifiable).toHaveBeenCalledWith('/repo/docs/deck.md', error)
     expect(mocks.showNotFound).not.toHaveBeenCalled()
+  })
+
+  describe('a file outside a paired host workspace', () => {
+    const chatContext: NativeChatFileLinkContext = {
+      ...context,
+      runtimeEnvironmentId: 'env-1',
+      sessionId: 'session-alpha'
+    }
+
+    function openOutside(): void {
+      render(
+        <Transcript markdown="Saved `/home/me/informes/report.html`." linkContext={chatContext} />
+      )
+      clickLink('/home/me/informes/report.html')
+    }
+
+    it('hands the open the chat, so the host can vouch for what the agent saved', () => {
+      openOutside()
+
+      expect(mocks.openDetectedFilePath).toHaveBeenCalledWith(
+        '/home/me/informes/report.html',
+        null,
+        null,
+        expect.objectContaining({
+          agentSessionId: 'session-alpha',
+          onOpenRecordedSessionFile: expect.any(Function)
+        })
+      )
+      mocks.openDetectedFilePath.mock.calls
+        .at(-1)?.[3]
+        .onOpenRecordedSessionFile('/home/me/informes/report.html')
+      expect(mocks.openRecordedFile).toHaveBeenCalledWith({
+        sessionId: 'session-alpha',
+        path: '/home/me/informes/report.html',
+        worktreeId: 'wt-1',
+        worktreePath: '/repo'
+      })
+    })
+
+    it('says the file is outside the workspace instead of showing the raw error', () => {
+      openOutside()
+
+      failLastOpen('unverifiable', new RemoteFileOutsideWorktreeError())
+      failLastOpen('unverifiable', new RecordedFileRefusedError('not_recorded'))
+
+      expect(mocks.showOutsideRemoteWorkspace).toHaveBeenCalledTimes(2)
+      expect(mocks.showUnverifiable).not.toHaveBeenCalled()
+    })
+
+    it('asks for a host update when the host predates the read', () => {
+      openOutside()
+
+      failLastOpen('unverifiable', new RecordedFileHostOutdatedError())
+
+      expect(mocks.showRemoteHostOutdated).toHaveBeenCalledTimes(1)
+      expect(mocks.showUnverifiable).not.toHaveBeenCalled()
+      expect(mocks.showOutsideRemoteWorkspace).not.toHaveBeenCalled()
+    })
+
+    it('still reports a recorded file the host no longer has as missing', () => {
+      openOutside()
+
+      failLastOpen('missing', new RecordedFileRefusedError('not_found'))
+
+      expect(mocks.showNotFound).toHaveBeenCalledWith('/home/me/informes/report.html')
+    })
+
+    it('offers no recorded-file open to a chat that has no session', () => {
+      render(<Transcript markdown="See `/repo/src/app.ts`." />)
+      clickLink('/repo/src/app.ts')
+
+      expect(mocks.openDetectedFilePath.mock.calls.at(-1)?.[3]).not.toHaveProperty('agentSessionId')
+    })
   })
 
   it('reports a missing absolute path', () => {

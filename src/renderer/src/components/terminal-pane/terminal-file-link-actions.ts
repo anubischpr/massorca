@@ -29,6 +29,8 @@ export type TerminalFileLinkActionDeps = {
   runtimeEnvironmentId?: string | null
   wslDistro?: string | null
   onOpenFailure?: (failure: FileOpenFailure) => void
+  agentSessionId?: string
+  onOpenRecordedSessionFile?: (path: string) => void
 }
 
 export type FileLinkActions = Pick<

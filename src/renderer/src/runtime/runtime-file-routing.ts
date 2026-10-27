@@ -101,10 +101,31 @@ export function hasRemoteRuntimeOwner(context: RuntimeFileOperationArgs): boolea
   )
 }
 
+/** Typed so a caller can tell the worktree boundary from any other read failure. */
+export class RemoteFileOutsideWorktreeError extends Error {
+  constructor() {
+    super('Remote file is outside the owning runtime worktree')
+    this.name = 'RemoteFileOutsideWorktreeError'
+  }
+}
+
 export function assertLocalFilesystemFallbackAllowed(context: RuntimeFileOperationArgs): void {
   if (hasRemoteRuntimeOwner(context)) {
-    throw new Error('Remote file is outside the owning runtime worktree')
+    throw new RemoteFileOutsideWorktreeError()
   }
+}
+
+/** A chat's file outside the worktree of a paired host: only the host's own record of what that
+ *  chat's agent wrote can say whether it may be read. */
+export function isRecordedSessionFileOperation(
+  context: RuntimeFileOperationArgs,
+  path: string
+): boolean {
+  return (
+    Boolean(context.agentSessionId) &&
+    hasRemoteRuntimeOwner(context) &&
+    getRemoteFileArgs(context, path) === null
+  )
 }
 
 export function getRelativePathInsideWorktree(

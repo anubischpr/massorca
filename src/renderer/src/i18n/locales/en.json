@@ -18693,7 +18693,15 @@
       "fileLinks": {
         "notFound": "File not found: {{value0}}",
         "unverifiable": "Couldn't check {{value0}}: {{value1}}",
-        "unresolved": "Couldn't resolve {{value0}} in this workspace"
+        "unresolved": "Couldn't resolve {{value0}} in this workspace",
+        "outsideRemoteWorkspace": "This file is outside the workspace on the remote host, so Orca can't open it.",
+        "remoteHostOutdated": "Update Orca on the remote host to open files the agent saved outside the workspace.",
+        "viewerLoading": "Loading…",
+        "viewerUnavailable": "Could not load this file.",
+        "viewerNotFound": "This file no longer exists on the remote host.",
+        "viewerTooLarge": "This file is too large to preview.",
+        "viewerUnsupportedType": "This file type can't be previewed here.",
+        "viewerReadOnly": "Read-only preview from the remote host"
       },
       "contextUsage": {
         "label": "Context {{used}} of {{window}} tokens, {{percent}}% used",

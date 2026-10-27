@@ -1,6 +1,11 @@
 import type { MarkdownDocument } from '../../../shared/filesystem-entry-types'
 import type { RuntimeFileOperationArgs } from './runtime-file-client-types'
-import { assertLocalFilesystemFallbackAllowed, getRemoteFileArgs } from './runtime-file-routing'
+import {
+  assertLocalFilesystemFallbackAllowed,
+  getRemoteFileArgs,
+  isRecordedSessionFileOperation
+} from './runtime-file-routing'
+import { statRecordedSessionFile } from './runtime-recorded-file-client'
 import { callRuntimeRpc, getActiveRuntimeTarget } from './runtime-rpc-client'
 import { toRuntimeWorktreeSelector } from './runtime-worktree-selector'
 import type { LocalFileAccess } from '../../../shared/local-file-access'
@@ -32,6 +37,9 @@ export async function statRuntimePath(
 ): Promise<{ size: number; isDirectory: boolean; mtime: number }> {
   const remoteArgs = getRemoteFileArgs(context, absolutePath)
   if (!remoteArgs) {
+    if (isRecordedSessionFileOperation(context, absolutePath)) {
+      return statRecordedSessionFile(context, absolutePath)
+    }
     assertLocalFilesystemFallbackAllowed(context)
     return window.api.fs.stat({
       filePath: absolutePath,
