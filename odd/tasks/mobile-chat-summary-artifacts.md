@@ -180,3 +180,31 @@ Pre-existing: `src/session/mobile-prompt-controller.test.ts` fails to load with 
 
 Checks (mobile/, this round): `pnpm typecheck` exit 0; oxlint clean on the 20 changed TypeScript files; 17 dependent suites, 137 tests, pass.
 
+## Round 5 (advisory review of be86193b893..345b15b9c84, and T15 and T16)
+
+### Gentle AI reliability review findings
+
+The review approved the range and left non-blocking findings with locations only. Each was checked against the code. Fixed in `5b5a4f0a075`.
+
+- R3-001 WARNING, `mobile-session-chrome-mode.ts`: fixed. A cached tab list with no active tab read as terminal once connected, so the classic header could flash before the chat resolved. The decision now takes `hasTabs`; a listed tab set without its active tab stays pending, with Back on the neutral bar.
+- R3-002 WARNING, `mobile-session-chrome-mode.test.ts`: fixed. The table now covers an unknown active tab beside listed tabs, every non-chat tab type, an empty loaded session, and a resolving chat that does not affect a terminal tab.
+- R3-003 WARNING, `MobileChatStatusPillView.tsx`: fixed by tests, behaviour unchanged. The tappable pill is a button named with its sheet label; the static pill is one grouped status with no button role. Covered by `MobileChatStatusPillView.test.tsx`.
+- R3-004 WARNING, `MobileNativeChatView.waiting-rows.test.ts`: not an issue. That mock stands in for the bridge pill in a waiting-rows test. The pill's own behaviour is asserted where it matters: `MobileNativeChatView.turn-status.test.ts` counts the bridge lane's working indicator (length 1).
+- R3-005 SUGGESTION, `MobileSessionSwitcherChip.test.tsx`: fixed. The test renders the chip and asserts the alignment on its own style, not only the helper.
+- R3-006 SUGGESTION, `mobile-session-chrome-mode.ts`: fixed. `activeTabType` is typed with the tab union, not `string`.
+
+### T15: GitHub login beside the repo group name (`5c43a148ab6`)
+
+- The group header shows the repo's GitHub login, muted, from `Repo.ghAccount` in the existing `repo.list` reply. The reply already carries it: the mobile reply schema reads it through the shared `normalizeGhAccountBinding`, so the login is exact and nothing is fuzzy-matched. Folder groups and repos without an account show nothing.
+- No extra request, no per-render refetch, and nothing delays the list: the label rides the catalog the groups already load, cached per host screen.
+- Host change: the fallback needs none. The first source the coordinator named does not exist in this checkout: `github.readAccountGitConfig` is not defined in the host or in the mobile method allowlist, and nothing reads a `gh.account` git config. Using it needs a new host method and an allowlist entry, which is a host change; it is not added here.
+- Tests: `host-repo-group-account.test.ts` (exact login, near-miss names unmatched, folder and non-repo groups blank, schema reads present, absent and malformed accounts).
+
+### T16: Sessions out of the chat menu, Results out of the summary (`2358616d0cf`)
+
+- The chat ⋯ menu no longer has a Sessions item. The session chip opens the Sessions sheet, which holds the New tab row, a row for every tab (terminal switching), and the resume row when agent history applies (`MobileSessionsSheet.test.tsx`).
+- Agent history stays in the ⋯ menu when there is no native chat, where the chip does not exist; that is the R3-agent-history-reachability fix, tested in `mobile-session-header-menu.test.ts`.
+- Summary: the Results section is gone, with its strip, thumbnail, styles, the model's `results` field and its constant, and the route's "see all" prop. Environment, Connected and the agent card are unchanged.
+
+Checks (mobile/): `pnpm typecheck` exit 0 after each commit; oxfmt and oxlint clean on the changed files; the touched and dependent suites pass (menu, sessions sheet, chip, chat surfaces, summary model, environment, host list and reply schema).
+
