@@ -112,6 +112,10 @@ export function CreateSessionScreen({
             onConnect={() => void controller.connectSsh()}
           />
         ) : null}
+        {controller.blocker ? <Text style={styles.notice}>{controller.blocker}</Text> : null}
+        {controller.setupNotice ? (
+          <Text style={styles.notice}>{controller.setupNotice}</Text>
+        ) : null}
         {controller.error ? (
           <Text style={styles.error} accessibilityRole="alert" onPress={controller.clearError}>
             {controller.error}

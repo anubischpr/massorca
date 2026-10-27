@@ -1,9 +1,11 @@
 import type { MobileWorkspaceRepo } from '../components/new-worktree-modal-types'
+import { AGENT_LAUNCH_UNCONFIRMED_MESSAGE } from '../session/mobile-existing-agent-launch'
 import { createBlankWorkspace } from '../tasks/blank-workspace-create'
 import type { WorktreeCreateIdempotencyProbe } from '../tasks/worktree-create-idempotency-policy'
+import { isRpcDeliveryUnknown } from '../transport/rpc-delivery-ambiguity'
 import type { RpcClient } from '../transport/rpc-client'
 import { readCreatureName, readPrimaryWorkspaceId } from './create-session-launch'
-import type { CreateSessionLaunchResult } from './create-session-launch'
+import type { CreateSessionLaunchResult, CreateSessionLaunchSetup } from './create-session-launch'
 import type { CreateSessionWorkspaceMode } from './create-session-model'
 
 /**
@@ -16,6 +18,7 @@ export async function launchBlankTerminal(args: {
   hostId: string
   repo: MobileWorkspaceRepo
   workspaceMode: CreateSessionWorkspaceMode
+  setup: CreateSessionLaunchSetup
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
 }): Promise<CreateSessionLaunchResult> {
   const { client, hostId, repo } = args
@@ -34,21 +37,24 @@ export async function launchBlankTerminal(args: {
       nameWasGenerated: true,
       createdWithAgentId: undefined,
       comment: undefined,
-      // Why: the host setup policy decides, so nothing untrusted runs from a phone tap.
-      setupDecision: 'inherit',
+      setupDecision: args.setup.decision,
       worktreeCreateIdempotency: args.worktreeCreateIdempotency,
       agentLaunchSupported: false
     })
     if ('error' in created) {
       return { ok: false, message: created.error }
     }
+    const warning = [created.warning, args.setup.notice].filter(Boolean).join(' ')
     return {
       ok: true,
       worktreeId: created.worktreeId,
       name: created.name,
-      ...(created.warning ? { warning: created.warning } : {})
+      ...(warning ? { warning } : {})
     }
   } catch (error) {
+    if (isRpcDeliveryUnknown(error)) {
+      return { ok: false, message: AGENT_LAUNCH_UNCONFIRMED_MESSAGE }
+    }
     const message = error instanceof Error ? error.message.trim() : ''
     return { ok: false, message: message || 'Failed to create workspace' }
   }

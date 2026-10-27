@@ -99,7 +99,28 @@ describe('useCreateSessionSubmit', () => {
     expect(hook().error).toBe('')
   })
 
-  it('does nothing after the screen is gone', async () => {
+  it('still lands a create that finishes after the screen is gone', async () => {
+    let finish: (result: CreateSessionLaunchResult) => void = () => {}
+    const { hook, onLanded, unmount } = mountHook(
+      () =>
+        new Promise<CreateSessionLaunchResult>((resolve) => {
+          finish = resolve
+        })
+    )
+    let pending: Promise<void> = Promise.resolve()
+    act(() => {
+      pending = hook().submit(plan)
+    })
+    unmount()
+    const landing: CreateSessionLaunchResult = { ok: true, worktreeId: 'wt-1', name: 'otter' }
+    await act(async () => {
+      finish(landing)
+      await pending
+    })
+    expect(onLanded).toHaveBeenCalledWith(landing)
+  })
+
+  it('does not touch the screen when a create fails after it is gone', async () => {
     let finish: (result: CreateSessionLaunchResult) => void = () => {}
     const { hook, onLanded, unmount } = mountHook(
       () =>
@@ -113,7 +134,7 @@ describe('useCreateSessionSubmit', () => {
     })
     unmount()
     await act(async () => {
-      finish({ ok: true, worktreeId: 'wt-1', name: 'otter' })
+      finish({ ok: false, message: 'late failure' })
       await pending
     })
     expect(onLanded).not.toHaveBeenCalled()

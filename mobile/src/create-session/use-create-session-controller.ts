@@ -28,8 +28,11 @@ import {
   type CreateSessionChoice,
   type CreateSessionSelection
 } from './create-session-model'
+import { createSessionLaunchBlocker } from './create-session-readiness'
 import { useCreateSessionHostSettings } from './use-create-session-host-settings'
+import { useCreateSessionLeaveLock } from './use-create-session-leave-lock'
 import { useCreateSessionOptions } from './use-create-session-options'
+import { useCreateSessionSetup } from './use-create-session-setup'
 import { useCreateSessionSubmit, type CreateSessionLanding } from './use-create-session-submit'
 
 const AGENT_LABELS: ReadonlyMap<TuiAgent, string> = new Map(
@@ -86,7 +89,12 @@ export function useCreateSessionController(args: {
   const selection = held
     ? withAvailableCreateSessionAgent(held, agents, hostSettings.preferredAgent)
     : null
-  const options = useCreateSessionOptions(client, selection?.agent ?? null)
+  const options = useCreateSessionOptions(
+    client,
+    selection?.agent ?? null,
+    `${selection?.hostId ?? ''}|${selection?.repoId ?? ''}`
+  )
+  const setupState = useCreateSessionSetup(client, repo?.id ?? null)
 
   const sshReady = !executionTarget.sshGate.requiresConnection
   const hostOptions = useMemo(
@@ -118,6 +126,7 @@ export function useCreateSessionController(args: {
         hostId,
         repo,
         plan: launchPlan,
+        setup: setupState.setup,
         agentLaunchSupport: capabilities.getAgentLaunchSupport(),
         worktreeCreateIdempotency: capabilities.getWorktreeCreateCutoverSupport()
       })
@@ -131,6 +140,7 @@ export function useCreateSessionController(args: {
       !client ||
       !repo ||
       !selection ||
+      !setupState.ready ||
       blankInFlightRef.current ||
       submitState.phase.kind === 'creating'
     ) {
@@ -144,6 +154,7 @@ export function useCreateSessionController(args: {
       hostId,
       repo,
       workspaceMode: effectiveWorkspaceMode(selection, repo),
+      setup: setupState.setup,
       worktreeCreateIdempotency: capabilities.getWorktreeCreateCutoverSupport()
     }).then((result) => {
       blankInFlightRef.current = false
@@ -155,15 +166,25 @@ export function useCreateSessionController(args: {
       }
     })
   }
+  const blocker = selection
+    ? createSessionLaunchBlocker({
+        support: capabilities.agentLaunch,
+        workspaceMode: effectiveWorkspaceMode(selection, repo)
+      })
+    : null
+  const busy = submitState.phase.kind === 'creating' || blankBusy
+  useCreateSessionLeaveLock(busy)
   const canSubmit =
     selection !== null &&
     plan !== null &&
+    blocker === null &&
+    setupState.ready &&
     canSubmitCreateSession({
       draft,
       selection,
       repos,
       sshReady,
-      busy: submitState.phase.kind === 'creating' || blankBusy
+      busy
     })
 
   const update = useCallback(
@@ -211,6 +232,8 @@ export function useCreateSessionController(args: {
       setBlankError('')
     },
     blankBusy,
+    blocker,
+    setupNotice: setupState.setup.notice,
     startBlankTerminal,
     chooseHost: (value: string) => {
       const option = hostOptions.find((candidate) => candidate.id === value)

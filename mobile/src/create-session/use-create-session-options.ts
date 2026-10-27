@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { isAgentSessionHandleProvider } from '../../../src/shared/agent-session-provider-handle'
 import type { AgentSessionModelCatalogResult } from '../../../src/shared/agent-session-wire'
 import type { SessionOptionValue } from '../../../src/shared/native-chat-session-options'
 import type { MobileNativeChatSessionOptionsController } from '../session/use-mobile-native-chat-session-options'
@@ -49,26 +50,32 @@ export type CreateSessionOptions = {
  */
 export function useCreateSessionOptions(
   client: RpcClient | null,
-  agent: string | null
+  agent: string | null,
+  /** Host and project: the listing and the picks belong to where the session will run. */
+  scope: string
 ): CreateSessionOptions {
-  const [draft, setDraft] = useState(() => createCreateSessionOptionDraft(agent))
-  // Why: a new agent has its own models, so its draft starts over before paint, not in an Effect.
-  if (draft.agent !== agent) {
-    setDraft(createCreateSessionOptionDraft(agent))
+  const [draft, setDraft] = useState(() => createCreateSessionOptionDraft(agent, scope))
+  // Why: another agent, host or project has its own models and defaults, so the draft starts over
+  // before paint, not in an Effect.
+  if (draft.agent !== agent || draft.scope !== scope) {
+    setDraft(createCreateSessionOptionDraft(agent, scope))
   }
   // Why: a pick answers whether it applied right away, which a queued state updater cannot.
   const draftRef = useRef(draft)
   draftRef.current = draft
 
   useEffect(() => {
-    if (!client || !agent) {
+    // The catalog read is refused for an agent with no structured chat, so it is not asked.
+    if (!client || !agent || !isAgentSessionHandleProvider(agent)) {
       return
     }
     let stale = false
     const settle = (catalog: AgentSessionModelCatalogResult | null): void => {
       if (!stale) {
         setDraft((current) =>
-          current.agent === agent ? applyCreateSessionModelCatalog(current, catalog) : current
+          current.agent === agent && current.scope === scope
+            ? applyCreateSessionModelCatalog(current, catalog)
+            : current
         )
       }
     }
@@ -76,7 +83,7 @@ export function useCreateSessionOptions(
     return () => {
       stale = true
     }
-  }, [client, agent])
+  }, [client, agent, scope])
 
   const setOption = useCallback((id: string, value: SessionOptionValue): Promise<boolean> => {
     const next = pickCreateSessionOption(draftRef.current, id, value)

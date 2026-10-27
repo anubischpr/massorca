@@ -11,10 +11,17 @@ import {
 import { getSuggestedCreatureName } from '../components/worktree-name-suggestion'
 import type { MobileWorkspaceRepo } from '../components/new-worktree-modal-types'
 import {
+  AGENT_LAUNCH_UNCONFIRMED_MESSAGE,
   AGENT_LAUNCH_UPDATE_REQUIRED_MESSAGE,
   launchAgentInExistingWorkspace
 } from '../session/mobile-existing-agent-launch'
-import type { AgentLaunchSupport, WorktreeCreateAgentLaunch } from '../tasks/agent-launch-request'
+import {
+  readLandingPaneKey,
+  type AgentLaunchSupport,
+  type WorktreeCreateAgentLaunch
+} from '../tasks/agent-launch-request'
+import type { WorkspaceCreateSetupDecision } from '../tasks/workspace-create-params'
+import { isRpcDeliveryUnknown } from '../transport/rpc-delivery-ambiguity'
 import type { WorktreeCreateIdempotencyProbe } from '../tasks/worktree-create-idempotency-policy'
 import { createWorktreeWithNameRetry } from '../tasks/worktree-create-retry'
 import type { RpcClient } from '../transport/rpc-client'
@@ -32,8 +39,21 @@ export type CreateSessionLaunchResult =
       name: string
       /** Why the workspace opens with something missing, as the host reported it. */
       warning?: string
+      /** Lands the phone on the tab the launch built, when the host named one. */
+      paneKey?: string
     }
   | { ok: false; message: string }
+
+/** What the setup script may do: its decision, and the notice shown when it will not run. */
+export type CreateSessionLaunchSetup = {
+  decision: WorkspaceCreateSetupDecision
+  notice: string | null
+}
+
+function joinWarnings(...parts: Array<string | null | undefined>): string | undefined {
+  const joined = parts.filter((part): part is string => Boolean(part?.trim())).join(' ')
+  return joined || undefined
+}
 
 /** The raw capability list the existing-workspace launch gates on, rebuilt from what was probed. */
 function launchCapabilities(support: AgentLaunchSupport): string[] {
@@ -58,11 +78,15 @@ export async function readPrimaryWorkspaceId(
   hostId: string,
   repo: MobileWorkspaceRepo
 ): Promise<string> {
+  const derived = getRepoMainWorktreeId(repo)
   const rows = (await readCatalogRows(client, hostId)).filter((row) => row.repoId === repo.id)
-  const primary =
-    rows.find((row) => row.isMainWorktree) ?? (repo.kind === 'folder' ? rows[0] : undefined)
-  // Falls back to the id the host derives for the checkout of a repo itself.
-  return primary?.worktreeId ?? getRepoMainWorktreeId(repo)
+  // Why: older hosts omit isMainWorktree, and a repo can list more than one folder workspace, so
+  // no other row may stand in for the checkout of the repo itself.
+  return (
+    rows.find((row) => row.worktreeId === derived)?.worktreeId ??
+    rows.find((row) => row.isMainWorktree)?.worktreeId ??
+    derived
+  )
 }
 
 export async function readCreatureName(
@@ -88,6 +112,7 @@ async function launchInNewWorktree(args: {
   hostId: string
   plan: CreateSessionLaunchPlan
   support: AgentLaunchSupport
+  setup: CreateSessionLaunchSetup
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
 }): Promise<CreateSessionLaunchResult> {
   const { client, plan } = args
@@ -96,7 +121,9 @@ async function launchInNewWorktree(args: {
     agent: plan.agent,
     supported: args.support,
     prompt: { text: plan.prompt, delivery: 'submit' },
-    ...(plan.sessionOptions ? { sessionOptions: plan.sessionOptions } : {})
+    ...(plan.sessionOptions ? { sessionOptions: plan.sessionOptions } : {}),
+    // Why: the plain create would start a bare agent and drop the first message.
+    refuseDowngrade: AGENT_LAUNCH_UPDATE_REQUIRED_MESSAGE
   }
   const created = await createWorktreeWithNameRetry({
     client,
@@ -107,8 +134,7 @@ async function launchInNewWorktree(args: {
     buildParams: (name) => ({
       repo: `id:${plan.repoId}`,
       name,
-      // Why: the host setup policy decides, so nothing untrusted runs from a phone tap.
-      setupDecision: 'inherit',
+      setupDecision: args.setup.decision,
       displayNameKind: 'generated',
       nameWasGenerated: true
     })
@@ -117,15 +143,18 @@ async function launchInNewWorktree(args: {
     return { ok: false, message: created.error }
   }
   // Why: only a receipt that says the text arrived may stay silent; the rest asks for a look.
-  const warning =
+  const warning = joinWarnings(
     created.promptDelivered === true
       ? created.warning
-      : (created.warning ?? CREATE_SESSION_PROMPT_NOT_CONFIRMED_MESSAGE)
+      : (created.warning ?? CREATE_SESSION_PROMPT_NOT_CONFIRMED_MESSAGE),
+    args.setup.notice
+  )
   return {
     ok: true,
     worktreeId: created.worktreeId,
     name: created.name,
-    ...(warning ? { warning } : {})
+    ...(warning ? { warning } : {}),
+    ...(created.paneKey ? { paneKey: created.paneKey } : {})
   }
 }
 
@@ -135,6 +164,7 @@ async function launchInCurrentCheckout(args: {
   repo: MobileWorkspaceRepo
   plan: CreateSessionLaunchPlan
   support: AgentLaunchSupport
+  setup: CreateSessionLaunchSetup
 }): Promise<CreateSessionLaunchResult> {
   const { client, plan, repo } = args
   const worktreeId = await readPrimaryWorkspaceId(client, args.hostId, repo)
@@ -145,7 +175,7 @@ async function launchInCurrentCheckout(args: {
     agent: plan.agent,
     prompt: { text: plan.prompt, delivery: 'submit' },
     ...(plan.sessionOptions ? { sessionOptions: plan.sessionOptions } : {}),
-    launchSource: 'create_session'
+    launchSource: 'mobile'
   })
   switch (launched.kind) {
     case 'unsupported':
@@ -156,15 +186,19 @@ async function launchInCurrentCheckout(args: {
       return { ok: false, message: launched.message }
     case 'launched': {
       const hostWarning = launched.result.warning?.trim()
-      const warning =
+      const warning = joinWarnings(
         launched.promptDelivered === true
           ? hostWarning
-          : hostWarning || CREATE_SESSION_PROMPT_NOT_CONFIRMED_MESSAGE
+          : hostWarning || CREATE_SESSION_PROMPT_NOT_CONFIRMED_MESSAGE,
+        args.setup.notice
+      )
+      const paneKey = readLandingPaneKey(launched.result)
       return {
         ok: true,
         worktreeId,
         name: repo.displayName,
-        ...(warning ? { warning } : {})
+        ...(warning ? { warning } : {}),
+        ...(paneKey ? { paneKey } : {})
       }
     }
   }
@@ -180,6 +214,7 @@ export async function launchCreateSession(args: {
   hostId: string
   repo: MobileWorkspaceRepo
   plan: CreateSessionLaunchPlan
+  setup: CreateSessionLaunchSetup
   agentLaunchSupport: Promise<AgentLaunchSupport | false>
   worktreeCreateIdempotency: WorktreeCreateIdempotencyProbe
 }): Promise<CreateSessionLaunchResult> {
@@ -192,6 +227,11 @@ export async function launchCreateSession(args: {
       ? await launchInNewWorktree({ ...args, support })
       : await launchInCurrentCheckout({ ...args, support })
   } catch (error) {
+    // Why: a request that reached the wire may have built the worktree, and a second tap would
+    // build another, so the screen is told to check instead of to retry.
+    if (isRpcDeliveryUnknown(error)) {
+      return { ok: false, message: AGENT_LAUNCH_UNCONFIRMED_MESSAGE }
+    }
     const message = error instanceof Error ? error.message.trim() : ''
     return { ok: false, message: message || 'Failed to start the session' }
   }

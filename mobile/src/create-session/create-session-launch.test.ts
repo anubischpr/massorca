@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import type { MobileWorkspaceRepo } from '../components/new-worktree-modal-types'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcResponse } from '../transport/types'
+import { markRpcDeliveryUnknown } from '../transport/rpc-delivery-ambiguity'
 import {
   CREATE_SESSION_PROMPT_NOT_CONFIRMED_MESSAGE,
-  launchCreateSession
+  launchCreateSession,
+  type CreateSessionLaunchSetup
 } from './create-session-launch'
 import type { CreateSessionLaunchPlan } from './create-session-launch-plan'
 
@@ -74,13 +76,16 @@ const catalog = ok({
 function run(
   client: RpcClient,
   plan: CreateSessionLaunchPlan,
-  support: { replay: boolean } | false
+  support: { replay: boolean } | false,
+  setup: CreateSessionLaunchSetup = { decision: 'inherit', notice: null },
+  target: MobileWorkspaceRepo = repo
 ) {
   return launchCreateSession({
     client,
     hostId: 'host-1',
-    repo,
+    repo: target,
     plan,
+    setup,
     agentLaunchSupport: Promise.resolve(support),
     worktreeCreateIdempotency: Promise.resolve(false)
   })
@@ -203,5 +208,153 @@ describe('launchCreateSession in the current checkout', () => {
       'agent.launchReplay': refused('agent_session_operation_unknown', 'unknown')
     })
     expect(await run(client, checkoutPlan, { replay: true })).toMatchObject({ ok: false })
+  })
+
+  it('does not use a sibling row when the host omits the main flag', async () => {
+    const siblings = ok({
+      snapshotId: 's2',
+      worktrees: [
+        { worktreeId: 'web::/work/web-feature', repoId: 'web', path: '/work/web-feature' },
+        { worktreeId: 'web::/work/web', repoId: 'web', path: '/work/web' }
+      ]
+    })
+    const { client, sendRequest } = fakeClient({
+      'worktree.ps': siblings,
+      'agent.launchReplay': launchReceipt({
+        delivery: 'submit',
+        outcome: 'journaled',
+        messageId: 'm1'
+      })
+    })
+    await run(client, checkoutPlan, { replay: true })
+    expect(paramsOf(sendRequest, 'agent.launchReplay')).toMatchObject({
+      target: { kind: 'existing', worktree: 'id:web::/work/web' }
+    })
+  })
+
+  it('opens a folder in its own workspace, not a sibling folder workspace', async () => {
+    const folder: MobileWorkspaceRepo = {
+      id: 'notes',
+      displayName: 'notes',
+      path: '/work/notes',
+      kind: 'folder'
+    }
+    const rows = ok({
+      snapshotId: 's3',
+      worktrees: [{ worktreeId: 'notes::/work/other', repoId: 'notes', path: '/work/other' }]
+    })
+    const { client, sendRequest } = fakeClient({
+      'worktree.ps': rows,
+      'agent.launchReplay': launchReceipt({
+        delivery: 'submit',
+        outcome: 'journaled',
+        messageId: 'm1'
+      })
+    })
+    await run(client, checkoutPlan, { replay: true }, undefined, folder)
+    expect(paramsOf(sendRequest, 'agent.launchReplay')).toMatchObject({
+      target: { kind: 'existing', worktree: 'id:notes::/work/notes' }
+    })
+  })
+
+  it('lands on the tab of the chat the host built', async () => {
+    const tabId = '4f7c2d1e-9a3b-4c5d-8e6f-0a1b2c3d4e5f'
+    const { client } = fakeClient({
+      'worktree.ps': catalog,
+      'agent.launchReplay': ok({
+        worktreeId: 'web::/work/web',
+        outcome: { kind: 'structured', sessionId: 'claude-1', handle: 'h', tabId },
+        receipt: RECEIPT,
+        prompt: { delivery: 'submit', outcome: 'journaled', messageId: 'm1' }
+      })
+    })
+    const result = await run(client, checkoutPlan, { replay: true })
+    expect(result).toMatchObject({ ok: true })
+    expect(result.ok && result.paneKey?.startsWith(`${tabId}:`)).toBe(true)
+  })
+
+  it('lands on the terminal pane the host reports', async () => {
+    const paneKey = '4f7c2d1e-9a3b-4c5d-8e6f-0a1b2c3d4e5f:5a6b7c8d-1e2f-4a3b-9c4d-5e6f7a8b9c0d'
+    const { client } = fakeClient({
+      'worktree.ps': catalog,
+      'agent.launchReplay': ok({
+        worktreeId: 'web::/work/web',
+        outcome: { kind: 'terminal', handle: 'term-1', paneKey },
+        receipt: RECEIPT,
+        prompt: { delivery: 'submit', outcome: 'handed-to-terminal' }
+      })
+    })
+    const result = await run(client, checkoutPlan, { replay: true })
+    expect(result.ok && result.paneKey).toBe(paneKey)
+  })
+
+  it('names itself as the mobile launch source', async () => {
+    const { client, sendRequest } = fakeClient({
+      'worktree.ps': catalog,
+      'agent.launchReplay': launchReceipt({
+        delivery: 'submit',
+        outcome: 'journaled',
+        messageId: 'm'
+      })
+    })
+    await run(client, checkoutPlan, { replay: true })
+    expect(paramsOf(sendRequest, 'agent.launchReplay')).toMatchObject({ launchSource: 'mobile' })
+  })
+})
+
+describe('launchCreateSession setup script', () => {
+  const receipt = launchReceipt({ delivery: 'submit', outcome: 'journaled', messageId: 'm' })
+
+  function createParams(sendRequest: ReturnType<typeof fakeClient>['sendRequest']) {
+    const params = paramsOf(sendRequest, 'agent.launch')
+    return params && typeof params === 'object' && 'target' in params ? params.target : undefined
+  }
+
+  it('sends the decision the project allows, never a blind default', async () => {
+    const { client, sendRequest } = fakeClient({ 'agent.launch': receipt })
+    await run(client, newWorktreePlan, { replay: false }, { decision: 'skip', notice: null })
+    expect(createParams(sendRequest)).toMatchObject({ create: { setupDecision: 'skip' } })
+  })
+
+  it('says on landing that an untrusted script was skipped', async () => {
+    const { client } = fakeClient({ 'agent.launch': receipt })
+    const result = await run(
+      client,
+      newWorktreePlan,
+      { replay: false },
+      { decision: 'skip', notice: 'The setup script is not trusted yet, so it will be skipped.' }
+    )
+    expect(result).toMatchObject({
+      ok: true,
+      warning: 'The setup script is not trusted yet, so it will be skipped.'
+    })
+  })
+})
+
+describe('launchCreateSession failure handling', () => {
+  it('never falls back to a bare worktree create when the host refuses agent.launch', async () => {
+    const { client, sendRequest } = fakeClient({})
+    const result = await run(client, newWorktreePlan, { replay: false })
+    expect(result).toEqual({
+      ok: false,
+      message: 'Update MassOrca on your computer to start an agent from your phone.'
+    })
+    expect(sendRequest.mock.calls.some(([method]) => method === 'worktree.create')).toBe(false)
+  })
+
+  it('asks for a check, not a retry, when the create may have reached the host', async () => {
+    const { client, sendRequest } = fakeClient({})
+    sendRequest.mockImplementation(async (method: string) => {
+      if (method === 'agent.launch') {
+        throw markRpcDeliveryUnknown(new Error('Connection interrupted'))
+      }
+      return refused('method_not_found', method)
+    })
+    const result = await run(client, newWorktreePlan, { replay: false })
+    expect(result).toEqual({
+      ok: false,
+      message: "Couldn't confirm the agent started. Check the workspace before trying again."
+    })
+    expect(sendRequest.mock.calls.filter(([method]) => method === 'agent.launch')).toHaveLength(1)
   })
 })

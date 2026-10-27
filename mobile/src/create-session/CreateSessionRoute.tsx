@@ -25,7 +25,13 @@ export function CreateSessionRoute(): React.JSX.Element {
       onLanded={(landing) => {
         // Replaced, not pushed, so back from the chat returns to the list instead of the form.
         router.replace(
-          hostNewWorktreeSessionRoute(hostId, landing.worktreeId, landing.name, landing.warning)
+          hostNewWorktreeSessionRoute(
+            hostId,
+            landing.worktreeId,
+            landing.name,
+            landing.warning,
+            landing.paneKey
+          )
         )
       }}
       // Why: dismissTo reuses the host list already on the stack, where the existing form opens.

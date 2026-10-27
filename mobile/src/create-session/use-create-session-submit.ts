@@ -46,15 +46,16 @@ export function useCreateSessionSubmit(args: {
     setPhase({ kind: 'creating', plan })
     try {
       const result = await argsRef.current.launch(plan)
-      if (!mountedRef.current) {
-        return
-      }
       if (result.ok) {
+        // Why: the worktree and chat exist even if the screen is gone, so the phone still opens
+        // them; dropping the result would lose the text and invite a duplicate.
         argsRef.current.onLanded(result)
         return
       }
-      setError(result.message)
-      setPhase(IDLE)
+      if (mountedRef.current) {
+        setError(result.message)
+        setPhase(IDLE)
+      }
     } finally {
       inFlightRef.current = false
     }
