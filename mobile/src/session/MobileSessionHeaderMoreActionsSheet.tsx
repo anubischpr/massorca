@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { type ComponentType, useRef } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import {
   Files,
@@ -6,20 +6,22 @@ import {
   ListChecks,
   ListTodo,
   MessagesSquare,
-  ScrollText,
-  type LucideIcon
+  ScrollText
 } from 'lucide-react-native'
+import { MobileAgentSessionHistoryIcon } from '../agent-history/MobileAgentSessionHistoryIcon'
 import { BottomDrawer } from '../components/BottomDrawer'
 import { SheetSectionLabel } from '../components/SheetSectionLabel'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import type { MobileSessionHeaderMenu } from './mobile-session-header-menu'
+
+type MenuIconProps = { size: number; color: string; strokeWidth: number }
 
 type MenuItem = {
   show: boolean
   key: string
   label: string
   hint?: string
-  icon: LucideIcon
+  icon: ComponentType<MenuIconProps>
   onPress: () => void
 }
 
@@ -34,6 +36,7 @@ type Props = {
   onOpenPlan: () => void
   onOpenSummary: () => void
   onOpenArtifacts: () => void
+  onOpenAgentHistory: () => void
   onOpenBranch: () => void
   onOpenChecks: () => void
   onClose: () => void
@@ -51,6 +54,7 @@ export function MobileSessionHeaderMoreActionsSheet({
   onOpenPlan,
   onOpenSummary,
   onOpenArtifacts,
+  onOpenAgentHistory,
   onOpenBranch,
   onOpenChecks,
   onClose
@@ -91,6 +95,14 @@ export function MobileSessionHeaderMoreActionsSheet({
       hint: String(recordedFileCount),
       icon: Files,
       onPress: onOpenArtifacts
+    },
+    {
+      show: menu.chat.agentHistory,
+      key: 'agent-history',
+      label: 'Agent history',
+      hint: 'Browse and resume agent sessions',
+      icon: MobileAgentSessionHistoryIcon,
+      onPress: onOpenAgentHistory
     }
   ])
   const environmentItems = shown([
