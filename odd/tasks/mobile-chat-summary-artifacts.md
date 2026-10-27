@@ -151,3 +151,19 @@ An automated reliability review covered this branch up to `7b44bb54ea4`. Each fi
 Desktop's `nativeChatSessionPlan` (`src/renderer/src/components/native-chat/native-chat-session-summary.ts`) still feeds the same synthetic success. Not changed here, since this branch is mobile-only.
 
 Checks (mobile/): `pnpm typecheck` exit 0. `pnpm check:tests-typecheck` ratchet OK; no touched file has a test type error. oxfmt and oxlint clean on every changed file. Vitest: 16 suites, 134 tests pass (the 9 touched suites and 7 dependent chat suites).
+
+### Round 3 review (7fc898a348f..HEAD)
+
+An independent review covered the branch from `7fc898a348f` to the T11 commits. Each finding was checked against the code first.
+
+- Thumbnail glyph latched when the source was null at mount (`use-mobile-artifact-thumbnail.ts`): fixed in `d185d7d2f8b`. The glyph is now derived per render from the source; the load runs once the source appears. Test: `use-mobile-artifact-thumbnail.test.tsx`, "loads once a source appears after mount".
+- Reconnect to desktop and the tab hold menu lost in the structured chat: fixed in `cdc4f7e5da6` (a tappable Reconnect row in the floating chrome, shown when a retry is offered, wired to `forceReconnectHost`; test `MobileChatFloatingChrome.test.tsx`) and `ad566deb733` (a hold on a Sessions sheet row opens close and rename after the sheet closes; test `MobileSessionsSheet.test.tsx`). Not restored: the haptic on hold.
+- Cached previews went stale after a later turn edited the file: fixed in `d185d7d2f8b`. The cached copy paints first; a recorded file is revalidated once per mount and per source (`readRecordedFilePreview` with `revalidate`). A visual is always asked of the host already. A host that gives no answer keeps the last copy, since a transient failure cannot be told from a deleted file.
+- Floating chrome covered the create-warning banner and the docked panel header, and the 128 inset was fixed: fixed in `cdc4f7e5da6`. The chrome now lives in the content column, so it no longer reaches the docked panel. It measures its own height (`onLayout`) and publishes it through `MobileChatChromeLayoutContext`; the banner and the transcript start beneath the measured height. The fixed 128 remains only as the estimate before the first measurement. Test: `mobile-chat-chrome-layout.test.ts`.
+- Status pill hid workflow and unknown tasks: fixed in `7008bb1545f`. The pill shows whenever the roster has non-done work (`view.show`); the counts are unchanged. Test: `mobile-chat-status-pill.test.ts`.
+- Thumbnail WebViews latched near and never unmounted: fixed in `d185d7d2f8b`. Viewport proximity is now tracked both ways, and at most six live previews hold a slot (`mobile-artifact-preview-slots.ts`); a preview past the cap shows the glyph and takes a slot when one frees. Tests: `mobile-artifact-preview-slots.test.ts`, `use-mobile-artifact-thumbnail.test.tsx`.
+- Thumbnail CSP depended on a `<head>` match: fixed in `d185d7d2f8b`. The policy is always the first meta, after a leading doctype only (a doctype must stay first). Test: `mobile-artifact-thumbnail-html.test.ts`, including a head inside a comment.
+- ⋯ quick commands lost the creating and not-connected guard: fixed in `5eda45bcacd`. The row is disabled under the same guard the tab button used. The Sessions sheet's New tab had lost the same guard and got it too.
+- Viewer opened without a tab param: skipped. `showNativeChat` requires an active tab id (`use-mobile-native-chat-active-resolution.ts`, `activeSessionTab && activeSessionTabId`), and the chat's cards and the ⋯ items exist only while a native chat is shown, so the opener cannot run without a tab.
+
+Checks (mobile/): `pnpm typecheck` exit 0 after each commit. Touched and dependent suites pass; oxfmt and oxlint clean on the changed files. Not verified on a device: the thumbnail limit under real Android memory pressure, the reconnect row's position beneath the chip, and the banner offset.
