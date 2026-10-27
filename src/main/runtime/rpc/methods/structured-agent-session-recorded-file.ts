@@ -1,12 +1,13 @@
 // `agentSession.readRecordedFile` — a file this chat's agent wrote, read from the owning host.
 //
-// Additive and negotiated: a client calls it only where the host advertises
-// `agent-session.recorded-file-read.v1`; an older host answers `method_not_found`. The generic
-// remote file open stays restricted to the worktree: the set of servable paths is derived here,
-// from the host's own journal for the session, and the client's path is only checked against it.
+// Additive: the host advertises `agent-session.recorded-file-read.v1`, but a client does not probe
+// it; an older host answers `method_not_found`, which the client reads as "update the host". The
+// generic remote file open stays restricted to the worktree: the set of servable paths is derived
+// here, from the host's own journal for the session (completed calls of file-writing tools and
+// provider diffs), and the client's path is only checked against it.
 
 import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
-import { changedFilePathsFromJournalItems } from '../../../../shared/native-chat-journal-changed-paths'
+import { writtenFilePathsFromJournalItems } from '../../../../shared/native-chat-journal-changed-paths'
 import {
   ReadRecordedFileParams,
   type AgentSessionReadRecordedFileResult
@@ -41,7 +42,7 @@ export const STRUCTURED_AGENT_SESSION_RECORDED_FILE_METHODS = [
       return readAgentRecordedFile({
         path: params.path,
         mode: params.mode,
-        recordedKeys: recordedFileKeys(changedFilePathsFromJournalItems(snapshot.items)),
+        recordedKeys: recordedFileKeys(writtenFilePathsFromJournalItems(snapshot.items)),
         // A remote reply must fit the connection's outbound budget, or the server closes the socket.
         maxContentBytes: remoteFileContentBudget(ctx.clientKind, ctx.requestId)
       })

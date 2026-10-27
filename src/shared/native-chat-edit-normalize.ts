@@ -33,6 +33,12 @@ const PATCH_ENVELOPE_TOOLS = new Set(['apply_patch', ...COMMAND_PATCH_TOOLS])
  *  call carrying just the path. */
 const PATCH_TEXT_TOOLS = new Set(['apply_patch', 'Diff'])
 
+/** Tools that themselves write files: the edit tools and the ones that apply a patch. `Diff` is a
+ *  display tool and other tools' inputs are not evidence of a write. */
+export function isFileWriteToolName(name: string): boolean {
+  return CLAUDE_EDIT_TOOLS.has(name) || PATCH_ENVELOPE_TOOLS.has(name)
+}
+
 export function isEditToolName(name: string): boolean {
   return CLAUDE_EDIT_TOOLS.has(name) || PATCH_ENVELOPE_TOOLS.has(name) || PATCH_TEXT_TOOLS.has(name)
 }

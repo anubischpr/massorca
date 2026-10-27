@@ -28,17 +28,26 @@ const OPEN_NOFOLLOW = typeof constants.O_NOFOLLOW === 'number' ? constants.O_NOF
 // files unchanged.
 const OPEN_NONBLOCK = typeof constants.O_NONBLOCK === 'number' ? constants.O_NONBLOCK : 0
 
-function hasParentSegment(path: string): boolean {
-  return path.split(/[\\/]/).includes('..')
+/** A path this host can name unambiguously: absolute, free of `..`, and not a UNC or device path
+ *  (`\\host\share`, `\\.\`), which would reach a network share or a raw device. A relative or `~`
+ *  spelling needs the agent's cwd to mean anything, so it is never served either. */
+function isServablePath(path: string): boolean {
+  return (
+    isAbsolute(path) &&
+    !path.split(/[\\/]/).includes('..') &&
+    !path.startsWith('\\\\') &&
+    !(process.platform === 'win32' && path.startsWith('//'))
+  )
 }
 
-/** Comparison keys of the recorded paths this host can name unambiguously: absolute and free of
- *  `..`. A relative or `~` spelling needs the agent's cwd to mean anything, so it is never served. */
-export function recordedFileKeys(paths: readonly string[]): Set<string> {
-  return new Set(
+/** Comparison key to the recorded spelling. The key only decides membership: the file opened is
+ *  the one the agent wrote, never the client's variant of its name (NFC/NFD, `//`, a trailing
+ *  slash), which on a normalization-sensitive filesystem can be another file. */
+export function recordedFileKeys(paths: readonly string[]): Map<string, string> {
+  return new Map(
     paths
-      .filter((path) => isAbsolute(path) && !hasParentSegment(path))
-      .map(normalizeRuntimePathForComparison)
+      .filter(isServablePath)
+      .map((path) => [normalizeRuntimePathForComparison(path), path] as const)
   )
 }
 
@@ -67,16 +76,15 @@ function previewMaxBytes(isBinaryMime: boolean, maxContentBytes: number | undefi
 export async function readAgentRecordedFile(input: {
   path: string
   mode: 'stat' | 'preview'
-  recordedKeys: ReadonlySet<string>
+  recordedKeys: ReadonlyMap<string, string>
   /** The reply's byte budget on a remote connection; undefined for an in-process caller. */
   maxContentBytes?: number
 }): Promise<AgentSessionReadRecordedFileResult> {
-  const { path, mode, maxContentBytes } = input
-  if (
-    !isAbsolute(path) ||
-    hasParentSegment(path) ||
-    !input.recordedKeys.has(normalizeRuntimePathForComparison(path))
-  ) {
+  const { mode, maxContentBytes } = input
+  const path = isServablePath(input.path)
+    ? input.recordedKeys.get(normalizeRuntimePathForComparison(input.path))
+    : undefined
+  if (path === undefined) {
     return refusal('not_recorded')
   }
   let linkStats: Awaited<ReturnType<typeof lstat>>

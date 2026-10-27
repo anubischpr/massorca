@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, sep } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,6 +10,7 @@ import {
   RUNTIME_CAPABILITIES
 } from '../../../../shared/protocol-version'
 import { setStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
+import { recordedFileKeys } from '../../../native-chat/agent-session-recorded-file-read'
 import { ALL_RPC_METHODS } from '.'
 import { STRUCTURED_AGENT_SESSION_RECORDED_FILE_METHODS } from './structured-agent-session-recorded-file'
 import {
@@ -33,23 +34,27 @@ const call = (params: unknown) =>
     STRUCTURED_AGENT_SESSION_RECORDED_FILE_METHODS
   )
 
-function writeCall(
+function toolCall(
   sequence: number,
-  filePath: string,
-  state: 'completed' | 'failed' = 'completed'
+  name: string,
+  input: unknown,
+  state: 'running' | 'completed' | 'failed' = 'completed'
 ): AgentJournalRenderItem {
   return {
-    itemId: `write-${sequence}`,
+    itemId: `call-${sequence}`,
     revision: 1,
     sequence,
     observedAt: sequence,
-    body: {
-      kind: 'tool-call',
-      name: 'Write',
-      input: { file_path: filePath, content: 'x' },
-      state
-    }
+    body: { kind: 'tool-call', name, input, state }
   }
+}
+
+function writeCall(
+  sequence: number,
+  filePath: string,
+  state: 'running' | 'completed' | 'failed' = 'completed'
+): AgentJournalRenderItem {
+  return toolCall(sequence, 'Write', { file_path: filePath, content: 'x' }, state)
 }
 
 function diffItem(sequence: number, filePath: string): AgentJournalRenderItem {
@@ -208,5 +213,138 @@ describe('agentSession.readRecordedFile', () => {
   it('rejects params that name more than the session, path and mode', async () => {
     const response = await call({ sessionId: SESSION, path: '/x', mode: 'preview', extra: 1 })
     expect(response.ok).toBe(false)
+  })
+
+  describe('what counts as a write by the agent', () => {
+    async function secretNeverServed(): Promise<string> {
+      const secret = join(root, 'secret.txt')
+      await writeFile(secret, 'secret')
+      return secret
+    }
+    async function refused(path: string): Promise<void> {
+      expect(await call({ sessionId: SESSION, path, mode: 'preview' })).toMatchObject({
+        result: { ok: false, error: 'not_recorded' }
+      })
+    }
+
+    it('ignores a path another tool merely carries in its input', async () => {
+      const secret = await secretNeverServed()
+      items.push(
+        toolCall(1, 'mcp__x__search', {
+          changes: [{ path: secret, diff: 'x', kind: { type: 'add' } }]
+        }),
+        toolCall(2, 'x/search', { changes: [{ path: secret, diff: 'x', kind: 'add' }] }),
+        toolCall(3, 'Read', { file_path: secret }),
+        toolCall(4, 'Grep', { path: secret }),
+        toolCall(5, 'Diff', {
+          patch: `--- a/x
++++ b/x
+@@ -0,0 +1 @@
++x
+`,
+          path: secret
+        })
+      )
+      await refused(secret)
+    })
+
+    it('does not let a write tool name files through a changes list', async () => {
+      const secret = await secretNeverServed()
+      const other = join(root, 'other.txt')
+      await writeFile(other, 'other')
+      items.push(
+        toolCall(1, 'Write', {
+          file_path: other,
+          content: 'x',
+          changes: [{ path: secret, diff: 'x', kind: 'add' }]
+        })
+      )
+      await refused(secret)
+      expect(await call({ sessionId: SESSION, path: other, mode: 'preview' })).toMatchObject({
+        result: { ok: true, content: 'other' }
+      })
+    })
+
+    it('serves the files a patch tool reports', async () => {
+      const patched = join(root, 'patched.txt')
+      await writeFile(patched, 'patched')
+      items.push(
+        toolCall(1, 'apply_patch', {
+          changes: [{ path: patched, diff: 'patched', kind: { type: 'add' } }]
+        })
+      )
+      expect(await call({ sessionId: SESSION, path: patched, mode: 'preview' })).toMatchObject({
+        result: { ok: true, content: 'patched' }
+      })
+    })
+
+    it('ignores a write that is still running or failed', async () => {
+      const running = join(root, 'running.txt')
+      const failed = join(root, 'failed.txt')
+      await Promise.all([writeFile(running, 'r'), writeFile(failed, 'f')])
+      items.push(writeCall(1, running, 'running'), writeCall(2, failed, 'failed'))
+      await refused(running)
+      await refused(failed)
+    })
+
+    it('ignores a path a user message mentions', async () => {
+      const secret = await secretNeverServed()
+      items.push({
+        itemId: 'user-1',
+        revision: 1,
+        sequence: 1,
+        observedAt: 1,
+        body: { kind: 'message', role: 'user', blocks: [{ type: 'text', text: `read ${secret}` }] }
+      })
+      await refused(secret)
+    })
+  })
+
+  describe('which file is opened', () => {
+    it('opens the recorded spelling for a client spelling that normalizes to it', async () => {
+      const path = await recordedFile('résumé.txt'.normalize('NFC'), 'recorded')
+      const variants = [
+        path.normalize('NFD'),
+        `${path}${sep}`,
+        path.replace(`${sep}résumé`, `${sep}${sep}résumé`)
+      ]
+      for (const variant of variants) {
+        expect(await call({ sessionId: SESSION, path: variant, mode: 'preview' })).toMatchObject({
+          result: { ok: true, content: 'recorded' }
+        })
+      }
+    })
+
+    it('does not open a differently normalized file the client named', async () => {
+      const nfc = join(root, 'café.txt'.normalize('NFC'))
+      const nfd = join(root, 'café.txt'.normalize('NFD'))
+      await writeFile(nfd, 'other file')
+      // A filesystem that folds the two spellings has no second file to confuse.
+      if (
+        await readFile(nfc, 'utf8').then(
+          () => true,
+          () => false
+        )
+      ) {
+        return
+      }
+      items.push(writeCall(1, nfc))
+      expect(await call({ sessionId: SESSION, path: nfd, mode: 'preview' })).toMatchObject({
+        result: { ok: false, error: 'not_found' }
+      })
+    })
+
+    it.skipIf(process.platform === 'win32')('keeps case significant on a POSIX host', async () => {
+      const path = await recordedFile('Report.html', 'ok')
+      expect(
+        await call({ sessionId: SESSION, path: path.replace('Report', 'report'), mode: 'stat' })
+      ).toMatchObject({ result: { ok: false, error: 'not_recorded' } })
+    })
+  })
+
+  it('never serves a UNC or device spelling', () => {
+    expect(recordedFileKeys(['\\\\host\\share\\report.html', '\\\\.\\C:\\report.html']).size).toBe(
+      0
+    )
   })
 })

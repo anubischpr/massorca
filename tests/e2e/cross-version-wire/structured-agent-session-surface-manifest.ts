@@ -183,6 +183,12 @@ export function paramsFor(method: string): unknown {
         sessionId: SESSION,
         path: '/home/dev/.gemini/antigravity-cli/brain/conversation-1/implementation_plan.md'
       }
+    case 'agentSession.readRecordedFile':
+      return {
+        sessionId: SESSION,
+        path: '/home/dev/projects/informes/report.html',
+        mode: 'preview'
+      }
     case 'agentSession.hold':
     case 'agentSession.release':
       return { sessionId: SESSION, holderId: 'surface-1' }
