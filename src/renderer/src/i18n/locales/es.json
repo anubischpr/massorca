@@ -18342,7 +18342,9 @@
         "viewerNotFound": "Este archivo ya no existe en el host remoto.",
         "viewerTooLarge": "Este archivo es demasiado grande para previsualizarlo.",
         "viewerUnsupportedType": "Este tipo de archivo no se puede previsualizar aquí.",
-        "viewerReadOnly": "Vista previa de solo lectura desde el host remoto"
+        "viewerReadOnly": "Vista previa de solo lectura desde el host remoto",
+        "recordedFileTabHintMac": "⌘⌥+clic la abre en una pestaña",
+        "recordedFileTabHintOther": "Ctrl+Alt+clic la abre en una pestaña"
       },
       "contextUsage": {
         "label": "Contexto: {{used}} de {{window}} tokens, {{percent}} % usados",

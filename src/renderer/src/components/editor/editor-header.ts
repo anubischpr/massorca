@@ -14,9 +14,9 @@ export type EditorHeaderOpenFileState = {
   canOpen: boolean
 }
 
-/** Whether the panel shows its own path header; check-details names the document itself. */
+/** Whether the panel shows its own path header; virtual tabs name the document themselves. */
 export function shouldShowEditorPanelHeader(file: OpenFile, isCombinedDiff: boolean): boolean {
-  return !isCombinedDiff && file.mode !== 'check-details'
+  return !isCombinedDiff && file.mode !== 'check-details' && file.mode !== 'recorded-file'
 }
 
 export function getEditorHeaderCopyState(file: OpenFile): EditorHeaderCopyState {
@@ -26,6 +26,16 @@ export function getEditorHeaderCopyState(file: OpenFile): EditorHeaderCopyState 
       copyToastLabel: 'Worktree path copied',
       pathLabel: 'Conflict Review',
       pathTitle: file.filePath
+    }
+  }
+
+  if (file.mode === 'recorded-file') {
+    const path = file.recordedFile?.path ?? file.relativePath
+    return {
+      copyText: null,
+      copyToastLabel: 'Recorded file path copied',
+      pathLabel: path,
+      pathTitle: path
     }
   }
 

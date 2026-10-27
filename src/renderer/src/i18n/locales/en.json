@@ -18782,7 +18782,9 @@
         "viewerNotFound": "This file no longer exists on the remote host.",
         "viewerTooLarge": "This file is too large to preview.",
         "viewerUnsupportedType": "This file type can't be previewed here.",
-        "viewerReadOnly": "Read-only preview from the remote host"
+        "viewerReadOnly": "Read-only preview from the remote host",
+        "recordedFileTabHintMac": "⌘⌥+click opens it in a tab",
+        "recordedFileTabHintOther": "Ctrl+Alt+click opens it in a tab"
       },
       "contextUsage": {
         "label": "Context {{used}} of {{window}} tokens, {{percent}}% used",

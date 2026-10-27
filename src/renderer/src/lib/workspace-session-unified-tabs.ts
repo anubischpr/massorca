@@ -77,7 +77,8 @@ export function buildPersistedUnifiedTabSessionData(
   ])
 
   for (const worktreeId of worktreeIds) {
-    const tabs = sourceTabs[worktreeId] ?? []
+    // Why: a recorded-file tab reopens from its host, so it never reaches the saved session.
+    const tabs = (sourceTabs[worktreeId] ?? []).filter((tab) => tab.contentType !== 'recorded-file')
     if (tabs.length === 0) {
       continue
     }

@@ -82,6 +82,10 @@ export function isMobileFileDiffSource(
 }
 
 export function isMobilePublishableOpenFile(file: AppState['openFiles'][number]): boolean {
+  // Why: a recorded file is a read-only view of a remote host's file, which mobile never mirrors.
+  if (file.mode === 'recorded-file') {
+    return false
+  }
   // Combined diff tabs use display labels as paths and need the desktop renderer.
   return !(
     file.diffSource === 'combined-all' ||

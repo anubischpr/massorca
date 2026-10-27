@@ -18486,7 +18486,9 @@
         "viewerNotFound": "Ce fichier n'existe plus sur l'hôte distant.",
         "viewerTooLarge": "Ce fichier est trop volumineux pour être prévisualisé.",
         "viewerUnsupportedType": "Ce type de fichier ne peut pas être prévisualisé ici.",
-        "viewerReadOnly": "Aperçu en lecture seule depuis l'hôte distant"
+        "viewerReadOnly": "Aperçu en lecture seule depuis l'hôte distant",
+        "recordedFileTabHintMac": "⌘⌥+clic l'ouvre dans un onglet",
+        "recordedFileTabHintOther": "Ctrl+Alt+clic l'ouvre dans un onglet"
       },
       "contextUsage": {
         "label": "Contexte : {{used}} tokens sur {{window}}, {{percent}} % utilisés",

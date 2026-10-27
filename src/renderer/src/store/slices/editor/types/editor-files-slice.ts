@@ -3,6 +3,7 @@ import type {
   CheckRunDetailsTabPatch,
   OpenCheckRunDetailsState
 } from '@/components/editor/check-run-details-tab'
+import type { RecordedFileTabState } from '@/components/editor/recorded-file-tab'
 import type {
   GitBranchChangeEntry,
   GitBranchCompareSummary,
@@ -163,6 +164,7 @@ export type EditorFilesSlice = {
     state: CheckRunDetailsTabPatch
   ) => void
   reloadOpenCheckRunDetailsTab: (fileId: string) => Promise<void>
+  openRecordedFileTab: (worktreeId: string, file: RecordedFileTabState) => void
   openBranchAllDiffs: (
     worktreeId: string,
     worktreePath: string,

@@ -18420,7 +18420,9 @@
         "viewerNotFound": "このファイルはリモートホストに存在しなくなりました。",
         "viewerTooLarge": "このファイルはサイズが大きすぎてプレビューできません。",
         "viewerUnsupportedType": "この種類のファイルはここではプレビューできません。",
-        "viewerReadOnly": "リモートホストからの読み取り専用プレビュー"
+        "viewerReadOnly": "リモートホストからの読み取り専用プレビュー",
+        "recordedFileTabHintMac": "⌘⌥+クリックでタブで開きます",
+        "recordedFileTabHintOther": "Ctrl+Alt+クリックでタブで開きます"
       },
       "contextUsage": {
         "label": "コンテキスト {{used}} / {{window}} トークン、{{percent}}% 使用済み",

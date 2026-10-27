@@ -158,4 +158,35 @@ describe('NativeChatRecordedFileViewer', () => {
     expect(await screen.findByText(message)).toBeTruthy()
     expect(screen.queryByText(/socket closed/)).toBeNull()
   })
+
+  it('keeps the dialog a bounded column whose body scrolls inside it', async () => {
+    mocks.readPreview.mockResolvedValue({ content: 'a < b', isBinary: false })
+    render(<NativeChatRecordedFileViewer sessionId="session-alpha" />)
+    open('/home/me/log.txt')
+    await screen.findByText('a < b')
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.classList.contains('grid')).toBe(false)
+    for (const name of ['flex', 'flex-col', 'overflow-hidden', 'max-h-[85vh]']) {
+      expect(dialog.classList.contains(name)).toBe(true)
+    }
+    const body = screen.getByTestId('recorded-file-body')
+    for (const name of ['min-h-0', 'flex-1', 'overflow-auto']) {
+      expect(body.classList.contains(name)).toBe(true)
+    }
+  })
+
+  it('names the Mod+Alt gesture for this platform', () => {
+    render(<NativeChatRecordedFileViewer sessionId="session-alpha" />)
+    open('/home/me/log.txt')
+    expect(screen.getByText('Ctrl+Alt+click opens it in a tab')).toBeTruthy()
+  })
+
+  it('names Cmd+Option on macOS', () => {
+    const userAgent = vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Macintosh')
+    render(<NativeChatRecordedFileViewer sessionId="session-alpha" />)
+    open('/home/me/log.txt')
+    expect(screen.getByText('⌘⌥+click opens it in a tab')).toBeTruthy()
+    userAgent.mockRestore()
+  })
 })
