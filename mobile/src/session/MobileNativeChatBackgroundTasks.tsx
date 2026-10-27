@@ -53,6 +53,7 @@ function MobileNativeChatBackgroundTasksImpl({
     startedAt,
     now: hostNow,
     counts: mobileStatusPillCounts(groups),
+    hasBackgroundWork: view.show,
     live: rowContext.transportObservation === 'live'
   })
   if (!pill.visible) {

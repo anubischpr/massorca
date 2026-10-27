@@ -51,6 +51,9 @@ export type MobileStatusPillInput = {
   /** Host-clock epoch ms now. */
   now: number
   counts: MobileStatusPillCounts
+  /** The roster has non-done background work of any kind (the sheet lists all of it), so the pill
+   *  stays reachable even for a workflow or unknown task the counts leave out. */
+  hasBackgroundWork: boolean
   /** False once the roster stream is lost: the pill then claims no live work. */
   live?: boolean
 }
@@ -67,11 +70,10 @@ export type MobileStatusPill = {
 }
 
 export function mobileChatStatusPill(input: MobileStatusPillInput): MobileStatusPill {
-  const hasWork = input.counts.terminals + input.counts.agents > 0
   if (input.live === false) {
     // Opening the sheet still shows the rows, each marked unverifiable; the pill states no count.
     return {
-      visible: input.working || hasWork,
+      visible: input.working || input.hasBackgroundWork,
       label: 'Status unavailable',
       elapsed: null,
       terminals: null,
@@ -79,7 +81,7 @@ export function mobileChatStatusPill(input: MobileStatusPillInput): MobileStatus
     }
   }
   return {
-    visible: input.working || hasWork,
+    visible: input.working || input.hasBackgroundWork,
     label: 'Working',
     elapsed:
       input.working && input.startedAt !== null

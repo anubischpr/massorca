@@ -44,6 +44,7 @@ describe('mobileChatStatusPill', () => {
   it('shows the elapsed clock while a turn runs on a lane that has a start', () => {
     const pill = mobileChatStatusPill({
       working: true,
+      hasBackgroundWork: true,
       startedAt: 1_000,
       now: 1_000 + 4 * 60_000 + 12_000,
       counts
@@ -54,6 +55,7 @@ describe('mobileChatStatusPill', () => {
   it('shows no time on a lane with no start, and hides zero counts', () => {
     const pill = mobileChatStatusPill({
       working: true,
+      hasBackgroundWork: true,
       startedAt: null,
       now: 99_000,
       counts: { terminals: 0, agents: 0 }
@@ -71,6 +73,7 @@ describe('mobileChatStatusPill', () => {
     expect(
       mobileChatStatusPill({
         working: true,
+        hasBackgroundWork: true,
         startedAt: 1_000,
         now: 9_000,
         live: false,
@@ -85,10 +88,23 @@ describe('mobileChatStatusPill', () => {
     })
   })
 
+  it('shows for background work that no count covers, such as a workflow', () => {
+    expect(
+      mobileChatStatusPill({
+        working: false,
+        startedAt: null,
+        now: 0,
+        hasBackgroundWork: true,
+        counts: { terminals: 0, agents: 0 }
+      }).visible
+    ).toBe(true)
+  })
+
   it('stays hidden with no running turn and no running work', () => {
     expect(
       mobileChatStatusPill({
         working: false,
+        hasBackgroundWork: false,
         startedAt: null,
         now: 0,
         counts: { terminals: 0, agents: 0 }
@@ -99,6 +115,7 @@ describe('mobileChatStatusPill', () => {
   it('shows background work after the turn has ended, without a clock', () => {
     const pill = mobileChatStatusPill({
       working: false,
+      hasBackgroundWork: true,
       startedAt: 1_000,
       now: 9_000,
       counts: { terminals: 0, agents: 2 }
