@@ -80,6 +80,20 @@ export async function launchStructuredWorktreeSession(
   if (isCancelled()) {
     return { ...settled, cancelled: true, activation, primaryTabId }
   }
+  if (args.request.createChatNaming) {
+    // Why: saved before the chat launches, so the first working event already finds the naming.
+    try {
+      await useAppStore
+        .getState()
+        .updateWorktreeMeta(
+          args.worktreeId,
+          { createChatNaming: args.request.createChatNaming },
+          { executionHostId: args.request.executionHostId }
+        )
+    } catch (error) {
+      console.error('worktree create: saving create-chat naming failed', args.worktreeId, error)
+    }
+  }
   // Why: the composer decided route and delivery mode before the worktree existed, and the request
   // carries that verdict in renderer memory for the life of the create; re-entering with it is what
   // keeps a retry from re-resolving against a host that has changed since.

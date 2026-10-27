@@ -1,3 +1,4 @@
+import type { CreateChatNamingOverride } from '../../../shared/create-chat-session-naming'
 import type { ExecutionHostId } from '../../../shared/execution-host'
 import type { FolderWorkspaceLinkedTask } from '../../../shared/folder-workspace-types'
 import type { TuiAgent } from '../../../shared/tui-agent'
@@ -122,6 +123,8 @@ export type WorktreeCreationRequest = {
   promptDelivery?: 'draft' | 'auto-submit'
   /** Per-chat options (model, effort, permission) applied to the chat once it exists, before its first send. */
   structuredSeedPicks?: Readonly<Record<string, string>>
+  /** Set for create-chat: saved on the new workspace before its chat launches, so the first-work rename names it with the session's agent. */
+  createChatNaming?: CreateChatNamingOverride
   quickTelemetry: AgentStartedTelemetry | null
   /** When the composer stays open for sequential creates, completion must not
    *  steal focus from the next workspace name field. */

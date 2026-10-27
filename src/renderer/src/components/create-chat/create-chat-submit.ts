@@ -3,6 +3,7 @@ import { useAppStore } from '@/store'
 import { newAgentLaunchRequestId } from '@/lib/agent-launch-request-id'
 import { adoptAgentSessionLaunchVerdict } from '@/lib/agent-session-launch-plan'
 import { getWorkspaceSeedName } from '@/lib/new-workspace'
+import { getSuggestedCreatureName } from '@/components/sidebar/worktree-name-suggestions'
 import type { WorktreeCreationRequest } from '@/lib/pending-worktree-creation'
 import { holdStructuredAgentSessionLaunchPicks } from '@/lib/structured-agent-session-launch-options'
 import { beginStructuredAgentSessionProvisionalLaunch } from '@/lib/structured-agent-session-provisional-tab'
@@ -10,7 +11,12 @@ import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
 import { runBackgroundWorktreeCreation } from '@/lib/worktree-creation-flow'
 import { LOCAL_EXECUTION_HOST_ID, type ExecutionHostId } from '../../../../shared/execution-host'
 import { getRepoMainWorktreeId } from '../../../../shared/worktree/id'
+import type { CreateChatNamingOverride } from '../../../../shared/create-chat-session-naming'
 import type { ProjectlessChatWorkspaceErrorCode } from '../../../../shared/projectless-chat-folder'
+import {
+  EMPTY_RETIRED_NAME_REGISTRY,
+  type RetiredNameRegistry
+} from '../../../../shared/worktree/retired-name-registry'
 import { createChatRepoOptions } from './create-chat-repo-options'
 import {
   canUseProjectless,
@@ -41,6 +47,37 @@ export function createChatSeedPicks(selection: CreateChatSelection): Record<stri
     // Why: create seeds the saved default, so the chosen preset must be held to apply it.
     accessMode: selection.accessMode
   }
+}
+
+/** The first-work rename names the workspace with the session's agent and this pick. */
+function createChatNamingFor(selection: CreateChatSelection): CreateChatNamingOverride {
+  return { model: selection.model ?? null }
+}
+
+async function loadRetiredNames(repoId: string): Promise<RetiredNameRegistry> {
+  try {
+    return await window.api.worktrees.listRetiredNames({ repoId })
+  } catch (error) {
+    // Why: without the retired list a spent creature name may be reused; the workspace still gets created.
+    console.warn('create chat: retired workspace names unavailable', error)
+    return EMPTY_RETIRED_NAME_REGISTRY
+  }
+}
+
+/** Same creature pool as the composer's blank name, so the first-work rename can replace it. */
+async function temporaryWorkspaceName(repoId: string): Promise<string> {
+  const retired = await loadRetiredNames(repoId)
+  return getWorkspaceSeedName({
+    explicitName: '',
+    prompt: '',
+    linkedIssueNumber: null,
+    linkedPR: null,
+    fallbackName: getSuggestedCreatureName(
+      useAppStore.getState().worktreesByRepo,
+      undefined,
+      retired
+    )
+  })
 }
 
 function projectlessErrorMessage(code: ProjectlessChatWorkspaceErrorCode): string {
@@ -113,7 +150,8 @@ async function submitProjectless(
     return failed(projectlessErrorMessage('ssh_location_unsupported'))
   }
   const result = await window.api.projectlessChats.createWorkspace({
-    title: draft,
+    createdWithAgent: selection.agent,
+    createChatNaming: createChatNamingFor(selection),
     connectionId: null
   })
   if (!result.ok) {
@@ -127,21 +165,17 @@ async function submitProjectless(
 }
 
 /** A new worktree goes through the composer's create flow; the chat launches once it exists. */
-function createChatInNewWorktree(
+async function createChatInNewWorktree(
   draft: string,
   selection: CreateChatSelection,
   repo: CreateChatRepoOption
-): CreateChatSubmitOutcome {
+): Promise<CreateChatSubmitOutcome> {
   const request: WorktreeCreationRequest = {
     repoId: repo.repoId,
     executionHostId: repo.hostId,
-    // Why: same naming as the new-workspace composer, so a prompt-named workspace looks the same from either place.
-    name: getWorkspaceSeedName({
-      explicitName: '',
-      prompt: draft,
-      linkedIssueNumber: null,
-      linkedPR: null
-    }),
+    // Why: a temporary creature name; the first agent message renames the branch and display name.
+    name: await temporaryWorkspaceName(repo.repoId),
+    nameWasGenerated: true,
     // Why: a repo setup script opens its own terminal tab, and a chat-first create asks for the chat alone.
     setupDecision: 'skip',
     agent: selection.agent,
@@ -149,7 +183,10 @@ function createChatInNewWorktree(
     quickPrompt: draft,
     promptDelivery: 'auto-submit',
     structuredSeedPicks: createChatSeedPicks(selection),
-    pendingFirstAgentMessageRename: false,
+    // Why: the card shows the pending rename only when auto-rename will actually run.
+    pendingFirstAgentMessageRename:
+      useAppStore.getState().settings?.autoRenameBranchFromWork === true,
+    createChatNaming: createChatNamingFor(selection),
     note: '',
     startupPlan: null,
     quickTelemetry: null
@@ -176,7 +213,7 @@ async function submitInProject(
   if (repo.isFolder || selection.workspaceMode === 'current-checkout') {
     return launchChatInWorkspace(primaryWorkspaceId(repo), repo.hostId, draft, selection)
   }
-  return createChatInNewWorktree(draft, selection, repo)
+  return await createChatInNewWorktree(draft, selection, repo)
 }
 
 /**

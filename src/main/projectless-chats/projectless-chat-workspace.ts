@@ -4,10 +4,13 @@ import path from 'node:path'
 import { normalizeProjectlessChatsDir } from '../../shared/constants'
 import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
 import type { ProjectGroup } from '../../shared/project-group-types'
+import type { CreateChatNamingOverride } from '../../shared/create-chat-session-naming'
 import {
+  createProjectlessChatId,
   projectlessChatFolderSegments,
   type ProjectlessChatWorkspaceResult
 } from '../../shared/projectless-chat-folder'
+import type { TuiAgent } from '../../shared/tui-agent'
 import { folderWorkspaceKey } from '../../shared/workspace-scope'
 import type { Store } from '../persistence'
 import {
@@ -22,7 +25,8 @@ type PathStatusDeps = Parameters<typeof getFolderWorkspacePathStatusForPath>[1]
 
 export async function createProjectlessChatWorkspace(args: {
   store: Store
-  title: string
+  createdWithAgent: TuiAgent
+  createChatNaming: CreateChatNamingOverride
   connectionId: string | null
   now: Date
   pathStatusDeps: PathStatusDeps
@@ -32,7 +36,7 @@ export async function createProjectlessChatWorkspace(args: {
     return { ok: false, code: 'ssh_location_unsupported' }
   }
   const rootDir = resolveProjectlessChatsRoot(args.store.getSettings().projectlessChatsDir)
-  const folderPath = await createUniqueChatFolder(rootDir, args.title, args.now)
+  const { folderPath, chatId } = await createUniqueChatFolder(rootDir, args.now)
   const group = findOrCreateProjectlessChatsGroup(args.store, rootDir)
   const status = await getFolderWorkspacePathStatusForPath(
     {
@@ -45,12 +49,16 @@ export async function createProjectlessChatWorkspace(args: {
     args.pathStatusDeps
   )
   assertFolderWorkspacePathUsable(status)
+  // Why: the chat id is a temporary name; the first agent message renames the folder workspace.
   const workspace = args.store.createFolderWorkspace({
     projectGroupId: group.id,
-    name: args.title.trim() || undefined,
+    name: chatId,
     folderPath,
     connectionId: null,
-    creatorProvenance: { kind: 'host' }
+    creatorProvenance: { kind: 'host' },
+    createdWithAgent: args.createdWithAgent,
+    pendingFirstAgentMessageRename: true,
+    createChatNaming: args.createChatNaming
   })
   return {
     ok: true,
@@ -72,16 +80,20 @@ function resolveProjectlessChatsRoot(configured: string): string {
   return path.resolve(expanded)
 }
 
-async function createUniqueChatFolder(rootDir: string, title: string, now: Date): Promise<string> {
+async function createUniqueChatFolder(
+  rootDir: string,
+  now: Date
+): Promise<{ folderPath: string; chatId: string }> {
   for (let attempt = 1; attempt <= MAX_CHAT_FOLDER_ATTEMPTS; attempt += 1) {
-    const [dateFolder, chatFolder] = projectlessChatFolderSegments(now, title, attempt)
+    const chatId = createProjectlessChatId()
+    const [dateFolder, chatFolder] = projectlessChatFolderSegments(now, chatId)
     const dateDir = path.join(rootDir, dateFolder)
     await mkdir(dateDir, { recursive: true })
     const folderPath = path.join(dateDir, chatFolder)
     try {
-      // Why: a non-recursive mkdir is the atomic claim; EEXIST means another chat owns the name.
+      // Why: a non-recursive mkdir is the atomic claim; EEXIST means another chat owns the id.
       await mkdir(folderPath)
-      return folderPath
+      return { folderPath, chatId }
     } catch (error) {
       if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) {
         throw error

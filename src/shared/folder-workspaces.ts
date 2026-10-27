@@ -1,4 +1,5 @@
 import type { FolderWorkspace } from './folder-workspace-types'
+import { normalizeCreateChatNaming } from './create-chat-session-naming'
 import type { ProjectGroup } from './project-group-types'
 import { isTuiAgent } from './tui-agent-config'
 import { normalizeStoredTaskSourceContext } from './task-source-context'
@@ -104,6 +105,9 @@ export function normalizeFolderWorkspaces(
       ...(isTuiAgent(raw.createdWithAgent) ? { createdWithAgent: raw.createdWithAgent } : {}),
       ...(raw.pendingFirstAgentMessageRename === true
         ? { pendingFirstAgentMessageRename: true }
+        : {}),
+      ...(normalizeCreateChatNaming(raw.createChatNaming)
+        ? { createChatNaming: normalizeCreateChatNaming(raw.createChatNaming) }
         : {}),
       ...(typeof raw.firstAgentMessageRenameError === 'string'
         ? { firstAgentMessageRenameError: raw.firstAgentMessageRenameError }

@@ -25,7 +25,8 @@ export function registerProjectlessChatHandlers(
       )
       const result = await createProjectlessChatWorkspace({
         store,
-        title: args.title ?? '',
+        createdWithAgent: args.createdWithAgent,
+        createChatNaming: args.createChatNaming,
         connectionId: args.connectionId ?? null,
         now: options.now?.() ?? new Date(),
         pathStatusDeps: { getSshFilesystemProvider }

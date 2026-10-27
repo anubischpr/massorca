@@ -1,7 +1,8 @@
 import type { FolderWorkspace, WorkspaceKey } from './folder-workspace-types'
 
-const MAX_CHAT_SLUG_LENGTH = 40
-const FALLBACK_CHAT_SLUG = 'chat'
+// Why: lowercase letters and digits only, so the id is a safe folder name on every platform.
+const CHAT_ID_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyz'
+const CHAT_ID_LENGTH = 6
 
 export type ProjectlessChatWorkspaceErrorCode =
   | 'ssh_location_unsupported'
@@ -16,17 +17,13 @@ export type ProjectlessChatWorkspaceResult =
     }
   | { ok: false; code: ProjectlessChatWorkspaceErrorCode }
 
-/** Lowercase ASCII kebab-case, diacritics folded; non-Latin titles fall back to `chat`. */
-export function slugifyChatTitle(text: string): string {
-  const slug = text
-    .normalize('NFKD')
-    .replace(/\p{M}+/gu, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+/, '')
-    .slice(0, MAX_CHAT_SLUG_LENGTH)
-    .replace(/-+$/, '')
-  return slug || FALLBACK_CHAT_SLUG
+/** A short folder-safe id for a new chat; the caller retries on a name collision. */
+export function createProjectlessChatId(random: () => number = Math.random): string {
+  let id = ''
+  for (let index = 0; index < CHAT_ID_LENGTH; index += 1) {
+    id += CHAT_ID_ALPHABET[Math.floor(random() * CHAT_ID_ALPHABET.length)]
+  }
+  return id
 }
 
 /** Local calendar day, not UTC, so a chat started at 00:30 lands in the day the user sees. */
@@ -37,12 +34,10 @@ export function formatChatDateFolder(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
-/** `[<date>, <slug>]` for a 1-based collision attempt: `slug`, then `slug-2`, `slug-3`, ... */
+/** `[<date>, <chat id>]`: the folder path under the projectless root for one chat. */
 export function projectlessChatFolderSegments(
   date: Date,
-  title: string,
-  attempt = 1
+  chatId: string
 ): readonly [string, string] {
-  const slug = slugifyChatTitle(title)
-  return [formatChatDateFolder(date), attempt <= 1 ? slug : `${slug}-${attempt}`]
+  return [formatChatDateFolder(date), chatId]
 }

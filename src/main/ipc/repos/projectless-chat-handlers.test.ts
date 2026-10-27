@@ -46,6 +46,7 @@ describe('projectless chat workspace IPC', () => {
     root = join(testState.dir, 'chats')
   })
   afterEach(async () => {
+    vi.restoreAllMocks()
     await closeTestStores()
     rmSync(testState.dir, { recursive: true, force: true })
   })
@@ -57,13 +58,15 @@ describe('projectless chat workspace IPC', () => {
     })
   }
 
-  it('creates a dated folder workspace under the configured root with a Chats group', async () => {
+  it('creates a dated folder named by a short chat id, with a temporary name and a pending title', async () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0)
     const store = createStore()
     register(store)
 
-    const expectedFolder = join(root, '2026-05-09', 'plan-q3-launch')
+    const expectedFolder = join(root, '2026-05-09', '000000')
     const result = await invoke('projectlessChats:createWorkspace', {
-      title: 'Plan Q3 launch'
+      createdWithAgent: 'claude',
+      createChatNaming: { model: null }
     })
 
     expect(existsSync(expectedFolder)).toBe(true)
@@ -75,7 +78,10 @@ describe('projectless chat workspace IPC', () => {
       .find((entry) => entry.folderPath === expectedFolder)
     expect(workspace).toMatchObject({
       projectGroupId: groupId,
-      name: 'Plan Q3 launch'
+      name: '000000',
+      createdWithAgent: 'claude',
+      pendingFirstAgentMessageRename: true,
+      createChatNaming: { model: null }
     })
     expect(result).toMatchObject({
       ok: true,
@@ -85,27 +91,46 @@ describe('projectless chat workspace IPC', () => {
     })
   })
 
-  it('suffixes a colliding chat folder and reuses the one projectless group', async () => {
+  it('keeps the picked create-chat model with the workspace for its first-work naming', async () => {
     const store = createStore()
     register(store)
 
-    await invoke('projectlessChats:createWorkspace', { title: 'Fix login' })
-    const second = await invoke('projectlessChats:createWorkspace', {
-      title: 'Fix login'
+    const result = await invoke('projectlessChats:createWorkspace', {
+      createdWithAgent: 'pi',
+      createChatNaming: { model: 'anthropic/claude-x' }
     })
 
-    const secondFolder = join(root, '2026-05-09', 'fix-login-2')
+    expect(result).toMatchObject({
+      ok: true,
+      workspace: { createdWithAgent: 'pi', createChatNaming: { model: 'anthropic/claude-x' } }
+    })
+  })
+
+  it('moves to a new id when the chosen folder already exists', async () => {
+    let calls = 0
+    // Why: the first chat takes ids from the first six draws, the second repeats them, the retry draws a new id.
+    vi.spyOn(Math, 'random').mockImplementation(() => {
+      calls += 1
+      return calls <= 12 ? 0 : 0.5
+    })
+    const store = createStore()
+    register(store)
+
+    await invoke('projectlessChats:createWorkspace', {
+      createdWithAgent: 'codex',
+      createChatNaming: { model: null }
+    })
+    const second = await invoke('projectlessChats:createWorkspace', {
+      createdWithAgent: 'codex',
+      createChatNaming: { model: null }
+    })
+
+    const secondFolder = join(root, '2026-05-09', 'iiiiii')
     expect(second).toMatchObject({ ok: true, folderPath: secondFolder })
-    expect(existsSync(join(root, '2026-05-09', 'fix-login'))).toBe(true)
+    expect(existsSync(join(root, '2026-05-09', '000000'))).toBe(true)
     expect(existsSync(secondFolder)).toBe(true)
     const chatGroups = store.getProjectGroups().filter((entry) => entry.parentPath === root)
     expect(chatGroups).toHaveLength(1)
-    const folders = store
-      .getFolderWorkspaces()
-      .filter((entry) => entry.projectGroupId === chatGroups[0].id)
-    expect(folders.map((entry) => entry.folderPath).sort()).toEqual(
-      [join(root, '2026-05-09', 'fix-login'), secondFolder].sort()
-    )
   })
 
   it('reuses an existing local group that already points at the root', async () => {
@@ -117,7 +142,10 @@ describe('projectless chat workspace IPC', () => {
       createdFrom: 'manual'
     })
 
-    await invoke('projectlessChats:createWorkspace', { title: 'Hello' })
+    await invoke('projectlessChats:createWorkspace', {
+      createdWithAgent: 'claude',
+      createChatNaming: { model: null }
+    })
 
     expect(store.getProjectGroups().filter((entry) => entry.parentPath === root)).toHaveLength(1)
     expect(store.getFolderWorkspaces()).toEqual([
@@ -131,7 +159,8 @@ describe('projectless chat workspace IPC', () => {
 
     expect(
       await invoke('projectlessChats:createWorkspace', {
-        title: 'Remote',
+        createdWithAgent: 'claude',
+        createChatNaming: { model: null },
         connectionId: 'ssh-1'
       })
     ).toEqual({ ok: false, code: 'ssh_location_unsupported' })

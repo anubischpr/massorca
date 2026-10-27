@@ -1,25 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import {
+  createProjectlessChatId,
   formatChatDateFolder,
-  projectlessChatFolderSegments,
-  slugifyChatTitle
+  projectlessChatFolderSegments
 } from './projectless-chat-folder'
 
-describe('slugifyChatTitle', () => {
-  it('lowercases, folds diacritics, and joins words with dashes', () => {
-    expect(slugifyChatTitle('  Ñandú & Café: Plan Q3!  ')).toBe('nandu-cafe-plan-q3')
+describe('createProjectlessChatId', () => {
+  it('makes a six character lowercase id from the random source', () => {
+    expect(createProjectlessChatId(() => 0)).toBe('000000')
+    expect(createProjectlessChatId(() => 0.999999)).toBe('zzzzzz')
   })
 
-  it('falls back to "chat" when nothing Latin remains', () => {
-    expect(slugifyChatTitle('')).toBe('chat')
-    expect(slugifyChatTitle('!!! ---')).toBe('chat')
-    expect(slugifyChatTitle('修复登录')).toBe('chat')
-  })
-
-  it('caps length at 40 characters without leaving a trailing dash', () => {
-    const slug = slugifyChatTitle(`${'a'.repeat(39)} bbbbbbbb`)
-    expect(slug).toBe('a'.repeat(39))
-    expect(slug.length).toBeLessThanOrEqual(40)
+  it('stays filename-safe for ids drawn from Math.random', () => {
+    for (let index = 0; index < 50; index += 1) {
+      expect(createProjectlessChatId()).toMatch(/^[0-9a-z]{6}$/)
+    }
   })
 })
 
@@ -31,20 +26,10 @@ describe('formatChatDateFolder', () => {
 })
 
 describe('projectlessChatFolderSegments', () => {
-  const date = new Date(2026, 4, 9, 10, 30)
-
-  it('returns the date folder and slug for the first attempt', () => {
-    expect(projectlessChatFolderSegments(date, 'Fix login bug')).toEqual([
+  it('returns the date folder and the chat id', () => {
+    expect(projectlessChatFolderSegments(new Date(2026, 4, 9, 10, 30), 'k3x9qa')).toEqual([
       '2026-05-09',
-      'fix-login-bug'
+      'k3x9qa'
     ])
-  })
-
-  it('suffixes later collision attempts', () => {
-    expect(projectlessChatFolderSegments(date, 'Fix login bug', 2)).toEqual([
-      '2026-05-09',
-      'fix-login-bug-2'
-    ])
-    expect(projectlessChatFolderSegments(date, 'Fix login bug', 3)[1]).toBe('fix-login-bug-3')
   })
 })
