@@ -3,8 +3,7 @@ import { mcpToolIdentity } from '../../../../shared/native-chat-tool-identity'
 import type { WorkspacePortScanResult } from '../../../../shared/workspace-ports'
 import type { RuntimeClientTarget } from '@/runtime/runtime-rpc-client'
 import { workspacePortScanKeyForTarget } from '@/lib/workspace-port-actions'
-import { editedPathsFromToolPair } from '../../../../shared/native-chat-edit-paths'
-import { toolFilePath } from '../../../../shared/native-chat-tool-summary'
+import { changedFilePathsFromJournalItems } from '../../../../shared/native-chat-journal-changed-paths'
 import { CODEX_PLAN_UPDATED_FRAME_KIND } from '../../../../shared/native-chat-provider-frame-summary'
 import {
   normalizeNativeChatTaskList,
@@ -85,7 +84,7 @@ export function nativeChatSessionResultFiles(
   workspaceRoot: string | null
 ): NativeChatResultFile[] {
   const lastTouch = new Map<string, { index: number; file: NativeChatResultFile }>()
-  for (const [index, path] of changedFilePaths(items).entries()) {
+  for (const [index, path] of changedFilePathsFromJournalItems(items).entries()) {
     const file = nativeChatResultFile(path, workspaceRoot)
     lastTouch.set(file.absolutePath, { index, file })
   }
@@ -96,25 +95,6 @@ export function nativeChatSessionResultFiles(
 
 export function nativeChatSessionResults(items: readonly AgentJournalRenderItem[]): string[] {
   return nativeChatSessionResultFiles(items, null).map((file) => file.absolutePath)
-}
-
-function changedFilePaths(items: readonly AgentJournalRenderItem[]): string[] {
-  return items.flatMap(({ body }) => {
-    if (body.kind === 'diff') {
-      return [body.path]
-    }
-    if (body.kind !== 'tool-call') {
-      return []
-    }
-    return editedPathsFromToolPair({
-      name: body.name,
-      input: body.input,
-      state: body.state,
-      ...(body.output
-        ? { result: { output: body.output.head, isError: body.state === 'failed' } }
-        : {})
-    }).filter((path) => path !== 'file' || toolFilePath(body.input) === 'file')
-  })
 }
 
 /** A tool result is historical evidence, never a claim that its connector is connected now. */
