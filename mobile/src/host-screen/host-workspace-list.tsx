@@ -12,6 +12,7 @@ import { getWorktreeRowIdentity } from '../worktree/worktree-host-row-identity'
 import { HostWorkspaceListStates } from '../worktree/host-workspace-list-states'
 import { getWorktreeStatus } from '../worktree/workspace-list-sections'
 import { repoColor } from '../worktree/repo-color'
+import { repoGroupAccountLabel } from './host-repo-group-account'
 import { hostScreenStyles as styles } from './host-screen-styles'
 import type { HostScreenController } from './use-host-screen-controller'
 
@@ -137,6 +138,11 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
               state.groupMode === 'repo' ? uniqueRepoColors.get(section.title) : null
             const repoSectionIcon =
               state.groupMode === 'repo' ? state.repoIconsByName.get(section.title) : null
+            const repoAccount = repoGroupAccountLabel(
+              state.groupMode,
+              section.title,
+              state.repoAccountsByName
+            )
             return (
               <Pressable
                 style={styles.sectionHeader}
@@ -160,6 +166,11 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
                   </View>
                 ) : null}
                 <Text style={styles.sectionTitle}>{section.title}</Text>
+                {repoAccount ? (
+                  <Text style={styles.sectionAccount} numberOfLines={1}>
+                    {repoAccount}
+                  </Text>
+                ) : null}
                 <Text style={styles.sectionCount}>{count}</Text>
               </Pressable>
             )
