@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { createElement } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -17,7 +18,7 @@ vi.mock('lucide-react-native', () => ({
 vi.mock('../components/BottomDrawer', async () => {
   const React = await import('react')
   return {
-    BottomDrawer: ({ visible, children }: { visible: boolean; children?: unknown }) =>
+    BottomDrawer: ({ visible, children }: { visible: boolean; children?: ReactNode }) =>
       visible ? React.createElement('BottomDrawer', { visible }, children) : null
   }
 })
