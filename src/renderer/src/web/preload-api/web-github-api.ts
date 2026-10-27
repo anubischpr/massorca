@@ -139,6 +139,16 @@ export function createGitHubApi(): WebGitHubApi {
         GITHUB_WEB_RPC_METHODS.validateAccountBinding,
         args
       ),
+    applyAccountGitConfig: (args) =>
+      route<WebGitHubResult<'applyAccountGitConfig'>>(
+        GITHUB_WEB_RPC_METHODS.applyAccountGitConfig,
+        args
+      ),
+    readAccountGitConfig: (args) =>
+      route<WebGitHubResult<'readAccountGitConfig'>>(
+        GITHUB_WEB_RPC_METHODS.readAccountGitConfig,
+        args
+      ),
     diagnoseAuth: () =>
       Promise.resolve({
         ok: false,

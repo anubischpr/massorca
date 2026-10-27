@@ -233,7 +233,12 @@ import {
   GitTargetedRemote,
   WorktreeSelector as WorktreeSelectorOfGitParams
 } from './git-params'
-import { BindableAccounts, ValidateAccountBinding } from './github-account-binding-params'
+import {
+  ApplyAccountGitConfig,
+  BindableAccounts,
+  ReadAccountGitConfig,
+  ValidateAccountBinding
+} from './github-account-binding-params'
 import { CreateIssue, Issue, IssueComment, UpdateIssue } from './github-issue-params'
 import {
   ClearProjectItemField,
@@ -881,6 +886,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'github.addIssueComment': IssueComment,
   'github.addPRReviewComment': PRReviewComment,
   'github.addPRReviewCommentReply': PRReviewCommentReply,
+  'github.applyAccountGitConfig': ApplyAccountGitConfig,
   'github.countWorkItems': WorkItemsCount,
   'github.createIssue': CreateIssue,
   'github.issue': Issue,
@@ -913,6 +919,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'github.project.viewTable': ProjectViewTable,
   'github.project.workItemDetailsBySlug': ProjectWorkItemDetailsBySlug,
   'github.rateLimit': RateLimit,
+  'github.readAccountGitConfig': ReadAccountGitConfig,
   'github.removePRReviewers': RemovePrReviewers,
   'github.repoSlug': RepoSelector,
   'github.repoUpstream': RepoSelector,

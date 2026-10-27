@@ -1,4 +1,8 @@
 import type { ListWorkItemsResult } from '../../shared/github/work-item-types'
+import type {
+  GhAccountGitConfigResult,
+  GhAccountGitConfigState
+} from '../../shared/github/gh-account-git-config'
 import type { Repo } from '../../shared/repo-types'
 import type { LocalProjectGhExecOptions } from '../project-runtime-git-options'
 import {
@@ -15,6 +19,11 @@ import {
   listGhAccountBindingInventory,
   validateGhAccountBinding
 } from '../github/gh-account-binding-inventory'
+import {
+  applyGhAccountGitConfig,
+  readRepoGhAccountGitConfig,
+  type ApplyGhAccountGitConfigInput
+} from '../github/gh-account-git-config'
 import { getRateLimit } from '../github/rate-limit'
 import { githubHostFromIdentityKey } from '../../shared/github/repository-identity-key'
 import { getWorkItemDetails } from '../github/work-item-details'
@@ -175,5 +184,18 @@ export class RuntimeGitHubRepositoryQueryCommands {
       this.deps.getLocalGitArgs(repo)[0] ?? {},
       requiredHost ? { requiredHost } : {}
     )
+  }
+
+  async applyGitHubAccountGitConfig(
+    repoSelector: string,
+    input: ApplyGhAccountGitConfigInput
+  ): Promise<GhAccountGitConfigResult> {
+    const repo = await this.deps.resolveRepo(repoSelector)
+    return applyGhAccountGitConfig(repo, input, this.deps.getLocalGitArgs(repo)[0] ?? {})
+  }
+
+  async readGitHubAccountGitConfig(repoSelector: string): Promise<GhAccountGitConfigState | null> {
+    const repo = await this.deps.resolveRepo(repoSelector)
+    return readRepoGhAccountGitConfig(repo, this.deps.getLocalGitArgs(repo)[0] ?? {})
   }
 }
