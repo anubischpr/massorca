@@ -89,3 +89,20 @@ Known gaps:
 ## Next step
 
 Parent: review the T5 and T6 commits, then decide whether to merge `feat/remote-session-file-read` and regenerate the params catalog so the recorded-file read becomes typed. Not yet checked on a device or simulator: the WebView preview, and the 2x2 tile and results-strip layout at phone width.
+
+## Review findings
+
+An automated reliability review covered this branch up to `7b44bb54ea4`. Each finding was checked against the current code before it was fixed or skipped.
+
+- R3-agent-history-reachability (CRITICAL): fixed in `42158345222`. The ⋯ menu offers Agent history without a native chat; beside one, Sessions keeps the resume row. That commit overwrote the sheet's existing test file by mistake; `353cc5fac9d` restores its five tests and adds the agent history cases.
+- R3-recorded-files-error-results (WARNING): fixed in `d187337fcbb`. The count reads the result's own `isError`. A call still running with no result stays uncounted, now tested.
+- R3-plan-ledger-synthetic-result (WARNING): fixed in `fea5cdac106`. No made-up success reaches the ledger, and an errored call is skipped. An errored TodoWrite or update_plan no longer replaces the plan either.
+- R3-chat-surfaces-hook-unproved (WARNING): fixed in `43dba555f96`. Tests cover the hook, the switcher chip label, and the sessions sheet's close and resume paths.
+- R3-chat-session-unguarded-read (WARNING): skipped, does not hold. The session lane returns a session object on both branches, so `messages` is always an array. A test mounts the hook on a route with no chat (`43dba555f96`).
+- R3-background-sheet-reopens (WARNING): skipped, intended. `c81e5832952` keeps the sheet open across a roster that empties between children, as desktop keeps its expanded list. Behavior is unchanged and pinned by a test (`43dba555f96`). Open decision for the owner: the modal re-presents without a tap after a long gap.
+- R3-sheet-close-unproved (WARNING): fixed in `43dba555f96`. The drawer stub passes `onClose`, and a test closes the sheet and checks it stays closed.
+- R3-empty-groups-blank-sheet (SUGGESTION): fixed in `3d8723488b6`. The unavailable note shows whenever no row is drawn, with a sheet test.
+
+Desktop's `nativeChatSessionPlan` (`src/renderer/src/components/native-chat/native-chat-session-summary.ts`) still feeds the same synthetic success. Not changed here, since this branch is mobile-only.
+
+Checks (mobile/): `pnpm typecheck` exit 0. `pnpm check:tests-typecheck` ratchet OK; no touched file has a test type error. oxfmt and oxlint clean on every changed file. Vitest: 16 suites, 134 tests pass (the 9 touched suites and 7 dependent chat suites).
