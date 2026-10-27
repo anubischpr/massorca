@@ -74,4 +74,33 @@ describe('create session option draft', () => {
     const sonnet = withEffort && pickCreateSessionOption(withEffort, 'model', 'sonnet')
     expect(sonnet?.picks).toEqual({ model: 'sonnet' })
   })
+  it('offers Codex only the presets it declares', () => {
+    const codex = ready('codex')
+    expect(pickCreateSessionOption(codex, 'accessMode', 'plan')).toBeNull()
+    expect(pickCreateSessionOption(codex, 'accessMode', 'accept-edits')).toBeNull()
+    expect(pickCreateSessionOption(codex, 'accessMode', 'read-only')?.picks).toEqual({
+      accessMode: 'read-only'
+    })
+    expect(pickCreateSessionOption(codex, 'accessMode', 'full-access')?.picks.accessMode).toBe(
+      'full-access'
+    )
+  })
+
+  it('does not offer Claude the Codex-only read-only preset', () => {
+    expect(pickCreateSessionOption(ready('claude'), 'accessMode', 'read-only')).toBeNull()
+    expect(pickCreateSessionOption(ready('claude'), 'accessMode', 'plan')).not.toBeNull()
+  })
+
+  it('offers no access choice for a structured agent the phone cannot vouch for', () => {
+    const ids = createSessionOptionSnapshot(createCreateSessionOptionDraft('pi')).map(
+      (descriptor) => descriptor.id
+    )
+    expect(ids).not.toContain('accessMode')
+  })
+
+  it('starts over when the host or project changes', () => {
+    const picked = pickCreateSessionOption(ready('claude'), 'accessMode', 'plan')
+    expect(picked?.scope).toBe('')
+    expect(createCreateSessionOptionDraft('claude', 'ssh:vps|web').picks).toEqual({})
+  })
 })

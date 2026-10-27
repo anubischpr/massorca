@@ -16,6 +16,7 @@ import {
   structuredAgentSessionOptionSnapshot,
   type StructuredAgentSessionOptionState
 } from '../../../src/shared/structured-agent-session-options'
+import { createSessionAccessSupport } from './create-session-access-support'
 import type { CreateSessionPicks } from './create-session-launch-plan'
 
 /**
@@ -25,22 +26,29 @@ import type { CreateSessionPicks } from './create-session-launch-plan'
  */
 export type CreateSessionOptionDraft = {
   agent: string | null
+  /** Host and project the picks were made for; another one starts over. */
+  scope: string
   state: StructuredAgentSessionOptionState | null
   picks: CreateSessionPicks
 }
 
-export function createCreateSessionOptionDraft(agent: string | null): CreateSessionOptionDraft {
+export function createCreateSessionOptionDraft(
+  agent: string | null,
+  scope = ''
+): CreateSessionOptionDraft {
   // An agent with no structured chat starts as a terminal, which these pickers cannot describe.
   if (!agent || !isAgentSessionHandleProvider(agent)) {
-    return { agent, state: null, picks: {} }
+    return { agent, scope, state: null, picks: {} }
   }
+  const access = createSessionAccessSupport(agent)
   return {
     agent,
+    scope,
     state: createStructuredAgentSessionOptionState(
       agent,
       structuredAgentSessionSeedCatalog(agent),
-      ['default', 'full-access'],
-      ['accept-edits', 'plan']
+      access?.modes,
+      access?.presets
     ),
     picks: {}
   }
