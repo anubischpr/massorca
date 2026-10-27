@@ -51,6 +51,10 @@ export type WorktreeCreateAgentLaunch = {
   agent: TuiAgent
   /** Resolved before the first create: an older host has no `agent.launch` at all. */
   supported: AgentLaunchSupport | false | Promise<AgentLaunchSupport | false>
+  /** The first turn the new session starts with; only an `agent.launch` host can deliver it. */
+  prompt?: AgentLaunchPrompt
+  /** Model, effort, fast and access seeded into a structured chat; an older host drops them. */
+  sessionOptions?: Readonly<Record<string, string>>
 }
 
 /** `worktreeId` is tied to the shared contract so a change to it fails this reader's typecheck
@@ -58,17 +62,22 @@ export type WorktreeCreateAgentLaunch = {
 export type AgentLaunchCreateOutcome = {
   worktreeId: AgentLaunchResult['worktreeId']
   warning?: string
+  /** Absent when the receipt says nothing, which callers must read as "not confirmed". */
+  promptDelivered?: boolean
 }
 
 export function agentLaunchCreateParams(
   agent: TuiAgent,
   create: WorkspaceCreateParams,
-  operationId?: string | null
+  operationId?: string | null,
+  extras?: Pick<WorktreeCreateAgentLaunch, 'prompt' | 'sessionOptions'>
 ): RpcSendParams<'agent.launch'> {
   return {
     agent,
     ...(operationId ? { operationId } : {}),
-    target: { kind: 'create-worktree', create: withoutReservedAgentCreateFields(create) }
+    target: { kind: 'create-worktree', create: withoutReservedAgentCreateFields(create) },
+    ...(extras?.prompt ? { prompt: extras.prompt } : {}),
+    ...(extras?.sessionOptions ? { sessionOptions: { ...extras.sessionOptions } } : {})
   }
 }
 
@@ -82,6 +91,7 @@ export function agentLaunchExistingParams(args: {
   worktreeId: string
   operationId: string
   prompt?: AgentLaunchPrompt
+  sessionOptions?: Readonly<Record<string, string>>
   launchSource?: string
   paneKey?: string
   sessionId?: string
@@ -92,6 +102,8 @@ export function agentLaunchExistingParams(args: {
     operationId: args.operationId,
     target: { kind: 'existing', worktree: `id:${args.worktreeId}` },
     ...(args.prompt ? { prompt: args.prompt } : {}),
+    // An older host drops it and the chat starts on the saved defaults, as before.
+    ...(args.sessionOptions ? { sessionOptions: { ...args.sessionOptions } } : {}),
     ...(args.launchSource ? { launchSource: args.launchSource } : {}),
     ...(args.paneKey ? { paneKey: args.paneKey } : {}),
     ...(args.sessionId ? { sessionId: args.sessionId } : {}),
@@ -119,7 +131,21 @@ export function readAgentLaunchCreateOutcome(result: unknown): AgentLaunchCreate
   // v2 guarantees that an incomplete create is reported at the top level, the same place
   // `worktree.create` puts it, so nothing here branches on which surface the host built.
   const warning = readTrimmedWarning(result)
-  return { worktreeId, ...(warning ? { warning } : {}) }
+  const promptDelivered = readPromptDelivered(result)
+  return {
+    worktreeId,
+    ...(warning ? { warning } : {}),
+    ...(promptDelivered !== undefined ? { promptDelivered } : {})
+  }
+}
+
+/** Only a receipt that names how the text went can say it arrived; anything else under-claims. */
+function readPromptDelivered(source: object): boolean | undefined {
+  if (!('prompt' in source) || !source.prompt || typeof source.prompt !== 'object') {
+    return undefined
+  }
+  const outcome = 'outcome' in source.prompt ? source.prompt.outcome : undefined
+  return typeof outcome === 'string' ? outcome !== 'not-delivered' : undefined
 }
 
 function readTrimmedWarning(source: unknown): string {

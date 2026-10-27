@@ -101,6 +101,8 @@ export async function launchAgentInExistingWorkspace(args: {
   worktreeId: string
   agent: TuiAgent
   prompt?: AgentLaunchPrompt
+  /** Model, effort, fast and access to seed a structured chat with; an older host ignores them. */
+  sessionOptions?: Readonly<Record<string, string>>
   launchSource?: string
   reservation?: MobileAgentLaunchReservation
   placement?: AgentLaunchPlacement
@@ -115,6 +117,7 @@ export async function launchAgentInExistingWorkspace(args: {
     worktreeId: args.worktreeId,
     operationId: (args.mintOperationId ?? structuredSessionOperationId)(),
     ...(args.prompt ? { prompt: args.prompt } : {}),
+    ...(args.sessionOptions ? { sessionOptions: args.sessionOptions } : {}),
     ...(args.launchSource ? { launchSource: args.launchSource } : {}),
     ...(args.placement ? { placement: args.placement } : {}),
     ...(args.reservation
