@@ -130,14 +130,14 @@ function launchChatInWorkspace(
     plan,
     hooks: {},
     target: { worktreeId, executionHostId },
-    activate: true
+    activate: true,
+    // Why: a host-admitted chat gets its session id only once its tab opens.
+    onOpened: (sessionId) => {
+      holdStructuredAgentSessionLaunchPicks(sessionId, createChatSeedPicks(selection))
+    }
   })
   if (!launch) {
     return failed(startFailedMessage())
-  }
-  // Why: a host-admitted chat has no session id yet; its picks then wait for the host's own seed.
-  if (launch.sessionId) {
-    holdStructuredAgentSessionLaunchPicks(launch.sessionId, createChatSeedPicks(selection))
   }
   return started
 }
