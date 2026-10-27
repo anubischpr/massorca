@@ -1,14 +1,12 @@
 import { useMemo } from 'react'
 import { useAppStore } from '@/store'
 import { useDetectedAgents } from '@/hooks/useDetectedAgents'
-import { getComposerEligibleRepos } from '@/lib/new-workspace-composer-repo'
 import { getHostDisplayLabelOverrides } from '../../../../shared/host-setting-overrides'
-import { getRepoExecutionHostId } from '../../../../shared/execution-host'
 import { buildExecutionHostRegistry } from '../../../../shared/execution-host-registry'
 import { pickerExecutionHosts } from '../../../../shared/managed-orcad-execution-host'
-import { isFolderRepo } from '../../../../shared/repo-kind'
 import { DEFAULT_DISABLED_TUI_AGENTS } from '../../../../shared/tui-agent-selection'
 import { orderTabLaunchAgents } from '../tab-bar/tab-agent-launch-options'
+import { createChatRepoOptions } from './create-chat-repo-options'
 import type { CreateChatOptions } from './create-chat-selection'
 
 /** Hosts, projects and agents the create-chat composer can offer, read from store state. */
@@ -50,17 +48,7 @@ export function useCreateChatOptions(): CreateChatOptions {
     ]
   )
 
-  const eligibleRepos = useMemo(
-    () =>
-      getComposerEligibleRepos(repos).map((repo) => ({
-        repoId: repo.id,
-        displayName: repo.displayName,
-        path: repo.path,
-        hostId: getRepoExecutionHostId(repo),
-        isFolder: isFolderRepo(repo)
-      })),
-    [repos]
-  )
+  const eligibleRepos = useMemo(() => createChatRepoOptions(repos), [repos])
 
   const agents = useMemo(
     () =>

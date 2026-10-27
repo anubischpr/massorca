@@ -5,6 +5,7 @@ import type { AgentLaunchRoute } from '@/lib/agent-launch-routing'
 import type { WorktreeCreationRequest } from '@/lib/pending-worktree-creation'
 import { beginStructuredAgentSessionProvisionalLaunch } from '@/lib/structured-agent-session-provisional-tab'
 import type { StructuredLaunchTerminal } from '@/lib/structured-agent-session-launch-admission'
+import { holdStructuredAgentSessionLaunchPicks } from '@/lib/structured-agent-session-launch-options'
 import { buildWorktreeCreationStartupOpt } from '@/lib/worktree-creation-flow-startup'
 import { ensureWebRuntimeWorktreeTerminalAfterWake } from '@/lib/web-runtime-worktree-terminal-after-wake'
 import { ensureWorktreeHasInitialTerminal } from '@/lib/worktree-initial-terminal-seeding'
@@ -134,6 +135,9 @@ export async function launchStructuredWorktreeSession(
     ownershipTransferred = launch !== null
     if (launch) {
       primaryTabId = launch.tab?.id ?? primaryTabId
+      if (launch.sessionId && args.request.structuredSeedPicks) {
+        holdStructuredAgentSessionLaunchPicks(launch.sessionId, args.request.structuredSeedPicks)
+      }
     }
   } catch (error) {
     // Why: nothing awaits this creation's caller, so an escaped throw would strand the panel

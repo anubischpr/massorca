@@ -120,6 +120,8 @@ export type WorktreeCreationRequest = {
   /** How a structured launch delivers `launchDraftPrompt ?? quickPrompt`; decided once by the
    *  composer beside `agentLaunchRoute`, never re-derived from the prompt fields. */
   promptDelivery?: 'draft' | 'auto-submit'
+  /** Per-chat options (model, effort, permission) applied to the chat once it exists, before its first send. */
+  structuredSeedPicks?: Readonly<Record<string, string>>
   quickTelemetry: AgentStartedTelemetry | null
   /** When the composer stays open for sequential creates, completion must not
    *  steal focus from the next workspace name field. */
