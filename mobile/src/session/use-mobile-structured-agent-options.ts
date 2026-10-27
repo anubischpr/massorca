@@ -11,7 +11,6 @@ import type {
   SessionOptionValue
 } from '../../../src/shared/native-chat-session-options'
 import {
-  applyStructuredAgentSessionOptions,
   canSetStructuredAgentSessionOption,
   commitStructuredAgentSessionOption,
   commitStructuredAgentSessionOptionValues,
@@ -26,6 +25,7 @@ import {
   type StructuredAgentSessionMutate
 } from './mobile-structured-agent-session-rpc'
 import { persistMobileStructuredOptionPicks } from './mobile-native-chat-session-option-persistence'
+import { applyStructuredAgentSessionOptionsResult } from './mobile-native-chat-option-listing'
 import { useMobileHostModelCatalogUpgrade } from './use-mobile-host-model-catalog-upgrade'
 import {
   forgetMobileCreatedStructuredSession,
@@ -134,7 +134,7 @@ export function useMobileStructuredAgentOptions(args: {
           setConversationSupport({ sessionId, commands: result.conversationCommands ?? [] })
           updateOptionState((current) =>
             current.record === activeOptionRecordRef.current
-              ? applyStructuredAgentSessionOptions(current, optionCatalog, result)
+              ? applyStructuredAgentSessionOptionsResult(current, optionCatalog, result)
               : current
           )
         }
@@ -208,7 +208,7 @@ export function useMobileStructuredAgentOptions(args: {
                 ) {
                   updateOptionState((latest) =>
                     latest.record === targetRecord
-                      ? applyStructuredAgentSessionOptions(latest, optionCatalog, refreshed)
+                      ? applyStructuredAgentSessionOptionsResult(latest, optionCatalog, refreshed)
                       : latest
                   )
                 }
