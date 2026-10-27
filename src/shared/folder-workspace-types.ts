@@ -1,3 +1,4 @@
+import type { CreateChatNamingOverride } from './create-chat-session-naming'
 import type { ExecutionHostId } from './execution-host'
 import type { TaskSourceContext } from './task-source-context'
 import type { TuiAgent } from './tui-agent'
@@ -39,6 +40,8 @@ export type FolderWorkspace = {
   workspaceStatus?: WorkspaceStatus
   createdWithAgent?: TuiAgent
   pendingFirstAgentMessageRename?: boolean
+  /** Set for chats started from create-chat; names the first work with that session's agent. */
+  createChatNaming?: CreateChatNamingOverride
   firstAgentMessageRenameError?: string | null
   lastActivityAt: number
   createdAt: number

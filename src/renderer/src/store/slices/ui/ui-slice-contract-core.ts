@@ -123,6 +123,7 @@ export type UiViewHistory =
   | 'skills'
   | 'artifacts'
   | 'mobile'
+  | 'create-chat'
 
 export type UISliceCore = {
   sidebarOpen: boolean
@@ -206,6 +207,9 @@ export type UISliceCore = {
   closeArtifactsPage: () => void
   openMobilePage: () => void
   closeMobilePage: () => void
+  /** Opens a blank create-chat view; each open bumps the nonce so the view remounts blank. */
+  createChatResetNonce: number
+  openCreateChatPage: () => void
   setNewWorkspaceDraft: (draft: NonNullable<UISliceCore['newWorkspaceDraft']>) => void
   clearNewWorkspaceDraft: () => void
   pendingRevealWorktree: PendingSidebarWorktreeReveal | null

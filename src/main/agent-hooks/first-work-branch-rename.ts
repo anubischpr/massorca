@@ -1,6 +1,8 @@
 // On first agent work in a fresh workspace, replace the auto-generated creature branch (e.g. `you/Nautilus`) with a short work-derived name.
 import type { GlobalSettings } from '../../shared/global-settings-types'
+import type { CreateChatNamingOverride } from '../../shared/create-chat-session-naming'
 import type { Repo } from '../../shared/repo-types'
+import type { TuiAgent } from '../../shared/tui-agent'
 import { isFolderRepo } from '../../shared/repo-kind'
 import { getRepoIdFromWorktreeId, splitWorktreeIdForFilesystem } from '../../shared/worktree/id'
 import { parseWorkspaceKey } from '../../shared/workspace-scope'
@@ -27,7 +29,7 @@ import {
 } from '../text-generation/commit-message-text-generation'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
 import type { AgentGenerationFailureOutput } from '../text-generation/agent-failure-output'
-import { resolveGenerationTarget } from './first-work-generation-target'
+import { resolveFirstWorkNamingGeneration } from './first-work-naming-generation'
 import { runFolderWorkspaceTitleAutoRename } from './first-work-workspace-title-rename'
 
 export type FirstWorkBranchRenameEvent = {
@@ -53,6 +55,10 @@ export type FirstWorkBranchRenameDeps = {
   isPendingFirstAgentMessageRename?: (worktreeId: string) => boolean
   /** True only for Orca-created worktrees whose branch Orca is allowed to rename. */
   canRenameOrcaCreatedBranch: (worktreeId: string) => boolean
+  /** Naming for a workspace created from create-chat: its session's agent and the picked model. */
+  getCreateChatNaming?: (
+    worktreeId: string
+  ) => (CreateChatNamingOverride & { agentId: TuiAgent }) | undefined
   /** Persist a new sidebar display name for the worktree. */
   setDisplayName: (worktreeId: string, displayName: string) => void
   /** Align the on-disk folder with the new branch leaf (best-effort, local-only). */
@@ -219,9 +225,14 @@ async function runAutoRename(
     deps.setRenameError(worktreeId, resolvedParams.error)
     return stop(`no generation agent: ${resolvedParams.error}`)
   }
-  const params = resolvedParams.params
-
-  const target = await resolveGenerationTarget(worktreePath, params.agentId, provider, deps)
+  const { params, target } = await resolveFirstWorkNamingGeneration({
+    globalParams: resolvedParams.params,
+    createChatNaming: deps.getCreateChatNaming?.(worktreeId),
+    settings,
+    worktreePath,
+    provider,
+    deps
+  })
   if (!target) {
     deps.setRenameError(worktreeId, 'Could not prepare the branch-name generation environment.')
     return retry('could not prepare generation environment')

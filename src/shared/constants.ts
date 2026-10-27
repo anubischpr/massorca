@@ -107,9 +107,25 @@ export function getDefaultWorkspaceDir(homeDir: string): string {
   return [trimmedHomeDir, 'orca', 'workspaces'].join(separator)
 }
 
+/** Root for chats started without a project; the stock value is `<home>/orca/chats`. */
+export function getDefaultProjectlessChatsDir(homeDir: string): string {
+  const separator = homeDir.includes('\\') ? '\\' : '/'
+  const trimmedHomeDir = homeDir.replace(/[\\/]+$/, '')
+  return [trimmedHomeDir, 'orca', 'chats'].join(separator)
+}
+
+/** Blank, non-string, or relative input falls back to the stock folder. */
+export function normalizeProjectlessChatsDir(value: unknown, homeDir: string): string {
+  const trimmed = typeof value === 'string' ? value.trim() : ''
+  // Why: a relative path would resolve against the app's working directory, not the user's home.
+  const isAbsoluteOrHome = /^(?:[\\/]|~|[A-Za-z]:[\\/])/.test(trimmed)
+  return trimmed && isAbsoluteOrHome ? trimmed : getDefaultProjectlessChatsDir(homeDir)
+}
+
 export function getDefaultSettings(homedir: string): GlobalSettings {
   return buildDefaultSettings({
     workspaceDir: getDefaultWorkspaceDir(homedir),
+    projectlessChatsDir: getDefaultProjectlessChatsDir(homedir),
     appFontFamily: DEFAULT_APP_FONT_FAMILY,
     editorAutoSaveDelayMs: DEFAULT_EDITOR_AUTO_SAVE_DELAY_MS,
     primarySelectionMiddleClickPaste: getDefaultPrimarySelectionMiddleClickPaste(),

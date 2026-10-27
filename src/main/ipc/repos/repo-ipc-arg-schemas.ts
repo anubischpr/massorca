@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { isTuiAgent } from '../../../shared/tui-agent-config'
+import type { TuiAgent } from '../../../shared/tui-agent'
 import { TaskSourceContextSchema } from '../../../shared/task-source-context-schema'
 import { WorkspaceLinkedItemSchema } from '../../../shared/workspace-linked-item-schema'
 import { WorkspaceAttachmentsSchema } from '../../../shared/workspace-attachment-schema'
@@ -127,6 +128,12 @@ function assertFolderWorkspaceLinkedSourceContextMatch(
     })
   }
 }
+
+export const ProjectlessChatCreateWorkspaceArgs = z.object({
+  connectionId: z.string().nullable().optional(),
+  createdWithAgent: z.custom<TuiAgent>((value) => isTuiAgent(value)),
+  createChatNaming: z.object({ model: z.string().nullable() })
+})
 
 export const FolderWorkspaceCreateArgs = z
   .object({

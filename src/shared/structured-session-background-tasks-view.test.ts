@@ -125,3 +125,34 @@ describe('structuredSessionBackgroundTasksView', () => {
     })
   })
 })
+
+describe('Orca setup rows in the strip view', () => {
+  it('keeps a finished setup row visible with its exit, and drops finished agent rows', () => {
+    const setup = {
+      id: 'worktree-setup:pty-1',
+      kind: 'command' as const,
+      state: 'done' as const,
+      origin: 'orca' as const,
+      exitCode: 1
+    }
+    const agentDone = { id: 'agent-done', kind: 'agent' as const, state: 'done' as const }
+    expect(
+      structuredSessionBackgroundTasksView(
+        { state: 'monitoring', settledTasks: [setup, agentDone], children: [] },
+        null
+      )
+    ).toMatchObject({ show: true, settledTasks: [setup] })
+  })
+
+  it('shows a roster whose only row is a running setup run', () => {
+    const setup = {
+      id: 'worktree-setup:pty-1',
+      kind: 'command' as const,
+      state: 'working' as const,
+      origin: 'orca' as const
+    }
+    expect(
+      structuredSessionBackgroundTasksView({ state: 'monitoring', tasks: [setup] }, null)
+    ).toMatchObject({ show: true, tasks: [setup] })
+  })
+})

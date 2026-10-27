@@ -4,6 +4,7 @@ import type { StructuredSessionBackgroundTasksView } from '../../../../shared/st
 import { useNativeChatBackgroundTasksRevealSequence } from './native-chat-background-tasks-reveal'
 import { useStructuredSessionChildRowContext } from './use-structured-session-child-row-context'
 import type { BackgroundTaskStopping } from './use-background-task-stopping'
+import { revealWorktreeSetupOutput } from '@/lib/worktree-setup-background-run'
 
 export function NativeChatStructuredSessionStatus(props: {
   sessionId: string
@@ -51,6 +52,7 @@ export function NativeChatStructuredSessionStatus(props: {
             })
           }
           onStop={props.backgroundStops.onStop}
+          onShowOutput={(taskId) => void revealWorktreeSetupOutput(taskId)}
         />
       ) : null}
     </>

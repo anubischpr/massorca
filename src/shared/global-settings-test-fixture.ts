@@ -12,6 +12,7 @@ export function createGlobalSettingsFixture(
     ...buildDefaultSettings({
       // Callers supply the real directory; no platform-specific default belongs here.
       workspaceDir: overrides.workspaceDir ?? '',
+      projectlessChatsDir: overrides.projectlessChatsDir ?? '',
       appFontFamily: 'Geist',
       editorAutoSaveDelayMs: 1000,
       primarySelectionMiddleClickPaste: false,

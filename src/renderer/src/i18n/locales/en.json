@@ -10197,7 +10197,9 @@
             "command": "command",
             "confirm": "confirm",
             "close": "close",
-            "omp": "OMP"
+            "omp": "OMP",
+            "bd8d308c73": "Projectless chats folder",
+            "8fb288fbed": "Where chats started outside a project are stored, one folder per day."
           }
         },
         "git": {
@@ -12721,6 +12723,12 @@
           "offCount": "{{count}} off",
           "machines": "Machines",
           "machinesDescription": "Choose which machines can show notifications on this computer. A paired server’s switch also covers work reached through it."
+        },
+        "ProjectlessChatsDirectorySetting": {
+          "c5ef89ab92": "Projectless chats folder",
+          "b6dd0334f6": "Where chats started outside a project are stored, one folder per day.",
+          "a43dc59fe4": "Change",
+          "43545b7a79": "Reset"
         }
       },
       "right": {
@@ -18008,6 +18016,50 @@
     }
   },
   "components": {
+    "createChat": {
+      "accessAcceptEditsDescription": "Apply file edits without asking. Commands still ask.",
+      "accessAria": "Permissions",
+      "accessDefaultDescription": "Ask before each edit or command.",
+      "accessFullAccessDescription": "Skip permission prompts. Use only in trusted projects.",
+      "accessPlanDescription": "Plan only. No edits or commands run.",
+      "agentAria": "Agent, model and effort",
+      "agentGroup": "Agent",
+      "composerHint": "Enter to create the session · Shift+Enter for a new line",
+      "composerPlaceholder": "Describe the task to start the session…",
+      "creating": "Creating session…",
+      "creatingAria": "Creating session",
+      "defaultModel": "Default model",
+      "effortGroup": "Effort",
+      "emptyHeading": "What do you want to build?",
+      "emptySubheading": "Pick where it runs, the project and the agent, then write the first message to create the session.",
+      "errorMissingProject": "This project is no longer available. Pick another one.",
+      "errorOpenWorkspace": "Could not open the workspace for this chat. Your draft is kept.",
+      "errorOptionRefused": "A chat setting could not be applied. Change it in the chat.",
+      "errorProjectlessLocation": "Projectless chats can only be created on this computer.",
+      "errorProjectlessWeb": "Projectless chats are not available in this client.",
+      "errorStart": "Could not start the session. Your draft is kept.",
+      "locationAria": "Location",
+      "modelGroup": "Model",
+      "modelLoading": "Loading models…",
+      "modelSetByAgent": "Model set by the agent",
+      "noAgents": "No agents detected yet.",
+      "projectAria": "Project",
+      "projectChipChoose": "Choose a project",
+      "projectChipStandalone": "Standalone chat",
+      "projectNoRepos": "No projects on this location yet.",
+      "projectNone": "Work without a project",
+      "projectlessDescription": "Standalone chat, saved by date in {{directory}}",
+      "projectlessUnavailable": "Only available on this computer",
+      "sendAria": "Create session",
+      "sidebarCreate": "Create",
+      "workspaceAria": "Workspace mode",
+      "workspaceCurrentCheckout": "Current checkout",
+      "workspaceCurrentCheckoutDescription": "Work directly on the open branch",
+      "workspaceNewWorktree": "New worktree",
+      "workspaceNewWorktreeDescription": "Isolated branch created from the base branch",
+      "workspaceNoGit": "No Git",
+      "workspaceNoGitNote": "This folder is not a Git repository, so there is no branch to isolate."
+    },
     "onboarding": {
       "flow": {
         "stepTooltip": {
@@ -18490,6 +18542,9 @@
         "monitoring": "Monitoring background tasks",
         "stop": "Stop",
         "stopTask": "Stop {{value0}}",
+        "setupRowName": "Worktree setup",
+        "showOutput": "Show output",
+        "setupFailed": "Failed with exit code {{value0}}",
         "stopAll": "Stop background tasks",
         "agent": "Background agent",
         "workflow": "Background workflow",

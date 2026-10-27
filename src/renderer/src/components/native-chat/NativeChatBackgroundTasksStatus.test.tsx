@@ -404,3 +404,68 @@ it('lets the 1 Hz tick sleep while every row has settled, with each run frozen',
   expect(committed).not.toHaveBeenCalled()
   expect(vi.getTimerCount()).toBe(0)
 })
+
+describe('NativeChatBackgroundTasksStatus Orca setup rows', () => {
+  const SETUP: AgentSessionBackgroundTask = {
+    id: 'worktree-setup:pty-1',
+    kind: 'command',
+    description: 'Worktree setup',
+    state: 'working',
+    startedAt: 1,
+    stoppable: true,
+    origin: 'orca'
+  }
+
+  function renderSetup(props: {
+    tasks: AgentSessionBackgroundTask[]
+    settledTasks?: AgentSessionBackgroundTask[]
+    onShowOutput?: (taskId: string) => void
+    onStop?: (taskId?: string) => void
+  }): void {
+    render(
+      <DisclosureHost
+        isVisible
+        tasks={props.tasks}
+        settledTasks={props.settledTasks ?? []}
+        indicatorActive
+        supportsTaskStop={false}
+        supportsStopAll={false}
+        stoppingTaskIds={new Set()}
+        stoppingAll={false}
+        onStop={props.onStop ?? vi.fn()}
+        onShowOutput={props.onShowOutput}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { expanded: false }))
+  }
+
+  it('stops its own setup row even where the provider cannot stop a task', () => {
+    const onStop = vi.fn<(taskId?: string) => void>()
+    renderSetup({ tasks: [SETUP], onStop })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop Worktree setup' }))
+
+    expect(onStop).toHaveBeenCalledWith('worktree-setup:pty-1')
+  })
+
+  it('reveals the setup output by the row id it was published under', () => {
+    const onShowOutput = vi.fn<(taskId: string) => void>()
+    renderSetup({ tasks: [SETUP], onShowOutput })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show output' }))
+
+    expect(onShowOutput).toHaveBeenCalledWith('worktree-setup:pty-1')
+  })
+
+  it('shows a finished setup as failed with its exit code, and still offers its output', () => {
+    renderSetup({
+      tasks: [],
+      settledTasks: [{ ...SETUP, state: 'done', exitCode: 3, stoppable: false }],
+      onShowOutput: () => undefined
+    })
+
+    expect(screen.getByText(/Failed with exit code 3/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show output' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Stop Worktree setup' })).toBeNull()
+  })
+})

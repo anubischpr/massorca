@@ -15,6 +15,7 @@ import { installPtyInspectIpcHandlers } from './ipc/inspect'
 import { installPtyCodexSharedServerIpcHandler } from './ipc/codex-shared-server'
 import {
   installPtyKillIpcHandler,
+  stopRendererOwnedPty,
   stopReplacedPanePty,
   type PtyKillIpcDeps
 } from './ipc/renderer-kill'
@@ -65,6 +66,10 @@ import {
   stripSequencedStartupResumeArgv
 } from './host-env/codex-resume'
 import { ensureLinuxTerminalOrcaCliShimDir } from '../../cli/linux-terminal-orca-cli-shim'
+import {
+  isWorktreeSetupRunPty,
+  setWorktreeSetupRunStopper
+} from '../../worktree-setup/setup-run-registry'
 
 export function registerPtyHandlers(
   mainWindow?: PtyRendererDelivery,
@@ -194,7 +199,7 @@ export function registerPtyHandlers(
         return
       }
       // Why: the retained provider onExit callback is the only physical-exit proof; it clears ownership after the OS reaps it.
-      lp.killOrphanedPtys(generation - 1)
+      lp.killOrphanedPtys(generation - 1, isWorktreeSetupRunPty)
     }
     setDidFinishLoadHandler(finishLoadHandler, mainWindow.webContents)
     mainWindow.webContents.on('did-finish-load', finishLoadHandler)
@@ -287,4 +292,5 @@ export function registerPtyHandlers(
   installPtyInspectIpcHandlers({ getLocalPtyProviderStartupPromise })
   installPtyCodexSharedServerIpcHandler({ getLocalPtyProviderStartupPromise })
   installPtyKillIpcHandler(killDeps)
+  setWorktreeSetupRunStopper((ptyId) => stopRendererOwnedPty(killDeps, { id: ptyId }))
 }

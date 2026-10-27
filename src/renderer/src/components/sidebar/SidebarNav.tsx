@@ -1,5 +1,5 @@
 import React from 'react'
-import { BookOpen, CalendarClock, EyeOff, Files, Search, Smartphone } from 'lucide-react'
+import { BookOpen, CalendarClock, EyeOff, Files, Plus, Search, Smartphone } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '@/store'
 import { cn } from '@/lib/utils'
@@ -53,6 +53,7 @@ const SidebarNav = React.memo(function SidebarNav() {
   // translate() preserves Orca's pseudo-localization behavior.
   useTranslation()
   const worktreePaletteShortcutCombos = useShortcutKeyComboDetails('worktree.palette')
+  const openCreateChatPage = useAppStore((s) => s.openCreateChatPage)
   const openAutomationsPage = useAppStore((s) => s.openAutomationsPage)
   const openMobilePage = useAppStore((s) => s.openMobilePage)
   const openArtifactsPage = useAppStore((s) => s.openArtifactsPage)
@@ -65,6 +66,7 @@ const SidebarNav = React.memo(function SidebarNav() {
   const showMobileButton = useAppStore((s) => shouldShowMobileButton(s.settings))
   const showArtifactsButton = useAppStore((s) => shouldShowArtifactsButton(s.settings))
   const showSkillsButton = useAppStore((s) => shouldShowSkillsButton(s.settings))
+  const createChatActive = activeView === 'create-chat'
   const automationsActive = activeView === 'automations'
   const mobileActive = activeView === 'mobile'
   const artifactsActive = activeView === 'artifacts'
@@ -88,6 +90,18 @@ const SidebarNav = React.memo(function SidebarNav() {
       className="flex flex-col gap-0.5 px-2 pt-2 pb-1"
       data-contextual-tour-target="sidebar-navigation"
     >
+      <Button
+        type="button"
+        size="sm"
+        onClick={openCreateChatPage}
+        aria-current={createChatActive ? 'page' : undefined}
+        className="mb-1 w-full justify-start"
+      >
+        <Plus className="size-4 shrink-0" strokeWidth={2} />
+        <span className="flex-1 text-left">
+          {translate('components.createChat.sidebarCreate', 'Create')}
+        </span>
+      </Button>
       <button
         type="button"
         onClick={() => openModal('worktree-palette')}

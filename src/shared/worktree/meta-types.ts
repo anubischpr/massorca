@@ -1,3 +1,4 @@
+import type { CreateChatNamingOverride } from '../create-chat-session-naming'
 import type { ExecutionHostId } from '../execution-host'
 import type { TaskSourceContext } from '../task-source-context'
 import type { EphemeralVmCheckoutMode } from '../orca-yaml-hook-types'
@@ -65,6 +66,8 @@ export type WorktreeMeta = {
   createdWithAgent?: TuiAgent
   /** See {@link Worktree.pendingFirstAgentMessageRename}. */
   pendingFirstAgentMessageRename?: boolean
+  /** Set for workspaces created from create-chat; names the first work with that session's agent. */
+  createChatNaming?: CreateChatNamingOverride
   /** See {@link Worktree.firstAgentMessageRenameError}. */
   firstAgentMessageRenameError?: string | null
   sparseDirectories?: string[]

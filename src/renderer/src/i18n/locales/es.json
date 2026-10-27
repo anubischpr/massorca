@@ -9909,7 +9909,9 @@
             "running_terminal": "correr",
             "command": "dominio",
             "confirm": "confirmar",
-            "omp": "OMP"
+            "omp": "OMP",
+            "bd8d308c73": "Carpeta de chats sin proyecto",
+            "8fb288fbed": "La ubicación donde se guardan los chats iniciados fuera de un proyecto, una carpeta por día."
           }
         },
         "git": {
@@ -11119,6 +11121,12 @@
         },
         "computerUseSkillRuntime": {
           "thisDevice": "Este dispositivo"
+        },
+        "ProjectlessChatsDirectorySetting": {
+          "c5ef89ab92": "Carpeta de chats sin proyecto",
+          "b6dd0334f6": "La ubicación donde se guardan los chats iniciados fuera de un proyecto, una carpeta por día.",
+          "a43dc59fe4": "Cambiar",
+          "43545b7a79": "Restablecer"
         },
         "WorkspaceDirectorySetting": {
           "1a2b3c4d5e": "Predeterminado del cliente",
@@ -17812,6 +17820,50 @@
     }
   },
   "components": {
+    "createChat": {
+      "accessAcceptEditsDescription": "Aplica ediciones de archivos sin preguntar. Los comandos siguen pidiendo permiso.",
+      "accessAria": "Permisos",
+      "accessDefaultDescription": "Pregunta antes de cada edición o comando.",
+      "accessFullAccessDescription": "Omite las solicitudes de permiso. Úsalo solo en proyectos de confianza.",
+      "accessPlanDescription": "Solo planifica. No se ejecutan ediciones ni comandos.",
+      "agentAria": "Agente, modelo y esfuerzo",
+      "agentGroup": "Agente",
+      "composerHint": "Enter para crear la sesión · Shift+Enter para salto de línea",
+      "composerPlaceholder": "Describe la tarea para iniciar la sesión…",
+      "creating": "Creando sesión…",
+      "creatingAria": "Creando sesión",
+      "defaultModel": "Modelo predeterminado",
+      "effortGroup": "Esfuerzo",
+      "emptyHeading": "¿Qué quieres construir?",
+      "emptySubheading": "Elige dónde se ejecuta, el proyecto y el agente; después escribe el primer mensaje para crear la sesión.",
+      "errorMissingProject": "Este proyecto ya no está disponible. Elige otro.",
+      "errorOpenWorkspace": "No se pudo abrir el espacio de trabajo para este chat. Tu borrador se conserva.",
+      "errorOptionRefused": "No se pudo aplicar un ajuste del chat. Cámbialo en el chat.",
+      "errorProjectlessLocation": "Los chats sin proyecto solo se pueden crear en esta computadora.",
+      "errorProjectlessWeb": "Los chats sin proyecto no están disponibles en este cliente.",
+      "errorStart": "No se pudo iniciar la sesión. Tu borrador se conserva.",
+      "locationAria": "Ubicación",
+      "modelGroup": "Modelo",
+      "modelLoading": "Cargando modelos…",
+      "modelSetByAgent": "Modelo definido por el agente",
+      "noAgents": "Aún no se detectan agentes.",
+      "projectAria": "Proyecto",
+      "projectChipChoose": "Elige un proyecto",
+      "projectChipStandalone": "Chat suelto",
+      "projectNoRepos": "Todavía no hay proyectos en esta ubicación.",
+      "projectNone": "Trabajar sin proyecto",
+      "projectlessDescription": "Chat suelto, guardado por fecha en {{directory}}",
+      "projectlessUnavailable": "Solo disponible en esta computadora",
+      "sendAria": "Crear sesión",
+      "sidebarCreate": "Crear",
+      "workspaceAria": "Modo de espacio de trabajo",
+      "workspaceCurrentCheckout": "Checkout actual",
+      "workspaceCurrentCheckoutDescription": "Trabaja directamente en la rama abierta",
+      "workspaceNewWorktree": "Nuevo worktree",
+      "workspaceNewWorktreeDescription": "Rama aislada creada desde la rama base",
+      "workspaceNoGit": "Sin Git",
+      "workspaceNoGitNote": "Esta carpeta no es un repositorio Git, así que no tiene una rama que aislar."
+    },
     "native-chat": {
       "reasoning": "Razonamiento",
       "contextMenu": {
@@ -18370,6 +18422,9 @@
         "monitoring": "Supervisando tareas en segundo plano",
         "stop": "Detener",
         "stopTask": "Detener {{value0}}",
+        "setupRowName": "Setup del worktree",
+        "showOutput": "Ver salida",
+        "setupFailed": "Falló con código de salida {{value0}}",
         "stopAll": "Detener tareas en segundo plano",
         "agent": "Agente en segundo plano",
         "workflow": "Flujo de trabajo en segundo plano",

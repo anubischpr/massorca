@@ -19,6 +19,7 @@ import { DESKTOP_TERMINAL_SCROLLBACK_ROWS_DEFAULT } from './terminal-scrollback-
 
 export function buildDefaultSettings(args: {
   workspaceDir: string
+  projectlessChatsDir: string
   appFontFamily: string
   editorAutoSaveDelayMs: number
   primarySelectionMiddleClickPaste: boolean
@@ -31,6 +32,7 @@ export function buildDefaultSettings(args: {
 }): GlobalSettings {
   return {
     workspaceDir: args.workspaceDir,
+    projectlessChatsDir: args.projectlessChatsDir,
     worktreeVisibilityDefaults: { external: 'hide' },
     nestWorkspaces: true,
     workspaceDirHistory: [],

@@ -3,7 +3,7 @@ import {
   generateBranchNameFromContext,
   resolveTextGenerationParams
 } from '../text-generation/commit-message-text-generation'
-import { resolveGenerationTarget } from './first-work-generation-target'
+import { resolveFirstWorkNamingGeneration } from './first-work-naming-generation'
 import type { FirstWorkBranchRenameDeps } from './first-work-branch-rename'
 
 /**
@@ -34,12 +34,14 @@ export async function runFolderWorkspaceTitleAutoRename(
     deps.setRenameError(worktreeId, resolvedParams.error)
     return stop(`no generation agent: ${resolvedParams.error}`)
   }
-  const target = await resolveGenerationTarget(
-    folderPath,
-    resolvedParams.params.agentId,
-    null,
+  const { params, target } = await resolveFirstWorkNamingGeneration({
+    globalParams: resolvedParams.params,
+    createChatNaming: deps.getCreateChatNaming?.(worktreeId),
+    settings,
+    worktreePath: folderPath,
+    provider: null,
     deps
-  )
+  })
   if (!target) {
     deps.setRenameError(worktreeId, 'Could not prepare the workspace-name generation environment.')
     return retry('could not prepare generation environment')
@@ -47,7 +49,7 @@ export async function runFolderWorkspaceTitleAutoRename(
 
   const generated = await generateBranchNameFromContext(
     { firstPrompt: prompt, assistantMessage },
-    resolvedParams.params,
+    params,
     target
   )
   // Generation may outlive a manual rename or workspace removal.

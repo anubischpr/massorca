@@ -28,6 +28,8 @@ export type StructuredSessionBackgroundTasksView = {
 const NO_TASKS: AgentSessionBackgroundTask[] = []
 const NO_FOREGROUND_COMMANDS: ReadonlySet<string> = new Set()
 
+const isOrcaTask = (task: AgentSessionBackgroundTask): boolean => task.origin === 'orca'
+
 function withoutForeground<T>(
   rows: T[],
   foreground: ReadonlySet<string>,
@@ -48,6 +50,13 @@ export function structuredSessionBackgroundTasksView(
     monitoring && backgroundTasks.children
       ? withoutForeground(backgroundTasks.children, foregroundCommands, (child) => child.providerId)
       : undefined
+  // Why: an all-Orca roster keeps its own list, and no Orca row reads the shared empty list, so the strip memo holds.
+  const settledAll = backgroundTasks?.settledTasks ?? NO_TASKS
+  const settledOrca = settledAll.every(isOrcaTask)
+    ? settledAll
+    : settledAll.filter(isOrcaTask).length > 0
+      ? settledAll.filter(isOrcaTask)
+      : NO_TASKS
   const tasks = withoutForeground(
     backgroundTasks?.tasks ?? NO_TASKS,
     foregroundCommands,
@@ -55,7 +64,11 @@ export function structuredSessionBackgroundTasksView(
   )
   // Only running children arrive; a roster with none holds nothing open either way.
   // An older host's roster whose listed rows have all finished shows nothing that runs.
-  const onlyFinished = !children && !tasks.length && Boolean(backgroundTasks?.settledTasks?.length)
+  const onlyFinished =
+    !children &&
+    !tasks.length &&
+    !settledOrca.length &&
+    Boolean(backgroundTasks?.settledTasks?.length)
   const onlyForeground =
     foregroundCommands.size > 0 &&
     !children?.length &&
@@ -67,8 +80,9 @@ export function structuredSessionBackgroundTasksView(
     show,
     isMonitoring: turnId === null && liveWork,
     tasks,
-    // Running work only, from any host: an older host's finished rows are not shown either.
-    settledTasks: NO_TASKS,
+    // Running work only, from any host, except Orca's own setup rows: a finished setup stays visible
+    // with its exit so its Show output still reads.
+    settledTasks: settledOrca,
     ...(children ? { children } : {}),
     supportsStop: backgroundTasks?.supportsTaskStop === true,
     // Absent means the host predates the field and does accept an untargeted

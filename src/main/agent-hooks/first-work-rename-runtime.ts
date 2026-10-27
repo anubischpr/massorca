@@ -42,6 +42,17 @@ export function firstWorkRenameDeps(
         ? store.getFolderWorkspace(scope.folderWorkspaceId)?.pendingFirstAgentMessageRename === true
         : store.getWorktreeMeta(worktreeId)?.pendingFirstAgentMessageRename === true
     },
+    getCreateChatNaming: (worktreeId) => {
+      const scope = parseWorkspaceKey(worktreeId)
+      const record =
+        scope?.type === 'folder'
+          ? store.getFolderWorkspace(scope.folderWorkspaceId)
+          : store.getWorktreeMeta(worktreeId)
+      if (!record?.createChatNaming || !record.createdWithAgent) {
+        return undefined
+      }
+      return { agentId: record.createdWithAgent, model: record.createChatNaming.model }
+    },
     canRenameOrcaCreatedBranch: (worktreeId) => {
       const meta = store.getWorktreeMeta(worktreeId)
       // Why: a user branch could coincidentally match a creature name; only Orca-stamped worktrees are safe to auto-rename.

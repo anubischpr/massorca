@@ -14,6 +14,7 @@ const {
   getSshGitProviderMock,
   generateBranchNameMock,
   resolveTextGenerationParamsMock,
+  discoverModelsLocalMock,
   prepareLocalEnvMock,
   computeBranchNameMock,
   getConfiguredBranchPrefixMock
@@ -24,6 +25,7 @@ const {
   getSshGitProviderMock: vi.fn(() => undefined),
   generateBranchNameMock: vi.fn(),
   resolveTextGenerationParamsMock: vi.fn(),
+  discoverModelsLocalMock: vi.fn(),
   prepareLocalEnvMock: vi.fn(async () => ({ ok: true as const })),
   computeBranchNameMock: vi.fn((leaf: string) => `you/${leaf}`),
   // Mirror computeBranchNameMock's `you/` strategy so prefix stripping is realistic.
@@ -38,7 +40,9 @@ vi.mock('../git/git-username', () => ({
 vi.mock('../providers/ssh-git-dispatch', () => ({ getSshGitProvider: getSshGitProviderMock }))
 vi.mock('../text-generation/commit-message-text-generation', () => ({
   generateBranchNameFromContext: generateBranchNameMock,
-  resolveTextGenerationParams: resolveTextGenerationParamsMock
+  resolveTextGenerationParams: resolveTextGenerationParamsMock,
+  discoverCommitMessageModelsLocal: discoverModelsLocalMock,
+  discoverCommitMessageModelsRemote: vi.fn()
 }))
 vi.mock('../text-generation/commit-message-agent-environment', () => ({
   prepareLocalCommitMessageAgentEnv: prepareLocalEnvMock
@@ -732,5 +736,179 @@ describe('maybeAutoRenameBranchOnFirstWork', () => {
     await maybeAutoRenameBranchOnFirstWork(workingEvent(), deps)
     expect(provider.renameCurrentBranch).toHaveBeenCalledWith('/repo/wt', 'you/fix-auth')
     expect(onRenamed).toHaveBeenCalledWith(REPO_ID)
+  })
+})
+
+describe('first-work naming for create-chat workspaces', () => {
+  const sessionNaming = (
+    agentId: 'claude' | 'codex' | 'antigravity' | 'pi',
+    model: string | null
+  ) => ({ agentId, model })
+
+  beforeEach(() => {
+    resetFirstWorkBranchRenameState()
+    vi.clearAllMocks()
+    prepareLocalEnvMock.mockResolvedValue({ ok: true })
+    resolveTextGenerationParamsMock.mockReturnValue({
+      ok: true,
+      params: { agentId: 'codex', model: 'gpt-5.5', customPrompt: 'Keep it short' }
+    })
+    generateBranchNameMock.mockResolvedValue({ success: true, slug: 'fix-auth' })
+    gitExecFileAsyncMock.mockImplementation(
+      gitResponder({ currentBranch: 'you/Nautilus', hasUpstream: false })
+    )
+    discoverModelsLocalMock.mockResolvedValue({
+      success: true,
+      models: [],
+      defaultModelId: '',
+      capability: {},
+      catalogOrigin: 'probe'
+    })
+  })
+
+  function generationParams() {
+    return generateBranchNameMock.mock.calls[0]?.[1]
+  }
+
+  it('names a Claude create-chat workspace with the newest discovered Sonnet', async () => {
+    discoverModelsLocalMock.mockResolvedValueOnce({
+      success: true,
+      models: [{ id: 'haiku' }, { id: 'claude-sonnet-4-5' }, { id: 'claude-sonnet-5-5' }],
+      defaultModelId: 'sonnet',
+      capability: {},
+      catalogOrigin: 'probe'
+    })
+    const { deps, setDisplayName } = makeDeps({
+      getCreateChatNaming: () => sessionNaming('claude', null)
+    })
+
+    await maybeAutoRenameBranchOnFirstWork(workingEvent(), deps)
+
+    expect(discoverModelsLocalMock).toHaveBeenCalledWith(
+      'claude',
+      undefined,
+      undefined,
+      expect.objectContaining({ cwd: expect.any(String) })
+    )
+    expect(generationParams()).toMatchObject({
+      agentId: 'claude',
+      model: 'claude-sonnet-5-5',
+      customPrompt: 'Keep it short'
+    })
+    expect(setDisplayName).toHaveBeenCalled()
+  })
+
+  it('inherits the Claude CLI default when no Sonnet is listed', async () => {
+    discoverModelsLocalMock.mockResolvedValueOnce({
+      success: true,
+      models: [{ id: 'haiku' }],
+      defaultModelId: 'sonnet',
+      capability: {},
+      catalogOrigin: 'probe'
+    })
+    const { deps } = makeDeps({ getCreateChatNaming: () => sessionNaming('claude', null) })
+
+    await maybeAutoRenameBranchOnFirstWork(workingEvent(), deps)
+
+    expect(generationParams()).toMatchObject({ agentId: 'claude', model: '' })
+  })
+
+  it('uses the newest terra model for a Codex create-chat workspace', async () => {
+    discoverModelsLocalMock.mockResolvedValueOnce({
+      success: true,
+      models: [{ id: 'gpt-5.6-terra' }, { id: 'gpt-6.1-terra' }],
+      defaultModelId: 'gpt-5.6-terra',
+      capability: {},
+      catalogOrigin: 'probe'
+    })
+    const { deps } = makeDeps({ getCreateChatNaming: () => sessionNaming('codex', null) })
+
+    await maybeAutoRenameBranchOnFirstWork(workingEvent(), deps)
+
+    expect(generationParams()).toMatchObject({ agentId: 'codex', model: 'gpt-6.1-terra' })
+  })
+
+  it('never names an Antigravity workspace with the default alias, and uses the newest Flash', async () => {
+    discoverModelsLocalMock.mockResolvedValueOnce({
+      success: true,
+      models: [
+        { id: 'default', label: 'Config default' },
+        { id: 'gemini-3-flash' },
+        { id: 'gemini-3.5-flash' }
+      ],
+      defaultModelId: 'default',
+      capability: {},
+      catalogOrigin: 'probe'
+    })
+    const { deps } = makeDeps({
+      getCreateChatNaming: () => sessionNaming('antigravity', null)
+    })
+
+    await maybeAutoRenameBranchOnFirstWork(workingEvent(), deps)
+
+    expect(generationParams()).toMatchObject({
+      agentId: 'antigravity',
+      model: 'gemini-3.5-flash'
+    })
+  })
+
+  it('falls back to the global params when no Antigravity Flash is listed', async () => {
+    discoverModelsLocalMock.mockResolvedValueOnce({
+      success: true,
+      models: [{ id: 'default' }],
+      defaultModelId: 'default',
+      capability: {},
+      catalogOrigin: 'probe'
+    })
+    const { deps } = makeDeps({
+      getCreateChatNaming: () => sessionNaming('antigravity', null)
+    })
+
+    await maybeAutoRenameBranchOnFirstWork(workingEvent(), deps)
+
+    expect(generationParams()).toMatchObject({ agentId: 'codex', model: 'gpt-5.5' })
+  })
+
+  it('uses the create-chat pick for Gentle Shell without discovery', async () => {
+    const { deps } = makeDeps({
+      getCreateChatNaming: () => sessionNaming('pi', 'anthropic/claude-x')
+    })
+
+    await maybeAutoRenameBranchOnFirstWork(workingEvent(), deps)
+
+    expect(discoverModelsLocalMock).not.toHaveBeenCalled()
+    expect(generationParams()).toMatchObject({ agentId: 'pi', model: 'anthropic/claude-x' })
+  })
+
+  it('keeps the global params for a workspace that did not come from create-chat', async () => {
+    const { deps } = makeDeps({ getCreateChatNaming: () => undefined })
+
+    await maybeAutoRenameBranchOnFirstWork(workingEvent(), deps)
+
+    expect(discoverModelsLocalMock).not.toHaveBeenCalled()
+    expect(generationParams()).toMatchObject({ agentId: 'codex', model: 'gpt-5.5' })
+  })
+
+  it('names a pending create-chat folder workspace with its session agent', async () => {
+    discoverModelsLocalMock.mockResolvedValueOnce({
+      success: true,
+      models: [{ id: 'claude-sonnet-5-5' }],
+      defaultModelId: 'sonnet',
+      capability: {},
+      catalogOrigin: 'probe'
+    })
+    const { deps, setDisplayName } = makeDeps({
+      resolveWorktreeIdForTab: () => FOLDER_WORKTREE_ID,
+      getFolderWorkspacePath: () => '/chats/2026-10-26/k3x9qa',
+      isPendingFirstAgentMessageRename: () => true,
+      getCurrentDisplayName: () => 'k3x9qa',
+      getCreateChatNaming: () => sessionNaming('claude', null)
+    })
+
+    await maybeAutoRenameBranchOnFirstWork(workingEvent(), deps)
+
+    expect(gitExecFileAsyncMock).not.toHaveBeenCalled()
+    expect(generationParams()).toMatchObject({ agentId: 'claude', model: 'claude-sonnet-5-5' })
+    expect(setDisplayName).toHaveBeenCalledWith(FOLDER_WORKTREE_ID, 'Fix auth')
   })
 })

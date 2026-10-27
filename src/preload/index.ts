@@ -12,6 +12,8 @@ import { reposApi } from './api/repos-bridge'
 import { projectsApi } from './api/projects-bridge'
 import { projectGroupsApi } from './api/project-groups-bridge'
 import { folderWorkspacesApi } from './api/folder-workspaces-bridge'
+import { projectlessChatsApi } from './api/projectless-chats-bridge'
+import { worktreeSetupRunsApi } from './api/worktree-setup-runs-bridge'
 import { sparsePresetsApi } from './api/sparse-presets-bridge'
 import { worktreesApi } from './api/worktrees-bridge'
 import { workspaceCleanupApi } from './api/workspace-cleanup-bridge'
@@ -108,6 +110,8 @@ const api = {
   projects: projectsApi,
   projectGroups: projectGroupsApi,
   folderWorkspaces: folderWorkspacesApi,
+  projectlessChats: projectlessChatsApi,
+  worktreeSetupRuns: worktreeSetupRunsApi,
   sparsePresets: sparsePresetsApi,
   worktrees: worktreesApi,
   workspaceCleanup: workspaceCleanupApi,
