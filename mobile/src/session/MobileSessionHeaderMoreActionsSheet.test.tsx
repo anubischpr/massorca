@@ -1,8 +1,9 @@
-import { type ReactNode, createElement } from 'react'
+import type { ReactNode } from 'react'
+import { createElement } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { MobileSessionHeaderMenu } from './mobile-session-header-menu'
 import { MobileSessionHeaderMoreActionsSheet } from './MobileSessionHeaderMoreActionsSheet'
-import { resolveMobileSessionHeaderMenu } from './mobile-session-header-menu'
 
 vi.mock('react-native', () => ({
   Pressable: 'Pressable',
@@ -26,27 +27,25 @@ vi.mock('../components/BottomDrawer', async () => {
   return {
     BottomDrawer: ({
       visible,
-      onClose,
       onAfterClose,
       children
     }: {
       visible: boolean
-      onClose: () => void
       onAfterClose?: () => void
       children?: ReactNode
     }) =>
-      visible ? React.createElement('BottomDrawer', { onClose, onAfterClose }, children) : null
+      visible ? React.createElement('BottomDrawer', { visible, onAfterClose }, children) : null
   }
 })
 
-function menuFor(options: { showNativeChat?: boolean; showAgentHistory?: boolean }) {
-  return resolveMobileSessionHeaderMenu({
-    showNativeChat: options.showNativeChat ?? false,
-    showAgentHistory: options.showAgentHistory ?? false,
-    hasSourceControl: true,
-    showChecks: false,
-    hasPlan: false
-  })
+const FULL: MobileSessionHeaderMenu = {
+  showButton: true,
+  chat: { sessions: true, agentHistory: false, plan: true, summary: true, artifacts: true },
+  environment: { branch: true, checks: true }
+}
+
+function textOf(node: ReactTestInstance): string {
+  return node.children.map((child) => (typeof child === 'string' ? child : textOf(child))).join('')
 }
 
 describe('MobileSessionHeaderMoreActionsSheet', () => {
@@ -57,32 +56,34 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
     renderer = null
   })
 
-  function render(
-    menu: ReturnType<typeof menuFor>,
-    handlers: { onOpenAgentHistory: () => void; onClose: () => void }
-  ): ReactTestRenderer {
-    const noop = () => {}
+  function mount(
+    overrides: Partial<Parameters<typeof MobileSessionHeaderMoreActionsSheet>[0]> = {}
+  ): { mounted: ReactTestRenderer; onOpenSummary: () => void; onClose: () => void } {
+    act(() => renderer?.unmount())
+    const onOpenSummary = vi.fn()
+    const onClose = vi.fn()
+    const props = {
+      visible: true,
+      menu: FULL,
+      tabCount: 4,
+      planHint: '2 of 5 done',
+      recordedFileCount: 7,
+      onOpenSessions: vi.fn(),
+      onOpenPlan: vi.fn(),
+      onOpenSummary,
+      onOpenArtifacts: vi.fn(),
+      onOpenAgentHistory: vi.fn(),
+      onOpenBranch: vi.fn(),
+      onOpenChecks: vi.fn(),
+      onClose,
+      ...overrides
+    }
     const mounted = create(createElement('View'))
     renderer = mounted
     act(() => {
-      mounted.update(
-        createElement(MobileSessionHeaderMoreActionsSheet, {
-          visible: true,
-          menu,
-          tabCount: 1,
-          recordedFileCount: 0,
-          onOpenSessions: noop,
-          onOpenPlan: noop,
-          onOpenSummary: noop,
-          onOpenArtifacts: noop,
-          onOpenAgentHistory: handlers.onOpenAgentHistory,
-          onOpenBranch: noop,
-          onOpenChecks: noop,
-          onClose: handlers.onClose
-        })
-      )
+      mounted.update(createElement(MobileSessionHeaderMoreActionsSheet, props))
     })
-    return mounted
+    return { mounted, onOpenSummary, onClose }
   }
 
   function rowLabels(mounted: ReactTestRenderer): string[] {
@@ -91,33 +92,94 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
       .map((node) => node.props.accessibilityLabel)
   }
 
-  function rowNamed(mounted: ReactTestRenderer, label: string): ReactTestInstance {
-    return mounted.root.find(
-      (node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === label
-    )
-  }
-
-  it('offers agent history alone without a native chat, and runs it once the menu has closed', () => {
-    const onOpenAgentHistory = vi.fn()
-    const onClose = vi.fn()
-    const mounted = render(menuFor({ showAgentHistory: true }), { onOpenAgentHistory, onClose })
-    expect(rowLabels(mounted)).toEqual(['Agent history', 'Branch'])
-
-    act(() => rowNamed(mounted, 'Agent history').props.onPress())
-    expect(onClose).toHaveBeenCalledTimes(1)
-    expect(onOpenAgentHistory).not.toHaveBeenCalled()
-
-    const drawer = mounted.root.find((node) => String(node.type) === 'BottomDrawer')
-    act(() => drawer.props.onAfterClose())
-    expect(onOpenAgentHistory).toHaveBeenCalledTimes(1)
+  it('draws nothing while closed', () => {
+    const { mounted } = mount({ visible: false })
+    expect(mounted.toJSON()).toBeNull()
   })
 
-  it('leaves history to the Sessions sheet beside a native chat', () => {
-    const mounted = render(menuFor({ showNativeChat: true, showAgentHistory: true }), {
-      onOpenAgentHistory: vi.fn(),
-      onClose: vi.fn()
+  it('lists the chat surfaces, then the environment, each with its count', () => {
+    const { mounted } = mount()
+    expect(rowLabels(mounted)).toEqual([
+      'Sessions',
+      'Plan',
+      'Summary',
+      'Artifacts',
+      'Branch',
+      'Checks'
+    ])
+    const labels = mounted.root.findAll((node) => String(node.type) === 'Text').map(textOf)
+    expect(labels).toEqual(expect.arrayContaining(['Chat', 'Environment', '4', '2 of 5 done', '7']))
+  })
+
+  it('leaves out the plan row when the chat has no plan', () => {
+    const { mounted } = mount({ menu: { ...FULL, chat: { ...FULL.chat, plan: false } } })
+    expect(rowLabels(mounted)).not.toContain('Plan')
+  })
+
+  it('leaves out the environment section when no environment item applies', () => {
+    const { mounted } = mount({
+      menu: { ...FULL, environment: { branch: false, checks: false } }
     })
-    expect(rowLabels(mounted)).toContain('Sessions')
-    expect(rowLabels(mounted)).not.toContain('Agent history')
+    const labels = mounted.root.findAll((node) => String(node.type) === 'Text').map(textOf)
+    expect(labels).not.toContain('Environment')
+    expect(rowLabels(mounted)).not.toContain('Branch')
+  })
+
+  it('closes first, then runs the choice once the menu has gone', () => {
+    const { mounted, onOpenSummary, onClose } = mount()
+    const summary = mounted.root.find(
+      (node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Summary'
+    )
+    act(() => summary.props.onPress())
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(onOpenSummary).not.toHaveBeenCalled()
+    const drawer = mounted.root.find((node) => String(node.type) === 'BottomDrawer')
+    act(() => drawer.props.onAfterClose?.())
+    expect(onOpenSummary).toHaveBeenCalledTimes(1)
+  })
+
+  it('offers agent history alone in the chat section when no native chat is open', () => {
+    const { mounted } = mount({
+      menu: {
+        showButton: true,
+        chat: {
+          sessions: false,
+          agentHistory: true,
+          plan: false,
+          summary: false,
+          artifacts: false
+        },
+        environment: { branch: true, checks: false }
+      }
+    })
+    expect(rowLabels(mounted)).toEqual(['Agent history', 'Branch'])
+  })
+
+  it('runs agent history once the menu has gone, as the other choices do', () => {
+    const onOpenAgentHistory = vi.fn()
+    const { mounted, onClose } = mount({
+      onOpenAgentHistory,
+      menu: {
+        showButton: true,
+        chat: {
+          sessions: false,
+          agentHistory: true,
+          plan: false,
+          summary: false,
+          artifacts: false
+        },
+        environment: { branch: false, checks: false }
+      }
+    })
+    const history = mounted.root.find(
+      (node) =>
+        String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Agent history'
+    )
+    act(() => history.props.onPress())
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(onOpenAgentHistory).not.toHaveBeenCalled()
+    const drawer = mounted.root.find((node) => String(node.type) === 'BottomDrawer')
+    act(() => drawer.props.onAfterClose?.())
+    expect(onOpenAgentHistory).toHaveBeenCalledTimes(1)
   })
 })
