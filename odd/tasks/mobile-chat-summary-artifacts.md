@@ -39,6 +39,36 @@ sheet, a Summary screen, and an Artifacts list with a read-only viewer.
 - [x] T4 Plan sheet derived from the transcript (writer A)
 - [x] T5 Summary screen: agent status, environment tiles, results strip, connected chips (writer B). Commit `7bd476b208b`.
 - [x] T6 Artifacts screen (grouped grid + files list, filters) and read-only viewer (HTML in sandboxed WebView, source toggle), gated recorded-file read (writer B). Commit `bb0c2152f10`.
+- [ ] T7 Plan always in the ⋯ menu whenever the native chat is shown; Plan sheet shows a quiet "No plan yet" empty state (feedback from build pv32, writer C)
+- [ ] T8 Real previews in the Artifacts list: lazily rendered, cached per path, scaled non-interactive WebView thumbnails for HTML files; glyph fallback for any non-ready state; chat `::orca-visual` lines listed as Pages (writer C)
+- [ ] T9 Viewer correctness: HTML isolated and read-only (no in-page navigation, external links only, no file access); tests per viewer kind; commit only if a fix is needed (writer C)
+- [ ] T10 Chat screen chrome per the approved prototype: floating top controls (back, chat/folder/branch segmented control, ⋯), session switcher chip replaces the tab strip for structured chats, "+ new session" and terminal/panel switching kept reachable, status pill opens the background sheet, inline artifact card after a turn that wrote HTML or a visual; composer toolbar untouched (writer C)
+
+## Round 2 (device feedback on build pv32)
+
+Source of truth for the design: the approved prototype `Main.dc.html` in the session scratchpad (390x844 canvas). Each task is one Conventional Commit with its tests; no AI attribution lines. Checks per task in `mobile/`: `pnpm typecheck` exit 0, targeted `pnpm test <files>`, `pnpm exec oxfmt` and `pnpm exec oxlint` on changed files.
+
+### T7 evidence
+- Route: writer C, direct edits to 4 or fewer files (menu resolver, chat-surfaces hook, Plan sheet, tests).
+- Commit: _pending_
+- Checks: _pending_
+
+### T8 evidence
+- Route: writer C, delegated-direct (more than 2 non-trivial files).
+- Commit: _pending_
+- Checks: _pending_
+
+### T9 evidence
+- Route: writer C, verification-first; commit only if a fix is needed.
+- Commit: _pending_
+- Checks: _pending_
+
+### T10 evidence
+- Route: writer C, delegated-direct (chrome, header, tab strip, card: 2+ non-trivial files).
+- Commit: _pending_
+- Checks: _pending_
+
+Engram mirror `odd/mobile-chat-summary-artifacts/tasks`: _pending_ until saved; mark as pending if mem_save is unavailable.
 
 ## Acceptance
 
