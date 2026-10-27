@@ -15,6 +15,8 @@ export type CreateWorktreeCallOptions = {
   startupDraft?: string
   /** True only when `name` came from the creature-name generator; gates host-side retirement. */
   nameWasGenerated?: boolean
+  /** Set for a create-chat: its setup runs hidden on a runtime host, with no tab. */
+  setupPresentation?: 'chat-background-task'
   displayNameKind?: CreateWorktreeArgs['displayNameKind']
   /** Parent picked in the composer. Sets sidebar nesting only; ignored if it no longer exists. */
   parentWorktreeId?: string
@@ -123,6 +125,7 @@ export function buildRuntimeWorktreeCreateParams(
     // Why: the host defaults a bare `parentWorkspace` to CLI provenance; app picks are manual.
     ...(attempt.parentWorkspace ? { parentWorkspaceOrigin: 'manual' } : {}),
     ...(options?.startupDraft ? { startupDraft: options.startupDraft } : {}),
+    ...(options?.setupPresentation ? { setupPresentation: options.setupPresentation } : {}),
     ...(startup
       ? {
           startupCommand: startup.command,

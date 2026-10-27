@@ -47,6 +47,8 @@ export type RuntimeManagedWorktreeCreateArgs = {
   runHooks?: boolean
   activate?: boolean
   setupDecision?: 'run' | 'skip' | 'inherit'
+  /** A chat-first create's setup runs hidden: no session tab, no default tabs, no bare shell. */
+  setupPresentation?: 'chat-background-task'
   awaitTerminalProvisioning?: boolean
   observeSetupCompletion?: boolean
   createdWithAgent?: TuiAgent

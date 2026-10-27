@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   provisionWorktreeTerminals,
+  type WorktreeTerminalProvisioningArgs,
   type WorktreeTerminalProvisioningHost
 } from './runtime-worktree-terminal-provisioning'
 
@@ -12,7 +13,7 @@ const DEFAULT_TABS = {
   ]
 }
 
-function fakeHost() {
+function fakeHost(settings: Record<string, unknown> = {}) {
   let created = 0
   return {
     canSpawn: () => true,
@@ -20,10 +21,10 @@ function fakeHost() {
       created += 1
       return { handle: `term_${created}` }
     }),
-    splitTerminal: vi.fn(),
+    splitTerminal: vi.fn(async () => ({ handle: 'split_1' })),
     setTabTitle: vi.fn(async (_handle: string, _title: string) => {}),
     setTabColor: vi.fn(async (_handle: string, _color: string) => {}),
-    getSettings: () => ({}),
+    getSettings: () => settings,
     getPtyId: () => undefined,
     recordSetupCompletionToken: vi.fn()
   } satisfies Partial<Record<keyof WorktreeTerminalProvisioningHost, unknown>>
@@ -92,5 +93,92 @@ describe('default tabs beside the agent a create started', () => {
       expect.any(Error)
     )
     warn.mockRestore()
+  })
+})
+
+const SETUP = { runnerScriptPath: '/worktrees/wt-1/setup.sh', envVars: {} }
+
+function provisionSetup(
+  host: ReturnType<typeof fakeHost>,
+  overrides: Partial<WorktreeTerminalProvisioningArgs> = {}
+) {
+  return provisionWorktreeTerminals(
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the fake implements every host member a setup spawn reaches for.
+    host as unknown as WorktreeTerminalProvisioningHost,
+    {
+      worktreeSelector: 'id:wt-1',
+      worktreeId: 'wt-1',
+      worktreePath: '/worktrees/wt-1',
+      setup: SETUP,
+      primaryTerminalHandle: null,
+      hasStartupTerminal: false,
+      setupCommandPlatform: 'posix',
+      ...overrides
+    }
+  )
+}
+
+describe('the bare shell beside a setup with no startup agent', () => {
+  it('spawns no bare shell when a new-tab setup runs alone', async () => {
+    const host = fakeHost()
+    await expect(provisionSetup(host)).resolves.toEqual({
+      setupSpawned: true,
+      setupTerminalHandle: 'term_1'
+    })
+    expect(host.createTerminal).toHaveBeenCalledTimes(1)
+    expect(host.createTerminal).toHaveBeenCalledWith('id:wt-1', {
+      title: 'Setup',
+      command: expect.any(String),
+      env: {}
+    })
+  })
+
+  it('keeps the bare shell as the split target when setup splits', async () => {
+    const host = fakeHost({ setupScriptLaunchMode: 'split-vertical' })
+    await provisionSetup(host)
+    expect(host.createTerminal).toHaveBeenCalledTimes(1)
+    expect(host.createTerminal).toHaveBeenCalledWith('id:wt-1', {})
+    expect(host.splitTerminal).toHaveBeenCalledWith(
+      'term_1',
+      expect.objectContaining({ direction: 'vertical', activate: false })
+    )
+  })
+
+  it('keeps the bare shell when no setup runs', async () => {
+    const host = fakeHost()
+    await provisionSetup(host, { setup: undefined })
+    expect(host.createTerminal).toHaveBeenCalledTimes(1)
+    expect(host.createTerminal).toHaveBeenCalledWith('id:wt-1', {})
+  })
+})
+
+describe('a hidden setup beside a chat-first create', () => {
+  it('runs setup in the background, beside no default tabs, bare shell, or split', async () => {
+    const host = fakeHost({ setupScriptLaunchMode: 'split-vertical' })
+    await expect(
+      provisionSetup(host, {
+        defaultTabs: DEFAULT_TABS,
+        setupPresentation: 'chat-background-task'
+      })
+    ).resolves.toEqual({ setupSpawned: true, setupTerminalHandle: 'term_1' })
+    expect(host.createTerminal).toHaveBeenCalledTimes(1)
+    expect(host.createTerminal).toHaveBeenCalledWith(
+      'id:wt-1',
+      expect.objectContaining({ title: 'Setup', noSessionTab: true })
+    )
+    expect(host.splitTerminal).not.toHaveBeenCalled()
+    expect(host.setTabTitle).not.toHaveBeenCalled()
+  })
+
+  it('creates nothing when there is no setup to hide', async () => {
+    const host = fakeHost()
+    await expect(
+      provisionSetup(host, {
+        setup: undefined,
+        defaultTabs: DEFAULT_TABS,
+        setupPresentation: 'chat-background-task'
+      })
+    ).resolves.toEqual({ setupSpawned: false, setupTerminalHandle: null })
+    expect(host.createTerminal).not.toHaveBeenCalled()
   })
 })

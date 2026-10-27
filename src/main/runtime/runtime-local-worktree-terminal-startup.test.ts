@@ -133,3 +133,40 @@ describe('startRuntimeLocalWorktreeTerminals default shell seeding', () => {
     }
   })
 })
+
+describe('startRuntimeLocalWorktreeTerminals chat-first setup', () => {
+  it('hands the hidden setup presentation to provisioning', async () => {
+    const { ports } = createPorts()
+    const setup = { runnerScriptPath: '/repo/setup.sh', envVars: {} }
+    await startRuntimeLocalWorktreeTerminals({
+      request: {
+        repoSelector: `id:${repo.id}`,
+        name: 'chat',
+        setupPresentation: 'chat-background-task'
+      },
+      repo,
+      worktree,
+      setup,
+      ports
+    })
+    expect(ports.provision).toHaveBeenCalledWith(
+      expect.objectContaining({ setup, setupPresentation: 'chat-background-task' })
+    )
+  })
+
+  it('seeds no bare shell and provisions nothing when the create has no setup or tabs', async () => {
+    const { createTerminal, ports } = createPorts()
+    await startRuntimeLocalWorktreeTerminals({
+      request: {
+        repoSelector: `id:${repo.id}`,
+        name: 'chat',
+        setupPresentation: 'chat-background-task'
+      },
+      repo,
+      worktree,
+      ports
+    })
+    expect(createTerminal).not.toHaveBeenCalled()
+    expect(ports.provision).not.toHaveBeenCalled()
+  })
+})

@@ -166,7 +166,8 @@ export async function startRuntimeLocalWorktreeTerminals(args: {
         didSpawnSetup = true
       }
     }
-  } else if (ports.canSpawn && !args.createdWithAgent) {
+  } else if (ports.canSpawn && !args.createdWithAgent && !request.setupPresentation) {
+    // Why: a chat-first create's only tab is its chat, so no bare shell is seeded beside it.
     try {
       await ports.createTerminal(`id:${worktree.id}`, { surfaceOwner: false })
     } catch (error) {
@@ -210,6 +211,9 @@ function provisionArgs(
     hasStartupTerminal,
     setupCommandPlatform: setupPlatform(args.setup, 'posix'),
     observeSetupCompletion: args.request.observeSetupCompletion,
+    ...(args.request.setupPresentation
+      ? { setupPresentation: args.request.setupPresentation }
+      : {}),
     ...(wrappedSetupCommand ? { wrappedSetupCommand } : {})
   }
 }
