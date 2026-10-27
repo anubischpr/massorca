@@ -47,8 +47,6 @@ export type CreateChatRepoOption = {
 export type CreateChatOptions = {
   hosts: readonly CreateChatHostOption[]
   repos: readonly CreateChatRepoOption[]
-  /** Enabled and detected agents, in launch order. Empty until detection lands. */
-  agents: readonly TuiAgent[]
   preferredAgent: TuiAgent | null
   projectlessDirectory: string
 }
@@ -81,7 +79,7 @@ export function buildDefaultCreateChatSelection(options: CreateChatOptions): Cre
     executionHostId: LOCAL_EXECUTION_HOST_ID,
     project: localRepo ? { kind: 'repo', repoId: localRepo.repoId } : { kind: 'none' },
     workspaceMode: 'new-worktree',
-    agent: options.agents[0] ?? options.preferredAgent ?? 'claude',
+    agent: options.preferredAgent ?? 'claude',
     accessMode: 'default'
   }
 }
@@ -120,4 +118,18 @@ export function canSubmitCreateChat(
   }
   const repo = findRepo(repos, selection.project)
   return repo !== null && repo.hostId === selection.executionHostId
+}
+
+/** Moves the agent onto one the host offers, preferring the user's default; an empty list keeps it. */
+export function withAvailableCreateChatAgent(
+  selection: CreateChatSelection,
+  agents: readonly TuiAgent[],
+  preferredAgent: TuiAgent | null
+): CreateChatSelection {
+  const first = agents[0]
+  if (first === undefined || agents.includes(selection.agent)) {
+    return selection
+  }
+  const agent = preferredAgent && agents.includes(preferredAgent) ? preferredAgent : first
+  return { ...selection, agent, model: undefined, effort: undefined }
 }

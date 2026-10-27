@@ -4,6 +4,7 @@ import {
   canSubmitCreateChat,
   canUseProjectless,
   chooseCreateChatLocation,
+  withAvailableCreateChatAgent,
   type CreateChatOptions,
   type CreateChatRepoOption,
   type CreateChatSelection
@@ -28,7 +29,6 @@ function optionsWith(overrides: Partial<CreateChatOptions> = {}): CreateChatOpti
   return {
     hosts: [],
     repos: [localRepo, sshRepo],
-    agents: ['claude', 'codex'],
     preferredAgent: null,
     projectlessDirectory: 'C:/Users/me/orca/chats',
     ...overrides
@@ -55,11 +55,36 @@ describe('buildDefaultCreateChatSelection', () => {
     expect(selection.project).toEqual({ kind: 'none' })
   })
 
-  it('uses the preferred agent only when no agent is detected yet', () => {
-    const selection = buildDefaultCreateChatSelection(
-      optionsWith({ agents: [], preferredAgent: 'codex' })
-    )
+  it('starts on the preferred agent', () => {
+    const selection = buildDefaultCreateChatSelection(optionsWith({ preferredAgent: 'codex' }))
     expect(selection.agent).toBe('codex')
+  })
+})
+
+describe('withAvailableCreateChatAgent', () => {
+  it('keeps an agent the host offers', () => {
+    const selection = selectionWith({ agent: 'codex', model: 'gpt' })
+    expect(withAvailableCreateChatAgent(selection, ['claude', 'codex'], null)).toBe(selection)
+  })
+
+  it('keeps the pick while the host has not listed its agents', () => {
+    const selection = selectionWith({ agent: 'gemini' })
+    expect(withAvailableCreateChatAgent(selection, [], null)).toBe(selection)
+  })
+
+  it('moves an agent the host does not offer to the preferred one, dropping its model', () => {
+    const selection = selectionWith({ agent: 'gemini', model: 'gemini-pro', effort: 'high' })
+    expect(withAvailableCreateChatAgent(selection, ['claude', 'pi'], 'pi')).toEqual({
+      ...selection,
+      agent: 'pi',
+      model: undefined,
+      effort: undefined
+    })
+  })
+
+  it('falls back to the first offered agent when the preferred one is not offered', () => {
+    const selection = selectionWith({ agent: 'aider' })
+    expect(withAvailableCreateChatAgent(selection, ['codex'], 'gemini').agent).toBe('codex')
   })
 })
 

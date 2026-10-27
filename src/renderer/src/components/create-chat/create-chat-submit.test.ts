@@ -104,10 +104,13 @@ beforeEach(() => {
   mocks.store.fetchFolderWorkspacesForAllHosts.mockResolvedValue(undefined)
   mocks.getWorkspaceSeedName.mockReturnValue('fix-login')
   mocks.activateAndRevealWorkspace.mockReturnValue({ primaryTabId: 'tab-1' })
-  mocks.beginStructuredAgentSessionProvisionalLaunch.mockReturnValue({
-    sessionId: 'session-1',
-    tab: { id: 'tab-1' }
-  })
+  // A host-admitted launch: the session id arrives only through onOpened.
+  mocks.beginStructuredAgentSessionProvisionalLaunch.mockImplementation(
+    (args: { onOpened?: (sessionId: string) => void }) => {
+      args.onOpened?.('session-1')
+      return { sessionId: null }
+    }
+  )
   Object.defineProperty(window, 'api', {
     configurable: true,
     value: { projectlessChats: { createWorkspace } }

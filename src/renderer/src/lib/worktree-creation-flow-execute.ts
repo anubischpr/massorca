@@ -99,6 +99,7 @@ export async function executeWorktreeCreation(
           executionHostId:
             preparedRequest.workspaceRunContext?.hostId ?? preparedRequest.executionHostId,
           ...(preparedRequest.nameWasGenerated ? { nameWasGenerated: true } : {}),
+          ...(preparedRequest.setupPresentation && { setupPresentation: 'chat-background-task' }),
           ...(preparedRequest.displayNameKind
             ? { displayNameKind: preparedRequest.displayNameKind }
             : {}),

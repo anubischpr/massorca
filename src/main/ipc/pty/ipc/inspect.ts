@@ -8,6 +8,7 @@ import {
 } from '../../../providers/pty-process-list-admission'
 import type { PtyListedSession, PtySessionListScope } from '../../../../shared/pty-listed-session'
 import { ptyOwnership } from '../provider/ownership-state'
+import { isWorktreeSetupRunPty } from '../../../worktree-setup/setup-run-registry'
 import {
   getProviderForPty,
   getProvider,
@@ -78,6 +79,7 @@ export function installPtyInspectIpcHandlers(deps: {
               title: session.title,
               ...(session.worktreeId !== undefined ? { worktreeId: session.worktreeId } : {}),
               ...(session.exiting === true ? { exiting: true as const } : {}),
+              ...(isWorktreeSetupRunPty(session.id) ? { worktreeSetupRun: true as const } : {}),
               // Why: the renderer's binding map is empty during restore, so ownership is the only
               // liveness evidence it has. Absence is authoritative only from a provider that
               // serializes claims — otherwise it is 'unknown', never 'absent' (#8459).

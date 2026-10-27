@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { translate } from '@/i18n/i18n'
 import { AgentIcon, getAgentDisplayLabel } from '@/lib/agent-catalog'
-import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
+import type { PiDisplayRuntime } from '@/lib/pi-agent-display'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import { nativeChatSessionChoiceLabel } from '../native-chat/native-chat-session-option-labels'
 import { CreateChatChipMenu, type CreateChatMenuGroup } from './CreateChatChipMenu'
@@ -11,12 +11,14 @@ import {
   buildEffortMenuItems,
   buildModelMenuItems
 } from './create-chat-menu-items'
-import type { CreateChatOptions, CreateChatSelection } from './create-chat-selection'
+import type { CreateChatSelection } from './create-chat-selection'
 import type { CreateChatModelCatalog } from './use-create-chat-model-catalog'
 
 type AgentChipProps = {
   selection: CreateChatSelection
-  options: CreateChatOptions
+  /** Chat-capable agents on the selected host, in launch order. */
+  agents: readonly TuiAgent[]
+  piRuntime: PiDisplayRuntime
   catalog: CreateChatModelCatalog
   onSelectionChange: (next: CreateChatSelection) => void
 }
@@ -24,12 +26,12 @@ type AgentChipProps = {
 /** The agent, with the model and effort it launches with, as one chip. */
 export function CreateChatAgentChip({
   selection,
-  options,
+  agents,
+  piRuntime,
   catalog,
   onSelectionChange
 }: AgentChipProps): React.JSX.Element {
   const { models } = catalog
-  const piRuntime = usePiDisplayRuntime()
   const [open, setOpen] = useState(false)
   // Why: an agent picked in this open menu whose catalog has not answered, so the menu cannot yet
   // tell whether the pick still has a model to choose.
@@ -68,11 +70,11 @@ export function CreateChatAgentChip({
       key: 'agent',
       title: translate('components.createChat.agentGroup', 'Agent'),
       value: selection.agent,
-      items: buildAgentMenuItems(options.agents, piRuntime, (agent) => (
+      items: buildAgentMenuItems(agents, piRuntime, (agent) => (
         <AgentIcon agent={agent} size={14} />
       )),
       onValueChange: (value) => {
-        const agent = options.agents.find((candidate) => candidate === value)
+        const agent = agents.find((candidate) => candidate === value)
         if (agent) {
           setAwaitingAgent(agent !== selection.agent ? agent : null)
           onSelectionChange({ ...selection, agent, model: undefined, effort: undefined })
@@ -134,7 +136,7 @@ export function CreateChatAgentChip({
       label={label}
       icon={<AgentIcon agent={selection.agent} size={14} />}
       note={
-        options.agents.length === 0
+        agents.length === 0
           ? translate('components.createChat.noAgents', 'No agents detected yet.')
           : undefined
       }

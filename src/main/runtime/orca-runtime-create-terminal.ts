@@ -21,7 +21,7 @@ export class OrcaRuntimeWithCreateTerminal extends OrcaRuntimeWithTerminalCreate
     if (callerColors) {
       dependencies.setPairedViewerColors(callerColors)
     }
-    const presentation = dependencies.resolveTerminalPresentation(opts)
+    const presentation = dependencies.resolveRunPresentation(opts)
     const requiresRendererFocus = opts.presentation === 'focused' || opts.focus === true
     const availableAuthoritativeWindow = this.getAvailableAuthoritativeWindow()
     const rendererWindow = opts.rendererBacked === true ? availableAuthoritativeWindow : null
@@ -172,7 +172,7 @@ export class OrcaRuntimeWithCreateTerminal extends OrcaRuntimeWithTerminalCreate
             placement: dependencies.runtimeNewTabPlacement(),
             ...(launchOpts.sessionId ? { sessionId: launchOpts.sessionId } : {}),
             ...(!adoptedBeforeLaunch && launchOpts.isNewSession ? { isNewSession: true } : {}),
-            ...dependencies.BACKGROUND_TERMINAL_SPAWN_FLAGS
+            ...dependencies.backgroundSpawnFlags(opts)
           })
         } finally {
           releaseStablePaneCreate?.()
@@ -235,7 +235,7 @@ export class OrcaRuntimeWithCreateTerminal extends OrcaRuntimeWithTerminalCreate
           recordPtySurface(pty, tabId, paneKey, spawnSurfaceClaimSequence(this.graphSequence))
         }
         const handle = pty ? this.issuePtyHandle(pty) : preAllocatedHandle
-        if (pty && !adoptedStablePane && launchOpts.deferMobileSessionPublish !== true) {
+        if (pty && !adoptedStablePane && dependencies.publishesMobileSessionTab(launchOpts, opts)) {
           this.publishPtyBackedMobileSessionTerminal(workspace.id, pty, {
             tabId,
             leafId,

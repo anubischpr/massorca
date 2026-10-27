@@ -4,6 +4,7 @@ type PendingCreationState = { pendingWorktreeCreations: Record<string, unknown> 
 type PendingCreationListener = (state: PendingCreationState) => void
 type BeginArgs = {
   beforeOpen?: (sessionId: string) => boolean | void
+  onOpened?: (sessionId: string) => void
   hooks?: { signal?: AbortSignal }
 }
 const mocks = vi.hoisted(() => {
@@ -21,8 +22,9 @@ const mocks = vi.hoisted(() => {
     },
     unsubscribe: vi.fn<() => void>(),
     beginStructuredAgentSessionProvisionalLaunch:
-      vi.fn<(args: BeginArgs) => { sessionId: string; tab: { id: string } } | null>(),
-    activateAndRevealWorktree: vi.fn<(worktreeId: string, options?: unknown) => unknown>()
+      vi.fn<(args: BeginArgs) => { sessionId: string | null; tab?: { id: string } } | null>(),
+    activateAndRevealWorktree: vi.fn<(worktreeId: string, options?: unknown) => unknown>(),
+    holdStructuredAgentSessionLaunchPicks: vi.fn<(sessionId: string, picks: unknown) => void>()
   }
 })
 
@@ -40,6 +42,10 @@ vi.mock('@/store', () => ({
 
 vi.mock('@/lib/structured-agent-session-provisional-tab', () => ({
   beginStructuredAgentSessionProvisionalLaunch: mocks.beginStructuredAgentSessionProvisionalLaunch
+}))
+
+vi.mock('@/lib/structured-agent-session-launch-options', () => ({
+  holdStructuredAgentSessionLaunchPicks: mocks.holdStructuredAgentSessionLaunchPicks
 }))
 
 vi.mock('@/lib/worktree-activation', () => ({
@@ -114,6 +120,39 @@ describe('launchStructuredWorktreeSession', () => {
         })
       })
     )
+  })
+
+  it('holds the picks and binds the setup run once a host-admitted chat opens', async () => {
+    const bindSession = vi.fn().mockResolvedValue({ ok: true })
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: { api: { worktreeSetupRuns: { bindSession } } }
+    })
+    mocks.beginStructuredAgentSessionProvisionalLaunch.mockImplementation((args) => {
+      args.beforeOpen?.('session-admitted')
+      args.onOpened?.('session-admitted')
+      // A host-admitted launch returns before its session id exists.
+      return { sessionId: null }
+    })
+
+    await launchStructuredWorktreeSession({
+      ...baseArgs,
+      request: {
+        ...request,
+        setupPresentation: 'chat-background-task' as const,
+        structuredSeedPicks: { model: 'astra', effort: 'medium' }
+      }
+    })
+
+    expect(mocks.holdStructuredAgentSessionLaunchPicks).toHaveBeenCalledWith('session-admitted', {
+      model: 'astra',
+      effort: 'medium'
+    })
+    expect(bindSession).toHaveBeenCalledWith({
+      worktreeId: 'worktree-1',
+      sessionId: 'session-admitted'
+    })
+    Reflect.deleteProperty(globalThis, 'window')
   })
 
   it('does not launch after the pending creation was cancelled', async () => {

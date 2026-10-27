@@ -391,6 +391,19 @@ describe('worktree agent activation gate', () => {
     expect(deps.getState().ptyIdsByTabId['tab-live']).toBeUndefined()
   })
 
+  it('leaves a create-chat setup run without a tab', async () => {
+    const ptyId = `${WORKTREE_ID}@@setup-pty`
+    const { deps, createTab } = testDeps({
+      sessions: [{ ...listed(ptyId), worktreeId: WORKTREE_ID, worktreeSetupRun: true }],
+      surfaceOwners: new Map([[ptyId, UNOWNED]])
+    })
+
+    await expect(runWorktreeAgentActivationGate(WORKTREE_ID, deps)).resolves.not.toBe('adopted')
+
+    expect(createTab).not.toHaveBeenCalled()
+    expect(deps.listSurfaceOwners).not.toHaveBeenCalled()
+  })
+
   it('adopts a daemon PTY minted for a folder workspace', async () => {
     const folderWorkspaceId = 'folder:plain-workspace'
     const ptyId = `${folderWorkspaceId}@@live-pty`

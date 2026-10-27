@@ -96,6 +96,8 @@ export type TerminalCreateOptions = {
     launchAgent?: TuiAgent
   }) => void
   deferMobileSessionPublish?: boolean
+  /** A run that shows no session tab: no mobile publish, no renderer reveal, no saved binding. */
+  noSessionTab?: boolean
 }
 
 /** Identity a fenced spawn can be re-found by in the execution host's own inventory. */

@@ -1,3 +1,5 @@
+import type { TerminalCreateOptions } from './runtime-terminal-contracts'
+import { resolveTerminalPresentation } from './orca-runtime-core'
 export type { TerminalCreateOptions } from './runtime-terminal-contracts'
 export type { Worktree } from '../../shared/worktree/types'
 export type { RuntimeTerminalCreate } from '../../shared/runtime-types'
@@ -36,3 +38,23 @@ export const BACKGROUND_TERMINAL_SPAWN_FLAGS = {
   initiallyHidden: true,
   persistHostSessionBinding: true
 } as const
+
+// Why: a run that shows no session tab stays background, so no renderer reveals it.
+export function resolveRunPresentation(opts: TerminalCreateOptions) {
+  return opts.noSessionTab === true ? 'background' : resolveTerminalPresentation(opts)
+}
+
+// Why: a run that shows no session tab is never saved as one, so a restore cannot bring it back.
+export function backgroundSpawnFlags(opts: TerminalCreateOptions) {
+  return opts.noSessionTab === true
+    ? { ...BACKGROUND_TERMINAL_SPAWN_FLAGS, persistHostSessionBinding: false }
+    : BACKGROUND_TERMINAL_SPAWN_FLAGS
+}
+
+// Why: a run that shows no session tab is never published to paired clients.
+export function publishesMobileSessionTab(
+  launchOpts: Pick<TerminalCreateOptions, 'deferMobileSessionPublish'>,
+  opts: TerminalCreateOptions
+): boolean {
+  return launchOpts.deferMobileSessionPublish !== true && opts.noSessionTab !== true
+}

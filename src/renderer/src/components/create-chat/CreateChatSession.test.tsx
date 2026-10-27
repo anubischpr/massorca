@@ -96,6 +96,13 @@ vi.mock('@/lib/agent-catalog', () => ({
   AgentIcon: ({ agent }: { agent: string }) => <span data-testid="agent-icon">{agent}</span>
 }))
 
+vi.mock('./use-create-chat-agents', () => ({
+  useCreateChatAgents: () => ({
+    agents: ['claude', 'codex'],
+    piRuntime: 'unknown',
+    modelListingContext: null
+  })
+}))
 vi.mock('./use-create-chat-model-catalog', () => ({
   useCreateChatModelCatalog: () => ({ status: 'none', models: [] })
 }))
@@ -130,7 +137,6 @@ const options: CreateChatOptions = {
       isFolder: false
     }
   ],
-  agents: ['claude', 'codex'],
   preferredAgent: 'claude',
   projectlessDirectory: 'C:/Users/me/orca/chats'
 }
