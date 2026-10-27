@@ -30,8 +30,8 @@ const styles = StyleSheet.create({
   },
   rule: {
     flex: 1,
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.borderSubtle
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderSubtle
   },
   count: {
     color: colors.textMuted,
