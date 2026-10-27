@@ -1,57 +1,208 @@
-import { ListChecks } from 'lucide-react-native'
-import { MobileAgentSessionHistoryIcon } from '../agent-history/MobileAgentSessionHistoryIcon'
-import { ActionSheetModal } from '../components/ActionSheetModal'
-import { colors } from '../theme/mobile-theme'
+import { useRef } from 'react'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
+import {
+  Files,
+  GitBranch,
+  ListChecks,
+  ListTodo,
+  MessagesSquare,
+  ScrollText,
+  type LucideIcon
+} from 'lucide-react-native'
+import { BottomDrawer } from '../components/BottomDrawer'
+import { SheetSectionLabel } from '../components/SheetSectionLabel'
+import { colors, radii, spacing, typography } from '../theme/mobile-theme'
+import type { MobileSessionHeaderMenu } from './mobile-session-header-menu'
+
+type MenuItem = {
+  show: boolean
+  key: string
+  label: string
+  hint?: string
+  icon: LucideIcon
+  onPress: () => void
+}
 
 type Props = {
   visible: boolean
-  showAgentSessionHistory: boolean
-  showChecks: boolean
-  onOpenAgentSessionHistory: () => void
+  menu: MobileSessionHeaderMenu
+  tabCount: number
+  /** "2 of 5 done" on the plan row; absent when the chat has no plan. */
+  planHint?: string
+  recordedFileCount: number
+  onOpenSessions: () => void
+  onOpenPlan: () => void
+  onOpenSummary: () => void
+  onOpenArtifacts: () => void
+  onOpenBranch: () => void
   onOpenChecks: () => void
   onClose: () => void
 }
 
+/** The ⋯ menu: the chat's surfaces first, then the workspace's environment. Each choice runs after
+ *  the menu has closed, so the sheet it opens never stacks on this one's native modal. */
 export function MobileSessionHeaderMoreActionsSheet({
   visible,
-  showAgentSessionHistory,
-  showChecks,
-  onOpenAgentSessionHistory,
+  menu,
+  tabCount,
+  planHint,
+  recordedFileCount,
+  onOpenSessions,
+  onOpenPlan,
+  onOpenSummary,
+  onOpenArtifacts,
+  onOpenBranch,
   onOpenChecks,
   onClose
 }: Props) {
+  const afterCloseRef = useRef<(() => void) | null>(null)
+  const pick = (item: MenuItem) => {
+    afterCloseRef.current = item.onPress
+    onClose()
+  }
+  const chatItems = shown([
+    {
+      show: menu.chat.sessions,
+      key: 'sessions',
+      label: 'Sessions',
+      hint: String(tabCount),
+      icon: MessagesSquare,
+      onPress: onOpenSessions
+    },
+    {
+      show: menu.chat.plan,
+      key: 'plan',
+      label: 'Plan',
+      hint: planHint,
+      icon: ListTodo,
+      onPress: onOpenPlan
+    },
+    {
+      show: menu.chat.summary,
+      key: 'summary',
+      label: 'Summary',
+      icon: ScrollText,
+      onPress: onOpenSummary
+    },
+    {
+      show: menu.chat.artifacts,
+      key: 'artifacts',
+      label: 'Artifacts',
+      hint: String(recordedFileCount),
+      icon: Files,
+      onPress: onOpenArtifacts
+    }
+  ])
+  const environmentItems = shown([
+    {
+      show: menu.environment.branch,
+      key: 'branch',
+      label: 'Branch',
+      hint: 'Source control',
+      icon: GitBranch,
+      onPress: onOpenBranch
+    },
+    {
+      show: menu.environment.checks,
+      key: 'checks',
+      label: 'Checks',
+      hint: 'Open pull request checks',
+      icon: ListChecks,
+      onPress: onOpenChecks
+    }
+  ])
   return (
-    <ActionSheetModal
+    <BottomDrawer
       visible={visible}
-      actions={[
-        ...(showAgentSessionHistory
-          ? [
-              {
-                label: 'Agent History',
-                hint: 'Browse and resume agent sessions',
-                renderIcon: () => (
-                  <MobileAgentSessionHistoryIcon
-                    size={16}
-                    color={colors.textSecondary}
-                    strokeWidth={2.1}
-                  />
-                ),
-                onPress: onOpenAgentSessionHistory
-              }
-            ]
-          : []),
-        ...(showChecks
-          ? [
-              {
-                label: 'Checks',
-                hint: 'Open pull request checks',
-                icon: ListChecks,
-                onPress: onOpenChecks
-              }
-            ]
-          : [])
-      ]}
       onClose={onClose}
-    />
+      onAfterClose={() => {
+        const next = afterCloseRef.current
+        afterCloseRef.current = null
+        next?.()
+      }}
+      dragContentToDismiss
+    >
+      {chatItems.length > 0 ? (
+        <View>
+          <SheetSectionLabel label="Chat" count={chatItems.length} />
+          <MenuGroup items={chatItems} onPick={pick} />
+        </View>
+      ) : null}
+      {environmentItems.length > 0 ? (
+        <View>
+          <SheetSectionLabel label="Environment" count={environmentItems.length} />
+          <MenuGroup items={environmentItems} onPick={pick} />
+        </View>
+      ) : null}
+    </BottomDrawer>
   )
 }
+
+function shown(items: MenuItem[]): MenuItem[] {
+  return items.filter((item) => item.show)
+}
+
+function MenuGroup({ items, onPick }: { items: MenuItem[]; onPick: (item: MenuItem) => void }) {
+  return (
+    <View style={styles.group}>
+      {items.map((item, index) => {
+        const Icon = item.icon
+        return (
+          <View key={item.key}>
+            {index > 0 ? <View style={styles.separator} /> : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={item.label}
+              style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+              onPress={() => onPick(item)}
+            >
+              <Icon size={16} color={colors.textSecondary} strokeWidth={2.1} />
+              <Text style={styles.label}>{item.label}</Text>
+              {item.hint ? (
+                <Text style={styles.hint} numberOfLines={1}>
+                  {item.hint}
+                </Text>
+              ) : null}
+            </Pressable>
+          </View>
+        )
+      })}
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  group: {
+    backgroundColor: colors.bgPanel,
+    borderRadius: radii.card,
+    overflow: 'hidden'
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.borderSubtle,
+    marginHorizontal: spacing.md
+  },
+  row: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm + 2,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md + 2
+  },
+  pressed: {
+    backgroundColor: colors.bgRaised
+  },
+  label: {
+    flex: 1,
+    minWidth: 0,
+    color: colors.textPrimary,
+    fontSize: typography.bodySize,
+    fontWeight: '500'
+  },
+  hint: {
+    maxWidth: '55%',
+    color: colors.textMuted,
+    fontSize: typography.metaSize
+  }
+})

@@ -25,6 +25,7 @@ import {
 } from './mobile-terminal-tab-agent'
 import { colors } from '../theme/mobile-theme'
 import { QuickCommandsTabButton } from './QuickCommandsTabButton'
+import { MobileSessionSwitcherChip } from './MobileSessionSwitcherChip'
 import { styles } from './mobile-session-styles'
 import { useKeyboardPersistingTaps } from '../platform/keyboard-persisting-taps'
 import type { MobileSessionController } from './use-mobile-session-controller'
@@ -62,7 +63,11 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
     showConnectionRetry,
     terminalSummary,
     handlePanelTap,
-    showHeaderMoreButton
+    showHeaderMoreButton,
+    showSessionSwitcherChip,
+    activeSessionRow,
+    sessionRows,
+    openSessionsSheet
   } = controller
   const tabBarKeepsKeyboard = useKeyboardPersistingTaps('handled')
   // A chat's options may name Gentle Shell after its tab was listed without a marker.
@@ -126,6 +131,14 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
           />
         ) : null}
       </View>
+
+      {showSessionSwitcherChip ? (
+        <MobileSessionSwitcherChip
+          activeRow={activeSessionRow}
+          tabCount={sessionRows.length}
+          onPress={openSessionsSheet}
+        />
+      ) : null}
 
       {visibleTabs.length > 0 && (
         <View ref={tabBarKeepsKeyboard} style={styles.tabBar}>

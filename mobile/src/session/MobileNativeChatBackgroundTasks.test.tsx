@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { createElement } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -21,7 +22,7 @@ vi.mock('react-native', () => ({
 vi.mock('lucide-react-native', () => ({
   Activity: 'Activity',
   Bot: 'Bot',
-  ChevronDown: 'ChevronDown',
+  ChevronUp: 'ChevronUp',
   CircleHelp: 'CircleHelp',
   SquareTerminal: 'SquareTerminal',
   Workflow: 'Workflow'
@@ -30,6 +31,13 @@ vi.mock('../components/AgentStateDot', () => ({
   AGENT_WORKING_COLOR: '#eab308',
   AgentStateDot: 'AgentStateDot'
 }))
+vi.mock('../components/BottomDrawer', async () => {
+  const React = await import('react')
+  return {
+    BottomDrawer: ({ visible, children }: { visible: boolean; children?: ReactNode }) =>
+      visible ? React.createElement('BottomDrawer', { visible }, children) : null
+  }
+})
 vi.mock('../hooks/use-now', () => ({ useNow: () => NOW }))
 
 function view(id: string, overrides: Partial<AgentChildWorkView> = {}): AgentChildWorkView {
@@ -108,11 +116,16 @@ describe('MobileNativeChatBackgroundTasks', () => {
     )
   }
 
+  // The indicator is the strip's first pressable; the sheet's controls come after it in the tree.
   function header(mounted: ReactTestRenderer): ReactTestInstance {
+    const strip = mounted.root.find((node) => node.props.testID === 'background-tasks-strip')
+    return strip.findAll((node) => String(node.type) === 'Pressable')[0]!
+  }
+
+  function sheetTitles(mounted: ReactTestRenderer): ReactTestInstance[] {
     return mounted.root.findAll(
-      (node) =>
-        String(node.type) === 'Pressable' && node.props.accessibilityState?.expanded !== undefined
-    )[0]!
+      (node) => String(node.type) === 'Text' && node.props.children === 'Background work'
+    )
   }
 
   function expand(mounted: ReactTestRenderer): void {
@@ -168,7 +181,7 @@ describe('MobileNativeChatBackgroundTasks', () => {
     expect(header(mounted).props.accessibilityLabel).toBe('1 agent waiting — needs approval')
   })
 
-  it('opens to rows grouped by kind, with tokens and elapsed', () => {
+  it('opens the sheet to rows in their section, with tokens and elapsed', () => {
     const mounted = mount(
       tasksFor({ state: 'monitoring', children: [view('a', { totalTokens: 18_130 })] })
     )
@@ -185,7 +198,7 @@ describe('MobileNativeChatBackgroundTasks', () => {
     expect(label.props.style).toMatchObject({ textTransform: 'uppercase' })
   })
 
-  it('keeps the collapsed header compact and requests a 44pt hit rectangle', () => {
+  it('keeps the header compact, requests a 44pt hit rectangle, and opens the sheet', () => {
     const mounted = mount(tasksFor({ state: 'monitoring', children: [view('a')] }))
     const toggle = header(mounted)
     const style = styleOf(toggle)
@@ -195,11 +208,9 @@ describe('MobileNativeChatBackgroundTasks', () => {
     expect(Number(style.minHeight) + 2 * toggle.props.hitSlop).toBe(44)
     expect(style.height).toBeUndefined()
     expect(style.maxHeight).toBeUndefined()
-    expect(toggle.props.accessibilityState.expanded).toBe(false)
+    expect(sheetTitles(mounted)).toHaveLength(0)
     expand(mounted)
-    expect(header(mounted).props.accessibilityState.expanded).toBe(true)
-    expand(mounted)
-    expect(header(mounted).props.accessibilityState.expanded).toBe(false)
+    expect(sheetTitles(mounted)).toHaveLength(1)
   })
 
   it('uses compact rows and Stop controls with tight group spacing', () => {
@@ -225,8 +236,12 @@ describe('MobileNativeChatBackgroundTasks', () => {
     const label = mounted.root.find(
       (node) => String(node.type) === 'Text' && node.props.children === 'Agents'
     )
-    expect(label.parent?.props.style).toMatchObject({ paddingTop: 4, paddingBottom: 4 })
-    expect(styleOf(label).paddingBottom).toBe(2)
+    expect(label.parent?.props.style).toMatchObject({ paddingTop: 12, paddingBottom: 4 })
+    expect(styleOf(label)).toMatchObject({
+      fontSize: 10,
+      fontFamily: 'monospace',
+      textTransform: 'uppercase'
+    })
   })
 
   it('lets compact content grow with Dynamic Type and ellipsizes single-line fields', () => {
@@ -329,6 +344,30 @@ describe('MobileNativeChatBackgroundTasks', () => {
     expect(
       mounted.root.findAll((node) => node.props.testID === 'background-task-row').map(textOf)
     ).toEqual(['Background agent1s', 'Background agent · needs approval1s'])
+  })
+
+  it('keeps shell work in a Tasks section above the agents', () => {
+    const mounted = mount(
+      tasksFor({
+        state: 'monitoring',
+        tasks: [
+          { id: 'a', kind: 'agent', state: 'working', startedAt: NOW - 1_000 },
+          { id: 'c', kind: 'command', state: 'working', startedAt: NOW - 1_000 }
+        ]
+      })
+    )
+    expand(mounted)
+    const sectionLabels = mounted.root
+      .findAll(
+        (node) =>
+          String(node.type) === 'Text' &&
+          (node.props.children === 'Tasks' || node.props.children === 'Agents')
+      )
+      .map((node) => node.props.children)
+    expect(sectionLabels).toEqual(['Tasks', 'Agents'])
+    expect(
+      mounted.root.findAll((node) => node.props.testID === 'background-task-row')
+    ).toHaveLength(2)
   })
 
   it("reads elapsed on the host's clock when the phone's runs ahead", () => {
