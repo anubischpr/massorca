@@ -31,6 +31,8 @@ export type RuntimeFileOperationArgs = {
   expectedSshTargetId?: string
   expectedSshConnectionGeneration?: number
   expectedExternalSshTargetId?: string
+  /** The native chat whose agent may have written files outside the worktree on a paired host. */
+  agentSessionId?: string
 }
 
 export type RuntimeFileDownloadResult =

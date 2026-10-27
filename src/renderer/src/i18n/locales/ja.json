@@ -18412,7 +18412,15 @@
       "fileLinks": {
         "notFound": "ファイルが見つかりません: {{value0}}",
         "unverifiable": "{{value0}} を確認できませんでした: {{value1}}",
-        "unresolved": "このワークスペースで {{value0}} を解決できませんでした"
+        "unresolved": "このワークスペースで {{value0}} を解決できませんでした",
+        "outsideRemoteWorkspace": "このファイルはリモートホスト上のワークスペース外にあるため、Orca では開けません。",
+        "remoteHostOutdated": "Agent がワークスペース外に保存したファイルを開くには、リモートホストの Orca を更新してください。",
+        "viewerLoading": "読み込み中…",
+        "viewerUnavailable": "このファイルを読み込めませんでした。",
+        "viewerNotFound": "このファイルはリモートホストに存在しなくなりました。",
+        "viewerTooLarge": "このファイルはサイズが大きすぎてプレビューできません。",
+        "viewerUnsupportedType": "この種類のファイルはここではプレビューできません。",
+        "viewerReadOnly": "リモートホストからの読み取り専用プレビュー"
       },
       "contextUsage": {
         "label": "コンテキスト {{used}} / {{window}} トークン、{{percent}}% 使用済み",

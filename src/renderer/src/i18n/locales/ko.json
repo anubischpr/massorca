@@ -18412,7 +18412,15 @@
       "fileLinks": {
         "notFound": "파일을 찾을 수 없습니다: {{value0}}",
         "unverifiable": "{{value0}}을(를) 확인하지 못했습니다: {{value1}}",
-        "unresolved": "이 워크스페이스에서 {{value0}}을(를) 찾을 수 없습니다"
+        "unresolved": "이 워크스페이스에서 {{value0}}을(를) 찾을 수 없습니다",
+        "outsideRemoteWorkspace": "이 파일은 원격 호스트의 워크스페이스 밖에 있어서 Orca에서 열 수 없습니다.",
+        "remoteHostOutdated": "에이전트가 워크스페이스 밖에 저장한 파일을 열려면 원격 호스트의 Orca를 업데이트하세요.",
+        "viewerLoading": "불러오는 중…",
+        "viewerUnavailable": "이 파일을 불러오지 못했습니다.",
+        "viewerNotFound": "이 파일은 더 이상 원격 호스트에 없습니다.",
+        "viewerTooLarge": "이 파일은 너무 커서 미리 볼 수 없습니다.",
+        "viewerUnsupportedType": "이 파일 형식은 여기서 미리 볼 수 없습니다.",
+        "viewerReadOnly": "원격 호스트의 읽기 전용 미리보기"
       },
       "contextUsage": {
         "label": "컨텍스트 {{used}}/{{window}} 토큰, {{percent}}% 사용",

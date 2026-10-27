@@ -294,4 +294,93 @@ describe('handleOscLink', () => {
     expect(openFilePathMock).not.toHaveBeenCalled()
     expect(openFileMock).not.toHaveBeenCalled()
   })
+
+  describe('a chat file outside a paired host worktree', () => {
+    const chatDeps = {
+      worktreeId: 'wt-1',
+      worktreePath: '/remote/repo',
+      agentSessionId: 'session-alpha'
+    }
+
+    function answer(result: unknown): void {
+      runtimeEnvironmentCallMock.mockResolvedValueOnce({
+        id: 'rpc-1',
+        ok: true,
+        result,
+        _meta: { runtimeId: 'remote-runtime' }
+      })
+    }
+
+    it('asks the host for the recorded file and shows it read-only, never in the editor', async () => {
+      setPlatform('Macintosh')
+      storeState.settings = { activeRuntimeEnvironmentId: 'env-1' }
+      answer({ ok: true, mode: 'stat', size: 12, isDirectory: false, mtime: 1 })
+      const onOpenRecordedSessionFile = vi.fn()
+
+      openDetectedFilePath('/home/me/informes/report.html', null, null, {
+        ...chatDeps,
+        onOpenRecordedSessionFile
+      })
+      await flushAsyncWork()
+
+      await vi.waitFor(() => {
+        expect(runtimeEnvironmentCallMock).toHaveBeenCalledWith({
+          selector: 'env-1',
+          method: 'agentSession.readRecordedFile',
+          params: {
+            sessionId: 'session-alpha',
+            path: '/home/me/informes/report.html',
+            mode: 'stat'
+          },
+          timeoutMs: 15_000
+        })
+      })
+      await vi.waitFor(() =>
+        expect(onOpenRecordedSessionFile).toHaveBeenCalledWith('/home/me/informes/report.html')
+      )
+      expect(openFileMock).not.toHaveBeenCalled()
+      expect(createBrowserTabMock).not.toHaveBeenCalled()
+      expect(openFileInBrowserTab).not.toHaveBeenCalled()
+    })
+
+    it('reports the host refusing a file it has no record of', async () => {
+      setPlatform('Macintosh')
+      storeState.settings = { activeRuntimeEnvironmentId: 'env-1' }
+      answer({ ok: false, error: 'not_recorded' })
+      const onOpenFailure = vi.fn()
+      const onOpenRecordedSessionFile = vi.fn()
+
+      openDetectedFilePath('/etc/passwd', null, null, {
+        ...chatDeps,
+        onOpenFailure,
+        onOpenRecordedSessionFile
+      })
+      await flushAsyncWork()
+
+      await vi.waitFor(() => expect(onOpenFailure).toHaveBeenCalled())
+      expect(onOpenFailure.mock.calls[0]?.[0]).toMatchObject({ verdict: 'unverifiable' })
+      expect(onOpenRecordedSessionFile).not.toHaveBeenCalled()
+      expect(openFileMock).not.toHaveBeenCalled()
+    })
+
+    it('keeps the worktree boundary when the link carries no chat', async () => {
+      setPlatform('Macintosh')
+      storeState.settings = { activeRuntimeEnvironmentId: 'env-1' }
+      const onOpenFailure = vi.fn()
+
+      openDetectedFilePath('/home/me/informes/report.html', null, null, {
+        worktreeId: 'wt-1',
+        worktreePath: '/remote/repo',
+        onOpenFailure
+      })
+      await flushAsyncWork()
+
+      await vi.waitFor(() => expect(onOpenFailure).toHaveBeenCalled())
+      expect(onOpenFailure.mock.calls[0]?.[0].error.message).toContain(
+        'outside the owning runtime worktree'
+      )
+      expect(runtimeEnvironmentCallMock).not.toHaveBeenCalled()
+      expect(openFileMock).not.toHaveBeenCalled()
+    })
+  })
 })

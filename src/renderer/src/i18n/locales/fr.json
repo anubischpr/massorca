@@ -18478,7 +18478,15 @@
       "fileLinks": {
         "notFound": "Fichier introuvable : {{value0}}",
         "unverifiable": "Impossible de vérifier {{value0}} : {{value1}}",
-        "unresolved": "Impossible de résoudre {{value0}} dans cet espace de travail"
+        "unresolved": "Impossible de résoudre {{value0}} dans cet espace de travail",
+        "outsideRemoteWorkspace": "Ce fichier se trouve en dehors de l'espace de travail sur l'hôte distant, Orca ne peut donc pas l'ouvrir.",
+        "remoteHostOutdated": "Mettez à jour Orca sur l'hôte distant pour ouvrir les fichiers que l'agent a enregistrés en dehors de l'espace de travail.",
+        "viewerLoading": "Chargement…",
+        "viewerUnavailable": "Impossible de charger ce fichier.",
+        "viewerNotFound": "Ce fichier n'existe plus sur l'hôte distant.",
+        "viewerTooLarge": "Ce fichier est trop volumineux pour être prévisualisé.",
+        "viewerUnsupportedType": "Ce type de fichier ne peut pas être prévisualisé ici.",
+        "viewerReadOnly": "Aperçu en lecture seule depuis l'hôte distant"
       },
       "contextUsage": {
         "label": "Contexte : {{used}} tokens sur {{window}}, {{percent}} % utilisés",

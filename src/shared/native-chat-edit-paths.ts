@@ -12,9 +12,15 @@ const PATH_ONLY_MUTATION_TOOLS = new Set([
 ])
 const PATH_ONLY_KEYS = ['Path', 'TargetFile', 'file_path', 'filePath', 'path']
 
+export function isPathOnlyMutationToolName(name: string): boolean {
+  return PATH_ONLY_MUTATION_TOOLS.has(name)
+}
+
 /** Every file a landed call changed. Falls back to the path a content-less file tool names, so a
  *  results list can show the file even where no diff can be drawn. */
-export function editedPathsFromToolPair(pair: Parameters<typeof editFilesFromToolPair>[0]): string[] {
+export function editedPathsFromToolPair(
+  pair: Parameters<typeof editFilesFromToolPair>[0]
+): string[] {
   const files = editFilesFromToolPair(pair)
   if (files) {
     return files.map((file) => file.path)

@@ -14,8 +14,11 @@ import {
   assertExternalSshReadOwnership,
   canReadRelativeRuntimeFile,
   getRemoteFileArgs,
-  hasRemoteRuntimeOwner
+  hasRemoteRuntimeOwner,
+  isRecordedSessionFileOperation,
+  RemoteFileOutsideWorktreeError
 } from './runtime-file-routing'
+import { previewRecordedSessionFile } from './runtime-recorded-file-client'
 import { toRuntimeWorktreeSelector } from './runtime-worktree-selector'
 import { isAgentSessionAttachmentStorePath } from '../../../shared/agent-session-attachments'
 import type { LocalFileAccess } from '../../../shared/local-file-access'
@@ -55,7 +58,7 @@ export async function readRuntimeFileContent({
     })
   }
   if (!canReadRelativeRuntimeFile(relativePath)) {
-    throw new Error('Remote file is outside the owning runtime worktree')
+    throw new RemoteFileOutsideWorktreeError()
   }
 
   const worktree = toRuntimeWorktreeSelector(worktreeId)
@@ -116,8 +119,11 @@ export async function readRuntimeFilePreview(
     )
   }
   if (!remoteArgs) {
+    if (isRecordedSessionFileOperation(context, filePath)) {
+      return previewRecordedSessionFile(context, filePath)
+    }
     if (hasRemoteRuntimeOwner(context)) {
-      throw new Error('Remote file is outside the owning runtime worktree')
+      throw new RemoteFileOutsideWorktreeError()
     }
     return window.api.fs.readFile({
       filePath,
@@ -146,7 +152,7 @@ export async function downloadRuntimeFile(
   const remoteArgs = getRemoteFileArgs(context, filePath)
   if (!remoteArgs) {
     if (hasRemoteRuntimeOwner(context)) {
-      throw new Error('Remote file is outside the owning runtime worktree')
+      throw new RemoteFileOutsideWorktreeError()
     }
     if (context.connectionId) {
       return window.api.fs.downloadFile({ filePath, connectionId: context.connectionId })

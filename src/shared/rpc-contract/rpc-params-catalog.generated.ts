@@ -49,6 +49,7 @@ import {
 } from './agent-session-attachment-params'
 import { CreateAgentSessionParams, EnsureAgentSessionParams } from './agent-session-params'
 import { ReadPlanDocumentParams } from './agent-session-plan-document-params'
+import { ReadRecordedFileParams } from './agent-session-recorded-file-params'
 import { ReadVisualParams } from './agent-session-visual-params'
 import {
   AiVaultListSessionsParams,
@@ -631,6 +632,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'agentSession.queuedMessageSend': QueuedMessageActionParams,
   'agentSession.queuedMessagesResume': QueuedMessagesResumeParams,
   'agentSession.readPlanDocument': ReadPlanDocumentParams,
+  'agentSession.readRecordedFile': ReadRecordedFileParams,
   'agentSession.readVisual': ReadVisualParams,
   'agentSession.release': HoldParams,
   'agentSession.respondToApproval': RespondParams,
