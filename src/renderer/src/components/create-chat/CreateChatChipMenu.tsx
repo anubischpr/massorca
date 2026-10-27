@@ -20,6 +20,10 @@ export type CreateChatMenuGroup = {
   value: string
   items: readonly CreateChatMenuItem[]
   onValueChange: (value: string) => void
+  /** Shown in place of the items while there are none. */
+  placeholder?: string
+  /** True keeps the menu open after this value is picked, for a choice that has a next step. */
+  keepOpenAfter?: (value: string) => boolean
 }
 
 export type CreateChatChipTone = 'neutral' | 'warning' | 'accent'
@@ -31,6 +35,9 @@ type CreateChatChipMenuProps = {
   tone?: CreateChatChipTone
   note?: string
   groups: readonly CreateChatMenuGroup[]
+  /** Controlled open state, for a chip whose menu stays open across steps. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 // Why: <Button> owns its colour, so the tone sits on the inner span.
@@ -47,10 +54,12 @@ export function CreateChatChipMenu({
   icon,
   tone = 'neutral',
   note,
-  groups
+  groups,
+  open,
+  onOpenChange
 }: CreateChatChipMenuProps): React.JSX.Element {
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
         <Button type="button" variant="ghost" size="xs" aria-label={ariaLabel} className="max-w-48">
           <span className={cn('flex min-w-0 items-center gap-1 rounded-sm', TONE_CLASS[tone])}>
@@ -66,9 +75,23 @@ export function CreateChatChipMenu({
           <Fragment key={group.key}>
             {index > 0 || note ? <DropdownMenuSeparator /> : null}
             {group.title ? <DropdownMenuLabel>{group.title}</DropdownMenuLabel> : null}
+            {group.items.length === 0 && group.placeholder ? (
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">{group.placeholder}</div>
+            ) : null}
             <DropdownMenuRadioGroup value={group.value} onValueChange={group.onValueChange}>
               {group.items.map((item) => (
-                <DropdownMenuRadioItem key={item.value} value={item.value} disabled={item.disabled}>
+                <DropdownMenuRadioItem
+                  key={item.value}
+                  value={item.value}
+                  disabled={item.disabled}
+                  onSelect={(event) => {
+                    // Why: Radix closes on select; the next step of the choice is in this same menu.
+                    if (group.keepOpenAfter?.(item.value)) {
+                      event.preventDefault()
+                    }
+                  }}
+                >
+                  {item.icon}
                   <NativeChatSessionOptionChoiceBody
                     label={item.label}
                     description={item.description}

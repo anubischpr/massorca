@@ -17822,6 +17822,8 @@
       "errorStart": "No se pudo iniciar la sesión. Tu borrador se conserva.",
       "locationAria": "Ubicación",
       "modelGroup": "Modelo",
+      "modelLoading": "Cargando modelos…",
+      "modelSetByAgent": "Modelo definido por el agente",
       "noAgents": "Aún no se detectan agentes.",
       "projectAria": "Proyecto",
       "projectChipChoose": "Elige un proyecto",

@@ -18018,6 +18018,8 @@
       "errorStart": "Could not start the session. Your draft is kept.",
       "locationAria": "Location",
       "modelGroup": "Model",
+      "modelLoading": "Loading models…",
+      "modelSetByAgent": "Model set by the agent",
       "noAgents": "No agents detected yet.",
       "projectAria": "Project",
       "projectChipChoose": "Choose a project",

@@ -85,16 +85,19 @@ vi.mock('@/components/ui/dropdown-menu', async () => {
   }
 })
 
+vi.mock('@/lib/use-pi-runtime', () => ({ usePiDisplayRuntime: () => 'unknown' }))
+
 vi.mock('@/lib/agent-catalog', () => ({
   getAgentCatalog: () => [
     { id: 'claude', label: 'Claude', cmd: 'claude' },
     { id: 'codex', label: 'Codex', cmd: 'codex' }
   ],
+  getAgentDisplayLabel: (agent: string) => (agent === 'claude' ? 'Claude' : 'Codex'),
   AgentIcon: ({ agent }: { agent: string }) => <span data-testid="agent-icon">{agent}</span>
 }))
 
 vi.mock('./use-create-chat-model-catalog', () => ({
-  useCreateChatModelCatalog: () => []
+  useCreateChatModelCatalog: () => ({ status: 'none', models: [] })
 }))
 
 import { CreateChatSession } from './CreateChatSession'

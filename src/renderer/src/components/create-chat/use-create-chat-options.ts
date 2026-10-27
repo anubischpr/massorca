@@ -50,14 +50,16 @@ export function useCreateChatOptions(): CreateChatOptions {
 
   const eligibleRepos = useMemo(() => createChatRepoOptions(repos), [repos])
 
+  // Why: a Pi command the user set (e.g. a Gentle Shell path) is off PATH, which is all detection reads.
+  const hasConfiguredPi = Boolean(settings?.agentCmdOverrides?.pi?.trim())
   const agents = useMemo(
     () =>
       orderTabLaunchAgents(
         settings?.defaultTuiAgent,
-        detectedIds ?? [],
+        hasConfiguredPi ? [...(detectedIds ?? []), 'pi'] : (detectedIds ?? []),
         settings?.disabledTuiAgents ?? DEFAULT_DISABLED_TUI_AGENTS
       ),
-    [detectedIds, settings?.defaultTuiAgent, settings?.disabledTuiAgents]
+    [detectedIds, hasConfiguredPi, settings?.defaultTuiAgent, settings?.disabledTuiAgents]
   )
 
   const preferredAgent = settings?.defaultTuiAgent

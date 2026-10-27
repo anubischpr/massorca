@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type {
   AgentSessionModelOption,
   AgentSessionOptionChoice
@@ -5,7 +6,8 @@ import type {
 import type { ExecutionHostId } from '../../../../shared/execution-host'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import { translate } from '@/i18n/i18n'
-import { getAgentCatalog } from '@/lib/agent-catalog'
+import { getAgentDisplayLabel } from '@/lib/agent-catalog'
+import type { PiDisplayRuntime } from '@/lib/pi-agent-display'
 import { nativeChatSessionChoiceLabel } from '../native-chat/native-chat-session-option-labels'
 import {
   CREATE_CHAT_ACCESS_MODES,
@@ -24,6 +26,7 @@ export type CreateChatMenuItem = {
   label: string
   description?: string
   disabled?: boolean
+  icon?: ReactNode
 }
 
 export const PROJECTLESS_PROJECT_VALUE = 'projectless'
@@ -153,11 +156,15 @@ function accessModeDescription(mode: CreateChatAccessMode): string {
   }
 }
 
-export function buildAgentMenuItems(agents: readonly TuiAgent[]): CreateChatMenuItem[] {
-  const catalog = getAgentCatalog()
+export function buildAgentMenuItems(
+  agents: readonly TuiAgent[],
+  piRuntime: PiDisplayRuntime,
+  renderIcon: (agent: TuiAgent) => ReactNode
+): CreateChatMenuItem[] {
   return agents.map((agent) => ({
     value: agent,
-    label: catalog.find((entry) => entry.id === agent)?.label ?? agent
+    label: getAgentDisplayLabel(agent, piRuntime),
+    icon: renderIcon(agent)
   }))
 }
 

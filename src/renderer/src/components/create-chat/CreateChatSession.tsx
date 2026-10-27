@@ -30,7 +30,7 @@ export function CreateChatSession({
   const [error, setError] = useState<string | null>(null)
   // Why: state updates land after the render, so a second Enter in the same tick would still see canSubmit.
   const inFlight = useRef(false)
-  const models = useCreateChatModelCatalog(selection.agent)
+  const catalog = useCreateChatModelCatalog(selection.agent)
   const canSubmit = !pending && canSubmitCreateChat(draft, selection, options.repos)
 
   const submit = async (): Promise<void> => {
@@ -83,7 +83,7 @@ export function CreateChatSession({
             <CreateChatAgentChip
               selection={selection}
               options={options}
-              models={models}
+              catalog={catalog}
               onSelectionChange={setSelection}
             />
           }

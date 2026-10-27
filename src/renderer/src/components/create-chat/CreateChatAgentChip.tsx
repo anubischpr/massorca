@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { translate } from '@/i18n/i18n'
-import { AgentIcon, getAgentCatalog } from '@/lib/agent-catalog'
-import type { AgentSessionModelOption } from '../../../../shared/agent-session-wire'
+import { AgentIcon, getAgentDisplayLabel } from '@/lib/agent-catalog'
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
+import type { TuiAgent } from '../../../../shared/tui-agent'
 import { nativeChatSessionChoiceLabel } from '../native-chat/native-chat-session-option-labels'
 import { CreateChatChipMenu, type CreateChatMenuGroup } from './CreateChatChipMenu'
 import {
@@ -10,11 +12,12 @@ import {
   buildModelMenuItems
 } from './create-chat-menu-items'
 import type { CreateChatOptions, CreateChatSelection } from './create-chat-selection'
+import type { CreateChatModelCatalog } from './use-create-chat-model-catalog'
 
 type AgentChipProps = {
   selection: CreateChatSelection
   options: CreateChatOptions
-  models: readonly AgentSessionModelOption[]
+  catalog: CreateChatModelCatalog
   onSelectionChange: (next: CreateChatSelection) => void
 }
 
@@ -22,11 +25,26 @@ type AgentChipProps = {
 export function CreateChatAgentChip({
   selection,
   options,
-  models,
+  catalog,
   onSelectionChange
 }: AgentChipProps): React.JSX.Element {
-  const agentLabel =
-    getAgentCatalog().find((entry) => entry.id === selection.agent)?.label ?? selection.agent
+  const { models } = catalog
+  const piRuntime = usePiDisplayRuntime()
+  const [open, setOpen] = useState(false)
+  // Why: an agent picked in this open menu whose catalog has not answered, so the menu cannot yet
+  // tell whether the pick still has a model to choose.
+  const [awaitingAgent, setAwaitingAgent] = useState<TuiAgent | null>(null)
+
+  // Derived while rendering rather than in an effect, so the menu never shows a stale step.
+  if (awaitingAgent !== null && awaitingAgent === selection.agent && catalog.status !== 'loading') {
+    setAwaitingAgent(null)
+    // An agent with no model or effort to choose is complete once picked.
+    if (catalog.status === 'none') {
+      setOpen(false)
+    }
+  }
+
+  const agentLabel = getAgentDisplayLabel(selection.agent, piRuntime)
   const activeModel =
     models.find((model) => model.id === selection.model) ??
     models.find((model) => model.isDefault) ??
@@ -50,13 +68,18 @@ export function CreateChatAgentChip({
       key: 'agent',
       title: translate('components.createChat.agentGroup', 'Agent'),
       value: selection.agent,
-      items: buildAgentMenuItems(options.agents),
+      items: buildAgentMenuItems(options.agents, piRuntime, (agent) => (
+        <AgentIcon agent={agent} size={14} />
+      )),
       onValueChange: (value) => {
         const agent = options.agents.find((candidate) => candidate === value)
         if (agent) {
+          setAwaitingAgent(agent !== selection.agent ? agent : null)
           onSelectionChange({ ...selection, agent, model: undefined, effort: undefined })
         }
-      }
+      },
+      // Why: re-picking the current agent has an answered catalog; a new one has not been asked yet.
+      keepOpenAfter: (value) => value !== selection.agent || catalog.status !== 'none'
     }
   ]
   if (models.length > 0) {
@@ -72,7 +95,22 @@ export function CreateChatAgentChip({
           model: next?.id,
           effort: undefined
         })
-      }
+      },
+      keepOpenAfter: (value) =>
+        ((models.find((model) => model.id === value) ?? models.find((model) => model.isDefault))
+          ?.efforts?.length ?? 0) > 0
+    })
+  } else {
+    groups.push({
+      key: 'model',
+      title: translate('components.createChat.modelGroup', 'Model'),
+      value: '',
+      items: [],
+      onValueChange: () => {},
+      placeholder:
+        catalog.status === 'loading'
+          ? translate('components.createChat.modelLoading', 'Loading models…')
+          : translate('components.createChat.modelSetByAgent', 'Model set by the agent')
     })
   }
   if (efforts.length > 0) {
@@ -101,6 +139,13 @@ export function CreateChatAgentChip({
           : undefined
       }
       groups={groups}
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next)
+        if (!next) {
+          setAwaitingAgent(null)
+        }
+      }}
     />
   )
 }
