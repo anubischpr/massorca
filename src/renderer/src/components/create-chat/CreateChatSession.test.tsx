@@ -4,10 +4,10 @@ import { act, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { i18n } from '../../i18n/i18n'
-import type { CreateChatOptions } from './create-chat-selection'
+import type { CreateChatOptions, CreateChatSubmitOutcome } from './create-chat-selection'
 
 const mocks = vi.hoisted(() => ({
-  submit: vi.fn()
+  submit: vi.fn().mockResolvedValue({ started: true })
 }))
 
 vi.mock('@/components/ui/dropdown-menu', async () => {
@@ -304,5 +304,46 @@ describe('CreateChatSession', () => {
     expect(button(container, 'Permissions').firstElementChild?.className).toContain(
       'text-status-warning'
     )
+  })
+
+  it('locks send and the chips while the launch runs, and never submits twice', async () => {
+    let finish: ((outcome: CreateChatSubmitOutcome) => void) | undefined
+    mocks.submit.mockReturnValueOnce(
+      new Promise<CreateChatSubmitOutcome>((resolve) => {
+        finish = resolve
+      })
+    )
+    const container = await renderSession()
+    const textarea = await typeDraft(container, 'Fix the login bug')
+
+    await click(button(container, 'Create session'))
+    await pressEnter(textarea, false)
+
+    expect(mocks.submit).toHaveBeenCalledOnce()
+    expect(button(container, 'Creating session').disabled).toBe(true)
+    // Why: the chips are locked by their fieldset; happy-dom does not resolve :disabled through it.
+    expect(button(container, 'Project').closest('fieldset')?.disabled).toBe(true)
+    expect(container.textContent).toContain('Creating session…')
+
+    await act(async () => {
+      finish?.({ started: true })
+    })
+  })
+
+  it('keeps the draft and shows the reason when the chat cannot start', async () => {
+    mocks.submit.mockResolvedValueOnce({
+      started: false,
+      message: 'Could not open the workspace for this chat. Your draft is kept.'
+    })
+    const container = await renderSession()
+    await typeDraft(container, 'Fix the login bug')
+
+    await click(button(container, 'Create session'))
+
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      'Could not open the workspace for this chat. Your draft is kept.'
+    )
+    expect(composer(container).value).toBe('Fix the login bug')
+    expect(button(container, 'Create session').disabled).toBe(false)
   })
 })

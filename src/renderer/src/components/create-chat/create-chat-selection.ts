@@ -20,8 +20,14 @@ export type CreateChatSelection = {
   accessMode: CreateChatAccessMode
 }
 
-/** T4 owns the implementation; the view only forwards what the user composed. */
-export type CreateChatSubmit = (draft: string, selection: CreateChatSelection) => void
+/** `started` means the chat is launching; a failure keeps the draft and names what went wrong. */
+export type CreateChatSubmitOutcome = { started: true } | { started: false; message: string }
+
+/** The view only forwards what the user composed; the submit resolves the workspace and launches. */
+export type CreateChatSubmit = (
+  draft: string,
+  selection: CreateChatSelection
+) => Promise<CreateChatSubmitOutcome>
 
 export type CreateChatHostOption = {
   id: ExecutionHostId

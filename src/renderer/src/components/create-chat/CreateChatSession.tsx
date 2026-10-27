@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { translate } from '@/i18n/i18n'
 import { CreateChatAgentChip } from './CreateChatAgentChip'
 import { CreateChatComposer } from './CreateChatComposer'
@@ -26,12 +26,28 @@ export function CreateChatSession({
     buildDefaultCreateChatSelection(options)
   )
   const [draft, setDraft] = useState('')
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  // Why: state updates land after the render, so a second Enter in the same tick would still see canSubmit.
+  const inFlight = useRef(false)
   const models = useCreateChatModelCatalog(selection.agent)
-  const canSubmit = canSubmitCreateChat(draft, selection, options.repos)
+  const canSubmit = !pending && canSubmitCreateChat(draft, selection, options.repos)
 
-  const submit = (): void => {
-    if (canSubmit) {
-      onSubmit(draft.trim(), selection)
+  const submit = async (): Promise<void> => {
+    if (!canSubmit || inFlight.current) {
+      return
+    }
+    inFlight.current = true
+    setPending(true)
+    setError(null)
+    try {
+      const outcome = await onSubmit(draft.trim(), selection)
+      if (!outcome.started) {
+        setError(outcome.message)
+      }
+    } finally {
+      inFlight.current = false
+      setPending(false)
     }
   }
 
@@ -53,6 +69,8 @@ export function CreateChatSession({
           draft={draft}
           onDraftChange={setDraft}
           canSubmit={canSubmit}
+          pending={pending}
+          error={error}
           onSubmit={submit}
           leftChips={
             <CreateChatLeftChips

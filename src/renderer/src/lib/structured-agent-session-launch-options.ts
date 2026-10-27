@@ -1,4 +1,6 @@
 import { useSyncExternalStore } from 'react'
+import { toast } from 'sonner'
+import { translate } from '@/i18n/i18n'
 import type {
   AgentSessionMutationResult,
   AgentSessionOptionResult
@@ -80,6 +82,36 @@ export function holdStructuredAgentSessionLaunchOption(
   }
   notifyStructuredLaunchListeners()
   return new Promise((resolve) => replies.set(id, resolve))
+}
+
+/**
+ * Holds a new chat's picks (model first, since a model pick drops the picks under it) so they apply
+ * before its first send. A refused pick is reported, because the chat would otherwise run the
+ * saved default.
+ */
+export function holdStructuredAgentSessionLaunchPicks(
+  sessionId: string,
+  picks: Readonly<Record<string, string>>
+): void {
+  for (const [id, encoded] of Object.entries(picks)) {
+    const applied = holdStructuredAgentSessionLaunchOption(sessionId, id, encoded)
+    if (!applied) {
+      toast.error(launchPickRefusedMessage())
+      continue
+    }
+    void applied.then((outcome) => {
+      if (outcome.kind === 'refused') {
+        toast.error(launchPickRefusedMessage())
+      }
+    })
+  }
+}
+
+function launchPickRefusedMessage(): string {
+  return translate(
+    'components.createChat.errorOptionRefused',
+    'A chat setting could not be applied. Change it in the chat.'
+  )
 }
 
 async function setLaunchOption(
