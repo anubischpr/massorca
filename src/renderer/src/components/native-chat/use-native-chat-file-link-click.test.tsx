@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => {
     showRemoteHostOutdated: vi.fn(),
     showUnresolved: vi.fn(),
     openRecordedFile: vi.fn(),
+    openRecordedFileTab: vi.fn(),
     buildFileLinkActions: vi.fn(),
     settings: noSettings
   }
@@ -50,7 +51,12 @@ vi.mock('./native-chat-recorded-file-request', () => ({
 vi.mock('@/store', () => ({
   useAppStore: Object.assign(
     (selector: (state: Record<string, unknown>) => unknown) => selector({}),
-    { getState: () => ({ settings: mocks.settings }) }
+    {
+      getState: () => ({
+        settings: mocks.settings,
+        openRecordedFileTab: mocks.openRecordedFileTab
+      })
+    }
   )
 }))
 
@@ -374,6 +380,61 @@ describe('useNativeChatFileLinkClick', () => {
       failLastOpen('missing', new RecordedFileRefusedError('not_found'))
 
       expect(mocks.showNotFound).toHaveBeenCalledWith('/home/me/informes/report.html')
+    })
+
+    function clickOutsideWith(init: MouseEventInit): void {
+      render(
+        <Transcript markdown="Saved `/home/me/informes/report.html`." linkContext={chatContext} />
+      )
+      fireEvent.click(screen.getByRole('link', { name: '/home/me/informes/report.html' }), init)
+    }
+
+    function activateRecordedFile(): void {
+      mocks.openDetectedFilePath.mock.calls
+        .at(-1)?.[3]
+        .onOpenRecordedSessionFile('/home/me/informes/report.html')
+    }
+
+    const recordedRequest = {
+      sessionId: 'session-alpha',
+      path: '/home/me/informes/report.html',
+      worktreePath: '/repo',
+      runtimeEnvironmentId: 'env-1'
+    }
+
+    it.each([
+      ['Mac', 'Macintosh', { metaKey: true, altKey: true }],
+      ['Linux', 'X11; Linux', { ctrlKey: true, altKey: true }]
+    ])('opens a tab, not the dialog, on %s Mod+Alt+click', (_platform, userAgent, init) => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(userAgent)
+      clickOutsideWith(init)
+      activateRecordedFile()
+
+      expect(mocks.openRecordedFileTab).toHaveBeenCalledWith('wt-1', recordedRequest)
+      expect(mocks.openRecordedFile).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['Mac', 'Macintosh', { metaKey: true }],
+      ['Linux', 'X11; Linux', { ctrlKey: true }]
+    ])('keeps the dialog for plain %s Mod+click', (_platform, userAgent, init) => {
+      vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(userAgent)
+      clickOutsideWith(init)
+      activateRecordedFile()
+
+      expect(mocks.openRecordedFile).toHaveBeenCalledWith({
+        ...recordedRequest,
+        worktreeId: 'wt-1'
+      })
+      expect(mocks.openRecordedFileTab).not.toHaveBeenCalled()
+    })
+
+    it('keeps the dialog when Shift joins Mod+Alt', () => {
+      clickOutsideWith({ ctrlKey: true, altKey: true, shiftKey: true })
+      activateRecordedFile()
+
+      expect(mocks.openRecordedFile).toHaveBeenCalledTimes(1)
+      expect(mocks.openRecordedFileTab).not.toHaveBeenCalled()
     })
 
     it('offers no recorded-file open to a chat that has no session', () => {

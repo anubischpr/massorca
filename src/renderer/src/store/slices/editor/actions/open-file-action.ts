@@ -15,14 +15,21 @@ export function createOpenFileAction(
     openFile: (file, options) => {
       const editorItemWorktreeId = file.worktreeId
       const editorItemLabel = file.relativePath
-      const editorItemContentType: 'editor' | 'diff' | 'conflict-review' | 'check-details' =
+      const editorItemContentType:
+        | 'editor'
+        | 'diff'
+        | 'conflict-review'
+        | 'check-details'
+        | 'recorded-file' =
         file.mode === 'conflict-review'
           ? 'conflict-review'
           : file.mode === 'check-details'
             ? 'check-details'
-            : file.mode === 'diff'
-              ? 'diff'
-              : 'editor'
+            : file.mode === 'recorded-file'
+              ? 'recorded-file'
+              : file.mode === 'diff'
+                ? 'diff'
+                : 'editor'
       const scratch = {
         editorItemFileId: file.filePath,
         editorItemTargetGroupId: options?.targetGroupId,

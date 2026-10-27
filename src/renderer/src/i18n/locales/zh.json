@@ -18385,7 +18385,9 @@
         "viewerNotFound": "此文件已不在远程主机上。",
         "viewerTooLarge": "此文件过大，无法预览。",
         "viewerUnsupportedType": "此处无法预览这种文件类型。",
-        "viewerReadOnly": "来自远程主机的只读预览"
+        "viewerReadOnly": "来自远程主机的只读预览",
+        "recordedFileTabHintMac": "⌘⌥+点击即可在标签页中打开",
+        "recordedFileTabHintOther": "Ctrl+Alt+点击即可在标签页中打开"
       },
       "contextUsage": {
         "label": "上下文 {{used}}/{{window}} token，已用 {{percent}}%",

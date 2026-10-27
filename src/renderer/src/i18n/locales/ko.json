@@ -18420,7 +18420,9 @@
         "viewerNotFound": "이 파일은 더 이상 원격 호스트에 없습니다.",
         "viewerTooLarge": "이 파일은 너무 커서 미리 볼 수 없습니다.",
         "viewerUnsupportedType": "이 파일 형식은 여기서 미리 볼 수 없습니다.",
-        "viewerReadOnly": "원격 호스트의 읽기 전용 미리보기"
+        "viewerReadOnly": "원격 호스트의 읽기 전용 미리보기",
+        "recordedFileTabHintMac": "⌘⌥+클릭하면 탭에서 열립니다",
+        "recordedFileTabHintOther": "Ctrl+Alt+클릭하면 탭에서 열립니다"
       },
       "contextUsage": {
         "label": "컨텍스트 {{used}}/{{window}} 토큰, {{percent}}% 사용",

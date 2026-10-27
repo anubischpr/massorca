@@ -102,7 +102,8 @@ export function createCloseFileAction(
                 (entry.contentType === 'editor' ||
                   entry.contentType === 'diff' ||
                   entry.contentType === 'conflict-review' ||
-                  entry.contentType === 'check-details')
+                  entry.contentType === 'check-details' ||
+                  entry.contentType === 'recorded-file')
             )
             .map((entry) => entry.id)
       )
@@ -240,11 +241,13 @@ export function createCloseFileAction(
         let nextRecentlyClosedKinds = s.recentlyClosedTabKindsByWorktree
         const wtRecent = closedFile?.worktreeId
         // Why: exclude untitled unedited files (deleted from disk after close, so Cmd+Shift+T can't reopen a gone path) and ephemeral preview tabs from the reopen stack.
+        // Why: a recorded file reopens from its host, so the reopen stack never keeps it.
         if (
           closedFile &&
           wtRecent &&
           !shouldDeleteFromDisk &&
-          closedFile.mode !== 'markdown-preview'
+          closedFile.mode !== 'markdown-preview' &&
+          closedFile.mode !== 'recorded-file'
         ) {
           const {
             id: _id,
