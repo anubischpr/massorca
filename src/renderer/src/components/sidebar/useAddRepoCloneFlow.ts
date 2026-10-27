@@ -11,6 +11,7 @@ import { extractIpcErrorMessage } from '@/lib/ipc-error'
 import { upsertAddedRepoWithProjectHostSetup } from './add-repo-store-upsert'
 import { worktreeRefreshOptions } from './add-repo-runtime-owner'
 import type { ExecutionHostId } from '../../../../shared/execution-host'
+import type { GhAccountBinding } from '../../../../shared/github/account-binding'
 
 export function useAddRepoCloneFlow({
   step,
@@ -19,7 +20,8 @@ export function useAddRepoCloneFlow({
   sshTargetId,
   workspaceDir,
   fetchWorktrees,
-  onGitRepoReady
+  onGitRepoReady,
+  resolveGhAccount
 }: {
   step: AddRepoDialogStep
   /** The dialog's chosen host; null while it is unresolved, which blocks the clone. */
@@ -36,6 +38,8 @@ export function useAddRepoCloneFlow({
     source: AddRepoExistingWorkspaceSource,
     executionHostId?: ExecutionHostId
   ) => Promise<void>
+  /** Account whose credentials the clone uses; null clones with the ambient login. */
+  resolveGhAccount?: (url: string) => Promise<GhAccountBinding | null>
 }): {
   cloneUrl: string
   cloneDestination: string
@@ -136,11 +140,14 @@ export function useAddRepoCloneFlow({
             ...useAppStore.getState().settings,
             activeRuntimeEnvironmentId: null
           })
+      const ghAccount = (await resolveGhAccount?.(trimmedUrl)) ?? null
+      const accountArgs = ghAccount ? { ghAccount } : {}
       const repo = sshTargetId?.trim()
         ? await window.api.repos.cloneRemote({
             connectionId: sshTargetId.trim(),
             url: trimmedUrl,
-            destination: cloneDestination.trim()
+            destination: cloneDestination.trim(),
+            ...accountArgs
           })
         : target.kind === 'environment'
           ? (
@@ -149,15 +156,17 @@ export function useAddRepoCloneFlow({
                 'repo.clone',
                 {
                   url: trimmedUrl,
-                  destination: cloneDestination.trim()
+                  destination: cloneDestination.trim(),
+                  ...accountArgs
                 },
                 { timeoutMs: 10 * 60_000 }
               )
             ).repo
-          : ((await window.api.repos.clone({
+          : await window.api.repos.clone({
               url: trimmedUrl,
-              destination: cloneDestination.trim()
-            })) as Repo)
+              destination: cloneDestination.trim(),
+              ...accountArgs
+            })
       if (gen !== cloneGenRef.current || requestHostToken !== hostTokenRef.current) {
         return
       }
@@ -195,6 +204,7 @@ export function useAddRepoCloneFlow({
     fetchWorktrees,
     hostId,
     onGitRepoReady,
+    resolveGhAccount,
     sshTargetId
   ])
 

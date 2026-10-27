@@ -44,11 +44,11 @@ export function createReposApi(): NonNullable<Partial<PreloadApi>['repos']> {
     pickFolder: () => Promise.resolve(null),
     pickFolders: () => Promise.resolve([]),
     pickDirectory: () => Promise.resolve(null),
-    clone: async ({ url, destination }) => {
+    clone: async ({ url, destination, ghAccount }) => {
       invalidateRuntimeWorktreeCaches()
       const owned = await callRuntimeResultWithOwner<{ repo: Repo }>(
         'repo.clone',
-        { url, destination },
+        { url, destination, ...(ghAccount ? { ghAccount } : {}) },
         10 * 60_000
       )
       return withRuntimeRepoOwner(owned.result.repo, owned.hostId)

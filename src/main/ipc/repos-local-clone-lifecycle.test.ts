@@ -264,6 +264,49 @@ describe('repos:add + repos:clone', () => {
     expect(result).toHaveProperty('path', join(destination, 'orca'))
   })
 
+  it('pins the clone to the requested GitHub account before its first fetch', async () => {
+    const destination = await createTempRoot()
+
+    await handlers.get('repos:clone')!(null, {
+      url: 'https://github.com/acme/orca.git',
+      destination,
+      ghAccount: { host: 'github.com', user: 'palominoc' }
+    })
+
+    expect(gitSpawnMock).toHaveBeenCalledWith(
+      [
+        'clone',
+        '--progress',
+        '-c',
+        'gh.account=palominoc',
+        '-c',
+        'credential.https://github.com.helper=',
+        '-c',
+        expect.stringContaining('credential.https://github.com.helper=!f()'),
+        '-c',
+        'credential.https://github.com.username=palominoc',
+        '--',
+        'https://github.com/acme/orca.git',
+        join(destination, 'orca')
+      ],
+      expect.objectContaining({ cwd: destination })
+    )
+  })
+
+  it('rejects a clone account that cannot be pinned before spawning git', async () => {
+    const destination = await createTempRoot()
+    gitSpawnMock.mockClear()
+
+    await expect(
+      handlers.get('repos:clone')!(null, {
+        url: 'https://github.com/acme/orca.git',
+        destination,
+        ghAccount: { host: 'github.com', user: 'bad user' }
+      })
+    ).rejects.toThrow('GitHub account for clone is invalid')
+    expect(gitSpawnMock).not.toHaveBeenCalled()
+  })
+
   it('clones with the non-interactive credential guard so Git Credential Manager cannot pop its OAuth window (#7652)', async () => {
     const destination = await createTempRoot()
 

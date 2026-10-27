@@ -149,6 +149,29 @@ describe('repos:addRemote', () => {
     expect(result).toHaveProperty('repo.displayName', 'My Server Repo')
   })
 
+  it('pins an SSH clone to the requested GitHub account before its first fetch', async () => {
+    await handlers.get('repos:cloneRemote')!(null, {
+      connectionId: 'conn-1',
+      url: 'https://github.com/stablyai/orca.git',
+      destination: '/home/user',
+      ghAccount: { host: 'github.com', user: 'palominoc' }
+    })
+
+    expect(mockGitProvider.clone).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        'clone',
+        '--progress',
+        '-c',
+        'gh.account=palominoc',
+        '--',
+        'https://github.com/stablyai/orca.git',
+        'orca'
+      ]),
+      '/home/user',
+      expect.any(Object)
+    )
+  })
+
   it('clones a repo on an SSH target and registers the cloned path', async () => {
     const result = await handlers.get('repos:cloneRemote')!(null, {
       connectionId: 'conn-1',

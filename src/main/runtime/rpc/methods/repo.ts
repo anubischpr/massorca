@@ -148,7 +148,12 @@ export const REPO_METHODS = [
     params: RepoClone,
     handler: async (params, context) => ({
       repo: projectRepoVisibilityForClient(
-        await context.runtime.cloneRepo(params.url, params.destination),
+        await context.runtime.cloneRepo(
+          params.url,
+          params.destination,
+          undefined,
+          params.ghAccount ?? null
+        ),
         context
       )
     })

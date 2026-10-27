@@ -226,3 +226,33 @@ export function isAllowedGhAccountGitConfigWrite(args: readonly string[]): boole
   }
   return op === '--replace-all' && !helperHost && isAllowedValue(key, value)
 }
+
+/**
+ * `git clone -c` pairs that pin the new repo before its first fetch, so a private
+ * clone authenticates as `binding`. Identity is applied after the add (needs an id lookup).
+ */
+export function buildGhAccountCloneConfigArgs(binding: GhAccountBinding): string[] {
+  const helperKey = ghCredentialHelperKey(binding.host)
+  return [
+    '-c',
+    `${GH_ACCOUNT_GIT_CONFIG_KEY}=${binding.user}`,
+    '-c',
+    `${helperKey}=`,
+    '-c',
+    `${helperKey}=${ghCredentialHelperCommand(binding)}`,
+    '-c',
+    `${ghCredentialUsernameKey(binding.host)}=${binding.user}`
+  ]
+}
+
+/** True when a clone `-c` value is one `buildGhAccountCloneConfigArgs` emits. */
+export function isAllowedGhAccountCloneConfigPair(pair: string): boolean {
+  const eq = pair.indexOf('=')
+  if (eq <= 0) {
+    return false
+  }
+  const key = pair.slice(0, eq)
+  const value = pair.slice(eq + 1)
+  const op = HELPER_KEY_RE.test(key) ? '--add' : '--replace-all'
+  return key !== 'user.name' && key !== 'user.email' && isAllowedGhAccountGitConfigWrite(['--local', op, key, value])
+}

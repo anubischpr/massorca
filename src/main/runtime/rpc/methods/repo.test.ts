@@ -254,12 +254,28 @@ describe('repo RPC methods', () => {
 
     expect(runtime.cloneRepo).toHaveBeenCalledWith(
       'https://github.com/example/orca.git',
-      '/srv/projects'
+      '/srv/projects',
+      undefined,
+      null
     )
     expect(response).toMatchObject({
       ok: true,
       result: { repo: { id: 'repo-1', path: '/srv/projects/orca' } }
     })
+
+    await dispatcher.dispatch(
+      makeRequest('repo.clone', {
+        url: 'https://github.com/example/orca.git',
+        destination: '/srv/projects',
+        ghAccount: { host: 'github.com', user: 'palominoc' }
+      })
+    )
+    expect(runtime.cloneRepo).toHaveBeenLastCalledWith(
+      'https://github.com/example/orca.git',
+      '/srv/projects',
+      undefined,
+      { host: 'github.com', user: 'palominoc' }
+    )
   })
 
   it('shows a repo with the CLI-compatible response shape', async () => {

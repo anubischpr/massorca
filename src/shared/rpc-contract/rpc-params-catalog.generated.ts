@@ -235,6 +235,9 @@ import {
 import {
   ApplyAccountGitConfig,
   BindableAccounts,
+  InferRepoAccount,
+  ListAccountOrgs,
+  ListHostBindableAccounts,
   ReadAccountGitConfig,
   ValidateAccountBinding
 } from './github-account-binding-params'
@@ -887,9 +890,12 @@ export const RPC_PARAMS_BY_METHOD = {
   'github.applyAccountGitConfig': ApplyAccountGitConfig,
   'github.countWorkItems': WorkItemsCount,
   'github.createIssue': CreateIssue,
+  'github.inferRepoAccount': InferRepoAccount,
   'github.issue': Issue,
+  'github.listAccountOrgs': ListAccountOrgs,
   'github.listAssignableUsers': RepoSelector,
   'github.listBindableAccounts': BindableAccounts,
+  'github.listHostBindableAccounts': ListHostBindableAccounts,
   'github.listIssues': IssuesList,
   'github.listLabels': RepoSelector,
   'github.listWorkItems': WorkItemsList,

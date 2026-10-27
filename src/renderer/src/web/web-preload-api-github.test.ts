@@ -35,11 +35,14 @@ describe('web GitHub preload API', () => {
         'diagnoseAuth',
         'enqueuePRRefresh',
         'getProjectViewTable',
+        'inferRepoAccount',
         'issue',
         'listAccessibleProjects',
+        'listAccountOrgs',
         'listAssignableUsers',
         'listAssignableUsersBySlug',
         'listBindableAccounts',
+        'listHostBindableAccounts',
         'listIssueTypesBySlug',
         'listIssues',
         'listLabels',
@@ -406,6 +409,24 @@ describe('web GitHub preload API', () => {
         key: 'readAccountGitConfig',
         args: { repoPath },
         expectedMethod: 'github.readAccountGitConfig',
+        expectedParams: withRepo({ repoPath })
+      },
+      {
+        key: 'listHostBindableAccounts',
+        args: { refreshCapability: true },
+        expectedMethod: 'github.listHostBindableAccounts',
+        expectedParams: { refreshCapability: true }
+      },
+      {
+        key: 'listAccountOrgs',
+        args: { accounts: [{ host: 'github.com', user: 'octocat' }] },
+        expectedMethod: 'github.listAccountOrgs',
+        expectedParams: { accounts: [{ host: 'github.com', user: 'octocat' }] }
+      },
+      {
+        key: 'inferRepoAccount',
+        args: { repoPath },
+        expectedMethod: 'github.inferRepoAccount',
         expectedParams: withRepo({ repoPath })
       },
       {
