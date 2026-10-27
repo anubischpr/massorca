@@ -3,10 +3,12 @@ import { translate } from '@/i18n/i18n'
 import { CreateChatAgentChip } from './CreateChatAgentChip'
 import { CreateChatComposer } from './CreateChatComposer'
 import { CreateChatLeftChips } from './CreateChatLeftChips'
+import { useCreateChatAgents } from './use-create-chat-agents'
 import { useCreateChatModelCatalog } from './use-create-chat-model-catalog'
 import {
   buildDefaultCreateChatSelection,
   canSubmitCreateChat,
+  withAvailableCreateChatAgent,
   type CreateChatOptions,
   type CreateChatSelection,
   type CreateChatSubmit
@@ -30,7 +32,17 @@ export function CreateChatSession({
   const [error, setError] = useState<string | null>(null)
   // Why: state updates land after the render, so a second Enter in the same tick would still see canSubmit.
   const inFlight = useRef(false)
-  const catalog = useCreateChatModelCatalog(selection.agent)
+  const { agents, piRuntime, modelListingContext } = useCreateChatAgents(selection, options.repos)
+  // Derived while rendering: a host that does not offer the picked agent moves it at once.
+  const offered = withAvailableCreateChatAgent(selection, agents, options.preferredAgent)
+  if (offered !== selection) {
+    setSelection(offered)
+  }
+  const catalog = useCreateChatModelCatalog(
+    selection.agent,
+    selection.executionHostId,
+    modelListingContext
+  )
   const canSubmit = !pending && canSubmitCreateChat(draft, selection, options.repos)
 
   const submit = async (): Promise<void> => {
@@ -82,7 +94,8 @@ export function CreateChatSession({
           rightChips={
             <CreateChatAgentChip
               selection={selection}
-              options={options}
+              agents={agents}
+              piRuntime={piRuntime}
               catalog={catalog}
               onSelectionChange={setSelection}
             />

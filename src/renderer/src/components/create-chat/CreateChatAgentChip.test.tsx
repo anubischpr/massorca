@@ -9,7 +9,6 @@ import type { TuiAgent } from '../../../../shared/tui-agent'
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string) => fallback
 }))
-vi.mock('@/lib/use-pi-runtime', () => ({ usePiDisplayRuntime: () => 'gentle-shell' }))
 vi.mock('@/lib/agent-catalog', () => ({
   getAgentDisplayLabel: (agent: string, piRuntime: string) =>
     agent === 'pi' && piRuntime === 'gentle-shell' ? 'Gentle Shell' : agent,
@@ -17,7 +16,7 @@ vi.mock('@/lib/agent-catalog', () => ({
 }))
 
 import { CreateChatAgentChip } from './CreateChatAgentChip'
-import type { CreateChatOptions, CreateChatSelection } from './create-chat-selection'
+import type { CreateChatSelection } from './create-chat-selection'
 import type { CreateChatModelCatalog } from './use-create-chat-model-catalog'
 
 const model = (id: string, efforts: string[] = []): AgentSessionModelOption => ({
@@ -33,13 +32,7 @@ const CLAUDE: CreateChatModelCatalog = {
   status: 'ready',
   models: [model('opus', ['low', 'high']), model('haiku')]
 }
-const options: CreateChatOptions = {
-  hosts: [],
-  repos: [],
-  agents: ['claude', 'antigravity', 'pi'],
-  preferredAgent: 'claude',
-  projectlessDirectory: ''
-}
+const agents: TuiAgent[] = ['claude', 'antigravity', 'pi']
 
 // Why: tests flip these between renders, the way the catalog hook does once the host answers.
 let catalogs: Partial<Record<TuiAgent, CreateChatModelCatalog>> = {}
@@ -57,7 +50,8 @@ function Harness(): React.JSX.Element {
   return (
     <CreateChatAgentChip
       selection={selection}
-      options={options}
+      agents={agents}
+      piRuntime="gentle-shell"
       catalog={catalogs[selection.agent] ?? { status: 'loading', models: [] }}
       onSelectionChange={setSelection}
     />
