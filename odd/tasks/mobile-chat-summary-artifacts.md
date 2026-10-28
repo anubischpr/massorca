@@ -294,9 +294,19 @@ Needs a device: the pill and sheet against a real Claude and Codex terminal chat
 Each task is one Conventional Commit with its tests; no AI attribution lines. No push, no PR. Checks per task in `mobile/`: `pnpm typecheck` exit 0, targeted `pnpm test <files>`, oxfmt and oxlint on changed files. T23 also runs root `pnpm tc:node`.
 
 - [x] T20 Repo group header: the GitHub login sits beside the repo name with the same gap as the count. Style only (`mobile/src/host-screen/host-screen-secondary-styles.ts`), no test: no behavior changed. Checks: typecheck exit 0, oxfmt and oxlint clean.
-- [ ] T21 New Tab agent sheet: a host configured for Gentle Shell shows "Gentle Shell" with its icon, not "Pi". Reads `settings.agentCmdOverrides.pi` from the settings the loader already reads (`RuntimeClientSettings` carries it); no wire change, no new TuiAgent id.
+- [x] T21 New Tab agent sheet: a host configured for Gentle Shell shows "Gentle Shell" with its icon, not "Pi". Reads `settings.agentCmdOverrides.pi` from the settings the loader already reads (`RuntimeClientSettings` carries it); no wire change, no new TuiAgent id.
 - [ ] T22 Background work history: finished work survives remounts and reconnects (module-level store keyed by host and session); `commandActivity` seeds finished commands when present; the chat lane shows a correct empty note and never one beside Finished rows.
 - [ ] T23 Codex background shell tasks: unified-exec processes that outlive their exec call count as background commands in the roster and settle when they exit.
 
 ### T20 evidence
-- Commit: recorded by the next commit (T21), since a commit cannot name its own SHA.
+- Commit: `87f8841ebba` fix(mobile): space the GitHub login from the repo name in the host list.
+
+### T21 evidence
+- Route: inline (three source files and their test file).
+- Cause: detection reports one `pi` id for both Pi runtimes, and the options builder labelled every `pi` row from the static "Pi" map, so Gentle Shell hosts read Pi.
+- Fix: the Pi row reads `settings.agentCmdOverrides.pi` through `selectedPiRuntime`, the same runtime answer the rest of the phone uses. A Gentle Shell answer sets the label "Gentle Shell" and the Gentle Shell icon via `piRuntime` on the row. A missing, non-text, or stock command keeps Pi. Other rows are unchanged.
+- No wire change: `settings.get` already returns `agentCmdOverrides` (`RuntimeClientSettings`). No new TuiAgent id.
+- The "Send Review Notes" agent list reuses the same option label, so it reads "Gentle Shell" too; its rows keep the generic Bot icon, as before.
+- Gap: the setting is the paired host's. A workspace on an SSH target reads the paired host's runtime, not the target's, since the phone holds no per-target Pi setting.
+- Commit: recorded by the next commit (T22).
+- Checks: `pnpm test` on `mobile-new-tab-agent-options` and `mobile-new-tab-agent-loader` (2 files, 7 tests pass); mobile `pnpm typecheck` exit 0; `pnpm typecheck:tests` reports no errors in the touched files (the baseline has pre-existing errors); oxfmt and oxlint clean.

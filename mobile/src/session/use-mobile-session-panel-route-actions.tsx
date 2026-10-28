@@ -51,7 +51,9 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
       : createTabAgentOptions.length > 0
         ? createTabAgentOptions.map((option) => ({
             label: option.label,
-            renderIcon: () => <MobileAgentIcon agentId={option.agent} size={16} />,
+            renderIcon: () => (
+              <MobileAgentIcon agentId={option.agent} size={16} piRuntime={option.piRuntime} />
+            ),
             onPress: () => {
               setShowCreateTabDrawer(false)
               void handleCreateTerminal(option.agent)
