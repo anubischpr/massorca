@@ -93,3 +93,67 @@ Every item was checked against the code first.
 10. `launchSource` - fixed: `mobile` is an allowed value. (The wire field is an open string, but the
     host telemetry would have recorded `unknown`.)
 
+## Chat-mode follow-up (QA on the phone build)
+
+Root cause: `agent.launch` never names a mode, so a host whose default for new agent tabs is a
+terminal built a terminal agent (generic Model pill, no effort/access/Fast, and no first-work rename
+on a headless runtime, which only the structured path drives).
+
+- U1 (host + shared, additive) - done. `agent.launch` takes an optional `preferredMode: 'chat'`
+  (open like `presentation`: an unknown word reads as absent, and an older host strips it). It
+  overrides only a terminal default in `decideAgentLaunchMode`; every feasibility downgrade still
+  wins (remote host, reused terminal, agent with no chat, custom start directory, a caller that
+  cannot show a chat, and the host create-support answer), and the receipt carries the new reason
+  `caller_requested_chat` or the downgrade reason worded as a request. Advertised as
+  `agent.launch.preferred-mode.v1`. Tests: decision (terminal default + preference becomes a chat;
+  each downgrade still wins), params parsing. **The VPS runtime needs a build with this commit.**
+- U2 (mobile) - done. The create screen sends the preference on both launch paths, reads the receipt
+  and, when the host still built a terminal, says so on landing with the host own sentence. A host
+  that does not advertise the capability gets a one-line note before sending.
+- U3 (`pendingFirstAgentMessageRename`, `createChatNaming` on `worktree.create`) - not needed, skipped.
+  The structured first-work rename (`worktree.ps` status feed -> `first-work-structured-session-rename`
+  -> `maybeAutoRenameBranchOnFirstWork`) renames the branch AND sets the display name in one pass.
+  Neither field gates it: `pendingFirstAgentMessageRename` only drives the desktop pending card, and
+  `createChatNaming` (merged branch only) just picks the model, falling back to the global Source
+  Control AI params. Host-side test: `first-work-phone-created-chat-rename.test.ts`.
+  Gates a phone-created chat must pass: the `autoRenameBranchFromWork` setting is on; the worktree is
+  runtime-stamped (`orcaCreationSource: 'runtime'`, true for `worktree.create`); the branch leaf is a
+  creature name (the phone's generated one is); no upstream; a branch-name generation agent is
+  configured in Source Control AI settings; a non-empty first message. The display name is replaced
+  only while it is still a generated creature name. A terminal launch skips this path (the PTY path
+  waits on a window agent-status event a headless runtime may never drive), which is why the chat
+  preference (U1) is what makes the rename happen. The folder keeps its creature name by design.
+
+## Base branch (U4)
+
+A Base branch chip on the create screen, shown only for a new worktree (hidden for the current
+checkout and No Git). The default is what the host uses (`repo.baseRefDefault`); a pick is sent as
+`baseBranch` on the create target, and nothing is sent when none was picked. The sheet lists local
+and remote branches with search through the allowlisted `repo.searchRefs` (the same read the old
+form's Create From uses), so no new RPC. The pick resets when the host or project changes. If the
+first listing fails (an older host or a failed read) the chip stays on the default and is read-only.
+
+## Every agent the phone starts is a chat (entry points)
+
+The chat preference now lives in the two shared request builders (`agentLaunchCreateParams`,
+`agentLaunchExistingParams`), so every path through them sends `preferredMode: 'chat'`. A blank
+terminal never uses them. When the host still builds a terminal the receipt reason is shown
+(`launchSurfaceNotice`); an older host that cannot take the launch keeps its old behaviour with a
+one-line note.
+
+| Entry point | Route | Status |
+| --- | --- | --- |
+| + create screen, new worktree | `agent.launch` / `agent.launchReplay` create | chat preference; receipt reason on landing |
+| + create screen, current checkout | `agent.launchReplay` existing | chat preference; receipt reason on landing |
+| Session screen New tab > agent (and the Sessions sheet New tab) | `launchNewTabAgentThroughHost` | chat preference; toast with the receipt reason |
+| New tab on a host without replay, bare structured agent | `agentSession.create` | already a chat |
+| New tab on a host without `agent.launch`, agent with options | `session.tabs.createTerminal` + `agent` | terminal on those hosts; the picker now shows the default-tab note before falling back |
+| Quick command with an agent prompt | same as New tab | chat preference |
+| Quick command with a shell command or an unsent draft | `session.tabs.createTerminal` | terminal by design (not an agent session) |
+| PR / source control AI actions | `launchAgentInExistingWorkspace` | chat preference; receipt reason in the warning |
+| Old Create worktree form, agent picked | `createWorktreeWithNameRetry` with `agentLaunch` | chat preference |
+| Old form, work-item create (issue/PR/Linear) | `worktree.create` + `startupAgent` | still a terminal: the host needs the linked-item draft, which a chat cannot take (documented in `source-workspace-create.ts`) |
+| Old form on a host without `agent.launch` | `worktree.create` + `startupAgent` | terminal on those hosts |
+| Resume from agent history | AI vault resume command in a terminal | terminal by design: resumes a recorded CLI session |
+| Blank terminal (create screen more-options, old form Blank) | `worktree.create`, no agent | terminal, as intended |
+

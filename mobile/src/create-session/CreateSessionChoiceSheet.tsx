@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { Check, ChevronRight } from 'lucide-react-native'
 import { BottomDrawer } from '../components/BottomDrawer'
+import { MobileSearchField } from '../components/MobileSearchField'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import type { CreateSessionChoice } from './create-session-model'
 
@@ -9,13 +11,15 @@ export type CreateSessionSheetRow = CreateSessionChoice & {
   chevron?: boolean
 }
 
-/** One bottom sheet for every single-choice picker on the create screen. */
 export function CreateSessionChoiceSheet({
   visible,
   title,
   hint,
   rows,
   selectedValue,
+  searchField,
+  searchable = false,
+  emptyMessage = 'Nothing to choose here yet.',
   onSelect,
   onClose
 }: {
@@ -24,22 +28,46 @@ export function CreateSessionChoiceSheet({
   hint?: string
   rows: readonly CreateSessionSheetRow[]
   selectedValue?: string | null
+  /** A search box shown above the rows, for lists too long to scan. */
+  searchField?: React.ReactNode
+  /** Filters the rows by label as the user types, for lists the host does not search itself. */
+  searchable?: boolean
+  emptyMessage?: string
   onSelect: (value: string) => void
   onClose: () => void
 }): React.JSX.Element {
+  const [filter, setFilter] = useState('')
+  const needle = filter.trim().toLowerCase()
+  const shown =
+    searchable && needle ? rows.filter((row) => row.label.toLowerCase().includes(needle)) : rows
+  const leave = (): void => {
+    setFilter('')
+    onClose()
+  }
   return (
-    <BottomDrawer visible={visible} onClose={onClose}>
+    <BottomDrawer visible={visible} onClose={leave}>
       <View style={styles.sheet}>
         <Text style={styles.title} accessibilityRole="header">
           {title}
         </Text>
         {hint ? <Text style={styles.hint}>{hint}</Text> : null}
-        <ScrollView style={styles.scroll} bounces={false}>
+        {searchField}
+        {searchable ? (
+          <MobileSearchField
+            value={filter}
+            onChangeText={setFilter}
+            placeholder="Search"
+            accessibilityLabel={`Search ${title.toLowerCase()}`}
+          />
+        ) : null}
+        <ScrollView style={styles.scroll} bounces={false} keyboardShouldPersistTaps="handled">
           <View style={styles.group}>
-            {rows.length === 0 ? (
-              <Text style={styles.empty}>Nothing to choose here yet.</Text>
+            {shown.length === 0 ? (
+              <Text style={styles.empty}>
+                {needle ? `Nothing matches "${filter.trim()}".` : emptyMessage}
+              </Text>
             ) : null}
-            {rows.map((row, index) => {
+            {shown.map((row, index) => {
               const selected = row.value === selectedValue
               return (
                 <Pressable
@@ -48,10 +76,13 @@ export function CreateSessionChoiceSheet({
                   accessibilityLabel={row.label}
                   accessibilityState={{ disabled: row.disabled === true, selected }}
                   disabled={row.disabled}
-                  onPress={() => onSelect(row.value)}
+                  onPress={() => {
+                    setFilter('')
+                    onSelect(row.value)
+                  }}
                   style={({ pressed }) => [
                     styles.row,
-                    index < rows.length - 1 && styles.rowDivider,
+                    index < shown.length - 1 && styles.rowDivider,
                     row.disabled && styles.rowDisabled,
                     pressed && styles.rowPressed
                   ]}
@@ -67,7 +98,7 @@ export function CreateSessionChoiceSheet({
                     ) : null}
                   </View>
                   {selected ? (
-                    <Check size={18} color={colors.accentBlue} strokeWidth={2.6} />
+                    <Check size={18} color={colors.accentBlue} />
                   ) : row.chevron ? (
                     <ChevronRight size={16} color={colors.textMuted} />
                   ) : null}

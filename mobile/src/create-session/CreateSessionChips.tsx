@@ -1,5 +1,5 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { Folder, GitBranch } from 'lucide-react-native'
+import { Folder, GitBranch, GitFork } from 'lucide-react-native'
 import type { TuiAgent } from '../../../src/shared/tui-agent'
 import { MobileAgentIcon } from '../components/MobileAgentIcon'
 import { colors, spacing, typography } from '../theme/mobile-theme'
@@ -36,22 +36,27 @@ export function CreateSessionChips({
   projectLabel,
   workspaceLabel,
   workspaceDisabled,
+  baseRef,
   agent,
   agentLabel,
   disabled,
   onOpenProject,
   onOpenWorkspace,
+  onOpenBaseRef,
   onOpenAgent
 }: {
   projectLabel: string
   workspaceLabel: string
   /** A folder has no Git, so its chip reads "No Git" and does not open. */
   workspaceDisabled: boolean
+  /** The base-branch chip, present only for a new worktree; read-only when the host cannot list. */
+  baseRef: { label: string; interactive: boolean } | null
   agent: TuiAgent | null
   agentLabel: string
   disabled: boolean
   onOpenProject: () => void
   onOpenWorkspace: () => void
+  onOpenBaseRef: () => void
   onOpenAgent: () => void
 }): React.JSX.Element {
   return (
@@ -75,6 +80,18 @@ export function CreateSessionChips({
         <GitBranch size={16} color={colors.textSecondary} strokeWidth={2} />
         <Text style={styles.label}>{workspaceLabel}</Text>
       </Chip>
+      {baseRef ? (
+        <Chip
+          accessibleName={`Base branch, ${baseRef.label}`}
+          disabled={disabled || !baseRef.interactive}
+          onPress={onOpenBaseRef}
+        >
+          <GitFork size={16} color={colors.textSecondary} strokeWidth={2} />
+          <Text style={styles.label} numberOfLines={1}>
+            {baseRef.label}
+          </Text>
+        </Chip>
+      ) : null}
       <Chip
         accessibleName={`Agent, ${agentLabel}`}
         disabled={disabled || agent === null}

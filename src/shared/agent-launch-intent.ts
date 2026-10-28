@@ -1,15 +1,6 @@
 /**
- * What a caller asks for when it wants an agent running somewhere, independent of which surface
- * asked and of whether the answer turns out to be a structured session or a terminal.
- *
- * Every launch surface builds one of these: the renderer's agent tabs and workspace creates,
- * mobile's create sheet and new-tab button, `orchestration.workerStart`, and the CLI. The host
- * resolves it once — settings default plus per-launch feasibility from
- * `structured-native-chat-launch-route` — so no surface carries its own copy of that decision.
- *
- * The intent deliberately does NOT name a mode. A caller states what it wants to happen, not how
- * to deliver it; picking structured vs terminal is the host's job and is reported back in the
- * receipt rather than requested here.
+ * What a caller asks for when it wants an agent running somewhere. The intent names no mode: the
+ * host picks structured vs terminal and reports it in the receipt.
  */
 
 import type { TuiAgent } from './tui-agent'
@@ -77,14 +68,8 @@ export type AgentLaunchIntent = {
    * per-call overrides remain terminal-only and the host reports that in `warning`.
    */
   agentArgs?: string | null
-  /**
-   * Where the agent starts, when that is not the workspace root — a resumed session's recorded
-   * subdirectory is the case that needs it.
-   *
-   * Unlike `agentArgs` this one DOES decide the route: only a terminal can be started somewhere
-   * other than its workspace, so a launch carrying one downgrades with `tui_launch_command` rather
-   * than running a structured session in the wrong directory.
-   */
+  /** Where the agent starts when not the workspace root. A directory other than the workspace
+   *  forces a terminal (`tui_launch_command`), since a chat runs in its workspace. */
   cwd?: string
   /**
    * Which surface the user acted on, for the `agent_started` telemetry triple. Never read as
@@ -98,6 +83,8 @@ export type AgentLaunchIntent = {
   /** The caller-minted id of the chat session a structured launch creates. Not a route input;
    *  refused when that session already exists. */
   sessionId?: string
+  /** A chat asked for over a terminal default; feasibility downgrades still apply. */
+  preferredMode?: 'chat'
 }
 
 /**
@@ -131,21 +118,8 @@ export type AgentLaunchOutcome =
   | {
       kind: 'terminal'
       handle: string
-      /**
-       * The pane the host minted for this agent, as `tabId:leafId` — read it with `parsePaneKey`.
-       *
-       * Identity, not placement. The host already mints this pair, bakes it into the PTY's
-       * environment and hands it to its own reveal; a client that draws its own tabs previously had
-       * no way to learn it, because a `term_*` handle is a main-side mapping the renderer cannot
-       * resolve. Where that pane goes — which group, what order, whether it takes focus — stays
-       * with the client and never rides this wire.
-       *
-       * One field rather than a `tabId`/`leafId` pair, because the key already carries both and two
-       * copies of one fact can disagree.
-       *
-       * Absent when this launch minted no pane, such as a reused terminal that was already running,
-       * or when the runtime could not report the pane it created.
-       */
+      /** The pane minted for this agent as `tabId:leafId` (read it with `parsePaneKey`). Identity,
+       *  not placement. Absent when the launch minted no pane or the runtime could not report it. */
       paneKey?: string
     }
 /**
@@ -189,17 +163,8 @@ export type AgentLaunchResult = {
   outcome: AgentLaunchOutcome
   /** The workspace the agent runs in, resolved or created. */
   worktreeId: string
-  /**
-   * The launch completed but something in it did not: a startup terminal that failed to spawn,
-   * untracked files that could not be copied. `worktree.create` returns this at the top level and
-   * mobile already surfaces it, so a launch that drops it lands the user on a workspace that is
-   * quietly incomplete.
-   *
-   * Top level rather than on the outcome, and deliberately the ONLY place a launch warning lives:
-   * it is produced by the create as often as by the surface, it applies to a structured session
-   * and a terminal alike, and a reader should not have to branch on `outcome.kind` to discover
-   * that the workspace it just opened is missing something.
-   */
+  /** The launch completed but something in it did not (a startup terminal failed, untracked files
+   *  were not copied). Top level, and the only place a launch warning lives, for either surface. */
   warning?: string
   /** Why the outcome is what it is — always populated, so a downgrade is never silent. */
   receipt: AgentLaunchModeReceipt
@@ -215,6 +180,8 @@ export type AgentLaunchMode = 'structured' | 'terminal'
  *  other member is a reason the preference could not be applied to this launch. */
 export type AgentLaunchModeReason =
   | 'user_default'
+  /** The caller's `preferredMode: 'chat'` overrode a terminal default. */
+  | 'caller_requested_chat'
   | 'remote_execution_host'
   | 'reused_terminal'
   | 'agent_without_structured_session'
@@ -357,16 +324,21 @@ export const AGENT_LAUNCH_RESERVED_CREATE_FIELDS = [
   'launchSource'
 ] as const
 
-/** Strips the reserved agent fields from a create payload. Callers migrating from
- *  `worktree.create` pass their existing params; this keeps a stale `startupAgent` from
- *  re-creating the agent-first path the router exists to replace. */
+/** Strips the reserved agent fields from a create payload, so a stale `startupAgent` cannot
+ *  re-create the agent-first path the router replaces. */
 export function withoutReservedAgentCreateFields<Create extends Readonly<Record<string, unknown>>>(
   create: Create
-): Create {
-  const stripped: Record<string, unknown> = { ...create }
-  for (const field of AGENT_LAUNCH_RESERVED_CREATE_FIELDS) {
-    delete stripped[field]
-  }
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: every reserved field is optional on a create payload, so dropping them leaves the caller's own shape.
-  return stripped as Create
+): Omit<Create, (typeof AGENT_LAUNCH_RESERVED_CREATE_FIELDS)[number]> {
+  const {
+    startupAgent: _startupAgent,
+    startupCommand: _startupCommand,
+    startupPrompt: _startupPrompt,
+    startupDraft: _startupDraft,
+    startupLaunchConfig: _startupLaunchConfig,
+    startupEnv: _startupEnv,
+    startupCommandDelivery: _startupCommandDelivery,
+    launchSource: _launchSource,
+    ...rest
+  } = create
+  return rest
 }

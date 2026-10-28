@@ -358,3 +358,80 @@ describe('launchCreateSession failure handling', () => {
     expect(sendRequest.mock.calls.filter(([method]) => method === 'agent.launch')).toHaveLength(1)
   })
 })
+
+describe('launchCreateSession chat preference and surface', () => {
+  const receipt = launchReceipt({ delivery: 'submit', outcome: 'journaled', messageId: 'm' })
+  const terminalReceipt = (detail: string) =>
+    ok({
+      worktreeId: 'wt-new',
+      outcome: { kind: 'terminal', handle: 'term-1' },
+      receipt: { mode: 'terminal', preferred: 'terminal', reason: 'wsl_execution_runtime', detail },
+      prompt: { delivery: 'submit', outcome: 'handed-to-terminal' }
+    })
+
+  it('asks for a chat on a new worktree and on the current checkout', async () => {
+    const created = fakeClient({ 'agent.launch': receipt })
+    await run(created.client, newWorktreePlan, { replay: false })
+    expect(paramsOf(created.sendRequest, 'agent.launch')).toMatchObject({ preferredMode: 'chat' })
+    const checkout = fakeClient({ 'worktree.ps': catalog, 'agent.launchReplay': receipt })
+    await run(checkout.client, { ...newWorktreePlan, kind: 'current-checkout' }, { replay: true })
+    expect(paramsOf(checkout.sendRequest, 'agent.launchReplay')).toMatchObject({
+      preferredMode: 'chat'
+    })
+  })
+
+  it('says so on landing when the host still built a terminal', async () => {
+    const { client } = fakeClient({
+      'agent.launch': terminalReceipt(
+        'This launch asked for a structured chat session, but this workspace runs under WSL; started a terminal agent instead.'
+      )
+    })
+    const result = await run(client, newWorktreePlan, { replay: false })
+    expect(result).toMatchObject({ ok: true })
+    expect(result.ok && result.warning).toMatch(/Opened as a terminal agent, not a chat\./)
+    expect(result.ok && result.warning).toMatch(/runs under WSL/)
+  })
+
+  it('says so on the current checkout too', async () => {
+    const { client } = fakeClient({
+      'worktree.ps': catalog,
+      'agent.launchReplay': terminalReceipt(
+        'Started a terminal agent, the default for new agent tabs in your settings.'
+      )
+    })
+    const result = await run(
+      client,
+      { ...newWorktreePlan, kind: 'current-checkout' },
+      { replay: true }
+    )
+    expect(result.ok && result.warning).toMatch(/not a chat/)
+  })
+
+  it('stays quiet when the host built the chat', async () => {
+    const { client } = fakeClient({ 'agent.launch': receipt })
+    const result = await run(client, newWorktreePlan, { replay: false })
+    expect(result).not.toHaveProperty('warning')
+  })
+})
+
+describe('launchCreateSession base branch', () => {
+  const receipt = launchReceipt({ delivery: 'submit', outcome: 'journaled', messageId: 'm' })
+
+  function createOf(sendRequest: ReturnType<typeof fakeClient>['sendRequest']) {
+    const params = paramsOf(sendRequest, 'agent.launch')
+    return params && typeof params === 'object' && 'target' in params ? params.target : undefined
+  }
+
+  it('creates the worktree from the picked branch', async () => {
+    const { client, sendRequest } = fakeClient({ 'agent.launch': receipt })
+    await run(client, { ...newWorktreePlan, baseBranch: 'origin/release' }, { replay: false })
+    expect(createOf(sendRequest)).toMatchObject({ create: { baseBranch: 'origin/release' } })
+  })
+
+  it('sends no base when none was picked, so the host default applies', async () => {
+    const { client, sendRequest } = fakeClient({ 'agent.launch': receipt })
+    await run(client, newWorktreePlan, { replay: false })
+    expect(createOf(sendRequest)).toMatchObject({ create: { repo: 'id:web' } })
+    expect(JSON.stringify(createOf(sendRequest))).not.toContain('baseBranch')
+  })
+})

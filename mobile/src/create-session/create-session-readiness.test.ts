@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { SetupHookDetails } from '../components/new-worktree-modal-types'
-import { createSessionLaunchBlocker, resolveCreateSessionSetup } from './create-session-readiness'
+import {
+  createSessionLaunchBlocker,
+  createSessionModeNote,
+  resolveCreateSessionSetup
+} from './create-session-readiness'
 
 const trust = { contentHash: 'hash-1', scriptContent: 'pnpm install' }
 
@@ -105,5 +109,18 @@ describe('createSessionLaunchBlocker', () => {
     expect(
       createSessionLaunchBlocker({ support: { replay: true }, workspaceMode: 'current-checkout' })
     ).toBeNull()
+  })
+})
+
+describe('createSessionModeNote', () => {
+  it('warns only on a host that does not read the chat preference', () => {
+    expect(createSessionModeNote({ replay: true })).toMatch(/default kind of tab/)
+    expect(createSessionModeNote({ replay: true, preferredMode: false })).toMatch(/default kind/)
+    expect(createSessionModeNote({ replay: true, preferredMode: true })).toBeNull()
+  })
+
+  it('stays quiet while the host is being read and on a host that cannot launch', () => {
+    expect(createSessionModeNote(null)).toBeNull()
+    expect(createSessionModeNote(false)).toBeNull()
   })
 })

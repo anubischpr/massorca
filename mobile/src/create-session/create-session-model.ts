@@ -17,6 +17,8 @@ export type CreateSessionSelection = {
   repoId: string | null
   workspaceMode: CreateSessionWorkspaceMode
   agent: TuiAgent | null
+  /** The branch a new worktree starts from; null leaves the choice to the host default. */
+  baseRef: string | null
 }
 
 export type CreateSessionHostOption = {
@@ -94,7 +96,8 @@ export function buildDefaultCreateSessionSelection(args: {
     hostId: repo ? repoHostId(repo) : LOCAL_EXECUTION_HOST_ID,
     repoId: repo?.id ?? null,
     workspaceMode: 'new-worktree',
-    agent: null
+    agent: null,
+    baseRef: null
   }
 }
 
@@ -109,7 +112,7 @@ export function chooseCreateSessionHost(
     return { ...selection, hostId }
   }
   const first = reposOnHost(repos, hostId)[0]
-  return { ...selection, hostId, repoId: first?.id ?? null, agent: null }
+  return { ...selection, hostId, repoId: first?.id ?? null, agent: null, baseRef: null }
 }
 
 export function chooseCreateSessionRepo(
@@ -122,12 +125,13 @@ export function chooseCreateSessionRepo(
     return selection
   }
   const hostId = repoHostId(repo)
-  // A different host detects different agents, so the pick is re-resolved there.
+  // A different host detects different agents, and a branch belongs to its repository.
   return {
     ...selection,
     repoId,
     hostId,
-    agent: hostId === selection.hostId ? selection.agent : null
+    agent: hostId === selection.hostId ? selection.agent : null,
+    baseRef: repoId === selection.repoId ? selection.baseRef : null
   }
 }
 
@@ -165,6 +169,14 @@ export function workspaceModeChipLabel(
     return 'No Git'
   }
   return selection.workspaceMode === 'new-worktree' ? 'New worktree' : 'Current checkout'
+}
+
+/** Only a new worktree has a base branch; the current checkout and a folder have none to pick. */
+export function showsBaseRefChip(
+  selection: CreateSessionSelection,
+  repo: MobileWorkspaceRepo | null
+): boolean {
+  return repo !== null && effectiveWorkspaceMode(selection, repo) === 'new-worktree'
 }
 
 export function parseWorkspaceMode(value: string): CreateSessionWorkspaceMode | null {

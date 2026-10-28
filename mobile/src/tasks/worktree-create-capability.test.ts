@@ -77,7 +77,7 @@ describe('readNewWorktreeRuntimeCapabilities', () => {
       worktreeCreateIdempotency: false,
       // Advertising the method is not advertising the ledger: `operationId` degrades silently on a
       // host that has one and not the other, so the two are answered separately.
-      agentLaunch: { replay: false },
+      agentLaunch: { replay: false, preferredMode: false },
       hostPlatform: 'darwin'
     })
   })
@@ -97,7 +97,7 @@ describe('readNewWorktreeRuntimeCapabilities', () => {
     ).resolves.toEqual({
       tasksSupported: false,
       worktreeCreateIdempotency: false,
-      agentLaunch: { replay: true },
+      agentLaunch: { replay: true, preferredMode: false },
       hostPlatform: 'darwin'
     })
   })
@@ -121,7 +121,7 @@ describe('readNewWorktreeRuntimeCapabilities', () => {
           }
         ])
       )
-    ).resolves.toMatchObject({ agentLaunch: { replay: false } })
+    ).resolves.toMatchObject({ agentLaunch: { replay: false, preferredMode: false } })
   })
 
   it('uses the bounded fallback for an old idempotent host without an advertisement', async () => {

@@ -1,17 +1,10 @@
 /**
- * The tab of an `agent.launch`, shown before the launch is admitted.
+ * The tab of an `agent.launch`, shown before the launch is admitted, so it does not wait on the
+ * cold cost of admission, workspace resolution and spawn. Only a launch with an operation id gets
+ * one: the launch record tells the pane which launch owns it and how it ended.
  *
- * Admission, workspace resolution, the mode decision and the daemon spawn each have a cold cost (a
- * Windows window still booting its first PowerShell measured ~0.55 s and ~1 s), and the tab used to
- * wait for all of them. It now waits for none: the host asks the window for the tab first, under ids
- * the spawn will bake into the agent's PTY, and the pane attaches to that process when it exists.
- *
- * Only a launch with an operation id gets one: the launch record is what tells the pane, then and
- * after a restart, which launch owns it and how it ended (`agent-launch-pane-attachment`).
- *
- * Best-effort by construction. Anything this cannot decide cheaply — a workspace it cannot resolve,
- * a chat-mode default, no window owning the layout, a pane already running something — skips the
- * early tab, and the launch's tab appears when it spawns, exactly as before.
+ * Best-effort: anything not cheaply decidable (an unresolved workspace, a chat-mode default, no
+ * window, a busy pane) skips it, and the tab appears when the agent spawns.
  */
 
 import { randomUUID } from 'node:crypto'
@@ -177,7 +170,8 @@ export async function publishAgentLaunchTabEarly(
       workspacePath: workspace.path,
       ...(params.cwd ? { cwd: params.cwd } : {})
     },
-    settings
+    settings,
+    ...(params.preferredMode ? { preferredMode: params.preferredMode } : {})
   })
   // A chat's tab is the session's; it appears when the session is created.
   if (preflight.mode !== 'terminal') {

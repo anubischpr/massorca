@@ -17,6 +17,8 @@ import {
 } from '../session/mobile-existing-agent-launch'
 import {
   readLandingPaneKey,
+  launchSurfaceNotice,
+  readLaunchSurface,
   type AgentLaunchSupport,
   type WorktreeCreateAgentLaunch
 } from '../tasks/agent-launch-request'
@@ -44,7 +46,6 @@ export type CreateSessionLaunchResult =
     }
   | { ok: false; message: string }
 
-/** What the setup script may do: its decision, and the notice shown when it will not run. */
 export type CreateSessionLaunchSetup = {
   decision: WorkspaceCreateSetupDecision
   notice: string | null
@@ -55,7 +56,6 @@ function joinWarnings(...parts: Array<string | null | undefined>): string | unde
   return joined || undefined
 }
 
-/** The raw capability list the existing-workspace launch gates on, rebuilt from what was probed. */
 function launchCapabilities(support: AgentLaunchSupport): string[] {
   return support.replay
     ? [AGENT_LAUNCH_RUNTIME_CAPABILITY, AGENT_LAUNCH_REPLAY_REQUIRED_RUNTIME_CAPABILITY]
@@ -136,7 +136,8 @@ async function launchInNewWorktree(args: {
       name,
       setupDecision: args.setup.decision,
       displayNameKind: 'generated',
-      nameWasGenerated: true
+      nameWasGenerated: true,
+      ...(plan.baseBranch ? { baseBranch: plan.baseBranch } : {})
     })
   })
   if ('error' in created) {
@@ -147,6 +148,7 @@ async function launchInNewWorktree(args: {
     created.promptDelivered === true
       ? created.warning
       : (created.warning ?? CREATE_SESSION_PROMPT_NOT_CONFIRMED_MESSAGE),
+    launchSurfaceNotice(created.surface),
     args.setup.notice
   )
   return {
@@ -190,6 +192,7 @@ async function launchInCurrentCheckout(args: {
         launched.promptDelivered === true
           ? hostWarning
           : hostWarning || CREATE_SESSION_PROMPT_NOT_CONFIRMED_MESSAGE,
+        launchSurfaceNotice(readLaunchSurface(launched.result)),
         args.setup.notice
       )
       const paneKey = readLandingPaneKey(launched.result)

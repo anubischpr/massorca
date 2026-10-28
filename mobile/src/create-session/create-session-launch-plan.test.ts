@@ -13,7 +13,8 @@ const selection: CreateSessionSelection = {
   hostId: 'local',
   repoId: 'web',
   workspaceMode: 'new-worktree',
-  agent: 'claude'
+  agent: 'claude',
+  baseRef: null
 }
 
 describe('createSessionSeedOptions', () => {
@@ -90,6 +91,30 @@ describe('buildCreateSessionLaunchPlan', () => {
       buildCreateSessionLaunchPlan({ ...args, picks: { accessMode: 'accept-edits' } })
         ?.sessionOptions
     ).toEqual({ accessMode: 'accept-edits' })
+  })
+})
+
+describe('buildCreateSessionLaunchPlan base branch', () => {
+  const args = { draft: 'go', selection, repo, picks: {}, effectiveModelId: null }
+
+  it('carries a picked base branch for a new worktree only', () => {
+    const picked = { ...selection, baseRef: 'origin/release' }
+    expect(buildCreateSessionLaunchPlan({ ...args, selection: picked })?.baseBranch).toBe(
+      'origin/release'
+    )
+    expect(
+      buildCreateSessionLaunchPlan({
+        ...args,
+        selection: { ...picked, workspaceMode: 'current-checkout' }
+      })
+    ).not.toHaveProperty('baseBranch')
+    expect(
+      buildCreateSessionLaunchPlan({ ...args, repo: folder, selection: picked })
+    ).not.toHaveProperty('baseBranch')
+  })
+
+  it('leaves the base to the host when nothing was picked', () => {
+    expect(buildCreateSessionLaunchPlan(args)).not.toHaveProperty('baseBranch')
   })
 })
 

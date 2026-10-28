@@ -1,19 +1,7 @@
 /**
- * Building mobile's `agent.launch` requests and reading their answers: a workspace create, and a
- * launch into a workspace that already exists.
- *
- * The create half issues a mobile workspace create through `agent.launch` rather than
- * `worktree.create`.
- *
- * `worktree.create` + `startupAgent` means "create the worktree agent-first": its startup terminal
- * IS the agent, so the structured branch below it is unreachable. That is why picking an agent on
- * the mobile create sheet always produced a PTY while the in-workspace "+" button produced a chat.
- * `agent.launch` carries the same create payload but lets the host settle the surface, so both
- * mobile entry points route the same way.
- *
- * The request is built from the caller's existing `worktree.create` params so the fallback path
- * stays byte-identical; the reserved agent fields are stripped here with the shared helper the
- * host applies anyway.
+ * Mobile's `agent.launch` requests and their answers: a workspace create, and a launch into an
+ * existing workspace. `worktree.create` + `startupAgent` creates the worktree agent-first, so its
+ * terminal IS the agent and a chat is unreachable; `agent.launch` lets the host settle the surface.
  */
 
 import {
@@ -23,6 +11,7 @@ import {
   type AgentLaunchResult
 } from '../../../src/shared/agent-launch-intent'
 import {
+  AGENT_LAUNCH_PREFERRED_MODE_RUNTIME_CAPABILITY,
   AGENT_LAUNCH_REPLAY_REQUIRED_RUNTIME_CAPABILITY,
   AGENT_LAUNCH_RUNTIME_CAPABILITY
 } from '../../../src/shared/agent-launch-runtime-capability'
@@ -37,16 +26,20 @@ import type { WorkspaceCreateParams } from './workspace-create-params'
 export type AgentLaunchSupport = {
   /** The host deduplicates operationId durably and refuses unknown or expired outcomes. */
   replay: boolean
+  /** The host reads `preferredMode`, so a chat asked for over a terminal default is honoured. */
+  preferredMode?: boolean
 }
 
-/** Reads the host's advertised capabilities; unsupported stays plain `false`. */
 export function readAgentLaunchSupport(
   capabilities: readonly string[] | null | undefined
 ): AgentLaunchSupport | false {
   if (!capabilities?.includes(AGENT_LAUNCH_RUNTIME_CAPABILITY)) {
     return false
   }
-  return { replay: capabilities.includes(AGENT_LAUNCH_REPLAY_REQUIRED_RUNTIME_CAPABILITY) }
+  return {
+    replay: capabilities.includes(AGENT_LAUNCH_REPLAY_REQUIRED_RUNTIME_CAPABILITY),
+    preferredMode: capabilities.includes(AGENT_LAUNCH_PREFERRED_MODE_RUNTIME_CAPABILITY)
+  }
 }
 
 export type WorktreeCreateAgentLaunch = {
@@ -73,6 +66,8 @@ export type AgentLaunchCreateOutcome = {
   promptDelivered?: boolean
   /** The pane key that lands the phone on the tab the launch built, when the host named it. */
   paneKey?: string
+  /** The surface the host built and its own sentence for why, from the launch receipt. */
+  surface?: { mode: 'structured' | 'terminal'; detail: string }
 }
 
 export function agentLaunchCreateParams(
@@ -86,7 +81,9 @@ export function agentLaunchCreateParams(
     ...(operationId ? { operationId } : {}),
     target: { kind: 'create-worktree', create: withoutReservedAgentCreateFields(create) },
     ...(extras?.prompt ? { prompt: extras.prompt } : {}),
-    ...(extras?.sessionOptions ? { sessionOptions: { ...extras.sessionOptions } } : {})
+    ...(extras?.sessionOptions ? { sessionOptions: { ...extras.sessionOptions } } : {}),
+    // Every agent the phone starts is meant to be a chat; only a blank terminal skips this builder.
+    preferredMode: 'chat'
   }
 }
 
@@ -113,6 +110,7 @@ export function agentLaunchExistingParams(args: {
     ...(args.prompt ? { prompt: args.prompt } : {}),
     // An older host drops it and the chat starts on the saved defaults, as before.
     ...(args.sessionOptions ? { sessionOptions: { ...args.sessionOptions } } : {}),
+    preferredMode: 'chat',
     ...(args.launchSource ? { launchSource: args.launchSource } : {}),
     ...(args.paneKey ? { paneKey: args.paneKey } : {}),
     ...(args.sessionId ? { sessionId: args.sessionId } : {}),
@@ -122,12 +120,8 @@ export function agentLaunchExistingParams(args: {
 }
 
 /**
- * Reads the launch receipt.
- *
- * Deliberately mode-blind: whichever surface the host built, it published and activated that tab
- * before answering, so the create flow navigates to the workspace and the host's own active-tab
- * marking decides what opens. That is why nothing here branches on `outcome.kind` to pick a
- * destination — a create-time guess would just race the snapshot that already knows.
+ * Reads the launch receipt, mode-blind on purpose: the host publishes and activates the tab before
+ * answering, so a create-time guess at the destination would only race its snapshot.
  */
 export function readAgentLaunchCreateOutcome(result: unknown): AgentLaunchCreateOutcome | null {
   if (!result || typeof result !== 'object' || !('worktreeId' in result)) {
@@ -142,12 +136,37 @@ export function readAgentLaunchCreateOutcome(result: unknown): AgentLaunchCreate
   const warning = readTrimmedWarning(result)
   const promptDelivered = readPromptDelivered(result)
   const paneKey = readLandingPaneKey(result)
+  const surface = readLaunchSurface(result)
   return {
     worktreeId,
     ...(warning ? { warning } : {}),
     ...(promptDelivered !== undefined ? { promptDelivered } : {}),
-    ...(paneKey ? { paneKey } : {})
+    ...(paneKey ? { paneKey } : {}),
+    ...(surface ? { surface } : {})
   }
+}
+
+/** Said when the host built a terminal for a launch that asked for a chat; null for a chat. */
+export function launchSurfaceNotice(surface: AgentLaunchCreateOutcome['surface']): string | null {
+  return surface?.mode === 'terminal'
+    ? `Opened as a terminal agent, not a chat. ${surface.detail}`.trim()
+    : null
+}
+
+/** For a host that opens its default kind of tab: a terminal may open instead of a chat. */
+export const AGENT_DEFAULT_TAB_NOTE =
+  'This computer will open its default kind of tab for the agent, which may be a terminal.'
+
+/** What the host built, so a terminal is never presented as a chat. Absent when it said nothing. */
+export function readLaunchSurface(source: object): AgentLaunchCreateOutcome['surface'] {
+  const receipt = 'receipt' in source ? source.receipt : undefined
+  if (!receipt || typeof receipt !== 'object' || !('mode' in receipt)) {
+    return undefined
+  }
+  const detail = 'detail' in receipt && typeof receipt.detail === 'string' ? receipt.detail : ''
+  return receipt.mode === 'structured' || receipt.mode === 'terminal'
+    ? { mode: receipt.mode, detail }
+    : undefined
 }
 
 /**
