@@ -461,3 +461,28 @@ Each task is one Conventional Commit with its tests; no AI attribution lines. No
   4. "Sent …" shows when the send is dispatched, not when the host accepts it.
   5. Not verified on a device: keyboard show and hide, the Android IME, the + menu layering, hold-to-talk, focus of the hidden capture, and dictation into the shell line.
 - Engram mirror `odd/mobile-chat-summary-artifacts/tasks`: not written here; the orchestrator owns it.
+
+## Round 12: T33 keyboard-up terminal layout (design v13)
+
+Approved design v13: with the keyboard up in the Terminal panel, the terminal sits above the composer and the keyboard, and the cursor line stays visible. T33 closes the T32 gap 1 (viewport shrink) for phone mode. Each task is one Conventional Commit with its tests; no AI attribution lines. No push, no PR.
+
+- [x] T33 The Terminal composer stands on the keyboard in phone mode, and the PTY refits once each way: `1e954b0a263`. It depends on the frame fix `bfaf99b3319`.
+
+### T33 evidence
+- Route: inline, single writer. Two feature commits, 15 files (one new types module, one new hook test file).
+- Frame source (`bfaf99b3319`): the PTY was fitted to the content frame, which also holds the panel's header, pills, footer and margins, not to the body the terminal fills. The panel body now reports its layout as the terminal frame. The content frame reports only while the panel is closed, and re-reports once when the panel closes. Found by reading the code: the content frame was the only reporter. Not reproduced on a device.
+- Layout (`1e954b0a263`): phone mode (`resolveTerminalKeyboardFit`) stands the composer on the keyboard with a bottom margin (`resolveTerminalComposerOffset`), not a translate. The terminal height comes from flex, the space between the condensed panel top and the composer top, with no measured constants. The header still hides while the keyboard is up.
+- Resize: a keyboard-resized frame refits while the keyboard is up (`keyboard-resizes-frame` in the reducer). The existing 150 ms debounce coalesces the show or hide churn. `isViewportRefitNeeded` sends no PTY resize when cols and rows are unchanged. After an applied refit, the document's `reflow` keeps the view at the bottom when it was there (`src/terminal/document/reflow.ts`). No new scroll message was added.
+- Desktop mode: the host keeps its size. `updateMobileViewport` answers `applied: false` in desktop mode (`src/main/runtime/orca-runtime-mobile-took-floor.ts`), so the phone does not resize there. Desktop mode keeps the translate lift (`computeActiveTerminalKeyboardLift`) and holds its refit until the keyboard closes.
+- Legacy: `MOBILE_LEGACY_SESSION_VIEWS` keeps the command dock and its translate. The no-resize comment in `MobileSessionContentRow` was the intentional avoidance; it now covers only desktop mode and the legacy path.
+- File size: the hook's option and dims types moved to `terminal-viewport-refit-options.ts` to stay under the 300-line lint cap. No disable.
+- Tests: `terminal-viewport-refit.test.ts` (reducer and `isViewportRefitNeeded`), `mobile-terminal-composer-layout.test.ts` (fit and offset), `terminal-keyboard-refit.test.tsx` (the hook with fake timers: show gives one resize with fewer rows, hide gives one resize back, churn coalesces into one resize, unchanged rows send nothing, desktop mode holds until close). `mobile-session-connection-retry.test.tsx` gained the two scope fields the presentation now reads.
+- Checks: `cd mobile && pnpm run typecheck` exit 0. `pnpm run typecheck:tests` has no errors in the touched files. Targeted `pnpm test` after the last code change: 7 files, 42 tests pass. `pnpm test src/session src/terminal`: 356 of 359 files and 3291 of 3296 tests pass. Failing: `mobile-native-chat-merged-snapshot-parity.test.ts` (4 timeouts under parallel load; 9 of 9 pass alone), `mobile-prompt-controller.test.ts` (load error), and `native-document-bundle.test.ts` (the known case). oxfmt and oxlint clean. `node config/scripts/check-changed-code-quality.mjs 69bf554c6c0`: 0 new findings across 15 files.
+- Gaps and consequences:
+  1. Composer size changes while the keyboard is up (key row, chord bar, "Sent" line) also resize the PTY, because the terminal ends above the composer. Each change is one debounced resize.
+  2. The Android path assumes the window does not resize with the IME, as the existing lift already did. The iOS lift keeps the home-indicator inset math.
+  3. Desktop mode still overlays the composer on the grid. The lift keeps the cursor line visible, but the grid's lower rows can sit under the composer. Owner decision whether it should shrink too.
+  4. Not verified on a device: keyboard show and hide on iOS and Android, the cursor line after the refit, the reflow scroll, resize traffic on an SSH host, the desktop-mode overlay, and the panel frame on a real Claude or terminal pane.
+
+### Next step
+- Parent: check the Terminal panel on a phone with the keyboard up and down, in phone and desktop mode, on Android and iOS. Then decide the desktop-mode overlay question (gap 3).
