@@ -32,3 +32,24 @@ export function resolveTerminalComposerLayout(
     showChordBar: showKeyRow && (!input.keyboardUp || input.chordBuilding || input.chordSentShowing)
   }
 }
+
+/**
+ * How the soft keyboard meets the Terminal panel. Phone mode drives the PTY size, so the composer
+ * stands on the keyboard and the terminal frame shrinks onto it. Desktop mode keeps the host's size
+ * (the host records a phone viewport without applying it), so the composer overlays the grid.
+ */
+export type TerminalKeyboardFit = 'resize' | 'overlay'
+
+export function resolveTerminalKeyboardFit(phoneMode: boolean): TerminalKeyboardFit {
+  return phoneMode ? 'resize' : 'overlay'
+}
+
+/** Where the composer sits above the keyboard: a bottom margin shrinks the frame above it, a translate overlays it. */
+export function resolveTerminalComposerOffset(
+  fit: TerminalKeyboardFit,
+  keyboardLift: number
+): { readonly marginBottom: number; readonly translateY: number } {
+  return fit === 'resize'
+    ? { marginBottom: keyboardLift, translateY: 0 }
+    : { marginBottom: 0, translateY: -keyboardLift }
+}

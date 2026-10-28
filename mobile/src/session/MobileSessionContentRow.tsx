@@ -53,7 +53,7 @@ export function MobileSessionContentRow({ controller }: { controller: MobileSess
           </View>
         ) : null}
         <MobileSessionActiveContent controller={controller} />
-        {/* Why: translate instead of resize so keyboard toggles don't trigger a server-side PTY viewport change. */}
+        {/* Why: phone mode shrinks the terminal frame onto the keyboard; desktop mode keeps the host size and overlays by translate. */}
         {MOBILE_LEGACY_SESSION_VIEWS ? (
           <MobileSessionCommandDock controller={controller} />
         ) : (

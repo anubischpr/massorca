@@ -27,6 +27,8 @@ function present(forceReconnectHost: ForceReconnect): Presentation {
     creatingMarkdown: false,
     keyboardHeight: 0,
     terminalKeyboardMetrics: new Map(),
+    terminalModes: new Map(),
+    notifyKeyboardResizesFrame: () => {},
     toastOpacityRef: { current: 1 },
     hostEndpoint: null,
     initialSessionAutoCreateRef: { current: null },
