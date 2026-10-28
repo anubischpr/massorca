@@ -1,6 +1,8 @@
+import { MobileAgentIcon } from '../components/MobileAgentIcon'
 import { CreateSessionBaseRefSheet } from './CreateSessionBaseRefSheet'
 import { CreateSessionChoiceSheet } from './CreateSessionChoiceSheet'
 import { CreateSessionMoreSheet, type CreateSessionMoreAction } from './CreateSessionMoreSheet'
+import { createSessionAgentChoiceValue } from './create-session-agent-choices'
 import type { CreateSessionController } from './use-create-session-controller'
 
 export type CreateSessionSheet = 'host' | 'project' | 'mode' | 'baseRef' | 'agent' | 'more' | null
@@ -80,10 +82,25 @@ export function CreateSessionSheets({
               : undefined
             : 'Looking for agents on this computer…'
         }
-        rows={controller.agentChoices}
+        rows={controller.agentChoices.map((choice) => ({
+          value: choice.value,
+          label: choice.label,
+          description: '',
+          leading: (
+            <MobileAgentIcon
+              agentId={choice.agent}
+              piRuntime={choice.piRuntime ?? undefined}
+              size={18}
+            />
+          )
+        }))}
         searchable
         emptyMessage="No agent found on this computer. Install one, then reopen this screen."
-        selectedValue={selection?.agent}
+        selectedValue={
+          selection?.agent
+            ? createSessionAgentChoiceValue(selection.agent, selection.piRuntime)
+            : null
+        }
         onSelect={(value) => {
           controller.chooseAgent(value)
           close()

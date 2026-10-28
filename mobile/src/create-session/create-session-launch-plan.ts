@@ -1,4 +1,5 @@
 import { narrowStructuredLaunchSeedOptions } from '../../../src/shared/native-chat-session-option-defaults'
+import type { PiRuntimeSelection } from '../../../src/shared/pi-runtime-selection'
 import type { TuiAgent } from '../../../src/shared/tui-agent'
 import type { MobileWorkspaceRepo } from '../components/new-worktree-modal-types'
 import {
@@ -19,6 +20,8 @@ export type CreateSessionLaunchPlan = {
   kind: CreateSessionWorkspaceMode
   repoId: string
   agent: TuiAgent
+  /** The Pi runtime a Pi plan runs; absent for every other agent. */
+  piRuntime?: PiRuntimeSelection
   prompt: string
   /** Absent when nothing was picked, so the host seeds the saved defaults itself. */
   sessionOptions?: Record<string, string>
@@ -74,6 +77,7 @@ export function buildCreateSessionLaunchPlan(args: {
     kind,
     repoId: repo.id,
     agent: selection.agent,
+    ...(selection.agent === 'pi' && selection.piRuntime ? { piRuntime: selection.piRuntime } : {}),
     prompt,
     ...(sessionOptions ? { sessionOptions } : {}),
     ...(kind === 'new-worktree' && selection.baseRef ? { baseBranch: selection.baseRef } : {})
