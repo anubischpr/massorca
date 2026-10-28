@@ -54,7 +54,12 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
   - Open decision: the example "Explore a new tool release and list features to adopt, read-only" gives tier 4, not 3, because "release" is a high-risk keyword and high risk floors the tier at 4. Without the word it gives tier 3 (tested). The keyword list stays as written until decided (drop or narrow "release", or change the example).
   - Checks: `pnpm exec vitest run --config config/vitest.config.ts src/main/delegated-session` → 4 files, 78 passed. `pnpm exec oxlint` on the new files → exit 0. `oxfmt --check` → clean. `pnpm tc:node` → exit 0. `ORCA_CODE_QUALITY_BASE=HEAD pnpm run check:code-quality:changed` → 0 findings in 9 files (the default base `origin/main` lists about 2,300 changed files on this long-lived branch and overflows the Windows argv limit).
   - Runtime harness: N/A (pure functions). Rollback: delete `src/main/delegated-session/` and `src/shared/delegated-session-types.ts`.
-- [ ] T2 — Usage adapter: TuiAgent → rate-limit provider mapping, snapshot → router usage input, staleness; tests. Route: delegated direct.
+- [x] T2 — Usage adapter: TuiAgent → rate-limit provider mapping, snapshot → router usage input, staleness; tests. Route: delegated direct.
+  - File: `src/main/delegated-session/delegation-usage-input.ts` (pure). Input is the `RateLimitState` that `RateLimitService.getState()` (public, `src/main/rate-limits/service/service-configuration.ts`) returns, so T4 wires the live read in one call.
+  - Mapping: claude → `claude`, codex → `codex`, antigravity → `antigravity`, pi on Gentle Shell → `nan`. Stock Pi has no meter in `RateLimitState`, so it stays no-data (60%). `grok`, `omp` and `opencode` are not mapped, per the brief (ACP agents); `grok` does exist in `RateLimitState` if the brief changes.
+  - Sample: 5-hour and weekly used percent; `limitReached` when a window reaches 100%; `fetchedAt` is the provider's `updatedAt`, so the router's 15-minute staleness applies. Top-level entries are the active account only.
+  - Checks: `pnpm exec vitest run --config config/vitest.config.ts src/main/delegated-session` → 5 files, 85 passed. `pnpm exec oxlint` on the new files → exit 0. `oxfmt --check` → clean. `pnpm tc:node` → exit 0. `ORCA_CODE_QUALITY_BASE=HEAD pnpm run check:code-quality:changed` → 0 findings in 2 files.
+  - Runtime harness: N/A (pure function). Rollback: delete `src/main/delegated-session/delegation-usage-input.ts` and its test.
 - [ ] T3 — Orchestration link: `parentSessionId` on dispatch, structured-coordinator worker_done delivery as a journal notice, projection nesting by session; tests. Route: delegated direct.
 - [ ] T4 — Host RPC `agentSession.delegate` + `orca session delegate` CLI; question item with `delegation` extension; answer → router → launch via orchestration with inherited access; capability; tests. Route: delegated direct.
 - [ ] T5 — Desktop: rich card in `NativeChatQuestionCard`, why-detail, completion notice, sidebar nesting; tests. Route: delegated direct.
@@ -71,7 +76,8 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
 ## Progress
 
 - 2026-10-28: feature doc created after prototype approval.
-- 2026-10-28: T1 committed as `feat(delegation): add deterministic delegated-session router` (SHA recorded in the T2 progress line). Authored lines: 1126 (554 production, 572 tests), above the ~400 planning heuristic; not split, because the classifier, ranking, tiers and router form one contract.
+- 2026-10-28: T1 committed as `0b9424cbc5c` (`feat(delegation): add deterministic delegated-session router`). Authored lines: 1126 (554 production, 572 tests), above the ~400 planning heuristic; not split, because the classifier, ranking, tiers and router form one contract.
+- 2026-10-28: T2 implemented on top of `0b9424cbc5c`. Authored lines: 172 (52 production, 120 tests). Running total: 1298 of the forecast 2000–2800. Open decision from T1 (the "release" example) still stands.
 
 ## Follow-ups
 
