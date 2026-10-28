@@ -97,6 +97,30 @@ export const preflightDetectRemoteAgentsRead = bindDeferredRpcOperation(
 )
 
 /**
+ * The Pi runtimes a host has, read apart from the agent ids so an older host's id list is unchanged.
+ * Advisory: a refused or missing answer leaves the Pi row as it was, so skip rather than throw.
+ */
+export const preflightDetectPiRuntimesRead = bindDeferredRpcOperation(
+  defineRpcOperation({
+    name: 'preflight.detect-pi-runtimes',
+    method: 'preflight.detectPiRuntimes',
+    acceptance: 'success-result-or-skip',
+    barrier: 'after-caller-barrier',
+    read: rpcResultVariant('detected-agents', detectedAgentsSchema)
+  })
+)
+
+export const preflightDetectRemotePiRuntimesRead = bindDeferredRpcOperation(
+  defineRpcOperation({
+    name: 'preflight.detect-remote-pi-runtimes',
+    method: 'preflight.detectRemotePiRuntimes',
+    acceptance: 'success-result-or-skip',
+    barrier: 'after-caller-barrier',
+    read: rpcResultVariant('detected-agents', detectedAgentsSchema)
+  })
+)
+
+/**
  * The session tab snapshot the reconciliation controller polls. Its own generation, barrier and
  * application-revision guards decide whether a reply may be applied, all of which run before the
  * payload is read, so the controller keeps the raw reply and reports the refusal to its owner.

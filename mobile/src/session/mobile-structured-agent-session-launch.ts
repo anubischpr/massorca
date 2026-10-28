@@ -94,16 +94,22 @@ function classifyCreateRefusal(
   return { kind: 'failed', message: message || failedMessage(agent) }
 }
 
+/** `piRuntime` names the Pi runtime a row starts; without it the host picks, as before. */
 export async function createMobileStructuredAgentSession(
   client: RpcClient,
   worktreeId: string,
-  agent: StructuredAgentId
+  agent: StructuredAgentId,
+  piRuntime?: PiRuntimeSelection
 ): Promise<MobileStructuredAgentLaunchResult> {
   const worktree = `id:${worktreeId}`
   let supportResponse
   for (let attempt = 0; ; attempt += 1) {
     try {
-      supportResponse = await structuredAgentSupportProbe.request(client, { worktree, agent })
+      supportResponse = await structuredAgentSupportProbe.request(client, {
+        worktree,
+        agent,
+        ...(piRuntime ? { piRuntime } : {})
+      })
     } catch (error) {
       const retryDelayMs = CREATE_SUPPORT_RETRY_DELAYS_MS[attempt]
       if (
@@ -142,7 +148,7 @@ export async function createMobileStructuredAgentSession(
   const params = createParamsFor(
     agent,
     worktree,
-    agent === 'pi' ? hostAnsweredPiRuntime(support) : undefined
+    piRuntime ?? (agent === 'pi' ? hostAnsweredPiRuntime(support) : undefined)
   )
   rememberMobileCreatedStructuredSession(params.envelope.sessionId, worktree)
   let response

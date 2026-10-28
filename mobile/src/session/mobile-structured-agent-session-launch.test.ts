@@ -147,6 +147,32 @@ describe('mobile structured agent-session launch', () => {
     })
   })
 
+  it('starts the Pi runtime the row names, over the one the host answers, and probes that runtime', async () => {
+    const client = clientReturning(
+      { ok: true, result: { supported: true, piRuntime: 'pi' } },
+      {
+        ok: true,
+        result: {
+          ...acceptedCreateResult,
+          value: { ...acceptedCreateResult.value, sessionId: 'gentle_shell_session_1' }
+        }
+      }
+    )
+
+    await expect(
+      createMobileStructuredAgentSession(client, 'workspace-1', 'pi', 'gentle-shell')
+    ).resolves.toMatchObject({ kind: 'created', sessionId: 'gentle_shell_session_1' })
+    expect(client.sendRequest).toHaveBeenNthCalledWith(1, 'agentSession.createSupport', {
+      worktree: 'id:workspace-1',
+      agent: 'pi',
+      piRuntime: 'gentle-shell'
+    })
+    expect(client.sendRequest.mock.calls[1]?.[1]).toMatchObject({
+      agent: 'pi',
+      piRuntime: 'gentle-shell'
+    })
+  })
+
   it('takes the Pi runtime from the seed options when the probe answers only there', async () => {
     const client = clientReturning(
       { ok: true, result: { supported: true, seedOptions: { piRuntime: 'gentle-shell' } } },

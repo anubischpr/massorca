@@ -9,6 +9,7 @@ import {
 } from './session-panel-host'
 import { MobileAgentIcon } from '../components/MobileAgentIcon'
 import { chatTabToReturnTo, terminalTabToOpen } from './mobile-terminal-panel-model'
+import { promptLaunchAgentOptions } from './mobile-new-tab-agent-options'
 import type { MobileSessionPresentationModel } from './use-mobile-session-presentation'
 
 export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentationModel) {
@@ -60,7 +61,7 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
             ),
             onPress: () => {
               setShowCreateTabDrawer(false)
-              void handleCreateTerminal(option.agent)
+              void handleCreateTerminal(option.agent, undefined, option.piRuntime)
             }
           }))
         : createTabAgentLoadState === 'loaded'
@@ -83,6 +84,7 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
                 }
               ]
             : []
+  const promptAgentOptions = promptLaunchAgentOptions(createTabAgentOptions)
   const sendDiffNotesAgentActions =
     pendingDiffNotesDelivery === null
       ? []
@@ -96,8 +98,8 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
               onPress: () => {}
             }
           ]
-        : createTabAgentOptions.length > 0
-          ? createTabAgentOptions.map((option) => ({
+        : promptAgentOptions.length > 0
+          ? promptAgentOptions.map((option) => ({
               label: option.label,
               hint: 'New agent session',
               icon: Bot,
