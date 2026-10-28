@@ -1,14 +1,8 @@
 /**
- * The wire shape of `agent.launch`, mirroring `AgentLaunchIntent`.
- *
- * A caller states WHERE the agent lands and WHAT it should say; it never names a mode. There is
- * deliberately no `structured` / `terminal` field and no startup-agent field on the create
- * payload — the host decides, and `withoutReservedAgentCreateFields` strips a stale one out of a
- * payload a caller migrated over from `worktree.create`.
- *
- * Shared rather than main-side because every field resolves to a shared schema: a remote client
- * that sends this method needs `RpcSendParams<'agent.launch'>` to exist, and a method missing from
- * the catalog can only be sent through the raw request port.
+ * The wire shape of `agent.launch`, mirroring `AgentLaunchIntent`. A caller states WHERE the agent
+ * lands and WHAT it should say, never a mode; `preferredMode` is the one hint, a preference for a
+ * chat that overrides only the user's default, never feasibility. Shared so a remote client has
+ * `RpcSendParams<'agent.launch'>`.
  */
 
 import { z } from 'zod'
@@ -34,14 +28,14 @@ const LaunchAgent = z
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the superRefine above rejects anything isTuiAgent refuses, so the transform only ever runs on a TuiAgent.
   .transform((value): TuiAgent => value as TuiAgent)
 
-/** The launch's fields without the cross-field check, for building an older host's shape in tests;
- *  every receiver parses `AgentLaunch` or `AgentLaunchReplay`. */
 /** A layout id the caller may get wrong without failing the launch: anything but a string is dropped. */
 const tolerantTabLayoutId = z
   .unknown()
   .transform((value): string | undefined => (typeof value === 'string' ? value : undefined))
   .optional()
 
+/** The launch's fields without the cross-field check, for building an older host's shape in tests;
+ *  every receiver parses `AgentLaunch` or `AgentLaunchReplay`. */
 export const AgentLaunchFields = z.object({
   agent: LaunchAgent,
   /**
@@ -132,6 +126,12 @@ export const AgentLaunchFields = z.object({
     .object({ groupId: tolerantTabLayoutId, afterTabId: tolerantTabLayoutId })
     .optional()
     .catch(undefined),
+  /** Asks for a chat over a terminal default; open like `presentation`, outside the replay
+   *  fingerprint like the default itself, read by hosts advertising `agent.launch.preferred-mode.v1`. */
+  preferredMode: z
+    .unknown()
+    .transform((value): 'chat' | undefined => (value === 'chat' ? 'chat' : undefined))
+    .optional(),
   /** `terminal.create`'s field, with its meaning: `focused` selects the new tab, `background` moves
    *  nothing; absent reveals it, as before. Whose view that is follows main's navigation default for
    *  the caller, so a paired device moves only its own selection. Outside the fingerprint for the
