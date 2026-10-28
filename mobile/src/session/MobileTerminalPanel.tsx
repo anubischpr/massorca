@@ -37,6 +37,7 @@ export function MobileTerminalPanel({
     showLoadingState,
     keyboardLift,
     returnToChat,
+    notifyTerminalFrame,
     worktreeId
   } = controller
   // The soft keyboard takes the header's room; the terminal pills stay in reach.
@@ -125,7 +126,8 @@ export function MobileTerminalPanel({
               />
             ))}
           </ScrollView>
-          <View style={styles.body}>
+          {/* Why: the terminal fills this body, not the whole content frame, so the PTY fits here. */}
+          <View style={styles.body} onLayout={(e) => notifyTerminalFrame(e.nativeEvent.layout)}>
             <MobileTerminalPaneStack controller={controller} />
             {selected?.pending ? (
               <View style={styles.pendingOverlay}>
