@@ -133,7 +133,10 @@ export function MobileNativeChatSessionOptionPickers({
   const summaryOptions = sortNativeChatSessionOptions(snapshot).filter(
     (descriptor) => descriptor.id !== 'effort' && descriptor.id !== 'accessMode'
   )
-  const disabled = isWorking || pendingId !== null || sendInFlight
+  const modelKnown = model.kind.type === 'select' && model.kind.currentValue !== undefined
+  // The options answer is pending and nothing names the model yet: the pill reads Loading… and locks.
+  const modelLoading = controller.loading === true && !modelKnown
+  const disabled = isWorking || pendingId !== null || sendInFlight || modelLoading
   const activeDescriptor = snapshot.find((descriptor) => descriptor.id === openDescriptorId)
   const modelView = activeDescriptor?.id === model.id
   const backToModels = activeDescriptor !== undefined && !modelView && returnsToModels
@@ -145,7 +148,7 @@ export function MobileNativeChatSessionOptionPickers({
   const navigatesBack = moreView || backToModels
   const accessSheet = activeDescriptor?.id === 'accessMode'
   const reason = mobileSessionOptionDisabledReason(activeDescriptor?.disabledReason)
-  const modelLabel = mobileModelPillLabel(model)
+  const modelLabel = mobileModelPillLabel(model, modelLoading)
   const fast = isMobileFastModeOn(snapshot)
   const effortLabel = (effort ? mobileSelectedChoiceLabel(effort) : null) ?? 'Not set'
   const accessValue = access ? mobileAccessCurrentValue(access) : 'inherit'
@@ -155,8 +158,6 @@ export function MobileNativeChatSessionOptionPickers({
   const agentLabel = agent ? formatAgentRowTypeLabel({ agentType: agent }, piRuntime) : 'the agent'
   const agentPickerNote = (descriptor: SessionOptionDescriptor): string =>
     `Opens ${agentLabel}'s own ${descriptor.id === model.id ? 'model ' : ''}picker in the terminal`
-  const modelKnown = model.kind.type === 'select' && model.kind.currentValue !== undefined
-
   const closePicker = (): void => {
     setOpenDescriptorId(null)
     setInMoreModels(false)

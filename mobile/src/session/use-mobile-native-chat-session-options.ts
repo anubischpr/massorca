@@ -40,6 +40,8 @@ export type MobileNativeChatSessionOptionsController = {
   snapshot: SessionOptionDescriptor[]
   /** Descriptor id with a dispatch in flight; the UI disables rows meanwhile. */
   pendingId: string | null
+  /** The structured options answer is pending; an unknown model then reads Loading… */
+  loading?: boolean
   setOption: (id: string, value: SessionOptionValue) => Promise<boolean>
   invokeAction: (id: string) => Promise<boolean>
   /** Track a slash command the user typed themselves (e.g. `/model sonnet`). */

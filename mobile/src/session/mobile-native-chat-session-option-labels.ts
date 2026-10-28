@@ -51,8 +51,13 @@ export function mobileSelectedChoiceLabel(descriptor: SessionOptionDescriptor): 
   return choice.label
 }
 
+const LOADING_MODEL_PILL_LABEL = 'Loading…'
+
 /** Value-only pill text — the category lives on the sheet title, not the pill. */
-export function mobileModelPillLabel(descriptor: SessionOptionDescriptor): string {
+export function mobileModelPillLabel(descriptor: SessionOptionDescriptor, loading = false): string {
+  if (loading) {
+    return LOADING_MODEL_PILL_LABEL
+  }
   return mobileSelectedChoiceLabel(descriptor) ?? descriptor.label
 }
 

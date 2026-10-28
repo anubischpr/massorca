@@ -271,6 +271,63 @@ describe('MobileNativeChatSessionOptionPickers', () => {
     renderer = null
   })
 
+  it('shows a disabled Loading… pill with no effort or access buttons while the options are pending', () => {
+    const unknownModel: SessionOptionDescriptor = {
+      id: 'model',
+      label: 'Model',
+      category: 'model',
+      kind: { type: 'select', choices: [] },
+      valueSource: 'unknown',
+      transport: 'agent-session',
+      settable: false,
+      disabledReason: 'available-after-session-start'
+    }
+    act(() => {
+      renderer = create(
+        createElement(MobileNativeChatSessionOptionPickers, {
+          controller: {
+            snapshot: [unknownModel],
+            pendingId: null,
+            setOption,
+            invokeAction,
+            recordCommand: vi.fn(),
+            loading: true
+          },
+          isWorking: false
+        })
+      )
+    })
+    expect(control('Model').props).toMatchObject({
+      accessibilityLabel: 'Model, Loading…',
+      disabled: true
+    })
+    expect(texts()).toContain('Loading…')
+    expect(controls('Effort')).toHaveLength(0)
+    expect(controls('Access')).toHaveLength(0)
+  })
+
+  it('keeps a known model name enabled while the options answer is still pending', () => {
+    act(() => {
+      renderer = create(
+        createElement(MobileNativeChatSessionOptionPickers, {
+          controller: {
+            snapshot: [MODEL_DESCRIPTOR],
+            pendingId: null,
+            setOption,
+            invokeAction,
+            recordCommand: vi.fn(),
+            loading: true
+          },
+          isWorking: false
+        })
+      )
+    })
+    expect(control('Model').props).toMatchObject({
+      accessibilityLabel: 'Model, Sonnet 5',
+      disabled: false
+    })
+  })
+
   it('renders nothing without a model descriptor', () => {
     mount([])
     expect(renderer!.toJSON()).toBeNull()
