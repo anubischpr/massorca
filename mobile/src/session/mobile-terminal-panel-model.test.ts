@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { getWorktreePathBasenameFromId } from '../../../src/shared/worktree/id'
 import type { MobileSessionTab } from './mobile-session-route-types'
 import {
   chatTabToReturnTo,
@@ -8,7 +7,6 @@ import {
   newTerminalTabId,
   terminalPanelPills,
   terminalPanelTitle,
-  terminalReadyHint,
   terminalTabToOpen,
   terminalTabsOf,
   type TerminalTab
@@ -170,23 +168,8 @@ describe('terminalPanelTitle', () => {
     expect(terminalPanelTitle(3)).toBe('TERMINALS · 3')
   })
 
-  it('names the worktree folder the terminals open in', () => {
-    expect(terminalPanelTitle(2, 'dolphin')).toBe('TERMINALS · 2 in dolphin')
+  it('names the worktree by its display name, not its folder', () => {
+    expect(terminalPanelTitle(2, 'Fix parser')).toBe('TERMINALS · 2 in Fix parser')
     expect(terminalPanelTitle(2, null)).toBe('TERMINALS · 2')
-  })
-})
-
-describe('terminalReadyHint', () => {
-  it('says where a fresh terminal is ready', () => {
-    expect(terminalReadyHint('dolphin')).toBe('Ready in dolphin — type a command')
-    expect(terminalReadyHint(null)).toBe('Ready — type a command')
-  })
-})
-
-describe('worktree folder from the worktree id', () => {
-  it('reads the folder of POSIX and Windows paths alike', () => {
-    expect(getWorktreePathBasenameFromId('repo::/home/me/orca/workspaces/dolphin')).toBe('dolphin')
-    expect(getWorktreePathBasenameFromId('repo::C:\\Users\\me\\orca\\dolphin\\')).toBe('dolphin')
-    expect(getWorktreePathBasenameFromId('folder:abc')).toBeNull()
   })
 })

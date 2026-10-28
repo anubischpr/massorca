@@ -280,11 +280,7 @@ export function MobileTerminalComposerDock({
             disabled={!canSend}
             onPress={focusLiveInput}
             style={styles.tapArea}
-          >
-            <Text numberOfLines={1} style={styles.tapAreaText}>
-              {tapAreaLabel(dictation.isRecording, dictation.isProcessing, isAttaching)}
-            </Text>
-          </Pressable>
+          />
           {keyboardUp ? (
             <Pressable
               accessibilityRole="button"
@@ -348,17 +344,4 @@ export function MobileTerminalComposerDock({
       />
     </View>
   )
-}
-
-function tapAreaLabel(isRecording: boolean, isProcessing: boolean, isAttaching: boolean): string {
-  if (isRecording) {
-    return 'Listening'
-  }
-  if (isProcessing) {
-    return 'Transcribing on desktop'
-  }
-  if (isAttaching) {
-    return 'Uploading image to host'
-  }
-  return 'Tap to type'
 }

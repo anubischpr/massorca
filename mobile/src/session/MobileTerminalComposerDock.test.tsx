@@ -130,6 +130,17 @@ describe('MobileTerminalComposerDock (Terminal panel composer)', () => {
     expect(tree).toContain('"accessibilityLabel":"Show keyboard for terminal input"')
   })
 
+  it('leaves the tap area empty: no label sits between Phone and the mic', () => {
+    const { controller } = createController()
+    const mounted = renderComposer(controller)
+    const [tapArea] = mounted.root.findAll(
+      (node) => node.props.accessibilityLabel === 'Show keyboard for terminal input'
+    )
+
+    expect(treeOf(mounted)).not.toContain('Tap to type')
+    expect(tapArea?.findAll((node) => String(node.type) === 'Text')).toHaveLength(0)
+  })
+
   it('sends a carriage return when Enter is pressed', () => {
     const { controller, spies } = createController()
     const mounted = renderComposer(controller)
