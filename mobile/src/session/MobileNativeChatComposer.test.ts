@@ -2,6 +2,7 @@ import { createElement, createRef, StrictMode, type ComponentProps } from 'react
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { Keyboard, type TextInput } from 'react-native'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { SessionOptionDescriptor } from '../../../src/shared/native-chat-session-options'
 import { radii, spacing } from '../theme/mobile-theme'
 import { MobileNativeChatComposer as NativeChatComposer } from './MobileNativeChatComposer'
 
@@ -31,6 +32,7 @@ vi.mock('react-native', async () => {
     },
     Text: 'Text',
     TextInput: 'TextInput',
+    useWindowDimensions: () => ({ width: 390, height: 844 }),
     View: 'View'
   }
 })
@@ -41,11 +43,19 @@ vi.mock('lucide-react-native', () => ({
   ChevronDown: 'ChevronDown',
   ChevronLeft: 'ChevronLeft',
   ChevronRight: 'ChevronRight',
+  Eye: 'Eye',
   ImagePlus: 'ImagePlus',
+  Lock: 'Lock',
+  LockKeyhole: 'LockKeyhole',
+  LockOpen: 'LockOpen',
   Mic: 'Mic',
+  NotebookPen: 'NotebookPen',
   Square: 'Square',
-  X: 'X'
+  X: 'X',
+  Zap: 'Zap'
 }))
+
+vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: 'MobileAgentIcon' }))
 
 vi.mock('../components/BottomDrawer', async () => {
   const React = await import('react')
@@ -212,6 +222,91 @@ describe('MobileNativeChatComposer', () => {
       await pressed
     })
     expect(modelPill().props.accessibilityState).toMatchObject({ disabled: false })
+  })
+
+  it('lays the action row out as attach, model, effort, access, dictate, send', async () => {
+    const snapshot: SessionOptionDescriptor[] = [
+      {
+        id: 'model',
+        label: 'Model',
+        category: 'model',
+        kind: {
+          type: 'select',
+          currentValue: 'sonnet',
+          choices: [
+            { value: 'sonnet', label: 'Sonnet 5' },
+            { value: 'opus', label: 'Opus 4.8' }
+          ]
+        },
+        valueSource: 'reported',
+        transport: 'agent-session',
+        settable: true
+      },
+      {
+        id: 'effort',
+        label: 'Effort',
+        category: 'thought_level',
+        kind: {
+          type: 'select',
+          currentValue: 'high',
+          choices: [
+            { value: 'low', label: 'Low' },
+            { value: 'high', label: 'High' }
+          ]
+        },
+        valueSource: 'reported',
+        transport: 'agent-session',
+        settable: true
+      },
+      {
+        id: 'accessMode',
+        label: 'accessMode',
+        category: 'mode',
+        kind: {
+          type: 'select',
+          currentValue: 'default',
+          choices: [{ value: 'default', label: 'default' }]
+        },
+        valueSource: 'reported',
+        transport: 'agent-session',
+        settable: true
+      }
+    ]
+    await act(async () => {
+      renderer = create(
+        createElement(MobileNativeChatComposer, {
+          value: '',
+          onChangeText: vi.fn(),
+          onSend: vi.fn().mockResolvedValue(true),
+          sendSurfaceId: 'tab-a',
+          getSendCompletionGeneration: getCurrentSendCompletionGeneration,
+          onAttachImage: vi.fn(),
+          onMicPress: vi.fn(),
+          sessionOptions: {
+            isWorking: false,
+            controller: {
+              snapshot,
+              pendingId: null,
+              setOption: vi.fn(),
+              invokeAction: vi.fn(),
+              recordCommand: vi.fn()
+            }
+          }
+        })
+      )
+    })
+    const actions = renderer!.root.findByProps({ testID: 'native-chat-composer-actions' })
+    const controlsInOrder = actions
+      .findAll((node) => node.type === 'Pressable')
+      .map((node) => node.props.accessibilityLabel)
+    expect(controlsInOrder).toEqual([
+      'Attach image',
+      'Model, Sonnet 5',
+      'Effort, High',
+      'Access, Ask for approval',
+      'Dictate',
+      'Send message'
+    ])
   })
 
   it('blocks composer submission while a session-option command is pending', async () => {

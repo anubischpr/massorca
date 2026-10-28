@@ -1,5 +1,6 @@
 import type { SourceControlLaunchActionId } from '../../../src/shared/source-control-ai-actions'
 import { buildSourceControlRecoveryAgentCommandInput } from '../../../src/shared/source-control-recovery-agent-command'
+import { launchSurfaceNotice, readLaunchSurface } from '../tasks/agent-launch-request'
 import type { RpcClient } from '../transport/rpc-client'
 import {
   AGENT_LAUNCH_UPDATE_REQUIRED_MESSAGE,
@@ -76,7 +77,10 @@ export async function launchAgentWithPrompt(args: {
   })
   switch (launched.kind) {
     case 'launched': {
-      const warning = launched.result.warning?.trim()
+      const warning =
+        [launched.result.warning?.trim(), launchSurfaceNotice(readLaunchSurface(launched.result))]
+          .filter(Boolean)
+          .join(' ') || undefined
       const extra = warning ? { warning } : {}
       return launched.promptDelivered
         ? { kind: 'sent', ...extra }

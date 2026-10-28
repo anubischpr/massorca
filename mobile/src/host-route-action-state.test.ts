@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   createInitialHostRouteActionState,
+  hostNewSessionRoute,
   hostNewWorktreeRoute,
   hostNewWorktreeSessionRoute,
   resolveHostRouteActionState,
@@ -9,6 +10,10 @@ import {
 } from './host-route-action-state'
 
 describe('host route action state', () => {
+  it('encodes opaque host ids in the new-session route segment', () => {
+    expect(hostNewSessionRoute('relay/one#50%')).toBe('/h/relay%2Fone%2350%25/new-session')
+  })
+
   it('encodes opaque host ids in the new-worktree route segment', () => {
     expect(hostNewWorktreeRoute('relay/one#50%')).toBe('/h/relay%2Fone%2350%25?action=newWorktree')
   })
@@ -16,6 +21,12 @@ describe('host route action state', () => {
   it('preserves opaque host and worktree ids after creation', () => {
     expect(hostNewWorktreeSessionRoute('relay/one#50%', 'repo/one#20%', 'Relay workspace')).toBe(
       '/h/relay%2Fone%2350%25/session/repo%2Fone%2320%25?name=Relay+workspace&created=1'
+    )
+  })
+
+  it('opens the session on the tab the launch built', () => {
+    expect(hostNewWorktreeSessionRoute('local', 'wt-1', 'Otter', undefined, 'tab-1:leaf')).toBe(
+      '/h/local/session/wt-1?name=Otter&created=1&paneKey=tab-1%3Aleaf'
     )
   })
 

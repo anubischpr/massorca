@@ -252,10 +252,10 @@ export function HostScreenHeader({ controller }: { controller: HostScreenControl
                 styles.embeddedToolbarIconButton,
                 connState !== 'connected' && styles.toolbarIconDisabled
               ]}
-              onPress={actions.openNewWorktreeModal}
+              onPress={actions.openNewSession}
               disabled={connState !== 'connected'}
               accessibilityRole="button"
-              accessibilityLabel="New workspace"
+              accessibilityLabel="New session"
             >
               <Plus
                 size={16}

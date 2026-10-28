@@ -77,6 +77,20 @@ describe('agent.launch params', () => {
     })
   })
 
+  it('reads a chat preference, and reads a word it does not know as absent', () => {
+    expect(AgentLaunch.parse({ ...BASE, preferredMode: 'chat' }).preferredMode).toBe('chat')
+    expect(AgentLaunch.parse({ ...BASE, preferredMode: 'terminal' }).preferredMode).toBeUndefined()
+    expect(AgentLaunch.safeParse({ ...BASE, preferredMode: 5 })).toMatchObject({ success: true })
+    expect(AgentLaunch.parse(BASE)).not.toHaveProperty('preferredMode', 'chat')
+  })
+
+  it('lets a host from before the preference drop it rather than refuse the launch', () => {
+    const olderHost = AgentLaunchFields.omit({ preferredMode: true })
+    const parsed = olderHost.safeParse({ ...BASE, preferredMode: 'chat' })
+    expect(parsed.success).toBe(true)
+    expect(parsed.data).not.toHaveProperty('preferredMode')
+  })
+
   it('has a host from before folder creates refuse that target rather than misread it', () => {
     const [existing, createWorktree] = AgentLaunchFields.shape.target.options
     const olderHost = AgentLaunchFields.extend({

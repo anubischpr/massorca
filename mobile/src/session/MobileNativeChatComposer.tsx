@@ -296,10 +296,12 @@ export function MobileNativeChatComposer({
             {sessionOptions ? (
               <MobileNativeChatSessionOptionPickers
                 {...sessionOptions}
+                agent={agent}
                 sendInFlight={sending || isAttaching}
               />
             ) : null}
-            <View style={styles.actionSpacer} />
+            {/* The model pill grows into the free space; the spacer only pushes mic/send right without it. */}
+            {sessionOptions ? null : <View style={styles.actionSpacer} />}
             {onMicPress ? (
               <Pressable
                 accessibilityLabel={micActive ? 'Stop dictation' : 'Dictate'}
@@ -413,7 +415,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm
+    gap: spacing.xs
   },
   actionSpacer: {
     flex: 1

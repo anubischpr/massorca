@@ -444,7 +444,7 @@ export function MobileNativeChatView({
         sendSurfaceId={sendSurfaceId}
         {...{ getSendCompletionGeneration, getComposerEditGeneration, inputRef }}
         agent={agent}
-        sessionOptions={sessionOptions}
+        sessionOptions={sessionOptions && { ...sessionOptions, piRuntime }}
         onAttachImage={onAttachImage}
         attachments={attachments}
         onRemoveAttachment={onRemoveAttachment}

@@ -1,29 +1,6 @@
 /**
- * The one place an agent launch is sequenced — for the surfaces moved onto it: `agent.launch`,
- * `worktree.create` (CLI and mobile create) through `createWorktreeWithStartupAgent`, whose
- * `legacy-host` create still starts the agent itself, and orchestration workers, local and
- * federated. The desktop agent tab still starts agents its own way; moving it here is later work.
- *
- * The mode decision is shared, not copied: `agent-launch-mode` owns it, and
- * `orchestration-worker-start-mode` is a thin adapter over it supplying orchestration's receipt
- * vocabulary. What this module adds is the *sequencing*, and the sequencing is where the bug
- * was:
- *
- *   create the worktree agent-first  ->  its startup terminal IS the agent
- *                                    ->  the structured branch below it is unreachable
- *
- * so every new-worktree launch was a PTY no matter what the user's default said. The order here is
- * the inverse, and it is the whole point of the module: when the preference is structured the
- * worktree is created with NO startup agent, the executing host is then asked whether it can host
- * a session for the workspace that now exists, and only then is a surface created. A refusal
- * becomes a terminal agent in the worktree just created, never a failed launch.
- *
- * The host verdict cannot be hoisted above creation: `agentSession.createSupport` can only answer
- * for a workspace it can resolve. That is why the decision is in two halves rather than one.
- *
- * What genuinely differs per surface is only how a surface is *built* — an orchestration worker's
- * session takes a redrive subscription and a mailbox that a plain launch must not take — so that
- * is injected as a factory instead of branched on here.
+ * Sequences an agent launch. A structured preference creates the worktree with NO startup agent,
+ * then asks the host about a session; an agent-first create would make its terminal the agent.
  */
 
 import { assertOpenCodeModelLaunchPreferencesAbsent } from '../opencode/opencode-model-startup-plan'
@@ -93,6 +70,7 @@ export async function executeAgentLaunch(
       },
       settings: readAgentLaunchModeSettings(runtime),
       ...(execution.terminalOnly ? { terminalOnly: true } : {}),
+      ...(intent.preferredMode ? { preferredMode: intent.preferredMode } : {}),
       vocabulary
     })
   // The create's startup terminal is this launch's only surface, and the create delivers the text.
@@ -180,16 +158,9 @@ export async function executeAgentLaunch(
     settled = downgradeAgentLaunchModeForStructuredRefusal(settled, vocabulary)
     created = await createTerminalSurface(execution, placed)
   }
-  // Both CAN be set, so neither may be dropped. The create warns precisely when it produced no
-  // startup terminal — `didSpawnStartup` stays false when that spawn throws — and that is the same
-  // condition which skips the early return above, so the launch goes on to build a second surface,
-  // and that one can warn too. The other path is an untracked-copy warning followed by a structured
-  // refusal downgrading to a terminal that warns. `??` kept the first and lost the second silently.
-  //
-  // KNOWN GAP, deliberately not fixed here: a create warning about a FAILED startup terminal is
-  // stale once the launch recovers by building a working one, so the user can be told the agent did
-  // not start while looking at it. Telling those apart needs `createManagedWorktree` to stop
-  // multiplexing "couldn't copy untracked files" and "startup terminal failed" into one string.
+  // Both can warn (the create's startup terminal, then a downgraded terminal), so neither is dropped.
+  // Known gap: a failed-startup warning goes stale once a recovery terminal works, because
+  // `createManagedWorktree` multiplexes that and the untracked-copy warning into one string.
   const warning = combineLaunchWarnings(placed.warning, created.warning)
   const surface = published(execution, {
     outcome: created.outcome,
@@ -221,7 +192,7 @@ function downgradeAgentLaunchModeForStructuredRefusal(
     mode: 'terminal',
     preferred: receipt.preferred,
     reason: 'structured_unsupported_on_host',
-    detail: `Your default is a structured chat session, but the host refused to create one here; started ${vocabulary.terminal} instead.`
+    detail: `${receipt.reason === 'caller_requested_chat' ? 'This launch asked for' : 'Your default is'} a structured chat session, but the host refused to create one here; started ${vocabulary.terminal} instead.`
   }
 }
 
@@ -239,7 +210,6 @@ async function resolveWorkspace(
 }> {
   const { intent } = execution
   if (intent.target.kind === 'existing') {
-    // Nothing was created, so there is no create warning to carry.
     const { worktree: worktreeId, connectionId } = intent.target
     return { worktreeId, connectionId, startupTerminalHandle: undefined }
   }
@@ -367,13 +337,7 @@ async function createTerminalSurface(
   }
 }
 
-/**
- * Two warnings, both true, neither droppable.
- *
- * Mirrors how the create combines its own failures — `appendFailure` in
- * runtime-local-worktree-terminal-startup.ts, and the startup-terminal catch in
- * runtime-remote-managed-worktree-create.ts — which append rather than replace.
- */
+/** Both warnings are true and neither is droppable, as in the create own `appendFailure`. */
 function combineLaunchWarnings(
   create: string | undefined,
   surface: string | undefined

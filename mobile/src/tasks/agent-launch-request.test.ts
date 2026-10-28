@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   agentLaunchCreateParams,
+  agentLaunchExistingParams,
   isAgentLaunchUnsupportedRefusal,
-  readAgentLaunchCreateOutcome
+  readAgentLaunchCreateOutcome,
+  readAgentLaunchSupport,
+  launchSurfaceNotice,
+  readLaunchSurface
 } from './agent-launch-request'
 
 describe('agentLaunchCreateParams', () => {
@@ -22,6 +26,7 @@ describe('agentLaunchCreateParams', () => {
       })
     ).toEqual({
       agent: 'codex',
+      preferredMode: 'chat',
       target: {
         kind: 'create-worktree',
         create: {
@@ -34,6 +39,100 @@ describe('agentLaunchCreateParams', () => {
         }
       }
     })
+  })
+})
+
+describe('agent launch first message and options', () => {
+  it('sends the first message and the seeded options with a create', () => {
+    const params = agentLaunchCreateParams(
+      'claude',
+      { repo: 'id:repo-1', name: 'otter', setupDecision: 'inherit' },
+      null,
+      {
+        prompt: { text: 'fix it', delivery: 'submit' },
+        sessionOptions: { model: 'opus', accessMode: 'plan' }
+      }
+    )
+    expect(params.prompt).toEqual({ text: 'fix it', delivery: 'submit' })
+    expect(params.sessionOptions).toEqual({ model: 'opus', accessMode: 'plan' })
+  })
+
+  it('adds neither field when there is nothing to carry', () => {
+    const params = agentLaunchCreateParams('claude', { repo: 'id:repo-1', name: 'otter' })
+    expect(params).not.toHaveProperty('prompt')
+    expect(params).not.toHaveProperty('sessionOptions')
+  })
+
+  it('seeds options into a launch in an existing workspace', () => {
+    const params = agentLaunchExistingParams({
+      agent: 'codex',
+      worktreeId: 'wt-1',
+      operationId: 'op-1',
+      prompt: { text: 'go', delivery: 'submit' },
+      sessionOptions: { effort: 'high' }
+    })
+    expect(params.sessionOptions).toEqual({ effort: 'high' })
+    expect(params.target).toEqual({ kind: 'existing', worktree: 'id:wt-1' })
+  })
+
+  it.each([
+    ['journaled', true],
+    ['handed-to-terminal', true],
+    ['not-delivered', false]
+  ])('reads a %s receipt as delivered=%s', (outcome, delivered) => {
+    expect(
+      readAgentLaunchCreateOutcome({
+        worktreeId: 'wt-1',
+        prompt: {
+          delivery: 'submit',
+          outcome,
+          ...(outcome === 'journaled' ? { messageId: 'm' } : {})
+        }
+      })
+    ).toEqual({ worktreeId: 'wt-1', promptDelivered: delivered })
+  })
+
+  it('leaves delivery unstated when the host sends no receipt', () => {
+    expect(readAgentLaunchCreateOutcome({ worktreeId: 'wt-1' })).toEqual({ worktreeId: 'wt-1' })
+  })
+})
+
+describe('chat preference and launch surface', () => {
+  it('asks for a chat in every agent launch the shared builders make', () => {
+    const created = agentLaunchCreateParams('codex', { repo: 'id:r', name: 'otter' })
+    const existing = agentLaunchExistingParams({
+      agent: 'claude',
+      worktreeId: 'wt-1',
+      operationId: 'op-1'
+    })
+    expect(created.preferredMode).toBe('chat')
+    expect(existing.preferredMode).toBe('chat')
+  })
+
+  it('words a terminal that the host built, and stays quiet for a chat', () => {
+    expect(launchSurfaceNotice({ mode: 'terminal', detail: 'Why.' })).toBe(
+      'Opened as a terminal agent, not a chat. Why.'
+    )
+    expect(launchSurfaceNotice({ mode: 'structured', detail: 'Ok.' })).toBeNull()
+    expect(launchSurfaceNotice(undefined)).toBeNull()
+  })
+
+  it('reads whether the host advertises the preference', () => {
+    expect(readAgentLaunchSupport(['agent.launch.v2'])).toMatchObject({ preferredMode: false })
+    expect(
+      readAgentLaunchSupport(['agent.launch.v2', 'agent.launch.preferred-mode.v1'])
+    ).toMatchObject({ preferredMode: true })
+    expect(readAgentLaunchSupport([])).toBe(false)
+  })
+
+  it('reads the surface the host built from the receipt', () => {
+    expect(
+      readLaunchSurface({
+        receipt: { mode: 'terminal', preferred: 'terminal', reason: 'user_default', detail: 'Why.' }
+      })
+    ).toEqual({ mode: 'terminal', detail: 'Why.' })
+    expect(readLaunchSurface({ receipt: { mode: 'weird' } })).toBeUndefined()
+    expect(readLaunchSurface({})).toBeUndefined()
   })
 })
 

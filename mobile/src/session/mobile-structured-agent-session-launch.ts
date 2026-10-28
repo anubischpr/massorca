@@ -47,16 +47,32 @@ export type MobileStructuredAgentLaunchResult =
   | { kind: 'failed'; message: string }
   | { kind: 'unknown'; message: string }
 
+/** The outcomes of a start that did not create a chat. */
+type MobileStructuredFailure = Exclude<MobileStructuredAgentLaunchResult, { kind: 'created' }>
+
+/** A created chat with the runtime fence its first send is checked against; null when the host omits it. */
+export type MobileStructuredChatStart =
+  | { kind: 'created'; sessionId: string; fence: number | null }
+  | MobileStructuredFailure
+
+/** What a create may name beyond its agent: the Pi runtime to start, and the Pi access mode. */
+export type MobileStructuredCreateOptions = {
+  piRuntime?: PiRuntimeSelection
+  accessMode?: 'default' | 'full-access'
+}
+
 function createParamsFor(
   agent: StructuredAgentId,
   worktree: string,
-  piRuntime: PiRuntimeSelection | undefined
+  piRuntime: PiRuntimeSelection | undefined,
+  accessMode: MobileStructuredCreateOptions['accessMode']
 ): StructuredAgentSessionCreateParams {
   return structuredAgentSessionCreateParams({
     sessionId: createStructuredAgentSessionId(agent, structuredSessionRandomUuid),
     worktree,
     agent,
     ...(piRuntime ? { piRuntime } : {}),
+    ...(accessMode ? { accessMode } : {}),
     randomUuid: structuredSessionRandomUuid
   })
 }
@@ -83,10 +99,24 @@ export function describeUnsupportedLaunch(
   return result.reason && word.test(result.reason) ? `Host reason: ${result.reason}.` : ''
 }
 
-function unknownCreateResult(
-  agent: StructuredAgentId,
-  error: unknown
-): MobileStructuredAgentLaunchResult {
+/** Whether a probe reply says the host can start the chat. A malformed reply says no. */
+function probeSaysSupported(reply: unknown): boolean {
+  if (typeof reply !== 'object' || reply === null || !('ok' in reply) || reply.ok !== true) {
+    return false
+  }
+  if (!('result' in reply)) {
+    return false
+  }
+  const { result } = reply
+  return (
+    typeof result === 'object' &&
+    result !== null &&
+    'supported' in result &&
+    result.supported === true
+  )
+}
+
+function unknownCreateResult(agent: StructuredAgentId, error: unknown): MobileStructuredFailure {
   const message = error instanceof Error ? error.message.trim() : ''
   return { kind: 'unknown', message: message || unconfirmedMessage(agent) }
 }
@@ -105,20 +135,42 @@ function classifyCreateRefusal(
   agent: StructuredAgentId,
   code: string,
   message: string
-): MobileStructuredAgentLaunchResult {
+): MobileStructuredFailure {
   if (!isDefinitiveAgentSessionCreateRefusal(code)) {
     return unknownCreateResult(agent, new Error(message))
   }
   return { kind: 'failed', message: message || failedMessage(agent) }
 }
 
-/** `piRuntime` names the Pi runtime a row starts; without it the host picks, as before. */
-export async function createMobileStructuredAgentSession(
+/**
+ * Whether the host can start this agent's chat in the worktree, asked before anything is created.
+ * The Pi runtime is named so a Gentle Shell answer is never read from a stock Pi one.
+ */
+export async function canStartMobileStructuredAgentSession(
   client: RpcClient,
   worktreeId: string,
   agent: StructuredAgentId,
-  piRuntime?: PiRuntimeSelection
-): Promise<MobileStructuredAgentLaunchResult> {
+  options: MobileStructuredCreateOptions = {}
+): Promise<boolean> {
+  try {
+    const reply = await structuredAgentSupportProbe.request(client, {
+      worktree: `id:${worktreeId}`,
+      agent,
+      ...(options.piRuntime ? { piRuntime: options.piRuntime } : {})
+    })
+    return probeSaysSupported(reply)
+  } catch {
+    return false
+  }
+}
+
+/** Creates the agent's chat in the worktree, naming the Pi runtime and access mode when given, and keeps the fence. */
+export async function startMobileStructuredAgentSession(
+  client: RpcClient,
+  worktreeId: string,
+  agent: StructuredAgentId,
+  options: MobileStructuredCreateOptions = {}
+): Promise<MobileStructuredChatStart> {
   const worktree = `id:${worktreeId}`
   let supportResponse
   for (let attempt = 0; ; attempt += 1) {
@@ -126,7 +178,7 @@ export async function createMobileStructuredAgentSession(
       supportResponse = await structuredAgentSupportProbe.request(client, {
         worktree,
         agent,
-        ...(piRuntime ? { piRuntime } : {})
+        ...(options.piRuntime ? { piRuntime: options.piRuntime } : {})
       })
     } catch (error) {
       const retryDelayMs = CREATE_SUPPORT_RETRY_DELAYS_MS[attempt]
@@ -167,7 +219,8 @@ export async function createMobileStructuredAgentSession(
   const params = createParamsFor(
     agent,
     worktree,
-    piRuntime ?? (agent === 'pi' ? hostAnsweredPiRuntime(support) : undefined)
+    agent === 'pi' ? (options.piRuntime ?? hostAnsweredPiRuntime(support)) : undefined,
+    agent === 'pi' ? options.accessMode : undefined
   )
   rememberMobileCreatedStructuredSession(params.envelope.sessionId, worktree)
   let response
@@ -229,5 +282,25 @@ export async function createMobileStructuredAgentSession(
     return unknownCreateResult(agent, new Error(unconfirmedMessage(agent)))
   }
   rememberMobileStructuredPiRuntime(result.value.sessionId, params.piRuntime)
-  return { kind: 'created', sessionId: result.value.sessionId }
+  return {
+    kind: 'created',
+    sessionId: result.value.sessionId,
+    fence: typeof result.value.fence === 'number' ? result.value.fence : null
+  }
+}
+
+/** The bare create the phone starts from an existing workspace; `piRuntime` names the Pi runtime a row starts. */
+export async function createMobileStructuredAgentSession(
+  client: RpcClient,
+  worktreeId: string,
+  agent: StructuredAgentId,
+  piRuntime?: PiRuntimeSelection
+): Promise<MobileStructuredAgentLaunchResult> {
+  const started = await startMobileStructuredAgentSession(
+    client,
+    worktreeId,
+    agent,
+    piRuntime ? { piRuntime } : {}
+  )
+  return started.kind === 'created' ? { kind: 'created', sessionId: started.sessionId } : started
 }
