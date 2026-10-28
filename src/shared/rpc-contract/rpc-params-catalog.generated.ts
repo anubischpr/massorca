@@ -1118,7 +1118,9 @@ export const RPC_PARAMS_BY_METHOD = {
   'plugins.setEnabled': PluginSetEnabledParams,
   'preflight.check': PreflightCheck,
   'preflight.detectAgents': null,
+  'preflight.detectPiRuntimes': null,
   'preflight.detectRemoteAgents': PreflightDetectRemoteAgents,
+  'preflight.detectRemotePiRuntimes': PreflightDetectRemoteAgents,
   'preflight.detectRemoteWindowsTerminalCapabilities':
     PreflightDetectRemoteWindowsTerminalCapabilities,
   'preflight.refreshAgents': null,

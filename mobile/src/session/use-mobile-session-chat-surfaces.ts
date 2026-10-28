@@ -160,3 +160,6 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     showHeaderMoreButton: headerMenu.showButton
   }
 }
+
+export type MobileSessionChatSurfacesModel = MobileSessionPanelRouteActionsModel &
+  ReturnType<typeof useMobileSessionChatSurfaces>

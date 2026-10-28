@@ -1,0 +1,233 @@
+[
+  {
+    "method": "thread/status/changed",
+    "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+    "params": {
+      "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+      "status": {
+        "type": "idle"
+      }
+    }
+  },
+  {
+    "method": "item/started",
+    "threadId": "01a18399-b785-77c0-b623-652af2ab5bf0",
+    "params": {
+      "item": {
+        "type": "subAgentActivity",
+        "id": "call_435583928da04c669430ba6b25d3bc1f",
+        "kind": "started",
+        "agentThreadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+        "agentPath": "/root/ping_exit"
+      },
+      "threadId": "01a18399-b785-77c0-b623-652af2ab5bf0",
+      "turnId": "01a1839a-2e41-7a91-b8a2-54f57385e18c"
+    }
+  },
+  {
+    "method": "item/completed",
+    "threadId": "01a18399-b785-77c0-b623-652af2ab5bf0",
+    "params": {
+      "item": {
+        "type": "subAgentActivity",
+        "id": "call_435583928da04c669430ba6b25d3bc1f",
+        "kind": "started",
+        "agentThreadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+        "agentPath": "/root/ping_exit"
+      },
+      "threadId": "01a18399-b785-77c0-b623-652af2ab5bf0",
+      "turnId": "01a1839a-2e41-7a91-b8a2-54f57385e18c"
+    }
+  },
+  {
+    "method": "thread/status/changed",
+    "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+    "params": {
+      "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+      "status": {
+        "type": "active",
+        "activeFlags": []
+      }
+    }
+  },
+  {
+    "method": "turn/started",
+    "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+    "params": {
+      "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+      "turn": {
+        "id": "01a1839a-5e35-7d91-9d4d-ab3be13318fc",
+        "items": [],
+        "itemsView": "notLoaded",
+        "status": "inProgress",
+        "error": null,
+        "startedAt": 1793209294,
+        "completedAt": null,
+        "durationMs": null
+      }
+    }
+  },
+  {
+    "method": "item/started",
+    "threadId": "01a18399-b785-77c0-b623-652af2ab5bf0",
+    "params": {
+      "item": {
+        "type": "collabAgentToolCall",
+        "id": "call_0c66b30cac1044d18a06fd4d64dac721",
+        "tool": "wait",
+        "status": "inProgress",
+        "senderThreadId": "01a18399-b785-77c0-b623-652af2ab5bf0",
+        "receiverThreadIds": [],
+        "prompt": null,
+        "model": null,
+        "reasoningEffort": null,
+        "agentsStates": {}
+      },
+      "threadId": "01a18399-b785-77c0-b623-652af2ab5bf0",
+      "turnId": "01a1839a-2e41-7a91-b8a2-54f57385e18c"
+    }
+  },
+  {
+    "method": "item/started",
+    "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+    "params": {
+      "item": {
+        "type": "commandExecution",
+        "id": "exec-c9f59e0f-25f4-4f8a-a612-cbbd1eabe1b9",
+        "pluginId": null,
+        "scriptPath": null,
+        "command": "pwsh -Command 'ping -n 40 127.0.0.1'",
+        "processId": "34725",
+        "source": "unifiedExecStartup",
+        "status": "inProgress",
+        "commandActions": [],
+        "aggregatedOutput": null,
+        "exitCode": null,
+        "durationMs": null
+      },
+      "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+      "turnId": "01a1839a-5e35-7d91-9d4d-ab3be13318fc"
+    }
+  },
+  {
+    "method": "item/commandExecution/terminalInteraction",
+    "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+    "params": {
+      "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+      "turnId": "01a1839a-5e35-7d91-9d4d-ab3be13318fc",
+      "itemId": "exec-c9f59e0f-25f4-4f8a-a612-cbbd1eabe1b9",
+      "processId": "34725",
+      "stdin": ""
+    }
+  },
+  {
+    "method": "item/commandExecution/terminalInteraction",
+    "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+    "params": {
+      "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+      "turnId": "01a1839a-5e35-7d91-9d4d-ab3be13318fc",
+      "itemId": "exec-c9f59e0f-25f4-4f8a-a612-cbbd1eabe1b9",
+      "processId": "34725",
+      "stdin": ""
+    }
+  },
+  {
+    "method": "item/completed",
+    "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+    "params": {
+      "item": {
+        "type": "commandExecution",
+        "id": "exec-c9f59e0f-25f4-4f8a-a612-cbbd1eabe1b9",
+        "pluginId": null,
+        "scriptPath": null,
+        "command": "pwsh -Command 'ping -n 40 127.0.0.1'",
+        "processId": "34725",
+        "source": "unifiedExecStartup",
+        "status": "completed",
+        "commandActions": [],
+        "aggregatedOutput": null,
+        "exitCode": 0,
+        "durationMs": 39558
+      },
+      "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+      "turnId": "01a1839a-5e35-7d91-9d4d-ab3be13318fc"
+    }
+  },
+  {
+    "method": "thread/status/changed",
+    "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+    "params": {
+      "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+      "status": {
+        "type": "idle"
+      }
+    }
+  },
+  {
+    "method": "item/started",
+    "threadId": "01a18399-b785-77c0-b623-652af2ab5bf0",
+    "params": {
+      "item": {
+        "type": "subAgentActivity",
+        "id": "subagent-completed-01a1839a-5e35-7d91-9d4d-ab3be13318fc",
+        "kind": "completed",
+        "agentThreadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+        "agentPath": "/root/ping_exit"
+      },
+      "threadId": "01a18399-b785-77c0-b623-652af2ab5bf0",
+      "turnId": "01a1839a-2e41-7a91-b8a2-54f57385e18c"
+    }
+  },
+  {
+    "method": "turn/completed",
+    "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+    "params": {
+      "threadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+      "turn": {
+        "id": "01a1839a-5e35-7d91-9d4d-ab3be13318fc",
+        "items": [],
+        "itemsView": "summary",
+        "status": "completed",
+        "error": null,
+        "startedAt": 1793209294,
+        "completedAt": 1793209348,
+        "durationMs": 54256
+      }
+    }
+  },
+  {
+    "method": "item/completed",
+    "threadId": "01a18399-b785-77c0-b623-652af2ab5bf0",
+    "params": {
+      "item": {
+        "type": "subAgentActivity",
+        "id": "subagent-completed-01a1839a-5e35-7d91-9d4d-ab3be13318fc",
+        "kind": "completed",
+        "agentThreadId": "01a1839a-5d72-7e30-9e46-833110ceae9b",
+        "agentPath": "/root/ping_exit"
+      },
+      "threadId": "01a18399-b785-77c0-b623-652af2ab5bf0",
+      "turnId": "01a1839a-2e41-7a91-b8a2-54f57385e18c"
+    }
+  },
+  {
+    "method": "item/completed",
+    "threadId": "01a18399-b785-77c0-b623-652af2ab5bf0",
+    "params": {
+      "item": {
+        "type": "collabAgentToolCall",
+        "id": "call_0c66b30cac1044d18a06fd4d64dac721",
+        "tool": "wait",
+        "status": "completed",
+        "senderThreadId": "01a18399-b785-77c0-b623-652af2ab5bf0",
+        "receiverThreadIds": [],
+        "prompt": null,
+        "model": null,
+        "reasoningEffort": null,
+        "agentsStates": {}
+      },
+      "threadId": "01a18399-b785-77c0-b623-652af2ab5bf0",
+      "turnId": "01a1839a-2e41-7a91-b8a2-54f57385e18c"
+    }
+  }
+]

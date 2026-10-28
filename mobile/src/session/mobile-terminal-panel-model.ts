@@ -93,7 +93,12 @@ export function terminalPanelPills(input: {
   }))
 }
 
-/** The panel's header: every terminal of the worktree, agent panes included. */
-export function terminalPanelTitle(count: number): string {
-  return `TERMINALS · ${count}`
+/** The panel's header: every terminal of the worktree, agent panes included, and whose folder. */
+export function terminalPanelTitle(count: number, folder?: string | null): string {
+  return folder ? `TERMINALS · ${count} in ${folder}` : `TERMINALS · ${count}`
+}
+
+/** The line under a terminal the panel just created. */
+export function terminalReadyHint(folder?: string | null): string {
+  return folder ? `Ready in ${folder} — type a command` : 'Ready — type a command'
 }

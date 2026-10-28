@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
+import type { PiRuntimeSelection } from '../../../src/shared/pi-runtime-selection'
 import type { RpcClient } from '../transport/rpc-client'
+import { loadHostPiRuntimes } from '../session/mobile-new-tab-agent-loader'
 import {
   localAgentDetectionRead,
   remoteAgentDetectionRead,
@@ -17,6 +19,11 @@ type DetectedAgentIdsState = {
   ids: Set<string>
 }
 
+type DetectedPiRuntimesState = {
+  connectionId: string | null
+  runtimes: PiRuntimeSelection[] | null
+}
+
 function fallbackSshState(
   targetId: string,
   status: WorkspaceSshRecord['status'],
@@ -32,6 +39,8 @@ export function useNewWorkspaceExecutionTarget(args: {
 }): {
   sshGate: WorkspaceSshGate
   detectedAgentIds: Set<string> | null
+  /** The Pi runtimes the host has; null while unknown or when the host did not say. */
+  detectedPiRuntimes: PiRuntimeSelection[] | null
   connect: () => Promise<void>
 } {
   const { client, connectionId, visible } = args
@@ -49,6 +58,13 @@ export function useNewWorkspaceExecutionTarget(args: {
     detectedAgentIdsState?.connectionId === connectionId &&
     (connectionId === null || sshGate.status === 'connected')
       ? detectedAgentIdsState.ids
+      : null
+  const [detectedPiRuntimesState, setDetectedPiRuntimesState] =
+    useState<DetectedPiRuntimesState | null>(null)
+  const detectsPi = detectedAgentIds?.has('pi') === true
+  const detectedPiRuntimes =
+    detectedPiRuntimesState?.connectionId === connectionId && detectsPi
+      ? detectedPiRuntimesState.runtimes
       : null
 
   useEffect(() => {
@@ -110,6 +126,22 @@ export function useNewWorkspaceExecutionTarget(args: {
     }
   }, [client, connectionId, sshGate.status, visible])
 
+  // Asked only once the host reports pi, so a host without Pi never sees the read.
+  useEffect(() => {
+    if (!visible || !client || !detectsPi || (connectionId && sshGate.status !== 'connected')) {
+      return
+    }
+    let stale = false
+    void loadHostPiRuntimes(client, connectionId).then((runtimes) => {
+      if (!stale) {
+        setDetectedPiRuntimesState({ connectionId, runtimes })
+      }
+    })
+    return () => {
+      stale = true
+    }
+  }, [client, connectionId, detectsPi, sshGate.status, visible])
+
   async function connect(): Promise<void> {
     if (!client || !connectionId) {
       return
@@ -137,5 +169,5 @@ export function useNewWorkspaceExecutionTarget(args: {
     }
   }
 
-  return { sshGate, detectedAgentIds, connect }
+  return { sshGate, detectedAgentIds, detectedPiRuntimes, connect }
 }

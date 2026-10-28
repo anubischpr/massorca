@@ -52,27 +52,27 @@ describe('MobileSessionSwitcherChip', () => {
     return mounted.root.find((node) => String(node.type) === 'Pressable')
   }
 
-  it('names the active tab and counts every tab in its label, with the tab status dot', () => {
-    const mounted = mount({ activeRow: workingRow, tabCount: 3, onPress: vi.fn() })
-    expect(chip(mounted).props.accessibilityLabel).toBe('Sessions, npm test, 3 tabs')
+  it('names the active tab and counts the chat sessions in its label, with the tab status dot', () => {
+    const mounted = mount({ activeRow: workingRow, sessionCount: 3, onPress: vi.fn() })
+    expect(chip(mounted).props.accessibilityLabel).toBe('Sessions, npm test, 3 sessions')
     const dots = mounted.root.findAll((node) => String(node.type) === 'AgentStateDot')
     expect(dots.map((dot) => dot.props.state)).toEqual(['working'])
   })
 
-  it('uses the singular noun for a single tab', () => {
-    const mounted = mount({ activeRow: workingRow, tabCount: 1, onPress: vi.fn() })
-    expect(chip(mounted).props.accessibilityLabel).toBe('Sessions, npm test, 1 tab')
+  it('uses the singular noun for a single session', () => {
+    const mounted = mount({ activeRow: workingRow, sessionCount: 1, onPress: vi.fn() })
+    expect(chip(mounted).props.accessibilityLabel).toBe('Sessions, npm test, 1 session')
   })
 
   it('falls back to Sessions and draws no dot when no row is active', () => {
-    const mounted = mount({ activeRow: null, tabCount: 2, onPress: vi.fn() })
-    expect(chip(mounted).props.accessibilityLabel).toBe('Sessions, Sessions, 2 tabs')
+    const mounted = mount({ activeRow: null, sessionCount: 2, onPress: vi.fn() })
+    expect(chip(mounted).props.accessibilityLabel).toBe('Sessions, Sessions, 2 sessions')
     expect(mounted.root.findAll((node) => String(node.type) === 'AgentStateDot')).toHaveLength(0)
   })
 
   it('opens the Sessions sheet when pressed', () => {
     const onPress = vi.fn()
-    const mounted = mount({ activeRow: workingRow, tabCount: 1, onPress })
+    const mounted = mount({ activeRow: workingRow, sessionCount: 1, onPress })
     act(() => chip(mounted).props.onPress())
     expect(onPress).toHaveBeenCalledTimes(1)
   })
@@ -92,7 +92,7 @@ describe('MobileSessionSwitcherChip placement', () => {
       mounted = create(
         createElement(MobileSessionSwitcherChip, {
           activeRow: null,
-          tabCount: 1,
+          sessionCount: 1,
           onPress: vi.fn(),
           centered
         })

@@ -3,7 +3,9 @@ import {
   type MobileRuntimeRepoSummary,
   newTabRepoListRead,
   preflightDetectAgentsRead,
-  preflightDetectRemoteAgentsRead
+  preflightDetectPiRuntimesRead,
+  preflightDetectRemoteAgentsRead,
+  preflightDetectRemotePiRuntimesRead
 } from './mobile-session-read-operations'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcResponse } from '../transport/types'
@@ -14,12 +16,18 @@ import {
   type MobileNewTabAgentOption,
   type MobileNewTabAgentSettings
 } from './mobile-new-tab-agent-options'
+import {
+  isPiRuntimeSelection,
+  type PiRuntimeSelection
+} from '../../../src/shared/pi-runtime-selection'
 
 /** What a launch in this workspace can choose from: the host's settings, the agents detected on
- *  the workspace's execution host, and the workspace's repo (absent for the floating workspace). */
+ *  the workspace's execution host, the Pi runtimes it has (null when it did not say), and the
+ *  workspace's repo (absent for the floating workspace). */
 export type MobileAgentLaunchContext = {
   settings: unknown
   detectedAgents: unknown[]
+  piRuntimes: PiRuntimeSelection[] | null
   repo: MobileRuntimeRepoSummary | null
 }
 
@@ -39,7 +47,16 @@ export async function loadMobileAgentLaunchContext(args: {
   // Interpreted after the group, not inside it: whichever peer failed first must not decide the
   // error the sheet shows, and main raised the detection refusal only once settings had settled.
   const detected = detectedAgents.interpret(detectedAgents.reply)
-  return { settings: readSettings(), detectedAgents: detected, repo: detectedAgents.repo }
+  // Asked only when the host reports pi: the answer says which of its two Pi runtimes it has.
+  const piRuntimes = detected.includes('pi')
+    ? await loadHostPiRuntimes(client, detectedAgents.connectionId)
+    : null
+  return {
+    settings: readSettings(),
+    detectedAgents: detected,
+    piRuntimes,
+    repo: detectedAgents.repo
+  }
 }
 
 export async function loadMobileNewTabAgentOptions(args: {
@@ -50,7 +67,8 @@ export async function loadMobileNewTabAgentOptions(args: {
   return buildMobileNewTabAgentOptions(
     // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Preserve the established response shape at this boundary.
     context.settings as MobileNewTabAgentSettings | undefined,
-    context.detectedAgents
+    context.detectedAgents,
+    context.piRuntimes
   )
 }
 
@@ -59,6 +77,30 @@ type DetectedAgentsReply = {
   reply: RpcResponse
   interpret: (reply: RpcResponse) => unknown[]
   repo: MobileRuntimeRepoSummary | null
+  /** The SSH connection the detection ran over; null for a local host. */
+  connectionId: string | null
+}
+
+/** The Pi runtimes a host has, or null when it did not say. Advisory: a host that refuses the read,
+ *  or predates it, leaves the Pi row as it was. */
+export async function loadHostPiRuntimes(
+  client: RpcClient,
+  connectionId: string | null
+): Promise<PiRuntimeSelection[] | null> {
+  try {
+    if (connectionId) {
+      const accepted = preflightDetectRemotePiRuntimesRead.interpret(
+        await preflightDetectRemotePiRuntimesRead.request(client, { connectionId })
+      )
+      return accepted.accepted ? accepted.value.filter(isPiRuntimeSelection) : null
+    }
+    const accepted = preflightDetectPiRuntimesRead.interpret(
+      await preflightDetectPiRuntimesRead.request(client)
+    )
+    return accepted.accepted ? accepted.value.filter(isPiRuntimeSelection) : null
+  } catch {
+    return null
+  }
 }
 
 async function loadDetectedAgents(
@@ -70,7 +112,8 @@ async function loadDetectedAgents(
     return {
       reply: await preflightDetectAgentsRead.request(client),
       interpret: preflightDetectAgentsRead.interpret,
-      repo: null
+      repo: null,
+      connectionId: null
     }
   }
   const repoResponse = await newTabRepoListRead.request(client)
@@ -86,11 +129,13 @@ async function loadDetectedAgents(
     ? {
         reply: await preflightDetectRemoteAgentsRead.request(client, { connectionId }),
         interpret: preflightDetectRemoteAgentsRead.interpret,
-        repo
+        repo,
+        connectionId
       }
     : {
         reply: await preflightDetectAgentsRead.request(client),
         interpret: preflightDetectAgentsRead.interpret,
-        repo
+        repo,
+        connectionId: null
       }
 }

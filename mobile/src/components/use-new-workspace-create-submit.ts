@@ -1,6 +1,9 @@
 import { settingsRead } from '../transport/settings-read-operations'
 import { useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { GENTLE_SHELL_LABEL } from '../../../src/shared/agent-type-label'
 import type { PersistedTrustedOrcaHooks } from '../../../src/shared/orca-yaml-hook-types'
+import type { PiRuntimeSelection } from '../../../src/shared/pi-runtime-selection'
+import { createMobileStructuredAgentSession } from '../session/mobile-structured-agent-session-launch'
 import type { RetiredNameRegistry } from '../../../src/shared/worktree/retired-name-registry'
 import type { RpcClient } from '../transport/rpc-client'
 import { createBlankWorkspace } from '../tasks/blank-workspace-create'
@@ -19,6 +22,7 @@ import type { WorkspaceSshGate } from '../tasks/workspace-ssh-gate'
 import type { useMobileComposerSource } from '../tasks/use-mobile-composer-source'
 import type { WorktreeCreateIdempotencySupport } from '../tasks/worktree-create-idempotency-policy'
 import {
+  newWorktreeAgentRows,
   pickPreferredNewWorktreeAgent,
   type NewWorktreeAgentOption,
   type NewWorktreeRuntimeSettings
@@ -35,6 +39,20 @@ type CreateOptions = {
 
 type Composer = ReturnType<typeof useMobileComposerSource>
 
+/** Starts the Gentle Shell chat in a workspace created blank; the text says why it did not start. */
+async function startGentleShellChat(
+  client: RpcClient,
+  worktreeId: string
+): Promise<string | undefined> {
+  const started = await createMobileStructuredAgentSession(client, worktreeId, 'pi', 'gentle-shell')
+  if (started.kind === 'created') {
+    return undefined
+  }
+  return started.kind === 'failed' || started.kind === 'unknown'
+    ? started.message
+    : `${GENTLE_SHELL_LABEL} chat did not start.`
+}
+
 export function useNewWorkspaceCreateSubmit(args: {
   client: RpcClient | null
   selectedRepo: MobileWorkspaceRepo | null
@@ -44,6 +62,7 @@ export function useNewWorkspaceCreateSubmit(args: {
   runtimeSettings: NewWorktreeRuntimeSettings | null
   setRuntimeSettings: (settings: NewWorktreeRuntimeSettings) => void
   detectedAgentIds: Set<string> | null
+  detectedPiRuntimes: readonly PiRuntimeSelection[] | null
   sshGate: WorkspaceSshGate
   composer: Composer
   note: string
@@ -105,7 +124,15 @@ export function useNewWorkspaceCreateSubmit(args: {
         !isMobileTuiAgentEnabled(args.selectedAgent.id, latestRuntimeSettings?.disabledTuiAgents)
       ) {
         args.setSelectedAgent(
-          pickPreferredNewWorktreeAgent(latestRuntimeSettings, args.detectedAgentIds)
+          pickPreferredNewWorktreeAgent(
+            latestRuntimeSettings,
+            args.detectedAgentIds,
+            newWorktreeAgentRows(
+              args.detectedAgentIds,
+              args.detectedPiRuntimes,
+              latestRuntimeSettings
+            )
+          )
         )
         args.setAgentOverridden(false)
         args.setError('Selected agent is disabled. Choose an enabled agent before creating.')
@@ -151,8 +178,13 @@ export function useNewWorkspaceCreateSubmit(args: {
         return
       }
 
+      // Why: a Gentle Shell row creates the workspace blank and starts its chat after, since a create
+      // with an agent starts the host's stock Pi when it has one.
+      const startsGentleShell = args.selectedAgent.piRuntime === 'gentle-shell'
       const createdWithAgentId =
-        args.selectedAgent.id !== '__blank__' ? args.selectedAgent.id : undefined
+        args.selectedAgent.id !== '__blank__' && !startsGentleShell
+          ? args.selectedAgent.id
+          : undefined
       const trimmedNote = args.note.trim() || undefined
       const selection = args.composer.createSelection
       const result = selection
@@ -161,7 +193,11 @@ export function useNewWorkspaceCreateSubmit(args: {
             selection,
             targetRepoId: selectedRepo.id,
             setupDecision,
-            agent: { choice: normalizeWorkspaceAgent(args.selectedAgent.id) ?? 'blank' },
+            agent: {
+              choice: startsGentleShell
+                ? 'blank'
+                : (normalizeWorkspaceAgent(args.selectedAgent.id) ?? 'blank')
+            },
             workspaceName: trimmedName || undefined,
             note: trimmedNote,
             nameIsAutoManaged: args.composer.isNameAutoManaged,
@@ -183,8 +219,12 @@ export function useNewWorkspaceCreateSubmit(args: {
         args.setError(result.error)
         return
       }
+      const gentleShellWarning = startsGentleShell
+        ? await startGentleShellChat(client, result.worktreeId)
+        : undefined
+      const warning = [result.warning, gentleShellWarning].filter(Boolean).join(' ')
       args.onClose()
-      args.onCreated(result.worktreeId, result.name, result.warning)
+      args.onCreated(result.worktreeId, result.name, warning || undefined)
     } catch (error) {
       args.setError(error instanceof Error ? error.message : 'Failed to create workspace')
     } finally {

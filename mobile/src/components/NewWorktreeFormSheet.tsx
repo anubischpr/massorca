@@ -109,7 +109,11 @@ export function NewWorktreeFormSheet(props: {
               disabled={props.sshGate.requiresConnection}
               onPress={props.onOpenAgent}
             >
-              <MobileAgentIcon agentId={props.selectedAgent.id} size={16} />
+              <MobileAgentIcon
+                agentId={props.selectedAgent.id}
+                piRuntime={props.selectedAgent.piRuntime}
+                size={16}
+              />
               <Text style={styles.fieldButtonText} numberOfLines={1}>
                 {props.sshGate.requiresConnection
                   ? 'Connect target first'

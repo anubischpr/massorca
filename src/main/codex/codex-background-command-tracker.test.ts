@@ -149,7 +149,7 @@ describe('persistent command ownership', () => {
     translator.dispose()
   })
 
-  it('counts child shells only after the child stops covering them, without resurrecting exits', () => {
+  it('counts a child shell as background from its start, without resurrecting exits', () => {
     const tracker = new CodexBackgroundCommandTracker('root')
     tracker.observe(command('item/started', 'child-exec', 'child'))
     tracker.observe(
@@ -162,8 +162,6 @@ describe('persistent command ownership', () => {
         }
       })
     )
-    expect(tracker.tasks(new Set(['child']))).toEqual([])
-    tracker.endTurn('child', 'turn')
     expect(tracker.tasks()).toEqual([
       { id: 'codex-command:thread:child:child-exec', kind: 'command', description: 'sleep 30' }
     ])

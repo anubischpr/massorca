@@ -136,12 +136,7 @@ export class CodexBackgroundTaskTracker {
       kind: 'agent',
       ...(child.label ? { description: boundSubagentField(child.label, index) } : {})
     }))
-    return [
-      ...agents,
-      ...this.commands.tasks(new Set(children.map((child) => child.agentThreadId)), (threadId) =>
-        this.executions.label(threadId)
-      )
-    ]
+    return [...agents, ...this.commands.tasks((threadId) => this.executions.label(threadId))]
   }
 
   private refresh(): boolean {

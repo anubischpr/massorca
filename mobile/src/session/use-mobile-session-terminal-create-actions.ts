@@ -8,6 +8,8 @@ import { triggerSuccess, triggerError } from '../platform/haptics'
 import { buildTerminalSendParams } from '../terminal/terminal-send-request'
 import { terminalRecordsEqual } from './mobile-terminal-records'
 import type { MobileNewTabAgentOption } from './mobile-new-tab-agent-options'
+import { GENTLE_SHELL_LABEL } from '../../../src/shared/agent-type-label'
+import type { PiRuntimeSelection } from '../../../src/shared/pi-runtime-selection'
 import type { TerminalQuickCommand } from '../../../src/shared/terminal-quick-command-types'
 import type { MobileSessionTab, Terminal } from './mobile-session-route-types'
 import type { MobileSessionAttachmentsModel } from './use-mobile-session-attachments'
@@ -59,7 +61,8 @@ export function useMobileSessionTerminalCreateActions(scope: MobileSessionAttach
     options?: MobileQuickCommandLaunch['options'] & {
       onPromptSent?: () => void
       errorToast?: string
-    }
+    },
+    piRuntime?: PiRuntimeSelection
   ) {
     if (!client || creatingTerminalRef.current) {
       return
@@ -85,6 +88,31 @@ export function useMobileSessionTerminalCreateActions(scope: MobileSessionAttach
     }
 
     try {
+      // Why: Gentle Shell starts only as a chat; a terminal launch would run the host's stock Pi.
+      if (agent === 'pi' && piRuntime === 'gentle-shell') {
+        pendingSelectionRef.current = launchedSelection(clientMutationId, {}, null)
+        const started = await createMobileStructuredAgentSession(
+          client,
+          worktreeId,
+          agent,
+          piRuntime
+        )
+        if (started.kind === 'created') {
+          pendingSelectionRef.current = withLaunchReply(
+            pendingSelectionRef.current,
+            clientMutationId,
+            { sessionId: started.sessionId }
+          )
+          void fetchSessionTabs()
+          return
+        }
+        reportCreateFailure(
+          started.kind === 'failed' || started.kind === 'unknown'
+            ? started.message
+            : `${GENTLE_SHELL_LABEL} chat is not available on this host.`
+        )
+        return
+      }
       if (
         agent &&
         launchesThroughHost(options) &&
