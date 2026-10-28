@@ -416,3 +416,29 @@ Each task is one Conventional Commit with its tests; no AI attribution lines. No
 
 ## Next step
 - Parent: check `1e76654e8b7`, `7d96316f88e` and `41708b8d9ab` on the VPS (Gentle Shell only, then both runtimes), and decide whether `agent.launch` gets a `piRuntime` field to close the review-notes gap.
+
+## Round 10 (Codex subagent commands, legacy kill switch, terminals vs sessions)
+
+Each task is one Conventional Commit with its tests; no AI attribution lines. No push, no PR. TDD: off; runner `pnpm test` (root vitest for `src/`, `mobile/` for the phone).
+
+- [x] T28 Codex subagent commands show in the background roster: `0add768f41b`
+- [x] T29 Legacy UI kill switch and re-entry into the new layout: `cdb4aae5948` (supersedes the T26 plan; the T26 status section above is now stale)
+- [x] T30 Terminals vs sessions: chip counts chats only, Terminal panel names the folder: `2cfafa7752b`
+
+### T28
+- Cause (real `codex app-server` 0.159.2 capture): a child thread's unified-exec command was hidden by `coveredThreads` while its agent row worked, and was `foreground` (so dropped by the child-work view) until the child turn ended.
+- Change: a command on a non-primary thread is `backgrounded` from its start; `tasks()` no longer takes `coveredThreads`. The agent row stays; the child-work records already nest the command under its agent through `parentChildWorkId`/`ownerId`.
+- Side effect: a child's short commands now leave a settled row under their agent instead of nothing.
+- Tests: trimmed, scrubbed capture in `src/main/codex/codex-subagent-command-capture.fixture.json`, replayed by `codex-subagent-command-capture.test.ts`; three existing expectations updated.
+
+### T29
+- `MOBILE_LEGACY_SESSION_VIEWS = false` (`mobile/src/session/mobile-legacy-session-views.ts`) gates: the classic header, the non-panel `MobileTerminalPaneStack`, the markdown/file/browser bodies (new chrome mode `notice` plus `MobileSessionUnsupportedNotice`), and the terminal-as-chat toggles (`isTabChatView`, `toggleTabChatView`, the long-press sheet item). `MobileSessionPendingBar` stays.
+- Re-entry: `useMobileSessionLayoutEntry` opens the Terminal panel once per mount (ref guard) when the active tab is a terminal, and sends a file or markdown tab to Files.
+- Gaps: not run on a device; the command dock is not hidden in the notice state; a browser tab only reaches the notice (no Browser panel exists).
+
+### T30
+- The session chip counts chat sessions only (`mobileChatSessionCount`); the Terminal panel header reads `TERMINALS · n in <folder>` and the fresh hint `Ready in <folder> — type a command`, from `getWorktreePathBasenameFromId` (POSIX and Windows). The Sessions sheet still lists terminals.
+
+### Round 10 checks
+- `pnpm tc:node` and `cd mobile && pnpm run typecheck` pass; `node config/scripts/check-changed-code-quality.mjs ad44a06073a` passes.
+- Root `src/main/codex` capture, background and child-work tests: 72 pass. Mobile `src/session` and `src/components`: only the known failures (`mobile-prompt-controller.test.ts`, merged-snapshot parity timeouts, `native-document-bundle.test.ts`).
