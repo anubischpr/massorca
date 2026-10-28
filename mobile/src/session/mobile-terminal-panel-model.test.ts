@@ -12,7 +12,7 @@ import {
   type TerminalTab
 } from './mobile-terminal-panel-model'
 
-function shell(id: string, overrides: Partial<TerminalTab> = {}): MobileSessionTab {
+function shell(id: string, overrides: Partial<TerminalTab> = {}): TerminalTab {
   return {
     type: 'terminal',
     id,

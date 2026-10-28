@@ -85,9 +85,9 @@ describe('MobileChatStatusPillView', () => {
       },
       onPress
     )
-    const button = mounted.root.find((node) => node.type === 'Pressable')
+    const button = mounted.root.find((node) => String(node.type) === 'Pressable')
     expect(button.props.accessibilityLabel).toBe('Show background work, Finished, 2 items')
-    expect(mounted.root.findAll((node) => node.type === 'Check')).toHaveLength(1)
+    expect(mounted.root.findAll((node) => String(node.type) === 'Check')).toHaveLength(1)
     act(() => button.props.onPress())
     expect(onPress).toHaveBeenCalledTimes(1)
   })
