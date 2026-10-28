@@ -227,3 +227,41 @@ Checks (mobile/): `pnpm typecheck` exit 0 after each commit; oxfmt and oxlint cl
 
 Checks (mobile/): `pnpm typecheck` exit 0 after each commit; oxfmt and oxlint clean on the changed files; the touched and dependent suites pass (close and chrome decision, host-screen grouping and reply schema, repo account read, chat environment account).
 
+## T18: the pill and background detail on the terminal-backed (bridge) lane (investigation, pv37 QA)
+
+Status: investigated, not implemented. No code changed in this unit; the blocker is a host change, scoped below.
+
+### What the execution host's status store carries
+
+The hook server's store (`src/main/agent-hooks`, the single store AGENTS.md names) holds one entry per pane. Its payload carries:
+- `subagents`: `{ id, agentType?, model?, description?, state, startedAt }` (`src/shared/agent-status-subagent-snapshot.ts`). Codex publishes these (`src/shared/agent-hook-listener/providers/codex-state.ts`).
+- `children`: the richer `AgentChildWorkView` (`src/shared/agent-status-child-work-view.ts`) with `kind` (agent, workflow, command, ...), `name`, `description`, `state`, `lastMessage`, `firstObservedAt`, `stoppable`, `invocation`.
+- `mainAgent.stateStartedAt`: the turn start clock.
+- `workingMode: 'monitoring'`: ongoing work that does not need the foreground agent.
+
+Codex does not publish shell background tasks; background tasks for Claude come from its own roster fold.
+
+### What the phone can read today (mobile-allowlisted)
+
+- `terminal.agentStatus`: returns the screen-scraped `waitText`, `title`, `titleStatus` (`runtime-terminal-agent-status-query.ts`). No subagents, no children, no turn start.
+- `agentSession.subscribeStatus`: every structured session's projected status. Structured sessions only.
+- `agentSession.subscribe` / the structured roster: children for structured chats (what the sheet already uses).
+- `status.get`: server health, not agent status.
+- `worktree.ps`: not inspected for per-pane agent entries (the orca-runtime-get-worktree-ps path; unverified).
+
+The runtime does not read the hook store's entries (`src/main/runtime` has no accessor; the entries are consumed in main-process IPC). So the phone has no allowlisted source for terminal-pane subagents, background tasks, or turn start.
+
+### Stop
+
+- Structured lane: `agentSession.cancel` with `{ scope: 'background-tasks', taskId? }` already exists and is allowlisted.
+- Terminal lane: no stop RPC for a terminal pane's children. Not invented here.
+
+### Host change needed
+
+Yes. Minimum additive change, in its own labelled commits so one VPS rebuild covers it:
+1. `feat(runtime)`: a capability-gated, mobile-allowlisted stream (for example `terminal.subscribeAgentChildren`, keyed by terminal handle) that projects the hook store's `subagents` and `children` for that pane, plus the turn start, with mobile-safe fields and the live / unverifiable / exited verdict. Older hosts answer method-not-found and the phone degrades to today's pill.
+2. `fix(rpc)` or `feat(runtime)`: a terminal-pane child stop, only for kinds whose provider has a real stop. Background shell tasks and Codex subagents must be checked against their providers before any stop is exposed.
+3. Mobile, after 1: pill counts and clock from the stream (structured and terminal), tap opens the sheet with detail (command or description, elapsed, last output lines; subagent type, activity, elapsed), Stop where the host provides it, a collapsed Finished subsection, live updates. Output tails do not exist on the host today and need a further host change.
+
+Open question for the owner: whether output tails are in scope for this round, since they need a new host feed and not only a projection.
+
