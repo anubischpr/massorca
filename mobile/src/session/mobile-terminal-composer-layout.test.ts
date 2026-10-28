@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   resolveTerminalComposerLayout,
+  resolveTerminalComposerOffset,
+  resolveTerminalKeyboardFit,
   type TerminalComposerLayoutInput
 } from './mobile-terminal-composer-layout'
 
@@ -71,5 +73,35 @@ describe('resolveTerminalComposerLayout', () => {
     const down = resolveTerminalComposerLayout({ ...KEYBOARD_DOWN, keyboardUp: false })
     expect(up.showTerminalHeader).toBe(false)
     expect(down).toEqual(resolveTerminalComposerLayout(KEYBOARD_DOWN))
+  })
+})
+
+describe('resolveTerminalKeyboardFit', () => {
+  it('resizes the terminal frame in phone mode, where the phone drives the PTY size', () => {
+    expect(resolveTerminalKeyboardFit(true)).toBe('resize')
+  })
+
+  it('overlays in desktop mode, where the host keeps its size', () => {
+    expect(resolveTerminalKeyboardFit(false)).toBe('overlay')
+  })
+})
+
+describe('resolveTerminalComposerOffset', () => {
+  it('stands the composer on the keyboard with a margin when the frame resizes', () => {
+    expect(resolveTerminalComposerOffset('resize', 300)).toEqual({
+      marginBottom: 300,
+      translateY: 0
+    })
+  })
+
+  it('overlays the composer with a translate in desktop mode', () => {
+    expect(resolveTerminalComposerOffset('overlay', 300)).toEqual({
+      marginBottom: 0,
+      translateY: -300
+    })
+  })
+
+  it('leaves the composer where it is with the keyboard down', () => {
+    expect(resolveTerminalComposerOffset('resize', 0)).toEqual({ marginBottom: 0, translateY: 0 })
   })
 })

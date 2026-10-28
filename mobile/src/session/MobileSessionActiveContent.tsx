@@ -1,4 +1,5 @@
-import { useContext } from 'react'
+import { useContext, useEffect, useRef } from 'react'
+import type { TerminalFrame } from '../terminal/terminal-webview-messages'
 import { Animated, View, Text, Pressable, ActivityIndicator } from 'react-native'
 import { MobileBrowserPane } from '../browser/MobileBrowserPane'
 import { MobileNativeChatOverlay } from './MobileNativeChatOverlay'
@@ -222,13 +223,27 @@ export function MobileSessionActiveContent({
       )}
     </View>
   )
+  const contentFrameRef = useRef<TerminalFrame | null>(null)
+  const panelOpenRef = useRef(terminalPanelOpen)
+  // Why: closing the panel hands the frame back to this layout, which may not change size to report again.
+  useEffect(() => {
+    const wasOpen = panelOpenRef.current
+    panelOpenRef.current = terminalPanelOpen
+    if (wasOpen && !terminalPanelOpen && contentFrameRef.current) {
+      notifyTerminalFrame(contentFrameRef.current)
+    }
+  }, [notifyTerminalFrame, terminalPanelOpen])
   return (
     <View
       // Why: one frame under every branch; react-native-web observes onLayout only on a View that mounts with it.
       style={styles.contentFrame}
       onLayout={(e) => {
         const { width, height } = e.nativeEvent.layout
-        notifyTerminalFrame({ width, height })
+        contentFrameRef.current = { width, height }
+        // Why: the Terminal panel reports the body its terminal fills; this frame also holds its header, pills and footer.
+        if (!terminalPanelOpen) {
+          notifyTerminalFrame({ width, height })
+        }
       }}
     >
       {content}

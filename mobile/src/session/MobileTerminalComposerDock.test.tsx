@@ -79,6 +79,7 @@ function createController(overrides: Partial<MobileTerminalComposerController> =
     setShowCustomKeyModal: spies.setShowCustomKeyModal,
     showNativeChat: false,
     submitLiveInput: vi.fn(),
+    terminalKeyboardFit: 'overlay',
     terminalModes: new Map(),
     toggleDisplayMode: spies.toggleDisplayMode,
     ...overrides

@@ -23,7 +23,10 @@ import { colors, spacing } from '../theme/mobile-theme'
 import { MobileTerminalDictationButton } from './MobileTerminalInputActions'
 import { MobileTerminalKeyRow } from './MobileTerminalKeyRow'
 import { isTerminalPhoneDisplayMode } from './mobile-session-route-helpers'
-import { resolveTerminalComposerLayout } from './mobile-terminal-composer-layout'
+import {
+  resolveTerminalComposerLayout,
+  resolveTerminalComposerOffset
+} from './mobile-terminal-composer-layout'
 import { terminalComposerStyles as styles } from './mobile-terminal-composer-styles'
 import type { MobileSessionController } from './use-mobile-session-controller'
 import { useTerminalKeyChord } from './use-terminal-key-chord'
@@ -59,6 +62,7 @@ export type MobileTerminalComposerController = Pick<
   | 'setShowCustomKeyModal'
   | 'showNativeChat'
   | 'submitLiveInput'
+  | 'terminalKeyboardFit'
   | 'terminalModes'
   | 'toggleDisplayMode'
 > & {
@@ -111,6 +115,7 @@ export function MobileTerminalComposerDock({
     setShowCustomKeyModal,
     showNativeChat,
     submitLiveInput,
+    terminalKeyboardFit,
     terminalModes,
     toggleDisplayMode
   } = controller
@@ -120,6 +125,7 @@ export function MobileTerminalComposerDock({
   const keepKeyboard = useKeyboardPersistingTaps('always')
   // The soft keyboard is up when the controller reports a lift; the composer sits above it.
   const keyboardUp = keyboardLift > 0
+  const offset = resolveTerminalComposerOffset(terminalKeyboardFit, keyboardLift)
   const layout = resolveTerminalComposerLayout({
     keyboardUp,
     keysOpen,
@@ -142,7 +148,11 @@ export function MobileTerminalComposerDock({
       ref={keepKeyboard}
       style={[
         styles.dock,
-        { paddingBottom: insets.bottom + spacing.sm, transform: [{ translateY: -keyboardLift }] }
+        {
+          paddingBottom: insets.bottom + spacing.sm,
+          marginBottom: offset.marginBottom,
+          transform: [{ translateY: offset.translateY }]
+        }
       ]}
     >
       {layout.showKeysToggle ? (
