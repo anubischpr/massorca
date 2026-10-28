@@ -265,3 +265,11 @@ Yes. Minimum additive change, in its own labelled commits so one VPS rebuild cov
 
 Open question for the owner: whether output tails are in scope for this round, since they need a new host feed and not only a projection.
 
+### T18 step 1 (status: in progress, not yet shipped)
+
+- `worktree.ps` already carries per-pane entries. Its agent rows come from the hook store's snapshots (`runtime-worktree-pty-agent-sources.ts` builds `RuntimeWorktreeAgentSource` from `hookSnapshots`), projecting `state`, `prompt`, `stateStartedAt`, `mainAgent`, and `lastAssistantMessage`. It does not project `subagents` or `children` today.
+- So the additive path is: extend the `worktree.ps` agent row (`runtime-worktree-agent-source.ts`, `runtime-worktree-agent-rows.ts`) with optional `subagents` and `children`, read from the same store entry. That is a `feat(runtime)` commit with host tests. Older hosts omit the fields and the phone keeps today's pill.
+- Root `node_modules` is present in this worktree, so `pnpm tc:node` can run directly.
+- Not yet done: the capability advertisement, the terminal-pane child stop (step 2), the mobile detail sheet, Finished, and live updates (step 3). Live updates need either a stream or a timed `worktree.ps` poll while the sheet is open; `worktree.ps` is a whole-worktree scan, so a stream is the better choice and needs its own decision.
+- Output tails: only `children.lastMessage` is available; no line-level output. Follow-up.
+
