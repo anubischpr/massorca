@@ -4,16 +4,13 @@ import type { TuiAgent } from '../../../src/shared/tui-agent'
 import { useNewWorkspaceExecutionTarget } from '../components/use-new-workspace-execution-target'
 import { useNewWorkspaceRepositories } from '../components/use-new-workspace-repositories'
 import { MOBILE_AGENT_CATALOG } from '../tasks/mobile-agent-catalog'
-import { isMobileTuiAgentEnabled } from '../tasks/mobile-tui-agents'
 import { useNewWorktreeRuntimeCapabilities } from '../tasks/worktree-create-capability'
 import type { RpcClient } from '../transport/rpc-client'
 import {
-  buildCreateSessionAgentChoices,
   piRuntimeChoiceLabel,
   withAvailableCreateSessionChoice
 } from './create-session-agent-choices'
 import { launchBlankTerminal } from './create-session-blank'
-import { launchCreateSession } from './create-session-launch'
 import { buildCreateSessionLaunchPlan } from './create-session-launch-plan'
 import {
   buildCreateSessionHostOptions,
@@ -35,11 +32,12 @@ import {
 } from './create-session-model'
 import { baseRefChipLabel } from './create-session-base-ref'
 import { createSessionLaunchBlocker, createSessionModeNote } from './create-session-readiness'
+import { launchCreateSessionPlan } from './create-session-plan-launch'
+import { useCreateSessionAgentChoices } from './use-create-session-agent-choices'
 import { useCreateSessionBaseRef } from './use-create-session-base-ref'
 import { useCreateSessionHostSettings } from './use-create-session-host-settings'
 import { useCreateSessionLeaveLock } from './use-create-session-leave-lock'
 import { useCreateSessionOptions } from './use-create-session-options'
-import { useCreateSessionPiRuntimes } from './use-create-session-pi-runtimes'
 import { useCreateSessionSetup } from './use-create-session-setup'
 import { useCreateSessionSubmit, type CreateSessionLanding } from './use-create-session-submit'
 
@@ -91,28 +89,13 @@ export function useCreateSessionController(args: {
     connectionId: repo?.connectionId ?? null,
     visible: true
   })
-  // Asked once agent detection has found Pi on this host, so a host without Pi is never asked.
-  const piRuntimes = useCreateSessionPiRuntimes({
+  const agentChoices = useCreateSessionAgentChoices({
     client,
     connectionId: repo?.connectionId ?? null,
-    enabled: executionTarget.detectedAgentIds?.has('pi') === true
+    detectedAgentIds: executionTarget.detectedAgentIds,
+    disabledAgents: hostSettings.disabledAgents,
+    piCommand: hostSettings.piCommand
   })
-  const agentChoices = useMemo(
-    () =>
-      buildCreateSessionAgentChoices({
-        catalog: MOBILE_AGENT_CATALOG,
-        detectedAgentIds: executionTarget.detectedAgentIds,
-        isEnabled: (agent) => isMobileTuiAgentEnabled(agent, hostSettings.disabledAgents),
-        piRuntimes,
-        piCommand: hostSettings.piCommand
-      }),
-    [
-      executionTarget.detectedAgentIds,
-      hostSettings.disabledAgents,
-      hostSettings.piCommand,
-      piRuntimes
-    ]
-  )
   const selection = held
     ? withAvailableCreateSessionChoice(held, agentChoices, hostSettings.preferredAgent)
     : null
@@ -150,7 +133,7 @@ export function useCreateSessionController(args: {
       if (!client || !repo) {
         return Promise.resolve({ ok: false, message: 'Not connected to the computer.' })
       }
-      return launchCreateSession({
+      return launchCreateSessionPlan({
         client,
         hostId,
         repo,
