@@ -12,6 +12,7 @@ import {
   AGENT_LAUNCH_UNSTARTED_TAB_CLIENT_CAPABILITY
 } from '../../../src/shared/agent-launch-runtime-capability'
 import {
+  AGENT_SESSION_SETTLED_CHILD_WORK_RUNTIME_CAPABILITY,
   PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY
 } from '../../../src/shared/structured-agent-session-surface-capabilities'
@@ -36,7 +37,9 @@ export const MOBILE_RUNTIME_CLIENT_CAPABILITIES = remoteRuntimeClientCapabilitie
   // Renders a structured chat of any agent the host registers, not only Claude and Codex.
   STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY,
   // Answers Pi's select, confirm, input and editor dialogs, so the host may give Pi a chat.
-  PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY
+  PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY,
+  // Lists the finished commands in a chat's history under Finished; without it the host sends running work only.
+  AGENT_SESSION_SETTLED_CHILD_WORK_RUNTIME_CAPABILITY
 ])
 
 export const MOBILE_RUNTIME_CLIENT_CAPABILITY_UPDATE_METHOD =

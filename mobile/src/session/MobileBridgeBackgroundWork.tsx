@@ -4,6 +4,10 @@ import type { StructuredSessionBackgroundTasksView } from '../../../src/shared/s
 import { useNow } from '../hooks/use-now'
 import { MobileBackgroundWorkSheet, type BackgroundWorkStopping } from './MobileBackgroundWorkSheet'
 import { MobileChatStatusPillView } from './MobileChatStatusPillView'
+import {
+  NO_BACKGROUND_WORK_NOTE,
+  UNLISTED_BACKGROUND_WORK_NOTE
+} from './mobile-background-work-notes'
 import { mobileChatStatusPill, mobileStatusPillCounts } from './mobile-chat-status-pill'
 import { useMobileTerminalBackgroundWork } from './use-mobile-terminal-background-work'
 
@@ -17,8 +21,6 @@ const NO_STOP_VIEW: StructuredSessionBackgroundTasksView = {
   supportsStopAll: false
 }
 const NOT_STOPPING: BackgroundWorkStopping = { taskIds: new Set(), all: false }
-const NO_ROWS_NOTE = 'No background work is running.'
-const UNLISTED_NOTE = 'Background work is running. This agent does not report its details.'
 
 function ignoreStop(): void {}
 
@@ -77,7 +79,7 @@ function MobileBridgeBackgroundWorkImpl({
         stopping={NOT_STOPPING}
         onStop={ignoreStop}
         finished={work.finished}
-        emptyNote={work.unlistedWork ? UNLISTED_NOTE : NO_ROWS_NOTE}
+        emptyNote={work.unlistedWork ? UNLISTED_BACKGROUND_WORK_NOTE : NO_BACKGROUND_WORK_NOTE}
       />
     </>
   )

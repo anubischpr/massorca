@@ -12,6 +12,8 @@ import { spacing } from '../theme/mobile-theme'
 import { MobileBackgroundWorkSheet, type BackgroundWorkStopping } from './MobileBackgroundWorkSheet'
 import { MobileChatStatusPillView } from './MobileChatStatusPillView'
 import { mobileChatStatusPill, mobileStatusPillCounts } from './mobile-chat-status-pill'
+import { NO_BACKGROUND_WORK_NOTE } from './mobile-background-work-notes'
+import { mergeFinishedBackgroundRows, settledHistoryRows } from './mobile-finished-background-work'
 import { useSeenBackgroundWork } from './use-mobile-seen-background-work'
 import type { MobileStructuredBackgroundTasks } from './use-mobile-structured-background-tasks'
 
@@ -52,12 +54,22 @@ function MobileNativeChatBackgroundTasksImpl({
     () => groups.flatMap((group) => group.tasks.map((entry) => entry.row)),
     [groups]
   )
-  const finishedRows = useSeenBackgroundWork({
+  const seenFinished = useSeenBackgroundWork({
     scopeKey: tasks.sessionKey,
     rows,
     live: rowContext.transportObservation === 'live',
     hostClockOffsetMs: rowContext.hostClockOffsetMs
   })
+  // The history names the commands that already ended, so Finished lists them before this phone watched.
+  const historyFinished = useMemo(
+    () => settledHistoryRows(tasks.commandActivity, rowContext),
+    [tasks.commandActivity, rowContext]
+  )
+  const finishedRows = useMemo(
+    () =>
+      mergeFinishedBackgroundRows({ seen: seenFinished, history: historyFinished, running: rows }),
+    [seenFinished, historyFinished, rows]
+  )
   const finished = useMemo(() => groupBackgroundTaskRows(finishedRows), [finishedRows])
   const pill = mobileChatStatusPill({
     working,
@@ -108,6 +120,8 @@ function MobileNativeChatBackgroundTasksImpl({
         stopping={stopping}
         onStop={onStop}
         finished={finished}
+        // Unlisted running work is named as such; a plain turn with nothing running says so.
+        emptyNote={view.show ? say('detailsUnavailable') : NO_BACKGROUND_WORK_NOTE}
       />
     </View>
   )

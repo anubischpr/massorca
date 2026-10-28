@@ -4,6 +4,7 @@ import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentStatusEntry } from '../../../src/shared/agent-status-types'
 import { MobileBridgeBackgroundWork } from './MobileBridgeBackgroundWork'
+import { resetSeenBackgroundWorkStoreForTests } from './mobile-seen-background-work-store'
 
 const NOW = 10_000_000
 
@@ -79,6 +80,8 @@ describe('MobileBridgeBackgroundWork', () => {
     act(() => renderer?.unmount())
     renderer = null
     vi.useRealTimers()
+    // The seen work is module-level; each test starts with no chat kept.
+    resetSeenBackgroundWorkStoreForTests()
   })
 
   function props(overrides: Partial<Props> = {}): Props {

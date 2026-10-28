@@ -295,7 +295,7 @@ Each task is one Conventional Commit with its tests; no AI attribution lines. No
 
 - [x] T20 Repo group header: the GitHub login sits beside the repo name with the same gap as the count. Style only (`mobile/src/host-screen/host-screen-secondary-styles.ts`), no test: no behavior changed. Checks: typecheck exit 0, oxfmt and oxlint clean.
 - [x] T21 New Tab agent sheet: a host configured for Gentle Shell shows "Gentle Shell" with its icon, not "Pi". Reads `settings.agentCmdOverrides.pi` from the settings the loader already reads (`RuntimeClientSettings` carries it); no wire change, no new TuiAgent id.
-- [ ] T22 Background work history: finished work survives remounts and reconnects (module-level store keyed by host and session); `commandActivity` seeds finished commands when present; the chat lane shows a correct empty note and never one beside Finished rows.
+- [x] T22 Background work history: finished work survives remounts and reconnects (module-level store keyed by host and session); `commandActivity` seeds finished commands when present; the chat lane shows a correct empty note and never one beside Finished rows.
 - [ ] T23 Codex background shell tasks: unified-exec processes that outlive their exec call count as background commands in the roster and settle when they exit.
 
 ### T20 evidence
@@ -308,5 +308,16 @@ Each task is one Conventional Commit with its tests; no AI attribution lines. No
 - No wire change: `settings.get` already returns `agentCmdOverrides` (`RuntimeClientSettings`). No new TuiAgent id.
 - The "Send Review Notes" agent list reuses the same option label, so it reads "Gentle Shell" too; its rows keep the generic Bot icon, as before.
 - Gap: the setting is the paired host's. A workspace on an SSH target reads the paired host's runtime, not the target's, since the phone holds no per-target Pi setting.
-- Commit: recorded by the next commit (T22).
+- Commit: `dd9ece81ab9` fix(mobile): label the new-tab Pi row Gentle Shell when the host runs it.
 - Checks: `pnpm test` on `mobile-new-tab-agent-options` and `mobile-new-tab-agent-loader` (2 files, 7 tests pass); mobile `pnpm typecheck` exit 0; `pnpm typecheck:tests` reports no errors in the touched files (the baseline has pre-existing errors); oxfmt and oxlint clean.
+
+### T22 evidence
+- Route: inline, single writer: the store, the finished merge, the shared notes, the two lanes, the client capability and their tests.
+- Cause: finished rows lived in React state and were lost on unmount. The sheet drew "Task details are unavailable for this session." whenever no running row listed, even beside Finished rows, and the chat lane passed no note. The host's `commandActivity` history never reached mobile. The host sends settled commands only to a client that advertises `agent-session.structured.settled-child-work.v1`, which mobile did not.
+- Fix (a): `mobile-seen-background-work-store.ts` keeps each chat's seen fold at module level, keyed by the chat's identity (structured: source, agent, session; terminal: host, worktree, tab). It holds the 12 most recently used chats; each keeps the existing cap of 30 finished rows.
+- Fix (b): `mobile-finished-background-work.ts` reads the settled rows of `state.commandActivity` (optional; absent on older hosts) and lists them under Finished after the rows this phone saw end. A running row is never listed as finished. Mobile now advertises the settled-child-work capability in `MOBILE_RUNTIME_CLIENT_CAPABILITIES`: additive and negotiated, since the host filters settled rows from clients without it and older hosts list running work only.
+- Fix (c): the sheet shows its empty note only when nothing runs and nothing finished. The chat lane's note is "No background work is running." when nothing is listed and "Task details are unavailable for this session." when work runs without details. The copy is in `mobile-background-work-notes.ts`, shared with the terminal lane.
+- Open decision: the status pill shows only while a turn runs or listed work runs (`mobileChatStatusPill`). A chat whose work all finished shows no pill, so its Finished list is out of reach until work runs again. Keeping a pill for finished-only history is a product call and is not changed here.
+- Gap: the terminal lane has no command history from the host, so its Finished rows are the ones this phone watched end. They now survive remounts.
+- Commit: recorded by the next commit (T23).
+- Checks: `pnpm test` on the 22 test files that import a changed module (includes the new store, finished-merge and capability suites): 22 files, 177 tests pass. Mobile `pnpm typecheck` exit 0. oxfmt and oxlint clean on the changed files.
