@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { SessionOptionDescriptor } from '../../../src/shared/native-chat-session-options'
 import {
+  mobileModelPillLabel,
   mobileSelectedChoiceLabel,
   mobileSessionOptionNote,
   mobileSessionOptionSheetTitle
@@ -56,5 +57,25 @@ describe('mobileSessionOptionNote', () => {
     }
   ])('states the $note note', ({ note, text }) => {
     expect(mobileSessionOptionNote(note)).toBe(text)
+  })
+})
+
+describe('mobileModelPillLabel', () => {
+  const untracked = (label: string): SessionOptionDescriptor => ({
+    id: 'model',
+    label,
+    category: 'model',
+    kind: { type: 'select', choices: [] },
+    valueSource: 'unknown',
+    transport: 'catalog',
+    settable: true
+  })
+
+  it('names an untracked model by its own label rather than a generic one', () => {
+    expect(mobileModelPillLabel(untracked("Agent's model"))).toBe("Agent's model")
+  })
+
+  it('names a tracked model by its choice label', () => {
+    expect(mobileModelPillLabel(select('model', 'Model', 'gpt-6-astra'))).toBe('Model gpt-6-astra')
   })
 })

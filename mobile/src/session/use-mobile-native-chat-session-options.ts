@@ -5,6 +5,7 @@ import type { AgentSessionConversationCommand } from '../../../src/shared/agent-
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   getAgentSessionOptionCatalog,
+  type AgentSessionOptionCatalog,
   type CatalogCommandDelivery,
   type CatalogModel
 } from '../../../src/shared/agent-session-option-catalog'
@@ -27,6 +28,7 @@ import {
   getTrackedSessionOption,
   isFlipOnlyMidSession,
   matchNativeChatCatalogModelId,
+  type NativeChatSessionOptionRecord,
   setTrackedSessionOption
 } from '../../../src/shared/native-chat-session-option-state'
 
@@ -47,6 +49,18 @@ export type MobileNativeChatSessionOptionsController = {
 type PendingOperation = { id: string; token: number }
 
 const EMPTY_SNAPSHOT: SessionOptionDescriptor[] = []
+
+// Why: a tracked model outside the seed takes the agent's unknown-model options, as its launch does.
+function modelsWithTrackedOptions(
+  catalog: AgentSessionOptionCatalog,
+  record: NativeChatSessionOptionRecord
+): CatalogModel[] {
+  return withTrackedNativeChatModel(catalog, catalog.models, record).map((model) =>
+    catalog.models.some((seed) => seed.id === model.id)
+      ? model
+      : { ...model, options: catalog.unknownModelOptions ?? model.options }
+  )
+}
 
 /** Model and session-option state for the active mobile chat tab: builds the
  *  picker snapshot from the agent's catalog, seeds it from the hook-reported
@@ -106,9 +120,11 @@ export function useMobileNativeChatSessionOptions(args: {
     if (!catalog || !scopeKey || !agent || !reportedModel) {
       return
     }
-    // OMP reports exact selectors, including models absent from cached discovery.
+    // OMP reports exact selectors; other agents' reports outside the seed are tracked as reported.
     const matched =
-      agent === 'omp' ? reportedModel.trim() : matchNativeChatCatalogModelId(catalog, reportedModel)
+      agent === 'omp'
+        ? reportedModel.trim()
+        : (matchNativeChatCatalogModelId(catalog, reportedModel) ?? reportedModel.trim())
     if (!matched) {
       return
     }
@@ -137,10 +153,10 @@ export function useMobileNativeChatSessionOptions(args: {
       catalog,
       // The snapshot no longer self-heals an unlisted tracked model; every caller
       // reconciles it in, so a value the seed dropped keeps its row and options.
-      models: withTrackedNativeChatModel(catalog, catalog.models, record),
+      models: modelsWithTrackedOptions(catalog, record),
       record,
       mode: 'live',
-      modelLabel: 'Model',
+      modelLabel: "Agent's model",
       liveTransport: 'catalog'
     })
   }, [agent, catalog, scopeKey, version])
@@ -191,7 +207,7 @@ export function useMobileNativeChatSessionOptions(args: {
         const apply =
           id === 'model'
             ? catalog.modelApply
-            : withTrackedNativeChatModel(catalog, catalog.models, record)
+            : modelsWithTrackedOptions(catalog, record)
                 .find((model) => model.id === previousModelId)
                 ?.options.find((option) => option.id === id)?.apply
         if (!apply || apply.midSession?.kind === 'agent-picker') {
@@ -215,7 +231,7 @@ export function useMobileNativeChatSessionOptions(args: {
           apply,
           modelId: previousModelId,
           catalog,
-          models: withTrackedNativeChatModel(catalog, catalog.models, record),
+          models: modelsWithTrackedOptions(catalog, record),
           record
         })
         if (!command) {
@@ -269,7 +285,7 @@ export function useMobileNativeChatSessionOptions(args: {
         const apply =
           id === 'model'
             ? catalog.modelApply
-            : withTrackedNativeChatModel(catalog, catalog.models, record)
+            : modelsWithTrackedOptions(catalog, record)
                 .find((model) => model.id === modelId)
                 ?.options.find((option) => option.id === id)?.apply
         const midSession = apply?.midSession
@@ -303,7 +319,7 @@ export function useMobileNativeChatSessionOptions(args: {
       const record = getScopedRecord(scopeKey, agent)
       const result = recordNativeChatSessionOptionCommand({
         catalog,
-        models: withTrackedNativeChatModel(catalog, catalog.models, record),
+        models: modelsWithTrackedOptions(catalog, record),
         record,
         command
       })

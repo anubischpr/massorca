@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ActivityIndicator, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { ChevronLeft, X } from 'lucide-react-native'
-import type { PiRowRuntime } from '../../../src/shared/agent-type-label'
+import { formatAgentRowTypeLabel, type PiRowRuntime } from '../../../src/shared/agent-type-label'
 import { BottomDrawer } from '../components/BottomDrawer'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import {
@@ -94,6 +94,10 @@ function choiceLeadingFor(
   return undefined
 }
 
+// Why: a terminal chat reports no access mode, so the sheet says so instead of showing none.
+const TERMINAL_ACCESS_NOTE =
+  "This terminal chat doesn't report an access mode, so it isn't shown here."
+
 /** Model pill, effort and access buttons, and the bottom sheet each one opens. */
 export function MobileNativeChatSessionOptionPickers({
   controller,
@@ -147,6 +151,11 @@ export function MobileNativeChatSessionOptionPickers({
   const accessValue = access ? mobileAccessCurrentValue(access) : 'inherit'
   // Why: a transport token with no human label is never announced; "Custom mode" stands in for it.
   const accessLabel = mobileAccessChoiceLabel(accessValue) ?? 'Custom mode'
+  // Why: a row that opens the agent's own picker names that agent, so the switch is never silent.
+  const agentLabel = agent ? formatAgentRowTypeLabel({ agentType: agent }, piRuntime) : 'the agent'
+  const agentPickerNote = (descriptor: SessionOptionDescriptor): string =>
+    `Opens ${agentLabel}'s own ${descriptor.id === model.id ? 'model ' : ''}picker in the terminal`
+  const modelKnown = model.kind.type === 'select' && model.kind.currentValue !== undefined
 
   const closePicker = (): void => {
     setOpenDescriptorId(null)
@@ -318,8 +327,23 @@ export function MobileNativeChatSessionOptionPickers({
                 choiceLeading={choiceLeadingFor(activeDescriptor)}
                 onSetOption={(value) => applyOption(activeDescriptor, value)}
                 onInvokeAction={() => invokeAction(activeDescriptor)}
+                agentPickerNote={agentPickerNote(activeDescriptor)}
               />
             </View>
+            {modelView && !moreView && model.transport === 'catalog' ? (
+              <>
+                {effort ? null : (
+                  <SessionOptionCaption>
+                    {modelKnown
+                      ? 'This model has no effort setting here.'
+                      : 'Effort appears once the agent reports its model.'}
+                  </SessionOptionCaption>
+                )}
+                {access ? null : (
+                  <SessionOptionCaption>{TERMINAL_ACCESS_NOTE}</SessionOptionCaption>
+                )}
+              </>
+            ) : null}
             {modelView && !moreView && (modelSplit.moreCount > 0 || summaryOptions.length > 0) ? (
               <View style={styles.optionGroup}>
                 {modelSplit.moreCount > 0 ? (
