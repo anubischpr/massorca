@@ -173,7 +173,8 @@ export function DescriptorRows({
   choiceLabelColor,
   choiceLeading,
   onSetOption,
-  onInvokeAction
+  onInvokeAction,
+  agentPickerNote
 }: {
   descriptor: SessionOptionDescriptor
   disabled: boolean
@@ -184,6 +185,8 @@ export function DescriptorRows({
   choiceLeading?: (choice: SessionOptionSelectChoice) => React.ReactNode
   onSetOption: (value: SessionOptionValue) => void
   onInvokeAction: () => void
+  /** Says where the agent's own picker opens; shown under its action row. */
+  agentPickerNote?: string
 }): React.JSX.Element {
   const locked = disabled || !descriptor.settable
   // Why: flip-only without a baseline is an action — never claim On/Off.
@@ -200,12 +203,15 @@ export function DescriptorRows({
   // Why: agent-picker opens the TUI; it is not a set of radio choices.
   if (descriptor.action?.type === 'agent-picker') {
     return (
-      <ActionRow
-        label="Choose in agent picker…"
-        disabled={locked}
-        grouped={grouped}
-        onPress={onInvokeAction}
-      />
+      <>
+        <ActionRow
+          label="Change in the terminal"
+          disabled={locked}
+          grouped={grouped}
+          onPress={onInvokeAction}
+        />
+        {agentPickerNote ? <SessionOptionCaption>{agentPickerNote}</SessionOptionCaption> : null}
+      </>
     )
   }
   // One switch, not an On/Off pair: the option is binary. The value always

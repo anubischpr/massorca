@@ -53,7 +53,7 @@ export function mobileSelectedChoiceLabel(descriptor: SessionOptionDescriptor): 
 
 /** Value-only pill text — the category lives on the sheet title, not the pill. */
 export function mobileModelPillLabel(descriptor: SessionOptionDescriptor): string {
-  return mobileSelectedChoiceLabel(descriptor) ?? 'Model'
+  return mobileSelectedChoiceLabel(descriptor) ?? descriptor.label
 }
 
 /** Sheet title; the access descriptor's internal id would read as "accessmode", so it has its own. */

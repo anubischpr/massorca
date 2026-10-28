@@ -418,20 +418,47 @@ describe('MobileNativeChatSessionOptionPickers', () => {
     expect(setOption).not.toHaveBeenCalled()
   })
 
-  it('renders agent-picker descriptors as a single action row', async () => {
-    mount([
-      {
-        ...MODEL_DESCRIPTOR,
-        kind: { type: 'select', choices: [] },
-        valueSource: 'unknown',
-        transport: 'catalog',
-        action: { type: 'agent-picker' }
-      }
-    ])
+  it('renders agent-picker descriptors as a row that says it changes the model in the terminal', async () => {
+    mount(
+      [
+        {
+          ...MODEL_DESCRIPTOR,
+          kind: { type: 'select', choices: [] },
+          valueSource: 'unknown',
+          transport: 'catalog',
+          action: { type: 'agent-picker' }
+        }
+      ],
+      false,
+      'codex'
+    )
     await act(async () => control('Model').props.onPress())
-    expect(rowByText('Choose in agent picker…').props.accessibilityRole).toBe('button')
-    await act(async () => rowByText('Choose in agent picker…').props.onPress())
+    expect(rowByText('Change in the terminal').props.accessibilityRole).toBe('button')
+    expect(texts()).toContain("Opens Codex's own model picker in the terminal")
+    await act(async () => rowByText('Change in the terminal').props.onPress())
     expect(invokeAction).toHaveBeenCalledWith('model')
+  })
+
+  it('says why effort and access are missing on a terminal model sheet', async () => {
+    mount(
+      [
+        {
+          ...MODEL_DESCRIPTOR,
+          label: "Agent's model",
+          kind: { type: 'select', choices: [] },
+          valueSource: 'unknown',
+          transport: 'catalog',
+          action: { type: 'agent-picker' }
+        }
+      ],
+      false,
+      'codex'
+    )
+    await act(async () => control('Model').props.onPress())
+    expect(texts()).toContain('Effort appears once the agent reports its model.')
+    expect(texts()).toContain(
+      "This terminal chat doesn't report an access mode, so it isn't shown here."
+    )
   })
 
   // The terminal transport can only learn the outcome by parsing the screen back,
