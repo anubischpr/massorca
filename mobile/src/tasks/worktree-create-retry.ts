@@ -16,6 +16,7 @@ import {
   isAgentLaunchReplayUnsupportedRefusal,
   isAgentLaunchUnsupportedRefusal,
   readAgentLaunchCreateOutcome,
+  type AgentLaunchCreateOutcome,
   type WorktreeCreateAgentLaunch
 } from './agent-launch-request'
 import { structuredSessionOperationId } from '../session/structured-session-operation-id'
@@ -30,11 +31,8 @@ import {
   type AmbiguousDeliveryReplay
 } from './replay-on-ambiguous-delivery'
 
-// Why: server-side collision checks (branch already exists locally / on a remote
-// / already has PR #N) can fire even after a pre-flight basename dedupe —
-// branches outlive worktrees in git, and remote branches/PRs aren't visible from
-// worktree.ps. Retry by appending -2, -3, ... mirroring the desktop createWorktree
-// loop in src/renderer/src/store/slices/worktrees.ts.
+// Why: branches outlive worktrees and remote branches or PRs are invisible to worktree.ps, so the
+// host can report a collision after a pre-flight dedupe; retry with -2, -3, ...
 export type WorktreeCreateResult =
   | {
       worktreeId: string
@@ -42,6 +40,7 @@ export type WorktreeCreateResult =
       warning?: string
       promptDelivered?: boolean
       paneKey?: string
+      surface?: AgentLaunchCreateOutcome['surface']
     }
   | { error: string }
 
@@ -61,11 +60,8 @@ export type CreateWorktreeWithNameRetryArgs = {
   mintLaunchOperationId?: () => string
 }
 
-// Creates a worktree, retrying with a numeric suffix on a name-collision error.
-// buildParams receives the candidate name so callers can assemble source-specific
-// params (linked issue/PR, base branch, etc.) around it. Callers that can't clear
-// a collision by re-suffixing (e.g. reusing a fixed existing branch) pass
-// maxAttempts: 1 to fail fast instead of burning the full retry budget.
+// Creates a worktree, retrying with a numeric suffix on a name collision. Callers that cannot clear
+// a collision by re-suffixing (e.g. a fixed existing branch) pass maxAttempts: 1.
 export async function createWorktreeWithNameRetry(
   args: CreateWorktreeWithNameRetryArgs
 ): Promise<WorktreeCreateResult> {
@@ -133,7 +129,8 @@ export async function createWorktreeWithNameRetry(
           ...(created.promptDelivered !== undefined
             ? { promptDelivered: created.promptDelivered }
             : {}),
-          ...(created.paneKey ? { paneKey: created.paneKey } : {})
+          ...(created.paneKey ? { paneKey: created.paneKey } : {}),
+          ...(created.surface ? { surface: created.surface } : {})
         }
       }
       lastError = 'Failed to create workspace'
@@ -160,14 +157,15 @@ async function resolveAgentLaunchRoute(
         agent: launch.agent,
         replay: support.replay,
         ...(launch.prompt ? { prompt: launch.prompt } : {}),
-        ...(launch.sessionOptions ? { sessionOptions: launch.sessionOptions } : {})
+        ...(launch.sessionOptions ? { sessionOptions: launch.sessionOptions } : {}),
+        ...(launch.preferredMode ? { preferredMode: launch.preferredMode } : {})
       }
     : null
 }
 
 type ResolvedAgentLaunchRoute = Pick<
   WorktreeCreateAgentLaunch,
-  'agent' | 'prompt' | 'sessionOptions'
+  'agent' | 'prompt' | 'sessionOptions' | 'preferredMode'
 > & {
   replay: boolean
 }
@@ -184,6 +182,7 @@ function readCreateResult(
   warning?: string
   promptDelivered?: boolean
   paneKey?: string
+  surface?: AgentLaunchCreateOutcome['surface']
 } | null {
   if (launch) {
     const operation = launch.replay ? agentLaunchReplayRun : agentLaunchRun
@@ -208,16 +207,9 @@ function readCreateResult(
   }
 }
 
-// Sends the create, re-issuing whenever the request went delivery-ambiguous — the frame reached the
-// wire but no response came back, so the host may already have built the worktree. Every resend
-// carries the SAME two names: a new one would be a new operation and would defeat both mechanisms.
-//
-// On the `worktree.create` route the shared clientMutationId keeps the retry idempotent host-side.
-// On the launch route it does NOT reach the ledger: `agent.launch` caches the whole launch — the
-// worktree AND the surface — under that id for 60s, so inside that window a replay adds neither,
-// and outside it adds both. `launchOperationId` is what makes the replay durably safe, and it is
-// only sent when the host advertised the ledger.
-// A definite failure (never sent, or a server error response) is returned to the caller untouched.
+// Re-sends a delivery-ambiguous create (the host may already have built it) with the SAME names: a
+// new name is a new operation. `clientMutationId` covers `worktree.create`; the launch route needs
+// `launchOperationId`, which is sent only when the host advertised the ledger.
 function sendWorktreeCreateResilient(
   client: RpcClient,
   launchRoute: ResolvedAgentLaunchRoute | null,

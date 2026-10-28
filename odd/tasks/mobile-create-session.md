@@ -93,3 +93,33 @@ Every item was checked against the code first.
 10. `launchSource` - fixed: `mobile` is an allowed value. (The wire field is an open string, but the
     host telemetry would have recorded `unknown`.)
 
+## Chat-mode follow-up (QA on the phone build)
+
+Root cause: `agent.launch` never names a mode, so a host whose default for new agent tabs is a
+terminal built a terminal agent (generic Model pill, no effort/access/Fast, and no first-work rename
+on a headless runtime, which only the structured path drives).
+
+- U1 (host + shared, additive) - done. `agent.launch` takes an optional `preferredMode: 'chat'`
+  (open like `presentation`: an unknown word reads as absent, and an older host strips it). It
+  overrides only a terminal default in `decideAgentLaunchMode`; every feasibility downgrade still
+  wins (remote host, reused terminal, agent with no chat, custom start directory, a caller that
+  cannot show a chat, and the host create-support answer), and the receipt carries the new reason
+  `caller_requested_chat` or the downgrade reason worded as a request. Advertised as
+  `agent.launch.preferred-mode.v1`. Tests: decision (terminal default + preference becomes a chat;
+  each downgrade still wins), params parsing. **The VPS runtime needs a build with this commit.**
+- U2 (mobile) - done. The create screen sends the preference on both launch paths, reads the receipt
+  and, when the host still built a terminal, says so on landing with the host own sentence. A host
+  that does not advertise the capability gets a one-line note before sending.
+- U3 (`pendingFirstAgentMessageRename`, `createChatNaming` on `worktree.create`) - not needed, skipped.
+  The structured first-work rename (`worktree.ps` status feed -> `first-work-structured-session-rename`
+  -> `maybeAutoRenameBranchOnFirstWork`) renames the branch AND sets the display name in one pass.
+  Neither field gates it: `pendingFirstAgentMessageRename` only drives the desktop pending card, and
+  `createChatNaming` (merged branch only) just picks the model, falling back to the global Source
+  Control AI params. Host-side test: `first-work-phone-created-chat-rename.test.ts`.
+  Gates a phone-created chat must pass: the `autoRenameBranchFromWork` setting is on; the worktree is
+  runtime-stamped (`orcaCreationSource: 'runtime'`, true for `worktree.create`); the branch leaf is a
+  creature name (the phone's generated one is); no upstream; a branch-name generation agent is
+  configured in Source Control AI settings; a non-empty first message. The display name is replaced
+  only while it is still a generated creature name. A terminal launch skips this path (the PTY path
+  waits on a window agent-status event a headless runtime may never drive), which is why the chat
+  preference (U1) is what makes the rename happen. The folder keeps its creature name by design.

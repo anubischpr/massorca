@@ -3,7 +3,9 @@ import {
   agentLaunchCreateParams,
   agentLaunchExistingParams,
   isAgentLaunchUnsupportedRefusal,
-  readAgentLaunchCreateOutcome
+  readAgentLaunchCreateOutcome,
+  readAgentLaunchSupport,
+  readLaunchSurface
 } from './agent-launch-request'
 
 describe('agentLaunchCreateParams', () => {
@@ -90,6 +92,43 @@ describe('agent launch first message and options', () => {
 
   it('leaves delivery unstated when the host sends no receipt', () => {
     expect(readAgentLaunchCreateOutcome({ worktreeId: 'wt-1' })).toEqual({ worktreeId: 'wt-1' })
+  })
+})
+
+describe('chat preference and launch surface', () => {
+  it('sends the chat preference with a create and with an existing launch', () => {
+    const created = agentLaunchCreateParams('codex', { repo: 'id:r', name: 'otter' }, null, {
+      preferredMode: 'chat'
+    })
+    expect(created.preferredMode).toBe('chat')
+    const existing = agentLaunchExistingParams({
+      agent: 'codex',
+      worktreeId: 'wt-1',
+      operationId: 'op-1',
+      preferredMode: 'chat'
+    })
+    expect(existing.preferredMode).toBe('chat')
+    expect(agentLaunchCreateParams('codex', { repo: 'id:r', name: 'otter' })).not.toHaveProperty(
+      'preferredMode'
+    )
+  })
+
+  it('reads whether the host advertises the preference', () => {
+    expect(readAgentLaunchSupport(['agent.launch.v2'])).toMatchObject({ preferredMode: false })
+    expect(
+      readAgentLaunchSupport(['agent.launch.v2', 'agent.launch.preferred-mode.v1'])
+    ).toMatchObject({ preferredMode: true })
+    expect(readAgentLaunchSupport([])).toBe(false)
+  })
+
+  it('reads the surface the host built from the receipt', () => {
+    expect(
+      readLaunchSurface({
+        receipt: { mode: 'terminal', preferred: 'terminal', reason: 'user_default', detail: 'Why.' }
+      })
+    ).toEqual({ mode: 'terminal', detail: 'Why.' })
+    expect(readLaunchSurface({ receipt: { mode: 'weird' } })).toBeUndefined()
+    expect(readLaunchSurface({})).toBeUndefined()
   })
 })
 

@@ -49,6 +49,13 @@ export function resolveCreateSessionSetup(args: {
   return { decision: details.runPolicy === 'skip-by-default' ? 'skip' : 'run', notice: null }
 }
 
+/** For hosts that ignore the chat preference: they open their default kind of tab. */
+export function createSessionModeNote(support: AgentLaunchSupport | false | null): string | null {
+  return support && support.preferredMode !== true
+    ? 'This computer will open its default kind of tab for the agent, which may be a terminal.'
+    : null
+}
+
 /** Why Send must stay off, or null. Never a dead end: every message names the way out. */
 export function createSessionLaunchBlocker(args: {
   /** Null while the host capabilities are still being read. */

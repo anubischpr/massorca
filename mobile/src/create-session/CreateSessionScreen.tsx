@@ -113,6 +113,7 @@ export function CreateSessionScreen({
           />
         ) : null}
         {controller.blocker ? <Text style={styles.notice}>{controller.blocker}</Text> : null}
+        {controller.modeNote ? <Text style={styles.notice}>{controller.modeNote}</Text> : null}
         {controller.setupNotice ? (
           <Text style={styles.notice}>{controller.setupNotice}</Text>
         ) : null}
@@ -153,13 +154,18 @@ export function CreateSessionScreen({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bgBase },
   content: { flex: 1, minHeight: 0, paddingHorizontal: 22, paddingTop: 40 },
-  title: { color: colors.textPrimary, fontSize: 26, fontWeight: '600', lineHeight: 31 },
+  title: {
+    color: colors.textPrimary,
+    fontSize: typography.titleSize,
+    fontWeight: '600',
+    lineHeight: 31
+  },
   input: {
     flex: 1,
     marginTop: spacing.lg,
     padding: 0,
     color: colors.textPrimary,
-    fontSize: 17,
+    fontSize: typography.titleSize,
     lineHeight: 25
   },
   bottom: { gap: 10, paddingHorizontal: spacing.md, paddingTop: spacing.sm },

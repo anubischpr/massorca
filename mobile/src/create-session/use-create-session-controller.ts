@@ -28,7 +28,7 @@ import {
   type CreateSessionChoice,
   type CreateSessionSelection
 } from './create-session-model'
-import { createSessionLaunchBlocker } from './create-session-readiness'
+import { createSessionLaunchBlocker, createSessionModeNote } from './create-session-readiness'
 import { useCreateSessionHostSettings } from './use-create-session-host-settings'
 import { useCreateSessionLeaveLock } from './use-create-session-leave-lock'
 import { useCreateSessionOptions } from './use-create-session-options'
@@ -43,7 +43,6 @@ export function createSessionAgentLabel(agent: TuiAgent | null): string {
   return (agent && AGENT_LABELS.get(agent)) ?? 'Agent'
 }
 
-/** Everything the create screen reads and does, so the view is only layout. */
 export function useCreateSessionController(args: {
   client: RpcClient | null
   hostId: string
@@ -234,6 +233,7 @@ export function useCreateSessionController(args: {
     blankBusy,
     blocker,
     setupNotice: setupState.setup.notice,
+    modeNote: createSessionModeNote(capabilities.agentLaunch),
     startBlankTerminal,
     chooseHost: (value: string) => {
       const option = hostOptions.find((candidate) => candidate.id === value)
