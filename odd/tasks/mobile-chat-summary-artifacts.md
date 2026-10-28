@@ -288,3 +288,15 @@ Route: one delegated writer. Decision changed from the plan above, with evidence
 Checks: mobile `pnpm typecheck` exit 0; the new and touched suites pass (seen fold, terminal read, bridge pill and sheet, chrome row, sheet, structured strip, view and overlay dependents); root `pnpm tc:node` and the projection and roster suites pass; oxfmt and oxlint clean on the changed files.
 
 Needs a device: the pill and sheet against a real Claude and Codex terminal chat (subagent start, finish, host restart), the live update on a desktop-attached host, and the chrome row layout.
+
+## Round 7 (parent request on `29da8825ca8`: header spacing, Gentle Shell row, background history, Codex background shells)
+
+Each task is one Conventional Commit with its tests; no AI attribution lines. No push, no PR. Checks per task in `mobile/`: `pnpm typecheck` exit 0, targeted `pnpm test <files>`, oxfmt and oxlint on changed files. T23 also runs root `pnpm tc:node`.
+
+- [x] T20 Repo group header: the GitHub login sits beside the repo name with the same gap as the count. Style only (`mobile/src/host-screen/host-screen-secondary-styles.ts`), no test: no behavior changed. Checks: typecheck exit 0, oxfmt and oxlint clean.
+- [ ] T21 New Tab agent sheet: a host configured for Gentle Shell shows "Gentle Shell" with its icon, not "Pi". Reads `settings.agentCmdOverrides.pi` from the settings the loader already reads (`RuntimeClientSettings` carries it); no wire change, no new TuiAgent id.
+- [ ] T22 Background work history: finished work survives remounts and reconnects (module-level store keyed by host and session); `commandActivity` seeds finished commands when present; the chat lane shows a correct empty note and never one beside Finished rows.
+- [ ] T23 Codex background shell tasks: unified-exec processes that outlive their exec call count as background commands in the roster and settle when they exit.
+
+### T20 evidence
+- Commit: recorded by the next commit (T21), since a commit cannot name its own SHA.
