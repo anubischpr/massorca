@@ -208,3 +208,22 @@ The review approved the range and left non-blocking findings with locations only
 
 Checks (mobile/): `pnpm typecheck` exit 0 after each commit; oxfmt and oxlint clean on the changed files; the touched and dependent suites pass (menu, sessions sheet, chip, chat surfaces, summary model, environment, host list and reply schema).
 
+## Round 6 (T17 and review findings on 345b15b9c84..HEAD)
+
+### T17: the repo's gh.account first, Repo.ghAccount as the fallback (`83571c340e2`)
+
+- Host method: `github.readAccountGitConfig`, params `{ repo }` (the mobile `id:<repoId>` selector), result `GhAccountGitConfigState | null`: `{ account, identityManaged }`, where `account` is the repo's `gh.account` login and nothing else (the host is inferred from the credential helper key, or github.com). Verified on `feat/gh-account-git-config`.
+- The method is not in this branch's typed params catalog, so `mobile/src/worktree/repo-git-account-read.ts` calls it untyped through `client.sendRequest` and validates the reply with zod, as `mobile-recorded-file-read.ts` does.
+- An older host, or one that refuses the method to phones (`isMobileMethodUnavailableError`), is remembered per client and never asked again; the caller falls back quietly. An ordinary failure is not remembered, so a later read asks again.
+- Cache per host and repo, 5 minutes. The repo-header reads run in the background after the catalog arrives, two at a time, and overlay the fallback labels as each one lands, so the list never waits for them.
+- The chat Environment reads the same login first (`withRepoGitAccount`). The host string comes from the bound account, or github.com when the repo binds none.
+- The method is mobile-allowlisted on `fix/mobile-gh-account-read-allowlist`. This branch needs that host build (the VPS rebuild) before the git login appears; until then every read answers unavailable and the bound account shows, as before.
+
+### Review findings (345b15b9c84..HEAD)
+
+- Finding 1, closing the active tab cleared the active id while other tabs remained (`use-mobile-session-close-actions.ts`): verified, fixed in `767f0da2228`. The neighbour (the tab that took the closed tab's place, or the new last tab) becomes active in the same update. Test: `mobile-session-active-tab.test.ts`.
+- Finding 2, a new terminal's raw handle matched no tab, so the bar stayed pending (`getActiveTabIdForHandle`): verified, fixed in `767f0da2228`. While the active tab is not listed, the last known kind stands in (`activeSessionTabTypeRef`) instead of null. Test: `mobile-session-active-tab.test.ts`.
+- Finding 3, same-named repos merged into one group and the last repo's login won: verified, fixed in `83571c340e2`. A group shows a login only when every repo in it resolves to the same exact login with none missing. A folder workspace in the group omits the label, even when its name equals a bound repo name. Tests: duplicate names that disagree and that agree, a missing login, and a folder row beside a bound name (`host-repo-group-account.test.ts`).
+
+Checks (mobile/): `pnpm typecheck` exit 0 after each commit; oxfmt and oxlint clean on the changed files; the touched and dependent suites pass (close and chrome decision, host-screen grouping and reply schema, repo account read, chat environment account).
+
