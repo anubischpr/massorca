@@ -46,7 +46,8 @@ function referenceProjection(map: AppState['agentStatusByPaneKey']): string {
         lastAssistantMessage: entry.lastAssistantMessage ?? null,
         lastAssistantMessageIsToolOutput: entry.lastAssistantMessageIsToolOutput ?? null,
         interrupted: entry.interrupted ?? null,
-        mainAgent: mainAgentKey(entry.mainAgent)
+        mainAgent: mainAgentKey(entry.mainAgent),
+        subagents: entry.subagents?.map((subagent) => [subagent.id, subagent.state]) ?? null
       }))
   )
 }
@@ -80,6 +81,14 @@ describe('mobile agent-status projection equivalence', () => {
     statusMaps.push({ 'tab-0:leaf-0': makeEntry(0) })
     statusMaps.push({ 'tab-0:leaf-0': makeEntry(0, { workingMode: 'monitoring' }) })
     statusMaps.push({ 'tab-0:leaf-0': makeEntry(0, { turnStartedAt: 1740000000500 }) })
+    statusMaps.push({
+      'tab-0:leaf-0': makeEntry(0, {
+        subagents: [
+          { id: 'a1', state: 'working', startedAt: 1740000000100 },
+          { id: 'a2', state: 'idle', startedAt: 1740000000200 }
+        ]
+      })
+    })
     const many: AppState['agentStatusByPaneKey'] = {}
     for (let index = 0; index < 12; index += 1) {
       many[`tab-${index}:leaf-0`] = makeEntry(index)
@@ -131,6 +140,29 @@ describe('mobile agent-status projection equivalence', () => {
         projection: buildRuntimeMobileAgentStatusProjectionForTests(current)
       }).toEqual({ round, projection: referenceProjection(current) })
     }
+  })
+
+  it('changes when only the subagent roster does, and not when it repeats', () => {
+    const projectionOf = (subagents: unknown): string => {
+      resetRuntimeMobileAgentStatusProjectionCacheForTests()
+      return buildRuntimeMobileAgentStatusProjectionForTests({
+        'tab-0:leaf-0': makeEntry(0, { subagents })
+      })
+    }
+    const working = [{ id: 'a1', state: 'working', startedAt: 1740000000100 }]
+
+    expect(projectionOf(working)).toBe(
+      projectionOf([{ id: 'a1', state: 'working', startedAt: 1740000000100 }])
+    )
+    // Same row, same bucket, same state: only the roster moved, and the phone lists it.
+    expect(projectionOf(working)).not.toBe(projectionOf([]))
+    expect(projectionOf(working)).not.toBe(projectionOf(undefined))
+    expect(projectionOf(working)).not.toBe(
+      projectionOf([{ id: 'a1', state: 'idle', startedAt: 1740000000100 }])
+    )
+    expect(projectionOf(working)).not.toBe(
+      projectionOf([...working, { id: 'a2', state: 'working', startedAt: 1740000000300 }])
+    )
   })
 
   it('serializes the same entries the localeCompare order did', () => {
