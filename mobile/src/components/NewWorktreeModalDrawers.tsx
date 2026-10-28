@@ -5,7 +5,7 @@ import type { PasteRepoCandidate } from '../tasks/smart-source-paste-intent'
 import type { useMobileComposerSource } from '../tasks/use-mobile-composer-source'
 import { colors } from '../theme/mobile-theme'
 import { MobileAgentIcon } from './MobileAgentIcon'
-import type { NewWorktreeAgentOption } from './new-worktree-agent-selection'
+import { newWorktreeAgentRowKey, type NewWorktreeAgentOption } from './new-worktree-agent-selection'
 import { newWorktreeFormStyles as styles } from './new-worktree-form-styles'
 import type { MobileWorkspaceRepo } from './new-worktree-modal-types'
 import type {
@@ -94,11 +94,24 @@ export function NewWorktreeModalDrawers(props: {
       <PickerListDrawer
         visible={props.visible && props.drawerView === 'agent'}
         title="Agent"
-        items={props.pickerAgentOptions}
-        selectedId={props.selectedAgent.id}
-        onSelect={props.onAgentChange}
+        items={props.pickerAgentOptions.map((option) => ({
+          ...option,
+          id: newWorktreeAgentRowKey(option),
+          agentId: option.id
+        }))}
+        selectedId={newWorktreeAgentRowKey(props.selectedAgent)}
+        onSelect={(item) => {
+          const option = props.pickerAgentOptions.find(
+            (candidate) => newWorktreeAgentRowKey(candidate) === item.id
+          )
+          if (option) {
+            props.onAgentChange(option)
+          }
+        }}
         onClose={props.onTransitionToForm}
-        renderIcon={(agent) => <MobileAgentIcon agentId={agent.id} size={18} />}
+        renderIcon={(item) => (
+          <MobileAgentIcon agentId={item.agentId} piRuntime={item.piRuntime} size={18} />
+        )}
       />
 
       <SetupHookTrustDrawer

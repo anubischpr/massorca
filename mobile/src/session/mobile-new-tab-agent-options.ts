@@ -25,7 +25,7 @@ export type MobileNewTabAgentOption = {
 }
 
 // Why: stock Pi lists before Gentle Shell, so the two rows keep one order on every host.
-const PI_RUNTIME_ROW_ORDER: readonly PiRuntimeSelection[] = ['pi', 'gentle-shell']
+export const PI_RUNTIME_ROW_ORDER: readonly PiRuntimeSelection[] = ['pi', 'gentle-shell']
 
 export function orderMobileNewTabAgents(
   defaultAgent: TuiAgent | 'blank' | null | undefined,
@@ -92,7 +92,8 @@ function piRuntimeOption(piRuntime: PiRuntimeSelection): MobileNewTabAgentOption
   }
 }
 
-function legacyPiRuntime(
+/** The runtime a Pi row names when the host did not say which it has: its Command setting, else stock Pi. */
+export function legacyPiRuntime(
   settings: MobileNewTabAgentSettings | null | undefined
 ): PiRuntimeSelection {
   const command = settings?.agentCmdOverrides?.pi

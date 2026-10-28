@@ -49,7 +49,7 @@ export async function loadMobileAgentLaunchContext(args: {
   const detected = detectedAgents.interpret(detectedAgents.reply)
   // Asked only when the host reports pi: the answer says which of its two Pi runtimes it has.
   const piRuntimes = detected.includes('pi')
-    ? await loadPiRuntimes(client, detectedAgents.connectionId)
+    ? await loadHostPiRuntimes(client, detectedAgents.connectionId)
     : null
   return {
     settings: readSettings(),
@@ -81,8 +81,9 @@ type DetectedAgentsReply = {
   connectionId: string | null
 }
 
-/** Advisory: a host that refuses the read, or predates it, leaves the Pi row as it was. */
-async function loadPiRuntimes(
+/** The Pi runtimes a host has, or null when it did not say. Advisory: a host that refuses the read,
+ *  or predates it, leaves the Pi row as it was. */
+export async function loadHostPiRuntimes(
   client: RpcClient,
   connectionId: string | null
 ): Promise<PiRuntimeSelection[] | null> {
