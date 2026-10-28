@@ -7,6 +7,10 @@ import {
   runPreflightCheck
 } from '../../../preflight/agent-detection'
 import {
+  detectInstalledPiRuntimesWithShellPathHydration,
+  detectRemotePiRuntimes
+} from '../../../preflight/pi-runtime-detection'
+import {
   PreflightCheck,
   PreflightDetectRemoteAgents,
   PreflightDetectRemoteWindowsTerminalCapabilities
@@ -30,6 +34,19 @@ export const PREFLIGHT_METHODS = [
     permission: 'workspace',
     params: PreflightDetectRemoteAgents,
     handler: async (params) => detectRemoteAgents(params)
+  }),
+  // Why: a separate method, since `preflight.detectAgents` returns a bare id list older phones validate.
+  defineMethod({
+    name: 'preflight.detectPiRuntimes',
+    permission: 'workspace',
+    params: null,
+    handler: async () => detectInstalledPiRuntimesWithShellPathHydration()
+  }),
+  defineMethod({
+    name: 'preflight.detectRemotePiRuntimes',
+    permission: 'workspace',
+    params: PreflightDetectRemoteAgents,
+    handler: async (params) => detectRemotePiRuntimes(params)
   }),
   defineMethod({
     name: 'preflight.detectRemoteWindowsTerminalCapabilities',

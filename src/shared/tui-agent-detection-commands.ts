@@ -5,6 +5,7 @@ import {
   type TuiAgentConfig,
   type TuiAgentDetectionRuntime
 } from './tui-agent-config'
+import { isPiRuntimeSelection, type PiRuntimeSelection } from './pi-runtime-selection'
 
 export type TuiAgentDetectionCommand = {
   id: TuiAgent
@@ -71,6 +72,29 @@ export function resolveDetectedTuiAgentIds(
     )
     .map(({ id }) => id)
   return [...new Set(detected)]
+}
+
+/** The Pi runtimes whose binary resolved: `pi` and its `gentle-shell` alias both fold into the `pi`
+ *  agent id, so this reads the command names that resolveDetectedTuiAgentIds drops. */
+export function resolveDetectedPiRuntimes(
+  commands: readonly TuiAgentDetectionCommand[],
+  foundCommands: ReadonlySet<string>,
+  runtime: TuiAgentDetectionRuntime
+): PiRuntimeSelection[] {
+  const detected: PiRuntimeSelection[] = []
+  for (const command of commands) {
+    const cmd = command.cmd
+    if (
+      command.id === 'pi' &&
+      isPiRuntimeSelection(cmd) &&
+      !isDetectionUnsupportedInRuntime(command, runtime) &&
+      foundCommands.has(cmd) &&
+      (command.requiredCommands ?? []).every((required) => foundCommands.has(required))
+    ) {
+      detected.push(cmd)
+    }
+  }
+  return detected
 }
 
 export function isDetectionUnsupportedInRuntime(
