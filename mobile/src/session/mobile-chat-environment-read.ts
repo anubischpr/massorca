@@ -8,6 +8,7 @@ import { bindDeferredRpcOperation, defineRpcOperation } from '../transport/rpc-o
 import { rpcResultVariant } from '../transport/rpc-operation-result-reader'
 import type { RpcClient } from '../transport/rpc-client'
 import { worktreeCatalogRead } from '../worktree/worktree-catalog-operations'
+import { readRepoGitAccount } from '../worktree/repo-git-account-read'
 import {
   environmentWorktreeFromRow,
   type MobileChatEnvironmentWorktree
@@ -70,9 +71,32 @@ export async function readMobileChatEnvironment(
   ])
   const catalog = worktreeCatalogRead.interpret(catalogReply)
   const repos = chatRepoAccountListRead.interpret(repoReply)
-  return environmentFromReplies({
+  const environment = environmentFromReplies({
     worktreeId,
     catalogRows: catalog.accepted ? (catalog.value.worktrees ?? []) : [],
     repos: repos.accepted ? repos.value : null
   })
+  if (!environment) {
+    return null
+  }
+  return withRepoGitAccount(client, environment)
+}
+
+/**
+ * The repo's own gh.account, read first, as desktop does; the bound account from repo.list stands when
+ * the host has none, predates the method, or does not answer. Only the login is replaced: the host
+ * string comes from the bound account, or github.com when the repo binds none.
+ */
+export async function withRepoGitAccount(
+  client: RpcClient,
+  environment: MobileChatEnvironment
+): Promise<MobileChatEnvironment> {
+  const verdict = await readRepoGitAccount(client, environment.worktree.repoId)
+  if (verdict.kind !== 'bound') {
+    return environment
+  }
+  return {
+    ...environment,
+    ghAccount: { host: environment.ghAccount?.host ?? 'github.com', user: verdict.login }
+  }
 }

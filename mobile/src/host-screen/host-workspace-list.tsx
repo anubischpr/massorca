@@ -141,7 +141,8 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
             const repoAccount = repoGroupAccountLabel(
               state.groupMode,
               section.title,
-              state.repoAccountsByName
+              state.repoAccountsByName,
+              rawSection?.data ?? []
             )
             return (
               <Pressable

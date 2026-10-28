@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react'
 import type { ExecutionHostId } from '../../../src/shared/execution-host'
-import type { GhAccountBinding } from '../../../src/shared/github/account-binding'
 import type { WorkspaceStatusDefinition } from '../../../src/shared/worktree/types'
 import { getCachedWorktrees } from '../cache/worktree-cache'
 import { createInitialHostRouteActionState } from '../host-route-action-state'
@@ -40,9 +39,7 @@ export function useHostScreenState(hostId: string | undefined, action: string | 
   >(null)
   const [repoColorsByName, setRepoColorsByName] = useState<Map<string, string>>(new Map())
   const [repoIconsByName, setRepoIconsByName] = useState<Map<string, MobileHostRepoIcon>>(new Map())
-  const [repoAccountsByName, setRepoAccountsByName] = useState<Map<string, GhAccountBinding>>(
-    new Map()
-  )
+  const [repoAccountsByName, setRepoAccountsByName] = useState<Map<string, string>>(new Map())
   const [hostName, setHostName] = useState('')
   // The stored name identity, loaded with the name so the header can label an offline host.
   const [hostStoredDescriptor, setHostStoredDescriptor] = useState<{
