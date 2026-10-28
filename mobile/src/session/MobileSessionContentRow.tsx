@@ -8,6 +8,8 @@ import { styles } from './mobile-session-styles'
 import type { MobileSessionController } from './use-mobile-session-controller'
 import { MobileSessionActiveContent } from './MobileSessionActiveContent'
 import { MobileSessionCommandDock } from './MobileSessionCommandDock'
+import { MobileTerminalComposerDock } from './MobileTerminalComposerDock'
+import { MOBILE_LEGACY_SESSION_VIEWS } from './mobile-legacy-session-views'
 import { MobileChatFloatingChrome } from './MobileChatFloatingChrome'
 import { MobileChatChromeLayoutContext } from './mobile-chat-chrome-layout'
 import { dockedPanelOf } from './session-panel-host'
@@ -52,7 +54,11 @@ export function MobileSessionContentRow({ controller }: { controller: MobileSess
         ) : null}
         <MobileSessionActiveContent controller={controller} />
         {/* Why: translate instead of resize so keyboard toggles don't trigger a server-side PTY viewport change. */}
-        <MobileSessionCommandDock controller={controller} />
+        {MOBILE_LEGACY_SESSION_VIEWS ? (
+          <MobileSessionCommandDock controller={controller} />
+        ) : (
+          <MobileTerminalComposerDock controller={controller} />
+        )}
       </View>
       {canDockPanel && dockedPanel !== null && (
         <SessionDockColumn

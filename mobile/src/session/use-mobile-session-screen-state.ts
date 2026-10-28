@@ -9,6 +9,7 @@ import {
 import type { CustomKey } from '../components/CustomKeyModal'
 import type { MobileNewTabAgentOption } from './mobile-new-tab-agent-options'
 import { useTerminalLiveInputModePreference } from './use-terminal-live-input-mode-preference'
+import { MOBILE_LEGACY_SESSION_VIEWS } from './mobile-legacy-session-views'
 import type { AppliedSnapshotMarker } from './session-tab-snapshot-gate'
 import { useWorktreeSessionTabsLoaded } from './use-initial-session-terminal-autocreate'
 import { createMobileSessionCreateWarningState } from './mobile-session-create-warning-state'
@@ -53,7 +54,11 @@ export function useMobileSessionScreenState(scope: MobileSessionFoundationModel)
     liveInputTerminalHandlesRef,
     pruneTerminalHandlesFromLiveInput,
     toggleTerminalLiveInput
-  } = useTerminalLiveInputModePreference({ hostId, worktreeId })
+  } = useTerminalLiveInputModePreference({
+    hostId,
+    worktreeId,
+    liveOnly: !MOBILE_LEGACY_SESSION_VIEWS
+  })
   const [activeHandle, setActiveHandle] = useState<string | null>(null)
   // Reactive teardown signal for the native-chat covered stream; see unsubscribeTerminal.
   const [coveredStreamRevision, setCoveredStreamRevision] = useState(0)
