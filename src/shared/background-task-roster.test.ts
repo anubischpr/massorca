@@ -12,6 +12,7 @@ import {
   buildBackgroundTaskGroups as buildGroups,
   buildBackgroundTaskGroupsFromViews,
   formatBackgroundTaskTokens,
+  groupBackgroundTaskRows,
   resolveBackgroundTaskName as resolveName,
   type BackgroundTaskGroup
 } from './background-task-roster'
@@ -363,5 +364,23 @@ describe('background task row meta and Stop', () => {
     expect(backgroundTaskRowStop(a, undefined)).toEqual({ kind: 'none' })
     expect(backgroundTaskRowStop(done, true)).toEqual({ kind: 'none' })
     expect(backgroundTaskRowStop(done, false)).toEqual({ kind: 'none' })
+  })
+})
+
+describe('groupBackgroundTaskRows', () => {
+  it('groups rows a reader built by kind, oldest first, as every roster reads them', () => {
+    const rows = buildBackgroundTaskGroupsFromViews([
+      view('late', { firstObservedAt: NOW - 1_000 }),
+      view('shell', { kind: 'command', firstObservedAt: NOW - 5_000 }),
+      view('early', { firstObservedAt: NOW - 9_000 })
+    ]).flatMap((group) => group.tasks.map((entry) => entry.row))
+
+    const groups = groupBackgroundTaskRows([...rows].reverse())
+
+    expect(groups.map((group) => [group.kind, group.tasks.map((entry) => entry.row.id)])).toEqual([
+      ['agent', ['early', 'late']],
+      ['command', ['shell']]
+    ])
+    expect(groupBackgroundTaskRows([])).toEqual([])
   })
 })
