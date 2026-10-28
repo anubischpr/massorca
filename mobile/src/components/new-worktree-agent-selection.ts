@@ -86,8 +86,10 @@ export function pickPreferredNewWorktreeAgent(
     },
     detectedAgentIds
   )
-  // The first row for the picked agent: the stock Pi row before a Gentle Shell row.
-  return rows.find((row) => row.id === picked) ?? newWorktreeAgentOptionFor(picked)
+  // Why: a host with both Pi runtimes preselects the one the Pi Command setting names, not the stock row.
+  const commandRuntime = picked === 'pi' ? legacyPiRuntime(settings) : undefined
+  const commandRow = rows.find((row) => row.id === picked && row.piRuntime === commandRuntime)
+  return commandRow ?? rows.find((row) => row.id === picked) ?? newWorktreeAgentOptionFor(picked)
 }
 
 function isSelectableAgent(

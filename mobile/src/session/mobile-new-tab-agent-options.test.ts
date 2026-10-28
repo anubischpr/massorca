@@ -111,6 +111,20 @@ describe('mobile new-tab agent options', () => {
     ])
   })
 
+  it('leads a default Pi with the row its Command setting names', () => {
+    expect(
+      buildMobileNewTabAgentOptions(
+        { defaultTuiAgent: 'pi', agentCmdOverrides: { pi: 'gentle-shell' } },
+        ['claude', 'pi'],
+        ['pi', 'gentle-shell']
+      )
+    ).toEqual([
+      { agent: 'pi', label: 'Gentle Shell', piRuntime: 'gentle-shell' },
+      { agent: 'pi', label: 'Pi', piRuntime: 'pi' },
+      { agent: 'claude', label: 'Claude' }
+    ])
+  })
+
   it('offers Gentle Shell for a prompt only when stock Pi is absent', () => {
     const both = buildMobileNewTabAgentOptions({}, ['pi'], ['pi', 'gentle-shell'])
     expect(promptLaunchAgentOptions(both)).toEqual([{ agent: 'pi', label: 'Pi', piRuntime: 'pi' }])

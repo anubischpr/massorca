@@ -133,6 +133,45 @@ describe('new worktree agent selection', () => {
     )
   })
 
+  it('preselects the Pi row the Command setting names when the host has both Pi runtimes', () => {
+    const detected = new Set(['pi'])
+    const rows = newWorktreeAgentRows(detected, ['pi', 'gentle-shell'], {
+      agentCmdOverrides: { pi: 'gentle-shell' }
+    })
+    const runtimeSettings = {
+      defaultTuiAgent: 'pi' as const,
+      agentCmdOverrides: { pi: 'gentle-shell' }
+    }
+
+    expect(pickPreferredNewWorktreeAgent(runtimeSettings, detected, rows)).toEqual(rows[1])
+    expect(
+      resolveNewWorktreeAgentSelection({
+        visible: true,
+        selectedAgent: rows[0],
+        agentOverridden: false,
+        runtimeSettings,
+        detectedAgentIds: detected,
+        rows
+      }).selectedAgent
+    ).toEqual(rows[1])
+  })
+
+  it('preselects the stock Pi row when the Command setting names stock Pi or nothing', () => {
+    const detected = new Set(['pi'])
+    const rows = newWorktreeAgentRows(detected, ['pi', 'gentle-shell'], null)
+
+    expect(pickPreferredNewWorktreeAgent({ defaultTuiAgent: 'pi' }, detected, rows)).toEqual(
+      rows[0]
+    )
+    expect(
+      pickPreferredNewWorktreeAgent(
+        { defaultTuiAgent: 'pi', agentCmdOverrides: { pi: 'pi' } },
+        detected,
+        rows
+      )
+    ).toEqual(rows[0])
+  })
+
   it('keeps a Gentle Shell override only while the host still has Gentle Shell', () => {
     const detected = new Set(['pi'])
     const bothRows = newWorktreeAgentRows(detected, ['pi', 'gentle-shell'], null)

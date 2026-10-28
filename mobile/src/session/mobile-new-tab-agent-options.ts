@@ -69,10 +69,18 @@ function piNewTabAgentOptions(
   settings: MobileNewTabAgentSettings | null | undefined,
   piRuntimes: readonly PiRuntimeSelection[] | null | undefined
 ): MobileNewTabAgentOption[] {
-  if (!piRuntimes?.length) {
-    return [piRuntimeOption(legacyPiRuntime(settings))]
+  const rows = piRuntimes?.length
+    ? PI_RUNTIME_ROW_ORDER.filter((runtime) => piRuntimes.includes(runtime)).map(piRuntimeOption)
+    : [piRuntimeOption(legacyPiRuntime(settings))]
+  if (settings?.defaultTuiAgent !== 'pi') {
+    return rows
   }
-  return PI_RUNTIME_ROW_ORDER.filter((runtime) => piRuntimes.includes(runtime)).map(piRuntimeOption)
+  // Why: a default Pi leads with the row its Command setting names, so the first row is the one a launch starts.
+  const commandRuntime = legacyPiRuntime(settings)
+  return [
+    ...rows.filter((row) => row.piRuntime === commandRuntime),
+    ...rows.filter((row) => row.piRuntime !== commandRuntime)
+  ]
 }
 
 /** The rows a prompt can launch. A prompt starts through agent.launch, which cannot name a Pi runtime:
