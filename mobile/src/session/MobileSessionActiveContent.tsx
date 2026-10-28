@@ -43,6 +43,7 @@ export function MobileSessionActiveContent({
     nativeChatSendError,
     nativeChatOverlayInputLockReason,
     nativeChatController,
+    nativeChatBridgeBackground,
     dictation,
     handleDictationToggle,
     handleDictationPressIn,
@@ -231,6 +232,7 @@ export function MobileSessionActiveContent({
       ))}
       <MobileNativeChatOverlay
         controller={nativeChatController}
+        bridgeBackground={nativeChatBridgeBackground}
         onOpenFile={handleNativeChatFileTap}
         images={nativeChatImages}
         onMicPress={handleDictationToggle}

@@ -20,6 +20,8 @@ vi.mock('react-native', () => ({
 vi.mock('lucide-react-native', () => ({
   Activity: 'Activity',
   Bot: 'Bot',
+  ChevronDown: 'ChevronDown',
+  ChevronRight: 'ChevronRight',
   CircleHelp: 'CircleHelp',
   SquareTerminal: 'SquareTerminal',
   Workflow: 'Workflow'
@@ -44,7 +46,10 @@ describe('MobileBackgroundWorkSheet', () => {
     renderer = null
   })
 
-  function render(groups: readonly BackgroundTaskGroup[]): ReactTestRenderer {
+  function render(
+    groups: readonly BackgroundTaskGroup[],
+    extra: Partial<Parameters<typeof MobileBackgroundWorkSheet>[0]> = {}
+  ): ReactTestRenderer {
     const view = structuredSessionBackgroundTasksView({ state: 'monitoring' }, null)
     const mounted = create(createElement('View'))
     renderer = mounted
@@ -58,7 +63,8 @@ describe('MobileBackgroundWorkSheet', () => {
           now: NOW,
           hostNow: NOW,
           stopping: { taskIds: new Set<string>(), all: false },
-          onStop: () => {}
+          onStop: () => {},
+          ...extra
         })
       )
     })
@@ -93,5 +99,76 @@ describe('MobileBackgroundWorkSheet', () => {
     const mounted = render(groups)
     expect(texts(mounted)).toContain('Tasks')
     expect(texts(mounted)).not.toContain(say('detailsUnavailable'))
+  })
+
+  describe('finished work', () => {
+    const finishedView = structuredSessionBackgroundTasksView(
+      {
+        state: 'monitoring',
+        tasks: [
+          {
+            id: 'old',
+            kind: 'agent',
+            state: 'done',
+            description: 'review old',
+            startedAt: NOW - 90_000
+          }
+        ]
+      },
+      null
+    )
+    const finishedGroups = buildBackgroundTaskGroups(
+      [],
+      finishedView.tasks.map((task) => task),
+      say
+    )
+
+    function finishedToggle(mounted: ReactTestRenderer): ReactTestInstance | undefined {
+      return mounted.root.findAll(
+        (node) =>
+          String(node.type) === 'Pressable' &&
+          typeof node.props.accessibilityLabel === 'string' &&
+          node.props.accessibilityLabel.startsWith('Finished')
+      )[0]
+    }
+
+    function rows(mounted: ReactTestRenderer): number {
+      return mounted.root.findAll((node) => node.props.testID === 'background-task-row').length
+    }
+
+    it('offers no Finished section when nothing finished', () => {
+      expect(finishedToggle(render([{ kind: 'command', tasks: [] }]))).toBeUndefined()
+    })
+
+    it('collapses finished rows until the section is opened, then closes them again', () => {
+      const mounted = render([], { finished: finishedGroups })
+      const toggle = finishedToggle(mounted)!
+      expect(toggle.props.accessibilityLabel).toBe('Finished, 1')
+      expect(rows(mounted)).toBe(0)
+
+      act(() => toggle.props.onPress())
+      expect(rows(mounted)).toBe(1)
+      expect(
+        mounted.root
+          .findAll((node) => node.props.testID === 'background-task-row')
+          .map((node) => textOf(node))[0]
+      ).toContain('review old')
+      // A finished row offers no Stop, whatever the host supports.
+      expect(
+        mounted.root.findAll(
+          (node) =>
+            String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Stop review old'
+        )
+      ).toHaveLength(0)
+
+      act(() => finishedToggle(mounted)!.props.onPress())
+      expect(rows(mounted)).toBe(0)
+    })
+
+    it('says its own note, not the unavailable line, when nothing running lists', () => {
+      const mounted = render([], { emptyNote: 'No background work is running.' })
+      expect(texts(mounted)).toContain('No background work is running.')
+      expect(texts(mounted)).not.toContain(say('detailsUnavailable'))
+    })
   })
 })

@@ -101,6 +101,15 @@ export function useMobileSessionNativeChatDictation(
         ? null
         : 'disconnected'
       : nativeChatInputLockReason
+  // The terminal lane's pill reads the pane's status row; a structured chat has its own roster.
+  const bridgeLane = showNativeChat && !nativeChatController.nativeChatStructured
+  const bridgeAgentStatus =
+    activeSessionTab?.type === 'terminal' ? (activeSessionTab.agentStatus ?? null) : null
+  const bridgeConnected = connState === 'connected'
+  const nativeChatBridgeBackground = useMemo(
+    () => (bridgeLane ? { status: bridgeAgentStatus, connected: bridgeConnected } : null),
+    [bridgeLane, bridgeAgentStatus, bridgeConnected]
+  )
   const routeKey = nativeChatScopeKey ?? `${hostId}\0${worktreeId}`
   const getSendCompletionGeneration = useMobileSendCompletionGeneration({
     onBlur: resetLiveInputFocus,
@@ -252,6 +261,7 @@ export function useMobileSessionNativeChatDictation(
     markNativeChatInputLeaseReady,
     clearNativeChatInputLease,
     nativeChatController,
+    nativeChatBridgeBackground,
     getSendCompletionGeneration,
     toggleTabChatView,
     showNativeChat,

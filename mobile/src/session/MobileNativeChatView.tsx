@@ -4,13 +4,11 @@ import {
   FlatList,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
-  Pressable,
   Text,
   View
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
-import { ChevronsDownUp, ChevronsUpDown } from 'lucide-react-native'
 import type { AskAnswerSelection, AskPrompt } from '../../../src/shared/native-chat-ask'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import type {
@@ -34,8 +32,7 @@ import {
   useSettledMobileNativeChatInputLock
 } from './use-mobile-native-chat-input-lease'
 import { MobileNativeChatLiveLine } from './MobileNativeChatLiveLine'
-import { MobileNativeChatStopButton } from './MobileNativeChatStopButton'
-import { MobileBridgeWorkingPill } from './MobileChatStatusPillView'
+import { MobileNativeChatChromeRow, type MobileBridgeBackground } from './MobileNativeChatChromeRow'
 import type { PendingNativeChatImage } from './mobile-native-chat-image-attachment'
 import { MobileNativeChatComposer } from './MobileNativeChatComposer'
 import { MobileNativeChatPromptCard } from './MobileNativeChatPromptCard'
@@ -66,6 +63,9 @@ type Props = ComposerTrayProps & {
   agent?: string | null
   piRuntime?: Parameters<typeof mobileNativeChatEmptyState>[3]
   agentWorking?: boolean
+  /** Terminal-backed chat: the pane's status row and the live connection, which feed the working
+   *  pill's background-work sheet. Absent, the pill is a plain status. */
+  bridgeBackground?: MobileBridgeBackground
   canStop?: boolean
   /** Structured lane: per-turn "Working for N" status plus live tool progress,
    *  replacing the bridge lane's static three-dot working row (desktop parity). */
@@ -167,6 +167,7 @@ export function MobileNativeChatView({
   agent,
   piRuntime,
   agentWorking,
+  bridgeBackground,
   canStop = agentWorking,
   structuredActivityUi = false,
   turnIndicator = null,
@@ -412,30 +413,17 @@ export function MobileNativeChatView({
         {...{ permission, onRespondPermission, question, onAnswerQuestion, onCollapsePrompt }}
         collapsedPrompt={collapsedPrompt}
       />
-      <View style={styles.chromeRow}>
-        <View style={styles.chromeLeft}>
-          {agentWorking && !structuredActivityUi ? <MobileBridgeWorkingPill /> : null}
-          <Pressable
-            style={({ pressed }) => [styles.chromeToggle, pressed && styles.pressed]}
-            onPress={() => setToolsExpanded((v) => !v)}
-            hitSlop={8}
-          >
-            {toolsExpanded ? (
-              <ChevronsDownUp size={14} color={colors.textMuted} strokeWidth={2} />
-            ) : (
-              <ChevronsUpDown size={14} color={colors.textMuted} strokeWidth={2} />
-            )}
-            <Text style={styles.chromeToggleLabel}>{toolsExpanded ? 'Collapse' : 'Tools'}</Text>
-          </Pressable>
-        </View>
-        {canStop ? (
-          // Only this phone's own request holds Stop: a repeat is how a stuck stop escalates.
-          <MobileNativeChatStopButton
-            onStop={onStop}
-            held={agentWorking === true && turnIndicator?.stopRequestInFlight === true}
-          />
-        ) : null}
-      </View>
+      <MobileNativeChatChromeRow
+        structured={structuredActivityUi}
+        bridgeBackground={bridgeBackground}
+        scopeKey={sendSurfaceId}
+        working={agentWorking === true}
+        toolsExpanded={toolsExpanded}
+        onToggleTools={() => setToolsExpanded((v) => !v)}
+        canStop={canStop === true}
+        onStop={onStop}
+        stopHeld={agentWorking === true && turnIndicator?.stopRequestInFlight === true}
+      />
       {sendErrorMessage ? (
         // This banner is the only channel for a send failure — announce it.
         <View
