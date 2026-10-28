@@ -1,6 +1,6 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   AgentSessionModelCatalogResult,
   AgentSessionOptionResult,
@@ -14,6 +14,7 @@ import type {
 } from './mobile-structured-agent-session-rpc'
 import { useMobileStructuredAgentOptions } from './use-mobile-structured-agent-options'
 import { rememberMobileCreatedStructuredSession } from './mobile-created-structured-sessions'
+import { clearMobileStructuredLastKnownOptionsForTests } from './mobile-structured-last-known-options'
 
 const OPTIONS: AgentSessionOptionsResult = {
   models: [
@@ -143,6 +144,7 @@ type Controller = ReturnType<typeof useMobileStructuredAgentOptions>
 type ProbeProps = {
   agent: string | null
   client: RpcClient | null
+  sourceIdentity?: string
   sessionId: string | null
   fence: number | null
   mutate: StructuredAgentSessionMutate
@@ -154,6 +156,7 @@ function Probe(props: ProbeProps): null {
     useMobileStructuredAgentOptions({
       agent: props.agent,
       client: props.client,
+      sourceIdentity: props.sourceIdentity ?? '',
       sessionId: props.sessionId,
       enabled: true,
       fence: props.fence,
@@ -213,6 +216,9 @@ function currentValueOf(snapshot: readonly SessionOptionDescriptor[], id: string
 }
 
 const BASE = { agent: 'codex', sessionId: 'session-1', fence: 1 } as const
+
+// The remembered answer is module state, so each test starts with none.
+beforeEach(() => clearMobileStructuredLastKnownOptionsForTests())
 
 describe('useMobileStructuredAgentOptions fast mode', () => {
   it('round-trips a boolean fastMode pick as the wire string and remembers the decoded pick', async () => {
@@ -437,6 +443,96 @@ describe('useMobileStructuredAgentOptions for every agent', () => {
   })
 })
 
+describe('useMobileStructuredAgentOptions last known answer', () => {
+  const ANSWER: AgentSessionOptionsResult = {
+    ...OPTIONS,
+    accessModeSupport: { modes: ['default', 'full-access'], settable: true },
+    current: {
+      model: 'gpt-live',
+      effort: 'medium',
+      accessMode: 'default',
+      confirmed: ['model', 'effort', 'accessMode']
+    }
+  }
+
+  it('keeps the answered model, effort and access through a new fence while the read reloads', async () => {
+    let answers = 0
+    const pending = deferred<AgentSessionOptionsResult>()
+    const client = optionsClient(() =>
+      answers++ === 0 ? Promise.resolve(ANSWER) : pending.promise
+    )
+    const { mutate } = recordingMutate(async () => ({ status: 'unknown' }))
+    const harness = await mountOptions({ ...BASE, client: client.client, mutate })
+    expect(currentValueOf(harness.current().optionSnapshot, 'model')).toBe('gpt-live')
+
+    await harness.rerender({ fence: 2 })
+    const reloading = harness.current()
+    expect(client.optionReads()).toBe(2)
+    expect(currentValueOf(reloading.optionSnapshot, 'model')).toBe('gpt-live')
+    expect(currentValueOf(reloading.optionSnapshot, 'effort')).toBe('medium')
+    expect(currentValueOf(reloading.optionSnapshot, 'accessMode')).toBe('default')
+    expect(reloading.optionsLoading).toBe(false)
+    await harness.unmount()
+  })
+
+  it('reports the options as loading until the first answer lands', async () => {
+    const pending = deferred<AgentSessionOptionsResult>()
+    const client = optionsClient(() => pending.promise)
+    const { mutate } = recordingMutate(async () => ({ status: 'unknown' }))
+    const harness = await mountOptions({ ...BASE, client: client.client, mutate })
+    expect(harness.current().optionsLoading).toBe(true)
+
+    await act(async () => {
+      pending.resolve(OPTIONS)
+    })
+    await settle()
+    expect(harness.current().optionsLoading).toBe(false)
+    await harness.unmount()
+  })
+
+  it('stops reading as loading when the options read fails', async () => {
+    let fail!: (error: Error) => void
+    const pending = new Promise<AgentSessionOptionsResult>((_resolve, reject) => {
+      fail = reject
+    })
+    const client = optionsClient(() => pending)
+    const { mutate } = recordingMutate(async () => ({ status: 'unknown' }))
+    const harness = await mountOptions({ ...BASE, client: client.client, mutate })
+    expect(harness.current().optionsLoading).toBe(true)
+
+    await act(async () => {
+      fail(new Error('method_not_found'))
+    })
+    await settle()
+    expect(harness.current().optionsLoading).toBe(false)
+    await harness.unmount()
+  })
+
+  it("keeps one host's remembered answer away from the same session on another host", async () => {
+    const first = optionsClient(queuedReads(OPTIONS))
+    const { mutate } = recordingMutate(async () => ({ status: 'unknown' }))
+    const hostA = await mountOptions({
+      ...BASE,
+      sourceIdentity: 'host-a\0workspace-a',
+      client: first.client,
+      mutate
+    })
+    expect(currentValueOf(hostA.current().optionSnapshot, 'model')).toBe('gpt-live')
+    await hostA.unmount()
+
+    const second = optionsClient(() => deferred<AgentSessionOptionsResult>().promise)
+    const hostB = await mountOptions({
+      ...BASE,
+      sourceIdentity: 'host-b\0workspace-b',
+      client: second.client,
+      mutate
+    })
+    expect(hostB.current().optionsLoading).toBe(true)
+    expect(currentValueOf(hostB.current().optionSnapshot, 'model')).not.toBe('gpt-live')
+    await hostB.unmount()
+  })
+})
+
 describe('useMobileStructuredAgentOptions host catalog', () => {
   const HOST_CATALOG: AgentSessionModelCatalogResult = {
     origin: 'probe',
@@ -549,7 +645,8 @@ describe('useMobileStructuredAgentOptions host catalog', () => {
       agent: 'grok',
       sessionId
     })
-    expect(currentValueOf(reopened.current().optionSnapshot, 'model')).toBeUndefined()
+    // The chat's own last answer, never the listed default, while its read is still pending.
+    expect(currentValueOf(reopened.current().optionSnapshot, 'model')).toBe('gpt-fast')
     pending.resolve(live)
     await settle()
     expect(currentValueOf(reopened.current().optionSnapshot, 'model')).toBe('gpt-fast')

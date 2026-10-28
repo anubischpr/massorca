@@ -78,4 +78,12 @@ describe('mobileModelPillLabel', () => {
   it('names a tracked model by its choice label', () => {
     expect(mobileModelPillLabel(select('model', 'Model', 'gpt-6-astra'))).toBe('Model gpt-6-astra')
   })
+
+  it('reads Loading… for an untracked model while its options answer is pending', () => {
+    expect(mobileModelPillLabel(untracked('Model'), true)).toBe('Loading…')
+  })
+
+  it('keeps the untracked label once the options answer has settled', () => {
+    expect(mobileModelPillLabel(untracked('Model'))).toBe('Model')
+  })
 })

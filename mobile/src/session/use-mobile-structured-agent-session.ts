@@ -94,6 +94,7 @@ export function useMobileStructuredAgentSession(args: {
   const options = useMobileStructuredAgentOptions({
     agent,
     client,
+    sourceIdentity,
     sessionId,
     enabled,
     fence: state.fence,

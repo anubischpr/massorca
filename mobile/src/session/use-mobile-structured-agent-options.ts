@@ -14,11 +14,11 @@ import {
   canSetStructuredAgentSessionOption,
   commitStructuredAgentSessionOption,
   commitStructuredAgentSessionOptionValues,
-  createStructuredAgentSessionOptionState,
   structuredAgentSessionOptionPicks,
   structuredAgentSessionOptionSnapshot,
   type StructuredAgentSessionOptionState
 } from '../../../src/shared/structured-agent-session-options'
+import { encodeNativeChatTranscriptIdentity } from '../../../src/shared/native-chat-transcript-retention'
 import type { RpcClient } from '../transport/rpc-client'
 import {
   callAgentSession,
@@ -32,7 +32,14 @@ import {
   mobileCreatedStructuredSession
 } from './mobile-created-structured-sessions'
 import { rememberMobileStructuredPiRuntime } from './mobile-structured-pi-runtime-record'
+import {
+  rememberMobileStructuredLastKnownOptions,
+  seedStructuredOptionsFromLastKnown
+} from './mobile-structured-last-known-options'
 import { encodeStructuredAgentSessionOptionValue } from '../../../src/shared/structured-agent-session-option-codec'
+
+/** Whether the chat's options answer has landed, failed, or is still pending. */
+type OptionsRead = 'pending' | 'answered' | 'failed'
 
 type StructuredOptionsController = {
   optionPickerRequest: { id: string; sequence: number } | null
@@ -40,6 +47,8 @@ type StructuredOptionsController = {
   optionSnapshot: SessionOptionDescriptor[]
   optionSurface: SessionOptionsSurface
   pendingOptionId: string | null
+  /** The options answer is still pending; the picker reads Loading… while the model is unknown. */
+  optionsLoading: boolean
   setStructuredOption: (id: string, value: SessionOptionValue) => Promise<boolean>
   invokeStructuredOption: (id: string) => Promise<boolean>
 }
@@ -47,19 +56,31 @@ type StructuredOptionsController = {
 export function useMobileStructuredAgentOptions(args: {
   agent: string | null
   client: RpcClient | null
+  /** Host and workspace scope, so one session id's remembered answer stays on its own host. */
+  sourceIdentity?: string
   sessionId: string | null
   enabled: boolean
   fence: number | null
   mutate: StructuredAgentSessionMutate
 }): StructuredOptionsController {
-  const { agent, client, enabled, fence, mutate, sessionId } = args
+  const { agent, client, enabled, fence, mutate, sessionId, sourceIdentity = '' } = args
+  // The transcript identity keys the answer this chat last showed.
+  const lastKnownKey = encodeNativeChatTranscriptIdentity([sourceIdentity, agent, sessionId])
   // Every agent's seed, as on the desktop: a built-in list or the provider-default pill.
   const optionCatalog = useMemo(
     () => (agent ? structuredAgentSessionSeedCatalog(agent) : null),
     [agent]
   )
-  const [optionState, setOptionState] = useState(() =>
-    createStructuredAgentSessionOptionState(agent ?? 'codex', optionCatalog)
+  const [initialOptions] = useState(() =>
+    seedStructuredOptionsFromLastKnown({
+      agent: agent ?? 'codex',
+      catalog: optionCatalog,
+      key: lastKnownKey
+    })
+  )
+  const [optionState, setOptionState] = useState(initialOptions.state)
+  const [optionsRead, setOptionsRead] = useState<OptionsRead>(
+    initialOptions.answered ? 'answered' : 'pending'
   )
   const optionStateRef = useRef(optionState)
   const activeOptionRecordRef = useRef(optionState.record)
@@ -88,18 +109,25 @@ export function useMobileStructuredAgentOptions(args: {
     const sameSession = optionIdentityRef.current === identity
     optionIdentityRef.current = identity
     const previous = optionStateRef.current
-    const seeded = createStructuredAgentSessionOptionState(agent ?? 'codex', optionCatalog)
+    const seeded = seedStructuredOptionsFromLastKnown({
+      agent: agent ?? 'codex',
+      catalog: optionCatalog,
+      key: lastKnownKey
+    })
     // A host answer is the account's, not the fence's: keep it rather than fall back to the placeholder.
     const next =
-      sameSession && (previous.catalogSource === 'host' || previous.catalogSource === 'builtin')
-        ? { ...seeded, catalog: previous.catalog, catalogSource: previous.catalogSource }
-        : seeded
+      sameSession &&
+      !seeded.answered &&
+      (previous.catalogSource === 'host' || previous.catalogSource === 'builtin')
+        ? { ...seeded.state, catalog: previous.catalog, catalogSource: previous.catalogSource }
+        : seeded.state
     optionMutationGeneration.current += 1
     pendingOptionRef.current = null
     optionStateRef.current = next
     activeOptionRecordRef.current = next.record
+    setOptionsRead(seeded.answered ? 'answered' : 'pending')
     setOptionState(next)
-  }, [agent, enabled, fence, optionCatalog, sessionId])
+  }, [agent, enabled, fence, lastKnownKey, optionCatalog, sessionId])
 
   // A chat this phone created runs the listed default, as a desktop chat its own view launched does.
   const createdHere = useMemo(
@@ -137,13 +165,20 @@ export function useMobileStructuredAgentOptions(args: {
               ? applyStructuredAgentSessionOptionsResult(current, optionCatalog, result)
               : current
           )
+          // Remembered only once applied, so a later seed never replays an answer that threw.
+          rememberMobileStructuredLastKnownOptions(lastKnownKey, result)
+          setOptionsRead('answered')
         }
       })
-      .catch(() => undefined)
+      .catch(() => {
+        if (!stale && optionMutationGeneration.current === readGeneration) {
+          setOptionsRead('failed')
+        }
+      })
     return () => {
       stale = true
     }
-  }, [client, enabled, optionCatalog, sessionId, fence, updateOptionState])
+  }, [client, enabled, lastKnownKey, optionCatalog, sessionId, fence, updateOptionState])
 
   const optionSnapshot = useMemo(
     () => structuredAgentSessionOptionSnapshot(optionState),
@@ -211,6 +246,8 @@ export function useMobileStructuredAgentOptions(args: {
                       ? applyStructuredAgentSessionOptionsResult(latest, optionCatalog, refreshed)
                       : latest
                   )
+                  rememberMobileStructuredLastKnownOptions(lastKnownKey, refreshed)
+                  setOptionsRead('answered')
                 }
               })
               .catch(() => undefined)
@@ -240,7 +277,7 @@ export function useMobileStructuredAgentOptions(args: {
         }
       }
     },
-    [agent, client, mutate, optionCatalog, sessionId, updateOptionState]
+    [agent, client, lastKnownKey, mutate, optionCatalog, sessionId, updateOptionState]
   )
 
   const invokeStructuredOption = useCallback(
@@ -279,6 +316,7 @@ export function useMobileStructuredAgentOptions(args: {
     optionSnapshot,
     optionSurface,
     pendingOptionId: optionState.pendingId,
+    optionsLoading: optionsRead === 'pending' && optionCatalog !== null,
     setStructuredOption,
     invokeStructuredOption
   }
