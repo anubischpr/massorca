@@ -44,6 +44,7 @@ type Options = {
 function scopeFor(options: Options = {}): MobileSessionPanelRouteActionsModel {
   const visibleTabs = options.tabs ?? [chatTab, terminalTab]
   const activeTabId = options.activeTabId === undefined ? chatTab.id : options.activeTabId
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the hook reads only the scope fields set here; the rest of the route-actions model is never touched.
   return {
     nativeChatController: {
       showNativeChat: options.showNativeChat ?? true,

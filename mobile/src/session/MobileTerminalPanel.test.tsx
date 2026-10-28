@@ -41,6 +41,7 @@ function chat(id: string): MobileSessionTab {
 
 /** The controller fields the panel reads; the worktree id is a folder path, the name is the display name. */
 function controllerFor(overrides: Record<string, unknown> = {}): MobileSessionController {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the panel reads only the fields set here; the rest of the controller is never touched.
   return {
     visibleTabs: [terminal('t1')],
     activeSessionTabId: 't1',

@@ -134,6 +134,7 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
   const openChatSurfaceNow = useCallback(
     (surface: ChatSurface) => {
       if (surface === 'plan') {
+        // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- Why: the plan opens once its chat is on screen.
         setPlanSheetOpen(true)
         return
       }
@@ -168,6 +169,7 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
   const openSummary = useCallback(() => showChatSurface('summary'), [showChatSurface])
   const openArtifacts = useCallback(() => showChatSurface('artifacts'), [showChatSurface])
   // Declared after the snapshot effect above, so a Summary or Artifacts screen finds its chat published.
+  // Why: the request waits for its chat to come on screen, the event this effect synchronizes with.
   useEffect(() => {
     if (pendingChatSurface === null) {
       return
@@ -175,12 +177,14 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     const { surface, tabId, fromTabId } = pendingChatSurface
     if (activeSessionTabId !== tabId && activeSessionTabId !== fromTabId) {
       // The user moved to another tab first, so the request no longer applies.
+      // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- Why: the request lapses once the user moves on.
       setPendingChatSurface(null)
       return
     }
     if (!showNativeChat || activeSessionTabId !== tabId) {
       return
     }
+    // oxlint-disable-next-line react-doctor/no-adjust-state-on-prop-change -- Why: the request is settled once its chat is on screen.
     setPendingChatSurface(null)
     openChatSurfaceNow(surface)
   }, [activeSessionTabId, openChatSurfaceNow, pendingChatSurface, showNativeChat])

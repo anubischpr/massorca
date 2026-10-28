@@ -38,6 +38,7 @@ type Entry = ReturnType<typeof useMobileSessionLayoutEntry>
 
 /** The fields the layout-entry hook reads from the surfaces model, for a session with its tabs loaded. */
 function scopeFor({ activeTab, activePanel = null, setActivePanel = vi.fn() }: Options) {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the hook reads only the fields set here; the rest of the surfaces model is never touched.
   return {
     showLoadingState: false,
     showEmptyState: false,
