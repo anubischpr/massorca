@@ -1,12 +1,13 @@
 import { optionalSettingsRead } from '../transport/settings-read-operations'
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { getRepoExecutionHostId } from '../../../src/shared/execution-host'
 import { setCachedRepos } from '../cache/repo-cache'
 import type { RpcAcceptedResult } from '../transport/rpc-accepted-result'
 import type { RpcClient } from '../transport/rpc-client'
 import type { ConnectionState, RpcResponse } from '../transport/types'
 import { repoColor } from '../worktree/repo-color'
-import { repoAccountsByName } from './host-repo-group-account'
+import { repoAccountsByName, repoGroupEntries } from './host-repo-group-account'
+import { watchRepoGitAccounts } from '../worktree/repo-git-account-read'
 import {
   buildHostLabelById,
   buildRepoHostIdByRepoId
@@ -67,6 +68,9 @@ export function useHostRepoMetadata(args: {
     setRepoIdsByName
   } = state
 
+  // Each repo's git-config login, as the host reads it; kept for the life of this host screen.
+  const gitLoginsRef = useRef<Map<string, string>>(new Map())
+
   const fetchRepoMetadata = useCallback(
     async (options: { force?: boolean; queueIfInFlight?: boolean } = {}) => {
       if (!client || connState !== 'connected' || !hostId) {
@@ -117,7 +121,20 @@ export function useHostRepoMetadata(args: {
             )
           )
           setRepoIdsByName(new Map(catalog.map((repo) => [repo.displayName, repo.id])))
-          setRepoAccountsByName(repoAccountsByName(catalog))
+          // The repo.list bound accounts show at once; gh.account overlays them as each read lands.
+          const gitLogins = gitLoginsRef.current
+          setRepoAccountsByName(repoAccountsByName(repoGroupEntries(catalog, gitLogins)))
+          watchRepoGitAccounts(
+            requestClient,
+            catalog.map((repo) => repo.id),
+            (repoId, login) => {
+              if (clientRef.current !== requestClient) {
+                return
+              }
+              gitLogins.set(repoId, login)
+              setRepoAccountsByName(repoAccountsByName(repoGroupEntries(catalog, gitLogins)))
+            }
+          )
           setRepoHostIdByRepoId(buildRepoHostIdByRepoId(catalog))
           // Why: rows only name their host when the list spans hosts, so a single-host
           // catalog never pays for the label lookups. Counted over repos, not the id-keyed
