@@ -8,6 +8,7 @@ import { MobileSessionPendingBar } from './MobileSessionPendingBar'
 import { MobileSessionSheets } from './MobileSessionSheets'
 import { MobileChatChromeLayoutContext } from './mobile-chat-chrome-layout'
 import { resolveMobileSessionChromeMode } from './mobile-session-chrome-mode'
+import { resolveMobileSessionActiveKind } from './mobile-session-active-tab'
 
 export function MobileSessionSurface({ controller }: { controller: MobileSessionController }) {
   const {
@@ -15,6 +16,7 @@ export function MobileSessionSurface({ controller }: { controller: MobileSession
     showLoadingState,
     connState,
     activeSessionTab,
+    activeSessionTabTypeRef,
     visibleTabs,
     nativeChatController,
     requestLeaveSession
@@ -31,7 +33,10 @@ export function MobileSessionSurface({ controller }: { controller: MobileSession
     connected: connState === 'connected',
     tabsLoading: showLoadingState,
     hasTabs: visibleTabs.length > 0,
-    activeTabType: activeSessionTab?.type ?? null,
+    activeTabType: resolveMobileSessionActiveKind(
+      activeSessionTab?.type,
+      activeSessionTabTypeRef.current
+    ),
     chatResolving: nativeChatController.nativeChatSession.status === 'loading'
   })
   return (
