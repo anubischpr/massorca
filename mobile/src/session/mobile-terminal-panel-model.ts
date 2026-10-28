@@ -12,21 +12,21 @@ export function terminalTabsOf(tabs: readonly MobileSessionTab[]): TerminalTab[]
 }
 
 /**
- * Whether the Terminal panel takes the session body. It does only while the active tab is a terminal
- * (or there is none to show), so a chat, file or browser that is showing is never covered.
+ * Whether the Terminal panel takes the session body. An active terminal tab always holds the body,
+ * whichever panel docks beside it, so a terminal is never drawn as an unsupported tab. Otherwise the
+ * panel holds the body only as the active panel, and only with no tab to show or no terminal at all.
  */
 export function isTerminalPanelOpen(input: {
   activePanel: ActivePanel
   activeTabType: MobileSessionTabType | null
   terminalTabCount: number
 }): boolean {
-  if (input.activePanel !== 'terminal') {
-    return false
+  if (input.activeTabType === 'terminal') {
+    return true
   }
   return (
-    input.activeTabType === null ||
-    input.activeTabType === 'terminal' ||
-    input.terminalTabCount === 0
+    input.activePanel === 'terminal' &&
+    (input.activeTabType === null || input.terminalTabCount === 0)
   )
 }
 
@@ -93,12 +93,7 @@ export function terminalPanelPills(input: {
   }))
 }
 
-/** The panel's header: every terminal of the worktree, agent panes included, and whose folder. */
-export function terminalPanelTitle(count: number, folder?: string | null): string {
-  return folder ? `TERMINALS · ${count} in ${folder}` : `TERMINALS · ${count}`
-}
-
-/** The line under a terminal the panel just created. */
-export function terminalReadyHint(folder?: string | null): string {
-  return folder ? `Ready in ${folder} — type a command` : 'Ready — type a command'
+/** The header: every terminal of the worktree, named by the worktree's display name. */
+export function terminalPanelTitle(count: number, worktreeName?: string | null): string {
+  return worktreeName ? `TERMINALS · ${count} in ${worktreeName}` : `TERMINALS · ${count}`
 }

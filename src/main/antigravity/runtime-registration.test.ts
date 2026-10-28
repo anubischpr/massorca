@@ -12,6 +12,9 @@ vi.mock('../startup/login-shell-environment', () => ({
   resolveLoginShellEnvironment: async () => mocks.environment
 }))
 
+// The process PATH's own entries follow the login PATH.
+const hostPathFirst = expect.stringMatching(/^\/host\/bin(?:[:;]|$)/)
+
 describe('Antigravity account-home registration', () => {
   it.each(['read', 'launch'] as const)(
     'expands partial agent overrides before %s account binding',
@@ -37,12 +40,20 @@ describe('Antigravity account-home registration', () => {
         }
       )
       expect(mocks.binding).toHaveBeenLastCalledWith({
-        launchEnv: { HOME: '/execution-host', PATH: '/host/bin', LANG: 'C' }
+        launchEnv: expect.objectContaining({
+          HOME: '/execution-host',
+          PATH: hostPathFirst,
+          LANG: 'C'
+        })
       })
       if (purpose === 'launch') {
         expect(mocks.prepare).toHaveBeenLastCalledWith(
           expect.objectContaining({
-            env: { HOME: '/execution-host', PATH: '/host/bin', LANG: 'C' },
+            env: expect.objectContaining({
+              HOME: '/execution-host',
+              PATH: hostPathFirst,
+              LANG: 'C'
+            }),
             envIsComplete: true
           })
         )

@@ -14,7 +14,10 @@ import type { TerminalQuickCommand } from '../../../src/shared/terminal-quick-co
 import type { MobileSessionTab, Terminal } from './mobile-session-route-types'
 import type { MobileSessionAttachmentsModel } from './use-mobile-session-attachments'
 import { structuredChatOfferedFor } from './mobile-structured-agent-session-host-support'
-import { createMobileStructuredAgentSession } from './mobile-structured-agent-session-launch'
+import {
+  createMobileStructuredAgentSession,
+  describeUnsupportedLaunch
+} from './mobile-structured-agent-session-launch'
 import { launchesThroughHost, launchNewTabAgentThroughHost } from './new-tab-agent-host-launch'
 import {
   launchedSelection,
@@ -109,7 +112,7 @@ export function useMobileSessionTerminalCreateActions(scope: MobileSessionAttach
         reportCreateFailure(
           started.kind === 'failed' || started.kind === 'unknown'
             ? started.message
-            : `${GENTLE_SHELL_LABEL} chat is not available on this host.`
+            : `${GENTLE_SHELL_LABEL} chat is not available on this host. ${describeUnsupportedLaunch(started)}`.trim()
         )
         return
       }

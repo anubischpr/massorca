@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { MessageSquare, Plus, SquareTerminal, X } from 'lucide-react-native'
-import { getWorktreePathBasenameFromId } from '../../../src/shared/worktree/id'
+import { Plus, SquareTerminal, X } from 'lucide-react-native'
 import { useBackClaim } from '../navigation/use-back-claim'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import { MobileTerminalPaneStack } from './MobileTerminalPaneStack'
@@ -9,7 +8,6 @@ import {
   newTerminalTabId,
   terminalPanelPills,
   terminalPanelTitle,
-  terminalReadyHint,
   terminalTabsOf,
   type TerminalPanelPill
 } from './mobile-terminal-panel-model'
@@ -38,12 +36,10 @@ export function MobileTerminalPanel({
     keyboardLift,
     returnToChat,
     notifyTerminalFrame,
-    worktreeId
+    worktreeName
   } = controller
   // The soft keyboard takes the header's room; the terminal pills stay in reach.
   const keyboardUp = keyboardLift > 0
-  // "New terminal" opens a tab in this worktree's folder; it never makes another worktree.
-  const folder = getWorktreePathBasenameFromId(worktreeId)
   const [freshTabId, setFreshTabId] = useState<string | null>(null)
   // The terminals that existed when a create was asked; the one that lands beyond them is fresh.
   const awaitingCreateRef = useRef<ReadonlySet<string> | null>(null)
@@ -58,11 +54,17 @@ export function MobileTerminalPanel({
       setFreshTabId(created)
     }
   }, [visibleTabs])
+  // The device Back key returns to the chat; with no chat to return to, it leaves the session as usual.
+  const hasChat = visibleTabs.some((tab) => tab.type === 'agent-session')
   useBackClaim(() => {
+    if (!hasChat) {
+      return false
+    }
     returnToChat()
     return true
   })
 
+  // "New terminal" opens a tab in this worktree's folder; it never makes another worktree.
   const onNewTerminal = () => {
     awaitingCreateRef.current = new Set(terminalTabsOf(visibleTabs).map((tab) => tab.id))
     void handleCreateTerminal()
@@ -79,7 +81,9 @@ export function MobileTerminalPanel({
     <View style={[styles.root, { paddingTop: topInset }]}>
       {keyboardUp ? null : (
         <View style={styles.header}>
-          <Text style={styles.title}>{terminalPanelTitle(pills.length, folder)}</Text>
+          <Text numberOfLines={1} style={styles.title}>
+            {terminalPanelTitle(pills.length, worktreeName)}
+          </Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="New terminal"
@@ -135,25 +139,9 @@ export function MobileTerminalPanel({
                 <Text style={styles.emptyBody}>Starting terminal…</Text>
               </View>
             ) : null}
-            {selected?.fresh && !selected.pending ? (
-              <View style={styles.readyLine}>
-                <Text style={styles.readyText}>{terminalReadyHint(folder)}</Text>
-              </View>
-            ) : null}
           </View>
         </>
       )}
-      <View style={styles.footer}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back to chat"
-          onPress={returnToChat}
-          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-        >
-          <MessageSquare size={16} color={colors.textPrimary} strokeWidth={2} />
-          <Text style={styles.backText}>Back to chat</Text>
-        </Pressable>
-      </View>
     </View>
   )
 }
@@ -323,24 +311,6 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     backgroundColor: colors.bgBase
   },
-  readyLine: {
-    position: 'absolute',
-    left: spacing.sm,
-    right: spacing.sm,
-    bottom: spacing.sm,
-    height: 44,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.input,
-    borderWidth: 1,
-    borderColor: colors.accentBlue,
-    backgroundColor: colors.bgPanel
-  },
-  readyText: {
-    color: colors.textPrimary,
-    fontFamily: typography.monoFamily,
-    fontSize: typography.metaSize + 1
-  },
   centered: {
     flex: 1,
     alignItems: 'center',
@@ -372,24 +342,5 @@ const styles = StyleSheet.create({
     color: colors.bgBase,
     fontSize: typography.bodySize,
     fontWeight: '600'
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: spacing.sm,
-    paddingBottom: spacing.sm
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    height: 44,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.card,
-    backgroundColor: colors.bgRaised
-  },
-  backText: {
-    color: colors.textPrimary,
-    fontSize: typography.bodySize - 1
   }
 })

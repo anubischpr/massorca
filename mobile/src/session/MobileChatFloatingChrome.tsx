@@ -39,6 +39,7 @@ export function MobileChatFloatingChrome({ controller }: { controller: MobileSes
   const {
     requestLeaveSession,
     activePanel,
+    terminalPanelOpen,
     returnToChat,
     handlePanelTap,
     isFloatingWorkspaceRoute,
@@ -58,8 +59,9 @@ export function MobileChatFloatingChrome({ controller }: { controller: MobileSes
   useMobileStructuredPiRuntimeVersion()
   // Gone with the chrome: the banner and transcript must not keep an offset for controls not drawn.
   useEffect(() => () => setHeight(0), [setHeight])
+  // An active terminal tab is the Terminal panel's body, so its segment reads active whatever panel is stored.
   const segments = resolveMobileChatChromeSegments({
-    activePanel,
+    activePanel: activePanel ?? (terminalPanelOpen ? 'terminal' : null),
     showFiles: !isFloatingWorkspaceRoute
   })
 

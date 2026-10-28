@@ -1,6 +1,6 @@
 import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { agentSessionRecordFixture } from '../../shared/agent-session-record.test-fixture'
 import { acpLaunchSpecFor } from '../acp/acp-launch-specs'
@@ -76,7 +76,12 @@ describe('structuredAgentSupportsLaunch', () => {
     }
     expect(asked[0]).toMatchObject({
       cwd: '/repo/worktree',
-      env: { PATH: bin, OPENCODE_EXTRA: '1', OPENCODE_CLIENT: 'acp' }
+      env: {
+        // The login PATH leads; the process PATH's own entries follow it.
+        PATH: expect.toSatisfy((value: string) => value.split(delimiter)[0] === bin),
+        OPENCODE_EXTRA: '1',
+        OPENCODE_CLIENT: 'acp'
+      }
     })
   })
 

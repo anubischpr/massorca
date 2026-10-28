@@ -7,6 +7,9 @@ import { SheetSectionLabel } from '../components/SheetSectionLabel'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import type { MobileSessionHeaderMenu } from './mobile-session-header-menu'
 
+/** The reason a chat item shows disabled when the worktree has no chat to act on. */
+const NO_CHAT_HINT = 'Start a chat first'
+
 type MenuIconProps = { size: number; color: string; strokeWidth: number }
 
 type MenuItem = {
@@ -59,29 +62,35 @@ export function MobileSessionHeaderMoreActionsSheet({
     afterCloseRef.current = item.onPress
     onClose()
   }
+  // Plan, Summary and Artifacts act on the worktree's chat: without one they stay listed, disabled.
+  const noChat = !menu.hasChatSession
   const chatItems = shown([
     {
       show: menu.chat.plan,
       key: 'plan',
       label: 'Plan',
-      hint: planHint,
+      hint: noChat ? NO_CHAT_HINT : planHint,
       icon: ListTodo,
-      onPress: onOpenPlan
+      onPress: onOpenPlan,
+      disabled: noChat
     },
     {
       show: menu.chat.summary,
       key: 'summary',
       label: 'Summary',
+      hint: noChat ? NO_CHAT_HINT : undefined,
       icon: ScrollText,
-      onPress: onOpenSummary
+      onPress: onOpenSummary,
+      disabled: noChat
     },
     {
       show: menu.chat.artifacts,
       key: 'artifacts',
       label: 'Artifacts',
-      hint: String(recordedFileCount),
+      hint: noChat ? NO_CHAT_HINT : String(recordedFileCount),
       icon: Files,
-      onPress: onOpenArtifacts
+      onPress: onOpenArtifacts,
+      disabled: noChat
     },
     {
       show: menu.chat.quickCommands,

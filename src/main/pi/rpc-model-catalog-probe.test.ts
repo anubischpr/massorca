@@ -1,3 +1,6 @@
+import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { createPiModelCatalogProbe, piModelCatalogFromListing } from './rpc-model-catalog-probe'
 import * as launchResolution from './rpc-launch-resolution'
@@ -90,5 +93,60 @@ describe('Pi model catalog', () => {
       /does not run structured chats/
     )
     expect(runListing).not.toHaveBeenCalled()
+  })
+
+  it('lists through Gentle Shell when only that is installed and no runtime was named', async () => {
+    const bin = await mkdtemp(join(tmpdir(), 'orca-catalog-gentle-'))
+    const file = join(bin, process.platform === 'win32' ? 'gentle-shell.cmd' : 'gentle-shell')
+    // Gentle Shell is probed by running it, so the stub prints what the real wrapper does.
+    await writeFile(
+      file,
+      process.platform === 'win32'
+        ? '@echo off\r\necho gentle-shell 4.3.0\r\necho pi 1.3.0\r\n'
+        : "#!/bin/sh\nprintf 'gentle-shell 4.3.0\\npi 1.3.0\\n'\n"
+    )
+    await chmod(file, 0o755)
+    const runListing = vi.fn(async () => TABLE)
+    try {
+      const probe = createPiModelCatalogProbe({
+        resolveEnvironment: async () => ({ PATH: bin }),
+        probeVersion: async () => false,
+        runListing
+      })
+      await probe({ variable: 'PI_CODING_AGENT_DIR', path: '/homes/pi-a' })
+      expect(runListing).toHaveBeenCalledWith(
+        expect.objectContaining({ command: file, args: ['--list-models'] }),
+        expect.any(Object)
+      )
+    } finally {
+      await rm(bin, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps stock Pi first when both are installed', async () => {
+    const runListing = vi.fn(async () => TABLE)
+    const probe = createPiModelCatalogProbe({
+      resolveEnvironment: async () => ({ PATH: '/usr/bin' }),
+      resolveCommand: (command) => `/bin/${command}`,
+      probeVersion: async () => true,
+      runListing
+    })
+    await probe({ variable: 'PI_CODING_AGENT_DIR', path: '/homes/pi-a' })
+    expect(runListing).toHaveBeenCalledWith(
+      expect.objectContaining({ command: '/bin/pi' }),
+      expect.any(Object)
+    )
+  })
+
+  it('never swaps an explicitly named stock runtime for Gentle Shell', async () => {
+    const probe = createPiModelCatalogProbe({
+      resolveEnvironment: async () => ({ PATH: '/usr/bin' }),
+      resolveCommand: (command) => `/bin/${command}`,
+      probeVersion: async (launch) => launch.program === '/bin/gentle-shell',
+      runListing: vi.fn()
+    })
+    await expect(
+      probe({ variable: 'PI_CODING_AGENT_DIR', path: '/homes/pi-a' }, { piRuntime: 'pi' })
+    ).rejects.toThrow(/does not run structured chats/)
   })
 })

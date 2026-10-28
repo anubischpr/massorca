@@ -94,6 +94,17 @@ describe('MobileChatFloatingChrome', () => {
     expect(forceReconnectHost).toHaveBeenCalledWith('host-9')
   })
 
+  it('reads the Terminal segment as active while a terminal tab holds the body', () => {
+    const { mounted } = mount(controllerWith({ activePanel: null, terminalPanelOpen: true }))
+    const segment = (label: string) =>
+      mounted.root.find(
+        (node) => node.props.accessibilityRole === 'tab' && node.props.accessibilityLabel === label
+      )
+
+    expect(segment('Terminal').props.accessibilityState).toEqual({ selected: true })
+    expect(segment('Chat').props.accessibilityState).toEqual({ selected: false })
+  })
+
   it('publishes its measured height to the content column, and clears it when it goes', () => {
     const { mounted, setHeight } = mount(controllerWith())
     const layer = mounted.root.find((node) => node.type === 'View' && node.props.onLayout)

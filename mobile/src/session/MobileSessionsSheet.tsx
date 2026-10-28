@@ -117,6 +117,8 @@ export function MobileSessionsSheet({
           </View>
         ))}
       </View>
+      {/* Why: terminals left this list; the note says where they live, as the approved design does. */}
+      <Text style={styles.note}>Terminals live in the Terminal view, not here.</Text>
       {showResume ? (
         <View style={styles.group}>
           <Pressable
@@ -245,5 +247,10 @@ const styles = StyleSheet.create({
   meta: {
     color: colors.textMuted,
     fontSize: typography.metaSize
+  },
+  note: {
+    color: colors.textMuted,
+    fontSize: typography.metaSize,
+    textAlign: 'center'
   }
 })

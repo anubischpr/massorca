@@ -60,3 +60,17 @@ export function resolveMobileSessionChromeMode(
   }
   return fallback
 }
+
+/** The floating controls draw over every resolved session, the unsupported notice included, so its tab keeps Back, the segments and ⋯. */
+export function drawsFloatingChrome(input: {
+  chromeMode: MobileSessionChromeMode
+  /** The chat or the Terminal panel draws its own controls. */
+  sessionControls: boolean
+}): boolean {
+  return input.sessionControls || input.chromeMode === 'notice'
+}
+
+/** The neutral Back-only bar draws only while the session kind is still loading. */
+export function drawsPendingBar(chromeMode: MobileSessionChromeMode): boolean {
+  return chromeMode === 'pending'
+}
