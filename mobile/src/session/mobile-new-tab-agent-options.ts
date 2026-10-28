@@ -1,3 +1,8 @@
+import { GENTLE_SHELL_LABEL } from '../../../src/shared/agent-type-label'
+import {
+  type PiRuntimeSelection,
+  selectedPiRuntime
+} from '../../../src/shared/pi-runtime-selection'
 import type { TuiAgent } from '../../../src/shared/tui-agent'
 import {
   filterEnabledMobileTuiAgents,
@@ -9,11 +14,14 @@ import {
 export type MobileNewTabAgentSettings = {
   defaultTuiAgent?: TuiAgent | 'blank' | null
   disabledTuiAgents?: unknown
+  agentCmdOverrides?: Partial<Record<TuiAgent, unknown>> | null
 }
 
 export type MobileNewTabAgentOption = {
   agent: TuiAgent
   label: string
+  /** Set on the Pi row only: the Pi runtime the host is configured for. */
+  piRuntime?: PiRuntimeSelection
 }
 
 export function orderMobileNewTabAgents(
@@ -44,8 +52,23 @@ export function buildMobileNewTabAgentOptions(
     settings?.defaultTuiAgent,
     detectedAgentIds,
     settings?.disabledTuiAgents
-  ).map((agent) => ({
+  ).map((agent) => mobileNewTabAgentOption(agent, settings))
+}
+
+// Why: detection reports one 'pi' id for both Pi runtimes, so the row names the one the host runs.
+function mobileNewTabAgentOption(
+  agent: TuiAgent,
+  settings: MobileNewTabAgentSettings | null | undefined
+): MobileNewTabAgentOption {
+  if (agent !== 'pi') {
+    return { agent, label: MOBILE_TUI_AGENT_LABELS[agent] }
+  }
+  const command = settings?.agentCmdOverrides?.pi
+  const piRuntime: PiRuntimeSelection =
+    typeof command === 'string' ? selectedPiRuntime(command) : 'pi'
+  return {
     agent,
-    label: MOBILE_TUI_AGENT_LABELS[agent]
-  }))
+    label: piRuntime === 'gentle-shell' ? GENTLE_SHELL_LABEL : MOBILE_TUI_AGENT_LABELS.pi,
+    piRuntime
+  }
 }

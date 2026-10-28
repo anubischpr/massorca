@@ -1,9 +1,9 @@
 import { useContext } from 'react'
 import { Animated, View, Text, Pressable, ActivityIndicator } from 'react-native'
-import { saveTerminalTextScale } from '../storage/preferences'
 import { MobileBrowserPane } from '../browser/MobileBrowserPane'
-import { TerminalPaneView } from './TerminalPaneView'
 import { MobileNativeChatOverlay } from './MobileNativeChatOverlay'
+import { MobileTerminalPaneStack } from './MobileTerminalPaneStack'
+import { MobileTerminalPanel } from './MobileTerminalPanel'
 import { MobileChatChromeLayoutContext, mobileChatContentTop } from './mobile-chat-chrome-layout'
 import { colors } from '../theme/mobile-theme'
 import { styles } from './mobile-session-styles'
@@ -24,10 +24,6 @@ export function MobileSessionActiveContent({
     openArtifactViewer,
     connState,
     client,
-    terminals,
-    terminalTextScale,
-    setTerminalTextScale,
-    activeHandle,
     markdownDocs,
     fileDocs,
     diffComments,
@@ -37,7 +33,6 @@ export function MobileSessionActiveContent({
     setShowCreateTabDrawer,
     dictationMode,
     toastMessage,
-    handleTerminalTap,
     browserScreencastSupported,
     showToast,
     nativeChatSendError,
@@ -58,21 +53,8 @@ export function MobileSessionActiveContent({
     copyMarkdownLocalContent,
     discardMarkdownLocalContent,
     saveMarkdownTab,
-    setTerminalWebViewRef,
-    handleTerminalWebReady,
     notifyTerminalFrame,
-    notifyTerminalCellBoxChange,
-    handleFileTap,
     handleNativeChatFileTap,
-    handleTerminalOpenUrl,
-    handleTerminalInput,
-    handleTerminalQueryReply,
-    handleSelectionMode,
-    handleSelectionCopy,
-    handleSelectionEvicted,
-    handleModesChanged,
-    handleKeyboardAvoidanceMetrics,
-    handleHaptic,
     nativeChatImages,
     activeMarkdownTab,
     activeFileTab,
@@ -80,14 +62,19 @@ export function MobileSessionActiveContent({
     activePendingTerminalTab,
     isPendingTerminalRecoveryParked,
     retryPendingTerminalRecovery,
+    terminalPanelOpen,
     showLoadingState,
     showEmptyState,
     keyboardLift,
-    activeTerminalKeyboardLift,
     toastAnimatedStyle,
     createTabBusy
   } = controller
-  const content = showLoadingState ? (
+  const content = terminalPanelOpen ? (
+    <MobileTerminalPanel
+      controller={controller}
+      topInset={mobileChatContentTop(chromeLayout.height, insets.top)}
+    />
+  ) : showLoadingState ? (
     <View style={styles.emptyState}>
       <ActivityIndicator size="small" color={colors.textSecondary} />
     </View>
@@ -201,35 +188,7 @@ export function MobileSessionActiveContent({
     </View>
   ) : (
     <View style={styles.terminalFrame}>
-      {terminals.map((terminal) => (
-        <TerminalPaneView
-          key={terminal.handle}
-          handle={terminal.handle}
-          active={terminal.handle === activeHandle}
-          keyboardLift={terminal.handle === activeHandle ? activeTerminalKeyboardLift : 0}
-          terminalTheme={terminal.terminalTheme}
-          textScale={terminalTextScale}
-          onTextScaleChange={(scale) => {
-            // Why: pinch-to-zoom reports a new preset; persist it so the size sticks across panes and launches.
-            setTerminalTextScale(scale)
-            void saveTerminalTextScale(scale)
-          }}
-          onRef={setTerminalWebViewRef}
-          onWebReady={handleTerminalWebReady}
-          onCellBoxChange={notifyTerminalCellBoxChange}
-          onSelectionMode={handleSelectionMode}
-          onSelectionCopy={handleSelectionCopy}
-          onSelectionEvicted={handleSelectionEvicted}
-          onModesChanged={handleModesChanged}
-          onKeyboardAvoidanceMetrics={handleKeyboardAvoidanceMetrics}
-          onHaptic={handleHaptic}
-          onTerminalInput={handleTerminalInput}
-          onTerminalQueryReply={handleTerminalQueryReply}
-          onTerminalTap={handleTerminalTap}
-          onFileTap={handleFileTap}
-          onOpenUrl={handleTerminalOpenUrl}
-        />
-      ))}
+      <MobileTerminalPaneStack controller={controller} />
       <MobileNativeChatOverlay
         controller={nativeChatController}
         bridgeBackground={nativeChatBridgeBackground}

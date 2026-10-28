@@ -1,6 +1,6 @@
 import type { ActivePanel } from './session-panel-host'
 
-export type MobileChatChromeSegmentId = 'chat' | 'files' | 'sourceControl'
+export type MobileChatChromeSegmentId = 'chat' | 'files' | 'terminal'
 
 export type MobileChatChromeSegment = {
   id: MobileChatChromeSegmentId
@@ -12,13 +12,12 @@ export type MobileChatChromeSegmentInput = {
   activePanel: ActivePanel
   /** Folder and floating workspaces have no file explorer in the header today, so none here. */
   showFiles: boolean
-  /** Folder and floating workspaces have no source control in the header today, so none here. */
-  showSourceControl: boolean
 }
 
 /**
- * The floating segmented control: Chat is the transcript (no panel open), and Files and Source
- * control show the panels the header's folder and branch icons show.
+ * The floating segmented control: Chat is the transcript (no panel open), Files opens the file
+ * explorer, and Terminal opens the worktree's terminals. Source control lives in the ⋯ menu only.
+ * Terminal is offered on every workspace kind, as the New Tab sheet offers it.
  */
 export function resolveMobileChatChromeSegments(
   input: MobileChatChromeSegmentInput
@@ -29,17 +28,11 @@ export function resolveMobileChatChromeSegments(
   if (input.showFiles) {
     segments.push({ id: 'files', label: 'Files', active: input.activePanel === 'files' })
   }
-  if (input.showSourceControl) {
-    segments.push({
-      id: 'sourceControl',
-      label: 'Source control',
-      active: input.activePanel === 'sourceControl'
-    })
-  }
+  segments.push({ id: 'terminal', label: 'Terminal', active: input.activePanel === 'terminal' })
   return segments
 }
 
-/** The panel a segment opens, or null for Chat, which closes the docked panel instead. */
+/** The panel a segment opens, or null for Chat, which returns to the chat instead. */
 export function mobileChatChromeSegmentPanel(
   id: MobileChatChromeSegmentId
 ): Exclude<ActivePanel, null> | null {
@@ -48,7 +41,7 @@ export function mobileChatChromeSegmentPanel(
       return null
     case 'files':
       return 'files'
-    case 'sourceControl':
-      return 'sourceControl'
+    case 'terminal':
+      return 'terminal'
   }
 }

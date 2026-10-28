@@ -36,7 +36,7 @@ type Props = {
   onStop: (taskId?: string) => void
   /** Work this phone watched end, under a section collapsed until opened. */
   finished?: readonly BackgroundTaskGroup[]
-  /** What the sheet says when nothing running lists; defaults to the host's "unavailable" line. */
+  /** What the sheet says when nothing runs or finished lists; defaults to the host's "unavailable" line. */
   emptyNote?: string
 }
 
@@ -85,7 +85,7 @@ export function MobileBackgroundWorkSheet({
           <View style={styles.group}>{agentRows.map(renderRow)}</View>
         </View>
       ) : null}
-      {taskRows.length === 0 && agentRows.length === 0 ? (
+      {taskRows.length === 0 && agentRows.length === 0 && finishedRows.length === 0 ? (
         <Text style={styles.unavailable}>{emptyNote}</Text>
       ) : null}
       {finishedRows.length > 0 ? (

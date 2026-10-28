@@ -9,6 +9,7 @@ import { mobileNativeChatRecordedFileCount } from './mobile-native-chat-recorded
 import { resolveMobileSessionHeaderMenu } from './mobile-session-header-menu'
 import type { MobileArtifactTarget } from './mobile-chat-artifacts-model'
 import { mobileSessionSwitcherRows } from './mobile-session-switcher-rows'
+import { isTerminalPanelOpen, terminalTabsOf } from './mobile-terminal-panel-model'
 import type { MobileSessionPanelRouteActionsModel } from './use-mobile-session-panel-route-actions'
 
 /** The chat's own surfaces on the session screen. Composed last, so it reads the chat state the
@@ -18,6 +19,8 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     nativeChatController,
     visibleTabs,
     activeSessionTabId,
+    activeSessionTab,
+    activePanel,
     showChecksAction,
     showAgentSessionHistoryAction,
     isFolderWorkspaceRoute,
@@ -126,10 +129,20 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     [activeSessionTabId, hostId, router, worktreeId, worktreeName]
   )
 
+  // The native chat and the Terminal panel each draw the floating controls over the session body.
+  const terminalPanelOpen = isTerminalPanelOpen({
+    activePanel,
+    activeTabType: activeSessionTab?.type ?? null,
+    terminalTabCount: terminalTabsOf(visibleTabs).length
+  })
+  const showSessionSwitcherChip = showNativeChat && visibleTabs.length > 0
+
   return {
     sessionRows,
     activeSessionRow: sessionRows.find((row) => row.isActive) ?? null,
-    showSessionSwitcherChip: showNativeChat && visibleTabs.length > 0,
+    showSessionSwitcherChip,
+    showFloatingChrome: showSessionSwitcherChip || terminalPanelOpen,
+    terminalPanelOpen,
     openSessionsSheet,
     sessionsSheetOpen,
     setSessionsSheetOpen,

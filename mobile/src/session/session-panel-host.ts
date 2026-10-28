@@ -2,7 +2,12 @@
 // imports so the dock-vs-push decision and the active-panel state machine are
 // unit-testable under node Vitest (KTD3/R8).
 
-export type ActivePanel = 'sourceControl' | 'files' | 'pr' | null
+// 'terminal' takes the session body in place on every layout: its terminal views are the
+// session screen's own state, so it can neither dock beside the session nor push a route.
+export type ActivePanel = 'sourceControl' | 'files' | 'pr' | 'terminal' | null
+
+// The panels that dock on wide layouts and push a full-screen route on narrow ones.
+export type RoutedPanel = Exclude<ActivePanel, null | 'terminal'>
 
 // Toggle/swap reducer for the wide-layout dock: tapping the active panel closes it,
 // tapping any other opens/swaps to it. Exactly one panel docks at a time (R2).
@@ -13,9 +18,7 @@ export function nextActivePanel(
   return tapped === current ? null : tapped
 }
 
-export type PanelAction =
-  | { kind: 'dock'; next: ActivePanel }
-  | { kind: 'push'; panel: Exclude<ActivePanel, null> }
+export type PanelAction = { kind: 'dock'; next: ActivePanel } | { kind: 'push'; panel: RoutedPanel }
 
 export const SESSION_DOCK_MIN_MAIN_WIDTH = 360
 
@@ -42,12 +45,17 @@ export function canDockSessionPanel(args: {
   )
 }
 
+// The panel the dock column draws, or null: the terminal is never docked.
+export function dockedPanelOf(active: ActivePanel): RoutedPanel | null {
+  return active === 'terminal' ? null : active
+}
+
 // Wide layouts dock (toggle/swap the sidebar beside the terminal); narrow layouts
 // push the panel's full-screen route (R3/R7). The caller maps a push to the concrete
 // expo-router path + params via panelRouteDescriptor.
 export function resolvePanelAction(args: {
   canDock: boolean
-  tapped: Exclude<ActivePanel, null>
+  tapped: RoutedPanel
   current: ActivePanel
 }): PanelAction {
   if (args.canDock) {
@@ -60,7 +68,7 @@ export function resolvePanelAction(args: {
 // and any deep-linking agree; the caller supplies the [hostId]/[worktreeId] params.
 // The Pull Request panel is a segment of the source-control hub, so its narrow-push
 // targets that route with `tab: 'pr'` rather than the standalone (redirecting) route.
-export function panelRouteDescriptor(panel: Exclude<ActivePanel, null>): {
+export function panelRouteDescriptor(panel: RoutedPanel): {
   pathname: string
   params?: Record<string, string>
 } {

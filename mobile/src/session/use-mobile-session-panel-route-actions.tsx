@@ -8,6 +8,7 @@ import {
   panelRouteDescriptor
 } from './session-panel-host'
 import { MobileAgentIcon } from '../components/MobileAgentIcon'
+import { chatTabToReturnTo, terminalTabToOpen } from './mobile-terminal-panel-model'
 import type { MobileSessionPresentationModel } from './use-mobile-session-presentation'
 
 export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentationModel) {
@@ -20,6 +21,9 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
     worktreeName,
     activePanel,
     setActivePanel,
+    activeSessionTab,
+    visibleTabs,
+    switchSessionTab,
     setSessionContentRowWidth,
     canDockPanel,
     prRepoContextLoaded,
@@ -51,7 +55,9 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
       : createTabAgentOptions.length > 0
         ? createTabAgentOptions.map((option) => ({
             label: option.label,
-            renderIcon: () => <MobileAgentIcon agentId={option.agent} size={16} />,
+            renderIcon: () => (
+              <MobileAgentIcon agentId={option.agent} size={16} piRuntime={option.piRuntime} />
+            ),
             onPress: () => {
               setShowCreateTabDrawer(false)
               void handleCreateTerminal(option.agent)
@@ -137,6 +143,15 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
   }, [])
 
   const handlePanelTap = (tapped: Exclude<ActivePanel, null>) => {
+    if (tapped === 'terminal') {
+      // The terminal panel takes the session body in place on every layout: it never docks or pushes.
+      const terminal = terminalTabToOpen(visibleTabs, activeSessionTab ?? null)
+      if (terminal) {
+        switchSessionTab(terminal)
+      }
+      setActivePanel('terminal')
+      return
+    }
     const action = resolvePanelAction({ canDock: canDockPanel, tapped, current: activePanel })
     if (action.kind === 'dock') {
       setActivePanel(action.next)
@@ -157,6 +172,15 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
     })
   }
 
+  // Chat closes any panel and, from a terminal, selects the chat tab again.
+  const returnToChat = () => {
+    setActivePanel(null)
+    const chat = chatTabToReturnTo(visibleTabs, activeSessionTab ?? null)
+    if (chat) {
+      switchSessionTab(chat)
+    }
+  }
+
   const openAgentSessionHistory = () => {
     const params = new URLSearchParams({ name: worktreeName || '' })
     router.push(`/h/${hostId}/agent-history/${encodeURIComponent(worktreeId)}?${params.toString()}`)
@@ -174,6 +198,7 @@ export function useMobileSessionPanelRouteActions(scope: MobileSessionPresentati
     sendDiffNotesAgentActions,
     handleSessionContentRowLayout,
     handlePanelTap,
+    returnToChat,
     openAgentSessionHistory,
     showAgentSessionHistoryAction,
     showChecksAction,

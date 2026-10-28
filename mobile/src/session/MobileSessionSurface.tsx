@@ -19,6 +19,7 @@ export function MobileSessionSurface({ controller }: { controller: MobileSession
     activeSessionTabTypeRef,
     visibleTabs,
     nativeChatController,
+    terminalPanelOpen,
     requestLeaveSession
   } = controller
   const [chromeHeight, setChromeHeight] = useState(0)
@@ -30,6 +31,7 @@ export function MobileSessionSurface({ controller }: { controller: MobileSession
   // chrome while its kind loads.
   const chromeMode = resolveMobileSessionChromeMode({
     showNativeChat: nativeChatController.showNativeChat,
+    terminalPanelOpen,
     connected: connState === 'connected',
     tabsLoading: showLoadingState,
     hasTabs: visibleTabs.length > 0,

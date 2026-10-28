@@ -7,6 +7,7 @@ import type { AgentChildWorkView } from '../../../src/shared/agent-status-child-
 import type { AgentSessionBackgroundTaskState } from '../../../src/shared/agent-session-wire'
 import { structuredSessionBackgroundTasksView } from '../../../src/shared/structured-session-background-tasks-view'
 import { MobileNativeChatBackgroundTasks } from './MobileNativeChatBackgroundTasks'
+import { resetSeenBackgroundWorkStoreForTests } from './mobile-seen-background-work-store'
 
 const NOW = 10_000_000
 const windowWidth = vi.hoisted(() => ({ value: 430 }))
@@ -22,6 +23,7 @@ vi.mock('react-native', () => ({
 vi.mock('lucide-react-native', () => ({
   Activity: 'Activity',
   Bot: 'Bot',
+  Check: 'Check',
   ChevronDown: 'ChevronDown',
   ChevronRight: 'ChevronRight',
   ChevronUp: 'ChevronUp',
@@ -73,6 +75,7 @@ function tasksFor(
     streamLive?: boolean
     hostClockOffsetMs?: number
     stop?: (taskId?: string) => Promise<unknown>
+    commandActivity?: AgentChildWorkView[]
   } = {}
 ): Props['tasks'] {
   return {
@@ -82,9 +85,16 @@ function tasksFor(
       options.hostClockOffsetMs ?? 0
     ),
     sessionKey: 'session-a',
-    stop: options.stop ?? vi.fn(async () => undefined)
+    stop: options.stop ?? vi.fn(async () => undefined),
+    ...(options.commandActivity ? { commandActivity: options.commandActivity } : {})
   }
 }
+
+// The sheet's empty-state line, whichever copy it carries.
+const EMPTY_NOTES = [
+  'No background work is running.',
+  'Task details are unavailable for this session.'
+]
 
 describe('MobileNativeChatBackgroundTasks', () => {
   let renderer: ReactTestRenderer | null = null
@@ -93,6 +103,8 @@ describe('MobileNativeChatBackgroundTasks', () => {
     act(() => renderer?.unmount())
     renderer = null
     windowWidth.value = 430
+    // The seen work is module-level; each test starts with no chat kept.
+    resetSeenBackgroundWorkStoreForTests()
   })
 
   function mount(tasks: Props['tasks']): ReactTestRenderer {
@@ -361,11 +373,13 @@ describe('MobileNativeChatBackgroundTasks', () => {
   })
 
   it('keeps the sheet open across a roster that empties between children', () => {
-    // A sequential fan-out empties the roster between its children; the open sheet waits for the next.
+    // A sequential fan-out empties the roster between its children. The pill stays up for the finished
+    // child, so the open sheet stays too, and lists the next child when it starts.
     const mounted = mount(tasksFor({ state: 'monitoring', children: [view('a')] }))
     expand(mounted)
     rerender(mounted, null)
-    expect(sheetTitles(mounted)).toHaveLength(0)
+    expect(sheetTitles(mounted)).toHaveLength(1)
+    expect(finishedToggle(mounted)?.props.accessibilityLabel).toBe('Finished, 1')
     rerender(mounted, { state: 'monitoring', children: [view('b')] })
     expect(sheetTitles(mounted)).toHaveLength(1)
   })
@@ -416,6 +430,74 @@ describe('MobileNativeChatBackgroundTasks', () => {
 
     rerender(mounted, { state: 'monitoring', children: [view('b')] }, { streamLive: false })
 
+    expect(finishedToggle(mounted)).toBeUndefined()
+  })
+
+  function emptyNotes(mounted: ReactTestRenderer): string[] {
+    return mounted.root
+      .findAll((node) => String(node.type) === 'Text' && EMPTY_NOTES.includes(node.props.children))
+      .map(textOf)
+  }
+
+  function settledChild(id: string, settledAt: number): AgentChildWorkView {
+    return view(id, { state: 'done', membership: 'settled', settledAt, observedAt: settledAt })
+  }
+
+  it('says no background work runs beside a plain working turn', () => {
+    const mounted = create(createElement('View'))
+    renderer = mounted
+    act(() => {
+      mounted.update(
+        createElement(MobileNativeChatBackgroundTasks, { tasks: tasksFor(null), working: true })
+      )
+    })
+    expand(mounted)
+    expect(emptyNotes(mounted)).toEqual(['No background work is running.'])
+  })
+
+  it('shows no empty note while finished work lists, even with nothing running', () => {
+    const mounted = mount(tasksFor({ state: 'monitoring', children: [view('a')] }))
+    act(() => {
+      mounted.update(
+        createElement(MobileNativeChatBackgroundTasks, { tasks: tasksFor(null), working: true })
+      )
+    })
+    expand(mounted)
+    expect(finishedToggle(mounted)?.props.accessibilityLabel).toBe('Finished, 1')
+    expect(emptyNotes(mounted)).toEqual([])
+  })
+
+  it('keeps a finished child under Finished across a remount', () => {
+    const mounted = mount(tasksFor({ state: 'monitoring', children: [view('a'), view('b')] }))
+    expand(mounted)
+    rerender(mounted, { state: 'monitoring', children: [view('b')] })
+
+    const remounted = mount(tasksFor({ state: 'monitoring', children: [view('b')] }))
+    expand(remounted)
+
+    expect(finishedToggle(remounted)?.props.accessibilityLabel).toBe('Finished, 1')
+  })
+
+  it('lists a child the history says finished before this phone watched it', () => {
+    const mounted = mount(
+      tasksFor(
+        { state: 'monitoring', children: [view('b')] },
+        { commandActivity: [settledChild('old', NOW - 9_000)] }
+      )
+    )
+    expand(mounted)
+    expect(finishedToggle(mounted)?.props.accessibilityLabel).toBe('Finished, 1')
+
+    act(() => finishedToggle(mounted)!.props.onPress())
+
+    expect(rowTexts(mounted)[1]).toMatch(/^review old · Ended/)
+  })
+
+  it('never lists a running child from the history as finished', () => {
+    const mounted = mount(
+      tasksFor({ state: 'monitoring', children: [view('b')] }, { commandActivity: [view('b')] })
+    )
+    expand(mounted)
     expect(finishedToggle(mounted)).toBeUndefined()
   })
 

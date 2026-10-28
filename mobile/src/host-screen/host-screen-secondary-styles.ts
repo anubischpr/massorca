@@ -25,7 +25,8 @@ export const hostScreenSecondaryStyles = StyleSheet.create({
   sectionAccount: {
     flexShrink: 1,
     color: colors.textMuted,
-    fontSize: typography.metaSize
+    fontSize: typography.metaSize,
+    marginLeft: spacing.xs
   },
   sectionTitle: {
     fontSize: 11,

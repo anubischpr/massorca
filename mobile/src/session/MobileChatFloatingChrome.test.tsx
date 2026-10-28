@@ -17,9 +17,9 @@ vi.mock('react-native-safe-area-context', () => ({
 vi.mock('lucide-react-native', () => ({
   ChevronLeft: 'ChevronLeft',
   Folder: 'Folder',
-  GitBranch: 'GitBranch',
   MessageSquare: 'MessageSquare',
-  MoreHorizontal: 'MoreHorizontal'
+  MoreHorizontal: 'MoreHorizontal',
+  SquareTerminal: 'SquareTerminal'
 }))
 vi.mock('../components/StatusDot', () => ({ StatusDot: 'StatusDot' }))
 vi.mock('./MobileSessionSwitcherChip', () => ({ MobileSessionSwitcherChip: 'SwitcherChip' }))

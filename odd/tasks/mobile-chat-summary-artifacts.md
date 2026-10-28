@@ -288,3 +288,96 @@ Route: one delegated writer. Decision changed from the plan above, with evidence
 Checks: mobile `pnpm typecheck` exit 0; the new and touched suites pass (seen fold, terminal read, bridge pill and sheet, chrome row, sheet, structured strip, view and overlay dependents); root `pnpm tc:node` and the projection and roster suites pass; oxfmt and oxlint clean on the changed files.
 
 Needs a device: the pill and sheet against a real Claude and Codex terminal chat (subagent start, finish, host restart), the live update on a desktop-attached host, and the chrome row layout.
+
+## Round 7 (parent request on `29da8825ca8`: header spacing, Gentle Shell row, background history, Codex background shells)
+
+Each task is one Conventional Commit with its tests; no AI attribution lines. No push, no PR. Checks per task in `mobile/`: `pnpm typecheck` exit 0, targeted `pnpm test <files>`, oxfmt and oxlint on changed files. T23 also runs root `pnpm tc:node`.
+
+- [x] T20 Repo group header: the GitHub login sits beside the repo name with the same gap as the count. Style only (`mobile/src/host-screen/host-screen-secondary-styles.ts`), no test: no behavior changed. Checks: typecheck exit 0, oxfmt and oxlint clean.
+- [x] T21 New Tab agent sheet: a host configured for Gentle Shell shows "Gentle Shell" with its icon, not "Pi". Reads `settings.agentCmdOverrides.pi` from the settings the loader already reads (`RuntimeClientSettings` carries it); no wire change, no new TuiAgent id.
+- [x] T22 Background work history: finished work survives remounts and reconnects (module-level store keyed by host and session); `commandActivity` seeds finished commands when present; the chat lane shows a correct empty note and never one beside Finished rows.
+- [x] T23 Codex background shell tasks: unified-exec processes that outlive their exec call count as background commands in the roster and settle when they exit.
+
+### T20 evidence
+- Commit: `87f8841ebba` fix(mobile): space the GitHub login from the repo name in the host list.
+
+### T21 evidence
+- Route: inline (three source files and their test file).
+- Cause: detection reports one `pi` id for both Pi runtimes, and the options builder labelled every `pi` row from the static "Pi" map, so Gentle Shell hosts read Pi.
+- Fix: the Pi row reads `settings.agentCmdOverrides.pi` through `selectedPiRuntime`, the same runtime answer the rest of the phone uses. A Gentle Shell answer sets the label "Gentle Shell" and the Gentle Shell icon via `piRuntime` on the row. A missing, non-text, or stock command keeps Pi. Other rows are unchanged.
+- No wire change: `settings.get` already returns `agentCmdOverrides` (`RuntimeClientSettings`). No new TuiAgent id.
+- The "Send Review Notes" agent list reuses the same option label, so it reads "Gentle Shell" too; its rows keep the generic Bot icon, as before.
+- Gap: the setting is the paired host's. A workspace on an SSH target reads the paired host's runtime, not the target's, since the phone holds no per-target Pi setting.
+- Commit: `dd9ece81ab9` fix(mobile): label the new-tab Pi row Gentle Shell when the host runs it.
+- Checks: `pnpm test` on `mobile-new-tab-agent-options` and `mobile-new-tab-agent-loader` (2 files, 7 tests pass); mobile `pnpm typecheck` exit 0; `pnpm typecheck:tests` reports no errors in the touched files (the baseline has pre-existing errors); oxfmt and oxlint clean.
+
+### T22 evidence
+- Route: inline, single writer: the store, the finished merge, the shared notes, the two lanes, the client capability and their tests.
+- Cause: finished rows lived in React state and were lost on unmount. The sheet drew "Task details are unavailable for this session." whenever no running row listed, even beside Finished rows, and the chat lane passed no note. The host's `commandActivity` history never reached mobile. The host sends settled commands only to a client that advertises `agent-session.structured.settled-child-work.v1`, which mobile did not.
+- Fix (a): `mobile-seen-background-work-store.ts` keeps each chat's seen fold at module level, keyed by the chat's identity (structured: source, agent, session; terminal: host, worktree, tab). It holds the 12 most recently used chats; each keeps the existing cap of 30 finished rows.
+- Fix (b): `mobile-finished-background-work.ts` reads the settled rows of `state.commandActivity` (optional; absent on older hosts) and lists them under Finished after the rows this phone saw end. A running row is never listed as finished. Mobile now advertises the settled-child-work capability in `MOBILE_RUNTIME_CLIENT_CAPABILITIES`: additive and negotiated, since the host filters settled rows from clients without it and older hosts list running work only.
+- Fix (c): the sheet shows its empty note only when nothing runs and nothing finished. The chat lane's note is "No background work is running." when nothing is listed and "Task details are unavailable for this session." when work runs without details. The copy is in `mobile-background-work-notes.ts`, shared with the terminal lane.
+- Open decision: the status pill shows only while a turn runs or listed work runs (`mobileChatStatusPill`). A chat whose work all finished shows no pill, so its Finished list is out of reach until work runs again. Keeping a pill for finished-only history is a product call and is not changed here.
+- Gap: the terminal lane has no command history from the host, so its Finished rows are the ones this phone watched end. They now survive remounts.
+- Commit: `a53f123bd20` feat(mobile): keep finished background work across remounts and list the chat history.
+- Checks: `pnpm test` on the 22 test files that import a changed module (includes the new store, finished-merge and capability suites): 22 files, 177 tests pass. Mobile `pnpm typecheck` exit 0. oxfmt and oxlint clean on the changed files.
+
+### T23 evidence
+- Route: inline, two tracker files and their test file.
+- Evidence: a unified-exec startup item (`source: unifiedExecStartup`) stays `inProgress` past its turn and completes at exit (`codex-background-command-tracker.test.ts`, the persistent-ownership cases; `codexCommandOutlivesTurn`). A command is `background` only after `endTurn` (`codex-child-work-evidence.ts:79`), and the child projection drops a Codex foreground command (`projectAgentChildWorkViews` in `agent-status-child-work-view.ts`). So a process still running inside its turn was missing from the children the phone reads, while the Working pill counts those children.
+- Fix: a `item/commandExecution/terminalInteraction` for a tracked session (a write or poll) marks that command background at once (`CodexBackgroundCommandTracker.observe`). `CodexBackgroundTaskTracker.observe` forwards the notification as command evidence. Exit still settles it (`item/completed`, `settles: true`). No wire change: the existing `residency` field carries it.
+- Uncertainty, not verified against a live Codex run (none is in the repo): the notification's `itemId` param is assumed, as on `outputDelta`, and each write or poll emits it. A yielded process that nothing polls stays foreground until its turn ends; that case is not covered.
+- Commit: `fa5c3a8933d` fix(codex): count a unified exec command background once a poll reaches its session.
+- Checks: `pnpm test` on the three tracker suites (61 tests) and the 14 related Codex structured-session suites (150 tests), all pass. Root `pnpm tc:node` exit 0. oxfmt and oxlint clean on the changed files.
+
+## Round 8 (parent request: Terminal panel, Finished pill, legacy chat switch)
+
+Each task is one Conventional Commit with its tests; no AI attribution lines. No push, no PR. Checks per task in `mobile/`: `pnpm typecheck` exit 0, targeted `pnpm test <files>`, oxfmt and oxlint on changed files. Design source: the approved prototype `Main.dc.html` (session scratchpad, 390x844), with the user's change: the top segmented control keeps three options, Chat, Files and Terminal. Source control is in the ⋯ menu only.
+
+- [x] T24 Terminal segment and panel: `963896d3d41` (type fixes in `2ad1b24352b`)
+- [x] T25 Finished status pill once background work ends: `47700e0ad4b` (type fixes in `2ad1b24352b`)
+- [ ] T26 Legacy chat kill switch: not started; stopped after T25 as the brief allows (see the T26 section)
+
+### T24 evidence
+- Route: inline, single writer. 20 files (16 modified, 4 new), 868 added and 113 removed. Above the ~400 planning heuristic; kept as one unit because the segments, the panel and their session wiring change together.
+- Segments (`mobile-chat-chrome-segments.ts`): Chat, Files (not in a floating workspace) and Terminal. Terminal shows on every workspace kind, as the New Tab sheet offers it. Source control left the control.
+- Panel (`MobileTerminalPanel.tsx`, new; rules in `mobile-terminal-panel-model.ts`, new): header "TERMINALS · n" with "New terminal" always shown; one pill per terminal tab; "Agent · terminal" tag for a terminal-backed agent pane (a launched agent or an agent status); × on the selected pill; "new" tag and a "Ready — type a command" line for a terminal the panel just created; "Open terminal" empty state; "Back to chat" footer.
+- Reuse: create is `handleCreateTerminal()`, close is `handleCloseSessionTab`, select is `switchSessionTab`. Panes come from `MobileTerminalPaneStack.tsx`, extracted from `MobileSessionActiveContent.tsx` with the same `TerminalPaneView` props.
+- Placement, a deviation from "follow Files": the panel takes the session body in place on every layout and never docks or pushes a route. The terminal views are the session screen's own state. A dock or a route would need a second session controller (the session route file forbids one) or would move live WebViews between parents. `dockedPanelOf` keeps it out of the dock column.
+- Chat and Back: Chat and the device Back key (`useBackClaim`) close the panel and select the first agent chat when a terminal is active. Opening the panel over a chat selects the first terminal.
+- Foundation: the effect that cleared any panel on narrow layouts keeps the terminal panel (`use-mobile-session-foundation.ts`).
+- Visibility gap: the floating controls draw only where a native chat is on screen or the panel is open (`showFloatingChrome`). A terminal-only worktree keeps the classic header and has no Terminal segment until T26.
+- Gaps: the fresh-terminal marker is local to the panel and resets when it closes. Not verified on a device: the in-place panel with real Claude and terminal panes, Android Back, and the command dock with the keyboard.
+- Tests: `mobile-terminal-panel-model.test.ts` (opening rule, tab to open, chat to return to, agent panes, new-terminal detection, pills, header), `mobile-chat-chrome-segments.test.ts`, `session-panel-host.test.ts` (`dockedPanelOf`), `mobile-session-chrome-mode.test.ts` (the panel keeps the floating controls). lucide mocks gained the new icons in the chrome, pill, tray and frame-layout suites.
+- Checks: `pnpm run typecheck` exit 0. 22 targeted suites, 253 tests, pass. oxfmt and oxlint clean on the changed files. `node config/scripts/check-changed-code-quality.mjs fa5c3a8933d`: 0 new findings.
+
+### T25 evidence
+- Route: inline, single writer. 9 files, 211 added and 34 removed.
+- Rule (`mobile-chat-status-pill.ts`): once nothing runs, the pill stays up as a muted "Finished" with the finished count (`idle`, `finished`) when finished rows exist. Running work still wins, and a lost roster stream still states no live work.
+- Both lanes share the rule. The structured lane counts the merged finished rows (seen plus history). The terminal lane counts its finished rows. Tapping the pill opens the sheet with the Finished list.
+- Accessibility: "Show background work, Finished, n items".
+- Behaviour pinned by test changes: a finished subagent keeps the terminal-lane pill, and an open sheet stays open across an empty roster, with its finished row under the collapsed Finished section.
+- Test file changed beyond the pill suites: `use-mobile-native-chat-composer-tray.test.tsx` (the pill now renders in its finished case; mock entries and the empty-roster expectation). It is part of `47700e0ad4b`.
+- Checks: `pnpm run typecheck` exit 0. The pill, pill view, background-work and chat-view suites pass (9 suites, 106 tests), the composer tray suite (4) and the strip suite (20). oxfmt and oxlint clean.
+
+### Test type follow-up (`2ad1b24352b`)
+- Fixed two type errors I introduced in touched tests: the panel model fixture returned the union tab type, and the pill view test compared a component type to a string. Remaining `typecheck:tests` errors in touched files are the `node.type ===` comparisons that the base already had, at shifted lines.
+
+### Full session directory
+- `pnpm test src/session` (before the composer-tray and type fixes landed): 282 of 284 files pass, 2575 tests. Failures are the known pre-existing ones: `mobile-prompt-controller.test.ts` (SyntaxError) and `mobile-native-chat-merged-snapshot-parity.test.ts` (4 timeouts under the parallel run; 9 of 9 pass alone). `mobile-file-search-owner-cleanup.test.tsx` passed in this run.
+
+### T26 status: not started
+Stopped after T25 because T26 changes the chrome for every session, not only chats. What remains, in order:
+1. One switch: a constant (`MOBILE_LEGACY_CHAT_VIEWS`, default off) in a new module beside `mobile-session-chrome-mode.ts`.
+2. "Terminal shown as a chat": `isTabChatView` in `use-mobile-session-view-mode.ts` returns false for terminal tabs when the switch is off, and `toggleTabChatView` becomes a no-op. First confirm, at `use-mobile-native-chat-active-resolution.ts` line 40, which tab types depend on it. Hide the toggle item built in `mobile-native-chat-toggle-action.ts` (used by `mobile-terminal-action-sheet-actions.ts` and `MobileSessionSheets.tsx`).
+3. Old header and tab strip: `resolveMobileSessionChromeMode` returns `terminal` for every non-chat tab, so `MobileSessionSurface` draws `MobileSessionHeader`. With the switch off, every session needs the floating controls, so the Terminal segment exists in terminal-only worktrees. That means `showFloatingChrome` no longer depends on a native chat. The ⋯ button and quick commands in the classic header need a home in the floating chrome.
+4. Terminal-backed agent panes: after step 2 they appear only in the Terminal panel. Check the classic tab-strip path too.
+5. "Unsupported session": no component exists yet. It shows for a state the app cannot place, for example an agent tab with neither a transcript nor a terminal.
+6. Tests: the routing decision with the switch on and off.
+- Open decision for the owner: whether document tabs (markdown, file, browser) keep the classic header when the switch is off.
+
+### Engram mirror
+- Not written in this pass. Pending: `odd/mobile-chat-summary-artifacts/tasks`, from this file.
+
+## Next step
+- Parent: review `963896d3d41`, `47700e0ad4b` and `2ad1b24352b`, decide the open T26 question on document tabs, then run T26 as its own pass.

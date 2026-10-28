@@ -4,6 +4,7 @@
 import { useCallback, useMemo } from 'react'
 import type { AgentChildRowContext } from '../../../src/shared/agent-child-row-model'
 import { agentChildRowContextForSessionStream } from '../../../src/shared/agent-child-row-stream-context'
+import type { AgentChildWorkView } from '../../../src/shared/agent-status-child-work-view'
 import type { StructuredAgentSessionState } from '../../../src/shared/structured-agent-session-reducer'
 import {
   structuredSessionBackgroundTasksView,
@@ -20,6 +21,9 @@ export type MobileStructuredBackgroundTasks = {
   rowContext: AgentChildRowContext
   /** One child by its provider id, or, with none, every background task the host can stop. */
   stop: (taskId?: string) => Promise<unknown>
+  /** The chat's command history, finished commands included when the host sends them; absent on
+   *  an older host. */
+  commandActivity?: readonly AgentChildWorkView[]
 }
 
 /** Coarser than one frame's delivery latency, finer than any clock a row shows. */
@@ -60,8 +64,15 @@ export function useMobileStructuredBackgroundTasks(args: {
       }),
     [mutate]
   )
+  const commandActivity = state.commandActivity
   return useMemo(
-    () => ({ sessionKey, view, rowContext, stop }),
-    [sessionKey, view, rowContext, stop]
+    () => ({
+      sessionKey,
+      view,
+      rowContext,
+      stop,
+      ...(commandActivity ? { commandActivity } : {})
+    }),
+    [sessionKey, view, rowContext, stop, commandActivity]
   )
 }

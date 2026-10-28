@@ -10,6 +10,7 @@ import { MobileSessionActiveContent } from './MobileSessionActiveContent'
 import { MobileSessionCommandDock } from './MobileSessionCommandDock'
 import { MobileChatFloatingChrome } from './MobileChatFloatingChrome'
 import { MobileChatChromeLayoutContext } from './mobile-chat-chrome-layout'
+import { dockedPanelOf } from './session-panel-host'
 
 export function MobileSessionContentRow({ controller }: { controller: MobileSessionController }) {
   const {
@@ -25,14 +26,16 @@ export function MobileSessionContentRow({ controller }: { controller: MobileSess
     handleFileOpenStart,
     handleOpenedFileDiff,
     handleSessionContentRowLayout,
-    showSessionSwitcherChip
+    showFloatingChrome
   } = controller
   // The floating controls cover the top of this column; the banner starts beneath them.
   const chromeLayout = useContext(MobileChatChromeLayoutContext)
+  // The terminal panel is in place, so only a routed panel can dock beside the session.
+  const dockedPanel = dockedPanelOf(activePanel)
   return (
     <View style={styles.sessionContentRow} onLayout={handleSessionContentRowLayout}>
       <View style={styles.sessionContentMain}>
-        {showSessionSwitcherChip ? <MobileChatFloatingChrome controller={controller} /> : null}
+        {showFloatingChrome ? <MobileChatFloatingChrome controller={controller} /> : null}
         {createWarning ? (
           <View style={[styles.createWarningBanner, { marginTop: chromeLayout.height }]}>
             <AlertTriangle size={16} color={colors.statusAmber} strokeWidth={2.2} />
@@ -51,9 +54,9 @@ export function MobileSessionContentRow({ controller }: { controller: MobileSess
         {/* Why: translate instead of resize so keyboard toggles don't trigger a server-side PTY viewport change. */}
         <MobileSessionCommandDock controller={controller} />
       </View>
-      {canDockPanel && activePanel !== null && (
+      {canDockPanel && dockedPanel !== null && (
         <SessionDockColumn
-          activePanel={activePanel}
+          activePanel={dockedPanel}
           hostId={hostId}
           worktreeId={worktreeId}
           name={worktreeName || ''}

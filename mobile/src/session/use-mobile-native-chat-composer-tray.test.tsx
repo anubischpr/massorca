@@ -26,6 +26,9 @@ vi.mock('lucide-react-native', () => ({
   Activity: 'Activity',
   AlertCircle: 'AlertCircle',
   Bot: 'Bot',
+  Check: 'Check',
+  ChevronDown: 'ChevronDown',
+  ChevronRight: 'ChevronRight',
   ChevronUp: 'ChevronUp',
   CircleHelp: 'CircleHelp',
   SquareTerminal: 'SquareTerminal',
@@ -158,6 +161,7 @@ describe('useMobileNativeChatComposerTray', () => {
         createElement(Slot, { sessionKey: 's-a', backgroundTasks: tasks('s-a', null) })
       )
     })
+    // Nothing runs: the finished task waits under the collapsed Finished section, so no row is listed.
     expect(stripRows(mounted)).toHaveLength(0)
     await act(async () => {
       mounted.update(

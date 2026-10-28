@@ -4,7 +4,15 @@ import type { StructuredSessionBackgroundTasksView } from '../../../src/shared/s
 import { useNow } from '../hooks/use-now'
 import { MobileBackgroundWorkSheet, type BackgroundWorkStopping } from './MobileBackgroundWorkSheet'
 import { MobileChatStatusPillView } from './MobileChatStatusPillView'
-import { mobileChatStatusPill, mobileStatusPillCounts } from './mobile-chat-status-pill'
+import {
+  NO_BACKGROUND_WORK_NOTE,
+  UNLISTED_BACKGROUND_WORK_NOTE
+} from './mobile-background-work-notes'
+import {
+  mobileChatStatusPill,
+  mobileStatusPillCounts,
+  mobileStatusPillFinishedCount
+} from './mobile-chat-status-pill'
 import { useMobileTerminalBackgroundWork } from './use-mobile-terminal-background-work'
 
 // The host stops no pane subagent and lists no pane shell task, so the sheet offers no Stop here.
@@ -17,14 +25,12 @@ const NO_STOP_VIEW: StructuredSessionBackgroundTasksView = {
   supportsStopAll: false
 }
 const NOT_STOPPING: BackgroundWorkStopping = { taskIds: new Set(), all: false }
-const NO_ROWS_NOTE = 'No background work is running.'
-const UNLISTED_NOTE = 'Background work is running. This agent does not report its details.'
 
 function ignoreStop(): void {}
 
 /** The status pill of a terminal-backed chat, with the background-work sheet it opens. Mounted per
  *  chat so its Finished list outlives the pill hiding between subagents; draws nothing while the
- *  agent is idle and nothing runs. */
+ *  agent is idle with nothing running or finished. */
 function MobileBridgeBackgroundWorkImpl({
   scopeKey,
   status,
@@ -55,6 +61,7 @@ function MobileBridgeBackgroundWorkImpl({
     now: hostNow,
     counts: mobileStatusPillCounts(work.groups),
     hasBackgroundWork: hasRunning || work.unlistedWork,
+    finishedCount: mobileStatusPillFinishedCount(work.finished),
     live: work.rowContext.transportObservation === 'live'
   })
   if (!pill.visible) {
@@ -77,7 +84,7 @@ function MobileBridgeBackgroundWorkImpl({
         stopping={NOT_STOPPING}
         onStop={ignoreStop}
         finished={work.finished}
-        emptyNote={work.unlistedWork ? UNLISTED_NOTE : NO_ROWS_NOTE}
+        emptyNote={work.unlistedWork ? UNLISTED_BACKGROUND_WORK_NOTE : NO_BACKGROUND_WORK_NOTE}
       />
     </>
   )

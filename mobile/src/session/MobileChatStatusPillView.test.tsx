@@ -10,14 +10,20 @@ vi.mock('react-native', () => ({
   Text: 'Text',
   View: 'View'
 }))
-vi.mock('lucide-react-native', () => ({ Bot: 'Bot', SquareTerminal: 'SquareTerminal' }))
+vi.mock('lucide-react-native', () => ({
+  Bot: 'Bot',
+  Check: 'Check',
+  SquareTerminal: 'SquareTerminal'
+}))
 
 const WITH_WORK: MobileStatusPill = {
   visible: true,
+  idle: false,
   label: 'Working',
   elapsed: '4:12',
   terminals: 1,
-  agents: 2
+  agents: 2,
+  finished: null
 }
 
 describe('MobileChatStatusPillView', () => {
@@ -63,5 +69,26 @@ describe('MobileChatStatusPillView', () => {
     expect(counts.map((node) => node.type)).toEqual(['SquareTerminal'])
     const texts = mounted.root.findAll((node) => node.type === 'Text').map((node) => node.children)
     expect(texts).not.toContainEqual(['4:12'])
+  })
+
+  it('reads an idle pill as Finished with the finished count, and still opens the sheet', () => {
+    const onPress = vi.fn()
+    const mounted = mount(
+      {
+        visible: true,
+        idle: true,
+        label: 'Finished',
+        elapsed: null,
+        terminals: null,
+        agents: null,
+        finished: 2
+      },
+      onPress
+    )
+    const button = mounted.root.find((node) => String(node.type) === 'Pressable')
+    expect(button.props.accessibilityLabel).toBe('Show background work, Finished, 2 items')
+    expect(mounted.root.findAll((node) => String(node.type) === 'Check')).toHaveLength(1)
+    act(() => button.props.onPress())
+    expect(onPress).toHaveBeenCalledTimes(1)
   })
 })

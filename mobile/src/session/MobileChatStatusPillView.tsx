@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Bot, SquareTerminal } from 'lucide-react-native'
+import { Bot, Check, SquareTerminal } from 'lucide-react-native'
 import { colors, spacing, typography } from '../theme/mobile-theme'
 import {
   mobileBridgeStatusPill,
@@ -9,8 +9,9 @@ import {
 
 /**
  * The floating status pill: an amber dot, "Working", the turn's clock when there is one, and the
- * running terminal and agent counts when there are any. With `onPress` it is a button that opens the
- * background-work sheet; without it, a plain status line.
+ * running terminal and agent counts when there are any. Once nothing runs it is a grey "Finished"
+ * with the finished count. With `onPress` it is a button that opens the background-work sheet;
+ * without it, a plain status line.
  */
 export function MobileChatStatusPillView({
   pill,
@@ -21,10 +22,16 @@ export function MobileChatStatusPillView({
 }) {
   const content = (
     <>
-      <View style={styles.dot} />
+      <View style={[styles.dot, pill.idle && styles.dotIdle]} />
       <Text style={styles.label}>{pill.label}</Text>
       {pill.elapsed ? <Text style={styles.elapsed}>{pill.elapsed}</Text> : null}
       {pill.terminals !== null || pill.agents !== null ? <View style={styles.divider} /> : null}
+      {pill.finished !== null ? (
+        <View style={styles.count}>
+          <Check size={13} color={colors.textSecondary} strokeWidth={2} />
+          <Text style={styles.countText}>{pill.finished}</Text>
+        </View>
+      ) : null}
       {pill.terminals !== null ? (
         <View style={styles.count}>
           <SquareTerminal size={13} color={colors.textSecondary} strokeWidth={2} />
@@ -84,6 +91,9 @@ const styles = StyleSheet.create({
     height: 7,
     borderRadius: 4,
     backgroundColor: colors.statusAmber
+  },
+  dotIdle: {
+    backgroundColor: colors.textMuted
   },
   label: {
     color: colors.textPrimary,

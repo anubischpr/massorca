@@ -66,9 +66,9 @@ export function useMobileSessionFoundation() {
       availableWidth: sessionContentRowWidth,
       dockWidth: HOST_DOCK_MIN_WIDTH
     })
-  // Why: if rotation/split-screen makes the docked row too narrow, clear activePanel so it doesn't survive into overlay/push mode.
+  // Why: if rotation/split-screen makes the docked row too narrow, clear a docked panel so it doesn't survive into overlay/push mode. The terminal panel is in place, so it stays.
   useEffect(() => {
-    if (!canDockPanel && activePanel !== null) {
+    if (!canDockPanel && activePanel !== null && activePanel !== 'terminal') {
       setActivePanel(null)
     }
   }, [canDockPanel, activePanel])
