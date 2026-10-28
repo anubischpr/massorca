@@ -413,3 +413,25 @@ describe('launchCreateSession chat preference and surface', () => {
     expect(result).not.toHaveProperty('warning')
   })
 })
+
+describe('launchCreateSession base branch', () => {
+  const receipt = launchReceipt({ delivery: 'submit', outcome: 'journaled', messageId: 'm' })
+
+  function createOf(sendRequest: ReturnType<typeof fakeClient>['sendRequest']) {
+    const params = paramsOf(sendRequest, 'agent.launch')
+    return params && typeof params === 'object' && 'target' in params ? params.target : undefined
+  }
+
+  it('creates the worktree from the picked branch', async () => {
+    const { client, sendRequest } = fakeClient({ 'agent.launch': receipt })
+    await run(client, { ...newWorktreePlan, baseBranch: 'origin/release' }, { replay: false })
+    expect(createOf(sendRequest)).toMatchObject({ create: { baseBranch: 'origin/release' } })
+  })
+
+  it('sends no base when none was picked, so the host default applies', async () => {
+    const { client, sendRequest } = fakeClient({ 'agent.launch': receipt })
+    await run(client, newWorktreePlan, { replay: false })
+    expect(createOf(sendRequest)).toMatchObject({ create: { repo: 'id:web' } })
+    expect(JSON.stringify(createOf(sendRequest))).not.toContain('baseBranch')
+  })
+})

@@ -145,7 +145,8 @@ async function launchInNewWorktree(args: {
       name,
       setupDecision: args.setup.decision,
       displayNameKind: 'generated',
-      nameWasGenerated: true
+      nameWasGenerated: true,
+      ...(plan.baseBranch ? { baseBranch: plan.baseBranch } : {})
     })
   })
   if ('error' in created) {

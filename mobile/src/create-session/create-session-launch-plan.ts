@@ -22,6 +22,8 @@ export type CreateSessionLaunchPlan = {
   prompt: string
   /** Absent when nothing was picked, so the host seeds the saved defaults itself. */
   sessionOptions?: Record<string, string>
+  /** A picked base branch for a new worktree; absent keeps the repository default. */
+  baseBranch?: string
 }
 
 /**
@@ -67,18 +69,19 @@ export function buildCreateSessionLaunchPlan(args: {
     args.picks,
     args.effectiveModelId
   )
+  const kind = effectiveWorkspaceMode(selection, repo)
   return {
-    kind: effectiveWorkspaceMode(selection, repo),
+    kind,
     repoId: repo.id,
     agent: selection.agent,
     prompt,
-    ...(sessionOptions ? { sessionOptions } : {})
+    ...(sessionOptions ? { sessionOptions } : {}),
+    ...(kind === 'new-worktree' && selection.baseRef ? { baseBranch: selection.baseRef } : {})
   }
 }
 
 export type CreateSessionStep = { id: 'worktree' | 'setup' | 'agent'; label: string }
 
-/** Current checkout skips the worktree steps, as in the prototype. */
 export function createSessionProgressSteps(
   plan: Pick<CreateSessionLaunchPlan, 'kind'>,
   agentLabel: string

@@ -6,11 +6,7 @@ import type { CreateSessionOptions } from './use-create-session-options'
 
 const SEND_SIZE = 40
 
-/**
- * The composer row of the chat, before the chat exists: the same model pill, effort and access
- * buttons and sheets, then the button that creates the session. An agent with no pickers still
- * gets the button.
- */
+/** The chat composer pickers before the chat exists; an agent with no pickers still gets the button. */
 export function CreateSessionComposerRow({
   agent,
   options,
@@ -41,7 +37,7 @@ export function CreateSessionComposerRow({
           pressed && canSubmit && styles.pressed
         ]}
       >
-        <ArrowUp size={18} color={canSubmit ? colors.bgBase : colors.textMuted} strokeWidth={2.4} />
+        <ArrowUp size={18} color={canSubmit ? colors.bgBase : colors.textMuted} />
       </Pressable>
     </View>
   )
@@ -68,7 +64,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
-  sendReady: { backgroundColor: colors.textPrimary },
+  sendReady: { backgroundColor: colors.surfaceBright },
   sendIdle: { backgroundColor: colors.bgRaised },
   pressed: { opacity: 0.8 }
 })

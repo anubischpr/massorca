@@ -126,11 +126,13 @@ export function CreateSessionScreen({
           projectLabel={repo?.displayName ?? 'No project'}
           workspaceLabel={controller.workspaceLabel || 'Workspace'}
           workspaceDisabled={isFolderRepo(repo)}
+          baseRef={controller.baseRefChip}
           agent={agent}
           agentLabel={createSessionAgentLabel(agent)}
           disabled={busy || selection === null}
           onOpenProject={() => openSheet('project')}
           onOpenWorkspace={() => openSheet('mode')}
+          onOpenBaseRef={() => openSheet('baseRef')}
           onOpenAgent={() => openSheet('agent')}
         />
         <CreateSessionComposerRow

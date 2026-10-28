@@ -11,6 +11,7 @@ import {
   effectiveWorkspaceMode,
   selectableCreateSessionAgents,
   withAvailableCreateSessionAgent,
+  showsBaseRefChip,
   workspaceModeChipLabel,
   type CreateSessionSelection
 } from './create-session-model'
@@ -29,7 +30,8 @@ const base: CreateSessionSelection = {
   hostId: 'local',
   repoId: 'web',
   workspaceMode: 'new-worktree',
-  agent: 'claude'
+  agent: 'claude',
+  baseRef: null
 }
 
 describe('create session host options', () => {
@@ -59,7 +61,8 @@ describe('create session selection', () => {
       hostId: 'ssh:vps',
       repoId: 'infra',
       workspaceMode: 'new-worktree',
-      agent: null
+      agent: null,
+      baseRef: null
     })
   })
 
@@ -68,7 +71,8 @@ describe('create session selection', () => {
       hostId: 'local',
       repoId: null,
       workspaceMode: 'new-worktree',
-      agent: null
+      agent: null,
+      baseRef: null
     })
   })
 
@@ -98,6 +102,28 @@ describe('create session selection', () => {
 
   it('ignores a project the host no longer lists', () => {
     expect(chooseCreateSessionRepo(base, 'gone', repos)).toBe(base)
+  })
+})
+
+describe('create session base branch', () => {
+  const picked = { ...base, baseRef: 'origin/release' }
+
+  it('keeps the pick while the project stays', () => {
+    expect(chooseCreateSessionHost(picked, 'local', repos).baseRef).toBe('origin/release')
+    expect(chooseCreateSessionRepo(picked, 'web', repos).baseRef).toBe('origin/release')
+  })
+
+  it('forgets the pick when the project or the host changes', () => {
+    expect(chooseCreateSessionRepo(picked, 'api', repos).baseRef).toBeNull()
+    expect(chooseCreateSessionRepo(picked, 'infra', repos).baseRef).toBeNull()
+    expect(chooseCreateSessionHost(picked, 'ssh:vps', repos).baseRef).toBeNull()
+  })
+
+  it('shows the chip only for a new worktree in a git project', () => {
+    expect(showsBaseRefChip(base, local)).toBe(true)
+    expect(showsBaseRefChip({ ...base, workspaceMode: 'current-checkout' }, local)).toBe(false)
+    expect(showsBaseRefChip(base, notes)).toBe(false)
+    expect(showsBaseRefChip(base, null)).toBe(false)
   })
 })
 

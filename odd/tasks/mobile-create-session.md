@@ -123,3 +123,13 @@ on a headless runtime, which only the structured path drives).
   only while it is still a generated creature name. A terminal launch skips this path (the PTY path
   waits on a window agent-status event a headless runtime may never drive), which is why the chat
   preference (U1) is what makes the rename happen. The folder keeps its creature name by design.
+
+## Base branch (U4)
+
+A Base branch chip on the create screen, shown only for a new worktree (hidden for the current
+checkout and No Git). The default is what the host uses (`repo.baseRefDefault`); a pick is sent as
+`baseBranch` on the create target, and nothing is sent when none was picked. The sheet lists local
+and remote branches with search through the allowlisted `repo.searchRefs` (the same read the old
+form's Create From uses), so no new RPC. The pick resets when the host or project changes. If the
+first listing fails (an older host or a failed read) the chip stays on the default and is read-only.
+

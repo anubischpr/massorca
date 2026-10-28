@@ -23,12 +23,15 @@ import {
   projectChoiceDescription,
   reposOnHost,
   selectableCreateSessionAgents,
+  showsBaseRefChip,
   withAvailableCreateSessionAgent,
   workspaceModeChipLabel,
   type CreateSessionChoice,
   type CreateSessionSelection
 } from './create-session-model'
+import { baseRefChipLabel } from './create-session-base-ref'
 import { createSessionLaunchBlocker, createSessionModeNote } from './create-session-readiness'
+import { useCreateSessionBaseRef } from './use-create-session-base-ref'
 import { useCreateSessionHostSettings } from './use-create-session-host-settings'
 import { useCreateSessionLeaveLock } from './use-create-session-leave-lock'
 import { useCreateSessionOptions } from './use-create-session-options'
@@ -94,6 +97,8 @@ export function useCreateSessionController(args: {
     `${selection?.hostId ?? ''}|${selection?.repoId ?? ''}`
   )
   const setupState = useCreateSessionSetup(client, repo?.id ?? null)
+  const baseRefShown = selection !== null && showsBaseRefChip(selection, repo)
+  const baseRefSource = useCreateSessionBaseRef(client, repo?.id ?? null, baseRefShown)
 
   const sshReady = !executionTarget.sshGate.requiresConnection
   const hostOptions = useMemo(
@@ -233,7 +238,16 @@ export function useCreateSessionController(args: {
     blankBusy,
     blocker,
     setupNotice: setupState.setup.notice,
+    agentsDetected: executionTarget.detectedAgentIds !== null,
     modeNote: createSessionModeNote(capabilities.agentLaunch),
+    baseRefSource,
+    baseRefChip: baseRefShown
+      ? {
+          label: baseRefChipLabel(selection?.baseRef ?? null, baseRefSource.defaultRef),
+          interactive: baseRefSource.listing !== 'failed'
+        }
+      : null,
+    chooseBaseRef: (baseRef: string | null) => update((current) => ({ ...current, baseRef })),
     startBlankTerminal,
     chooseHost: (value: string) => {
       const option = hostOptions.find((candidate) => candidate.id === value)
