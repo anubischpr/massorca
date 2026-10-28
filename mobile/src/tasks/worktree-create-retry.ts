@@ -157,15 +157,14 @@ async function resolveAgentLaunchRoute(
         agent: launch.agent,
         replay: support.replay,
         ...(launch.prompt ? { prompt: launch.prompt } : {}),
-        ...(launch.sessionOptions ? { sessionOptions: launch.sessionOptions } : {}),
-        ...(launch.preferredMode ? { preferredMode: launch.preferredMode } : {})
+        ...(launch.sessionOptions ? { sessionOptions: launch.sessionOptions } : {})
       }
     : null
 }
 
 type ResolvedAgentLaunchRoute = Pick<
   WorktreeCreateAgentLaunch,
-  'agent' | 'prompt' | 'sessionOptions' | 'preferredMode'
+  'agent' | 'prompt' | 'sessionOptions'
 > & {
   replay: boolean
 }

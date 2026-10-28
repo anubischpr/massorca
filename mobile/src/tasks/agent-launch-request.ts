@@ -50,8 +50,6 @@ export type WorktreeCreateAgentLaunch = {
   prompt?: AgentLaunchPrompt
   /** Model, effort, fast and access seeded into a structured chat; an older host drops them. */
   sessionOptions?: Readonly<Record<string, string>>
-  /** Asks for a chat over a terminal default; an older host drops it and follows its default. */
-  preferredMode?: 'chat'
   /**
    * When set, a host that refuses `agent.launch` ends the create with this message instead of
    * falling back to a plain `worktree.create`, which would start a bare agent and lose `prompt`.
@@ -76,7 +74,7 @@ export function agentLaunchCreateParams(
   agent: TuiAgent,
   create: WorkspaceCreateParams,
   operationId?: string | null,
-  extras?: Pick<WorktreeCreateAgentLaunch, 'prompt' | 'sessionOptions' | 'preferredMode'>
+  extras?: Pick<WorktreeCreateAgentLaunch, 'prompt' | 'sessionOptions'>
 ): RpcSendParams<'agent.launch'> {
   return {
     agent,
@@ -84,7 +82,8 @@ export function agentLaunchCreateParams(
     target: { kind: 'create-worktree', create: withoutReservedAgentCreateFields(create) },
     ...(extras?.prompt ? { prompt: extras.prompt } : {}),
     ...(extras?.sessionOptions ? { sessionOptions: { ...extras.sessionOptions } } : {}),
-    ...(extras?.preferredMode ? { preferredMode: extras.preferredMode } : {})
+    // Every agent the phone starts is meant to be a chat; only a blank terminal skips this builder.
+    preferredMode: 'chat'
   }
 }
 
@@ -99,7 +98,6 @@ export function agentLaunchExistingParams(args: {
   operationId: string
   prompt?: AgentLaunchPrompt
   sessionOptions?: Readonly<Record<string, string>>
-  preferredMode?: 'chat'
   launchSource?: string
   paneKey?: string
   sessionId?: string
@@ -112,7 +110,7 @@ export function agentLaunchExistingParams(args: {
     ...(args.prompt ? { prompt: args.prompt } : {}),
     // An older host drops it and the chat starts on the saved defaults, as before.
     ...(args.sessionOptions ? { sessionOptions: { ...args.sessionOptions } } : {}),
-    ...(args.preferredMode ? { preferredMode: args.preferredMode } : {}),
+    preferredMode: 'chat',
     ...(args.launchSource ? { launchSource: args.launchSource } : {}),
     ...(args.paneKey ? { paneKey: args.paneKey } : {}),
     ...(args.sessionId ? { sessionId: args.sessionId } : {}),
@@ -147,6 +145,17 @@ export function readAgentLaunchCreateOutcome(result: unknown): AgentLaunchCreate
     ...(surface ? { surface } : {})
   }
 }
+
+/** Said when the host built a terminal for a launch that asked for a chat; null for a chat. */
+export function launchSurfaceNotice(surface: AgentLaunchCreateOutcome['surface']): string | null {
+  return surface?.mode === 'terminal'
+    ? `Opened as a terminal agent, not a chat. ${surface.detail}`.trim()
+    : null
+}
+
+/** For a host that opens its default kind of tab: a terminal may open instead of a chat. */
+export const AGENT_DEFAULT_TAB_NOTE =
+  'This computer will open its default kind of tab for the agent, which may be a terminal.'
 
 /** What the host built, so a terminal is never presented as a chat. Absent when it said nothing. */
 export function readLaunchSurface(source: object): AgentLaunchCreateOutcome['surface'] {

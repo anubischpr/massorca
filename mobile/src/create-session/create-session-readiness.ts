@@ -2,7 +2,7 @@ import type { PersistedTrustedOrcaHooks } from '../../../src/shared/orca-yaml-ho
 import type { SetupHookDetails } from '../components/new-worktree-modal-types'
 import { AGENT_LAUNCH_UPDATE_REQUIRED_MESSAGE } from '../session/mobile-existing-agent-launch'
 import { isSetupHookTrusted } from '../tasks/setup-hook-trust'
-import type { AgentLaunchSupport } from '../tasks/agent-launch-request'
+import { AGENT_DEFAULT_TAB_NOTE, type AgentLaunchSupport } from '../tasks/agent-launch-request'
 import type { WorkspaceCreateSetupDecision } from '../tasks/workspace-create-params'
 import type { CreateSessionWorkspaceMode } from './create-session-model'
 
@@ -51,9 +51,7 @@ export function resolveCreateSessionSetup(args: {
 
 /** For hosts that ignore the chat preference: they open their default kind of tab. */
 export function createSessionModeNote(support: AgentLaunchSupport | false | null): string | null {
-  return support && support.preferredMode !== true
-    ? 'This computer will open its default kind of tab for the agent, which may be a terminal.'
-    : null
+  return support && support.preferredMode !== true ? AGENT_DEFAULT_TAB_NOTE : null
 }
 
 /** Why Send must stay off, or null. Never a dead end: every message names the way out. */

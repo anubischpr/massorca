@@ -133,3 +133,27 @@ and remote branches with search through the allowlisted `repo.searchRefs` (the s
 form's Create From uses), so no new RPC. The pick resets when the host or project changes. If the
 first listing fails (an older host or a failed read) the chip stays on the default and is read-only.
 
+## Every agent the phone starts is a chat (entry points)
+
+The chat preference now lives in the two shared request builders (`agentLaunchCreateParams`,
+`agentLaunchExistingParams`), so every path through them sends `preferredMode: 'chat'`. A blank
+terminal never uses them. When the host still builds a terminal the receipt reason is shown
+(`launchSurfaceNotice`); an older host that cannot take the launch keeps its old behaviour with a
+one-line note.
+
+| Entry point | Route | Status |
+| --- | --- | --- |
+| + create screen, new worktree | `agent.launch` / `agent.launchReplay` create | chat preference; receipt reason on landing |
+| + create screen, current checkout | `agent.launchReplay` existing | chat preference; receipt reason on landing |
+| Session screen New tab > agent (and the Sessions sheet New tab) | `launchNewTabAgentThroughHost` | chat preference; toast with the receipt reason |
+| New tab on a host without replay, bare structured agent | `agentSession.create` | already a chat |
+| New tab on a host without `agent.launch`, agent with options | `session.tabs.createTerminal` + `agent` | terminal on those hosts; the picker now shows the default-tab note before falling back |
+| Quick command with an agent prompt | same as New tab | chat preference |
+| Quick command with a shell command or an unsent draft | `session.tabs.createTerminal` | terminal by design (not an agent session) |
+| PR / source control AI actions | `launchAgentInExistingWorkspace` | chat preference; receipt reason in the warning |
+| Old Create worktree form, agent picked | `createWorktreeWithNameRetry` with `agentLaunch` | chat preference |
+| Old form, work-item create (issue/PR/Linear) | `worktree.create` + `startupAgent` | still a terminal: the host needs the linked-item draft, which a chat cannot take (documented in `source-workspace-create.ts`) |
+| Old form on a host without `agent.launch` | `worktree.create` + `startupAgent` | terminal on those hosts |
+| Resume from agent history | AI vault resume command in a terminal | terminal by design: resumes a recorded CLI session |
+| Blank terminal (create screen more-options, old form Blank) | `worktree.create`, no agent | terminal, as intended |
+

@@ -181,6 +181,7 @@ describe('launchAgentInExistingWorkspace', () => {
         operationId: 'op-1',
         target: { kind: 'existing', worktree: 'id:wt-1' },
         prompt: { text: 'Fix it', delivery: 'submit' },
+        preferredMode: 'chat',
         launchSource: 'task_page'
       },
       // The host may wait 60s for the agent before pasting; the default 30s would give up first.

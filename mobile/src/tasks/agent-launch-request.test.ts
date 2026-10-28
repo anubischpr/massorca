@@ -5,6 +5,7 @@ import {
   isAgentLaunchUnsupportedRefusal,
   readAgentLaunchCreateOutcome,
   readAgentLaunchSupport,
+  launchSurfaceNotice,
   readLaunchSurface
 } from './agent-launch-request'
 
@@ -25,6 +26,7 @@ describe('agentLaunchCreateParams', () => {
       })
     ).toEqual({
       agent: 'codex',
+      preferredMode: 'chat',
       target: {
         kind: 'create-worktree',
         create: {
@@ -96,21 +98,23 @@ describe('agent launch first message and options', () => {
 })
 
 describe('chat preference and launch surface', () => {
-  it('sends the chat preference with a create and with an existing launch', () => {
-    const created = agentLaunchCreateParams('codex', { repo: 'id:r', name: 'otter' }, null, {
-      preferredMode: 'chat'
+  it('asks for a chat in every agent launch the shared builders make', () => {
+    const created = agentLaunchCreateParams('codex', { repo: 'id:r', name: 'otter' })
+    const existing = agentLaunchExistingParams({
+      agent: 'claude',
+      worktreeId: 'wt-1',
+      operationId: 'op-1'
     })
     expect(created.preferredMode).toBe('chat')
-    const existing = agentLaunchExistingParams({
-      agent: 'codex',
-      worktreeId: 'wt-1',
-      operationId: 'op-1',
-      preferredMode: 'chat'
-    })
     expect(existing.preferredMode).toBe('chat')
-    expect(agentLaunchCreateParams('codex', { repo: 'id:r', name: 'otter' })).not.toHaveProperty(
-      'preferredMode'
+  })
+
+  it('words a terminal that the host built, and stays quiet for a chat', () => {
+    expect(launchSurfaceNotice({ mode: 'terminal', detail: 'Why.' })).toBe(
+      'Opened as a terminal agent, not a chat. Why.'
     )
+    expect(launchSurfaceNotice({ mode: 'structured', detail: 'Ok.' })).toBeNull()
+    expect(launchSurfaceNotice(undefined)).toBeNull()
   })
 
   it('reads whether the host advertises the preference', () => {

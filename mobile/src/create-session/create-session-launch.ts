@@ -17,8 +17,8 @@ import {
 } from '../session/mobile-existing-agent-launch'
 import {
   readLandingPaneKey,
+  launchSurfaceNotice,
   readLaunchSurface,
-  type AgentLaunchCreateOutcome,
   type AgentLaunchSupport,
   type WorktreeCreateAgentLaunch
 } from '../tasks/agent-launch-request'
@@ -54,13 +54,6 @@ export type CreateSessionLaunchSetup = {
 function joinWarnings(...parts: Array<string | null | undefined>): string | undefined {
   const joined = parts.filter((part): part is string => Boolean(part?.trim())).join(' ')
   return joined || undefined
-}
-
-/** A terminal is never presented as a chat: the host own sentence says what it built and why. */
-function terminalNotice(surface: AgentLaunchCreateOutcome['surface']): string | null {
-  return surface?.mode === 'terminal'
-    ? `Opened as a terminal agent, not a chat. ${surface.detail}`.trim()
-    : null
 }
 
 function launchCapabilities(support: AgentLaunchSupport): string[] {
@@ -129,8 +122,6 @@ async function launchInNewWorktree(args: {
     supported: args.support,
     prompt: { text: plan.prompt, delivery: 'submit' },
     ...(plan.sessionOptions ? { sessionOptions: plan.sessionOptions } : {}),
-    // Why: this screen exists to start a chat, so it asks for one even over a terminal default.
-    preferredMode: 'chat',
     // Why: the plain create would start a bare agent and drop the first message.
     refuseDowngrade: AGENT_LAUNCH_UPDATE_REQUIRED_MESSAGE
   }
@@ -157,7 +148,7 @@ async function launchInNewWorktree(args: {
     created.promptDelivered === true
       ? created.warning
       : (created.warning ?? CREATE_SESSION_PROMPT_NOT_CONFIRMED_MESSAGE),
-    terminalNotice(created.surface),
+    launchSurfaceNotice(created.surface),
     args.setup.notice
   )
   return {
@@ -186,7 +177,6 @@ async function launchInCurrentCheckout(args: {
     agent: plan.agent,
     prompt: { text: plan.prompt, delivery: 'submit' },
     ...(plan.sessionOptions ? { sessionOptions: plan.sessionOptions } : {}),
-    preferredMode: 'chat',
     launchSource: 'mobile'
   })
   switch (launched.kind) {
@@ -202,7 +192,7 @@ async function launchInCurrentCheckout(args: {
         launched.promptDelivered === true
           ? hostWarning
           : hostWarning || CREATE_SESSION_PROMPT_NOT_CONFIRMED_MESSAGE,
-        terminalNotice(readLaunchSurface(launched.result)),
+        launchSurfaceNotice(readLaunchSurface(launched.result)),
         args.setup.notice
       )
       const paneKey = readLandingPaneKey(launched.result)

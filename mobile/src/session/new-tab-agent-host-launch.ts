@@ -1,6 +1,11 @@
 import type { MobileQuickCommandLaunch } from '../terminal/quick-commands'
 import type { MobileSessionTab } from './mobile-session-route-types'
 import type { TuiAgent } from '../../../src/shared/tui-agent'
+import {
+  AGENT_DEFAULT_TAB_NOTE,
+  launchSurfaceNotice,
+  readLaunchSurface
+} from '../tasks/agent-launch-request'
 import { AGENT_LAUNCH_PLACEMENT_RUNTIME_CAPABILITY } from '../../../src/shared/agent-launch-runtime-capability'
 import type { RpcClient } from '../transport/rpc-client'
 import { triggerError, triggerSuccess } from '../platform/haptics'
@@ -93,6 +98,8 @@ export async function launchNewTabAgentThroughHost(args: {
   })
   if (launched.kind === 'unsupported') {
     pendingSelectionRef.current = withoutUnansweredLaunch(pendingSelectionRef.current, args.lock)
+    // Why: the caller falls back to the host default kind of tab, which may be a terminal.
+    showToast(AGENT_DEFAULT_TAB_NOTE, 3200)
     return false
   }
   if (launched.kind === 'failed') {
@@ -131,6 +138,11 @@ export async function launchNewTabAgentThroughHost(args: {
   )
   // Why: the host publishes the tab before it replies, so read it now rather than after a delay.
   void args.fetchSessionTabs()
+  // Why: a terminal must never read as the chat the user asked for, so the host reason is shown.
+  const terminalNotice = launchSurfaceNotice(readLaunchSurface(launched.result))
+  if (terminalNotice) {
+    showToast(terminalNotice, 3200)
+  }
   if (launched.promptDelivered === false) {
     triggerError()
     showToast(options?.initialPrompt ? NOTES_NOT_SENT_MESSAGE : AGENT_PROMPT_NOT_SENT_MESSAGE, 2400)
