@@ -58,4 +58,9 @@ describe('resolveMobileSessionChromeMode', () => {
   it('ignores a resolving chat when the active tab is a terminal beside it', () => {
     expect(modeWith({ activeTabType: 'terminal', chatResolving: true })).toBe('terminal')
   })
+
+  it('draws the floating controls, never the header, while the terminal panel holds the body', () => {
+    expect(modeWith({ activeTabType: 'terminal', terminalPanelOpen: true })).toBe('chat')
+    expect(modeWith({ activeTabType: null, hasTabs: false, terminalPanelOpen: true })).toBe('chat')
+  })
 })

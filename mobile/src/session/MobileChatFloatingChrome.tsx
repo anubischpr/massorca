@@ -1,7 +1,13 @@
 import { useContext, useEffect } from 'react'
 import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { ChevronLeft, Folder, GitBranch, MessageSquare, MoreHorizontal } from 'lucide-react-native'
+import {
+  ChevronLeft,
+  Folder,
+  MessageSquare,
+  MoreHorizontal,
+  SquareTerminal
+} from 'lucide-react-native'
 import { colors, spacing, typography } from '../theme/mobile-theme'
 import { StatusDot } from '../components/StatusDot'
 import { MobileSessionSwitcherChip } from './MobileSessionSwitcherChip'
@@ -19,22 +25,21 @@ const BAR_TOP = spacing.lg
 const SEGMENT_ICONS = {
   chat: MessageSquare,
   files: Folder,
-  sourceControl: GitBranch
+  terminal: SquareTerminal
 } as const
 
 /**
- * The chat's floating controls over the transcript, which runs edge to edge beneath them: back,
- * the Chat / Files / Source control segments, the ⋯ menu, the session chip, and the connection state
- * when a retry is offered. Drawn inside the content column, so it never covers the docked panel. Its
+ * The floating controls over the session body, which runs edge to edge beneath them: back, the
+ * Chat / Files / Terminal segments, the ⋯ menu, the session chip, and the connection state when a
+ * retry is offered. Drawn inside the content column, so it never covers the docked panel. Its
  * measured height is published so the banner and the transcript start beneath it.
  */
 export function MobileChatFloatingChrome({ controller }: { controller: MobileSessionController }) {
   const {
     requestLeaveSession,
     activePanel,
-    setActivePanel,
+    returnToChat,
     handlePanelTap,
-    isFolderWorkspaceRoute,
     isFloatingWorkspaceRoute,
     showHeaderMoreButton,
     setShowHeaderMoreActions,
@@ -54,16 +59,17 @@ export function MobileChatFloatingChrome({ controller }: { controller: MobileSes
   useEffect(() => () => setHeight(0), [setHeight])
   const segments = resolveMobileChatChromeSegments({
     activePanel,
-    showFiles: !isFloatingWorkspaceRoute,
-    showSourceControl: !isFolderWorkspaceRoute && !isFloatingWorkspaceRoute
+    showFiles: !isFloatingWorkspaceRoute
   })
 
   const selectSegment = (id: MobileChatChromeSegmentId) => {
+    if (id === 'chat') {
+      returnToChat()
+      return
+    }
     const panel = mobileChatChromeSegmentPanel(id)
     if (panel) {
       handlePanelTap(panel)
-    } else if (activePanel !== null) {
-      setActivePanel(null)
     }
   }
 

@@ -5,52 +5,64 @@ import {
 } from './mobile-chat-chrome-segments'
 
 describe('resolveMobileChatChromeSegments', () => {
-  it('shows Chat alone in a floating workspace, with its panels hidden', () => {
+  it('shows Chat and Terminal in a floating workspace, with Files hidden', () => {
     expect(
       resolveMobileChatChromeSegments({
         activePanel: null,
-        showFiles: false,
-        showSourceControl: false
+        showFiles: false
       })
-    ).toEqual([{ id: 'chat', label: 'Chat', active: true }])
+    ).toEqual([
+      { id: 'chat', label: 'Chat', active: true },
+      { id: 'terminal', label: 'Terminal', active: false }
+    ])
   })
 
-  it('shows Files and Source control beside Chat in a git worktree', () => {
+  it('shows Chat, Files and Terminal in a git worktree, marking the open panel', () => {
     const segments = resolveMobileChatChromeSegments({
       activePanel: 'files',
-      showFiles: true,
-      showSourceControl: true
+      showFiles: true
     })
     expect(segments.map((segment) => [segment.id, segment.active])).toEqual([
       ['chat', false],
       ['files', true],
-      ['sourceControl', false]
+      ['terminal', false]
     ])
   })
 
-  it('leaves the Files segment out in a folder workspace that has source control', () => {
+  it('marks Terminal active while the terminal panel is open', () => {
     const segments = resolveMobileChatChromeSegments({
-      activePanel: null,
-      showFiles: false,
-      showSourceControl: true
+      activePanel: 'terminal',
+      showFiles: true
     })
-    expect(segments.map((segment) => segment.id)).toEqual(['chat', 'sourceControl'])
+    expect(segments.map((segment) => [segment.id, segment.active])).toEqual([
+      ['chat', false],
+      ['files', false],
+      ['terminal', true]
+    ])
+  })
+
+  it('never offers Source control in the segment control, which lives in the ⋯ menu', () => {
+    for (const showFiles of [true, false]) {
+      const ids = resolveMobileChatChromeSegments({ activePanel: null, showFiles }).map(
+        (segment) => segment.id
+      )
+      expect(ids).not.toContain('sourceControl')
+    }
   })
 
   it('leaves Chat inactive while a route-based panel such as checks is open', () => {
     const [chat] = resolveMobileChatChromeSegments({
       activePanel: 'pr',
-      showFiles: true,
-      showSourceControl: true
+      showFiles: true
     })
     expect(chat.active).toBe(false)
   })
 })
 
 describe('mobileChatChromeSegmentPanel', () => {
-  it('routes Files and Source control to the panels the header icons open, and Chat to none', () => {
+  it('routes Files and Terminal to their panels, and Chat to none', () => {
     expect(mobileChatChromeSegmentPanel('files')).toBe('files')
-    expect(mobileChatChromeSegmentPanel('sourceControl')).toBe('sourceControl')
+    expect(mobileChatChromeSegmentPanel('terminal')).toBe('terminal')
     expect(mobileChatChromeSegmentPanel('chat')).toBeNull()
   })
 })
