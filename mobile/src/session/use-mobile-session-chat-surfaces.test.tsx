@@ -35,6 +35,8 @@ type Options = {
   showChecks?: boolean
   showAgentHistory?: boolean
   push?: ReturnType<typeof vi.fn>
+  switchSessionTab?: ReturnType<typeof vi.fn>
+  setActivePanel?: ReturnType<typeof vi.fn>
 }
 
 /** The route-actions model the surfaces hook reads, with only the fields it touches. */
@@ -61,7 +63,9 @@ function scopeFor(options: Options = {}): MobileSessionPanelRouteActionsModel {
     worktreeId: 'wt-1',
     worktreeName: 'feature',
     router: { push: options.push ?? vi.fn() },
-    handlePanelTap: vi.fn()
+    handlePanelTap: vi.fn(),
+    setActivePanel: options.setActivePanel ?? vi.fn(),
+    switchSessionTab: options.switchSessionTab ?? vi.fn()
   } as unknown as MobileSessionPanelRouteActionsModel
 }
 
@@ -142,6 +146,18 @@ describe('useMobileSessionChatSurfaces', () => {
     return box.current
   }
 
+  /** Re-renders the mounted hook with a new scope, as the session screen does when its chat changes. */
+  function renderWith(
+    box: { current: Surfaces | null },
+    scope: MobileSessionPanelRouteActionsModel
+  ) {
+    act(() => {
+      renderer?.update(
+        createElement(Probe, { scope, onSurfaces: (surfaces) => (box.current = surfaces) })
+      )
+    })
+  }
+
   it('shows the switcher only while a native chat is on screen with tabs', () => {
     expect(latest(mountSurfaces(scopeFor({ showNativeChat: true }))).showSessionSwitcherChip).toBe(
       true
@@ -205,11 +221,40 @@ describe('useMobileSessionChatSurfaces', () => {
     const folder = latest(mountSurfaces(scopeFor({ folderWorkspace: true })))
     expect(folder.headerMenu.environment.branch).toBe(false)
 
+    // A worktree with no chat keeps agent history in the menu; beside a chat, Sessions holds it.
     const history = latest(
-      mountSurfaces(scopeFor({ showNativeChat: false, showAgentHistory: true }))
+      mountSurfaces(
+        scopeFor({
+          tabs: [terminalTab],
+          activeTabId: terminalTab.id,
+          showNativeChat: false,
+          showAgentHistory: true
+        })
+      )
     )
     expect(history.headerMenu.chat).toMatchObject({ agentHistory: true })
     expect(history.showHeaderMoreButton).toBe(true)
+  })
+
+  it('offers the same chat items from a terminal pane, disabled only when the worktree has no chat', () => {
+    const terminalPane = latest(
+      mountSurfaces(scopeFor({ showNativeChat: false, activeTabId: terminalTab.id }))
+    )
+    expect(terminalPane.headerMenu.hasChatSession).toBe(true)
+    expect(terminalPane.headerMenu.chat).toMatchObject({
+      plan: true,
+      summary: true,
+      artifacts: true,
+      quickCommands: true
+    })
+
+    const noChat = latest(
+      mountSurfaces(
+        scopeFor({ tabs: [terminalTab], showNativeChat: false, activeTabId: terminalTab.id })
+      )
+    )
+    expect(noChat.headerMenu.hasChatSession).toBe(false)
+    expect(noChat.headerMenu.chat.plan).toBe(true)
   })
 
   it('counts the files the chat changed only while the chat is on screen', () => {
@@ -229,5 +274,78 @@ describe('useMobileSessionChatSurfaces', () => {
     expect(surfaces.showSessionSwitcherChip).toBe(false)
     expect(surfaces.headerMenu.chat).not.toHaveProperty('sessions')
     expect(surfaces.sessionRows.map((row) => row.status)).toEqual(['idle', 'terminal'])
+  })
+
+  it('switches to the chat first when Plan is asked for from a terminal pane, then opens the sheet', () => {
+    const switchSessionTab = vi.fn()
+    const setActivePanel = vi.fn()
+    const box = mountSurfaces(
+      scopeFor({
+        showNativeChat: false,
+        activeTabId: terminalTab.id,
+        switchSessionTab,
+        setActivePanel
+      })
+    )
+
+    act(() => latest(box).openPlanSheet())
+    expect(setActivePanel).toHaveBeenCalledWith(null)
+    expect(switchSessionTab).toHaveBeenCalledWith(chatTab)
+    expect(latest(box).planSheetOpen).toBe(false)
+
+    renderWith(box, scopeFor({ activeTabId: chatTab.id }))
+    expect(latest(box).planSheetOpen).toBe(true)
+  })
+
+  it('opens the summary for the chat once it is on screen, not for the terminal that was active', () => {
+    const push = vi.fn()
+    const box = mountSurfaces(
+      scopeFor({ showNativeChat: false, activeTabId: terminalTab.id, push })
+    )
+
+    act(() => latest(box).openSummary())
+    expect(push).not.toHaveBeenCalled()
+
+    renderWith(box, scopeFor({ activeTabId: chatTab.id, push }))
+    expect(push).toHaveBeenCalledTimes(1)
+    expect(push).toHaveBeenCalledWith('/h/host-1/chat-summary/wt-1?name=feature&tab=tab-chat')
+  })
+
+  it('does nothing from a terminal pane when the worktree has no chat to act on', () => {
+    const switchSessionTab = vi.fn()
+    const setActivePanel = vi.fn()
+    const box = mountSurfaces(
+      scopeFor({
+        tabs: [terminalTab],
+        showNativeChat: false,
+        activeTabId: terminalTab.id,
+        switchSessionTab,
+        setActivePanel
+      })
+    )
+
+    act(() => latest(box).openPlanSheet())
+    expect(switchSessionTab).not.toHaveBeenCalled()
+    expect(setActivePanel).not.toHaveBeenCalled()
+    expect(latest(box).planSheetOpen).toBe(false)
+  })
+
+  it('drops the request when the user moves to another tab before the chat comes on screen', () => {
+    const otherTab: MobileSessionTab = {
+      type: 'terminal',
+      id: 'tab-other',
+      title: 'vitest',
+      terminal: 'term-2',
+      isActive: false
+    }
+    const tabs = [chatTab, terminalTab, otherTab]
+    const box = mountSurfaces(
+      scopeFor({ tabs, showNativeChat: false, activeTabId: terminalTab.id })
+    )
+
+    act(() => latest(box).openPlanSheet())
+    renderWith(box, scopeFor({ tabs, showNativeChat: false, activeTabId: otherTab.id }))
+    renderWith(box, scopeFor({ tabs, activeTabId: chatTab.id }))
+    expect(latest(box).planSheetOpen).toBe(false)
   })
 })
