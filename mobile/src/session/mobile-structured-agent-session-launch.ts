@@ -27,6 +27,8 @@ import { rememberMobileStructuredPiRuntime } from './mobile-structured-pi-runtim
 type StructuredCreateSupport = {
   supported?: boolean
   reason?: 'agent' | 'remote' | 'wsl' | 'access'
+  /** Why the installed agent cannot run on the host; absent from hosts that do not send it. */
+  cause?: unknown
   /** The Pi runtime a probe that named none fell back to; the create must run that same runtime. */
   piRuntime?: unknown
   seedOptions?: { piRuntime?: unknown }
@@ -41,7 +43,7 @@ function delay(ms: number): Promise<void> {
 
 export type MobileStructuredAgentLaunchResult =
   | { kind: 'created'; sessionId: string }
-  | { kind: 'unsupported'; reason?: StructuredCreateSupport['reason'] }
+  | { kind: 'unsupported'; reason?: StructuredCreateSupport['reason']; cause?: string }
   | { kind: 'failed'; message: string }
   | { kind: 'unknown'; message: string }
 
@@ -63,6 +65,22 @@ function createParamsFor(
 function hostAnsweredPiRuntime(support: StructuredCreateSupport): PiRuntimeSelection | undefined {
   const answered = support.piRuntime ?? support.seedOptions?.piRuntime
   return isPiRuntimeSelection(answered) ? answered : undefined
+}
+
+const CAUSE_DETAIL: Readonly<Record<string, string>> = {
+  cliMissing: 'The CLI was not found on the host.',
+  agentCommandNotRunnable: "The host's Command setting is not a runnable program."
+}
+
+/** One short sentence naming the host's refusal; an unrecognized word is shown as sent, never a value. */
+export function describeUnsupportedLaunch(
+  result: Extract<MobileStructuredAgentLaunchResult, { kind: 'unsupported' }>
+): string {
+  const word = /^[A-Za-z]{1,40}$/
+  if (result.cause && word.test(result.cause)) {
+    return CAUSE_DETAIL[result.cause] ?? `Host reason: ${result.cause}.`
+  }
+  return result.reason && word.test(result.reason) ? `Host reason: ${result.reason}.` : ''
 }
 
 function unknownCreateResult(
@@ -141,7 +159,8 @@ export async function createMobileStructuredAgentSession(
   }
   const support = supportResponse.result as StructuredCreateSupport | null
   if (!support || typeof support !== 'object' || support.supported !== true) {
-    return { kind: 'unsupported', reason: support?.reason }
+    const cause = typeof support?.cause === 'string' ? support.cause : undefined
+    return { kind: 'unsupported', reason: support?.reason, ...(cause ? { cause } : {}) }
   }
 
   // Why: a Pi probe that named no runtime may have fallen back to Gentle Shell; the create must run that one.
