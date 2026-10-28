@@ -296,7 +296,7 @@ Each task is one Conventional Commit with its tests; no AI attribution lines. No
 - [x] T20 Repo group header: the GitHub login sits beside the repo name with the same gap as the count. Style only (`mobile/src/host-screen/host-screen-secondary-styles.ts`), no test: no behavior changed. Checks: typecheck exit 0, oxfmt and oxlint clean.
 - [x] T21 New Tab agent sheet: a host configured for Gentle Shell shows "Gentle Shell" with its icon, not "Pi". Reads `settings.agentCmdOverrides.pi` from the settings the loader already reads (`RuntimeClientSettings` carries it); no wire change, no new TuiAgent id.
 - [x] T22 Background work history: finished work survives remounts and reconnects (module-level store keyed by host and session); `commandActivity` seeds finished commands when present; the chat lane shows a correct empty note and never one beside Finished rows.
-- [ ] T23 Codex background shell tasks: unified-exec processes that outlive their exec call count as background commands in the roster and settle when they exit.
+- [x] T23 Codex background shell tasks: unified-exec processes that outlive their exec call count as background commands in the roster and settle when they exit.
 
 ### T20 evidence
 - Commit: `87f8841ebba` fix(mobile): space the GitHub login from the repo name in the host list.
@@ -319,5 +319,13 @@ Each task is one Conventional Commit with its tests; no AI attribution lines. No
 - Fix (c): the sheet shows its empty note only when nothing runs and nothing finished. The chat lane's note is "No background work is running." when nothing is listed and "Task details are unavailable for this session." when work runs without details. The copy is in `mobile-background-work-notes.ts`, shared with the terminal lane.
 - Open decision: the status pill shows only while a turn runs or listed work runs (`mobileChatStatusPill`). A chat whose work all finished shows no pill, so its Finished list is out of reach until work runs again. Keeping a pill for finished-only history is a product call and is not changed here.
 - Gap: the terminal lane has no command history from the host, so its Finished rows are the ones this phone watched end. They now survive remounts.
-- Commit: recorded by the next commit (T23).
+- Commit: `a53f123bd20` feat(mobile): keep finished background work across remounts and list the chat history.
 - Checks: `pnpm test` on the 22 test files that import a changed module (includes the new store, finished-merge and capability suites): 22 files, 177 tests pass. Mobile `pnpm typecheck` exit 0. oxfmt and oxlint clean on the changed files.
+
+### T23 evidence
+- Route: inline, two tracker files and their test file.
+- Evidence: a unified-exec startup item (`source: unifiedExecStartup`) stays `inProgress` past its turn and completes at exit (`codex-background-command-tracker.test.ts`, the persistent-ownership cases; `codexCommandOutlivesTurn`). A command is `background` only after `endTurn` (`codex-child-work-evidence.ts:79`), and the child projection drops a Codex foreground command (`projectAgentChildWorkViews` in `agent-status-child-work-view.ts`). So a process still running inside its turn was missing from the children the phone reads, while the Working pill counts those children.
+- Fix: a `item/commandExecution/terminalInteraction` for a tracked session (a write or poll) marks that command background at once (`CodexBackgroundCommandTracker.observe`). `CodexBackgroundTaskTracker.observe` forwards the notification as command evidence. Exit still settles it (`item/completed`, `settles: true`). No wire change: the existing `residency` field carries it.
+- Uncertainty, not verified against a live Codex run (none is in the repo): the notification's `itemId` param is assumed, as on `outputDelta`, and each write or poll emits it. A yielded process that nothing polls stays foreground until its turn ends; that case is not covered.
+- Commit: this is the branch's last commit; its SHA is reported to the parent (`git log -1`), since a commit cannot name itself.
+- Checks: `pnpm test` on the three tracker suites (61 tests) and the 14 related Codex structured-session suites (150 tests), all pass. Root `pnpm tc:node` exit 0. oxfmt and oxlint clean on the changed files.

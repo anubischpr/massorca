@@ -9,6 +9,7 @@ import {
 } from './codex-background-task-frames'
 import { CodexSubagentExecutions } from './codex-subagent-executions'
 import { CodexBackgroundCommandTracker } from './codex-background-command-tracker'
+import { TERMINAL_INTERACTION_METHOD } from './codex-structured-item-stream-events'
 import { CodexChildWorkEvidence } from './codex-child-work-evidence'
 import type { CodexAbandonedCommand } from './codex-prompt-registry'
 import { createCodexChildConfigurationReader } from '../../shared/codex-subagent-transcript'
@@ -68,7 +69,9 @@ export class CodexBackgroundTaskTracker {
     unapproved: readonly CodexAbandonedCommand[] = []
   ): boolean {
     const itemEvent = event.method === 'item/started' || event.method === 'item/completed'
-    const command = itemEvent ? this.commands.observe(event) : null
+    // A write or poll to a running session is command evidence too: its process outlived its call.
+    const commandEvent = itemEvent || event.method === TERMINAL_INTERACTION_METHOD
+    const command = commandEvent ? this.commands.observe(event) : null
     const frame = readCodexBackgroundTaskFrame(event, this.primaryThreadId)
     const commands = [
       ...unapproved.flatMap((abandoned) => this.commands.endUnapproved(abandoned) ?? []),
