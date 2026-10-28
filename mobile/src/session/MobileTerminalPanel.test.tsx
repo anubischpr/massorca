@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { useBackClaim } from '../navigation/use-back-claim'
 import type { MobileSessionTab } from './mobile-session-route-types'
 import { MobileTerminalPanel } from './MobileTerminalPanel'
 import type { MobileSessionController } from './use-mobile-session-controller'
@@ -25,6 +26,17 @@ vi.mock('./MobileTerminalPaneStack', () => ({ MobileTerminalPaneStack: () => nul
 
 function terminal(id: string): MobileSessionTab {
   return { type: 'terminal', id, title: 'zsh', terminal: `handle-${id}`, isActive: false }
+}
+
+function chat(id: string): MobileSessionTab {
+  return {
+    type: 'agent-session',
+    id,
+    title: 'Fix login',
+    sessionId: `session-${id}`,
+    agent: 'claude',
+    isActive: false
+  }
 }
 
 /** The controller fields the panel reads; the worktree id is a folder path, the name is the display name. */
@@ -77,6 +89,15 @@ function treeOf(mounted: ReactTestRenderer): string {
   return JSON.stringify(mounted.toJSON())
 }
 
+/** The Back-key claim the panel registered on its last render. */
+function lastBackClaim(): (() => boolean) | null {
+  const claim = vi.mocked(useBackClaim).mock.lastCall?.[0]
+  if (claim === undefined) {
+    throw new Error('the panel did not claim the Back key')
+  }
+  return claim
+}
+
 describe('MobileTerminalPanel', () => {
   it('names the header with the worktree display name, not its folder', () => {
     const tree = treeOf(render(controllerFor()))
@@ -102,5 +123,21 @@ describe('MobileTerminalPanel', () => {
     expect(tree).not.toContain('Ready in')
     expect(tree).not.toContain('type a command')
     expect(tree).not.toContain('Back to chat')
+  })
+
+  it('returns the Back key to the chat when the worktree has a chat to return to', () => {
+    const returnToChat = vi.fn()
+    render(controllerFor({ visibleTabs: [terminal('t1'), chat('c1')], returnToChat }))
+
+    expect(lastBackClaim()?.()).toBe(true)
+    expect(returnToChat).toHaveBeenCalledTimes(1)
+  })
+
+  it('hands the Back key back to the system when the worktree has no chat, so it leaves the session', () => {
+    const returnToChat = vi.fn()
+    render(controllerFor({ returnToChat }))
+
+    expect(lastBackClaim()?.()).toBe(false)
+    expect(returnToChat).not.toHaveBeenCalled()
   })
 })

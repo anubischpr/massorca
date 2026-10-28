@@ -5,13 +5,14 @@ import { resolveMobileSessionActiveKind } from './mobile-session-active-tab'
 import { resolveMobileSessionChromeMode } from './mobile-session-chrome-mode'
 import type { MobileSessionChatSurfacesModel } from './use-mobile-session-chat-surfaces'
 
-/** Lands a re-entered session in the new layout once per mount, and names the chrome it draws. */
+/** Lands a session in the new layout, and names the chrome it draws. */
 export function useMobileSessionLayoutEntry(scope: MobileSessionChatSurfacesModel) {
   const {
     showLoadingState,
     showEmptyState,
     connState,
     activeSessionTab,
+    activeSessionTabId,
     activeSessionTabTypeRef,
     visibleTabs,
     activePanel,
@@ -20,7 +21,7 @@ export function useMobileSessionLayoutEntry(scope: MobileSessionChatSurfacesMode
     nativeChatController,
     terminalPanelOpen
   } = scope
-  // Once per mount: Back from the Terminal panel with no chat to return to must not reopen it.
+  // Once per mount, for a file or markdown tab: Back from its Files panel must not reopen it.
   const enteredRef = useRef(false)
   const activeTabType = resolveMobileSessionActiveKind(
     activeSessionTab?.type,
@@ -34,6 +35,13 @@ export function useMobileSessionLayoutEntry(scope: MobileSessionChatSurfacesMode
     activeTabType,
     activePanel
   })
+  // A terminal tab is the Terminal panel's body from any entry point. Keyed on the tab, so every
+  // selection of a terminal opens the panel, not only the first one after entry.
+  useEffect(() => {
+    if (!MOBILE_LEGACY_SESSION_VIEWS && activeTabType === 'terminal' && activePanel === null) {
+      setActivePanel('terminal')
+    }
+  }, [activePanel, activeSessionTabId, activeTabType, setActivePanel])
   useEffect(() => {
     if (
       MOBILE_LEGACY_SESSION_VIEWS ||
@@ -44,12 +52,10 @@ export function useMobileSessionLayoutEntry(scope: MobileSessionChatSurfacesMode
       return
     }
     enteredRef.current = true
-    if (action === 'open-terminal-panel') {
-      setActivePanel('terminal')
-    } else if (action === 'open-files') {
+    if (action === 'open-files') {
       handlePanelTap('files')
     }
-  }, [action, activeTabType, handlePanelTap, setActivePanel, tabsLoaded])
+  }, [action, activeTabType, handlePanelTap, tabsLoaded])
 
   const chromeMode = resolveMobileSessionChromeMode({
     legacyViews: MOBILE_LEGACY_SESSION_VIEWS,

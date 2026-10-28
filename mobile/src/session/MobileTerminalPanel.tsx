@@ -54,7 +54,12 @@ export function MobileTerminalPanel({
       setFreshTabId(created)
     }
   }, [visibleTabs])
+  // The device Back key returns to the chat; with no chat to return to, it leaves the session as usual.
+  const hasChat = visibleTabs.some((tab) => tab.type === 'agent-session')
   useBackClaim(() => {
+    if (!hasChat) {
+      return false
+    }
     returnToChat()
     return true
   })

@@ -37,10 +37,13 @@ type Options = {
   push?: ReturnType<typeof vi.fn>
   switchSessionTab?: ReturnType<typeof vi.fn>
   setActivePanel?: ReturnType<typeof vi.fn>
+  activePanel?: 'files' | null
 }
 
 /** The route-actions model the surfaces hook reads, with only the fields it touches. */
 function scopeFor(options: Options = {}): MobileSessionPanelRouteActionsModel {
+  const visibleTabs = options.tabs ?? [chatTab, terminalTab]
+  const activeTabId = options.activeTabId === undefined ? chatTab.id : options.activeTabId
   return {
     nativeChatController: {
       showNativeChat: options.showNativeChat ?? true,
@@ -53,8 +56,10 @@ function scopeFor(options: Options = {}): MobileSessionPanelRouteActionsModel {
       nativeChatWorkingStartedAt: null,
       nativeChatVisualSource: null
     },
-    visibleTabs: options.tabs ?? [chatTab, terminalTab],
-    activeSessionTabId: options.activeTabId === undefined ? chatTab.id : options.activeTabId,
+    visibleTabs,
+    activeSessionTabId: activeTabId,
+    activeSessionTab: visibleTabs.find((tab) => tab.id === activeTabId) ?? null,
+    activePanel: options.activePanel ?? null,
     showChecksAction: options.showChecks ?? false,
     showAgentSessionHistoryAction: options.showAgentHistory ?? false,
     isFolderWorkspaceRoute: options.folderWorkspace ?? false,
@@ -273,7 +278,29 @@ describe('useMobileSessionChatSurfaces', () => {
     expect(surfaces.recordedFileCount).toBe(0)
     expect(surfaces.showSessionSwitcherChip).toBe(false)
     expect(surfaces.headerMenu.chat).not.toHaveProperty('sessions')
-    expect(surfaces.sessionRows.map((row) => row.status)).toEqual(['idle', 'terminal'])
+    expect(surfaces.sessionRows.map((row) => row.status)).toEqual(['idle'])
+  })
+
+  it('lists only chats in the chip and the Sessions sheet, and the chip keeps naming the chat beside a terminal', () => {
+    const terminalPane = latest(
+      mountSurfaces(scopeFor({ showNativeChat: false, activeTabId: terminalTab.id }))
+    )
+    expect(terminalPane.sessionRows.map((row) => row.tab.type)).toEqual(['agent-session'])
+    expect(terminalPane.activeSessionRow?.tab.id).toBe(chatTab.id)
+
+    const chatPane = latest(mountSurfaces(scopeFor({ activeTabId: chatTab.id })))
+    expect(chatPane.sessionRows.map((row) => row.tab.id)).toEqual([chatTab.id])
+    expect(chatPane.activeSessionRow?.isActive).toBe(true)
+  })
+
+  it('draws the Terminal panel over an active terminal, whichever panel docks beside it', () => {
+    const docked = latest(
+      mountSurfaces(
+        scopeFor({ showNativeChat: false, activeTabId: terminalTab.id, activePanel: 'files' })
+      )
+    )
+    expect(docked.terminalPanelOpen).toBe(true)
+    expect(docked.showFloatingChrome).toBe(true)
   })
 
   it('switches to the chat first when Plan is asked for from a terminal pane, then opens the sheet', () => {

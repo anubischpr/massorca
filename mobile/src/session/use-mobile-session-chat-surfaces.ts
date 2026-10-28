@@ -4,7 +4,7 @@ import {
   mobileChatSurfaceKey,
   publishMobileChatSurfaceSnapshot
 } from './mobile-chat-surface-snapshot'
-import { chatSessionTargetOf } from './mobile-chat-session-target'
+import { chatSessionTargetOf, type ChatSessionTab } from './mobile-chat-session-target'
 import { mobileNativeChatPlan, mobileNativeChatPlanProgress } from './mobile-native-chat-plan'
 import { mobileNativeChatRecordedFileCount } from './mobile-native-chat-recorded-files'
 import { resolveMobileSessionHeaderMenu } from './mobile-session-header-menu'
@@ -50,14 +50,19 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     (nativeChatController.nativeChatPermission != null ||
       nativeChatController.nativeChatQuestion != null ||
       nativeChatController.nativeChatAsk != null)
+  // The session chip and the Sessions sheet list chats only: a terminal belongs to the Terminal panel.
+  const chatTabs = useMemo(
+    () => visibleTabs.filter((tab): tab is ChatSessionTab => tab.type === 'agent-session'),
+    [visibleTabs]
+  )
   const sessionRows = useMemo(
     () =>
       mobileSessionSwitcherRows(
-        visibleTabs,
+        chatTabs,
         activeSessionTabId,
         showNativeChat ? { working, waiting } : null
       ),
-    [visibleTabs, activeSessionTabId, showNativeChat, working, waiting]
+    [chatTabs, activeSessionTabId, showNativeChat, working, waiting]
   )
 
   const messages = nativeChatController.nativeChatSession.messages
@@ -103,6 +108,8 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
   // The chat the chat items act on: the active chat, or the worktree's first one from another pane.
   const activeTab = visibleTabs.find((tab) => tab.id === activeSessionTabId) ?? null
   const chatTarget = chatSessionTargetOf(visibleTabs, activeTab)
+  // The chip names the chat the chat items act on, so it still reads a chat while a terminal is active.
+  const chipRow = sessionRows.find((row) => row.tab.id === chatTarget?.id) ?? null
   // The same menu in every pane: its items follow the worktree, not the pane that is open.
   const headerMenu = resolveMobileSessionHeaderMenu({
     hasChatSession: chatTarget !== null,
@@ -206,7 +213,7 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
 
   return {
     sessionRows,
-    activeSessionRow: sessionRows.find((row) => row.isActive) ?? null,
+    activeSessionRow: chipRow,
     showSessionSwitcherChip,
     showFloatingChrome: showSessionSwitcherChip || terminalPanelOpen,
     terminalPanelOpen,

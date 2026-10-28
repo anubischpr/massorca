@@ -81,6 +81,7 @@ function createController(overrides: Partial<MobileTerminalComposerController> =
     submitLiveInput: vi.fn(),
     terminalKeyboardFit: 'overlay',
     terminalModes: new Map(),
+    terminalPanelOpen: true,
     toggleDisplayMode: spies.toggleDisplayMode,
     ...overrides
   }
@@ -139,6 +140,12 @@ describe('MobileTerminalComposerDock (Terminal panel composer)', () => {
 
     expect(treeOf(mounted)).not.toContain('Tap to type')
     expect(tapArea?.findAll((node) => String(node.type) === 'Text')).toHaveLength(0)
+  })
+
+  it('draws nothing while the Terminal panel is not the body, so no Keys row sits under the notice', () => {
+    const { controller } = createController({ terminalPanelOpen: false })
+
+    expect(renderComposer(controller).toJSON()).toBeNull()
   })
 
   it('sends a carriage return when Enter is pressed', () => {

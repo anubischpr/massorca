@@ -13,6 +13,7 @@ import { MOBILE_LEGACY_SESSION_VIEWS } from './mobile-legacy-session-views'
 import { MobileChatFloatingChrome } from './MobileChatFloatingChrome'
 import { MobileChatChromeLayoutContext } from './mobile-chat-chrome-layout'
 import { dockedPanelOf } from './session-panel-host'
+import { drawsFloatingChrome } from './mobile-session-chrome-mode'
 
 export function MobileSessionContentRow({ controller }: { controller: MobileSessionController }) {
   const {
@@ -28,6 +29,7 @@ export function MobileSessionContentRow({ controller }: { controller: MobileSess
     handleFileOpenStart,
     handleOpenedFileDiff,
     handleSessionContentRowLayout,
+    chromeMode,
     showFloatingChrome
   } = controller
   // The floating controls cover the top of this column; the banner starts beneath them.
@@ -37,7 +39,9 @@ export function MobileSessionContentRow({ controller }: { controller: MobileSess
   return (
     <View style={styles.sessionContentRow} onLayout={handleSessionContentRowLayout}>
       <View style={styles.sessionContentMain}>
-        {showFloatingChrome ? <MobileChatFloatingChrome controller={controller} /> : null}
+        {drawsFloatingChrome({ chromeMode, sessionControls: showFloatingChrome }) ? (
+          <MobileChatFloatingChrome controller={controller} />
+        ) : null}
         {createWarning ? (
           <View style={[styles.createWarningBanner, { marginTop: chromeLayout.height }]}>
             <AlertTriangle size={16} color={colors.statusAmber} strokeWidth={2.2} />

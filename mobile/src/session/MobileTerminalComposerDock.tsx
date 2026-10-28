@@ -64,6 +64,7 @@ export type MobileTerminalComposerController = Pick<
   | 'submitLiveInput'
   | 'terminalKeyboardFit'
   | 'terminalModes'
+  | 'terminalPanelOpen'
   | 'toggleDisplayMode'
 > & {
   readonly dictation: Pick<
@@ -117,6 +118,7 @@ export function MobileTerminalComposerDock({
     submitLiveInput,
     terminalKeyboardFit,
     terminalModes,
+    terminalPanelOpen,
     toggleDisplayMode
   } = controller
   const [keysOpen, setKeysOpen] = useState(true)
@@ -132,7 +134,14 @@ export function MobileTerminalComposerDock({
     chordBuilding: isTerminalKeyChordBuilding(keyChord.chord),
     chordSentShowing: keyChord.sentLabel !== null
   })
-  if (activeMarkdownTab || activeFileTab || activeBrowserTab || showNativeChat) {
+  // The composer belongs to the Terminal panel: under any other body, such as the notice, it draws nothing.
+  if (
+    !terminalPanelOpen ||
+    activeMarkdownTab ||
+    activeFileTab ||
+    activeBrowserTab ||
+    showNativeChat
+  ) {
     return null
   }
   const phoneMode = isTerminalPhoneDisplayMode(activeHandle, terminalModes)

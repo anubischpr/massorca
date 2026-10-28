@@ -45,9 +45,19 @@ describe('isTerminalPanelOpen', () => {
     expect(isTerminalPanelOpen(open)).toBe(true)
   })
 
-  it('stays closed unless the terminal panel is the active panel', () => {
-    expect(isTerminalPanelOpen({ ...open, activePanel: null })).toBe(false)
-    expect(isTerminalPanelOpen({ ...open, activePanel: 'files' })).toBe(false)
+  it('takes the body over an active terminal even when another panel docks beside it', () => {
+    expect(isTerminalPanelOpen({ ...open, activePanel: null })).toBe(true)
+    expect(isTerminalPanelOpen({ ...open, activePanel: 'files' })).toBe(true)
+  })
+
+  it('stays closed over a chat unless the terminal panel is the active panel', () => {
+    const chatShowing = {
+      activePanel: null,
+      activeTabType: 'agent-session' as const,
+      terminalTabCount: 1
+    }
+    expect(isTerminalPanelOpen(chatShowing)).toBe(false)
+    expect(isTerminalPanelOpen({ ...chatShowing, activePanel: 'files' })).toBe(false)
   })
 
   it('never covers a chat, file or browser tab that is showing', () => {
