@@ -35,9 +35,12 @@ export function MobileTerminalPanel({
     handleCreateTerminal,
     handleCloseSessionTab,
     showLoadingState,
+    keyboardLift,
     returnToChat,
     worktreeId
   } = controller
+  // The soft keyboard takes the header's room; the terminal pills stay in reach.
+  const keyboardUp = keyboardLift > 0
   // "New terminal" opens a tab in this worktree's folder; it never makes another worktree.
   const folder = getWorktreePathBasenameFromId(worktreeId)
   const [freshTabId, setFreshTabId] = useState<string | null>(null)
@@ -73,19 +76,21 @@ export function MobileTerminalPanel({
 
   return (
     <View style={[styles.root, { paddingTop: topInset }]}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{terminalPanelTitle(pills.length, folder)}</Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="New terminal"
-          hitSlop={spacing.xs}
-          onPress={onNewTerminal}
-          style={({ pressed }) => [styles.newButton, pressed && styles.pressed]}
-        >
-          <Plus size={15} color={colors.bgBase} strokeWidth={2.4} />
-          <Text style={styles.newButtonText}>New terminal</Text>
-        </Pressable>
-      </View>
+      {keyboardUp ? null : (
+        <View style={styles.header}>
+          <Text style={styles.title}>{terminalPanelTitle(pills.length, folder)}</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="New terminal"
+            hitSlop={spacing.xs}
+            onPress={onNewTerminal}
+            style={({ pressed }) => [styles.newButton, pressed && styles.pressed]}
+          >
+            <Plus size={15} color={colors.bgBase} strokeWidth={2.4} />
+            <Text style={styles.newButtonText}>New terminal</Text>
+          </Pressable>
+        </View>
+      )}
       {showLoadingState ? (
         <View style={styles.centered}>
           <ActivityIndicator size="small" color={colors.textSecondary} />

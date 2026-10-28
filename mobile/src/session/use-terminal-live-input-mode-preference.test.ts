@@ -34,14 +34,17 @@ function createDeferred<T>(): Deferred<T> {
   return { promise, resolve }
 }
 
-function createTerminalLiveInputModePreferenceHarness(): TerminalLiveInputModePreferenceHarness {
+function createTerminalLiveInputModePreferenceHarness(
+  options: { readonly liveOnly?: boolean } = {}
+): TerminalLiveInputModePreferenceHarness {
   let current: ReturnType<typeof useTerminalLiveInputModePreference> | null = null
   let renderer: ReactTestRenderer | null = null
 
   function Harness(): null {
     current = useTerminalLiveInputModePreference({
       hostId: 'host-1',
-      worktreeId: 'worktree-1'
+      worktreeId: 'worktree-1',
+      liveOnly: options.liveOnly === true
     })
     return null
   }
@@ -115,6 +118,28 @@ describe('terminal live input mode preference hook', () => {
     })
 
     expect([...harness.current.liveInputTerminalHandles]).toEqual(['pty-1'])
+    expect(saveDisabledTerminalLiveInputHandles).not.toHaveBeenCalled()
+    harness.unmount()
+  })
+
+  it('live-only: ignores stored buffered opt-outs and never writes them', async () => {
+    const load = createDeferred<DisabledTerminalLiveInputHandlesPreference>()
+    vi.mocked(readDisabledTerminalLiveInputHandlesPreference).mockReturnValue(load.promise)
+    const harness = createTerminalLiveInputModePreferenceHarness({ liveOnly: true })
+
+    act(() => {
+      harness.current.defaultTerminalHandlesToLiveInput(['pty-1', 'pty-2'])
+    })
+    await act(async () => {
+      load.resolve({ handles: new Set(['pty-2']), loaded: true })
+      await load.promise
+    })
+
+    expect(new Set(harness.current.liveInputTerminalHandles)).toEqual(new Set(['pty-1', 'pty-2']))
+    act(() => {
+      expect(harness.current.toggleTerminalLiveInput('pty-1')).toBe(true)
+    })
+    expect(new Set(harness.current.liveInputTerminalHandles)).toEqual(new Set(['pty-1', 'pty-2']))
     expect(saveDisabledTerminalLiveInputHandles).not.toHaveBeenCalled()
     harness.unmount()
   })
