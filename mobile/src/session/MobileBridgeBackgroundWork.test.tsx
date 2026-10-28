@@ -19,6 +19,7 @@ vi.mock('react-native', () => ({
 vi.mock('lucide-react-native', () => ({
   Activity: 'Activity',
   Bot: 'Bot',
+  Check: 'Check',
   ChevronDown: 'ChevronDown',
   ChevronRight: 'ChevronRight',
   CircleHelp: 'CircleHelp',
@@ -190,16 +191,14 @@ describe('MobileBridgeBackgroundWork', () => {
     expect(rowTexts(root)).toEqual(['Draft the plan · Plan10s', 'Map the repo · Ended30s'])
   })
 
-  it('keeps a finished subagent after the agent goes idle and its pill is gone', () => {
+  it('keeps a finished subagent after the agent goes idle, as a Finished pill that opens it', () => {
     const { root, update } = mount(props({ status: status({ subagents: [EXPLORER] }) }))
     act(() => pill(root).props.onPress())
 
     update(props({ working: false, status: status({ state: 'done' }) }))
 
-    // Nothing runs and no turn does, so the pill hides; the sheet closes with it.
-    expect(root.toJSON()).toBeNull()
-
-    update(props({ working: true, status: status() }))
+    // Nothing runs, but the finished subagent keeps the pill up as Finished, and its sheet lists it.
+    expect(pill(root).props.accessibilityLabel).toBe('Show background work, Finished, 1 item')
     act(() => pill(root).props.onPress())
     expect(labelled(root, 'Finished')[0]!.props.accessibilityLabel).toBe('Finished, 1')
   })

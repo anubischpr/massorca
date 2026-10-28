@@ -8,7 +8,11 @@ import {
   NO_BACKGROUND_WORK_NOTE,
   UNLISTED_BACKGROUND_WORK_NOTE
 } from './mobile-background-work-notes'
-import { mobileChatStatusPill, mobileStatusPillCounts } from './mobile-chat-status-pill'
+import {
+  mobileChatStatusPill,
+  mobileStatusPillCounts,
+  mobileStatusPillFinishedCount
+} from './mobile-chat-status-pill'
 import { useMobileTerminalBackgroundWork } from './use-mobile-terminal-background-work'
 
 // The host stops no pane subagent and lists no pane shell task, so the sheet offers no Stop here.
@@ -26,7 +30,7 @@ function ignoreStop(): void {}
 
 /** The status pill of a terminal-backed chat, with the background-work sheet it opens. Mounted per
  *  chat so its Finished list outlives the pill hiding between subagents; draws nothing while the
- *  agent is idle and nothing runs. */
+ *  agent is idle with nothing running or finished. */
 function MobileBridgeBackgroundWorkImpl({
   scopeKey,
   status,
@@ -57,6 +61,7 @@ function MobileBridgeBackgroundWorkImpl({
     now: hostNow,
     counts: mobileStatusPillCounts(work.groups),
     hasBackgroundWork: hasRunning || work.unlistedWork,
+    finishedCount: mobileStatusPillFinishedCount(work.finished),
     live: work.rowContext.transportObservation === 'live'
   })
   if (!pill.visible) {

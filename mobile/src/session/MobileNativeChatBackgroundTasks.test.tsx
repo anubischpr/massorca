@@ -23,6 +23,7 @@ vi.mock('react-native', () => ({
 vi.mock('lucide-react-native', () => ({
   Activity: 'Activity',
   Bot: 'Bot',
+  Check: 'Check',
   ChevronDown: 'ChevronDown',
   ChevronRight: 'ChevronRight',
   ChevronUp: 'ChevronUp',
@@ -372,11 +373,13 @@ describe('MobileNativeChatBackgroundTasks', () => {
   })
 
   it('keeps the sheet open across a roster that empties between children', () => {
-    // A sequential fan-out empties the roster between its children; the open sheet waits for the next.
+    // A sequential fan-out empties the roster between its children. The pill stays up for the finished
+    // child, so the open sheet stays too, and lists the next child when it starts.
     const mounted = mount(tasksFor({ state: 'monitoring', children: [view('a')] }))
     expand(mounted)
     rerender(mounted, null)
-    expect(sheetTitles(mounted)).toHaveLength(0)
+    expect(sheetTitles(mounted)).toHaveLength(1)
+    expect(finishedToggle(mounted)?.props.accessibilityLabel).toBe('Finished, 1')
     rerender(mounted, { state: 'monitoring', children: [view('b')] })
     expect(sheetTitles(mounted)).toHaveLength(1)
   })

@@ -11,7 +11,11 @@ import { useNow } from '../hooks/use-now'
 import { spacing } from '../theme/mobile-theme'
 import { MobileBackgroundWorkSheet, type BackgroundWorkStopping } from './MobileBackgroundWorkSheet'
 import { MobileChatStatusPillView } from './MobileChatStatusPillView'
-import { mobileChatStatusPill, mobileStatusPillCounts } from './mobile-chat-status-pill'
+import {
+  mobileChatStatusPill,
+  mobileStatusPillCounts,
+  mobileStatusPillFinishedCount
+} from './mobile-chat-status-pill'
 import { NO_BACKGROUND_WORK_NOTE } from './mobile-background-work-notes'
 import { mergeFinishedBackgroundRows, settledHistoryRows } from './mobile-finished-background-work'
 import { useSeenBackgroundWork } from './use-mobile-seen-background-work'
@@ -20,9 +24,9 @@ import type { MobileStructuredBackgroundTasks } from './use-mobile-structured-ba
 const NOT_STOPPING: BackgroundWorkStopping = { taskIds: new Set(), all: false }
 
 /** The floating status pill above a structured chat's composer, with the background-work sheet it
- *  opens. Shown while a turn runs or background work is running; a lane with no start shows no clock.
- *  Mounted per conversation, so its open and stopping state outlive a roster that empties between
- *  children. */
+ *  opens. Shown while a turn runs, background work runs, or finished work is listed; a lane with no
+ *  start shows no clock. Mounted per conversation, so its open and stopping state outlive a roster
+ *  that empties between children. */
 function MobileNativeChatBackgroundTasksImpl({
   tasks,
   working = false,
@@ -77,6 +81,7 @@ function MobileNativeChatBackgroundTasksImpl({
     now: hostNow,
     counts: mobileStatusPillCounts(groups),
     hasBackgroundWork: view.show,
+    finishedCount: mobileStatusPillFinishedCount(finished),
     live: rowContext.transportObservation === 'live'
   })
   if (!pill.visible) {
