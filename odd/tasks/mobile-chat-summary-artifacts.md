@@ -227,3 +227,64 @@ Checks (mobile/): `pnpm typecheck` exit 0 after each commit; oxfmt and oxlint cl
 
 Checks (mobile/): `pnpm typecheck` exit 0 after each commit; oxfmt and oxlint clean on the changed files; the touched and dependent suites pass (close and chrome decision, host-screen grouping and reply schema, repo account read, chat environment account).
 
+## T18: the pill and background detail on the terminal-backed (bridge) lane (investigation, pv37 QA)
+
+Status: investigated, not implemented. No code changed in this unit; the blocker is a host change, scoped below.
+
+### What the execution host's status store carries
+
+The hook server's store (`src/main/agent-hooks`, the single store AGENTS.md names) holds one entry per pane. Its payload carries:
+- `subagents`: `{ id, agentType?, model?, description?, state, startedAt }` (`src/shared/agent-status-subagent-snapshot.ts`). Codex publishes these (`src/shared/agent-hook-listener/providers/codex-state.ts`).
+- `children`: the richer `AgentChildWorkView` (`src/shared/agent-status-child-work-view.ts`) with `kind` (agent, workflow, command, ...), `name`, `description`, `state`, `lastMessage`, `firstObservedAt`, `stoppable`, `invocation`.
+- `mainAgent.stateStartedAt`: the turn start clock.
+- `workingMode: 'monitoring'`: ongoing work that does not need the foreground agent.
+
+Codex does not publish shell background tasks; background tasks for Claude come from its own roster fold.
+
+### What the phone can read today (mobile-allowlisted)
+
+- `terminal.agentStatus`: returns the screen-scraped `waitText`, `title`, `titleStatus` (`runtime-terminal-agent-status-query.ts`). No subagents, no children, no turn start.
+- `agentSession.subscribeStatus`: every structured session's projected status. Structured sessions only.
+- `agentSession.subscribe` / the structured roster: children for structured chats (what the sheet already uses).
+- `status.get`: server health, not agent status.
+- `worktree.ps`: not inspected for per-pane agent entries (the orca-runtime-get-worktree-ps path; unverified).
+
+The runtime does not read the hook store's entries (`src/main/runtime` has no accessor; the entries are consumed in main-process IPC). So the phone has no allowlisted source for terminal-pane subagents, background tasks, or turn start.
+
+### Stop
+
+- Structured lane: `agentSession.cancel` with `{ scope: 'background-tasks', taskId? }` already exists and is allowlisted.
+- Terminal lane: no stop RPC for a terminal pane's children. Not invented here.
+
+### Host change needed
+
+Yes. Minimum additive change, in its own labelled commits so one VPS rebuild covers it:
+1. `feat(runtime)`: a capability-gated, mobile-allowlisted stream (for example `terminal.subscribeAgentChildren`, keyed by terminal handle) that projects the hook store's `subagents` and `children` for that pane, plus the turn start, with mobile-safe fields and the live / unverifiable / exited verdict. Older hosts answer method-not-found and the phone degrades to today's pill.
+2. `fix(rpc)` or `feat(runtime)`: a terminal-pane child stop, only for kinds whose provider has a real stop. Background shell tasks and Codex subagents must be checked against their providers before any stop is exposed.
+3. Mobile, after 1: pill counts and clock from the stream (structured and terminal), tap opens the sheet with detail (command or description, elapsed, last output lines; subagent type, activity, elapsed), Stop where the host provides it, a collapsed Finished subsection, live updates. Output tails do not exist on the host today and need a further host change.
+
+Open question for the owner: whether output tails are in scope for this round, since they need a new host feed and not only a projection.
+
+### T18 step 1 (status: in progress, not yet shipped)
+
+- `worktree.ps` already carries per-pane entries. Its agent rows come from the hook store's snapshots (`runtime-worktree-pty-agent-sources.ts` builds `RuntimeWorktreeAgentSource` from `hookSnapshots`), projecting `state`, `prompt`, `stateStartedAt`, `mainAgent`, and `lastAssistantMessage`. It does not project `subagents` or `children` today.
+- So the additive path is: extend the `worktree.ps` agent row (`runtime-worktree-agent-source.ts`, `runtime-worktree-agent-rows.ts`) with optional `subagents` and `children`, read from the same store entry. That is a `feat(runtime)` commit with host tests. Older hosts omit the fields and the phone keeps today's pill.
+- Root `node_modules` is present in this worktree, so `pnpm tc:node` can run directly.
+- Not yet done: the capability advertisement, the terminal-pane child stop (step 2), the mobile detail sheet, Finished, and live updates (step 3). Live updates need either a stream or a timed `worktree.ps` poll while the sheet is open; `worktree.ps` is a whole-worktree scan, so a stream is the better choice and needs its own decision.
+- Output tails: only `children.lastMessage` is available; no line-level output. Follow-up.
+
+
+### T18 step 2 (shipped): pill and sheet on the terminal-backed lane
+
+Route: one delegated writer. Decision changed from the plan above, with evidence: no new host RPC, no `worktree.ps` poll.
+
+- A terminal tab's `agentStatus` on the paired `session.tabs` stream is already the full status row (`RuntimeMobileSessionTerminalTab.agentStatus: AgentStatusEntry`, spread from the hook store payload in `runtime-mobile-agent-status-builder.ts`). It carries `subagents`, `mainAgent`, `workingMode` and `stateStartedAt`, and the host republishes `session.tabs` on every store row mutation (`hook-status-session-tabs-republish.ts`). That is the single store and a live stream, so a `worktree.ps` projection plus a 2 to 5 s whole-worktree scan would be a second, slower copy of it. Pinned with `test(runtime)` (`da9264d9a0b`).
+- The hook store holds no `children` for a CLI pane (`AgentStatusIpcPayload` has none; only structured sessions publish child views) and no per-task detail for a pane's background shell commands (Claude keeps a boolean, `claudeRunningNonAgentTaskPaneKeys`). So the terminal sheet lists subagents, not commands. A monitoring pane shows "Background work is running. This agent does not report its details."
+- Stop: none for a pane. The shared row model builds CLI-pane subagent rows with `canStop: false` (`buildLegacyAgentChildRowModels`) and no host path stops them. The structured lane keeps `agentSession.cancel` with scope `background-tasks`.
+- Host fix found while tracing the stream: on a desktop-attached host the renderer's sync key ignored `subagents`, so a roster-only change could reach the phone up to 30 s late (`8215af4c0bc`).
+- Finished: hosts list running work only, so a row that leaves a live roster moves to a collapsed "Finished" section ("Ended", elapsed frozen where it was seen to end). A lost connection or a stale or unverifiable status never finishes anything (rows read "status unavailable"). Same fold for both lanes (`mobile-seen-background-work.ts`).
+- Mobile: `MobileBridgeBackgroundWork` (pill with counts and the turn clock, tappable only when there is something to open), sheet gains Finished and an empty-note, `MobileNativeChatChromeRow` extracted from the chat view (it sat at the 400-line cap).
+
+Checks: mobile `pnpm typecheck` exit 0; the new and touched suites pass (seen fold, terminal read, bridge pill and sheet, chrome row, sheet, structured strip, view and overlay dependents); root `pnpm tc:node` and the projection and roster suites pass; oxfmt and oxlint clean on the changed files.
+
+Needs a device: the pill and sheet against a real Claude and Codex terminal chat (subagent start, finish, host restart), the live update on a desktop-attached host, and the chrome row layout.

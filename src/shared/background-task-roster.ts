@@ -79,6 +79,13 @@ function rosterEntries(rows: readonly AgentChildRowModel[]): BackgroundTaskGroup
   )
 }
 
+/** Kind groups from rows a reader already built, in the order every roster reads them. */
+export function groupBackgroundTaskRows(
+  rows: readonly AgentChildRowModel[]
+): BackgroundTaskGroup[] {
+  return rosterEntries(rows)
+}
+
 /** Kind groups from a host that publishes only the task roster, live and settled merged. */
 export function buildBackgroundTaskGroups(
   tasks: readonly AgentSessionBackgroundTask[],

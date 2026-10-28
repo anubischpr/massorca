@@ -22,6 +22,8 @@ vi.mock('react-native', () => ({
 vi.mock('lucide-react-native', () => ({
   Activity: 'Activity',
   Bot: 'Bot',
+  ChevronDown: 'ChevronDown',
+  ChevronRight: 'ChevronRight',
   ChevronUp: 'ChevronUp',
   CircleHelp: 'CircleHelp',
   SquareTerminal: 'SquareTerminal',
@@ -368,11 +370,54 @@ describe('MobileNativeChatBackgroundTasks', () => {
     expect(sheetTitles(mounted)).toHaveLength(1)
   })
 
-  function rerender(mounted: ReactTestRenderer, state: AgentSessionBackgroundTaskState | null) {
+  function rerender(
+    mounted: ReactTestRenderer,
+    state: AgentSessionBackgroundTaskState | null,
+    options: Parameters<typeof tasksFor>[1] = {}
+  ) {
     act(() => {
-      mounted.update(createElement(MobileNativeChatBackgroundTasks, { tasks: tasksFor(state) }))
+      mounted.update(
+        createElement(MobileNativeChatBackgroundTasks, { tasks: tasksFor(state, options) })
+      )
     })
   }
+
+  function finishedToggle(mounted: ReactTestRenderer): ReactTestInstance | undefined {
+    return mounted.root.findAll(
+      (node) =>
+        String(node.type) === 'Pressable' &&
+        typeof node.props.accessibilityLabel === 'string' &&
+        node.props.accessibilityLabel.startsWith('Finished')
+    )[0]
+  }
+
+  function rowTexts(mounted: ReactTestRenderer): string[] {
+    return mounted.root.findAll((node) => node.props.testID === 'background-task-row').map(textOf)
+  }
+
+  it('moves a child that left a live roster under a collapsed Finished section', () => {
+    const mounted = mount(tasksFor({ state: 'monitoring', children: [view('a'), view('b')] }))
+    expand(mounted)
+
+    rerender(mounted, { state: 'monitoring', children: [view('b')] })
+
+    expect(rowTexts(mounted)).toEqual(['review b · Agent1m 5s'])
+    expect(finishedToggle(mounted)?.props.accessibilityLabel).toBe('Finished, 1')
+
+    act(() => finishedToggle(mounted)!.props.onPress())
+
+    expect(rowTexts(mounted)[0]).toBe('review b · Agent1m 5s')
+    expect(rowTexts(mounted)[1]).toMatch(/^review a · Ended/)
+  })
+
+  it('finishes nothing when the roster reads empty because the stream was lost', () => {
+    const mounted = mount(tasksFor({ state: 'monitoring', children: [view('a'), view('b')] }))
+    expand(mounted)
+
+    rerender(mounted, { state: 'monitoring', children: [view('b')] }, { streamLive: false })
+
+    expect(finishedToggle(mounted)).toBeUndefined()
+  })
 
   function drawerOf(mounted: ReactTestRenderer): ReactTestInstance {
     return mounted.root.find((node) => String(node.type) === 'BottomDrawer')

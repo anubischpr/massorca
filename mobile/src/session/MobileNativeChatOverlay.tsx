@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { StyleSheet, View } from 'react-native'
+import type { AgentStatusEntry } from '../../../src/shared/agent-status-types'
 import { MobileNativeChatView, type MobileNativeChatInputLockReason } from './MobileNativeChatView'
 import { foldMobileNativeChatMessages } from './mobile-native-chat-render-data'
 import { mobileChatTurnArtifactCards } from './mobile-chat-turn-artifacts'
@@ -14,6 +15,8 @@ import { MobileNativeChatVisualContext } from './mobile-native-chat-visual-conte
 
 type Props = {
   controller: MobileNativeChatController
+  /** Terminal-backed chat: the pane's status row and whether the host is heard; null otherwise. */
+  bridgeBackground?: { status: AgentStatusEntry | null; connected: boolean } | null
   /** Opens a tapped file reference (worktree-relative or absolute, optional
    *  :line(:col) suffix) through the shared tap-to-open flow. */
   onOpenFile: (pathText: string) => void
@@ -47,6 +50,7 @@ type Props = {
  *  the chat list below it does not. */
 export function MobileNativeChatOverlay({
   controller,
+  bridgeBackground,
   onOpenFile,
   images,
   onMicPress,
@@ -125,6 +129,7 @@ export function MobileNativeChatOverlay({
           agent={controller.nativeChatAgent}
           piRuntime={controller.nativeChatPiRuntime}
           agentWorking={controller.nativeChatAgentWorking}
+          bridgeBackground={bridgeBackground ?? undefined}
           canStop={controller.nativeChatCanStop}
           structuredActivityUi={controller.nativeChatStructured}
           turnIndicator={controller.nativeChatTurnIndicator}

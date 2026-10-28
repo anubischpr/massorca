@@ -4,13 +4,15 @@ import { sayBackgroundTaskEnglish as say } from '../../../src/shared/background-
 import {
   backgroundTasksStripTicks,
   buildBackgroundTaskGroups,
-  buildBackgroundTaskGroupsFromViews
+  buildBackgroundTaskGroupsFromViews,
+  groupBackgroundTaskRows
 } from '../../../src/shared/background-task-roster'
 import { useNow } from '../hooks/use-now'
 import { spacing } from '../theme/mobile-theme'
 import { MobileBackgroundWorkSheet, type BackgroundWorkStopping } from './MobileBackgroundWorkSheet'
 import { MobileChatStatusPillView } from './MobileChatStatusPillView'
 import { mobileChatStatusPill, mobileStatusPillCounts } from './mobile-chat-status-pill'
+import { useSeenBackgroundWork } from './use-mobile-seen-background-work'
 import type { MobileStructuredBackgroundTasks } from './use-mobile-structured-background-tasks'
 
 const NOT_STOPPING: BackgroundWorkStopping = { taskIds: new Set(), all: false }
@@ -44,6 +46,19 @@ function MobileNativeChatBackgroundTasksImpl({
   const now = useNow(1_000, working || (view.show && backgroundTasksStripTicks(groups, sheetOpen)))
   // Elapsed anchors are host-stamped; read them on the host's clock, as the turn's start is.
   const hostNow = now - rowContext.hostClockOffsetMs
+  // Rows this roster stopped listing while its stream was live have finished; a lost stream asserts
+  // nothing.
+  const rows = useMemo(
+    () => groups.flatMap((group) => group.tasks.map((entry) => entry.row)),
+    [groups]
+  )
+  const finishedRows = useSeenBackgroundWork({
+    scopeKey: tasks.sessionKey,
+    rows,
+    live: rowContext.transportObservation === 'live',
+    hostClockOffsetMs: rowContext.hostClockOffsetMs
+  })
+  const finished = useMemo(() => groupBackgroundTaskRows(finishedRows), [finishedRows])
   const pill = mobileChatStatusPill({
     working,
     startedAt,
@@ -92,6 +107,7 @@ function MobileNativeChatBackgroundTasksImpl({
         hostNow={hostNow}
         stopping={stopping}
         onStop={onStop}
+        finished={finished}
       />
     </View>
   )
