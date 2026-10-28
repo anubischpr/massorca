@@ -534,3 +534,33 @@ Approved design: v13, `Main.dc.html` in the session scratchpad (390x844). Each t
 
 ### Next step
 - Parent: review `625b858e83a`, `297c215692b`, `05fd917283f` and `76772a183b1`, re-check the pv43 repro (chip, then terminal) on a phone, and decide gaps 1 and 2.
+
+## Round 14: T35 and T36 host fixes from real-host evidence
+
+Evidence came from the Linux VPS running the Orca runtime service. Each task is one Conventional Commit with its tests; no AI attribution lines. No push, no PR.
+
+- [x] T35 Gentle Shell launches from a service whose login PATH lacks the mise shims: `5248f28ad7b`, test follow-up `9a08ac696b9`.
+- [x] T36 Antigravity accepts the result frame every agy release sends: `f960f61441d`, and this docs commit.
+
+### T35 evidence
+- Cause: the chat launch env took PATH from the login-shell probe and dropped the process PATH, so `~/.local/share/mise/shims/gentle-shell` was invisible to the create-support check even though detection (merged PATH) found it.
+- Launch env (`structured-agent-shell-environment.ts`): login PATH first, then process PATH entries not already present; tool-manager variables (`MISE_*`, `ASDF_*`, `VOLTA_HOME`, `NVM_DIR`, `PYENV_ROOT`) come from the process when the login env lacks them and never override a login value. Applies with and without "inherit shell environment". This `mergePathSegments` is not reused: it mutates `process.env`.
+- Catalog prewarm (`rpc-model-catalog-probe.ts`): with no runtime named and no Command setting, it lists through Gentle Shell when stock `pi` is not runnable. Create-time resolution already did this (`resolveHostPiRuntime`) and keeps its tests.
+- Version probe: the real three-line output (`gentle-shell 4.3.0`, `pi 1.3.0`, `home isolated <path>`) is now a test case; the parser already accepted it.
+- Diagnostics: `[structured-create-support]` was console-only. It now also writes an `agentSession.createSupport` span (agent, check, reason, cause) to `main.trace.ndjson`.
+- Mobile: a Gentle Shell "not available" message now carries the host's cause (`cliMissing`, `agentCommandNotRunnable`, or the reason word); an older host sends none and the message is unchanged.
+
+### T36 evidence
+- Cause: `parseAntigravityStreamRecord` required `response`, `num_turns` and an uppercase status, and rejected null optional fields.
+- Now: `conversation_id` stays required. Status matches case-insensitively and an unknown one becomes `ERROR`. `response` defaults to `''` and `num_turns` to `0`. `error`, `duration_seconds` and `usage` treat null and wrong types as absent; a negative usage count still fails. A refused result reports field kinds (never values) in the error.
+- Tests: the agy 1.4.8 result, a lowercase 1.4.4 shape with extra keys, an error without response or turns, null and malformed optionals, unknown status, and the negative assertions.
+
+### Checks
+- `pnpm tc:node`: exit 0.
+- `cd mobile && pnpm run typecheck`: exit 0.
+- Touched suites pass: shell environment, launch support (three files), Pi catalog probe and launch resolution, create-support warning, Antigravity (24 files), mobile launch and create-actions.
+- Broader run of `src/main/pi`, `src/main/runtime/structured-agent*`, `src/main/startup`: failures only in Windows-only or timing tests (EBUSY on sqlite, user-agent ordering, document delivery, ACL repair, virtual display, and `structured-agent-model-catalog-discovery` which needs a `.exe` override on Windows). Not caused by these changes.
+- `node config/scripts/check-changed-code-quality.mjs e81f6480725`: passed, 0 new findings.
+
+### Next step
+- Parent: rebuild the VPS service, then check `main.trace.ndjson` for `agentSession.createSupport` and `agentModelCatalog.discovery` pi spans, and launch Gentle Shell and Antigravity from the phone.
