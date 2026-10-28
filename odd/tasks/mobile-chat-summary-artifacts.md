@@ -442,3 +442,9 @@ Each task is one Conventional Commit with its tests; no AI attribution lines. No
 ### Round 10 checks
 - `pnpm tc:node` and `cd mobile && pnpm run typecheck` pass; `node config/scripts/check-changed-code-quality.mjs ad44a06073a` passes.
 - Root `src/main/codex` capture, background and child-work tests: 72 pass. Mobile `src/session` and `src/components`: only the known failures (`mobile-prompt-controller.test.ts`, merged-snapshot parity timeouts, `native-document-bundle.test.ts`).
+
+## Round 11: terminal composer scope (design v11)
+
+- Approved direction for v1: the terminal composer is Live only. Every key goes straight to the shell, Tab completes in the real shell, and the send button is Enter. No Command | Live switch and no mode label. Kept: the Keys chord bar (modifiers with order badges, then one main key), the Phone | Desktop width button, the "+" menu (photo, file, paste) and the mic. Prototype v11: https://claude.ai/artifact/P1p1ZjFduNY6s6msGuqeJu. T31 Gentle Shell preselection: `7fc726694b0`.
+- [ ] T32: implement the v11 terminal composer once the user approves v11.
+- Follow-up (separate feature, not scheduled): a modern Command prompt with syntax colors for known commands (the host checks PATH), path completion from the host, command and subcommand completion, and fish-style history suggestions.
