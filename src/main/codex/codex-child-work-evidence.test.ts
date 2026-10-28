@@ -414,7 +414,7 @@ describe('Codex child-work evidence', () => {
       expect.objectContaining({
         membership: 'live',
         description: 'npm run dev',
-        residency: 'foreground',
+        residency: 'background',
         parentChildWorkId: agent!.childWorkId,
         firstObservedAt: 1_040
       })

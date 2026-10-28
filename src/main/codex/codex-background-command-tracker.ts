@@ -146,15 +146,11 @@ export class CodexBackgroundCommandTracker {
     return this.end(JSON.stringify([command.threadId, command.itemId]), undefined, false)
   }
 
-  tasks(
-    coveredThreads?: ReadonlySet<string>,
-    childLabel?: (threadId: string) => string | null
-  ): AgentSessionBackgroundTask[] {
+  tasks(childLabel?: (threadId: string) => string | null): AgentSessionBackgroundTask[] {
     return [...this.commands.values()]
-      .filter((command) => command.backgrounded && !coveredThreads?.has(command.threadId))
+      .filter((command) => command.backgrounded)
       .map(({ threadId, task }) => {
-        // The agent row carrying the child's name is gone by the time this row shows;
-        // unqualified it reads as a bare shell string with no owner. Resolved on read so
+        // Unqualified it reads as a bare shell string with no owner. Resolved on read so
         // a label registered after the command still lands.
         const label = threadId === this.primaryThreadId ? null : childLabel?.(threadId)
         return label
@@ -260,7 +256,10 @@ export class CodexBackgroundCommandTracker {
     const value = {
       threadId: event.threadId,
       turnId,
-      backgrounded: turnId !== null && this.settled.has(this.turnKey(event.threadId, turnId)),
+      // A child's process is never on the parent's direct path: background work from the start.
+      backgrounded:
+        event.threadId !== this.primaryThreadId ||
+        (turnId !== null && this.settled.has(this.turnKey(event.threadId, turnId))),
       task: {
         id:
           event.threadId === this.primaryThreadId
