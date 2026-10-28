@@ -77,6 +77,9 @@ const promptsState = {
 
 // The controller composes many session hooks; each is mocked to a minimal shape
 // so this test isolates the send seam (outcome -> drafts accounting).
+// These cases cover the classic terminal-as-chat toggle, which the kill switch hides.
+vi.mock('./mobile-legacy-session-views', () => ({ MOBILE_LEGACY_SESSION_VIEWS: true }))
+
 vi.mock('./use-mobile-session-view-mode', () => ({
   useMobileSessionViewMode: () => ({
     isTabChatView: (tabId: string) => viewMode.isTabChatView(tabId),

@@ -1,4 +1,5 @@
 import type { MobileSessionTab } from './mobile-session-route-types'
+import { MOBILE_LEGACY_SESSION_VIEWS } from './mobile-legacy-session-views'
 
 /**
  * Which top chrome a session screen draws, decided from what is known on its first render:
@@ -6,15 +7,22 @@ import type { MobileSessionTab } from './mobile-session-route-types'
  * - `chat`: a native chat or the Terminal panel is on screen; the floating controls draw.
  * - `terminal`: the active tab is known and is not a chat that is still resolving, or the session
  *   has loaded with no tabs at all (so Back and the empty state are reachable); the classic header draws.
+ *   Only while MOBILE_LEGACY_SESSION_VIEWS is on.
+ * - `notice`: legacy views are off and the session has nothing the new layout draws (no tabs, or a tab
+ *   it cannot place); Back draws and the body says why.
  * - `pending`: the session kind is not known yet (connecting, tabs loading, a tab listed without the
  *   active one, or a chat still resolving); a neutral bar with only Back draws, so neither the old
  *   header nor the new controls flash.
  */
-export type MobileSessionChromeMode = 'pending' | 'chat' | 'terminal'
+export type MobileSessionChromeMode = 'pending' | 'chat' | 'terminal' | 'notice'
 
 export type MobileSessionTabType = MobileSessionTab['type']
 
 export type MobileSessionChromeModeInput = {
+  /** The classic screen is allowed; defaults to the kill switch. */
+  legacyViews?: boolean
+  /** Legacy off: a terminal tab is about to open in the Terminal panel, so no chrome flashes first. */
+  entryPending?: boolean
   /** A native chat is on screen for the active tab. */
   showNativeChat: boolean
   /** The Terminal panel holds the session body, so the floating controls draw over it. */
@@ -33,6 +41,7 @@ export type MobileSessionChromeModeInput = {
 export function resolveMobileSessionChromeMode(
   input: MobileSessionChromeModeInput
 ): MobileSessionChromeMode {
+  const fallback = (input.legacyViews ?? MOBILE_LEGACY_SESSION_VIEWS) ? 'terminal' : 'notice'
   if (input.showNativeChat || input.terminalPanelOpen === true) {
     return 'chat'
   }
@@ -41,10 +50,13 @@ export function resolveMobileSessionChromeMode(
     if (input.hasTabs || !input.connected || input.tabsLoading) {
       return 'pending'
     }
-    return 'terminal'
+    return fallback
   }
   if (input.activeTabType === 'agent-session' && input.chatResolving) {
     return 'pending'
   }
-  return 'terminal'
+  if (input.activeTabType === 'terminal' && fallback === 'notice' && input.entryPending) {
+    return 'pending'
+  }
+  return fallback
 }

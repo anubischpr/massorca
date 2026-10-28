@@ -30,6 +30,9 @@ function deferred<T>(): {
   return { promise, resolve, reject }
 }
 
+// These cases cover the classic terminal-as-chat toggle, which the kill switch hides.
+vi.mock('./mobile-legacy-session-views', () => ({ MOBILE_LEGACY_SESSION_VIEWS: true }))
+
 vi.mock('expo-router', async () => {
   const react = await import('react')
   return {

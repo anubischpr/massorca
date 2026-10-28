@@ -7,6 +7,7 @@ import {
   type MobileSessionView,
   type SessionViewOverridesPreference
 } from '../storage/session-view-preferences'
+import { MOBILE_LEGACY_SESSION_VIEWS } from './mobile-legacy-session-views'
 
 type ViewOverridesState = {
   hostId: string
@@ -128,7 +129,10 @@ export function useMobileSessionViewMode(args: {
 
   const isTabChatView = useCallback(
     (tabId: string): boolean => {
-      if (!isOverrideScope(viewOverridesState, hostId, worktreeId)) {
+      if (
+        !MOBILE_LEGACY_SESSION_VIEWS ||
+        !isOverrideScope(viewOverridesState, hostId, worktreeId)
+      ) {
         return false
       }
       const override = viewOverridesState.overrides.get(tabId)
@@ -141,6 +145,9 @@ export function useMobileSessionViewMode(args: {
 
   const toggleTabChatView = useCallback(
     (tabId: string) => {
+      if (!MOBILE_LEGACY_SESSION_VIEWS) {
+        return
+      }
       const current = viewOverridesStateRef.current
       const currentScope = isOverrideScope(current, hostId, worktreeId)
         ? current

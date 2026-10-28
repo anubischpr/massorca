@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { getMobileTerminalActionSheetActions } from './mobile-terminal-action-sheet-actions'
 
+// These cases cover the classic terminal-as-chat toggle, which the kill switch hides.
+vi.mock('./mobile-legacy-session-views', () => ({ MOBILE_LEGACY_SESSION_VIEWS: true }))
+
 vi.mock('lucide-react-native', () => ({
   Eraser: vi.fn(),
   MessageSquare: vi.fn(),

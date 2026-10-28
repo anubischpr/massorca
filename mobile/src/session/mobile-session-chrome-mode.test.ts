@@ -6,6 +6,7 @@ import {
 } from './mobile-session-chrome-mode'
 
 const LOADED: MobileSessionChromeModeInput = {
+  legacyViews: true,
   showNativeChat: false,
   connected: true,
   tabsLoading: false,
@@ -62,5 +63,38 @@ describe('resolveMobileSessionChromeMode', () => {
   it('draws the floating controls, never the header, while the terminal panel holds the body', () => {
     expect(modeWith({ activeTabType: 'terminal', terminalPanelOpen: true })).toBe('chat')
     expect(modeWith({ activeTabType: null, hasTabs: false, terminalPanelOpen: true })).toBe('chat')
+  })
+})
+
+describe('resolveMobileSessionChromeMode with legacy views off', () => {
+  const off = (overrides: Partial<MobileSessionChromeModeInput>) =>
+    modeWith({ legacyViews: false, ...overrides })
+
+  it('never draws the classic header', () => {
+    for (const activeTabType of [...NON_CHAT_TYPES, 'agent-session' as const]) {
+      expect(off({ activeTabType })).not.toBe('terminal')
+    }
+    expect(off({ activeTabType: null, hasTabs: false })).toBe('notice')
+  })
+
+  it('holds the neutral bar for a terminal that is about to open in the Terminal panel', () => {
+    expect(off({ activeTabType: 'terminal', entryPending: true })).toBe('pending')
+    expect(off({ activeTabType: 'terminal', terminalPanelOpen: true, entryPending: true })).toBe(
+      'chat'
+    )
+  })
+
+  it('names a terminal with no panel after entry as unsupported, so it cannot stay pending', () => {
+    expect(off({ activeTabType: 'terminal', entryPending: false })).toBe('notice')
+  })
+
+  it('names tabs the new layout cannot draw as unsupported', () => {
+    for (const activeTabType of ['browser', 'markdown', 'file'] as const) {
+      expect(off({ activeTabType, entryPending: true })).toBe('notice')
+    }
+  })
+
+  it('keeps a native chat in the chat chrome', () => {
+    expect(off({ showNativeChat: true, activeTabType: 'agent-session' })).toBe('chat')
   })
 })

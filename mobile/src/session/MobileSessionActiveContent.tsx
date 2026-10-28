@@ -4,6 +4,8 @@ import { MobileBrowserPane } from '../browser/MobileBrowserPane'
 import { MobileNativeChatOverlay } from './MobileNativeChatOverlay'
 import { MobileTerminalPaneStack } from './MobileTerminalPaneStack'
 import { MobileTerminalPanel } from './MobileTerminalPanel'
+import { MobileSessionUnsupportedNotice } from './MobileSessionUnsupportedNotice'
+import { MOBILE_LEGACY_SESSION_VIEWS } from './mobile-legacy-session-views'
 import { MobileChatChromeLayoutContext, mobileChatContentTop } from './mobile-chat-chrome-layout'
 import { colors } from '../theme/mobile-theme'
 import { styles } from './mobile-session-styles'
@@ -65,6 +67,7 @@ export function MobileSessionActiveContent({
     terminalPanelOpen,
     showLoadingState,
     showEmptyState,
+    showUnsupportedNotice,
     keyboardLift,
     toastAnimatedStyle,
     createTabBusy
@@ -100,6 +103,8 @@ export function MobileSessionActiveContent({
         </Pressable>
       </View>
     </View>
+  ) : showUnsupportedNotice ? (
+    <MobileSessionUnsupportedNotice controller={controller} />
   ) : activeMarkdownTab ? (
     <View style={styles.markdownFrame}>
       <MarkdownReader
@@ -188,7 +193,7 @@ export function MobileSessionActiveContent({
     </View>
   ) : (
     <View style={styles.terminalFrame}>
-      <MobileTerminalPaneStack controller={controller} />
+      {MOBILE_LEGACY_SESSION_VIEWS ? <MobileTerminalPaneStack controller={controller} /> : null}
       <MobileNativeChatOverlay
         controller={nativeChatController}
         bridgeBackground={nativeChatBridgeBackground}
