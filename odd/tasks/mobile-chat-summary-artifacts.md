@@ -446,5 +446,18 @@ Each task is one Conventional Commit with its tests; no AI attribution lines. No
 ## Round 11: terminal composer scope (design v11)
 
 - Approved direction for v1: the terminal composer is Live only. Every key goes straight to the shell, Tab completes in the real shell, and the send button is Enter. No Command | Live switch and no mode label. Kept: the Keys chord bar (modifiers with order badges, then one main key), the Phone | Desktop width button, the "+" menu (photo, file, paste) and the mic. Prototype v11: https://claude.ai/artifact/P1p1ZjFduNY6s6msGuqeJu. T31 Gentle Shell preselection: `7fc726694b0`.
-- [ ] T32: implement the v11 terminal composer once the user approves v11.
+- [x] T32: implement the terminal composer (prototype v13, Live only): `b80c4533b4f` chord encoding and chord state, `e777d3c6ee3` live-only composer, Keys row and keyboard-open condensing. See the T32 evidence below.
 - Follow-up (separate feature, not scheduled): a modern Command prompt with syntax colors for known commands (the host checks PATH), path completion from the host, command and subcommand completion, and fish-style history suggestions.
+
+### T32 evidence
+
+- Route: inline, single writer. Design: prototype v13 (user-approved); the v11 link above is superseded.
+- Commits: `b80c4533b4f` chord encoding and chord state (`terminal-key-chord.ts`, `terminal-key-chord-state.ts`). Shift+Tab with Ctrl or Alt now keeps Shift (`CSI 1;m Z`); saved shortcuts share that encoder. `e777d3c6ee3` live-only composer with the Keys row (`MobileTerminalComposerDock`, `MobileTerminalKeyRow`, `use-terminal-key-chord`, `mobile-terminal-composer-layout`). `MobileSessionContentRow` renders the composer unless `MOBILE_LEGACY_SESSION_VIEWS`, which keeps `MobileSessionCommandDock` as before. The panel hides its header while the keyboard is up. `useTerminalLiveInputModePreference` takes `liveOnly`: stored buffered opt-outs are ignored and never written.
+- Checks: `pnpm run typecheck` exit 0. `pnpm run typecheck:tests`: no errors in the touched files; 531 error lines, unchanged. Targeted `pnpm test` (chord, chord state, composer render, layout, preference, accessory keys): 6 files, 46 tests pass. `pnpm test src/session src/terminal`, run before the last fix commit (that fix touches only composer-only modules): 355 of 358 files and 3278 of 3282 tests pass. Failing: `mobile-prompt-controller.test.ts` (load error), `native-document-bundle.test.ts` (one case), and `mobile-native-chat-merged-snapshot-parity.test.ts` (3 timeouts under parallel load; 9 of 9 pass alone). oxfmt and oxlint clean. `node config/scripts/check-changed-code-quality.mjs 50033901f82`: 0 new findings across 18 files.
+- Gaps:
+  1. The viewport is not shrunk to the remaining height as the prototype shows. The header hides, the composer overlays through the existing keyboard lift (the cursor line stays visible), and the PTY refit waits until the keyboard hides (`terminal-viewport-refit`). A true shrink would resize the PTY on every keyboard toggle, which the translate design avoids. Owner decision.
+  2. A saved shortcut takes no modifiers: its bytes are fixed (`CustomKey` stores bytes only). Send stays disabled with a hint.
+  3. A modifier-only chord cannot be sent; Send waits for a key.
+  4. "Sent …" shows when the send is dispatched, not when the host accepts it.
+  5. Not verified on a device: keyboard show and hide, the Android IME, the + menu layering, hold-to-talk, focus of the hidden capture, and dictation into the shell line.
+- Engram mirror `odd/mobile-chat-summary-artifacts/tasks`: not written here; the orchestrator owns it.
