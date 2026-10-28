@@ -273,3 +273,18 @@ Open question for the owner: whether output tails are in scope for this round, s
 - Not yet done: the capability advertisement, the terminal-pane child stop (step 2), the mobile detail sheet, Finished, and live updates (step 3). Live updates need either a stream or a timed `worktree.ps` poll while the sheet is open; `worktree.ps` is a whole-worktree scan, so a stream is the better choice and needs its own decision.
 - Output tails: only `children.lastMessage` is available; no line-level output. Follow-up.
 
+
+### T18 step 2 (shipped): pill and sheet on the terminal-backed lane
+
+Route: one delegated writer. Decision changed from the plan above, with evidence: no new host RPC, no `worktree.ps` poll.
+
+- A terminal tab's `agentStatus` on the paired `session.tabs` stream is already the full status row (`RuntimeMobileSessionTerminalTab.agentStatus: AgentStatusEntry`, spread from the hook store payload in `runtime-mobile-agent-status-builder.ts`). It carries `subagents`, `mainAgent`, `workingMode` and `stateStartedAt`, and the host republishes `session.tabs` on every store row mutation (`hook-status-session-tabs-republish.ts`). That is the single store and a live stream, so a `worktree.ps` projection plus a 2 to 5 s whole-worktree scan would be a second, slower copy of it. Pinned with `test(runtime)` (`da9264d9a0b`).
+- The hook store holds no `children` for a CLI pane (`AgentStatusIpcPayload` has none; only structured sessions publish child views) and no per-task detail for a pane's background shell commands (Claude keeps a boolean, `claudeRunningNonAgentTaskPaneKeys`). So the terminal sheet lists subagents, not commands. A monitoring pane shows "Background work is running. This agent does not report its details."
+- Stop: none for a pane. The shared row model builds CLI-pane subagent rows with `canStop: false` (`buildLegacyAgentChildRowModels`) and no host path stops them. The structured lane keeps `agentSession.cancel` with scope `background-tasks`.
+- Host fix found while tracing the stream: on a desktop-attached host the renderer's sync key ignored `subagents`, so a roster-only change could reach the phone up to 30 s late (`8215af4c0bc`).
+- Finished: hosts list running work only, so a row that leaves a live roster moves to a collapsed "Finished" section ("Ended", elapsed frozen where it was seen to end). A lost connection or a stale or unverifiable status never finishes anything (rows read "status unavailable"). Same fold for both lanes (`mobile-seen-background-work.ts`).
+- Mobile: `MobileBridgeBackgroundWork` (pill with counts and the turn clock, tappable only when there is something to open), sheet gains Finished and an empty-note, `MobileNativeChatChromeRow` extracted from the chat view (it sat at the 400-line cap).
+
+Checks: mobile `pnpm typecheck` exit 0; the new and touched suites pass (seen fold, terminal read, bridge pill and sheet, chrome row, sheet, structured strip, view and overlay dependents); root `pnpm tc:node` and the projection and roster suites pass; oxfmt and oxlint clean on the changed files.
+
+Needs a device: the pill and sheet against a real Claude and Codex terminal chat (subagent start, finish, host restart), the live update on a desktop-attached host, and the chrome row layout.
