@@ -17,15 +17,16 @@ export function mobileSessionSwitcherChipAlignment(centered: boolean): 'center' 
   return centered ? 'center' : 'flex-start'
 }
 
-/** The active tab's status, title, and the tab count; tapping it opens the Sessions sheet. */
+/** The active tab's status, title, and the chat-session count; tapping it opens the Sessions sheet. */
 export function MobileSessionSwitcherChip({
   activeRow,
-  tabCount,
+  sessionCount,
   onPress,
   centered = false
 }: {
   activeRow: MobileSessionSwitcherRow<MobileSessionTab> | null
-  tabCount: number
+  /** Chats only: terminals have their own count in the Terminal panel. */
+  sessionCount: number
   onPress: () => void
   centered?: boolean
 }) {
@@ -35,7 +36,7 @@ export function MobileSessionSwitcherChip({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Sessions, ${title}, ${tabCount} ${tabCount === 1 ? 'tab' : 'tabs'}`}
+      accessibilityLabel={`Sessions, ${title}, ${sessionCount} ${sessionCount === 1 ? 'session' : 'sessions'}`}
       hitSlop={spacing.xs}
       onPress={onPress}
       style={({ pressed }) => [styles.chip, { alignSelf: alignment }, pressed && styles.pressed]}
@@ -45,7 +46,7 @@ export function MobileSessionSwitcherChip({
         {title}
       </Text>
       <ChevronDown size={14} color={colors.textMuted} strokeWidth={2} />
-      <Text style={styles.count}>{tabCount}</Text>
+      <Text style={styles.count}>{sessionCount}</Text>
     </Pressable>
   )
 }

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   mobileSessionSwitcherDot,
   mobileSessionSwitcherLabel,
-  mobileSessionSwitcherRows
+  mobileSessionSwitcherRows,
+  mobileChatSessionCount
 } from './mobile-session-switcher-rows'
 
 const tabs = [
@@ -79,5 +80,23 @@ describe('mobileSessionSwitcherRows', () => {
     expect(mobileSessionSwitcherDot('waiting')).toBe('waiting')
     expect(mobileSessionSwitcherDot('terminal')).toBe('idle')
     expect(mobileSessionSwitcherDot('idle')).toBe('idle')
+  })
+})
+
+describe('mobileChatSessionCount', () => {
+  it('counts chats and leaves terminals, files and browsers out', () => {
+    const rows = mobileSessionSwitcherRows(
+      [
+        { id: 'c1', type: 'agent-session' },
+        { id: 't1', type: 'terminal' },
+        { id: 't2', type: 'terminal' },
+        { id: 'f1', type: 'file' },
+        { id: 'c2', type: 'agent-session' }
+      ],
+      'c1',
+      null
+    )
+    expect(mobileChatSessionCount(rows)).toBe(2)
+    expect(mobileChatSessionCount([])).toBe(0)
   })
 })

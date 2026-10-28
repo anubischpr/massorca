@@ -26,6 +26,7 @@ import {
 import { colors } from '../theme/mobile-theme'
 import { QuickCommandsTabButton } from './QuickCommandsTabButton'
 import { MobileSessionSwitcherChip } from './MobileSessionSwitcherChip'
+import { mobileChatSessionCount } from './mobile-session-switcher-rows'
 import { resolveMobileSessionQuickCommandsAction } from './mobile-session-quick-commands-action'
 import { styles } from './mobile-session-styles'
 import { useKeyboardPersistingTaps } from '../platform/keyboard-persisting-taps'
@@ -136,7 +137,7 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
       {showSessionSwitcherChip ? (
         <MobileSessionSwitcherChip
           activeRow={activeSessionRow}
-          tabCount={sessionRows.length}
+          sessionCount={mobileChatSessionCount(sessionRows)}
           onPress={openSessionsSheet}
         />
       ) : null}

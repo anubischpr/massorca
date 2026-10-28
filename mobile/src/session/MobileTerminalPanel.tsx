@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { MessageSquare, Plus, SquareTerminal, X } from 'lucide-react-native'
+import { getWorktreePathBasenameFromId } from '../../../src/shared/worktree/id'
 import { useBackClaim } from '../navigation/use-back-claim'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import { MobileTerminalPaneStack } from './MobileTerminalPaneStack'
@@ -8,6 +9,7 @@ import {
   newTerminalTabId,
   terminalPanelPills,
   terminalPanelTitle,
+  terminalReadyHint,
   terminalTabsOf,
   type TerminalPanelPill
 } from './mobile-terminal-panel-model'
@@ -33,8 +35,11 @@ export function MobileTerminalPanel({
     handleCreateTerminal,
     handleCloseSessionTab,
     showLoadingState,
-    returnToChat
+    returnToChat,
+    worktreeId
   } = controller
+  // "New terminal" opens a tab in this worktree's folder; it never makes another worktree.
+  const folder = getWorktreePathBasenameFromId(worktreeId)
   const [freshTabId, setFreshTabId] = useState<string | null>(null)
   // The terminals that existed when a create was asked; the one that lands beyond them is fresh.
   const awaitingCreateRef = useRef<ReadonlySet<string> | null>(null)
@@ -69,7 +74,7 @@ export function MobileTerminalPanel({
   return (
     <View style={[styles.root, { paddingTop: topInset }]}>
       <View style={styles.header}>
-        <Text style={styles.title}>{terminalPanelTitle(pills.length)}</Text>
+        <Text style={styles.title}>{terminalPanelTitle(pills.length, folder)}</Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="New terminal"
@@ -125,7 +130,7 @@ export function MobileTerminalPanel({
             ) : null}
             {selected?.fresh && !selected.pending ? (
               <View style={styles.readyLine}>
-                <Text style={styles.readyText}>Ready — type a command</Text>
+                <Text style={styles.readyText}>{terminalReadyHint(folder)}</Text>
               </View>
             ) : null}
           </View>

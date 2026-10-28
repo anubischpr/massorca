@@ -87,3 +87,8 @@ function agentStatusToSwitcher(
   }
   return state === 'blocked' || state === 'waiting' ? 'waiting' : 'idle'
 }
+
+/** Chats only: a terminal is not a session, so the switcher chip leaves it out of its count. */
+export function mobileChatSessionCount(rows: readonly { tab: { type: string } }[]): number {
+  return rows.filter((row) => row.tab.type === 'agent-session').length
+}

@@ -11,6 +11,7 @@ import {
 import { colors, spacing, typography } from '../theme/mobile-theme'
 import { StatusDot } from '../components/StatusDot'
 import { MobileSessionSwitcherChip } from './MobileSessionSwitcherChip'
+import { mobileChatSessionCount } from './mobile-session-switcher-rows'
 import { MobileChatChromeLayoutContext } from './mobile-chat-chrome-layout'
 import {
   mobileChatChromeSegmentPanel,
@@ -120,7 +121,7 @@ export function MobileChatFloatingChrome({ controller }: { controller: MobileSes
         <MobileSessionSwitcherChip
           centered
           activeRow={activeSessionRow}
-          tabCount={sessionRows.length}
+          sessionCount={mobileChatSessionCount(sessionRows)}
           onPress={openSessionsSheet}
         />
         {showConnectionRetry ? (
