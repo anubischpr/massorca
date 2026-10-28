@@ -381,3 +381,38 @@ Stopped after T25 because T26 changes the chrome for every session, not only cha
 
 ## Next step
 - Parent: review `963896d3d41`, `47700e0ad4b` and `2ad1b24352b`, decide the open T26 question on document tabs, then run T26 as its own pass.
+
+## Round 9 (pv40 phone QA: Gentle Shell as its own row)
+
+Each task is one Conventional Commit with its tests; no AI attribution lines. No push, no PR.
+
+- [x] T27 Gentle Shell as its own row in the New Tab sheet and the "+" create list, on hosts that run it: `1e76654e8b7` (host), `7d96316f88e` (New Tab), `41708b8d9ab` ("+" list)
+
+### T27 root cause: why the VPS showed "Pi"
+- The host detects agents as TuiAgent ids. `resolveDetectedTuiAgentIds` (`src/shared/tui-agent-detection-commands.ts`) folds the `pi` and `gentle-shell` binaries into one `pi` id, and `preflight.detectAgents` returns that id list only (`src/main/runtime/rpc/methods/preflight.ts`). A host with only Gentle Shell on PATH reaches the phone as `['pi']`.
+- The phone named the Pi row from one setting: `settings.agentCmdOverrides.pi` through `selectedPiRuntime` (dd9ece81ab9). That setting records what the user typed, not what the host has. With Gentle Shell on PATH and no Command override, the row reads as stock Pi. I could not read the VPS settings, so this match is inferred from the code.
+- The launch already resolved correctly: `resolveHostPiRuntime` (`src/main/runtime/structured-agent-launch-support.ts`) starts Gentle Shell when stock `pi` is missing. The "Pi" row therefore opened a Gentle Shell chat.
+- The "+" create list used the static catalog label "Pi" for every host (`MOBILE_AGENT_CATALOG`). dd9ece81ab9 changed only the New Tab options builder.
+
+### T27 what changed
+- Host (`1e76654e8b7`): `preflight.detectPiRuntimes` and `preflight.detectRemotePiRuntimes` return the Pi runtimes found, probing the `pi` agent's own commands (`pi`, alias `gentle-shell`). The logic lives in `src/main/preflight/pi-runtime-detection.ts`, because `agent-detection.ts` is at the 300-line lint cap. Both methods are allowlisted and in the generated params catalog. The SSH probe reuses `detectAgentCommandsOnHost` over the connection, so there is no relay change. The agent id list is unchanged, so an older phone keeps its single row.
+- New Tab (`7d96316f88e`): the phone reads the runtimes only when the host reports `pi`. One row per runtime (Pi, Gentle Shell). A Gentle Shell row starts a chat with `piRuntime: 'gentle-shell'` (support probe and create) and never falls back to a terminal, which would start stock Pi. A host that predates the read keeps one row, labelled from the Command setting.
+- "Send Review Notes" (same commit): a prompt starts through `agent.launch`, which cannot name a runtime, and the host starts stock Pi whenever it has one. The Gentle Shell row is offered there only when stock Pi is absent, where the host's own fallback is exact.
+- "+" create list (`41708b8d9ab`): the picker shows the same rows and keys each by runtime (`newWorktreeAgentRowKey`), so selection stays unique. A create cannot name a runtime, so a Gentle Shell row creates the workspace blank and then starts its chat. A failed start is shown as the new workspace's warning.
+
+### T27 gaps and open items
+- Terminal lane: a host without the structured chat cannot start Gentle Shell. The row reports that instead of launching stock Pi.
+- With both runtimes installed, Gentle Shell cannot take review notes. Closing that needs a `piRuntime` on `agent.launch`, a host change not made in this round.
+- The "+" Gentle Shell create path (blank create, then chat start) has no unit test. `use-new-workspace-create-submit` is covered by typecheck and the selection tests only.
+- Not checked on a device: the New Tab and "+" rows on a Gentle Shell-only host, on a host with both runtimes, on an SSH target, and the warning after a failed chat start.
+- Engram mirror `odd/mobile-chat-summary-artifacts/tasks`: pending, not written in this pass.
+
+### T27 checks
+- Host (root): `pnpm tc:node` exit 0. `pnpm test` on `src/shared/tui-agent-detection-commands.test.ts` and `src/main/preflight/pi-runtime-detection.test.ts` (10 tests) and `src/main/runtime/rpc/methods/preflight.test.ts` (4 tests) pass. `pnpm run verify:rpc-params-catalog` exit 0.
+- Mobile: `pnpm run typecheck` exit 0 after each commit. Tests: New Tab suites (3 files, 57 tests), "+" and New Tab options suites (4 files, 39 tests), the new-workspace and NewWorktree folder (9 files, 103 tests), and the dependent session and components suites (8 files, 96 tests) pass.
+- `pnpm run typecheck:tests`: no errors in the touched test files. The baseline has pre-existing errors, for example `NewWorktreeModal.test.tsx`, which is unchanged and reports missing props.
+- oxfmt and oxlint clean on the changed files. `node config/scripts/check-changed-code-quality.mjs b582f243094`: 0 new findings across 24 files.
+- Broader runs, none caused by this round. Mobile `src/session` and `src/components` (380 files): 3230 tests pass. Failing: `mobile-prompt-controller.test.ts` (known), `mobile-native-chat-merged-snapshot-parity.test.ts` (3 timeouts under parallel load, known), and `native-document-bundle.test.ts`, which shells out an `import()` of a raw `D:\` path and fails on Windows. Its harness and the rich-markdown bundle are unchanged since base. Root `src/main/runtime/mobile-rpc-allowlist.test.ts` fails on `agentSession.readRecordedFile` and `github.readAccountGitConfig`, which mobile calls at base (T6, T17) and which are not allowlisted there; the new preflight methods are allowlisted and pass. Root `worker-release-mobile-report.test.ts` fails with `node:sqlite is unavailable` under the bun-driven runner, a guard present at base.
+
+## Next step
+- Parent: check `1e76654e8b7`, `7d96316f88e` and `41708b8d9ab` on the VPS (Gentle Shell only, then both runtimes), and decide whether `agent.launch` gets a `piRuntime` field to close the review-notes gap.
