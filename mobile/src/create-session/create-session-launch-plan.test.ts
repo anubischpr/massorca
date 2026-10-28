@@ -14,6 +14,7 @@ const selection: CreateSessionSelection = {
   repoId: 'web',
   workspaceMode: 'new-worktree',
   agent: 'claude',
+  piRuntime: null,
   baseRef: null
 }
 
@@ -115,6 +116,22 @@ describe('buildCreateSessionLaunchPlan base branch', () => {
 
   it('leaves the base to the host when nothing was picked', () => {
     expect(buildCreateSessionLaunchPlan(args)).not.toHaveProperty('baseBranch')
+  })
+})
+
+describe('buildCreateSessionLaunchPlan Pi runtime', () => {
+  const args = { draft: 'go', selection, repo, picks: {}, effectiveModelId: null }
+
+  it('carries the Pi runtime a Pi plan runs', () => {
+    const gentleShell = { ...selection, agent: 'pi' as const, piRuntime: 'gentle-shell' as const }
+    expect(buildCreateSessionLaunchPlan({ ...args, selection: gentleShell })).toMatchObject({
+      agent: 'pi',
+      piRuntime: 'gentle-shell'
+    })
+  })
+
+  it('names no runtime for an agent that is not Pi', () => {
+    expect(buildCreateSessionLaunchPlan(args)).not.toHaveProperty('piRuntime')
   })
 })
 

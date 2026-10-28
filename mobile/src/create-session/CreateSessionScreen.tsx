@@ -64,7 +64,10 @@ export function CreateSessionScreen({
       <View style={[styles.root, { paddingTop: insets.top + spacing.xl }]}>
         <CreateSessionProgress
           prompt={phase.plan.prompt}
-          steps={createSessionProgressSteps(phase.plan, createSessionAgentLabel(phase.plan.agent))}
+          steps={createSessionProgressSteps(
+            phase.plan,
+            createSessionAgentLabel(phase.plan.agent, phase.plan.piRuntime ?? null)
+          )}
         />
       </View>
     )
@@ -128,7 +131,8 @@ export function CreateSessionScreen({
           workspaceDisabled={isFolderRepo(repo)}
           baseRef={controller.baseRefChip}
           agent={agent}
-          agentLabel={createSessionAgentLabel(agent)}
+          piRuntime={selection?.piRuntime ?? null}
+          agentLabel={controller.selectedAgentLabel}
           disabled={busy || selection === null}
           onOpenProject={() => openSheet('project')}
           onOpenWorkspace={() => openSheet('mode')}
@@ -137,6 +141,7 @@ export function CreateSessionScreen({
         />
         <CreateSessionComposerRow
           agent={agent}
+          agentLabel={controller.selectedAgentLabel}
           options={controller.options}
           canSubmit={controller.canSubmit}
           onSubmit={controller.submit}
