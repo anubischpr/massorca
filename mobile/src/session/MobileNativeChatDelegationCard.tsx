@@ -11,7 +11,6 @@ import {
 } from './mobile-delegation-card-model'
 import { MobileNativeChatDelegationWhySheet } from './MobileNativeChatDelegationWhySheet'
 
-
 type Props = {
   /** The question's own text, which heads the card. */
   question: string
