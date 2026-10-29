@@ -1,6 +1,6 @@
 import { useCallback, useSyncExternalStore } from 'react'
 import { NativeChatPrototypeCountCard } from './NativeChatPrototypeCountCard'
-import type { NativeChatPrototypeChoice } from './native-chat-prototype-request-decision'
+import type { NativeChatPrototypeChoice } from '../../../../shared/prototype-request-decision'
 import { nativeChatPrototypeAsks } from './native-chat-prototype-request-store'
 import {
   useNativeChatStructuredComposerSend,

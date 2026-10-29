@@ -23,7 +23,7 @@ import type { NativeChatComposerDraft } from './native-chat-composer-draft-stora
 import { isNativeChatSessionNavigation } from './native-chat-session-navigation'
 import { neutralizePrototypeMarkers } from '../../../../shared/prototype-hidden-instruction'
 import { resolveNativeChatPrototypeOutgoing } from './native-chat-prototype-request-outgoing'
-import type { NativeChatPrototypeChoice } from './native-chat-prototype-request-decision'
+import type { NativeChatPrototypeChoice } from '../../../../shared/prototype-request-decision'
 
 export type UseNativeChatStructuredComposerSendArgs = {
   agent: AgentType

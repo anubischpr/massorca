@@ -3,7 +3,11 @@ import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import type { PrototypeSize } from '../../../../shared/prototype-draft'
 import { PrototypeColorPicker } from './PrototypeColorPicker'
-import { FILL_COLOR_PALETTE, isHexColor, TEXT_COLOR_PALETTE } from './prototype-color'
+import {
+  FILL_COLOR_PALETTE,
+  isHexColor,
+  TEXT_COLOR_PALETTE
+} from '../../../../shared/prototype-color'
 import {
   closeSelection,
   editSelected,
@@ -16,7 +20,7 @@ import {
   setPicker,
   type PrototypePicker,
   type PrototypeSetState
-} from './prototype-set-state'
+} from '../../../../shared/prototype-set-state'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
 

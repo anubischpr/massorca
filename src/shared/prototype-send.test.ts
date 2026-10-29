@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
-import { splitPrototypeHiddenInstruction } from '../../../../shared/prototype-hidden-instruction'
-import { PrototypeHostOutdatedError } from '../../runtime/runtime-prototype-client'
+import type { PrototypeListedSet } from './rpc-contract/prototype-params'
+import { splitPrototypeHiddenInstruction } from './prototype-hidden-instruction'
 import { sendPrototypeIteration, type PrototypeSendDeps } from './prototype-send'
 import {
   createSetState,
@@ -103,10 +102,10 @@ describe('sendPrototypeIteration', () => {
     expect(outcome.visibleMessage).not.toContain('screenshot:')
   })
 
-  it('sends without the screenshot when the host is outdated and rejects the upload', async () => {
+  it('sends without the screenshot when the upload rejects', async () => {
     const fakes = makeDeps({
       write: async () => {
-        throw new PrototypeHostOutdatedError()
+        throw new Error('outdated host')
       }
     })
     const outcome = await sendPrototypeIteration(

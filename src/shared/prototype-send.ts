@@ -1,5 +1,5 @@
-import type { NativeChatVisualRect } from '../../../../shared/native-chat-visual-annotate'
-import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
+import type { NativeChatVisualRect } from './native-chat-visual-annotate'
+import type { PrototypeListedSet } from './rpc-contract/prototype-params'
 import { pinsOf, type PrototypeSetState } from './prototype-set-state'
 import { draftOf, iterationSendText, nextVersionOf, visibleMessageOf } from './prototype-set-view'
 

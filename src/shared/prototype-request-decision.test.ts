@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { PrototypeAgent } from '../../../../shared/prototype-request'
-import type { PrototypeCountSetting } from '../../../../shared/prototype-count-setting'
-import { decideNativeChatPrototypeRequest } from './native-chat-prototype-request-decision'
+import type { PrototypeAgent } from './prototype-request'
+import type { PrototypeCountSetting } from './prototype-count-setting'
+import { decideNativeChatPrototypeRequest } from './prototype-request-decision'
 
 const ALWAYS_3: PrototypeCountSetting = { mode: 'always', count: 3 }
 const ASK: PrototypeCountSetting = { mode: 'ask', count: 2 }

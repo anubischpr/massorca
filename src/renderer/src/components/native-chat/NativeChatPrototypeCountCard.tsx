@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
-import type { NativeChatPrototypeChoice } from './native-chat-prototype-request-decision'
+import type { NativeChatPrototypeChoice } from '../../../../shared/prototype-request-decision'
 import type { NativeChatPrototypeAsk } from './native-chat-prototype-request-store'
 
 const COUNT_CHOICES = [1, 2, 3] as const

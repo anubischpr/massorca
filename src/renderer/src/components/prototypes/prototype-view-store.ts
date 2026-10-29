@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import type { PrototypeFilter } from './prototype-list-model'
-import { createSetState, type PrototypeSetState } from './prototype-set-state'
+import type { PrototypeFilter } from '../../../../shared/prototype-list-model'
+import { createSetState, type PrototypeSetState } from '../../../../shared/prototype-set-state'
 
 // The Prototypes screen state, in memory for the session: the agent filter, the selected set, and
 // each set's screen state. Nothing here is saved; a restart starts every set over.

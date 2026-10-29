@@ -7,7 +7,11 @@ import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototy
 import { PrototypeFrame } from './PrototypeFrame'
 import { PrototypeThumbnail } from './PrototypeThumbnail'
 import { prototypeAgentLabel, prototypeStatusLabel } from './prototype-labels'
-import { latestVersionOf, prototypeStatus, prototypeTitle } from './prototype-list-model'
+import {
+  latestVersionOf,
+  prototypeStatus,
+  prototypeTitle
+} from '../../../../shared/prototype-list-model'
 import {
   backToActive,
   iterateHere,
@@ -20,8 +24,8 @@ import {
   showFocus,
   showSet,
   type PrototypeSetState
-} from './prototype-set-state'
-import { annotateStateOf } from './prototype-set-view'
+} from '../../../../shared/prototype-set-state'
+import { annotateStateOf } from '../../../../shared/prototype-set-view'
 import { usePrototypeFileHtml } from './use-prototype-file-html'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void

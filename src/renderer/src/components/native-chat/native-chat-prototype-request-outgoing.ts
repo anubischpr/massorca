@@ -13,7 +13,7 @@ import { prototypeAgentDisplayName, prototypeAgentForChat } from './native-chat-
 import {
   decideNativeChatPrototypeRequest,
   type NativeChatPrototypeChoice
-} from './native-chat-prototype-request-decision'
+} from '../../../../shared/prototype-request-decision'
 import { prepareNativeChatPrototypeText } from './native-chat-prototype-request-send'
 import { nativeChatPrototypeAsks } from './native-chat-prototype-request-store'
 

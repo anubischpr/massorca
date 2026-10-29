@@ -4,7 +4,7 @@ import type {
   PrototypeListedDirection,
   PrototypeListedSet
 } from '../../../../shared/rpc-contract/prototype-params'
-import { latestVersionOf } from './prototype-list-model'
+import { latestVersionOf } from '../../../../shared/prototype-list-model'
 import { usePrototypeFileHtml } from './use-prototype-file-html'
 
 /** The design size of a thumbnail's page: the desktop frame's width and a 1.6:1 height. */

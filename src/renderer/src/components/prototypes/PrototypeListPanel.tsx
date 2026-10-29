@@ -4,7 +4,7 @@ import {
   PROTOTYPE_FILTERS,
   type PrototypeFilter,
   type PrototypeListRow
-} from './prototype-list-model'
+} from '../../../../shared/prototype-list-model'
 import { prototypeAgentLabel, prototypeFilterLabel, prototypeStatusLabel } from './prototype-labels'
 
 /** The left column: the heading, the agent filter, and one row per set, newest first. */

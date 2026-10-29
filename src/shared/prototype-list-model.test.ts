@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
+import type { PrototypeListedSet } from './rpc-contract/prototype-params'
 import {
   buildPrototypeListRows,
   latestVersionOf,

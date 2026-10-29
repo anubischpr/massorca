@@ -2,17 +2,17 @@ import type {
   NativeChatVisualAnnotateState,
   NativeChatVisualOverride,
   NativeChatVisualStyleOverride
-} from '../../../../shared/native-chat-visual-annotate'
+} from './native-chat-visual-annotate'
 import {
   buildDraft,
   composeIterationMessage,
   type PrototypeDraft,
   type PrototypePin,
   type PrototypeSize
-} from '../../../../shared/prototype-draft'
-import { neutralizePrototypeMarkers } from '../../../../shared/prototype-hidden-instruction'
-import { buildPrototypeIterationInstruction } from '../../../../shared/prototype-request'
-import type { PrototypeListedDirection } from '../../../../shared/rpc-contract/prototype-params'
+} from './prototype-draft'
+import { neutralizePrototypeMarkers } from './prototype-hidden-instruction'
+import { buildPrototypeIterationInstruction } from './prototype-request'
+import type { PrototypeListedDirection } from './rpc-contract/prototype-params'
 import { latestVersionOf } from './prototype-list-model'
 import { pinsOf, type PrototypeSetState } from './prototype-set-state'
 

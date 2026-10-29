@@ -1,8 +1,5 @@
-import type { PrototypeAgent } from '../../../../shared/prototype-request'
-import type {
-  PrototypeListedDirection,
-  PrototypeListedSet
-} from '../../../../shared/rpc-contract/prototype-params'
+import type { PrototypeAgent } from './prototype-request'
+import type { PrototypeListedDirection, PrototypeListedSet } from './rpc-contract/prototype-params'
 
 export const PROTOTYPE_FILTERS = ['all', 'claude', 'codex', 'antigravity', 'gentle-shell'] as const
 

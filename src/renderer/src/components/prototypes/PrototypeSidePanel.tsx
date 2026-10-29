@@ -4,9 +4,13 @@ import type { PrototypeDraftField } from '../../../../shared/prototype-draft'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
 import { PrototypeEditPanel } from './PrototypeEditPanel'
 import { prototypeAgentLabel } from './prototype-labels'
-import { prototypeTitle } from './prototype-list-model'
-import { jumpToDraftItem, setPrompt, type PrototypeSetState } from './prototype-set-state'
-import { draftOf } from './prototype-set-view'
+import { prototypeTitle } from '../../../../shared/prototype-list-model'
+import {
+  jumpToDraftItem,
+  setPrompt,
+  type PrototypeSetState
+} from '../../../../shared/prototype-set-state'
+import { draftOf } from '../../../../shared/prototype-set-view'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
 

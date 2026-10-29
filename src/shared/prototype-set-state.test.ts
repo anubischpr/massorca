@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import type { NativeChatVisualPickedElement } from '../../../../shared/native-chat-visual-annotate'
-import type { PrototypeElementState } from '../../../../shared/prototype-draft'
-import { splitPrototypeHiddenInstruction } from '../../../../shared/prototype-hidden-instruction'
+import type { NativeChatVisualPickedElement } from './native-chat-visual-annotate'
+import type { PrototypeElementState } from './prototype-draft'
+import { splitPrototypeHiddenInstruction } from './prototype-hidden-instruction'
 import {
   backToActive,
   createSetState,

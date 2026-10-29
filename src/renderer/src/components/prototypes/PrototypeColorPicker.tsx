@@ -1,6 +1,6 @@
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
-import { hslToHex, PICKER_HUES, pickerShadeCells } from './prototype-color'
+import { hslToHex, PICKER_HUES, pickerShadeCells } from '../../../../shared/prototype-color'
 
 /** The custom color grid: hue row, shade cells, a preview with its hex, and Done. */
 export function PrototypeColorPicker({

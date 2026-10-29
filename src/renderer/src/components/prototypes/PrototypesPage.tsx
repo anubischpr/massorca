@@ -4,13 +4,13 @@ import type { NativeChatVisualRect } from '../../../../shared/native-chat-visual
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
 import { writePrototypeAttachmentOnHost } from '../../runtime/runtime-prototype-client'
 import { usePrototypeViewStore } from './prototype-view-store'
-import { buildPrototypeListRows } from './prototype-list-model'
+import { buildPrototypeListRows } from '../../../../shared/prototype-list-model'
 import { PrototypeListPanel } from './PrototypeListPanel'
 import { PrototypeSidePanel } from './PrototypeSidePanel'
 import { PrototypeViewer } from './PrototypeViewer'
-import { sendPrototypeIteration } from './prototype-send'
-import type { PrototypeSetState } from './prototype-set-state'
-import { beginSend, sendRefused, sendSucceeded } from './prototype-set-view'
+import { sendPrototypeIteration } from '../../../../shared/prototype-send'
+import type { PrototypeSetState } from '../../../../shared/prototype-set-state'
+import { beginSend, sendRefused, sendSucceeded } from '../../../../shared/prototype-set-view'
 import { usePrototypeSets } from './use-prototype-sets'
 
 const LOCAL_RUNTIME = { kind: 'local' } as const

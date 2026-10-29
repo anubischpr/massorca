@@ -3,8 +3,8 @@ import {
   classifyPrototypeRequest,
   type PrototypeAgent,
   type PrototypeRequest
-} from '../../../../shared/prototype-request'
-import type { PrototypeCountSetting } from '../../../../shared/prototype-count-setting'
+} from './prototype-request'
+import type { PrototypeCountSetting } from './prototype-count-setting'
 
 /** The answer of the "How many prototypes?" card: a count, or the message as typed. */
 export type NativeChatPrototypeChoice = { count: number } | 'as-typed'

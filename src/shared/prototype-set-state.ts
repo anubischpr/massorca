@@ -1,13 +1,13 @@
 import type {
   NativeChatVisualPickedElement,
   NativeChatVisualRect
-} from '../../../../shared/native-chat-visual-annotate'
+} from './native-chat-visual-annotate'
 import type {
   PrototypeDraftField,
   PrototypeElementState,
   PrototypeNotes,
   PrototypePin
-} from '../../../../shared/prototype-draft'
+} from './prototype-draft'
 
 // The screen state of one prototype set: which direction is iterated and which is shown, the pins
 // and their edits, the notes, the prompt and the send. Every transition is a pure function.
