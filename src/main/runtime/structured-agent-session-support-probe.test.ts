@@ -1,18 +1,28 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OrcaRuntimeService } from './orca-runtime'
 import {
   getStructuredAgentSessionHost,
   setStructuredAgentSessionHost
 } from '../native-chat/agent-session-wire/structured-agent-session-registry'
 
-const { isWindowsProcessStartTimeAvailable } = vi.hoisted(() => ({
-  isWindowsProcessStartTimeAvailable: vi.fn(() => true)
-}))
+const { isWindowsProcessStartTimeAvailable, loginShell } = vi.hoisted(() => {
+  const loginShell: { env: Record<string, string> } = { env: {} }
+  return { isWindowsProcessStartTimeAvailable: vi.fn(() => true), loginShell }
+})
 
 vi.mock('../windows/windows-process-table', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   isWindowsProcessStartTimeAvailable
 }))
+vi.mock('../startup/login-shell-environment', () => ({
+  resolveLoginShellEnvironment: async () => loginShell.env
+}))
+
+let root: string
+let bin: string
 
 const originalPlatform = process.platform
 
@@ -61,6 +71,7 @@ function createRuntime(location: TestLocation): OrcaRuntimeService {
   const runtime = new OrcaRuntimeService({ getSettings: () => ({}) } as never)
   const internal = runtime as unknown as {
     resolveStructuredAgentSessionLocation: () => Promise<unknown>
+    resolveRuntimeFileTarget: () => Promise<unknown>
   }
   internal.resolveStructuredAgentSessionLocation = vi.fn(async () => ({
     executionHostId: location.executionHostId,
@@ -68,6 +79,8 @@ function createRuntime(location: TestLocation): OrcaRuntimeService {
     workspaceId: 'workspace-1',
     workspaceKind: location.workspaceKind ?? 'git-worktree'
   }))
+  // The CLI check runs in the workspace's folder, so the probe names one that exists.
+  internal.resolveRuntimeFileTarget = vi.fn(async () => ({ worktree: { path: root } }))
   return runtime
 }
 
@@ -94,13 +107,39 @@ async function expectSupportWithoutInstall(input: {
 }
 
 describe('structured agent-session create-support probe', () => {
-  afterEach(() => {
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), 'orca-create-support-probe-'))
+    bin = join(root, 'bin')
+    await mkdir(bin)
+    // Codex and Claude are offered only where their CLI is installed, so the probe installs stand-ins.
+    for (const name of ['codex', 'claude']) {
+      const file = join(bin, name)
+      await writeFile(file, '#!/bin/sh\n')
+      await chmod(file, 0o755)
+    }
+    loginShell.env = { PATH: bin, HOME: root }
+  })
+
+  afterEach(async () => {
     setPlatform(originalPlatform)
     isWindowsProcessStartTimeAvailable.mockReset()
     isWindowsProcessStartTimeAvailable.mockReturnValue(true)
     setStructuredAgentSessionHost(null)
     vi.restoreAllMocks()
+    await rm(root, { recursive: true, force: true })
   })
+
+  it.each(['codex', 'claude'] as const)(
+    'does not offer %s support when its CLI is not installed on this host',
+    async (agent) => {
+      await rm(join(bin, agent))
+      const support = await createRuntime({
+        executionHostId: 'local',
+        wslDistro: null
+      }).getStructuredAgentSessionCreateSupport('id:workspace-1', agent)
+      expect(support.supported).toBe(false)
+    }
+  )
 
   it.each(['codex', 'claude'] as const)(
     'answers %s support repeatedly without installing the host',

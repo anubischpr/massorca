@@ -42,12 +42,11 @@ describe('ACP agents in the runtime registrations', () => {
     expect(structuredAgentRuntimeRegistration('opencode')?.supportsLaunch).toBeTypeOf('function')
   })
 
-  it('checks every ACP registration at create, so none is offered without its CLI', () => {
-    const acp = STRUCTURED_AGENT_RUNTIME_REGISTRATIONS.filter(
-      ({ definition }) => definition.handleTransport === 'acp'
-    )
-    expect(acp.map(({ definition }) => definition.agent)).toEqual(['grok', 'opencode', 'omp'])
-    for (const { definition, supportsLaunch } of acp) {
+  it('checks every structured registration at create, so none is offered without its CLI', () => {
+    expect(
+      STRUCTURED_AGENT_RUNTIME_REGISTRATIONS.map(({ definition }) => definition.agent)
+    ).toEqual(['pi', 'antigravity', 'codex', 'claude', 'grok', 'opencode', 'omp'])
+    for (const { definition, supportsLaunch } of STRUCTURED_AGENT_RUNTIME_REGISTRATIONS) {
       expect(supportsLaunch, definition.agent).toBeTypeOf('function')
     }
   })

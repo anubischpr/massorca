@@ -46,8 +46,8 @@ const base: Settings = {
   nativeChatShellEnvironmentVariables: []
 }
 
-async function installGrok(): Promise<string> {
-  const file = join(binDir, 'grok')
+async function installCli(name: string): Promise<string> {
+  const file = join(binDir, name)
   await writeFile(file, '#!/bin/sh\n')
   await chmod(file, 0o755)
   return file
@@ -59,13 +59,38 @@ describe('Grok create check on the local host', () => {
   })
 
   it('is offered when its command resolves on the shell PATH', async () => {
-    await installGrok()
+    await installCli('grok')
     expect(await structuredAgentSupportsLaunch('grok', 'id:w', runtimeWith(base))).toBe(true)
   })
 
   it('is offered when the Command setting names a runnable binary', async () => {
-    const file = await installGrok()
+    const file = await installCli('grok')
     const settings = { ...base, agentCmdOverrides: { grok: file } }
     expect(await structuredAgentSupportsLaunch('grok', 'id:w', runtimeWith(settings))).toBe(true)
+  })
+})
+
+describe.each(['claude', 'codex'] as const)('%s create check on the local host', (agent) => {
+  it('is not offered when its CLI does not resolve on the launch PATH', async () => {
+    expect(await structuredAgentSupportsLaunch(agent, 'id:w', runtimeWith(base))).toBe(false)
+  })
+
+  it('is offered when its CLI resolves on the launch PATH', async () => {
+    await installCli(agent)
+    expect(await structuredAgentSupportsLaunch(agent, 'id:w', runtimeWith(base))).toBe(true)
+  })
+
+  it('is offered when the Command setting names a runnable binary', async () => {
+    const file = await installCli(agent)
+    const settings = { ...base, agentCmdOverrides: { [agent]: file } }
+    expect(await structuredAgentSupportsLaunch(agent, 'id:w', runtimeWith(settings))).toBe(true)
+  })
+
+  it('is admitted when the Command setting names no runnable program, so the launch says why', async () => {
+    const settings = {
+      ...base,
+      agentCmdOverrides: { [agent]: join(root, 'missing', agent) }
+    }
+    expect(await structuredAgentSupportsLaunch(agent, 'id:w', runtimeWith(settings))).toBe(true)
   })
 })

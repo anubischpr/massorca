@@ -1,3 +1,4 @@
+import { isAbsolute } from 'node:path'
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import type { TuiAgent } from '../../shared/tui-agent'
 import {
@@ -8,7 +9,10 @@ import {
   hasExplicitTuiLaunchCommand,
   structuredAgentCommandToken
 } from '../../shared/tui-agent-launch-command-override'
-import { AgentSessionPreSpawnError } from './agent-session-wire/structured-agent-session-adapter'
+import {
+  AgentSessionPreSpawnError,
+  isAgentSessionPreSpawnError
+} from './agent-session-wire/structured-agent-session-adapter'
 
 export type StructuredAgentCommandSettings = Partial<
   Pick<GlobalSettings, 'agentCmdOverrides' | 'agentDefaultEnv'>
@@ -57,4 +61,26 @@ export function resolveStructuredAgentCommand(
     })
   }
   return command
+}
+
+/** Whether the CLI a launch spawns is installed here. An unrunnable Command setting is admitted, so
+ *  the launch states its own refusal; a stock binary counts only when it resolves to a file. */
+export function structuredCliInstalled(resolveCommand: () => string): boolean {
+  let command: string
+  try {
+    command = resolveCommand()
+  } catch (error) {
+    if (isAgentSessionPreSpawnError(error)) {
+      return true
+    }
+    throw error
+  }
+  // Why: resolveCliCommand returns the bare name when nothing resolves, so only a path proves an install.
+  return isAbsolute(command)
+}
+
+/** The PATH and home a launch resolves its CLI with, read from the environment it starts from. */
+export function structuredLaunchResolutionOptions(env: Record<string, string>): CommandOptions {
+  const homePath = env.HOME ?? env.USERPROFILE
+  return { pathEnv: env.PATH ?? env.Path ?? null, ...(homePath ? { homePath } : {}) }
 }
