@@ -267,3 +267,26 @@ Mobile review `de46ad2aac6..2d7f41d3993` (triaged 2026-10-29):
 - Kept as follow-ups:
   - `R3-one-level-nesting-deeper-chains`: one level is the design (`keeps a grandchild flat` pins it). A grandchild under its root needs a second indent, which is a sheet design call.
   - `R3-drawer-stub-narrows-coverage`: the stub keeps the drawer's native imports out of the prompt-card suite. The delegation card renders outside the drawer and has its own suite, but the why sheet has no suite; adding one is the follow-up.
+
+T7 review follow-ups (2026-10-29, approved reviews of desktop `a473f6929f9..797eb3bddde` and mobile `797eb3bddde..451d28ff4f7`):
+
+- Fixed in `8e3e161de4f` (desktop, 8 files, +344 / -72):
+  - `R3-not-started-counted-as-finished`: a request that never started is not listed in the popover.
+  - `R3-child-timer-ignores-visibility`: the panel owns the child clock and ticks it only while the popover is visible.
+  - `R3-duplicate-finished-group-name`: finished children share the one Finished group with finished commands.
+  - `R3-copy-branches-uncovered`: test of every status wording in `delegated-child-copy.ts`.
+  - `R3-live-clock-minute-boundary`: the live-row test runs on a fixed clock.
+  - `R3-provider-wiring-unproved`: test that the message list receives the children its journal shows.
+  - Bug: the collapsed "Background tasks" line in the chat summary counts running child sessions, in the same "N running" form.
+- Fixed in `595e0b49852` (mobile, 5 files, +104 / -13):
+  - `R3-pill-sheet-liveness-divergence`: the sheet lists no running child once the stream is lost, as the pill already counts none.
+  - `R3-finished-bound-doubled`: Finished holds 30 rows in all; children take their share first and task rows fill the rest.
+  - `R3-host-clock-offset-unproved`: test that the live row reads elapsed time on the host clock.
+  - `R3-lost-stream-assertion-weak`: test that a lost stream with a turn running lists no child in the open sheet.
+  - `R3-mixed-finished-group-unproved`: test that a settled child and a settled task share one Finished group.
+  - Bug: mobile's pill already counts live children as agents, so it needed no change.
+- Skipped:
+  - `R3-agents-empty-line-suppressed`: unreachable. The summary renders the agents panel only when it holds agent rows, so that section's empty line never shows.
+- Decision: children take their share of the Finished bound first, so 30 finished children hide finished tasks in the sheet. Revisit if that trade is wrong.
+- Open, not fixed: the mobile sheet's child clock does not tick while only a child runs. `useNow` in `MobileNativeChatBackgroundTasks.tsx` is enabled only by a working turn or live task rows, so the elapsed time freezes while the sheet is open.
+- Checks: desktop `src/renderer/src/components/native-chat` 412 files, 4179 tests passed; mobile touched suites 5 files, 39 tests passed; `pnpm tc:web` exit 0; mobile `pnpm run typecheck` exit 0; `oxlint` exit 0 and `oxfmt --check` clean on the changed files; `pnpm run build:mobile-web` exit 0 at 169 assets.
