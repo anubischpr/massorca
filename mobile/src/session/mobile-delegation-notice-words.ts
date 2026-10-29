@@ -52,6 +52,6 @@ export function durationText(durationMs: number | null): string | null {
   return `${Math.floor(minutes / 60)} h ${minutes % 60} min`
 }
 
-function agentLabel(agent: string): string {
+export function agentLabel(agent: string): string {
   return MOBILE_AGENT_CATALOG.find((entry) => entry.id === agent)?.label ?? agent
 }

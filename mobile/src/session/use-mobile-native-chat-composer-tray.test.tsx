@@ -48,6 +48,7 @@ vi.mock('../components/AgentStateDot', () => ({
   AGENT_WORKING_COLOR: '#eab308',
   AgentStateDot: 'AgentStateDot'
 }))
+vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: 'MobileAgentIcon' }))
 vi.mock('../components/BottomDrawer', async () => {
   const React = await import('react')
   return {

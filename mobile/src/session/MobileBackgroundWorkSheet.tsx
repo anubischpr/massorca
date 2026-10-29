@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ChevronDown, ChevronRight } from 'lucide-react-native'
 import type { AgentChildRowModel } from '../../../src/shared/agent-child-row-model'
+import type { DelegatedChild } from '../../../src/shared/delegated-children'
 import { sayBackgroundTaskEnglish as say } from '../../../src/shared/background-task-copy'
 import {
   backgroundTaskRowMeta,
@@ -16,10 +17,13 @@ import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import { BackgroundTaskKindIcon } from './MobileBackgroundTaskKindIcon'
 import { mobileAgentChildRowName, mobileAgentChildRowText } from './mobile-agent-child-row-text'
 import { splitBackgroundWorkSections } from './mobile-background-work-sections'
+import { MobileBackgroundChildRow, backgroundChildOpen } from './MobileBackgroundChildRow'
+import type { BackgroundChildSessions } from './mobile-delegated-child-rows'
 
 export type BackgroundWorkStopping = { taskIds: ReadonlySet<string>; all: boolean }
 
 const NO_FINISHED: readonly BackgroundTaskGroup[] = []
+const NO_CHILDREN: readonly DelegatedChild[] = []
 
 // hitSlop requests 44pt hit rects; compact native parent bounds still limit their reach.
 const MIN_TOUCH_TARGET = 44
@@ -36,6 +40,8 @@ type Props = {
   onStop: (taskId?: string) => void
   /** Work this phone watched end, under a section collapsed until opened. */
   finished?: readonly BackgroundTaskGroup[]
+  /** The delegated child sessions this chat started: running ones first, settled ones under Finished. */
+  childSessions?: BackgroundChildSessions
   /** What the sheet says when nothing runs or finished lists; defaults to the host's "unavailable" line. */
   emptyNote?: string
 }
@@ -52,6 +58,7 @@ export function MobileBackgroundWorkSheet({
   stopping,
   onStop,
   finished = NO_FINISHED,
+  childSessions,
   emptyNote = say('detailsUnavailable')
 }: Props): React.JSX.Element {
   const [finishedOpen, setFinishedOpen] = useState(false)
@@ -70,9 +77,26 @@ export function MobileBackgroundWorkSheet({
   const taskRows = sections.tasks.flatMap((group) => group.tasks.map((entry) => entry.row))
   const agentRows = sections.agents.flatMap((group) => group.tasks.map((entry) => entry.row))
   const finishedRows = finished.flatMap((group) => group.tasks.map((entry) => entry.row))
+  const childRunning = childSessions?.running ?? NO_CHILDREN
+  const childFinished = childSessions?.finished ?? NO_CHILDREN
+  const finishedCount = finishedRows.length + childFinished.length
+  const renderChild = (child: DelegatedChild): React.JSX.Element => (
+    <MobileBackgroundChildRow
+      key={child.requestId}
+      child={child}
+      hostNow={hostNow}
+      onOpen={backgroundChildOpen(child, childSessions)}
+    />
+  )
   return (
     <BottomDrawer visible={visible} onClose={onClose} dragContentToDismiss contentScrollable>
       <Text style={styles.title}>Background work</Text>
+      {childRunning.length > 0 ? (
+        <View>
+          <SheetSectionLabel label="Child sessions" count={childRunning.length} />
+          <View style={styles.group}>{childRunning.map(renderChild)}</View>
+        </View>
+      ) : null}
       {taskRows.length > 0 ? (
         <View>
           <SheetSectionLabel label="Tasks" count={taskRows.length} />
@@ -85,14 +109,17 @@ export function MobileBackgroundWorkSheet({
           <View style={styles.group}>{agentRows.map(renderRow)}</View>
         </View>
       ) : null}
-      {taskRows.length === 0 && agentRows.length === 0 && finishedRows.length === 0 ? (
+      {taskRows.length === 0 &&
+      agentRows.length === 0 &&
+      childRunning.length === 0 &&
+      finishedCount === 0 ? (
         <Text style={styles.unavailable}>{emptyNote}</Text>
       ) : null}
-      {finishedRows.length > 0 ? (
+      {finishedCount > 0 ? (
         <View>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Finished, ${finishedRows.length}`}
+            accessibilityLabel={`Finished, ${finishedCount}`}
             accessibilityState={{ expanded: finishedOpen }}
             hitSlop={6}
             style={({ pressed }) => [styles.finishedToggle, pressed && styles.pressed]}
@@ -104,10 +131,15 @@ export function MobileBackgroundWorkSheet({
               <ChevronRight size={14} color={colors.textMuted} strokeWidth={2} />
             )}
             <View style={styles.finishedLabel}>
-              <SheetSectionLabel label="Finished" count={finishedRows.length} />
+              <SheetSectionLabel label="Finished" count={finishedCount} />
             </View>
           </Pressable>
-          {finishedOpen ? <View style={styles.group}>{finishedRows.map(renderRow)}</View> : null}
+          {finishedOpen ? (
+            <View style={styles.group}>
+              {childFinished.map(renderChild)}
+              {finishedRows.map(renderRow)}
+            </View>
+          ) : null}
         </View>
       ) : null}
       {!view.supportsStop && view.supportsStopAll ? (

@@ -7,7 +7,9 @@ import {
   type BackgroundTaskGroup
 } from '../../../src/shared/background-task-roster'
 import { structuredSessionBackgroundTasksView } from '../../../src/shared/structured-session-background-tasks-view'
+import type { DelegatedChild } from '../../../src/shared/delegated-children'
 import { MobileBackgroundWorkSheet } from './MobileBackgroundWorkSheet'
+import type { BackgroundChildSessions } from './mobile-delegated-child-rows'
 
 const NOW = 10_000_000
 
@@ -26,6 +28,7 @@ vi.mock('lucide-react-native', () => ({
   SquareTerminal: 'SquareTerminal',
   Workflow: 'Workflow'
 }))
+vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: 'MobileAgentIcon' }))
 vi.mock('../components/AgentStateDot', () => ({
   AGENT_WORKING_COLOR: '#eab308',
   AgentStateDot: 'AgentStateDot'
@@ -169,6 +172,117 @@ describe('MobileBackgroundWorkSheet', () => {
       const mounted = render([], { emptyNote: 'No background work is running.' })
       expect(texts(mounted)).toContain('No background work is running.')
       expect(texts(mounted)).not.toContain(say('detailsUnavailable'))
+    })
+  })
+
+  describe('delegated child sessions', () => {
+    const child = (overrides: Partial<DelegatedChild>): DelegatedChild => ({
+      requestId: 'request-1',
+      title: 'Explore Phase 3 improvements',
+      status: 'working',
+      agent: 'codex',
+      model: null,
+      effort: 'medium',
+      automatic: true,
+      childSessionId: 'child-1',
+      startedAt: NOW - 4 * 60_000,
+      resultSummary: null,
+      durationMs: null,
+      reason: null,
+      ...overrides
+    })
+
+    function sessions(
+      parts: Partial<BackgroundChildSessions> & { canOpen?: (id: string) => boolean } = {}
+    ): BackgroundChildSessions {
+      return {
+        running: [],
+        finished: [],
+        canOpen: () => true,
+        open: vi.fn(),
+        ...parts
+      }
+    }
+
+    function childRows(mounted: ReactTestRenderer): ReactTestInstance[] {
+      return mounted.root.findAll((node) => node.props.testID === 'background-child-row')
+    }
+
+    function openRows(mounted: ReactTestRenderer): ReactTestInstance[] {
+      return childRows(mounted).filter((node) => String(node.type) === 'Pressable')
+    }
+
+    it('lists a running child under Child sessions with its agent, status and elapsed time', () => {
+      const mounted = render([], { childSessions: sessions({ running: [child({})] }) })
+
+      expect(texts(mounted)).toContain('Child sessions')
+      expect(texts(mounted)).toContain('Explore Phase 3 improvements')
+      expect(childRows(mounted).map(textOf)).toEqual([
+        'Explore Phase 3 improvements' + 'Codex · working · 4 min'
+      ])
+    })
+
+    it('opens the child when its whole row is pressed, and offers no press without a target', () => {
+      const open = vi.fn()
+      const mounted = render([], { childSessions: sessions({ running: [child({})], open }) })
+      const row = openRows(mounted)[0]!
+      expect(row.props.accessibilityLabel).toBe('Open child chat: Explore Phase 3 improvements')
+
+      act(() => row.props.onPress())
+      expect(open).toHaveBeenCalledWith('child-1')
+
+      const unopenable = render([], {
+        childSessions: sessions({ running: [child({})], canOpen: () => false })
+      })
+      expect(childRows(unopenable)).toHaveLength(1)
+      expect(openRows(unopenable)).toHaveLength(0)
+    })
+
+    it('reads a child that never started as did not start, with no agent mark', () => {
+      const mounted = render([], {
+        childSessions: sessions({
+          finished: [child({ status: 'not-started', agent: null, startedAt: null })],
+          canOpen: () => false
+        })
+      })
+      const toggle = mounted.root.findAll(
+        (node) =>
+          String(node.type) === 'Pressable' &&
+          typeof node.props.accessibilityLabel === 'string' &&
+          node.props.accessibilityLabel.startsWith('Finished')
+      )[0]!
+      act(() => toggle.props.onPress())
+
+      expect(childRows(mounted).map(textOf)).toEqual(['Explore Phase 3 improvementsdid not start'])
+      expect(mounted.root.findAll((node) => String(node.type) === 'MobileAgentIcon')).toHaveLength(
+        0
+      )
+    })
+
+    it('counts finished children in the Finished section, collapsed until opened', () => {
+      const mounted = render([], {
+        childSessions: sessions({
+          finished: [
+            child({
+              requestId: 'request-2',
+              title: 'Review auth',
+              status: 'succeeded',
+              durationMs: 12 * 60_000
+            })
+          ]
+        })
+      })
+      const toggle = mounted.root.findAll(
+        (node) =>
+          String(node.type) === 'Pressable' &&
+          typeof node.props.accessibilityLabel === 'string' &&
+          node.props.accessibilityLabel.startsWith('Finished')
+      )[0]!
+      expect(toggle.props.accessibilityLabel).toBe('Finished, 1')
+      expect(childRows(mounted)).toHaveLength(0)
+
+      act(() => toggle.props.onPress())
+      expect(childRows(mounted).map(textOf)).toEqual(['Review authCodex · succeeded · 12 min'])
     })
   })
 })

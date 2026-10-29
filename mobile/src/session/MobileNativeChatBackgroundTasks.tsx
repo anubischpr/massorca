@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef, useState } from 'react'
+import { memo, useContext, useMemo, useRef, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { sayBackgroundTaskEnglish as say } from '../../../src/shared/background-task-copy'
 import {
@@ -18,6 +18,13 @@ import {
 } from './mobile-chat-status-pill'
 import { NO_BACKGROUND_WORK_NOTE } from './mobile-background-work-notes'
 import { mergeFinishedBackgroundRows, settledHistoryRows } from './mobile-finished-background-work'
+import { MobileDelegatedChildContext } from './mobile-delegated-child-access'
+import {
+  finishedDelegatedChildren,
+  MobileDelegatedChildrenContext,
+  runningDelegatedChildren,
+  type BackgroundChildSessions
+} from './mobile-delegated-child-rows'
 import { useSeenBackgroundWork } from './use-mobile-seen-background-work'
 import type { MobileStructuredBackgroundTasks } from './use-mobile-structured-background-tasks'
 
@@ -75,13 +82,41 @@ function MobileNativeChatBackgroundTasksImpl({
     [seenFinished, historyFinished, rows]
   )
   const finished = useMemo(() => groupBackgroundTaskRows(finishedRows), [finishedRows])
+  // The chat's delegated children read from its journal; a lost stream claims none of them running.
+  const delegated = useContext(MobileDelegatedChildrenContext)
+  const delegatedAccess = useContext(MobileDelegatedChildContext)
+  const childRunning = useMemo(
+    () => runningDelegatedChildren(delegated.children),
+    [delegated.children]
+  )
+  const childFinished = useMemo(
+    () => finishedDelegatedChildren(delegated.children),
+    [delegated.children]
+  )
+  const childSessions = useMemo<BackgroundChildSessions | undefined>(
+    () =>
+      delegated.children.length > 0
+        ? {
+            running: childRunning,
+            finished: childFinished,
+            canOpen: (childSessionId) => delegatedAccess?.hasChild(childSessionId) ?? false,
+            open: (childSessionId) => {
+              setSheetOpen(false)
+              delegatedAccess?.openChild(childSessionId)
+            }
+          }
+        : undefined,
+    [delegated.children.length, childRunning, childFinished, delegatedAccess]
+  )
+  const liveChildRunning = rowContext.transportObservation === 'live' ? childRunning.length : 0
+  const pillCounts = mobileStatusPillCounts(groups)
   const pill = mobileChatStatusPill({
     working,
     startedAt,
     now: hostNow,
-    counts: mobileStatusPillCounts(groups),
-    hasBackgroundWork: view.show,
-    finishedCount: mobileStatusPillFinishedCount(finished),
+    counts: { terminals: pillCounts.terminals, agents: pillCounts.agents + liveChildRunning },
+    hasBackgroundWork: view.show || liveChildRunning > 0,
+    finishedCount: mobileStatusPillFinishedCount(finished) + childFinished.length,
     live: rowContext.transportObservation === 'live'
   })
   if (!pill.visible) {
@@ -125,6 +160,7 @@ function MobileNativeChatBackgroundTasksImpl({
         stopping={stopping}
         onStop={onStop}
         finished={finished}
+        childSessions={childSessions}
         // Unlisted running work is named as such; a plain turn with nothing running says so.
         emptyNote={view.show ? say('detailsUnavailable') : NO_BACKGROUND_WORK_NOTE}
       />
