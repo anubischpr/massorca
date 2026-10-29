@@ -2,6 +2,7 @@
 // are relative to the chat's visuals folder.
 
 export const PROTOTYPE_FOLDER = 'prototypes'
+export const PROTOTYPE_MANIFEST_FILE_NAME = 'request.json'
 export const PROTOTYPE_DIRECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'

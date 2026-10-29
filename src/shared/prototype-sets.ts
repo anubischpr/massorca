@@ -28,8 +28,9 @@ export type PrototypeSet = {
   directions: PrototypeDirection[]
 }
 
-const REQUEST_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u
+export const REQUEST_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u
 const GENTLE_DESIGN_FOLDER = 'design'
+const MANIFEST_TEXT_MAX_LENGTH = 512
 
 const prototypeRequestManifestSchema = z.object({
   version: z.literal(1),
@@ -39,7 +40,12 @@ const prototypeRequestManifestSchema = z.object({
   originalPrompt: z.string(),
   count: z.int().min(PROTOTYPE_COUNT_MIN).max(PROTOTYPE_COUNT_MAX),
   createdAt: z.iso.datetime(),
-  gentleDesignBaseline: z.array(z.string()).optional()
+  gentleDesignBaseline: z.array(z.string()).optional(),
+  // Optional, so manifests written before these fields existed still parse.
+  worktreeId: z.string().min(1).max(MANIFEST_TEXT_MAX_LENGTH).optional(),
+  chatTitle: z.string().max(MANIFEST_TEXT_MAX_LENGTH).optional(),
+  // The chat's launch directory on the host: where Gentle Shell's design/ folder lives.
+  sessionCwd: z.string().min(1).max(4096).optional()
 })
 
 export type PrototypeRequestManifest = z.infer<typeof prototypeRequestManifestSchema>
