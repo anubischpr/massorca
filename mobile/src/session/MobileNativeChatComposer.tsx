@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { ArrowUp, ImagePlus, Mic, Square, X } from 'lucide-react-native'
 import { colors, radii, spacing } from '../theme/mobile-theme'
-import { structuredSlashCommands } from '../../../src/shared/structured-agent-session-composer'
+import { structuredChatSlashCommands } from '../prototypes/mobile-prototype-slash-commands'
 import type { AgentSessionConversationCommand } from '../../../src/shared/agent-session-conversation-command'
 import {
   applyAutocomplete,
@@ -140,7 +140,7 @@ export function MobileNativeChatComposer({
       // Why: a hidden row is a typed alias the chat answers but never lists, same as desktop.
       const commands = (
         structuredCommands !== undefined
-          ? structuredSlashCommands(structuredCommands, agent)
+          ? structuredChatSlashCommands(structuredCommands, agent)
           : agent
             ? getMobileNativeChatCommands(agent)
             : []

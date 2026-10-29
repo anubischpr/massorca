@@ -1,4 +1,5 @@
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
+import { withoutPrototypeHiddenInstruction } from '../../../src/shared/prototype-hidden-blocks'
 
 /** `mcp__<server>__<tool>`; a server name may hold a single underscore. */
 const CONNECTOR_TOOL_NAME = /^mcp__(.+?)__/
@@ -63,7 +64,8 @@ export function chatTitleFromMessages(messages: readonly NativeChatMessage[]): s
     if (message.role !== 'user' || message.agentId !== undefined) {
       continue
     }
-    const text = message.blocks
+    // A prototype request's hidden instruction is never part of the title.
+    const text = withoutPrototypeHiddenInstruction(message.blocks)
       .map((block) => (block.type === 'text' ? block.text : ''))
       .join(' ')
       .replace(/\s+/g, ' ')

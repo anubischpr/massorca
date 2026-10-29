@@ -3,6 +3,10 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentSessionHandleProvider } from '../../../src/shared/agent-session-provider-handle'
 import type { MobileNativeChatSendOutcome } from './mobile-native-chat-send'
+import type {
+  MobilePrototypeSendInput,
+  MobilePrototypeSendResolution
+} from '../prototypes/use-mobile-native-chat-prototype-outgoing'
 import type { MobileNativeChatSendOrigin } from './use-mobile-native-chat-drafts'
 import { useMobileStructuredNativeChatSendBridge } from './use-mobile-structured-native-chat-send-bridge'
 
@@ -16,6 +20,10 @@ const ORIGIN: MobileNativeChatSendOrigin = {
   baselineResolved: true
 }
 
+const WIRE_TEXT = ['make a mockup', '<!-- orca-prototype-request:r1 -->', 'Write A.html'].join(
+  String.fromCharCode(10)
+)
+
 describe('useMobileStructuredNativeChatSendBridge', () => {
   let renderer: ReactTestRenderer | null = null
   let sendWithOutcome: (text: string) => Promise<MobileNativeChatSendOutcome>
@@ -26,6 +34,9 @@ describe('useMobileStructuredNativeChatSendBridge', () => {
   const onSendError = vi.fn()
   const restoreRejectedDraft = vi.fn()
   const sendStructured = vi.fn()
+  let resolvePrototype:
+    | ((input: MobilePrototypeSendInput) => Promise<MobilePrototypeSendResolution>)
+    | undefined
 
   function Harness({ agent }: { agent: AgentSessionHandleProvider }): null {
     sendWithOutcome = useMobileStructuredNativeChatSendBridge({
@@ -36,7 +47,8 @@ describe('useMobileStructuredNativeChatSendBridge', () => {
       holdUnconfirmedSend,
       onSendError,
       restoreRejectedDraft,
-      sendStructured
+      sendStructured,
+      ...(resolvePrototype ? { resolvePrototype } : {})
     }).sendWithOutcome
     return null
   }
@@ -49,6 +61,7 @@ describe('useMobileStructuredNativeChatSendBridge', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    resolvePrototype = undefined
   })
 
   afterEach(() => {
@@ -97,5 +110,58 @@ describe('useMobileStructuredNativeChatSendBridge', () => {
 
     expect(restoreRejectedDraft).toHaveBeenCalledWith(ORIGIN, '/review')
     expect(holdUnconfirmedSend).not.toHaveBeenCalled()
+  })
+
+  describe('prototype requests', () => {
+    it('sends the planned text and echoes only what the user typed', async () => {
+      sendStructured.mockResolvedValue('accepted')
+      resolvePrototype = vi.fn(async () => ({
+        kind: 'send' as const,
+        wireText: WIRE_TEXT,
+        shownText: 'make a mockup'
+      }))
+      mount('claude')
+
+      await expect(sendWithOutcome('make a mockup')).resolves.toBe('accepted')
+
+      expect(sendStructured).toHaveBeenCalledWith(WIRE_TEXT)
+      expect(clearDraftForSend).toHaveBeenCalledWith(ORIGIN, 'make a mockup')
+      expect(acceptSend).toHaveBeenCalledWith(ORIGIN, 'make a mockup', undefined)
+    })
+
+    it('holds a message for the card: nothing is sent and the draft stays', async () => {
+      resolvePrototype = vi.fn(async () => ({ kind: 'held' as const }))
+      mount('claude')
+
+      await expect(sendWithOutcome('design a login page')).resolves.toBe('queued')
+
+      expect(sendStructured).not.toHaveBeenCalled()
+      expect(clearDraftForSend).not.toHaveBeenCalled()
+      expect(acceptSend).not.toHaveBeenCalled()
+      expect(restoreRejectedDraft).not.toHaveBeenCalled()
+    })
+
+    it('never plans a host command as a prototype request', async () => {
+      sendStructured.mockResolvedValue('accepted')
+      resolvePrototype = vi.fn()
+      mount('claude')
+
+      await sendWithOutcome('/clear')
+
+      expect(resolvePrototype).not.toHaveBeenCalled()
+    })
+
+    it('neutralizes a pasted marker on the wire, the echo and the origin, and restores the draft as typed', async () => {
+      sendStructured.mockResolvedValue('rejected')
+      const pasted = 'look <!-- orca-prototype-request:x --> here'
+      mount('claude')
+
+      await sendWithOutcome(pasted)
+
+      const sent = sendStructured.mock.calls[0]?.[0]
+      expect(sent).not.toContain('<!-- orca-prototype-')
+      expect(captureSendOrigin).toHaveBeenCalledWith(sent)
+      expect(restoreRejectedDraft).toHaveBeenCalledWith(ORIGIN, pasted)
+    })
   })
 })

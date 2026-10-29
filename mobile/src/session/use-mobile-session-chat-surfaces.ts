@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
 import {
   clearMobileChatSurfaceSnapshot,
   mobileChatSurfaceKey,
@@ -111,7 +112,19 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
   )
   const openSummary = useCallback(() => openChatRoute('chat-summary'), [openChatRoute])
   const openArtifacts = useCallback(() => openChatRoute('chat-artifacts'), [openChatRoute])
+  const openPrototypeSet = useCallback(
+    (set: PrototypeListedSet) =>
+      router.push({
+        pathname: set.count <= 1 ? '/h/[hostId]/prototypes/viewer' : '/h/[hostId]/prototypes/set',
+        params: { hostId, request: set.requestId }
+      }),
+    [hostId, router]
+  )
   const openBranch = useCallback(() => handlePanelTap('sourceControl'), [handlePanelTap])
+  const openPrototypeSettings = useCallback(
+    () => router.push(`/h/${encodeURIComponent(hostId)}/prototype-settings`),
+    [hostId, router]
+  )
   // Same route the Artifacts list opens, for a page tapped from the transcript.
   const openArtifactViewer = useCallback(
     (target: MobileArtifactTarget) => {
@@ -156,6 +169,8 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     openSummary,
     openArtifacts,
     openArtifactViewer,
+    openPrototypeSettings,
+    openPrototypeSet,
     openBranch,
     showHeaderMoreButton: headerMenu.showButton
   }

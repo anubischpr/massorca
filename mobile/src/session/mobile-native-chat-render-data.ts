@@ -8,6 +8,8 @@ import { stripNoiseMessages } from '../../../src/shared/native-chat-noise'
 import { isWordlessProviderFrameMessage } from '../../../src/shared/native-chat-provider-frame-summary'
 import { foldToolMessages } from '../../../src/shared/native-chat-tool-fold'
 import { isImageRefBlock, type NativeChatMessage } from '../../../src/shared/native-chat-types'
+import { withoutPrototypeHiddenInstruction } from '../../../src/shared/prototype-hidden-blocks'
+import { splitPrototypeHiddenInstruction } from '../../../src/shared/prototype-hidden-instruction'
 import {
   isImageSourceUserTurn,
   normalizeImageTranscriptMessages
@@ -55,6 +57,15 @@ export type MobileNativeChatPendingItem = {
   baselineTailMessageId?: string | null
 }
 
+/** A user turn without the instruction MassOrca hid behind it; the same message when it has none. */
+function withoutHiddenPrototypeText(message: NativeChatMessage): NativeChatMessage {
+  if (message.role !== 'user') {
+    return message
+  }
+  const blocks = withoutPrototypeHiddenInstruction(message.blocks)
+  return blocks === message.blocks ? message : { ...message, blocks }
+}
+
 export function foldMobileNativeChatMessages(
   messages: readonly NativeChatMessage[]
 ): NativeChatMessage[] {
@@ -67,9 +78,11 @@ export function foldMobileNativeChatMessages(
   return stripNoiseMessages(
     foldToolMessages(
       normalizeImageTranscriptMessages(
-        messages.filter(
-          (message) => isRootAgentJournalItem(message) && !isWordlessProviderFrameMessage(message)
-        )
+        messages
+          .filter(
+            (message) => isRootAgentJournalItem(message) && !isWordlessProviderFrameMessage(message)
+          )
+          .map(withoutHiddenPrototypeText)
       )
     )
   )
@@ -154,13 +167,15 @@ export function buildMobileNativeChatTransientData({
     }
   }
   for (const item of pending) {
+    // The echo shows what was typed, never an instruction that rides behind it.
+    const visibleText = splitPrototypeHiddenInstruction(item.text).visibleText
     const bubble: NativeChatMessage = {
       id: item.id,
       role: 'user',
       // Text first (when present), then a thumbnail per ridden-along image so the
       // sent photo shows immediately, before the transcript echo lands.
       blocks: [
-        ...(item.text ? [{ type: 'text' as const, text: item.text }] : []),
+        ...(visibleText ? [{ type: 'text' as const, text: visibleText }] : []),
         ...(item.images ?? []).map((uri) => ({ type: 'image-ref' as const, url: uri }))
       ],
       timestamp: null,

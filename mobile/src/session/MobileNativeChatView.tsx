@@ -156,6 +156,8 @@ type Props = ComposerTrayProps & {
   topInset?: number
   /** The inline cards a turn's last message carries; the overlay supplies them. */
   renderTurnArtifacts?: (messageId: string) => React.ReactNode
+  /** The "How many prototypes?" card, docked directly above the composer. */
+  prototypeCard?: React.ReactNode
 }
 
 export function MobileNativeChatView({
@@ -220,7 +222,8 @@ export function MobileNativeChatView({
   onOpenFile,
   keyboardInset = 0,
   topInset = 0,
-  renderTurnArtifacts
+  renderTurnArtifacts,
+  prototypeCard = null
 }: Props): React.JSX.Element {
   const insets = useSafeAreaInsets()
   const [toolsExpanded, setToolsExpanded] = useState(false)
@@ -435,6 +438,7 @@ export function MobileNativeChatView({
           <Text style={styles.sendErrorText}>{sendErrorMessage}</Text>
         </View>
       ) : null}
+      {prototypeCard}
       <MobileNativeChatComposer
         structuredCommands={
           structuredActivityUi ? (sessionOptions?.controller.conversationCommands ?? []) : undefined
