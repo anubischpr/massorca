@@ -182,7 +182,7 @@ export class WebRuntimeClient {
     this.subscriptions.set(id, subscription)
     if (!this.sendEncrypted({ id, deviceToken: this.pairing.deviceToken, method, params })) {
       this.subscriptions.delete(id)
-      throw new Error('Remote Orca runtime is not connected.')
+      throw new Error('Remote MassOrca runtime is not connected.')
     }
     return {
       unsubscribe: () => {
