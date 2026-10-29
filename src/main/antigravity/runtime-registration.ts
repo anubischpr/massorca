@@ -84,7 +84,8 @@ export const ANTIGRAVITY_RUNTIME_REGISTRATION: StructuredAgentRuntimeRegistratio
           : {}),
         resolveLaunchArgs: () => context.deps.resolveLaunchArgs('antigravity'),
         resolveDelegationInstructionsFolder: () =>
-          ensureDelegationInstructionsFolder(context.deps.stateDirectory)
+          ensureDelegationInstructionsFolder(context.deps.stateDirectory),
+        logger: context.deps.logger
       }),
       ...(context.deps.readProcessStartTime
         ? { readProcessStartTime: context.deps.readProcessStartTime }

@@ -1,7 +1,20 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import type * as OrcaCliChildPath from '../cli/orca-cli-child-path'
 import { DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE } from '../delegated-session/delegation-agent-instructions'
 import { resolveProviderChildEnv } from '../provider-process/provider-process-launch'
 import { buildPiRpcLaunch } from './rpc-launch'
+
+const launcher = vi.hoisted(() => ({ resolved: true }))
+
+vi.mock('../cli/orca-cli-child-path', async (importOriginal) => {
+  const original = await importOriginal<typeof OrcaCliChildPath>()
+  return {
+    ...original,
+    prependOrcaCliDirToChildPath: (
+      ...args: Parameters<typeof original.prependOrcaCliDirToChildPath>
+    ) => (launcher.resolved ? original.prependOrcaCliDirToChildPath(...args) : null)
+  }
+})
 
 const options = { command: 'host-resolved-pi', cwd: '/host/folder', fullAccess: true }
 describe('Pi RPC launch', () => {
@@ -110,6 +123,7 @@ describe('Pi RPC launch', () => {
   })
 
   it('appends the child-session instructions to the system prompt of a structured chat only', () => {
+    launcher.resolved = true
     const structured = buildPiRpcLaunch({
       ...options,
       extraArgs: ['--model', 'm'],
@@ -127,5 +141,15 @@ describe('Pi RPC launch', () => {
       '/host/.pi/agent/sessions/session.jsonl'
     ])
     expect(buildPiRpcLaunch(options).args).not.toContain('--append-system-prompt')
+  })
+
+  it('adds no flag to a structured chat whose Orca CLI launcher did not resolve', () => {
+    launcher.resolved = false
+    const launch = buildPiRpcLaunch({
+      ...options,
+      structuredSession: { id: 'this-session', spawnToken: 'this-token' }
+    })
+    launcher.resolved = true
+    expect(launch.args).toEqual(['--mode', 'rpc'])
   })
 })

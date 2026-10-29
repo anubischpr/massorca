@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { CLI_GLOBAL_FLAGS } from '../../shared/cli-argument-boundary'
 import {
   DELEGATION_AGENT_INSTRUCTIONS,
   DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE,
@@ -18,8 +19,9 @@ describe('delegation agent instructions', () => {
     const allowed = /allowedFlags: \[([^\]]*)\]/.exec(delegate)?.[1] ?? ''
     const flags = [...DELEGATION_AGENT_INSTRUCTIONS.matchAll(/--([a-z-]+)/g)].map((m) => m[1])
     expect(flags).toEqual(expect.arrayContaining(['summary', 'prompt', 'title', 'writes', 'json']))
-    for (const flag of flags.filter((name) => name !== 'json')) {
-      expect(allowed).toContain(`'${flag}'`)
+    // `json` is accepted through the shared global flags, not the command's own list.
+    for (const flag of flags) {
+      expect(CLI_GLOBAL_FLAGS.includes(flag) || allowed.includes(`'${flag}'`)).toBe(true)
     }
   })
 

@@ -29,7 +29,7 @@ const identity = {
 
 function resolve(
   agent: 'grok' | 'opencode' | 'omp',
-  options: { folder?: string | null; inline?: string } = {}
+  options: { folder?: string | null; inline?: string; versionKnown?: boolean } = {}
 ) {
   const spec = acpLaunchSpecFor(agent)!
   const accountHome: AgentSessionRecord['accountHome'] =
@@ -55,7 +55,8 @@ function resolve(
     resolveLaunchEnv: () => launchEnv,
     resolveCommand: (command) => `/resolved/${command}`,
     inheritedEnv: {},
-    probeVersion: async (_input, supports) => supports(agent === 'omp' ? '18.4.5' : '1.18.31'),
+    probeVersion: async (_input, supports) =>
+      options.versionKnown === false ? true : supports(agent === 'omp' ? '18.4.5' : '1.18.31'),
     resolveDelegationInstructionsFolder: async () =>
       options.folder === undefined ? FOLDER : options.folder
   })({ identity: { ...identity, agent } })
@@ -116,5 +117,11 @@ describe('ACP launch delegation instructions', () => {
     const noCli = await resolve('omp')
     expect(noCli.args).toEqual(['acp'])
     expect((await resolve('opencode')).env.OPENCODE_CONFIG_CONTENT).toBeUndefined()
+  })
+
+  it('gives OMP no flag when its version could not be read', async () => {
+    launcher.resolved = true
+    const launch = await resolve('omp', { versionKnown: false })
+    expect(launch.args).toEqual(['acp'])
   })
 })

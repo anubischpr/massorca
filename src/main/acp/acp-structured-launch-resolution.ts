@@ -230,6 +230,7 @@ export function createAcpStructuredLaunchResolver(
     // Why: the agent's own subagent tool otherwise answers "create a child session".
     const delegation = await loadAcpDelegationInstructions(spec.agent, {
       sessionId: identity.sessionId,
+      version: launchVersion.version,
       env: childEnvironmentView(
         { ...env, ...skill?.env },
         deps.inheritedEnv ?? process.env,

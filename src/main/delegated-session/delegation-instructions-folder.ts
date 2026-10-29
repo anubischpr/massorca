@@ -1,5 +1,6 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { durableWriteTempPath, writeFileDurable } from '../durable-file-write'
 import { DELEGATION_AGENT_INSTRUCTIONS } from './delegation-agent-instructions'
 
 const INSTRUCTIONS_FOLDER = 'delegation-instructions'
@@ -18,7 +19,8 @@ export async function ensureDelegationInstructionsFolder(
   try {
     if ((await readFile(file, 'utf8').catch(() => null)) !== content) {
       await mkdir(folder, { recursive: true })
-      await writeFile(file, content, 'utf8')
+      // Why: two chats starting together must never leave one reading a half-written file.
+      await writeFileDurable(durableWriteTempPath(file), file, content)
     }
     return folder
   } catch {

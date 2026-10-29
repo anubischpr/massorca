@@ -3,6 +3,7 @@ import type * as OrcaCliChildPath from '../cli/orca-cli-child-path'
 import { agentSessionRecordFixture } from '../native-chat/agent-session-record-test-fixture'
 import { DELEGATION_AGENT_INSTRUCTIONS } from '../delegated-session/delegation-agent-instructions'
 import { createCodexStructuredLaunchResolver } from './codex-structured-launch-resolution'
+import { CodexAppServerRequestError } from './codex-app-server-request-error'
 import { openCodexThread } from './codex-structured-thread-open'
 
 const launcher = vi.hoisted(() => ({ resolved: true }))
@@ -64,5 +65,52 @@ describe('Codex child-session delegation instructions', () => {
     expect(params[0]).toMatchObject({ developerInstructions: DELEGATION_AGENT_INSTRUCTIONS })
     expect(params[1]).toMatchObject({ developerInstructions: DELEGATION_AGENT_INSTRUCTIONS })
     expect(params[2]).not.toHaveProperty('developerInstructions')
+  })
+
+  it.each([-32602, -32600])(
+    'opens the thread without them when this Codex refuses the field (code %i), and stops asking',
+    async (code) => {
+      const request = vi.fn(async (method: string, params?: Record<string, unknown>) => {
+        if (params && 'developerInstructions' in params) {
+          throw new CodexAppServerRequestError(
+            method,
+            code,
+            `Invalid request: unknown field \`developerInstructions\`, expected one of \`cwd\``
+          )
+        }
+        return { thread: { id: 'thread-1' } }
+      })
+      const connection = { request }
+      const launch = { cwd: '/work', developerInstructions: DELEGATION_AGENT_INSTRUCTIONS }
+
+      await expect(
+        openCodexThread(connection, { ...launch, resumeThreadId: null }, 1_000)
+      ).resolves.toMatchObject({ threadId: 'thread-1' })
+      await expect(
+        openCodexThread(connection, { ...launch, resumeThreadId: 'thread-1' }, 1_000)
+      ).resolves.toMatchObject({ threadId: 'thread-1' })
+
+      // One refused attempt, then the bare retry; the resume never carries the field again.
+      expect(request.mock.calls.map((call) => call[0])).toEqual([
+        'thread/start',
+        'thread/start',
+        'thread/resume'
+      ])
+      expect(request.mock.calls[2]?.[1]).not.toHaveProperty('developerInstructions')
+    }
+  )
+
+  it('still surfaces an unrelated refusal of the open', async () => {
+    const request = vi.fn(async (method: string) => {
+      throw new CodexAppServerRequestError(method, -32603, 'internal error')
+    })
+    await expect(
+      openCodexThread(
+        { request },
+        { cwd: '/work', resumeThreadId: null, developerInstructions: 'x' },
+        1_000
+      )
+    ).rejects.toThrow('internal error')
+    expect(request).toHaveBeenCalledTimes(1)
   })
 })

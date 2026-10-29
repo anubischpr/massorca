@@ -13,6 +13,7 @@ import {
   type StructuredAgentCommandSettings
 } from '../native-chat/structured-agent-command-resolution'
 import {
+  isStableCliVersionFrom,
   isStableCliVersionOnLine,
   probeAgentCliVersionOutcome,
   type AgentCliVersionProbeOutcome
@@ -26,6 +27,7 @@ import { structuredPassthroughLaunchArgs } from '../native-chat/structured-agent
 import { antigravityModelIdAtEffort } from '../../shared/antigravity-model-variants'
 import { readAntigravityAccountBinding } from './structured-account-binding'
 import { prepareAntigravityAccountForLaunch } from './native-account-launch'
+import type { StructuredAgentSessionLogger } from '../native-chat/agent-session-wire/structured-agent-session-logger'
 import { structuredSessionChildIdentityEnv } from '../runtime/structured-session-child-identity-env'
 import { delegationInstructionsForEnv } from '../delegated-session/delegation-agent-instructions'
 
@@ -45,7 +47,12 @@ export type AntigravityLaunchDeps = {
   probeVersion?: typeof probeAgentCliVersionOutcome
   /** A folder holding the child-session instructions as AGENTS.md; null or absent adds none. */
   resolveDelegationInstructionsFolder?: () => Promise<string | null>
+  logger?: StructuredAgentSessionLogger
 }
+
+// Why 1.4.9: the oldest agy checked that lists `--add-dir`; an unknown flag stops the CLI, and the
+// instructions must never keep a chat from starting.
+const ANTIGRAVITY_ADD_DIR_FIRST_VERSION = '1.4.9'
 
 export function resolveAntigravityCommand(
   env: NodeJS.ProcessEnv,
@@ -65,11 +72,13 @@ export function resolveAntigravityCommand(
 /** Whether the agy CLI ran and is a supported version, or why it could not run here. */
 export function antigravityCliVersionOutcome(
   launch: { command: string; cwd: string; env: Record<string, string> },
-  probe = probeAgentCliVersionOutcome
+  probe = probeAgentCliVersionOutcome,
+  onVersion?: (version: string) => void
 ): Promise<AgentCliVersionProbeOutcome> {
-  return probe({ program: launch.command, cwd: launch.cwd, env: launch.env }, (version) =>
-    isStableCliVersionOnLine(version, { major: 1, floor: ANTIGRAVITY_STABLE_CLI_FLOOR })
-  )
+  return probe({ program: launch.command, cwd: launch.cwd, env: launch.env }, (version) => {
+    onVersion?.(version)
+    return isStableCliVersionOnLine(version, { major: 1, floor: ANTIGRAVITY_STABLE_CLI_FLOOR })
+  })
 }
 
 /** The reason a chat names when its agy CLI cannot run: missing, or ran without reporting a supported
@@ -78,6 +87,42 @@ export function antigravityCliUnavailableReason(
   outcome: Exclude<AgentCliVersionProbeOutcome, 'supported'>
 ): AgentSessionPreSpawnReason {
   return outcome === 'did-not-start' ? 'cliMissing' : 'antigravityCliVersionUnsupported'
+}
+
+/** The instructions folder agy can be given, or null: a missing folder or a CLI that predates
+ *  `--add-dir` starts the chat without the instructions, never fails it. */
+async function resolveInstructionsFolder(
+  deps: AntigravityLaunchDeps,
+  cliVersion: string | null
+): Promise<string | null> {
+  if (
+    cliVersion === null ||
+    !isStableCliVersionFrom(cliVersion, ANTIGRAVITY_ADD_DIR_FIRST_VERSION)
+  ) {
+    deps.logger?.warn(
+      'agy may not take --add-dir; the chat starts without child-session instructions',
+      {
+        scope: 'delegation.antigravity',
+        version: cliVersion
+      }
+    )
+    return null
+  }
+  try {
+    const folder = (await deps.resolveDelegationInstructionsFolder?.()) ?? null
+    if (deps.resolveDelegationInstructionsFolder && folder === null) {
+      deps.logger?.warn('the child-session instructions folder could not be written', {
+        scope: 'delegation.antigravity'
+      })
+    }
+    return folder
+  } catch (error) {
+    deps.logger?.warn('the child-session instructions folder could not be prepared', {
+      scope: 'delegation.antigravity',
+      error
+    })
+    return null
+  }
 }
 
 /** Resume only the pinned host conversation; never use the CLI's global continuation. */
@@ -112,7 +157,14 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
     })
     const cwd = await deps.resolveWorkspacePath(record.location.workspaceId)
     const command = resolveAntigravityCommand(env, deps.resolveCommandSettings?.())
-    const outcome = await antigravityCliVersionOutcome({ command, cwd, env }, deps.probeVersion)
+    let cliVersion: string | null = null
+    const outcome = await antigravityCliVersionOutcome(
+      { command, cwd, env },
+      deps.probeVersion,
+      (version) => {
+        cliVersion = version
+      }
+    )
     if (outcome !== 'supported') {
       throw new AgentSessionPreSpawnError(undefined, {
         reason: antigravityCliUnavailableReason(outcome),
@@ -136,7 +188,7 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
     // Why: agy has no system-prompt flag; it reads AGENTS.md from every folder it is given, and
     // otherwise answers "create a child session" with its own invoke_subagent.
     const instructionsFolder = delegationInstructionsForEnv(childEnv)
-      ? ((await deps.resolveDelegationInstructionsFolder?.()) ?? null)
+      ? await resolveInstructionsFolder(deps, cliVersion)
       : null
     return {
       command,

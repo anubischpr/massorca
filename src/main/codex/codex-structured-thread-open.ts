@@ -30,6 +30,39 @@ function nonEmptyString(value: unknown): string | null {
 }
 
 const resumeMetadataUnsupported = new WeakSet<object>()
+const developerInstructionsUnsupported = new WeakSet<object>()
+
+function isDeveloperInstructionsUnsupported(error: unknown): boolean {
+  return (
+    isCodexAppServerRequestError(error) &&
+    (error.code === -32602 || error.code === -32600) &&
+    /(?:unknown|unexpected|unsupported|unrecognized).{0,80}developerInstructions|developerInstructions.{0,80}(?:unknown|unexpected|unsupported|unrecognized)/i.test(
+      error.message
+    )
+  )
+}
+
+/** Orca's instructions must never stop a thread from opening: a Codex that refuses the field gets
+ *  the request without it, and is not asked with it again. */
+async function withDeveloperInstructions(
+  connection: object,
+  developerInstructions: string | undefined,
+  params: Record<string, unknown>,
+  run: (params: Record<string, unknown>) => Promise<unknown>
+): Promise<unknown> {
+  if (!developerInstructions || developerInstructionsUnsupported.has(connection)) {
+    return run(params)
+  }
+  try {
+    return await run({ ...params, developerInstructions })
+  } catch (error) {
+    if (!isDeveloperInstructionsUnsupported(error)) {
+      throw error
+    }
+    developerInstructionsUnsupported.add(connection)
+    return run(params)
+  }
+}
 
 function isExcludeTurnsUnsupported(error: unknown): boolean {
   return (
@@ -100,19 +133,18 @@ export async function openCodexThread(
   const resumeThreadId = launch.resumeThreadId
   const threadSettings = {
     cwd: launch.cwd,
-    ...launch.permissionPolicy,
-    ...(launch.developerInstructions ? { developerInstructions: launch.developerInstructions } : {})
+    ...launch.permissionPolicy
   }
   const planTool = {
     threadConfig: launch.threadConfig,
     timeoutMs
   }
   const startThread = (): Promise<unknown> =>
-    requestWithPlanTool(
+    withDeveloperInstructions(
       connection,
-      'thread/start',
+      launch.developerInstructions,
       { ...threadSettings, ...(launch.model ? { model: launch.model } : {}) },
-      planTool
+      (params) => requestWithPlanTool(connection, 'thread/start', params, planTool)
     )
   let supersededThreadId: string | undefined
   let opened: unknown
@@ -126,7 +158,12 @@ export async function openCodexThread(
       ...(launch.resumePath ? { path: launch.resumePath } : {})
     }
     try {
-      opened = await resumeCodexThread(connection, resumeParams, planTool)
+      opened = await withDeveloperInstructions(
+        connection,
+        launch.developerInstructions,
+        resumeParams,
+        (params) => resumeCodexThread(connection, params, planTool)
+      )
     } catch (error) {
       if (!launch.supersedeIfUnsaved || !isCodexNoRolloutError(error, resumeThreadId)) {
         throw error

@@ -2,14 +2,28 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type * as OrcaCliChildPath from '../cli/orca-cli-child-path'
 import { openTestAgentSessionRecordStore } from '../runtime/agent-session-record-store-test-harness'
 import { closeTestJournalHostDatabase } from '../native-chat/agent-session-journal/journal-host-database-test-support'
 import {
   createAntigravityLaunchResolver,
-  antigravityProviderLink
+  antigravityProviderLink,
+  type AntigravityLaunchDeps
 } from './structured-launch-resolution'
 import { createAntigravityModelCatalogProbe } from './model-catalog-probe'
 import type { AntigravityAgentSessionAccountHome } from '../../shared/agent-session-account-home'
+
+const launcher = vi.hoisted(() => ({ resolved: true }))
+
+vi.mock('../cli/orca-cli-child-path', async (importOriginal) => {
+  const original = await importOriginal<typeof OrcaCliChildPath>()
+  return {
+    ...original,
+    prependOrcaCliDirToChildPath: (
+      ...args: Parameters<typeof original.prependOrcaCliDirToChildPath>
+    ) => (launcher.resolved ? original.prependOrcaCliDirToChildPath(...args) : null)
+  }
+})
 
 const binding: AntigravityAgentSessionAccountHome = {
   kind: 'antigravity',
@@ -36,7 +50,7 @@ afterEach(async () => {
   }
 })
 
-async function setup() {
+async function setup(cliVersion = '1.4.9') {
   const root = await mkdtemp(join(tmpdir(), 'orca-antigravity-launch-'))
   roots.push(root)
   const store = await openTestAgentSessionRecordStore(root)
@@ -64,7 +78,12 @@ async function setup() {
   })
   const readBinding = vi.fn(async () => binding)
   const prepareAccount = vi.fn(async () => {})
-  const probeVersion = vi.fn(async () => 'supported' as const)
+  const probeVersion = vi.fn<NonNullable<AntigravityLaunchDeps['probeVersion']>>(
+    async (_input, supports) => {
+      supports(cliVersion)
+      return 'supported' as const
+    }
+  )
   const deps = {
     store,
     resolveWorkspacePath: async () => '/host/workspace',
@@ -292,6 +311,7 @@ describe('saved Arguments', () => {
 })
 
 it('hands agy the child-session instructions folder and the Orca CLI identity when delegation can run', async () => {
+  launcher.resolved = true
   const h = await setup()
   const launch = await createAntigravityLaunchResolver({
     ...h.deps,
@@ -305,13 +325,39 @@ it('hands agy the child-session instructions folder and the Orca CLI identity wh
   expect(launch.env?.ORCA_CLI_COMMAND).toBeTruthy()
 })
 
-it('adds no instructions folder when none is available', async () => {
+it('starts without the instructions, and says so, when the folder or the flag cannot be had', async () => {
+  launcher.resolved = true
+  const logger = { warn: vi.fn(), error: vi.fn() }
+  const folder = async () => '/state/delegation-instructions'
+  const cases: [string, Partial<AntigravityLaunchDeps>][] = [
+    ['1.4.9', { resolveDelegationInstructionsFolder: async () => null }],
+    [
+      '1.4.9',
+      {
+        resolveDelegationInstructionsFolder: async () => {
+          throw new Error('disk full')
+        }
+      }
+    ],
+    ['1.3.5', { resolveDelegationInstructionsFolder: folder }]
+  ]
+  for (const [version, extra] of cases) {
+    const h = await setup(version)
+    const launch = await createAntigravityLaunchResolver({ ...h.deps, ...extra, logger })(identity)
+    expect(launch.args).not.toContain('--add-dir')
+  }
+  expect(logger.warn).toHaveBeenCalledTimes(3)
+})
+
+it('adds no instructions folder when none is wired or the Orca CLI launcher did not resolve', async () => {
   const h = await setup()
-  const unavailable = await createAntigravityLaunchResolver({
+  launcher.resolved = true
+  expect((await createAntigravityLaunchResolver(h.deps)(identity)).args).not.toContain('--add-dir')
+  launcher.resolved = false
+  const noCli = await createAntigravityLaunchResolver({
     ...h.deps,
-    resolveDelegationInstructionsFolder: async () => null
+    resolveDelegationInstructionsFolder: async () => '/state/delegation-instructions'
   })(identity)
-  const unwired = await createAntigravityLaunchResolver(h.deps)(identity)
-  expect(unavailable.args).not.toContain('--add-dir')
-  expect(unwired.args).not.toContain('--add-dir')
+  expect(noCli.args).not.toContain('--add-dir')
+  launcher.resolved = true
 })

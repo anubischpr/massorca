@@ -3,6 +3,7 @@
 
 import { join } from 'node:path'
 import type { TuiAgent } from '../../shared/tui-agent'
+import { isStableCliVersionFrom } from '../agent-cli-version-probe'
 import {
   DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE,
   delegationInstructionsForEnv
@@ -16,6 +17,8 @@ export type AcpDelegationLaunch = {
 }
 
 type AcpDelegationInput = {
+  /** The `--version` the launch's binary printed; null when it printed none. */
+  version: string | null
   /** The child's env with the Orca identity applied, plus what the launch lays over it. */
   env: Readonly<Record<string, string>>
   /** A folder holding the instructions as AGENTS.md; null when none could be written. */
@@ -58,10 +61,15 @@ const loadOpenCodeDelegationInstructions: AcpDelegationLoader = async ({
   return content === null ? null : { env: { OPENCODE_CONFIG_CONTENT: content } }
 }
 
+// Why 17.0.5: the oldest release verified to serve `omp acp`, whose parser is the launch parser
+// that defines the flag; an unknown version gets no flag rather than a launch that might refuse it.
+const OMP_APPEND_SYSTEM_PROMPT_FIRST_VERSION = '17.0.5'
+
 /** OMP appends the text to its system prompt, beside whatever the user's own setup adds. */
-const loadOmpDelegationInstructions: AcpDelegationLoader = async () => ({
-  args: ['--append-system-prompt', DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE]
-})
+const loadOmpDelegationInstructions: AcpDelegationLoader = async ({ version }) =>
+  version !== null && isStableCliVersionFrom(version, OMP_APPEND_SYSTEM_PROMPT_FIRST_VERSION)
+    ? { args: ['--append-system-prompt', DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE] }
+    : null
 
 // Grok has no channel verified to reach its model other than rule files in the user's own home.
 const LOADERS: Partial<Record<TuiAgent, AcpDelegationLoader>> = {
@@ -75,6 +83,7 @@ export async function loadAcpDelegationInstructions(
   agent: TuiAgent,
   input: {
     sessionId: string
+    version: string | null
     env: Readonly<Record<string, string>>
     instructionsFolder?: () => Promise<string | null>
   }
@@ -83,12 +92,13 @@ export async function loadAcpDelegationInstructions(
   if (!loader) {
     return null
   }
-  const childEnv = structuredSessionChildIdentityEnv(input.sessionId, { ...input.env })
+  const childEnv = structuredSessionChildIdentityEnv(input.sessionId, input.env)
   if (!delegationInstructionsForEnv(childEnv)) {
     return null
   }
   try {
     return await loader({
+      version: input.version,
       env: childEnv,
       instructionsFolder: input.instructionsFolder ?? (async () => null)
     })

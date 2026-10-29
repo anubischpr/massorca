@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -22,5 +22,17 @@ describe('ensureDelegationInstructionsFolder', () => {
     const blocker = join(state, 'file')
     writeFileSync(blocker, '')
     await expect(ensureDelegationInstructionsFolder(blocker)).resolves.toBeNull()
+  })
+
+  it('stays whole and leaves no temp file when many chats start at once', async () => {
+    const state = mkdtempSync(join(tmpdir(), 'orca-delegation-instructions-'))
+    const folders = await Promise.all(
+      Array.from({ length: 12 }, () => ensureDelegationInstructionsFolder(state))
+    )
+    const folder = folders[0] ?? ''
+    expect(new Set(folders).size).toBe(1)
+    expect(readdirSync(folder)).toEqual(['AGENTS.md'])
+    expect(readFileSync(join(folder, 'AGENTS.md'), 'utf8')).toBe(`${DELEGATION_AGENT_INSTRUCTIONS}
+`)
   })
 })
