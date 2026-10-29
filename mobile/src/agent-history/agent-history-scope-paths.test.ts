@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import * as runtimePaths from '../../../src/shared/cross-platform-path'
 import type { Worktree } from '../worktree/workspace-list-types'
-import { deriveMobileAiVaultScopePaths } from './agent-history-scope-paths'
+import {
+  deriveMobileAiVaultNestedWorktreePaths,
+  deriveMobileAiVaultScopePaths
+} from './agent-history-scope-paths'
 
 function worktree(overrides: Partial<Worktree>): Pick<Worktree, 'worktreeId' | 'path' | 'repoId'> {
   return {
@@ -104,5 +107,32 @@ describe('deriveMobileAiVaultScopePaths', () => {
     } finally {
       normalize.mockRestore()
     }
+  })
+})
+
+describe('deriveMobileAiVaultNestedWorktreePaths', () => {
+  it('returns live worktrees nested under the active worktree', () => {
+    const nested = worktree({
+      worktreeId: 'w6',
+      path: '/Users/ada/repo/app/.claude/worktrees/feature',
+      repoId: 'repo-1'
+    })
+
+    expect(
+      deriveMobileAiVaultNestedWorktreePaths(active, [active, nested, sibling, otherRepo])
+    ).toEqual(['/Users/ada/repo/app/.claude/worktrees/feature'])
+  })
+
+  it('skips archived nested worktrees and the active worktree itself', () => {
+    const archived = {
+      ...worktree({ worktreeId: 'w7', path: '/Users/ada/repo/app/old', repoId: 'repo-1' }),
+      isArchived: true
+    }
+
+    expect(deriveMobileAiVaultNestedWorktreePaths(active, [active, archived])).toEqual([])
+  })
+
+  it('returns nothing without an active worktree', () => {
+    expect(deriveMobileAiVaultNestedWorktreePaths(null, [sibling])).toEqual([])
   })
 })

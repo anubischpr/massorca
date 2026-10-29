@@ -18,10 +18,11 @@ import {
 } from '../session/ai-vault-resume-launch'
 import { prepareMobileAiVaultSessionResume } from '../session/ai-vault-resume-preparation'
 import { triggerError, triggerSuccess } from '../platform/haptics'
-import type { AiVaultScope, AiVaultSession } from '../../../src/shared/ai-vault-types'
+import type { AiVaultSession } from '../../../src/shared/ai-vault-types'
 import type { Worktree } from '../worktree/workspace-list-types'
 import { useMobileAgentHistoryState } from './use-mobile-agent-history-state'
 import { buildMobileAgentHistorySections } from './agent-history-sections'
+import { agentHistoryScopeTabs } from './agent-history-scope-tabs'
 import { shouldShowMobileCurrentWorktreeBadge } from './agent-history-current-worktree-badge'
 import { MobileAgentSessionHistoryList } from './MobileAgentSessionHistoryList'
 import { resolveMobileAiVaultSessionResumeTarget } from './agent-history-resume-target'
@@ -35,12 +36,6 @@ export type MobileAgentSessionHistoryPanelProps = {
   worktreeId: string
   name?: string
 }
-
-const SCOPE_TABS: { scope: AiVaultScope; label: string }[] = [
-  { scope: 'workspace', label: 'Workspace' },
-  { scope: 'project', label: 'Project' },
-  { scope: 'all', label: 'All' }
-]
 
 export function MobileAgentSessionHistoryPanel({
   hostId,
@@ -112,6 +107,8 @@ export function MobileAgentSessionHistoryPanel({
     hostStatusResult,
     activeWorktreePath,
     scopeFilterPaths,
+    excludedWorktreePaths,
+    activeWorkspaceIsFolder,
     onSelectScope,
     onRefresh,
     retry
@@ -123,16 +120,21 @@ export function MobileAgentSessionHistoryPanel({
     () => new Map(sessions.map((session) => [session.id, session])),
     [sessions]
   )
+  const scopeTabs = useMemo(
+    () => agentHistoryScopeTabs(activeWorkspaceIsFolder),
+    [activeWorkspaceIsFolder]
+  )
   const sections = useMemo(
     () =>
       buildMobileAgentHistorySections(sessions, {
         query,
         scope,
         scopeFilterPaths,
+        excludedWorktreePaths,
         activeWorktreePath,
         now
       }),
-    [sessions, query, scope, scopeFilterPaths, activeWorktreePath, now]
+    [sessions, query, scope, scopeFilterPaths, excludedWorktreePaths, activeWorktreePath, now]
   )
 
   const resumeHost = useMemo(
@@ -316,7 +318,7 @@ export function MobileAgentSessionHistoryPanel({
       ) : (
         <>
           <View style={styles.scopeTabs}>
-            {SCOPE_TABS.map((tab) => {
+            {scopeTabs.map((tab) => {
               const active = scope === tab.scope
               return (
                 <Pressable

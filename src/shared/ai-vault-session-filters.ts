@@ -4,6 +4,7 @@
 // INVARIANT: /shared is a leaf — this module must NOT import from src/renderer.
 import {
   createNormalizedPathInsideOrEqualMatcher,
+  isRuntimePathAbsolute,
   normalizeRuntimePathForComparison,
   normalizeRuntimePathSeparators
 } from './cross-platform-path'
@@ -43,6 +44,8 @@ export type AiVaultSessionFilterState = {
   scope: AiVaultScope
   sort: AiVaultSort
   activeWorktreePaths: readonly string[]
+  /** Live worktrees nested under the active one; the workspace scope leaves them out. */
+  excludedWorktreePaths?: readonly string[]
   activeProjectKey?: string | null
   sessionProjectById?: ReadonlyMap<string, AiVaultSessionProject>
   projectLabelByKey?: ReadonlyMap<string, string>
@@ -84,6 +87,10 @@ export function filterAiVaultSessions(
     filters.scope === 'workspace'
       ? filters.activeWorktreePaths.map(createAiVaultWorkspaceMatcher)
       : []
+  const nestedWorktreeMatchers =
+    filters.scope === 'workspace'
+      ? (filters.excludedWorktreePaths ?? []).map(createAiVaultWorkspaceMatcher)
+      : []
 
   const filtered = sessions.filter((session) => {
     if (!agentSet.has(session.agent)) {
@@ -103,7 +110,12 @@ export function filterAiVaultSessions(
     if (filters.scope === 'workspace') {
       const cwd = session.cwd
       const normalizedCwd = cwd ? normalizeRuntimePathForComparison(cwd) : null
-      if (normalizedCwd === null || !workspaceMatchers.some((matches) => matches(normalizedCwd))) {
+      // Why: a nested live worktree's sessions belong to that worktree, not this one.
+      if (
+        normalizedCwd === null ||
+        !workspaceMatchers.some((matches) => matches(normalizedCwd)) ||
+        nestedWorktreeMatchers.some((matches) => matches(normalizedCwd))
+      ) {
         return false
       }
     }
@@ -314,4 +326,33 @@ function createAiVaultWorkspaceMatcher(workspacePath: string): (normalizedCwd: s
   // WSL transcripts record Linux cwd even when the workspace uses a UNC path.
   const matchesLinux = createNormalizedPathInsideOrEqualMatcher(workspaceWslPath.linuxPath)
   return (cwd) => matches(cwd) || matchesLinux(cwd)
+}
+
+/**
+ * Live worktree paths nested strictly inside `workspacePath`. Their sessions belong to
+ * those worktrees, so the workspace scope leaves them out.
+ */
+export function nestedLiveWorktreePaths(
+  workspacePath: string,
+  livePaths: readonly string[]
+): string[] {
+  const trimmedWorkspacePath = workspacePath.trim()
+  if (!trimmedWorkspacePath || !isRuntimePathAbsolute(trimmedWorkspacePath)) {
+    return []
+  }
+  const workspaceKey = normalizeRuntimePathForComparison(trimmedWorkspacePath)
+  const isInsideWorkspace = createAiVaultWorkspaceMatcher(trimmedWorkspacePath)
+  const nested: string[] = []
+  for (const livePath of livePaths) {
+    const trimmedLivePath = livePath.trim()
+    if (!trimmedLivePath || !isRuntimePathAbsolute(trimmedLivePath)) {
+      continue
+    }
+    const liveKey = normalizeRuntimePathForComparison(trimmedLivePath)
+    // Why: another spelling of the workspace itself is not nested under it.
+    if (liveKey !== workspaceKey && isInsideWorkspace(liveKey)) {
+      nested.push(trimmedLivePath)
+    }
+  }
+  return nested
 }

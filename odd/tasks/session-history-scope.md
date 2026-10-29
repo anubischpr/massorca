@@ -36,7 +36,7 @@ The user works with one parent session per feature worktree; history full of sub
 ## Tasks
 
 - [x] T1 — Scanner leak repro (read-only scan of the user's transcripts). Result: no provider subagent leaks; the flood is headless automated runs. No scanner change. Route: delegated direct.
-- [ ] T2 — "This worktree" scope ("This folder" for folder workspaces): exact match excluding nested live worktrees; desktop + mobile labels. Route: delegated direct (writer trigger).
+- [x] T2 — "This worktree" scope ("This folder" for folder workspaces): exact match excluding nested live worktrees; desktop + mobile labels. Route: delegated direct (writer trigger).
 - [ ] T3 — Automated runs hidden by default: shared detection (Codex `source: 'exec'`, prompt starts "You are a code reviewer" → Review, "You are the sdd-… subagent" → SDD); "Automated runs" switch with the in-scope count on desktop and mobile; Review/SDD badge on shown rows. Route: delegated direct.
 - [ ] T4 — Delegated child sessions nested under their parent with a "Child session" badge and status (working/finished/failed); top-level row when the parent is out of scope. Route: delegated direct.
 - Dropped by the approved design: a subagent toggle for every agent (no subagent leak found; "N subagents" stays as today).
@@ -48,7 +48,8 @@ The user works with one parent session per feature worktree; history full of sub
 - 2026-10-29 T1 repro (read-only `scanAiVaultSessions({unlimited:true})` on the user's home, temporary test deleted): 1371 rows (codex 241, claude 611, antigravity 269, gemini 248, copilot 2). None is a provider subagent: no `subagents/` or `agent-*.jsonl` paths, no Claude `isSidechain`/`agentId`, no Codex parent thread or agent role. `~/.omp` absent, so OMP and SSH unchecked. No scanner change made.
   - What does flood the list: headless review runs titled "You are a code reviewer…": Claude 473, Codex 224 (all the `codex_exec` rows: `source: 'exec'`, `thread_source: 'user'`, deliberately user per `session-scanner-codex-non-user-origin.test.ts:145`), Gemini 149. Claude/Gemini ones carry no structural marker found (Claude `isSidechain: false`, Gemini `kind: main`). Antigravity: ≥41 rows titled "You are the `sdd-apply` subagent…".
   - Search hits hard-code `subagent: null` (`ai-vault-search-session.ts:32`), belongs to T3.
+- 2026-10-29 T2 done: "This worktree" / "This folder" labels on desktop and mobile; `en.json` is the English source. Exact match via `excludedWorktreePaths` in the shared filter core, derived on desktop and mobile from live, non-archived worktrees nested under the active one (Project keeps them). Checks: desktop vitest 10 files / 140 tests; mobile agent-history 14 files / 117 tests; `typecheck:web`, `typecheck:node`, `typecheck:cli`, mobile `typecheck` pass; oxlint and `check:code-quality:changed` (base HEAD) 0 new findings. Not caused by T2: mobile `typecheck:tests` ratchet flags 10 untouched files and fails identically at HEAD. Non-English catalogs still show the old "Workspace" translation (translator follow-up). Work unit: `feat(session-history): scope This worktree to the active worktree only`.
 
 ## Next step
 
-T2, then T3, then T4, one work-unit commit each.
+T3, then T4, one work-unit commit each.

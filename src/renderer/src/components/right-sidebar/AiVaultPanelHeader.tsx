@@ -16,6 +16,7 @@ type AiVaultPanelHeaderProps = {
   hasScanResult: boolean
   activeWorktreePath: string | null
   activeProjectKey: string | null
+  activeWorkspaceIsFolder?: boolean
   scope: AiVaultScope
   executionHostScope: ExecutionHostScope
   hostScopeOptions: readonly AiVaultHostScopeOption[]
@@ -45,6 +46,7 @@ export function AiVaultPanelHeader({
   hasScanResult,
   activeWorktreePath,
   activeProjectKey,
+  activeWorkspaceIsFolder = false,
   scope,
   executionHostScope,
   hostScopeOptions,
@@ -143,6 +145,7 @@ export function AiVaultPanelHeader({
         <VaultScopeSwitch
           scope={scope}
           workspaceAvailable={Boolean(activeWorktreePath)}
+          workspaceIsFolder={activeWorkspaceIsFolder}
           projectAvailable={Boolean(activeProjectKey)}
           onScopeChange={onScopeChange}
         />

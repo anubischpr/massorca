@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { AiVaultSession } from '../../../src/shared/ai-vault-types'
+import type { AiVaultScope, AiVaultSession } from '../../../src/shared/ai-vault-types'
 import {
   buildMobileAgentHistoryResumeActionState,
   buildMobileAgentHistoryCard,
@@ -194,6 +194,33 @@ describe('buildMobileAgentHistorySections', () => {
         .map((card) => card.id)
         .sort()
     ).toEqual(['claude:a', 'claude:b'])
+  })
+
+  // Why: This worktree leaves nested worktrees out; Project keeps them as same-repo siblings.
+  it('leaves nested live worktrees out of This worktree and keeps them under Project', () => {
+    const nestedPath = '/Users/ada/repo/app/.claude/worktrees/feature'
+    const sessions = [
+      session({ id: 'claude:active', cwd: '/Users/ada/repo/app/src' }),
+      session({ id: 'claude:nested', cwd: `${nestedPath}/src` })
+    ]
+    const idsFor = (scope: AiVaultScope, scopeFilterPaths: string[]) =>
+      buildMobileAgentHistorySections(sessions, {
+        query: '',
+        scope,
+        scopeFilterPaths,
+        excludedWorktreePaths: [nestedPath],
+        activeWorktreePath: '/Users/ada/repo/app',
+        now: NOW
+      })
+        .flatMap((s) => s.data)
+        .map((card) => card.id)
+        .sort()
+
+    expect(idsFor('workspace', ['/Users/ada/repo/app'])).toEqual(['claude:active'])
+    expect(idsFor('project', ['/Users/ada/repo/app', nestedPath])).toEqual([
+      'claude:active',
+      'claude:nested'
+    ])
   })
 
   it('shows all sessions under All scope regardless of path', () => {

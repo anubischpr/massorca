@@ -81,23 +81,48 @@ export function VaultGroupHeader({
 export function VaultScopeSwitch({
   scope,
   workspaceAvailable,
+  workspaceIsFolder = false,
   projectAvailable,
   onScopeChange
 }: {
   scope: AiVaultScope
   workspaceAvailable: boolean
+  /** A folder workspace is a plain folder, not a git worktree, so its scope names the folder. */
+  workspaceIsFolder?: boolean
   projectAvailable: boolean
   onScopeChange: (scope: AiVaultScope) => void
 }): React.JSX.Element {
-  const workspaceLabel = translate(
-    'auto.components.right.sidebar.AiVaultPanelControls.workspaceScope',
-    'Workspace'
-  )
+  const workspaceLabel = workspaceIsFolder
+    ? translate('auto.components.right.sidebar.AiVaultPanelControls.folderScope', 'This folder')
+    : translate(
+        'auto.components.right.sidebar.AiVaultPanelControls.workspaceScope',
+        'This worktree'
+      )
   const projectLabel = translate(
     'auto.components.right.sidebar.AiVaultPanelControls.projectScope',
     'Project'
   )
   const allLabel = translate('auto.components.right.sidebar.AiVaultPanelControls.allScope', 'All')
+  const scopeAriaValue =
+    scope === 'workspace'
+      ? workspaceIsFolder
+        ? translate(
+            'auto.components.right.sidebar.AiVaultPanelControls.currentFolderLower',
+            'current folder'
+          )
+        : translate(
+            'auto.components.right.sidebar.AiVaultPanelControls.currentWorktreeLower',
+            'current worktree'
+          )
+      : scope === 'project'
+        ? translate(
+            'auto.components.right.sidebar.AiVaultPanelControls.currentProjectLower',
+            'current project'
+          )
+        : translate(
+            'auto.components.right.sidebar.AiVaultPanelControls.allSessionsLower',
+            'all sessions'
+          )
 
   return (
     <ToggleGroup
@@ -113,23 +138,7 @@ export function VaultScopeSwitch({
       aria-label={translate(
         'auto.components.right.sidebar.AiVaultPanelControls.scopeAriaLabel',
         'Session History scope: {{value0}}',
-        {
-          value0:
-            scope === 'workspace'
-              ? translate(
-                  'auto.components.right.sidebar.AiVaultPanelControls.currentWorkspaceLower',
-                  'current workspace'
-                )
-              : scope === 'project'
-                ? translate(
-                    'auto.components.right.sidebar.AiVaultPanelControls.currentProjectLower',
-                    'current project'
-                  )
-                : translate(
-                    'auto.components.right.sidebar.AiVaultPanelControls.allSessionsLower',
-                    'all sessions'
-                  )
-        }
+        { value0: scopeAriaValue }
       )}
     >
       <ToggleGroupItem

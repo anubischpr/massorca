@@ -11,10 +11,8 @@ import {
   useRepos
 } from '@/store/selectors'
 import { useAiVaultPanelSessions } from './ai-vault-session-filters'
-import {
-  deriveAiVaultScopeSessionPaths,
-  deriveAiVaultWorkspaceScopePaths
-} from './ai-vault-scope-paths'
+import { deriveAiVaultScopeSessionPaths } from './ai-vault-scope-paths'
+import { useAiVaultWorkspaceScope } from './use-ai-vault-workspace-scope'
 import { countAiVaultViewAdjustments } from './ai-vault-view-defaults'
 import {
   buildAiVaultProjectContext,
@@ -123,10 +121,8 @@ export default function AiVaultPanel(): React.JSX.Element {
   )
   const activeWorktreePath = activeWorktree?.path ?? null
   // Why: AI Vault ownership is cwd-based, so we must consider live worktrees across all repos.
-  const activeWorktreePaths = useMemo(
-    () => deriveAiVaultWorkspaceScopePaths(activeWorktree ?? null, allWorktrees),
-    [activeWorktree, allWorktrees]
-  )
+  const { activeWorktreePaths, excludedWorktreePaths, activeWorkspaceIsFolder } =
+    useAiVaultWorkspaceScope({ activeWorktree: activeWorktree ?? null, activeRepo, allWorktrees })
   const projectScopeContext = useMemo(
     () =>
       buildAiVaultProjectContext({
@@ -218,6 +214,7 @@ export default function AiVaultPanel(): React.JSX.Element {
     scope,
     sort,
     activeWorktreePaths,
+    excludedWorktreePaths,
     activeProjectKey,
     sessionProjectById,
     projectLabelByKey,
@@ -303,6 +300,7 @@ export default function AiVaultPanel(): React.JSX.Element {
         hasScanResult={Boolean(scanResult)}
         activeWorktreePath={activeWorktreePath}
         activeProjectKey={activeProjectKey}
+        activeWorkspaceIsFolder={activeWorkspaceIsFolder}
         scope={scope}
         executionHostScope={executionHostScope}
         hostScopeOptions={hostScopeOptions}

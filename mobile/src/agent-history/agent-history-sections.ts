@@ -18,18 +18,19 @@ export type MobileAgentHistorySection = {
 }
 
 // Why: the host treats scopePaths as a WIDENING union (it adds in-scope sessions
-// beyond the recency cap, never restricts), so the Workspace/Project tabs must
+// beyond the recency cap, never restricts), so the This worktree/Project tabs must
 // narrow on the client like the desktop panel does. Mobile has no project-key
-// metadata, so both scoped tabs narrow by cwd path-prefix: Workspace = the active
-// worktree path, Project = the active worktree + same-repo siblings (the same set
-// deriveMobileAiVaultScopePaths produces). 'all' applies no path narrowing.
-// hideEmptySessions matches the desktop default.
+// metadata, so both scoped tabs narrow by cwd path-prefix: This worktree = the active
+// worktree path minus nested live worktrees, Project = the active worktree + same-repo
+// siblings (the same set deriveMobileAiVaultScopePaths produces). 'all' applies no path
+// narrowing. hideEmptySessions matches the desktop default.
 export function buildMobileAgentHistorySections(
   sessions: readonly AiVaultSession[],
   options: {
     query: string
     scope: AiVaultScope
     scopeFilterPaths: readonly string[]
+    excludedWorktreePaths?: readonly string[]
     activeWorktreePath: string | null
     now: number
   }
@@ -45,6 +46,9 @@ export function buildMobileAgentHistorySections(
     scope: narrowByPath ? 'workspace' : 'all',
     sort: 'updated',
     activeWorktreePaths: narrowByPath ? options.scopeFilterPaths : [],
+    // Why: Project narrows by the same paths, so only This worktree leaves nested worktrees out.
+    excludedWorktreePaths:
+      narrowByPath && options.scope === 'workspace' ? (options.excludedWorktreePaths ?? []) : [],
     hideEmptySessions: true
   })
 
