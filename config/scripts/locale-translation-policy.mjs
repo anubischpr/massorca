@@ -65,6 +65,8 @@ export const NEVER_TRANSLATE_VALUES = new Set([
   'OpenCode',
   'OpenCode Go',
   'MassOrca',
+  // Why: upstream product names such as Orca Cloud keep the old brand.
+  'Orca',
   'Pi',
   'PostHog',
   'Qwen Code',
@@ -447,11 +449,12 @@ export function repairTranslatedValue({ key, enValue, localeValue, locale }) {
     result = result.replace(/虎鲸:\/\//g, 'orca://')
   }
 
-  if (enValue === 'MassOrca' || enValue.startsWith('MassOrca ')) {
+  const brand = /^(MassOrca|Orca)(?: |$)/.exec(enValue)?.[1]
+  if (brand) {
     result = result
-      .replaceAll('虎鲸', 'MassOrca')
-      .replaceAll('逆戟鲸', 'MassOrca')
-      .replaceAll('シャチ', 'MassOrca')
+      .replaceAll('虎鲸', brand)
+      .replaceAll('逆戟鲸', brand)
+      .replaceAll('シャチ', brand)
   }
 
   if (enValue.includes('orca://')) {

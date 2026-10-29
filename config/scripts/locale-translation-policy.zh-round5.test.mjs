@@ -3,6 +3,19 @@ import { describe, expect, it } from 'vitest'
 import { repairTranslatedValue } from './locale-translation-policy.mjs'
 
 describe('locale-translation-policy zh round 5', () => {
+  it('restores both the MassOrca and the upstream Orca brand from a literal translation', () => {
+    for (const brand of ['MassOrca', 'Orca']) {
+      expect(
+        repairTranslatedValue({
+          key: 'auto.brand-repair',
+          enValue: `${brand} Cloud`,
+          localeValue: '虎鲸 Cloud',
+          locale: 'zh'
+        })
+      ).toBe(`${brand} Cloud`)
+    }
+  })
+
   it('fixes brand spacing, hosted review, and Orca Mobile regressions', () => {
     expect(
       repairTranslatedValue({
