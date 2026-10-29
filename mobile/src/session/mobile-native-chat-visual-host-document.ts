@@ -7,6 +7,7 @@ import {
   NATIVE_CHAT_VISUAL_SIZE_TYPE
 } from '../../../src/shared/native-chat-visual-shell'
 import {
+  NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS,
   NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE,
   NATIVE_CHAT_VISUAL_PIN_CLICKED_TYPE
 } from '../../../src/shared/native-chat-visual-annotate'
@@ -79,7 +80,8 @@ export function buildMobileNativeChatVisualHostDocument(input: {
       ? {
           annotateCommand: MOBILE_NATIVE_CHAT_VISUAL_ANNOTATE_COMMAND,
           picked: NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE,
-          pinClicked: NATIVE_CHAT_VISUAL_PIN_CLICKED_TYPE
+          pinClicked: NATIVE_CHAT_VISUAL_PIN_CLICKED_TYPE,
+          limits: NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS
         }
       : {})
   })
@@ -91,16 +93,25 @@ window[C.annotateCommand] = function (text) {
   if (!frame.contentWindow || !message || typeof message !== 'object' || message.channel !== C.channel) return
   frame.contentWindow.postMessage(message, '*')
 }
+// An annotate report is relayed only within the annotate limits, and with its own fields alone.
+function boundedText(value, max, min) { return typeof value === 'string' && value.length >= min && value.length <= max }
+function boundedPickedElement(value) {
+  if (!value || typeof value !== 'object') return null
+  if (!boundedText(value.selector, C.limits.selector, 1) || !boundedText(value.label, C.limits.label, 1)) return null
+  if (!boundedText(value.htmlSnippet, C.limits.snippet, 0)) return null
+  return { selector: value.selector, label: value.label, htmlSnippet: value.htmlSnippet, rect: value.rect, state: value.state }
+}
 `
     : ''
-  // Annotate reports go up as data, with only their own fields; the app validates them.
+  // Annotate reports go up as data, bounded and with only their own fields; the app validates them too.
   const annotateRelay = input.annotate
     ? `  if (data.type === C.picked) {
-    send({ kind: 'frame', data: { type: C.picked, channel: C.channel, element: data.element } })
+    var element = boundedPickedElement(data.element)
+    if (element) send({ kind: 'frame', data: { type: C.picked, channel: C.channel, element: element } })
     return
   }
   if (data.type === C.pinClicked) {
-    send({ kind: 'frame', data: { type: C.pinClicked, channel: C.channel, pinKey: data.pinKey } })
+    if (boundedText(data.pinKey, C.limits.pinKey, 1)) send({ kind: 'frame', data: { type: C.pinClicked, channel: C.channel, pinKey: data.pinKey } })
     return
   }
 `
