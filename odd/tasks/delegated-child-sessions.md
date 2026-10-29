@@ -107,9 +107,9 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
     - The sheet loads on its first open (`React.lazy`), so the prompt card's import graph does not pull in the bottom drawer.
     - A manual pick shows no footer, as the board does, so the placement reason appears only for Automatic.
     - Notices use the desktop wording. "Open child chat" appears only while this worktree's tab list holds the child's chat tab, and it switches to that tab through the existing tab switch.
-  - Gaps:
-    - New-child placement: the child lives in another worktree, and the session screen holds no worktree list, so no Open control is drawn there. Follow-up: give the session route the host's worktree rows, then open through `mobileSessionRouteTarget` with the child's `paneKey`.
-    - Sessions sheet nesting (MobileSessions board): not built. `MobileSessionsSheet` lists tabs, and tabs carry no parent link; the link lives on worktree agent rows that the session screen does not hold. The board's Sessions and Terminals sections and its "1 child finished" line are a redesign of that sheet, a follow-up.
+  - Gaps (both closed in the follow-up below, except what it lists):
+    - New-child placement: the child lives in another worktree, and the session screen holds no worktree list, so no Open control is drawn there. Closed: see the follow-up.
+    - Sessions sheet nesting (MobileSessions board): not built as first written. Closed for tabs in this worktree, see the follow-up. `MobileSessionsSheet` lists tabs, and tabs carry no parent link; the link lives on worktree agent rows that the session screen does not hold. The board's Sessions and Terminals sections and its "1 child finished" line are a redesign of that sheet, a follow-up.
     - The "Child · choosing agent" pending row: not built (needs a pending-delegation row source, as T5).
     - Visual check: not done. No Expo simulator or device harness ran in this pass.
   - Checks (foreground unless noted):
@@ -122,6 +122,17 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
       - `write-queue.test.ts` and `push-original-delivery-retirement.test.ts` pass when run alone; their failure was a timeout under full-suite load.
     - `pnpm tc:web`: not run; no shared code changed.
   - Runtime harness: N/A for the pure model; the component tests render through react-test-renderer, not a device.
+  - Follow-up (gaps 1 and 2):
+    - Commits: `b593ec9be9f` (open a child in another worktree: host rows, locator, access, notice refresh; 10 files) and `34e2d30d71b` (sessions sheet nesting; 6 files), then the docs commit that records this follow-up.
+    - Open child in another worktree: `locateStructuredChild` finds the host's `worktree.ps` agent pane whose tab part is `structured-agent-session-<childSessionId>`, the tab id the structured host mints into the pane key. The control opens through `useOpenMobileSession`, which builds `mobileSessionRouteTarget({ hostId, worktreeId, paneKey })`, the route a notification tap takes. It shows only when a tab here or a pane the host lists resolves. An old host with no `agents` field gives no target, so no control.
+    - Rows: read when the session mounts, when the sessions sheet opens, and once per finished notice whose child this chat does not hold. A read in flight is not repeated, and nothing polls. No new wire field.
+    - Nesting: a child tab sits one level under its parent. A tab joins its agent panes by the tab part of the pane key: a chat by its structured tab id, a terminal by its parent tab id, matched whole on the leaf so a split terminal's sibling leaf is not taken. A child whose parent is itself a child stays flat, and so does a child whose parent is not in the list. No lineage data gives the flat list.
+    - Board values not reproduced: the child indent is `spacing.xl + spacing.xs` (28 px, the board says 30) and the child rule is `colors.borderSubtle` (the board's `#404040` is not a token).
+    - Decision, not built: the board's "Prototype design tokens · child worktree · working" row. The sheet lists this worktree's tabs only, so a child in another worktree has no row here. Listing it needs a cross-worktree row source, which is a redesign of the sheet, so it is a follow-up with the pending-delegation row.
+    - Decision, not built: the Sessions and Terminals split, the Terminals section and the "1 child finished" subtitle. The brief limits this pass to nesting, so they are the sheet redesign, a follow-up.
+    - Risk: the child join assumes the structured pane key keeps `structured-agent-session-<sessionId>` as its tab part (`mintStructuredWorkerPaneKey`). A change there hides the control and flattens the sheet with no error. The locator test pins the prefix.
+    - Left open: no direct test of `useWorktreeAgentRows` (its read is the existing `worktreeCatalogRead`, tested by the environment read suites, and its pure parts are tested here); no rendered check on a device.
+    - Checks: `pnpm exec vitest run src/session src/components src/worktree src/home` → 431 files, 426 passed, 5 failed (11 tests). The five are on the known-failure list: `mobile-native-chat-merged-snapshot-parity`, `use-mobile-diff-review-send-actions`, `use-mobile-pr-ai-triage`, `native-document-bundle`, and `mobile-prompt-controller` (module load). The targeted suites (lineage, sheet, access, notice, rows) → 5 files, 31 passed. `pnpm run typecheck` → exit 0. `oxlint` → exit 0 and `oxfmt --check` clean on the 16 changed files.
 
 ## Acceptance criteria
 
