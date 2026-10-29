@@ -19,7 +19,7 @@ import { usePrototypeViewStore } from './prototype-view-store'
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
 
 const SEGMENT_CLASS = 'flex rounded-md border border-border bg-sidebar p-0.5'
-const SEGMENT_BUTTON = 'h-6 rounded px-2.5 text-xs transition-colors'
+const SEGMENT_BUTTON = 'h-6 rounded px-2.5 text-xs whitespace-nowrap transition-colors'
 
 function segmentButtonClass(on: boolean): string {
   return cn(SEGMENT_BUTTON, on ? 'bg-accent text-accent-foreground' : 'text-muted-foreground')
@@ -89,13 +89,16 @@ export function PrototypeViewerToolbar({
               })}
         </button>
       </div>
-      <div role="toolbar" className="flex shrink-0 items-center gap-2.5">
+      <div
+        role="toolbar"
+        className="scrollbar-sleek flex max-w-full shrink-0 items-center gap-2 overflow-x-auto [&>*]:shrink-0"
+      >
         {single ? null : (
           <button
             type="button"
             onClick={onMerge}
             disabled={!mergeEnabled}
-            className="flex h-7 items-center gap-1.5 rounded-lg border border-status-amber/50 px-3 text-xs disabled:border-border disabled:text-muted-foreground"
+            className="flex h-7 items-center gap-1.5 rounded-lg whitespace-nowrap border border-status-amber/50 px-3 text-xs disabled:border-border disabled:text-muted-foreground"
           >
             <Star aria-hidden="true" className="size-3.5 fill-status-amber text-status-amber" />
             {starCount === 0
