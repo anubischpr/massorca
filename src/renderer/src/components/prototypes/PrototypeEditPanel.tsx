@@ -2,6 +2,11 @@ import { useState } from 'react'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import type { PrototypeSize } from '../../../../shared/prototype-draft'
+import {
+  FONT_SIZE_BOUNDS,
+  parseNumberInput,
+  sizeBoundsOf
+} from '../../../../shared/prototype-number-input'
 import { PrototypeColorPicker } from './PrototypeColorPicker'
 import {
   FILL_COLOR_PALETTE,
@@ -227,9 +232,12 @@ export function PrototypeEditPanel({
                     }
                     className={cn(INPUT_CLASS, 'w-14', dimmed && 'opacity-40')}
                     value={size.value}
-                    onChange={(event) =>
-                      setSize(field, { value: Number(event.target.value), unit: size.unit })
-                    }
+                    onChange={(event) => {
+                      const value = parseNumberInput(event.target.value, sizeBoundsOf(size.unit))
+                      if (value !== null) {
+                        setSize(field, { value, unit: size.unit })
+                      }
+                    }}
                   />
                   <span
                     role="group"
@@ -263,9 +271,12 @@ export function PrototypeEditPanel({
                 type="number"
                 className={cn(INPUT_CLASS, 'w-14')}
                 value={pin.current.fontSize}
-                onChange={(event) =>
-                  update((latest) => editSelected(latest, { fontSize: Number(event.target.value) }))
-                }
+                onChange={(event) => {
+                  const fontSize = parseNumberInput(event.target.value, FONT_SIZE_BOUNDS)
+                  if (fontSize !== null) {
+                    update((latest) => editSelected(latest, { fontSize }))
+                  }
+                }}
               />
               px
             </span>

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import type { NativeChatVisualPickedElement } from './native-chat-visual-annotate'
 import type { PrototypeListedDirection } from './rpc-contract/prototype-params'
-import { nextVersionOf } from './prototype-set-view'
+import { hasNothingToSend, nextVersionOf } from './prototype-set-view'
+import { createSetState, editSelected, pickElement, setPrompt } from './prototype-set-state'
 
 function direction(letter: string, versions: number[]): PrototypeListedDirection {
   return {
@@ -34,5 +36,39 @@ describe('nextVersionOf', () => {
 
   it('starts a letter the set does not list at v2', () => {
     expect(nextVersionOf([direction('A', [4])], 'C')).toBe(2)
+  })
+})
+
+function pickedButton(): NativeChatVisualPickedElement {
+  return {
+    selector: 'button.cta',
+    label: 'pay button',
+    rect: { x: 10, y: 20, width: 120, height: 40 },
+    htmlSnippet: '<button>Pay now</button>',
+    state: {
+      text: 'Pay now',
+      color: '#ffffff',
+      bg: '#171717',
+      width: { value: 100, unit: '%' },
+      height: { value: 48, unit: 'px' },
+      fontSize: 14
+    }
+  }
+}
+
+describe('hasNothingToSend', () => {
+  it('holds Send while there is no change and no words under "Anything else"', () => {
+    const empty = createSetState(['A'])
+
+    expect(hasNothingToSend(empty)).toBe(true)
+    expect(hasNothingToSend(setPrompt(empty, '   '))).toBe(true)
+    expect(hasNothingToSend(setPrompt(empty, 'Make it bolder.'))).toBe(false)
+  })
+
+  it('lets Send through once a pin has a change, even with no words under "Anything else"', () => {
+    const pinned = pickElement(createSetState(['A']), pickedButton())
+
+    expect(hasNothingToSend(pinned)).toBe(true)
+    expect(hasNothingToSend(editSelected(pinned, { text: 'Pay later' }))).toBe(false)
   })
 })
