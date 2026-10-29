@@ -82,3 +82,19 @@ export function warnStructuredAgentSessionCreateUnsupported(
     span.fail(`${agent} create support refused by the ${check} check`)
   }
 }
+
+/** Which admission gate refused `agentSession.createSupport` before the verdict ran. */
+export type StructuredAgentSessionCreateSupportAdmissionGate = 'client-audience' | 'host-setting'
+
+/** One main-log line and one trace span when the admission gate refuses `agentSession.createSupport`,
+ *  which otherwise leaves no trace because it throws before the verdict. */
+export function warnStructuredAgentSessionCreateSupportAdmissionRefused(
+  agent: string,
+  gate: StructuredAgentSessionCreateSupportAdmissionGate
+): void {
+  console.warn(`[structured-create-support] ${agent} refused by the ${gate} admission gate`)
+  const span = startSpan('agentSession.createSupport', {
+    attributes: { agent, check: 'admission', gate }
+  })
+  span.fail(`${agent} create support refused by the ${gate} admission gate`)
+}

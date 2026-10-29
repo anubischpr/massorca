@@ -92,11 +92,15 @@ const CAUSE_DETAIL: Readonly<Record<string, string>> = {
 export function describeUnsupportedLaunch(
   result: Extract<MobileStructuredAgentLaunchResult, { kind: 'unsupported' }>
 ): string {
+  return describeRefusalWords(result.reason, result.cause)
+}
+
+function describeRefusalWords(reason: string | undefined, cause: string | undefined): string {
   const word = /^[A-Za-z]{1,40}$/
-  if (result.cause && word.test(result.cause)) {
-    return CAUSE_DETAIL[result.cause] ?? `Host reason: ${result.cause}.`
+  if (cause && word.test(cause)) {
+    return CAUSE_DETAIL[cause] ?? `Host reason: ${cause}.`
   }
-  return result.reason && word.test(result.reason) ? `Host reason: ${result.reason}.` : ''
+  return reason && word.test(reason) ? `Host reason: ${reason}.` : ''
 }
 
 /** Whether a probe reply says the host can start the chat. A malformed reply says no. */
@@ -142,16 +146,42 @@ function classifyCreateRefusal(
   return { kind: 'failed', message: message || failedMessage(agent) }
 }
 
+/** A support probe's verdict; a refusal keeps one short sentence naming why, empty when unknown. */
+export type MobileStructuredSupportVerdict =
+  | { supported: true }
+  | { supported: false; detail: string }
+
+/** Why a probe said no, as a short sentence; a host value is shown only when it is a plain code. */
+function probeRefusalDetail(reply: unknown): string {
+  if (typeof reply !== 'object' || reply === null || !('ok' in reply)) {
+    return ''
+  }
+  if (reply.ok !== true) {
+    const error = 'error' in reply ? reply.error : undefined
+    const code =
+      typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
+    return typeof code === 'string' && /^[A-Za-z_]{1,40}$/.test(code) ? `Host error: ${code}.` : ''
+  }
+  const result = 'result' in reply ? reply.result : undefined
+  if (typeof result !== 'object' || result === null) {
+    return ''
+  }
+  const reason = 'reason' in result && typeof result.reason === 'string' ? result.reason : undefined
+  const cause = 'cause' in result && typeof result.cause === 'string' ? result.cause : undefined
+  return describeRefusalWords(reason, cause)
+}
+
 /**
- * Whether the host can start this agent's chat in the worktree, asked before anything is created.
- * The Pi runtime is named so a Gentle Shell answer is never read from a stock Pi one.
+ * Asks whether the host can start this agent's chat in the worktree, before anything is created,
+ * keeping the host's reason on a refusal. The Pi runtime is named so a Gentle Shell answer is never
+ * read from a stock Pi one.
  */
-export async function canStartMobileStructuredAgentSession(
+export async function probeMobileStructuredAgentSessionSupport(
   client: RpcClient,
   worktreeId: string,
   agent: StructuredAgentId,
   options: MobileStructuredCreateOptions = {}
-): Promise<boolean> {
+): Promise<MobileStructuredSupportVerdict> {
   try {
     const reply = await structuredAgentSupportProbe.request(client, {
       worktree: `id:${worktreeId}`,
@@ -159,9 +189,22 @@ export async function canStartMobileStructuredAgentSession(
       ...(options.piRuntime ? { piRuntime: options.piRuntime } : {})
     })
     return probeSaysSupported(reply)
+      ? { supported: true }
+      : { supported: false, detail: probeRefusalDetail(reply) }
   } catch {
-    return false
+    return { supported: false, detail: 'The host did not answer.' }
   }
+}
+
+/** Whether the host can start this agent's chat in the worktree, asked before anything is created. */
+export async function canStartMobileStructuredAgentSession(
+  client: RpcClient,
+  worktreeId: string,
+  agent: StructuredAgentId,
+  options: MobileStructuredCreateOptions = {}
+): Promise<boolean> {
+  const verdict = await probeMobileStructuredAgentSessionSupport(client, worktreeId, agent, options)
+  return verdict.supported
 }
 
 /** Creates the agent's chat in the worktree, naming the Pi runtime and access mode when given, and keeps the fence. */

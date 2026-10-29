@@ -1,6 +1,7 @@
 import type { MobileWorkspaceRepo } from '../components/new-worktree-modal-types'
 import {
-  canStartMobileStructuredAgentSession,
+  describeUnsupportedLaunch,
+  probeMobileStructuredAgentSessionSupport,
   startMobileStructuredAgentSession,
   type MobileStructuredChatStart
 } from '../session/mobile-structured-agent-session-launch'
@@ -34,6 +35,11 @@ export type GentleShellLaunchArgs = {
 
 type Workspace = { worktreeId: string; name: string }
 
+/** The unavailable message with the host's reason appended when it gave one. */
+function unavailableMessage(detail: string): string {
+  return detail ? `${GENTLE_SHELL_UNAVAILABLE_MESSAGE} ${detail}` : GENTLE_SHELL_UNAVAILABLE_MESSAGE
+}
+
 function joinWarnings(...parts: Array<string | null | undefined>): string | undefined {
   const joined = parts.filter((part): part is string => Boolean(part?.trim())).join(' ')
   return joined || undefined
@@ -49,7 +55,7 @@ function chatStartMessage(chat: MobileStructuredChatStart, plan: CreateSessionLa
   const created = plan.kind === 'new-worktree' ? ' The workspace was created.' : ''
   switch (chat.kind) {
     case 'unsupported':
-      return GENTLE_SHELL_UNAVAILABLE_MESSAGE
+      return unavailableMessage(describeUnsupportedLaunch(chat))
     case 'failed':
       return `${chat.message}${created}`
     case 'created':
@@ -109,11 +115,11 @@ export async function launchGentleShellSession(
 ): Promise<CreateSessionLaunchResult> {
   try {
     const primaryId = await readPrimaryWorkspaceId(args.client, args.hostId, args.repo)
-    const available = await canStartMobileStructuredAgentSession(args.client, primaryId, 'pi', {
+    const verdict = await probeMobileStructuredAgentSessionSupport(args.client, primaryId, 'pi', {
       piRuntime: 'gentle-shell'
     })
-    if (!available) {
-      return { ok: false, message: GENTLE_SHELL_UNAVAILABLE_MESSAGE }
+    if (!verdict.supported) {
+      return { ok: false, message: unavailableMessage(verdict.detail) }
     }
     const workspace =
       args.plan.kind === 'new-worktree'
