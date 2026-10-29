@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentSessionModelCatalogResult } from '../../../src/shared/agent-session-wire'
+import type { PiRuntimeSelection } from '../../../src/shared/pi-runtime-selection'
 import {
   applyCreateSessionModelCatalog,
   createCreateSessionOptionDraft,
@@ -24,8 +25,8 @@ const catalog: AgentSessionModelCatalogResult = {
   ]
 }
 
-function ready(agent: string) {
-  const draft = createCreateSessionOptionDraft(agent)
+function ready(agent: string, piRuntime: PiRuntimeSelection | null = null) {
+  const draft = createCreateSessionOptionDraft(agent, '', piRuntime)
   return applyCreateSessionModelCatalog(draft, catalog)
 }
 
@@ -91,11 +92,38 @@ describe('create session option draft', () => {
     expect(pickCreateSessionOption(ready('claude'), 'accessMode', 'plan')).not.toBeNull()
   })
 
-  it('offers no access choice for a structured agent the phone cannot vouch for', () => {
-    const ids = createSessionOptionSnapshot(createCreateSessionOptionDraft('pi')).map(
-      (descriptor) => descriptor.id
-    )
+  it('offers stock Pi model pickers and no access choice', () => {
+    const ids = createSessionOptionSnapshot(ready('pi', 'pi')).map((descriptor) => descriptor.id)
+    expect(ids).toContain('model')
     expect(ids).not.toContain('accessMode')
+  })
+
+  it('offers Gentle Shell only the default and full-access modes it runs', () => {
+    const gentleShell = ready('pi', 'gentle-shell')
+    expect(pickCreateSessionOption(gentleShell, 'accessMode', 'auto')).toBeNull()
+    expect(pickCreateSessionOption(gentleShell, 'accessMode', 'default')?.picks).toEqual({
+      accessMode: 'default'
+    })
+    expect(pickCreateSessionOption(gentleShell, 'accessMode', 'full-access')?.picks).toEqual({
+      accessMode: 'full-access'
+    })
+  })
+
+  it('offers Antigravity the presets its host declares', () => {
+    const antigravity = ready('antigravity')
+    expect(pickCreateSessionOption(antigravity, 'accessMode', 'plan')?.picks).toEqual({
+      accessMode: 'plan'
+    })
+    expect(pickCreateSessionOption(antigravity, 'accessMode', 'read-only')).toBeNull()
+  })
+
+  it('offers Antigravity a model pick only once its host lists models', () => {
+    const unlisted = applyCreateSessionModelCatalog(createCreateSessionOptionDraft('antigravity'), {
+      origin: 'unknown'
+    })
+    expect(createSessionOptionSnapshot(unlisted).map((d) => d.id)).not.toContain('model')
+    expect(pickCreateSessionOption(unlisted, 'model', 'opus')).toBeNull()
+    expect(createSessionOptionSnapshot(ready('antigravity')).map((d) => d.id)).toContain('model')
   })
 
   it('starts over when the host or project changes', () => {

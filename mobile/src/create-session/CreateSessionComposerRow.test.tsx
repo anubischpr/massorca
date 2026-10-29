@@ -1,8 +1,10 @@
 import { createElement } from 'react'
 import { act, create } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
+import type { AgentSessionModelCatalogResult } from '../../../src/shared/agent-session-wire'
 import { CreateSessionComposerRow } from './CreateSessionComposerRow'
 import {
+  applyCreateSessionModelCatalog,
   createCreateSessionOptionDraft,
   createSessionOptionSnapshot
 } from './create-session-option-draft'
@@ -36,6 +38,24 @@ const withModelList: CreateSessionOptions = {
   controller: {
     ...noCatalog.controller,
     snapshot: createSessionOptionSnapshot(createCreateSessionOptionDraft('claude'))
+  }
+}
+
+const antigravityModels: AgentSessionModelCatalogResult = {
+  origin: 'probe',
+  fetchedAt: 1,
+  models: [{ id: 'gemini-pro', label: 'Gemini Pro', isDefault: true, efforts: [] }]
+}
+
+/** The options a create screen holds once the agent's host list has answered with `catalog`. */
+function optionsWithHostList(
+  agent: string,
+  catalog: AgentSessionModelCatalogResult
+): CreateSessionOptions {
+  const draft = applyCreateSessionModelCatalog(createCreateSessionOptionDraft(agent), catalog)
+  return {
+    ...noCatalog,
+    controller: { ...noCatalog.controller, snapshot: createSessionOptionSnapshot(draft) }
   }
 }
 
@@ -124,5 +144,29 @@ describe('CreateSessionComposerRow', () => {
     })
     expect(root.findAllByType('OptionPickers')).toHaveLength(0)
     expect(textsOf(root)).toEqual([])
+  })
+
+  it('shows the model picker for Antigravity once its host lists models', () => {
+    const root = mount({
+      agent: 'antigravity',
+      agentLabel: 'Antigravity',
+      options: optionsWithHostList('antigravity', antigravityModels),
+      canSubmit: false,
+      onSubmit: vi.fn()
+    })
+    expect(root.findAllByType('OptionPickers')).toHaveLength(1)
+    expect(textsOf(root).some((text) => text.includes('default model'))).toBe(false)
+  })
+
+  it('keeps the default model label for Antigravity while its host list is empty', () => {
+    const root = mount({
+      agent: 'antigravity',
+      agentLabel: 'Antigravity',
+      options: optionsWithHostList('antigravity', { origin: 'unknown' }),
+      canSubmit: false,
+      onSubmit: vi.fn()
+    })
+    expect(root.findAllByType('OptionPickers')).toHaveLength(0)
+    expect(textsOf(root)).toContain('Antigravity · default model')
   })
 })

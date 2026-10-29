@@ -148,3 +148,43 @@ describe('createSessionProgressSteps', () => {
     ).toEqual(['Starting Codex'])
   })
 })
+
+describe('createSessionSeedOptions for Antigravity and stock Pi', () => {
+  it('carries the picked model, effort and access to Antigravity', () => {
+    expect(
+      createSessionSeedOptions(
+        'antigravity',
+        { model: 'gemini-pro', effort: 'high', accessMode: 'plan' },
+        null
+      )
+    ).toEqual({ model: 'gemini-pro', effort: 'high', accessMode: 'plan' })
+  })
+
+  it('carries the picked model and effort to stock Pi', () => {
+    expect(createSessionSeedOptions('pi', { model: 'pi-model', effort: 'low' }, null)).toEqual({
+      model: 'pi-model',
+      effort: 'low'
+    })
+  })
+})
+
+describe('buildCreateSessionLaunchPlan for Antigravity', () => {
+  it('starts Antigravity with the options picked in the composer', () => {
+    const antigravity = { ...selection, agent: 'antigravity' as const }
+    expect(
+      buildCreateSessionLaunchPlan({
+        draft: 'go',
+        selection: antigravity,
+        repo,
+        picks: { model: 'gemini-pro', effort: 'high' },
+        effectiveModelId: null
+      })
+    ).toEqual({
+      kind: 'new-worktree',
+      repoId: 'web',
+      agent: 'antigravity',
+      prompt: 'go',
+      sessionOptions: { model: 'gemini-pro', effort: 'high' }
+    })
+  })
+})

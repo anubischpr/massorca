@@ -5,6 +5,7 @@ import {
   startMobileStructuredAgentSession,
   type MobileStructuredChatStart
 } from '../session/mobile-structured-agent-session-launch'
+import { requestStructuredAgentSessionMutation } from '../session/mobile-structured-agent-session-rpc'
 import { sendMobileStructuredAgentSessionMessage } from '../session/mobile-structured-agent-session-send'
 import type { WorktreeCreateIdempotencyProbe } from '../tasks/worktree-create-idempotency-policy'
 import { createWorktreeWithNameRetry } from '../tasks/worktree-create-retry'
@@ -23,6 +24,12 @@ export const GENTLE_SHELL_UNAVAILABLE_MESSAGE = "Gentle Shell can't start a chat
 
 export const GENTLE_SHELL_UNCONFIRMED_MESSAGE =
   "Couldn't confirm the Gentle Shell chat started. Check the workspace before trying again."
+
+export const GENTLE_SHELL_PICK_NOT_APPLIED_MESSAGE =
+  'The model or effort you picked was not applied to this chat.'
+
+/** The picks a create carries that the new chat sets on its own option operation, in order. */
+const GENTLE_SHELL_PICK_KEYS = ['model', 'effort', 'fastMode'] as const
 
 export type GentleShellLaunchArgs = {
   client: RpcClient
@@ -106,9 +113,44 @@ async function sendFirstMessage(
 }
 
 /**
+ * Sets the model, effort and fast picks on the new chat in order. Stops at the first one the host
+ * refuses; a thrown request counts the same, since the chat already exists.
+ */
+async function applyGentleShellPicks(
+  client: RpcClient,
+  sessionId: string,
+  fence: number,
+  sessionOptions: Record<string, string> | undefined
+): Promise<boolean> {
+  for (const key of GENTLE_SHELL_PICK_KEYS) {
+    const value = sessionOptions?.[key]
+    if (value === undefined) {
+      continue
+    }
+    try {
+      const result = await requestStructuredAgentSessionMutation({
+        client,
+        method: 'agentSession.setOption',
+        fingerprintMethod: 'agentSession.setOption',
+        sessionId,
+        expectedRuntimeFence: fence,
+        fields: { key, value }
+      })
+      if (result.status !== 'accepted') {
+        return false
+      }
+    } catch {
+      return false
+    }
+  }
+  return true
+}
+
+/**
  * Starts a Gentle Shell chat with the first message. The host's `agent.launch` cannot name a Pi
- * runtime, so this path asks the structured create for Gentle Shell, then sends the message to it.
- * Support is asked before a new worktree exists, so an unavailable runtime creates nothing. Never throws.
+ * runtime, so this path asks the structured create for Gentle Shell, sets the picks, then sends the
+ * message to it. Support is asked before a new worktree exists, so an unavailable runtime creates
+ * nothing. Never throws.
  */
 export async function launchGentleShellSession(
   args: GentleShellLaunchArgs
@@ -135,6 +177,13 @@ export async function launchGentleShellSession(
     if (chat.kind !== 'created' || chat.fence === null) {
       return { ok: false, message: chatStartMessage(chat, args.plan) }
     }
+    // Why: the picks land before the first message, so the reply comes from the picked model.
+    const picksApplied = await applyGentleShellPicks(
+      args.client,
+      chat.sessionId,
+      chat.fence,
+      args.plan.sessionOptions
+    )
     const delivered = await sendFirstMessage(
       args.client,
       chat.sessionId,
@@ -142,6 +191,7 @@ export async function launchGentleShellSession(
       args.plan.prompt
     )
     const warning = joinWarnings(
+      picksApplied ? null : GENTLE_SHELL_PICK_NOT_APPLIED_MESSAGE,
       delivered ? null : CREATE_SESSION_PROMPT_NOT_CONFIRMED_MESSAGE,
       args.setup.notice
     )

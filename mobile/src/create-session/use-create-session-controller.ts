@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import type { PiRuntimeSelection } from '../../../src/shared/pi-runtime-selection'
 import type { TuiAgent } from '../../../src/shared/tui-agent'
+import { getRepoMainWorktreeId } from '../../../src/shared/worktree/id'
 import { useNewWorkspaceExecutionTarget } from '../components/use-new-workspace-execution-target'
 import { useNewWorkspaceRepositories } from '../components/use-new-workspace-repositories'
 import { MOBILE_AGENT_CATALOG } from '../tasks/mobile-agent-catalog'
@@ -99,11 +100,13 @@ export function useCreateSessionController(args: {
   const selection = held
     ? withAvailableCreateSessionChoice(held, agentChoices, hostSettings.preferredAgent)
     : null
-  const options = useCreateSessionOptions(
+  const options = useCreateSessionOptions({
     client,
-    selection?.agent ?? null,
-    `${selection?.hostId ?? ''}|${selection?.repoId ?? ''}|${selection?.piRuntime ?? ''}`
-  )
+    agent: selection?.agent ?? null,
+    piRuntime: selection?.piRuntime ?? null,
+    worktree: repo ? `id:${getRepoMainWorktreeId(repo)}` : null,
+    scope: `${selection?.hostId ?? ''}|${selection?.repoId ?? ''}|${selection?.piRuntime ?? ''}`
+  })
   const setupState = useCreateSessionSetup(client, repo?.id ?? null)
   const baseRefShown = selection !== null && showsBaseRefChip(selection, repo)
   const baseRefSource = useCreateSessionBaseRef(client, repo?.id ?? null, baseRefShown)
