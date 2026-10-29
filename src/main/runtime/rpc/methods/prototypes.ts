@@ -31,6 +31,11 @@ function isLocalStructuredChat(record: Pick<AgentSessionRecord, 'location'>): bo
   return record.location.executionHostId === LOCAL_EXECUTION_HOST_ID && !record.location.wslDistro
 }
 
+/** One line for a refusal the client reads as "no prototype capture", so a silent send is traceable. */
+function logPrototypeRefusal(method: string, sessionId: string, reason: string): void {
+  console.warn(`[prototypes] ${method} refused for chat ${sessionId}: ${reason}`)
+}
+
 export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
   defineMethod({
     name: 'prototypes.createRequest',
@@ -40,6 +45,11 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
       const host = await requireInstalledStructuredHost(ctx)
       const record = host.deps.store.getRecord(params.sessionId)
       if (!record || !isLocalStructuredChat(record)) {
+        logPrototypeRefusal(
+          'prototypes.createRequest',
+          params.sessionId,
+          record ? 'chat is not local to this runtime' : 'no record of this chat on this runtime'
+        )
         return { ok: false, error: 'unsupported' }
       }
       return createPrototypeRequest({
@@ -72,9 +82,11 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
       const host = await requireInstalledStructuredHost(ctx)
       const record = host.deps.store.getRecord(params.sessionId)
       if (!record) {
+        logPrototypeRefusal('prototypes.readFile', params.sessionId, 'no record of this chat')
         return { ok: false, error: 'not_found' }
       }
       if (!isLocalStructuredChat(record)) {
+        logPrototypeRefusal('prototypes.readFile', params.sessionId, 'chat is not local')
         return { ok: false, error: 'unreadable' }
       }
       return readPrototypeSetFile({
@@ -93,6 +105,7 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
       const host = await requireInstalledStructuredHost(ctx)
       const record = host.deps.store.getRecord(params.sessionId)
       if (!record || !isLocalStructuredChat(record)) {
+        logPrototypeRefusal('prototypes.writeAttachment', params.sessionId, 'chat is not local')
         return { ok: false, error: 'unsupported' }
       }
       return writePrototypeAttachment({

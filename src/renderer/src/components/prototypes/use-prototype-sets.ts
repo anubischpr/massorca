@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
-import {
-  listPrototypeSetsOnHost,
-  PrototypeHostOutdatedError
-} from '../../runtime/runtime-prototype-client'
+import { listPrototypeSetsFromAllHosts } from './prototype-host-targets'
 
-const LOCAL_RUNTIME = { kind: 'local' } as const
 /** The Prototypes view re-lists while it is visible, so new versions show without a click. */
 const VIEW_REFRESH_MS = 10_000
 
@@ -18,14 +14,13 @@ export type PrototypeSetsResult = {
 export function usePrototypeSets(): PrototypeSetsResult {
   const [result, setResult] = useState<PrototypeSetsResult>({ status: 'loading', sets: [] })
   const load = useCallback(() => {
-    void listPrototypeSetsOnHost(LOCAL_RUNTIME, {})
-      .then((listed) => setResult({ status: 'ready', sets: listed.sets }))
-      .catch((error: unknown) =>
-        setResult((previous) => ({
-          status: error instanceof PrototypeHostOutdatedError ? 'outdated' : 'error',
-          sets: previous.sets
-        }))
+    void listPrototypeSetsFromAllHosts().then((listed) =>
+      setResult((previous) =>
+        listed.answered
+          ? { status: 'ready', sets: listed.sets }
+          : { status: listed.onlyOutdated ? 'outdated' : 'error', sets: previous.sets }
       )
+    )
   }, [])
   useEffect(() => {
     load()

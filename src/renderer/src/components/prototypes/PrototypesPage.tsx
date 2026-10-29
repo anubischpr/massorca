@@ -11,9 +11,8 @@ import { PrototypeViewer } from './PrototypeViewer'
 import { sendPrototypeIteration } from '../../../../shared/prototype-send'
 import type { PrototypeSetState } from '../../../../shared/prototype-set-state'
 import { beginSend, sendRefused, sendSucceeded } from '../../../../shared/prototype-set-view'
+import { prototypeTargetForSession } from './prototype-host-targets'
 import { usePrototypeSets } from './use-prototype-sets'
-
-const LOCAL_RUNTIME = { kind: 'local' } as const
 
 async function captureFrameRect(
   rect: NativeChatVisualRect
@@ -28,7 +27,7 @@ async function writeScreenshot(
   pngBase64: string
 ): Promise<{ ok: true; path: string } | { ok: false }> {
   try {
-    const written = await writePrototypeAttachmentOnHost(LOCAL_RUNTIME, {
+    const written = await writePrototypeAttachmentOnHost(prototypeTargetForSession(set.sessionId), {
       sessionId: set.sessionId,
       requestId: set.requestId,
       name,

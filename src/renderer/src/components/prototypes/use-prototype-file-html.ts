@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { readPrototypeSetFileOnHost } from '../../runtime/runtime-prototype-client'
-
-const LOCAL_RUNTIME = { kind: 'local' } as const
+import { prototypeTargetForSession } from './prototype-host-targets'
 
 export type PrototypeFileHtml =
   | { status: 'loading' }
@@ -23,13 +22,21 @@ export function usePrototypeFileHtml(
     }
     let active = true
     setState({ status: 'loading' })
-    void readPrototypeSetFileOnHost(LOCAL_RUNTIME, { sessionId, requestId, fileName })
+    void readPrototypeSetFileOnHost(prototypeTargetForSession(sessionId), {
+      sessionId,
+      requestId,
+      fileName
+    })
       .then((result) => {
         if (active) {
+          if (!result.ok) {
+            console.warn(`[prototypes] read refused for chat ${sessionId}: ${result.error}`)
+          }
           setState(result.ok ? { status: 'ready', html: result.html } : { status: 'error' })
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        console.warn(`[prototypes] read failed for chat ${sessionId}: ${String(error)}`)
         if (active) {
           setState({ status: 'error' })
         }

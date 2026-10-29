@@ -14,6 +14,10 @@ import {
 } from '@/runtime/runtime-prototype-client'
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 
+function describeTarget(target: RuntimeClientTarget): string {
+  return target.kind === 'local' ? 'local host' : `runtime ${target.environmentId}`
+}
+
 /** The text to send: the typed text unchanged when the host cannot make a request folder. */
 export async function prepareNativeChatPrototypeText(input: {
   target: RuntimeClientTarget
@@ -25,6 +29,9 @@ export async function prepareNativeChatPrototypeText(input: {
 }): Promise<string> {
   const { text } = input
   if (text.length > PROTOTYPE_PROMPT_MAX_LENGTH) {
+    console.warn(
+      `[prototypes] request skipped for chat ${input.sessionId}: the message is longer than ${PROTOTYPE_PROMPT_MAX_LENGTH} characters`
+    )
     return text
   }
   const params: CreatePrototypeRequestParams = {
@@ -36,11 +43,22 @@ export async function prepareNativeChatPrototypeText(input: {
   }
   const created = await createPrototypeRequestOnHost(input.target, params).catch((error) => {
     if (error instanceof PrototypeHostOutdatedError) {
+      console.warn(
+        `[prototypes] request skipped for chat ${input.sessionId}: the host does not support prototypes (${describeTarget(input.target)})`
+      )
       return null
     }
+    console.warn(
+      `[prototypes] request failed for chat ${input.sessionId} (${describeTarget(input.target)}): ${String(error)}`
+    )
     throw error
   })
   if (!created?.ok) {
+    if (created) {
+      console.warn(
+        `[prototypes] request not created for chat ${input.sessionId} (${describeTarget(input.target)}): ${created.error}`
+      )
+    }
     return text
   }
   return buildPrototypeRequestMessage({
