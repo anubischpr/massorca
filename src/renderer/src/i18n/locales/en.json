@@ -18041,6 +18041,10 @@
         "notAPrototype": "Not a prototype",
         "shownBecause": "Shown because Settings › Prototypes is “Ask each time”."
       },
+      "link": {
+        "setOf": "{{title}} · set of {{count}}",
+        "open": "Open in Prototypes ›"
+      },
       "agent": {
         "antigravity": "Antigravity",
         "claude": "Claude",
@@ -18542,11 +18546,11 @@
         "providerFunctionProvider": "Provider",
         "providerFunctionTerminalOnly": "Terminal only",
         "providerFunctionUnverified": "Unverified",
+        "prototypeCommandDescription": "Make HTML prototypes of an idea",
         "resumeWindowDescription": "Choose an existing session in the Sessions panel",
         "sessionWindowDescription": "Browse sessions in the Sessions panel",
         "providerFunctionTerminalOnlyError": "{{command}} is available in Terminal only.",
         "forkNotOpened": "The fork was created, but this chat cannot open it. Find it in Sessions.",
-        "prototypeCommandDescription": "Make HTML prototypes of an idea",
         "forkOpenFailed": "The fork was created, but it could not be opened. Find it in Sessions."
       },
       "tool": {

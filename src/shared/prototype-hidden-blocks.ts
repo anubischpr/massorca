@@ -18,3 +18,17 @@ export function withoutPrototypeHiddenInstruction(blocks: NativeChatBlock[]): Na
   })
   return changed ? visible : blocks
 }
+
+/** The request a message opened, when its text carries a request marker; an iteration is not one. */
+export function prototypeRequestIdOfBlocks(blocks: readonly NativeChatBlock[]): string | undefined {
+  for (const block of blocks) {
+    if (block.type !== 'text') {
+      continue
+    }
+    const { hidden } = splitPrototypeHiddenInstruction(block.text)
+    if (hidden?.kind === 'request') {
+      return hidden.requestId
+    }
+  }
+  return undefined
+}

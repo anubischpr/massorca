@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentJournalRenderItem } from './agent-session-journal-types'
 import type { NativeChatBlock } from './native-chat-types'
-import { withoutPrototypeHiddenInstruction } from './prototype-hidden-blocks'
+import {
+  prototypeRequestIdOfBlocks,
+  withoutPrototypeHiddenInstruction
+} from './prototype-hidden-blocks'
 import { buildPrototypeRequestMessage } from './prototype-request'
 import { projectStructuredAgentSessionMessages } from './structured-agent-session-message-projection'
 import { projectStructuredItemToNativeChat } from './structured-agent-session-projection'
@@ -80,5 +83,29 @@ describe('the transcript projection', () => {
     expect(messages.map((message) => message.blocks)).toEqual([
       [text('Make a mockup of the pricing page')]
     ])
+  })
+})
+
+describe('prototypeRequestIdOfBlocks', () => {
+  it('names the request a message opened', () => {
+    expect(prototypeRequestIdOfBlocks([text(SENT)])).toBe('20261028-201500-k3f9q2')
+  })
+
+  it('names nothing for plain text or an iteration', () => {
+    expect(prototypeRequestIdOfBlocks([text('hello')])).toBeUndefined()
+    expect(
+      prototypeRequestIdOfBlocks([
+        text('Iterate on B.\n<!-- orca-prototype-iteration:20261028-201500-k3f9q2:B -->\nWrite it.')
+      ])
+    ).toBeUndefined()
+  })
+
+  it('rides on the projected user message, not the assistant ones', () => {
+    expect(projectStructuredItemToNativeChat(userItem([text(SENT)]))?.prototypeRequestId).toBe(
+      '20261028-201500-k3f9q2'
+    )
+    expect(projectStructuredItemToNativeChat(userItem([text('hi')]))).not.toHaveProperty(
+      'prototypeRequestId'
+    )
   })
 })
