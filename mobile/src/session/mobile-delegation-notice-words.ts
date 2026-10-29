@@ -7,12 +7,19 @@ import { MOBILE_AGENT_CATALOG } from '../tasks/mobile-agent-catalog'
 
 /** The start line: the agent, its model and effort, and whether Automatic chose them. */
 export function delegationStartedText(payload: DelegationStartedPayload): string {
-  const details = [agentLabel(payload.agent), payload.model ?? 'default model', payload.effort]
-    .filter((part): part is string => part !== null)
-    .join(' · ')
+  const details = delegationStartDetails(payload)
   return payload.automatic
     ? `Started child session “${payload.title}” with ${details} (Automatic)`
     : `Started child session “${payload.title}” with ${details}`
+}
+
+/** The agent, model and effort a start names; the default model where none was set. */
+export function delegationStartDetails(
+  start: Pick<DelegationStartedPayload, 'agent' | 'model' | 'effort'>
+): string {
+  return [agentLabel(start.agent), start.model ?? 'default model', start.effort]
+    .filter((part): part is string => part !== null)
+    .join(' · ')
 }
 
 export function delegationFailedText(payload: DelegationFailedPayload): string {

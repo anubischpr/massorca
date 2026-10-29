@@ -8,6 +8,11 @@ import {
   MobileDelegatedChildContext,
   type MobileDelegatedChildAccess
 } from './mobile-delegated-child-access'
+import {
+  MobileDelegatedChildrenContext,
+  type MobileDelegatedChildren
+} from './mobile-delegated-child-rows'
+import type { DelegatedChild } from '../../../src/shared/delegated-children'
 
 vi.mock('react-native', () => ({
   Pressable: 'Pressable',
@@ -15,11 +20,15 @@ vi.mock('react-native', () => ({
   Text: 'Text',
   View: 'View'
 }))
+vi.mock('../hooks/use-now', () => ({ useNow: () => START_PLUS_FOUR_MIN }))
 vi.mock('lucide-react-native', () => ({
   AlertCircle: 'AlertCircle',
   Check: 'Check',
   CornerDownRight: 'CornerDownRight'
 }))
+
+const START = 5_000_000
+const START_PLUS_FOUR_MIN = START + 4 * 60_000
 
 const finished: DelegationNoticePayload = {
   requestId: 'request-1',
@@ -174,5 +183,86 @@ describe('MobileNativeChatDelegationNotice', () => {
     mount({ ...finished, outcome: 'failed', durationMs: null, resultSummary: '' }, null)
 
     expect(texts()).toEqual(['Child session failed', 'Explore Gentle Shell v5', 'failed'])
+  })
+
+  describe('while the child works', () => {
+    const started: DelegationNoticePayload = {
+      requestId: 'request-1',
+      title: 'Explore Phase 3 improvements',
+      status: 'started',
+      agent: 'codex',
+      model: null,
+      effort: 'medium',
+      childSessionId: 'child-1',
+      placement: 'current',
+      automatic: true
+    }
+    const working: DelegatedChild = {
+      requestId: 'request-1',
+      title: 'Explore Phase 3 improvements',
+      status: 'working',
+      agent: 'codex',
+      model: null,
+      effort: 'medium',
+      automatic: true,
+      childSessionId: 'child-1',
+      startedAt: START,
+      resultSummary: null,
+      durationMs: null,
+      reason: null
+    }
+
+    function mountWith(
+      children: readonly DelegatedChild[],
+      access: MobileDelegatedChildAccess | null
+    ): void {
+      const delegated: MobileDelegatedChildren = { children, hostClockOffsetMs: 0 }
+      act(() => {
+        renderer = create(
+          createElement(
+            MobileDelegatedChildContext.Provider,
+            { value: access },
+            createElement(
+              MobileDelegatedChildrenContext.Provider,
+              { value: delegated },
+              createElement(MobileNativeChatDelegationNotice, { payload: started })
+            )
+          )
+        )
+      })
+    }
+
+    it('draws a live row with the agent, model, effort and elapsed time', () => {
+      mountWith([working], { hasChild: () => false, openChild: vi.fn() })
+
+      expect(texts()).toEqual([
+        'Child session working',
+        'Explore Phase 3 improvements',
+        'Codex · default model · medium (Automatic) · 4 min'
+      ])
+    })
+
+    it('offers Open child chat at once when the child tab is here', async () => {
+      const openChild = vi.fn()
+      mountWith([working], { hasChild: (id) => id === 'child-1', openChild })
+
+      expect(openButton()).toHaveLength(1)
+      await act(async () => openButton()[0]!.props.onPress())
+      expect(openChild).toHaveBeenCalledWith('child-1')
+    })
+
+    it('draws no Open control when no target resolves', () => {
+      mountWith([working], { hasChild: () => false, openChild: vi.fn() })
+
+      expect(openButton()).toHaveLength(0)
+    })
+
+    it('keeps the plain start line once the journal shows the child finished', () => {
+      mountWith([{ ...working, status: 'succeeded', durationMs: 60_000 }], null)
+
+      expect(texts()).toEqual([
+        'Started child session “Explore Phase 3 improvements” with Codex · default model · medium (Automatic)'
+      ])
+    })
   })
 })
