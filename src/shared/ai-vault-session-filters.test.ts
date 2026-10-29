@@ -330,6 +330,15 @@ describe('nestedLiveWorktreePaths', () => {
     expect(nestedLiveWorktreePaths('  ', ['/Users/ada/repo/x'])).toEqual([])
     expect(nestedLiveWorktreePaths('relative/repo', ['/relative/repo/x'])).toEqual([])
   })
+
+  it('does not treat the WSL Linux spelling of the workspace as nested', () => {
+    expect(
+      nestedLiveWorktreePaths('//wsl.localhost/Ubuntu/home/ada/repo', [
+        '/home/ada/repo',
+        '/home/ada/repo/.claude/worktrees/feature'
+      ])
+    ).toEqual(['/home/ada/repo/.claude/worktrees/feature'])
+  })
 })
 
 describe('/shared ai-vault-session-filters (hoisted matchers and sort keys)', () => {

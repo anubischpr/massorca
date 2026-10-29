@@ -340,7 +340,11 @@ export function nestedLiveWorktreePaths(
   if (!trimmedWorkspacePath || !isRuntimePathAbsolute(trimmedWorkspacePath)) {
     return []
   }
-  const workspaceKey = normalizeRuntimePathForComparison(trimmedWorkspacePath)
+  const workspaceWslPath = parseWslUncPath(trimmedWorkspacePath)
+  const workspaceKeys = new Set([
+    normalizeRuntimePathForComparison(trimmedWorkspacePath),
+    ...(workspaceWslPath ? [normalizeRuntimePathForComparison(workspaceWslPath.linuxPath)] : [])
+  ])
   const isInsideWorkspace = createAiVaultWorkspaceMatcher(trimmedWorkspacePath)
   const nested: string[] = []
   for (const livePath of livePaths) {
@@ -349,8 +353,8 @@ export function nestedLiveWorktreePaths(
       continue
     }
     const liveKey = normalizeRuntimePathForComparison(trimmedLivePath)
-    // Why: another spelling of the workspace itself is not nested under it.
-    if (liveKey !== workspaceKey && isInsideWorkspace(liveKey)) {
+    // Why: another spelling of the workspace itself (incl. its WSL Linux path) is not nested under it.
+    if (!workspaceKeys.has(liveKey) && isInsideWorkspace(liveKey)) {
       nested.push(trimmedLivePath)
     }
   }
