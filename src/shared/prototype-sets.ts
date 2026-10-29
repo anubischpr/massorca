@@ -1,21 +1,20 @@
-// Groups one chat's prototypes into sets: one set per request, holding lettered directions with
-// their versions. An "Iterate on X." message adds a version to the latest set.
-import { classifyPrototypeRequest, type PrototypeAgent } from './prototype-request'
-
-export type PrototypeVisual = {
-  file: string
-  title: string
-}
-
-export type PrototypeChatEntry =
-  | { role: 'user'; messageId: string; text: string }
-  | { role: 'assistant'; messageId: string; text: string; visuals: readonly PrototypeVisual[] }
+// The directions of one prototype request: the manifest in its request.json, the set read from its
+// folder, and the set read from a Gentle Shell design/<slug>/ folder.
+import { z } from 'zod'
+import { PROTOTYPE_COUNT_MAX, PROTOTYPE_COUNT_MIN } from './prototype-count-setting'
+import { PROTOTYPE_AGENTS } from './prototype-request'
+import {
+  directionLetter,
+  isPlainPathSegment,
+  isRelativeFilePath,
+  parsePrototypeFileName,
+  PROTOTYPE_DIRECTION_LETTERS,
+  prototypeRequestFolder
+} from './prototype-request-folder'
 
 export type PrototypeVersion = {
   version: number
-  file: string
-  title: string
-  messageId: string
+  fileName: string
 }
 
 export type PrototypeDirection = {
@@ -23,112 +22,108 @@ export type PrototypeDirection = {
   versions: PrototypeVersion[]
 }
 
-// A set made from visuals with no request before them has requestText '' and the reply's id as
-// its requestMessageId.
 export type PrototypeSet = {
   setId: string
-  requestMessageId: string
   requestText: string
   directions: PrototypeDirection[]
 }
 
-type Feedback = {
-  direction: PrototypeDirection
-  consumed: boolean
+const REQUEST_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u
+const GENTLE_DESIGN_FOLDER = 'design'
+
+const prototypeRequestManifestSchema = z.object({
+  version: z.literal(1),
+  requestId: z.string().regex(REQUEST_ID_PATTERN),
+  agent: z.enum(PROTOTYPE_AGENTS),
+  sessionId: z.string().min(1),
+  originalPrompt: z.string(),
+  count: z.int().min(PROTOTYPE_COUNT_MIN).max(PROTOTYPE_COUNT_MAX),
+  createdAt: z.iso.datetime(),
+  gentleDesignBaseline: z.array(z.string()).optional()
+})
+
+export type PrototypeRequestManifest = z.infer<typeof prototypeRequestManifestSchema>
+
+/** The request.json of a request folder, or null when it is not a valid version 1 manifest. */
+export function parsePrototypeRequestManifest(input: unknown): PrototypeRequestManifest | null {
+  const result = prototypeRequestManifestSchema.safeParse(input)
+  return result.success ? result.data : null
 }
 
-const ITERATE_PATTERN = /^Iterate on ([A-Z]+)\./
-
-export function groupPrototypeSets(
-  entries: readonly PrototypeChatEntry[],
-  agent: PrototypeAgent
-): PrototypeSet[] {
-  const sets: PrototypeSet[] = []
-  // Receives the visuals of the replies until the next user message.
-  let requestSet: PrototypeSet | null = null
-  // Receives the first visual of the replies after an iteration message.
-  let feedback: Feedback | null = null
-
-  for (const entry of entries) {
-    if (entry.role === 'user') {
-      requestSet = null
-      feedback = null
-      const iterated = ITERATE_PATTERN.exec(entry.text.trimStart())?.[1]
-      if (iterated !== undefined) {
-        feedback = feedbackFor(sets, iterated)
-      } else if (classifyPrototypeRequest(entry.text, agent).kind !== 'none') {
-        requestSet = {
-          setId: `request:${entry.messageId}`,
-          requestMessageId: entry.messageId,
-          requestText: entry.text.trim(),
-          directions: []
-        }
-        sets.push(requestSet)
-      }
-      continue
-    }
-    for (const [index, visual] of entry.visuals.entries()) {
-      if (feedback !== null) {
-        if (!feedback.consumed) {
-          feedback.consumed = true
-          addVersion(feedback.direction, visual, entry.messageId)
-        }
-      } else if (requestSet !== null) {
-        addDirection(requestSet, visual, entry.messageId)
-      } else {
-        sets.push(orphanSet(visual, entry.messageId, index))
-      }
+/** The set of a request folder, from the names of its entries. Other entries are ignored. */
+export function buildPrototypeSet(
+  manifest: PrototypeRequestManifest,
+  fileNames: readonly string[]
+): PrototypeSet {
+  const folder = prototypeRequestFolder(manifest.requestId)
+  const versionsByLetter = new Map<string, PrototypeVersion[]>()
+  for (const fileName of fileNames) {
+    const parsed = parsePrototypeFileName(fileName)
+    if (parsed !== null) {
+      const versions = versionsByLetter.get(parsed.letter) ?? []
+      versions.push({ version: parsed.version, fileName: `${folder}/${fileName}` })
+      versionsByLetter.set(parsed.letter, versions)
     }
   }
-  return sets.filter((set) => set.directions.length > 0)
+  const directions = [...versionsByLetter.keys()].sort().map((letter) => ({
+    letter,
+    versions: (versionsByLetter.get(letter) ?? []).sort(
+      (left, right) => left.version - right.version
+    )
+  }))
+  return { setId: manifest.requestId, requestText: manifest.originalPrompt, directions }
 }
 
-// The latest set with directions (a request still waiting for its replies has none), and the
-// direction of that letter in it.
-function feedbackFor(sets: readonly PrototypeSet[], letter: string): Feedback | null {
-  const set = sets.findLast((candidate) => candidate.directions.length > 0)
-  const direction = set?.directions.find((candidate) => candidate.letter === letter)
-  return direction === undefined ? null : { direction, consumed: false }
-}
+const gentleArtboardSchema = z.object({
+  file: z.string().refine(isRelativeFilePath),
+  title: z.string(),
+  tradeoff: z.string().optional(),
+  width: z.number().positive().optional(),
+  height: z.number().positive().optional()
+})
 
-function addDirection(set: PrototypeSet, visual: PrototypeVisual, messageId: string): void {
-  set.directions.push({
-    letter: directionLetter(set.directions.length),
-    versions: [{ version: 1, file: visual.file, title: visual.title, messageId }]
-  })
-}
+const gentleDesignSchema = z.object({
+  title: z.string(),
+  brief: z.string(),
+  artboards: z
+    .array(gentleArtboardSchema)
+    .min(1)
+    .max(PROTOTYPE_DIRECTION_LETTERS.length)
+    .refine(
+      (artboards) => new Set(artboards.map((artboard) => artboard.file)).size === artboards.length
+    )
+})
 
-function addVersion(
-  direction: PrototypeDirection,
-  visual: PrototypeVisual,
-  messageId: string
-): void {
-  direction.versions.push({
-    version: direction.versions.length + 1,
-    file: visual.file,
-    title: visual.title,
-    messageId
-  })
-}
-
-function orphanSet(visual: PrototypeVisual, messageId: string, index: number): PrototypeSet {
-  const set: PrototypeSet = {
-    setId: `orphan:${messageId}:${index}`,
-    requestMessageId: messageId,
-    requestText: '',
-    directions: []
+/** The set of a design/<slug>/ folder from a Gentle Shell request: one direction per artboard. */
+export function buildGentleDesignSet(
+  manifest: PrototypeRequestManifest,
+  slug: string,
+  designJson: unknown
+): PrototypeSet | null {
+  if (manifest.agent !== 'gentle-shell' || !isPlainPathSegment(slug)) {
+    return null
   }
-  addDirection(set, visual, messageId)
-  return set
+  const result = gentleDesignSchema.safeParse(designJson)
+  if (!result.success) {
+    return null
+  }
+  return {
+    setId: manifest.requestId,
+    requestText: manifest.originalPrompt,
+    directions: result.data.artboards.map((artboard, index) => ({
+      letter: directionLetter(index),
+      versions: [{ version: 1, fileName: `${GENTLE_DESIGN_FOLDER}/${slug}/${artboard.file}` }]
+    }))
+  }
 }
 
-// A, B, … Z, then AA, AB, …
-function directionLetter(index: number): string {
-  let letters = ''
-  let rest = index
-  do {
-    letters = String.fromCharCode(65 + (rest % 26)) + letters
-    rest = Math.floor(rest / 26) - 1
-  } while (rest >= 0)
-  return letters
+/** The one design/<slug>/ folder that is new since the request was sent, or null if not exactly one. */
+export function resolveGentleDesignSlug(
+  baseline: readonly string[],
+  currentSlugs: readonly string[]
+): string | null {
+  const known = new Set(baseline)
+  const added = [...new Set(currentSlugs.filter((slug) => !known.has(slug)))]
+  const [only, ...others] = added
+  return only !== undefined && others.length === 0 ? only : null
 }

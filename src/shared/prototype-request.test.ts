@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import {
-  PROTOTYPE_NATIVE_COMMANDS,
-  buildPrototypePrompt,
-  classifyPrototypeRequest
+  buildPrototypeIterationInstruction,
+  buildPrototypeRequestMessage,
+  classifyPrototypeRequest,
+  PROTOTYPE_NATIVE_COMMANDS
 } from './prototype-request'
 
-const countLine = (count: number): string =>
-  `Produce ${count} distinct design directions, each a self-contained HTML file, with a one-line tradeoff.`
+const FOLDER = '/work/visuals/prototypes/20261028-201500-k3f9q2'
+
+const TWO_DIRECTIONS = [
+  'Produce exactly 2 distinct design directions. Write each as ONE self-contained HTML file with inline CSS and no external network resources, at these exact paths:',
+  `${FOLDER}/A.html`,
+  `${FOLDER}/B.html`,
+  'Write nothing else in that folder. Do not announce these files as chat visuals. Reply with one line per direction: its letter, a short name, and a one-line tradeoff.'
+].join('\n')
 
 describe('PROTOTYPE_NATIVE_COMMANDS', () => {
   it('names only the verified native design commands', () => {
@@ -25,31 +32,29 @@ describe('classifyPrototypeRequest', () => {
 
   it.each([
     'Make a prototype of the pricing page',
-    'Make three prototypes of the pricing page',
     'Hazme un prototipo del checkout',
-    'Sketch a mockup of the dashboard',
     'Hazme una maqueta del menú',
     'Draw wireframes for onboarding',
-    'Let us design the settings screen',
-    'Show me two designs',
-    'We are designing a new header',
-    'Redesign the footer',
-    'Necesito un diseño para el login',
-    'Quiero diseños nuevos',
-    'Hay que diseñar la home',
+    'Sketch a mockup of the dashboard',
     'Diseña la pantalla de pago',
-    'Diseñame un formulario',
-    'Hace un rediseño del menú',
-    'Quiero rediseñar la barra',
-    'Rediseña el panel lateral'
+    'Redesign the checkout modal',
+    'Rediseña el formulario de registro'
   ])('detects a keyword in %j', (text) => {
     expect(classifyPrototypeRequest(text, 'other')).toEqual({ kind: 'keyword' })
   })
 
   it('ignores accents and case', () => {
-    expect(classifyPrototypeRequest('Un DISENO nuevo', 'other')).toEqual({ kind: 'keyword' })
-    expect(classifyPrototypeRequest('disenar la home', 'other')).toEqual({ kind: 'keyword' })
+    expect(classifyPrototypeRequest('Un DISEÑO de la PANTALLA nueva', 'other')).toEqual({
+      kind: 'keyword'
+    })
     expect(classifyPrototypeRequest('REDISENO del menu', 'other')).toEqual({ kind: 'keyword' })
+  })
+
+  it('needs a UI noun next to a design word', () => {
+    expect(classifyPrototypeRequest('Necesito un diseño para el login', 'other')).toEqual({
+      kind: 'none'
+    })
+    expect(classifyPrototypeRequest('Show me two designs', 'other')).toEqual({ kind: 'none' })
   })
 
   it('matches whole words only', () => {
@@ -58,8 +63,13 @@ describe('classifyPrototypeRequest', () => {
     expect(classifyPrototypeRequest('open design_tokens.ts', 'other')).toEqual({ kind: 'none' })
   })
 
-  it('keeps a design word match even for a design doc, since the card filters it', () => {
-    expect(classifyPrototypeRequest('Update the design doc', 'other')).toEqual({ kind: 'keyword' })
+  it('suppresses a keyword next to a design doc or an API', () => {
+    expect(classifyPrototypeRequest('Update the design doc for the screen', 'other')).toEqual({
+      kind: 'none'
+    })
+    expect(classifyPrototypeRequest('Prototype the API screen', 'other')).toEqual({
+      kind: 'none'
+    })
   })
 
   it.each([
@@ -127,61 +137,205 @@ describe('classifyPrototypeRequest', () => {
   })
 })
 
-describe('buildPrototypePrompt', () => {
-  it('translates /prototype into the native design command of an agent that has one', () => {
-    expect(buildPrototypePrompt('/prototype make a login page', 'claude', 2)).toBe(
-      `/design make a login page\n\n${countLine(2)}`
-    )
-    expect(buildPrototypePrompt('/prototipo make a login page', 'gentle-shell', 3)).toBe(
-      `/gentle:design make a login page\n\n${countLine(3)}`
+describe('buildPrototypeRequestMessage', () => {
+  it('sends a /prototype request to Claude as the plain instruction, with its folder', () => {
+    expect(
+      buildPrototypeRequestMessage({
+        text: '/prototype make a login page',
+        agent: 'claude',
+        count: 2,
+        folderPath: FOLDER
+      })
+    ).toEqual({
+      visibleText: '/prototype make a login page',
+      sentText: `make a login page\n\n${TWO_DIRECTIONS}`
+    })
+  })
+
+  it('translates /prototype on Gentle Shell into its design command, with no folder', () => {
+    expect(
+      buildPrototypeRequestMessage({
+        text: '/prototype make a login page',
+        agent: 'gentle-shell',
+        count: 3,
+        folderPath: FOLDER
+      })
+    ).toEqual({
+      visibleText: '/prototype make a login page',
+      sentText: '/gentle:design make a login page\n\nProduce 3 distinct design directions.'
+    })
+    expect(
+      buildPrototypeRequestMessage({
+        text: '/prototipo',
+        agent: 'gentle-shell',
+        count: 1,
+        folderPath: FOLDER
+      }).sentText
+    ).toBe('/gentle:design\n\nProduce 1 design direction.')
+  })
+
+  it('sends /prototype on Gentle Shell as the plain instruction when it would be a control subcommand', () => {
+    expect(
+      buildPrototypeRequestMessage({
+        text: '/prototype stop',
+        agent: 'gentle-shell',
+        count: 2,
+        folderPath: FOLDER
+      }).sentText
+    ).toBe(`stop\n\n${TWO_DIRECTIONS}`)
+  })
+
+  it('leaves a typed Gentle Shell design command as written and adds the count line', () => {
+    expect(
+      buildPrototypeRequestMessage({
+        text: '/gentle:design make a login page',
+        agent: 'gentle-shell',
+        count: 2,
+        folderPath: FOLDER
+      })
+    ).toEqual({
+      visibleText: '/gentle:design make a login page',
+      sentText: '/gentle:design make a login page\n\nProduce 2 distinct design directions.'
+    })
+  })
+
+  it('sends a typed native command of another agent as written, with the folder instruction', () => {
+    expect(
+      buildPrototypeRequestMessage({
+        text: '/design a login page',
+        agent: 'claude',
+        count: 2,
+        folderPath: FOLDER
+      }).sentText
+    ).toBe(`/design a login page\n\n${TWO_DIRECTIONS}`)
+  })
+
+  it('sends a keyword request trimmed, with the folder instruction, and shows the text as typed', () => {
+    const message = buildPrototypeRequestMessage({
+      text: '  Make a mockup of the page \n',
+      agent: 'codex',
+      count: 3,
+      folderPath: FOLDER
+    })
+    expect(message.visibleText).toBe('  Make a mockup of the page \n')
+    expect(message.sentText.startsWith('Make a mockup of the page\n\nProduce exactly 3')).toBe(true)
+    expect(message.sentText).toContain(`${FOLDER}/C.html`)
+    expect(message.sentText).not.toContain('D.html')
+  })
+
+  it('uses the singular wording and one file for a single direction', () => {
+    expect(
+      buildPrototypeRequestMessage({
+        text: '/prototype a login page',
+        agent: 'codex',
+        count: 1,
+        folderPath: FOLDER
+      }).sentText
+    ).toBe(
+      [
+        'a login page',
+        '',
+        'Produce 1 design direction. Write it as a single self-contained HTML file with inline CSS and no external network resources, at this exact path:',
+        `${FOLDER}/A.html`,
+        'Write nothing else in that folder. Do not announce this file as a chat visual. Reply with one line: its letter, a short name, and a one-line tradeoff.'
+      ].join('\n')
     )
   })
 
-  it('sends the plain instruction for /prototype when the agent has no native command', () => {
-    expect(buildPrototypePrompt('/prototype make a login page', 'codex', 2)).toBe(
-      `make a login page\n\n${countLine(2)}`
-    )
-    expect(buildPrototypePrompt('/prototype make a login page', 'other', 2)).toBe(
-      `make a login page\n\n${countLine(2)}`
-    )
+  it('clamps the count to four directions, A to D', () => {
+    const { sentText } = buildPrototypeRequestMessage({
+      text: 'make a mockup',
+      agent: 'other',
+      count: 9,
+      folderPath: FOLDER
+    })
+    expect(sentText).toContain('Produce exactly 4 distinct design directions.')
+    expect(sentText).toContain(`${FOLDER}/D.html`)
+    expect(sentText).not.toContain('E.html')
   })
 
-  it('never leaves a leading space or blank lines when /prototype has no text', () => {
-    expect(buildPrototypePrompt('/prototype', 'claude', 2)).toBe(`/design\n\n${countLine(2)}`)
-    expect(buildPrototypePrompt('/prototype', 'codex', 2)).toBe(countLine(2))
+  it('adds the Stitch line for Antigravity only', () => {
+    const antigravity = buildPrototypeRequestMessage({
+      text: '/prototype make a login page',
+      agent: 'antigravity',
+      count: 2,
+      folderPath: FOLDER
+    }).sentText
+    const claude = buildPrototypeRequestMessage({
+      text: '/prototype make a login page',
+      agent: 'claude',
+      count: 2,
+      folderPath: FOLDER
+    }).sentText
+    expect(
+      antigravity.endsWith(
+        '\nDo not use Stitch MCP for this request; write the local HTML files instead.'
+      )
+    ).toBe(true)
+    expect(claude).not.toContain('Stitch')
   })
 
-  it('keeps a typed native command as written and adds the count line', () => {
-    expect(buildPrototypePrompt('/design a login page', 'claude', 2)).toBe(
-      `/design a login page\n\n${countLine(2)}`
-    )
-  })
-
-  it('adds the count line to a keyword request, trimmed', () => {
-    expect(buildPrototypePrompt('  make a mockup of the page \n', 'codex', 3)).toBe(
-      `make a mockup of the page\n\n${countLine(3)}`
-    )
+  it('sends no leading blank lines when /prototype has no text', () => {
+    expect(
+      buildPrototypeRequestMessage({
+        text: '/prototype',
+        agent: 'codex',
+        count: 2,
+        folderPath: FOLDER
+      }).sentText.startsWith('Produce exactly 2 distinct design directions.')
+    ).toBe(true)
   })
 
   it('returns text without a request exactly as it was', () => {
-    expect(buildPrototypePrompt('  fix the build  ', 'claude', 2)).toBe('  fix the build  ')
+    expect(
+      buildPrototypeRequestMessage({
+        text: '  fix the build  ',
+        agent: 'claude',
+        count: 2,
+        folderPath: FOLDER
+      })
+    ).toEqual({ visibleText: '  fix the build  ', sentText: '  fix the build  ' })
   })
 
-  it('asks for the clamped count', () => {
-    expect(buildPrototypePrompt('make a mockup', 'other', 9)).toBe(
-      `make a mockup\n\n${countLine(4)}`
+  it('keeps the separators of a Windows folder and joins the file name with a slash', () => {
+    const { sentText } = buildPrototypeRequestMessage({
+      text: '/prototype a login',
+      agent: 'codex',
+      count: 1,
+      folderPath: 'C:\\work\\visuals\\prototypes\\req\\'
+    })
+    expect(sentText).toContain('C:\\work\\visuals\\prototypes\\req/A.html')
+  })
+
+  it('needs a folder path to write the direction files', () => {
+    expect(() =>
+      buildPrototypeRequestMessage({
+        text: '/prototype a login',
+        agent: 'claude',
+        count: 2,
+        folderPath: ''
+      })
+    ).toThrow(RangeError)
+  })
+})
+
+describe('buildPrototypeIterationInstruction', () => {
+  it('names the new version file of the direction and forbids other edits', () => {
+    expect(
+      buildPrototypeIterationInstruction({ letter: 'B', nextVersion: 2, folderPath: FOLDER })
+    ).toBe(
+      `Write the new version of direction B as ${FOLDER}/B-v2.html, self-contained with inline CSS and no external network resources, and do not modify other files.`
     )
   })
 
-  it('sends the plain instruction when the native command would start a control subcommand', () => {
-    expect(buildPrototypePrompt('/prototype stop', 'gentle-shell', 2)).toBe(
-      `stop\n\n${countLine(2)}`
-    )
-  })
-
-  it('leaves a Gentle Shell control subcommand unchanged', () => {
-    expect(buildPrototypePrompt('/gentle:design sync', 'gentle-shell', 2)).toBe(
-      '/gentle:design sync'
-    )
+  it.each([
+    { label: 'a lowercase letter', letter: 'b', nextVersion: 2 },
+    { label: 'two letters', letter: 'AA', nextVersion: 2 },
+    { label: 'version 1', letter: 'B', nextVersion: 1 },
+    { label: 'a fractional version', letter: 'B', nextVersion: 2.5 }
+  ])('rejects $label', ({ letter, nextVersion }) => {
+    expect(() =>
+      buildPrototypeIterationInstruction({ letter, nextVersion, folderPath: FOLDER })
+    ).toThrow(RangeError)
   })
 })
