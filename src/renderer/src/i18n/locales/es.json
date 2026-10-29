@@ -17824,6 +17824,28 @@
     }
   },
   "components": {
+    "prototypes": {
+      "settings": {
+        "title": "Prototipos",
+        "description": "Cuántas direcciones propone un agente cuando le pides un prototipo.",
+        "alternatives": "Alternativas por solicitud",
+        "always": "Hacer siempre",
+        "fewer": "Menos",
+        "more": "Más",
+        "directionsHint": "direcciones (por defecto 2, máx. 4)",
+        "ask": "Preguntar cada vez",
+        "askDescription": "Una tarjeta en el chat pregunta 1, 2 o 3 antes de que el agente empiece.",
+        "addsHeading": "Lo que MassOrca añade a tu mensaje",
+        "addsNote": "Funciona igual para Claude, Codex, Antigravity y Gentle Shell: es texto plano dentro del mensaje. Los resultados se agrupan en un conjunto por solicitud.",
+        "keywordPrototype": "prototipo"
+      },
+      "ask": {
+        "title": "¿Cuántos prototipos?",
+        "description": "{{agent}} propondrá direcciones distintas para que puedas compararlas.",
+        "notAPrototype": "No es un prototipo",
+        "shownBecause": "Se muestra porque Ajustes › Prototipos está en «Preguntar cada vez»."
+      }
+    },
     "createChat": {
       "accessAcceptEditsDescription": "Aplica ediciones de archivos sin preguntar. Los comandos siguen pidiendo permiso.",
       "accessAria": "Permisos",

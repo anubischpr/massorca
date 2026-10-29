@@ -6,6 +6,7 @@ import { getDefaultTerminalQuickCommands } from './terminal-quick-commands'
 import { TASK_PROVIDERS } from './task-providers'
 import { getDefaultSourceControlAiSettings } from './source-control-ai'
 import { DEFAULT_APP_ICON_ID } from './app-icon'
+import { DEFAULT_PROTOTYPE_COUNT_SETTING } from './prototype-count-setting'
 import { DEFAULT_OPEN_IN_APPLICATIONS } from './open-in-applications'
 import { DEFAULT_DISABLED_TUI_AGENTS } from './tui-agent-selection'
 import { DEFAULT_TUI_AGENT_ARGS, DEFAULT_TUI_AGENT_ENV } from './tui-agent-launch-defaults'
@@ -159,6 +160,7 @@ export function buildDefaultSettings(args: {
     nestedWorkerMaxDepth: 1,
     showArtifactsButton: false,
     showSkillsButton: false,
+    prototypeCount: { ...DEFAULT_PROTOTYPE_COUNT_SETTING },
     showMobileButton: true,
     showPinnedWorktreesInGroups: false,
     ctrlTabOrderMode: 'mru',

@@ -48,5 +48,14 @@ export function buildPrototypeCountLine(count: number): string {
   if (directions === 1) {
     return 'Produce 1 design direction, as a self-contained HTML file, with a one-line tradeoff.'
   }
-  return `Produce ${directions} distinct design directions, each a self-contained HTML file, with a one-line tradeoff.`
+  return directionsLine(String(directions))
+}
+
+/** The line as Settings shows it while each request asks: the count is not known yet. */
+export function buildPrototypeAskCountLine(): string {
+  return directionsLine('N')
+}
+
+function directionsLine(count: string): string {
+  return `Produce ${count} distinct design directions, each a self-contained HTML file, with a one-line tradeoff.`
 }

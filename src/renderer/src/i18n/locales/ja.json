@@ -17780,6 +17780,28 @@
     }
   },
   "components": {
+    "prototypes": {
+      "settings": {
+        "title": "プロトタイプ",
+        "description": "プロトタイプを頼んだときに Agent が作る案の数です。",
+        "alternatives": "リクエストごとの案の数",
+        "always": "常に作る",
+        "fewer": "減らす",
+        "more": "増やす",
+        "directionsHint": "案（デフォルト 2、最大 4）",
+        "ask": "毎回確認する",
+        "askDescription": "Agent が始める前に、チャットのカードで 1、2、3 のいずれかを確認します。",
+        "addsHeading": "MassOrca がプロンプトに追加する内容",
+        "addsNote": "Claude、Codex、Antigravity、Gentle Shell のどれでも同じように動作します。メッセージ内のプレーンテキストです。結果はリクエストごとに 1 セットにまとめられます。",
+        "keywordPrototype": "プロトタイプ"
+      },
+      "ask": {
+        "title": "プロトタイプはいくつ作りますか？",
+        "description": "{{agent}} が比較しやすいよう、異なる方向性の案を作ります。",
+        "notAPrototype": "プロトタイプではない",
+        "shownBecause": "設定 › プロトタイプが「毎回確認する」のため表示されています。"
+      }
+    },
     "onboarding": {
       "flow": {
         "stepTooltip": {

@@ -18020,6 +18020,28 @@
     }
   },
   "components": {
+    "prototypes": {
+      "settings": {
+        "title": "Prototypes",
+        "description": "How many directions an agent makes when you ask for a prototype.",
+        "alternatives": "Alternatives per request",
+        "always": "Always make",
+        "fewer": "Fewer",
+        "more": "More",
+        "directionsHint": "directions (default 2, max 4)",
+        "ask": "Ask each time",
+        "askDescription": "A card in the chat asks 1, 2 or 3 before the agent starts.",
+        "addsHeading": "What MassOrca adds to your prompt",
+        "addsNote": "Works the same for Claude, Codex, Antigravity and Gentle Shell: it is plain text in the message. The results are grouped as one set per request.",
+        "keywordPrototype": "prototype"
+      },
+      "ask": {
+        "title": "How many prototypes?",
+        "description": "{{agent}} will make distinct directions so you can compare them.",
+        "notAPrototype": "Not a prototype",
+        "shownBecause": "Shown because Settings › Prototypes is “Ask each time”."
+      }
+    },
     "createChat": {
       "accessAcceptEditsDescription": "Apply file edits without asking. Commands still ask.",
       "accessAria": "Permissions",

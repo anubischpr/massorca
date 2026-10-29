@@ -17881,6 +17881,28 @@
     }
   },
   "components": {
+    "prototypes": {
+      "settings": {
+        "title": "Prototypes",
+        "description": "Combien de directions un agent propose quand vous demandez un prototype.",
+        "alternatives": "Alternatives par demande",
+        "always": "Toujours en faire",
+        "fewer": "Moins",
+        "more": "Plus",
+        "directionsHint": "directions (2 par défaut, 4 max)",
+        "ask": "Demander à chaque fois",
+        "askDescription": "Une carte dans le chat demande 1, 2 ou 3 avant que l'agent ne commence.",
+        "addsHeading": "Ce que MassOrca ajoute à votre message",
+        "addsNote": "Fonctionne de la même façon pour Claude, Codex, Antigravity et Gentle Shell : c'est du texte brut dans le message. Les résultats sont regroupés en un ensemble par demande.",
+        "keywordPrototype": "prototype"
+      },
+      "ask": {
+        "title": "Combien de prototypes ?",
+        "description": "{{agent}} proposera des directions distinctes pour que vous puissiez les comparer.",
+        "notAPrototype": "Pas un prototype",
+        "shownBecause": "Affiché parce que Paramètres › Prototypes est sur « Demander à chaque fois »."
+      }
+    },
     "nativeChatSummary": {
       "loadedResults": "Modifications de fichiers et visuels enregistrées dans l'historique chargé du chat.",
       "noResults": "Aucune modification de fichier ni visuel signalé.",

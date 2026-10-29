@@ -17780,6 +17780,28 @@
     }
   },
   "components": {
+    "prototypes": {
+      "settings": {
+        "title": "原型",
+        "description": "当你请求原型时，智能体会生成多少个方向。",
+        "alternatives": "每次请求的备选方案数",
+        "always": "始终生成",
+        "fewer": "减少",
+        "more": "增加",
+        "directionsHint": "个方向（默认 2，最多 4）",
+        "ask": "每次询问",
+        "askDescription": "智能体开始之前，聊天中的卡片会询问 1、2 或 3。",
+        "addsHeading": "MassOrca 添加到你的提示中的内容",
+        "addsNote": "对 Claude、Codex、Antigravity 和 Gentle Shell 的工作方式相同：它是消息中的纯文本。结果按每次请求归为一组。",
+        "keywordPrototype": "原型"
+      },
+      "ask": {
+        "title": "要几个原型？",
+        "description": "{{agent}} 会生成不同的方向，方便你对比。",
+        "notAPrototype": "不是原型",
+        "shownBecause": "显示此卡片是因为“设置 › 原型”为“每次询问”。"
+      }
+    },
     "nativeChatSummary": {
       "loadedResults": "已加载聊天记录中的文件更改和可视化内容",
       "noResults": "未报告文件更改或可视化内容",

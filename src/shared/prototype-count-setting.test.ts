@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_PROTOTYPE_COUNT_SETTING,
+  buildPrototypeAskCountLine,
   buildPrototypeCountLine,
   clampPrototypeCount,
   sanitizePrototypeCountSetting
@@ -107,5 +108,13 @@ describe('buildPrototypeCountLine', () => {
       'Produce 1 design direction, as a self-contained HTML file, with a one-line tradeoff.'
     expect(buildPrototypeCountLine(1)).toBe(singular)
     expect(buildPrototypeCountLine(0)).toBe(singular)
+  })
+})
+
+describe('buildPrototypeAskCountLine', () => {
+  it('shows N where the count is not known yet', () => {
+    expect(buildPrototypeAskCountLine()).toBe(
+      'Produce N distinct design directions, each a self-contained HTML file, with a one-line tradeoff.'
+    )
   })
 })

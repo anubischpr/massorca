@@ -17780,6 +17780,28 @@
     }
   },
   "components": {
+    "prototypes": {
+      "settings": {
+        "title": "프로토타입",
+        "description": "프로토타입을 요청할 때 에이전트가 만드는 방향의 수입니다.",
+        "alternatives": "요청당 대안 수",
+        "always": "항상 만들기",
+        "fewer": "줄이기",
+        "more": "늘리기",
+        "directionsHint": "개 방향 (기본값 2, 최대 4)",
+        "ask": "매번 묻기",
+        "askDescription": "에이전트가 시작하기 전에 채팅 카드에서 1, 2 또는 3을 묻습니다.",
+        "addsHeading": "MassOrca가 프롬프트에 추가하는 내용",
+        "addsNote": "Claude, Codex, Antigravity, Gentle Shell 모두 동일하게 동작합니다. 메시지에 포함되는 일반 텍스트입니다. 결과는 요청당 하나의 세트로 묶입니다.",
+        "keywordPrototype": "프로토타입"
+      },
+      "ask": {
+        "title": "프로토타입을 몇 개 만들까요?",
+        "description": "{{agent}}가 비교할 수 있도록 서로 다른 방향을 만듭니다.",
+        "notAPrototype": "프로토타입 아님",
+        "shownBecause": "설정 › 프로토타입이 “매번 묻기”로 되어 있어 표시됩니다."
+      }
+    },
     "onboarding": {
       "flow": {
         "stepTooltip": {
