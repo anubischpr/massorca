@@ -47,6 +47,7 @@ import { createAcpAgentConnection } from '../acp/acp-agent-connection'
 import { createAcpStructuredLaunchResolver } from '../acp/acp-structured-launch-resolution'
 import { AcpStructuredSessionAdapter } from '../acp/acp-structured-session-adapter'
 import { acpLaunchCheck, structuredCliLaunchCheck } from './structured-agent-launch-check'
+import { ensureDelegationInstructionsFolder } from '../delegated-session/delegation-instructions-folder'
 import { PI_RPC_RUNTIME_REGISTRATION } from '../pi/rpc-runtime-registration'
 import { ANTIGRAVITY_RUNTIME_REGISTRATION } from '../antigravity/runtime-registration'
 import type { AgentModelCatalogDiscovery } from '../native-chat/agent-model-catalog/agent-model-catalog-discovery'
@@ -230,6 +231,8 @@ function acpRegistration(spec: AcpLaunchSpec): StructuredAgentRuntimeRegistratio
             ? { resolveFullAccess: deps.resolveAgentFullAccess }
             : {}),
           ...nativeChatVisualsFor(deps),
+          resolveDelegationInstructionsFolder: () =>
+            ensureDelegationInstructionsFolder(deps.stateDirectory),
           logger: deps.logger
         }),
         connect: (launch, options) => createAcpAgentConnection(launch, options),
