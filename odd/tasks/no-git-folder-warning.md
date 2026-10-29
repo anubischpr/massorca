@@ -69,6 +69,17 @@ Prototype: https://claude.ai/artifact/MXai3HzR88MwEWf7FK2Tfy (4 artboards). Stri
   - RDD: assessed high (`process_scan_limit`) against base `67d124b7185` (T1 unreviewed), consent granted per standing rule; bound STATUS hit `operation_timeout`, lineage `review-62fd09ccd7a0b2b0` abandoned. Unreviewed.
   - Delivery: no push or PR in this session (parent instruction); chain strategy asked of the parent session, slice boundaries so far: T1 `2cbd68d0f12`, T2 `342451bc0081`.
 
+## Delivery
+
+- Strategy: `feature-branch-chain`, integration base `custom/integration` (parent session, 2026-10-29). Nothing is pushed or opened until the user asks.
+
+## Review STATUS timeout (for triage)
+
+- gentle-ai 3.7.0, Windows 11, agent claude-code. Same failure on T1 and T2, right after a granted `review start` returned `created`.
+- Command shape (run as returned, no outer timeout wrapper): `gentle-ai review status --contract=gentle-ai.review-integration/v2 --next-transition=true --lineage=<id> --repository-context=<rctx2_...> --agent=claude-code --base-ref=<sha> --committed-only=true`.
+- Result: `gentle-ai.review-integration.failure/v2`, phase `pre_native`, code `operation_timeout` ("exceeded its aggregate time budget"), cause `context deadline exceeded`, `retry_safe: false`, `next_action: stop`. The envelope does not state the budget.
+- Lineages: T1 `review-cce108eb4951f8d5` (20 paths, 1,130 lines), T2 `review-62fd09ccd7a0b2b0` (10 paths, 719 lines). Both abandoned with `operator_disposition`.
+
 ## Next step
 
 T3 (desktop sidebar pill + popover), then T4 (mobile).
