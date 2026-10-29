@@ -62,8 +62,8 @@ export function PrototypeViewerToolbar({
   const starCount = state.starred.length
   return (
     <div className="flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-2.5">
-      <div className="mr-auto flex min-w-0 flex-col gap-0.5">
-        <span className="text-sm font-semibold">
+      <div className="flex min-w-0 flex-[1_1_160px] flex-col gap-0.5">
+        <span className="truncate text-sm font-semibold">
           {`${prototypeTitle(set)} · ${prototypeCountLabel(status)}`}
         </span>
         {builtOn === null ? null : (
@@ -89,102 +89,104 @@ export function PrototypeViewerToolbar({
               })}
         </button>
       </div>
-      {single ? null : (
-        <button
-          type="button"
-          onClick={onMerge}
-          disabled={!mergeEnabled}
-          className="flex h-7 items-center gap-1.5 rounded-lg border border-status-amber/50 px-3 text-xs disabled:border-border disabled:text-muted-foreground"
-        >
-          <Star aria-hidden="true" className="size-3.5 fill-status-amber text-status-amber" />
-          {starCount === 0
-            ? translate('components.prototypes.merge', 'Merge')
-            : translate('components.prototypes.mergeCount', 'Merge ({{count}})', {
-                count: starCount
-              })}
-        </button>
-      )}
-      {single ? null : (
+      <div role="toolbar" className="flex shrink-0 items-center gap-2.5">
+        {single ? null : (
+          <button
+            type="button"
+            onClick={onMerge}
+            disabled={!mergeEnabled}
+            className="flex h-7 items-center gap-1.5 rounded-lg border border-status-amber/50 px-3 text-xs disabled:border-border disabled:text-muted-foreground"
+          >
+            <Star aria-hidden="true" className="size-3.5 fill-status-amber text-status-amber" />
+            {starCount === 0
+              ? translate('components.prototypes.merge', 'Merge')
+              : translate('components.prototypes.mergeCount', 'Merge ({{count}})', {
+                  count: starCount
+                })}
+          </button>
+        )}
+        {single ? null : (
+          <div
+            role="group"
+            aria-label={translate('components.prototypes.layoutGroup', 'Layout')}
+            className={SEGMENT_CLASS}
+          >
+            <button
+              type="button"
+              aria-pressed={layout === 'set'}
+              onClick={() => update(showSet)}
+              className={segmentButtonClass(layout === 'set')}
+            >
+              {translate('components.prototypes.layoutAll', 'View all')}
+            </button>
+            <button
+              type="button"
+              aria-pressed={layout === 'focus'}
+              onClick={() => update(showFocus)}
+              className={segmentButtonClass(layout === 'focus')}
+            >
+              {translate('components.prototypes.layoutIterating', 'Design main')}
+            </button>
+          </div>
+        )}
         <div
           role="group"
-          aria-label={translate('components.prototypes.layoutGroup', 'Layout')}
+          aria-label={translate('components.prototypes.viewportGroup', 'Viewport')}
           className={SEGMENT_CLASS}
         >
           <button
             type="button"
-            aria-pressed={layout === 'set'}
-            onClick={() => update(showSet)}
-            className={segmentButtonClass(layout === 'set')}
+            aria-pressed={state.viewport === 'desktop'}
+            onClick={() => update((current) => setViewport(current, 'desktop'))}
+            className={segmentButtonClass(state.viewport === 'desktop')}
           >
-            {translate('components.prototypes.layoutAll', 'View all')}
+            {translate('components.prototypes.viewportDesktop', 'Desktop')}
           </button>
           <button
             type="button"
-            aria-pressed={layout === 'focus'}
-            onClick={() => update(showFocus)}
-            className={segmentButtonClass(layout === 'focus')}
+            aria-pressed={state.viewport === 'phone'}
+            onClick={() => update((current) => setViewport(current, 'phone'))}
+            className={segmentButtonClass(state.viewport === 'phone')}
           >
-            {translate('components.prototypes.layoutIterating', 'Design main')}
+            {translate('components.prototypes.viewportPhone', 'Phone')}
           </button>
         </div>
-      )}
-      <div
-        role="group"
-        aria-label={translate('components.prototypes.viewportGroup', 'Viewport')}
-        className={SEGMENT_CLASS}
-      >
-        <button
-          type="button"
-          aria-pressed={state.viewport === 'desktop'}
-          onClick={() => update((current) => setViewport(current, 'desktop'))}
-          className={segmentButtonClass(state.viewport === 'desktop')}
+        <div
+          role="group"
+          aria-label={translate('components.prototypes.toolGroup', 'Tool')}
+          className={SEGMENT_CLASS}
         >
-          {translate('components.prototypes.viewportDesktop', 'Desktop')}
-        </button>
-        <button
+          <button
+            type="button"
+            aria-pressed={state.tool === 'browse'}
+            onClick={() => update((current) => setTool(current, 'browse'))}
+            className={segmentButtonClass(state.tool === 'browse')}
+          >
+            {translate('components.prototypes.toolBrowse', 'Browse')}
+          </button>
+          <button
+            type="button"
+            aria-pressed={state.tool === 'annotate'}
+            onClick={() => update((current) => setTool(current, 'annotate'))}
+            className={segmentButtonClass(state.tool === 'annotate')}
+          >
+            {translate('components.prototypes.toolAnnotate', 'Annotate')}
+          </button>
+        </div>
+        <Button
           type="button"
-          aria-pressed={state.viewport === 'phone'}
-          onClick={() => update((current) => setViewport(current, 'phone'))}
-          className={segmentButtonClass(state.viewport === 'phone')}
+          variant={sidePanelHidden ? 'secondary' : 'ghost'}
+          size="icon-xs"
+          aria-label={
+            sidePanelHidden
+              ? translate('components.prototypes.showPanel', 'Show panel')
+              : translate('components.prototypes.hidePanel', 'Hide panel')
+          }
+          onClick={() => setSidePanelHidden(!sidePanelHidden)}
         >
-          {translate('components.prototypes.viewportPhone', 'Phone')}
-        </button>
+          <PanelRight />
+        </Button>
       </div>
-      <div
-        role="group"
-        aria-label={translate('components.prototypes.toolGroup', 'Tool')}
-        className={SEGMENT_CLASS}
-      >
-        <button
-          type="button"
-          aria-pressed={state.tool === 'browse'}
-          onClick={() => update((current) => setTool(current, 'browse'))}
-          className={segmentButtonClass(state.tool === 'browse')}
-        >
-          {translate('components.prototypes.toolBrowse', 'Browse')}
-        </button>
-        <button
-          type="button"
-          aria-pressed={state.tool === 'annotate'}
-          onClick={() => update((current) => setTool(current, 'annotate'))}
-          className={segmentButtonClass(state.tool === 'annotate')}
-        >
-          {translate('components.prototypes.toolAnnotate', 'Annotate')}
-        </button>
-      </div>
-      <Button
-        type="button"
-        variant={sidePanelHidden ? 'secondary' : 'ghost'}
-        size="icon-xs"
-        aria-label={
-          sidePanelHidden
-            ? translate('components.prototypes.showPanel', 'Show panel')
-            : translate('components.prototypes.hidePanel', 'Hide panel')
-        }
-        onClick={() => setSidePanelHidden(!sidePanelHidden)}
-      >
-        <PanelRight />
-      </Button>
     </div>
   )
 }

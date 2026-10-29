@@ -435,3 +435,28 @@ describe('PrototypeViewer while a merge waits', () => {
     )
   })
 })
+
+describe('PrototypeViewer toolbar structure', () => {
+  afterEach(cleanup)
+
+  it('keeps every control group in one container next to the title block', () => {
+    renderSet3(createSetState(['A', 'B', 'C']))
+    const controls = screen.getByRole('toolbar')
+    expect(within(controls).getByRole('button', { name: 'Merge' })).toBeInTheDocument()
+    for (const name of ['Layout', 'Viewport', 'Tool']) {
+      expect(within(controls).getByRole('group', { name })).toBeInTheDocument()
+    }
+    expect(within(controls).getByRole('button', { name: 'Hide panel' })).toBeInTheDocument()
+    const header = controls.parentElement
+    expect(header?.children).toHaveLength(2)
+    expect(header?.children[1]).toBe(controls)
+    expect(controls).toHaveClass('shrink-0')
+    expect(controls).not.toHaveClass('flex-wrap')
+  })
+
+  it('puts the panel toggle right after the Browse / Annotate group', () => {
+    renderSet3(createSetState(['A', 'B', 'C']))
+    const tool = screen.getByRole('group', { name: 'Tool' })
+    expect(tool.nextElementSibling).toBe(screen.getByRole('button', { name: 'Hide panel' }))
+  })
+})
