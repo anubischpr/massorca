@@ -2,18 +2,20 @@ import type {
   NativeChatVisualPickedElement,
   NativeChatVisualRect
 } from './native-chat-visual-annotate'
-import type {
-  PrototypeDraftField,
-  PrototypeElementState,
-  PrototypeNotes,
-  PrototypePin
+import {
+  isPinTouched,
+  type PrototypeDraftField,
+  type PrototypeElementState,
+  type PrototypeNotes,
+  type PrototypePin
 } from './prototype-draft'
 
 // The screen state of one prototype set: which direction is iterated and which is shown, the pins
 // and their edits, the notes, the prompt and the send. Every transition is a pure function.
 // Invariants: a picker exists only with a selected pin, a selection stays on the shown direction,
 // and an element is picked only while annotating. A transition that would break one is refused or
-// clears what it would leave stale.
+// clears what it would leave stale. A pin nothing has changed or noted is dropped when the
+// selection moves.
 
 export type PrototypeLayout = 'set' | 'focus'
 export type PrototypeViewport = 'desktop' | 'phone'
@@ -89,7 +91,13 @@ export function keepListedLetters(
   if (listed(state.view)) {
     return { ...state, active }
   }
-  return { ...state, active, view: active, selectedPinKey: null, picker: null }
+  return {
+    ...pruneUntouched(state, null),
+    active,
+    view: active,
+    selectedPinKey: null,
+    picker: null
+  }
 }
 
 /** A pin's key is its selector's hash: the same element on two directions has the same key. */
@@ -113,6 +121,32 @@ export function selectedPinOf(state: PrototypeSetState): PrototypeSetPin | null 
   return pinsOf(state, state.view).find((pin) => pin.pinKey === state.selectedPinKey) ?? null
 }
 
+/**
+ * Drops every untouched pin on every direction, except the pin `keep` names. Dropping one never
+ * changes the draft, because an untouched pin has no items in it.
+ */
+function pruneUntouched(
+  state: PrototypeSetState,
+  keep: { letter: string; pinKey: string } | null
+): PrototypeSetState {
+  let removed = false
+  const pins: Record<string, readonly PrototypeSetPin[]> = {}
+  for (const [letter, list] of Object.entries(state.pins)) {
+    const kept = list.filter(
+      (pin) =>
+        (keep?.letter === letter && keep.pinKey === pin.pinKey) ||
+        isPinTouched(letter, pin, state.notes[`${letter}:${pin.pinKey}`])
+    )
+    if (kept.length !== list.length) {
+      removed = true
+    }
+    if (kept.length > 0) {
+      pins[letter] = kept
+    }
+  }
+  return removed ? { ...state, pins } : state
+}
+
 /** Edits apply only to the iterated direction; a peek shows its pins without the Edit section. */
 export function isEditable(state: PrototypeSetState): boolean {
   return state.view === state.active && selectedPinOf(state) !== null
@@ -131,13 +165,19 @@ export function showFocus(state: PrototypeSetState): PrototypeSetState {
     return { ...state, layout: 'focus' }
   }
   // A selection on the peeked direction does not carry over to the iterated one.
-  return { ...state, layout: 'focus', view: state.active, selectedPinKey: null, picker: null }
+  return {
+    ...pruneUntouched(state, null),
+    layout: 'focus',
+    view: state.active,
+    selectedPinKey: null,
+    picker: null
+  }
 }
 
 /** A card in the set grid: it becomes the iterated direction and opens focus on it. */
 export function openDirection(state: PrototypeSetState, letter: string): PrototypeSetState {
   return dirty({
-    ...state,
+    ...pruneUntouched(state, null),
     layout: 'focus',
     active: letter,
     view: letter,
@@ -151,11 +191,22 @@ export function peekDirection(state: PrototypeSetState, letter: string): Prototy
   if (letter === state.view) {
     return { ...state, layout: 'focus' }
   }
-  return dirty({ ...state, layout: 'focus', view: letter, selectedPinKey: null, picker: null })
+  return dirty({
+    ...pruneUntouched(state, null),
+    layout: 'focus',
+    view: letter,
+    selectedPinKey: null,
+    picker: null
+  })
 }
 
 export function backToActive(state: PrototypeSetState): PrototypeSetState {
-  return dirty({ ...state, view: state.active, selectedPinKey: null, picker: null })
+  return dirty({
+    ...pruneUntouched(state, null),
+    view: state.active,
+    selectedPinKey: null,
+    picker: null
+  })
 }
 
 export function iterateHere(state: PrototypeSetState): PrototypeSetState {
@@ -171,7 +222,7 @@ export function setViewport(
 
 export function setTool(state: PrototypeSetState, tool: PrototypeTool): PrototypeSetState {
   if (tool === 'browse') {
-    return { ...state, tool, selectedPinKey: null, picker: null }
+    return { ...pruneUntouched(state, null), tool, selectedPinKey: null, picker: null }
   }
   return { ...state, tool }
 }
@@ -181,16 +232,21 @@ export function selectPin(state: PrototypeSetState, pinKey: string): PrototypeSe
   if (!pinsOf(state, state.view).some((pin) => pin.pinKey === pinKey)) {
     return state
   }
-  return { ...state, selectedPinKey: pinKey, picker: null }
+  return {
+    ...pruneUntouched(state, { letter: state.view, pinKey }),
+    selectedPinKey: pinKey,
+    picker: null
+  }
 }
 
 export function closeSelection(state: PrototypeSetState): PrototypeSetState {
-  return { ...state, selectedPinKey: null, picker: null }
+  return { ...pruneUntouched(state, null), selectedPinKey: null, picker: null }
 }
 
 /**
  * A click on an element of the shown direction. The first pick of an element makes its pin and
  * keeps its state as the original; a later pick selects that pin, and its state is not taken again.
+ * Untouched pins are dropped first, so the new pin takes the next free number.
  */
 export function pickElement(
   state: PrototypeSetState,
@@ -200,10 +256,11 @@ export function pickElement(
     return state
   }
   const letter = state.view
-  const list = pinsOf(state, letter)
   const pinKey = pinKeyFor(element.selector)
+  const kept = pruneUntouched(state, { letter, pinKey })
+  const list = pinsOf(kept, letter)
   if (list.some((pin) => pin.pinKey === pinKey)) {
-    return { ...state, selectedPinKey: pinKey, picker: null }
+    return { ...kept, selectedPinKey: pinKey, picker: null }
   }
   const pin: PrototypeSetPin = {
     pinKey,
@@ -217,8 +274,8 @@ export function pickElement(
     viewport: state.viewport
   }
   return dirty({
-    ...state,
-    pins: { ...state.pins, [letter]: [...list, pin] },
+    ...kept,
+    pins: { ...kept.pins, [letter]: [...list, pin] },
     selectedPinKey: pinKey,
     picker: null
   })
@@ -301,7 +358,7 @@ export function jumpToDraftItem(
 ): PrototypeSetState {
   const picker = target.field === 'color' || target.field === 'bg' ? target.field : null
   return {
-    ...state,
+    ...pruneUntouched(state, { letter: target.letter, pinKey: target.pinKey }),
     layout: 'focus',
     tool: 'annotate',
     view: target.letter,
