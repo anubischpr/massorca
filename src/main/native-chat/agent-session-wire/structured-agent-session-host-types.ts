@@ -27,6 +27,7 @@ import type { StructuredAgentSessionLogger } from './structured-agent-session-lo
 import type { StructuredAgentId } from '../../../shared/agent-session-provider-handle'
 import type { StructuredAgentRegistry } from './structured-agent-registry'
 import type { StructuredAgentSessionStartupLimits } from './structured-agent-session-startup-attempt-contract'
+import type { StructuredAgentSessionHostOwnedPrompts } from './structured-agent-session-host-owned-prompts'
 
 export type StructuredAgentSessionCaller = { callerKey: string }
 
@@ -178,4 +179,7 @@ export type StructuredAgentSessionHostDeps = {
   statusSink?: StructuredAgentSessionStatusSink
   /** Host model catalog surface; absent means every catalog read answers `unknown`. */
   modelCatalog?: AgentModelCatalogService
+  /** Resolves the questions the host itself asks (a delegated session's agent choice). Absent, such
+   *  a question is refused as gone and never reaches a provider. */
+  hostOwnedPrompts?: StructuredAgentSessionHostOwnedPrompts
 }

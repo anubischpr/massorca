@@ -11,6 +11,7 @@ export function optionalStructuredHostDeps(
     | 'replySuggestions'
     | 'resolveAgentFullAccess'
     | 'onSessionTabHidden'
+    | 'hostOwnedPrompts'
   >
 ): Partial<StructuredAgentSessionHostDeps> {
   return {
@@ -22,6 +23,7 @@ export function optionalStructuredHostDeps(
     ...(deps.resolveAgentFullAccess
       ? { resolveInheritedFullAccess: deps.resolveAgentFullAccess }
       : {}),
-    ...(deps.onSessionTabHidden ? { onSessionTabHidden: deps.onSessionTabHidden } : {})
+    ...(deps.onSessionTabHidden ? { onSessionTabHidden: deps.onSessionTabHidden } : {}),
+    ...(deps.hostOwnedPrompts ? { hostOwnedPrompts: deps.hostOwnedPrompts } : {})
   }
 }

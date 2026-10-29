@@ -1,6 +1,5 @@
-// An orchestration worker for a registered agent (Grok) opens as a terminal worker, as before Grok
-// had a structured chat: the structured worker factory creates Claude and Codex only, so a
-// structured verdict for Grok would fail the start. Other launches still open Grok as a chat.
+// A registered agent (Grok) is a structured worker under the same setting as Claude and Codex, when the
+// host can create its session. An agent with no structured registration stays a terminal worker.
 
 import { describe, expect, it } from 'vitest'
 import { decideAgentLaunchMode } from '../../../agent-launch/agent-launch-mode'
@@ -15,19 +14,42 @@ const STRUCTURED_PREFERENCE = {
 } as const
 
 describe('a Grok worker and the structured-chat setting', () => {
-  it('starts as a terminal worker while the setting is on; Claude starts structured', async () => {
+  it('starts structured under the setting when the host can create the session', async () => {
     const grok = decideWorkerStartMode({
       params: { agent: 'grok' },
       settings: STRUCTURED_PREFERENCE
     })
-    expect(grok).toMatchObject({ mode: 'terminal', reason: 'agent_without_structured_session' })
+    expect(grok).toMatchObject({ mode: 'structured', reason: 'user_default' })
     const host = { getStructuredAgentSessionCreateSupport: async () => ({ supported: true }) }
     expect(await resolveWorkerStartModeOnHost(host, grok, 'wt-1', 'grok')).toMatchObject({
-      mode: 'terminal'
+      mode: 'structured'
     })
     expect(
       decideWorkerStartMode({ params: { agent: 'claude' }, settings: STRUCTURED_PREFERENCE })
     ).toMatchObject({ mode: 'structured', reason: 'user_default' })
+  })
+
+  it('falls back to a terminal worker when the host refuses the session', async () => {
+    const grok = decideWorkerStartMode({
+      params: { agent: 'grok' },
+      settings: STRUCTURED_PREFERENCE
+    })
+    const host = {
+      getStructuredAgentSessionCreateSupport: async () => ({
+        supported: false as const,
+        reason: 'agent' as const
+      })
+    }
+    expect(await resolveWorkerStartModeOnHost(host, grok, 'wt-1', 'grok')).toMatchObject({
+      mode: 'terminal',
+      reason: 'structured_unsupported_on_host'
+    })
+  })
+
+  it('keeps an agent with no structured registration a terminal worker', () => {
+    expect(
+      decideWorkerStartMode({ params: { agent: 'cursor' }, settings: STRUCTURED_PREFERENCE })
+    ).toMatchObject({ mode: 'terminal', reason: 'agent_without_structured_session' })
   })
 
   it('still opens Grok as a structured chat for other launches', () => {
@@ -36,17 +58,17 @@ describe('a Grok worker and the structured-chat setting', () => {
     ).toMatchObject({ mode: 'structured' })
   })
 
-  it('would fail a structured Grok worker: the factory creates Claude and Codex only', async () => {
+  it('refuses to build a structured worker for an agent with no registration', async () => {
     await expect(
       createStructuredWorkerSessionForWorktree({
         // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the factory refuses the agent before it reads the runtime.
         runtime: {} as never,
         worktreeId: 'wt-1',
-        agent: 'grok',
+        agent: 'cursor',
         dispatchId: 'd-1',
         effects: []
       })
-    ).rejects.toThrow(/Structured workers support claude and codex/)
+    ).rejects.toThrow(/cursor has no structured session on this host/)
   })
 
   it('starts as a terminal agent while the setting is off, as Claude does', () => {

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { AGENT_SESSION_ACCESS_MODE_VALUES } from '../agent-session-access-mode'
 import { OptionalFiniteNumber, OptionalString, requiredString } from './rpc-param-primitives'
 
 export const OptionalWorkerLaunchPreference = z
@@ -29,6 +30,10 @@ export const WorkerStartParams = z
     agent: OptionalString,
     model: OptionalWorkerLaunchPreference,
     effort: OptionalWorkerLaunchPreference,
+    /** `chat` asks for a structured chat over a terminal default; feasibility still decides. */
+    preferredMode: z.literal('chat').optional(),
+    /** The access the worker runs in. A mode the worker cannot honour narrows, never widens. */
+    accessMode: z.enum(AGENT_SESSION_ACCESS_MODE_VALUES).optional(),
     retryOf: OptionalString,
     timeoutMs: OptionalFiniteNumber,
     devMode: z.boolean().optional()

@@ -20,6 +20,7 @@ import {
 } from '../../../agent-launch/agent-launch-mode'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import type { OrcaRuntimeService } from '../../orca-runtime'
+import type { WorkerStartAccess } from './orchestration/worker/worker-start-access-mode'
 
 export type WorkerStartMode = AgentLaunchMode
 export type WorkerStartModeReason = AgentLaunchModeReason
@@ -46,6 +47,7 @@ type WorkerStartModePlacement = {
   worktree?: string
   model?: string
   effort?: string
+  preferredMode?: 'chat'
 }
 
 export function decideWorkerStartMode(args: {
@@ -56,9 +58,8 @@ export function decideWorkerStartMode(args: {
     placement: args.params,
     settings: args.settings,
     vocabulary: WORKER_START_VOCABULARY,
-    // The structured worker factory creates Claude and Codex only; any other agent (Grok included)
-    // starts as a terminal worker until structured workers take registered agents.
-    registeredStructuredAgents: []
+    // Left to the default: every agent this host registers can run as a structured worker.
+    preferredMode: args.params.preferredMode
   })
 }
 
@@ -66,9 +67,17 @@ export async function resolveWorkerStartModeOnHost(
   runtime: Pick<OrcaRuntimeService, 'getStructuredAgentSessionCreateSupport'>,
   mode: WorkerStartModeReceipt,
   worktreeId: string | undefined,
-  agent: TuiAgent | undefined
+  agent: TuiAgent | undefined,
+  access?: WorkerStartAccess
 ): Promise<WorkerStartModeReceipt> {
-  return resolveAgentLaunchModeOnHost(runtime, mode, worktreeId, agent, WORKER_START_VOCABULARY)
+  return resolveAgentLaunchModeOnHost(
+    runtime,
+    mode,
+    worktreeId,
+    agent,
+    WORKER_START_VOCABULARY,
+    access?.hostAccessMode
+  )
 }
 
 export function downgradeWorkerStartModeForHost(

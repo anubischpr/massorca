@@ -29,6 +29,29 @@ it('keeps a skipped compaction warning truthful instead of showing the success s
   expect(screen.queryByText('Context compacted')).toBeNull()
 })
 
+it('draws a delegated session start in place of its plain line', () => {
+  renderStatus({
+    kind: 'status',
+    tone: 'notice',
+    text: 'Started child session with Codex',
+    delegation: {
+      requestId: 'req-1',
+      title: 'Explore',
+      status: 'started',
+      agent: 'codex',
+      model: null,
+      effort: null,
+      childSessionId: 'child-1',
+      placement: 'current',
+      automatic: true
+    }
+  })
+  expect(
+    screen.getByText('Started child session “Explore” with Codex · default model (Automatic)')
+  ).toBeInTheDocument()
+  expect(screen.queryByText('Started child session with Codex')).toBeNull()
+})
+
 function orcaStopView(
   hostLabel: string | null,
   continueAvailable: boolean

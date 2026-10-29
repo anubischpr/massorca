@@ -197,14 +197,16 @@ export async function resolveAgentLaunchModeOnHost(
   receipt: AgentLaunchModeReceipt,
   worktreeId: string | undefined,
   agent: TuiAgent | undefined,
-  vocabulary: AgentLaunchModeVocabulary = DEFAULT_LAUNCH_VOCABULARY
+  vocabulary: AgentLaunchModeVocabulary = DEFAULT_LAUNCH_VOCABULARY,
+  /** The access the structured session will run in, so the host judges that same posture. */
+  accessMode?: 'default' | 'full-access'
 ): Promise<AgentLaunchModeReceipt> {
   if (receipt.mode !== 'structured' || !worktreeId) {
     return receipt
   }
   return downgradeAgentLaunchModeForHost(
     receipt,
-    await readStructuredCreateSupport(runtime, worktreeId, agent),
+    await readStructuredCreateSupport(runtime, worktreeId, agent, accessMode),
     vocabulary
   )
 }
@@ -213,13 +215,21 @@ export async function resolveAgentLaunchModeOnHost(
 async function readStructuredCreateSupport(
   runtime: Pick<OrcaRuntimeService, 'getStructuredAgentSessionCreateSupport'>,
   worktreeId: string,
-  agent: TuiAgent | undefined
+  agent: TuiAgent | undefined,
+  accessMode?: 'default' | 'full-access'
 ): Promise<{ supported: boolean; reason?: 'agent' | 'remote' | 'wsl' | 'access' } | null> {
   if (!agent || !REGISTERED_STRUCTURED_AGENTS.includes(agent)) {
     return { supported: false, reason: 'agent' }
   }
   try {
-    return await runtime.getStructuredAgentSessionCreateSupport(`id:${worktreeId}`, agent)
+    return accessMode
+      ? await runtime.getStructuredAgentSessionCreateSupport(
+          `id:${worktreeId}`,
+          agent,
+          undefined,
+          accessMode
+        )
+      : await runtime.getStructuredAgentSessionCreateSupport(`id:${worktreeId}`, agent)
   } catch {
     return null
   }

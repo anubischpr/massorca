@@ -2,6 +2,7 @@ import { OrchestrationError } from '../../../../orchestration/orchestration-erro
 import { defineMethod } from '../../../core'
 import { startFederatedWorker } from '../federation/federated-worker-start'
 import { startLocalWorker } from './local-worker-start'
+import { assertWorkerStartAccessModeApplies } from './worker-start-access-mode'
 import {
   decideWorkerStartMode,
   readWorkerStartModeSettings
@@ -66,6 +67,12 @@ export const ORCHESTRATION_WORKER_START_METHODS = [
         )
       }
       if (params.on) {
+        // Refused before the remote call: a server that predates the field would ignore it silently.
+        assertWorkerStartAccessModeApplies({
+          requested: params.accessMode,
+          terminal: params.terminal,
+          on: params.on
+        })
         // A remote worker is always a terminal agent; the mode receipt rides along so the
         // coordinator still learns why its structured default did not apply.
         const receipt = await startFederatedWorker({

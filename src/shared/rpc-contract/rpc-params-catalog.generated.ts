@@ -385,6 +385,7 @@ import {
   NotificationsSubscribeParams
 } from './notifications-params'
 import { OrcadMigrationCatalogParams } from './orcad-migration-params'
+import { DelegateRequestParams } from './orchestration-delegate-request-params'
 import {
   FederationDispatchParams,
   FederationFleetSnapshotParams,
@@ -1069,6 +1070,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'orchestration.ask': AskParams,
   'orchestration.callerShow': null,
   'orchestration.check': CheckParams,
+  'orchestration.delegateRequest': DelegateRequestParams,
   'orchestration.dispatch': DispatchParams,
   'orchestration.dispatchShow': DispatchShowParams,
   'orchestration.federationAck': FederationAckParams,

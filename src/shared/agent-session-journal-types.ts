@@ -19,6 +19,7 @@ import type { AgentSessionContextUsage } from './agent-session-context-usage'
 import type { AgentSessionProviderHandle } from './agent-session-provider-handle'
 import type { NativeChatBlock, NativeChatRole } from './native-chat-types'
 import type { AgentMessageSource } from './agent-session-message-source'
+import type { DelegationCardPayload, DelegationNoticePayload } from './delegated-session-journal'
 
 export { type AgentType }
 
@@ -246,6 +247,9 @@ export type AgentJournalQuestionItem = {
   /** Present when the provider accepts an answer outside the offered options. */
   freeTextQuestionId?: string
   freeTextInput?: AgentJournalFreeTextInput
+  /** Present only on the host's own agent-choice card for a delegated session; absent on every
+   *  provider question. Older clients ignore it and draw the question. */
+  delegation?: DelegationCardPayload
   resolution: AgentJournalResolution
 }
 
@@ -340,6 +344,9 @@ type AgentJournalStatusItemFields = {
   /** On the row about a reply Orca's own stop cut off: why Orca stopped. Its cause is open (a newer
    *  host may name one this build does not know), so read it with `readAgentSessionOrcaStop`. */
   orcaStop?: { cause: string }
+  /** Present on the host's start, failure and finish notices for a delegated session; older
+   *  clients ignore it and draw `text`. */
+  delegation?: DelegationNoticePayload
 }
 
 /** A status row that reports no failure; its text is its writer's own. */

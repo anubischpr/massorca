@@ -217,6 +217,37 @@ CREATE TABLE IF NOT EXISTS structured_pointer_operations (
   minted_at_ms      INTEGER NOT NULL
 );
 
+-- One delegated-session request: the parent chat asked for a child, a card offers the agents, and
+-- the answer starts the child. Durable so a card answered after a host restart still resolves.
+CREATE TABLE IF NOT EXISTS delegation_requests (
+  id                  TEXT PRIMARY KEY,
+  run_id              TEXT,
+  parent_session_id   TEXT NOT NULL,
+  title               TEXT NOT NULL,
+  summary             TEXT NOT NULL,
+  prompt              TEXT NOT NULL,
+  writes              INTEGER NOT NULL DEFAULT 0,
+  workspace_kind      TEXT NOT NULL CHECK(workspace_kind IN ('git', 'folder')),
+  options_json        TEXT NOT NULL,
+  decision_json       TEXT,
+  choice              TEXT,
+  status              TEXT NOT NULL DEFAULT 'pending'
+    CHECK(status IN ('pending', 'starting', 'started', 'failed', 'cancelled', 'finished')),
+  question_item_id    TEXT,
+  task_id             TEXT,
+  dispatch_id         TEXT,
+  child_session_id    TEXT,
+  result              TEXT,
+  failure             TEXT,
+  launched_at_ms      INTEGER,
+  created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_delegation_requests_parent
+  ON delegation_requests(parent_session_id, status);
+CREATE INDEX IF NOT EXISTS idx_delegation_requests_dispatch
+  ON delegation_requests(dispatch_id) WHERE dispatch_id IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS worker_terminal_archives (
   dispatch_id   TEXT PRIMARY KEY,
   resource_id   TEXT NOT NULL,
