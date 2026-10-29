@@ -49,105 +49,110 @@ function editedState(): PrototypeSetState {
 
 const FRAME = { x: 100, y: 50, width: 640, height: 500 }
 
-function deps(overrides: Partial<PrototypeSendDeps> = {}): PrototypeSendDeps & {
-  sendMessage: ReturnType<typeof vi.fn>
-  writeAttachment: ReturnType<typeof vi.fn>
-} {
-  return {
-    captureRect: vi.fn(async () => ({ ok: true as const, pngBase64: 'iVBORw0KGgo=' })),
-    writeAttachment: vi.fn(async () => ({
-      ok: true as const,
-      path: 'C:/chat/prototypes/x/notes/pin.png'
-    })),
-    sendMessage: vi.fn(async () => true),
-    now: () => 42,
-    ...overrides
-  } as PrototypeSendDeps & {
-    sendMessage: ReturnType<typeof vi.fn>
-    writeAttachment: ReturnType<typeof vi.fn>
+/** Fake dependencies, with each mock kept for its assertions. */
+function makeDeps(
+  parts: {
+    capture?: PrototypeSendDeps['captureRect']
+    write?: PrototypeSendDeps['writeAttachment']
+    send?: PrototypeSendDeps['sendMessage']
+  } = {}
+) {
+  const captureRect = vi.fn(
+    parts.capture ?? (async () => ({ ok: true as const, pngBase64: 'iVBORw0KGgo=' }))
+  )
+  const writeAttachment = vi.fn(
+    parts.write ?? (async () => ({ ok: true as const, path: 'C:/chat/prototypes/x/notes/pin.png' }))
+  )
+  const sendMessage = vi.fn(parts.send ?? (async (_text: string) => true))
+  const deps: PrototypeSendDeps = {
+    captureRect,
+    writeAttachment,
+    sendMessage,
+    now: () => 42
   }
+  return { deps, captureRect, writeAttachment, sendMessage }
 }
 
 describe('sendPrototypeIteration', () => {
   it('captures the pin, saves it on the host and sends the message with the screenshot path', async () => {
-    const send = deps()
+    const fakes = makeDeps()
     const outcome = await sendPrototypeIteration(
       { state: editedState(), set: SET, frameOrigin: FRAME },
-      send
+      fakes.deps
     )
-    expect(send.captureRect).toHaveBeenCalledWith({ x: 110, y: 70, width: 120, height: 40 })
-    expect(send.writeAttachment).toHaveBeenCalledWith(
+    expect(fakes.captureRect).toHaveBeenCalledWith({ x: 110, y: 70, width: 120, height: 40 })
+    expect(fakes.writeAttachment).toHaveBeenCalledWith(
       `pin-${pinKeyFor('button.cta')}-42`,
       'iVBORw0KGgo='
     )
     expect(outcome.sent).toBe(true)
     expect(outcome.visibleMessage).toContain('  screenshot: C:/chat/prototypes/x/notes/pin.png')
-    const text = send.sendMessage.mock.calls[0]?.[0] as string
+    const [text = ''] = fakes.sendMessage.mock.calls[0] ?? []
     expect(splitPrototypeHiddenInstruction(text).visibleText).toBe(outcome.visibleMessage)
     expect(text).toContain('A-v2.html')
   })
 
   it('sends without the screenshot when the capture fails', async () => {
-    const send = deps({ captureRect: vi.fn(async () => ({ ok: false as const })) })
+    const fakes = makeDeps({ capture: async () => ({ ok: false as const }) })
     const outcome = await sendPrototypeIteration(
       { state: editedState(), set: SET, frameOrigin: FRAME },
-      send
+      fakes.deps
     )
-    expect(send.writeAttachment).not.toHaveBeenCalled()
+    expect(fakes.writeAttachment).not.toHaveBeenCalled()
     expect(outcome.sent).toBe(true)
     expect(outcome.visibleMessage).not.toContain('screenshot:')
   })
 
   it('sends without the screenshot when the host is outdated and rejects the upload', async () => {
-    const send = deps({
-      writeAttachment: vi.fn(async () => {
+    const fakes = makeDeps({
+      write: async () => {
         throw new PrototypeHostOutdatedError()
-      })
+      }
     })
     const outcome = await sendPrototypeIteration(
       { state: editedState(), set: SET, frameOrigin: FRAME },
-      send
+      fakes.deps
     )
     expect(outcome.sent).toBe(true)
     expect(outcome.visibleMessage).not.toContain('screenshot:')
   })
 
   it('takes no screenshot while a peek shows another frame', async () => {
-    const send = deps()
+    const fakes = makeDeps()
     const peeking = { ...editedState(), view: 'B' }
-    await sendPrototypeIteration({ state: peeking, set: SET, frameOrigin: FRAME }, send)
-    expect(send.captureRect).not.toHaveBeenCalled()
+    await sendPrototypeIteration({ state: peeking, set: SET, frameOrigin: FRAME }, fakes.deps)
+    expect(fakes.captureRect).not.toHaveBeenCalled()
   })
 
   it('reports a refused send so the draft is kept', async () => {
-    const send = deps({ sendMessage: vi.fn(async () => false) })
+    const fakes = makeDeps({ send: async () => false })
     const outcome = await sendPrototypeIteration(
       { state: editedState(), set: SET, frameOrigin: null },
-      send
+      fakes.deps
     )
     expect(outcome.sent).toBe(false)
   })
 
   it('treats a thrown send as refused', async () => {
-    const send = deps({
-      sendMessage: vi.fn(async () => {
+    const fakes = makeDeps({
+      send: async () => {
         throw new Error('chat gone')
-      })
+      }
     })
     const outcome = await sendPrototypeIteration(
       { state: editedState(), set: SET, frameOrigin: null },
-      send
+      fakes.deps
     )
     expect(outcome.sent).toBe(false)
   })
 
   it('sends nothing when the set has no request folder on the host', async () => {
-    const send = deps()
+    const fakes = makeDeps()
     const outcome = await sendPrototypeIteration(
       { state: editedState(), set: { ...SET, folderPath: undefined }, frameOrigin: FRAME },
-      send
+      fakes.deps
     )
     expect(outcome.sent).toBe(false)
-    expect(send.sendMessage).not.toHaveBeenCalled()
+    expect(fakes.sendMessage).not.toHaveBeenCalled()
   })
 })

@@ -1,7 +1,6 @@
 import { translate } from '@/i18n/i18n'
 import type { PrototypeAgent } from '../../../../shared/prototype-request'
-import type { PrototypeFilter } from './prototype-list-model'
-import type { PrototypeStatus } from './prototype-list-model'
+import type { PrototypeFilter, PrototypeStatus } from './prototype-list-model'
 
 // Every translated string of the Prototypes view. Keys are literal so the extraction check sees them.
 
