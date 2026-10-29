@@ -1,5 +1,5 @@
-// The auto-draft of an iteration: the fields changed on each pin and the notes taken on any
-// direction, grouped by pin, and the message that sends them back to the chat.
+// The auto-draft of an iteration: the fields changed on each pin of the main and its notes,
+// grouped by pin, and the message that sends them back to the chat.
 
 export type PrototypeSize = {
   value: number
@@ -25,7 +25,7 @@ export type PrototypePin = {
   current: PrototypeElementState
 }
 
-// Keyed `${letter}:${pinKey}`. A note may sit on any direction, not only the one being iterated.
+// Keyed `${letter}:${pinKey}`. A former main keeps its notes, read-only; only the main's join the draft.
 export type PrototypeNotes = Readonly<Record<string, string>>
 
 export type PrototypeDraftField = 'text' | 'color' | 'bg' | 'width' | 'height' | 'fontSize' | 'note'
@@ -69,9 +69,7 @@ export function buildDraft({
       })
     }
   }
-  const entries = noteEntries(notes)
-  groups.push(...orphanNoteGroups(activeLetter, pins, entries))
-  groups.push(...siblingNoteGroups(activeLetter, pins, entries))
+  groups.push(...orphanNoteGroups(activeLetter, pins, noteEntries(notes)))
   const itemCount = groups.reduce((count, group) => count + group.items.length, 0)
   return { groups, itemCount }
 }
@@ -164,37 +162,6 @@ function orphanNoteGroups(
     }))
 }
 
-type SiblingNote = NoteEntry & {
-  order: number
-}
-
-// Notes taken on other directions, by letter, then by where their pin sits in the active list.
-function siblingNoteGroups(
-  activeLetter: string,
-  pins: readonly PrototypePin[],
-  entries: readonly NoteEntry[]
-): PrototypeDraftGroup[] {
-  return entries
-    .filter((entry) => entry.letter !== activeLetter)
-    .map((entry) => ({ ...entry, order: pinOrder(pins, entry.pinKey) }))
-    .sort(compareSiblings)
-    .map((sibling) => siblingGroup(activeLetter, pins, sibling))
-}
-
-// A pin that is no longer listed sorts after every listed pin.
-function pinOrder(pins: readonly PrototypePin[], pinKey: string): number {
-  const index = pins.findIndex((pin) => pin.pinKey === pinKey)
-  return index === -1 ? pins.length : index
-}
-
-function compareSiblings(left: SiblingNote, right: SiblingNote): number {
-  return (
-    compareText(left.letter, right.letter) ||
-    left.order - right.order ||
-    compareText(left.pinKey, right.pinKey)
-  )
-}
-
 function compareText(left: string, right: string): number {
   if (left === right) {
     return 0
@@ -202,25 +169,7 @@ function compareText(left: string, right: string): number {
   return left < right ? -1 : 1
 }
 
-// A sibling note keeps its own letter; its pin's number and label come from the active list when
-// that list has the same pin, and otherwise the title falls back to the pin key.
-function siblingGroup(
-  activeLetter: string,
-  pins: readonly PrototypePin[],
-  sibling: NoteEntry
-): PrototypeDraftGroup {
-  const { letter, pinKey, note } = sibling
-  const pin = pins.find((candidate) => candidate.pinKey === pinKey)
-  const origin =
-    pin === undefined ? `${letter} · ${pinKey}` : `${letter} · ${pin.number} · ${pin.label}`
-  return {
-    title: `from ${origin}`,
-    pinKey,
-    items: [{ field: 'note', label: `take into ${activeLetter}`, value: note, pinKey, letter }]
-  }
-}
-
-/** A group whose items are all on the iterated direction, with at least one: only its own pin takes a screenshot. */
+/** A group whose items are all on the main, with at least one: only its own pin takes a screenshot. */
 export function isOwnGroup(group: PrototypeDraftGroup, activeLetter: string): boolean {
   return group.items.length > 0 && group.items.every((item) => item.letter === activeLetter)
 }
@@ -236,14 +185,13 @@ export function composeIterationMessage({
   groups: readonly PrototypeDraftGroup[]
   pins: readonly PrototypePin[]
   prompt: string
-  /** The saved screenshot path of each pin, keyed by pin key; only the iterated direction's groups take one. */
+  /** The saved screenshot path of each pin, keyed by pin key. */
   screenshots?: Readonly<Record<string, string>>
 }): string {
   const lines = [`Iterate on ${activeLetter}.`]
   for (const group of groups) {
     const selector = pins.find((pin) => pin.pinKey === group.pinKey)?.selector ?? ''
     lines.push(selector.length > 0 ? `${group.title} (${selector})` : group.title)
-    // Only the iterated direction's own groups take a screenshot: a sibling note can share a pin key.
     const screenshot = isOwnGroup(group, activeLetter) ? screenshots[group.pinKey] : undefined
     if (screenshot !== undefined) {
       lines.push(`  screenshot: ${singleLine(screenshot)}`)

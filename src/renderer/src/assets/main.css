@@ -121,6 +121,7 @@
   --color-status-warning: var(--status-warning);
   --color-status-warning-background: var(--status-warning-background);
   --color-status-warning-border: var(--status-warning-border);
+  --color-status-amber: var(--status-amber);
   --color-callout-note: var(--callout-note);
   --color-callout-important: var(--callout-important);
   --color-workspace-status-done: var(--workspace-status-done);
@@ -402,6 +403,8 @@
   --status-warning: #ca8a04;
   --status-warning-background: color-mix(in srgb, var(--status-warning) 10%, transparent);
   --status-warning-border: color-mix(in srgb, var(--status-warning) 25%, transparent);
+  /* The merge star in Prototypes; the same amber as the mobile statusAmber. */
+  --status-amber: #f59e0b;
   /* GitHub's own hues for the two callout kinds no status token covers. */
   --callout-note: #0969da;
   --callout-important: #8250df;
@@ -428,6 +431,8 @@
   --status-warning: #eab308;
   --status-warning-background: color-mix(in srgb, var(--status-warning) 10%, transparent);
   --status-warning-border: color-mix(in srgb, var(--status-warning) 25%, transparent);
+  /* The merge star in Prototypes; the same amber as the mobile statusAmber. */
+  --status-amber: #f59e0b;
   --callout-note: #4493f8;
   --callout-important: #ab7df8;
   --git-decoration-added: #81b88b;

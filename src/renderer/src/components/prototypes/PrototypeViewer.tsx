@@ -18,9 +18,8 @@ import {
 } from '../../../../shared/prototype-list-model'
 import {
   backToActive,
-  iterateHere,
+  makeMain,
   openDirection,
-  peekDirection,
   pickElement,
   pinClicked,
   setTool,
@@ -277,7 +276,7 @@ export function PrototypeViewer({
                   <button
                     key={direction.letter}
                     type="button"
-                    onClick={() => update((current) => peekDirection(current, direction.letter))}
+                    onClick={() => update((current) => openDirection(current, direction.letter))}
                     aria-label={translate(
                       'components.prototypes.showDirection',
                       'Show direction {{letter}}',
@@ -332,7 +331,7 @@ export function PrototypeViewer({
                 </button>
                 <button
                   type="button"
-                  onClick={() => update(iterateHere)}
+                  onClick={() => update(makeMain)}
                   className="h-7 rounded-md border border-border px-2.5 text-xs hover:bg-accent"
                 >
                   {translate(

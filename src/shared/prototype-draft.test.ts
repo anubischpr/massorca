@@ -131,39 +131,17 @@ describe('buildDraft', () => {
     ).toBe(0)
   })
 
-  it('groups a note taken on a sibling direction under its own title', () => {
+  it('leaves out the notes of every direction but the main', () => {
     expect(
-      buildDraft({ activeLetter: 'A', pins: [pin()], notes: { 'B:cta': 'Use the bold palette' } })
-    ).toEqual({
-      groups: [
-        {
-          title: 'from B · 1 · Button',
-          pinKey: 'cta',
-          items: [
-            {
-              field: 'note',
-              label: 'take into A',
-              value: 'Use the bold palette',
-              pinKey: 'cta',
-              letter: 'B'
-            }
-          ]
-        }
-      ],
-      itemCount: 1
-    })
+      buildDraft({
+        activeLetter: 'A',
+        pins: [pin()],
+        notes: { 'B:cta': 'Use the bold palette', 'C:footer-link': 'Smaller' }
+      })
+    ).toEqual({ groups: [], itemCount: 0 })
   })
 
-  it('titles a sibling note by its key when the active direction has no such pin', () => {
-    const draft = buildDraft({
-      activeLetter: 'A',
-      pins: [pin()],
-      notes: { 'C:footer-link': 'Smaller' }
-    })
-    expect(draft.groups.map((group) => group.title)).toEqual(['from C · footer-link'])
-  })
-
-  it('orders active groups by pin, then sibling groups by letter and pin', () => {
+  it('orders the groups of the main by pin', () => {
     const nav = pin({
       pinKey: 'nav',
       number: 2,
@@ -176,13 +154,8 @@ describe('buildDraft', () => {
       pins: [pin({ current: { ...base, text: 'Get started' } }), nav],
       notes: { 'C:nav': 'Bigger', 'B:cta': 'Bolder', 'A:nav': 'Tighter' }
     })
-    expect(draft.groups.map((group) => group.title)).toEqual([
-      'A · 1 · Button',
-      'A · 2 · Nav',
-      'from B · 1 · Button',
-      'from C · 2 · Nav'
-    ])
-    expect(draft.itemCount).toBe(5)
+    expect(draft.groups.map((group) => group.title)).toEqual(['A · 1 · Button', 'A · 2 · Nav'])
+    expect(draft.itemCount).toBe(3)
   })
 
   it('keeps a note on the active direction whose pin is no longer listed', () => {
@@ -202,7 +175,7 @@ describe('buildDraft', () => {
     })
   })
 
-  it('lists the orphan notes of the active direction after the pins and before the siblings', () => {
+  it('lists the orphan notes of the active direction after the pins, by pin key', () => {
     const draft = buildDraft({
       activeLetter: 'A',
       pins: [pin({ current: restyled })],
@@ -211,34 +184,7 @@ describe('buildDraft', () => {
     expect(draft.groups.map((group) => group.title)).toEqual([
       'A · 1 · Button',
       'A · alpha',
-      'A · zeta',
-      'from B · 1 · Button'
-    ])
-  })
-
-  it('orders sibling notes by letter, then by pin order within a letter', () => {
-    const nav = pin({ pinKey: 'nav', number: 2, label: 'Nav', selector: 'nav a' })
-    const draft = buildDraft({
-      activeLetter: 'A',
-      pins: [pin(), nav],
-      notes: { 'B:nav': 'Lighter', 'B:cta': 'Bolder', 'C:cta': 'Smaller' }
-    })
-    expect(draft.groups.map((group) => group.title)).toEqual([
-      'from B · 1 · Button',
-      'from B · 2 · Nav',
-      'from C · 1 · Button'
-    ])
-  })
-
-  it('puts a sibling note whose pin is gone after the listed pins of its letter', () => {
-    const draft = buildDraft({
-      activeLetter: 'A',
-      pins: [pin()],
-      notes: { 'B:gone': 'Remove it', 'B:cta': 'Bolder' }
-    })
-    expect(draft.groups.map((group) => group.title)).toEqual([
-      'from B · 1 · Button',
-      'from B · gone'
+      'A · zeta'
     ])
   })
 
@@ -260,7 +206,7 @@ describe('composeIterationMessage', () => {
     const { groups } = buildDraft({
       activeLetter: 'A',
       pins,
-      notes: { 'C:cta': 'Take the bold palette' }
+      notes: { 'A:cta': 'Take the bold palette' }
     })
     expect(
       composeIterationMessage({ activeLetter: 'A', groups, pins, prompt: 'Make it bolder.' })
@@ -274,8 +220,7 @@ describe('composeIterationMessage', () => {
         '  width: 100% → auto',
         '  height: 48px → 40px',
         '  font size: 14px → 12px',
-        'from C · 1 · Button (button.cta)',
-        '  take into A: Take the bold palette',
+        '  note: Take the bold palette',
         '',
         'Make it bolder.'
       ].join('\n')
@@ -286,11 +231,11 @@ describe('composeIterationMessage', () => {
     const { groups } = buildDraft({
       activeLetter: 'A',
       pins,
-      notes: { 'C:cta': 'Take the bold palette' }
+      notes: { 'A:cta': 'Take the bold palette' }
     })
     expect(
       composeIterationMessage({ activeLetter: 'A', groups, pins, prompt: '   ' }).endsWith(
-        '\n  take into A: Take the bold palette'
+        '\n  note: Take the bold palette'
       )
     ).toBe(true)
   })
@@ -307,15 +252,15 @@ describe('composeIterationMessage', () => {
         activeLetter: 'A',
         groups: [
           {
-            title: 'from C · footer-link',
+            title: 'A · footer-link',
             pinKey: 'footer-link',
             items: [
               {
                 field: 'note',
-                label: 'take into A',
+                label: 'note',
                 value: 'Smaller',
                 pinKey: 'footer-link',
-                letter: 'C'
+                letter: 'A'
               }
             ]
           }
@@ -323,7 +268,7 @@ describe('composeIterationMessage', () => {
         pins: [],
         prompt: ''
       })
-    ).toBe('Iterate on A.\nfrom C · footer-link\n  take into A: Smaller')
+    ).toBe('Iterate on A.\nA · footer-link\n  note: Smaller')
   })
 
   it('keeps each item on one line', () => {
@@ -342,12 +287,8 @@ describe('composeIterationMessage', () => {
     ).toBe('Iterate on A.\nA · 1 · Button (button.cta)\n  note: Line one line two')
   })
 
-  it('never gives a sibling note the screenshot of the active pin that shares its key', () => {
-    const { groups } = buildDraft({
-      activeLetter: 'A',
-      pins,
-      notes: { 'C:cta': 'Take the bold palette' }
-    })
+  it('adds the screenshot of the pin under its group', () => {
+    const { groups } = buildDraft({ activeLetter: 'A', pins, notes: {} })
     const message = composeIterationMessage({
       activeLetter: 'A',
       groups,
@@ -358,9 +299,6 @@ describe('composeIterationMessage', () => {
     expect(message.split('\n').filter((line) => line.includes('screenshot:'))).toEqual([
       '  screenshot: C:/shots/cta.png'
     ])
-    expect(message).toContain(
-      'from C · 1 · Button (button.cta)\n  take into A: Take the bold palette'
-    )
   })
 })
 

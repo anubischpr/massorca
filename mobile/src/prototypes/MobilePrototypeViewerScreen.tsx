@@ -7,9 +7,9 @@ import type { PrototypeDraftField, PrototypeDraftItem } from '../../../src/share
 import {
   backToActive,
   closeSelection,
-  iterateHere,
+  makeMain,
   jumpToDraftItem,
-  peekDirection,
+  openDirection,
   pickElement,
   pinClicked,
   selectedPinOf,
@@ -195,7 +195,7 @@ export function MobilePrototypeViewerScreen({
                 update((current) =>
                   chip.letter === current.active
                     ? backToActive(current)
-                    : peekDirection(current, chip.letter)
+                    : openDirection(current, chip.letter)
                 )
               }
               style={[styles.chip, chip.selected && styles.chipOn]}
@@ -224,7 +224,7 @@ export function MobilePrototypeViewerScreen({
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              onPress={() => update(iterateHere)}
+              onPress={() => update(makeMain)}
               style={styles.peekButton}
             >
               <Text style={styles.peekButtonText}>{`Iterate on ${state.view}`}</Text>

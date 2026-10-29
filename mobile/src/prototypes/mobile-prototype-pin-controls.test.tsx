@@ -5,7 +5,7 @@ import type { NativeChatVisualPickedElement } from '../../../src/shared/native-c
 import {
   createSetState,
   editSelected,
-  peekDirection,
+  openDirection,
   pickElement,
   selectedPinOf,
   setPrompt,
@@ -62,7 +62,7 @@ const HEADING: NativeChatVisualPickedElement = {
 
 /** A pin on the direction B, which is then peeked at while A is the one being iterated. */
 function peekingB(): PrototypeSetState {
-  return pickElement(peekDirection(createSetState(['A', 'B']), 'B'), HEADING)
+  return pickElement(openDirection(createSetState(['A', 'B']), 'B'), HEADING)
 }
 
 /** The host elements of one type; the test doubles for Text and the like are host strings. */

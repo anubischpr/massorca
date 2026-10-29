@@ -4,8 +4,8 @@ import {
   closeSelection,
   createSetState,
   editSelected,
-  iterateHere,
-  peekDirection,
+  makeMain,
+  openDirection,
   pickElement,
   pinKeyFor,
   setNote
@@ -48,7 +48,7 @@ const HEADING: NativeChatVisualPickedElement = {
 }
 
 function stateOnB() {
-  return peekDirection(iterateHere(peekDirection(createSetState(['A', 'B', 'C']), 'B')), 'B')
+  return openDirection(makeMain(openDirection(createSetState(['A', 'B', 'C']), 'B')), 'B')
 }
 
 describe('viewerHeaderLines', () => {
@@ -60,7 +60,7 @@ describe('viewerHeaderLines', () => {
   })
 
   it('says a sibling is being peeked at', () => {
-    const peeking = peekDirection(stateOnB(), 'C')
+    const peeking = openDirection(stateOnB(), 'C')
     expect(viewerHeaderLines(SET, peeking)).toEqual({ title: 'C', subtitle: 'Codex · peeking' })
   })
 
@@ -77,7 +77,7 @@ describe('viewerHeaderLines', () => {
 
 describe('the pin sheet tab and the jump pulse', () => {
   it('shows the Note tab while a sibling is peeked at, whatever tab was chosen', () => {
-    expect(shownPinTab('edit', peekDirection(stateOnB(), 'C'))).toBe('note')
+    expect(shownPinTab('edit', openDirection(stateOnB(), 'C'))).toBe('note')
     expect(shownPinTab('edit', stateOnB())).toBe('edit')
     expect(shownPinTab('note', stateOnB())).toBe('note')
   })
@@ -87,14 +87,14 @@ describe('the pin sheet tab and the jump pulse', () => {
     const jump = { letter: 'B', pinKey: pinKeyFor(HEADING.selector), field: 'width' as const }
     expect(pulseFieldFor(jump, picked)).toBe('width')
     expect(pulseFieldFor(jump, closeSelection(picked))).toBeNull()
-    expect(pulseFieldFor(jump, peekDirection(picked, 'C'))).toBeNull()
+    expect(pulseFieldFor(jump, openDirection(picked, 'C'))).toBeNull()
     expect(pulseFieldFor(null, picked)).toBeNull()
   })
 })
 
 describe('viewerChips', () => {
   it('lists the directions and marks the iterated one and the shown one', () => {
-    const peeking = peekDirection(stateOnB(), 'C')
+    const peeking = openDirection(stateOnB(), 'C')
     expect(viewerChips(SET, peeking)).toEqual([
       { letter: 'A', label: 'A', selected: false },
       { letter: 'B', label: 'B · iterating', selected: false },
@@ -118,7 +118,7 @@ describe('the pin sheet', () => {
 
   it('counts no edits while peeking', () => {
     const edited = editSelected(pickElement(stateOnB(), HEADING), { fontSize: 18 })
-    expect(selectedPinEditCount(peekDirection(edited, 'C'))).toBe(0)
+    expect(selectedPinEditCount(openDirection(edited, 'C'))).toBe(0)
   })
 
   it('words the note for the shown direction', () => {
@@ -128,7 +128,7 @@ describe('the pin sheet', () => {
     expect(notePlaceholderFor(state)).toBe(
       'Describe a change Edit can’t do: animation, behavior, style…'
     )
-    const peeking = peekDirection(state, 'C')
+    const peeking = openDirection(state, 'C')
     expect(noteLabelFor(peeking)).toBe('What to take from C into B')
     expect(notePlaceholderFor(peeking)).toBe('e.g. use this wallet button above the card form')
   })
