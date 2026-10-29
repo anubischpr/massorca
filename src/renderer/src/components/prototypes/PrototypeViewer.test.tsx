@@ -94,6 +94,16 @@ function renderViewer(state: PrototypeSetState, update: Update): void {
   )
 }
 
+describe('PrototypeViewer header', () => {
+  afterEach(cleanup)
+
+  it('shows the title and the direction count, without the iterating letter', () => {
+    renderViewer(createSetState(['A', 'B']), vi.fn<Update>())
+    const header = screen.getByText(/· 2 directions$/)
+    expect(header.textContent).toBe('Checkout · 2 directions')
+  })
+})
+
 describe('PrototypeViewer side panel toggle', () => {
   beforeEach(() => {
     usePrototypeViewStore.setState({ sidePanelHidden: false, states: {} })

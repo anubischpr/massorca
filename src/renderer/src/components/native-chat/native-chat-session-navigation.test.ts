@@ -97,11 +97,11 @@ describe('client session navigation', () => {
     ).toHaveLength(1)
   })
 
-  it('offers /prototype with a description and claims /prototipo without listing it', () => {
+  it('offers /prototype with no description, and claims /prototipo without listing it', () => {
     const rows = withNativeChatSessionCommands([])
-    expect(rows.find((x) => x.name === 'prototype')).toMatchObject({
-      description: expect.any(String)
-    })
+    const prototype = rows.find((x) => x.name === 'prototype')
+    expect(prototype?.name).toBe('prototype')
+    expect(prototype?.description).toBeUndefined()
     expect(rows.find((x) => x.name === 'prototipo')).toEqual({ name: 'prototipo', hidden: true })
   })
 

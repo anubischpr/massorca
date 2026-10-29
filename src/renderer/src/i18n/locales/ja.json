@@ -17848,6 +17848,7 @@
       "frameTitle": "プロトタイプ",
       "heading": "プロトタイプ",
       "heightLabel": "高さ",
+      "heightUnit": "高さの単位",
       "heightValue": "高さの値",
       "hidePanel": "パネルを隠す",
       "hintAnnotate": "要素をクリックしてメモを追加",
@@ -17880,6 +17881,7 @@
       "showDirection": "方向 {{letter}} を表示",
       "showPanel": "パネルを表示",
       "sidebarLabel": "プロトタイプ",
+      "statusCount": "{{count}} 方向",
       "statusDirections": "{{count}} 方向 · 反復中 {{letter}}",
       "statusScreen": "画面 1 つ",
       "stripGroup": "このセットの方向",
@@ -17896,6 +17898,7 @@
       "viewportGroup": "表示サイズ",
       "viewportPhone": "スマートフォン",
       "widthLabel": "幅",
+      "widthUnit": "幅の単位",
       "widthValue": "幅の値"
     },
     "onboarding": {

@@ -18053,6 +18053,7 @@
         "systemPropose": "Propose one first",
         "systemSkip": "Skip"
       },
+      "heightUnit": "Height unit",
       "hidePanel": "Hide panel",
       "link": {
         "setOf": "{{title}} · set of {{count}}",
@@ -18138,6 +18139,7 @@
       "showDirection": "Show direction {{letter}}",
       "showPanel": "Show panel",
       "sidebarLabel": "Prototypes",
+      "statusCount": "{{count}} directions",
       "statusDirections": "{{count}} directions · iterating {{letter}}",
       "statusScreen": "1 screen",
       "stripGroup": "Directions in this set",
@@ -18154,6 +18156,7 @@
       "viewportGroup": "Viewport",
       "viewportPhone": "Phone",
       "widthLabel": "Width",
+      "widthUnit": "Width unit",
       "widthValue": "Width value",
       "list": {
         "designSystem": "Design system",
@@ -18632,7 +18635,6 @@
         "providerFunctionProvider": "Provider",
         "providerFunctionTerminalOnly": "Terminal only",
         "providerFunctionUnverified": "Unverified",
-        "prototypeCommandDescription": "Make HTML prototypes of an idea",
         "resumeWindowDescription": "Choose an existing session in the Sessions panel",
         "sessionWindowDescription": "Browse sessions in the Sessions panel",
         "providerFunctionTerminalOnlyError": "{{command}} is available in Terminal only.",

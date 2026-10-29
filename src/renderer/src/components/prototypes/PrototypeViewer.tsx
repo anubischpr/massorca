@@ -10,7 +10,7 @@ import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototy
 import { PrototypeBuiltOnLink } from './PrototypeBuiltOnLink'
 import { PrototypeFrame } from './PrototypeFrame'
 import { PrototypeThumbnail } from './PrototypeThumbnail'
-import { prototypeAgentLabel, prototypeStatusLabel } from './prototype-labels'
+import { prototypeAgentLabel, prototypeCountLabel } from './prototype-labels'
 import {
   latestVersionOf,
   prototypeStatus,
@@ -96,7 +96,7 @@ export function PrototypeViewer({
       <div className="flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-2.5">
         <div className="mr-auto flex min-w-0 flex-col gap-0.5">
           <span className="text-sm font-semibold">
-            {`${prototypeTitle(set)} · ${prototypeStatusLabel(status)}`}
+            {`${prototypeTitle(set)} · ${prototypeCountLabel(status)}`}
           </span>
           {builtOn === null ? null : (
             <PrototypeBuiltOnLink

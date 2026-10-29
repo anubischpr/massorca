@@ -46,6 +46,16 @@ export function prototypeStatusLabel(status: PrototypeStatus): string {
   )
 }
 
+/** The count alone, as the viewer header shows it: "3 directions" or "1 screen". */
+export function prototypeCountLabel(status: PrototypeStatus): string {
+  if (status.kind === 'single') {
+    return translate('components.prototypes.statusScreen', '1 screen')
+  }
+  return translate('components.prototypes.statusCount', '{{count}} directions', {
+    count: status.count
+  })
+}
+
 /** The design system row's line: its status, version and token count, or that it waits for review. */
 export function prototypeSystemLine(
   system: Pick<PrototypeListedDesignSystem, 'status' | 'version' | 'tokenCount'>

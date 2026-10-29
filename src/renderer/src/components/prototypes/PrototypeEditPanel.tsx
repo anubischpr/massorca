@@ -239,6 +239,11 @@ export function PrototypeEditPanel({
                   />
                   <span
                     role="group"
+                    aria-label={
+                      field === 'width'
+                        ? translate('components.prototypes.widthUnit', 'Width unit')
+                        : translate('components.prototypes.heightUnit', 'Height unit')
+                    }
                     className="flex rounded-md border border-border bg-sidebar p-0.5"
                   >
                     {UNIT_OPTIONS.map((unit) => (
