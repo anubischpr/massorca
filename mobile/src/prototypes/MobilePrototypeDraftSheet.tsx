@@ -9,7 +9,7 @@ import {
 } from 'react-native'
 import type { PrototypeDraftItem } from '../../../src/shared/prototype-draft'
 import { setPrompt, type PrototypeSetState } from '../../../src/shared/prototype-set-state'
-import { draftOf } from '../../../src/shared/prototype-set-view'
+import { draftOf, hasNothingToSend } from '../../../src/shared/prototype-set-view'
 import { colors, spacing, typography } from '../theme/mobile-theme'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
@@ -38,8 +38,7 @@ export function MobilePrototypeDraftSheet({
 }) {
   const { height: screenHeight } = useWindowDimensions()
   const draft = draftOf(state)
-  // Nothing to send: no change on any pin, and no words under "Anything else".
-  const sendDisabled = state.sending || (draft.itemCount === 0 && state.prompt.trim() === '')
+  const sendDisabled = state.sending || hasNothingToSend(state)
   return (
     <View style={styles.sheet}>
       <View style={styles.header}>

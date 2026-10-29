@@ -160,7 +160,8 @@ export const MobileNativeChatVisualFrame = memo(function MobileNativeChatVisualF
       const message = readMobileNativeChatVisualBridgeMessage(
         event.nativeEvent.data,
         token,
-        built.channel
+        built.channel,
+        annotateCapable
       )
       if (!message) {
         return

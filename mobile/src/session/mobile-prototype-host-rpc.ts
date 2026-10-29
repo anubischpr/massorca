@@ -1,9 +1,9 @@
-import { z } from 'zod'
 import {
-  PROTOTYPE_CREATE_REQUEST_ERRORS,
-  PROTOTYPE_READ_FILE_ERRORS,
+  CreatePrototypeRequestReplySchema,
+  ListPrototypeSetsReplySchema,
   PROTOTYPE_WRITE_ATTACHMENT_ERRORS,
-  PrototypeListedSetSchema,
+  ReadPrototypeFileReplySchema,
+  WriteAttachmentReplySchema,
   type CreatePrototypeRequestParams,
   type ListPrototypeSetsParams,
   type PrototypeListedSet,
@@ -27,6 +27,8 @@ export type MobilePrototypeRequest =
   | { kind: 'ready'; requestId: string; folderPath: string }
   /** The host has no visuals folder for this chat, so no request can be made here. */
   | { kind: 'unsupported' }
+  /** The host could not write the request folder; the host removed any partial one. */
+  | { kind: 'unwritable' }
   | { kind: 'unsupported-host' }
   | { kind: 'unreachable' }
 
@@ -47,23 +49,6 @@ export type MobilePrototypeAttachment =
   | { kind: 'unsupported-host' }
   | { kind: 'unreachable' }
 
-const writeAttachmentReplySchema = z.union([
-  z.object({ ok: z.literal(true), path: z.string().min(1) }),
-  z.object({ ok: z.literal(false), error: z.enum(PROTOTYPE_WRITE_ATTACHMENT_ERRORS) })
-])
-
-const createReplySchema = z.union([
-  z.object({ ok: z.literal(true), requestId: z.string(), folderPath: z.string() }),
-  z.object({ ok: z.literal(false), error: z.enum(PROTOTYPE_CREATE_REQUEST_ERRORS) })
-])
-
-const listReplySchema = z.object({ sets: z.array(PrototypeListedSetSchema) })
-
-const readReplySchema = z.union([
-  z.object({ ok: z.literal(true), html: z.string() }),
-  z.object({ ok: z.literal(false), error: z.enum(PROTOTYPE_READ_FILE_ERRORS) })
-])
-
 /** Makes a prototype request folder on the chat's host; the agent writes into `folderPath`. */
 export async function createMobilePrototypeRequest(
   client: HostClient,
@@ -76,13 +61,14 @@ export async function createMobilePrototypeRequest(
   if (!response.ok) {
     return isUnsupportedHost(response) ? { kind: 'unsupported-host' } : { kind: 'unreachable' }
   }
-  const reply = createReplySchema.safeParse(response.result)
+  const reply = CreatePrototypeRequestReplySchema.safeParse(response.result)
   if (!reply.success) {
     return { kind: 'unreachable' }
   }
-  return reply.data.ok
-    ? { kind: 'ready', requestId: reply.data.requestId, folderPath: reply.data.folderPath }
-    : { kind: 'unsupported' }
+  if (reply.data.ok) {
+    return { kind: 'ready', requestId: reply.data.requestId, folderPath: reply.data.folderPath }
+  }
+  return reply.data.error === 'unwritable' ? { kind: 'unwritable' } : { kind: 'unsupported' }
 }
 
 /** The prototype sets of the paired computer's chats, newest first. */
@@ -97,7 +83,7 @@ export async function listMobilePrototypeSets(
   if (!response.ok) {
     return isUnsupportedHost(response) ? { kind: 'unsupported-host' } : { kind: 'unreachable' }
   }
-  const reply = listReplySchema.safeParse(response.result)
+  const reply = ListPrototypeSetsReplySchema.safeParse(response.result)
   return reply.success ? { kind: 'ready', sets: reply.data.sets } : { kind: 'unreachable' }
 }
 
@@ -113,7 +99,7 @@ export async function readMobilePrototypeFile(
   if (!response.ok) {
     return isUnsupportedHost(response) ? { kind: 'unsupported-host' } : { kind: 'unreachable' }
   }
-  const reply = readReplySchema.safeParse(response.result)
+  const reply = ReadPrototypeFileReplySchema.safeParse(response.result)
   if (!reply.success) {
     return { kind: 'unreachable' }
   }
@@ -134,7 +120,7 @@ export async function writeMobilePrototypeAttachment(
   if (!response.ok) {
     return isUnsupportedHost(response) ? { kind: 'unsupported-host' } : { kind: 'unreachable' }
   }
-  const reply = writeAttachmentReplySchema.safeParse(response.result)
+  const reply = WriteAttachmentReplySchema.safeParse(response.result)
   if (!reply.success) {
     return { kind: 'unreachable' }
   }

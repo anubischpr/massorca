@@ -2,7 +2,11 @@ import { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import type { PrototypeSize } from '../../../src/shared/prototype-draft'
 import { colors } from '../theme/mobile-theme'
-import { clampToBounds, parseNumberInput, sizeBoundsOf } from './mobile-prototype-viewer-model'
+import {
+  clampToBounds,
+  parseNumberInput,
+  sizeBoundsOf
+} from '../../../src/shared/prototype-number-input'
 
 const UNITS = ['px', '%', 'auto'] as const
 

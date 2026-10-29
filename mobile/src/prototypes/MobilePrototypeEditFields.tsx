@@ -14,7 +14,7 @@ import { MobilePrototypeColorPicker } from './MobilePrototypeColorPicker'
 import { MobilePrototypeColorRow } from './MobilePrototypeColorRow'
 import { MobilePrototypePulse } from './MobilePrototypePulse'
 import { MobilePrototypeSizeRow } from './MobilePrototypeSizeRow'
-import { FONT_SIZE_BOUNDS, parseNumberInput } from './mobile-prototype-viewer-model'
+import { FONT_SIZE_BOUNDS, parseNumberInput } from '../../../src/shared/prototype-number-input'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
 

@@ -1,10 +1,6 @@
 // What the viewer screen reads off a set and its state: the header lines, the direction chips, the
 // peek banner, and the labels of the pin sheet.
-import {
-  buildDraft,
-  type PrototypeDraftField,
-  type PrototypeSize
-} from '../../../src/shared/prototype-draft'
+import { buildDraft, type PrototypeDraftField } from '../../../src/shared/prototype-draft'
 import { latestVersionOf } from '../../../src/shared/prototype-list-model'
 import { pinsOf, type PrototypeSetState } from '../../../src/shared/prototype-set-state'
 import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
@@ -100,30 +96,4 @@ export const NOTE_EXAMPLE_CHIPS = [
 /** An example chip writes its sentence on the selected element. */
 export function noteFromExampleChip(chip: string, pinLabel: string): string {
   return `${chip} on the ${pinLabel}.`
-}
-
-/** The range an Edit number may take; a value typed or stepped past it is pinned to the nearest bound. */
-export type NumberBounds = { readonly min: number; readonly max: number }
-
-/** A px size, a percentage and a font size each keep to their own range. */
-export const SIZE_PX_BOUNDS: NumberBounds = { min: 0, max: 4000 }
-export const SIZE_PERCENT_BOUNDS: NumberBounds = { min: 0, max: 100 }
-export const FONT_SIZE_BOUNDS: NumberBounds = { min: 1, max: 200 }
-
-/** The range of a Width or Height number in its unit; `auto` keeps the px range it is stored with. */
-export function sizeBoundsOf(unit: PrototypeSize['unit']): NumberBounds {
-  return unit === '%' ? SIZE_PERCENT_BOUNDS : SIZE_PX_BOUNDS
-}
-
-export function clampToBounds(value: number, bounds: NumberBounds): number {
-  return Math.min(bounds.max, Math.max(bounds.min, value))
-}
-
-/** A number the user typed, pinned into its range; null while it is not one yet (empty, a lone sign). */
-export function parseNumberInput(text: string, bounds: NumberBounds): number | null {
-  if (text.trim() === '') {
-    return null
-  }
-  const value = Number(text)
-  return Number.isFinite(value) ? clampToBounds(value, bounds) : null
 }

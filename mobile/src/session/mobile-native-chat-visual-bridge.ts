@@ -16,12 +16,13 @@ export const MOBILE_NATIVE_CHAT_VISUAL_LINK_INTERVAL_MS = 1_000
  * The app's side of the visual bridge: a message counts only if it carries this frame's token
  * (which only the trusted host document holds) and is one of the two requests a visual may make,
  * from this visual's channel. Everything else, including a well-formed message without the token,
- * is dropped.
+ * is dropped. `annotate` says whether the visual was built with the annotate script.
  */
 export function readMobileNativeChatVisualBridgeMessage(
   raw: unknown,
   token: string,
-  channel: string
+  channel: string,
+  annotate: boolean
 ): MobileNativeChatVisualBridgeEvent | null {
   if (typeof raw !== 'string' || raw.length > MAX_BRIDGE_MESSAGE_LENGTH) {
     return null
@@ -45,7 +46,7 @@ export function readMobileNativeChatVisualBridgeMessage(
     return { kind: 'escaped' }
   }
   if (message.kind === 'frame' && 'data' in message) {
-    return readNativeChatVisualFrameMessage(message.data, channel)
+    return readNativeChatVisualFrameMessage(message.data, channel, annotate)
   }
   return null
 }

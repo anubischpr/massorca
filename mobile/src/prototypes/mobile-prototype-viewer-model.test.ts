@@ -12,18 +12,20 @@ import {
 } from '../../../src/shared/prototype-set-state'
 import {
   FONT_SIZE_BOUNDS,
-  NOTE_EXAMPLE_CHIPS,
   SIZE_PERCENT_BOUNDS,
   SIZE_PX_BOUNDS,
+  parseNumberInput,
+  sizeBoundsOf
+} from '../../../src/shared/prototype-number-input'
+import {
+  NOTE_EXAMPLE_CHIPS,
   isPeeking,
   noteFromExampleChip,
   noteLabelFor,
   notePlaceholderFor,
-  parseNumberInput,
   pulseFieldFor,
   selectedPinEditCount,
   shownPinTab,
-  sizeBoundsOf,
   viewerChips,
   viewerHeaderLines
 } from './mobile-prototype-viewer-model'

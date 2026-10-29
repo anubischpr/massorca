@@ -70,6 +70,50 @@ describe('mobile prototype list rows', () => {
   })
 })
 
+describe('mobile prototype list status and age', () => {
+  it('keeps a shortfall or an empty request out of the one-screen read', () => {
+    const shortfall = buildMobilePrototypeRows({
+      sets: [listedSet({ count: 3, directions: listedSet().directions.slice(0, 1) })],
+      scope: 'all',
+      sessionId: null,
+      filter: 'all',
+      activeLetterOf: () => undefined,
+      nowMs: FIXTURE_NOW
+    })
+    expect(shortfall[0] && mobilePrototypeStatusLabel(shortfall[0].status)).toBe(
+      '1 directions · iterating A'
+    )
+    const empty = buildMobilePrototypeRows({
+      sets: [listedSet({ count: 1, directions: [] })],
+      scope: 'all',
+      sessionId: null,
+      filter: 'all',
+      activeLetterOf: () => undefined,
+      nowMs: FIXTURE_NOW
+    })
+    expect(empty[0]?.status).toEqual({ kind: 'directions', count: 0, iterating: '' })
+  })
+
+  it('shows no age for a set with no valid time', () => {
+    const [row] = buildMobilePrototypeRows({
+      sets: [
+        listedSet({
+          createdAt: 'not a date',
+          directions: [
+            { letter: 'A', versions: [{ version: 1, fileName: 'A.html', mtime: Number.NaN }] }
+          ]
+        })
+      ],
+      scope: 'all',
+      sessionId: null,
+      filter: 'all',
+      activeLetterOf: () => undefined,
+      nowMs: FIXTURE_NOW
+    })
+    expect(row?.age).toBe('')
+  })
+})
+
 describe('filter chips', () => {
   it('are the agent filters of the approved desktop list', () => {
     expect(MOBILE_PROTOTYPE_FILTERS.map(mobilePrototypeFilterLabel)).toEqual([

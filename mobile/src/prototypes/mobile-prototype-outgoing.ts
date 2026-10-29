@@ -65,6 +65,10 @@ export async function planMobilePrototypeOutgoing(
     return asTyped
   }
   const request = await input.createRequest({ text, count: decision.count })
+  if (request.kind === 'unwritable') {
+    console.warn('[prototypes] request not created: the host could not write the request folder')
+    return asTyped
+  }
   if (request.kind !== 'ready') {
     return asTyped
   }
