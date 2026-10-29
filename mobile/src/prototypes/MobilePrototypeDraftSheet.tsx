@@ -38,6 +38,8 @@ export function MobilePrototypeDraftSheet({
 }) {
   const { height: screenHeight } = useWindowDimensions()
   const draft = draftOf(state)
+  // Nothing to send: no change on any pin, and no words under "Anything else".
+  const sendDisabled = state.sending || (draft.itemCount === 0 && state.prompt.trim() === '')
   return (
     <View style={styles.sheet}>
       <View style={styles.header}>
@@ -97,9 +99,9 @@ export function MobilePrototypeDraftSheet({
         )}
         <Pressable
           accessibilityRole="button"
-          disabled={state.sending}
+          disabled={sendDisabled}
           onPress={onSend}
-          style={[styles.send, state.sending && styles.sendBusy]}
+          style={[styles.send, sendDisabled && styles.sendDisabled]}
         >
           <Text style={styles.sendText}>{`Send to ${agentName}`}</Text>
         </Pressable>
@@ -172,7 +174,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.textPrimary
   },
-  sendBusy: { opacity: 0.5 },
+  sendDisabled: { opacity: 0.5 },
   sendText: { color: colors.bgBase, fontSize: 16, fontWeight: '500' },
   failed: { color: colors.statusRed, fontSize: typography.metaSize }
 })

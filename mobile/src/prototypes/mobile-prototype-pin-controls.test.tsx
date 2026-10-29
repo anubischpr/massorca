@@ -4,11 +4,14 @@ import { describe, expect, it, vi } from 'vitest'
 import type { NativeChatVisualPickedElement } from '../../../src/shared/native-chat-visual-annotate'
 import {
   createSetState,
+  editSelected,
   peekDirection,
   pickElement,
   selectedPinOf,
+  setPrompt,
   type PrototypeSetState
 } from '../../../src/shared/prototype-set-state'
+import { draftOf } from '../../../src/shared/prototype-set-view'
 import { MobilePrototypeDraftSheet } from './MobilePrototypeDraftSheet'
 import { MobilePrototypePinSheet } from './MobilePrototypePinSheet'
 import { MobilePrototypeSizeRow } from './MobilePrototypeSizeRow'
@@ -92,6 +95,38 @@ function mountPinSheet(state: PrototypeSetState, onTab: (tab: 'edit' | 'note') =
   return renderer
 }
 
+/** The draft sheet on screen, with its Send naming the Codex agent. */
+function mountDraftSheet(state: PrototypeSetState): ReactTestRenderer {
+  let renderer: ReactTestRenderer | undefined
+  act(() => {
+    renderer = create(
+      createElement(MobilePrototypeDraftSheet, {
+        agentName: 'Codex',
+        state,
+        update: () => {},
+        onClose: () => {},
+        onJump: () => {},
+        onSend: () => {}
+      })
+    )
+  })
+  if (renderer === undefined) {
+    throw new Error('the draft sheet did not mount')
+  }
+  return renderer
+}
+
+/** The Send button of a mounted draft sheet, found by its label. */
+function sendButton(renderer: ReactTestRenderer): ReactTestInstance {
+  const button = renderer.root
+    .findAllByProps({ accessibilityRole: 'button' })
+    .find((node) => hosts(node, 'Text').some((text) => text.props.children === 'Send to Codex'))
+  if (button === undefined) {
+    throw new Error('the draft sheet has no Send button')
+  }
+  return button
+}
+
 describe('the pin sheet while a sibling direction is peeked at', () => {
   it('does not offer the Edit tab, and shows the Note tab and its note', () => {
     const state = peekingB()
@@ -160,33 +195,27 @@ describe('the draft sheet', () => {
   })
 
   it('says a send was refused only after a refused send, and holds Send while one is in flight', () => {
-    const mount = (state: PrototypeSetState) => {
-      let renderer: ReactTestRenderer | undefined
-      act(() => {
-        renderer = create(
-          createElement(MobilePrototypeDraftSheet, {
-            agentName: 'Codex',
-            state,
-            update: () => {},
-            onClose: () => {},
-            onJump: () => {},
-            onSend: () => {}
-          })
-        )
-      })
-      return renderer
-    }
+    const refused = mountDraftSheet(draftState({ sendFailed: true }))
+    expect(refused.root.findAllByProps({ accessibilityRole: 'alert' })).toHaveLength(1)
 
-    const refused = mount(draftState({ sendFailed: true }))
-    expect(refused?.root.findAllByProps({ accessibilityRole: 'alert' })).toHaveLength(1)
+    const idle = mountDraftSheet(draftState({ sendFailed: false }))
+    expect(idle.root.findAllByProps({ accessibilityRole: 'alert' })).toHaveLength(0)
 
-    const idle = mount(draftState({ sendFailed: false }))
-    expect(idle?.root.findAllByProps({ accessibilityRole: 'alert' })).toHaveLength(0)
+    // Words are in the draft, so the only reason Send is held is the send in flight.
+    const busy = mountDraftSheet(setPrompt(draftState({ sending: true }), 'Make it bolder.'))
+    expect(sendButton(busy).props.disabled).toBe(true)
+  })
 
-    const busy = mount(draftState({ sending: true }))
-    const send = busy?.root
-      .findAllByProps({ accessibilityRole: 'button' })
-      .find((node) => hosts(node, 'Text').some((text) => text.props.children === 'Send to Codex'))
-    expect(send?.props.disabled).toBe(true)
+  it('holds Send while the draft has no change and "Anything else" has no words', () => {
+    const empty = createSetState(['A', 'B'])
+    const changed = editSelected(pickElement(empty, HEADING), { text: 'Checkout now' })
+    expect(draftOf(changed).itemCount).toBeGreaterThan(0)
+
+    expect(sendButton(mountDraftSheet(empty)).props.disabled).toBe(true)
+    expect(sendButton(mountDraftSheet(setPrompt(empty, '   '))).props.disabled).toBe(true)
+    expect(sendButton(mountDraftSheet(setPrompt(empty, 'Make it bolder.'))).props.disabled).toBe(
+      false
+    )
+    expect(sendButton(mountDraftSheet(changed)).props.disabled).toBe(false)
   })
 })
