@@ -166,3 +166,22 @@ describe('planMobilePrototypeOutgoing', () => {
     expect(createRequest).not.toHaveBeenCalled()
   })
 })
+
+describe('planMobilePrototypeOutgoing with a reply that names no usable folder', () => {
+  it('sends the text as typed, and logs why, when the folder is not the request own', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const { result } = plan('/prototype make the pricing page', ALWAYS_3, {
+      request: { kind: 'ready', requestId: 'req-1', folderPath: '/chats/c1/prototypes/req-2' }
+    })
+
+    await expect(result).resolves.toEqual({
+      kind: 'send',
+      wireText: '/prototype make the pricing page',
+      shownText: '/prototype make the pricing page'
+    })
+    expect(warn).toHaveBeenCalledWith(
+      '[prototypes] request not used: the host named no usable request folder'
+    )
+    warn.mockRestore()
+  })
+})

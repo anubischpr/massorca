@@ -57,7 +57,11 @@ describe('useMobileNativeChatPrototypeOutgoing', () => {
     vi.clearAllMocks()
     mobilePrototypeAsks.take(SCOPE)
     readSetting.mockResolvedValue({ mode: 'ask', count: 3 })
-    createRequest.mockResolvedValue({ kind: 'ready', requestId: 'req-1', folderPath: '/p/req-1' })
+    createRequest.mockResolvedValue({
+      kind: 'ready',
+      requestId: 'req-1',
+      folderPath: '/p/prototypes/req-1'
+    })
   })
 
   afterEach(() => {
@@ -146,7 +150,7 @@ describe('useMobileNativeChatPrototypeOutgoing', () => {
     })
     expect(second).toEqual({ kind: 'held' })
     await act(async () => {
-      finish({ kind: 'ready', requestId: 'req-2', folderPath: '/p/req-2' })
+      finish({ kind: 'ready', requestId: 'req-2', folderPath: '/p/prototypes/req-2' })
       await first
     })
     expect(createRequest).toHaveBeenCalledTimes(1)
