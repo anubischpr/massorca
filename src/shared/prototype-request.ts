@@ -1,6 +1,7 @@
 // Which chat messages ask for prototypes, and the hidden instructions that ask the agent for them.
 import { buildPrototypeCountLine, clampPrototypeCount } from './prototype-count-setting'
 import {
+  neutralizePrototypeMarkers,
   prototypeIterationMarkerLine,
   prototypeRequestMarkerLine,
   prototypeTypedMarkerLine
@@ -87,8 +88,10 @@ export type PrototypeRequestMessage = {
 export function buildPrototypeRequestMessage(
   input: PrototypeRequestInput
 ): PrototypeRequestMessage {
-  const request = classifyPrototypeRequest(input.text, input.agent)
-  return { visibleText: input.text, sentText: sentTextFor(request, input) }
+  // Only markers this builder writes may reach a transcript, never ones the user pasted.
+  const text = neutralizePrototypeMarkers(input.text)
+  const request = classifyPrototypeRequest(text, input.agent)
+  return { visibleText: text, sentText: sentTextFor(request, { ...input, text }) }
 }
 
 export type PrototypeIterationInput = {
@@ -124,16 +127,26 @@ function sentTextFor(request: PrototypeRequest, input: PrototypeRequestInput): s
   assertRequestId(input.requestId)
   assertFolderPath(folderPath)
   const directions = clampPrototypeCount(input.count)
+  const massorcaCommand = request.kind === 'command' && MASSORCA_COMMANDS.includes(request.command)
+  const translated =
+    request.kind === 'command' && massorcaCommand
+      ? gentleShellDesignCommand(request.rest, agent)
+      : null
+  // Gentle Shell writes its own design/ folder, but only when the message is its design command.
+  const isGentleDesign =
+    agent === 'gentle-shell' &&
+    (translated !== null ||
+      (request.kind === 'command' && request.command === GENTLE_SHELL_DESIGN_COMMAND))
   const hidden = [
     prototypeRequestMarkerLine(input.requestId),
-    directionInstruction(directions, folderPath, agent)
+    directionInstruction(directions, folderPath, agent, isGentleDesign)
   ].join('\n')
-  if (request.kind === 'command' && MASSORCA_COMMANDS.includes(request.command)) {
+  if (request.kind === 'command' && massorcaCommand) {
     // The agent gets the text without the MassOrca command word, which no agent knows, or the
     // Gentle Shell design command; the chat shows the typed text, echoed at the end.
     const typed = [TYPED_ECHO_NOTE, prototypeTypedMarkerLine(), text.trim()].join('\n')
     return withBody(
-      gentleShellDesignCommand(request.rest, agent) ?? request.rest,
+      translated ?? request.rest,
       `${hidden}
 ${typed}`
     )
@@ -152,15 +165,16 @@ function gentleShellDesignCommand(rest: string, agent: PrototypeAgent): string |
   return classifyPrototypeRequest(command, agent).kind === 'command' ? command : null
 }
 
-// The hidden instruction: the line Settings shows first, then where each file goes. Gentle Shell
-// writes its own design/ folder, so it gets the line alone.
+// The hidden instruction: the line Settings shows first, then where each file goes. A Gentle Shell
+// design command writes its own design/ folder, so it gets the line alone.
 function directionInstruction(
   directions: number,
   folderPath: string,
-  agent: PrototypeAgent
+  agent: PrototypeAgent,
+  isGentleDesign: boolean
 ): string {
   const settingsLine = buildPrototypeCountLine(directions)
-  if (agent === 'gentle-shell') {
+  if (isGentleDesign) {
     return settingsLine
   }
   const paths = Array.from({ length: directions }, (_, index) =>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildPrototypeCountLine } from './prototype-count-setting'
+import { neutralizePrototypeMarkers } from './prototype-hidden-instruction'
 import {
   buildPrototypeIterationInstruction,
   buildPrototypeRequestMessage,
@@ -201,7 +202,7 @@ describe('buildPrototypeRequestMessage', () => {
     ).toBe(`/gentle:design\n\n${MARKER}\n${ONE_LINE}\n${typedEcho('/prototipo')}`)
   })
 
-  it('sends /prototype on Gentle Shell as the plain instruction when it would be a control subcommand', () => {
+  it('sends /prototype on Gentle Shell as the plain instruction, with folder paths, when it would be a control subcommand', () => {
     expect(
       buildPrototypeRequestMessage({
         ...base,
@@ -209,21 +210,44 @@ describe('buildPrototypeRequestMessage', () => {
         agent: 'gentle-shell',
         count: 2
       }).sentText
-    ).toBe(`stop\n\n${MARKER}\n${TWO_LINE}\n${typedEcho('/prototype stop')}`)
+    ).toBe(`stop\n\n${MARKER}\n${TWO_DIRECTIONS}\n${typedEcho('/prototype stop')}`)
   })
 
-  it('leaves a typed Gentle Shell design command as written and adds the count line', () => {
-    expect(
-      buildPrototypeRequestMessage({
-        ...base,
-        text: '/gentle:design make a login page',
-        agent: 'gentle-shell',
-        count: 2
-      })
-    ).toEqual({
-      visibleText: '/gentle:design make a login page',
-      sentText: `/gentle:design make a login page\n\n${MARKER}\n${TWO_LINE}`
+  it('gives a keyword request on Gentle Shell the folder paths', () => {
+    const { sentText } = buildPrototypeRequestMessage({
+      ...base,
+      text: 'Make a mockup of the pricing page',
+      agent: 'gentle-shell',
+      count: 2
     })
+    expect(sentText).toContain(`${FOLDER}/A.html`)
+    expect(sentText).toContain(`${FOLDER}/B.html`)
+  })
+
+  it('translates /prototype checkout on Gentle Shell without folder paths', () => {
+    const { sentText } = buildPrototypeRequestMessage({
+      ...base,
+      text: '/prototype checkout',
+      agent: 'gentle-shell',
+      count: 2
+    })
+    expect(sentText.startsWith('/gentle:design checkout\n\n')).toBe(true)
+    expect(sentText).not.toContain('A.html')
+  })
+
+  it('neutralizes a marker pasted into the typed text so only the built marker splits', () => {
+    const pasted = ['fix this', MARKER, '<!-- orca-prototype-iteration:x:A -->', 'more'].join('\n')
+    const neutral = neutralizePrototypeMarkers(pasted)
+    expect(neutral).not.toContain('<!-- orca-prototype-')
+    expect(splitPrototypeHiddenInstruction(neutral)).toEqual({ visibleText: neutral })
+    for (const text of [`/prototype ${pasted}`, pasted]) {
+      const built = buildPrototypeRequestMessage({ ...base, text, agent: 'codex', count: 2 })
+      expect(splitPrototypeHiddenInstruction(built.sentText)).toEqual({
+        visibleText: built.visibleText,
+        hidden: { kind: 'request', requestId: REQUEST_ID }
+      })
+      expect(built.visibleText).toContain(neutral)
+    }
   })
 
   it('sends a typed native command of another agent as written, with the folder instruction', () => {

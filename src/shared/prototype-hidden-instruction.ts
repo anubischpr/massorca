@@ -24,6 +24,13 @@ export type PrototypeHiddenInstructionSplit = {
   hidden?: PrototypeHiddenInstructionMarker
 }
 
+/** Marker text a user typed or pasted must never be read back as MassOrca's own hidden block. */
+export function neutralizePrototypeMarkers(text: string): string {
+  return text.includes(MARKER_PREFIX)
+    ? text.replaceAll(MARKER_PREFIX, '<!-- orca\u2011prototype-')
+    : text
+}
+
 export function prototypeRequestMarkerLine(requestId: string): string {
   return `<!-- orca-prototype-request:${requestId} -->`
 }

@@ -2,6 +2,7 @@
 // the text with its hidden instruction, or nothing yet because the card must ask how many.
 import type { AgentType } from '../../../../shared/agent-status-types'
 import { sanitizePrototypeCountSetting } from '../../../../shared/prototype-count-setting'
+import { neutralizePrototypeMarkers } from '../../../../shared/prototype-hidden-instruction'
 import { currentPiDisplayRuntime } from '@/lib/pi-display-runtime-now'
 import { readChatPiRuntime } from '@/lib/chat-pi-runtime-record'
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
@@ -16,7 +17,10 @@ import {
 import { prepareNativeChatPrototypeText } from './native-chat-prototype-request-send'
 import { nativeChatPrototypeAsks } from './native-chat-prototype-request-store'
 
-export type NativeChatPrototypeOutgoing = { kind: 'ask' } | { kind: 'send'; text: string }
+export type NativeChatPrototypeOutgoing =
+  | { kind: 'ask' }
+  | { kind: 'in-flight' }
+  | { kind: 'send'; text: string }
 
 // A request is made once per press: a second Enter while the host answers waits for the first.
 const inFlight = new Set<string>()
@@ -33,7 +37,9 @@ export function resolveNativeChatPrototypeOutgoing(input: {
   runtimeEnvironmentId: string | null
   choice?: NativeChatPrototypeChoice
 }): NativeChatPrototypeOutgoing | Promise<NativeChatPrototypeOutgoing | null> {
-  const { draftScopeKey, text } = input
+  const { draftScopeKey } = input
+  // Markers in typed or pasted text are never MassOrca's; only the ones built below may remain.
+  const text = neutralizePrototypeMarkers(input.text)
   // Only a Pi chat can be Gentle Shell; asking the host which runtime it is costs a call.
   const chatRuntime = input.agent === 'pi' ? readChatPiRuntime(input.sessionId) : undefined
   const piRuntime =
@@ -69,7 +75,7 @@ export function resolveNativeChatPrototypeOutgoing(input: {
     return { kind: 'ask' }
   }
   if (inFlight.has(draftScopeKey)) {
-    return Promise.resolve(null)
+    return { kind: 'in-flight' }
   }
   inFlight.add(draftScopeKey)
   const target: RuntimeClientTarget =

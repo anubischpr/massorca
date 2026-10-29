@@ -21,6 +21,7 @@ import {
 import { nativeChatComposerDraftLeftAfterSend } from './native-chat-composer-draft-comparison'
 import type { NativeChatComposerDraft } from './native-chat-composer-draft-storage'
 import { isNativeChatSessionNavigation } from './native-chat-session-navigation'
+import { neutralizePrototypeMarkers } from '../../../../shared/prototype-hidden-instruction'
 import { resolveNativeChatPrototypeOutgoing } from './native-chat-prototype-request-outgoing'
 import type { NativeChatPrototypeChoice } from './native-chat-prototype-request-decision'
 
@@ -99,7 +100,7 @@ export function useNativeChatStructuredComposerSend({
       const submitted = sentFrom ?? readNativeChatComposerDraft(draftScopeKey)
       // A host command is never a prototype request; any other text may be one.
       const planned = hostCommand
-        ? { kind: 'send' as const, text }
+        ? { kind: 'send' as const, text: neutralizePrototypeMarkers(text) }
         : resolveNativeChatPrototypeOutgoing({
             text,
             agent,
@@ -126,6 +127,11 @@ export function useNativeChatStructuredComposerSend({
           : planned
       // Held for the card's answer, or refused already (reported): nothing goes out now.
       if (outgoing === null || outgoing.kind === 'ask') {
+        return
+      }
+      // A request folder is still being made for an earlier press; the draft stays for a retry.
+      if (outgoing.kind === 'in-flight') {
+        console.warn('[native-chat-send] a prototype request is already being prepared')
         return
       }
       await dispatchNativeChatStructuredComposerText(
