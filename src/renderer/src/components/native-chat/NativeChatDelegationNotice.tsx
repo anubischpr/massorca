@@ -156,12 +156,17 @@ function durationText(durationMs: number | null): string | null {
   if (minutes < 60) {
     return translate('components.native-chat.delegation.minutes', '{{minutes}} min', { minutes })
   }
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  if (rest === 0) {
+    return translate('components.native-chat.delegation.hours', '{{hours}} h', { hours })
+  }
   return translate(
     'components.native-chat.delegation.hoursMinutes',
     '{{hours}} h {{minutes}} min',
     {
-      hours: Math.floor(minutes / 60),
-      minutes: minutes % 60
+      hours,
+      minutes: rest
     }
   )
 }

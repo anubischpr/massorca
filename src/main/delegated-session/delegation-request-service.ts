@@ -81,6 +81,9 @@ export class DelegationRequestService {
       writes: input.writes,
       workspaceKind: parent.workspaceKind
     })
+    // Recorded before the card can be seen, so a card in the chat always has its question on record.
+    const questionItemId = delegationQuestionItemId(row.id)
+    db.patchDelegationRequest(row.id, { question_item_id: questionItemId })
     try {
       await this.deps.rows.appendHostRow(
         parent.sessionId,
@@ -104,8 +107,6 @@ export class DelegationRequestService {
       })
       throw error
     }
-    const questionItemId = delegationQuestionItemId(row.id)
-    db.patchDelegationRequest(row.id, { question_item_id: questionItemId })
     return { requestId: row.id, status: 'awaiting_choice', questionItemId }
   }
 }

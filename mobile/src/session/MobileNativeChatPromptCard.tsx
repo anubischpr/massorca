@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native'
 import type { AskAnswerSelection, AskPrompt } from '../../../src/shared/native-chat-ask'
 import { MobileNativeChatAsk } from './MobileNativeChatAsk'
+import { MobileNativeChatDelegationCard } from './MobileNativeChatDelegationCard'
 import { MobileNativeChatPermission } from './MobileNativeChatPermission'
 import type { MobileChatPermission } from './mobile-native-chat-permission'
 import { MobileNativeChatQuestion } from './MobileNativeChatQuestion'
@@ -69,6 +70,14 @@ export function MobileNativeChatPromptCard({
       onRespond={async (send) => (await onRespondPermission?.(send)) ?? false}
       onCancel={onCancelPrompt}
       onCollapse={onCollapsePrompt}
+    />
+  ) : question?.delegation ? (
+    <MobileNativeChatDelegationCard
+      key={mobileChatQuestionKey(question)}
+      question={question.question}
+      delegation={question.delegation}
+      onAnswer={async (text) => (await onAnswerQuestion?.(text)) ?? false}
+      onCancel={onCancelPrompt && (() => onCancelPrompt(question.prompt))}
     />
   ) : question ? (
     <MobileNativeChatQuestion

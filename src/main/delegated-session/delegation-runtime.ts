@@ -80,8 +80,9 @@ async function listUsableAgents(
               }
             ]
           : []
-      } catch {
-        // An agent whose check throws is not one a child can be promised.
+      } catch (error) {
+        // A check that throws leaves the agent out, and the reason is logged rather than lost.
+        console.warn(`[delegated-session] checking ${agent} for a child session failed`, error)
         return []
       }
     })
@@ -177,9 +178,16 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
     warn: (message, error) => console.warn(`[delegated-session] ${message}`, error)
   })
   answerServices.set(runtime, service)
-  observeDispatchSettlements((rawDb, dispatchId) => {
-    if (existingDb(runtime)?.db === rawDb) {
-      void service.onDispatchSettled(dispatchId)
+  // Held weakly, so the listener never keeps a runtime alive; it unsubscribes once the runtime is gone.
+  const owner = new WeakRef(runtime)
+  const stopListening = observeDispatchSettlements((rawDb, dispatchId) => {
+    const current = owner.deref()
+    if (!current) {
+      stopListening()
+      return
+    }
+    if (existingDb(current)?.db === rawDb) {
+      void answerServices.get(current)?.onDispatchSettled(dispatchId)
     }
   })
   return service

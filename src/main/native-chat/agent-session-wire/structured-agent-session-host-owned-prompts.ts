@@ -13,6 +13,8 @@ export type StructuredAgentSessionHostOwnedPromptOutcome =
       ok: true
       /** Runs once the resolution is in the journal; the work the answer starts must not outrun it. */
       afterCommit: () => void
+      /** Takes back what the answer claimed, when the journal does not record the resolution. */
+      rollback?: () => void
     }
   | { ok: false; reason: 'optionRejected' | 'promptGone'; message: string }
 

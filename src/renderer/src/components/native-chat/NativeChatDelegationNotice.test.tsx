@@ -136,4 +136,14 @@ describe('NativeChatDelegationNotice', () => {
     expect(screen.getByText('under 1 min · failed')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open child chat' })).toBeNull()
   })
+
+  it('words a run past an hour with its minutes, and a whole number of hours without a zero tail', () => {
+    const { rerender } = render(
+      <NativeChatDelegationNotice payload={{ ...finished, durationMs: 65 * 60_000 }} />
+    )
+    expect(screen.getByText('1 h 5 min · succeeded')).toBeInTheDocument()
+
+    rerender(<NativeChatDelegationNotice payload={{ ...finished, durationMs: 120 * 60_000 }} />)
+    expect(screen.getByText('2 h · succeeded')).toBeInTheDocument()
+  })
 })

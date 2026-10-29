@@ -92,7 +92,47 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
     - Sidebar nesting (item 3): no code. The sidebar already draws children under their parent (`WorktreeCardAgents` with `buildAgentRowLineageTree`, children expanded by default), and the T3 projection test asserts the structured parent link (`parentPaneKey` is the coordinator row).
   - Gaps: the board's pending "Child · choosing agent" row needs a row source for a pending delegation request (a new status producer), so it is a follow-up. The "N child sessions" header count is outside item 3's sidebar scope and is not built. No visual check: no Electron harness with a seeded delegation question was feasible in this pass, and the `$electron` skill is not in this session.
   - Checks: `pnpm exec vitest run --config config/vitest.config.ts` over the card, model, notice, notice-row, structured question card and status-block tests → 4 files, 45 passed (the card tests alone passed 22 before the notices). The wider run (renderer `native-chat` folder, `lib/structured-agent-session`, shared `structured-agent-session`, `native-chat`, `delegated-session`, and the host-owned card test) → 541 files, 5,749 tests, all passed. `pnpm tc:web`, `pnpm tc:node` and mobile `pnpm run typecheck` → exit 0. `oxlint`, `oxfmt --check` and the design-system config on the changed files → clean on the changed lines (the design-system config also reports existing `Card` restyles on untouched lines of `NativeChatNoticeRow.tsx`). `ORCA_CODE_QUALITY_BASE=88deeaefbc1 pnpm run check:code-quality:changed` → 0 new findings across 16 changed files. Known failures from the Windows list did not occur in these suites. Not run: `pnpm lint` (slow; the changed-lines gate is the enforced part) and any rendered-UI check.
-- [ ] T6 — Mobile: rich card, why sheet, completion notice, nesting; tests. Route: delegated direct.
+- [x] T6 — Mobile: rich card, why sheet, completion notice, nesting; tests. Route: delegated direct.
+  - Files: `mobile/src/session/mobile-delegation-card-model.ts` (copy and rows, pure), `MobileNativeChatDelegationCard.tsx`, `MobileNativeChatDelegationWhySheet.tsx`, `mobile-structured-agent-prompts.ts` (`projectDelegationQuestion`), `mobile-structured-prompt-token.ts` (the answer-token codec, moved out of the prompts file to stay under max-lines), `MobileNativeChatPromptCard.tsx`, `mobile-delegation-notice-words.ts`, `MobileNativeChatDelegationNotice.tsx`, `mobile-delegated-child-access.ts` (context), `MobileNativeChatMessage.tsx`, `MobileSessionActiveContent.tsx`, `mobile/src/test-support/rendered-texts.ts`, each with its test; the nesting test is in `mobile/src/components/WorktreeAgentList.test.tsx`.
+  - Commits: `ca4d7c44399` (choice card, why sheet, answer projection; 1,643 authored lines, 568 tests, of which about 190 are the moved codec); `cd4de5aca76` (start, failed and finish notices, Open child chat; 565 lines); `ceda954fc9a` (nesting test; no production change); the docs commit below.
+  - Wire: no new field or RPC. The card is the question item's `delegation`. Each option answers through the existing structured path (`structuredQuestionResponseTarget`) with its option token, so the host gets the same `optionIds` desktop sends. Notices read the status block's `delegation`; a missing or invalid payload draws the plain line.
+  - Nesting: `WorktreeAgentList` already nests rows by `parentPaneKey`, and the T3 projection sets it to the coordinator's row key. The new test feeds it the runtime's structured pane keys and checks the child draws one level in. Nothing to fill.
+  - Decisions (board details, aligned with T5):
+    - Automatic reads "Picks Codex" with "Chooses by usage, then model and effort by task" (T5 wording), not the board's "Recommended" or "Lowest usage first".
+    - Not drawn, because the wire has no data for them: "Accept edits, from parent"; "Decided by: Host rules" (rules are the only source in v1); "5h 18%" (the payload has the binding percent and window only, so a ranking row reads "5h window" or "weekly window"); "View result" (one "Open child chat" action); "Files read / changed" and "N files changed"; "12 min ago" on the started line; the agent name on the finished meta, which reads "12 min · succeeded".
+    - Not drawn, as on desktop: the "N children" header count and the "Connected on this computer" label.
+    - Option rows carry no agent marks. The board draws none, and the agent-icon module would otherwise join the prompt card's import graph.
+    - Bars use the accent token; the amber threshold at 70% is not reproduced, as T5.
+    - The why sheet keeps the desktop reason lines (lowest usage, tie, risk floor, model, placement) under its sections, and states the 90% skip rule the router applies (`USAGE_LIMIT_PERCENT`).
+    - The sheet loads on its first open (`React.lazy`), so the prompt card's import graph does not pull in the bottom drawer.
+    - A manual pick shows no footer, as the board does, so the placement reason appears only for Automatic.
+    - Notices use the desktop wording. "Open child chat" appears only while this worktree's tab list holds the child's chat tab, and it switches to that tab through the existing tab switch.
+  - Gaps (both closed in the follow-up below, except what it lists):
+    - New-child placement: the child lives in another worktree, and the session screen holds no worktree list, so no Open control is drawn there. Closed: see the follow-up.
+    - Sessions sheet nesting (MobileSessions board): not built as first written. Closed for tabs in this worktree, see the follow-up. `MobileSessionsSheet` lists tabs, and tabs carry no parent link; the link lives on worktree agent rows that the session screen does not hold. The board's Sessions and Terminals sections and its "1 child finished" line are a redesign of that sheet, a follow-up.
+    - The "Child · choosing agent" pending row: not built (needs a pending-delegation row source, as T5).
+    - Visual check: not done. No Expo simulator or device harness ran in this pass.
+  - Checks (foreground unless noted):
+    - `pnpm exec vitest run` over the 22 suites the rendering touches (card, model, notices, access, projection, prompt card, chat view, message, frame layout, parity hooks, sessions sheet, worktree list and row): 22 files, 168 tests passed.
+    - `pnpm run typecheck` (mobile): exit 0. `oxfmt --check` and `oxlint` on the 20 changed files: clean.
+    - `pnpm run typecheck:tests`: my new test files are clean. The ratchet (`check:tests-typecheck`) fails on six untouched test files (MobileArtifactHtmlPage, MobileArtifactPagePreview, MobileChatFloatingChrome, MobileChatStatusPillView, MobileSessionSwitcherChip, mobile-native-chat-option-listing). The same errors appear with HEAD's tracked sources, so they predate T6.
+    - Full mobile suite, final run after the last fix: 18 files failed (1,012 passed); 179 tests failed, 10,737 passed. The same run before the fixes had 24 failing files, including this pass's regressions, now gone.
+      - Reproduced with HEAD's versions of the tracked files I changed: six files (mock-server-key-pair, bridge-terminal-output-backlog, use-mobile-commit-failure-recovery, mobile-native-chat-merged-snapshot-parity, use-mobile-diff-review-send-actions, use-mobile-pr-ai-triage; 18 failed tests in that run) and nine files (rpc-recording x5, tasks agent-launch x2, native-document-bundle x2; 162 failed tests; family-recordings shows 56 failure lines here and 60 at HEAD).
+      - `mobile-prompt-controller.test.ts` fails at module load on a reanimated TurboModule mock with HEAD's versions too.
+      - `write-queue.test.ts` and `push-original-delivery-retirement.test.ts` pass when run alone; their failure was a timeout under full-suite load.
+    - `pnpm tc:web`: not run; no shared code changed.
+  - Runtime harness: N/A for the pure model; the component tests render through react-test-renderer, not a device.
+  - Follow-up (gaps 1 and 2):
+    - Commits: `b593ec9be9f` (open a child in another worktree: host rows, locator, access, notice refresh; 10 files) and `34e2d30d71b` (sessions sheet nesting; 6 files), then the docs commit that records this follow-up.
+    - Open child in another worktree: `locateStructuredChild` finds the host's `worktree.ps` agent pane whose tab part is `structured-agent-session-<childSessionId>`, the tab id the structured host mints into the pane key. The control opens through `useOpenMobileSession`, which builds `mobileSessionRouteTarget({ hostId, worktreeId, paneKey })`, the route a notification tap takes. It shows only when a tab here or a pane the host lists resolves. An old host with no `agents` field gives no target, so no control.
+    - Rows: read when the session mounts, when the sessions sheet opens, and once per finished notice whose child this chat does not hold. A read in flight is not repeated, and nothing polls. No new wire field.
+    - Nesting: a child tab sits one level under its parent. A tab joins its agent panes by the tab part of the pane key: a chat by its structured tab id, a terminal by its parent tab id, matched whole on the leaf so a split terminal's sibling leaf is not taken. A child whose parent is itself a child stays flat, and so does a child whose parent is not in the list. No lineage data gives the flat list.
+    - Board values not reproduced: the child indent is `spacing.xl + spacing.xs` (28 px, the board says 30) and the child rule is `colors.borderSubtle` (the board's `#404040` is not a token).
+    - Decision, not built: the board's "Prototype design tokens · child worktree · working" row. The sheet lists this worktree's tabs only, so a child in another worktree has no row here. Listing it needs a cross-worktree row source, which is a redesign of the sheet, so it is a follow-up with the pending-delegation row.
+    - Decision, not built: the Sessions and Terminals split, the Terminals section and the "1 child finished" subtitle. The brief limits this pass to nesting, so they are the sheet redesign, a follow-up.
+    - Risk: the child join assumes the structured pane key keeps `structured-agent-session-<sessionId>` as its tab part (`mintStructuredWorkerPaneKey`). A change there hides the control and flattens the sheet with no error. The locator test pins the prefix.
+    - Left open: no direct test of `useWorktreeAgentRows` (its read is the existing `worktreeCatalogRead`, tested by the environment read suites, and its pure parts are tested here); no rendered check on a device.
+    - Checks: `pnpm exec vitest run src/session src/components src/worktree src/home` → 431 files, 426 passed, 5 failed (11 tests). The five are on the known-failure list: `mobile-native-chat-merged-snapshot-parity`, `use-mobile-diff-review-send-actions`, `use-mobile-pr-ai-triage`, `native-document-bundle`, and `mobile-prompt-controller` (module load). The targeted suites (lineage, sheet, access, notice, rows) → 5 files, 31 passed. `pnpm run typecheck` → exit 0. `oxlint` → exit 0 and `oxfmt --check` clean on the 16 changed files.
 
 ## Acceptance criteria
 
@@ -115,8 +155,39 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
 - 2026-10-28: R3 review fixes for the router committed as `aa7c2e8735c`: parent tie-break reason, effort dropped without a model, duplicate agent ids, future samples and errored meters as no data, empty-list and blank-summary tests. Checks: `pnpm exec vitest run --config config/vitest.config.ts src/main/delegated-session src/main/runtime/rpc/methods/orchestration/delegation` → 11 files, 166 passed; `pnpm tc:node` → exit 0; `oxlint` on the changed files → exit 0; `oxfmt --check` → clean.
 - 2026-10-28: T4 delegation request committed as `c3cb86c638c`, `73071e39c75`, `0fe4795e217` and `09dfea477c5`. Authored lines 4,601 (2,205 production, 2,363 tests, 33 guide text). Running total T1–T4 about 6,775 against the original forecast of 2000–2800 for all six tasks; T5 and T6 (renderer and mobile) are still to come, so the slicing strategy for the PR must be settled before more is committed.
 - 2026-10-28: T5 desktop card committed as `4a99f8aee9f` (1,011 authored lines) and the started, failed and finished notices as `13695567c81` (388 lines). Sidebar nesting needed no code. Running total T1–T5 about 8,170 (6,775 through T4 plus 1,399) against the forecast of 2000–2800 for all six tasks; T6 (mobile) is still to come.
+- 2026-10-28: T6 mobile committed as `ca4d7c44399` (choice card, why sheet, answer projection; 1,643 authored lines), `cd4de5aca76` (notices and Open child chat; 565) and `ceda954fc9a` (nesting test; 29). Running total T1–T6 about 10,400 against the forecast of 2000–2800 for all six tasks. Above the ~400 heuristic, not split, because each unit is one contract with its tests. No PR opened; the slicing strategy is still the user's to settle.
 
 ## Follow-ups
 
 - Automatic may switch to a second account of the same agent (inactive accounts are tracked).
 - Optional Jev classification on hosts where it is configured.
+
+## Review follow-ups
+
+Non-blocking findings from the approved reviews of `c3cb86c638c` (rc1), `73071e39c75` (rc2) and the T5 renderer range `88deeaefbc1..23ff82ddb17` (rB). The review files carry ids, lenses, locations and severities only, so each finding was re-checked against HEAD.
+
+- Fixed:
+  - `R3-claim-before-journal-commit`, `R4-resolver-commits-before-journal-append`: `0beaed24ccf`. An answer or Cancel the journal does not record hands its claim back, so the card can be answered again.
+  - `R1-settlement-observer-never-released`, `R3-settlement-observer-never-removed`, `R4-settlement-observer-never-unsubscribed`: `171c7d97da8`. The listener holds its runtime weakly and unsubscribes once the runtime is gone.
+  - `R3-access-mode-silent-fallback`: `171c7d97da8`. A parent mode this build does not know refuses the child start instead of sending no mode.
+  - `R3-001`, `R3-agent-probe-errors-swallowed`, `R2-worktree-name-constant-misnamed`, `R3-mutation-replay-not-exercised`: `171c7d97da8`. The question is recorded before the card posts, the probe failure is logged, the constant is renamed to `WORKTREE_SLUG_MAX_CHARS`, and the replay test is renamed to what it asserts (the replay itself is not exercised).
+  - `R3-duration-wording-branches`: `dd7b04e1f39`. A whole number of hours reads "2 h", not "2 h 0 min".
+- Already fixed before this pass:
+  - `R3-reconcile-unguarded-rejection`: `d23f75744d8` added the `.catch`.
+  - `R3-005`: `0fe4795e217` removed the type assertion on the read-back in `createDelegationRequest`.
+- Skipped:
+  - `R1-folder-child-shares-worktree`: by design. Folder writes run in the current folder and the card warns (`folder-workspace-writes`).
+  - `R1-delegate-caller-named-by-from`: the declared-address contract every `from` method shares. A child starts only after a person picks an option.
+  - `R2-launch-failure-reason-misleading`: accurate on every reachable path. A null target means every agent is at a usage limit.
+  - `R2-pi-default-hardcoded-exception`: deliberate, documented and tested.
+  - `R2-answer-settled-check-asymmetry`: intentional. Cancel accepts only cancelled or failed; an answer repeats its own choice.
+  - `R2-cancel-plan-built-twice`: the plan is unused in the host-owned branch; no behavior effect.
+  - `R2-global-settlement-observer-registry`, `R2-host-owned-answer-refusal-conflated`, `R2-hostownedanswer-alias`, `R2-two-host-owned-predicates`: readability only. Wire reason codes stay as they are.
+  - `R3-002`: the journal append commits or throws, so a failed post leaves no card.
+  - `R3-003`: host-owned cards are left out of the pending-prompt gate by design.
+  - `R3-004`: a reset deletes requests by design; an orphaned card is refused as `promptGone`.
+  - `R3-006`, `R3-009`: no defect in the current code.
+  - `R3-007`: no provider writes a `delegation` field, so body-shape classification is safe.
+  - `R3-008`: taste; the expectation mirrors the card's own join.
+  - `R3-notice-row-precedence`, `R3-question-card-guard-branches`, `R3-selection-not-rederived`, `R3-session-wiring-unasserted`, `R3-worktree-lookup-contenttype`: notices never carry `presentation`; the fallback submits the same option ids; the card is keyed by item revision; one prop; the same `agent-session` tab kind as its siblings.
+- Open: a folder-workspace child can still write into the parent's folder at the same time. It is warned, not prevented. Product decision.

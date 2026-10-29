@@ -91,6 +91,17 @@ describe('DelegationRequestService.request', () => {
     })
   })
 
+  it('posts no card when the request cannot record its question', async () => {
+    vi.spyOn(db, 'patchDelegationRequest').mockImplementationOnce(() => {
+      throw new Error('the database is locked')
+    })
+
+    await expect(new DelegationRequestService(deps).request(input)).rejects.toThrow(
+      'the database is locked'
+    )
+    expect(appended).toEqual([])
+  })
+
   it('posts one question an older client draws as it is, plus the typed payload', async () => {
     const { requestId } = await new DelegationRequestService(deps).request({
       ...input,

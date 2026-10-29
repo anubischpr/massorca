@@ -50,6 +50,7 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
         onResume={openAgentSessionHistory}
         onTabActions={openSessionTabActionSheetAfterKeyboardDismiss}
         newTabDisabled={creationBlocked}
+        childParentTabIds={controller.childParentTabIds}
       />
       <MobilePlanSheet
         visible={planSheetOpen}
