@@ -17,7 +17,7 @@ export const PROTOTYPE_POSITIVE_TERMS: readonly string[] = [
   'wireframes'
 ]
 
-// Each matches only with a UI noun from PROTOTYPE_UI_NOUNS at most four words away.
+// Each matches only with a UI noun from PROTOTYPE_UI_NOUNS in the same sentence, at most ten words away.
 export const PROTOTYPE_DESIGN_TERMS: readonly string[] = [
   'design',
   'designs',
@@ -115,7 +115,10 @@ export const PROTOTYPE_NEGATIVE_TERMS: readonly string[] = [
   'design patterns'
 ]
 
-const UI_NOUN_WINDOW = 4
+const UI_NOUN_WINDOW = 10
+// A flow word between the design word and the noun makes it a flow request, not a screen request.
+const FLOW_WORDS: ReadonlySet<string> = new Set(['flow', 'flows', 'flujo', 'flujos'])
+const SENTENCE_BREAK = /[.!?;\n]+/u
 const WORD_PATTERN = /[\p{L}\p{N}_]+/gu
 
 type Phrase = readonly string[]
@@ -146,6 +149,21 @@ function occurrences(words: readonly string[], phrases: readonly Phrase[]): numb
   return starts
 }
 
+function designNearUiNoun(words: readonly string[]): boolean {
+  const nounStarts = occurrences(words, uiNounPhrases)
+  return occurrences(words, designPhrases).some((verb) =>
+    nounStarts.some((noun) => {
+      const distance = Math.abs(verb - noun)
+      if (distance > UI_NOUN_WINDOW) {
+        return false
+      }
+      return !words
+        .slice(Math.min(verb, noun) + 1, Math.max(verb, noun))
+        .some((w) => FLOW_WORDS.has(w))
+    })
+  )
+}
+
 /** True when the text asks for a prototype: a positive term, or a design term near a UI noun. */
 export function hasPrototypeKeyword(text: string): boolean {
   const words = wordsOf(text)
@@ -155,8 +173,5 @@ export function hasPrototypeKeyword(text: string): boolean {
   if (occurrences(words, positivePhrases).length > 0) {
     return true
   }
-  const nounStarts = occurrences(words, uiNounPhrases)
-  return occurrences(words, designPhrases).some((verb) =>
-    nounStarts.some((noun) => Math.abs(verb - noun) <= UI_NOUN_WINDOW)
-  )
+  return text.split(SENTENCE_BREAK).some((sentence) => designNearUiNoun(wordsOf(sentence)))
 }

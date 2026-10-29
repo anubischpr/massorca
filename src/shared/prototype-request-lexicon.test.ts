@@ -27,7 +27,14 @@ const PROTOTYPE_REQUESTS = [
   'Diseño de la pantalla de pago',
   'Quiero diseños para el componente de tarjeta',
   'DISEÑA LA PANTALLA DE INICIO',
-  'disena la pantalla'
+  'disena la pantalla',
+  'diseña una nueva versión de la pantalla de NexusCare donde actualmente se procesan las liquidaciones en la fase 1, 2 y 3.',
+  'Diseña una nueva versión de la pantalla de NexusCare donde actualmente se procesan las liquidaciones',
+  'Diseña, con mucho cuidado, una nueva pantalla de ajustes',
+  'Rediseña por favor la versión actual de la pantalla de facturación de los clientes',
+  'Please design a new version of the screen for NexusCare where claims are currently processed in phases 1, 2 and 3.',
+  'Can you redesign the current version of the page where users review their settings and billing?',
+  'Arregla el bug. Diseña una nueva versión de la pantalla de pagos'
 ]
 
 const NOT_PROTOTYPE_REQUESTS = [
@@ -53,7 +60,11 @@ const NOT_PROTOTYPE_REQUESTS = [
   'the redesigned page',
   'open design_tokens.ts',
   'design the new login flow with a modal',
-  'Document the endpoints for the dashboard'
+  'Document the endpoints for the dashboard',
+  'Diseña una nueva versión de la base de datos donde se guardan las liquidaciones para la pantalla de NexusCare',
+  'Design the new architecture of the service that processes claims in phases 1, 2 and 3, then show the screen',
+  'Diseña el sistema. La pantalla de NexusCare ya existe y funciona bien en fase 1, 2 y 3',
+  'design the whole new login flow for our users and then add one modal'
 ]
 
 describe('hasPrototypeKeyword', () => {
@@ -65,9 +76,19 @@ describe('hasPrototypeKeyword', () => {
     expect(hasPrototypeKeyword(text)).toBe(false)
   })
 
-  it('counts a UI noun four words away from a design word, but not five', () => {
-    expect(hasPrototypeKeyword('design the new login modal')).toBe(true)
+  it('counts a UI noun ten words away in the same sentence, but not eleven or across sentences', () => {
+    expect(hasPrototypeKeyword('design one two three four five six seven eight nine modal')).toBe(
+      true
+    )
+    expect(
+      hasPrototypeKeyword('design one two three four five six seven eight nine ten modal')
+    ).toBe(false)
+    expect(hasPrototypeKeyword('design this. The modal is fine')).toBe(false)
+  })
+
+  it('does not read a flow between the design word and the noun as a screen request', () => {
     expect(hasPrototypeKeyword('design the new login flow modal')).toBe(false)
+    expect(hasPrototypeKeyword('design the new login modal')).toBe(true)
   })
 })
 
