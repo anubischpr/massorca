@@ -290,6 +290,9 @@ export const AGENT_SESSION_ATTACHMENTS_RUNTIME_CAPABILITY = 'agent-session.attac
 // older host answers method_not_found, so clients tell it apart to say "update the host".
 export const AGENT_SESSION_RECORDED_FILE_READ_RUNTIME_CAPABILITY =
   'agent-session.recorded-file-read.v1' as const
+// Why: repo.initGit makes a folder project a Git project on the host that owns its files; an older
+// host answers method_not_found, so clients hide Initialize Git instead of failing.
+export const REPO_INIT_GIT_RUNTIME_CAPABILITY = 'repo.init-git.v1' as const
 // Why: the host now publishes rows for work that is live inside a turn, and such
 // a row carries `stoppable: false` because no targeted stop can reach it. A
 // reader that predates the field draws a per-row Stop on every row it is given,
@@ -410,6 +413,7 @@ export const RUNTIME_CAPABILITIES = [
   AGENT_SESSION_QUESTION_ANSWERS_RUNTIME_CAPABILITY,
   AGENT_SESSION_ATTACHMENTS_RUNTIME_CAPABILITY,
   AGENT_SESSION_RECORDED_FILE_READ_RUNTIME_CAPABILITY,
+  REPO_INIT_GIT_RUNTIME_CAPABILITY,
   AGENT_SESSION_TURN_ITEM_CAPABILITY,
   AGENT_SESSION_BACKGROUND_TASK_ROW_STOP_CAPABILITY,
   AGENT_SESSION_BACKGROUND_TASK_CHILD_VIEWS_CAPABILITY,

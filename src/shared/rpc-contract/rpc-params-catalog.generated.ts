@@ -1148,6 +1148,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'repo.gitAvailable': null,
   'repo.hooks': RepoSelector,
   'repo.hooksCheck': RepoSelector,
+  'repo.initGit': RepoSelector,
   'repo.issueCommandRead': RepoSelector,
   'repo.issueCommandWrite': RepoIssueCommandWrite,
   'repo.list': null,
