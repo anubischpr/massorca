@@ -74,6 +74,8 @@ Appended to every prototype request except "Skip": the n3 text, followed by a sh
 14. Mobile draft review: the v8 draft sheet layout with the desktop rebuild line, "Anything else" and "Send to {agent}". The bottom bar shows only when there are changes.
 15. Mobile requests send with the n3 instruction (no card).
 16. Desktop set header: "Built on Design system v{n} ›" under the title when the set records a version.
+17. Groups are keyed by the host's `projectKey` (one per project root) and labelled `projectName`; two linked worktrees of one repo are two groups, because each has its own `design/system/` files.
+18. `builtOn` for a request sent with "Use it" or "Propose one first" before any system existed: the host records the system's current version in `request.json` the first time `prototypes.list` sees one (same persist-on-first-sight rule as `gentleDesignSlug`).
 
 ## Constraints
 
@@ -85,7 +87,7 @@ Work-unit Conventional Commits on `claude/prototypes-section-f8edf5`, no push, n
 
 ## Tasks
 
-- [ ] DS1 Shared model + host: token/component parsing, draft model + message, hidden instruction, preview document, project root + name, `prototypes.readDesignSystem({sessionId})`, list summaries + `projectKey`/`projectName`/`builtOn`, request mode + version in `request.json`, clients (desktop + mobile). Tests. Route: delegated writer (2+ non-trivial files).
+- [x] DS1 — `a27c153be8f`, `ccf3890df54` — Shared model + host: token/component parsing, draft model + message, hidden instruction, preview document, project root + name, `prototypes.readDesignSystem({sessionId})`, list summaries + `projectKey`/`projectName`/`builtOn`, request mode + version in `request.json`, clients (desktop + mobile). Tests. Route: delegated writer (2+ non-trivial files).
 - [ ] DS2 Desktop: list groups + Design system row, Design system view (tabs, selection panel, draft, Send, Re-detect), palette review, set header link and row suffix. Tests. Route: delegated writer.
 - [ ] DS3 Desktop request flow: system card, n3 instruction, link card. Tests. Route: delegated writer.
 - [ ] DS4 Mobile: list groups + row, set suffix, Design system screen with sheets and send, n3 on requests. Tests. Route: delegated writer.
@@ -93,7 +95,7 @@ Work-unit Conventional Commits on `claude/prototypes-section-f8edf5`, no push, n
 
 ## Progress
 
-Doc created.
+DS1 done (shared model, host read RPC and list summaries, clients). Found in passing: the phone allowlist lacked `prototypes.writeAttachment`, so v8 mobile screenshot sends were refused — fixed in `bb25bf7b181` with the allowlist test updated.
 
 ## Verification evidence
 
