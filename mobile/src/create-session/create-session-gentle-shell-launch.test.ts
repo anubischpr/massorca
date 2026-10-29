@@ -4,6 +4,7 @@ import {
   probeMobileStructuredAgentSessionSupport,
   startMobileStructuredAgentSession
 } from '../session/mobile-structured-agent-session-launch'
+import { requestStructuredAgentSessionMutation } from '../session/mobile-structured-agent-session-rpc'
 import { sendMobileStructuredAgentSessionMessage } from '../session/mobile-structured-agent-session-send'
 import { markRpcDeliveryUnknown } from '../transport/rpc-delivery-ambiguity'
 import type { RpcClient } from '../transport/rpc-client'
@@ -14,6 +15,7 @@ import {
   readPrimaryWorkspaceId
 } from './create-session-launch'
 import {
+  GENTLE_SHELL_PICK_NOT_APPLIED_MESSAGE,
   GENTLE_SHELL_UNAVAILABLE_MESSAGE,
   GENTLE_SHELL_UNCONFIRMED_MESSAGE,
   launchGentleShellSession
@@ -27,6 +29,9 @@ vi.mock('../session/mobile-structured-agent-session-launch', () => ({
 }))
 vi.mock('../session/mobile-structured-agent-session-send', () => ({
   sendMobileStructuredAgentSessionMessage: vi.fn()
+}))
+vi.mock('../session/mobile-structured-agent-session-rpc', () => ({
+  requestStructuredAgentSessionMutation: vi.fn()
 }))
 vi.mock('../tasks/worktree-create-retry', () => ({ createWorktreeWithNameRetry: vi.fn() }))
 vi.mock('./create-session-launch', () => ({
@@ -80,6 +85,10 @@ beforeEach(() => {
     fence: 3
   })
   vi.mocked(sendMobileStructuredAgentSessionMessage).mockResolvedValue('accepted')
+  vi.mocked(requestStructuredAgentSessionMutation).mockResolvedValue({
+    status: 'accepted',
+    value: {}
+  })
   vi.mocked(createWorktreeWithNameRetry).mockResolvedValue({
     worktreeId: 'wt-new',
     name: 'calm-otter'
@@ -195,5 +204,69 @@ describe('launchGentleShellSession', () => {
       ok: false,
       message: GENTLE_SHELL_UNCONFIRMED_MESSAGE
     })
+  })
+
+  it('sets the picked model and effort on the new chat before its first message', async () => {
+    const picked: CreateSessionLaunchPlan = {
+      ...currentCheckout,
+      sessionOptions: { model: 'opus', effort: 'high', accessMode: 'full-access' }
+    }
+    await expect(run(picked)).resolves.toEqual({ ok: true, worktreeId: 'wt-main', name: 'web' })
+    expect(requestStructuredAgentSessionMutation).toHaveBeenCalledTimes(2)
+    expect(requestStructuredAgentSessionMutation).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        method: 'agentSession.setOption',
+        sessionId: 'pi_1',
+        expectedRuntimeFence: 3,
+        fields: { key: 'model', value: 'opus' }
+      })
+    )
+    expect(requestStructuredAgentSessionMutation).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ fields: { key: 'effort', value: 'high' } })
+    )
+    const setOptionAt = vi.mocked(requestStructuredAgentSessionMutation).mock.invocationCallOrder
+    const sentAt = vi.mocked(sendMobileStructuredAgentSessionMessage).mock.invocationCallOrder[0]
+    expect(setOptionAt.every((order) => order < (sentAt ?? Number.POSITIVE_INFINITY))).toBe(true)
+  })
+
+  it('warns and still sends the message when the host does not take a pick', async () => {
+    vi.mocked(requestStructuredAgentSessionMutation).mockResolvedValueOnce({
+      status: 'failed',
+      message: 'Pi is busy.'
+    })
+    const picked: CreateSessionLaunchPlan = {
+      ...currentCheckout,
+      sessionOptions: { model: 'opus', effort: 'high' }
+    }
+    await expect(run(picked)).resolves.toEqual({
+      ok: true,
+      worktreeId: 'wt-main',
+      name: 'web',
+      warning: GENTLE_SHELL_PICK_NOT_APPLIED_MESSAGE
+    })
+    // Why: effort is never set on a model the host refused.
+    expect(requestStructuredAgentSessionMutation).toHaveBeenCalledTimes(1)
+    expect(sendMobileStructuredAgentSessionMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'pi_1', text: 'fix the login bug' })
+    )
+  })
+
+  it('treats a pick that throws as refused, so the chat and its message survive', async () => {
+    vi.mocked(requestStructuredAgentSessionMutation).mockRejectedValueOnce(
+      new Error('socket closed')
+    )
+    const picked: CreateSessionLaunchPlan = {
+      ...currentCheckout,
+      sessionOptions: { model: 'opus' }
+    }
+    await expect(run(picked)).resolves.toEqual({
+      ok: true,
+      worktreeId: 'wt-main',
+      name: 'web',
+      warning: GENTLE_SHELL_PICK_NOT_APPLIED_MESSAGE
+    })
+    expect(sendMobileStructuredAgentSessionMessage).toHaveBeenCalledTimes(1)
   })
 })
