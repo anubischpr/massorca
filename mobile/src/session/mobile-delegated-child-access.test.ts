@@ -48,4 +48,49 @@ describe('mobileDelegatedChildAccess', () => {
     tabs = [chat]
     expect(access.hasChild('child-1')).toBe(true)
   })
+
+  it('opens a child that the host lists in another worktree, at its pane', () => {
+    const switchTab = vi.fn()
+    const open = vi.fn()
+    const location = { worktreeId: 'wt-child', paneKey: 'structured-agent-session-child-2:pane' }
+    const access = mobileDelegatedChildAccess(() => [terminal], switchTab, {
+      locate: (id) => (id === 'child-2' ? location : null),
+      open,
+      refresh: vi.fn()
+    })
+
+    expect(access.hasChild('child-2')).toBe(true)
+    access.openChild('child-2')
+
+    expect(open).toHaveBeenCalledWith(location)
+    expect(switchTab).not.toHaveBeenCalled()
+  })
+
+  it('prefers the tab here over a host row for the same child', () => {
+    const open = vi.fn()
+    const access = mobileDelegatedChildAccess(() => [chat], vi.fn(), {
+      locate: () => ({ worktreeId: 'wt-other', paneKey: 'k:p' }),
+      open,
+      refresh: vi.fn()
+    })
+
+    access.openChild('child-1')
+
+    expect(open).not.toHaveBeenCalled()
+  })
+
+  it('offers no refresh without host rows, and asks the host through the one it is given', () => {
+    expect(mobileDelegatedChildAccess(() => [], vi.fn()).refreshAgentRows).toBeUndefined()
+
+    const refresh = vi.fn()
+    const access = mobileDelegatedChildAccess(() => [], vi.fn(), {
+      locate: () => null,
+      open: vi.fn(),
+      refresh
+    })
+    access.refreshAgentRows?.()
+
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(access.hasChild('child-1')).toBe(false)
+  })
 })

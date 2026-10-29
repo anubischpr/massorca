@@ -113,6 +113,17 @@ describe('MobileNativeChatDelegationNotice', () => {
     expect(openButton()).toHaveLength(0)
   })
 
+  it('asks the host for rows once when the child is not held here, and not when it is', () => {
+    const refreshAgentRows = vi.fn()
+    mount(finished, { hasChild: () => false, openChild: vi.fn(), refreshAgentRows })
+    expect(refreshAgentRows).toHaveBeenCalledTimes(1)
+
+    act(() => renderer?.unmount())
+    const held = vi.fn()
+    mount(finished, { hasChild: () => true, openChild: vi.fn(), refreshAgentRows: held })
+    expect(held).not.toHaveBeenCalled()
+  })
+
   it('opens the child through the chat access when its tab is here', async () => {
     const openChild = vi.fn()
     mount(finished, { hasChild: (id) => id === 'child-1', openChild })

@@ -1,4 +1,4 @@
-import { useContext } from 'react'
+import { useContext, useEffect, useRef } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { AlertCircle, Check, CornerDownRight } from 'lucide-react-native'
 import type {
@@ -45,7 +45,18 @@ function FinishedNotice({ payload }: { payload: DelegationFinishedPayload }): Re
   const childSessionId = payload.childSessionId
   const succeeded = payload.outcome === 'succeeded'
   const heading = delegationFinishedHeading(payload)
-  // Why: the control appears only when this chat holds the child's tab, so it never opens nothing.
+  const requestedChildRef = useRef<string | null>(null)
+  useEffect(() => {
+    // Why: host rows are read when a notice needs a child this chat does not hold, once per child, not on every mount.
+    if (!access || childSessionId === null || requestedChildRef.current === childSessionId) {
+      return
+    }
+    requestedChildRef.current = childSessionId
+    if (!access.hasChild(childSessionId)) {
+      access.refreshAgentRows?.()
+    }
+  }, [access, childSessionId])
+  // Why: the control appears only when a real target resolves, a tab here or a pane the host lists, so it never opens nothing.
   const openChild =
     access && childSessionId !== null && access.hasChild(childSessionId)
       ? () => access.openChild(childSessionId)
