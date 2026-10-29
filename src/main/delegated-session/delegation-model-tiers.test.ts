@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { DelegationTier } from '../../shared/delegated-session-types'
 import { resolveDelegationModel } from './delegation-model-tiers'
 
-type TierRow = { tier: DelegationTier; model: string | null; effort: string }
+type TierRow = { tier: DelegationTier; model: string; effort: string }
 
 const CLAUDE_ROWS: readonly TierRow[] = [
   { tier: 1, model: 'haiku', effort: 'high' },
@@ -18,14 +18,6 @@ const CODEX_ROWS: readonly TierRow[] = [
   { tier: 3, model: 'gpt-6.1-sol', effort: 'medium' },
   { tier: 4, model: 'gpt-6.1-sol', effort: 'high' },
   { tier: 5, model: 'gpt-6-astra', effort: 'medium' }
-]
-
-const DEFAULT_MODEL_ROWS: readonly TierRow[] = [
-  { tier: 1, model: null, effort: 'low' },
-  { tier: 2, model: null, effort: 'medium' },
-  { tier: 3, model: null, effort: 'medium' },
-  { tier: 4, model: null, effort: 'high' },
-  { tier: 5, model: null, effort: 'high' }
 ]
 
 describe('resolveDelegationModel', () => {
@@ -45,12 +37,12 @@ describe('resolveDelegationModel', () => {
     })
   })
 
-  it.each(DEFAULT_MODEL_ROWS)(
-    'keeps the agent default model for other agents at tier $tier',
-    ({ tier, model, effort }) => {
+  it.each([1, 2, 3, 4, 5] as const)(
+    'runs the agent default model with no effort for other agents at tier %s',
+    (tier) => {
       expect(resolveDelegationModel({ agent: 'antigravity', tier })).toEqual({
-        model,
-        effort,
+        model: null,
+        effort: null,
         adjustments: []
       })
     }
@@ -63,7 +55,17 @@ describe('resolveDelegationModel', () => {
         tier: 3,
         catalog: { models: ['gpt-5.5'] }
       })
-    ).toEqual({ model: null, effort: 'medium', adjustments: ['model-unavailable'] })
+    ).toEqual({ model: null, effort: null, adjustments: ['model-unavailable'] })
+  })
+
+  it('drops the effort with a dropped model even when the catalog lists efforts', () => {
+    expect(
+      resolveDelegationModel({
+        agent: 'codex',
+        tier: 3,
+        catalog: { models: ['gpt-5.5'], efforts: ['low', 'medium', 'high'] }
+      })
+    ).toEqual({ model: null, effort: null, adjustments: ['model-unavailable'] })
   })
 
   it('keeps a listed model with no adjustments', () => {

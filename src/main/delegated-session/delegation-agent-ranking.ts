@@ -46,6 +46,8 @@ const NO_DATA_BINDING_PERCENT = 60
 const USAGE_LIMIT_PERCENT = 90
 const TIE_TOLERANCE_POINTS = 5
 const DEFAULT_STALE_AFTER_MS = 15 * 60 * 1000
+// Why: a sample a little ahead of this clock is clock skew; further ahead it cannot be a real reading.
+const FUTURE_SAMPLE_TOLERANCE_MS = 60 * 1000
 // Why: a fixed order breaks ties, so the same inputs always pick the same agent.
 const FIXED_AGENT_ORDER: readonly string[] = ['claude', 'codex', 'antigravity', 'pi']
 
@@ -83,12 +85,21 @@ function exclusionFor(percent: number, limitReached: boolean): DelegationExclusi
   return percent >= USAGE_LIMIT_PERCENT ? 'usage-limit' : null
 }
 
+function isStale(fetchedAt: number, now: number, staleAfterMs: number): boolean {
+  const age = now - fetchedAt
+  return age > staleAfterMs || age < -FUTURE_SAMPLE_TOLERANCE_MS
+}
+
 function usageEntryFor(
   { agent, usage }: DelegationRankingCandidate,
   now: number,
   staleAfterMs: number
 ): DelegationAgentUsage {
-  if (usage === null || usage.fetchedAt === undefined || now - usage.fetchedAt > staleAfterMs) {
+  if (
+    usage === null ||
+    usage.fetchedAt === undefined ||
+    isStale(usage.fetchedAt, now, staleAfterMs)
+  ) {
     return noDataUsage(agent)
   }
   const limitReached = usage.limitReached === true
@@ -121,13 +132,29 @@ function compareText(a: string, b: string): number {
   return a < b ? -1 : 1
 }
 
+// Why: a total order over every field the router reads, so duplicate ids always sort the same way.
 function compareRanking(a: DelegationAgentUsage, b: DelegationAgentUsage): number {
   return (
     Number(a.excluded !== null) - Number(b.excluded !== null) ||
     a.bindingPercent - b.bindingPercent ||
     fixedRank(a.agent) - fixedRank(b.agent) ||
-    compareText(a.agent, b.agent)
+    compareText(a.agent, b.agent) ||
+    Number(a.noData) - Number(b.noData) ||
+    compareText(a.window ?? '', b.window ?? '') ||
+    compareText(a.excluded ?? '', b.excluded ?? '')
   )
+}
+
+// Why: a duplicate id keeps the entry that ranks first, so input order never decides.
+function keepFirstPerAgent(sorted: readonly DelegationAgentUsage[]): DelegationAgentUsage[] {
+  const seen = new Set<string>()
+  return sorted.filter((entry) => {
+    if (seen.has(entry.agent)) {
+      return false
+    }
+    seen.add(entry.agent)
+    return true
+  })
 }
 
 function winnerFrom(
@@ -144,8 +171,9 @@ function winnerFrom(
   if (contenders.length === 1) {
     return { usage: best, reason: 'lowest-usage' }
   }
+  // Why: the tie-break changes the pick only when the parent does not already rank first.
   const parent = contenders.find((entry) => entry.agent === parentAgent)
-  if (parent !== undefined) {
+  if (parent !== undefined && parent.agent !== best.agent) {
     return { usage: parent, reason: 'parent-agent-tie' }
   }
   const exactTie = contenders.at(1)?.bindingPercent === best.bindingPercent
@@ -154,9 +182,11 @@ function winnerFrom(
 
 export function rankDelegationAgents(input: DelegationRankingInput): DelegationRanking {
   const staleAfterMs = input.staleAfterMs ?? DEFAULT_STALE_AFTER_MS
-  const ranking = input.candidates
-    .map((candidate) => usageEntryFor(candidate, input.now, staleAfterMs))
-    .sort(compareRanking)
+  const ranking = keepFirstPerAgent(
+    input.candidates
+      .map((candidate) => usageEntryFor(candidate, input.now, staleAfterMs))
+      .sort(compareRanking)
+  )
   const eligible = ranking.filter((entry) => entry.excluded === null)
   return { ranking, winner: winnerFrom(eligible, input.parentAgent) }
 }

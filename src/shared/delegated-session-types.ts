@@ -47,7 +47,7 @@ export type DelegationDecision = {
   agent: string
   /** Null when the agent's own default model applies. */
   model: string | null
-  /** Null when no supported effort level remains. */
+  /** Null when no model is named (the agent's default runs) or no supported effort level remains. */
   effort: string | null
   tier: DelegationTier
   dimensions: DelegationTaskDimensions

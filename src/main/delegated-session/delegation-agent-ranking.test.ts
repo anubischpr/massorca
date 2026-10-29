@@ -52,6 +52,10 @@ describe('rankDelegationAgents', () => {
       name: 'a sample older than 15 minutes',
       usage: { sessionPercent: 10, fetchedAt: NOW - 15 * MINUTE - 1 }
     },
+    {
+      name: 'a sample more than a minute ahead of the clock',
+      usage: { sessionPercent: 10, fetchedAt: NOW + 2 * MINUTE }
+    },
     { name: 'no window percent', usage: { fetchedAt: FRESH } }
   ])('counts $name as no data at 60%', ({ usage }) => {
     expect(rank([{ agent: 'codex', usage }]).ranking[0]).toEqual({
@@ -66,6 +70,13 @@ describe('rankDelegationAgents', () => {
   it('treats a sample exactly 15 minutes old as fresh', () => {
     const [entry] = rank([
       { agent: 'codex', usage: { sessionPercent: 10, fetchedAt: NOW - 15 * MINUTE } }
+    ]).ranking
+    expect(entry).toMatchObject({ bindingPercent: 10, noData: false })
+  })
+
+  it('tolerates a sample a little ahead of the clock as clock skew', () => {
+    const [entry] = rank([
+      { agent: 'codex', usage: { sessionPercent: 10, fetchedAt: NOW + 30_000 } }
     ]).ranking
     expect(entry).toMatchObject({ bindingPercent: 10, noData: false })
   })
@@ -125,6 +136,42 @@ describe('rankDelegationAgents', () => {
     })
   })
 
+  it('reports lowest-usage, not a parent tie, when the parent already has the lowest usage', () => {
+    const result = rank(
+      [
+        { agent: 'claude', usage: { sessionPercent: 34, fetchedAt: FRESH } },
+        { agent: 'codex', usage: { sessionPercent: 30, fetchedAt: FRESH } }
+      ],
+      'codex'
+    )
+    expect(result.winner).toMatchObject({ usage: { agent: 'codex' }, reason: 'lowest-usage' })
+  })
+
+  it('reports the parent tie-break when the parent loses the fixed order on an exact tie', () => {
+    const result = rank(
+      [
+        { agent: 'codex', usage: { sessionPercent: 20, fetchedAt: FRESH } },
+        { agent: 'pi', usage: { sessionPercent: 20, fetchedAt: FRESH } }
+      ],
+      'pi'
+    )
+    expect(result.winner).toMatchObject({
+      usage: { agent: 'pi' },
+      reason: 'parent-agent-tie'
+    })
+  })
+
+  it('reports fixed-order-tie when the parent already wins the exact tie', () => {
+    const result = rank(
+      [
+        { agent: 'codex', usage: { sessionPercent: 20, fetchedAt: FRESH } },
+        { agent: 'pi', usage: { sessionPercent: 20, fetchedAt: FRESH } }
+      ],
+      'codex'
+    )
+    expect(result.winner).toMatchObject({ usage: { agent: 'codex' }, reason: 'fixed-order-tie' })
+  })
+
   it('ignores the parent agent when it sits more than 5 points above the best', () => {
     const result = rank(
       [
@@ -152,6 +199,31 @@ describe('rankDelegationAgents', () => {
       { agent: 'alpha', usage: { sessionPercent: 20, fetchedAt: FRESH } }
     ])
     expect(result.ranking.map((entry) => entry.agent)).toEqual(['pi', 'alpha', 'zeta'])
+  })
+
+  it('keeps the entry that ranks first for a duplicate agent id, in any input order', () => {
+    const candidates: DelegationRankingCandidate[] = [
+      { agent: 'claude', usage: { sessionPercent: 40, fetchedAt: FRESH } },
+      { agent: 'claude', usage: { sessionPercent: 20, fetchedAt: FRESH } },
+      { agent: 'codex', usage: { sessionPercent: 30, fetchedAt: FRESH } }
+    ]
+    const result = rank(candidates)
+    expect(result.ranking.map(({ agent, bindingPercent }) => [agent, bindingPercent])).toEqual([
+      ['claude', 20],
+      ['codex', 30]
+    ])
+    expect(rank(candidates.toReversed())).toEqual(result)
+  })
+
+  it('keeps the same window for a duplicate agent id whose windows tie in percent', () => {
+    const candidates: DelegationRankingCandidate[] = [
+      { agent: 'codex', usage: { weeklyPercent: 50, fetchedAt: FRESH } },
+      { agent: 'codex', usage: { sessionPercent: 50, fetchedAt: FRESH } }
+    ]
+    expect(rank(candidates).ranking).toEqual([
+      expect.objectContaining({ agent: 'codex', bindingPercent: 50, window: 'session' })
+    ])
+    expect(rank(candidates.toReversed())).toEqual(rank(candidates))
   })
 
   it('gives the same result regardless of candidate order', () => {

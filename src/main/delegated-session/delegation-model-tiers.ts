@@ -1,7 +1,7 @@
 import type { DelegationTier } from '../../shared/delegated-session-types'
 
 export type DelegationModelCatalog = {
-  /** Model ids the agent can run now; a table model missing here falls back to the agent default. */
+  /** Model ids the agent can run now; a table model missing here falls back to the agent default with no effort. */
   models: readonly string[]
   /** Effort levels the chosen model supports; omitted keeps the table effort as written. */
   efforts?: readonly string[]
@@ -15,7 +15,7 @@ export type DelegationModelResolution = {
   adjustments: DelegationModelAdjustment[]
 }
 
-type TierChoice = { model: string | null; effort: string }
+type TierChoice = { model: string; effort: string }
 
 // Why: aliases are the ids the Claude option catalog offers; opus stays at medium to bound cost.
 const CLAUDE_TIERS: Readonly<Record<DelegationTier, TierChoice>> = {
@@ -35,15 +35,6 @@ const CODEX_TIERS: Readonly<Record<DelegationTier, TierChoice>> = {
   5: { model: 'gpt-6-astra', effort: 'medium' }
 }
 
-// Other agents keep their own default model and only get an effort level.
-const AGENT_DEFAULT_TIERS: Readonly<Record<DelegationTier, TierChoice>> = {
-  1: { model: null, effort: 'low' },
-  2: { model: null, effort: 'medium' },
-  3: { model: null, effort: 'medium' },
-  4: { model: null, effort: 'high' },
-  5: { model: null, effort: 'high' }
-}
-
 // Why: a clamp moves to the nearest supported level on this ladder, at or below first.
 const EFFORT_LADDER: readonly string[] = [
   'minimal',
@@ -55,14 +46,15 @@ const EFFORT_LADDER: readonly string[] = [
   'ultra'
 ]
 
-function tierTableFor(agent: string): Readonly<Record<DelegationTier, TierChoice>> {
+// Why: other agents run their own default model; worker-start refuses an effort without a model.
+function tierChoiceFor(agent: string, tier: DelegationTier): TierChoice | null {
   switch (agent) {
     case 'claude':
-      return CLAUDE_TIERS
+      return CLAUDE_TIERS[tier]
     case 'codex':
-      return CODEX_TIERS
+      return CODEX_TIERS[tier]
     default:
-      return AGENT_DEFAULT_TIERS
+      return null
   }
 }
 
@@ -88,20 +80,21 @@ export function resolveDelegationModel({
   tier: DelegationTier
   catalog?: DelegationModelCatalog
 }): DelegationModelResolution {
-  const wanted = tierTableFor(agent)[tier]
-  const adjustments: DelegationModelAdjustment[] = []
-  let model = wanted.model
-  if (model !== null && catalog !== undefined && !catalog.models.includes(model)) {
-    model = null
-    adjustments.push('model-unavailable')
+  const wanted = tierChoiceFor(agent, tier)
+  if (wanted === null) {
+    return { model: null, effort: null, adjustments: [] }
   }
+  if (catalog !== undefined && !catalog.models.includes(wanted.model)) {
+    // Why: the catalog's efforts belong to its listed models, so a dropped model keeps no effort.
+    return { model: null, effort: null, adjustments: ['model-unavailable'] }
+  }
+  const adjustments: DelegationModelAdjustment[] = []
   let effort: string | null = wanted.effort
-  const supportedEfforts = catalog?.efforts
-  if (supportedEfforts !== undefined) {
-    effort = clampEffort(wanted.effort, supportedEfforts)
+  if (catalog?.efforts !== undefined) {
+    effort = clampEffort(wanted.effort, catalog.efforts)
     if (effort !== wanted.effort) {
       adjustments.push('effort-clamped')
     }
   }
-  return { model, effort, adjustments }
+  return { model: wanted.model, effort, adjustments }
 }

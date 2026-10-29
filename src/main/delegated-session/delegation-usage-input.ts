@@ -36,6 +36,13 @@ function usageSampleFrom(rateLimits: ProviderRateLimits): DelegationUsageSample 
   }
 }
 
+// Why: an errored or unavailable meter may still hold old numbers, which are not a reading to route on.
+function readableRateLimits(rateLimits: ProviderRateLimits | null): ProviderRateLimits | null {
+  return rateLimits === null || rateLimits.status === 'error' || rateLimits.status === 'unavailable'
+    ? null
+    : rateLimits
+}
+
 // Why: top-level provider entries are the active account; inactive accounts are not routed to in v1.
 export function delegationUsageCandidates(
   state: RateLimitState,
@@ -43,7 +50,7 @@ export function delegationUsageCandidates(
 ): DelegationRankingCandidate[] {
   return agents.map((usageAgent) => {
     const provider = meteredProviderFor(usageAgent)
-    const rateLimits = provider === null ? null : (state[provider] ?? null)
+    const rateLimits = readableRateLimits(provider === null ? null : (state[provider] ?? null))
     return {
       agent: usageAgent.agent,
       usage: rateLimits === null ? null : usageSampleFrom(rateLimits)

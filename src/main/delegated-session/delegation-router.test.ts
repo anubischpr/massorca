@@ -114,7 +114,7 @@ describe('decideDelegation', () => {
     })
   })
 
-  it('records the model and effort adjustments from the catalog', () => {
+  it('drops the effort with a model the catalog does not list', () => {
     const decision = routed(
       decideDelegation(
         routeInput({
@@ -126,9 +126,39 @@ describe('decideDelegation', () => {
     expect(decision).toMatchObject({
       agent: 'claude',
       model: null,
-      effort: 'medium',
+      effort: null,
       tier: 1,
-      reasons: ['lowest-usage', 'model-unavailable', 'effort-clamped', 'read-only-current-worktree']
+      reasons: ['lowest-usage', 'model-unavailable', 'read-only-current-worktree']
+    })
+  })
+
+  it('clamps the effort to a listed model from the catalog', () => {
+    const decision = routed(
+      decideDelegation(
+        routeInput({
+          summary: 'Rename the exact field and run the tests',
+          catalogs: { claude: { models: ['haiku'], efforts: ['low', 'medium'] } }
+        })
+      )
+    )
+    expect(decision).toMatchObject({
+      model: 'haiku',
+      effort: 'medium',
+      reasons: ['lowest-usage', 'effort-clamped', 'read-only-current-worktree']
+    })
+  })
+
+  it('reports no eligible agent for an empty candidate list', () => {
+    expect(decideDelegation(routeInput({ candidates: [] }))).toEqual({
+      status: 'no-eligible-agent',
+      tier: 2,
+      dimensions: {
+        risk: 'low',
+        complexity: 'medium',
+        verifiability: 'medium',
+        ambiguity: 'medium'
+      },
+      ranking: []
     })
   })
 

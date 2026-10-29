@@ -125,6 +125,23 @@ describe('classifyDelegationTask', () => {
       expect(classify('Explore a new tool release, read-only').dimensions.risk).toBe('low')
     })
 
+    it.each(['', '   '])(
+      'falls back to the medium defaults for a blank summary (%j)',
+      (summary) => {
+        expect(classify(summary)).toMatchObject({
+          dimensions: {
+            risk: 'low',
+            complexity: 'medium',
+            verifiability: 'medium',
+            ambiguity: 'medium'
+          },
+          tier: 2,
+          riskFloorApplied: false
+        })
+        expect(classify(summary, true).tier).toBe(3)
+      }
+    )
+
     it('places the approved prototype example in tier 3', () => {
       expect(
         classify('Explore a new tool release and list features to adopt, read-only').tier

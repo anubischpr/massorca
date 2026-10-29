@@ -34,9 +34,10 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
 
 ## Decisions (approved prototype https://claude.ai/artifact/8x18gaF2y6cZKXPzzfAWaJ, 2026-10-28)
 
-- Usage window: the tightest of 5h and weekly (`max(usedPercent)`); agents at ≥ 90% or limit-reached are skipped; no data or stale (> 15 min) counts as 60% and is labelled.
-- Tie within 5 points: prefer the parent's agent, then a fixed order.
-- Placement: `current` worktree for read-only tasks; `new-child` worktree when the task writes code.
+- Usage window: the tightest of 5h and weekly (`max(usedPercent)`); agents at ≥ 90% or limit-reached are excluded from the winner but still listed in the ranking. No data counts as 60% and is labelled. No data means: no sample, no fetch time, no window percent, a sample older than 15 min, a sample more than 1 min ahead of the clock (clock-skew tolerance), or a meter whose status is `error` or `unavailable`.
+- Tie within 5 points of the lowest usage: the parent's agent wins when it is in that band and does not already rank first. Otherwise an exact tie goes to the fixed order (claude, codex, antigravity, pi, then alphabetical). A duplicate agent id keeps the entry that ranks first, so input order never decides.
+- Placement: `current` worktree for read-only tasks; `new-child` worktree when the task writes code in a git workspace. A folder workspace always runs in the current folder, with the `folder-workspace-writes` warning.
+- Model and effort: effort is named only with a model (worker-start refuses an effort alone). An agent that runs its own default model gets neither; a tier model the catalog does not list falls back to the default with no effort (`model-unavailable`).
 - Automatic does not switch accounts in v1.
 
 ## Configuration
@@ -57,7 +58,7 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
 - [x] T2 — Usage adapter: TuiAgent → rate-limit provider mapping, snapshot → router usage input, staleness; tests. Route: delegated direct.
   - File: `src/main/delegated-session/delegation-usage-input.ts` (pure). Input is the `RateLimitState` that `RateLimitService.getState()` (public, `src/main/rate-limits/service/service-configuration.ts`) returns, so T4 wires the live read in one call.
   - Mapping: claude → `claude`, codex → `codex`, antigravity → `antigravity`, pi on Gentle Shell → `nan`. Stock Pi has no meter in `RateLimitState`, so it stays no-data (60%). `grok`, `omp` and `opencode` are not mapped, per the brief (ACP agents); `grok` does exist in `RateLimitState` if the brief changes.
-  - Sample: 5-hour and weekly used percent; `limitReached` when a window reaches 100%; `fetchedAt` is the provider's `updatedAt`, so the router's 15-minute staleness applies. Top-level entries are the active account only.
+  - Sample: 5-hour and weekly used percent; `limitReached` when a window reaches 100%; `fetchedAt` is the provider's `updatedAt`, so the router's 15-minute staleness applies. A meter with status `error` or `unavailable` gives no usage at all, even when old numbers remain. Top-level entries are the active account only.
   - Checks: `pnpm exec vitest run --config config/vitest.config.ts src/main/delegated-session` → 5 files, 85 passed. `pnpm exec oxlint` on the new files → exit 0. `oxfmt --check` → clean. `pnpm tc:node` → exit 0. `ORCA_CODE_QUALITY_BASE=HEAD pnpm run check:code-quality:changed` → 0 findings in 2 files.
   - Runtime harness: N/A (pure function). Rollback: delete `src/main/delegated-session/delegation-usage-input.ts` and its test.
 - [x] T3 — Structured workers on any agent: `WorkerStartParams` gains optional `preferredMode` and `accessMode`; worker-start honors `sessionOptions` (model, effort, access) and accepts every registered structured agent, not only claude/codex; capability in `src/shared/orchestration-runtime-capabilities.ts`. Agent-row projection carries the structured coordinator as parent (session-keyed via `structuredAgentSessionPaneKey`), so structured workers nest under a structured parent. Tests. Route: delegated direct. (Coordinator = structured session and mail to it already work: `run-coordinator-orca-session.ts`, `structured-mailbox-pointer-host.ts`.)

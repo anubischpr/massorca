@@ -96,6 +96,18 @@ describe('delegationUsageCandidates', () => {
     ])
   })
 
+  it.each(['error', 'unavailable'] as const)(
+    'gives no usage for a meter whose status is %s, even with old numbers',
+    (status) => {
+      const state = createEmptyRateLimitState({
+        codex: provider('codex', { session: window(5), status, error: null })
+      })
+      expect(delegationUsageCandidates(state, [{ agent: 'codex' }])).toEqual([
+        { agent: 'codex', usage: null }
+      ])
+    }
+  )
+
   it('flags a window at 100% as a limit', () => {
     const state = createEmptyRateLimitState({
       codex: provider('codex', { session: window(20), weekly: window(100) })
