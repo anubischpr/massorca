@@ -111,12 +111,19 @@ async function performHostOwnedPrompt(
   if (!outcome.ok) {
     return invalid(outcome.reason, outcome.message)
   }
-  const appended = await ctx.journal.appendItem(
-    identity,
-    { ...prompt, resolution },
-    // A revision: the prompt keeps the turn it was raised in.
-    { fence: ctx.fence, turnScope: ctx.journal.liveTurnScope() }
-  )
+  let appended: Awaited<ReturnType<typeof ctx.journal.appendItem>>
+  try {
+    appended = await ctx.journal.appendItem(
+      identity,
+      { ...prompt, resolution },
+      // A revision: the prompt keeps the turn it was raised in.
+      { fence: ctx.fence, turnScope: ctx.journal.liveTurnScope() }
+    )
+  } catch (error) {
+    // The claim was taken before this write, so a write that fails hands it back.
+    outcome.rollback?.()
+    throw error
+  }
   outcome.afterCommit()
   return { ok: true, value: { itemId: appended.itemId, revision: appended.revision, resolution } }
 }

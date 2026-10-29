@@ -86,7 +86,21 @@ export class DelegationAnswerService {
     if (!held || held.choice !== input.optionId || held.status === 'cancelled') {
       return gone(`Delegation request ${row.id} was already settled.`)
     }
-    return { ok: true, afterCommit: () => this.lifecycle.start(row.id) }
+    return {
+      ok: true,
+      afterCommit: () => this.lifecycle.start(row.id),
+      // Only the answer that took the claim hands it back; a repeat of the same choice holds nothing.
+      ...(claimed
+        ? {
+            rollback: () => {
+              db.transitionDelegationRequest(row.id, 'starting', 'pending', {
+                choice: null,
+                decision_json: row.decision_json
+              })
+            }
+          }
+        : {})
+    }
   }
 
   private async cancel(input: { sessionId: string; itemId: string }): Promise<HostOwnedAnswer> {
@@ -101,7 +115,17 @@ export class DelegationAnswerService {
     if (settled?.status !== 'cancelled' && settled?.status !== 'failed') {
       return gone(`Delegation request ${row.id} was already answered.`)
     }
-    return { ok: true, afterCommit: () => undefined }
+    return {
+      ok: true,
+      afterCommit: () => undefined,
+      ...(cancelled
+        ? {
+            rollback: () => {
+              db.transitionDelegationRequest(row.id, 'cancelled', 'pending')
+            }
+          }
+        : {})
+    }
   }
 
   private offers(row: DelegationRequestRow, choice: DelegationChoice): boolean {

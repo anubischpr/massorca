@@ -178,20 +178,26 @@ export async function cancelHostOwnedPrompt(
       )
     }
   }
-  await ctx.journal.appendItem(
-    identity,
-    {
-      ...prompt,
-      resolution: {
-        state: 'cancelled',
-        selectedOptionId: null,
-        resolvedBy: ctx.resolvedBy,
-        resolvedAt: ctx.now()
-      }
-    },
-    // A revision: the prompt keeps the turn it was raised in.
-    { fence: ctx.fence, turnScope: ctx.journal.liveTurnScope() }
-  )
+  try {
+    await ctx.journal.appendItem(
+      identity,
+      {
+        ...prompt,
+        resolution: {
+          state: 'cancelled',
+          selectedOptionId: null,
+          resolvedBy: ctx.resolvedBy,
+          resolvedAt: ctx.now()
+        }
+      },
+      // A revision: the prompt keeps the turn it was raised in.
+      { fence: ctx.fence, turnScope: ctx.journal.liveTurnScope() }
+    )
+  } catch (error) {
+    // The claim was taken before this write, so a write that fails hands it back.
+    outcome.rollback?.()
+    throw error
+  }
   outcome.afterCommit()
   return {
     ok: true,

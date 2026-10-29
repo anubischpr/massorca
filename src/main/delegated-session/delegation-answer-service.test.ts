@@ -367,6 +367,47 @@ describe('DelegationAnswerService', () => {
     ).resolves.toMatchObject({ ok: false, reason: 'promptGone' })
   })
 
+  it('takes an answer back when the journal does not record it, so another choice can be taken', async () => {
+    const { requestId, itemId } = await filed()
+    const first = await answers.hostOwnedPrompts.answer({
+      sessionId: PARENT.sessionId,
+      itemId,
+      optionId: 'agent:codex'
+    })
+    expect(first).toMatchObject({ ok: true })
+    if (first.ok) {
+      first.rollback?.()
+    }
+
+    expect(db.getDelegationRequest(requestId)).toMatchObject({ status: 'pending', choice: null })
+    await expect(
+      answers.hostOwnedPrompts.answer({
+        sessionId: PARENT.sessionId,
+        itemId,
+        optionId: 'agent:claude'
+      })
+    ).resolves.toMatchObject({ ok: true })
+    expect(launch).not.toHaveBeenCalled()
+  })
+
+  it('takes a cancel back when the journal does not record it, so the card can still be answered', async () => {
+    const { requestId, itemId } = await filed()
+    const cancelled = await answers.hostOwnedPrompts.cancel({ sessionId: PARENT.sessionId, itemId })
+    expect(cancelled).toMatchObject({ ok: true })
+    if (cancelled.ok) {
+      cancelled.rollback?.()
+    }
+
+    expect(db.getDelegationRequest(requestId)?.status).toBe('pending')
+    await expect(
+      answers.hostOwnedPrompts.answer({
+        sessionId: PARENT.sessionId,
+        itemId,
+        optionId: 'agent:codex'
+      })
+    ).resolves.toMatchObject({ ok: true })
+  })
+
   it('answers after a host restart, from the stored request alone', async () => {
     db.close()
     tempDir = mkdtempSync(join(tmpdir(), 'orca-delegation-restart-'))

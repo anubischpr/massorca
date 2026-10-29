@@ -183,6 +183,20 @@ describe('answering a host-owned question', () => {
     await vi.waitFor(() => expect(resolvedWhenStarted).toBe('resolved'))
   })
 
+  it('takes the answer back when the journal does not record it, so the card can be answered again', async () => {
+    await foundRestTestChat(rig)
+    const revision = await postCard()
+    const rollback = vi.fn()
+    owned.answer.mockResolvedValueOnce({ ok: true, afterCommit: owned.afterCommit, rollback })
+    const { journal } = await rig.host.lifetime.conversation(SESSION)
+    vi.spyOn(journal, 'appendItem').mockRejectedValueOnce(new Error('the journal write failed'))
+
+    await answer(revision, 'automatic').catch(() => undefined)
+
+    expect(rollback).toHaveBeenCalledOnce()
+    expect(owned.afterCommit).not.toHaveBeenCalled()
+  })
+
   it('answers a repeat of the same choice from the resolution, without asking the resolver again', async () => {
     await foundRestTestChat(rig)
     const revision = await postCard()
