@@ -41,6 +41,7 @@ import type {
 } from './ui-chrome-types'
 import type { SetupScriptLaunchMode } from './worktree/launch-types'
 import type { WorktreeVisibilityDefaults } from './repo-types'
+import type { PrototypeCountSetting } from './prototype-count-setting'
 
 export type { WorktreeVisibilityDefaults } from './repo-types'
 
@@ -267,6 +268,8 @@ export type GlobalSettings = NativeChatGlobalSettings & {
   showArtifactsButton?: boolean
   /** Only toggles the sidebar shortcut; Skills stay reachable from Settings. */
   showSkillsButton?: boolean
+  /** How many design directions a prototype request asks for, or whether each request asks. */
+  prototypeCount: PrototypeCountSetting
   /** Only toggles the sidebar shortcut; Orca Mobile stays reachable from Settings. */
   showMobileButton?: boolean
   /** Pinned workspaces show in one sidebar location by default; opt in to also show them in their natural groups. */

@@ -2,6 +2,7 @@ import { editFilesFromToolPair } from '../../../src/shared/native-chat-edit-norm
 import { editedPathsFromToolPair } from '../../../src/shared/native-chat-edit-paths'
 import { toolFilePath } from '../../../src/shared/native-chat-tool-summary'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
+import { isPrototypeArtifactPath } from '../../../src/shared/prototype-artifact-paths'
 import { mobileNativeChatToolResults } from './mobile-native-chat-tool-results'
 
 /** One file the main agent's landed tool calls changed. */
@@ -53,7 +54,8 @@ export function mobileNativeChatRecordedFiles(
       }
     }
   }
-  return [...files.values()]
+  // Prototype files belong to the Prototypes view, not to Artifacts or the turn cards.
+  return [...files.values()].filter((file) => !isPrototypeArtifactPath(file.path))
 }
 
 /** Distinct files the main agent's landed tool calls changed; the count the menu shows. */

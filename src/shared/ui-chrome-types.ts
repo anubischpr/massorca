@@ -124,5 +124,6 @@ export type TopLevelView =
   | 'space'
   | 'skills'
   | 'artifacts'
+  | 'prototypes'
   | 'mobile'
   | 'create-chat'

@@ -125,3 +125,26 @@ describe('chat appearance settings', () => {
     ).toBeUndefined()
   })
 })
+
+describe('prototype count setting', () => {
+  it('gives a profile saved before the setting existed the default', () => {
+    expect(normalizeLegacyProfile({ prototypeCount: undefined }).prototypeCount).toEqual({
+      mode: 'always',
+      count: 2
+    })
+  })
+
+  it('keeps a saved setting and repairs a hand-edited one', () => {
+    expect(
+      normalizeLegacyProfile({ prototypeCount: { mode: 'ask', count: 3 } }).prototypeCount
+    ).toEqual({ mode: 'ask', count: 3 })
+    expect(
+      normalizeLegacyProfile({ prototypeCount: { mode: 'sometimes', count: 'many' } })
+        .prototypeCount
+    ).toEqual({ mode: 'always', count: 2 })
+    expect(normalizeLegacyProfile({ prototypeCount: 7 }).prototypeCount).toEqual({
+      mode: 'always',
+      count: 2
+    })
+  })
+})

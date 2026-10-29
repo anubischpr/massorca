@@ -1,4 +1,5 @@
 import type { AgentJournalMessageItem } from '../../../../shared/agent-session-journal-types'
+import { withoutPrototypeHiddenInstruction } from '../../../../shared/prototype-hidden-blocks'
 import {
   appendToNativeChatComposerDraft,
   structuredAgentSessionDraftScopeKey
@@ -7,7 +8,8 @@ import { appendNativeChatDraftCache } from './native-chat-draft-cache'
 
 /** The text a message body carries, as the composer shows it. */
 export function structuredAgentSessionMessageText(body: AgentJournalMessageItem): string {
-  return body.blocks.flatMap((block) => (block.type === 'text' ? [block.text] : [])).join('\n')
+  const blocks = body.role === 'user' ? withoutPrototypeHiddenInstruction(body.blocks) : body.blocks
+  return blocks.flatMap((block) => (block.type === 'text' ? [block.text] : [])).join('\n')
 }
 
 /** Puts a message's text and images into a composer, after whatever is there. True once the text

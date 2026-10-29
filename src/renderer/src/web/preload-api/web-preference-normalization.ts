@@ -1,4 +1,5 @@
 import { normalizeNativeChatAppearanceSettings } from '../../../../shared/native-chat-appearance-settings'
+import { sanitizePrototypeCountSetting } from '../../../../shared/prototype-count-setting'
 import { normalizeAutoRenameBranchFromWorkDefaultOn } from '../../../../shared/auto-rename-branch-from-work-settings'
 import {
   getDefaultSettings,
@@ -180,6 +181,7 @@ export function mergeSettings(
         ? updates.nativeChatAppearance
         : base.nativeChatAppearance
     ),
+    prototypeCount: sanitizePrototypeCountSetting(updates.prototypeCount ?? base.prototypeCount),
     uiLanguage: normalizeUiLanguage(updates.uiLanguage ?? base.uiLanguage)
   }
   return {

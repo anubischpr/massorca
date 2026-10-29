@@ -26,6 +26,7 @@ export function createUiTaskActions(set: UISliceSet, get: UISliceGet): Partial<U
     createChatResetNonce: 0,
     previousViewBeforeMobile: 'terminal',
     previousViewBeforeArtifacts: 'terminal',
+    previousViewBeforePrototypes: 'terminal',
     setActiveView: (view) => set({ activeView: view }),
     taskPageData: {},
     taskResumeState: undefined,

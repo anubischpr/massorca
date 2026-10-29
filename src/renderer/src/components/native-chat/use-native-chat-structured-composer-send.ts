@@ -21,6 +21,9 @@ import {
 import { nativeChatComposerDraftLeftAfterSend } from './native-chat-composer-draft-comparison'
 import type { NativeChatComposerDraft } from './native-chat-composer-draft-storage'
 import { isNativeChatSessionNavigation } from './native-chat-session-navigation'
+import { neutralizePrototypeMarkers } from '../../../../shared/prototype-hidden-instruction'
+import { resolveNativeChatPrototypeOutgoing } from './native-chat-prototype-request-outgoing'
+import type { NativeChatPrototypeChoice } from './native-chat-prototype-request-decision'
 
 export type UseNativeChatStructuredComposerSendArgs = {
   agent: AgentType
@@ -47,11 +50,13 @@ export function isNativeChatStructuredHostCommand(
 }
 
 /** A structured send. `sentFrom`: the draft the message was taken from, for a send that goes out
- *  later than it was asked for; only what it held then leaves the composer. */
+ *  later than it was asked for; only what it held then leaves the composer. `prototypeChoice`: the
+ *  answer of the "How many prototypes?" card to a send it held back. */
 export type NativeChatStructuredComposerSend = (
   text: string,
   attachments?: readonly NativeChatComposerImageAttachment[],
-  sentFrom?: NativeChatComposerDraft
+  sentFrom?: NativeChatComposerDraft,
+  prototypeChoice?: NativeChatPrototypeChoice
 ) => Promise<void>
 
 /** Send through the structured journal transport, clearing the composer only
@@ -67,7 +72,7 @@ export function useNativeChatStructuredComposerSend({
   setCaret
 }: UseNativeChatStructuredComposerSendArgs): NativeChatStructuredComposerSend {
   return useCallback<NativeChatStructuredComposerSend>(
-    async (text, attachments = imageAttachments, sentFrom): Promise<void> => {
+    async (text, attachments = imageAttachments, sentFrom, prototypeChoice): Promise<void> => {
       // A picked command is held like Send: it would carry attachments still uploading, pathless.
       if (!structuredTransport || attachments.some((attachment) => attachment.pending)) {
         return
@@ -93,7 +98,48 @@ export function useNativeChatStructuredComposerSend({
         structuredTransport.onSubmitted?.()
       }
       const submitted = sentFrom ?? readNativeChatComposerDraft(draftScopeKey)
-      await dispatchNativeChatStructuredComposerText(structuredTransport, text, attachments, agent)
+      // A host command is never a prototype request; any other text may be one.
+      const planned = hostCommand
+        ? { kind: 'send' as const, text: neutralizePrototypeMarkers(text) }
+        : resolveNativeChatPrototypeOutgoing({
+            text,
+            agent,
+            draftScopeKey,
+            attachments,
+            sentFrom: submitted,
+            sessionId: structuredTransport.sessionId,
+            ...(structuredTransport.worktreeId
+              ? { worktreeId: structuredTransport.worktreeId }
+              : {}),
+            runtimeEnvironmentId: structuredTransport.runtimeEnvironmentId,
+            ...(prototypeChoice ? { choice: prototypeChoice } : {})
+          })
+      const outgoing =
+        planned instanceof Promise
+          ? await planned.catch((error: unknown) => {
+              const notice = nativeChatNoticeFromError(
+                error,
+                agentSessionWriteNoticeText(['notDoneSend'])
+              )
+              structuredTransport.onError(notice.text, { errorText: notice.errorText })
+              return null
+            })
+          : planned
+      // Held for the card's answer, or refused already (reported): nothing goes out now.
+      if (outgoing === null || outgoing.kind === 'ask') {
+        return
+      }
+      // A request folder is still being made for an earlier press; the draft stays for a retry.
+      if (outgoing.kind === 'in-flight') {
+        console.warn('[native-chat-send] a prototype request is already being prepared')
+        return
+      }
+      await dispatchNativeChatStructuredComposerText(
+        structuredTransport,
+        outgoing.text,
+        attachments,
+        agent
+      )
         .then(({ accepted, error, refusedWhile, revealsTranscript }) => {
           structuredTransport.onError(error, refusedWhile ? { refusedWhile } : undefined)
           if (!accepted) {

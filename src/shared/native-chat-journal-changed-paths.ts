@@ -5,6 +5,7 @@ import type {
 import { isFileWriteToolName } from './native-chat-edit-normalize'
 import { editedPathsFromToolPair, isPathOnlyMutationToolName } from './native-chat-edit-paths'
 import { toolFilePath } from './native-chat-tool-summary'
+import { isPrototypeArtifactPath } from './prototype-artifact-paths'
 
 function toolCallPaths(body: AgentJournalToolCallItem, input: unknown): string[] {
   return editedPathsFromToolPair({
@@ -19,16 +20,19 @@ function toolCallPaths(body: AgentJournalToolCallItem, input: unknown): string[]
 
 /** Every path the journal records as changed, oldest touch first: what the Results list shows. It
  *  reads any tool's input for the shapes agents report an edit in, so it is a display list and not
- *  evidence of a write; see `writtenFilePathsFromJournalItems`. */
+ *  evidence of a write; see `writtenFilePathsFromJournalItems`. Prototype files are left out: the
+ *  Prototypes view owns them. */
 export function changedFilePathsFromJournalItems(
   items: readonly AgentJournalRenderItem[]
 ): string[] {
-  return items.flatMap(({ body }) => {
-    if (body.kind === 'diff') {
-      return [body.path]
-    }
-    return body.kind === 'tool-call' ? toolCallPaths(body, body.input) : []
-  })
+  return items
+    .flatMap(({ body }) => {
+      if (body.kind === 'diff') {
+        return [body.path]
+      }
+      return body.kind === 'tool-call' ? toolCallPaths(body, body.input) : []
+    })
+    .filter((path) => !isPrototypeArtifactPath(path))
 }
 
 /** Paths a host may vouch for as the agent's own writes: provider diff items, and completed calls

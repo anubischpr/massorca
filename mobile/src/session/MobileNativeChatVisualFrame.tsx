@@ -1,15 +1,20 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { StyleSheet } from 'react-native'
 import { WebView, type WebViewMessageEvent } from 'react-native-webview'
 import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes'
 import * as ExpoCrypto from 'expo-crypto'
 import { buildNativeChatVisualDocument } from '../../../src/shared/native-chat-visual-shell'
+import type {
+  NativeChatVisualAnnotateEvent,
+  NativeChatVisualAnnotateState
+} from '../../../src/shared/native-chat-visual-annotate'
 import { createNativeChatVisualHeightGovernor } from '../../../src/shared/native-chat-visual-height-governor'
 import { openExternalLink } from '../platform/external-link'
 import {
   MOBILE_NATIVE_CHAT_VISUAL_LINK_INTERVAL_MS,
   readMobileNativeChatVisualBridgeMessage
 } from './mobile-native-chat-visual-bridge'
+import { mobileNativeChatVisualAnnotateInjection } from './mobile-native-chat-visual-annotate-injection'
 import {
   buildMobileNativeChatVisualHostDocument,
   MOBILE_NATIVE_CHAT_VISUAL_APPLY_HEIGHT,
@@ -24,6 +29,12 @@ export type MobileNativeChatVisualFrameProps = {
   mode: MobileNativeChatVisualHostMode
   /** The frame cannot show this visual (it navigated away, or its web process keeps dying). */
   onFailed: () => void
+  /**
+   * Given, the frame is built with the element-annotate script and reports picks and pin clicks to
+   * `onAnnotateEvent`. Whether it is given is fixed per mount; its value may change at any time.
+   */
+  annotate?: NativeChatVisualAnnotateState
+  onAnnotateEvent?: (event: NativeChatVisualAnnotateEvent) => void
 }
 
 /** One automatic reload after the web process dies; a page that kills it again is unavailable. */
@@ -52,7 +63,9 @@ export const MobileNativeChatVisualFrame = memo(function MobileNativeChatVisualF
   html,
   title,
   mode,
-  onFailed
+  onFailed,
+  annotate,
+  onAnnotateEvent
 }: MobileNativeChatVisualFrameProps) {
   const webView = useRef<WebView>(null)
   const [token] = useState(randomHex)
@@ -60,13 +73,21 @@ export const MobileNativeChatVisualFrame = memo(function MobileNativeChatVisualF
   const [height, setHeight] = useState(MOBILE_NATIVE_CHAT_VISUAL_INITIAL_HEIGHT)
   const restarts = useRef(0)
   const lastLinkAt = useRef(-Infinity)
+  const annotateCapable = annotate !== undefined
+  const annotateRef = useRef(annotate)
+  const onAnnotateEventRef = useRef(onAnnotateEvent)
+  useLayoutEffect(() => {
+    annotateRef.current = annotate
+    onAnnotateEventRef.current = onAnnotateEvent
+  }, [annotate, onAnnotateEvent])
 
   const built = useMemo(() => {
     const channel = randomHex()
     const visualDocument = buildNativeChatVisualDocument({
       html,
       channel,
-      theme: MOBILE_NATIVE_CHAT_VISUAL_THEME
+      theme: MOBILE_NATIVE_CHAT_VISUAL_THEME,
+      annotate: annotateCapable
     })
     return {
       channel,
@@ -76,11 +97,25 @@ export const MobileNativeChatVisualFrame = memo(function MobileNativeChatVisualF
           channel,
           token,
           title,
-          mode
+          mode,
+          annotate: annotateCapable
         })
       }
     }
-  }, [html, token, title, mode])
+  }, [html, token, title, mode, annotateCapable])
+
+  // The whole annotate state goes in again whenever it changes, and once the host document loads.
+  const injectAnnotateState = useCallback(() => {
+    const state = annotateRef.current
+    if (state !== undefined) {
+      webView.current?.injectJavaScript(
+        mobileNativeChatVisualAnnotateInjection(state, built.channel)
+      )
+    }
+  }, [built.channel])
+  useEffect(() => {
+    injectAnnotateState()
+  }, [annotate, injectAnnotateState])
 
   // A fresh governor per loaded document; reports queue behind a deferral rather than pile up.
   const sizing = useRef<{
@@ -131,6 +166,12 @@ export const MobileNativeChatVisualFrame = memo(function MobileNativeChatVisualF
         onFailed()
         return
       }
+      if (message.kind === 'element-picked' || message.kind === 'pin-clicked') {
+        if (annotateCapable) {
+          onAnnotateEventRef.current?.(message)
+        }
+        return
+      }
       if (message.kind === 'size') {
         if (mode === 'inline') {
           sizing.current.latest = message.height
@@ -147,7 +188,7 @@ export const MobileNativeChatVisualFrame = memo(function MobileNativeChatVisualF
       lastLinkAt.current = now
       openExternalLink(message.url)
     },
-    [token, built.channel, mode, applyHeight, onFailed]
+    [token, built.channel, mode, applyHeight, onFailed, annotateCapable]
   )
 
   const restart = useCallback(() => {
@@ -186,6 +227,7 @@ export const MobileNativeChatVisualFrame = memo(function MobileNativeChatVisualF
       showsVerticalScrollIndicator={false}
       showsHorizontalScrollIndicator={false}
       onMessage={onMessage}
+      onLoadEnd={injectAnnotateState}
       onError={onFailed}
       onHttpError={onFailed}
       onContentProcessDidTerminate={restart}

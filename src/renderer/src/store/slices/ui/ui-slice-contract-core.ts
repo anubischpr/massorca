@@ -122,6 +122,7 @@ export type UiViewHistory =
   | 'space'
   | 'skills'
   | 'artifacts'
+  | 'prototypes'
   | 'mobile'
   | 'create-chat'
 
@@ -164,6 +165,7 @@ export type UISliceCore = {
   previousViewBeforeSkills: Exclude<UiViewHistory, 'skills'>
   previousViewBeforeMobile: Exclude<UiViewHistory, 'mobile'>
   previousViewBeforeArtifacts: Exclude<UiViewHistory, 'artifacts'>
+  previousViewBeforePrototypes: Exclude<UiViewHistory, 'prototypes'>
   setActiveView: (view: UISliceCore['activeView']) => void
   taskPageData: TaskPageData
   taskResumeState: TaskResumeState | undefined
@@ -205,6 +207,8 @@ export type UISliceCore = {
   clearPendingSkillsSharedView: () => void
   openArtifactsPage: () => void
   closeArtifactsPage: () => void
+  openPrototypesPage: () => void
+  closePrototypesPage: () => void
   openMobilePage: () => void
   closeMobilePage: () => void
   /** Opens a blank create-chat view; each open bumps the nonce so the view remounts blank. */
