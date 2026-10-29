@@ -168,6 +168,20 @@ describe('MobileNativeChatDelegationCard', () => {
     expect(onAnswer).toHaveBeenCalledWith('token-codex')
   })
 
+  it('picks nothing when the question carries no answer for Automatic', async () => {
+    await mount({ payload: { card, answerTokens: { 'agent:codex': 'token-codex' } } })
+
+    expect(radios().map((radio) => radio.props.accessibilityLabel)).toEqual(['Codex'])
+    expect(radios()[0]!.props.accessibilityState.checked).toBe(false)
+    expect(startButton().props.disabled).toBe(true)
+    expect(texts()).not.toContain('Picks Codex · gpt-6.1-sol · medium')
+    expect(
+      renderer!.root.findAll(
+        (node) => node.props.accessibilityLabel === 'Why Automatic picked this agent'
+      )
+    ).toHaveLength(0)
+  })
+
   it('opens the why sheet from the Automatic pick', async () => {
     await mount({})
     expect(texts()).not.toContain('Why Automatic picked Codex')

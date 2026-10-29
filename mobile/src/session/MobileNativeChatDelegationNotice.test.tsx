@@ -124,6 +124,25 @@ describe('MobileNativeChatDelegationNotice', () => {
     expect(held).not.toHaveBeenCalled()
   })
 
+  it('asks the host for rows once a child held here is no longer listed', () => {
+    const refreshAgentRows = vi.fn()
+    mount(finished, { hasChild: () => true, openChild: vi.fn(), refreshAgentRows })
+    expect(refreshAgentRows).not.toHaveBeenCalled()
+
+    act(() => {
+      renderer?.update(
+        createElement(
+          MobileDelegatedChildContext.Provider,
+          {
+            value: { hasChild: () => false, openChild: vi.fn(), refreshAgentRows }
+          },
+          createElement(MobileNativeChatDelegationNotice, { payload: finished })
+        )
+      )
+    })
+    expect(refreshAgentRows).toHaveBeenCalledTimes(1)
+  })
+
   it('opens the child through the chat access when its tab is here', async () => {
     const openChild = vi.fn()
     mount(finished, { hasChild: (id) => id === 'child-1', openChild })

@@ -51,10 +51,11 @@ function FinishedNotice({ payload }: { payload: DelegationFinishedPayload }): Re
     if (!access || childSessionId === null || requestedChildRef.current === childSessionId) {
       return
     }
-    requestedChildRef.current = childSessionId
-    if (!access.hasChild(childSessionId)) {
-      access.refreshAgentRows?.()
+    if (access.hasChild(childSessionId)) {
+      return
     }
+    requestedChildRef.current = childSessionId
+    access.refreshAgentRows?.()
   }, [access, childSessionId])
   // Why: the control appears only when a real target resolves, a tab here or a pane the host lists, so it never opens nothing.
   const openChild =

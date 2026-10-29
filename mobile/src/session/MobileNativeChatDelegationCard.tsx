@@ -33,7 +33,11 @@ export function MobileNativeChatDelegationCard({
   const decision = card.decision
   // Why: a row the question carries no answer for cannot be sent, so the card does not offer it.
   const rows = delegationOptionRows(card).filter((row) => answerTokens[row.optionId] !== undefined)
-  const [selectedId, setSelectedId] = useState<string | null>(() => defaultDelegationOption(card))
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    // Why: the default is only chosen when its row is drawn, so no pick sits on a row the card hides.
+    const fallback = defaultDelegationOption(card)
+    return rows.some((row) => row.optionId === fallback) ? fallback : null
+  })
   const [sending, setSending] = useState(false)
   const [whyOpen, setWhyOpen] = useState(false)
   const sendingRef = useRef(false)
