@@ -1,5 +1,6 @@
 import type { TuiAgent } from './tui-agent'
 import type { ExecutionHostId, ExecutionHostScope } from './execution-host'
+import type { DelegatedChildStatus } from './delegated-children'
 
 export const AI_VAULT_AGENTS = [
   'claude',
@@ -139,11 +140,19 @@ export type AiVaultSession = {
   subagent: AiVaultSessionSubagentInfo | null
   /** A `codex exec` rollout: a headless run the list hides by default. Older hosts omit it. */
   headlessRun?: true
+  /** Present only for a delegated child session of a parent this host lists. Older hosts omit it. */
+  delegatedFrom?: AiVaultDelegatedFrom
   /** Present only when the negotiated client can open the native structured owner. */
   structuredSession?: {
     sessionId: string
     workspaceId: string
   }
+}
+
+export type AiVaultDelegatedFrom = {
+  /** The structured session id of the parent chat that delegated this session. */
+  parentSessionId: string
+  status: DelegatedChildStatus
 }
 
 export type AiVaultSubagentListArgs = {

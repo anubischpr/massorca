@@ -14,6 +14,7 @@ import { resolveRepoBadgeColor } from '../../../../shared/repo-badge-color'
 import { splitWorktreeIdForFilesystem } from '../../../../shared/worktree/id'
 import {
   isAiVaultSessionRecoverableEmpty,
+  type AiVaultDelegatedFrom,
   type AiVaultScope,
   type AiVaultSession
 } from '../../../../shared/ai-vault-types'
@@ -41,14 +42,19 @@ export function SessionMetadata({
   liveState,
   updatedAt,
   worktreeInfo,
-  vaultScope
+  vaultScope,
+  nestedChild = false
 }: {
   session: AiVaultSession
   liveState: AgentStatusState | null
   updatedAt: string
   worktreeInfo: AiVaultSessionWorktreeInfo | null
   vaultScope: AiVaultScope
+  nestedChild?: boolean
 }) {
+  if (nestedChild) {
+    return <NestedChildMetadata session={session} updatedAt={updatedAt} />
+  }
   const modelLabel = sessionModelLabel(session)
   const origin = antigravitySessionOrigin(session.filePath)
   const automatedRunKind = aiVaultAutomatedRunKind(session)
@@ -140,6 +146,94 @@ export function SessionMetadata({
       ) : null}
     </div>
   )
+}
+
+// Why: a delegated child line names only badge, agent, status and time; the parent keeps the rest.
+function NestedChildMetadata({
+  session,
+  updatedAt
+}: {
+  session: AiVaultSession
+  updatedAt: string
+}): React.JSX.Element {
+  const status = session.delegatedFrom
+    ? delegatedChildStatusContent(session.delegatedFrom.status)
+    : null
+  return (
+    <div
+      data-testid="ai-vault-session-metadata"
+      className="mt-1 grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-1.5 gap-y-0.5 text-[11px] leading-4 text-muted-foreground"
+    >
+      <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground">
+        <AgentIcon
+          agent={session.agent}
+          size={14}
+          chatPiRuntime={
+            session.agent === 'pi' ? piRuntimeForSessionFilePath(session.filePath) : undefined
+          }
+        />
+      </span>
+      <div className="flex min-w-0 items-center gap-1.5">
+        <Badge variant="outline">
+          {translate(
+            'auto.components.right.sidebar.AiVaultSessionRow.childSessionBadge',
+            'Child session'
+          )}
+        </Badge>
+        <span className="shrink-0 text-muted-foreground/55">·</span>
+        <span className="min-w-0 shrink-[2] truncate">{agentLabel(session.agent)}</span>
+        {status ? (
+          <>
+            <span className="shrink-0 text-muted-foreground/55">·</span>
+            {status}
+          </>
+        ) : null}
+        <span className="shrink-0 text-muted-foreground/55">·</span>
+        <SessionTime value={updatedAt} />
+      </div>
+    </div>
+  )
+}
+
+// Why: a pending delegation has no status word, so its metadata line drops the status part.
+function delegatedChildStatusContent(
+  status: AiVaultDelegatedFrom['status']
+): React.JSX.Element | null {
+  switch (status) {
+    case 'working':
+      return (
+        <span className="flex shrink-0 items-center gap-1">
+          <span
+            aria-hidden="true"
+            className="block size-1.5 shrink-0 rounded-full bg-status-success"
+          />
+          {translate(
+            'auto.components.right.sidebar.AiVaultSessionRow.childSessionWorking',
+            'working'
+          )}
+        </span>
+      )
+    case 'succeeded':
+      return (
+        <span className="shrink-0">
+          {translate(
+            'auto.components.right.sidebar.AiVaultSessionRow.childSessionFinished',
+            'finished'
+          )}
+        </span>
+      )
+    case 'failed':
+      return (
+        <span className="shrink-0">
+          {translate(
+            'auto.components.right.sidebar.AiVaultSessionRow.childSessionFailed',
+            'failed'
+          )}
+        </span>
+      )
+    case 'not-started':
+      return null
+  }
 }
 
 function SessionWorktreeLine({

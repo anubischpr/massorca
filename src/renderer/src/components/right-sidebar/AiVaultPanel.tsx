@@ -210,11 +210,8 @@ export default function AiVaultPanel(): React.JSX.Element {
     sessionLimit
   })
 
-  const { filteredSessions, groups, automatedRunCount } = useAiVaultPanelSessions(
-    sessions,
-    searching,
-    group,
-    {
+  const { filteredSessions, groups, automatedRunCount, delegatedChildrenByRootId } =
+    useAiVaultPanelSessions(sessions, searching, group, {
       query,
       agents,
       scope,
@@ -226,8 +223,7 @@ export default function AiVaultPanel(): React.JSX.Element {
       projectLabelByKey,
       hideEmptySessions,
       showAutomatedRuns
-    }
-  )
+    })
 
   const getSessionRowResumeArgs = useCallback(
     (session: AiVaultSession) => ({
@@ -354,6 +350,7 @@ export default function AiVaultPanel(): React.JSX.Element {
             key={searching ? search.resetKey : 'history'}
             searchHits={searching ? searchHits : undefined}
             groups={groups}
+            delegatedChildrenByRootId={delegatedChildrenByRootId}
             collapsedGroups={collapsedGroups}
             loading={searching ? search.loading : loading}
             sessionsCount={sessions.length}

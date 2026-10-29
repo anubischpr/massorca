@@ -3,12 +3,25 @@ import {
   groupAiVaultSessions
 } from '../../../src/shared/ai-vault-session-filters'
 import { applyAiVaultAutomatedRunsSwitch } from '../../../src/shared/ai-vault-automated-run'
+import { nestAiVaultDelegatedChildren } from '../../../src/shared/ai-vault-delegated-nesting'
 import { AI_VAULT_AGENTS } from '../../../src/shared/ai-vault-types'
-import type { AiVaultScope, AiVaultSession } from '../../../src/shared/ai-vault-types'
+import type {
+  AiVaultDelegatedFrom,
+  AiVaultScope,
+  AiVaultSession
+} from '../../../src/shared/ai-vault-types'
+import { z } from 'zod'
 import {
   buildMobileAgentHistoryCard,
+  buildMobileNestedChildCard,
   type MobileAgentHistoryCard
 } from './agent-history-session-card'
+
+// Why: a host's rows reach this client cast to AiVaultSession, so the parent link is read as data.
+const delegatedFromSchema = z.object({
+  parentSessionId: z.string().min(1),
+  status: z.enum(['working', 'succeeded', 'failed', 'not-started'])
+})
 
 // Why: `data` (not `cards`) is the field name React Native's SectionList reads
 // for each section's rows — naming it anything else renders empty sections.
@@ -38,18 +51,54 @@ export function buildMobileAgentHistorySections(
   sessions: readonly AiVaultSession[],
   options: MobileAgentHistoryScopeOptions & { showAutomatedRuns?: boolean }
 ): MobileAgentHistorySection[] {
+  const inScope = mobileAgentHistoryInScope(sessions.map(withReadDelegatedFrom), options)
   const { sessions: shown } = applyAiVaultAutomatedRunsSwitch(
-    mobileAgentHistoryInScope(sessions, options),
+    inScope,
     options.showAutomatedRuns === true
   )
-  const groups = groupAiVaultSessions(shown, 'folder')
+  const { roots, childrenByRootId } = nestAiVaultDelegatedChildren(inScope, shown)
+  const groups = groupAiVaultSessions(roots, 'folder')
   return groups.map((group) => ({
     key: group.key,
     label: group.label,
     data: group.sessions.map((session) =>
-      buildMobileAgentHistoryCard(session, options.activeWorktreePath, options.now)
+      buildMobileAgentHistoryRow(session, childrenByRootId.get(session.id) ?? [], options)
     )
   }))
+}
+
+function buildMobileAgentHistoryRow(
+  session: AiVaultSession,
+  children: readonly AiVaultSession[],
+  options: MobileAgentHistoryScopeOptions
+): MobileAgentHistoryCard {
+  const card = buildMobileAgentHistoryCard(session, options.activeWorktreePath, options.now)
+  const nestedChildren = children.flatMap((child) =>
+    child.delegatedFrom
+      ? [
+          buildMobileNestedChildCard(
+            child,
+            options.activeWorktreePath,
+            options.now,
+            child.delegatedFrom
+          )
+        ]
+      : []
+  )
+  return nestedChildren.length === 0 ? card : { ...card, nestedChildren }
+}
+
+// Why: an unreadable link drops the link, never the row; an unknown status must not nest a child.
+function withReadDelegatedFrom(session: AiVaultSession): AiVaultSession {
+  if (session.delegatedFrom === undefined) {
+    return session
+  }
+  return { ...session, delegatedFrom: readDelegatedFrom(session.delegatedFrom) }
+}
+
+export function readDelegatedFrom(value: unknown): AiVaultDelegatedFrom | undefined {
+  const parsed = delegatedFromSchema.safeParse(value)
+  return parsed.success ? parsed.data : undefined
 }
 
 /** The "Automated runs" count for this scope and query, whether or not the switch shows them. */

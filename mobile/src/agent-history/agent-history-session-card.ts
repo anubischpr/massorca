@@ -5,7 +5,7 @@ import {
   type AiVaultAutomatedRunKind
 } from '../../../src/shared/ai-vault-automated-run'
 import { aiVaultAgentLabel } from '../../../src/shared/ai-vault-types'
-import type { AiVaultSession } from '../../../src/shared/ai-vault-types'
+import type { AiVaultDelegatedFrom, AiVaultSession } from '../../../src/shared/ai-vault-types'
 import type { PiRowRuntime } from '../../../src/shared/agent-type-label'
 import {
   mobilePiAgentLabel,
@@ -21,6 +21,10 @@ export type MobileAgentHistoryCard = {
   piRuntime?: PiRowRuntime
   /** Set only for a headless run; the badge its metadata line leads with. */
   automatedRunKind?: AiVaultAutomatedRunKind
+  /** Set only for a delegated child shown under its parent. */
+  delegatedChild?: { status: AiVaultDelegatedFrom['status'] }
+  /** The delegated children shown under this row, in list order. */
+  nestedChildren?: readonly MobileAgentHistoryCard[]
   title: string
   lastMessage: string
   messageCount: number
@@ -72,6 +76,34 @@ export function buildMobileAgentHistoryCard(
 
 export function automatedRunBadgeLabel(kind: AiVaultAutomatedRunKind): string {
   return kind === 'review' ? 'Review' : 'SDD'
+}
+
+export const DELEGATED_CHILD_BADGE_LABEL = 'Child session'
+
+/** The status word a nested child row ends its metadata line with; null omits the part. */
+export function delegatedChildStatusLabel(status: AiVaultDelegatedFrom['status']): string | null {
+  switch (status) {
+    case 'working':
+      return 'working'
+    case 'succeeded':
+      return 'finished'
+    case 'failed':
+      return 'failed'
+    case 'not-started':
+      return null
+  }
+}
+
+export function buildMobileNestedChildCard(
+  session: AiVaultSession,
+  activeWorktreePath: string | null,
+  now: number,
+  delegatedFrom: AiVaultDelegatedFrom
+): MobileAgentHistoryCard {
+  return {
+    ...buildMobileAgentHistoryCard(session, activeWorktreePath, now),
+    delegatedChild: { status: delegatedFrom.status }
+  }
 }
 
 export function buildMobileAgentHistoryResumeActionState(

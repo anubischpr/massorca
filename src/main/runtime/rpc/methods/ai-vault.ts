@@ -18,6 +18,7 @@ import {
   projectStructuredAiVaultSessions,
   searchWithStructuredOwners
 } from '../../../ai-vault/structured-session-ownership'
+import { projectDelegatedChildAiVaultSessions } from '../../../ai-vault/delegated-child-sessions'
 import { ensureStructuredAgentSessionHostUnlessRefused } from '../../structured-agent-session-host-refusal'
 import {
   AiVaultListSessionsParams,
@@ -100,10 +101,13 @@ export const AI_VAULT_METHODS = [
       }
       // Why: web clients consume this response directly (no parent-side retag),
       // so sessions must come back stamped as the runtime host they addressed.
-      const projected = projectStructuredAiVaultSessions(
-        result,
-        clientKind === undefined ||
-          (clientCapabilities?.includes(STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY) ?? false)
+      const projected = projectDelegatedChildAiVaultSessions(
+        projectStructuredAiVaultSessions(
+          result,
+          clientKind === undefined ||
+            (clientCapabilities?.includes(STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY) ?? false)
+        ),
+        () => runtime.getExistingOrchestrationDb()
       )
       return params.executionHostId
         ? restampAiVaultListResult(projected, params.executionHostId)

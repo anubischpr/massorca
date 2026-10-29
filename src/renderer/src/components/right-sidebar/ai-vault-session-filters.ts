@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { applyAiVaultAutomatedRunsSwitch } from '../../../../shared/ai-vault-automated-run'
+import { nestAiVaultDelegatedChildren } from '../../../../shared/ai-vault-delegated-nesting'
 import type { AiVaultAgent, AiVaultGroup, AiVaultSession } from '../../../../shared/ai-vault-types'
 import { piRuntimeForSessionFilePath } from '../../../../shared/pi-runtime-selection'
 import { piRuntimeLabel, type PiDisplayRuntime } from '@/lib/pi-agent-display'
@@ -35,6 +36,8 @@ export type AiVaultSessionListGroup = {
   label: string | null
   sessions: AiVaultSession[]
 }
+
+const NO_DELEGATED_CHILDREN: ReadonlyMap<string, readonly AiVaultSession[]> = new Map()
 
 export function useAiVaultPanelSessions(
   sessions: readonly AiVaultSession[],
@@ -86,9 +89,22 @@ export function useAiVaultPanelSessions(
     ]
   )
   // Why: search hits are counted and hidden the same way, so the switch means one thing everywhere.
-  const { sessions: filteredSessions, automatedRunCount } = useMemo(
+  const { sessions: shownSessions, automatedRunCount } = useMemo(
     () => applyAiVaultAutomatedRunsSwitch(inScopeSessions, showAutomatedRuns),
     [inScopeSessions, showAutomatedRuns]
+  )
+  // Why: search hits stay flat; browsing nests each delegated child under its displayed parent.
+  const nesting = useMemo(
+    () => (searching ? null : nestAiVaultDelegatedChildren(inScopeSessions, shownSessions)),
+    [searching, inScopeSessions, shownSessions]
+  )
+  const rootSessions = nesting ? nesting.roots : shownSessions
+  const filteredSessions = useMemo(
+    () =>
+      nesting
+        ? [...nesting.roots, ...[...nesting.childrenByRootId.values()].flat()]
+        : shownSessions,
+    [nesting, shownSessions]
   )
   const groups = useMemo<AiVaultSessionListGroup[]>(
     () =>
@@ -97,10 +113,15 @@ export function useAiVaultPanelSessions(
           ? []
           : // The results bar above the list carries the count, so this group only holds rows.
             [{ key: 'search-results', label: null, sessions: [...filteredSessions] }]
-        : groupAiVaultSessions(filteredSessions, group, { sessionProjectById, projectLabelByKey }),
-    [searching, filteredSessions, group, projectLabelByKey, sessionProjectById]
+        : groupAiVaultSessions(rootSessions, group, { sessionProjectById, projectLabelByKey }),
+    [searching, filteredSessions, rootSessions, group, projectLabelByKey, sessionProjectById]
   )
-  return { filteredSessions, groups, automatedRunCount }
+  return {
+    filteredSessions,
+    groups,
+    automatedRunCount,
+    delegatedChildrenByRootId: nesting?.childrenByRootId ?? NO_DELEGATED_CHILDREN
+  }
 }
 
 /** A session's agent name: a Pi session names the runtime its own transcript lives under. */
