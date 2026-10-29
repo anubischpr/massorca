@@ -21,6 +21,7 @@ import { resolveDelegationTarget } from './delegation-stored-request'
 export class DelegationLifecycle {
   private readonly inFlight = new Set<Promise<void>>()
   private readonly launching = new Set<string>()
+  private readonly finishing = new Set<string>()
 
   constructor(private readonly deps: DelegationAnswerDeps) {}
 
@@ -58,7 +59,16 @@ export class DelegationLifecycle {
       return
     }
     for (const row of db.listDelegationRequestsByStatus('starting')) {
-      if (!this.launching.has(row.id)) {
+      if (this.launching.has(row.id)) {
+        continue
+      }
+      if (row.dispatch_id) {
+        // The worker started; only the row missed hearing so.
+        db.transitionDelegationRequest(row.id, 'starting', 'started', {
+          child_session_id: db.getDispatchContextById(row.dispatch_id)?.assignee_orca_session_id,
+          launched_at_ms: this.deps.now()
+        })
+      } else {
         await this.fail(row, 'The host restarted before the child session started.')
       }
     }
@@ -115,18 +125,20 @@ export class DelegationLifecycle {
     if (!started) {
       return
     }
-    const payload: DelegationStartedPayload = {
-      requestId,
-      title: row.title,
-      status: 'started',
-      agent: target.agent,
-      model: target.model,
-      effort: target.effort,
-      childSessionId: launched.childSessionId,
-      placement: target.placement,
-      automatic: target.automatic
+    if (launched.childSessionId) {
+      const payload: DelegationStartedPayload = {
+        requestId,
+        title: row.title,
+        status: 'started',
+        agent: target.agent,
+        model: target.model,
+        effort: target.effort,
+        childSessionId: launched.childSessionId,
+        placement: target.placement,
+        automatic: target.automatic
+      }
+      await this.postNotice(row, payload, delegationStartedNotice(payload, target.label))
     }
-    await this.postNotice(row, payload, delegationStartedNotice(payload, target.label))
     // A worker that reported before this row said started is finished now.
     await this.finish(launched.dispatchId)
   }
@@ -149,6 +161,18 @@ export class DelegationLifecycle {
   }
 
   private async finish(dispatchId: string): Promise<void> {
+    if (this.finishing.has(dispatchId)) {
+      return
+    }
+    this.finishing.add(dispatchId)
+    try {
+      await this.finishOnce(dispatchId)
+    } finally {
+      this.finishing.delete(dispatchId)
+    }
+  }
+
+  private async finishOnce(dispatchId: string): Promise<void> {
     const db = this.deps.getDb()
     const row = db?.getDelegationRequestByDispatch(dispatchId)
     if (!db || !row || row.status !== 'started') {
@@ -160,12 +184,6 @@ export class DelegationLifecycle {
     }
     const outcome = dispatch.status === 'completed' ? 'succeeded' : 'failed'
     const result = (row.task_id ? db.getTask(row.task_id)?.result : null) ?? dispatch.last_failure
-    const finished = db.transitionDelegationRequest(row.id, 'started', 'finished', {
-      result: result ?? ''
-    })
-    if (!finished) {
-      return
-    }
     const payload: DelegationFinishedPayload = {
       requestId: row.id,
       title: row.title,
@@ -176,23 +194,28 @@ export class DelegationLifecycle {
       durationMs:
         row.launched_at_ms === null ? null : Math.max(0, this.deps.now() - row.launched_at_ms)
     }
-    await this.postNotice(row, payload, delegationFinishedNotice(payload))
+    // Post first: a failed post leaves the row started, so the next reconcile retries it.
+    if (await this.postNotice(row, payload, delegationFinishedNotice(payload))) {
+      db.transitionDelegationRequest(row.id, 'started', 'finished', { result: result ?? '' })
+    }
   }
 
   private async postNotice(
     row: DelegationRequestRow,
     payload: DelegationNoticePayload,
     notice: AgentJournalStatusItem
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
       await this.deps.rows.appendHostRow(
         row.parent_session_id,
         delegationNoticeRowIdentity(row.id, payload.status),
         notice
       )
+      return true
     } catch (error) {
       // The request's own record is the truth; a chat that cannot take the row now is still told by it.
       this.deps.warn(`posting the ${payload.status} notice of delegation ${row.id} failed`, error)
+      return false
     }
   }
 }

@@ -216,8 +216,9 @@ describe('createDelegationLauncher', () => {
       expect(await accessModeFor(undefined)).toBeUndefined()
     })
 
-    it('is not asked for from an ACP agent, which refuses an explicit mode', async () => {
-      expect(await accessModeFor('read-only', 'grok')).toBeUndefined()
+    it('refuses an ACP agent that cannot be held to the parent’s restriction', async () => {
+      await expect(accessModeFor('read-only', 'grok')).rejects.toThrow('cannot be held')
+      expect(await accessModeFor('full-access', 'grok')).toBeUndefined()
     })
 
     it('skips default for Pi', async () => {
@@ -242,16 +243,28 @@ describe('createDelegationLauncher', () => {
       })
     })
 
+    it('records the dispatch a failed receipt names before throwing', async () => {
+      const { launch } = launcher(
+        fakeStart((dispatchId) => ({ dispatchId, state: 'failed', lastError: 'boom' }))
+      )
+
+      await expect(run(launch)).rejects.toThrow('boom')
+      expect(record).toHaveBeenCalledWith({ dispatch_id: expect.stringMatching(/./) })
+    })
+
     it('throws when the receipt names no dispatch', async () => {
       const { launch } = launcher(fakeStart(() => ({ state: 'ready' })))
 
       await expect(run(launch)).rejects.toThrow('The child session did not start.')
     })
 
-    it('throws when the agent ran as a terminal and so cannot be linked under the chat', async () => {
+    it('keeps a worker that ran as a terminal, with no chat to link', async () => {
       const { launch } = launcher(fakeStart(undefined, null))
 
-      await expect(run(launch)).rejects.toThrow('Claude started as a terminal agent')
+      const result = await run(launch)
+
+      expect(result.childSessionId).toBeNull()
+      expect(record).toHaveBeenCalledWith({ dispatch_id: result.dispatchId })
     })
 
     it('throws what worker-start throws', async () => {

@@ -440,6 +440,35 @@ describe('DelegationAnswerService', () => {
     })
   })
 
+  it('treats a starting request whose dispatch was recorded as started after a restart', async () => {
+    const { requestId, itemId } = await filed()
+    await answers.hostOwnedPrompts.answer({
+      sessionId: PARENT.sessionId,
+      itemId,
+      optionId: 'agent:codex'
+    })
+    const launched = await launch({
+      request: db.getDelegationRequest(requestId)!,
+      parent: PARENT,
+      target: {
+        agent: 'codex',
+        label: 'Codex',
+        model: null,
+        effort: null,
+        placement: 'current',
+        automatic: false
+      },
+      record: (patch) => db.patchDelegationRequest(requestId, patch)
+    })
+    db.patchDelegationRequest(requestId, { dispatch_id: launched.dispatchId })
+    db.updateTaskStatus(launched.taskId, 'completed', 'Done before the restart.')
+
+    await answers.reconcile()
+
+    expect(db.getDelegationRequest(requestId)?.status).toBe('finished')
+    expect(noticeRows().map((row) => row.status)).toEqual(['finished'])
+  })
+
   describe('when the child finishes', () => {
     async function startedChild() {
       const { requestId, itemId } = await filed()
@@ -515,6 +544,19 @@ describe('DelegationAnswerService', () => {
       ])
       await answers.onDispatchSettled(dispatchId)
 
+      expect(noticeRows().filter((row) => row.status === 'finished')).toHaveLength(1)
+    })
+
+    it('stays started when the notice cannot be posted, and finishes on a later attempt', async () => {
+      const { requestId, taskId, dispatchId } = await startedChild()
+      db.updateTaskStatus(taskId, 'completed', 'Done.')
+      vi.mocked(host.rows.appendHostRow).mockRejectedValueOnce(new Error('The chat host is down'))
+
+      await answers.onDispatchSettled(dispatchId)
+      expect(db.getDelegationRequest(requestId)?.status).toBe('started')
+
+      await answers.reconcile()
+      expect(db.getDelegationRequest(requestId)?.status).toBe('finished')
       expect(noticeRows().filter((row) => row.status === 'finished')).toHaveLength(1)
     })
 

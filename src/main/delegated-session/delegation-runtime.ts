@@ -191,5 +191,9 @@ export function reconcileDelegationRequests(runtime: OrcaRuntimeService): void {
     return
   }
   reconciled.add(runtime)
-  void getDelegationAnswerService(runtime).reconcile()
+  getDelegationAnswerService(runtime)
+    .reconcile()
+    .catch((error: unknown) => {
+      console.warn('[delegated-session] reconciling delegation requests failed', error)
+    })
 }

@@ -20,7 +20,8 @@ export type DelegationLaunchResult = {
   runId: string
   taskId: string
   dispatchId: string
-  childSessionId: string
+  /** Null when the agent ran as a terminal, which has no chat to link. */
+  childSessionId: string | null
 }
 
 /** Starts the child; throws with the reason when it cannot. */

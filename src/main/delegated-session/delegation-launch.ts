@@ -104,20 +104,17 @@ export function createDelegationLauncher(deps: {
     })
     const started = StartReceipt.safeParse(receipt)
     const dispatchId = started.success ? started.data.dispatchId : undefined
+    if (dispatchId !== undefined) {
+      record({ dispatch_id: dispatchId })
+    }
     if (!started.success || started.data.state === 'failed' || dispatchId === undefined) {
       throw new OrchestrationError(
         'delegation_start_failed',
         (started.success ? started.data.lastError : undefined) ?? 'The child session did not start.'
       )
     }
-    record({ dispatch_id: dispatchId })
-    const childSessionId = db.getDispatchContextById(dispatchId)?.assignee_orca_session_id
-    if (!childSessionId) {
-      throw new OrchestrationError(
-        'delegation_start_failed',
-        `${target.label} started as a terminal agent, not a chat session, so it cannot be linked under this chat.`
-      )
-    }
+    // A terminal-agent worker has no chat to link; its dispatch still reports how it ends.
+    const childSessionId = db.getDispatchContextById(dispatchId)?.assignee_orca_session_id ?? null
     return { runId: run.id, taskId: task.id, dispatchId, childSessionId }
   }
 }

@@ -42,16 +42,16 @@ describe('delegationChildAccessMode', () => {
     expect(childMode('yolo')).toBeUndefined()
   })
 
-  it('asks for nothing from an agent that declares no explicit modes', () => {
-    // A protocol-driven (ACP) agent refuses an explicit mode outright.
-    const asked = (childDeclaredAccess: AgentSessionDeclaredAccess | undefined) =>
-      delegationChildAccessMode({
-        childAgent: 'grok',
-        parentAccessMode: 'read-only',
-        childDeclaredAccess
-      })
-    expect(asked(undefined)).toBeUndefined()
-    expect(asked({ modes: [], presets: [], explicit: [] })).toBeUndefined()
+  it('refuses an agent that declares no explicit modes unless the parent is unrestricted', () => {
+    // A protocol-driven (ACP) agent refuses an explicit mode outright, so it cannot be held to one.
+    const asked = (
+      parentAccessMode: string,
+      childDeclaredAccess: AgentSessionDeclaredAccess | undefined
+    ) => delegationChildAccessMode({ childAgent: 'grok', parentAccessMode, childDeclaredAccess })
+    const none = { modes: [], presets: [], explicit: [] } as const
+    expect(() => asked('read-only', undefined)).toThrow('cannot be held to this chat')
+    expect(() => asked('plan', none)).toThrow('cannot be held to this chat')
+    expect(asked('full-access', undefined)).toBeUndefined()
   })
 
   it('skips default for Pi, whose stock declaration omits it, and keeps every other mode', () => {
