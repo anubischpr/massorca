@@ -29,6 +29,19 @@ export function findStructuredAgentSessionTab(
   )
 }
 
+/** The worktree whose tab inventory lists this chat; a child can live in a worktree other than its parent's. */
+export function findStructuredAgentSessionWorktreeId(
+  unifiedTabsByWorktree: Readonly<Record<string, readonly Tab[]>>,
+  sessionId: string
+): string | null {
+  for (const [worktreeId, tabs] of Object.entries(unifiedTabsByWorktree)) {
+    if (tabs.some((tab) => tab.contentType === 'agent-session' && tab.entityId === sessionId)) {
+      return worktreeId
+    }
+  }
+  return null
+}
+
 export function activateStructuredAgentSessionTab(args: {
   worktreeId: string
   tabId: string
