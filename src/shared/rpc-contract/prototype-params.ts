@@ -119,6 +119,15 @@ export const PrototypeListedDirectionSchema = z.object({
 
 export type PrototypeListedDirection = z.infer<typeof PrototypeListedDirectionSchema>
 
+/** The newest request that proposed a design system and has no direction files yet. */
+export const PrototypeListedPendingRequestSchema = z.object({
+  requestId: z.string(),
+  sessionId: z.string(),
+  agent: z.enum(PROTOTYPE_AGENTS)
+})
+
+export type PrototypeListedPendingRequest = z.infer<typeof PrototypeListedPendingRequestSchema>
+
 /** The design system of one project: what a list row or request card shows without reading its files. */
 export const PrototypeListedDesignSystemSchema = z.object({
   projectKey: z.string().min(1).max(TEXT_MAX_LENGTH),
@@ -128,7 +137,9 @@ export const PrototypeListedDesignSystemSchema = z.object({
   tokenCount: z.int().min(0),
   agent: z.string().max(80).optional(),
   /** Color values, up to four, for the list icon. */
-  swatches: z.array(z.string().max(DESIGN_SYSTEM_SWATCH_MAX_LENGTH)).max(4)
+  swatches: z.array(z.string().max(DESIGN_SYSTEM_SWATCH_MAX_LENGTH)).max(4),
+  /** The request whose directions Approve builds; absent when the project has no such request. */
+  pendingRequest: PrototypeListedPendingRequestSchema.optional()
 })
 
 export type PrototypeListedDesignSystem = z.infer<typeof PrototypeListedDesignSystemSchema>

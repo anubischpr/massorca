@@ -117,6 +117,21 @@ describe('readDesignSystemOfLaunchDirectory', () => {
     }
   })
 
+  it('logs an unreadable file once per version, not on every read, and again when it changes', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      await write('tokens.json', 'x'.repeat(600 * 1024))
+      await readDesignSystemOfLaunchDirectory(root)
+      await readDesignSystemOfLaunchDirectory(root)
+      expect(warn).toHaveBeenCalledTimes(1)
+      await write('tokens.json', 'x'.repeat(700 * 1024))
+      await readDesignSystemOfLaunchDirectory(root)
+      expect(warn).toHaveBeenCalledTimes(2)
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
   it('reports no unreadable names for a project whose files are all absent or read', async () => {
     await write('tokens.json', TOKENS)
     const result = await readDesignSystemOfLaunchDirectory(root)

@@ -3,6 +3,7 @@
 // but the host refuses to read (over the cap, not text, a path it does not follow) is reported by name and
 // reason, so it is never mistaken for a project with no system.
 
+import { lstat } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
   DESIGN_SYSTEM_COMPONENTS_FILE,
@@ -49,29 +50,45 @@ type DesignSystemFileRead =
 
 /** The text of a file under `<root>/design/system/`, absent when there is none, or unreadable with its reason. */
 async function readDesignSystemFile(root: string, file: string): Promise<DesignSystemFileRead> {
+  const folder = join(root, ...DESIGN_SYSTEM_FOLDER.split('/'))
   try {
-    const result = await readNativeChatContainedTextFile(
-      join(root, ...DESIGN_SYSTEM_FOLDER.split('/')),
-      file,
-      undefined,
-      { maxBytes: MAX_DESIGN_SYSTEM_FILE_BYTES, isAllowedName: (name) => name === file }
-    )
+    const result = await readNativeChatContainedTextFile(folder, file, undefined, {
+      maxBytes: MAX_DESIGN_SYSTEM_FILE_BYTES,
+      isAllowedName: (name) => name === file
+    })
     if (result.ok && 'html' in result) {
       return { kind: 'text', text: result.html }
     }
     if (!result.ok && result.error === 'not_found') {
       return { kind: 'absent' }
     }
-    return unreadableFile(file, result.ok ? 'unreadable' : result.error)
+    return await unreadableFile(join(folder, file), file, result.ok ? 'unreadable' : result.error)
   } catch (error) {
-    return unreadableFile(file, faultReasonOf(error))
+    return await unreadableFile(join(folder, file), file, faultReasonOf(error))
   }
 }
 
+// The unreadable files logged so far, by path, with the version (mtime and size) each was logged at. A list
+// refresh reads the same files again, so a file is logged once per version rather than on every read.
+const loggedUnreadableVersions = new Map<string, string>()
+
 // A file the project has but the host refused is logged by its name and reason only, never by its path.
-function unreadableFile(file: string, reason: string): DesignSystemFileRead {
-  console.warn(`[prototypes] design system file ${file} was not read: ${reason}`)
+async function unreadableFile(
+  path: string,
+  file: string,
+  reason: string
+): Promise<DesignSystemFileRead> {
+  const version = await versionOf(path)
+  if (loggedUnreadableVersions.get(path) !== version) {
+    loggedUnreadableVersions.set(path, version)
+    console.warn(`[prototypes] design system file ${file} was not read: ${reason}`)
+  }
   return { kind: 'unreadable', reason }
+}
+
+async function versionOf(path: string): Promise<string> {
+  const stats = await lstat(path).catch(() => null)
+  return stats === null ? 'missing' : `${stats.mtimeMs}:${stats.size}`
 }
 
 function faultReasonOf(error: unknown): string {

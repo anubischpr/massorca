@@ -14,13 +14,14 @@ import {
   type ListPrototypeSetsResult,
   type PrototypeListedDesignSystem,
   type PrototypeListedDirection,
+  type PrototypeListedPendingRequest,
   type PrototypeListedSet
 } from '../../shared/rpc-contract/prototype-params'
 import { usesDesignSystemInstruction } from '../../shared/prototype-design-system-instruction'
 import type { DesignSystemSummary } from '../../shared/prototype-design-system-summary'
 import { nativeChatVisualsFolderName, nativeChatVisualsRootFor } from './native-chat-visuals-folder'
 import { directionNotesFor, withDirectionNotes } from './prototype-direction-notes'
-import { projectsOfLaunchDirectories } from './prototype-design-system-files'
+import { projectsOfLaunchDirectories, type ListedProject } from './prototype-design-system-files'
 import {
   fileMtime,
   fileNamesIn,
@@ -48,8 +49,8 @@ export type ListPrototypeSetsOptions = {
 }
 
 /**
- * Every request on this host, newest first. Sets without any direction file are left out, and a request
- * that fails to read is logged and left out without failing the others.
+ * Every request on this host, newest first, with its set when it has direction files. A request with none still
+ * counts toward its project's design system, and a request that fails to read is logged and left out alone.
  */
 export async function listPrototypeSets(
   options: ListPrototypeSetsOptions
@@ -66,55 +67,60 @@ export async function listPrototypeSets(
       logPrototypeFailure('listing a prototype request', error)
     }
   }
-  requests.sort((left, right) => right.set.createdAt.localeCompare(left.set.createdAt))
+  requests.sort((left, right) => right.manifest.createdAt.localeCompare(left.manifest.createdAt))
   return withProjects(requests, options)
 }
 
-/** A listed set with the request folder and manifest it came from, for the version it records. */
+/** A request this host can list: its set when it has direction files, and the manifest and folder it came from. */
 type ListedRequest = {
-  set: PrototypeListedSet
+  set: PrototypeListedSet | null
   manifest: PrototypeRequestManifest
   requestFolder: string
 }
 
-/** Each set with its project, and one design system summary per project that has one. */
+/**
+ * The sets with their projects, and one design system per project that has one. A project counts for every
+ * request its chats make, so a project whose only request is a pending proposal still lists its system.
+ */
 async function withProjects(
   requests: readonly ListedRequest[],
   options: ListPrototypeSetsOptions
 ): Promise<ListPrototypeSetsResult> {
   // Why the chat record and not the manifest: request.json sits in the folder the agent writes into.
   const launchDirectories = new Map<string, string>()
-  for (const { set } of requests) {
-    const launchDirectory = options.launchDirectoryOf?.(set.sessionId)
+  for (const { manifest } of requests) {
+    const launchDirectory = options.launchDirectoryOf?.(manifest.sessionId)
     if (launchDirectory !== undefined) {
-      launchDirectories.set(set.sessionId, launchDirectory)
+      launchDirectories.set(manifest.sessionId, launchDirectory)
     }
   }
   const projects = await projectsOfLaunchDirectories(launchDirectories.values())
-  const designSystems = new Map<string, PrototypeListedDesignSystem>()
+  const pendingRequests = new Map<string, PrototypeListedPendingRequest>()
   const sets: PrototypeListedSet[] = []
   for (const request of requests) {
-    const { set } = request
-    const project = projects.get(launchDirectories.get(set.sessionId) ?? '')
+    const { set, manifest } = request
+    const project = projects.get(launchDirectories.get(manifest.sessionId) ?? '')
+    // Why the first only: requests are newest first, so the first proposal with no direction files is the newest.
+    if (
+      project !== undefined &&
+      set === null &&
+      manifest.designSystemMode === 'propose' &&
+      !pendingRequests.has(project.projectKey)
+    ) {
+      pendingRequests.set(project.projectKey, {
+        requestId: manifest.requestId,
+        sessionId: manifest.sessionId,
+        agent: manifest.agent
+      })
+    }
+    if (set === null) {
+      continue
+    }
     if (project === undefined) {
       sets.push(set)
       continue
     }
-    if (project.system !== undefined && !designSystems.has(project.projectKey)) {
-      const entry = listedDesignSystemOf({
-        projectKey: project.projectKey,
-        projectName: project.projectName,
-        ...project.system
-      })
-      if (entry === null) {
-        console.warn(
-          '[prototypes] a design system was left out of the list: it does not match the list contract'
-        )
-      } else {
-        designSystems.set(project.projectKey, entry)
-      }
-    }
-    const builtOn = await builtOnOf(request, project.system)
+    const builtOn = await builtOnOf(set, request, project.system)
     sets.push({
       ...set,
       projectKey: project.projectKey,
@@ -122,10 +128,39 @@ async function withProjects(
       ...(builtOn !== undefined ? { builtOn } : {})
     })
   }
+  const designSystems = listedDesignSystemsOf(projects.values()).map((entry) => {
+    const pendingRequest = pendingRequests.get(entry.projectKey)
+    return pendingRequest === undefined ? entry : { ...entry, pendingRequest }
+  })
   return {
     sets,
-    ...(designSystems.size > 0 ? { designSystems: [...designSystems.values()] } : {})
+    ...(designSystems.length > 0 ? { designSystems } : {})
   }
+}
+
+/** One entry per project with a system; a summary the list contract refuses is logged once and left out. */
+function listedDesignSystemsOf(projects: Iterable<ListedProject>): PrototypeListedDesignSystem[] {
+  const seen = new Set<string>()
+  const listed: PrototypeListedDesignSystem[] = []
+  for (const project of projects) {
+    if (project.system === undefined || seen.has(project.projectKey)) {
+      continue
+    }
+    seen.add(project.projectKey)
+    const entry = listedDesignSystemOf({
+      projectKey: project.projectKey,
+      projectName: project.projectName,
+      ...project.system
+    })
+    if (entry === null) {
+      console.warn(
+        '[prototypes] a design system was left out of the list: it does not match the list contract'
+      )
+    } else {
+      listed.push(entry)
+    }
+  }
+  return listed
 }
 
 /**
@@ -140,7 +175,8 @@ export function listedDesignSystemOf(entry: unknown): PrototypeListedDesignSyste
 // Why first sight: a request sent before its project had a system carries no version, so the version the
 // system has when the list first sees one is written into request.json and kept, as a Gentle Shell slug is.
 async function builtOnOf(
-  { set, manifest, requestFolder }: ListedRequest,
+  set: PrototypeListedSet,
+  { manifest, requestFolder }: ListedRequest,
   system: DesignSystemSummary | undefined
 ): Promise<number | undefined> {
   if (
@@ -222,28 +258,25 @@ async function listedRequestFor(
           manifest.agent === 'gentle-shell' ? [] : await directionNotesFor(requestFolder)
         )
       : await gentleDirectionsFor(requestFolder, manifest, launchDirectory)
-  if (directions.length === 0) {
-    return null
-  }
-  return {
-    set: {
-      requestId: manifest.requestId,
-      sessionId: manifest.sessionId,
-      agent: manifest.agent,
-      worktreeId: manifest.worktreeId ?? null,
-      chatTitle: manifest.chatTitle ?? null,
-      originalPrompt: manifest.originalPrompt,
-      createdAt: manifest.createdAt,
-      count: manifest.count,
-      folderPath: requestFolder,
-      ...(manifest.designSystemVersion !== undefined
-        ? { builtOn: manifest.designSystemVersion }
-        : {}),
-      directions
-    },
-    manifest,
-    requestFolder
-  }
+  const set: PrototypeListedSet | null =
+    directions.length === 0
+      ? null
+      : {
+          requestId: manifest.requestId,
+          sessionId: manifest.sessionId,
+          agent: manifest.agent,
+          worktreeId: manifest.worktreeId ?? null,
+          chatTitle: manifest.chatTitle ?? null,
+          originalPrompt: manifest.originalPrompt,
+          createdAt: manifest.createdAt,
+          count: manifest.count,
+          folderPath: requestFolder,
+          ...(manifest.designSystemVersion !== undefined
+            ? { builtOn: manifest.designSystemVersion }
+            : {}),
+          directions
+        }
+  return { set, manifest, requestFolder }
 }
 
 /** The Gentle Shell artboards bound to a request, with their last write times; none when no design folder is bound. */
