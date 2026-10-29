@@ -13,6 +13,15 @@ import {
   buildWorkerAttentionContext,
   projectWorkerAttentionContext
 } from './orchestration/worker-attention-context'
+import { currentRunCoordinatorOrcaSessionId } from './orchestration/db/runs/run-coordinator-orca-session'
+import type { RunRow } from './orchestration/types'
+import {
+  structuredAgentSessionPaneKey,
+  structuredAgentSessionTabId
+} from '../../shared/structured-agent-session-projection'
+
+/** A structured worker as the projection reads it: the handle and identity pane it was dispatched to. */
+type StructuredWorkerRow = { handle: string; paneKey: string; sessionId: string }
 
 type RuntimeAgentOrchestrationDependencies = {
   getDb(): OrchestrationDb | null
@@ -26,6 +35,19 @@ type RuntimeAgentOrchestrationDependencies = {
   getPaneKey(handle: string): string | null
   getDispatchAuthority(handle: string): OrchestrationCompatibilityTerminalAuthority | null
   getAgentStatusSnapshot(): readonly FleetAgentStatusEvidence[]
+  /** Structured workers this process holds; each row is keyed by its session, not by a pane. */
+  getStructuredWorkers?(): Iterable<StructuredWorkerRow>
+}
+
+/** The pane key a structured session's agent row is published under, from its own session id. */
+function structuredRowPaneKey(sessionId: string): string {
+  return structuredAgentSessionPaneKey(structuredAgentSessionTabId(sessionId), sessionId)
+}
+
+/** A structured coordinator has no pane; its row is named by the run's current Orca session id. */
+function structuredCoordinatorPaneKey(run: RunRow): string | null {
+  const sessionId = currentRunCoordinatorOrcaSessionId(run)
+  return sessionId ? structuredRowPaneKey(sessionId) : null
 }
 
 export class RuntimeAgentOrchestrationProjection {
@@ -75,6 +97,21 @@ export class RuntimeAgentOrchestrationProjection {
       })
       if (context) {
         contexts[pty.paneKey] = context
+      }
+    }
+    for (const worker of this.deps.getStructuredWorkers?.() ?? []) {
+      const paneKey = structuredRowPaneKey(worker.sessionId)
+      if (contexts[paneKey]) {
+        continue
+      }
+      // Why: a dispatch names the worker by its identity pane, which is random; the row key is only the join.
+      const context = this.getForHandle(worker.handle, db, {
+        paneKey: worker.paneKey,
+        evidence: evidenceByPaneKey.get(paneKey),
+        deferAttention: batchAttention
+      })
+      if (context) {
+        contexts[paneKey] = context
       }
     }
     const entries = Object.entries(contexts)
@@ -194,7 +231,9 @@ export class RuntimeAgentOrchestrationProjection {
         : undefined
     const coordinator = this.resolveLivePane(
       coordinatorHandle,
-      owningRun?.legacy === 0 ? owningRun.coordinator_pane_key : null
+      owningRun?.legacy === 0
+        ? (owningRun.coordinator_pane_key ?? structuredCoordinatorPaneKey(owningRun))
+        : null
     )
     const creator = currentCreatorHandle
       ? {

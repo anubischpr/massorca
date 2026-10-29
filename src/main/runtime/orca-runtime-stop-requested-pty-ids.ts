@@ -3,7 +3,7 @@ import { OrchestrationStructuredMailboxPointerDelivery } from './orchestration/s
 import { createStructuredMailboxPointerHost } from './orchestration/structured-mailbox-pointer-host'
 import { localOrchestrationCliCommand } from './orchestration/cli-command'
 import { RuntimeOrchestrationSenderNames } from './runtime-orchestration-sender-names'
-import { isStructuredWorkerHandle } from './structured-worker-identity'
+import { isStructuredWorkerHandle, structuredWorkerIdentities } from './structured-worker-identity'
 import { ORCA_SESSION_ADDRESS_PREFIX } from '../../shared/orca-session-address'
 import { resolveStructuredWorkerAuthority } from './structured-worker-authority'
 import { OrcaRuntimeWithRuntimeId } from './orca-runtime-runtime-id'
@@ -118,7 +118,8 @@ export class OrcaRuntimeWithStopRequestedPtyIds extends OrcaRuntimeWithRuntimeId
     getHandleForPaneKey: (paneKey) => this.getTerminalHandleForPaneKey(paneKey),
     getPaneKey: (handle) => this.getPaneKeyForTerminalHandle(handle),
     getDispatchAuthority: (handle) => this.getOrchestrationDispatchAuthority(handle),
-    getAgentStatusSnapshot: () => this.getOrchestrationFleetAgentStatusSnapshot()
+    getAgentStatusSnapshot: () => this.getOrchestrationFleetAgentStatusSnapshot(),
+    getStructuredWorkers: () => structuredWorkerIdentities.list()
   })
 
   protected readonly terminalList = new RuntimeTerminalList({
