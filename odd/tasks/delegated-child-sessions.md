@@ -120,3 +120,33 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
 
 - Automatic may switch to a second account of the same agent (inactive accounts are tracked).
 - Optional Jev classification on hosts where it is configured.
+
+## Review follow-ups
+
+Non-blocking findings from the approved reviews of `c3cb86c638c` (rc1), `73071e39c75` (rc2) and the T5 renderer range `88deeaefbc1..23ff82ddb17` (rB). The review files carry ids, lenses, locations and severities only, so each finding was re-checked against HEAD.
+
+- Fixed:
+  - `R3-claim-before-journal-commit`, `R4-resolver-commits-before-journal-append`: `0beaed24ccf`. An answer or Cancel the journal does not record hands its claim back, so the card can be answered again.
+  - `R1-settlement-observer-never-released`, `R3-settlement-observer-never-removed`, `R4-settlement-observer-never-unsubscribed`: `171c7d97da8`. The listener holds its runtime weakly and unsubscribes once the runtime is gone.
+  - `R3-access-mode-silent-fallback`: `171c7d97da8`. A parent mode this build does not know refuses the child start instead of sending no mode.
+  - `R3-001`, `R3-agent-probe-errors-swallowed`, `R2-worktree-name-constant-misnamed`, `R3-mutation-replay-not-exercised`: `171c7d97da8`. The question is recorded before the card posts, the probe failure is logged, the constant is renamed to `WORKTREE_SLUG_MAX_CHARS`, and the replay test is renamed to what it asserts (the replay itself is not exercised).
+  - `R3-duration-wording-branches`: `dd7b04e1f39`. A whole number of hours reads "2 h", not "2 h 0 min".
+- Already fixed before this pass:
+  - `R3-reconcile-unguarded-rejection`: `d23f75744d8` added the `.catch`.
+  - `R3-005`: `0fe4795e217` removed the type assertion on the read-back in `createDelegationRequest`.
+- Skipped:
+  - `R1-folder-child-shares-worktree`: by design. Folder writes run in the current folder and the card warns (`folder-workspace-writes`).
+  - `R1-delegate-caller-named-by-from`: the declared-address contract every `from` method shares. A child starts only after a person picks an option.
+  - `R2-launch-failure-reason-misleading`: accurate on every reachable path. A null target means every agent is at a usage limit.
+  - `R2-pi-default-hardcoded-exception`: deliberate, documented and tested.
+  - `R2-answer-settled-check-asymmetry`: intentional. Cancel accepts only cancelled or failed; an answer repeats its own choice.
+  - `R2-cancel-plan-built-twice`: the plan is unused in the host-owned branch; no behavior effect.
+  - `R2-global-settlement-observer-registry`, `R2-host-owned-answer-refusal-conflated`, `R2-hostownedanswer-alias`, `R2-two-host-owned-predicates`: readability only. Wire reason codes stay as they are.
+  - `R3-002`: the journal append commits or throws, so a failed post leaves no card.
+  - `R3-003`: host-owned cards are left out of the pending-prompt gate by design.
+  - `R3-004`: a reset deletes requests by design; an orphaned card is refused as `promptGone`.
+  - `R3-006`, `R3-009`: no defect in the current code.
+  - `R3-007`: no provider writes a `delegation` field, so body-shape classification is safe.
+  - `R3-008`: taste; the expectation mirrors the card's own join.
+  - `R3-notice-row-precedence`, `R3-question-card-guard-branches`, `R3-selection-not-rederived`, `R3-session-wiring-unasserted`, `R3-worktree-lookup-contenttype`: notices never carry `presentation`; the fallback submits the same option ids; the card is keyed by item revision; one prop; the same `agent-session` tab kind as its siblings.
+- Open: a folder-workspace child can still write into the parent's folder at the same time. It is warned, not prevented. Product decision.
