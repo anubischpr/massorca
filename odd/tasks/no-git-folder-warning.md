@@ -81,6 +81,10 @@ Prototype: https://claude.ai/artifact/MXai3HzR88MwEWf7FK2Tfy (4 artboards). Stri
   - Delivery: no push or PR; slice boundary `c04968c1972`.
 - Fix slice 9d9a8464852 + 5994086a644 (dialog probe rejection now treated as unsupported) assessed medium/under_budget: no review due.
 
+- Slice review (T3 fixes + T4, base `32ac3e5be93`, 19 paths, 1,078 lines, medium/`slice_budget_reached`): lineage `review-6626a3ae51753b29`, one reliability lens. Blocking finding `R3-folder-kind-derivation-unproved` (no test proved catalog `kind: 'folder'` -> `folderRepoIds` or the post-init clearing). Bounded correction `6d6032ebf45` (test-only, 78 lines: decoder test + `useHostRepoMetadata` test). Targeted validator: first run `invalid_request`, re-offered slot relaunched once, approved. Acknowledged, authority burned. Reviewed boundary advances to `6d6032ebf45`.
+- Final verification (parent): `pnpm tc` exit 0; desktop/host feature tests 187 passed (8 files); mobile `src/host-screen` 66 passed; branch merges cleanly onto current `custom/pv27-unified`. Not run in the live desktop app or on a device.
+- Recorded defaults: mobile sheet closes on init failure so the list banner shows the error; shared drawer handle colour kept (`textMuted`) rather than restyling every sheet; pill touch target via 12pt hit slop.
+
 ## Delivery
 
 - Strategy: `feature-branch-chain`, integration base `custom/integration` (parent session, 2026-10-29). Nothing is pushed or opened until the user asks.
@@ -94,4 +98,4 @@ Prototype: https://claude.ai/artifact/MXai3HzR88MwEWf7FK2Tfy (4 artboards). Stri
 
 ## Next step
 
-Final verification of the no-git folder warning across T1–T4.
+Feature usable end to end; tip SHA sent to the parent session for the preview build. Push and PR wait for the user.
