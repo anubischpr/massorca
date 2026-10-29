@@ -26,7 +26,7 @@ function repoGhAccountTitle(
     }
     const bound = translate(
       'components.nativeChatSummary.githubAccountMismatch',
-      'Orca binding: {{account}}',
+      'MassOrca binding: {{account}}',
       { account: ghAccountBindingLabel(binding) }
     )
     return `${pinned}\n${bound}`
@@ -36,7 +36,7 @@ function repoGhAccountTitle(
   }
   return translate(
     'components.nativeChatSummary.githubAccountOrcaBinding',
-    '{{account}} ({{host}}) — Orca binding',
+    '{{account}} ({{host}}) — MassOrca binding',
     { account: binding.user, host: binding.host }
   )
 }

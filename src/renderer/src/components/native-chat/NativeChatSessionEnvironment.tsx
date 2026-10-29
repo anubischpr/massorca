@@ -79,7 +79,7 @@ export function NativeChatSessionEnvironment({
                 <span className="mt-0.5 block text-xs text-muted-foreground">
                   {t(
                     'components.nativeChatSummary.githubAccountMismatch',
-                    'Orca binding: {{account}}',
+                    'MassOrca binding: {{account}}',
                     { account: ghAccountBindingLabel(repo.ghAccount) }
                   )}
                 </span>

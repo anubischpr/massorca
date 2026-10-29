@@ -59,7 +59,7 @@ export function translateRemotePairingFailureDescription(
       return translate(
         'auto.components.settings.RuntimeHostAccessForm.identityMismatchHelp',
         'MassOrca reached {{endpoint}}, but that host does not match this link. Generate a new link on the other host.',
-        { endpoint: endpoint ?? 'Orca' }
+        { endpoint: endpoint ?? 'MassOrca' }
       )
     case 'access-link-invalid':
       return translate(
@@ -85,7 +85,7 @@ export function translateRemotePairingFailureDescription(
       return translate(
         'auto.components.settings.RuntimeHostAccessForm.unavailableHelp',
         'Make sure MassOrca is running on the other host and that the network or SSH tunnel can reach {{endpoint}}.',
-        { endpoint: endpoint ?? 'Orca' }
+        { endpoint: endpoint ?? 'MassOrca' }
       )
   }
 }
