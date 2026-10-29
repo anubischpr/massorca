@@ -1,6 +1,8 @@
 import type { RefObject } from 'react'
 import type { AgentJournalQuestion } from '../../../../shared/agent-session-journal-types'
 import type { AgentSessionPromptResponse } from '../../../../shared/agent-session-question-answer'
+import { readDelegationCardPayload } from '../../../../shared/delegated-session-journal'
+import { NativeChatDelegationCard } from './NativeChatDelegationCard'
 import { NativeChatQuestionCard } from './NativeChatQuestionCard'
 
 export function NativeChatStructuredQuestionCard({
@@ -9,7 +11,8 @@ export function NativeChatStructuredQuestionCard({
   onCancel,
   isSubmitting,
   shouldFocus,
-  answerInputRef
+  answerInputRef,
+  delegation
 }: {
   questions: readonly AgentJournalQuestion[]
   onAnswer: (response: AgentSessionPromptResponse) => void
@@ -17,7 +20,29 @@ export function NativeChatStructuredQuestionCard({
   isSubmitting?: boolean
   shouldFocus?: boolean
   answerInputRef?: RefObject<HTMLInputElement | null>
+  /** The question's delegation extension as it arrived; invalid or absent draws the plain question. */
+  delegation?: unknown
 }): React.JSX.Element {
+  const [only] = questions
+  const card = readDelegationCardPayload(delegation)
+  if (
+    card &&
+    questions.length === 1 &&
+    only &&
+    (card.decision !== null || card.agents.length > 0)
+  ) {
+    return (
+      <NativeChatDelegationCard
+        body={card}
+        question={only.question}
+        questionId={only.id}
+        isSubmitting={isSubmitting}
+        onAnswer={onAnswer}
+        onCancel={onCancel}
+        shouldFocus={shouldFocus}
+      />
+    )
+  }
   return (
     <NativeChatQuestionCard
       prompt={{
