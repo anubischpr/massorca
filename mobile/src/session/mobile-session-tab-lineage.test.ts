@@ -64,6 +64,23 @@ describe('mobileSessionChildParentTabIds', () => {
     expect([...parents]).toEqual([['tab-child', 'tab-parent']])
   })
 
+  it('groups a finished child chat under its parent in the sessions sheet', () => {
+    // Why: a settled child keeps its pane and parent link, so the sheet groups it as while working.
+    const parentTabIds = mobileSessionChildParentTabIds(
+      [parentChat, childChat],
+      [
+        { paneKey: paneOf('parent-1', LEAF), parentPaneKey: null },
+        { paneKey: paneOf('child-1', LEAF), parentPaneKey: paneOf('parent-1', LEAF) }
+      ]
+    )
+
+    const groups = groupSessionRowsByParent([{ tab: parentChat }, { tab: childChat }], parentTabIds)
+
+    expect(
+      groups.map((group) => [group.row.tab.id, group.children.map((child) => child.tab.id)])
+    ).toEqual([['tab-parent', ['tab-child']]])
+  })
+
   it('nests a child under the terminal leaf that spawned it, not a sibling leaf', () => {
     const parents = mobileSessionChildParentTabIds(
       [leafOne, leafTwo, childChat],

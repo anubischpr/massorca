@@ -247,6 +247,8 @@ CREATE INDEX IF NOT EXISTS idx_delegation_requests_parent
   ON delegation_requests(parent_session_id, status);
 CREATE INDEX IF NOT EXISTS idx_delegation_requests_dispatch
   ON delegation_requests(dispatch_id) WHERE dispatch_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_delegation_requests_child
+  ON delegation_requests(child_session_id) WHERE child_session_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS worker_terminal_archives (
   dispatch_id   TEXT PRIMARY KEY,

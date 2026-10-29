@@ -15,10 +15,7 @@ import {
 } from './orchestration/worker-attention-context'
 import { currentRunCoordinatorOrcaSessionId } from './orchestration/db/runs/run-coordinator-orca-session'
 import type { RunRow } from './orchestration/types'
-import {
-  structuredAgentSessionPaneKey,
-  structuredAgentSessionTabId
-} from '../../shared/structured-agent-session-projection'
+import { applyDelegatedChildParentLinks, structuredRowPaneKey } from './structured-session-lineage'
 
 /** A structured worker as the projection reads it: the handle and identity pane it was dispatched to. */
 type StructuredWorkerRow = { handle: string; paneKey: string; sessionId: string }
@@ -39,11 +36,6 @@ type RuntimeAgentOrchestrationDependencies = {
   getStructuredWorkers?(): Iterable<StructuredWorkerRow>
 }
 
-/** The pane key a structured session's agent row is published under, from its own session id. */
-function structuredRowPaneKey(sessionId: string): string {
-  return structuredAgentSessionPaneKey(structuredAgentSessionTabId(sessionId), sessionId)
-}
-
 /** A structured coordinator has no pane; its row is named by the run's current Orca session id. */
 function structuredCoordinatorPaneKey(run: RunRow): string | null {
   const sessionId = currentRunCoordinatorOrcaSessionId(run)
@@ -55,10 +47,23 @@ export class RuntimeAgentOrchestrationProjection {
 
   buildByPaneKey(): Record<string, AgentStatusOrchestrationContext> | undefined {
     const db = this.deps.getDb()
-    if (!db || db.hasAnyDispatchContexts?.() === false) {
+    if (!db) {
       return undefined
     }
+    // Why: the record outlives its dispatch, so a settled or restarted child keeps its parent.
+    const delegatedChildLinks = db.listDelegatedChildLinks?.() ?? []
     const contexts: Record<string, AgentStatusOrchestrationContext> = {}
+    if (db.hasAnyDispatchContexts?.() !== false) {
+      this.addLiveContexts(db, contexts)
+    }
+    applyDelegatedChildParentLinks(contexts, delegatedChildLinks)
+    return Object.keys(contexts).length > 0 ? contexts : undefined
+  }
+
+  private addLiveContexts(
+    db: OrchestrationDb,
+    contexts: Record<string, AgentStatusOrchestrationContext>
+  ): void {
     const evidenceByPaneKey = new Map(
       this.deps.getAgentStatusSnapshot().map((evidence) => [evidence.activity.paneKey, evidence])
     )
@@ -115,10 +120,7 @@ export class RuntimeAgentOrchestrationProjection {
       }
     }
     const entries = Object.entries(contexts)
-    if (entries.length === 0) {
-      return undefined
-    }
-    if (batchAttention) {
+    if (batchAttention && entries.length > 0) {
       const now = Date.now()
       const factsByDispatch = db.getWorkerAttentionFactsForDispatches(
         entries.map(([, context]) => context.dispatchId),
@@ -139,7 +141,6 @@ export class RuntimeAgentOrchestrationProjection {
         }
       }
     }
-    return contexts
   }
 
   getForHandle(
