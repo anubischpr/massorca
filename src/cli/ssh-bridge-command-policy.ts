@@ -34,14 +34,14 @@ export function refuseOwnerOnlySshBridgeCommand(
   if (OWNER_MACHINE_COMMANDS.some((prefix) => prefix.every((part, i) => commandPath[i] === part))) {
     throw new RuntimeClientError(
       'forbidden',
-      `orca ${command} acts on the Orca host machine itself and cannot run from an SSH host. Run it on the Orca host.`
+      `orca ${command} acts on the MassOrca host machine itself and cannot run from an SSH host. Run it on the MassOrca host.`
     )
   }
   for (const flag of ['environment', 'pairing-code']) {
     if (flags.has(flag)) {
       throw new RuntimeClientError(
         'forbidden',
-        `--${flag} would route through the Orca host's own paired servers and cannot be used from an SSH host.`
+        `--${flag} would route through the MassOrca host's own paired servers and cannot be used from an SSH host.`
       )
     }
   }
@@ -54,7 +54,7 @@ export function refuseSshBridgeEnvironmentRouting(
   if (hostEnvironmentId !== null && isSshBridgeInvocation(env)) {
     throw new RuntimeClientError(
       'forbidden',
-      "--host runtime:<id> would route through the Orca host's own paired servers and cannot be used from an SSH host."
+      "--host runtime:<id> would route through the MassOrca host's own paired servers and cannot be used from an SSH host."
     )
   }
 }

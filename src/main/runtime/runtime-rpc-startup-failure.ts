@@ -71,24 +71,24 @@ const GUIDANCE_BY_ERROR_CLASS: Readonly<
   permission_denied: {
     key: 'runtimeRpc.startupFailure.guidance.permissionDenied',
     fallback:
-      "Orca couldn't write its runtime file. Check permissions on Orca's data folder, then restart."
+      "MassOrca couldn't write its runtime file. Check permissions on MassOrca's data folder, then restart."
   },
   storage_unavailable: {
     key: 'runtimeRpc.startupFailure.guidance.storageUnavailable',
-    fallback: 'Your disk may be full or read-only. Free up space, then restart Orca.'
+    fallback: 'Your disk may be full or read-only. Free up space, then restart MassOrca.'
   },
   invalid_path: {
     key: 'runtimeRpc.startupFailure.guidance.invalidPath',
     fallback:
-      "Orca's data folder may be missing, moved, or at a path that is too long. Restore it or use a shorter path, then restart Orca."
+      "MassOrca's data folder may be missing, moved, or at a path that is too long. Restore it or use a shorter path, then restart MassOrca."
   },
   address_in_use: {
     key: 'runtimeRpc.startupFailure.guidance.addressInUse',
-    fallback: 'Another process may be holding the port. Restart Orca to try again.'
+    fallback: 'Another process may be holding the port. Restart MassOrca to try again.'
   },
   unknown: {
     key: 'runtimeRpc.startupFailure.guidance.unknown',
-    fallback: 'Restart Orca to try again.'
+    fallback: 'Restart MassOrca to try again.'
   }
 }
 

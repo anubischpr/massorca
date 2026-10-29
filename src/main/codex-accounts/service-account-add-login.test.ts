@@ -208,7 +208,7 @@ describe('CodexAccountService config sync', () => {
       )
 
       await expect(service.addAccount()).rejects.toThrow(
-        'Orca cannot add a Codex OAuth account while ~/.codex/config.toml pins the custom provider "codex-lb". Keep using the system-default account for this provider, or remove model_provider (or set it to "openai") before adding an OAuth account. Orca left your config unchanged.'
+        'MassOrca cannot add a Codex OAuth account while ~/.codex/config.toml pins the custom provider "codex-lb". Keep using the system-default account for this provider, or remove model_provider (or set it to "openai") before adding an OAuth account. MassOrca left your config unchanged.'
       )
 
       expect(spawnMock).not.toHaveBeenCalled()
@@ -576,7 +576,7 @@ describe('CodexAccountService config sync', () => {
     )
 
     await expect(service.reauthenticateAccount('account-1')).rejects.toThrow(
-      'Managed Codex home is missing Orca ownership marker.'
+      'Managed Codex home is missing MassOrca ownership marker.'
     )
     expect(spawnMock).not.toHaveBeenCalled()
     warnSpy.mockRestore()

@@ -31,7 +31,7 @@ export function restoreRewindJournalBody(stored: StoredBody): AgentJournalItemBo
   // A placeholder, not a failure anyone can act on, so it carries no fact.
   const fallback = () => ({
     kind: 'status',
-    text: 'Orca could not show this item after the rewind.'
+    text: 'MassOrca could not show this item after the rewind.'
   })
   if (body.kind === 'message') {
     normalized = {

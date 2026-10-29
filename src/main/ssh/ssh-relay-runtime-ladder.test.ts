@@ -146,15 +146,15 @@ describe('relay runtime ladder (design D6)', () => {
     expect(remoteRuntimeUnavailable(linuxD)).toEqual({
       reason: 'no_runtime',
       message: expect.stringContaining(
-        "Install Node.js 18+ and npm on the host, then reconnect. (Orca's Node: missing_lib)"
+        "Install Node.js 18+ and npm on the host, then reconnect. (MassOrca's Node: missing_lib)"
       )
     })
     const noexec = remoteRuntimeUnavailable({ ...linuxD, firstRefusal: 'noexec', noexec: 'proved' })
     expect(noexec.reason).toBe('home_noexec')
     expect(noexec.message).toContain('mounted noexec')
-    expect(noexec.message).not.toContain("Orca's Node:")
+    expect(noexec.message).not.toContain("MassOrca's Node:")
     expect(remoteRuntimeUnavailable({ ...linuxD, firstRefusal: null }).message).not.toContain(
-      "Orca's Node:"
+      "MassOrca's Node:"
     )
   })
 
@@ -170,8 +170,8 @@ describe('relay runtime ladder (design D6)', () => {
       ...linuxD,
       firstRefusal: 'artifacts_unavailable'
     })
-    expect(message).toContain('this copy of Orca could not prepare its bundled')
-    expect(message).toContain("(Orca's Node: artifacts_unavailable)")
+    expect(message).toContain('this copy of MassOrca could not prepare its bundled')
+    expect(message).toContain("(MassOrca's Node: artifacts_unavailable)")
   })
 
   it('reports a failed host-Node fallback install unless noexec explains it', () => {
@@ -180,7 +180,7 @@ describe('relay runtime ladder (design D6)', () => {
       "also failed to install. Check the host's disk space"
     )
     expect(remoteRuntimeUnavailable({ ...failed, firstRefusal: null }).message).toContain(
-      "(Orca's Node: none)"
+      "(MassOrca's Node: none)"
     )
     expect(remoteRuntimeUnavailable({ ...failed, noexec: 'proved' }).message).toContain(
       'mounted noexec'
@@ -199,8 +199,8 @@ describe('relay runtime ladder (design D6)', () => {
     })
     expect(reason).toBe('no_runtime')
     expect(message).toContain('Windows host')
-    expect(message).toContain("Orca's Node.js through security software")
-    expect(message).toContain("(Orca's Node: noexec)")
+    expect(message).toContain("MassOrca's Node.js through security software")
+    expect(message).toContain("(MassOrca's Node: noexec)")
     expect(message).not.toContain('mounted')
     expect(message).not.toContain('~/.orca-remote')
   })

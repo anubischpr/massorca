@@ -33,7 +33,7 @@ export async function preparePinnedNodeForVault(options: {
   const target = pinnedRuntimeTargetForHost(facts)
   if (!target) {
     const glibc = facts.glibc ? `${facts.glibc.major}.${facts.glibc.minor}` : 'unknown'
-    throw new Error(`No Orca-managed Node runs on this host's glibc ${glibc}`)
+    throw new Error(`No MassOrca-managed Node runs on this host's glibc ${glibc}`)
   }
   const cacheRoot =
     options.cacheRoot ?? join(getAppEnvironment().getPath('userData'), 'orcad-artifacts')

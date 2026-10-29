@@ -63,7 +63,7 @@ export function createDelegationLauncher(deps: {
     if (!isOrcaSessionId(sessionId)) {
       throw new OrchestrationError(
         'delegation_parent_unavailable',
-        `${sessionId} is not an Orca session id.`
+        `${sessionId} is not a MassOrca session id.`
       )
     }
     // Why: a folder child writing in place shares the parent's folder, so its task names that folder.

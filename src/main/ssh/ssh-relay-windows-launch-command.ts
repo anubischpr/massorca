@@ -120,7 +120,7 @@ export function classifyWindowsRelayLaunchError(error: unknown): unknown {
   }
   const detail = refusal.slice(refusal.indexOf(WINDOWS_RELAY_LAUNCH_REFUSED_MARKER)).trim()
   return new Error(
-    `The Windows host refused to start Orca's relay outside the SSH session. ${detail}`,
+    `The Windows host refused to start MassOrca's relay outside the SSH session. ${detail}`,
     { cause: error }
   )
 }

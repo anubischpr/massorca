@@ -333,7 +333,7 @@ function remedyFor(diagnosis: NodePtyUnavailableDiagnosis): string {
         `${diagnosis.detail}, which this host's C library does not provide ` +
         `(${host.glibcVersion ? `glibc ${host.glibcVersion}` : 'this host reports no glibc version'}). ` +
         `The binding was compiled on a newer system than this one. Reconnect to rebuild ` +
-        `node-pty here; Orca's own Linux floor is glibc ${GLIBC_FLOOR}.`
+        `node-pty here; MassOrca's own Linux floor is glibc ${GLIBC_FLOOR}.`
       )
     case 'shared_library_missing':
       return (

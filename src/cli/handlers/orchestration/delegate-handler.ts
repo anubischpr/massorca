@@ -17,7 +17,7 @@ export const ORCHESTRATION_DELEGATE_HANDLER: Record<string, CommandHandler> = {
     if (!readInjectedAgentSessionId()) {
       throw new RuntimeClientError(
         'delegation_requires_chat',
-        'orchestration delegate can only be used from an Orca chat session (ORCA_AGENT_SESSION_ID is not set in this environment). Nothing was requested.'
+        'orchestration delegate can only be used from a MassOrca chat session (ORCA_AGENT_SESSION_ID is not set in this environment). Nothing was requested.'
       )
     }
     const summary = getRequiredStringFlag(flags, 'summary').trim()
@@ -31,7 +31,7 @@ export const ORCHESTRATION_DELEGATE_HANDLER: Record<string, CommandHandler> = {
     if (!status.result.capabilities?.includes(ORCHESTRATION_DELEGATION_RUNTIME_CAPABILITY)) {
       throw new RuntimeClientError(
         'incompatible_runtime',
-        'The connected Orca runtime does not support delegated child sessions. Update or restart Orca and try again.'
+        'The connected MassOrca runtime does not support delegated child sessions. Update or restart MassOrca and try again.'
       )
     }
     const title = getOptionalStringFlag(flags, 'title')

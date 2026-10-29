@@ -84,7 +84,7 @@ describe('classifyWindowsRelayLaunchError', () => {
       throw new Error('expected an Error')
     }
     expect(classified.message).toMatch(
-      /^The Windows host refused to start Orca's relay outside the SSH session\. ORCA_RELAY_LAUNCH_REFUSED: .*addon-missing.*Access denied\)$/u
+      /^The Windows host refused to start MassOrca's relay outside the SSH session\. ORCA_RELAY_LAUNCH_REFUSED: .*addon-missing.*Access denied\)$/u
     )
     expect(classified.message).not.toContain('EncodedCommand')
   })

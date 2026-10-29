@@ -17,7 +17,7 @@ import {
 } from './ssh-bridge-orchestration-binding'
 
 export const SSH_BRIDGE_REMOTE_CONTROL_HINT =
-  'To let that host\'s CLI control this Orca, enable "Allow this host\'s orca CLI to control Orca" in Settings > SSH for that host.'
+  'To let that host\'s CLI control this MassOrca, enable "Allow this host\'s orca CLI to control MassOrca" in Settings > SSH for that host.'
 
 export type SshBridgeResultFilter = (
   result: unknown

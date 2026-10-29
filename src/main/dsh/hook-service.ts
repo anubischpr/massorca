@@ -115,7 +115,7 @@ function writePatchText(configPath: string, text: string): void {
 
 /** Why one constant: status has to say exactly what install said, on every later read. */
 const FLOW_STYLE_DETAIL =
-  'The DSH home patch is a flow-style sequence ([…]); rewrite it as a block sequence (one `- ` entry per line) so Orca can add its hooks without breaking it'
+  'The DSH home patch is a flow-style sequence ([…]); rewrite it as a block sequence (one `- ` entry per line) so MassOrca can add its hooks without breaking it'
 
 function status(
   configPath: string,
@@ -133,7 +133,7 @@ function buildStatus(
   configPath: string
 ): AgentHookInstallStatus {
   if (managedText === null) {
-    return status(configPath, 'error', 'Could not read Orca managed hooks file')
+    return status(configPath, 'error', 'Could not read MassOrca managed hooks file')
   }
   // Why before the pointer check: a refused file carries no managed region, so the pointer
   // path would report a bare `not_installed` and drop the one detail that says why.
@@ -147,7 +147,7 @@ function buildStatus(
       'not_installed',
       pointer === undefined
         ? null
-        : `The Orca patch block points at ${pointer}, not the Orca managed hooks file`
+        : `The MassOrca patch block points at ${pointer}, not the MassOrca managed hooks file`
     )
   }
   const present = readManagedDshHookEvents(

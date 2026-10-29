@@ -121,7 +121,7 @@ async function addCurrentForward(
   )
   if (args.localPort !== 0 && forward.localPort !== args.localPort) {
     await args.forwards.removeForwardAndWait(forward.id)
-    throw new Error('Managed Orca tunnel bound an unexpected local port.')
+    throw new Error('Managed MassOrca tunnel bound an unexpected local port.')
   }
   if (!args.stillCurrent()) {
     await args.forwards.removeForwardAndWait(forward.id)

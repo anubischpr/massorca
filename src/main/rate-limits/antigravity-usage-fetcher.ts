@@ -26,7 +26,7 @@ const FAILURE_REASONS: Partial<Record<UsageRateLimitFailureKind, string>> = {
 }
 
 const UNSUPPORTED_USAGE_COMMAND_REASON =
-  'Antigravity usage is not available. This version of the Antigravity CLI answers `/usage` as a prompt instead of a command, so Orca stopped asking rather than spend quota on it. Update `agy` and restart Orca.'
+  'Antigravity usage is not available. This version of the Antigravity CLI answers `/usage` as a prompt instead of a command, so MassOrca stopped asking rather than spend quota on it. Update `agy` and restart MassOrca.'
 
 /**
  * Latched once agy answers the quota read with a model turn.

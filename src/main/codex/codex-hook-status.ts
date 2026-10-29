@@ -127,12 +127,12 @@ function readHomeStatus(
     )
   )
   if (answer?.kind !== 'hashes') {
-    const reason = answer?.failure ?? 'Orca has not asked Codex yet'
+    const reason = answer?.failure ?? 'MassOrca has not asked Codex yet'
     if (slots.size === 0) {
       return status('not_installed', false, reason)
     }
     if (answer?.kind === 'refused') {
-      return status('partial', true, `Orca's hook entry is installed, but ${reason}`)
+      return status('partial', true, `MassOrca's hook entry is installed, but ${reason}`)
     }
     // Why not an error: until Codex answers, the approval is the home's earlier one or Orca's own hash.
     const known = readKnownOrcaHashes(home, command)
@@ -145,8 +145,8 @@ function readHomeStatus(
         )
       )
     return approved
-      ? status('installed', true, `Approved by Orca; not yet confirmed by Codex (${reason})`)
-      : status('partial', true, `Orca's hook entry is not approved yet (${reason})`)
+      ? status('installed', true, `Approved by MassOrca; not yet confirmed by Codex (${reason})`)
+      : status('partial', true, `MassOrca's hook entry is not approved yet (${reason})`)
   }
   const listedEvents = CODEX_EVENTS.filter(
     (eventName) => answer.hashes[CODEX_EVENT_LABEL[eventName]] !== undefined
@@ -237,7 +237,7 @@ function describeInlineApprovals(
     return null
   } catch (error) {
     return isCodexConfigTomlRefusedError(error)
-      ? `${home.tomlPath} keeps hook approvals inline, so Orca cannot add its own there; Orca shows no status for ~/.codex until they are tables`
+      ? `${home.tomlPath} keeps hook approvals inline, so MassOrca cannot add its own there; MassOrca shows no status for ~/.codex until they are tables`
       : null
   }
 }

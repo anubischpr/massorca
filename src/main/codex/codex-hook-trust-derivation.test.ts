@@ -145,7 +145,7 @@ describe('deriveCodexHookHashes', () => {
       kind: 'refused',
       codexVersion: 'codex-cli 0.170.0',
       failure:
-        "Codex 0.170.0 hashes Orca's status hook differently by its file or position, so Orca does not approve it"
+        "Codex 0.170.0 hashes MassOrca's status hook differently by its file or position, so MassOrca does not approve it"
     })
   })
 
@@ -198,7 +198,7 @@ describe('deriveCodexHookHashes', () => {
     expect(derived).toEqual({
       kind: 'refused',
       codexVersion: 'codex-cli 0.127.0',
-      failure: 'Codex 0.127.0 is too old for Orca status; update Codex'
+      failure: 'Codex 0.127.0 is too old for MassOrca status; update Codex'
     })
   })
 
@@ -236,7 +236,7 @@ describe('deriveCodexHookHashes', () => {
     expect(derived).toEqual({
       kind: 'refused',
       codexVersion: 'codex-cli 0.150.1',
-      failure: "Codex 0.150.1 did not recognize Orca's status hook"
+      failure: "Codex 0.150.1 did not recognize MassOrca's status hook"
     })
   })
 

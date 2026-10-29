@@ -31,7 +31,7 @@ export class OrcadManagedIdentityError extends Error {
   constructor(remotePort: number, detail: string) {
     super(
       `${ORCAD_IDENTITY_MISMATCH_CODE}: the server on remote port ${remotePort} is not this ` +
-        `managed Orca server (another Orca may be using that port): ${detail}`
+        `managed MassOrca server (another MassOrca may be using that port): ${detail}`
     )
     this.name = 'OrcadManagedIdentityError'
   }

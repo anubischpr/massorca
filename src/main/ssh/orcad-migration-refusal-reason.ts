@@ -32,7 +32,7 @@ function blockerWords(blocker: OrcadMigrationBlocker): string[] {
     case 'orcad_migration_dependent_state':
       return blocker.dependencies.map(({ kind }) => DEPENDENCY_WORDS[kind])
     case 'orcad_migration_dependency_unverifiable':
-      return ['saved state Orca could not read']
+      return ['saved state MassOrca could not read']
     case 'orcad_migration_direct_ssh_repositories':
     case 'orcad_migration_direct_ssh_folder_workspaces':
     case 'orcad_migration_saved_port_forwards':

@@ -26,7 +26,7 @@ export const PROFILE_STATE_COMMAND_SPECS: CommandSpec[] = [
     ],
     notes: [
       '--profile-id selects another profile without changing the active profile. Prepare each profile before installing a JSON-only build.',
-      'Orca must be stopped. Recovery validates the selected artifact and archives the current database family, JSON, and retained recovery artifacts before replacing state.',
+      'MassOrca must be stopped. Recovery validates the selected artifact and archives the current database family, JSON, and retained recovery artifacts before replacing state.',
       '--backup restores SQLite authority; --revision restores a JSON export for an older compatible runtime.',
       '--latest-json exports the latest SQLite state and restores it as JSON before launching an older JSON-only build. The current database and recovery artifacts are archived.',
       '--current-json keeps the current orca-data.json, including edits from an older build. It replaces SQLite state without merging; both copies are archived. The next SQLite-capable start imports the selected JSON.',

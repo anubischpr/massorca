@@ -40,7 +40,7 @@ export const ACCOUNT_METHODS = [
     params: AddDataAccountParams,
     handler: async (params, { runtime, clientKind }) => {
       if (clientKind !== undefined) {
-        throw new Error('Adding accounts is only available on the Orca host runtime.')
+        throw new Error('Adding accounts is only available on the MassOrca host runtime.')
       }
       return runtime.addDataAccountFromHome(params.provider, params.sourceDataHome, params.label)
     }
@@ -122,7 +122,7 @@ export const ACCOUNT_METHODS = [
       // Why: capturing a host filesystem path is local-socket-only; paired
       // mobile and remote-runtime tokens must never read host credential paths.
       if (clientKind !== undefined) {
-        throw new Error('Adding Claude accounts is only available on the Orca host runtime.')
+        throw new Error('Adding Claude accounts is only available on the MassOrca host runtime.')
       }
       return runtime.addClaudeAccountFromConfigDir(params.configDir, {
         runtime: params.runtime,
@@ -137,7 +137,7 @@ export const ACCOUNT_METHODS = [
     params: AddCodexFromHomeParams,
     handler: async (params, { runtime, clientKind }) => {
       if (clientKind !== undefined) {
-        throw new Error('Adding Codex accounts is only available on the Orca host runtime.')
+        throw new Error('Adding Codex accounts is only available on the MassOrca host runtime.')
       }
       return runtime.addCodexAccountFromHome(params.sourceHome, {
         runtime: params.runtime,

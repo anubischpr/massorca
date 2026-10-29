@@ -23,7 +23,7 @@ import { formatManagedServerStatus } from './managed-server-format'
 import { reportAfterClosedConnection } from './managed-server-reconnect'
 
 const UNSUPPORTED_MESSAGE =
-  'This Orca runtime cannot manage servers over SSH. Run this on the computer whose Orca desktop app deployed the server, after updating Orca there.'
+  'This MassOrca runtime cannot manage servers over SSH. Run this on the computer whose MassOrca desktop app deployed the server, after updating MassOrca there.'
 
 // Why 20 minutes: the desktop runs the whole action inline, and a Windows runtime promotion (5 min)
 // plus a readiness wait (5 min) on a slow host already outlast the 60 s RPC default.
@@ -101,7 +101,7 @@ function report<TResult extends Outcome, TSettled extends TResult['outcome']>(
 ): void {
   const result = response.result
   if (!isSettled(result, settled)) {
-    const reason = result.reason ?? `The managed Orca server action was ${result.outcome}.`
+    const reason = result.reason ?? `The managed MassOrca server action was ${result.outcome}.`
     const step = nextStep?.(result)
     throw new RuntimeClientError(
       `managed_server_${result.outcome}`,

@@ -178,7 +178,7 @@ export async function activateInstalledOrcad(
   if (unstopped) {
     return notActivated(
       'orcad_outgoing_stop_incomplete',
-      `${unstopped} No snapshot was taken and the candidate was not started. Orca requires ` +
+      `${unstopped} No snapshot was taken and the candidate was not started. MassOrca requires ` +
         'matching runtime readiness before signaling an incumbent and confirmed exit before ' +
         'snapshotting.'
     )
@@ -205,7 +205,7 @@ export async function activateInstalledOrcad(
       ? ` The incumbent was stopped before snapshotting; ${await restartAfterSnapshotFailure(options, incumbent, lock)}`
       : ''
     throw new Error(
-      `Could not snapshot ${options.userDataDir} before activating ${fullVersion}. Orca's ` +
+      `Could not snapshot ${options.userDataDir} before activating ${fullVersion}. MassOrca's ` +
         'persisted state carries no schema version, so without a snapshot a rollback has no ' +
         `way back. Refusing to activate.${restarted}`
     )

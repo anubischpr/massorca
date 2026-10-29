@@ -202,7 +202,7 @@ describe('createJournalOpenReadRefusals', () => {
       return error instanceof Error && error.cause instanceof Error ? error.cause.message : ''
     })
     expect(causes).toEqual([
-      expect.stringContaining("newer Orca's row at sequence 7"),
+      expect.stringContaining("newer MassOrca's row at sequence 7"),
       expect.stringContaining('damaged at sequence 3: sequence-gap')
     ])
   })
@@ -212,7 +212,7 @@ describe('createJournalOpenReadRefusals', () => {
     const log = recordingStructuredAgentSessionLogger()
     const refusals = createJournalOpenReadRefusals(log.logger)
     const newer = journalOpenRefusalError(
-      new AgentSessionJournalError('journal_read_only', 'a newer Orca wrote session-1')
+      new AgentSessionJournalError('journal_read_only', 'a newer MassOrca wrote session-1')
     )
     for (let attempt = 0; attempt < 3; attempt += 1) {
       expect(refusals.refusal('session-1', newer)).toBe(newer)

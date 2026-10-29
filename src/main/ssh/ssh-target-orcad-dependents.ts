@@ -151,7 +151,7 @@ export function dependentStateMessage(dependencies: OrcadMigrationDependency[]):
     ({ kind, count, names }) => `${kind} ×${count}${names?.length ? ` (${names.join(', ')})` : ''}`
   )
   return (
-    'This SSH target is still referenced by saved Orca state that a managed server cannot take ' +
+    'This SSH target is still referenced by saved MassOrca state that a managed server cannot take ' +
     `over yet: ${parts.join('; ')}. Remove it, or keep this host in direct SSH mode.`
   )
 }

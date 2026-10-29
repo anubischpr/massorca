@@ -1,6 +1,6 @@
 // Why: the shared --focus line describes terminal create's terminal session.
 const FILE_OPEN_FOCUS_HELP =
-  "--focus                Bring the user to the file (switches Orca's window to its worktree)"
+  "--focus                Bring the user to the file (switches MassOrca's window to its worktree)"
 
 /** Per-command flag help, kept out of the shared help chain it would crowd. */
 const COMMAND_SCOPED_FLAG_HELP: Record<string, Record<string, string>> = {

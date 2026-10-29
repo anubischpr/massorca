@@ -18,14 +18,14 @@ describe('orca file command help', () => {
     'file %s describes --focus as bringing the user to the file',
     (command) => {
       expect(optionLine(['file', command], 'focus')).toBe(
-        "  --focus                Bring the user to the file (switches Orca's window to its worktree)"
+        "  --focus                Bring the user to the file (switches MassOrca's window to its worktree)"
       )
     }
   )
 
   it('leaves terminal create --focus describing its terminal session', () => {
     expect(optionLine(['terminal', 'create'], 'focus')).toBe(
-      '  --focus                Reveal the created terminal session in Orca'
+      '  --focus                Reveal the created terminal session in MassOrca'
     )
   })
 })

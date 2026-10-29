@@ -29,7 +29,7 @@ export const ORCHESTRATION_WORKER_LAUNCH_HANDLER: Record<string, CommandHandler>
       ) {
         throw new RuntimeClientError(
           'incompatible_runtime',
-          'The connected Orca runtime does not support worker model or effort overrides. Update or restart Orca and try again.'
+          'The connected MassOrca runtime does not support worker model or effort overrides. Update or restart MassOrca and try again.'
         )
       }
       if (
@@ -38,7 +38,7 @@ export const ORCHESTRATION_WORKER_LAUNCH_HANDLER: Record<string, CommandHandler>
       ) {
         throw new RuntimeClientError(
           'incompatible_runtime',
-          'The connected Orca runtime does not support worker --chat or --access-mode. Update or restart Orca and try again.'
+          'The connected MassOrca runtime does not support worker --chat or --access-mode. Update or restart MassOrca and try again.'
         )
       }
     }

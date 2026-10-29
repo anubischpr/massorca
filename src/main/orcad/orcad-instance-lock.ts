@@ -270,7 +270,7 @@ function unlinkQuietly(path: string): void {
 }
 
 function describeLockHolder(record: OrcadLockRecord): string {
-  return record.role === 'desktop' ? 'The Orca desktop app' : 'Another orcad'
+  return record.role === 'desktop' ? 'The MassOrca desktop app' : 'Another orcad'
 }
 
 /** No-clobber restore: a third contender's newer record at the canonical path stays authoritative. */

@@ -280,7 +280,7 @@ describe('the store fallback copy', () => {
       code: 'execution_owner_reconciling',
       details: { reason: 'recordUnreadable' },
       message:
-        "Orca can't read this chat's saved state. If a newer version of Orca saved it, update Orca to open it; otherwise start a new chat."
+        "MassOrca can't read this chat's saved state. If a newer version of MassOrca saved it, update MassOrca to open it; otherwise start a new chat."
     })
   })
 

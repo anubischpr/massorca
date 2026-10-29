@@ -42,7 +42,7 @@ export function reserveWindowsRelayUploadStageCommand(
       'exit 0',
       '} catch { continue }',
       '}',
-      `throw ${powerShellLiteral(`Orca relay upload staging quota is full; reconnect after 40 minutes or inspect .orca-remote/${RELAY_UPLOAD_STAGE_POOL_NAME}`)}`
+      `throw ${powerShellLiteral(`MassOrca relay upload staging quota is full; reconnect after 40 minutes or inspect .orca-remote/${RELAY_UPLOAD_STAGE_POOL_NAME}`)}`
     ].join('\n')
   )
 }
@@ -68,7 +68,7 @@ function windowsFileIdentityScript(identity: WindowsUploadStageIdentity = {}): s
     return [
       normalize,
       `$orcaIdentityNode = ${powerShellLiteral(identity.node)}`,
-      `$getFileIdentity = { param($path) $value = & $orcaIdentityNode -e ${powerShellNativeArg(WINDOWS_UPLOAD_STAGE_IDENTITY_JS)} -- $path; if ($LASTEXITCODE -ne 0) { throw 'Orca could not read a relay upload stage file identity' }; ConvertTo-OrcaFileIdentity ([string]$value) }`
+      `$getFileIdentity = { param($path) $value = & $orcaIdentityNode -e ${powerShellNativeArg(WINDOWS_UPLOAD_STAGE_IDENTITY_JS)} -- $path; if ($LASTEXITCODE -ne 0) { throw 'MassOrca could not read a relay upload stage file identity' }; ConvertTo-OrcaFileIdentity ([string]$value) }`
     ]
   }
   // Legacy: host-Node relays have no verified node.exe to run; see windows-edr-posture.md.

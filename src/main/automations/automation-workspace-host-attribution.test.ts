@@ -183,7 +183,7 @@ describe('folder-workspace host attribution', () => {
 })
 
 const AMBIGUOUS_REFUSAL =
-  'The automation workspace spans more than one host, so Orca cannot tell which one to run it on.'
+  'The automation workspace spans more than one host, so MassOrca cannot tell which one to run it on.'
 
 /**
  * Built through the store rather than seeded: load-time projection replaces any

@@ -34,7 +34,7 @@ describe('remote runtime client error classification', () => {
     expect(
       isRecoverableRemoteRuntimeConnectionError({
         code: 'unauthorized',
-        message: 'Remote Orca runtime closed the connection.'
+        message: 'Remote MassOrca runtime closed the connection.'
       })
     ).toBe(false)
   })
@@ -49,10 +49,10 @@ describe('remote runtime client error classification', () => {
   })
 
   it.each([
-    'Could not connect to the remote Orca runtime.',
-    'Remote Orca runtime closed the connection.',
-    'Remote Orca runtime connection closed.',
-    'Remote Orca runtime is not connected.',
+    'Could not connect to the remote MassOrca runtime.',
+    'Remote MassOrca runtime closed the connection.',
+    'Remote MassOrca runtime connection closed.',
+    'Remote MassOrca runtime is not connected.',
     "Error invoking remote method 'runtimeEnvironments:call': RuntimeRpcCallQueueOverloadError: Remote runtime call queue is full; retry after current calls finish.",
     'Remote runtime subscription closed before it started.'
   ])('normalizes unstructured connection failure: %s', (message) => {

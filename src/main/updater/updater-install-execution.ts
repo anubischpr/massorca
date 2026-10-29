@@ -92,7 +92,7 @@ export abstract class UpdaterInstallExecution extends UpdaterPackageRecovery {
             state: 'error',
             version: pendingVersion,
             retryAction: 'install',
-            message: `Close the other Orca instances (process IDs: ${blockers.slice(0, 10).join(', ')}) before installing this update. Background orca serve instances also need to stop. Orca remains open; retry the update after closing them.`
+            message: `Close the other MassOrca instances (process IDs: ${blockers.slice(0, 10).join(', ')}) before installing this update. Background orca serve instances also need to stop. MassOrca remains open; retry the update after closing them.`
           })
           recordUpdaterLifecycle('macos_install_blocked_by_running_instances', {
             pids: blockers.slice(0, 10).join(', '),
@@ -130,7 +130,7 @@ export abstract class UpdaterInstallExecution extends UpdaterPackageRecovery {
             }
           )
           this.sendErrorStatus(
-            'Could not prepare the supervised server restart. Orca remains running.',
+            'Could not prepare the supervised server restart. MassOrca remains running.',
             true
           )
           this.resetQuitForUpdateState()
@@ -216,7 +216,7 @@ export abstract class UpdaterInstallExecution extends UpdaterPackageRecovery {
         // A synchronous throw carries the same installer text the 'error' event would have.
         message: quitAndInstallNativeInvokedBeforeReset
           ? this.withInstallFailureCause(this.getPreCommitInstallFailureMessage(), error)
-          : 'Could not restart to install the update. Quit and reopen Orca, then try again.'
+          : 'Could not restart to install the update. Quit and reopen MassOrca, then try again.'
       })
     }
   }

@@ -6,7 +6,7 @@ import { restoreRewindJournalBody } from './structured-rewind-journal-body'
  *  hostFault's "Try again" would be false for a placeholder. */
 const UNPLACEABLE = {
   kind: 'status',
-  text: 'Orca could not show this item after the rewind.'
+  text: 'MassOrca could not show this item after the rewind.'
 }
 
 describe('rewind recovery of newer durable records', () => {

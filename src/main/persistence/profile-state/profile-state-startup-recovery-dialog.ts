@@ -16,8 +16,8 @@ export async function presentProfileStateStartupRecoveryDialog(
 ): Promise<void> {
   const buttons = deps.recoveryCommand ? ['Copy recovery command', 'Quit'] : ['Quit']
   const detail = deps.recoveryCommand
-    ? `${deps.message}\n\nCopy the recovery command, then run it after Orca closes.`
-    : `${deps.message}\n\nQuit Orca and resolve the profile-state authority before retrying.`
+    ? `${deps.message}\n\nCopy the recovery command, then run it after MassOrca closes.`
+    : `${deps.message}\n\nQuit MassOrca and resolve the profile-state authority before retrying.`
   const { response } = await deps.showMessageBox({
     type: 'error',
     buttons,
@@ -87,13 +87,13 @@ export async function chooseProfileStateCopy(
     title: 'Choose profile state',
     message: 'This profile has two saved copies that don’t match.',
     detail: [
-      'This usually happens after opening the profile in an older version of Orca.',
+      'This usually happens after opening the profile in an older version of MassOrca.',
       '',
-      `SQLite: what this version of Orca saved. Changes made in the older version are discarded.${savedAt(deps.sqliteSavedAt)}`,
+      `SQLite: what this version of MassOrca saved. Changes made in the older version are discarded.${savedAt(deps.sqliteSavedAt)}`,
       '',
       `JSON: includes changes made in the older version. Changes this version saved since then are discarded.${savedAt(deps.jsonSavedAt)}`,
       '',
-      'Orca archives both copies before switching, then restarts.'
+      'MassOrca archives both copies before switching, then restarts.'
     ].join('\n')
   })
   return response === 0 ? 'current-sqlite' : response === 1 ? 'current-json' : undefined

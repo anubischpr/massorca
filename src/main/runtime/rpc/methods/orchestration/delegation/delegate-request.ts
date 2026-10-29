@@ -16,7 +16,7 @@ export const ORCHESTRATION_DELEGATION_METHODS = [
       if (!orchestrationCaller) {
         throw new OrchestrationError(
           'delegation_requires_chat',
-          'orchestration delegate can only be used from an Orca chat session, which identifies itself with ORCA_AGENT_SESSION_ID. No effects were applied.',
+          'orchestration delegate can only be used from a MassOrca chat session, which identifies itself with ORCA_AGENT_SESSION_ID. No effects were applied.',
           { effectsApplied: false }
         )
       }
