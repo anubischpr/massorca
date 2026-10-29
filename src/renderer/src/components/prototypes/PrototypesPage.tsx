@@ -5,6 +5,8 @@ import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototy
 import { writePrototypeAttachmentOnHost } from '../../runtime/runtime-prototype-client'
 import { usePrototypeViewStore } from './prototype-view-store'
 import { buildPrototypeListRows } from '../../../../shared/prototype-list-model'
+import { buildPrototypeListGroups } from '../../../../shared/prototype-list-groups'
+import { PrototypeDesignSystemScreen } from './PrototypeDesignSystemScreen'
 import { PrototypeListPanel } from './PrototypeListPanel'
 import { PrototypeSidePanel } from './PrototypeSidePanel'
 import { PrototypeViewer } from './PrototypeViewer'
@@ -49,13 +51,15 @@ async function sendToChat(set: PrototypeListedSet, text: string): Promise<boolea
   return result.status === 'sent'
 }
 
-/** The Prototypes view: the list of sets, the selected set's viewer, and its edit panel and draft. */
+/** The Prototypes view: the grouped list, then the selected set's viewer and draft, or a design system. */
 export default function PrototypesPage(): React.JSX.Element {
   const listed = usePrototypeSets()
   const filter = usePrototypeViewStore((s) => s.filter)
   const setFilter = usePrototypeViewStore((s) => s.setFilter)
   const selectedId = usePrototypeViewStore((s) => s.selectedRequestId)
+  const selectedProjectKey = usePrototypeViewStore((s) => s.selectedProjectKey)
   const selectRequest = usePrototypeViewStore((s) => s.selectRequest)
+  const selectDesignSystem = usePrototypeViewStore((s) => s.selectDesignSystem)
   const states = usePrototypeViewStore((s) => s.states)
   const ensureSetState = usePrototypeViewStore((s) => s.ensureSetState)
   const updateSetState = usePrototypeViewStore((s) => s.updateSetState)
@@ -76,7 +80,20 @@ export default function PrototypesPage(): React.JSX.Element {
       }),
     [listed.sets, filter, states, nowMs]
   )
+  const groups = useMemo(
+    () =>
+      buildPrototypeListGroups({
+        sets: listed.sets,
+        rows,
+        designSystems: listed.designSystems
+      }),
+    [listed.sets, listed.designSystems, rows]
+  )
 
+  const system =
+    selectedProjectKey === null
+      ? undefined
+      : listed.designSystems.find((entry) => entry.projectKey === selectedProjectKey)
   const selected = listed.sets.find((set) => set.requestId === selectedId) ?? null
   const selectedRequestId = selected?.requestId
   const selectedLetters = selected?.directions.map((direction) => direction.letter) ?? []
@@ -84,16 +101,37 @@ export default function PrototypesPage(): React.JSX.Element {
   const firstRequestId = listed.sets[0]?.requestId
 
   useEffect(() => {
-    if (selectedRequestId === undefined && firstRequestId !== undefined) {
+    if (
+      selectedRequestId === undefined &&
+      firstRequestId !== undefined &&
+      selectedProjectKey === null
+    ) {
       selectRequest(firstRequestId)
     }
-  }, [selectedRequestId, firstRequestId, selectRequest])
+  }, [selectedRequestId, firstRequestId, selectedProjectKey, selectRequest])
 
   useEffect(() => {
     if (selectedRequestId !== undefined) {
       ensureSetState(selectedRequestId, selectedLettersKey.split('|').filter(Boolean))
     }
   }, [selectedRequestId, selectedLettersKey, ensureSetState])
+
+  if (system !== undefined) {
+    return (
+      <div className="flex min-h-0 min-w-0 flex-1">
+        <PrototypeListPanel
+          groups={groups}
+          filter={filter}
+          onFilter={setFilter}
+          selectedRequestId={null}
+          selectedProjectKey={system.projectKey}
+          onSelect={selectRequest}
+          onSelectSystem={selectDesignSystem}
+        />
+        <PrototypeDesignSystemScreen system={system} sets={listed.sets} sendText={sendToChat} />
+      </div>
+    )
+  }
 
   const setState: PrototypeSetState | undefined =
     selectedRequestId === undefined ? undefined : states[selectedRequestId]
@@ -102,11 +140,13 @@ export default function PrototypesPage(): React.JSX.Element {
     return (
       <div className="flex min-h-0 min-w-0 flex-1">
         <PrototypeListPanel
-          rows={rows}
+          groups={groups}
           filter={filter}
           onFilter={setFilter}
           selectedRequestId={null}
+          selectedProjectKey={null}
           onSelect={selectRequest}
+          onSelectSystem={selectDesignSystem}
         />
       </div>
     )
@@ -146,11 +186,13 @@ export default function PrototypesPage(): React.JSX.Element {
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
       <PrototypeListPanel
-        rows={rows}
+        groups={groups}
         filter={filter}
         onFilter={setFilter}
         selectedRequestId={selected.requestId}
+        selectedProjectKey={null}
         onSelect={selectRequest}
+        onSelectSystem={selectDesignSystem}
       />
       <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border">
         <PrototypeViewer
