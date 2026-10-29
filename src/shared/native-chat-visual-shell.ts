@@ -1,4 +1,9 @@
 import { PANEL_DESIGN_TOKEN_ALLOWLIST } from './plugins/plugin-panel-shell'
+import {
+  readNativeChatVisualAnnotateEvent,
+  type NativeChatVisualAnnotateEvent
+} from './native-chat-visual-annotate'
+import { nativeChatVisualAnnotateScript } from './native-chat-visual-annotate-script'
 
 /**
  * The document wrapped around an agent-written chat visual before it enters its sandboxed frame.
@@ -207,8 +212,13 @@ export function buildNativeChatVisualDocument(args: {
   html: string
   channel: string
   theme: NativeChatVisualTheme
+  /** Adds the element-annotate script. Without it the document is exactly the same as before. */
+  annotate?: boolean
 }): string {
   const scheme = args.theme.colorScheme === 'dark' ? 'dark' : 'light'
+  const annotateScript = args.annotate
+    ? `\n<script>${nativeChatVisualAnnotateScript(args.channel)}</script>`
+    : ''
   return `<!doctype html>
 <html class="${scheme}">
 <head>
@@ -218,7 +228,7 @@ ${INERT_BASE}
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style id="orca-visual-theme">${nativeChatVisualThemeCss(args.theme)}</style>
 <style>${BASE_CSS}</style>
-<script>${bootstrapScript(args.channel)}</script>
+<script>${bootstrapScript(args.channel)}</script>${annotateScript}
 </head>
 ${args.html}`
 }
@@ -226,6 +236,7 @@ ${args.html}`
 export type NativeChatVisualFrameMessage =
   | { kind: 'size'; height: number }
   | { kind: 'open-link'; url: string }
+  | NativeChatVisualAnnotateEvent
 
 /** A message from a visual's shell, validated; null for anything else. */
 export function readNativeChatVisualFrameMessage(
@@ -258,7 +269,7 @@ export function readNativeChatVisualFrameMessage(
       return null
     }
   }
-  return null
+  return readNativeChatVisualAnnotateEvent(data, channel)
 }
 
 /** The ping id a visual's shell answered on `channel`, or null for anything else. */
