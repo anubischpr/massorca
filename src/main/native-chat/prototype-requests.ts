@@ -47,6 +47,7 @@ import {
 // Why bounds: the scan runs on every Prototypes open; a chat with thousands of folders must not stall it.
 const MAX_SESSION_FOLDERS_SCANNED = 500
 const MAX_REQUEST_FOLDERS_SCANNED = 500
+const MAX_REQUEST_FOLDERS_PER_SESSION = 100
 
 const NOT_FOUND: ReadPrototypeFileResult = { ok: false, error: 'not_found' }
 
@@ -211,21 +212,24 @@ async function requestFolderCandidates(root: string): Promise<RequestFolderCandi
     .slice(0, MAX_SESSION_FOLDERS_SCANNED)
   for (const sessionFolder of sessionFolders) {
     const visualsFolder = join(root, sessionFolder.name)
+    // Why per-chat newest-first cap: one busy chat must not starve the others out of the list.
     const requests = (await readDirectoryEntries(join(visualsFolder, PROTOTYPE_FOLDER)))
       .filter((entry) => entry.isDirectory())
-      .slice(0, MAX_REQUEST_FOLDERS_SCANNED - candidates.length)
-    for (const request of requests) {
-      candidates.push({
-        visualsFolderName: sessionFolder.name,
-        visualsFolder,
-        requestName: request.name
-      })
-    }
-    if (candidates.length >= MAX_REQUEST_FOLDERS_SCANNED) {
-      break
+      .map((entry) => entry.name)
+      .sort(newestRequestNameFirst)
+      .slice(0, MAX_REQUEST_FOLDERS_PER_SESSION)
+    for (const requestName of requests) {
+      candidates.push({ visualsFolderName: sessionFolder.name, visualsFolder, requestName })
     }
   }
   return candidates
+    .sort((left, right) => newestRequestNameFirst(left.requestName, right.requestName))
+    .slice(0, MAX_REQUEST_FOLDERS_SCANNED)
+}
+
+// Request ids start with a UTC timestamp, so a descending name sort is newest first.
+function newestRequestNameFirst(left: string, right: string): number {
+  return right.localeCompare(left)
 }
 
 async function listedSetFor(

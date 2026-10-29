@@ -171,6 +171,26 @@ describe('listPrototypeSets', () => {
     expect((await listPrototypeSets({ stateDirectory })).sets).toEqual([])
   })
 
+  it('still lists a chat when another chat holds more request folders than the scan bound', async () => {
+    const busyPrototypes = join(
+      nativeChatVisualsFolderFor(stateDirectory, 'session-busy-0002'),
+      'prototypes'
+    )
+    await Promise.all(
+      Array.from({ length: 600 }, (_, index) =>
+        mkdir(join(busyPrototypes, `29991231-235959-${String(index).padStart(6, '0')}`), {
+          recursive: true
+        })
+      )
+    )
+    const quiet = await create('claude', NOW)
+    await writeIn(quiet.folderPath, 'A.html', '<p>a</p>')
+
+    const listed = await listPrototypeSets({ stateDirectory })
+
+    expect(listed.sets.map((set) => set.requestId)).toEqual([quiet.requestId])
+  })
+
   it('keeps only the requests of one worktree when asked', async () => {
     const mine = await create('claude', NOW, { worktreeId: 'wt-1' })
     const other = await create('claude', LATER, { worktreeId: 'wt-2' })
