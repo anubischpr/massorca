@@ -106,11 +106,11 @@ export function MobilePrototypeViewerScreen({
       return
     }
     update(beginSend)
-    const outcome = await sendMobilePrototypeIteration(current, set)
+    const outcome = await sendMobilePrototypeIteration(current, set, client)
     update((latest) =>
       outcome.sent ? sendSucceeded(latest, outcome.visibleMessage) : sendRefused(latest)
     )
-  }, [set, stateKey, update])
+  }, [client, set, stateKey, update])
   const jumpTo = useCallback(
     (item: PrototypeDraftItem) => {
       setDraftOpen(false)

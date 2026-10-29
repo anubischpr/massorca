@@ -22,7 +22,7 @@ type MenuItem = {
   key: string
   label: string
   hint?: string
-  /** A count pill after the label, like the board's "1 to review". */
+  /** A count pill after the label. */
   badge?: string
   icon: ComponentType<MenuIconProps>
   onPress: () => void
@@ -35,7 +35,7 @@ type Props = {
   /** "2 of 5 done" on the plan row; absent when the chat has no plan. */
   planHint?: string
   recordedFileCount: number
-  /** "N to review" on the Prototypes row; absent when this chat has no prototype set. */
+  /** the count on the Prototypes row; absent when this chat has no prototype set. */
   prototypesBadge?: string
   onOpenPrototypes: () => void
   onOpenPlan: () => void

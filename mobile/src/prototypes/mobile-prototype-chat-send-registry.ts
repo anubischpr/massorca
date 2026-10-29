@@ -1,5 +1,5 @@
-// The chats that can take a message right now. The session screen stays mounted under the Prototypes
-// screens, so the chat on screen registers its plain send here; a set of any other chat has none.
+// The chat on screen takes a message through its own send. The session screen stays mounted under
+// the Prototypes screens, so that chat registers its plain send here; any other chat has none.
 
 type ChatSend = (text: string) => Promise<boolean>
 
@@ -15,10 +15,18 @@ export function registerMobilePrototypeChatSend(sessionId: string, send: ChatSen
   }
 }
 
-/** True only when the chat took the message; a chat that is not on screen takes none. */
-export async function sendToMobilePrototypeChat(sessionId: string, text: string): Promise<boolean> {
-  const send = senders.get(sessionId)
-  if (send === undefined) {
+/**
+ * True only when the chat took the message. The chat on screen takes it through its own send; any
+ * other chat goes through `viaHost`, when there is one. A send that was tried and failed is never
+ * retried the other way, so a message cannot arrive twice.
+ */
+export async function sendToMobilePrototypeChat(
+  sessionId: string,
+  text: string,
+  viaHost: ChatSend | null = null
+): Promise<boolean> {
+  const send = senders.get(sessionId) ?? viaHost
+  if (send === null) {
     return false
   }
   try {

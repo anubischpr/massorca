@@ -122,12 +122,12 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
   })
 
   it('counts the prototype sets of the chat on the Prototypes row, and shows no pill without any', () => {
-    const withSets = mount({ prototypesBadge: '1 to review' }).mounted
+    const withSets = mount({ prototypesBadge: '3' }).mounted
     const labels = withSets.root.findAll((node) => String(node.type) === 'Text').map(textOf)
-    expect(labels).toContain('1 to review')
+    expect(labels).toContain('3')
     const without = mount().mounted
     const bare = without.root.findAll((node) => String(node.type) === 'Text').map(textOf)
-    expect(bare).not.toContain('1 to review')
+    expect(bare).not.toContain('3')
   })
 
   it('leaves out the plan row when the chat has no plan', () => {

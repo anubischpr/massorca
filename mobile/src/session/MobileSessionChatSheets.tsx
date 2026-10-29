@@ -68,7 +68,7 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
         menu={headerMenu}
         planHint={planProgress ? `${planProgress.done} of ${planProgress.total} done` : undefined}
         recordedFileCount={recordedFileCount}
-        prototypesBadge={prototypeCount > 0 ? `${prototypeCount} to review` : undefined}
+        prototypesBadge={prototypeCount > 0 ? String(prototypeCount) : undefined}
         onOpenPrototypes={openPrototypes}
         onOpenPlan={openPlanSheet}
         onOpenSummary={openSummary}
