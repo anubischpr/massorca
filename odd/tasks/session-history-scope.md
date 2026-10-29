@@ -21,7 +21,7 @@ The user works with one parent session per feature worktree; history full of sub
 
 ## Constraints
 
-- Strict fidelity to the approved prototype https://claude.ai/artifact/HG9wxWZMaeMhaw3uHbdsaa (approval pending as of 2026-10-29; UI tasks wait for it).
+- Strict fidelity to the approved prototype v2 https://claude.ai/artifact/HG9wxWZMaeMhaw3uHbdsaa (approved by the user 2026-10-29: "Aprobadísimo"). No labels or components outside the prototype.
 - Remote wire compatibility: older hosts omit `subagent`; no new required fields.
 - SSH hosts and folder workspaces; cross-platform paths.
 - Design system: `docs/STYLEGUIDE.md`.
@@ -35,10 +35,11 @@ The user works with one parent session per feature worktree; history full of sub
 
 ## Tasks
 
-- [ ] T1 — Find which scanner emits subagent transcripts with `subagent: null` on real data (read-only run over the user's transcripts), fix the root cause, tests. Authorized before design approval as non-UI groundwork. Route: delegated direct (preparation + writer trigger).
-- [ ] T2 — "This worktree" scope: exact match excluding nested live worktrees; desktop + mobile labels ("This folder" for folder workspaces). Waits for approval.
-- [ ] T3 — Subagent rows never top-level (renderer filter, mobile sections, search hits keep parentage); "N subagents" toggle for every agent on desktop and mobile. Waits for approval.
-- [ ] T4 — Delegated child sessions nested under their parent with badge and status, top-level when the parent is out of scope. Depends on `claude/child-sessions-81f6d9` landing. Waits for approval.
+- [x] T1 — Scanner leak repro (read-only scan of the user's transcripts). Result: no provider subagent leaks; the flood is headless automated runs. No scanner change. Route: delegated direct.
+- [ ] T2 — "This worktree" scope ("This folder" for folder workspaces): exact match excluding nested live worktrees; desktop + mobile labels. Route: delegated direct (writer trigger).
+- [ ] T3 — Automated runs hidden by default: shared detection (Codex `source: 'exec'`, prompt starts "You are a code reviewer" → Review, "You are the sdd-… subagent" → SDD); "Automated runs" switch with the in-scope count on desktop and mobile; Review/SDD badge on shown rows. Route: delegated direct.
+- [ ] T4 — Delegated child sessions nested under their parent with a "Child session" badge and status (working/finished/failed); top-level row when the parent is out of scope. Route: delegated direct.
+- Dropped by the approved design: a subagent toggle for every agent (no subagent leak found; "N subagents" stays as today).
 
 ## Progress
 
@@ -50,4 +51,4 @@ The user works with one parent session per feature worktree; history full of sub
 
 ## Next step
 
-Product decision (asked of the parent session): how to treat headless automated runs (review/SDD workers), which are not provider subagents and have no reliable structural marker except Codex `source: 'exec'`. The prototype assumed provider subagents and may need a revision before T2–T4.
+T2, then T3, then T4, one work-unit commit each.
