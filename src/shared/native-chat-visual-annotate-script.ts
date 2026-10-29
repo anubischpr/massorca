@@ -74,13 +74,15 @@ function onClick(event) {
   if (!enabled || isOverlay(event.target)) return
   event.preventDefault()
   event.stopImmediatePropagation()
-  if (event.target && event.target.nodeType === 1) send({ type: C.picked, element: describeElement(event.target) })
+  if (!event.target || event.target.nodeType !== 1) return
+  var element = describeElement(pickTargetOf(event.target))
+  if (element) send({ type: C.picked, element: element })
 }
 
 // Moves only record the target; the layout runs once per frame.
 function onMove(event) {
   if (!enabled || !event.target || event.target.nodeType !== 1 || isOverlay(event.target)) return
-  hovered = event.target
+  hovered = pickTargetOf(event.target)
   schedule()
 }
 

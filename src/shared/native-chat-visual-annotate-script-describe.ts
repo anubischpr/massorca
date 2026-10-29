@@ -3,18 +3,43 @@
  * Concatenated into the frame script; it has no meaning on its own.
  */
 export const ANNOTATE_FRAME_DESCRIBE_SCRIPT = String.raw`
+// The selector finds the element first in the document. Over the cap, the nth-of-type of a sole child
+// is dropped (it names the same node); an element still over the cap has no selector and is not picked.
 function selectorFor(element) {
   if (element === root) return 'html'
+  var full = pathFor(element, true)
+  if (full.length <= L.selector) return full
+  var compact = pathFor(element, false)
+  return compact.length <= L.selector ? compact : null
+}
+
+// The child path from the nearest ancestor with a unique id, or from html.
+function pathFor(element, nth) {
   var parts = []
   for (var node = element; node && node !== root; node = node.parentElement) {
     if (node.id && ID.test(node.id) && document.querySelectorAll('#' + node.id).length === 1) {
       parts.unshift('#' + node.id)
       return parts.join(' > ')
     }
-    parts.unshift(node.localName + ':nth-of-type(' + typeIndex(node) + ')')
+    parts.unshift(segmentOf(node, nth))
   }
   parts.unshift('html')
   return parts.join(' > ')
+}
+
+function segmentOf(node, nth) {
+  if (!nth && isSoleOfType(node)) return node.localName
+  return node.localName + ':nth-of-type(' + typeIndex(node) + ')'
+}
+
+function isSoleOfType(node) {
+  var parent = node.parentElement
+  if (!parent) return false
+  var count = 0
+  for (var sibling = parent.firstElementChild; sibling; sibling = sibling.nextElementSibling) {
+    if (sibling.localName === node.localName) count++
+  }
+  return count === 1
 }
 
 function typeIndex(node) {
@@ -35,9 +60,31 @@ function labelFor(element) {
   return label || element.localName.slice(0, LABEL_MAX)
 }
 
+// The element whose text is read and rewritten: itself, or the one descendant that carries text (a
+// label's span, a button's words after its icon). Several such descendants leave no owner: the element.
+function textOwnerOf(element) {
+  if (hasOwnText(element)) return element
+  var owner = null
+  var all = element.getElementsByTagName('*')
+  for (var i = 0; i < all.length; i++) {
+    if (!hasOwnText(all[i])) continue
+    if (owner) return element
+    owner = all[i]
+  }
+  return owner || element
+}
+
+function hasOwnText(element) {
+  for (var node = element.firstChild; node; node = node.nextSibling) {
+    if (node.nodeType === 3 && node.nodeValue.trim()) return true
+  }
+  return false
+}
+
 function directText(element) {
   var out = ''
-  for (var node = element.firstChild; node; node = node.nextSibling) if (node.nodeType === 3) out += node.nodeValue
+  var owner = textOwnerOf(element)
+  for (var node = owner.firstChild; node; node = node.nextSibling) if (node.nodeType === 3) out += node.nodeValue
   return out.trim().slice(0, L.text)
 }
 
@@ -96,15 +143,31 @@ function stateOf(element, rect) {
   }
 }
 
+// Null when no selector under the cap names the element.
 function describeElement(element) {
+  var selector = selectorFor(element)
+  if (selector === null) return null
   var rect = element.getBoundingClientRect()
   return {
-    selector: selectorFor(element),
+    selector: selector,
     label: labelFor(element),
     rect: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
     htmlSnippet: String(element.outerHTML || '').slice(0, L.snippet),
     state: stateOf(element, rect)
   }
+}
+
+// An inline part of a control (an icon, a span) picks the control it sits in, up to four levels up.
+var INLINE_PART = /^(span|svg|use|path|g|i|b|em|strong|small|mark|img|u|s|sub|sup|abbr|code|text|tspan|circle|rect|line|polyline|polygon|ellipse)$/
+var CONTROL = 'button, label, a, [role=button]'
+
+function pickTargetOf(target) {
+  if (!INLINE_PART.test(target.localName)) return target
+  var node = target.parentElement
+  for (var depth = 1; node && node !== root && depth <= 4; depth++, node = node.parentElement) {
+    if (node.matches(CONTROL)) return node
+  }
+  return target
 }
 
 `

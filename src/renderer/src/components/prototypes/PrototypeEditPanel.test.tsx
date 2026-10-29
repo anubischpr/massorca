@@ -46,6 +46,16 @@ function stateAfterLastUpdate(update: Update, state: PrototypeSetState): Prototy
   return transform(state)
 }
 
+describe('PrototypeEditPanel rows for a button pin', () => {
+  afterEach(cleanup)
+
+  it('shows the Text color and Fill rows, as for any element', () => {
+    render(<PrototypeEditPanel state={pinnedState()} update={vi.fn()} pulseField={null} />)
+    expect(screen.getByText('Text color')).toBeInTheDocument()
+    expect(screen.getByText('Fill')).toBeInTheDocument()
+  })
+})
+
 describe('PrototypeEditPanel number fields', () => {
   afterEach(cleanup)
 

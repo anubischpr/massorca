@@ -240,6 +240,64 @@ describe('annotate script: picking', () => {
   })
 })
 
+describe('annotate script: nested text, inline parts and deep elements', () => {
+  it('reads a label through its one text-bearing child, and rewrites that child', () => {
+    document.body.innerHTML = '<label id="mail"><span>Email</span><input></label>'
+    const picked = pick(element('#mail'))
+    expect(picked.state).toMatchObject({ text: 'Email' })
+    send({
+      type: NATIVE_CHAT_VISUAL_OVERRIDES_TYPE,
+      overrides: [{ selector: String(picked.selector), text: 'Work email' }]
+    })
+    expect(element('#mail span').textContent).toBe('Work email')
+    expect(element('#mail').querySelectorAll('span')).toHaveLength(1)
+    send({ type: NATIVE_CHAT_VISUAL_OVERRIDES_TYPE, overrides: [] })
+    expect(element('#mail span').textContent).toBe('Email')
+  })
+
+  it('picks a button for a click on its icon or on its words, and reads the words', () => {
+    document.body.innerHTML =
+      '<button id="pay"><svg><path d="M0 0"></path></svg><span>Go</span></button>'
+    const picked = pick(element('#pay span'))
+    expect(picked.selector).toBe('#pay')
+    expect(picked.label).toBe('go')
+    expect(picked.state).toMatchObject({ text: 'Go' })
+    expect(pick(element('#pay path')).selector).toBe('#pay')
+  })
+
+  it('climbs from an inline part to a link or a role=button, and only within four levels', () => {
+    document.body.innerHTML =
+      '<a id="home" href="#home"><span><i>Home</i></span></a>' +
+      '<div id="tile" role="button"><span>Open</span></div>' +
+      '<button id="far"><span><span><span><span><span id="deep">Deep</span></span></span></span></span></button>'
+    expect(pick(element('#home i')).selector).toBe('#home')
+    expect(pick(element('#tile span')).selector).toBe('#tile')
+    expect(pick(element('#deep')).selector).toBe('#deep')
+  })
+
+  it('picks an element 30 levels deep, with a selector under the cap that finds it again', () => {
+    document.body.innerHTML = ''
+    let parent: HTMLElement = document.body
+    for (let depth = 0; depth < 30; depth++) {
+      const next = document.createElement('div')
+      parent.appendChild(next)
+      parent = next
+    }
+    const deep = document.createElement('button')
+    parent.appendChild(deep)
+    const picked = pick(deep)
+    const selector = String(picked.selector)
+    expect(selector.length).toBeLessThanOrEqual(NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS.selector)
+    expect(document.querySelector(selector)).toBe(deep)
+    expect(
+      readNativeChatVisualAnnotateEvent(
+        { type: NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE, channel: CHANNEL, element: picked },
+        CHANNEL
+      )
+    ).not.toBeNull()
+  })
+})
+
 /** Stubs requestAnimationFrame, so a test runs the frames the script asks for when it says so. */
 function withManualFrames(run: (flush: () => void) => void): void {
   const frames: FrameRequestCallback[] = []
