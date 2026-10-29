@@ -50,22 +50,23 @@ export class RuntimeAgentOrchestrationProjection {
     if (!db) {
       return undefined
     }
-    // Why: the record outlives its dispatch, so a settled or restarted child keeps its parent.
-    const delegatedChildLinks = db.listDelegatedChildLinks?.() ?? []
+    const snapshot = this.deps.getAgentStatusSnapshot()
     const contexts: Record<string, AgentStatusOrchestrationContext> = {}
     if (db.hasAnyDispatchContexts?.() !== false) {
-      this.addLiveContexts(db, contexts)
+      this.addLiveContexts(db, contexts, snapshot)
     }
-    applyDelegatedChildParentLinks(contexts, delegatedChildLinks)
+    const paneKeys = snapshot.map((evidence) => evidence.activity.paneKey)
+    applyDelegatedChildParentLinks(contexts, db, paneKeys)
     return Object.keys(contexts).length > 0 ? contexts : undefined
   }
 
   private addLiveContexts(
     db: OrchestrationDb,
-    contexts: Record<string, AgentStatusOrchestrationContext>
+    contexts: Record<string, AgentStatusOrchestrationContext>,
+    snapshot: readonly FleetAgentStatusEvidence[]
   ): void {
     const evidenceByPaneKey = new Map(
-      this.deps.getAgentStatusSnapshot().map((evidence) => [evidence.activity.paneKey, evidence])
+      snapshot.map((evidence) => [evidence.activity.paneKey, evidence])
     )
     // Defer attention to one batched query below; per-pane facts would refetch on every 16ms publish.
     const batchAttention = typeof db.getWorkerAttentionFactsForDispatches === 'function'

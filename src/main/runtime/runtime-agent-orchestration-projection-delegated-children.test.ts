@@ -1,7 +1,8 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { FleetAgentStatusEvidence } from '../../shared/orchestration-fleet-agent-status-evidence'
 import {
   structuredAgentSessionPaneKey,
   structuredAgentSessionTabId
@@ -28,6 +29,22 @@ const FILED = {
 
 const rowKey = (sessionId: string): string =>
   structuredAgentSessionPaneKey(structuredAgentSessionTabId(sessionId), sessionId)
+/** A snapshot row for a structured session; only its pane key matters to the link bound. */
+const rowFor = (sessionId: string): FleetAgentStatusEvidence => ({
+  binding: { kind: 'unresolved', reason: 'pane_not_bound' },
+  clock: { kind: 'delivery', at: 0 },
+  deliveredAt: 0,
+  activity: {
+    paneKey: rowKey(sessionId),
+    connectionId: null,
+    state: 'done',
+    agentType: null,
+    model: null,
+    worktreeId: null,
+    restoredUnconfirmed: false,
+    providerSessionOnly: false
+  }
+})
 const hoursAgo = (hours: number): string =>
   new Date(Date.now() - hours * 60 * 60 * 1000).toISOString()
 
@@ -67,6 +84,18 @@ function startDelegatedChild(store: OrchestrationDb): string {
   return dispatch.id
 }
 
+/** Files and starts a request for a child that has no dispatch row; the link is all these tests read. */
+function startLink(store: OrchestrationDb, childSessionId: string, parentSessionId = PARENT): void {
+  const { id } = store.createDelegationRequest({ ...FILED, parentSessionId })
+  store.transitionDelegationRequest(id, 'pending', 'starting')
+  store.transitionDelegationRequest(id, 'starting', 'started', {
+    run_id: 'run_legacy_local',
+    task_id: `task-${childSessionId}`,
+    dispatch_id: `dispatch-${childSessionId}`,
+    child_session_id: childSessionId
+  })
+}
+
 function settleDispatch(
   store: OrchestrationDb,
   dispatchId: string,
@@ -80,7 +109,8 @@ function settleDispatch(
 
 function projectionFor(
   store: OrchestrationDb,
-  workers: readonly (typeof WORKER)[] = []
+  workers: readonly (typeof WORKER)[] = [],
+  sessions: readonly string[] = [PARENT, CHILD]
 ): RuntimeAgentOrchestrationProjection {
   return new RuntimeAgentOrchestrationProjection({
     getDb: () => store,
@@ -93,7 +123,7 @@ function projectionFor(
     getHandleForPaneKey: () => null,
     getPaneKey: () => null,
     getDispatchAuthority: () => null,
-    getAgentStatusSnapshot: () => [],
+    getAgentStatusSnapshot: () => sessions.map(rowFor),
     getStructuredWorkers: () => workers
   })
 }
@@ -197,5 +227,41 @@ describe('delegated children in the orchestration projection', () => {
     db = new OrchestrationDb(':memory:')
 
     expect(projectionFor(db, [WORKER]).buildByPaneKey()).toBeUndefined()
+  })
+
+  it('publishes only the links whose child and parent sessions still exist, out of fifty', () => {
+    db = new OrchestrationDb(':memory:')
+    const children = Array.from({ length: 50 }, (_, index) => `child-${index}`)
+    for (const child of children) {
+      startLink(db, child)
+    }
+    const shown = children.slice(0, 30)
+
+    const contexts = projectionFor(db, [], [PARENT, ...shown]).buildByPaneKey()
+
+    expect(Object.keys(contexts ?? {}).sort()).toEqual(shown.map((child) => rowKey(child)).sort())
+  })
+
+  it('publishes no entry for a link whose child session no longer exists', () => {
+    db = new OrchestrationDb(':memory:')
+    startLink(db, 'gone-child')
+
+    expect(projectionFor(db, [], [PARENT, CHILD]).buildByPaneKey()).toBeUndefined()
+  })
+
+  it('drops a link whose parent session no longer exists', () => {
+    db = new OrchestrationDb(':memory:')
+    startLink(db, CHILD, 'gone-parent')
+
+    expect(projectionFor(db, [], [CHILD]).buildByPaneKey()).toBeUndefined()
+  })
+
+  it('skips the delegated-link read when no structured session is shown', () => {
+    db = new OrchestrationDb(':memory:')
+    startLink(db, CHILD)
+    const read = vi.spyOn(db, 'listDelegatedChildLinks')
+
+    expect(projectionFor(db, [], []).buildByPaneKey()).toBeUndefined()
+    expect(read).not.toHaveBeenCalled()
   })
 })

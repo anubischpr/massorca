@@ -208,8 +208,12 @@ const DelegatedChildLinkRowSchema = z.object({
 
 export type DelegatedChildLinkRow = z.infer<typeof DelegatedChildLinkRowSchema>
 
-// Why: the record is never cleared, so a child keeps its parent after its dispatch settles and across restarts.
-export function listDelegatedChildLinks(this: OrchestrationDb): DelegatedChildLinkRow[] {
+// Why: bounded to the given sessions, so the map tracks live rows rather than lifetime delegations.
+export function listDelegatedChildLinks(
+  this: OrchestrationDb,
+  sessionIds: readonly string[]
+): DelegatedChildLinkRow[] {
+  const ids = JSON.stringify(sessionIds)
   return this.db
     .prepare(
       `SELECT r.child_session_id, r.parent_session_id, r.run_id, r.task_id, r.dispatch_id,
@@ -217,10 +221,12 @@ export function listDelegatedChildLinks(this: OrchestrationDb): DelegatedChildLi
        FROM delegation_requests r
        LEFT JOIN dispatch_contexts d ON d.id = r.dispatch_id
        LEFT JOIN tasks t ON t.id = r.task_id
-       WHERE r.child_session_id IS NOT NULL AND r.task_id IS NOT NULL AND r.dispatch_id IS NOT NULL
+       WHERE r.child_session_id IN (SELECT value FROM json_each(?))
+         AND r.parent_session_id IN (SELECT value FROM json_each(?))
+         AND r.task_id IS NOT NULL AND r.dispatch_id IS NOT NULL
        ORDER BY r.created_at, r.id`
     )
-    .all()
+    .all(ids, ids)
     .flatMap((row) => {
       const parsed = DelegatedChildLinkRowSchema.safeParse(row)
       return parsed.success ? [parsed.data] : []

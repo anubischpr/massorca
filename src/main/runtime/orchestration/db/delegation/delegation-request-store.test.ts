@@ -156,7 +156,7 @@ describe('delegation request store', () => {
     })
     db.createDelegationRequest(FILED)
 
-    expect(db.listDelegatedChildLinks()).toEqual([
+    expect(db.listDelegatedChildLinks(['session_child_a', FILED.parentSessionId])).toEqual([
       {
         child_session_id: 'session_child_a',
         parent_session_id: FILED.parentSessionId,
@@ -169,6 +169,22 @@ describe('delegation request store', () => {
         display_name: null
       }
     ])
+  })
+
+  it('lists a link only when its child and its parent are both given', () => {
+    db = new OrchestrationDb(':memory:')
+    const { id } = db.createDelegationRequest(FILED)
+    db.transitionDelegationRequest(id, 'pending', 'starting')
+    db.transitionDelegationRequest(id, 'starting', 'started', {
+      run_id: 'run_a',
+      task_id: 'task_a',
+      dispatch_id: 'dispatch_a',
+      child_session_id: 'session_child_a'
+    })
+
+    expect(db.listDelegatedChildLinks(['session_child_a'])).toEqual([])
+    expect(db.listDelegatedChildLinks([FILED.parentSessionId])).toEqual([])
+    expect(db.listDelegatedChildLinks(['session_child_a', FILED.parentSessionId])).toHaveLength(1)
   })
 
   it('keeps a child link across a host restart', () => {
@@ -187,8 +203,10 @@ describe('delegation request store', () => {
 
     db = new OrchestrationDb(path)
 
-    expect(db.listDelegatedChildLinks().map((link) => link.child_session_id)).toEqual([
-      'session_child_a'
-    ])
+    expect(
+      db
+        .listDelegatedChildLinks(['session_child_a', FILED.parentSessionId])
+        .map((link) => link.child_session_id)
+    ).toEqual(['session_child_a'])
   })
 })
