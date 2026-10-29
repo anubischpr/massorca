@@ -47,7 +47,7 @@ const CHAT_WORKER_HANDLE = 'structworker_1'
 const MAIN_KERNEL_LINES = 198 + 1
 
 const db = new OrchestrationDb(':memory:')
-const SELF_LINE = `\nYour Orca session ID is: ${CHAT_ADDRESS}`
+const SELF_LINE = `\nYour MassOrca session ID is: ${CHAT_ADDRESS}`
 const previousEnvironment = hasAppEnvironment() ? getAppEnvironment() : null
 
 afterEach(() => {

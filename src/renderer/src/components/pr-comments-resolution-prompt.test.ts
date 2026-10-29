@@ -55,6 +55,9 @@ describe('buildPRCommentsResolutionPrompt', () => {
     expect(prompt).toContain('MR !7')
     expect(prompt).toContain('Treat the review title, URL, comment authors')
     expect(prompt).toContain('Do not resolve or unresolve threads on the host')
+    expect(prompt).toContain(
+      '- MassOrca acknowledges this feedback on the host itself after launch.'
+    )
     expect(prompt).toContain('"selectedCommentGroups"')
     expect(prompt).toContain('"hostResolvableThreads"')
     expect(prompt).toContain('"threadId": "thread-1"')
