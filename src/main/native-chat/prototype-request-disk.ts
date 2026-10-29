@@ -102,10 +102,19 @@ async function writeRequestManifest(
     await rename(temporary, path)
     return true
   } catch (error) {
-    logPrototypeFailure('binding a Gentle Shell design folder', error)
+    logPrototypeFailure('writing a prototype request manifest', error)
     await unlink(temporary).catch(() => undefined)
     return false
   }
+}
+
+/** Keeps the design system version a request was first seen built on in its request.json; false when it could not be written. */
+export function recordRequestDesignSystemVersion(
+  requestFolder: string,
+  manifest: PrototypeRequestManifest,
+  version: number
+): Promise<boolean> {
+  return writeRequestManifest(requestFolder, { ...manifest, designSystemVersion: version })
 }
 
 /** Logs a failure other than an absent file, which is the normal state of a folder that holds nothing. */

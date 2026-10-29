@@ -412,6 +412,80 @@ describe('prototypes design system', () => {
     expect(result).not.toHaveProperty('designSystems')
   })
 
+  async function requestManifest(requestId: string): Promise<Record<string, unknown>> {
+    const folder = join(
+      nativeChatVisualsFolderFor(stateDirectory, SESSION),
+      'prototypes',
+      requestId
+    )
+    const manifest: Record<string, unknown> = JSON.parse(
+      await readFile(join(folder, 'request.json'), 'utf8')
+    )
+    return manifest
+  }
+
+  async function editRequestManifest(
+    requestId: string,
+    patch: Record<string, unknown>
+  ): Promise<void> {
+    const folder = join(
+      nativeChatVisualsFolderFor(stateDirectory, SESSION),
+      'prototypes',
+      requestId
+    )
+    const manifest = await requestManifest(requestId)
+    await writeFile(join(folder, 'request.json'), JSON.stringify({ ...manifest, ...patch }))
+  }
+
+  it('list records the system version a request is first seen built on, and keeps it', async () => {
+    const requestId = '20261028-201500-aaaaaa'
+    await mkdir(join(launchDirectory, '.git'))
+    await writeSystem(launchDirectory, {
+      'tokens.json': JSON.stringify({ $extensions: { massorca: { version: 4 } } })
+    })
+    await writeSetFor(SESSION, requestId)
+    await editRequestManifest(requestId, { designSystemMode: 'propose' })
+
+    const first = replyResult(await call('prototypes.list', {}, STRUCTURED_CLIENT))
+    expect(first).toMatchObject({ sets: [expect.objectContaining({ builtOn: 4 })] })
+    expect(await requestManifest(requestId)).toMatchObject({ designSystemVersion: 4 })
+
+    await writeSystem(launchDirectory, {
+      'tokens.json': JSON.stringify({ $extensions: { massorca: { version: 5 } } })
+    })
+    const second = replyResult(await call('prototypes.list', {}, STRUCTURED_CLIENT))
+    expect(second).toMatchObject({ sets: [expect.objectContaining({ builtOn: 4 })] })
+    expect(await requestManifest(requestId)).toMatchObject({ designSystemVersion: 4 })
+  })
+
+  it('list records no version for a request that skipped the design system', async () => {
+    const requestId = '20261028-201500-bbbbbb'
+    await mkdir(join(launchDirectory, '.git'))
+    await writeSystem(launchDirectory, {
+      'tokens.json': JSON.stringify({ $extensions: { massorca: { version: 2 } } })
+    })
+    await writeSetFor(SESSION, requestId)
+    await editRequestManifest(requestId, { designSystemMode: 'skip' })
+
+    const listed = replyResult(await call('prototypes.list', {}, STRUCTURED_CLIENT))
+
+    expect(listed).toMatchObject({ sets: [expect.objectContaining({ requestId })] })
+    expect(listed).toMatchObject({ sets: [expect.not.objectContaining({ builtOn: 2 })] })
+    expect(await requestManifest(requestId)).not.toHaveProperty('designSystemVersion')
+  })
+
+  it('list records no version for a request whose project has no system yet', async () => {
+    const requestId = '20261028-201500-cccccc'
+    await writeSetFor(SESSION, requestId)
+    await editRequestManifest(requestId, { designSystemMode: 'use' })
+
+    const listed = replyResult(await call('prototypes.list', {}, STRUCTURED_CLIENT))
+
+    expect(listed).toMatchObject({ sets: [expect.objectContaining({ requestId })] })
+    expect(listed).toMatchObject({ sets: [expect.not.objectContaining({ builtOn: 2 })] })
+    expect(await requestManifest(requestId)).not.toHaveProperty('designSystemVersion')
+  })
+
   it('createRequest records the choice and the version the system has now', async () => {
     await mkdir(join(launchDirectory, '.git'))
     await writeSystem(launchDirectory, { 'tokens.json': TOKENS })

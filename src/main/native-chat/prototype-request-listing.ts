@@ -15,6 +15,8 @@ import type {
   PrototypeListedDirection,
   PrototypeListedSet
 } from '../../shared/rpc-contract/prototype-params'
+import { usesDesignSystemInstruction } from '../../shared/prototype-design-system-instruction'
+import type { DesignSystemSummary } from '../../shared/prototype-design-system-summary'
 import { nativeChatVisualsFolderName, nativeChatVisualsRootFor } from './native-chat-visuals-folder'
 import { directionNotesFor, withDirectionNotes } from './prototype-direction-notes'
 import { projectsOfLaunchDirectories } from './prototype-design-system-files'
@@ -24,7 +26,8 @@ import {
   gentleDesignSetFor,
   logPrototypeFailure,
   readDirectoryEntries,
-  readRequestManifest
+  readRequestManifest,
+  recordRequestDesignSystemVersion
 } from './prototype-request-disk'
 
 // Scan bounds, so the list that every Prototypes open runs stays cheap. Chats are taken in name order;
@@ -51,29 +54,36 @@ export async function listPrototypeSets(
   options: ListPrototypeSetsOptions
 ): Promise<ListPrototypeSetsResult> {
   const root = nativeChatVisualsRootFor(options.stateDirectory)
-  const sets: PrototypeListedSet[] = []
+  const requests: ListedRequest[] = []
   for (const candidate of await requestFolderCandidates(root)) {
     try {
-      const listed = await listedSetFor(candidate, options)
+      const listed = await listedRequestFor(candidate, options)
       if (listed !== null) {
-        sets.push(listed)
+        requests.push(listed)
       }
     } catch (error) {
       logPrototypeFailure('listing a prototype request', error)
     }
   }
-  sets.sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-  return withProjects(sets, options)
+  requests.sort((left, right) => right.set.createdAt.localeCompare(left.set.createdAt))
+  return withProjects(requests, options)
+}
+
+/** A listed set with the request folder and manifest it came from, for the version it records. */
+type ListedRequest = {
+  set: PrototypeListedSet
+  manifest: PrototypeRequestManifest
+  requestFolder: string
 }
 
 /** Each set with its project, and one design system summary per project that has one. */
 async function withProjects(
-  sets: PrototypeListedSet[],
+  requests: readonly ListedRequest[],
   options: ListPrototypeSetsOptions
 ): Promise<ListPrototypeSetsResult> {
   // Why the chat record and not the manifest: request.json sits in the folder the agent writes into.
   const launchDirectories = new Map<string, string>()
-  for (const set of sets) {
+  for (const { set } of requests) {
     const launchDirectory = options.launchDirectoryOf?.(set.sessionId)
     if (launchDirectory !== undefined) {
       launchDirectories.set(set.sessionId, launchDirectory)
@@ -81,10 +91,13 @@ async function withProjects(
   }
   const projects = await projectsOfLaunchDirectories(launchDirectories.values())
   const designSystems = new Map<string, PrototypeListedDesignSystem>()
-  const withProject = sets.map((set): PrototypeListedSet => {
+  const sets: PrototypeListedSet[] = []
+  for (const request of requests) {
+    const { set } = request
     const project = projects.get(launchDirectories.get(set.sessionId) ?? '')
     if (project === undefined) {
-      return set
+      sets.push(set)
+      continue
     }
     if (project.system !== undefined && !designSystems.has(project.projectKey)) {
       designSystems.set(project.projectKey, {
@@ -93,12 +106,35 @@ async function withProjects(
         ...project.system
       })
     }
-    return { ...set, projectKey: project.projectKey, projectName: project.projectName }
-  })
+    const builtOn = await builtOnOf(request, project.system)
+    sets.push({
+      ...set,
+      projectKey: project.projectKey,
+      projectName: project.projectName,
+      ...(builtOn !== undefined ? { builtOn } : {})
+    })
+  }
   return {
-    sets: withProject,
+    sets,
     ...(designSystems.size > 0 ? { designSystems: [...designSystems.values()] } : {})
   }
+}
+
+// Why first sight: a request sent before its project had a system carries no version, so the version the
+// system has when the list first sees one is written into request.json and kept, as a Gentle Shell slug is.
+async function builtOnOf(
+  { set, manifest, requestFolder }: ListedRequest,
+  system: DesignSystemSummary | undefined
+): Promise<number | undefined> {
+  if (
+    set.builtOn !== undefined ||
+    system === undefined ||
+    !usesDesignSystemInstruction(manifest.designSystemMode)
+  ) {
+    return set.builtOn
+  }
+  const recorded = await recordRequestDesignSystemVersion(requestFolder, manifest, system.version)
+  return recorded ? system.version : undefined
 }
 
 type RequestFolderCandidate = {
@@ -135,10 +171,10 @@ function newestRequestNameFirst(left: string, right: string): number {
   return right.localeCompare(left)
 }
 
-async function listedSetFor(
+async function listedRequestFor(
   candidate: RequestFolderCandidate,
   options: ListPrototypeSetsOptions
-): Promise<PrototypeListedSet | null> {
+): Promise<ListedRequest | null> {
   const requestFolder = join(candidate.visualsFolder, prototypeRequestFolder(candidate.requestName))
   const manifest = await readRequestManifest(requestFolder)
   // Why: the folder is keyed by the session's hash, so a manifest that names another session is misplaced.
@@ -173,19 +209,23 @@ async function listedSetFor(
     return null
   }
   return {
-    requestId: manifest.requestId,
-    sessionId: manifest.sessionId,
-    agent: manifest.agent,
-    worktreeId: manifest.worktreeId ?? null,
-    chatTitle: manifest.chatTitle ?? null,
-    originalPrompt: manifest.originalPrompt,
-    createdAt: manifest.createdAt,
-    count: manifest.count,
-    folderPath: requestFolder,
-    ...(manifest.designSystemVersion !== undefined
-      ? { builtOn: manifest.designSystemVersion }
-      : {}),
-    directions
+    set: {
+      requestId: manifest.requestId,
+      sessionId: manifest.sessionId,
+      agent: manifest.agent,
+      worktreeId: manifest.worktreeId ?? null,
+      chatTitle: manifest.chatTitle ?? null,
+      originalPrompt: manifest.originalPrompt,
+      createdAt: manifest.createdAt,
+      count: manifest.count,
+      folderPath: requestFolder,
+      ...(manifest.designSystemVersion !== undefined
+        ? { builtOn: manifest.designSystemVersion }
+        : {}),
+      directions
+    },
+    manifest,
+    requestFolder
   }
 }
 
