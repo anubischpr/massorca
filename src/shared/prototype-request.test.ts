@@ -1,15 +1,22 @@
 import { describe, expect, it } from 'vitest'
+import { buildPrototypeCountLine } from './prototype-count-setting'
 import {
   buildPrototypeIterationInstruction,
   buildPrototypeRequestMessage,
   classifyPrototypeRequest,
-  PROTOTYPE_NATIVE_COMMANDS
+  PROTOTYPE_NATIVE_COMMANDS,
+  splitPrototypeHiddenInstruction
 } from './prototype-request'
 
 const FOLDER = '/work/visuals/prototypes/20261028-201500-k3f9q2'
+const REQUEST_ID = '20261028-201500-k3f9q2'
+const MARKER = `<!-- orca-prototype-request:${REQUEST_ID} -->`
+const ONE_LINE = buildPrototypeCountLine(1)
+const TWO_LINE = buildPrototypeCountLine(2)
 
 const TWO_DIRECTIONS = [
-  'Produce exactly 2 distinct design directions. Write each as ONE self-contained HTML file with inline CSS and no external network resources, at these exact paths:',
+  TWO_LINE,
+  'Write each as ONE file with inline CSS and no external network resources, at these exact paths:',
   `${FOLDER}/A.html`,
   `${FOLDER}/B.html`,
   'Write nothing else in that folder. Do not announce these files as chat visuals. Reply with one line per direction: its letter, a short name, and a one-line tradeoff.'
@@ -138,87 +145,102 @@ describe('classifyPrototypeRequest', () => {
 })
 
 describe('buildPrototypeRequestMessage', () => {
+  const base = { requestId: REQUEST_ID, folderPath: FOLDER }
+
   it('sends a /prototype request to Claude as the plain instruction, with its folder', () => {
     expect(
       buildPrototypeRequestMessage({
+        ...base,
         text: '/prototype make a login page',
         agent: 'claude',
-        count: 2,
-        folderPath: FOLDER
+        count: 2
       })
     ).toEqual({
       visibleText: '/prototype make a login page',
-      sentText: `make a login page\n\n${TWO_DIRECTIONS}`
+      sentText: `make a login page\n\n${MARKER}\n${TWO_DIRECTIONS}`
     })
   })
 
-  it('translates /prototype on Gentle Shell into its design command, with no folder', () => {
+  it('starts the hidden instruction with the exact line Settings shows', () => {
+    for (const agent of ['claude', 'codex', 'antigravity', 'gentle-shell', 'other'] as const) {
+      for (const count of [1, 2, 3, 4]) {
+        const { sentText } = buildPrototypeRequestMessage({
+          ...base,
+          text: 'make a mockup',
+          agent,
+          count
+        })
+        const hidden = sentText.slice(sentText.indexOf(MARKER) + MARKER.length + 1)
+        expect(hidden.split('\n')[0]).toBe(buildPrototypeCountLine(count))
+      }
+    }
+  })
+
+  it('translates /prototype on Gentle Shell into its design command, with no folder paths', () => {
     expect(
       buildPrototypeRequestMessage({
+        ...base,
         text: '/prototype make a login page',
         agent: 'gentle-shell',
-        count: 3,
-        folderPath: FOLDER
+        count: 3
       })
     ).toEqual({
       visibleText: '/prototype make a login page',
-      sentText: '/gentle:design make a login page\n\nProduce 3 distinct design directions.'
+      sentText: `/gentle:design make a login page\n\n${MARKER}\n${buildPrototypeCountLine(3)}`
     })
     expect(
-      buildPrototypeRequestMessage({
-        text: '/prototipo',
-        agent: 'gentle-shell',
-        count: 1,
-        folderPath: FOLDER
-      }).sentText
-    ).toBe('/gentle:design\n\nProduce 1 design direction.')
+      buildPrototypeRequestMessage({ ...base, text: '/prototipo', agent: 'gentle-shell', count: 1 })
+        .sentText
+    ).toBe(`/gentle:design\n\n${MARKER}\n${ONE_LINE}`)
   })
 
   it('sends /prototype on Gentle Shell as the plain instruction when it would be a control subcommand', () => {
     expect(
       buildPrototypeRequestMessage({
+        ...base,
         text: '/prototype stop',
         agent: 'gentle-shell',
-        count: 2,
-        folderPath: FOLDER
+        count: 2
       }).sentText
-    ).toBe(`stop\n\n${TWO_DIRECTIONS}`)
+    ).toBe(`stop\n\n${MARKER}\n${TWO_LINE}`)
   })
 
   it('leaves a typed Gentle Shell design command as written and adds the count line', () => {
     expect(
       buildPrototypeRequestMessage({
+        ...base,
         text: '/gentle:design make a login page',
         agent: 'gentle-shell',
-        count: 2,
-        folderPath: FOLDER
+        count: 2
       })
     ).toEqual({
       visibleText: '/gentle:design make a login page',
-      sentText: '/gentle:design make a login page\n\nProduce 2 distinct design directions.'
+      sentText: `/gentle:design make a login page\n\n${MARKER}\n${TWO_LINE}`
     })
   })
 
   it('sends a typed native command of another agent as written, with the folder instruction', () => {
     expect(
       buildPrototypeRequestMessage({
+        ...base,
         text: '/design a login page',
         agent: 'claude',
-        count: 2,
-        folderPath: FOLDER
+        count: 2
       }).sentText
-    ).toBe(`/design a login page\n\n${TWO_DIRECTIONS}`)
+    ).toBe(`/design a login page\n\n${MARKER}\n${TWO_DIRECTIONS}`)
   })
 
   it('sends a keyword request trimmed, with the folder instruction, and shows the text as typed', () => {
     const message = buildPrototypeRequestMessage({
+      ...base,
       text: '  Make a mockup of the page \n',
       agent: 'codex',
-      count: 3,
-      folderPath: FOLDER
+      count: 3
     })
     expect(message.visibleText).toBe('  Make a mockup of the page \n')
-    expect(message.sentText.startsWith('Make a mockup of the page\n\nProduce exactly 3')).toBe(true)
+    expect(message.sentText.startsWith(`Make a mockup of the page\n\n${MARKER}\nProduce 3`)).toBe(
+      true
+    )
     expect(message.sentText).toContain(`${FOLDER}/C.html`)
     expect(message.sentText).not.toContain('D.html')
   })
@@ -226,16 +248,18 @@ describe('buildPrototypeRequestMessage', () => {
   it('uses the singular wording and one file for a single direction', () => {
     expect(
       buildPrototypeRequestMessage({
+        ...base,
         text: '/prototype a login page',
         agent: 'codex',
-        count: 1,
-        folderPath: FOLDER
+        count: 1
       }).sentText
     ).toBe(
       [
         'a login page',
         '',
-        'Produce 1 design direction. Write it as a single self-contained HTML file with inline CSS and no external network resources, at this exact path:',
+        MARKER,
+        ONE_LINE,
+        'Write it with inline CSS and no external network resources, at this exact path:',
         `${FOLDER}/A.html`,
         'Write nothing else in that folder. Do not announce this file as a chat visual. Reply with one line: its letter, a short name, and a one-line tradeoff.'
       ].join('\n')
@@ -244,28 +268,28 @@ describe('buildPrototypeRequestMessage', () => {
 
   it('clamps the count to four directions, A to D', () => {
     const { sentText } = buildPrototypeRequestMessage({
+      ...base,
       text: 'make a mockup',
       agent: 'other',
-      count: 9,
-      folderPath: FOLDER
+      count: 9
     })
-    expect(sentText).toContain('Produce exactly 4 distinct design directions.')
+    expect(sentText).toContain('Produce 4 distinct design directions, each')
     expect(sentText).toContain(`${FOLDER}/D.html`)
     expect(sentText).not.toContain('E.html')
   })
 
   it('adds the Stitch line for Antigravity only', () => {
     const antigravity = buildPrototypeRequestMessage({
+      ...base,
       text: '/prototype make a login page',
       agent: 'antigravity',
-      count: 2,
-      folderPath: FOLDER
+      count: 2
     }).sentText
     const claude = buildPrototypeRequestMessage({
+      ...base,
       text: '/prototype make a login page',
       agent: 'claude',
-      count: 2,
-      folderPath: FOLDER
+      count: 2
     }).sentText
     expect(
       antigravity.endsWith(
@@ -275,30 +299,31 @@ describe('buildPrototypeRequestMessage', () => {
     expect(claude).not.toContain('Stitch')
   })
 
-  it('sends no leading blank lines when /prototype has no text', () => {
+  it('opens with the marker, and no leading blank lines, when /prototype has no text', () => {
     expect(
       buildPrototypeRequestMessage({
+        ...base,
         text: '/prototype',
         agent: 'codex',
-        count: 2,
-        folderPath: FOLDER
-      }).sentText.startsWith('Produce exactly 2 distinct design directions.')
+        count: 2
+      }).sentText.startsWith(`${MARKER}\n${TWO_LINE}`)
     ).toBe(true)
   })
 
   it('returns text without a request exactly as it was', () => {
     expect(
       buildPrototypeRequestMessage({
+        ...base,
         text: '  fix the build  ',
         agent: 'claude',
-        count: 2,
-        folderPath: FOLDER
+        count: 2
       })
     ).toEqual({ visibleText: '  fix the build  ', sentText: '  fix the build  ' })
   })
 
   it('keeps the separators of a Windows folder and joins the file name with a slash', () => {
     const { sentText } = buildPrototypeRequestMessage({
+      ...base,
       text: '/prototype a login',
       agent: 'codex',
       count: 1,
@@ -307,25 +332,80 @@ describe('buildPrototypeRequestMessage', () => {
     expect(sentText).toContain('C:\\work\\visuals\\prototypes\\req/A.html')
   })
 
-  it('needs a folder path to write the direction files', () => {
+  it.each(['', '   ', '\t\n'])('refuses the blank folder path %j', (folderPath) => {
+    for (const agent of ['claude', 'gentle-shell'] as const) {
+      expect(() =>
+        buildPrototypeRequestMessage({
+          ...base,
+          folderPath,
+          text: '/prototype a login',
+          agent,
+          count: 2
+        })
+      ).toThrow(RangeError)
+    }
+  })
+
+  it('refuses a request id the marker could not carry', () => {
     expect(() =>
       buildPrototypeRequestMessage({
+        ...base,
+        requestId: 'x --> y',
         text: '/prototype a login',
         agent: 'claude',
-        count: 2,
-        folderPath: ''
+        count: 2
       })
     ).toThrow(RangeError)
+  })
+
+  it('leaves text without a request alone even when the folder is blank', () => {
+    expect(
+      buildPrototypeRequestMessage({
+        ...base,
+        folderPath: '',
+        text: 'fix the build',
+        agent: 'claude',
+        count: 2
+      }).sentText
+    ).toBe('fix the build')
+  })
+
+  it('hides everything it adds: the bubble reads what the user typed, trimmed', () => {
+    const { sentText } = buildPrototypeRequestMessage({
+      ...base,
+      text: '  Make a mockup of the page \n',
+      agent: 'antigravity',
+      count: 3
+    })
+    expect(splitPrototypeHiddenInstruction(sentText)).toEqual({
+      visibleText: 'Make a mockup of the page',
+      hidden: { kind: 'request', requestId: REQUEST_ID }
+    })
   })
 })
 
 describe('buildPrototypeIterationInstruction', () => {
-  it('names the new version file of the direction and forbids other edits', () => {
-    expect(
-      buildPrototypeIterationInstruction({ letter: 'B', nextVersion: 2, folderPath: FOLDER })
-    ).toBe(
-      `Write the new version of direction B as ${FOLDER}/B-v2.html, self-contained with inline CSS and no external network resources, and do not modify other files.`
+  const base = { requestId: REQUEST_ID, folderPath: FOLDER }
+
+  it('opens with its marker, names the new version file and forbids other edits', () => {
+    expect(buildPrototypeIterationInstruction({ ...base, letter: 'B', nextVersion: 2 })).toBe(
+      [
+        `<!-- orca-prototype-iteration:${REQUEST_ID}:B -->`,
+        `Write the new version of direction B as ${FOLDER}/B-v2.html, self-contained with inline CSS and no external network resources, and do not modify other files.`
+      ].join('\n')
     )
+  })
+
+  it('hides itself from the bubble', () => {
+    const instruction = buildPrototypeIterationInstruction({
+      ...base,
+      letter: 'B',
+      nextVersion: 3
+    })
+    expect(splitPrototypeHiddenInstruction(`Iterate on B.\n\n${instruction}`)).toEqual({
+      visibleText: 'Iterate on B.',
+      hidden: { kind: 'iteration', requestId: REQUEST_ID, letter: 'B' }
+    })
   })
 
   it.each([
@@ -334,8 +414,66 @@ describe('buildPrototypeIterationInstruction', () => {
     { label: 'version 1', letter: 'B', nextVersion: 1 },
     { label: 'a fractional version', letter: 'B', nextVersion: 2.5 }
   ])('rejects $label', ({ letter, nextVersion }) => {
+    expect(() => buildPrototypeIterationInstruction({ ...base, letter, nextVersion })).toThrow(
+      RangeError
+    )
+  })
+
+  it('rejects a blank folder path and an unusable request id', () => {
     expect(() =>
-      buildPrototypeIterationInstruction({ letter, nextVersion, folderPath: FOLDER })
+      buildPrototypeIterationInstruction({ ...base, folderPath: ' ', letter: 'B', nextVersion: 2 })
     ).toThrow(RangeError)
+    expect(() =>
+      buildPrototypeIterationInstruction({ ...base, requestId: '', letter: 'B', nextVersion: 2 })
+    ).toThrow(RangeError)
+  })
+})
+
+describe('splitPrototypeHiddenInstruction', () => {
+  it('returns text without a marker unchanged', () => {
+    expect(splitPrototypeHiddenInstruction('  just a message \n')).toEqual({
+      visibleText: '  just a message \n'
+    })
+    expect(splitPrototypeHiddenInstruction('')).toEqual({ visibleText: '' })
+  })
+
+  it('cuts at the marker line and reads its request id', () => {
+    expect(
+      splitPrototypeHiddenInstruction(`make a login page\n\n${MARKER}\nProduce 2 distinct`)
+    ).toEqual({
+      visibleText: 'make a login page',
+      hidden: { kind: 'request', requestId: REQUEST_ID }
+    })
+  })
+
+  it('reads a marker that opens the message as an empty visible text', () => {
+    expect(splitPrototypeHiddenInstruction(`${MARKER}\nProduce 2 distinct`)).toEqual({
+      visibleText: '',
+      hidden: { kind: 'request', requestId: REQUEST_ID }
+    })
+  })
+
+  it('reads Windows line endings', () => {
+    expect(splitPrototypeHiddenInstruction(`hello\r\n\r\n${MARKER}\r\nProduce`)).toEqual({
+      visibleText: 'hello',
+      hidden: { kind: 'request', requestId: REQUEST_ID }
+    })
+  })
+
+  it('needs the marker to be a whole line', () => {
+    const inline = `see ${MARKER} here`
+    expect(splitPrototypeHiddenInstruction(inline)).toEqual({ visibleText: inline })
+  })
+
+  it.each([
+    '<!-- orca-prototype-request: -->',
+    '<!-- orca-prototype-request:bad id -->',
+    '<!-- orca-prototype-request:abc:B -->',
+    '<!-- orca-prototype-iteration:abc -->',
+    '<!-- orca-prototype-iteration:abc:b -->',
+    '<!-- orca-prototype-other:abc -->'
+  ])('does not read %j as a marker', (line) => {
+    const text = `hello\n\n${line}\nrest`
+    expect(splitPrototypeHiddenInstruction(text)).toEqual({ visibleText: text })
   })
 })

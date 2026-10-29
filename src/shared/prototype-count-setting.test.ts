@@ -104,7 +104,7 @@ describe('buildPrototypeCountLine', () => {
 
   it('uses the singular wording for one direction, including a count clamped to one', () => {
     const singular =
-      'Produce 1 design direction, as a single self-contained HTML file, with a one-line tradeoff.'
+      'Produce 1 design direction, as a self-contained HTML file, with a one-line tradeoff.'
     expect(buildPrototypeCountLine(1)).toBe(singular)
     expect(buildPrototypeCountLine(0)).toBe(singular)
   })
