@@ -10,14 +10,17 @@ import {
   CreatePrototypeRequestParams,
   ListPrototypeSetsParams,
   ReadPrototypeFileParams,
+  WriteAttachmentParams,
   type CreatePrototypeRequestResult,
   type ListPrototypeSetsResult,
-  type ReadPrototypeFileResult
+  type ReadPrototypeFileResult,
+  type WriteAttachmentResult
 } from '../../../../shared/rpc-contract/prototype-params'
 import {
   createPrototypeRequest,
   listPrototypeSets,
-  readPrototypeSetFile
+  readPrototypeSetFile,
+  writePrototypeAttachment
 } from '../../../native-chat/prototype-requests'
 import { getProfileUserDataPath } from '../../../orca-profiles/profile-storage-paths'
 import { defineMethod } from '../core'
@@ -79,6 +82,25 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
         sessionId: params.sessionId,
         requestId: params.requestId,
         fileName: params.fileName
+      })
+    }
+  }),
+  defineMethod({
+    name: 'prototypes.writeAttachment',
+    permission: 'workspace',
+    params: WriteAttachmentParams,
+    handler: async (params, ctx): Promise<WriteAttachmentResult> => {
+      const host = await requireInstalledStructuredHost(ctx)
+      const record = host.deps.store.getRecord(params.sessionId)
+      if (!record || !isLocalStructuredChat(record)) {
+        return { ok: false, error: 'unsupported' }
+      }
+      return writePrototypeAttachment({
+        stateDirectory: getProfileUserDataPath(),
+        sessionId: params.sessionId,
+        requestId: params.requestId,
+        name: params.name,
+        pngBase64: params.pngBase64
       })
     }
   })

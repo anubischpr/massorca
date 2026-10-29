@@ -4,7 +4,8 @@ import {
   createPrototypeRequestOnHost,
   listPrototypeSetsOnHost,
   PrototypeHostOutdatedError,
-  readPrototypeSetFileOnHost
+  readPrototypeSetFileOnHost,
+  writePrototypeAttachmentOnHost
 } from './runtime-prototype-client'
 
 vi.mock('./runtime-rpc-client', () => ({ callRuntimeRpc: vi.fn() }))
@@ -17,6 +18,20 @@ beforeEach(() => {
 })
 
 describe('runtime prototype client', () => {
+  it('writes a note screenshot through the host and returns its answer', async () => {
+    callMock.mockResolvedValueOnce({ ok: true, path: '/state/notes/note-1.png' })
+
+    expect(
+      await writePrototypeAttachmentOnHost(LOCAL, {
+        sessionId: 'session-alpha-0001',
+        requestId: '20261028-201500-aaaaaa',
+        name: 'note-1',
+        pngBase64: 'iVBORw0KGgo='
+      })
+    ).toEqual({ ok: true, path: '/state/notes/note-1.png' })
+    expect(callMock.mock.calls[0]?.[1]).toBe('prototypes.writeAttachment')
+  })
+
   it('calls prototypes.list with the filter and a bounded timeout', async () => {
     callMock.mockResolvedValueOnce({ sets: [] })
 

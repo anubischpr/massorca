@@ -8,6 +8,7 @@ import {
   PROTOTYPE_NATIVE_COMMANDS,
   splitPrototypeHiddenInstruction
 } from './prototype-request'
+import { PROTOTYPE_DIRECTIONS_FILE_NAME } from './prototype-request-folder'
 
 const FOLDER = '/work/visuals/prototypes/20261028-201500-k3f9q2'
 const REQUEST_ID = '20261028-201500-k3f9q2'
@@ -22,12 +23,15 @@ function typedEcho(typed: string): string {
 }
 const TWO_LINE = buildPrototypeCountLine(2)
 
+const DIRECTIONS_LINE = `The only other file to write there is ${FOLDER}/${PROTOTYPE_DIRECTIONS_FILE_NAME}: a JSON array [{"letter":"A","name":"<short name>","tradeoff":"<one line>"}, ...] with one entry per direction.`
+
 const TWO_DIRECTIONS = [
   TWO_LINE,
   'Write each as ONE file with inline CSS and no external network resources, at these exact paths:',
   `${FOLDER}/A.html`,
   `${FOLDER}/B.html`,
-  'Write nothing else in that folder. Do not announce these files as chat visuals. Reply with one line per direction: its letter, a short name, and a one-line tradeoff.'
+  'Write nothing else in that folder. Do not announce these files as chat visuals. Reply with one line per direction: its letter, a short name, and a one-line tradeoff.',
+  DIRECTIONS_LINE
 ].join('\n')
 
 describe('PROTOTYPE_NATIVE_COMMANDS', () => {
@@ -293,6 +297,7 @@ describe('buildPrototypeRequestMessage', () => {
         'Write it with inline CSS and no external network resources, at this exact path:',
         `${FOLDER}/A.html`,
         'Write nothing else in that folder. Do not announce this file as a chat visual. Reply with one line: its letter, a short name, and a one-line tradeoff.',
+        DIRECTIONS_LINE,
         typedEcho('/prototype a login page')
       ].join('\n')
     )
@@ -360,6 +365,42 @@ describe('buildPrototypeRequestMessage', () => {
       folderPath: 'C:\\work\\visuals\\prototypes\\req\\'
     })
     expect(sentText).toContain('C:\\work\\visuals\\prototypes\\req/A.html')
+  })
+
+  it('joins the directions file from the folder the same way as the direction files', () => {
+    const { sentText } = buildPrototypeRequestMessage({
+      ...base,
+      text: '/prototype a login',
+      agent: 'codex',
+      count: 2,
+      folderPath: 'C:\\work\\visuals\\prototypes\\req\\'
+    })
+    expect(sentText).toContain('C:\\work\\visuals\\prototypes\\req/A.html')
+    expect(sentText).toContain('C:\\work\\visuals\\prototypes\\req/directions.json')
+  })
+
+  it('asks for the directions file after the nothing-else line and before the Antigravity line', () => {
+    const { sentText } = buildPrototypeRequestMessage({
+      ...base,
+      text: '/prototype make a login page',
+      agent: 'antigravity',
+      count: 3
+    })
+    const nothingElse = sentText.indexOf('Write nothing else in that folder.')
+    const directions = sentText.indexOf(DIRECTIONS_LINE)
+    expect(nothingElse).toBeGreaterThan(-1)
+    expect(directions).toBeGreaterThan(nothingElse)
+    expect(sentText.indexOf('Do not use Stitch MCP')).toBeGreaterThan(directions)
+  })
+
+  it('asks no directions file from Gentle Shell, which writes its own design folder', () => {
+    const { sentText } = buildPrototypeRequestMessage({
+      ...base,
+      text: '/prototype make a login page',
+      agent: 'gentle-shell',
+      count: 2
+    })
+    expect(sentText).not.toContain('directions.json')
   })
 
   it.each(['', '   ', '\t\n'])('refuses the blank folder path %j', (folderPath) => {

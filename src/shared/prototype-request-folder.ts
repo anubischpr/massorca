@@ -3,6 +3,8 @@
 
 export const PROTOTYPE_FOLDER = 'prototypes'
 export const PROTOTYPE_MANIFEST_FILE_NAME = 'request.json'
+// The agent's short name and one-line tradeoff for each direction.
+export const PROTOTYPE_DIRECTIONS_FILE_NAME = 'directions.json'
 export const PROTOTYPE_DIRECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789'

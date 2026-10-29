@@ -56,7 +56,12 @@ describe('prototypes.*', () => {
   it('are registered on the runtime manifest', () => {
     const names = ALL_RPC_METHODS.map((method) => method.name)
     expect(names).toEqual(
-      expect.arrayContaining(['prototypes.createRequest', 'prototypes.list', 'prototypes.readFile'])
+      expect.arrayContaining([
+        'prototypes.createRequest',
+        'prototypes.list',
+        'prototypes.readFile',
+        'prototypes.writeAttachment'
+      ])
     )
   })
 
@@ -106,6 +111,69 @@ describe('prototypes.*', () => {
       STRUCTURED_CLIENT
     )
     expect(replyResult(ssh)).toEqual({ ok: false, error: 'unsupported' })
+  })
+
+  it('writeAttachment writes a note into the request folder of a local chat', async () => {
+    const made = await call(
+      'prototypes.createRequest',
+      { sessionId: SESSION, agent: 'claude', originalPrompt: 'a dashboard', count: 2 },
+      STRUCTURED_CLIENT
+    )
+    const createdResult = replyResult(made)
+    const requestId =
+      typeof createdResult === 'object' && createdResult !== null && 'requestId' in createdResult
+        ? String(createdResult.requestId)
+        : ''
+    const pngBase64 = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.from('note')
+    ]).toString('base64')
+
+    const reply = await call(
+      'prototypes.writeAttachment',
+      { sessionId: SESSION, requestId, name: 'note-1', pngBase64 },
+      STRUCTURED_CLIENT
+    )
+
+    expect(replyResult(reply)).toEqual({
+      ok: true,
+      path: join(
+        nativeChatVisualsFolderFor(stateDirectory, SESSION),
+        'prototypes',
+        requestId,
+        'notes',
+        'note-1.png'
+      )
+    })
+  })
+
+  it('writeAttachment answers unsupported for a chat this host has no record of', async () => {
+    record = null
+    const reply = await call(
+      'prototypes.writeAttachment',
+      {
+        sessionId: SESSION,
+        requestId: '20261028-201500-aaaaaa',
+        name: 'note-1',
+        pngBase64: 'iVBORw0KGgo='
+      },
+      STRUCTURED_CLIENT
+    )
+    expect(replyResult(reply)).toEqual({ ok: false, error: 'unsupported' })
+  })
+
+  it('writeAttachment rejects a note name with a separator at the schema', async () => {
+    const reply = await call(
+      'prototypes.writeAttachment',
+      {
+        sessionId: SESSION,
+        requestId: '20261028-201500-aaaaaa',
+        name: 'a/b',
+        pngBase64: 'iVBORw0KGgo='
+      },
+      STRUCTURED_CLIENT
+    )
+    expect(reply.ok).toBe(false)
   })
 
   it('refuses a parameter the schema does not name', async () => {

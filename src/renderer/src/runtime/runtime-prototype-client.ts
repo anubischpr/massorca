@@ -4,7 +4,9 @@ import type {
   ListPrototypeSetsParams,
   ListPrototypeSetsResult,
   ReadPrototypeFileParams,
-  ReadPrototypeFileResult
+  ReadPrototypeFileResult,
+  WriteAttachmentParams,
+  WriteAttachmentResult
 } from '../../../shared/rpc-contract/prototype-params'
 import type { RuntimeClientTarget } from './runtime-client-target'
 import { callRuntimeRpc } from './runtime-rpc-client'
@@ -42,6 +44,14 @@ export function readPrototypeSetFileOnHost(
   params: ReadPrototypeFileParams
 ): Promise<ReadPrototypeFileResult> {
   return callPrototypeHost(target, 'prototypes.readFile', params)
+}
+
+/** Writes one note screenshot into the request folder on the host; a refusal comes back as `{ ok: false, error }`. */
+export function writePrototypeAttachmentOnHost(
+  target: RuntimeClientTarget,
+  params: WriteAttachmentParams
+): Promise<WriteAttachmentResult> {
+  return callPrototypeHost(target, 'prototypes.writeAttachment', params)
 }
 
 async function callPrototypeHost<TResult>(

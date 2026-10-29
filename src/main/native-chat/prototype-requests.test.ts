@@ -3,11 +3,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { NATIVE_CHAT_VISUAL_MAX_BYTES } from '../../shared/native-chat-visual-directive'
+import { PROTOTYPE_ATTACHMENT_MAX_BYTES } from '../../shared/rpc-contract/prototype-params'
 import { nativeChatVisualsFolderFor } from './native-chat-visuals-folder'
 import {
   createPrototypeRequest,
   listPrototypeSets,
-  readPrototypeSetFile
+  readPrototypeSetFile,
+  writePrototypeAttachment
 } from './prototype-requests'
 
 const SESSION = 'session-test-0001'
@@ -156,6 +158,7 @@ describe('listPrototypeSets', () => {
       createdAt: LATER.toISOString(),
       count: 2
     })
+    expect(first?.folderPath).toBe(newer.folderPath)
     expect(first?.directions.map((direction) => direction.letter)).toEqual(['A', 'B'])
     expect(first?.directions[1]?.versions.map((version) => version.fileName)).toEqual([
       `prototypes/${newer.requestId}/B.html`,
@@ -333,6 +336,137 @@ describe('readPrototypeSetFile', () => {
     expect(await readPrototypeSetFile({ ...base, fileName: 'design/bold/secret.html' })).toEqual({
       ok: false,
       error: 'not_found'
+    })
+  })
+})
+
+describe('the directions.json the agent writes', () => {
+  it('gives each direction the name and tradeoff the agent wrote for its letter', async () => {
+    const created = await create('claude', NOW)
+    await writeIn(created.folderPath, 'A.html', '<p>a</p>')
+    await writeIn(created.folderPath, 'B.html', '<p>b</p>')
+    await writeIn(
+      created.folderPath,
+      'directions.json',
+      JSON.stringify([
+        { letter: 'A', name: 'Quiet grid', tradeoff: 'Calm, but dense.' },
+        { letter: 'B', name: 'Bold cards', tradeoff: 'Loud, but quick to scan.' },
+        { letter: 'C', name: 'Not in the set', tradeoff: 'No C file exists.' }
+      ])
+    )
+
+    const listed = await listPrototypeSets({ stateDirectory })
+    expect(listed.sets[0]?.directions).toMatchObject([
+      { letter: 'A', name: 'Quiet grid', tradeoff: 'Calm, but dense.' },
+      { letter: 'B', name: 'Bold cards', tradeoff: 'Loud, but quick to scan.' }
+    ])
+  })
+
+  it.each([
+    ['malformed JSON', '[{"letter":"A","name":'],
+    ['an empty name', JSON.stringify([{ letter: 'A', name: '', tradeoff: 'Calm.' }])],
+    ['a non-array', JSON.stringify({ A: 'Quiet grid' })]
+  ])('lists the set without names when it holds %s', async (_label, content) => {
+    const created = await create('claude', NOW)
+    await writeIn(created.folderPath, 'A.html', '<p>a</p>')
+    await writeIn(created.folderPath, 'directions.json', content)
+
+    const listed = await listPrototypeSets({ stateDirectory })
+    expect(listed.sets.map((set) => set.requestId)).toEqual([created.requestId])
+    expect(listed.sets[0]?.directions[0]).toMatchObject({ letter: 'A' })
+    expect(listed.sets[0]?.directions[0]).not.toHaveProperty('name')
+    expect(listed.sets[0]?.directions[0]).not.toHaveProperty('tradeoff')
+  })
+
+  it('ignores a directions.json over its size bound, even when its JSON is valid', async () => {
+    const created = await create('claude', NOW)
+    await writeIn(created.folderPath, 'A.html', '<p>a</p>')
+    const valid = JSON.stringify([{ letter: 'A', name: 'Quiet grid', tradeoff: 'Calm.' }])
+    await writeIn(created.folderPath, 'directions.json', valid + ' '.repeat(16 * 1024))
+
+    const listed = await listPrototypeSets({ stateDirectory })
+    expect(listed.sets.map((set) => set.requestId)).toEqual([created.requestId])
+    expect(listed.sets[0]?.directions[0]).not.toHaveProperty('name')
+  })
+})
+
+describe('writePrototypeAttachment', () => {
+  const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  const png = (body: string): Buffer => Buffer.concat([PNG_SIGNATURE, Buffer.from(body)])
+
+  function attach(requestId: string, pngBase64: string, name = 'note-1') {
+    return writePrototypeAttachment({
+      stateDirectory,
+      sessionId: SESSION,
+      requestId,
+      name,
+      pngBase64
+    })
+  }
+
+  it('writes a PNG under the request notes folder and returns its path', async () => {
+    const created = await create('claude', NOW)
+
+    expect(await attach(created.requestId, png('first').toString('base64'))).toEqual({
+      ok: true,
+      path: join(created.folderPath, 'notes', 'note-1.png')
+    })
+    expect(await readFile(join(created.folderPath, 'notes', 'note-1.png'))).toEqual(png('first'))
+  })
+
+  it('overwrites the same name on a retry', async () => {
+    const created = await create('claude', NOW)
+    await attach(created.requestId, png('first').toString('base64'))
+    await attach(created.requestId, png('second').toString('base64'))
+
+    expect(await readFile(join(created.folderPath, 'notes', 'note-1.png'))).toEqual(png('second'))
+  })
+
+  it.each([
+    ['text that is not base64', 'not base64 !!'],
+    ['base64 without its padding', png('ab').toString('base64').replace(/=+$/u, '')],
+    ['bytes that are not a PNG', Buffer.from('hello world').toString('base64')],
+    ['an empty string', '']
+  ])('refuses %s as invalid', async (_label, pngBase64) => {
+    const created = await create('claude', NOW)
+
+    expect(await attach(created.requestId, pngBase64)).toEqual({ ok: false, error: 'invalid' })
+  })
+
+  it('refuses a name that is not one plain file name', async () => {
+    const created = await create('claude', NOW)
+    const pngBase64 = png('x').toString('base64')
+
+    for (const name of ['../escape', 'nested/name', '.hidden', '']) {
+      expect(await attach(created.requestId, pngBase64, name)).toEqual({
+        ok: false,
+        error: 'invalid'
+      })
+    }
+  })
+
+  it('answers too_large above the byte cap and keeps a PNG of exactly the cap', async () => {
+    const created = await create('claude', NOW)
+    const body = PROTOTYPE_ATTACHMENT_MAX_BYTES - PNG_SIGNATURE.length
+
+    expect(
+      await attach(
+        created.requestId,
+        Buffer.concat([PNG_SIGNATURE, Buffer.alloc(body + 1)]).toString('base64')
+      )
+    ).toEqual({ ok: false, error: 'too_large' })
+    expect(
+      await attach(
+        created.requestId,
+        Buffer.concat([PNG_SIGNATURE, Buffer.alloc(body)]).toString('base64')
+      )
+    ).toEqual({ ok: true, path: join(created.folderPath, 'notes', 'note-1.png') })
+  })
+
+  it('answers unsupported for a request this chat has no folder for', async () => {
+    expect(await attach('20261028-201500-zzzzzz', png('x').toString('base64'))).toEqual({
+      ok: false,
+      error: 'unsupported'
     })
   })
 })

@@ -456,7 +456,8 @@ import {
 import {
   CreatePrototypeRequestParams,
   ListPrototypeSetsParams,
-  ReadPrototypeFileParams
+  ReadPrototypeFileParams,
+  WriteAttachmentParams
 } from './prototype-params'
 import {
   ProjectGroupCreate,
@@ -1147,6 +1148,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'prototypes.createRequest': CreatePrototypeRequestParams,
   'prototypes.list': ListPrototypeSetsParams,
   'prototypes.readFile': ReadPrototypeFileParams,
+  'prototypes.writeAttachment': WriteAttachmentParams,
   'repo.add': RepoPath,
   'repo.baseRefDefault': RepoSelector,
   'repo.clone': RepoClone,

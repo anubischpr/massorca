@@ -43,6 +43,9 @@ import {
   nativeChatVisualsFolderName,
   nativeChatVisualsRootFor
 } from './native-chat-visuals-folder'
+import { directionNotesFor, withDirectionNotes } from './prototype-direction-notes'
+
+export { writePrototypeAttachment } from './prototype-note-attachment'
 
 // Why bounds: the scan runs on every Prototypes open; a chat with thousands of folders must not stall it.
 const MAX_SESSION_FOLDERS_SCANNED = 500
@@ -257,9 +260,12 @@ async function listedSetFor(
   const directions =
     gentleDirections.length > 0
       ? gentleDirections
-      : await directionsWithMtime(
-          buildPrototypeSet(manifest, await fileNamesIn(requestFolder)),
-          candidate.visualsFolder
+      : withDirectionNotes(
+          await directionsWithMtime(
+            buildPrototypeSet(manifest, await fileNamesIn(requestFolder)),
+            candidate.visualsFolder
+          ),
+          manifest.agent === 'gentle-shell' ? [] : await directionNotesFor(requestFolder)
         )
   if (directions.length === 0) {
     return null
@@ -273,6 +279,7 @@ async function listedSetFor(
     originalPrompt: manifest.originalPrompt,
     createdAt: manifest.createdAt,
     count: manifest.count,
+    folderPath: requestFolder,
     directions
   }
 }

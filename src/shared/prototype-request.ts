@@ -6,7 +6,11 @@ import {
   prototypeRequestMarkerLine,
   prototypeTypedMarkerLine
 } from './prototype-hidden-instruction'
-import { directionLetter, prototypeFileName } from './prototype-request-folder'
+import {
+  directionLetter,
+  PROTOTYPE_DIRECTIONS_FILE_NAME,
+  prototypeFileName
+} from './prototype-request-folder'
 import { hasPrototypeKeyword } from './prototype-request-lexicon'
 
 export { splitPrototypeHiddenInstruction } from './prototype-hidden-instruction'
@@ -180,24 +184,34 @@ function directionInstruction(
   const paths = Array.from({ length: directions }, (_, index) =>
     joinFolderPath(folderPath, prototypeFileName(directionLetter(index), 1))
   )
+  const directionsFile = directionsFileLine(
+    joinFolderPath(folderPath, PROTOTYPE_DIRECTIONS_FILE_NAME)
+  )
   const lines =
     directions === 1
       ? [
           settingsLine,
           'Write it with inline CSS and no external network resources, at this exact path:',
           ...paths,
-          'Write nothing else in that folder. Do not announce this file as a chat visual. Reply with one line: its letter, a short name, and a one-line tradeoff.'
+          'Write nothing else in that folder. Do not announce this file as a chat visual. Reply with one line: its letter, a short name, and a one-line tradeoff.',
+          directionsFile
         ]
       : [
           settingsLine,
           'Write each as ONE file with inline CSS and no external network resources, at these exact paths:',
           ...paths,
-          'Write nothing else in that folder. Do not announce these files as chat visuals. Reply with one line per direction: its letter, a short name, and a one-line tradeoff.'
+          'Write nothing else in that folder. Do not announce these files as chat visuals. Reply with one line per direction: its letter, a short name, and a one-line tradeoff.',
+          directionsFile
         ]
   if (agent === 'antigravity') {
     lines.push(ANTIGRAVITY_STITCH_LINE)
   }
   return lines.join('\n')
+}
+
+// The exception to "write nothing else in that folder".
+function directionsFileLine(file: string): string {
+  return `The only other file to write there is ${file}: a JSON array [{"letter":"A","name":"<short name>","tradeoff":"<one line>"}, ...] with one entry per direction.`
 }
 
 function assertRequestId(requestId: string): void {
