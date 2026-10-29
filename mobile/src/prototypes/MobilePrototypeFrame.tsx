@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react'
 import { StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native'
 import type {
   NativeChatVisualAnnotateEvent,
@@ -7,6 +7,8 @@ import type {
 import type { PrototypeViewport } from '../../../src/shared/prototype-set-state'
 import { MobileNativeChatVisualFrame } from '../session/MobileNativeChatVisualFrame'
 import { colors } from '../theme/mobile-theme'
+import { capturePrototypePin } from './mobile-prototype-capture'
+import type { MobilePrototypeFrameHandle } from './mobile-prototype-capture-math'
 import { prototypeFrameLayout } from './mobile-prototype-frame-layout'
 import type { MobilePrototypeFileHtml } from './use-mobile-prototype-file'
 
@@ -21,19 +23,43 @@ export function MobilePrototypeFrame({
   fileKey,
   viewport,
   annotate,
-  onAnnotateEvent
+  onAnnotateEvent,
+  handle
 }: {
   file: MobilePrototypeFileHtml
   fileKey: string
   viewport: PrototypeViewport
   annotate: NativeChatVisualAnnotateState
   onAnnotateEvent: (event: NativeChatVisualAnnotateEvent) => void
+  /** Set while a page is drawn in the frame, null otherwise. */
+  handle: MutableRefObject<MobilePrototypeFrameHandle | null>
 }) {
   const [available, setAvailable] = useState({ width: 0, height: 0 })
   const [failedKey, setFailedKey] = useState<string | null>(null)
   const onFailed = useCallback(() => setFailedKey(fileKey), [fileKey])
   const layout = prototypeFrameLayout(viewport, available)
   const unreadable = file.status === 'error' || failedKey === fileKey
+  const box = useRef<View>(null)
+  const showsPage = layout !== null && !unreadable && file.status === 'ready'
+  useEffect(() => {
+    if (layout === null || !showsPage) {
+      handle.current = null
+      return
+    }
+    handle.current = {
+      pageSize: { width: layout.designWidth, height: layout.designHeight },
+      capturePin: (rect) =>
+        capturePrototypePin({
+          frame: box,
+          frameSize: { width: layout.boxWidth, height: layout.boxHeight },
+          scale: layout.scale,
+          rect
+        })
+    }
+    return () => {
+      handle.current = null
+    }
+  }, [handle, layout, showsPage])
 
   return (
     <View
@@ -44,7 +70,11 @@ export function MobilePrototypeFrame({
       }}
     >
       {layout === null ? null : (
-        <View style={[styles.box, { width: layout.boxWidth, height: layout.boxHeight }]}>
+        <View
+          ref={box}
+          collapsable={false}
+          style={[styles.box, { width: layout.boxWidth, height: layout.boxHeight }]}
+        >
           {unreadable ? (
             <Text style={styles.error}>Couldn't open this prototype</Text>
           ) : file.status === 'ready' ? (

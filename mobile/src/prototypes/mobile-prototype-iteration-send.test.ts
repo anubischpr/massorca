@@ -4,6 +4,7 @@ import { splitPrototypeHiddenInstruction } from '../../../src/shared/prototype-h
 import {
   createSetState,
   editSelected,
+  peekDirection,
   pickElement,
   setNote,
   setPrompt,
@@ -15,6 +16,7 @@ import {
   sendRefused,
   sendSucceeded
 } from '../../../src/shared/prototype-set-view'
+import type { MobilePrototypeFrameHandle } from './mobile-prototype-capture-math'
 import { registerMobilePrototypeChatSend } from './mobile-prototype-chat-send-registry'
 import { sendMobilePrototypeIteration } from './mobile-prototype-iteration-send'
 import { structuredSendResultFixture } from '../session/structured-agent-send-result.test-fixture'
@@ -49,6 +51,9 @@ function hostClient(): {
   sendRequest: ReturnType<typeof vi.fn<RpcClient['sendRequest']>>
 } {
   const sendRequest = vi.fn<RpcClient['sendRequest']>(async (method) => {
+    if (method === 'prototypes.writeAttachment') {
+      return { ok: true, id: '3', result: { ok: true, path: '/state/req-1/notes/pin.png' } }
+    }
     if (method === 'agentSession.history') {
       return {
         ok: true,
@@ -183,5 +188,97 @@ describe('sendMobilePrototypeIteration', () => {
     unregister()
     expect(outcome.sent).toBe(false)
     expect(send).not.toHaveBeenCalled()
+  })
+
+  describe('with the frame on screen', () => {
+    const PAGE = { width: 360, height: 640 }
+
+    function frameThatCaptures(
+      capture: MobilePrototypeFrameHandle['capturePin'] = async () => ({
+        ok: true,
+        pngBase64: 'iVBORw0KGgo='
+      })
+    ): { frame: MobilePrototypeFrameHandle; capturePin: ReturnType<typeof vi.fn> } {
+      const capturePin = vi.fn(capture)
+      return { frame: { pageSize: PAGE, capturePin }, capturePin }
+    }
+
+    function uploads(sendRequest: ReturnType<typeof vi.fn<RpcClient['sendRequest']>>) {
+      return sendRequest.mock.calls.filter(([method]) => method === 'prototypes.writeAttachment')
+    }
+
+    it('photographs each pin, saves it on the host and puts its path in the message', async () => {
+      const { client, sendRequest } = hostClient()
+      const { frame, capturePin } = frameThatCaptures()
+      const unregister = registerMobilePrototypeChatSend('session-1', async () => true)
+      const send = vi.fn(async (_text: string) => true)
+      unregister()
+      const leave = registerMobilePrototypeChatSend('session-1', send)
+      const outcome = await sendMobilePrototypeIteration(draftedState(), SET, client, frame)
+      leave()
+
+      expect(capturePin).toHaveBeenCalledWith({ x: 10, y: 20, width: 120, height: 40 })
+      const [upload] = uploads(sendRequest)
+      expect(upload?.[1]).toMatchObject({
+        sessionId: 'session-1',
+        requestId: 'req-1',
+        pngBase64: 'iVBORw0KGgo=',
+        name: expect.stringMatching(/^pin-[A-Za-z0-9-]+-\d+$/)
+      })
+      expect(outcome.visibleMessage).toContain('  screenshot: /state/req-1/notes/pin.png')
+      expect(send.mock.calls[0]?.[0]).toContain('screenshot: /state/req-1/notes/pin.png')
+    })
+
+    it('sends without the picture when it cannot be taken, and uploads nothing', async () => {
+      const { client, sendRequest } = hostClient()
+      const { frame } = frameThatCaptures(async () => ({ ok: false }))
+      const leave = registerMobilePrototypeChatSend('session-1', async () => true)
+      const outcome = await sendMobilePrototypeIteration(draftedState(), SET, client, frame)
+      leave()
+      expect(outcome.sent).toBe(true)
+      expect(outcome.visibleMessage).not.toContain('screenshot:')
+      expect(uploads(sendRequest)).toHaveLength(0)
+    })
+
+    it('sends without the picture when the host refuses or loses the upload', async () => {
+      const { client, sendRequest } = hostClient()
+      sendRequest.mockImplementation(async (method) =>
+        method === 'prototypes.writeAttachment'
+          ? { ok: true, id: '3', result: { ok: false, error: 'too_large' } }
+          : {
+              ok: true,
+              id: '2',
+              result: { ok: true, value: structuredSendResultFixture('dispatched') }
+            }
+      )
+      const { frame } = frameThatCaptures()
+      const leave = registerMobilePrototypeChatSend('session-1', async () => true)
+      const outcome = await sendMobilePrototypeIteration(draftedState(), SET, client, frame)
+      leave()
+      expect(outcome.sent).toBe(true)
+      expect(outcome.visibleMessage).not.toContain('screenshot:')
+    })
+
+    it('sends without the picture when the capture throws', async () => {
+      const { client } = hostClient()
+      const { frame } = frameThatCaptures(async () => {
+        throw new Error('view gone')
+      })
+      const leave = registerMobilePrototypeChatSend('session-1', async () => true)
+      const outcome = await sendMobilePrototypeIteration(draftedState(), SET, client, frame)
+      leave()
+      expect(outcome.sent).toBe(true)
+      expect(outcome.visibleMessage).not.toContain('screenshot:')
+    })
+
+    it('takes no pictures while another direction is being peeked at', async () => {
+      const { client } = hostClient()
+      const { frame, capturePin } = frameThatCaptures()
+      const peeking = peekDirection(draftedState(), 'B')
+      const leave = registerMobilePrototypeChatSend('session-1', async () => true)
+      await sendMobilePrototypeIteration(peeking, SET, client, frame)
+      leave()
+      expect(capturePin).not.toHaveBeenCalled()
+    })
   })
 })

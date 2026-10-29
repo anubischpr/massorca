@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcResponse } from '../transport/types'
 import {
   createMobilePrototypeRequest,
   listMobilePrototypeSets,
-  readMobilePrototypeFile
+  readMobilePrototypeFile,
+  writeMobilePrototypeAttachment
 } from './mobile-prototype-host-rpc'
 
 const SESSION = 'session-alpha-0001'
@@ -131,5 +132,52 @@ describe('readMobilePrototypeFile', () => {
         fileName: `prototypes/${REQUEST}/A.html`
       })
     ).toEqual({ kind: 'unreachable' })
+  })
+})
+
+describe('writeMobilePrototypeAttachment', () => {
+  const params = {
+    sessionId: SESSION,
+    requestId: REQUEST,
+    name: 'pin-abc-42',
+    pngBase64: 'iVBORw0KGgo='
+  }
+
+  it('sends the screenshot to the host and reads back the path it saved it at', async () => {
+    const sendRequest = vi.fn<Pick<RpcClient, 'sendRequest'>['sendRequest']>(async () =>
+      ok({ ok: true, path: '/state/prototypes/x/notes/pin-abc-42.png' })
+    )
+    expect(await writeMobilePrototypeAttachment({ sendRequest }, params)).toEqual({
+      kind: 'ready',
+      path: '/state/prototypes/x/notes/pin-abc-42.png'
+    })
+    expect(sendRequest.mock.calls[0]?.[0]).toBe('prototypes.writeAttachment')
+    expect(sendRequest.mock.calls[0]?.[1]).toEqual(params)
+  })
+
+  it('reads the host refusing the screenshot as a refusal of that file', async () => {
+    const client = clientAnswering(ok({ ok: false, error: 'too_large' }))
+    expect(await writeMobilePrototypeAttachment(client, params)).toEqual({
+      kind: 'refused',
+      error: 'too_large'
+    })
+  })
+
+  it('reads an older host as unsupported', async () => {
+    const client = clientAnswering(failed('method_not_found'))
+    expect(await writeMobilePrototypeAttachment(client, params)).toEqual({
+      kind: 'unsupported-host'
+    })
+  })
+
+  it('reads a lost connection or a reply it cannot read as no verdict', async () => {
+    expect(
+      await writeMobilePrototypeAttachment(clientAnswering(new Error('offline')), params)
+    ).toEqual({
+      kind: 'unreachable'
+    })
+    expect(await writeMobilePrototypeAttachment(clientAnswering(ok({ ok: true })), params)).toEqual(
+      { kind: 'unreachable' }
+    )
   })
 })

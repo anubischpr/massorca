@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import type { NativeChatVisualAnnotateEvent } from '../../../src/shared/native-chat-visual-annotate'
@@ -30,6 +30,7 @@ import { useHostClient } from '../transport/host-client-hooks'
 import { colors, spacing, typography } from '../theme/mobile-theme'
 import { MobilePrototypeDraftSheet } from './MobilePrototypeDraftSheet'
 import { MobilePrototypeFrame } from './MobilePrototypeFrame'
+import type { MobilePrototypeFrameHandle } from './mobile-prototype-capture-math'
 import { MobilePrototypeHeader } from './MobilePrototypeHeader'
 import { MobilePrototypePinSheet, type MobilePrototypePinTab } from './MobilePrototypePinSheet'
 import { sendMobilePrototypeIteration } from './mobile-prototype-iteration-send'
@@ -80,6 +81,7 @@ export function MobilePrototypeViewerScreen({
   )
   const [pinTab, setPinTab] = useState<MobilePrototypePinTab>('edit')
   const [draftOpen, setDraftOpen] = useState(false)
+  const frameHandle = useRef<MobilePrototypeFrameHandle | null>(null)
   const [jump, setJump] = useState<Jump | null>(null)
 
   const viewDirection = set?.directions.find((direction) => direction.letter === state?.view)
@@ -106,7 +108,7 @@ export function MobilePrototypeViewerScreen({
       return
     }
     update(beginSend)
-    const outcome = await sendMobilePrototypeIteration(current, set, client)
+    const outcome = await sendMobilePrototypeIteration(current, set, client, frameHandle.current)
     update((latest) =>
       outcome.sent ? sendSucceeded(latest, outcome.visibleMessage) : sendRefused(latest)
     )
@@ -232,6 +234,7 @@ export function MobilePrototypeViewerScreen({
         viewport={state.viewport}
         annotate={annotateStateOf(state, state.view)}
         onAnnotateEvent={onAnnotateEvent}
+        handle={frameHandle}
       />
       <Pressable
         accessibilityRole="button"

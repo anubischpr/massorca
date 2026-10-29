@@ -2,12 +2,14 @@ import { z } from 'zod'
 import {
   PROTOTYPE_CREATE_REQUEST_ERRORS,
   PROTOTYPE_READ_FILE_ERRORS,
+  PROTOTYPE_WRITE_ATTACHMENT_ERRORS,
   PrototypeListedSetSchema,
   type CreatePrototypeRequestParams,
   type ListPrototypeSetsParams,
   type PrototypeListedSet,
   type PrototypeReadFileError,
-  type ReadPrototypeFileParams
+  type ReadPrototypeFileParams,
+  type WriteAttachmentParams
 } from '../../../src/shared/rpc-contract/prototype-params'
 import { isMobileMethodUnavailableError } from '../transport/mobile-method-unavailable'
 import type { RpcClient } from '../transport/rpc-client'
@@ -38,6 +40,17 @@ export type MobilePrototypeFile =
   | { kind: 'refused'; error: PrototypeReadFileError }
   | { kind: 'unsupported-host' }
   | { kind: 'unreachable' }
+
+export type MobilePrototypeAttachment =
+  | { kind: 'ready'; path: string }
+  | { kind: 'refused'; error: (typeof PROTOTYPE_WRITE_ATTACHMENT_ERRORS)[number] }
+  | { kind: 'unsupported-host' }
+  | { kind: 'unreachable' }
+
+const writeAttachmentReplySchema = z.union([
+  z.object({ ok: z.literal(true), path: z.string().min(1) }),
+  z.object({ ok: z.literal(false), error: z.enum(PROTOTYPE_WRITE_ATTACHMENT_ERRORS) })
+])
 
 const createReplySchema = z.union([
   z.object({ ok: z.literal(true), requestId: z.string(), folderPath: z.string() }),
@@ -106,6 +119,27 @@ export async function readMobilePrototypeFile(
   }
   return reply.data.ok
     ? { kind: 'ready', html: reply.data.html }
+    : { kind: 'refused', error: reply.data.error }
+}
+
+/** Saves one note screenshot under the request's notes folder on the host and returns its path there. */
+export async function writeMobilePrototypeAttachment(
+  client: HostClient,
+  params: WriteAttachmentParams
+): Promise<MobilePrototypeAttachment> {
+  const response = await sendHostRequest(client, 'prototypes.writeAttachment', params)
+  if (response === null) {
+    return { kind: 'unreachable' }
+  }
+  if (!response.ok) {
+    return isUnsupportedHost(response) ? { kind: 'unsupported-host' } : { kind: 'unreachable' }
+  }
+  const reply = writeAttachmentReplySchema.safeParse(response.result)
+  if (!reply.success) {
+    return { kind: 'unreachable' }
+  }
+  return reply.data.ok
+    ? { kind: 'ready', path: reply.data.path }
     : { kind: 'refused', error: reply.data.error }
 }
 
