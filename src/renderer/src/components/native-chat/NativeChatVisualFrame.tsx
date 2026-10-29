@@ -134,7 +134,7 @@ export function NativeChatVisualFrame({
         }
         return
       }
-      const message = readNativeChatVisualFrameMessage(event.data, built.channel)
+      const message = readNativeChatVisualFrameMessage(event.data, built.channel, annotateCapable)
       if (!message) {
         return
       }
