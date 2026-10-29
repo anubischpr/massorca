@@ -56,6 +56,11 @@ export function prototypeIterationMarkerLine(requestId: string, letter: string):
   return `<!-- orca-prototype-iteration:${requestId}:${letter} -->`
 }
 
+/** The start of the line that follows an iteration marker; the new version's path comes after it. */
+export function iterationInstructionPrefix(letter: string): string {
+  return `Write the new version of direction ${letter} as `
+}
+
 /** Separates the visible text of a message from the hidden prototype instruction, if it has one. */
 export function splitPrototypeHiddenInstruction(text: string): PrototypeHiddenInstructionSplit {
   return splitAtFirstMarker(text, () => true)
@@ -131,5 +136,5 @@ function opensMassOrcaInstruction(
       ?.replace(/\r$/u, '') ?? ''
   return marker.kind === 'request'
     ? REQUEST_OPENING_LINES.has(line)
-    : line.startsWith(`Write the new version of direction ${marker.letter} as `)
+    : line.startsWith(iterationInstructionPrefix(marker.letter))
 }

@@ -19,6 +19,7 @@ const FIXED_RANDOM = (): number => 0
 
 let stateDirectory: string
 let launchDirectory: string
+const launchDirectoryOf = (): string => launchDirectory
 
 beforeEach(async () => {
   stateDirectory = await mkdtemp(join(tmpdir(), 'orca-prototypes-state-'))
@@ -144,7 +145,7 @@ describe('listPrototypeSets', () => {
     await writeIn(newer.folderPath, 'B-v2.html', '<p>b2</p>')
     await writeIn(newer.folderPath, 'notes.txt', 'ignored')
 
-    const listed = await listPrototypeSets({ stateDirectory })
+    const listed = await listPrototypeSets({ launchDirectoryOf, stateDirectory })
 
     expect(listed.sets.map((set) => set.requestId)).toEqual([newer.requestId, older.requestId])
     const [first] = listed.sets
@@ -171,7 +172,7 @@ describe('listPrototypeSets', () => {
     const empty = await create('claude', NOW)
     await writeIn(empty.folderPath, 'readme.txt', 'nothing yet')
 
-    expect((await listPrototypeSets({ stateDirectory })).sets).toEqual([])
+    expect((await listPrototypeSets({ launchDirectoryOf, stateDirectory })).sets).toEqual([])
   })
 
   it('still lists a chat when another chat holds more request folders than the scan bound', async () => {
@@ -189,7 +190,7 @@ describe('listPrototypeSets', () => {
     const quiet = await create('claude', NOW)
     await writeIn(quiet.folderPath, 'A.html', '<p>a</p>')
 
-    const listed = await listPrototypeSets({ stateDirectory })
+    const listed = await listPrototypeSets({ launchDirectoryOf, stateDirectory })
 
     expect(listed.sets.map((set) => set.requestId)).toEqual([quiet.requestId])
   })
@@ -200,7 +201,11 @@ describe('listPrototypeSets', () => {
     await writeIn(mine.folderPath, 'A.html', '<p>a</p>')
     await writeIn(other.folderPath, 'A.html', '<p>a</p>')
 
-    const listed = await listPrototypeSets({ stateDirectory, worktreeId: 'wt-1' })
+    const listed = await listPrototypeSets({
+      launchDirectoryOf,
+      stateDirectory,
+      worktreeId: 'wt-1'
+    })
 
     expect(listed.sets.map((set) => set.requestId)).toEqual([mine.requestId])
   })
@@ -213,7 +218,7 @@ describe('listPrototypeSets', () => {
     })
     await writeIn(join(visualsFolder(), 'prototypes', '20261028-201500-bigone'), 'A.html', 'x')
 
-    expect((await listPrototypeSets({ stateDirectory })).sets).toEqual([])
+    expect((await listPrototypeSets({ launchDirectoryOf, stateDirectory })).sets).toEqual([])
   })
 
   it('binds the one new Gentle Shell design folder, and its artboards only', async () => {
@@ -232,7 +237,7 @@ describe('listPrototypeSets', () => {
     )
     await writeIn(join(launchDirectory, 'design', 'bold'), 'home.html', '<p>home</p>')
 
-    const listed = await listPrototypeSets({ stateDirectory })
+    const listed = await listPrototypeSets({ launchDirectoryOf, stateDirectory })
 
     expect(listed.sets).toHaveLength(1)
     expect(listed.sets[0]?.requestId).toBe(created.requestId)
@@ -256,7 +261,7 @@ describe('listPrototypeSets', () => {
       await writeIn(join(launchDirectory, 'design', slug), 'index.html', '<p>x</p>')
     }
 
-    expect((await listPrototypeSets({ stateDirectory })).sets).toEqual([])
+    expect((await listPrototypeSets({ launchDirectoryOf, stateDirectory })).sets).toEqual([])
   })
 
   /** A design/<slug>/ folder of the launch directory with one artboard. */
@@ -276,16 +281,18 @@ describe('listPrototypeSets', () => {
   it('binds its design folder in request.json, so a design folder that appears later cannot rebind it', async () => {
     const created = await create('gentle-shell', NOW)
     await writeDesign('bold', 'home.html')
-    expect((await listPrototypeSets({ stateDirectory })).sets.map((set) => set.requestId)).toEqual([
-      created.requestId
-    ])
+    expect(
+      (await listPrototypeSets({ launchDirectoryOf, stateDirectory })).sets.map(
+        (set) => set.requestId
+      )
+    ).toEqual([created.requestId])
     const manifest: unknown = JSON.parse(
       await readFile(join(created.folderPath, 'request.json'), 'utf8')
     )
     expect(manifest).toMatchObject({ gentleDesignSlug: 'bold' })
 
     await writeDesign('later', 'index.html')
-    const listed = await listPrototypeSets({ stateDirectory })
+    const listed = await listPrototypeSets({ launchDirectoryOf, stateDirectory })
     expect(listed.sets[0]?.directions).toMatchObject([
       { letter: 'A', versions: [{ version: 1, fileName: 'design/bold/home.html' }] }
     ])
@@ -296,7 +303,7 @@ describe('listPrototypeSets', () => {
     await writeIn(created.folderPath, 'A.html', '<p>recorded</p>')
     await writeDesign('bold', 'home.html')
 
-    const listed = await listPrototypeSets({ stateDirectory })
+    const listed = await listPrototypeSets({ launchDirectoryOf, stateDirectory })
 
     expect(listed.sets[0]?.directions).toMatchObject([
       {
@@ -315,6 +322,7 @@ describe('readPrototypeSetFile', () => {
     expect(
       await readPrototypeSetFile({
         stateDirectory,
+        launchDirectory,
         sessionId: SESSION,
         requestId: created.requestId,
         fileName: `prototypes/${created.requestId}/A.html`
@@ -325,7 +333,12 @@ describe('readPrototypeSetFile', () => {
   it('answers not_found for a missing file, a non-set name, a traversal and an unknown request', async () => {
     const created = await create('claude', NOW)
     await writeIn(created.folderPath, 'notes.txt', 'not a set file')
-    const base = { stateDirectory, sessionId: SESSION, requestId: created.requestId }
+    const base = {
+      stateDirectory,
+      launchDirectory,
+      sessionId: SESSION,
+      requestId: created.requestId
+    }
 
     for (const fileName of [
       `prototypes/${created.requestId}/B.html`,
@@ -354,6 +367,7 @@ describe('readPrototypeSetFile', () => {
     expect(
       await readPrototypeSetFile({
         stateDirectory,
+        launchDirectory,
         sessionId: SESSION,
         requestId: created.requestId,
         fileName: `prototypes/${created.requestId}/A.html`
@@ -374,7 +388,12 @@ describe('readPrototypeSetFile', () => {
     )
     await writeIn(join(launchDirectory, 'design', 'bold'), 'home.html', '<p>home</p>')
     await writeIn(join(launchDirectory, 'design', 'bold'), 'secret.html', '<p>not an artboard</p>')
-    const base = { stateDirectory, sessionId: SESSION, requestId: created.requestId }
+    const base = {
+      stateDirectory,
+      launchDirectory,
+      sessionId: SESSION,
+      requestId: created.requestId
+    }
 
     expect(await readPrototypeSetFile({ ...base, fileName: 'design/bold/home.html' })).toEqual({
       ok: true,
@@ -402,7 +421,7 @@ describe('the directions.json the agent writes', () => {
       ])
     )
 
-    const listed = await listPrototypeSets({ stateDirectory })
+    const listed = await listPrototypeSets({ launchDirectoryOf, stateDirectory })
     expect(listed.sets[0]?.directions).toMatchObject([
       { letter: 'A', name: 'Quiet grid', tradeoff: 'Calm, but dense.' },
       { letter: 'B', name: 'Bold cards', tradeoff: 'Loud, but quick to scan.' }
@@ -418,7 +437,7 @@ describe('the directions.json the agent writes', () => {
     await writeIn(created.folderPath, 'A.html', '<p>a</p>')
     await writeIn(created.folderPath, 'directions.json', content)
 
-    const listed = await listPrototypeSets({ stateDirectory })
+    const listed = await listPrototypeSets({ launchDirectoryOf, stateDirectory })
     expect(listed.sets.map((set) => set.requestId)).toEqual([created.requestId])
     expect(listed.sets[0]?.directions[0]).toMatchObject({ letter: 'A' })
     expect(listed.sets[0]?.directions[0]).not.toHaveProperty('name')
@@ -431,7 +450,7 @@ describe('the directions.json the agent writes', () => {
     const valid = JSON.stringify([{ letter: 'A', name: 'Quiet grid', tradeoff: 'Calm.' }])
     await writeIn(created.folderPath, 'directions.json', valid + ' '.repeat(16 * 1024))
 
-    const listed = await listPrototypeSets({ stateDirectory })
+    const listed = await listPrototypeSets({ launchDirectoryOf, stateDirectory })
     expect(listed.sets.map((set) => set.requestId)).toEqual([created.requestId])
     expect(listed.sets[0]?.directions[0]).not.toHaveProperty('name')
   })

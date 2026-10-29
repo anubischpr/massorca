@@ -110,7 +110,7 @@ describe('mobile prototype list status and age', () => {
       activeLetterOf: () => undefined,
       nowMs: FIXTURE_NOW
     })
-    expect(row?.age).toBe('')
+    expect(row?.age).toBeNull()
   })
 })
 

@@ -5,6 +5,7 @@ import { neutralizePrototypeMarkers } from '../../../src/shared/prototype-hidden
 import {
   buildPrototypeRequestMessage,
   classifyPrototypeRequest,
+  isUsablePrototypeRequestFolder,
   type PrototypeAgent
 } from '../../../src/shared/prototype-request'
 import {
@@ -70,6 +71,11 @@ export async function planMobilePrototypeOutgoing(
     return asTyped
   }
   if (request.kind !== 'ready') {
+    return asTyped
+  }
+  // Why: the same check as desktop; a reply that names no usable request folder sends the text as typed.
+  if (!isUsablePrototypeRequestFolder(request.requestId, request.folderPath)) {
+    console.warn('[prototypes] request not used: the host named no usable request folder')
     return asTyped
   }
   const message = buildPrototypeRequestMessage({

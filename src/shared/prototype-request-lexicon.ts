@@ -149,19 +149,39 @@ function occurrences(words: readonly string[], phrases: readonly Phrase[]): numb
   return starts
 }
 
+// The first index whose value is at least `value`, in an ascending list.
+function firstAtOrAfter(ascending: readonly number[], value: number): number {
+  let low = 0
+  let high = ascending.length
+  while (low < high) {
+    const middle = (low + high) >>> 1
+    if ((ascending[middle] ?? Number.POSITIVE_INFINITY) < value) {
+      low = middle + 1
+    } else {
+      high = middle
+    }
+  }
+  return low
+}
+
+// Each design word checks only the UI nouns in its window, found by binary search, so a long message
+// costs time in its words rather than in every pair of a design word and a noun.
 function designNearUiNoun(words: readonly string[]): boolean {
-  const nounStarts = occurrences(words, uiNounPhrases)
-  return occurrences(words, designPhrases).some((verb) =>
-    nounStarts.some((noun) => {
-      const distance = Math.abs(verb - noun)
-      if (distance > UI_NOUN_WINDOW) {
+  const nounStarts = occurrences(words, uiNounPhrases).sort((left, right) => left - right)
+  return occurrences(words, designPhrases).some((verb) => {
+    const first = firstAtOrAfter(nounStarts, verb - UI_NOUN_WINDOW)
+    for (let index = first; index < nounStarts.length; index += 1) {
+      const noun = nounStarts[index]
+      if (noun === undefined || noun > verb + UI_NOUN_WINDOW) {
         return false
       }
-      return !words
-        .slice(Math.min(verb, noun) + 1, Math.max(verb, noun))
-        .some((w) => FLOW_WORDS.has(w))
-    })
-  )
+      const between = words.slice(Math.min(verb, noun) + 1, Math.max(verb, noun))
+      if (!between.some((w) => FLOW_WORDS.has(w))) {
+        return true
+      }
+    }
+    return false
+  })
 }
 
 /** True when the text asks for a prototype: a positive term, or a design term near a UI noun. */

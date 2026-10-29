@@ -215,6 +215,11 @@ function siblingGroup(
   }
 }
 
+/** A group whose items are all on the iterated direction, with at least one: only its own pin takes a screenshot. */
+export function isOwnGroup(group: PrototypeDraftGroup, activeLetter: string): boolean {
+  return group.items.length > 0 && group.items.every((item) => item.letter === activeLetter)
+}
+
 export function composeIterationMessage({
   activeLetter,
   groups,
@@ -234,8 +239,7 @@ export function composeIterationMessage({
     const selector = pins.find((pin) => pin.pinKey === group.pinKey)?.selector ?? ''
     lines.push(selector.length > 0 ? `${group.title} (${selector})` : group.title)
     // Only the iterated direction's own groups take a screenshot: a sibling note can share a pin key.
-    const ownGroup = group.items.every((item) => item.letter === activeLetter)
-    const screenshot = ownGroup ? screenshots[group.pinKey] : undefined
+    const screenshot = isOwnGroup(group, activeLetter) ? screenshots[group.pinKey] : undefined
     if (screenshot !== undefined) {
       lines.push(`  screenshot: ${singleLine(screenshot)}`)
     }

@@ -73,6 +73,25 @@ export function createSetState(letters: readonly string[]): PrototypeSetState {
   }
 }
 
+/**
+ * The state with its iterated and shown letters still among the set's letters. A letter the set no
+ * longer has moves to the first direction; the shown one then follows the iterated one, and its selection goes.
+ */
+export function keepListedLetters(
+  state: PrototypeSetState,
+  letters: readonly string[]
+): PrototypeSetState {
+  const listed = (letter: string): boolean => letters.includes(letter)
+  if (listed(state.active) && listed(state.view)) {
+    return state
+  }
+  const active = listed(state.active) ? state.active : (letters[0] ?? 'A')
+  if (listed(state.view)) {
+    return { ...state, active }
+  }
+  return { ...state, active, view: active, selectedPinKey: null, picker: null }
+}
+
 /** A pin's key is its selector's hash: the same element on two directions has the same key. */
 export function pinKeyFor(selector: string): string {
   let hash = 0x811c9dc5

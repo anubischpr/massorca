@@ -255,4 +255,13 @@ describe('typedPromptText', () => {
     expect(typedPromptText('user', copied)).toBe(copied)
     expect(typedPromptText('assistant', copied)).toBe(copied)
   })
+
+  it('hides the instruction MassOrca wrote even when the role is missing', () => {
+    const marker = '<!-- orca-prototype-request:20261028-201500-k3f9q2 -->'
+    const settingsLine =
+      'Produce 2 distinct design directions, each a self-contained HTML file, with a one-line tradeoff.'
+    expect(typedPromptText(null, `Make a mockup\n\n${marker}\n${settingsLine}`)).toBe(
+      'Make a mockup'
+    )
+  })
 })

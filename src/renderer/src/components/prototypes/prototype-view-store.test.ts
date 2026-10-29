@@ -11,9 +11,25 @@ describe('usePrototypeViewStore invariants', () => {
     const store = usePrototypeViewStore.getState()
     store.ensureSetState('r1', ['A', 'B'])
     store.updateSetState('r1', (state) => setPrompt(state, 'keep this draft'))
-    store.ensureSetState('r1', ['B', 'C'])
+    store.ensureSetState('r1', ['A', 'B', 'C'])
     expect(usePrototypeViewStore.getState().states.r1).toMatchObject({
       active: 'A',
+      prompt: 'keep this draft'
+    })
+  })
+
+  it('moves an iterated letter the set no longer has to its first direction, and keeps the draft', () => {
+    const store = usePrototypeViewStore.getState()
+    store.ensureSetState('r1', ['A', 'B'])
+    store.updateSetState('r1', (state) => ({
+      ...setPrompt(state, 'keep this draft'),
+      active: 'B',
+      view: 'B'
+    }))
+    store.ensureSetState('r1', ['A'])
+    expect(usePrototypeViewStore.getState().states.r1).toMatchObject({
+      active: 'A',
+      view: 'A',
       prompt: 'keep this draft'
     })
   })

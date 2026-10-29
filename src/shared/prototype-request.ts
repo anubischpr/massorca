@@ -1,6 +1,7 @@
 // Which chat messages ask for prototypes, and the hidden instructions that ask the agent for them.
 import { buildPrototypeCountLine, clampPrototypeCount } from './prototype-count-setting'
 import {
+  iterationInstructionPrefix,
   neutralizePrototypeMarkers,
   prototypeIterationMarkerLine,
   prototypeRequestMarkerLine,
@@ -9,7 +10,8 @@ import {
 import {
   directionLetter,
   PROTOTYPE_DIRECTIONS_FILE_NAME,
-  prototypeFileName
+  prototypeFileName,
+  prototypeRequestFolder
 } from './prototype-request-folder'
 import { hasPrototypeKeyword } from './prototype-request-lexicon'
 
@@ -119,7 +121,7 @@ export function buildPrototypeIterationInstruction({
   const file = joinFolderPath(folderPath, prototypeFileName(letter, nextVersion))
   return [
     prototypeIterationMarkerLine(requestId, letter),
-    `Write the new version of direction ${letter} as ${file}, self-contained with inline CSS and no external network resources, and do not modify other files.`
+    `${iterationInstructionPrefix(letter)}${file}, self-contained with inline CSS and no external network resources, and do not modify other files.`
   ].join('\n')
 }
 
@@ -218,9 +220,17 @@ function assertRequestId(requestId: string): void {
   }
 }
 
-/** Whether a host's reply names a request folder that the instructions can be written for. */
+/** Whether a host's reply names the request folder its instructions can be written for: `prototypes/<requestId>`. */
 export function isUsablePrototypeRequestFolder(requestId: string, folderPath: string): boolean {
-  return REQUEST_ID_PATTERN.test(requestId) && folderRoot(folderPath).length > 0
+  const root = folderRoot(folderPath)
+  return (
+    REQUEST_ID_PATTERN.test(requestId) && root.length > 0 && endsWithRequestFolder(root, requestId)
+  )
+}
+
+// Either separator style; the host's own folder always ends with its request's `prototypes/<id>`.
+function endsWithRequestFolder(root: string, requestId: string): boolean {
+  return `/${root.replaceAll('\\', '/')}`.endsWith(`/${prototypeRequestFolder(requestId)}`)
 }
 
 function assertFolderPath(folderPath: string): void {

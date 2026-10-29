@@ -36,3 +36,19 @@ describe('mobile prototype view store', () => {
     expect(useMobilePrototypeViewStore.getState().states).toEqual({})
   })
 })
+
+describe('mobile prototype view store letters', () => {
+  it('moves an iterated letter the set no longer has to its first direction, and keeps the state', () => {
+    const key = mobilePrototypeStateKey('host-1', 'req-letters')
+    const store = useMobilePrototypeViewStore.getState()
+    store.ensureSetState(key, ['A', 'B'])
+    store.updateSetState(key, (state) => ({ ...state, active: 'B', view: 'B', prompt: 'keep' }))
+    store.ensureSetState(key, ['A'])
+    expect(useMobilePrototypeViewStore.getState().states[key]).toMatchObject({
+      active: 'A',
+      view: 'A',
+      prompt: 'keep',
+      viewport: 'phone'
+    })
+  })
+})

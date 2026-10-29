@@ -62,9 +62,12 @@ function previewSource(text: string, role: string | undefined): string {
     : typedUserPromptText(role, text)
 }
 
-/** A user prompt reads as the user typed it; only a marker MassOrca wrote hides anything. */
+/**
+ * A prompt reads as the user typed it. Only a marker MassOrca wrote hides anything, and that holds for a
+ * message whose role is missing or unknown too; an assistant reply is left whole.
+ */
 export function typedUserPromptText(role: string | null | undefined, text: string): string {
-  return role === 'user' ? splitTrustedPrototypeHiddenInstruction(text).visibleText : text
+  return role === 'assistant' ? text : splitTrustedPrototypeHiddenInstruction(text).visibleText
 }
 
 function normalizeContentText(value: unknown, limit: number, role?: string): string | null {

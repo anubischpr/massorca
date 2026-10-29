@@ -131,7 +131,7 @@ describe('prototypeAge', () => {
   })
 
   it('shows no age when neither the creation nor a write has a valid time', () => {
-    expect(prototypeAge(set({ createdAt: '', directions: [] }), NOW)).toBe('')
+    expect(prototypeAge(set({ createdAt: '', directions: [] }), NOW)).toBeNull()
   })
 })
 

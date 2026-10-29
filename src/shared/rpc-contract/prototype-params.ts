@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { PROTOTYPE_COUNT_MAX, PROTOTYPE_COUNT_MIN } from '../prototype-count-setting'
 import { PROTOTYPE_AGENTS } from '../prototype-request'
+import { DIRECTION_LETTER_PATTERN } from '../prototype-request-folder'
 import { REQUEST_ID_PATTERN } from '../prototype-sets'
 import { SessionId } from './structured-agent-session-identifiers'
 
@@ -82,7 +83,7 @@ export const PrototypeListedVersionSchema = z.object({
 })
 
 export const PrototypeListedDirectionSchema = z.object({
-  letter: z.string().length(1),
+  letter: z.string().regex(DIRECTION_LETTER_PATTERN),
   versions: z.array(PrototypeListedVersionSchema),
   /** The short name and one-line tradeoff the agent wrote in directions.json, when it did. */
   name: z.string().min(1).max(PROTOTYPE_DIRECTION_NAME_MAX_LENGTH).optional(),

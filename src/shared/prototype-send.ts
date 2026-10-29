@@ -1,7 +1,14 @@
 import type { NativeChatVisualRect } from './native-chat-visual-annotate'
 import type { PrototypeListedSet } from './rpc-contract/prototype-params'
+import { isOwnGroup } from './prototype-draft'
 import { pinsOf, type PrototypeSetState } from './prototype-set-state'
-import { draftOf, iterationSendText, nextVersionOf, visibleMessageOf } from './prototype-set-view'
+import {
+  draftOf,
+  hasNothingToSend,
+  iterationSendText,
+  nextVersionOf,
+  visibleMessageOf
+} from './prototype-set-view'
 
 // The send of one iteration: a screenshot per pin the frame still shows, then one message to the
 // chat. A failed capture or upload only drops that screenshot; a refused send keeps the draft.
@@ -55,7 +62,7 @@ async function captureScreenshots(
   }
   const pinKeys = new Set(
     draftOf(state)
-      .groups.filter((group) => group.items.every((item) => item.letter === state.active))
+      .groups.filter((group) => isOwnGroup(group, state.active))
       .map((group) => group.pinKey)
   )
   for (const pin of pinsOf(state, state.active)) {
@@ -94,7 +101,8 @@ export async function sendPrototypeIteration(
 ): Promise<PrototypeSendOutcome> {
   const { state, set } = input
   const visibleWithoutShots = visibleMessageOf(state)
-  if (set.folderPath === undefined) {
+  // Why: the Send button's gate is also enforced here, so no caller can send an empty iteration.
+  if (set.folderPath === undefined || hasNothingToSend(state)) {
     return { sent: false, visibleMessage: visibleWithoutShots }
   }
   const screenshots = await captureScreenshots(input, deps)

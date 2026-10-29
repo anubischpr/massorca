@@ -75,17 +75,20 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
     params: ListPrototypeSetsParams,
     handler: async (params, ctx): Promise<ListPrototypeSetsResult> => {
       const host = await requireInstalledStructuredHost(ctx)
+      // Why: this desktop and its CLI, the owner, list every folder on the host. Any other caller, one that
+      // names no identity included, lists only the chats this host still keeps, as its chat list does.
+      const owner = ctx.caller?.kind === 'desktop' || ctx.caller?.kind === 'local-cli'
       return listPrototypeSets({
         stateDirectory: getProfileUserDataPath(),
         ...(params.worktreeId !== undefined ? { worktreeId: params.worktreeId } : {}),
-        // Why: a paired phone or remote desktop lists only the chats this host still keeps, as its chat
-        // list does; this desktop and its CLI, the owner, list every folder on the host.
-        ...(ctx.caller?.kind === 'paired-device'
-          ? {
+        launchDirectoryOf: (sessionId: string) =>
+          host.deps.store.getRecord(sessionId)?.launchDirectory,
+        ...(owner
+          ? {}
+          : {
               isChatListed: (sessionId: string): boolean =>
                 isLocalChatRecord(host.deps.store.getRecord(sessionId))
-            }
-          : {})
+            })
       })
     }
   }),
@@ -108,7 +111,8 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
         stateDirectory: getProfileUserDataPath(),
         sessionId: params.sessionId,
         requestId: params.requestId,
-        fileName: params.fileName
+        fileName: params.fileName,
+        launchDirectory: record.launchDirectory
       })
     }
   }),

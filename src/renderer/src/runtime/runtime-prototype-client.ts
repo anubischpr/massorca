@@ -90,7 +90,8 @@ async function callPrototypeHost<Output>(
     }
     throw error
   }
-  // Why: the mobile client checks the same schemas, so both platforms read one host reply the same way.
+  // Why: the mobile client parses the same schemas, so both accept the same replies; a reply that fails
+  // them fails the call here, and mobile reads it as unreachable.
   const reply = schema.safeParse(result)
   if (!reply.success) {
     throw new PrototypeHostMalformedReplyError(method)

@@ -154,16 +154,6 @@ describe('buildGentleDesignSet', () => {
       input: { ...design, artboards: [{ file: 'a\\b.html', title: 'A' }] }
     },
     {
-      label: 'two artboards with one file',
-      input: {
-        ...design,
-        artboards: [
-          { file: 'a.html', title: 'A' },
-          { file: 'a.html', title: 'B' }
-        ]
-      }
-    },
-    {
       label: 'a zero width',
       input: { ...design, artboards: [{ file: 'a.html', title: 'A', width: 0 }] }
     },
@@ -188,6 +178,34 @@ describe('buildGentleDesignSet', () => {
     }
   ])('rejects a design with $label', ({ input }) => {
     expect(buildGentleDesignSet(gentleManifest, 'checkout', input)).toBeNull()
+  })
+
+  it('leaves out a malformed artboard and keeps the others in artboard order', () => {
+    const set = buildGentleDesignSet(gentleManifest, 'checkout', {
+      ...design,
+      artboards: [
+        { file: 'minimal.html', title: 'Minimal' },
+        { file: '../escape.html', title: 'Escape' },
+        { file: 'bold/index.html', title: 'Bold' }
+      ]
+    })
+    expect(set?.directions).toEqual([
+      { letter: 'A', versions: [{ version: 1, fileName: 'design/checkout/minimal.html' }] },
+      { letter: 'B', versions: [{ version: 1, fileName: 'design/checkout/bold/index.html' }] }
+    ])
+  })
+
+  it('keeps the first of two artboards that share a file', () => {
+    const set = buildGentleDesignSet(gentleManifest, 'checkout', {
+      ...design,
+      artboards: [
+        { file: 'a.html', title: 'A' },
+        { file: 'a.html', title: 'B' }
+      ]
+    })
+    expect(set?.directions).toEqual([
+      { letter: 'A', versions: [{ version: 1, fileName: 'design/checkout/a.html' }] }
+    ])
   })
 })
 

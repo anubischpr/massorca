@@ -1,6 +1,10 @@
 import { create } from 'zustand'
 import type { PrototypeFilter } from '../../../src/shared/prototype-list-model'
-import { createSetState, type PrototypeSetState } from '../../../src/shared/prototype-set-state'
+import {
+  createSetState,
+  keepListedLetters,
+  type PrototypeSetState
+} from '../../../src/shared/prototype-set-state'
 import type { MobilePrototypeScope } from './mobile-prototype-list-model'
 
 // The Prototypes screens' state, in memory for the session: the list's scope and filter, and each
@@ -33,11 +37,14 @@ export const useMobilePrototypeViewStore = create<MobilePrototypeViewStore>()((s
   setScope: (scope) => set({ scope }),
   setFilter: (filter) => set({ filter }),
   ensureSetState: (key, letters) =>
-    set((current) =>
-      current.states[key] === undefined
-        ? { states: { ...current.states, [key]: createMobileSetState(letters) } }
-        : current
-    ),
+    set((current) => {
+      const existing = current.states[key]
+      if (existing === undefined) {
+        return { states: { ...current.states, [key]: createMobileSetState(letters) } }
+      }
+      const kept = keepListedLetters(existing, letters)
+      return kept === existing ? current : { states: { ...current.states, [key]: kept } }
+    }),
   updateSetState: (key, update) =>
     set((current) => {
       const existing = current.states[key]
