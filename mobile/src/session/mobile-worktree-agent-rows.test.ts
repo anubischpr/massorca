@@ -23,6 +23,22 @@ describe('worktreeAgentRowsFromCatalog', () => {
     ])
   })
 
+  it('reads a pane whose parent is not text as a root, and skips a pane with an empty key', () => {
+    const rows = worktreeAgentRowsFromCatalog([
+      {
+        worktreeId: 'wt-c',
+        agents: [
+          { paneKey: 'tab-9:leaf-9', parentPaneKey: 4 },
+          { paneKey: '', parentPaneKey: null }
+        ]
+      }
+    ])
+
+    expect(rows).toEqual([
+      { worktreeId: 'wt-c', agents: [{ paneKey: 'tab-9:leaf-9', parentPaneKey: null }] }
+    ])
+  })
+
   it('lists no panes for a host from before the agents field', () => {
     expect(worktreeAgentRowsFromCatalog([{ worktreeId: 'wt-old' }])).toEqual([])
   })

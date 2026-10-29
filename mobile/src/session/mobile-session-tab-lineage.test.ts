@@ -96,6 +96,52 @@ describe('mobileSessionChildParentTabIds', () => {
 
     expect(parents.size).toBe(0)
   })
+
+  it('matches a terminal with no leaf by its parent tab id, or by its own id when it has none', () => {
+    const noLeafInSplit: MobileSessionTab = {
+      type: 'terminal',
+      id: 'term-split-leaf',
+      parentTabId: 'term-tab',
+      terminal: 'h4',
+      isActive: false
+    }
+    const plain: MobileSessionTab = {
+      type: 'terminal',
+      id: 'term-plain',
+      terminal: 'h5',
+      isActive: false
+    }
+    const underSplit = mobileSessionChildParentTabIds(
+      [noLeafInSplit, childChat],
+      [{ paneKey: paneOf('child-1', LEAF), parentPaneKey: `term-tab:${LEAF}` }]
+    )
+    expect([...underSplit]).toEqual([['tab-child', 'term-split-leaf']])
+
+    const ownId = mobileSessionChildParentTabIds(
+      [plain, childChat],
+      [{ paneKey: paneOf('child-1', LEAF), parentPaneKey: `term-plain:${LEAF}` }]
+    )
+    expect([...ownId]).toEqual([['tab-child', 'term-plain']])
+  })
+
+  it('never lets a markdown tab own a pane', () => {
+    const doc: MobileSessionTab = {
+      type: 'markdown',
+      id: 'tab-doc',
+      title: 'Notes',
+      filePath: '/notes.md',
+      relativePath: 'notes.md',
+      isDirty: false,
+      isActive: false,
+      documentVersion: 'v1'
+    }
+    const parents = mobileSessionChildParentTabIds(
+      [doc, childChat],
+      [{ paneKey: paneOf('child-1', LEAF), parentPaneKey: `tab-doc:${LEAF}` }]
+    )
+
+    expect(parents.size).toBe(0)
+  })
 })
 
 describe('groupSessionRowsByParent', () => {
@@ -117,5 +163,20 @@ describe('groupSessionRowsByParent', () => {
     )
 
     expect(groups.map((group) => group.row.tab.id)).toEqual(['tab-child'])
+  })
+
+  it('keeps a grandchild as a root instead of hiding it under a child', () => {
+    const rows = [row(parentChat), row(childChat), row(grandchildChat)]
+    const groups = groupSessionRowsByParent(
+      rows,
+      new Map([
+        ['tab-child', 'tab-parent'],
+        ['tab-grandchild', 'tab-child']
+      ])
+    )
+
+    expect(groups.map((group) => group.row.tab.id)).toEqual(['tab-parent', 'tab-grandchild'])
+    expect(groups[0]?.children.map((child) => child.tab.id)).toEqual(['tab-child'])
+    expect(groups[1]?.children).toEqual([])
   })
 })

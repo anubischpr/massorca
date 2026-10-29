@@ -12,7 +12,12 @@ export function renderedTexts(
     return node.flatMap(renderedTexts)
   }
   if (node.type === 'Text') {
-    return [(node.children ?? []).map((child) => (typeof child === 'string' ? child : '')).join('')]
+    // Why: a nested Text is part of its parent's words, so its text is read rather than dropped.
+    return [
+      (node.children ?? [])
+        .map((child) => (typeof child === 'string' ? child : renderedTexts(child).join('')))
+        .join('')
+    ]
   }
   return (node.children ?? []).flatMap((child) =>
     typeof child === 'string' ? [] : renderedTexts(child)

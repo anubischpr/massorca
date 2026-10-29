@@ -52,16 +52,24 @@ export function groupSessionRowsByParent<Row extends { tab: MobileSessionTab }>(
   parentTabIds: ReadonlyMap<string, string>
 ): SessionRowGroup<Row>[] {
   const presentTabIds = new Set(rows.map((row) => row.tab.id))
-  const parentIsPresent = (row: Row) => {
+  const presentParentByChild = new Map<string, string>()
+  for (const row of rows) {
     const parentTabId = parentTabIds.get(row.tab.id)
-    return parentTabId !== undefined && presentTabIds.has(parentTabId)
+    if (parentTabId !== undefined && presentTabIds.has(parentTabId)) {
+      presentParentByChild.set(row.tab.id, parentTabId)
+    }
+  }
+  // Why: one level only, as in mobileSessionChildParentTabIds; a child of a child stays a root, never hidden.
+  const isChild = (row: Row) => {
+    const parentTabId = presentParentByChild.get(row.tab.id)
+    return parentTabId !== undefined && !presentParentByChild.has(parentTabId)
   }
   return rows
-    .filter((row) => !parentIsPresent(row))
+    .filter((row) => !isChild(row))
     .map((row) => ({
       row,
       children: rows.filter(
-        (child) => parentIsPresent(child) && parentTabIds.get(child.tab.id) === row.tab.id
+        (child) => isChild(child) && presentParentByChild.get(child.tab.id) === row.tab.id
       )
     }))
 }

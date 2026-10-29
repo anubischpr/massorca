@@ -1,4 +1,4 @@
-import { lazy, Suspense, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { DELEGATION_AUTOMATIC_OPTION_ID } from '../../../src/shared/delegated-session-journal'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
@@ -9,13 +9,8 @@ import {
   type MobileDelegationOptionRow,
   type MobileDelegationQuestion
 } from './mobile-delegation-card-model'
+import { MobileNativeChatDelegationWhySheet } from './MobileNativeChatDelegationWhySheet'
 
-// Why: loaded on first open, so the prompt card's import graph never pulls the sheet's drawer in.
-const MobileNativeChatDelegationWhySheet = lazy(() =>
-  import('./MobileNativeChatDelegationWhySheet').then((module) => ({
-    default: module.MobileNativeChatDelegationWhySheet
-  }))
-)
 
 type Props = {
   /** The question's own text, which heads the card. */
@@ -38,10 +33,13 @@ export function MobileNativeChatDelegationCard({
   const decision = card.decision
   // Why: a row the question carries no answer for cannot be sent, so the card does not offer it.
   const rows = delegationOptionRows(card).filter((row) => answerTokens[row.optionId] !== undefined)
-  const [selectedId, setSelectedId] = useState<string | null>(() => defaultDelegationOption(card))
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    // Why: the default is only chosen when its row is drawn, so no pick sits on a row the card hides.
+    const fallback = defaultDelegationOption(card)
+    return rows.some((row) => row.optionId === fallback) ? fallback : null
+  })
   const [sending, setSending] = useState(false)
   const [whyOpen, setWhyOpen] = useState(false)
-  const [whyMounted, setWhyMounted] = useState(false)
   const sendingRef = useRef(false)
   const token = selectedId === null ? undefined : answerTokens[selectedId]
   const canStart = token !== undefined && !sending
@@ -85,10 +83,7 @@ export function MobileNativeChatDelegationCard({
             accessibilityLabel="Why Automatic picked this agent"
             hitSlop={spacing.sm}
             style={styles.whyButton}
-            onPress={() => {
-              setWhyMounted(true)
-              setWhyOpen(true)
-            }}
+            onPress={() => setWhyOpen(true)}
           >
             <Text style={styles.whyText}>Why?</Text>
           </Pressable>
@@ -124,15 +119,13 @@ export function MobileNativeChatDelegationCard({
         </Pressable>
       </View>
 
-      {decision && whyMounted ? (
-        <Suspense fallback={null}>
-          <MobileNativeChatDelegationWhySheet
-            visible={whyOpen}
-            onClose={() => setWhyOpen(false)}
-            card={card}
-            decision={decision}
-          />
-        </Suspense>
+      {decision ? (
+        <MobileNativeChatDelegationWhySheet
+          visible={whyOpen}
+          onClose={() => setWhyOpen(false)}
+          card={card}
+          decision={decision}
+        />
       ) : null}
     </View>
   )

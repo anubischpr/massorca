@@ -159,6 +159,32 @@ describe('MobileSessionsSheet', () => {
     expect(tabLabels(flat)).toEqual(['Fix login', 'Explore v5', 'npm test'])
   })
 
+  it('selects a nested child tab and closes the sheet at once', () => {
+    const child: MobileSessionTab = {
+      ...chat,
+      id: 'tab-child',
+      title: 'Explore v5',
+      sessionId: 'child-1'
+    }
+    const onSelect = vi.fn()
+    const onClose = vi.fn()
+    const mounted = mount(
+      propsWith({
+        rows: [
+          { tab: chat, isActive: false, status: 'idle' },
+          { tab: child, isActive: false, status: null }
+        ],
+        childParentTabIds: new Map([['tab-child', 'tab-chat']]),
+        onSelect,
+        onClose
+      })
+    )
+    act(() => rowNamed(mounted, 'Explore v5').props.onPress())
+
+    expect(onSelect).toHaveBeenCalledWith(child)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
   it('labels each tab by its agent status, or by its kind when it reports none', () => {
     const texts = textsOf(mount(propsWith({})))
     expect(texts).toEqual(expect.arrayContaining(['Working', 'Idle', 'Markdown']))
