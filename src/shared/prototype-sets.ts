@@ -45,7 +45,9 @@ const prototypeRequestManifestSchema = z.object({
   worktreeId: z.string().min(1).max(MANIFEST_TEXT_MAX_LENGTH).optional(),
   chatTitle: z.string().max(MANIFEST_TEXT_MAX_LENGTH).optional(),
   // The chat's launch directory on the host: where Gentle Shell's design/ folder lives.
-  sessionCwd: z.string().min(1).max(4096).optional()
+  sessionCwd: z.string().min(1).max(4096).optional(),
+  // The design/<slug>/ folder bound on first resolution, so a design folder that appears later cannot rebind it.
+  gentleDesignSlug: z.string().refine(isPlainPathSegment).optional()
 })
 
 export type PrototypeRequestManifest = z.infer<typeof prototypeRequestManifestSchema>

@@ -52,6 +52,29 @@ function replyResult(reply: { ok: boolean; result?: unknown }): unknown {
   return reply.ok ? reply.result : undefined
 }
 
+/** A request folder of one chat with one direction, written as the host would have written it. */
+async function writeSetFor(sessionId: string, requestId: string): Promise<void> {
+  const folder = join(
+    nativeChatVisualsFolderFor(stateDirectory, sessionId),
+    'prototypes',
+    requestId
+  )
+  await mkdir(folder, { recursive: true })
+  await writeFile(
+    join(folder, 'request.json'),
+    JSON.stringify({
+      version: 1,
+      requestId,
+      agent: 'claude',
+      sessionId,
+      originalPrompt: 'a dashboard',
+      count: 2,
+      createdAt: '2026-10-28T20:15:00.000Z'
+    })
+  )
+  await writeFile(join(folder, 'A.html'), '<p>a</p>')
+}
+
 describe('prototypes.*', () => {
   it('are registered on the runtime manifest', () => {
     const names = ALL_RPC_METHODS.map((method) => method.name)
@@ -190,7 +213,26 @@ describe('prototypes.*', () => {
     expect(replyResult(reply)).toEqual({ sets: [] })
   })
 
-  it('readFile answers not_found for a chat with no record and unreadable for a WSL chat', async () => {
+  it('lists every chat to this desktop, but to a paired device only the chats the host still keeps', async () => {
+    await writeSetFor(SESSION, '20261028-201500-kept00')
+    await writeSetFor('session-gone-0003', '20261028-201500-gone00')
+
+    expect(replyResult(await call('prototypes.list', {}, STRUCTURED_CLIENT))).toMatchObject({
+      sets: expect.arrayContaining([
+        expect.objectContaining({ sessionId: SESSION }),
+        expect.objectContaining({ sessionId: 'session-gone-0003' })
+      ])
+    })
+    const pairedDevice = {
+      ...STRUCTURED_CLIENT,
+      caller: { kind: 'paired-device' as const, deviceId: 'device-1' }
+    }
+    expect(replyResult(await call('prototypes.list', {}, pairedDevice))).toMatchObject({
+      sets: [expect.objectContaining({ sessionId: SESSION })]
+    })
+  })
+
+  it('readFile answers not_found for a chat with no record or a WSL chat', async () => {
     const fileName = 'prototypes/20261028-201500-aaaaaa/A.html'
     record = null
     expect(
@@ -213,7 +255,7 @@ describe('prototypes.*', () => {
           STRUCTURED_CLIENT
         )
       )
-    ).toEqual({ ok: false, error: 'unreadable' })
+    ).toEqual({ ok: false, error: 'not_found' })
   })
 
   it('readFile returns the HTML of a set file of a request on this host', async () => {

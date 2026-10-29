@@ -40,6 +40,8 @@ import { NativeChatSessionServers } from './NativeChatSessionServers'
 import { NativeChatSessionVisualRow } from './NativeChatSessionVisualRow'
 import { useNativeChatVisualOwner } from './native-chat-visual-owner'
 import { useOpenNativeChatVisual } from './use-native-chat-visual-open'
+import { useBoundDesignFolders } from '../prototypes/prototype-bound-design-folders'
+import { isBoundDesignFile } from '../../../../shared/prototype-design-folders'
 import {
   nativeChatSessionConnectors,
   nativeChatSessionPlan,
@@ -93,9 +95,16 @@ export function NativeChatSessionSummary(props: {
   // Visuals list only under a structured chat's owner, where the transcript can mount them too.
   const owner = useNativeChatVisualOwner()
   const openVisual = useOpenNativeChatVisual(owner)
+  // Why: a Gentle Shell design folder bound to a prototype request is the Prototypes view's, not an artifact.
+  const boundDesignFolders = useBoundDesignFolders(props.sessionId)
   const visuals = useMemo(
-    () => (owner ? nativeChatSessionVisuals(props.journalItems) : []),
-    [owner, props.journalItems]
+    () =>
+      owner
+        ? nativeChatSessionVisuals(props.journalItems).filter(
+            (visual) => !isBoundDesignFile(visual.file, boundDesignFolders)
+          )
+        : [],
+    [owner, props.journalItems, boundDesignFolders]
   )
   const resultCount = visuals.length + results.length
   const connectors = useMemo(

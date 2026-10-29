@@ -3,7 +3,8 @@
 // unreadable holds nothing to list.
 
 import type { Dirent } from 'node:fs'
-import { lstat, readdir, readFile } from 'node:fs/promises'
+import { lstat, readdir, readFile, rename, unlink, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import {
   isPlainPathSegment,
@@ -33,18 +34,19 @@ export async function readRequestManifest(
   )
 }
 
-/** The Gentle Shell set bound to a request: the one design/ folder new since the send, if exactly one. */
+/**
+ * The Gentle Shell set bound to a request. The design/ folder is bound on first resolution and kept in
+ * request.json, so a design folder that appears later cannot rebind the request.
+ */
 export async function gentleDesignSetFor(
+  requestFolder: string,
   manifest: PrototypeRequestManifest
 ): Promise<PrototypeSet | null> {
   const cwd = manifest.sessionCwd
   if (manifest.agent !== 'gentle-shell' || cwd === undefined) {
     return null
   }
-  const slug = resolveGentleDesignSlug(
-    manifest.gentleDesignBaseline ?? [],
-    await listGentleDesignSlugs(cwd)
-  )
+  const slug = manifest.gentleDesignSlug ?? (await resolveAndBindSlug(requestFolder, manifest, cwd))
   if (slug === null) {
     return null
   }
@@ -53,6 +55,52 @@ export async function gentleDesignSetFor(
     MAX_DESIGN_JSON_BYTES
   )
   return buildGentleDesignSet(manifest, slug, designJson)
+}
+
+/** The one design/ folder new since the send, bound into request.json; null while there is not exactly one. */
+async function resolveAndBindSlug(
+  requestFolder: string,
+  manifest: PrototypeRequestManifest,
+  cwd: string
+): Promise<string | null> {
+  const slug = resolveGentleDesignSlug(
+    manifest.gentleDesignBaseline ?? [],
+    await listGentleDesignSlugs(cwd)
+  )
+  if (slug !== null) {
+    await writeRequestManifest(requestFolder, { ...manifest, gentleDesignSlug: slug })
+  }
+  return slug
+}
+
+/** Rewrites request.json through a temporary file, so a reader never sees a half-written manifest. */
+async function writeRequestManifest(
+  requestFolder: string,
+  manifest: PrototypeRequestManifest
+): Promise<void> {
+  const path = join(requestFolder, PROTOTYPE_MANIFEST_FILE_NAME)
+  const temporary = `${path}.${randomUUID()}.tmp`
+  try {
+    await writeFile(temporary, JSON.stringify(manifest, null, 2))
+    await rename(temporary, path)
+  } catch (error) {
+    logPrototypeFailure('binding a Gentle Shell design folder', error)
+    await unlink(temporary).catch(() => undefined)
+  }
+}
+
+/** Logs a failure other than an absent file, which is the normal state of a folder that holds nothing. */
+export function logPrototypeFailure(action: string, error: unknown): void {
+  const code = errorCode(error)
+  if (code !== 'ENOENT') {
+    console.warn(`[prototypes] ${action} failed${code === undefined ? '' : `: ${code}`}`)
+  }
+}
+
+function errorCode(error: unknown): string | undefined {
+  return error instanceof Error && 'code' in error && typeof error.code === 'string'
+    ? error.code
+    : undefined
 }
 
 /** The direct subfolders of design/ that hold a design.json, sorted. */
@@ -86,16 +134,18 @@ export async function fileMtime(path: string): Promise<number | null> {
   try {
     const stats = await lstat(path)
     return stats.isFile() ? stats.mtimeMs : null
-  } catch {
+  } catch (error) {
+    logPrototypeFailure('reading a prototype file', error)
     return null
   }
 }
 
-/** The entries of a folder; an absent or unreadable folder holds nothing to list. */
+/** The entries of a folder; an absent folder holds nothing to list, and any other failure is logged. */
 export async function readDirectoryEntries(folder: string): Promise<Dirent[]> {
   try {
     return await readdir(folder, { withFileTypes: true })
-  } catch {
+  } catch (error) {
+    logPrototypeFailure('listing a prototype folder', error)
     return []
   }
 }
@@ -109,7 +159,8 @@ async function readBoundedJson(path: string, maxBytes: number): Promise<unknown>
     }
     const parsed: unknown = JSON.parse(await readFile(path, 'utf8'))
     return parsed
-  } catch {
+  } catch (error) {
+    logPrototypeFailure('reading a prototype JSON file', error)
     return undefined
   }
 }
