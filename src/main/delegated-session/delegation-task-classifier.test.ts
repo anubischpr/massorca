@@ -120,8 +120,20 @@ describe('classifyDelegationTask', () => {
       ).toMatchObject({ tier: 4, riskFloorApplied: false })
     })
 
-    it('keeps "release" a high-risk keyword, so a read-only release review is high risk', () => {
-      expect(classify('Explore a new tool release, read-only').dimensions.risk).toBe('high')
+    it('treats shipping a release as high risk but reading one as low', () => {
+      expect(classify('Release to production').dimensions.risk).toBe('high')
+      expect(classify('Explore a new tool release, read-only').dimensions.risk).toBe('low')
+    })
+
+    it('places the approved prototype example in tier 3', () => {
+      expect(
+        classify('Explore a new tool release and list features to adopt, read-only').tier
+      ).toBe(3)
+    })
+
+    it('does not read "author" as auth', () => {
+      expect(classify('Summarize the author list').dimensions.risk).toBe('low')
+      expect(classify('Review the authorization flow').dimensions.risk).toBe('high')
     })
   })
 })

@@ -27,7 +27,10 @@ function levelRule(level: DelegationDimensionLevel, words: readonly string[]): L
 const RISK_RULES = [
   levelRule('high', [
     'security',
-    'auth',
+    // Why: bare "auth" would also match "author".
+    'auth\\b',
+    'authenticat',
+    'authoriz',
     'permission',
     'payment',
     'migration',
@@ -35,7 +38,11 @@ const RISK_RULES = [
     'production',
     'credential',
     'data loss',
-    'release'
+    // Why: only shipping a release is risky; reading release notes is not.
+    'cut a release',
+    'release to',
+    'publish a release',
+    'ship a release'
   ])
 ]
 
