@@ -219,7 +219,7 @@ describe('a worker cannot tell which mode it is running in', () => {
     expect(terminal.mode.mode).toBe('terminal')
     const structuredPreamble = structuredPreambles[0] as string
     const terminalPreamble = vi.mocked(runtime.sendTerminalAgentPrompt).mock.calls[0]?.[1] as string
-    const selfLine = `\nYour Orca session ID is: ${STRUCTURED_ORCA_SESSION_ID}`
+    const selfLine = `\nYour MassOrca session ID is: ${STRUCTURED_ORCA_SESSION_ID}`
     expect(
       normalizePreamble(
         structuredPreamble.replace(selfLine, ''),
@@ -257,7 +257,7 @@ describe('a worker cannot tell which mode it is running in', () => {
     expect(showTerminal).not.toHaveBeenCalled()
     // Its sub-worker is told the coordinator's Orca session ID, not the handle it was minted.
     expect(vi.mocked(runtime.sendTerminalAgentPrompt).mock.calls[0]?.[1]).toContain(
-      "Your coordinator's Orca session ID is: orca_session_id:sess_coord\n"
+      "Your coordinator's MassOrca session ID is: orca_session_id:sess_coord\n"
     )
     expect(vi.mocked(runtime.sendTerminalAgentPrompt).mock.calls[0]?.[1]).toContain(
       '=== SUB-DISPATCH ==='

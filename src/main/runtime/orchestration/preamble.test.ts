@@ -226,6 +226,9 @@ describe('buildDispatchPreamble', () => {
 
     expect(section).toContain('Exit the shell after completion')
     expect(section).toContain('Bare-shell workers have no idle agent')
+    expect(section).toContain(
+      'prompt for MassOrca to reuse; if the coordinator has more for you it will'
+    )
     expect(section).toContain('do NOT run a sleep/poll loop')
     expect(section).not.toContain('Do not exit the shell')
     expect(section).not.toMatch(/2 minutes/)
@@ -418,17 +421,17 @@ describe('how the preamble names the worker and its coordinator, by kind', () =>
     )
 
     expect(header(preamble)).toBe(
-      `${FIRST}\nYour coordinator's Orca session ID is: ${SESSION_COORD}\nYour task ID is: task_abc123\nYour Orca session ID is: ${SESSION_WORKER}`
+      `${FIRST}\nYour coordinator's MassOrca session ID is: ${SESSION_COORD}\nYour task ID is: task_abc123\nYour MassOrca session ID is: ${SESSION_WORKER}`
     )
     expect(cliFence(preamble)).toContain(`--from ${SESSION_WORKER} `)
   })
 
   it("follows each party's own kind when a session and a terminal meet", () => {
     expect(header(buildDispatchPreamble(baseParams({ workerHandle: SESSION_WORKER })))).toBe(
-      `${FIRST}\nYour coordinator's terminal handle is: term_coord\nYour task ID is: task_abc123\nYour Orca session ID is: ${SESSION_WORKER}`
+      `${FIRST}\nYour coordinator's terminal handle is: term_coord\nYour task ID is: task_abc123\nYour MassOrca session ID is: ${SESSION_WORKER}`
     )
     expect(header(buildDispatchPreamble(baseParams({ coordinatorHandle: SESSION_COORD })))).toBe(
-      `${FIRST}\nYour coordinator's Orca session ID is: ${SESSION_COORD}\nYour task ID is: task_abc123`
+      `${FIRST}\nYour coordinator's MassOrca session ID is: ${SESSION_COORD}\nYour task ID is: task_abc123`
     )
   })
 
@@ -441,7 +444,7 @@ describe('how the preamble names the worker and its coordinator, by kind', () =>
     expect(withoutRedispatch.split('this chat')).toHaveLength(4)
     expect(
       withoutRedispatch
-        .replace(`\nYour Orca session ID is: ${SESSION_WORKER}`, '')
+        .replace(`\nYour MassOrca session ID is: ${SESSION_WORKER}`, '')
         .split(SESSION_WORKER)
         .join('term_worker')
         .split('this chat')

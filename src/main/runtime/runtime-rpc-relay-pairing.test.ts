@@ -172,6 +172,7 @@ describe('OrcaRuntimeRpcServer', () => {
         throw new Error('expected relay mint failure')
       }
       expect(offer.reason).toBe('relay_mint_failed')
+      expect(offer.guidance).toMatch(/^MassOrca Relay could not create a pairing invite/)
       expect(offer.relayFailure).toMatchObject({
         code: 'relay_mint_failed',
         stage: 'create_pairing_relay'
