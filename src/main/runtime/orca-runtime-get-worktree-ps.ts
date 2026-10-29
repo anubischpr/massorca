@@ -37,6 +37,10 @@ import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import { buildWorktreeListingPage } from './worktree-listing-host-scope'
 import { structuredWorkerOwesWork } from './structured-worker-custody'
 import {
+  getDelegationAnswerService,
+  reconcileDelegationRequests
+} from '../delegated-session/delegation-runtime'
+import {
   resolvedTuiAgentArgsBypassPermissions,
   resolveTuiAgentLaunchEnv
 } from '../../shared/tui-agent-launch-defaults'
@@ -318,7 +322,10 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVis
       // Read per sweep tick from the orchestration database: a worker whose dispatch is open keeps
       // its agent running. No database answers no.
       hasOpenDispatch: (record) =>
-        structuredWorkerOwesWork(this.getOrchestrationDbIfAvailable?.() ?? null, record)
+        structuredWorkerOwesWork(this.getOrchestrationDbIfAvailable?.() ?? null, record),
+      // A delegated session's agent-choice card is answered here, never by a provider.
+      hostOwnedPrompts: getDelegationAnswerService(this).hostOwnedPrompts
     })
+    reconcileDelegationRequests(this)
   }
 }

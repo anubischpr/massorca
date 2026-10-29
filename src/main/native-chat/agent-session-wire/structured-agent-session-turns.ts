@@ -44,6 +44,7 @@ import {
 import type { StructuredAgentSessionLogger } from './structured-agent-session-logger'
 import { isAgentSessionAttachmentExpiredError } from '../agent-session-attachments/agent-session-attachment-claims'
 import type { StructuredAgentRegistry } from './structured-agent-registry'
+import type { StructuredAgentSessionHostOwnedPrompts } from './structured-agent-session-host-owned-prompts'
 export { performSetOption } from './structured-agent-session-turns-options'
 export { performPrompt } from './structured-agent-session-turns-prompt'
 export { performCancel } from './structured-agent-session-turns-cancel'
@@ -62,6 +63,8 @@ export type AgentSessionTurnContext = {
   persistOptions: (options: Readonly<Record<string, string>>) => Promise<void>
   /** Opaque client identity recorded as the resolver of a prompt. */
   resolvedBy: string
+  /** Resolves host-owned questions; see `StructuredAgentSessionHostOwnedPrompts`. */
+  hostOwnedPrompts?: StructuredAgentSessionHostOwnedPrompts
   /** Republishes state kept outside the journal, such as the record's options or rewind phase.
    *  Journal appends reach readers on their own. */
   publish: () => void

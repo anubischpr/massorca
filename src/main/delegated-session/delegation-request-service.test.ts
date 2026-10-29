@@ -49,8 +49,7 @@ describe('DelegationRequestService.request', () => {
             itemId: agentJournalItemKey(identity),
             revision: 1
           }
-        }),
-        readHostRow: vi.fn(async () => null)
+        })
       },
       readParent: (sessionId) => (sessionId === PARENT.sessionId ? PARENT : null),
       listAgents: async () => [

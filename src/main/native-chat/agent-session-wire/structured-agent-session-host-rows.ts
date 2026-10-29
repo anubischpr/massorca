@@ -4,8 +4,7 @@
 import {
   AGENT_JOURNAL_THREAD_SCOPE,
   type AgentJournalItemBody,
-  type AgentJournalItemIdentity,
-  type AgentJournalRenderItem
+  type AgentJournalItemIdentity
 } from '../../../shared/agent-session-journal-types'
 import type { JournalAppendResult } from '../agent-session-journal/journal-store-contracts'
 import type { StructuredAgentSessionHost } from './structured-agent-session-host'
@@ -18,8 +17,6 @@ export type StructuredAgentSessionHostRows = {
     identity: AgentJournalItemIdentity,
     body: AgentJournalItemBody
   ) => Promise<JournalAppendResult>
-  /** The chat's row now, from the fully reduced timeline. */
-  readHostRow: (sessionId: string, itemId: string) => Promise<AgentJournalRenderItem | null>
 }
 
 export function structuredAgentSessionHostRows(
@@ -33,10 +30,6 @@ export function structuredAgentSessionHostRows(
         fence: structuredAgentSessionConversationFence(host.deps.store, sessionId),
         turnScope: AGENT_JOURNAL_THREAD_SCOPE
       })
-    },
-    readHostRow: async (sessionId, itemId) => {
-      const { journal } = await host.lifetime.conversation(sessionId)
-      return journal.snapshot().items.find((item) => item.itemId === itemId) ?? null
     }
   }
 }
