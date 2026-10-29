@@ -1,5 +1,6 @@
 // Each runtime registration owns its adapter, location support and account resolution at start.
 
+import { isAbsolute } from 'node:path'
 import { createCodexStructuredLaunchResolver } from '../codex/codex-structured-launch-resolution'
 import { supportsCodexStructuredLocation } from '../codex/codex-structured-location-support'
 import { supportsClaudeStructuredLocation } from '../claude/claude-structured-location-support'
@@ -211,24 +212,25 @@ function acpRegistration(spec: AcpLaunchSpec): StructuredAgentRuntimeRegistratio
   return {
     definition: acpStructuredAgentDefinition(spec),
     supportsLocation: (location) => supportsSupervisedProviderChildLocation(location),
-    ...(spec.supportsVersion
-      ? {
-          supportsLaunch: async ({ cwd, env, commandSettings }) => {
-            const launchEnv = { ...env, ...spec.env }
-            let command: string
-            try {
-              command = resolveAcpLaunchCommand(spec, launchEnv, { commandSettings })
-            } catch (error) {
-              // An unrunnable Command setting is the launch's refusal to state, not a terminal.
-              if (isAgentSessionPreSpawnError(error)) {
-                return true
-              }
-              throw error
-            }
-            return acpLaunchVersionSupported(spec, { command, cwd, env: launchEnv })
-          }
+    // Why: every ACP agent is checked, so an agent whose CLI is not installed is never offered.
+    supportsLaunch: async ({ cwd, env, commandSettings }) => {
+      const launchEnv = { ...env, ...spec.env }
+      let command: string
+      try {
+        command = resolveAcpLaunchCommand(spec, launchEnv, { commandSettings })
+      } catch (error) {
+        // An unrunnable Command setting is the launch's refusal to state, not a terminal.
+        if (isAgentSessionPreSpawnError(error)) {
+          return true
         }
-      : {}),
+        throw error
+      }
+      // Why: an unresolved stock command comes back as its bare name, so only a path proves an install.
+      if (!spec.supportsVersion) {
+        return isAbsolute(command)
+      }
+      return acpLaunchVersionSupported(spec, { command, cwd, env: launchEnv })
+    },
     resolveAccountHome: ({ launchEnv }) => spec.account.resolve({ launchEnv }),
     modelCatalog: (context) => acpModelCatalogDiscovery(spec, context),
     createAdapter: (context) => {

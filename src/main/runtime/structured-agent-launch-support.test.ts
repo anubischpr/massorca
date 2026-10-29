@@ -53,10 +53,10 @@ afterEach(async () => {
 })
 
 describe('structuredAgentSupportsLaunch', () => {
-  it('asks nothing for an agent whose location alone decides', async () => {
-    expect(await structuredAgentSupportsLaunch('grok', 'id:workspace-1', runtime)).toBe(true)
+  it('asks no version of an agent with no release list, only whether its command resolves', async () => {
+    // Grok's binary is not on the shell PATH here, so it is not offered.
+    expect(await structuredAgentSupportsLaunch('grok', 'id:workspace-1', runtime)).toBe(false)
     expect(probeAgentCliVersion).not.toHaveBeenCalled()
-    expect(runtime.resolveRuntimeFileTarget).not.toHaveBeenCalled()
   })
 
   it('allows stable OpenCode 1.x and 2.x, asking in the workspace with the launch env', async () => {
