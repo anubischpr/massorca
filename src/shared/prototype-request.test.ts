@@ -616,3 +616,64 @@ describe('splitPrototypeHiddenInstruction', () => {
     expect(splitPrototypeHiddenInstruction(text)).toEqual({ visibleText: text })
   })
 })
+
+describe('buildPrototypeRequestMessage with a design system', () => {
+  const base = {
+    agent: 'claude',
+    count: 2,
+    requestId: REQUEST_ID,
+    folderPath: FOLDER
+  } as const
+  const N3 =
+    'Before designing, read design/system/tokens.json, components.html and system.md. If they are missing: derive tokens from the project (CSS variables, theme or Tailwind config, style guide docs, existing components), list each source, write the three files, and stop. If the project has no identity, propose a system with 2 palette options, write it, and stop for review. Build every direction only with these tokens and components.'
+
+  it('adds nothing when the choice is absent or Skip', () => {
+    const without = buildPrototypeRequestMessage({ ...base, text: 'a prototype of a login' })
+    expect(without.sentText).toBe(`a prototype of a login\n\n${MARKER}\n${TWO_DIRECTIONS}`)
+    expect(
+      buildPrototypeRequestMessage({
+        ...base,
+        text: 'a prototype of a login',
+        designSystem: 'skip'
+      })
+    ).toEqual(without)
+  })
+
+  it.each(['use', 'propose'] as const)(
+    '%s appends the read instruction verbatim, then the file formats, inside the hidden block',
+    (designSystem) => {
+      const built = buildPrototypeRequestMessage({
+        ...base,
+        text: 'a prototype of a login',
+        designSystem
+      })
+      expect(
+        built.sentText.startsWith(`a prototype of a login\n\n${MARKER}\n${TWO_DIRECTIONS}\n${N3}\n`)
+      ).toBe(true)
+      expect(built.sentText).toContain('Design system file formats:')
+      expect(built.sentText).toContain('data-bind-background="color.primary"')
+      expect(splitPrototypeHiddenInstruction(built.sentText)).toEqual({
+        visibleText: 'a prototype of a login',
+        hidden: { kind: 'request', requestId: REQUEST_ID }
+      })
+    }
+  )
+
+  it('keeps the typed echo last for a command message', () => {
+    const built = buildPrototypeRequestMessage({
+      ...base,
+      text: '/prototype a login',
+      designSystem: 'use'
+    })
+    expect(built.sentText).toContain(`${N3}\nDesign system file formats:`)
+    expect(built.sentText.endsWith(typedEcho('/prototype a login'))).toBe(true)
+    expect(splitPrototypeHiddenInstruction(built.sentText).visibleText).toBe('/prototype a login')
+  })
+
+  it('leaves a message that is not a prototype request alone', () => {
+    expect(
+      buildPrototypeRequestMessage({ ...base, text: 'Fix the failing build', designSystem: 'use' })
+        .sentText
+    ).toBe('Fix the failing build')
+  })
+})

@@ -3,15 +3,18 @@ import {
   PROTOTYPE_COUNT_MAX,
   PROTOTYPE_COUNT_MIN
 } from './prototype-count-setting'
+import { DESIGN_SYSTEM_FILES_LINE_PREFIX } from './prototype-design-system-files'
 
 // The marker line that opens the hidden instruction of a prototype message, and how a reader
 // finds it again: everything from that line on is for the agent, never for the chat bubble. When
 // the agent's text differs from what the user typed (a /prototype command word), a second marker
-// opens an echo of the typed text, which is then what the chat shows.
+// opens an echo of the typed text, which is then what the chat shows. A design system message
+// opens with its own marker: `design-system:update`, `design-system:detect` or
+// `design-system:approve:<requestId>`.
 
 const REQUEST_ID_SOURCE = '[A-Za-z0-9][A-Za-z0-9_-]{0,127}'
 const MARKER_LINE = new RegExp(
-  `^[ \t]*<!-- orca-prototype-(request|iteration):(${REQUEST_ID_SOURCE})(?::([A-Z]))? -->[ \t]*$`,
+  `^[ \t]*<!-- orca-prototype-(request|iteration|design-system):(${REQUEST_ID_SOURCE})(?::(${REQUEST_ID_SOURCE}))? -->[ \t]*$`,
   'mu'
 )
 
@@ -25,9 +28,14 @@ const REQUEST_OPENING_LINES: ReadonlySet<string> = new Set(
   )
 )
 
+export type PrototypeDesignSystemAction = 'update' | 'detect' | 'approve'
+
 export type PrototypeHiddenInstructionMarker =
   | { kind: 'request'; requestId: string }
   | { kind: 'iteration'; requestId: string; letter: string }
+  | { kind: 'design-system'; action: 'update' | 'detect' }
+  /** `requestId` is the pending request an `approve` builds the directions of. */
+  | { kind: 'design-system'; action: 'approve'; requestId: string }
 
 export type PrototypeHiddenInstructionSplit = {
   /** What the user wrote: the typed echo when the message has one, else the text before the
@@ -50,6 +58,19 @@ export function prototypeRequestMarkerLine(requestId: string): string {
 /** Opens the user's text as typed, at the end of a message whose agent text differs from it. */
 export function prototypeTypedMarkerLine(): string {
   return TYPED_MARKER
+}
+
+/** Opens the hidden block of a design system message; `approve` names the request it unblocks. */
+export function prototypeDesignSystemMarkerLine(
+  action: PrototypeDesignSystemAction,
+  requestId?: string
+): string {
+  if ((action === 'approve') !== (requestId !== undefined)) {
+    throw new RangeError('Only an approve marker names a request')
+  }
+  return requestId === undefined
+    ? `<!-- orca-prototype-design-system:${action} -->`
+    : `<!-- orca-prototype-design-system:${action}:${requestId} -->`
 }
 
 export function prototypeIterationMarkerLine(requestId: string, letter: string): string {
@@ -95,14 +116,27 @@ function splitAtFirstMarker(
 }
 
 function markerOf(match: RegExpExecArray): PrototypeHiddenInstructionMarker | null {
-  const [, kind, requestId = '', letter] = match
-  if (kind === 'request' && letter === undefined) {
-    return { kind: 'request', requestId }
+  const [, kind, name = '', third] = match
+  if (kind === 'request' && third === undefined) {
+    return { kind: 'request', requestId: name }
   }
-  if (kind === 'iteration' && letter !== undefined) {
-    return { kind: 'iteration', requestId, letter }
+  if (kind === 'iteration' && third !== undefined && /^[A-Z]$/u.test(third)) {
+    return { kind: 'iteration', requestId: name, letter: third }
   }
-  return null
+  return kind === 'design-system' ? designSystemMarkerOf(name, third) : null
+}
+
+// The first slot of a design system marker is its action; only `approve` has a request after it.
+function designSystemMarkerOf(
+  action: string,
+  requestId: string | undefined
+): PrototypeHiddenInstructionMarker | null {
+  if ((action === 'update' || action === 'detect') && requestId === undefined) {
+    return { kind: 'design-system', action }
+  }
+  return action === 'approve' && requestId !== undefined
+    ? { kind: 'design-system', action, requestId }
+    : null
 }
 
 function splitAtMarker(
@@ -112,7 +146,7 @@ function splitAtMarker(
   marker: PrototypeHiddenInstructionMarker
 ): PrototypeHiddenInstructionSplit {
   const beforeMarker = text.slice(0, start).trimEnd()
-  if (marker.kind === 'iteration') {
+  if (marker.kind !== 'request') {
     return { visibleText: beforeMarker, hidden: marker }
   }
   const echo = TYPED_LINE.exec(text.slice(end))
@@ -123,8 +157,8 @@ function splitAtMarker(
   }
 }
 
-// The line MassOrca's builders write right after a marker: the Settings line of a request, or the
-// new-version line of an iteration.
+// The line MassOrca's builders write right after a marker: the Settings line of a request, the
+// new-version line of an iteration, or the files line of a design system message.
 function opensMassOrcaInstruction(
   marker: PrototypeHiddenInstructionMarker,
   after: string
@@ -134,7 +168,10 @@ function opensMassOrcaInstruction(
       .replace(/^\r?\n/u, '')
       .split('\n', 1)[0]
       ?.replace(/\r$/u, '') ?? ''
-  return marker.kind === 'request'
-    ? REQUEST_OPENING_LINES.has(line)
-    : line.startsWith(iterationInstructionPrefix(marker.letter))
+  if (marker.kind === 'request') {
+    return REQUEST_OPENING_LINES.has(line)
+  }
+  return marker.kind === 'iteration'
+    ? line.startsWith(iterationInstructionPrefix(marker.letter))
+    : line.startsWith(DESIGN_SYSTEM_FILES_LINE_PREFIX)
 }
