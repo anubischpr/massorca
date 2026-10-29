@@ -8,9 +8,16 @@ import {
   type PrototypeDesignSystemMode
 } from './prototype-design-system-files'
 
-/** Appended to every prototype request except "Skip", before the format of the files it names. */
+/**
+ * Appended to every prototype request except "Skip", before the format of the files it names. The system is built
+ * once: a later request reuses it as it is, and a direction that needs more adds only what it lacks.
+ */
 export const DESIGN_SYSTEM_READ_INSTRUCTION =
-  'Before designing, read design/system/tokens.json, components.html and system.md. If they are missing: derive tokens from the project (CSS variables, theme or Tailwind config, style guide docs, existing components), list each source, write the three files, and stop. If the project has no identity, propose a system with 2 palette options, write it, and stop for review. Build every direction only with these tokens and components.'
+  'Before designing, read design/system/tokens.json, components.html and system.md. If they are missing: derive tokens from the project (CSS variables, theme or Tailwind config, style guide docs, existing components), list each source, write the three files, and stop. If they exist, reuse them as they are: never regenerate, rewrite or reformat them. If a direction needs a token or component the system lacks, add only that one, keep every existing token, value and component unchanged, bump the version with a history entry, and note the addition in system.md. If the project has no identity, propose a system with 2 palette options, write it, and stop for review. Build every direction only with these tokens and components.'
+
+/** The re-detect message's instruction: the sources are read again, and only what they changed is written. */
+export const DESIGN_SYSTEM_REDETECT_INSTRUCTION =
+  "Re-read the project's sources and compare them with the existing design/system files. Change only the tokens and components whose source changed, add ones that are new, keep every other token, value and component exactly as it is, bump the version with a history entry, and update the sources in tokens.json and system.md. If the files are missing, derive them as for a first request."
 
 /** The two file contracts, briefly: what an agent writes and what MassOrca reads back. */
 export const DESIGN_SYSTEM_FORMAT_INSTRUCTION = [

@@ -2,13 +2,32 @@ import { describe, expect, it } from 'vitest'
 import {
   buildDesignSystemPaletteApproveMessage,
   buildDesignSystemRedetectMessage,
-  buildDesignSystemUpdateMessage
+  buildDesignSystemUpdateMessage,
+  type DesignSystemMessage
 } from './prototype-design-system-message'
-import { DESIGN_SYSTEM_READ_INSTRUCTION } from './prototype-design-system-instruction'
+import {
+  DESIGN_SYSTEM_READ_INSTRUCTION,
+  DESIGN_SYSTEM_REDETECT_INSTRUCTION
+} from './prototype-design-system-instruction'
 import {
   splitPrototypeHiddenInstruction,
   splitTrustedPrototypeHiddenInstruction
 } from './prototype-hidden-instruction'
+
+const CHANGE_NOTHING_ELSE =
+  'Change nothing else: keep every other token, value and component exactly as it is.'
+
+const REDETECT_SENTENCES = [
+  "Re-read the project's sources and compare them with the existing design/system files.",
+  'Change only the tokens and components whose source changed, add ones that are new, keep every other token, value and component exactly as it is, bump the version with a history entry, and update the sources in tokens.json and system.md.',
+  'If the files are missing, derive them as for a first request.'
+]
+
+// A sentence for the agent is in the sent text, and never in what the chat shows.
+function expectHiddenFromChat(message: DesignSystemMessage, sentence: string): void {
+  expect(message.sentText).toContain(sentence)
+  expect(message.visibleText).not.toContain(sentence)
+}
 
 const GROUPS = [
   {
@@ -82,6 +101,18 @@ describe('buildDesignSystemUpdateMessage', () => {
     expect(sentText).toContain('Design system file formats:')
   })
 
+  it('tells the agent to change nothing else, hidden from the chat', () => {
+    expectHiddenFromChat(
+      buildDesignSystemUpdateMessage({
+        currentVersion: 2,
+        groups: GROUPS,
+        rebuild: [],
+        freeText: ''
+      }),
+      CHANGE_NOTHING_ELSE
+    )
+  })
+
   it('leaves out the rebuild instruction when no set is rebuilt', () => {
     const { sentText } = buildDesignSystemUpdateMessage({
       currentVersion: 2,
@@ -122,14 +153,20 @@ describe('buildDesignSystemUpdateMessage', () => {
 })
 
 describe('buildDesignSystemRedetectMessage', () => {
-  it('asks to re-detect and hides the read instruction', () => {
-    const { visibleText, sentText } = buildDesignSystemRedetectMessage()
+  it('asks to re-detect and hides the re-detect instruction, not the first-request read', () => {
+    const message = buildDesignSystemRedetectMessage()
+    const { visibleText, sentText } = message
     expect(visibleText).toBe('Re-detect the design system from the project.')
-    expect(sentText).toContain(DESIGN_SYSTEM_READ_INSTRUCTION)
+    expect(sentText).toContain(DESIGN_SYSTEM_REDETECT_INSTRUCTION)
+    expect(sentText).not.toContain(DESIGN_SYSTEM_READ_INSTRUCTION)
     expect(splitTrustedPrototypeHiddenInstruction(sentText)).toEqual({
       visibleText,
       hidden: { kind: 'design-system', action: 'detect' }
     })
+  })
+
+  it.each(REDETECT_SENTENCES)('hides from the chat the sentence %j', (sentence) => {
+    expectHiddenFromChat(buildDesignSystemRedetectMessage(), sentence)
   })
 })
 
@@ -142,6 +179,13 @@ describe('buildDesignSystemPaletteApproveMessage', () => {
     expect(visibleText).toBe('Use the Calm blue palette for the design system.')
     expect(sentText).toContain('set the status to detected')
     expect(sentText).toContain('prototype request 20261028-201500-k3f9q2')
+    expectHiddenFromChat(
+      buildDesignSystemPaletteApproveMessage({
+        paletteName: 'Calm blue',
+        requestId: '20261028-201500-k3f9q2'
+      }),
+      CHANGE_NOTHING_ELSE
+    )
     expect(splitTrustedPrototypeHiddenInstruction(sentText)).toEqual({
       visibleText,
       hidden: { kind: 'design-system', action: 'approve', requestId: '20261028-201500-k3f9q2' }

@@ -625,7 +625,7 @@ describe('buildPrototypeRequestMessage with a design system', () => {
     folderPath: FOLDER
   } as const
   const N3 =
-    'Before designing, read design/system/tokens.json, components.html and system.md. If they are missing: derive tokens from the project (CSS variables, theme or Tailwind config, style guide docs, existing components), list each source, write the three files, and stop. If the project has no identity, propose a system with 2 palette options, write it, and stop for review. Build every direction only with these tokens and components.'
+    'Before designing, read design/system/tokens.json, components.html and system.md. If they are missing: derive tokens from the project (CSS variables, theme or Tailwind config, style guide docs, existing components), list each source, write the three files, and stop. If they exist, reuse them as they are: never regenerate, rewrite or reformat them. If a direction needs a token or component the system lacks, add only that one, keep every existing token, value and component unchanged, bump the version with a history entry, and note the addition in system.md. If the project has no identity, propose a system with 2 palette options, write it, and stop for review. Build every direction only with these tokens and components.'
 
   it('adds nothing when the choice is absent or Skip', () => {
     const without = buildPrototypeRequestMessage({ ...base, text: 'a prototype of a login' })

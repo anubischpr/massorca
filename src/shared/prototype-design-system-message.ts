@@ -9,7 +9,7 @@ import {
 import type { DesignSystemDraftGroup } from './prototype-design-system-draft'
 import {
   DESIGN_SYSTEM_FORMAT_INSTRUCTION,
-  DESIGN_SYSTEM_READ_INSTRUCTION
+  DESIGN_SYSTEM_REDETECT_INSTRUCTION
 } from './prototype-design-system-instruction'
 import {
   neutralizePrototypeMarkers,
@@ -71,19 +71,19 @@ export function buildDesignSystemUpdateMessage(
   const hidden = [
     prototypeDesignSystemMarkerLine('update'),
     FILES_LINE,
-    `Apply the design system changes above to those files. Set the version in tokens.json to ${next} and add a history entry for it with the system's status and today's date, keeping tokens.json valid and components.html in the format below.`,
+    `Apply the design system changes above to those files. Change nothing else: keep every other token, value and component exactly as it is. Set the version in tokens.json to ${next} and add a history entry for it with the system's status and today's date, keeping tokens.json valid and components.html in the format below.`,
     ...rebuildInstructionLines(input.rebuild, next),
     DESIGN_SYSTEM_FORMAT_INSTRUCTION
   ]
   return { visibleText, sentText: `${visibleText}\n\n${hidden.join('\n')}` }
 }
 
-/** "Re-detect the design system from the project." with the read instruction. */
+/** "Re-detect the design system from the project." with the re-detect instruction. */
 export function buildDesignSystemRedetectMessage(): DesignSystemMessage {
   const hidden = [
     prototypeDesignSystemMarkerLine('detect'),
     FILES_LINE,
-    DESIGN_SYSTEM_READ_INSTRUCTION,
+    DESIGN_SYSTEM_REDETECT_INSTRUCTION,
     DESIGN_SYSTEM_FORMAT_INSTRUCTION
   ]
   return { visibleText: REDETECT_TEXT, sentText: `${REDETECT_TEXT}\n\n${hidden.join('\n')}` }
@@ -100,7 +100,7 @@ export function buildDesignSystemPaletteApproveMessage(input: {
   const hidden = [
     prototypeDesignSystemMarkerLine('approve', input.requestId),
     FILES_LINE,
-    `Apply the palette named "${name}" from the palettes in tokens.json: copy its tokens into the token values, set the status to detected, and bump the version with a history entry.`,
+    `Apply the palette named "${name}" from the palettes in tokens.json: copy its tokens into the token values, set the status to detected, and bump the version with a history entry. Change nothing else: keep every other token, value and component exactly as it is.`,
     `Then write the directions of prototype request ${input.requestId} as that request asked earlier in this chat, built only with the updated tokens and components.`,
     DESIGN_SYSTEM_FORMAT_INSTRUCTION
   ]
