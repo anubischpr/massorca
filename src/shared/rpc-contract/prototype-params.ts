@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { PROTOTYPE_COUNT_MAX, PROTOTYPE_COUNT_MIN } from '../prototype-count-setting'
 import { PROTOTYPE_DESIGN_SYSTEM_MODES } from '../prototype-design-system-files'
+import { DESIGN_SYSTEM_SWATCH_MAX_LENGTH } from '../prototype-design-system-summary'
 import { PROTOTYPE_AGENTS } from '../prototype-request'
 import { DIRECTION_LETTER_PATTERN } from '../prototype-request-folder'
 import { REQUEST_ID_PATTERN } from '../prototype-sets'
@@ -71,8 +72,9 @@ export type CreatePrototypeRequestResult =
 
 /**
  * The design system of a chat's project, as files read under the project root on the host. Each file
- * is absent when the project has none or the host could not read it; `fileNames` lists the ones
- * read, relative to the project root. `not_found`: no such chat on this host, or it is not local.
+ * is absent when the project has none; `fileNames` lists the ones read, relative to the project root.
+ * `unreadableFileNames` lists the ones the project has but the host refused to read (over the size cap,
+ * not text, or a path it does not follow). `not_found`: no such chat on this host, or it is not local.
  */
 export type ReadPrototypeDesignSystemResult =
   | {
@@ -83,6 +85,7 @@ export type ReadPrototypeDesignSystemResult =
       tokensJson?: string
       componentsHtml?: string
       systemMd?: string
+      unreadableFileNames?: string[]
     }
   | { ok: false; error: 'not_found' }
 
@@ -125,7 +128,7 @@ export const PrototypeListedDesignSystemSchema = z.object({
   tokenCount: z.int().min(0),
   agent: z.string().max(80).optional(),
   /** Color values, up to four, for the list icon. */
-  swatches: z.array(z.string().max(64)).max(4)
+  swatches: z.array(z.string().max(DESIGN_SYSTEM_SWATCH_MAX_LENGTH)).max(4)
 })
 
 export type PrototypeListedDesignSystem = z.infer<typeof PrototypeListedDesignSystemSchema>
@@ -208,7 +211,8 @@ export const ReadPrototypeDesignSystemReplySchema = z.union([
     fileNames: z.array(z.string()),
     tokensJson: z.string().optional(),
     componentsHtml: z.string().optional(),
-    systemMd: z.string().optional()
+    systemMd: z.string().optional(),
+    unreadableFileNames: z.array(z.string()).optional()
   }),
   z.object({ ok: z.literal(false), error: z.literal('not_found') })
 ])

@@ -9,11 +9,12 @@ import {
   type PrototypeRequestManifest,
   type PrototypeSet
 } from '../../shared/prototype-sets'
-import type {
-  ListPrototypeSetsResult,
-  PrototypeListedDesignSystem,
-  PrototypeListedDirection,
-  PrototypeListedSet
+import {
+  PrototypeListedDesignSystemSchema,
+  type ListPrototypeSetsResult,
+  type PrototypeListedDesignSystem,
+  type PrototypeListedDirection,
+  type PrototypeListedSet
 } from '../../shared/rpc-contract/prototype-params'
 import { usesDesignSystemInstruction } from '../../shared/prototype-design-system-instruction'
 import type { DesignSystemSummary } from '../../shared/prototype-design-system-summary'
@@ -100,11 +101,18 @@ async function withProjects(
       continue
     }
     if (project.system !== undefined && !designSystems.has(project.projectKey)) {
-      designSystems.set(project.projectKey, {
+      const entry = listedDesignSystemOf({
         projectKey: project.projectKey,
         projectName: project.projectName,
         ...project.system
       })
+      if (entry === null) {
+        console.warn(
+          '[prototypes] a design system was left out of the list: it does not match the list contract'
+        )
+      } else {
+        designSystems.set(project.projectKey, entry)
+      }
     }
     const builtOn = await builtOnOf(request, project.system)
     sets.push({
@@ -118,6 +126,15 @@ async function withProjects(
     sets,
     ...(designSystems.size > 0 ? { designSystems: [...designSystems.values()] } : {})
   }
+}
+
+/**
+ * A design system entry as the list reply's contract reads it, or null: one the contract refuses would fail
+ * the whole reply, so it is left out instead.
+ */
+export function listedDesignSystemOf(entry: unknown): PrototypeListedDesignSystem | null {
+  const parsed = PrototypeListedDesignSystemSchema.safeParse(entry)
+  return parsed.success ? parsed.data : null
 }
 
 // Why first sight: a request sent before its project had a system carries no version, so the version the

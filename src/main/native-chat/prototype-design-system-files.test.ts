@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   projectsOfLaunchDirectories,
   readDesignSystemFiles,
@@ -34,33 +34,54 @@ describe('readDesignSystemFiles', () => {
   it('reads the three files that exist and leaves out the rest', async () => {
     await write('tokens.json', TOKENS)
     await write('system.md', '# rules')
-    expect(await readDesignSystemFiles(root)).toEqual({ tokensJson: TOKENS, systemMd: '# rules' })
+    expect(await readDesignSystemFiles(root)).toEqual({
+      files: { tokensJson: TOKENS, systemMd: '# rules' },
+      unreadableFileNames: []
+    })
   })
 
   it('answers with nothing for a project without design/system', async () => {
-    expect(await readDesignSystemFiles(root)).toEqual({})
+    expect(await readDesignSystemFiles(root)).toEqual({ files: {}, unreadableFileNames: [] })
   })
 
-  it('leaves out a file over the size cap and a file that is not text', async () => {
-    await write('tokens.json', 'x'.repeat(600 * 1024))
-    await write('components.html', '\u0000binary')
-    expect(await readDesignSystemFiles(root)).toEqual({})
+  it('leaves out a file over the size cap and a file that is not text, and names them as unreadable', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      await write('tokens.json', 'x'.repeat(600 * 1024))
+      await write('components.html', '\u0000binary')
+      expect(await readDesignSystemFiles(root)).toEqual({
+        files: {},
+        unreadableFileNames: ['design/system/tokens.json', 'design/system/components.html']
+      })
+    } finally {
+      warn.mockRestore()
+    }
   })
 
   it('does not follow a symlink to a file outside the folder', async () => {
-    await write('tokens.json', TOKENS)
-    const outside = join(root, 'outside.md')
-    await writeFile(outside, 'secret')
-    await symlink(outside, join(root, 'design', 'system', 'system.md')).catch(() => undefined)
-    expect((await readDesignSystemFiles(root)).systemMd).toBeUndefined()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      await write('tokens.json', TOKENS)
+      const outside = join(root, 'outside.md')
+      await writeFile(outside, 'secret')
+      await symlink(outside, join(root, 'design', 'system', 'system.md')).catch(() => undefined)
+      expect((await readDesignSystemFiles(root)).files.systemMd).toBeUndefined()
+    } finally {
+      warn.mockRestore()
+    }
   })
 
   it('does not follow a design folder that is a symlink', async () => {
-    const elsewhere = join(root, 'elsewhere')
-    await mkdir(join(elsewhere, 'system'), { recursive: true })
-    await writeFile(join(elsewhere, 'system', 'tokens.json'), TOKENS)
-    await symlink(elsewhere, join(root, 'design'), 'junction').catch(() => undefined)
-    expect(await readDesignSystemFiles(root)).toEqual({})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      const elsewhere = join(root, 'elsewhere')
+      await mkdir(join(elsewhere, 'system'), { recursive: true })
+      await writeFile(join(elsewhere, 'system', 'tokens.json'), TOKENS)
+      await symlink(elsewhere, join(root, 'design'), 'junction').catch(() => undefined)
+      expect((await readDesignSystemFiles(root)).files).toEqual({})
+    } finally {
+      warn.mockRestore()
+    }
   })
 })
 
@@ -74,6 +95,32 @@ describe('readDesignSystemOfLaunchDirectory', () => {
       fileNames: ['design/system/tokens.json', 'design/system/components.html'],
       tokensJson: TOKENS
     })
+  })
+
+  it('names an over-cap file as unreadable and logs its name and reason, not as absent', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    try {
+      await write('tokens.json', 'x'.repeat(600 * 1024))
+      const result = await readDesignSystemOfLaunchDirectory(root)
+      expect(result).toMatchObject({
+        ok: true,
+        fileNames: [],
+        unreadableFileNames: ['design/system/tokens.json']
+      })
+      expect(result).not.toHaveProperty('tokensJson')
+      expect(warn).toHaveBeenCalledTimes(1)
+      expect(warn).toHaveBeenCalledWith(
+        '[prototypes] design system file tokens.json was not read: too_large'
+      )
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('reports no unreadable names for a project whose files are all absent or read', async () => {
+    await write('tokens.json', TOKENS)
+    const result = await readDesignSystemOfLaunchDirectory(root)
+    expect(result).not.toHaveProperty('unreadableFileNames')
   })
 })
 

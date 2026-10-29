@@ -38,6 +38,16 @@ describe('swatches', () => {
     expect(designSystemListSwatches(tokens)).toEqual(['#2563eb', '#fff', '#d00'])
   })
 
+  it('skips a color value too long for a swatch and takes the next color instead', () => {
+    const gradient = `linear-gradient(${Array.from({ length: 8 }, () => '#2563eb').join(', ')})`
+    const tokens = [
+      color('primary', gradient),
+      color('border', '#e5e5e5'),
+      color('background', '#fff')
+    ]
+    expect(designSystemListSwatches(tokens)).toEqual(['#e5e5e5', '#fff'])
+  })
+
   it('ignores tokens that are not colors and gives none for a system without colors', () => {
     const space: DesignToken = {
       id: 'space.1',

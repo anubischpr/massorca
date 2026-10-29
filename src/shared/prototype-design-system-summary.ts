@@ -6,6 +6,8 @@ import type {
 } from './prototype-design-system-tokens'
 
 const SWATCH_COUNT = 4
+/** The longest color value a list swatch carries; the list contract refuses a longer one. */
+export const DESIGN_SYSTEM_SWATCH_MAX_LENGTH = 64
 const LIST_SWATCH_IDS = ['color.primary', 'color.border', 'color.muted', 'color.success'] as const
 const REQUEST_SWATCH_IDS = [
   'color.primary',
@@ -33,9 +35,12 @@ export function designSystemRequestSwatches(tokens: readonly DesignToken[]): str
   return pickSwatches(tokens, REQUEST_SWATCH_IDS)
 }
 
-// A wanted color that the system lacks is replaced by the next color token not already shown.
+// A wanted color that the system lacks, or whose value is too long for a swatch, is replaced by the next color
+// token not already shown.
 function pickSwatches(tokens: readonly DesignToken[], wanted: readonly string[]): string[] {
-  const colors = tokens.filter((token) => token.group === 'color')
+  const colors = tokens.filter(
+    (token) => token.group === 'color' && token.value.length <= DESIGN_SYSTEM_SWATCH_MAX_LENGTH
+  )
   const byId = new Map(colors.map((token) => [token.id, token]))
   const chosen = wanted.flatMap((id) => byId.get(id) ?? [])
   const used = new Set(chosen.map((token) => token.id))

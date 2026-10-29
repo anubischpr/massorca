@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AgentSessionRecord } from '../../../../shared/agent-session-record'
 import { agentSessionRecordFixture } from '../../../../shared/agent-session-record.test-fixture'
+import { ListPrototypeSetsReplySchema } from '../../../../shared/rpc-contract/prototype-params'
 import { MOBILE_AGENT_SESSION_RPC_METHODS } from '../../runtime-rpc/runtime-rpc-mobile-agent-session-methods'
 import { setStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
 import { nativeChatVisualsFolderFor } from '../../../native-chat/native-chat-visuals-folder'
@@ -410,6 +411,25 @@ describe('prototypes design system', () => {
     await writeSetFor(SESSION, '20261028-201500-aaaaaa')
     const result = replyResult(await call('prototypes.list', {}, STRUCTURED_CLIENT))
     expect(result).not.toHaveProperty('designSystems')
+  })
+
+  it('list stays a valid reply when a color value is too long for a swatch', async () => {
+    await mkdir(join(launchDirectory, '.git'))
+    const gradient = `linear-gradient(${Array.from({ length: 12 }, () => '#2563eb').join(', ')})`
+    await writeSystem(launchDirectory, {
+      'tokens.json': JSON.stringify({
+        color: { primary: { $value: gradient }, border: { $value: '#e5e5e5' } },
+        $extensions: { massorca: { version: 2 } }
+      })
+    })
+    await writeSetFor(SESSION, '20261028-201500-aaaaaa')
+
+    const result = replyResult(await call('prototypes.list', {}, STRUCTURED_CLIENT))
+
+    expect(ListPrototypeSetsReplySchema.safeParse(result).success).toBe(true)
+    expect(result).toMatchObject({
+      designSystems: [expect.objectContaining({ swatches: ['#e5e5e5'] })]
+    })
   })
 
   async function requestManifest(requestId: string): Promise<Record<string, unknown>> {

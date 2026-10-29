@@ -1,6 +1,7 @@
 // Reading a project's design system files under its root, and the summaries a prototype list carries.
-// Every read goes through the contained reader and answers "absent" rather than throwing: a project
-// without a system, or a file the host cannot read, holds nothing to show.
+// Every read goes through the contained reader. A file that is absent is left out; a file the project has
+// but the host refuses to read (over the cap, not text, a path it does not follow) is reported by name and
+// reason, so it is never mistaken for a project with no system.
 
 import { join } from 'node:path'
 import {
@@ -19,13 +20,14 @@ import {
 import { parseDesignTokens } from '../../shared/prototype-design-system-tokens'
 import type { ReadPrototypeDesignSystemResult } from '../../shared/rpc-contract/prototype-params'
 import { readNativeChatContainedTextFile } from './native-chat-visual-file-read'
-import { logPrototypeFailure } from './prototype-request-disk'
 import {
   resolveDesignSystemProject,
   type DesignSystemProject
 } from './prototype-design-system-project'
 
 const MAX_DESIGN_SYSTEM_FILE_BYTES = 512 * 1024
+// The reader's message for an unexpected filesystem fault names only the error code, never a path.
+const READ_FAULT_PREFIX = 'visual_read_failed:'
 
 export type DesignSystemFiles = {
   tokensJson?: string
@@ -33,8 +35,20 @@ export type DesignSystemFiles = {
   systemMd?: string
 }
 
-/** The text of a file under `<root>/design/system/`, or undefined when it is absent, too large or not text. */
-async function readDesignSystemFile(root: string, file: string): Promise<string | undefined> {
+export type DesignSystemFilesRead = {
+  files: DesignSystemFiles
+  /** The root-relative paths of the files the project has but the host refused to read. */
+  unreadableFileNames: string[]
+}
+
+/** What one file under `<root>/design/system/` came to. */
+type DesignSystemFileRead =
+  | { kind: 'text'; text: string }
+  | { kind: 'absent' }
+  | { kind: 'unreadable'; reason: string }
+
+/** The text of a file under `<root>/design/system/`, absent when there is none, or unreadable with its reason. */
+async function readDesignSystemFile(root: string, file: string): Promise<DesignSystemFileRead> {
   try {
     const result = await readNativeChatContainedTextFile(
       join(root, ...DESIGN_SYSTEM_FOLDER.split('/')),
@@ -42,24 +56,48 @@ async function readDesignSystemFile(root: string, file: string): Promise<string 
       undefined,
       { maxBytes: MAX_DESIGN_SYSTEM_FILE_BYTES, isAllowedName: (name) => name === file }
     )
-    return result.ok && 'html' in result ? result.html : undefined
+    if (result.ok && 'html' in result) {
+      return { kind: 'text', text: result.html }
+    }
+    if (!result.ok && result.error === 'not_found') {
+      return { kind: 'absent' }
+    }
+    return unreadableFile(file, result.ok ? 'unreadable' : result.error)
   } catch (error) {
-    logPrototypeFailure('reading a design system file', error)
-    return undefined
+    return unreadableFile(file, faultReasonOf(error))
   }
 }
 
-/** The three design system files of a project root; a file that cannot be read is left out. */
-export async function readDesignSystemFiles(root: string): Promise<DesignSystemFiles> {
-  const [tokensJson, componentsHtml, systemMd] = await Promise.all([
+// A file the project has but the host refused is logged by its name and reason only, never by its path.
+function unreadableFile(file: string, reason: string): DesignSystemFileRead {
+  console.warn(`[prototypes] design system file ${file} was not read: ${reason}`)
+  return { kind: 'unreadable', reason }
+}
+
+function faultReasonOf(error: unknown): string {
+  return error instanceof Error && error.message.startsWith(READ_FAULT_PREFIX)
+    ? error.message.slice(READ_FAULT_PREFIX.length)
+    : 'unreadable'
+}
+
+/** The three design system files of a project root, and the ones the project has but the host refused. */
+export async function readDesignSystemFiles(root: string): Promise<DesignSystemFilesRead> {
+  const [tokens, components, source] = await Promise.all([
     readDesignSystemFile(root, DESIGN_SYSTEM_TOKENS_FILE),
     readDesignSystemFile(root, DESIGN_SYSTEM_COMPONENTS_FILE),
     readDesignSystemFile(root, DESIGN_SYSTEM_SOURCE_FILE)
   ])
   return {
-    ...(tokensJson !== undefined ? { tokensJson } : {}),
-    ...(componentsHtml !== undefined ? { componentsHtml } : {}),
-    ...(systemMd !== undefined ? { systemMd } : {})
+    files: {
+      ...(tokens.kind === 'text' ? { tokensJson: tokens.text } : {}),
+      ...(components.kind === 'text' ? { componentsHtml: components.text } : {}),
+      ...(source.kind === 'text' ? { systemMd: source.text } : {})
+    },
+    unreadableFileNames: [
+      ...(tokens.kind === 'unreadable' ? [DESIGN_SYSTEM_TOKENS_PATH] : []),
+      ...(components.kind === 'unreadable' ? [DESIGN_SYSTEM_COMPONENTS_PATH] : []),
+      ...(source.kind === 'unreadable' ? [DESIGN_SYSTEM_SOURCE_PATH] : [])
+    ]
   }
 }
 
@@ -68,7 +106,7 @@ export async function readDesignSystemOfLaunchDirectory(
   launchDirectory: string
 ): Promise<ReadPrototypeDesignSystemResult> {
   const project = await resolveDesignSystemProject(launchDirectory)
-  const files = await readDesignSystemFiles(project.root)
+  const { files, unreadableFileNames } = await readDesignSystemFiles(project.root)
   const fileNames = [
     ...(files.tokensJson !== undefined ? [DESIGN_SYSTEM_TOKENS_PATH] : []),
     ...(files.componentsHtml !== undefined ? [DESIGN_SYSTEM_COMPONENTS_PATH] : []),
@@ -79,7 +117,8 @@ export async function readDesignSystemOfLaunchDirectory(
     projectKey: project.projectKey,
     projectName: project.projectName,
     fileNames,
-    ...files
+    ...files,
+    ...(unreadableFileNames.length > 0 ? { unreadableFileNames } : {})
   }
 }
 
@@ -88,8 +127,8 @@ export async function readDesignSystemVersion(
   launchDirectory: string
 ): Promise<number | undefined> {
   const { root } = await resolveDesignSystemProject(launchDirectory)
-  const tokensJson = await readDesignSystemFile(root, DESIGN_SYSTEM_TOKENS_FILE)
-  const parsed = tokensJson === undefined ? null : parseDesignTokens(tokensJson)
+  const tokens = await readDesignSystemFile(root, DESIGN_SYSTEM_TOKENS_FILE)
+  const parsed = tokens.kind === 'text' ? parseDesignTokens(tokens.text) : null
   return parsed === null ? undefined : summarizeDesignSystem(parsed).version
 }
 
@@ -119,7 +158,7 @@ export async function projectsOfLaunchDirectories(
 }
 
 async function summarizeProjectSystem(root: string): Promise<DesignSystemSummary | null> {
-  const tokensJson = await readDesignSystemFile(root, DESIGN_SYSTEM_TOKENS_FILE)
-  const parsed = tokensJson === undefined ? null : parseDesignTokens(tokensJson)
+  const tokens = await readDesignSystemFile(root, DESIGN_SYSTEM_TOKENS_FILE)
+  const parsed = tokens.kind === 'text' ? parseDesignTokens(tokens.text) : null
   return parsed === null ? null : summarizeDesignSystem(parsed)
 }
