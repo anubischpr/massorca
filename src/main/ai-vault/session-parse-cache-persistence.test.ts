@@ -169,8 +169,10 @@ const CACHED_SESSION_FIELDS = {
   subagentTranscriptCount: true,
   resumeCommand: true,
   subagent: true,
+  headlessRun: true,
   structuredSession: true
-} satisfies Record<keyof AiVaultSession, true>
+  // Why: delegatedFrom is read from the orchestration database at list time, so no cache holds it.
+} satisfies Record<Exclude<keyof AiVaultSession, 'delegatedFrom'>, true>
 
 describe('cached session compatibility', () => {
   it('pins the persisted session shape to the current parse-cache schema', () => {

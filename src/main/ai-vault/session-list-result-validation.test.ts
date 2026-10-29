@@ -19,6 +19,45 @@ describe('parseAiVaultListResult', () => {
     )
   })
 
+  it('carries the headless-run flag when a host sends it and leaves it off otherwise', () => {
+    const parsed = parseAiVaultListResult({
+      sessions: [{ ...validSession('exec-run'), headlessRun: true }, validSession('user-run')],
+      issues: [],
+      scannedAt: '2026-07-27T00:00:00.000Z'
+    })
+
+    expect(parsed.sessions.find((session) => session.sessionId === 'exec-run')?.headlessRun).toBe(
+      true
+    )
+    expect(
+      parsed.sessions.find((session) => session.sessionId === 'user-run')?.headlessRun
+    ).toBeUndefined()
+  })
+
+  it('carries a delegated child link and drops only an unknown link status', () => {
+    const parsed = parseAiVaultListResult({
+      sessions: [
+        {
+          ...validSession('child-run'),
+          delegatedFrom: { parentSessionId: 'chat-parent', status: 'succeeded' }
+        },
+        {
+          ...validSession('future-run'),
+          delegatedFrom: { parentSessionId: 'chat-parent', status: 'paused-by-a-newer-host' }
+        }
+      ],
+      issues: [],
+      scannedAt: '2026-10-29T00:00:00.000Z'
+    })
+
+    expect(parsed.sessions.map((session) => session.sessionId)).toEqual(['child-run', 'future-run'])
+    expect(parsed.sessions[0]?.delegatedFrom).toEqual({
+      parentSessionId: 'chat-parent',
+      status: 'succeeded'
+    })
+    expect(parsed.sessions[1]?.delegatedFrom).toBeUndefined()
+  })
+
   it('keeps known-agent sessions while silently dropping unknown-agent rows', () => {
     const parsed = parseAiVaultListResult({
       sessions: [validSession(), { ...validSession('session-new'), agent: 'future-agent' }],

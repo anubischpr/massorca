@@ -29,6 +29,7 @@ vi.mock('react-native', () => ({
   Pressable: 'Pressable',
   RefreshControl: 'RefreshControl',
   SectionList: 'SectionList',
+  Switch: 'Switch',
   Text: 'Text',
   TextInput: 'TextInput',
   View: 'View',

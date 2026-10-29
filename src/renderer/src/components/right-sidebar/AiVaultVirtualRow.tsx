@@ -30,7 +30,7 @@ import { canResumeAiVaultSearchHit, hasAiVaultSearchHitPath } from './ai-vault-s
 
 export type AiVaultListRow =
   | { type: 'group'; group: AiVaultSessionGroup }
-  | { type: 'session'; groupKey: string; session: AiVaultSession }
+  | { type: 'session'; groupKey: string; session: AiVaultSession; nestedChild?: true }
 
 export function AiVaultVirtualRow({
   row,
@@ -104,6 +104,7 @@ export function AiVaultVirtualRow({
   }
 
   const isActiveStickyHeader = row.type === 'group' && activeStickyHeaderIndex === index
+  const nestedChild = row.type === 'session' && row.nestedChild === true
   const originalPaneTarget = row.type === 'session' ? getOriginalPaneTarget(row.session) : null
   const structuredSessionOpen = row.type === 'session' && isStructuredSessionOpen(row.session)
   const worktreeInfo = row.type === 'session' ? getWorktreeInfo(row.session) : null
@@ -165,7 +166,9 @@ export function AiVaultVirtualRow({
       data-index={index}
       className={cn(
         'left-0 w-full',
-        isActiveStickyHeader ? 'sticky top-0 z-10 bg-sidebar' : 'absolute top-0'
+        isActiveStickyHeader ? 'sticky top-0 z-10 bg-sidebar' : 'absolute top-0',
+        // Why: a delegated child indents under its parent behind a 1px rule.
+        nestedChild && 'left-5 right-0 w-auto border-l border-border'
       )}
       style={isActiveStickyHeader ? undefined : { transform: `translateY(${start}px)` }}
     >
@@ -189,6 +192,7 @@ export function AiVaultVirtualRow({
           worktreeInfo={worktreeInfo}
           vaultScope={vaultScope}
           detailsExpanded={expandedSessionIds.has(row.session.id)}
+          nestedChild={nestedChild}
           resumeDisabled={!searchResumeAllowed || resumeGating.resumeDisabled}
           resumeLabel={resumeLabel}
           resumeActions={visibleResumeActions}

@@ -62,6 +62,16 @@ const aiVaultSessionSchema = z.object({
   totalTokens: z.number(),
   previewMessages: z.array(sessionPreviewMessageSchema),
   previewMessagesTruncated: z.boolean().optional(),
+  // Older hosts omit it, and a row without it is still a row.
+  headlessRun: z.literal(true).optional(),
+  // Why: a status this client does not know drops only the nesting, never the row.
+  delegatedFrom: z
+    .object({
+      parentSessionId: z.string().min(1).max(512),
+      status: z.enum(['working', 'succeeded', 'failed', 'not-started'])
+    })
+    .optional()
+    .catch(undefined),
   firstUserPrompt: z.string().nullable().optional(),
   lastUserPrompt: z.string().nullable().optional(),
   queuedMessageCount: z.number().default(0),

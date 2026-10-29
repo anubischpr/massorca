@@ -68,6 +68,21 @@ export const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: '600'
   },
+  automatedRunsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm
+  },
+  automatedRunsLabel: {
+    color: colors.textSecondary,
+    fontSize: typography.metaSize
+  },
+  automatedRunsCount: {
+    color: colors.textMuted,
+    fontSize: typography.metaSize
+  },
   searchRow: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm
@@ -101,11 +116,37 @@ export const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: typography.metaSize
   },
+  cardGroup: {
+    marginBottom: spacing.sm
+  },
   card: {
     backgroundColor: colors.bgPanel,
     borderRadius: radii.card,
-    padding: spacing.md,
-    marginBottom: spacing.sm
+    padding: spacing.md
+  },
+  // Why: a delegated child is indented under its parent behind a 1px rule, with no panel of its own.
+  nestedChildRow: {
+    marginLeft: 26,
+    borderLeftWidth: 1,
+    borderLeftColor: colors.borderSubtle,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md
+  },
+  nestedChildTitle: {
+    color: colors.textPrimary,
+    fontSize: typography.bodySize,
+    fontWeight: '500'
+  },
+  nestedChildStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4
+  },
+  nestedChildDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.statusGreen
   },
   cardPressed: {
     backgroundColor: colors.bgRaised
@@ -141,13 +182,13 @@ export const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: typography.metaSize
   },
-  currentBadge: {
+  rowBadge: {
     backgroundColor: colors.bgRaised,
     borderRadius: radii.button,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2
   },
-  currentBadgeText: {
+  rowBadgeText: {
     color: colors.accentBlue,
     fontSize: typography.metaSize,
     fontWeight: '600'

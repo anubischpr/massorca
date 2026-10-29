@@ -59,7 +59,8 @@ export function VaultSessionRow({
   onRevealLog,
   onOpenCwd,
   onRequestDelete,
-  searchHit
+  searchHit,
+  nestedChild = false
 }: {
   session: AiVaultSession
   liveState: AgentStatusState | null
@@ -91,6 +92,7 @@ export function VaultSessionRow({
   onOpenCwd?: () => void
   onRequestDelete?: (session: AiVaultSession) => void
   searchHit?: AiVaultSearchHit
+  nestedChild?: boolean
 }) {
   const resumeLabel = isAntigravityReferenceSession(session)
     ? translate('aiVault.continueInCli', 'Continue in CLI')
@@ -146,8 +148,9 @@ export function VaultSessionRow({
       <ContextMenuTrigger asChild className="block w-full min-w-0">
         <div
           className={cn(
-            'group/session-row flex w-full min-w-0 cursor-pointer flex-col border-b border-sidebar-border px-3 py-2 text-left transition-colors hover:bg-sidebar-accent/55',
-            !detailsExpanded && 'min-h-[98px]'
+            'group/session-row flex w-full min-w-0 cursor-pointer flex-col border-b border-sidebar-border py-2 text-left transition-colors hover:bg-sidebar-accent/55',
+            nestedChild ? 'pl-2.5 pr-3' : 'px-3',
+            !detailsExpanded && !nestedChild && 'min-h-[98px]'
           )}
           onClick={(event) => {
             // Radix portals this row's menus out of its DOM, but React still
@@ -213,7 +216,7 @@ export function VaultSessionRow({
             />
           </div>
           {searchHit ? <AiVaultSearchEvidence hit={searchHit} /> : null}
-          {!detailsExpanded && !searchHit ? (
+          {!detailsExpanded && !searchHit && !nestedChild ? (
             <div className="mt-0.5 min-w-0 line-clamp-2 text-[12px] leading-4 text-muted-foreground">
               {latestTurn ? (
                 <>
@@ -236,6 +239,7 @@ export function VaultSessionRow({
             updatedAt={updatedAt}
             worktreeInfo={worktreeInfo}
             vaultScope={vaultScope}
+            nestedChild={nestedChild}
           />
           {detailsExpanded ? (
             <SessionInlineDetails
@@ -251,6 +255,7 @@ export function VaultSessionRow({
               onResumeInNewChat={onResumeInNewChat}
               onResumeInNewCli={onResumeInNewCli}
               onOpenLog={onOpenLog}
+              nestedChild={nestedChild}
             />
           ) : null}
         </div>

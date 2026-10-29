@@ -6,6 +6,7 @@ import {
   folderGroupKey,
   folderLabel,
   groupAiVaultSessions,
+  nestedLiveWorktreePaths,
   parseVaultQuery
 } from './ai-vault-session-filters'
 import { sessionPreviewSearchText } from './ai-vault-session-display'
@@ -198,6 +199,145 @@ describe('/shared ai-vault-session-filters (lifted core)', () => {
 
   it('builds preview search text from conversation turns', () => {
     expect(sessionPreviewSearchText(baseSession)).toContain('scope tabs')
+  })
+})
+
+describe('/shared ai-vault-session-filters (This worktree and nested live worktrees)', () => {
+  const checkout = '/Users/ada/repo'
+  const nestedWorktree = '/Users/ada/repo/.claude/worktrees/feature'
+  const sessionAt = (id: string, cwd: string): AiVaultSession => ({ ...baseSession, id, cwd })
+  const sessions = [
+    sessionAt('claude:checkout', checkout),
+    sessionAt('claude:subfolder', '/Users/ada/repo/packages/ui'),
+    sessionAt('claude:nested-root', nestedWorktree),
+    sessionAt('claude:nested-subfolder', `${nestedWorktree}/src`),
+    sessionAt('claude:sibling-prefix', '/Users/ada/repo/.claude/worktrees/feature-2/src')
+  ]
+  const thisWorktreeIds = (excludedWorktreePaths: readonly string[]): string[] =>
+    filterAiVaultSessions(sessions, {
+      query: '',
+      agents: ['claude'],
+      scope: 'workspace',
+      sort: 'updated',
+      activeWorktreePaths: [checkout],
+      excludedWorktreePaths,
+      hideEmptySessions: false
+    })
+      .map((session) => session.id)
+      .sort()
+
+  it('leaves out sessions inside a nested live worktree, keeping subfolders and near-miss names', () => {
+    expect(thisWorktreeIds([nestedWorktree])).toEqual([
+      'claude:checkout',
+      'claude:sibling-prefix',
+      'claude:subfolder'
+    ])
+  })
+
+  it('keeps every inside-or-equal match when no nested paths are passed', () => {
+    expect(
+      filterAiVaultSessions(sessions, {
+        query: '',
+        agents: ['claude'],
+        scope: 'workspace',
+        sort: 'updated',
+        activeWorktreePaths: [checkout],
+        hideEmptySessions: false
+      })
+        .map((session) => session.id)
+        .sort()
+    ).toEqual([
+      'claude:checkout',
+      'claude:nested-root',
+      'claude:nested-subfolder',
+      'claude:sibling-prefix',
+      'claude:subfolder'
+    ])
+  })
+
+  it('applies nested exclusions only to the workspace scope', () => {
+    expect(
+      filterAiVaultSessions(sessions, {
+        query: '',
+        agents: ['claude'],
+        scope: 'all',
+        sort: 'updated',
+        activeWorktreePaths: [],
+        excludedWorktreePaths: [nestedWorktree],
+        hideEmptySessions: false
+      })
+    ).toHaveLength(sessions.length)
+  })
+
+  it('matches nested worktrees across Windows drive and WSL spellings', () => {
+    const filterWith = (
+      cwdSessions: AiVaultSession[],
+      activeWorktreePath: string,
+      nestedPath: string
+    ): string[] =>
+      filterAiVaultSessions(cwdSessions, {
+        query: '',
+        agents: ['claude'],
+        scope: 'workspace',
+        sort: 'updated',
+        activeWorktreePaths: [activeWorktreePath],
+        excludedWorktreePaths: [nestedPath],
+        hideEmptySessions: false
+      }).map((session) => session.id)
+
+    expect(
+      filterWith(
+        [
+          sessionAt('win:root', 'D:\\repo\\src'),
+          sessionAt('win:nested', 'd:/repo/.claude/worktrees/feature/src')
+        ],
+        'D:\\repo',
+        'D:\\repo\\.claude\\worktrees\\feature'
+      )
+    ).toEqual(['win:root'])
+    expect(
+      filterWith(
+        [
+          sessionAt('wsl:root', '/home/ada/repo/src'),
+          sessionAt('wsl:nested', '/home/ada/repo/.claude/worktrees/feature/src')
+        ],
+        '//wsl.localhost/Ubuntu/home/ada/repo',
+        '//wsl.localhost/Ubuntu/home/ada/repo/.claude/worktrees/feature'
+      )
+    ).toEqual(['wsl:root'])
+  })
+})
+
+describe('nestedLiveWorktreePaths', () => {
+  it('returns live paths strictly inside the workspace, trimmed', () => {
+    expect(
+      nestedLiveWorktreePaths('/Users/ada/repo', [
+        '/Users/ada/repo',
+        '  /Users/ada/repo/.claude/worktrees/feature  ',
+        '/Users/ada/repo-2',
+        '/Users/ada/other'
+      ])
+    ).toEqual(['/Users/ada/repo/.claude/worktrees/feature'])
+  })
+
+  it('skips blank, relative, and differently spelled copies of the workspace itself', () => {
+    expect(
+      nestedLiveWorktreePaths('/Users/ada/repo', ['', 'relative/repo/x', '/Users/ada/repo/'])
+    ).toEqual([])
+  })
+
+  it('returns nothing for a blank or relative workspace', () => {
+    expect(nestedLiveWorktreePaths('  ', ['/Users/ada/repo/x'])).toEqual([])
+    expect(nestedLiveWorktreePaths('relative/repo', ['/relative/repo/x'])).toEqual([])
+  })
+
+  it('does not treat the WSL Linux spelling of the workspace as nested', () => {
+    expect(
+      nestedLiveWorktreePaths('//wsl.localhost/Ubuntu/home/ada/repo', [
+        '/home/ada/repo',
+        '/home/ada/repo/.claude/worktrees/feature'
+      ])
+    ).toEqual(['/home/ada/repo/.claude/worktrees/feature'])
   })
 })
 

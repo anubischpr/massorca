@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Worktree } from '../../../../shared/worktree/types'
 import {
+  deriveAiVaultNestedWorktreePaths,
   deriveAiVaultScopeSessionPaths,
   deriveAiVaultWorkspaceScopePaths
 } from './ai-vault-scope-paths'
@@ -188,5 +189,44 @@ describe('deriveAiVaultScopeSessionPaths', () => {
     expect(paths).toHaveLength(worktrees.length)
     // ~190ms before, ~1ms after; loose enough for a slow CI box.
     expect(elapsedMs).toBeLessThan(100)
+  })
+})
+
+describe('deriveAiVaultNestedWorktreePaths', () => {
+  it('returns live worktrees nested under the active one, the main checkout case', () => {
+    const active = makeWorktree({ id: 'repo-1::/repo/orca', path: '/repo/orca' })
+    const nested = makeWorktree({
+      id: 'repo-1::/repo/orca/.claude/worktrees/feature',
+      path: '/repo/orca/.claude/worktrees/feature'
+    })
+    const sibling = makeWorktree({ id: 'repo-1::/repo/orca-2', path: '/repo/orca-2' })
+
+    expect(deriveAiVaultNestedWorktreePaths(active, [active, nested, sibling])).toEqual([
+      '/repo/orca/.claude/worktrees/feature'
+    ])
+  })
+
+  it('never names the active worktree, even when another record shares its path', () => {
+    const active = makeWorktree({ id: 'repo-1::/repo/orca', path: '/repo/orca' })
+    const duplicate = makeWorktree({ id: 'repo-1::/repo/orca-dup', path: '/repo/orca' })
+
+    expect(deriveAiVaultNestedWorktreePaths(active, [active, duplicate])).toEqual([])
+  })
+
+  it('ignores archived nested worktrees, which are not live', () => {
+    const active = makeWorktree({ id: 'repo-1::/repo/orca', path: '/repo/orca' })
+    const archived = makeWorktree({
+      id: 'repo-1::/repo/orca/.claude/worktrees/old',
+      path: '/repo/orca/.claude/worktrees/old',
+      isArchived: true
+    })
+
+    expect(deriveAiVaultNestedWorktreePaths(active, [active, archived])).toEqual([])
+  })
+
+  it('returns nothing without an active worktree', () => {
+    expect(
+      deriveAiVaultNestedWorktreePaths(null, [makeWorktree({ path: '/repo/orca/x' })])
+    ).toEqual([])
   })
 })

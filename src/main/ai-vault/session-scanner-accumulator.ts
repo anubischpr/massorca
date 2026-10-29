@@ -162,6 +162,7 @@ export function finalizeSession(
     totalTokens: accumulator.totalTokens,
     previewMessages: accumulator.previewMessages,
     ...(accumulator.previewMessagesTruncated ? { previewMessagesTruncated: true } : {}),
+    ...(accumulator.headlessRun ? { headlessRun: true } : {}),
     ...(accumulator.antigravityOpeningPrompt
       ? { antigravityOpeningPrompt: accumulator.antigravityOpeningPrompt }
       : {}),

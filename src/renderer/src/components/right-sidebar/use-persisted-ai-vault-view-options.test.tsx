@@ -24,6 +24,7 @@ describe('usePersistedAiVaultViewOptions', () => {
       first.result.current.setSort('created')
       first.result.current.setGroup('folder')
       first.result.current.setHideEmptySessions(true)
+      first.result.current.setShowAutomatedRuns(true)
       first.result.current.setSessionLimit('unlimited')
     })
     first.unmount()
@@ -33,6 +34,7 @@ describe('usePersistedAiVaultViewOptions', () => {
     expect(restored.result.current.sort).toBe('created')
     expect(restored.result.current.group).toBe('folder')
     expect(restored.result.current.hideEmptySessions).toBe(true)
+    expect(restored.result.current.showAutomatedRuns).toBe(true)
     expect(restored.result.current.sessionLimit).toBe('unlimited')
   })
 
