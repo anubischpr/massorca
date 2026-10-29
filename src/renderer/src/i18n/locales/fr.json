@@ -6146,6 +6146,16 @@
             }
           },
           "list": {
+            "rows": {
+              "FolderProjectGitMarker": {
+                "0c2667a80a": "Sans Git",
+                "bcb9e06aae": "Sans Git : voir les limitations",
+                "56aee8fc7f": "Ce projet n'a pas de Git",
+                "54b5a85dfc": "L'éditeur, le terminal et la recherche fonctionnent. Non disponibles :",
+                "55fa69d439": "Recommandé uniquement pour explorer des dossiers et pour un travail hors développement.",
+                "938c32c790": "Initialiser Git"
+              }
+            },
             "groups": {
               "0ed04075b8": "Tous",
               "4aeefc5996": "Épinglés",

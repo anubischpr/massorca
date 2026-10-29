@@ -24,13 +24,13 @@ import {
 import type { Repo } from '../../../../shared/repo-types'
 import { upsertAddedRepoWithProjectHostSetup } from './add-repo-store-upsert'
 import { capturedAddRepoExecutionHostId, worktreeRefreshOptions } from './add-repo-runtime-owner'
+import { adoptInitializedGitRepo, toastGitInitFailure } from './folder-project-git-init'
 
 const NonGitFolderDialog = React.memo(function NonGitFolderDialog() {
   const activeModal = useAppStore((s) => s.activeModal)
   const modalData = useAppStore((s) => s.modalData)
   const closeModal = useAppStore((s) => s.closeModal)
   const addNonGitFolder = useAppStore((s) => s.addNonGitFolder)
-  const fetchWorktrees = useAppStore((s) => s.fetchWorktrees)
   const runtimeEnvironments = useAppStore((s) => s.runtimeEnvironments)
   const settings = useAppStore((s) => s.settings)
   const [isInitializing, setIsInitializing] = useState(false)
@@ -171,35 +171,13 @@ const NonGitFolderDialog = React.memo(function NonGitFolderDialog() {
       }
       const result = await initializeRuntimeRepoGit(settings, repo.id, executionHostId)
       if (!result.ok) {
-        // The folder project stays added; only the Git upgrade failed.
-        toast.error(
-          translate(
-            'auto.components.sidebar.NonGitFolderDialog.85523ab0d3',
-            'Failed to initialize Git'
-          ),
-          { description: result.message ?? result.error }
-        )
+        toastGitInitFailure(result.message ?? result.error)
         return
       }
-      // Why: the initialized repo keeps its add-time owner, so it replaces the project in place.
-      upsertAddedRepoWithProjectHostSetup(
-        result.repo,
-        connectionId
-          ? { sshConnectionId: connectionId }
-          : { runtimeEnvironmentId: runtimeEnvironmentId || null }
-      )
-      await fetchWorktrees(
-        result.repo.id,
-        worktreeRefreshOptions(runtimeEnvironmentId, connectionId)
-      )
+      // Why: the initialized repo keeps its add-time host, so it replaces the project in place.
+      await adoptInitializedGitRepo(result.repo, executionHostId)
     } catch (err) {
-      toast.error(
-        translate(
-          'auto.components.sidebar.NonGitFolderDialog.85523ab0d3',
-          'Failed to initialize Git'
-        ),
-        { description: err instanceof Error ? err.message : String(err) }
-      )
+      toastGitInitFailure(err instanceof Error ? err.message : String(err))
     } finally {
       setIsInitializing(false)
       // Why: the add flow may open another modal; close only this dialog.
@@ -207,15 +185,7 @@ const NonGitFolderDialog = React.memo(function NonGitFolderDialog() {
         closeModal()
       }
     }
-  }, [
-    addFolderProject,
-    closeModal,
-    connectionId,
-    executionHostId,
-    fetchWorktrees,
-    runtimeEnvironmentId,
-    settings
-  ])
+  }, [addFolderProject, closeModal, executionHostId, settings])
 
   const handleOpenChange = useCallback(
     (open: boolean) => {

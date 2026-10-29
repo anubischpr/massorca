@@ -6284,6 +6284,16 @@
             }
           },
           "list": {
+            "rows": {
+              "FolderProjectGitMarker": {
+                "0c2667a80a": "No Git",
+                "bcb9e06aae": "No Git: show limitations",
+                "56aee8fc7f": "This project has no Git",
+                "54b5a85dfc": "Editor, terminal, and search work. Not available:",
+                "55fa69d439": "Recommended only for exploring folders and non-development work.",
+                "938c32c790": "Initialize Git"
+              }
+            },
             "groups": {
               "0ed04075b8": "All",
               "4aeefc5996": "Pinned",
