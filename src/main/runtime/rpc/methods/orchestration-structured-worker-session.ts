@@ -14,6 +14,8 @@
 import { randomUUID } from 'node:crypto'
 import { isDefinitiveAgentSessionCreateRefusal } from '../../../../shared/agent-session-definitive-refusal'
 import type { AgentMessageSource } from '../../../../shared/agent-session-message-source'
+import type { AgentSessionExplicitAccess } from '../../../../shared/agent-session-access-mode'
+import type { StructuredAgentId } from '../../../../shared/agent-session-provider-handle'
 import type {
   AgentJournalMessageItem,
   AgentJournalSubmission
@@ -79,10 +81,12 @@ export function releaseStructuredWorkerSession(
 export async function createStructuredWorkerSession(args: {
   runtime: OrcaRuntimeService
   worktreeId: string
-  agent: 'claude' | 'codex'
+  agent: StructuredAgentId
   dispatchId: string
   /** The dispatch's own `--model`/`--effort`, already narrowed to the seedable string subset. */
   options?: Readonly<Record<string, string>>
+  /** The resolved access, when the dispatch asked for one; the host checks it for Pi. */
+  accessMode?: AgentSessionExplicitAccess
   /** Retried whenever the session's journal moves, which is the structured idle edge. */
   onJournalActivity: (sessionId: string) => void
 }): Promise<{
@@ -130,6 +134,10 @@ export async function createStructuredWorkerSession(args: {
       agent: args.agent,
       // Absent, the host seeds the user's saved selection — the same fallback a chat gets.
       ...(args.options ? { options: args.options } : {}),
+      // The host judges only the two modes it knows at create; a preset rides in `options`.
+      ...(args.accessMode === 'default' || args.accessMode === 'full-access'
+        ? { accessMode: args.accessMode }
+        : {}),
       // Dispatching a worker is background work; it must not pull the surface away from the user.
       activate: false
     })

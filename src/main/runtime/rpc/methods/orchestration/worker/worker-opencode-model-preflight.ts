@@ -4,6 +4,8 @@ import {
 } from './worker-configured-agent-preflight'
 import type { prepareFederationAttachmentWorkerStart } from './worker-start-validation'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
+import type { OrchestrationSessionCaller } from '../../../../orchestration/orchestration-caller-identity'
+import { resolveDispatchCallerWorktreeId } from '../../orchestration-caller-workspace'
 
 export async function probeWorkerOpenCodeModelLaunchSupport(
   runtime: OrcaRuntimeService,
@@ -16,6 +18,28 @@ export async function probeWorkerOpenCodeModelLaunchSupport(
     runtime.resolveOrchestrationAgentLauncher(params.agent) === 'opencode' &&
     (await runtime.probeOrchestrationOpenCodeModelLaunchSupport({ ...target, model: params.model }))
   )
+}
+
+/** A local OpenCode worker takes its model only in an existing worktree the caller names. */
+export async function resolveLocalOpenCodeModelLaunchSupport(
+  runtime: OrcaRuntimeService,
+  launchParams: { agent?: string; model?: string },
+  params: { from: string; worktree?: string },
+  callerSession: OrchestrationSessionCaller | undefined
+): Promise<boolean> {
+  const requestedWorktree = params.worktree ?? 'current'
+  const createsWorktree = requestedWorktree === 'new-child' || requestedWorktree === 'new-top-level'
+  if (createsWorktree || launchParams.agent !== 'opencode' || !launchParams.model) {
+    return false
+  }
+  const callerWorkspaceId = await resolveDispatchCallerWorktreeId(
+    runtime,
+    params.from,
+    callerSession
+  )
+  return probeWorkerOpenCodeModelLaunchSupport(runtime, launchParams, {
+    worktree: requestedWorktree === 'current' ? `id:${callerWorkspaceId}` : requestedWorktree
+  })
 }
 
 export async function prepareFederationWorkerLaunchOnHost(

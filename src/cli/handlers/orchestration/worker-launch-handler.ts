@@ -3,7 +3,10 @@ import { printResult } from '../../format'
 import { getOptionalStringFlag } from '../../flags'
 import { RuntimeClientError } from '../../runtime-client'
 import type { RuntimeStatus } from '../../../shared/runtime-types'
-import { ORCHESTRATION_WORKER_LAUNCH_PREFERENCES_RUNTIME_CAPABILITY } from '../../../shared/protocol-version'
+import {
+  ORCHESTRATION_WORKER_LAUNCH_PREFERENCES_RUNTIME_CAPABILITY,
+  ORCHESTRATION_WORKER_START_STRUCTURED_OPTIONS_RUNTIME_CAPABILITY
+} from '../../../shared/protocol-version'
 import { callOrchestrationMutation } from './mutation-request'
 import { getOptionalPositiveIntegerValueFlag } from './numeric-flags'
 import { isDevCliInvocation } from './runtime-compatibility'
@@ -15,16 +18,27 @@ export const ORCHESTRATION_WORKER_LAUNCH_HANDLER: Record<string, CommandHandler>
   'orchestration worker-start': async ({ flags, client, cwd, json }) => {
     const model = getOptionalStringFlag(flags, 'model')
     const effort = getOptionalStringFlag(flags, 'effort')
-    if (model || effort) {
+    const chat = flags.get('chat') === true
+    const accessMode = getOptionalStringFlag(flags, 'access-mode')
+    if (model || effort || chat || accessMode) {
       const status = await client.call<RuntimeStatus>('status.get')
+      const capabilities = status.result.capabilities ?? []
       if (
-        !status.result.capabilities?.includes(
-          ORCHESTRATION_WORKER_LAUNCH_PREFERENCES_RUNTIME_CAPABILITY
-        )
+        (model || effort) &&
+        !capabilities.includes(ORCHESTRATION_WORKER_LAUNCH_PREFERENCES_RUNTIME_CAPABILITY)
       ) {
         throw new RuntimeClientError(
           'incompatible_runtime',
           'The connected Orca runtime does not support worker model or effort overrides. Update or restart Orca and try again.'
+        )
+      }
+      if (
+        (chat || accessMode) &&
+        !capabilities.includes(ORCHESTRATION_WORKER_START_STRUCTURED_OPTIONS_RUNTIME_CAPABILITY)
+      ) {
+        throw new RuntimeClientError(
+          'incompatible_runtime',
+          'The connected Orca runtime does not support worker --chat or --access-mode. Update or restart Orca and try again.'
         )
       }
     }
@@ -62,6 +76,8 @@ export const ORCHESTRATION_WORKER_LAUNCH_HANDLER: Record<string, CommandHandler>
       agent: getOptionalStringFlag(flags, 'agent'),
       model,
       effort,
+      ...(chat ? { preferredMode: 'chat' as const } : {}),
+      ...(accessMode ? { accessMode } : {}),
       terminal: getOptionalStringFlag(flags, 'terminal'),
       retryOf: getOptionalStringFlag(flags, 'retry-of'),
       timeoutMs: getOptionalPositiveIntegerValueFlag(flags, 'timeout-ms'),

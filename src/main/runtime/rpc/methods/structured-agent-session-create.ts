@@ -202,6 +202,7 @@ export async function createStructuredAgentSessionForWorktree(args: {
   worktree: string
   agent: StructuredAgentId
   activate: boolean
+  accessMode?: 'default' | 'full-access'
   options?: Readonly<Record<string, string>>
   tabId?: string
 }): Promise<AgentSessionMutationResult<AgentSessionAttachResult>> {

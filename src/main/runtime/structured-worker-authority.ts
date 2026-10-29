@@ -32,7 +32,7 @@ import {
   structuredWorkerAddressable
 } from './structured-worker-custody'
 import { AGENT_SESSION_FOUNDING_FENCE } from './agent-session-record-founding'
-import { isAgentSessionHandleProvider } from '../../shared/agent-session-provider-handle'
+import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
 import {
   isStructuredWorkerHandle,
   structuredWorkerIdentities,
@@ -221,14 +221,14 @@ export function resolveStructuredWorkerAuthority(
  * relabel every restarted Codex worker as Claude, permanently, because the startup release
  * reconciler stamps the frozen journal archive with whatever it is told here.
  */
-export function structuredWorkerAgent(identity: StructuredWorkerIdentity): 'claude' | 'codex' {
+export function structuredWorkerAgent(identity: StructuredWorkerIdentity): StructuredAgentId {
   if (identity.agent) {
     return identity.agent
   }
-  // Workers are Claude or Codex sessions only: dispatch refuses any other agent.
+  // Any registered structured agent can be a worker; only a session that cannot be read falls back.
   const running = structuredWorkerSession(identity)
   const provider = running.kind === 'unverifiable' ? undefined : running.record.provider
-  return isAgentSessionHandleProvider(provider) ? provider : 'claude'
+  return typeof provider === 'string' && provider.length > 0 ? provider : 'claude'
 }
 
 export type StructuredWorkerObservation = {
