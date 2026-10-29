@@ -92,13 +92,16 @@ export async function openCodexThread(
     model?: string
     /** Config overrides for this thread, on start and resume alike. */
     threadConfig?: Record<string, unknown>
+    /** Orca's own developer-role instructions, sent apart from the user's AGENTS.md. */
+    developerInstructions?: string
   },
   timeoutMs: number | undefined
 ): Promise<CodexOpenedThread> {
   const resumeThreadId = launch.resumeThreadId
   const threadSettings = {
     cwd: launch.cwd,
-    ...launch.permissionPolicy
+    ...launch.permissionPolicy,
+    ...(launch.developerInstructions ? { developerInstructions: launch.developerInstructions } : {})
   }
   const planTool = {
     threadConfig: launch.threadConfig,

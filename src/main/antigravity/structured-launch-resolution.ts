@@ -26,6 +26,8 @@ import { structuredPassthroughLaunchArgs } from '../native-chat/structured-agent
 import { antigravityModelIdAtEffort } from '../../shared/antigravity-model-variants'
 import { readAntigravityAccountBinding } from './structured-account-binding'
 import { prepareAntigravityAccountForLaunch } from './native-account-launch'
+import { structuredSessionChildIdentityEnv } from '../runtime/structured-session-child-identity-env'
+import { delegationInstructionsForEnv } from '../delegated-session/delegation-agent-instructions'
 
 export type AntigravityResolvedLaunch = ProviderProcessLaunch & {
   previous: AgentSessionProviderHandleLink | null
@@ -41,6 +43,8 @@ export type AntigravityLaunchDeps = {
   readBinding?: typeof readAntigravityAccountBinding
   prepareAccount?: typeof prepareAntigravityAccountForLaunch
   probeVersion?: typeof probeAgentCliVersionOutcome
+  /** A folder holding the child-session instructions as AGENTS.md; null or absent adds none. */
+  resolveDelegationInstructionsFolder?: () => Promise<string | null>
 }
 
 export function resolveAntigravityCommand(
@@ -127,10 +131,17 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
       throw new Error('Antigravity reasoning effort is unsupported')
     }
     const savedArgs = antigravitySavedLaunchArgs((await deps.resolveLaunchArgs?.()) ?? [], options)
+    // The CLI and the caller id: without them `orca orchestration delegate` cannot reach this chat.
+    const childEnv = structuredSessionChildIdentityEnv(record.sessionId, env)
+    // Why: agy has no system-prompt flag; it reads AGENTS.md from every folder it is given, and
+    // otherwise answers "create a child session" with its own invoke_subagent.
+    const instructionsFolder = delegationInstructionsForEnv(childEnv)
+      ? ((await deps.resolveDelegationInstructionsFolder?.()) ?? null)
+      : null
     return {
       command,
       cwd,
-      env,
+      env: childEnv,
       previous,
       args: [
         ...savedArgs,
@@ -143,7 +154,8 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
           ? ['--model', antigravityModelIdAtEffort(options.model, options.effort)]
           : []),
         ...(options.effort ? ['--effort', options.effort] : []),
-        ...antigravityAccessArgs(record.options?.accessMode, deps.resolveFullAccess?.() === true)
+        ...antigravityAccessArgs(record.options?.accessMode, deps.resolveFullAccess?.() === true),
+        ...(instructionsFolder ? ['--add-dir', instructionsFolder] : [])
       ]
     }
   }

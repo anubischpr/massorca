@@ -21,6 +21,8 @@ import { codexStructuredLaunchArgs } from './codex-structured-launch-args'
 import { CODEX_STRUCTURED_AGENT } from './codex-structured-agent-definition'
 import type { PrepareNativeChatVisuals } from '../native-chat/native-chat-visuals-delivery'
 import { codexStructuredPermissionPolicyForSession } from './codex-structured-permission-policy'
+import { delegationInstructionsForEnv } from '../delegated-session/delegation-agent-instructions'
+import { structuredSessionChildIdentityEnv } from '../runtime/structured-session-child-identity-env'
 
 export type CodexStructuredLaunchResolverDeps = {
   store: Pick<AgentSessionRecordStore, 'getRecord' | 'pinLaunchDirectory'>
@@ -102,6 +104,10 @@ export function createCodexStructuredLaunchResolver(
     // The same saved options every turn sends, so the thread and its turns name one model.
     const model = record.options?.model
     const visuals = (await deps.prepareVisuals?.(record.sessionId)) ?? null
+    // Why: Codex's own subagents otherwise answer "create a child session" before the CLI does.
+    const developerInstructions = delegationInstructionsForEnv(
+      structuredSessionChildIdentityEnv(record.sessionId, {})
+    )
     const launch: CodexStructuredLaunch = {
       command,
       args: [...args, 'app-server'],
@@ -117,6 +123,7 @@ export function createCodexStructuredLaunchResolver(
       ...(permissionPolicy ? { permissionPolicy } : {}),
       ...(model ? { model } : {}),
       ...(visuals ? { visuals } : {}),
+      ...(developerInstructions ? { developerInstructions } : {}),
       ...(resumeThreadId
         ? {
             resumePath: await (deps.resolveRollout ?? resolvePinnedCodexRolloutProof)(

@@ -21,6 +21,7 @@ import { claudeStructuredPermissionModeForSettings } from './claude-structured-p
 import { CLAUDE_THINKING_DISPLAY_FLAG, type ClaudeCliFlag } from './claude-cli-flag-support'
 import { beginClaudeAuthSwitch, endClaudeAuthSwitch } from '../claude-accounts/live-pty-gate'
 import { claudeProviderHandle } from '../../shared/agent-session-provider-handle-encoding'
+import { DELEGATION_AGENT_INSTRUCTIONS } from '../delegated-session/delegation-agent-instructions'
 
 const SESSION_ID = 'orca-session-1'
 const IDENTITY = { sessionId: SESSION_ID } as Parameters<
@@ -148,7 +149,11 @@ describe('claude structured launch resolution', () => {
       settingSources: [...CLAUDE_DEFAULT_SETTING_SOURCES],
       supportedDialogKinds: [],
       extraArgs: { 'replay-user-messages': null },
-      systemPrompt: { type: 'preset', preset: 'claude_code' },
+      systemPrompt: {
+        type: 'preset',
+        preset: 'claude_code',
+        append: DELEGATION_AGENT_INSTRUCTIONS
+      },
       sessionId: first.providerSessionId
     })
     expect(first.options.resume).toBeUndefined()

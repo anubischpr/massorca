@@ -290,3 +290,28 @@ describe('saved Arguments', () => {
     })
   })
 })
+
+it('hands agy the child-session instructions folder and the Orca CLI identity when delegation can run', async () => {
+  const h = await setup()
+  const launch = await createAntigravityLaunchResolver({
+    ...h.deps,
+    resolveDelegationInstructionsFolder: async () => '/state/delegation-instructions'
+  })(identity)
+  expect(launch.args.slice(-2)).toEqual(['--add-dir', '/state/delegation-instructions'])
+  expect(launch.env).toMatchObject({
+    ORCA_AGENT_SESSION_ID: identity.sessionId,
+    ORCA_STRUCTURED_SESSION: '1'
+  })
+  expect(launch.env?.ORCA_CLI_COMMAND).toBeTruthy()
+})
+
+it('adds no instructions folder when none is available', async () => {
+  const h = await setup()
+  const unavailable = await createAntigravityLaunchResolver({
+    ...h.deps,
+    resolveDelegationInstructionsFolder: async () => null
+  })(identity)
+  const unwired = await createAntigravityLaunchResolver(h.deps)(identity)
+  expect(unavailable.args).not.toContain('--add-dir')
+  expect(unwired.args).not.toContain('--add-dir')
+})

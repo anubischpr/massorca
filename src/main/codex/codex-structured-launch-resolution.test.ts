@@ -8,6 +8,7 @@ import type { AgentSessionProviderHandleLink } from '../../shared/agent-session-
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import { createCodexStructuredLaunchResolver } from './codex-structured-launch-resolution'
 import { codexStructuredPermissionPolicyForSettings } from './codex-structured-permission-policy'
+import { DELEGATION_AGENT_INSTRUCTIONS } from '../delegated-session/delegation-agent-instructions'
 import { codexProviderHandle } from '../../shared/agent-session-provider-handle-encoding'
 
 const { isWindowsProcessStartTimeAvailable } = vi.hoisted(() => ({
@@ -165,7 +166,8 @@ describe('codex structured launch resolution', () => {
       codexHome: '/home/work/.codex',
       resumeThreadId: null,
       // Every launch now carries a posture; neither one is left for config.toml to decide.
-      permissionPolicy: { approvalPolicy: 'on-request', sandbox: 'workspace-write' }
+      permissionPolicy: { approvalPolicy: 'on-request', sandbox: 'workspace-write' },
+      developerInstructions: DELEGATION_AGENT_INSTRUCTIONS
     })
   })
 

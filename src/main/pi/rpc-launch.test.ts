@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE } from '../delegated-session/delegation-agent-instructions'
 import { resolveProviderChildEnv } from '../provider-process/provider-process-launch'
 import { buildPiRpcLaunch } from './rpc-launch'
 
@@ -106,5 +107,25 @@ describe('Pi RPC launch', () => {
       ORCA_AGENT_SESSION_SPAWN_TOKEN: 'this-token'
     })
     expect(childEnv).not.toHaveProperty('ORCA_TERMINAL_HANDLE')
+  })
+
+  it('appends the child-session instructions to the system prompt of a structured chat only', () => {
+    const structured = buildPiRpcLaunch({
+      ...options,
+      extraArgs: ['--model', 'm'],
+      sessionFile: '/host/.pi/agent/sessions/session.jsonl',
+      structuredSession: { id: 'this-session', spawnToken: 'this-token' }
+    })
+    expect(structured.args).toEqual([
+      '--mode',
+      'rpc',
+      '--model',
+      'm',
+      '--append-system-prompt',
+      DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE,
+      '--session',
+      '/host/.pi/agent/sessions/session.jsonl'
+    ])
+    expect(buildPiRpcLaunch(options).args).not.toContain('--append-system-prompt')
   })
 })
