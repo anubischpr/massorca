@@ -25,6 +25,7 @@ type DelegationRuntime = Pick<
   | 'getExistingOrchestrationDb'
   | 'getAccountsSnapshot'
   | 'getStructuredAgentSessionCreateSupport'
+  | 'resolveStructuredAgentSessionLocalWorkspacePath'
 >
 
 const requestServices = new WeakMap<object, DelegationRequestService>()
@@ -152,6 +153,8 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
     launch: createDelegationLauncher({
       requireDb: () => runtime.getOrchestrationDb(),
       declaredAccess: declaredAccessForStructuredAgent,
+      folderPath: (workspaceId) =>
+        runtime.resolveStructuredAgentSessionLocalWorkspacePath(`id:${workspaceId}`),
       startWorker: async ({ params, run, caller, task }) => {
         // Loaded on use: the worker-start pipeline imports far more than a request needs.
         const [{ startLocalWorker }, modeModule, timing] = await Promise.all([
