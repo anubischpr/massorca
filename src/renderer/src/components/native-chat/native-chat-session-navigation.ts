@@ -29,7 +29,16 @@ function nativeChatSessionCommands(): readonly SlashCommandSuggestion[] {
         'components.native-chat.composer.sessionWindowDescription',
         'Browse sessions in the Sessions panel'
       )
-    }
+    },
+    {
+      name: 'prototype',
+      description: translate(
+        'components.native-chat.composer.prototypeCommandDescription',
+        'Make HTML prototypes of an idea'
+      )
+    },
+    // Claimed so `/prototipo` is answered like `/prototype`; never listed beside it.
+    { name: 'prototipo', hidden: true }
   ]
 }
 

@@ -18546,6 +18546,7 @@
         "sessionWindowDescription": "Browse sessions in the Sessions panel",
         "providerFunctionTerminalOnlyError": "{{command}} is available in Terminal only.",
         "forkNotOpened": "The fork was created, but this chat cannot open it. Find it in Sessions.",
+        "prototypeCommandDescription": "Make HTML prototypes of an idea",
         "forkOpenFailed": "The fork was created, but it could not be opened. Find it in Sessions."
       },
       "tool": {
