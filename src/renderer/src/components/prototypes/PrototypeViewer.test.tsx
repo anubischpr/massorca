@@ -19,9 +19,12 @@ import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototy
 import { PrototypeViewer } from './PrototypeViewer'
 import { usePrototypeViewStore } from './prototype-view-store'
 
-const frame = vi.hoisted(() => ({
-  onAnnotateEvent: null as ((event: NativeChatVisualAnnotateEvent) => void) | null
-}))
+const frame = vi.hoisted(() => {
+  const captured: { onAnnotateEvent: ((event: NativeChatVisualAnnotateEvent) => void) | null } = {
+    onAnnotateEvent: null
+  }
+  return captured
+})
 
 vi.mock('@/i18n/i18n', () => ({
   i18n: {},
