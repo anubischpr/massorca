@@ -13,7 +13,7 @@ import type { RemoteHostPlatform } from './ssh-remote-platform'
 /** The host answered the libc probe, but with nothing this client recognises. */
 export class UnidentifiedHostLibcError extends Error {
   constructor() {
-    super('Could not identify the host C library for the bundled Orca runtime')
+    super('Could not identify the host C library for the bundled MassOrca runtime')
     this.name = 'UnidentifiedHostLibcError'
   }
 }

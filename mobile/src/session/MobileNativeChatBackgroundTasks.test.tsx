@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { createElement } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -6,6 +7,7 @@ import type { AgentChildWorkView } from '../../../src/shared/agent-status-child-
 import type { AgentSessionBackgroundTaskState } from '../../../src/shared/agent-session-wire'
 import { structuredSessionBackgroundTasksView } from '../../../src/shared/structured-session-background-tasks-view'
 import { MobileNativeChatBackgroundTasks } from './MobileNativeChatBackgroundTasks'
+import { resetSeenBackgroundWorkStoreForTests } from './mobile-seen-background-work-store'
 
 const NOW = 10_000_000
 const windowWidth = vi.hoisted(() => ({ value: 430 }))
@@ -21,7 +23,10 @@ vi.mock('react-native', () => ({
 vi.mock('lucide-react-native', () => ({
   Activity: 'Activity',
   Bot: 'Bot',
+  Check: 'Check',
   ChevronDown: 'ChevronDown',
+  ChevronRight: 'ChevronRight',
+  ChevronUp: 'ChevronUp',
   CircleHelp: 'CircleHelp',
   SquareTerminal: 'SquareTerminal',
   Workflow: 'Workflow'
@@ -30,6 +35,21 @@ vi.mock('../components/AgentStateDot', () => ({
   AGENT_WORKING_COLOR: '#eab308',
   AgentStateDot: 'AgentStateDot'
 }))
+vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: 'MobileAgentIcon' }))
+vi.mock('../components/BottomDrawer', async () => {
+  const React = await import('react')
+  return {
+    BottomDrawer: ({
+      visible,
+      onClose,
+      children
+    }: {
+      visible: boolean
+      onClose?: () => void
+      children?: ReactNode
+    }) => (visible ? React.createElement('BottomDrawer', { visible, onClose }, children) : null)
+  }
+})
 vi.mock('../hooks/use-now', () => ({ useNow: () => NOW }))
 
 function view(id: string, overrides: Partial<AgentChildWorkView> = {}): AgentChildWorkView {
@@ -56,6 +76,7 @@ function tasksFor(
     streamLive?: boolean
     hostClockOffsetMs?: number
     stop?: (taskId?: string) => Promise<unknown>
+    commandActivity?: AgentChildWorkView[]
   } = {}
 ): Props['tasks'] {
   return {
@@ -65,9 +86,16 @@ function tasksFor(
       options.hostClockOffsetMs ?? 0
     ),
     sessionKey: 'session-a',
-    stop: options.stop ?? vi.fn(async () => undefined)
+    stop: options.stop ?? vi.fn(async () => undefined),
+    ...(options.commandActivity ? { commandActivity: options.commandActivity } : {})
   }
 }
+
+// The sheet's empty-state line, whichever copy it carries.
+const EMPTY_NOTES = [
+  'No background work is running.',
+  'Task details are unavailable for this session.'
+]
 
 describe('MobileNativeChatBackgroundTasks', () => {
   let renderer: ReactTestRenderer | null = null
@@ -76,6 +104,8 @@ describe('MobileNativeChatBackgroundTasks', () => {
     act(() => renderer?.unmount())
     renderer = null
     windowWidth.value = 430
+    // The seen work is module-level; each test starts with no chat kept.
+    resetSeenBackgroundWorkStoreForTests()
   })
 
   function mount(tasks: Props['tasks']): ReactTestRenderer {
@@ -108,11 +138,16 @@ describe('MobileNativeChatBackgroundTasks', () => {
     )
   }
 
+  // The indicator is the strip's first pressable; the sheet's controls come after it in the tree.
   function header(mounted: ReactTestRenderer): ReactTestInstance {
+    const strip = mounted.root.find((node) => node.props.testID === 'background-tasks-strip')
+    return strip.findAll((node) => String(node.type) === 'Pressable')[0]!
+  }
+
+  function sheetTitles(mounted: ReactTestRenderer): ReactTestInstance[] {
     return mounted.root.findAll(
-      (node) =>
-        String(node.type) === 'Pressable' && node.props.accessibilityState?.expanded !== undefined
-    )[0]!
+      (node) => String(node.type) === 'Text' && node.props.children === 'Background work'
+    )
   }
 
   function expand(mounted: ReactTestRenderer): void {
@@ -137,38 +172,11 @@ describe('MobileNativeChatBackgroundTasks', () => {
     ).toBeNull()
   })
 
-  it('counts by kind on a wide strip and drops to a total once narrow', () => {
-    const mounted = mount(
-      tasksFor({
-        state: 'monitoring',
-        children: [view('a'), view('b'), view('s', { kind: 'command', description: 'npm test' })]
-      })
-    )
-    expect(header(mounted).props.accessibilityLabel).toBe('2 agents · 1 shell')
-    const strip = mounted.root.find((node) => node.props.testID === 'background-tasks-strip')
-    act(() => strip.props.onLayout({ nativeEvent: { layout: { width: 343 } } }))
-    expect(header(mounted).props.accessibilityLabel).toBe('3 background tasks')
+  it('counts the running agents in the pill, and hides the zero terminal count', () => {
+    const mounted = mount(tasksFor({ state: 'monitoring', children: [view('a'), view('b')] }))
+    expect(header(mounted).props.accessibilityLabel).toBe('Show background work, Working, 2 agents')
   })
-
-  it('starts narrow on a phone-width window, as desktop starts from its viewport', () => {
-    windowWidth.value = 375
-    const mounted = mount(
-      tasksFor({
-        state: 'monitoring',
-        children: [view('a'), view('s', { kind: 'command', description: 'npm test' })]
-      })
-    )
-    expect(header(mounted).props.accessibilityLabel).toBe('2 background tasks')
-  })
-
-  it('leads with a waiting agent and its reason', () => {
-    const mounted = mount(
-      tasksFor({ state: 'monitoring', children: [view('a', { state: 'waiting' })] })
-    )
-    expect(header(mounted).props.accessibilityLabel).toBe('1 agent waiting — needs approval')
-  })
-
-  it('opens to rows grouped by kind, with tokens and elapsed', () => {
+  it('opens the sheet to rows in their section, with tokens and elapsed', () => {
     const mounted = mount(
       tasksFor({ state: 'monitoring', children: [view('a', { totalTokens: 18_130 })] })
     )
@@ -185,7 +193,7 @@ describe('MobileNativeChatBackgroundTasks', () => {
     expect(label.props.style).toMatchObject({ textTransform: 'uppercase' })
   })
 
-  it('keeps the collapsed header compact and requests a 44pt hit rectangle', () => {
+  it('keeps the header compact, requests a 44pt hit rectangle, and opens the sheet', () => {
     const mounted = mount(tasksFor({ state: 'monitoring', children: [view('a')] }))
     const toggle = header(mounted)
     const style = styleOf(toggle)
@@ -195,11 +203,9 @@ describe('MobileNativeChatBackgroundTasks', () => {
     expect(Number(style.minHeight) + 2 * toggle.props.hitSlop).toBe(44)
     expect(style.height).toBeUndefined()
     expect(style.maxHeight).toBeUndefined()
-    expect(toggle.props.accessibilityState.expanded).toBe(false)
+    expect(sheetTitles(mounted)).toHaveLength(0)
     expand(mounted)
-    expect(header(mounted).props.accessibilityState.expanded).toBe(true)
-    expand(mounted)
-    expect(header(mounted).props.accessibilityState.expanded).toBe(false)
+    expect(sheetTitles(mounted)).toHaveLength(1)
   })
 
   it('uses compact rows and Stop controls with tight group spacing', () => {
@@ -225,42 +231,12 @@ describe('MobileNativeChatBackgroundTasks', () => {
     const label = mounted.root.find(
       (node) => String(node.type) === 'Text' && node.props.children === 'Agents'
     )
-    expect(label.parent?.props.style).toMatchObject({ paddingTop: 4, paddingBottom: 4 })
-    expect(styleOf(label).paddingBottom).toBe(2)
-  })
-
-  it('lets compact content grow with Dynamic Type and ellipsizes single-line fields', () => {
-    windowWidth.value = 320
-    const mounted = mount(
-      tasksFor({
-        state: 'monitoring',
-        supportsTaskStop: true,
-        children: [view('a', { state: 'waiting', description: 'A long agent task '.repeat(20) })]
-      })
-    )
-    expand(mounted)
-    const row = mounted.root.find((node) => node.props.testID === 'background-task-row')
-    const rowText = row.find(
-      (node) => String(node.type) === 'Text' && node.props.numberOfLines === 1
-    )
-    expect(rowText.props.ellipsizeMode).toBe('tail')
-    expect(styleOf(rowText)).toMatchObject({ flex: 1, minWidth: 0, fontSize: 12 })
-    const headerTexts = header(mounted).findAll((node) => String(node.type) === 'Text')
-    for (const text of headerTexts) {
-      expect(text.props).toMatchObject({ numberOfLines: 1, ellipsizeMode: 'tail' })
-      expect(styleOf(text)).toMatchObject({ flexShrink: 1, fontSize: 12 })
-    }
-    for (const node of mounted.root.findAll((node) =>
-      ['View', 'Text', 'Pressable'].includes(String(node.type))
-    )) {
-      expect(styleOf(node).height).toBeUndefined()
-      expect(styleOf(node).maxHeight).toBeUndefined()
-      expect(styleOf(node).lineHeight).toBeUndefined()
-      if (String(node.type) === 'Text') {
-        expect(node.props.allowFontScaling).not.toBe(false)
-        expect(node.props.maxFontSizeMultiplier).toBeUndefined()
-      }
-    }
+    expect(label.parent?.props.style).toMatchObject({ paddingTop: 12, paddingBottom: 4 })
+    expect(styleOf(label)).toMatchObject({
+      fontSize: 10,
+      fontFamily: 'monospace',
+      textTransform: 'uppercase'
+    })
   })
 
   it('stops one row by its provider id and holds its button while the Stop is on its way', async () => {
@@ -324,11 +300,35 @@ describe('MobileNativeChatBackgroundTasks', () => {
         ]
       })
     )
-    expect(header(mounted).props.accessibilityLabel).toBe('2 agents — 1 working, 1 waiting')
+    expect(header(mounted).props.accessibilityLabel).toBe('Show background work, Working, 2 agents')
     expand(mounted)
     expect(
       mounted.root.findAll((node) => node.props.testID === 'background-task-row').map(textOf)
     ).toEqual(['Background agent1s', 'Background agent · needs approval1s'])
+  })
+
+  it('keeps shell work in a Tasks section above the agents', () => {
+    const mounted = mount(
+      tasksFor({
+        state: 'monitoring',
+        tasks: [
+          { id: 'a', kind: 'agent', state: 'working', startedAt: NOW - 1_000 },
+          { id: 'c', kind: 'command', state: 'working', startedAt: NOW - 1_000 }
+        ]
+      })
+    )
+    expand(mounted)
+    const sectionLabels = mounted.root
+      .findAll(
+        (node) =>
+          String(node.type) === 'Text' &&
+          (node.props.children === 'Tasks' || node.props.children === 'Agents')
+      )
+      .map((node) => node.props.children)
+    expect(sectionLabels).toEqual(['Tasks', 'Agents'])
+    expect(
+      mounted.root.findAll((node) => node.props.testID === 'background-task-row')
+    ).toHaveLength(2)
   })
 
   it("reads elapsed on the host's clock when the phone's runs ahead", () => {
@@ -345,55 +345,164 @@ describe('MobileNativeChatBackgroundTasks', () => {
     ).toEqual(['review a · Agent900 · 35s'])
   })
 
-  it('starts narrow when the window less its margins is narrow', () => {
-    windowWidth.value = 400
-    const mounted = mount(
-      tasksFor({
-        state: 'monitoring',
-        children: [view('a'), view('s', { kind: 'command', description: 'npm test' })]
-      })
-    )
-    expect(header(mounted).props.accessibilityLabel).toBe('2 background tasks')
-  })
-
-  it('keeps one kind in its state forms on a phone-width strip', () => {
-    windowWidth.value = 375
-    const waiting = mount(
-      tasksFor({
-        state: 'monitoring',
-        children: [view('a', { state: 'waiting' }), view('b', { state: 'waiting' })]
-      })
-    )
-    expect(header(waiting).props.accessibilityLabel).toBe('2 agents waiting — needs approval')
-    const mixed = mount(
-      tasksFor({ state: 'monitoring', children: [view('a'), view('b', { state: 'waiting' })] })
-    )
-    expect(header(mixed).props.accessibilityLabel).toBe('2 agents — 1 working, 1 waiting')
-  })
-
-  it('cuts the header off on one line on the smallest phones, never wrapping it', () => {
-    windowWidth.value = 320
-    const mounted = mount(
-      tasksFor({
-        state: 'monitoring',
-        children: [view('a'), view('b', { state: 'waiting' }), view('c', { state: 'unverifiable' })]
-      })
-    )
-    const texts = header(mounted).findAll((node) => String(node.type) === 'Text')
-    expect(texts.length).toBeGreaterThan(0)
-    expect(texts.map((text) => [text.props.numberOfLines, text.props.ellipsizeMode])).toEqual(
-      texts.map(() => [1, 'tail'])
-    )
-  })
-
   it('claims no live work once the stream is lost', () => {
     const mounted = mount(
       tasksFor({ state: 'monitoring', children: [view('a'), view('b')] }, { streamLive: false })
     )
-    expect(header(mounted).props.accessibilityLabel).toBe('2 agents with status unavailable')
+    expect(header(mounted).props.accessibilityLabel).toBe(
+      'Show background work, Status unavailable'
+    )
     expand(mounted)
     const dots = mounted.root.findAll((node) => String(node.type) === 'AgentStateDot')
     expect(dots.map((dot) => dot.props.state)).toEqual(['unverifiable', 'unverifiable'])
     expect(textOf(mounted.root)).toContain('review a · No update in 0m')
   })
+
+  it('closes the sheet through its drawer, and a later roster does not bring it back', () => {
+    const working = { state: 'monitoring' as const, children: [view('a')] }
+    const mounted = mount(tasksFor(working))
+    expand(mounted)
+    expect(sheetTitles(mounted)).toHaveLength(1)
+    act(() => drawerOf(mounted).props.onClose())
+    expect(sheetTitles(mounted)).toHaveLength(0)
+    rerender(mounted, null)
+    rerender(mounted, working)
+    expect(
+      mounted.root.findAll((node) => node.props.testID === 'background-tasks-strip')
+    ).toHaveLength(1)
+    expect(sheetTitles(mounted)).toHaveLength(0)
+  })
+
+  it('keeps the sheet open across a roster that empties between children', () => {
+    // A sequential fan-out empties the roster between its children. The pill stays up for the finished
+    // child, so the open sheet stays too, and lists the next child when it starts.
+    const mounted = mount(tasksFor({ state: 'monitoring', children: [view('a')] }))
+    expand(mounted)
+    rerender(mounted, null)
+    expect(sheetTitles(mounted)).toHaveLength(1)
+    expect(finishedToggle(mounted)?.props.accessibilityLabel).toBe('Finished, 1')
+    rerender(mounted, { state: 'monitoring', children: [view('b')] })
+    expect(sheetTitles(mounted)).toHaveLength(1)
+  })
+
+  function rerender(
+    mounted: ReactTestRenderer,
+    state: AgentSessionBackgroundTaskState | null,
+    options: Parameters<typeof tasksFor>[1] = {}
+  ) {
+    act(() => {
+      mounted.update(
+        createElement(MobileNativeChatBackgroundTasks, { tasks: tasksFor(state, options) })
+      )
+    })
+  }
+
+  function finishedToggle(mounted: ReactTestRenderer): ReactTestInstance | undefined {
+    return mounted.root.findAll(
+      (node) =>
+        String(node.type) === 'Pressable' &&
+        typeof node.props.accessibilityLabel === 'string' &&
+        node.props.accessibilityLabel.startsWith('Finished')
+    )[0]
+  }
+
+  function rowTexts(mounted: ReactTestRenderer): string[] {
+    return mounted.root.findAll((node) => node.props.testID === 'background-task-row').map(textOf)
+  }
+
+  it('moves a child that left a live roster under a collapsed Finished section', () => {
+    const mounted = mount(tasksFor({ state: 'monitoring', children: [view('a'), view('b')] }))
+    expand(mounted)
+
+    rerender(mounted, { state: 'monitoring', children: [view('b')] })
+
+    expect(rowTexts(mounted)).toEqual(['review b · Agent1m 5s'])
+    expect(finishedToggle(mounted)?.props.accessibilityLabel).toBe('Finished, 1')
+
+    act(() => finishedToggle(mounted)!.props.onPress())
+
+    expect(rowTexts(mounted)[0]).toBe('review b · Agent1m 5s')
+    expect(rowTexts(mounted)[1]).toMatch(/^review a · Ended/)
+  })
+
+  it('finishes nothing when the roster reads empty because the stream was lost', () => {
+    const mounted = mount(tasksFor({ state: 'monitoring', children: [view('a'), view('b')] }))
+    expand(mounted)
+
+    rerender(mounted, { state: 'monitoring', children: [view('b')] }, { streamLive: false })
+
+    expect(finishedToggle(mounted)).toBeUndefined()
+  })
+
+  function emptyNotes(mounted: ReactTestRenderer): string[] {
+    return mounted.root
+      .findAll((node) => String(node.type) === 'Text' && EMPTY_NOTES.includes(node.props.children))
+      .map(textOf)
+  }
+
+  function settledChild(id: string, settledAt: number): AgentChildWorkView {
+    return view(id, { state: 'done', membership: 'settled', settledAt, observedAt: settledAt })
+  }
+
+  it('says no background work runs beside a plain working turn', () => {
+    const mounted = create(createElement('View'))
+    renderer = mounted
+    act(() => {
+      mounted.update(
+        createElement(MobileNativeChatBackgroundTasks, { tasks: tasksFor(null), working: true })
+      )
+    })
+    expand(mounted)
+    expect(emptyNotes(mounted)).toEqual(['No background work is running.'])
+  })
+
+  it('shows no empty note while finished work lists, even with nothing running', () => {
+    const mounted = mount(tasksFor({ state: 'monitoring', children: [view('a')] }))
+    act(() => {
+      mounted.update(
+        createElement(MobileNativeChatBackgroundTasks, { tasks: tasksFor(null), working: true })
+      )
+    })
+    expand(mounted)
+    expect(finishedToggle(mounted)?.props.accessibilityLabel).toBe('Finished, 1')
+    expect(emptyNotes(mounted)).toEqual([])
+  })
+
+  it('keeps a finished child under Finished across a remount', () => {
+    const mounted = mount(tasksFor({ state: 'monitoring', children: [view('a'), view('b')] }))
+    expand(mounted)
+    rerender(mounted, { state: 'monitoring', children: [view('b')] })
+
+    const remounted = mount(tasksFor({ state: 'monitoring', children: [view('b')] }))
+    expand(remounted)
+
+    expect(finishedToggle(remounted)?.props.accessibilityLabel).toBe('Finished, 1')
+  })
+
+  it('lists a child the history says finished before this phone watched it', () => {
+    const mounted = mount(
+      tasksFor(
+        { state: 'monitoring', children: [view('b')] },
+        { commandActivity: [settledChild('old', NOW - 9_000)] }
+      )
+    )
+    expand(mounted)
+    expect(finishedToggle(mounted)?.props.accessibilityLabel).toBe('Finished, 1')
+
+    act(() => finishedToggle(mounted)!.props.onPress())
+
+    expect(rowTexts(mounted)[1]).toMatch(/^review old · Ended/)
+  })
+
+  it('never lists a running child from the history as finished', () => {
+    const mounted = mount(
+      tasksFor({ state: 'monitoring', children: [view('b')] }, { commandActivity: [view('b')] })
+    )
+    expand(mounted)
+    expect(finishedToggle(mounted)).toBeUndefined()
+  })
+
+  function drawerOf(mounted: ReactTestRenderer): ReactTestInstance {
+    return mounted.root.find((node) => String(node.type) === 'BottomDrawer')
+  }
 })

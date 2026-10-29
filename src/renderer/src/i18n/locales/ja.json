@@ -1514,7 +1514,7 @@
         "76a95f7f47": "作成",
         "f05d237049": "まずプロジェクトを追加",
         "f9eaa9e12d": "プロジェクトを追加",
-        "6ca6ff404e": "ORCA",
+        "6ca6ff404e": "MassOrca",
         "520304a067": "MassOrca のロゴ",
         "ce44fad849": "依存関係が欠落している",
         "c1cf168479": "非表示",
@@ -5233,13 +5233,22 @@
           "294de4aeb2": "表示数を減らす"
         },
         "NonGitFolderDialog": {
-          "e52454b7f6": "フォルダーとして開く",
           "05b33a17a9": "キャンセル",
-          "8fba4b8cbb": "このフォルダーは Git リポジトリではありません。エディター、ターミナル、検索は利用できますが、Git ベースの機能は利用できません。",
           "c49fb13492": "このホスト上でのフォルダーの追加に失敗しました",
           "9a766f33ac": "このパスは SSH ホストでチェックされました。",
           "79fd02cf5f": "このパスは {{hostName}} でチェックされました。",
-          "8851b77327": "このパスはローカルでチェックされました。"
+          "8851b77327": "このパスはローカルでチェックされました。",
+          "15b3ae7310": "このフォルダーは Git リポジトリではありません",
+          "b57788d1b6": "エディター、ターミナル、検索は利用できます。次の機能には Git が必要なため、利用できません：",
+          "df93b2f2d4": "分離されたワークスペースとブランチ",
+          "7b84fb792a": "独自のワークツリーで実行される子セッション — 親チャットと同じファイルを編集することになります",
+          "8761ae2bfa": "変更、差分、コミット",
+          "dfc6969363": "プルリクエストとレビュー",
+          "607a29399a": "Git を使わない作業は、フォルダーの閲覧や開発以外の作業にのみ推奨されます。",
+          "43f90289f5": "Git を初期化すると、ここで <code>git init</code> を実行し、空の最初のコミットを作成します。ファイルはコミットされません。",
+          "00390f00f6": "Git なしで続行",
+          "482c7b0a96": "ここで Git を初期化",
+          "85523ab0d3": "Git の初期化に失敗しました"
         },
         "OrcaYamlTrustDialog": {
           "f3e2b868fb": "フックを実行する",
@@ -6016,6 +6025,16 @@
             }
           },
           "list": {
+            "rows": {
+              "FolderProjectGitMarker": {
+                "0c2667a80a": "Git なし",
+                "bcb9e06aae": "Git なし: 制限を表示",
+                "56aee8fc7f": "このプロジェクトには Git がありません",
+                "54b5a85dfc": "エディター、ターミナル、検索は利用できます。利用できない機能:",
+                "55fa69d439": "フォルダーの閲覧や開発以外の作業にのみ推奨されます。",
+                "938c32c790": "Git を初期化"
+              }
+            },
             "groups": {
               "0ed04075b8": "全て",
               "4aeefc5996": "ピン留め済み",
@@ -17780,6 +17799,127 @@
     }
   },
   "components": {
+    "prototypes": {
+      "settings": {
+        "title": "プロトタイプ",
+        "description": "プロトタイプを頼んだときに Agent が作る案の数です。",
+        "alternatives": "リクエストごとの案の数",
+        "always": "常に作る",
+        "fewer": "減らす",
+        "more": "増やす",
+        "directionsHint": "案（デフォルト 2、最大 4）",
+        "ask": "毎回確認する",
+        "askDescription": "Agent が始める前に、チャットのカードで 1、2、3 のいずれかを確認します。",
+        "addsHeading": "MassOrca がプロンプトに追加する内容",
+        "addsNote": "Claude、Codex、Antigravity、Gentle Shell のどれでも同じように動作します。メッセージ内のプレーンテキストです。結果はリクエストごとに 1 セットにまとめられます。",
+        "keywordPrototype": "プロトタイプ"
+      },
+      "ask": {
+        "title": "プロトタイプはいくつ作りますか？",
+        "description": "{{agent}} が比較しやすいよう、異なる方向性の案を作ります。",
+        "notAPrototype": "プロトタイプではない",
+        "shownBecause": "設定 › プロトタイプが「毎回確認する」のため表示されています。"
+      },
+      "agent": {
+        "antigravity": "Antigravity",
+        "claude": "Claude",
+        "codex": "Codex",
+        "gentleShell": "Gentle Shell",
+        "other": "その他"
+      },
+      "anythingElse": "その他",
+      "anythingElsePlaceholder": "流れ、全体の方向性、メモでは指せないことを書いてください…",
+      "backTo": "{{active}} に戻る",
+      "cardLabel": "方向 {{letter}} を反復",
+      "cardName": "{{letter}} · {{name}}",
+      "chatLink": "{{agent}} · チャット「{{chat}}」 — チャットを開く ↗",
+      "chatLinkNoTitle": "{{agent}} — チャットを開く ↗",
+      "close": "閉じる",
+      "curIterating": "反復 · v{{version}}",
+      "curPeeking": "プレビュー中",
+      "customFill": "カスタム背景",
+      "customPicker": "カスタム{{label}}",
+      "customTextColor": "カスタム文字色",
+      "draftCount": "{{count}} 件",
+      "draftFooter": "下書きの項目をクリックすると該当のコントロールに移動します。1 通のメッセージ:「Iterate on {{active}}.」、各メモと編集（セレクタとスクリーンショット付き）、その後にあなたの文章。",
+      "draftTitle": "{{agent}} 向けの下書き",
+      "editFooter": "変更とメモは、それぞれ自動的に下書きに加わります。値を元に戻すと下書きから消えます。",
+      "editHeading": "編集",
+      "fieldFill": "背景",
+      "fieldFontSize": "フォントサイズ",
+      "fieldHeight": "高さ",
+      "fieldNote": "メモ",
+      "fieldText": "テキスト",
+      "fieldTextColor": "文字色",
+      "fieldWidth": "幅",
+      "fillHex": "背景の 16 進数",
+      "fillLabel": "背景",
+      "filter": {
+        "all": "すべて",
+        "claude": "Claude",
+        "codex": "Codex",
+        "gentleShell": "Gentle Shell",
+        "stitch": "Stitch"
+      },
+      "filterGroup": "絞り込み",
+      "fontSizeLabel": "フォントサイズ",
+      "frameError": "このプロトタイプを開けませんでした",
+      "frameTitle": "プロトタイプ",
+      "heading": "プロトタイプ",
+      "heightLabel": "高さ",
+      "heightUnit": "高さの単位",
+      "heightValue": "高さの値",
+      "hidePanel": "パネルを隠す",
+      "hintAnnotate": "要素をクリックしてメモを追加",
+      "hintBrowse": "通常どおり操作",
+      "hueButton": "色相 {{deg}}",
+      "hueGroup": "色相",
+      "hueValue": "色相 {{deg}}°",
+      "iterateInstead": "代わりに {{view}} を反復",
+      "layoutAll": "すべて {{count}}",
+      "layoutGroup": "レイアウト",
+      "layoutIterating": "反復中 {{letter}}",
+      "listLabel": "すべてのプロトタイプ",
+      "noteChipGlass": "ぼかしたガラス調の背景",
+      "noteChipRainbow": "アニメーションする虹色の枠",
+      "noteChipShake": "エラー時に揺れる",
+      "noteHeading": "メモ — 編集では対応できないこと",
+      "noteHeadingPeek": "メモ — {{view}} から {{active}} へ取り込む内容",
+      "notePlaceholder": "編集では難しい変更を書いてください: アニメーション、動作、スタイル…",
+      "notePlaceholderPeek": "例: カードフォームの上にあるこのウォレットボタンを使う",
+      "peekText": "<letter>{{active}}</letter> を反復中に <letter>{{view}}</letter> をプレビューしています。ここのメモは「<letter>{{view}}</letter> から <letter>{{active}}</letter> へ取り込む」として下書きに入ります。",
+      "pickerDone": "完了",
+      "pickerFillName": "背景",
+      "pickerTextColorName": "文字色",
+      "selectionTitle": "{{letter}} · {{number}} · {{label}}",
+      "sendButton": "{{agent}} に送信",
+      "sendFailed": "送信できませんでした: チャットがもう有効ではありません。下書きは保持されています。",
+      "sentCard": "{{agent}} に送信 · {{chat}} · たった今",
+      "setFooter": "方向を開くとその方向を反復できます。ほかの方向はサイドストリップから 1 クリックで開けます。",
+      "shadeGroup": "濃淡",
+      "showDirection": "方向 {{letter}} を表示",
+      "showPanel": "パネルを表示",
+      "sidebarLabel": "プロトタイプ",
+      "statusCount": "{{count}} 方向",
+      "statusDirections": "{{count}} 方向 · 反復中 {{letter}}",
+      "statusScreen": "画面 1 つ",
+      "stripGroup": "このセットの方向",
+      "stripLabel": "セット {{count}}",
+      "tagIterating": "反復中",
+      "takeInto": "{{letter}} へ取り込む",
+      "textColorHex": "文字色の 16 進数",
+      "textColorLabel": "文字色",
+      "textLabel": "テキスト",
+      "toolAnnotate": "注釈",
+      "toolBrowse": "閲覧",
+      "toolGroup": "ツール",
+      "viewportDesktop": "デスクトップ",
+      "viewportGroup": "表示サイズ",
+      "viewportPhone": "スマートフォン",
+      "widthLabel": "幅",
+      "widthUnit": "幅の単位",
+      "widthValue": "幅の値"
+    },
     "onboarding": {
       "flow": {
         "stepTooltip": {
@@ -17814,6 +17954,11 @@
           "managePullRequests": "MassOrca から離れずに、PR の閲覧、コメント、マージ"
         }
       }
+    },
+    "nativeChatSummary": {
+      "loadedResults": "読み込んだチャット履歴に記録されたファイル変更とビジュアル",
+      "noResults": "報告されたファイル変更やビジュアルはありません",
+      "visualKind": "ビジュアル"
     },
     "native-chat": {
       "reasoning": "推論",
@@ -18412,7 +18557,17 @@
       "fileLinks": {
         "notFound": "ファイルが見つかりません: {{value0}}",
         "unverifiable": "{{value0}} を確認できませんでした: {{value1}}",
-        "unresolved": "このワークスペースで {{value0}} を解決できませんでした"
+        "unresolved": "このワークスペースで {{value0}} を解決できませんでした",
+        "outsideRemoteWorkspace": "このファイルはリモートホスト上のワークスペース外にあるため、MassOrca では開けません。",
+        "remoteHostOutdated": "Agent がワークスペース外に保存したファイルを開くには、リモートホストの MassOrca を更新してください。",
+        "viewerLoading": "読み込み中…",
+        "viewerUnavailable": "このファイルを読み込めませんでした。",
+        "viewerNotFound": "このファイルはリモートホストに存在しなくなりました。",
+        "viewerTooLarge": "このファイルはサイズが大きすぎてプレビューできません。",
+        "viewerUnsupportedType": "この種類のファイルはここではプレビューできません。",
+        "viewerReadOnly": "リモートホストからの読み取り専用プレビュー",
+        "recordedFileTabHintMac": "⌘⌥+クリックでタブで開きます",
+        "recordedFileTabHintOther": "Ctrl+Alt+クリックでタブで開きます"
       },
       "contextUsage": {
         "label": "コンテキスト {{used}} / {{window}} トークン、{{percent}}% 使用済み",

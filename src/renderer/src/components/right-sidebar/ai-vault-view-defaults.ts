@@ -13,8 +13,10 @@ export const DEFAULT_AI_VAULT_HIDE_EMPTY_SESSIONS = false
 export const DEFAULT_AI_VAULT_SORT: AiVaultSort = 'updated'
 export const DEFAULT_AI_VAULT_SEARCH_SORT: AiVaultSearchSort = 'relevance'
 export const DEFAULT_AI_VAULT_GROUP: AiVaultGroup = 'project'
+// Why: automated runs are noise until asked for, so the list opens on the user's own sessions.
+export const DEFAULT_AI_VAULT_SHOW_AUTOMATED_RUNS = false
 
-// Sorts are uncounted: the bar shows them, so neither is a hidden adjustment.
+// Sorts and the automated-runs switch are uncounted: the panel shows them, so neither is hidden.
 export function countAiVaultViewAdjustments(options: {
   agents: readonly AiVaultAgent[]
   group: AiVaultGroup

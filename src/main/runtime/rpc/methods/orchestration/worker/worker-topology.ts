@@ -1,9 +1,11 @@
 import type { AgentLaunchPreferences } from '../../../../../../shared/agent-session-host-authority'
+import type { AgentSessionExplicitAccess } from '../../../../../../shared/agent-session-access-mode'
 import { narrowStructuredLaunchSeedOptions } from '../../../../../../shared/native-chat-session-option-defaults'
 import type { TuiAgent } from '../../../../../../shared/tui-agent'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import type { OrchestrationDb } from '../../../../orchestration/db'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
+import { structuredAgentRuntimeRegistration } from '../../../../structured-agent-runtime-registrations'
 import { createStructuredWorkerSession } from '../../orchestration-structured-worker-session'
 
 export type WorkerEffect = {
@@ -100,21 +102,27 @@ export async function createStructuredWorkerSessionForWorktree(args: {
   dispatchId: string
   /** `--model`/`--effort`; the session seeds them exactly as a saved selection is seeded. */
   launchPreferences?: AgentLaunchPreferences
+  /** Already resolved against the agent's declared modes, so it never widens the request. */
+  accessMode?: AgentSessionExplicitAccess
   effects: WorkerEffect[]
 }): Promise<Awaited<ReturnType<typeof createStructuredWorkerSession>>> {
-  if (args.agent !== 'claude' && args.agent !== 'codex') {
+  if (!structuredAgentRuntimeRegistration(args.agent)) {
     throw new OrchestrationError(
       'agent_unconfigured',
-      `Structured workers support claude and codex; ${args.agent} has no structured session.`
+      `${args.agent} has no structured session on this host.`
     )
   }
-  const options = narrowStructuredLaunchSeedOptions(args.launchPreferences)
+  const options = narrowStructuredLaunchSeedOptions({
+    ...args.launchPreferences,
+    ...(args.accessMode ? { accessMode: args.accessMode } : {})
+  })
   const created = await createStructuredWorkerSession({
     runtime: args.runtime,
     worktreeId: args.worktreeId,
     agent: args.agent,
     dispatchId: args.dispatchId,
     ...(options ? { options } : {}),
+    ...(args.accessMode ? { accessMode: args.accessMode } : {}),
     onJournalActivity: (sessionId) =>
       args.runtime.notifyStructuredSessionJournalActivity?.(sessionId)
   })

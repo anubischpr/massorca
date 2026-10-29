@@ -20,6 +20,12 @@ describe('AI Vault view option persistence', () => {
     expect(readAiVaultViewOptions(storage)).toEqual(createDefaultAiVaultViewOptions())
   })
 
+  it('keeps the automated-runs switch off unless a stored choice turns it on', () => {
+    expect(createDefaultAiVaultViewOptions().showAutomatedRuns).toBe(false)
+    expect(normalizeAiVaultViewOptions({ showAutomatedRuns: 'yes' }).showAutomatedRuns).toBe(false)
+    expect(normalizeAiVaultViewOptions({ showAutomatedRuns: true }).showAutomatedRuns).toBe(true)
+  })
+
   it('normalizes malformed fields and removes unknown or duplicate agents', () => {
     expect(
       normalizeAiVaultViewOptions({
@@ -35,6 +41,7 @@ describe('AI Vault view option persistence', () => {
       searchSort: 'relevance',
       group: 'agent',
       hideEmptySessions: false,
+      showAutomatedRuns: false,
       sessionLimit: 250
     })
   })
@@ -54,6 +61,7 @@ describe('AI Vault view option persistence', () => {
       searchSort: 'relevance',
       group: 'project',
       hideEmptySessions: false,
+      showAutomatedRuns: false,
       sessionLimit: 250
     })
     expect(
@@ -71,6 +79,7 @@ describe('AI Vault view option persistence', () => {
       searchSort: 'newest',
       group: 'folder',
       hideEmptySessions: true,
+      showAutomatedRuns: false,
       sessionLimit: 1000
     })
     expect(normalizeAiVaultViewOptions({ group: 'agent' }).group).toBe('agent')
@@ -130,6 +139,7 @@ describe('AI Vault view option persistence', () => {
           searchSort: 'newest',
           group: 'folder',
           hideEmptySessions: true,
+          showAutomatedRuns: true,
           sessionLimit: 500
         },
         storage
@@ -143,6 +153,7 @@ describe('AI Vault view option persistence', () => {
         searchSort: 'newest',
         group: 'folder',
         hideEmptySessions: true,
+        showAutomatedRuns: true,
         sessionLimit: 500
       })
     )

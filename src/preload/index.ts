@@ -12,6 +12,8 @@ import { reposApi } from './api/repos-bridge'
 import { projectsApi } from './api/projects-bridge'
 import { projectGroupsApi } from './api/project-groups-bridge'
 import { folderWorkspacesApi } from './api/folder-workspaces-bridge'
+import { projectlessChatsApi } from './api/projectless-chats-bridge'
+import { worktreeSetupRunsApi } from './api/worktree-setup-runs-bridge'
 import { sparsePresetsApi } from './api/sparse-presets-bridge'
 import { worktreesApi } from './api/worktrees-bridge'
 import { workspaceCleanupApi } from './api/workspace-cleanup-bridge'
@@ -53,6 +55,7 @@ import { emulatorApi } from './api/emulator-bridge'
 import { hooksApi } from './api/hooks-bridge'
 import { ephemeralVmApi } from './api/ephemeral-vm-bridge'
 import { cacheApi } from './api/cache-bridge'
+import { prototypeCaptureApi } from './api/prototype-capture-bridge'
 import { sessionApi } from './api/session-bridge'
 import { remoteWorkspaceApi } from './api/remote-workspace-bridge'
 import { updaterApi } from './api/updater-bridge'
@@ -108,6 +111,8 @@ const api = {
   projects: projectsApi,
   projectGroups: projectGroupsApi,
   folderWorkspaces: folderWorkspacesApi,
+  projectlessChats: projectlessChatsApi,
+  worktreeSetupRuns: worktreeSetupRunsApi,
   sparsePresets: sparsePresetsApi,
   worktrees: worktreesApi,
   workspaceCleanup: workspaceCleanupApi,
@@ -153,6 +158,7 @@ const api = {
   hooks: hooksApi,
   ephemeralVm: ephemeralVmApi,
   cache: cacheApi,
+  prototypeCapture: prototypeCaptureApi,
   session: sessionApi,
   remoteWorkspace: remoteWorkspaceApi,
   updater: updaterApi,

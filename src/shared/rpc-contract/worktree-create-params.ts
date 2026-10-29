@@ -102,6 +102,8 @@ export const WorktreeCreate = z
       )
       .pipe(z.union([z.enum(['run', 'skip', 'inherit']), z.undefined()]))
       .optional(),
+    // Why: old hosts drop this field and keep the visible setup tab; an unknown value degrades the same way.
+    setupPresentation: z.literal('chat-background-task').optional().catch(undefined),
     // Why: some clients (e.g. desktop) pass a pre-built launch command so the
     // first terminal pane launches the selected agent instead of an idle shell.
     // Clients that can't quote for the host shell send `startupAgent` instead.

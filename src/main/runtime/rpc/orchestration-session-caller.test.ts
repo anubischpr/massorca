@@ -73,7 +73,8 @@ const MINIMAL_PARAMS: Readonly<Record<string, Record<string, unknown>>> = {
   'orchestration.taskCreate': { spec: 's' },
   'orchestration.taskList': {},
   'orchestration.taskUpdate': { id: 'task_missing', status: 'completed' },
-  'orchestration.workerStart': { spec: 's' }
+  'orchestration.workerStart': { spec: 's' },
+  'orchestration.delegateRequest': { summary: 's', prompt: 'p' }
 }
 
 describe('orchestration session callers at the dispatch entry', () => {
@@ -101,9 +102,9 @@ describe('orchestration session callers at the dispatch entry', () => {
       })
       .sort()
 
-    // The population: 44 registered methods carrying 28 party-naming fields.
-    expect(registry.size).toBe(44)
-    expect(partyNaming).toHaveLength(28)
+    // The population: 45 registered methods carrying 29 party-naming fields.
+    expect(registry.size).toBe(45)
+    expect(partyNaming).toHaveLength(29)
     expect(partyNaming).toEqual(
       [
         ...Object.entries(ORCHESTRATION_CALLER_PARAM).map(
@@ -255,12 +256,12 @@ describe('orchestration session callers at the dispatch entry', () => {
       await expectRefusedWithNoEffects(
         'ffffffff-0000-4000-8000-000000000000',
         CODES.unknown,
-        /No Orca agent session .* exists on this host/
+        /No MassOrca agent session .* exists on this host/
       )
     })
 
     it('a terminal handle presented as a session id', async () => {
-      await expectRefusedWithNoEffects('term_4f2c9a0b', CODES.unknown, /not an Orca session ID/)
+      await expectRefusedWithNoEffects('term_4f2c9a0b', CODES.unknown, /not a MassOrca session ID/)
     })
 
     it("a provider's session id, with a hint naming the Orca id", async () => {
@@ -271,7 +272,7 @@ describe('orchestration session callers at the dispatch entry', () => {
         ok: false,
         error: {
           code: CODES.providerId,
-          message: `${PROVIDER_ID_X} is the provider's own session id, which changes on /clear. This session's Orca session ID is orca_session_id:${SESSION_X}; set ORCA_AGENT_SESSION_ID=${SESSION_X} instead. No effects were applied.`,
+          message: `${PROVIDER_ID_X} is the provider's own session id, which changes on /clear. This session's MassOrca session ID is orca_session_id:${SESSION_X}; set ORCA_AGENT_SESSION_ID=${SESSION_X} instead. No effects were applied.`,
           data: { orcaSessionId: SESSION_X, effectsApplied: false }
         }
       })

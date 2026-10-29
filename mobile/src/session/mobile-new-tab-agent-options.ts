@@ -1,3 +1,8 @@
+import { GENTLE_SHELL_LABEL } from '../../../src/shared/agent-type-label'
+import {
+  type PiRuntimeSelection,
+  selectedPiRuntime
+} from '../../../src/shared/pi-runtime-selection'
 import type { TuiAgent } from '../../../src/shared/tui-agent'
 import {
   filterEnabledMobileTuiAgents,
@@ -9,12 +14,18 @@ import {
 export type MobileNewTabAgentSettings = {
   defaultTuiAgent?: TuiAgent | 'blank' | null
   disabledTuiAgents?: unknown
+  agentCmdOverrides?: Partial<Record<TuiAgent, unknown>> | null
 }
 
 export type MobileNewTabAgentOption = {
   agent: TuiAgent
   label: string
+  /** Set on the Pi rows only: the Pi runtime the row starts. */
+  piRuntime?: PiRuntimeSelection
 }
+
+// Why: stock Pi lists before Gentle Shell, so the two rows keep one order on every host.
+export const PI_RUNTIME_ROW_ORDER: readonly PiRuntimeSelection[] = ['pi', 'gentle-shell']
 
 export function orderMobileNewTabAgents(
   defaultAgent: TuiAgent | 'blank' | null | undefined,
@@ -35,7 +46,8 @@ export function orderMobileNewTabAgents(
 
 export function buildMobileNewTabAgentOptions(
   settings: MobileNewTabAgentSettings | null | undefined,
-  detectedAgentIds: Iterable<unknown> | null
+  detectedAgentIds: Iterable<unknown> | null,
+  piRuntimes?: readonly PiRuntimeSelection[] | null
 ): MobileNewTabAgentOption[] {
   if (!detectedAgentIds) {
     return []
@@ -44,8 +56,54 @@ export function buildMobileNewTabAgentOptions(
     settings?.defaultTuiAgent,
     detectedAgentIds,
     settings?.disabledTuiAgents
-  ).map((agent) => ({
-    agent,
-    label: MOBILE_TUI_AGENT_LABELS[agent]
-  }))
+  ).flatMap((agent) =>
+    agent === 'pi'
+      ? piNewTabAgentOptions(settings, piRuntimes)
+      : [{ agent, label: MOBILE_TUI_AGENT_LABELS[agent] }]
+  )
+}
+
+// Why: detection reports one 'pi' id for both Pi runtimes, so the rows name the runtimes the host has.
+// A host that names none keeps one row, labelled by the runtime its Command setting names.
+function piNewTabAgentOptions(
+  settings: MobileNewTabAgentSettings | null | undefined,
+  piRuntimes: readonly PiRuntimeSelection[] | null | undefined
+): MobileNewTabAgentOption[] {
+  const rows = piRuntimes?.length
+    ? PI_RUNTIME_ROW_ORDER.filter((runtime) => piRuntimes.includes(runtime)).map(piRuntimeOption)
+    : [piRuntimeOption(legacyPiRuntime(settings))]
+  if (settings?.defaultTuiAgent !== 'pi') {
+    return rows
+  }
+  // Why: a default Pi leads with the row its Command setting names, so the first row is the one a launch starts.
+  const commandRuntime = legacyPiRuntime(settings)
+  return [
+    ...rows.filter((row) => row.piRuntime === commandRuntime),
+    ...rows.filter((row) => row.piRuntime !== commandRuntime)
+  ]
+}
+
+/** The rows a prompt can launch. A prompt starts through agent.launch, which cannot name a Pi runtime:
+ *  the host starts stock Pi whenever it has it, so Gentle Shell is offered only when stock Pi is absent. */
+export function promptLaunchAgentOptions(
+  options: readonly MobileNewTabAgentOption[]
+): MobileNewTabAgentOption[] {
+  const hasStockPi = options.some((option) => option.piRuntime === 'pi')
+  return options.filter((option) => !(hasStockPi && option.piRuntime === 'gentle-shell'))
+}
+
+function piRuntimeOption(piRuntime: PiRuntimeSelection): MobileNewTabAgentOption {
+  return {
+    agent: 'pi',
+    label: piRuntime === 'gentle-shell' ? GENTLE_SHELL_LABEL : MOBILE_TUI_AGENT_LABELS.pi,
+    piRuntime
+  }
+}
+
+/** The runtime a Pi row names when the host did not say which it has: its Command setting, else stock Pi. */
+export function legacyPiRuntime(
+  settings: MobileNewTabAgentSettings | null | undefined
+): PiRuntimeSelection {
+  const command = settings?.agentCmdOverrides?.pi
+  return typeof command === 'string' ? selectedPiRuntime(command) : 'pi'
 }

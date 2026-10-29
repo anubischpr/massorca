@@ -1,20 +1,6 @@
 /**
- * Which surface a launch gets — a structured chat session or a terminal agent — decided from the
- * user's own settings and the executing host's answer.
- *
- * No caller passes a mode. If the user's default is that a new agent tab opens as a structured
- * native chat, then every launch is one: an orchestration worker, a mobile create, a CLI create,
- * a renderer tab. That default is a preference rather than a demand, so a launch it cannot apply
- * to falls back to a PTY terminal and the receipt says which mode ran and why — a routine launch
- * must never fail because the user happens to have a chat preference on.
- *
- * The settings default and the per-launch feasibility both come from
- * `shared/structured-native-chat-launch-route`. This module supplies placement facts and formats
- * the receipt; it does not own a second feasibility policy.
- *
- * Callers differ only in what they call the thing being started, so the receipt's noun is
- * parameterized. Orchestration says "worker" because its receipts are read alongside dispatch
- * records; every other surface says "chat session" / "terminal agent".
+ * Which surface a launch gets, from settings and the host answer. Callers pass no mode; the one
+ * hint, `preferredMode: 'chat'`, overrides only a terminal default, and feasibility still wins.
  */
 
 import { requestsCwdOutsideWorkspaceRoot } from '../../shared/terminal-startup-cwd'
@@ -48,7 +34,7 @@ export type AgentLaunchModeVocabulary = {
   terminal: string
   /** Per-reason wording a surface states differently. Orchestration names the `--terminal` flag
    *  in its reused-terminal detail, which would be meaningless in a phone's receipt. */
-  detailOverrides?: Partial<Record<Exclude<AgentLaunchModeReason, 'user_default'>, string>>
+  detailOverrides?: Partial<Record<DowngradeReason, string>>
 }
 
 export const DEFAULT_LAUNCH_VOCABULARY: AgentLaunchModeVocabulary = {
@@ -87,7 +73,13 @@ const REGISTERED_STRUCTURED_AGENTS: readonly string[] = STRUCTURED_AGENT_RUNTIME
   ({ definition }) => definition.agent
 )
 
-const DOWNGRADE_DETAIL: Record<Exclude<AgentLaunchModeReason, 'user_default'>, string> = {
+type DowngradeReason = Exclude<AgentLaunchModeReason, 'user_default' | 'caller_requested_chat'>
+
+/** Where a structured attempt came from: the user's default, or a caller's request over a
+ *  terminal default. It words the receipt, and `preferred` stays the user's setting either way. */
+type LaunchOrigin = { requested: boolean; preferred: AgentLaunchMode }
+
+const DOWNGRADE_DETAIL: Record<DowngradeReason, string> = {
   remote_execution_host: 'this launch runs on a remote execution host',
   reused_terminal: 'it reuses a running terminal agent',
   agent_without_structured_session: 'this agent has no structured session',
@@ -99,10 +91,7 @@ const DOWNGRADE_DETAIL: Record<Exclude<AgentLaunchModeReason, 'user_default'>, s
   structured_unsupported_on_host: 'the execution host cannot create one here'
 }
 
-const BLOCKER_REASON: Record<
-  StructuredNativeChatBlocker,
-  Exclude<AgentLaunchModeReason, 'user_default'>
-> = {
+const BLOCKER_REASON: Record<StructuredNativeChatBlocker, DowngradeReason> = {
   'reused-terminal': 'reused_terminal',
   'agent-without-structured-session': 'agent_without_structured_session',
   'custom-start-directory': 'tui_launch_command',
@@ -114,11 +103,9 @@ const BLOCKER_REASON: Record<
 }
 
 /** The host's own create-support verdict (`agentSession.createSupport`) in this vocabulary. */
-const HOST_SUPPORT_REASON: Record<
-  'agent' | 'remote' | 'wsl',
-  Exclude<AgentLaunchModeReason, 'user_default'>
-> = {
+const HOST_SUPPORT_REASON: Record<'agent' | 'remote' | 'wsl' | 'access', DowngradeReason> = {
   agent: 'structured_unsupported_on_host',
+  access: 'structured_unsupported_on_host',
   remote: 'remote_execution_host',
   wsl: 'wsl_execution_runtime'
 }
@@ -136,10 +123,16 @@ export function decideAgentLaunchMode(args: {
   /** Registered agents (beyond Claude and Codex) this surface can open as structured; defaults to
    *  every agent this host registers. */
   registeredStructuredAgents?: readonly string[]
+  /** The caller wants a chat. Skips only the terminal default, never a feasibility check. */
+  preferredMode?: 'chat'
 }): AgentLaunchModeReceipt {
   const { placement, settings } = args
   const vocabulary = args.vocabulary ?? DEFAULT_LAUNCH_VOCABULARY
-  if (args.terminalOnly || !isNativeChatEnabled(settings)) {
+  const defaultIsChat = isNativeChatEnabled(settings)
+  const asked: LaunchOrigin = defaultIsChat
+    ? { requested: false, preferred: 'structured' }
+    : { requested: true, preferred: 'terminal' }
+  if (args.terminalOnly || (!defaultIsChat && args.preferredMode !== 'chat')) {
     return {
       mode: 'terminal',
       preferred: 'terminal',
@@ -150,7 +143,7 @@ export function decideAgentLaunchMode(args: {
   // A worker placed on another runtime starts through federation, which creates terminal agents
   // only; this host cannot answer for that runtime's structured support.
   if (placement.on) {
-    return downgraded('remote_execution_host', vocabulary)
+    return downgraded('remote_execution_host', vocabulary, asked)
   }
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: an unrecognized agent name is handled rather than trusted; the registered-agent check rejects it and the launch downgrades to a terminal.
   const agent = placement.agent as TuiAgent
@@ -172,11 +165,19 @@ export function decideAgentLaunchMode(args: {
     )
   })
   if (!support.supported) {
-    return downgraded(BLOCKER_REASON[support.blocker], vocabulary)
+    return downgraded(BLOCKER_REASON[support.blocker], vocabulary, asked)
   }
   // A chat its caller can neither show nor close is no launch; that caller gets the terminal.
   if (placement.callerRendersStructured === false) {
-    return downgraded(BLOCKER_REASON['client-capability'], vocabulary)
+    return downgraded(BLOCKER_REASON['client-capability'], vocabulary, asked)
+  }
+  if (asked.requested) {
+    return {
+      mode: 'structured',
+      preferred: 'terminal',
+      reason: 'caller_requested_chat',
+      detail: `Started ${vocabulary.structured}, as this launch asked; the default for new agent tabs in your settings is a terminal.`
+    }
   }
   return {
     mode: 'structured',
@@ -196,14 +197,16 @@ export async function resolveAgentLaunchModeOnHost(
   receipt: AgentLaunchModeReceipt,
   worktreeId: string | undefined,
   agent: TuiAgent | undefined,
-  vocabulary: AgentLaunchModeVocabulary = DEFAULT_LAUNCH_VOCABULARY
+  vocabulary: AgentLaunchModeVocabulary = DEFAULT_LAUNCH_VOCABULARY,
+  /** The access the structured session will run in, so the host judges that same posture. */
+  accessMode?: 'default' | 'full-access'
 ): Promise<AgentLaunchModeReceipt> {
   if (receipt.mode !== 'structured' || !worktreeId) {
     return receipt
   }
   return downgradeAgentLaunchModeForHost(
     receipt,
-    await readStructuredCreateSupport(runtime, worktreeId, agent),
+    await readStructuredCreateSupport(runtime, worktreeId, agent, accessMode),
     vocabulary
   )
 }
@@ -212,13 +215,21 @@ export async function resolveAgentLaunchModeOnHost(
 async function readStructuredCreateSupport(
   runtime: Pick<OrcaRuntimeService, 'getStructuredAgentSessionCreateSupport'>,
   worktreeId: string,
-  agent: TuiAgent | undefined
+  agent: TuiAgent | undefined,
+  accessMode?: 'default' | 'full-access'
 ): Promise<{ supported: boolean; reason?: 'agent' | 'remote' | 'wsl' | 'access' } | null> {
   if (!agent || !REGISTERED_STRUCTURED_AGENTS.includes(agent)) {
     return { supported: false, reason: 'agent' }
   }
   try {
-    return await runtime.getStructuredAgentSessionCreateSupport(`id:${worktreeId}`, agent)
+    return accessMode
+      ? await runtime.getStructuredAgentSessionCreateSupport(
+          `id:${worktreeId}`,
+          agent,
+          undefined,
+          accessMode
+        )
+      : await runtime.getStructuredAgentSessionCreateSupport(`id:${worktreeId}`, agent)
   } catch {
     return null
   }
@@ -236,25 +247,32 @@ export function downgradeAgentLaunchModeForHost(
   if (receipt.mode !== 'structured' || support?.supported) {
     return receipt
   }
+  const origin: LaunchOrigin = {
+    requested: receipt.reason === 'caller_requested_chat',
+    preferred: receipt.preferred
+  }
   if (support === null) {
-    return downgraded(BLOCKER_REASON['runtime-capability-unknown'], vocabulary)
+    return downgraded(BLOCKER_REASON['runtime-capability-unknown'], vocabulary, origin)
   }
   return downgraded(
     support.reason ? HOST_SUPPORT_REASON[support.reason] : 'structured_unsupported_on_host',
-    vocabulary
+    vocabulary,
+    origin
   )
 }
 
 function downgraded(
-  reason: Exclude<AgentLaunchModeReason, 'user_default'>,
-  vocabulary: AgentLaunchModeVocabulary
+  reason: DowngradeReason,
+  vocabulary: AgentLaunchModeVocabulary,
+  origin: LaunchOrigin = { requested: false, preferred: 'structured' }
 ): AgentLaunchModeReceipt {
   const why = vocabulary.detailOverrides?.[reason] ?? DOWNGRADE_DETAIL[reason]
+  const wanted = origin.requested ? 'This launch asked for' : 'Your default is'
   return {
     mode: 'terminal',
-    preferred: 'structured',
+    preferred: origin.preferred,
     reason,
-    detail: `Your default is a structured chat session, but ${why}; started ${vocabulary.terminal} instead.`
+    detail: `${wanted} a structured chat session, but ${why}; started ${vocabulary.terminal} instead.`
   }
 }
 

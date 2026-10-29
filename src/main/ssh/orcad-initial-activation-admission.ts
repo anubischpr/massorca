@@ -83,7 +83,7 @@ export function parseInitialOrcadActivationAdmission(
       code: 'orcad_initial_runtime_live',
       reason:
         `An unmanaged runtime owner is still live according to ${live[1]} (pid ${live[2]}). ` +
-        'Stop that Orca runtime before converting this data root to managed orcad.'
+        'Stop that MassOrca runtime before converting this data root to managed orcad.'
     }
   }
   const record = /^UNVERIFIABLE ([^ ]+)$/u.exec(result)?.[1] ?? 'owner record'

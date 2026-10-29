@@ -24,6 +24,11 @@ import { agentChildRowName } from '@/components/agent-child-row-text'
 import { useNow } from '@/hooks/use-now'
 import { NativeChatFinishedBackgroundGroup } from './NativeChatFinishedBackgroundGroup'
 import {
+  NativeChatDelegatedFinishedChildRows,
+  NativeChatDelegatedRunningChildSessions,
+  useDelegatedChildSessions
+} from './NativeChatDelegatedChildSessions'
+import {
   NativeChatBackgroundTaskStopControl,
   type NativeChatBackgroundStop
 } from './NativeChatBackgroundTaskStopControl'
@@ -150,7 +155,10 @@ export function NativeChatCodexBackgroundPanel(props: {
     views: readonly AgentChildWorkView[]
   } | null>(null)
   // Held here, not in the groups: they unmount while a detail view is shown.
-  const [finishedOpen, setFinishedOpen] = useState({ commands: false, agents: false })
+  const [finishedOpen, setFinishedOpen] = useState({
+    commands: false,
+    agents: false
+  })
   const openedFrom = useRef<string | null>(null)
   const listRef = useRef<HTMLElement>(null)
   useEffect(() => {
@@ -159,9 +167,7 @@ export function NativeChatCodexBackgroundPanel(props: {
     }
     const id = openedFrom.current
     openedFrom.current = null
-    listRef.current
-      ?.querySelector<HTMLElement>(`[data-child-row-id="${CSS.escape(id)}"]`)
-      ?.focus()
+    listRef.current?.querySelector<HTMLElement>(`[data-child-row-id="${CSS.escape(id)}"]`)?.focus()
   }, [selected])
   const context = props.context ?? UNVERIFIABLE
   const views = props.commandActivity ?? props.roster?.children
@@ -179,7 +185,10 @@ export function NativeChatCodexBackgroundPanel(props: {
         : row
     )
   }, [props.roster, views, context])
-  const now = useNow(1_000, props.isVisible && rows.some((row) => !row.settled))
+  const childSessions = useDelegatedChildSessions(props.journalItems, props.section !== 'agents')
+  const childSessionCount = childSessions.running.length + childSessions.finished.length
+  const childRunning = childSessions.running.length > 0
+  const now = useNow(1_000, props.isVisible && (childRunning || rows.some((row) => !row.settled)))
   const mainIds = new Set(views?.filter((view) => view.ownership === 'main').map((view) => view.id))
   const commandRows = rows.filter((row) => props.section !== 'agents' && row.kind !== 'agent')
   const main = commandRows
@@ -313,11 +322,12 @@ export function NativeChatCodexBackgroundPanel(props: {
           )}
         </p>
       ) : null}
-      {rows.length === 0 ? (
+      {rows.length === 0 && childSessionCount === 0 ? (
         <p className="text-muted-foreground">
           {t('components.nativeChatBackground.empty', 'No background work reported.')}
         </p>
       ) : null}
+      <NativeChatDelegatedRunningChildSessions sessions={childSessions.running} now={now} />
       {main.length > 0 ? (
         <section aria-label={t('components.nativeChatBackground.main', 'Main agent')}>
           <h3 className="mb-2 font-medium text-muted-foreground">
@@ -373,15 +383,16 @@ export function NativeChatCodexBackgroundPanel(props: {
           </ul>
         </section>
       ))}
-      {finishedCommands.length > 0 ? (
+      {finishedCommands.length + childSessions.finished.length > 0 ? (
         <NativeChatFinishedBackgroundGroup
-          count={finishedCommands.length}
+          count={finishedCommands.length + childSessions.finished.length}
           open={finishedOpen.commands}
           onOpenChange={(open) => setFinishedOpen((state) => ({ ...state, commands: open }))}
         >
           {finishedCommands.map((row) => (
             <BackgroundRow key={row.id} row={row} now={now} onSelect={onSelect} />
           ))}
+          <NativeChatDelegatedFinishedChildRows sessions={childSessions.finished} now={now} />
         </NativeChatFinishedBackgroundGroup>
       ) : null}
       {finishedAgents.length > 0 ? (

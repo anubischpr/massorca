@@ -1,4 +1,5 @@
 import { agentChildWorkStopTargets } from '../../../shared/agent-child-work-stop-targets'
+import { stopWorktreeSetupRunForSession } from '../../worktree-setup/setup-run-registry'
 import { agentSessionFailureFact } from '../../../shared/agent-session-failure'
 import type { AgentChildWorkView } from '../../../shared/agent-status-child-work-view'
 import { agentSessionFailureWords } from '../../../shared/agent-session-failure-words'
@@ -198,7 +199,12 @@ async function cancelAndNote(
       ? { cancelled: false }
       : input.scope
         ? {
+            // Why: a setup run's row is Orca's, so its stop kills the PTY; only other ids reach the provider.
             cancelled:
+              (await stopWorktreeSetupRunForSession({
+                taskId: input.taskId,
+                sessionId: ctx.sessionId
+              })) ||
               (
                 await ctx.adapter.stopBackgroundTasks?.({
                   sessionId: ctx.sessionId,

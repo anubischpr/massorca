@@ -1,3 +1,4 @@
+import { isHostOwnedDelegationQuestion } from '../../../shared/delegated-session-journal'
 import {
   agentChildWorkViewOffersStop,
   type AgentSessionBackgroundTaskStops
@@ -71,7 +72,8 @@ export function conversationCommandBlocked(
     items.some(
       (item) =>
         (item.body.kind === 'approval' || item.body.kind === 'question') &&
-        item.body.resolution.state === 'pending'
+        item.body.resolution.state === 'pending' &&
+        !isHostOwnedDelegationQuestion(item.body)
     )
   ) {
     return blocked(

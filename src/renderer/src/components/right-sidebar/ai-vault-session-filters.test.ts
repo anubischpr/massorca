@@ -9,6 +9,7 @@ import {
   parseVaultQuery
 } from './ai-vault-session-filters'
 import {
+  deriveAiVaultNestedWorktreePaths,
   deriveAiVaultScopeSessionPaths,
   deriveAiVaultWorkspaceScopePaths
 } from './ai-vault-scope-paths'
@@ -367,6 +368,48 @@ describe('filterAiVaultSessions', () => {
         hideEmptySessions: true
       }).map((session) => session.id)
     ).toEqual(['claude:1'])
+  })
+})
+
+describe('This worktree on a main checkout with nested worktrees', () => {
+  it('lists the checkout and its subfolders but not sessions of a nested worktree', () => {
+    const checkout = {
+      id: 'repo1::/Users/ada/repo',
+      repoId: 'repo1',
+      path: '/Users/ada/repo',
+      priorWorktreeIds: [],
+      isArchived: false
+    }
+    const nested = {
+      id: 'repo1::/Users/ada/repo/.claude/worktrees/feature',
+      repoId: 'repo1',
+      path: '/Users/ada/repo/.claude/worktrees/feature',
+      priorWorktreeIds: [],
+      isArchived: false
+    }
+    const liveWorktrees = [checkout, nested]
+
+    const shown = filterAiVaultSessions(
+      [
+        { ...baseSession, id: 'claude:checkout', cwd: '/Users/ada/repo/app' },
+        {
+          ...baseSession,
+          id: 'claude:nested',
+          cwd: '/Users/ada/repo/.claude/worktrees/feature/app'
+        }
+      ],
+      {
+        query: '',
+        agents: ['claude'],
+        scope: 'workspace',
+        sort: 'updated',
+        activeWorktreePaths: deriveAiVaultWorkspaceScopePaths(checkout, liveWorktrees),
+        excludedWorktreePaths: deriveAiVaultNestedWorktreePaths(checkout, liveWorktrees),
+        hideEmptySessions: false
+      }
+    )
+
+    expect(shown.map((session) => session.id)).toEqual(['claude:checkout'])
   })
 })
 

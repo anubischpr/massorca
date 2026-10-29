@@ -1,18 +1,26 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+vi.mock('react-native-webview', () => ({ WebView: 'WebView' }))
+vi.mock('./MobileBackgroundWorkSheet', () => ({ MobileBackgroundWorkSheet: () => null }))
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import { MobileNativeChatView } from './MobileNativeChatView'
 
 const scrollToEnd = vi.hoisted(() => vi.fn())
 const scrollToOffset = vi.hoisted(() => vi.fn())
+const flatListMounts = vi.hoisted(() => ({ count: 0 }))
 
+// Why: the why sheet's drawer is not under test here; a stub keeps its native import chain out of the suite.
+vi.mock('../components/BottomDrawer', () => ({ BottomDrawer: () => null }))
 vi.mock('react-native', async () => {
   const React = await import('react')
   return {
     ActivityIndicator: 'ActivityIndicator',
     FlatList: React.forwardRef((props, ref) => {
       React.useImperativeHandle(ref, () => ({ scrollToEnd, scrollToOffset }), [])
+      React.useEffect(() => {
+        flatListMounts.count += 1
+      }, [])
       return React.createElement('FlatList', props)
     }),
     Pressable: 'Pressable',
@@ -43,7 +51,14 @@ vi.mock('lucide-react-native', () => ({
   ArrowDown: 'ArrowDown',
   ChevronsDownUp: 'ChevronsDownUp',
   ChevronsUpDown: 'ChevronsUpDown',
-  Square: 'Square'
+  Square: 'Square',
+  ChevronRight: 'ChevronRight',
+  FileCode: 'FileCode',
+  ChevronLeft: 'ChevronLeft',
+  Folder: 'Folder',
+  GitBranch: 'GitBranch',
+  MessageSquare: 'MessageSquare',
+  MoreHorizontal: 'MoreHorizontal'
 }))
 
 vi.mock('./MobileNativeChatMessage', () => ({ MobileNativeChatMessage: 'ChatMessage' }))
@@ -52,8 +67,9 @@ vi.mock('./MobileNativeChatAsk', () => ({ MobileNativeChatAsk: 'ChatAsk' }))
 vi.mock('./MobileNativeChatPermission', () => ({ MobileNativeChatPermission: 'ChatPermission' }))
 vi.mock('./MobileNativeChatQuestion', () => ({ MobileNativeChatQuestion: 'ChatQuestion' }))
 vi.mock('../components/ActionSheetModal', () => ({ ActionSheetModal: 'ActionSheetModal' }))
-vi.mock('./MobileAgentWorkingIndicator', () => ({
-  MobileAgentWorkingIndicator: 'WorkingIndicator'
+vi.mock('./MobileChatStatusPillView', () => ({
+  MobileChatStatusPillView: 'WorkingIndicator',
+  MobileBridgeWorkingPill: 'WorkingIndicator'
 }))
 
 // Stand-in composer: exposes the view's `handleSend` through a pressable, which is
@@ -282,7 +298,7 @@ describe('MobileNativeChatView', () => {
   // words alone, and nothing that could only be refused again.
   it('leaves only the words of a read that failed for good, over a loaded transcript', async () => {
     const loaded = [assistantTurn('m1', 'earlier reply')]
-    const words = 'This chat was saved by a newer Orca. Update Orca to open it.'
+    const words = 'This chat was saved by a newer MassOrca. Update MassOrca to open it.'
     const shown = (text: string) =>
       renderer!.root.findAll((node) => node.type === 'Text' && node.props.children === text)
     const composers = () => renderer!.root.findAll((node) => node.type === 'Composer')
@@ -353,6 +369,17 @@ describe('MobileNativeChatView', () => {
     await update({ folded, streaming: 'The tests' })
 
     expect(listIds()).toEqual(['a1', 'streaming'])
+  })
+
+  it('remounts the transcript list per conversation so row measurements never carry over', async () => {
+    flatListMounts.count = 0
+    const folded = [assistantTurn('a1', 'History')]
+    await render({ folded, sendSurfaceId: 'tab-a' })
+    await update({ folded: [...folded, assistantTurn('a2', 'More')], sendSurfaceId: 'tab-a' })
+    expect(flatListMounts.count).toBe(1)
+
+    await update({ folded: [assistantTurn('b1', 'Other tab')], sendSurfaceId: 'tab-b' })
+    expect(flatListMounts.count).toBe(2)
   })
 
   it('keeps rows attached, and anchors visible rows only once the user leaves the tail', async () => {

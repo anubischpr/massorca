@@ -417,6 +417,27 @@ describe('staged background worktree creation', () => {
     )
   })
 
+  it('passes the chat-first setup presentation with the create', async () => {
+    store.createWorktree.mockClear()
+
+    const request = makeRequest({ setupDecision: 'run', setupPresentation: 'chat-background-task' })
+    expect(continueBackgroundWorktreeCreation('creation-1', request)).toBe(true)
+    await Promise.resolve()
+    const createCall = store.createWorktree.mock.calls[0] as unknown[] | undefined
+    expect(createCall?.at(-1)).toMatchObject({ setupPresentation: 'chat-background-task' })
+  })
+
+  it('leaves the presentation off a create that is not chat-first', async () => {
+    store.createWorktree.mockClear()
+
+    expect(
+      continueBackgroundWorktreeCreation('creation-1', makeRequest({ setupDecision: 'run' }))
+    ).toBe(true)
+    await Promise.resolve()
+    const createCall = store.createWorktree.mock.calls[0] as unknown[] | undefined
+    expect(createCall?.at(-1)).not.toHaveProperty('setupPresentation')
+  })
+
   it('replaces the staged request before the create starts', async () => {
     store.updatePendingWorktreeCreation.mockClear()
     store.createWorktree.mockClear()

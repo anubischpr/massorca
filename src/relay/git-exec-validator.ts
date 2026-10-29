@@ -9,6 +9,14 @@ import {
   isSafeGitRemoteName,
   isSafePushTargetRemoteUrl
 } from '../shared/git-push-target-validation'
+import {
+  INITIAL_COMMIT_IDENTITY_ARGS,
+  INITIAL_COMMIT_MESSAGE
+} from '../shared/git-initial-commit-identity'
+import {
+  isAllowedGhAccountCloneConfigPair,
+  isAllowedGhAccountGitConfigWrite
+} from '../shared/github/gh-account-git-config'
 
 // Why: only read-only git subcommands are allowed via exec, except for the
 // exact init/empty-commit shapes used by SSH Create Project after the parent
@@ -108,10 +116,19 @@ function isAllowedRemoteWriteInvocation(args: string[]): boolean {
 
 function validateCloneArgs(args: string[]): void {
   // Why: project-host setup needs remote clone, but git.exec must not become a
-  // general write surface. Permit only `git clone [--progress] -- <url> <dir>`.
-  const allowed = args[1] === '--progress' ? args.slice(2) : args.slice(1)
+  // general write surface. Permit only `git clone [--progress] [-c <gh pin>]... -- <url> <dir>`.
+  let allowed = args[1] === '--progress' ? args.slice(2) : args.slice(1)
+  // Why: the GitHub-account pin on a new clone passes exact `-c` pairs before its first fetch.
+  while (allowed[0] === '-c') {
+    if (!isAllowedGhAccountCloneConfigPair(allowed[1] ?? '')) {
+      throw new Error('git clone -c is restricted to the GitHub account pin')
+    }
+    allowed = allowed.slice(2)
+  }
   if (allowed.length !== 3 || allowed[0] !== '--') {
-    throw new Error('git clone via exec is restricted to clone [--progress] -- <url> <dir>')
+    throw new Error(
+      'git clone via exec is restricted to clone [--progress] [-c <gh pin>]... -- <url> <dir>'
+    )
   }
   const targetDir = allowed[2]
   if (
@@ -151,7 +168,24 @@ function matchesDeniedFlag(arg: string, denySet: Set<string>): boolean {
   return false
 }
 
+// Why: Initialize Git retries the empty first commit with a fallback author when the host has no
+// identity. That one exact shape may carry global -c flags; every other -c stays rejected.
+function isInitialCommitWithIdentity(args: string[]): boolean {
+  const prefix = INITIAL_COMMIT_IDENTITY_ARGS
+  return (
+    args.length === prefix.length + 4 &&
+    prefix.every((arg, index) => args[index] === arg) &&
+    args[prefix.length] === 'commit' &&
+    args[prefix.length + 1] === '--allow-empty' &&
+    args[prefix.length + 2] === '-m' &&
+    args[prefix.length + 3] === INITIAL_COMMIT_MESSAGE
+  )
+}
+
 export function validateGitExecArgs(args: string[]): void {
+  if (isInitialCommitWithIdentity(args)) {
+    return
+  }
   // Why: git accepts `-c key=value` before the subcommand, which can override
   // config and execute arbitrary commands (e.g. core.sshCommand). Reject any
   // arguments before the subcommand that look like global git flags.
@@ -173,6 +207,10 @@ export function validateGitExecArgs(args: string[]): void {
     throw new Error('Dangerous git flags are not allowed via exec')
   }
 
+  // Why: the Settings GitHub-account pin writes only these exact repo-local shapes.
+  if (subcommand === 'config' && isAllowedGhAccountGitConfigWrite(restArgs)) {
+    return
+  }
   if (subcommand === 'config') {
     if (!restArgs.some((a) => CONFIG_READ_ONLY_FLAGS.has(a))) {
       throw new Error('git config is restricted to read-only operations (--get, --list, etc.)')

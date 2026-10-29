@@ -196,8 +196,8 @@ function requireOpened(result: RuntimeFileOpenResult, target: string): void {
   if (!result.opened) {
     throw new RuntimeClientError(
       'file_not_opened',
-      `Did not open ${target}: the Orca app declined this ${result.kind} file.`,
-      { nextSteps: ['Update the Orca app, which opens every file type the File Explorer does.'] }
+      `Did not open ${target}: the MassOrca app declined this ${result.kind} file.`,
+      { nextSteps: ['Update the MassOrca app, which opens every file type the File Explorer does.'] }
     )
   }
 }

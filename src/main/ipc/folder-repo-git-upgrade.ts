@@ -1,15 +1,13 @@
 import { stat } from 'node:fs/promises'
-import { realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import type { BrowserWindow } from 'electron'
 import type { Repo } from '../../shared/repo-types'
 import type { Store } from '../persistence'
 import { getRepoExecutionHostId, LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import { isFolderRepo } from '../../shared/repo-kind'
-import { FOLDER_WORKSPACE_INSTANCE_SEPARATOR } from '../../shared/worktree/id'
 import { normalizeRuntimePathForComparison } from '../../shared/cross-platform-path'
 import { isWslUncPath } from '../../shared/wsl-paths'
-import { getGitRepoRoot, isGitRepo } from '../git/repo'
+import { hasExtraFolderWorkspaces, resolveUpgrade } from './folder-repo-git-upgrade-eligibility'
 import { prepareLocalWorktreeRootForRepo } from '../worktree-root-preparation'
 import { invalidateAuthorizedRootsCache } from './registered-worktree-roots-cache'
 import { notifyReposChanged } from './repos/repos-changed-notification'
@@ -57,20 +55,6 @@ function isUpgradeCandidate(repo: Repo): boolean {
   )
 }
 
-/**
- * A folder project's extra workspaces are `worktreeMeta` rows keyed
- * `repoId::path::workspace:<uuid>`, and only the folder branch of the worktree listing
- * knows those keys exist. Flipping `kind` moves the repo onto the git branch, which lists
- * `git worktree list` (one path) and prunes every lineage id under the repo that is not in
- * it — so those workspaces vanish from the sidebar and their lineage is deleted. Migrating
- * them belongs to the listing code that owns both shapes, not to this watch, so refuse the
- * upgrade instead of destroying them. Such a project keeps working exactly as it does today.
- */
-function hasExtraFolderWorkspaces(store: Store, repo: Repo): boolean {
-  const prefix = `${repo.id}::${repo.path}${FOLDER_WORKSPACE_INSTANCE_SEPARATOR}`
-  return Object.keys(store.getAllWorktreeMeta()).some((key) => key.startsWith(prefix))
-}
-
 /** Identity of the `.git` entry, or null when there is none. */
 async function readGitMarkerSignature(repoPath: string): Promise<string | null> {
   try {
@@ -79,41 +63,6 @@ async function readGitMarkerSignature(repoPath: string): Promise<string | null> 
   } catch {
     return null
   }
-}
-
-function resolveRealPath(pathValue: string): string {
-  try {
-    return realpathSync(pathValue)
-  } catch {
-    return pathValue
-  }
-}
-
-/**
- * Git's verdict on the folder, or null when it must stay a folder project.
- *
- * Two comparisons, deliberately at different strictness:
- * - Refuse unless the folder *is* the work-tree root. `.git` existing proves nothing —
- *   git accepts any path inside a work tree, so a stray marker in a subdirectory of
- *   another repo would otherwise flip a project whose path is not a repo root.
- * - Only hide external worktrees when the stored spelling also matches. Add Project
- *   stores the root as `rev-parse --show-toplevel` spells it while a folder project keeps
- *   the path the user picked; when a symlinked parent makes those differ, the root reads
- *   as an *external* worktree, and hiding those would hide the project's only workspace.
- */
-function resolveUpgrade(
-  repoPath: string
-): { folderUpgradeGitRootPath: string; externalWorktreeVisibility?: 'hide' } | null {
-  if (!isGitRepo(repoPath)) {
-    return null
-  }
-  const gitRoot = getGitRepoRoot(repoPath)
-  if (resolveRealPath(gitRoot) !== resolveRealPath(repoPath)) {
-    return null
-  }
-  return normalizeRuntimePathForComparison(gitRoot) === normalizeRuntimePathForComparison(repoPath)
-    ? { folderUpgradeGitRootPath: gitRoot, externalWorktreeVisibility: 'hide' }
-    : { folderUpgradeGitRootPath: gitRoot }
 }
 
 type UpgradeResult = 'upgraded' | 'blocked' | 'rejected'

@@ -127,7 +127,8 @@ function referenceAgentStatusProjection(map: AppState['agentStatusByPaneKey']): 
         lastAssistantMessage: entry.lastAssistantMessage ?? null,
         lastAssistantMessageIsToolOutput: entry.lastAssistantMessageIsToolOutput ?? null,
         interrupted: entry.interrupted ?? null,
-        mainAgent: mainAgentKey(entry.mainAgent)
+        mainAgent: mainAgentKey(entry.mainAgent),
+        subagents: entry.subagents?.map((subagent) => [subagent.id, subagent.state]) ?? null
       }))
   )
 }

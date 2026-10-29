@@ -14,6 +14,9 @@ export const settingsApi = {
 
   set: (args: Record<string, unknown>) => ipcRenderer.invoke('settings:set', args),
 
+  getDefaultProjectlessChatsDir: (): Promise<string> =>
+    ipcRenderer.invoke('settings:getDefaultProjectlessChatsDir'),
+
   setActiveRuntimeEnvironmentPreference: (args: { environmentId: string | null }) =>
     ipcRenderer.invoke('settings:set-active-runtime-environment-preference', args),
 

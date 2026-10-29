@@ -150,6 +150,8 @@ function consumeCodexRecordLine(state: CodexSessionParseState, line: string): vo
       return
     }
     state.sawSessionMeta = true
+    // Why: a `codex exec` run is the user's own thread, flagged so the list can hide it.
+    accumulator.headlessRun = extractString(payload.source) === 'exec' ? true : undefined
     state.historyMode = extractString(payload.history_mode)
     const sessionId = extractString(payload.id)
     if (sessionId) {

@@ -592,7 +592,7 @@ describe('mobile rpc-client connection timeout', () => {
 
       await vi.advanceTimersByTimeAsync(1)
       await Promise.resolve()
-      expect(requestOutcome).toBe('Timed out while connecting to the remote Orca runtime.')
+      expect(requestOutcome).toBe('Timed out while connecting to the remote MassOrca runtime.')
     } finally {
       client.close()
       await request.catch(() => undefined)

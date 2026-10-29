@@ -39,6 +39,7 @@ export function useHostScreenState(hostId: string | undefined, action: string | 
   >(null)
   const [repoColorsByName, setRepoColorsByName] = useState<Map<string, string>>(new Map())
   const [repoIconsByName, setRepoIconsByName] = useState<Map<string, MobileHostRepoIcon>>(new Map())
+  const [repoAccountsByName, setRepoAccountsByName] = useState<Map<string, string>>(new Map())
   const [hostName, setHostName] = useState('')
   // The stored name identity, loaded with the name so the header can label an offline host.
   const [hostStoredDescriptor, setHostStoredDescriptor] = useState<{
@@ -66,6 +67,8 @@ export function useHostScreenState(hostId: string | undefined, action: string | 
   )
   // displayName → repo id: filters key on repo id, but section headers/rows key on displayName, so bridge the two.
   const [repoIdsByName, setRepoIdsByName] = useState<Map<string, string>>(new Map())
+  // Repo ids of folder projects (no Git): they show the "No Git" marker until Git is initialized.
+  const [folderRepoIds, setFolderRepoIds] = useState<ReadonlySet<string>>(new Set())
   // Host-label inputs for rows: repo → host, SSH/override labels, and the host's own platform.
   const [repoHostIdByRepoId, setRepoHostIdByRepoId] = useState<Map<string, ExecutionHostId>>(
     new Map()
@@ -124,6 +127,8 @@ export function useHostScreenState(hostId: string | undefined, action: string | 
     repoColorsByName,
     repoHostIdByRepoId,
     repoIconsByName,
+    repoAccountsByName,
+    folderRepoIds,
     repoIdsByName,
     repoMetadataFetchedAtRef,
     routeActionState,
@@ -147,6 +152,8 @@ export function useHostScreenState(hostId: string | undefined, action: string | 
     setRepoColorsByName,
     setRepoHostIdByRepoId,
     setRepoIconsByName,
+    setRepoAccountsByName,
+    setFolderRepoIds,
     setRepoIdsByName,
     setRouteActionState,
     setSearch,

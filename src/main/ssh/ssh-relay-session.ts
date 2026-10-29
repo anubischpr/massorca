@@ -1591,7 +1591,7 @@ export class SshRelaySession {
   private wireUpRemoteOrcaCli(mux: SshChannelMultiplexer, connectionIncarnation: string): void {
     mux.onRequest('orca.cli', async (params) => {
       if (!this.runtime) {
-        throw new Error('Orca runtime is unavailable')
+        throw new Error('MassOrca runtime is unavailable')
       }
       const argv = Array.isArray(params.argv)
         ? params.argv.filter((item): item is string => typeof item === 'string')
@@ -1631,7 +1631,7 @@ export class SshRelaySession {
     })
     mux.onRequest('orca.cli.postOutput', async (params) => {
       if (!this.runtime) {
-        throw new Error('Orca runtime is unavailable')
+        throw new Error('MassOrca runtime is unavailable')
       }
       const rawEnv = params.env
       const env =
@@ -2861,7 +2861,7 @@ export class SshRelaySession {
           pendingReattach.restoreRequired = 'reattachAttemptsExhausted'
           this.wakeRecovery(pendingReattach)
           console.warn(
-            `[ssh-relay-session] Keeping PTY ${ptyId} for ${this.targetId}: an older Orca relay on this host may still run it`
+            `[ssh-relay-session] Keeping PTY ${ptyId} for ${this.targetId}: an older MassOrca relay on this host may still run it`
           )
         }
         return

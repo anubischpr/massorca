@@ -148,7 +148,12 @@ export const REPO_METHODS = [
     params: RepoClone,
     handler: async (params, context) => ({
       repo: projectRepoVisibilityForClient(
-        await context.runtime.cloneRepo(params.url, params.destination),
+        await context.runtime.cloneRepo(
+          params.url,
+          params.destination,
+          undefined,
+          params.ghAccount ?? null
+        ),
         context
       )
     })
@@ -197,6 +202,17 @@ export const REPO_METHODS = [
         context
       )
     })
+  }),
+  defineMethod({
+    name: 'repo.initGit',
+    permission: 'workspace',
+    params: RepoSelector,
+    handler: async (params, context) => {
+      const result = await context.runtime.initializeRepoGit(params.repo)
+      return result.ok
+        ? { ...result, repo: projectRepoVisibilityForClient(result.repo, context) }
+        : result
+    }
   }),
   defineMethod({
     name: 'repo.baseRefDefault',

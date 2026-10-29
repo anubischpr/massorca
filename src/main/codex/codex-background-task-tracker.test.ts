@@ -240,11 +240,11 @@ describe('CodexBackgroundTaskTracker command integration', () => {
     expect(tracker.state).toBeNull()
   })
 
-  it('reveals a child shell only after the child execution finishes', () => {
+  it('lists a child shell beside its working agent row, and keeps it after the agent ends', () => {
     const tracker = runningChild()
     tracker.observe(turn('turn/completed', PRIMARY, PARENT_TURN))
     tracker.observe(command(CHILD))
-    expect(tracker.state?.tasks).toHaveLength(1)
+    expect(tracker.state?.tasks).toHaveLength(2)
     tracker.observe(turn('turn/completed', CHILD, CHILD_TURN, 'interrupted'))
     expect(tracker.state?.tasks).toEqual([
       {

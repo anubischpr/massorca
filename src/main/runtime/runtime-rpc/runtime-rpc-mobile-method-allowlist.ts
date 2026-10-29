@@ -92,6 +92,8 @@ export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   'github.listAssignableUsers',
   'github.listLabels',
   'github.listWorkItems',
+  // The repo's gh.account, for the phone's repo header and chat environment (read-only).
+  'github.readAccountGitConfig',
   'github.mergePR',
   'github.setPRAutoMerge',
   'github.requestPRReviewers',
@@ -191,7 +193,9 @@ export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   'pairing.provisionRelay',
   'preflight.check',
   'preflight.detectAgents',
+  'preflight.detectPiRuntimes',
   'preflight.detectRemoteAgents',
+  'preflight.detectRemotePiRuntimes',
   'projectGroup.list',
   'repo.baseRefDefault',
   'repo.gitAvailable',

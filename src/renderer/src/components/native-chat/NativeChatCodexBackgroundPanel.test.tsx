@@ -7,7 +7,11 @@ import type * as AgentStateDotModule from '../AgentStateDot'
 import type { AgentChildWorkView } from '../../../../shared/agent-status-child-work-view'
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
 import type { AgentChildRowContext } from '../../../../shared/agent-child-row-model'
+import type * as ActivationModule from '@/lib/structured-agent-session-tab-activation'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { useAppStore } from '@/store'
+import type { Tab } from '../../../../shared/tab-types'
+import type { DelegationNoticePayload } from '../../../../shared/delegated-session-journal'
 import { NativeChatCodexBackgroundPanel } from './NativeChatCodexBackgroundPanel'
 
 vi.mock('@/components/AgentChildRowContent', () => ({
@@ -21,8 +25,20 @@ vi.mock('@/components/AgentStateDot', async (importOriginal) => ({
   ...(await importOriginal<typeof AgentStateDotModule>()),
   AgentStateDot: () => <span />
 }))
-vi.mock('@/hooks/use-now', () => ({ useNow: () => 1_000 }))
-afterEach(cleanup)
+vi.mock('@/hooks/use-now', () => ({ useNow: mocks.useNow }))
+const mocks = vi.hoisted(() => ({
+  activate: vi.fn(() => true),
+  useNow: vi.fn((_intervalMs: number, _enabled?: boolean) => 1_000)
+}))
+vi.mock('@/lib/structured-agent-session-tab-activation', async (importOriginal) => ({
+  ...(await importOriginal<typeof ActivationModule>()),
+  activateStructuredAgentSessionById: mocks.activate
+}))
+afterEach(() => {
+  cleanup()
+  mocks.activate.mockClear()
+  useAppStore.setState({ unifiedTabsByWorktree: {} })
+})
 
 const fresh: AgentChildRowContext = {
   parentEvidenceFresh: true,
@@ -587,4 +603,155 @@ describe('finished history across a detail view', () => {
       )
     }
   )
+})
+
+describe('child sessions in the background popover', () => {
+  const childTab: Tab = {
+    id: 'tab-child',
+    entityId: 'child-1',
+    groupId: 'group-1',
+    worktreeId: 'wt-child',
+    contentType: 'agent-session',
+    label: 'Explore routing',
+    customLabel: null,
+    color: null,
+    sortOrder: 0,
+    createdAt: 1
+  }
+  const running: DelegationNoticePayload = {
+    requestId: 'req-1',
+    title: 'Explore routing',
+    status: 'started',
+    agent: 'codex',
+    model: 'gpt-6.1-sol',
+    effort: 'medium',
+    childSessionId: 'child-1',
+    placement: 'current',
+    automatic: true
+  }
+  const settled: DelegationNoticePayload = {
+    ...running,
+    requestId: 'req-2',
+    title: 'Lint sweep',
+    childSessionId: 'child-2'
+  }
+  const settledFinish: DelegationNoticePayload = {
+    requestId: 'req-2',
+    title: 'Lint sweep',
+    status: 'finished',
+    outcome: 'succeeded',
+    resultSummary: '',
+    childSessionId: 'child-2',
+    durationMs: null
+  }
+  const delegationItem = (delegation: DelegationNoticePayload, observedAt: number) =>
+    ({
+      itemId: `${delegation.requestId}-${delegation.status}`,
+      revision: 1,
+      sequence: observedAt,
+      observedAt,
+      body: { kind: 'status', text: delegation.title, delegation }
+    }) satisfies AgentJournalRenderItem
+
+  it('lists a running child with an open action that opens its chat', () => {
+    useAppStore.setState({ unifiedTabsByWorktree: { 'wt-child': [childTab] } })
+    render(
+      <NativeChatCodexBackgroundPanel
+        roster={null}
+        context={fresh}
+        isVisible
+        journalItems={[delegationItem(running, 400)]}
+      />
+    )
+    expect(screen.getByRole('heading', { name: 'Child sessions' })).toBeDefined()
+    expect(screen.getByText('Codex · working · under 1 min')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Open child chat: Explore routing' }))
+    expect(mocks.activate).toHaveBeenCalledWith({ worktreeId: 'wt-child', sessionId: 'child-1' })
+  })
+
+  it('moves a finished child under the Finished group, with no open action when no tab lists it', () => {
+    render(
+      <NativeChatCodexBackgroundPanel
+        roster={null}
+        context={fresh}
+        isVisible
+        journalItems={[delegationItem(settled, 100), delegationItem(settledFinish, 200)]}
+      />
+    )
+    expect(screen.queryByRole('heading', { name: 'Child sessions' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '1 finished' }))
+    expect(screen.getByText('Lint sweep')).toBeDefined()
+    expect(screen.getByText('Codex · finished')).toBeDefined()
+    expect(screen.queryByRole('button', { name: /Open child chat/ })).toBeNull()
+  })
+
+  it('keeps child sessions out of the subagent list', () => {
+    render(
+      <NativeChatCodexBackgroundPanel
+        roster={null}
+        context={fresh}
+        isVisible
+        section="agents"
+        journalItems={[delegationItem(running, 400)]}
+      />
+    )
+    expect(screen.queryByText('Explore routing')).toBeNull()
+  })
+
+  it('lists nothing for a request that never started', () => {
+    const failedStart: DelegationNoticePayload = {
+      requestId: 'req-3',
+      title: 'Never ran',
+      status: 'failed',
+      reason: 'no capacity'
+    }
+    render(
+      <NativeChatCodexBackgroundPanel
+        roster={null}
+        context={fresh}
+        isVisible
+        journalItems={[delegationItem(failedStart, 100)]}
+      />
+    )
+    expect(screen.queryByRole('heading', { name: 'Child sessions' })).toBeNull()
+    expect(screen.queryByText('Never ran')).toBeNull()
+    expect(screen.getByText('No background work reported.')).toBeDefined()
+  })
+
+  it('shares one Finished group between finished children and finished commands', () => {
+    render(
+      <NativeChatCodexBackgroundPanel
+        roster={null}
+        context={fresh}
+        isVisible
+        commandActivity={[child('build', { membership: 'settled', state: 'done', settledAt: 900 })]}
+        journalItems={[delegationItem(settled, 100), delegationItem(settledFinish, 200)]}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: '2 finished' }))
+    expect(screen.getByText('Lint sweep')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'View activity: build' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: '1 finished' })).toBeNull()
+  })
+
+  it('ticks the child clock only while the popover is visible', () => {
+    const { rerender } = render(
+      <NativeChatCodexBackgroundPanel
+        roster={null}
+        context={fresh}
+        isVisible={false}
+        journalItems={[delegationItem(running, 400)]}
+      />
+    )
+    expect(mocks.useNow).toHaveBeenLastCalledWith(1_000, false)
+    rerender(
+      <NativeChatCodexBackgroundPanel
+        roster={null}
+        context={fresh}
+        isVisible
+        journalItems={[delegationItem(running, 400)]}
+      />
+    )
+    expect(mocks.useNow).toHaveBeenLastCalledWith(1_000, true)
+  })
 })

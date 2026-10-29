@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { getEditorHeaderCopyState, getEditorHeaderOpenFileState } from './editor-header'
+import {
+  getEditorHeaderCopyState,
+  getEditorHeaderOpenFileState,
+  shouldShowEditorPanelHeader
+} from './editor-header'
 import type { OpenFile } from '@/store/slices/editor'
 
 function makeOpenFile(overrides: Partial<OpenFile> = {}): OpenFile {
@@ -14,6 +18,34 @@ function makeOpenFile(overrides: Partial<OpenFile> = {}): OpenFile {
     ...overrides
   }
 }
+
+describe('recorded-file tab header', () => {
+  const recordedTab = makeOpenFile({
+    id: 'wt-1::recorded-file::session-alpha::/home/me/informes/report.html',
+    filePath: 'wt-1::recorded-file::session-alpha::/home/me/informes/report.html',
+    relativePath: '/home/me/informes/report.html',
+    mode: 'recorded-file',
+    recordedFile: {
+      sessionId: 'session-alpha',
+      path: '/home/me/informes/report.html',
+      worktreePath: '/remote/repo',
+      runtimeEnvironmentId: 'env-1'
+    }
+  })
+
+  it('shows the host path, never the synthetic tab id, and offers no copy', () => {
+    expect(getEditorHeaderCopyState(recordedTab)).toEqual({
+      copyText: null,
+      copyToastLabel: 'Recorded file path copied',
+      pathLabel: '/home/me/informes/report.html',
+      pathTitle: '/home/me/informes/report.html'
+    })
+  })
+
+  it('leaves the path header to the tab, which names the file itself', () => {
+    expect(shouldShowEditorPanelHeader(recordedTab, false)).toBe(false)
+  })
+})
 
 describe('getEditorHeaderCopyState', () => {
   it('shows the absolute file path for normal file tabs', () => {

@@ -1,6 +1,7 @@
 import type Database from '../../../sqlite/sync-database'
 import { OrchestrationError } from '../orchestration-error'
 import type { OrchestrationDb } from './orchestration-db'
+import { notifyDispatchSettled, TERMINAL_DISPATCH_STATUSES } from './dispatch-settlement-observers'
 
 /**
  * The single write boundary for Task, Dispatch, and supervised worker state.
@@ -192,6 +193,9 @@ export function transitionLifecycleWithDb(
     )
   }
 
+  if (params.entity === 'dispatch' && TERMINAL_DISPATCH_STATUSES.has(params.to)) {
+    notifyDispatchSettled(db, params.id)
+  }
   return { changed: true }
 }
 

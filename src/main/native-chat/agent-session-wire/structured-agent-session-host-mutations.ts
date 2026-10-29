@@ -46,6 +46,8 @@ import {
 import { agentSessionMutationAdmitsNow } from './structured-agent-session-mutation-admits-now'
 import { runQueueableStructuredAgentSessionSend } from './structured-agent-session-queued-send'
 import { cancelStructuredAgentSessionPrompt } from './structured-agent-session-prompt-cancel'
+import { isHostOwnedPromptItemId } from './structured-agent-session-host-owned-prompts'
+import { cancelHostPrompt, respondToHostPrompt } from './structured-host-prompt-mutations'
 import { mutateWithChatStop } from './structured-agent-session-chat-stop'
 import { performSetOption } from './structured-agent-session-turns-options'
 import { agentSessionAccessPosture } from '../../../shared/agent-session-access-equivalence'
@@ -122,6 +124,9 @@ export function cancelStructuredAgentSessionTurn(
   }
   const plan = cancelPlan(params)
   const { prompt } = params
+  if (prompt && isHostOwnedPromptItemId(prompt.itemId)) {
+    return cancelHostPrompt(context, caller, { ...params, prompt })
+  }
   if (!prompt && params.turnId === undefined) {
     abortAcquireForStop(context, caller, params.envelope, plan)
   }
@@ -169,6 +174,9 @@ export function respondToStructuredAgentSessionPrompt(
   caller: StructuredAgentSessionCaller,
   params: AgentSessionPromptRequest & { envelope: AgentSessionMutationEnvelope }
 ): Promise<AgentSessionMutationResult<AgentSessionPromptResult>> {
+  if (isHostOwnedPromptItemId(params.itemId)) {
+    return respondToHostPrompt(context, caller, params)
+  }
   return mutateStructuredAgentSession(
     context,
     caller,

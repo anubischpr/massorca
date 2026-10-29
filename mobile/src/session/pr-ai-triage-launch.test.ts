@@ -30,10 +30,10 @@ const LAUNCH_CAPABILITIES = [
   'agent.launch.replay-required.v1'
 ]
 const RECEIPT = {
-  mode: 'terminal',
-  preferred: 'terminal',
+  mode: 'structured',
+  preferred: 'structured',
   reason: 'user_default',
-  detail: 'Started a terminal agent.'
+  detail: 'Started a structured chat session.'
 }
 
 function ok(result: unknown): RpcResponse {
@@ -62,7 +62,7 @@ function hostClient(replies: { settings?: unknown; detected?: unknown[]; launch?
 
 function launchedWith(prompt: unknown, warning?: string): RpcResponse {
   return ok({
-    outcome: { kind: 'terminal', handle: 'term-1' },
+    outcome: { kind: 'structured', sessionId: 'claude-1', handle: 'h' },
     worktreeId: 'repo-1::/w',
     receipt: RECEIPT,
     ...(prompt ? { prompt } : {}),
@@ -315,5 +315,24 @@ describe('agentStartedMessage', () => {
   it('still confirms the launch when the screen knows no workspace name', () => {
     expect(agentStartedMessage(null)).toBe('Agent started')
     expect(agentStartedMessage('   ')).toBe('Agent started')
+  })
+
+  it('says so when the host built a terminal instead of the chat', async () => {
+    const { client } = hostClient({
+      launch: ok({
+        outcome: { kind: 'terminal', handle: 'term-1' },
+        worktreeId: 'repo-1::/w',
+        receipt: {
+          mode: 'terminal',
+          preferred: 'terminal',
+          reason: 'user_default',
+          detail: 'Started a terminal agent, the default for new agent tabs in your settings.'
+        },
+        prompt: { delivery: 'submit', outcome: 'handed-to-terminal' }
+      })
+    })
+    const result = await run(client)
+    expect(result).toMatchObject({ kind: 'sent' })
+    expect(result.kind === 'sent' && result.warning).toMatch(/not a chat/)
   })
 })

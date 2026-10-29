@@ -26,11 +26,18 @@ vi.mock('lucide-react-native', () => ({
   ChevronDown: 'ChevronDown',
   ChevronLeft: 'ChevronLeft',
   ChevronRight: 'ChevronRight',
+  Eye: 'Eye',
   ImagePlus: 'ImagePlus',
+  Lock: 'Lock',
+  LockKeyhole: 'LockKeyhole',
+  LockOpen: 'LockOpen',
   Mic: 'Mic',
+  NotebookPen: 'NotebookPen',
   Square: 'Square',
-  X: 'X'
+  X: 'X',
+  Zap: 'Zap'
 }))
+vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: 'MobileAgentIcon' }))
 vi.mock('../components/BottomDrawer', async () => {
   const React = await import('react')
   return {

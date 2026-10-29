@@ -1,3 +1,4 @@
+import { useContext } from 'react'
 import { View, Text, Pressable } from 'react-native'
 import { AlertTriangle, X } from 'lucide-react-native'
 import { SessionDockColumn } from './SessionDockColumn'
@@ -7,6 +8,12 @@ import { styles } from './mobile-session-styles'
 import type { MobileSessionController } from './use-mobile-session-controller'
 import { MobileSessionActiveContent } from './MobileSessionActiveContent'
 import { MobileSessionCommandDock } from './MobileSessionCommandDock'
+import { MobileTerminalComposerDock } from './MobileTerminalComposerDock'
+import { MOBILE_LEGACY_SESSION_VIEWS } from './mobile-legacy-session-views'
+import { MobileChatFloatingChrome } from './MobileChatFloatingChrome'
+import { MobileChatChromeLayoutContext } from './mobile-chat-chrome-layout'
+import { dockedPanelOf } from './session-panel-host'
+import { drawsFloatingChrome } from './mobile-session-chrome-mode'
 
 export function MobileSessionContentRow({ controller }: { controller: MobileSessionController }) {
   const {
@@ -21,13 +28,22 @@ export function MobileSessionContentRow({ controller }: { controller: MobileSess
     createWarning,
     handleFileOpenStart,
     handleOpenedFileDiff,
-    handleSessionContentRowLayout
+    handleSessionContentRowLayout,
+    chromeMode,
+    showFloatingChrome
   } = controller
+  // The floating controls cover the top of this column; the banner starts beneath them.
+  const chromeLayout = useContext(MobileChatChromeLayoutContext)
+  // The terminal panel is in place, so only a routed panel can dock beside the session.
+  const dockedPanel = dockedPanelOf(activePanel)
   return (
     <View style={styles.sessionContentRow} onLayout={handleSessionContentRowLayout}>
       <View style={styles.sessionContentMain}>
+        {drawsFloatingChrome({ chromeMode, sessionControls: showFloatingChrome }) ? (
+          <MobileChatFloatingChrome controller={controller} />
+        ) : null}
         {createWarning ? (
-          <View style={styles.createWarningBanner}>
+          <View style={[styles.createWarningBanner, { marginTop: chromeLayout.height }]}>
             <AlertTriangle size={16} color={colors.statusAmber} strokeWidth={2.2} />
             <Text style={styles.createWarningText}>{createWarning}</Text>
             <Pressable
@@ -41,12 +57,16 @@ export function MobileSessionContentRow({ controller }: { controller: MobileSess
           </View>
         ) : null}
         <MobileSessionActiveContent controller={controller} />
-        {/* Why: translate instead of resize so keyboard toggles don't trigger a server-side PTY viewport change. */}
-        <MobileSessionCommandDock controller={controller} />
+        {/* Why: phone mode shrinks the terminal frame onto the keyboard; desktop mode keeps the host size and overlays by translate. */}
+        {MOBILE_LEGACY_SESSION_VIEWS ? (
+          <MobileSessionCommandDock controller={controller} />
+        ) : (
+          <MobileTerminalComposerDock controller={controller} />
+        )}
       </View>
-      {canDockPanel && activePanel !== null && (
+      {canDockPanel && dockedPanel !== null && (
         <SessionDockColumn
-          activePanel={activePanel}
+          activePanel={dockedPanel}
           hostId={hostId}
           worktreeId={worktreeId}
           name={worktreeName || ''}

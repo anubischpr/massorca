@@ -67,7 +67,7 @@ export async function createManagedOrcadEnvironment(
       throw new Error(`A server named "${args.name}" already exists.`)
     }
     if (hasRegisteredDirectSshAuthority(args.sshTargetId)) {
-      throw new Error('Disconnect this SSH host before converting it to a managed Orca server.')
+      throw new Error('Disconnect this SSH host before converting it to a managed MassOrca server.')
     }
     const current = targetStore.getTarget(args.sshTargetId)
     if (args.migration) {
@@ -83,10 +83,10 @@ export async function createManagedOrcadEnvironment(
     await claims.flush(args.signal)
     const targetGeneration = claimed.generation
     if (targetGeneration === undefined) {
-      throw new Error('The managed Orca SSH registration has no durable generation.')
+      throw new Error('The managed MassOrca SSH registration has no durable generation.')
     }
     if (registered && registered.orcadDeployment?.sshTargetGeneration !== targetGeneration) {
-      throw new Error('The saved managed Orca server has a stale SSH target generation.')
+      throw new Error('The saved managed MassOrca server has a stale SSH target generation.')
     }
     let environmentRegistered = false
     try {
@@ -105,7 +105,7 @@ export async function createManagedOrcadEnvironment(
         await ensureOrcadManagedTunnel(userDataPath, registered.id)
         const activeVersion = context.activationRecord.active
         if (!activeVersion) {
-          throw new Error('The managed Orca server has no active runtime version.')
+          throw new Error('The managed MassOrca server has no active runtime version.')
         }
         return {
           outcome: 'already-current',
@@ -135,8 +135,8 @@ export async function createManagedOrcadEnvironment(
         // An explicit force runs this version anyway, as `environment update --force` does.
         admitRecord: (record, candidateVersion) =>
           !args.force && refuseOrcadHostDowngrade(record, candidateVersion, appVersion)
-            ? `Orca ${record.activeAppVersion} last ran this host's server, newer than this ` +
-              `Orca (${appVersion}). Update Orca to start it.`
+            ? `MassOrca ${record.activeAppVersion} last ran this host's server, newer than this ` +
+              `MassOrca (${appVersion}). Update MassOrca to start it.`
             : null
       })
       if (deployResult.outcome === 'installed-not-activated') {

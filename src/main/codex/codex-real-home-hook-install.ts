@@ -87,7 +87,7 @@ export async function reconcileRealHomeCodexHookEntries(args: ReconcileArgs): Pr
           }
         }
       }
-      throw new Error('Orca entries in ~/.codex did not settle')
+      throw new Error('MassOrca entries in ~/.codex did not settle')
     })
   } catch (error) {
     console.warn('[codex-real-home-hooks] could not reconcile Orca entries in ~/.codex:', error)

@@ -47,6 +47,8 @@ export type CodexStructuredLaunch = {
   env?: Record<string, string>
   /** This chat's visuals folder and skill; absent when the chat has no visuals. */
   visuals?: NativeChatVisualsLaunch
+  /** Orca's developer-role instructions for the thread, sent apart from the user's AGENTS.md. */
+  developerInstructions?: string
 }
 
 /** Turn and item boundaries, timed by when the host received them, never by when a buffered or

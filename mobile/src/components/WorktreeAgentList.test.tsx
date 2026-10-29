@@ -1,6 +1,10 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  structuredAgentSessionPaneKey,
+  structuredAgentSessionTabId
+} from '../../../src/shared/structured-agent-session-projection'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
 import { WorktreeAgentList } from './WorktreeAgentList'
 
@@ -97,5 +101,30 @@ describe('WorktreeAgentList', () => {
     })
 
     expect(renderer!.root.findByType('Pressable').props.accessibilityLabel).toBe('Expand 2 agents')
+  })
+
+  it('nests a delegated child under its structured parent, one level in', async () => {
+    // Why: the rows carry the runtime's own structured pane keys, the ones a delegated child's parent link names.
+    const parentKey = structuredAgentSessionPaneKey(
+      structuredAgentSessionTabId('parent-session'),
+      'parent-session'
+    )
+    const childKey = structuredAgentSessionPaneKey(
+      structuredAgentSessionTabId('child-session'),
+      'child-session'
+    )
+    await act(async () => {
+      renderer = create(
+        createElement(WorktreeAgentList, {
+          agents: [agent(childKey, parentKey), agent(parentKey)],
+          now: 2_000,
+          unvisited: false
+        })
+      )
+    })
+    // A single root draws its tree straight away, with no summary to expand.
+    const rows = renderer!.root.findAll((node) => 'depth' in node.props)
+    expect(rows.map((row) => row.props.agent.paneKey)).toEqual([parentKey, childKey])
+    expect(rows.map((row) => row.props.depth)).toEqual([0, 1])
   })
 })

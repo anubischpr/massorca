@@ -71,8 +71,10 @@ export type MobileNativeChatTailFollow<TItem> = {
 export function useMobileNativeChatTailFollow<TItem>(args: {
   /** Guards `scrollToEnd` against an empty list. */
   hasItems: boolean
+  /** Conversation identity; the transcript list remounts per conversation. */
+  sendSurfaceId: string
 }): MobileNativeChatTailFollow<TItem> {
-  const { hasItems } = args
+  const { hasItems, sendSurfaceId: scopeKey } = args
   const listRef = useRef<FlatList<TItem> | null>(null)
   const [following, setFollowingFlag] = useState(true)
   const [atTail, setAtTailFlag] = useState(true)
@@ -84,6 +86,23 @@ export function useMobileNativeChatTailFollow<TItem>(args: {
   const passivePinFrameRef = useRef<number | null>(null)
   const geometryRef = useRef<PinnedGeometry>({ content: null, viewport: null })
   const pinnedGeometryRef = useRef<PinnedGeometry | null>(null)
+  const scopeKeyRef = useRef(scopeKey)
+
+  // Reset during render, before the fresh list mounts and reports its first measurements.
+  if (scopeKeyRef.current !== scopeKey) {
+    scopeKeyRef.current = scopeKey
+    userScrollActiveRef.current = false
+    geometryRef.current = { content: null, viewport: null }
+    pinnedGeometryRef.current = null
+    followingRef.current = true
+    atTailRef.current = true
+    if (!following) {
+      setFollowingFlag(true)
+    }
+    if (!atTail) {
+      setAtTailFlag(true)
+    }
+  }
 
   // Single writer, so the event-time ref and the render flag cannot disagree.
   const setFollowing = useCallback((next: boolean) => {

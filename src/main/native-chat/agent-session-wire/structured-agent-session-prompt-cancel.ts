@@ -139,3 +139,68 @@ async function dismissPrompt(
   }
   return { ok: true, value: null }
 }
+
+/**
+ * A host-owned question's own Cancel. It ends that question and nothing else: the chat's turn is
+ * not the question's to stop, since no provider is waiting on it.
+ */
+export async function cancelHostOwnedPrompt(
+  ctx: AgentSessionTurnContext,
+  input: { turnId?: string; prompt: { itemId: string; expectedRevision: number } }
+): Promise<CancelOutcome> {
+  const validated = validatePendingPrompt(ctx, input.prompt)
+  if (!validated.ok) {
+    return answerCancelOfSettledPrompt(ctx, input, validated)
+  }
+  const { item, prompt } = validated
+  const identity = parseAgentJournalItemKey(item.itemId)
+  if (!identity || !ctx.hostOwnedPrompts) {
+    return {
+      ok: false,
+      refusal: refuse(
+        'agent_session_operation_invalid',
+        { reason: identity ? 'promptGone' : 'requestMalformed' },
+        `Item ${item.itemId} cannot be cancelled on this host.`
+      )
+    }
+  }
+  const outcome = await ctx.hostOwnedPrompts.cancel({
+    sessionId: ctx.sessionId,
+    itemId: item.itemId
+  })
+  if (!outcome.ok) {
+    return {
+      ok: false,
+      refusal: refuse(
+        'agent_session_operation_invalid',
+        { reason: outcome.reason },
+        outcome.message
+      )
+    }
+  }
+  try {
+    await ctx.journal.appendItem(
+      identity,
+      {
+        ...prompt,
+        resolution: {
+          state: 'cancelled',
+          selectedOptionId: null,
+          resolvedBy: ctx.resolvedBy,
+          resolvedAt: ctx.now()
+        }
+      },
+      // A revision: the prompt keeps the turn it was raised in.
+      { fence: ctx.fence, turnScope: ctx.journal.liveTurnScope() }
+    )
+  } catch (error) {
+    // The claim was taken before this write, so a write that fails hands it back.
+    outcome.rollback?.()
+    throw error
+  }
+  outcome.afterCommit()
+  return {
+    ok: true,
+    value: { ...(input.turnId ? { turnId: input.turnId } : {}), cancelled: true }
+  }
+}

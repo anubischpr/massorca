@@ -4,6 +4,7 @@
 // it as a question when a clear option list is present.
 
 import type { AgentJournalFreeTextInput } from '../../../src/shared/agent-session-journal-types'
+import type { MobileDelegationQuestion } from './mobile-delegation-card-model'
 
 export type MobileChatQuestion = {
   question: string
@@ -13,6 +14,8 @@ export type MobileChatQuestion = {
   multiSelect: boolean
   /** Structured questions hide the free-text row when the provider does not accept it. */
   allowOther?: boolean
+  /** A delegated session's agent choice: drawn as its card instead of the option list. */
+  delegation?: MobileDelegationQuestion
   /** Per-option leading marker ("1", "b", …) when the source line carried one,
    *  parallel to `options`. Null where the option was a plain bullet. Used to
    *  echo the exact choice the agent listed back to the terminal. */

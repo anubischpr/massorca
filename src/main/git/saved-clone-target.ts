@@ -143,10 +143,10 @@ export async function reuseSavedCloneTarget(
     return null
   }
   throw new Error(
-    `"${saved.displayName}" is already an Orca project at ${saved.path}, and Orca couldn't confirm that folder is a clone of this URL: ${
+    `"${saved.displayName}" is already a MassOrca project at ${saved.path}, and MassOrca couldn't confirm that folder is a clone of this URL: ${
       storedOrigin
-        ? 'Orca has that project recorded as a different repository'
-        : 'Orca has no record of which repository that project holds, so it cannot tell whether the folder is missing or holds something else'
-    }. Remove the project from Orca or choose another folder.`
+        ? 'MassOrca has that project recorded as a different repository'
+        : 'MassOrca has no record of which repository that project holds, so it cannot tell whether the folder is missing or holds something else'
+    }. Remove the project from MassOrca or choose another folder.`
   )
 }

@@ -1,4 +1,5 @@
 import { pendingSelectionTabId, withoutPendingHandle } from './pending-session-selection'
+import { neighbourTabAfterClose } from './mobile-session-active-tab'
 import {
   sessionTabClose,
   sessionTerminalClose,
@@ -141,6 +142,7 @@ export function useMobileSessionCloseActions(scope: MobileSessionContentCreateAc
             return next
           })
         }
+        const closedIndex = sessionTabsRef.current.findIndex((candidate) => candidate.id === tab.id)
         const remainingTabs = sessionTabsRef.current.filter((candidate) => candidate.id !== tab.id)
         reconcileBufferedDraftsRef.current(sessionTabsRef.current, remainingTabs)
         if (tab.type === 'browser' && tab.browserPageId === pendingBrowserFocusPageIdRef.current) {
@@ -161,12 +163,19 @@ export function useMobileSessionCloseActions(scope: MobileSessionContentCreateAc
         // the render-synced ref sees that switch while this closure would not,
         // so comparing against the ref keeps the anchor from being nulled out.
         if (activeSessionTabIdRef.current === tab.id || remainingTabs.length === 0) {
-          activeSessionTabTypeRef.current = null
-          selectedSessionTabIdRef.current = null
-          activeSessionTabIdRef.current = null
-          setActiveSessionTabId(null)
-          activeHandleRef.current = null
-          setActiveHandle(null)
+          // Why: the neighbour takes over in this same update; clearing the active tab here would leave
+          // the screen without a known kind until the next snapshot.
+          const neighbour = neighbourTabAfterClose(remainingTabs, closedIndex)
+          const neighbourHandle =
+            neighbour?.type === 'terminal' && typeof neighbour.terminal === 'string'
+              ? neighbour.terminal
+              : null
+          activeSessionTabTypeRef.current = neighbour?.type ?? null
+          selectedSessionTabIdRef.current = neighbour?.id ?? null
+          activeSessionTabIdRef.current = neighbour?.id ?? null
+          setActiveSessionTabId(neighbour?.id ?? null)
+          activeHandleRef.current = neighbourHandle
+          setActiveHandle(neighbourHandle)
         }
       }
     } catch {

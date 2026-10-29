@@ -284,8 +284,11 @@ describe('Codex structured child-work producer', () => {
         live: 'working',
         parent: { stateName: 'working' },
         check: () => {
-          // A finished command leaves nothing behind.
-          expect(byDescription('npm test')).toBeUndefined()
+          // A child's finished command stays as a settled row under its agent.
+          expect(byDescription('npm test')).toMatchObject({
+            membership: 'settled',
+            outcome: 'succeeded'
+          })
           // The dev server is still the child's open call while its turn runs.
           expect(byDescription('review')?.operation).toMatchObject({
             toolName: 'Bash',
@@ -491,6 +494,7 @@ describe('Codex structured child-work producer', () => {
       }))
     ).toEqual([
       { description: 'review', membership: 'settled', outcome: 'cancelled' },
+      { description: 'npm test', membership: 'settled', outcome: 'succeeded' },
       { description: 'npm run dev', membership: 'settled', outcome: 'succeeded' },
       { description: 'test', membership: 'settled', outcome: 'failed' },
       { description: 'lint', membership: 'settled', outcome: 'failed' }

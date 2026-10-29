@@ -79,6 +79,13 @@ function rosterEntries(rows: readonly AgentChildRowModel[]): BackgroundTaskGroup
   )
 }
 
+/** Kind groups from rows a reader already built, in the order every roster reads them. */
+export function groupBackgroundTaskRows(
+  rows: readonly AgentChildRowModel[]
+): BackgroundTaskGroup[] {
+  return rosterEntries(rows)
+}
+
 /** Kind groups from a host that publishes only the task roster, live and settled merged. */
 export function buildBackgroundTaskGroups(
   tasks: readonly AgentSessionBackgroundTask[],
@@ -109,6 +116,15 @@ export function buildBackgroundTaskGroupsFromViews(
   context: AgentChildRowContext = REPORTED_ROW_CONTEXT
 ): BackgroundTaskGroup[] {
   return rosterEntries(buildAgentChildRowModels(views, context))
+}
+
+/** One roster's groups with another's rows added under the same kind, first-seen order within it. */
+export function mergeBackgroundTaskGroups(
+  base: readonly BackgroundTaskGroup[],
+  extra: readonly BackgroundTaskGroup[]
+): BackgroundTaskGroup[] {
+  const rows = [...base, ...extra].flatMap((group) => group.tasks)
+  return groupRosterEntries([...rows]).filter((group) => group.tasks.length > 0)
 }
 
 export function backgroundTaskStateWord(state: RunState, say: BackgroundTaskSay): string {
@@ -265,7 +281,16 @@ export function backgroundTaskRowStop(
   row: AgentChildRowModel,
   supportsTaskStop: boolean | undefined
 ): BackgroundTaskRowStop {
-  if (row.settled || supportsTaskStop === undefined) {
+  if (row.settled) {
+    return { kind: 'none' }
+  }
+  // Why: an Orca row stops its own PTY, so the provider's stop capability does not gate it.
+  if (row.origin === 'orca') {
+    return row.canStop && row.providerId !== undefined
+      ? { kind: 'stop', taskId: row.providerId }
+      : { kind: 'unavailable', reason: 'row' }
+  }
+  if (supportsTaskStop === undefined) {
     return { kind: 'none' }
   }
   if (!supportsTaskStop) {

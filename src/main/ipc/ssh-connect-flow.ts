@@ -224,7 +224,7 @@ async function doConnect(
     // A setup that failed but kept its fence: the relay decision's detail is the real cause.
     const blocked = new Error(
       server?.detail ??
-        'This SSH host serves a managed Orca server; it is reached through that server.'
+        'This SSH host serves a managed MassOrca server; it is reached through that server.'
     )
     await abandonDecisionTransport(targetId, owner, authority)
     publishHostServerDecisionFailure(targetId, blocked)

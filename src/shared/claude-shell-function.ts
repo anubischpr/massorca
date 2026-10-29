@@ -5,9 +5,9 @@ const posixAuthHeaderPattern = authHeaderWords
   .map((word) => `*${word.replace(/[a-z]/g, (letter) => `[${letter}${letter.toUpperCase()}]`)}*`)
   .join('|')
 const OVERRIDE_NOTE =
-  'Orca: CLAUDE_CONFIG_DIR is set in this shell, so the Claude account selected in Orca is not used here.'
+  'MassOrca: CLAUDE_CONFIG_DIR is set in this shell, so the Claude account selected in MassOrca is not used here.'
 const MISSING_NOTE =
-  "Orca: the selected Claude account's folder is missing. Sign in to it again or choose another account."
+  "MassOrca: the selected Claude account's folder is missing. Sign in to it again or choose another account."
 
 /**
  * `claude` re-reads the which-account file on every launch, so a switch reaches open terminals

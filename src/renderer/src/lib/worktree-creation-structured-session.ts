@@ -5,6 +5,7 @@ import type { AgentLaunchRoute } from '@/lib/agent-launch-routing'
 import type { WorktreeCreationRequest } from '@/lib/pending-worktree-creation'
 import { beginStructuredAgentSessionProvisionalLaunch } from '@/lib/structured-agent-session-provisional-tab'
 import type { StructuredLaunchTerminal } from '@/lib/structured-agent-session-launch-admission'
+import { holdStructuredAgentSessionLaunchPicks } from '@/lib/structured-agent-session-launch-options'
 import { buildWorktreeCreationStartupOpt } from '@/lib/worktree-creation-flow-startup'
 import { ensureWebRuntimeWorktreeTerminalAfterWake } from '@/lib/web-runtime-worktree-terminal-after-wake'
 import { ensureWorktreeHasInitialTerminal } from '@/lib/worktree-initial-terminal-seeding'
@@ -79,6 +80,20 @@ export async function launchStructuredWorktreeSession(
   if (isCancelled()) {
     return { ...settled, cancelled: true, activation, primaryTabId }
   }
+  if (args.request.createChatNaming) {
+    // Why: saved before the chat launches, so the first working event already finds the naming.
+    try {
+      await useAppStore
+        .getState()
+        .updateWorktreeMeta(
+          args.worktreeId,
+          { createChatNaming: args.request.createChatNaming },
+          { executionHostId: args.request.executionHostId }
+        )
+    } catch (error) {
+      console.error('worktree create: saving create-chat naming failed', args.worktreeId, error)
+    }
+  }
   // Why: the composer decided route and delivery mode before the worktree existed, and the request
   // carries that verdict in renderer memory for the life of the create; re-entering with it is what
   // keeps a retry from re-resolving against a host that has changed since.
@@ -103,6 +118,20 @@ export async function launchStructuredWorktreeSession(
       hooks: { signal: abandoned.signal },
       target: { worktreeId: args.worktreeId },
       activate: args.shouldActivateOnCompletion,
+      // Why: a host-admitted chat gets its session id only here, after the launch has returned.
+      onOpened: (sessionId) => {
+        if (args.request.structuredSeedPicks) {
+          holdStructuredAgentSessionLaunchPicks(sessionId, args.request.structuredSeedPicks)
+        }
+        if (args.request.setupPresentation === 'chat-background-task') {
+          // Why: the chat roster shows its worktree's hidden setup run.
+          window.api.worktreeSetupRuns
+            .bindSession({ worktreeId: args.worktreeId, sessionId })
+            .catch((error: unknown) => {
+              console.error('worktree create: binding the setup run to the chat failed', error)
+            })
+        }
+      },
       ...(args.shouldActivateOnCompletion
         ? {}
         : { onHostDeclined: (host) => openBackgroundDeclinedTerminal(args, host) }),

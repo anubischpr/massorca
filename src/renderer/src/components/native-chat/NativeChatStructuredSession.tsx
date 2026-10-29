@@ -11,7 +11,7 @@ import type { NativeChatOptionPickerRequest } from './native-chat-composer-types
 import { structuredAgentSessionDraftScopeKey } from './native-chat-composer-draft-store'
 import { NativeChatEmptyState } from './NativeChatEmptyState'
 import { NativeChatLoadingCue } from './NativeChatLoadingCue'
-import { NativeChatMessageList } from './NativeChatMessageList'
+import { NativeChatMessageListWithDelegatedChildren } from './NativeChatMessageListWithDelegatedChildren'
 import { useStructuredNativeChatSubmitReveal } from './use-structured-native-chat-submit-reveal'
 import { useStructuredPromptResponseHold } from './use-structured-prompt-response-hold'
 import { NativeChatStructuredQuestionCard } from './NativeChatStructuredQuestionCard'
@@ -20,7 +20,7 @@ import { useNativeChatComposerRevealFocus } from './use-native-chat-composer-rev
 import { useNativeChatFontSize } from './use-native-chat-font-size'
 import { useNativeChatFind } from './use-native-chat-find'
 import { NativeChatFindBar } from './NativeChatFindBar'
-import { LinkActionPopover } from '@/components/link-actions/LinkActionPopover'
+import { NativeChatLinkSurfaces } from './NativeChatLinkSurfaces'
 import { useNativeChatLinkActions } from './use-native-chat-link-actions'
 import { useNativeChatFileLinkContext } from './use-native-chat-file-link-context'
 import { useRecheckNativeChatFileLinksWhenTurnEnds } from './use-native-chat-file-link-existence'
@@ -66,7 +66,7 @@ export function NativeChatStructuredSession(
   props: Omit<NativeChatStructuredViewProps, 'mode'>
 ): React.JSX.Element {
   const ownerWorktreeId = useNativeChatTabOwnerWorktreeId(props.tabId)
-  const fileLinkContext = useNativeChatFileLinkContext(props.tabId)
+  const fileLinkContext = useNativeChatFileLinkContext(props.tabId, props.sessionId)
   const provisionalLaunch = useNativeChatProvisionalLaunch(ownerWorktreeId, props.sessionId)
   // The host's own word on whether the provider child has answered startup yet.
   const hostExecution = useStructuredAgentSessionHostExecution(props.sessionId, props.target)
@@ -181,11 +181,10 @@ export function NativeChatStructuredSession(
   )
   const appearanceStyle = useNativeChatStoreAppearanceStyle()
   const imageRuntimeContext = useNativeChatImageRuntimeContext(props.tabId)
-  const { onLinkClick, linkActionRequest, closeLinkActions } = useNativeChatLinkActions(
-    fileLinkContext,
-    rootRef,
-    { sessionId: props.sessionId, isVisible: props.isVisible }
-  )
+  const { onLinkClick, ...linkSurfaces } = useNativeChatLinkActions(fileLinkContext, rootRef, {
+    sessionId: props.sessionId,
+    isVisible: props.isVisible
+  })
   const prompt = controller.prompts[0] ?? null
   // Prompts this build cannot answer leave the composer open: a send starts a turn, whose card
   // cancel then works.
@@ -287,7 +286,7 @@ export function NativeChatStructuredSession(
           ) : (
             <NativeChatRewindContext.Provider value={controller.rewind.surface}>
               <NativeChatOrcaStopContext.Provider value={continuation.view}>
-                <NativeChatMessageList
+                <NativeChatMessageListWithDelegatedChildren
                   // A rewind replaces the conversation; nothing the old transcript held carries over.
                   key={controller.epoch ?? undefined}
                   ref={submits.messageListRef}
@@ -366,6 +365,7 @@ export function NativeChatStructuredSession(
                 <NativeChatStructuredQuestionCard
                   key={`${prompt.itemId}:${prompt.revision}`}
                   questions={questions}
+                  delegation={questionBody?.delegation}
                   onAnswer={(response) => void promptResponse.respond(prompt, response)}
                   isSubmitting={promptResponse.holds(prompt)}
                   onCancel={cancelPrompt}
@@ -409,7 +409,7 @@ export function NativeChatStructuredSession(
         />
       </div>
       {paneCommands.menu}
-      <LinkActionPopover request={linkActionRequest} onClose={closeLinkActions} />
+      <NativeChatLinkSurfaces sessionId={props.sessionId} {...linkSurfaces} />
     </div>
   )
 }

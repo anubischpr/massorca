@@ -6,6 +6,8 @@ import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/Comme
 import type { RuntimeFileOperationArgs } from '@/runtime/runtime-file-client'
 import type { NativeChatMessage } from '../../../../shared/native-chat-types'
 import type { NativeChatDeliveryNotice } from './NativeChatMessageRow'
+import { NativeChatPrototypeLinkCard } from './NativeChatPrototypeLinkCard'
+import { NativeChatPrototypeProposalLinkCard } from './NativeChatPrototypeProposalLinkCard'
 import { NativeChatRewindAction } from './NativeChatRewindAction'
 import type { NativeChatRewindSurface } from './use-native-chat-rewind'
 import { NativeChatMarkdown } from './NativeChatMarkdown'
@@ -136,6 +138,12 @@ export function NativeChatUserMessageRow({
           />
         )}
       </div>
+      {message.prototypeRequestId !== undefined ? (
+        <>
+          <NativeChatPrototypeLinkCard requestId={message.prototypeRequestId} />
+          <NativeChatPrototypeProposalLinkCard requestId={message.prototypeRequestId} />
+        </>
+      ) : null}
       {message.sentAs === 'goal' ? (
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Goal className="size-3" aria-hidden />

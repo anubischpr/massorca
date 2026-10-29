@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { PersistedUIState } from '../../../src/shared/persisted-ui-state-types'
 import type { RepoIcon } from '../../../src/shared/repo-icon'
 import { hostUnionArms, salvagedOptional, salvagingArray } from '../../../src/shared/zod-salvage'
+import { normalizeGhAccountBinding } from '../../../src/shared/github/account-binding'
 import { NODE_PLATFORM_NAMES } from '../transport/mobile-runtime-host-platform'
 
 // The closed arm sets on this screen are the desktop's own unions, pinned through hostUnionArms so
@@ -70,7 +71,14 @@ export const hostRepoCatalogSchema = z
           z.union([repoIconBranches.lucide, repoIconBranches.emoji, repoIconBranches.image])
         ),
         connectionId: salvagedOptional('connectionId', z.string().nullable()),
-        executionHostId: salvagedOptional('executionHostId', z.string().nullable())
+        executionHostId: salvagedOptional('executionHostId', z.string().nullable()),
+        // Folder projects have no Git; an older host omits it, which reads as a Git repo.
+        kind: salvagedOptional('kind', z.enum(['git', 'folder'])),
+        // The GitHub account the repo binds; an older host omits it, and a malformed one reads as none.
+        ghAccount: z
+          .unknown()
+          .optional()
+          .transform((value) => normalizeGhAccountBinding(value))
       })
     )
   })

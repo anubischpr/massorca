@@ -8,6 +8,8 @@
 import { createElement, isValidElement, type ReactElement, type ReactNode } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+vi.mock('react-native-webview', () => ({ WebView: 'WebView' }))
+vi.mock('./MobileBackgroundWorkSheet', () => ({ MobileBackgroundWorkSheet: () => null }))
 import type {
   AgentSessionStatusEvent,
   AgentSessionSubscribeEvent
@@ -58,7 +60,14 @@ vi.mock('lucide-react-native', () => ({
   ArrowDown: 'ArrowDown',
   ChevronsDownUp: 'ChevronsDownUp',
   ChevronsUpDown: 'ChevronsUpDown',
-  Square: 'Square'
+  Square: 'Square',
+  ChevronRight: 'ChevronRight',
+  FileCode: 'FileCode',
+  ChevronLeft: 'ChevronLeft',
+  Folder: 'Folder',
+  GitBranch: 'GitBranch',
+  MessageSquare: 'MessageSquare',
+  MoreHorizontal: 'MoreHorizontal'
 }))
 vi.mock('./MobileNativeChatMessage', () => ({ MobileNativeChatMessage: 'ChatMessage' }))
 vi.mock('./MobileNativeChatLiveLine', () => ({ MobileNativeChatLiveLine: 'LiveStatus' }))
@@ -69,8 +78,9 @@ vi.mock('../components/ActionSheetModal', () => ({ ActionSheetModal: 'ActionShee
 vi.mock('./MobileNativeChatAsk', () => ({ MobileNativeChatAsk: 'ChatAsk' }))
 vi.mock('./MobileNativeChatPermission', () => ({ MobileNativeChatPermission: 'ChatPermission' }))
 vi.mock('./MobileNativeChatQuestion', () => ({ MobileNativeChatQuestion: 'ChatQuestion' }))
-vi.mock('./MobileAgentWorkingIndicator', () => ({
-  MobileAgentWorkingIndicator: 'WorkingIndicator'
+vi.mock('./MobileChatStatusPillView', () => ({
+  MobileChatStatusPillView: 'WorkingIndicator',
+  MobileBridgeWorkingPill: 'WorkingIndicator'
 }))
 
 const STOP_ROW = `stopped-before-start:orca:${NEVER_OPENED}`

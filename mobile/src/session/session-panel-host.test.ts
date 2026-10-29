@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   canDockSessionPanel,
+  dockedPanelOf,
   nextActivePanel,
   resolvePanelAction,
   panelRouteDescriptor,
@@ -9,6 +10,15 @@ import {
 } from './session-panel-host'
 
 const PANELS = ['sourceControl', 'files', 'pr'] as const
+
+describe('dockedPanelOf', () => {
+  it('returns the routed panel that docks, and null for the in-place terminal panel', () => {
+    expect(dockedPanelOf('files')).toBe('files')
+    expect(dockedPanelOf('sourceControl')).toBe('sourceControl')
+    expect(dockedPanelOf('terminal')).toBeNull()
+    expect(dockedPanelOf(null)).toBeNull()
+  })
+})
 
 describe('nextActivePanel', () => {
   it('opens a panel from the closed state', () => {

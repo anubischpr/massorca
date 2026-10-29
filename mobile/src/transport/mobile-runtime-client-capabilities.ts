@@ -3,6 +3,7 @@ import {
   AGENT_SESSION_TURN_ITEM_CAPABILITY,
   CLAUDE_STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY,
   SESSION_TABS_SPLIT_GROUP_PLACEMENT_RUNTIME_CAPABILITY,
+  STRUCTURED_AGENT_SESSION_CLIENT_LAUNCH_MODE_CAPABILITY,
   STRUCTURED_AGENT_SESSION_HOLD_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY
 } from '../../../src/shared/protocol-version'
@@ -12,6 +13,7 @@ import {
   AGENT_LAUNCH_UNSTARTED_TAB_CLIENT_CAPABILITY
 } from '../../../src/shared/agent-launch-runtime-capability'
 import {
+  AGENT_SESSION_SETTLED_CHILD_WORK_RUNTIME_CAPABILITY,
   PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY
 } from '../../../src/shared/structured-agent-session-surface-capabilities'
@@ -29,6 +31,8 @@ export const MOBILE_RUNTIME_CLIENT_CAPABILITIES = remoteRuntimeClientCapabilitie
   // the host to pick. Without this the host refuses `agent.launch` and every mobile create with an
   // agent stays a PTY.
   AGENT_LAUNCH_RUNTIME_CAPABILITY,
+  // Picks each launch's mode itself, so createSupport admits its chats without the host's Chat setting.
+  STRUCTURED_AGENT_SESSION_CLIENT_LAUNCH_MODE_CAPABILITY,
   // Reads a listed launch tab with no terminal yet as not started, so the host may show it early.
   AGENT_LAUNCH_UNSTARTED_TAB_CLIENT_CAPABILITY,
   // Reads `agent_launch_tab_closed` (a user closed its tab, which stopped it) as a definite answer.
@@ -36,7 +40,9 @@ export const MOBILE_RUNTIME_CLIENT_CAPABILITIES = remoteRuntimeClientCapabilitie
   // Renders a structured chat of any agent the host registers, not only Claude and Codex.
   STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY,
   // Answers Pi's select, confirm, input and editor dialogs, so the host may give Pi a chat.
-  PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY
+  PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY,
+  // Lists the finished commands in a chat's history under Finished; without it the host sends running work only.
+  AGENT_SESSION_SETTLED_CHILD_WORK_RUNTIME_CAPABILITY
 ])
 
 export const MOBILE_RUNTIME_CLIENT_CAPABILITY_UPDATE_METHOD =

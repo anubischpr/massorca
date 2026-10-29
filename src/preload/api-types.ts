@@ -65,6 +65,12 @@ import type { WorkspaceCleanupApi, WorkspaceSpaceApi } from './api/workspace-cle
 import type { LocalhostWorktreeLabelsApi, WorkspacePortsApi } from './api/workspace-port-api'
 import type { WorkspaceSessionApi } from './api/workspace-session-api'
 import type { FolderWorkspacesApi, SparsePresetsApi, WorktreeApi } from './api/worktree-api'
+import type { ProjectlessChatsApi } from './api/projectless-chats-api'
+import type { WorktreeSetupRunsApi } from './api/worktree-setup-runs-api'
+import type {
+  PrototypeCaptureRect,
+  PrototypeCaptureResult
+} from '../shared/prototype-capture-types'
 
 // Flattens contracts that share one PreloadApi key: an intersection is not type-identical to the flat shape.
 type Merged<T> = { [K in keyof T]: T[K] }
@@ -78,6 +84,8 @@ export type PreloadApi = {
   projects: ProjectsApi
   projectGroups: ProjectGroupsApi
   folderWorkspaces: FolderWorkspacesApi
+  projectlessChats: ProjectlessChatsApi
+  worktreeSetupRuns: WorktreeSetupRunsApi
   sparsePresets: SparsePresetsApi
   worktrees: WorktreeApi
   workspaceCleanup: WorkspaceCleanupApi
@@ -136,6 +144,9 @@ export type PreloadApi = {
   museUsage: MuseUsageApi
   aiVault: AiVaultApi
   nativeChat: NativeChatApi
+  prototypeCapture: {
+    captureRect: (rect: PrototypeCaptureRect) => Promise<PrototypeCaptureResult>
+  }
   fs: FilesystemApi['fs']
   git: Merged<GitInspectionApi & GitOperationApi>
   ui: Merged<UiCommandEventApi & UiWindowApi>

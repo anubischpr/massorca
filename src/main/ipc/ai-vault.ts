@@ -65,6 +65,7 @@ type AiVaultHandlerOptions = AiVaultSessionSources &
     getActiveRuntimeAiVaultHostInfos?: () => readonly RuntimeAiVaultHostInfo[]
     scanRuntimeAiVaultSessions?: RuntimeAiVaultScanner
     resolveRuntimeAiVaultSessionTitles?: RuntimeAiVaultSessionTitleResolver
+    projectDelegatedChildren?: (result: AiVaultListResult) => AiVaultListResult
   }
 
 let scanCoordinator = new AiVaultScanCoordinator()
@@ -269,7 +270,8 @@ export function registerAiVaultHandlers(options: AiVaultHandlerOptions = {}): vo
     try {
       await handlerOptions.ensureStructuredSessionOwnership?.()
       const result = await listAiVaultSessions(args, { signal: controller?.signal })
-      return projectStructuredAiVaultSessions(result, true)
+      const projected = projectStructuredAiVaultSessions(result, true)
+      return handlerOptions.projectDelegatedChildren?.(projected) ?? projected
     } catch (error) {
       // Why: superseding a scan is normal control flow, but Electron logs every
       // rejected handler — report it as a result so the log stays truthful.

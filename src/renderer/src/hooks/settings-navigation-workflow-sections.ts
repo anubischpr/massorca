@@ -6,6 +6,7 @@ import { getFloatingWorkspaceSearchEntries } from '@/components/settings/floatin
 import { getGitProviderApiBudgetSearchEntries } from '@/components/settings/git-provider-api-budget-search'
 import { getGitPaneSearchEntries } from '@/components/settings/git-search'
 import { getMobileEmulatorSearchEntries } from '@/components/settings/mobile-emulator-search'
+import { getPrototypesSettingsSearchEntries } from '@/components/settings/prototypes-settings-search'
 import { getQuickCommandsPaneSearchEntries } from '@/components/settings/quick-commands-search'
 import { getShareSkillsSettingsSearchEntries } from '@/components/settings/share-skills-settings-search'
 import { getTasksPaneSearchEntries } from '@/components/settings/tasks-search'
@@ -18,6 +19,7 @@ import {
   History,
   GitBranch,
   Globe,
+  Layers,
   ListChecks,
   PanelsTopLeft,
   Play,
@@ -68,6 +70,17 @@ export function buildWorkflowSettingsSections(
       searchEntries: getShareSkillsSettingsSearchEntries(),
       group: 'workflows',
       badge: translate('auto.hooks.useSettingsNavigationMetadata.40d80bad8a', 'Beta')
+    },
+    {
+      id: 'prototypes',
+      title: translate('components.prototypes.settings.title', 'Prototypes'),
+      description: translate(
+        'components.prototypes.settings.description',
+        'How many directions an agent makes when you ask for a prototype.'
+      ),
+      icon: Layers,
+      searchEntries: getPrototypesSettingsSearchEntries(),
+      group: 'workflows'
     },
     {
       id: 'session-history',

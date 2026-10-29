@@ -1,3 +1,4 @@
+import { splitPrototypeHiddenInstruction } from '../../shared/prototype-hidden-instruction'
 import { isKnownHarnessInjectedUserTurnText } from '../../shared/harness-injected-user-turns'
 import { getFirstUserPromptCaptureMode } from './session-scanner-first-user-prompt-capture'
 import { stripGrokUserQueryEnvelope } from './session-scanner-grok-user-text'
@@ -57,7 +58,9 @@ export function normalizeFullFirstUserPromptText(value: string): string | null {
 function finalizeFullFirstUserPrompt(value: string): string | null {
   // Why: Grok (and some pasted transcripts) wrap the real ask in <user_query>;
   // strip that before copy so the clipboard is the typed prompt, not user_info.
-  const unwrapped = stripGrokUserQueryEnvelope(value.replace(/^\uFEFF/, ''))
+  const unwrapped = stripGrokUserQueryEnvelope(
+    splitPrototypeHiddenInstruction(value).visibleText.replace(/^\uFEFF/, '')
+  )
   const trimmed = unwrapped.trim()
   if (!trimmed) {
     return null

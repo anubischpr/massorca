@@ -96,7 +96,8 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
   const agentSelection = useNewWorkspaceAgentSelection({
     visible,
     runtimeSettings: runtime.runtimeSettings,
-    detectedAgentIds: executionTarget.detectedAgentIds
+    detectedAgentIds: executionTarget.detectedAgentIds,
+    detectedPiRuntimes: executionTarget.detectedPiRuntimes
   })
   const retiredNamesRefreshKey = useMemo(
     () => buildRetiredWorktreeNamesRefreshKey(existingWorktreePaths),
@@ -116,6 +117,7 @@ function NewWorktreeModalContent(props: NewWorktreeModalProps) {
     runtimeSettings: runtime.runtimeSettings,
     setRuntimeSettings: runtime.setRuntimeSettings,
     detectedAgentIds: executionTarget.detectedAgentIds,
+    detectedPiRuntimes: executionTarget.detectedPiRuntimes,
     sshGate: executionTarget.sshGate,
     composer,
     note,

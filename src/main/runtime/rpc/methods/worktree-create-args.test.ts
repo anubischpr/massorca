@@ -79,3 +79,21 @@ describe('buildManagedWorktreeCreateArgs', () => {
     expect(automationRun).not.toHaveProperty('allowLocalBaseFallback')
   })
 })
+
+describe('setupPresentation on the worktree.create wire', () => {
+  it('carries the chat-first setup presentation to the runtime create', () => {
+    expect(
+      build({ repo: 'id:repo-1', name: 'chat', setupPresentation: 'chat-background-task' })
+    ).toMatchObject({ setupPresentation: 'chat-background-task' })
+  })
+
+  it('stays absent when the client sends none, so the setup keeps its visible tab', () => {
+    expect(build({ repo: 'id:repo-1', name: 'feature' })).not.toHaveProperty('setupPresentation')
+  })
+
+  it('drops a presentation this host does not know, keeping the visible setup tab', () => {
+    expect(
+      build({ repo: 'id:repo-1', name: 'chat', setupPresentation: 'hidden' })
+    ).not.toHaveProperty('setupPresentation')
+  })
+})

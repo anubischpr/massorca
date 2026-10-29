@@ -186,10 +186,12 @@ export async function runWorktreeAgentActivationGate(
   // Why either signal rather than a preference: a relay row's worktreeId can be seeded from the
   // host's own ORCA_WORKTREE_ID, so it must widen the id-prefix match, never replace it — a session
   // dropped from this set is a live agent the gate would fork a second writer onto.
+  // A create-chat setup run is tab-less on purpose; adopting it would add a terminal beside the chat.
   const liveWorkspaceSessions = sessions.filter(
     (session) =>
-      (session.worktreeId !== undefined && worktreeIdsEqual(session.worktreeId, worktreeId)) ||
-      sessionBelongsToWorkspace(session.id, worktreeId)
+      session.worktreeSetupRun !== true &&
+      ((session.worktreeId !== undefined && worktreeIdsEqual(session.worktreeId, worktreeId)) ||
+        sessionBelongsToWorkspace(session.id, worktreeId))
   )
   const liveWorkspacePtyIds = new Set(liveWorkspaceSessions.map((session) => session.id))
   // Why: a session the host is killing was closed by the user (often just before a quit); a

@@ -1,41 +1,19 @@
-import { useCallback, useEffect, useRef, type RefObject } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { AppState, Platform, useWindowDimensions, type AppStateStatus } from 'react-native'
-import type { RpcClient } from '../transport/rpc-client'
-import type { ConnectionState } from '../transport/types'
-import type { TerminalWebViewHandle } from './TerminalWebView'
-import type { TerminalFrame } from './terminal-webview-messages'
 import { shouldRecoverTerminalOnAppStateChange } from './terminal-foreground-recovery'
 import { terminalViewportUpdate } from './mobile-terminal-operations'
 import {
   isTerminalViewportRefitTargetCurrent,
+  isViewportRefitNeeded,
   reduceTerminalFrameHeightRefit,
   resolveTerminalUpdateViewportCapability,
   type TerminalFrameHeightRefitEvent,
   type TerminalFrameHeightRefitState,
   type TerminalUpdateViewportCapability
 } from './terminal-viewport-refit-state'
+import type { TerminalViewportRefitOptions } from './terminal-viewport-refit-options'
 
-export type TerminalViewportDims = { cols: number; rows: number }
-
-type TerminalViewportRefitOptions = {
-  activeHandleRef: RefObject<string | null>
-  terminalRefs: RefObject<Map<string, TerminalWebViewHandle>>
-  // The terminal frame React Native laid out, unrounded; null until its first layout.
-  terminalFrameRef: RefObject<TerminalFrame | null>
-  viewportRef: RefObject<TerminalViewportDims | null>
-  viewportMeasuredRef: RefObject<boolean>
-  // Why: while native chat covers the active terminal, a refit would push phone dims into a PTY nobody on this device is viewing.
-  nativeChatCoveredRef: RefObject<boolean>
-  clientRef: RefObject<RpcClient | null>
-  deviceTokenRef: RefObject<string | null>
-  initializedHandlesRef: RefObject<Set<string>>
-  connState: ConnectionState
-  tabStripVisible: boolean
-  // Why: text size (font scale); changing it changes cell size, so the PTY must be re-fitted to a new column count.
-  textScale: number
-  unsubscribeTerminal: (handle: string) => void
-  subscribeToTerminal: (handle: string) => void
-}
+export type { TerminalViewportDims } from './terminal-viewport-refit-options'
 
 // Why: re-measure on layout changes outside the subscribe path (tab strip, fold/rotate/resize), or a PTY renders "cut in half" (#4579).
 export function useTerminalViewportRefit(options: TerminalViewportRefitOptions) {
@@ -64,7 +42,8 @@ export function useTerminalViewportRefit(options: TerminalViewportRefitOptions) 
   const frameHeightRefitStateRef = useRef<TerminalFrameHeightRefitState>({
     frameHeight: 0,
     keyboardVisible: false,
-    pending: false
+    pending: false,
+    keyboardResizesFrame: false
   })
   // Why: marks the armed timer as a height refit so its callback re-checks the keyboard; other refits always run unguarded.
   const heightOriginatedRefitRef = useRef(false)
@@ -125,7 +104,7 @@ export function useTerminalViewportRefit(options: TerminalViewportRefitOptions) 
           const forceRefit = forceNextRefitRef.current
           forceNextRefitRef.current = false
           const prev = viewportRef.current
-          if (!forceRefit && prev && prev.cols === dims.cols && prev.rows === dims.rows) {
+          if (!isViewportRefitNeeded(prev, dims, forceRefit)) {
             return
           }
           viewportRef.current = dims
@@ -266,6 +245,11 @@ export function useTerminalViewportRefit(options: TerminalViewportRefitOptions) 
     (visible: boolean) => notifyFrameHeightRefitEvent({ type: 'keyboard-visibility', visible }),
     [notifyFrameHeightRefitEvent]
   )
+  // Why: the Terminal panel's phone mode stands its composer on the keyboard, so the frame shrinks while the keyboard is up and that refit must not wait for the close.
+  const notifyKeyboardResizesFrame = useCallback(
+    (resizes: boolean) => notifyFrameHeightRefitEvent({ type: 'keyboard-resizes-frame', resizes }),
+    [notifyFrameHeightRefitEvent]
+  )
 
   // Why: a renderer swap or pixel-ratio change gives the same grid a different cell box.
   const notifyTerminalCellBoxChange = useCallback(
@@ -330,6 +314,7 @@ export function useTerminalViewportRefit(options: TerminalViewportRefitOptions) 
     notifyTerminalFrameHeight,
     notifyTerminalFrameWidth,
     notifyKeyboardVisibility,
+    notifyKeyboardResizesFrame,
     notifyTerminalCellBoxChange
   }
 }

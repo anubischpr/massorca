@@ -1,5 +1,6 @@
 import { MessageSquare, SquareTerminal } from 'lucide-react-native'
 import type { ActionSheetAction } from '../components/ActionSheetModal'
+import { MOBILE_LEGACY_SESSION_VIEWS } from './mobile-legacy-session-views'
 import { resolveMobileNativeChat, type MobileNativeChatTab } from './mobile-native-chat-eligibility'
 
 type ToggleTab = MobileNativeChatTab & {
@@ -15,8 +16,13 @@ export function getMobileNativeChatToggleActions(args: {
   nativeChatTranscriptIsLocalReadable: boolean
   onClose: () => void
   onToggle: (tabId: string) => void
+  /** Defaults to the kill switch. */
+  legacyViews?: boolean
 }): ActionSheetAction[] {
   const { terminalHandle, tabs, isTabChatView, onClose, onToggle } = args
+  if (!(args.legacyViews ?? MOBILE_LEGACY_SESSION_VIEWS)) {
+    return []
+  }
   const tab = terminalHandle
     ? tabs.find((candidate) => candidate.terminal === terminalHandle)
     : null

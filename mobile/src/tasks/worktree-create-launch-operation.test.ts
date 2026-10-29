@@ -141,7 +141,7 @@ describe('agent.launch operation id', () => {
     await flush()
     client.reconnect()
 
-    await expect(pending).resolves.toEqual({ worktreeId: 'wt-launch', name: 'otter' })
+    await expect(pending).resolves.toMatchObject({ worktreeId: 'wt-launch', name: 'otter' })
     expect(attempts.map((attempt) => attempt.method)).toEqual([
       'agent.launchReplay',
       'agent.launchReplay'
@@ -157,7 +157,7 @@ describe('agent.launch operation id', () => {
       [{ throws: new LogicalClientCutoverError() }, { launched: 'wt-mig' }],
       attempts
     )
-    await expect(launchRetry({ client, attempts })).resolves.toEqual({
+    await expect(launchRetry({ client, attempts })).resolves.toMatchObject({
       worktreeId: 'wt-mig',
       name: 'otter'
     })
@@ -173,7 +173,7 @@ describe('agent.launch operation id', () => {
 
     await expect(
       launchRetry({ client, attempts, worktreeCreateIdempotency: false })
-    ).resolves.toEqual({ worktreeId: 'wt-replay', name: 'otter' })
+    ).resolves.toMatchObject({ worktreeId: 'wt-replay', name: 'otter' })
     expect(launchOperationIds(attempts)).toEqual(['op-1', 'op-1'])
   })
 
@@ -206,7 +206,7 @@ describe('agent.launch operation id', () => {
   it('sends no launch name to a host that advertises agent.launch without the ledger', async () => {
     const attempts: Attempt[] = []
     const client = scriptedLaunchClient([{ launched: 'wt-plain' }], attempts)
-    await expect(launchRetry({ client, attempts, replay: false })).resolves.toEqual({
+    await expect(launchRetry({ client, attempts, replay: false })).resolves.toMatchObject({
       worktreeId: 'wt-plain',
       name: 'otter'
     })
@@ -222,7 +222,7 @@ describe('agent.launch operation id', () => {
   it('sends no launch name at all when the host has no agent.launch', async () => {
     const attempts: Attempt[] = []
     const client = scriptedLaunchClient([{ created: 'wt-legacy-route' }], attempts)
-    await expect(launchRetry({ client, attempts, supported: false })).resolves.toEqual({
+    await expect(launchRetry({ client, attempts, supported: false })).resolves.toMatchObject({
       worktreeId: 'wt-legacy-route',
       name: 'otter'
     })
@@ -282,7 +282,7 @@ describe('agent.launch operation id', () => {
       ],
       attempts
     )
-    await expect(launchRetry({ client, attempts })).resolves.toEqual({
+    await expect(launchRetry({ client, attempts })).resolves.toMatchObject({
       worktreeId: 'wt-downgraded',
       name: 'otter'
     })

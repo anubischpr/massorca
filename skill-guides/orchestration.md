@@ -175,6 +175,35 @@ it with `task-update --status completed`. Enumerate the terminals still owing a
 decision with `worker-list --run <run_id> --terminal-state reclaimable --json`,
 and do not end the coordinator turn until it returns none.
 
+## Start a child session from a chat
+
+When you run in an Orca chat and the user asks you to hand a piece of work to a
+separate child session ("do this in another session", "use a different agent for
+the review"), ask for one instead of starting a worker yourself:
+
+```
+ORCA orchestration delegate --summary "<abstract>" --prompt "<full task text>" [--title "<short name>"] [--writes] --json
+```
+
+- It returns at once with a `requestId`. A card in this chat asks the person which
+  agent (or Automatic) runs the child; do not wait for the choice or poll for it.
+  Tell the user the request is waiting for their choice, then continue or end
+  your turn.
+- `--summary` is a one-line abstract, at most 160 characters, that a router reads
+  to pick a model and effort. Describe the kind of work ("Read-only audit of a
+  parser module", "Implement a retry helper and add tests"). Never put secrets,
+  credentials, personal data, file paths, or project names in it. Put everything
+  the child needs in `--prompt`.
+- Add `--writes` when the child will edit code: it then works in a new worktree
+  instead of this one (a folder workspace runs it in place). Omit it for
+  read-only work.
+- The child inherits this chat's access mode and never gets a wider one.
+- When the child finishes, its result reaches you as a message and starts a turn.
+  Read it, then report to the user; do not re-run the work.
+- It refuses outside a chat (no `ORCA_AGENT_SESSION_ID`) and on a runtime that
+  predates it. Do not fall back to `worker-start` unless the user asked for a
+  supervised worker.
+
 ## Conditional references
 
 This compact guide is sufficient for the normal local loop. At an action gate

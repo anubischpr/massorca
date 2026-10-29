@@ -6,6 +6,11 @@ import {
   NATIVE_CHAT_VISUAL_PONG_TYPE,
   NATIVE_CHAT_VISUAL_SIZE_TYPE
 } from '../../../src/shared/native-chat-visual-shell'
+import {
+  NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS,
+  NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE,
+  NATIVE_CHAT_VISUAL_PIN_CLICKED_TYPE
+} from '../../../src/shared/native-chat-visual-annotate'
 import { inlineScriptLiteral } from '../components/inline-script-json'
 
 /** `inline` sizes the frame to the height the app applies; `fullscreen` fills the screen and scrolls. */
@@ -15,6 +20,9 @@ export const MOBILE_NATIVE_CHAT_VISUAL_INITIAL_HEIGHT = 160
 
 /** The host page's function the app calls to size the frame to a height it has decided. */
 export const MOBILE_NATIVE_CHAT_VISUAL_APPLY_HEIGHT = '__orcaVisualApplyHeight'
+
+/** The host page's function the app calls with one annotate message (as JSON) to forward to the frame. */
+export const MOBILE_NATIVE_CHAT_VISUAL_ANNOTATE_COMMAND = '__orcaVisualAnnotate'
 
 // The host forwards at most one size report per interval (the latest wins) and one link per window.
 const SIZE_FORWARD_INTERVAL_MS = 100
@@ -50,6 +58,8 @@ export function buildMobileNativeChatVisualHostDocument(input: {
   mode: MobileNativeChatVisualHostMode
   /** Tests shorten the wait for the shell's answer. */
   pongTimeoutMs?: number
+  /** Adds the annotate forwarding; without it the document is exactly the one it was before. */
+  annotate?: boolean
 }): string {
   const frameHeight =
     input.mode === 'fullscreen' ? '100vh' : `${MOBILE_NATIVE_CHAT_VISUAL_INITIAL_HEIGHT}px`
@@ -65,8 +75,47 @@ export function buildMobileNativeChatVisualHostDocument(input: {
     linkWindowMs: LINK_WINDOW_MS,
     ping: NATIVE_CHAT_VISUAL_PING_TYPE,
     pong: NATIVE_CHAT_VISUAL_PONG_TYPE,
-    pongTimeoutMs: input.pongTimeoutMs ?? NATIVE_CHAT_VISUAL_PONG_TIMEOUT_MS
+    pongTimeoutMs: input.pongTimeoutMs ?? NATIVE_CHAT_VISUAL_PONG_TIMEOUT_MS,
+    ...(input.annotate
+      ? {
+          annotateCommand: MOBILE_NATIVE_CHAT_VISUAL_ANNOTATE_COMMAND,
+          picked: NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE,
+          pinClicked: NATIVE_CHAT_VISUAL_PIN_CLICKED_TYPE,
+          limits: NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS
+        }
+      : {})
   })
+  const annotateForwarder = input.annotate
+    ? `// The app sends one annotate message as JSON; only this channel's messages reach the frame.
+window[C.annotateCommand] = function (text) {
+  var message = null
+  try { message = JSON.parse(text) } catch (_) { return }
+  if (!frame.contentWindow || !message || typeof message !== 'object' || message.channel !== C.channel) return
+  frame.contentWindow.postMessage(message, '*')
+}
+// An annotate report is relayed only within the annotate limits, and with its own fields alone.
+function boundedText(value, max, min) { return typeof value === 'string' && value.length >= min && value.length <= max }
+function boundedPickedElement(value) {
+  if (!value || typeof value !== 'object') return null
+  if (!boundedText(value.selector, C.limits.selector, 1) || !boundedText(value.label, C.limits.label, 1)) return null
+  if (!boundedText(value.htmlSnippet, C.limits.snippet, 0)) return null
+  return { selector: value.selector, label: value.label, htmlSnippet: value.htmlSnippet, rect: value.rect, state: value.state }
+}
+`
+    : ''
+  // Annotate reports go up as data, bounded and with only their own fields; the app validates them too.
+  const annotateRelay = input.annotate
+    ? `  if (data.type === C.picked) {
+    var element = boundedPickedElement(data.element)
+    if (element) send({ kind: 'frame', data: { type: C.picked, channel: C.channel, element: element } })
+    return
+  }
+  if (data.type === C.pinClicked) {
+    if (boundedText(data.pinKey, C.limits.pinKey, 1)) send({ kind: 'frame', data: { type: C.pinClicked, channel: C.channel, pinKey: data.pinKey } })
+    return
+  }
+`
+    : ''
   return `<!doctype html>
 <html>
 <head>
@@ -109,7 +158,7 @@ frame.addEventListener('load', function () {
 window[C.applyHeight] = function (height) {
   if (!C.fullscreen && typeof height === 'number' && isFinite(height)) frame.style.height = height + 'px'
 }
-var pendingSize = null
+${annotateForwarder}var pendingSize = null
 var sizeTimer = null
 function flushSize() {
   sizeTimer = null
@@ -136,7 +185,7 @@ window.addEventListener('message', function (event) {
     if (sizeTimer === null) sizeTimer = setTimeout(flushSize, C.sizeIntervalMs)
     return
   }
-  if (data.type === C.link) {
+${annotateRelay}  if (data.type === C.link) {
     var activation = navigator.userActivation
     var now = Date.now()
     if (document.activeElement !== frame || !activation || !activation.isActive) return

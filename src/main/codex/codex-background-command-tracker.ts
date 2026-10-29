@@ -7,6 +7,7 @@ import type { CodexBackgroundTaskEvent } from './codex-background-task-frames'
 import { readRecord, readString } from './codex-item-field-readers'
 import { readCodexThreadItem } from './codex-structured-item-translation'
 import { MAX_CODEX_ITEM_STREAM_METADATA_BYTES } from './codex-item-stream-retention'
+import { TERMINAL_INTERACTION_METHOD } from './codex-structured-item-stream-events'
 import type { CodexAbandonedCommand } from './codex-prompt-registry'
 import { readCodexTurnId } from './codex-structured-thread-facts'
 import type { AgentChildWorkOutcome } from '../../shared/agent-status-child-work'
@@ -68,6 +69,10 @@ export class CodexBackgroundCommandTracker {
   }
 
   observe(event: CodexBackgroundTaskEvent): CodexBackgroundCommandChange | null {
+    const polled = this.polledKey(event)
+    if (polled !== null) {
+      return this.background(polled)
+    }
     const parsed = this.parse(event)
     if (!parsed || this.settled.has(parsed.key)) {
       return null
@@ -105,6 +110,25 @@ export class CodexBackgroundCommandTracker {
     return backgrounded
   }
 
+  /** A write or poll reached a session that still runs. Codex hands a session out only from a call
+   *  that yielded, so its process outlived that call and is background work now. */
+  private background(key: string): CodexBackgroundCommandChange | null {
+    const command = this.commands.get(key)
+    if (!command || command.backgrounded) {
+      return null
+    }
+    command.backgrounded = true
+    return this.liveChange(command)
+  }
+
+  private polledKey(event: CodexBackgroundTaskEvent): string | null {
+    if (event.method !== TERMINAL_INTERACTION_METHOD) {
+      return null
+    }
+    const itemId = readString(readRecord(event.params), 'itemId')
+    return itemId ? JSON.stringify([event.threadId, itemId]) : null
+  }
+
   private liveChange(command: Command): Extract<CodexBackgroundCommandChange, { type: 'started' }> {
     const { threadId, turnId, backgrounded, task } = command
     return { type: 'started', threadId, turnId, backgrounded, task }
@@ -122,15 +146,11 @@ export class CodexBackgroundCommandTracker {
     return this.end(JSON.stringify([command.threadId, command.itemId]), undefined, false)
   }
 
-  tasks(
-    coveredThreads?: ReadonlySet<string>,
-    childLabel?: (threadId: string) => string | null
-  ): AgentSessionBackgroundTask[] {
+  tasks(childLabel?: (threadId: string) => string | null): AgentSessionBackgroundTask[] {
     return [...this.commands.values()]
-      .filter((command) => command.backgrounded && !coveredThreads?.has(command.threadId))
+      .filter((command) => command.backgrounded)
       .map(({ threadId, task }) => {
-        // The agent row carrying the child's name is gone by the time this row shows;
-        // unqualified it reads as a bare shell string with no owner. Resolved on read so
+        // Unqualified it reads as a bare shell string with no owner. Resolved on read so
         // a label registered after the command still lands.
         const label = threadId === this.primaryThreadId ? null : childLabel?.(threadId)
         return label
@@ -236,7 +256,10 @@ export class CodexBackgroundCommandTracker {
     const value = {
       threadId: event.threadId,
       turnId,
-      backgrounded: turnId !== null && this.settled.has(this.turnKey(event.threadId, turnId)),
+      // A child's process is never on the parent's direct path: background work from the start.
+      backgrounded:
+        event.threadId !== this.primaryThreadId ||
+        (turnId !== null && this.settled.has(this.turnKey(event.threadId, turnId))),
       task: {
         id:
           event.threadId === this.primaryThreadId

@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { ArrowUp, ImagePlus, Mic, Square, X } from 'lucide-react-native'
 import { colors, radii, spacing } from '../theme/mobile-theme'
-import { structuredSlashCommands } from '../../../src/shared/structured-agent-session-composer'
+import { structuredChatSlashCommands } from '../prototypes/mobile-prototype-slash-commands'
 import type { AgentSessionConversationCommand } from '../../../src/shared/agent-session-conversation-command'
 import {
   applyAutocomplete,
@@ -140,7 +140,7 @@ export function MobileNativeChatComposer({
       // Why: a hidden row is a typed alias the chat answers but never lists, same as desktop.
       const commands = (
         structuredCommands !== undefined
-          ? structuredSlashCommands(structuredCommands, agent)
+          ? structuredChatSlashCommands(structuredCommands, agent)
           : agent
             ? getMobileNativeChatCommands(agent)
             : []
@@ -296,10 +296,12 @@ export function MobileNativeChatComposer({
             {sessionOptions ? (
               <MobileNativeChatSessionOptionPickers
                 {...sessionOptions}
+                agent={agent}
                 sendInFlight={sending || isAttaching}
               />
             ) : null}
-            <View style={styles.actionSpacer} />
+            {/* The model pill grows into the free space; the spacer only pushes mic/send right without it. */}
+            {sessionOptions ? null : <View style={styles.actionSpacer} />}
             {onMicPress ? (
               <Pressable
                 accessibilityLabel={micActive ? 'Stop dictation' : 'Dictate'}
@@ -413,7 +415,7 @@ const styles = StyleSheet.create({
     minHeight: 40,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm
+    gap: spacing.xs
   },
   actionSpacer: {
     flex: 1

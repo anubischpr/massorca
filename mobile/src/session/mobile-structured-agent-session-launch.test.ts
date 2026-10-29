@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { RpcClient } from '../transport/rpc-client'
 import { markRpcDeliveryUnknown } from '../transport/rpc-delivery-ambiguity'
-import { createMobileStructuredAgentSession } from './mobile-structured-agent-session-launch'
+import {
+  createMobileStructuredAgentSession,
+  describeUnsupportedLaunch
+} from './mobile-structured-agent-session-launch'
 import { mobileCreatedStructuredSession } from './mobile-created-structured-sessions'
 
 function clientReturning(
@@ -147,6 +150,32 @@ describe('mobile structured agent-session launch', () => {
     })
   })
 
+  it('starts the Pi runtime the row names, over the one the host answers, and probes that runtime', async () => {
+    const client = clientReturning(
+      { ok: true, result: { supported: true, piRuntime: 'pi' } },
+      {
+        ok: true,
+        result: {
+          ...acceptedCreateResult,
+          value: { ...acceptedCreateResult.value, sessionId: 'gentle_shell_session_1' }
+        }
+      }
+    )
+
+    await expect(
+      createMobileStructuredAgentSession(client, 'workspace-1', 'pi', 'gentle-shell')
+    ).resolves.toMatchObject({ kind: 'created', sessionId: 'gentle_shell_session_1' })
+    expect(client.sendRequest).toHaveBeenNthCalledWith(1, 'agentSession.createSupport', {
+      worktree: 'id:workspace-1',
+      agent: 'pi',
+      piRuntime: 'gentle-shell'
+    })
+    expect(client.sendRequest.mock.calls[1]?.[1]).toMatchObject({
+      agent: 'pi',
+      piRuntime: 'gentle-shell'
+    })
+  })
+
   it('takes the Pi runtime from the seed options when the probe answers only there', async () => {
     const client = clientReturning(
       { ok: true, result: { supported: true, seedOptions: { piRuntime: 'gentle-shell' } } },
@@ -181,6 +210,34 @@ describe('mobile structured agent-session launch', () => {
       reason: 'access'
     })
     expect(client.sendRequest).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the host cause of a refusal and words it for the phone', async () => {
+    const client = clientReturning({
+      ok: true,
+      result: { supported: false, reason: 'agent', cause: 'cliMissing' }
+    })
+    const result = await createMobileStructuredAgentSession(
+      client,
+      'workspace-1',
+      'pi',
+      'gentle-shell'
+    )
+    expect(result).toEqual({ kind: 'unsupported', reason: 'agent', cause: 'cliMissing' })
+    if (result.kind !== 'unsupported') {
+      throw new Error('expected an unsupported result')
+    }
+    expect(describeUnsupportedLaunch(result)).toBe('The CLI was not found on the host.')
+  })
+
+  it('words nothing for an older host that sends no reason, and never echoes odd values', () => {
+    expect(describeUnsupportedLaunch({ kind: 'unsupported' })).toBe('')
+    expect(describeUnsupportedLaunch({ kind: 'unsupported', reason: 'wsl' })).toBe(
+      'Host reason: wsl.'
+    )
+    expect(describeUnsupportedLaunch({ kind: 'unsupported', cause: '/home/me/secret path' })).toBe(
+      ''
+    )
   })
 
   it('names an agent with no display-table entry by its id in the unconfirmed copy', async () => {

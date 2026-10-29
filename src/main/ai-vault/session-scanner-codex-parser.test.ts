@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   createCodexSessionResumeState,
+  parseCodexSessionContent,
   parseCodexSessionFile
 } from './session-scanner-codex-parser'
 import type { TranscriptMessage } from './session-transcript-consumers'
@@ -344,5 +345,37 @@ describe('parseCodexSessionFile', () => {
     )
 
     expect(session?.model).toBe('gpt-5.5')
+  })
+})
+
+describe('parseCodexSessionContent headless runs', () => {
+  const timestamp = '2026-08-10T10:00:00.000Z'
+  const file = {
+    path: '/fixture/rollout-exec.jsonl',
+    mtimeMs: Date.parse(timestamp),
+    modifiedAt: timestamp
+  }
+  const sessionMetaWithSource = (source: unknown) =>
+    jsonLines([{ timestamp, type: 'session_meta', payload: { id: 'exec-session', source } }])
+
+  it('flags a codex exec rollout as a headless run and still keeps it as a user thread', async () => {
+    const session = await parseCodexSessionContent({
+      file,
+      content: sessionMetaWithSource('exec'),
+      platform: 'darwin'
+    })
+
+    expect(session?.headlessRun).toBe(true)
+  })
+
+  it('leaves the flag off for a run the user started interactively', async () => {
+    const session = await parseCodexSessionContent({
+      file,
+      content: sessionMetaWithSource('cli'),
+      platform: 'darwin'
+    })
+
+    expect(session).not.toBeNull()
+    expect(session?.headlessRun).toBeUndefined()
   })
 })

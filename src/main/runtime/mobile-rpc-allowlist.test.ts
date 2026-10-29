@@ -43,7 +43,13 @@ const MOBILE_DYNAMIC_RPC_METHODS = [
   'agentSession.cancel',
   'agentSession.history',
   'agentSession.hold',
-  'agentSession.release'
+  'agentSession.release',
+  // Why: mobile-prototype-host-rpc passes the method name to sendHostRequest, unseen by the scan.
+  'prototypes.createRequest',
+  'prototypes.list',
+  'prototypes.readFile',
+  'prototypes.readDesignSystem',
+  'prototypes.writeAttachment'
 ]
 
 const MOBILE_STREAMING_CLEANUP_RPC_METHODS = [
@@ -109,6 +115,14 @@ function registeredRuntimeMethods(): Set<string> {
   return new Set(ALL_RPC_METHODS.map((method) => method.name))
 }
 
+describe('github.readAccountGitConfig on mobile', () => {
+  it('lets a phone read the repo gh.account but not change it', () => {
+    expect(MOBILE_RPC_METHOD_ALLOWLIST.has('github.readAccountGitConfig')).toBe(true)
+    expect(MOBILE_RPC_METHOD_ALLOWLIST.has('github.applyAccountGitConfig')).toBe(false)
+    expect(ALL_RPC_METHODS.map((method) => method.name)).toContain('github.readAccountGitConfig')
+  })
+})
+
 describe('mobile RPC allowlist', () => {
   it('allows every RPC method used by the mobile app', () => {
     // Why: mobile-scoped runtime tokens are checked before dispatch. A mobile
@@ -171,6 +185,7 @@ describe('mobile RPC allowlist', () => {
       'agentSession.unsubscribe',
       'agentSession.subscribeStatus',
       'agentSession.readVisual',
+      'agentSession.readRecordedFile',
       'agentSession.hold',
       'agentSession.release'
     ])

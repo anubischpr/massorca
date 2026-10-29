@@ -3,6 +3,8 @@ import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'rea
 import { describe, expect, it, vi } from 'vitest'
 import { MobileNativeChatPromptCard } from './MobileNativeChatPromptCard'
 
+// Why: the why sheet's drawer is not under test here; a stub keeps its native import chain out of the suite.
+vi.mock('../components/BottomDrawer', () => ({ BottomDrawer: () => null }))
 vi.mock('react-native', () => ({
   Pressable: 'Pressable',
   ScrollView: 'ScrollView',

@@ -9,6 +9,7 @@ import {
 } from '../tui-agent-launch-defaults'
 import { MACHINE_NAME_MAX_LENGTH } from '../machine-name'
 import { normalizePRBotAuthorOverrides } from '../pr-bot-author-overrides'
+import { sanitizePrototypeCountSetting } from '../prototype-count-setting'
 import { WorktreeVisibilityDefaultsUpdate } from './worktree-visibility-defaults-params'
 
 export const TaskProviderParam = z.custom<TaskProvider>(isTaskProvider, {
@@ -120,6 +121,10 @@ export const SettingsUpdate = z
     minimaxEndpoint: z.enum(['overseas', 'cn']).optional(),
     zcodePlanSite: z.enum(['zai', 'bigmodel']).optional(),
     githubProjects: GitHubProjectSettings.optional(),
+    prototypeCount: z
+      .unknown()
+      .transform((value) => sanitizePrototypeCountSetting(value))
+      .optional(),
     prBotAuthorOverrides: z
       .unknown()
       .transform((value) => normalizePRBotAuthorOverrides(value))

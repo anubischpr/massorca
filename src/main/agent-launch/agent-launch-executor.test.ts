@@ -213,6 +213,35 @@ describe('a structured launch that creates its own worktree', () => {
     })
   })
 
+  it('builds a chat over a terminal default when the caller asked, and words a refusal as a request', async () => {
+    const asked = { ...CREATE_INTENT, preferredMode: 'chat' as const }
+    const chat = harness({ settings: { experimentalNativeChat: false } })
+    const built = await chat.run(asked)
+    expect(built.outcome.kind).toBe('structured')
+    expect(built.receipt).toMatchObject({
+      mode: 'structured',
+      preferred: 'terminal',
+      reason: 'caller_requested_chat'
+    })
+
+    const refused = harness({
+      settings: { experimentalNativeChat: false },
+      structuredCreateError: new AgentLaunchStructuredSessionRefusedError(
+        'structured_agent_session_unsupported',
+        'unsupported'
+      )
+    })
+    const fallback = await refused.run(asked)
+    expect(fallback.outcome.kind).toBe('terminal')
+    expect(fallback.receipt.detail).toMatch(/^This launch asked for a structured chat session/)
+  })
+
+  it('stays a terminal over a terminal default when nobody asked for a chat', async () => {
+    const h = harness({ settings: { experimentalNativeChat: false } })
+    const result = await h.run(CREATE_INTENT)
+    expect(result.outcome.kind).toBe('terminal')
+  })
+
   it('does not create a duplicate terminal when structured creation is unknown', async () => {
     const h = harness({
       structuredCreateError: new AgentLaunchStructuredSessionRefusedError(

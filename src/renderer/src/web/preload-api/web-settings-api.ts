@@ -4,6 +4,10 @@ import {
   normalizeComputerAwakeMode
 } from '../../../../shared/computer-awake-mode'
 import { normalizeTerminalCursorStyleDefault } from '../../../../shared/terminal-cursor-style-settings'
+import {
+  getDefaultProjectlessChatsDir,
+  normalizeProjectlessChatsDir
+} from '../../../../shared/constants'
 import { mergeSettings } from './web-preference-normalization'
 import {
   getRuntimeBackedStoredSettings,
@@ -27,10 +31,17 @@ export function createWebSettingsApi(): Partial<PreloadApi> {
       get: async () => getRuntimeBackedStoredSettings(),
       // Why: localStorage-backed settings are synchronous, so the pre-hydration kill-switch read works the same as desktop.
       getSync: () => settingsForActiveVisibilityOwner(getStoredSettings()),
+      getDefaultProjectlessChatsDir: async () => getDefaultProjectlessChatsDir('~'),
       set: async (updates) => {
         const sanitizedUpdates = { ...updates }
         const runtimeEnvironment = requireActiveEnvironmentOrNull()
         delete sanitizedUpdates.activeRuntimeEnvironmentId
+        if ('projectlessChatsDir' in sanitizedUpdates) {
+          sanitizedUpdates.projectlessChatsDir = normalizeProjectlessChatsDir(
+            sanitizedUpdates.projectlessChatsDir,
+            '~'
+          )
+        }
         if (
           'worktreeVisibilityDefaults' in sanitizedUpdates &&
           runtimeEnvironment &&

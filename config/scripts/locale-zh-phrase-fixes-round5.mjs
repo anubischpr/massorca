@@ -1,20 +1,24 @@
 // Chinese phrase fixes from high-visibility UI audit round 5.
 export const ZH_PHRASE_FIXES_ROUND5 = [
-  { pattern: /Orca集成开发环境/g, replacement: 'Orca IDE', whenEnIncludes: 'Orca IDE' },
-  { pattern: /Orca第一/g, replacement: 'Orca 优先', whenEnIncludes: 'Orca first' },
-  { pattern: /Orca移动/g, replacement: 'Orca Mobile', whenEnIncludes: 'Orca Mobile' },
-  { pattern: /Orca标志/g, replacement: 'Orca 标志', whenEnIncludes: 'Orca logo' },
-  { pattern: /喜欢Orca/g, replacement: '喜欢 Orca', whenEnIncludes: 'Enjoying Orca' },
-  { pattern: /认识Orca/g, replacement: '了解 Orca', whenEnIncludes: 'Get to know Orca' },
-  { pattern: /支持Orca/g, replacement: '支持 Orca', whenEnIncludes: 'Support Orca' },
-  { pattern: /展开Orca/g, replacement: '展开 Orca', whenEnIncludes: 'Expand Orca' },
-  { pattern: /来自Orca/g, replacement: '来自 Orca', whenEnIncludes: 'from Orca' },
+  { pattern: /MassOrca集成开发环境/g, replacement: 'MassOrca IDE', whenEnIncludes: 'MassOrca IDE' },
+  { pattern: /MassOrca第一/g, replacement: 'MassOrca 优先', whenEnIncludes: 'MassOrca first' },
+  { pattern: /MassOrca移动/g, replacement: 'MassOrca Mobile', whenEnIncludes: 'MassOrca Mobile' },
+  { pattern: /MassOrca标志/g, replacement: 'MassOrca 标志', whenEnIncludes: 'MassOrca logo' },
+  { pattern: /喜欢MassOrca/g, replacement: '喜欢 MassOrca', whenEnIncludes: 'Enjoying MassOrca' },
   {
-    pattern: /正在重新启动Orca/g,
-    replacement: '正在重启 Orca',
-    whenEnIncludes: 'Restarting Orca'
+    pattern: /认识MassOrca/g,
+    replacement: '了解 MassOrca',
+    whenEnIncludes: 'Get to know MassOrca'
   },
-  { pattern: /Orca([\u4e00-\u9fff])/g, replacement: 'Orca $1', whenEnIncludes: 'Orca' },
+  { pattern: /支持MassOrca/g, replacement: '支持 MassOrca', whenEnIncludes: 'Support MassOrca' },
+  { pattern: /展开MassOrca/g, replacement: '展开 MassOrca', whenEnIncludes: 'Expand MassOrca' },
+  { pattern: /来自MassOrca/g, replacement: '来自 MassOrca', whenEnIncludes: 'from MassOrca' },
+  {
+    pattern: /正在重新启动MassOrca/g,
+    replacement: '正在重启 MassOrca',
+    whenEnIncludes: 'Restarting MassOrca'
+  },
+  { pattern: /MassOrca([\u4e00-\u9fff])/g, replacement: 'MassOrca $1', whenEnIncludes: 'MassOrca' },
   { pattern: /Linear([\u4e00-\u9fff])/g, replacement: 'Linear $1', whenEnIncludes: 'Linear' },
   { pattern: /Codex([\u4e00-\u9fff])/g, replacement: 'Codex $1', whenEnIncludes: 'Codex' },
   { pattern: /Claude([\u4e00-\u9fff])/g, replacement: 'Claude $1', whenEnIncludes: 'Claude' },
@@ -49,8 +53,8 @@ export const ZH_PHRASE_FIXES_ROUND5 = [
     whenEnIncludes: 'actionable issues'
   },
   {
-    pattern: /显示 Orca 移动按钮/g,
-    replacement: '显示 Orca Mobile 按钮',
-    whenEnIncludes: 'Show Orca Mobile Button'
+    pattern: /显示 MassOrca 移动按钮/g,
+    replacement: '显示 MassOrca Mobile 按钮',
+    whenEnIncludes: 'Show MassOrca Mobile Button'
   }
 ]

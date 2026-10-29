@@ -14,11 +14,12 @@ import type * as RepositoryGitHubAccountModule from './repository-github-account
 import { isGhAccountBindingEnforced } from './repository-github-account'
 import { RepositoryGitHubAccountSection } from './RepositoryGitHubAccountSection'
 
-const { listAccountsMock, validateBindingMock, storeState } = vi.hoisted(() => {
+const { listAccountsMock, validateBindingMock, applyGitConfigMock, storeState } = vi.hoisted(() => {
   const repos: Repo[] = []
   return {
     listAccountsMock: vi.fn(),
     validateBindingMock: vi.fn(),
+    applyGitConfigMock: vi.fn(),
     storeState: {
       settings: null,
       repos,
@@ -45,7 +46,9 @@ vi.mock('@/runtime/runtime-rpc-client', () => ({
 vi.mock('./repository-github-account', async (importOriginal) => ({
   ...(await importOriginal<typeof RepositoryGitHubAccountModule>()),
   listRepositoryGhBindableAccounts: listAccountsMock,
-  validateRepositoryGhAccountBinding: validateBindingMock
+  validateRepositoryGhAccountBinding: validateBindingMock,
+  applyRepositoryGhAccountGitConfig: applyGitConfigMock,
+  readRepositoryGhAccountGitConfig: vi.fn(async () => ({ account: null, identityManaged: false }))
 }))
 
 // Why: Radix Select needs pointer/layout APIs happy-dom lacks; a native select keeps value + disabled testable.
@@ -135,6 +138,8 @@ beforeEach(() => {
   root = createRoot(container)
   listAccountsMock.mockReset()
   validateBindingMock.mockReset()
+  applyGitConfigMock.mockReset()
+  applyGitConfigMock.mockResolvedValue({ ok: true, identity: 'not_requested' })
   storeState.repos = []
 })
 
@@ -254,6 +259,11 @@ describe('RepositoryGitHubAccountSection', () => {
     expect(updateRepo).toHaveBeenCalledWith('repo-1', {
       ghAccount: { host: 'github.com', user: 'alice' }
     })
+    expect(applyGitConfigMock).toHaveBeenCalledWith(
+      expect.anything(),
+      { id: 'repo-1', path: BASE_REPO.path },
+      { next: { host: 'github.com', user: 'alice' }, previous: null, setIdentity: false }
+    )
     expect(container.textContent).not.toContain('not enforced')
   })
 
@@ -268,6 +278,11 @@ describe('RepositoryGitHubAccountSection', () => {
 
     expect(validateBindingMock).not.toHaveBeenCalled()
     expect(updateRepo).toHaveBeenCalledWith('repo-1', { ghAccount: null })
+    expect(applyGitConfigMock).toHaveBeenCalledWith(
+      expect.anything(),
+      { id: 'repo-1', path: BASE_REPO.path },
+      { next: null, previous: { host: 'github.com', user: 'alice' }, setIdentity: false }
+    )
   })
 
   it('renders a disabled "(unavailable)" row for a bound account missing from the inventory', async () => {

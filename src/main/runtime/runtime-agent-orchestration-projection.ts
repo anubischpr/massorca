@@ -13,6 +13,12 @@ import {
   buildWorkerAttentionContext,
   projectWorkerAttentionContext
 } from './orchestration/worker-attention-context'
+import { currentRunCoordinatorOrcaSessionId } from './orchestration/db/runs/run-coordinator-orca-session'
+import type { RunRow } from './orchestration/types'
+import { applyDelegatedChildParentLinks, structuredRowPaneKey } from './structured-session-lineage'
+
+/** A structured worker as the projection reads it: the handle and identity pane it was dispatched to. */
+type StructuredWorkerRow = { handle: string; paneKey: string; sessionId: string }
 
 type RuntimeAgentOrchestrationDependencies = {
   getDb(): OrchestrationDb | null
@@ -26,6 +32,14 @@ type RuntimeAgentOrchestrationDependencies = {
   getPaneKey(handle: string): string | null
   getDispatchAuthority(handle: string): OrchestrationCompatibilityTerminalAuthority | null
   getAgentStatusSnapshot(): readonly FleetAgentStatusEvidence[]
+  /** Structured workers this process holds; each row is keyed by its session, not by a pane. */
+  getStructuredWorkers?(): Iterable<StructuredWorkerRow>
+}
+
+/** A structured coordinator has no pane; its row is named by the run's current Orca session id. */
+function structuredCoordinatorPaneKey(run: RunRow): string | null {
+  const sessionId = currentRunCoordinatorOrcaSessionId(run)
+  return sessionId ? structuredRowPaneKey(sessionId) : null
 }
 
 export class RuntimeAgentOrchestrationProjection {
@@ -33,12 +47,26 @@ export class RuntimeAgentOrchestrationProjection {
 
   buildByPaneKey(): Record<string, AgentStatusOrchestrationContext> | undefined {
     const db = this.deps.getDb()
-    if (!db || db.hasAnyDispatchContexts?.() === false) {
+    if (!db) {
       return undefined
     }
+    const snapshot = this.deps.getAgentStatusSnapshot()
     const contexts: Record<string, AgentStatusOrchestrationContext> = {}
+    if (db.hasAnyDispatchContexts?.() !== false) {
+      this.addLiveContexts(db, contexts, snapshot)
+    }
+    const paneKeys = snapshot.map((evidence) => evidence.activity.paneKey)
+    applyDelegatedChildParentLinks(contexts, db, paneKeys)
+    return Object.keys(contexts).length > 0 ? contexts : undefined
+  }
+
+  private addLiveContexts(
+    db: OrchestrationDb,
+    contexts: Record<string, AgentStatusOrchestrationContext>,
+    snapshot: readonly FleetAgentStatusEvidence[]
+  ): void {
     const evidenceByPaneKey = new Map(
-      this.deps.getAgentStatusSnapshot().map((evidence) => [evidence.activity.paneKey, evidence])
+      snapshot.map((evidence) => [evidence.activity.paneKey, evidence])
     )
     // Defer attention to one batched query below; per-pane facts would refetch on every 16ms publish.
     const batchAttention = typeof db.getWorkerAttentionFactsForDispatches === 'function'
@@ -77,11 +105,23 @@ export class RuntimeAgentOrchestrationProjection {
         contexts[pty.paneKey] = context
       }
     }
-    const entries = Object.entries(contexts)
-    if (entries.length === 0) {
-      return undefined
+    for (const worker of this.deps.getStructuredWorkers?.() ?? []) {
+      const paneKey = structuredRowPaneKey(worker.sessionId)
+      if (contexts[paneKey]) {
+        continue
+      }
+      // Why: a dispatch names the worker by its identity pane, which is random; the row key is only the join.
+      const context = this.getForHandle(worker.handle, db, {
+        paneKey: worker.paneKey,
+        evidence: evidenceByPaneKey.get(paneKey),
+        deferAttention: batchAttention
+      })
+      if (context) {
+        contexts[paneKey] = context
+      }
     }
-    if (batchAttention) {
+    const entries = Object.entries(contexts)
+    if (batchAttention && entries.length > 0) {
       const now = Date.now()
       const factsByDispatch = db.getWorkerAttentionFactsForDispatches(
         entries.map(([, context]) => context.dispatchId),
@@ -102,7 +142,6 @@ export class RuntimeAgentOrchestrationProjection {
         }
       }
     }
-    return contexts
   }
 
   getForHandle(
@@ -194,7 +233,9 @@ export class RuntimeAgentOrchestrationProjection {
         : undefined
     const coordinator = this.resolveLivePane(
       coordinatorHandle,
-      owningRun?.legacy === 0 ? owningRun.coordinator_pane_key : null
+      owningRun?.legacy === 0
+        ? (owningRun.coordinator_pane_key ?? structuredCoordinatorPaneKey(owningRun))
+        : null
     )
     const creator = currentCreatorHandle
       ? {

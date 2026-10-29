@@ -3,6 +3,7 @@ import type { RpcResponse } from '../transport/types'
 import { terminalViewportUpdate } from './mobile-terminal-operations'
 import {
   isTerminalViewportRefitTargetCurrent,
+  isViewportRefitNeeded,
   reduceTerminalFrameHeightRefit,
   resolveTerminalUpdateViewportCapability,
   type TerminalFrameHeightRefitEvent,
@@ -14,7 +15,8 @@ describe('terminal viewport refit', () => {
     let state: TerminalFrameHeightRefitState = {
       frameHeight: 600,
       keyboardVisible: false,
-      pending: false
+      pending: false,
+      keyboardResizesFrame: false
     }
     let refitCount = 0
     const dispatch = (event: TerminalFrameHeightRefitEvent) => {
@@ -43,7 +45,7 @@ describe('terminal viewport refit', () => {
   it('re-defers a height refit if the keyboard reopens before the debounce fires', () => {
     // Settle while the keyboard is up -> deferred (pending), no refit.
     let r = reduceTerminalFrameHeightRefit(
-      { frameHeight: 600, keyboardVisible: true, pending: false },
+      { frameHeight: 600, keyboardVisible: true, pending: false, keyboardResizesFrame: false },
       { type: 'frame-height', height: 520 }
     )
     expect(r.shouldRefit).toBe(false)
@@ -151,5 +153,44 @@ describe('terminal viewport refit', () => {
     expect(isTerminalViewportRefitTargetCurrent({ ...current, nativeChatCovered: true })).toBe(
       false
     )
+  })
+
+  it('refits a frame the keyboard resizes while the keyboard is up', () => {
+    let r = reduceTerminalFrameHeightRefit(
+      { frameHeight: 800, keyboardVisible: true, pending: false, keyboardResizesFrame: true },
+      { type: 'frame-height', height: 640 }
+    )
+    expect(r.shouldRefit).toBe(true)
+    expect(r.state.pending).toBe(false)
+    r = reduceTerminalFrameHeightRefit(r.state, { type: 'refit-committed' })
+    expect(r.shouldRefit).toBe(true)
+  })
+
+  it('still defers a frame change while the keyboard is up when it does not resize the frame', () => {
+    const r = reduceTerminalFrameHeightRefit(
+      { frameHeight: 800, keyboardVisible: true, pending: false, keyboardResizesFrame: false },
+      { type: 'frame-height', height: 640 }
+    )
+    expect(r.shouldRefit).toBe(false)
+    expect(r.state.pending).toBe(true)
+  })
+
+  it('owes a deferred change to the moment the keyboard starts resizing the frame', () => {
+    let r = reduceTerminalFrameHeightRefit(
+      { frameHeight: 800, keyboardVisible: true, pending: false, keyboardResizesFrame: false },
+      { type: 'frame-height', height: 640 }
+    )
+    r = reduceTerminalFrameHeightRefit(r.state, { type: 'keyboard-resizes-frame', resizes: true })
+    expect(r.shouldRefit).toBe(true)
+    expect(r.state.pending).toBe(false)
+  })
+
+  it('sends a PTY resize only when the fitted cols or rows change', () => {
+    const grid = { cols: 40, rows: 30 }
+    expect(isViewportRefitNeeded(grid, { cols: 40, rows: 30 }, false)).toBe(false)
+    expect(isViewportRefitNeeded(grid, { cols: 40, rows: 29 }, false)).toBe(true)
+    expect(isViewportRefitNeeded(grid, { cols: 39, rows: 30 }, false)).toBe(true)
+    expect(isViewportRefitNeeded(grid, { cols: 40, rows: 30 }, true)).toBe(true)
+    expect(isViewportRefitNeeded(null, { cols: 40, rows: 30 }, false)).toBe(true)
   })
 })

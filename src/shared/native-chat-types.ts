@@ -25,6 +25,7 @@ import type {
 import type { AgentType } from './agent-status-types'
 import type { NativeChatToolMetadata } from './native-chat-tool-identity'
 import type { AgentMessageSource } from './agent-session-message-source'
+import type { DelegationNoticePayload } from './delegated-session-journal'
 
 export type { AgentType }
 
@@ -68,6 +69,8 @@ export type NativeChatTextBlock = {
   failure?: AgentSessionFailureFact
   /** On the line about a reply Orca's own stop cut off: why, and the turn it cut. */
   orcaStop?: AgentSessionOrcaStop & { turnItemId?: string }
+  /** On a delegated session's start, failure or finish: the payload that passed its reader. */
+  delegation?: DelegationNoticePayload
 }
 
 /** A tool invocation by the agent. `input` is the (already-serialized) tool
@@ -237,6 +240,8 @@ export type NativeChatMessage = AgentJournalProducerLinkage & {
   state?: AgentJournalMessageState
   /** Host clock when the row's message was seen to end; absent when no end was seen live. */
   completedAt?: number
+  /** On a user message that opened a prototype request: the request its hidden marker names. */
+  prototypeRequestId?: string
   /** On a conversation command the user sent, such as `/compact`: the command it names. */
   command?: { name: string }
   /** On a user-role message another agent sent through Orca: who, as the journal recorded it. */

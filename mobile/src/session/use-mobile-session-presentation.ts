@@ -1,7 +1,13 @@
+import { useEffect } from 'react'
 import { classifyConnection, verdictDisplayLabel } from '../transport/connection-health'
 import { computeActiveTerminalKeyboardLift } from '../terminal/terminal-keyboard-avoidance-lift'
 import { useInitialSessionTerminalAutoCreate } from './use-initial-session-terminal-autocreate'
-import { MOBILE_SESSION_STATUS_LABELS } from './mobile-session-route-helpers'
+import {
+  MOBILE_SESSION_STATUS_LABELS,
+  isTerminalPhoneDisplayMode
+} from './mobile-session-route-helpers'
+import { MOBILE_LEGACY_SESSION_VIEWS } from './mobile-legacy-session-views'
+import { resolveTerminalKeyboardFit } from './mobile-terminal-composer-layout'
 import type { MobileSessionBulkCloseModel } from './use-mobile-session-bulk-close'
 import { hostOs } from '../platform/host-os'
 
@@ -22,6 +28,8 @@ export function useMobileSessionPresentation(scope: MobileSessionBulkCloseModel)
     creatingMarkdown,
     keyboardHeight,
     terminalKeyboardMetrics,
+    terminalModes,
+    notifyKeyboardResizesFrame,
     toastOpacityRef,
     hostEndpoint,
     initialSessionAutoCreateRef,
@@ -81,11 +89,23 @@ export function useMobileSessionPresentation(scope: MobileSessionBulkCloseModel)
         ? Math.max(0, keyboardHeight - insets.bottom)
         : keyboardHeight
       : 0
-  const activeTerminalKeyboardLift = computeActiveTerminalKeyboardLift({
-    keyboardLift,
-    metrics: activeHandle ? terminalKeyboardMetrics.get(activeHandle) : undefined,
-    terminalFrameHeight: terminalFrameRef.current?.height ?? 0
-  })
+  // Why: the legacy command dock still translates its composer, so the legacy path keeps the overlay.
+  const terminalKeyboardFit = MOBILE_LEGACY_SESSION_VIEWS
+    ? 'overlay'
+    : resolveTerminalKeyboardFit(isTerminalPhoneDisplayMode(activeHandle, terminalModes))
+  // Why: a resizing fit lets the keyboard's frame change refit the PTY at once; an overlay waits for the keyboard to close.
+  useEffect(() => {
+    notifyKeyboardResizesFrame(terminalKeyboardFit === 'resize')
+  }, [notifyKeyboardResizesFrame, terminalKeyboardFit])
+  // Why: a resized frame already ends above the composer, so only an overlaid grid still needs the lift.
+  const activeTerminalKeyboardLift =
+    terminalKeyboardFit === 'overlay'
+      ? computeActiveTerminalKeyboardLift({
+          keyboardLift,
+          metrics: activeHandle ? terminalKeyboardMetrics.get(activeHandle) : undefined,
+          terminalFrameHeight: terminalFrameRef.current?.height ?? 0
+        })
+      : 0
   const toastAnimatedStyle = {
     opacity: toastOpacityRef.current,
     transform: [{ translateY: -keyboardLift }]
@@ -98,6 +118,7 @@ export function useMobileSessionPresentation(scope: MobileSessionBulkCloseModel)
     terminalSummary,
     keyboardLift,
     activeTerminalKeyboardLift,
+    terminalKeyboardFit,
     toastAnimatedStyle
   }
 }

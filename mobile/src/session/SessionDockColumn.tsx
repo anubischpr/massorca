@@ -4,10 +4,10 @@ import { MobileSourceControlPanel } from '../source-control/MobileSourceControlP
 import { MobileFileExplorerPanel } from '../files/MobileFileExplorerPanel'
 import { mobilePrSidebarStyles } from '../components/pr-sidebar/mobile-pr-sidebar-styles'
 import { useMobileDockResize } from './use-mobile-dock-resize'
-import type { ActivePanel } from './session-panel-host'
+import type { RoutedPanel } from './session-panel-host'
 
 type Props = {
-  activePanel: Exclude<ActivePanel, null>
+  activePanel: RoutedPanel
   hostId: string
   worktreeId: string
   name: string

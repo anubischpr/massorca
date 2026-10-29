@@ -196,7 +196,7 @@ export class PinnedRelayFallbackError extends Error {
     /** A remembered refusal skips its rung but never proves anything about the next one. */
     readonly remembered = false
   ) {
-    super(`Orca's pinned Node relay is unavailable (${reason}): ${detail}`)
+    super(`MassOrca's pinned Node relay is unavailable (${reason}): ${detail}`)
     this.name = 'PinnedRelayFallbackError'
   }
 }

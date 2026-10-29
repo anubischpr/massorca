@@ -26,6 +26,7 @@ describe('web GitHub preload API', () => {
         'addIssueCommentBySlug',
         'addPRReviewComment',
         'addPRReviewCommentReply',
+        'applyAccountGitConfig',
         'checkOrcaStarred',
         'clearProjectItemField',
         'countWorkItems',
@@ -34,11 +35,14 @@ describe('web GitHub preload API', () => {
         'diagnoseAuth',
         'enqueuePRRefresh',
         'getProjectViewTable',
+        'inferRepoAccount',
         'issue',
         'listAccessibleProjects',
+        'listAccountOrgs',
         'listAssignableUsers',
         'listAssignableUsersBySlug',
         'listBindableAccounts',
+        'listHostBindableAccounts',
         'listIssueTypesBySlug',
         'listIssues',
         'listLabels',
@@ -57,6 +61,7 @@ describe('web GitHub preload API', () => {
         'prForBranch',
         'projectWorkItemDetailsBySlug',
         'rateLimit',
+        'readAccountGitConfig',
         'refreshPRNow',
         'removePRReviewers',
         'repoSlug',
@@ -383,6 +388,46 @@ describe('web GitHub preload API', () => {
         args: { repoPath, host: 'github.com', user: 'octocat' },
         expectedMethod: 'github.validateAccountBinding',
         expectedParams: withRepo({ repoPath, host: 'github.com', user: 'octocat' })
+      },
+      {
+        key: 'applyAccountGitConfig',
+        args: {
+          repoPath,
+          next: { host: 'github.com', user: 'octocat' },
+          previous: null,
+          setIdentity: true
+        },
+        expectedMethod: 'github.applyAccountGitConfig',
+        expectedParams: withRepo({
+          repoPath,
+          next: { host: 'github.com', user: 'octocat' },
+          previous: null,
+          setIdentity: true
+        })
+      },
+      {
+        key: 'readAccountGitConfig',
+        args: { repoPath },
+        expectedMethod: 'github.readAccountGitConfig',
+        expectedParams: withRepo({ repoPath })
+      },
+      {
+        key: 'listHostBindableAccounts',
+        args: { refreshCapability: true },
+        expectedMethod: 'github.listHostBindableAccounts',
+        expectedParams: { refreshCapability: true }
+      },
+      {
+        key: 'listAccountOrgs',
+        args: { accounts: [{ host: 'github.com', user: 'octocat' }] },
+        expectedMethod: 'github.listAccountOrgs',
+        expectedParams: { accounts: [{ host: 'github.com', user: 'octocat' }] }
+      },
+      {
+        key: 'inferRepoAccount',
+        args: { repoPath },
+        expectedMethod: 'github.inferRepoAccount',
+        expectedParams: withRepo({ repoPath })
       },
       {
         key: 'listAccessibleProjects',

@@ -1,6 +1,6 @@
 import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { agentSessionRecordFixture } from '../../shared/agent-session-record.test-fixture'
 import { acpLaunchSpecFor } from '../acp/acp-launch-specs'
@@ -53,10 +53,10 @@ afterEach(async () => {
 })
 
 describe('structuredAgentSupportsLaunch', () => {
-  it('asks nothing for an agent whose location alone decides', async () => {
-    expect(await structuredAgentSupportsLaunch('grok', 'id:workspace-1', runtime)).toBe(true)
+  it('asks no version of an agent with no release list, only whether its command resolves', async () => {
+    // Grok's binary is not on the shell PATH here, so it is not offered.
+    expect(await structuredAgentSupportsLaunch('grok', 'id:workspace-1', runtime)).toBe(false)
     expect(probeAgentCliVersion).not.toHaveBeenCalled()
-    expect(runtime.resolveRuntimeFileTarget).not.toHaveBeenCalled()
   })
 
   it('allows stable OpenCode 1.x and 2.x, asking in the workspace with the launch env', async () => {
@@ -76,7 +76,12 @@ describe('structuredAgentSupportsLaunch', () => {
     }
     expect(asked[0]).toMatchObject({
       cwd: '/repo/worktree',
-      env: { PATH: bin, OPENCODE_EXTRA: '1', OPENCODE_CLIENT: 'acp' }
+      env: {
+        // The login PATH leads; the process PATH's own entries follow it.
+        PATH: expect.toSatisfy((value: string) => value.split(delimiter)[0] === bin),
+        OPENCODE_EXTRA: '1',
+        OPENCODE_CLIENT: 'acp'
+      }
     })
   })
 

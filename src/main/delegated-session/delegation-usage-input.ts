@@ -1,0 +1,62 @@
+import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
+import type { ProviderRateLimits, RateLimitState } from '../../shared/rate-limit-types'
+import type { DelegationRankingCandidate, DelegationUsageSample } from './delegation-agent-ranking'
+
+export type DelegationUsageAgent = {
+  agent: string
+  /** Only Gentle Shell, the `pi` agent on its NaN runtime, has a usage meter. */
+  piRuntime?: PiRuntimeSelection
+}
+
+type MeteredProvider = 'claude' | 'codex' | 'antigravity' | 'nan'
+
+function meteredProviderFor({ agent, piRuntime }: DelegationUsageAgent): MeteredProvider | null {
+  switch (agent) {
+    case 'claude':
+      return 'claude'
+    case 'codex':
+      return 'codex'
+    case 'antigravity':
+      return 'antigravity'
+    case 'pi':
+      return piRuntime === 'gentle-shell' ? 'nan' : null
+    default:
+      return null
+  }
+}
+
+function usageSampleFrom(rateLimits: ProviderRateLimits): DelegationUsageSample {
+  const windows = [rateLimits.session, rateLimits.weekly]
+  // Why: a monthly allowance is read only when no 5-hour or weekly window is reported.
+  const monthly = windows.every((entry) => !entry) ? rateLimits.monthly : null
+  return {
+    sessionPercent: rateLimits.session?.usedPercent,
+    weeklyPercent: rateLimits.weekly?.usedPercent,
+    monthlyPercent: monthly?.usedPercent,
+    // Why: a window at 100% is exhausted even when the provider sets no limit flag.
+    limitReached: [...windows, monthly].some((entry) => (entry?.usedPercent ?? 0) >= 100),
+    fetchedAt: rateLimits.updatedAt
+  }
+}
+
+// Why: an errored or unavailable meter may still hold old numbers, which are not a reading to route on.
+function readableRateLimits(rateLimits: ProviderRateLimits | null): ProviderRateLimits | null {
+  return rateLimits === null || rateLimits.status === 'error' || rateLimits.status === 'unavailable'
+    ? null
+    : rateLimits
+}
+
+// Why: top-level provider entries are the active account; inactive accounts are not routed to in v1.
+export function delegationUsageCandidates(
+  state: RateLimitState,
+  agents: readonly DelegationUsageAgent[]
+): DelegationRankingCandidate[] {
+  return agents.map((usageAgent) => {
+    const provider = meteredProviderFor(usageAgent)
+    const rateLimits = readableRateLimits(provider === null ? null : (state[provider] ?? null))
+    return {
+      agent: usageAgent.agent,
+      usage: rateLimits === null ? null : usageSampleFrom(rateLimits)
+    }
+  })
+}

@@ -139,6 +139,26 @@ export function createGitHubApi(): WebGitHubApi {
         GITHUB_WEB_RPC_METHODS.validateAccountBinding,
         args
       ),
+    applyAccountGitConfig: (args) =>
+      route<WebGitHubResult<'applyAccountGitConfig'>>(
+        GITHUB_WEB_RPC_METHODS.applyAccountGitConfig,
+        args
+      ),
+    readAccountGitConfig: (args) =>
+      route<WebGitHubResult<'readAccountGitConfig'>>(
+        GITHUB_WEB_RPC_METHODS.readAccountGitConfig,
+        args
+      ),
+    // Why: the paired runtime has no host-side wslDistro; the RPC schema strips that field.
+    listHostBindableAccounts: (args) =>
+      route<WebGitHubResult<'listHostBindableAccounts'>>(
+        GITHUB_WEB_RPC_METHODS.listHostBindableAccounts,
+        args
+      ),
+    listAccountOrgs: (args) =>
+      route<WebGitHubResult<'listAccountOrgs'>>(GITHUB_WEB_RPC_METHODS.listAccountOrgs, args),
+    inferRepoAccount: (args) =>
+      route<WebGitHubResult<'inferRepoAccount'>>(GITHUB_WEB_RPC_METHODS.inferRepoAccount, args),
     diagnoseAuth: () =>
       Promise.resolve({
         ok: false,

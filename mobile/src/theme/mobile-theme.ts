@@ -18,6 +18,8 @@ export const colors = {
   surfaceBright: '#f5f5f5',
 
   accentBlue: '#3b82f6',
+  // Soft wash behind a control a draft item jumped to, the same hue as accentBlue.
+  accentBlueTint: 'rgba(59, 130, 246, 0.08)',
   // Text/icon color on a filled accent (accentBlue) button, where the muted
   // textPrimary would lack contrast against the saturated fill.
   onAccent: '#ffffff',
@@ -25,6 +27,8 @@ export const colors = {
   statusGreen: '#22c55e',
   statusAmber: '#f59e0b',
   statusRed: '#ef4444',
+  // Full-access wash behind the red access lock, same rgba form as the diff tints below.
+  statusRedTint: 'rgba(239, 68, 68, 0.14)',
   // Merge CTA fill + its on-fill text, mirroring the desktop ChecksPanel's
   // bg-green-600 "Squash and merge" button (green-600 / white).
   mergeGreen: '#16a34a',

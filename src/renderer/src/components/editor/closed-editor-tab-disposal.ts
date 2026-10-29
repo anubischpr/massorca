@@ -118,6 +118,8 @@ export function disposeClosedEditorTabCaches(
         break
       case 'check-details':
         break
+      case 'recorded-file':
+        break
     }
   }
   deletePaneScopedCacheEntries(scrollTopCache, scrollTopOwners)

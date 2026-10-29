@@ -325,6 +325,7 @@ export class OrcaRuntimeWithActivateManagedWorktree extends OrcaRuntimeWithListM
       // Why: a workspace provisioned in the background must not pull the sidebar
       // to itself; the user never asked to look at these tabs.
       surfaceOwner?: false
+      setupPresentation?: 'chat-background-task'
     },
     createdWorktree?: Worktree
   ): Promise<{ setupSpawned: boolean; setupTerminalHandle: string | null }> {

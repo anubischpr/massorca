@@ -24,7 +24,7 @@ describe('profile state startup recovery dialog', () => {
       title: 'MassOrca profile state cannot be opened',
       message: 'MassOrca cannot safely open this profile.',
       detail:
-        'SQLite state is unreadable.\nSQLite path: /tmp/profile-state.db\n\nCopy the recovery command, then run it after Orca closes.'
+        'SQLite state is unreadable.\nSQLite path: /tmp/profile-state.db\n\nCopy the recovery command, then run it after MassOrca closes.'
     })
     expect(copyToClipboard).toHaveBeenCalledWith('orca profile state exports')
   })
@@ -59,7 +59,7 @@ describe('profile state startup recovery dialog', () => {
         defaultId: 0,
         cancelId: 0,
         detail:
-          'both profile authorities are present\n\nQuit Orca and resolve the profile-state authority before retrying.'
+          'both profile authorities are present\n\nQuit MassOrca and resolve the profile-state authority before retrying.'
       })
     )
     expect(copyToClipboard).not.toHaveBeenCalled()

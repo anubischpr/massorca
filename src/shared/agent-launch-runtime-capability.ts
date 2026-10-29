@@ -3,17 +3,8 @@
 
 /**
  * `agent.launch` exists: one host-side method that decides structured-vs-terminal and creates the
- * surface, instead of each client routing for itself.
- *
- * Negotiated rather than assumed because a client that cannot see it must keep using
- * `worktree.create` + `startupAgent`, which stays supported verbatim. The reverse skew is the
- * dangerous one: `worktree.create` returns `agentTerminalHandle` only when a startup agent was
- * requested, so a host that quietly routed that call to a structured session would hand an old
- * client a response with no handle and no error.
- *
- * Advertising it is a statement that the client understands EITHER outcome, since the host is what
- * picks: a structured session it can open, or a terminal agent. A client that renders only one of
- * the two keeps using the surface-specific methods.
+ * surface. Negotiated because `worktree.create` + `startupAgent` stays supported verbatim for a
+ * client that cannot see it, and advertising it states the client understands EITHER outcome.
  */
 // v2 makes prompt delivery an outcome union and top-level warnings the only supported shape.
 export const AGENT_LAUNCH_RUNTIME_CAPABILITY = 'agent.launch.v2' as const
@@ -55,6 +46,11 @@ export const AGENT_LAUNCH_UNSTARTED_TAB_CLIENT_CAPABILITY = 'agent.launch.unstar
 // `agent_session_operation_unknown` for it, as before the host knew.
 export const AGENT_LAUNCH_TAB_CLOSED_CLIENT_CAPABILITY = 'agent.launch.tab-closed.v1' as const
 
+// Host-advertised: reads `preferredMode: 'chat'`, a request for a chat over a terminal default.
+// An older host ignores the field, so a client words its UI on this and sends the field regardless.
+export const AGENT_LAUNCH_PREFERRED_MODE_RUNTIME_CAPABILITY =
+  'agent.launch.preferred-mode.v1' as const
+
 export const AGENT_LAUNCH_RUNTIME_CAPABILITIES = [
   AGENT_LAUNCH_RUNTIME_CAPABILITY,
   AGENT_LAUNCH_REPLAY_RUNTIME_CAPABILITY,
@@ -62,5 +58,6 @@ export const AGENT_LAUNCH_RUNTIME_CAPABILITIES = [
   AGENT_LAUNCH_PROMPT_CARRY_RUNTIME_CAPABILITY,
   AGENT_LAUNCH_PROMPT_UNCONFIRMED_RUNTIME_CAPABILITY,
   AGENT_LAUNCH_PLACEMENT_RUNTIME_CAPABILITY,
-  AGENT_LAUNCH_CREATE_FOLDER_WORKSPACE_RUNTIME_CAPABILITY
+  AGENT_LAUNCH_CREATE_FOLDER_WORKSPACE_RUNTIME_CAPABILITY,
+  AGENT_LAUNCH_PREFERRED_MODE_RUNTIME_CAPABILITY
 ] as const

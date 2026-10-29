@@ -39,8 +39,8 @@ export function buildPrimaryCommitMessageAgentSpecs({
         '-p',
         '--output-format',
         'text',
-        '--model',
-        model,
+        // Why: an empty model inherits the CLI's own default, so no --model flag.
+        ...(model ? ['--model', model] : []),
         '--permission-mode',
         'plan',
         ...(thinkingLevel ? ['--effort', thinkingLevel] : [])

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { FolderWorkspace } from '../../../shared/folder-workspace-types'
+import type { CreateChatNamingOverride } from '../../../shared/create-chat-session-naming'
 import type { PersistedState } from '../../../shared/persisted-state-types'
 import type { Repo } from '../../../shared/repo-types'
 import { normalizeFolderWorkspaceName } from '../../../shared/folder-workspaces'
@@ -64,6 +65,7 @@ export class FolderWorkspacePersistenceOperations {
     creatorProvenance?: FolderWorkspace['creatorProvenance']
     createdWithAgent?: FolderWorkspace['createdWithAgent']
     pendingFirstAgentMessageRename?: boolean
+    createChatNaming?: CreateChatNamingOverride
   }): FolderWorkspace {
     const group = (this.state.projectGroups ?? []).find(
       (entry) => entry.id === input.projectGroupId
@@ -110,6 +112,7 @@ export class FolderWorkspacePersistenceOperations {
       ...(input.pendingFirstAgentMessageRename === true && input.createdWithAgent
         ? { pendingFirstAgentMessageRename: true }
         : {}),
+      ...(input.createChatNaming ? { createChatNaming: input.createChatNaming } : {}),
       lastActivityAt: 0,
       createdAt: now,
       updatedAt: now

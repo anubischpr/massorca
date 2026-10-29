@@ -166,7 +166,7 @@ export class ClaudeManagedAuthStorage {
       adoptLegacyMarker: true
     })
     if (!trustedPath) {
-      throw new Error('Managed Claude auth storage is not owned by Orca.')
+      throw new Error('Managed Claude auth storage is not owned by MassOrca.')
     }
     return trustedPath
   }
@@ -228,14 +228,14 @@ export class ClaudeManagedAuthStorage {
       !wslInfo.linuxPath.includes('/.local/share/orca/claude-accounts/') ||
       !wslInfo.linuxPath.endsWith('/auth')
     ) {
-      throw new Error('Managed WSL Claude auth storage is outside Orca account storage.')
+      throw new Error('Managed WSL Claude auth storage is outside MassOrca account storage.')
     }
     if (process.platform !== 'win32') {
       if (
         !existsSync(candidatePath) ||
         !existsSync(join(candidatePath, '.orca-managed-claude-auth'))
       ) {
-        throw new Error('Managed Claude auth storage is not owned by Orca.')
+        throw new Error('Managed Claude auth storage is not owned by MassOrca.')
       }
       return candidatePath
     }
@@ -265,7 +265,7 @@ export class ClaudeManagedAuthStorage {
       }
       return toWindowsWslPath(canonicalPath, wslInfo.distro)
     } catch (error) {
-      throw new Error('Managed WSL Claude auth storage is outside Orca account storage.', {
+      throw new Error('Managed WSL Claude auth storage is outside MassOrca account storage.', {
         cause: error
       })
     }

@@ -31,7 +31,8 @@ import {
 import {
   boundedText,
   transcriptMessageRole,
-  transcriptMessagesFromContent
+  transcriptMessagesFromContent,
+  typedPromptText
 } from './session-transcript-message-content'
 
 const SESSION_PREVIEW_MESSAGE_LIMIT = 5
@@ -161,6 +162,7 @@ export function finalizeSession(
     totalTokens: accumulator.totalTokens,
     previewMessages: accumulator.previewMessages,
     ...(accumulator.previewMessagesTruncated ? { previewMessagesTruncated: true } : {}),
+    ...(accumulator.headlessRun ? { headlessRun: true } : {}),
     ...(accumulator.antigravityOpeningPrompt
       ? { antigravityOpeningPrompt: accumulator.antigravityOpeningPrompt }
       : {}),
@@ -283,7 +285,7 @@ function publishTranscriptMessage(
   timestamp: unknown
 ): void {
   const messageRole = transcriptMessageRole(role)
-  const messageText = text === null ? null : boundedText(text)
+  const messageText = text === null ? null : boundedText(typedPromptText(messageRole, text))
   if (messageRole && messageText) {
     accumulator.messages.push({
       role: messageRole,

@@ -30,6 +30,8 @@ export function useMobileNativeChatSessionOptionController(args: {
     optionPickerRequest?: { id: string; sequence: number } | null
     snapshot: SessionOptionDescriptor[]
     pendingId: string | null
+    /** The structured options answer is still pending; an unknown model then reads Loading… */
+    loading?: boolean
     setOption: (id: string, value: SessionOptionValue) => Promise<boolean>
     invokeAction: (id: string) => Promise<boolean>
   }
@@ -88,6 +90,7 @@ export function useMobileNativeChatSessionOptionController(args: {
             optionPickerRequest: structured.optionPickerRequest,
             conversationCommands: structured.conversationCommands,
             pendingId: structuredPendingId,
+            loading: structured.loading === true,
             setOption: setStructuredOption,
             invokeAction: invokeStructuredAction,
             recordCommand: () => {}
@@ -100,6 +103,7 @@ export function useMobileNativeChatSessionOptionController(args: {
       structuredPendingId,
       structuredSnapshot,
       structured.conversationCommands,
+      structured.loading,
       structured.optionPickerRequest
     ]
   )

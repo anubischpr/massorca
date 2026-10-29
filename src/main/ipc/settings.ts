@@ -21,6 +21,7 @@ import { normalizeProxyBypassRules, normalizeProxyUrl } from '../../shared/netwo
 import { normalizeAppIconId } from '../../shared/app-icon'
 import { normalizeUiLanguage } from '../../shared/ui-language'
 import { applyAppIcon } from '../app-icon'
+import { defaultProjectlessChatsDir, projectlessChatsDirPatch } from './projectless-chats-dir-host'
 import { normalizeTerminalCustomThemes } from '../../shared/terminal-custom-themes'
 import { normalizeDesktopTerminalScrollbackRows } from '../../shared/terminal-scrollback-policy'
 import { normalizeTerminalLineHeight } from '../../shared/terminal-line-height-settings'
@@ -115,6 +116,8 @@ export function registerSettingsHandlers(
     }
   )
 
+  ipcMain.handle('settings:getDefaultProjectlessChatsDir', defaultProjectlessChatsDir)
+
   // Why: terminal panes can bind PTYs before async settings hydration
   // completes. The side-effect authority kill switch is consulted once at
   // transport creation, so the renderer needs the persisted value
@@ -167,6 +170,7 @@ export function registerSettingsHandlers(
     if ('aiVaultSearch' in args) {
       sanitizedArgs.aiVaultSearch = resolveAiVaultSearchSettings(args)
     }
+    Object.assign(sanitizedArgs, projectlessChatsDirPatch(args))
     if ('terminalCustomThemes' in args) {
       sanitizedArgs.terminalCustomThemes = normalizeTerminalCustomThemes(args.terminalCustomThemes)
     }

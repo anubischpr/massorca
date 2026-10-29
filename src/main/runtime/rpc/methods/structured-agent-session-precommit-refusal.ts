@@ -47,7 +47,7 @@ function wireRefusalCode(error: unknown): AgentSessionWireRefusalCode | null {
   return null
 }
 
-const PRECOMMIT_REFUSAL_MESSAGE = 'Orca cannot open a structured agent chat for this workspace.'
+const PRECOMMIT_REFUSAL_MESSAGE = 'MassOrca cannot open a structured agent chat for this workspace.'
 
 function precommitRefusal(error: unknown): AgentSessionWireRefusal {
   // A refusal the host raised keeps its situation; a bare code names none.
@@ -59,7 +59,7 @@ function precommitRefusal(error: unknown): AgentSessionWireRefusal {
     return refuseUnclassified(code, PRECOMMIT_REFUSAL_MESSAGE)
   }
   const message = error instanceof Error ? error.message : String(error)
-  const wording = `Orca could not prepare a structured agent chat for this workspace: ${message}`
+  const wording = `MassOrca could not prepare a structured agent chat for this workspace: ${message}`
   // A pre-spawn refusal proved no process existed and names its situation, which the client words.
   const reason = isAgentSessionPreSpawnError(error) ? error.reason : undefined
   // A code-less failure here is often a defect, not a policy answer; the refusal keeps the user

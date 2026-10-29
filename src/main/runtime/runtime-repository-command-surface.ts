@@ -32,6 +32,11 @@ type GitHubRepositoryQueryCommandName =
   | 'getGitHubRateLimit'
   | 'listGitHubBindableAccounts'
   | 'validateGitHubAccountBinding'
+  | 'applyGitHubAccountGitConfig'
+  | 'readGitHubAccountGitConfig'
+  | 'listHostGitHubBindableAccounts'
+  | 'listGitHubAccountOrgs'
+  | 'inferRepoGitHubAccount'
 
 export type RuntimeRepositoryCommandSurface = {
   listProjects: RuntimeProjectHostSetupController['listProjects']
@@ -63,6 +68,7 @@ export type RuntimeRepositoryCommandSurface = {
   cloneRepo: RuntimeRepositoryCloneController['clone']
   showRepo: RuntimeRepositorySettingsController['show']
   setRepoBaseRef: RuntimeRepositorySettingsController['setBaseRef']
+  initializeRepoGit: RuntimeRepositorySettingsController['initializeGit']
   updateRepo: RuntimeRepositorySettingsController['update']
   removeProject: RuntimeRepositorySettingsController['remove']
   reorderRepos: RuntimeRepositorySettingsController['reorder']
@@ -138,6 +144,7 @@ export function installRuntimeRepositoryCommandSurface(
     cloneRepo: clones.clone.bind(clones),
     showRepo: settings.show.bind(settings),
     setRepoBaseRef: settings.setBaseRef.bind(settings),
+    initializeRepoGit: settings.initializeGit.bind(settings),
     updateRepo: settings.update.bind(settings),
     removeProject: settings.remove.bind(settings),
     reorderRepos: settings.reorder.bind(settings),
@@ -160,6 +167,11 @@ export function installRuntimeRepositoryCommandSurface(
     getGitHubRateLimit: queries.getGitHubRateLimit.bind(queries),
     listGitHubBindableAccounts: queries.listGitHubBindableAccounts.bind(queries),
     validateGitHubAccountBinding: queries.validateGitHubAccountBinding.bind(queries),
+    applyGitHubAccountGitConfig: queries.applyGitHubAccountGitConfig.bind(queries),
+    readGitHubAccountGitConfig: queries.readGitHubAccountGitConfig.bind(queries),
+    listHostGitHubBindableAccounts: queries.listHostGitHubBindableAccounts.bind(queries),
+    listGitHubAccountOrgs: queries.listGitHubAccountOrgs.bind(queries),
+    inferRepoGitHubAccount: queries.inferRepoGitHubAccount.bind(queries),
     getRepoHooks: hooks.getRepoHooks.bind(hooks),
     checkRepoHooks: hooks.checkRepoHooks.bind(hooks),
     inspectRepoSetupScriptImports: hooks.inspectRepoSetupScriptImports.bind(hooks),

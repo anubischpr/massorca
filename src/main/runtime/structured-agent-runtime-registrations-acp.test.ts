@@ -40,8 +40,15 @@ describe('ACP agents in the runtime registrations', () => {
   it('leaves the `opencode2` agent on its terminal-backed chat, and asks `opencode` its version', () => {
     expect(structuredAgentRuntimeRegistration('opencode2')).toBeNull()
     expect(structuredAgentRuntimeRegistration('opencode')?.supportsLaunch).toBeTypeOf('function')
-    // Grok runs whatever is installed: its create asks nothing of the binary.
-    expect(structuredAgentRuntimeRegistration('grok')?.supportsLaunch).toBeUndefined()
+  })
+
+  it('checks every structured registration at create, so none is offered without its CLI', () => {
+    expect(
+      STRUCTURED_AGENT_RUNTIME_REGISTRATIONS.map(({ definition }) => definition.agent)
+    ).toEqual(['pi', 'antigravity', 'codex', 'claude', 'grok', 'opencode', 'omp'])
+    for (const { definition, supportsLaunch } of STRUCTURED_AGENT_RUNTIME_REGISTRATIONS) {
+      expect(supportsLaunch, definition.agent).toBeTypeOf('function')
+    }
   })
 
   it('registers OMP on the ACP lane pinning its agent directory, asking its version at create', () => {

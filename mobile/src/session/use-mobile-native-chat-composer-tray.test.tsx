@@ -1,5 +1,6 @@
+import type { ReactNode } from 'react'
 // The composer tray keeps one card list and one child-work strip per conversation, so an action
-// still in flight in one never disables the same control in another, and the strip's open list
+// still in flight in one never disables the same control in another, and the strip's open sheet
 // outlives a roster that empties between sequential children.
 
 import { createElement } from 'react'
@@ -25,7 +26,10 @@ vi.mock('lucide-react-native', () => ({
   Activity: 'Activity',
   AlertCircle: 'AlertCircle',
   Bot: 'Bot',
+  Check: 'Check',
   ChevronDown: 'ChevronDown',
+  ChevronRight: 'ChevronRight',
+  ChevronUp: 'ChevronUp',
   CircleHelp: 'CircleHelp',
   SquareTerminal: 'SquareTerminal',
   Workflow: 'Workflow',
@@ -44,6 +48,14 @@ vi.mock('../components/AgentStateDot', () => ({
   AGENT_WORKING_COLOR: '#eab308',
   AgentStateDot: 'AgentStateDot'
 }))
+vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: 'MobileAgentIcon' }))
+vi.mock('../components/BottomDrawer', async () => {
+  const React = await import('react')
+  return {
+    BottomDrawer: ({ visible, children }: { visible: boolean; children?: ReactNode }) =>
+      visible ? React.createElement('BottomDrawer', { visible }, children) : null
+  }
+})
 vi.mock('../hooks/use-now', () => ({ useNow: () => 100_000 }))
 
 const CARD = {
@@ -130,10 +142,8 @@ describe('useMobileNativeChatComposerTray', () => {
   }
 
   function openStrip(mounted: ReactTestRenderer): void {
-    const header = mounted.root.find(
-      (node) =>
-        String(node.type) === 'Pressable' && node.props.accessibilityState?.expanded !== undefined
-    )
+    const strip = mounted.root.find((node) => node.props.testID === 'background-tasks-strip')
+    const header = strip.findAll((node) => String(node.type) === 'Pressable')[0]!
     act(() => header.props.onPress())
   }
 
@@ -152,6 +162,7 @@ describe('useMobileNativeChatComposerTray', () => {
         createElement(Slot, { sessionKey: 's-a', backgroundTasks: tasks('s-a', null) })
       )
     })
+    // Nothing runs: the finished task waits under the collapsed Finished section, so no row is listed.
     expect(stripRows(mounted)).toHaveLength(0)
     await act(async () => {
       mounted.update(

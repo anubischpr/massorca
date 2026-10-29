@@ -1,10 +1,12 @@
 import { Copy } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
+import { useRepoGhAccountDisplay } from '@/components/repo/use-repo-gh-account-display'
 import { useAppStore } from '@/store'
 import { useRepoSlugIndex } from '@/lib/repo-slug-index'
 import { readRepoSlugCache, settingsForRepoOwner, slugCacheKey } from '@/lib/repo-slug-cache'
 import { isFolderRepo } from '../../../../shared/repo-kind'
+import { ghAccountBindingLabel } from '../../../../shared/github/account-binding'
 import type { NativeChatFileLinkContext } from './native-chat-file-link'
 import { NativeChatSessionField, NativeChatSessionSection } from './NativeChatSessionSection'
 import {
@@ -43,12 +45,18 @@ export function NativeChatSessionEnvironment({
   const isFolderWorkspace = repo ? isFolderRepo(repo) : false
   const branch = workspaceBranchName(worktree?.branch)
   const worktreeName = worktree?.displayName.trim() || null
+  // Why: the repo's own gh.account pin, else its Orca binding; never the globally active gh account.
+  const accountDisplay = useRepoGhAccountDisplay(repo)
+  const githubAccount = accountDisplay.label
+  const noGithubAccount = t('components.nativeChatSummary.noGithubAccount', 'No account bound')
   const compact = (
     <>
+      <p className="truncate">{githubAccount ?? noGithubAccount}</p>
       <p className="truncate">{project}</p>
       <p className="truncate">
         {isFolderWorkspace ? (folder ?? unavailable) : (branch ?? unavailable)}
       </p>
+      <p className="truncate">{worktreeName ?? unavailable}</p>
     </>
   )
   return (
@@ -61,6 +69,23 @@ export function NativeChatSessionEnvironment({
         <NativeChatSessionField
           label={t('components.nativeChatSummary.host', 'Execution host')}
           value={host}
+        />
+        <NativeChatSessionField
+          label={t('components.nativeChatSummary.githubAccount', 'GitHub account')}
+          value={
+            <>
+              <span className="block">{githubAccount ?? noGithubAccount}</span>
+              {accountDisplay.mismatch && repo?.ghAccount ? (
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  {t(
+                    'components.nativeChatSummary.githubAccountMismatch',
+                    'MassOrca binding: {{account}}',
+                    { account: ghAccountBindingLabel(repo.ghAccount) }
+                  )}
+                </span>
+              ) : null}
+            </>
+          }
         />
         <NativeChatSessionField
           label={t('components.nativeChatSummary.project', 'Project')}

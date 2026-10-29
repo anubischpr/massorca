@@ -12,6 +12,8 @@ export type NativeChatFileLinkContext = {
   worktreeId: string
   worktreePath: string
   runtimeEnvironmentId: string | null
+  /** The chat whose agent's recorded writes may be read when a path leaves a paired host's worktree. */
+  sessionId?: string
 }
 
 export type NativeChatResolvedFileLink = {

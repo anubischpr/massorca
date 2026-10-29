@@ -14,7 +14,7 @@ function frame(data: Record<string, unknown>, token: string = TOKEN): string {
 }
 
 function read(raw: unknown) {
-  return readMobileNativeChatVisualBridgeMessage(raw, TOKEN, CHANNEL)
+  return readMobileNativeChatVisualBridgeMessage(raw, TOKEN, CHANNEL, false)
 }
 
 describe('readMobileNativeChatVisualBridgeMessage', () => {

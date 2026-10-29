@@ -2,6 +2,7 @@ import { OrchestrationError } from '../../../../orchestration/orchestration-erro
 import { defineMethod } from '../../../core'
 import { startFederatedWorker } from '../federation/federated-worker-start'
 import { startLocalWorker } from './local-worker-start'
+import { assertWorkerStartAccessModeApplies } from './worker-start-access-mode'
 import {
   decideWorkerStartMode,
   readWorkerStartModeSettings
@@ -61,11 +62,17 @@ export const ORCHESTRATION_WORKER_START_METHODS = [
         // Refused here, before any remote call: an Orca session ID names a chat only on its own host.
         throw new OrchestrationError(
           SESSION_CODES.hostBoundary,
-          `${params.terminal} names a chat by its Orca session ID, which identifies it only on the host that runs it. Run worker-start on that host. No effects were applied.`,
+          `${params.terminal} names a chat by its MassOrca session ID, which identifies it only on the host that runs it. Run worker-start on that host. No effects were applied.`,
           { effectsApplied: false }
         )
       }
       if (params.on) {
+        // Refused before the remote call: a server that predates the field would ignore it silently.
+        assertWorkerStartAccessModeApplies({
+          requested: params.accessMode,
+          terminal: params.terminal,
+          on: params.on
+        })
         // A remote worker is always a terminal agent; the mode receipt rides along so the
         // coordinator still learns why its structured default did not apply.
         const receipt = await startFederatedWorker({

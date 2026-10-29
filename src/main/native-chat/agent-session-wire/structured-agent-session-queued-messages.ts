@@ -6,6 +6,7 @@
 // teardown and no idle sweep. The drain re-reads every gate inside its own
 // serialized step, so there is no loop state to disagree with the journal.
 
+import { isHostOwnedDelegationQuestion } from '../../../shared/delegated-session-journal'
 import { randomUUID } from 'node:crypto'
 import type { AgentJournalMessageItem } from '../../../shared/agent-session-journal-types'
 import {
@@ -47,7 +48,9 @@ export function pendingPromptExists(journal: Pick<AgentSessionJournal, 'visitIte
     if (
       !pending &&
       (body.kind === 'approval' || body.kind === 'question') &&
-      body.resolution.state === 'pending'
+      body.resolution.state === 'pending' &&
+      // Nothing waits on the host's own question, so the queue keeps handing messages over.
+      !isHostOwnedDelegationQuestion(body)
     ) {
       pending = true
     }

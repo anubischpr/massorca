@@ -49,6 +49,7 @@ import {
 } from './agent-session-attachment-params'
 import { CreateAgentSessionParams, EnsureAgentSessionParams } from './agent-session-params'
 import { ReadPlanDocumentParams } from './agent-session-plan-document-params'
+import { ReadRecordedFileParams } from './agent-session-recorded-file-params'
 import { ReadVisualParams } from './agent-session-visual-params'
 import {
   AiVaultListSessionsParams,
@@ -232,7 +233,15 @@ import {
   GitTargetedRemote,
   WorktreeSelector as WorktreeSelectorOfGitParams
 } from './git-params'
-import { BindableAccounts, ValidateAccountBinding } from './github-account-binding-params'
+import {
+  ApplyAccountGitConfig,
+  BindableAccounts,
+  InferRepoAccount,
+  ListAccountOrgs,
+  ListHostBindableAccounts,
+  ReadAccountGitConfig,
+  ValidateAccountBinding
+} from './github-account-binding-params'
 import { CreateIssue, Issue, IssueComment, UpdateIssue } from './github-issue-params'
 import {
   ClearProjectItemField,
@@ -376,6 +385,7 @@ import {
   NotificationsSubscribeParams
 } from './notifications-params'
 import { OrcadMigrationCatalogParams } from './orcad-migration-params'
+import { DelegateRequestParams } from './orchestration-delegate-request-params'
 import {
   FederationDispatchParams,
   FederationFleetSnapshotParams,
@@ -444,6 +454,13 @@ import {
   ProjectHostSetupUpdate,
   ProjectUpdate
 } from './project-runtime-params'
+import {
+  CreatePrototypeRequestParams,
+  ListPrototypeSetsParams,
+  ReadPrototypeDesignSystemParams,
+  ReadPrototypeFileParams,
+  WriteAttachmentParams
+} from './prototype-params'
 import {
   ProjectGroupCreate,
   ProjectGroupImportNested,
@@ -631,6 +648,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'agentSession.queuedMessageSend': QueuedMessageActionParams,
   'agentSession.queuedMessagesResume': QueuedMessagesResumeParams,
   'agentSession.readPlanDocument': ReadPlanDocumentParams,
+  'agentSession.readRecordedFile': ReadRecordedFileParams,
   'agentSession.readVisual': ReadVisualParams,
   'agentSession.release': HoldParams,
   'agentSession.respondToApproval': RespondParams,
@@ -879,11 +897,15 @@ export const RPC_PARAMS_BY_METHOD = {
   'github.addIssueComment': IssueComment,
   'github.addPRReviewComment': PRReviewComment,
   'github.addPRReviewCommentReply': PRReviewCommentReply,
+  'github.applyAccountGitConfig': ApplyAccountGitConfig,
   'github.countWorkItems': WorkItemsCount,
   'github.createIssue': CreateIssue,
+  'github.inferRepoAccount': InferRepoAccount,
   'github.issue': Issue,
+  'github.listAccountOrgs': ListAccountOrgs,
   'github.listAssignableUsers': RepoSelector,
   'github.listBindableAccounts': BindableAccounts,
+  'github.listHostBindableAccounts': ListHostBindableAccounts,
   'github.listIssues': IssuesList,
   'github.listLabels': RepoSelector,
   'github.listWorkItems': WorkItemsList,
@@ -911,6 +933,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'github.project.viewTable': ProjectViewTable,
   'github.project.workItemDetailsBySlug': ProjectWorkItemDetailsBySlug,
   'github.rateLimit': RateLimit,
+  'github.readAccountGitConfig': ReadAccountGitConfig,
   'github.removePRReviewers': RemovePrReviewers,
   'github.repoSlug': RepoSelector,
   'github.repoUpstream': RepoSelector,
@@ -1054,6 +1077,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'orchestration.ask': AskParams,
   'orchestration.callerShow': null,
   'orchestration.check': CheckParams,
+  'orchestration.delegateRequest': DelegateRequestParams,
   'orchestration.dispatch': DispatchParams,
   'orchestration.dispatchShow': DispatchShowParams,
   'orchestration.federationAck': FederationAckParams,
@@ -1103,7 +1127,9 @@ export const RPC_PARAMS_BY_METHOD = {
   'plugins.setEnabled': PluginSetEnabledParams,
   'preflight.check': PreflightCheck,
   'preflight.detectAgents': null,
+  'preflight.detectPiRuntimes': null,
   'preflight.detectRemoteAgents': PreflightDetectRemoteAgents,
+  'preflight.detectRemotePiRuntimes': PreflightDetectRemoteAgents,
   'preflight.detectRemoteWindowsTerminalCapabilities':
     PreflightDetectRemoteWindowsTerminalCapabilities,
   'preflight.refreshAgents': null,
@@ -1122,6 +1148,11 @@ export const RPC_PARAMS_BY_METHOD = {
   'projectHostSetup.list': null,
   'projectHostSetup.setupExistingFolder': ProjectHostSetupExistingFolder,
   'projectHostSetup.update': ProjectHostSetupUpdate,
+  'prototypes.createRequest': CreatePrototypeRequestParams,
+  'prototypes.list': ListPrototypeSetsParams,
+  'prototypes.readDesignSystem': ReadPrototypeDesignSystemParams,
+  'prototypes.readFile': ReadPrototypeFileParams,
+  'prototypes.writeAttachment': WriteAttachmentParams,
   'repo.add': RepoPath,
   'repo.baseRefDefault': RepoSelector,
   'repo.clone': RepoClone,
@@ -1129,6 +1160,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'repo.gitAvailable': null,
   'repo.hooks': RepoSelector,
   'repo.hooksCheck': RepoSelector,
+  'repo.initGit': RepoSelector,
   'repo.issueCommandRead': RepoSelector,
   'repo.issueCommandWrite': RepoIssueCommandWrite,
   'repo.list': null,

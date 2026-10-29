@@ -7,6 +7,7 @@ import type { ProjectHostSetup } from '../../../../shared/project-types'
 import type { Worktree } from '../../../../shared/worktree/types'
 import { splitWorktreeIdForFilesystem } from '../../../../shared/worktree/id'
 import { toAiVaultProjectKey } from '../../../../shared/ai-vault-project-key'
+import { nestedLiveWorktreePaths } from '../../../../shared/ai-vault-session-filters'
 
 export function deriveAiVaultWorkspaceScopePaths(
   activeWorktree: Pick<Worktree, 'id' | 'path' | 'priorWorktreeIds' | 'repoId'> | null,
@@ -17,6 +18,23 @@ export function deriveAiVaultWorkspaceScopePaths(
   }
 
   return collectWorkspaceScopePaths(activeWorktree, liveWorktrees).paths
+}
+
+/**
+ * Live worktrees nested under the active one. The This worktree scope leaves their
+ * sessions out, since their cwd sits inside the active path.
+ */
+export function deriveAiVaultNestedWorktreePaths(
+  activeWorktree: Pick<Worktree, 'id' | 'path'> | null,
+  liveWorktrees: readonly Pick<Worktree, 'id' | 'path' | 'isArchived'>[] = []
+): string[] {
+  if (!activeWorktree) {
+    return []
+  }
+  const otherLivePaths = liveWorktrees
+    .filter((worktree) => worktree.id !== activeWorktree.id && !worktree.isArchived)
+    .map((worktree) => worktree.path)
+  return nestedLiveWorktreePaths(activeWorktree.path, otherLivePaths)
 }
 
 function collectWorkspaceScopePaths(

@@ -2,6 +2,7 @@ import type { AgentJournalRenderItem } from './agent-session-journal-types'
 import { isRootAgentJournalItem } from './agent-session-journal-producer'
 import { isStructuredAgentSessionCommandEntry } from './structured-agent-session-command-entry'
 import { sliceAtCodeUnitLimit } from './surrogate-safe-text-slice'
+import { withoutPrototypeHiddenInstruction } from './prototype-hidden-blocks'
 
 export const STRUCTURED_CHAT_NAME_PROMPT_LIMIT = 4000
 
@@ -23,7 +24,7 @@ export function firstStructuredAgentSessionPrompt(
       continue
     }
     let prompt = ''
-    for (const block of body.blocks) {
+    for (const block of withoutPrototypeHiddenInstruction(body.blocks)) {
       if (block.type === 'text') {
         if (prompt) {
           prompt += '\n'

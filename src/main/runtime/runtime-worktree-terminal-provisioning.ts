@@ -13,6 +13,7 @@ export type WorktreeProvisionTerminalOptions = {
   direction?: 'horizontal' | 'vertical'
   activate?: boolean
   surfaceOwner?: false
+  noSessionTab?: boolean
 }
 
 export type WorktreeTerminalProvisioningHost = {
@@ -47,6 +48,7 @@ export type WorktreeTerminalProvisioningArgs = {
   // Why: setup and startup must use the same wrapper when startup waits for setup.
   wrappedSetupCommand?: string
   surfaceOwner?: false
+  setupPresentation?: 'chat-background-task'
 }
 
 export async function createWorktreeDefaultTabTerminals(
@@ -116,22 +118,31 @@ export async function provisionWorktreeTerminals(
     return { setupSpawned: false, setupTerminalHandle: null }
   }
   const surfacing = args.surfaceOwner === false ? { surfaceOwner: false as const } : {}
+  // Why: a chat-first create opens only its chat, so its setup runs hidden beside no default tabs.
+  const hiddenSetup = args.setupPresentation === 'chat-background-task'
   let setupSpawned = false
   let setupTerminalHandle: string | null = null
   try {
-    const defaultHandles = await createWorktreeDefaultTabTerminals(
-      host,
-      args.worktreeSelector,
-      args.worktreeId,
-      args.defaultTabs,
-      surfacing,
-      args.hasStartupTerminal ? (args.primaryTerminalHandle ?? undefined) : undefined
-    )
+    const defaultHandles = hiddenSetup
+      ? []
+      : await createWorktreeDefaultTabTerminals(
+          host,
+          args.worktreeSelector,
+          args.worktreeId,
+          args.defaultTabs,
+          surfacing,
+          args.hasStartupTerminal ? (args.primaryTerminalHandle ?? undefined) : undefined
+        )
     let primaryHandle = args.primaryTerminalHandle ?? defaultHandles[0] ?? null
     const setupLaunchMode =
       (host.getSettings() as Partial<Pick<GlobalSettings, 'setupScriptLaunchMode'>>)
         .setupScriptLaunchMode ?? 'new-tab'
-    if (!args.hasStartupTerminal && !primaryHandle) {
+    const setupSplits =
+      setupLaunchMode === 'split-vertical' || setupLaunchMode === 'split-horizontal'
+    // Why: the bare shell is the lone terminal or a split target; a new-tab or hidden setup needs neither.
+    const needsBareShell =
+      !args.hasStartupTerminal && !primaryHandle && !hiddenSetup && (!args.setup || setupSplits)
+    if (needsBareShell) {
       primaryHandle = (await host.createTerminal(args.worktreeSelector, surfacing)).handle
     }
     if (args.setup) {
@@ -154,11 +165,10 @@ export async function provisionWorktreeTerminals(
           args.setup.shell
         )
       const env = { ...args.setup.envVars, ...observed?.env }
-      const shouldSplit =
-        primaryHandle &&
-        (setupLaunchMode === 'split-vertical' || setupLaunchMode === 'split-horizontal')
-      const setupTerminal = await (shouldSplit
-        ? host.splitTerminal(primaryHandle, {
+      // Why: a hidden setup never splits, since a split would place it in a visible pane.
+      const splitTarget = setupSplits && !hiddenSetup ? primaryHandle : null
+      const setupTerminal = await (splitTarget
+        ? host.splitTerminal(splitTarget, {
             direction: setupLaunchMode === 'split-horizontal' ? 'horizontal' : 'vertical',
             command,
             env,
@@ -169,7 +179,8 @@ export async function provisionWorktreeTerminals(
             title: 'Setup',
             command,
             env,
-            ...surfacing
+            ...surfacing,
+            ...(hiddenSetup ? { noSessionTab: true } : {})
           }))
       setupTerminalHandle = setupTerminal.handle
       setupSpawned = true

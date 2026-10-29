@@ -1,19 +1,7 @@
 /**
- * Building mobile's `agent.launch` requests and reading their answers: a workspace create, and a
- * launch into a workspace that already exists.
- *
- * The create half issues a mobile workspace create through `agent.launch` rather than
- * `worktree.create`.
- *
- * `worktree.create` + `startupAgent` means "create the worktree agent-first": its startup terminal
- * IS the agent, so the structured branch below it is unreachable. That is why picking an agent on
- * the mobile create sheet always produced a PTY while the in-workspace "+" button produced a chat.
- * `agent.launch` carries the same create payload but lets the host settle the surface, so both
- * mobile entry points route the same way.
- *
- * The request is built from the caller's existing `worktree.create` params so the fallback path
- * stays byte-identical; the reserved agent fields are stripped here with the shared helper the
- * host applies anyway.
+ * Mobile's `agent.launch` requests and their answers: a workspace create, and a launch into an
+ * existing workspace. `worktree.create` + `startupAgent` creates the worktree agent-first, so its
+ * terminal IS the agent and a chat is unreachable; `agent.launch` lets the host settle the surface.
  */
 
 import {
@@ -23,10 +11,13 @@ import {
   type AgentLaunchResult
 } from '../../../src/shared/agent-launch-intent'
 import {
+  AGENT_LAUNCH_PREFERRED_MODE_RUNTIME_CAPABILITY,
   AGENT_LAUNCH_REPLAY_REQUIRED_RUNTIME_CAPABILITY,
   AGENT_LAUNCH_RUNTIME_CAPABILITY
 } from '../../../src/shared/agent-launch-runtime-capability'
+import { makePaneKey } from '../../../src/shared/stable-pane-id'
 import type { TuiAgent } from '../../../src/shared/tui-agent'
+import { structuredSessionRandomUuid } from '../session/structured-session-operation-id'
 import type { RpcSendParams } from '../transport/rpc-params-contract'
 import type { WorkspaceCreateParams } from './workspace-create-params'
 
@@ -35,22 +26,35 @@ import type { WorkspaceCreateParams } from './workspace-create-params'
 export type AgentLaunchSupport = {
   /** The host deduplicates operationId durably and refuses unknown or expired outcomes. */
   replay: boolean
+  /** The host reads `preferredMode`, so a chat asked for over a terminal default is honoured. */
+  preferredMode?: boolean
 }
 
-/** Reads the host's advertised capabilities; unsupported stays plain `false`. */
 export function readAgentLaunchSupport(
   capabilities: readonly string[] | null | undefined
 ): AgentLaunchSupport | false {
   if (!capabilities?.includes(AGENT_LAUNCH_RUNTIME_CAPABILITY)) {
     return false
   }
-  return { replay: capabilities.includes(AGENT_LAUNCH_REPLAY_REQUIRED_RUNTIME_CAPABILITY) }
+  return {
+    replay: capabilities.includes(AGENT_LAUNCH_REPLAY_REQUIRED_RUNTIME_CAPABILITY),
+    preferredMode: capabilities.includes(AGENT_LAUNCH_PREFERRED_MODE_RUNTIME_CAPABILITY)
+  }
 }
 
 export type WorktreeCreateAgentLaunch = {
   agent: TuiAgent
   /** Resolved before the first create: an older host has no `agent.launch` at all. */
   supported: AgentLaunchSupport | false | Promise<AgentLaunchSupport | false>
+  /** The first turn the new session starts with; only an `agent.launch` host can deliver it. */
+  prompt?: AgentLaunchPrompt
+  /** Model, effort, fast and access seeded into a structured chat; an older host drops them. */
+  sessionOptions?: Readonly<Record<string, string>>
+  /**
+   * When set, a host that refuses `agent.launch` ends the create with this message instead of
+   * falling back to a plain `worktree.create`, which would start a bare agent and lose `prompt`.
+   */
+  refuseDowngrade?: string
 }
 
 /** `worktreeId` is tied to the shared contract so a change to it fails this reader's typecheck
@@ -58,17 +62,28 @@ export type WorktreeCreateAgentLaunch = {
 export type AgentLaunchCreateOutcome = {
   worktreeId: AgentLaunchResult['worktreeId']
   warning?: string
+  /** Absent when the receipt says nothing, which callers must read as "not confirmed". */
+  promptDelivered?: boolean
+  /** The pane key that lands the phone on the tab the launch built, when the host named it. */
+  paneKey?: string
+  /** The surface the host built and its own sentence for why, from the launch receipt. */
+  surface?: { mode: 'structured' | 'terminal'; detail: string }
 }
 
 export function agentLaunchCreateParams(
   agent: TuiAgent,
   create: WorkspaceCreateParams,
-  operationId?: string | null
+  operationId?: string | null,
+  extras?: Pick<WorktreeCreateAgentLaunch, 'prompt' | 'sessionOptions'>
 ): RpcSendParams<'agent.launch'> {
   return {
     agent,
     ...(operationId ? { operationId } : {}),
-    target: { kind: 'create-worktree', create: withoutReservedAgentCreateFields(create) }
+    target: { kind: 'create-worktree', create: withoutReservedAgentCreateFields(create) },
+    ...(extras?.prompt ? { prompt: extras.prompt } : {}),
+    ...(extras?.sessionOptions ? { sessionOptions: { ...extras.sessionOptions } } : {}),
+    // Every agent the phone starts is meant to be a chat; only a blank terminal skips this builder.
+    preferredMode: 'chat'
   }
 }
 
@@ -82,6 +97,7 @@ export function agentLaunchExistingParams(args: {
   worktreeId: string
   operationId: string
   prompt?: AgentLaunchPrompt
+  sessionOptions?: Readonly<Record<string, string>>
   launchSource?: string
   paneKey?: string
   sessionId?: string
@@ -92,6 +108,9 @@ export function agentLaunchExistingParams(args: {
     operationId: args.operationId,
     target: { kind: 'existing', worktree: `id:${args.worktreeId}` },
     ...(args.prompt ? { prompt: args.prompt } : {}),
+    // An older host drops it and the chat starts on the saved defaults, as before.
+    ...(args.sessionOptions ? { sessionOptions: { ...args.sessionOptions } } : {}),
+    preferredMode: 'chat',
     ...(args.launchSource ? { launchSource: args.launchSource } : {}),
     ...(args.paneKey ? { paneKey: args.paneKey } : {}),
     ...(args.sessionId ? { sessionId: args.sessionId } : {}),
@@ -101,12 +120,8 @@ export function agentLaunchExistingParams(args: {
 }
 
 /**
- * Reads the launch receipt.
- *
- * Deliberately mode-blind: whichever surface the host built, it published and activated that tab
- * before answering, so the create flow navigates to the workspace and the host's own active-tab
- * marking decides what opens. That is why nothing here branches on `outcome.kind` to pick a
- * destination — a create-time guess would just race the snapshot that already knows.
+ * Reads the launch receipt, mode-blind on purpose: the host publishes and activates the tab before
+ * answering, so a create-time guess at the destination would only race its snapshot.
  */
 export function readAgentLaunchCreateOutcome(result: unknown): AgentLaunchCreateOutcome | null {
   if (!result || typeof result !== 'object' || !('worktreeId' in result)) {
@@ -119,7 +134,72 @@ export function readAgentLaunchCreateOutcome(result: unknown): AgentLaunchCreate
   // v2 guarantees that an incomplete create is reported at the top level, the same place
   // `worktree.create` puts it, so nothing here branches on which surface the host built.
   const warning = readTrimmedWarning(result)
-  return { worktreeId, ...(warning ? { warning } : {}) }
+  const promptDelivered = readPromptDelivered(result)
+  const paneKey = readLandingPaneKey(result)
+  const surface = readLaunchSurface(result)
+  return {
+    worktreeId,
+    ...(warning ? { warning } : {}),
+    ...(promptDelivered !== undefined ? { promptDelivered } : {}),
+    ...(paneKey ? { paneKey } : {}),
+    ...(surface ? { surface } : {})
+  }
+}
+
+/** Said when the host built a terminal for a launch that asked for a chat; null for a chat. */
+export function launchSurfaceNotice(surface: AgentLaunchCreateOutcome['surface']): string | null {
+  return surface?.mode === 'terminal'
+    ? `Opened as a terminal agent, not a chat. ${surface.detail}`.trim()
+    : null
+}
+
+/** For a host that opens its default kind of tab: a terminal may open instead of a chat. */
+export const AGENT_DEFAULT_TAB_NOTE =
+  'This computer will open its default kind of tab for the agent, which may be a terminal.'
+
+/** What the host built, so a terminal is never presented as a chat. Absent when it said nothing. */
+export function readLaunchSurface(source: object): AgentLaunchCreateOutcome['surface'] {
+  const receipt = 'receipt' in source ? source.receipt : undefined
+  if (!receipt || typeof receipt !== 'object' || !('mode' in receipt)) {
+    return undefined
+  }
+  const detail = 'detail' in receipt && typeof receipt.detail === 'string' ? receipt.detail : ''
+  return receipt.mode === 'structured' || receipt.mode === 'terminal'
+    ? { mode: receipt.mode, detail }
+    : undefined
+}
+
+/**
+ * The pane key of the tab a launch built: a terminal names its own, and a chat is listed under the
+ * tab id the host reports. Anything the host leaves out lands the phone on the host active tab.
+ */
+export function readLandingPaneKey(source: object): string | undefined {
+  const outcome = 'outcome' in source ? source.outcome : undefined
+  if (!outcome || typeof outcome !== 'object' || !('kind' in outcome)) {
+    return undefined
+  }
+  if (outcome.kind === 'terminal') {
+    return 'paneKey' in outcome && typeof outcome.paneKey === 'string' && outcome.paneKey
+      ? outcome.paneKey
+      : undefined
+  }
+  if (outcome.kind === 'structured' && 'tabId' in outcome && typeof outcome.tabId === 'string') {
+    try {
+      return makePaneKey(outcome.tabId, structuredSessionRandomUuid())
+    } catch {
+      return undefined
+    }
+  }
+  return undefined
+}
+
+/** Only a receipt that names how the text went can say it arrived; anything else under-claims. */
+function readPromptDelivered(source: object): boolean | undefined {
+  if (!('prompt' in source) || !source.prompt || typeof source.prompt !== 'object') {
+    return undefined
+  }
+  const outcome = 'outcome' in source.prompt ? source.prompt.outcome : undefined
+  return typeof outcome === 'string' ? outcome !== 'not-delivered' : undefined
 }
 
 function readTrimmedWarning(source: unknown): string {

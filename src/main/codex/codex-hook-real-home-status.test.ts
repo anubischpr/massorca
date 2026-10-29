@@ -105,7 +105,7 @@ describe('Codex hook status for ~/.codex', () => {
       state: 'not_installed',
       configPath: hooksPath(),
       managedHooksPresent: false,
-      detail: 'Orca has not asked Codex yet'
+      detail: 'MassOrca has not asked Codex yet'
     })
   })
 
@@ -117,14 +117,14 @@ describe('Codex hook status for ~/.codex', () => {
   })
 
   it('says to update a Codex that cannot approve hooks', async () => {
-    const failure = 'Codex 0.120.0 is too old for Orca status; update Codex'
+    const failure = 'Codex 0.120.0 is too old for MassOrca status; update Codex'
     await answer({ kind: 'refused', codexVersion: 'codex-cli 0.120.0', failure })
 
     expect(status()).toMatchObject({ state: 'not_installed', detail: failure })
   })
 
   it("says Codex was not found, and that Orca's own approval stands until it answers", async () => {
-    const failure = `Orca could not find Codex at ${mocks.codexPath}`
+    const failure = `MassOrca could not find Codex at ${mocks.codexPath}`
     await answer({ kind: 'pending', failure })
     expect(status()).toMatchObject({ state: 'not_installed', detail: failure })
 
@@ -132,7 +132,7 @@ describe('Codex hook status for ~/.codex', () => {
 
     expect(status()).toMatchObject({
       state: 'installed',
-      detail: `Approved by Orca; not yet confirmed by Codex (${failure})`
+      detail: `Approved by MassOrca; not yet confirmed by Codex (${failure})`
     })
   })
 
@@ -145,7 +145,7 @@ describe('Codex hook status for ~/.codex', () => {
 
     expect(status()).toMatchObject({
       state: 'not_installed',
-      detail: `${tomlPath()} keeps hook approvals inline, so Orca cannot add its own there; Orca shows no status for ~/.codex until they are tables`
+      detail: `${tomlPath()} keeps hook approvals inline, so MassOrca cannot add its own there; MassOrca shows no status for ~/.codex until they are tables`
     })
   })
 
@@ -168,7 +168,7 @@ describe('Codex hook status for ~/.codex', () => {
       state: 'error',
       configPath: hooksPath(),
       managedHooksPresent: false,
-      detail: `Orca cannot add its hook to ${hooksPath()}, so Orca shows no status for ~/.codex`
+      detail: `MassOrca cannot add its hook to ${hooksPath()}, so MassOrca shows no status for ~/.codex`
     })
   })
 
@@ -184,7 +184,7 @@ describe('Codex hook status for ~/.codex', () => {
 
     expect(status()).toMatchObject({
       configPath: join(accountHome, 'hooks.json'),
-      detail: 'Orca has not asked Codex yet'
+      detail: 'MassOrca has not asked Codex yet'
     })
   })
 })

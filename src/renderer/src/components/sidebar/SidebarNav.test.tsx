@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   openActivityPage: vi.fn(),
   openMobilePage: vi.fn(),
   openArtifactsPage: vi.fn(),
+  openCreateChatPage: vi.fn(),
   openModal: vi.fn(),
   updateSettings: vi.fn(),
   refreshPreflightStatus: vi.fn(),
@@ -131,6 +132,7 @@ function setSidebarState({
     openActivityPage: mocks.openActivityPage,
     openMobilePage: mocks.openMobilePage,
     openArtifactsPage: mocks.openArtifactsPage,
+    openCreateChatPage: mocks.openCreateChatPage,
     openModal: mocks.openModal,
     updateSettings: mocks.updateSettings,
     preflightStatus: { glab: { installed: false } },
@@ -303,6 +305,39 @@ describe('SidebarNav', () => {
     expect(shouldShowMobileButton({ showMobileButton: false })).toBe(false)
   })
 
+  it('places the Create button above the worktree palette search', async () => {
+    const container = await renderSidebarNav()
+
+    const createButton = getButtonByText(container, 'Create')
+    const searchButton = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Search worktrees and browser tabs"]'
+    )
+    if (!searchButton) {
+      throw new Error('worktree palette search button not rendered')
+    }
+    expect(createButton.querySelector('svg')).not.toBeNull()
+    expect(
+      createButton.compareDocumentPosition(searchButton) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+  })
+
+  it('opens the create-chat view from the Create button', async () => {
+    const container = await renderSidebarNav()
+
+    await clickButton(getButtonByText(container, 'Create'))
+
+    expect(mocks.openCreateChatPage).toHaveBeenCalledOnce()
+    expect(mocks.openModal).not.toHaveBeenCalled()
+  })
+
+  it('marks the Create button as the current page while the create-chat view is open', async () => {
+    setSidebarState()
+    mocks.state.activeView = 'create-chat'
+    const container = await renderSidebarNav()
+
+    expect(getButtonByText(container, 'Create').getAttribute('aria-current')).toBe('page')
+  })
+
   it('updates localized labels when the language changes after mount', async () => {
     const container = await renderSidebarNav()
 
@@ -401,7 +436,8 @@ describe('SidebarNav', () => {
     )
     const tasksButton = getButtonByText(container, 'Tasks')
 
-    expect(nav?.firstElementChild).toBe(searchButton)
+    expect(nav?.children[0]).toBe(getButtonByText(container, 'Create'))
+    expect(nav?.children[1]).toBe(searchButton)
     if (!searchButton) {
       throw new Error('worktree palette search button not rendered')
     }

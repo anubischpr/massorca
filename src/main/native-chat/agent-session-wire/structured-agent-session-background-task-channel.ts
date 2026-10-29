@@ -3,6 +3,12 @@ import type {
   AgentSessionHistoryRequest,
   AgentSessionHistoryResult
 } from '../../../shared/agent-session-wire'
+import type { AgentSessionBackgroundTask } from '../../../shared/agent-session-background-task-wire'
+import {
+  onWorktreeSetupRunsChanged,
+  worktreeSetupRunSessionIds
+} from '../../worktree-setup/setup-run-registry'
+import { worktreeSetupRunRoster } from '../../worktree-setup/setup-run-roster'
 import { structuredChildWorkLegacyTasks } from '../../../shared/structured-agent-session-child-work-legacy'
 import { structuredRunningChildWork } from '../../../shared/agent-child-work-listing'
 import { readStructuredAgentSessionHistoryResult } from './structured-agent-session-history-result'
@@ -40,7 +46,14 @@ export class StructuredAgentSessionBackgroundTaskChannel {
       StructuredAgentSessionClientDelivery,
       'readChildWork' | 'readChildWorkHistory'
     >
-  ) {}
+  ) {
+    // Why: a setup run starting, settling or being bound republishes the roster of its chat.
+    onWorktreeSetupRunsChanged((worktreeId) => {
+      for (const sessionId of worktreeSetupRunSessionIds(worktreeId)) {
+        this.publish(sessionId)
+      }
+    })
+  }
 
   /** `scope` is for in-process readers; a wire request reads every agent's rows. */
   async history(
@@ -108,11 +121,18 @@ export class StructuredAgentSessionBackgroundTaskChannel {
     const views = structuredRunningChildWork(
       (session && this.childWork.readChildWork(sessionId)) ?? []
     )
-    if (!session || views.length === 0) {
+    const setupRuns = session ? worktreeSetupRunRoster(sessionId) : null
+    if (!session || (views.length === 0 && !hasSetupRuns(setupRuns))) {
       return null
     }
     const stops = this.deps.adapter.backgroundTaskStops?.(sessionId)
-    const { tasks, settledTasks } = structuredChildWorkLegacyTasks(views, session.params.provider)
+    const legacy =
+      views.length > 0
+        ? structuredChildWorkLegacyTasks(views, session.params.provider)
+        : { tasks: undefined, settledTasks: undefined }
+    // Why: Orca's setup rows ride the same legacy lists, so an older reader draws them as plain command rows.
+    const tasks = mergeRows(legacy.tasks, setupRuns?.tasks)
+    const settledTasks = mergeRows(legacy.settledTasks, setupRuns?.settledTasks)
     return {
       state: 'monitoring',
       ...(tasks ? { tasks } : {}),
@@ -125,4 +145,19 @@ export class StructuredAgentSessionBackgroundTaskChannel {
       children: views
     }
   }
+}
+
+function hasSetupRuns(
+  runs: { tasks: AgentSessionBackgroundTask[]; settledTasks: AgentSessionBackgroundTask[] } | null
+): boolean {
+  return runs !== null && (runs.tasks.length > 0 || runs.settledTasks.length > 0)
+}
+
+/** Live or settled rows from both sources; no rows stays `undefined`, the shape an older host sends. */
+function mergeRows(
+  fromViews: AgentSessionBackgroundTask[] | undefined,
+  fromSetupRuns: AgentSessionBackgroundTask[] | undefined
+): AgentSessionBackgroundTask[] | undefined {
+  const rows = [...(fromViews ?? []), ...(fromSetupRuns ?? [])]
+  return rows.length > 0 ? rows : undefined
 }

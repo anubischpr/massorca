@@ -2,6 +2,7 @@ import {
   isRuntimePathAbsolute,
   normalizeRuntimePathForComparison
 } from '../../../src/shared/cross-platform-path'
+import { nestedLiveWorktreePaths } from '../../../src/shared/ai-vault-session-filters'
 import type { Worktree } from '../worktree/workspace-list-types'
 import {
   AI_VAULT_SCOPE_PATHS_MAX_COUNT,
@@ -44,6 +45,20 @@ export function deriveMobileAiVaultScopePaths(
   }
 
   return paths
+}
+
+// Why: This worktree leaves out nested live worktrees; they sit inside its path.
+export function deriveMobileAiVaultNestedWorktreePaths(
+  activeWorktree: Pick<Worktree, 'worktreeId' | 'path'> | null,
+  liveWorktrees: readonly Pick<Worktree, 'worktreeId' | 'path' | 'isArchived'>[]
+): string[] {
+  if (!activeWorktree) {
+    return []
+  }
+  const otherLivePaths = liveWorktrees
+    .filter((worktree) => worktree.worktreeId !== activeWorktree.worktreeId && !worktree.isArchived)
+    .map((worktree) => worktree.path)
+  return nestedLiveWorktreePaths(activeWorktree.path, otherLivePaths)
 }
 
 function addScopePath(

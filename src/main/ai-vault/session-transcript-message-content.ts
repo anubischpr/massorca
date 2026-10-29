@@ -1,5 +1,5 @@
 import { asRecord } from './session-scanner-record-value'
-import { sliceAtCodeUnitLimit } from './session-scanner-text-normalization'
+import { sliceAtCodeUnitLimit, typedUserPromptText } from './session-scanner-text-normalization'
 import type { AiVaultSessionPreviewMessage } from '../../shared/ai-vault-types'
 import type { TranscriptMessage, TranscriptMessageRole } from './session-transcript-consumers'
 
@@ -13,6 +13,11 @@ const TEXT_BLOCK_TYPES = new Set(['text', 'input_text', 'output_text', 'thinking
 const TOOL_INPUT_KEYS = ['command', 'cmd', 'file_path', 'path', 'pattern', 'query', 'description']
 
 type PreviewRole = AiVaultSessionPreviewMessage['role']
+
+/** A prompt reads as the user typed it, never with the instruction MassOrca hid behind it. */
+export function typedPromptText(role: TranscriptMessageRole | null, text: string): string {
+  return typedUserPromptText(role, text)
+}
 
 /** Only conversational roles reach consumers; system/unknown turns are noise. */
 export function transcriptMessageRole(role: PreviewRole): TranscriptMessageRole | null {
@@ -81,15 +86,16 @@ export function transcriptMessagesFromContent(
 ): TranscriptMessage[] {
   const messages: TranscriptMessage[] = []
   const textRole = transcriptMessageRole(role)
+  const typedText = (text: string): string => typedPromptText(textRole, text)
   if (typeof content === 'string') {
-    const text = boundedText(content)
+    const text = boundedText(typedText(content))
     return text && textRole ? [{ role: textRole, text, timestamp }] : []
   }
   const blocks = Array.isArray(content) ? content : content != null ? [content] : []
   const textParts: string[] = []
   for (const block of blocks) {
     if (typeof block === 'string') {
-      textParts.push(block)
+      textParts.push(typedText(block))
       continue
     }
     const item = asRecord(block)
@@ -111,7 +117,7 @@ export function transcriptMessagesFromContent(
     }
     const text = typeof item.text === 'string' ? item.text : item.content
     if (typeof text === 'string' && text) {
-      textParts.push(text)
+      textParts.push(typedText(text))
     }
   }
   if (textRole && textParts.length > 0) {

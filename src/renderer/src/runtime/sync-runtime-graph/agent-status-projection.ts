@@ -37,7 +37,9 @@ function serializeAgentStatusEntry(
     lastAssistantMessageIsToolOutput: entry.lastAssistantMessageIsToolOutput ?? null,
     interrupted: entry.interrupted ?? null,
     // A failure changes the verdict and leaves `interrupted` as it was.
-    mainAgent: mainAgentKey(entry.mainAgent)
+    mainAgent: mainAgentKey(entry.mainAgent),
+    // A roster change alone must republish: a paired phone lists these children.
+    subagents: entry.subagents?.map((subagent) => [subagent.id, subagent.state]) ?? null
   })
 }
 

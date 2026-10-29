@@ -14,8 +14,8 @@ export function profileStateWriteFailureDialogOptions(error: Error): MessageBoxO
     message: 'MassOrca has stopped saving this profile.',
     detail:
       profileStateWriterFailureOutcome(error) === 'indeterminate'
-        ? 'Orca could not confirm whether your most recent change was saved. New changes will not be saved until you restart Orca.'
-        : 'Changes saved before this point are safe. New changes will not be saved until you restart Orca.',
+        ? 'MassOrca could not confirm whether your most recent change was saved. New changes will not be saved until you restart MassOrca.'
+        : 'Changes saved before this point are safe. New changes will not be saved until you restart MassOrca.',
     buttons: ['OK']
   }
 }

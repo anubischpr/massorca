@@ -10,6 +10,11 @@ import {
   readNativeChatVisualFrameMessage,
   readNativeChatVisualPong
 } from '../../../../shared/native-chat-visual-shell'
+import {
+  nativeChatVisualAnnotateMessages,
+  type NativeChatVisualAnnotateEvent,
+  type NativeChatVisualAnnotateState
+} from '../../../../shared/native-chat-visual-annotate'
 import type { NativeChatVisualDocument } from './native-chat-visual-read-client'
 import { createNativeChatVisualHeightGovernor } from '../../../../shared/native-chat-visual-height-governor'
 import { useNativeChatVisualTheme } from './use-native-chat-visual-theme'
@@ -26,6 +31,16 @@ function newChannel(): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
+function postAnnotateState(
+  target: Window | null | undefined,
+  state: NativeChatVisualAnnotateState,
+  channel: string
+): void {
+  for (const message of nativeChatVisualAnnotateMessages(state, channel)) {
+    target?.postMessage(message, '*')
+  }
+}
+
 /**
  * One agent-written visual in an opaque-origin frame that may run scripts and nothing else. Inline
  * it fits its height to the page; in a panel it fills the panel. A theme change restyles the page in
@@ -38,7 +53,9 @@ export function NativeChatVisualFrame({
   title,
   layout,
   themeScope,
-  onRetired
+  onRetired,
+  annotate,
+  onAnnotateEvent
 }: {
   document: NativeChatVisualDocument
   title: string
@@ -46,6 +63,12 @@ export function NativeChatVisualFrame({
   /** An element already mounted where the frame sits, so the first paint wears that scope's theme. */
   themeScope: RefObject<Element | null>
   onRetired: () => void
+  /**
+   * Given, the frame is built with the element-annotate script and reports picks and pin clicks to
+   * `onAnnotateEvent`. Whether it is given is fixed per mount; its value may change at any time.
+   */
+  annotate?: NativeChatVisualAnnotateState
+  onAnnotateEvent?: (event: NativeChatVisualAnnotateEvent) => void
 }): React.JSX.Element {
   const frameRef = useRef<HTMLIFrameElement | null>(null)
   const theme = useNativeChatVisualTheme(themeScope)
@@ -54,6 +77,13 @@ export function NativeChatVisualFrame({
   useLayoutEffect(() => {
     themeRef.current = theme
   }, [theme])
+  const annotateCapable = annotate !== undefined
+  const annotateRef = useRef(annotate)
+  const onAnnotateEventRef = useRef(onAnnotateEvent)
+  useLayoutEffect(() => {
+    annotateRef.current = annotate
+    onAnnotateEventRef.current = onAnnotateEvent
+  }, [annotate, onAnnotateEvent])
   const [height, setHeight] = useState(NATIVE_CHAT_VISUAL_RESERVED_HEIGHT)
   const loadsRef = useRef(0)
   // The latest later load still awaiting an answer, and the timer that retires the frame.
@@ -67,10 +97,11 @@ export function NativeChatVisualFrame({
       srcDoc: buildNativeChatVisualDocument({
         html: visual.html,
         channel,
-        theme: themeRef.current
+        theme: themeRef.current,
+        annotate: annotateCapable
       })
     }
-  }, [visual.html])
+  }, [visual.html, annotateCapable])
 
   useEffect(() => {
     loadsRef.current = 0
@@ -103,8 +134,14 @@ export function NativeChatVisualFrame({
         }
         return
       }
-      const message = readNativeChatVisualFrameMessage(event.data, built.channel)
+      const message = readNativeChatVisualFrameMessage(event.data, built.channel, annotateCapable)
       if (!message) {
+        return
+      }
+      if (message.kind === 'element-picked' || message.kind === 'pin-clicked') {
+        if (annotateCapable) {
+          onAnnotateEventRef.current?.(message)
+        }
         return
       }
       if (message.kind === 'size') {
@@ -137,7 +174,7 @@ export function NativeChatVisualFrame({
         clearTimeout(deferred)
       }
     }
-  }, [built.channel, layout])
+  }, [built.channel, layout, annotateCapable])
 
   // A frame rebuilt for a new revision, or unmounted, owes no answer.
   useEffect(
@@ -158,6 +195,13 @@ export function NativeChatVisualFrame({
       )
     }
   }, [built.channel, theme])
+
+  // The annotate state is resent whole on every change; each message replaces the frame's value.
+  useEffect(() => {
+    if (annotate !== undefined && loadsRef.current > 0) {
+      postAnnotateState(frameRef.current?.contentWindow, annotate, built.channel)
+    }
+  }, [annotate, built.channel])
 
   return (
     <div
@@ -197,6 +241,9 @@ export function NativeChatVisualFrame({
             nativeChatVisualThemeMessage(themeRef.current, built.channel),
             '*'
           )
+          if (annotateRef.current !== undefined) {
+            postAnnotateState(frameWindow, annotateRef.current, built.channel)
+          }
         }}
       />
     </div>

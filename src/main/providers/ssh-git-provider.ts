@@ -29,7 +29,7 @@ export class SshGitProvider extends SshGitWorktreeProvider implements IGitProvid
     } catch (error) {
       if (isJsonRpcMethodNotFoundError(error)) {
         throw new ReviewDraftContextError(
-          'SSH review draft support is unavailable on this relay. Reconnect the SSH target to update Orca on the host, then try again.'
+          'SSH review draft support is unavailable on this relay. Reconnect the SSH target to update MassOrca on the host, then try again.'
         )
       }
       throw new ReviewDraftContextError(
@@ -133,7 +133,7 @@ export class SshGitProvider extends SshGitWorktreeProvider implements IGitProvid
       } catch (error) {
         if (isJsonRpcMethodNotFoundError(error)) {
           throw new Error(
-            'SSH clone support is unavailable on this relay. Reconnect the SSH target to update Orca on the host, then try again.'
+            'SSH clone support is unavailable on this relay. Reconnect the SSH target to update MassOrca on the host, then try again.'
           )
         }
         throw error

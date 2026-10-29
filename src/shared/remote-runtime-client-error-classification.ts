@@ -14,16 +14,22 @@ export const RECOVERABLE_CODES: ReadonlySet<string> = new Set([
   'timeout'
 ])
 
+// Why: older remote hosts and clients still send the pre-rebrand "orca" wording.
 export const RECOVERABLE_MESSAGE_FRAGMENTS: readonly string[] = [
   'could not connect to the remote orca runtime',
   'remote orca runtime closed the connection',
   'remote orca runtime connection closed',
   'remote orca runtime is not connected',
+  'timed out waiting for the remote orca runtime',
+  'could not connect to the remote massorca runtime',
+  'remote massorca runtime closed the connection',
+  'remote massorca runtime connection closed',
+  'remote massorca runtime is not connected',
   RUNTIME_RPC_QUEUE_OVERLOAD_MESSAGE_FRAGMENT,
   'remote runtime connection closed',
   'remote runtime subscription closed before it started',
   'remote terminal stream is not connected',
-  'timed out waiting for the remote orca runtime'
+  'timed out waiting for the remote massorca runtime'
 ]
 
 export function isRuntimeRpcQueueOverloadError(error: RemoteRuntimeClientErrorLike): boolean {

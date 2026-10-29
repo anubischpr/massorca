@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { toast } from 'sonner'
+import { copyAiVaultValue } from './ai-vault-value-copy'
 import { useAppStore } from '@/store'
 import {
   useActiveRepo,
@@ -11,10 +11,8 @@ import {
   useRepos
 } from '@/store/selectors'
 import { useAiVaultPanelSessions } from './ai-vault-session-filters'
-import {
-  deriveAiVaultScopeSessionPaths,
-  deriveAiVaultWorkspaceScopePaths
-} from './ai-vault-scope-paths'
+import { deriveAiVaultScopeSessionPaths } from './ai-vault-scope-paths'
+import { useAiVaultWorkspaceScope } from './use-ai-vault-workspace-scope'
 import { countAiVaultViewAdjustments } from './ai-vault-view-defaults'
 import {
   buildAiVaultProjectContext,
@@ -88,11 +86,13 @@ export default function AiVaultPanel(): React.JSX.Element {
     searchSort,
     group,
     hideEmptySessions,
+    showAutomatedRuns,
     sessionLimit,
     setSort,
     setSearchSort,
     setGroup,
     setHideEmptySessions,
+    setShowAutomatedRuns,
     setSessionLimit,
     setAgentEnabled,
     setAllAgentsEnabled,
@@ -123,10 +123,8 @@ export default function AiVaultPanel(): React.JSX.Element {
   )
   const activeWorktreePath = activeWorktree?.path ?? null
   // Why: AI Vault ownership is cwd-based, so we must consider live worktrees across all repos.
-  const activeWorktreePaths = useMemo(
-    () => deriveAiVaultWorkspaceScopePaths(activeWorktree ?? null, allWorktrees),
-    [activeWorktree, allWorktrees]
-  )
+  const { activeWorktreePaths, excludedWorktreePaths, activeWorkspaceIsFolder } =
+    useAiVaultWorkspaceScope({ activeWorktree: activeWorktree ?? null, activeRepo, allWorktrees })
   const projectScopeContext = useMemo(
     () =>
       buildAiVaultProjectContext({
@@ -212,26 +210,20 @@ export default function AiVaultPanel(): React.JSX.Element {
     sessionLimit
   })
 
-  const { filteredSessions, groups } = useAiVaultPanelSessions(sessions, searching, group, {
-    query,
-    agents,
-    scope,
-    sort,
-    activeWorktreePaths,
-    activeProjectKey,
-    sessionProjectById,
-    projectLabelByKey,
-    hideEmptySessions
-  })
-
-  const copyText = useCallback(async (text: string, label: string): Promise<void> => {
-    await window.api.ui.writeClipboardText(text)
-    toast.success(
-      translate('auto.components.right.sidebar.AiVaultPanel.valueCopied', '{{value0}} copied', {
-        value0: label
-      })
-    )
-  }, [])
+  const { filteredSessions, groups, automatedRunCount, delegatedChildrenByRootId } =
+    useAiVaultPanelSessions(sessions, searching, group, {
+      query,
+      agents,
+      scope,
+      sort,
+      activeWorktreePaths,
+      excludedWorktreePaths,
+      activeProjectKey,
+      sessionProjectById,
+      projectLabelByKey,
+      hideEmptySessions,
+      showAutomatedRuns
+    })
 
   const getSessionRowResumeArgs = useCallback(
     (session: AiVaultSession) => ({
@@ -303,6 +295,7 @@ export default function AiVaultPanel(): React.JSX.Element {
         hasScanResult={Boolean(scanResult)}
         activeWorktreePath={activeWorktreePath}
         activeProjectKey={activeProjectKey}
+        activeWorkspaceIsFolder={activeWorkspaceIsFolder}
         scope={scope}
         executionHostScope={executionHostScope}
         hostScopeOptions={hostScopeOptions}
@@ -311,6 +304,9 @@ export default function AiVaultPanel(): React.JSX.Element {
         hideEmptySessions={hideEmptySessions}
         sessionLimit={sessionLimit}
         adjustmentCount={viewAdjustmentCount}
+        showAutomatedRuns={showAutomatedRuns}
+        automatedRunCount={automatedRunCount}
+        onShowAutomatedRunsChange={setShowAutomatedRuns}
         focusSearchRequestId={focusSearchRequestId}
         onQueryChange={setQuery}
         onScopeChange={handleScopeChange}
@@ -354,6 +350,7 @@ export default function AiVaultPanel(): React.JSX.Element {
             key={searching ? search.resetKey : 'history'}
             searchHits={searching ? searchHits : undefined}
             groups={groups}
+            delegatedChildrenByRootId={delegatedChildrenByRootId}
             collapsedGroups={collapsedGroups}
             loading={searching ? search.loading : loading}
             sessionsCount={sessions.length}
@@ -380,13 +377,13 @@ export default function AiVaultPanel(): React.JSX.Element {
               void launchActions.copyResumeCommand(session, worktreeId)
             }
             onCopyId={(session) =>
-              void copyText(
+              void copyAiVaultValue(
                 session.sessionId,
                 translate('auto.components.right.sidebar.AiVaultPanel.sessionId', 'Session ID')
               )
             }
             onCopyPath={(session) =>
-              void copyText(
+              void copyAiVaultValue(
                 session.filePath,
                 translate('auto.components.right.sidebar.AiVaultPanel.logPath', 'Log path')
               )

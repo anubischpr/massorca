@@ -7,23 +7,21 @@ import { useMobileNativeChatAskDismiss } from './use-mobile-native-chat-ask-dism
 import { useMobileNativeChatDrafts } from './use-mobile-native-chat-drafts'
 import { useMobileNativeChatFileSearch } from './use-mobile-native-chat-file-search'
 import { useMobileNativeChatMessageSend } from './use-mobile-native-chat-message-send'
-import { mobileNativeChatStreamPreview } from './mobile-native-chat-streaming-gate'
+import { useMobileNativeChatStreamingState } from './use-mobile-native-chat-streaming-state'
 import { useMobileNativeChatSessionOptionController } from './use-mobile-native-chat-session-option-controller'
 import { useMobileNativeChatSessionLane } from './use-mobile-native-chat-session-lane'
 import { useMobileStructuredNativeChatSendBridge } from './use-mobile-structured-native-chat-send-bridge'
 import { useMobileNativeChatPrompts } from './use-mobile-native-chat-prompts'
 import { useNativeChatAcceptedAction } from './use-native-chat-action-outcomes'
-import { useThrottledLatestValue } from './use-throttled-latest-value'
 import type { MobileNativeChatController } from './mobile-native-chat-controller-contract'
 import { useMobileBridgeChatPromptWrites } from './use-mobile-bridge-chat-prompt-writes'
 import { useMobileNativeChatActiveResolution } from './use-mobile-native-chat-active-resolution'
 import { useMobileNativeChatPromptCards } from './use-mobile-native-chat-prompt-cards'
 import { mobileNativeChatScopeKey } from './mobile-native-chat-scope-key'
 import { useMobileChatPiRuntime } from './mobile-structured-pi-runtime-record'
+import { useMobileNativeChatPrototypeSurface } from '../prototypes/use-mobile-native-chat-prototype-surface'
 
 export type { MobileNativeChatController } from './mobile-native-chat-controller-contract'
-
-const NATIVE_CHAT_STREAM_THROTTLE_MS = 50
 
 /** Owns mobile native-chat state and teardown outside the already dense session
  *  route. The route remains responsible only for choosing and rendering the view. */
@@ -138,21 +136,14 @@ export function useMobileNativeChatController(args: {
     queuedCards: structuredNativeChat.queued.cards
   })
 
-  // Deliberately not gated on the chat view being visible: the streaming gate
-  // has to tell "hidden mid-turn" from "the turn ended".
-  const nativeChatStreamLive = activeChatStructured
-    ? structuredNativeChat.isWorking
-    : activeTabAgentWorking
-  const nativeChatAgentWorking =
-    nativeChatStreamLive && (activeChatStructured || activeChatResolution != null)
-  // Throttle the streaming bubble: OpenCode emits a status frame per streamed
-  // part, and each one re-renders and re-parses the whole accumulated markdown.
-  const nativeChatStreamingText = useThrottledLatestValue(
-    activeChatStructured
-      ? undefined
-      : mobileNativeChatStreamPreview(nativeChatStatus, nativeChatAgentWorking),
-    NATIVE_CHAT_STREAM_THROTTLE_MS
-  )
+  const streaming = useMobileNativeChatStreamingState({
+    structured: activeChatStructured,
+    structuredWorking: structuredNativeChat.isWorking,
+    terminalWorking: activeTabAgentWorking,
+    resolved: activeChatResolution != null,
+    status: nativeChatStatus
+  })
+  const nativeChatAgentWorking = streaming.agentWorking
   const {
     permission: legacyNativeChatPermission,
     question: legacyQuestion,
@@ -227,8 +218,19 @@ export function useMobileNativeChatController(args: {
     onSendError
   })
 
+  const prototypes = useMobileNativeChatPrototypeSurface({
+    client,
+    sessionId: activeChatStructured ? activeChatSessionId : null,
+    worktreeId,
+    scopeKey: promptScopeKey ?? '',
+    agent: activeChatResolution?.agent,
+    piRuntime: nativeChatPiRuntime,
+    messages: nativeChatSession.messages,
+    plainSend: structuredNativeChat.sendWithOutcome
+  })
   const structuredNativeChatSend = useMobileStructuredNativeChatSendBridge({
     agent: activeChatResolution?.agent,
+    resolvePrototype: prototypes.resolve,
     sendStructured: structuredNativeChat.sendWithOutcome,
     captureSendOrigin,
     clearDraftForSend,
@@ -255,6 +257,7 @@ export function useMobileNativeChatController(args: {
         conversationCommands: structuredNativeChat.conversationCommands,
         snapshot: structuredNativeChat.optionSnapshot,
         pendingId: structuredNativeChat.pendingOptionId,
+        loading: structuredNativeChat.optionsLoading,
         setOption: structuredNativeChat.setStructuredOption,
         invokeAction: structuredNativeChat.invokeStructuredOption
       },
@@ -264,7 +267,13 @@ export function useMobileNativeChatController(args: {
   useLayoutEffect(() => {
     recordSessionOptionCommandRef.current = recordNativeChatSessionOptionCommand
     appendComposerTextRef.current = appendComposerText
-  }, [appendComposerText, recordNativeChatSessionOptionCommand])
+    prototypes.composerSend.current = structuredNativeChatSend.sendWithOutcome
+  }, [
+    appendComposerText,
+    prototypes.composerSend,
+    recordNativeChatSessionOptionCommand,
+    structuredNativeChatSend.sendWithOutcome
+  ])
   // Card actions retire the route's held failure banner too, not just sends.
   const answerAsk = useNativeChatAcceptedAction(handleNativeChatAnswerAsk, onSendResolved)
   const cancelAsk = useNativeChatAcceptedAction(handleNativeChatCancelAsk, onSendResolved)
@@ -309,8 +318,8 @@ export function useMobileNativeChatController(args: {
     nativeChatCanStop: activeChatStructured
       ? structuredNativeChat.turnId !== null
       : nativeChatAgentWorking,
-    nativeChatStreamingText,
-    nativeChatStreamLive,
+    nativeChatStreamingText: streaming.text,
+    nativeChatStreamLive: streaming.live,
     nativeChatStreamScopeKey: streamScopeKey,
     ...promptCards,
     nativeChatAsk:
@@ -334,6 +343,7 @@ export function useMobileNativeChatController(args: {
     handleNativeChatSendWithOutcome: activeChatStructured
       ? structuredNativeChatSend.sendWithOutcome
       : handleNativeChatSendWithOutcome,
+    ...prototypes.fields,
     readSeededLaunchDraft,
     nativeChatSessionOptions
   }

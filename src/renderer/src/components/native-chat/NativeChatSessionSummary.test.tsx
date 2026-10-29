@@ -4,20 +4,32 @@ import { afterEach, expect, it, vi } from 'vitest'
 import type { AgentChildRowContext } from '../../../../shared/agent-child-row-model'
 import type { AgentChildWorkView } from '../../../../shared/agent-status-child-work-view'
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
+import type { DelegationNoticePayload } from '../../../../shared/delegated-session-journal'
 import type { StructuredAgentContextSummary } from '../../../../shared/structured-agent-session-context-usage'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { clearRepoGhAccountGitConfigCache } from '@/lib/repo-gh-account-git-config-cache'
 import { NativeChatSessionSummary } from './NativeChatSessionSummary'
+import { NativeChatVisualOwnerContext } from './native-chat-visual-owner'
 
-const { store } = vi.hoisted(() => {
+const { store, readGitConfig } = vi.hoisted(() => {
   const repos: unknown[] = []
   const settings: unknown = { activeRuntimeEnvironmentId: null }
   const worktreesByRepo: Record<string, unknown[]> = {}
-  return { store: { repos, settings, worktreesByRepo } }
+  const openRightSidebarVisual: (route: unknown) => void = () => {}
+  return {
+    store: { repos, settings, worktreesByRepo, openRightSidebarVisual },
+    readGitConfig: vi.fn<() => Promise<unknown>>(async () => null)
+  }
 })
 vi.mock('@/store', () => ({
   useAppStore: (selector: (state: unknown) => unknown) => selector(store)
 }))
-vi.mock('@/lib/repo-slug-index', () => ({ useRepoSlugIndex: () => ({ ready: true }) }))
+vi.mock('@/components/settings/repository-github-account', () => ({
+  readRepositoryGhAccountGitConfig: readGitConfig
+}))
+vi.mock('@/lib/repo-slug-index', () => ({
+  useRepoSlugIndex: () => ({ ready: true })
+}))
 vi.mock('./use-structured-agent-session-host-label', () => ({
   useStructuredAgentSessionHostLabel: () => 'Development VPS'
 }))
@@ -32,6 +44,9 @@ afterEach(() => {
   cleanup()
   store.repos = []
   store.worktreesByRepo = {}
+  clearRepoGhAccountGitConfigCache()
+  readGitConfig.mockReset()
+  readGitConfig.mockResolvedValue(null)
 })
 
 const connectorCall: AgentJournalRenderItem = {
@@ -39,7 +54,12 @@ const connectorCall: AgentJournalRenderItem = {
   sequence: 1,
   revision: 1,
   observedAt: 10,
-  body: { kind: 'tool-call', name: 'mcp__history__search', input: {}, state: 'completed' }
+  body: {
+    kind: 'tool-call',
+    name: 'mcp__history__search',
+    input: {},
+    state: 'completed'
+  }
 }
 const todoPlan: AgentJournalRenderItem = {
   itemId: 'todo',
@@ -52,7 +72,11 @@ const todoPlan: AgentJournalRenderItem = {
     input: {
       todos: [
         { content: 'Read the spec', status: 'completed' },
-        { content: 'Write the fix', status: 'in_progress', activeForm: 'Writing the fix' },
+        {
+          content: 'Write the fix',
+          status: 'in_progress',
+          activeForm: 'Writing the fix'
+        },
         { content: 'Run tests', status: 'pending' }
       ]
     },
@@ -206,7 +230,13 @@ it('expands sections inline, several at once, and collapses each without a back 
 
 it('shows the project and branch compactly and every workspace field when expanded', () => {
   store.repos = [
-    { id: 'repo', path: 'C:/repos/orca', displayName: 'Orca', badgeColor: '#000', addedAt: 0 }
+    {
+      id: 'repo',
+      path: 'C:/repos/orca',
+      displayName: 'Orca',
+      badgeColor: '#000',
+      addedAt: 0
+    }
   ]
   store.worktreesByRepo = {
     repo: [
@@ -309,6 +339,46 @@ function commandView(id: string, changes: Partial<AgentChildWorkView> = {}): Age
   }
 }
 
+it('counts a running child session in the collapsed background line', () => {
+  const started: DelegationNoticePayload = {
+    requestId: 'req-1',
+    title: 'Explore routing',
+    status: 'started',
+    agent: 'codex',
+    model: null,
+    effort: null,
+    childSessionId: 'child-1',
+    placement: 'current',
+    automatic: false
+  }
+  render(
+    <TooltipProvider>
+      <NativeChatSessionSummary
+        {...props}
+        context={liveContext}
+        roster={{ state: 'monitoring', supportsTaskStop: true }}
+        commandActivity={[]}
+        journalItems={[
+          connectorCall,
+          {
+            itemId: 'req-1-started',
+            revision: 1,
+            sequence: 30,
+            observedAt: 30,
+            body: { kind: 'status', text: 'Explore routing', delegation: started }
+          }
+        ]}
+      />
+    </TooltipProvider>
+  )
+
+  expect(screen.getByRole('button', { name: /^Background tasks/ }).textContent).toContain(
+    '1 running'
+  )
+  expect(screen.queryByText('No running background tasks')).toBeNull()
+  expect(screen.getByText('Explore routing')).toBeDefined()
+})
+
 it('lists running background tasks in the collapsed card, each with a Stop that names it', () => {
   const onStop = vi.fn()
   render(
@@ -319,7 +389,11 @@ it('lists running background tasks in the collapsed card, each with a Stop that 
         roster={{ state: 'monitoring', supportsTaskStop: true }}
         commandActivity={[
           commandView('build'),
-          commandView('tail', { membership: 'settled', state: 'done', settledAt: 900 })
+          commandView('tail', {
+            membership: 'settled',
+            state: 'done',
+            settledAt: 900
+          })
         ]}
         backgroundStop={{ stoppingTaskIds: new Set(), onStop }}
       />
@@ -351,4 +425,149 @@ it('shows running background tasks without a Stop from a host that predates the 
     '1 running'
   )
   expect(screen.queryByRole('button', { name: 'Stop build' })).toBeNull()
+})
+
+const environmentFileContext = {
+  worktreeId: 'repo::C:/repos/orca/feature-wt',
+  worktreePath: 'C:/repos/orca/feature-wt',
+  runtimeEnvironmentId: null
+}
+const environmentWorktrees = {
+  repo: [
+    {
+      id: 'repo::C:/repos/orca/feature-wt',
+      repoId: 'repo',
+      path: 'C:/repos/orca/feature-wt',
+      branch: 'refs/heads/feature/x',
+      displayName: 'Feature worktree'
+    }
+  ]
+}
+
+it('falls back to the bound GitHub account when gh.account is not readable', () => {
+  store.repos = [
+    {
+      id: 'repo',
+      path: 'C:/repos/orca',
+      displayName: 'Orca',
+      badgeColor: '#000',
+      addedAt: 0,
+      ghAccount: { host: 'github.acme.com', user: 'svc_build' }
+    }
+  ]
+  store.worktreesByRepo = environmentWorktrees
+  render(<NativeChatSessionSummary {...props} fileContext={environmentFileContext} />)
+  expect(screen.getByText('svc_build@github.acme.com')).toBeTruthy()
+  expect(screen.queryByText('No account bound')).toBeNull()
+})
+
+it('says no account is bound instead of showing the active gh account', () => {
+  store.repos = [
+    {
+      id: 'repo',
+      path: 'C:/repos/orca',
+      displayName: 'Orca',
+      badgeColor: '#000',
+      addedAt: 0
+    }
+  ]
+  store.worktreesByRepo = environmentWorktrees
+  render(<NativeChatSessionSummary {...props} fileContext={environmentFileContext} />)
+  expect(screen.getByText('No account bound')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: /^Environment/ }))
+  expect(screen.getByText('GitHub account')).toBeTruthy()
+  expect(screen.getByText('No account bound')).toBeTruthy()
+})
+
+it('shows the repo gh.account pin over a differing Orca binding and notes the binding', async () => {
+  readGitConfig.mockResolvedValue({ account: 'palominoc-perulaunch', identityManaged: false })
+  store.repos = [
+    {
+      id: 'repo',
+      path: 'C:/repos/orca',
+      displayName: 'Orca',
+      badgeColor: '#000',
+      addedAt: 0,
+      ghAccount: { host: 'github.com', user: 'palominoc' }
+    }
+  ]
+  store.worktreesByRepo = environmentWorktrees
+  render(<NativeChatSessionSummary {...props} fileContext={environmentFileContext} />)
+  expect(await screen.findByText('palominoc-perulaunch')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: /^Environment/ }))
+  expect(screen.getByText('MassOrca binding: palominoc')).toBeTruthy()
+})
+
+it('shows a repo gh.account pin even when no Orca binding is set', async () => {
+  readGitConfig.mockResolvedValue({ account: 'palominoc', identityManaged: false })
+  store.repos = [
+    { id: 'repo', path: 'C:/repos/orca', displayName: 'Orca', badgeColor: '#000', addedAt: 0 }
+  ]
+  store.worktreesByRepo = environmentWorktrees
+  render(<NativeChatSessionSummary {...props} fileContext={environmentFileContext} />)
+  expect(await screen.findByText('palominoc')).toBeTruthy()
+  expect(screen.queryByText('No account bound')).toBeNull()
+})
+
+const visualOwner = {
+  target: { kind: 'environment', environmentId: 'opaque-id' } as const,
+  sessionId: 'session-1',
+  tabId: 'tab-1',
+  worktreeId: 'repo::C:/repos/orca/feature-wt'
+}
+
+it('lists a visual the chat shows in Results and opens it in the sidebar', () => {
+  const openRightSidebarVisual = vi.fn()
+  store.openRightSidebarVisual = openRightSidebarVisual
+  const reply: AgentJournalRenderItem = {
+    itemId: 'reply-1',
+    sequence: 3,
+    revision: 1,
+    observedAt: 30,
+    body: {
+      kind: 'message',
+      role: 'assistant',
+      blocks: [
+        {
+          type: 'text',
+          text: 'Here is the chart.\n\n::orca-visual{file="usage-chart.html" title="Usage by day"}'
+        }
+      ]
+    }
+  }
+  render(
+    <NativeChatVisualOwnerContext.Provider value={visualOwner}>
+      <NativeChatSessionSummary {...props} journalItems={[reply]} />
+    </NativeChatVisualOwnerContext.Provider>
+  )
+  fireEvent.click(screen.getByRole('button', { name: /^Results/ }))
+  fireEvent.click(screen.getByRole('button', { name: /Usage by day/ }))
+  expect(openRightSidebarVisual).toHaveBeenCalledWith({
+    target: visualOwner.target,
+    sessionId: 'session-1',
+    tabId: 'tab-1',
+    worktreeId: visualOwner.worktreeId,
+    messageId: 'reply-1',
+    file: 'usage-chart.html',
+    title: 'Usage by day'
+  })
+})
+
+it('does not list visuals outside a structured chat owner, where no visual can open', () => {
+  store.openRightSidebarVisual = vi.fn()
+  const reply: AgentJournalRenderItem = {
+    itemId: 'reply-1',
+    sequence: 3,
+    revision: 1,
+    observedAt: 30,
+    body: {
+      kind: 'message',
+      role: 'assistant',
+      blocks: [{ type: 'text', text: '::orca-visual{file="usage-chart.html"}' }]
+    }
+  }
+  render(<NativeChatSessionSummary {...props} journalItems={[reply]} />)
+  fireEvent.click(screen.getByRole('button', { name: /^Results/ }))
+  expect(screen.queryByRole('button', { name: /usage-chart/ })).toBeNull()
+  expect(screen.getByText('No file changes or visuals reported.')).toBeTruthy()
 })

@@ -25,6 +25,9 @@ import {
 } from './mobile-terminal-tab-agent'
 import { colors } from '../theme/mobile-theme'
 import { QuickCommandsTabButton } from './QuickCommandsTabButton'
+import { MobileSessionSwitcherChip } from './MobileSessionSwitcherChip'
+import { mobileChatSessionCount } from './mobile-session-switcher-rows'
+import { resolveMobileSessionQuickCommandsAction } from './mobile-session-quick-commands-action'
 import { styles } from './mobile-session-styles'
 import { useKeyboardPersistingTaps } from '../platform/keyboard-persisting-taps'
 import type { MobileSessionController } from './use-mobile-session-controller'
@@ -62,7 +65,11 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
     showConnectionRetry,
     terminalSummary,
     handlePanelTap,
-    showHeaderMoreButton
+    showHeaderMoreButton,
+    showSessionSwitcherChip,
+    activeSessionRow,
+    sessionRows,
+    openSessionsSheet
   } = controller
   const tabBarKeepsKeyboard = useKeyboardPersistingTaps('handled')
   // A chat's options may name Gentle Shell after its tab was listed without a marker.
@@ -126,6 +133,14 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
           />
         ) : null}
       </View>
+
+      {showSessionSwitcherChip ? (
+        <MobileSessionSwitcherChip
+          activeRow={activeSessionRow}
+          sessionCount={mobileChatSessionCount(sessionRows)}
+          onPress={openSessionsSheet}
+        />
+      ) : null}
 
       {visibleTabs.length > 0 && (
         <View ref={tabBarKeepsKeyboard} style={styles.tabBar}>
@@ -227,16 +242,10 @@ export function MobileSessionHeader({ controller }: { controller: MobileSessionC
           <QuickCommandsTabButton
             disabled={creating || creatingBrowser || creatingMarkdown || connState !== 'connected'}
             onPress={() => {
-              if (quickCommandsSupported === true) {
-                setShowQuickCommands(true)
-                return
-              }
-              showToast(
-                quickCommandsSupported === false
-                  ? 'Desktop update required for quick commands'
-                  : 'Checking desktop capabilities — try again in a moment',
-                1600
-              )
+              resolveMobileSessionQuickCommandsAction(quickCommandsSupported, {
+                open: () => setShowQuickCommands(true),
+                toast: showToast
+              })
             }}
           />
         </View>

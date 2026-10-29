@@ -166,6 +166,26 @@ describe('useMobileNativeChatSessionOptions', () => {
     expect(onAgentPicker).toHaveBeenCalledOnce()
   })
 
+  it('names an untracked terminal model by the agent label', () => {
+    mount({ agent: 'codex' })
+    expect(api!.snapshot[0]!.label).toBe("Agent's model")
+    expect(api!.snapshot[0]!.kind).not.toHaveProperty('currentValue')
+  })
+
+  it('tracks a reported model outside the seed as the current choice', () => {
+    mount({ agent: 'codex', reportedModel: 'gpt-6-astra' })
+    expect(api!.snapshot[0]).toMatchObject({ valueSource: 'reported' })
+    expect(api!.snapshot[0]!.kind).toMatchObject({
+      currentValue: 'gpt-6-astra',
+      choices: expect.arrayContaining([{ value: 'gpt-6-astra', label: 'gpt-6-astra' }])
+    })
+  })
+
+  it('offers the effort control for a reported model outside the seed', () => {
+    mount({ agent: 'codex', reportedModel: 'gpt-6-astra' })
+    expect(api!.snapshot.map((descriptor) => descriptor.id)).toContain('effort')
+  })
+
   it('seeds the current model from a hook-reported provider model', () => {
     mount({ reportedModel: 'claude-sonnet-5' })
     const model = api!.snapshot[0]!

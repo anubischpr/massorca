@@ -340,6 +340,13 @@ describe('shouldRunSetupForCreate', () => {
     expect(shouldRunSetupForCreate(makeRepo('skip-by-default'))).toBe(false)
   })
 
+  it('runs setup for an explicit run even when the repo asks each time', async () => {
+    const { shouldRunSetupForCreate } = await import('./effective-hook-config')
+
+    // Why: create-chat sends 'run'; it must not hit the ask policy's "decision required" throw.
+    expect(shouldRunSetupForCreate(makeRepo('ask'), 'run')).toBe(true)
+  })
+
   it('lets the caller override the repo default per create', async () => {
     const { shouldRunSetupForCreate } = await import('./effective-hook-config')
 

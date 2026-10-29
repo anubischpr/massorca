@@ -126,6 +126,14 @@ export const STRUCTURED_CALLS: {
     hostMethod: null,
     result: { ok: false, error: 'session_not_found' }
   },
+  // A file this chat's agent wrote, read on the host that owns the chat. A bare addition: an older
+  // host answers `method_not_found`, which the client shows as "update the host". The stub host
+  // holds no record, so the typed refusal is the answer.
+  {
+    method: 'agentSession.readRecordedFile',
+    hostMethod: null,
+    result: { ok: false, error: 'session_not_found' }
+  },
   // Esc on a suggested next message, kept dismissed across host restarts. A bare addition: an older
   // host answers `method_not_found` and the client keeps its own dismissal.
   {

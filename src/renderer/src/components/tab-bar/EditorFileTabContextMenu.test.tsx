@@ -208,7 +208,7 @@ async function renderMenu(
     repoConnectionId?: string | null
     runtimeEnvironmentId?: string | null
     externalSshTargetId?: string
-    mode?: 'edit' | 'check-details'
+    mode?: 'edit' | 'check-details' | 'recorded-file'
   } = {}
 ): Promise<unknown> {
   const { runtimeEnvironmentId, externalSshTargetId, mode = 'edit', ...props } = overrides
@@ -402,5 +402,9 @@ describe('EditorFileTabContextMenu reveal in file manager', () => {
 
   it('offers no reveal for a check-details tab, which has no file on disk', async () => {
     expect(await renderRevealItem({ mode: 'check-details' })).toBeUndefined()
+  })
+
+  it('offers no reveal for a recorded-file tab, which lives on the remote host', async () => {
+    expect(await renderRevealItem({ mode: 'recorded-file' })).toBeUndefined()
   })
 })

@@ -25,7 +25,8 @@ export function createWorkspaceTabCloseCommands({
         (item.contentType === 'editor' ||
           item.contentType === 'diff' ||
           item.contentType === 'conflict-review' ||
-          item.contentType === 'check-details')
+          item.contentType === 'check-details' ||
+          item.contentType === 'recorded-file')
     )
     if (!otherReference) {
       const file = useAppStore.getState().openFiles.find((candidate) => candidate.id === entityId)

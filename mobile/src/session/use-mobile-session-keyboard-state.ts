@@ -76,6 +76,7 @@ export function useMobileSessionKeyboardState(scope: MobileSessionKeyboardScope)
     notifyTerminalFrameHeight,
     notifyTerminalFrameWidth,
     notifyKeyboardVisibility,
+    notifyKeyboardResizesFrame,
     notifyTerminalCellBoxChange
   } = useTerminalViewportRefit({
     activeHandleRef,
@@ -155,6 +156,7 @@ export function useMobileSessionKeyboardState(scope: MobileSessionKeyboardScope)
     notifyTerminalFrameHeight,
     notifyTerminalFrameWidth,
     notifyKeyboardVisibility,
+    notifyKeyboardResizesFrame,
     notifyTerminalCellBoxChange,
     scrollActiveTabIntoView,
     handleDeleteCustomKey,

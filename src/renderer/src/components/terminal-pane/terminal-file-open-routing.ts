@@ -6,6 +6,10 @@ import { findWorkspaceFileRoute } from '@/lib/runtime-workspace-file-route'
 import { isPathInsideWorktree, toWorktreeRelativePath } from '@/lib/terminal-links'
 import { canClientOsOpenWorkspaceFile } from '@/lib/workspace-file-host-routing'
 import { isMissingRuntimePathError } from '@/runtime/runtime-file-client'
+import {
+  isRecordedSessionFileOperation,
+  RemoteFileOutsideWorktreeError
+} from '@/runtime/runtime-file-routing'
 import { useAppStore } from '@/store'
 import { activateAndRevealWorkspace, activateAndRevealWorktree } from '@/lib/worktree-activation'
 import { resolveKnownWorktreeRootPathLink } from './terminal-worktree-path-link'
@@ -46,6 +50,10 @@ type TerminalFileOpenDeps = {
   openWithSystemDefault?: boolean
   /** Reports a path that could not be verified before opening; skipped once a later open supersedes it. */
   onOpenFailure?: (failure: FileOpenFailure) => void
+  /** The chat whose agent's recorded writes may be read where a paired host's worktree ends. */
+  agentSessionId?: string
+  /** Shows such a file read-only; it has no editor or default-app route on this machine. */
+  onOpenRecordedSessionFile?: (path: string) => void
 }
 
 export function isHtmlFilePath(filePath: string): boolean {
@@ -119,7 +127,10 @@ export function openDetectedFilePath(
 
   void (async () => {
     let statResult
-    const fileContext = getTerminalFileContext(worktreeId, worktreePath, runtimeEnvironmentId)
+    const fileContext: TerminalFileContext = {
+      ...getTerminalFileContext(worktreeId, worktreePath, runtimeEnvironmentId),
+      ...(deps.agentSessionId ? { agentSessionId: deps.agentSessionId } : {})
+    }
     if (!fileContext.sourceHostResolved) {
       // Why: with no owner the host is unknown — refuse rather than touch this machine's files.
       deps.onOpenFailure?.({
@@ -182,6 +193,18 @@ export function openDetectedFilePath(
     if (statResult.isDirectory) {
       if (canOpenWithSystemDefault) {
         await window.api.shell.openFilePath(mappedFilePath)
+      }
+      return
+    }
+
+    if (isRecordedSessionFileOperation(fileContext, mappedFilePath)) {
+      if (deps.onOpenRecordedSessionFile) {
+        deps.onOpenRecordedSessionFile(mappedFilePath)
+      } else {
+        deps.onOpenFailure?.({
+          verdict: 'unverifiable',
+          error: new RemoteFileOutsideWorktreeError()
+        })
       }
       return
     }

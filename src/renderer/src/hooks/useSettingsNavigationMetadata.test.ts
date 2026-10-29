@@ -163,6 +163,24 @@ describe('settings navigation metadata', () => {
     expect(workflowIds.slice(0, 3)).toEqual(['automations', 'artifacts', 'share-skills'])
   })
 
+  it('lists Prototypes under Workflows, after Share Skills', () => {
+    const sections = buildSettingsNavigationMetadata({
+      isMac: false,
+      isWindows: false,
+      isWebClient: false,
+      repos: [repo]
+    })
+    const workflowIds = sections
+      .filter((section) => section.group === 'workflows')
+      .map((section) => section.id)
+
+    expect(workflowIds.indexOf('prototypes')).toBe(workflowIds.indexOf('share-skills') + 1)
+    expect(sections.find((section) => section.id === 'prototypes')).toMatchObject({
+      title: 'Prototypes',
+      description: 'How many directions an agent makes when you ask for a prototype.'
+    })
+  })
+
   it('places the Orca account in Set Up on desktop only', () => {
     const desktopSections = buildSettingsNavigationMetadata({
       isMac: false,

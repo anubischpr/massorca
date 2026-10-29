@@ -1,0 +1,241 @@
+import { useContext, useEffect } from 'react'
+import { Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import {
+  ChevronLeft,
+  Folder,
+  MessageSquare,
+  MoreHorizontal,
+  SquareTerminal
+} from 'lucide-react-native'
+import { colors, spacing, typography } from '../theme/mobile-theme'
+import { StatusDot } from '../components/StatusDot'
+import { MobileSessionSwitcherChip } from './MobileSessionSwitcherChip'
+import { mobileChatSessionCount } from './mobile-session-switcher-rows'
+import { MobileChatChromeLayoutContext } from './mobile-chat-chrome-layout'
+import {
+  mobileChatChromeSegmentPanel,
+  resolveMobileChatChromeSegments,
+  type MobileChatChromeSegmentId
+} from './mobile-chat-chrome-segments'
+import { useMobileStructuredPiRuntimeVersion } from './mobile-structured-pi-runtime-record'
+import type { MobileSessionController } from './use-mobile-session-controller'
+
+const BAR_TOP = spacing.lg
+
+const SEGMENT_ICONS = {
+  chat: MessageSquare,
+  files: Folder,
+  terminal: SquareTerminal
+} as const
+
+/**
+ * The floating controls over the session body, which runs edge to edge beneath them: back, the
+ * Chat / Files / Terminal segments, the ⋯ menu, the session chip, and the connection state when a
+ * retry is offered. Drawn inside the content column, so it never covers the docked panel. Its
+ * measured height is published so the banner and the transcript start beneath it.
+ */
+export function MobileChatFloatingChrome({ controller }: { controller: MobileSessionController }) {
+  const {
+    requestLeaveSession,
+    activePanel,
+    terminalPanelOpen,
+    returnToChat,
+    handlePanelTap,
+    isFloatingWorkspaceRoute,
+    showHeaderMoreButton,
+    setShowHeaderMoreActions,
+    activeSessionRow,
+    sessionRows,
+    openSessionsSheet,
+    hostId,
+    connState,
+    showConnectionRetry,
+    forceReconnectHost
+  } = controller
+  const insets = useSafeAreaInsets()
+  const { setHeight } = useContext(MobileChatChromeLayoutContext)
+  // The header this replaces held the subscription that names a Gentle Shell tab; keep it mounted.
+  useMobileStructuredPiRuntimeVersion()
+  // Gone with the chrome: the banner and transcript must not keep an offset for controls not drawn.
+  useEffect(() => () => setHeight(0), [setHeight])
+  // An active terminal tab is the Terminal panel's body, so its segment reads active whatever panel is stored.
+  const segments = resolveMobileChatChromeSegments({
+    activePanel: activePanel ?? (terminalPanelOpen ? 'terminal' : null),
+    showFiles: !isFloatingWorkspaceRoute
+  })
+
+  const selectSegment = (id: MobileChatChromeSegmentId) => {
+    if (id === 'chat') {
+      returnToChat()
+      return
+    }
+    const panel = mobileChatChromeSegmentPanel(id)
+    if (panel) {
+      handlePanelTap(panel)
+    }
+  }
+
+  return (
+    <View
+      pointerEvents="box-none"
+      onLayout={(event) => setHeight(event.nativeEvent.layout.height)}
+      style={[styles.layer, { paddingTop: insets.top + BAR_TOP }]}
+    >
+      <View style={styles.bar}>
+        <FloatingRound
+          label="Back to worktrees"
+          onPress={requestLeaveSession}
+          icon={<ChevronLeft size={20} color={colors.textPrimary} strokeWidth={2.2} />}
+        />
+        <View style={styles.segments} accessibilityRole="tablist">
+          {segments.map((segment) => {
+            const Icon = SEGMENT_ICONS[segment.id]
+            return (
+              <Pressable
+                key={segment.id}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: segment.active }}
+                accessibilityLabel={segment.label}
+                onPress={() => selectSegment(segment.id)}
+                style={[styles.segment, segment.active && styles.segmentActive]}
+              >
+                <Icon
+                  size={19}
+                  color={segment.active ? colors.textPrimary : colors.textSecondary}
+                  strokeWidth={2}
+                />
+              </Pressable>
+            )
+          })}
+        </View>
+        {showHeaderMoreButton ? (
+          <FloatingRound
+            label="More session actions"
+            onPress={() => setShowHeaderMoreActions(true)}
+            icon={<MoreHorizontal size={20} color={colors.textPrimary} strokeWidth={2.2} />}
+          />
+        ) : (
+          <View style={styles.roundSpacer} />
+        )}
+      </View>
+      <View style={styles.chipRow}>
+        <MobileSessionSwitcherChip
+          centered
+          activeRow={activeSessionRow}
+          sessionCount={mobileChatSessionCount(sessionRows)}
+          onPress={openSessionsSheet}
+        />
+        {showConnectionRetry ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Reconnect to desktop"
+            onPress={() => {
+              if (hostId && forceReconnectHost) {
+                void forceReconnectHost(hostId)
+              }
+            }}
+            style={({ pressed }) => [styles.reconnect, pressed && styles.pressed]}
+          >
+            <StatusDot state={connState} />
+            <Text style={styles.reconnectText}>Reconnect to desktop</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
+  )
+}
+
+function FloatingRound({
+  label,
+  icon,
+  onPress
+}: {
+  label: string
+  icon: React.ReactNode
+  onPress: () => void
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={6}
+      onPress={onPress}
+      style={({ pressed }) => [styles.round, pressed && styles.pressed]}
+    >
+      {icon}
+    </Pressable>
+  )
+}
+
+const glass: ViewStyle = {
+  backgroundColor: colors.bgPanel,
+  borderWidth: StyleSheet.hairlineWidth,
+  borderColor: colors.borderSubtle
+}
+
+const styles = StyleSheet.create({
+  layer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: spacing.lg - 2,
+    zIndex: 10
+  },
+  bar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  round: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...glass
+  },
+  roundSpacer: {
+    width: 46,
+    height: 46
+  },
+  pressed: {
+    backgroundColor: colors.bgRaised
+  },
+  segments: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    padding: spacing.xs,
+    borderRadius: 999,
+    ...glass
+  },
+  segment: {
+    width: 60,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  segmentActive: {
+    backgroundColor: colors.bgRaised
+  },
+  chipRow: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm + spacing.xs
+  },
+  reconnect: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 999,
+    ...glass
+  },
+  reconnectText: {
+    color: colors.textPrimary,
+    fontSize: typography.metaSize
+  }
+})

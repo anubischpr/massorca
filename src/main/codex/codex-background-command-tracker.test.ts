@@ -34,6 +34,49 @@ function command(method: string, id = 'exec', threadId = 'root') {
   }
 }
 
+function interaction(itemId: string, threadId = 'root') {
+  return {
+    ...notification('item/commandExecution/terminalInteraction', {
+      itemId,
+      processId: '1000',
+      stdin: ''
+    }),
+    threadId
+  }
+}
+
+describe('unified exec sessions that outlive their call', () => {
+  it('counts a running command background once a write or poll reaches its session', () => {
+    const tracker = new CodexBackgroundCommandTracker('root')
+    tracker.observe(command('item/started'))
+    expect(tracker.tasks()).toEqual([])
+
+    expect(tracker.observe(interaction('exec'))).toEqual(
+      expect.objectContaining({ type: 'started', backgrounded: true })
+    )
+    expect(tracker.tasks()).toHaveLength(1)
+    expect(tracker.observe(interaction('exec'))).toBeNull()
+
+    expect(tracker.observe(command('item/completed'))).toEqual(
+      expect.objectContaining({ type: 'ended', settles: true })
+    )
+    expect(tracker.tasks()).toEqual([])
+  })
+
+  it('ignores a poll for a session it does not track, in another thread, or already exited', () => {
+    const tracker = new CodexBackgroundCommandTracker('root')
+    expect(tracker.observe(interaction('exec'))).toBeNull()
+
+    tracker.observe(command('item/started'))
+    expect(tracker.observe(interaction('exec', 'child'))).toBeNull()
+    expect(tracker.tasks()).toEqual([])
+
+    tracker.observe(command('item/completed'))
+    expect(tracker.observe(interaction('exec'))).toBeNull()
+    expect(tracker.tasks()).toEqual([])
+  })
+})
+
 describe('persistent command ownership', () => {
   it('promotes only the launching turn and recognizes a start delivered after its end', () => {
     const tracker = new CodexBackgroundCommandTracker('root')
@@ -106,7 +149,7 @@ describe('persistent command ownership', () => {
     translator.dispose()
   })
 
-  it('counts child shells only after the child stops covering them, without resurrecting exits', () => {
+  it('counts a child shell as background from its start, without resurrecting exits', () => {
     const tracker = new CodexBackgroundCommandTracker('root')
     tracker.observe(command('item/started', 'child-exec', 'child'))
     tracker.observe(
@@ -119,8 +162,6 @@ describe('persistent command ownership', () => {
         }
       })
     )
-    expect(tracker.tasks(new Set(['child']))).toEqual([])
-    tracker.endTurn('child', 'turn')
     expect(tracker.tasks()).toEqual([
       { id: 'codex-command:thread:child:child-exec', kind: 'command', description: 'sleep 30' }
     ])

@@ -29,7 +29,10 @@ function nativeChatSessionCommands(): readonly SlashCommandSuggestion[] {
         'components.native-chat.composer.sessionWindowDescription',
         'Browse sessions in the Sessions panel'
       )
-    }
+    },
+    { name: 'prototype' },
+    // Claimed so `/prototipo` is answered like `/prototype`; never listed beside it.
+    { name: 'prototipo', hidden: true }
   ]
 }
 

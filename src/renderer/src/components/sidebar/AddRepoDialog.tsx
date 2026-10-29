@@ -13,6 +13,7 @@ import { useCreateProjectDefaults } from './useCreateProjectDefaults'
 import { useAddRepoHostChangeReset } from './use-add-repo-host-change-reset'
 import { AddRepoDialogChrome } from './AddRepoDialogChrome'
 import { AddRepoHostSelectorSlot } from './AddRepoHostSelectorSlot'
+import { useAddRepoGhAccount } from './use-add-repo-gh-account'
 import { useAddRepoNestedReviewController } from './useAddRepoNestedReviewController'
 import {
   useAddRepoHostedController,
@@ -54,6 +55,8 @@ export default React.memo(function AddRepoDialog({
     hostSelection.selectedParsedHost?.kind === 'runtime'
       ? hostSelection.selectedParsedHost.environmentId
       : null
+  const ghAccount = useAddRepoGhAccount(isOpen, selectedRuntimeEnvironmentId, completeGitRepoAdd)
+  const { completeRepoAdd } = ghAccount
   const {
     nestedScan,
     nestedSelectedPaths,
@@ -80,7 +83,7 @@ export default React.memo(function AddRepoDialog({
     closeModal: closeForFolderHandoff,
     fetchWorktrees,
     importNestedRepos,
-    onGitRepoReady: completeGitRepoAdd,
+    onGitRepoReady: completeRepoAdd,
     setIsAdding,
     activeRuntimeEnvironmentId: selectedRuntimeEnvironmentId,
     setStep
@@ -105,7 +108,7 @@ export default React.memo(function AddRepoDialog({
     setStep,
     // Why: useRemoteRepo closes only for the non-git → confirm-dialog handoff.
     closeForFolderHandoff,
-    (repoId, executionHostId) => completeGitRepoAdd(repoId, 'ssh_remote_path', executionHostId),
+    (repoId, executionHostId) => completeRepoAdd(repoId, 'ssh_remote_path', executionHostId),
     scanNestedRepos,
     showRemoteNestedRepoReview,
     trackRemoteNestedScanResult
@@ -124,7 +127,7 @@ export default React.memo(function AddRepoDialog({
   } = useCreateRepo(
     fetchWorktrees,
     closeForFolderHandoff,
-    (repoId, executionHostId) => completeGitRepoAdd(repoId, 'create_project', executionHostId),
+    (repoId, executionHostId) => completeRepoAdd(repoId, 'create_project', executionHostId),
     {
       hostId: hostSelection.selectedHostId,
       runtimeEnvironmentId: selectedRuntimeEnvironmentId,
@@ -166,7 +169,8 @@ export default React.memo(function AddRepoDialog({
     sshTargetId: hostSelection.selectedSshTargetId,
     workspaceDir: settings?.workspaceDir,
     fetchWorktrees,
-    onGitRepoReady: completeGitRepoAdd
+    onGitRepoReady: completeRepoAdd,
+    resolveGhAccount: ghAccount.resolveForCloneUrl
   })
 
   const isRuntimeEnvironmentActive = Boolean(selectedRuntimeEnvironmentId)
@@ -183,7 +187,7 @@ export default React.memo(function AddRepoDialog({
     setActiveNestedScanId,
     setNestedScanInProgress,
     showNestedRepoReview,
-    onGitRepoReady: completeGitRepoAdd,
+    onGitRepoReady: completeRepoAdd,
     setIsAdding,
     setAddProjectBusyLabel
   })
@@ -204,7 +208,7 @@ export default React.memo(function AddRepoDialog({
     setActiveNestedScanId,
     setNestedScanInProgress,
     showNestedRepoReview,
-    onGitRepoReady: completeGitRepoAdd,
+    onGitRepoReady: completeRepoAdd,
     setAddProjectBusyLabel
   })
 
@@ -325,7 +329,10 @@ export default React.memo(function AddRepoDialog({
         createParent={createParent}
         createError={createError}
         isCreating={isCreating}
-        hostSelector={<AddRepoHostSelectorSlot hostSelection={hostSelection} />}
+        hostSelector={
+          <AddRepoHostSelectorSlot hostSelection={hostSelection} ghAccount={ghAccount} />
+        }
+        ghAccount={ghAccount}
         showRemoteAction={false}
         actionsDisabled={!hostSelection.selectedHostId}
         browseHostKind={selectedHostKind ?? 'runtime'}

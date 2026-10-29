@@ -28,6 +28,8 @@ export type PtyListedSession = {
   agentOwnership: AgentOwnershipEvidence
   /** Still live, but its host is terminating it after an accepted kill: never adopt or restore it. */
   exiting?: true
+  /** A create-chat setup run kept tab-less on purpose: never adopt it as a terminal surface. */
+  worktreeSetupRun?: true
 }
 
 /** Only proven absence authorizes destroying a session without asking. */

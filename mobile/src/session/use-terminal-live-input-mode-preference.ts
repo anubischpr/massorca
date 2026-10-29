@@ -13,11 +13,14 @@ import {
 type UseTerminalLiveInputModePreferenceOptions = {
   readonly hostId: string
   readonly worktreeId: string
+  /** The Terminal panel composer is live only: stored buffered opt-outs are ignored and never written. */
+  readonly liveOnly?: boolean
 }
 
 export function useTerminalLiveInputModePreference({
   hostId,
-  worktreeId
+  worktreeId,
+  liveOnly = false
 }: UseTerminalLiveInputModePreferenceOptions) {
   const [liveInputTerminalHandles, setLiveInputTerminalHandles] = useState<Set<string>>(
     () => new Set()
@@ -58,12 +61,16 @@ export function useTerminalLiveInputModePreference({
   }, [])
 
   const persistDisabledLiveInputHandles = useCallback(() => {
+    // Why: a live-only composer must not overwrite the worktree's stored opt-outs.
+    if (liveOnly) {
+      return
+    }
     void saveDisabledTerminalLiveInputHandles(
       hostId,
       worktreeId,
       disabledLiveInputTerminalHandlesRef.current
     ).catch(() => {})
-  }, [hostId, worktreeId])
+  }, [hostId, liveOnly, worktreeId])
 
   const pruneTerminalHandlesFromLiveInput = useCallback(
     (liveHandles: ReadonlySet<string>) => {
@@ -120,6 +127,10 @@ export function useTerminalLiveInputModePreference({
 
   const toggleTerminalLiveInput = useCallback(
     (handle: string): boolean => {
+      // Why: a live-only composer has no Command | Live switch; live stays on.
+      if (liveOnly) {
+        return true
+      }
       const nextEnabled = !liveInputTerminalHandlesRef.current.has(handle)
       if (nextEnabled) {
         disabledLiveInputTerminalHandlesRef.current.delete(handle)
@@ -148,7 +159,7 @@ export function useTerminalLiveInputModePreference({
       })
       return nextEnabled
     },
-    [persistDisabledLiveInputHandles]
+    [liveOnly, persistDisabledLiveInputHandles]
   )
 
   useEffect(() => {
@@ -168,7 +179,8 @@ export function useTerminalLiveInputModePreference({
         return
       }
       const pendingEdits = pendingDisabledLiveInputHydrationEditsRef.current
-      const hydratedDisabledHandles = new Set(preference.handles)
+      // Why: a live-only composer ignores stored buffered opt-outs; the legacy switch still honours them.
+      const hydratedDisabledHandles = new Set<string>(liveOnly ? [] : preference.handles)
       for (const [handle, disabled] of pendingEdits) {
         if (disabled) {
           hydratedDisabledHandles.add(handle)
@@ -199,7 +211,13 @@ export function useTerminalLiveInputModePreference({
     return () => {
       disposed = true
     }
-  }, [defaultTerminalHandlesToLiveInput, hostId, persistDisabledLiveInputHandles, worktreeId])
+  }, [
+    defaultTerminalHandlesToLiveInput,
+    hostId,
+    liveOnly,
+    persistDisabledLiveInputHandles,
+    worktreeId
+  ])
 
   return {
     clearTerminalLiveInputDefault,

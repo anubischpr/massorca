@@ -1,18 +1,29 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
 import { OrcaRuntimeService } from './orca-runtime'
 import {
   getStructuredAgentSessionHost,
   setStructuredAgentSessionHost
 } from '../native-chat/agent-session-wire/structured-agent-session-registry'
 
-const { isWindowsProcessStartTimeAvailable } = vi.hoisted(() => ({
-  isWindowsProcessStartTimeAvailable: vi.fn(() => true)
-}))
+const { isWindowsProcessStartTimeAvailable, loginShell } = vi.hoisted(() => {
+  const loginShell: { env: Record<string, string> } = { env: {} }
+  return { isWindowsProcessStartTimeAvailable: vi.fn(() => true), loginShell }
+})
 
 vi.mock('../windows/windows-process-table', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   isWindowsProcessStartTimeAvailable
 }))
+vi.mock('../startup/login-shell-environment', () => ({
+  resolveLoginShellEnvironment: async () => loginShell.env
+}))
+
+let root: string
+let bin: string
 
 const originalPlatform = process.platform
 
@@ -61,6 +72,7 @@ function createRuntime(location: TestLocation): OrcaRuntimeService {
   const runtime = new OrcaRuntimeService({ getSettings: () => ({}) } as never)
   const internal = runtime as unknown as {
     resolveStructuredAgentSessionLocation: () => Promise<unknown>
+    resolveRuntimeFileTarget: () => Promise<unknown>
   }
   internal.resolveStructuredAgentSessionLocation = vi.fn(async () => ({
     executionHostId: location.executionHostId,
@@ -68,6 +80,8 @@ function createRuntime(location: TestLocation): OrcaRuntimeService {
     workspaceId: 'workspace-1',
     workspaceKind: location.workspaceKind ?? 'git-worktree'
   }))
+  // The CLI check runs in the workspace's folder, so the probe names one that exists.
+  internal.resolveRuntimeFileTarget = vi.fn(async () => ({ worktree: { path: root } }))
   return runtime
 }
 
@@ -94,13 +108,39 @@ async function expectSupportWithoutInstall(input: {
 }
 
 describe('structured agent-session create-support probe', () => {
-  afterEach(() => {
+  beforeEach(async () => {
+    root = await mkdtemp(join(tmpdir(), 'orca-create-support-probe-'))
+    bin = join(root, 'bin')
+    await mkdir(bin)
+    // Codex and Claude are offered only where their CLI is installed, so the probe installs stand-ins.
+    for (const name of ['codex', 'claude']) {
+      const file = join(bin, name)
+      await writeFile(file, '#!/bin/sh\n')
+      await chmod(file, 0o755)
+    }
+    loginShell.env = { PATH: bin, HOME: root }
+  })
+
+  afterEach(async () => {
     setPlatform(originalPlatform)
     isWindowsProcessStartTimeAvailable.mockReset()
     isWindowsProcessStartTimeAvailable.mockReturnValue(true)
     setStructuredAgentSessionHost(null)
     vi.restoreAllMocks()
+    await rm(root, { recursive: true, force: true })
   })
+
+  it.each(['codex', 'claude'] as const)(
+    'does not offer %s support when its CLI is not installed on this host',
+    async (agent) => {
+      await rm(join(bin, agent))
+      const support = await createRuntime({
+        executionHostId: 'local',
+        wslDistro: null
+      }).getStructuredAgentSessionCreateSupport('id:workspace-1', agent)
+      expect(support.supported).toBe(false)
+    }
+  )
 
   it.each(['codex', 'claude'] as const)(
     'answers %s support repeatedly without installing the host',
@@ -169,6 +209,69 @@ describe('structured agent-session create-support probe', () => {
       })
     }
   )
+
+  describe('on an SSH or WSL host', () => {
+    const hosts = [
+      {
+        name: 'an SSH host',
+        location: { executionHostId: 'ssh-host-1', wslDistro: null },
+        reason: 'remote'
+      },
+      {
+        name: 'a WSL distro',
+        location: { executionHostId: 'local', wslDistro: 'Ubuntu' },
+        reason: 'wsl'
+      }
+    ] as const
+    const agents = ['codex', 'claude', 'grok', 'opencode', 'omp', 'pi', 'antigravity'] as const
+    const cases = agents.flatMap((agent) => hosts.map((host) => ({ agent, ...host })))
+
+    async function standIn(agent: string, present: boolean): Promise<void> {
+      const file = join(bin, agent)
+      if (!present) {
+        await rm(file, { force: true })
+        return
+      }
+      await writeFile(file, '#!/bin/sh\n')
+      await chmod(file, 0o755)
+    }
+
+    async function supportOnHost(agent: StructuredAgentId, location: TestLocation) {
+      const runtime = createRuntime(location)
+      const { resolveRuntimeFileTarget } = runtime as unknown as {
+        resolveRuntimeFileTarget: Mock
+      }
+      const support = await runtime.getStructuredAgentSessionCreateSupport(
+        'id:workspace-1',
+        agent,
+        undefined,
+        'full-access'
+      )
+      return { support, resolveRuntimeFileTarget }
+    }
+
+    it('offers an agent on this machine once its CLI is installed, so the refusals below are the location rule', async () => {
+      await standIn('grok', true)
+      const { support } = await supportOnHost('grok', { executionHostId: 'local', wslDistro: null })
+      expect(support).toEqual({ supported: true })
+    })
+
+    it.each(cases)(
+      'refuses $agent on $name by its location, whether or not the local CLI is installed',
+      async ({ agent, location, reason }) => {
+        await standIn(agent, true)
+        const withCli = await supportOnHost(agent, location)
+        await standIn(agent, false)
+        const withoutCli = await supportOnHost(agent, location)
+
+        expect(withCli.support).toEqual({ supported: false, reason })
+        expect(withoutCli.support).toEqual(withCli.support)
+        // Why: the local CLI check resolves the workspace before it runs, so no resolve means it never ran.
+        expect(withCli.resolveRuntimeFileTarget).not.toHaveBeenCalled()
+        expect(withoutCli.resolveRuntimeFileTarget).not.toHaveBeenCalled()
+      }
+    )
+  })
 
   it('still installs and reconciles on startup when a store is already persisted', async () => {
     const runtime = createRuntime({ executionHostId: 'local', wslDistro: null })

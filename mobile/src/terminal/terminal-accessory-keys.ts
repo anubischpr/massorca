@@ -162,8 +162,9 @@ function buildShortcutBytes(key: string, modifiers: TerminalShortcutModifier[]):
     return buildCsiTildeShortcut(csiTilde, modifiers)
   }
   if (key === 'tab') {
-    if (modifiers.includes('shift') && !modifiers.includes('ctrl') && !modifiers.includes('alt')) {
-      return `${ESC}[Z`
+    // Why: Shift+Tab is ESC [ Z; with Ctrl or Alt the CSI 1;m Z form keeps Shift.
+    if (modifiers.includes('shift')) {
+      return modifiers.length === 1 ? `${ESC}[Z` : buildCsiFinalShortcut('Z', modifiers)
     }
     const bytes = '\t'
     return modifiers.includes('alt') ? `${ESC}${bytes}` : bytes

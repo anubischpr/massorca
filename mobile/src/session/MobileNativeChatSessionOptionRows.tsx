@@ -2,11 +2,12 @@
 // beside it so the card file stays about layout and apply wiring.
 
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native'
-import { Check, ChevronDown, ChevronRight } from 'lucide-react-native'
+import { Check, ChevronRight } from 'lucide-react-native'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import {
   sessionOptionValueMarker,
   type SessionOptionDescriptor,
+  type SessionOptionSelectChoice,
   type SessionOptionValueMarker,
   type SessionOptionValue
 } from '../../../src/shared/native-chat-session-options'
@@ -16,54 +17,25 @@ export function SessionOptionCaption({ children }: { children: string }): React.
   return <Text style={styles.caption}>{children}</Text>
 }
 
-export function Pill({
-  label,
-  accessibleName,
-  disabled,
-  onPress
-}: {
-  label: string
-  accessibleName: string
-  disabled: boolean
-  onPress: () => void
-}): React.JSX.Element {
-  return (
-    <Pressable
-      accessibilityLabel={accessibleName}
-      accessibilityRole="button"
-      accessibilityState={{ disabled }}
-      style={({ pressed }) => [styles.pill, pressed && !disabled && styles.pressed]}
-      onPress={onPress}
-      disabled={disabled}
-      hitSlop={6}
-    >
-      <Text
-        style={[styles.pillText, disabled && styles.pillTextDisabled]}
-        numberOfLines={1}
-        ellipsizeMode="tail"
-      >
-        {label}
-      </Text>
-      <ChevronDown size={12} color={disabled ? colors.textMuted : colors.textSecondary} />
-    </Pressable>
-  )
-}
-
 function ChoiceRow({
   label,
   description,
+  leading,
   selected,
   disabled,
   grouped,
   divided,
+  labelColor,
   onPress
 }: {
   label: string
   description?: string
+  leading?: React.ReactNode
   selected: boolean
   disabled: boolean
   grouped: boolean
   divided: boolean
+  labelColor?: string
   onPress: () => void
 }): React.JSX.Element {
   return (
@@ -80,11 +52,12 @@ function ChoiceRow({
       onPress={onPress}
       disabled={disabled}
     >
+      {leading ? <View style={styles.leading}>{leading}</View> : null}
       <View style={[styles.radio, selected && styles.radioOn]}>
         {selected ? <Check size={12} color={colors.bgBase} strokeWidth={3} /> : null}
       </View>
       <View style={styles.rowBody}>
-        <Text style={styles.rowLabel}>{label}</Text>
+        <Text style={[styles.rowLabel, labelColor ? { color: labelColor } : null]}>{label}</Text>
         {description ? (
           <Text style={styles.rowDescription} numberOfLines={2}>
             {description}
@@ -197,14 +170,23 @@ export function DescriptorRows({
   descriptor,
   disabled,
   grouped = false,
+  choiceLabelColor,
+  choiceLeading,
   onSetOption,
-  onInvokeAction
+  onInvokeAction,
+  agentPickerNote
 }: {
   descriptor: SessionOptionDescriptor
   disabled: boolean
   grouped?: boolean
+  /** Tints a choice's label, e.g. full access in the danger colour. */
+  choiceLabelColor?: (value: string) => string | undefined
+  /** A glyph before each choice's radio: the effort meter level or the access icon. */
+  choiceLeading?: (choice: SessionOptionSelectChoice) => React.ReactNode
   onSetOption: (value: SessionOptionValue) => void
   onInvokeAction: () => void
+  /** Says where the agent's own picker opens; shown under its action row. */
+  agentPickerNote?: string
 }): React.JSX.Element {
   const locked = disabled || !descriptor.settable
   // Why: flip-only without a baseline is an action — never claim On/Off.
@@ -221,12 +203,15 @@ export function DescriptorRows({
   // Why: agent-picker opens the TUI; it is not a set of radio choices.
   if (descriptor.action?.type === 'agent-picker') {
     return (
-      <ActionRow
-        label="Choose in agent picker…"
-        disabled={locked}
-        grouped={grouped}
-        onPress={onInvokeAction}
-      />
+      <>
+        <ActionRow
+          label="Change in the terminal"
+          disabled={locked}
+          grouped={grouped}
+          onPress={onInvokeAction}
+        />
+        {agentPickerNote ? <SessionOptionCaption>{agentPickerNote}</SessionOptionCaption> : null}
+      </>
     )
   }
   // One switch, not an On/Off pair: the option is binary. The value always
@@ -252,10 +237,12 @@ export function DescriptorRows({
           key={choice.value}
           label={choice.label}
           description={choice.description}
+          leading={choiceLeading?.(choice)}
           selected={choice.value === currentValue}
-          disabled={locked}
+          disabled={locked || choice.disabled === true}
           grouped={grouped}
           divided={grouped && index < choices.length - 1}
+          labelColor={choiceLabelColor?.(choice.value)}
           onPress={() => onSetOption(choice.value)}
         />
       ))}
@@ -264,28 +251,6 @@ export function DescriptorRows({
 }
 
 const styles = StyleSheet.create({
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    maxWidth: 180,
-    minHeight: 28,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radii.button,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.bgRaised
-  },
-  pillText: {
-    color: colors.textSecondary,
-    fontSize: typography.metaSize,
-    fontWeight: '600',
-    flexShrink: 1
-  },
-  pillTextDisabled: {
-    color: colors.textMuted
-  },
   pressed: {
     opacity: 0.7
   },
@@ -326,6 +291,11 @@ const styles = StyleSheet.create({
   },
   rowDisabled: {
     opacity: 0.5
+  },
+  leading: {
+    width: 24,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   radio: {
     width: 18,

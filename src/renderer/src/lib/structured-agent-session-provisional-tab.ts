@@ -98,6 +98,8 @@ type ProvisionalLaunchArgs = {
   /** Lets workspace flows reveal before the chat's tab is owned: before its host is asked, when no
    *  session id exists yet. */
   beforeOpen?: (sessionId?: string) => boolean | void
+  /** Runs once the chat's tab opens, with its session id, on the direct and host-admitted paths. */
+  onOpened?: (sessionId: string) => void
   /** The terminal the host's "no" opens; a caller without one gets a new agent tab's. */
   onHostDeclined?: (
     target: RuntimeClientTarget
@@ -174,6 +176,7 @@ function beginLocalProvisionalLaunch(args: ProvisionalLaunchArgs): LocalProvisio
       ...(args.targetGroupId ? { targetGroupId: args.targetGroupId } : {}),
       ...(args.activate !== undefined ? { activate: args.activate } : {})
     })
+    args.onOpened?.(handle.sessionId)
     return { ...handle, tab }
   } catch (error) {
     // Why: a launch without its owning surface would strand a late publication.

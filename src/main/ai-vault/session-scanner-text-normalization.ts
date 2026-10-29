@@ -1,5 +1,6 @@
 import { sliceAtCodeUnitLimit } from '../../shared/surrogate-safe-text-slice'
 import { withoutNativeChatVisualDirectiveLines } from '../../shared/native-chat-visual-directive'
+import { splitTrustedPrototypeHiddenInstruction } from '../../shared/prototype-hidden-instruction'
 
 export { sliceAtCodeUnitLimit }
 
@@ -44,26 +45,34 @@ export function normalizeTitleText(value: string): string | null {
  * them, per text part and before lines are folded into one.
  */
 export function extractPreviewContentText(value: unknown, role?: string): string | null {
-  return normalizeContentText(value, SESSION_PREVIEW_TEXT_LIMIT, role === 'assistant')
+  return normalizeContentText(value, SESSION_PREVIEW_TEXT_LIMIT, role)
 }
 
 export function normalizePreviewText(value: string, role?: string): string | null {
   return finalizeNormalizedText(
-    normalizeStringText(previewSource(value, role === 'assistant'), SESSION_PREVIEW_TEXT_LIMIT)
+    normalizeStringText(previewSource(value, role), SESSION_PREVIEW_TEXT_LIMIT)
   )
 }
 
-function previewSource(text: string, dropVisualLines: boolean): string {
-  return dropVisualLines ? withoutNativeChatVisualDirectiveLines(text) : text
+// A reply's visual lines show only in a chat; a prompt shows what the user typed, not the
+// instruction MassOrca hid behind it.
+function previewSource(text: string, role: string | undefined): string {
+  return role === 'assistant'
+    ? withoutNativeChatVisualDirectiveLines(text)
+    : typedUserPromptText(role, text)
 }
 
-function normalizeContentText(
-  value: unknown,
-  limit: number,
-  dropVisualLines = false
-): string | null {
+/**
+ * A prompt reads as the user typed it. Only a marker MassOrca wrote hides anything, and that holds for a
+ * message whose role is missing or unknown too; an assistant reply is left whole.
+ */
+export function typedUserPromptText(role: string | null | undefined, text: string): string {
+  return role === 'assistant' ? text : splitTrustedPrototypeHiddenInstruction(text).visibleText
+}
+
+function normalizeContentText(value: unknown, limit: number, role?: string): string | null {
   if (typeof value === 'string') {
-    return finalizeNormalizedText(normalizeStringText(previewSource(value, dropVisualLines), limit))
+    return finalizeNormalizedText(normalizeStringText(previewSource(value, role), limit))
   }
   if (!Array.isArray(value)) {
     return null
@@ -76,7 +85,7 @@ function normalizeContentText(
       continue
     }
     appendInterPartSpace(builder)
-    appendNormalizedString(builder, previewSource(text, dropVisualLines))
+    appendNormalizedString(builder, previewSource(text, role))
     if (builder.truncated) {
       break
     }
