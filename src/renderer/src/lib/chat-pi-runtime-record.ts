@@ -25,6 +25,11 @@ export function recordChatPiRuntime(
   }
 }
 
+/** Same as `useChatPiRuntime`, for a caller that is not a component. */
+export function readChatPiRuntime(sessionId: string): PiRuntimeSelection | undefined {
+  return chatRuntimes.get(sessionId)
+}
+
 /** The runtime a chat's session recorded, or undefined until the host has answered for it. */
 export function useChatPiRuntime(
   sessionId: string | null | undefined

@@ -9,6 +9,7 @@ import {
   type UseNativeChatStructuredComposerSendArgs
 } from './use-native-chat-structured-composer-send'
 import type { NativeChatComposerImageAttachment } from './NativeChatComposerField'
+import { useNativeChatPrototypeCountCard } from './use-native-chat-prototype-count-card'
 import { readNativeChatComposerDraft } from './native-chat-composer-draft-store'
 import type { NativeChatComposerDraft } from './native-chat-composer-draft-storage'
 import type { NativeChatQueueHold } from './native-chat-composer-types'
@@ -47,9 +48,12 @@ export function useNativeChatHeldQueueComposerSend(args: UseNativeChatStructured
   fieldProps: {
     queueResume: NativeChatQueueResume | undefined
     queueSendConfirm: NativeChatQueueSendConfirm | null
+    /** The "How many prototypes?" card of a message held back for it, above the field. */
+    prototypeCountCard: React.JSX.Element | null
   }
 } {
   const sendNow = useNativeChatStructuredComposerSend(args)
+  const prototypeCountCard = useNativeChatPrototypeCountCard(args)
   const { agent, structuredTransport } = args
   const queueHold = structuredTransport?.queueHold
   const [pending, setPending] = useState<PendingSend | null>(null)
@@ -148,6 +152,10 @@ export function useNativeChatHeldQueueComposerSend(args: UseNativeChatStructured
     : null
   return {
     send,
-    fieldProps: { queueResume: structuredTransport?.queueResume, queueSendConfirm: confirm }
+    fieldProps: {
+      queueResume: structuredTransport?.queueResume,
+      queueSendConfirm: confirm,
+      prototypeCountCard
+    }
   }
 }
