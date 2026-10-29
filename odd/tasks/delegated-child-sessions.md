@@ -166,6 +166,7 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
 
 - Automatic may switch to a second account of the same agent (inactive accounts are tracked).
 - Optional Jev classification on hosts where it is configured.
+- Non-blocking findings from the approved review of `19230c04303..0e8bb2a92f5`, not yet triaged: `R3-folder-glue-untested`, `R3-placement-derived-twice`, `R3-pick-silently-swaps-to-default` (warnings); `R3-missing-folder-reuses-parent-code`, `R3-swap-race-one-order-only` (suggestions).
 
 ## Review follow-ups
 
