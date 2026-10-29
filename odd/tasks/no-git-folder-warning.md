@@ -65,7 +65,10 @@ Prototype: https://claude.ai/artifact/MXai3HzR88MwEWf7FK2Tfy (4 artboards). Stri
   - Runtime harness: N/A. The dialog was not run in the live Electron app; coverage is happy-dom component tests.
   - Off-design gap: `repo.initGit` failures without git's own text show the raw error code in the toast description. No per-code copy was added because it is not on the artboard.
   - Delivery: running authored total is about 1,778 lines (T1 1,066 + T2 712), above the ~400 planning line. Under `ask-on-risk`, the chain strategy (`stacked-to-main` or `feature-branch-chain`) must be asked once before the next commit.
+  - Parent spot check: `NonGitFolderDialog.git-init.test.tsx` 8 passed.
+  - RDD: assessed high (`process_scan_limit`) against base `67d124b7185` (T1 unreviewed), consent granted per standing rule; bound STATUS hit `operation_timeout`, lineage `review-62fd09ccd7a0b2b0` abandoned. Unreviewed.
+  - Delivery: no push or PR in this session (parent instruction); chain strategy asked of the parent session, slice boundaries so far: T1 `2cbd68d0f12`, T2 `342451bc0081`.
 
 ## Next step
 
-T2 (desktop add dialog) and T4 (mobile) can build on T1.
+T3 (desktop sidebar pill + popover), then T4 (mobile).
