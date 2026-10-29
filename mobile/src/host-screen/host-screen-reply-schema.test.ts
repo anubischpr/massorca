@@ -26,6 +26,19 @@ describe('host screen reply schemas', () => {
     ).toBeUndefined()
   })
 
+  it('reads a folder or git kind, and salvages an absent or unknown one without dropping the row', () => {
+    const repos = hostRepoCatalogSchema.parse({
+      repos: [
+        { id: 'a', displayName: 'a', kind: 'folder' },
+        { id: 'b', displayName: 'b', kind: 'git' },
+        { id: 'c', displayName: 'c' },
+        { id: 'd', displayName: 'd', kind: 'bare' }
+      ]
+    })
+    expect(repos.map((repo) => repo.id)).toEqual(['a', 'b', 'c', 'd'])
+    expect(repos.map((repo) => repo.kind)).toEqual(['folder', 'git', undefined, undefined])
+  })
+
   it('keeps a known repo icon arm and degrades an unknown one to absent', () => {
     const known = hostRepoCatalogSchema.parse({
       repos: [{ id: 'r', displayName: 'o', repoIcon: { type: 'emoji', emoji: 'x' } }]
