@@ -60,10 +60,16 @@ Padding / margin editor, drag-to-resize, region comments, side-by-side version c
    - b. MassOrca command `/prototype` (alias `/prototipo`). On an agent with a native design command it is translated to that command plus the N-directions line; otherwise the plain instruction.
    - c. Native agent design commands (names being verified) count as `/prototype` for that agent.
    - Explicit commands (b, c) apply the setting directly; under "Always N" they skip the card.
-   - Card dismissal for keyword matches: control asked (options A 4th button "Not a prototype", B ×, C implicit); pending.
-7. Home-screen / chat-summary entries: none in v1; drop the "Also on the home screen…" line from the menu board.
-8. List thumbnails: scaled live render of the prototype HTML.
-9. Single-direction request: open the viewer directly; no "All 1", no strip.
+   - Card dismissal for keyword matches: a 4th button "Not a prototype" (ES "No es un prototipo") that sends the message as typed (user decision A).
+   - Keyword detection is a deterministic master lexicon (ES + EN, whole words, case/accent-insensitive): positive terms/phrases (prototype, mockup, maqueta, wireframe; design/diseño/diseña/rediseña only next to a UI noun) and negative context terms that suppress (database, schema, architecture, API, design doc, system design, diseño técnico, data model…). No model calls; table-driven tests.
+   - Claude `/prototype` sends the plain instruction (no `/design` translation in v1); Gentle Shell `/prototype` → `/gentle:design`.
+7. Capture is deterministic for every agent: MassOrca creates `<chat visuals dir>/prototypes/<requestId>/` with `request.json` (original prompt, agent, chat, count, time); the hidden instruction makes the agent write `A.html`, `B.html`… (self-contained, CSS inline); iterations write `B-v2.html`… Only files under `prototypes/` (plus Gentle Shell's native `design/<slug>/design.json`) are prototypes, and they are excluded from Artifacts / visuals. The injected instruction is never shown in the chat bubble or history.
+   - Gentle Shell `/gentle:design` keeps its native `design/<slug>/`: `request.json` records the existing `design/*` slugs at send time, and the slug that appears afterwards in that session's cwd is bound to the request (set difference, keyed by requestId + session). Those files go to Prototypes only.
+   - Antigravity: the plain instruction says to write local HTML files in the request folder and not to use Stitch MCP for this request.
+   - Codex / Claude / others: plain instruction, local HTML in the request folder.
+8. Home-screen / chat-summary entries: none in v1; drop the "Also on the home screen…" line from the menu board.
+9. List thumbnails: scaled live render of the prototype HTML.
+10. Single-direction request: open the viewer directly; no "All 1", no strip.
 
 ## Delivery
 
@@ -72,9 +78,10 @@ Work-unit Conventional Commits on `claude/prototypes-section-f8edf5`, tests with
 ## Tasks
 
 - [x] T1 Shared model (pure) — `ea10b2e226e`: prototype/set/version types, request grouping, prototype-request detection, prompt line, count setting type + sanitizer, draft model (edit diffs → items grouped by pin, revert removes, note items, sibling items), message composition. Tests. Route: delegated writer (2+ non-trivial files).
+- [ ] T1c Model rework for decision 10 + lexicon: replace transcript grouping in prototype-sets with a request-folder model (requestId, `request.json`, `A.html` / `B-v2.html` naming, path predicate `isPrototypePath`), hidden instruction builders (initial + iteration), lexicon with positive/negative tables. Supersedes the prototype-sets advisories in T1b.
 - [ ] T1b Fix T1 review advisories (non-blocking, review approved and acknowledged, lineage review-5b2cbb4ae471291e): active-direction note without a pin dropped (prototype-draft.ts:140); "Iterate on" iteration may attach to the wrong set, drop extra visuals, setId not namespaced, header contract unproved (prototype-sets.ts); singular count line and -Infinity count (prototype-count-setting.ts); sibling letter ordering. Route: delegated writer after T3.
 - [ ] T2 Host aggregation: list prototypes across chats (chat visuals + recorded HTML + Gentle Shell `design/*/design.json`) and read one; additive RPC usable by desktop and mobile; SSH-safe. Tests. Route: delegated writer.
-- [ ] T3 Frame annotate bridge: new optional message kinds for element pick (selector, label, rect), pins, style overrides and text override; desktop and mobile hosts validate them. Tests. Route: delegated writer.
+- [x] T3 Frame annotate bridge — `eb3a4f3b203`: new optional message kinds for element pick (selector, label, rect), pins, style overrides and text override; desktop and mobile hosts validate them. Tests. Route: delegated writer.
 - [ ] T4 Desktop settings + prompt line + "How many?" card. Tests. Route: delegated writer.
 - [ ] T5 Desktop Prototypes view: sidebar row, list + filters, set grid, viewer, strip, annotate panel (Edit, picker, Note), draft, Anything else, Send. Tests. Route: delegated writer(s).
 - [ ] T6 Mobile Prototypes: ⋯ menu item, list, swipe set, viewer, Edit/Note sheet, draft sheet, Send. Tests. Route: delegated writer(s).
@@ -89,6 +96,9 @@ Work-unit Conventional Commits on `claude/prototypes-section-f8edf5`, tests with
 
 - T1 (`ea10b2e226e`, delegated writer; trigger: 8 new non-trivial files): `pnpm test` on the 4 test files → 82 passed; `npx oxlint` → 0; `npx oxfmt --check` → pass; `pnpm run typecheck:node` / `typecheck:web` → 0 errors; `ORCA_CODE_QUALITY_BASE=HEAD pnpm run check:code-quality:changed` → passed, 0 new findings (the default `main` fallback fails with ENAMETOOLONG on this branch). Parent spot check: `pnpm test` prototype-draft + prototype-request → 60 passed.
 - T1 decisions: native commands verified — Gentle Shell `/gentle:design`, Claude `/design`; Codex and Antigravity have none (plain instruction). `/gentle:design sync|open|stop|implement` are not requests. Orphan visuals form one single-direction set each. Count line reads "1 distinct design directions" for n=1 (singular wording to fix in T4).
+
+- T3 (`eb3a4f3b203`, delegated writer; trigger: 15 files across desktop, shared and mobile): root `pnpm test` annotate/shell/frame → 81 passed (native-chat dirs 5059 passed); mobile annotate/visual tests → 39 + 95 passed; `typecheck:web`, `typecheck:node`, mobile `typecheck` → 0; mobile `typecheck:tests` → only pre-existing baseline errors; `npx oxlint` → 0; `ORCA_CODE_QUALITY_BASE=HEAD pnpm run check:code-quality:changed` → 0 findings. Non-annotate document is byte-identical (SHA-256 pinned in a test).
+- T3 notes for T5/T6: keep the original ElementState from the first pick (a re-pick reports overridden values); verify badge placement against v8; screenshots: desktop via `webContents.capturePage(rect)` (unverified), mobile via a native view capture (unverified).
 
 ## Next step
 
