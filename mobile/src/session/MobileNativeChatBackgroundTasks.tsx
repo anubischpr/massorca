@@ -57,7 +57,25 @@ function MobileNativeChatBackgroundTasksImpl({
         : buildBackgroundTaskGroups(view.tasks, view.settledTasks, say),
     [view.children, view.tasks, view.settledTasks, rowContext]
   )
-  const now = useNow(1_000, working || (view.show && backgroundTasksStripTicks(groups, sheetOpen)))
+  // The chat's delegated children read from its journal; a lost stream claims none of them running.
+  const streamLive = rowContext.transportObservation === 'live'
+  const delegated = useContext(MobileDelegatedChildrenContext)
+  const delegatedAccess = useContext(MobileDelegatedChildContext)
+  const childRunning = useMemo(
+    () => runningDelegatedChildren(delegated.children),
+    [delegated.children]
+  )
+  const liveChildRunning = useMemo(
+    () => (streamLive ? childRunning : []),
+    [streamLive, childRunning]
+  )
+  // A running child's elapsed time ticks in the open sheet even when nothing else is working.
+  const now = useNow(
+    1_000,
+    working ||
+      (view.show && backgroundTasksStripTicks(groups, sheetOpen)) ||
+      (sheetOpen && liveChildRunning.length > 0)
+  )
   // Elapsed anchors are host-stamped; read them on the host's clock, as the turn's start is.
   const hostNow = now - rowContext.hostClockOffsetMs
   // Rows this roster stopped listing while its stream was live have finished; a lost stream asserts
@@ -81,18 +99,6 @@ function MobileNativeChatBackgroundTasksImpl({
     () =>
       mergeFinishedBackgroundRows({ seen: seenFinished, history: historyFinished, running: rows }),
     [seenFinished, historyFinished, rows]
-  )
-  // The chat's delegated children read from its journal; a lost stream claims none of them running.
-  const streamLive = rowContext.transportObservation === 'live'
-  const delegated = useContext(MobileDelegatedChildrenContext)
-  const delegatedAccess = useContext(MobileDelegatedChildContext)
-  const childRunning = useMemo(
-    () => runningDelegatedChildren(delegated.children),
-    [delegated.children]
-  )
-  const liveChildRunning = useMemo(
-    () => (streamLive ? childRunning : []),
-    [streamLive, childRunning]
   )
   const childFinished = useMemo(
     () => finishedDelegatedChildren(delegated.children),

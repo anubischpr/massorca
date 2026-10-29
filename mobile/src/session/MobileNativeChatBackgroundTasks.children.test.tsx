@@ -46,7 +46,13 @@ vi.mock('../components/BottomDrawer', async () => {
       visible ? React.createElement('BottomDrawer', { visible }, children) : null
   }
 })
-vi.mock('../hooks/use-now', () => ({ useNow: () => NOW }))
+const clockEnabled: boolean[] = []
+vi.mock('../hooks/use-now', () => ({
+  useNow: (_intervalMs: number, enabled: boolean) => {
+    clockEnabled.push(enabled)
+    return NOW
+  }
+}))
 
 const running: DelegatedChild = {
   requestId: 'request-1',
@@ -132,6 +138,14 @@ describe('MobileNativeChatBackgroundTasks with delegated children', () => {
     const mounted = mount([running], { hasChild: () => true, openChild: vi.fn() })
 
     expect(header(mounted).props.accessibilityLabel).toBe('Show background work, Working, 1 agent')
+  })
+
+  it('keeps the clock ticking in the open sheet while only a child runs', () => {
+    const mounted = mount([running], { hasChild: () => true, openChild: vi.fn() })
+    clockEnabled.length = 0
+    act(() => header(mounted).props.onPress())
+
+    expect(clockEnabled.at(-1)).toBe(true)
   })
 
   it('lists no pill for a child the lost stream can no longer vouch for', () => {
