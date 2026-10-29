@@ -15,6 +15,7 @@ import {
   type PrototypeListedDesignSystem,
   type PrototypeListedDirection,
   type PrototypeListedPendingRequest,
+  type PrototypeListedProposal,
   type PrototypeListedSet
 } from '../../shared/rpc-contract/prototype-params'
 import { usesDesignSystemInstruction } from '../../shared/prototype-design-system-instruction'
@@ -96,6 +97,7 @@ async function withProjects(
   }
   const projects = await projectsOfLaunchDirectories(launchDirectories.values())
   const pendingRequests = new Map<string, PrototypeListedPendingRequest>()
+  const proposals: PrototypeListedProposal[] = []
   const sets: PrototypeListedSet[] = []
   for (const request of requests) {
     const { set, manifest } = request
@@ -112,6 +114,9 @@ async function withProjects(
         sessionId: manifest.sessionId,
         agent: manifest.agent
       })
+    }
+    if (project !== undefined && manifest.designSystemMode === 'propose') {
+      proposals.push({ requestId: manifest.requestId, projectKey: project.projectKey })
     }
     if (set === null) {
       continue
@@ -134,7 +139,8 @@ async function withProjects(
   })
   return {
     sets,
-    ...(designSystems.length > 0 ? { designSystems } : {})
+    ...(designSystems.length > 0 ? { designSystems } : {}),
+    ...(proposals.length > 0 ? { proposals } : {})
   }
 }
 

@@ -2,6 +2,7 @@
 // machine, and every later read or write of a set goes back to the host that listed it.
 import type {
   PrototypeListedDesignSystem,
+  PrototypeListedProposal,
   PrototypeListedSet
 } from '../../../../shared/rpc-contract/prototype-params'
 import { getRuntimeSessionMirrorEnvironmentIds } from '@/lib/runtime-session-mirror-owners'
@@ -56,6 +57,8 @@ export type PrototypeHostListing = {
   sets: PrototypeListedSet[]
   /** The design system of each project a host listed one for; an older host lists none. */
   designSystems: PrototypeListedDesignSystem[]
+  /** The proposals each host lists: requests sent with 'Propose one first'. */
+  proposals: PrototypeListedProposal[]
   /** At least one host answered. */
   answered: boolean
   /** Every host that failed was outdated. */
@@ -70,6 +73,7 @@ export async function listPrototypeSetsFromAllHosts(): Promise<PrototypeHostList
   )
   const sets: PrototypeListedSet[] = []
   const designSystems: PrototypeListedDesignSystem[] = []
+  const proposals: PrototypeListedProposal[] = []
   let answered = false
   let failed = 0
   let outdated = 0
@@ -81,6 +85,7 @@ export async function listPrototypeSetsFromAllHosts(): Promise<PrototypeHostList
         targetBySessionId.set(set.sessionId, target)
         sets.push(set)
       }
+      proposals.push(...(outcome.value.proposals ?? []))
       for (const system of outcome.value.designSystems ?? []) {
         designSystems.push(system)
         // Why: the pending request's chat has no set in the list, so its host is recorded here.
@@ -98,5 +103,11 @@ export async function listPrototypeSetsFromAllHosts(): Promise<PrototypeHostList
     )
   })
   recordBoundDesignFolders(sets)
-  return { sets, designSystems, answered, onlyOutdated: failed > 0 && failed === outdated }
+  return {
+    sets,
+    designSystems,
+    proposals,
+    answered,
+    onlyOutdated: failed > 0 && failed === outdated
+  }
 }

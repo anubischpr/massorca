@@ -199,4 +199,30 @@ describe('listPrototypeSets design systems', () => {
     const saved: unknown = JSON.parse(await readFile(manifestPath, 'utf8'))
     expect(saved).toMatchObject({ designSystemVersion: 2, gentleDesignSlug: 'bold' })
   })
+
+  it('lists every proposal with the project it proposes for, with or without direction files', async () => {
+    await writeTokensIn(projectDirectory)
+    const pending = await create(SESSION, NOW, 'propose')
+    const made = await create(SESSION, LATER, 'propose')
+    await writeFile(join(made.folderPath, 'A.html'), '<p>a</p>')
+    await create(SESSION, LATEST, 'use')
+
+    const listed = await listPrototypeSets({ launchDirectoryOf, stateDirectory })
+    const projectKey = listed.designSystems?.[0]?.projectKey
+
+    expect(listed.proposals).toEqual([
+      { requestId: made.requestId, projectKey },
+      { requestId: pending.requestId, projectKey }
+    ])
+    expect(ListPrototypeSetsReplySchema.safeParse(listed).success).toBe(true)
+  })
+
+  it('lists no proposal when no request was sent with Propose one first', async () => {
+    await writeTokensIn(projectDirectory)
+    await create(SESSION, NOW, 'skip')
+
+    expect(
+      (await listPrototypeSets({ launchDirectoryOf, stateDirectory })).proposals
+    ).toBeUndefined()
+  })
 })

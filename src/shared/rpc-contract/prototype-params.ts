@@ -166,9 +166,19 @@ export const PrototypeListedSetSchema = z.object({
 
 export type PrototypeListedSet = z.infer<typeof PrototypeListedSetSchema>
 
+/** A request sent with 'Propose one first', and the project it proposes a design system for. */
+export const PrototypeListedProposalSchema = z.object({
+  requestId: z.string(),
+  projectKey: z.string().min(1).max(TEXT_MAX_LENGTH)
+})
+
+export type PrototypeListedProposal = z.infer<typeof PrototypeListedProposalSchema>
+
 export type ListPrototypeSetsResult = {
   sets: PrototypeListedSet[]
   designSystems?: PrototypeListedDesignSystem[]
+  /** Every request sent with 'Propose one first' whose project the host names; a set or not. */
+  proposals?: PrototypeListedProposal[]
 }
 
 /** A note screenshot's base name: one plain segment, so the file sits directly in the request's notes/ folder. */
@@ -211,7 +221,8 @@ export const CreatePrototypeRequestReplySchema = z.union([
 
 export const ListPrototypeSetsReplySchema = z.object({
   sets: z.array(PrototypeListedSetSchema),
-  designSystems: z.array(PrototypeListedDesignSystemSchema).optional()
+  designSystems: z.array(PrototypeListedDesignSystemSchema).optional(),
+  proposals: z.array(PrototypeListedProposalSchema).optional()
 })
 
 export const ReadPrototypeDesignSystemReplySchema = z.union([

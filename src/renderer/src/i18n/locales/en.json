@@ -18055,6 +18055,8 @@
       },
       "link": {
         "setOf": "{{title}} · set of {{count}}",
+        "proposed": "Design system · proposed",
+        "review": "Review ›",
         "open": "Open in Prototypes ›"
       },
       "agent": {
