@@ -4,6 +4,7 @@ import { sessionStorageKeyForHost } from './web-workspace-session-api'
 import { mergeWebUIState } from './web-preference-normalization'
 import { readLocalWebUIState } from './web-preferences-store'
 import { UI_STORAGE_KEY, writeJson } from './web-storage'
+import { PRODUCT_DISPLAY_NAME } from '../../../../shared/product-identity'
 
 export function createWebAppApi(): Partial<PreloadApi> {
   return {
@@ -13,7 +14,7 @@ export function createWebAppApi(): Partial<PreloadApi> {
       onProfileStateSaveDelayChanged: () => () => undefined,
       getIdentity: () =>
         Promise.resolve({
-          name: 'Orca',
+          name: PRODUCT_DISPLAY_NAME,
           isDev: false,
           devLabel: null,
           devBranch: null,

@@ -142,11 +142,11 @@ describe('NativeChatRecordedFileViewer', () => {
   it.each([
     [
       new RecordedFileHostOutdatedError(),
-      'Update Orca on the remote host to open files the agent saved outside the workspace.'
+      'Update MassOrca on the remote host to open files the agent saved outside the workspace.'
     ],
     [
       new RecordedFileRefusedError('not_recorded'),
-      "This file is outside the workspace on the remote host, so Orca can't open it."
+      "This file is outside the workspace on the remote host, so MassOrca can't open it."
     ],
     [new RecordedFileRefusedError('not_found'), 'This file no longer exists on the remote host.'],
     [new RecordedFileRefusedError('too_large'), 'This file is too large to preview.'],
