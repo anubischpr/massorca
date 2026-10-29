@@ -53,6 +53,8 @@ export function parsePrototypeMergePlan(text: string): PrototypeMergePlan | null
 
 /** One part of the review: the plan's suggestion, and what the user chose over it. */
 export type PrototypeMergeReviewPart = {
+  /** The part's place in the plan; stable while the review is open. */
+  id: number
   name: string
   selector: string
   suggested: string
@@ -107,7 +109,8 @@ export function isPlanForRequest(
 
 /** The review's parts: each one kept, from the source the plan suggested. */
 export function reviewPartsOf(plan: PrototypeMergePlan): PrototypeMergeReviewPart[] {
-  return plan.parts.map((part) => ({
+  return plan.parts.map((part, id) => ({
+    id,
     name: part.name,
     selector: part.selector,
     suggested: part.from,

@@ -101,8 +101,8 @@ describe('isPlanForRequest', () => {
 describe('the review parts', () => {
   it('starts every part kept, from the source the plan suggested', () => {
     expect(reviewPartsOf(parsed())).toEqual([
-      { name: 'Heading', selector: 'main > h1', suggested: 'A', from: 'A', on: true },
-      { name: 'Pay button', selector: 'button.cta', suggested: 'C', from: 'C', on: true }
+      { id: 0, name: 'Heading', selector: 'main > h1', suggested: 'A', from: 'A', on: true },
+      { id: 1, name: 'Pay button', selector: 'button.cta', suggested: 'C', from: 'C', on: true }
     ])
   })
 

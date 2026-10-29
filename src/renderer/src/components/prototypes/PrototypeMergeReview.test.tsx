@@ -21,9 +21,16 @@ function review(overrides: Partial<Review> = {}): Review {
     note: '',
     sending: false,
     parts: [
-      { name: 'Heading', selector: 'main > h1', suggested: 'A', from: 'A', on: true },
-      { name: 'Pay button', selector: 'button.cta', suggested: 'C', from: 'A', on: true },
-      { name: 'Order summary', selector: 'aside.summary', suggested: 'A', from: 'A', on: false }
+      { id: 0, name: 'Heading', selector: 'main > h1', suggested: 'A', from: 'A', on: true },
+      { id: 1, name: 'Pay button', selector: 'button.cta', suggested: 'C', from: 'A', on: true },
+      {
+        id: 2,
+        name: 'Order summary',
+        selector: 'aside.summary',
+        suggested: 'A',
+        from: 'A',
+        on: false
+      }
     ],
     ...overrides
   }
@@ -116,7 +123,11 @@ describe('PrototypeMergeReview', () => {
       'true',
       'false'
     ])
-    fireEvent.click(checkboxes[0] as HTMLElement)
+    const [heading] = checkboxes
+    if (heading === undefined) {
+      throw new Error('expected a checkbox for the first part')
+    }
+    fireEvent.click(heading)
     const merge = applied(update, stateWith(value)).merge
     expect(merge?.phase === 'review' && merge.parts[0]?.on).toBe(false)
   })

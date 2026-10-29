@@ -127,7 +127,7 @@ export function PrototypeMergeReview({
         </div>
         {review.parts.map((part, index) => (
           <PartRow
-            key={`${part.selector}:${index}`}
+            key={part.id}
             part={part}
             letters={review.letters}
             onToggle={() => update((current) => togglePart(current, index))}
@@ -182,8 +182,8 @@ export function PrototypeMergeReview({
           })}
         </span>
         <div className="flex flex-col gap-3 rounded-lg bg-card p-4.5">
-          {kept.map((part, index) => (
-            <div key={`${part.selector}:${index}`} className="flex items-center gap-2.5">
+          {kept.map((part) => (
+            <div key={part.id} className="flex items-center gap-2.5">
               <span
                 role="img"
                 aria-label={part.name}

@@ -14,9 +14,9 @@ const REQUEST_ID = '20261028-201500-k3f9q2'
 const FOLDER = `C:/chat/prototypes/${REQUEST_ID}`
 
 const PARTS: PrototypeMergeReviewPart[] = [
-  { name: 'Heading', selector: 'main > h1', suggested: 'A', from: 'A', on: true },
-  { name: 'Pay button', selector: 'button.cta', suggested: 'C', from: 'A', on: true },
-  { name: 'Order summary', selector: 'aside.summary', suggested: 'A', from: 'A', on: false }
+  { id: 0, name: 'Heading', selector: 'main > h1', suggested: 'A', from: 'A', on: true },
+  { id: 1, name: 'Pay button', selector: 'button.cta', suggested: 'C', from: 'A', on: true },
+  { id: 2, name: 'Order summary', selector: 'aside.summary', suggested: 'A', from: 'A', on: false }
 ]
 
 describe('joinDirectionLetters', () => {
