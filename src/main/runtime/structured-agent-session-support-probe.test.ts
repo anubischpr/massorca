@@ -1,7 +1,8 @@
 import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
 import { OrcaRuntimeService } from './orca-runtime'
 import {
   getStructuredAgentSessionHost,
@@ -208,6 +209,69 @@ describe('structured agent-session create-support probe', () => {
       })
     }
   )
+
+  describe('on an SSH or WSL host', () => {
+    const hosts = [
+      {
+        name: 'an SSH host',
+        location: { executionHostId: 'ssh-host-1', wslDistro: null },
+        reason: 'remote'
+      },
+      {
+        name: 'a WSL distro',
+        location: { executionHostId: 'local', wslDistro: 'Ubuntu' },
+        reason: 'wsl'
+      }
+    ] as const
+    const agents = ['codex', 'claude', 'grok', 'opencode', 'omp', 'pi', 'antigravity'] as const
+    const cases = agents.flatMap((agent) => hosts.map((host) => ({ agent, ...host })))
+
+    async function standIn(agent: string, present: boolean): Promise<void> {
+      const file = join(bin, agent)
+      if (!present) {
+        await rm(file, { force: true })
+        return
+      }
+      await writeFile(file, '#!/bin/sh\n')
+      await chmod(file, 0o755)
+    }
+
+    async function supportOnHost(agent: StructuredAgentId, location: TestLocation) {
+      const runtime = createRuntime(location)
+      const { resolveRuntimeFileTarget } = runtime as unknown as {
+        resolveRuntimeFileTarget: Mock
+      }
+      const support = await runtime.getStructuredAgentSessionCreateSupport(
+        'id:workspace-1',
+        agent,
+        undefined,
+        'full-access'
+      )
+      return { support, resolveRuntimeFileTarget }
+    }
+
+    it('offers an agent on this machine once its CLI is installed, so the refusals below are the location rule', async () => {
+      await standIn('grok', true)
+      const { support } = await supportOnHost('grok', { executionHostId: 'local', wslDistro: null })
+      expect(support).toEqual({ supported: true })
+    })
+
+    it.each(cases)(
+      'refuses $agent on $name by its location, whether or not the local CLI is installed',
+      async ({ agent, location, reason }) => {
+        await standIn(agent, true)
+        const withCli = await supportOnHost(agent, location)
+        await standIn(agent, false)
+        const withoutCli = await supportOnHost(agent, location)
+
+        expect(withCli.support).toEqual({ supported: false, reason })
+        expect(withoutCli.support).toEqual(withCli.support)
+        // Why: the local CLI check resolves the workspace before it runs, so no resolve means it never ran.
+        expect(withCli.resolveRuntimeFileTarget).not.toHaveBeenCalled()
+        expect(withoutCli.resolveRuntimeFileTarget).not.toHaveBeenCalled()
+      }
+    )
+  })
 
   it('still installs and reconciles on startup when a store is already persisted', async () => {
     const runtime = createRuntime({ executionHostId: 'local', wslDistro: null })
