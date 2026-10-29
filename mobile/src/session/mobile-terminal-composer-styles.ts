@@ -205,11 +205,6 @@ export const terminalComposerStyles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.xs
   },
-  tapAreaText: {
-    color: colors.textMuted,
-    fontFamily: typography.monoFamily,
-    fontSize: typography.metaSize + 1
-  },
   enterButton: {
     flexShrink: 0,
     width: 40,

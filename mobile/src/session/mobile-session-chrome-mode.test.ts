@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  drawsFloatingChrome,
+  drawsPendingBar,
   resolveMobileSessionChromeMode,
   type MobileSessionChromeModeInput,
   type MobileSessionTabType
@@ -96,5 +98,29 @@ describe('resolveMobileSessionChromeMode with legacy views off', () => {
 
   it('keeps a native chat in the chat chrome', () => {
     expect(off({ showNativeChat: true, activeTabType: 'agent-session' })).toBe('chat')
+  })
+
+  it('keeps a terminal in the chat chrome while the panel holds its body, whatever entry is pending', () => {
+    expect(off({ activeTabType: 'terminal', terminalPanelOpen: true, entryPending: false })).toBe(
+      'chat'
+    )
+  })
+})
+
+describe('the top chrome of a resolved session', () => {
+  it('keeps the floating controls over the unsupported notice, and over the chat or panel', () => {
+    expect(drawsFloatingChrome({ chromeMode: 'notice', sessionControls: false })).toBe(true)
+    expect(drawsFloatingChrome({ chromeMode: 'chat', sessionControls: true })).toBe(true)
+    expect(drawsFloatingChrome({ chromeMode: 'chat', sessionControls: false })).toBe(false)
+  })
+
+  it('draws no floating controls while the kind is still loading', () => {
+    expect(drawsFloatingChrome({ chromeMode: 'pending', sessionControls: false })).toBe(false)
+  })
+
+  it('draws the neutral Back-only bar only while the kind is still loading', () => {
+    expect(drawsPendingBar('pending')).toBe(true)
+    expect(drawsPendingBar('notice')).toBe(false)
+    expect(drawsPendingBar('chat')).toBe(false)
   })
 })

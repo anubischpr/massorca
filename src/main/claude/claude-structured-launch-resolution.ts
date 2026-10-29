@@ -53,6 +53,7 @@ import type { AgentSessionRecordStore } from '../runtime/agent-session-record-st
 import { resolveAgentSessionLaunchDirectory } from '../runtime/agent-session-launch-directory'
 import { CLAUDE_STRUCTURED_AGENT } from './claude-structured-agent-definition'
 import { claudeSessionIdForOrcaSession } from './claude-structured-session-id'
+import { delegationInstructionsForEnv } from '../delegated-session/delegation-agent-instructions'
 
 export { claudeSessionIdForOrcaSession }
 
@@ -344,11 +345,16 @@ export function createClaudeStructuredLaunchResolver(
     )
     const launchHome = await resolveClaudeStructuredLaunchHome(router, env, accountHome.path)
     const resumesTranscript = resumedWithoutRouter ?? (await resumes(launchHome))
+    // Why: the preset's own Task tool otherwise answers "create a child session" before the CLI does.
+    const delegation = delegationInstructionsForEnv(env)
     return {
       pathToClaudeCodeExecutable: command,
       account,
       options: {
         ...CLAUDE_STRUCTURED_BASE_OPTIONS,
+        ...(delegation
+          ? { systemPrompt: { type: 'preset', preset: 'claude_code', append: delegation } as const }
+          : {}),
         ...permission,
         ...(presetPermissionMode ? { permissionMode: presetPermissionMode } : {}),
         ...(promptSuggestions ? { promptSuggestions } : {}),

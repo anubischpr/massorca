@@ -1,0 +1,145 @@
+import type { AgentSessionDeclaredAccess } from '../../shared/agent-session-access-mode'
+import { z } from 'zod'
+import { isOrcaSessionId } from '../../shared/orca-session-address'
+import type { WorkerStartInput } from '../runtime/rpc/methods/orchestration/worker/worker-start-schema'
+import type { OrchestrationDb } from '../runtime/orchestration/db'
+import type { OrchestrationSessionCaller } from '../runtime/orchestration/orchestration-caller-identity'
+import { OrchestrationError } from '../runtime/orchestration/orchestration-error'
+import { resolveOrcaSessionParty } from '../runtime/orchestration/orchestration-party'
+import type { RunRow, TaskRow } from '../runtime/orchestration/types'
+import { delegationChildAccessMode } from './delegation-access-mode'
+import type { DelegationLauncher } from './delegation-launch-types'
+import { delegationPlacementFor } from './delegation-router'
+
+const RUN_OBJECTIVE = 'Delegated child sessions'
+const WORKTREE_SLUG_MAX_CHARS = 40
+
+/** Runs worker-start for a Task the launcher filed; resolves to its receipt. */
+export type DelegationWorkerStarter = (input: {
+  params: WorkerStartInput
+  run: RunRow
+  caller: OrchestrationSessionCaller
+  task: TaskRow
+}) => Promise<unknown>
+
+/** A branch-safe name for the worktree a child that writes code gets, unique per request. */
+export function delegationWorktreeName(title: string, requestId: string): string {
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, WORKTREE_SLUG_MAX_CHARS)
+    .replace(/-+$/g, '')
+  const suffix = requestId.replace(/^deleg_/, '').slice(0, 6)
+  return slug.length > 0 ? `${slug}-${suffix}` : `child-${suffix}`
+}
+
+/** Appended to a child's task when it writes into a folder the parent may also be editing. */
+export function folderWorkspaceOwnershipParagraph(folderPath: string): string {
+  return [
+    `Folder ownership: you work in the folder ${folderPath}, and the parent chat may be editing files there at the same time.`,
+    'Change only the files this task names or needs. Leave every other file to the parent, and do not revert or reformat changes you did not make.'
+  ].join(' ')
+}
+
+const StartReceipt = z.object({
+  dispatchId: z.string().optional(),
+  state: z.string().optional(),
+  lastError: z.string().optional()
+})
+
+/** The child's Run, Task and worker-start for one answered request. */
+export function createDelegationLauncher(deps: {
+  requireDb: () => OrchestrationDb
+  startWorker: DelegationWorkerStarter
+  /** What the child's agent declares it can run in; see `declaredAccessForStructuredAgent`. */
+  declaredAccess: (agent: string) => AgentSessionDeclaredAccess | undefined
+  /** The local folder a folder workspace runs in; null when it has none on this machine. */
+  folderPath: (workspaceId: string) => Promise<string | null>
+}): DelegationLauncher {
+  return async ({ request, parent, target, record }) => {
+    const db = deps.requireDb()
+    const sessionId = parent.sessionId
+    if (!isOrcaSessionId(sessionId)) {
+      throw new OrchestrationError(
+        'delegation_parent_unavailable',
+        `${sessionId} is not an Orca session id.`
+      )
+    }
+    // Why: a folder child writing in place shares the parent's folder, so its task names that folder.
+    const sharesFolder =
+      delegationPlacementFor(request.writes === 1, request.workspace_kind).placementWarning ===
+      'folder-workspace-writes'
+    const folderPath = sharesFolder ? await deps.folderPath(parent.workspaceId) : null
+    if (sharesFolder && folderPath === null) {
+      throw new OrchestrationError(
+        'delegation_parent_unavailable',
+        'The folder this child would work in could not be found on this machine.'
+      )
+    }
+    const caller: OrchestrationSessionCaller = Object.freeze({
+      ...resolveOrcaSessionParty(sessionId, db),
+      sessionId,
+      workspaceId: parent.workspaceId
+    })
+    // The parent's current Run when it has one, so a second child lands beside the first.
+    const run =
+      db.getCurrentRunForCoordinator(caller) ??
+      db.createRun({
+        objective: RUN_OBJECTIVE,
+        coordinatorHandle: caller.terminalHandle,
+        coordinatorPaneKey: caller.paneKey,
+        coordinatorOrcaSessionId: caller.orcaSessionId
+      })
+    record({ run_id: run.id })
+    const task = db.createTask({
+      spec:
+        folderPath === null
+          ? request.prompt
+          : `${request.prompt}\n\n${folderWorkspaceOwnershipParagraph(folderPath)}`,
+      taskTitle: request.title,
+      runId: run.id,
+      createdByRunGeneration: run.consumer_generation,
+      ...(caller.terminalHandle ? { createdByTerminalHandle: caller.terminalHandle } : {}),
+      ...(caller.paneKey ? { createdByPaneKey: caller.paneKey } : {})
+    })
+    record({ task_id: task.id })
+    const accessMode = delegationChildAccessMode({
+      childAgent: target.agent,
+      parentAccessMode: parent.accessMode,
+      childDeclaredAccess: deps.declaredAccess(target.agent)
+    })
+    // A folder has no worktree to branch, so its child always runs in place.
+    const newWorktree = target.placement === 'new-child' && request.workspace_kind === 'git'
+    const receipt = await deps.startWorker({
+      run,
+      caller,
+      task,
+      params: {
+        task: task.id,
+        from: caller.address,
+        agent: target.agent,
+        ...(target.model ? { model: target.model } : {}),
+        ...(target.model && target.effort ? { effort: target.effort } : {}),
+        preferredMode: 'chat',
+        ...(accessMode ? { accessMode } : {}),
+        worktree: newWorktree ? 'new-child' : 'current',
+        ...(newWorktree ? { name: delegationWorktreeName(request.title, request.id) } : {})
+      }
+    })
+    const started = StartReceipt.safeParse(receipt)
+    const dispatchId = started.success ? started.data.dispatchId : undefined
+    if (dispatchId !== undefined) {
+      record({ dispatch_id: dispatchId })
+    }
+    if (!started.success || started.data.state === 'failed' || dispatchId === undefined) {
+      throw new OrchestrationError(
+        'delegation_start_failed',
+        (started.success ? started.data.lastError : undefined) ?? 'The child session did not start.'
+      )
+    }
+    // A terminal-agent worker has no chat to link; its dispatch still reports how it ends.
+    const childSessionId = db.getDispatchContextById(dispatchId)?.assignee_orca_session_id ?? null
+    return { runId: run.id, taskId: task.id, dispatchId, childSessionId }
+  }
+}

@@ -8,6 +8,7 @@ import {
 } from '../ipc/pty/host-env/spawn-env-keys'
 import type { ProviderProcessLaunch } from '../provider-process/provider-process-launch'
 import { structuredSessionChildIdentityEnv } from '../runtime/structured-session-child-identity-env'
+import { delegationInstructionsForEnv } from '../delegated-session/delegation-agent-instructions'
 
 export type PiRpcLaunchOptions = {
   /** Binary and paths are resolved by the execution host before building the launch. */
@@ -96,6 +97,10 @@ export function buildPiRpcLaunch(options: PiRpcLaunchOptions): ProviderProcessLa
   if (provider && !model) {
     throw new Error('Pi --provider requires --model')
   }
+  // Why: Pi's and Gentle Shell's own subagents otherwise answer "create a child session".
+  const delegation = options.structuredSession
+    ? delegationInstructionsForEnv(childEnv, 'one-line')
+    : null
   return {
     command: options.command,
     cwd: options.cwd,
@@ -103,6 +108,7 @@ export function buildPiRpcLaunch(options: PiRpcLaunchOptions): ProviderProcessLa
       '--mode',
       'rpc',
       ...args,
+      ...(delegation ? ['--append-system-prompt', delegation] : []),
       ...(options.sessionFile ? ['--session', options.sessionFile] : []),
       ...(options.forkFile ? ['--fork', options.forkFile] : [])
     ],

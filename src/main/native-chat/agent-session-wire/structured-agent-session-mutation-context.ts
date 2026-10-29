@@ -68,6 +68,7 @@ export function mutateStructuredAgentSession<TValue>(
       adapter: context.deps.adapter,
       agents: context.deps.agents,
       logger: context.deps.logger,
+      ...(context.deps.hostOwnedPrompts ? { hostOwnedPrompts: context.deps.hostOwnedPrompts } : {}),
       callerKey: caller.callerKey,
       envelope,
       plan,

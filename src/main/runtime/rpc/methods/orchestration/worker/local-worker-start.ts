@@ -1,4 +1,4 @@
-import { probeWorkerOpenCodeModelLaunchSupport } from './worker-opencode-model-preflight'
+import { resolveLocalOpenCodeModelLaunchSupport } from './worker-opencode-model-preflight'
 import { resolveWorkerConfiguredAgentParams } from './worker-configured-agent-preflight'
 import { waitForWorkerAgentReady } from '../../../../launched-agent-composer-readiness'
 import type { OrcaRuntimeService } from '../../../../orca-runtime'
@@ -16,6 +16,7 @@ import {
   type WorkerStartModeReceipt
 } from '../../orchestration-worker-start-mode'
 import { EXISTING_WORKTREE_SETUP, placeWorkerAgent } from './worker-start-agent-placement'
+import { assertStructuredForAccess, resolveWorkerStartAccess } from './worker-start-access-mode'
 import { awaitStructuredWorkerSetupGate } from './worker-start-structured-setup-gate'
 import { assertOrchestrationWorktreeCreationSupported } from './folder-worktree-placement'
 import type { WorkerStartInput } from './worker-start-schema'
@@ -78,19 +79,12 @@ export async function startLocalWorker(args: {
           worktree: requestedWorktree === 'current' ? `id:${callerWorkspaceId}` : requestedWorktree
         }
   })
-  let openCodeModelLaunchSupported = false
-  if (!createsWorktree && launchParams.agent === 'opencode' && launchParams.model) {
-    const callerWorkspaceId = await resolveDispatchCallerWorktreeId(
-      runtime,
-      params.from,
-      callerSession
-    )
-    openCodeModelLaunchSupported = await probeWorkerOpenCodeModelLaunchSupport(
-      runtime,
-      launchParams,
-      { worktree: requestedWorktree === 'current' ? `id:${callerWorkspaceId}` : requestedWorktree }
-    )
-  }
+  const openCodeModelLaunchSupported = await resolveLocalOpenCodeModelLaunchSupport(
+    runtime,
+    launchParams,
+    params,
+    callerSession
+  )
 
   const { agent, launch } = prepareLocalWorkerStart({
     params: launchParams,
@@ -98,6 +92,7 @@ export async function startLocalWorker(args: {
     runtime,
     openCodeModelLaunchSupported
   })
+  const access = resolveWorkerStartAccess(agent, params.accessMode, params.terminal)
 
   const coordinatorWorktreeId = await resolveDispatchCallerWorktreeId(
     runtime,
@@ -129,8 +124,11 @@ export async function startLocalWorker(args: {
       resolvedWorktreeId: resolvedWorktree?.id
     })
   }
-  const hostMode = resolveWorkerStartModeOnHost(runtime, args.mode, resolvedWorktree?.id, agent)
+  // A new worktree shares its coordinator's host: an explicit access is judged there first.
+  const hostId = resolvedWorktree?.id ?? (access.accessMode ? creationWorktree?.id : undefined)
+  const hostMode = resolveWorkerStartModeOnHost(runtime, args.mode, hostId, agent, access)
   let mode = chatWorkerMode(await hostMode, chat)
+  assertStructuredForAccess(access, mode, false)
 
   const startOptions = {
     worktree: requestedWorktree,
@@ -195,6 +193,7 @@ export async function startLocalWorker(args: {
       mode,
       agent,
       launchPreferences: launch.preferences,
+      accessMode: access.accessMode,
       effects,
       onStage: (stage) => {
         failedStage = stage
@@ -203,6 +202,7 @@ export async function startLocalWorker(args: {
     // A created worktree settles its mode only once the host can be asked about it, so the
     // receipt the caller decided is not always the one that ran.
     mode = placed.mode
+    assertStructuredForAccess(access, mode, true)
     resolvedWorktree = placed.worktree
     terminalHandle = placed.terminalHandle
     const structuredSession = placed.structuredSession

@@ -23,6 +23,7 @@ import { ProviderFrameRow } from './NativeChatTranscriptChrome'
 import { readWholeAgentSessionFailureFact } from '../../../../shared/agent-session-failure'
 import { agentSessionFailureSentence } from '../../../../shared/agent-session-failure-words'
 import { sayAgentSessionFailureTranslated } from './agent-session-failure-words-text'
+import { NativeChatDelegationNotice } from './NativeChatDelegationNotice'
 
 const HOST_STATUS_WORDS: Record<AgentSessionHostStatusPresentation, () => string> = {
   'history-repaired': () =>
@@ -50,6 +51,9 @@ export function NativeChatNoticeRow({
 }): React.JSX.Element {
   useTranslation()
   const orcaStopView = useNativeChatOrcaStopView()
+  if (block.delegation) {
+    return <NativeChatDelegationNotice payload={block.delegation} />
+  }
   if (block.presentation === 'compaction' || block.presentation === 'context-cleared') {
     const label =
       block.presentation === 'context-cleared'

@@ -45,6 +45,15 @@ describe('Gentle Shell Pi version output', () => {
       true
     ],
     [
+      'accepts the bare three-line output a mise-shimmed wrapper prints on a real host',
+      [
+        'gentle-shell 4.3.0',
+        'pi 1.3.0',
+        'home isolated /home/christian/orca-preview/home/.gentle-shell/agent'
+      ],
+      true
+    ],
+    [
       'continues accepting the two-line version output',
       ['gentle-shell version 4.1.0', 'pi version 1.1.0'],
       true

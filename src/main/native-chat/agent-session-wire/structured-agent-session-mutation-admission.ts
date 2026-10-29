@@ -52,6 +52,7 @@ import type { AgentSessionTurnContext } from './structured-agent-session-turns'
 import { mutationTurnContext } from './structured-agent-session-mutation-turn-context'
 import type { StructuredAgentSessionLogger } from './structured-agent-session-logger'
 import type { StructuredAgentRegistry } from './structured-agent-registry'
+import type { StructuredAgentSessionHostOwnedPrompts } from './structured-agent-session-host-owned-prompts'
 
 // The code is shared with the client so a read that refuses this way can be told apart from a
 // transcript that failed to load; the two must never drift apart.
@@ -77,6 +78,7 @@ export type AgentSessionMutationRequest<TValue> = {
   adapter: StructuredAgentSessionAdapter
   agents: StructuredAgentRegistry
   logger: StructuredAgentSessionLogger
+  hostOwnedPrompts?: StructuredAgentSessionHostOwnedPrompts
   callerKey: string
   envelope: AgentSessionMutationEnvelope
   plan: MutationPlan<TValue>

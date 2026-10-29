@@ -161,7 +161,7 @@ export async function resolveHostStructuredAgentCreateSupport(input: {
   })
   warnStructuredAgentSessionCreateUnsupported(
     agent,
-    support,
+    typeof launch === 'string' && !support.supported ? { ...support, cause: launch } : support,
     !supportsLocation ? 'location' : !supportsLaunch ? 'installed-agent' : 'managed-account'
   )
   if (!support.supported) {

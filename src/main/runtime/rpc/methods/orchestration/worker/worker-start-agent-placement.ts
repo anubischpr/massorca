@@ -14,6 +14,7 @@
  */
 
 import type { AgentLaunchPreferences } from '../../../../../../shared/agent-session-host-authority'
+import type { AgentSessionExplicitAccess } from '../../../../../../shared/agent-session-access-mode'
 import type { TuiAgent } from '../../../../../../shared/tui-agent'
 import { executeAgentLaunch } from '../../../../../agent-launch/agent-launch-executor'
 import type { AgentLaunchSurfaceFactory } from '../../../../../agent-launch/agent-launch-surface-factories'
@@ -63,6 +64,8 @@ type WorkerAgentPlacementArgs = {
   mode: WorkerStartModeReceipt
   agent: TuiAgent | undefined
   launchPreferences: AgentLaunchPreferences | undefined
+  /** Resolved against the agent's declared modes; present only for an explicit `--access-mode`. */
+  accessMode?: AgentSessionExplicitAccess
   effects: WorkerEffect[]
   /** Attributes a throw to the step that was running, the way the caller's own stages do. */
   onStage: (stage: string) => void
@@ -192,6 +195,7 @@ function workerSurfaceFactory(
         agent,
         dispatchId: args.dispatchId,
         ...(args.launchPreferences ? { launchPreferences: args.launchPreferences } : {}),
+        ...(args.accessMode ? { accessMode: args.accessMode } : {}),
         effects: args.effects
       })
       onStructuredSession(session)

@@ -169,6 +169,11 @@ const Resolution = z.object({
   resolvedAt: z.number().nullable()
 })
 
+/** A delegated session's payload rides a body as an extension: this build keeps it whole and
+ *  reads it through `readDelegationCardPayload` / `readDelegationNoticePayload`, so a payload a
+ *  newer host shapes differently never makes a chat unreadable. */
+const DelegationExtension = z.looseObject({ requestId: z.string().min(1) })
+
 const ApprovalMatchedAskRule = z.object({
   source: z.string(),
   toolName: z.string(),
@@ -245,6 +250,7 @@ const KnownItemBody = z.discriminatedUnion('kind', [
     questions: z.array(Question).optional(),
     freeTextQuestionId: z.string().optional(),
     freeTextInput: FreeTextInput.optional(),
+    delegation: DelegationExtension.optional(),
     resolution: Resolution
   }),
   z.object({
@@ -263,7 +269,8 @@ const KnownItemBody = z.discriminatedUnion('kind', [
     providerFrame: ProviderFrame.optional(),
     threadGoal: AgentJournalThreadGoalStateSchema.optional(),
     failure: AgentSessionFailureFactSchema.optional(),
-    orcaStop: z.object({ cause: z.string().min(1) }).optional()
+    orcaStop: z.object({ cause: z.string().min(1) }).optional(),
+    delegation: DelegationExtension.optional()
   }),
   z.object({
     kind: z.literal('turn'),

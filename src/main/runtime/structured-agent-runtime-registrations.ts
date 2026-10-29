@@ -16,10 +16,9 @@ import {
 import { CodexStructuredSessionAdapter } from '../codex/codex-structured-session-adapter'
 import { CODEX_STRUCTURED_AGENT } from '../codex/codex-structured-agent-definition'
 import { CLAUDE_STRUCTURED_AGENT } from '../claude/claude-structured-agent-definition'
-import {
-  isAgentSessionPreSpawnError,
-  type StructuredAgentSessionAdapter,
-  type StructuredAgentSessionLifecycleEvent
+import type {
+  StructuredAgentSessionAdapter,
+  StructuredAgentSessionLifecycleEvent
 } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import type { StructuredAgentCommandSettings } from '../native-chat/structured-agent-command-resolution'
 import type { StructuredAgentDefinition } from '../native-chat/agent-session-wire/structured-agent-definition'
@@ -45,12 +44,10 @@ import {
 import { ACP_LAUNCH_SPECS, type AcpLaunchSpec } from '../acp/acp-launch-specs'
 import { acpStructuredAgentDefinition } from '../acp/acp-structured-agent-definitions'
 import { createAcpAgentConnection } from '../acp/acp-agent-connection'
-import {
-  acpLaunchVersionSupported,
-  createAcpStructuredLaunchResolver,
-  resolveAcpLaunchCommand
-} from '../acp/acp-structured-launch-resolution'
+import { createAcpStructuredLaunchResolver } from '../acp/acp-structured-launch-resolution'
 import { AcpStructuredSessionAdapter } from '../acp/acp-structured-session-adapter'
+import { acpLaunchCheck, structuredCliLaunchCheck } from './structured-agent-launch-check'
+import { ensureDelegationInstructionsFolder } from '../delegated-session/delegation-instructions-folder'
 import { PI_RPC_RUNTIME_REGISTRATION } from '../pi/rpc-runtime-registration'
 import { ANTIGRAVITY_RUNTIME_REGISTRATION } from '../antigravity/runtime-registration'
 import type { AgentModelCatalogDiscovery } from '../native-chat/agent-model-catalog/agent-model-catalog-discovery'
@@ -211,24 +208,7 @@ function acpRegistration(spec: AcpLaunchSpec): StructuredAgentRuntimeRegistratio
   return {
     definition: acpStructuredAgentDefinition(spec),
     supportsLocation: (location) => supportsSupervisedProviderChildLocation(location),
-    ...(spec.supportsVersion
-      ? {
-          supportsLaunch: async ({ cwd, env, commandSettings }) => {
-            const launchEnv = { ...env, ...spec.env }
-            let command: string
-            try {
-              command = resolveAcpLaunchCommand(spec, launchEnv, { commandSettings })
-            } catch (error) {
-              // An unrunnable Command setting is the launch's refusal to state, not a terminal.
-              if (isAgentSessionPreSpawnError(error)) {
-                return true
-              }
-              throw error
-            }
-            return acpLaunchVersionSupported(spec, { command, cwd, env: launchEnv })
-          }
-        }
-      : {}),
+    supportsLaunch: acpLaunchCheck(spec),
     resolveAccountHome: ({ launchEnv }) => spec.account.resolve({ launchEnv }),
     modelCatalog: (context) => acpModelCatalogDiscovery(spec, context),
     createAdapter: (context) => {
@@ -251,6 +231,8 @@ function acpRegistration(spec: AcpLaunchSpec): StructuredAgentRuntimeRegistratio
             ? { resolveFullAccess: deps.resolveAgentFullAccess }
             : {}),
           ...nativeChatVisualsFor(deps),
+          resolveDelegationInstructionsFolder: () =>
+            ensureDelegationInstructionsFolder(deps.stateDirectory),
           logger: deps.logger
         }),
         connect: (launch, options) => createAcpAgentConnection(launch, options),
@@ -298,6 +280,7 @@ export const STRUCTURED_AGENT_RUNTIME_REGISTRATIONS: readonly StructuredAgentRun
       createAdapter: createCodexAdapter,
       modelCatalog: codexModelCatalogDiscovery,
       supportsLocation: (location) => supportsCodexStructuredLocation(location),
+      supportsLaunch: structuredCliLaunchCheck('codex'),
       resolveAccountHome: async (request, services) =>
         agentSessionAccountHome(
           CODEX_STRUCTURED_AGENT,
@@ -309,6 +292,7 @@ export const STRUCTURED_AGENT_RUNTIME_REGISTRATIONS: readonly StructuredAgentRun
       createAdapter: createClaudeAdapter,
       modelCatalog: claudeModelCatalogDiscovery,
       supportsLocation: supportsClaudeStructuredLocation,
+      supportsLaunch: structuredCliLaunchCheck('claude'),
       resolveAccountHome: async ({ launchEnv, location }, services) =>
         agentSessionAccountHome(
           CLAUDE_STRUCTURED_AGENT,

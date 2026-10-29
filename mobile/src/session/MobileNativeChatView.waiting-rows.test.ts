@@ -7,6 +7,8 @@ import type { AgentJournalRenderItem } from '../../../src/shared/agent-session-j
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import { MobileNativeChatView } from './MobileNativeChatView'
 
+// Why: the why sheet's drawer is not under test here; a stub keeps its native import chain out of the suite.
+vi.mock('../components/BottomDrawer', () => ({ BottomDrawer: () => null }))
 vi.mock('react-native', async () => {
   const React = await import('react')
   return {

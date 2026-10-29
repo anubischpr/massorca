@@ -8,6 +8,7 @@
 //
 // Owed work is derived on every tick, never stored, so there is nothing to disagree with it.
 
+import { isHostOwnedDelegationQuestion } from '../../../shared/delegated-session-journal'
 import { agentChildWorkLiveness } from '../../../shared/agent-status-child-work-liveness'
 import { isQueuedAgentJournalSubmission } from '../../../shared/agent-session-queued-submission'
 import type { AgentChildWorkView } from '../../../shared/agent-status-child-work-view'
@@ -68,7 +69,9 @@ export function structuredAgentSessionChildHasOpenWork(
   journal.visitItems((_itemId, _sequence, body) => {
     // A subagent can raise a prompt the lead turn cannot see.
     pendingPrompt ||=
-      (body.kind === 'approval' || body.kind === 'question') && body.resolution.state === 'pending'
+      (body.kind === 'approval' || body.kind === 'question') &&
+      body.resolution.state === 'pending' &&
+      !isHostOwnedDelegationQuestion(body)
   })
   return pendingPrompt
 }

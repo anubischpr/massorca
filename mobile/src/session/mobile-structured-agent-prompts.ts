@@ -3,13 +3,20 @@ import {
   agentSessionPromptQuestions,
   type AgentSessionQuestionAnswer
 } from '../../../src/shared/agent-session-question-answer'
+import { readDelegationCardPayload } from '../../../src/shared/delegated-session-journal'
 import type { MobileChatPermission } from './mobile-native-chat-permission'
 import type { MobileChatQuestion } from './mobile-native-chat-question'
+import type { MobileDelegationQuestion } from './mobile-delegation-card-model'
 import {
   groupedQuestionPromptKey,
   projectGroupedQuestion,
   type GroupedQuestionDraft
 } from './mobile-structured-grouped-question'
+import {
+  decodePromptToken,
+  decodeQuestionFreeTextAnswer,
+  encodePromptToken
+} from './mobile-structured-prompt-token'
 
 export type StructuredApprovalItem = AgentJournalRenderItem & {
   body: Extract<AgentJournalRenderItem['body'], { kind: 'approval' }>
@@ -31,29 +38,6 @@ export type StructuredQuestionResponseTarget = {
   answer: AgentSessionQuestionAnswer
 }
 
-type PromptTokenPayload =
-  | {
-      kind: 'approval'
-      itemId: string
-      revision: number
-      optionId: string
-    }
-  | {
-      kind: 'question-option'
-      itemId: string
-      revision: number
-      questionId: string
-      optionId: string
-    }
-  | {
-      kind: 'question-free-text'
-      itemId: string
-      revision: number
-      questionId: string
-    }
-
-const STRUCTURED_PROMPT_TOKEN_PREFIX = 'structured-agent-prompt:'
-
 export function pendingStructuredApproval(
   item: AgentJournalRenderItem
 ): item is StructuredApprovalItem {
@@ -64,78 +48,6 @@ export function pendingStructuredQuestion(
   item: AgentJournalRenderItem
 ): item is StructuredQuestionItem {
   return item.body.kind === 'question' && item.body.resolution.state === 'pending'
-}
-
-function encodePromptToken(payload: PromptTokenPayload): string {
-  return `${STRUCTURED_PROMPT_TOKEN_PREFIX}${encodeURIComponent(JSON.stringify(payload))}`
-}
-
-function decodePromptToken(value: string): PromptTokenPayload | null {
-  if (!value.startsWith(STRUCTURED_PROMPT_TOKEN_PREFIX)) {
-    return null
-  }
-  try {
-    const decoded = JSON.parse(
-      decodeURIComponent(value.slice(STRUCTURED_PROMPT_TOKEN_PREFIX.length))
-    ) as Record<string, unknown>
-    if (
-      typeof decoded.itemId !== 'string' ||
-      typeof decoded.revision !== 'number' ||
-      !Number.isFinite(decoded.revision)
-    ) {
-      return null
-    }
-    if (decoded.kind === 'approval' && typeof decoded.optionId === 'string') {
-      return {
-        kind: decoded.kind,
-        itemId: decoded.itemId,
-        revision: decoded.revision,
-        optionId: decoded.optionId
-      }
-    }
-    if (
-      decoded.kind === 'question-option' &&
-      typeof decoded.questionId === 'string' &&
-      typeof decoded.optionId === 'string'
-    ) {
-      return {
-        kind: decoded.kind,
-        itemId: decoded.itemId,
-        revision: decoded.revision,
-        questionId: decoded.questionId,
-        optionId: decoded.optionId
-      }
-    }
-    if (decoded.kind === 'question-free-text' && typeof decoded.questionId === 'string') {
-      return {
-        kind: decoded.kind,
-        itemId: decoded.itemId,
-        revision: decoded.revision,
-        questionId: decoded.questionId
-      }
-    }
-  } catch {
-    return null
-  }
-  return null
-}
-
-function decodeQuestionFreeTextAnswer(value: string): {
-  payload: Extract<PromptTokenPayload, { kind: 'question-free-text' }>
-  answer: string
-} | null {
-  if (!value.startsWith(STRUCTURED_PROMPT_TOKEN_PREFIX)) {
-    return null
-  }
-  const separator = value.indexOf(':', STRUCTURED_PROMPT_TOKEN_PREFIX.length)
-  if (separator === -1) {
-    return null
-  }
-  const payload = decodePromptToken(value.slice(0, separator))
-  if (payload?.kind !== 'question-free-text') {
-    return null
-  }
-  return { payload, answer: decodeURIComponent(value.slice(separator + 1)) }
 }
 
 export function projectStructuredPermission(
@@ -185,6 +97,7 @@ export function projectStructuredQuestion(
     return null
   }
   const optionDescriptions = prompt.body.options.map((option) => option.description)
+  const delegation = projectDelegationQuestion(prompt, question.id)
   return {
     question: prompt.body.question,
     prompt: { itemId: prompt.itemId, expectedRevision: prompt.revision },
@@ -211,7 +124,35 @@ export function projectStructuredQuestion(
             questionId: prompt.body.freeTextQuestionId
           })
         }
-      : {})
+      : {}),
+    ...(delegation ? { delegation } : {})
+  }
+}
+
+/** A delegated session's agent choice with the answer each option sends; null for any other question,
+ *  or a card with nothing to choose, which the plain question draws instead. */
+function projectDelegationQuestion(
+  prompt: StructuredQuestionItem,
+  questionId: string
+): MobileDelegationQuestion | null {
+  const card = readDelegationCardPayload(prompt.body.delegation)
+  if (!card || (card.decision === null && card.agents.length === 0)) {
+    return null
+  }
+  return {
+    card,
+    answerTokens: Object.fromEntries(
+      prompt.body.options.map((option) => [
+        option.id,
+        encodePromptToken({
+          kind: 'question-option',
+          itemId: prompt.itemId,
+          revision: prompt.revision,
+          questionId,
+          optionId: option.id
+        })
+      ])
+    )
   }
 }
 

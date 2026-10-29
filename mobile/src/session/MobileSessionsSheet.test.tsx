@@ -124,6 +124,67 @@ describe('MobileSessionsSheet', () => {
       .map((node) => node.props.children)
   }
 
+  it('nests a child tab under its parent, and keeps the flat list without lineage', () => {
+    const child: MobileSessionTab = {
+      ...chat,
+      id: 'tab-child',
+      title: 'Explore v5',
+      sessionId: 'child-1'
+    }
+    const nestedRows: MobileSessionSwitcherRow<MobileSessionTab>[] = [
+      { tab: chat, isActive: false, status: 'idle' },
+      { tab: child, isActive: false, status: null },
+      { tab: terminal, isActive: true, status: 'working' }
+    ]
+    const tabLabels = (mounted: ReactTestRenderer) =>
+      mounted.root
+        .findAll((node) => String(node.type) === 'Pressable')
+        .map((node) => node.props.accessibilityLabel)
+        .filter((label) => ['Fix login', 'Explore v5', 'npm test'].includes(label))
+
+    const nested = mount(
+      propsWith({ rows: nestedRows, childParentTabIds: new Map([['tab-child', 'tab-chat']]) })
+    )
+    const childGroups = nested.root.findAll((node) => node.props.testID === 'session-child-rows')
+    expect(childGroups).toHaveLength(1)
+    expect(
+      childGroups[0]!
+        .findAll((node) => String(node.type) === 'Pressable')
+        .map((node) => node.props.accessibilityLabel)
+    ).toEqual(['Explore v5'])
+    expect(tabLabels(nested)).toEqual(['Fix login', 'Explore v5', 'npm test'])
+
+    const flat = mount(propsWith({ rows: nestedRows }))
+    expect(flat.root.findAll((node) => node.props.testID === 'session-child-rows')).toHaveLength(0)
+    expect(tabLabels(flat)).toEqual(['Fix login', 'Explore v5', 'npm test'])
+  })
+
+  it('selects a nested child tab and closes the sheet at once', () => {
+    const child: MobileSessionTab = {
+      ...chat,
+      id: 'tab-child',
+      title: 'Explore v5',
+      sessionId: 'child-1'
+    }
+    const onSelect = vi.fn()
+    const onClose = vi.fn()
+    const mounted = mount(
+      propsWith({
+        rows: [
+          { tab: chat, isActive: false, status: 'idle' },
+          { tab: child, isActive: false, status: null }
+        ],
+        childParentTabIds: new Map([['tab-child', 'tab-chat']]),
+        onSelect,
+        onClose
+      })
+    )
+    act(() => rowNamed(mounted, 'Explore v5').props.onPress())
+
+    expect(onSelect).toHaveBeenCalledWith(child)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
   it('labels each tab by its agent status, or by its kind when it reports none', () => {
     const texts = textsOf(mount(propsWith({})))
     expect(texts).toEqual(expect.arrayContaining(['Working', 'Idle', 'Markdown']))
@@ -180,5 +241,11 @@ describe('MobileSessionsSheet', () => {
     expect(onResume).not.toHaveBeenCalled()
     act(() => drawerOf(shown).props.onAfterClose())
     expect(onResume).toHaveBeenCalledTimes(1)
+  })
+
+  it('says where terminals live, since the sheet lists chats only', () => {
+    expect(textsOf(mount(propsWith({})))).toContain(
+      'Terminals live in the Terminal view, not here.'
+    )
   })
 })

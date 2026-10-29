@@ -6,6 +6,7 @@ export const CLI_BOOLEAN_FLAGS = new Set([
   'all',
   'allow-failed-archive-hook',
   'attachments',
+  'chat',
   'children',
   'comments',
   'connect',
@@ -54,6 +55,7 @@ export const CLI_BOOLEAN_FLAGS = new Set([
   'unread',
   'value-stdin',
   'wait',
+  'writes',
   'yes'
 ])
 

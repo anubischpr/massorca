@@ -22,6 +22,10 @@ Use `orca` when Orca's running editor/runtime is the source of truth. Use plain 
 
 Prefer `--json` for agent-driven calls. If the CLI is missing, say so explicitly instead of inspecting source files first.
 
+## Child Sessions From A Chat
+
+To run a piece of work as a separate child session of the current Orca chat, on an agent the user picks, use `orca orchestration delegate --summary "<one-line abstract, max 160 chars, no secrets or paths>" --prompt "<full task>" [--title <name>] [--writes] --json` and load the `orchestration` skill for the rules. It returns at once; a card in the chat asks which agent runs the child. This is not a full handoff: the child reports back to this chat.
+
 ## Full Handoffs
 
 A full handoff transfers ownership to another agent or worktree, then the original agent stops. Treat requests phrased as "hand off", "handoff", "handover", "give this to another agent", "give this to another worktree", "another agent", or "another worktree" as full handoffs unless the user explicitly asks to supervise, monitor, wait for results, track completion, coordinate a DAG, use decision gates, or manage ask/reply.

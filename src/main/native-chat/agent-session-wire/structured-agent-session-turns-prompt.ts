@@ -11,6 +11,7 @@ import {
 } from '../../../shared/agent-session-question-answer'
 import type {
   AgentJournalApprovalItem,
+  AgentJournalItemIdentity,
   AgentJournalQuestionItem,
   AgentJournalResolution
 } from '../../../shared/agent-session-journal-types'
@@ -23,6 +24,7 @@ import {
   AgentSessionPromptAnswerRejectedError,
   AgentSessionPromptUnavailableError
 } from './structured-agent-session-adapter'
+import { isHostOwnedPromptItem } from './structured-agent-session-host-owned-prompts'
 import { settledPrompt, validatePendingPrompt } from './structured-agent-session-prompt-state'
 import type { AgentSessionTurnContext, TurnOutcome } from './structured-agent-session-turns'
 
@@ -86,6 +88,46 @@ function resolvedWithSameChoice(
     : null
 }
 
+/** A host-owned question is resolved by the host's own resolver, never by the provider adapter. */
+async function performHostOwnedPrompt(
+  ctx: AgentSessionTurnContext,
+  answered: {
+    input: AgentSessionPromptRequest
+    prompt: AgentJournalApprovalItem | AgentJournalQuestionItem
+    identity: AgentJournalItemIdentity
+    resolution: AgentJournalResolution
+  }
+): Promise<TurnOutcome<AgentSessionPromptResult>> {
+  const { input, prompt, identity, resolution } = answered
+  const optionId = resolution.selectedOptionId
+  if (!ctx.hostOwnedPrompts || prompt.kind !== 'question' || optionId === null) {
+    return invalid('promptGone', `Item ${input.itemId} cannot be answered on this host.`)
+  }
+  const outcome = await ctx.hostOwnedPrompts.answer({
+    sessionId: ctx.sessionId,
+    itemId: input.itemId,
+    optionId
+  })
+  if (!outcome.ok) {
+    return invalid(outcome.reason, outcome.message)
+  }
+  let appended: Awaited<ReturnType<typeof ctx.journal.appendItem>>
+  try {
+    appended = await ctx.journal.appendItem(
+      identity,
+      { ...prompt, resolution },
+      // A revision: the prompt keeps the turn it was raised in.
+      { fence: ctx.fence, turnScope: ctx.journal.liveTurnScope() }
+    )
+  } catch (error) {
+    // The claim was taken before this write, so a write that fails hands it back.
+    outcome.rollback?.()
+    throw error
+  }
+  outcome.afterCommit()
+  return { ok: true, value: { itemId: appended.itemId, revision: appended.revision, resolution } }
+}
+
 export async function performPrompt(
   ctx: AgentSessionTurnContext,
   input: AgentSessionPromptRequest
@@ -118,6 +160,9 @@ export async function performPrompt(
     ...(response.kind === 'answers' ? { answers: response.answers } : {}),
     resolvedBy: ctx.resolvedBy,
     resolvedAt: ctx.now()
+  }
+  if (isHostOwnedPromptItem(input.itemId, prompt)) {
+    return performHostOwnedPrompt(ctx, { input, prompt, identity, resolution })
   }
   const committed: { item?: Awaited<ReturnType<typeof ctx.journal.appendItem>> } = {}
   try {

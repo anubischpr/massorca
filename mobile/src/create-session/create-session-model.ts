@@ -5,6 +5,7 @@ import {
   LOCAL_EXECUTION_HOST_ID,
   type ExecutionHostId
 } from '../../../src/shared/execution-host'
+import type { PiRuntimeSelection } from '../../../src/shared/pi-runtime-selection'
 import type { TuiAgent } from '../../../src/shared/tui-agent'
 import type { MobileWorkspaceRepo } from '../components/new-worktree-modal-types'
 import { resolveMobileNewWorkspaceDialogRepoId } from '../worktree/new-workspace-dialog-repo-selection'
@@ -17,6 +18,8 @@ export type CreateSessionSelection = {
   repoId: string | null
   workspaceMode: CreateSessionWorkspaceMode
   agent: TuiAgent | null
+  /** The Pi runtime a Pi row runs, so Gentle Shell and stock Pi stay apart; null for other agents. */
+  piRuntime: PiRuntimeSelection | null
   /** The branch a new worktree starts from; null leaves the choice to the host default. */
   baseRef: string | null
 }
@@ -97,6 +100,7 @@ export function buildDefaultCreateSessionSelection(args: {
     repoId: repo?.id ?? null,
     workspaceMode: 'new-worktree',
     agent: null,
+    piRuntime: null,
     baseRef: null
   }
 }
@@ -112,7 +116,14 @@ export function chooseCreateSessionHost(
     return { ...selection, hostId }
   }
   const first = reposOnHost(repos, hostId)[0]
-  return { ...selection, hostId, repoId: first?.id ?? null, agent: null, baseRef: null }
+  return {
+    ...selection,
+    hostId,
+    repoId: first?.id ?? null,
+    agent: null,
+    piRuntime: null,
+    baseRef: null
+  }
 }
 
 export function chooseCreateSessionRepo(
@@ -126,11 +137,13 @@ export function chooseCreateSessionRepo(
   }
   const hostId = repoHostId(repo)
   // A different host detects different agents, and a branch belongs to its repository.
+  const keepsAgent = hostId === selection.hostId
   return {
     ...selection,
     repoId,
     hostId,
-    agent: hostId === selection.hostId ? selection.agent : null,
+    agent: keepsAgent ? selection.agent : null,
+    piRuntime: keepsAgent ? selection.piRuntime : null,
     baseRef: repoId === selection.repoId ? selection.baseRef : null
   }
 }
@@ -185,37 +198,6 @@ export function parseWorkspaceMode(value: string): CreateSessionWorkspaceMode | 
 
 export function projectChoiceDescription(repo: MobileWorkspaceRepo): string {
   return isFolderRepo(repo) ? `Folder · no Git · ${repo.path}` : repo.path
-}
-
-/** Agents the host found and the user has not disabled; `null` detection means still looking. */
-export function selectableCreateSessionAgents(
-  catalog: readonly { id: TuiAgent }[],
-  filters: { detectedAgentIds: ReadonlySet<string> | null; isEnabled: (agent: TuiAgent) => boolean }
-): TuiAgent[] {
-  return catalog
-    .map((entry) => entry.id)
-    .filter(
-      (id) =>
-        filters.isEnabled(id) &&
-        (filters.detectedAgentIds === null || filters.detectedAgentIds.has(id))
-    )
-}
-
-/** Keeps a still-available agent, else the user's default, else the first one found. */
-export function withAvailableCreateSessionAgent(
-  selection: CreateSessionSelection,
-  agents: readonly TuiAgent[],
-  preferred: TuiAgent | null
-): CreateSessionSelection {
-  const first = agents[0]
-  if (first === undefined) {
-    return selection.agent === null ? selection : { ...selection, agent: null }
-  }
-  if (selection.agent !== null && agents.includes(selection.agent)) {
-    return selection
-  }
-  const agent = preferred !== null && agents.includes(preferred) ? preferred : first
-  return { ...selection, agent }
 }
 
 export function canSubmitCreateSession(args: {

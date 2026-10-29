@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NativeChatStructuredQuestionCard } from './NativeChatStructuredQuestionCard'
 import type { AgentJournalQuestion } from '../../../../shared/agent-session-journal-types'
+import type { DelegationCardPayload } from '../../../../shared/delegated-session-journal'
 
 let container: HTMLDivElement
 let root: ReturnType<typeof createRoot>
@@ -125,5 +126,71 @@ describe('structured extension question cards', () => {
       kind: 'answers',
       answers: [{ questionId: 'q1', optionIds: ['opaque-index-0'] }]
     })
+  })
+})
+
+describe('delegated agent choice in the structured question card', () => {
+  const choice: AgentJournalQuestion = {
+    id: 'single',
+    question: 'Which agent should handle this session?',
+    options: [
+      { id: 'automatic', label: 'Automatic' },
+      { id: 'agent:codex', label: 'Codex' }
+    ],
+    multiSelect: false
+  }
+  const usage = {
+    agent: 'codex',
+    bindingPercent: 10,
+    window: 'weekly',
+    noData: false,
+    excluded: null
+  } as const
+  const delegation: DelegationCardPayload = {
+    requestId: 'req-1',
+    title: 'Explore',
+    decision: {
+      agent: 'codex',
+      model: null,
+      effort: null,
+      tier: 1,
+      dimensions: { risk: 'low', complexity: 'low', verifiability: 'high', ambiguity: 'low' },
+      placement: 'current',
+      placementWarning: null,
+      ranking: [usage],
+      reasons: ['lowest-usage', 'read-only-current-worktree']
+    },
+    agents: [{ agent: 'codex', label: 'Codex', usage, model: null, effort: null }],
+    placement: 'current',
+    placementWarning: null
+  }
+
+  it('draws the agent choice card for a valid payload', () => {
+    act(() =>
+      root.render(
+        <NativeChatStructuredQuestionCard
+          questions={[choice]}
+          delegation={delegation}
+          onAnswer={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      )
+    )
+    expect(container.textContent).toContain('Automatic picked Codex')
+    expect(container.textContent).not.toContain('Submit')
+  })
+
+  it('draws the plain question when the payload is absent', () => {
+    act(() =>
+      root.render(
+        <NativeChatStructuredQuestionCard
+          questions={[choice]}
+          onAnswer={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      )
+    )
+    expect(container.textContent).not.toContain('Automatic picked')
+    expect(container.textContent).toContain('Which agent should handle this session?')
   })
 })

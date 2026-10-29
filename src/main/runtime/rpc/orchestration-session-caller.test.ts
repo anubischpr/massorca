@@ -73,7 +73,8 @@ const MINIMAL_PARAMS: Readonly<Record<string, Record<string, unknown>>> = {
   'orchestration.taskCreate': { spec: 's' },
   'orchestration.taskList': {},
   'orchestration.taskUpdate': { id: 'task_missing', status: 'completed' },
-  'orchestration.workerStart': { spec: 's' }
+  'orchestration.workerStart': { spec: 's' },
+  'orchestration.delegateRequest': { summary: 's', prompt: 'p' }
 }
 
 describe('orchestration session callers at the dispatch entry', () => {
@@ -101,9 +102,9 @@ describe('orchestration session callers at the dispatch entry', () => {
       })
       .sort()
 
-    // The population: 44 registered methods carrying 28 party-naming fields.
-    expect(registry.size).toBe(44)
-    expect(partyNaming).toHaveLength(28)
+    // The population: 45 registered methods carrying 29 party-naming fields.
+    expect(registry.size).toBe(45)
+    expect(partyNaming).toHaveLength(29)
     expect(partyNaming).toEqual(
       [
         ...Object.entries(ORCHESTRATION_CALLER_PARAM).map(

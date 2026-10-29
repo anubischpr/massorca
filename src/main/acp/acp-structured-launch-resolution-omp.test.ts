@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE } from '../delegated-session/delegation-agent-instructions'
 import type { AgentSessionRecord } from '../../shared/agent-session-record'
 import { agentSessionRecordFixture } from '../../shared/agent-session-record.test-fixture'
 import { NATIVE_CHAT_VISUALS_DIR_ENV } from '../native-chat/native-chat-visuals-delivery'
@@ -10,6 +11,7 @@ import {
 } from './acp-structured-launch-resolution'
 
 const OMP = acpLaunchSpecFor('omp')!
+const OMP_ARGS = ['acp', '--append-system-prompt', DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE]
 const identity = {
   sessionId: 'session-alpha-1',
   workspaceId: 'workspace-1',
@@ -52,7 +54,7 @@ describe('OMP ACP launch resolution', () => {
   it('runs `omp acp` pointed at the agent directory the chat pinned, with or without full access', async () => {
     for (const fullAccess of [false, true]) {
       const launch = await resolver(ompRecord(), { fullAccess })({ identity })
-      expect(launch).toMatchObject({ command: '/resolved/omp', args: ['acp'], fullAccess })
+      expect(launch).toMatchObject({ command: '/resolved/omp', args: OMP_ARGS, fullAccess })
       expect(launch.env.PI_CODING_AGENT_DIR).toBe('/home/user/.omp/agent')
     }
   })
@@ -99,7 +101,7 @@ describe('OMP ACP launch resolution', () => {
     const launch = resolver(ompRecord(), {
       probeVersion: async (_input, supports) => supports(version)
     })
-    await expect(launch({ identity })).resolves.toMatchObject({ args: ['acp'] })
+    await expect(launch({ identity })).resolves.toMatchObject({ args: OMP_ARGS })
   })
 
   it.each(['17.0.4', '16.9.0', '18.0.0-beta.1'])(

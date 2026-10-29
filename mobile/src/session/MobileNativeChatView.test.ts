@@ -10,6 +10,8 @@ const scrollToEnd = vi.hoisted(() => vi.fn())
 const scrollToOffset = vi.hoisted(() => vi.fn())
 const flatListMounts = vi.hoisted(() => ({ count: 0 }))
 
+// Why: the why sheet's drawer is not under test here; a stub keeps its native import chain out of the suite.
+vi.mock('../components/BottomDrawer', () => ({ BottomDrawer: () => null }))
 vi.mock('react-native', async () => {
   const React = await import('react')
   return {

@@ -31,6 +31,7 @@ export function mutationTurnContext<TValue>(
         })
         .then(() => undefined),
     resolvedBy: request.callerKey,
+    ...(request.hostOwnedPrompts ? { hostOwnedPrompts: request.hostOwnedPrompts } : {}),
     publish: () => request.publish(journal),
     now: () => request.now()
   }

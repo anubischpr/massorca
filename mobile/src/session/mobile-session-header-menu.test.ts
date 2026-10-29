@@ -2,86 +2,57 @@ import { describe, expect, it } from 'vitest'
 import { resolveMobileSessionHeaderMenu } from './mobile-session-header-menu'
 
 const none = {
-  showNativeChat: false,
+  hasChatSession: false,
   showAgentHistory: false,
   hasSourceControl: false,
   showChecks: false
 }
 
 describe('resolveMobileSessionHeaderMenu', () => {
-  it('hides the ⋯ button when no item applies', () => {
-    expect(resolveMobileSessionHeaderMenu(none).showButton).toBe(false)
-  })
-
-  it('offers the chat items in a folder workspace, where there is no source control', () => {
-    const menu = resolveMobileSessionHeaderMenu({ ...none, showNativeChat: true })
-    expect(menu.showButton).toBe(true)
-    expect(menu.chat).toEqual({
+  it('offers the same chat items with a chat and without one, so every pane shows one menu', () => {
+    const chatItems = {
       agentHistory: false,
       plan: true,
       summary: true,
       artifacts: true,
       prototypes: true,
       quickCommands: true
+    }
+    expect(resolveMobileSessionHeaderMenu({ ...none, hasChatSession: true }).chat).toEqual(
+      chatItems
+    )
+    expect(resolveMobileSessionHeaderMenu(none).chat).toEqual(chatItems)
+  })
+
+  it('keeps the ⋯ button, since the chat items always apply', () => {
+    expect(resolveMobileSessionHeaderMenu(none).showButton).toBe(true)
+  })
+
+  it('reports whether Plan, Summary and Artifacts have a chat to act on', () => {
+    expect(resolveMobileSessionHeaderMenu({ ...none, hasChatSession: true }).hasChatSession).toBe(
+      true
+    )
+    expect(resolveMobileSessionHeaderMenu(none).hasChatSession).toBe(false)
+  })
+
+  it('offers agent history only where the worktree has no chat', () => {
+    // Beside a chat the Sessions sheet holds the resume row, so the menu stays the same in every pane.
+    expect(
+      resolveMobileSessionHeaderMenu({ ...none, showAgentHistory: true }).chat.agentHistory
+    ).toBe(true)
+    expect(
+      resolveMobileSessionHeaderMenu({ ...none, hasChatSession: true, showAgentHistory: true }).chat
+        .agentHistory
+    ).toBe(false)
+  })
+
+  it('offers Branch only in git worktrees and Checks only when the hosted action applies', () => {
+    expect(resolveMobileSessionHeaderMenu({ ...none, hasSourceControl: true }).environment).toEqual(
+      { branch: true, checks: false }
+    )
+    expect(resolveMobileSessionHeaderMenu({ ...none, showChecks: true }).environment).toEqual({
+      branch: false,
+      checks: true
     })
-    expect(menu.environment).toEqual({ branch: false, checks: false })
-  })
-
-  it('offers the plan beside any native chat, so the sheet can say no plan exists yet', () => {
-    const menu = resolveMobileSessionHeaderMenu({ ...none, showNativeChat: true })
-    expect(menu.chat.plan).toBe(true)
-  })
-
-  it('never offers the plan without a native chat', () => {
-    const menu = resolveMobileSessionHeaderMenu({ ...none, hasSourceControl: true })
-    expect(menu.chat.plan).toBe(false)
-  })
-
-  it('keeps the environment items on a git terminal without a chat', () => {
-    const menu = resolveMobileSessionHeaderMenu({ ...none, hasSourceControl: true })
-    expect(menu.showButton).toBe(true)
-    expect(menu.chat).toEqual({
-      agentHistory: false,
-      plan: false,
-      summary: false,
-      artifacts: false,
-      prototypes: false,
-      quickCommands: false
-    })
-    expect(menu.environment).toEqual({ branch: true, checks: false })
-  })
-
-  it('offers agent history without a native chat, where the Sessions sheet cannot open', () => {
-    const menu = resolveMobileSessionHeaderMenu({
-      ...none,
-      hasSourceControl: true,
-      showAgentHistory: true
-    })
-    expect(menu.showButton).toBe(true)
-    expect(menu.chat).toEqual({
-      agentHistory: true,
-      plan: false,
-      summary: false,
-      artifacts: false,
-      prototypes: false,
-      quickCommands: false
-    })
-  })
-
-  it('leaves agent history to the Sessions sheet beside a native chat', () => {
-    const menu = resolveMobileSessionHeaderMenu({
-      ...none,
-      showNativeChat: true,
-      hasSourceControl: true,
-      showAgentHistory: true
-    })
-    expect(menu.chat).not.toHaveProperty('sessions')
-    expect(menu.chat.agentHistory).toBe(false)
-  })
-
-  it('keeps Checks with its own rule, and only Checks, when it applies alone', () => {
-    const menu = resolveMobileSessionHeaderMenu({ ...none, showChecks: true })
-    expect(menu.showButton).toBe(true)
-    expect(menu.environment).toEqual({ branch: false, checks: true })
   })
 })

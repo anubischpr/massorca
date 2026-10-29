@@ -92,7 +92,6 @@ describe('turn history presentation', () => {
     const settled = item(
       'question',
       {
-        ...question.body,
         kind: 'question',
         question: 'Which branch?',
         options: [{ id: 'main', label: 'main' }],

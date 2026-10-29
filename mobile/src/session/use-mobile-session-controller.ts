@@ -32,6 +32,7 @@ import { useMobileSessionPresentation } from './use-mobile-session-presentation'
 import { useMobileSessionPanelRouteActions } from './use-mobile-session-panel-route-actions'
 import { useMobileSessionChatSurfaces } from './use-mobile-session-chat-surfaces'
 import { useMobileSessionLayoutEntry } from './use-mobile-session-layout-entry'
+import { useMobileSessionDelegatedChildren } from './use-mobile-session-delegated-children'
 
 export function useMobileSessionController() {
   const foundation = useMobileSessionFoundation()
@@ -126,7 +127,11 @@ export function useMobileSessionController() {
     panelRouteActions,
     useMobileSessionChatSurfaces(panelRouteActions)
   )
-  return Object.assign(chatSurfaces, useMobileSessionLayoutEntry(chatSurfaces))
+  const delegatedChildren = Object.assign(
+    chatSurfaces,
+    useMobileSessionDelegatedChildren(chatSurfaces)
+  )
+  return Object.assign(delegatedChildren, useMobileSessionLayoutEntry(delegatedChildren))
 }
 
 export type MobileSessionController = ReturnType<typeof useMobileSessionController>

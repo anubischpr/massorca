@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { Folder, GitBranch, GitFork } from 'lucide-react-native'
+import type { PiRuntimeSelection } from '../../../src/shared/pi-runtime-selection'
 import type { TuiAgent } from '../../../src/shared/tui-agent'
 import { MobileAgentIcon } from '../components/MobileAgentIcon'
 import { colors, spacing, typography } from '../theme/mobile-theme'
@@ -38,6 +39,7 @@ export function CreateSessionChips({
   workspaceDisabled,
   baseRef,
   agent,
+  piRuntime,
   agentLabel,
   disabled,
   onOpenProject,
@@ -52,6 +54,8 @@ export function CreateSessionChips({
   /** The base-branch chip, present only for a new worktree; read-only when the host cannot list. */
   baseRef: { label: string; interactive: boolean } | null
   agent: TuiAgent | null
+  /** The Pi runtime the agent chip's icon names; null for any other agent. */
+  piRuntime: PiRuntimeSelection | null
   agentLabel: string
   disabled: boolean
   onOpenProject: () => void
@@ -97,7 +101,11 @@ export function CreateSessionChips({
         disabled={disabled || agent === null}
         onPress={onOpenAgent}
       >
-        {agent ? <MobileAgentIcon agentId={agent} size={16} /> : <View style={styles.noAgentDot} />}
+        {agent ? (
+          <MobileAgentIcon agentId={agent} size={16} piRuntime={piRuntime ?? undefined} />
+        ) : (
+          <View style={styles.noAgentDot} />
+        )}
         <Text style={styles.label}>{agentLabel}</Text>
       </Chip>
     </ScrollView>

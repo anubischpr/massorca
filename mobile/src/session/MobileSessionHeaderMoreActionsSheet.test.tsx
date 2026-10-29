@@ -42,6 +42,7 @@ vi.mock('../components/BottomDrawer', async () => {
 
 const FULL: MobileSessionHeaderMenu = {
   showButton: true,
+  hasChatSession: true,
   chat: {
     agentHistory: false,
     plan: true,
@@ -161,6 +162,7 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
     const { mounted } = mount({
       menu: {
         showButton: true,
+        hasChatSession: false,
         chat: {
           agentHistory: true,
           plan: false,
@@ -180,6 +182,7 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
       onOpenAgentHistory,
       menu: {
         showButton: true,
+        hasChatSession: false,
         chat: {
           agentHistory: true,
           plan: false,
@@ -208,5 +211,31 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
         String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Quick commands'
     )
     expect(row.props.disabled).toBe(true)
+  })
+
+  it('keeps Plan, Summary and Artifacts listed but disabled, with the reason, without a chat', () => {
+    const { mounted } = mount({ menu: { ...FULL, hasChatSession: false } })
+    const row = (label: string) =>
+      mounted.root.find(
+        (node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === label
+      )
+    const labels = mounted.root.findAll((node) => String(node.type) === 'Text').map(textOf)
+
+    expect(rowLabels(mounted)).toEqual([
+      'Plan',
+      'Summary',
+      'Artifacts',
+      'Prototypes',
+      'Quick commands',
+      'Branch',
+      'Checks'
+    ])
+    expect(row('Plan').props.disabled).toBe(true)
+    expect(row('Summary').props.disabled).toBe(true)
+    expect(row('Artifacts').props.disabled).toBe(true)
+    expect(row('Prototypes').props.disabled).toBeFalsy()
+    expect(row('Quick commands').props.disabled).toBe(false)
+    expect(labels.filter((text) => text === 'Start a chat first')).toHaveLength(3)
+    expect(labels).not.toContain('2 of 5 done')
   })
 })

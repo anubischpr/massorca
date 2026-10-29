@@ -36,7 +36,12 @@ import {
 } from '../native-chat/native-chat-visuals-delivery'
 import type { AcpLaunchSpec } from './acp-launch-specs'
 import { acpSessionNotRestoredItem } from './acp-session-reopen-failure'
-import { loadAcpVisualsSkill, type AcpLaunchVisualsDeps } from './acp-structured-launch-visuals'
+import {
+  childEnvironmentView,
+  loadAcpVisualsSkill,
+  type AcpLaunchVisualsDeps
+} from './acp-structured-launch-visuals'
+import { loadAcpDelegationInstructions } from './acp-delegation-instructions'
 
 export type AcpStructuredLaunch = {
   spec: AcpLaunchSpec
@@ -79,6 +84,9 @@ export type AcpStructuredLaunchResolverDeps = {
   /** The environment the child process inherits at spawn; this process's own by default. */
   inheritedEnv?: NodeJS.ProcessEnv
   probeVersion?: typeof probeAgentCliVersion
+  /** A folder holding the child-session instructions as AGENTS.md; absent, an agent that reads
+   *  them from a file gets none. */
+  resolveDelegationInstructionsFolder?: () => Promise<string | null>
 } & AcpLaunchVisualsDeps
 
 /** The binary a launch with `env` spawns: the user's Command setting when set, else the stock
@@ -219,14 +227,33 @@ export function createAcpStructuredLaunchResolver(
           inherited: deps.inheritedEnv ?? process.env
         })
       : null
+    // Why: the agent's own subagent tool otherwise answers "create a child session".
+    const delegation = await loadAcpDelegationInstructions(spec.agent, {
+      sessionId: identity.sessionId,
+      version: launchVersion.version,
+      env: childEnvironmentView(
+        { ...env, ...skill?.env },
+        deps.inheritedEnv ?? process.env,
+        envToDelete
+      ),
+      ...(deps.resolveDelegationInstructionsFolder
+        ? { instructionsFolder: deps.resolveDelegationInstructionsFolder }
+        : {})
+    })
     // Without visuals, a folder Orca itself inherited (started from a chat) names another chat's.
-    const childEnv = withNativeChatVisualsEnv({ ...env, ...skill?.env }, skill ? visuals : null)
+    const childEnv = withNativeChatVisualsEnv(
+      { ...env, ...skill?.env, ...delegation?.env },
+      skill ? visuals : null
+    )
     const fullAccess = deps.resolveFullAccess?.(spec.agent) ?? false
     const head = agentSessionProviderHandleChainHead(record.providerHandleChain)
     return {
       spec,
       command,
-      args: spec.args({ fullAccess, pluginDir: skill?.pluginDir ?? null }),
+      args: [
+        ...spec.args({ fullAccess, pluginDir: skill?.pluginDir ?? null }),
+        ...(delegation?.args ?? [])
+      ],
       cwd,
       env: childEnv,
       envToDelete: skill ? envToDelete : [...envToDelete, NATIVE_CHAT_VISUALS_DIR_ENV],

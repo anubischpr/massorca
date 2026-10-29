@@ -35,6 +35,55 @@ function overlayShellVariables(
   return { ...merged, ...shellVariables }
 }
 
+// Why: version-manager shims (mise, asdf, volta, nvm, pyenv) resolve their tools through these
+// variables; a login shell that does not export them leaves a shim on PATH that cannot run.
+const TOOL_MANAGER_VARIABLE = /^(?:MISE_|ASDF_)|^(?:VOLTA_HOME|NVM_DIR|PYENV_ROOT)$/
+
+function findEnvKey(
+  env: Record<string, string>,
+  name: string,
+  platform: NodeJS.Platform
+): string | undefined {
+  return Object.keys(env).find((key) => (platform === 'win32' ? key.toUpperCase() : key) === name)
+}
+
+/**
+ * Keeps what the login shell did not say: process PATH entries it lacks join after its own, and
+ * tool-manager variables it does not set come from the process. A value the shell sets always wins.
+ */
+function withProcessToolchain(
+  env: Record<string, string>,
+  processEnv: Record<string, string>,
+  platform: NodeJS.Platform
+): Record<string, string> {
+  const merged = { ...env }
+  const processPathKey = findEnvKey(processEnv, 'PATH', platform)
+  if (processPathKey !== undefined) {
+    const pathKey = findEnvKey(merged, 'PATH', platform) ?? processPathKey
+    const separator = platform === 'win32' ? ';' : ':'
+    const keyOf = (segment: string): string =>
+      platform === 'win32' ? segment.toLowerCase() : segment
+    const segments = (merged[pathKey] ?? '').split(separator).filter(Boolean)
+    const present = new Set(segments.map(keyOf))
+    for (const segment of processEnv[processPathKey].split(separator).filter(Boolean)) {
+      if (!present.has(keyOf(segment))) {
+        present.add(keyOf(segment))
+        segments.push(segment)
+      }
+    }
+    merged[pathKey] = segments.join(separator)
+  }
+  for (const [key, value] of Object.entries(processEnv)) {
+    if (TOOL_MANAGER_VARIABLE.test(platform === 'win32' ? key.toUpperCase() : key)) {
+      const existing = findEnvKey(merged, platform === 'win32' ? key.toUpperCase() : key, platform)
+      if (existing === undefined) {
+        merged[key] = value
+      }
+    }
+  }
+  return merged
+}
+
 function pickShellVariables(
   shellEnv: NodeJS.ProcessEnv,
   names: readonly string[],
@@ -62,13 +111,18 @@ export function structuredAgentBaseEnvironment(input: {
   processEnv?: NodeJS.ProcessEnv
   platform?: NodeJS.Platform
 }): Record<string, string> {
-  if (input.policy.inheritAll) {
-    return definedEnv(input.shellEnv)
-  }
   const platform = input.platform ?? process.platform
-  return overlayShellVariables(
-    definedEnv(input.processEnv ?? process.env),
-    pickShellVariables(input.shellEnv, input.policy.names, platform),
+  const processEnv = definedEnv(input.processEnv ?? process.env)
+  if (input.policy.inheritAll) {
+    return withProcessToolchain(definedEnv(input.shellEnv), processEnv, platform)
+  }
+  return withProcessToolchain(
+    overlayShellVariables(
+      processEnv,
+      pickShellVariables(input.shellEnv, input.policy.names, platform),
+      platform
+    ),
+    processEnv,
     platform
   )
 }
@@ -79,6 +133,8 @@ export type StructuredAgentEnvironmentSources = {
   resolveLaunchEnv?: () => Promise<NodeJS.ProcessEnv>
   resolveLaunchEnvOverlay?: () => Promise<Record<string, string>> | Record<string, string>
   resolveCodexOverrides?: () => NodeJS.ProcessEnv
+  /** Test seam; production reads the process env. */
+  processEnv?: NodeJS.ProcessEnv
 }
 
 /**
@@ -98,7 +154,8 @@ export function createStructuredAgentEnvironmentResolvers(
   const resolveBase = async (): Promise<Record<string, string>> =>
     structuredAgentBaseEnvironment({
       shellEnv: await shellEnvironment,
-      policy: sources.resolveShellEnvironmentPolicy?.() ?? nativeChatShellEnvironmentPolicy(null)
+      policy: sources.resolveShellEnvironmentPolicy?.() ?? nativeChatShellEnvironmentPolicy(null),
+      ...(sources.processEnv ? { processEnv: sources.processEnv } : {})
     })
   return {
     resolveCodexEnvironment: async () => ({

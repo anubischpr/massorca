@@ -11,6 +11,7 @@ import {
   isRunningAgentJournalTurn,
   readAgentJournalTurn
 } from '../../../shared/agent-session-turn-record'
+import { isHostOwnedDelegationQuestion } from '../../../shared/delegated-session-journal'
 import { cancelledJournalPromptBody } from './journal-prompt-body-bounds'
 import { endedJournalReasoning } from './journal-reasoning-row'
 
@@ -21,7 +22,8 @@ export function requiresTerminalSettlement(body: AgentJournalItemBody): boolean 
     return body.state === 'running'
   }
   if (body.kind === 'approval' || body.kind === 'question') {
-    return body.resolution.state === 'pending'
+    // The host's own question has no provider callback to settle, so a child's end leaves it be.
+    return body.resolution.state === 'pending' && !isHostOwnedDelegationQuestion(body)
   }
   return isRunningAgentJournalTurn(body)
 }
@@ -47,7 +49,9 @@ export function terminalAgentJournalBody(
     return body.state === 'running' && end ? endedRunningAgentJournalToolCall(body, end) : null
   }
   if (body.kind === 'approval' || body.kind === 'question') {
-    return body.resolution.state === 'pending' ? cancelledJournalPromptBody(body) : null
+    return body.resolution.state === 'pending' && !isHostOwnedDelegationQuestion(body)
+      ? cancelledJournalPromptBody(body)
+      : null
   }
   return null
 }

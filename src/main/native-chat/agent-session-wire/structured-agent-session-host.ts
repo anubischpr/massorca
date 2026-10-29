@@ -86,7 +86,8 @@ export class StructuredAgentSessionHost {
   private readonly runtimeState: StructuredAgentSessionHostRuntimeState
   private readonly reconcileLeases: ReturnType<typeof createRestartReconciler>
   private readonly restore: ReturnType<typeof reveal.createStructuredAgentSessionHostRestore>
-  private readonly lifetime: StructuredAgentSessionConversationLifetime
+  /** Public for `structuredAgentSessionHostRows`, the host's own writes into a chat. */
+  readonly lifetime: StructuredAgentSessionConversationLifetime
   private readonly conversationDelivery: conversation.StructuredAgentSessionConversationDelivery
   private readonly eventRecovery: StructuredAgentSessionEventRecovery
   private readonly backgroundTasks: StructuredAgentSessionBackgroundTaskChannel

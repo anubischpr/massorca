@@ -39,6 +39,7 @@ const {
 const { verifySkillsCliRuntime } = require('./scripts/verify-skills-cli-runtime.cjs')
 const { verifyStaticAppImagePackage } = require('./scripts/static-appimage-package-contract.cjs')
 const { signWindowsUninstallerViaSignPath } = require('./scripts/windows-uninstaller-signing.cjs')
+const { withWindowsDisplayVersionInfo } = require('./scripts/windows-version-info.cjs')
 const { distributionMetadata } = require('./distribution-policy.cjs')
 
 // Why: dev-channel builds must carry the *release* identity — same bundle id,
@@ -201,7 +202,8 @@ module.exports = {
   // Why: productName keeps the install identity. electron-builder derives the Linux install directory
   // (/opt/<productName>), the Windows install folder and the Windows version-info name from it, so it
   // stays 'Orca'. The MassOrca display name is set per surface: shortcuts, the uninstall entry, the
-  // Linux desktop entry, the protocol description and the macOS CFBundleDisplayName.
+  // Linux desktop entry, the protocol description, the macOS CFBundleDisplayName and the Windows
+  // exe version strings (config/scripts/windows-version-info.cjs).
   productName: 'Orca',
   protocols: [{ name: 'MassOrca', schemes: ['orca'] }],
   toolsets: { appimage: '1.0.3' },
@@ -495,7 +497,12 @@ module.exports = {
     // are unset, so local and dev builds are unaffected. publisherName stays on
     // its existing channel split above.
     signtoolOptions: {
-      sign: signWindowsUninstallerViaSignPath,
+      // Why: productName stays 'Orca', so this hook sets the exe's FileDescription/ProductName
+      // (what Task Manager shows) to the display name before anything signs it.
+      sign: withWindowsDisplayVersionInfo(signWindowsUninstallerViaSignPath, {
+        executableName: 'Orca',
+        displayName: 'MassOrca'
+      }),
       ...(isWinDevChannel ? {} : { publisherName: 'SignPath Foundation' })
     },
     ...(isWinDevChannel ? { verifyUpdateCodeSignature: false } : {}),
