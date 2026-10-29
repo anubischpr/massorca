@@ -18,6 +18,8 @@ export const colors = {
   surfaceBright: '#f5f5f5',
 
   accentBlue: '#3b82f6',
+  // Soft wash behind a control a draft item jumped to, the same hue as accentBlue.
+  accentBlueTint: 'rgba(59, 130, 246, 0.08)',
   // Text/icon color on a filled accent (accentBlue) button, where the muted
   // textPrimary would lack contrast against the saturated fill.
   onAccent: '#ffffff',

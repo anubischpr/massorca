@@ -1,0 +1,302 @@
+import { useCallback, useEffect, useState } from 'react'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import type { NativeChatVisualAnnotateEvent } from '../../../src/shared/native-chat-visual-annotate'
+import { latestVersionOf } from '../../../src/shared/prototype-list-model'
+import {
+  backToActive,
+  closeSelection,
+  iterateHere,
+  peekDirection,
+  pickElement,
+  pinClicked,
+  selectedPinOf,
+  setTool,
+  setViewport,
+  type PrototypeSetState,
+  type PrototypeViewport
+} from '../../../src/shared/prototype-set-state'
+import { annotateStateOf } from '../../../src/shared/prototype-set-view'
+import { KeyedBottomDrawer } from '../components/keyed-bottom-drawer'
+import { useHostClient } from '../transport/host-client-hooks'
+import { colors, spacing } from '../theme/mobile-theme'
+import { MobilePrototypeFrame } from './MobilePrototypeFrame'
+import { MobilePrototypeHeader } from './MobilePrototypeHeader'
+import { MobilePrototypePinSheet, type MobilePrototypePinTab } from './MobilePrototypePinSheet'
+import { findMobilePrototypeSet } from './mobile-prototype-sets-state'
+import { isPeeking, viewerChips, viewerHeaderLines } from './mobile-prototype-viewer-model'
+import { mobilePrototypeStateKey, useMobilePrototypeViewStore } from './mobile-prototype-view-store'
+import { useMobilePrototypeFile } from './use-mobile-prototype-file'
+import { useMobilePrototypeSets } from './use-mobile-prototype-sets'
+
+type Sheet = 'pin'
+const VIEWPORTS: readonly { viewport: PrototypeViewport; label: string }[] = [
+  { viewport: 'phone', label: 'Phone' },
+  { viewport: 'desktop', label: 'Desktop' }
+]
+
+/** One prototype: its direction chips, the live page with its pins, and the Browse and Annotate tools. */
+export function MobilePrototypeViewerScreen({
+  hostId,
+  requestId,
+  onBack
+}: {
+  hostId: string
+  requestId: string
+  onBack: () => void
+}) {
+  const { client } = useHostClient(hostId)
+  const listed = useMobilePrototypeSets(hostId)
+  const set = findMobilePrototypeSet(listed, requestId)
+  const stateKey = mobilePrototypeStateKey(hostId, requestId)
+  const state = useMobilePrototypeViewStore((s) => s.states[stateKey])
+  const ensureSetState = useMobilePrototypeViewStore((s) => s.ensureSetState)
+  const updateSetState = useMobilePrototypeViewStore((s) => s.updateSetState)
+  const lettersKey = set?.directions.map((direction) => direction.letter).join('|') ?? ''
+  useEffect(() => {
+    if (lettersKey !== '') {
+      ensureSetState(stateKey, lettersKey.split('|'))
+    }
+  }, [ensureSetState, lettersKey, stateKey])
+  const update = useCallback(
+    (transform: (current: PrototypeSetState) => PrototypeSetState) =>
+      updateSetState(stateKey, transform),
+    [stateKey, updateSetState]
+  )
+  const [pinTab, setPinTab] = useState<MobilePrototypePinTab>('edit')
+
+  const viewDirection = set?.directions.find((direction) => direction.letter === state?.view)
+  const latest = latestVersionOf(viewDirection)
+  const file = useMobilePrototypeFile(
+    client,
+    set === null || latest === null
+      ? null
+      : { sessionId: set.sessionId, requestId: set.requestId, fileName: latest.fileName }
+  )
+  const onAnnotateEvent = useCallback(
+    (event: NativeChatVisualAnnotateEvent) =>
+      update((current) =>
+        event.kind === 'element-picked'
+          ? pickElement(current, event.element)
+          : pinClicked(current, event.pinKey)
+      ),
+    [update]
+  )
+
+  if (set === null || state === undefined) {
+    return (
+      <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+        <MobilePrototypeHeader title="" onBack={onBack} />
+      </SafeAreaView>
+    )
+  }
+  const lines = viewerHeaderLines(set, state)
+  const chips = viewerChips(set, state)
+  const pin = selectedPinOf(state)
+  const sheet: Sheet | null = pin === null ? null : 'pin'
+
+  return (
+    <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
+      <MobilePrototypeHeader
+        title={lines.title}
+        subtitle={lines.subtitle}
+        backLabel={chips.length > 0 ? 'Back to the set' : 'Back'}
+        onBack={onBack}
+        trailing={
+          <View accessibilityLabel="Viewport" style={styles.segment}>
+            {VIEWPORTS.map(({ viewport, label }) => (
+              <Pressable
+                key={viewport}
+                accessibilityRole="button"
+                accessibilityState={{ selected: state.viewport === viewport }}
+                hitSlop={{ top: 6, bottom: 6 }}
+                onPress={() => update((current) => setViewport(current, viewport))}
+                style={[styles.segmentButton, state.viewport === viewport && styles.segmentOn]}
+              >
+                <Text
+                  style={[styles.segmentText, state.viewport === viewport && styles.segmentTextOn]}
+                >
+                  {label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        }
+      />
+      {chips.length === 0 ? null : (
+        <ScrollView
+          horizontal
+          accessibilityLabel="Directions in this set"
+          showsHorizontalScrollIndicator={false}
+          style={styles.chipsBar}
+          contentContainerStyle={styles.chips}
+        >
+          {chips.map((chip) => (
+            <Pressable
+              key={chip.letter}
+              accessibilityRole="button"
+              accessibilityState={{ selected: chip.selected }}
+              hitSlop={{ top: 4, bottom: 4 }}
+              onPress={() =>
+                update((current) =>
+                  chip.letter === current.active
+                    ? backToActive(current)
+                    : peekDirection(current, chip.letter)
+                )
+              }
+              style={[styles.chip, chip.selected && styles.chipOn]}
+            >
+              <Text style={[styles.chipText, chip.selected && styles.chipTextOn]}>
+                {chip.label}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
+      {isPeeking(state) ? (
+        <View accessibilityRole="summary" style={styles.peek}>
+          <Text style={styles.peekText}>
+            {`Peeking at ${state.view} while iterating on `}
+            <Text style={styles.peekBold}>{state.active}</Text>
+            {`. Notes here go in as “take this from ${state.view} into ${state.active}”.`}
+          </Text>
+          <View style={styles.peekActions}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => update(backToActive)}
+              style={styles.peekButton}
+            >
+              <Text style={styles.peekButtonText}>{`Back to ${state.active}`}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => update(iterateHere)}
+              style={styles.peekButton}
+            >
+              <Text style={styles.peekButtonText}>{`Iterate on ${state.view}`}</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+      <MobilePrototypeFrame
+        file={file}
+        fileKey={`${set.requestId}:${latest?.fileName ?? ''}`}
+        viewport={state.viewport}
+        annotate={annotateStateOf(state, state.view)}
+        onAnnotateEvent={onAnnotateEvent}
+      />
+      <View accessibilityRole="toolbar" accessibilityLabel="Prototype tools" style={styles.toolbar}>
+        {(['browse', 'annotate'] as const).map((tool) => (
+          <Pressable
+            key={tool}
+            accessibilityRole="button"
+            accessibilityState={{ selected: state.tool === tool }}
+            onPress={() => update((current) => setTool(current, tool))}
+            style={[styles.tool, state.tool === tool && styles.toolOn]}
+          >
+            <Text style={[styles.toolText, state.tool === tool && styles.toolTextOn]}>
+              {tool === 'browse' ? 'Browse' : 'Annotate'}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <KeyedBottomDrawer<Sheet>
+        sheet={sheet}
+        sheetKey={(presented) => presented}
+        contentScrollable={false}
+        dragContentToDismiss={false}
+        onClose={() => update(closeSelection)}
+      >
+        {() =>
+          pin === null ? null : (
+            <MobilePrototypePinSheet
+              pin={pin}
+              state={state}
+              update={update}
+              tab={pinTab}
+              onTab={setPinTab}
+              pulseField={null}
+              pulseNonce={0}
+            />
+          )
+        }
+      </KeyedBottomDrawer>
+    </SafeAreaView>
+  )
+}
+
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.bgBase },
+  segment: {
+    flexDirection: 'row',
+    padding: 3,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgPanel
+  },
+  segmentButton: {
+    height: 32,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderRadius: 8
+  },
+  segmentOn: { backgroundColor: colors.bgRaised },
+  segmentText: { color: colors.textSecondary, fontSize: 12 },
+  segmentTextOn: { color: colors.textPrimary },
+  chipsBar: {
+    flexGrow: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.borderSubtle
+  },
+  chips: { gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 10 },
+  chip: {
+    height: 36,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle
+  },
+  chipOn: { backgroundColor: colors.textPrimary },
+  chipText: { color: colors.textPrimary, fontSize: 13 },
+  chipTextOn: { color: colors.bgBase },
+  peek: {
+    gap: spacing.sm,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors.textMuted
+  },
+  peekText: { color: colors.textPrimary, fontSize: 13, lineHeight: 20 },
+  peekBold: { fontWeight: '700' },
+  peekActions: { flexDirection: 'row', gap: spacing.sm },
+  peekButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle
+  },
+  peekButtonText: { color: colors.textPrimary, fontSize: 13 },
+  toolbar: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: spacing.sm,
+    paddingBottom: spacing.sm
+  },
+  tool: {
+    flex: 1,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10
+  },
+  toolOn: { backgroundColor: colors.bgRaised },
+  toolText: { color: colors.textSecondary, fontSize: 13 },
+  toolTextOn: { color: colors.textPrimary }
+})
