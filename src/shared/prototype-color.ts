@@ -45,3 +45,32 @@ const HEX_PATTERN = /^#[0-9a-fA-F]{6}$/u
 export function isHexColor(value: string): boolean {
   return HEX_PATTERN.test(value)
 }
+
+/** The picker hue nearest the color's own hue, so the picker opens on it; 0 for a gray or a value that is not hex. */
+export function pickerHueOf(value: string): number {
+  if (!isHexColor(value)) {
+    return 0
+  }
+  const red = channelOf(value, 1)
+  const green = channelOf(value, 3)
+  const blue = channelOf(value, 5)
+  const high = Math.max(red, green, blue)
+  const delta = high - Math.min(red, green, blue)
+  if (delta === 0) {
+    return 0
+  }
+  let sector: number
+  if (high === red) {
+    sector = (green - blue) / delta
+  } else if (high === green) {
+    sector = 2 + (blue - red) / delta
+  } else {
+    sector = 4 + (red - green) / delta
+  }
+  const degrees = (sector * 60 + 360) % 360
+  return (Math.round(degrees / 30) * 30) % 360
+}
+
+function channelOf(hex: string, offset: number): number {
+  return Number.parseInt(hex.slice(offset, offset + 2), 16) / 255
+}
