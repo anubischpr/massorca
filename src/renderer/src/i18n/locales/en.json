@@ -18039,7 +18039,19 @@
         "title": "How many prototypes?",
         "description": "{{agent}} will make distinct directions so you can compare them.",
         "notAPrototype": "Not a prototype",
-        "shownBecause": "Shown because Settings › Prototypes is “Ask each time”."
+        "shownBecause": "Shown because Settings › Prototypes is “Ask each time”.",
+        "systemNoneTitle": "No design system in {{project}}",
+        "systemNoneLine": "{{agent}} will propose one first: tokens, components and 2 palettes. You review it before any direction is made.",
+        "systemSummary": "v{{version}} · {{tokens}} tokens{{from}}. {{directions}}",
+        "systemFrom": "from {{sources}}",
+        "systemAnd": "and",
+        "systemDirectionOne": "The direction will use it.",
+        "systemDirectionTwo": "Both directions will use it.",
+        "systemDirectionAll": "All {{count}} directions will use it.",
+        "systemUse": "Use it",
+        "systemReview": "Review first",
+        "systemPropose": "Propose one first",
+        "systemSkip": "Skip"
       },
       "link": {
         "setOf": "{{title}} · set of {{count}}",

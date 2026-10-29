@@ -1,5 +1,7 @@
-// The message waiting on the "How many prototypes?" card, one per chat composer. Memory only: a
-// reload drops it and the draft, which was never cleared, still holds the text.
+// The message waiting on a prototype card, one per chat composer: the "How many prototypes?" card, then the
+// design system card once the count is settled. Memory only: a reload drops it and the draft, which was never
+// cleared, still holds the text.
+import type { PrototypeSystemCard } from '../../../../shared/prototype-design-system-card'
 import type { NativeChatComposerImageAttachment } from './NativeChatComposerField'
 import type { NativeChatComposerDraft } from './native-chat-composer-draft-storage'
 
@@ -15,6 +17,11 @@ export type NativeChatPrototypeAsk = {
   /** The count Settings makes the primary button. */
   defaultCount: number
   agentName: string
+  /**
+   * Set once the count is settled: the design system card is what the message waits on now, and the count card is
+   * gone. Its count is the one the message is sent with.
+   */
+  designSystem?: { count: number; card: PrototypeSystemCard }
 }
 
 const asks = new Map<string, NativeChatPrototypeAsk>()

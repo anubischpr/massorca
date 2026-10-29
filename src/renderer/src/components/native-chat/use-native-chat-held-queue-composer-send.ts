@@ -9,7 +9,7 @@ import {
   type UseNativeChatStructuredComposerSendArgs
 } from './use-native-chat-structured-composer-send'
 import type { NativeChatComposerImageAttachment } from './NativeChatComposerField'
-import { useNativeChatPrototypeCountCard } from './use-native-chat-prototype-count-card'
+import { useNativeChatPrototypeAskCard } from './use-native-chat-prototype-ask-card'
 import { readNativeChatComposerDraft } from './native-chat-composer-draft-store'
 import type { NativeChatComposerDraft } from './native-chat-composer-draft-storage'
 import type { NativeChatQueueHold } from './native-chat-composer-types'
@@ -54,7 +54,7 @@ export function useNativeChatHeldQueueComposerSend(args: UseNativeChatStructured
     queueResume: NativeChatQueueResume | undefined
     queueSendConfirm: NativeChatQueueSendConfirm | null
     /** The "How many prototypes?" card of a message held back for it, above the field. */
-    prototypeCountCard: React.JSX.Element | null
+    prototypeAskCard: React.JSX.Element | null
   }
 } {
   const sendNow = useNativeChatStructuredComposerSend(args)
@@ -118,7 +118,7 @@ export function useNativeChatHeldQueueComposerSend(args: UseNativeChatStructured
     [agent, args.draftScopeKey, queueHold, sendNow, sendOut, structuredTransport]
   )
   // An answer to the card goes through `send`, so a held queue asks about it as about any message.
-  const prototypeCountCard = useNativeChatPrototypeCountCard({
+  const prototypeAskCard = useNativeChatPrototypeAskCard({
     draftScopeKey: args.draftScopeKey,
     send
   })
@@ -170,7 +170,7 @@ export function useNativeChatHeldQueueComposerSend(args: UseNativeChatStructured
     fieldProps: {
       queueResume: structuredTransport?.queueResume,
       queueSendConfirm: confirm,
-      prototypeCountCard
+      prototypeAskCard
     }
   }
 }

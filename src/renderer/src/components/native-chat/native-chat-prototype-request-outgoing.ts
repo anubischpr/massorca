@@ -1,6 +1,9 @@
 // What a structured send puts on the wire when its text may ask for prototypes: the text itself,
-// the text with its hidden instruction, or nothing yet because the card must ask how many.
+// the text with its hidden instruction, or nothing yet because a card must answer first: how many, then
+// what the chat's design system does.
 import type { AgentType } from '../../../../shared/agent-status-types'
+import type { PrototypeSystemCard } from '../../../../shared/prototype-design-system-card'
+import type { PrototypeDesignSystemMode } from '../../../../shared/prototype-design-system-files'
 import { sanitizePrototypeCountSetting } from '../../../../shared/prototype-count-setting'
 import { neutralizePrototypeMarkers } from '../../../../shared/prototype-hidden-instruction'
 import { currentPiDisplayRuntime } from '@/lib/pi-display-runtime-now'
@@ -14,7 +17,10 @@ import {
   decideNativeChatPrototypeRequest,
   type NativeChatPrototypeChoice
 } from '../../../../shared/prototype-request-decision'
-import { prepareNativeChatPrototypeText } from './native-chat-prototype-request-send'
+import {
+  prepareNativeChatPrototypeText,
+  readPrototypeSystemCard
+} from './native-chat-prototype-request-send'
 import {
   nativeChatPrototypeAsks,
   type NativeChatPrototypeAsk
@@ -31,7 +37,7 @@ export type NativeChatPrototypeOutgoing =
 // A request is made once per press: a second Enter while the host answers waits for the first.
 const inFlight = new Set<string>()
 
-/** Settled at once for text sent as typed or held for the card; a promise only while the host makes a request folder. */
+/** Settled at once for text sent as typed or held for a card; a promise only while the host is asked. */
 export function resolveNativeChatPrototypeOutgoing(input: {
   text: string
   agent: AgentType
@@ -90,15 +96,41 @@ export function resolveNativeChatPrototypeOutgoing(input: {
     input.runtimeEnvironmentId === null
       ? { kind: 'local' }
       : { kind: 'environment', environmentId: input.runtimeEnvironmentId }
-  return prepareNativeChatPrototypeText({
-    target,
-    sessionId: input.sessionId,
-    ...(input.worktreeId ? { worktreeId: input.worktreeId } : {}),
-    agent: prototypeAgent,
-    text,
-    count: decision.count
-  })
-    .then((prepared): NativeChatPrototypeOutgoing => ({ kind: 'send', text: prepared }))
+  const createAndSend = (
+    designSystem: PrototypeDesignSystemMode | undefined
+  ): Promise<NativeChatPrototypeOutgoing> =>
+    prepareNativeChatPrototypeText({
+      target,
+      sessionId: input.sessionId,
+      ...(input.worktreeId ? { worktreeId: input.worktreeId } : {}),
+      agent: prototypeAgent,
+      text,
+      count: decision.count,
+      ...(designSystem !== undefined ? { designSystem } : {})
+    }).then((prepared): NativeChatPrototypeOutgoing => ({ kind: 'send', text: prepared }))
+  // The message waits on the design system card, which answers with its mode through the same choice.
+  const holdForSystemCard = (card: PrototypeSystemCard): NativeChatPrototypeOutgoing => {
+    nativeChatPrototypeAsks.write(draftScopeKey, {
+      text,
+      attachments: input.attachments,
+      sentFrom: input.sentFrom,
+      keyword: false,
+      settingAsks: false,
+      defaultCount: decision.count,
+      agentName: prototypeAgentDisplayName(input.agent, piRuntime),
+      designSystem: { count: decision.count, card }
+    })
+    return { kind: 'ask' }
+  }
+  // Why read first: the card is shown once per request, so only a request without an answer reads the chat's system.
+  const answer = typeof input.choice === 'object' ? input.choice.designSystem : undefined
+  const outgoing: Promise<NativeChatPrototypeOutgoing> =
+    answer === undefined
+      ? readPrototypeSystemCard(target, input.sessionId).then((card) =>
+          card === null ? createAndSend(undefined) : holdForSystemCard(card)
+        )
+      : createAndSend(answer)
+  return outgoing
     .catch((error: unknown) => {
       restoreAsk(draftScopeKey, retired)
       throw error

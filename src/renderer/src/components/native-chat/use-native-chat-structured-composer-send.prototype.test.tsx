@@ -11,7 +11,7 @@ import { recordChatPiRuntime } from '@/lib/chat-pi-runtime-record'
 import { useAppStore } from '@/store'
 import type { NativeChatStructuredComposerTransport } from './native-chat-composer-types'
 import { nativeChatPrototypeAsks } from './native-chat-prototype-request-store'
-import { useNativeChatPrototypeCountCard } from './use-native-chat-prototype-count-card'
+import { useNativeChatPrototypeAskCard } from './use-native-chat-prototype-ask-card'
 import {
   useNativeChatStructuredComposerSend,
   type UseNativeChatStructuredComposerSendArgs
@@ -19,12 +19,14 @@ import {
 
 const mocks = vi.hoisted(() => {
   class OutdatedError extends Error {}
-  return { createRequest: vi.fn(), OutdatedError }
+  return { createRequest: vi.fn(), readSystem: vi.fn(), OutdatedError }
 })
 
+// A chat with no design system: the card is not shown, so the request is made as it was before the card.
 vi.mock('@/runtime/runtime-prototype-client', () => ({
   PrototypeHostOutdatedError: mocks.OutdatedError,
-  createPrototypeRequestOnHost: mocks.createRequest
+  createPrototypeRequestOnHost: mocks.createRequest,
+  readDesignSystemOnHost: mocks.readSystem
 }))
 vi.mock('@/lib/native-chat-telemetry', () => ({ emitNativeChatMessageSent: vi.fn() }))
 vi.mock('@/lib/worker-terminal-takeover-report', () => ({
@@ -38,6 +40,12 @@ const SETTINGS_LINE_3 =
   'Produce 3 distinct design directions, each a self-contained HTML file, with a one-line tradeoff.'
 const COMMAND = '/prototype make a login page'
 const KEYWORD = 'Make a mockup of the pricing page'
+const SYSTEM_TOKENS = JSON.stringify({
+  color: { primary: { $value: '#1d4ed8' } },
+  $extensions: {
+    massorca: { version: 2, status: 'detected', agent: 'Codex', sources: [{ path: 'main.css' }] }
+  }
+})
 
 function setSetting(prototypeCount: PrototypeCountSetting): void {
   useAppStore.setState({ settings: { ...getDefaultSettings('/tmp'), prototypeCount } })
@@ -82,6 +90,7 @@ describe('a prototype request in the structured composer send', () => {
   beforeEach(() => {
     mocks.createRequest.mockReset()
     mocks.createRequest.mockResolvedValue({ ok: true, requestId: REQUEST_ID, folderPath: FOLDER })
+    mocks.readSystem.mockResolvedValue({ ok: false, error: 'not_found' })
     nativeChatPrototypeAsks.take(SCOPE)
     setSetting({ mode: 'always', count: 3 })
   })
@@ -240,6 +249,7 @@ describe('the "How many prototypes?" card', () => {
   beforeEach(() => {
     mocks.createRequest.mockReset()
     mocks.createRequest.mockResolvedValue({ ok: true, requestId: REQUEST_ID, folderPath: FOLDER })
+    mocks.readSystem.mockResolvedValue({ ok: false, error: 'not_found' })
     nativeChatPrototypeAsks.take(SCOPE)
     setSetting({ mode: 'ask', count: 2 })
   })
@@ -247,7 +257,7 @@ describe('the "How many prototypes?" card', () => {
 
   function CardHarness({ args }: { args: UseNativeChatStructuredComposerSendArgs }) {
     const send = useNativeChatStructuredComposerSend(args)
-    return <>{useNativeChatPrototypeCountCard({ draftScopeKey: args.draftScopeKey, send })}</>
+    return <>{useNativeChatPrototypeAskCard({ draftScopeKey: args.draftScopeKey, send })}</>
   }
 
   async function holdKeywordSend() {
@@ -272,6 +282,46 @@ describe('the "How many prototypes?" card', () => {
     )
     expect(splitPrototypeHiddenInstruction(sentText(transport)).visibleText).toBe(KEYWORD)
     expect(screen.queryByRole('group', { name: 'How many prototypes?' })).not.toBeInTheDocument()
+  })
+
+  it('then shows the design system card, and "Use it" sends the request in that mode', async () => {
+    mocks.readSystem.mockResolvedValue({
+      ok: true,
+      projectKey: 'nexus',
+      projectName: 'nexuscare',
+      fileNames: ['design/system/tokens.json'],
+      tokensJson: SYSTEM_TOKENS
+    })
+    const { transport } = await holdKeywordSend()
+    await userEvent.click(screen.getByRole('button', { name: '2' }))
+    expect(
+      await screen.findByRole('group', { name: 'Design system · nexuscare' })
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'How many prototypes?' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Use it' }))
+    await vi.waitFor(() => expect(transport.send).toHaveBeenCalledOnce())
+    expect(mocks.createRequest.mock.calls[0]![1]).toMatchObject({ count: 2, designSystem: 'use' })
+    expect(
+      screen.queryByRole('group', { name: 'Design system · nexuscare' })
+    ).not.toBeInTheDocument()
+  })
+
+  it('offers to propose a system for a chat whose project has none, and proposes it on request', async () => {
+    mocks.readSystem.mockResolvedValue({
+      ok: true,
+      projectKey: 'landing',
+      projectName: 'landing-site',
+      fileNames: []
+    })
+    const { transport } = await holdKeywordSend()
+    await userEvent.click(screen.getByRole('button', { name: '2' }))
+    expect(
+      await screen.findByRole('group', { name: 'No design system in landing-site' })
+    ).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Propose one first' }))
+    await vi.waitFor(() => expect(transport.send).toHaveBeenCalledOnce())
+    expect(mocks.createRequest.mock.calls[0]![1]).toMatchObject({ designSystem: 'propose' })
+    expect(sentText(transport)).toContain('design/system/tokens.json')
   })
 
   it('sends the text as typed on "Not a prototype", and the card disappears', async () => {
