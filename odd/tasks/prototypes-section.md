@@ -89,8 +89,8 @@ Work-unit Conventional Commits on `claude/prototypes-section-f8edf5`, tests with
 - [x] T3 Frame annotate bridge — `eb3a4f3b203`: new optional message kinds for element pick (selector, label, rect), pins, style overrides and text override; desktop and mobile hosts validate them. Tests. Route: delegated writer.
 - [x] T4 Desktop settings + prompt line + "How many?" card — `3e8212fe2b3`, `7a56286491e`, `70ea29ade1f`, `110f3abda15`. Tests. Route: delegated writer.
 - [x] T5 Desktop Prototypes view — `bb4c1c3d908`, `19d4ece7aa6`, `e23c6e1bc7c`, `ae4b684e50a`, `11e82c123a6` (+ lookup fix `1f826e4abbc`): sidebar row, list + filters, set grid, viewer, strip, annotate panel (Edit, picker, Note), draft, Anything else, Send. Tests. Route: delegated writer(s).
-- [ ] T6 Mobile Prototypes: ⋯ menu item, list, swipe set, viewer, Edit/Note sheet, draft sheet, Send. Tests. Route: delegated writer(s).
-- [ ] T7 Mobile settings + "How many?" card. Tests. Route: delegated writer.
+- [x] T6 Mobile Prototypes — `302e260b5d2`, `dadf5c8c94d`, `ff35b03aa98`, `9497d8b8ded`: ⋯ menu item, list, swipe set, viewer, Edit/Note sheet, draft sheet, Send. Tests. Route: delegated writer(s).
+- [x] T7 Mobile settings + "How many?" card — `d05e2482aa3`. Tests. Route: delegated writer.
 - [ ] T8 Fidelity pass against v8 for each surface; report SHAs.
 
 ## Progress
@@ -123,6 +123,11 @@ Work-unit Conventional Commits on `claude/prototypes-section-f8edf5`, tests with
 - T5 (delegated writer; trigger: 61 files, host + capture IPC + renderer view): prototype tests 147 + host/client 188 passed; typecheck web/node 0; `tsc -p config/tsconfig.cli.json` 0 (after `1f826e4abbc`, which the parent found missing while packaging); oxlint/oxfmt clean; localization catalogs/extraction pass; code-quality gate 0 new findings. Not verified: a real Electron run (screenshot crop, frame behavior).
 - T5 review: whole range exceeded the lens context budget, so it was reviewed in slices from detached worktrees at slice boundaries. Slice A (host + capture, base `a9d8eea7b5b`..`19d4ece7aa6`): resilience lens repeatedly refused by the model provider safeguards → abandoned (review-f1131c3a67d12142) per "Si es traba, abandona, siempre". Slice B (state, ..`e23c6e1bc7c`): approved and acknowledged, 7 warnings → T5b. Slice C (view, ..`1f826e4abbc`): status timed out twice → abandoned (review-8e2614dddf4921e4).
 - T5 decisions: no thumbnails in list rows (v8 board has none; set grid and side strip use live renders); direction names/tradeoffs from `directions.json` written by the agent; note screenshots captured on Send and uploaded to the host (`prototypes.writeAttachment`), paths in the message; draft state in memory; list refresh on mount, focus and every 10 s.
+
+- T6/T7 (delegated writer; trigger: mobile screens, sheets, send path, shared refactor): mobile prototype tests 173 passed; mobile/web/node/cli typechecks clean; oxlint/oxfmt clean; code-quality gate 0 findings in its files. Not rendered on a device yet. 10 pre-existing mobile src/session failures (TurboModuleRegistry mock, terminal-agent warnings, a load-sensitive snapshot timeout).
+- Mobile decisions (user, 2026-10-29): list chips = desktop chips (All / Claude / Codex / Stitch / Gentle Shell); ⋯ pill shows just the count; cross-chat send goes through the host to the set's own chat (in progress); mobile Settings › Prototypes reachable from the card link only in v1; `/prototype` + `/prototipo` in the mobile slash menu and the in-chat link card added.
+- Follow-up (approved for a later slice): mobile note screenshots with a native capture library (react-native-view-shot or an Expo-compatible equivalent); the APK is built locally, so a native dependency is fine.
+- Pending user approval (design only, not implemented): design-system step — https://claude.ai/artifact/71TQ1ookqegnD4xHQyK2ux.
 
 ## Next step
 
