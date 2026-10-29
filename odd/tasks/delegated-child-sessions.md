@@ -99,6 +99,7 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
 - 2026-10-28: T3 worker-start on any agent committed as `f7142b326462f7211975b79ce3bf85f27c45ff0c`. Authored lines 706 (317 production, 389 tests), above the ~400 planning heuristic; not split, because the params, mode, access, topology and CLI form one contract.
 - 2026-10-28: T3 nesting committed in the next commit, which records `f7142b32646`. Authored lines 170 (46 production, 124 tests). Running total T1–T3: 2174 of the forecast 2000–2800.
 
+- 2026-10-28: R3 review fixes for the router committed as `aa7c2e8735c`: parent tie-break reason, effort dropped without a model, duplicate agent ids, future samples and errored meters as no data, empty-list and blank-summary tests. Checks: `pnpm exec vitest run --config config/vitest.config.ts src/main/delegated-session src/main/runtime/rpc/methods/orchestration/delegation` → 11 files, 166 passed; `pnpm tc:node` → exit 0; `oxlint` on the changed files → exit 0; `oxfmt --check` → clean.
 - 2026-10-28: T4 delegation request committed as `c3cb86c638c`, `73071e39c75`, `0fe4795e217` and `09dfea477c5`. Authored lines 4,601 (2,205 production, 2,363 tests, 33 guide text). Running total T1–T4 about 6,775 against the original forecast of 2000–2800 for all six tasks; T5 and T6 (renderer and mobile) are still to come, so the slicing strategy for the PR must be settled before more is committed.
 
 ## Follow-ups
