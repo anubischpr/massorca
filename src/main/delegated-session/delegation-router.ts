@@ -22,16 +22,16 @@ export type DelegationRouteInput = {
   catalogs?: Readonly<Record<string, DelegationModelCatalog | undefined>>
 }
 
-type PlacementChoice = {
+export type DelegationPlacementChoice = {
   placement: DelegationPlacement
   placementWarning: DelegationPlacementWarning | null
   reason: DelegationReasonCode
 }
 
-function placementFor(
+export function delegationPlacementFor(
   writesCode: boolean,
   workspaceKind: DelegationWorkspaceKind
-): PlacementChoice {
+): DelegationPlacementChoice {
   if (!writesCode) {
     return { placement: 'current', placementWarning: null, reason: 'read-only-current-worktree' }
   }
@@ -63,7 +63,7 @@ export function decideDelegation(input: DelegationRouteInput): DelegationRouteRe
 
   const agent = winner.usage.agent
   const model = resolveDelegationModel({ agent, tier, catalog: input.catalogs?.[agent] })
-  const placement = placementFor(input.writesCode, input.workspaceKind)
+  const placement = delegationPlacementFor(input.writesCode, input.workspaceKind)
   const reasons: DelegationReasonCode[] = [winner.reason]
   if (winner.usage.noData) {
     reasons.push('no-usage-data')
