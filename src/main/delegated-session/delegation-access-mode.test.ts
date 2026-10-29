@@ -5,10 +5,18 @@ import {
 } from '../../shared/agent-session-access-mode'
 import { delegationChildAccessMode } from './delegation-access-mode'
 
-const FULL = agentSessionDeclaredAccess({
-  supportedAccessModes: ['default', 'full-access'],
-  supportedPermissionPresets: ['plan', 'read-only']
-}) as AgentSessionDeclaredAccess
+const FULL = declaredAccess()
+
+function declaredAccess(): AgentSessionDeclaredAccess {
+  const declared = agentSessionDeclaredAccess({
+    supportedAccessModes: ['default', 'full-access'],
+    supportedPermissionPresets: ['plan', 'read-only']
+  })
+  if (!declared) {
+    throw new Error('the fixture declares access modes')
+  }
+  return declared
+}
 function childMode(parentAccessMode: string | undefined, childAgent = 'codex') {
   return delegationChildAccessMode({
     childAgent,

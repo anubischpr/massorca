@@ -95,7 +95,11 @@ export function createDelegationRequest(
       params.optionsJson,
       params.decisionJson
     )
-  return this.getDelegationRequest(id) as DelegationRequestRow
+  const row = this.getDelegationRequest(id)
+  if (!row) {
+    throw new Error(`Delegation request ${id} was not stored.`)
+  }
+  return row
 }
 
 export function getDelegationRequest(

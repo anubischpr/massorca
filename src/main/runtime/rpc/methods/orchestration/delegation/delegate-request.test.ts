@@ -6,7 +6,7 @@ import {
 import { RUNTIME_CAPABILITIES } from '../../../../../../shared/protocol-version'
 import { isOrchestrationMutation } from '../../../../../../shared/orchestration-rpc-contract'
 import { RPC_PARAMS_BY_METHOD } from '../../../../../../shared/rpc-contract/rpc-params-catalog.generated'
-import { eraseRpcMethods, type RpcContext } from '../../../core'
+import { eraseRpcMethods } from '../../../core'
 import { ORCHESTRATION_DELEGATION_METHODS } from './delegate-request'
 
 const request = vi.fn()
@@ -34,7 +34,7 @@ const CALLER = Object.freeze({
 function callAs(orchestrationCaller: unknown, params: Record<string, unknown>) {
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the handler reads only the runtime's host starter and the resolved caller.
   const ctx = { runtime: { ensureStructuredAgentSessionHost }, orchestrationCaller } as never
-  return method!.handler(method!.params!.parse(params), ctx as RpcContext)
+  return method!.handler(method!.params!.parse(params), ctx)
 }
 
 const call = (params: Record<string, unknown>) => callAs(CALLER, params)
@@ -83,6 +83,17 @@ describe('orchestration.delegateRequest', () => {
     await expect(callAs(undefined, { summary: 's', prompt: 'p' })).rejects.toMatchObject({
       code: 'delegation_requires_chat',
       data: { effectsApplied: false }
+    })
+    expect(request).not.toHaveBeenCalled()
+  })
+
+  it('refuses a summary that is a task rather than an abstract, and files nothing', async () => {
+    await expect(call({ summary: 'x'.repeat(161), prompt: 'p' })).rejects.toMatchObject({
+      code: 'invalid_argument',
+      data: { effectsApplied: false }
+    })
+    await expect(call({ summary: 'one\ntwo', prompt: 'p' })).rejects.toMatchObject({
+      code: 'invalid_argument'
     })
     expect(request).not.toHaveBeenCalled()
   })

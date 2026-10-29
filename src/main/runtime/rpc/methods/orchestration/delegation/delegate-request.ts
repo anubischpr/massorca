@@ -1,4 +1,7 @@
-import { DelegateRequestParams } from '../../../../../../shared/rpc-contract/orchestration-delegate-request-params'
+import {
+  DELEGATION_SUMMARY_MAX_CHARS,
+  DelegateRequestParams
+} from '../../../../../../shared/rpc-contract/orchestration-delegate-request-params'
 import { getDelegationRequestService } from '../../../../../delegated-session/delegation-runtime'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import { defineMethod } from '../../../core'
@@ -14,6 +17,13 @@ export const ORCHESTRATION_DELEGATION_METHODS = [
         throw new OrchestrationError(
           'delegation_requires_chat',
           'orchestration delegate can only be used from an Orca chat session, which identifies itself with ORCA_AGENT_SESSION_ID. No effects were applied.',
+          { effectsApplied: false }
+        )
+      }
+      if (params.summary.length > DELEGATION_SUMMARY_MAX_CHARS || params.summary.includes('\n')) {
+        throw new OrchestrationError(
+          'invalid_argument',
+          `summary is a one-line abstract of at most ${DELEGATION_SUMMARY_MAX_CHARS} characters; put the full task in prompt. No effects were applied.`,
           { effectsApplied: false }
         )
       }
