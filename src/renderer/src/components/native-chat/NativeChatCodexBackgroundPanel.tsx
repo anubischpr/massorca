@@ -24,6 +24,10 @@ import { agentChildRowName } from '@/components/agent-child-row-text'
 import { useNow } from '@/hooks/use-now'
 import { NativeChatFinishedBackgroundGroup } from './NativeChatFinishedBackgroundGroup'
 import {
+  NativeChatDelegatedChildSessions,
+  useDelegatedChildSessions
+} from './NativeChatDelegatedChildSessions'
+import {
   NativeChatBackgroundTaskStopControl,
   type NativeChatBackgroundStop
 } from './NativeChatBackgroundTaskStopControl'
@@ -150,7 +154,11 @@ export function NativeChatCodexBackgroundPanel(props: {
     views: readonly AgentChildWorkView[]
   } | null>(null)
   // Held here, not in the groups: they unmount while a detail view is shown.
-  const [finishedOpen, setFinishedOpen] = useState({ commands: false, agents: false })
+  const [sessionsOpen, setSessionsOpen] = useState(false)
+  const [finishedOpen, setFinishedOpen] = useState({
+    commands: false,
+    agents: false
+  })
   const openedFrom = useRef<string | null>(null)
   const listRef = useRef<HTMLElement>(null)
   useEffect(() => {
@@ -159,9 +167,7 @@ export function NativeChatCodexBackgroundPanel(props: {
     }
     const id = openedFrom.current
     openedFrom.current = null
-    listRef.current
-      ?.querySelector<HTMLElement>(`[data-child-row-id="${CSS.escape(id)}"]`)
-      ?.focus()
+    listRef.current?.querySelector<HTMLElement>(`[data-child-row-id="${CSS.escape(id)}"]`)?.focus()
   }, [selected])
   const context = props.context ?? UNVERIFIABLE
   const views = props.commandActivity ?? props.roster?.children
@@ -179,6 +185,7 @@ export function NativeChatCodexBackgroundPanel(props: {
         : row
     )
   }, [props.roster, views, context])
+  const childSessions = useDelegatedChildSessions(props.journalItems)
   const now = useNow(1_000, props.isVisible && rows.some((row) => !row.settled))
   const mainIds = new Set(views?.filter((view) => view.ownership === 'main').map((view) => view.id))
   const commandRows = rows.filter((row) => props.section !== 'agents' && row.kind !== 'agent')
@@ -313,11 +320,16 @@ export function NativeChatCodexBackgroundPanel(props: {
           )}
         </p>
       ) : null}
-      {rows.length === 0 ? (
+      {rows.length === 0 && childSessions.length === 0 ? (
         <p className="text-muted-foreground">
           {t('components.nativeChatBackground.empty', 'No background work reported.')}
         </p>
       ) : null}
+      <NativeChatDelegatedChildSessions
+        sessions={props.section === 'agents' ? [] : childSessions}
+        finishedOpen={sessionsOpen}
+        onFinishedOpenChange={setSessionsOpen}
+      />
       {main.length > 0 ? (
         <section aria-label={t('components.nativeChatBackground.main', 'Main agent')}>
           <h3 className="mb-2 font-medium text-muted-foreground">
