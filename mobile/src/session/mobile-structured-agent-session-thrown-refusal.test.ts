@@ -86,7 +86,7 @@ describe('a write refused on a journal a newer Orca wrote', () => {
         ok: false,
         refusal: {
           code: 'agent_session_journal_unreadable',
-          message: 'Chats were saved by a newer Orca. Update Orca to keep using them.',
+          message: 'Chats were saved by a newer MassOrca. Update MassOrca to keep using them.',
           details: { reason: 'journalWrittenByNewerOrca' }
         }
       }

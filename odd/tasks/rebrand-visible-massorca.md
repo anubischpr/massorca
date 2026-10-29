@@ -26,7 +26,7 @@ Route: delegated direct (writer trigger, 2+ non-trivial files per task). TDD: of
 
 - [x] T1 Main-process visible strings (`src/main`, `src/cli`, `src/relay`, `src/shared`)
 - [ ] T2 Renderer copy and locale catalogs left over
-- [ ] T3 Mobile `app.json`, mobile copy and TestFlight/store text
+- [x] T3 Mobile `app.json`, mobile copy and TestFlight/store text
 
 ## Checks
 
@@ -40,3 +40,4 @@ Branch `fix/rebrand-visible-massorca` from `custom/pv27-unified`, one work-unit 
 
 - Engram mirror `odd/rebrand-visible-massorca/tasks`: pending (save hook refused, host session ended).
 - T1: 829 literals in 329 files plus tests. The recoverable-error classifier keeps the old orca fragments for older hosts. Left alone: agent prompts, Orca Cloud/Relay/Mobile/Computer Use names, persisted markers, X-Orca headers, TERM_PROGRAM, paths, generated src/cli/bundled-skill-guides.ts. Checks: tsc node/cli/web 0 errors; classifier tests pass; check:code-quality:changed unverified (timed out).
+- T3: app.json permission prompts, Fastfile TestFlight changelog, Android release banner and GitHub release title, mobile web <title>, mobile timeout text and tests. Left alone: upstream labels on the about screen, ids, schemes, fixtures, comments. Checks: oxlint pass; 5 test files (81 tests) pass via scratch config; mobile typecheck, build:mobile-web and 3 react-test-renderer tests blocked (mobile/node_modules not installed).

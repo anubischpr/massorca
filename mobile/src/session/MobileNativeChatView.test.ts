@@ -298,7 +298,7 @@ describe('MobileNativeChatView', () => {
   // words alone, and nothing that could only be refused again.
   it('leaves only the words of a read that failed for good, over a loaded transcript', async () => {
     const loaded = [assistantTurn('m1', 'earlier reply')]
-    const words = 'This chat was saved by a newer Orca. Update Orca to open it.'
+    const words = 'This chat was saved by a newer MassOrca. Update MassOrca to open it.'
     const shown = (text: string) =>
       renderer!.root.findAll((node) => node.type === 'Text' && node.props.children === text)
     const composers = () => renderer!.root.findAll((node) => node.type === 'Composer')
