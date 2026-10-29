@@ -1,21 +1,31 @@
 import { describe, expect, it } from 'vitest'
 import type { NativeChatVisualPickedElement } from '../../../src/shared/native-chat-visual-annotate'
 import {
+  closeSelection,
   createSetState,
   editSelected,
   iterateHere,
   peekDirection,
   pickElement,
+  pinKeyFor,
   setNote
 } from '../../../src/shared/prototype-set-state'
+import {
+  FONT_SIZE_BOUNDS,
+  SIZE_PERCENT_BOUNDS,
+  SIZE_PX_BOUNDS,
+  parseNumberInput,
+  sizeBoundsOf
+} from '../../../src/shared/prototype-number-input'
 import {
   NOTE_EXAMPLE_CHIPS,
   isPeeking,
   noteFromExampleChip,
   noteLabelFor,
   notePlaceholderFor,
-  parseNumberInput,
+  pulseFieldFor,
   selectedPinEditCount,
+  shownPinTab,
   viewerChips,
   viewerHeaderLines
 } from './mobile-prototype-viewer-model'
@@ -26,6 +36,7 @@ const HEADING: NativeChatVisualPickedElement = {
   selector: 'main > h1',
   label: 'heading',
   rect: { x: 0, y: 0, width: 100, height: 24 },
+  htmlSnippet: '<h1>Checkout</h1>',
   state: {
     text: 'Checkout',
     color: '#171717',
@@ -51,6 +62,33 @@ describe('viewerHeaderLines', () => {
   it('says a sibling is being peeked at', () => {
     const peeking = peekDirection(stateOnB(), 'C')
     expect(viewerHeaderLines(SET, peeking)).toEqual({ title: 'C', subtitle: 'Codex · peeking' })
+  })
+
+  it('names no version for a direction the host lists with none', () => {
+    const unversioned = {
+      ...SET,
+      directions: SET.directions.map((direction) =>
+        direction.letter === 'B' ? { ...direction, versions: [] } : direction
+      )
+    }
+    expect(viewerHeaderLines(unversioned, stateOnB()).subtitle).toBe('Codex · iterating')
+  })
+})
+
+describe('the pin sheet tab and the jump pulse', () => {
+  it('shows the Note tab while a sibling is peeked at, whatever tab was chosen', () => {
+    expect(shownPinTab('edit', peekDirection(stateOnB(), 'C'))).toBe('note')
+    expect(shownPinTab('edit', stateOnB())).toBe('edit')
+    expect(shownPinTab('note', stateOnB())).toBe('note')
+  })
+
+  it('pulses the control a jump reached only while its pin is the one shown', () => {
+    const picked = pickElement(stateOnB(), HEADING)
+    const jump = { letter: 'B', pinKey: pinKeyFor(HEADING.selector), field: 'width' as const }
+    expect(pulseFieldFor(jump, picked)).toBe('width')
+    expect(pulseFieldFor(jump, closeSelection(picked))).toBeNull()
+    expect(pulseFieldFor(jump, peekDirection(picked, 'C'))).toBeNull()
+    expect(pulseFieldFor(null, picked)).toBeNull()
   })
 })
 
@@ -109,10 +147,25 @@ describe('the pin sheet', () => {
 
 describe('parseNumberInput', () => {
   it('reads a number and waits on anything that is not one yet', () => {
-    expect(parseNumberInput('48')).toBe(48)
-    expect(parseNumberInput('12.5')).toBe(12.5)
-    expect(parseNumberInput('')).toBeNull()
-    expect(parseNumberInput('-')).toBeNull()
-    expect(parseNumberInput('abc')).toBeNull()
+    expect(parseNumberInput('48', SIZE_PX_BOUNDS)).toBe(48)
+    expect(parseNumberInput('12.5', SIZE_PX_BOUNDS)).toBe(12.5)
+    expect(parseNumberInput('', SIZE_PX_BOUNDS)).toBeNull()
+    expect(parseNumberInput('-', SIZE_PX_BOUNDS)).toBeNull()
+    expect(parseNumberInput('abc', SIZE_PX_BOUNDS)).toBeNull()
+    expect(parseNumberInput('Infinity', SIZE_PX_BOUNDS)).toBeNull()
+  })
+
+  it('pins a typed number into its range, so no field keeps an out-of-range value', () => {
+    expect(parseNumberInput('99999', SIZE_PX_BOUNDS)).toBe(4000)
+    expect(parseNumberInput('-5', SIZE_PX_BOUNDS)).toBe(0)
+    expect(parseNumberInput('150', SIZE_PERCENT_BOUNDS)).toBe(100)
+    expect(parseNumberInput('0', FONT_SIZE_BOUNDS)).toBe(1)
+    expect(parseNumberInput('500', FONT_SIZE_BOUNDS)).toBe(200)
+  })
+
+  it('keeps a percentage to 0 to 100, and px and auto to the px range', () => {
+    expect(sizeBoundsOf('%')).toBe(SIZE_PERCENT_BOUNDS)
+    expect(sizeBoundsOf('px')).toBe(SIZE_PX_BOUNDS)
+    expect(sizeBoundsOf('auto')).toBe(SIZE_PX_BOUNDS)
   })
 })

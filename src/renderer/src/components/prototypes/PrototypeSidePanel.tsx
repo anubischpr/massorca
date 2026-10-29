@@ -10,7 +10,7 @@ import {
   setPrompt,
   type PrototypeSetState
 } from '../../../../shared/prototype-set-state'
-import { draftOf } from '../../../../shared/prototype-set-view'
+import { draftOf, hasNothingToSend } from '../../../../shared/prototype-set-view'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
 
@@ -131,7 +131,7 @@ export function PrototypeSidePanel({
         <button
           type="button"
           onClick={onSend}
-          disabled={state.sending}
+          disabled={state.sending || hasNothingToSend(state)}
           className="mt-auto h-9 rounded-lg bg-primary text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
           {translate('components.prototypes.sendButton', 'Send to {{agent}}', { agent })}

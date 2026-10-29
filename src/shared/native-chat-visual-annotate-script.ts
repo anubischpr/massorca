@@ -41,6 +41,8 @@ var outlines = []
 var applied = []
 var scheduled = false
 var BLOCKED = ['pointerdown', 'pointerup', 'mousedown', 'mouseup', 'auxclick', 'dblclick']
+// Touch only stops page handlers: cancelling it would also cancel the tap's click, which picks.
+var TOUCHED = ['touchstart', 'touchmove', 'touchend']
 var ID = /^[A-Za-z][A-Za-z0-9_-]*$/
 var RGB = /^rgba?\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)(?:,\s*(\d+(?:\.\d+)?))?\)$/
 var HEX = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i
@@ -63,6 +65,11 @@ function onPointerEvent(event) {
   event.stopImmediatePropagation()
 }
 
+function onTouch(event) {
+  if (!enabled || isOverlay(event.target)) return
+  event.stopImmediatePropagation()
+}
+
 function onClick(event) {
   if (!enabled || isOverlay(event.target)) return
   event.preventDefault()
@@ -70,15 +77,16 @@ function onClick(event) {
   if (event.target && event.target.nodeType === 1) send({ type: C.picked, element: describeElement(event.target) })
 }
 
+// Moves only record the target; the layout runs once per frame.
 function onMove(event) {
   if (!enabled || !event.target || event.target.nodeType !== 1 || isOverlay(event.target)) return
   hovered = event.target
-  layout()
+  schedule()
 }
 
 function onLeave() {
   hovered = null
-  layout()
+  schedule()
 }
 
 function setEnabled(on) {
@@ -87,6 +95,7 @@ function setEnabled(on) {
   var listen = on ? 'addEventListener' : 'removeEventListener'
   window[listen]('click', onClick, true)
   for (var i = 0; i < BLOCKED.length; i++) window[listen](BLOCKED[i], onPointerEvent, true)
+  for (var j = 0; j < TOUCHED.length; j++) window[listen](TOUCHED[j], onTouch, true)
   document[listen]('mousemove', onMove, true)
   root[listen]('mouseleave', onLeave)
   if (on) ensureOverlay()

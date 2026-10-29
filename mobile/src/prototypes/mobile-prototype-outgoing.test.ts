@@ -125,6 +125,23 @@ describe('planMobilePrototypeOutgoing', () => {
         shownText: '/prototype a login page'
       })
     })
+
+    it('sends the command as typed and logs when the host could not write the folder', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+      try {
+        const { result } = plan('/prototype a login page', ALWAYS_3, {
+          request: { kind: 'unwritable' }
+        })
+        await expect(result).resolves.toEqual({
+          kind: 'send',
+          wireText: '/prototype a login page',
+          shownText: '/prototype a login page'
+        })
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('could not write'))
+      } finally {
+        warn.mockRestore()
+      }
+    })
   })
 
   it('never lets a pasted marker through as MassOrca instruction', async () => {

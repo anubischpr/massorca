@@ -1,3 +1,9 @@
+import {
+  boundDesignFolderOf,
+  isBoundDesignFile
+} from '../../../src/shared/prototype-design-folders'
+import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
+
 /** The two kinds the Artifacts screen separates: pages a viewer can render, and every other file. */
 export type MobileRecordedFileKind = 'page' | 'file'
 
@@ -147,6 +153,23 @@ export function groupRecordedFilesByDay<File extends { timestamp: number | null 
 /** The name a target shows: the file name, read the same for recorded paths and visual files. */
 export function artifactTargetName(target: MobileArtifactTarget): string {
   return fileNameOf(target.kind === 'recorded' ? target.path : target.file)
+}
+
+/** The Gentle Shell design folders the prototype sets are bound to; a set of any other agent has none. */
+export function boundDesignFoldersOf(sets: readonly PrototypeListedSet[]): string[] {
+  return sets.flatMap((set) => {
+    const folder = boundDesignFolderOf(set)
+    return folder === null ? [] : [folder]
+  })
+}
+
+/** Leaves out the items under a bound design folder: the Prototypes view owns those files. */
+export function withoutBoundDesignFiles<Item>(
+  items: readonly Item[],
+  pathOf: (item: Item) => string,
+  folders: readonly string[]
+): Item[] {
+  return items.filter((item) => !isBoundDesignFile(pathOf(item), folders))
 }
 
 /**

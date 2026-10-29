@@ -4,6 +4,8 @@ import { createSetState, type PrototypeSetState } from '../../../../shared/proto
 
 // The Prototypes screen state, in memory for the session: the agent filter, the selected set, and
 // each set's screen state. Nothing here is saved; a restart starts every set over.
+// Invariants (tested in prototype-view-store.test.ts): a set's state is created once and a later
+// ensure keeps it, an update changes only the request it names, and an update never creates a state.
 type PrototypeViewStore = {
   filter: PrototypeFilter
   selectedRequestId: string | null

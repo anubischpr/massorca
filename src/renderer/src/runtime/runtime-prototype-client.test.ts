@@ -58,6 +58,39 @@ describe('runtime prototype client', () => {
     expect(callMock.mock.calls[0]?.[1]).toBe('prototypes.createRequest')
   })
 
+  it('returns a create refusal for an unwritable folder as a value', async () => {
+    callMock.mockResolvedValueOnce({ ok: false, error: 'unwritable' })
+
+    expect(
+      await createPrototypeRequestOnHost(LOCAL, {
+        sessionId: 'session-alpha-0001',
+        agent: 'claude',
+        originalPrompt: 'a dashboard',
+        count: 2
+      })
+    ).toEqual({ ok: false, error: 'unwritable' })
+  })
+
+  it('fails a list reply that is not the shape the host contract names', async () => {
+    callMock.mockResolvedValueOnce({ sets: [{ requestId: 'no-folder-or-directions' }] })
+
+    await expect(listPrototypeSetsOnHost(LOCAL, {})).rejects.toMatchObject({
+      name: 'PrototypeHostMalformedReplyError'
+    })
+  })
+
+  it('fails a read reply with an error the contract does not name, rather than reading it as a file', async () => {
+    callMock.mockResolvedValueOnce({ ok: false, error: 'exploded' })
+
+    await expect(
+      readPrototypeSetFileOnHost(LOCAL, {
+        sessionId: 'session-alpha-0001',
+        requestId: '20261028-201500-aaaaaa',
+        fileName: 'prototypes/20261028-201500-aaaaaa/A.html'
+      })
+    ).rejects.toMatchObject({ name: 'PrototypeHostMalformedReplyError' })
+  })
+
   it('returns the refusal of a set file as a value', async () => {
     callMock.mockResolvedValueOnce({ ok: false, error: 'too_large' })
 

@@ -65,8 +65,8 @@ export function classifyPrototypeRequest(text: string, agent: PrototypeAgent): P
   return hasPrototypeKeyword(text) ? { kind: 'keyword' } : { kind: 'none' }
 }
 
-// Last line of the agent's instruction when the typed text follows it: that text starts with a
-// command word the agent must not act on.
+// Precedes the typed echo: the text that follows starts with a command word the agent must not
+// act on.
 const TYPED_ECHO_NOTE =
   'The lines below repeat the message as the user typed it; ignore the command word at their start.'
 
@@ -131,11 +131,9 @@ function sentTextFor(request: PrototypeRequest, input: PrototypeRequestInput): s
   assertRequestId(input.requestId)
   assertFolderPath(folderPath)
   const directions = clampPrototypeCount(input.count)
-  const massorcaCommand = request.kind === 'command' && MASSORCA_COMMANDS.includes(request.command)
-  const translated =
-    request.kind === 'command' && massorcaCommand
-      ? gentleShellDesignCommand(request.rest, agent)
-      : null
+  const massorcaCommand =
+    request.kind === 'command' && MASSORCA_COMMANDS.includes(request.command) ? request : null
+  const translated = massorcaCommand ? gentleShellDesignCommand(massorcaCommand.rest, agent) : null
   // Gentle Shell writes its own design/ folder, but only when the message is its design command.
   const isGentleDesign =
     agent === 'gentle-shell' &&
@@ -145,12 +143,12 @@ function sentTextFor(request: PrototypeRequest, input: PrototypeRequestInput): s
     prototypeRequestMarkerLine(input.requestId),
     directionInstruction(directions, folderPath, agent, isGentleDesign)
   ].join('\n')
-  if (request.kind === 'command' && massorcaCommand) {
+  if (massorcaCommand) {
     // The agent gets the text without the MassOrca command word, which no agent knows, or the
     // Gentle Shell design command; the chat shows the typed text, echoed at the end.
     const typed = [TYPED_ECHO_NOTE, prototypeTypedMarkerLine(), text.trim()].join('\n')
     return withBody(
-      translated ?? request.rest,
+      translated ?? massorcaCommand.rest,
       `${hidden}
 ${typed}`
     )
@@ -220,20 +218,26 @@ function assertRequestId(requestId: string): void {
   }
 }
 
+/** Whether a host's reply names a request folder that the instructions can be written for. */
+export function isUsablePrototypeRequestFolder(requestId: string, folderPath: string): boolean {
+  return REQUEST_ID_PATTERN.test(requestId) && folderRoot(folderPath).length > 0
+}
+
 function assertFolderPath(folderPath: string): void {
-  if (folderPath.trim().length === 0) {
+  if (folderRoot(folderPath).length === 0) {
     throw new RangeError('A prototype request needs its folder path')
   }
+}
+
+// The folder without trailing separators; empty when there is no folder to write into.
+function folderRoot(folderPath: string): string {
+  return folderPath.trim().replace(/[\\/]+$/u, '')
 }
 
 // Keeps the caller's separators; the file name follows a `/`.
 function joinFolderPath(folderPath: string, fileName: string): string {
   assertFolderPath(folderPath)
-  const folder = folderPath.trim().replace(/[\\/]+$/u, '')
-  if (folder.length === 0) {
-    throw new RangeError('A prototype request needs its folder path')
-  }
-  return `${folder}/${fileName}`
+  return `${folderRoot(folderPath)}/${fileName}`
 }
 
 function withBody(body: string, tail: string): string {

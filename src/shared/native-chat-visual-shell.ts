@@ -238,10 +238,15 @@ export type NativeChatVisualFrameMessage =
   | { kind: 'open-link'; url: string }
   | NativeChatVisualAnnotateEvent
 
-/** A message from a visual's shell, validated; null for anything else. */
+/**
+ * A message from a visual's shell, validated; null for anything else. Picks and pin clicks are read
+ * only when `annotate` says the document was built with the annotate script. The default keeps
+ * callers that do not pass it reading them, as before.
+ */
 export function readNativeChatVisualFrameMessage(
   data: unknown,
-  channel: string
+  channel: string,
+  annotate = true
 ): NativeChatVisualFrameMessage | null {
   if (typeof data !== 'object' || data === null) {
     return null
@@ -269,7 +274,7 @@ export function readNativeChatVisualFrameMessage(
       return null
     }
   }
-  return readNativeChatVisualAnnotateEvent(data, channel)
+  return annotate ? readNativeChatVisualAnnotateEvent(data, channel) : null
 }
 
 /** The ping id a visual's shell answered on `channel`, or null for anything else. */

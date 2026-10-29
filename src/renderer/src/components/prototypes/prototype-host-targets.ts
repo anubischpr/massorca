@@ -8,6 +8,7 @@ import {
   PrototypeHostOutdatedError
 } from '@/runtime/runtime-prototype-client'
 import { useAppStore } from '@/store'
+import { recordBoundDesignFolders } from './prototype-bound-design-folders'
 
 const LOCAL_TARGET: RuntimeClientTarget = { kind: 'local' }
 const targetBySessionId = new Map<string, RuntimeClientTarget>()
@@ -68,5 +69,6 @@ export async function listPrototypeSetsFromAllHosts(): Promise<PrototypeHostList
       `[prototypes] list failed on ${describeTarget(target)}: ${isOutdated ? 'host does not support prototypes' : String(outcome.reason)}`
     )
   })
+  recordBoundDesignFolders(sets)
   return { sets, answered, onlyOutdated: failed > 0 && failed === outdated }
 }

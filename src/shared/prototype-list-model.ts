@@ -52,25 +52,30 @@ export function prototypeTitle(
   return head.length > TITLE_MAX_LENGTH ? `${head.slice(0, TITLE_MAX_LENGTH).trimEnd()}…` : head
 }
 
-/** A set with one direction shows as one screen; otherwise its direction count and the iterated letter. */
+/** One screen when the set asked for one direction and has it; else its direction count and iterated letter. */
 export type PrototypeStatus =
   | { kind: 'single' }
   | { kind: 'directions'; count: number; iterating: string }
 
 export function prototypeStatus(
-  set: Pick<PrototypeListedSet, 'directions'>,
+  set: Pick<PrototypeListedSet, 'count' | 'directions'>,
   activeLetter: string | undefined
 ): PrototypeStatus {
-  if (set.directions.length <= 1) {
+  // A missing or extra direction keeps its count, so a shortfall never reads as one screen.
+  if (set.count <= 1 && set.directions.length === 1) {
     return { kind: 'single' }
   }
   const iterating = activeLetter ?? set.directions[0]?.letter ?? ''
   return { kind: 'directions', count: set.directions.length, iterating }
 }
 
-/** Compact age of the set's last write (or its creation when no file has one): "4m", "1h", "1d". */
+/** Compact age of the newest write (or the creation when no file has one): "4m", "1h", "1d"; '' if none. */
 export function prototypeAge(set: PrototypeListedSet, nowMs: number): string {
-  const elapsedMs = Math.max(0, nowMs - latestWriteMs(set))
+  const latest = latestWriteMs(set)
+  if (latest === null) {
+    return ''
+  }
+  const elapsedMs = Math.max(0, nowMs - latest)
   const minutes = Math.floor(elapsedMs / 60_000)
   if (minutes < 60) {
     return `${Math.max(1, minutes)}m`
@@ -82,14 +87,13 @@ export function prototypeAge(set: PrototypeListedSet, nowMs: number): string {
   return `${Math.floor(hours / 24)}d`
 }
 
-function latestWriteMs(set: PrototypeListedSet): number {
-  let latest = Date.parse(set.createdAt)
-  for (const direction of set.directions) {
-    for (const version of direction.versions) {
-      latest = Math.max(latest, version.mtime)
-    }
-  }
-  return Number.isNaN(latest) ? 0 : latest
+/** The newest valid time of the set; an invalid or missing one is skipped, never folded into the rest. */
+function latestWriteMs(set: PrototypeListedSet): number | null {
+  const times = [
+    Date.parse(set.createdAt),
+    ...set.directions.flatMap((direction) => direction.versions.map((version) => version.mtime))
+  ].filter((time) => Number.isFinite(time))
+  return times.length === 0 ? null : Math.max(...times)
 }
 
 export type PrototypeListRow = {

@@ -25,11 +25,14 @@ function typeIndex(node) {
   return index
 }
 
+// Under the host's label cap: a longer label fails its check and drops the whole pick.
+var LABEL_MAX = 24
+
 function labelFor(element) {
   var aria = element.getAttribute('aria-label')
   var source = aria && aria.trim() ? aria : element.textContent || ''
-  var label = source.replace(/\s+/g, ' ').trim().toLowerCase().slice(0, 24).trim()
-  return label || element.localName
+  var label = source.replace(/\s+/g, ' ').trim().toLowerCase().slice(0, LABEL_MAX).trim()
+  return label || element.localName.slice(0, LABEL_MAX)
 }
 
 function directText(element) {

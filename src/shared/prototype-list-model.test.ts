@@ -55,9 +55,26 @@ describe('prototypeTitle', () => {
 })
 
 describe('prototypeStatus', () => {
-  it('shows a single direction as one screen', () => {
-    const single = set({ directions: [set().directions[0]!] })
+  it('shows one direction as one screen when one was asked for', () => {
+    const single = set({ count: 1, directions: [set().directions[0]!] })
     expect(prototypeStatus(single, 'A')).toEqual({ kind: 'single' })
+  })
+
+  it('keeps the direction count when fewer directions exist than were asked for', () => {
+    const shortfall = set({ count: 2, directions: [set().directions[0]!] })
+    expect(prototypeStatus(shortfall, 'A')).toEqual({
+      kind: 'directions',
+      count: 1,
+      iterating: 'A'
+    })
+  })
+
+  it('never shows one screen for a request with no directions yet', () => {
+    expect(prototypeStatus(set({ count: 1, directions: [] }), undefined)).toEqual({
+      kind: 'directions',
+      count: 0,
+      iterating: ''
+    })
   })
 
   it('shows the direction count and the iterated letter', () => {
@@ -92,6 +109,29 @@ describe('prototypeAge', () => {
 
   it('never shows a negative age for a write in the future', () => {
     expect(prototypeAge(set(), NOW - 1_000_000)).toBe('1m')
+  })
+
+  it('reads the write time when the creation time is not a date', () => {
+    expect(prototypeAge(set({ createdAt: 'not a date' }), NOW)).toBe('4m')
+  })
+
+  it('skips a write time that is not a number instead of aging from the epoch', () => {
+    const unreadable = set({
+      directions: [
+        {
+          letter: 'A',
+          versions: [
+            { version: 1, fileName: 'a', mtime: Number.NaN },
+            { version: 2, fileName: 'b', mtime: NOW - 4 * 60_000 }
+          ]
+        }
+      ]
+    })
+    expect(prototypeAge(unreadable, NOW)).toBe('4m')
+  })
+
+  it('shows no age when neither the creation nor a write has a valid time', () => {
+    expect(prototypeAge(set({ createdAt: '', directions: [] }), NOW)).toBe('')
   })
 })
 

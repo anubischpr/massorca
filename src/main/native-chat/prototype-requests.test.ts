@@ -258,6 +258,53 @@ describe('listPrototypeSets', () => {
 
     expect((await listPrototypeSets({ stateDirectory })).sets).toEqual([])
   })
+
+  /** A design/<slug>/ folder of the launch directory with one artboard. */
+  async function writeDesign(slug: string, artboard: string): Promise<void> {
+    await writeIn(
+      join(launchDirectory, 'design', slug),
+      'design.json',
+      JSON.stringify({
+        title: slug,
+        brief: 'brief',
+        artboards: [{ file: artboard, title: 'Home' }]
+      })
+    )
+    await writeIn(join(launchDirectory, 'design', slug), artboard, '<p>x</p>')
+  }
+
+  it('binds its design folder in request.json, so a design folder that appears later cannot rebind it', async () => {
+    const created = await create('gentle-shell', NOW)
+    await writeDesign('bold', 'home.html')
+    expect((await listPrototypeSets({ stateDirectory })).sets.map((set) => set.requestId)).toEqual([
+      created.requestId
+    ])
+    const manifest: unknown = JSON.parse(
+      await readFile(join(created.folderPath, 'request.json'), 'utf8')
+    )
+    expect(manifest).toMatchObject({ gentleDesignSlug: 'bold' })
+
+    await writeDesign('later', 'index.html')
+    const listed = await listPrototypeSets({ stateDirectory })
+    expect(listed.sets[0]?.directions).toMatchObject([
+      { letter: 'A', versions: [{ version: 1, fileName: 'design/bold/home.html' }] }
+    ])
+  })
+
+  it('lists the files a Gentle Shell request recorded in its own folder before its design folder', async () => {
+    const created = await create('gentle-shell', NOW)
+    await writeIn(created.folderPath, 'A.html', '<p>recorded</p>')
+    await writeDesign('bold', 'home.html')
+
+    const listed = await listPrototypeSets({ stateDirectory })
+
+    expect(listed.sets[0]?.directions).toMatchObject([
+      {
+        letter: 'A',
+        versions: [{ version: 1, fileName: `prototypes/${created.requestId}/A.html` }]
+      }
+    ])
+  })
 })
 
 describe('readPrototypeSetFile', () => {

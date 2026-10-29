@@ -17929,7 +17929,7 @@
       "noteHeadingPeek": "Nota: qué tomar de {{view}} para {{active}}",
       "notePlaceholder": "Describe un cambio que Editar no puede hacer: animación, comportamiento, estilo…",
       "notePlaceholderPeek": "p. ej. usa este botón de cartera encima del formulario",
-      "peekText": "Mirando {{view}} mientras iteras sobre {{active}}. Las notas aquí van al borrador como “toma esto de {{view}} para {{active}}”.",
+      "peekText": "Mirando <letter>{{view}}</letter> mientras iteras sobre <letter>{{active}}</letter>. Las notas aquí van al borrador como “toma esto de <letter>{{view}}</letter> para <letter>{{active}}</letter>”.",
       "pickerDone": "Listo",
       "pickerFillName": "relleno",
       "pickerTextColorName": "color de texto",

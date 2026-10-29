@@ -28,6 +28,11 @@ export function draftOf(state: PrototypeSetState): PrototypeDraft {
   })
 }
 
+/** Nothing to send: no change on any pin, and no words under "Anything else". */
+export function hasNothingToSend(state: PrototypeSetState): boolean {
+  return draftOf(state).itemCount === 0 && state.prompt.trim() === ''
+}
+
 /**
  * The one visible message: "Iterate on B.", the draft with any screenshot paths, then the prompt.
  * Neutralized as a whole, so no marker in user text is ever honored as a hidden instruction.

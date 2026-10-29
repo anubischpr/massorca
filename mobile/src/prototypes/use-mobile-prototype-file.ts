@@ -25,20 +25,30 @@ export function useMobilePrototypeFile(
       return
     }
     if (client === null) {
+      // With no connection, the HTML of an earlier file must not stand in for this one.
+      setState({ status: 'loading' })
       return
     }
     let active = true
     setState({ status: 'loading' })
-    void readMobilePrototypeFile(client, { sessionId, requestId, fileName }).then((read) => {
-      if (!active) {
-        return
+    void readMobilePrototypeFile(client, { sessionId, requestId, fileName }).then(
+      (read) => {
+        if (!active) {
+          return
+        }
+        if (read.kind === 'ready') {
+          setState({ status: 'ready', html: read.html })
+        } else if (read.kind !== 'unreachable') {
+          setState({ status: 'error' })
+        }
+      },
+      // A read that throws has failed. It is not a host out of contact, which keeps loading.
+      () => {
+        if (active) {
+          setState({ status: 'error' })
+        }
       }
-      if (read.kind === 'ready') {
-        setState({ status: 'ready', html: read.html })
-      } else if (read.kind !== 'unreachable') {
-        setState({ status: 'error' })
-      }
-    })
+    )
     return () => {
       active = false
     }

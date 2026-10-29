@@ -69,6 +69,16 @@ describe('createMobilePrototypeRequest', () => {
     ).toEqual({ kind: 'unsupported' })
   })
 
+  it('reads a folder the host could not write as unwritable, apart from unsupported', async () => {
+    const params = { sessionId: SESSION, agent: 'claude' as const, originalPrompt: 'x', count: 1 }
+    expect(
+      await createMobilePrototypeRequest(
+        clientAnswering(ok({ ok: false, error: 'unwritable' })),
+        params
+      )
+    ).toEqual({ kind: 'unwritable' })
+  })
+
   it('reads an older host as unsupported-host, and a dropped reply as unreachable', async () => {
     const params = { sessionId: SESSION, agent: 'claude' as const, originalPrompt: 'x', count: 1 }
     expect(

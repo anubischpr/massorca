@@ -14,10 +14,13 @@ import { readNativeChatComposerDraft } from './native-chat-composer-draft-store'
 import type { NativeChatComposerDraft } from './native-chat-composer-draft-storage'
 import type { NativeChatQueueHold } from './native-chat-composer-types'
 import type { NativeChatQueueResume } from './native-chat-composer-primary-action'
+import type { NativeChatPrototypeChoice } from '../../../../shared/prototype-request-decision'
 
 type StructuredComposerSend = (
   text: string,
-  attachments?: readonly NativeChatComposerImageAttachment[]
+  attachments?: readonly NativeChatComposerImageAttachment[],
+  sentFrom?: NativeChatComposerDraft,
+  prototypeChoice?: NativeChatPrototypeChoice
 ) => void
 
 /** The confirmation as the dialog shows it; kept after it closes so the closing frame still reads. */
@@ -40,6 +43,8 @@ type PendingSend = {
   hold: NativeChatQueueHold
   /** The draft as it was when the message was asked for. */
   sentFrom: NativeChatComposerDraft
+  /** The answer of the "How many prototypes?" card, when the message was held for one. */
+  prototypeChoice?: NativeChatPrototypeChoice
 }
 
 export function useNativeChatHeldQueueComposerSend(args: UseNativeChatStructuredComposerSendArgs): {
@@ -53,7 +58,6 @@ export function useNativeChatHeldQueueComposerSend(args: UseNativeChatStructured
   }
 } {
   const sendNow = useNativeChatStructuredComposerSend(args)
-  const prototypeCountCard = useNativeChatPrototypeCountCard(args)
   const { agent, structuredTransport } = args
   const queueHold = structuredTransport?.queueHold
   const [pending, setPending] = useState<PendingSend | null>(null)
@@ -85,7 +89,7 @@ export function useNativeChatHeldQueueComposerSend(args: UseNativeChatStructured
   }, [sendOut])
 
   const send = useCallback<StructuredComposerSend>(
-    (text, attachments) => {
+    (text, attachments, sentFrom, prototypeChoice) => {
       if (clearingRef.current) {
         return
       }
@@ -97,26 +101,32 @@ export function useNativeChatHeldQueueComposerSend(args: UseNativeChatStructured
         if (sendOut) {
           return
         }
-        const asked = {
+        const asked: PendingSend = {
           text,
           attachments,
           hold: queueHold,
-          sentFrom: readNativeChatComposerDraft(args.draftScopeKey)
+          sentFrom: sentFrom ?? readNativeChatComposerDraft(args.draftScopeKey),
+          ...(prototypeChoice ? { prototypeChoice } : {})
         }
         untakenRef.current = asked
         setPending(asked)
         setOpen(true)
         return
       }
-      void sendNow(text, attachments)
+      void sendNow(text, attachments, sentFrom, prototypeChoice)
     },
     [agent, args.draftScopeKey, queueHold, sendNow, sendOut, structuredTransport]
   )
+  // An answer to the card goes through `send`, so a held queue asks about it as about any message.
+  const prototypeCountCard = useNativeChatPrototypeCountCard({
+    draftScopeKey: args.draftScopeKey,
+    send
+  })
 
   const sendMessage = useCallback(() => {
     const taken = take()
     if (taken) {
-      void sendNowRef.current(taken.text, taken.attachments, taken.sentFrom)
+      void sendNowRef.current(taken.text, taken.attachments, taken.sentFrom, taken.prototypeChoice)
     }
   }, [take])
   const clearQueue = useCallback(() => {
@@ -130,7 +140,12 @@ export function useNativeChatHeldQueueComposerSend(args: UseNativeChatStructured
       try {
         if (await taken.hold.clear()) {
           // Text typed during the deletes stays: the message was taken from what came before.
-          await sendNowRef.current(taken.text, taken.attachments, taken.sentFrom)
+          await sendNowRef.current(
+            taken.text,
+            taken.attachments,
+            taken.sentFrom,
+            taken.prototypeChoice
+          )
         }
       } finally {
         clearingRef.current = false

@@ -18,8 +18,8 @@ async function readRuntimeFence(client: HostClient, sessionId: string): Promise<
     { sessionId, direction: 'tail', limit: 1 },
     STRUCTURED_SEND_TIMEOUT_MS
   )
-  const fence = history.ok ? history.page.fence : (history.fence ?? history.page.fence)
-  return fence ?? null
+  // The page's fence first, as the desktop send reads it; a reset's own fence only when its page has none.
+  return history.page.fence ?? (history.ok ? null : (history.fence ?? null))
 }
 
 /**

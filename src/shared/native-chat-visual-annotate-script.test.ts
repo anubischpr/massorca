@@ -7,7 +7,8 @@ import {
   NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE,
   NATIVE_CHAT_VISUAL_OVERRIDES_TYPE,
   NATIVE_CHAT_VISUAL_PINS_TYPE,
-  NATIVE_CHAT_VISUAL_PIN_CLICKED_TYPE
+  NATIVE_CHAT_VISUAL_PIN_CLICKED_TYPE,
+  readNativeChatVisualAnnotateEvent
 } from './native-chat-visual-annotate'
 import { nativeChatVisualAnnotateScript } from './native-chat-visual-annotate-script'
 
@@ -195,6 +196,19 @@ describe('annotate script: picking', () => {
     expect(pick(long).label).toBe('a very long heading text')
   })
 
+  it('caps a tag-name label too, so a long custom element still passes the host check', () => {
+    const custom = document.createElement(`x-${'a'.repeat(120)}`)
+    document.body.appendChild(custom)
+    const picked = pick(custom)
+    expect(picked.label).toBe(`x-${'a'.repeat(22)}`)
+    expect(
+      readNativeChatVisualAnnotateEvent(
+        { type: NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE, channel: CHANNEL, element: picked },
+        CHANNEL
+      )
+    ).not.toBeNull()
+  })
+
   it('uses the id when it is unique, and a checked nth-of-type path from html when it is not', () => {
     const duplicate = document.createElement('div')
     duplicate.id = 'empty'
@@ -226,14 +240,126 @@ describe('annotate script: picking', () => {
   })
 })
 
+/** Stubs requestAnimationFrame, so a test runs the frames the script asks for when it says so. */
+function withManualFrames(run: (flush: () => void) => void): void {
+  const frames: FrameRequestCallback[] = []
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback): number => {
+    frames.push(callback)
+    return frames.length
+  })
+  try {
+    run(() => {
+      for (const callback of frames.splice(0)) {
+        callback(0)
+      }
+    })
+  } finally {
+    vi.unstubAllGlobals()
+  }
+}
+
 describe('annotate script: hover', () => {
-  it('shows a 2px blue outline on the element under the pointer', () => {
+  it('shows a 2px blue outline on the element under the pointer, on the next frame', () => {
     send({ type: NATIVE_CHAT_VISUAL_ANNOTATE_TYPE, enabled: true })
-    element('button').dispatchEvent(new MouseEvent('mousemove', { bubbles: true }))
+    withManualFrames((flush) => {
+      element('button').dispatchEvent(new MouseEvent('mousemove', { bubbles: true }))
+      flush()
+    })
     const hover = required(htmlChildren(overlay())[0], 'hover box')
     expect(hover.style.display).toBe('block')
     expect(hover.style.getPropertyValue('outline-width')).toBe('2px')
     expect(hover.style.cssText).toMatch(/outline-color:\s*(#3b82f6|rgb\(59, 130, 246\))/)
+  })
+
+  it('does one layout pass for a burst of moves, on the next frame', () => {
+    send({ type: NATIVE_CHAT_VISUAL_ANNOTATE_TYPE, enabled: true })
+    const layoutReads = vi.spyOn(Element.prototype, 'getBoundingClientRect')
+    try {
+      withManualFrames((flush) => {
+        for (let i = 0; i < 50; i++) {
+          element('button').dispatchEvent(new MouseEvent('mousemove', { bubbles: true }))
+        }
+        expect(layoutReads).not.toHaveBeenCalled()
+        flush()
+      })
+      expect(layoutReads).toHaveBeenCalledTimes(1)
+    } finally {
+      layoutReads.mockRestore()
+    }
+  })
+
+  it('batches the same way where requestAnimationFrame is absent', () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('requestAnimationFrame', undefined)
+    const layoutReads = vi.spyOn(Element.prototype, 'getBoundingClientRect')
+    try {
+      send({ type: NATIVE_CHAT_VISUAL_ANNOTATE_TYPE, enabled: true })
+      for (let i = 0; i < 50; i++) {
+        element('button').dispatchEvent(new MouseEvent('mousemove', { bubbles: true }))
+      }
+      expect(layoutReads).not.toHaveBeenCalled()
+      vi.advanceTimersByTime(16)
+      expect(layoutReads).toHaveBeenCalledTimes(1)
+    } finally {
+      layoutReads.mockRestore()
+      vi.unstubAllGlobals()
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('annotate script: touch', () => {
+  const TOUCH_TYPES = ['touchstart', 'touchmove', 'touchend']
+
+  function touch(type: string, target: Element): Event {
+    const event = new Event(type, { bubbles: true, cancelable: true })
+    target.dispatchEvent(event)
+    return event
+  }
+
+  it("keeps the page's touch handlers from running, and leaves the tap's click to pick", () => {
+    send({ type: NATIVE_CHAT_VISUAL_ANNOTATE_TYPE, enabled: true })
+    const handler = vi.fn()
+    for (const type of TOUCH_TYPES) {
+      document.body.addEventListener(type, handler)
+    }
+    try {
+      for (const type of TOUCH_TYPES) {
+        expect(touch(type, element('button')).defaultPrevented).toBe(false)
+      }
+      expect(handler).not.toHaveBeenCalled()
+      click(element('button'))
+      expect(sentOfType(NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE)).toHaveLength(1)
+    } finally {
+      for (const type of TOUCH_TYPES) {
+        document.body.removeEventListener(type, handler)
+      }
+    }
+  })
+
+  it('leaves touch alone when annotate is off', () => {
+    const handler = vi.fn()
+    document.body.addEventListener('touchstart', handler)
+    try {
+      touch('touchstart', element('button'))
+      expect(handler).toHaveBeenCalledTimes(1)
+    } finally {
+      document.body.removeEventListener('touchstart', handler)
+    }
+  })
+
+  it('lets a tap on a pin badge reach the badge', () => {
+    send({ type: NATIVE_CHAT_VISUAL_ANNOTATE_TYPE, enabled: true })
+    send({
+      type: NATIVE_CHAT_VISUAL_PINS_TYPE,
+      pins: [{ pinKey: 'p1', number: 1, selector: '#app > button:nth-of-type(1)', active: false }]
+    })
+    sent.mockClear()
+    expect(touch('touchend', badge('1')).defaultPrevented).toBe(false)
+    click(badge('1'))
+    expect(sentOfType(NATIVE_CHAT_VISUAL_PIN_CLICKED_TYPE)).toEqual([
+      { type: NATIVE_CHAT_VISUAL_PIN_CLICKED_TYPE, channel: CHANNEL, pinKey: 'p1' }
+    ])
   })
 })
 

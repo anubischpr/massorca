@@ -7,6 +7,7 @@ import {
   editSelected,
   pickElement,
   pinKeyFor,
+  setNote,
   type PrototypeSetState
 } from './prototype-set-state'
 
@@ -44,6 +45,23 @@ const PIN_ELEMENT = {
 function editedState(): PrototypeSetState {
   const picked = pickElement(createSetState(['A', 'B']), PIN_ELEMENT)
   return editSelected(picked, { color: '#ff0000' })
+}
+
+const LINK_ELEMENT = {
+  selector: 'a.link',
+  label: 'footer link',
+  rect: { x: 10, y: 80, width: 90, height: 16 },
+  htmlSnippet: '<a>Terms</a>',
+  state: PIN_ELEMENT.state
+}
+
+function notedState(): PrototypeSetState {
+  return setNote(pickElement(createSetState(['A', 'B']), PIN_ELEMENT), 'Make the CTA sticky')
+}
+
+function twoNotedState(): PrototypeSetState {
+  const first = setNote(pickElement(createSetState(['A', 'B']), PIN_ELEMENT), 'Make the CTA sticky')
+  return setNote(pickElement(first, LINK_ELEMENT), 'Underline the link')
 }
 
 const FRAME = { x: 100, y: 50, width: 640, height: 500 }
@@ -164,5 +182,65 @@ describe('sendPrototypeIteration', () => {
     )
     expect(outcome.sent).toBe(false)
     expect(fakes.sendMessage).not.toHaveBeenCalled()
+  })
+
+  it('keeps the note when the capture fails', async () => {
+    const fakes = makeDeps({ capture: async () => ({ ok: false as const }) })
+    const outcome = await sendPrototypeIteration(
+      { state: notedState(), set: SET, frameOrigin: FRAME },
+      fakes.deps
+    )
+    expect(fakes.writeAttachment).not.toHaveBeenCalled()
+    expect(outcome.sent).toBe(true)
+    expect(outcome.visibleMessage).toContain('  note: Make the CTA sticky')
+    expect(outcome.visibleMessage).not.toContain('screenshot:')
+  })
+
+  it('keeps the note when the capture throws', async () => {
+    const fakes = makeDeps({
+      capture: async () => {
+        throw new Error('frame gone')
+      }
+    })
+    const outcome = await sendPrototypeIteration(
+      { state: notedState(), set: SET, frameOrigin: FRAME },
+      fakes.deps
+    )
+    expect(outcome.sent).toBe(true)
+    expect(outcome.visibleMessage).toContain('  note: Make the CTA sticky')
+    expect(outcome.visibleMessage).not.toContain('screenshot:')
+  })
+
+  it('keeps the note when the host refuses the upload', async () => {
+    const fakes = makeDeps({ write: async () => ({ ok: false as const }) })
+    const outcome = await sendPrototypeIteration(
+      { state: notedState(), set: SET, frameOrigin: FRAME },
+      fakes.deps
+    )
+    expect(fakes.writeAttachment).toHaveBeenCalledTimes(1)
+    expect(outcome.sent).toBe(true)
+    expect(outcome.visibleMessage).toContain('  note: Make the CTA sticky')
+    expect(outcome.visibleMessage).not.toContain('screenshot:')
+  })
+
+  it('keeps each other screenshot and note when one upload is refused', async () => {
+    const fakes = makeDeps({
+      write: async (name) =>
+        name.includes(pinKeyFor('button.cta'))
+          ? { ok: false as const }
+          : { ok: true as const, path: 'C:/chat/prototypes/x/notes/link.png' }
+    })
+    const outcome = await sendPrototypeIteration(
+      { state: twoNotedState(), set: SET, frameOrigin: FRAME },
+      fakes.deps
+    )
+    expect(fakes.writeAttachment).toHaveBeenCalledTimes(2)
+    expect(outcome.sent).toBe(true)
+    expect(outcome.visibleMessage).toContain(
+      'A · 1 · pay button (button.cta)\n  note: Make the CTA sticky'
+    )
+    expect(outcome.visibleMessage).toContain(
+      'A · 2 · footer link (a.link)\n  screenshot: C:/chat/prototypes/x/notes/link.png\n  note: Underline the link'
+    )
   })
 })

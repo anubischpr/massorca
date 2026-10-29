@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View, type LayoutChangeEvent } from 'react
 import { FileCode, FileText } from 'lucide-react-native'
 import { SheetSectionLabel } from '../components/SheetSectionLabel'
 import { useNow } from '../hooks/use-now'
+import { useMobilePrototypeChatSets } from '../prototypes/use-mobile-prototype-chat-sets'
 import { colors } from '../theme/mobile-theme'
 import { MobileArtifactPagePreview } from './MobileArtifactPagePreview'
 import {
@@ -18,10 +19,12 @@ import {
 import { mobileNativeChatVisualPages } from './mobile-chat-visual-pages'
 import {
   artifactFilterLabel,
+  boundDesignFoldersOf,
   chatArtifactPages,
   filterRecordedFiles,
   groupRecordedFilesByDay,
   fileNameOf,
+  withoutBoundDesignFiles,
   type MobileArtifactPage,
   type MobileArtifactTarget,
   type MobileRecordedFilterId
@@ -58,14 +61,41 @@ export function MobileChatArtifactsView({
   const snapshot = useMobileChatSurfaceSnapshot(mobileChatSurfaceKey(hostId, worktreeId, tabId))
   const [filter, setFilter] = useState<MobileRecordedFilterId>('all')
   const now = useNow(60_000)
-  const files = useMemo(
-    () => (snapshot ? mobileNativeChatRecordedFiles(snapshot.messages) : []),
+  // A Gentle Shell design folder that a prototype set is bound to belongs to the Prototypes view.
+  const userTurnCount = useMemo(
+    () => (snapshot ? snapshot.messages.filter((message) => message.role === 'user').length : 0),
     [snapshot]
+  )
+  const sets = useMobilePrototypeChatSets({
+    client: snapshot?.recordedSource?.client ?? null,
+    sessionId: snapshot?.recordedSource?.sessionId ?? null,
+    userTurnCount
+  })
+  const boundFolders = useMemo(() => boundDesignFoldersOf(sets), [sets])
+  const files = useMemo(
+    () =>
+      snapshot
+        ? withoutBoundDesignFiles(
+            mobileNativeChatRecordedFiles(snapshot.messages),
+            (file) => file.path,
+            boundFolders
+          )
+        : [],
+    [boundFolders, snapshot]
   )
   const pages = useMemo(
     () =>
-      snapshot ? chatArtifactPages(files, mobileNativeChatVisualPages(snapshot.messages)) : [],
-    [files, snapshot]
+      snapshot
+        ? chatArtifactPages(
+            files,
+            withoutBoundDesignFiles(
+              mobileNativeChatVisualPages(snapshot.messages),
+              (visual) => visual.file,
+              boundFolders
+            )
+          )
+        : [],
+    [boundFolders, files, snapshot]
   )
   // Tiles near the viewport ask for their thumbnails; scrolling tells them to look again.
   const viewport = useRef<View>(null)

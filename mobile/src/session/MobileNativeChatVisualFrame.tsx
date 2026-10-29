@@ -74,12 +74,10 @@ export const MobileNativeChatVisualFrame = memo(function MobileNativeChatVisualF
   const restarts = useRef(0)
   const lastLinkAt = useRef(-Infinity)
   const annotateCapable = annotate !== undefined
-  const annotateRef = useRef(annotate)
   const onAnnotateEventRef = useRef(onAnnotateEvent)
   useLayoutEffect(() => {
-    annotateRef.current = annotate
     onAnnotateEventRef.current = onAnnotateEvent
-  }, [annotate, onAnnotateEvent])
+  }, [onAnnotateEvent])
 
   const built = useMemo(() => {
     const channel = randomHex()
@@ -104,18 +102,23 @@ export const MobileNativeChatVisualFrame = memo(function MobileNativeChatVisualF
     }
   }, [html, token, title, mode, annotateCapable])
 
-  // The whole annotate state goes in again whenever it changes, and once the host document loads.
+  // The whole annotate state goes in again when its content changes, and once the host document loads.
+  // It is keyed by the script, not by the state object, so an equal state from a re-render sends nothing.
+  const annotateScript =
+    annotate === undefined ? null : mobileNativeChatVisualAnnotateInjection(annotate, built.channel)
+  const annotateScriptRef = useRef(annotateScript)
+  useLayoutEffect(() => {
+    annotateScriptRef.current = annotateScript
+  }, [annotateScript])
   const injectAnnotateState = useCallback(() => {
-    const state = annotateRef.current
-    if (state !== undefined) {
-      webView.current?.injectJavaScript(
-        mobileNativeChatVisualAnnotateInjection(state, built.channel)
-      )
+    const script = annotateScriptRef.current
+    if (script !== null) {
+      webView.current?.injectJavaScript(script)
     }
-  }, [built.channel])
+  }, [])
   useEffect(() => {
     injectAnnotateState()
-  }, [annotate, injectAnnotateState])
+  }, [annotateScript, injectAnnotateState])
 
   // A fresh governor per loaded document; reports queue behind a deferral rather than pile up.
   const sizing = useRef<{
@@ -157,7 +160,8 @@ export const MobileNativeChatVisualFrame = memo(function MobileNativeChatVisualF
       const message = readMobileNativeChatVisualBridgeMessage(
         event.nativeEvent.data,
         token,
-        built.channel
+        built.channel,
+        annotateCapable
       )
       if (!message) {
         return

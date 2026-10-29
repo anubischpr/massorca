@@ -17885,7 +17885,7 @@
       "noteHeadingPeek": "メモ — {{view}} から {{active}} へ取り込む内容",
       "notePlaceholder": "編集では難しい変更を書いてください: アニメーション、動作、スタイル…",
       "notePlaceholderPeek": "例: カードフォームの上にあるこのウォレットボタンを使う",
-      "peekText": "{{active}} を反復中に {{view}} をプレビューしています。ここのメモは「{{view}} から {{active}} へ取り込む」として下書きに入ります。",
+      "peekText": "<letter>{{active}}</letter> を反復中に <letter>{{view}}</letter> をプレビューしています。ここのメモは「<letter>{{view}}</letter> から <letter>{{active}}</letter> へ取り込む」として下書きに入ります。",
       "pickerDone": "完了",
       "pickerFillName": "背景",
       "pickerTextColorName": "文字色",

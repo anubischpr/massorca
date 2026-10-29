@@ -31,6 +31,13 @@ function isLocalStructuredChat(record: Pick<AgentSessionRecord, 'location'>): bo
   return record.location.executionHostId === LOCAL_EXECUTION_HOST_ID && !record.location.wslDistro
 }
 
+/** A chat this host keeps as a local structured chat; a missing record has no folder here. */
+function isLocalChatRecord(
+  record: Pick<AgentSessionRecord, 'location'> | null | undefined
+): boolean {
+  return record ? isLocalStructuredChat(record) : false
+}
+
 /** One line for a refusal the client reads as "no prototype capture", so a silent send is traceable. */
 function logPrototypeRefusal(method: string, sessionId: string, reason: string): void {
   console.warn(`[prototypes] ${method} refused for chat ${sessionId}: ${reason}`)
@@ -67,10 +74,18 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
     permission: 'workspace',
     params: ListPrototypeSetsParams,
     handler: async (params, ctx): Promise<ListPrototypeSetsResult> => {
-      await requireInstalledStructuredHost(ctx)
+      const host = await requireInstalledStructuredHost(ctx)
       return listPrototypeSets({
         stateDirectory: getProfileUserDataPath(),
-        ...(params.worktreeId !== undefined ? { worktreeId: params.worktreeId } : {})
+        ...(params.worktreeId !== undefined ? { worktreeId: params.worktreeId } : {}),
+        // Why: a paired phone or remote desktop lists only the chats this host still keeps, as its chat
+        // list does; this desktop and its CLI, the owner, list every folder on the host.
+        ...(ctx.caller?.kind === 'paired-device'
+          ? {
+              isChatListed: (sessionId: string): boolean =>
+                isLocalChatRecord(host.deps.store.getRecord(sessionId))
+            }
+          : {})
       })
     }
   }),
@@ -87,7 +102,7 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
       }
       if (!isLocalStructuredChat(record)) {
         logPrototypeRefusal('prototypes.readFile', params.sessionId, 'chat is not local')
-        return { ok: false, error: 'unreadable' }
+        return { ok: false, error: 'not_found' }
       }
       return readPrototypeSetFile({
         stateDirectory: getProfileUserDataPath(),

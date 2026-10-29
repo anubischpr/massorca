@@ -28,7 +28,8 @@ import {
   noteFromExampleChip,
   noteLabelFor,
   notePlaceholderFor,
-  selectedPinEditCount
+  selectedPinEditCount,
+  shownPinTab
 } from './mobile-prototype-viewer-model'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
@@ -65,7 +66,10 @@ export function MobilePrototypePinSheet({
   const { height: screenHeight } = useWindowDimensions()
   const scroll = useRef<ScrollView>(null)
   const rowY = useRef(new Map<PrototypeDraftField, number>())
-  const showEdit = tab === 'edit' && !isPeeking(state)
+  // A peeked direction has no Edit section, so the Edit tab is neither shown selected nor pressable.
+  const shown = shownPinTab(tab, state)
+  const peeking = isPeeking(state)
+  const showEdit = shown === 'edit'
   const pulse: MobilePrototypePulseTarget = {
     field: pulseField,
     nonce: pulseNonce,
@@ -104,10 +108,11 @@ export function MobilePrototypePinSheet({
       <View accessibilityRole="tablist" style={styles.tabs}>
         <TabButton
           label={`Edit · ${selectedPinEditCount(state)}`}
-          selected={tab === 'edit'}
+          selected={shown === 'edit'}
+          disabled={peeking}
           onPress={() => onTab('edit')}
         />
-        <TabButton label="Note" selected={tab === 'note'} onPress={() => onTab('note')} />
+        <TabButton label="Note" selected={shown === 'note'} onPress={() => onTab('note')} />
       </View>
       <ScrollView
         ref={scroll}
@@ -165,16 +170,19 @@ export function MobilePrototypePinSheet({
 function TabButton({
   label,
   selected,
+  disabled = false,
   onPress
 }: {
   label: string
   selected: boolean
+  disabled?: boolean
   onPress: () => void
 }) {
   return (
     <Pressable
       accessibilityRole="tab"
-      accessibilityState={{ selected }}
+      accessibilityState={{ selected, disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={[styles.tab, selected && styles.tabOn]}
     >

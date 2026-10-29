@@ -281,6 +281,24 @@ describe('readNativeChatVisualFrameMessage annotate events', () => {
     ).toEqual({ kind: 'pin-clicked', pinKey: 'k' })
   })
 
+  it('reads a pick or pin click only when the document was built with annotate', () => {
+    expect(readNativeChatVisualFrameMessage(picked, 'c', false)).toBeNull()
+    expect(
+      readNativeChatVisualFrameMessage(
+        { type: 'orca-visual-pin-clicked', channel: 'c', pinKey: 'k' },
+        'c',
+        false
+      )
+    ).toBeNull()
+    expect(
+      readNativeChatVisualFrameMessage(
+        { type: NATIVE_CHAT_VISUAL_SIZE_TYPE, channel: 'c', height: 40 },
+        'c',
+        false
+      )
+    ).toEqual({ kind: 'size', height: 40 })
+  })
+
   it('refuses an annotate event on another channel or with a malformed element', () => {
     expect(readNativeChatVisualFrameMessage({ ...picked, channel: 'x' }, 'c')).toBeNull()
     expect(

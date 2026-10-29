@@ -3,8 +3,7 @@
 
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
-
-const NATIVE_CHAT_VISUALS_DIR_NAME = 'native-chat-visuals'
+import { NATIVE_CHAT_VISUALS_DIR_NAME } from '../../shared/native-chat-visuals-folder-layout'
 
 /** Where every chat's visuals folder on this host lives. */
 export function nativeChatVisualsRootFor(stateDirectory: string): string {

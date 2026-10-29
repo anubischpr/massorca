@@ -15,11 +15,17 @@ import {
   type NativeChatPrototypeChoice
 } from '../../../../shared/prototype-request-decision'
 import { prepareNativeChatPrototypeText } from './native-chat-prototype-request-send'
-import { nativeChatPrototypeAsks } from './native-chat-prototype-request-store'
+import {
+  nativeChatPrototypeAsks,
+  type NativeChatPrototypeAsk
+} from './native-chat-prototype-request-store'
 
 export type NativeChatPrototypeOutgoing =
+  /** Held for the card's answer: nothing goes out now. */
   | { kind: 'ask' }
+  /** A request for this chat is still being made: nothing goes out now, and the caller says so. */
   | { kind: 'in-flight' }
+  /** Goes out now with `text`. */
   | { kind: 'send'; text: string }
 
 // A request is made once per press: a second Enter while the host answers waits for the first.
@@ -57,8 +63,9 @@ export function resolveNativeChatPrototypeOutgoing(input: {
     setting,
     ...(input.choice ? { choice: input.choice } : {})
   })
-  // Any other message sent meanwhile retires a card still waiting for its answer.
-  nativeChatPrototypeAsks.take(draftScopeKey)
+  // Any other message sent meanwhile retires a card still waiting for its answer; that card comes
+  // back if the message does not go out.
+  const retired = nativeChatPrototypeAsks.take(draftScopeKey)
   if (decision.kind === 'as-typed') {
     return { kind: 'send', text }
   }
@@ -75,6 +82,7 @@ export function resolveNativeChatPrototypeOutgoing(input: {
     return { kind: 'ask' }
   }
   if (inFlight.has(draftScopeKey)) {
+    restoreAsk(draftScopeKey, retired)
     return { kind: 'in-flight' }
   }
   inFlight.add(draftScopeKey)
@@ -91,7 +99,18 @@ export function resolveNativeChatPrototypeOutgoing(input: {
     count: decision.count
   })
     .then((prepared): NativeChatPrototypeOutgoing => ({ kind: 'send', text: prepared }))
+    .catch((error: unknown) => {
+      restoreAsk(draftScopeKey, retired)
+      throw error
+    })
     .finally(() => {
       inFlight.delete(draftScopeKey)
     })
+}
+
+/** Puts a retired card back when its message did not go out and no newer card has taken its place. */
+function restoreAsk(scopeKey: string, ask: NativeChatPrototypeAsk | undefined): void {
+  if (ask && nativeChatPrototypeAsks.read(scopeKey) === undefined) {
+    nativeChatPrototypeAsks.write(scopeKey, ask)
+  }
 }

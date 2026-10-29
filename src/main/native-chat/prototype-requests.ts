@@ -1,56 +1,39 @@
-// Prototype requests on the execution host: each request's folder and manifest in the chat's visuals
-// folder, the Gentle Shell design/ folder a request can bind, and the bounded reads that serve them.
+// Prototype requests on the execution host: a request's folder and manifest in the chat's visuals
+// folder, the Gentle Shell design/ folder a request binds, and the bounded reads that serve them.
 // Every path is resolved here from the host's own state; a caller names only a session and a file.
 
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { NATIVE_CHAT_VISUAL_MAX_BYTES } from '../../shared/native-chat-visual-directive'
 import {
   createPrototypeRequestId,
   isPlainPathSegment,
   parsePrototypeFileName,
-  PROTOTYPE_FOLDER,
   PROTOTYPE_MANIFEST_FILE_NAME,
   prototypeRequestFolder
 } from '../../shared/prototype-request-folder'
 import {
-  buildPrototypeSet,
   parsePrototypeRequestManifest,
   REQUEST_ID_PATTERN,
-  type PrototypeRequestManifest,
-  type PrototypeSet
+  type PrototypeRequestManifest
 } from '../../shared/prototype-sets'
 import type {
   CreatePrototypeRequestParams,
   CreatePrototypeRequestResult,
-  ListPrototypeSetsResult,
-  PrototypeListedDirection,
-  PrototypeListedSet,
   ReadPrototypeFileResult
 } from '../../shared/rpc-contract/prototype-params'
 import type { AgentSessionReadVisualResult } from '../../shared/rpc-contract/agent-session-visual-params'
 import {
-  fileMtime,
-  fileNamesIn,
   gentleDesignSetFor,
   listGentleDesignSlugs,
-  readDirectoryEntries,
+  logPrototypeFailure,
   readRequestManifest
 } from './prototype-request-disk'
 import { readNativeChatContainedTextFile } from './native-chat-visual-file-read'
-import {
-  nativeChatVisualsFolderFor,
-  nativeChatVisualsFolderName,
-  nativeChatVisualsRootFor
-} from './native-chat-visuals-folder'
-import { directionNotesFor, withDirectionNotes } from './prototype-direction-notes'
+import { nativeChatVisualsFolderFor } from './native-chat-visuals-folder'
 
+export { listPrototypeSets, type ListPrototypeSetsOptions } from './prototype-request-listing'
 export { writePrototypeAttachment } from './prototype-note-attachment'
-
-// Why bounds: the scan runs on every Prototypes open; a chat with thousands of folders must not stall it.
-const MAX_SESSION_FOLDERS_SCANNED = 500
-const MAX_REQUEST_FOLDERS_SCANNED = 500
-const MAX_REQUEST_FOLDERS_PER_SESSION = 100
 
 const NOT_FOUND: ReadPrototypeFileResult = { ok: false, error: 'not_found' }
 
@@ -96,29 +79,35 @@ export async function createPrototypeRequest(
     throw new Error('prototype request manifest does not match its schema')
   }
   const folder = requestFolderPath(options.stateDirectory, options.sessionId, requestId)
-  await mkdir(folder, { recursive: true })
-  // Why flag wx: a request folder is never overwritten, so a manifest is written once.
-  await writeFile(join(folder, PROTOTYPE_MANIFEST_FILE_NAME), JSON.stringify(manifest, null, 2), {
-    flag: 'wx'
-  })
+  try {
+    await writeNewRequestFolder(folder, manifest)
+  } catch (error) {
+    logPrototypeFailure('creating a prototype request', error)
+    return { ok: false, error: 'unwritable' }
+  }
   return { ok: true, requestId, folderPath: folder }
 }
 
-/** Every request on this host, newest first. Sets without any direction file are left out. */
-export async function listPrototypeSets(options: {
-  stateDirectory: string
-  worktreeId?: string
-}): Promise<ListPrototypeSetsResult> {
-  const root = nativeChatVisualsRootFor(options.stateDirectory)
-  const sets: PrototypeListedSet[] = []
-  for (const candidate of await requestFolderCandidates(root)) {
-    const listed = await listedSetFor(candidate, options.worktreeId)
-    if (listed !== null) {
-      sets.push(listed)
+/** Makes the request folder and writes its manifest; when the manifest fails, the folder made here is removed. */
+async function writeNewRequestFolder(
+  folder: string,
+  manifest: PrototypeRequestManifest
+): Promise<void> {
+  // Why: mkdir reports the folder only when this call made it, so a folder that already existed is never removed.
+  const created = await mkdir(folder, { recursive: true })
+  try {
+    // Why flag wx: a request folder is never overwritten, so a manifest is written once.
+    await writeFile(join(folder, PROTOTYPE_MANIFEST_FILE_NAME), JSON.stringify(manifest, null, 2), {
+      flag: 'wx'
+    })
+  } catch (error) {
+    if (created !== undefined) {
+      await rm(folder, { recursive: true, force: true }).catch((removeError: unknown) =>
+        logPrototypeFailure('removing a partial prototype request', removeError)
+      )
     }
+    throw error
   }
-  sets.sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-  return { sets }
 }
 
 export type ReadPrototypeSetFileOptions = {
@@ -163,14 +152,15 @@ export async function readPrototypeSetFile(
           })
         )
   }
-  return readGentleDesignFile(manifest, options.fileName)
+  return readGentleDesignFile(requestFolder, manifest, options.fileName)
 }
 
 async function readGentleDesignFile(
+  requestFolder: string,
   manifest: PrototypeRequestManifest,
   fileName: string
 ): Promise<ReadPrototypeFileResult> {
-  const set = await gentleDesignSetFor(manifest)
+  const set = await gentleDesignSetFor(requestFolder, manifest)
   const cwd = manifest.sessionCwd
   if (set === null || cwd === undefined) {
     return NOT_FOUND
@@ -182,7 +172,11 @@ async function readGentleDesignFile(
     return NOT_FOUND
   }
   // Why the set check above: the slug is bound to this request, and only its artboards are served.
+  // Why every segment: the folders are joined onto the session's cwd, so each must be one plain name.
   const segments = fileName.split('/')
+  if (!segments.every(isPlainPathSegment)) {
+    return NOT_FOUND
+  }
   const file = segments.at(-1) ?? ''
   return toReadFileResult(
     await readNativeChatContainedTextFile(join(cwd, ...segments.slice(0, -1)), file, undefined, {
@@ -200,109 +194,6 @@ function toReadFileResult(result: AgentSessionReadVisualResult): ReadPrototypeFi
     return { ok: false, error: result.error === 'too_large' ? 'too_large' : 'unreadable' }
   }
   return 'html' in result ? { ok: true, html: result.html } : { ok: false, error: 'unreadable' }
-}
-
-type RequestFolderCandidate = {
-  visualsFolderName: string
-  visualsFolder: string
-  requestName: string
-}
-
-async function requestFolderCandidates(root: string): Promise<RequestFolderCandidate[]> {
-  const candidates: RequestFolderCandidate[] = []
-  const sessionFolders = (await readDirectoryEntries(root))
-    .filter((entry) => entry.isDirectory())
-    .slice(0, MAX_SESSION_FOLDERS_SCANNED)
-  for (const sessionFolder of sessionFolders) {
-    const visualsFolder = join(root, sessionFolder.name)
-    // Why per-chat newest-first cap: one busy chat must not starve the others out of the list.
-    const requests = (await readDirectoryEntries(join(visualsFolder, PROTOTYPE_FOLDER)))
-      .filter((entry) => entry.isDirectory())
-      .map((entry) => entry.name)
-      .sort(newestRequestNameFirst)
-      .slice(0, MAX_REQUEST_FOLDERS_PER_SESSION)
-    for (const requestName of requests) {
-      candidates.push({ visualsFolderName: sessionFolder.name, visualsFolder, requestName })
-    }
-  }
-  return candidates
-    .sort((left, right) => newestRequestNameFirst(left.requestName, right.requestName))
-    .slice(0, MAX_REQUEST_FOLDERS_SCANNED)
-}
-
-// Request ids start with a UTC timestamp, so a descending name sort is newest first.
-function newestRequestNameFirst(left: string, right: string): number {
-  return right.localeCompare(left)
-}
-
-async function listedSetFor(
-  candidate: RequestFolderCandidate,
-  worktreeId: string | undefined
-): Promise<PrototypeListedSet | null> {
-  const requestFolder = join(candidate.visualsFolder, prototypeRequestFolder(candidate.requestName))
-  const manifest = await readRequestManifest(requestFolder)
-  // Why: the folder is keyed by the session's hash, so a manifest that names another session is misplaced.
-  if (
-    manifest === null ||
-    manifest.requestId !== candidate.requestName ||
-    nativeChatVisualsFolderName(manifest.sessionId) !== candidate.visualsFolderName
-  ) {
-    return null
-  }
-  if (worktreeId !== undefined && manifest.worktreeId !== worktreeId) {
-    return null
-  }
-  const gentle = await gentleDesignSetFor(manifest)
-  const gentleDirections =
-    gentle !== null && manifest.sessionCwd !== undefined
-      ? await directionsWithMtime(gentle, manifest.sessionCwd)
-      : []
-  const directions =
-    gentleDirections.length > 0
-      ? gentleDirections
-      : withDirectionNotes(
-          await directionsWithMtime(
-            buildPrototypeSet(manifest, await fileNamesIn(requestFolder)),
-            candidate.visualsFolder
-          ),
-          manifest.agent === 'gentle-shell' ? [] : await directionNotesFor(requestFolder)
-        )
-  if (directions.length === 0) {
-    return null
-  }
-  return {
-    requestId: manifest.requestId,
-    sessionId: manifest.sessionId,
-    agent: manifest.agent,
-    worktreeId: manifest.worktreeId ?? null,
-    chatTitle: manifest.chatTitle ?? null,
-    originalPrompt: manifest.originalPrompt,
-    createdAt: manifest.createdAt,
-    count: manifest.count,
-    folderPath: requestFolder,
-    directions
-  }
-}
-
-/** Each direction's versions that exist on disk, with their last write time. */
-async function directionsWithMtime(
-  set: PrototypeSet,
-  root: string
-): Promise<PrototypeListedDirection[]> {
-  const directions: PrototypeListedDirection[] = []
-  for (const direction of set.directions) {
-    const versions: PrototypeListedDirection['versions'] = []
-    for (const version of direction.versions) {
-      const mtime = await fileMtime(join(root, ...version.fileName.split('/')))
-      if (mtime !== null) {
-        versions.push({ version: version.version, fileName: version.fileName, mtime })
-      }
-    }
-    if (versions.length > 0) {
-      directions.push({ letter: direction.letter, versions })
-    }
-  }
-  return directions
 }
 
 function requestFolderPath(stateDirectory: string, sessionId: string, requestId: string): string {

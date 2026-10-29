@@ -49,14 +49,23 @@ export const ReadPrototypeFileParams = z
 
 export type ReadPrototypeFileParams = z.infer<typeof ReadPrototypeFileParams>
 
-/** Why a request folder cannot be made: the chat has no visuals folder on this host. */
-export const PROTOTYPE_CREATE_REQUEST_ERRORS = ['unsupported'] as const
+/**
+ * Why a request folder is not made. `unsupported`: the chat has no record on this host, or is not
+ * local to it, so it has no visuals folder here. `unwritable`: the host could not write the folder,
+ * and any partial folder is removed. An older host answers `method_not_found` instead, which is a
+ * host that predates prototypes, not a verdict on the chat.
+ */
+export const PROTOTYPE_CREATE_REQUEST_ERRORS = ['unsupported', 'unwritable'] as const
 
 export type CreatePrototypeRequestResult =
   | { ok: true; requestId: string; folderPath: string }
   | { ok: false; error: (typeof PROTOTYPE_CREATE_REQUEST_ERRORS)[number] }
 
-/** Why a set file cannot be shown. Anything else the host reports is read as `unreadable`. */
+/**
+ * Why a set file cannot be shown: `not_found` for a file that is not this request's (including a chat
+ * this host does not keep locally), `too_large` over the byte cap. Anything else the host reports is
+ * read as `unreadable`.
+ */
 export const PROTOTYPE_READ_FILE_ERRORS = ['not_found', 'too_large', 'unreadable'] as const
 
 export type PrototypeReadFileError = (typeof PROTOTYPE_READ_FILE_ERRORS)[number]
@@ -132,3 +141,21 @@ export const PROTOTYPE_WRITE_ATTACHMENT_ERRORS = [
 export type WriteAttachmentResult =
   | { ok: true; path: string }
   | { ok: false; error: (typeof PROTOTYPE_WRITE_ATTACHMENT_ERRORS)[number] }
+
+// Each reply as a client checks it, so every platform reads one host answer the same way.
+export const CreatePrototypeRequestReplySchema = z.union([
+  z.object({ ok: z.literal(true), requestId: z.string(), folderPath: z.string() }),
+  z.object({ ok: z.literal(false), error: z.enum(PROTOTYPE_CREATE_REQUEST_ERRORS) })
+])
+
+export const ListPrototypeSetsReplySchema = z.object({ sets: z.array(PrototypeListedSetSchema) })
+
+export const ReadPrototypeFileReplySchema = z.union([
+  z.object({ ok: z.literal(true), html: z.string() }),
+  z.object({ ok: z.literal(false), error: z.enum(PROTOTYPE_READ_FILE_ERRORS) })
+])
+
+export const WriteAttachmentReplySchema = z.union([
+  z.object({ ok: z.literal(true), path: z.string().min(1) }),
+  z.object({ ok: z.literal(false), error: z.enum(PROTOTYPE_WRITE_ATTACHMENT_ERRORS) })
+])

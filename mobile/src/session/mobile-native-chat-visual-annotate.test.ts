@@ -37,7 +37,8 @@ describe('readMobileNativeChatVisualBridgeMessage annotate events', () => {
       readMobileNativeChatVisualBridgeMessage(
         frame({ type: NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE, element }),
         TOKEN,
-        CHANNEL
+        CHANNEL,
+        true
       )
     ).toEqual({
       kind: 'element-picked',
@@ -53,15 +54,29 @@ describe('readMobileNativeChatVisualBridgeMessage annotate events', () => {
       readMobileNativeChatVisualBridgeMessage(
         frame({ type: NATIVE_CHAT_VISUAL_PIN_CLICKED_TYPE, pinKey: 'p1' }),
         TOKEN,
-        CHANNEL
+        CHANNEL,
+        true
       )
     ).toEqual({ kind: 'pin-clicked', pinKey: 'p1' })
+  })
+
+  it('drops picks and pin clicks from a visual built without the annotate script', () => {
+    const picked = { type: NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE, element }
+    expect(readMobileNativeChatVisualBridgeMessage(frame(picked), TOKEN, CHANNEL, false)).toBeNull()
+    expect(
+      readMobileNativeChatVisualBridgeMessage(
+        frame({ type: NATIVE_CHAT_VISUAL_PIN_CLICKED_TYPE, pinKey: 'p1' }),
+        TOKEN,
+        CHANNEL,
+        false
+      )
+    ).toBeNull()
   })
 
   it('drops an annotate event without the frame token, or with a malformed element', () => {
     const picked = { type: NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE, element }
     expect(
-      readMobileNativeChatVisualBridgeMessage(frame(picked, 'other'), TOKEN, CHANNEL)
+      readMobileNativeChatVisualBridgeMessage(frame(picked, 'other'), TOKEN, CHANNEL, true)
     ).toBeNull()
     expect(
       readMobileNativeChatVisualBridgeMessage(
@@ -70,14 +85,16 @@ describe('readMobileNativeChatVisualBridgeMessage annotate events', () => {
           element: { ...element, rect: null }
         }),
         TOKEN,
-        CHANNEL
+        CHANNEL,
+        true
       )
     ).toBeNull()
     expect(
       readMobileNativeChatVisualBridgeMessage(
         frame({ type: NATIVE_CHAT_VISUAL_PIN_CLICKED_TYPE, pinKey: 42 }),
         TOKEN,
-        CHANNEL
+        CHANNEL,
+        true
       )
     ).toBeNull()
   })
@@ -87,7 +104,8 @@ describe('readMobileNativeChatVisualBridgeMessage annotate events', () => {
       readMobileNativeChatVisualBridgeMessage(
         frame({ type: NATIVE_CHAT_VISUAL_SIZE_TYPE, height: 200 }),
         TOKEN,
-        CHANNEL
+        CHANNEL,
+        true
       )
     ).toEqual({ kind: 'size', height: 200 })
   })

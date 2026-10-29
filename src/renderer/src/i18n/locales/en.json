@@ -18129,7 +18129,7 @@
       "noteHeadingPeek": "Note — what to take from {{view}} into {{active}}",
       "notePlaceholder": "Describe a change Edit can’t do: animation, behavior, style…",
       "notePlaceholderPeek": "e.g. use this wallet button above the card form",
-      "peekText": "Peeking at {{view}} while iterating on {{active}}. Notes here go into the draft as “take this from {{view}} into {{active}}”.",
+      "peekText": "Peeking at <letter>{{view}}</letter> while iterating on <letter>{{active}}</letter>. Notes here go into the draft as “take this from <letter>{{view}}</letter> into <letter>{{active}}</letter>”.",
       "pickerDone": "Done",
       "pickerFillName": "fill",
       "pickerTextColorName": "text color",

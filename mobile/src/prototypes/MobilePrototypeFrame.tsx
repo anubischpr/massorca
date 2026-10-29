@@ -14,9 +14,13 @@ import type { MobilePrototypeFileHtml } from './use-mobile-prototype-file'
 
 const AREA_PADDING = 16
 
+/** The one line a prototype that cannot be opened shows. */
+export const PROTOTYPE_UNREADABLE_LINE = "Couldn't open this prototype"
+
 /**
  * One prototype on screen: blank while it loads, one line when it cannot be opened, else the live
- * page with its annotate state. A page that stops answering is reported like an unreadable one.
+ * page with its annotate state. A page that stops answering is reported like an unreadable one, and
+ * the report lasts only for that read: a read that succeeds again shows the page.
  */
 export function MobilePrototypeFrame({
   file,
@@ -35,31 +39,42 @@ export function MobilePrototypeFrame({
   handle: MutableRefObject<MobilePrototypeFrameHandle | null>
 }) {
   const [available, setAvailable] = useState({ width: 0, height: 0 })
-  const [failedKey, setFailedKey] = useState<string | null>(null)
-  const onFailed = useCallback(() => setFailedKey(fileKey), [fileKey])
+  // The read that failed, with its key: a new read is a new object, so it is not reported as failed.
+  const [failure, setFailure] = useState<{ fileKey: string; file: MobilePrototypeFileHtml } | null>(
+    null
+  )
+  const onFailed = useCallback(() => setFailure({ fileKey, file }), [fileKey, file])
   const layout = prototypeFrameLayout(viewport, available)
-  const unreadable = file.status === 'error' || failedKey === fileKey
+  const unreadable =
+    file.status === 'error' ||
+    (failure !== null && failure.fileKey === fileKey && failure.file === file)
   const box = useRef<View>(null)
   const showsPage = layout !== null && !unreadable && file.status === 'ready'
+  // The handle depends on the numbers it uses, not on the layout object, which is new on every render.
+  const designWidth = layout?.designWidth ?? 0
+  const designHeight = layout?.designHeight ?? 0
+  const scale = layout?.scale ?? 1
+  const boxWidth = layout?.boxWidth ?? 0
+  const boxHeight = layout?.boxHeight ?? 0
   useEffect(() => {
-    if (layout === null || !showsPage) {
+    if (!showsPage) {
       handle.current = null
       return
     }
     handle.current = {
-      pageSize: { width: layout.designWidth, height: layout.designHeight },
+      pageSize: { width: designWidth, height: designHeight },
       capturePin: (rect) =>
         capturePrototypePin({
           frame: box,
-          frameSize: { width: layout.boxWidth, height: layout.boxHeight },
-          scale: layout.scale,
+          frameSize: { width: boxWidth, height: boxHeight },
+          scale,
           rect
         })
     }
     return () => {
       handle.current = null
     }
-  }, [handle, layout, showsPage])
+  }, [handle, showsPage, designWidth, designHeight, scale, boxWidth, boxHeight])
 
   return (
     <View
@@ -76,7 +91,7 @@ export function MobilePrototypeFrame({
           style={[styles.box, { width: layout.boxWidth, height: layout.boxHeight }]}
         >
           {unreadable ? (
-            <Text style={styles.error}>Couldn't open this prototype</Text>
+            <Text style={styles.error}>{PROTOTYPE_UNREADABLE_LINE}</Text>
           ) : file.status === 'ready' ? (
             <View
               style={[

@@ -9,7 +9,7 @@ import {
 } from 'react-native'
 import type { PrototypeDraftItem } from '../../../src/shared/prototype-draft'
 import { setPrompt, type PrototypeSetState } from '../../../src/shared/prototype-set-state'
-import { draftOf } from '../../../src/shared/prototype-set-view'
+import { draftOf, hasNothingToSend } from '../../../src/shared/prototype-set-view'
 import { colors, spacing, typography } from '../theme/mobile-theme'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
@@ -38,6 +38,7 @@ export function MobilePrototypeDraftSheet({
 }) {
   const { height: screenHeight } = useWindowDimensions()
   const draft = draftOf(state)
+  const sendDisabled = state.sending || hasNothingToSend(state)
   return (
     <View style={styles.sheet}>
       <View style={styles.header}>
@@ -97,9 +98,9 @@ export function MobilePrototypeDraftSheet({
         )}
         <Pressable
           accessibilityRole="button"
-          disabled={state.sending}
+          disabled={sendDisabled}
           onPress={onSend}
-          style={[styles.send, state.sending && styles.sendBusy]}
+          style={[styles.send, sendDisabled && styles.sendDisabled]}
         >
           <Text style={styles.sendText}>{`Send to ${agentName}`}</Text>
         </Pressable>
@@ -172,7 +173,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.textPrimary
   },
-  sendBusy: { opacity: 0.5 },
+  sendDisabled: { opacity: 0.5 },
   sendText: { color: colors.bgBase, fontSize: 16, fontWeight: '500' },
   failed: { color: colors.statusRed, fontSize: typography.metaSize }
 })

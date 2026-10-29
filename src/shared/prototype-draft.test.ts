@@ -341,4 +341,25 @@ describe('composeIterationMessage', () => {
       })
     ).toBe('Iterate on A.\nA · 1 · Button (button.cta)\n  note: Line one line two')
   })
+
+  it('never gives a sibling note the screenshot of the active pin that shares its key', () => {
+    const { groups } = buildDraft({
+      activeLetter: 'A',
+      pins,
+      notes: { 'C:cta': 'Take the bold palette' }
+    })
+    const message = composeIterationMessage({
+      activeLetter: 'A',
+      groups,
+      pins,
+      prompt: '',
+      screenshots: { cta: 'C:/shots/cta.png' }
+    })
+    expect(message.split('\n').filter((line) => line.includes('screenshot:'))).toEqual([
+      '  screenshot: C:/shots/cta.png'
+    ])
+    expect(message).toContain(
+      'from C · 1 · Button (button.cta)\n  take into A: Take the bold palette'
+    )
+  })
 })

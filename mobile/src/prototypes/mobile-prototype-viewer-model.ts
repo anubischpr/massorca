@@ -1,6 +1,6 @@
 // What the viewer screen reads off a set and its state: the header lines, the direction chips, the
 // peek banner, and the labels of the pin sheet.
-import { buildDraft } from '../../../src/shared/prototype-draft'
+import { buildDraft, type PrototypeDraftField } from '../../../src/shared/prototype-draft'
 import { latestVersionOf } from '../../../src/shared/prototype-list-model'
 import { pinsOf, type PrototypeSetState } from '../../../src/shared/prototype-set-state'
 import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
@@ -16,12 +16,16 @@ export function viewerHeaderLines(
   state: PrototypeSetState
 ): { title: string; subtitle: string } {
   const direction = set.directions.find((candidate) => candidate.letter === state.view)
-  const version = latestVersionOf(direction)?.version ?? 1
+  // A direction the host lists with no version has no number to show, so none is made up.
+  const version = latestVersionOf(direction)?.version
+  const standing = isPeeking(state)
+    ? 'peeking'
+    : version === undefined
+      ? 'iterating'
+      : `iterating · v${version}`
   return {
     title: direction?.name === undefined ? state.view : `${state.view} · ${direction.name}`,
-    subtitle: `${mobilePrototypeAgentLabel(set.agent)} · ${
-      isPeeking(state) ? 'peeking' : `iterating · v${version}`
-    }`
+    subtitle: `${mobilePrototypeAgentLabel(set.agent)} · ${standing}`
   }
 }
 
@@ -56,6 +60,21 @@ export function selectedPinEditCount(state: PrototypeSetState): number {
   )
 }
 
+/** The tab the pin sheet shows: a peeked direction has no Edit section, so its Note tab is the one shown. */
+export function shownPinTab(tab: 'edit' | 'note', state: PrototypeSetState): 'edit' | 'note' {
+  return isPeeking(state) ? 'note' : tab
+}
+
+/** The control a draft item jumped to, while its pin is the one shown; null otherwise. */
+export function pulseFieldFor(
+  jump: { letter: string; pinKey: string; field: PrototypeDraftField } | null,
+  state: PrototypeSetState
+): PrototypeDraftField | null {
+  return jump !== null && jump.pinKey === state.selectedPinKey && jump.letter === state.view
+    ? jump.field
+    : null
+}
+
 export function noteLabelFor(state: PrototypeSetState): string {
   return isPeeking(state)
     ? `What to take from ${state.view} into ${state.active}`
@@ -77,13 +96,4 @@ export const NOTE_EXAMPLE_CHIPS = [
 /** An example chip writes its sentence on the selected element. */
 export function noteFromExampleChip(chip: string, pinLabel: string): string {
   return `${chip} on the ${pinLabel}.`
-}
-
-/** A number the user typed; null while it is not one yet (empty, a lone sign). */
-export function parseNumberInput(text: string): number | null {
-  if (text.trim() === '') {
-    return null
-  }
-  const value = Number(text)
-  return Number.isFinite(value) ? value : null
 }

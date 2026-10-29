@@ -57,7 +57,7 @@ function host(answers: { history: RpcResponse | Error; send?: RpcResponse | Erro
   return { client, sendRequest }
 }
 
-const accepted = ok({ ok: true, value: structuredSendResultFixture('dispatched') })
+const accepted = ok({ ok: true, value: structuredSendResultFixture('accepted') })
 
 describe('sendToStructuredSessionOnHost', () => {
   it('reads the chat fence, then sends the message to that chat through the host', async () => {
@@ -85,6 +85,29 @@ describe('sendToStructuredSessionOnHost', () => {
     const { client, sendRequest } = host({ history: ok(historyPage(undefined)), send: accepted })
     expect(await sendToStructuredSessionOnHost(client, 'session-1', 'x')).toBe(false)
     expect(sendRequest).toHaveBeenCalledTimes(1)
+  })
+
+  it('takes the page fence of a reset history before the reset fence, as desktop does', async () => {
+    const reset = ok({ ok: false, reset: 'journal_gap', page: historyPage(7).page, fence: 9 })
+    const { client, sendRequest } = host({ history: reset, send: accepted })
+    expect(await sendToStructuredSessionOnHost(client, 'session-1', 'x')).toBe(true)
+    expect(sendRequest.mock.calls[1]?.[1]).toMatchObject({
+      envelope: { expectedRuntimeFence: 7 }
+    })
+  })
+
+  it('takes the fence a reset names when its page names none', async () => {
+    const reset = ok({
+      ok: false,
+      reset: 'journal_gap',
+      page: historyPage(undefined).page,
+      fence: 9
+    })
+    const { client, sendRequest } = host({ history: reset, send: accepted })
+    expect(await sendToStructuredSessionOnHost(client, 'session-1', 'x')).toBe(true)
+    expect(sendRequest.mock.calls[1]?.[1]).toMatchObject({
+      envelope: { expectedRuntimeFence: 9 }
+    })
   })
 
   it('reads a refusal as not sent', async () => {
