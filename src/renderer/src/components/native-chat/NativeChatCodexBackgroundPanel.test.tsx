@@ -25,8 +25,11 @@ vi.mock('@/components/AgentStateDot', async (importOriginal) => ({
   ...(await importOriginal<typeof AgentStateDotModule>()),
   AgentStateDot: () => <span />
 }))
-vi.mock('@/hooks/use-now', () => ({ useNow: () => 1_000 }))
-const mocks = vi.hoisted(() => ({ activate: vi.fn(() => true) }))
+vi.mock('@/hooks/use-now', () => ({ useNow: mocks.useNow }))
+const mocks = vi.hoisted(() => ({
+  activate: vi.fn(() => true),
+  useNow: vi.fn((_intervalMs: number, _enabled?: boolean) => 1_000)
+}))
 vi.mock('@/lib/structured-agent-session-tab-activation', async (importOriginal) => ({
   ...(await importOriginal<typeof ActivationModule>()),
   activateStructuredAgentSessionById: mocks.activate
@@ -693,5 +696,62 @@ describe('child sessions in the background popover', () => {
       />
     )
     expect(screen.queryByText('Explore routing')).toBeNull()
+  })
+
+  it('lists nothing for a request that never started', () => {
+    const failedStart: DelegationNoticePayload = {
+      requestId: 'req-3',
+      title: 'Never ran',
+      status: 'failed',
+      reason: 'no capacity'
+    }
+    render(
+      <NativeChatCodexBackgroundPanel
+        roster={null}
+        context={fresh}
+        isVisible
+        journalItems={[delegationItem(failedStart, 100)]}
+      />
+    )
+    expect(screen.queryByRole('heading', { name: 'Child sessions' })).toBeNull()
+    expect(screen.queryByText('Never ran')).toBeNull()
+    expect(screen.getByText('No background work reported.')).toBeDefined()
+  })
+
+  it('shares one Finished group between finished children and finished commands', () => {
+    render(
+      <NativeChatCodexBackgroundPanel
+        roster={null}
+        context={fresh}
+        isVisible
+        commandActivity={[child('build', { membership: 'settled', state: 'done', settledAt: 900 })]}
+        journalItems={[delegationItem(settled, 100), delegationItem(settledFinish, 200)]}
+      />
+    )
+    fireEvent.click(screen.getByRole('button', { name: '2 finished' }))
+    expect(screen.getByText('Lint sweep')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'View activity: build' })).toBeDefined()
+    expect(screen.queryByRole('button', { name: '1 finished' })).toBeNull()
+  })
+
+  it('ticks the child clock only while the popover is visible', () => {
+    const { rerender } = render(
+      <NativeChatCodexBackgroundPanel
+        roster={null}
+        context={fresh}
+        isVisible={false}
+        journalItems={[delegationItem(running, 400)]}
+      />
+    )
+    expect(mocks.useNow).toHaveBeenLastCalledWith(1_000, false)
+    rerender(
+      <NativeChatCodexBackgroundPanel
+        roster={null}
+        context={fresh}
+        isVisible
+        journalItems={[delegationItem(running, 400)]}
+      />
+    )
+    expect(mocks.useNow).toHaveBeenLastCalledWith(1_000, true)
   })
 })

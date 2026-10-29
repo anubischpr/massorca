@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as ActivationModule from '@/lib/structured-agent-session-tab-activation'
 import { useAppStore } from '@/store'
 import type {
@@ -152,6 +152,14 @@ describe('NativeChatDelegationNotice', () => {
   })
 
   describe('while the child runs', () => {
+    // Why: a fixed clock keeps "started N min ago" exact however close the test runs to a minute boundary.
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-10-29T12:00:00Z'))
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
     const started: DelegationStartedPayload = {
       requestId: 'req-1',
       title: 'Explore',

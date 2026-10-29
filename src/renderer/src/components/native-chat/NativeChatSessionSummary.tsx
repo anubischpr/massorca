@@ -27,6 +27,7 @@ import {
   isRunningChildRow,
   UNVERIFIABLE
 } from './NativeChatCodexBackgroundPanel'
+import { useDelegatedChildSessions } from './NativeChatDelegatedChildSessions'
 import {
   NativeChatBackgroundTaskStopControl,
   type NativeChatBackgroundStop
@@ -121,6 +122,9 @@ export function NativeChatSessionSummary(props: {
   const now = useNow(1_000, props.isVisible && rows.some((row) => !row.settled))
   const runningAgents = rows.filter((row) => row.kind === 'agent' && isRunningChildRow(row))
   const runningBackground = rows.filter((row) => row.kind !== 'agent' && isRunningChildRow(row))
+  // Why: delegated child sessions come from the journal, not the host's rows, so they count beside tasks.
+  const runningChildSessions = useDelegatedChildSessions(props.journalItems).running
+  const runningBackgroundCount = runningBackground.length + runningChildSessions.length
   const hasAgentRows = rows.some((row) => row.kind === 'agent')
   const viewAgentCount = views?.filter((entry) => entry.kind === 'agent').length ?? 0
   const legacyAgents = viewAgentCount === 0 ? [...(props.subagentRoster?.values() ?? [])] : []
@@ -307,26 +311,33 @@ export function NativeChatSessionSummary(props: {
     : undefined
   const backgroundCompact = !views ? (
     <p>{backgroundUnknown}</p>
-  ) : runningBackground.length === 0 ? (
+  ) : runningBackgroundCount === 0 ? (
     <p>{t('components.nativeChatSummary.noRunningBackground', 'No running background tasks')}</p>
   ) : (
-    runningBackground.slice(0, 3).map((row) => (
-      <div key={row.id} className="flex min-w-0 items-center gap-1">
-        <div className="min-w-0 flex-1 truncate">
-          <AgentChildRowContent
-            row={row}
-            now={now}
-            leadClassName="text-foreground"
-            trailClassName="text-muted-foreground"
-            separator=" · "
-            lineTitle
-          />
+    [
+      ...runningBackground.map((row) => (
+        <div key={row.id} className="flex min-w-0 items-center gap-1">
+          <div className="min-w-0 flex-1 truncate">
+            <AgentChildRowContent
+              row={row}
+              now={now}
+              leadClassName="text-foreground"
+              trailClassName="text-muted-foreground"
+              separator=" · "
+              lineTitle
+            />
+          </div>
+          {backgroundStopState ? (
+            <NativeChatBackgroundTaskStopControl row={row} stop={backgroundStopState} />
+          ) : null}
         </div>
-        {backgroundStopState ? (
-          <NativeChatBackgroundTaskStopControl row={row} stop={backgroundStopState} />
-        ) : null}
-      </div>
-    ))
+      )),
+      ...runningChildSessions.map((session) => (
+        <p key={session.requestId} className="truncate" title={session.title}>
+          {session.title}
+        </p>
+      ))
+    ].slice(0, 3)
   )
   const backgroundExpanded =
     views || props.roster ? (
@@ -388,7 +399,7 @@ export function NativeChatSessionSummary(props: {
         </NativeChatSessionSection>
         <NativeChatSessionSection
           title={t('components.nativeChatSummary.commands', 'Background tasks')}
-          summary={views ? running(runningBackground.length) : unavailable}
+          summary={views ? running(runningBackgroundCount) : unavailable}
           compact={backgroundCompact}
         >
           {backgroundExpanded}

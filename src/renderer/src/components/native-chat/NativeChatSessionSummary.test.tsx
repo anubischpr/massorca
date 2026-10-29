@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import type { AgentChildRowContext } from '../../../../shared/agent-child-row-model'
 import type { AgentChildWorkView } from '../../../../shared/agent-status-child-work-view'
 import type { AgentJournalRenderItem } from '../../../../shared/agent-session-journal-types'
+import type { DelegationNoticePayload } from '../../../../shared/delegated-session-journal'
 import type { StructuredAgentContextSummary } from '../../../../shared/structured-agent-session-context-usage'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { clearRepoGhAccountGitConfigCache } from '@/lib/repo-gh-account-git-config-cache'
@@ -337,6 +338,46 @@ function commandView(id: string, changes: Partial<AgentChildWorkView> = {}): Age
     ...changes
   }
 }
+
+it('counts a running child session in the collapsed background line', () => {
+  const started: DelegationNoticePayload = {
+    requestId: 'req-1',
+    title: 'Explore routing',
+    status: 'started',
+    agent: 'codex',
+    model: null,
+    effort: null,
+    childSessionId: 'child-1',
+    placement: 'current',
+    automatic: false
+  }
+  render(
+    <TooltipProvider>
+      <NativeChatSessionSummary
+        {...props}
+        context={liveContext}
+        roster={{ state: 'monitoring', supportsTaskStop: true }}
+        commandActivity={[]}
+        journalItems={[
+          connectorCall,
+          {
+            itemId: 'req-1-started',
+            revision: 1,
+            sequence: 30,
+            observedAt: 30,
+            body: { kind: 'status', text: 'Explore routing', delegation: started }
+          }
+        ]}
+      />
+    </TooltipProvider>
+  )
+
+  expect(screen.getByRole('button', { name: /^Background tasks/ }).textContent).toContain(
+    '1 running'
+  )
+  expect(screen.queryByText('No running background tasks')).toBeNull()
+  expect(screen.getByText('Explore routing')).toBeDefined()
+})
 
 it('lists running background tasks in the collapsed card, each with a Stop that names it', () => {
   const onStop = vi.fn()

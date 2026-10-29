@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
-import { useNow } from '@/hooks/use-now'
 import {
   activateStructuredAgentSessionById,
   findStructuredAgentSessionWorktreeId
@@ -13,62 +12,79 @@ import {
   type DelegatedChildJournalItem
 } from '../../../../shared/delegated-children'
 import { delegatedChildStatusText } from './delegated-child-copy'
-import { NativeChatFinishedBackgroundGroup } from './NativeChatFinishedBackgroundGroup'
 
-/** The chat's child sessions, derived from its journal once per journal change. */
-export function useDelegatedChildSessions(
-  journalItems: readonly DelegatedChildJournalItem[] | undefined
-): DelegatedChild[] {
-  return useMemo(() => delegatedChildrenFromJournal(journalItems ?? []), [journalItems])
+export type DelegatedChildSessions = {
+  running: readonly DelegatedChild[]
+  finished: readonly DelegatedChild[]
 }
 
-/** The child sessions this chat started: running ones first, settled ones under the Finished group. */
-export function NativeChatDelegatedChildSessions({
+const NO_CHILD_SESSIONS: DelegatedChildSessions = { running: [], finished: [] }
+
+/** The chat's started child sessions, split once per journal change; `listed` false lists none. */
+export function useDelegatedChildSessions(
+  journalItems: readonly DelegatedChildJournalItem[] | undefined,
+  listed = true
+): DelegatedChildSessions {
+  return useMemo(() => {
+    if (!listed) {
+      return NO_CHILD_SESSIONS
+    }
+    // Why: a request that never started has no child session to list; the chat's failed notice already says so.
+    const started = delegatedChildrenFromJournal(journalItems ?? []).filter(
+      (child) => child.status !== 'not-started'
+    )
+    return {
+      running: started.filter((child) => child.status === 'working'),
+      finished: started.filter((child) => child.status !== 'working')
+    }
+  }, [journalItems, listed])
+}
+
+/** The child sessions still working, listed above the other background sections. */
+export function NativeChatDelegatedRunningChildSessions({
   sessions,
-  finishedOpen,
-  onFinishedOpenChange
+  now
 }: {
   sessions: readonly DelegatedChild[]
-  finishedOpen: boolean
-  onFinishedOpenChange: (open: boolean) => void
+  now: number
 }): React.JSX.Element | null {
   const { t } = useTranslation()
-  const running = sessions.filter((session) => session.status === 'working')
-  const finished = sessions.filter((session) => session.status !== 'working')
-  const now = useNow(1_000, running.length > 0)
   if (sessions.length === 0) {
     return null
   }
   return (
+    <section aria-label={t('components.nativeChatBackground.childSessions', 'Child sessions')}>
+      <h3 className="mb-2 font-medium text-muted-foreground">
+        {t('components.nativeChatBackground.childSessions', 'Child sessions')}
+      </h3>
+      <ul className="space-y-2">
+        {sessions.map((session) => (
+          <NativeChatDelegatedChildRow key={session.requestId} session={session} now={now} />
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+/** Settled child sessions, as rows of the Finished group that holds them. */
+export function NativeChatDelegatedFinishedChildRows({
+  sessions,
+  now
+}: {
+  sessions: readonly DelegatedChild[]
+  now: number
+}): React.JSX.Element {
+  return (
     <>
-      {running.length > 0 ? (
-        <section aria-label={t('components.nativeChatBackground.childSessions', 'Child sessions')}>
-          <h3 className="mb-2 font-medium text-muted-foreground">
-            {t('components.nativeChatBackground.childSessions', 'Child sessions')}
-          </h3>
-          <ul className="space-y-2">
-            {running.map((session) => (
-              <ChildSessionRow key={session.requestId} session={session} now={now} />
-            ))}
-          </ul>
-        </section>
-      ) : null}
-      {finished.length > 0 ? (
-        <NativeChatFinishedBackgroundGroup
-          count={finished.length}
-          open={finishedOpen}
-          onOpenChange={onFinishedOpenChange}
-        >
-          {finished.map((session) => (
-            <ChildSessionRow key={session.requestId} session={session} now={now} />
-          ))}
-        </NativeChatFinishedBackgroundGroup>
-      ) : null}
+      {sessions.map((session) => (
+        <NativeChatDelegatedChildRow key={session.requestId} session={session} now={now} />
+      ))}
     </>
   )
 }
 
-function ChildSessionRow({
+/** One child session row, with an Open action where a tab lists its chat. */
+export function NativeChatDelegatedChildRow({
   session,
   now
 }: {
