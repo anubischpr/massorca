@@ -67,7 +67,7 @@ export function delegationUsageText(usage: DelegationAgentUsage): string {
   if (usage.noData) {
     return t('noUsageData', 'No usage data')
   }
-  const used = t('usedPercent', '{{percent}}% used', { percent: Math.round(usage.bindingPercent) })
+  const used = usedText(usage)
   return usage.excluded === 'usage-limit'
     ? t('nearLimit', '{{used}} · near its limit', { used })
     : used
@@ -183,7 +183,7 @@ function usageLines(usage: DelegationAgentUsage): string[] {
     return [t('countedAs', 'No usage data, counted as {{percent}}%', { percent })]
   }
   if (usage.window === null) {
-    return [t('usedPercent', '{{percent}}% used', { percent })]
+    return [usedText(usage)]
   }
   return [
     t('usedFromWindow', '{{percent}}% used, from the {{window}} window', {
@@ -191,6 +191,13 @@ function usageLines(usage: DelegationAgentUsage): string[] {
       window: windowText(usage.window)
     })
   ]
+}
+
+function usedText(usage: DelegationAgentUsage): string {
+  const percent = Math.round(usage.bindingPercent)
+  return usage.monthly
+    ? t('usedThisMonth', '{{percent}}% used this month', { percent })
+    : t('usedPercent', '{{percent}}% used', { percent })
 }
 
 function windowText(window: DelegationUsageWindow): string {

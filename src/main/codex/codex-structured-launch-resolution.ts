@@ -21,6 +21,8 @@ import { codexStructuredLaunchArgs } from './codex-structured-launch-args'
 import { CODEX_STRUCTURED_AGENT } from './codex-structured-agent-definition'
 import type { PrepareNativeChatVisuals } from '../native-chat/native-chat-visuals-delivery'
 import { codexStructuredPermissionPolicyForSession } from './codex-structured-permission-policy'
+import { delegationInstructionsForEnv } from '../delegated-session/delegation-agent-instructions'
+import { buildCodexStructuredChildEnvironment } from './codex-structured-child-environment'
 
 export type CodexStructuredLaunchResolverDeps = {
   store: Pick<AgentSessionRecordStore, 'getRecord' | 'pinLaunchDirectory'>
@@ -126,7 +128,13 @@ export function createCodexStructuredLaunchResolver(
           }
         : {})
     }
-    rememberCodexSessionLaunch(identity.sessionId, launch)
-    return launch
+    // Why: Codex's own subagents otherwise answer "create a child session" before the CLI does.
+    // Gated on the env the child will actually get, built by the one function that builds it.
+    const developerInstructions = delegationInstructionsForEnv(
+      buildCodexStructuredChildEnvironment(launch, '', record.sessionId)
+    )
+    const instructed = developerInstructions ? { ...launch, developerInstructions } : launch
+    rememberCodexSessionLaunch(identity.sessionId, instructed)
+    return instructed
   }
 }

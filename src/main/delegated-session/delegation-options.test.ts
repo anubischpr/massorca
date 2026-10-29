@@ -140,6 +140,31 @@ describe('buildDelegationCardContent', () => {
     expect(options[3]?.description).toMatch(/^71% used · (haiku|sonnet|opus)/)
   })
 
+  it('says this month for a monthly-only Gentle Shell reading, in the plain words an older client reads', () => {
+    const { options } = card({
+      agents: [{ agent: 'pi', label: 'Gentle Shell', piRuntime: 'gentle-shell' }],
+      rateLimits: createEmptyRateLimitState({
+        nan: {
+          provider: 'nan',
+          session: null,
+          weekly: null,
+          monthly: {
+            usedPercent: 42,
+            windowMinutes: 43_200,
+            resetsAt: null,
+            resetDescription: null
+          },
+          updatedAt: NOW - 60_000,
+          error: null,
+          status: 'ok'
+        }
+      })
+    })
+    expect(options.find((option) => option.id === 'agent:pi')?.description).toMatch(
+      /^42% used this month/
+    )
+  })
+
   it('carries the typed payload a rich client draws beside the plain options', () => {
     const { payload } = card()
 

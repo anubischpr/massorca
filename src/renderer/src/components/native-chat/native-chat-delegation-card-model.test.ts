@@ -118,6 +118,19 @@ describe('delegation usage text', () => {
     expect(delegationBarPercent(usage('a', { noData: true }))).toBeNull()
     expect(delegationBarPercent(usage('a', { excluded: 'limit-reached' }))).toBeNull()
   })
+
+  it('says this month for a monthly reading, which has no 5-hour or weekly window', () => {
+    const monthly = usage('pi', { bindingPercent: 42, window: null, monthly: true })
+    expect(delegationUsageText(monthly)).toBe('42% used this month')
+    expect(delegationUsageText({ ...monthly, bindingPercent: 91, excluded: 'usage-limit' })).toBe(
+      '91% used this month · near its limit'
+    )
+    const piDecision = { ...decision, agent: 'pi', ranking: [monthly] }
+    expect(delegationAutomaticFacts(card({ decision: piDecision }), piDecision)[0]?.lines).toEqual([
+      'Lowest usage',
+      '42% used this month'
+    ])
+  })
 })
 
 describe('why Automatic picked an agent', () => {

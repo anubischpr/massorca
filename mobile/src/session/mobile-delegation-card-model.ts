@@ -74,7 +74,7 @@ export function delegationUsageText(usage: DelegationAgentUsage): string {
   if (usage.noData) {
     return 'No usage data'
   }
-  const used = `${Math.round(usage.bindingPercent)}% used`
+  const used = `${Math.round(usage.bindingPercent)}% used${usage.monthly ? ' this month' : ''}`
   return usage.excluded === 'usage-limit' ? `${used} · near its limit` : used
 }
 
@@ -202,6 +202,9 @@ function rankValueText(usage: DelegationAgentUsage): string {
 function rankWindowText(usage: DelegationAgentUsage): string | null {
   if (usage.noData) {
     return `Counted as ${Math.round(usage.bindingPercent)}%`
+  }
+  if (usage.monthly) {
+    return 'monthly window'
   }
   if (usage.window === null) {
     return null

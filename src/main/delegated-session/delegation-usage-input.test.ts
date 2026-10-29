@@ -11,6 +11,10 @@ function window(usedPercent: number): RateLimitWindow {
   return { usedPercent, windowMinutes: 300, resetsAt: null, resetDescription: null }
 }
 
+function monthly(usedPercent: number): RateLimitWindow {
+  return { usedPercent, windowMinutes: 30 * 24 * 60, resetsAt: null, resetDescription: null }
+}
+
 function provider(
   name: ProviderRateLimits['provider'],
   overrides: Partial<ProviderRateLimits> = {}
@@ -76,6 +80,46 @@ describe('delegationUsageCandidates', () => {
         (candidate) => candidate.usage
       )
     ).toEqual([null, null])
+  })
+
+  it('reads a NaN meter that reports only a monthly allowance, and the router ranks it on that', () => {
+    const state = createEmptyRateLimitState({ nan: provider('nan', { monthly: monthly(42) }) })
+    const candidates = delegationUsageCandidates(state, [
+      { agent: 'pi', piRuntime: 'gentle-shell' }
+    ])
+    expect(candidates).toEqual([
+      { agent: 'pi', usage: { monthlyPercent: 42, limitReached: false, fetchedAt: NOW - MINUTE } }
+    ])
+    expect(rankDelegationAgents({ candidates, now: NOW, parentAgent: null }).ranking).toEqual([
+      {
+        agent: 'pi',
+        bindingPercent: 42,
+        window: null,
+        monthly: true,
+        noData: false,
+        excluded: null
+      }
+    ])
+  })
+
+  it('keeps a 5-hour or weekly window binding over a monthly allowance reported alongside it', () => {
+    const state = createEmptyRateLimitState({
+      nan: provider('nan', { weekly: window(30), monthly: monthly(80) })
+    })
+    const candidates = delegationUsageCandidates(state, [
+      { agent: 'pi', piRuntime: 'gentle-shell' }
+    ])
+    expect(candidates[0]?.usage?.monthlyPercent).toBeUndefined()
+    expect(rankDelegationAgents({ candidates, now: NOW, parentAgent: null }).ranking).toEqual([
+      { agent: 'pi', bindingPercent: 30, window: 'weekly', noData: false, excluded: null }
+    ])
+  })
+
+  it('flags a monthly allowance at 100% as a limit, as it flags a window', () => {
+    const state = createEmptyRateLimitState({ nan: provider('nan', { monthly: monthly(100) }) })
+    expect(
+      delegationUsageCandidates(state, [{ agent: 'pi', piRuntime: 'gentle-shell' }])[0]?.usage
+    ).toMatchObject({ monthlyPercent: 100, limitReached: true })
   })
 
   it('gives agents without a mapped meter no usage, even when a same-named meter has data', () => {

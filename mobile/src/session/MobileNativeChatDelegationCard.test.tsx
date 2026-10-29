@@ -120,6 +120,21 @@ describe('MobileNativeChatDelegationCard', () => {
     return renderedTexts(renderer!.toJSON())
   }
 
+  it('says this month for a monthly-only reading', async () => {
+    const monthly = usage('codex', 42, { window: null, monthly: true })
+    await mount({
+      payload: {
+        ...delegation,
+        card: {
+          ...card,
+          decision: null,
+          agents: [{ agent: 'codex', label: 'Codex', usage: monthly, model: null, effort: null }]
+        }
+      }
+    })
+    expect(texts()).toContain('42% used this month')
+  })
+
   it('offers Automatic first, then the agents it can answer for, and starts on Automatic', async () => {
     await mount({})
 

@@ -45,6 +45,31 @@ describe('rankDelegationAgents', () => {
     expect(entry).toMatchObject({ bindingPercent: 50, window: 'session' })
   })
 
+  it('binds a monthly-only reading to its percent, flagged monthly with no window', () => {
+    const [entry] = rank([{ agent: 'pi', usage: { monthlyPercent: 42, fetchedAt: FRESH } }]).ranking
+    expect(entry).toEqual({
+      agent: 'pi',
+      bindingPercent: 42,
+      window: null,
+      monthly: true,
+      noData: false,
+      excluded: null
+    })
+  })
+
+  it('keeps a 5-hour or weekly window over a monthly reading when either is known', () => {
+    const [entry] = rank([
+      { agent: 'codex', usage: { sessionPercent: 30, monthlyPercent: 90, fetchedAt: FRESH } }
+    ]).ranking
+    expect(entry).toMatchObject({ bindingPercent: 30, window: 'session' })
+    expect(entry).not.toHaveProperty('monthly')
+  })
+
+  it('excludes a monthly allowance at 90% or more as near its limit', () => {
+    const [entry] = rank([{ agent: 'pi', usage: { monthlyPercent: 95, fetchedAt: FRESH } }]).ranking
+    expect(entry).toMatchObject({ bindingPercent: 95, monthly: true, excluded: 'usage-limit' })
+  })
+
   it.each([
     { name: 'no usage at all', usage: null },
     { name: 'no fetch time', usage: { sessionPercent: 10 } },

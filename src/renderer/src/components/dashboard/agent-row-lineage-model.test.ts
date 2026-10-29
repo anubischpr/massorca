@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from 'vitest'
 import type { AgentStatusEntry } from '../../../../shared/agent-status-types'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import type { DashboardAgentRow } from './useDashboardData'
+import {
+  structuredAgentSessionPaneKey,
+  structuredAgentSessionTabId
+} from '../../../../shared/structured-agent-session-projection'
 import { buildAgentRowLineageTree } from './agent-row-lineage-model'
 
 function makeTab(id: string): TerminalTab {
@@ -248,5 +252,28 @@ describe('unreachable lineage cleanup', () => {
     expect(tree.rootRows[1]).toBe(first)
     expect([...tree.childrenByParentPaneKey]).toEqual([['root', [child]]])
     expect([...tree.childPaneKeys]).toEqual(['child'])
+  })
+})
+
+describe('finished delegated children', () => {
+  it('nests a finished child under its structured parent', () => {
+    // Why: the host keeps the parent link once the child settles, so it nests as it did while working.
+    const parentKey = structuredAgentSessionPaneKey(
+      structuredAgentSessionTabId('parent-chat'),
+      'parent-chat'
+    )
+    const childKey = structuredAgentSessionPaneKey(
+      structuredAgentSessionTabId('child-session'),
+      'child-session'
+    )
+    const parent = makeRow(parentKey)
+    const child = makeRow(childKey, { parentPaneKey: parentKey })
+
+    const tree = buildAgentRowLineageTree([parent, child])
+
+    expect(tree.rootRows.map((row) => row.paneKey)).toEqual([parentKey])
+    expect(tree.childrenByParentPaneKey.get(parentKey)?.map((row) => row.paneKey)).toEqual([
+      childKey
+    ])
   })
 })

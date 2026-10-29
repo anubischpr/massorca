@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import type { OrchestrationDb } from '../orchestration-db'
 import { generateId } from '../generated-id'
 
@@ -189,6 +190,49 @@ export function patchDelegationRequest(
     .run(...entries.map(([, value]) => value), id)
 }
 
+const DelegatedChildLinkRowSchema = z.object({
+  child_session_id: z.string(),
+  parent_session_id: z.string(),
+  run_id: z.string().nullable(),
+  task_id: z.string(),
+  dispatch_id: z.string(),
+  // Why: an unknown status drops only the status, never the parent link.
+  dispatch_status: z
+    .enum(['pending', 'dispatched', 'completed', 'failed', 'circuit_broken'])
+    .nullable()
+    .catch(null),
+  task_spec: z.string().nullable(),
+  task_title: z.string().nullable(),
+  display_name: z.string().nullable()
+})
+
+export type DelegatedChildLinkRow = z.infer<typeof DelegatedChildLinkRowSchema>
+
+// Why: bounded to the given sessions, so the map tracks live rows rather than lifetime delegations.
+export function listDelegatedChildLinks(
+  this: OrchestrationDb,
+  sessionIds: readonly string[]
+): DelegatedChildLinkRow[] {
+  const ids = JSON.stringify(sessionIds)
+  return this.db
+    .prepare(
+      `SELECT r.child_session_id, r.parent_session_id, r.run_id, r.task_id, r.dispatch_id,
+              d.status AS dispatch_status, t.spec AS task_spec, t.task_title, t.display_name
+       FROM delegation_requests r
+       LEFT JOIN dispatch_contexts d ON d.id = r.dispatch_id
+       LEFT JOIN tasks t ON t.id = r.task_id
+       WHERE r.child_session_id IN (SELECT value FROM json_each(?))
+         AND r.parent_session_id IN (SELECT value FROM json_each(?))
+         AND r.task_id IS NOT NULL AND r.dispatch_id IS NOT NULL
+       ORDER BY r.created_at, r.id`
+    )
+    .all(ids, ids)
+    .flatMap((row) => {
+      const parsed = DelegatedChildLinkRowSchema.safeParse(row)
+      return parsed.success ? [parsed.data] : []
+    })
+}
+
 export type DelegationRequestStoreMethods = {
   createDelegationRequest: typeof createDelegationRequest
   getDelegationRequest: typeof getDelegationRequest
@@ -196,6 +240,7 @@ export type DelegationRequestStoreMethods = {
   listDelegationRequestsByStatus: typeof listDelegationRequestsByStatus
   transitionDelegationRequest: typeof transitionDelegationRequest
   patchDelegationRequest: typeof patchDelegationRequest
+  listDelegatedChildLinks: typeof listDelegatedChildLinks
 }
 
 export function attachDelegationRequestStore(ctor: { prototype: object }): void {
@@ -205,6 +250,7 @@ export function attachDelegationRequestStore(ctor: { prototype: object }): void 
     getDelegationRequestByDispatch,
     listDelegationRequestsByStatus,
     transitionDelegationRequest,
-    patchDelegationRequest
+    patchDelegationRequest,
+    listDelegatedChildLinks
   })
 }

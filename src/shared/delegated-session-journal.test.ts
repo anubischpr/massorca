@@ -136,6 +136,17 @@ describe('reading a delegation payload', () => {
     expect(read?.agents[0]?.label).toBe('Codex')
   })
 
+  it('reads the monthly flag on a usage entry, and an entry from an older host without it', () => {
+    const monthlyUsage = { ...USAGE, window: null, monthly: true }
+    const read = readDelegationCardPayload({
+      ...CARD,
+      agents: [{ ...CARD.agents[0], usage: monthlyUsage }]
+    })
+
+    expect(read?.agents[0]?.usage).toEqual(monthlyUsage)
+    expect(readDelegationCardPayload(CARD)?.agents[0]?.usage.monthly).toBeUndefined()
+  })
+
   it('keeps the card when only its decision is unreadable', () => {
     expect(readDelegationCardPayload({ ...CARD, decision: { agent: 5 } })?.decision).toBeNull()
   })

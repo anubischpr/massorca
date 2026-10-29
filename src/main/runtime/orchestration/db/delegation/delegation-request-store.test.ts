@@ -136,4 +136,77 @@ describe('delegation request store', () => {
     db.resetAll()
     expect(db.getDelegationRequest(b.id)).toBeUndefined()
   })
+
+  it('lists a started child with its dispatch and task, and nothing else', () => {
+    db = new OrchestrationDb(':memory:')
+    const started = db.createDelegationRequest(FILED)
+    db.transitionDelegationRequest(started.id, 'pending', 'starting')
+    db.transitionDelegationRequest(started.id, 'starting', 'started', {
+      run_id: 'run_a',
+      task_id: 'task_a',
+      dispatch_id: 'dispatch_a',
+      child_session_id: 'session_child_a'
+    })
+    const unlinked = db.createDelegationRequest(FILED)
+    db.transitionDelegationRequest(unlinked.id, 'pending', 'starting')
+    db.transitionDelegationRequest(unlinked.id, 'starting', 'started', {
+      run_id: 'run_a',
+      task_id: 'task_b',
+      dispatch_id: 'dispatch_b'
+    })
+    db.createDelegationRequest(FILED)
+
+    expect(db.listDelegatedChildLinks(['session_child_a', FILED.parentSessionId])).toEqual([
+      {
+        child_session_id: 'session_child_a',
+        parent_session_id: FILED.parentSessionId,
+        run_id: 'run_a',
+        task_id: 'task_a',
+        dispatch_id: 'dispatch_a',
+        dispatch_status: null,
+        task_spec: null,
+        task_title: null,
+        display_name: null
+      }
+    ])
+  })
+
+  it('lists a link only when its child and its parent are both given', () => {
+    db = new OrchestrationDb(':memory:')
+    const { id } = db.createDelegationRequest(FILED)
+    db.transitionDelegationRequest(id, 'pending', 'starting')
+    db.transitionDelegationRequest(id, 'starting', 'started', {
+      run_id: 'run_a',
+      task_id: 'task_a',
+      dispatch_id: 'dispatch_a',
+      child_session_id: 'session_child_a'
+    })
+
+    expect(db.listDelegatedChildLinks(['session_child_a'])).toEqual([])
+    expect(db.listDelegatedChildLinks([FILED.parentSessionId])).toEqual([])
+    expect(db.listDelegatedChildLinks(['session_child_a', FILED.parentSessionId])).toHaveLength(1)
+  })
+
+  it('keeps a child link across a host restart', () => {
+    tempDir = mkdtempSync(join(tmpdir(), 'orca-delegation-link-'))
+    const path = join(tempDir, 'orchestration.db')
+    const first = new OrchestrationDb(path)
+    const { id } = first.createDelegationRequest(FILED)
+    first.transitionDelegationRequest(id, 'pending', 'starting')
+    first.transitionDelegationRequest(id, 'starting', 'started', {
+      run_id: 'run_a',
+      task_id: 'task_a',
+      dispatch_id: 'dispatch_a',
+      child_session_id: 'session_child_a'
+    })
+    first.close()
+
+    db = new OrchestrationDb(path)
+
+    expect(
+      db
+        .listDelegatedChildLinks(['session_child_a', FILED.parentSessionId])
+        .map((link) => link.child_session_id)
+    ).toEqual(['session_child_a'])
+  })
 })

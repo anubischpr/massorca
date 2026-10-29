@@ -126,6 +126,16 @@ describe('NativeChatDelegationCard', () => {
     expect(startButton().disabled).toBe(false)
   })
 
+  it('says this month for a monthly-only reading', () => {
+    const monthly = usage('pi', { bindingPercent: 42, window: null, monthly: true })
+    renderCard({
+      ...payload,
+      decision: { ...decision, agent: 'pi', ranking: [monthly] },
+      agents: [{ agent: 'pi', label: 'Gentle Shell', usage: monthly, model: null, effort: null }]
+    })
+    expect(container.textContent).toContain('42% used this month')
+  })
+
   it('answers Automatic through its option id', () => {
     const { onAnswer } = renderCard(payload)
     click(startButton())

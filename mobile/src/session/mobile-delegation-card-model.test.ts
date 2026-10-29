@@ -162,6 +162,13 @@ describe('usage presentation', () => {
   it('rounds the percent it prints', () => {
     expect(delegationUsageText(usage('codex', 33.6, 'weekly'))).toBe('34% used')
   })
+
+  it('says this month for a monthly reading, and the why sheet names that window', () => {
+    const monthly = usage('gentle-shell', 42, null, { monthly: true })
+    expect(delegationUsageText(monthly)).toBe('42% used this month')
+    const [row] = delegationRankRows(card(), { ...decision, ranking: [monthly] })
+    expect(row).toMatchObject({ valueText: '42%', windowText: 'monthly window' })
+  })
 })
 
 describe('why sheet', () => {

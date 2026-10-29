@@ -16,7 +16,7 @@ export type AcpLaunchVisualsDeps = {
 }
 
 /** The environment the child will see: what it inherits, the launch's laid over, then the strips. */
-function childEnvironmentView(
+export function childEnvironmentView(
   env: Readonly<Record<string, string>>,
   inherited: NodeJS.ProcessEnv,
   envToDelete: readonly string[]

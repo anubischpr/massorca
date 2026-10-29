@@ -73,4 +73,17 @@ describe('flattenAgentRowLineage', () => {
     const flat = flattenAgentRowLineage(rows)
     expect(flat.map((n) => n.row.paneKey).sort()).toEqual(['a', 'b', 'root'])
   })
+
+  it('keeps a finished child under its parent', () => {
+    // Why: the host keeps the parent link once the child settles, so the list nests it as it did while working.
+    const flat = flattenAgentRowLineage([
+      row('parent', null, { state: 'done' }),
+      row('child', 'parent', { state: 'done' })
+    ])
+
+    expect(flat.map((n) => [n.row.paneKey, n.depth])).toEqual([
+      ['parent', 0],
+      ['child', 1]
+    ])
+  })
 })

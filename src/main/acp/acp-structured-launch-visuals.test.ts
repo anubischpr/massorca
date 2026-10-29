@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE } from '../delegated-session/delegation-agent-instructions'
 import type { AgentSessionRecord } from '../../shared/agent-session-record'
 import { agentSessionRecordFixture } from '../../shared/agent-session-record.test-fixture'
 import { NATIVE_CHAT_VISUALS_DIR_ENV } from '../native-chat/native-chat-visuals-delivery'
@@ -11,6 +12,7 @@ import {
 
 const SKILL = { pluginDir: '/app/plugin', skillsRoot: '/app/plugin/skills' }
 const FOLDER = '/state/native-chat-visuals/0123'
+const OMP_APPEND = ['acp', '--append-system-prompt', DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE]
 const identity = {
   sessionId: 'session-alpha-1',
   workspaceId: 'workspace-1',
@@ -120,7 +122,7 @@ describe('ACP launch visuals', () => {
       version: '17.0.5',
       launchEnv: { PI_CONFIG_FILES: '/user/overlay.yml' }
     }).launch
-    expect(launch.args).toEqual(['acp', '--plugin-dir', SKILL.pluginDir])
+    expect(launch.args).toEqual(['acp', '--plugin-dir', SKILL.pluginDir, ...OMP_APPEND.slice(1)])
     expect(launch.env.PI_CONFIG_FILES).toBe('/user/overlay.yml')
     expect(launch.env[NATIVE_CHAT_VISUALS_DIR_ENV]).toBe(FOLDER)
   })
@@ -135,7 +137,7 @@ describe('ACP launch visuals', () => {
       }
     })
     const resolved = await launch
-    expect(resolved.args).toEqual(['acp'])
+    expect(resolved.args).toEqual(OMP_APPEND)
     expect(resolved.envToDelete).toContain(NATIVE_CHAT_VISUALS_DIR_ENV)
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining('could not be prepared'),
