@@ -137,6 +137,8 @@ export type AiVaultSession = {
   subagentTranscriptCount: number
   resumeCommand: string
   subagent: AiVaultSessionSubagentInfo | null
+  /** A `codex exec` rollout: a headless run the list hides by default. Older hosts omit it. */
+  headlessRun?: true
   /** Present only when the negotiated client can open the native structured owner. */
   structuredSession?: {
     sessionId: string

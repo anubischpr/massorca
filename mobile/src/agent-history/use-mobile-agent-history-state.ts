@@ -46,6 +46,8 @@ export function useMobileAgentHistoryState(params: MobileAgentHistoryStateParams
   const { client, state: connState } = useHostClient(hostId)
   const forceReconnect = useForceReconnect()
   const [scope, setScope] = useState<AiVaultScope>('workspace')
+  // Why: like the scope, the switch lives for this screen's visit and is not persisted.
+  const [showAutomatedRuns, setShowAutomatedRuns] = useState(false)
   const [screenState, setScreenState] = useState<AgentHistoryScreenState>({ kind: 'loading' })
   const clientGeneration = client?.getGeneration?.() ?? 0
   const [hostStatusProbe, setHostStatusProbe] = useState<{
@@ -215,6 +217,8 @@ export function useMobileAgentHistoryState(params: MobileAgentHistoryStateParams
   return {
     connState,
     scope,
+    showAutomatedRuns,
+    setShowAutomatedRuns,
     screenState,
     refreshing,
     hostStatusResult,

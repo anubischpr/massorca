@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { applyAiVaultAutomatedRunsSwitch } from '../../../../shared/ai-vault-automated-run'
 import type { AiVaultAgent, AiVaultGroup, AiVaultSession } from '../../../../shared/ai-vault-types'
 import { piRuntimeForSessionFilePath } from '../../../../shared/pi-runtime-selection'
 import { piRuntimeLabel, type PiDisplayRuntime } from '@/lib/pi-agent-display'
@@ -49,10 +50,11 @@ export function useAiVaultPanelSessions(
     activeProjectKey,
     sessionProjectById,
     projectLabelByKey,
-    hideEmptySessions
-  }: AiVaultSessionFilterState
+    hideEmptySessions,
+    showAutomatedRuns
+  }: AiVaultSessionFilterState & { showAutomatedRuns: boolean }
 ) {
-  const filteredSessions = useMemo(
+  const inScopeSessions = useMemo(
     () =>
       searching
         ? sessions
@@ -83,6 +85,11 @@ export function useAiVaultPanelSessions(
       hideEmptySessions
     ]
   )
+  // Why: search hits are counted and hidden the same way, so the switch means one thing everywhere.
+  const { sessions: filteredSessions, automatedRunCount } = useMemo(
+    () => applyAiVaultAutomatedRunsSwitch(inScopeSessions, showAutomatedRuns),
+    [inScopeSessions, showAutomatedRuns]
+  )
   const groups = useMemo<AiVaultSessionListGroup[]>(
     () =>
       searching
@@ -93,7 +100,7 @@ export function useAiVaultPanelSessions(
         : groupAiVaultSessions(filteredSessions, group, { sessionProjectById, projectLabelByKey }),
     [searching, filteredSessions, group, projectLabelByKey, sessionProjectById]
   )
-  return { filteredSessions, groups }
+  return { filteredSessions, groups, automatedRunCount }
 }
 
 /** A session's agent name: a Pi session names the runtime its own transcript lives under. */

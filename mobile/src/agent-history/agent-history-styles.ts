@@ -68,6 +68,21 @@ export const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: '600'
   },
+  automatedRunsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm
+  },
+  automatedRunsLabel: {
+    color: colors.textSecondary,
+    fontSize: typography.metaSize
+  },
+  automatedRunsCount: {
+    color: colors.textMuted,
+    fontSize: typography.metaSize
+  },
   searchRow: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm
@@ -141,13 +156,13 @@ export const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: typography.metaSize
   },
-  currentBadge: {
+  rowBadge: {
     backgroundColor: colors.bgRaised,
     borderRadius: radii.button,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2
   },
-  currentBadgeText: {
+  rowBadgeText: {
     color: colors.accentBlue,
     fontSize: typography.metaSize,
     fontWeight: '600'

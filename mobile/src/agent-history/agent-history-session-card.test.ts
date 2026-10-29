@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { AiVaultScope, AiVaultSession } from '../../../src/shared/ai-vault-types'
 import {
+  automatedRunBadgeLabel,
   buildMobileAgentHistoryResumeActionState,
   buildMobileAgentHistoryCard,
   isSessionInActiveWorktree
 } from './agent-history-session-card'
-import { buildMobileAgentHistorySections } from './agent-history-sections'
+import {
+  buildMobileAgentHistorySections,
+  countMobileAgentHistoryAutomatedRuns
+} from './agent-history-sections'
 import { MOBILE_AI_VAULT_CAPABILITY } from './agent-history-capability'
 import { shouldShowMobileCurrentWorktreeBadge } from './agent-history-current-worktree-badge'
 
@@ -48,6 +52,19 @@ describe('buildMobileAgentHistoryCard', () => {
     expect(card.lastMessage).toBe('done — tabs added')
     expect(card.messageCount).toBe(4)
     expect(card.isCurrentWorktree).toBe(true)
+  })
+
+  it('names the headless run kind its badge shows, and leaves ordinary sessions unmarked', () => {
+    const review = buildMobileAgentHistoryCard(
+      session({ title: 'You are a code reviewer. Review the diff.' }),
+      null,
+      NOW
+    )
+
+    expect(review.automatedRunKind).toBe('review')
+    expect(automatedRunBadgeLabel('review')).toBe('Review')
+    expect(automatedRunBadgeLabel('sdd')).toBe('SDD')
+    expect(buildMobileAgentHistoryCard(session(), null, NOW)).not.toHaveProperty('automatedRunKind')
   })
 
   it('omits the current-worktree badge when cwd is outside the active worktree', () => {
@@ -241,6 +258,55 @@ describe('buildMobileAgentHistorySections', () => {
         .map((card) => card.id)
         .sort()
     ).toEqual(['claude:a', 'claude:b'])
+  })
+})
+
+describe('buildMobileAgentHistorySections automated runs', () => {
+  const review = session({
+    id: 'claude:review',
+    title: 'You are a code reviewer. Review the diff.'
+  })
+  const sddWorker = session({
+    id: 'claude:sdd',
+    title: 'You are the sdd-apply subagent. Implement.'
+  })
+  const ordinary = session({ id: 'claude:ordinary' })
+  const codexExec = session({
+    id: 'codex:exec',
+    agent: 'codex',
+    sessionId: 'exec',
+    title: 'Rename the settings key',
+    headlessRun: true
+  })
+  const sessions = [review, sddWorker, ordinary, codexExec]
+  const scope = {
+    query: '',
+    scope: 'all' as const,
+    scopeFilterPaths: [],
+    activeWorktreePath: '/Users/ada/repo/app',
+    now: NOW
+  }
+  const cardIds = (options: Parameters<typeof buildMobileAgentHistorySections>[1]) =>
+    buildMobileAgentHistorySections(sessions, options)
+      .flatMap((section) => section.data)
+      .map((card) => card.id)
+
+  it('hides automated runs by default', () => {
+    expect(cardIds(scope)).toEqual(['claude:ordinary'])
+  })
+
+  it('shows every automated run when the switch is on', () => {
+    expect(cardIds({ ...scope, showAutomatedRuns: true }).sort()).toEqual([
+      'claude:ordinary',
+      'claude:review',
+      'claude:sdd',
+      'codex:exec'
+    ])
+  })
+
+  it('counts the scope automated runs, and only the ones the query matches', () => {
+    expect(countMobileAgentHistoryAutomatedRuns(sessions, scope)).toBe(3)
+    expect(countMobileAgentHistoryAutomatedRuns(sessions, { ...scope, query: 'rename' })).toBe(1)
   })
 })
 

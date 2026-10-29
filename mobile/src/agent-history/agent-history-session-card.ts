@@ -1,5 +1,9 @@
 import { isPathInsideOrEqual } from '../../../src/shared/cross-platform-path'
 import { latestSessionConversationTurn } from '../../../src/shared/ai-vault-session-display'
+import {
+  aiVaultAutomatedRunKind,
+  type AiVaultAutomatedRunKind
+} from '../../../src/shared/ai-vault-automated-run'
 import { aiVaultAgentLabel } from '../../../src/shared/ai-vault-types'
 import type { AiVaultSession } from '../../../src/shared/ai-vault-types'
 import type { PiRowRuntime } from '../../../src/shared/agent-type-label'
@@ -15,6 +19,8 @@ export type MobileAgentHistoryCard = {
   agentLabel: string
   /** Set only for a Pi session; the runtime its icon and label name. */
   piRuntime?: PiRowRuntime
+  /** Set only for a headless run; the badge its metadata line leads with. */
+  automatedRunKind?: AiVaultAutomatedRunKind
   title: string
   lastMessage: string
   messageCount: number
@@ -49,17 +55,23 @@ export function buildMobileAgentHistoryCard(
   const updatedAtMs = Date.parse(session.updatedAt ?? session.modifiedAt)
   const piRuntime =
     session.agent === 'pi' ? mobilePiRuntimeFromTranscriptPath(session.filePath) : undefined
+  const automatedRunKind = aiVaultAutomatedRunKind(session)
   return {
     id: session.id,
     agent: session.agent,
     agentLabel: piRuntime ? mobilePiAgentLabel(piRuntime) : aiVaultAgentLabel(session.agent),
     ...(piRuntime ? { piRuntime } : {}),
+    ...(automatedRunKind ? { automatedRunKind } : {}),
     title: session.title || 'Untitled session',
     lastMessage: latestTurn?.text.trim() ?? '',
     messageCount: session.messageCount,
     timeAgo: Number.isFinite(updatedAtMs) ? formatTimeAgo(updatedAtMs, now) : '',
     isCurrentWorktree: isSessionInActiveWorktree(session, activeWorktreePath)
   }
+}
+
+export function automatedRunBadgeLabel(kind: AiVaultAutomatedRunKind): string {
+  return kind === 'review' ? 'Review' : 'SDD'
 }
 
 export function buildMobileAgentHistoryResumeActionState(

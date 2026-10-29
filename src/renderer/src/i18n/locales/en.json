@@ -13971,6 +13971,7 @@
             "agent": "Agent",
             "resetView": "Reset view",
             "hideEmptySessions": "Hide empty sessions",
+            "automatedRuns": "Automated runs",
             "workspaceScope": "This worktree",
             "folderScope": "This folder",
             "worktreeScope": "Worktree",
@@ -14054,6 +14055,8 @@
           "AiVaultSessionRow": {
             "noPreviewAvailable": "No conversation preview available",
             "recoverableBadge": "Not saved",
+            "reviewRunBadge": "Review",
+            "sddRunBadge": "SDD",
             "dragToResume": "Drag to resume in a new tab",
             "resumeAgentSession": "Resume {{value0}} session",
             "resumeInNewTab": "Resume in New Tab",

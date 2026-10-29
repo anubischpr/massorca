@@ -5,7 +5,12 @@ import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import type { AiVaultAgent, AiVaultGroup, AiVaultScope } from '../../../../shared/ai-vault-types'
 import type { ExecutionHostScope } from '../../../../shared/execution-host'
-import { VaultHostScopeMenu, VaultScopeSwitch, VaultViewMenu } from './AiVaultPanelControls'
+import {
+  VaultAutomatedRunsSwitch,
+  VaultHostScopeMenu,
+  VaultScopeSwitch,
+  VaultViewMenu
+} from './AiVaultPanelControls'
 import type { AiVaultHostScopeOption } from './ai-vault-host-scope'
 import type { AiVaultSessionLimit } from './ai-vault-session-limit'
 
@@ -25,6 +30,10 @@ type AiVaultPanelHeaderProps = {
   hideEmptySessions: boolean
   sessionLimit: AiVaultSessionLimit
   adjustmentCount: number
+  /** Omitted by feature-tip visuals, which show the header as it was designed before this switch. */
+  showAutomatedRuns?: boolean
+  automatedRunCount?: number
+  onShowAutomatedRunsChange?: (showAutomatedRuns: boolean) => void
   /** Bumped by a caller that sent the user here, e.g. Settings; focuses the search box once. */
   focusSearchRequestId?: number
   onQueryChange: (query: string) => void
@@ -55,6 +64,9 @@ export function AiVaultPanelHeader({
   hideEmptySessions,
   sessionLimit,
   adjustmentCount,
+  showAutomatedRuns = false,
+  automatedRunCount = 0,
+  onShowAutomatedRunsChange,
   focusSearchRequestId = 0,
   onQueryChange,
   onScopeChange,
@@ -141,7 +153,7 @@ export function AiVaultPanelHeader({
         </div>
       </div>
 
-      <div className="mt-2">
+      <div className="mt-2 flex flex-col gap-1.5">
         <VaultScopeSwitch
           scope={scope}
           workspaceAvailable={Boolean(activeWorktreePath)}
@@ -149,6 +161,13 @@ export function AiVaultPanelHeader({
           projectAvailable={Boolean(activeProjectKey)}
           onScopeChange={onScopeChange}
         />
+        {onShowAutomatedRunsChange ? (
+          <VaultAutomatedRunsSwitch
+            checked={showAutomatedRuns}
+            count={automatedRunCount}
+            onCheckedChange={onShowAutomatedRunsChange}
+          />
+        ) : null}
       </div>
 
       <div className="mt-2 flex h-8 items-center gap-1.5 rounded-md border border-sidebar-border bg-input/50 px-2 focus-within:border-sidebar-ring focus-within:ring-[2px] focus-within:ring-sidebar-ring/30">

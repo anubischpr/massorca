@@ -6,7 +6,7 @@ import { MobileAgentIcon } from '../components/MobileAgentIcon'
 import { recentSessionConversationTurns } from '../../../src/shared/ai-vault-session-display'
 import type { AiVaultSession } from '../../../src/shared/ai-vault-types'
 import type { MobileAgentHistorySection } from './agent-history-sections'
-import type { MobileAgentHistoryCard } from './agent-history-session-card'
+import { automatedRunBadgeLabel, type MobileAgentHistoryCard } from './agent-history-session-card'
 import { styles } from './agent-history-styles'
 
 // Lazy-render at most this many preview turns when a card is tapped — the
@@ -127,13 +127,18 @@ function AgentHistoryCardRow({
         </Text>
       ) : null}
       <View style={styles.cardMetaRow}>
+        {card.automatedRunKind ? (
+          <View style={styles.rowBadge}>
+            <Text style={styles.rowBadgeText}>{automatedRunBadgeLabel(card.automatedRunKind)}</Text>
+          </View>
+        ) : null}
         <Text style={styles.cardMetaText}>{card.agentLabel}</Text>
         <Text style={styles.cardMetaText}>
           {card.messageCount} {card.messageCount === 1 ? 'message' : 'messages'}
         </Text>
         {showCurrentWorktreeBadge && card.isCurrentWorktree ? (
-          <View style={styles.currentBadge}>
-            <Text style={styles.currentBadgeText}>current worktree</Text>
+          <View style={styles.rowBadge}>
+            <Text style={styles.rowBadgeText}>current worktree</Text>
           </View>
         ) : null}
         {session && onResume ? (

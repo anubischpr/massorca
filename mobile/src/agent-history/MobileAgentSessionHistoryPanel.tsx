@@ -1,6 +1,6 @@
 import { loadMobileResumeMetadata } from './mobile-agent-history-resume-metadata'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native'
+import { ActivityIndicator, Pressable, Switch, Text, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouteHandoff } from '../navigation/route-handoff'
 import { ChevronLeft, RefreshCw } from 'lucide-react-native'
@@ -21,7 +21,10 @@ import { triggerError, triggerSuccess } from '../platform/haptics'
 import type { AiVaultSession } from '../../../src/shared/ai-vault-types'
 import type { Worktree } from '../worktree/workspace-list-types'
 import { useMobileAgentHistoryState } from './use-mobile-agent-history-state'
-import { buildMobileAgentHistorySections } from './agent-history-sections'
+import {
+  buildMobileAgentHistorySections,
+  countMobileAgentHistoryAutomatedRuns
+} from './agent-history-sections'
 import { agentHistoryScopeTabs } from './agent-history-scope-tabs'
 import { shouldShowMobileCurrentWorktreeBadge } from './agent-history-current-worktree-badge'
 import { MobileAgentSessionHistoryList } from './MobileAgentSessionHistoryList'
@@ -102,6 +105,8 @@ export function MobileAgentSessionHistoryPanel({
 
   const {
     scope,
+    showAutomatedRuns,
+    setShowAutomatedRuns,
     screenState,
     refreshing,
     hostStatusResult,
@@ -124,17 +129,24 @@ export function MobileAgentSessionHistoryPanel({
     () => agentHistoryScopeTabs(activeWorkspaceIsFolder),
     [activeWorkspaceIsFolder]
   )
+  const scopeOptions = useMemo(
+    () => ({
+      query,
+      scope,
+      scopeFilterPaths,
+      excludedWorktreePaths,
+      activeWorktreePath,
+      now
+    }),
+    [query, scope, scopeFilterPaths, excludedWorktreePaths, activeWorktreePath, now]
+  )
   const sections = useMemo(
-    () =>
-      buildMobileAgentHistorySections(sessions, {
-        query,
-        scope,
-        scopeFilterPaths,
-        excludedWorktreePaths,
-        activeWorktreePath,
-        now
-      }),
-    [sessions, query, scope, scopeFilterPaths, excludedWorktreePaths, activeWorktreePath, now]
+    () => buildMobileAgentHistorySections(sessions, { ...scopeOptions, showAutomatedRuns }),
+    [sessions, scopeOptions, showAutomatedRuns]
+  )
+  const automatedRunCount = useMemo(
+    () => countMobileAgentHistoryAutomatedRuns(sessions, scopeOptions),
+    [sessions, scopeOptions]
   )
 
   const resumeHost = useMemo(
@@ -332,6 +344,17 @@ export function MobileAgentSessionHistoryPanel({
                 </Pressable>
               )
             })}
+          </View>
+          <View style={styles.automatedRunsRow}>
+            <Switch
+              value={showAutomatedRuns}
+              onValueChange={setShowAutomatedRuns}
+              trackColor={{ false: colors.borderSubtle, true: colors.textSecondary }}
+              thumbColor={colors.textPrimary}
+              accessibilityLabel="Automated runs"
+            />
+            <Text style={styles.automatedRunsLabel}>Automated runs</Text>
+            <Text style={styles.automatedRunsCount}>{automatedRunCount}</Text>
           </View>
           <View style={styles.searchRow}>
             <TextInput

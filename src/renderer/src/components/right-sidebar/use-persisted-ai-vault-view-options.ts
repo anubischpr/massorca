@@ -23,11 +23,13 @@ export function usePersistedAiVaultViewOptions(): {
   searchSort: AiVaultSearchSort
   group: AiVaultGroup
   hideEmptySessions: boolean
+  showAutomatedRuns: boolean
   sessionLimit: AiVaultSessionLimit
   setSort: (sort: AiVaultSort) => void
   setSearchSort: (sort: AiVaultSearchSort) => void
   setGroup: (group: AiVaultGroup) => void
   setHideEmptySessions: (hide: boolean) => void
+  setShowAutomatedRuns: (show: boolean) => void
   setSessionLimit: (limit: AiVaultSessionLimit) => void
   setAgentEnabled: (agent: AiVaultAgent, enabled: boolean) => void
   setAllAgentsEnabled: (enabled: boolean) => void
@@ -75,6 +77,15 @@ export function usePersistedAiVaultViewOptions(): {
         current.hideEmptySessions === hideEmptySessions
           ? current
           : { ...current, hideEmptySessions }
+      ),
+    [updateOptions]
+  )
+  const setShowAutomatedRuns = useCallback(
+    (showAutomatedRuns: boolean) =>
+      updateOptions((current) =>
+        current.showAutomatedRuns === showAutomatedRuns
+          ? current
+          : { ...current, showAutomatedRuns }
       ),
     [updateOptions]
   )
@@ -131,11 +142,13 @@ export function usePersistedAiVaultViewOptions(): {
     searchSort: options.searchSort,
     group: options.group,
     hideEmptySessions: options.hideEmptySessions,
+    showAutomatedRuns: options.showAutomatedRuns,
     sessionLimit: options.sessionLimit,
     setSort,
     setSearchSort,
     setGroup,
     setHideEmptySessions,
+    setShowAutomatedRuns,
     setSessionLimit,
     setAgentEnabled,
     setAllAgentsEnabled,

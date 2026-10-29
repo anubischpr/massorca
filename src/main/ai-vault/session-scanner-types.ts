@@ -156,6 +156,8 @@ export type SessionAccumulator = {
   antigravityOpeningPrompt?: AiVaultSession['antigravityOpeningPrompt'] | null
   firstUserPrompt: string | null
   lastUserPrompt: string | null
+  // Set for a `codex exec` rollout (see AiVaultSession.headlessRun).
+  headlessRun?: true
   // Recoverable signal for a zero-turn transcript (see AiVaultSession).
   queuedMessageCount: number
   subagentTranscriptCount: number

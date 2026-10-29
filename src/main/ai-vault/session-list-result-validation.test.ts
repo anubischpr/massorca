@@ -19,6 +19,21 @@ describe('parseAiVaultListResult', () => {
     )
   })
 
+  it('carries the headless-run flag when a host sends it and leaves it off otherwise', () => {
+    const parsed = parseAiVaultListResult({
+      sessions: [{ ...validSession('exec-run'), headlessRun: true }, validSession('user-run')],
+      issues: [],
+      scannedAt: '2026-07-27T00:00:00.000Z'
+    })
+
+    expect(parsed.sessions.find((session) => session.sessionId === 'exec-run')?.headlessRun).toBe(
+      true
+    )
+    expect(
+      parsed.sessions.find((session) => session.sessionId === 'user-run')?.headlessRun
+    ).toBeUndefined()
+  })
+
   it('keeps known-agent sessions while silently dropping unknown-agent rows', () => {
     const parsed = parseAiVaultListResult({
       sessions: [validSession(), { ...validSession('session-new'), agent: 'future-agent' }],

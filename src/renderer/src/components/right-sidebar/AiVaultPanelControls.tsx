@@ -1,6 +1,7 @@
 import { agentBrandRowAttribute } from '@/lib/pi-agent-display'
 import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import type React from 'react'
+import { useId } from 'react'
 import {
   ArchiveRestore,
   ChevronRight,
@@ -10,6 +11,7 @@ import {
   Server
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -159,6 +161,30 @@ export function VaultScopeSwitch({
         {allLabel}
       </ToggleGroupItem>
     </ToggleGroup>
+  )
+}
+
+export function VaultAutomatedRunsSwitch({
+  checked,
+  count,
+  onCheckedChange
+}: {
+  checked: boolean
+  count: number
+  onCheckedChange: (checked: boolean) => void
+}): React.JSX.Element {
+  const switchId = useId()
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <Switch id={switchId} checked={checked} onCheckedChange={onCheckedChange} />
+      <label htmlFor={switchId} className="cursor-pointer">
+        {translate(
+          'auto.components.right.sidebar.AiVaultPanelControls.automatedRuns',
+          'Automated runs'
+        )}
+      </label>
+      <span className="tabular-nums text-muted-foreground">{count}</span>
+    </div>
   )
 }
 

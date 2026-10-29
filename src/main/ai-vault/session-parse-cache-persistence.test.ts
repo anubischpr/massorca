@@ -169,6 +169,7 @@ const CACHED_SESSION_FIELDS = {
   subagentTranscriptCount: true,
   resumeCommand: true,
   subagent: true,
+  headlessRun: true,
   structuredSession: true
 } satisfies Record<keyof AiVaultSession, true>
 

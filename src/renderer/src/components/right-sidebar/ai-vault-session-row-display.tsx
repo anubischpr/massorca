@@ -20,6 +20,10 @@ import {
 import { translate } from '@/i18n/i18n'
 import { SessionTime } from './ai-vault-session-time'
 import { sessionModelLabel } from './ai-vault-session-display'
+import {
+  aiVaultAutomatedRunKind,
+  type AiVaultAutomatedRunKind
+} from '../../../../shared/ai-vault-automated-run'
 import { agentLabel } from './ai-vault-session-filters'
 import {
   aiVaultWorktreeStatusLabel,
@@ -47,6 +51,7 @@ export function SessionMetadata({
 }) {
   const modelLabel = sessionModelLabel(session)
   const origin = antigravitySessionOrigin(session.filePath)
+  const automatedRunKind = aiVaultAutomatedRunKind(session)
   return (
     <div
       data-testid="ai-vault-session-metadata"
@@ -62,6 +67,9 @@ export function SessionMetadata({
         />
       </span>
       <div className="flex min-w-0 items-center gap-1.5">
+        {automatedRunKind ? (
+          <Badge variant="outline">{automatedRunBadgeLabel(automatedRunKind)}</Badge>
+        ) : null}
         {/* Why: 'done' is the resting state of every finished pane — badging it
             would mark most rows; only live attention states earn a dot. */}
         {liveState && liveState !== 'done' ? <AgentStateDot state={liveState} /> : null}
@@ -171,6 +179,12 @@ function SessionWorktreeLine({
 
 function worktreeStatusLabel(status: AiVaultSessionWorktreeInfo['status']): string {
   return aiVaultWorktreeStatusLabel(status)
+}
+
+function automatedRunBadgeLabel(kind: AiVaultAutomatedRunKind): string {
+  return kind === 'review'
+    ? translate('auto.components.right.sidebar.AiVaultSessionRow.reviewRunBadge', 'Review')
+    : translate('auto.components.right.sidebar.AiVaultSessionRow.sddRunBadge', 'SDD')
 }
 
 export function conversationRoleLabel(

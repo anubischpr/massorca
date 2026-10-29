@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { toast } from 'sonner'
+import { copyAiVaultValue } from './ai-vault-value-copy'
 import { useAppStore } from '@/store'
 import {
   useActiveRepo,
@@ -86,11 +86,13 @@ export default function AiVaultPanel(): React.JSX.Element {
     searchSort,
     group,
     hideEmptySessions,
+    showAutomatedRuns,
     sessionLimit,
     setSort,
     setSearchSort,
     setGroup,
     setHideEmptySessions,
+    setShowAutomatedRuns,
     setSessionLimit,
     setAgentEnabled,
     setAllAgentsEnabled,
@@ -208,27 +210,24 @@ export default function AiVaultPanel(): React.JSX.Element {
     sessionLimit
   })
 
-  const { filteredSessions, groups } = useAiVaultPanelSessions(sessions, searching, group, {
-    query,
-    agents,
-    scope,
-    sort,
-    activeWorktreePaths,
-    excludedWorktreePaths,
-    activeProjectKey,
-    sessionProjectById,
-    projectLabelByKey,
-    hideEmptySessions
-  })
-
-  const copyText = useCallback(async (text: string, label: string): Promise<void> => {
-    await window.api.ui.writeClipboardText(text)
-    toast.success(
-      translate('auto.components.right.sidebar.AiVaultPanel.valueCopied', '{{value0}} copied', {
-        value0: label
-      })
-    )
-  }, [])
+  const { filteredSessions, groups, automatedRunCount } = useAiVaultPanelSessions(
+    sessions,
+    searching,
+    group,
+    {
+      query,
+      agents,
+      scope,
+      sort,
+      activeWorktreePaths,
+      excludedWorktreePaths,
+      activeProjectKey,
+      sessionProjectById,
+      projectLabelByKey,
+      hideEmptySessions,
+      showAutomatedRuns
+    }
+  )
 
   const getSessionRowResumeArgs = useCallback(
     (session: AiVaultSession) => ({
@@ -309,6 +308,9 @@ export default function AiVaultPanel(): React.JSX.Element {
         hideEmptySessions={hideEmptySessions}
         sessionLimit={sessionLimit}
         adjustmentCount={viewAdjustmentCount}
+        showAutomatedRuns={showAutomatedRuns}
+        automatedRunCount={automatedRunCount}
+        onShowAutomatedRunsChange={setShowAutomatedRuns}
         focusSearchRequestId={focusSearchRequestId}
         onQueryChange={setQuery}
         onScopeChange={handleScopeChange}
@@ -378,13 +380,13 @@ export default function AiVaultPanel(): React.JSX.Element {
               void launchActions.copyResumeCommand(session, worktreeId)
             }
             onCopyId={(session) =>
-              void copyText(
+              void copyAiVaultValue(
                 session.sessionId,
                 translate('auto.components.right.sidebar.AiVaultPanel.sessionId', 'Session ID')
               )
             }
             onCopyPath={(session) =>
-              void copyText(
+              void copyAiVaultValue(
                 session.filePath,
                 translate('auto.components.right.sidebar.AiVaultPanel.logPath', 'Log path')
               )
