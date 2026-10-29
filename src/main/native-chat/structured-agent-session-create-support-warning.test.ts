@@ -4,7 +4,10 @@ const span = vi.hoisted(() => ({ fail: vi.fn() }))
 const startSpan = vi.hoisted(() => vi.fn(() => span))
 vi.mock('../observability/tracer', () => ({ startSpan }))
 
-import { warnStructuredAgentSessionCreateUnsupported } from './structured-agent-session-create-support'
+import {
+  warnStructuredAgentSessionCreateSupportAdmissionRefused,
+  warnStructuredAgentSessionCreateUnsupported
+} from './structured-agent-session-create-support'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -32,5 +35,17 @@ describe('warnStructuredAgentSessionCreateUnsupported', () => {
     warnStructuredAgentSessionCreateUnsupported('pi', { supported: true }, 'installed-agent')
     expect(warn).not.toHaveBeenCalled()
     expect(startSpan).not.toHaveBeenCalled()
+  })
+})
+
+describe('warnStructuredAgentSessionCreateSupportAdmissionRefused', () => {
+  it('writes the refusing admission gate to the trace as well as the console', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    warnStructuredAgentSessionCreateSupportAdmissionRefused('pi', 'host-setting')
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('pi refused by the host-setting'))
+    expect(startSpan).toHaveBeenCalledWith('agentSession.createSupport', {
+      attributes: { agent: 'pi', check: 'admission', gate: 'host-setting' }
+    })
+    expect(span.fail).toHaveBeenCalledOnce()
   })
 })
