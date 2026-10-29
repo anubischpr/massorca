@@ -103,27 +103,6 @@ const SidebarNav = React.memo(function SidebarNav() {
       className="flex flex-col gap-0.5 px-2 pt-2 pb-1"
       data-contextual-tour-target="sidebar-navigation"
     >
-      <button
-        type="button"
-        onClick={openPrototypesPage}
-        aria-current={prototypesActive ? 'page' : undefined}
-        className={cn(
-          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-medium tracking-tight transition-colors',
-          prototypesActive
-            ? 'bg-worktree-sidebar-accent text-worktree-sidebar-accent-foreground'
-            : 'text-worktree-sidebar-foreground/60 hover:bg-worktree-sidebar-foreground/8'
-        )}
-      >
-        <LayoutGrid className="size-4 shrink-0" strokeWidth={1.75} />
-        <span className="flex-1">
-          {translate('components.prototypes.sidebarLabel', 'Prototypes')}
-        </span>
-        {prototypeSetCount > 0 ? (
-          <span className="rounded-full bg-worktree-sidebar-foreground/8 px-1.5 text-[11px]">
-            {prototypeSetCount}
-          </span>
-        ) : null}
-      </button>
       <Button
         type="button"
         size="sm"
@@ -164,6 +143,33 @@ const SidebarNav = React.memo(function SidebarNav() {
             />
           ))}
         </span>
+      </button>
+      <button
+        type="button"
+        onClick={openPrototypesPage}
+        aria-current={prototypesActive ? 'page' : undefined}
+        className={cn(
+          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-medium tracking-tight transition-colors',
+          prototypesActive
+            ? 'bg-worktree-sidebar-accent text-worktree-sidebar-accent-foreground'
+            : 'text-worktree-sidebar-foreground/60 hover:bg-worktree-sidebar-foreground/8'
+        )}
+      >
+        <LayoutGrid
+          className={cn(
+            'size-4 shrink-0',
+            !prototypesActive && 'text-worktree-sidebar-foreground/30'
+          )}
+          strokeWidth={prototypesActive ? 2.25 : 1.75}
+        />
+        <span className="flex-1">
+          {translate('components.prototypes.sidebarLabel', 'Prototypes')}
+        </span>
+        {prototypeSetCount > 0 ? (
+          <span className="rounded-full bg-worktree-sidebar-foreground/8 px-1.5 text-[11px]">
+            {prototypeSetCount}
+          </span>
+        ) : null}
       </button>
       <SetupGuideSidebarEntry />
       <SidebarTaskNavButton />
