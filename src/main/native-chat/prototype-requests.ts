@@ -115,6 +115,8 @@ export type ReadPrototypeSetFileOptions = {
   sessionId: string
   requestId: string
   fileName: string
+  /** The chat's launch directory from its record; a Gentle Shell artboard is read only under it. */
+  launchDirectory: string | undefined
 }
 
 /**
@@ -152,17 +154,17 @@ export async function readPrototypeSetFile(
           })
         )
   }
-  return readGentleDesignFile(requestFolder, manifest, options.fileName)
+  return readGentleDesignFile(requestFolder, manifest, options.fileName, options.launchDirectory)
 }
 
 async function readGentleDesignFile(
   requestFolder: string,
   manifest: PrototypeRequestManifest,
-  fileName: string
+  fileName: string,
+  launchDirectory: string | undefined
 ): Promise<ReadPrototypeFileResult> {
-  const set = await gentleDesignSetFor(requestFolder, manifest)
-  const cwd = manifest.sessionCwd
-  if (set === null || cwd === undefined) {
+  const set = await gentleDesignSetFor(requestFolder, manifest, launchDirectory)
+  if (set === null || launchDirectory === undefined) {
     return NOT_FOUND
   }
   const isSetFile = set.directions.some((direction) =>
@@ -179,10 +181,15 @@ async function readGentleDesignFile(
   }
   const file = segments.at(-1) ?? ''
   return toReadFileResult(
-    await readNativeChatContainedTextFile(join(cwd, ...segments.slice(0, -1)), file, undefined, {
-      maxBytes: NATIVE_CHAT_VISUAL_MAX_BYTES,
-      isAllowedName: (name) => isPlainPathSegment(name)
-    })
+    await readNativeChatContainedTextFile(
+      join(launchDirectory, ...segments.slice(0, -1)),
+      file,
+      undefined,
+      {
+        maxBytes: NATIVE_CHAT_VISUAL_MAX_BYTES,
+        isAllowedName: (name) => isPlainPathSegment(name)
+      }
+    )
   )
 }
 

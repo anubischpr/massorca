@@ -3,11 +3,12 @@ import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import type { PrototypeSize } from '../../../../shared/prototype-draft'
 import {
+  clampToBounds,
   FONT_SIZE_BOUNDS,
-  parseNumberInput,
   sizeBoundsOf
 } from '../../../../shared/prototype-number-input'
 import { PrototypeColorPicker } from './PrototypeColorPicker'
+import { PrototypeNumberField } from './PrototypeNumberField'
 import {
   FILL_COLOR_PALETTE,
   isHexColor,
@@ -95,7 +96,8 @@ export function PrototypeEditPanel({
     rowField: string
   ): React.JSX.Element => {
     const current = field === 'color' ? pin.current.color : pin.current.bg
-    const hexKey = `${field}`
+    // Why: a half-typed hex belongs to one pin's field, so it never shows on another pin.
+    const hexKey = `${state.view}:${pin.pinKey}:${field}`
     return (
       <div key={isPulsing(rowField)} className={cn(LABEL_CLASS, pulseClass(rowField))}>
         <span>{label}</span>
@@ -223,21 +225,17 @@ export function PrototypeEditPanel({
                     : translate('components.prototypes.heightLabel', 'Height')}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <input
-                    type="number"
-                    aria-label={
+                  <PrototypeNumberField
+                    key={`${state.view}:${pin.pinKey}:${field}`}
+                    ariaLabel={
                       field === 'width'
                         ? translate('components.prototypes.widthValue', 'Width value')
                         : translate('components.prototypes.heightValue', 'Height value')
                     }
                     className={cn(INPUT_CLASS, 'w-14', dimmed && 'opacity-40')}
                     value={size.value}
-                    onChange={(event) => {
-                      const value = parseNumberInput(event.target.value, sizeBoundsOf(size.unit))
-                      if (value !== null) {
-                        setSize(field, { value, unit: size.unit })
-                      }
-                    }}
+                    bounds={sizeBoundsOf(size.unit)}
+                    onCommit={(value) => setSize(field, { value, unit: size.unit })}
                   />
                   <span
                     role="group"
@@ -248,7 +246,12 @@ export function PrototypeEditPanel({
                         key={unit}
                         type="button"
                         aria-pressed={size.unit === unit}
-                        onClick={() => setSize(field, { value: size.value, unit })}
+                        onClick={() =>
+                          setSize(field, {
+                            value: clampToBounds(size.value, sizeBoundsOf(unit)),
+                            unit
+                          })
+                        }
                         className={cn(
                           'h-[22px] rounded px-2 text-[11px]',
                           size.unit === unit
@@ -267,16 +270,12 @@ export function PrototypeEditPanel({
           <label key={isPulsing('fontSize')} className={cn(LABEL_CLASS, pulseClass('fontSize'))}>
             {translate('components.prototypes.fontSizeLabel', 'Font size')}
             <span className="flex items-center gap-1.5">
-              <input
-                type="number"
+              <PrototypeNumberField
+                key={`${state.view}:${pin.pinKey}:fontSize`}
                 className={cn(INPUT_CLASS, 'w-14')}
                 value={pin.current.fontSize}
-                onChange={(event) => {
-                  const fontSize = parseNumberInput(event.target.value, FONT_SIZE_BOUNDS)
-                  if (fontSize !== null) {
-                    update((latest) => editSelected(latest, { fontSize }))
-                  }
-                }}
+                bounds={FONT_SIZE_BOUNDS}
+                onCommit={(fontSize) => update((latest) => editSelected(latest, { fontSize }))}
               />
               px
             </span>

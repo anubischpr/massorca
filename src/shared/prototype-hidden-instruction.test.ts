@@ -1,3 +1,4 @@
+import { buildPrototypeIterationInstruction } from './prototype-request'
 import { describe, expect, it } from 'vitest'
 import {
   splitPrototypeHiddenInstruction,
@@ -48,5 +49,22 @@ describe('splitPrototypeHiddenInstruction', () => {
   it('returns the text whole when no line is a marker MassOrca writes', () => {
     const text = 'Make a mockup\n<!-- orca-prototype-request:x:A -->'
     expect(splitPrototypeHiddenInstruction(text)).toEqual({ visibleText: text })
+  })
+})
+
+describe('the iteration instruction the builder writes', () => {
+  it('is trusted: its marker and its new-version line split off as MassOrca wrote them', () => {
+    const requestId = '20261028-201500-k3f9q2'
+    const instruction = buildPrototypeIterationInstruction({
+      requestId,
+      letter: 'B',
+      nextVersion: 2,
+      folderPath: `/srv/prototypes/${requestId}`
+    })
+
+    expect(splitTrustedPrototypeHiddenInstruction(`Iterate on B.\n\n${instruction}`)).toEqual({
+      visibleText: 'Iterate on B.',
+      hidden: { kind: 'iteration', requestId, letter: 'B' }
+    })
   })
 })

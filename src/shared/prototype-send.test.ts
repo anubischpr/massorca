@@ -244,3 +244,24 @@ describe('sendPrototypeIteration', () => {
     )
   })
 })
+
+describe('sendPrototypeIteration with nothing to send', () => {
+  it('refuses an empty draft: no capture and no message', async () => {
+    const sendMessage = vi.fn(async () => true)
+    const captureRect = vi.fn(async () => ({ ok: true as const, pngBase64: 'x' }))
+
+    const outcome = await sendPrototypeIteration(
+      { state: createSetState(['A', 'B']), set: SET, frameOrigin: FRAME },
+      {
+        captureRect,
+        writeAttachment: vi.fn(async () => ({ ok: true as const, path: '/shot.png' })),
+        sendMessage,
+        now: () => 1
+      }
+    )
+
+    expect(outcome.sent).toBe(false)
+    expect(sendMessage).not.toHaveBeenCalled()
+    expect(captureRect).not.toHaveBeenCalled()
+  })
+})

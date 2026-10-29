@@ -37,6 +37,8 @@ export type ListPrototypeSetsOptions = {
   worktreeId?: string
   /** Whether a chat's request folders may be listed; omitted, every chat on this host is listed. */
   isChatListed?: (sessionId: string) => boolean
+  /** A chat's launch directory from its record; a Gentle Shell design/ folder is read only under it. */
+  launchDirectoryOf?: (sessionId: string) => string | undefined
 }
 
 /**
@@ -50,7 +52,7 @@ export async function listPrototypeSets(
   const sets: PrototypeListedSet[] = []
   for (const candidate of await requestFolderCandidates(root)) {
     try {
-      const listed = await listedSetFor(candidate, options.worktreeId, options.isChatListed)
+      const listed = await listedSetFor(candidate, options)
       if (listed !== null) {
         sets.push(listed)
       }
@@ -98,8 +100,7 @@ function newestRequestNameFirst(left: string, right: string): number {
 
 async function listedSetFor(
   candidate: RequestFolderCandidate,
-  worktreeId: string | undefined,
-  isChatListed: ((sessionId: string) => boolean) | undefined
+  options: ListPrototypeSetsOptions
 ): Promise<PrototypeListedSet | null> {
   const requestFolder = join(candidate.visualsFolder, prototypeRequestFolder(candidate.requestName))
   const manifest = await readRequestManifest(requestFolder)
@@ -111,12 +112,13 @@ async function listedSetFor(
   ) {
     return null
   }
-  if (worktreeId !== undefined && manifest.worktreeId !== worktreeId) {
+  if (options.worktreeId !== undefined && manifest.worktreeId !== options.worktreeId) {
     return null
   }
-  if (isChatListed !== undefined && !isChatListed(manifest.sessionId)) {
+  if (options.isChatListed !== undefined && !options.isChatListed(manifest.sessionId)) {
     return null
   }
+  const launchDirectory = options.launchDirectoryOf?.(manifest.sessionId)
   // Why recorded files first: a request lists the files its own folder holds, and its Gentle Shell design/
   // folder only when none is recorded, so one request never lists two sources.
   const recorded = await directionsWithMtime(
@@ -129,7 +131,7 @@ async function listedSetFor(
           recorded,
           manifest.agent === 'gentle-shell' ? [] : await directionNotesFor(requestFolder)
         )
-      : await gentleDirectionsFor(requestFolder, manifest)
+      : await gentleDirectionsFor(requestFolder, manifest, launchDirectory)
   if (directions.length === 0) {
     return null
   }
@@ -150,11 +152,12 @@ async function listedSetFor(
 /** The Gentle Shell artboards bound to a request, with their last write times; none when no design folder is bound. */
 async function gentleDirectionsFor(
   requestFolder: string,
-  manifest: PrototypeRequestManifest
+  manifest: PrototypeRequestManifest,
+  launchDirectory: string | undefined
 ): Promise<PrototypeListedDirection[]> {
-  const gentle = await gentleDesignSetFor(requestFolder, manifest)
-  return gentle !== null && manifest.sessionCwd !== undefined
-    ? directionsWithMtime(gentle, manifest.sessionCwd)
+  const gentle = await gentleDesignSetFor(requestFolder, manifest, launchDirectory)
+  return gentle !== null && launchDirectory !== undefined
+    ? directionsWithMtime(gentle, launchDirectory)
     : []
 }
 

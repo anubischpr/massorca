@@ -217,7 +217,8 @@ describe('prototypes.*', () => {
     await writeSetFor(SESSION, '20261028-201500-kept00')
     await writeSetFor('session-gone-0003', '20261028-201500-gone00')
 
-    expect(replyResult(await call('prototypes.list', {}, STRUCTURED_CLIENT))).toMatchObject({
+    const desktop = { ...STRUCTURED_CLIENT, caller: { kind: 'desktop' as const } }
+    expect(replyResult(await call('prototypes.list', {}, desktop))).toMatchObject({
       sets: expect.arrayContaining([
         expect.objectContaining({ sessionId: SESSION }),
         expect.objectContaining({ sessionId: 'session-gone-0003' })
@@ -228,6 +229,10 @@ describe('prototypes.*', () => {
       caller: { kind: 'paired-device' as const, deviceId: 'device-1' }
     }
     expect(replyResult(await call('prototypes.list', {}, pairedDevice))).toMatchObject({
+      sets: [expect.objectContaining({ sessionId: SESSION })]
+    })
+    // Why: a client that names no identity is not the owner, so it lists only the kept chats too.
+    expect(replyResult(await call('prototypes.list', {}, STRUCTURED_CLIENT))).toMatchObject({
       sets: [expect.objectContaining({ sessionId: SESSION })]
     })
   })

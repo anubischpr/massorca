@@ -363,3 +363,17 @@ describe('composeIterationMessage', () => {
     )
   })
 })
+
+describe('composeIterationMessage with a group that has no items', () => {
+  it('gives it no screenshot line, since no item shows it belongs to the iterated direction', () => {
+    const message = composeIterationMessage({
+      activeLetter: 'A',
+      groups: [{ title: 'A · 1 · Button', pinKey: 'pin-1', items: [] }],
+      pins: [],
+      prompt: '',
+      screenshots: { 'pin-1': '/shot.png' }
+    })
+
+    expect(message).toBe('Iterate on A.\nA · 1 · Button')
+  })
+})

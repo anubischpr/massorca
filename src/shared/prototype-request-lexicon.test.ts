@@ -120,3 +120,15 @@ describe('lexicon terms', () => {
     expect(terms.every((term) => term.trim().length > 0)).toBe(true)
   })
 })
+
+describe('hasPrototypeKeyword on a long message', () => {
+  it('scans in time that grows with its words, not with every design word times every noun', () => {
+    const designs = Array.from({ length: 40_000 }, () => 'design').join(' ')
+    const filler = Array.from({ length: 15 }, (_, index) => `filler${index}`).join(' ')
+    const pages = Array.from({ length: 40_000 }, () => 'page').join(' ')
+    const started = performance.now()
+
+    expect(hasPrototypeKeyword(`${designs} ${filler} ${pages}`)).toBe(false)
+    expect(performance.now() - started).toBeLessThan(2_000)
+  })
+})

@@ -64,7 +64,7 @@ export function resolveNativeChatPrototypeOutgoing(input: {
     ...(input.choice ? { choice: input.choice } : {})
   })
   // Any other message sent meanwhile retires a card still waiting for its answer; that card comes
-  // back if the message does not go out.
+  // back when this call does not send its message.
   const retired = nativeChatPrototypeAsks.take(draftScopeKey)
   if (decision.kind === 'as-typed') {
     return { kind: 'send', text }
@@ -108,7 +108,11 @@ export function resolveNativeChatPrototypeOutgoing(input: {
     })
 }
 
-/** Puts a retired card back when its message did not go out and no newer card has taken its place. */
+/**
+ * Puts a retired card back when this call does not send its message: a request for the chat is already
+ * being made, or the request throws. A message this call sends keeps its card retired, and a failure of
+ * the send itself is reported by the composer, not here.
+ */
 function restoreAsk(scopeKey: string, ask: NativeChatPrototypeAsk | undefined): void {
   if (ask && nativeChatPrototypeAsks.read(scopeKey) === undefined) {
     nativeChatPrototypeAsks.write(scopeKey, ask)

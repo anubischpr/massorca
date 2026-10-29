@@ -69,11 +69,11 @@ export function prototypeStatus(
   return { kind: 'directions', count: set.directions.length, iterating }
 }
 
-/** Compact age of the newest write (or the creation when no file has one): "4m", "1h", "1d"; '' if none. */
-export function prototypeAge(set: PrototypeListedSet, nowMs: number): string {
+/** Compact age of the newest write (or the creation when no file has one): "4m", "1h", "1d"; null if none. */
+export function prototypeAge(set: PrototypeListedSet, nowMs: number): string | null {
   const latest = latestWriteMs(set)
   if (latest === null) {
-    return ''
+    return null
   }
   const elapsedMs = Math.max(0, nowMs - latest)
   const minutes = Math.floor(elapsedMs / 60_000)
@@ -101,7 +101,8 @@ export type PrototypeListRow = {
   title: string
   mono: string
   status: PrototypeStatus
-  age: string
+  /** Null when the set has no valid time to age from; the row then shows no age. */
+  age: string | null
 }
 
 /** The rows the list shows: the sets that pass the filter, in the host's order (newest first). */

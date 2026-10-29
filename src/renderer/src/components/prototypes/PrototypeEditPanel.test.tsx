@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import '@testing-library/jest-dom/vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi, type Mock } from 'vitest'
 import type { NativeChatVisualPickedElement } from '../../../../shared/native-chat-visual-annotate'
 import {
@@ -48,6 +48,39 @@ function stateAfterLastUpdate(update: Update, state: PrototypeSetState): Prototy
 
 describe('PrototypeEditPanel number fields', () => {
   afterEach(cleanup)
+
+  it('shows a number pinned to its bound, commits nothing for a blank entry, and resyncs on blur', () => {
+    const update: Update = vi.fn()
+    render(<PrototypeEditPanel state={pinnedState()} update={update} pulseField={null} />)
+    const width = screen.getByLabelText('Width value')
+
+    fireEvent.change(width, { target: { value: '250' } })
+    expect(width).toHaveValue(100)
+    fireEvent.change(width, { target: { value: '' } })
+    expect(update).toHaveBeenCalledTimes(1)
+    fireEvent.blur(width)
+    expect(width).toHaveValue(100)
+  })
+
+  it('pins a value into the range of the unit it changes to', () => {
+    const update: Update = vi.fn()
+    const tall = {
+      ...PICKED,
+      state: { ...PICKED.state, height: { value: 500, unit: 'px' as const } }
+    }
+    const state = pickElement(createSetState(['A']), tall)
+    render(<PrototypeEditPanel state={state} update={update} pulseField={null} />)
+    const heightUnits = screen.getAllByRole('group')[1]
+    if (heightUnits === undefined) {
+      throw new Error('expected a unit group for each of Width and Height')
+    }
+
+    fireEvent.click(within(heightUnits).getByRole('button', { name: '%' }))
+    expect(selectedPinOf(stateAfterLastUpdate(update, state))?.current.height).toEqual({
+      value: 100,
+      unit: '%'
+    })
+  })
 
   it('pins a typed width to its unit range, and a typed px height to 4000', () => {
     const update: Update = vi.fn()

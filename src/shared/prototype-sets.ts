@@ -90,19 +90,16 @@ const gentleArtboardSchema = z.object({
   height: z.number().positive().optional()
 })
 
+// The design must parse as a whole, but an artboard is judged alone: a bad one is left out.
 const gentleDesignSchema = z.object({
   title: z.string(),
   brief: z.string(),
-  artboards: z
-    .array(gentleArtboardSchema)
-    .min(1)
-    .max(PROTOTYPE_DIRECTION_LETTERS.length)
-    .refine(
-      (artboards) => new Set(artboards.map((artboard) => artboard.file)).size === artboards.length
-    )
+  artboards: z.array(z.unknown()).min(1).max(PROTOTYPE_DIRECTION_LETTERS.length)
 })
 
-/** The set of a design/<slug>/ folder from a Gentle Shell request: one direction per artboard. */
+type GentleArtboard = z.infer<typeof gentleArtboardSchema>
+
+/** The set of a design/<slug>/ folder from a Gentle Shell request: one direction per artboard it keeps. */
 export function buildGentleDesignSet(
   manifest: PrototypeRequestManifest,
   slug: string,
@@ -112,17 +109,32 @@ export function buildGentleDesignSet(
     return null
   }
   const result = gentleDesignSchema.safeParse(designJson)
-  if (!result.success) {
+  const artboards = result.success ? keptArtboards(result.data.artboards) : []
+  if (artboards.length === 0) {
     return null
   }
   return {
     setId: manifest.requestId,
     requestText: manifest.originalPrompt,
-    directions: result.data.artboards.map((artboard, index) => ({
+    directions: artboards.map((artboard, index) => ({
       letter: directionLetter(index),
       versions: [{ version: 1, fileName: `${GENTLE_DESIGN_FOLDER}/${slug}/${artboard.file}` }]
     }))
   }
+}
+
+// An artboard that does not parse, or repeats the file of an earlier one, is left out; the rest stay.
+function keptArtboards(candidates: readonly unknown[]): GentleArtboard[] {
+  const files = new Set<string>()
+  const kept: GentleArtboard[] = []
+  for (const candidate of candidates) {
+    const parsed = gentleArtboardSchema.safeParse(candidate)
+    if (parsed.success && !files.has(parsed.data.file)) {
+      files.add(parsed.data.file)
+      kept.push(parsed.data)
+    }
+  }
+  return kept
 }
 
 /** The one design/<slug>/ folder that is new since the request was sent, or null if not exactly one. */
