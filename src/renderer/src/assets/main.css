@@ -3419,3 +3419,28 @@ html.native-shell .app-layout {
 .workspace-reference-stack-count[data-multiple-digits='true'] {
   letter-spacing: -0.02em;
 }
+
+/* Prototype draft jump: a ring that pulses twice; reduced motion keeps the ring only. */
+@keyframes prototype-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ring) 80%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--ring) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--ring) 0%, transparent);
+  }
+}
+
+.prototype-pulse {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .prototype-pulse {
+    animation: prototype-pulse 0.5s ease-out 2;
+  }
+}
