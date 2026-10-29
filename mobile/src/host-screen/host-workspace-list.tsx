@@ -14,6 +14,8 @@ import { getWorktreeStatus } from '../worktree/workspace-list-sections'
 import { repoColor } from '../worktree/repo-color'
 import { repoGroupAccountLabel } from './host-repo-group-account'
 import { hostScreenStyles as styles } from './host-screen-styles'
+import { FolderRepoNoGitPill, FolderRepoNoGitSheet } from './folder-repo-no-git'
+import { useFolderRepoGitInit } from './use-folder-repo-git-init'
 import type { HostScreenController } from './use-host-screen-controller'
 
 export function HostWorkspaceList({ controller }: { controller: HostScreenController }) {
@@ -21,11 +23,14 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
     actions,
     activeWorktreeScroll,
     catalog,
+    client,
     connState,
     contentMaxWidth,
     displayWorktrees,
     embedded,
+    fetchRepoMetadata,
     forceReconnectHost,
+    hostCapabilities,
     hostId,
     insets,
     isReadOnly,
@@ -42,6 +47,12 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
     state
   } = controller
   const { rawSections, sections, uniqueRepoColors } = sectionsResult
+  const noGit = useFolderRepoGitInit({
+    client,
+    connected: connState === 'connected',
+    refreshRepos: () => void fetchRepoMetadata({ force: true }),
+    onFailure: state.setActionError
+  })
 
   return (
     <>
@@ -138,6 +149,8 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
               state.groupMode === 'repo' ? uniqueRepoColors.get(section.title) : null
             const repoSectionIcon =
               state.groupMode === 'repo' ? state.repoIconsByName.get(section.title) : null
+            const folderRepoId =
+              state.groupMode === 'repo' ? state.repoIdsByName.get(section.title) : undefined
             const repoAccount = repoGroupAccountLabel(
               state.groupMode,
               section.title,
@@ -167,6 +180,11 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
                   </View>
                 ) : null}
                 <Text style={styles.sectionTitle}>{section.title}</Text>
+                {folderRepoId !== undefined && state.folderRepoIds.has(folderRepoId) ? (
+                  <FolderRepoNoGitPill
+                    onPress={() => noGit.open({ repoId: folderRepoId, repoName: section.title })}
+                  />
+                ) : null}
                 {repoAccount ? (
                   <Text style={styles.sectionAccount} numberOfLines={1}>
                     {repoAccount}
@@ -204,6 +222,16 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
           )}
         />
       )}
+
+      <FolderRepoNoGitSheet
+        visible={noGit.visible}
+        repoName={noGit.target?.repoName ?? null}
+        hostCapabilities={hostCapabilities}
+        connected={connState === 'connected'}
+        initializing={noGit.initializing}
+        onInitialize={() => void noGit.initialize()}
+        onClose={noGit.close}
+      />
 
       {/* Floating "new workspace" button — phone only; embedded sidebars keep the toolbar +. */}
       {!embedded && (

@@ -72,6 +72,8 @@ export const hostRepoCatalogSchema = z
         ),
         connectionId: salvagedOptional('connectionId', z.string().nullable()),
         executionHostId: salvagedOptional('executionHostId', z.string().nullable()),
+        // Folder projects have no Git; an older host omits it, which reads as a Git repo.
+        kind: salvagedOptional('kind', z.enum(['git', 'folder'])),
         // The GitHub account the repo binds; an older host omits it, and a malformed one reads as none.
         ghAccount: z
           .unknown()

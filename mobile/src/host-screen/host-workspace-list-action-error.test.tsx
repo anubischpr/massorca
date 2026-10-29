@@ -17,6 +17,12 @@ vi.mock('lucide-react-native', () => ({
   X: 'X'
 }))
 vi.mock('../components/AuthFailedBanner', () => ({ AuthFailedBanner: 'AuthFailedBanner' }))
+// Why: the real drawer loads gesture and reanimated code this node test cannot parse; the stand-in
+// shows its children only while visible, as the real drawer does.
+vi.mock('../components/BottomDrawer', () => ({
+  BottomDrawer: ({ visible, children }: { visible: boolean; children: unknown }) =>
+    visible ? children : null
+}))
 vi.mock('../components/HostDiagnosticsLink', () => ({ HostDiagnosticsLink: 'HostDiagnosticsLink' }))
 vi.mock('../components/MobileRepoIcon', () => ({ MobileRepoIcon: 'MobileRepoIcon' }))
 vi.mock('../components/MobileSearchField', () => ({ MobileSearchField: 'MobileSearchField' }))
@@ -50,6 +56,7 @@ function listWith(fields: { actionError: string; setActionError: (value: string)
     // sits above the list, and the button is a child it would otherwise have to stand up too.
     embedded: true,
     forceReconnectHost: () => {},
+    hostCapabilities: [],
     hostId: 'host-1',
     insets: { bottom: 0 },
     isReadOnly: false,
