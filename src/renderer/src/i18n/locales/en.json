@@ -18151,6 +18151,7 @@
         "statusDetected": "detected",
         "statusProposed": "proposed",
         "byAgent": "by {{agent}}",
+        "fromSource": "from 1 source",
         "fromSources": "from {{count}} sources",
         "tabTokens": "Tokens",
         "tabComponents": "Components",

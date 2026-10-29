@@ -7,6 +7,7 @@ import type {
   DesignSystemMeta,
   DesignToken
 } from '../../../../shared/prototype-design-system-tokens'
+import type { DesignSystemChat } from '../../../../shared/prototype-design-system-view'
 import type {
   PrototypeListedDesignSystem,
   PrototypeListedSet
@@ -30,10 +31,10 @@ export type DesignSystemPanelProps = {
   content: DesignSystemContent
   state: DesignSystemViewState
   update: DesignSystemUpdate
-  /** The set whose chat takes every message: the project's newest set. None disables every send. */
-  target: PrototypeListedSet | undefined
+  /** The chat that takes every message: the newest set's, else the pending request's. None disables every send. */
+  target: DesignSystemChat | undefined
   /** The project's sets built on the current version: the ones a rebuild offers. */
   rebuildSets: readonly PrototypeListedSet[]
-  /** Sends one message to the target chat as the given kind; a refusal keeps the draft. */
-  runSend: (kind: DesignSystemSendKind, text: string) => Promise<void>
+  /** Sends one message as the given kind, to the target chat unless another chat is given; a refusal keeps the draft. */
+  runSend: (kind: DesignSystemSendKind, text: string, chat?: DesignSystemChat) => Promise<void>
 }

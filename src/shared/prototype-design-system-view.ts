@@ -7,7 +7,12 @@ import type {
   DesignSystemMeta,
   DesignToken
 } from './prototype-design-system-tokens'
-import type { PrototypeListedSet } from './rpc-contract/prototype-params'
+import type { PrototypeAgent } from './prototype-request'
+import type {
+  PrototypeListedDesignSystem,
+  PrototypeListedPendingRequest,
+  PrototypeListedSet
+} from './rpc-contract/prototype-params'
 
 const FONT_FAMILY_TYPE = 'fontFamily'
 /** The bar of a space token is drawn four pixels per unit. */
@@ -98,6 +103,33 @@ export function designSystemTargetSet(
   projectKey: string
 ): PrototypeListedSet | undefined {
   return sets.find((set) => set.projectKey === projectKey)
+}
+
+/** A chat a design system message goes to: a set's chat, or the chat of a proposal still waiting on its directions. */
+export type DesignSystemChat = {
+  sessionId: string
+  agent: PrototypeAgent
+  /** The worktree a set was made in; null for a pending request, which the list does not place in one. */
+  worktreeId: string | null
+}
+
+/** The chat of the project's newest set, else the chat of its pending request; undefined when neither exists. */
+export function designSystemChatOf(
+  sets: readonly PrototypeListedSet[],
+  system: PrototypeListedDesignSystem
+): DesignSystemChat | undefined {
+  const set = designSystemTargetSet(sets, system.projectKey)
+  if (set !== undefined) {
+    return { sessionId: set.sessionId, agent: set.agent, worktreeId: set.worktreeId }
+  }
+  return system.pendingRequest === undefined
+    ? undefined
+    : chatOfPendingRequest(system.pendingRequest)
+}
+
+/** The chat of a pending request: where Approve sends, and the draft's fallback when the project has no set. */
+export function chatOfPendingRequest(pending: PrototypeListedPendingRequest): DesignSystemChat {
+  return { sessionId: pending.sessionId, agent: pending.agent, worktreeId: null }
 }
 
 /** The version a history entry was before the current one: the newest entry older than `version`. */

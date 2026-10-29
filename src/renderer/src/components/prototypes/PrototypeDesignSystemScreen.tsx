@@ -1,5 +1,9 @@
 import { useCallback } from 'react'
-import { designSystemTargetSet, setsBuiltOn } from '../../../../shared/prototype-design-system-view'
+import {
+  designSystemChatOf,
+  setsBuiltOn,
+  type DesignSystemChat
+} from '../../../../shared/prototype-design-system-view'
 import {
   emptyDesignSystemViewState,
   sendAccepted,
@@ -32,11 +36,11 @@ export function PrototypeDesignSystemScreen({
 }: {
   system: PrototypeListedDesignSystem
   sets: readonly PrototypeListedSet[]
-  /** Sends text to a set's chat; true only when the chat took it. */
-  sendText: (set: PrototypeListedSet, text: string) => Promise<boolean>
+  /** Sends text to a chat; true only when the chat took it. */
+  sendText: (chat: DesignSystemChat, text: string) => Promise<boolean>
 }): React.JSX.Element {
   const { projectKey } = system
-  const target = designSystemTargetSet(sets, projectKey)
+  const target = designSystemChatOf(sets, system)
   const rebuildSets = setsBuiltOn(sets, projectKey, system.version)
   const content = useDesignSystemContent(
     target?.sessionId,
@@ -52,13 +56,17 @@ export function PrototypeDesignSystemScreen({
     },
     [updateView, projectKey]
   )
-  const runSend = async (kind: DesignSystemSendKind, text: string): Promise<void> => {
+  const runSend = async (
+    kind: DesignSystemSendKind,
+    text: string,
+    chat: DesignSystemChat | undefined = target
+  ): Promise<void> => {
     const current = usePrototypeViewStore.getState().designSystemViews[projectKey]
-    if (target === undefined || current?.sending === true) {
+    if (chat === undefined || current?.sending === true) {
       return
     }
     update(sendBegun)
-    const accepted = await sendText(target, text).catch(() => false)
+    const accepted = await sendText(chat, text).catch(() => false)
     update((latest) => (accepted ? sendAccepted(latest, kind) : sendRefused(latest, kind)))
   }
   if (content.status !== 'ready') {

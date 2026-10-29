@@ -91,20 +91,7 @@ function renderView(
       target={
         'target' in overrides
           ? overrides.target
-          : {
-              requestId: 'r1',
-              sessionId: 'session-alpha-0001',
-              agent: 'codex',
-              worktreeId: null,
-              chatTitle: null,
-              originalPrompt: 'a checkout page',
-              createdAt: '2026-10-28T20:15:00.000Z',
-              count: 1,
-              directions: [],
-              projectKey: 'nexus',
-              projectName: 'nexuscare',
-              folderPath: '/state/r1'
-            }
+          : { sessionId: 'session-alpha-0001', agent: 'codex', worktreeId: null }
       }
       rebuildSets={[]}
       runSend={runSend}
@@ -127,14 +114,35 @@ describe('PrototypeDesignSystemView header', () => {
     renderView()
     expect(screen.getByText('Design system · nexuscare')).toBeInTheDocument()
     expect(
-      screen.getByText('design/system/tokens.json · v2 · detected by Codex from 1 sources')
+      screen.getByText('design/system/tokens.json · v2 · detected by Codex from 1 source')
     ).toBeInTheDocument()
   })
 
   it('leaves out the agent and the sources it does not have', () => {
     renderView({ system: { ...SYSTEM, agent: undefined } })
     expect(
-      screen.getByText('design/system/tokens.json · v2 · detected from 1 sources')
+      screen.getByText('design/system/tokens.json · v2 · detected from 1 source')
+    ).toBeInTheDocument()
+  })
+
+  it('names the sources in the plural when there are several', () => {
+    const tokens = JSON.stringify({
+      color: { primary: { $value: '#2563eb' } },
+      $extensions: {
+        massorca: {
+          version: 2,
+          status: 'detected',
+          agent: 'Codex',
+          sources: [
+            { path: 'src/assets/main.css', took: 'colors' },
+            { path: 'STYLEGUIDE.md', took: 'the rules' }
+          ]
+        }
+      }
+    })
+    renderView({ content: contentWith(tokens, '') })
+    expect(
+      screen.getByText('design/system/tokens.json · v2 · detected by Codex from 2 sources')
     ).toBeInTheDocument()
   })
 

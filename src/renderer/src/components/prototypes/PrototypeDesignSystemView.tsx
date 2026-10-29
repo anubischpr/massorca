@@ -3,7 +3,7 @@ import { translate } from '@/i18n/i18n'
 import { DESIGN_SYSTEM_TOKENS_PATH } from '../../../../shared/prototype-design-system-files'
 import { joinParts, sourceCountOf } from '../../../../shared/prototype-design-system-view'
 import { isDesignSystemTab } from '../../../../shared/prototype-design-system-view-state'
-import { designSystemStatusWord } from './prototype-design-system-labels'
+import { designSystemStatusWord, fromSourcesLabel } from './prototype-design-system-labels'
 import type { DesignSystemPanelProps } from './prototype-design-system-props'
 import { PrototypeDesignSystemComponents } from './PrototypeDesignSystemComponents'
 import { PrototypeDesignSystemSource } from './PrototypeDesignSystemSource'
@@ -26,11 +26,7 @@ export function PrototypeDesignSystemView(props: DesignSystemPanelProps): React.
           : translate('components.prototypes.designSystem.byAgent', 'by {{agent}}', {
               agent: system.agent
             }),
-        sources === 0
-          ? null
-          : translate('components.prototypes.designSystem.fromSources', 'from {{count}} sources', {
-              count: sources
-            })
+        sources === 0 ? null : fromSourcesLabel(sources)
       ],
       ' '
     )

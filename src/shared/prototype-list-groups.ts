@@ -19,9 +19,9 @@ export type PrototypeListGroup = {
 
 /**
  * The groups of the list. `sets` is every listed set, newest first, so the groups come in the order of
- * their newest set; `rows` is what the agent filter keeps. A design system row stays when the filter
- * hides every set of its project. A system whose project has no listed set has no group: the list has no
- * set through which to show it.
+ * their newest set; a project with only a design system (a proposal with no directions yet) follows them,
+ * in the host's order. `rows` is what the agent filter keeps. A design system row stays when the filter
+ * hides every set of its project.
  */
 export function buildPrototypeListGroups({
   sets,
@@ -34,7 +34,10 @@ export function buildPrototypeListGroups({
 }): PrototypeListGroup[] {
   const systemOf = new Map(designSystems.map((system) => [system.projectKey, system]))
   const projectKeys = [
-    ...new Set(sets.flatMap((set) => (set.projectKey === undefined ? [] : [set.projectKey])))
+    ...new Set([
+      ...sets.flatMap((set) => (set.projectKey === undefined ? [] : [set.projectKey])),
+      ...designSystems.map((system) => system.projectKey)
+    ])
   ]
   const groups = projectKeys.flatMap((projectKey): PrototypeListGroup[] => {
     const groupRows = rows.filter((row) => row.set.projectKey === projectKey)

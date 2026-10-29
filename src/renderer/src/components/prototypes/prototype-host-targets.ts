@@ -33,6 +33,21 @@ export function prototypeTargetForSession(sessionId: string): RuntimeClientTarge
   return targetBySessionId.get(sessionId) ?? LOCAL_TARGET
 }
 
+/** The worktree whose open tabs hold a chat, the first found in the store's order; undefined when none does. */
+export function worktreeIdOfChatSession(
+  unifiedTabsByWorktree: Readonly<
+    Record<string, readonly { contentType: string; entityId: string }[]>
+  >,
+  sessionId: string
+): string | undefined {
+  for (const [worktreeId, tabs] of Object.entries(unifiedTabsByWorktree)) {
+    if (tabs.some((tab) => tab.contentType === 'agent-session' && tab.entityId === sessionId)) {
+      return worktreeId
+    }
+  }
+  return undefined
+}
+
 function describeTarget(target: RuntimeClientTarget): string {
   return target.kind === 'local' ? 'local' : `runtime ${target.environmentId}`
 }
@@ -66,7 +81,13 @@ export async function listPrototypeSetsFromAllHosts(): Promise<PrototypeHostList
         targetBySessionId.set(set.sessionId, target)
         sets.push(set)
       }
-      designSystems.push(...(outcome.value.designSystems ?? []))
+      for (const system of outcome.value.designSystems ?? []) {
+        designSystems.push(system)
+        // Why: the pending request's chat has no set in the list, so its host is recorded here.
+        if (system.pendingRequest !== undefined) {
+          targetBySessionId.set(system.pendingRequest.sessionId, target)
+        }
+      }
       return
     }
     failed += 1

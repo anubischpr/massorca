@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { ComponentSection } from './prototype-design-system-components'
 import {
+  chatOfPendingRequest,
   componentsUsingToken,
+  designSystemChatOf,
   designSystemDayLabel,
   designSystemSectionsOf,
   designSystemTargetSet,
@@ -14,7 +16,10 @@ import {
   tokenGroupOf
 } from './prototype-design-system-view'
 import type { DesignToken } from './prototype-design-system-tokens'
-import type { PrototypeListedSet } from './rpc-contract/prototype-params'
+import type {
+  PrototypeListedDesignSystem,
+  PrototypeListedSet
+} from './rpc-contract/prototype-params'
 
 function token(
   id: string,
@@ -183,5 +188,56 @@ describe('joinParts', () => {
     expect(joinParts(['v2', null, undefined, '', 'Codex'])).toBe('v2 · Codex')
     expect(joinParts(['v1 was', 'detected'], ' ')).toBe('v1 was detected')
     expect(joinParts([null])).toBe('')
+  })
+})
+
+describe('designSystemChatOf', () => {
+  const SYSTEM: PrototypeListedDesignSystem = {
+    projectKey: 'landing',
+    projectName: 'landing-site',
+    status: 'proposed',
+    version: 1,
+    tokenCount: 7,
+    swatches: [],
+    pendingRequest: { requestId: 'request-pending', sessionId: 'session-pending', agent: 'codex' }
+  }
+  const SET: PrototypeListedSet = {
+    requestId: 'request-set',
+    sessionId: 'session-set',
+    agent: 'claude',
+    worktreeId: 'worktree-1',
+    chatTitle: null,
+    originalPrompt: 'a page',
+    createdAt: '2026-10-28T20:15:00.000Z',
+    count: 2,
+    directions: [],
+    projectKey: 'landing',
+    projectName: 'landing-site'
+  }
+
+  it('targets the newest set’s chat, in the set’s worktree, before a pending request', () => {
+    expect(designSystemChatOf([SET], SYSTEM)).toEqual({
+      sessionId: 'session-set',
+      agent: 'claude',
+      worktreeId: 'worktree-1'
+    })
+  })
+
+  it('falls back to the pending request’s chat when the project has no set', () => {
+    expect(designSystemChatOf([], SYSTEM)).toEqual({
+      sessionId: 'session-pending',
+      agent: 'codex',
+      worktreeId: null
+    })
+  })
+
+  it('has no chat when the project has neither a set nor a pending request', () => {
+    expect(designSystemChatOf([], { ...SYSTEM, pendingRequest: undefined })).toBeUndefined()
+  })
+
+  it('names the chat of a pending request with no worktree', () => {
+    expect(chatOfPendingRequest({ requestId: 'r', sessionId: 's', agent: 'gentle-shell' })).toEqual(
+      { sessionId: 's', agent: 'gentle-shell', worktreeId: null }
+    )
   })
 })

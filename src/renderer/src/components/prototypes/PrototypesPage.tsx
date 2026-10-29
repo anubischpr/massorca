@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { sendMessageToAgent } from '@/lib/agent-message-send'
+import { useAppStore } from '@/store'
 import type { NativeChatVisualRect } from '../../../../shared/native-chat-visual-annotate'
+import type { DesignSystemChat } from '../../../../shared/prototype-design-system-view'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
 import { writePrototypeAttachmentOnHost } from '../../runtime/runtime-prototype-client'
 import { usePrototypeViewStore } from './prototype-view-store'
@@ -13,7 +15,7 @@ import { PrototypeViewer } from './PrototypeViewer'
 import { sendPrototypeIteration } from '../../../../shared/prototype-send'
 import type { PrototypeSetState } from '../../../../shared/prototype-set-state'
 import { beginSend, sendRefused, sendSucceeded } from '../../../../shared/prototype-set-view'
-import { prototypeTargetForSession } from './prototype-host-targets'
+import { prototypeTargetForSession, worktreeIdOfChatSession } from './prototype-host-targets'
 import { usePrototypeSets } from './use-prototype-sets'
 
 async function captureFrameRect(
@@ -42,10 +44,16 @@ async function writeScreenshot(
   }
 }
 
-async function sendToChat(set: PrototypeListedSet, text: string): Promise<boolean> {
+async function sendToChat(
+  chat: Pick<DesignSystemChat, 'sessionId' | 'worktreeId'>,
+  text: string
+): Promise<boolean> {
+  const worktreeId =
+    chat.worktreeId ??
+    worktreeIdOfChatSession(useAppStore.getState().unifiedTabsByWorktree, chat.sessionId)
   const result = await sendMessageToAgent({
-    worktreeId: set.worktreeId ?? '',
-    target: { kind: 'structured-session', sessionId: set.sessionId },
+    worktreeId: worktreeId ?? '',
+    target: { kind: 'structured-session', sessionId: chat.sessionId },
     prompt: text
   })
   return result.status === 'sent'

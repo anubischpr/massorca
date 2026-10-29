@@ -4,6 +4,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { parseComponentsHtml } from '../../../../shared/prototype-design-system-components'
+import type { DesignSystemChat } from '../../../../shared/prototype-design-system-view'
 import { parseDesignTokens } from '../../../../shared/prototype-design-system-tokens'
 import {
   emptyDesignSystemViewState,
@@ -12,6 +13,7 @@ import {
 } from '../../../../shared/prototype-design-system-view-state'
 import type {
   PrototypeListedDesignSystem,
+  PrototypeListedPendingRequest,
   PrototypeListedSet
 } from '../../../../shared/rpc-contract/prototype-params'
 import type { DesignSystemContent, DesignSystemPanelProps } from './prototype-design-system-props'
@@ -60,6 +62,12 @@ const TOKENS = JSON.stringify({
   }
 })
 
+const PENDING: PrototypeListedPendingRequest = {
+  requestId: '20261028-201500-bbbbbb',
+  sessionId: 'session-pending-0001',
+  agent: 'codex'
+}
+
 const SYSTEM: PrototypeListedDesignSystem = {
   projectKey: 'landing',
   projectName: 'landing-site',
@@ -67,7 +75,8 @@ const SYSTEM: PrototypeListedDesignSystem = {
   version: 1,
   tokenCount: 7,
   agent: 'Codex',
-  swatches: []
+  swatches: [],
+  pendingRequest: PENDING
 }
 
 const TARGET: PrototypeListedSet = {
@@ -99,6 +108,7 @@ function content(): DesignSystemContent {
 function renderPalettes(
   overrides: {
     state?: Partial<DesignSystemViewState>
+    system?: PrototypeListedDesignSystem
     target?: PrototypeListedSet | undefined
     update?: DesignSystemPanelProps['update']
     runSend?: DesignSystemPanelProps['runSend']
@@ -107,10 +117,12 @@ function renderPalettes(
   const update = overrides.update ?? vi.fn()
   const runSend =
     overrides.runSend ??
-    vi.fn<(kind: DesignSystemSendKind, text: string) => Promise<void>>(async () => undefined)
+    vi.fn<(kind: DesignSystemSendKind, text: string, chat?: DesignSystemChat) => Promise<void>>(
+      async () => undefined
+    )
   render(
     <PrototypeDesignSystemPalettes
-      system={SYSTEM}
+      system={overrides.system ?? SYSTEM}
       content={content()}
       state={{ ...emptyDesignSystemViewState(), ...overrides.state }}
       update={update}
@@ -161,22 +173,29 @@ describe('PrototypeDesignSystemPalettes', () => {
     ).toBeInTheDocument()
   })
 
-  it('approves the chosen palette in the chat, naming the target set’s request', async () => {
+  it('approves the chosen palette in the pending request’s own chat, naming that request', async () => {
     const user = userEvent.setup()
     const { runSend } = renderPalettes({ state: { palette: 'B' } })
     await user.click(screen.getByRole('button', { name: 'Approve Warm clay' }))
     expect(runSend).toHaveBeenCalledWith(
       'palette',
-      expect.stringContaining('Use the Warm clay palette for the design system.')
+      expect.stringContaining('Use the Warm clay palette for the design system.'),
+      { sessionId: PENDING.sessionId, agent: PENDING.agent, worktreeId: null }
     )
     expect(runSend).toHaveBeenCalledWith(
       'palette',
-      expect.stringContaining(`prototype request ${TARGET.requestId}`)
+      expect.stringContaining(`prototype request ${PENDING.requestId}`),
+      expect.objectContaining({ sessionId: PENDING.sessionId })
+    )
+    expect(runSend).not.toHaveBeenCalledWith(
+      'palette',
+      expect.anything(),
+      expect.objectContaining({ sessionId: TARGET.sessionId })
     )
   })
 
-  it('holds Approve when no chat of the project can take it', () => {
-    renderPalettes({ target: undefined })
+  it('holds Approve when the project has no pending request', () => {
+    renderPalettes({ system: { ...SYSTEM, pendingRequest: undefined } })
     expect(screen.getByRole('button', { name: 'Approve Calm blue' })).toBeDisabled()
   })
 

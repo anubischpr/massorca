@@ -88,14 +88,35 @@ describe('buildPrototypeListGroups', () => {
     expect(buildPrototypeListGroups({ sets, rows: [], designSystems: [] })).toEqual([])
   })
 
-  it('does not list a design system whose project has no listed set', () => {
+  it('lists a design system whose project has no listed set as a group after the others', () => {
     const sets = [set('r1', LANDING)]
     const groups = buildPrototypeListGroups({
       sets,
       rows: sets.map(rowOf),
       designSystems: [system('nexus', 'nexuscare')]
     })
-    expect(groups.map((group) => group.projectKey)).toEqual(['landing'])
+    expect(groups.map((group) => group.projectKey)).toEqual(['landing', 'nexus'])
+    expect(groups[1]).toMatchObject({
+      projectName: 'nexuscare',
+      system: system('nexus', 'nexuscare'),
+      rows: []
+    })
+  })
+
+  it('gives a project with only a design system a group with its system row and no set rows', () => {
+    const groups = buildPrototypeListGroups({
+      sets: [],
+      rows: [],
+      designSystems: [system(NEXUS.key, NEXUS.name)]
+    })
+    expect(groups).toEqual([
+      {
+        projectKey: NEXUS.key,
+        projectName: NEXUS.name,
+        system: system(NEXUS.key, NEXUS.name),
+        rows: []
+      }
+    ])
   })
 
   it('puts sets the host placed in no project in one last group without a name', () => {

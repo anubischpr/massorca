@@ -3,6 +3,7 @@ import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import { buildDesignSystemPaletteApproveMessage } from '../../../../shared/prototype-design-system-message'
 import {
+  chatOfPendingRequest,
   designSystemSectionsOf,
   joinParts,
   paletteTypeParts
@@ -12,15 +13,17 @@ import type { DesignSystemPanelProps } from './prototype-design-system-props'
 
 /**
  * The palette review of a proposed system: its palettes to pick from, the type, radius and spacing they come
- * with, and Approve, which applies the chosen palette, or Adjust tokens, which opens the Tokens tab.
+ * with, and Approve, which applies the chosen palette to the pending request's directions in its own chat, or
+ * Adjust tokens, which opens the Tokens tab.
  */
 export function PrototypeDesignSystemPalettes({
+  system,
   content,
   state,
   update,
-  target,
   runSend
 }: DesignSystemPanelProps): React.JSX.Element {
+  const pending = system.pendingRequest
   const palettes = content.meta.palettes
   const chosen = chosenPaletteOf(state, palettes)
   const parts = paletteTypeParts(designSystemSectionsOf(content.tokens))
@@ -46,14 +49,14 @@ export function PrototypeDesignSystemPalettes({
         })
   ])
   const approve = (): void => {
-    if (chosen === null || target === undefined) {
+    if (chosen === null || pending === undefined) {
       return
     }
     const message = buildDesignSystemPaletteApproveMessage({
       paletteName: chosen.name,
-      requestId: target.requestId
+      requestId: pending.requestId
     })
-    void runSend('palette', message.sentText)
+    void runSend('palette', message.sentText, chatOfPendingRequest(pending))
   }
   return (
     <div className="flex flex-col gap-2.5 border-b border-border p-3">
@@ -96,7 +99,7 @@ export function PrototypeDesignSystemPalettes({
       <div className="flex gap-1.5">
         <Button
           className="flex-[2]"
-          disabled={state.sending || chosen === null || target === undefined}
+          disabled={state.sending || chosen === null || pending === undefined}
           onClick={approve}
         >
           {translate('components.prototypes.designSystem.approve', 'Approve {{name}}', {

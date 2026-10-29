@@ -10,6 +10,15 @@ export function designSystemStatusWord(status: DesignSystemStatus): string {
     : translate('components.prototypes.designSystem.statusDetected', 'detected')
 }
 
+/** "from 1 source" for one source, "from N sources" for any other count. */
+export function fromSourcesLabel(count: number): string {
+  return count === 1
+    ? translate('components.prototypes.designSystem.fromSource', 'from 1 source')
+    : translate('components.prototypes.designSystem.fromSources', 'from {{count}} sources', {
+        count
+      })
+}
+
 /** The label of one kind chip in the add panel; the English kind is what the draft names. */
 export function addChoiceLabel(choice: string): string {
   switch (choice) {
