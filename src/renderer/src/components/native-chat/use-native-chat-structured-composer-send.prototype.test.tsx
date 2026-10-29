@@ -246,7 +246,8 @@ describe('the "How many prototypes?" card', () => {
   afterEach(cleanup)
 
   function CardHarness({ args }: { args: UseNativeChatStructuredComposerSendArgs }) {
-    return <>{useNativeChatPrototypeCountCard(args)}</>
+    const send = useNativeChatStructuredComposerSend(args)
+    return <>{useNativeChatPrototypeCountCard({ draftScopeKey: args.draftScopeKey, send })}</>
   }
 
   async function holdKeywordSend() {

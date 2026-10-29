@@ -268,8 +268,9 @@ export type GlobalSettings = NativeChatGlobalSettings & {
   showArtifactsButton?: boolean
   /** Only toggles the sidebar shortcut; Skills stay reachable from Settings. */
   showSkillsButton?: boolean
-  /** How many design directions a prototype request asks for, or whether each request asks. */
-  prototypeCount: PrototypeCountSetting
+  /** How many design directions a prototype request asks for, or whether each request asks. Optional:
+   *  profiles saved before this setting existed read as its default. */
+  prototypeCount?: PrototypeCountSetting
   /** Only toggles the sidebar shortcut; Orca Mobile stays reachable from Settings. */
   showMobileButton?: boolean
   /** Pinned workspaces show in one sidebar location by default; opt in to also show them in their natural groups. */

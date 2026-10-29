@@ -1,7 +1,6 @@
 import { asRecord } from './session-scanner-record-value'
-import { sliceAtCodeUnitLimit } from './session-scanner-text-normalization'
+import { sliceAtCodeUnitLimit, typedUserPromptText } from './session-scanner-text-normalization'
 import type { AiVaultSessionPreviewMessage } from '../../shared/ai-vault-types'
-import { splitPrototypeHiddenInstruction } from '../../shared/prototype-hidden-instruction'
 import type { TranscriptMessage, TranscriptMessageRole } from './session-transcript-consumers'
 
 // Safety bound only: a consumer applies its own caps. Matches the first-prompt
@@ -17,7 +16,7 @@ type PreviewRole = AiVaultSessionPreviewMessage['role']
 
 /** A prompt reads as the user typed it, never with the instruction MassOrca hid behind it. */
 export function typedPromptText(role: TranscriptMessageRole | null, text: string): string {
-  return role === 'user' ? splitPrototypeHiddenInstruction(text).visibleText : text
+  return typedUserPromptText(role, text)
 }
 
 /** Only conversational roles reach consumers; system/unknown turns are noise. */

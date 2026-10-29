@@ -1,6 +1,6 @@
 import { sliceAtCodeUnitLimit } from '../../shared/surrogate-safe-text-slice'
 import { withoutNativeChatVisualDirectiveLines } from '../../shared/native-chat-visual-directive'
-import { splitPrototypeHiddenInstruction } from '../../shared/prototype-hidden-instruction'
+import { splitTrustedPrototypeHiddenInstruction } from '../../shared/prototype-hidden-instruction'
 
 export { sliceAtCodeUnitLimit }
 
@@ -57,10 +57,14 @@ export function normalizePreviewText(value: string, role?: string): string | nul
 // A reply's visual lines show only in a chat; a prompt shows what the user typed, not the
 // instruction MassOrca hid behind it.
 function previewSource(text: string, role: string | undefined): string {
-  if (role === 'assistant') {
-    return withoutNativeChatVisualDirectiveLines(text)
-  }
-  return role === 'user' ? splitPrototypeHiddenInstruction(text).visibleText : text
+  return role === 'assistant'
+    ? withoutNativeChatVisualDirectiveLines(text)
+    : typedUserPromptText(role, text)
+}
+
+/** A user prompt reads as the user typed it; only a marker MassOrca wrote hides anything. */
+export function typedUserPromptText(role: string | null | undefined, text: string): string {
+  return role === 'user' ? splitTrustedPrototypeHiddenInstruction(text).visibleText : text
 }
 
 function normalizeContentText(value: unknown, limit: number, role?: string): string | null {

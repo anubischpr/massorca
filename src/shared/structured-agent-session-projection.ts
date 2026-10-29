@@ -79,10 +79,10 @@ function itemBlocks(item: AgentJournalRenderItem): {
 } | null {
   const body = item.body
   if (body.kind === 'message') {
-    return {
-      role: body.role,
-      blocks: body.role === 'user' ? withoutPrototypeHiddenInstruction(body.blocks) : body.blocks
-    }
+    // A user's hidden prototype instruction stays out of the transcript; the agent's text shows as is.
+    const blocks =
+      body.role === 'user' ? withoutPrototypeHiddenInstruction(body.blocks) : body.blocks
+    return { role: body.role, blocks }
   }
   if (isStructuredAgentSessionToolAction(body)) {
     const call = structuredAgentSessionToolCallBlock(body, item.itemId)

@@ -129,9 +129,12 @@ export function useNativeChatStructuredComposerSend({
       if (outgoing === null || outgoing.kind === 'ask') {
         return
       }
-      // A request folder is still being made for an earlier press; the draft stays for a retry.
+      // A request folder is still being made for an earlier press: nothing goes out, the draft stays.
       if (outgoing.kind === 'in-flight') {
         console.warn('[native-chat-send] a prototype request is already being prepared')
+        structuredTransport.onError(
+          agentSessionWriteNoticeText(['notDoneSend', 'tryAgainComposerSend'])
+        )
         return
       }
       await dispatchNativeChatStructuredComposerText(
