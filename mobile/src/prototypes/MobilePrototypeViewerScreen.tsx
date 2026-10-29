@@ -36,7 +36,12 @@ import { MobilePrototypePinSheet, type MobilePrototypePinTab } from './MobilePro
 import { sendMobilePrototypeIteration } from './mobile-prototype-iteration-send'
 import { mobilePrototypeAgentLabel } from './mobile-prototype-list-model'
 import { findMobilePrototypeSet } from './mobile-prototype-sets-state'
-import { isPeeking, viewerChips, viewerHeaderLines } from './mobile-prototype-viewer-model'
+import {
+  isPeeking,
+  pulseFieldFor,
+  viewerChips,
+  viewerHeaderLines
+} from './mobile-prototype-viewer-model'
 import { mobilePrototypeStateKey, useMobilePrototypeViewStore } from './mobile-prototype-view-store'
 import { useMobilePrototypeFile } from './use-mobile-prototype-file'
 import { useMobilePrototypeSets } from './use-mobile-prototype-sets'
@@ -142,8 +147,7 @@ export function MobilePrototypeViewerScreen({
   const pin = selectedPinOf(state)
   const agentName = mobilePrototypeAgentLabel(set.agent)
   const sheet: Sheet | null = draftOpen ? 'draft' : pin === null ? null : 'pin'
-  const pulsing =
-    jump !== null && jump.pinKey === state.selectedPinKey && jump.letter === state.view
+  const pulseField = pulseFieldFor(jump, state)
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -285,13 +289,15 @@ export function MobilePrototypeViewerScreen({
               onSend={() => void send()}
             />
           ) : pin === null ? null : (
+            // Keyed by the pin, so a value typed into one pin's field never shows on the next pin.
             <MobilePrototypePinSheet
+              key={`${state.view}:${pin.pinKey}`}
               pin={pin}
               state={state}
               update={update}
               tab={pinTab}
               onTab={setPinTab}
-              pulseField={pulsing ? (jump?.field ?? null) : null}
+              pulseField={pulseField}
               pulseNonce={jump?.nonce ?? 0}
             />
           )

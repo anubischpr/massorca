@@ -14,7 +14,7 @@ import { MobilePrototypeColorPicker } from './MobilePrototypeColorPicker'
 import { MobilePrototypeColorRow } from './MobilePrototypeColorRow'
 import { MobilePrototypePulse } from './MobilePrototypePulse'
 import { MobilePrototypeSizeRow } from './MobilePrototypeSizeRow'
-import { parseNumberInput } from './mobile-prototype-viewer-model'
+import { FONT_SIZE_BOUNDS, parseNumberInput } from './mobile-prototype-viewer-model'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
 
@@ -123,7 +123,7 @@ export function MobilePrototypeEditFields({
             value={fontSizeTyped ?? String(pin.current.fontSize)}
             onChangeText={(next) => {
               setFontSizeTyped(next)
-              const fontSize = parseNumberInput(next)
+              const fontSize = parseNumberInput(next, FONT_SIZE_BOUNDS)
               if (fontSize !== null) {
                 update((latest) => editSelected(latest, { fontSize }))
               }

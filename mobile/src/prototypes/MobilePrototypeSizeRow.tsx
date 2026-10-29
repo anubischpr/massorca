@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import type { PrototypeSize } from '../../../src/shared/prototype-draft'
 import { colors } from '../theme/mobile-theme'
-import { parseNumberInput } from './mobile-prototype-viewer-model'
+import { clampToBounds, parseNumberInput, sizeBoundsOf } from './mobile-prototype-viewer-model'
 
 const UNITS = ['px', '%', 'auto'] as const
 
@@ -27,7 +27,7 @@ export function MobilePrototypeSizeRow({
           value={typed ?? String(size.value)}
           onChangeText={(next) => {
             setTyped(next)
-            const value = parseNumberInput(next)
+            const value = parseNumberInput(next, sizeBoundsOf(size.unit))
             if (value !== null) {
               onChange({ value, unit: size.unit })
             }
@@ -43,7 +43,8 @@ export function MobilePrototypeSizeRow({
               accessibilityState={{ selected: size.unit === unit }}
               onPress={() => {
                 setTyped(null)
-                onChange({ value: size.value, unit })
+                // A value that the new unit cannot take (say 300 as a percentage) is pinned into its range.
+                onChange({ value: clampToBounds(size.value, sizeBoundsOf(unit)), unit })
               }}
               style={[styles.unit, size.unit === unit && styles.unitOn]}
             >

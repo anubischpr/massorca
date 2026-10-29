@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
-import { registerMobilePrototypeChatSend } from '../prototypes/mobile-prototype-chat-send-registry'
+import { useRegisterMobilePrototypeChatSend } from '../prototypes/use-register-mobile-prototype-chat-send'
 import {
   clearMobileChatSurfaceSnapshot,
   mobileChatSurfaceKey,
@@ -194,13 +194,7 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
   const prototypeSend = nativeChatController.nativeChatPrototypeSend
   const prototypeSessionId = prototypeSend?.sessionId ?? null
   // The Prototypes screens send an iteration through the chat that is on screen.
-  useEffect(
-    () =>
-      prototypeSend
-        ? registerMobilePrototypeChatSend(prototypeSend.sessionId, prototypeSend.send)
-        : undefined,
-    [prototypeSend]
-  )
+  useRegisterMobilePrototypeChatSend(prototypeSend)
   const openPrototypes = useCallback(() => {
     const params = new URLSearchParams()
     if (prototypeSessionId) {
