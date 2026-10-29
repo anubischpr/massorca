@@ -5510,13 +5510,22 @@
           "294de4aeb2": "Show fewer"
         },
         "NonGitFolderDialog": {
-          "e52454b7f6": "Open as Folder",
           "05b33a17a9": "Cancel",
-          "8fba4b8cbb": "This folder isn't a Git repository. You'll have the editor, terminal, and search, but Git-based features won't be available.",
           "c49fb13492": "Failed to add folder on this host",
           "9a766f33ac": "This path was checked on the SSH host.",
           "79fd02cf5f": "This path was checked on {{hostName}}.",
-          "8851b77327": "This path was checked locally."
+          "8851b77327": "This path was checked locally.",
+          "15b3ae7310": "This folder isn't a Git repository",
+          "b57788d1b6": "You'll have the editor, terminal, and search. These features need Git and won't be available:",
+          "df93b2f2d4": "Isolated workspaces and branches",
+          "7b84fb792a": "Child sessions in their own worktree — they would edit the same files as the parent chat",
+          "8761ae2bfa": "Changes, diffs, and commits",
+          "dfc6969363": "Pull requests and reviews",
+          "607a29399a": "Working without Git is recommended only for exploring folders and non-development work.",
+          "43f90289f5": "Initialize Git runs <code>git init</code> here and creates an empty first commit. Your files are not committed.",
+          "00390f00f6": "Continue without Git",
+          "482c7b0a96": "Initialize Git here",
+          "85523ab0d3": "Failed to initialize Git"
         },
         "OrcaYamlTrustDialog": {
           "f3e2b868fb": "Run hooks",

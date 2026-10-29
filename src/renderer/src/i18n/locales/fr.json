@@ -5372,13 +5372,22 @@
           "294de4aeb2": "Afficher moins"
         },
         "NonGitFolderDialog": {
-          "e52454b7f6": "Ouvrir comme dossier",
           "05b33a17a9": "Annuler",
-          "8fba4b8cbb": "Ce dossier n'est pas un dépôt Git. Vous aurez l'éditeur, le terminal et la recherche, mais les fonctionnalités basées sur Git ne seront pas disponibles.",
           "c49fb13492": "Échec de l'ajout du dossier sur cet hôte",
           "9a766f33ac": "Ce chemin a été vérifié sur l'hôte SSH.",
           "79fd02cf5f": "Ce chemin a été vérifié sur {{hostName}}.",
-          "8851b77327": "Ce chemin a été vérifié localement."
+          "8851b77327": "Ce chemin a été vérifié localement.",
+          "15b3ae7310": "Ce dossier n'est pas un dépôt Git",
+          "b57788d1b6": "Vous aurez l'éditeur, le terminal et la recherche. Ces fonctionnalités nécessitent Git et ne seront pas disponibles :",
+          "df93b2f2d4": "Espaces de travail isolés et branches",
+          "7b84fb792a": "Sessions enfants dans leur propre worktree : elles modifieraient les mêmes fichiers que la conversation principale",
+          "8761ae2bfa": "Modifications, diffs et commits",
+          "dfc6969363": "Pull requests et revues",
+          "607a29399a": "Travailler sans Git n'est recommandé que pour explorer des dossiers et pour les tâches hors développement.",
+          "43f90289f5": "Initialiser Git exécute <code>git init</code> ici et crée un premier commit vide. Vos fichiers ne sont pas inclus dans ce commit.",
+          "00390f00f6": "Continuer sans Git",
+          "482c7b0a96": "Initialiser Git ici",
+          "85523ab0d3": "Échec de l'initialisation de Git"
         },
         "OrcaYamlTrustDialog": {
           "f3e2b868fb": "Exécuter les hooks",
