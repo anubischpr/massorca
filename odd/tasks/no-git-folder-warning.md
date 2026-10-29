@@ -44,7 +44,7 @@ Prototype: https://claude.ai/artifact/MXai3HzR88MwEWf7FK2Tfy (4 artboards). Stri
 
 - [x] T1 — Host-side Initialize Git operation (local, SSH, runtime RPC method + capability), kind upgrade to git, tests. Route: delegated direct (writer trigger: 2+ non-trivial files). Commit `2cbd68d0f12`.
 - [x] T2 — Desktop add dialog per artboard 1, wired to T1. Route: delegated direct. Commit `342451bc0081`.
-- [ ] T3 — Desktop sidebar "No Git" pill + popover per artboard 2. Route: delegated direct.
+- [x] T3 — Desktop sidebar "No Git" pill + popover per artboard 2. Route: delegated direct. Commit `b926a138fb7`.
 - [ ] T4 — Mobile pill + sheet per artboards 3–4, gated on the capability. Route: delegated direct.
 
 ## Acceptance criteria
@@ -68,6 +68,11 @@ Prototype: https://claude.ai/artifact/MXai3HzR88MwEWf7FK2Tfy (4 artboards). Stri
   - Parent spot check: `NonGitFolderDialog.git-init.test.tsx` 8 passed.
   - RDD: assessed high (`process_scan_limit`) against base `67d124b7185` (T1 unreviewed), consent granted per standing rule; bound STATUS hit `operation_timeout`, lineage `review-62fd09ccd7a0b2b0` abandoned. Unreviewed.
   - Delivery: no push or PR in this session (parent instruction); chain strategy asked of the parent session, slice boundaries so far: T1 `2cbd68d0f12`, T2 `342451bc0081`.
+- T3 done (`b926a138fb7`, 571 authored lines: 534 added, 37 deleted, including ~60 locale and ~260 test lines). `FolderProjectGitMarker.tsx` renders the "No Git" pill after the project name in `RepoHeaderTitle` for `isFolderRepo` only. The pill is a `quietOutline` Badge variant (new in `components/ui/badge.tsx`) wrapped in a `PopoverTrigger`; its clicks and the popover's events stop at the row (existing header guards). The popover is 320px and shows the artboard copy; "Initialize Git" appears only after `runtimeRepoSupportsGitInit` says yes for the repo's host. The check runs on the first open, cached per host, and never runs for git repos. Init goes through `initializeRuntimeRepoGit`, then `adoptInitializedGitRepo` (new `folder-project-git-init.ts`, also used by T2's dialog, behavior unchanged), then the popover closes. Failures use the T2 toast (`toastGitInitFailure`). Bullet texts reuse T2's `NonGitFolderDialog` keys; new keys are under `auto.components.sidebar.worktree.list.rows.FolderProjectGitMarker` in all six locales.
+  - Evidence: `pnpm exec vitest run --config config/vitest.config.ts` on `RepoHeaderTitle.folder-git.test.tsx` (new, 8 tests) plus T2's `NonGitFolderDialog.git-init.test.tsx` and `NonGitFolderDialog.test.tsx`: 22 passed, no React warnings. `pnpm tc`: exit 0. `pnpm exec oxlint` on changed files: exit 0. `oxfmt --check` on changed files: clean. `node config/scripts/check-changed-code-quality.mjs HEAD~1`: gate passed (0 findings) after moving the look into a Badge variant and a plain wrapper div (the first run flagged 8 `no-restyle` findings on Badge and PopoverContent classNames). `audit-localization-coverage.mjs --check`: passed. `verify-localization-extraction.mjs` and `verify-localization-catalog.mjs`: exit 1, listing native-chat and other pre-existing keys; none of the new keys appear in the output (baseline not re-run on HEAD).
+  - Runtime harness: N/A. The pill and popover were not checked in the live Electron app; coverage is happy-dom component tests.
+  - Off-design: the pill's border and hover use the new `quietOutline` variant, the one primitive change, because no existing Badge variant matches the approved transparent pill. Nothing else was added beyond the artboard copy.
+  - Delivery: no push or PR; slice boundaries so far: T1 `2cbd68d0f12`, T2 `342451bc0081`, T3 `b926a138fb7`.
 
 ## Delivery
 
@@ -82,4 +87,4 @@ Prototype: https://claude.ai/artifact/MXai3HzR88MwEWf7FK2Tfy (4 artboards). Stri
 
 ## Next step
 
-T3 (desktop sidebar pill + popover), then T4 (mobile).
+T4 (mobile pill + sheet per artboards 3–4, gated on the capability).
