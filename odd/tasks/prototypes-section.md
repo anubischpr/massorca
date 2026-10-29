@@ -72,6 +72,7 @@ Work-unit Conventional Commits on `claude/prototypes-section-f8edf5`, tests with
 ## Tasks
 
 - [x] T1 Shared model (pure) — `ea10b2e226e`: prototype/set/version types, request grouping, prototype-request detection, prompt line, count setting type + sanitizer, draft model (edit diffs → items grouped by pin, revert removes, note items, sibling items), message composition. Tests. Route: delegated writer (2+ non-trivial files).
+- [ ] T1b Fix T1 review advisories (non-blocking, review approved and acknowledged, lineage review-5b2cbb4ae471291e): active-direction note without a pin dropped (prototype-draft.ts:140); "Iterate on" iteration may attach to the wrong set, drop extra visuals, setId not namespaced, header contract unproved (prototype-sets.ts); singular count line and -Infinity count (prototype-count-setting.ts); sibling letter ordering. Route: delegated writer after T3.
 - [ ] T2 Host aggregation: list prototypes across chats (chat visuals + recorded HTML + Gentle Shell `design/*/design.json`) and read one; additive RPC usable by desktop and mobile; SSH-safe. Tests. Route: delegated writer.
 - [ ] T3 Frame annotate bridge: new optional message kinds for element pick (selector, label, rect), pins, style overrides and text override; desktop and mobile hosts validate them. Tests. Route: delegated writer.
 - [ ] T4 Desktop settings + prompt line + "How many?" card. Tests. Route: delegated writer.
