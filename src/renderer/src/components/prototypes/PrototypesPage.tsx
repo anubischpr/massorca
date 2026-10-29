@@ -71,6 +71,7 @@ export default function PrototypesPage(): React.JSX.Element {
   const states = usePrototypeViewStore((s) => s.states)
   const ensureSetState = usePrototypeViewStore((s) => s.ensureSetState)
   const updateSetState = usePrototypeViewStore((s) => s.updateSetState)
+  const sidePanelHidden = usePrototypeViewStore((s) => s.sidePanelHidden)
   const frameBoxRef = useRef<HTMLDivElement | null>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
   useEffect(() => {
@@ -211,9 +212,11 @@ export default function PrototypesPage(): React.JSX.Element {
           onOpenDesignSystem={selectDesignSystem}
         />
       </section>
-      <aside className="scrollbar-sleek flex min-h-0 w-[340px] shrink-0 flex-col overflow-y-auto border-l border-border">
-        <PrototypeSidePanel set={selected} state={setState} update={update} onSend={send} />
-      </aside>
+      {sidePanelHidden ? null : (
+        <aside className="scrollbar-sleek flex min-h-0 w-[340px] shrink-0 flex-col overflow-y-auto border-l border-border">
+          <PrototypeSidePanel set={selected} state={setState} update={update} onSend={send} />
+        </aside>
+      )}
     </div>
   )
 }

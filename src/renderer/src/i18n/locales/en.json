@@ -18053,6 +18053,7 @@
         "systemPropose": "Propose one first",
         "systemSkip": "Skip"
       },
+      "hidePanel": "Hide panel",
       "link": {
         "setOf": "{{title}} · set of {{count}}",
         "proposed": "Design system · proposed",
@@ -18135,6 +18136,7 @@
       "setFooter": "Open a direction to iterate on it. The others stay one click away in the side strip.",
       "shadeGroup": "Shade",
       "showDirection": "Show direction {{letter}}",
+      "showPanel": "Show panel",
       "sidebarLabel": "Prototypes",
       "statusDirections": "{{count}} directions · iterating {{letter}}",
       "statusScreen": "1 screen",

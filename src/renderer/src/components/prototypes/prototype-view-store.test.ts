@@ -3,7 +3,27 @@ import { setPrompt } from '../../../../shared/prototype-set-state'
 import { usePrototypeViewStore } from './prototype-view-store'
 
 beforeEach(() => {
-  usePrototypeViewStore.setState({ filter: 'all', selectedRequestId: null, states: {} })
+  usePrototypeViewStore.setState({
+    filter: 'all',
+    selectedRequestId: null,
+    states: {},
+    sidePanelHidden: false
+  })
+})
+
+describe('the side panel flag', () => {
+  it('hides and shows the panel without touching any set state or its draft', () => {
+    const store = usePrototypeViewStore.getState()
+    store.ensureSetState('r1', ['A', 'B'])
+    store.updateSetState('r1', (state) => setPrompt(state, 'keep this draft'))
+    const before = usePrototypeViewStore.getState().states
+    store.setSidePanelHidden(true)
+    expect(usePrototypeViewStore.getState().sidePanelHidden).toBe(true)
+    expect(usePrototypeViewStore.getState().states).toBe(before)
+    store.setSidePanelHidden(false)
+    expect(usePrototypeViewStore.getState().sidePanelHidden).toBe(false)
+    expect(usePrototypeViewStore.getState().states.r1?.prompt).toBe('keep this draft')
+  })
 })
 
 describe('usePrototypeViewStore invariants', () => {

@@ -1,6 +1,8 @@
 import type { RefObject } from 'react'
 import { Trans } from 'react-i18next'
+import { PanelRight } from 'lucide-react'
 import { i18n, translate } from '@/i18n/i18n'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { activateStructuredAgentSessionById } from '@/lib/structured-agent-session-tab-activation'
 import type { NativeChatVisualAnnotateEvent } from '../../../../shared/native-chat-visual-annotate'
@@ -28,6 +30,7 @@ import {
   type PrototypeSetState
 } from '../../../../shared/prototype-set-state'
 import { annotateStateOf } from '../../../../shared/prototype-set-view'
+import { usePrototypeViewStore } from './prototype-view-store'
 import { usePrototypeFileHtml } from './use-prototype-file-html'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
@@ -69,6 +72,8 @@ export function PrototypeViewer({
       ? null
       : { version: set.builtOn, projectKey: set.projectKey }
   const peeking = state.view !== state.active
+  const sidePanelHidden = usePrototypeViewStore((s) => s.sidePanelHidden)
+  const setSidePanelHidden = usePrototypeViewStore((s) => s.setSidePanelHidden)
   const agentLabel = prototypeAgentLabel(set.agent)
   const chatTitle = set.chatTitle?.trim() ?? ''
   const openChat = (): void => {
@@ -77,6 +82,8 @@ export function PrototypeViewer({
     }
   }
   const onAnnotate = (event: NativeChatVisualAnnotateEvent): void => {
+    // A pick or a pin click brings a hidden side panel back, where the draft is.
+    setSidePanelHidden(false)
     update((current) =>
       event.kind === 'element-picked'
         ? pickElement(current, event.element)
@@ -189,6 +196,19 @@ export function PrototypeViewer({
             {translate('components.prototypes.toolAnnotate', 'Annotate')}
           </button>
         </div>
+        <Button
+          type="button"
+          variant={sidePanelHidden ? 'secondary' : 'ghost'}
+          size="icon-xs"
+          aria-label={
+            sidePanelHidden
+              ? translate('components.prototypes.showPanel', 'Show panel')
+              : translate('components.prototypes.hidePanel', 'Hide panel')
+          }
+          onClick={() => setSidePanelHidden(!sidePanelHidden)}
+        >
+          <PanelRight />
+        </Button>
       </div>
 
       {layout === 'set' && !single ? (
