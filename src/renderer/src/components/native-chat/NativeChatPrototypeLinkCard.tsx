@@ -26,7 +26,7 @@ export function NativeChatPrototypeLinkCard({
         usePrototypeViewStore.getState().selectRequest(requestId)
         useAppStore.getState().setActiveView('prototypes')
       }}
-      className="flex w-full max-w-[420px] cursor-pointer items-center justify-between gap-3 self-start rounded-xl border border-border p-3 text-left text-sm text-foreground hover:bg-accent"
+      className="flex w-[420px] max-w-full cursor-pointer items-center justify-between gap-3 self-start rounded-xl border border-border p-3 text-left text-sm text-foreground hover:bg-accent"
     >
       <span className="min-w-0 truncate">{title}</span>
       <span className="shrink-0 text-muted-foreground">

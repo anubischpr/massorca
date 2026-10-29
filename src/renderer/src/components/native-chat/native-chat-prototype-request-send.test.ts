@@ -1,3 +1,4 @@
+import type * as PrototypeClient from '@/runtime/runtime-prototype-client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PrototypeHostOutdatedError } from '@/runtime/runtime-prototype-client'
 import { prepareNativeChatPrototypeText } from './native-chat-prototype-request-send'
@@ -5,7 +6,7 @@ import { prepareNativeChatPrototypeText } from './native-chat-prototype-request-
 const mocks = vi.hoisted(() => ({ create: vi.fn() }))
 
 vi.mock('@/runtime/runtime-prototype-client', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/runtime/runtime-prototype-client')>()),
+  ...(await importOriginal<typeof PrototypeClient>()),
   createPrototypeRequestOnHost: mocks.create
 }))
 

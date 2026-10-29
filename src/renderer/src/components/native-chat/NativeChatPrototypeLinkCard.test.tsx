@@ -7,7 +7,7 @@ import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototy
 import { NativeChatPrototypeLinkCard } from './NativeChatPrototypeLinkCard'
 
 const mocks = vi.hoisted(() => ({
-  set: null as PrototypeListedSet | null,
+  sets: new Array<PrototypeListedSet>(),
   setActiveView: vi.fn(),
   selectRequest: vi.fn()
 }))
@@ -23,7 +23,7 @@ vi.mock('../prototypes/prototype-view-store', () => ({
   usePrototypeViewStore: { getState: () => ({ selectRequest: mocks.selectRequest }) }
 }))
 vi.mock('../prototypes/use-prototype-set-for-request', () => ({
-  usePrototypeSetForRequest: () => mocks.set
+  usePrototypeSetForRequest: () => mocks.sets[0] ?? null
 }))
 
 function listedSet(): PrototypeListedSet {
@@ -43,7 +43,7 @@ function listedSet(): PrototypeListedSet {
 describe('NativeChatPrototypeLinkCard', () => {
   afterEach(() => {
     cleanup()
-    mocks.set = null
+    mocks.sets.length = 0
     vi.clearAllMocks()
   })
 
@@ -53,7 +53,7 @@ describe('NativeChatPrototypeLinkCard', () => {
   })
 
   it('names the set and opens it in the Prototypes view', async () => {
-    mocks.set = listedSet()
+    mocks.sets.push(listedSet())
     render(<NativeChatPrototypeLinkCard requestId="req-1" />)
     expect(screen.getByText('Checkout redesign · set of 2')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: /Open in Prototypes/u }))

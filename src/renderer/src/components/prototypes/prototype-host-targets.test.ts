@@ -1,16 +1,17 @@
+import type * as PrototypeClient from '@/runtime/runtime-prototype-client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
 import { PrototypeHostOutdatedError } from '@/runtime/runtime-prototype-client'
 import { listPrototypeSetsFromAllHosts, prototypeTargetForSession } from './prototype-host-targets'
 
-const mocks = vi.hoisted(() => ({ list: vi.fn(), environmentIds: ['env-1'] as string[] }))
+const mocks = vi.hoisted(() => ({ list: vi.fn(), environmentIds: ['env-1'] }))
 
 vi.mock('@/lib/runtime-session-mirror-owners', () => ({
   getRuntimeSessionMirrorEnvironmentIds: () => mocks.environmentIds
 }))
 vi.mock('@/store', () => ({ useAppStore: { getState: () => ({}) } }))
 vi.mock('@/runtime/runtime-prototype-client', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/runtime/runtime-prototype-client')>()),
+  ...(await importOriginal<typeof PrototypeClient>()),
   listPrototypeSetsOnHost: mocks.list
 }))
 
