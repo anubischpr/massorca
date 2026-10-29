@@ -135,13 +135,33 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
     - Left open: no direct test of `useWorktreeAgentRows` (its read is the existing `worktreeCatalogRead`, tested by the environment read suites, and its pure parts are tested here); no rendered check on a device.
     - Checks: `pnpm exec vitest run src/session src/components src/worktree src/home` → 431 files, 426 passed, 5 failed (11 tests). The five are on the known-failure list: `mobile-native-chat-merged-snapshot-parity`, `use-mobile-diff-review-send-actions`, `use-mobile-pr-ai-triage`, `native-document-bundle`, and `mobile-prompt-controller` (module load). The targeted suites (lineage, sheet, access, notice, rows) → 5 files, 31 passed. `pnpm run typecheck` → exit 0. `oxlint` → exit 0 and `oxfmt --check` clean on the 16 changed files.
 
-- [ ] T7 — Child sessions in the parent chat and the background popover, desktop and mobile (approved Design board "Desktop running child", 2026-10-29). Route: delegated direct (writer trigger). Desktop done; mobile open.
+- [ ] T7 — Child sessions in the parent chat and the background popover, desktop and mobile (approved Design board "Desktop running child", 2026-10-29). Route: delegated direct (writer trigger). Desktop done; mobile done (see below).
   - Approved design: a started child is a live row in the parent chat ("Child session working: <title>", agent · model · effort (Automatic) · started N ago, Open child chat). The background popover lists children in a "Child sessions" section with live status and an Open button per row.
   - Adjustments (binding, 2026-10-29): A. Finished children stay in the background popover under its Finished section, with the same history rule as tasks and subagents, each with Open. B. Desktop: children appear in the existing background-tasks popover; each child row has Open where a task row has Stop.
   - Desktop, checked:
     - [x] Live started row with Open child chat, shown while the journal shows the child working: `ddde26552ba`. Shared derivation: `c86d066ef57`.
     - [x] Child sessions in the background popover (`NativeChatCodexBackgroundPanel`): running rows, a Finished group, Open per row: `83776081a07`. About 775 authored lines across the three commits (724 additions, 51 deletions, tests included).
-  - Mobile, open (next writer): [ ] the live started row, the Child sessions list in the mobile sessions/background surface, and Open per row. Reuse the shared derivation below. The renderer's `delegated-child-copy.ts` and `delegated-children-context.tsx` are renderer-only, so mobile writes its own presentation.
+  - Mobile, done (writer, 2026-10-29):
+    - [x] Live started row with Open child chat (44pt), shown while the chat's journal shows the child working: `dc6ff8c4fc6`. The derivation (`delegatedChildrenFromJournal` over `nativeChatTurnJournal.items`) is provided by `MobileNativeChatOverlay` through `MobileDelegatedChildrenContext` (`mobile-delegated-child-rows.ts`).
+    - [x] Child sessions in the background work sheet: running rows under "Child sessions", settled rows under Finished, each row opening its child: `1f094b93848`.
+  - Mobile decisions:
+    - Open goes through the existing `MobileDelegatedChildAccess` (a tab here, or the host's pane elsewhere through `useOpenMobileSession`), so the T6 cross-worktree path is reused. A row or Open button draws only where `hasChild` resolves.
+    - The child row (`MobileBackgroundChildRow.tsx`) shares the sheet's section label and Finished toggle. The whole row is the Open control with a chevron, as the board shows. No Stop.
+    - Elapsed reads the host clock (`now - hostClockOffsetMs`) in both the live row, refreshed each minute, and the sheet row. The sheet row reads agent · status · clock; the live row reads agent · model · effort · clock.
+    - Settled children sort newest started first, bounded by `MAX_FINISHED_BACKGROUND_ROWS` (30), in the Finished group with children before tasks. A child that never started reads "did not start", with no Open, as on desktop.
+    - The pill counts running children as agents and stays up while one runs. A lost stream counts none, as it does for tasks.
+    - Opening a child closes the sheet first.
+    - "Child sessions" sits above Tasks, as the board places it. The existing Tasks and Agents headings are kept.
+    - Test-only: `MobileAgentIcon` is mocked in the four suites that load the sheet or tray without it, because `react-native-svg` fails to parse under vitest here (`SyntaxError: Unexpected token 'typeof'`).
+  - Mobile gaps:
+    - Children are read from the journal, not the live stream. After a lost stream the sheet still shows each child's last journal status. An `unverifiable` verdict for children is a follow-up.
+    - Not drawn: the board's "N child sessions" count, the pending "choosing agent" row (needs the pending-request source from T5), and usage figures on rows.
+  - Mobile checks (2026-10-29, foreground):
+    - `pnpm exec vitest run src/session` in mobile: 310 files, 305 passed, 5 failed. The 5 are the known-failing list (merged-snapshot-parity and its hooks, mobile-prompt-controller, use-mobile-diff-review-send-actions, use-mobile-pr-ai-triage); 2867 tests passed, 9 failed, all inside those five.
+    - Touched suites (child rows, notice, sheet, tray, tray children, bridge sheet, composer tray, notice words, access): 9 files, 74 passed.
+    - `pnpm run typecheck` in mobile: exit 0. `oxlint` on the changed files: exit 0. `oxfmt --check`: clean.
+    - `pnpm run build:mobile-web` from the repo root: exit 0, 169 assets, 8320792 bytes, reproducible buildId `a8d685794661df3ac2dea5472613d316178711bd98500363c3aaff715d74a1ab`.
+    - Shortstat: `dc6ff8c4fc6` 6 files, 396 insertions and 89 deletions (most of it the overlay re-indent); `1f094b93848` 9 files, 447 insertions and 10 deletions.
   - Shared helper API (`src/shared/delegated-children.ts`, no wire change):
     - `delegatedChildrenFromJournal(items: readonly DelegatedChildJournalItem[]): DelegatedChild[]`, where `DelegatedChildJournalItem = { body: AgentJournalItemBody; observedAt: number }`; a journal render item satisfies it.
     - `DelegatedChild`: `requestId`, `title`, `status` (`working` | `succeeded` | `failed` | `not-started`), `agent`, `model`, `effort`, `automatic`, `childSessionId`, `startedAt` (the start row's `observedAt`), `resultSummary`, `durationMs`, `reason`. One row per request, in first-appearance order. Rows without a delegation payload are ignored.
@@ -200,6 +220,7 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
 - 2026-10-29: folder-workspace child brief committed as `f334ccce095` (3 files, 87 insertions, 2 deletions; the folder path comes from the runtime's existing local-path accessor). Mobile triage committed as `cd41eab8616` (4 files; 3 of the 5 findings fixed, 2 kept as follow-ups). The mobile web bundle is at 169 assets, the budget.
 
 - 2026-10-29: T7 desktop committed as `c86d066ef57` (shared child derivation), `ddde26552ba` (live started row) and `83776081a07` (background popover: Child sessions and the Finished group, each row with Open). Mobile is open for the next writer. `tc:node` fails on `src/main/runtime/structured-session-lineage.ts` from another writer's uncommitted work in this worktree, not from T7.
+- 2026-10-29: T7 mobile committed as `dc6ff8c4fc6` (live started row) and `1f094b93848` (background sheet child rows). The mobile web bundle is at 169 assets, the budget. Review of these ranges is not yet run.
 
 ## Follow-ups
 
