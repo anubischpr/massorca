@@ -219,17 +219,24 @@ export function composeIterationMessage({
   activeLetter,
   groups,
   pins,
-  prompt
+  prompt,
+  screenshots = {}
 }: {
   activeLetter: string
   groups: readonly PrototypeDraftGroup[]
   pins: readonly PrototypePin[]
   prompt: string
+  /** The saved screenshot path of each pin, keyed by pin key; only the iterated direction's groups take one. */
+  screenshots?: Readonly<Record<string, string>>
 }): string {
   const lines = [`Iterate on ${activeLetter}.`]
   for (const group of groups) {
     const selector = pins.find((pin) => pin.pinKey === group.pinKey)?.selector ?? ''
     lines.push(selector.length > 0 ? `${group.title} (${selector})` : group.title)
+    const screenshot = screenshots[group.pinKey]
+    if (screenshot !== undefined && group.items.every((item) => item.letter === activeLetter)) {
+      lines.push(`  screenshot: ${singleLine(screenshot)}`)
+    }
     for (const item of group.items) {
       lines.push(`  ${item.label}: ${singleLine(item.value)}`)
     }
