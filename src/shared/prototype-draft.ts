@@ -69,7 +69,9 @@ export function buildDraft({
       })
     }
   }
-  groups.push(...siblingNoteGroups(activeLetter, pins, notes))
+  const entries = noteEntries(notes)
+  groups.push(...orphanNoteGroups(activeLetter, pins, entries))
+  groups.push(...siblingNoteGroups(activeLetter, pins, entries))
   const itemCount = groups.reduce((count, group) => count + group.items.length, 0)
   return { groups, itemCount }
 }
@@ -119,10 +121,45 @@ function formatSize(size: PrototypeSize): string {
   return size.unit === 'auto' ? 'auto' : `${size.value}${size.unit}`
 }
 
-type SiblingNote = {
+type NoteEntry = {
   letter: string
   pinKey: string
   note: string
+}
+
+// The non-empty notes. A key without a letter or without a pin key is skipped.
+function noteEntries(notes: PrototypeNotes): NoteEntry[] {
+  const entries: NoteEntry[] = []
+  for (const [key, text] of Object.entries(notes)) {
+    const [letter = '', ...pinParts] = key.split(':')
+    const pinKey = pinParts.join(':')
+    const note = text.trim()
+    if (letter.length > 0 && pinKey.length > 0 && note.length > 0) {
+      entries.push({ letter, pinKey, note })
+    }
+  }
+  return entries
+}
+
+// A note on the active direction whose pin is no longer listed keeps its note, titled by its key.
+function orphanNoteGroups(
+  activeLetter: string,
+  pins: readonly PrototypePin[],
+  entries: readonly NoteEntry[]
+): PrototypeDraftGroup[] {
+  return entries
+    .filter(
+      (entry) => entry.letter === activeLetter && !pins.some((pin) => pin.pinKey === entry.pinKey)
+    )
+    .sort((left, right) => compareText(left.pinKey, right.pinKey))
+    .map(({ pinKey, note }): PrototypeDraftGroup => ({
+      title: `${activeLetter} · ${pinKey}`,
+      pinKey,
+      items: [{ field: 'note', label: 'note', value: note, pinKey, letter: activeLetter }]
+    }))
+}
+
+type SiblingNote = NoteEntry & {
   order: number
 }
 
@@ -130,21 +167,19 @@ type SiblingNote = {
 function siblingNoteGroups(
   activeLetter: string,
   pins: readonly PrototypePin[],
-  notes: PrototypeNotes
+  entries: readonly NoteEntry[]
 ): PrototypeDraftGroup[] {
-  const siblings: SiblingNote[] = []
-  for (const [key, text] of Object.entries(notes)) {
-    const separator = key.indexOf(':')
-    const letter = key.slice(0, separator)
-    const note = text.trim()
-    if (separator === -1 || letter === activeLetter || note.length === 0) {
-      continue
-    }
-    const pinKey = key.slice(separator + 1)
-    const index = pins.findIndex((candidate) => candidate.pinKey === pinKey)
-    siblings.push({ letter, pinKey, note, order: index === -1 ? pins.length : index })
-  }
-  return siblings.sort(compareSiblings).map((sibling) => siblingGroup(activeLetter, pins, sibling))
+  return entries
+    .filter((entry) => entry.letter !== activeLetter)
+    .map((entry) => ({ ...entry, order: pinOrder(pins, entry.pinKey) }))
+    .sort(compareSiblings)
+    .map((sibling) => siblingGroup(activeLetter, pins, sibling))
+}
+
+// A pin that is no longer listed sorts after every listed pin.
+function pinOrder(pins: readonly PrototypePin[], pinKey: string): number {
+  const index = pins.findIndex((pin) => pin.pinKey === pinKey)
+  return index === -1 ? pins.length : index
 }
 
 function compareSiblings(left: SiblingNote, right: SiblingNote): number {
@@ -167,7 +202,7 @@ function compareText(left: string, right: string): number {
 function siblingGroup(
   activeLetter: string,
   pins: readonly PrototypePin[],
-  sibling: SiblingNote
+  sibling: NoteEntry
 ): PrototypeDraftGroup {
   const { letter, pinKey, note } = sibling
   const pin = pins.find((candidate) => candidate.pinKey === pinKey)

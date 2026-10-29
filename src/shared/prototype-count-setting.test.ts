@@ -30,9 +30,10 @@ describe('clampPrototypeCount', () => {
     expect(clampPrototypeCount(0.2)).toBe(1)
   })
 
-  it('gives the default for NaN and infinite counts', () => {
+  it('gives the default for NaN and infinite counts, negative infinity included', () => {
     expect(clampPrototypeCount(Number.NaN)).toBe(2)
     expect(clampPrototypeCount(Number.POSITIVE_INFINITY)).toBe(2)
+    expect(clampPrototypeCount(Number.NEGATIVE_INFINITY)).toBe(2)
   })
 })
 
@@ -66,6 +67,12 @@ describe('sanitizePrototypeCountSetting', () => {
     expect(sanitizePrototypeCountSetting({})).toEqual(DEFAULT_PROTOTYPE_COUNT_SETTING)
   })
 
+  it('replaces a non-finite stored count with the default and keeps the mode', () => {
+    expect(sanitizePrototypeCountSetting({ mode: 'ask', count: Number.NEGATIVE_INFINITY })).toEqual(
+      { mode: 'ask', count: 2 }
+    )
+  })
+
   it('clamps a stored count outside 1..4', () => {
     expect(sanitizePrototypeCountSetting({ mode: 'always', count: 9 })).toEqual({
       mode: 'always',
@@ -93,6 +100,12 @@ describe('buildPrototypeCountLine', () => {
     expect(buildPrototypeCountLine(9)).toBe(
       'Produce 4 distinct design directions, each a self-contained HTML file, with a one-line tradeoff.'
     )
-    expect(buildPrototypeCountLine(0)).toContain('Produce 1 distinct design directions')
+  })
+
+  it('uses the singular wording for one direction, including a count clamped to one', () => {
+    const singular =
+      'Produce 1 design direction, as a single self-contained HTML file, with a one-line tradeoff.'
+    expect(buildPrototypeCountLine(1)).toBe(singular)
+    expect(buildPrototypeCountLine(0)).toBe(singular)
   })
 })

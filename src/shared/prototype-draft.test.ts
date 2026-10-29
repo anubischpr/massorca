@@ -184,6 +184,73 @@ describe('buildDraft', () => {
     ])
     expect(draft.itemCount).toBe(5)
   })
+
+  it('keeps a note on the active direction whose pin is no longer listed', () => {
+    expect(
+      buildDraft({ activeLetter: 'A', pins: [pin()], notes: { 'A:footer-link': 'Smaller' } })
+    ).toEqual({
+      groups: [
+        {
+          title: 'A · footer-link',
+          pinKey: 'footer-link',
+          items: [
+            { field: 'note', label: 'note', value: 'Smaller', pinKey: 'footer-link', letter: 'A' }
+          ]
+        }
+      ],
+      itemCount: 1
+    })
+  })
+
+  it('lists the orphan notes of the active direction after the pins and before the siblings', () => {
+    const draft = buildDraft({
+      activeLetter: 'A',
+      pins: [pin({ current: restyled })],
+      notes: { 'B:cta': 'Bold', 'A:zeta': 'Zeta', 'A:alpha': 'Alpha' }
+    })
+    expect(draft.groups.map((group) => group.title)).toEqual([
+      'A · 1 · Button',
+      'A · alpha',
+      'A · zeta',
+      'from B · 1 · Button'
+    ])
+  })
+
+  it('orders sibling notes by letter, then by pin order within a letter', () => {
+    const nav = pin({ pinKey: 'nav', number: 2, label: 'Nav', selector: 'nav a' })
+    const draft = buildDraft({
+      activeLetter: 'A',
+      pins: [pin(), nav],
+      notes: { 'B:nav': 'Lighter', 'B:cta': 'Bolder', 'C:cta': 'Smaller' }
+    })
+    expect(draft.groups.map((group) => group.title)).toEqual([
+      'from B · 1 · Button',
+      'from B · 2 · Nav',
+      'from C · 1 · Button'
+    ])
+  })
+
+  it('puts a sibling note whose pin is gone after the listed pins of its letter', () => {
+    const draft = buildDraft({
+      activeLetter: 'A',
+      pins: [pin()],
+      notes: { 'B:gone': 'Remove it', 'B:cta': 'Bolder' }
+    })
+    expect(draft.groups.map((group) => group.title)).toEqual([
+      'from B · 1 · Button',
+      'from B · gone'
+    ])
+  })
+
+  it('skips a note key that has no letter or no pin key', () => {
+    expect(
+      buildDraft({
+        activeLetter: 'A',
+        pins: [pin()],
+        notes: { cta: 'No letter', ':cta': 'Empty letter', 'B:': 'No pin' }
+      }).itemCount
+    ).toBe(0)
+  })
 })
 
 describe('composeIterationMessage', () => {

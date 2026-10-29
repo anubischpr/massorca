@@ -44,5 +44,9 @@ function isPrototypeCountMode(value: unknown): value is PrototypeCountSetting['m
 }
 
 export function buildPrototypeCountLine(count: number): string {
-  return `Produce ${clampPrototypeCount(count)} distinct design directions, each a self-contained HTML file, with a one-line tradeoff.`
+  const directions = clampPrototypeCount(count)
+  if (directions === 1) {
+    return 'Produce 1 design direction, as a single self-contained HTML file, with a one-line tradeoff.'
+  }
+  return `Produce ${directions} distinct design directions, each a self-contained HTML file, with a one-line tradeoff.`
 }
