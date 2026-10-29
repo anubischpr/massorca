@@ -1,7 +1,9 @@
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { readFileSync, writeFileSync } from 'node:fs'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { parsePrototypeRequestManifest } from '../../shared/prototype-sets'
 import { ListPrototypeSetsReplySchema } from '../../shared/rpc-contract/prototype-params'
 import { createPrototypeRequest, listPrototypeSets } from './prototype-requests'
 
@@ -167,5 +169,34 @@ describe('listPrototypeSets design systems', () => {
     const listed = await listPrototypeSets({ launchDirectoryOf, stateDirectory })
 
     expect(listed.designSystems).toBeUndefined()
+  })
+
+  it('keeps a field another writer persisted between the listing read and its version write', async () => {
+    const made = await create(SESSION, NOW, 'use')
+    await writeFile(join(made.folderPath, 'A.html'), '<p>a</p>')
+    await writeTokensIn(projectDirectory)
+    const manifestPath = join(made.folderPath, 'request.json')
+    let otherWriterRan = false
+
+    const listed = await listPrototypeSets({
+      stateDirectory,
+      launchDirectoryOf: (sessionId) => {
+        if (!otherWriterRan) {
+          // Runs after the listing read request.json and before it writes the version the system has.
+          otherWriterRan = true
+          const current = parsePrototypeRequestManifest(
+            JSON.parse(readFileSync(manifestPath, 'utf8'))
+          )
+          if (current !== null) {
+            writeFileSync(manifestPath, JSON.stringify({ ...current, gentleDesignSlug: 'bold' }))
+          }
+        }
+        return launchDirectories.get(sessionId)
+      }
+    })
+
+    expect(listed.sets[0]?.builtOn).toBe(2)
+    const saved: unknown = JSON.parse(await readFile(manifestPath, 'utf8'))
+    expect(saved).toMatchObject({ designSystemVersion: 2, gentleDesignSlug: 'bold' })
   })
 })

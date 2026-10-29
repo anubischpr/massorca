@@ -186,8 +186,7 @@ async function builtOnOf(
   ) {
     return set.builtOn
   }
-  const recorded = await recordRequestDesignSystemVersion(requestFolder, manifest, system.version)
-  return recorded ? system.version : undefined
+  return recordRequestDesignSystemVersion(requestFolder, system.version)
 }
 
 type RequestFolderCandidate = {
