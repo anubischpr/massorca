@@ -12,10 +12,25 @@ import { PrototypeDesignSystemScreen } from './PrototypeDesignSystemScreen'
 import { PrototypeListPanel } from './PrototypeListPanel'
 import { PrototypeSidePanel } from './PrototypeSidePanel'
 import { PrototypeViewer } from './PrototypeViewer'
+import {
+  buildMergeMessage,
+  buildMergeSuggestionMessage
+} from '../../../../shared/prototype-merge-message'
+import { nextFreeDirectionLetter } from '../../../../shared/prototype-merge-plan'
+import {
+  beginMerge,
+  beginMergeSend,
+  canMerge,
+  mergeRefused,
+  mergeRequestRefused,
+  mergeSent,
+  planArrived
+} from '../../../../shared/prototype-merge-state'
 import { sendPrototypeIteration } from '../../../../shared/prototype-send'
 import type { PrototypeSetState } from '../../../../shared/prototype-set-state'
 import { beginSend, sendRefused, sendSucceeded } from '../../../../shared/prototype-set-view'
 import { prototypeTargetForSession, worktreeIdOfChatSession } from './prototype-host-targets'
+import { readPrototypeMergePlanText, usePrototypeMergePlan } from './use-prototype-merge-plan'
 import { usePrototypeSets } from './use-prototype-sets'
 
 async function captureFrameRect(
@@ -125,6 +140,16 @@ export default function PrototypesPage(): React.JSX.Element {
     }
   }, [selectedRequestId, selectedLettersKey, ensureSetState])
 
+  usePrototypeMergePlan(
+    selected,
+    selectedRequestId === undefined ? null : (states[selectedRequestId]?.merge ?? null),
+    (plan, text) => {
+      if (selectedRequestId !== undefined) {
+        updateSetState(selectedRequestId, (current) => planArrived(current, plan, text))
+      }
+    }
+  )
+
   if (system !== undefined) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1">
@@ -163,6 +188,55 @@ export default function PrototypesPage(): React.JSX.Element {
 
   const update = (transform: (state: PrototypeSetState) => PrototypeSetState): void =>
     updateSetState(selected.requestId, transform)
+
+  const nextLetter = nextFreeDirectionLetter(selectedLetters)
+
+  const startMerge = async (): Promise<void> => {
+    const { folderPath } = selected
+    if (folderPath === undefined || !canMerge(setState, nextLetter)) {
+      return
+    }
+    // The plan file as it is now: an answer without an id must differ from it.
+    const baseline = await readPrototypeMergePlanText(selected)
+    const latest = usePrototypeViewStore.getState().states[selected.requestId]
+    if (latest === undefined || !canMerge(latest, nextLetter)) {
+      return
+    }
+    const planId = `m${Date.now().toString(36)}`
+    update((current) => beginMerge(current, { planId, baseline }))
+    const message = buildMergeSuggestionMessage({
+      requestId: selected.requestId,
+      letters: latest.starred,
+      planId,
+      folderPath
+    })
+    if (!(await sendToChat(selected, message.sentText))) {
+      update(mergeRequestRefused)
+    }
+  }
+
+  const sendMerge = async (): Promise<void> => {
+    const { folderPath } = selected
+    const merge = usePrototypeViewStore.getState().states[selected.requestId]?.merge
+    if (folderPath === undefined || nextLetter === null || merge?.phase !== 'review') {
+      return
+    }
+    update(beginMergeSend)
+    const message = buildMergeMessage({
+      requestId: selected.requestId,
+      letters: merge.letters,
+      letter: nextLetter,
+      parts: merge.parts,
+      note: merge.note,
+      folderPath
+    })
+    const sent = await sendToChat(selected, message.sentText)
+    update((latest) =>
+      sent
+        ? mergeSent(latest, { letter: nextLetter, visibleMessage: message.visibleText })
+        : mergeRefused(latest)
+    )
+  }
 
   const send = async (): Promise<void> => {
     const current = usePrototypeViewStore.getState().states[selected.requestId]
@@ -210,6 +284,9 @@ export default function PrototypesPage(): React.JSX.Element {
           update={update}
           frameBoxRef={frameBoxRef}
           onOpenDesignSystem={selectDesignSystem}
+          nextLetter={nextLetter}
+          onMerge={() => void startMerge()}
+          onSendMerge={() => void sendMerge()}
         />
       </section>
       {sidePanelHidden ? null : (

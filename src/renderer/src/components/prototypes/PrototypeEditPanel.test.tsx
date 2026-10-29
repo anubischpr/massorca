@@ -5,8 +5,12 @@ import { afterEach, describe, expect, it, vi, type Mock } from 'vitest'
 import type { NativeChatVisualPickedElement } from '../../../../shared/native-chat-visual-annotate'
 import {
   createSetState,
+  editSelected,
+  makeMain,
+  openDirection,
   pickElement,
   selectedPinOf,
+  setNote,
   type PrototypeSetState
 } from '../../../../shared/prototype-set-state'
 import { PrototypeEditPanel } from './PrototypeEditPanel'
@@ -86,10 +90,7 @@ describe('PrototypeEditPanel number fields', () => {
     }
     const state = pickElement(createSetState(['A']), tall)
     render(<PrototypeEditPanel state={state} update={update} pulseField={null} />)
-    const heightUnits = screen.getAllByRole('group')[1]
-    if (heightUnits === undefined) {
-      throw new Error('expected a unit group for each of Width and Height')
-    }
+    const heightUnits = screen.getByRole('group', { name: 'Height unit' })
 
     fireEvent.click(within(heightUnits).getByRole('button', { name: '%' }))
     expect(selectedPinOf(stateAfterLastUpdate(update, state))?.current.height).toEqual({
@@ -136,5 +137,77 @@ describe('PrototypeEditPanel number fields', () => {
     fireEvent.change(screen.getByLabelText('Height value'), { target: { value: '' } })
 
     expect(update).not.toHaveBeenCalled()
+  })
+})
+
+/** A had a pin with an edit and a note while it was the main; B is the main now and A is shown read-only. */
+function formerMainShown(): PrototypeSetState {
+  let state = pickElement(createSetState(['A', 'B']), PICKED)
+  state = setNote(editSelected(state, { color: '#ff0000' }), 'Heavy header')
+  state = makeMain(openDirection(state, 'B'))
+  return pickElement(openDirection(state, 'A'), PICKED)
+}
+
+function readOnlyOnB(): PrototypeSetState {
+  return pickElement(openDirection(createSetState(['A', 'B']), 'B'), PICKED)
+}
+
+describe('PrototypeEditPanel on a read-only direction', () => {
+  afterEach(cleanup)
+
+  it('shows the properties under "Properties · read-only", not "Edit", every control disabled', () => {
+    render(<PrototypeEditPanel state={readOnlyOnB()} update={vi.fn()} pulseField={null} />)
+    expect(screen.getByText('Properties · read-only')).toBeInTheDocument()
+    expect(screen.queryByText('Edit')).toBeNull()
+    for (const control of [
+      screen.getByDisplayValue('Pay now'),
+      screen.getByLabelText('Width value'),
+      screen.getByLabelText('Text color hex'),
+      screen.getByRole('button', { name: 'Text color #171717' }),
+      screen.getByRole('button', { name: 'Custom fill' })
+    ]) {
+      expect(control).toBeDisabled()
+    }
+  })
+
+  it('shows the values of that direction own state', () => {
+    render(<PrototypeEditPanel state={formerMainShown()} update={vi.fn()} pulseField={null} />)
+    expect(screen.getByLabelText('Text color hex')).toHaveValue('#ff0000')
+  })
+
+  it('takes no note: no input, no example chips', () => {
+    render(<PrototypeEditPanel state={readOnlyOnB()} update={vi.fn()} pulseField={null} />)
+    expect(screen.queryByRole('textbox', { name: /Note/u })).toBeNull()
+    expect(screen.queryByPlaceholderText(/Describe a change/u)).toBeNull()
+    expect(screen.queryByText('Shake on error')).toBeNull()
+  })
+
+  it('shows an existing note as text under "Note"', () => {
+    render(<PrototypeEditPanel state={formerMainShown()} update={vi.fn()} pulseField={null} />)
+    expect(screen.getByText('Note')).toBeInTheDocument()
+    expect(screen.getByText('Heavy header')).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/Describe a change/u)).toBeNull()
+  })
+
+  it('shows no Note heading at all when the direction has no note', () => {
+    render(<PrototypeEditPanel state={readOnlyOnB()} update={vi.fn()} pulseField={null} />)
+    expect(screen.queryByText('Note')).toBeNull()
+  })
+
+  it('keeps the footer line, as the board does', () => {
+    render(<PrototypeEditPanel state={readOnlyOnB()} update={vi.fn()} pulseField={null} />)
+    expect(
+      screen.getByText(
+        'Every change and note joins the draft on its own. Put a value back to remove it.'
+      )
+    ).toBeInTheDocument()
+  })
+
+  it('keeps the Edit heading, enabled controls and the note input on the main', () => {
+    render(<PrototypeEditPanel state={pinnedState()} update={vi.fn()} pulseField={null} />)
+    expect(screen.getByText('Edit')).toBeInTheDocument()
+    expect(screen.queryByText('Properties · read-only')).toBeNull()
+    expect(screen.getByLabelText('Width value')).toBeEnabled()
+    expect(screen.getByPlaceholderText(/Describe a change/u)).toBeInTheDocument()
   })
 })

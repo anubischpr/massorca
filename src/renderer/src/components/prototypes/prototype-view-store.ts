@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { PrototypeFilter } from '../../../../shared/prototype-list-model'
+import { adoptMergedDirection } from '../../../../shared/prototype-merge-state'
 import {
   createSetState,
   keepListedLetters,
@@ -58,7 +59,8 @@ export const usePrototypeViewStore = create<PrototypeViewStore>()((set) => ({
       if (existing === undefined) {
         return { states: { ...current.states, [requestId]: createSetState(letters) } }
       }
-      const kept = keepListedLetters(existing, letters)
+      // A merged direction the set now lists becomes the main.
+      const kept = adoptMergedDirection(keepListedLetters(existing, letters), letters)
       return kept === existing ? current : { states: { ...current.states, [requestId]: kept } }
     }),
   updateSetState: (requestId, update) =>

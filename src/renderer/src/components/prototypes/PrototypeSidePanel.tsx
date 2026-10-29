@@ -14,11 +14,8 @@ import { draftOf, hasNothingToSend } from '../../../../shared/prototype-set-view
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
 
-/** The label a draft item carries: a field name, or "take into" for a note taken on a sibling. */
-function itemLabel(field: PrototypeDraftField, letter: string, active: string): string {
-  if (letter !== active) {
-    return translate('components.prototypes.takeInto', 'take into {{letter}}', { letter: active })
-  }
+/** The label a draft item carries: its field name. */
+function itemLabel(field: PrototypeDraftField): string {
   switch (field) {
     case 'text':
       return translate('components.prototypes.fieldText', 'text')
@@ -86,7 +83,7 @@ export function PrototypeSidePanel({
                 className="flex items-start gap-2 rounded-lg border border-border p-1.5 text-left hover:bg-accent"
               >
                 <span className="mt-px shrink-0 rounded border border-border px-1 text-[10px]">
-                  {itemLabel(item.field, item.letter, state.active)}
+                  {itemLabel(item.field)}
                 </span>
                 <span className="text-xs leading-snug">{item.value}</span>
               </button>

@@ -1,53 +1,59 @@
 import type { RefObject } from 'react'
-import { Trans } from 'react-i18next'
-import { PanelRight } from 'lucide-react'
-import { i18n, translate } from '@/i18n/i18n'
-import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
-import { activateStructuredAgentSessionById } from '@/lib/structured-agent-session-tab-activation'
+import { translate } from '@/i18n/i18n'
 import type { NativeChatVisualAnnotateEvent } from '../../../../shared/native-chat-visual-annotate'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
-import { PrototypeBuiltOnLink } from './PrototypeBuiltOnLink'
-import { PrototypeFrame } from './PrototypeFrame'
-import { PrototypeThumbnail } from './PrototypeThumbnail'
-import { prototypeAgentLabel, prototypeCountLabel } from './prototype-labels'
+import { latestVersionOf } from '../../../../shared/prototype-list-model'
+import { canMerge } from '../../../../shared/prototype-merge-state'
 import {
-  latestVersionOf,
-  prototypeStatus,
-  prototypeTitle
-} from '../../../../shared/prototype-list-model'
-import {
-  backToActive,
-  makeMain,
-  openDirection,
   pickElement,
   pinClicked,
-  setTool,
-  setViewport,
-  showFocus,
-  showSet,
   type PrototypeSetState
 } from '../../../../shared/prototype-set-state'
 import { annotateStateOf } from '../../../../shared/prototype-set-view'
+import { PrototypeDirectionStrip } from './PrototypeDirectionStrip'
+import { PrototypeFrame } from './PrototypeFrame'
+import { PrototypeMergeReview } from './PrototypeMergeReview'
+import { PrototypeReadOnlyBanner } from './PrototypeReadOnlyBanner'
+import { PrototypeSetGrid } from './PrototypeSetGrid'
+import { PrototypeViewerToolbar } from './PrototypeViewerToolbar'
+import { prototypeAgentLabel } from './prototype-labels'
 import { usePrototypeViewStore } from './prototype-view-store'
 import { usePrototypeFileHtml } from './use-prototype-file-html'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
 
-const SEGMENT_CLASS = 'flex rounded-md border border-border bg-sidebar p-0.5'
-const SEGMENT_BUTTON = 'h-6 rounded px-2.5 text-xs transition-colors'
-
-function segmentButtonClass(on: boolean): string {
-  return cn(SEGMENT_BUTTON, on ? 'bg-accent text-accent-foreground' : 'text-muted-foreground')
+/** "main · v3", or "main · merged from A + C" for a merged direction that is the main. */
+function viewTag(state: PrototypeSetState, version: number): string {
+  if (state.view !== state.active) {
+    return translate('components.prototypes.curPeeking', 'read-only')
+  }
+  const mergedFrom = state.mergedFrom[state.view]
+  return mergedFrom === undefined
+    ? translate('components.prototypes.curIterating', 'main · v{{version}}', { version })
+    : translate('components.prototypes.curMerged', 'main · merged from {{letters}}', {
+        letters: mergedFrom.join(' + ')
+      })
 }
 
-/** The viewer of one set: the toolbar, then either the set grid or the focused direction. */
+function viewHint(state: PrototypeSetState): string {
+  if (state.tool === 'browse') {
+    return translate('components.prototypes.hintBrowse', 'interact normally')
+  }
+  return state.view === state.active
+    ? translate('components.prototypes.hintAnnotate', 'click any element to add a note')
+    : translate('components.prototypes.hintReadOnly', 'click any element to see its properties')
+}
+
+/** The viewer of one set: the toolbar, then the set grid, the directions with the one on screen, or a merge. */
 export function PrototypeViewer({
   set,
   state,
   update,
   frameBoxRef,
-  onOpenDesignSystem
+  onOpenDesignSystem,
+  nextLetter,
+  onMerge,
+  onSendMerge
 }: {
   set: PrototypeListedSet
   state: PrototypeSetState
@@ -55,6 +61,12 @@ export function PrototypeViewer({
   frameBoxRef: RefObject<HTMLDivElement | null>
   /** Opens the design system of a project, from the link under the title. */
   onOpenDesignSystem: (projectKey: string) => void
+  /** The letter a merged direction would take; null when the set has no free letter. */
+  nextLetter: string | null
+  /** Sends the suggestion request for the starred directions. */
+  onMerge: () => void
+  /** Sends "Merge into D." from the review. */
+  onSendMerge: () => void
 }): React.JSX.Element {
   const single = set.directions.length <= 1
   const layout = single ? 'focus' : state.layout
@@ -65,21 +77,8 @@ export function PrototypeViewer({
       ? null
       : { sessionId: set.sessionId, requestId: set.requestId, fileName: latest.fileName }
   )
-  const status = prototypeStatus(set, state.active)
-  const builtOn =
-    set.builtOn === undefined || set.projectKey === undefined
-      ? null
-      : { version: set.builtOn, projectKey: set.projectKey }
-  const peeking = state.view !== state.active
-  const sidePanelHidden = usePrototypeViewStore((s) => s.sidePanelHidden)
+  const readOnly = state.view !== state.active
   const setSidePanelHidden = usePrototypeViewStore((s) => s.setSidePanelHidden)
-  const agentLabel = prototypeAgentLabel(set.agent)
-  const chatTitle = set.chatTitle?.trim() ?? ''
-  const openChat = (): void => {
-    if (set.worktreeId !== null) {
-      activateStructuredAgentSessionById({ worktreeId: set.worktreeId, sessionId: set.sessionId })
-    }
-  }
   const onAnnotate = (event: NativeChatVisualAnnotateEvent): void => {
     // A pick or a pin click brings a hidden side panel back, where the draft is.
     setSidePanelHidden(false)
@@ -89,286 +88,66 @@ export function PrototypeViewer({
         : pinClicked(current, event.pinKey)
     )
   }
+  const { merge } = state
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-2.5">
-        <div className="mr-auto flex min-w-0 flex-col gap-0.5">
-          <span className="text-sm font-semibold">
-            {`${prototypeTitle(set)} · ${prototypeCountLabel(status)}`}
-          </span>
-          {builtOn === null ? null : (
-            <PrototypeBuiltOnLink
-              version={builtOn.version}
-              onOpen={() => onOpenDesignSystem(builtOn.projectKey)}
-            />
-          )}
-          <button
-            type="button"
-            onClick={openChat}
-            disabled={set.worktreeId === null}
-            className="truncate text-left text-xs text-muted-foreground hover:text-foreground"
-          >
-            {chatTitle.length > 0
-              ? translate(
-                  'components.prototypes.chatLink',
-                  '{{agent}} · chat “{{chat}}” — open chat ↗',
-                  {
-                    agent: agentLabel,
-                    chat: chatTitle
-                  }
-                )
-              : translate('components.prototypes.chatLinkNoTitle', '{{agent}} — open chat ↗', {
-                  agent: agentLabel
-                })}
-          </button>
-        </div>
-        {single ? null : (
-          <div
-            role="group"
-            aria-label={translate('components.prototypes.layoutGroup', 'Layout')}
-            className={SEGMENT_CLASS}
-          >
-            <button
-              type="button"
-              aria-pressed={layout === 'set'}
-              onClick={() => update(showSet)}
-              className={segmentButtonClass(layout === 'set')}
-            >
-              {translate('components.prototypes.layoutAll', 'All {{count}}', {
-                count: set.directions.length
-              })}
-            </button>
-            <button
-              type="button"
-              aria-pressed={layout === 'focus'}
-              onClick={() => update(showFocus)}
-              className={segmentButtonClass(layout === 'focus')}
-            >
-              {translate('components.prototypes.layoutIterating', 'Iterating {{letter}}', {
-                letter: state.active
-              })}
-            </button>
-          </div>
-        )}
-        <div
-          role="group"
-          aria-label={translate('components.prototypes.viewportGroup', 'Viewport')}
-          className={SEGMENT_CLASS}
-        >
-          <button
-            type="button"
-            aria-pressed={state.viewport === 'desktop'}
-            onClick={() => update((current) => setViewport(current, 'desktop'))}
-            className={segmentButtonClass(state.viewport === 'desktop')}
-          >
-            {translate('components.prototypes.viewportDesktop', 'Desktop')}
-          </button>
-          <button
-            type="button"
-            aria-pressed={state.viewport === 'phone'}
-            onClick={() => update((current) => setViewport(current, 'phone'))}
-            className={segmentButtonClass(state.viewport === 'phone')}
-          >
-            {translate('components.prototypes.viewportPhone', 'Phone')}
-          </button>
-        </div>
-        <div
-          role="group"
-          aria-label={translate('components.prototypes.toolGroup', 'Tool')}
-          className={SEGMENT_CLASS}
-        >
-          <button
-            type="button"
-            aria-pressed={state.tool === 'browse'}
-            onClick={() => update((current) => setTool(current, 'browse'))}
-            className={segmentButtonClass(state.tool === 'browse')}
-          >
-            {translate('components.prototypes.toolBrowse', 'Browse')}
-          </button>
-          <button
-            type="button"
-            aria-pressed={state.tool === 'annotate'}
-            onClick={() => update((current) => setTool(current, 'annotate'))}
-            className={segmentButtonClass(state.tool === 'annotate')}
-          >
-            {translate('components.prototypes.toolAnnotate', 'Annotate')}
-          </button>
-        </div>
-        <Button
-          type="button"
-          variant={sidePanelHidden ? 'secondary' : 'ghost'}
-          size="icon-xs"
-          aria-label={
-            sidePanelHidden
-              ? translate('components.prototypes.showPanel', 'Show panel')
-              : translate('components.prototypes.hidePanel', 'Hide panel')
-          }
-          onClick={() => setSidePanelHidden(!sidePanelHidden)}
-        >
-          <PanelRight />
-        </Button>
-      </div>
+      <PrototypeViewerToolbar
+        set={set}
+        state={state}
+        update={update}
+        single={single}
+        mergeEnabled={set.folderPath !== undefined && canMerge(state, nextLetter)}
+        onMerge={onMerge}
+        onOpenDesignSystem={onOpenDesignSystem}
+      />
 
       {layout === 'set' && !single ? (
-        <div className="scrollbar-sleek flex flex-1 flex-col gap-4 overflow-y-auto bg-background p-6">
-          <div className="grid grid-cols-3 gap-5">
-            {set.directions.map((direction) => (
-              <div key={direction.letter} className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => update((current) => openDirection(current, direction.letter))}
-                  aria-label={translate(
-                    'components.prototypes.cardLabel',
-                    'Iterate on direction {{letter}}',
-                    {
-                      letter: direction.letter
-                    }
-                  )}
-                  className={cn(
-                    'rounded-lg p-2 transition-shadow',
-                    direction.letter === state.active &&
-                      'ring-2 ring-ring ring-offset-2 ring-offset-background'
-                  )}
-                >
-                  <PrototypeThumbnail set={set} direction={direction} />
-                </button>
-                <span className="flex flex-col">
-                  <span className="font-semibold">
-                    {direction.name === undefined
-                      ? direction.letter
-                      : translate('components.prototypes.cardName', '{{letter}} · {{name}}', {
-                          letter: direction.letter,
-                          name: direction.name
-                        })}
-                  </span>
-                  {direction.tradeoff === undefined ? null : (
-                    <span className="text-xs text-muted-foreground">{direction.tradeoff}</span>
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
-          <span className="text-xs text-muted-foreground">
-            {translate(
-              'components.prototypes.setFooter',
-              'Open a direction to iterate on it. The others stay one click away in the side strip.'
-            )}
-          </span>
-        </div>
+        <PrototypeSetGrid set={set} state={state} update={update} />
       ) : (
         <div className="flex min-h-0 flex-1 bg-muted/30">
-          {single ? null : (
-            <div
-              role="group"
-              aria-label={translate('components.prototypes.stripGroup', 'Directions in this set')}
-              className="scrollbar-sleek flex w-28 shrink-0 flex-col gap-2.5 overflow-y-auto border-r border-border p-2.5"
-            >
-              <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                {translate('components.prototypes.stripLabel', 'Set of {{count}}', {
-                  count: set.directions.length
-                })}
-              </span>
-              {set.directions.map((direction) => {
-                const isActive = direction.letter === state.active
-                const isViewed = direction.letter === state.view
-                return (
-                  <button
-                    key={direction.letter}
-                    type="button"
-                    onClick={() => update((current) => openDirection(current, direction.letter))}
-                    aria-label={translate(
-                      'components.prototypes.showDirection',
-                      'Show direction {{letter}}',
-                      {
-                        letter: direction.letter
-                      }
-                    )}
-                    className={cn(
-                      'flex flex-col gap-1.5 rounded-md p-1.5 text-left',
-                      isViewed ? 'bg-accent' : 'hover:bg-accent/60'
-                    )}
-                  >
-                    <PrototypeThumbnail set={set} direction={direction} />
-                    <span className="flex justify-between text-xs">
-                      <span className="font-semibold">{direction.letter}</span>
-                      {isActive ? (
-                        <span className="text-muted-foreground">
-                          {translate('components.prototypes.tagIterating', 'iterating')}
-                        </span>
-                      ) : null}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-          <div className="scrollbar-sleek flex min-w-0 flex-1 flex-col items-center gap-2.5 overflow-y-auto p-5">
-            {peeking ? (
-              <div
-                role="status"
-                className="flex w-full max-w-[680px] flex-wrap items-center gap-2 rounded-lg border border-dashed border-border p-2.5"
-              >
-                <span className="min-w-[240px] flex-1 text-xs">
-                  <Trans
-                    i18n={i18n}
-                    defaults={translate(
-                      'components.prototypes.peekText',
-                      'Peeking at <letter>{{view}}</letter> while iterating on <letter>{{active}}</letter>. Notes here go into the draft as “take this from <letter>{{view}}</letter> into <letter>{{active}}</letter>”.',
-                      { view: state.view, active: state.active }
-                    )}
-                    components={{ letter: <span className="font-semibold" /> }}
-                  />
-                </span>
-                <button
-                  type="button"
-                  onClick={() => update(backToActive)}
-                  className="h-7 rounded-md border border-border px-2.5 text-xs hover:bg-accent"
-                >
-                  {translate('components.prototypes.backTo', 'Back to {{active}}', {
-                    active: state.active
-                  })}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => update(makeMain)}
-                  className="h-7 rounded-md border border-border px-2.5 text-xs hover:bg-accent"
-                >
-                  {translate(
-                    'components.prototypes.iterateInstead',
-                    'Iterate on {{view}} instead',
-                    { view: state.view }
-                  )}
-                </button>
-              </div>
-            ) : null}
-            <div className="text-xs text-muted-foreground">
-              {[
-                viewDirection?.name !== undefined
-                  ? `${state.view} · ${viewDirection.name}`
-                  : state.view,
-                peeking
-                  ? translate('components.prototypes.curPeeking', 'peeking')
-                  : translate('components.prototypes.curIterating', 'iterating · v{{version}}', {
-                      version: latest?.version ?? 1
-                    }),
-                state.tool === 'annotate'
-                  ? translate(
-                      'components.prototypes.hintAnnotate',
-                      'click any element to add a note'
-                    )
-                  : translate('components.prototypes.hintBrowse', 'interact normally')
-              ].join(' · ')}
-            </div>
-            <PrototypeFrame
-              file={viewFile}
-              fileKey={`${set.requestId}:${latest?.fileName ?? ''}`}
-              viewport={state.viewport}
-              annotate={annotateStateOf(state, state.view)}
-              onAnnotateEvent={onAnnotate}
-              boxRef={frameBoxRef}
+          {single ? null : <PrototypeDirectionStrip set={set} state={state} update={update} />}
+          {merge?.phase === 'review' && nextLetter !== null ? (
+            <PrototypeMergeReview
+              review={merge}
+              agent={prototypeAgentLabel(set.agent)}
+              nextLetter={nextLetter}
+              sendFailed={state.mergeSendFailed}
+              update={update}
+              onSend={onSendMerge}
             />
-          </div>
+          ) : merge === null ? (
+            <div className="scrollbar-sleek flex min-w-0 flex-1 flex-col items-center gap-2.5 overflow-y-auto p-5">
+              {state.mergeSendFailed ? (
+                <span role="alert" className="text-[11px] text-destructive">
+                  {translate(
+                    'components.prototypes.sendFailed',
+                    "Couldn't send: the chat is no longer active. Your draft is kept."
+                  )}
+                </span>
+              ) : null}
+              {readOnly ? <PrototypeReadOnlyBanner state={state} update={update} /> : null}
+              <div className="text-xs text-muted-foreground">
+                {[
+                  viewDirection?.name !== undefined
+                    ? `${state.view} · ${viewDirection.name}`
+                    : state.view,
+                  viewTag(state, latest?.version ?? 1),
+                  viewHint(state)
+                ].join(' · ')}
+              </div>
+              <PrototypeFrame
+                file={viewFile}
+                fileKey={`${set.requestId}:${latest?.fileName ?? ''}`}
+                viewport={state.viewport}
+                annotate={annotateStateOf(state, state.view)}
+                onAnnotateEvent={onAnnotate}
+                boxRef={frameBoxRef}
+              />
+            </div>
+          ) : (
+            <div className="min-w-0 flex-1" />
+          )}
         </div>
       )}
     </div>
