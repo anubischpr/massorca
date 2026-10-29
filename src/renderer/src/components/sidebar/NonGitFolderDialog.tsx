@@ -174,8 +174,10 @@ const NonGitFolderDialog = React.memo(function NonGitFolderDialog() {
         toastGitInitFailure(result.message ?? result.error)
         return
       }
-      // Why: the initialized repo keeps its add-time host, so it replaces the project in place.
-      await adoptInitializedGitRepo(result.repo, executionHostId)
+      await adoptInitializedGitRepo(result.repo, {
+        sshConnectionId: connectionId,
+        runtimeEnvironmentId
+      })
     } catch (err) {
       toastGitInitFailure(err instanceof Error ? err.message : String(err))
     } finally {
@@ -185,7 +187,7 @@ const NonGitFolderDialog = React.memo(function NonGitFolderDialog() {
         closeModal()
       }
     }
-  }, [addFolderProject, closeModal, executionHostId, settings])
+  }, [addFolderProject, closeModal, connectionId, executionHostId, runtimeEnvironmentId, settings])
 
   const handleOpenChange = useCallback(
     (open: boolean) => {

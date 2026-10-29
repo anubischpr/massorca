@@ -5,7 +5,8 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   LOCAL_EXECUTION_HOST_ID,
-  toRuntimeExecutionHostId
+  toRuntimeExecutionHostId,
+  toSshExecutionHostId
 } from '../../../../../../shared/execution-host'
 import type { Repo } from '../../../../../../shared/repo-types'
 import { RepoHeaderTitle } from './RepoHeaderTitle'
@@ -257,5 +258,95 @@ describe('RepoHeaderTitle folder project marker', () => {
         description: 'ipc closed'
       })
     )
+  })
+
+  it('adopts the Git repo on a paired runtime host with that host id', async () => {
+    const user = userEvent.setup()
+    const runtimeHost = toRuntimeExecutionHostId('env-1')
+    const runtimeFolder = folderRepo({ executionHostId: runtimeHost })
+    mocks.state.repos = [runtimeFolder]
+    mocks.initializeRuntimeRepoGit.mockResolvedValue({
+      ok: true,
+      repo: gitRepo({ id: 'folder-repo', executionHostId: null })
+    })
+    renderHeader(runtimeFolder)
+
+    await user.click(noGitPill())
+    await user.click(await screen.findByRole('button', { name: 'Initialize Git' }))
+
+    await waitFor(() => expect(mocks.state.fetchWorktrees).toHaveBeenCalledTimes(1))
+    expect(mocks.initializeRuntimeRepoGit).toHaveBeenCalledWith(
+      mocks.state.settings,
+      'folder-repo',
+      runtimeHost
+    )
+    expect(mocks.state.repos).toEqual([
+      expect.objectContaining({ id: 'folder-repo', kind: 'git', executionHostId: runtimeHost })
+    ])
+    expect(mocks.state.fetchWorktrees).toHaveBeenCalledWith('folder-repo', {
+      requireAuthoritative: true,
+      executionHostId: runtimeHost
+    })
+  })
+
+  it('adopts the Git repo on its SSH host with the SSH connection id', async () => {
+    const user = userEvent.setup()
+    const sshHost = toSshExecutionHostId('ssh-1')
+    const sshFolder = folderRepo({ connectionId: 'ssh-1', executionHostId: sshHost })
+    mocks.state.repos = [sshFolder]
+    mocks.initializeRuntimeRepoGit.mockResolvedValue({
+      ok: true,
+      repo: gitRepo({ id: 'folder-repo', connectionId: null, executionHostId: null })
+    })
+    renderHeader(sshFolder)
+
+    await user.click(noGitPill())
+    await user.click(await screen.findByRole('button', { name: 'Initialize Git' }))
+
+    await waitFor(() => expect(mocks.state.fetchWorktrees).toHaveBeenCalledTimes(1))
+    expect(mocks.initializeRuntimeRepoGit).toHaveBeenCalledWith(
+      mocks.state.settings,
+      'folder-repo',
+      sshHost
+    )
+    expect(mocks.state.repos).toEqual([
+      expect.objectContaining({ id: 'folder-repo', kind: 'git', executionHostId: sshHost })
+    ])
+    expect(mocks.state.fetchWorktrees).toHaveBeenCalledWith('folder-repo', {
+      requireAuthoritative: true,
+      executionHostId: sshHost
+    })
+  })
+
+  it('hides Initialize Git without an unhandled rejection when the probe rejects', async () => {
+    mocks.supportsGitInit.mockRejectedValue(new Error('probe down'))
+    const user = userEvent.setup()
+    renderHeader(folderRepo())
+
+    await user.click(noGitPill())
+    await screen.findByText('This project has no Git')
+    await settleHostCheck()
+
+    expect(screen.queryByRole('button', { name: 'Initialize Git' })).toBeNull()
+    expect(screen.getByText('This project has no Git')).toBeTruthy()
+  })
+
+  it('probes again on a later open after a rejected probe', async () => {
+    mocks.supportsGitInit.mockRejectedValueOnce(new Error('probe down'))
+    const user = userEvent.setup()
+    renderHeader(folderRepo())
+
+    await user.click(noGitPill())
+    await screen.findByText('This project has no Git')
+    await settleHostCheck()
+    expect(screen.queryByRole('button', { name: 'Initialize Git' })).toBeNull()
+
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.queryByText('This project has no Git')).toBeNull())
+
+    await user.click(noGitPill())
+    await user.click(await screen.findByRole('button', { name: 'Initialize Git' }))
+
+    expect(mocks.supportsGitInit).toHaveBeenCalledTimes(2)
   })
 })

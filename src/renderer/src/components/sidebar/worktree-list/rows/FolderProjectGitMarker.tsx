@@ -9,7 +9,11 @@ import {
 } from '@/runtime/runtime-repo-git-init-client'
 import { useAppStore } from '@/store'
 import type { Repo } from '../../../../../../shared/repo-types'
-import { adoptInitializedGitRepo, toastGitInitFailure } from '../../folder-project-git-init'
+import {
+  adoptInitializedGitRepo,
+  folderProjectHostOf,
+  toastGitInitFailure
+} from '../../folder-project-git-init'
 import {
   handleRepoHeaderActionPointerDown,
   stopRepoHeaderKeyboardToggle,
@@ -36,11 +40,15 @@ export function FolderProjectGitMarker({ repo }: { repo: Repo }): React.JSX.Elem
       return
     }
     let cancelled = false
-    void runtimeRepoSupportsGitInit(settings, hostId).then((supported) => {
-      if (!cancelled) {
-        setGitInitSupport({ hostKey, supported })
-      }
-    })
+    runtimeRepoSupportsGitInit(settings, hostId)
+      .then((supported) => {
+        if (!cancelled) {
+          setGitInitSupport({ hostKey, supported })
+        }
+      })
+      .catch(() => {
+        // Why: a failed probe hides Initialize Git without caching, so the next open probes again.
+      })
     return () => {
       cancelled = true
     }
@@ -54,14 +62,14 @@ export function FolderProjectGitMarker({ repo }: { repo: Repo }): React.JSX.Elem
         toastGitInitFailure(result.message ?? result.error)
         return
       }
-      await adoptInitializedGitRepo(result.repo, hostId)
+      await adoptInitializedGitRepo(result.repo, folderProjectHostOf(repo))
       setOpen(false)
     } catch (err) {
       toastGitInitFailure(err instanceof Error ? err.message : String(err))
     } finally {
       setIsInitializing(false)
     }
-  }, [hostId, repo.id, settings])
+  }, [hostId, repo, settings])
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {

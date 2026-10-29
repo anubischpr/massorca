@@ -6,7 +6,8 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   LOCAL_EXECUTION_HOST_ID,
-  toRuntimeExecutionHostId
+  toRuntimeExecutionHostId,
+  toSshExecutionHostId
 } from '../../../../shared/execution-host'
 import type { Repo } from '../../../../shared/repo-types'
 import type { RepoInitGitResult } from '../../../../shared/rpc-contract/repo-init-git-params'
@@ -86,6 +87,10 @@ vi.mock('sonner', () => ({
   }
 }))
 
+vi.mock('@/lib/onboarding-project-checklist', () => ({
+  markOnboardingProjectAdded: vi.fn().mockResolvedValue(undefined)
+}))
+
 vi.mock('@/runtime/runtime-repo-git-init-client', () => ({
   initializeRuntimeRepoGit: mocks.initializeRuntimeRepoGit,
   runtimeRepoSupportsGitInit: mocks.supportsGitInit
@@ -132,6 +137,7 @@ describe('NonGitFolderDialog Git initialization', () => {
 
   afterEach(() => {
     cleanup()
+    vi.unstubAllGlobals()
   })
 
   it('offers Cancel, Continue without Git, and Initialize Git here in that order', async () => {
@@ -226,6 +232,80 @@ describe('NonGitFolderDialog Git initialization', () => {
       executionHostId: LOCAL_EXECUTION_HOST_ID
     })
     expect(mocks.toastError).not.toHaveBeenCalled()
+  })
+
+  it('adopts the Git repo on a paired runtime host with that host id', async () => {
+    const user = userEvent.setup()
+    const runtimeHost = toRuntimeExecutionHostId('env-1')
+    mocks.state.modalData = { folderPath: '/srv/notes', runtimeEnvironmentId: 'env-1' }
+    const added = folderRepo({
+      id: 'runtime-repo',
+      path: '/srv/notes',
+      executionHostId: runtimeHost
+    })
+    mocks.state.repos = [added]
+    mocks.state.addNonGitFolder.mockResolvedValue(added)
+    mocks.initializeRuntimeRepoGit.mockResolvedValue({
+      ok: true,
+      repo: { ...added, kind: 'git', executionHostId: null }
+    })
+    render(<NonGitFolderDialog />)
+
+    await user.click(await screen.findByRole('button', { name: 'Initialize Git here' }))
+    await waitFor(() => expect(mocks.state.closeModal).toHaveBeenCalledTimes(1))
+
+    expect(mocks.initializeRuntimeRepoGit).toHaveBeenCalledWith(
+      mocks.state.settings,
+      'runtime-repo',
+      runtimeHost
+    )
+    expect(mocks.state.repos).toEqual([
+      expect.objectContaining({ id: 'runtime-repo', kind: 'git', executionHostId: runtimeHost })
+    ])
+    expect(mocks.state.fetchWorktrees).toHaveBeenLastCalledWith('runtime-repo', {
+      requireAuthoritative: true,
+      executionHostId: runtimeHost
+    })
+  })
+
+  it('adopts the Git repo on an SSH host with the SSH connection id', async () => {
+    const user = userEvent.setup()
+    const sshHost = toSshExecutionHostId('ssh-1')
+    mocks.state.modalData = { folderPath: '/srv/remote-notes', connectionId: 'ssh-1' }
+    const added = folderRepo({
+      id: 'ssh-repo',
+      path: '/srv/remote-notes',
+      connectionId: 'ssh-1',
+      executionHostId: sshHost
+    })
+    const addRemote = vi.fn().mockResolvedValue({ repo: added })
+    vi.stubGlobal('api', { repos: { addRemote } })
+    mocks.initializeRuntimeRepoGit.mockResolvedValue({
+      ok: true,
+      repo: { ...added, kind: 'git', connectionId: null, executionHostId: null }
+    })
+    render(<NonGitFolderDialog />)
+
+    await user.click(await screen.findByRole('button', { name: 'Initialize Git here' }))
+    await waitFor(() => expect(mocks.state.closeModal).toHaveBeenCalledTimes(1))
+
+    expect(addRemote).toHaveBeenCalledWith({
+      connectionId: 'ssh-1',
+      remotePath: '/srv/remote-notes',
+      kind: 'folder'
+    })
+    expect(mocks.initializeRuntimeRepoGit).toHaveBeenCalledWith(
+      mocks.state.settings,
+      'ssh-repo',
+      sshHost
+    )
+    expect(mocks.state.repos).toEqual([
+      expect.objectContaining({ id: 'ssh-repo', kind: 'git', executionHostId: sshHost })
+    ])
+    expect(mocks.state.fetchWorktrees).toHaveBeenLastCalledWith('ssh-repo', {
+      requireAuthoritative: true,
+      executionHostId: sshHost
+    })
   })
 
   it('keeps the folder project and reports the error when Git initialization fails', async () => {
