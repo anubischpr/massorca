@@ -126,8 +126,11 @@ Work-unit Conventional Commits on `claude/prototypes-section-f8edf5`, tests with
 
 - T6/T7 (delegated writer; trigger: mobile screens, sheets, send path, shared refactor): mobile prototype tests 173 passed; mobile/web/node/cli typechecks clean; oxlint/oxfmt clean; code-quality gate 0 findings in its files. Not rendered on a device yet. 10 pre-existing mobile src/session failures (TurboModuleRegistry mock, terminal-agent warnings, a load-sensitive snapshot timeout).
 - Mobile decisions (user, 2026-10-29): list chips = desktop chips (All / Claude / Codex / Stitch / Gentle Shell); ⋯ pill shows just the count; cross-chat send goes through the host to the set's own chat (in progress); mobile Settings › Prototypes reachable from the card link only in v1; `/prototype` + `/prototipo` in the mobile slash menu and the in-chat link card added.
-- Follow-up (approved for a later slice): mobile note screenshots with a native capture library (react-native-view-shot or an Expo-compatible equivalent); the APK is built locally, so a native dependency is fine.
+- (Superseded: now in scope for pv51) mobile note screenshots with a native capture library (react-native-view-shot or an Expo-compatible equivalent); the APK is built locally, so a native dependency is fine.
 - Pending user approval (design only, not implemented): design-system step — https://claude.ai/artifact/71TQ1ookqegnD4xHQyK2ux.
+
+- pv49 QA fix (delegated writer; user QA on a remote VPS runtime): `a1016524f62` lexicon sentence window (≤10 words, flow words block), `6a72cbdf639` `/prototype` in the desktop slash menu (`/prototipo` hidden alias), `31b4e6690be` list/read/write on the runtime that owns the chat + `[prototypes]` fallback logs on desktop and host, `adb9993785e` in-chat link card "<title> · set of N" / "Open in Prototypes ›", `2f856e0e830` paired-runtime e2e test + card width. Root cause: the Prototypes view always read the local host. Verified end to end against a headless paired runtime (background Electron + CDP; screenshots in the session scratchpad `qa/`): card on the NexusCare sentence, request.json on the runtime disk, hidden instruction in host history, link card, set rendered from the remote host. No real agent ran (no Claude login in the isolated profile). Tests 1054 passed; typecheck web/node/cli 0; code-quality gate passed.
+- Mobile screenshots moved into scope for pv51 (user, 2026-10-29): native capture library with a web no-op (mobile-web asset budget 169/169).
 
 ## Next step
 
