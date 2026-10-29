@@ -1,7 +1,7 @@
 import { AlertCircle, Check, CornerDownRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
-import { getAgentCatalog } from '@/lib/agent-catalog'
+import { useNow } from '@/hooks/use-now'
 import {
   activateStructuredAgentSessionById,
   findStructuredAgentSessionWorktreeId
@@ -13,6 +13,9 @@ import type {
   DelegationNoticePayload,
   DelegationStartedPayload
 } from '../../../../shared/delegated-session-journal'
+import type { DelegatedChild } from '../../../../shared/delegated-children'
+import { delegatedAgentLabel, delegatedDurationText } from './delegated-child-copy'
+import { useDelegatedChild } from './delegated-children-context'
 
 /** A delegated session's start, failure or finish, drawn in the parent chat in place of its plain line. */
 export function NativeChatDelegationNotice({
@@ -31,13 +34,11 @@ export function NativeChatDelegationNotice({
 }
 
 function StartedNotice({ payload }: { payload: DelegationStartedPayload }): React.JSX.Element {
-  const details = [
-    agentLabel(payload.agent),
-    payload.model ?? translate('components.native-chat.delegation.defaultModel', 'default model'),
-    payload.effort
-  ]
-    .filter((part): part is string => part !== null)
-    .join(' · ')
+  const child = useDelegatedChild(payload.requestId)
+  if (child?.status === 'working') {
+    return <WorkingNotice payload={payload} child={child} />
+  }
+  const details = startDetails(payload)
   const values = { title: payload.title, details }
   const text = payload.automatic
     ? translate(
@@ -56,6 +57,76 @@ function StartedNotice({ payload }: { payload: DelegationStartedPayload }): Reac
       <p className="min-w-0 break-words">{text}</p>
     </div>
   )
+}
+
+/** A started child whose journal shows it still running: a live row with a way into the child. */
+function WorkingNotice({
+  payload,
+  child
+}: {
+  payload: DelegationStartedPayload
+  child: DelegatedChild
+}): React.JSX.Element {
+  const now = useNow(60_000)
+  const childWorktreeId = useAppStore((state) =>
+    findStructuredAgentSessionWorktreeId(state.unifiedTabsByWorktree, payload.childSessionId)
+  )
+  const details = `${startDetails(payload)}${payload.automatic ? ' (Automatic)' : ''}`
+  const elapsed =
+    child.startedAt === null ? null : delegatedDurationText(Math.max(0, now - child.startedAt))
+  const heading = translate(
+    'components.native-chat.delegation.working',
+    'Child session working: {{title}}',
+    { title: payload.title }
+  )
+  const detailLine =
+    elapsed === null
+      ? details
+      : translate(
+          'components.native-chat.delegation.workingDetails',
+          '{{details}} · started {{elapsed}} ago',
+          { details, elapsed }
+        )
+  return (
+    <section
+      aria-label={heading}
+      className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-card px-3.5 py-3 shadow-xs"
+    >
+      <span
+        role="img"
+        aria-label={translate('components.native-chat.delegation.workingStatus', 'Working')}
+        className="size-2 shrink-0 rounded-full bg-muted-foreground"
+      />
+      <div className="min-w-0 flex-1 space-y-0.5">
+        <p className="break-words text-sm font-medium text-foreground">{heading}</p>
+        <p className="break-words text-xs text-muted-foreground">{detailLine}</p>
+      </div>
+      {childWorktreeId !== null ? (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            activateStructuredAgentSessionById({
+              worktreeId: childWorktreeId,
+              sessionId: payload.childSessionId
+            })
+          }}
+        >
+          {translate('components.native-chat.delegation.openChild', 'Open child chat')}
+        </Button>
+      ) : null}
+    </section>
+  )
+}
+
+function startDetails(payload: DelegationStartedPayload): string {
+  return [
+    delegatedAgentLabel(payload.agent),
+    payload.model ?? translate('components.native-chat.delegation.defaultModel', 'default model'),
+    payload.effort
+  ]
+    .filter((part): part is string => part !== null)
+    .join(' · ')
 }
 
 function FailedNotice({ payload }: { payload: DelegationFailedPayload }): React.JSX.Element {
@@ -96,7 +167,7 @@ function FinishedNotice({ payload }: { payload: DelegationFinishedPayload }): Re
   const outcome = succeeded
     ? translate('components.native-chat.delegation.succeeded', 'succeeded')
     : translate('components.native-chat.delegation.outcomeFailed', 'failed')
-  const duration = durationText(payload.durationMs)
+  const duration = delegatedDurationText(payload.durationMs)
   return (
     <section
       aria-label={heading}
@@ -137,36 +208,5 @@ function FinishedNotice({ payload }: { payload: DelegationFinishedPayload }): Re
         </div>
       ) : null}
     </section>
-  )
-}
-
-function agentLabel(agent: string): string {
-  return getAgentCatalog().find((entry) => entry.id === agent)?.label ?? agent
-}
-
-/** Whole minutes as the chat words them; null when the child never reported a duration. */
-function durationText(durationMs: number | null): string | null {
-  if (durationMs === null) {
-    return null
-  }
-  const minutes = Math.floor(durationMs / 60_000)
-  if (minutes < 1) {
-    return translate('components.native-chat.delegation.underAMinute', 'under 1 min')
-  }
-  if (minutes < 60) {
-    return translate('components.native-chat.delegation.minutes', '{{minutes}} min', { minutes })
-  }
-  const hours = Math.floor(minutes / 60)
-  const rest = minutes % 60
-  if (rest === 0) {
-    return translate('components.native-chat.delegation.hours', '{{hours}} h', { hours })
-  }
-  return translate(
-    'components.native-chat.delegation.hoursMinutes',
-    '{{hours}} h {{minutes}} min',
-    {
-      hours,
-      minutes: rest
-    }
   )
 }

@@ -26,11 +26,12 @@ export type DelegatedChild = {
   reason: string | null
 }
 
-type JournalNoticeItem = { body: AgentJournalItemBody; observedAt: number }
+/** The only parts of a journal row the children read. */
+export type DelegatedChildJournalItem = { body: AgentJournalItemBody; observedAt: number }
 
 /** The children a journal holds, in the order their requests first appear. */
 export function delegatedChildrenFromJournal(
-  items: readonly JournalNoticeItem[]
+  items: readonly DelegatedChildJournalItem[]
 ): DelegatedChild[] {
   const byRequest = new Map<string, DelegatedChild>()
   for (const item of items) {

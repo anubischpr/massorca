@@ -4,8 +4,12 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type * as ActivationModule from '@/lib/structured-agent-session-tab-activation'
 import { useAppStore } from '@/store'
-import type { DelegationNoticePayload } from '../../../../shared/delegated-session-journal'
+import type {
+  DelegationNoticePayload,
+  DelegationStartedPayload
+} from '../../../../shared/delegated-session-journal'
 import type { Tab } from '../../../../shared/tab-types'
+import { DelegatedChildrenProvider } from './delegated-children-context'
 import { NativeChatDelegationNotice } from './NativeChatDelegationNotice'
 
 const mocks = vi.hoisted(() => ({ activate: vi.fn(() => true) }))
@@ -145,5 +149,74 @@ describe('NativeChatDelegationNotice', () => {
 
     rerender(<NativeChatDelegationNotice payload={{ ...finished, durationMs: 120 * 60_000 }} />)
     expect(screen.getByText('2 h · succeeded')).toBeInTheDocument()
+  })
+
+  describe('while the child runs', () => {
+    const started: DelegationStartedPayload = {
+      requestId: 'req-1',
+      title: 'Explore',
+      status: 'started',
+      agent: 'codex',
+      model: 'gpt-6.1-sol',
+      effort: 'medium',
+      childSessionId: 'child-1',
+      placement: 'current',
+      automatic: true
+    }
+
+    it('draws a working child as a live row with its time and an open action', () => {
+      useAppStore.setState({ unifiedTabsByWorktree: { 'wt-child': [childTab] } })
+      render(
+        <DelegatedChildrenProvider
+          journalItems={[
+            {
+              body: { kind: 'status', text: 'Started', delegation: started },
+              observedAt: Date.now() - 4 * 60_000
+            }
+          ]}
+        >
+          <NativeChatDelegationNotice payload={started} />
+        </DelegatedChildrenProvider>
+      )
+      expect(screen.getByText('Child session working: Explore')).toBeInTheDocument()
+      expect(
+        screen.getByText('Codex · gpt-6.1-sol · medium (Automatic) · started 4 min ago')
+      ).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Open child chat' }))
+      expect(mocks.activate).toHaveBeenCalledWith({ worktreeId: 'wt-child', sessionId: 'child-1' })
+    })
+
+    it('leaves out the open action while no tab lists the working child', () => {
+      render(
+        <DelegatedChildrenProvider
+          journalItems={[
+            { body: { kind: 'status', text: 'Started', delegation: started }, observedAt: 1 }
+          ]}
+        >
+          <NativeChatDelegationNotice payload={started} />
+        </DelegatedChildrenProvider>
+      )
+      expect(screen.getByText('Child session working: Explore')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Open child chat' })).toBeNull()
+    })
+
+    it('draws the plain start line once the journal shows the child finished', () => {
+      render(
+        <DelegatedChildrenProvider
+          journalItems={[
+            { body: { kind: 'status', text: 'Started', delegation: started }, observedAt: 1 },
+            { body: { kind: 'status', text: 'Finished', delegation: finished }, observedAt: 2 }
+          ]}
+        >
+          <NativeChatDelegationNotice payload={started} />
+        </DelegatedChildrenProvider>
+      )
+      expect(
+        screen.getByText(
+          'Started child session “Explore” with Codex · gpt-6.1-sol · medium (Automatic)'
+        )
+      ).toBeInTheDocument()
+      expect(screen.queryByText(/Child session working/)).toBeNull()
+    })
   })
 })

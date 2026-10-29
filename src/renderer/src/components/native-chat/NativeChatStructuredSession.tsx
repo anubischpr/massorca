@@ -11,7 +11,7 @@ import type { NativeChatOptionPickerRequest } from './native-chat-composer-types
 import { structuredAgentSessionDraftScopeKey } from './native-chat-composer-draft-store'
 import { NativeChatEmptyState } from './NativeChatEmptyState'
 import { NativeChatLoadingCue } from './NativeChatLoadingCue'
-import { NativeChatMessageList } from './NativeChatMessageList'
+import { NativeChatMessageListWithDelegatedChildren } from './NativeChatMessageListWithDelegatedChildren'
 import { useStructuredNativeChatSubmitReveal } from './use-structured-native-chat-submit-reveal'
 import { useStructuredPromptResponseHold } from './use-structured-prompt-response-hold'
 import { NativeChatStructuredQuestionCard } from './NativeChatStructuredQuestionCard'
@@ -286,7 +286,7 @@ export function NativeChatStructuredSession(
           ) : (
             <NativeChatRewindContext.Provider value={controller.rewind.surface}>
               <NativeChatOrcaStopContext.Provider value={continuation.view}>
-                <NativeChatMessageList
+                <NativeChatMessageListWithDelegatedChildren
                   // A rewind replaces the conversation; nothing the old transcript held carries over.
                   key={controller.epoch ?? undefined}
                   ref={submits.messageListRef}
