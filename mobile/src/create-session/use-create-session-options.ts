@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { isAgentSessionHandleProvider } from '../../../src/shared/agent-session-provider-handle'
 import type { AgentSessionModelCatalogResult } from '../../../src/shared/agent-session-wire'
 import type { SessionOptionValue } from '../../../src/shared/native-chat-session-options'
+import type { PiRuntimeSelection } from '../../../src/shared/pi-runtime-selection'
 import type { MobileNativeChatSessionOptionsController } from '../session/use-mobile-native-chat-session-options'
 import { callAgentSession } from '../session/mobile-structured-agent-session-rpc'
 import type { RpcClient } from '../transport/rpc-client'
@@ -11,6 +11,7 @@ import {
   createCreateSessionOptionDraft,
   createSessionEffectiveModelId,
   createSessionOptionSnapshot,
+  createSessionReadsHostOptions,
   pickCreateSessionOption
 } from './create-session-option-draft'
 
@@ -19,19 +20,21 @@ const LISTING_WAIT_TIMEOUT_MS = 45_000
 
 async function readHostModelCatalog(
   client: RpcClient,
-  agent: string
+  agent: string,
+  worktree: string | null
 ): Promise<AgentSessionModelCatalogResult> {
+  const target = worktree ? { agent, worktree } : { agent }
   const first = await callAgentSession<AgentSessionModelCatalogResult>(
     client,
     'agentSession.modelCatalog',
-    { agent }
+    target
   )
   // Why: an agent's first listing runs when asked; its models arrive only on a read that waits.
   return first.origin === 'unknown' && first.listingInProgress === true
     ? callAgentSession<AgentSessionModelCatalogResult>(
         client,
         'agentSession.modelCatalog',
-        { agent, waitForListing: true },
+        { ...target, waitForListing: true },
         LISTING_WAIT_TIMEOUT_MS
       )
     : first
@@ -45,28 +48,32 @@ export type CreateSessionOptions = {
 }
 
 /**
- * Model, effort, fast and access choices for the agent being set up. An older host refuses the
- * catalog read; the built-in list then stands and nothing here ever blocks the create.
+ * Model, effort, fast and access choices for the agent being set up. A host that refuses the
+ * catalog read leaves the agent's default model in place; nothing here ever blocks the create.
  */
-export function useCreateSessionOptions(
-  client: RpcClient | null,
-  agent: string | null,
+export function useCreateSessionOptions(args: {
+  client: RpcClient | null
+  agent: string | null
+  piRuntime: PiRuntimeSelection | null
+  /** The project's main checkout, whose config the listing reads; null when none is known. */
+  worktree: string | null
   /** Host and project: the listing and the picks belong to where the session will run. */
   scope: string
-): CreateSessionOptions {
-  const [draft, setDraft] = useState(() => createCreateSessionOptionDraft(agent, scope))
-  // Why: another agent, host or project has its own models and defaults, so the draft starts over
-  // before paint, not in an Effect.
-  if (draft.agent !== agent || draft.scope !== scope) {
-    setDraft(createCreateSessionOptionDraft(agent, scope))
+}): CreateSessionOptions {
+  const { client, agent, piRuntime, scope, worktree } = args
+  const [draft, setDraft] = useState(() => createCreateSessionOptionDraft(agent, scope, piRuntime))
+  // Why: another agent, runtime, host or project has its own models and defaults, so the draft
+  // starts over before paint, not in an Effect.
+  if (draft.agent !== agent || draft.scope !== scope || draft.piRuntime !== piRuntime) {
+    setDraft(createCreateSessionOptionDraft(agent, scope, piRuntime))
   }
   // Why: a pick answers whether it applied right away, which a queued state updater cannot.
   const draftRef = useRef(draft)
   draftRef.current = draft
 
   useEffect(() => {
-    // The catalog read is refused for an agent with no structured chat, so it is not asked.
-    if (!client || !agent || !isAgentSessionHandleProvider(agent)) {
+    // The host refuses this read for an agent the create screen does not describe.
+    if (!client || !agent || !createSessionReadsHostOptions(agent)) {
       return
     }
     let stale = false
@@ -79,11 +86,11 @@ export function useCreateSessionOptions(
         )
       }
     }
-    readHostModelCatalog(client, agent).then(settle, () => settle(null))
+    readHostModelCatalog(client, agent, worktree).then(settle, () => settle(null))
     return () => {
       stale = true
     }
-  }, [client, agent, scope])
+  }, [client, agent, scope, worktree])
 
   const setOption = useCallback((id: string, value: SessionOptionValue): Promise<boolean> => {
     const next = pickCreateSessionOption(draftRef.current, id, value)

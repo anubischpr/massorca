@@ -1,4 +1,5 @@
 import { isImageRefBlock, type NativeChatMessage } from '../../../src/shared/native-chat-types'
+import { withoutPrototypeHiddenInstruction } from '../../../src/shared/prototype-hidden-blocks'
 import {
   hasImagePromptMarker,
   isImageSourceUserTurn,
@@ -22,7 +23,13 @@ export type UnconfirmedSend = {
 }
 
 export function normalizedUserText(message: NativeChatMessage): string | null {
-  return normalizedNativeChatUserMessageText(message)
+  // A terminal transcript keeps the instruction hidden behind a prototype request; the pending echo
+  // never carried it.
+  return normalizedNativeChatUserMessageText(
+    message.role === 'user'
+      ? { ...message, blocks: withoutPrototypeHiddenInstruction(message.blocks) }
+      : message
+  )
 }
 
 export function countUserTextOccurrences(

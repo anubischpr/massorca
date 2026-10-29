@@ -72,7 +72,12 @@ describe('client session navigation', () => {
     })
   })
   it('keeps window actions when a provider reports an empty or conflicting registry', () => {
-    expect(withNativeChatSessionCommands([]).map((x) => x.name)).toEqual(['resume', 'session'])
+    expect(withNativeChatSessionCommands([]).map((x) => x.name)).toEqual([
+      'resume',
+      'session',
+      'prototype',
+      'prototipo'
+    ])
     expect(
       withNativeChatSessionCommands([
         { name: 'resume', description: 'Provider terminal picker' },
@@ -90,6 +95,14 @@ describe('client session navigation', () => {
     expect(
       withNativeChatSessionCommands([{ name: 'resume' }]).filter((x) => x.name === 'resume')
     ).toHaveLength(1)
+  })
+
+  it('offers /prototype with a description and claims /prototipo without listing it', () => {
+    const rows = withNativeChatSessionCommands([])
+    expect(rows.find((x) => x.name === 'prototype')).toMatchObject({
+      description: expect.any(String)
+    })
+    expect(rows.find((x) => x.name === 'prototipo')).toEqual({ name: 'prototipo', hidden: true })
   })
 
   it.each(['/resume', '/session', ' /RESUME '])(

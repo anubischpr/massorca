@@ -242,4 +242,10 @@ describe('MobileSessionsSheet', () => {
     act(() => drawerOf(shown).props.onAfterClose())
     expect(onResume).toHaveBeenCalledTimes(1)
   })
+
+  it('says where terminals live, since the sheet lists chats only', () => {
+    expect(textsOf(mount(propsWith({})))).toContain(
+      'Terminals live in the Terminal view, not here.'
+    )
+  })
 })

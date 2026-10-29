@@ -29,7 +29,7 @@ export function showFileLinkOutsideRemoteWorkspaceToast(): void {
   toast.error(
     translate(
       'components.native-chat.fileLinks.outsideRemoteWorkspace',
-      "This file is outside the workspace on the remote host, so Orca can't open it."
+      "This file is outside the workspace on the remote host, so MassOrca can't open it."
     )
   )
 }
@@ -39,7 +39,7 @@ export function showFileLinkRemoteHostOutdatedToast(): void {
   toast.error(
     translate(
       'components.native-chat.fileLinks.remoteHostOutdated',
-      'Update Orca on the remote host to open files the agent saved outside the workspace.'
+      'Update MassOrca on the remote host to open files the agent saved outside the workspace.'
     )
   )
 }

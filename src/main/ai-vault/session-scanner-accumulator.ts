@@ -31,7 +31,8 @@ import {
 import {
   boundedText,
   transcriptMessageRole,
-  transcriptMessagesFromContent
+  transcriptMessagesFromContent,
+  typedPromptText
 } from './session-transcript-message-content'
 
 const SESSION_PREVIEW_MESSAGE_LIMIT = 5
@@ -283,7 +284,7 @@ function publishTranscriptMessage(
   timestamp: unknown
 ): void {
   const messageRole = transcriptMessageRole(role)
-  const messageText = text === null ? null : boundedText(text)
+  const messageText = text === null ? null : boundedText(typedPromptText(messageRole, text))
   if (messageRole && messageText) {
     accumulator.messages.push({
       role: messageRole,

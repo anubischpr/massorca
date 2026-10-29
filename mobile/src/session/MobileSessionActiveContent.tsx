@@ -26,6 +26,8 @@ export function MobileSessionActiveContent({
     insets,
     showSessionSwitcherChip,
     openArtifactViewer,
+    openPrototypeSettings,
+    openPrototypeSet,
     connState,
     client,
     markdownDocs,
@@ -218,6 +220,8 @@ export function MobileSessionActiveContent({
             showSessionSwitcherChip ? mobileChatContentTop(chromeLayout.height, insets.top) : 0
           }
           onOpenArtifact={openArtifactViewer}
+          onOpenPrototypeSettings={openPrototypeSettings}
+          onOpenPrototypeSet={openPrototypeSet}
         />
       </MobileDelegatedChildContext.Provider>
       {toastMessage && (

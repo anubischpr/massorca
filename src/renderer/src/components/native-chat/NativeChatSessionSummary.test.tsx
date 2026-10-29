@@ -495,7 +495,7 @@ it('shows the repo gh.account pin over a differing Orca binding and notes the bi
   render(<NativeChatSessionSummary {...props} fileContext={environmentFileContext} />)
   expect(await screen.findByText('palominoc-perulaunch')).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: /^Environment/ }))
-  expect(screen.getByText('Orca binding: palominoc')).toBeTruthy()
+  expect(screen.getByText('MassOrca binding: palominoc')).toBeTruthy()
 })
 
 it('shows a repo gh.account pin even when no Orca binding is set', async () => {

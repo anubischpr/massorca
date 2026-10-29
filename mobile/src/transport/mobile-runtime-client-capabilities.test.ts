@@ -3,6 +3,7 @@ import {
   AGENT_SESSION_TURN_ITEM_CAPABILITY,
   CLAUDE_STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY,
   SESSION_TABS_SPLIT_GROUP_PLACEMENT_RUNTIME_CAPABILITY,
+  STRUCTURED_AGENT_SESSION_CLIENT_LAUNCH_MODE_CAPABILITY,
   STRUCTURED_AGENT_SESSION_HOLD_RUNTIME_CAPABILITY,
   STRUCTURED_AGENT_SESSION_RUNTIME_CAPABILITY
 } from '../../../src/shared/protocol-version'
@@ -49,6 +50,13 @@ describe('mobile runtime client capabilities', () => {
         STRUCTURED_AGENT_SESSION_REGISTERED_AGENTS_RUNTIME_CAPABILITY,
         PI_STRUCTURED_DIALOGS_RUNTIME_CAPABILITY
       ])
+    )
+  })
+
+  it('picks its own launch mode so createSupport admits a chat with the host Chat setting off', () => {
+    // Why: without it the host answers createSupport from experimentalNativeChat and refuses Gentle Shell.
+    expect(MOBILE_RUNTIME_CLIENT_CAPABILITIES).toContain(
+      STRUCTURED_AGENT_SESSION_CLIENT_LAUNCH_MODE_CAPABILITY
     )
   })
 

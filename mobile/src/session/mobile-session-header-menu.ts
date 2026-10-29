@@ -1,6 +1,6 @@
 export type MobileSessionHeaderMenuInput = {
-  /** The screen shows a native chat, which the Chat section describes. */
-  showNativeChat: boolean
+  /** The worktree has a chat for Plan, Summary and Artifacts to act on. */
+  hasChatSession: boolean
   /** The workspace offers its agent session history to resume (the old Agent History route). */
   showAgentHistory: boolean
   /** Git worktrees only: folder and floating workspaces have no source control. */
@@ -10,31 +10,38 @@ export type MobileSessionHeaderMenuInput = {
 }
 
 export type MobileSessionHeaderMenu = {
-  /** The ⋯ button shows when at least one item applies, in any workspace kind. */
+  /** The ⋯ button shows when at least one item applies; the chat items always do. */
   showButton: boolean
+  /** Without a chat, Plan, Summary and Artifacts stay listed but show disabled, with the reason. */
+  hasChatSession: boolean
   chat: {
-    /** Only without a native chat: beside one, Sessions holds the resume row instead. */
+    /** Only without a chat in the worktree: beside one, the Sessions sheet holds the resume row. */
     agentHistory: boolean
     plan: boolean
     summary: boolean
     artifacts: boolean
-    /** The quick commands the tab strip's button opened, now reached from the menu in a chat. */
+    prototypes: boolean
     quickCommands: boolean
   }
   environment: { branch: boolean; checks: boolean }
 }
 
+/**
+ * The same menu in every pane: what it offers follows the worktree, never the pane that is open.
+ * The chat items act on the worktree's chat, so they stay offered and show disabled without one.
+ */
 export function resolveMobileSessionHeaderMenu(
   input: MobileSessionHeaderMenuInput
 ): MobileSessionHeaderMenu {
   const chat = {
-    agentHistory: !input.showNativeChat && input.showAgentHistory,
-    plan: input.showNativeChat,
-    summary: input.showNativeChat,
-    artifacts: input.showNativeChat,
-    quickCommands: input.showNativeChat
+    agentHistory: !input.hasChatSession && input.showAgentHistory,
+    plan: true,
+    summary: true,
+    artifacts: true,
+    prototypes: true,
+    quickCommands: true
   }
   const environment = { branch: input.hasSourceControl, checks: input.showChecks }
   const showButton = Object.values(chat).some(Boolean) || Object.values(environment).some(Boolean)
-  return { showButton, chat, environment }
+  return { showButton, hasChatSession: input.hasChatSession, chat, environment }
 }

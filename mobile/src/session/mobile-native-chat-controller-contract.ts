@@ -20,6 +20,9 @@ import type { MobileNativeChatPendingMessage } from './use-mobile-native-chat-dr
 import type { useMobileNativeChatSession } from './use-mobile-native-chat-session'
 import type { MobileNativeChatSessionOptionPickersProps } from './MobileNativeChatSessionOptionPickers'
 import type { MobileNativeChatVisualSource } from './mobile-native-chat-visual-read'
+import type { NativeChatPrototypeChoice } from '../../../src/shared/prototype-request-decision'
+import type { MobilePrototypeAsk } from '../prototypes/mobile-prototype-ask-store'
+import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
 
 export type MobileNativeChatController = {
   /** Whether a tab's effective view is chat (per-tab override, else the default). */
@@ -106,6 +109,16 @@ export type MobileNativeChatController = {
       previewUri: string
     }[]
   ) => Promise<MobileNativeChatSendOutcome>
+  /** The "How many prototypes?" card waiting for its answer (structured lane only). */
+  nativeChatPrototypeAsk: MobilePrototypeAsk | null
+  answerNativeChatPrototypeAsk: (choice: NativeChatPrototypeChoice) => void
+  /** The prototype sets this chat opened, for the link cards under the requests that asked for them. */
+  nativeChatPrototypeSets: readonly PrototypeListedSet[]
+  /** The active structured chat's session id and its plain send, for sends the Prototypes screens make. */
+  nativeChatPrototypeSend: {
+    sessionId: string
+    send: (text: string) => Promise<boolean>
+  } | null
   /** Launch-context text still parked on the agent's TUI input line, or null.
    *  Image sends read it to size their leading clear (one Ctrl+U per line). */
   readSeededLaunchDraft: () => string | null

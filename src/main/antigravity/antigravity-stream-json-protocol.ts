@@ -129,22 +129,21 @@ function stepFrameError(
   return new AntigravityStreamStepFrameError(field, fieldKinds)
 }
 
+/** Result usage is advisory: null or malformed values are absent; only a negative or non-finite count is refused. */
 function parseUsage(value: unknown): AntigravityStreamUsage | undefined {
-  if (value === undefined) {
-    return undefined
-  }
   if (!isObject(value)) {
-    throw new AntigravityStreamProtocolError('Antigravity usage must be an object')
+    return undefined
   }
   const usage: AntigravityStreamUsage = {}
   for (const key of USAGE_KEYS) {
     const count = value[key]
-    if (count !== undefined) {
-      if (!isNonNegativeNumber(count)) {
-        throw new AntigravityStreamProtocolError(`Antigravity usage.${key} must be non-negative`)
-      }
-      usage[key] = count
+    if (typeof count !== 'number') {
+      continue
     }
+    if (!isNonNegativeNumber(count)) {
+      throw new AntigravityStreamProtocolError(`Antigravity usage.${key} must be non-negative`)
+    }
+    usage[key] = count
   }
   return usage
 }
@@ -224,16 +223,24 @@ export function classifyAntigravityStepState(value: unknown): AntigravityStreamS
   return 'UNKNOWN'
 }
 
-function isStatus(value: unknown): value is AntigravityStreamStatus {
-  return (
-    value === 'SUCCESS' ||
-    value === 'ERROR' ||
-    value === 'CANCELED' ||
-    value === 'INTERRUPTED' ||
-    value === 'INVALID' ||
-    value === 'WAITING' ||
-    value === 'RUNNING'
-  )
+const KNOWN_STATUSES: ReadonlySet<string> = new Set([
+  'SUCCESS',
+  'ERROR',
+  'CANCELED',
+  'INTERRUPTED',
+  'INVALID',
+  'WAITING',
+  'RUNNING'
+])
+
+/** Agy versions differ in status case; a name this parser does not know is reported as an error. */
+function classifyResultStatus(value: unknown): AntigravityStreamStatus {
+  const name = typeof value === 'string' ? value.trim().toUpperCase() : ''
+  return isKnownResultStatus(name) ? name : 'ERROR'
+}
+
+function isKnownResultStatus(name: string): name is AntigravityStreamStatus {
+  return KNOWN_STATUSES.has(name)
 }
 
 export function isAntigravityTerminalStatus(status: AntigravityStreamStatus): boolean {
@@ -289,25 +296,23 @@ export function parseAntigravityStreamRecord(value: unknown): AntigravityStreamW
     if (
       !isObject(result) ||
       typeof result.conversation_id !== 'string' ||
-      result.conversation_id.length === 0 ||
-      !isStatus(result.status) ||
-      typeof result.response !== 'string' ||
-      !isSafeNonNegativeInteger(result.num_turns) ||
-      (result.error !== undefined && typeof result.error !== 'string') ||
-      (result.duration_seconds !== undefined && !isNonNegativeNumber(result.duration_seconds))
+      result.conversation_id.length === 0
     ) {
-      throw new AntigravityStreamProtocolError('Antigravity result has invalid fields')
+      // Key names and value types only, so a log shows which field fails without its value.
+      throw new AntigravityStreamProtocolError(
+        `Antigravity result has invalid fields: ${JSON.stringify(describeAntigravityFrameFieldKinds(result))}`
+      )
     }
     const usage = parseUsage(result.usage)
     return {
       event: 'result',
       result: {
         conversation_id: result.conversation_id,
-        status: result.status,
-        response: result.response,
-        num_turns: result.num_turns,
+        status: classifyResultStatus(result.status),
+        response: typeof result.response === 'string' ? result.response : '',
+        num_turns: isSafeNonNegativeInteger(result.num_turns) ? result.num_turns : 0,
         ...(typeof result.error === 'string' ? { error: result.error } : {}),
-        ...(typeof result.duration_seconds === 'number'
+        ...(isNonNegativeNumber(result.duration_seconds)
           ? { duration_seconds: result.duration_seconds }
           : {}),
         ...(usage ? { usage } : {})

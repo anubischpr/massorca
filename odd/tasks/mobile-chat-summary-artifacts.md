@@ -486,3 +486,81 @@ Approved design v13: with the keyboard up in the Terminal panel, the terminal si
 
 ### Next step
 - Parent: check the Terminal panel on a phone with the keyboard up and down, in phone and desktop mode, on Android and iOS. Then decide the desktop-mode overlay question (gap 3).
+
+## Round 13: T34 Terminal panel QA fixes (pv43 phone QA, design v13)
+
+Approved design: v13, `Main.dc.html` in the session scratchpad (390x844). Each task is one Conventional Commit with its tests; no AI attribution lines. No push, no PR. TDD: off; runner `pnpm test` in `mobile/`.
+
+- [x] T34 The Terminal panel matches v13, the ⋯ menu is the same in every pane, and terminals are a worktree component: `625b858e83a`, `297c215692b`, `05fd917283f`, gate commit `76772a183b1`, and this docs commit.
+
+### T34 evidence
+- Route: inline, single writer.
+- `625b858e83a` fix(mobile): match the Terminal panel and composer to design v13
+  - The Back to chat row is gone. The top Chat segment returns, and the device Back key still returns to a chat when one exists.
+  - The "Ready in <folder> — type a command" line is gone. The "new" marker on a fresh pill stays.
+  - The "Tap to type" label is gone and the tap area stays, so tapping it still opens the keyboard. The Listening, Transcribing and Uploading text went too: v13 draws no text in that area, and the mic and + controls show those states.
+  - The header reads "TERMINALS · n in <name>", with the worktree's live display name (`worktreeName`, the name the session header and host list use) instead of the folder basename. The basename helper stays in `src/shared` for desktop.
+  - "New terminal" code path: `session.tabs.createTerminal` with `worktree: 'id:<worktreeId>'` and no working directory (`use-mobile-session-terminal-create-actions.ts`). The host adds a tab to the existing worktree; no worktree is created.
+- `297c215692b` fix(mobile): offer the same ⋯ menu in every session pane
+  - The menu follows the worktree, not the pane. Plan, Summary and Artifacts act on the worktree's chat: the active chat, else the first chat, which is the one Chat returns to.
+  - From the Terminal or Files pane they switch to that chat and open once it is on screen. The request lapses if the user moves to another tab first. With no chat they stay listed and show disabled, "Start a chat first".
+  - Quick commands launch a command and need no chat, so they stay enabled in every pane.
+  - Agent history is offered only where the worktree has no chat. Beside a chat, Sessions holds the resume row.
+- `05fd917283f` fix(mobile): open the Terminal panel for every terminal selection (coordinator bug, same round)
+  - Repro: a chat focused, the session chip, then the terminal entry. It resolved to the Unsupported notice, which hid the Chat · Files · Terminal pill and the ⋯ menu while the Keys row and composer still drew beneath it.
+  - (a) The session chip and the Sessions sheet list chats only. The chip names the chat the chat items act on, so it still reads a chat while a terminal is active. The sheet carries v13's "Terminals live in the Terminal view, not here." Any other entry point that selects a terminal tab lands in the Terminal panel with that tab selected.
+  - (b) An active terminal tab holds the Terminal panel's body whichever panel docks beside it (`isTerminalPanelOpen`). The layout entry runs on every terminal selection; its one-shot guard now covers only file and markdown tabs.
+  - (c) The floating controls draw over the unsupported notice. The neutral Back-only bar is kept for the loading state. The composer draws only as the Terminal panel's composer, so no Keys row sits under the notice.
+  - The panel's Back key returns to the chat when the worktree has one. Otherwise it hands the key back to the system, so a terminal-only worktree never traps it.
+  - "Tap to type" confirmed removed: `git show 625b858e83a:mobile/src/session/MobileTerminalComposerDock.tsx` has no such text, and the pv43 screenshot predates that commit.
+- `76772a183b1` chore(mobile): satisfy the changed-code gate. Two react-doctor annotations on the effects that settle a chat request, and SAFETY reasons on three fixture casts.
+
+### Checks
+- `cd mobile && pnpm run typecheck`: exit 0, no TS errors.
+- Touched and added suites, `pnpm exec vitest run` on 12 files: 113 tests pass. They cover the panel, panel model, composer, chat target, header menu, ⋯ sheet, surfaces hook, layout entry, chrome mode, floating chrome, Sessions sheet, and session toast cleanup.
+- `pnpm exec vitest run src/session` after `05fd917283f`: 2645 of 2649 pass. Failing: `mobile-native-chat-merged-snapshot-parity.test.ts` (4 timeouts under parallel load; 9 of 9 pass alone) and `mobile-prompt-controller.test.ts` (load error, known).
+- oxfmt and oxlint clean on the changed files.
+- `node config/scripts/check-changed-code-quality.mjs f77b3b5ff4f`: passed, 0 new findings in the casting, focused, type-aware, React Doctor, design-system and casting SAFETY checks.
+
+### Decisions and gaps
+1. The header name suffix: v13 shows "TERMINALS · n" with no folder or name. The suffix stays as asked. Owner call whether to drop it to match v13.
+2. v13's terminal-view chip is a static "Worktree terminal · <name>" pill. The chip still switches sessions and now names the worktree's chat. Not restyled here; owner decision.
+3. While the session kind is loading, the neutral Back-only bar still shows (T14). The floating controls appear once the tab resolves, so "every state" excludes that loading state.
+4. In a terminal-only worktree, Chat has no chat to return to, so the Terminal panel stays. Back leaves the session.
+5. The classic header behind `MOBILE_LEGACY_SESSION_VIEWS` (off) also lists chats only. It is unreachable by default.
+6. `entryPending` in the chrome-mode function is no longer reached by the app, because the terminal body is always the panel. It stays with its pure tests.
+7. Phone Files opens a separate route, which has no floating controls. The ⋯ menu is identical wherever the session screen draws it: chat, Terminal panel, and Files docked on wide layouts.
+8. Not verified on a device: the pv43 repro on a phone, Android Back, the desktop-mode composer, and keyboard show and hide with the panel open.
+
+### Next step
+- Parent: review `625b858e83a`, `297c215692b`, `05fd917283f` and `76772a183b1`, re-check the pv43 repro (chip, then terminal) on a phone, and decide gaps 1 and 2.
+
+## Round 14: T35 and T36 host fixes from real-host evidence
+
+Evidence came from the Linux VPS running the Orca runtime service. Each task is one Conventional Commit with its tests; no AI attribution lines. No push, no PR.
+
+- [x] T35 Gentle Shell launches from a service whose login PATH lacks the mise shims: `5248f28ad7b`, test follow-up `9a08ac696b9`.
+- [x] T36 Antigravity accepts the result frame every agy release sends: `f960f61441d`, and this docs commit.
+
+### T35 evidence
+- Cause: the chat launch env took PATH from the login-shell probe and dropped the process PATH, so `~/.local/share/mise/shims/gentle-shell` was invisible to the create-support check even though detection (merged PATH) found it.
+- Launch env (`structured-agent-shell-environment.ts`): login PATH first, then process PATH entries not already present; tool-manager variables (`MISE_*`, `ASDF_*`, `VOLTA_HOME`, `NVM_DIR`, `PYENV_ROOT`) come from the process when the login env lacks them and never override a login value. Applies with and without "inherit shell environment". This `mergePathSegments` is not reused: it mutates `process.env`.
+- Catalog prewarm (`rpc-model-catalog-probe.ts`): with no runtime named and no Command setting, it lists through Gentle Shell when stock `pi` is not runnable. Create-time resolution already did this (`resolveHostPiRuntime`) and keeps its tests.
+- Version probe: the real three-line output (`gentle-shell 4.3.0`, `pi 1.3.0`, `home isolated <path>`) is now a test case; the parser already accepted it.
+- Diagnostics: `[structured-create-support]` was console-only. It now also writes an `agentSession.createSupport` span (agent, check, reason, cause) to `main.trace.ndjson`.
+- Mobile: a Gentle Shell "not available" message now carries the host's cause (`cliMissing`, `agentCommandNotRunnable`, or the reason word); an older host sends none and the message is unchanged.
+
+### T36 evidence
+- Cause: `parseAntigravityStreamRecord` required `response`, `num_turns` and an uppercase status, and rejected null optional fields.
+- Now: `conversation_id` stays required. Status matches case-insensitively and an unknown one becomes `ERROR`. `response` defaults to `''` and `num_turns` to `0`. `error`, `duration_seconds` and `usage` treat null and wrong types as absent; a negative usage count still fails. A refused result reports field kinds (never values) in the error.
+- Tests: the agy 1.4.8 result, a lowercase 1.4.4 shape with extra keys, an error without response or turns, null and malformed optionals, unknown status, and the negative assertions.
+
+### Checks
+- `pnpm tc:node`: exit 0.
+- `cd mobile && pnpm run typecheck`: exit 0.
+- Touched suites pass: shell environment, launch support (three files), Pi catalog probe and launch resolution, create-support warning, Antigravity (24 files), mobile launch and create-actions.
+- Broader run of `src/main/pi`, `src/main/runtime/structured-agent*`, `src/main/startup`: failures only in Windows-only or timing tests (EBUSY on sqlite, user-agent ordering, document delivery, ACL repair, virtual display, and `structured-agent-model-catalog-discovery` which needs a `.exe` override on Windows). Not caused by these changes.
+- `node config/scripts/check-changed-code-quality.mjs e81f6480725`: passed, 0 new findings.
+
+### Next step
+- Parent: rebuild the VPS service, then check `main.trace.ndjson` for `agentSession.createSupport` and `agentModelCatalog.discovery` pi spans, and launch Gentle Shell and Antigravity from the phone.

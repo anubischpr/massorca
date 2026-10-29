@@ -14,6 +14,7 @@ vi.mock('react-native', () => ({
 vi.mock('lucide-react-native', () => ({
   Files: 'Files',
   GitBranch: 'GitBranch',
+  Layers: 'Layers',
   ListChecks: 'ListChecks',
   ListTodo: 'ListTodo',
   MessagesSquare: 'MessagesSquare',
@@ -41,11 +42,13 @@ vi.mock('../components/BottomDrawer', async () => {
 
 const FULL: MobileSessionHeaderMenu = {
   showButton: true,
+  hasChatSession: true,
   chat: {
     agentHistory: false,
     plan: true,
     summary: true,
     artifacts: true,
+    prototypes: true,
     quickCommands: true
   },
   environment: { branch: true, checks: true }
@@ -77,6 +80,7 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
       onOpenPlan: vi.fn(),
       onOpenSummary,
       onOpenArtifacts: vi.fn(),
+      onOpenPrototypes: vi.fn(),
       onOpenQuickCommands: vi.fn(),
       onOpenAgentHistory: vi.fn(),
       onOpenBranch: vi.fn(),
@@ -109,12 +113,22 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
       'Plan',
       'Summary',
       'Artifacts',
+      'Prototypes',
       'Quick commands',
       'Branch',
       'Checks'
     ])
     const labels = mounted.root.findAll((node) => String(node.type) === 'Text').map(textOf)
     expect(labels).toEqual(expect.arrayContaining(['Chat', 'Environment', '2 of 5 done', '7']))
+  })
+
+  it('counts the prototype sets of the chat on the Prototypes row, and shows no pill without any', () => {
+    const withSets = mount({ prototypesBadge: '3' }).mounted
+    const labels = withSets.root.findAll((node) => String(node.type) === 'Text').map(textOf)
+    expect(labels).toContain('3')
+    const without = mount().mounted
+    const bare = without.root.findAll((node) => String(node.type) === 'Text').map(textOf)
+    expect(bare).not.toContain('3')
   })
 
   it('leaves out the plan row when the chat has no plan', () => {
@@ -148,6 +162,7 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
     const { mounted } = mount({
       menu: {
         showButton: true,
+        hasChatSession: false,
         chat: {
           agentHistory: true,
           plan: false,
@@ -167,6 +182,7 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
       onOpenAgentHistory,
       menu: {
         showButton: true,
+        hasChatSession: false,
         chat: {
           agentHistory: true,
           plan: false,
@@ -195,5 +211,31 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
         String(node.type) === 'Pressable' && node.props.accessibilityLabel === 'Quick commands'
     )
     expect(row.props.disabled).toBe(true)
+  })
+
+  it('keeps Plan, Summary and Artifacts listed but disabled, with the reason, without a chat', () => {
+    const { mounted } = mount({ menu: { ...FULL, hasChatSession: false } })
+    const row = (label: string) =>
+      mounted.root.find(
+        (node) => String(node.type) === 'Pressable' && node.props.accessibilityLabel === label
+      )
+    const labels = mounted.root.findAll((node) => String(node.type) === 'Text').map(textOf)
+
+    expect(rowLabels(mounted)).toEqual([
+      'Plan',
+      'Summary',
+      'Artifacts',
+      'Prototypes',
+      'Quick commands',
+      'Branch',
+      'Checks'
+    ])
+    expect(row('Plan').props.disabled).toBe(true)
+    expect(row('Summary').props.disabled).toBe(true)
+    expect(row('Artifacts').props.disabled).toBe(true)
+    expect(row('Prototypes').props.disabled).toBeFalsy()
+    expect(row('Quick commands').props.disabled).toBe(false)
+    expect(labels.filter((text) => text === 'Start a chat first')).toHaveLength(3)
+    expect(labels).not.toContain('2 of 5 done')
   })
 })

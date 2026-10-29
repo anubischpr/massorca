@@ -90,6 +90,7 @@ export type RuntimeClientSettingsUpdate = Pick<
   | 'prBotAuthorOverrides'
   | 'worktreeVisibilityDefaults'
   | 'machineName'
+  | 'prototypeCount'
 >
 
 export class RuntimeClientSettingsController {

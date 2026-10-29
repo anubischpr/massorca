@@ -9,6 +9,8 @@ import type { CreateSessionChoice } from './create-session-model'
 export type CreateSessionSheetRow = CreateSessionChoice & {
   /** Opens a deeper view instead of picking, so it shows a chevron rather than a check. */
   chevron?: boolean
+  /** A glyph before the label, such as the agent's icon. */
+  leading?: React.ReactNode
 }
 
 export function CreateSessionChoiceSheet({
@@ -87,6 +89,7 @@ export function CreateSessionChoiceSheet({
                     pressed && styles.rowPressed
                   ]}
                 >
+                  {row.leading ? <View style={styles.leading}>{row.leading}</View> : null}
                   <View style={styles.rowCopy}>
                     <Text style={styles.rowLabel} numberOfLines={1}>
                       {row.label}
@@ -155,6 +158,7 @@ const styles = StyleSheet.create({
   },
   rowDisabled: { opacity: 0.45 },
   rowPressed: { opacity: 0.7 },
+  leading: { width: 22, alignItems: 'center', justifyContent: 'center' },
   rowCopy: { flex: 1, minWidth: 0, gap: 2 },
   rowLabel: { color: colors.textPrimary, fontSize: typography.bodySize, fontWeight: '500' },
   rowDescription: { color: colors.textSecondary, fontSize: typography.metaSize }

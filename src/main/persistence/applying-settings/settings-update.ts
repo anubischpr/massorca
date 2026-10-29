@@ -1,4 +1,5 @@
 import { normalizeNativeChatAppearanceSettings } from '../../../shared/native-chat-appearance-settings'
+import { sanitizePrototypeCountSetting } from '../../../shared/prototype-count-setting'
 import type { GlobalSettings } from '../../../shared/global-settings-types'
 import { normalizeDisabledTuiAgents } from '../../../shared/tui-agent-selection'
 import { resolveNestedWorkerMaxDepth } from '../../../shared/nested-worker-depth'
@@ -87,6 +88,9 @@ export function updateSettings(
     sanitizedUpdates.nativeChatAppearance = normalizeNativeChatAppearanceSettings(
       updates.nativeChatAppearance
     )
+  }
+  if ('prototypeCount' in updates) {
+    sanitizedUpdates.prototypeCount = sanitizePrototypeCountSetting(updates.prototypeCount)
   }
   if ('disabledTuiAgents' in updates) {
     sanitizedUpdates.disabledTuiAgents = normalizeDisabledTuiAgents(updates.disabledTuiAgents)

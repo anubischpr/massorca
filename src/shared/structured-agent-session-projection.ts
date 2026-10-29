@@ -40,6 +40,10 @@ import { readAgentMessageSource } from './agent-session-message-source'
 import { structuredAgentSessionStatusStartedAt } from './structured-agent-session-status-started-at'
 import { owesStructuredAgentSessionWork } from './structured-agent-session-owed-work'
 import { agentSessionCurrentContextRows } from './agent-session-context-clear'
+import {
+  prototypeRequestIdOfBlocks,
+  withoutPrototypeHiddenInstruction
+} from './prototype-hidden-blocks'
 
 // Re-exported so the live-turn readers' and the unanswered-send rule's existing consumers keep one
 // import site.
@@ -75,7 +79,10 @@ function itemBlocks(item: AgentJournalRenderItem): {
 } | null {
   const body = item.body
   if (body.kind === 'message') {
-    return { role: body.role, blocks: body.blocks }
+    return {
+      role: body.role,
+      blocks: body.role === 'user' ? withoutPrototypeHiddenInstruction(body.blocks) : body.blocks
+    }
   }
   if (isStructuredAgentSessionToolAction(body)) {
     const call = structuredAgentSessionToolCallBlock(body, item.itemId)
@@ -191,6 +198,10 @@ export function projectStructuredItemToNativeChat(
   const command = item.body.kind === 'message' ? item.body.command : undefined
   // Read here too: a client's journal comes off the wire, from a host of any version.
   const from = item.body.kind === 'message' ? readAgentMessageSource(item.body.from) : undefined
+  const prototypeRequestId =
+    item.body.kind === 'message' && item.body.role === 'user'
+      ? prototypeRequestIdOfBlocks(item.body.blocks)
+      : undefined
   const message: NativeChatMessage | null = projected
     ? {
         ...agentJournalItemRowOrigin(item),
@@ -201,7 +212,8 @@ export function projectStructuredItemToNativeChat(
         ...(sentAs !== undefined && isAgentJournalMessageSendMode(sentAs) ? { sentAs } : {}),
         ...lifecycle,
         ...(command ? { command } : {}),
-        ...(from && projected.role === 'user' ? { from } : {})
+        ...(from && projected.role === 'user' ? { from } : {}),
+        ...(prototypeRequestId !== undefined ? { prototypeRequestId } : {})
       }
     : null
   projectedItems.set(item, message)

@@ -14,6 +14,10 @@ import {
 import { compareNativeChatTranscriptMessages } from './native-chat-transcript-projection'
 import type { NativeChatMessage } from './native-chat-types'
 import { dispatchWasWithdrawn } from './structured-agent-session-dispatch-rejection'
+import {
+  prototypeRequestIdOfBlocks,
+  withoutPrototypeHiddenInstruction
+} from './prototype-hidden-blocks'
 import { projectStructuredItemsToNativeChat } from './structured-agent-session-projection'
 import {
   agentSessionContextSequenceFor,
@@ -201,7 +205,10 @@ export function projectStructuredAgentSessionMessages(
         role: 'user',
         source: 'transcript',
         timestamp: entry.queuedAt,
-        blocks: entry.body.blocks,
+        blocks: withoutPrototypeHiddenInstruction(entry.body.blocks),
+        ...(prototypeRequestIdOfBlocks(entry.body.blocks) !== undefined
+          ? { prototypeRequestId: prototypeRequestIdOfBlocks(entry.body.blocks) }
+          : {}),
         ...(entry.sentWhileStopping ? { sentWhileStopping: true as const } : {})
       }))
   ]

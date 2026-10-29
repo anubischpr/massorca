@@ -12,7 +12,7 @@ import type { StructuredAgentCommandSettings } from '../native-chat/structured-a
 import { buildPiRpcLaunch } from './rpc-launch'
 import { piRpcVersionSupported, resolvePiRpcCommand } from './rpc-launch-resolution'
 import { PI_UNMAPPED_THINKING_LEVELS } from './rpc-options'
-import { piRuntimeCommandSettings } from '../../shared/pi-runtime-selection'
+import { hasExplicitPiCommand, piRuntimeCommandSettings } from '../../shared/pi-runtime-selection'
 
 export type PiModelCatalogProbeDeps = {
   resolveEnvironment: () => Promise<NodeJS.ProcessEnv>
@@ -37,6 +37,26 @@ export function piModelCatalogFromListing(stdout: string): AgentModelCatalogSucc
   }))
 }
 
+async function runnableGentleShellCommand(input: {
+  settings: StructuredAgentCommandSettings
+  env: Record<string, string>
+  cwd: string
+  deps: PiModelCatalogProbeDeps
+}): Promise<string | null> {
+  const { settings, env, cwd, deps } = input
+  let command: string
+  try {
+    command = resolvePiRpcCommand(
+      env,
+      piRuntimeCommandSettings(settings, 'gentle-shell'),
+      deps.resolveCommand
+    )
+  } catch {
+    return null
+  }
+  return (await piRpcVersionSupported({ command, cwd, env }, deps.probeVersion)) ? command : null
+}
+
 /** Lists Pi's models with `pi --list-models`, under the binary and environment its chats run. */
 export function createPiModelCatalogProbe(deps: PiModelCatalogProbeDeps): AgentModelCatalogProbe {
   return async (accountHome, options): Promise<AgentModelCatalogSuccess> => {
@@ -48,14 +68,22 @@ export function createPiModelCatalogProbe(deps: PiModelCatalogProbeDeps): AgentM
     }
     env.PI_CODING_AGENT_DIR = requireLegacyAgentSessionAccountHome(accountHome).path
     const settings = deps.resolveCommandSettings?.() ?? {}
-    const command = resolvePiRpcCommand(
+    const cwd = deps.homePath ?? homedir()
+    let command = resolvePiRpcCommand(
       env,
       options?.piRuntime ? piRuntimeCommandSettings(settings, options.piRuntime) : settings,
       deps.resolveCommand
     )
-    const cwd = deps.homePath ?? homedir()
     if (!(await piRpcVersionSupported({ command, cwd, env }, deps.probeVersion))) {
-      throw new Error(`pi at ${command} does not run structured chats`)
+      // Why: a host with only Gentle Shell has no stock `pi`; an unnamed runtime lists through it.
+      const gentle =
+        options?.piRuntime === undefined && !hasExplicitPiCommand(settings.agentCmdOverrides ?? {})
+          ? await runnableGentleShellCommand({ settings, env, cwd, deps })
+          : null
+      if (gentle === null) {
+        throw new Error(`pi at ${command} does not run structured chats`)
+      }
+      command = gentle
     }
     // The chat launch's own env rules; only the arguments differ.
     const launch = buildPiRpcLaunch({ command, cwd, env, fullAccess: true })

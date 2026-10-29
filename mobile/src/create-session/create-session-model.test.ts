@@ -9,8 +9,6 @@ import {
   chooseCreateSessionRepo,
   createSessionFootnote,
   effectiveWorkspaceMode,
-  selectableCreateSessionAgents,
-  withAvailableCreateSessionAgent,
   showsBaseRefChip,
   workspaceModeChipLabel,
   type CreateSessionSelection
@@ -31,6 +29,7 @@ const base: CreateSessionSelection = {
   repoId: 'web',
   workspaceMode: 'new-worktree',
   agent: 'claude',
+  piRuntime: null,
   baseRef: null
 }
 
@@ -62,6 +61,7 @@ describe('create session selection', () => {
       repoId: 'infra',
       workspaceMode: 'new-worktree',
       agent: null,
+      piRuntime: null,
       baseRef: null
     })
   })
@@ -72,6 +72,7 @@ describe('create session selection', () => {
       repoId: null,
       workspaceMode: 'new-worktree',
       agent: null,
+      piRuntime: null,
       baseRef: null
     })
   })
@@ -84,7 +85,8 @@ describe('create session selection', () => {
     expect(chooseCreateSessionHost(base, 'ssh:vps', repos)).toMatchObject({
       hostId: 'ssh:vps',
       repoId: 'infra',
-      agent: null
+      agent: null,
+      piRuntime: null
     })
   })
 
@@ -92,12 +94,21 @@ describe('create session selection', () => {
     expect(chooseCreateSessionRepo(base, 'infra', repos)).toMatchObject({
       hostId: 'ssh:vps',
       repoId: 'infra',
-      agent: null
+      agent: null,
+      piRuntime: null
     })
   })
 
   it('keeps the agent when the project stays on the same host', () => {
     expect(chooseCreateSessionRepo(base, 'api', repos).agent).toBe('claude')
+  })
+
+  it('keeps the Pi runtime with its agent when the project stays on the same host', () => {
+    const gentleShell = { ...base, agent: 'pi' as const, piRuntime: 'gentle-shell' as const }
+    expect(chooseCreateSessionRepo(gentleShell, 'api', repos)).toMatchObject({
+      agent: 'pi',
+      piRuntime: 'gentle-shell'
+    })
   })
 
   it('ignores a project the host no longer lists', () => {
@@ -142,40 +153,6 @@ describe('create session workspace mode', () => {
     expect(workspaceModeChipLabel({ ...base, workspaceMode: 'current-checkout' }, local)).toBe(
       'Current checkout'
     )
-  })
-})
-
-describe('create session agents', () => {
-  const catalog = [{ id: 'claude' as const }, { id: 'codex' as const }, { id: 'gemini' as const }]
-
-  it('keeps detected, enabled agents only', () => {
-    expect(
-      selectableCreateSessionAgents(catalog, {
-        detectedAgentIds: new Set(['claude', 'gemini']),
-        isEnabled: (agent) => agent !== 'gemini'
-      })
-    ).toEqual(['claude'])
-  })
-
-  it('lists every enabled agent while detection is still running', () => {
-    expect(
-      selectableCreateSessionAgents(catalog, { detectedAgentIds: null, isEnabled: () => true })
-    ).toEqual(['claude', 'codex', 'gemini'])
-  })
-
-  it('keeps a still-available agent', () => {
-    expect(withAvailableCreateSessionAgent(base, ['codex', 'claude'], 'codex')).toBe(base)
-  })
-
-  it('moves to the preferred agent, else the first, when the pick is gone', () => {
-    expect(withAvailableCreateSessionAgent(base, ['gemini', 'codex'], 'codex').agent).toBe('codex')
-    expect(withAvailableCreateSessionAgent(base, ['gemini', 'codex'], 'claude').agent).toBe(
-      'gemini'
-    )
-  })
-
-  it('clears the pick when the host has no agent', () => {
-    expect(withAvailableCreateSessionAgent(base, [], null).agent).toBeNull()
   })
 })
 

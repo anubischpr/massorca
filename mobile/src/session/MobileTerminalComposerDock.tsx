@@ -64,6 +64,7 @@ export type MobileTerminalComposerController = Pick<
   | 'submitLiveInput'
   | 'terminalKeyboardFit'
   | 'terminalModes'
+  | 'terminalPanelOpen'
   | 'toggleDisplayMode'
 > & {
   readonly dictation: Pick<
@@ -117,6 +118,7 @@ export function MobileTerminalComposerDock({
     submitLiveInput,
     terminalKeyboardFit,
     terminalModes,
+    terminalPanelOpen,
     toggleDisplayMode
   } = controller
   const [keysOpen, setKeysOpen] = useState(true)
@@ -132,7 +134,14 @@ export function MobileTerminalComposerDock({
     chordBuilding: isTerminalKeyChordBuilding(keyChord.chord),
     chordSentShowing: keyChord.sentLabel !== null
   })
-  if (activeMarkdownTab || activeFileTab || activeBrowserTab || showNativeChat) {
+  // The composer belongs to the Terminal panel: under any other body, such as the notice, it draws nothing.
+  if (
+    !terminalPanelOpen ||
+    activeMarkdownTab ||
+    activeFileTab ||
+    activeBrowserTab ||
+    showNativeChat
+  ) {
     return null
   }
   const phoneMode = isTerminalPhoneDisplayMode(activeHandle, terminalModes)
@@ -280,11 +289,7 @@ export function MobileTerminalComposerDock({
             disabled={!canSend}
             onPress={focusLiveInput}
             style={styles.tapArea}
-          >
-            <Text numberOfLines={1} style={styles.tapAreaText}>
-              {tapAreaLabel(dictation.isRecording, dictation.isProcessing, isAttaching)}
-            </Text>
-          </Pressable>
+          />
           {keyboardUp ? (
             <Pressable
               accessibilityRole="button"
@@ -348,17 +353,4 @@ export function MobileTerminalComposerDock({
       />
     </View>
   )
-}
-
-function tapAreaLabel(isRecording: boolean, isProcessing: boolean, isAttaching: boolean): string {
-  if (isRecording) {
-    return 'Listening'
-  }
-  if (isProcessing) {
-    return 'Transcribing on desktop'
-  }
-  if (isAttaching) {
-    return 'Uploading image to host'
-  }
-  return 'Tap to type'
 }

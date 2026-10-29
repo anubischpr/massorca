@@ -5,6 +5,7 @@
 // agent-status-types.ts, which owns the payload shapes and the caps no other module applies.
 
 import { compactDispatchPromptForStatus } from './orca-dispatch-status-prompt'
+import { splitPrototypeHiddenInstruction } from './prototype-hidden-instruction'
 
 /** Maximum character length for the prompt field. Truncated on parse. */
 export const AGENT_STATUS_MAX_FIELD_LENGTH = 200
@@ -47,12 +48,14 @@ export function normalizePromptField(value: unknown): string {
   if (typeof value !== 'string') {
     return ''
   }
+  // Before the line folding below, which would join the marker line into the text.
+  const typed = splitPrototypeHiddenInstruction(value).visibleText
   return (
     compactDispatchPromptForStatus(
-      value,
+      typed,
       AGENT_STATUS_MAX_FIELD_LENGTH,
       normalizeSingleLinePreview
-    ) ?? normalizeSingleLinePreview(value, AGENT_STATUS_MAX_FIELD_LENGTH)
+    ) ?? normalizeSingleLinePreview(typed, AGENT_STATUS_MAX_FIELD_LENGTH)
   )
 }
 

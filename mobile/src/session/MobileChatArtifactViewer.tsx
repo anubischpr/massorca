@@ -112,7 +112,7 @@ function RecordedState({
   if (state.kind === 'unavailable') {
     return (
       <Notice
-        title="Update Orca on this computer"
+        title="Update MassOrca on this computer"
         body="Then you can open files from your phone."
       />
     )

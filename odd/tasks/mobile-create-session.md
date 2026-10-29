@@ -157,3 +157,22 @@ one-line note.
 | Resume from agent history | AI vault resume command in a terminal | terminal by design: resumes a recorded CLI session |
 | Blank terminal (create screen more-options, old form Blank) | `worktree.create`, no agent | terminal, as intended |
 
+## Follow-up: pv43 QA items 8 and 9
+
+Branch: `fix/mobile-create-session-agents`, from `b973ccd3dbd` (the head of `feat/mobile-create-session`).
+
+- [x] F1 Agent sheet: one row per Pi runtime the host reports ("Pi", "Gentle Shell"), an icon on each row and on the selected chip; with no report, one Pi row named by `agentCmdOverrides.pi` - b12cb80e720
+- [x] F2 Antigravity (no model list): the composer row names its default model ("Antigravity · default model"); the input stays and send stays disabled until there is text - b12cb80e720
+- [x] F3 Gentle Shell chat: created through the structured create with `piRuntime: 'gentle-shell'` and the picked access mode; support is asked before a worktree exists; the first message is sent with the create's fence - 1b5f9e7e5ba
+
+Gaps:
+
+- The Pi runtime split needs host commit `1e76654e8b7`, which is not on this branch. Without it the host refuses `preflight.detectPiRuntimes` and the picker keeps one Pi row.
+- A Gentle Shell chat applies the access mode only. Model and effort picks are not sent, because the structured create has no field for them. The model list is still read for stock Pi.
+- The Gentle Shell chat lands on the worktree's active tab; no tab is reserved for it yet.
+- If the chat fails after a new worktree was created, the worktree stays and the next tap creates another.
+- Not run on a live host or a phone.
+
+Checks: `pnpm run typecheck` (mobile): 0 errors. `vitest` on the create-session and `mobile-structured-*` tests: 301 pass in 30 files. `oxfmt --check` and `oxlint` on touched files: clean. `node config/scripts/check-changed-code-quality.mjs b973ccd3dbd`: pass.
+
+Full mobile suite: 18 files report failures. Those 18 files run on `b973ccd3dbd` and on this branch give the same result: 15 files fail, 146 tests fail, 1616 pass. The failures are not from this change. One structured-create golden regressed on an earlier draft of F3 (the created result gained a `fence` field); it is fixed by keeping the existing result shape and returning the fence from a separate start function.

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import {
   NATIVE_CHAT_VISUAL_CSP,
@@ -211,5 +212,82 @@ describe('clampNativeChatVisualHeight', () => {
     expect(clampNativeChatVisualHeight(1)).toBe(NATIVE_CHAT_VISUAL_MIN_HEIGHT)
     expect(clampNativeChatVisualHeight(99_999)).toBe(NATIVE_CHAT_VISUAL_MAX_HEIGHT)
     expect(clampNativeChatVisualHeight(300.4)).toBe(300)
+  })
+})
+
+describe('annotate option of buildNativeChatVisualDocument', () => {
+  const html =
+    '<!doctype html><html><head><title>x</title></head><body><p>hi</p><a href="#a">a</a></body></html>'
+  const base = { html, channel: 'abc123', theme }
+
+  it('leaves the document without annotate byte-for-byte as it was, with or without the flag off', () => {
+    // SHA-256 and length of this exact build, taken before the annotate channel existed.
+    const document = buildNativeChatVisualDocument(base)
+    expect(createHash('sha256').update(document).digest('hex')).toBe(
+      'd6401c5b156178304af8652c57a02eae992c7d8abae52133b83414a40a4e2fd8'
+    )
+    expect(document.length).toBe(5353)
+    expect(buildNativeChatVisualDocument({ ...base, annotate: false })).toBe(document)
+    expect(document).not.toContain('data-orca-annotate')
+    expect(document).not.toContain('orca-visual-annotate')
+  })
+
+  it('adds only the annotate script, and keeps the policy and the bootstrap exactly as they are', () => {
+    const plain = buildNativeChatVisualDocument(base)
+    const annotate = buildNativeChatVisualDocument({ ...base, annotate: true })
+    expect(annotate).toContain('"annotate":"orca-visual-annotate"')
+    expect(annotate.indexOf('<script>')).toBeGreaterThan(0)
+    expect(annotate.length).toBeGreaterThan(plain.length)
+    expect(annotate.includes(NATIVE_CHAT_VISUAL_CSP)).toBe(true)
+    expect(annotate.indexOf('http-equiv="Content-Security-Policy"')).toBeLessThan(
+      annotate.indexOf('data-orca-annotate')
+    )
+    expect(annotate.endsWith(html)).toBe(true)
+    // The annotate script is one inline script, placed after the bootstrap and before the visual.
+    expect(annotate.split('<script>').length).toBe(plain.split('<script>').length + 1)
+  })
+})
+
+describe('readNativeChatVisualFrameMessage annotate events', () => {
+  const picked = {
+    type: 'orca-visual-element-picked',
+    channel: 'c',
+    element: {
+      selector: 'h1',
+      label: 'title',
+      rect: { x: 0, y: 0, width: 10, height: 10 },
+      htmlSnippet: '<h1>x</h1>',
+      state: {
+        text: 'x',
+        color: '#000000',
+        bg: '#ffffff',
+        width: { value: 10, unit: 'px' },
+        height: { value: 10, unit: 'px' },
+        fontSize: 16
+      }
+    }
+  }
+
+  it('accepts a picked element and a pin click on its own channel', () => {
+    expect(readNativeChatVisualFrameMessage(picked, 'c')).toMatchObject({
+      kind: 'element-picked',
+      element: { selector: 'h1', label: 'title' }
+    })
+    expect(
+      readNativeChatVisualFrameMessage(
+        { type: 'orca-visual-pin-clicked', channel: 'c', pinKey: 'k' },
+        'c'
+      )
+    ).toEqual({ kind: 'pin-clicked', pinKey: 'k' })
+  })
+
+  it('refuses an annotate event on another channel or with a malformed element', () => {
+    expect(readNativeChatVisualFrameMessage({ ...picked, channel: 'x' }, 'c')).toBeNull()
+    expect(
+      readNativeChatVisualFrameMessage(
+        { ...picked, element: { ...picked.element, label: '' } },
+        'c'
+      )
+    ).toBeNull()
   })
 })

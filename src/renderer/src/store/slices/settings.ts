@@ -1,4 +1,5 @@
 import { normalizeNativeChatAppearanceSettings } from '../../../../shared/native-chat-appearance-settings'
+import { sanitizePrototypeCountSetting } from '../../../../shared/prototype-count-setting'
 import type { StateCreator } from 'zustand'
 import type { AppState } from '../types'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
@@ -99,6 +100,9 @@ function normalizeSettingsUpdates(
     sanitizedUpdates.nativeChatAppearance = normalizeNativeChatAppearanceSettings(
       updates.nativeChatAppearance
     )
+  }
+  if ('prototypeCount' in updates) {
+    sanitizedUpdates.prototypeCount = sanitizePrototypeCountSetting(updates.prototypeCount)
   }
   if ('disabledTuiAgents' in updates) {
     sanitizedUpdates.disabledTuiAgents = normalizeDisabledTuiAgents(updates.disabledTuiAgents)

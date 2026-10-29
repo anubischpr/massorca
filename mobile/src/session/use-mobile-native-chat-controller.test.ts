@@ -185,6 +185,11 @@ describe('useMobileNativeChatController handleNativeChatSend', () => {
   // Only the stale-input heal reaches the transport directly (the message send
   // itself is mocked above).
   const clientStub = { sendRequest: vi.fn() }
+  // A structured chat also lists its prototype sets for the link cards; any other call would be a send.
+  const sentMethodsOtherThanPrototypeList = (): unknown[] =>
+    clientStub.sendRequest.mock.calls
+      .map(([method]) => method)
+      .filter((method) => method !== 'prototypes.list')
 
   function Harness({
     connState = 'connected',
@@ -290,7 +295,7 @@ describe('useMobileNativeChatController handleNativeChatSend', () => {
     expect(accepted).toBe(true)
     // The clear would be swallowed by the live overlay but still acked, burning
     // the marker and leaving the paste to corrupt the next real message.
-    expect(clientStub.sendRequest).not.toHaveBeenCalled()
+    expect(sentMethodsOtherThanPrototypeList()).toEqual([])
     expect(isMobileNativeChatInputStale('term-1')).toBe(true)
   })
 
@@ -350,7 +355,7 @@ describe('useMobileNativeChatController handleNativeChatSend', () => {
     expect(accepted).toBe(true)
     expect(structuredSendWithOutcome).toHaveBeenCalledWith('look')
     expect(sendWithOutcome).not.toHaveBeenCalled()
-    expect(clientStub.sendRequest).not.toHaveBeenCalled()
+    expect(sentMethodsOtherThanPrototypeList()).toEqual([])
   })
 
   it('separates structured working status from provider cancellation availability', async () => {
@@ -419,7 +424,7 @@ describe('useMobileNativeChatController handleNativeChatSend', () => {
       expect(await controller!.handleNativeChatQuestionAnswer('choice-a')).toBe(true)
     })
     expect(structuredRespondQuestion).toHaveBeenCalledWith('choice-a')
-    expect(clientStub.sendRequest).not.toHaveBeenCalled()
+    expect(sentMethodsOtherThanPrototypeList()).toEqual([])
 
     await act(async () => {
       expect(

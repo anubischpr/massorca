@@ -85,6 +85,8 @@ export type NativeChatComposerFieldProps = {
   onStop?: () => void
   queueResume?: NativeChatQueueResume | undefined
   queueSendConfirm?: NativeChatQueueSendConfirm | null
+  /** The "How many prototypes?" card of a message held back for it. */
+  prototypeCountCard?: React.ReactNode
   sessionOptionsSurface: SessionOptionsSurface | null
   sessionOptionsSnapshot: SessionOptionDescriptor[]
   contextUsage?: NativeChatContextUsageSummary | null
@@ -172,6 +174,7 @@ export function NativeChatComposerField({
   onStop,
   queueResume,
   queueSendConfirm = null,
+  prototypeCountCard = null,
   sessionOptionsSurface,
   sessionOptionsSnapshot,
   contextUsage,
@@ -235,6 +238,7 @@ export function NativeChatComposerField({
 
   return (
     <div className="shrink-0 bg-chat-canvas">
+      {prototypeCountCard}
       {/* Extra bottom padding keeps the input box off the window rim. */}
       <div className="px-3 pt-2 pb-4 sm:px-4">
         <div className="relative mx-auto w-full max-w-(--chat-content-max-width)">

@@ -5,6 +5,7 @@ import CommentMarkdown from '@/components/sidebar/CommentMarkdown'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
 import type { Automation, AutomationRun } from '../../../../shared/automations-types'
+import { PRODUCT_DISPLAY_NAME } from '../../../../shared/product-identity'
 import { AutomationRunPageFrame } from './AutomationRunPageFrame'
 import { getAutomationRunContent } from './automation-run-content'
 import type { AutomationRunViewState } from './automation-run-view-state'
@@ -44,7 +45,7 @@ export function AutomationRunDetailsPage({
         title={automation?.name ?? run.title}
         breadcrumbs={[
           formatAutomationDateTimeWithRelative(run.scheduledFor, relativeNow),
-          'Orca',
+          PRODUCT_DISPLAY_NAME,
           workspaceDisplay?.detailLabel ??
             translate('auto.components.automations.AutomationsPage.noWorkspace', 'No workspace')
         ]}

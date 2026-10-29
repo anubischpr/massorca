@@ -1,11 +1,22 @@
 import { type ComponentType, useRef } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Files, GitBranch, ListChecks, ListTodo, ScrollText, Zap } from 'lucide-react-native'
+import {
+  Files,
+  GitBranch,
+  Layers,
+  ListChecks,
+  ListTodo,
+  ScrollText,
+  Zap
+} from 'lucide-react-native'
 import { MobileAgentSessionHistoryIcon } from '../agent-history/MobileAgentSessionHistoryIcon'
 import { BottomDrawer } from '../components/BottomDrawer'
 import { SheetSectionLabel } from '../components/SheetSectionLabel'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import type { MobileSessionHeaderMenu } from './mobile-session-header-menu'
+
+/** The reason a chat item shows disabled when the worktree has no chat to act on. */
+const NO_CHAT_HINT = 'Start a chat first'
 
 type MenuIconProps = { size: number; color: string; strokeWidth: number }
 
@@ -14,6 +25,8 @@ type MenuItem = {
   key: string
   label: string
   hint?: string
+  /** A count pill after the label. */
+  badge?: string
   icon: ComponentType<MenuIconProps>
   onPress: () => void
   disabled?: boolean
@@ -25,6 +38,9 @@ type Props = {
   /** "2 of 5 done" on the plan row; absent when the chat has no plan. */
   planHint?: string
   recordedFileCount: number
+  /** the count on the Prototypes row; absent when this chat has no prototype set. */
+  prototypesBadge?: string
+  onOpenPrototypes: () => void
   onOpenPlan: () => void
   onOpenSummary: () => void
   onOpenArtifacts: () => void
@@ -44,6 +60,8 @@ export function MobileSessionHeaderMoreActionsSheet({
   menu,
   planHint,
   recordedFileCount,
+  prototypesBadge,
+  onOpenPrototypes,
   onOpenPlan,
   onOpenSummary,
   onOpenArtifacts,
@@ -59,29 +77,43 @@ export function MobileSessionHeaderMoreActionsSheet({
     afterCloseRef.current = item.onPress
     onClose()
   }
+  // Plan, Summary and Artifacts act on the worktree's chat: without one they stay listed, disabled.
+  const noChat = !menu.hasChatSession
   const chatItems = shown([
     {
       show: menu.chat.plan,
       key: 'plan',
       label: 'Plan',
-      hint: planHint,
+      hint: noChat ? NO_CHAT_HINT : planHint,
       icon: ListTodo,
-      onPress: onOpenPlan
+      onPress: onOpenPlan,
+      disabled: noChat
     },
     {
       show: menu.chat.summary,
       key: 'summary',
       label: 'Summary',
+      hint: noChat ? NO_CHAT_HINT : undefined,
       icon: ScrollText,
-      onPress: onOpenSummary
+      onPress: onOpenSummary,
+      disabled: noChat
     },
     {
       show: menu.chat.artifacts,
       key: 'artifacts',
       label: 'Artifacts',
-      hint: String(recordedFileCount),
+      hint: noChat ? NO_CHAT_HINT : String(recordedFileCount),
       icon: Files,
-      onPress: onOpenArtifacts
+      onPress: onOpenArtifacts,
+      disabled: noChat
+    },
+    {
+      show: menu.chat.prototypes,
+      key: 'prototypes',
+      label: 'Prototypes',
+      badge: prototypesBadge,
+      icon: Layers,
+      onPress: onOpenPrototypes
     },
     {
       show: menu.chat.quickCommands,
@@ -171,6 +203,13 @@ function MenuGroup({ items, onPick }: { items: MenuItem[]; onPick: (item: MenuIt
                   {item.hint}
                 </Text>
               ) : null}
+              {item.badge ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText} numberOfLines={1}>
+                    {item.badge}
+                  </Text>
+                </View>
+              ) : null}
             </Pressable>
           </View>
         )
@@ -211,6 +250,16 @@ const styles = StyleSheet.create({
   hint: {
     maxWidth: '55%',
     color: colors.textMuted,
+    fontSize: typography.metaSize
+  },
+  badge: {
+    paddingVertical: 2,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 999,
+    backgroundColor: colors.bgRaised
+  },
+  badgeText: {
+    color: colors.textPrimary,
     fontSize: typography.metaSize
   }
 })

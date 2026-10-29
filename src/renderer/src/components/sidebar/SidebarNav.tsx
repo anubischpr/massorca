@@ -1,5 +1,14 @@
 import React from 'react'
-import { BookOpen, CalendarClock, EyeOff, Files, Plus, Search, Smartphone } from 'lucide-react'
+import {
+  BookOpen,
+  CalendarClock,
+  EyeOff,
+  Files,
+  LayoutGrid,
+  Plus,
+  Search,
+  Smartphone
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '@/store'
 import { cn } from '@/lib/utils'
@@ -11,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { SetupGuideSidebarEntry } from './SetupGuideSidebarEntry'
 import { SidebarTaskNavButton } from './SidebarTaskNavButton'
+import { usePrototypeSetCount } from '../prototypes/use-prototype-set-count'
 import { HideSidebarMenu } from './sidebar-nav-controls'
 import { translate } from '@/i18n/i18n'
 import { lazyWithRetry } from '@/lib/lazy-with-retry'
@@ -57,6 +67,7 @@ const SidebarNav = React.memo(function SidebarNav() {
   const openAutomationsPage = useAppStore((s) => s.openAutomationsPage)
   const openMobilePage = useAppStore((s) => s.openMobilePage)
   const openArtifactsPage = useAppStore((s) => s.openArtifactsPage)
+  const openPrototypesPage = useAppStore((s) => s.openPrototypesPage)
   const openSkillsPage = useAppStore((s) => s.openSkillsPage)
   const openModal = useAppStore((s) => s.openModal)
   const updateSettings = useAppStore((s) => s.updateSettings)
@@ -70,6 +81,8 @@ const SidebarNav = React.memo(function SidebarNav() {
   const automationsActive = activeView === 'automations'
   const mobileActive = activeView === 'mobile'
   const artifactsActive = activeView === 'artifacts'
+  const prototypesActive = activeView === 'prototypes'
+  const prototypeSetCount = usePrototypeSetCount()
   const skillsActive = activeView === 'skills'
   const mobileOnboardingBadge = useMobileSidebarOnboardingBadge(showMobileButton)
   const hideAutomationsButton = React.useCallback(() => {
@@ -130,6 +143,33 @@ const SidebarNav = React.memo(function SidebarNav() {
             />
           ))}
         </span>
+      </button>
+      <button
+        type="button"
+        onClick={openPrototypesPage}
+        aria-current={prototypesActive ? 'page' : undefined}
+        className={cn(
+          'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-medium tracking-tight transition-colors',
+          prototypesActive
+            ? 'bg-worktree-sidebar-accent text-worktree-sidebar-accent-foreground'
+            : 'text-worktree-sidebar-foreground/60 hover:bg-worktree-sidebar-foreground/8'
+        )}
+      >
+        <LayoutGrid
+          className={cn(
+            'size-4 shrink-0',
+            !prototypesActive && 'text-worktree-sidebar-foreground/30'
+          )}
+          strokeWidth={prototypesActive ? 2.25 : 1.75}
+        />
+        <span className="flex-1">
+          {translate('components.prototypes.sidebarLabel', 'Prototypes')}
+        </span>
+        {prototypeSetCount > 0 ? (
+          <span className="rounded-full bg-worktree-sidebar-foreground/8 px-1.5 text-[11px]">
+            {prototypeSetCount}
+          </span>
+        ) : null}
       </button>
       <SetupGuideSidebarEntry />
       <SidebarTaskNavButton />

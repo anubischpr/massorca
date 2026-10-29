@@ -95,7 +95,7 @@ describe('NativeChatRecordedFileContent', () => {
 
     expect(
       await screen.findByText(
-        'Update Orca on the remote host to open files the agent saved outside the workspace.'
+        'Update MassOrca on the remote host to open files the agent saved outside the workspace.'
       )
     ).toBeTruthy()
   })

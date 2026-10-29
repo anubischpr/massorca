@@ -13,6 +13,8 @@ export type CreateSessionHostSettings = {
   preferredAgent: TuiAgent | null
   /** Raw persisted list; the mobile agent helpers discard anything that is not an array. */
   disabledAgents: unknown
+  /** The Pi command the user set; undefined keeps the stock command. */
+  piCommand: string | undefined
   hostLabelById: ReadonlyMap<ExecutionHostId, string>
 }
 
@@ -25,8 +27,8 @@ function readSettingsRecord(settings: unknown): Record<string, unknown> {
 }
 
 /**
- * What the create screen needs from the host settings: the default agent, the disabled agents
- * and the names of the SSH hosts. Every read is decoration: a refusal leaves the defaults.
+ * What the create screen needs from the host settings: the default agent, the disabled agents,
+ * the Pi command and the names of the SSH hosts. Every read is decoration: a refusal leaves the defaults.
  */
 export function useCreateSessionHostSettings(
   client: RpcClient | null,
@@ -77,9 +79,11 @@ export function useCreateSessionHostSettings(
   return useMemo(() => {
     const record = readSettingsRecord(settings)
     const preferred = record.defaultTuiAgent
+    const overrides = readSettingsRecord(record.agentCmdOverrides)
     return {
       preferredAgent: isMobileTuiAgent(preferred) ? preferred : null,
       disabledAgents: record.disabledTuiAgents,
+      piCommand: typeof overrides.pi === 'string' ? overrides.pi : undefined,
       hostLabelById: multipleHosts
         ? buildHostLabelById({
             sshTargets,

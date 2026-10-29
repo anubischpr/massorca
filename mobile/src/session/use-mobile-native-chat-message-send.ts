@@ -9,6 +9,7 @@ import {
 } from './mobile-native-chat-send'
 import type { CatalogCommandDelivery } from '../../../src/shared/agent-session-option-catalog'
 import { isSlashCommandDraft } from '../../../src/shared/native-chat-slash-commands'
+import { neutralizePrototypeMarkers } from '../../../src/shared/prototype-hidden-instruction'
 import { healMobileNativeChatStaleInput } from './mobile-native-chat-stale-input'
 import { classifyMobileNativeChatSend } from './mobile-native-chat-send-classification'
 import {
@@ -99,7 +100,8 @@ export function useMobileNativeChatMessageSend(args: {
       // where it can glue the next rapid send onto this one (#14262). Only the
       // bytes that go out are trimmed: `draftText` is what the user typed, and a
       // rejected send has to put back exactly that (#14819).
-      const text = draftText.trimEnd()
+      // Markers in typed or pasted text are never MassOrca's; a terminal chat makes no prototype requests.
+      const text = neutralizePrototypeMarkers(draftText).trimEnd()
       const handle = handleRef.current
       const origin = captureSendOrigin(text)
       const agent = agentRef.current

@@ -5,6 +5,7 @@ import type {
   SessionOptionValue
 } from '../../../src/shared/native-chat-session-options'
 import { resolveEffectiveNativeChatModelId } from '../../../src/shared/native-chat-session-option-snapshot'
+import type { PiRuntimeSelection } from '../../../src/shared/pi-runtime-selection'
 import { structuredAgentSessionSeedCatalog } from '../../../src/shared/structured-agent-session-seed-catalog'
 import { encodeStructuredAgentSessionOptionValue } from '../../../src/shared/structured-agent-session-option-codec'
 import {
@@ -19,6 +20,17 @@ import {
 import { createSessionAccessSupport } from './create-session-access-support'
 import type { CreateSessionPicks } from './create-session-launch-plan'
 
+/** Agents whose option list the create screen reads from the host, beyond the structured chats. */
+const HOST_LISTED_CREATE_AGENTS: readonly string[] = ['antigravity', 'pi']
+
+/** Whether the create screen can describe an agent's pickers before its chat exists. */
+export function createSessionReadsHostOptions(agent: string | null): boolean {
+  return (
+    agent !== null &&
+    (isAgentSessionHandleProvider(agent) || HOST_LISTED_CREATE_AGENTS.includes(agent))
+  )
+}
+
 /**
  * The model, effort, fast and access pickers before any session exists. It reuses the structured
  * chat's own option state so the same pickers render, and keeps what the user explicitly chose in
@@ -28,25 +40,30 @@ export type CreateSessionOptionDraft = {
   agent: string | null
   /** Host and project the picks were made for; another one starts over. */
   scope: string
+  /** Pi's access modes differ by runtime, so the draft records the runtime it was made for. */
+  piRuntime: PiRuntimeSelection | null
   state: StructuredAgentSessionOptionState | null
   picks: CreateSessionPicks
 }
 
 export function createCreateSessionOptionDraft(
   agent: string | null,
-  scope = ''
+  scope = '',
+  piRuntime: PiRuntimeSelection | null = null
 ): CreateSessionOptionDraft {
-  // An agent with no structured chat starts as a terminal, which these pickers cannot describe.
-  if (!agent || !isAgentSessionHandleProvider(agent)) {
-    return { agent, scope, state: null, picks: {} }
+  // A terminal-only agent has no pickers the create screen can describe.
+  if (!agent || !createSessionReadsHostOptions(agent)) {
+    return { agent, scope, piRuntime, state: null, picks: {} }
   }
-  const access = createSessionAccessSupport(agent)
+  const access = createSessionAccessSupport(agent, piRuntime)
   return {
     agent,
     scope,
+    piRuntime,
     state: createStructuredAgentSessionOptionState(
       agent,
-      structuredAgentSessionSeedCatalog(agent),
+      // Why: only structured chats have a built-in list; the others take models from the host.
+      isAgentSessionHandleProvider(agent) ? structuredAgentSessionSeedCatalog(agent) : null,
       access?.modes,
       access?.presets
     ),

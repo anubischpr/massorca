@@ -14,6 +14,7 @@ import type { StructuredAgentSessionHost } from '../../../native-chat/agent-sess
 import type { StructuredAgentSessionCaller } from '../../../native-chat/agent-session-wire/structured-agent-session-host-types'
 import type { RpcContext } from '../core'
 import { structuredAgentSessionHostRefusal } from '../../structured-agent-session-host-refusal'
+import { warnStructuredAgentSessionCreateSupportAdmissionRefused } from '../../../native-chat/structured-agent-session-create-support'
 import {
   createSupportFollowsHostSetting,
   clientReadsStructuredSessionAgent,
@@ -51,8 +52,14 @@ export function requireStructuredAgentAudience(ctx: RpcContext, agent: string): 
  * launch mode to the host; it gets the refusal it got before, which it reads as "open a terminal".
  */
 export function requireStructuredCreateSupportAdmission(ctx: RpcContext, agent?: string): void {
-  requireStructuredAgentAudience(ctx, agent ?? '')
+  try {
+    requireStructuredAgentAudience(ctx, agent ?? '')
+  } catch (error) {
+    warnStructuredAgentSessionCreateSupportAdmissionRefused(agent ?? 'none', 'client-audience')
+    throw error
+  }
   if (createSupportFollowsHostSetting(ctx) && !isStructuredNativeChatEnabled(ctx.runtime)) {
+    warnStructuredAgentSessionCreateSupportAdmissionRefused(agent ?? 'none', 'host-setting')
     throw agentSessionRefusalError('structured_agent_session_unsupported', {
       reason: 'clientCapabilityMissing'
     })

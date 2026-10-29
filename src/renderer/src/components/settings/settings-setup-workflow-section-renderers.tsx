@@ -1,5 +1,6 @@
 import { SessionHistorySettingsPane } from './SessionHistorySettingsPane'
 import { ArtifactsSettingsPane } from './ArtifactsSettingsPane'
+import { PrototypesSettingsPane } from './PrototypesSettingsPane'
 import { AutomationsSettingsPane } from './AutomationsSettingsPane'
 import { GeneralPane } from './GeneralPane'
 import { IntegrationsPane } from './IntegrationsPane'
@@ -153,6 +154,25 @@ export function renderArtifactsSettingsSection(context: SettingsRenderContext): 
     >
       {view.isSectionMounted('artifacts') ? (
         <ArtifactsSettingsPane settings={model.settings} updateSettings={model.updateSettings} />
+      ) : null}
+    </SettingsSection>
+  )
+}
+
+export function renderPrototypesSettingsSection(context: SettingsRenderContext): React.JSX.Element {
+  const { model, navigation, view } = context
+  return (
+    <SettingsSection
+      id="prototypes"
+      title={translate('components.prototypes.settings.title', 'Prototypes')}
+      description={translate(
+        'components.prototypes.settings.description',
+        'How many directions an agent makes when you ask for a prototype.'
+      )}
+      searchEntries={navigation.getSectionSearchEntries('prototypes')}
+    >
+      {view.isSectionMounted('prototypes') ? (
+        <PrototypesSettingsPane settings={model.settings} updateSettings={model.updateSettings} />
       ) : null}
     </SettingsSection>
   )

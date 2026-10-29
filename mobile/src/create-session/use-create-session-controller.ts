@@ -1,13 +1,17 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
+import type { PiRuntimeSelection } from '../../../src/shared/pi-runtime-selection'
 import type { TuiAgent } from '../../../src/shared/tui-agent'
+import { getRepoMainWorktreeId } from '../../../src/shared/worktree/id'
 import { useNewWorkspaceExecutionTarget } from '../components/use-new-workspace-execution-target'
 import { useNewWorkspaceRepositories } from '../components/use-new-workspace-repositories'
 import { MOBILE_AGENT_CATALOG } from '../tasks/mobile-agent-catalog'
-import { isMobileTuiAgentEnabled } from '../tasks/mobile-tui-agents'
 import { useNewWorktreeRuntimeCapabilities } from '../tasks/worktree-create-capability'
 import type { RpcClient } from '../transport/rpc-client'
+import {
+  piRuntimeChoiceLabel,
+  withAvailableCreateSessionChoice
+} from './create-session-agent-choices'
 import { launchBlankTerminal } from './create-session-blank'
-import { launchCreateSession } from './create-session-launch'
 import { buildCreateSessionLaunchPlan } from './create-session-launch-plan'
 import {
   buildCreateSessionHostOptions,
@@ -22,15 +26,15 @@ import {
   parseWorkspaceMode,
   projectChoiceDescription,
   reposOnHost,
-  selectableCreateSessionAgents,
   showsBaseRefChip,
-  withAvailableCreateSessionAgent,
   workspaceModeChipLabel,
   type CreateSessionChoice,
   type CreateSessionSelection
 } from './create-session-model'
 import { baseRefChipLabel } from './create-session-base-ref'
 import { createSessionLaunchBlocker, createSessionModeNote } from './create-session-readiness'
+import { launchCreateSessionPlan } from './create-session-plan-launch'
+import { useCreateSessionAgentChoices } from './use-create-session-agent-choices'
 import { useCreateSessionBaseRef } from './use-create-session-base-ref'
 import { useCreateSessionHostSettings } from './use-create-session-host-settings'
 import { useCreateSessionLeaveLock } from './use-create-session-leave-lock'
@@ -42,7 +46,13 @@ const AGENT_LABELS: ReadonlyMap<TuiAgent, string> = new Map(
   MOBILE_AGENT_CATALOG.map((entry) => [entry.id, entry.label])
 )
 
-export function createSessionAgentLabel(agent: TuiAgent | null): string {
+export function createSessionAgentLabel(
+  agent: TuiAgent | null,
+  piRuntime: PiRuntimeSelection | null = null
+): string {
+  if (agent === 'pi' && piRuntime !== null) {
+    return piRuntimeChoiceLabel(piRuntime)
+  }
   return (agent && AGENT_LABELS.get(agent)) ?? 'Agent'
 }
 
@@ -80,22 +90,23 @@ export function useCreateSessionController(args: {
     connectionId: repo?.connectionId ?? null,
     visible: true
   })
-  const agents = useMemo(
-    () =>
-      selectableCreateSessionAgents(MOBILE_AGENT_CATALOG, {
-        detectedAgentIds: executionTarget.detectedAgentIds,
-        isEnabled: (agent) => isMobileTuiAgentEnabled(agent, hostSettings.disabledAgents)
-      }),
-    [executionTarget.detectedAgentIds, hostSettings.disabledAgents]
-  )
-  const selection = held
-    ? withAvailableCreateSessionAgent(held, agents, hostSettings.preferredAgent)
-    : null
-  const options = useCreateSessionOptions(
+  const agentChoices = useCreateSessionAgentChoices({
     client,
-    selection?.agent ?? null,
-    `${selection?.hostId ?? ''}|${selection?.repoId ?? ''}`
-  )
+    connectionId: repo?.connectionId ?? null,
+    detectedAgentIds: executionTarget.detectedAgentIds,
+    disabledAgents: hostSettings.disabledAgents,
+    piCommand: hostSettings.piCommand
+  })
+  const selection = held
+    ? withAvailableCreateSessionChoice(held, agentChoices, hostSettings.preferredAgent)
+    : null
+  const options = useCreateSessionOptions({
+    client,
+    agent: selection?.agent ?? null,
+    piRuntime: selection?.piRuntime ?? null,
+    worktree: repo ? `id:${getRepoMainWorktreeId(repo)}` : null,
+    scope: `${selection?.hostId ?? ''}|${selection?.repoId ?? ''}|${selection?.piRuntime ?? ''}`
+  })
   const setupState = useCreateSessionSetup(client, repo?.id ?? null)
   const baseRefShown = selection !== null && showsBaseRefChip(selection, repo)
   const baseRefSource = useCreateSessionBaseRef(client, repo?.id ?? null, baseRefShown)
@@ -125,7 +136,7 @@ export function useCreateSessionController(args: {
       if (!client || !repo) {
         return Promise.resolve({ ok: false, message: 'Not connected to the computer.' })
       }
-      return launchCreateSession({
+      return launchCreateSessionPlan({
         client,
         hostId,
         repo,
@@ -219,11 +230,11 @@ export function useCreateSessionController(args: {
     projectChoices,
     workspaceChoices: buildWorkspaceModeChoices(repo),
     workspaceLabel: selection ? workspaceModeChipLabel(selection, repo) : '',
-    agentChoices: agents.map((agent) => ({
-      value: agent,
-      label: createSessionAgentLabel(agent),
-      description: ''
-    })),
+    agentChoices,
+    selectedAgentLabel: createSessionAgentLabel(
+      selection?.agent ?? null,
+      selection?.piRuntime ?? null
+    ),
     footnote: selection ? createSessionFootnote(selection, repo, hostLabel) : '',
     options,
     sshGate: executionTarget.sshGate,
@@ -264,9 +275,9 @@ export function useCreateSessionController(args: {
       }
     },
     chooseAgent: (value: string) => {
-      const agent = agents.find((candidate) => candidate === value)
-      if (agent) {
-        update((current) => ({ ...current, agent }))
+      const choice = agentChoices.find((candidate) => candidate.value === value)
+      if (choice) {
+        update((current) => ({ ...current, agent: choice.agent, piRuntime: choice.piRuntime }))
       }
     },
     submit: () => {

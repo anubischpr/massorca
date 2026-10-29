@@ -6,6 +6,7 @@ import {
   structuredClaudeMatchesActiveManagedAccount,
   type ClaudeManagedAccountGateSettings
 } from './claude-structured-managed-account-support'
+import { startSpan } from '../observability/tracer'
 import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
 import type { AgentSessionPreSpawnReason } from './agent-session-wire/structured-agent-session-adapter'
 
@@ -61,16 +62,39 @@ export type StructuredAgentSessionCreateSupportCheck =
   | 'installed-agent'
   | 'managed-account'
 
-/** One main-log line per create-support verdict that sends a launch to the terminal; names the
- *  check and never a path or environment value. */
+/** One main-log line and one trace span per create-support verdict that sends a launch to the
+ *  terminal; names the check and cause, never a path or environment value. */
 export function warnStructuredAgentSessionCreateUnsupported(
   agent: StructuredAgentId,
   support: StructuredAgentSessionCreateSupport,
   check: StructuredAgentSessionCreateSupportCheck
 ): void {
   if (!support.supported) {
+    const reason = support.reason ?? 'none'
+    const cause = support.cause
     console.warn(
-      `[structured-create-support] ${agent} unsupported: ${check} check refused (reason ${support.reason ?? 'none'})`
+      `[structured-create-support] ${agent} unsupported: ${check} check refused (reason ${reason}${cause ? `, cause ${cause}` : ''})`
     )
+    // Why: the console line never reaches main.trace.ndjson, which is what a support bundle collects.
+    const span = startSpan('agentSession.createSupport', {
+      attributes: { agent, check, reason, ...(cause ? { cause } : {}) }
+    })
+    span.fail(`${agent} create support refused by the ${check} check`)
   }
+}
+
+/** Which admission gate refused `agentSession.createSupport` before the verdict ran. */
+export type StructuredAgentSessionCreateSupportAdmissionGate = 'client-audience' | 'host-setting'
+
+/** One main-log line and one trace span when the admission gate refuses `agentSession.createSupport`,
+ *  which otherwise leaves no trace because it throws before the verdict. */
+export function warnStructuredAgentSessionCreateSupportAdmissionRefused(
+  agent: string,
+  gate: StructuredAgentSessionCreateSupportAdmissionGate
+): void {
+  console.warn(`[structured-create-support] ${agent} refused by the ${gate} admission gate`)
+  const span = startSpan('agentSession.createSupport', {
+    attributes: { agent, check: 'admission', gate }
+  })
+  span.fail(`${agent} create support refused by the ${gate} admission gate`)
 }

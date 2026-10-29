@@ -16,6 +16,10 @@ import {
   MobileDelegatedChildrenContext,
   useDelegatedChildrenFromJournal
 } from './mobile-delegated-child-rows'
+import { MobilePrototypeCountCard } from '../prototypes/MobilePrototypeCountCard'
+import { MobilePrototypeRequestLink } from '../prototypes/MobilePrototypeRequestLink'
+import { matchPrototypeSetsToUserTurns } from '../prototypes/mobile-prototype-request-links'
+import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
 
 type Props = {
   controller: MobileNativeChatController
@@ -46,6 +50,10 @@ type Props = {
   chromeTopInset?: number
   /** Opens a page a turn wrote or showed, from its inline card. */
   onOpenArtifact?: (target: MobileArtifactTarget) => void
+  /** Opens Settings › Prototypes, from the "How many prototypes?" card. */
+  onOpenPrototypeSettings?: () => void
+  /** Opens the set a prototype request made, from the link card under that request. */
+  onOpenPrototypeSet?: (set: PrototypeListedSet) => void
 }
 
 /** Keeps the terminal mounted underneath chat so its PTY subscription survives
@@ -69,27 +77,46 @@ export function MobileNativeChatOverlay({
   getSendCompletionGeneration,
   keyboardInset,
   chromeTopInset,
-  onOpenArtifact
+  onOpenArtifact,
+  onOpenPrototypeSettings,
+  onOpenPrototypeSet
 }: Props): React.JSX.Element | null {
   const session = controller.nativeChatSession
   const folded = useMemo(() => foldMobileNativeChatMessages(session.messages), [session.messages])
   const artifactCards = useMemo(() => mobileChatTurnArtifactCards(folded), [folded])
   const artifactSource = controller.nativeChatVisualSource
+  const prototypeSessionId = controller.nativeChatPrototypeSend?.sessionId ?? null
+  const prototypeSets = controller.nativeChatPrototypeSets
+  const prototypeLinks = useMemo(
+    () =>
+      prototypeSessionId === null
+        ? new Map<string, PrototypeListedSet>()
+        : matchPrototypeSetsToUserTurns(prototypeSets, folded, prototypeSessionId),
+    [folded, prototypeSessionId, prototypeSets]
+  )
   const renderTurnArtifacts = useMemo(
     () =>
-      onOpenArtifact
+      onOpenArtifact || onOpenPrototypeSet
         ? (messageId: string) => {
-            const pages = artifactCards.get(messageId)
-            return pages ? (
-              <MobileChatTurnArtifacts
-                pages={pages}
-                source={artifactSource}
-                onOpen={onOpenArtifact}
-              />
+            const pages = onOpenArtifact ? artifactCards.get(messageId) : undefined
+            const link = onOpenPrototypeSet ? prototypeLinks.get(messageId) : undefined
+            return pages || link ? (
+              <>
+                {pages && onOpenArtifact ? (
+                  <MobileChatTurnArtifacts
+                    pages={pages}
+                    source={artifactSource}
+                    onOpen={onOpenArtifact}
+                  />
+                ) : null}
+                {link && onOpenPrototypeSet ? (
+                  <MobilePrototypeRequestLink set={link} onOpen={onOpenPrototypeSet} />
+                ) : null}
+              </>
             ) : null
           }
         : undefined,
-    [artifactCards, artifactSource, onOpenArtifact]
+    [artifactCards, artifactSource, onOpenArtifact, onOpenPrototypeSet, prototypeLinks]
   )
   const streaming = useMobileNativeChatStreamingBubble(
     folded,
@@ -192,6 +219,15 @@ export function MobileNativeChatOverlay({
             keyboardInset={keyboardInset}
             topInset={chromeTopInset}
             renderTurnArtifacts={renderTurnArtifacts}
+            prototypeCard={
+              controller.nativeChatPrototypeAsk && onOpenPrototypeSettings ? (
+                <MobilePrototypeCountCard
+                  ask={controller.nativeChatPrototypeAsk}
+                  onChoose={controller.answerNativeChatPrototypeAsk}
+                  onOpenSettings={onOpenPrototypeSettings}
+                />
+              ) : null
+            }
           />
         </MobileNativeChatVisualContext.Provider>
       </MobileDelegatedChildrenContext.Provider>

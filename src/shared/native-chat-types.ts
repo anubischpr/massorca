@@ -240,6 +240,8 @@ export type NativeChatMessage = AgentJournalProducerLinkage & {
   state?: AgentJournalMessageState
   /** Host clock when the row's message was seen to end; absent when no end was seen live. */
   completedAt?: number
+  /** On a user message that opened a prototype request: the request its hidden marker names. */
+  prototypeRequestId?: string
   /** On a conversation command the user sent, such as `/compact`: the command it names. */
   command?: { name: string }
   /** On a user-role message another agent sent through Orca: who, as the journal recorded it. */
