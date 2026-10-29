@@ -1,6 +1,14 @@
 import { type ComponentType, useRef } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Files, GitBranch, ListChecks, ListTodo, ScrollText, Zap } from 'lucide-react-native'
+import {
+  Files,
+  GitBranch,
+  Layers,
+  ListChecks,
+  ListTodo,
+  ScrollText,
+  Zap
+} from 'lucide-react-native'
 import { MobileAgentSessionHistoryIcon } from '../agent-history/MobileAgentSessionHistoryIcon'
 import { BottomDrawer } from '../components/BottomDrawer'
 import { SheetSectionLabel } from '../components/SheetSectionLabel'
@@ -14,6 +22,8 @@ type MenuItem = {
   key: string
   label: string
   hint?: string
+  /** A count pill after the label, like the board's "1 to review". */
+  badge?: string
   icon: ComponentType<MenuIconProps>
   onPress: () => void
   disabled?: boolean
@@ -25,6 +35,9 @@ type Props = {
   /** "2 of 5 done" on the plan row; absent when the chat has no plan. */
   planHint?: string
   recordedFileCount: number
+  /** "N to review" on the Prototypes row; absent when this chat has no prototype set. */
+  prototypesBadge?: string
+  onOpenPrototypes: () => void
   onOpenPlan: () => void
   onOpenSummary: () => void
   onOpenArtifacts: () => void
@@ -44,6 +57,8 @@ export function MobileSessionHeaderMoreActionsSheet({
   menu,
   planHint,
   recordedFileCount,
+  prototypesBadge,
+  onOpenPrototypes,
   onOpenPlan,
   onOpenSummary,
   onOpenArtifacts,
@@ -82,6 +97,14 @@ export function MobileSessionHeaderMoreActionsSheet({
       hint: String(recordedFileCount),
       icon: Files,
       onPress: onOpenArtifacts
+    },
+    {
+      show: menu.chat.prototypes,
+      key: 'prototypes',
+      label: 'Prototypes',
+      badge: prototypesBadge,
+      icon: Layers,
+      onPress: onOpenPrototypes
     },
     {
       show: menu.chat.quickCommands,
@@ -171,6 +194,13 @@ function MenuGroup({ items, onPick }: { items: MenuItem[]; onPick: (item: MenuIt
                   {item.hint}
                 </Text>
               ) : null}
+              {item.badge ? (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText} numberOfLines={1}>
+                    {item.badge}
+                  </Text>
+                </View>
+              ) : null}
             </Pressable>
           </View>
         )
@@ -211,6 +241,16 @@ const styles = StyleSheet.create({
   hint: {
     maxWidth: '55%',
     color: colors.textMuted,
+    fontSize: typography.metaSize
+  },
+  badge: {
+    paddingVertical: 2,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 999,
+    backgroundColor: colors.bgRaised
+  },
+  badgeText: {
+    color: colors.textPrimary,
     fontSize: typography.metaSize
   }
 })

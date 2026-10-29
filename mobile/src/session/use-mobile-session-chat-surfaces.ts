@@ -112,6 +112,15 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
   )
   const openSummary = useCallback(() => openChatRoute('chat-summary'), [openChatRoute])
   const openArtifacts = useCallback(() => openChatRoute('chat-artifacts'), [openChatRoute])
+  // The session names which chat "This chat" means; a chat without one lists every set.
+  const prototypeSessionId = nativeChatController.nativeChatPrototypeSend?.sessionId ?? null
+  const openPrototypes = useCallback(() => {
+    const params = new URLSearchParams()
+    if (prototypeSessionId) {
+      params.set('session', prototypeSessionId)
+    }
+    router.push(`/h/${encodeURIComponent(hostId)}/prototypes?${params.toString()}`)
+  }, [hostId, prototypeSessionId, router])
   const openPrototypeSet = useCallback(
     (set: PrototypeListedSet) =>
       router.push({
@@ -168,6 +177,7 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     recordedFileCount,
     openSummary,
     openArtifacts,
+    openPrototypes,
     openArtifactViewer,
     openPrototypeSettings,
     openPrototypeSet,

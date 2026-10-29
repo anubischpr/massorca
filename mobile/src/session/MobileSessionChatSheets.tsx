@@ -1,3 +1,4 @@
+import { useMobilePrototypeMenuCount } from '../prototypes/use-mobile-prototype-menu-count'
 import { resolveMobileSessionQuickCommandsAction } from './mobile-session-quick-commands-action'
 import { MobileSessionHeaderMoreActionsSheet } from './MobileSessionHeaderMoreActionsSheet'
 import { MobilePlanSheet } from './MobilePlanSheet'
@@ -32,12 +33,18 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
     recordedFileCount,
     openSummary,
     openArtifacts,
+    openPrototypes,
     openBranch,
     openSessionTabActionSheetAfterKeyboardDismiss,
     quickCommandsSupported,
     setShowQuickCommands,
     showToast
   } = controller
+  const prototypeCount = useMobilePrototypeMenuCount({
+    client: controller.client,
+    sessionId: controller.nativeChatController.nativeChatPrototypeSend?.sessionId ?? null,
+    visible: showHeaderMoreActions
+  })
   return (
     <>
       <MobileSessionsSheet
@@ -61,6 +68,8 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
         menu={headerMenu}
         planHint={planProgress ? `${planProgress.done} of ${planProgress.total} done` : undefined}
         recordedFileCount={recordedFileCount}
+        prototypesBadge={prototypeCount > 0 ? `${prototypeCount} to review` : undefined}
+        onOpenPrototypes={openPrototypes}
         onOpenPlan={openPlanSheet}
         onOpenSummary={openSummary}
         onOpenArtifacts={openArtifacts}

@@ -14,6 +14,7 @@ vi.mock('react-native', () => ({
 vi.mock('lucide-react-native', () => ({
   Files: 'Files',
   GitBranch: 'GitBranch',
+  Layers: 'Layers',
   ListChecks: 'ListChecks',
   ListTodo: 'ListTodo',
   MessagesSquare: 'MessagesSquare',
@@ -46,6 +47,7 @@ const FULL: MobileSessionHeaderMenu = {
     plan: true,
     summary: true,
     artifacts: true,
+    prototypes: true,
     quickCommands: true
   },
   environment: { branch: true, checks: true }
@@ -77,6 +79,7 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
       onOpenPlan: vi.fn(),
       onOpenSummary,
       onOpenArtifacts: vi.fn(),
+      onOpenPrototypes: vi.fn(),
       onOpenQuickCommands: vi.fn(),
       onOpenAgentHistory: vi.fn(),
       onOpenBranch: vi.fn(),
@@ -109,12 +112,22 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
       'Plan',
       'Summary',
       'Artifacts',
+      'Prototypes',
       'Quick commands',
       'Branch',
       'Checks'
     ])
     const labels = mounted.root.findAll((node) => String(node.type) === 'Text').map(textOf)
     expect(labels).toEqual(expect.arrayContaining(['Chat', 'Environment', '2 of 5 done', '7']))
+  })
+
+  it('counts the prototype sets of the chat on the Prototypes row, and shows no pill without any', () => {
+    const withSets = mount({ prototypesBadge: '1 to review' }).mounted
+    const labels = withSets.root.findAll((node) => String(node.type) === 'Text').map(textOf)
+    expect(labels).toContain('1 to review')
+    const without = mount().mounted
+    const bare = without.root.findAll((node) => String(node.type) === 'Text').map(textOf)
+    expect(bare).not.toContain('1 to review')
   })
 
   it('leaves out the plan row when the chat has no plan', () => {

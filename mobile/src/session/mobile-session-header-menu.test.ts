@@ -21,6 +21,7 @@ describe('resolveMobileSessionHeaderMenu', () => {
       plan: true,
       summary: true,
       artifacts: true,
+      prototypes: true,
       quickCommands: true
     })
     expect(menu.environment).toEqual({ branch: false, checks: false })
@@ -44,6 +45,7 @@ describe('resolveMobileSessionHeaderMenu', () => {
       plan: false,
       summary: false,
       artifacts: false,
+      prototypes: false,
       quickCommands: false
     })
     expect(menu.environment).toEqual({ branch: true, checks: false })
@@ -61,6 +63,7 @@ describe('resolveMobileSessionHeaderMenu', () => {
       plan: false,
       summary: false,
       artifacts: false,
+      prototypes: false,
       quickCommands: false
     })
   })

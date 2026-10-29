@@ -18,6 +18,7 @@ export type MobileSessionHeaderMenu = {
     plan: boolean
     summary: boolean
     artifacts: boolean
+    prototypes: boolean
     /** The quick commands the tab strip's button opened, now reached from the menu in a chat. */
     quickCommands: boolean
   }
@@ -32,6 +33,7 @@ export function resolveMobileSessionHeaderMenu(
     plan: input.showNativeChat,
     summary: input.showNativeChat,
     artifacts: input.showNativeChat,
+    prototypes: input.showNativeChat,
     quickCommands: input.showNativeChat
   }
   const environment = { branch: input.hasSourceControl, checks: input.showChecks }
