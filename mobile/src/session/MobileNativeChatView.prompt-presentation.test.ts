@@ -7,6 +7,8 @@ vi.mock('./MobileBackgroundWorkSheet', () => ({ MobileBackgroundWorkSheet: () =>
 import { MobileNativeChatView } from './MobileNativeChatView'
 import { useMobileNativeChatPromptPresentation } from './use-mobile-native-chat-prompt-presentation'
 import type { MobileChatPermission } from './mobile-native-chat-permission'
+// Why: the why sheet's drawer is not under test here; a stub keeps its native import chain out of the suite.
+vi.mock('../components/BottomDrawer', () => ({ BottomDrawer: () => null }))
 vi.mock('react-native', async () => {
   const React = await import('react')
   return {
