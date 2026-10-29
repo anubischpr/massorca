@@ -48,6 +48,11 @@ export function finishedDelegatedChildren(children: readonly DelegatedChild[]): 
     .slice(0, MAX_FINISHED_BACKGROUND_ROWS)
 }
 
+/** The Finished list holds one bound in all: children take their share first, task rows the rest. */
+export function taskRowsWithinFinishedBound<T>(rows: readonly T[], childCount: number): T[] {
+  return rows.slice(0, Math.max(0, MAX_FINISHED_BACKGROUND_ROWS - childCount))
+}
+
 /** A child's clock: the time it has run while it works, the reported duration once it settles. */
 export function delegatedChildClockText(child: DelegatedChild, hostNow: number): string | null {
   if (child.status === 'working') {

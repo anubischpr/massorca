@@ -23,6 +23,7 @@ import {
   finishedDelegatedChildren,
   MobileDelegatedChildrenContext,
   runningDelegatedChildren,
+  taskRowsWithinFinishedBound,
   type BackgroundChildSessions
 } from './mobile-delegated-child-rows'
 import { useSeenBackgroundWork } from './use-mobile-seen-background-work'
@@ -81,23 +82,31 @@ function MobileNativeChatBackgroundTasksImpl({
       mergeFinishedBackgroundRows({ seen: seenFinished, history: historyFinished, running: rows }),
     [seenFinished, historyFinished, rows]
   )
-  const finished = useMemo(() => groupBackgroundTaskRows(finishedRows), [finishedRows])
   // The chat's delegated children read from its journal; a lost stream claims none of them running.
+  const streamLive = rowContext.transportObservation === 'live'
   const delegated = useContext(MobileDelegatedChildrenContext)
   const delegatedAccess = useContext(MobileDelegatedChildContext)
   const childRunning = useMemo(
     () => runningDelegatedChildren(delegated.children),
     [delegated.children]
   )
+  const liveChildRunning = useMemo(
+    () => (streamLive ? childRunning : []),
+    [streamLive, childRunning]
+  )
   const childFinished = useMemo(
     () => finishedDelegatedChildren(delegated.children),
     [delegated.children]
+  )
+  const finished = useMemo(
+    () => groupBackgroundTaskRows(taskRowsWithinFinishedBound(finishedRows, childFinished.length)),
+    [finishedRows, childFinished.length]
   )
   const childSessions = useMemo<BackgroundChildSessions | undefined>(
     () =>
       delegated.children.length > 0
         ? {
-            running: childRunning,
+            running: liveChildRunning,
             finished: childFinished,
             canOpen: (childSessionId) => delegatedAccess?.hasChild(childSessionId) ?? false,
             open: (childSessionId) => {
@@ -106,16 +115,18 @@ function MobileNativeChatBackgroundTasksImpl({
             }
           }
         : undefined,
-    [delegated.children.length, childRunning, childFinished, delegatedAccess]
+    [delegated.children.length, liveChildRunning, childFinished, delegatedAccess]
   )
-  const liveChildRunning = rowContext.transportObservation === 'live' ? childRunning.length : 0
   const pillCounts = mobileStatusPillCounts(groups)
   const pill = mobileChatStatusPill({
     working,
     startedAt,
     now: hostNow,
-    counts: { terminals: pillCounts.terminals, agents: pillCounts.agents + liveChildRunning },
-    hasBackgroundWork: view.show || liveChildRunning > 0,
+    counts: {
+      terminals: pillCounts.terminals,
+      agents: pillCounts.agents + liveChildRunning.length
+    },
+    hasBackgroundWork: view.show || liveChildRunning.length > 0,
     finishedCount: mobileStatusPillFinishedCount(finished) + childFinished.length,
     live: rowContext.transportObservation === 'live'
   })

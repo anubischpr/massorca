@@ -4,7 +4,8 @@ import { MAX_FINISHED_BACKGROUND_ROWS } from './mobile-seen-background-work'
 import {
   delegatedChildClockText,
   finishedDelegatedChildren,
-  runningDelegatedChildren
+  runningDelegatedChildren,
+  taskRowsWithinFinishedBound
 } from './mobile-delegated-child-rows'
 
 function child(overrides: Partial<DelegatedChild> & { requestId: string }): DelegatedChild {
@@ -45,6 +46,14 @@ describe('delegated child rows', () => {
 
     expect(finished).toHaveLength(MAX_FINISHED_BACKGROUND_ROWS)
     expect(finished[0]?.requestId).toBe(`r${MAX_FINISHED_BACKGROUND_ROWS + 4}`)
+  })
+
+  it('gives children their share of the Finished bound before the task rows', () => {
+    const tasks = Array.from({ length: MAX_FINISHED_BACKGROUND_ROWS }, (_, index) => index)
+
+    expect(taskRowsWithinFinishedBound(tasks, 0)).toHaveLength(MAX_FINISHED_BACKGROUND_ROWS)
+    expect(taskRowsWithinFinishedBound(tasks, 5)).toHaveLength(MAX_FINISHED_BACKGROUND_ROWS - 5)
+    expect(taskRowsWithinFinishedBound(tasks, MAX_FINISHED_BACKGROUND_ROWS + 1)).toHaveLength(0)
   })
 
   it('reads a running child on the host clock, and a settled one from its reported duration', () => {

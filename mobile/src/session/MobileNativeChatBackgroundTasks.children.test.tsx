@@ -3,6 +3,7 @@ import { createElement } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { agentChildRowContextForSessionStream } from '../../../src/shared/agent-child-row-stream-context'
+import type { AgentChildWorkView } from '../../../src/shared/agent-status-child-work-view'
 import type { DelegatedChild } from '../../../src/shared/delegated-children'
 import { structuredSessionBackgroundTasksView } from '../../../src/shared/structured-session-background-tasks-view'
 import {
@@ -62,13 +63,28 @@ const running: DelegatedChild = {
   reason: null
 }
 
-function tasks(streamLive: boolean) {
+function tasks(streamLive: boolean, commandActivity?: AgentChildWorkView[]) {
   return {
     view: structuredSessionBackgroundTasksView(null, null),
     rowContext: agentChildRowContextForSessionStream(streamLive, 0),
     sessionKey: 'session-a',
-    stop: vi.fn(async () => undefined)
+    stop: vi.fn(async () => undefined),
+    commandActivity
   }
+}
+
+const settledBuild: AgentChildWorkView = {
+  id: 'build',
+  providerId: 'task-build',
+  kind: 'command',
+  description: 'build',
+  state: 'done',
+  membership: 'settled',
+  firstObservedAt: 100,
+  observedAt: 1_000,
+  settledAt: 900,
+  stoppable: false,
+  invocation: { invocationId: 'build', generation: 1 }
 }
 
 describe('MobileNativeChatBackgroundTasks with delegated children', () => {
@@ -82,7 +98,9 @@ describe('MobileNativeChatBackgroundTasks with delegated children', () => {
   function mount(
     children: readonly DelegatedChild[],
     access: MobileDelegatedChildAccess | null,
-    streamLive = true
+    streamLive = true,
+    working = false,
+    commandActivity?: AgentChildWorkView[]
   ): ReactTestRenderer {
     const mounted = create(createElement('View'))
     renderer = mounted
@@ -94,7 +112,10 @@ describe('MobileNativeChatBackgroundTasks with delegated children', () => {
           createElement(
             MobileDelegatedChildrenContext.Provider,
             { value: { children, hostClockOffsetMs: 0 } },
-            createElement(MobileNativeChatBackgroundTasks, { tasks: tasks(streamLive) })
+            createElement(MobileNativeChatBackgroundTasks, {
+              tasks: tasks(streamLive, commandActivity),
+              working
+            })
           )
         )
       )
@@ -117,6 +138,43 @@ describe('MobileNativeChatBackgroundTasks with delegated children', () => {
     const mounted = mount([running], { hasChild: () => true, openChild: vi.fn() }, false)
 
     expect(mounted.toJSON()).toBeNull()
+  })
+
+  it('lists no running child in the open sheet once the stream is lost, even with a turn running', () => {
+    const mounted = mount([running], { hasChild: () => true, openChild: vi.fn() }, false, true)
+    act(() => header(mounted).props.onPress())
+
+    expect(
+      mounted.root.findAll((node) => node.props.testID === 'background-child-row')
+    ).toHaveLength(0)
+    expect(header(mounted).props.accessibilityLabel).not.toContain('agent')
+  })
+
+  it('shares one Finished group between a settled child and a settled task', () => {
+    const finished: DelegatedChild = {
+      ...running,
+      requestId: 'request-2',
+      title: 'Lint sweep',
+      status: 'succeeded',
+      childSessionId: 'child-2',
+      durationMs: 60_000
+    }
+    const mounted = mount([finished], { hasChild: () => true, openChild: vi.fn() }, true, false, [
+      settledBuild
+    ])
+    act(() => header(mounted).props.onPress())
+    act(() => {
+      mounted.root.find((node) => node.props.accessibilityLabel === 'Finished, 2').props.onPress()
+    })
+
+    expect(
+      mounted.root.findAll(
+        (node) => node.props.testID === 'background-child-row' && String(node.type) === 'Pressable'
+      )
+    ).toHaveLength(1)
+    expect(
+      mounted.root.findAll((node) => node.props.testID === 'background-task-row')
+    ).toHaveLength(1)
   })
 
   it('opens the child from the sheet and closes the sheet first', () => {

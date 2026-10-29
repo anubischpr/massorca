@@ -214,9 +214,10 @@ describe('MobileNativeChatDelegationNotice', () => {
 
     function mountWith(
       children: readonly DelegatedChild[],
-      access: MobileDelegatedChildAccess | null
+      access: MobileDelegatedChildAccess | null,
+      hostClockOffsetMs = 0
     ): void {
-      const delegated: MobileDelegatedChildren = { children, hostClockOffsetMs: 0 }
+      const delegated: MobileDelegatedChildren = { children, hostClockOffsetMs }
       act(() => {
         renderer = create(
           createElement(
@@ -240,6 +241,13 @@ describe('MobileNativeChatDelegationNotice', () => {
         'Explore Phase 3 improvements',
         'Codex · default model · medium (Automatic) · 4 min'
       ])
+    })
+
+    it('reads the elapsed time on the host clock, not the phone clock', () => {
+      // The phone is a minute ahead of the host, so the child has run 3 min by the host's clock.
+      mountWith([working], { hasChild: () => false, openChild: vi.fn() }, 60_000)
+
+      expect(texts()[2]).toBe('Codex · default model · medium (Automatic) · 3 min')
     })
 
     it('offers Open child chat at once when the child tab is here', async () => {
