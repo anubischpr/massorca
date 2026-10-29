@@ -11,6 +11,8 @@ export type DelegationUsageSample = {
   sessionPercent?: number
   /** Used percent of the 7-day window. */
   weeklyPercent?: number
+  /** Used percent of the 30-day allowance; binds only when no 5-hour or weekly window is known. */
+  monthlyPercent?: number
   limitReached?: boolean
   /** Unix ms of the sample; without it the sample cannot count as fresh. */
   fetchedAt?: number
@@ -40,7 +42,7 @@ export type DelegationRanking = {
   winner: DelegationWinner | null
 }
 
-type BindingWindow = { percent: number; window: DelegationUsageWindow }
+type BindingWindow = { percent: number; window: DelegationUsageWindow | 'monthly' }
 
 const NO_DATA_BINDING_PERCENT = 60
 const USAGE_LIMIT_PERCENT = 90
@@ -65,7 +67,9 @@ function bindingWindowOf(usage: DelegationUsageSample): BindingWindow | null {
   if (weekly !== undefined) {
     return { percent: weekly, window: 'weekly' }
   }
-  return null
+  // Why: a monthly allowance binds only when no 5-hour or weekly window is known.
+  const monthly = finitePercent(usage.monthlyPercent)
+  return monthly === undefined ? null : { percent: monthly, window: 'monthly' }
 }
 
 function noDataUsage(agent: string): DelegationAgentUsage {
@@ -110,13 +114,14 @@ function usageEntryFor(
       ? { agent, bindingPercent: 100, window: null, noData: false, excluded: 'limit-reached' }
       : noDataUsage(agent)
   }
-  return {
+  const entry: DelegationAgentUsage = {
     agent,
     bindingPercent: binding.percent,
-    window: binding.window,
+    window: binding.window === 'monthly' ? null : binding.window,
     noData: false,
     excluded: exclusionFor(binding.percent, limitReached)
   }
+  return binding.window === 'monthly' ? { ...entry, monthly: true } : entry
 }
 
 function fixedRank(agent: string): number {
@@ -141,6 +146,7 @@ function compareRanking(a: DelegationAgentUsage, b: DelegationAgentUsage): numbe
     compareText(a.agent, b.agent) ||
     Number(a.noData) - Number(b.noData) ||
     compareText(a.window ?? '', b.window ?? '') ||
+    Number(a.monthly === true) - Number(b.monthly === true) ||
     compareText(a.excluded ?? '', b.excluded ?? '')
   )
 }

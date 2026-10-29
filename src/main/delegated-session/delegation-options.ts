@@ -82,7 +82,8 @@ function describeUsage(agent: DelegationCardAgent): string {
   if (usage.excluded === 'limit-reached') {
     return 'Limit reached'
   }
-  const used = usage.noData ? 'No usage data' : `${Math.round(usage.bindingPercent)}% used`
+  const period = usage.monthly ? ' this month' : ''
+  const used = usage.noData ? 'No usage data' : `${Math.round(usage.bindingPercent)}% used${period}`
   return usage.excluded === 'usage-limit' ? `${used} · near its limit` : used
 }
 

@@ -27,11 +27,14 @@ function meteredProviderFor({ agent, piRuntime }: DelegationUsageAgent): Metered
 
 function usageSampleFrom(rateLimits: ProviderRateLimits): DelegationUsageSample {
   const windows = [rateLimits.session, rateLimits.weekly]
+  // Why: a monthly allowance is read only when no 5-hour or weekly window is reported.
+  const monthly = windows.every((entry) => !entry) ? rateLimits.monthly : null
   return {
     sessionPercent: rateLimits.session?.usedPercent,
     weeklyPercent: rateLimits.weekly?.usedPercent,
+    monthlyPercent: monthly?.usedPercent,
     // Why: a window at 100% is exhausted even when the provider sets no limit flag.
-    limitReached: windows.some((entry) => (entry?.usedPercent ?? 0) >= 100),
+    limitReached: [...windows, monthly].some((entry) => (entry?.usedPercent ?? 0) >= 100),
     fetchedAt: rateLimits.updatedAt
   }
 }

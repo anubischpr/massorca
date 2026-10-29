@@ -20,8 +20,10 @@ export type DelegationAgentUsage = {
   agent: string
   /** The higher known window, or 60 when no fresh window is known. */
   bindingPercent: number
-  /** The window that set `bindingPercent`; null when none was known. */
+  /** The 5-hour or weekly window that set `bindingPercent`; null when none was known or it was monthly. */
   window: DelegationUsageWindow | null
+  /** Set when the monthly allowance set `bindingPercent`; an older client ignores it. */
+  monthly?: true
   noData: boolean
   excluded: DelegationExclusion | null
 }

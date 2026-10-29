@@ -147,6 +147,8 @@ const UsageSchema = z.object({
   agent: z.string(),
   bindingPercent: z.number(),
   window: z.enum(['session', 'weekly']).nullable(),
+  // Why: optional, so an entry from a host before the monthly allowance still parses.
+  monthly: z.literal(true).optional().catch(undefined),
   noData: z.boolean(),
   excluded: z.enum(['usage-limit', 'limit-reached']).nullable()
 })
