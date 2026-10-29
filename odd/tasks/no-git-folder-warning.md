@@ -73,6 +73,7 @@ Prototype: https://claude.ai/artifact/MXai3HzR88MwEWf7FK2Tfy (4 artboards). Stri
   - Runtime harness: N/A. The pill and popover were not checked in the live Electron app; coverage is happy-dom component tests.
   - Off-design: the pill's border and hover use the new `quietOutline` variant, the one primitive change, because no existing Badge variant matches the approved transparent pill. Nothing else was added beyond the artboard copy.
   - Delivery: no push or PR; slice boundaries so far: T1 `2cbd68d0f12`, T2 `342451bc0081`, T3 `b926a138fb7`.
+  - Progress: T3 review lineage `review-28306a53133fb8b4` ran four lenses and opened a correction; the follow-up STATUS stopped with `corrupted_or_unverifiable_authority` and was abandoned; the findings were fixed in `9d9a8464852`.
 
 ## Delivery
 
