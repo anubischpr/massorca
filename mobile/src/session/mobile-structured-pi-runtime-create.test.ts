@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { RpcClient } from '../transport/rpc-client'
 import {
   canStartMobileStructuredAgentSession,
+  probeMobileStructuredAgentSessionSupport,
   startMobileStructuredAgentSession
 } from './mobile-structured-agent-session-launch'
 
@@ -84,6 +85,32 @@ describe('Pi runtime on the structured create', () => {
       accessMode: 'full-access'
     })
     expect(sendRequest.mock.calls[1]?.[1]).not.toHaveProperty('accessMode')
+  })
+
+  it('keeps the host reason when the Gentle Shell probe says no', async () => {
+    const missing = fakeClient({
+      ok: true,
+      result: { supported: false, reason: 'agent', cause: 'cliMissing' }
+    })
+    await expect(
+      probeMobileStructuredAgentSessionSupport(missing.client, 'wt-1', 'pi', {
+        piRuntime: 'gentle-shell'
+      })
+    ).resolves.toEqual({ supported: false, detail: 'The CLI was not found on the host.' })
+
+    const refused = fakeClient({ ok: false, error: { code: 'invalid_params', message: '/home/x' } })
+    await expect(
+      probeMobileStructuredAgentSessionSupport(refused.client, 'wt-1', 'pi', {
+        piRuntime: 'gentle-shell'
+      })
+    ).resolves.toEqual({ supported: false, detail: 'Host error: invalid_params.' })
+
+    const odd = fakeClient({ ok: true, result: { supported: false, cause: '/usr/bin/pi' } })
+    await expect(
+      probeMobileStructuredAgentSessionSupport(odd.client, 'wt-1', 'pi', {
+        piRuntime: 'gentle-shell'
+      })
+    ).resolves.toEqual({ supported: false, detail: '' })
   })
 
   it('asks whether the Gentle Shell chat can start, and says no to an unsupported or refused answer', async () => {

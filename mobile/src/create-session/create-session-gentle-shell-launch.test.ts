@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { MobileWorkspaceRepo } from '../components/new-worktree-modal-types'
 import {
-  canStartMobileStructuredAgentSession,
+  probeMobileStructuredAgentSessionSupport,
   startMobileStructuredAgentSession
 } from '../session/mobile-structured-agent-session-launch'
 import { sendMobileStructuredAgentSessionMessage } from '../session/mobile-structured-agent-session-send'
@@ -21,7 +21,8 @@ import {
 import type { CreateSessionLaunchPlan } from './create-session-launch-plan'
 
 vi.mock('../session/mobile-structured-agent-session-launch', () => ({
-  canStartMobileStructuredAgentSession: vi.fn(),
+  probeMobileStructuredAgentSessionSupport: vi.fn(),
+  describeUnsupportedLaunch: vi.fn(() => ''),
   startMobileStructuredAgentSession: vi.fn()
 }))
 vi.mock('../session/mobile-structured-agent-session-send', () => ({
@@ -72,7 +73,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   vi.mocked(readPrimaryWorkspaceId).mockResolvedValue('wt-main')
   vi.mocked(readCreatureName).mockResolvedValue('calm-otter')
-  vi.mocked(canStartMobileStructuredAgentSession).mockResolvedValue(true)
+  vi.mocked(probeMobileStructuredAgentSessionSupport).mockResolvedValue({ supported: true })
   vi.mocked(startMobileStructuredAgentSession).mockResolvedValue({
     kind: 'created',
     sessionId: 'pi_1',
@@ -92,7 +93,7 @@ describe('launchGentleShellSession', () => {
       worktreeId: 'wt-main',
       name: 'web'
     })
-    expect(canStartMobileStructuredAgentSession).toHaveBeenCalledWith(client, 'wt-main', 'pi', {
+    expect(probeMobileStructuredAgentSessionSupport).toHaveBeenCalledWith(client, 'wt-main', 'pi', {
       piRuntime: 'gentle-shell'
     })
     expect(startMobileStructuredAgentSession).toHaveBeenCalledWith(client, 'wt-main', 'pi', {
@@ -111,10 +112,13 @@ describe('launchGentleShellSession', () => {
   })
 
   it('creates nothing when Gentle Shell cannot start a chat here', async () => {
-    vi.mocked(canStartMobileStructuredAgentSession).mockResolvedValue(false)
+    vi.mocked(probeMobileStructuredAgentSessionSupport).mockResolvedValue({
+      supported: false,
+      detail: 'The CLI was not found on the host.'
+    })
     await expect(run(newWorktree)).resolves.toEqual({
       ok: false,
-      message: GENTLE_SHELL_UNAVAILABLE_MESSAGE
+      message: `${GENTLE_SHELL_UNAVAILABLE_MESSAGE} The CLI was not found on the host.`
     })
     expect(createWorktreeWithNameRetry).not.toHaveBeenCalled()
     expect(startMobileStructuredAgentSession).not.toHaveBeenCalled()
