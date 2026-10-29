@@ -135,7 +135,7 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
     - Left open: no direct test of `useWorktreeAgentRows` (its read is the existing `worktreeCatalogRead`, tested by the environment read suites, and its pure parts are tested here); no rendered check on a device.
     - Checks: `pnpm exec vitest run src/session src/components src/worktree src/home` → 431 files, 426 passed, 5 failed (11 tests). The five are on the known-failure list: `mobile-native-chat-merged-snapshot-parity`, `use-mobile-diff-review-send-actions`, `use-mobile-pr-ai-triage`, `native-document-bundle`, and `mobile-prompt-controller` (module load). The targeted suites (lineage, sheet, access, notice, rows) → 5 files, 31 passed. `pnpm run typecheck` → exit 0. `oxlint` → exit 0 and `oxfmt --check` clean on the 16 changed files.
 
-- [ ] T7 — Child sessions in the parent chat and the background popover, desktop and mobile (approved Design board "Desktop running child", 2026-10-29). Route: delegated direct (writer trigger). Desktop done; mobile done (see below).
+- [x] T7 — Child sessions in the parent chat and the background popover, desktop and mobile (approved Design board "Desktop running child", 2026-10-29). Route: delegated direct (writer trigger). Desktop done; mobile done (see below).
   - Approved design: a started child is a live row in the parent chat ("Child session working: <title>", agent · model · effort (Automatic) · started N ago, Open child chat). The background popover lists children in a "Child sessions" section with live status and an Open button per row.
   - Adjustments (binding, 2026-10-29): A. Finished children stay in the background popover under its Finished section, with the same history rule as tasks and subagents, each with Open. B. Desktop: children appear in the existing background-tasks popover; each child row has Open where a task row has Stop.
   - Desktop, checked:
@@ -221,8 +221,16 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
 
 - 2026-10-29: T7 desktop committed as `c86d066ef57` (shared child derivation), `ddde26552ba` (live started row) and `83776081a07` (background popover: Child sessions and the Finished group, each row with Open). Mobile is open for the next writer. `tc:node` fails on `src/main/runtime/structured-session-lineage.ts` from another writer's uncommitted work in this worktree, not from T7.
 - 2026-10-29: T7 mobile committed as `dc6ff8c4fc6` (live started row) and `1f094b93848` (background sheet child rows). The mobile web bundle is at 169 assets, the budget. Review of these ranges is not yet run.
+- 2026-10-29: T7 reviews approved and acknowledged: `c86d066ef57`; desktop `a473f6929f9..797eb3bddde`; mobile `797eb3bddde..451d28ff4f7`; triage `451d28ff4f7..ab509ce2109`; the mobile sheet clock fix `8d9ec0e065d` (a running child's elapsed time ticks while the sheet is open). `custom/pv27-unified` (`3863a5d8484`) merged as `fb0c5ca6eb0`, keeping both sides of `MobileNativeChatOverlay.tsx`; the mobile web bundle verifies at 193 assets after the merge (its budget scales with the added routes).
+- 2026-10-29: pv48 QA fixes reviewed and acknowledged: agent install checks (`ca413873295`, `450e146a030`, correction `0e0bce31b92`), persisted nesting (`b0081af852b`, bounded in `e8f68832f80`), Gentle Shell monthly usage (`5f85706c14e`, `c6f37da1fd0`), child-session routing per agent (`243de3ba9c4`, `54a986b5d44`, launch safety `a473f6929f9`). The first nesting review lineage timed out twice and was abandoned under the user's rule; `e8f68832f80` was then reviewed on its own.
 
 ## Follow-ups
+
+- Non-blocking findings from the T7 triage and clock reviews, not yet triaged: `R3-child-count-hidden-when-views-null`, `R3-desktop-summary-child-count-ignores-liveness`, `R3-finished-bound-order-unproved`, `R3-host-clock-test-unpinned-clock` (warnings); `R3-compact-children-starved-by-tasks`, `R3-lost-stream-empty-group-unproved`, `R3-visibility-tick-asserted-on-mock-args` (suggestions); the clock review's `R3-001`, `R3-002`, `R3-003`.
+- Non-blocking findings from the routing, launch-safety, install-check and nesting reviews are listed in the review records; none blocks a launch.
+- Grok has no instruction channel; it gets no child-session instruction.
+- Not drawn: the "N child sessions" header count, the pending "choosing agent" row, and usage figures on child rows.
+- No rendered check on desktop or a device yet; the VPS real-run checklist was sent to the parent session.
 
 - Automatic may switch to a second account of the same agent (inactive accounts are tracked).
 - Optional Jev classification on hosts where it is configured.
