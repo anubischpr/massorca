@@ -85,7 +85,7 @@ Work-unit Conventional Commits on `claude/prototypes-section-f8edf5`, tests with
 - [ ] T3b Fix T3 review advisories (approved + acknowledged, lineage review-464467637923eb67): mobile relay forwards picked element unchecked (mobile-native-chat-visual-host-document.ts:98-105); touch path neither blocked nor tested (annotate-script.ts:43); mobile frame wiring and host forwarder only substring-tested; shell reader widened for every document (native-chat-visual-shell.ts:272); label fallback uncapped; layout on every mousemove; identity-keyed resend on mobile. Route: delegated writer.
 - [x] T2 Host aggregation — `708b82d8844`, `85a7fffd2a1`, `4bc6725ec77`: list prototypes across chats (chat visuals + recorded HTML + Gentle Shell `design/*/design.json`) and read one; additive RPC usable by desktop and mobile; SSH-safe. Tests. Route: delegated writer.
 - [x] T3 Frame annotate bridge — `eb3a4f3b203`: new optional message kinds for element pick (selector, label, rect), pins, style overrides and text override; desktop and mobile hosts validate them. Tests. Route: delegated writer.
-- [ ] T4 Desktop settings + prompt line + "How many?" card. Tests. Route: delegated writer.
+- [x] T4 Desktop settings + prompt line + "How many?" card — `3e8212fe2b3`, `7a56286491e`, `70ea29ade1f`, `110f3abda15`. Tests. Route: delegated writer.
 - [ ] T5 Desktop Prototypes view: sidebar row, list + filters, set grid, viewer, strip, annotate panel (Edit, picker, Note), draft, Anything else, Send. Tests. Route: delegated writer(s).
 - [ ] T6 Mobile Prototypes: ⋯ menu item, list, swipe set, viewer, Edit/Note sheet, draft sheet, Send. Tests. Route: delegated writer(s).
 - [ ] T7 Mobile settings + "How many?" card. Tests. Route: delegated writer.
@@ -110,6 +110,10 @@ Work-unit Conventional Commits on `claude/prototypes-section-f8edf5`, tests with
 - T2 decisions (autonomous, sensible defaults): `createRequest` returns `unsupported` for chats without a record or with a non-local (WSL/SSH-relay) location; then the message goes as typed with no prototype capture. Older hosts are detected via `method_not_found`. `readFile` errors map to the one-line "Couldn't open this prototype".
 
 - T2 review: four lenses; one CRITICAL (scan truncation starved other chats) corrected in `ea99509c985` (per-chat newest-first cap; test with 600 folders in a busy chat); targeted validation approved; acknowledged. Parent fixed broken `node_modules` links (left by a failed install in a temporary base worktree) with `pnpm install --frozen-lockfile --ignore-scripts`.
+
+- T4 (delegated writer; trigger: 58 files across shared, main settings, renderer and i18n): own tests passed; 146 direct-importer test files run in batches, one real regression (composer-draft-lifecycle, 17 tests) fixed; remaining failures are Windows `EBUSY` sqlite temp-file locks in claude/codex/agent-session-wire/runtime-rpc suites and a persistence suite not touched by T4 (not diffed against HEAD); `ai-vault-search` suites need node:sqlite (unavailable here). `typecheck:node`/`typecheck:web` 0; oxlint/oxfmt clean; code-quality gate 0 new findings; localization verify scripts pass.
+- T4 fidelity: every string maps to DesktopAsk or the approved "Not a prototype"; Settings box uses the approved single line; settings nav row has a `Layers` icon (every nav row requires one). Placement deviation: the card renders directly above the composer (held-send hook owns it) instead of inside the transcript flow; the held message is not shown as a bubble until a choice is made. Typed text (incl. `/prototype`) is echoed in a `<!-- orca-prototype-typed -->` block so the bubble shows exactly what was typed while the agent never receives a leading `/prototype`.
+- T4 leftovers: T1d items in prototype-sets.ts / lexicon (manifest folder trust, Gentle design set all-or-nothing, letter range, lexicon scan cost) move to T2b.
 
 ## Next step
 
