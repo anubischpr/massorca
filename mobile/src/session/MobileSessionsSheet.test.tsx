@@ -124,6 +124,41 @@ describe('MobileSessionsSheet', () => {
       .map((node) => node.props.children)
   }
 
+  it('nests a child tab under its parent, and keeps the flat list without lineage', () => {
+    const child: MobileSessionTab = {
+      ...chat,
+      id: 'tab-child',
+      title: 'Explore v5',
+      sessionId: 'child-1'
+    }
+    const nestedRows: MobileSessionSwitcherRow<MobileSessionTab>[] = [
+      { tab: chat, isActive: false, status: 'idle' },
+      { tab: child, isActive: false, status: null },
+      { tab: terminal, isActive: true, status: 'working' }
+    ]
+    const tabLabels = (mounted: ReactTestRenderer) =>
+      mounted.root
+        .findAll((node) => String(node.type) === 'Pressable')
+        .map((node) => node.props.accessibilityLabel)
+        .filter((label) => ['Fix login', 'Explore v5', 'npm test'].includes(label))
+
+    const nested = mount(
+      propsWith({ rows: nestedRows, childParentTabIds: new Map([['tab-child', 'tab-chat']]) })
+    )
+    const childGroups = nested.root.findAll((node) => node.props.testID === 'session-child-rows')
+    expect(childGroups).toHaveLength(1)
+    expect(
+      childGroups[0]!
+        .findAll((node) => String(node.type) === 'Pressable')
+        .map((node) => node.props.accessibilityLabel)
+    ).toEqual(['Explore v5'])
+    expect(tabLabels(nested)).toEqual(['Fix login', 'Explore v5', 'npm test'])
+
+    const flat = mount(propsWith({ rows: nestedRows }))
+    expect(flat.root.findAll((node) => node.props.testID === 'session-child-rows')).toHaveLength(0)
+    expect(tabLabels(flat)).toEqual(['Fix login', 'Explore v5', 'npm test'])
+  })
+
   it('labels each tab by its agent status, or by its kind when it reports none', () => {
     const texts = textsOf(mount(propsWith({})))
     expect(texts).toEqual(expect.arrayContaining(['Working', 'Idle', 'Markdown']))

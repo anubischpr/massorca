@@ -13,12 +13,15 @@ import {
   mobileSessionSwitcherLabel,
   type MobileSessionSwitcherRow
 } from './mobile-session-switcher-rows'
+import { groupSessionRowsByParent } from './mobile-session-tab-lineage'
 import { resolveMobileChatTabPiRuntime } from './mobile-structured-pi-runtime-record'
 import {
   getMobileSessionTabTitle,
   resolveMobileTerminalTabAgentId,
   resolveMobileTerminalTabPiRuntime
 } from './mobile-terminal-tab-agent'
+
+const NO_PARENT_TABS: ReadonlyMap<string, string> = new Map()
 
 type Props = {
   visible: boolean
@@ -33,6 +36,8 @@ type Props = {
   onTabActions: (tab: MobileSessionTab) => void
   /** A create is pending or the host is not connected: a new tab waits, as the header's + did. */
   newTabDisabled?: boolean
+  /** Child tab id to its parent tab id: a child draws one level under its parent. None means a flat list. */
+  childParentTabIds?: ReadonlyMap<string, string>
 }
 
 /** The worktree's tabs as one list: pick one to switch to it, or start or resume a session. */
@@ -45,7 +50,8 @@ export function MobileSessionsSheet({
   onNewTab,
   onResume,
   onTabActions,
-  newTabDisabled = false
+  newTabDisabled = false,
+  childParentTabIds = NO_PARENT_TABS
 }: Props) {
   // Why: iOS cannot present a second native modal until this sheet has unmounted, so the
   // follow-up action waits for onAfterClose.
@@ -54,6 +60,35 @@ export function MobileSessionsSheet({
     afterCloseRef.current = next
     onClose()
   }
+  const sessionRow = (row: MobileSessionSwitcherRow<MobileSessionTab>) => (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={getMobileSessionTabTitle(row.tab)}
+      accessibilityState={{ selected: row.isActive }}
+      accessibilityHint="Hold for close and rename"
+      style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+      onPress={() => {
+        onSelect(row.tab)
+        onClose()
+      }}
+      onLongPress={() => closeThen(() => onTabActions(row.tab))}
+      delayLongPress={400}
+    >
+      <TabKindIcon tab={row.tab} />
+      <View style={styles.textBlock}>
+        <Text style={styles.rowTitle} numberOfLines={1}>
+          {getMobileSessionTabTitle(row.tab)}
+        </Text>
+        <View style={styles.statusRow}>
+          {row.status ? <AgentStateDot state={mobileSessionSwitcherDot(row.status)} /> : null}
+          <Text style={styles.meta}>
+            {row.status ? mobileSessionSwitcherLabel(row.status) : kindLabel(row.tab.type)}
+          </Text>
+        </View>
+      </View>
+      {row.isActive ? <Check size={16} color={colors.textPrimary} strokeWidth={2.2} /> : null}
+    </Pressable>
+  )
   return (
     <BottomDrawer
       visible={visible}
@@ -80,40 +115,17 @@ export function MobileSessionsSheet({
       </View>
       <SheetSectionLabel label="Tabs" count={rows.length} />
       <View style={styles.group}>
-        {rows.map((row, index) => (
-          <View key={row.tab.id}>
+        {groupSessionRowsByParent(rows, childParentTabIds).map((group, index) => (
+          <View key={group.row.tab.id}>
             {index > 0 ? <View style={styles.separator} /> : null}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={getMobileSessionTabTitle(row.tab)}
-              accessibilityState={{ selected: row.isActive }}
-              accessibilityHint="Hold for close and rename"
-              style={({ pressed }) => [styles.row, pressed && styles.pressed]}
-              onPress={() => {
-                onSelect(row.tab)
-                onClose()
-              }}
-              onLongPress={() => closeThen(() => onTabActions(row.tab))}
-              delayLongPress={400}
-            >
-              <TabKindIcon tab={row.tab} />
-              <View style={styles.textBlock}>
-                <Text style={styles.rowTitle} numberOfLines={1}>
-                  {getMobileSessionTabTitle(row.tab)}
-                </Text>
-                <View style={styles.statusRow}>
-                  {row.status ? (
-                    <AgentStateDot state={mobileSessionSwitcherDot(row.status)} />
-                  ) : null}
-                  <Text style={styles.meta}>
-                    {row.status ? mobileSessionSwitcherLabel(row.status) : kindLabel(row.tab.type)}
-                  </Text>
-                </View>
+            {sessionRow(group.row)}
+            {group.children.length > 0 ? (
+              <View style={styles.childGroup} testID="session-child-rows">
+                {group.children.map((child) => (
+                  <View key={child.tab.id}>{sessionRow(child)}</View>
+                ))}
               </View>
-              {row.isActive ? (
-                <Check size={16} color={colors.textPrimary} strokeWidth={2.2} />
-              ) : null}
-            </Pressable>
+            ) : null}
           </View>
         ))}
       </View>
@@ -210,6 +222,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgPanel,
     borderRadius: radii.card,
     overflow: 'hidden'
+  },
+  childGroup: {
+    marginLeft: spacing.xl + spacing.xs,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: colors.borderSubtle
   },
   separator: {
     height: StyleSheet.hairlineWidth,
