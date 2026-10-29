@@ -6,11 +6,13 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { NATIVE_CHAT_VISUAL_MAX_BYTES } from '../../shared/native-chat-visual-directive'
 import type { PrototypeDesignSystemMode } from '../../shared/prototype-design-system-files'
+import { PROTOTYPE_MERGE_PLAN_MAX_BYTES } from '../../shared/prototype-merge-plan'
 import {
   createPrototypeRequestId,
   isPlainPathSegment,
   parsePrototypeFileName,
   PROTOTYPE_MANIFEST_FILE_NAME,
+  PROTOTYPE_MERGE_PLAN_FILE_NAME,
   prototypeRequestFolder
 } from '../../shared/prototype-request-folder'
 import {
@@ -135,9 +137,10 @@ export type ReadPrototypeSetFileOptions = {
 }
 
 /**
- * The HTML of one set file. The name must be a file of this request's own set: a
- * `prototypes/<requestId>/` direction file, or a Gentle Shell artboard of the design folder bound to
- * this request. Anything else is not found, whatever is on disk.
+ * The text of one set file. The name must be a file of this request's own set: a
+ * `prototypes/<requestId>/` direction file or its `merge-plan.json` (small, and absent until the agent
+ * writes it), or a Gentle Shell artboard of the design folder bound to this request. Anything else is
+ * not found, whatever is on disk.
  */
 export async function readPrototypeSetFile(
   options: ReadPrototypeSetFileOptions
@@ -160,6 +163,14 @@ export async function readPrototypeSetFile(
   const ownPrefix = `${prototypeRequestFolder(options.requestId)}/`
   if (options.fileName.startsWith(ownPrefix)) {
     const name = options.fileName.slice(ownPrefix.length)
+    if (name === PROTOTYPE_MERGE_PLAN_FILE_NAME) {
+      return toReadFileResult(
+        await readNativeChatContainedTextFile(requestFolder, name, undefined, {
+          maxBytes: PROTOTYPE_MERGE_PLAN_MAX_BYTES,
+          isAllowedName: (file) => file === PROTOTYPE_MERGE_PLAN_FILE_NAME
+        })
+      )
+    }
     return parsePrototypeFileName(name) === null
       ? NOT_FOUND
       : toReadFileResult(

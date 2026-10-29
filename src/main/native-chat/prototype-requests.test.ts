@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { NATIVE_CHAT_VISUAL_MAX_BYTES } from '../../shared/native-chat-visual-directive'
+import { PROTOTYPE_MERGE_PLAN_MAX_BYTES } from '../../shared/prototype-merge-plan'
 import { PROTOTYPE_ATTACHMENT_MAX_BYTES } from '../../shared/rpc-contract/prototype-params'
 import { nativeChatVisualsFolderFor } from './native-chat-visuals-folder'
 import {
@@ -403,6 +404,74 @@ describe('readPrototypeSetFile', () => {
       ok: false,
       error: 'not_found'
     })
+  })
+})
+
+describe('readPrototypeSetFile of merge-plan.json', () => {
+  async function base(): Promise<{
+    options: Parameters<typeof readPrototypeSetFile>[0]
+    folderPath: string
+    requestId: string
+  }> {
+    const created = await create('claude', NOW)
+    return {
+      folderPath: created.folderPath,
+      requestId: created.requestId,
+      options: {
+        stateDirectory,
+        launchDirectory,
+        sessionId: SESSION,
+        requestId: created.requestId,
+        fileName: `prototypes/${created.requestId}/merge-plan.json`
+      }
+    }
+  }
+
+  it('returns the plan text the agent wrote in the request folder', async () => {
+    const { options, folderPath } = await base()
+    await writeIn(folderPath, 'merge-plan.json', '{"from":["A","C"],"parts":[]}')
+
+    expect(await readPrototypeSetFile(options)).toEqual({
+      ok: true,
+      html: '{"from":["A","C"],"parts":[]}'
+    })
+  })
+
+  it('answers not_found until the plan is written, so an older agent flow just waits', async () => {
+    const { options } = await base()
+
+    expect(await readPrototypeSetFile(options)).toEqual({ ok: false, error: 'not_found' })
+  })
+
+  it('answers too_large over the plan byte cap', async () => {
+    const { options, folderPath } = await base()
+    await writeIn(
+      folderPath,
+      'merge-plan.json',
+      Buffer.alloc(PROTOTYPE_MERGE_PLAN_MAX_BYTES + 1, 'x')
+    )
+
+    expect(await readPrototypeSetFile(options)).toEqual({ ok: false, error: 'too_large' })
+  })
+
+  it('serves the plan of its own request only, and no other file name', async () => {
+    const { options, folderPath, requestId } = await base()
+    await writeIn(folderPath, 'merge-plan.json', '{}')
+    await writeIn(folderPath, 'directions.json', '[]')
+
+    expect(await readPrototypeSetFile({ ...options, requestId: '20250101-000000-zzzzzz' })).toEqual(
+      { ok: false, error: 'not_found' }
+    )
+    for (const fileName of [
+      `prototypes/${requestId}/directions.json`,
+      `prototypes/${requestId}/../${requestId}/merge-plan.json`,
+      `prototypes/${requestId}/Merge-Plan.json`
+    ]) {
+      expect(await readPrototypeSetFile({ ...options, fileName })).toEqual({
+        ok: false,
+        error: 'not_found'
+      })
+    }
   })
 })
 
