@@ -2,12 +2,15 @@ import {
   CreatePrototypeRequestReplySchema,
   ListPrototypeSetsReplySchema,
   PROTOTYPE_WRITE_ATTACHMENT_ERRORS,
+  ReadPrototypeDesignSystemReplySchema,
   ReadPrototypeFileReplySchema,
   WriteAttachmentReplySchema,
   type CreatePrototypeRequestParams,
   type ListPrototypeSetsParams,
+  type PrototypeListedDesignSystem,
   type PrototypeListedSet,
   type PrototypeReadFileError,
+  type ReadPrototypeDesignSystemParams,
   type ReadPrototypeFileParams,
   type WriteAttachmentParams
 } from '../../../src/shared/rpc-contract/prototype-params'
@@ -33,13 +36,28 @@ export type MobilePrototypeRequest =
   | { kind: 'unreachable' }
 
 export type MobilePrototypeSets =
-  | { kind: 'ready'; sets: PrototypeListedSet[] }
+  | { kind: 'ready'; sets: PrototypeListedSet[]; designSystems?: PrototypeListedDesignSystem[] }
   | { kind: 'unsupported-host' }
   | { kind: 'unreachable' }
 
 export type MobilePrototypeFile =
   | { kind: 'ready'; html: string }
   | { kind: 'refused'; error: PrototypeReadFileError }
+  | { kind: 'unsupported-host' }
+  | { kind: 'unreachable' }
+
+export type MobilePrototypeDesignSystem =
+  | {
+      kind: 'ready'
+      projectKey: string
+      projectName: string
+      fileNames: string[]
+      tokensJson?: string
+      componentsHtml?: string
+      systemMd?: string
+    }
+  /** The host has no such local chat, so it has no project for it. */
+  | { kind: 'refused' }
   | { kind: 'unsupported-host' }
   | { kind: 'unreachable' }
 
@@ -84,7 +102,15 @@ export async function listMobilePrototypeSets(
     return isUnsupportedHost(response) ? { kind: 'unsupported-host' } : { kind: 'unreachable' }
   }
   const reply = ListPrototypeSetsReplySchema.safeParse(response.result)
-  return reply.success ? { kind: 'ready', sets: reply.data.sets } : { kind: 'unreachable' }
+  if (!reply.success) {
+    return { kind: 'unreachable' }
+  }
+  // Why omitted when absent: an older host sends no design systems, and its answer reads as before.
+  return {
+    kind: 'ready',
+    sets: reply.data.sets,
+    ...(reply.data.designSystems !== undefined ? { designSystems: reply.data.designSystems } : {})
+  }
 }
 
 /** The HTML of one set file; the host's refusal is a verdict on the file, not on the connection. */
@@ -106,6 +132,29 @@ export async function readMobilePrototypeFile(
   return reply.data.ok
     ? { kind: 'ready', html: reply.data.html }
     : { kind: 'refused', error: reply.data.error }
+}
+
+/** The design system files of the chat's project, read on the host that owns the chat. */
+export async function readMobilePrototypeDesignSystem(
+  client: HostClient,
+  params: ReadPrototypeDesignSystemParams
+): Promise<MobilePrototypeDesignSystem> {
+  const response = await sendHostRequest(client, 'prototypes.readDesignSystem', params)
+  if (response === null) {
+    return { kind: 'unreachable' }
+  }
+  if (!response.ok) {
+    return isUnsupportedHost(response) ? { kind: 'unsupported-host' } : { kind: 'unreachable' }
+  }
+  const reply = ReadPrototypeDesignSystemReplySchema.safeParse(response.result)
+  if (!reply.success) {
+    return { kind: 'unreachable' }
+  }
+  if (!reply.data.ok) {
+    return { kind: 'refused' }
+  }
+  const { ok: _ok, ...files } = reply.data
+  return { kind: 'ready', ...files }
 }
 
 /** Saves one note screenshot under the request's notes folder on the host and returns its path there. */

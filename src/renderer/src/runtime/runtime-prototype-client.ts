@@ -2,12 +2,15 @@ import type { z } from 'zod'
 import {
   CreatePrototypeRequestReplySchema,
   ListPrototypeSetsReplySchema,
+  ReadPrototypeDesignSystemReplySchema,
   ReadPrototypeFileReplySchema,
   WriteAttachmentReplySchema,
   type CreatePrototypeRequestParams,
   type CreatePrototypeRequestResult,
   type ListPrototypeSetsParams,
   type ListPrototypeSetsResult,
+  type ReadPrototypeDesignSystemParams,
+  type ReadPrototypeDesignSystemResult,
   type ReadPrototypeFileParams,
   type ReadPrototypeFileResult,
   type WriteAttachmentParams,
@@ -62,6 +65,19 @@ export function readPrototypeSetFileOnHost(
   params: ReadPrototypeFileParams
 ): Promise<ReadPrototypeFileResult> {
   return callPrototypeHost(target, 'prototypes.readFile', params, ReadPrototypeFileReplySchema)
+}
+
+/** The design system files of the chat's project, read on the host that owns the chat. */
+export function readDesignSystemOnHost(
+  target: RuntimeClientTarget,
+  params: ReadPrototypeDesignSystemParams
+): Promise<ReadPrototypeDesignSystemResult> {
+  return callPrototypeHost(
+    target,
+    'prototypes.readDesignSystem',
+    params,
+    ReadPrototypeDesignSystemReplySchema
+  )
 }
 
 /** Writes one note screenshot into the request folder on the host; a refusal comes back as `{ ok: false, error }`. */

@@ -68,4 +68,22 @@ describe('listPrototypeSetsFromAllHosts', () => {
     expect(listed).toMatchObject({ answered: false, onlyOutdated: false, sets: [] })
     warn.mockRestore()
   })
+
+  it('gathers the design systems each host lists', async () => {
+    const system = (projectKey: string): Record<string, unknown> => ({
+      projectKey,
+      projectName: projectKey,
+      status: 'detected',
+      version: 1,
+      tokenCount: 3,
+      swatches: []
+    })
+    mocks.list.mockImplementation(async (target: { kind: string }) =>
+      target.kind === 'local'
+        ? { sets: [setOf('local-chat', 'r1')], designSystems: [system('a')] }
+        : { sets: [] }
+    )
+    const listed = await listPrototypeSetsFromAllHosts()
+    expect(listed.designSystems).toEqual([system('a')])
+  })
 })

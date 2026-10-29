@@ -11,11 +11,13 @@ import {
 } from '../../shared/prototype-sets'
 import type {
   ListPrototypeSetsResult,
+  PrototypeListedDesignSystem,
   PrototypeListedDirection,
   PrototypeListedSet
 } from '../../shared/rpc-contract/prototype-params'
 import { nativeChatVisualsFolderName, nativeChatVisualsRootFor } from './native-chat-visuals-folder'
 import { directionNotesFor, withDirectionNotes } from './prototype-direction-notes'
+import { projectsOfLaunchDirectories } from './prototype-design-system-files'
 import {
   fileMtime,
   fileNamesIn,
@@ -61,7 +63,42 @@ export async function listPrototypeSets(
     }
   }
   sets.sort((left, right) => right.createdAt.localeCompare(left.createdAt))
-  return { sets }
+  return withProjects(sets, options)
+}
+
+/** Each set with its project, and one design system summary per project that has one. */
+async function withProjects(
+  sets: PrototypeListedSet[],
+  options: ListPrototypeSetsOptions
+): Promise<ListPrototypeSetsResult> {
+  // Why the chat record and not the manifest: request.json sits in the folder the agent writes into.
+  const launchDirectories = new Map<string, string>()
+  for (const set of sets) {
+    const launchDirectory = options.launchDirectoryOf?.(set.sessionId)
+    if (launchDirectory !== undefined) {
+      launchDirectories.set(set.sessionId, launchDirectory)
+    }
+  }
+  const projects = await projectsOfLaunchDirectories(launchDirectories.values())
+  const designSystems = new Map<string, PrototypeListedDesignSystem>()
+  const withProject = sets.map((set): PrototypeListedSet => {
+    const project = projects.get(launchDirectories.get(set.sessionId) ?? '')
+    if (project === undefined) {
+      return set
+    }
+    if (project.system !== undefined && !designSystems.has(project.projectKey)) {
+      designSystems.set(project.projectKey, {
+        projectKey: project.projectKey,
+        projectName: project.projectName,
+        ...project.system
+      })
+    }
+    return { ...set, projectKey: project.projectKey, projectName: project.projectName }
+  })
+  return {
+    sets: withProject,
+    ...(designSystems.size > 0 ? { designSystems: [...designSystems.values()] } : {})
+  }
 }
 
 type RequestFolderCandidate = {
@@ -145,6 +182,9 @@ async function listedSetFor(
     createdAt: manifest.createdAt,
     count: manifest.count,
     folderPath: requestFolder,
+    ...(manifest.designSystemVersion !== undefined
+      ? { builtOn: manifest.designSystemVersion }
+      : {}),
     directions
   }
 }

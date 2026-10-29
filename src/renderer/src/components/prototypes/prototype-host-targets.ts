@@ -1,6 +1,9 @@
 // Which runtime owns a prototype set: the Prototypes view reads each paired runtime as well as this
 // machine, and every later read or write of a set goes back to the host that listed it.
-import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
+import type {
+  PrototypeListedDesignSystem,
+  PrototypeListedSet
+} from '../../../../shared/rpc-contract/prototype-params'
 import { getRuntimeSessionMirrorEnvironmentIds } from '@/lib/runtime-session-mirror-owners'
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import {
@@ -36,6 +39,8 @@ function describeTarget(target: RuntimeClientTarget): string {
 
 export type PrototypeHostListing = {
   sets: PrototypeListedSet[]
+  /** The design system of each project a host listed one for; an older host lists none. */
+  designSystems: PrototypeListedDesignSystem[]
   /** At least one host answered. */
   answered: boolean
   /** Every host that failed was outdated. */
@@ -49,6 +54,7 @@ export async function listPrototypeSetsFromAllHosts(): Promise<PrototypeHostList
     targets.map((target) => listPrototypeSetsOnHost(target, {}))
   )
   const sets: PrototypeListedSet[] = []
+  const designSystems: PrototypeListedDesignSystem[] = []
   let answered = false
   let failed = 0
   let outdated = 0
@@ -60,6 +66,7 @@ export async function listPrototypeSetsFromAllHosts(): Promise<PrototypeHostList
         targetBySessionId.set(set.sessionId, target)
         sets.push(set)
       }
+      designSystems.push(...(outcome.value.designSystems ?? []))
       return
     }
     failed += 1
@@ -70,5 +77,5 @@ export async function listPrototypeSetsFromAllHosts(): Promise<PrototypeHostList
     )
   })
   recordBoundDesignFolders(sets)
-  return { sets, answered, onlyOutdated: failed > 0 && failed === outdated }
+  return { sets, designSystems, answered, onlyOutdated: failed > 0 && failed === outdated }
 }

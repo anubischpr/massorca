@@ -2,6 +2,7 @@
 // folder, and the set read from a Gentle Shell design/<slug>/ folder.
 import { z } from 'zod'
 import { PROTOTYPE_COUNT_MAX, PROTOTYPE_COUNT_MIN } from './prototype-count-setting'
+import { PROTOTYPE_DESIGN_SYSTEM_MODES } from './prototype-design-system-files'
 import { PROTOTYPE_AGENTS } from './prototype-request'
 import {
   directionLetter,
@@ -46,6 +47,9 @@ const prototypeRequestManifestSchema = z.object({
   chatTitle: z.string().max(MANIFEST_TEXT_MAX_LENGTH).optional(),
   // The chat's launch directory on the host: where Gentle Shell's design/ folder lives.
   sessionCwd: z.string().min(1).max(4096).optional(),
+  // What the request did with the project's design system, and the version it was built on.
+  designSystemMode: z.enum(PROTOTYPE_DESIGN_SYSTEM_MODES).optional(),
+  designSystemVersion: z.int().min(1).optional(),
   // The design/<slug>/ folder bound on first resolution, so a design folder that appears later cannot rebind it.
   gentleDesignSlug: z.string().refine(isPlainPathSegment).optional()
 })
