@@ -76,11 +76,13 @@ const NonGitFolderDialog = React.memo(function NonGitFolderDialog() {
       return
     }
     let cancelled = false
-    void runtimeRepoSupportsGitInit(settings, executionHostId).then((supported) => {
-      if (!cancelled) {
-        setGitInitSupport({ hostKey: executionHostKey, supported })
-      }
-    })
+    runtimeRepoSupportsGitInit(settings, executionHostId)
+      .catch(() => false)
+      .then((supported) => {
+        if (!cancelled) {
+          setGitInitSupport({ hostKey: executionHostKey, supported })
+        }
+      })
     return () => {
       cancelled = true
     }
