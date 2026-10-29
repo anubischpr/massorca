@@ -39,6 +39,7 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
 - Placement: `current` worktree for read-only tasks; `new-child` worktree when the task writes code in a git workspace. A folder workspace always runs in the current folder, with the `folder-workspace-writes` warning.
 - Model and effort: effort is named only with a model (worker-start refuses an effort alone). An agent that runs its own default model gets neither; a tier model the catalog does not list falls back to the default with no effort (`model-unavailable`).
 - Automatic does not switch accounts in v1.
+- Folder-workspace child (2026-10-29): keep the `folder-workspace-writes` card warning. A child that writes in place in a folder gets a task paragraph naming that folder and saying it owns only the files its task names; the parent keeps the rest. No locking in v1. A folder the host cannot find refuses the start. Git-worktree and read-only placements are unchanged (`f334ccce095`).
 
 ## Configuration
 
@@ -158,11 +159,14 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
 - 2026-10-28: T6 mobile committed as `ca4d7c44399` (choice card, why sheet, answer projection; 1,643 authored lines), `cd4de5aca76` (notices and Open child chat; 565) and `ceda954fc9a` (nesting test; 29). Running total T1–T6 about 10,400 against the forecast of 2000–2800 for all six tasks. Above the ~400 heuristic, not split, because each unit is one contract with its tests. No PR opened; the slicing strategy is still the user's to settle.
 - 2026-10-29: T6 review follow-ups, ids from the approved reviews of `684c96bc6af..a26600db393` and `a26600db393..de46ad2aac6`. Fixed in `8e286000ca3` (rows): `R3-dropped-refresh`, `R3-rejected-reply-clears-rows`, `R3-untested-glue`. Fixed in `2f8bb60199e` (lineage, card, notice, text helper, tests): `R3-chain-hides-row`, `R3-2`, `R3-notice-marks-before-check`, `R3-5`, `R3-catalog-parse-edges`, `R3-child-row-press`, `R3-tabownspane-branches`. Skipped: `R3-1` (a refused answer leaves the question pending and the card re-enabled, so there is no failure to show), `R3-3` (the status union is exhaustive and React 19 renders nothing for an unknown status, with no crash), `R3-4` (the cancel wrapper forwards the same prompt identity the question card gets), `R3-6` (deterministic test of the open state; no branch is missing).
 - 2026-10-29: the web bundle went over its Phase C asset budget after T6 (174 assets against 169). Fixed in `0a84746cf47`: the why sheet is a static import again, which drops its lazy entry and the shared card-model chunk, and the chat view and prompt card suites stub the drawer. The bundle is back to 169 assets, the same as the pre-T6 build measured at `ca4d7c44399^` (118 scripts, 50 other outputs, one document). The budget was not raised.
+- 2026-10-29: review status per range. Approved and acknowledged: `c3cb86c638c`; `73071e39c75` after its one correction (`d23f75744d8`); T5 `88deeaefbc1..23ff82ddb17`; T6 `684c96bc6af..a26600db393`; `a26600db393..de46ad2aac6`; `de46ad2aac6..2d7f41d3993`. Not reviewed: `73071e39c75..88deeaefbc1` (`lens_context_budget_exceeded`), and `c48277da118` (one blank line). Abandoned under the user's rule for reviews stuck on a tool problem: `review-27d94397ee220672` (T1–T3, waiting on recovery authorization) and `review-e91f37620f0628d5` (`d23f75744d8..684c96bc6af`, `corrupted_or_unverifiable_authority`).
+- 2026-10-29: folder-workspace child brief committed as `f334ccce095` (3 files, 87 insertions, 2 deletions; the folder path comes from the runtime's existing local-path accessor). Mobile triage committed as `cd41eab8616` (4 files; 3 of the 5 findings fixed, 2 kept as follow-ups). The mobile web bundle is at 169 assets, the budget.
 
 ## Follow-ups
 
 - Automatic may switch to a second account of the same agent (inactive accounts are tracked).
 - Optional Jev classification on hosts where it is configured.
+- Non-blocking findings from the approved review of `19230c04303..0e8bb2a92f5`, not yet triaged: `R3-folder-glue-untested`, `R3-placement-derived-twice`, `R3-pick-silently-swaps-to-default` (warnings); `R3-missing-folder-reuses-parent-code`, `R3-swap-race-one-order-only` (suggestions).
 
 ## Review follow-ups
 
@@ -192,4 +196,14 @@ Non-blocking findings from the approved reviews of `c3cb86c638c` (rc1), `73071e3
   - `R3-007`: no provider writes a `delegation` field, so body-shape classification is safe.
   - `R3-008`: taste; the expectation mirrors the card's own join.
   - `R3-notice-row-precedence`, `R3-question-card-guard-branches`, `R3-selection-not-rederived`, `R3-session-wiring-unasserted`, `R3-worktree-lookup-contenttype`: notices never carry `presentation`; the fallback submits the same option ids; the card is keyed by item revision; one prop; the same `agent-session` tab kind as its siblings.
-- Open: a folder-workspace child can still write into the parent's folder at the same time. It is warned, not prevented. Product decision.
+- Folder-workspace child writing into the parent's folder at the same time: decided 2026-10-29, warned and briefed, not locked (see Decisions).
+
+Mobile review `de46ad2aac6..2d7f41d3993` (triaged 2026-10-29):
+
+- Fixed in `cd41eab8616`:
+  - `R3-card-default-pinned-at-mount`: the default follows the card until the person picks, and a pick never sits on a row the card no longer draws (test: a re-render that drops the Automatic row leaves Start disabled).
+  - `R3-notice-refresh-at-most-once-unproved`: test that a re-render with the same missing child asks the host once.
+  - `R3-reread-client-swap-untested`: test that the new client's read is used and the old client's in-flight reply is dropped.
+- Kept as follow-ups:
+  - `R3-one-level-nesting-deeper-chains`: one level is the design (`keeps a grandchild flat` pins it). A grandchild under its root needs a second indent, which is a sheet design call.
+  - `R3-drawer-stub-narrows-coverage`: the stub keeps the drawer's native imports out of the prompt-card suite. The delegation card renders outside the drawer and has its own suite, but the why sheet has no suite; adding one is the follow-up.

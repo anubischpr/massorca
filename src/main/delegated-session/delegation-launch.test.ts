@@ -9,6 +9,7 @@ import type { DelegationRequestRow } from '../runtime/orchestration/db/delegatio
 import {
   createDelegationLauncher,
   delegationWorktreeName,
+  folderWorkspaceOwnershipParagraph,
   type DelegationWorkerStarter
 } from './delegation-launch'
 import type { DelegationLaunchTarget } from './delegation-launch-types'
@@ -33,6 +34,8 @@ const DECLARED: Record<string, AgentSessionDeclaredAccess | undefined> = {
   // A protocol-driven agent declares no explicit mode at all.
   grok: undefined
 }
+
+const FOLDER_PATH = 'C:\\Users\\dev\\notes'
 
 const TARGET: DelegationLaunchTarget = {
   agent: 'claude',
@@ -85,10 +88,14 @@ describe('createDelegationLauncher', () => {
     })
   }
 
-  function launcher(startWorker = fakeStart()) {
+  function launcher(
+    startWorker = fakeStart(),
+    folderPath: () => Promise<string | null> = async () => FOLDER_PATH
+  ) {
     const launch = createDelegationLauncher({
       requireDb: () => db,
       declaredAccess: (agent) => DECLARED[agent],
+      folderPath,
       startWorker
     })
     return { startWorker, launch }
@@ -184,6 +191,56 @@ describe('createDelegationLauncher', () => {
     const { params } = startWorker.mock.calls[0]?.[0] ?? {}
     expect(params).toMatchObject({ worktree: 'current' })
     expect(params).not.toHaveProperty('name')
+  })
+
+  describe('a folder workspace child', () => {
+    const FOLDER_REQUEST = { workspace_kind: 'folder' as const, writes: 1 }
+
+    it('names its folder and the files it owns in the task it is given', async () => {
+      const { launch, startWorker } = launcher()
+
+      const result = await run(launch, { request: FOLDER_REQUEST })
+
+      const task = startWorker.mock.calls[0]?.[0].task
+      expect(task?.id).toBe(result.taskId)
+      expect(task?.spec).toBe(
+        `${request.prompt}\n\n${folderWorkspaceOwnershipParagraph(FOLDER_PATH)}`
+      )
+      expect(task?.spec).toContain(FOLDER_PATH)
+      expect(task?.spec).toContain('Leave every other file to the parent')
+      expect(startWorker.mock.calls[0]?.[0].params).toMatchObject({ worktree: 'current' })
+    })
+
+    it('leaves a read-only task in a folder unchanged', async () => {
+      const { launch, startWorker } = launcher()
+
+      await run(launch, { request: { workspace_kind: 'folder', writes: 0 } })
+
+      expect(startWorker.mock.calls[0]?.[0].task.spec).toBe(request.prompt)
+    })
+
+    it('leaves a git worktree child that writes unchanged', async () => {
+      const folderPath = vi.fn(async () => FOLDER_PATH)
+      const { launch, startWorker } = launcher(fakeStart(), folderPath)
+
+      await run(launch, {
+        target: { placement: 'new-child' },
+        request: { writes: 1 }
+      })
+
+      expect(startWorker.mock.calls[0]?.[0].task.spec).toBe(request.prompt)
+      expect(folderPath).not.toHaveBeenCalled()
+    })
+
+    it('refuses to start when its folder cannot be found, leaving no Task behind', async () => {
+      const { launch, startWorker } = launcher(fakeStart(), async () => null)
+
+      await expect(run(launch, { request: FOLDER_REQUEST })).rejects.toMatchObject({
+        code: 'delegation_parent_unavailable'
+      })
+      expect(startWorker).not.toHaveBeenCalled()
+      expect(record).not.toHaveBeenCalled()
+    })
   })
 
   it('asks for no effort where it names no model, which worker-start refuses', async () => {

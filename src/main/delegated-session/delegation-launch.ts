@@ -9,6 +9,7 @@ import { resolveOrcaSessionParty } from '../runtime/orchestration/orchestration-
 import type { RunRow, TaskRow } from '../runtime/orchestration/types'
 import { delegationChildAccessMode } from './delegation-access-mode'
 import type { DelegationLauncher } from './delegation-launch-types'
+import { delegationPlacementFor } from './delegation-router'
 
 const RUN_OBJECTIVE = 'Delegated child sessions'
 const WORKTREE_SLUG_MAX_CHARS = 40
@@ -33,6 +34,14 @@ export function delegationWorktreeName(title: string, requestId: string): string
   return slug.length > 0 ? `${slug}-${suffix}` : `child-${suffix}`
 }
 
+/** Appended to a child's task when it writes into a folder the parent may also be editing. */
+export function folderWorkspaceOwnershipParagraph(folderPath: string): string {
+  return [
+    `Folder ownership: you work in the folder ${folderPath}, and the parent chat may be editing files there at the same time.`,
+    'Change only the files this task names or needs. Leave every other file to the parent, and do not revert or reformat changes you did not make.'
+  ].join(' ')
+}
+
 const StartReceipt = z.object({
   dispatchId: z.string().optional(),
   state: z.string().optional(),
@@ -45,6 +54,8 @@ export function createDelegationLauncher(deps: {
   startWorker: DelegationWorkerStarter
   /** What the child's agent declares it can run in; see `declaredAccessForStructuredAgent`. */
   declaredAccess: (agent: string) => AgentSessionDeclaredAccess | undefined
+  /** The local folder a folder workspace runs in; null when it has none on this machine. */
+  folderPath: (workspaceId: string) => Promise<string | null>
 }): DelegationLauncher {
   return async ({ request, parent, target, record }) => {
     const db = deps.requireDb()
@@ -53,6 +64,17 @@ export function createDelegationLauncher(deps: {
       throw new OrchestrationError(
         'delegation_parent_unavailable',
         `${sessionId} is not an Orca session id.`
+      )
+    }
+    // Why: a folder child writing in place shares the parent's folder, so its task names that folder.
+    const sharesFolder =
+      delegationPlacementFor(request.writes === 1, request.workspace_kind).placementWarning ===
+      'folder-workspace-writes'
+    const folderPath = sharesFolder ? await deps.folderPath(parent.workspaceId) : null
+    if (sharesFolder && folderPath === null) {
+      throw new OrchestrationError(
+        'delegation_parent_unavailable',
+        'The folder this child would work in could not be found on this machine.'
       )
     }
     const caller: OrchestrationSessionCaller = Object.freeze({
@@ -71,7 +93,10 @@ export function createDelegationLauncher(deps: {
       })
     record({ run_id: run.id })
     const task = db.createTask({
-      spec: request.prompt,
+      spec:
+        folderPath === null
+          ? request.prompt
+          : `${request.prompt}\n\n${folderWorkspaceOwnershipParagraph(folderPath)}`,
       taskTitle: request.title,
       runId: run.id,
       createdByRunGeneration: run.consumer_generation,

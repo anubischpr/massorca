@@ -103,4 +103,30 @@ describe('useWorktreeAgentRows', () => {
     await flush()
     expect(worktreeIds()).toEqual(['wt-b'])
   })
+
+  it('reads the new client, and drops a read the old client still has in flight', async () => {
+    const replies: ((reply: unknown) => void)[] = []
+    catalog.interpret.mockImplementation((reply) => reply)
+    catalog.request.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          replies.push(resolve)
+        })
+    )
+    const oldClient = fakeClient()
+    const newClient = fakeClient()
+    mount(oldClient)
+    act(() => {
+      renderer?.update(createElement(Probe, { client: newClient }))
+    })
+    expect(catalog.request).toHaveBeenCalledTimes(2)
+    expect(catalog.request).toHaveBeenLastCalledWith(newClient, { limit: 10000 })
+
+    await act(async () => replies[1]?.(accepted('wt-new')))
+    await flush()
+    await act(async () => replies[0]?.(accepted('wt-old')))
+    await flush()
+
+    expect(worktreeIds()).toEqual(['wt-new'])
+  })
 })

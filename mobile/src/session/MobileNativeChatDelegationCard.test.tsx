@@ -235,4 +235,29 @@ describe('MobileNativeChatDelegationCard', () => {
     await mount({})
     expect(renderer!.root.findAllByProps({ accessibilityLabel: 'Cancel' })).toHaveLength(0)
   })
+
+  it('never starts on a row the card stops drawing after a re-render', async () => {
+    const onAnswer = vi.fn(async () => true)
+    await mount({ onAnswer })
+    expect(radios()[0]!.props.accessibilityState.checked).toBe(true)
+
+    await act(async () => {
+      renderer!.update(
+        createElement(MobileNativeChatDelegationCard, {
+          question: 'Which agent should handle this session?',
+          delegation: {
+            card: { ...card, decision: null },
+            answerTokens: { automatic: 'token-automatic', 'agent:codex': 'token-codex' }
+          },
+          onAnswer
+        })
+      )
+    })
+
+    expect(radios().map((radio) => radio.props.accessibilityLabel)).toEqual(['Codex'])
+    expect(radios()[0]!.props.accessibilityState.checked).toBe(false)
+    expect(startButton().props.disabled).toBe(true)
+    await act(async () => startButton().props.onPress())
+    expect(onAnswer).not.toHaveBeenCalled()
+  })
 })
