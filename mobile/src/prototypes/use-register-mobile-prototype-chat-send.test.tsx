@@ -2,7 +2,10 @@ import { createElement } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { sendToMobilePrototypeChat } from './mobile-prototype-chat-send-registry'
-import { useRegisterMobilePrototypeChatSend } from './use-register-mobile-prototype-chat-send'
+import {
+  sendThroughLatestChat,
+  useRegisterMobilePrototypeChatSend
+} from './use-register-mobile-prototype-chat-send'
 
 type Chat = { sessionId: string; send: (text: string) => Promise<boolean> } | null
 
@@ -42,6 +45,20 @@ describe('the chat on screen takes the Prototypes sends', () => {
     await expect(sendToMobilePrototypeChat('session-1', 'Iterate on B.')).resolves.toBe(false)
     expect(first).not.toHaveBeenCalled()
     expect(second).toHaveBeenCalledWith('Iterate on B.')
+  })
+
+  it('never delivers a send registered for one session to another session’s chat', async () => {
+    const other = sender(true)
+    await expect(
+      sendThroughLatestChat({ sessionId: 'session-2', send: other }, 'session-1', 'x')
+    ).resolves.toBe(false)
+    expect(other).not.toHaveBeenCalled()
+    await expect(sendThroughLatestChat(null, 'session-1', 'x')).resolves.toBe(false)
+    const own = sender(true)
+    await expect(
+      sendThroughLatestChat({ sessionId: 'session-1', send: own }, 'session-1', 'x')
+    ).resolves.toBe(true)
+    expect(own).toHaveBeenCalledWith('x')
   })
 
   it('takes nothing for a chat that is no longer on screen, and for none after unmount', async () => {

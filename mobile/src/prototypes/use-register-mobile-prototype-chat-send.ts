@@ -3,6 +3,17 @@ import { registerMobilePrototypeChatSend } from './mobile-prototype-chat-send-re
 
 type ChatSend = { sessionId: string; send: (text: string) => Promise<boolean> }
 
+/** Sends through the latest chat only when it is still the session this send was registered for. */
+export function sendThroughLatestChat(
+  latest: ChatSend | null,
+  sessionId: string,
+  text: string
+): Promise<boolean> {
+  return latest !== null && latest.sessionId === sessionId
+    ? latest.send(text)
+    : Promise.resolve(false)
+}
+
 /**
  * Registers the chat on screen as the one the Prototypes screens send through. The registration is
  * keyed by the session alone; it calls the chat's latest send, so a send rebuilt on a render is
@@ -19,7 +30,7 @@ export function useRegisterMobilePrototypeChatSend(chat: ChatSend | null): void 
       return undefined
     }
     return registerMobilePrototypeChatSend(sessionId, (text) =>
-      latest.current ? latest.current.send(text) : Promise.resolve(false)
+      sendThroughLatestChat(latest.current, sessionId, text)
     )
   }, [sessionId])
 }
