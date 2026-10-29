@@ -141,7 +141,7 @@ export class RuntimeRpcMobilePairing extends RuntimeRpcPairing {
         available: false,
         reason: 'relay_mint_failed',
         guidance:
-          'Orca Relay could not create a pairing invite. Use LAN (Tailscale or same Wi‑Fi) or retry Relay.',
+          'MassOrca Relay could not create a pairing invite. Use LAN (Tailscale or same Wi‑Fi) or retry Relay.',
         relayFailure
       }
     }
