@@ -1,5 +1,6 @@
 import type { RefObject } from 'react'
-import { translate } from '@/i18n/i18n'
+import { Trans } from 'react-i18next'
+import { i18n, translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import { activateStructuredAgentSessionById } from '@/lib/structured-agent-session-tab-activation'
 import type { NativeChatVisualAnnotateEvent } from '../../../../shared/native-chat-visual-annotate'
@@ -276,11 +277,15 @@ export function PrototypeViewer({
                 className="flex w-full max-w-[680px] flex-wrap items-center gap-2 rounded-lg border border-dashed border-border p-2.5"
               >
                 <span className="min-w-[240px] flex-1 text-xs">
-                  {translate(
-                    'components.prototypes.peekText',
-                    'Peeking at {{view}} while iterating on {{active}}. Notes here go into the draft as “take this from {{view}} into {{active}}”.',
-                    { view: state.view, active: state.active }
-                  )}
+                  <Trans
+                    i18n={i18n}
+                    defaults={translate(
+                      'components.prototypes.peekText',
+                      'Peeking at <letter>{{view}}</letter> while iterating on <letter>{{active}}</letter>. Notes here go into the draft as “take this from <letter>{{view}}</letter> into <letter>{{active}}</letter>”.',
+                      { view: state.view, active: state.active }
+                    )}
+                    components={{ letter: <span className="font-semibold" /> }}
+                  />
                 </span>
                 <button
                   type="button"

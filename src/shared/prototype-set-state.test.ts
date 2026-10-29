@@ -4,16 +4,21 @@ import type { PrototypeElementState } from './prototype-draft'
 import { splitPrototypeHiddenInstruction } from './prototype-hidden-instruction'
 import {
   backToActive,
+  closeSelection,
   createSetState,
   editSelected,
   iterateHere,
   jumpToDraftItem,
   peekDirection,
   pickElement,
+  pinClicked,
   pinKeyFor,
   selectedPinOf,
   setNote,
+  setPicker,
   setPrompt,
+  setTool,
+  showFocus,
   type PrototypeSetState
 } from './prototype-set-state'
 import {
@@ -215,5 +220,45 @@ describe('the send outcome', () => {
   it('clears a failure line once the draft changes again', () => {
     const failed = sendRefused(withPin())
     expect(setNote(failed, 'x').sendFailed).toBe(false)
+  })
+})
+
+describe('transition guards', () => {
+  it('clears the selection and the picker when browsing starts', () => {
+    const state = setTool(setPicker(withPin(), 'color'), 'browse')
+    expect(state).toMatchObject({ tool: 'browse', selectedPinKey: null, picker: null })
+  })
+
+  it('selects a pin from its badge while browsing', () => {
+    const browsing = setTool(withPin(), 'browse')
+    expect(pinClicked(browsing, KEY).selectedPinKey).toBe(KEY)
+  })
+
+  it('refuses to pick an element while browsing', () => {
+    const browsing = setTool(createSetState(['A', 'B']), 'browse')
+    expect(pickElement(browsing, picked('div.summary'))).toBe(browsing)
+  })
+
+  it('opens a picker only with a selected pin, and always lets it close', () => {
+    expect(setPicker(createSetState(['A', 'B']), 'color').picker).toBeNull()
+    expect(setPicker(withPin(), 'color').picker).toBe('color')
+    expect(setPicker(setPicker(withPin(), 'color'), null).picker).toBeNull()
+  })
+
+  it('clears the selection and the picker when the selection is closed', () => {
+    expect(closeSelection(setPicker(withPin(), 'color'))).toMatchObject({
+      selectedPinKey: null,
+      picker: null
+    })
+  })
+
+  it('drops a selection on the peeked direction when focus returns', () => {
+    const peeking = pickElement(peekDirection(withPin(), 'B'), picked('div.summary'))
+    expect(selectedPinOf(peeking)).not.toBeNull()
+    expect(showFocus(peeking)).toMatchObject({ view: 'A', selectedPinKey: null, picker: null })
+  })
+
+  it('keeps the selection when focus does not move', () => {
+    expect(showFocus(withPin()).selectedPinKey).toBe(KEY)
   })
 })

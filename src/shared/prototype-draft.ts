@@ -233,8 +233,10 @@ export function composeIterationMessage({
   for (const group of groups) {
     const selector = pins.find((pin) => pin.pinKey === group.pinKey)?.selector ?? ''
     lines.push(selector.length > 0 ? `${group.title} (${selector})` : group.title)
-    const screenshot = screenshots[group.pinKey]
-    if (screenshot !== undefined && group.items.every((item) => item.letter === activeLetter)) {
+    // Only the iterated direction's own groups take a screenshot: a sibling note can share a pin key.
+    const ownGroup = group.items.every((item) => item.letter === activeLetter)
+    const screenshot = ownGroup ? screenshots[group.pinKey] : undefined
+    if (screenshot !== undefined) {
       lines.push(`  screenshot: ${singleLine(screenshot)}`)
     }
     for (const item of group.items) {

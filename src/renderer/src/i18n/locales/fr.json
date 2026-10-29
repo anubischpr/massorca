@@ -17967,7 +17967,7 @@
       "noteHeadingPeek": "Note — à reprendre de {{view}} vers {{active}}",
       "notePlaceholder": "Décrivez un changement que Modifier ne peut pas faire : animation, comportement, style…",
       "notePlaceholderPeek": "p. ex. utiliser ce bouton de portefeuille au-dessus du formulaire",
-      "peekText": "Aperçu de {{view}} pendant l’itération sur {{active}}. Les notes ici vont au brouillon comme « reprendre ceci de {{view}} vers {{active}} ».",
+      "peekText": "Aperçu de <letter>{{view}}</letter> pendant l’itération sur <letter>{{active}}</letter>. Les notes ici vont au brouillon comme « reprendre ceci de <letter>{{view}}</letter> vers <letter>{{active}}</letter> ».",
       "pickerDone": "OK",
       "pickerFillName": "fond",
       "pickerTextColorName": "couleur du texte",

@@ -17866,7 +17866,7 @@
       "noteHeadingPeek": "便签 — 从 {{view}} 带到 {{active}} 的内容",
       "notePlaceholder": "描述编辑无法完成的更改：动画、行为、样式…",
       "notePlaceholderPeek": "例如：在卡片表单上方使用这个钱包按钮",
-      "peekText": "正在预览 {{view}}，同时迭代 {{active}}。此处的便签会以“从 {{view}} 带到 {{active}}”的形式加入草稿。",
+      "peekText": "正在预览 <letter>{{view}}</letter>，同时迭代 <letter>{{active}}</letter>。此处的便签会以“从 <letter>{{view}}</letter> 带到 <letter>{{active}}</letter>”的形式加入草稿。",
       "pickerDone": "完成",
       "pickerFillName": "填充",
       "pickerTextColorName": "文字颜色",

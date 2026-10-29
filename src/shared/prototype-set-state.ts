@@ -11,6 +11,9 @@ import type {
 
 // The screen state of one prototype set: which direction is iterated and which is shown, the pins
 // and their edits, the notes, the prompt and the send. Every transition is a pure function.
+// Invariants: a picker exists only with a selected pin, a selection stays on the shown direction,
+// and an element is picked only while annotating. A transition that would break one is refused or
+// clears what it would leave stale.
 
 export type PrototypeLayout = 'set' | 'focus'
 export type PrototypeViewport = 'desktop' | 'phone'
@@ -105,7 +108,11 @@ export function showSet(state: PrototypeSetState): PrototypeSetState {
 }
 
 export function showFocus(state: PrototypeSetState): PrototypeSetState {
-  return { ...state, layout: 'focus', view: state.active }
+  if (state.view === state.active) {
+    return { ...state, layout: 'focus' }
+  }
+  // A selection on the peeked direction does not carry over to the iterated one.
+  return { ...state, layout: 'focus', view: state.active, selectedPinKey: null, picker: null }
 }
 
 /** A card in the set grid: it becomes the iterated direction and opens focus on it. */
@@ -150,6 +157,7 @@ export function setTool(state: PrototypeSetState, tool: PrototypeTool): Prototyp
   return { ...state, tool }
 }
 
+/** Selects a pin of the shown direction; a badge reports its click in either tool. */
 export function selectPin(state: PrototypeSetState, pinKey: string): PrototypeSetState {
   if (!pinsOf(state, state.view).some((pin) => pin.pinKey === pinKey)) {
     return state
@@ -169,6 +177,9 @@ export function pickElement(
   state: PrototypeSetState,
   element: NativeChatVisualPickedElement
 ): PrototypeSetState {
+  if (state.tool !== 'annotate') {
+    return state
+  }
   const letter = state.view
   const list = pinsOf(state, letter)
   const pinKey = pinKeyFor(element.selector)
@@ -227,6 +238,10 @@ export function setPicker(
   state: PrototypeSetState,
   picker: PrototypePicker | null
 ): PrototypeSetState {
+  // A picker edits the selected pin, so it opens only with one; closing it is always allowed.
+  if (picker !== null && state.selectedPinKey === null) {
+    return state
+  }
   return { ...state, picker }
 }
 
