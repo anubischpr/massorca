@@ -11,7 +11,7 @@ import { delegationChildAccessMode } from './delegation-access-mode'
 import type { DelegationLauncher } from './delegation-launch-types'
 
 const RUN_OBJECTIVE = 'Delegated child sessions'
-const WORKTREE_NAME_MAX_CHARS = 40
+const WORKTREE_SLUG_MAX_CHARS = 40
 
 /** Runs worker-start for a Task the launcher filed; resolves to its receipt. */
 export type DelegationWorkerStarter = (input: {
@@ -27,7 +27,7 @@ export function delegationWorktreeName(title: string, requestId: string): string
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, WORKTREE_NAME_MAX_CHARS)
+    .slice(0, WORKTREE_SLUG_MAX_CHARS)
     .replace(/-+$/g, '')
   const suffix = requestId.replace(/^deleg_/, '').slice(0, 6)
   return slug.length > 0 ? `${slug}-${suffix}` : `child-${suffix}`

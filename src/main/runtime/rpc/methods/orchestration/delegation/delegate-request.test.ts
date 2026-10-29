@@ -103,7 +103,7 @@ describe('orchestration.delegateRequest', () => {
     expect(() => method!.params!.parse({ summary: 's' })).toThrow()
   })
 
-  it('is a mutation, so a retried call replays instead of posting a second card', () => {
+  it('is registered as an orchestration mutation', () => {
     expect(isOrchestrationMutation('orchestration.delegateRequest', {})).toBe(true)
   })
 

@@ -38,8 +38,8 @@ describe('delegationChildAccessMode', () => {
     expect(childMode('inherit')).toBeUndefined()
   })
 
-  it('asks for nothing from a mode this build does not know, rather than guess a wider one', () => {
-    expect(childMode('yolo')).toBeUndefined()
+  it('refuses to start a child for a mode this build does not know, rather than guess a wider one', () => {
+    expect(() => childMode('yolo')).toThrow('not one this version knows')
   })
 
   it('refuses an agent that declares no explicit modes unless the parent is unrestricted', () => {

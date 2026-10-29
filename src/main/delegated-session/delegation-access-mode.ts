@@ -18,8 +18,15 @@ export function delegationChildAccessMode(input: {
   childDeclaredAccess: AgentSessionDeclaredAccess | undefined
 }): AgentSessionAccessModeValue | undefined {
   const mode = input.parentAccessMode
-  if (mode === undefined || mode === 'inherit' || !isAgentSessionAccessModeValue(mode)) {
+  if (mode === undefined || mode === 'inherit') {
     return undefined
+  }
+  // Why: an unknown mode must not fall back to the global setting, which may be wider.
+  if (!isAgentSessionAccessModeValue(mode)) {
+    throw new OrchestrationError(
+      'delegation_start_failed',
+      "This chat's access mode is not one this version knows, so the child was not started."
+    )
   }
   if (!input.childDeclaredAccess || input.childDeclaredAccess.explicit.length === 0) {
     if (mode === 'full-access') {
