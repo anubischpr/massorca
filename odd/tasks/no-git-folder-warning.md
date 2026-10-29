@@ -45,7 +45,7 @@ Prototype: https://claude.ai/artifact/MXai3HzR88MwEWf7FK2Tfy (4 artboards). Stri
 - [x] T1 — Host-side Initialize Git operation (local, SSH, runtime RPC method + capability), kind upgrade to git, tests. Route: delegated direct (writer trigger: 2+ non-trivial files). Commit `2cbd68d0f12`.
 - [x] T2 — Desktop add dialog per artboard 1, wired to T1. Route: delegated direct. Commit `342451bc0081`.
 - [x] T3 — Desktop sidebar "No Git" pill + popover per artboard 2. Route: delegated direct. Commit `b926a138fb7`.
-- [ ] T4 — Mobile pill + sheet per artboards 3–4, gated on the capability. Route: delegated direct.
+- [x] T4 — Mobile pill + sheet per artboards 3–4, gated on the capability. Route: delegated direct. Commit `c04968c1972`.
 
 ## Acceptance criteria
 
@@ -74,6 +74,12 @@ Prototype: https://claude.ai/artifact/MXai3HzR88MwEWf7FK2Tfy (4 artboards). Stri
   - Off-design: the pill's border and hover use the new `quietOutline` variant, the one primitive change, because no existing Badge variant matches the approved transparent pill. Nothing else was added beyond the artboard copy.
   - Delivery: no push or PR; slice boundaries so far: T1 `2cbd68d0f12`, T2 `342451bc0081`, T3 `b926a138fb7`.
   - Progress: T3 review lineage `review-28306a53133fb8b4` ran four lenses and opened a correction; the follow-up STATUS stopped with `corrupted_or_unverifiable_authority` and was abandoned; the findings were fixed in `9d9a8464852`.
+- T4 done (`c04968c1972`, `feat(mobile)`). Folder repos get a "No Git" pill in their section header (`folder-repo-no-git.tsx`), keyed on the repo kind now read from the host repo catalog (`host-screen-reply-schema.ts`, `use-host-repo-metadata.ts`). The sheet's Initialize Git shows only when the shared status.get capabilities include `repo.init-git.v1`; a rejected probe settles to no capabilities, so it counts as unsupported. Success closes the sheet and re-reads the repo list. A refusal or thrown error closes the sheet and shows the host message in the list's action banner.
+  - Evidence: `pnpm exec vitest run src/host-screen`: 10 files, 63 tests passed (new: `folder-repo-git-init.test.ts`, `folder-repo-no-git.test.tsx`, `host-workspace-list-folder-repo.test.tsx`). `pnpm typecheck`: exit 0. `oxlint` on changed files: exit 0. `oxfmt --check` on changed files: clean. `node config/scripts/check-changed-code-quality.mjs HEAD~1`: gate passed, 0 new findings. Full `pnpm test`: 177 failing tests, all in suites that import none of the changed modules (Windows EBUSY on SQLite journal files, missing `TurboModuleRegistry` and `loadOrCreateMockServerKeyPair` mock exports, flaky terminal-backlog and Hermes checks). Not compared against the base checkout.
+  - Runtime harness: N/A. The pill and sheet were not checked in the live app; coverage is react-test-renderer tests with a mocked react-native.
+  - Off-design: the sheet handle is the shared drawer's own (36x4, `textMuted`), not the artboard's `borderSubtle`; changing it would restyle every sheet. The 44pt pill target is 12pt hit slop around the 20pt pill, so the header height is unchanged. Disabled Initialize Git uses opacity 0.58, as ActionSheet does. `host-workspace-list-action-error.test.tsx` gained a drawer stand-in and `hostCapabilities: []`, because the sheet now mounts there.
+  - Delivery: no push or PR; slice boundary `c04968c1972`.
+- Fix slice 9d9a8464852 + 5994086a644 (dialog probe rejection now treated as unsupported) assessed medium/under_budget: no review due.
 
 ## Delivery
 
@@ -88,4 +94,4 @@ Prototype: https://claude.ai/artifact/MXai3HzR88MwEWf7FK2Tfy (4 artboards). Stri
 
 ## Next step
 
-T4 (mobile pill + sheet per artboards 3–4, gated on the capability).
+Final verification of the no-git folder warning across T1–T4.
