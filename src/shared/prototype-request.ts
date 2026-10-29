@@ -13,6 +13,11 @@ import {
   prototypeFileName,
   prototypeRequestFolder
 } from './prototype-request-folder'
+import type { PrototypeDesignSystemMode } from './prototype-design-system-files'
+import {
+  designSystemRequestInstruction,
+  usesDesignSystemInstruction
+} from './prototype-design-system-instruction'
 import { hasPrototypeKeyword } from './prototype-request-lexicon'
 
 export { splitPrototypeHiddenInstruction } from './prototype-hidden-instruction'
@@ -82,6 +87,8 @@ export type PrototypeRequestInput = {
   requestId: string
   /** The request folder on this host; `/` or `\` separators both work. */
   folderPath: string
+  /** "Use it" or "Propose one first" adds the design system instruction; "Skip" or absent adds none. */
+  designSystem?: PrototypeDesignSystemMode
 }
 
 export type PrototypeRequestMessage = {
@@ -143,7 +150,8 @@ function sentTextFor(request: PrototypeRequest, input: PrototypeRequestInput): s
       (request.kind === 'command' && request.command === GENTLE_SHELL_DESIGN_COMMAND))
   const hidden = [
     prototypeRequestMarkerLine(input.requestId),
-    directionInstruction(directions, folderPath, agent, isGentleDesign)
+    directionInstruction(directions, folderPath, agent, isGentleDesign),
+    ...(usesDesignSystemInstruction(input.designSystem) ? [designSystemRequestInstruction()] : [])
   ].join('\n')
   if (massorcaCommand) {
     // The agent gets the text without the MassOrca command word, which no agent knows, or the
@@ -244,8 +252,8 @@ function folderRoot(folderPath: string): string {
   return folderPath.trim().replace(/[\\/]+$/u, '')
 }
 
-// Keeps the caller's separators; the file name follows a `/`.
-function joinFolderPath(folderPath: string, fileName: string): string {
+/** The file inside the folder, keeping the caller's separators; the file name follows a `/`. */
+export function joinFolderPath(folderPath: string, fileName: string): string {
   assertFolderPath(folderPath)
   return `${folderRoot(folderPath)}/${fileName}`
 }

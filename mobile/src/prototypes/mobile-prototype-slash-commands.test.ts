@@ -9,6 +9,13 @@ describe('withPrototypeSlashCommands', () => {
     expect(names).toEqual(['prototype', 'prototipo', 'model', 'clear'])
   })
 
+  it('offers the prototype commands with no description or argument hint', () => {
+    const commands = withPrototypeSlashCommands([]).filter((command) =>
+      ['prototype', 'prototipo'].includes(command.name)
+    )
+    expect(commands).toEqual([{ name: 'prototype' }, { name: 'prototipo' }])
+  })
+
   it('does not list a command the chat already lists twice', () => {
     const names = withPrototypeSlashCommands([{ name: 'prototype' }]).map((command) => command.name)
     expect(names).toEqual(['prototipo', 'prototype'])

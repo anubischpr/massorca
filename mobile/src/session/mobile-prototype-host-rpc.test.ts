@@ -4,6 +4,7 @@ import type { RpcResponse } from '../transport/types'
 import {
   createMobilePrototypeRequest,
   listMobilePrototypeSets,
+  readMobilePrototypeDesignSystem,
   readMobilePrototypeFile,
   writeMobilePrototypeAttachment
 } from './mobile-prototype-host-rpc'
@@ -189,5 +190,75 @@ describe('writeMobilePrototypeAttachment', () => {
     expect(await writeMobilePrototypeAttachment(clientAnswering(ok({ ok: true })), params)).toEqual(
       { kind: 'unreachable' }
     )
+  })
+})
+
+describe('readMobilePrototypeDesignSystem', () => {
+  it('reads the files of the project of a chat', async () => {
+    const files = {
+      projectKey: 'abc123',
+      projectName: 'nexuscare',
+      fileNames: ['design/system/tokens.json'],
+      tokensJson: '{}'
+    }
+    expect(
+      await readMobilePrototypeDesignSystem(clientAnswering(ok({ ok: true, ...files })), {
+        sessionId: SESSION
+      })
+    ).toEqual({ kind: 'ready', ...files })
+  })
+
+  it('reads the host saying it has no such local chat as refused', async () => {
+    expect(
+      await readMobilePrototypeDesignSystem(
+        clientAnswering(ok({ ok: false, error: 'not_found' })),
+        { sessionId: SESSION }
+      )
+    ).toEqual({ kind: 'refused' })
+  })
+
+  it('reads an older host as unsupported and a lost transport or malformed reply as unreachable', async () => {
+    const params = { sessionId: SESSION }
+    expect(
+      await readMobilePrototypeDesignSystem(clientAnswering(failed('method_not_found')), params)
+    ).toEqual({ kind: 'unsupported-host' })
+    expect(
+      await readMobilePrototypeDesignSystem(clientAnswering(new Error('offline')), params)
+    ).toEqual({ kind: 'unreachable' })
+    expect(
+      await readMobilePrototypeDesignSystem(clientAnswering(ok({ ok: true })), params)
+    ).toEqual({ kind: 'unreachable' })
+  })
+})
+
+describe('listMobilePrototypeSets design systems', () => {
+  it('passes the design systems of the host through, and omits them for an older host', async () => {
+    const designSystems = [
+      {
+        projectKey: 'abc123',
+        projectName: 'nexuscare',
+        status: 'proposed',
+        version: 1,
+        tokenCount: 12,
+        agent: 'Codex',
+        swatches: ['#2563eb', '#eee']
+      }
+    ]
+    expect(
+      await listMobilePrototypeSets(
+        clientAnswering(
+          ok({ sets: [{ ...validSet, projectKey: 'abc123', builtOn: 2 }], designSystems })
+        ),
+        {}
+      )
+    ).toEqual({
+      kind: 'ready',
+      sets: [{ ...validSet, projectKey: 'abc123', builtOn: 2 }],
+      designSystems
+    })
+    expect(await listMobilePrototypeSets(clientAnswering(ok({ sets: [validSet] })), {})).toEqual({
+      kind: 'ready',
+      sets: [validSet]
+    })
   })
 })

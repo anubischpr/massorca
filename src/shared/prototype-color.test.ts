@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hslToHex, isHexColor, pickerShadeCells } from './prototype-color'
+import { hslToHex, isHexColor, pickerHueOf, pickerShadeCells } from './prototype-color'
 
 describe('hslToHex', () => {
   it('maps the primary hues at full saturation and mid lightness', () => {
@@ -27,5 +27,20 @@ describe('isHexColor', () => {
     expect(isHexColor('#1a2B3c')).toBe(true)
     expect(isHexColor('#fff')).toBe(false)
     expect(isHexColor('red')).toBe(false)
+  })
+})
+
+describe('pickerHueOf', () => {
+  it('opens on the picker hue nearest the color’s own hue', () => {
+    expect(pickerHueOf('#ff0000')).toBe(0)
+    expect(pickerHueOf('#00ff00')).toBe(120)
+    expect(pickerHueOf('#0000ff')).toBe(240)
+    expect(pickerHueOf('#ff8000')).toBe(30)
+    expect(pickerHueOf('#ff00aa')).toBe(330)
+  })
+
+  it('opens on hue 0 for a gray or a value that is not hex', () => {
+    expect(pickerHueOf('#808080')).toBe(0)
+    expect(pickerHueOf('var(--primary)')).toBe(0)
   })
 })

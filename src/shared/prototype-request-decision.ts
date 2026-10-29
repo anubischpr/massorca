@@ -5,9 +5,15 @@ import {
   type PrototypeRequest
 } from './prototype-request'
 import type { PrototypeCountSetting } from './prototype-count-setting'
+import type { PrototypeDesignSystemMode } from './prototype-design-system-files'
 
-/** The answer of the "How many prototypes?" card: a count, or the message as typed. */
-export type NativeChatPrototypeChoice = { count: number } | 'as-typed'
+/**
+ * The answer of the "How many prototypes?" card: a count, or the message as typed. Once the design system card
+ * answers too, the same choice carries its mode; the count is then the one the card was shown for.
+ */
+export type NativeChatPrototypeChoice =
+  | { count: number; designSystem?: PrototypeDesignSystemMode }
+  | 'as-typed'
 
 export type NativeChatPrototypeDecision =
   | { kind: 'as-typed' }

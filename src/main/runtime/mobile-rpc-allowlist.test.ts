@@ -43,7 +43,13 @@ const MOBILE_DYNAMIC_RPC_METHODS = [
   'agentSession.cancel',
   'agentSession.history',
   'agentSession.hold',
-  'agentSession.release'
+  'agentSession.release',
+  // Why: mobile-prototype-host-rpc passes the method name to sendHostRequest, unseen by the scan.
+  'prototypes.createRequest',
+  'prototypes.list',
+  'prototypes.readFile',
+  'prototypes.readDesignSystem',
+  'prototypes.writeAttachment'
 ]
 
 const MOBILE_STREAMING_CLEANUP_RPC_METHODS = [

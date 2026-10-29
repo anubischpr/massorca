@@ -10,14 +10,22 @@ import {
   type PrototypeAgent
 } from '../../../../shared/prototype-request'
 import {
+  prototypeSystemCardOf,
+  type PrototypeSystemCard
+} from '../../../../shared/prototype-design-system-card'
+import type { PrototypeDesignSystemMode } from '../../../../shared/prototype-design-system-files'
+import {
   PrototypeHostOutdatedError,
-  createPrototypeRequestOnHost
+  createPrototypeRequestOnHost,
+  readDesignSystemOnHost
 } from '@/runtime/runtime-prototype-client'
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 
 // The local host's call has no timeout of its own, so a send gives up after this long and the
 // next press is not held behind it.
 const HOST_REQUEST_DEADLINE_MS = 20_000
+// The design system card waits for this read; a host slower than this sends the request without a card.
+const HOST_SYSTEM_READ_DEADLINE_MS = 3_000
 
 function describeTarget(target: RuntimeClientTarget): string {
   return target.kind === 'local' ? 'local host' : `runtime ${target.environmentId}`
@@ -31,6 +39,8 @@ export async function prepareNativeChatPrototypeText(input: {
   agent: PrototypeAgent
   text: string
   count: number
+  /** What the request does with the chat's design system; absent when the card was not answered. */
+  designSystem?: PrototypeDesignSystemMode
 }): Promise<string> {
   const { text } = input
   if (text.length > PROTOTYPE_PROMPT_MAX_LENGTH) {
@@ -44,7 +54,8 @@ export async function prepareNativeChatPrototypeText(input: {
     agent: input.agent,
     originalPrompt: text,
     count: input.count,
-    ...(input.worktreeId ? { worktreeId: input.worktreeId } : {})
+    ...(input.worktreeId ? { worktreeId: input.worktreeId } : {}),
+    ...(input.designSystem !== undefined ? { designSystem: input.designSystem } : {})
   }
   const created = await withDeadline(
     createPrototypeRequestOnHost(input.target, params),
@@ -80,8 +91,32 @@ export async function prepareNativeChatPrototypeText(input: {
     agent: input.agent,
     count: input.count,
     requestId: created.requestId,
-    folderPath: created.folderPath
+    folderPath: created.folderPath,
+    ...(input.designSystem !== undefined ? { designSystem: input.designSystem } : {})
   }).sentText
+}
+
+/**
+ * The design system card of a chat's project, read on the host the chat lives on. Null when the host gives no
+ * answer in time, is outdated, cannot find the chat, or the system cannot be shown: the request is then made
+ * as it was before the card existed, with no design system mode.
+ */
+export async function readPrototypeSystemCard(
+  target: RuntimeClientTarget,
+  sessionId: string
+): Promise<PrototypeSystemCard | null> {
+  try {
+    const read = await withDeadline(
+      readDesignSystemOnHost(target, { sessionId }),
+      HOST_SYSTEM_READ_DEADLINE_MS
+    )
+    return read.ok ? prototypeSystemCardOf(read) : null
+  } catch (error) {
+    console.warn(
+      `[prototypes] design system not read for chat ${sessionId} (${describeTarget(target)}): ${String(error)}`
+    )
+    return null
+  }
 }
 
 /** Rejects once `ms` passes without `promise` settling. */

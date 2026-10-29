@@ -6,7 +6,7 @@ import {
   parsePrototypeRequestManifest,
   type PrototypeRequestManifest
 } from '../../shared/prototype-sets'
-import { gentleDesignSetFor } from './prototype-request-disk'
+import { gentleDesignSetFor, recordRequestDesignSystemVersion } from './prototype-request-disk'
 
 const REQUEST_ID = '20261028-201500-k3f9q2'
 let root: string
@@ -60,6 +60,7 @@ function manifestWith(overrides: Record<string, unknown> = {}): PrototypeRequest
 
 describe('gentleDesignSetFor', () => {
   it('binds the new design folder into request.json and reads its artboards', async () => {
+    await writeFile(join(requestFolder, 'request.json'), JSON.stringify(manifestWith()))
     const set = await gentleDesignSetFor(requestFolder, manifestWith(), launchDirectory)
 
     expect(set?.directions).toEqual([
@@ -98,4 +99,71 @@ describe('gentleDesignSetFor', () => {
       )
     ).not.toBeNull()
   })
+
+  it('binds the slug without reverting a version another writer persisted after the caller read request.json', async () => {
+    const read = manifestWith()
+    await writeFile(
+      join(requestFolder, 'request.json'),
+      JSON.stringify({ ...read, designSystemVersion: 3 })
+    )
+
+    const set = await gentleDesignSetFor(requestFolder, read, launchDirectory)
+
+    expect(set?.directions).toEqual([
+      { letter: 'A', versions: [{ version: 1, fileName: 'design/bold/home.html' }] }
+    ])
+    expect(await readSavedManifest()).toMatchObject({
+      gentleDesignSlug: 'bold',
+      designSystemVersion: 3
+    })
+  })
 })
+
+describe('recordRequestDesignSystemVersion', () => {
+  it('writes the version into the request.json on disk', async () => {
+    await writeFile(
+      join(requestFolder, 'request.json'),
+      JSON.stringify(manifestWith({ agent: 'claude', designSystemMode: 'use' }))
+    )
+
+    expect(await recordRequestDesignSystemVersion(requestFolder, 2)).toBe(2)
+    expect(await readSavedManifest()).toMatchObject({ designSystemVersion: 2 })
+  })
+
+  it('keeps a field another writer persisted after the caller read request.json', async () => {
+    const read = manifestWith({ agent: 'claude', designSystemMode: 'use' })
+    await writeFile(
+      join(requestFolder, 'request.json'),
+      JSON.stringify({ ...read, gentleDesignSlug: 'bold' })
+    )
+
+    expect(await recordRequestDesignSystemVersion(requestFolder, 2)).toBe(2)
+    expect(await readSavedManifest()).toMatchObject({
+      gentleDesignSlug: 'bold',
+      designSystemVersion: 2
+    })
+  })
+
+  it('keeps a version already on disk rather than replacing it', async () => {
+    await writeFile(
+      join(requestFolder, 'request.json'),
+      JSON.stringify(manifestWith({ agent: 'claude', designSystemVersion: 1 }))
+    )
+
+    expect(await recordRequestDesignSystemVersion(requestFolder, 2)).toBe(1)
+    expect(await readSavedManifest()).toMatchObject({ designSystemVersion: 1 })
+  })
+
+  it('writes nothing when request.json cannot be read', async () => {
+    expect(await recordRequestDesignSystemVersion(requestFolder, 2)).toBeUndefined()
+    await expect(readFile(join(requestFolder, 'request.json'), 'utf8')).rejects.toThrow()
+
+    await writeFile(join(requestFolder, 'request.json'), 'not json')
+    expect(await recordRequestDesignSystemVersion(requestFolder, 2)).toBeUndefined()
+    expect(await readFile(join(requestFolder, 'request.json'), 'utf8')).toBe('not json')
+  })
+})
+
+async function readSavedManifest(): Promise<unknown> {
+  return JSON.parse(await readFile(join(requestFolder, 'request.json'), 'utf8'))
+}

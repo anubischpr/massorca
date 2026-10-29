@@ -2,7 +2,11 @@ import type * as PrototypeClient from '@/runtime/runtime-prototype-client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
 import { PrototypeHostOutdatedError } from '@/runtime/runtime-prototype-client'
-import { listPrototypeSetsFromAllHosts, prototypeTargetForSession } from './prototype-host-targets'
+import {
+  listPrototypeSetsFromAllHosts,
+  prototypeTargetForSession,
+  worktreeIdOfChatSession
+} from './prototype-host-targets'
 
 const mocks = vi.hoisted(() => ({ list: vi.fn(), environmentIds: ['env-1'] }))
 
@@ -67,5 +71,64 @@ describe('listPrototypeSetsFromAllHosts', () => {
     const listed = await listPrototypeSetsFromAllHosts()
     expect(listed).toMatchObject({ answered: false, onlyOutdated: false, sets: [] })
     warn.mockRestore()
+  })
+
+  it('gathers the design systems each host lists', async () => {
+    const system = (projectKey: string): Record<string, unknown> => ({
+      projectKey,
+      projectName: projectKey,
+      status: 'detected',
+      version: 1,
+      tokenCount: 3,
+      swatches: []
+    })
+    mocks.list.mockImplementation(async (target: { kind: string }) =>
+      target.kind === 'local'
+        ? { sets: [setOf('local-chat', 'r1')], designSystems: [system('a')] }
+        : { sets: [] }
+    )
+    const listed = await listPrototypeSetsFromAllHosts()
+    expect(listed.designSystems).toEqual([system('a')])
+  })
+
+  it('routes the chat of a pending request, which has no set, back to the host that listed it', async () => {
+    const pending = { requestId: 'r-pending', sessionId: 'pending-chat', agent: 'codex' }
+    const landing = {
+      projectKey: 'landing',
+      projectName: 'landing',
+      status: 'proposed',
+      version: 1,
+      tokenCount: 3,
+      swatches: [],
+      pendingRequest: pending
+    }
+    mocks.list.mockImplementation(async (target: { kind: string }) =>
+      target.kind === 'local' ? { sets: [] } : { sets: [], designSystems: [landing] }
+    )
+    await listPrototypeSetsFromAllHosts()
+    expect(prototypeTargetForSession('pending-chat')).toEqual({
+      kind: 'environment',
+      environmentId: 'env-1'
+    })
+  })
+})
+
+describe('worktreeIdOfChatSession', () => {
+  const agentTab = (entityId: string): { contentType: string; entityId: string } => ({
+    contentType: 'agent-session',
+    entityId
+  })
+
+  it('names the worktree whose open tabs hold the chat', () => {
+    const tabs = {
+      'wt-a': [{ contentType: 'terminal', entityId: 'chat-1' }],
+      'wt-b': [agentTab('chat-1'), agentTab('chat-2')]
+    }
+    expect(worktreeIdOfChatSession(tabs, 'chat-2')).toBe('wt-b')
+  })
+
+  it('names no worktree for a chat no open tab holds', () => {
+    expect(worktreeIdOfChatSession({ 'wt-a': [agentTab('chat-1')] }, 'chat-9')).toBeUndefined()
+    expect(worktreeIdOfChatSession({}, 'chat-9')).toBeUndefined()
   })
 })

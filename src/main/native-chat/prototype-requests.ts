@@ -5,6 +5,7 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { NATIVE_CHAT_VISUAL_MAX_BYTES } from '../../shared/native-chat-visual-directive'
+import type { PrototypeDesignSystemMode } from '../../shared/prototype-design-system-files'
 import {
   createPrototypeRequestId,
   isPlainPathSegment,
@@ -23,6 +24,7 @@ import type {
   ReadPrototypeFileResult
 } from '../../shared/rpc-contract/prototype-params'
 import type { AgentSessionReadVisualResult } from '../../shared/rpc-contract/agent-session-visual-params'
+import { readDesignSystemVersion } from './prototype-design-system-files'
 import {
   gentleDesignSetFor,
   listGentleDesignSlugs,
@@ -43,7 +45,7 @@ export type CreatePrototypeRequestOptions = {
   /** The chat's launch directory on this host; Gentle Shell's design/ folder is under it. */
   launchDirectory: string | undefined
   request: Pick<CreatePrototypeRequestParams, 'agent' | 'originalPrompt' | 'count'> &
-    Partial<Pick<CreatePrototypeRequestParams, 'worktreeId' | 'chatTitle'>>
+    Partial<Pick<CreatePrototypeRequestParams, 'worktreeId' | 'chatTitle' | 'designSystem'>>
   now: Date
   random: () => number
 }
@@ -62,6 +64,7 @@ export async function createPrototypeRequest(
     request.agent === 'gentle-shell' && launchDirectory !== undefined
       ? await listGentleDesignSlugs(launchDirectory)
       : undefined
+  const designSystemVersion = await designSystemVersionFor(request.designSystem, launchDirectory)
   const manifest = parsePrototypeRequestManifest({
     version: 1,
     requestId,
@@ -73,6 +76,8 @@ export async function createPrototypeRequest(
     ...(request.worktreeId !== undefined ? { worktreeId: request.worktreeId } : {}),
     ...(request.chatTitle !== undefined ? { chatTitle: request.chatTitle } : {}),
     ...(launchDirectory !== undefined ? { sessionCwd: launchDirectory } : {}),
+    ...(request.designSystem !== undefined ? { designSystemMode: request.designSystem } : {}),
+    ...(designSystemVersion !== undefined ? { designSystemVersion } : {}),
     ...(gentleDesignBaseline !== undefined ? { gentleDesignBaseline } : {})
   })
   if (manifest === null) {
@@ -86,6 +91,16 @@ export async function createPrototypeRequest(
     return { ok: false, error: 'unwritable' }
   }
   return { ok: true, requestId, folderPath: folder }
+}
+
+// The version the request is built on is read now: a later edit of the system must not change it.
+async function designSystemVersionFor(
+  mode: PrototypeDesignSystemMode | undefined,
+  launchDirectory: string | undefined
+): Promise<number | undefined> {
+  return mode === undefined || mode === 'skip' || launchDirectory === undefined
+    ? undefined
+    : readDesignSystemVersion(launchDirectory)
 }
 
 /** Makes the request folder and writes its manifest; when the manifest fails, the folder made here is removed. */

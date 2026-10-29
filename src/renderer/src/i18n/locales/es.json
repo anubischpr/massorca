@@ -17911,7 +17911,9 @@
       "frameTitle": "Prototipo",
       "heading": "Prototipos",
       "heightLabel": "Alto",
+      "heightUnit": "Unidad de alto",
       "heightValue": "Valor del alto",
+      "hidePanel": "Ocultar panel",
       "hintAnnotate": "haz clic en cualquier elemento para añadir una nota",
       "hintBrowse": "interactúa con normalidad",
       "hueButton": "Tono {{deg}}",
@@ -17940,7 +17942,9 @@
       "setFooter": "Abre una dirección para iterar sobre ella. Las demás están a un clic en la franja lateral.",
       "shadeGroup": "Intensidad",
       "showDirection": "Mostrar la dirección {{letter}}",
+      "showPanel": "Mostrar panel",
       "sidebarLabel": "Prototipos",
+      "statusCount": "{{count}} direcciones",
       "statusDirections": "{{count}} direcciones · iterando {{letter}}",
       "statusScreen": "1 pantalla",
       "stripGroup": "Direcciones de este conjunto",
@@ -17957,6 +17961,7 @@
       "viewportGroup": "Vista",
       "viewportPhone": "Teléfono",
       "widthLabel": "Ancho",
+      "widthUnit": "Unidad de ancho",
       "widthValue": "Valor del ancho"
     },
     "createChat": {

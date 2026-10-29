@@ -9,13 +9,16 @@ import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 import {
   CreatePrototypeRequestParams,
   ListPrototypeSetsParams,
+  ReadPrototypeDesignSystemParams,
   ReadPrototypeFileParams,
   WriteAttachmentParams,
   type CreatePrototypeRequestResult,
   type ListPrototypeSetsResult,
+  type ReadPrototypeDesignSystemResult,
   type ReadPrototypeFileResult,
   type WriteAttachmentResult
 } from '../../../../shared/rpc-contract/prototype-params'
+import { readDesignSystemOfLaunchDirectory } from '../../../native-chat/prototype-design-system-files'
 import {
   createPrototypeRequest,
   listPrototypeSets,
@@ -114,6 +117,25 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
         fileName: params.fileName,
         launchDirectory: record.launchDirectory
       })
+    }
+  }),
+  defineMethod({
+    name: 'prototypes.readDesignSystem',
+    permission: 'workspace',
+    params: ReadPrototypeDesignSystemParams,
+    handler: async (params, ctx): Promise<ReadPrototypeDesignSystemResult> => {
+      const host = await requireInstalledStructuredHost(ctx)
+      const record = host.deps.store.getRecord(params.sessionId)
+      // Why the record: a client names a chat, and the host derives the project root from its launch directory.
+      if (!record || !isLocalStructuredChat(record) || record.launchDirectory === undefined) {
+        logPrototypeRefusal(
+          'prototypes.readDesignSystem',
+          params.sessionId,
+          'chat is not local or has no launch directory'
+        )
+        return { ok: false, error: 'not_found' }
+      }
+      return readDesignSystemOfLaunchDirectory(record.launchDirectory)
     }
   }),
   defineMethod({

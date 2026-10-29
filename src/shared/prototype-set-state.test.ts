@@ -9,10 +9,12 @@ import {
   editSelected,
   iterateHere,
   jumpToDraftItem,
+  openDirection,
   peekDirection,
   pickElement,
   pinClicked,
   pinKeyFor,
+  pinsOf,
   selectedPinOf,
   setNote,
   setPicker,
@@ -78,8 +80,69 @@ describe('pickElement', () => {
   })
 
   it('numbers a second pin after the first', () => {
-    const state = pickElement(withPin(), picked('div.summary'))
+    const state = pickElement(editSelected(withPin(), { color: '#ff0000' }), picked('div.summary'))
     expect(state.pins.A?.map((pin) => pin.number)).toEqual([1, 2])
+  })
+})
+
+describe('untouched pins', () => {
+  it('drops a pin nothing changed when it is closed', () => {
+    const state = closeSelection(withPin())
+    expect(state.pins).toEqual({})
+    expect(state.selectedPinKey).toBeNull()
+  })
+
+  it('keeps a pin that was edited when it is closed', () => {
+    const state = closeSelection(editSelected(withPin(), { color: '#ff0000' }))
+    expect(pinsOf(state, 'A')).toHaveLength(1)
+    expect(state.selectedPinKey).toBeNull()
+  })
+
+  it('drops a pin whose edit was put back to the original', () => {
+    const edited = editSelected(withPin(), { color: '#ff0000' })
+    expect(closeSelection(editSelected(edited, { color: '#ffffff' })).pins).toEqual({})
+  })
+
+  it('keeps a pin with a note, and drops one whose note is only spaces', () => {
+    expect(pinsOf(closeSelection(setNote(withPin(), 'Sticky')), 'A')).toHaveLength(1)
+    expect(closeSelection(setNote(withPin(), '   ')).pins).toEqual({})
+  })
+
+  it('drops the untouched pin when another element is picked', () => {
+    const state = pickElement(withPin(), picked('div.summary'))
+    expect(pinsOf(state, 'A').map((pin) => pin.pinKey)).toEqual([pinKeyFor('div.summary')])
+    expect(selectedPinOf(state)?.pinKey).toBe(pinKeyFor('div.summary'))
+  })
+
+  it('keeps an edited pin when another element is picked', () => {
+    const state = pickElement(editSelected(withPin(), { color: '#ff0000' }), picked('div.summary'))
+    expect(pinsOf(state, 'A').map((pin) => pin.pinKey)).toEqual([KEY, pinKeyFor('div.summary')])
+  })
+
+  it('numbers a new pin after the pruned ones, from the highest kept number', () => {
+    let state = editSelected(withPin(), { color: '#ff0000' })
+    state = closeSelection(pickElement(state, picked('div.summary')))
+    state = pickElement(state, picked('p.note'))
+    expect(pinsOf(state, 'A').map((pin) => pin.number)).toEqual([1, 2])
+  })
+
+  it('numbers the first pin again once every untouched pin was dropped', () => {
+    const state = pickElement(closeSelection(withPin()), picked('div.summary'))
+    expect(pinsOf(state, 'A')[0]?.number).toBe(1)
+  })
+
+  it('drops untouched pins when browsing starts, and keeps edited ones', () => {
+    expect(setTool(withPin(), 'browse').pins).toEqual({})
+    const edited = setTool(editSelected(withPin(), { color: '#ff0000' }), 'browse')
+    expect(pinsOf(edited, 'A')).toHaveLength(1)
+  })
+
+  it('drops an untouched pin when a peek moves to a sibling', () => {
+    expect(peekDirection(withPin(), 'B').pins).toEqual({})
+  })
+
+  it('drops an untouched pin when another direction is opened', () => {
+    expect(openDirection(withPin(), 'B').pins).toEqual({})
   })
 })
 
@@ -157,7 +220,7 @@ describe('jumping to a draft item', () => {
 
 describe('the frame annotate state', () => {
   it('marks the selected pin active only on the shown direction', () => {
-    const state = withPin()
+    const state = editSelected(withPin(), { color: '#ff0000' })
     expect(annotateStateOf(state, 'A').pins[0]).toMatchObject({ number: 1, active: true })
     expect(annotateStateOf(peekDirection(state, 'B'), 'A').pins[0]?.active).toBe(false)
   })
@@ -230,7 +293,7 @@ describe('transition guards', () => {
   })
 
   it('selects a pin from its badge while browsing', () => {
-    const browsing = setTool(withPin(), 'browse')
+    const browsing = setTool(editSelected(withPin(), { color: '#ff0000' }), 'browse')
     expect(pinClicked(browsing, KEY).selectedPinKey).toBe(KEY)
   })
 

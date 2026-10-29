@@ -1,13 +1,16 @@
 import type { RefObject } from 'react'
 import { Trans } from 'react-i18next'
+import { PanelRight } from 'lucide-react'
 import { i18n, translate } from '@/i18n/i18n'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { activateStructuredAgentSessionById } from '@/lib/structured-agent-session-tab-activation'
 import type { NativeChatVisualAnnotateEvent } from '../../../../shared/native-chat-visual-annotate'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
+import { PrototypeBuiltOnLink } from './PrototypeBuiltOnLink'
 import { PrototypeFrame } from './PrototypeFrame'
 import { PrototypeThumbnail } from './PrototypeThumbnail'
-import { prototypeAgentLabel, prototypeStatusLabel } from './prototype-labels'
+import { prototypeAgentLabel, prototypeCountLabel } from './prototype-labels'
 import {
   latestVersionOf,
   prototypeStatus,
@@ -27,6 +30,7 @@ import {
   type PrototypeSetState
 } from '../../../../shared/prototype-set-state'
 import { annotateStateOf } from '../../../../shared/prototype-set-view'
+import { usePrototypeViewStore } from './prototype-view-store'
 import { usePrototypeFileHtml } from './use-prototype-file-html'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
@@ -43,12 +47,15 @@ export function PrototypeViewer({
   set,
   state,
   update,
-  frameBoxRef
+  frameBoxRef,
+  onOpenDesignSystem
 }: {
   set: PrototypeListedSet
   state: PrototypeSetState
   update: Update
   frameBoxRef: RefObject<HTMLDivElement | null>
+  /** Opens the design system of a project, from the link under the title. */
+  onOpenDesignSystem: (projectKey: string) => void
 }): React.JSX.Element {
   const single = set.directions.length <= 1
   const layout = single ? 'focus' : state.layout
@@ -60,7 +67,13 @@ export function PrototypeViewer({
       : { sessionId: set.sessionId, requestId: set.requestId, fileName: latest.fileName }
   )
   const status = prototypeStatus(set, state.active)
+  const builtOn =
+    set.builtOn === undefined || set.projectKey === undefined
+      ? null
+      : { version: set.builtOn, projectKey: set.projectKey }
   const peeking = state.view !== state.active
+  const sidePanelHidden = usePrototypeViewStore((s) => s.sidePanelHidden)
+  const setSidePanelHidden = usePrototypeViewStore((s) => s.setSidePanelHidden)
   const agentLabel = prototypeAgentLabel(set.agent)
   const chatTitle = set.chatTitle?.trim() ?? ''
   const openChat = (): void => {
@@ -69,6 +82,8 @@ export function PrototypeViewer({
     }
   }
   const onAnnotate = (event: NativeChatVisualAnnotateEvent): void => {
+    // A pick or a pin click brings a hidden side panel back, where the draft is.
+    setSidePanelHidden(false)
     update((current) =>
       event.kind === 'element-picked'
         ? pickElement(current, event.element)
@@ -81,8 +96,14 @@ export function PrototypeViewer({
       <div className="flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-2.5">
         <div className="mr-auto flex min-w-0 flex-col gap-0.5">
           <span className="text-sm font-semibold">
-            {`${prototypeTitle(set)} · ${prototypeStatusLabel(status)}`}
+            {`${prototypeTitle(set)} · ${prototypeCountLabel(status)}`}
           </span>
+          {builtOn === null ? null : (
+            <PrototypeBuiltOnLink
+              version={builtOn.version}
+              onOpen={() => onOpenDesignSystem(builtOn.projectKey)}
+            />
+          )}
           <button
             type="button"
             onClick={openChat}
@@ -175,6 +196,19 @@ export function PrototypeViewer({
             {translate('components.prototypes.toolAnnotate', 'Annotate')}
           </button>
         </div>
+        <Button
+          type="button"
+          variant={sidePanelHidden ? 'secondary' : 'ghost'}
+          size="icon-xs"
+          aria-label={
+            sidePanelHidden
+              ? translate('components.prototypes.showPanel', 'Show panel')
+              : translate('components.prototypes.hidePanel', 'Hide panel')
+          }
+          onClick={() => setSidePanelHidden(!sidePanelHidden)}
+        >
+          <PanelRight />
+        </Button>
       </div>
 
       {layout === 'set' && !single ? (

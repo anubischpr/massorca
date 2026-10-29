@@ -17867,7 +17867,9 @@
       "frameTitle": "프로토타입",
       "heading": "프로토타입",
       "heightLabel": "높이",
+      "heightUnit": "높이 단위",
       "heightValue": "높이 값",
+      "hidePanel": "패널 숨기기",
       "hintAnnotate": "요소를 클릭해 메모 추가",
       "hintBrowse": "평소처럼 조작",
       "hueButton": "색조 {{deg}}",
@@ -17896,7 +17898,9 @@
       "setFooter": "방향을 열면 그 방향을 반복할 수 있습니다. 나머지는 사이드 스트립에서 한 번 클릭하면 됩니다.",
       "shadeGroup": "명암",
       "showDirection": "방향 {{letter}} 보기",
+      "showPanel": "패널 표시",
       "sidebarLabel": "프로토타입",
+      "statusCount": "방향 {{count}}개",
       "statusDirections": "방향 {{count}}개 · 반복 중 {{letter}}",
       "statusScreen": "화면 1개",
       "stripGroup": "이 세트의 방향",
@@ -17913,6 +17917,7 @@
       "viewportGroup": "뷰포트",
       "viewportPhone": "휴대폰",
       "widthLabel": "너비",
+      "widthUnit": "너비 단위",
       "widthValue": "너비 값"
     },
     "onboarding": {

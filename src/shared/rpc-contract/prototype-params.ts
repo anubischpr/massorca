@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import { PROTOTYPE_COUNT_MAX, PROTOTYPE_COUNT_MIN } from '../prototype-count-setting'
+import { PROTOTYPE_DESIGN_SYSTEM_MODES } from '../prototype-design-system-files'
+import { DESIGN_SYSTEM_SWATCH_MAX_LENGTH } from '../prototype-design-system-summary'
 import { PROTOTYPE_AGENTS } from '../prototype-request'
 import { DIRECTION_LETTER_PATTERN } from '../prototype-request-folder'
 import { REQUEST_ID_PATTERN } from '../prototype-sets'
@@ -26,7 +28,9 @@ export const CreatePrototypeRequestParams = z
     originalPrompt: z.string().min(1).max(PROTOTYPE_PROMPT_MAX_LENGTH),
     count: z.int().min(PROTOTYPE_COUNT_MIN).max(PROTOTYPE_COUNT_MAX),
     worktreeId: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
-    chatTitle: z.string().max(TEXT_MAX_LENGTH).optional()
+    chatTitle: z.string().max(TEXT_MAX_LENGTH).optional(),
+    /** What the request does with the project's design system; the host records it and its version. */
+    designSystem: z.enum(PROTOTYPE_DESIGN_SYSTEM_MODES).optional()
   })
   .strict()
 
@@ -39,6 +43,10 @@ export const ListPrototypeSetsParams = z
   .strict()
 
 export type ListPrototypeSetsParams = z.infer<typeof ListPrototypeSetsParams>
+
+export const ReadPrototypeDesignSystemParams = z.object({ sessionId: SessionId }).strict()
+
+export type ReadPrototypeDesignSystemParams = z.infer<typeof ReadPrototypeDesignSystemParams>
 
 export const ReadPrototypeFileParams = z
   .object({
@@ -61,6 +69,25 @@ export const PROTOTYPE_CREATE_REQUEST_ERRORS = ['unsupported', 'unwritable'] as 
 export type CreatePrototypeRequestResult =
   | { ok: true; requestId: string; folderPath: string }
   | { ok: false; error: (typeof PROTOTYPE_CREATE_REQUEST_ERRORS)[number] }
+
+/**
+ * The design system of a chat's project, as files read under the project root on the host. Each file
+ * is absent when the project has none; `fileNames` lists the ones read, relative to the project root.
+ * `unreadableFileNames` lists the ones the project has but the host refused to read (over the size cap,
+ * not text, or a path it does not follow). `not_found`: no such chat on this host, or it is not local.
+ */
+export type ReadPrototypeDesignSystemResult =
+  | {
+      ok: true
+      projectKey: string
+      projectName: string
+      fileNames: string[]
+      tokensJson?: string
+      componentsHtml?: string
+      systemMd?: string
+      unreadableFileNames?: string[]
+    }
+  | { ok: false; error: 'not_found' }
 
 /**
  * Why a set file cannot be shown: `not_found` for a file that is not this request's (including a chat
@@ -92,6 +119,31 @@ export const PrototypeListedDirectionSchema = z.object({
 
 export type PrototypeListedDirection = z.infer<typeof PrototypeListedDirectionSchema>
 
+/** The newest request that proposed a design system and has no direction files yet. */
+export const PrototypeListedPendingRequestSchema = z.object({
+  requestId: z.string(),
+  sessionId: z.string(),
+  agent: z.enum(PROTOTYPE_AGENTS)
+})
+
+export type PrototypeListedPendingRequest = z.infer<typeof PrototypeListedPendingRequestSchema>
+
+/** The design system of one project: what a list row or request card shows without reading its files. */
+export const PrototypeListedDesignSystemSchema = z.object({
+  projectKey: z.string().min(1).max(TEXT_MAX_LENGTH),
+  projectName: z.string().min(1).max(TEXT_MAX_LENGTH),
+  status: z.enum(['detected', 'proposed']),
+  version: z.int().min(1),
+  tokenCount: z.int().min(0),
+  agent: z.string().max(80).optional(),
+  /** Color values, up to four, for the list icon. */
+  swatches: z.array(z.string().max(DESIGN_SYSTEM_SWATCH_MAX_LENGTH)).max(4),
+  /** The request whose directions Approve builds; absent when the project has no such request. */
+  pendingRequest: PrototypeListedPendingRequestSchema.optional()
+})
+
+export type PrototypeListedDesignSystem = z.infer<typeof PrototypeListedDesignSystemSchema>
+
 /** One request's directions, with the manifest's metadata the lists group and filter by. */
 export const PrototypeListedSetSchema = z.object({
   requestId: z.string(),
@@ -104,12 +156,30 @@ export const PrototypeListedSetSchema = z.object({
   count: z.int(),
   /** The request folder on the host, absolute; a client quotes it in an iteration instruction. */
   folderPath: z.string().min(1).optional(),
+  /** The project the chat works in, as the host resolved it; absent from a host that predates design systems. */
+  projectKey: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
+  projectName: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
+  /** The design system version the request was built on, when it recorded one. */
+  builtOn: z.int().min(1).optional(),
   directions: z.array(PrototypeListedDirectionSchema)
 })
 
 export type PrototypeListedSet = z.infer<typeof PrototypeListedSetSchema>
 
-export type ListPrototypeSetsResult = { sets: PrototypeListedSet[] }
+/** A request sent with 'Propose one first', and the project it proposes a design system for. */
+export const PrototypeListedProposalSchema = z.object({
+  requestId: z.string(),
+  projectKey: z.string().min(1).max(TEXT_MAX_LENGTH)
+})
+
+export type PrototypeListedProposal = z.infer<typeof PrototypeListedProposalSchema>
+
+export type ListPrototypeSetsResult = {
+  sets: PrototypeListedSet[]
+  designSystems?: PrototypeListedDesignSystem[]
+  /** Every request sent with 'Propose one first' whose project the host names; a set or not. */
+  proposals?: PrototypeListedProposal[]
+}
 
 /** A note screenshot's base name: one plain segment, so the file sits directly in the request's notes/ folder. */
 export const PROTOTYPE_ATTACHMENT_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/u
@@ -149,7 +219,25 @@ export const CreatePrototypeRequestReplySchema = z.union([
   z.object({ ok: z.literal(false), error: z.enum(PROTOTYPE_CREATE_REQUEST_ERRORS) })
 ])
 
-export const ListPrototypeSetsReplySchema = z.object({ sets: z.array(PrototypeListedSetSchema) })
+export const ListPrototypeSetsReplySchema = z.object({
+  sets: z.array(PrototypeListedSetSchema),
+  designSystems: z.array(PrototypeListedDesignSystemSchema).optional(),
+  proposals: z.array(PrototypeListedProposalSchema).optional()
+})
+
+export const ReadPrototypeDesignSystemReplySchema = z.union([
+  z.object({
+    ok: z.literal(true),
+    projectKey: z.string().min(1),
+    projectName: z.string().min(1),
+    fileNames: z.array(z.string()),
+    tokensJson: z.string().optional(),
+    componentsHtml: z.string().optional(),
+    systemMd: z.string().optional(),
+    unreadableFileNames: z.array(z.string()).optional()
+  }),
+  z.object({ ok: z.literal(false), error: z.literal('not_found') })
+])
 
 export const ReadPrototypeFileReplySchema = z.union([
   z.object({ ok: z.literal(true), html: z.string() }),

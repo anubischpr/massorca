@@ -17968,7 +17968,9 @@
       "frameTitle": "Prototype",
       "heading": "Prototypes",
       "heightLabel": "Hauteur",
+      "heightUnit": "Unité de hauteur",
       "heightValue": "Valeur de hauteur",
+      "hidePanel": "Masquer le panneau",
       "hintAnnotate": "cliquez sur un élément pour ajouter une note",
       "hintBrowse": "interagir normalement",
       "hueButton": "Teinte {{deg}}",
@@ -17997,7 +17999,9 @@
       "setFooter": "Ouvrez une direction pour itérer dessus. Les autres sont à un clic dans la bande latérale.",
       "shadeGroup": "Nuance",
       "showDirection": "Afficher la direction {{letter}}",
+      "showPanel": "Afficher le panneau",
       "sidebarLabel": "Prototypes",
+      "statusCount": "{{count}} directions",
       "statusDirections": "{{count}} directions · itération {{letter}}",
       "statusScreen": "1 écran",
       "stripGroup": "Directions de cet ensemble",
@@ -18014,6 +18018,7 @@
       "viewportGroup": "Affichage",
       "viewportPhone": "Téléphone",
       "widthLabel": "Largeur",
+      "widthUnit": "Unité de largeur",
       "widthValue": "Valeur de largeur"
     },
     "nativeChatSummary": {

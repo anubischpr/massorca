@@ -112,6 +112,11 @@ function pinItems(
   return items
 }
 
+/** A pin is touched when the draft has items for it: a changed field, or a note with text. */
+export function isPinTouched(letter: string, pin: PrototypePin, note: string | undefined): boolean {
+  return pinItems(letter, pin, note).length > 0
+}
+
 // A size is equal by unit; with `auto` the number does not apply.
 function isSameSize(left: PrototypeSize, right: PrototypeSize): boolean {
   return left.unit === right.unit && (left.unit === 'auto' || left.value === right.value)

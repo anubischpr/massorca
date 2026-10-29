@@ -105,11 +105,12 @@ function setStyle(entry, name, value) {
 }
 
 function setText(entry, text) {
+  var owner = textOwnerOf(entry.target)
   var nodes = []
-  for (var node = entry.target.firstChild; node; node = node.nextSibling) if (node.nodeType === 3) nodes.push(node)
+  for (var node = owner.firstChild; node; node = node.nextSibling) if (node.nodeType === 3) nodes.push(node)
   if (nodes.length === 0) {
     entry.added = document.createTextNode(text)
-    entry.target.appendChild(entry.added)
+    owner.appendChild(entry.added)
     return
   }
   for (var i = 0; i < nodes.length; i++) {

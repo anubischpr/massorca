@@ -10,7 +10,7 @@ import { useAppStore } from '@/store'
 import type { NativeChatStructuredComposerTransport } from './native-chat-composer-types'
 import { nativeChatPrototypeAsks } from './native-chat-prototype-request-store'
 import { useNativeChatHeldQueueComposerSend } from './use-native-chat-held-queue-composer-send'
-import { useNativeChatPrototypeCountCard } from './use-native-chat-prototype-count-card'
+import { useNativeChatPrototypeAskCard } from './use-native-chat-prototype-ask-card'
 import {
   useNativeChatStructuredComposerSend,
   type UseNativeChatStructuredComposerSendArgs
@@ -67,7 +67,7 @@ function makeArgs(agent: AgentType) {
 
 function CardHarness({ args }: { args: UseNativeChatStructuredComposerSendArgs }) {
   const send = useNativeChatStructuredComposerSend(args)
-  return <>{useNativeChatPrototypeCountCard({ draftScopeKey: args.draftScopeKey, send })}</>
+  return <>{useNativeChatPrototypeAskCard({ draftScopeKey: args.draftScopeKey, send })}</>
 }
 
 function HeldHarness({ args }: { args: UseNativeChatStructuredComposerSendArgs }) {
@@ -78,7 +78,7 @@ function HeldHarness({ args }: { args: UseNativeChatStructuredComposerSendArgs }
       <button type="button" onClick={() => send(KEYWORD)}>
         type
       </button>
-      {fieldProps.prototypeCountCard}
+      {fieldProps.prototypeAskCard}
       {confirm?.open ? (
         <button type="button" onClick={confirm.sendMessage}>
           send with the cards

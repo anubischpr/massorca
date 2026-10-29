@@ -11,7 +11,7 @@ export function PrototypeColorPicker({
   onPick,
   onDone
 }: {
-  field: 'color' | 'bg'
+  field: 'color' | 'bg' | 'token'
   value: string
   hue: number
   onHue: (hue: number) => void
@@ -21,7 +21,9 @@ export function PrototypeColorPicker({
   const label =
     field === 'bg'
       ? translate('components.prototypes.pickerFillName', 'fill')
-      : translate('components.prototypes.pickerTextColorName', 'text color')
+      : field === 'token'
+        ? translate('components.prototypes.designSystem.pickerColorName', 'color')
+        : translate('components.prototypes.pickerTextColorName', 'text color')
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-popover p-2.5">
       <div className="flex justify-between text-xs text-muted-foreground">

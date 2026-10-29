@@ -5,12 +5,8 @@ import { structuredSlashCommands } from '../../../src/shared/structured-agent-se
 // MassOrca's own prototype commands, offered in every structured chat beside the agent's commands.
 // The message is planned by `planMobilePrototypeOutgoing`, never sent to the agent as a command.
 const PROTOTYPE_COMMANDS: readonly SlashCommandSuggestion[] = [
-  {
-    name: 'prototype',
-    description: 'Make prototypes to compare',
-    argumentHint: '<what to design>'
-  },
-  { name: 'prototipo', description: 'Make prototypes to compare', argumentHint: '<what to design>' }
+  { name: 'prototype' },
+  { name: 'prototipo' }
 ]
 
 /** The chat's commands with the prototype commands in front, unless the chat already lists them. */

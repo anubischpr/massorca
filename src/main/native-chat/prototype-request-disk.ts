@@ -85,8 +85,23 @@ async function resolveAndBindSlug(
   if (slug === null) {
     return null
   }
+  return bindGentleDesignSlug(requestFolder, slug)
+}
+
+/**
+ * Binds the design folder into request.json as the file holds it now, so a field another writer persisted since
+ * the listing read the manifest stays. A slug already bound there is the binding; null when no binding is kept.
+ */
+async function bindGentleDesignSlug(requestFolder: string, slug: string): Promise<string | null> {
+  const current = await readRequestManifest(requestFolder)
+  if (current === null) {
+    return null
+  }
+  if (current.gentleDesignSlug !== undefined) {
+    return keptBoundSlug(current)
+  }
   // Why: a binding that is not kept would let a later design folder rebind the request, so no set is shown.
-  const kept = await writeRequestManifest(requestFolder, { ...manifest, gentleDesignSlug: slug })
+  const kept = await writeRequestManifest(requestFolder, { ...current, gentleDesignSlug: slug })
   return kept ? slug : null
 }
 
@@ -102,10 +117,33 @@ async function writeRequestManifest(
     await rename(temporary, path)
     return true
   } catch (error) {
-    logPrototypeFailure('binding a Gentle Shell design folder', error)
+    logPrototypeFailure('writing a prototype request manifest', error)
     await unlink(temporary).catch(() => undefined)
     return false
   }
+}
+
+/**
+ * Keeps the design system version a request was first seen built on in its request.json. The file is read again
+ * for the write, so a field another writer persisted since the listing read it stays. Resolves to the version the
+ * request holds afterwards, or undefined when its request.json is unreadable or could not be written.
+ */
+export async function recordRequestDesignSystemVersion(
+  requestFolder: string,
+  version: number
+): Promise<number | undefined> {
+  const current = await readRequestManifest(requestFolder)
+  if (current === null) {
+    return undefined
+  }
+  if (current.designSystemVersion !== undefined) {
+    return current.designSystemVersion
+  }
+  const written = await writeRequestManifest(requestFolder, {
+    ...current,
+    designSystemVersion: version
+  })
+  return written ? version : undefined
 }
 
 /** Logs a failure other than an absent file, which is the normal state of a folder that holds nothing. */

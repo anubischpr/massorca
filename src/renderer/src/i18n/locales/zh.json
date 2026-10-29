@@ -17867,7 +17867,9 @@
       "frameTitle": "原型",
       "heading": "原型",
       "heightLabel": "高度",
+      "heightUnit": "高度单位",
       "heightValue": "高度值",
+      "hidePanel": "隐藏面板",
       "hintAnnotate": "点击任意元素以添加便签",
       "hintBrowse": "正常交互",
       "hueButton": "色相 {{deg}}",
@@ -17896,7 +17898,9 @@
       "setFooter": "打开一个方向即可迭代它。其他方向可在侧边栏中一键切换。",
       "shadeGroup": "明暗",
       "showDirection": "显示方向 {{letter}}",
+      "showPanel": "显示面板",
       "sidebarLabel": "原型",
+      "statusCount": "{{count}} 个方向",
       "statusDirections": "{{count}} 个方向 · 迭代 {{letter}}",
       "statusScreen": "1 个屏幕",
       "stripGroup": "此组中的方向",
@@ -17913,6 +17917,7 @@
       "viewportGroup": "视口",
       "viewportPhone": "手机",
       "widthLabel": "宽度",
+      "widthUnit": "宽度单位",
       "widthValue": "宽度值"
     },
     "nativeChatSummary": {

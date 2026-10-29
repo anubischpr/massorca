@@ -147,6 +147,20 @@ describe('the pin sheet while a sibling direction is peeked at', () => {
   })
 })
 
+describe('the Edit tab of a button pin', () => {
+  it('shows the Text color and Fill rows, as for any element', () => {
+    const button = {
+      ...HEADING,
+      selector: 'button.cta',
+      label: 'pay button',
+      htmlSnippet: '<button>Pay now</button>'
+    }
+    const renderer = mountPinSheet(pickElement(createSetState(['A']), button), vi.fn())
+    expect(renderer.root.findAllByProps({ label: 'Text color' }).length).toBeGreaterThan(0)
+    expect(renderer.root.findAllByProps({ label: 'Fill' }).length).toBeGreaterThan(0)
+  })
+})
+
 describe('the Width and Height number inputs', () => {
   it('pins a typed px value into its range', () => {
     const onChange = vi.fn()

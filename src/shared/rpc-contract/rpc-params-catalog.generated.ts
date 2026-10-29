@@ -457,6 +457,7 @@ import {
 import {
   CreatePrototypeRequestParams,
   ListPrototypeSetsParams,
+  ReadPrototypeDesignSystemParams,
   ReadPrototypeFileParams,
   WriteAttachmentParams
 } from './prototype-params'
@@ -1149,6 +1150,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'projectHostSetup.update': ProjectHostSetupUpdate,
   'prototypes.createRequest': CreatePrototypeRequestParams,
   'prototypes.list': ListPrototypeSetsParams,
+  'prototypes.readDesignSystem': ReadPrototypeDesignSystemParams,
   'prototypes.readFile': ReadPrototypeFileParams,
   'prototypes.writeAttachment': WriteAttachmentParams,
   'repo.add': RepoPath,

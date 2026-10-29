@@ -4,6 +4,7 @@ import {
   createPrototypeRequestOnHost,
   listPrototypeSetsOnHost,
   PrototypeHostOutdatedError,
+  readDesignSystemOnHost,
   readPrototypeSetFileOnHost,
   writePrototypeAttachmentOnHost
 } from './runtime-prototype-client'
@@ -124,5 +125,97 @@ describe('runtime prototype client', () => {
     callMock.mockRejectedValueOnce(transport)
 
     await expect(listPrototypeSetsOnHost(LOCAL, {})).rejects.toBe(transport)
+  })
+
+  it('reads the design system of a chat through the host that owns it', async () => {
+    const reply = {
+      ok: true,
+      projectKey: 'abc123',
+      projectName: 'nexuscare',
+      fileNames: ['design/system/tokens.json'],
+      tokensJson: '{}'
+    }
+    callMock.mockResolvedValueOnce(reply)
+
+    expect(await readDesignSystemOnHost(LOCAL, { sessionId: 'session-alpha-0001' })).toEqual(reply)
+    expect(callMock).toHaveBeenCalledWith(
+      LOCAL,
+      'prototypes.readDesignSystem',
+      { sessionId: 'session-alpha-0001' },
+      { timeoutMs: 15_000 }
+    )
+  })
+
+  it('returns the refusal of a design system read as a value, and fails an unnamed shape', async () => {
+    callMock.mockResolvedValueOnce({ ok: false, error: 'not_found' })
+    expect(await readDesignSystemOnHost(LOCAL, { sessionId: 'session-alpha-0001' })).toEqual({
+      ok: false,
+      error: 'not_found'
+    })
+    callMock.mockResolvedValueOnce({ ok: true, projectKey: 'k' })
+    await expect(
+      readDesignSystemOnHost(LOCAL, { sessionId: 'session-alpha-0001' })
+    ).rejects.toMatchObject({ name: 'PrototypeHostMalformedReplyError' })
+  })
+
+  it('reads a host without design systems as outdated', async () => {
+    callMock.mockRejectedValueOnce(new Error('method_not_found'))
+    await expect(
+      readDesignSystemOnHost(LOCAL, { sessionId: 'session-alpha-0001' })
+    ).rejects.toBeInstanceOf(PrototypeHostOutdatedError)
+  })
+
+  it('accepts the optional project fields and design systems of a list, and the lack of them', async () => {
+    const withFields = {
+      sets: [
+        {
+          requestId: '20261028-201500-aaaaaa',
+          sessionId: 'session-alpha-0001',
+          agent: 'claude',
+          worktreeId: null,
+          chatTitle: null,
+          originalPrompt: 'x',
+          createdAt: '2026-10-28T20:15:00.000Z',
+          count: 1,
+          projectKey: 'abc123',
+          projectName: 'nexuscare',
+          builtOn: 3,
+          directions: []
+        }
+      ],
+      designSystems: [
+        {
+          projectKey: 'abc123',
+          projectName: 'nexuscare',
+          status: 'detected',
+          version: 3,
+          tokenCount: 20,
+          swatches: ['#2563eb']
+        }
+      ]
+    }
+    callMock.mockResolvedValueOnce(withFields)
+    expect(await listPrototypeSetsOnHost(LOCAL, {})).toEqual(withFields)
+    callMock.mockResolvedValueOnce({ sets: [] })
+    expect(await listPrototypeSetsOnHost(LOCAL, {})).toEqual({ sets: [] })
+  })
+
+  it('fails a list whose design system has a status the contract does not name', async () => {
+    callMock.mockResolvedValueOnce({
+      sets: [],
+      designSystems: [
+        {
+          projectKey: 'k',
+          projectName: 'n',
+          status: 'draft',
+          version: 1,
+          tokenCount: 0,
+          swatches: []
+        }
+      ]
+    })
+    await expect(listPrototypeSetsOnHost(LOCAL, {})).rejects.toMatchObject({
+      name: 'PrototypeHostMalformedReplyError'
+    })
   })
 })

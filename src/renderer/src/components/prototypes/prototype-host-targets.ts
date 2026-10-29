@@ -1,6 +1,10 @@
 // Which runtime owns a prototype set: the Prototypes view reads each paired runtime as well as this
 // machine, and every later read or write of a set goes back to the host that listed it.
-import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
+import type {
+  PrototypeListedDesignSystem,
+  PrototypeListedProposal,
+  PrototypeListedSet
+} from '../../../../shared/rpc-contract/prototype-params'
 import { getRuntimeSessionMirrorEnvironmentIds } from '@/lib/runtime-session-mirror-owners'
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 import {
@@ -30,12 +34,31 @@ export function prototypeTargetForSession(sessionId: string): RuntimeClientTarge
   return targetBySessionId.get(sessionId) ?? LOCAL_TARGET
 }
 
+/** The worktree whose open tabs hold a chat, the first found in the store's order; undefined when none does. */
+export function worktreeIdOfChatSession(
+  unifiedTabsByWorktree: Readonly<
+    Record<string, readonly { contentType: string; entityId: string }[]>
+  >,
+  sessionId: string
+): string | undefined {
+  for (const [worktreeId, tabs] of Object.entries(unifiedTabsByWorktree)) {
+    if (tabs.some((tab) => tab.contentType === 'agent-session' && tab.entityId === sessionId)) {
+      return worktreeId
+    }
+  }
+  return undefined
+}
+
 function describeTarget(target: RuntimeClientTarget): string {
   return target.kind === 'local' ? 'local' : `runtime ${target.environmentId}`
 }
 
 export type PrototypeHostListing = {
   sets: PrototypeListedSet[]
+  /** The design system of each project a host listed one for; an older host lists none. */
+  designSystems: PrototypeListedDesignSystem[]
+  /** The proposals each host lists: requests sent with 'Propose one first'. */
+  proposals: PrototypeListedProposal[]
   /** At least one host answered. */
   answered: boolean
   /** Every host that failed was outdated. */
@@ -49,6 +72,8 @@ export async function listPrototypeSetsFromAllHosts(): Promise<PrototypeHostList
     targets.map((target) => listPrototypeSetsOnHost(target, {}))
   )
   const sets: PrototypeListedSet[] = []
+  const designSystems: PrototypeListedDesignSystem[] = []
+  const proposals: PrototypeListedProposal[] = []
   let answered = false
   let failed = 0
   let outdated = 0
@@ -60,6 +85,14 @@ export async function listPrototypeSetsFromAllHosts(): Promise<PrototypeHostList
         targetBySessionId.set(set.sessionId, target)
         sets.push(set)
       }
+      proposals.push(...(outcome.value.proposals ?? []))
+      for (const system of outcome.value.designSystems ?? []) {
+        designSystems.push(system)
+        // Why: the pending request's chat has no set in the list, so its host is recorded here.
+        if (system.pendingRequest !== undefined) {
+          targetBySessionId.set(system.pendingRequest.sessionId, target)
+        }
+      }
       return
     }
     failed += 1
@@ -70,5 +103,11 @@ export async function listPrototypeSetsFromAllHosts(): Promise<PrototypeHostList
     )
   })
   recordBoundDesignFolders(sets)
-  return { sets, answered, onlyOutdated: failed > 0 && failed === outdated }
+  return {
+    sets,
+    designSystems,
+    proposals,
+    answered,
+    onlyOutdated: failed > 0 && failed === outdated
+  }
 }
