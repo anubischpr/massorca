@@ -135,6 +135,43 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
     - Left open: no direct test of `useWorktreeAgentRows` (its read is the existing `worktreeCatalogRead`, tested by the environment read suites, and its pure parts are tested here); no rendered check on a device.
     - Checks: `pnpm exec vitest run src/session src/components src/worktree src/home` → 431 files, 426 passed, 5 failed (11 tests). The five are on the known-failure list: `mobile-native-chat-merged-snapshot-parity`, `use-mobile-diff-review-send-actions`, `use-mobile-pr-ai-triage`, `native-document-bundle`, and `mobile-prompt-controller` (module load). The targeted suites (lineage, sheet, access, notice, rows) → 5 files, 31 passed. `pnpm run typecheck` → exit 0. `oxlint` → exit 0 and `oxfmt --check` clean on the 16 changed files.
 
+- [ ] T7 — Child sessions in the parent chat and the background popover, desktop and mobile (approved Design board "Desktop running child", 2026-10-29). Route: delegated direct (writer trigger). Desktop done; mobile open.
+  - Approved design: a started child is a live row in the parent chat ("Child session working: <title>", agent · model · effort (Automatic) · started N ago, Open child chat). The background popover lists children in a "Child sessions" section with live status and an Open button per row.
+  - Adjustments (binding, 2026-10-29): A. Finished children stay in the background popover under its Finished section, with the same history rule as tasks and subagents, each with Open. B. Desktop: children appear in the existing background-tasks popover; each child row has Open where a task row has Stop.
+  - Desktop, checked:
+    - [x] Live started row with Open child chat, shown while the journal shows the child working: `ddde26552ba`. Shared derivation: `c86d066ef57`.
+    - [x] Child sessions in the background popover (`NativeChatCodexBackgroundPanel`): running rows, a Finished group, Open per row: `83776081a07`. About 775 authored lines across the three commits (724 additions, 51 deletions, tests included).
+  - Mobile, open (next writer): [ ] the live started row, the Child sessions list in the mobile sessions/background surface, and Open per row. Reuse the shared derivation below. The renderer's `delegated-child-copy.ts` and `delegated-children-context.tsx` are renderer-only, so mobile writes its own presentation.
+  - Shared helper API (`src/shared/delegated-children.ts`, no wire change):
+    - `delegatedChildrenFromJournal(items: readonly DelegatedChildJournalItem[]): DelegatedChild[]`, where `DelegatedChildJournalItem = { body: AgentJournalItemBody; observedAt: number }`; a journal render item satisfies it.
+    - `DelegatedChild`: `requestId`, `title`, `status` (`working` | `succeeded` | `failed` | `not-started`), `agent`, `model`, `effort`, `automatic`, `childSessionId`, `startedAt` (the start row's `observedAt`), `resultSummary`, `durationMs`, `reason`. One row per request, in first-appearance order. Rows without a delegation payload are ignored.
+  - Decisions:
+    - Live state comes from the parent journal, not the status store: `working` is a start notice with no finish or failed notice after it. The child's own status row is not read (the brief's fallback).
+    - The popover is `NativeChatCodexBackgroundPanel`, the "Background activity" aside under the session summary, which already has Finished groups and Stop buttons. The strip above the composer (`NativeChatBackgroundTasksStatus`) is unchanged.
+    - The live row reads the derivation through a React context (`DelegatedChildrenProvider`), mounted by `NativeChatMessageListWithDelegatedChildren`. Mounting it in `NativeChatStructuredSession.tsx` pushed that file past the 400-line `max-lines` limit, so the wrapper is its own file.
+    - "started N ago" uses the start row's `observedAt`, refreshed each minute. No timestamp was added to the wire.
+    - Children stay out of the subagent (Agents) list; they belong to the background section.
+    - A popover row shows agent · status · elapsed, without the model (the started row keeps it). The board's model in the popover row is not drawn.
+    - The section heading "Child sessions" and the "N finished" group use the popover's existing heading and group styles; the board's uppercase label is not reproduced.
+    - A child that never started reads "did not start", with no Open. A finished child keeps the plain started line in the chat (its finished row carries Open).
+    - Open uses `activateStructuredAgentSessionById` and shows only when a tab lists the child, in any worktree.
+  - Not drawn: the "N child sessions" header count; the pending "Child · choosing agent" row (needs a pending-request row source, as T5); usage figures on rows ("5h 18%", no data on the row); the "Subagents and tasks" heading (the popover keeps its own headings).
+  - Gaps:
+    - The collapsed summary line (`backgroundCompact`) counts only running tasks, so it can read "No running background tasks" while a child works. Follow-up.
+    - The popover draws only when the host publishes child views or a roster; otherwise the existing "unknown" line shows and children are hidden with it.
+    - No visual check: no Electron or CDP run in this pass.
+  - Checks (foreground, 2026-10-29):
+    - `pnpm exec vitest run --config config/vitest.config.ts src/shared/delegated-children.test.ts src/renderer/src/components/native-chat/NativeChatDelegationNotice.test.tsx src/renderer/src/components/native-chat/NativeChatStructuredSession.test.tsx` → 3 files, 46 passed.
+    - Same runner, `NativeChatCodexBackgroundPanel.test.tsx` and the notice test → 2 files, 39 passed (3 new popover tests).
+    - Same runner, mounting suites `NativeChatSessionSummary`, `NativeChatBackgroundTasksStatus`, `NativeChatFinishedBackgroundGroup`, `NativeChatStructuredSession` → 4 files, 74 passed.
+    - Same runner, targeted native-chat set (`NativeChatBackground`, `NativeChatDelegat`, `NativeChatStructuredSession`, `NativeChatSessionSummary`, `NativeChatMessageList`, `NativeChatNotice`, `NativeChatFinished`, `NativeChatCodexBackground`) plus `src/shared/delegated-children` → 50 files, 453 passed. A run of the whole native-chat folder did not finish within the tool time limit and is not claimed.
+    - `pnpm run tc:web` → exit 0.
+    - `pnpm run tc:node` → exit 1. The only error is `src/main/runtime/structured-session-lineage.ts(50,9)`: TS2304 `Cannot find name 'DelegatedChildLinkRow'`. That file is not in this work. The worktree holds about 16 uncommitted modified files under `src/main/` from another writer, and the error comes from their in-progress state. No error is in a file this task touched.
+    - `pnpm exec oxlint` on the changed files → exit 0. `pnpm exec oxfmt --check` → clean.
+    - `ORCA_CODE_QUALITY_BASE=0e0bce31b92 pnpm run check:code-quality:changed` → 0 new findings across 30 changed files.
+    - `pnpm run build:mobile-web`: not run. Mobile does not import the new shared module yet.
+  - Rollback: revert `ddde26552ba`, `83776081a07` and `c86d066ef57`. Nothing on the wire or in mobile changes.
+
 ## Acceptance criteria
 
 - The parent agent can request a child; a card lists connected agents plus Automatic with usage %.
@@ -161,6 +198,8 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
 - 2026-10-29: the web bundle went over its Phase C asset budget after T6 (174 assets against 169). Fixed in `0a84746cf47`: the why sheet is a static import again, which drops its lazy entry and the shared card-model chunk, and the chat view and prompt card suites stub the drawer. The bundle is back to 169 assets, the same as the pre-T6 build measured at `ca4d7c44399^` (118 scripts, 50 other outputs, one document). The budget was not raised.
 - 2026-10-29: review status per range. Approved and acknowledged: `c3cb86c638c`; `73071e39c75` after its one correction (`d23f75744d8`); T5 `88deeaefbc1..23ff82ddb17`; T6 `684c96bc6af..a26600db393`; `a26600db393..de46ad2aac6`; `de46ad2aac6..2d7f41d3993`. Not reviewed: `73071e39c75..88deeaefbc1` (`lens_context_budget_exceeded`), and `c48277da118` (one blank line). Abandoned under the user's rule for reviews stuck on a tool problem: `review-27d94397ee220672` (T1–T3, waiting on recovery authorization) and `review-e91f37620f0628d5` (`d23f75744d8..684c96bc6af`, `corrupted_or_unverifiable_authority`).
 - 2026-10-29: folder-workspace child brief committed as `f334ccce095` (3 files, 87 insertions, 2 deletions; the folder path comes from the runtime's existing local-path accessor). Mobile triage committed as `cd41eab8616` (4 files; 3 of the 5 findings fixed, 2 kept as follow-ups). The mobile web bundle is at 169 assets, the budget.
+
+- 2026-10-29: T7 desktop committed as `c86d066ef57` (shared child derivation), `ddde26552ba` (live started row) and `83776081a07` (background popover: Child sessions and the Finished group, each row with Open). Mobile is open for the next writer. `tc:node` fails on `src/main/runtime/structured-session-lineage.ts` from another writer's uncommitted work in this worktree, not from T7.
 
 ## Follow-ups
 
