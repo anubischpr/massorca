@@ -23,6 +23,7 @@ import {
 import type { NativeChatBlock, NativeChatMessage } from '../../../src/shared/native-chat-types'
 import { MobileMarkdown } from '../components/MobileMarkdown'
 import { deriveNativeChatRowContent } from '../../../src/shared/native-chat-row-content'
+import { MobileNativeChatDelegationNotice } from './MobileNativeChatDelegationNotice'
 import { MobileNativeChatReasoningRow } from './MobileNativeChatReasoningRow'
 import { MobileNativeChatTurnStatus } from './MobileNativeChatTurnStatus'
 import { MobileNativeChatSubagentGroup } from './MobileNativeChatSubagentGroup'
@@ -58,6 +59,10 @@ function Prose({
   onLongPress?: () => void
 }): React.JSX.Element | null {
   if (isTextBlock(block)) {
+    // A delegated session's notice replaces the plain line; a block without the payload draws as before.
+    if (block.delegation) {
+      return <MobileNativeChatDelegationNotice payload={block.delegation} />
+    }
     if (isAgentSessionProviderContextBoundary(block.contextClear)) {
       return (
         <View style={styles.contextBoundary}>
