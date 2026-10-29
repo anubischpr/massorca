@@ -11,14 +11,12 @@ import { dropUntouchedPins, type PrototypeSetState } from './prototype-set-state
 // plan under review, the send, and the merged direction joining the set as the main. Stars and the
 // merge ending when the user navigates away live in prototype-set-state.ts.
 
-/** Merge needs two stars, no merge under way, and a letter free for the result. */
+/**
+ * Merge needs two stars, no merge under way, and a letter free for the result. A merge already sent
+ * does not hold the next one: if its direction never shows up, the user can ask again.
+ */
 export function canMerge(state: PrototypeSetState, nextLetter: string | null): boolean {
-  return (
-    state.starred.length >= 2 &&
-    state.merge === null &&
-    state.mergeInto === null &&
-    nextLetter !== null
-  )
+  return state.starred.length >= 2 && state.merge === null && nextLetter !== null
 }
 
 /** The suggestion request goes out: the main area is blank until the plan arrives. */
@@ -26,7 +24,7 @@ export function beginMerge(
   state: PrototypeSetState,
   request: { planId: string; baseline: string | null }
 ): PrototypeSetState {
-  if (state.starred.length < 2 || state.merge !== null || state.mergeInto !== null) {
+  if (state.starred.length < 2 || state.merge !== null) {
     return state
   }
   return {

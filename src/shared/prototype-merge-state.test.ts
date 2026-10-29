@@ -171,9 +171,9 @@ describe('sending the merge', () => {
     expect(canSendMerge(state)).toBe(true)
   })
 
-  it('does not start a second merge while one waits for its direction', () => {
+  it('lets the user ask again while the merged direction has not shown up', () => {
     const sent = mergeSent(reviewing(), { letter: 'D', visibleMessage: 'Merge into D.' })
-    expect(canMerge(sent, 'E')).toBe(false)
+    expect(canMerge(sent, 'D')).toBe(true)
   })
 })
 
