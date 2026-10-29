@@ -32,6 +32,8 @@ export const MOBILE_AGENT_SESSION_RPC_METHODS = [
   'prototypes.list',
   'prototypes.readFile',
   'prototypes.readDesignSystem',
+  // The screenshot an iteration send attaches, written under the chat's prototype request folder.
+  'prototypes.writeAttachment',
   // No-ops on a current host; kept until MIN_COMPATIBLE_RUNTIME_CLIENT_VERSION passes the
   // mobile builds that still call them.
   'agentSession.hold',
