@@ -266,6 +266,6 @@ export function orcadTargetBlockerMessage(
     case 'orcad_migration_dependent_state':
       return dependentStateMessage(blocker.dependencies)
     case 'orcad_migration_dependency_unverifiable':
-      return `Orca could not read its saved ${blocker.sources.join(', ')} state, so it cannot show this SSH target is unused; the target was left in direct SSH mode.`
+      return `MassOrca could not read its saved ${blocker.sources.join(', ')} state, so it cannot show this SSH target is unused; the target was left in direct SSH mode.`
   }
 }

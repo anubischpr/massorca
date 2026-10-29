@@ -150,7 +150,7 @@ async function readRuntimeExecutable(path: string): Promise<string | undefined> 
 export function openCodeReaderUnavailableMessage(nodeVersion: string): string {
   return (
     `OpenCode history is unavailable on this host for now: its Node.js ${nodeVersion} has no ` +
-    'complete node:sqlite (22.16 or newer), and Orca has not installed its own Node reader here yet.'
+    'complete node:sqlite (22.16 or newer), and MassOrca has not installed its own Node reader here yet.'
   )
 }
 

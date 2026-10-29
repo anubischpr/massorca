@@ -162,7 +162,7 @@ export function assertLoadableHookTrustConfig(
 ): void {
   if (isLoadableToml(previous) && !isLoadableToml(contents)) {
     throw new CodexConfigTomlRefusedError(
-      `${configPath} defines hook approvals in a form Orca cannot add to without breaking it`
+      `${configPath} defines hook approvals in a form MassOrca cannot add to without breaking it`
     )
   }
 }

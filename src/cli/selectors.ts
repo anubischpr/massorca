@@ -128,7 +128,7 @@ export async function resolveCurrentWorktreeSelector(
   if (!enclosingWorktree) {
     throw new RuntimeClientError(
       'selector_not_found',
-      `No Orca-managed worktree contains the current directory: ${currentPath}`
+      `No MassOrca-managed worktree contains the current directory: ${currentPath}`
     )
   }
 

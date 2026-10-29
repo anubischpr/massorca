@@ -71,7 +71,7 @@ export async function assessOrcadMigrationTerminals(
       reason:
         attached.length > 0 || (relayPtyIds?.length ?? 0) > 0
           ? 'terminals on this host are still running'
-          : 'an earlier Orca relay still runs terminals on this host'
+          : 'an earlier MassOrca relay still runs terminals on this host'
     }
   }
   if (relayPtyIds === null) {
@@ -82,7 +82,7 @@ export async function assessOrcadMigrationTerminals(
     )
   }
   if (previousPtyIds === null) {
-    return refuse('unverifiable', unresolved, 'Orca could not confirm its terminals here exited')
+    return refuse('unverifiable', unresolved, 'MassOrca could not confirm its terminals here exited')
   }
   return await hostWideVerdict(leases, censusHost)
 }

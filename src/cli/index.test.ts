@@ -130,7 +130,7 @@ describe('command aliases dispatch to the canonical handler', () => {
     await main(['worktree', 'rm', '--worktree', 'id:wt-1'], '/tmp/repo')
 
     expect(logSpy).toHaveBeenCalledWith(
-      'removed: true\nOrca is still deleting the checkout in the background.'
+      'removed: true\nMassOrca is still deleting the checkout in the background.'
     )
   })
 
@@ -337,7 +337,7 @@ describe('unknown command surfaces a suggestion', () => {
 
     expect(process.exitCode).toBe(1)
     const stderr = errorSpy.mock.calls.map((call) => String(call[0])).join('\n')
-    expect(stderr).toContain('No Orca workspace matched the worktree selector "repo-1"')
+    expect(stderr).toContain('No MassOrca workspace matched the worktree selector "repo-1"')
     expect(stderr).toContain('id:repo-1::<absolute-path>')
     expect(stderr).toContain('Valid selector forms:')
   })
@@ -443,10 +443,10 @@ describe('orca root help', () => {
     await main([], '/tmp/repo')
 
     expect(logSpy.mock.calls.flat().join('\n')).toContain(
-      'account add               Add a managed agent account on this Orca host'
+      'account add               Add a managed agent account on this MassOrca host'
     )
     expect(logSpy.mock.calls.flat().join('\n')).toContain(
-      'account list              List managed agent accounts on this Orca host'
+      'account list              List managed agent accounts on this MassOrca host'
     )
     logSpy.mockRestore()
   })
@@ -502,7 +502,7 @@ describe('orca root help', () => {
       'orca terminal create --worktree active --command "codex"'
     )
     expect(logSpy.mock.calls[0][0]).toContain(
-      'orchestration worker-start Start a supervised worker locally or on a connected Orca server'
+      'orchestration worker-start Start a supervised worker locally or on a connected MassOrca server'
     )
     expect(logSpy.mock.calls[0][0]).toContain(
       'orchestration ask         Ask the coordinator a blocking question'
@@ -670,13 +670,13 @@ describe('orca root help', () => {
     expect(createHelp).not.toContain('checkout/workspace')
     expect(createHelp).not.toContain('caller workspace')
     expect(createHelp).not.toContain('current workspace')
-    expect(createHelp).not.toContain('active Orca workspace')
+    expect(createHelp).not.toContain('active MassOrca workspace')
     expect(createHelp).not.toContain('folderWorkspaceId')
     expect(createHelp).toContain('folder:<id>')
     expect(createHelp).toContain('folder:<folderId>')
     expect(createHelp).toContain('worktree:<worktreeId>')
     expect(createHelp).toContain(
-      '--no-parent only affects Orca lineage; omit --base-branch to use the repo default base'
+      '--no-parent only affects MassOrca lineage; omit --base-branch to use the repo default base'
     )
 
     logSpy.mockClear()

@@ -9,6 +9,7 @@ export type ClientEnvironmentInfo = {
 }
 
 const FOOTER_MARKER = '---'
+// Why: the footer line is a detection marker in feedback text written by earlier builds.
 const ORCA_LINE_PREFIX = 'Orca:'
 
 // Why: match the whole prefilled block (optional Shell line included) so strip

@@ -61,7 +61,7 @@ export async function collectManagedTerminalCensus(
           !status.ok ||
           !status.result.capabilities?.includes(ORCAD_TERMINAL_CENSUS_RUNTIME_CAPABILITY)
         ) {
-          throw new Error('The managed Orca server does not report a terminal census.')
+          throw new Error('The managed MassOrca server does not report a terminal census.')
         }
       },
       undefined,

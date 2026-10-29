@@ -11,7 +11,7 @@ export async function chooseLocalBuild(
     title: 'Choose a Local MassOrca Build',
     buttonLabel: 'Choose Build',
     properties: ['openFile'],
-    filters: [{ name: 'Orca update manifest', extensions: ['yml'] }]
+    filters: [{ name: 'MassOrca update manifest', extensions: ['yml'] }]
   }
   const selection = await (window
     ? dialog.showOpenDialog(window, openDialogOptions)
@@ -38,7 +38,7 @@ export async function chooseLocalBuild(
       type: 'question',
       title: 'Use Local MassOrca Build?',
       message: `${app.getVersion()} → ${candidate.version}`,
-      detail: `${terminalSummary}\nWorkspace cards and settings are compatible with state schema ${SCHEMA_VERSION}.\n\nThe build must have the same valid code signature as Orca or installation will stop.`,
+      detail: `${terminalSummary}\nWorkspace cards and settings are compatible with state schema ${SCHEMA_VERSION}.\n\nThe build must have the same valid code signature as MassOrca or installation will stop.`,
       buttons: ['Use Local Build', 'Cancel'],
       defaultId: 0,
       cancelId: 1,

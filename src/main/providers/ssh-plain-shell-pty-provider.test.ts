@@ -147,7 +147,7 @@ describe('SshPlainShellPtyProvider', () => {
   it('refuses relay-only launches with the plain SSH reason', async () => {
     const { provider, opened } = createProvider()
     await expect(provider.spawn({ cols: 80, rows: 24, launchAgent: 'claude' })).rejects.toThrow(
-      'needs the Orca remote server'
+      'needs the MassOrca remote server'
     )
     await expect(provider.spawn({ cols: 80, rows: 24, attachOnly: true })).rejects.toThrow(
       '(no_runtime)'

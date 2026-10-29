@@ -132,7 +132,7 @@ export class OrcadManagedTunnelManager {
     checks: OrcadTunnelStartChecks = {}
   ): Promise<number> {
     if (!target.generation) {
-      throw new Error('Managed Orca SSH target has no registration generation.')
+      throw new Error('Managed MassOrca SSH target has no registration generation.')
     }
     const managerGeneration = this.managerGeneration
     const ownershipGeneration = (this.ownershipGenerations.get(environmentId) ?? 0) + 1
@@ -230,16 +230,16 @@ export class OrcadManagedTunnelManager {
     const targetStore = this.dependencies.getTargetStore()
     const connectionManager = this.dependencies.getConnectionManager()
     if (!targetStore || !connectionManager) {
-      throw new Error('SSH is unavailable on this client; the managed Orca server is unverifiable.')
+      throw new Error('SSH is unavailable on this client; the managed MassOrca server is unverifiable.')
     }
     const target = targetStore.getTarget(deployment.sshTargetId)
     if (!target || target.generation !== deployment.sshTargetGeneration) {
       throw new Error(
-        'The SSH registration for this managed Orca server was removed or re-created.'
+        'The SSH registration for this managed MassOrca server was removed or re-created.'
       )
     }
     if (getManagedOrcadFenceEnvironmentId(target) !== environment.id) {
-      throw new Error('The SSH target is no longer owned by this managed Orca server.')
+      throw new Error('The SSH target is no longer owned by this managed MassOrca server.')
     }
 
     const managerGeneration = this.managerGeneration
@@ -288,7 +288,7 @@ export class OrcadManagedTunnelManager {
       connection,
       forwards: this.forwards,
       localPort: deployment.localPort,
-      label: `Managed Orca server: ${environment.name}`,
+      label: `Managed MassOrca server: ${environment.name}`,
       ...checks,
       stillCurrent: () => stillOwned() && connection.getConnectGeneration() === transportGeneration
     })

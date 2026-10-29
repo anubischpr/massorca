@@ -74,7 +74,7 @@ export function applyCodexDaemonSocketGuard(
     // Why: an inline `features = {...}` or `[[features]]` blocks the upsert; say so once instead of failing silently.
     unguardableHomesWarned.add(homePath)
     console.warn(
-      `[codex-config] Could not turn off Codex daemon auto-start in ${homePath}: its config defines features in a form Orca cannot extend. Codex may fail with "path must be shorter than SUN_LEN"; add daemon_auto_start = false to features in ~/.codex/config.toml.`
+      `[codex-config] Could not turn off Codex daemon auto-start in ${homePath}: its config defines features in a form MassOrca cannot extend. Codex may fail with "path must be shorter than SUN_LEN"; add daemon_auto_start = false to features in ~/.codex/config.toml.`
     )
   }
   return guarded

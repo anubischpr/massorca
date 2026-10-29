@@ -4,7 +4,7 @@ import { GLOBAL_FLAGS } from '../args'
 export const ENVIRONMENT_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['host', 'name'],
-    summary: 'Show or set the name this Orca runtime reports to connected clients',
+    summary: 'Show or set the name this MassOrca runtime reports to connected clients',
     usage: 'orca host name [--name <name>] [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'name'],
     notes: [
@@ -15,30 +15,30 @@ export const ENVIRONMENT_COMMAND_SPECS: CommandSpec[] = [
   },
   {
     path: ['host', 'list'],
-    summary: 'List every machine this Orca host can target, and how to name each one',
+    summary: 'List every machine this MassOrca host can target, and how to name each one',
     usage: 'orca host list [--json]',
     allowedFlags: [...GLOBAL_FLAGS],
     notes: [
-      'Answers "what can I target and what do I pass" in one place: this machine, the SSH targets registered on it, and the Orca servers paired with it.',
-      'The three kinds are reached differently. A paired Orca server is a connection, selected with --environment <name>. An SSH target is a machine the connected Orca host reaches, selected with --host ssh:<id>. Passing one where the other belongs is the most common way to get an empty or missing-host answer.',
+      'Answers "what can I target and what do I pass" in one place: this machine, the SSH targets registered on it, and the MassOrca servers paired with it.',
+      'The three kinds are reached differently. A paired MassOrca server is a connection, selected with --environment <name>. An SSH target is a machine the connected MassOrca host reaches, selected with --host ssh:<id>. Passing one where the other belongs is the most common way to get an empty or missing-host answer.',
       'SSH rows include the detected remote platform after that target has connected (linux, darwin, or win32); disconnected or older targets report platform unknown.',
       'SSH rows also include whether the target is currently connected and its lifecycle status when known.',
       'Paired-server rows come from the pairing store and report platform unknown; ask one server directly with `orca host name --environment <name>`.',
-      "SSH targets are read from this machine's own Orca runtime, so this lists that machine's targets and not another server's. Run `orca host list` on the other machine to see the targets registered there.",
+      "SSH targets are read from this machine's own MassOrca runtime, so this lists that machine's targets and not another server's. Run `orca host list` on the other machine to see the targets registered there.",
       '--environment and --pairing-code are rejected rather than ignored: paired servers come from this machine\u2019s pairing store, so a routed answer would describe two machines at once.'
     ],
     examples: ['orca host list', 'orca host list --json']
   },
   {
     path: ['environment', 'add'],
-    summary: 'Save a remote Orca runtime environment from a pairing code',
+    summary: 'Save a remote MassOrca runtime environment from a pairing code',
     usage: 'orca environment add --name <name> --pairing-code <code> [--json]',
     allowedFlags: [...GLOBAL_FLAGS, 'name'],
     examples: ['orca environment add --name work-laptop --pairing-code orca://pair?code=...']
   },
   {
     path: ['environment', 'list'],
-    summary: 'List saved Orca runtime environments',
+    summary: 'List saved MassOrca runtime environments',
     usage: 'orca environment list [--json]',
     allowedFlags: [...GLOBAL_FLAGS],
     notes: [
@@ -47,14 +47,14 @@ export const ENVIRONMENT_COMMAND_SPECS: CommandSpec[] = [
   },
   {
     path: ['environment', 'show'],
-    summary: 'Show one saved Orca runtime environment',
+    summary: 'Show one saved MassOrca runtime environment',
     usage: 'orca environment show --environment <selector> [--json]',
     allowedFlags: [...GLOBAL_FLAGS]
   },
   {
     path: ['environment', 'rm'],
     destructive: true,
-    summary: 'Remove one saved Orca runtime environment',
+    summary: 'Remove one saved MassOrca runtime environment',
     usage: 'orca environment rm --environment <selector> [--json]',
     allowedFlags: [...GLOBAL_FLAGS]
   }

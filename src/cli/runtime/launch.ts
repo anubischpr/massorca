@@ -79,7 +79,7 @@ export function launchOrcaApp(): void {
 
   throw new RuntimeClientError(
     'runtime_open_failed',
-    'Could not determine how to launch Orca. Start Orca manually and try again.'
+    'Could not determine how to launch MassOrca. Start MassOrca manually and try again.'
   )
 }
 
@@ -253,7 +253,7 @@ export function resolveForegroundOrcaExecutable(): string {
   }
   throw new RuntimeClientError(
     'runtime_serve_failed',
-    'Could not determine how to start Orca server. Set ORCA_APP_EXECUTABLE to the Orca executable.'
+    'Could not determine how to start MassOrca server. Set ORCA_APP_EXECUTABLE to the MassOrca executable.'
   )
 }
 

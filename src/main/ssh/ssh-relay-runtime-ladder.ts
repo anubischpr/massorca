@@ -146,36 +146,36 @@ export type RemoteRuntimeUnavailableReason = (typeof REMOTE_RUNTIME_UNAVAILABLE_
 
 const REMOTE_RUNTIME_UNAVAILABLE_MESSAGES: Record<RemoteRuntimeUnavailableReason, string> = {
   home_noexec:
-    "Orca can't run its remote runtime on this host: the home directory is mounted noexec, so " +
+    "MassOrca can't run its remote runtime on this host: the home directory is mounted noexec, so " +
     'nothing under ~/.orca-remote may execute. Remote terminals and file browsing are ' +
     'unavailable until an administrator allows exec there.',
   no_runtime:
-    "Orca can't run its remote runtime on this host: its bundled Node.js was refused and no " +
+    "MassOrca can't run its remote runtime on this host: its bundled Node.js was refused and no " +
     'Node.js 18 or newer with npm was found on the host. Install Node.js 18+ and npm on the ' +
     'host, then reconnect.'
 }
 
 // Why its own wording: a host Node would load addons from the same noexec tree, so installing one cannot help.
 const REMEMBERED_NOEXEC_MESSAGE =
-  "Orca can't run its remote runtime on this host: an earlier connect found the home directory " +
+  "MassOrca can't run its remote runtime on this host: an earlier connect found the home directory " +
   'mounted noexec, so nothing under ~/.orca-remote may execute. Remote terminals and file ' +
-  'browsing are unavailable until exec is allowed there; Orca re-checks on the next connect.'
+  'browsing are unavailable until exec is allowed there; MassOrca re-checks on the next connect.'
 
 const WINDOWS_NO_HOST_NODE_MESSAGE =
-  "Orca can't run its remote runtime on this Windows host: its bundled Node.js could not run, " +
+  "MassOrca can't run its remote runtime on this Windows host: its bundled Node.js could not run, " +
   'and no Node.js 18 or newer with npm was found on the host to run on instead. Allow ' +
-  "Orca's Node.js through security software or application control, or install Node.js 18+ " +
+  "MassOrca's Node.js through security software or application control, or install Node.js 18+ " +
   'on the host, then reconnect.'
 
 // Why its own wording: the bundled Node never reached the host, so nothing about the host refused it.
 const CLIENT_ARTIFACTS_NO_HOST_NODE_MESSAGE =
-  "Orca can't run its remote runtime on this host: this copy of Orca could not prepare its bundled " +
+  "MassOrca can't run its remote runtime on this host: this copy of MassOrca could not prepare its bundled " +
   'Node.js, and no Node.js 18 or newer was found on the host to run on instead. Install Node.js ' +
-  '18+ and npm on the host, or reconnect once Orca can fetch its runtime.'
+  '18+ and npm on the host, or reconnect once MassOrca can fetch its runtime.'
 
 // Why its own wording: the unsupported host-Node fallback ran and the host answered it with a failure.
 const HOST_NODE_FALLBACK_FAILED_MESSAGE =
-  "Orca can't run its remote runtime on this host: its bundled Node.js was refused, and the " +
+  "MassOrca can't run its remote runtime on this host: its bundled Node.js was refused, and the " +
   "host's own Node.js relay, an unsupported fallback, also failed to install. Check the host's " +
   'disk space and its Node.js and npm setup, then reconnect.'
 
@@ -203,13 +203,13 @@ function unavailableMessage(
   { firstRefusal, hostNodeRefusal, noexec, hostOs }: RemoteRuntimeUnavailableState
 ): string {
   if (firstRefusal === 'artifacts_unavailable' && hostNodeRefusal === 'host_node_missing') {
-    return `${CLIENT_ARTIFACTS_NO_HOST_NODE_MESSAGE} (Orca's Node: ${firstRefusal})`
+    return `${CLIENT_ARTIFACTS_NO_HOST_NODE_MESSAGE} (MassOrca's Node: ${firstRefusal})`
   }
   if (hostNodeRefusal === 'install_failed' && reason !== 'home_noexec') {
-    return `${HOST_NODE_FALLBACK_FAILED_MESSAGE} (Orca's Node: ${firstRefusal ?? 'none'})`
+    return `${HOST_NODE_FALLBACK_FAILED_MESSAGE} (MassOrca's Node: ${firstRefusal ?? 'none'})`
   }
   if (hostOs === 'win32') {
-    return `${WINDOWS_NO_HOST_NODE_MESSAGE} (Orca's Node: ${firstRefusal ?? 'none'})`
+    return `${WINDOWS_NO_HOST_NODE_MESSAGE} (MassOrca's Node: ${firstRefusal ?? 'none'})`
   }
   if (reason === 'home_noexec') {
     return noexec === 'remembered'
@@ -217,5 +217,5 @@ function unavailableMessage(
       : REMOTE_RUNTIME_UNAVAILABLE_MESSAGES.home_noexec
   }
   const base = REMOTE_RUNTIME_UNAVAILABLE_MESSAGES.no_runtime
-  return firstRefusal ? `${base} (Orca's Node: ${firstRefusal})` : base
+  return firstRefusal ? `${base} (MassOrca's Node: ${firstRefusal})` : base
 }

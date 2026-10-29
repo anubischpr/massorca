@@ -133,7 +133,7 @@ async function getCreateRepoSelector(
   }
   throw new RuntimeClientError(
     'invalid_argument',
-    'Missing repo selector. Pass --repo or run from inside an Orca-managed worktree.'
+    'Missing repo selector. Pass --repo or run from inside a MassOrca-managed worktree.'
   )
 }
 
@@ -282,7 +282,7 @@ export const WORKTREE_HANDLERS: Record<string, CommandHandler> = {
     if (!hostId) {
       throw new RuntimeClientError(
         'worktree_host_unresolved',
-        'Orca cannot tell which host owns this workspace. Refresh projects and try again.'
+        'MassOrca cannot tell which host owns this workspace. Refresh projects and try again.'
       )
     }
     // Why (#19334): the waiver only ever applies to a hook that ran, so without --run-hooks it
@@ -308,7 +308,7 @@ export const WORKTREE_HANDLERS: Record<string, CommandHandler> = {
     printPreservedBranchWarning(result.result, json)
     printResult(result, json, (value) =>
       value.removing
-        ? `removed: ${value.removed}\nOrca is still deleting the checkout in the background.`
+        ? `removed: ${value.removed}\nMassOrca is still deleting the checkout in the background.`
         : `removed: ${value.removed}`
     )
   }

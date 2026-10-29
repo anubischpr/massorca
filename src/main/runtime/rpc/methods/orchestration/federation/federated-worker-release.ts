@@ -122,7 +122,7 @@ export async function releaseFederatedWorker(args: {
     const detail = error instanceof Error ? error.message : String(error)
     return {
       ...receipt,
-      lastError: `The execution host acknowledged ${remote.state}, but Orca could not apply the confirmed release to the home projection: ${detail}`,
+      lastError: `The execution host acknowledged ${remote.state}, but MassOrca could not apply the confirmed release to the home projection: ${detail}`,
       recovery: confirmedReleaseProjectionRecovery(args.dispatchId)
     }
   }

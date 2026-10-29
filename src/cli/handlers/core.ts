@@ -71,7 +71,7 @@ export const CORE_HANDLERS: Record<string, CommandHandler> = {
     if (!paneKey) {
       throw new RuntimeClientError(
         'invalid_environment',
-        'orca claude-teams must be run inside an Orca terminal.'
+        'orca claude-teams must be run inside a MassOrca terminal.'
       )
     }
     const inheritedEnv = envRecord()

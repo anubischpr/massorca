@@ -46,11 +46,11 @@ function posixCdTarget(path: string): string {
 }
 
 export function plainSshTerminalNotice(mode: SshPlainSshMode): string {
-  return `\x1b[2m[Orca] Plain SSH terminal: ${mode.message}\x1b[0m\r\n`
+  return `\x1b[2m[MassOrca] Plain SSH terminal: ${mode.message}\x1b[0m\r\n`
 }
 
 const LOST_NOTICE =
-  '\r\n\x1b[2m[Orca] The SSH connection closed before the shell reported an exit; its state on ' +
+  '\r\n\x1b[2m[MassOrca] The SSH connection closed before the shell reported an exit; its state on ' +
   'the host is unverifiable. Plain SSH terminals are not restored on reconnect.\x1b[0m\r\n'
 
 export class SshPlainShellPtyProvider implements IPtyProvider {

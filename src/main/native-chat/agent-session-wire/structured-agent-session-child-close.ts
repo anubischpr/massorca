@@ -32,7 +32,7 @@ export async function joinStructuredAgentSessionChildClose(
   }
   await context.endExitedChild(sessionId, child, {
     expected: true,
-    reason: 'closed by Orca',
+    reason: 'closed by MassOrca',
     ...(unanswered ? { startupUnanswered: true } : {})
   })
   context.restartWitness?.stopped(sessionId)
@@ -44,7 +44,7 @@ export function previousExitUnverifiableRefusal(): AgentSessionWireRefusal {
   return refuse(
     'agent_session_ownership_unknown',
     { reason: 'previousExitUnverifiable', ownerVerdict: 'unverifiable' },
-    "Orca could not prove this chat's previous agent process exited."
+    "MassOrca could not prove this chat's previous agent process exited."
   )
 }
 

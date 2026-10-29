@@ -71,7 +71,7 @@ export function lookupCodexHookAnswer(
     return Promise.resolve(
       readMemoizedCodexHookAnswer(codexPath, command, fingerprint) ?? {
         kind: 'pending',
-        failure: 'Orca has not asked Codex yet'
+        failure: 'MassOrca has not asked Codex yet'
       }
     )
   }
@@ -151,7 +151,7 @@ export const CODEX_ANSWER_AWAITED: CodexHookAnswer = {
 function codexNotFound(codexPath: string): CodexHookAnswer {
   return {
     kind: 'pending',
-    failure: `Orca could not find Codex at ${codexPath}`,
+    failure: `MassOrca could not find Codex at ${codexPath}`,
     codexMissing: true
   }
 }

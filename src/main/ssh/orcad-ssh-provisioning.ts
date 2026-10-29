@@ -86,7 +86,7 @@ export function createOrcadSshHost(
         result: {
           outcome: 'pending',
           reason:
-            'This host already has Orca projects, so it was restored as a direct SSH host. ' +
+            'This host already has MassOrca projects, so it was restored as a direct SSH host. ' +
             'A managed server can only be created on an empty host.'
         }
       }

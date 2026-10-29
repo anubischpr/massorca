@@ -114,7 +114,7 @@ describe('Orca cloud PKCE flow', () => {
     const response = await readHttp(callbackUrl(redirectUri, { error: 'access_denied', state }))
 
     expect(response.statusCode).toBe(400)
-    expect(response.body).toBe('Orca sign-in was cancelled.')
+    expect(response.body).toBe('MassOrca sign-in was cancelled.')
     await expect(observedFlow).resolves.toMatchObject({ message: 'orca_cloud_auth_denied' })
   })
 
@@ -125,7 +125,7 @@ describe('Orca cloud PKCE flow', () => {
       const observedFlow = flow.catch((failure: unknown) => failure)
       const response = await readHttp(callbackUrl(redirectUri, { error, state }))
       expect(response.statusCode).toBe(400)
-      expect(response.body).toBe('Orca sign-in failed. Return to Orca and try again.')
+      expect(response.body).toBe('MassOrca sign-in failed. Return to MassOrca and try again.')
       await expect(observedFlow).resolves.toMatchObject({
         message: 'orca_cloud_auth_callback_failed'
       })

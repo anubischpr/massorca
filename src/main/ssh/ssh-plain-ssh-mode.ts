@@ -36,7 +36,7 @@ export class PlainSshUnsupportedError extends Error {
 
   constructor(feature: string, mode: SshPlainSshMode | undefined) {
     const reason = mode ? ` (${mode.reason})` : ''
-    super(`${feature} needs the Orca remote server, which is not running on this host${reason}.`)
+    super(`${feature} needs the MassOrca remote server, which is not running on this host${reason}.`)
     this.name = 'PlainSshUnsupportedError'
   }
 }

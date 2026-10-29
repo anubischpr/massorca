@@ -509,7 +509,7 @@ async function deployAndLaunchRelayAttempt(
     runtimeRequest.run.host ?? (await detectRemoteHostPlatform(conn, { signal: deploySignal }))
   if (!hostPlatform) {
     throw new Error(
-      'Unsupported remote platform. Orca relay supports: linux-x64, linux-arm64, darwin-x64, darwin-arm64, win32-x64, win32-arm64.'
+      'Unsupported remote platform. MassOrca relay supports: linux-x64, linux-arm64, darwin-x64, darwin-arm64, win32-x64, win32-arm64.'
     )
   }
   const platform = hostPlatform.relayPlatform
@@ -519,7 +519,7 @@ async function deployAndLaunchRelayAttempt(
   if (!localRelayDir) {
     throw new Error(
       `Relay package for ${platform} not found locally. ` +
-        `This may be a packaging issue — try reinstalling Orca.`
+        `This may be a packaging issue — try reinstalling MassOrca.`
     )
   }
   // Why: content-hashed version doubles as remote dir name and wire-handshake version; throws on missing rather than falling back (see docs/ssh-relay-versioned-install-dirs.md).
@@ -611,7 +611,7 @@ async function deployAndLaunchRelayOnRuntime({
     : undefined
   let uploadStageIdentity: WindowsUploadStageIdentity | undefined
   if (pinnedContext?.plan.kind === 'pinned-node') {
-    onProgress?.('Checking Orca Node runtime...')
+    onProgress?.('Checking MassOrca Node runtime...')
     await ensurePinnedRelayRuntime({ ...pinnedContext, plan: pinnedContext.plan }, alreadyInstalled)
     // Why: once node.exe is verified, stage fencing reads file IDs through it, not Add-Type (D5).
     uploadStageIdentity = { node: prebuiltRelayNodePath(pinnedContext) }
@@ -991,7 +991,7 @@ async function uploadRelay(
   if (!localRelayDir || !existsSync(localRelayDir)) {
     throw new Error(
       `Relay package for ${platform} not found. Searched: ${getLocalRelayCandidates(platform).join(', ')}. ` +
-        `This may be a packaging issue — try reinstalling Orca.`
+        `This may be a packaging issue — try reinstalling MassOrca.`
     )
   }
 
