@@ -130,5 +130,18 @@ export const ORCHESTRATION_WORKER_COMMAND_SPECS: CommandSpec[] = [
       'Returns at most 100 local rows, newest first, by default; --include-remote adds connected-server observations when the host supports fleet listing. Continue with the opaque page.nextCursor value unchanged.',
       'Without --run the list is scoped to the Run bound to the calling terminal, and to every Run when there is no binding; the receipt reports which in scope.source (flag, bound, or all).'
     ]
+  },
+  {
+    path: ['orchestration', 'delegate'],
+    summary: 'Ask which agent should run a child session of this chat',
+    usage:
+      'orca orchestration delegate --summary <abstract> --prompt <task text> [--title <name>] [--writes] [--retry-request <id>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'summary', 'prompt', 'title', 'writes', 'retry-request'],
+    notes: [
+      'Only an Orca chat session can delegate: the chat is the caller, and a card in it asks the person which agent (or Automatic) should run the child. The command returns at once with the request ID; it never waits for the choice.',
+      '--summary is a one-line abstract of at most 160 characters that the router uses to pick a model and effort. Describe the kind of work, not the repository: no secrets, credentials, personal data, file paths, or project names. Put the full task in --prompt.',
+      '--writes says the child will edit code, so it runs in a new worktree (a folder workspace runs in place). Omit it for read-only work.',
+      'The child inherits this chat access mode and never gets a wider one. When it finishes, its result reaches this chat as a message.'
+    ]
   }
 ]
