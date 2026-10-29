@@ -12,6 +12,13 @@ const FOLDER = '/work/visuals/prototypes/20261028-201500-k3f9q2'
 const REQUEST_ID = '20261028-201500-k3f9q2'
 const MARKER = `<!-- orca-prototype-request:${REQUEST_ID} -->`
 const ONE_LINE = buildPrototypeCountLine(1)
+const TYPED_NOTE =
+  'The lines below repeat the message as the user typed it; ignore the command word at their start.'
+
+/** What follows the instruction when the agent's text differs from the typed one. */
+function typedEcho(typed: string): string {
+  return [TYPED_NOTE, '<!-- orca-prototype-typed -->', typed].join('\n')
+}
 const TWO_LINE = buildPrototypeCountLine(2)
 
 const TWO_DIRECTIONS = [
@@ -157,7 +164,7 @@ describe('buildPrototypeRequestMessage', () => {
       })
     ).toEqual({
       visibleText: '/prototype make a login page',
-      sentText: `make a login page\n\n${MARKER}\n${TWO_DIRECTIONS}`
+      sentText: `make a login page\n\n${MARKER}\n${TWO_DIRECTIONS}\n${typedEcho('/prototype make a login page')}`
     })
   })
 
@@ -186,12 +193,12 @@ describe('buildPrototypeRequestMessage', () => {
       })
     ).toEqual({
       visibleText: '/prototype make a login page',
-      sentText: `/gentle:design make a login page\n\n${MARKER}\n${buildPrototypeCountLine(3)}`
+      sentText: `/gentle:design make a login page\n\n${MARKER}\n${buildPrototypeCountLine(3)}\n${typedEcho('/prototype make a login page')}`
     })
     expect(
       buildPrototypeRequestMessage({ ...base, text: '/prototipo', agent: 'gentle-shell', count: 1 })
         .sentText
-    ).toBe(`/gentle:design\n\n${MARKER}\n${ONE_LINE}`)
+    ).toBe(`/gentle:design\n\n${MARKER}\n${ONE_LINE}\n${typedEcho('/prototipo')}`)
   })
 
   it('sends /prototype on Gentle Shell as the plain instruction when it would be a control subcommand', () => {
@@ -202,7 +209,7 @@ describe('buildPrototypeRequestMessage', () => {
         agent: 'gentle-shell',
         count: 2
       }).sentText
-    ).toBe(`stop\n\n${MARKER}\n${TWO_LINE}`)
+    ).toBe(`stop\n\n${MARKER}\n${TWO_LINE}\n${typedEcho('/prototype stop')}`)
   })
 
   it('leaves a typed Gentle Shell design command as written and adds the count line', () => {
@@ -261,7 +268,8 @@ describe('buildPrototypeRequestMessage', () => {
         ONE_LINE,
         'Write it with inline CSS and no external network resources, at this exact path:',
         `${FOLDER}/A.html`,
-        'Write nothing else in that folder. Do not announce this file as a chat visual. Reply with one line: its letter, a short name, and a one-line tradeoff.'
+        'Write nothing else in that folder. Do not announce this file as a chat visual. Reply with one line: its letter, a short name, and a one-line tradeoff.',
+        typedEcho('/prototype a login page')
       ].join('\n')
     )
   })
@@ -291,11 +299,9 @@ describe('buildPrototypeRequestMessage', () => {
       agent: 'claude',
       count: 2
     }).sentText
-    expect(
-      antigravity.endsWith(
-        '\nDo not use Stitch MCP for this request; write the local HTML files instead.'
-      )
-    ).toBe(true)
+    expect(antigravity).toContain(
+      '\nDo not use Stitch MCP for this request; write the local HTML files instead.\n'
+    )
     expect(claude).not.toContain('Stitch')
   })
 
@@ -384,6 +390,51 @@ describe('buildPrototypeRequestMessage', () => {
   })
 })
 
+describe('the typed text the chat shows', () => {
+  const base = { requestId: REQUEST_ID, folderPath: FOLDER }
+
+  it.each(['claude', 'codex', 'antigravity', 'gentle-shell', 'other'] as const)(
+    'is exactly what was typed for a /prototype on %s, command word included',
+    (agent) => {
+      for (const typed of [
+        '/prototype make a login page',
+        '  /prototipo hazme un login \n',
+        '/prototype'
+      ]) {
+        const { sentText } = buildPrototypeRequestMessage({ ...base, text: typed, agent, count: 2 })
+        expect(splitPrototypeHiddenInstruction(sentText)).toEqual({
+          visibleText: typed.trim(),
+          hidden: { kind: 'request', requestId: REQUEST_ID }
+        })
+      }
+    }
+  )
+
+  it('is the text before the marker for a keyword or a native command, which the agent gets as typed', () => {
+    for (const [agent, typed] of [
+      ['codex', 'Make a mockup of the page'],
+      ['claude', '/design a login page'],
+      ['gentle-shell', '/gentle:design a login page']
+    ] as const) {
+      const { sentText } = buildPrototypeRequestMessage({ ...base, text: typed, agent, count: 2 })
+      expect(sentText.startsWith(`${typed}\n\n${MARKER}`)).toBe(true)
+      expect(sentText).not.toContain('orca-prototype-typed')
+      expect(splitPrototypeHiddenInstruction(sentText).visibleText).toBe(typed)
+    }
+  })
+
+  it('tells the agent to ignore the command word of the echo, which comes after the instruction', () => {
+    const { sentText } = buildPrototypeRequestMessage({
+      ...base,
+      text: '/prototype make a login page',
+      agent: 'claude',
+      count: 2
+    })
+    expect(sentText.startsWith('make a login page\n\n')).toBe(true)
+    expect(sentText.endsWith(typedEcho('/prototype make a login page'))).toBe(true)
+  })
+})
+
 describe('buildPrototypeIterationInstruction', () => {
   const base = { requestId: REQUEST_ID, folderPath: FOLDER }
 
@@ -458,6 +509,29 @@ describe('splitPrototypeHiddenInstruction', () => {
       visibleText: 'hello',
       hidden: { kind: 'request', requestId: REQUEST_ID }
     })
+  })
+
+  it('reads the typed echo as the visible text, whatever the agent text before it was', () => {
+    const text = [
+      'make a login page',
+      '',
+      MARKER,
+      TWO_LINE,
+      TYPED_NOTE,
+      '<!-- orca-prototype-typed -->',
+      '/prototype make a login page'
+    ].join('\n')
+    expect(splitPrototypeHiddenInstruction(text)).toEqual({
+      visibleText: '/prototype make a login page',
+      hidden: { kind: 'request', requestId: REQUEST_ID }
+    })
+  })
+
+  it('ignores a typed marker that comes before the request marker', () => {
+    const text = `hello\n<!-- orca-prototype-typed -->\nthere\n${MARKER}\nProduce`
+    expect(splitPrototypeHiddenInstruction(text).visibleText).toBe(
+      'hello\n<!-- orca-prototype-typed -->\nthere'
+    )
   })
 
   it('needs the marker to be a whole line', () => {

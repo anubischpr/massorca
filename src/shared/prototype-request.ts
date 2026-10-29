@@ -2,7 +2,8 @@
 import { buildPrototypeCountLine, clampPrototypeCount } from './prototype-count-setting'
 import {
   prototypeIterationMarkerLine,
-  prototypeRequestMarkerLine
+  prototypeRequestMarkerLine,
+  prototypeTypedMarkerLine
 } from './prototype-hidden-instruction'
 import { directionLetter, prototypeFileName } from './prototype-request-folder'
 import { hasPrototypeKeyword } from './prototype-request-lexicon'
@@ -58,6 +59,11 @@ export function classifyPrototypeRequest(text: string, agent: PrototypeAgent): P
   }
   return hasPrototypeKeyword(text) ? { kind: 'keyword' } : { kind: 'none' }
 }
+
+// Last line of the agent's instruction when the typed text follows it: that text starts with a
+// command word the agent must not act on.
+const TYPED_ECHO_NOTE =
+  'The lines below repeat the message as the user typed it; ignore the command word at their start.'
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/u
 
@@ -123,7 +129,14 @@ function sentTextFor(request: PrototypeRequest, input: PrototypeRequestInput): s
     directionInstruction(directions, folderPath, agent)
   ].join('\n')
   if (request.kind === 'command' && MASSORCA_COMMANDS.includes(request.command)) {
-    return withBody(gentleShellDesignCommand(request.rest, agent) ?? request.rest, hidden)
+    // The agent gets the text without the MassOrca command word, which no agent knows, or the
+    // Gentle Shell design command; the chat shows the typed text, echoed at the end.
+    const typed = [TYPED_ECHO_NOTE, prototypeTypedMarkerLine(), text.trim()].join('\n')
+    return withBody(
+      gentleShellDesignCommand(request.rest, agent) ?? request.rest,
+      `${hidden}
+${typed}`
+    )
   }
   return withBody(text.trim(), hidden)
 }

@@ -40,6 +40,7 @@ import { readAgentMessageSource } from './agent-session-message-source'
 import { structuredAgentSessionStatusStartedAt } from './structured-agent-session-status-started-at'
 import { owesStructuredAgentSessionWork } from './structured-agent-session-owed-work'
 import { agentSessionCurrentContextRows } from './agent-session-context-clear'
+import { withoutPrototypeHiddenInstruction } from './prototype-hidden-blocks'
 
 // Re-exported so the live-turn readers' and the unanswered-send rule's existing consumers keep one
 // import site.
@@ -75,7 +76,10 @@ function itemBlocks(item: AgentJournalRenderItem): {
 } | null {
   const body = item.body
   if (body.kind === 'message') {
-    return { role: body.role, blocks: body.blocks }
+    return {
+      role: body.role,
+      blocks: body.role === 'user' ? withoutPrototypeHiddenInstruction(body.blocks) : body.blocks
+    }
   }
   if (isStructuredAgentSessionToolAction(body)) {
     const call = structuredAgentSessionToolCallBlock(body, item.itemId)
