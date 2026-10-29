@@ -58,6 +58,8 @@ Prototype: https://claude.ai/artifact/MXai3HzR88MwEWf7FK2Tfy (4 artboards). Stri
 - Base: `custom/pv27-unified` @ `70da7fa23f3`.
 - T1 done (`2cbd68d0f12`, ~1000 changed lines, mostly tests). Host op `repo.initGit` (params `{ repo }`, result `{ ok: true, repo } | { ok: false, error, message? }`), capability `repo.init-git.v1`. Local and SSH folders both run through the runtime (`initializeGitInFolderRepo`); no separate IPC. Renderer API: `runtimeRepoSupportsGitInit(settings, hostId?)` and `initializeRuntimeRepoGit(settings, repoId, hostId?)` in `src/renderer/src/runtime/runtime-repo-git-init-client.ts`. Relay exec validator now allows the exact fallback-author `-c` commit.
   - Evidence: new tests (init service local+SSH, controller, RPC method, renderer client, relay validator) 159 passed; `pnpm tc` ok; changed-code quality gate (base `HEAD`) 0 findings; `verify:rpc-params-catalog` ok. `folder-repo-git-upgrade*.test.ts` cannot run on this Windows box (symlink EPERM, unrelated to the change).
+  - Parent spot check: `runtime-folder-git-initialization.test.ts` + `runtime-repo-git-init-client.test.ts` 18 passed.
+  - RDD: assessed high (`process_boundary`), consent granted per standing rule; the bound STATUS hit `operation_timeout`, so lineage `review-cce108eb4951f8d5` was abandoned (stuck-review rule). Unreviewed. Boundary stays `70da7fa23f3`.
 
 ## Next step
 
