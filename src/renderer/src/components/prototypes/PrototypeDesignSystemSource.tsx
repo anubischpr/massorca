@@ -7,6 +7,7 @@ import {
   previousVersionOf
 } from '../../../../shared/prototype-design-system-view'
 import { designSystemStatusWord } from './prototype-design-system-labels'
+import { keyedEntries } from './prototype-entry-keys'
 import type { DesignSystemPanelProps } from './prototype-design-system-props'
 
 /**
@@ -50,15 +51,14 @@ export function PrototypeDesignSystemSource({
           <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
             {translate('components.prototypes.designSystem.detectedFrom', 'Detected from')}
           </span>
-          {content.meta.sources.map((source, index) => (
-            <div
-              key={`${index}:${source.path}`}
-              className="flex flex-col gap-1 rounded-lg border border-border p-3"
-            >
-              <span className="font-mono text-xs">{source.path}</span>
-              <span className="text-xs text-muted-foreground">{source.took}</span>
-            </div>
-          ))}
+          {keyedEntries(content.meta.sources, (source) => source.path).map(
+            ({ key, entry: source }) => (
+              <div key={key} className="flex flex-col gap-1 rounded-lg border border-border p-3">
+                <span className="font-mono text-xs">{source.path}</span>
+                <span className="text-xs text-muted-foreground">{source.took}</span>
+              </div>
+            )
+          )}
         </>
       )}
       <span className="text-xs text-muted-foreground">{versionLine}</span>

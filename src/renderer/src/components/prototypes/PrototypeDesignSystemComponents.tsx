@@ -21,6 +21,7 @@ import {
   type DesignSystemViewState
 } from '../../../../shared/prototype-design-system-view-state'
 import { addChoiceLabel } from './prototype-design-system-labels'
+import { keyedEntries } from './prototype-entry-keys'
 import type { DesignSystemPanelProps, DesignSystemUpdate } from './prototype-design-system-props'
 
 /**
@@ -62,14 +63,11 @@ export function PrototypeDesignSystemComponents({
             update={update}
           />
         ))}
-        {state.draft.added.map((description, index) => (
-          <AddedComponent
-            key={`${index}:${description}`}
-            description={description}
-            index={index}
-            update={update}
-          />
-        ))}
+        {keyedEntries(state.draft.added, (description) => description).map(
+          ({ key, entry: description, index }) => (
+            <AddedComponent key={key} description={description} index={index} update={update} />
+          )
+        )}
       </div>
     </div>
   )

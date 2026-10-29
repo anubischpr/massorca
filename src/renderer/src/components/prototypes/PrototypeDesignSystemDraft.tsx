@@ -12,6 +12,7 @@ import {
 import { prototypeTitle } from '../../../../shared/prototype-list-model'
 import { nextVersionOf } from '../../../../shared/prototype-set-view'
 import { prototypeAgentLabel } from './prototype-labels'
+import { keyedEntries } from './prototype-entry-keys'
 import type { DesignSystemPanelProps } from './prototype-design-system-props'
 
 /**
@@ -73,17 +74,19 @@ export function PrototypeDesignSystemDraft({
       {groups.map((group) => (
         <div key={group.title} className="flex flex-col gap-1">
           <span className="font-mono text-[11px] text-muted-foreground">{group.title}</span>
-          {group.items.map((item, index) => (
-            <div
-              key={`${item.label}:${index}`}
-              className="flex items-start gap-2 rounded-lg border border-border p-1.5"
-            >
-              <span className="mt-px shrink-0 rounded border border-border px-1 text-[10px]">
-                {item.label}
-              </span>
-              <span className="text-xs leading-snug">{item.text}</span>
-            </div>
-          ))}
+          {keyedEntries(group.items, (item) => `${item.label}:${item.text}`).map(
+            ({ key, entry: item }) => (
+              <div
+                key={key}
+                className="flex items-start gap-2 rounded-lg border border-border p-1.5"
+              >
+                <span className="mt-px shrink-0 rounded border border-border px-1 text-[10px]">
+                  {item.label}
+                </span>
+                <span className="text-xs leading-snug">{item.text}</span>
+              </div>
+            )
+          )}
         </div>
       ))}
       {rebuildSets.length === 0 ? null : (
