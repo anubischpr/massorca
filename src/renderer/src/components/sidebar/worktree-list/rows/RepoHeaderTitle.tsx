@@ -10,6 +10,8 @@ import {
   type GhAccountBinding
 } from '../../../../../../shared/github/account-binding'
 import type { Repo } from '../../../../../../shared/repo-types'
+import { isFolderRepo } from '../../../../../../shared/repo-kind'
+import { FolderProjectGitMarker } from './FolderProjectGitMarker'
 
 function repoGhAccountTitle(
   account: RepoGhAccountDisplay,
@@ -60,6 +62,7 @@ export function RepoHeaderTitle({
       >
         {label}
       </div>
+      {repo && isFolderRepo(repo) ? <FolderProjectGitMarker repo={repo} /> : null}
       {account.label ? (
         <span
           className="min-w-0 shrink truncate text-xs leading-none text-muted-foreground"

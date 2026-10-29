@@ -333,5 +333,49 @@ describe('validateGitExecArgs', () => {
     ])('rejects unsafe create-project write args %j', (args) => {
       expectBlocked(args, 'via exec is restricted')
     })
+
+    it('allows the empty commit with the fallback author identity only', () => {
+      expectAllowed([
+        '-c',
+        'user.name=Orca',
+        '-c',
+        'user.email=orca@localhost',
+        'commit',
+        '--allow-empty',
+        '-m',
+        'Initial commit'
+      ])
+    })
+
+    it.each([
+      [['-c', 'user.name=Orca', 'commit', '--allow-empty', '-m', 'Initial commit']],
+      [
+        [
+          '-c',
+          'user.name=Orca',
+          '-c',
+          'core.sshCommand=evil',
+          'commit',
+          '--allow-empty',
+          '-m',
+          'Initial commit'
+        ]
+      ],
+      [['-c', 'user.name=Orca', '-c', 'user.email=orca@localhost', 'log']],
+      [
+        [
+          '-c',
+          'user.name=Orca',
+          '-c',
+          'user.email=orca@localhost',
+          'commit',
+          '--allow-empty',
+          '-m',
+          'Other message'
+        ]
+      ]
+    ])('keeps rejecting other global flags %j', (args) => {
+      expectBlocked(args, 'Global git flags before the subcommand are not allowed')
+    })
   })
 })

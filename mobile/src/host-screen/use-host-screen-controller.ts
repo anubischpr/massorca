@@ -150,6 +150,7 @@ export function useHostScreenController({
     displayWorktrees,
     embedded,
     existingWorktreePaths,
+    fetchRepoMetadata,
     floatingWorkspaceEnabled,
     forceReconnectHost,
     hostCapabilities,

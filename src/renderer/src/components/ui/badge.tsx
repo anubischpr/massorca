@@ -21,7 +21,11 @@ const badgeVariants = cva(
         /** The chip naming the machine a workspace runs on — quieter and squarer than `secondary`,
          *  so it reads as context beside a workspace name rather than as a status of its own. */
         hostContext:
-          'h-4 rounded border-border bg-accent px-1.5 text-[10px] leading-none text-muted-foreground dark:border-border/50 dark:bg-accent/80'
+          'h-4 rounded border-border bg-accent px-1.5 text-[10px] leading-none text-muted-foreground dark:border-border/50 dark:bg-accent/80',
+        /** The quiet pill naming a limitation on a row (e.g. "No Git"): a transparent outline that
+         *  reads as a note, with a hover wash only so a clickable pill still shows it can be opened. */
+        quietOutline:
+          'h-4 border-border bg-transparent px-1.5 py-0 text-[10px] leading-none text-muted-foreground hover:bg-accent'
       }
     },
     defaultVariants: {

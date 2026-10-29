@@ -34,3 +34,16 @@ export function settingsForRuntimeOwner(
   const ownerId = runtimeEnvironmentId?.trim()
   return ownerId ? { activeRuntimeEnvironmentId: ownerId } : settings
 }
+
+/** Owner of a repo-scoped call: a runtime host named by `hostId`, else the active environment. */
+export function runtimeTargetForRepoHost(
+  settings: Pick<GlobalSettings, 'activeRuntimeEnvironmentId'> | null | undefined,
+  hostId?: ExecutionHostId
+): RuntimeClientTarget {
+  const parsed = parseExecutionHostId(hostId)
+  if (parsed?.kind === 'runtime') {
+    return { kind: 'environment', environmentId: parsed.environmentId }
+  }
+  // Local and SSH repos are both served by this machine's runtime; the SSH leg runs in main.
+  return parsed ? { kind: 'local' } : getActiveRuntimeTarget(settings)
+}

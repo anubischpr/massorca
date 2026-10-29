@@ -144,10 +144,20 @@ describe('NonGitFolderDialog', () => {
     expect(html).toContain('/srv/non-git')
   })
 
+  it('explains the lost Git features and hides Initialize Git until the host confirms support', () => {
+    const html = renderToStaticMarkup(<NonGitFolderDialog />)
+
+    expect(html).toContain('Isolated workspaces and branches')
+    expect(html).toContain('Child sessions in their own worktree')
+    expect(html).toContain('recommended only for exploring folders and non-development work')
+    expect(html).toContain('/srv/non-git')
+    expect(html).not.toContain('Initialize Git here')
+  })
+
   it('confirms runtime folder imports on the checked host', () => {
     renderToStaticMarkup(<NonGitFolderDialog />)
 
-    const button = mocks.buttons.find((entry) => entry.label.includes('Open as Folder'))
+    const button = mocks.buttons.find((entry) => entry.label.includes('Continue without Git'))
     button?.onClick?.()
 
     expect(mocks.state.addNonGitFolder).toHaveBeenCalledWith('/srv/non-git', {
@@ -164,7 +174,7 @@ describe('NonGitFolderDialog', () => {
     }
     renderToStaticMarkup(<NonGitFolderDialog />)
 
-    const button = mocks.buttons.find((entry) => entry.label.includes('Open as Folder'))
+    const button = mocks.buttons.find((entry) => entry.label.includes('Continue without Git'))
     button?.onClick?.()
 
     expect(mocks.state.addNonGitFolder).toHaveBeenCalledWith('/srv/non-git', {
@@ -192,7 +202,7 @@ describe('NonGitFolderDialog', () => {
     })
     renderToStaticMarkup(<NonGitFolderDialog />)
 
-    const button = mocks.buttons.find((entry) => entry.label.includes('Open as Folder'))
+    const button = mocks.buttons.find((entry) => entry.label.includes('Continue without Git'))
     button?.onClick?.()
 
     await vi.waitFor(() =>
@@ -236,7 +246,7 @@ describe('NonGitFolderDialog', () => {
     })
     renderToStaticMarkup(<NonGitFolderDialog />)
 
-    const button = mocks.buttons.find((entry) => entry.label.includes('Open as Folder'))
+    const button = mocks.buttons.find((entry) => entry.label.includes('Continue without Git'))
     button?.onClick?.()
 
     await vi.waitFor(() =>

@@ -10,6 +10,10 @@ import {
   isSafePushTargetRemoteUrl
 } from '../shared/git-push-target-validation'
 import {
+  INITIAL_COMMIT_IDENTITY_ARGS,
+  INITIAL_COMMIT_MESSAGE
+} from '../shared/git-initial-commit-identity'
+import {
   isAllowedGhAccountCloneConfigPair,
   isAllowedGhAccountGitConfigWrite
 } from '../shared/github/gh-account-git-config'
@@ -164,7 +168,24 @@ function matchesDeniedFlag(arg: string, denySet: Set<string>): boolean {
   return false
 }
 
+// Why: Initialize Git retries the empty first commit with a fallback author when the host has no
+// identity. That one exact shape may carry global -c flags; every other -c stays rejected.
+function isInitialCommitWithIdentity(args: string[]): boolean {
+  const prefix = INITIAL_COMMIT_IDENTITY_ARGS
+  return (
+    args.length === prefix.length + 4 &&
+    prefix.every((arg, index) => args[index] === arg) &&
+    args[prefix.length] === 'commit' &&
+    args[prefix.length + 1] === '--allow-empty' &&
+    args[prefix.length + 2] === '-m' &&
+    args[prefix.length + 3] === INITIAL_COMMIT_MESSAGE
+  )
+}
+
 export function validateGitExecArgs(args: string[]): void {
+  if (isInitialCommitWithIdentity(args)) {
+    return
+  }
   // Why: git accepts `-c key=value` before the subcommand, which can override
   // config and execute arbitrary commands (e.g. core.sshCommand). Reject any
   // arguments before the subcommand that look like global git flags.

@@ -204,6 +204,17 @@ export const REPO_METHODS = [
     })
   }),
   defineMethod({
+    name: 'repo.initGit',
+    permission: 'workspace',
+    params: RepoSelector,
+    handler: async (params, context) => {
+      const result = await context.runtime.initializeRepoGit(params.repo)
+      return result.ok
+        ? { ...result, repo: projectRepoVisibilityForClient(result.repo, context) }
+        : result
+    }
+  }),
+  defineMethod({
     name: 'repo.baseRefDefault',
     permission: 'workspace',
     params: RepoSelector,

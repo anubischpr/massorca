@@ -5266,13 +5266,22 @@
           "294de4aeb2": "Mostrar menos"
         },
         "NonGitFolderDialog": {
-          "e52454b7f6": "Abrir como carpeta",
           "05b33a17a9": "Cancelar",
-          "8fba4b8cbb": "Esta carpeta no es un repositorio Git. Tendrás editor, terminal y búsqueda, pero las funciones basadas en Git no estarán disponibles.",
           "c49fb13492": "No se pudo agregar la carpeta en este host",
           "9a766f33ac": "Esta ruta se verificó en el host SSH.",
           "79fd02cf5f": "Esta ruta se verificó en {{hostName}}.",
-          "8851b77327": "Esta ruta se verificó localmente."
+          "8851b77327": "Esta ruta se verificó localmente.",
+          "15b3ae7310": "Esta carpeta no es un repositorio Git",
+          "b57788d1b6": "Tendrás editor, terminal y búsqueda. Estas funciones necesitan Git y no estarán disponibles:",
+          "df93b2f2d4": "Espacios de trabajo aislados y ramas",
+          "7b84fb792a": "Sesiones secundarias en su propio worktree: editarían los mismos archivos que el chat principal",
+          "8761ae2bfa": "Cambios, diferencias y commits",
+          "dfc6969363": "Pull requests y revisiones",
+          "607a29399a": "Trabajar sin Git solo se recomienda para explorar carpetas y para trabajo que no es de desarrollo.",
+          "43f90289f5": "Inicializar Git ejecuta <code>git init</code> aquí y crea un primer commit vacío. Tus archivos no se incluyen en ese commit.",
+          "00390f00f6": "Continuar sin Git",
+          "482c7b0a96": "Inicializar Git aquí",
+          "85523ab0d3": "No se pudo inicializar Git"
         },
         "OrcaYamlTrustDialog": {
           "f3e2b868fb": "Ejecutar hooks",
@@ -6049,6 +6058,16 @@
             }
           },
           "list": {
+            "rows": {
+              "FolderProjectGitMarker": {
+                "0c2667a80a": "Sin Git",
+                "bcb9e06aae": "Sin Git: ver limitaciones",
+                "56aee8fc7f": "Este proyecto no tiene Git",
+                "54b5a85dfc": "El editor, la terminal y la búsqueda funcionan. No disponibles:",
+                "55fa69d439": "Recomendado solo para explorar carpetas y trabajo que no es de desarrollo.",
+                "938c32c790": "Inicializar Git"
+              }
+            },
             "groups": {
               "0ed04075b8": "Todos",
               "4aeefc5996": "Fijados",

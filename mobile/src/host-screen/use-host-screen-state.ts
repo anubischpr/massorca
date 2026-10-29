@@ -67,6 +67,8 @@ export function useHostScreenState(hostId: string | undefined, action: string | 
   )
   // displayName → repo id: filters key on repo id, but section headers/rows key on displayName, so bridge the two.
   const [repoIdsByName, setRepoIdsByName] = useState<Map<string, string>>(new Map())
+  // Repo ids of folder projects (no Git): they show the "No Git" marker until Git is initialized.
+  const [folderRepoIds, setFolderRepoIds] = useState<ReadonlySet<string>>(new Set())
   // Host-label inputs for rows: repo → host, SSH/override labels, and the host's own platform.
   const [repoHostIdByRepoId, setRepoHostIdByRepoId] = useState<Map<string, ExecutionHostId>>(
     new Map()
@@ -126,6 +128,7 @@ export function useHostScreenState(hostId: string | undefined, action: string | 
     repoHostIdByRepoId,
     repoIconsByName,
     repoAccountsByName,
+    folderRepoIds,
     repoIdsByName,
     repoMetadataFetchedAtRef,
     routeActionState,
@@ -150,6 +153,7 @@ export function useHostScreenState(hostId: string | undefined, action: string | 
     setRepoHostIdByRepoId,
     setRepoIconsByName,
     setRepoAccountsByName,
+    setFolderRepoIds,
     setRepoIdsByName,
     setRouteActionState,
     setSearch,

@@ -2,8 +2,10 @@ import { getRepoExecutionHostId } from '../../shared/execution-host'
 import { isFolderRepo } from '../../shared/repo-kind'
 import type { Repo } from '../../shared/repo-types'
 import type { GhAccountBinding } from '../../shared/github/account-binding'
+import type { RepoInitGitResult } from '../../shared/rpc-contract/repo-init-git-params'
 import { invalidateAuthorizedRootsCache } from '../ipc/filesystem-auth'
 import { prepareLocalWorktreeRootForRepo } from '../worktree-root-preparation'
+import { initializeGitInFolderRepo } from './runtime-folder-git-initialization'
 import type { RuntimeStore } from './runtime-store-contract'
 
 type RuntimeRepositorySettingsDependencies = {
@@ -69,6 +71,26 @@ export class RuntimeRepositorySettingsController {
     this.deps.invalidateResolvedWorktrees()
     this.deps.notifyReposChanged()
     return updated
+  }
+
+  async initializeGit(repoSelector: string): Promise<RepoInitGitResult> {
+    const store = this.requireStore()
+    let repo: Repo
+    try {
+      repo = await this.deps.resolveRepo(repoSelector)
+    } catch (error) {
+      if (error instanceof Error && error.message === 'repo_not_found') {
+        return { ok: false, error: 'repo_not_found' }
+      }
+      throw error
+    }
+    const result = await initializeGitInFolderRepo(store, repo.id)
+    if (result.ok) {
+      this.deps.invalidateResolvedWorktrees()
+      this.deps.invalidateWorktreeScan(repo.id)
+      this.deps.notifyReposChanged()
+    }
+    return result
   }
 
   async update(repoSelector: string, updates: RepositoryUpdates): Promise<Repo> {

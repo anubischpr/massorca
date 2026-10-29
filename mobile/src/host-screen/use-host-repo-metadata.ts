@@ -65,6 +65,7 @@ export function useHostRepoMetadata(args: {
     setRepoHostIdByRepoId,
     setRepoIconsByName,
     setRepoAccountsByName,
+    setFolderRepoIds,
     setRepoIdsByName
   } = state
 
@@ -121,6 +122,9 @@ export function useHostRepoMetadata(args: {
             )
           )
           setRepoIdsByName(new Map(catalog.map((repo) => [repo.displayName, repo.id])))
+          setFolderRepoIds(
+            new Set(catalog.flatMap((repo) => (repo.kind === 'folder' ? [repo.id] : [])))
+          )
           // The repo.list bound accounts show at once; gh.account overlays them as each read lands.
           const gitLogins = gitLoginsRef.current
           setRepoAccountsByName(repoAccountsByName(repoGroupEntries(catalog, gitLogins)))

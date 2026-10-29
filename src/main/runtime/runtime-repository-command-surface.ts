@@ -68,6 +68,7 @@ export type RuntimeRepositoryCommandSurface = {
   cloneRepo: RuntimeRepositoryCloneController['clone']
   showRepo: RuntimeRepositorySettingsController['show']
   setRepoBaseRef: RuntimeRepositorySettingsController['setBaseRef']
+  initializeRepoGit: RuntimeRepositorySettingsController['initializeGit']
   updateRepo: RuntimeRepositorySettingsController['update']
   removeProject: RuntimeRepositorySettingsController['remove']
   reorderRepos: RuntimeRepositorySettingsController['reorder']
@@ -143,6 +144,7 @@ export function installRuntimeRepositoryCommandSurface(
     cloneRepo: clones.clone.bind(clones),
     showRepo: settings.show.bind(settings),
     setRepoBaseRef: settings.setBaseRef.bind(settings),
+    initializeRepoGit: settings.initializeGit.bind(settings),
     updateRepo: settings.update.bind(settings),
     removeProject: settings.remove.bind(settings),
     reorderRepos: settings.reorder.bind(settings),
