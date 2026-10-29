@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { activateStructuredAgentSessionById } from '@/lib/structured-agent-session-tab-activation'
 import type { NativeChatVisualAnnotateEvent } from '../../../../shared/native-chat-visual-annotate'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
+import { PrototypeBuiltOnLink } from './PrototypeBuiltOnLink'
 import { PrototypeFrame } from './PrototypeFrame'
 import { PrototypeThumbnail } from './PrototypeThumbnail'
 import { prototypeAgentLabel, prototypeStatusLabel } from './prototype-labels'
@@ -43,12 +44,15 @@ export function PrototypeViewer({
   set,
   state,
   update,
-  frameBoxRef
+  frameBoxRef,
+  onOpenDesignSystem
 }: {
   set: PrototypeListedSet
   state: PrototypeSetState
   update: Update
   frameBoxRef: RefObject<HTMLDivElement | null>
+  /** Opens the design system of a project, from the link under the title. */
+  onOpenDesignSystem: (projectKey: string) => void
 }): React.JSX.Element {
   const single = set.directions.length <= 1
   const layout = single ? 'focus' : state.layout
@@ -60,6 +64,10 @@ export function PrototypeViewer({
       : { sessionId: set.sessionId, requestId: set.requestId, fileName: latest.fileName }
   )
   const status = prototypeStatus(set, state.active)
+  const builtOn =
+    set.builtOn === undefined || set.projectKey === undefined
+      ? null
+      : { version: set.builtOn, projectKey: set.projectKey }
   const peeking = state.view !== state.active
   const agentLabel = prototypeAgentLabel(set.agent)
   const chatTitle = set.chatTitle?.trim() ?? ''
@@ -83,6 +91,12 @@ export function PrototypeViewer({
           <span className="text-sm font-semibold">
             {`${prototypeTitle(set)} · ${prototypeStatusLabel(status)}`}
           </span>
+          {builtOn === null ? null : (
+            <PrototypeBuiltOnLink
+              version={builtOn.version}
+              onOpen={() => onOpenDesignSystem(builtOn.projectKey)}
+            />
+          )}
           <button
             type="button"
             onClick={openChat}

@@ -200,6 +200,7 @@ export default function PrototypesPage(): React.JSX.Element {
           state={setState}
           update={update}
           frameBoxRef={frameBoxRef}
+          onOpenDesignSystem={selectDesignSystem}
         />
       </section>
       <aside className="scrollbar-sleek flex min-h-0 w-[340px] shrink-0 flex-col overflow-y-auto border-l border-border">

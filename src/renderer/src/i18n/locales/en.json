@@ -18199,7 +18199,14 @@
         "rebuildSets": "Also rebuild the sets built on v{{version}} ({{titles}}) with the new tokens and components",
         "anythingPlaceholder": "Tone, brand direction, anything a token can’t express…",
         "footer": "One message: “Update the design system to v{{next}}.” + every token and component change{{rebuild}}. The agent updates tokens.json, components.html and system.md.",
-        "rebuildSuffix": " + “Rebuild {{titles}} on v{{next}}.”"
+        "rebuildSuffix": " + “Rebuild {{titles}} on v{{next}}.”",
+        "pickPalette": "Pick a palette",
+        "typeSummary": "Type: {{summary}}",
+        "typeRadius": "radius {{value}}",
+        "typeSpacing": "spacing {{value}}-based",
+        "approve": "Approve {{name}}",
+        "adjustTokens": "Adjust tokens",
+        "builtOnLink": "Built on Design system v{{version}} ›"
       }
     },
     "createChat": {
