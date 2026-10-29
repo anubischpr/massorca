@@ -100,6 +100,25 @@ describe('mobileNativeChatRecordedFileCount', () => {
   })
 })
 
+describe('mobileNativeChatRecordedFiles prototype files', () => {
+  it('leaves out prototype files, absolute or relative, and keeps an ordinary report', () => {
+    const chatFolder = '0123456789abcdef0123456789abcdef'
+    const request = '20261028-201500-aaaaaa'
+    const files = mobileNativeChatRecordedFiles([
+      ...write(
+        `C:\\Users\\me\\native-chat-visuals\\${chatFolder}\\prototypes\\${request}\\A.html`,
+        'p1'
+      ),
+      ...write(`prototypes/${request}/B.html`, 'p2'),
+      ...write('C:\\repo\\report.html', 'r1')
+    ])
+    expect(files.map((file) => file.path)).toEqual(['C:\\repo\\report.html'])
+    expect(
+      mobileNativeChatRecordedFileCount([...write(`prototypes/${request}/B.html`, 'p3')])
+    ).toBe(0)
+  })
+})
+
 describe('mobileNativeChatRecordedFiles', () => {
   it('lists each file once, keeping the latest write timestamp', () => {
     const at = (timestamp: number, messages: NativeChatMessage[]) =>
