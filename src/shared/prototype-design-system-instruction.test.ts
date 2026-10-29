@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { DESIGN_SYSTEM_READ_INSTRUCTION } from './prototype-design-system-instruction'
+import {
+  DESIGN_SYSTEM_READ_INSTRUCTION,
+  DESIGN_SYSTEM_REDETECT_INSTRUCTION
+} from './prototype-design-system-instruction'
 import { buildPrototypeRequestMessage } from './prototype-request'
 
 const MISSING_BRANCH_END = 'write the three files, and stop.'
+const FIRST_REQUEST_STEPS =
+  'derive tokens from the project (CSS variables, theme or Tailwind config, style guide docs, existing components), list each source, write the three files, and stop.'
 const REUSE = 'If they exist, reuse them as they are: never regenerate, rewrite or reformat them.'
 const ADD_ONLY_WHAT_IS_MISSING =
   'If a direction needs a token or component the system lacks, add only that one, keep every existing token, value and component unchanged, bump the version with a history entry, and note the addition in system.md.'
@@ -19,6 +24,16 @@ describe('DESIGN_SYSTEM_READ_INSTRUCTION', () => {
     expect(text.indexOf(ADD_ONLY_WHAT_IS_MISSING)).toBeLessThan(
       text.indexOf('If the project has no identity')
     )
+  })
+})
+
+describe('DESIGN_SYSTEM_REDETECT_INSTRUCTION', () => {
+  it('spells out the first-request steps for missing files, as the first read does', () => {
+    expect(DESIGN_SYSTEM_REDETECT_INSTRUCTION).toContain(
+      `If the files are missing, ${FIRST_REQUEST_STEPS}`
+    )
+    expect(DESIGN_SYSTEM_READ_INSTRUCTION).toContain(`If they are missing: ${FIRST_REQUEST_STEPS}`)
+    expect(DESIGN_SYSTEM_REDETECT_INSTRUCTION).not.toContain('as for a first request')
   })
 })
 
