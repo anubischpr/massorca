@@ -55,6 +55,7 @@ import { emulatorApi } from './api/emulator-bridge'
 import { hooksApi } from './api/hooks-bridge'
 import { ephemeralVmApi } from './api/ephemeral-vm-bridge'
 import { cacheApi } from './api/cache-bridge'
+import { prototypeCaptureApi } from './api/prototype-capture-bridge'
 import { sessionApi } from './api/session-bridge'
 import { remoteWorkspaceApi } from './api/remote-workspace-bridge'
 import { updaterApi } from './api/updater-bridge'
@@ -157,6 +158,7 @@ const api = {
   hooks: hooksApi,
   ephemeralVm: ephemeralVmApi,
   cache: cacheApi,
+  prototypeCapture: prototypeCaptureApi,
   session: sessionApi,
   remoteWorkspace: remoteWorkspaceApi,
   updater: updaterApi,
