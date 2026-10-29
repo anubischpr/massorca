@@ -91,6 +91,17 @@ describe('sendPrototypeIteration', () => {
     expect(text).toContain('A-v2.html')
   })
 
+  it('sends without screenshots from a client that cannot capture its window', async () => {
+    const sendMessage = vi.fn(async (_text: string) => true)
+    const outcome = await sendPrototypeIteration(
+      { state: editedState(), set: SET, frameOrigin: FRAME },
+      { sendMessage, now: () => 42 }
+    )
+    expect(outcome.sent).toBe(true)
+    expect(outcome.visibleMessage).not.toContain('screenshot:')
+    expect(sendMessage).toHaveBeenCalledTimes(1)
+  })
+
   it('sends without the screenshot when the capture fails', async () => {
     const fakes = makeDeps({ capture: async () => ({ ok: false as const }) })
     const outcome = await sendPrototypeIteration(

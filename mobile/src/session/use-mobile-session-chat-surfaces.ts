@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
+import { registerMobilePrototypeChatSend } from '../prototypes/mobile-prototype-chat-send-registry'
 import {
   clearMobileChatSurfaceSnapshot,
   mobileChatSurfaceKey,
@@ -113,7 +114,16 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
   const openSummary = useCallback(() => openChatRoute('chat-summary'), [openChatRoute])
   const openArtifacts = useCallback(() => openChatRoute('chat-artifacts'), [openChatRoute])
   // The session names which chat "This chat" means; a chat without one lists every set.
-  const prototypeSessionId = nativeChatController.nativeChatPrototypeSend?.sessionId ?? null
+  const prototypeSend = nativeChatController.nativeChatPrototypeSend
+  const prototypeSessionId = prototypeSend?.sessionId ?? null
+  // The Prototypes screens send an iteration through the chat that is on screen.
+  useEffect(
+    () =>
+      prototypeSend
+        ? registerMobilePrototypeChatSend(prototypeSend.sessionId, prototypeSend.send)
+        : undefined,
+    [prototypeSend]
+  )
   const openPrototypes = useCallback(() => {
     const params = new URLSearchParams()
     if (prototypeSessionId) {

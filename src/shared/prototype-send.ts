@@ -7,12 +7,15 @@ import { draftOf, iterationSendText, nextVersionOf, visibleMessageOf } from './p
 // chat. A failed capture or upload only drops that screenshot; a refused send keeps the draft.
 
 export type PrototypeSendDeps = {
-  /** A rectangle of the window, in CSS pixels, as PNG base64; a failure is `ok: false`. */
-  captureRect: (
+  /**
+   * A rectangle of the window, in CSS pixels, as PNG base64; a failure is `ok: false`. A client that
+   * cannot capture its window leaves this and `writeAttachment` out, and sends without screenshots.
+   */
+  captureRect?: (
     rect: NativeChatVisualRect
   ) => Promise<{ ok: true; pngBase64: string } | { ok: false }>
   /** Writes one PNG on the host and returns its absolute path; any failure rejects or is `ok: false`. */
-  writeAttachment: (
+  writeAttachment?: (
     name: string,
     pngBase64: string
   ) => Promise<{ ok: true; path: string } | { ok: false }>
@@ -39,9 +42,15 @@ async function captureScreenshots(
   deps: PrototypeSendDeps
 ): Promise<Record<string, string>> {
   const { state, frameOrigin } = input
+  const { captureRect, writeAttachment } = deps
   const screenshots: Record<string, string> = {}
   // Captures need the iterated direction on screen; a peek shows another frame.
-  if (frameOrigin === null || state.view !== state.active) {
+  if (
+    frameOrigin === null ||
+    captureRect === undefined ||
+    writeAttachment === undefined ||
+    state.view !== state.active
+  ) {
     return screenshots
   }
   const pinKeys = new Set(
@@ -60,14 +69,11 @@ async function captureScreenshots(
       height: pin.rect.height
     }
     try {
-      const capture = await deps.captureRect(rect)
+      const capture = await captureRect(rect)
       if (!capture.ok) {
         continue
       }
-      const written = await deps.writeAttachment(
-        `pin-${pin.pinKey}-${deps.now()}`,
-        capture.pngBase64
-      )
+      const written = await writeAttachment(`pin-${pin.pinKey}-${deps.now()}`, capture.pngBase64)
       if (written.ok) {
         screenshots[pin.pinKey] = written.path
       }

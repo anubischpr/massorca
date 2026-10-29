@@ -3,10 +3,12 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import type { NativeChatVisualAnnotateEvent } from '../../../src/shared/native-chat-visual-annotate'
 import { latestVersionOf } from '../../../src/shared/prototype-list-model'
+import type { PrototypeDraftField, PrototypeDraftItem } from '../../../src/shared/prototype-draft'
 import {
   backToActive,
   closeSelection,
   iterateHere,
+  jumpToDraftItem,
   peekDirection,
   pickElement,
   pinClicked,
@@ -16,20 +18,33 @@ import {
   type PrototypeSetState,
   type PrototypeViewport
 } from '../../../src/shared/prototype-set-state'
-import { annotateStateOf } from '../../../src/shared/prototype-set-view'
+import {
+  annotateStateOf,
+  beginSend,
+  draftOf,
+  sendRefused,
+  sendSucceeded
+} from '../../../src/shared/prototype-set-view'
 import { KeyedBottomDrawer } from '../components/keyed-bottom-drawer'
 import { useHostClient } from '../transport/host-client-hooks'
-import { colors, spacing } from '../theme/mobile-theme'
+import { colors, spacing, typography } from '../theme/mobile-theme'
+import { MobilePrototypeDraftSheet } from './MobilePrototypeDraftSheet'
 import { MobilePrototypeFrame } from './MobilePrototypeFrame'
 import { MobilePrototypeHeader } from './MobilePrototypeHeader'
 import { MobilePrototypePinSheet, type MobilePrototypePinTab } from './MobilePrototypePinSheet'
+import { sendMobilePrototypeIteration } from './mobile-prototype-iteration-send'
+import { mobilePrototypeAgentLabel } from './mobile-prototype-list-model'
 import { findMobilePrototypeSet } from './mobile-prototype-sets-state'
 import { isPeeking, viewerChips, viewerHeaderLines } from './mobile-prototype-viewer-model'
 import { mobilePrototypeStateKey, useMobilePrototypeViewStore } from './mobile-prototype-view-store'
 import { useMobilePrototypeFile } from './use-mobile-prototype-file'
 import { useMobilePrototypeSets } from './use-mobile-prototype-sets'
 
-type Sheet = 'pin'
+type Sheet = 'pin' | 'draft'
+
+/** The control a draft item jumped to, kept while its pin is the one open. */
+type Jump = { letter: string; pinKey: string; field: PrototypeDraftField; nonce: number }
+
 const VIEWPORTS: readonly { viewport: PrototypeViewport; label: string }[] = [
   { viewport: 'phone', label: 'Phone' },
   { viewport: 'desktop', label: 'Desktop' }
@@ -64,6 +79,8 @@ export function MobilePrototypeViewerScreen({
     [stateKey, updateSetState]
   )
   const [pinTab, setPinTab] = useState<MobilePrototypePinTab>('edit')
+  const [draftOpen, setDraftOpen] = useState(false)
+  const [jump, setJump] = useState<Jump | null>(null)
 
   const viewDirection = set?.directions.find((direction) => direction.letter === state?.view)
   const latest = latestVersionOf(viewDirection)
@@ -83,6 +100,34 @@ export function MobilePrototypeViewerScreen({
     [update]
   )
 
+  const send = useCallback(async (): Promise<void> => {
+    const current = useMobilePrototypeViewStore.getState().states[stateKey]
+    if (set === null || current === undefined || current.sending) {
+      return
+    }
+    update(beginSend)
+    const outcome = await sendMobilePrototypeIteration(current, set)
+    update((latest) =>
+      outcome.sent ? sendSucceeded(latest, outcome.visibleMessage) : sendRefused(latest)
+    )
+  }, [set, stateKey, update])
+  const jumpTo = useCallback(
+    (item: PrototypeDraftItem) => {
+      setDraftOpen(false)
+      setPinTab(item.field === 'note' ? 'note' : 'edit')
+      setJump((previous) => ({
+        letter: item.letter,
+        pinKey: item.pinKey,
+        field: item.field,
+        nonce: (previous?.nonce ?? 0) + 1
+      }))
+      update((current) =>
+        jumpToDraftItem(current, { letter: item.letter, pinKey: item.pinKey, field: item.field })
+      )
+    },
+    [update]
+  )
+
   if (set === null || state === undefined) {
     return (
       <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -93,7 +138,10 @@ export function MobilePrototypeViewerScreen({
   const lines = viewerHeaderLines(set, state)
   const chips = viewerChips(set, state)
   const pin = selectedPinOf(state)
-  const sheet: Sheet | null = pin === null ? null : 'pin'
+  const agentName = mobilePrototypeAgentLabel(set.agent)
+  const sheet: Sheet | null = draftOpen ? 'draft' : pin === null ? null : 'pin'
+  const pulsing =
+    jump !== null && jump.pinKey === state.selectedPinKey && jump.letter === state.view
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -185,6 +233,15 @@ export function MobilePrototypeViewerScreen({
         annotate={annotateStateOf(state, state.view)}
         onAnnotateEvent={onAnnotateEvent}
       />
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => setDraftOpen(true)}
+        style={styles.draftBar}
+      >
+        <Text style={styles.draftCount}>{draftOf(state).itemCount}</Text>
+        <Text style={styles.draftLabel}>{`items ready for ${agentName}`}</Text>
+        <Text style={styles.draftAction}>Review &amp; send ›</Text>
+      </Pressable>
       <View accessibilityRole="toolbar" accessibilityLabel="Prototype tools" style={styles.toolbar}>
         {(['browse', 'annotate'] as const).map((tool) => (
           <Pressable
@@ -205,18 +262,34 @@ export function MobilePrototypeViewerScreen({
         sheetKey={(presented) => presented}
         contentScrollable={false}
         dragContentToDismiss={false}
-        onClose={() => update(closeSelection)}
+        onClose={(presented) => {
+          if (presented === 'draft') {
+            setDraftOpen(false)
+            return
+          }
+          setJump(null)
+          update(closeSelection)
+        }}
       >
-        {() =>
-          pin === null ? null : (
+        {(presented) =>
+          presented === 'draft' ? (
+            <MobilePrototypeDraftSheet
+              agentName={agentName}
+              state={state}
+              update={update}
+              onClose={() => setDraftOpen(false)}
+              onJump={jumpTo}
+              onSend={() => void send()}
+            />
+          ) : pin === null ? null : (
             <MobilePrototypePinSheet
               pin={pin}
               state={state}
               update={update}
               tab={pinTab}
               onTab={setPinTab}
-              pulseField={null}
-              pulseNonce={0}
+              pulseField={pulsing ? (jump?.field ?? null) : null}
+              pulseNonce={jump?.nonce ?? 0}
             />
           )
         }
@@ -283,6 +356,31 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSubtle
   },
   peekButtonText: { color: colors.textPrimary, fontSize: 13 },
+  draftBar: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md - 2,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgPanel
+  },
+  draftCount: {
+    paddingVertical: 1,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: colors.textPrimary,
+    color: colors.bgBase,
+    fontFamily: typography.monoFamily,
+    fontSize: 12
+  },
+  draftLabel: { flex: 1, color: colors.textPrimary, fontSize: 14 },
+  draftAction: { color: colors.textSecondary, fontSize: 14 },
   toolbar: {
     flexDirection: 'row',
     gap: 6,
