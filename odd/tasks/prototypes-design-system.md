@@ -77,6 +77,10 @@ Appended to every prototype request except "Skip": the n3 text, followed by a sh
 17. Groups are keyed by the host's `projectKey` (one per project root) and labelled `projectName`; two linked worktrees of one repo are two groups, because each has its own `design/system/` files.
 18. `builtOn` for a request sent with "Use it" or "Propose one first" before any system existed: the host records the system's current version in `request.json` the first time `prototypes.list` sees one (same persist-on-first-sight rule as `gentleDesignSlug`).
 
+19. A project's system is listed even when the project has no listed set (a "Propose one first" request has no direction files yet). Each `designSystems` entry carries the newest pending propose request (`requestId`, `sessionId`, `agent`): a request with `designSystemMode: 'propose'` and no direction files. "Approve {name}" targets that request and is disabled when there is none; the draft's send target falls back to it when the project has no set.
+20. An unreadable design-system file is logged once per file version (path + mtime + size), not on every list refresh.
+21. Header subtitle uses "from 1 source" for one source (plural otherwise).
+
 ## Constraints
 
 STYLEGUIDE tokens and shadcn primitives on desktop, desktop strings through `translate()`, mobile theme tokens and hardcoded English on mobile. SSH and folder workspaces: the host owns reads and derives the project root from the chat record (clients never send paths). Additive optional RPC fields, regenerated params catalog. TDD off (source: no project/session TDD configuration); runners `pnpm test`, `mobile/ pnpm exec vitest run`.
@@ -88,8 +92,8 @@ Work-unit Conventional Commits on `claude/prototypes-section-f8edf5`, no push, n
 ## Tasks
 
 - [x] DS1 — `a27c153be8f`, `ccf3890df54` — Shared model + host: token/component parsing, draft model + message, hidden instruction, preview document, project root + name, `prototypes.readDesignSystem({sessionId})`, list summaries + `projectKey`/`projectName`/`builtOn`, request mode + version in `request.json`, clients (desktop + mobile). Tests. Route: delegated writer (2+ non-trivial files).
-- [ ] DS2 Desktop: list groups + Design system row, Design system view (tabs, selection panel, draft, Send, Re-detect), palette review, set header link and row suffix. Tests. Route: delegated writer.
-- [ ] DS3 Desktop request flow: system card, n3 instruction, link card. Tests. Route: delegated writer.
+- [x] DS2 — `1d3b3c13ce5`, `f08564abc2b`, `b89c87050b2`, `6916928e4ae`, `cf99aab9a57`; DS1 review fixes (R3 swatch length, R4 unreadable files) `6d706196a10` — Desktop: list groups + Design system row, Design system view (tabs, selection panel, draft, Send, Re-detect), palette review, set header link and row suffix. Tests. Route: delegated writer.
+- [ ] DS3 Desktop request flow: system card, n3 instruction, link card, plus Decisions 19–21. Tests. Route: delegated writer.
 - [ ] DS4 Mobile: list groups + row, set suffix, Design system screen with sheets and send, n3 on requests. Tests. Route: delegated writer.
 - [ ] DS5 Fidelity pass on every surface; checks; report SHAs.
 
@@ -99,8 +103,9 @@ DS1 done (shared model, host read RPC and list summaries, clients). Found in pas
 
 ## Verification evidence
 
-(none yet)
+- DS1: tests 152 shared + 138 host/renderer passed; typecheck:node/web, tsc cli, mobile typecheck, oxlint/oxfmt, code-quality gate clean. Review lineage review-089f1c84b09d24a5 asked for one correction (R3, R4); fixed on the branch in `6d706196a10`, lineage abandoned (this session cannot write into the review worktree).
+- DS2: focused vitest 20 files / 194 tests passed; typecheck:node/web, tsc cli, oxlint, oxfmt, code-quality gate (base 964f3e193f7) clean. `verify:localization-extraction` fails on the base commit too (51 keys missing from en.json, none from this work).
 
 ## Next step
 
-DS1.
+DS3, then DS4.
