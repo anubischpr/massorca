@@ -6,6 +6,7 @@ import {
 } from './prototype-request'
 import type { PrototypeCountSetting } from './prototype-count-setting'
 import type { PrototypeDesignSystemMode } from './prototype-design-system-files'
+import { asksForDelegatedSession } from './prototype-delegated-ask'
 
 /**
  * The answer of the "How many prototypes?" card: a count, or the message as typed. Once the design system card
@@ -31,7 +32,9 @@ export function decideNativeChatPrototypeRequest(input: {
   choice?: NativeChatPrototypeChoice
 }): NativeChatPrototypeDecision {
   const request: PrototypeRequest = classifyPrototypeRequest(input.text, input.agent)
-  if (request.kind === 'none' || input.choice === 'as-typed') {
+  // Why: a keyword match that hands the design to a child session is that child's request, made by its own first prompt.
+  const handedToChild = request.kind === 'keyword' && asksForDelegatedSession(input.text)
+  if (request.kind === 'none' || handedToChild || input.choice === 'as-typed') {
     return { kind: 'as-typed' }
   }
   if (input.choice) {

@@ -56,6 +56,13 @@ describe('planMobilePrototypeOutgoing', () => {
     }
   )
 
+  it('sends a hand-off to a child session as typed, with no request folder in this chat', async () => {
+    const text = 'Crea una sesión hija que diseñe la pantalla de ajustes'
+    const { result, createRequest } = plan(text, ALWAYS_3)
+    await expect(result).resolves.toEqual({ kind: 'send', wireText: text, shownText: text })
+    expect(createRequest).not.toHaveBeenCalled()
+  })
+
   describe('a /prototype command', () => {
     it('makes the request folder at once under "Always make"', async () => {
       const { result, createRequest } = plan('/prototype a login page', ALWAYS_3)
