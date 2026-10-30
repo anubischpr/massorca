@@ -6,6 +6,7 @@ import {
   type StyleProp,
   type ViewStyle
 } from 'react-native'
+import { useIsFocused } from 'expo-router'
 import { latestVersionOf } from '../../../src/shared/prototype-list-model'
 import type {
   PrototypeListedDirection,
@@ -35,13 +36,15 @@ export function MobilePrototypeTile({
 }) {
   const { ref, near, onLayout } = useArtifactTileNearViewport()
   const [size, setSize] = useState({ width: 0, height: 0 })
+  // Why: the list stays mounted under the set screen; its tiles must free their preview slots for the cards.
+  const focused = useIsFocused()
   const latest = latestVersionOf(direction)
   const html = useMobilePrototypeThumbnailHtml(
     client,
     latest === null
       ? null
       : { sessionId: set.sessionId, requestId: set.requestId, fileName: latest.fileName },
-    near
+    near && focused
   )
   return (
     <View
