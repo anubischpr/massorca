@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { structuredAgentSessionTabId } from '../../../src/shared/structured-agent-session-projection'
 import {
   locateStructuredChild,
+  parentChatOf,
   paneTabIdOfPaneKey,
   worktreeAgentRowsFromCatalog
 } from './mobile-worktree-agent-rows'
@@ -72,5 +73,46 @@ describe('paneTabIdOfPaneKey', () => {
     expect(paneTabIdOfPaneKey('tab-1:leaf-1')).toBe('tab-1')
     expect(paneTabIdOfPaneKey(':leaf-1')).toBeNull()
     expect(paneTabIdOfPaneKey('no-separator')).toBeNull()
+  })
+})
+
+describe('the name a pane is listed by', () => {
+  it('takes the task title, else the display name, and skips a name that is not text', () => {
+    const rows = worktreeAgentRowsFromCatalog([
+      {
+        worktreeId: 'wt-a',
+        agents: [
+          { paneKey: 'tab-1:leaf-1', parentPaneKey: null, taskTitle: ' Build ', displayName: 'X' },
+          { paneKey: 'tab-2:leaf-2', parentPaneKey: null, taskTitle: '', displayName: 'Plan' },
+          { paneKey: 'tab-3:leaf-3', parentPaneKey: null, taskTitle: 4, displayName: '  ' }
+        ]
+      }
+    ])
+    expect(rows[0]?.agents.map((pane) => pane.title)).toEqual(['Build', 'Plan', undefined])
+  })
+})
+
+describe('parentChatOf', () => {
+  const parentPane = `${structuredAgentSessionTabId('parent-1')}:leaf-1`
+
+  it('locates a named parent chat with its worktree, pane and name', () => {
+    const worktrees = [
+      { worktreeId: 'wt-a', agents: [{ paneKey: 'tab-9:leaf-9', parentPaneKey: null }] },
+      {
+        worktreeId: 'wt-b',
+        agents: [{ paneKey: parentPane, parentPaneKey: null, title: 'nexuscare-planning' }]
+      }
+    ]
+    expect(parentChatOf('parent-1', worktrees)).toEqual({
+      worktreeId: 'wt-b',
+      paneKey: parentPane,
+      title: 'nexuscare-planning'
+    })
+  })
+
+  it('is null when no pane holds the chat, or the host lists it without a name', () => {
+    const unnamed = [{ worktreeId: 'wt-b', agents: [{ paneKey: parentPane, parentPaneKey: null }] }]
+    expect(parentChatOf('parent-1', unnamed)).toBeNull()
+    expect(parentChatOf('parent-1', [])).toBeNull()
   })
 })

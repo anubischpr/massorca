@@ -7,12 +7,15 @@ import { colors, spacing, typography } from '../theme/mobile-theme'
 export function MobilePrototypeHeader({
   title,
   subtitle,
+  origin,
   backLabel = 'Back',
   onBack,
   trailing
 }: {
   title: string
   subtitle?: string
+  /** The parent chat a set came from: its name, and what a tap opens. Shown after the subtitle. */
+  origin?: { title: string; onPress: () => void }
   backLabel?: string
   onBack: () => void
   trailing?: ReactNode
@@ -34,6 +37,11 @@ export function MobilePrototypeHeader({
         {subtitle ? (
           <Text style={styles.subtitle} numberOfLines={1}>
             {subtitle}
+            {origin ? (
+              <Text accessibilityRole="link" onPress={origin.onPress} style={styles.subtitle}>
+                {` · from “${origin.title}” ›`}
+              </Text>
+            ) : null}
           </Text>
         ) : null}
       </View>

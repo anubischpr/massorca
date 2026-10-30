@@ -33,6 +33,9 @@ import { findMobilePrototypeSet } from './mobile-prototype-sets-state'
 import { mobilePrototypeStateKey, useMobilePrototypeViewStore } from './mobile-prototype-view-store'
 import { useMobilePrototypeMergePlan } from './use-mobile-prototype-merge-plan'
 import { useMobilePrototypeSets } from './use-mobile-prototype-sets'
+import { parentChatOf } from '../session/mobile-worktree-agent-rows'
+import { useOpenMobileSession } from '../session/use-open-mobile-session'
+import { useWorktreeAgentRows } from '../session/use-worktree-agent-rows'
 
 const CARD_GAP = 12
 const CARD_STEP = PROTOTYPE_CARD_WIDTH + CARD_GAP
@@ -53,6 +56,10 @@ export function MobilePrototypeSetScreen({
   const { client } = useHostClient(hostId)
   const listed = useMobilePrototypeSets(hostId)
   const set = findMobilePrototypeSet(listed, requestId)
+  const { worktrees } = useWorktreeAgentRows(client)
+  const openSession = useOpenMobileSession()
+  // Why: the parent is named only when the host lists it with a name; otherwise the subtitle has no origin part.
+  const parent = set?.origin ? parentChatOf(set.origin.sessionId, worktrees) : null
   const stateKey = mobilePrototypeStateKey(hostId, requestId)
   const state = useMobilePrototypeViewStore((s) => s.states[stateKey])
   const ensureSetState = useMobilePrototypeViewStore((s) => s.ensureSetState)
@@ -105,7 +112,20 @@ export function MobilePrototypeSetScreen({
         {...(set === null
           ? {}
           : {
-              subtitle: `${mobilePrototypeAgentLabel(set.agent)} · ${directions.length} directions`
+              subtitle: `${mobilePrototypeAgentLabel(set.agent)} · ${directions.length} directions`,
+              ...(parent === null
+                ? {}
+                : {
+                    origin: {
+                      title: parent.title,
+                      onPress: () =>
+                        openSession({
+                          hostId,
+                          worktreeId: parent.worktreeId,
+                          paneKey: parent.paneKey
+                        })
+                    }
+                  })
             })}
         backLabel="Back"
         onBack={onBack}
