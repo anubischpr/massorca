@@ -14,6 +14,7 @@ import {
 import type { RateLimitState } from '../../shared/rate-limit-types'
 import { createEmptyRateLimitState } from '../../shared/rate-limit-state-factory'
 import { OrchestrationDb } from '../runtime/orchestration/db'
+import { OrchestrationError } from '../runtime/orchestration/orchestration-error'
 import { observeDispatchSettlements } from '../runtime/orchestration/db/dispatch-settlement-observers'
 import { createRootDispatch } from '../runtime/orchestration/db/root-dispatch-test-fixture'
 import { DelegationAnswerService } from './delegation-answer-service'
@@ -462,6 +463,56 @@ describe('DelegationAnswerService', () => {
         status: 'failed',
         reason: 'Codex is not signed in'
       })
+    })
+
+    it('closes the Task the failed start filed, so nothing waits on it', async () => {
+      const { requestId, itemId } = await filed()
+      let filedTaskId = ''
+      vi.mocked(launch).mockImplementationOnce(async ({ request, record }) => {
+        const run = db.createRun({
+          objective: 'Delegated child sessions',
+          coordinatorHandle: 'term_coord',
+          coordinatorPaneKey: 'tab_coord:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+        })
+        const task = db.createTask({ spec: request.prompt, runId: run.id })
+        record({ run_id: run.id, task_id: task.id })
+        filedTaskId = task.id
+        throw new OrchestrationError('delegation_start_failed', 'Codex is not signed in')
+      })
+
+      const outcome = await answers.hostOwnedPrompts.answer({
+        sessionId: PARENT.sessionId,
+        itemId,
+        optionId: 'agent:codex'
+      })
+      if (outcome.ok) {
+        outcome.afterCommit()
+      }
+      await answers.idle()
+
+      expect(db.getDelegationRequest(requestId)?.status).toBe('failed')
+      expect(db.getTask(filedTaskId)?.status).toBe('failed')
+    })
+
+    it('closes the Task a restart found filed before the child started', async () => {
+      const { requestId, itemId } = await filed()
+      await answers.hostOwnedPrompts.answer({
+        sessionId: PARENT.sessionId,
+        itemId,
+        optionId: 'agent:codex'
+      })
+      const run = db.createRun({
+        objective: 'Delegated child sessions',
+        coordinatorHandle: 'term_coord',
+        coordinatorPaneKey: 'tab_coord:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+      })
+      const filedTask = db.createTask({ spec: 'Add a retry helper.', runId: run.id })
+      db.patchDelegationRequest(requestId, { task_id: filedTask.id })
+
+      await answers.reconcile()
+
+      expect(db.getDelegationRequest(requestId)?.status).toBe('failed')
+      expect(db.getTask(filedTask.id)?.status).toBe('failed')
     })
 
     it('fails a request a restart interrupted between the answer and the start', async () => {
