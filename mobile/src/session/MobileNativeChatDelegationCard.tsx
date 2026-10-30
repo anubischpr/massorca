@@ -15,8 +15,8 @@ type Props = {
   /** The question's own text, which heads the card. */
   question: string
   delegation: MobileDelegationQuestion
-  /** Sends the answer text of the chosen option through the ordinary structured answer path. */
-  onAnswer: (text: string) => Promise<boolean>
+  /** Sends the chosen option's answer text, with the count picked on the card when there is one. */
+  onAnswer: (text: string, count?: number) => Promise<boolean>
   onCancel?: () => Promise<boolean>
 }
 
@@ -30,9 +30,11 @@ export function MobileNativeChatDelegationCard({
 }: Props): React.JSX.Element {
   const { card, answerTokens } = delegation
   const decision = card.decision
+  const prototypeCount = card.prototypeCount
   // Why: a row the question carries no answer for cannot be sent, so the card does not offer it.
   const rows = delegationOptionRows(card).filter((row) => answerTokens[row.optionId] !== undefined)
   const [picked, setPicked] = useState<string | null>(null)
+  const [pickedCount, setPickedCount] = useState<number | null>(null)
   // Why: the default follows the card until the person picks, and a choice never sits on a row the card no longer draws.
   const drawn = (optionId: string | null): string | null =>
     rows.some((row) => row.optionId === optionId) ? optionId : null
@@ -50,7 +52,12 @@ export function MobileNativeChatDelegationCard({
     sendingRef.current = true
     setSending(true)
     try {
-      await onAnswer(token)
+      // Why: a count is sent only when the person picked one; otherwise the host keeps the Settings count.
+      if (pickedCount === null) {
+        await onAnswer(token)
+      } else {
+        await onAnswer(token, pickedCount)
+      }
     } finally {
       sendingRef.current = false
       setSending(false)
@@ -71,6 +78,42 @@ export function MobileNativeChatDelegationCard({
           />
         ))}
       </ScrollView>
+
+      {prototypeCount ? (
+        <View
+          style={styles.countGroup}
+          accessibilityRole="radiogroup"
+          accessibilityLabel="How many prototypes?"
+        >
+          <Text style={styles.countTitle}>How many prototypes?</Text>
+          <View style={styles.countChoices}>
+            {prototypeCount.choices.map((count) => {
+              const highlighted = count === (pickedCount ?? prototypeCount.defaultCount)
+              return (
+                <Pressable
+                  key={count}
+                  accessibilityRole="radio"
+                  accessibilityLabel={String(count)}
+                  accessibilityState={{ checked: highlighted, disabled: sending }}
+                  disabled={sending}
+                  style={({ pressed }) => [
+                    styles.countChoice,
+                    highlighted ? styles.countChoicePrimary : styles.countChoiceOutline,
+                    pressed && styles.pressed
+                  ]}
+                  onPress={() => setPickedCount(count)}
+                >
+                  <Text
+                    style={[styles.countChoiceText, highlighted && styles.countChoiceTextPrimary]}
+                  >
+                    {count}
+                  </Text>
+                </Pressable>
+              )
+            })}
+          </View>
+        </View>
+      ) : null}
 
       {decision && selectedId === DELEGATION_AUTOMATIC_OPTION_ID ? (
         <View style={styles.pick}>
@@ -320,6 +363,40 @@ const styles = StyleSheet.create({
   },
   startTextDisabled: {
     color: colors.textMuted
+  },
+  countGroup: {
+    gap: spacing.xs
+  },
+  countTitle: {
+    color: colors.textPrimary,
+    fontSize: typography.bodySize,
+    fontWeight: '500'
+  },
+  countChoices: {
+    flexDirection: 'row',
+    gap: spacing.sm
+  },
+  countChoice: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.button
+  },
+  countChoicePrimary: {
+    backgroundColor: colors.textPrimary
+  },
+  countChoiceOutline: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderSubtle
+  },
+  countChoiceText: {
+    color: colors.textPrimary,
+    fontSize: typography.bodySize,
+    fontWeight: '500'
+  },
+  countChoiceTextPrimary: {
+    color: colors.bgBase
   },
   pressed: {
     opacity: 0.7

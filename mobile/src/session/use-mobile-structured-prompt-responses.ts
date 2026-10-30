@@ -38,7 +38,7 @@ export function useMobileStructuredPromptResponses(args: {
 }): {
   groupedDraft: GroupedQuestionDraft | null
   respondPermission: (optionId: string) => Promise<boolean>
-  respondQuestion: (answer: string) => Promise<boolean>
+  respondQuestion: (answer: string, count?: number) => Promise<boolean>
 } {
   const { mutate, onSendError, questionAnswersSupported, sessionKey, stateRef } = args
   // Partially answered grouped question, held only until its last step is submitted. The session it
@@ -77,13 +77,16 @@ export function useMobileStructuredPromptResponses(args: {
     (
       target: { itemId: string; expectedRevision: number },
       body: Pick<AgentJournalQuestionItem, 'questions'>,
-      answers: AgentSessionQuestionAnswer[]
+      answers: AgentSessionQuestionAnswer[],
+      count?: number
     ): Promise<StructuredAgentSessionMutationResult<AgentSessionPromptResult> | null> => {
+      // Only a delegation card's single answer carries a count.
+      const countField = count === undefined ? {} : { count }
       const send = (fields: Record<string, unknown>) =>
         mutate<AgentSessionPromptResult>(
           'agentSession.respondToQuestion',
           'agentSession.respondTo:question',
-          { ...target, ...fields }
+          { ...target, ...countField, ...fields }
         )
       if (questionAnswersSupported === true) {
         return send({ answers })
@@ -106,7 +109,7 @@ export function useMobileStructuredPromptResponses(args: {
   )
 
   const respondQuestion = useCallback(
-    async (answer: string): Promise<boolean> => {
+    async (answer: string, count?: number): Promise<boolean> => {
       const prompt = stateRef.current.items.find(pendingStructuredQuestion) ?? null
       if (prompt?.body.questions) {
         const promptKey = groupedQuestionPromptKey(prompt.itemId, prompt.revision)
@@ -153,7 +156,8 @@ export function useMobileStructuredPromptResponses(args: {
         { itemId: target.itemId, expectedRevision: target.expectedRevision },
         // Grouped questions returned above, so this is a single question.
         {},
-        [target.answer]
+        [target.answer],
+        count
       )
       if (!result) {
         return false

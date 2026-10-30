@@ -41,7 +41,7 @@ export function MobileNativeChatPromptCard({
   permission?: MobileChatPermission | null
   onRespondPermission?: (send: string) => Promise<boolean>
   question?: MobileChatQuestion | null
-  onAnswerQuestion?: (text: string) => Promise<boolean>
+  onAnswerQuestion?: (text: string, count?: number) => Promise<boolean>
 }): React.JSX.Element | null {
   const card = ask ? (
     <MobileNativeChatAsk
@@ -76,7 +76,7 @@ export function MobileNativeChatPromptCard({
       key={mobileChatQuestionKey(question)}
       question={question.question}
       delegation={question.delegation}
-      onAnswer={async (text) => (await onAnswerQuestion?.(text)) ?? false}
+      onAnswer={async (...args) => (await onAnswerQuestion?.(...args)) ?? false}
       onCancel={onCancelPrompt && (() => onCancelPrompt(question.prompt))}
     />
   ) : question ? (

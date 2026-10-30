@@ -161,6 +161,54 @@ describe('MobileNativeChatDelegationCard', () => {
     expect(onAnswer).toHaveBeenLastCalledWith('token-claude')
   })
 
+  describe('the count question', () => {
+    const withCount: MobileDelegationQuestion = {
+      ...delegation,
+      card: { ...card, prototypeCount: { choices: [1, 2, 3], defaultCount: 2 } }
+    }
+
+    function countRadios() {
+      return radios().filter((radio) => ['1', '2', '3'].includes(radio.props.accessibilityLabel))
+    }
+
+    it('draws the count choices with the Settings default checked', async () => {
+      await mount({ payload: withCount })
+      expect(countRadios().map((radio) => radio.props.accessibilityLabel)).toEqual(['1', '2', '3'])
+      expect(countRadios().map((radio) => radio.props.accessibilityState.checked)).toEqual([
+        false,
+        true,
+        false
+      ])
+    })
+
+    it('sends the count the person picked with the answer', async () => {
+      const onAnswer = vi.fn(async () => true)
+      await mount({ onAnswer, payload: withCount })
+
+      await act(async () => countRadios()[2]!.props.onPress())
+      expect(countRadios().map((radio) => radio.props.accessibilityState.checked)).toEqual([
+        false,
+        false,
+        true
+      ])
+      await act(async () => startButton().props.onPress())
+      expect(onAnswer).toHaveBeenLastCalledWith('token-automatic', 3)
+    })
+
+    it('sends no count when the person picked none, so the Settings count applies', async () => {
+      const onAnswer = vi.fn(async () => true)
+      await mount({ onAnswer, payload: withCount })
+
+      await act(async () => startButton().props.onPress())
+      expect(onAnswer).toHaveBeenLastCalledWith('token-automatic')
+    })
+
+    it('draws no count question for a task that asks for no prototype', async () => {
+      await mount({})
+      expect(countRadios()).toHaveLength(0)
+    })
+  })
+
   it('keeps Start disabled until a row is picked when there is no decision', async () => {
     const onAnswer = vi.fn(async () => true)
     await mount({

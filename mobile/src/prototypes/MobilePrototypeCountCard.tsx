@@ -1,9 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { PROTOTYPE_CARD_COUNT_CHOICES } from '../../../src/shared/prototype-count-setting'
 import type { NativeChatPrototypeChoice } from '../../../src/shared/prototype-request-decision'
 import { colors, spacing, typography } from '../theme/mobile-theme'
 import type { MobilePrototypeAsk } from './mobile-prototype-ask-store'
-
-const COUNT_CHOICES = [1, 2, 3] as const
 
 /** Asks how many prototypes before a message that asks for them is sent; docked above the composer. */
 export function MobilePrototypeCountCard({
@@ -22,7 +21,7 @@ export function MobilePrototypeCountCard({
         style={styles.description}
       >{`${ask.agentName} makes distinct directions so you can compare.`}</Text>
       <View style={styles.choices}>
-        {COUNT_CHOICES.map((count) => {
+        {PROTOTYPE_CARD_COUNT_CHOICES.map((count) => {
           const primary = count === ask.defaultCount
           return (
             <Pressable

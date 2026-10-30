@@ -243,6 +243,24 @@ describe('useMobileStructuredPromptResponses', () => {
       return sent[0]!.fields
     }
 
+    it('sends the count with the single answer a delegation card gives', async () => {
+      const prompt = singlePrompt()
+      const { mutate, sent } = recordingMutate()
+      mount(prompt, mutate, true)
+      const card = projectStructuredQuestion(prompt)!
+
+      await act(async () => {
+        await hook().respondQuestion(formatQuestionFreeTextAnswer(card, 'short answer'), 3)
+      })
+
+      expect(sentFields(sent)).toEqual({
+        itemId: 'item-s',
+        expectedRevision: 3,
+        answers: [{ questionId: 'notes', optionIds: [], other: 'short answer' }],
+        count: 3
+      })
+    })
+
     it('sends a long typed answer as structured answers to a capable host', async () => {
       const prompt = singlePrompt()
       const { mutate, sent } = recordingMutate()
