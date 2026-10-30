@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { keyedEntries } from '../../../src/shared/prototype-entry-keys'
 import { draftTokenValue } from '../../../src/shared/prototype-design-system-draft'
 import { designSystemSectionsOf } from '../../../src/shared/prototype-design-system-view'
-import type { DesignSystemViewState } from '../../../src/shared/prototype-design-system-view-state'
 import { colors, spacing, typography } from '../theme/mobile-theme'
 import {
   mobileComponentMeta,
@@ -99,12 +99,14 @@ export function MobilePrototypeDesignSystemComponents({
           </Pressable>
         )
       })}
-      {addedKeys(state).map(({ key, description }) => (
-        <View key={key} style={styles.added}>
-          <Text style={styles.componentName}>{description}</Text>
-          <Text style={styles.addedNote}>To be added by the agent · in the draft</Text>
-        </View>
-      ))}
+      {keyedEntries(state.draft.added, (description) => description).map(
+        ({ key, entry: description }) => (
+          <View key={key} style={styles.added}>
+            <Text style={styles.componentName}>{description}</Text>
+            <Text style={styles.addedNote}>To be added by the agent · in the draft</Text>
+          </View>
+        )
+      )}
     </>
   )
 }
@@ -113,25 +115,14 @@ export function MobilePrototypeDesignSystemComponents({
 export function MobilePrototypeDesignSystemSource({ content }: Pick<TabProps, 'content'>) {
   return (
     <View style={styles.sources}>
-      {content.meta.sources.map((source, index) => (
-        // A source's path can repeat; its place keeps the two apart.
-        <View key={`${index}:${source.path}`} style={styles.source}>
+      {keyedEntries(content.meta.sources, (source) => source.path).map(({ key, entry: source }) => (
+        <View key={key} style={styles.source}>
           <Text style={styles.sourcePath}>{source.path}</Text>
           <Text style={styles.sourceTook}>{source.took}</Text>
         </View>
       ))}
     </View>
   )
-}
-
-// A description can repeat; how many equal ones came before it keeps the keys apart.
-function addedKeys(state: DesignSystemViewState): { key: string; description: string }[] {
-  const seen = new Map<string, number>()
-  return state.draft.added.map((description) => {
-    const occurrence = seen.get(description) ?? 0
-    seen.set(description, occurrence + 1)
-    return { key: `${description}\u0000${occurrence}`, description }
-  })
 }
 
 const styles = StyleSheet.create({
