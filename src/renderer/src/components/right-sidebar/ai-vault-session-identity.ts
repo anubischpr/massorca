@@ -46,3 +46,25 @@ export function applyPublishedAiVaultList(
 ): void {
   setScanResult((prev) => reuseAiVaultListResult(prev, published))
 }
+
+/**
+ * The scan stamp plus every row's chat-ownership and delegation link, order-independent.
+ * Why: the host reads those links after its scan cache, so a replayed stamp can carry new links.
+ */
+export function aiVaultScanContentKey(result: AiVaultListResult): string {
+  const links = result.sessions
+    .flatMap((session) =>
+      session.structuredSession || session.delegatedFrom
+        ? [
+            JSON.stringify([
+              session.id,
+              session.structuredSession?.sessionId ?? null,
+              session.delegatedFrom?.parentSessionId ?? null,
+              session.delegatedFrom?.status ?? null
+            ])
+          ]
+        : []
+    )
+    .sort()
+  return JSON.stringify([result.scannedAt, links])
+}

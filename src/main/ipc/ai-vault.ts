@@ -14,6 +14,7 @@ import {
 } from '../ai-vault/session-list-results'
 import { scanSshAiVaultSessions } from '../ai-vault/ssh-session-list'
 import { AiVaultScanCoordinator } from '../ai-vault/ai-vault-scan-coordinator'
+import { projectInternalAgentRunAiVaultSessions } from '../ai-vault/internal-agent-run-projection'
 import type { AiVaultDeleteSessionArgs } from '../../shared/ai-vault-session-deletion'
 import { describeAiVaultScanError } from '../../shared/ai-vault-scan-error-message'
 import {
@@ -271,7 +272,9 @@ export function registerAiVaultHandlers(options: AiVaultHandlerOptions = {}): vo
       await handlerOptions.ensureStructuredSessionOwnership?.()
       const result = await listAiVaultSessions(args, { signal: controller?.signal })
       const projected = projectStructuredAiVaultSessions(result, true)
-      return handlerOptions.projectDelegatedChildren?.(projected) ?? projected
+      return projectInternalAgentRunAiVaultSessions(
+        handlerOptions.projectDelegatedChildren?.(projected) ?? projected
+      )
     } catch (error) {
       // Why: superseding a scan is normal control flow, but Electron logs every
       // rejected handler — report it as a result so the log stays truthful.

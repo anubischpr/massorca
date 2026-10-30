@@ -171,7 +171,8 @@ describe('delegation request store', () => {
     ])
   })
 
-  it('lists a link only when its child and its parent are both given', () => {
+  it('lists a link by its child alone, whether or not the parent is given', () => {
+    // Why: the parent may have lost its row (a finished chat), yet the child still shows nested.
     db = new OrchestrationDb(':memory:')
     const { id } = db.createDelegationRequest(FILED)
     db.transitionDelegationRequest(id, 'pending', 'starting')
@@ -182,9 +183,25 @@ describe('delegation request store', () => {
       child_session_id: 'session_child_a'
     })
 
-    expect(db.listDelegatedChildLinks(['session_child_a'])).toEqual([])
+    expect(db.listDelegatedChildLinks(['session_child_a'])).toHaveLength(1)
+    expect(db.listDelegatedChildLinks(['session_child_a'])[0]?.parent_session_id).toBe(
+      FILED.parentSessionId
+    )
+  })
+
+  it('lists no link for a parent alone, so a link never appears without its child row', () => {
+    db = new OrchestrationDb(':memory:')
+    const { id } = db.createDelegationRequest(FILED)
+    db.transitionDelegationRequest(id, 'pending', 'starting')
+    db.transitionDelegationRequest(id, 'starting', 'started', {
+      run_id: 'run_a',
+      task_id: 'task_a',
+      dispatch_id: 'dispatch_a',
+      child_session_id: 'session_child_a'
+    })
+
     expect(db.listDelegatedChildLinks([FILED.parentSessionId])).toEqual([])
-    expect(db.listDelegatedChildLinks(['session_child_a', FILED.parentSessionId])).toHaveLength(1)
+    expect(db.listDelegatedChildLinks([])).toEqual([])
   })
 
   it('keeps a child link across a host restart', () => {

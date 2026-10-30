@@ -29,6 +29,7 @@ import { formatLinkedIssueTemplateValue } from '../../shared/source-control-ai-a
 import { renderSourceControlActionCommandTemplate } from '../../shared/source-control-ai-actions'
 import { captureAgentGenerationFailureOutput } from './agent-failure-output'
 import { openCodeVariantRetryPlan } from '../../shared/opencode-generation-command'
+import { recordInternalAgentRunStart } from '../ai-vault/internal-agent-run-registry'
 import { runLocalPlanForAgent } from './source-control-local-generation'
 import { runRemoteSourceControlPlan } from './source-control-remote-generation'
 import type {
@@ -54,6 +55,13 @@ export function commandBackslashMode(
   return platform === 'win32' && target.kind === 'local' && !target.wslDistro ? 'literal' : 'escape'
 }
 
+// Why: the agent leaves a transcript behind; recording the spawn lets Session History hide it as
+// an automated run from creation. A remote run's transcript lives on that host, out of this record.
+function runRecordedLocalPlan<T>(agentId: string, cwd: string, run: () => Promise<T>): Promise<T> {
+  const recordEnd = recordInternalAgentRunStart({ agentId, cwd })
+  return run().finally(recordEnd)
+}
+
 export async function executeGenerationPlan(input: {
   params: GenerateParams
   plan: CommitMessagePlan
@@ -64,23 +72,26 @@ export async function executeGenerationPlan(input: {
   /** A local run's cap; absent keeps the source-control default. */
   timeoutMs?: number
 }): Promise<InternalTextGenerationResult> {
+  const { target } = input
   const execute = (plan: CommitMessagePlan): Promise<InternalTextGenerationResult> =>
-    input.target.kind === 'remote'
+    target.kind === 'remote'
       ? runRemoteSourceControlPlan({
           plan,
-          target: input.target,
+          target,
           emptyResultName: input.emptyResultName,
           operation: input.operation
         })
-      : runLocalPlanForAgent({
-          agentId: input.params.agentId,
-          plan,
-          target: input.target,
-          emptyResultName: input.emptyResultName,
-          operation: input.operation,
-          spawnAgent: input.spawnAgent,
-          ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {})
-        })
+      : runRecordedLocalPlan(input.params.agentId, target.cwd, () =>
+          runLocalPlanForAgent({
+            agentId: input.params.agentId,
+            plan,
+            target,
+            emptyResultName: input.emptyResultName,
+            operation: input.operation,
+            spawnAgent: input.spawnAgent,
+            ...(input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : {})
+          })
+        )
   let result = await execute(input.plan)
   if (!result.success && input.params.agentId === 'opencode') {
     const retry = openCodeVariantRetryPlan(input.plan, result.failureOutput?.stderr ?? '')

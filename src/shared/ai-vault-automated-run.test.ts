@@ -6,6 +6,11 @@ import {
 } from './ai-vault-automated-run'
 import { filterAiVaultSessions, type AiVaultSessionFilterState } from './ai-vault-session-filters'
 import type { AiVaultSession } from './ai-vault-types'
+import { buildBranchNamePrompt } from './branch-name-from-work'
+import { buildCommitMessagePrompt } from './commit-message-generation'
+import { buildConversationNamePrompt } from './conversation-name-generation'
+import { buildReplySuggestionPrompt } from './native-chat-reply-suggestion'
+import { buildPullRequestFieldsPrompt } from './pull-request-generation'
 
 function session(overrides: Partial<AiVaultSession> = {}): AiVaultSession {
   return {
@@ -226,5 +231,70 @@ describe('applyAiVaultAutomatedRunsSwitch', () => {
     expect(
       applyAiVaultAutomatedRunsSwitch(inScope({ query: 'settings' }), false).automatedRunCount
     ).toBe(1)
+  })
+})
+
+describe('MassOrca background generation prompts', () => {
+  const prompts: Record<string, string> = {
+    'chat name': buildConversationNamePrompt({ firstPrompt: 'fix the login bug' }),
+    'chat name with extra instructions': buildConversationNamePrompt(
+      { firstPrompt: 'fix the login bug' },
+      'Use sentence case.'
+    ),
+    'commit message': buildCommitMessagePrompt(
+      { branch: 'main', stagedSummary: 'M a.ts', stagedPatch: 'diff --git a b' },
+      ''
+    ),
+    'pull request': buildPullRequestFieldsPrompt(
+      {
+        branch: 'feat/x',
+        base: 'main',
+        branchChangedByPreparation: false,
+        currentTitle: '',
+        currentBody: '',
+        currentDraft: false,
+        commitSummary: 'feat: x',
+        changeSummary: 'M a.ts',
+        patch: 'diff --git a b'
+      },
+      ''
+    ),
+    'branch name': buildBranchNamePrompt({ firstPrompt: 'add scope tabs' }),
+    'reply suggestion': buildReplySuggestionPrompt({ userMessage: 'hi', assistantMessage: 'hello' })
+  }
+
+  it.each(Object.entries(prompts))('treats the %s prompt as an automated run', (_name, prompt) => {
+    expect(isAiVaultAutomatedRun(session({ title: prompt, headlessRun: undefined }))).toBe(true)
+    expect(
+      isAiVaultAutomatedRun(
+        session({
+          title: 'Generated title',
+          previewMessages: [{ role: 'user', text: prompt, timestamp: null }]
+        })
+      )
+    ).toBe(true)
+  })
+
+  it('gives them no Review or SDD kind, so they show no badge', () => {
+    expect(aiVaultAutomatedRunKind(session({ title: prompts['chat name'] }))).toBeNull()
+  })
+
+  it('leaves a normal session that only mentions the same words alone', () => {
+    const title = "Fix why we name this chat from the user's first request badly"
+    expect(isAiVaultAutomatedRun(session({ title }))).toBe(false)
+    expect(
+      isAiVaultAutomatedRun(
+        session({
+          title: 'Chat naming',
+          previewMessages: [
+            {
+              role: 'user',
+              text: "Please explain: Name this chat from the user's first request.",
+              timestamp: null
+            }
+          ]
+        })
+      )
+    ).toBe(false)
   })
 })

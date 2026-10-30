@@ -442,6 +442,47 @@ describe('useAiVaultSessionRefresh refocus behavior', () => {
     expect(latest?.scanResult).toBe(firstResult)
   })
 
+  // The host reads delegation links from its database after the scan cache, so a cached scan
+  // replays the same stamp while a child gains (or changes) its link to a parent.
+  it('applies a single-host result whose stamp stood still but whose delegated child link changed', async () => {
+    const parent = {
+      ...makeVaultSession(1),
+      executionHostId: 'local' as const,
+      structuredSession: { sessionId: 'chat-parent', workspaceId: 'ws' }
+    }
+    const child = {
+      ...makeVaultSession(2),
+      executionHostId: 'local' as const,
+      structuredSession: { sessionId: 'chat-child', workspaceId: 'ws' }
+    }
+    const stamp = '2026-07-01T00:00:00.000Z'
+    listSessionsMock.mockResolvedValueOnce({
+      sessions: [parent, child],
+      issues: [],
+      scannedAt: stamp
+    })
+    await renderHook()
+    await flushMicrotasks()
+    const before = latest?.sessions.find((row) => row.id === child.id)
+    expect(before).toBeDefined()
+    expect(before?.delegatedFrom).toBeUndefined()
+
+    listSessionsMock.mockResolvedValueOnce({
+      sessions: [
+        parent,
+        { ...child, delegatedFrom: { parentSessionId: 'chat-parent', status: 'working' } }
+      ],
+      issues: [],
+      scannedAt: stamp
+    })
+    await advance(THROTTLE_MS + 1)
+    await fireWindowFocused()
+    expect(latest?.sessions.find((row) => row.id === child.id)?.delegatedFrom).toEqual({
+      parentSessionId: 'chat-parent',
+      status: 'working'
+    })
+  })
+
   // An 'all' result is a merge of legs on independent clocks, stamped with the
   // newest leg. A paired host whose clock lags the desktop can return new
   // sessions while the merged stamp repeats, so the stamp guard above must not

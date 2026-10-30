@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { AiVaultListResult, AiVaultSession } from '../../../../shared/ai-vault-types'
-import { EMPTY_AI_VAULT_SESSIONS, reuseAiVaultListResult } from './ai-vault-session-identity'
+import {
+  aiVaultScanContentKey,
+  EMPTY_AI_VAULT_SESSIONS,
+  reuseAiVaultListResult
+} from './ai-vault-session-identity'
 
 // Why: production rows carry nested previewMessages + subagent. A scalar
 // {id, title} fixture reconciles even when the walker is broken, which is how
@@ -138,5 +142,32 @@ describe('EMPTY_AI_VAULT_SESSIONS', () => {
   it('is frozen so one panel cannot mutate the sentinel for the others', () => {
     expect(EMPTY_AI_VAULT_SESSIONS).toHaveLength(0)
     expect(Object.isFrozen(EMPTY_AI_VAULT_SESSIONS)).toBe(true)
+  })
+})
+
+describe('aiVaultScanContentKey', () => {
+  const linked = (index: number, parentSessionId?: string): AiVaultSession => ({
+    ...makeProductionSession(index),
+    structuredSession: { sessionId: `chat-${index}`, workspaceId: 'ws' },
+    ...(parentSessionId ? { delegatedFrom: { parentSessionId, status: 'working' as const } } : {})
+  })
+  const result = (sessions: AiVaultSession[]): AiVaultListResult => ({
+    sessions,
+    issues: [],
+    scannedAt: '2026-07-01T00:00:00.000Z'
+  })
+
+  it('ignores the order rows arrive in', () => {
+    const parent = linked(1)
+    const child = linked(2, 'chat-1')
+    expect(aiVaultScanContentKey(result([parent, child]))).toBe(
+      aiVaultScanContentKey(result([child, parent]))
+    )
+  })
+
+  it('changes when a row gains a delegation link under the same scan stamp', () => {
+    expect(aiVaultScanContentKey(result([linked(1), linked(2)]))).not.toBe(
+      aiVaultScanContentKey(result([linked(1), linked(2, 'chat-1')]))
+    )
   })
 })

@@ -1,4 +1,5 @@
 import { sessionPromptPreview } from './ai-vault-session-display'
+import { INTERNAL_GENERATION_PROMPT_PREFIXES } from './internal-generation-prompt-prefixes'
 import type { AiVaultSession } from './ai-vault-types'
 
 export type AiVaultAutomatedRunKind = 'review' | 'sdd'
@@ -18,9 +19,17 @@ export function aiVaultAutomatedRunKind(session: AiVaultSession): AiVaultAutomat
   )
 }
 
-/** Whether the list hides this session unless its "Automated runs" switch is on. */
+/**
+ * Whether the list hides this session unless its "Automated runs" switch is on. A run MassOrca
+ * started is marked `headlessRun` at spawn; the prompt prefix is the fallback for older ones.
+ */
 export function isAiVaultAutomatedRun(session: AiVaultSession): boolean {
-  return session.headlessRun === true || aiVaultAutomatedRunKind(session) !== null
+  return (
+    session.headlessRun === true ||
+    aiVaultAutomatedRunKind(session) !== null ||
+    isInternalGenerationPrompt(session.title) ||
+    isInternalGenerationPrompt(openingPromptText(session))
+  )
 }
 
 /**
@@ -51,6 +60,11 @@ function automatedRunKindOfPrompt(prompt: string | null): AiVaultAutomatedRunKin
     return 'review'
   }
   return SDD_WORKER_PROMPT_PATTERN.test(text) ? 'sdd' : null
+}
+
+function isInternalGenerationPrompt(prompt: string | null): boolean {
+  const text = prompt?.trimStart() ?? ''
+  return INTERNAL_GENERATION_PROMPT_PREFIXES.some((prefix) => text.startsWith(prefix))
 }
 
 function openingPromptText(session: AiVaultSession): string | null {

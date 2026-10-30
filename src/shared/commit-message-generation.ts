@@ -1,3 +1,4 @@
+import { COMMIT_MESSAGE_PROMPT_PREFIX } from './internal-generation-prompt-prefixes'
 import { cleanGeneratedCommitMessage, truncateDiffForPrompt } from './commit-message-prompt'
 import type { TuiAgent } from './tui-agent'
 
@@ -35,7 +36,7 @@ export function buildCommitMessagePrompt(
     ? truncateDiffForPrompt(context.stagedPatch)
     : '(diff omitted — too large to read; infer the change from the staged file list above)'
   const base = [
-    'You are generating a single git commit message.',
+    COMMIT_MESSAGE_PROMPT_PREFIX,
     'Return only the commit message text. Do not include a preamble, quotes, or code fences.',
     '',
     'Rules:',

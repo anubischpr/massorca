@@ -31,7 +31,7 @@ export function applyDelegatedChildParentLinks(
   db: OrchestrationDb,
   paneKeys: readonly string[]
 ): void {
-  // Why: a session with no row is gone, so links are read only between sessions that still show.
+  // Why: only children with a row are read; a parent that lost its row keeps its link, unlisted.
   const shown = [...structuredSessionIdsOfRows(paneKeys)]
   if (shown.length === 0) {
     return
