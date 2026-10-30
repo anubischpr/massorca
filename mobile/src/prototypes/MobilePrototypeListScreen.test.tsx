@@ -41,13 +41,18 @@ const listing = vi.hoisted((): { state: MobilePrototypeSetsState } => ({
 }))
 vi.mock('./use-mobile-prototype-sets', () => ({ useMobilePrototypeSets: () => listing.state }))
 
+/** A host element by its type name; the mocked native components are host strings. */
+function isHost(node: ReactTestInstance, type: string): boolean {
+  return node.type === type
+}
+
 function textOf(node: ReactTestInstance): string {
   return node.children.map((child) => (typeof child === 'string' ? child : textOf(child))).join('')
 }
 
 function systemRows(tree: ReactTestRenderer): ReactTestInstance[] {
   return tree.root.findAll(
-    (node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'Design system'
+    (node) => isHost(node, 'Pressable') && node.props.accessibilityLabel === 'Design system'
   )
 }
 

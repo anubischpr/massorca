@@ -1,4 +1,8 @@
 import { create } from 'zustand'
+import {
+  emptyDesignSystemViewState,
+  type DesignSystemViewState
+} from '../../../src/shared/prototype-design-system-view-state'
 import type { PrototypeFilter } from '../../../src/shared/prototype-list-model'
 import { adoptMergedDirection } from '../../../src/shared/prototype-merge-state'
 import {
@@ -16,6 +20,11 @@ export function mobilePrototypeStateKey(hostId: string, requestId: string): stri
   return `${hostId}\0${requestId}`
 }
 
+/** A design system's state key: project keys are only unique within one host. */
+export function mobilePrototypeDesignSystemKey(hostId: string, projectKey: string): string {
+  return `${hostId}\0${projectKey}`
+}
+
 /** A new set opens on the phone viewport, as the phone screens do. */
 export function createMobileSetState(letters: readonly string[]): PrototypeSetState {
   return { ...createSetState(letters), viewport: 'phone' }
@@ -25,16 +34,23 @@ type MobilePrototypeViewStore = {
   scope: MobilePrototypeScope
   filter: PrototypeFilter
   states: Readonly<Record<string, PrototypeSetState>>
+  /** Each project's design system screen: its tab, selection and draft, kept while the app runs. */
+  designSystemViews: Readonly<Record<string, DesignSystemViewState>>
   setScope: (scope: MobilePrototypeScope) => void
   setFilter: (filter: PrototypeFilter) => void
   ensureSetState: (key: string, letters: readonly string[]) => void
   updateSetState: (key: string, update: (state: PrototypeSetState) => PrototypeSetState) => void
+  updateDesignSystemView: (
+    key: string,
+    update: (state: DesignSystemViewState) => DesignSystemViewState
+  ) => void
 }
 
 export const useMobilePrototypeViewStore = create<MobilePrototypeViewStore>()((set) => ({
   scope: 'all',
   filter: 'all',
   states: {},
+  designSystemViews: {},
   setScope: (scope) => set({ scope }),
   setFilter: (filter) => set({ filter }),
   ensureSetState: (key, letters) =>
@@ -53,5 +69,12 @@ export const useMobilePrototypeViewStore = create<MobilePrototypeViewStore>()((s
       return existing === undefined
         ? current
         : { states: { ...current.states, [key]: update(existing) } }
-    })
+    }),
+  updateDesignSystemView: (key, update) =>
+    set((current) => ({
+      designSystemViews: {
+        ...current.designSystemViews,
+        [key]: update(current.designSystemViews[key] ?? emptyDesignSystemViewState())
+      }
+    }))
 }))

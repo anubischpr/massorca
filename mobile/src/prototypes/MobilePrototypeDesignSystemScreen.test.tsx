@@ -1,0 +1,329 @@
+import { createElement } from 'react'
+import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { designSystemDraftGroups } from '../../../src/shared/prototype-design-system-draft'
+import type { DesignSystemContent } from '../../../src/shared/prototype-design-system-content'
+import type {
+  PrototypeListedDesignSystem,
+  PrototypeListedSet
+} from '../../../src/shared/rpc-contract/prototype-params'
+import { MobilePrototypeDesignSystemScreen } from './MobilePrototypeDesignSystemScreen'
+import {
+  NEXUS_PROJECT_KEY,
+  NEXUS_SYSTEM,
+  nexusContent,
+  nexusSet
+} from './mobile-prototype-design-system.test-fixture'
+import {
+  mobilePrototypeDesignSystemKey,
+  useMobilePrototypeViewStore
+} from './mobile-prototype-view-store'
+
+vi.mock('react-native', () => ({
+  Pressable: 'Pressable',
+  ScrollView: 'ScrollView',
+  StyleSheet: { create: (styles: unknown) => styles, hairlineWidth: 1 },
+  Text: 'Text',
+  TextInput: 'TextInput',
+  View: 'View',
+  useWindowDimensions: () => ({ width: 390, height: 844 })
+}))
+vi.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }))
+vi.mock('react-native-svg', () => ({
+  default: 'Svg',
+  ClipPath: 'ClipPath',
+  Defs: 'Defs',
+  Path: 'Path',
+  Rect: 'Rect'
+}))
+vi.mock('lucide-react-native', () => ({ ChevronLeft: 'ChevronLeft', Check: 'Check' }))
+vi.mock('../transport/host-client-hooks', () => ({ useHostClient: () => ({ client: null }) }))
+// The drawer's own animation is not under test: it shows its sheet's content while it has one.
+vi.mock('../components/keyed-bottom-drawer', () => ({
+  KeyedBottomDrawer: ({
+    sheet,
+    children
+  }: {
+    sheet: string | null
+    children: (sheet: string) => unknown
+  }) => (sheet === null ? null : children(sheet))
+}))
+
+const hooks = vi.hoisted(
+  (): {
+    sets: PrototypeListedSet[]
+    systems: PrototypeListedDesignSystem[]
+    content: DesignSystemContent | null
+  } => ({ sets: [], systems: [], content: null })
+)
+vi.mock('./use-mobile-prototype-sets', () => ({
+  useMobilePrototypeSets: () => ({
+    status: 'ready',
+    sets: hooks.sets,
+    designSystems: hooks.systems
+  })
+}))
+vi.mock('./use-mobile-prototype-design-system-content', () => ({
+  useMobilePrototypeDesignSystemContent: () => ({ status: 'ready', content: hooks.content })
+}))
+
+const KEY = mobilePrototypeDesignSystemKey('host-1', NEXUS_PROJECT_KEY)
+
+/** A host element by its type name; the mocked native components are host strings. */
+function isHost(node: ReactTestInstance, type: string): boolean {
+  return node.type === type
+}
+
+function textOf(node: ReactTestInstance): string {
+  return node.children.map((child) => (typeof child === 'string' ? child : textOf(child))).join('')
+}
+
+function allText(tree: ReactTestRenderer): string[] {
+  return tree.root.findAll((node) => isHost(node, 'Text')).map(textOf)
+}
+
+function pressable(tree: ReactTestRenderer, name: string): ReactTestInstance {
+  const [found] = tree.root.findAll(
+    (node) =>
+      isHost(node, 'Pressable') && (node.props.accessibilityLabel === name || textOf(node) === name)
+  )
+  if (found === undefined) {
+    throw new Error(`no control named ${name}`)
+  }
+  return found
+}
+
+function input(tree: ReactTestRenderer, label: string): ReactTestInstance {
+  const [found] = tree.root.findAll(
+    (node) => isHost(node, 'TextInput') && node.props.accessibilityLabel === label
+  )
+  if (found === undefined) {
+    throw new Error(`no field labelled ${label}`)
+  }
+  return found
+}
+
+function press(tree: ReactTestRenderer, name: string): void {
+  act(() => pressable(tree, name).props.onPress())
+}
+
+function draftItems(): string[] {
+  const draft = useMobilePrototypeViewStore.getState().designSystemViews[KEY]?.draft
+  const content = nexusContent()
+  return draft === undefined
+    ? []
+    : designSystemDraftGroups({ tokens: content.tokens, components: content.components }, draft)
+        .flatMap((group) => group.items)
+        .map((item) => `${item.label}: ${item.text}`)
+}
+
+function mount(): ReactTestRenderer {
+  let tree: ReactTestRenderer | undefined
+  act(() => {
+    tree = create(
+      createElement(MobilePrototypeDesignSystemScreen, {
+        hostId: 'host-1',
+        projectKey: NEXUS_PROJECT_KEY,
+        onBack: vi.fn()
+      })
+    )
+  })
+  if (tree === undefined) {
+    throw new Error('the screen did not render')
+  }
+  return tree
+}
+
+beforeEach(() => {
+  hooks.content = nexusContent()
+  hooks.sets = [nexusSet()]
+  hooks.systems = [NEXUS_SYSTEM]
+  useMobilePrototypeViewStore.setState({ designSystemViews: {} })
+})
+
+describe('MobilePrototypeDesignSystemScreen header and tabs', () => {
+  it('names the system and its project, version and agent, over Tokens / Components / Source', () => {
+    const tree = mount()
+    const texts = allText(tree)
+    expect(texts).toContain('Design system')
+    expect(texts).toContain('nexuscare · v2 · Codex')
+    const tabs = tree.root.findAll(
+      (node) => isHost(node, 'Pressable') && node.props.accessibilityRole === 'tab'
+    )
+    expect(tabs.map(textOf)).toEqual(['Tokens', 'Components', 'Source'])
+  })
+
+  it('shows the colors as tiles and the type, space and radius summary on Tokens', () => {
+    const tree = mount()
+    press(tree, 'Tokens')
+    const texts = allText(tree)
+    expect(texts).toEqual(
+      expect.arrayContaining([
+        'Color',
+        'primary',
+        '#2563eb',
+        'Type · Space · Radius',
+        'type.display 32/600 · title 20/600 · body 14/400',
+        'space 4 · 8 · 12',
+        'radius sm 6 · md 10'
+      ])
+    )
+    expect(texts).not.toContain('+ Add component')
+  })
+
+  it('lists the path and what was taken from it on Source', () => {
+    const tree = mount()
+    press(tree, 'Source')
+    expect(allText(tree)).toEqual(
+      expect.arrayContaining([
+        'src/assets/main.css',
+        ':root and .dark → 4 colors, radius base 10px',
+        'docs/STYLEGUIDE.md',
+        'type scale, spacing rules'
+      ])
+    )
+  })
+
+  it('shows Add component and the components with their variants on Components', () => {
+    const tree = mount()
+    const texts = allText(tree)
+    expect(texts).toEqual(
+      expect.arrayContaining(['+ Add component', 'Button', 'primary · secondary', 'Input'])
+    )
+  })
+})
+
+describe('the token sheet', () => {
+  it('names the token and its use, and puts a changed color in the draft', () => {
+    const tree = mount()
+    press(tree, 'Tokens')
+    press(tree, 'color.primary')
+    const texts = allText(tree)
+    expect(texts).toContain('color.primary')
+    expect(texts).toContain('Used by 1 components · 1 sets')
+    expect(texts).toContain(
+      'Changes join the draft on their own. Send can also rebuild the sets built on this version.'
+    )
+    act(() => input(tree, 'Hex').props.onChangeText('#1d4ed8'))
+    expect(draftItems()).toEqual(['color: color.primary #2563eb → #1d4ed8'])
+    expect(pressable(tree, 'Color #2563eb')).toBeDefined()
+    expect(pressable(tree, 'Color #1d4ed8')).toBeDefined()
+  })
+
+  it('opens the color picker from the custom swatch and takes a shade', () => {
+    const tree = mount()
+    press(tree, 'Tokens')
+    press(tree, 'color.primary')
+    press(tree, 'Custom color')
+    expect(allText(tree)).toContain('Custom color')
+    act(() => pressable(tree, 'Hue 120').props.onPress())
+    const shade = tree.root.findAll(
+      (node) =>
+        isHost(node, 'Pressable') &&
+        typeof node.props.accessibilityLabel === 'string' &&
+        node.props.accessibilityLabel.startsWith('#')
+    )[0]
+    act(() => shade?.props.onPress())
+    expect(draftItems()).toHaveLength(1)
+  })
+
+  it('drops the change when the original color is picked again', () => {
+    const tree = mount()
+    press(tree, 'Tokens')
+    press(tree, 'color.primary')
+    act(() => input(tree, 'Hex').props.onChangeText('#1d4ed8'))
+    press(tree, 'Color #2563eb')
+    expect(draftItems()).toEqual([])
+  })
+})
+
+describe('the component sheet', () => {
+  it('offers the variants and the color binding of a component and drafts each change', () => {
+    const tree = mount()
+    press(tree, 'Button')
+    const texts = allText(tree)
+    expect(texts).toEqual(
+      expect.arrayContaining(['Edit', 'Note', 'Variants and states', 'Background token'])
+    )
+    expect(texts).toContain('Remove component')
+    expect(texts).toContain('Changes join the draft on their own.')
+    expect(texts).not.toContain('Radius token')
+    press(tree, 'hover')
+    press(tree, 'color.muted')
+    expect(draftItems()).toEqual([
+      'variant: Button: add hover state',
+      'binding: Button background: color.primary → color.muted'
+    ])
+  })
+
+  it('drafts a note from the Note tab', () => {
+    const tree = mount()
+    press(tree, 'Button')
+    press(tree, 'Note')
+    expect(allText(tree)).toContain('Anything Edit can’t do, for this component')
+    act(() =>
+      input(tree, 'Anything Edit can’t do, for this component').props.onChangeText('Pulse on load')
+    )
+    expect(draftItems()).toEqual(['note: Button: Pulse on load'])
+  })
+
+  it('marks a component for removal, dims its row and takes the mark back', () => {
+    const tree = mount()
+    press(tree, 'Input')
+    press(tree, 'Remove component')
+    expect(draftItems()).toEqual(['remove: Remove component: Input'])
+    expect(allText(tree)).toContain('Undo remove')
+    press(tree, 'Close')
+    expect(allText(tree)).toContain('marked for removal · in the draft')
+    press(tree, 'Input')
+    press(tree, 'Undo remove')
+    expect(draftItems()).toEqual([])
+  })
+})
+
+describe('the add sheet', () => {
+  it('adds the chosen kind to the draft and shows it as to be added by the agent', () => {
+    const tree = mount()
+    press(tree, '+ Add component')
+    const texts = allText(tree)
+    expect(texts).toEqual(
+      expect.arrayContaining([
+        'Add a component',
+        'Badge',
+        'Modal',
+        'Table',
+        'Toast',
+        'Avatar',
+        'Toggle',
+        'Or describe a custom one',
+        'Add to draft'
+      ])
+    )
+    press(tree, 'Toast')
+    press(tree, 'Add to draft')
+    expect(draftItems()).toEqual(['add: Add component: Toast'])
+    expect(allText(tree)).not.toContain('Add a component')
+    expect(allText(tree)).toEqual(
+      expect.arrayContaining(['Toast', 'To be added by the agent · in the draft'])
+    )
+  })
+
+  it('adds a typed description instead of the chosen kind', () => {
+    const tree = mount()
+    press(tree, '+ Add component')
+    act(() =>
+      input(tree, 'Or describe a custom one').props.onChangeText('Phase stepper with a status')
+    )
+    press(tree, 'Add to draft')
+    expect(draftItems()).toEqual(['add: Add component: Phase stepper with a status'])
+  })
+
+  it('keeps the draft when the screen is left and opened again', () => {
+    const first = mount()
+    press(first, '+ Add component')
+    press(first, 'Add to draft')
+    act(() => first.unmount())
+    mount()
+    expect(draftItems()).toEqual(['add: Add component: Badge'])
+  })
+})
