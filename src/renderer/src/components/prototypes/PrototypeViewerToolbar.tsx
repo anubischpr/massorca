@@ -89,10 +89,7 @@ export function PrototypeViewerToolbar({
               })}
         </button>
       </div>
-      <div
-        role="toolbar"
-        className="scrollbar-sleek flex max-w-full shrink-0 items-center gap-2 overflow-x-auto [&>*]:shrink-0"
-      >
+      <div role="toolbar" className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
         {single ? null : (
           <button
             type="button"
@@ -154,41 +151,43 @@ export function PrototypeViewerToolbar({
             {translate('components.prototypes.viewportPhone', 'Phone')}
           </button>
         </div>
-        <div
-          role="group"
-          aria-label={translate('components.prototypes.toolGroup', 'Tool')}
-          className={SEGMENT_CLASS}
-        >
-          <button
-            type="button"
-            aria-pressed={state.tool === 'browse'}
-            onClick={() => update((current) => setTool(current, 'browse'))}
-            className={segmentButtonClass(state.tool === 'browse')}
+        <div className="flex items-center gap-2">
+          <div
+            role="group"
+            aria-label={translate('components.prototypes.toolGroup', 'Tool')}
+            className={SEGMENT_CLASS}
           >
-            {translate('components.prototypes.toolBrowse', 'Browse')}
-          </button>
-          <button
+            <button
+              type="button"
+              aria-pressed={state.tool === 'browse'}
+              onClick={() => update((current) => setTool(current, 'browse'))}
+              className={segmentButtonClass(state.tool === 'browse')}
+            >
+              {translate('components.prototypes.toolBrowse', 'Browse')}
+            </button>
+            <button
+              type="button"
+              aria-pressed={state.tool === 'annotate'}
+              onClick={() => update((current) => setTool(current, 'annotate'))}
+              className={segmentButtonClass(state.tool === 'annotate')}
+            >
+              {translate('components.prototypes.toolAnnotate', 'Annotate')}
+            </button>
+          </div>
+          <Button
             type="button"
-            aria-pressed={state.tool === 'annotate'}
-            onClick={() => update((current) => setTool(current, 'annotate'))}
-            className={segmentButtonClass(state.tool === 'annotate')}
+            variant={sidePanelHidden ? 'secondary' : 'ghost'}
+            size="icon-xs"
+            aria-label={
+              sidePanelHidden
+                ? translate('components.prototypes.showPanel', 'Show panel')
+                : translate('components.prototypes.hidePanel', 'Hide panel')
+            }
+            onClick={() => setSidePanelHidden(!sidePanelHidden)}
           >
-            {translate('components.prototypes.toolAnnotate', 'Annotate')}
-          </button>
+            <PanelRight />
+          </Button>
         </div>
-        <Button
-          type="button"
-          variant={sidePanelHidden ? 'secondary' : 'ghost'}
-          size="icon-xs"
-          aria-label={
-            sidePanelHidden
-              ? translate('components.prototypes.showPanel', 'Show panel')
-              : translate('components.prototypes.hidePanel', 'Hide panel')
-          }
-          onClick={() => setSidePanelHidden(!sidePanelHidden)}
-        >
-          <PanelRight />
-        </Button>
       </div>
     </div>
   )

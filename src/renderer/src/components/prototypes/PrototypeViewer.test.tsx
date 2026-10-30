@@ -450,13 +450,18 @@ describe('PrototypeViewer toolbar structure', () => {
     const header = controls.parentElement
     expect(header?.children).toHaveLength(2)
     expect(header?.children[1]).toBe(controls)
-    expect(controls).toHaveClass('shrink-0')
-    expect(controls).not.toHaveClass('flex-wrap')
+    expect(controls).toHaveClass('flex-wrap')
+    expect(controls).not.toHaveClass('overflow-x-auto')
   })
 
   it('puts the panel toggle right after the Browse / Annotate group', () => {
     renderSet3(createSetState(['A', 'B', 'C']))
     const tool = screen.getByRole('group', { name: 'Tool' })
     expect(tool.nextElementSibling).toBe(screen.getByRole('button', { name: 'Hide panel' }))
+    // One flex item, so the toggle never separates from the group when the controls wrap.
+    expect(tool.parentElement).toBe(
+      screen.getByRole('button', { name: 'Hide panel' }).parentElement
+    )
+    expect(tool.parentElement).not.toBe(screen.getByRole('toolbar'))
   })
 })
