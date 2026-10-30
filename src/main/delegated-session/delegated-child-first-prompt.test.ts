@@ -23,7 +23,12 @@ function fakeDeps(overrides: Partial<DelegatedChildFirstPromptDeps> = {}) {
   }))
   const removeFolder = vi.fn<DelegatedChildFirstPromptDeps['removeFolder']>(async () => undefined)
   const deps: DelegatedChildFirstPromptDeps = {
-    readChat: () => ({ launchDirectory: '/repo', workspaceId: 'workspace-1' }),
+    readChat: async () => ({
+      agent: 'claude',
+      launchDirectory: '/repo',
+      workspaceId: 'workspace-1'
+    }),
+    hasDesignSystem: async () => true,
     readPrototypeCount: () => ({ mode: 'always', count: 3 }),
     createRequest,
     removeFolder,
@@ -32,8 +37,8 @@ function fakeDeps(overrides: Partial<DelegatedChildFirstPromptDeps> = {}) {
   return { deps, createRequest, removeFolder }
 }
 
-function promptInput(taskSpec: string, childAgent = 'claude') {
-  return { childSessionId: CHILD, originSessionId: PARENT, taskSpec, childAgent }
+function promptInput(taskSpec: string) {
+  return { childSessionId: CHILD, originSessionId: PARENT, taskSpec }
 }
 
 describe('delegatedChildFirstPrompt', () => {
@@ -53,6 +58,7 @@ describe('delegatedChildFirstPrompt', () => {
       originSessionId: PARENT,
       agent: 'claude',
       count: 3,
+      designSystem: 'use',
       text: NEXUS_TASK
     })
   })
@@ -63,6 +69,21 @@ describe('delegatedChildFirstPrompt', () => {
     expect(prompt?.body).toBe(NEXUS_TASK)
     expect(prompt?.appendix).toContain(prototypeRequestMarkerLine(REQUEST))
     expect(prompt?.appendix).toContain(designSystemRequestInstruction())
+  })
+
+  it('asks for no design system in a project that has none, and goes straight to the directions', async () => {
+    const { deps, createRequest } = fakeDeps({ hasDesignSystem: async () => false })
+    const prompt = await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)
+    expect(createRequest).toHaveBeenCalledWith(expect.objectContaining({ designSystem: 'skip' }))
+    expect(prompt?.appendix).toContain(prototypeRequestMarkerLine(REQUEST))
+    expect(prompt?.appendix).not.toContain(designSystemRequestInstruction())
+  })
+
+  it('reads whether the directory the child launched in has a design system', async () => {
+    const hasDesignSystem = vi.fn(async () => true)
+    const { deps } = fakeDeps({ hasDesignSystem })
+    await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)
+    expect(hasDesignSystem).toHaveBeenCalledWith('/repo')
   })
 
   it('keeps the hidden instruction out of the body, so a title read from it never sees it', async () => {
@@ -98,7 +119,7 @@ describe('delegatedChildFirstPrompt', () => {
   })
 
   it('gives a child this host does not hold its task unchanged, with no request', async () => {
-    const { deps, createRequest } = fakeDeps({ readChat: () => null })
+    const { deps, createRequest } = fakeDeps({ readChat: async () => null })
     expect(await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)).toBeNull()
     expect(createRequest).not.toHaveBeenCalled()
   })
@@ -135,6 +156,34 @@ describe('delegatedChildFirstPrompt', () => {
     expect(removeFolder).toHaveBeenCalledWith(FOLDER)
   })
 
+  it('makes a Gentle Shell child request as gentle-shell, in the directory the child launched in', async () => {
+    const { deps, createRequest } = fakeDeps({
+      readChat: async () => ({
+        agent: 'pi',
+        launchDirectory: '/repo/launch',
+        workspaceId: 'workspace-1',
+        piRuntime: 'gentle-shell'
+      })
+    })
+    await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)
+    expect(createRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ agent: 'gentle-shell', launchDirectory: '/repo/launch' })
+    )
+  })
+
+  it('asks as other for a plain Pi child, whose workspace runs stock Pi', async () => {
+    const { deps, createRequest } = fakeDeps({
+      readChat: async () => ({
+        agent: 'pi',
+        launchDirectory: '/repo',
+        workspaceId: 'workspace-1',
+        piRuntime: 'pi'
+      })
+    })
+    await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)
+    expect(createRequest).toHaveBeenCalledWith(expect.objectContaining({ agent: 'other' }))
+  })
+
   it('gives a task longer than a composer would send no request', async () => {
     const { deps, createRequest } = fakeDeps()
     const long = `${NEXUS_TASK} ${'x'.repeat(PROTOTYPE_PROMPT_MAX_LENGTH)}`
@@ -150,6 +199,11 @@ describe('prototypeAgentOfChild', () => {
     expect(prototypeAgentOfChild('gentle-shell')).toBe('gentle-shell')
     expect(prototypeAgentOfChild('pi')).toBe('other')
     expect(prototypeAgentOfChild('')).toBe('other')
+  })
+
+  it('names a Pi child gentle-shell only when its Pi runtime is Gentle Shell', () => {
+    expect(prototypeAgentOfChild('pi', 'gentle-shell')).toBe('gentle-shell')
+    expect(prototypeAgentOfChild('pi', 'pi')).toBe('other')
   })
 })
 

@@ -13,11 +13,15 @@ export type PrototypeSetsResult = {
   sets: readonly PrototypeListedSet[]
   /** The design system of each project a host listed one for. */
   designSystems: readonly PrototypeListedDesignSystem[]
+  /** Lists again now, so an archive or a delete shows without waiting for the next refresh. */
+  reload: () => void
 }
+
+type PrototypeSetsListing = Omit<PrototypeSetsResult, 'reload'>
 
 /** The host's sets and design systems; refreshed on focus and every few seconds while the document is visible. */
 export function usePrototypeSets(): PrototypeSetsResult {
-  const [result, setResult] = useState<PrototypeSetsResult>({
+  const [result, setResult] = useState<PrototypeSetsListing>({
     status: 'loading',
     sets: [],
     designSystems: []
@@ -48,5 +52,5 @@ export function usePrototypeSets(): PrototypeSetsResult {
       window.removeEventListener('focus', load)
     }
   }, [load])
-  return result
+  return { ...result, reload: load }
 }

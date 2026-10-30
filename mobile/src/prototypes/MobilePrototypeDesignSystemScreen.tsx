@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { activePrototypeSets } from '../../../src/shared/prototype-archived-sets'
 import { designSystemChatOf, setsBuiltOn } from '../../../src/shared/prototype-design-system-view'
 import {
   DESIGN_SYSTEM_TABS,
@@ -61,7 +62,8 @@ export function MobilePrototypeDesignSystemScreen({
   const { client } = useHostClient(hostId)
   const listed = useMobilePrototypeSets(hostId)
   const system = findMobilePrototypeDesignSystem(listed, projectKey)
-  const target = system === null ? undefined : designSystemChatOf(listed.sets, system)
+  const activeSets = activePrototypeSets(listed.sets)
+  const target = system === null ? undefined : designSystemChatOf(activeSets, system)
   const content = useMobilePrototypeDesignSystemContent(
     client,
     target?.sessionId,
@@ -87,7 +89,7 @@ export function MobilePrototypeDesignSystemScreen({
     selection?.kind === 'component'
       ? readyContent?.components.find((candidate) => candidate.name === selection.name)
       : undefined
-  const rebuildSets = system === null ? [] : setsBuiltOn(listed.sets, projectKey, system.version)
+  const rebuildSets = system === null ? [] : setsBuiltOn(activeSets, projectKey, system.version)
   const panel =
     system === null || readyContent === null
       ? null

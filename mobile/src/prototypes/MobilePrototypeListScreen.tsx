@@ -1,7 +1,9 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { MoreHorizontal } from 'lucide-react-native'
 import { prototypeAgentMono, type PrototypeListRow } from '../../../src/shared/prototype-list-model'
+import { ActionSheetModal } from '../components/ActionSheetModal'
 import { useNow } from '../hooks/use-now'
 import {
   ArtifactScrollScopeContext,
@@ -14,12 +16,14 @@ import { MobilePrototypeSystemRow } from './MobilePrototypeSystemRow'
 import { MobilePrototypeTile } from './MobilePrototypeTile'
 import {
   MOBILE_PROTOTYPE_FILTERS,
+  buildMobilePrototypeArchivedRows,
   buildMobilePrototypeGroups,
   mobilePrototypeAgentLabel,
   mobilePrototypeFilterLabel,
   mobilePrototypeRowStatusLine
 } from './mobile-prototype-list-model'
 import { mobilePrototypeStateKey, useMobilePrototypeViewStore } from './mobile-prototype-view-store'
+import { useMobilePrototypeSetActions } from './use-mobile-prototype-set-actions'
 import { useMobilePrototypeSets } from './use-mobile-prototype-sets'
 
 /** Every agent's prototype sets: This chat or All agents, narrowed by agent, newest first. */
@@ -59,6 +63,20 @@ export function MobilePrototypeListScreen({
       }),
     [listed.sets, listed.designSystems, scope, sessionId, filter, states, hostId, now]
   )
+  const archivedRows = useMemo(
+    () =>
+      buildMobilePrototypeArchivedRows({
+        sets: listed.sets,
+        scope,
+        sessionId,
+        filter,
+        activeLetterOf: (requestId) => states[mobilePrototypeStateKey(hostId, requestId)]?.active,
+        nowMs: now
+      }),
+    [listed.sets, scope, sessionId, filter, states, hostId, now]
+  )
+  const [archivedOpen, setArchivedOpen] = useState(false)
+  const setActions = useMobilePrototypeSetActions(client, listed.reload)
   // Tiles near the viewport draw their pages; scrolling tells them to look again.
   const viewport = useRef<View>(null)
   const scrollListeners = useRef(new Set<() => void>())
@@ -138,13 +156,45 @@ export function MobilePrototypeListScreen({
                     row={row}
                     client={client}
                     onPress={() => onOpenSet(row)}
+                    onMore={setActions.canAct ? () => setActions.openMenu(row) : undefined}
                   />
                 ))}
               </View>
             ))}
+            {archivedRows.length === 0 ? null : (
+              <View style={styles.group}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Archived"
+                  accessibilityState={{ expanded: archivedOpen }}
+                  onPress={() => setArchivedOpen((open) => !open)}
+                  style={styles.archivedHeader}
+                >
+                  <Text style={styles.groupTitle}>{`Archived · ${archivedRows.length}`}</Text>
+                  <Text style={styles.archivedChevron}>{archivedOpen ? '⌄' : '›'}</Text>
+                </Pressable>
+                {archivedOpen
+                  ? archivedRows.map((row) => (
+                      <PrototypeRow
+                        key={row.set.requestId}
+                        row={row}
+                        client={client}
+                        onPress={() => onOpenSet(row)}
+                        onMore={setActions.canAct ? () => setActions.openMenu(row) : undefined}
+                      />
+                    ))
+                  : null}
+              </View>
+            )}
           </ScrollView>
         </ArtifactScrollScopeContext.Provider>
       </View>
+      <ActionSheetModal
+        visible={setActions.menuRow !== null}
+        title={setActions.menuRow?.title}
+        actions={setActions.menuActions}
+        onClose={setActions.closeMenu}
+      />
     </SafeAreaView>
   )
 }
@@ -173,11 +223,14 @@ function ScopeButton({
 function PrototypeRow({
   row,
   client,
-  onPress
+  onPress,
+  onMore
 }: {
   row: PrototypeListRow
   client: ReturnType<typeof useHostClient>['client']
   onPress: () => void
+  /** Opens the row's actions; absent while the host offers none. */
+  onMore?: (() => void) | undefined
 }) {
   return (
     <Pressable
@@ -203,7 +256,20 @@ function PrototypeRow({
           <Text style={styles.mono}>{prototypeAgentMono(row.set.agent)}</Text>
           <Text style={styles.rowMeta}>{mobilePrototypeAgentLabel(row.set.agent)}</Text>
         </View>
-        <Text style={styles.rowStatus}>{mobilePrototypeRowStatusLine(row)}</Text>
+        <View style={styles.rowBottom}>
+          <Text style={styles.rowStatus}>{mobilePrototypeRowStatusLine(row)}</Text>
+          {onMore === undefined ? null : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Actions for ${row.title}`}
+              hitSlop={8}
+              onPress={onMore}
+              style={styles.more}
+            >
+              <MoreHorizontal size={18} color={colors.textSecondary} />
+            </Pressable>
+          )}
+        </View>
       </View>
     </Pressable>
   )
@@ -283,5 +349,14 @@ const styles = StyleSheet.create({
     fontSize: 10
   },
   rowMeta: { color: colors.textSecondary, fontSize: 13 },
-  rowStatus: { color: colors.textPrimary, fontSize: 13 }
+  rowBottom: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  rowStatus: { flex: 1, color: colors.textPrimary, fontSize: 13 },
+  more: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  archivedHeader: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  archivedChevron: { color: colors.textSecondary, fontSize: 18 }
 })

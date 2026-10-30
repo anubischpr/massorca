@@ -165,7 +165,7 @@ function readElementState(value: unknown): PrototypeElementState | null {
   if (
     !isBoundedString(text, NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS.text, 0) ||
     !isHexColor(color) ||
-    !isHexColor(bg) ||
+    !isFillColor(bg) ||
     !isFiniteNumber(fontSize) ||
     fontSize < 0 ||
     fontSize > NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS.fontSize
@@ -215,4 +215,9 @@ const HEX_COLOR = /^#[0-9a-f]{6}$/i
 
 function isHexColor(value: unknown): value is string {
   return typeof value === 'string' && HEX_COLOR.test(value)
+}
+
+/** A fill is a hex color, or 'transparent' when no ancestor paints behind the element. */
+function isFillColor(value: unknown): value is string {
+  return value === 'transparent' || isHexColor(value)
 }

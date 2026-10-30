@@ -32,6 +32,10 @@ export const MOBILE_AGENT_SESSION_RPC_METHODS = [
   'prototypes.list',
   'prototypes.readFile',
   'prototypes.readDesignSystem',
+  // Archive, unarchive and delete one set; the host refuses a delete while its chat and worktree exist.
+  'prototypes.archive',
+  'prototypes.unarchive',
+  'prototypes.delete',
   // The screenshot an iteration send attaches, written under the chat's prototype request folder.
   'prototypes.writeAttachment',
   // No-ops on a current host; kept until MIN_COMPATIBLE_RUNTIME_CLIENT_VERSION passes the

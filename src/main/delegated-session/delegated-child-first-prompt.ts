@@ -9,11 +9,17 @@ import {
   PROTOTYPE_AGENTS,
   type PrototypeAgent
 } from '../../shared/prototype-request'
+import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
+import type { PrototypeDesignSystemMode } from '../../shared/prototype-design-system-files'
 import type { WorkerFirstPrompt } from '../runtime/rpc/methods/orchestration/worker/worker-start-readiness-settlement'
 
 export type DelegatedChildChat = {
+  /** The agent id the child runs on, as its chat record names it. */
+  agent: string
   launchDirectory: string | undefined
   workspaceId: string
+  /** The Pi runtime the child's workspace runs; set only for a Pi child. */
+  piRuntime?: PiRuntimeSelection
 }
 
 export type DelegatedChildRequest =
@@ -21,8 +27,10 @@ export type DelegatedChildRequest =
   | { ok: false; error: string }
 
 export type DelegatedChildFirstPromptDeps = {
-  /** The child's chat record on this host; null when this host does not hold it. */
-  readChat: (sessionId: string) => DelegatedChildChat | null
+  /** The child's chat record on this host, with where it works; null when this host does not hold it. */
+  readChat: (sessionId: string) => Promise<DelegatedChildChat | null>
+  /** Whether the child's project has a design system; a project without one is asked for none. */
+  hasDesignSystem: (launchDirectory: string | undefined) => Promise<boolean>
   /** The saved Settings value for the prototype count, unsanitized. */
   readPrototypeCount: () => unknown
   /** Makes the child's request folder and manifest; the caller supplies the state directory and clock. */
@@ -33,6 +41,7 @@ export type DelegatedChildFirstPromptDeps = {
     originSessionId: string
     agent: PrototypeAgent
     count: number
+    designSystem: PrototypeDesignSystemMode
     text: string
   }) => Promise<DelegatedChildRequest>
   removeFolder: (folderPath: string) => Promise<void>
@@ -43,8 +52,6 @@ export type DelegatedChildPromptInput = {
   originSessionId: string
   /** The child's task spec, which stays as stored; only the delivered first prompt changes. */
   taskSpec: string
-  /** The agent id the child runs on; one without a prototype agent asks as 'other'. */
-  childAgent: string
 }
 
 /** The first prompt for a child whose task asks for a prototype, or null to deliver the task spec as stored. */
@@ -70,16 +77,21 @@ async function buildDelegatedChildFirstPrompt(
   if (input.taskSpec.length > PROTOTYPE_PROMPT_MAX_LENGTH) {
     return null
   }
-  const agent = prototypeAgentOfChild(input.childAgent)
+  // Why: a Pi child's agent depends on the runtime its chat runs, so the chat is read before the task is classified.
+  const chat = await deps.readChat(input.childSessionId)
+  if (chat === null) {
+    return null
+  }
+  const agent = prototypeAgentOfChild(chat.agent, chat.piRuntime)
   const text = neutralizePrototypeMarkers(input.taskSpec)
   if (classifyPrototypeRequest(text, agent).kind === 'none') {
     return null
   }
-  const chat = deps.readChat(input.childSessionId)
-  if (chat === null) {
-    return null
-  }
   const count = sanitizePrototypeCountSetting(deps.readPrototypeCount()).count
+  // Why: a child has no card to choose a design system, so it uses the project's own system only when there is one.
+  const designSystem: PrototypeDesignSystemMode = (await deps.hasDesignSystem(chat.launchDirectory))
+    ? 'use'
+    : 'skip'
   const created = await deps
     .createRequest({
       sessionId: input.childSessionId,
@@ -88,6 +100,7 @@ async function buildDelegatedChildFirstPrompt(
       originSessionId: input.originSessionId,
       agent,
       count,
+      designSystem,
       text: input.taskSpec
     })
     .catch((error: unknown): DelegatedChildRequest => ({ ok: false, error: String(error) }))
@@ -106,7 +119,7 @@ async function buildDelegatedChildFirstPrompt(
       count,
       requestId: created.requestId,
       folderPath,
-      designSystem: 'use'
+      designSystem
     })
     return { body: parts.body, appendix: parts.hidden, discard }
   } catch (error) {
@@ -118,8 +131,17 @@ async function buildDelegatedChildFirstPrompt(
   }
 }
 
-/** The prototype agent a child runs as; an agent without one of its own is 'other'. */
-export function prototypeAgentOfChild(childAgent: string): PrototypeAgent {
+/**
+ * The prototype agent a child runs as. A Pi child is Gentle Shell only when its Pi runtime says so, since
+ * plain Pi has no prototype agent of its own; any other agent without one of its own is 'other'.
+ */
+export function prototypeAgentOfChild(
+  childAgent: string,
+  piRuntime?: PiRuntimeSelection
+): PrototypeAgent {
+  if (childAgent === 'pi') {
+    return piRuntime === 'gentle-shell' ? 'gentle-shell' : 'other'
+  }
   return isPrototypeAgent(childAgent) ? childAgent : 'other'
 }
 

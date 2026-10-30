@@ -2,11 +2,15 @@ import { describe, expect, it, vi } from 'vitest'
 import type { RpcClient } from '../transport/rpc-client'
 import type { RpcResponse } from '../transport/types'
 import {
+  archiveMobilePrototypeRequest,
   createMobilePrototypeRequest,
+  deleteMobilePrototypeRequest,
   hostListsDesignSystems,
+  hostMayArchivePrototypes,
   listMobilePrototypeSets,
   readMobilePrototypeDesignSystem,
   readMobilePrototypeFile,
+  unarchiveMobilePrototypeRequest,
   writeMobilePrototypeAttachment
 } from './mobile-prototype-host-rpc'
 
@@ -297,5 +301,63 @@ describe('hostListsDesignSystems', () => {
   it('does not carry the answer of one host to another', async () => {
     await listMobilePrototypeSets(clientAnswering(withSystems), {})
     expect(hostListsDesignSystems(clientAnswering(withSystems))).toBe(false)
+  })
+})
+
+describe('archive, unarchive and delete of a set', () => {
+  const target = { sessionId: SESSION, requestId: REQUEST }
+
+  it('sends the method of each action with the session and request alone', async () => {
+    const sendRequest = vi.fn((_method: string, _params: unknown) =>
+      Promise.resolve(ok({ ok: true }))
+    )
+    const client = { sendRequest }
+    expect(await archiveMobilePrototypeRequest(client, target)).toEqual({ kind: 'done' })
+    expect(await unarchiveMobilePrototypeRequest(client, target)).toEqual({ kind: 'done' })
+    expect(await deleteMobilePrototypeRequest(client, target)).toEqual({ kind: 'done' })
+    expect(sendRequest.mock.calls.map((call) => [call[0], call[1]])).toEqual([
+      ['prototypes.archive', target],
+      ['prototypes.unarchive', target],
+      ['prototypes.delete', target]
+    ])
+  })
+
+  it('reads the host refusals as verdicts', async () => {
+    expect(
+      await deleteMobilePrototypeRequest(
+        clientAnswering(ok({ ok: false, error: 'not_deletable' })),
+        target
+      )
+    ).toEqual({ kind: 'refused', error: 'not_deletable' })
+    expect(
+      await archiveMobilePrototypeRequest(
+        clientAnswering(ok({ ok: false, error: 'not_found' })),
+        target
+      )
+    ).toEqual({ kind: 'refused', error: 'not_found' })
+  })
+
+  it('refuses a delete answer that an archive could not give, and a lost transport, as unreachable', async () => {
+    expect(
+      await archiveMobilePrototypeRequest(
+        clientAnswering(ok({ ok: false, error: 'not_deletable' })),
+        target
+      )
+    ).toEqual({ kind: 'unreachable' })
+    expect(
+      await deleteMobilePrototypeRequest(clientAnswering(new Error('socket closed')), target)
+    ).toEqual({ kind: 'unreachable' })
+    expect(
+      await deleteMobilePrototypeRequest(clientAnswering(failed('internal_error')), target)
+    ).toEqual({ kind: 'unreachable' })
+  })
+
+  it('reads an older host as unsupported, and remembers it for that host alone', async () => {
+    const older = clientAnswering(failed('forbidden', 'method not allowed'))
+    const current = clientAnswering(ok({ ok: true }))
+    expect(hostMayArchivePrototypes(older)).toBe(true)
+    expect(await archiveMobilePrototypeRequest(older, target)).toEqual({ kind: 'unsupported-host' })
+    expect(hostMayArchivePrototypes(older)).toBe(false)
+    expect(hostMayArchivePrototypes(current)).toBe(true)
   })
 })

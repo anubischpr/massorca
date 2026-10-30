@@ -22,6 +22,7 @@ import { usesDesignSystemInstruction } from '../../shared/prototype-design-syste
 import type { DesignSystemSummary } from '../../shared/prototype-design-system-summary'
 import { nativeChatVisualsFolderName, nativeChatVisualsRootFor } from './native-chat-visuals-folder'
 import { directionNotesFor, withDirectionNotes } from './prototype-direction-notes'
+import { deletableChecker, withDeletable } from './prototype-listed-deletable'
 import { projectsOfLaunchDirectories, type ListedProject } from './prototype-design-system-files'
 import {
   fileMtime,
@@ -43,10 +44,12 @@ const MAX_REQUEST_FOLDERS_SCANNED = 500
 export type ListPrototypeSetsOptions = {
   stateDirectory: string
   worktreeId?: string
-  /** Whether a chat's request folders may be listed; omitted, every chat on this host is listed. */
-  isChatListed?: (sessionId: string) => boolean
+  /** Whether a chat's request folders may be listed, given whether the request is archived; omitted, all are. */
+  isChatListed?: (sessionId: string, archived: boolean) => boolean
+  /** Whether the host would delete this chat's requests; asked once per chat, for archived sets only. */
+  isDeletable?: (sessionId: string) => Promise<boolean>
   /** A chat's launch directory from its record; a Gentle Shell design/ folder is read only under it. */
-  launchDirectoryOf?: (sessionId: string) => string | undefined
+  launchDirectoryOf?: (sessionId: string) => string | undefined | Promise<string | undefined>
 }
 
 /**
@@ -90,7 +93,7 @@ async function withProjects(
   // Why the chat record and not the manifest: request.json sits in the folder the agent writes into.
   const launchDirectories = new Map<string, string>()
   for (const { manifest } of requests) {
-    const launchDirectory = options.launchDirectoryOf?.(manifest.sessionId)
+    const launchDirectory = await options.launchDirectoryOf?.(manifest.sessionId)
     if (launchDirectory !== undefined) {
       launchDirectories.set(manifest.sessionId, launchDirectory)
     }
@@ -99,8 +102,10 @@ async function withProjects(
   const pendingRequests = new Map<string, PrototypeListedPendingRequest>()
   const proposals: PrototypeListedProposal[] = []
   const sets: PrototypeListedSet[] = []
+  const deletableOf = deletableChecker(options.isDeletable)
   for (const request of requests) {
-    const { set, manifest } = request
+    const { set: listedSet, manifest } = request
+    const set = listedSet === null ? null : await withDeletable(listedSet, deletableOf)
     const project = projects.get(launchDirectories.get(manifest.sessionId) ?? '')
     // Why the first only: requests are newest first, so the first proposal with no direction files is the newest.
     if (
@@ -246,10 +251,13 @@ async function listedRequestFor(
   if (options.worktreeId !== undefined && manifest.worktreeId !== options.worktreeId) {
     return null
   }
-  if (options.isChatListed !== undefined && !options.isChatListed(manifest.sessionId)) {
+  if (
+    options.isChatListed !== undefined &&
+    !options.isChatListed(manifest.sessionId, manifest.archived === true)
+  ) {
     return null
   }
-  const launchDirectory = options.launchDirectoryOf?.(manifest.sessionId)
+  const launchDirectory = await options.launchDirectoryOf?.(manifest.sessionId)
   // Why recorded files first: a request lists the files its own folder holds, and its Gentle Shell design/
   // folder only when none is recorded, so one request never lists two sources.
   const recorded = await directionsWithMtime(
@@ -282,6 +290,7 @@ async function listedRequestFor(
           ...(manifest.originSessionId !== undefined
             ? { origin: { sessionId: manifest.originSessionId } }
             : {}),
+          ...(manifest.archived === true ? { archived: true as const } : {}),
           directions
         }
   return { set, manifest, requestFolder }

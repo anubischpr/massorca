@@ -150,12 +150,14 @@ describe('the pin sheet of the main', () => {
 })
 
 describe('the properties sheet of a read-only direction', () => {
-  function mountReadOnlySheet(update: () => void = () => {}): ReactTestRenderer {
+  function mountReadOnlySheet(update: () => void = () => {}, fill?: string): ReactTestRenderer {
     const state = readOnlyB()
-    const pin = selectedPinOf(state)
-    if (pin === null) {
+    const selected = selectedPinOf(state)
+    if (selected === null) {
       throw new Error('the state has no selected pin')
     }
+    const pin =
+      fill === undefined ? selected : { ...selected, current: { ...selected.current, bg: fill } }
     let renderer: ReactTestRenderer | undefined
     act(() => {
       renderer = create(createElement(MobilePrototypeReadOnlySheet, { pin, state, update }))
@@ -190,6 +192,14 @@ describe('the properties sheet of a read-only direction', () => {
     expect(texts).toContain('100% × auto · 20px')
   })
 
+  it('leaves the Fill row out when no ancestor paints, rather than showing a value that is not there', () => {
+    const { root } = mountReadOnlySheet(() => {}, 'transparent')
+    const texts = hosts(root, 'Text').map((text) => text.props.children)
+    expect(texts).toContain('Text color')
+    expect(texts).not.toContain('Fill')
+    expect(texts).not.toContain('transparent')
+  })
+
   it('closes the selection from the × button', () => {
     const update = vi.fn()
     const { root } = mountReadOnlySheet(update)
@@ -201,9 +211,10 @@ describe('the properties sheet of a read-only direction', () => {
 })
 
 describe('the read-only banner', () => {
-  it('names the direction and the main, and has Back to main and Make main', () => {
-    const onBackToMain = vi.fn()
-    const onMakeMain = vi.fn()
+  const SENTENCE =
+    'Viewing C, read-only. Tap any element to see its properties; notes and edits go on the main, B.'
+
+  function mountBanner(onBackToMain: () => void, onMakeMain: () => void): ReactTestInstance {
     let renderer: ReactTestRenderer | undefined
     act(() => {
       renderer = create(
@@ -215,25 +226,47 @@ describe('the read-only banner', () => {
         })
       )
     })
-    const root = renderer?.root
-    if (root === undefined) {
+    if (renderer === undefined) {
       throw new Error('the banner did not mount')
     }
-    const [sentence] = hosts(root, 'Text')
-    expect(sentence === undefined ? '' : flatText(sentence)).toBe(
-      'Viewing C, read-only. Tap any element to see its properties; notes and edits go on the main, B.'
-    )
-    const labels = hosts(root, 'Text').map((text) => text.props.children)
-    expect(labels).toEqual(expect.arrayContaining(['Back to main', 'Make main']))
+    return renderer.root
+  }
 
-    const buttons = root.findAllByProps({ accessibilityRole: 'button' })
+  function bannerButton(root: ReactTestInstance, label: string): ReactTestInstance {
+    const button = root
+      .findAllByProps({ accessibilityRole: 'button' })
+      .find((node) => hosts(node, 'Text').some((text) => text.props.children === label))
+    if (button === undefined) {
+      throw new Error(`the banner has no ${label} button`)
+    }
+    return button
+  }
+
+  it('is one row, and explains the read-only view only once its info icon is tapped', () => {
+    const root = mountBanner(vi.fn(), vi.fn())
+    expect(hosts(root, 'Text').map((text) => flatText(text))).not.toContain(SENTENCE)
+    expect(hosts(root, 'Text').map((text) => text.props.children)).toEqual(
+      expect.arrayContaining(['Back to main', 'Make main'])
+    )
+
     act(() => {
-      buttons[0]?.props.onPress()
-      buttons[1]?.props.onPress()
+      root.findByProps({ accessibilityLabel: 'What read-only means' }).props.onPress()
+    })
+    expect(hosts(root, 'Text').map((text) => flatText(text))).toContain(SENTENCE)
+  })
+
+  it('runs Back to main and Make main from their controls', () => {
+    const onBackToMain = vi.fn()
+    const onMakeMain = vi.fn()
+    const root = mountBanner(onBackToMain, onMakeMain)
+    act(() => {
+      bannerButton(root, 'Back to main').props.onPress()
+    })
+    act(() => {
+      bannerButton(root, 'Make main').props.onPress()
     })
     expect(onBackToMain).toHaveBeenCalledTimes(1)
     expect(onMakeMain).toHaveBeenCalledTimes(1)
-    expect(buttons).toHaveLength(2)
   })
 })
 

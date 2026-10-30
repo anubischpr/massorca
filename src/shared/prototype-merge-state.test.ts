@@ -7,14 +7,17 @@ import {
   canMerge,
   canSendMerge,
   cancelMerge,
+  cancelSentMerge,
   chatTookMerge,
   mergeRefused,
   mergeRequestRefused,
   mergeSent,
   planArrived,
+  setMergeBaseline,
   setMergeNote,
   setPartSource,
-  togglePart
+  togglePart,
+  withMergeKept
 } from './prototype-merge-state'
 import {
   createSetState,
@@ -71,7 +74,8 @@ describe('starting a merge', () => {
       phase: 'waiting',
       letters: ['A', 'C'],
       planId: 'plan-1',
-      baseline: 'old'
+      baseline: 'old',
+      layoutBefore: 'set'
     })
   })
 
@@ -87,6 +91,31 @@ describe('starting a merge', () => {
     expect(state.merge).toBeNull()
     expect(state.mergeSendFailed).toBe(true)
     expect(state.starred).toEqual(['A', 'C'])
+  })
+})
+
+describe('the suggestion request', () => {
+  it('shows the wait from the click, before the plan file is read', () => {
+    const state = beginMerge(starred('A', 'C'), { planId: 'plan-1' })
+    expect(state.merge).toMatchObject({ phase: 'waiting', letters: ['A', 'C'], planId: 'plan-1' })
+    expect(state.merge?.phase === 'waiting' && state.merge.baseline).toBeUndefined()
+  })
+
+  it('takes no plan until the baseline is read, then the plan answers the request', () => {
+    const unread = beginMerge(starred('A', 'C'), { planId: 'plan-1' })
+    expect(planArrived(unread, plan(), PLAN_JSON)).toBe(unread)
+    const requested = setMergeBaseline(unread, 'plan-1', null)
+    expect(requested.merge).toMatchObject({ phase: 'waiting', baseline: null })
+    expect(planArrived(requested, plan(), PLAN_JSON).merge?.phase).toBe('review')
+  })
+
+  it('reads the baseline once, and only for the merge that is waiting', () => {
+    const unread = beginMerge(starred('A', 'C'), { planId: 'plan-1' })
+    expect(setMergeBaseline(unread, 'other', 'old')).toBe(unread)
+    const read = setMergeBaseline(unread, 'plan-1', 'old')
+    expect(read.merge).toMatchObject({ baseline: 'old' })
+    expect(setMergeBaseline(read, 'plan-1', 'newer')).toBe(read)
+    expect(setMergeBaseline(cancelMerge(unread), 'plan-1', 'old').merge).toBeNull()
   })
 })
 
@@ -172,6 +201,57 @@ describe('sending the merge', () => {
     expect(canSendMerge(state)).toBe(true)
   })
 
+  it('lands back on the layout the merge started from, so View all shows the directions again', () => {
+    const fromSet = planArrived(
+      beginMerge(showSet(starred('A', 'C')), { planId: 'plan-1', baseline: null }),
+      plan(),
+      PLAN_JSON
+    )
+    const sent = mergeSent(beginMergeSend(fromSet), {
+      letter: 'D',
+      visibleMessage: 'Merge into D.'
+    })
+    expect(sent.layout).toBe('set')
+    const fromFocus = mergeSent(beginMergeSend(reviewing()), {
+      letter: 'D',
+      visibleMessage: 'Merge into D.'
+    })
+    expect(fromFocus.layout).toBe('focus')
+  })
+
+  it('lands back on View all after a second merge sent from there too', () => {
+    const adopted = adoptMergedDirection(
+      mergeSent(reviewing(), { letter: 'D', visibleMessage: 'Merge into D.' }),
+      ['A', 'B', 'C', 'D']
+    )
+    const secondText = JSON.stringify({
+      id: 'plan-2',
+      from: ['A', 'D'],
+      parts: [{ name: 'Hero', selector: 'section.hero', from: 'D' }]
+    })
+    const secondPlan = parsePrototypeMergePlan(secondText)
+    if (secondPlan === null) {
+      throw new Error('expected a valid plan')
+    }
+    const started = beginMerge(showSet(toggleStar(toggleStar(adopted, 'A'), 'D')), {
+      planId: 'plan-2',
+      baseline: null
+    })
+    const second = mergeSent(beginMergeSend(planArrived(started, secondPlan, secondText)), {
+      letter: 'E',
+      visibleMessage: 'Merge into E.'
+    })
+    expect(second).toMatchObject({ layout: 'set', mergeInto: { letter: 'E', from: ['A', 'D'] } })
+  })
+
+  it('ends the wait for a sent merge from its row and keeps the stars', () => {
+    const sent = mergeSent(reviewing(), { letter: 'D', visibleMessage: 'Merge into D.' })
+    const cancelled = cancelSentMerge(sent)
+    expect(cancelled.mergeInto).toBeNull()
+    expect(cancelled.starred).toEqual(['A', 'C'])
+    expect(cancelSentMerge(cancelled)).toBe(cancelled)
+  })
+
   it('lets the user ask again while the merged direction has not shown up', () => {
     const sent = mergeSent(reviewing(), { letter: 'D', visibleMessage: 'Merge into D.' })
     expect(canMerge(sent, 'D')).toBe(true)
@@ -229,6 +309,25 @@ describe('leaving the merge', () => {
   it('ends when a starred direction leaves the set', () => {
     expect(keepListedLetters(waiting(), ['A', 'B']).merge).toBeNull()
     expect(keepListedLetters(waiting(), ['A', 'B', 'C']).merge).not.toBeNull()
+  })
+})
+
+describe('the Layout toggle', () => {
+  it('keeps a merge under way and a sent one through View all and Design main', () => {
+    const waitingState = waiting()
+    const inSet = withMergeKept(waitingState, showSet)
+    expect(inSet).toMatchObject({ layout: 'set', merge: waitingState.merge })
+    expect(withMergeKept(inSet, showFocus)).toMatchObject({
+      layout: 'focus',
+      merge: waitingState.merge
+    })
+    const reviewState = reviewing()
+    expect(withMergeKept(reviewState, showSet).merge).toEqual(reviewState.merge)
+    const sent = mergeSent(reviewing(), { letter: 'D', visibleMessage: 'Merge into D.' })
+    expect(withMergeKept(sent, showSet)).toMatchObject({
+      layout: 'set',
+      mergeInto: { letter: 'D', from: ['A', 'C'] }
+    })
   })
 })
 

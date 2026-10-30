@@ -7,8 +7,14 @@ import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototy
 import { writePrototypeAttachmentOnHost } from '../../runtime/runtime-prototype-client'
 import { usePrototypeViewStore } from './prototype-view-store'
 import { buildPrototypeListRows } from '../../../../shared/prototype-list-model'
+import {
+  activePrototypeSets,
+  archivedPrototypeSets,
+  requestToOpenAfterArchiving
+} from '../../../../shared/prototype-archived-sets'
 import { buildPrototypeListGroups } from '../../../../shared/prototype-list-groups'
 import { PrototypeDesignSystemScreen } from './PrototypeDesignSystemScreen'
+import type { PrototypeArchiveControls } from './PrototypeArchivedGroup'
 import { PrototypeListPanel } from './PrototypeListPanel'
 import { PrototypeSidePanel } from './PrototypeSidePanel'
 import { PrototypeViewer } from './PrototypeViewer'
@@ -25,13 +31,19 @@ import {
   mergeRefused,
   mergeRequestRefused,
   mergeSent,
-  planArrived
+  planArrived,
+  setMergeBaseline
 } from '../../../../shared/prototype-merge-state'
 import { PROTOTYPE_FRAMES } from '../../../../shared/prototype-frames'
 import { sendPrototypeIteration } from '../../../../shared/prototype-send'
 import type { PrototypeSetState } from '../../../../shared/prototype-set-state'
 import { beginSend, sendRefused, sendSucceeded } from '../../../../shared/prototype-set-view'
 import { prototypeTargetForSession, worktreeIdOfChatSession } from './prototype-host-targets'
+import {
+  prototypeHostKey,
+  runPrototypeSetAction,
+  type PrototypeSetAction
+} from './prototype-set-actions'
 import { readPrototypeMergePlanText, usePrototypeMergePlan } from './use-prototype-merge-plan'
 import { usePrototypeSets } from './use-prototype-sets'
 
@@ -96,10 +108,22 @@ export default function PrototypesPage(): React.JSX.Element {
     return () => window.clearInterval(timer)
   }, [])
 
+  // Why split: an archived set leaves the main list and its counts, and opens from the Archived group.
+  const activeSets = useMemo(() => activePrototypeSets(listed.sets), [listed.sets])
   const rows = useMemo(
     () =>
       buildPrototypeListRows({
-        sets: listed.sets,
+        sets: activeSets,
+        filter,
+        activeLetterOf: (requestId) => states[requestId]?.active,
+        nowMs
+      }),
+    [activeSets, filter, states, nowMs]
+  )
+  const archivedRows = useMemo(
+    () =>
+      buildPrototypeListRows({
+        sets: archivedPrototypeSets(listed.sets),
         filter,
         activeLetterOf: (requestId) => states[requestId]?.active,
         nowMs
@@ -109,12 +133,14 @@ export default function PrototypesPage(): React.JSX.Element {
   const groups = useMemo(
     () =>
       buildPrototypeListGroups({
-        sets: listed.sets,
+        sets: activeSets,
         rows,
         designSystems: listed.designSystems
       }),
-    [listed.sets, listed.designSystems, rows]
+    [activeSets, listed.designSystems, rows]
   )
+  // Hosts that answered an archive action with method_not_found: their sets are not offered the actions.
+  const [outdatedHosts, setOutdatedHosts] = useState<ReadonlySet<string>>(() => new Set())
 
   const system =
     selectedProjectKey === null
@@ -124,7 +150,8 @@ export default function PrototypesPage(): React.JSX.Element {
   const selectedRequestId = selected?.requestId
   const selectedLetters = selected?.directions.map((direction) => direction.letter) ?? []
   const selectedLettersKey = selectedLetters.join('|')
-  const firstRequestId = listed.sets[0]?.requestId
+  const firstRequestId = activeSets[0]?.requestId
+  const { reload } = listed
 
   useEffect(() => {
     if (
@@ -152,6 +179,37 @@ export default function PrototypesPage(): React.JSX.Element {
     }
   )
 
+  const runSetAction = async (
+    action: PrototypeSetAction,
+    set: PrototypeListedSet
+  ): Promise<void> => {
+    const outcome = await runPrototypeSetAction(action, set)
+    if (outcome === 'unsupported') {
+      const hostKey = prototypeHostKey(prototypeTargetForSession(set.sessionId))
+      setOutdatedHosts((previous) => new Set(previous).add(hostKey))
+    }
+    reload()
+  }
+  const archive: PrototypeArchiveControls = {
+    rows: archivedRows,
+    supports: (set) =>
+      !outdatedHosts.has(prototypeHostKey(prototypeTargetForSession(set.sessionId))),
+    onArchive: (set) => {
+      if (set.requestId === selectedRequestId) {
+        // Why: the open set leaves the main list, so the view moves to its neighbor instead of keeping a hidden one.
+        selectRequest(
+          requestToOpenAfterArchiving(
+            groups.flatMap((group) => group.rows),
+            set.requestId
+          )
+        )
+      }
+      void runSetAction('archive', set)
+    },
+    onUnarchive: (set) => void runSetAction('unarchive', set),
+    onDelete: (set) => void runSetAction('delete', set)
+  }
+
   if (system !== undefined) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1">
@@ -163,8 +221,9 @@ export default function PrototypesPage(): React.JSX.Element {
           selectedProjectKey={system.projectKey}
           onSelect={selectRequest}
           onSelectSystem={selectDesignSystem}
+          archive={archive}
         />
-        <PrototypeDesignSystemScreen system={system} sets={listed.sets} sendText={sendToChat} />
+        <PrototypeDesignSystemScreen system={system} sets={activeSets} sendText={sendToChat} />
       </div>
     )
   }
@@ -183,6 +242,7 @@ export default function PrototypesPage(): React.JSX.Element {
           selectedProjectKey={null}
           onSelect={selectRequest}
           onSelectSystem={selectDesignSystem}
+          archive={archive}
         />
       </div>
     )
@@ -198,14 +258,17 @@ export default function PrototypesPage(): React.JSX.Element {
     if (folderPath === undefined || !canMerge(setState, nextLetter)) {
       return
     }
-    // The plan file as it is now: an answer without an id must differ from it.
+    const planId = `m${Date.now().toString(36)}`
+    update((current) => beginMerge(current, { planId }))
+    // The plan file as it is now: an answer without an id must differ from it. The request goes out after that read.
     const baseline = await readPrototypeMergePlanText(selected)
     const latest = usePrototypeViewStore.getState().states[selected.requestId]
-    if (latest === undefined || !canMerge(latest, nextLetter)) {
+    const merge = latest?.merge
+    if (latest === undefined || merge?.phase !== 'waiting' || merge.planId !== planId) {
+      // Why: the user cancelled or left while the file was read, so nothing is asked.
       return
     }
-    const planId = `m${Date.now().toString(36)}`
-    update((current) => beginMerge(current, { planId, baseline }))
+    update((current) => setMergeBaseline(current, planId, baseline))
     const message = buildMergeSuggestionMessage({
       requestId: selected.requestId,
       letters: latest.starred,
@@ -279,6 +342,7 @@ export default function PrototypesPage(): React.JSX.Element {
         selectedProjectKey={null}
         onSelect={selectRequest}
         onSelectSystem={selectDesignSystem}
+        archive={archive}
       />
       <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border">
         <PrototypeViewer

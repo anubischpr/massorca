@@ -88,6 +88,10 @@ describe('isPlanForRequest', () => {
     expect(isPlanForRequest(parsed({ ...PLAN, from: ['C', 'A'] }), '{}', request)).toBe(true)
   })
 
+  it('takes no plan while the request has no baseline yet, because the file is still being read', () => {
+    expect(isPlanForRequest(parsed(), '{"x":1}', { letters: ['A', 'C'], planId: 'm1' })).toBe(false)
+  })
+
   it('takes a plan without an id only when it differs from the file that was there before', () => {
     const { id: _id, ...withoutId } = PLAN
     const plan = parsed(withoutId)

@@ -49,6 +49,9 @@ const MOBILE_DYNAMIC_RPC_METHODS = [
   'prototypes.list',
   'prototypes.readFile',
   'prototypes.readDesignSystem',
+  'prototypes.archive',
+  'prototypes.unarchive',
+  'prototypes.delete',
   'prototypes.writeAttachment'
 ]
 

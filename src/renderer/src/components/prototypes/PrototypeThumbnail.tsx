@@ -8,18 +8,18 @@ import { latestVersionOf } from '../../../../shared/prototype-list-model'
 import { PROTOTYPE_FRAMES } from '../../../../shared/prototype-frames'
 import { usePrototypeFileHtml } from './use-prototype-file-html'
 
-/** The design size of a thumbnail's page: the desktop artboard, which keeps the 1.6:1 ratio. */
-const THUMBNAIL_DESIGN_WIDTH = PROTOTYPE_FRAMES.desktop.width
-const THUMBNAIL_DESIGN_HEIGHT = PROTOTYPE_FRAMES.desktop.height
-
 /** A live, scaled-down render of a direction's latest version; it takes no pointer input. */
 export function PrototypeThumbnail({
   set,
-  direction
+  direction,
+  viewport = 'desktop'
 }: {
   set: PrototypeListedSet
   direction: PrototypeListedDirection | undefined
+  /** The page is drawn at this viewport's artboard, so a phone thumbnail is a phone-size page. */
+  viewport?: keyof typeof PROTOTYPE_FRAMES
 }): React.JSX.Element {
+  const { width: designWidth, height: designHeight } = PROTOTYPE_FRAMES[viewport]
   const latest = latestVersionOf(direction)
   const file = usePrototypeFileHtml(
     latest === null
@@ -33,25 +33,25 @@ export function PrototypeThumbnail({
     if (element === null) {
       return
     }
-    const measure = (): void => setScale(element.clientWidth / THUMBNAIL_DESIGN_WIDTH)
+    const measure = (): void => setScale(element.clientWidth / designWidth)
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(element)
     return () => observer.disconnect()
-  }, [])
+  }, [designWidth])
   return (
     <div
       ref={scopeRef}
       aria-hidden="true"
       className="pointer-events-none relative w-full overflow-hidden rounded-md bg-card"
-      style={{ aspectRatio: `${THUMBNAIL_DESIGN_WIDTH} / ${THUMBNAIL_DESIGN_HEIGHT}` }}
+      style={{ aspectRatio: `${designWidth} / ${designHeight}` }}
     >
       {file.status === 'ready' ? (
         <div
           className="absolute top-0 left-0 flex origin-top-left flex-col"
           style={{
-            width: THUMBNAIL_DESIGN_WIDTH,
-            height: THUMBNAIL_DESIGN_HEIGHT,
+            width: designWidth,
+            height: designHeight,
             transform: `scale(${scale})`
           }}
         >

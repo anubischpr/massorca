@@ -59,7 +59,8 @@ export function MobilePrototypeReadOnlySheet({
           />
         </View>
         <ColorValue label="Text color" hex={pin.current.color} />
-        <ColorValue label="Fill" hex={pin.current.bg} />
+        {/* Why: 'transparent' means no painted ancestor, so there is no fill value to show. */}
+        {pin.current.bg === 'transparent' ? null : <ColorValue label="Fill" hex={pin.current.bg} />}
         <View style={styles.row}>
           <Text style={styles.label}>Size</Text>
           <Text style={styles.mono}>{readOnlySizeLine(pin.current)}</Text>

@@ -10,10 +10,10 @@ import {
   Star
 } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
+import { badgeVariants } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import { activateStructuredAgentSessionById } from '@/lib/structured-agent-session-tab-activation'
 import { useAppStore } from '@/store'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
 import { prototypeStatus, prototypeTitle } from '../../../../shared/prototype-list-model'
@@ -24,7 +24,9 @@ import {
   showSet,
   type PrototypeSetState
 } from '../../../../shared/prototype-set-state'
+import { withMergeKept } from '../../../../shared/prototype-merge-state'
 import { PrototypeBuiltOnLink } from './PrototypeBuiltOnLink'
+import { openPrototypeChat } from './open-prototype-chat'
 import { originChatOf } from './prototype-origin-chat'
 import { prototypeAgentLabel, prototypeCountLabel } from './prototype-labels'
 import { usePrototypeViewStore } from './prototype-view-store'
@@ -87,22 +89,19 @@ export function PrototypeViewerToolbar({
   const chatTitle = set.chatTitle?.trim() ?? ''
   const openChat = (): void => {
     if (set.worktreeId !== null) {
-      activateStructuredAgentSessionById({ worktreeId: set.worktreeId, sessionId: set.sessionId })
+      openPrototypeChat({ worktreeId: set.worktreeId, sessionId: set.sessionId })
     }
   }
   const tabsByWorktree = useAppStore((state) => state.unifiedTabsByWorktree)
   const originSessionId = set.origin?.sessionId
-  // Why: the parent's name is read from this client's tabs; a chat this client does not hold drops the link.
+  // Why: the parent's worktree and name come from this client's tabs; without that tab the chip stays, disabled.
   const origin = useMemo(
     () => (originSessionId === undefined ? null : originChatOf(tabsByWorktree, originSessionId)),
     [originSessionId, tabsByWorktree]
   )
   const openOrigin = (): void => {
     if (origin !== null && originSessionId !== undefined) {
-      activateStructuredAgentSessionById({
-        worktreeId: origin.worktreeId,
-        sessionId: originSessionId
-      })
+      openPrototypeChat({ worktreeId: origin.worktreeId, sessionId: originSessionId })
     }
   }
   const starCount = state.starred.length
@@ -112,16 +111,38 @@ export function PrototypeViewerToolbar({
       : translate('components.prototypes.mergeCount', 'Merge ({{count}})', { count: starCount })
   const viewAllName = translate('components.prototypes.layoutAll', 'View all')
   const designMainName = translate('components.prototypes.layoutIterating', 'Design main')
-  const desktopName = translate('components.prototypes.viewportDesktop', 'Desktop')
-  const phoneName = translate('components.prototypes.viewportPhone', 'Phone')
+  const desktopName = translate('components.prototypes.viewportDesktop', 'Desktop view')
+  const phoneName = translate('components.prototypes.viewportPhone', 'Phone view')
   const browseName = translate('components.prototypes.toolBrowse', 'Browse')
   const annotateName = translate('components.prototypes.toolAnnotate', 'Annotate')
   const panelName = sidePanelHidden
     ? translate('components.prototypes.showPanel', 'Show panel')
     : translate('components.prototypes.hidePanel', 'Hide panel')
+  const mergeButton = (
+    <button
+      type="button"
+      onClick={onMerge}
+      disabled={!mergeEnabled}
+      aria-label={mergeName}
+      className={cn(
+        'flex h-7.5 items-center gap-1 rounded-lg whitespace-nowrap border border-status-amber/50 px-2 text-xs disabled:border-border disabled:text-muted-foreground',
+        mergeEnabled && starCount >= 2 && 'prototype-merge-ready'
+      )}
+    >
+      <Star aria-hidden="true" className="size-3.5 fill-status-amber text-status-amber" />
+      {starCount < 2 ? null : (
+        <span className="hidden @[620px]:inline">
+          {translate('components.prototypes.merge', 'Merge')}
+        </span>
+      )}
+      {starCount === 0 ? null : <span>{starCount}</span>}
+    </button>
+  )
+  // Why the tooltip at every count: a narrow header hides the visible name.
+  const mergeControl = <NamedTooltip name={mergeName}>{mergeButton}</NamedTooltip>
   return (
-    <div className="flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-2.5">
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+    <div className="@container flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-2.5">
+      <div className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
         <span className="truncate text-sm font-semibold">
           {`${prototypeTitle(set)} · ${prototypeCountLabel(status)}`}
         </span>
@@ -136,7 +157,7 @@ export function PrototypeViewerToolbar({
             type="button"
             onClick={openChat}
             disabled={set.worktreeId === null}
-            className="truncate text-left hover:text-foreground"
+            className="min-w-0 truncate text-left hover:text-foreground"
           >
             {chatTitle.length > 0
               ? translate(
@@ -148,37 +169,30 @@ export function PrototypeViewerToolbar({
                   agent: agentLabel
                 })}
           </button>
-          {origin === null ? null : (
+          {originSessionId === undefined ? null : (
             <>
               <span aria-hidden="true">·</span>
               <button
                 type="button"
                 onClick={openOrigin}
-                className="truncate text-left hover:text-foreground"
+                disabled={origin === null}
+                className={cn(
+                  badgeVariants({ variant: 'outline' }),
+                  'block max-w-1/2 shrink-0 truncate enabled:hover:bg-accent disabled:text-muted-foreground'
+                )}
               >
-                {translate('components.prototypes.originLink', 'from “{{chat}}” ↗', {
-                  chat: origin.title
-                })}
+                {origin === null
+                  ? translate('components.prototypes.originLinkFallback', 'from parent chat')
+                  : translate('components.prototypes.originLink', 'from “{{chat}}” ↗', {
+                      chat: origin.title
+                    })}
               </button>
             </>
           )}
         </div>
       </div>
-      <div role="toolbar" className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
-        {single ? null : (
-          <NamedTooltip name={mergeName}>
-            <button
-              type="button"
-              onClick={onMerge}
-              disabled={!mergeEnabled}
-              aria-label={mergeName}
-              className="flex h-7.5 items-center gap-1 rounded-lg whitespace-nowrap border border-status-amber/50 px-2 text-xs disabled:border-border disabled:text-muted-foreground"
-            >
-              <Star aria-hidden="true" className="size-3.5 fill-status-amber text-status-amber" />
-              {starCount === 0 ? null : <span>{starCount}</span>}
-            </button>
-          </NamedTooltip>
-        )}
+      <div role="toolbar" className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
+        {single ? null : mergeControl}
         {single ? null : (
           <div
             role="group"
@@ -190,7 +204,7 @@ export function PrototypeViewerToolbar({
                 type="button"
                 aria-label={viewAllName}
                 aria-pressed={layout === 'set'}
-                onClick={() => update(showSet)}
+                onClick={() => update((current) => withMergeKept(current, showSet))}
                 className={segmentButtonClass(layout === 'set')}
               >
                 <LayoutGrid aria-hidden="true" className="size-4" />
@@ -201,7 +215,7 @@ export function PrototypeViewerToolbar({
                 type="button"
                 aria-label={designMainName}
                 aria-pressed={layout === 'focus'}
-                onClick={() => update(showFocus)}
+                onClick={() => update((current) => withMergeKept(current, showFocus))}
                 className={segmentButtonClass(layout === 'focus')}
               >
                 <Pencil aria-hidden="true" className="size-4" />

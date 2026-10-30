@@ -1,14 +1,19 @@
 import type { z } from 'zod'
 import {
+  ArchivePrototypeRequestReplySchema,
   CreatePrototypeRequestReplySchema,
+  DeletePrototypeRequestReplySchema,
   ListPrototypeSetsReplySchema,
   ReadPrototypeDesignSystemReplySchema,
   ReadPrototypeFileReplySchema,
   WriteAttachmentReplySchema,
+  type ArchivePrototypeRequestResult,
   type CreatePrototypeRequestParams,
   type CreatePrototypeRequestResult,
+  type DeletePrototypeRequestResult,
   type ListPrototypeSetsParams,
   type ListPrototypeSetsResult,
+  type PrototypeRequestTargetParams,
   type ReadPrototypeDesignSystemParams,
   type ReadPrototypeDesignSystemResult,
   type ReadPrototypeFileParams,
@@ -86,6 +91,35 @@ export function writePrototypeAttachmentOnHost(
   params: WriteAttachmentParams
 ): Promise<WriteAttachmentResult> {
   return callPrototypeHost(target, 'prototypes.writeAttachment', params, WriteAttachmentReplySchema)
+}
+
+/** Archives one set on the host that lists it; a refusal comes back as `{ ok: false, error }`. */
+export function archivePrototypeRequestOnHost(
+  target: RuntimeClientTarget,
+  params: PrototypeRequestTargetParams
+): Promise<ArchivePrototypeRequestResult> {
+  return callPrototypeHost(target, 'prototypes.archive', params, ArchivePrototypeRequestReplySchema)
+}
+
+/** Brings an archived set back into the list. */
+export function unarchivePrototypeRequestOnHost(
+  target: RuntimeClientTarget,
+  params: PrototypeRequestTargetParams
+): Promise<ArchivePrototypeRequestResult> {
+  return callPrototypeHost(
+    target,
+    'prototypes.unarchive',
+    params,
+    ArchivePrototypeRequestReplySchema
+  )
+}
+
+/** Deletes one set's folder; the host refuses while its chat and worktree still exist. */
+export function deletePrototypeRequestOnHost(
+  target: RuntimeClientTarget,
+  params: PrototypeRequestTargetParams
+): Promise<DeletePrototypeRequestResult> {
+  return callPrototypeHost(target, 'prototypes.delete', params, DeletePrototypeRequestReplySchema)
 }
 
 async function callPrototypeHost<Output>(

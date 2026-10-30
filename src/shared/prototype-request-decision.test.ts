@@ -57,6 +57,21 @@ describe('decideNativeChatPrototypeRequest', () => {
     ).toEqual({ kind: 'as-typed' })
   })
 
+  it.each([
+    'Crea una sesión hija que diseñe la pantalla de ajustes',
+    'Usa un subagente para diseñar el login',
+    'Delegate the login design to a new session'
+  ])('sends a hand-off to a child session as typed, with no card (%s)', (text) => {
+    expect(decide(text, ALWAYS_3)).toEqual({ kind: 'as-typed' })
+    expect(decide(text, ASK)).toEqual({ kind: 'as-typed' })
+  })
+
+  it('keeps an explicit command a request, even when it names a child session', () => {
+    const text = '/prototype haz el login en una sesión hija'
+    expect(decide(text, ALWAYS_3)).toEqual({ kind: 'create', count: 3 })
+    expect(decide(text, ASK)).toEqual({ kind: 'ask', keyword: false })
+  })
+
   it('never builds a request for text that asks for none, whatever was answered', () => {
     expect(
       decideNativeChatPrototypeRequest({

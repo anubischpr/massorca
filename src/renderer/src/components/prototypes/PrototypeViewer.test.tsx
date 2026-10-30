@@ -8,6 +8,7 @@ import type {
   NativeChatVisualAnnotateEvent,
   NativeChatVisualPickedElement
 } from '../../../../shared/native-chat-visual-annotate'
+import { beginMerge } from '../../../../shared/prototype-merge-state'
 import {
   createSetState,
   makeMain,
@@ -22,6 +23,7 @@ import {
 } from '../../../../shared/prototype-set-state'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
 import { activateStructuredAgentSessionById } from '@/lib/structured-agent-session-tab-activation'
+import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import { useAppStore } from '@/store'
 import type { Tab } from '../../../../shared/tab-types'
 import { PrototypeViewer } from './PrototypeViewer'
@@ -49,6 +51,11 @@ vi.mock('react-i18next', () => ({
 vi.mock('@/lib/structured-agent-session-tab-activation', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   activateStructuredAgentSessionById: vi.fn()
+}))
+
+vi.mock('@/lib/worktree-activation', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  activateAndRevealWorktree: vi.fn()
 }))
 
 vi.mock('./use-prototype-file-html', () => ({ usePrototypeFileHtml: () => null }))
@@ -410,6 +417,30 @@ describe('PrototypeViewer Merge button', () => {
     expect(screen.getByRole('button', { name: 'Merge (2)' })).toBeDisabled()
   })
 
+  it('reads Merge beside its count and pulses with a rainbow border at two stars', () => {
+    renderSet3(toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C'))
+    const button = screen.getByRole('button', { name: 'Merge (2)' })
+    expect(button).toBeEnabled()
+    expect(button).toHaveClass('prototype-merge-ready')
+    expect(button.textContent).toBe('Merge2')
+  })
+
+  it('stays icon-only with a tooltip below two stars, and loses the pulse while a merge waits', () => {
+    renderSet3(toggleStar(createSetState(['A', 'B', 'C']), 'A'))
+    const one = screen.getByRole('button', { name: 'Merge' })
+    expect(one).not.toHaveClass('prototype-merge-ready')
+    expect(one.textContent).toBe('1')
+    cleanup()
+    const stars = toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C')
+    renderSet3({
+      ...stars,
+      merge: { phase: 'waiting', letters: ['A', 'C'], planId: 'p', baseline: null }
+    })
+    const waiting = screen.getByRole('button', { name: 'Merge (2)' })
+    expect(waiting).toBeDisabled()
+    expect(waiting).not.toHaveClass('prototype-merge-ready')
+  })
+
   it('comes before the Layout group, and a single direction has none', () => {
     renderSet3(createSetState(['A', 'B', 'C']))
     const merge = screen.getByRole('button', { name: 'Merge' })
@@ -426,16 +457,67 @@ describe('PrototypeViewer Merge button', () => {
 describe('PrototypeViewer while a merge waits', () => {
   afterEach(cleanup)
 
-  it('leaves the main area blank, with no frame, banner or text, and keeps the strip', () => {
+  it('leaves the main area blank, with no frame, banner or hint, and keeps the strip and the row', () => {
     const stars = toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C')
     renderSet3({
       ...stars,
       merge: { phase: 'waiting', letters: ['A', 'C'], planId: 'p', baseline: null }
     })
     expect(screen.queryByTestId('frame')).toBeNull()
-    expect(screen.queryByRole('status')).toBeNull()
     expect(screen.queryByText(/click any element/u)).toBeNull()
+    expect(screen.getByRole('status')).toHaveTextContent('Processing merge')
     expect(screen.getByRole('group', { name: 'Directions in this set' })).toBeInTheDocument()
+  })
+
+  it('shows the progress row from the click, and its Cancel ends the wait and keeps the stars', () => {
+    const stars = toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C')
+    const state = beginMerge(stars, { planId: 'p' })
+    const update = vi.fn<Update>()
+    renderSet3(state, update)
+    expect(screen.getByRole('status')).toHaveTextContent('Processing merge')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    const next = applied(update, state)
+    expect(next.merge).toBeNull()
+    expect(next.starred).toEqual(['A', 'C'])
+  })
+
+  it('keeps the row on a sent merge in View all until its direction arrives', () => {
+    const sent: PrototypeSetState = {
+      ...toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C'),
+      layout: 'set',
+      mergeInto: { letter: 'D', from: ['A', 'C'] }
+    }
+    const update = vi.fn<Update>()
+    renderSet3(sent, update)
+    expect(screen.getByRole('button', { name: 'View all' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('status')).toHaveTextContent('Processing merge')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(applied(update, sent).mergeInto).toBeNull()
+  })
+
+  it('lets View all and Design main switch the layout without ending a review under way', () => {
+    const stars = toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C')
+    const review: PrototypeSetState = {
+      ...stars,
+      merge: {
+        phase: 'review',
+        letters: ['A', 'C'],
+        parts: [
+          { id: 0, name: 'Heading', selector: 'main > h1', suggested: 'A', from: 'A', on: true }
+        ],
+        note: '',
+        sending: false
+      }
+    }
+    const update = vi.fn<Update>()
+    renderSet3(review, update)
+    fireEvent.click(screen.getByRole('button', { name: 'View all' }))
+    const inSet = applied(update, review)
+    expect(inSet).toMatchObject({ layout: 'set', merge: review.merge })
+    cleanup()
+    renderSet3(inSet, update)
+    fireEvent.click(screen.getByRole('button', { name: 'Design main' }))
+    expect(applied(update, inSet)).toMatchObject({ layout: 'focus', merge: review.merge })
   })
 
   it('shows the send-failure line when the chat refused the request', () => {
@@ -479,21 +561,20 @@ describe('PrototypeViewer toolbar structure', () => {
 describe('PrototypeViewer icon-only controls', () => {
   afterEach(cleanup)
 
-  it('shows the controls as icons, with no visible text except the Merge count', () => {
+  it('shows the controls as icons, with the Merge label and count only at two stars', () => {
     renderSet3(toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C'))
     const controls = screen.getByRole('toolbar')
     for (const text of [
       'View all',
       'Design main',
-      'Desktop',
-      'Phone',
+      'Desktop view',
+      'Phone view',
       'Browse',
-      'Annotate',
-      'Merge'
+      'Annotate'
     ]) {
       expect(within(controls).queryByText(text)).toBeNull()
     }
-    expect(within(controls).getByRole('button', { name: 'Merge (2)' }).textContent).toBe('2')
+    expect(within(controls).getByRole('button', { name: 'Merge (2)' }).textContent).toBe('Merge2')
   })
 
   it('names each icon and marks the selected layout, viewport and tool', () => {
@@ -506,20 +587,26 @@ describe('PrototypeViewer icon-only controls', () => {
       'aria-pressed',
       'false'
     )
-    expect(screen.getByRole('button', { name: 'Desktop' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Phone' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Desktop view' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    expect(screen.getByRole('button', { name: 'Phone view' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    )
     expect(screen.getByRole('button', { name: 'Annotate' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Browse' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('shows the name of each icon in a tooltip on focus', async () => {
-    renderSet3(toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C'))
+    renderSet3(toggleStar(createSetState(['A', 'B', 'C']), 'A'))
     for (const name of [
-      'Merge (2)',
+      'Merge',
       'View all',
       'Design main',
-      'Desktop',
-      'Phone',
+      'Desktop view',
+      'Phone view',
       'Browse',
       'Annotate',
       'Hide panel'
@@ -560,17 +647,50 @@ describe('PrototypeViewer origin link', () => {
       set: { ...SET3, origin: { sessionId: 'parent-1' } }
     })
     fireEvent.click(screen.getByRole('button', { name: 'from “nexuscare-planning” ↗' }))
+    expect(activateAndRevealWorktree).toHaveBeenCalledWith('wt-1')
     expect(activateStructuredAgentSessionById).toHaveBeenCalledWith({
       worktreeId: 'wt-1',
       sessionId: 'parent-1'
     })
   })
 
-  it('drops the origin part when this client holds no tab for the parent chat', () => {
+  it('shows a fallback chip, disabled, when this client holds no tab for the parent chat', () => {
     renderSet3(createSetState(['A', 'B', 'C']), vi.fn(), {
       set: { ...SET3, origin: { sessionId: 'parent-1' } }
     })
-    expect(screen.queryByRole('button', { name: /^from / })).toBeNull()
+    expect(screen.getByRole('button', { name: 'from parent chat' })).toBeDisabled()
+  })
+
+  it('keeps the chip through a sent merge and a change of layout', () => {
+    useAppStore.setState({
+      unifiedTabsByWorktree: { 'wt-1': [parentTab('wt-1', 'parent-1', 'nexuscare-planning')] }
+    })
+    const sent: PrototypeSetState = {
+      ...toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C'),
+      layout: 'set',
+      mergeInto: { letter: 'D', from: ['A', 'C'] }
+    }
+    const update = vi.fn<Update>()
+    renderSet3(sent, update, { set: { ...SET3, origin: { sessionId: 'parent-1' } } })
+    fireEvent.click(screen.getByRole('button', { name: 'Design main' }))
+    expect(applied(update, sent)).toMatchObject({ mergeInto: { letter: 'D', from: ['A', 'C'] } })
+    fireEvent.click(screen.getByRole('button', { name: 'from “nexuscare-planning” ↗' }))
+    expect(activateStructuredAgentSessionById).toHaveBeenCalledWith({
+      worktreeId: 'wt-1',
+      sessionId: 'parent-1'
+    })
+  })
+
+  it('opens the set chat in its own worktree', () => {
+    renderSet3(createSetState(['A', 'B', 'C']), vi.fn(), {
+      set: { ...SET3, worktreeId: 'wt-2', sessionId: 'child-1' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: /open chat/u }))
+    expect(activateAndRevealWorktree).toHaveBeenCalledWith('wt-2')
+    expect(activateStructuredAgentSessionById).toHaveBeenCalledWith({
+      worktreeId: 'wt-2',
+      sessionId: 'child-1'
+    })
   })
 })
 

@@ -16,6 +16,8 @@ import {
 import { assertWorkerStartTaskSpecWithinPromptBudget } from './worker-start-prompt-budget'
 import { ORCA_SESSION_ADDRESS_PREFIX } from '../../../../../../shared/orca-session-address'
 import { ORCHESTRATION_SESSION_CALLER_ERROR_CODES as SESSION_CODES } from '../../../../../../shared/orchestration-session-caller-codes'
+import { delegatedChildFirstPrompt } from '../../../../../delegated-session/delegated-child-first-prompt'
+import { delegatedChildPromptDeps } from '../../../../../delegated-session/delegated-child-prompt-deps'
 
 export const ORCHESTRATION_WORKER_START_METHODS = [
   defineMethod({
@@ -86,6 +88,7 @@ export const ORCHESTRATION_WORKER_START_METHODS = [
         })
         return receipt && typeof receipt === 'object' ? { ...receipt, mode } : receipt
       }
+      const originSessionId = orchestrationCaller?.sessionId
       return startLocalWorker({
         params: { ...params, timeoutMs: readinessTimeoutMs },
         runtime,
@@ -95,7 +98,21 @@ export const ORCHESTRATION_WORKER_START_METHODS = [
         callerSession: orchestrationCaller,
         existingTask,
         orchestrationMutation,
-        mode
+        mode,
+        // Why: a child started over the CLI by a structured chat gets the same first prompt as a delegated child.
+        ...(originSessionId === undefined
+          ? {}
+          : {
+              firstPrompt: (childSessionId: string) =>
+                delegatedChildFirstPrompt(
+                  {
+                    childSessionId,
+                    originSessionId,
+                    taskSpec: params.spec ?? existingTask?.spec ?? ''
+                  },
+                  delegatedChildPromptDeps(runtime)
+                )
+            })
       })
     }
   })

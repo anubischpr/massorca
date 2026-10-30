@@ -48,7 +48,7 @@ export function PrototypeSetGrid({
                   'ring-2 ring-ring ring-offset-2 ring-offset-background'
               )}
             >
-              <PrototypeThumbnail set={set} direction={direction} />
+              <PrototypeThumbnail set={set} direction={direction} viewport={state.viewport} />
             </button>
             <span className="flex flex-col">
               <span className="font-semibold">

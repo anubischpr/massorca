@@ -1,5 +1,7 @@
 import {
+  ArchivePrototypeRequestReplySchema,
   CreatePrototypeRequestReplySchema,
+  DeletePrototypeRequestReplySchema,
   ListPrototypeSetsReplySchema,
   PROTOTYPE_WRITE_ATTACHMENT_ERRORS,
   ReadPrototypeDesignSystemReplySchema,
@@ -10,6 +12,7 @@ import {
   type PrototypeListedDesignSystem,
   type PrototypeListedSet,
   type PrototypeReadFileError,
+  type PrototypeRequestTargetParams,
   type ReadPrototypeDesignSystemParams,
   type ReadPrototypeFileParams,
   type WriteAttachmentParams
@@ -190,6 +193,72 @@ export async function writeMobilePrototypeAttachment(
   return reply.data.ok
     ? { kind: 'ready', path: reply.data.path }
     : { kind: 'refused', error: reply.data.error }
+}
+
+export type MobilePrototypeSetAction =
+  | { kind: 'done' }
+  /** The host's verdict: the set is gone, cannot be written, or (a delete) its chat and worktree still exist. */
+  | { kind: 'refused'; error: 'not_found' | 'unwritable' | 'not_deletable' }
+  | { kind: 'unsupported-host' }
+  | { kind: 'unreachable' }
+
+// Hosts that answered an archive action as a method they lack: their sets are offered no such action.
+const hostsWithoutPrototypeArchive = new WeakSet<object>()
+
+/** Whether an action showed this host to predate archiving; true until one does. */
+export function hostMayArchivePrototypes(client: HostClient): boolean {
+  return !hostsWithoutPrototypeArchive.has(client)
+}
+
+/** Archives one set on the host that lists it. */
+export function archiveMobilePrototypeRequest(
+  client: HostClient,
+  params: PrototypeRequestTargetParams
+): Promise<MobilePrototypeSetAction> {
+  return sendSetAction(client, 'prototypes.archive', params)
+}
+
+/** Brings an archived set back into the list. */
+export function unarchiveMobilePrototypeRequest(
+  client: HostClient,
+  params: PrototypeRequestTargetParams
+): Promise<MobilePrototypeSetAction> {
+  return sendSetAction(client, 'prototypes.unarchive', params)
+}
+
+/** Deletes one set's folder; the host refuses while its chat and worktree still exist. */
+export function deleteMobilePrototypeRequest(
+  client: HostClient,
+  params: PrototypeRequestTargetParams
+): Promise<MobilePrototypeSetAction> {
+  return sendSetAction(client, 'prototypes.delete', params)
+}
+
+async function sendSetAction(
+  client: HostClient,
+  method: 'prototypes.archive' | 'prototypes.unarchive' | 'prototypes.delete',
+  params: PrototypeRequestTargetParams
+): Promise<MobilePrototypeSetAction> {
+  const response = await sendHostRequest(client, method, params)
+  if (response === null) {
+    return { kind: 'unreachable' }
+  }
+  if (!response.ok) {
+    if (!isUnsupportedHost(response)) {
+      return { kind: 'unreachable' }
+    }
+    hostsWithoutPrototypeArchive.add(client)
+    return { kind: 'unsupported-host' }
+  }
+  const reply = (
+    method === 'prototypes.delete'
+      ? DeletePrototypeRequestReplySchema
+      : ArchivePrototypeRequestReplySchema
+  ).safeParse(response.result)
+  if (!reply.success) {
+    return { kind: 'unreachable' }
+  }
+  return reply.data.ok ? { kind: 'done' } : { kind: 'refused', error: reply.data.error }
 }
 
 /** `null` when no reply came back at all. */

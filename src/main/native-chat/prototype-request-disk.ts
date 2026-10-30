@@ -108,7 +108,7 @@ async function bindGentleDesignSlug(requestFolder: string, slug: string): Promis
 /** Rewrites request.json through a temporary file, so a reader never sees a half-written manifest; false when it could not. */
 async function writeRequestManifest(
   requestFolder: string,
-  manifest: PrototypeRequestManifest
+  manifest: Readonly<Record<string, unknown>>
 ): Promise<boolean> {
   const path = join(requestFolder, PROTOTYPE_MANIFEST_FILE_NAME)
   const temporary = `${path}.${randomUUID()}.tmp`
@@ -144,6 +144,32 @@ export async function recordRequestDesignSystemVersion(
     designSystemVersion: version
   })
   return written ? version : undefined
+}
+
+/**
+ * Marks a request archived, or clears the mark, in its request.json. The file is read again as raw JSON, so a
+ * field this host does not know (a newer one's) stays. Why request.json: the list already trusts it and the
+ * mark travels with the folder; but the agent writes in that folder, so the mark only hides a set from the main
+ * list. It never grants access, and delete authority comes from the chat and worktree check, not from here.
+ * False when the manifest is unreadable or could not be written.
+ */
+export async function setRequestArchived(
+  requestFolder: string,
+  archived: boolean
+): Promise<boolean> {
+  const raw = await readBoundedJson(
+    join(requestFolder, PROTOTYPE_MANIFEST_FILE_NAME),
+    MAX_MANIFEST_BYTES
+  )
+  if (parsePrototypeRequestManifest(raw) === null || typeof raw !== 'object' || raw === null) {
+    return false
+  }
+  const next: Record<string, unknown> = { ...raw }
+  delete next.archived
+  if (archived) {
+    next.archived = true
+  }
+  return writeRequestManifest(requestFolder, next)
 }
 
 /** Logs a failure other than an absent file, which is the normal state of a folder that holds nothing. */

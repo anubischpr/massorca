@@ -27,6 +27,8 @@ import {
   sendSucceeded
 } from '../../../src/shared/prototype-set-view'
 import { KeyedBottomDrawer } from '../components/keyed-bottom-drawer'
+import { useOpenMobileSession } from '../session/use-open-mobile-session'
+import { useWorktreeAgentRows } from '../session/use-worktree-agent-rows'
 import { useHostClient } from '../transport/host-client-hooks'
 import { colors, spacing, typography } from '../theme/mobile-theme'
 import { MobilePrototypeDraftSheet } from './MobilePrototypeDraftSheet'
@@ -38,6 +40,7 @@ import { MobilePrototypeReadOnlyBanner } from './MobilePrototypeReadOnlyBanner'
 import { MobilePrototypeReadOnlySheet } from './MobilePrototypeReadOnlySheet'
 import { sendMobilePrototypeIteration } from './mobile-prototype-iteration-send'
 import { mobilePrototypeAgentLabel } from './mobile-prototype-list-model'
+import { originChipOf } from './mobile-prototype-origin'
 import { findMobilePrototypeSet } from './mobile-prototype-sets-state'
 import { pulseFieldFor, viewerChips, viewerHeaderLines } from './mobile-prototype-viewer-model'
 import { mobilePrototypeStateKey, useMobilePrototypeViewStore } from './mobile-prototype-view-store'
@@ -65,6 +68,8 @@ export function MobilePrototypeViewerScreen({
   onBack: () => void
 }) {
   const { client } = useHostClient(hostId)
+  const { worktrees } = useWorktreeAgentRows(client)
+  const openSession = useOpenMobileSession()
   const listed = useMobilePrototypeSets(hostId)
   const set = findMobilePrototypeSet(listed, requestId)
   const stateKey = mobilePrototypeStateKey(hostId, requestId)
@@ -142,6 +147,9 @@ export function MobilePrototypeViewerScreen({
   }
   const lines = viewerHeaderLines(set, state)
   const chips = viewerChips(set, state)
+  const originChip = originChipOf(set.origin, worktrees, (chat) =>
+    openSession({ hostId, worktreeId: chat.worktreeId, paneKey: chat.paneKey })
+  )
   const pin = selectedPinOf(state)
   const agentName = mobilePrototypeAgentLabel(set.agent)
   const sheet: Sheet | null = draftOpen ? 'draft' : pin === null ? null : 'pin'
@@ -152,6 +160,7 @@ export function MobilePrototypeViewerScreen({
       <MobilePrototypeHeader
         title={lines.title}
         subtitle={lines.subtitle}
+        {...(originChip === null ? {} : { origin: originChip })}
         backLabel={chips.length > 0 ? 'Back to the set' : 'Back'}
         onBack={onBack}
         trailing={

@@ -347,7 +347,7 @@ describe('the set screen names the parent chat of a delegated set', () => {
     openSession.mockReset()
   })
 
-  it('shows the parent after the subtitle, and opens the parent chat on tap', () => {
+  it('shows the parent as a chip after the subtitle, and opens the parent chat on tap', () => {
     listing.set = { ...SET, origin: { sessionId: 'parent-1' } }
     hostRows.worktrees = [
       {
@@ -356,9 +356,11 @@ describe('the set screen names the parent chat of a delegated set', () => {
       }
     ]
     const tree = mount()
-    expect(texts(tree.root, 'Text')).toContain('Codex · 3 directions · from “nexuscare-planning” ›')
+    expect(texts(tree.root, 'Text')).toEqual(
+      expect.arrayContaining(['Codex · 3 directions', 'from “nexuscare-planning” ›'])
+    )
     const [link] = tree.root.findAll(
-      (node) => node.type === 'Text' && node.props.accessibilityRole === 'link'
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'link'
     )
     act(() => link?.props.onPress())
     expect(openSession).toHaveBeenCalledWith({
@@ -368,14 +370,34 @@ describe('the set screen names the parent chat of a delegated set', () => {
     })
   })
 
-  it('hides the origin part when the host lists the parent without a name', () => {
+  it('shows "from parent chat" for a parent the host lists without a name, and still opens it', () => {
     listing.set = { ...SET, origin: { sessionId: 'parent-1' } }
     hostRows.worktrees = [
       { worktreeId: 'wt-1', agents: [{ paneKey: PARENT_PANE, parentPaneKey: null }] }
     ]
     const tree = mount()
-    expect(texts(tree.root, 'Text')).toContain('Codex · 3 directions')
-    expect(texts(tree.root, 'Text').some((line) => line.includes('from '))).toBe(false)
+    expect(texts(tree.root, 'Text')).toContain('from parent chat ›')
+    const [link] = tree.root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'link'
+    )
+    act(() => link?.props.onPress())
+    expect(openSession).toHaveBeenCalledWith({
+      hostId: 'host-1',
+      worktreeId: 'wt-1',
+      paneKey: PARENT_PANE
+    })
+  })
+
+  it('shows "from parent chat" as a chip that cannot open a parent the host does not list', () => {
+    listing.set = { ...SET, origin: { sessionId: 'parent-1' } }
+    hostRows.worktrees = []
+    const tree = mount()
+    expect(texts(tree.root, 'Text')).toContain('from parent chat')
+    const [link] = tree.root.findAll(
+      (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'link'
+    )
+    expect(link?.props.disabled).toBe(true)
+    expect(openSession).not.toHaveBeenCalled()
   })
 
   it('shows no origin part for a set made directly in a chat', () => {

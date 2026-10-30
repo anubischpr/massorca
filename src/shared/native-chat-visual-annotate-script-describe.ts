@@ -116,13 +116,13 @@ function toHex(color) {
   }).join('')
 }
 
-// A transparent element shows its nearest painted ancestor, so the fill matches what is on screen.
+// A transparent element shows its nearest painted ancestor; with none, the fill is 'transparent', not a guess.
 function fillOf(element) {
   for (var node = element; node && node.nodeType === 1; node = node.parentElement) {
     var color = parseColor(window.getComputedStyle(node).backgroundColor)
     if (color && color.a > 0) return toHex(color)
   }
-  return '#ffffff'
+  return 'transparent'
 }
 
 function pixels(value, fallback, max) {

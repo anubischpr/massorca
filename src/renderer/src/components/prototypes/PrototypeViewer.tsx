@@ -3,7 +3,7 @@ import { translate } from '@/i18n/i18n'
 import type { NativeChatVisualAnnotateEvent } from '../../../../shared/native-chat-visual-annotate'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
 import { latestVersionOf } from '../../../../shared/prototype-list-model'
-import { canMerge } from '../../../../shared/prototype-merge-state'
+import { cancelMerge, cancelSentMerge, canMerge } from '../../../../shared/prototype-merge-state'
 import {
   pickElement,
   pinClicked,
@@ -12,6 +12,7 @@ import {
 import { annotateStateOf } from '../../../../shared/prototype-set-view'
 import { PrototypeDirectionStrip } from './PrototypeDirectionStrip'
 import { PrototypeFrame } from './PrototypeFrame'
+import { PrototypeMergeProgress } from './PrototypeMergeProgress'
 import { PrototypeMergeReview } from './PrototypeMergeReview'
 import { PrototypeReadOnlyBanner } from './PrototypeReadOnlyBanner'
 import { PrototypeSetGrid } from './PrototypeSetGrid'
@@ -101,6 +102,12 @@ export function PrototypeViewer({
         onMerge={onMerge}
         onOpenDesignSystem={onOpenDesignSystem}
       />
+
+      {merge?.phase === 'waiting' || state.mergeInto !== null ? (
+        <PrototypeMergeProgress
+          onCancel={() => update(merge?.phase === 'waiting' ? cancelMerge : cancelSentMerge)}
+        />
+      ) : null}
 
       {layout === 'set' && !single ? (
         <PrototypeSetGrid set={set} state={state} update={update} />

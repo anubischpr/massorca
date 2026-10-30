@@ -457,6 +457,7 @@ import {
 import {
   CreatePrototypeRequestParams,
   ListPrototypeSetsParams,
+  PrototypeRequestTargetParams,
   ReadPrototypeDesignSystemParams,
   ReadPrototypeFileParams,
   WriteAttachmentParams
@@ -1148,10 +1149,13 @@ export const RPC_PARAMS_BY_METHOD = {
   'projectHostSetup.list': null,
   'projectHostSetup.setupExistingFolder': ProjectHostSetupExistingFolder,
   'projectHostSetup.update': ProjectHostSetupUpdate,
+  'prototypes.archive': PrototypeRequestTargetParams,
   'prototypes.createRequest': CreatePrototypeRequestParams,
+  'prototypes.delete': PrototypeRequestTargetParams,
   'prototypes.list': ListPrototypeSetsParams,
   'prototypes.readDesignSystem': ReadPrototypeDesignSystemParams,
   'prototypes.readFile': ReadPrototypeFileParams,
+  'prototypes.unarchive': PrototypeRequestTargetParams,
   'prototypes.writeAttachment': WriteAttachmentParams,
   'repo.add': RepoPath,
   'repo.baseRefDefault': RepoSelector,

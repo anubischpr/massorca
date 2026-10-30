@@ -108,6 +108,11 @@ export function PrototypeMergeReview({
   onSend: () => void
 }): React.JSX.Element {
   const kept = keptMergeParts(review.parts)
+  const previewName = translate(
+    'components.prototypes.mergePlanPreview',
+    '{{letter}} · preview of the plan',
+    { letter: nextLetter }
+  )
   return (
     <div className="scrollbar-sleek flex min-w-0 flex-1 flex-wrap content-start gap-5 overflow-y-auto px-6 py-5">
       <div className="flex max-w-[520px] flex-[1_1_380px] flex-col gap-3">
@@ -176,25 +181,22 @@ export function PrototypeMergeReview({
         ) : null}
       </div>
       <div className="flex max-w-[460px] flex-[1_1_320px] flex-col gap-2">
-        <span className={LABEL_CLASS}>
-          {translate('components.prototypes.mergePlanPreview', '{{letter}} · preview of the plan', {
-            letter: nextLetter
-          })}
-        </span>
-        <div className="flex flex-col gap-3 rounded-lg bg-card p-4.5">
+        <span className={LABEL_CLASS}>{previewName}</span>
+        <ul aria-label={previewName} className="flex flex-col gap-3 rounded-lg bg-card p-4.5">
           {kept.map((part) => (
-            <div key={part.id} className="flex items-center gap-2.5">
-              <span
-                role="img"
-                aria-label={part.name}
-                className="flex size-[22px] shrink-0 items-center justify-center rounded-md bg-primary text-[11px] font-semibold text-primary-foreground"
-              >
+            <li key={part.id} className="flex min-w-0 items-center gap-2.5">
+              <span className="flex size-[22px] shrink-0 items-center justify-center rounded-md bg-primary text-[11px] font-semibold text-primary-foreground">
                 {part.from}
               </span>
-              <span className="block h-8 flex-1 rounded-md bg-muted" />
-            </div>
+              <span className="flex min-w-0 flex-col gap-px">
+                <span className="truncate font-medium">{part.name}</span>
+                <span className="truncate font-mono text-[11px] text-muted-foreground">
+                  {part.selector}
+                </span>
+              </span>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
     </div>
   )

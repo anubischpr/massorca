@@ -208,6 +208,31 @@ describe('the Preview tab', () => {
     expect(tree.root.findAllByProps({ accessibilityLabel: 'Source of Heading' })).toHaveLength(0)
   })
 
+  it('shows each kept part with its name and its selector as text', () => {
+    const { tree } = mount()
+    act(() => tab(tree.root, 'Preview').props.onPress())
+    const texts = tree.root.findAll((node) => isHost(node, 'Text')).map(flatText)
+    expect(texts).toEqual(
+      expect.arrayContaining([
+        'Heading',
+        'main > h1',
+        'Email and card form',
+        'form.pay',
+        'Pay button'
+      ])
+    )
+  })
+
+  it('has the Anything else note on this tab only', () => {
+    const { tree, update } = mount()
+    expect(tree.root.findAllByProps({ accessibilityLabel: 'Anything else' })).toHaveLength(0)
+    act(() => tab(tree.root, 'Preview').props.onPress())
+    const [input] = tree.root.findAllByProps({ accessibilityLabel: 'Anything else' })
+    expect(input?.props.placeholder).toBe('How the parts should fit together…')
+    act(() => input?.props.onChangeText('Keep the header from A.'))
+    expect(update).toHaveBeenCalled()
+  })
+
   it('leaves a part that is left out out of the preview', () => {
     const { tree, rerender } = mount()
     act(() => byLabel(tree.root, 'Pay button').props.onPress())
@@ -222,19 +247,23 @@ describe('the Preview tab', () => {
 })
 
 describe('under both tabs', () => {
-  it('has Anything else with its placeholder, and Merge into the next letter', () => {
-    const { tree, update } = mount()
+  it('keeps Merge into the next letter in a footer, outside the scrolling list, under both tabs', () => {
+    const { tree } = mount()
+    const sendButtons = (root: ReactTestInstance) =>
+      root.findAll((node) => isHost(node, 'Pressable') && flatText(node) === 'Merge into D')
     for (const label of ['Parts', 'Preview']) {
       act(() => tab(tree.root, label).props.onPress())
-      const [input] = tree.root.findAllByProps({ accessibilityLabel: 'Anything else' })
-      expect(input?.props.placeholder).toBe('How the parts should fit together…')
-      expect(tree.root.findAll((node) => isHost(node, 'Text')).map(flatText)).toContain(
-        'Merge into D'
-      )
+      const [scroll] = tree.root.findAll((node) => isHost(node, 'ScrollView'))
+      expect(sendButtons(tree.root)).toHaveLength(1)
+      expect(scroll === undefined ? [] : sendButtons(scroll)).toHaveLength(0)
     }
-    const [input] = tree.root.findAllByProps({ accessibilityLabel: 'Anything else' })
-    act(() => input?.props.onChangeText('Keep the header from A.'))
-    expect(update).toHaveBeenCalled()
+  })
+
+  it('lets the list scroll with no cap on its height, so no option is cut off', () => {
+    const { tree } = mount()
+    const [scroll] = tree.root.findAll((node) => isHost(node, 'ScrollView'))
+    expect(scroll?.props.style).toEqual(expect.objectContaining({ flexShrink: 1 }))
+    expect(scroll?.props.style).not.toHaveProperty('maxHeight')
   })
 
   it('sends from Merge into D', () => {

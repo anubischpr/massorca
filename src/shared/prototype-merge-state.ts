@@ -19,10 +19,13 @@ export function canMerge(state: PrototypeSetState, nextLetter: string | null): b
   return state.starred.length >= 2 && state.merge === null && nextLetter !== null
 }
 
-/** The suggestion request goes out: the main area is blank until the plan arrives. */
+/**
+ * A merge starts on the click, so its progress row shows at once. The plan file's text is read next,
+ * and `setMergeBaseline` then sends the suggestion request; the main area is blank until the plan arrives.
+ */
 export function beginMerge(
   state: PrototypeSetState,
-  request: { planId: string; baseline: string | null }
+  request: { planId: string; baseline?: string | null }
 ): PrototypeSetState {
   if (state.starred.length < 2 || state.merge !== null) {
     return state
@@ -34,11 +37,25 @@ export function beginMerge(
       phase: 'waiting',
       letters: state.starred,
       planId: request.planId,
-      baseline: request.baseline
+      baseline: request.baseline,
+      layoutBefore: state.layout
     },
     mergeSendFailed: false,
     sentMessage: null
   }
+}
+
+/** The plan file's text was read for a waiting merge: the request goes out after this, with that text. */
+export function setMergeBaseline(
+  state: PrototypeSetState,
+  planId: string,
+  baseline: string | null
+): PrototypeSetState {
+  const { merge } = state
+  if (merge?.phase !== 'waiting' || merge.planId !== planId || merge.baseline !== undefined) {
+    return state
+  }
+  return { ...state, merge: { ...merge, baseline } }
 }
 
 /** The chat refused the suggestion request: the merge does not start, the stars stay. */
@@ -63,7 +80,8 @@ export function planArrived(
       letters: merge.letters,
       parts: reviewPartsOf(plan),
       note: '',
-      sending: false
+      sending: false,
+      layoutBefore: merge.layoutBefore
     }
   }
 }
@@ -110,6 +128,18 @@ export function cancelMerge(state: PrototypeSetState): PrototypeSetState {
   return state.merge === null ? state : { ...state, merge: null, mergeSendFailed: false }
 }
 
+/**
+ * A Layout toggle (View all or Design main) only changes the layout: a merge under way and a sent one
+ * stay. The transitions of prototype-set-state.ts still end a merge that they leave.
+ */
+export function withMergeKept(
+  state: PrototypeSetState,
+  change: (current: PrototypeSetState) => PrototypeSetState
+): PrototypeSetState {
+  const changed = change(state)
+  return { ...changed, merge: state.merge, mergeSendFailed: state.mergeSendFailed }
+}
+
 /** "Merge into D" needs at least one part kept, and no send in flight. */
 export function canSendMerge(state: PrototypeSetState): boolean {
   const { merge } = state
@@ -135,12 +165,18 @@ export function mergeSent(
   }
   return {
     ...state,
+    layout: merge.layoutBefore ?? state.layout,
     merge: null,
     mergeInto: { letter: sent.letter, from: merge.letters },
     mergeSendFailed: false,
     sendFailed: false,
     sentMessage: sent.visibleMessage
   }
+}
+
+/** The progress row's Cancel for a sent merge: the wait for its direction ends, and the chat keeps its work. */
+export function cancelSentMerge(state: PrototypeSetState): PrototypeSetState {
+  return state.mergeInto === null ? state : { ...state, mergeInto: null }
 }
 
 /** Whether the chat took a merge message. A send that throws is a refusal, like one the chat declines. */

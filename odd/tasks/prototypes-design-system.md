@@ -126,3 +126,14 @@ DS1 done (shared model, host read RPC and list summaries, clients). Found in pas
 Restart after the 2026-10-29 crash: MM2 writer resumed with its uncommitted set-screen work; MM1 reviews restarted (slice boundaries keep each module with its tests); diagnosis for DET/DSV resumed.
 
 QA1–QA4, then DS4. Pending user approval: main-direction + merge design (artifact C7fQd5S4v5UXVk5fW5XX6M).
+
+## pv56 QA (2026-10-30)
+
+- [x] Design system for worktree chats: host resolves the workspace when the record pins no launch directory (`1490e2ab984`). Rendered: list, screen and "No design system" card.
+- [x] Delegated capture and credit: `c0a82130533`, `574c28f7a52`, `469c1eb4856`, `39e6668cf11`. Unit tests only. Terminal children get no first prompt.
+- [x] Desktop QA: `dd389dd803c`, `6a923d410c0`, `4604a58a972`, `69a066bce7b`, `7a831a2e7cb`, `f13f3ac68c6`, `f0a4c523a0c`. Rendered before the header rework.
+- [x] Mobile QA: `cdda5fb9934`, `6d224e6eb2e`, `dea0b49cd82`, `6eaf1e99bde`, `6a296129c44`, `cd6e976e203`, `519b5e66d24`, `bbe92db405a`. Not rendered.
+- [x] Archive and delete: `5872b3eaa7e`, `193ac6b39c4`, `afd498c88b5`, `35a7f5a5170`; sweep keeps requests `15770cb1869`.
+- [x] Narrow header and Spanish archive strings: `f28440a07a4`, `99249f06820`. Not rendered.
+- Review: slices up to `469c1eb4856` approved. Later slices ran no reviewer lenses after the reboot.
+- Design choices for review: https://claude.ai/artifact/LokvPTZC85njupM8ktSX6Z
