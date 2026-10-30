@@ -253,12 +253,11 @@ async function reuseCachedSession(
   if (stats) {
     stats.reused++
   }
-  // A zero-turn transcript usually never changes again, but its sibling
-  // subagent dir (Claude `<session>/subagents/`, OMP's same-named artifact
-  // dir) can gain files after the parent's last write (a still-running
-  // subagent finishing). The mtime+size key can't see that, so refresh the
-  // cheap directory count on reuse.
-  if (entry.session && entry.session.messageCount === 0) {
+  // The sibling subagent dir (Claude `<session>/subagents/`, OMP's same-named
+  // artifact dir) fills while a child runs and the parent transcript is idle, so
+  // the mtime+size key can't see it. Recount on every reuse, else a running
+  // subagent's "N subagents" disclosure only appears once the parent next writes.
+  if (entry.session) {
     const subagentTranscriptCount =
       candidate.agent === 'claude'
         ? await countSubagentTranscripts(candidate.file.path)
