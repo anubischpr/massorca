@@ -16,6 +16,13 @@ import { DelegationAnswerService } from './delegation-answer-service'
 import { createDelegationLauncher } from './delegation-launch'
 import type { DelegationStoredAgent } from './delegation-options'
 import { DelegationRequestService } from './delegation-request-service'
+import {
+  delegatedChildFirstPrompt,
+  type DelegatedChildFirstPromptDeps
+} from './delegated-child-first-prompt'
+import { createPrototypeRequest } from '../native-chat/prototype-requests'
+import { getProfileUserDataPath } from '../orca-profiles/profile-storage-paths'
+import { rm } from 'node:fs/promises'
 import type { DelegationParentSession, DelegationRequestDeps } from './delegation-service-types'
 
 /** The runtime surface delegation reads; everything else goes through the host registry. */
@@ -120,6 +127,36 @@ function hostRows(): DelegationRequestDeps['rows'] {
   }
 }
 
+/** The chat and request access a child's first prompt needs, all on this runtime. */
+function delegatedChildPromptDeps(runtime: OrcaRuntimeService): DelegatedChildFirstPromptDeps {
+  return {
+    readChat: (sessionId) => {
+      const record = getStructuredAgentSessionHost()?.deps.store.getRecord(sessionId)
+      return record
+        ? { launchDirectory: record.launchDirectory, workspaceId: record.location.workspaceId }
+        : null
+    },
+    readPrototypeCount: () => runtime.readPrototypeCountSetting(),
+    createRequest: (input) =>
+      createPrototypeRequest({
+        stateDirectory: getProfileUserDataPath(),
+        sessionId: input.sessionId,
+        launchDirectory: input.launchDirectory,
+        request: {
+          agent: input.agent,
+          originalPrompt: input.text,
+          count: input.count,
+          worktreeId: input.worktreeId,
+          designSystem: 'use'
+        },
+        originSessionId: input.originSessionId,
+        now: new Date(),
+        random: Math.random
+      }),
+    removeFolder: (folderPath) => rm(folderPath, { recursive: true, force: true })
+  }
+}
+
 /** The runtime's delegation request service. */
 export function getDelegationRequestService(runtime: OrcaRuntimeService): DelegationRequestService {
   const existing = requestServices.get(runtime)
@@ -170,6 +207,16 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
           coordinator: caller,
           callerSession: caller,
           existingTask: task,
+          firstPrompt: (childSessionId) =>
+            delegatedChildFirstPrompt(
+              {
+                childSessionId,
+                originSessionId: caller.sessionId,
+                taskSpec: task.spec,
+                childAgent: params.agent ?? ''
+              },
+              delegatedChildPromptDeps(runtime)
+            ),
           mode: modeModule.decideWorkerStartMode({
             params,
             settings: modeModule.readWorkerStartModeSettings(runtime)

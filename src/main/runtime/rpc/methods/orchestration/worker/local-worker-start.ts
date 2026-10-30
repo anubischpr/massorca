@@ -54,6 +54,8 @@ export async function startLocalWorker(args: {
   orchestrationMutation?: WorkerStartMutation
   /** Settings-driven; the executing host still gets to refuse below. */
   mode: WorkerStartModeReceipt
+  /** Resolves the worker's first prompt when its session exists; the settlement delivers it. */
+  firstPrompt?: Parameters<typeof deliverAndSettleWorkerStartReadiness>[0]['firstPrompt']
 }): Promise<unknown> {
   const { runtime, db, run, coordinator, callerSession, existingTask } = args
   const { orchestrationMutation } = args
@@ -275,6 +277,7 @@ export async function startLocalWorker(args: {
       db,
       run,
       task,
+      firstPrompt: args.firstPrompt,
       dispatchId: started.dispatch.id,
       dispatchDepth: started.dispatch.depth,
       structuredSession,

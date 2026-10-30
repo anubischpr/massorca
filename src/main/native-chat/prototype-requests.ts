@@ -48,6 +48,8 @@ export type CreatePrototypeRequestOptions = {
   launchDirectory: string | undefined
   request: Pick<CreatePrototypeRequestParams, 'agent' | 'originalPrompt' | 'count'> &
     Partial<Pick<CreatePrototypeRequestParams, 'worktreeId' | 'chatTitle' | 'designSystem'>>
+  /** The parent chat when a child session was delegated this request. */
+  originSessionId?: string
   now: Date
   random: () => number
 }
@@ -77,6 +79,7 @@ export async function createPrototypeRequest(
     createdAt: options.now.toISOString(),
     ...(request.worktreeId !== undefined ? { worktreeId: request.worktreeId } : {}),
     ...(request.chatTitle !== undefined ? { chatTitle: request.chatTitle } : {}),
+    ...(options.originSessionId !== undefined ? { originSessionId: options.originSessionId } : {}),
     ...(launchDirectory !== undefined ? { sessionCwd: launchDirectory } : {}),
     ...(request.designSystem !== undefined ? { designSystemMode: request.designSystem } : {}),
     ...(designSystemVersion !== undefined ? { designSystemVersion } : {}),
