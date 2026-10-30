@@ -67,7 +67,12 @@ export function PrototypeDesignSystemSource({
         size="sm"
         className="self-start"
         disabled={target === undefined || state.sending}
-        onClick={() => void runSend('redetect', buildDesignSystemRedetectMessage().sentText)}
+        onClick={() =>
+          void runSend(
+            'redetect',
+            buildDesignSystemRedetectMessage({ systemFolder: system.folderPath }).sentText
+          )
+        }
       >
         {translate('components.prototypes.designSystem.redetect', 'Re-detect from project')}
       </Button>

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  designSystemFolderOfLaunchDirectory,
   projectsOfLaunchDirectories,
   readDesignSystemFiles,
   readDesignSystemOfLaunchDirectory,
@@ -173,5 +174,58 @@ describe('projectsOfLaunchDirectories', () => {
   it('leaves a project with an invalid tokens.json without a summary', async () => {
     await write('tokens.json', '[1]')
     expect((await projectsOfLaunchDirectories([root])).get(root)?.system).toBeUndefined()
+  })
+})
+
+describe('a linked worktree of a repository', () => {
+  let worktree: string
+
+  beforeEach(async () => {
+    worktree = `${root}-wt`
+    await mkdir(join(root, '.git', 'worktrees', 'wt'), { recursive: true })
+    await mkdir(worktree, { recursive: true })
+    await writeFile(join(worktree, '.git'), `gitdir: ${join(root, '.git', 'worktrees', 'wt')}\n`)
+  })
+
+  afterEach(async () => {
+    await rm(worktree, { recursive: true, force: true })
+  })
+
+  it('reads the system of the main checkout', async () => {
+    await write('tokens.json', TOKENS)
+    expect(await readDesignSystemVersion(worktree)).toBe(3)
+    const read = await readDesignSystemOfLaunchDirectory(worktree)
+    expect(read.ok && read.tokensJson).toBe(TOKENS)
+  })
+
+  it('reads the worktree copy when the main checkout has no system yet', async () => {
+    await mkdir(join(worktree, 'design', 'system'), { recursive: true })
+    await writeFile(join(worktree, 'design', 'system', 'tokens.json'), TOKENS)
+    expect(await readDesignSystemVersion(worktree)).toBe(3)
+    expect(await designSystemFolderOfLaunchDirectory(worktree)).toBe(
+      join(worktree, 'design', 'system')
+    )
+  })
+
+  it('prefers the main checkout once it has a system of its own', async () => {
+    await mkdir(join(worktree, 'design', 'system'), { recursive: true })
+    await writeFile(join(worktree, 'design', 'system', 'tokens.json'), TOKENS)
+    await write('tokens.json', TOKENS.replace('"version":3', '"version":4'))
+    expect(await readDesignSystemVersion(worktree)).toBe(4)
+    expect(await designSystemFolderOfLaunchDirectory(worktree)).toBe(join(root, 'design', 'system'))
+  })
+
+  it('names the main checkout folder when neither has a system', async () => {
+    expect(await designSystemFolderOfLaunchDirectory(worktree)).toBe(join(root, 'design', 'system'))
+    expect(await readDesignSystemVersion(worktree)).toBeUndefined()
+  })
+
+  it('lists the repository once, with the folder its system is read from', async () => {
+    await write('tokens.json', TOKENS)
+    const listed = await projectsOfLaunchDirectories([root, worktree])
+    const main = listed.get(root)
+    expect(listed.get(worktree)?.projectKey).toBe(main?.projectKey)
+    expect(listed.get(worktree)?.system?.version).toBe(3)
+    expect(listed.get(worktree)?.systemFolder).toBe(join(root, 'design', 'system'))
   })
 })

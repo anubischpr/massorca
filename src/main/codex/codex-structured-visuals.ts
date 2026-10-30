@@ -78,14 +78,14 @@ function writableRootsOf(response: unknown): string[] | null {
 }
 
 /**
- * The thread config adding the chat's folder to the writable roots the user already has. The
+ * The thread config adding the chat's folders (visuals, and a shared design system) to the writable roots the user already has. The
  * override replaces Codex's list rather than appending to it, so the user's own roots are read
  * first (with the project layers this cwd sees) and kept; when they can't be read, nothing is
  * overridden and a write there asks for approval like any other path outside the workspace.
  */
 async function writableRootsConfig(
   connection: CodexVisualsConnection,
-  input: { cwd: string; folder: string },
+  input: { cwd: string; folders: readonly string[] },
   report: (message: string, error: unknown) => void
 ): Promise<Record<string, unknown> | null> {
   try {
@@ -100,9 +100,9 @@ async function writableRootsConfig(
       report('codex config/read gave no readable writable roots', null)
       return null
     }
-    return { [WRITABLE_ROOTS_KEY]: [...new Set([...roots, input.folder])] }
+    return { [WRITABLE_ROOTS_KEY]: [...new Set([...roots, ...input.folders])] }
   } catch (error) {
-    report('codex config/read failed; the chat folder is not a writable root', error)
+    report('codex config/read failed; the chat folders are not writable roots', error)
     return null
   }
 }
@@ -134,7 +134,17 @@ export async function prepareCodexThreadForVisuals(
     setSkillRoots(connection, visuals, report),
     launch.permissionPolicy?.sandbox === 'danger-full-access'
       ? null
-      : writableRootsConfig(connection, { cwd: launch.cwd, folder: visuals.folder }, report)
+      : writableRootsConfig(
+          connection,
+          {
+            cwd: launch.cwd,
+            folders: [
+              visuals.folder,
+              ...(visuals.designSystemFolder ? [visuals.designSystemFolder] : [])
+            ]
+          },
+          report
+        )
   ])
   return threadConfig
 }

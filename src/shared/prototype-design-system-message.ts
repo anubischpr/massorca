@@ -1,15 +1,11 @@
 // The three messages a user sends about a design system: an edit, a re-detect and a palette choice.
 // Each has the visible text the chat shows, and a hidden block, opened by its own marker, for the agent.
-import {
-  DESIGN_SYSTEM_COMPONENTS_PATH,
-  DESIGN_SYSTEM_FILES_LINE_PREFIX,
-  DESIGN_SYSTEM_SOURCE_PATH,
-  DESIGN_SYSTEM_TOKENS_PATH
-} from './prototype-design-system-files'
+import { DESIGN_SYSTEM_FILES_LINE_PREFIX } from './prototype-design-system-files'
 import type { DesignSystemDraftGroup } from './prototype-design-system-draft'
 import {
-  DESIGN_SYSTEM_FORMAT_INSTRUCTION,
-  DESIGN_SYSTEM_REDETECT_INSTRUCTION
+  DESIGN_SYSTEM_REDETECT_INSTRUCTION,
+  designSystemFilesList,
+  designSystemFormatInstruction
 } from './prototype-design-system-instruction'
 import {
   neutralizePrototypeMarkers,
@@ -33,6 +29,8 @@ export type DesignSystemUpdateInput = {
   /** The sets to rebuild on the new version; none when the option is off. */
   rebuild: readonly DesignSystemRebuildSet[]
   freeText: string
+  /** The system's absolute folder on the agent's host; absent, the message names project-relative paths. */
+  systemFolder?: string
 }
 
 export type DesignSystemMessage = {
@@ -44,7 +42,11 @@ export type DesignSystemMessage = {
 
 const REDETECT_TEXT = 'Re-detect the design system from the project.'
 
-const FILES_LINE = `${DESIGN_SYSTEM_FILES_LINE_PREFIX} ${DESIGN_SYSTEM_TOKENS_PATH}, ${DESIGN_SYSTEM_COMPONENTS_PATH} and ${DESIGN_SYSTEM_SOURCE_PATH}, relative to the project root.`
+// Why: a linked worktree's agent runs in a folder that does not hold the system, so it gets the absolute folder.
+function filesLine(folder: string | undefined): string {
+  const list = designSystemFilesList(folder)
+  return `${DESIGN_SYSTEM_FILES_LINE_PREFIX} ${list}${folder === undefined ? ', relative to the project root.' : '.'}`
+}
 
 /** "Update the design system to v{n+1}." with the draft's groups, the rebuild line and the free text. */
 export function buildDesignSystemUpdateMessage(
@@ -70,21 +72,23 @@ export function buildDesignSystemUpdateMessage(
   const visibleText = neutralizePrototypeMarkers(lines.join('\n'))
   const hidden = [
     prototypeDesignSystemMarkerLine('update'),
-    FILES_LINE,
+    filesLine(input.systemFolder),
     `Apply the design system changes above to those files. Change nothing else: keep every other token, value and component exactly as it is. Set the version in tokens.json to ${next} and add a history entry for it with the system's status and today's date, keeping tokens.json valid and components.html in the format below.`,
     ...rebuildInstructionLines(input.rebuild, next),
-    DESIGN_SYSTEM_FORMAT_INSTRUCTION
+    designSystemFormatInstruction(input.systemFolder)
   ]
   return { visibleText, sentText: `${visibleText}\n\n${hidden.join('\n')}` }
 }
 
 /** "Re-detect the design system from the project." with the re-detect instruction. */
-export function buildDesignSystemRedetectMessage(): DesignSystemMessage {
+export function buildDesignSystemRedetectMessage(
+  input: { systemFolder?: string | undefined } = {}
+): DesignSystemMessage {
   const hidden = [
     prototypeDesignSystemMarkerLine('detect'),
-    FILES_LINE,
+    filesLine(input.systemFolder),
     DESIGN_SYSTEM_REDETECT_INSTRUCTION,
-    DESIGN_SYSTEM_FORMAT_INSTRUCTION
+    designSystemFormatInstruction(input.systemFolder)
   ]
   return { visibleText: REDETECT_TEXT, sentText: `${REDETECT_TEXT}\n\n${hidden.join('\n')}` }
 }
@@ -94,15 +98,17 @@ export function buildDesignSystemPaletteApproveMessage(input: {
   paletteName: string
   /** The request that waits for the system. */
   requestId: string
+  /** The system's absolute folder on the agent's host; absent, the message names project-relative paths. */
+  systemFolder?: string
 }): DesignSystemMessage {
   const name = singleLine(neutralizePrototypeMarkers(input.paletteName))
   const visibleText = `Use the ${name} palette for the design system.`
   const hidden = [
     prototypeDesignSystemMarkerLine('approve', input.requestId),
-    FILES_LINE,
+    filesLine(input.systemFolder),
     `Apply the palette named "${name}" from the palettes in tokens.json: copy its tokens into the token values, set the status to detected, and bump the version with a history entry. Change nothing else: keep every other token, value and component exactly as it is.`,
     `Then write the directions of prototype request ${input.requestId} as that request asked earlier in this chat, built only with the updated tokens and components.`,
-    DESIGN_SYSTEM_FORMAT_INSTRUCTION
+    designSystemFormatInstruction(input.systemFolder)
   ]
   return { visibleText, sentText: `${visibleText}\n\n${hidden.join('\n')}` }
 }

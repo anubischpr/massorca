@@ -39,7 +39,8 @@ export function PrototypeDesignSystemDraft({
       currentVersion: system.version,
       groups,
       rebuild,
-      freeText: state.freeText
+      freeText: state.freeText,
+      ...(system.folderPath !== undefined ? { systemFolder: system.folderPath } : {})
     })
     void runSend('draft', message.sentText)
   }

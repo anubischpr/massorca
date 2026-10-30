@@ -39,7 +39,13 @@ export function hostListsDesignSystems(client: HostClient): boolean {
 type HostClient = Pick<RpcClient, 'sendRequest'>
 
 export type MobilePrototypeRequest =
-  | { kind: 'ready'; requestId: string; folderPath: string }
+  | {
+      kind: 'ready'
+      requestId: string
+      folderPath: string
+      /** The design system folder on the host, absolute; set when the request uses a design system. */
+      designSystemFolderPath?: string
+    }
   /** The host has no visuals folder for this chat, so no request can be made here. */
   | { kind: 'unsupported' }
   /** The host could not write the request folder; the host removed any partial one. */
@@ -96,7 +102,14 @@ export async function createMobilePrototypeRequest(
     return { kind: 'unreachable' }
   }
   if (reply.data.ok) {
-    return { kind: 'ready', requestId: reply.data.requestId, folderPath: reply.data.folderPath }
+    return {
+      kind: 'ready',
+      requestId: reply.data.requestId,
+      folderPath: reply.data.folderPath,
+      ...(reply.data.designSystemFolderPath !== undefined
+        ? { designSystemFolderPath: reply.data.designSystemFolderPath }
+        : {})
+    }
   }
   return reply.data.error === 'unwritable' ? { kind: 'unwritable' } : { kind: 'unsupported' }
 }

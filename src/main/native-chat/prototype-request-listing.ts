@@ -161,6 +161,7 @@ function listedDesignSystemsOf(projects: Iterable<ListedProject>): PrototypeList
     const entry = listedDesignSystemOf({
       projectKey: project.projectKey,
       projectName: project.projectName,
+      folderPath: project.systemFolder,
       ...project.system
     })
     if (entry === null) {

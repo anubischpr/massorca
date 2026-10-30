@@ -47,7 +47,8 @@ export function mobileDesignSystemDraftText({
     currentVersion: system.version,
     groups,
     rebuild: state.rebuild ? designSystemRebuildSetsOf(rebuildSets) : [],
-    freeText: state.freeText
+    freeText: state.freeText,
+    ...(system.folderPath !== undefined ? { systemFolder: system.folderPath } : {})
   }).sentText
 }
 

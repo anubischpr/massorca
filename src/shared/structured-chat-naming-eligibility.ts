@@ -4,6 +4,7 @@ import { isRootAgentJournalItem } from './agent-session-journal-producer'
 import { isStructuredAgentSessionCommandEntry } from './structured-agent-session-command-entry'
 import { firstStructuredAgentSessionPrompt } from './structured-agent-session-first-prompt'
 import { findOrcaDispatchTaskBody } from './orca-dispatch-status-prompt'
+import { splitPrototypeHiddenInstruction } from './prototype-hidden-instruction'
 
 export function firstStructuredChatNamingPrompt(
   snapshot: AgentJournalSnapshot,
@@ -45,7 +46,8 @@ function firstNamingText(first: AgentJournalRenderItem): string {
     for (const block of first.body.blocks) {
       const task = block.type === 'text' ? findOrcaDispatchTaskBody(block.text) : null
       if (task !== null) {
-        return task
+        // Why: a delegated child's hidden prototype instruction rides after its task, and a title never reads it.
+        return splitPrototypeHiddenInstruction(task).visibleText
       }
     }
   }

@@ -54,7 +54,8 @@ export function PrototypeDesignSystemPalettes({
     }
     const message = buildDesignSystemPaletteApproveMessage({
       paletteName: chosen.name,
-      requestId: pending.requestId
+      requestId: pending.requestId,
+      ...(system.folderPath !== undefined ? { systemFolder: system.folderPath } : {})
     })
     void runSend('palette', message.sentText, chatOfPendingRequest(pending))
   }

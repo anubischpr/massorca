@@ -90,6 +90,10 @@ export type PrototypeRequestInput = {
   folderPath: string
   /** "Use it" or "Propose one first" adds the design system instruction; "Skip" or absent adds none. */
   designSystem?: PrototypeDesignSystemMode
+  /** The design system's absolute folder on the agent's host; absent, the instruction names project-relative paths. */
+  designSystemFolder?: string
+  /** No user reviews the result (a delegated child): a missing system is created and the work goes on. */
+  designSystemUnattended?: boolean
 }
 
 export type PrototypeRequestMessage = {
@@ -175,7 +179,14 @@ function partsFor(
     prototypeRequestMarkerLine(input.requestId),
     directionInstruction(directions, folderPath, agent, isGentleDesign),
     prototypeDesignBrief(directions),
-    ...(usesDesignSystemInstruction(input.designSystem) ? [designSystemRequestInstruction()] : [])
+    ...(usesDesignSystemInstruction(input.designSystem)
+      ? [
+          designSystemRequestInstruction({
+            ...(input.designSystemFolder !== undefined ? { folder: input.designSystemFolder } : {}),
+            ...(input.designSystemUnattended === true ? { unattended: true } : {})
+          })
+        ]
+      : [])
   ].join('\n')
   if (massorcaCommand) {
     // The agent gets the text without the MassOrca command word, which no agent knows, or the

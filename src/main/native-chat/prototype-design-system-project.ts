@@ -1,5 +1,6 @@
 // The project a chat works in, for its design system: the root that holds design/system/, a name to
-// show, and a key that tells projects apart. A folder workspace without git is its own root.
+// show, and a key that tells projects apart. A linked worktree shares the system of its main checkout;
+// a folder workspace without git is its own root.
 
 import { createHash } from 'node:crypto'
 import { lstat, open } from 'node:fs/promises'
@@ -7,14 +8,21 @@ import { basename, dirname, join, resolve } from 'node:path'
 
 const MAX_GIT_FILE_BYTES = 4096
 const LINKED_WORKTREE_GITDIR = /^(.*)[\\/]\.git[\\/]worktrees[\\/][^\\/]+[\\/]?$/u
+const RELATIVE_GITDIR = /^\.\.?[\\/]/u
+const BARE_REPOSITORY = /^\s*bare\s*=\s*true\s*$/mu
 const PROJECT_KEY_LENGTH = 16
 
 export type DesignSystemProject = {
-  /** Where design/system/ lives: the nearest folder at or above the launch directory with a `.git`. */
+  /**
+   * Where design/system/ lives: the nearest folder at or above the launch directory with a `.git`, or the
+   * main checkout when that folder is a linked worktree whose main checkout is on this host.
+   */
   root: string
   projectName: string
-  /** Stable for one root on one host; two linked worktrees of a repository are two projects. */
+  /** Stable for one root on one host; every linked worktree of a repository shares its main checkout's key. */
   projectKey: string
+  /** The linked worktree's own root, set only when `root` is its main checkout; a system written there is migrated. */
+  worktreeRoot?: string
 }
 
 /** The project of a chat's launch directory; the directory itself when no ancestor holds a `.git`. */
@@ -23,11 +31,15 @@ export async function resolveDesignSystemProject(
 ): Promise<DesignSystemProject> {
   const start = resolve(launchDirectory)
   const git = await nearestGit(start)
-  const root = git?.root ?? start
+  const gitRoot = git?.root ?? start
+  const repository = git?.isFile === true ? await linkedWorktreeRepository(gitRoot) : null
+  const mainCheckout = repository === null ? null : await mainCheckoutOf(repository)
+  const root = mainCheckout ?? gitRoot
   return {
     root,
-    projectName: await projectNameOf(root, git?.isFile === true),
-    projectKey: projectKeyOf(root)
+    projectName: folderName(repository ?? gitRoot),
+    projectKey: projectKeyOf(root),
+    ...(mainCheckout !== null && mainCheckout !== gitRoot ? { worktreeRoot: gitRoot } : {})
   }
 }
 
@@ -46,16 +58,26 @@ async function nearestGit(start: string): Promise<GitEntry | null> {
   }
 }
 
-// A linked worktree is named for the repository it belongs to, not for its own folder.
-async function projectNameOf(root: string, gitIsFile: boolean): Promise<string> {
-  const repository = gitIsFile ? await linkedWorktreeRepository(root) : null
-  return folderName(repository ?? root)
-}
-
+// The repository a linked worktree belongs to, from its `.git` file; null for a submodule or an unreadable pointer.
 async function linkedWorktreeRepository(root: string): Promise<string | null> {
   const text = await readSmallText(join(root, '.git'))
   const gitdir = /^gitdir:\s*(.+?)\s*$/mu.exec(text ?? '')?.[1]
-  return gitdir === undefined ? null : (LINKED_WORKTREE_GITDIR.exec(gitdir)?.[1] ?? null)
+  if (gitdir === undefined) {
+    return null
+  }
+  const absolute = RELATIVE_GITDIR.test(gitdir) ? resolve(root, gitdir) : gitdir
+  return LINKED_WORKTREE_GITDIR.exec(absolute)?.[1] ?? null
+}
+
+// A bare repository has no checkout to hold the system, and a missing one cannot be written to.
+async function mainCheckoutOf(repository: string): Promise<string | null> {
+  const gitDirectory = join(repository, '.git')
+  const stats = await lstat(gitDirectory).catch(() => null)
+  if (stats === null || !stats.isDirectory()) {
+    return null
+  }
+  const config = await readSmallText(join(gitDirectory, 'config'))
+  return config !== null && BARE_REPOSITORY.test(config) ? null : resolve(repository)
 }
 
 async function readSmallText(path: string): Promise<string | null> {

@@ -39,7 +39,7 @@ export async function resolveClaudeLaunchFlags(
     deps.cliFlags?.supports(CLAUDE_THINKING_DISPLAY_FLAG, launch, budgetMs, startProbe) ?? false
   // Unlike the thinking display, a missed answer costs the chat its skill for its whole life, so
   // the plugin check waits for the probe up to its own kill time: bounded, and instant once known.
-  const preparedVisuals = deps.prepareVisuals?.(sessionId) ?? Promise.resolve(null)
+  const preparedVisuals = deps.prepareVisuals?.(sessionId, launch.cwd) ?? Promise.resolve(null)
   const [thinksFirst, visuals, loadsPlugins] = await Promise.all([
     thinking(),
     preparedVisuals,

@@ -91,7 +91,10 @@ export async function prepareNativeChatPrototypeText(input: {
     count: input.count,
     requestId: created.requestId,
     folderPath: created.folderPath,
-    ...(input.designSystem !== undefined ? { designSystem: input.designSystem } : {})
+    ...(input.designSystem !== undefined ? { designSystem: input.designSystem } : {}),
+    ...(created.designSystemFolderPath !== undefined
+      ? { designSystemFolder: created.designSystemFolderPath }
+      : {})
   }).sentText
 }
 

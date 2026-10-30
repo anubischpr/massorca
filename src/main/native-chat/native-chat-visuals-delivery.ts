@@ -4,6 +4,7 @@
 
 import { mkdir } from 'node:fs/promises'
 import type { StructuredAgentSessionLogger } from './agent-session-wire/structured-agent-session-logger'
+import { designSystemFolderToGrant } from './native-chat-design-system-grant'
 import { nativeChatVisualsFolderFor } from './native-chat-visuals-folder'
 import {
   resolveNativeChatVisualsSkillLocation,
@@ -18,11 +19,18 @@ export type NativeChatVisualsLaunch = {
   /** This chat's folder, created and private to this user. */
   folder: string
   skill: NativeChatVisualsSkillLocation
+  /**
+   * The project's design system folder when it lies outside the agent's launch directory (a linked
+   * worktree shares its main checkout's), so the agent is granted it beside `folder`.
+   */
+  designSystemFolder?: string
 }
 
 /** Prepares one chat's launch; null leaves the chat without visuals. Never throws. */
 export type PrepareNativeChatVisuals = (
-  sessionId: string
+  sessionId: string,
+  /** The directory the agent launches in; without it no design system folder is granted. */
+  launchDirectory?: string
 ) => Promise<NativeChatVisualsLaunch | null>
 
 export function createNativeChatVisualsDelivery(deps: {
@@ -32,7 +40,7 @@ export function createNativeChatVisualsDelivery(deps: {
   resolveSkill?: () => Promise<NativeChatVisualsSkillLocation | null>
 }): PrepareNativeChatVisuals {
   const resolveSkill = deps.resolveSkill ?? (() => resolveNativeChatVisualsSkillLocation())
-  return async (sessionId) => {
+  return async (sessionId, launchDirectory) => {
     try {
       if (deps.isEnabled?.() === false) {
         return null
@@ -47,7 +55,9 @@ export function createNativeChatVisualsDelivery(deps: {
       }
       const folder = nativeChatVisualsFolderFor(deps.stateDirectory, sessionId)
       await mkdir(folder, { recursive: true, mode: 0o700 })
-      return { folder, skill }
+      const designSystemFolder =
+        launchDirectory === undefined ? null : await designSystemFolderToGrant(launchDirectory)
+      return { folder, skill, ...(designSystemFolder ? { designSystemFolder } : {}) }
     } catch (error) {
       deps.logger.warn('native-chat visuals folder could not be prepared', {
         scope: 'nativeChatVisuals.folder',

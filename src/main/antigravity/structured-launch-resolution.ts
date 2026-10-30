@@ -110,9 +110,10 @@ function antigravityAddDirSupported(cliVersion: string | null): boolean {
  *  folder it is given; null leaves the chat without visuals. */
 async function antigravityVisualsFor(
   deps: AntigravityLaunchDeps,
-  sessionId: string
+  sessionId: string,
+  cwd: string
 ): Promise<NativeChatVisualsLaunch | null> {
-  const visuals = (await deps.prepareVisuals?.(sessionId)) ?? null
+  const visuals = (await deps.prepareVisuals?.(sessionId, cwd)) ?? null
   if (!visuals) {
     return null
   }
@@ -233,7 +234,7 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
       : null
     // Why: the visuals folder lies outside the workspace, so agy is given it with --add-dir too.
     const visuals = antigravityAddDirSupported(cliVersion)
-      ? await antigravityVisualsFor(deps, record.sessionId)
+      ? await antigravityVisualsFor(deps, record.sessionId, cwd)
       : null
     return {
       command,
@@ -253,7 +254,8 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
         ...(options.effort ? ['--effort', options.effort] : []),
         ...antigravityAccessArgs(record.options?.accessMode, deps.resolveFullAccess?.() === true),
         ...(instructionsFolder ? ['--add-dir', instructionsFolder] : []),
-        ...(visuals ? ['--add-dir', visuals.folder] : [])
+        ...(visuals ? ['--add-dir', visuals.folder] : []),
+        ...(visuals?.designSystemFolder ? ['--add-dir', visuals.designSystemFolder] : [])
       ]
     }
   }

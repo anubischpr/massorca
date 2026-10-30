@@ -57,7 +57,7 @@ describe('a Claude chat launch with inline visuals', () => {
       supports: async (flag) => flag === CLAUDE_PLUGIN_DIR_FLAG,
       launchArgs: ['--add-dir', '/shared/notes']
     })
-    expect(prepareVisuals).toHaveBeenCalledWith(SESSION_ID)
+    expect(prepareVisuals).toHaveBeenCalledWith(SESSION_ID, expect.any(String))
     expect(resolved.options.plugins).toEqual([{ type: 'local', path: VISUALS.skill.pluginDir }])
     expect(resolved.options.additionalDirectories).toEqual(['/shared/notes', VISUALS.folder])
     expect(resolved.env?.[NATIVE_CHAT_VISUALS_DIR_ENV]).toBe(VISUALS.folder)
@@ -82,6 +82,14 @@ describe('a Claude chat launch with inline visuals', () => {
       attachmentDirectory: '/state/agent-session-attachments'
     })
     expect(resolved.options.additionalDirectories).toEqual(directories)
+  })
+
+  it('grants the shared design system folder of a linked worktree beside the chat folder', async () => {
+    const resolved = await launch({
+      prepareVisuals: async () => ({ ...VISUALS, designSystemFolder: '/main/design/system' }),
+      supports: async () => false
+    })
+    expect(resolved.options.additionalDirectories).toEqual([VISUALS.folder, '/main/design/system'])
   })
 
   it('still grants and names the folder when the CLI cannot load a plugin by path', async () => {

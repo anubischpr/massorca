@@ -399,6 +399,34 @@ describe('chat visuals', () => {
     }
   })
 
+  it('adds the shared design system folder with --add-dir beside the visuals folder', async () => {
+    launcher.resolved = true
+    const h = await setup()
+    const dir = await mkdtemp(join(tmpdir(), 'orca-agy-design-'))
+    try {
+      const folder = join(dir, 'chat')
+      await mkdir(folder)
+      const skill = await skillUnder(dir)
+      const prepareVisuals = vi.fn(async () => ({
+        folder,
+        skill,
+        designSystemFolder: '/main/design/system'
+      }))
+
+      const launch = await createAntigravityLaunchResolver({ ...h.deps, prepareVisuals })(identity)
+
+      expect(prepareVisuals).toHaveBeenCalledWith(expect.any(String), expect.any(String))
+      expect(launch.args.slice(-4)).toEqual([
+        '--add-dir',
+        folder,
+        '--add-dir',
+        '/main/design/system'
+      ])
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
   it('starts agy without visuals, and without its folder in the environment, when agy predates --add-dir', async () => {
     launcher.resolved = true
     const h = await setup('1.3.5')

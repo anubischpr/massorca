@@ -77,7 +77,13 @@ export type ReadPrototypeFileParams = z.infer<typeof ReadPrototypeFileParams>
 export const PROTOTYPE_CREATE_REQUEST_ERRORS = ['unsupported', 'unwritable'] as const
 
 export type CreatePrototypeRequestResult =
-  | { ok: true; requestId: string; folderPath: string }
+  | {
+      ok: true
+      requestId: string
+      folderPath: string
+      /** The design system folder on the host, absolute; set when the request uses a design system. */
+      designSystemFolderPath?: string
+    }
   | { ok: false; error: (typeof PROTOTYPE_CREATE_REQUEST_ERRORS)[number] }
 
 /**
@@ -167,7 +173,9 @@ export const PrototypeListedDesignSystemSchema = z.object({
   /** Color values, up to four, for the list icon. */
   swatches: z.array(z.string().max(DESIGN_SYSTEM_SWATCH_MAX_LENGTH)).max(4),
   /** The request whose directions Approve builds; absent when the project has no such request. */
-  pendingRequest: PrototypeListedPendingRequestSchema.optional()
+  pendingRequest: PrototypeListedPendingRequestSchema.optional(),
+  /** The system's folder on the host, absolute; a client quotes it to the agent. Absent from a host that predates it. */
+  folderPath: z.string().min(1).optional()
 })
 
 export type PrototypeListedDesignSystem = z.infer<typeof PrototypeListedDesignSystemSchema>
@@ -254,7 +262,12 @@ export type WriteAttachmentResult =
 
 // Each reply as a client checks it, so every platform reads one host answer the same way.
 export const CreatePrototypeRequestReplySchema = z.union([
-  z.object({ ok: z.literal(true), requestId: z.string(), folderPath: z.string() }),
+  z.object({
+    ok: z.literal(true),
+    requestId: z.string(),
+    folderPath: z.string(),
+    designSystemFolderPath: z.string().min(1).optional()
+  }),
   z.object({ ok: z.literal(false), error: z.enum(PROTOTYPE_CREATE_REQUEST_ERRORS) })
 ])
 

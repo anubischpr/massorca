@@ -294,7 +294,8 @@ export function createClaudeStructuredLaunchResolver(
     const additionalDirectories = [
       ...configured.additionalDirectories,
       ...(deps.attachmentDirectory ? [deps.attachmentDirectory] : []),
-      ...(visuals ? [visuals.visuals.folder] : [])
+      ...(visuals ? [visuals.visuals.folder] : []),
+      ...(visuals?.visuals.designSystemFolder ? [visuals.visuals.designSystemFolder] : [])
     ]
     // The CLI predicts the next message after each turn from its prompt cache, at little cost.
     const promptSuggestions =

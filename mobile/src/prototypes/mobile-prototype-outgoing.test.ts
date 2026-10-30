@@ -211,6 +211,18 @@ describe('planMobilePrototypeOutgoing design system', () => {
     expect(planned.kind === 'send' && planned.shownText).toBe('/prototype a login page')
   })
 
+  it('names the design system folder the host gave instead of project-relative paths', async () => {
+    const { result } = plan('/prototype a login page', ALWAYS_3, {
+      useDesignSystem: true,
+      request: { ...READY, designSystemFolderPath: '/main/design/system' }
+    })
+    const planned = await result
+    expect(planned.kind === 'send' && planned.wireText).toContain(
+      'read /main/design/system/tokens.json, /main/design/system/components.html'
+    )
+    expect(planned.kind === 'send' && planned.shownText).toBe('/prototype a login page')
+  })
+
   it('keeps the usual request byte for byte when the host has not shown support', async () => {
     const { result, createRequest } = plan('/prototype a login page', ALWAYS_3)
     const planned = await result

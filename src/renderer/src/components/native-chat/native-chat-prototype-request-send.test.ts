@@ -44,6 +44,24 @@ describe('prepareNativeChatPrototypeText', () => {
     )
   })
 
+  it('names the design system folder the runtime gave, and the usual relative paths without one', async () => {
+    mocks.create.mockResolvedValue({
+      ok: true,
+      requestId: '20261029-100000-abc123',
+      folderPath: '/srv/prototypes/20261029-100000-abc123',
+      designSystemFolderPath: '/srv/main/design/system'
+    })
+    const shared = await prepareNativeChatPrototypeText({ ...input, designSystem: 'use' })
+    expect(shared).toContain('read /srv/main/design/system/tokens.json')
+    mocks.create.mockResolvedValue({
+      ok: true,
+      requestId: '20261029-100000-abc123',
+      folderPath: '/srv/prototypes/20261029-100000-abc123'
+    })
+    const older = await prepareNativeChatPrototypeText({ ...input, designSystem: 'use' })
+    expect(older).toContain('read design/system/tokens.json, components.html')
+  })
+
   it.each([
     [
       'an outdated host',

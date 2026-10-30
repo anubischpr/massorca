@@ -23,14 +23,12 @@ export type DelegatedChildChat = {
 }
 
 export type DelegatedChildRequest =
-  | { ok: true; requestId: string; folderPath: string }
+  | { ok: true; requestId: string; folderPath: string; designSystemFolderPath?: string }
   | { ok: false; error: string }
 
 export type DelegatedChildFirstPromptDeps = {
   /** The child's chat record on this host, with where it works; null when this host does not hold it. */
   readChat: (sessionId: string) => Promise<DelegatedChildChat | null>
-  /** Whether the child's project has a design system; a project without one is asked for none. */
-  hasDesignSystem: (launchDirectory: string | undefined) => Promise<boolean>
   /** The saved Settings value for the prototype count, unsanitized. */
   readPrototypeCount: () => unknown
   /** Makes the child's request folder and manifest; the caller supplies the state directory and clock. */
@@ -88,10 +86,9 @@ async function buildDelegatedChildFirstPrompt(
     return null
   }
   const count = sanitizePrototypeCountSetting(deps.readPrototypeCount()).count
-  // Why: a child has no card to choose a design system, so it uses the project's own system only when there is one.
-  const designSystem: PrototypeDesignSystemMode = (await deps.hasDesignSystem(chat.launchDirectory))
-    ? 'use'
-    : 'skip'
+  // Why 'use', never 'skip': a child has no card to choose a system, so its instruction reuses the project's
+  // system or creates one; 'propose' would stop the child for a review nobody is there to give.
+  const designSystem: PrototypeDesignSystemMode = 'use'
   const created = await deps
     .createRequest({
       sessionId: input.childSessionId,
@@ -119,7 +116,11 @@ async function buildDelegatedChildFirstPrompt(
       count,
       requestId: created.requestId,
       folderPath,
-      designSystem
+      designSystem,
+      designSystemUnattended: true,
+      ...(created.designSystemFolderPath !== undefined
+        ? { designSystemFolder: created.designSystemFolderPath }
+        : {})
     })
     return { body: parts.body, appendix: parts.hidden, discard }
   } catch (error) {

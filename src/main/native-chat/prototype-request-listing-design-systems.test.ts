@@ -89,6 +89,37 @@ describe('listPrototypeSets design systems', () => {
     expect(ListPrototypeSetsReplySchema.safeParse(listed).success).toBe(true)
   })
 
+  it('lists the absolute folder the system is read from, and the list contract keeps it', async () => {
+    await writeTokensIn(projectDirectory)
+    await create(SESSION, NOW, 'skip')
+    const listed = await listPrototypeSets({ launchDirectoryOf, stateDirectory })
+    expect(listed.designSystems?.[0]?.folderPath).toBe(join(projectDirectory, 'design', 'system'))
+    expect(ListPrototypeSetsReplySchema.parse(listed).designSystems?.[0]?.folderPath).toBe(
+      join(projectDirectory, 'design', 'system')
+    )
+  })
+
+  it('names the absolute design system folder on a request that uses the system, and not on a skip', async () => {
+    const base = {
+      stateDirectory,
+      sessionId: SESSION,
+      launchDirectory: projectDirectory,
+      now: NOW,
+      random: () => 0
+    }
+    const used = await createPrototypeRequest({
+      ...base,
+      request: { agent: 'claude', originalPrompt: 'a dashboard', count: 2, designSystem: 'use' }
+    })
+    const skipped = await createPrototypeRequest({
+      ...base,
+      now: LATER,
+      request: { agent: 'claude', originalPrompt: 'a dashboard', count: 2, designSystem: 'skip' }
+    })
+    expect(used.ok && used.designSystemFolderPath).toBe(join(projectDirectory, 'design', 'system'))
+    expect(skipped.ok && skipped.designSystemFolderPath).toBeFalsy()
+  })
+
   it('names the newest proposal that has no direction files as the request Approve builds', async () => {
     await writeTokensIn(projectDirectory)
     const pending = await create(SESSION, NOW, 'propose')

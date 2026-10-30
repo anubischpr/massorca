@@ -6,6 +6,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { NATIVE_CHAT_VISUAL_MAX_BYTES } from '../../shared/native-chat-visual-directive'
 import type { PrototypeDesignSystemMode } from '../../shared/prototype-design-system-files'
+import { usesDesignSystemInstruction } from '../../shared/prototype-design-system-instruction'
 import { PROTOTYPE_MERGE_PLAN_MAX_BYTES } from '../../shared/prototype-merge-plan'
 import {
   createPrototypeRequestId,
@@ -26,7 +27,10 @@ import type {
   ReadPrototypeFileResult
 } from '../../shared/rpc-contract/prototype-params'
 import type { AgentSessionReadVisualResult } from '../../shared/rpc-contract/agent-session-visual-params'
-import { readDesignSystemVersion } from './prototype-design-system-files'
+import {
+  designSystemFolderOfLaunchDirectory,
+  readDesignSystemVersion
+} from './prototype-design-system-files'
 import {
   gentleDesignSetFor,
   listGentleDesignSlugs,
@@ -101,7 +105,16 @@ export async function createPrototypeRequest(
   if (options.generateTitle && launchDirectory !== undefined) {
     nameRequestInBackground(folder, manifest.originalPrompt, launchDirectory, options.generateTitle)
   }
-  return { ok: true, requestId, folderPath: folder }
+  const designSystemFolderPath =
+    usesDesignSystemInstruction(request.designSystem) && launchDirectory !== undefined
+      ? await designSystemFolderOfLaunchDirectory(launchDirectory).catch(() => undefined)
+      : undefined
+  return {
+    ok: true,
+    requestId,
+    folderPath: folder,
+    ...(designSystemFolderPath !== undefined ? { designSystemFolderPath } : {})
+  }
 }
 
 /** Names the set after the send returns; a failed or late name leaves the set on its prompt text. */

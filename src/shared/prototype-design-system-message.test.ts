@@ -231,3 +231,37 @@ describe('design system markers', () => {
     }
   })
 })
+
+describe('a design system message for a project whose system is in another folder', () => {
+  const FOLDER = '/main/design/system'
+  const NAMES_THE_FOLDER = `Design system files: ${FOLDER}/tokens.json, ${FOLDER}/components.html and ${FOLDER}/system.md.`
+
+  it('names the absolute folder in an update, a re-detect and a palette approval', () => {
+    const update = buildDesignSystemUpdateMessage({
+      currentVersion: 2,
+      groups: GROUPS,
+      rebuild: [],
+      freeText: '',
+      systemFolder: FOLDER
+    })
+    const redetect = buildDesignSystemRedetectMessage({ systemFolder: FOLDER })
+    const approve = buildDesignSystemPaletteApproveMessage({
+      paletteName: 'Calm',
+      requestId: 'req-1',
+      systemFolder: FOLDER
+    })
+    for (const message of [update, redetect, approve]) {
+      expect(message.sentText).toContain(NAMES_THE_FOLDER)
+      expect(message.sentText).toContain(`${FOLDER}/tokens.json: W3C design tokens`)
+      expect(message.sentText).not.toContain('relative to the project root')
+      expect(message.visibleText).not.toContain(FOLDER)
+      expect(splitTrustedPrototypeHiddenInstruction(message.sentText).hidden).toBeDefined()
+    }
+  })
+
+  it('keeps the project-relative paths when the host named no folder', () => {
+    expect(buildDesignSystemRedetectMessage().sentText).toContain(
+      'Design system files: design/system/tokens.json, design/system/components.html and design/system/system.md, relative to the project root.'
+    )
+  })
+})

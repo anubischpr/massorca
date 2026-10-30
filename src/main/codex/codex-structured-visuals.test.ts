@@ -37,6 +37,18 @@ const configWithRoots = (roots: unknown) => () => ({
 })
 
 describe('setting up a Codex app-server for a chat with visuals', () => {
+  it('adds the shared design system folder to the writable roots beside the chat folder', async () => {
+    const { connection } = connectionAnswering({ 'config/read': configWithRoots(['/home/me']) })
+    const config = await prepareCodexThreadForVisuals(connection, {
+      cwd: '/work/repo',
+      visuals: { ...VISUALS, designSystemFolder: '/main/design/system' },
+      permissionPolicy: MANUAL
+    })
+    expect(config).toEqual({
+      'sandbox_workspace_write.writable_roots': ['/home/me', VISUALS.folder, '/main/design/system']
+    })
+  })
+
   it("names the skill root and adds the chat folder to the user's writable roots", async () => {
     const { calls, connection } = connectionAnswering({
       'config/read': configWithRoots(['/home/me/scratch'])

@@ -103,11 +103,12 @@ export function createCodexStructuredLaunchResolver(
     const resumeThreadId = head?.handle.nativeId ?? null
     // The same saved options every turn sends, so the thread and its turns name one model.
     const model = record.options?.model
-    const visuals = (await deps.prepareVisuals?.(record.sessionId)) ?? null
+    const cwd = await resolveAgentSessionLaunchDirectory(deps, record)
+    const visuals = (await deps.prepareVisuals?.(record.sessionId, cwd)) ?? null
     const launch: CodexStructuredLaunch = {
       command,
       args: [...args, 'app-server'],
-      cwd: await resolveAgentSessionLaunchDirectory(deps, record),
+      cwd,
       codexHome: accountHome.path,
       ...(environment ? { env: { ...environment } as Record<string, string> } : {}),
       // An empty chain is a session that has never proved a thread, so it

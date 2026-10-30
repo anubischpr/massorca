@@ -1,4 +1,12 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -89,6 +97,24 @@ describe('preparing a chat for visuals', () => {
     expect(process.platform === 'win32' || mode === 0o700).toBe(true)
     // A second launch of the same chat reuses it.
     await expect(prepare('chat-1')).resolves.toEqual(prepared)
+  })
+
+  it("grants a linked worktree chat the main checkout's design system folder", async () => {
+    const main = tempDir()
+    const worktree = tempDir()
+    const worktrees = join(main, '.git', 'worktrees', 'wt')
+    mkdirSync(worktrees, { recursive: true })
+    writeFileSync(join(worktree, '.git'), `gitdir: ${worktrees}\n`)
+    const prepare = createNativeChatVisualsDelivery({
+      stateDirectory: tempDir(),
+      logger: logger(),
+      resolveSkill: async () => SKILL
+    })
+    const prepared = await prepare('chat-1', worktree)
+    expect(prepared?.designSystemFolder).toBe(join(main, 'design', 'system'))
+    // Without a launch directory, or one that already holds the folder, nothing extra is granted.
+    expect((await prepare('chat-2'))?.designSystemFolder).toBeUndefined()
+    expect((await prepare('chat-3', main))?.designSystemFolder).toBeUndefined()
   })
 
   it('leaves the chat without visuals when the skill is missing or the folder fails', async () => {

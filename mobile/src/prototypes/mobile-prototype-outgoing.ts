@@ -96,7 +96,10 @@ export async function planMobilePrototypeOutgoing(
     count: decision.count,
     requestId: request.requestId,
     folderPath: request.folderPath,
-    ...(designSystem ? { designSystem } : {})
+    ...(designSystem ? { designSystem } : {}),
+    ...(designSystem && request.designSystemFolderPath !== undefined
+      ? { designSystemFolder: request.designSystemFolderPath }
+      : {})
   })
   return { kind: 'send', wireText: message.sentText, shownText: message.visibleText }
 }

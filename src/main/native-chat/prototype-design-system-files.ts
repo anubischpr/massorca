@@ -97,6 +97,36 @@ function faultReasonOf(error: unknown): string {
     : 'unreadable'
 }
 
+/**
+ * The root whose design/system/ a project reads and writes: its shared root, except when only the linked
+ * worktree holds a system (written before systems were shared), which is then read from the worktree.
+ */
+export async function designSystemRootOf(project: DesignSystemProject): Promise<string> {
+  if (project.worktreeRoot === undefined) {
+    return project.root
+  }
+  const shared = await readDesignSystemFile(project.root, DESIGN_SYSTEM_TOKENS_FILE)
+  if (shared.kind !== 'absent') {
+    return project.root
+  }
+  const own = await readDesignSystemFile(project.worktreeRoot, DESIGN_SYSTEM_TOKENS_FILE)
+  return own.kind === 'absent' ? project.root : project.worktreeRoot
+}
+
+/** The absolute design/system/ folder of a root, with the host's own separators. */
+export function designSystemFolderOf(root: string): string {
+  return join(root, ...DESIGN_SYSTEM_FOLDER.split('/'))
+}
+
+/** The absolute folder an agent in this launch directory reads the design system from and writes it to. */
+export async function designSystemFolderOfLaunchDirectory(
+  launchDirectory: string
+): Promise<string> {
+  return designSystemFolderOf(
+    await designSystemRootOf(await resolveDesignSystemProject(launchDirectory))
+  )
+}
+
 /** The three design system files of a project root, and the ones the project has but the host refused. */
 export async function readDesignSystemFiles(root: string): Promise<DesignSystemFilesRead> {
   const [tokens, components, source] = await Promise.all([
@@ -123,7 +153,9 @@ export async function readDesignSystemOfLaunchDirectory(
   launchDirectory: string
 ): Promise<ReadPrototypeDesignSystemResult> {
   const project = await resolveDesignSystemProject(launchDirectory)
-  const { files, unreadableFileNames } = await readDesignSystemFiles(project.root)
+  const { files, unreadableFileNames } = await readDesignSystemFiles(
+    await designSystemRootOf(project)
+  )
   const fileNames = [
     ...(files.tokensJson !== undefined ? [DESIGN_SYSTEM_TOKENS_PATH] : []),
     ...(files.componentsHtml !== undefined ? [DESIGN_SYSTEM_COMPONENTS_PATH] : []),
@@ -143,7 +175,7 @@ export async function readDesignSystemOfLaunchDirectory(
 export async function readDesignSystemVersion(
   launchDirectory: string
 ): Promise<number | undefined> {
-  const { root } = await resolveDesignSystemProject(launchDirectory)
+  const root = await designSystemRootOf(await resolveDesignSystemProject(launchDirectory))
   const tokens = await readDesignSystemFile(root, DESIGN_SYSTEM_TOKENS_FILE)
   const parsed = tokens.kind === 'text' ? parseDesignTokens(tokens.text) : null
   return parsed === null ? undefined : summarizeDesignSystem(parsed).version
@@ -152,10 +184,14 @@ export async function readDesignSystemVersion(
 // The projects of one list answer: bounded, so a host with many chats reads at most this many roots.
 const MAX_PROJECTS_SUMMARIZED = 50
 
-export type ListedProject = DesignSystemProject & { system?: DesignSystemSummary }
+export type ListedProject = DesignSystemProject & {
+  system?: DesignSystemSummary
+  /** The absolute folder the project's system is read from and written to. */
+  systemFolder: string
+}
 
 /**
- * The project of each launch directory, and the system summary of each distinct root, read once. The
+ * The project of each launch directory, and the system summary of each distinct system root, read once. The
  * map is keyed by launch directory; a root beyond the bound is listed without a summary.
  */
 export async function projectsOfLaunchDirectories(
@@ -165,11 +201,16 @@ export async function projectsOfLaunchDirectories(
   const summaryByRoot = new Map<string, DesignSystemSummary | null>()
   for (const launchDirectory of new Set(launchDirectories)) {
     const project = await resolveDesignSystemProject(launchDirectory)
-    if (!summaryByRoot.has(project.root) && summaryByRoot.size < MAX_PROJECTS_SUMMARIZED) {
-      summaryByRoot.set(project.root, await summarizeProjectSystem(project.root))
+    const systemRoot = await designSystemRootOf(project)
+    if (!summaryByRoot.has(systemRoot) && summaryByRoot.size < MAX_PROJECTS_SUMMARIZED) {
+      summaryByRoot.set(systemRoot, await summarizeProjectSystem(systemRoot))
     }
-    const system = summaryByRoot.get(project.root)
-    listed.set(launchDirectory, { ...project, ...(system ? { system } : {}) })
+    const system = summaryByRoot.get(systemRoot)
+    listed.set(launchDirectory, {
+      ...project,
+      systemFolder: designSystemFolderOf(systemRoot),
+      ...(system ? { system } : {})
+    })
   }
   return listed
 }

@@ -12,6 +12,7 @@ const CHILD = 'child-session'
 const PARENT = 'parent-session'
 const REQUEST = 'request-1'
 const FOLDER = '/state/visuals/child/prototypes/request-1'
+const SYSTEM_FOLDER = '/repo/design/system'
 const NEXUS_TASK =
   'Crea una sesión hija que diseñe una nueva versión de la pantalla de NexusCare donde actualmente se procesan las liquidaciones en la fase 1, 2 y 3.'
 
@@ -19,7 +20,8 @@ function fakeDeps(overrides: Partial<DelegatedChildFirstPromptDeps> = {}) {
   const createRequest = vi.fn<DelegatedChildFirstPromptDeps['createRequest']>(async () => ({
     ok: true as const,
     requestId: REQUEST,
-    folderPath: FOLDER
+    folderPath: FOLDER,
+    designSystemFolderPath: SYSTEM_FOLDER
   }))
   const removeFolder = vi.fn<DelegatedChildFirstPromptDeps['removeFolder']>(async () => undefined)
   const deps: DelegatedChildFirstPromptDeps = {
@@ -28,7 +30,6 @@ function fakeDeps(overrides: Partial<DelegatedChildFirstPromptDeps> = {}) {
       launchDirectory: '/repo',
       workspaceId: 'workspace-1'
     }),
-    hasDesignSystem: async () => true,
     readPrototypeCount: () => ({ mode: 'always', count: 3 }),
     createRequest,
     removeFolder,
@@ -68,29 +69,44 @@ describe('delegatedChildFirstPrompt', () => {
     const prompt = await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)
     expect(prompt?.body).toBe(NEXUS_TASK)
     expect(prompt?.appendix).toContain(prototypeRequestMarkerLine(REQUEST))
-    expect(prompt?.appendix).toContain(designSystemRequestInstruction())
+    expect(prompt?.appendix).toContain(
+      designSystemRequestInstruction({ folder: SYSTEM_FOLDER, unattended: true })
+    )
   })
 
-  it('asks for no design system in a project that has none, and goes straight to the directions', async () => {
-    const { deps, createRequest } = fakeDeps({ hasDesignSystem: async () => false })
+  it('names the absolute design system folder the host gave, and goes on to the directions', async () => {
+    const { deps } = fakeDeps()
     const prompt = await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)
-    expect(createRequest).toHaveBeenCalledWith(expect.objectContaining({ designSystem: 'skip' }))
-    expect(prompt?.appendix).toContain(prototypeRequestMarkerLine(REQUEST))
-    expect(prompt?.appendix).not.toContain(designSystemRequestInstruction())
+    const instruction = designSystemRequestInstruction({
+      folder: SYSTEM_FOLDER,
+      unattended: true
+    })
+    expect(prompt?.appendix).toContain(instruction)
+    expect(instruction).toContain(`${SYSTEM_FOLDER}/tokens.json`)
+    expect(instruction).toContain('do not stop')
+    expect(instruction).not.toContain('stop for review')
   })
 
-  it('reads whether the directory the child launched in has a design system', async () => {
-    const hasDesignSystem = vi.fn(async () => true)
-    const { deps } = fakeDeps({ hasDesignSystem })
+  it('carries the instruction for a project without a system too, so the child creates it', async () => {
+    const { deps, createRequest } = fakeDeps()
     await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)
-    expect(hasDesignSystem).toHaveBeenCalledWith('/repo')
+    expect(createRequest).toHaveBeenCalledWith(expect.objectContaining({ designSystem: 'use' }))
+  })
+
+  it('falls back to project-relative paths from a host that names no design system folder', async () => {
+    const { deps } = fakeDeps({
+      createRequest: async () => ({ ok: true as const, requestId: REQUEST, folderPath: FOLDER })
+    })
+    const prompt = await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)
+    expect(prompt?.appendix).toContain('read design/system/tokens.json, components.html')
+    expect(prompt?.appendix).toContain('do not stop')
   })
 
   it('keeps the hidden instruction out of the body, so a title read from it never sees it', async () => {
     const { deps } = fakeDeps()
     const prompt = await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)
     expect(prompt?.body).not.toContain(prototypeRequestMarkerLine(REQUEST))
-    expect(prompt?.body).not.toContain(designSystemRequestInstruction())
+    expect(prompt?.body).not.toContain('Before designing, read')
   })
 
   it('drops a MassOrca command word from the body the agent works from', async () => {

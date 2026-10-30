@@ -3,6 +3,7 @@ import type { AgentJournalRenderItem, AgentJournalSnapshot } from './agent-sessi
 import { agentJournalSubmissionKey } from './agent-session-journal-item-key'
 import { firstStructuredChatNamingPrompt } from './structured-chat-naming-eligibility'
 import { STRUCTURED_CHAT_NAME_PROMPT_LIMIT } from './structured-agent-session-first-prompt'
+import { buildPrototypeRequestParts } from './prototype-request'
 
 function message(
   text: string,
@@ -74,6 +75,33 @@ describe('first-turn chat naming eligibility', () => {
       state.items[0] = message(preamble(prefix))
       expect(firstStructuredChatNamingPrompt(state, 100)).toBe('Rename the sidebar label')
     }
+  })
+
+  it('names a delegated prototype child from its task, never from the hidden design instruction', () => {
+    const task = 'Diseña la pantalla de ajustes'
+    const parts = buildPrototypeRequestParts({
+      text: task,
+      agent: 'claude',
+      count: 2,
+      requestId: 'request-1',
+      folderPath: '/state/prototypes/request-1',
+      designSystem: 'use',
+      designSystemFolder: '/repo/design/system',
+      designSystemUnattended: true
+    })
+    const preamble = [
+      'You are working inside MassOrca, a multi-agent IDE. You are a dispatched worker.',
+      'Your task ID is: task_9',
+      '',
+      '=== TASK ===',
+      parts.body,
+      '',
+      parts.hidden
+    ].join('\n')
+    const state = snapshot()
+    state.items[0] = message(preamble)
+    expect(firstStructuredChatNamingPrompt(state, 100)).toBe(task)
+    expect(preamble).toContain('design/system')
   })
 
   it('yields no name for a dispatch preamble with an empty task, not its boilerplate', () => {

@@ -41,14 +41,56 @@ describe('resolveDesignSystemProject', () => {
     expect(project.projectName).toBe('notes-workspace')
   })
 
-  it('names a linked worktree for its main repository, and keeps its own root', async () => {
+  async function linkedWorktree(name: string, mainName = 'massorca'): Promise<string> {
+    const main = join(sandbox, mainName)
+    await mkdir(join(main, '.git', 'worktrees', name), { recursive: true })
+    const worktree = join(sandbox, 'worktrees', name)
+    await mkdir(worktree, { recursive: true })
+    await writeFile(join(worktree, '.git'), `gitdir: ${join(main, '.git', 'worktrees', name)}\n`)
+    return worktree
+  }
+
+  it('resolves a linked worktree to its main checkout and names it for the repository', async () => {
+    const worktree = await linkedWorktree('feature-x')
+    const project = await resolveDesignSystemProject(join(worktree, 'src'))
+    expect(project.root).toBe(join(sandbox, 'massorca'))
+    expect(project.worktreeRoot).toBe(worktree)
+    expect(project.projectName).toBe('massorca')
+  })
+
+  it('gives the main checkout and every linked worktree one project key', async () => {
+    const first = await linkedWorktree('feature-x')
+    const second = await linkedWorktree('feature-y')
+    const main = await resolveDesignSystemProject(join(sandbox, 'massorca'))
+    expect(main.worktreeRoot).toBeUndefined()
+    expect((await resolveDesignSystemProject(first)).projectKey).toBe(main.projectKey)
+    expect((await resolveDesignSystemProject(second)).projectKey).toBe(main.projectKey)
+  })
+
+  it('reads a relative gitdir of a linked worktree', async () => {
+    const main = join(sandbox, 'repo')
+    await mkdir(join(main, '.git', 'worktrees', 'rel'), { recursive: true })
+    const worktree = join(main, 'wt', 'rel')
+    await mkdir(worktree, { recursive: true })
+    await writeFile(join(worktree, '.git'), 'gitdir: ../../.git/worktrees/rel\n')
+    expect((await resolveDesignSystemProject(worktree)).root).toBe(main)
+  })
+
+  it('keeps a linked worktree at its own root when the main checkout is missing', async () => {
     const worktree = join(sandbox, 'worktrees', 'feature-x')
     await mkdir(worktree, { recursive: true })
     const gitdir = join(sandbox, 'massorca', '.git', 'worktrees', 'feature-x')
     await writeFile(join(worktree, '.git'), `gitdir: ${gitdir}\n`)
     const project = await resolveDesignSystemProject(join(worktree, 'src'))
     expect(project.root).toBe(worktree)
+    expect(project.worktreeRoot).toBeUndefined()
     expect(project.projectName).toBe('massorca')
+  })
+
+  it('keeps a linked worktree at its own root when the main repository is bare', async () => {
+    const worktree = await linkedWorktree('feature-x')
+    await writeFile(join(sandbox, 'massorca', '.git', 'config'), '[core]\n\tbare = true\n')
+    expect((await resolveDesignSystemProject(worktree)).root).toBe(worktree)
   })
 
   it('reads a Windows-style gitdir line', async () => {
@@ -66,6 +108,7 @@ describe('resolveDesignSystemProject', () => {
     await mkdir(submodule)
     await writeFile(join(submodule, '.git'), 'gitdir: ../.git/modules/sub\n')
     expect((await resolveDesignSystemProject(submodule)).projectName).toBe('sub')
+    expect((await resolveDesignSystemProject(submodule)).root).toBe(submodule)
 
     const odd = join(sandbox, 'odd')
     await mkdir(odd)
