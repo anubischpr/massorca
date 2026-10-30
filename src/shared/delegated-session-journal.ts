@@ -5,6 +5,7 @@
  */
 
 import { z } from 'zod'
+import { PROTOTYPE_COUNT_MAX, PROTOTYPE_COUNT_MIN } from './prototype-count-setting'
 import { agentJournalItemKey, parseAgentJournalItemKey } from './agent-session-journal-item-key'
 import type { AgentJournalItemBody, AgentJournalItemIdentity } from './agent-session-journal-types'
 import type {
@@ -47,6 +48,14 @@ export type DelegationCardAgent = {
   effort: string | null
 }
 
+/** The count question a delegated prototype task asks on its card, before the agent is picked. */
+export type DelegationPrototypeCount = {
+  /** The buttons, in order. */
+  choices: readonly number[]
+  /** The count Settings gives this task; highlighted until the person picks another. */
+  defaultCount: number
+}
+
 /** Rich-client payload on the choice card (`AgentJournalQuestionItem.delegation`). */
 export type DelegationCardPayload = {
   requestId: string
@@ -56,6 +65,8 @@ export type DelegationCardPayload = {
   agents: DelegationCardAgent[]
   placement: DelegationPlacement
   placementWarning: DelegationPlacementWarning | null
+  /** Present only when the task asks for prototypes; older clients never see it. */
+  prototypeCount?: DelegationPrototypeCount
 }
 
 type DelegationNoticeBase = { requestId: string; title: string }
@@ -177,6 +188,11 @@ const DecisionSchema = z.object({
   reasons: ReasonsSchema
 })
 
+const PrototypeCountSchema = z.object({
+  choices: z.array(z.int().min(PROTOTYPE_COUNT_MIN).max(PROTOTYPE_COUNT_MAX)),
+  defaultCount: z.int().min(PROTOTYPE_COUNT_MIN).max(PROTOTYPE_COUNT_MAX)
+})
+
 const CardSchema = z.object({
   requestId: z.string().min(1),
   title: z.string(),
@@ -191,7 +207,9 @@ const CardSchema = z.object({
     })
   ),
   placement: Placement,
-  placementWarning: z.literal('folder-workspace-writes').nullable().catch(null)
+  placementWarning: z.literal('folder-workspace-writes').nullable().catch(null),
+  // Why: a count question a newer host sends in a shape this client cannot read is dropped, not the card.
+  prototypeCount: PrototypeCountSchema.optional().catch(undefined)
 })
 
 const NoticeBase = { requestId: z.string().min(1), title: z.string() }

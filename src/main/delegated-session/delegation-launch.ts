@@ -12,6 +12,7 @@ import type { DelegationLauncher } from './delegation-launch-types'
 import { delegationPlacementFor } from './delegation-router'
 import type { FailedDelegatedStart } from './delegation-failed-start'
 import { foldSlugAccents } from '../../shared/workspace-name'
+import { readStoredPrototypeCount } from './delegation-stored-request'
 
 const RUN_OBJECTIVE = 'Delegated child sessions'
 const WORKTREE_SLUG_MAX_CHARS = 40
@@ -22,6 +23,8 @@ export type DelegationWorkerStarter = (input: {
   run: RunRow
   caller: OrchestrationSessionCaller
   task: TaskRow
+  /** The count the person answered on the card, for the child's first prompt. */
+  prototypeCount?: number
 }) => Promise<unknown>
 
 /** A branch-safe name for the worktree a child that writes code gets, unique per request. */
@@ -139,10 +142,12 @@ export function createDelegationLauncher(deps: {
     })
     // A folder has no worktree to branch, so its child always runs in place.
     const newWorktree = target.placement === 'new-child' && request.workspace_kind === 'git'
+    const prototypeCount = readStoredPrototypeCount(request)
     const receipt = await deps.startWorker({
       run,
       caller,
       task,
+      ...(prototypeCount === undefined ? {} : { prototypeCount }),
       params: {
         task: task.id,
         from: caller.address,

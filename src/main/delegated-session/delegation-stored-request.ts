@@ -3,6 +3,7 @@ import {
   parseDelegationOptionId,
   readDelegationDecision
 } from '../../shared/delegated-session-journal'
+import { PROTOTYPE_COUNT_MAX, PROTOTYPE_COUNT_MIN } from '../../shared/prototype-count-setting'
 import type { DelegationRequestRow } from '../runtime/orchestration/db/delegation/delegation-request-store'
 import { classifyDelegationTask } from './delegation-task-classifier'
 import { resolveLaunchableDelegationModel } from './delegation-launch-preferences'
@@ -35,6 +36,20 @@ function parseJson(text: string | null): unknown {
 export function readStoredDelegationAgents(row: DelegationRequestRow): DelegationStoredAgent[] {
   const parsed = StoredOptions.safeParse(parseJson(row.options_json))
   return parsed.success ? parsed.data.agents : []
+}
+
+const StoredPrototypeCount = z.object({
+  count: z.int().min(PROTOTYPE_COUNT_MIN).max(PROTOTYPE_COUNT_MAX).optional().catch(undefined)
+})
+
+/** The prototype count the person answered on the card, or undefined when they picked none. */
+export function readStoredPrototypeCount(row: DelegationRequestRow): number | undefined {
+  return StoredPrototypeCount.safeParse(parseJson(row.options_json)).data?.count
+}
+
+/** The stored options with the answered count added; the agents stay as the card offered them. */
+export function storedOptionsWithPrototypeCount(row: DelegationRequestRow, count: number): string {
+  return JSON.stringify({ agents: readStoredDelegationAgents(row), count })
 }
 
 /** What the request starts, from its choice: Automatic's stored decision, or the picked agent's tier row. */

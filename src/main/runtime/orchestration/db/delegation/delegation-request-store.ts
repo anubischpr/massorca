@@ -48,6 +48,7 @@ export type DelegationRequestPatch = Partial<
     | 'result'
     | 'failure'
     | 'launched_at_ms'
+    | 'options_json'
   >
 >
 
@@ -61,7 +62,8 @@ const PATCH_COLUMNS = new Set<string>([
   'child_session_id',
   'result',
   'failure',
-  'launched_at_ms'
+  'launched_at_ms',
+  'options_json'
 ])
 
 export function createDelegationRequest(

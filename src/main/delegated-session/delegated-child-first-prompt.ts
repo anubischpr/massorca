@@ -50,6 +50,8 @@ export type DelegatedChildPromptInput = {
   originSessionId: string
   /** The child's task spec, which stays as stored; only the delivered first prompt changes. */
   taskSpec: string
+  /** The count the person picked on the card; absent, the Settings count applies. */
+  count?: number
 }
 
 /** The first prompt for a child whose task asks for a prototype, or null to deliver the task spec as stored. */
@@ -85,7 +87,8 @@ async function buildDelegatedChildFirstPrompt(
   if (classifyPrototypeRequest(text, agent).kind === 'none') {
     return null
   }
-  const count = sanitizePrototypeCountSetting(deps.readPrototypeCount()).count
+  // Why: a count the person answered on the card wins; Settings only counts for a task answered without one.
+  const count = input.count ?? sanitizePrototypeCountSetting(deps.readPrototypeCount()).count
   // Why 'use', never 'skip': a child has no card to choose a system, so its instruction reuses the project's
   // system or creates one; 'propose' would stop the child for a review nobody is there to give.
   const designSystem: PrototypeDesignSystemMode = 'use'

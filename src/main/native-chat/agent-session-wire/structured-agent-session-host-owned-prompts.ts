@@ -24,6 +24,8 @@ export type StructuredAgentSessionHostOwnedPrompts = {
     sessionId: string
     itemId: string
     optionId: string
+    /** The prototype count the answer carried, when the card drew one. */
+    count?: number
   }) => Promise<StructuredAgentSessionHostOwnedPromptOutcome>
   /** The question dismissed without a choice. */
   cancel: (input: {

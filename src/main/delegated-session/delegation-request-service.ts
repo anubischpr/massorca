@@ -2,9 +2,22 @@ import { boundJournalPromptBody } from '../native-chat/agent-session-journal/jou
 import { OrchestrationError } from '../runtime/orchestration/orchestration-error'
 import {
   delegationQuestionItemId,
-  delegationQuestionRowIdentity
+  delegationQuestionRowIdentity,
+  type DelegationPrototypeCount
 } from '../../shared/delegated-session-journal'
-import { buildDelegationCardContent, routeDelegationRequest } from './delegation-options'
+import {
+  PROTOTYPE_CARD_COUNT_CHOICES,
+  sanitizePrototypeCountSetting
+} from '../../shared/prototype-count-setting'
+import { neutralizePrototypeMarkers } from '../../shared/prototype-hidden-instruction'
+import { decideDelegatedTaskPrototypeCount } from '../../shared/prototype-request-decision'
+import { PROTOTYPE_PROMPT_MAX_LENGTH } from '../../shared/rpc-contract/prototype-params'
+import { prototypeAgentOfChild } from './delegated-child-first-prompt'
+import {
+  buildDelegationCardContent,
+  routeDelegationRequest,
+  type DelegationStoredAgent
+} from './delegation-options'
 import type { DelegationRequestDeps } from './delegation-service-types'
 
 export type DelegationRequestInput = {
@@ -28,6 +41,28 @@ function titleFor(input: DelegationRequestInput): string {
   const given = input.title?.trim()
   const base = given && given.length > 0 ? given : input.summary.trim()
   return base.length > TITLE_MAX_CHARS ? `${base.slice(0, TITLE_MAX_CHARS - 1)}…` : base
+}
+
+/**
+ * The count question a task that asks for prototypes puts on its card. A task too long for a child's
+ * first prompt makes no prototype request, so it asks nothing.
+ */
+function prototypeCountFor(
+  input: DelegationRequestInput,
+  agents: readonly DelegationStoredAgent[],
+  readSetting: () => unknown
+): DelegationPrototypeCount | undefined {
+  if (input.prompt.length > PROTOTYPE_PROMPT_MAX_LENGTH) {
+    return undefined
+  }
+  const decision = decideDelegatedTaskPrototypeCount({
+    text: neutralizePrototypeMarkers(input.prompt),
+    agents: agents.map((agent) => prototypeAgentOfChild(agent.agent, agent.piRuntime)),
+    setting: sanitizePrototypeCountSetting(readSetting())
+  })
+  return decision.kind === 'ask'
+    ? { choices: PROTOTYPE_CARD_COUNT_CHOICES, defaultCount: decision.defaultCount }
+    : undefined
 }
 
 /** Files delegated-session requests and posts their agent-choice cards to the parent chat. */
@@ -62,6 +97,7 @@ export class DelegationRequestService {
       rateLimits: this.deps.readRateLimits(),
       now: this.deps.now()
     })
+    const prototypeCount = prototypeCountFor(input, agents, this.deps.readPrototypeCount)
     const db = this.deps.requireDb()
     const row = db.createDelegationRequest({
       parentSessionId: parent.sessionId,
@@ -79,7 +115,8 @@ export class DelegationRequestService {
       route,
       agents,
       writes: input.writes,
-      workspaceKind: parent.workspaceKind
+      workspaceKind: parent.workspaceKind,
+      ...(prototypeCount ? { prototypeCount } : {})
     })
     // Recorded before the card can be seen, so a card in the chat always has its question on record.
     const questionItemId = delegationQuestionItemId(row.id)

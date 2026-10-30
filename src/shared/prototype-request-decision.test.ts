@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { PrototypeAgent } from './prototype-request'
 import type { PrototypeCountSetting } from './prototype-count-setting'
-import { decideNativeChatPrototypeRequest } from './prototype-request-decision'
+import {
+  decideDelegatedTaskPrototypeCount,
+  decideNativeChatPrototypeRequest
+} from './prototype-request-decision'
 
 const ALWAYS_3: PrototypeCountSetting = { mode: 'always', count: 3 }
 const ASK: PrototypeCountSetting = { mode: 'ask', count: 2 }
@@ -81,5 +84,45 @@ describe('decideNativeChatPrototypeRequest', () => {
         choice: { count: 2 }
       })
     ).toEqual({ kind: 'as-typed' })
+  })
+})
+
+describe('decideDelegatedTaskPrototypeCount', () => {
+  const decideTask = (
+    text: string,
+    setting: PrototypeCountSetting,
+    agents: PrototypeAgent[] = ['codex']
+  ) => decideDelegatedTaskPrototypeCount({ text, agents, setting })
+
+  it('asks the count for a keyword task, with the Settings count as the default', () => {
+    const text = 'Make a prototype of the onboarding screen'
+    expect(decideTask(text, ASK)).toEqual({ kind: 'ask', defaultCount: 2 })
+    expect(decideTask(text, ALWAYS_3)).toEqual({ kind: 'ask', defaultCount: 3 })
+  })
+
+  it('does not take the hand-off exemption, since the child is the hand-off', () => {
+    const text = 'Haz un prototipo de la pantalla de login en una sesión hija'
+    expect(decideNativeChatPrototypeRequest({ text, agent: 'codex', setting: ASK })).toEqual({
+      kind: 'as-typed'
+    })
+    expect(decideTask(text, ASK)).toEqual({ kind: 'ask', defaultCount: 2 })
+  })
+
+  it('shows no count question for a command under "Always make", which takes the Settings count', () => {
+    expect(decideTask('/prototype a login page', ALWAYS_3)).toEqual({ kind: 'none' })
+    expect(decideTask('/prototype a login page', ASK)).toEqual({ kind: 'ask', defaultCount: 2 })
+  })
+
+  it('shows no count question for a task that asks for no prototype', () => {
+    expect(decideTask('Fix the failing build', ASK)).toEqual({ kind: 'none' })
+  })
+
+  it('reads a native command of any offered agent, since the card is shown before the pick', () => {
+    const agents: PrototypeAgent[] = ['codex', 'claude']
+    expect(decideTask('/design a login page', ASK, agents)).toEqual({
+      kind: 'ask',
+      defaultCount: 2
+    })
+    expect(decideTask('/design a login page', ALWAYS_3, agents)).toEqual({ kind: 'none' })
   })
 })

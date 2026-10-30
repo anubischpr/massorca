@@ -28,4 +28,6 @@ export type DelegationRequestDeps = DelegationHostDeps & {
   requireDb: () => OrchestrationDb
   /** Agents registered on this host and usable in the parent's workspace. */
   listAgents: (parent: DelegationParentSession) => Promise<DelegationStoredAgent[]>
+  /** The saved Settings value for the prototype count, unsanitized. */
+  readPrototypeCount: () => unknown
 }

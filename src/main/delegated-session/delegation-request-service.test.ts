@@ -11,6 +11,7 @@ import {
   readDelegationCardPayload
 } from '../../shared/delegated-session-journal'
 import { createEmptyRateLimitState } from '../../shared/rate-limit-state-factory'
+import { PROTOTYPE_PROMPT_MAX_LENGTH } from '../../shared/rpc-contract/prototype-params'
 import { OrchestrationDb } from '../runtime/orchestration/db'
 import { DelegationRequestService } from './delegation-request-service'
 import type { DelegationParentSession, DelegationRequestDeps } from './delegation-service-types'
@@ -57,6 +58,7 @@ describe('DelegationRequestService.request', () => {
         { agent: 'codex', label: 'Codex' }
       ],
       readRateLimits: () => createEmptyRateLimitState({}),
+      readPrototypeCount: () => ({ mode: 'always', count: 2 }),
       now: () => NOW
     }
   })
@@ -215,5 +217,53 @@ describe('DelegationRequestService.request', () => {
     )
     expect(db.listDelegationRequestsByStatus('pending')).toEqual([])
     expect(db.listDelegationRequestsByStatus('failed')).toHaveLength(1)
+  })
+
+  describe('the count question of a prototype task', () => {
+    const cardPayload = () => {
+      const question = appended.find(({ body }) => body.kind === 'question')
+      const payload =
+        question?.body.kind === 'question'
+          ? readDelegationCardPayload(question.body.delegation)
+          : null
+      if (!payload) {
+        throw new Error('the card carries no typed payload')
+      }
+      return payload
+    }
+    const prototypeInput = {
+      ...input,
+      prompt: 'Make a prototype of the onboarding screen so we can compare the layouts.'
+    }
+
+    it('asks the count, with the Settings count as the default, for a keyword task', async () => {
+      const service = new DelegationRequestService({
+        ...deps,
+        readPrototypeCount: () => ({ mode: 'ask', count: 3 })
+      })
+      await service.request(prototypeInput)
+      expect(cardPayload().prototypeCount).toEqual({ choices: [1, 2, 3], defaultCount: 3 })
+    })
+
+    it('asks no count for a command under the always setting, which takes the Settings count', async () => {
+      await new DelegationRequestService(deps).request({
+        ...input,
+        prompt: '/prototype the onboarding screen'
+      })
+      expect(cardPayload().prototypeCount).toBeUndefined()
+    })
+
+    it('asks no count for a task that asks for no prototype', async () => {
+      await new DelegationRequestService(deps).request(input)
+      expect(cardPayload().prototypeCount).toBeUndefined()
+    })
+
+    it('asks no count for a task too long for a child to read as a prototype request', async () => {
+      await new DelegationRequestService(deps).request({
+        ...prototypeInput,
+        prompt: `${prototypeInput.prompt} ${'x'.repeat(PROTOTYPE_PROMPT_MAX_LENGTH)}`
+      })
+      expect(cardPayload().prototypeCount).toBeUndefined()
+    })
   })
 })

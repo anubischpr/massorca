@@ -35,6 +35,8 @@ export type AgentSessionPromptRequest = {
   /** A decision id; or, from a client that predates `answers`, a question answer packed into one id. */
   optionId?: string
   answers?: AgentSessionQuestionAnswer[]
+  /** The prototype count a delegated task's card asked; only a host-owned question reads it. */
+  count?: number
 }
 
 function invalid(
@@ -106,7 +108,8 @@ async function performHostOwnedPrompt(
   const outcome = await ctx.hostOwnedPrompts.answer({
     sessionId: ctx.sessionId,
     itemId: input.itemId,
-    optionId
+    optionId,
+    ...(input.count === undefined ? {} : { count: input.count })
   })
   if (!outcome.ok) {
     return invalid(outcome.reason, outcome.message)

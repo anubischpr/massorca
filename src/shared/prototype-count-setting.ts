@@ -4,6 +4,8 @@
 export const PROTOTYPE_COUNT_MIN = 1
 export const PROTOTYPE_COUNT_MAX = 4
 export const PROTOTYPE_COUNT_DEFAULT = 2
+// The counts a prototype question offers; Settings can also pick 4, which no button marks.
+export const PROTOTYPE_CARD_COUNT_CHOICES = [1, 2, 3] as const
 
 export type PrototypeCountSetting = {
   mode: 'always' | 'ask'

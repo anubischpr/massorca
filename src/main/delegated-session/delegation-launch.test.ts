@@ -166,6 +166,18 @@ describe('createDelegationLauncher', () => {
     })
   })
 
+  it('hands the count the person answered to the worker start', async () => {
+    const { launch, startWorker } = launcher()
+    await run(launch, { request: { options_json: '{"agents":[],"count":3}' } })
+    expect(startWorker.mock.calls[0]?.[0].prototypeCount).toBe(3)
+  })
+
+  it('hands no count to the worker start when the answer named none', async () => {
+    const { launch, startWorker } = launcher()
+    await run(launch)
+    expect(startWorker.mock.calls[0]?.[0].prototypeCount).toBeUndefined()
+  })
+
   it('files a second child under the Run the first one made', async () => {
     const { launch } = launcher()
 

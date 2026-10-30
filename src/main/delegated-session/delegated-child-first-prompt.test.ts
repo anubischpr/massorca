@@ -134,6 +134,13 @@ describe('delegatedChildFirstPrompt', () => {
     expect(unreadable.createRequest.mock.calls[0]?.[0].count).toBe(2)
   })
 
+  it('uses the count the person picked on the card over the Settings count', async () => {
+    const { deps, createRequest } = fakeDeps()
+    const prompt = await delegatedChildFirstPrompt({ ...promptInput(NEXUS_TASK), count: 1 }, deps)
+    expect(createRequest.mock.calls[0]?.[0].count).toBe(1)
+    expect(prompt?.appendix).toContain('Produce 1 design direction')
+  })
+
   it('gives a child this host does not hold its task unchanged, with no request', async () => {
     const { deps, createRequest } = fakeDeps({ readChat: async () => null })
     expect(await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)).toBeNull()

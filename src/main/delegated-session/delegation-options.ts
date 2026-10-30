@@ -5,7 +5,8 @@ import {
   DELEGATION_AUTOMATIC_OPTION_ID,
   delegationAgentOptionId,
   type DelegationCardAgent,
-  type DelegationCardPayload
+  type DelegationCardPayload,
+  type DelegationPrototypeCount
 } from '../../shared/delegated-session-journal'
 import type { AgentJournalPromptOption } from '../../shared/agent-session-journal-types'
 import type {
@@ -123,6 +124,8 @@ export function buildDelegationCardContent(input: {
   agents: readonly DelegationStoredAgent[]
   writes: boolean
   workspaceKind: DelegationWorkspaceKind
+  /** The count question of a task that asks for prototypes; absent for any other task. */
+  prototypeCount?: DelegationPrototypeCount
 }): DelegationCardContent {
   const decision: DelegationDecision | null =
     input.route.status === 'routed' ? input.route.decision : null
@@ -152,7 +155,8 @@ export function buildDelegationCardContent(input: {
       decision,
       agents: cardAgents,
       placement: placement.placement,
-      placementWarning: placement.placementWarning
+      placementWarning: placement.placementWarning,
+      ...(input.prototypeCount ? { prototypeCount: input.prototypeCount } : {})
     }
   }
 }

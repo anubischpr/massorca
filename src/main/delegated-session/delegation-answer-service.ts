@@ -9,7 +9,10 @@ import {
 import { DelegationLifecycle } from './delegation-lifecycle'
 import type { DelegationAnswerDeps } from './delegation-launch-types'
 import { routeDelegationRequest } from './delegation-options'
-import { readStoredDelegationAgents } from './delegation-stored-request'
+import {
+  readStoredDelegationAgents,
+  storedOptionsWithPrototypeCount
+} from './delegation-stored-request'
 
 type HostOwnedAnswer = Awaited<ReturnType<StructuredAgentSessionHostOwnedPrompts['answer']>>
 
@@ -63,6 +66,8 @@ export class DelegationAnswerService {
     sessionId: string
     itemId: string
     optionId: string
+    /** The prototype count the card's answer carried; absent keeps the Settings count. */
+    count?: number
   }): Promise<HostOwnedAnswer> {
     const found = this.findRequest(input.sessionId, input.itemId)
     if (!found) {
@@ -79,7 +84,10 @@ export class DelegationAnswerService {
     }
     const claimed = db.transitionDelegationRequest(row.id, 'pending', 'starting', {
       choice: input.optionId,
-      ...this.recomputedDecision(row, choice, input.sessionId)
+      ...this.recomputedDecision(row, choice, input.sessionId),
+      ...(input.count === undefined
+        ? {}
+        : { options_json: storedOptionsWithPrototypeCount(row, input.count) })
     })
     // A re-answer after a lost reply, or after a restart cut the first one short: same choice, same answer.
     const held = claimed ?? db.getDelegationRequest(row.id)
@@ -95,7 +103,8 @@ export class DelegationAnswerService {
             rollback: () => {
               db.transitionDelegationRequest(row.id, 'starting', 'pending', {
                 choice: null,
-                decision_json: row.decision_json
+                decision_json: row.decision_json,
+                options_json: row.options_json
               })
             }
           }

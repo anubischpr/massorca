@@ -41,8 +41,35 @@ export function decideNativeChatPrototypeRequest(input: {
     return { kind: 'create', count: input.choice.count }
   }
   // An explicit command applies the setting; a keyword match always asks.
-  if (request.kind === 'command' && input.setting.mode === 'always') {
+  if (settingAnswers(request, input.setting)) {
     return { kind: 'create', count: input.setting.count }
   }
   return { kind: 'ask', keyword: request.kind === 'keyword' }
+}
+
+/** An explicit command under Settings "always" takes the Settings count without asking. */
+function settingAnswers(request: PrototypeRequest, setting: PrototypeCountSetting): boolean {
+  return request.kind === 'command' && setting.mode === 'always'
+}
+
+/** A delegated task's count question: none, or the question with the Settings count as its default. */
+export type DelegatedTaskPrototypeCount = { kind: 'none' } | { kind: 'ask'; defaultCount: number }
+
+/**
+ * The count question a delegated task's card asks, before its agent is picked. The child is the
+ * hand-off, so the task text is classified as typed, with no hand-off exemption. `agents` are the
+ * agents the card offers, since any of them may run the task.
+ */
+export function decideDelegatedTaskPrototypeCount(input: {
+  text: string
+  agents: readonly PrototypeAgent[]
+  setting: PrototypeCountSetting
+}): DelegatedTaskPrototypeCount {
+  const requests = input.agents.map((agent) => classifyPrototypeRequest(input.text, agent))
+  const request: PrototypeRequest = requests.find((entry) => entry.kind === 'command') ??
+    requests.find((entry) => entry.kind === 'keyword') ?? { kind: 'none' }
+  if (request.kind === 'none' || settingAnswers(request, input.setting)) {
+    return { kind: 'none' }
+  }
+  return { kind: 'ask', defaultCount: input.setting.count }
 }

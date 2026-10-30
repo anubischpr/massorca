@@ -135,6 +135,7 @@ export function getDelegationRequestService(runtime: OrcaRuntimeService): Delega
     rows: hostRows(),
     readParent: readParentSession,
     listAgents: (parent) => listUsableAgents(runtime, parent),
+    readPrototypeCount: () => runtime.readPrototypeCountSetting(),
     readRateLimits: () => readRateLimits(runtime),
     now: () => Date.now()
   })
@@ -182,7 +183,7 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
           failed
         ),
       warn: (message, error) => console.warn(`[delegated-session] ${message}`, error),
-      startWorker: async ({ params, run, caller, task }) => {
+      startWorker: async ({ params, run, caller, task, prototypeCount }) => {
         // Loaded on use: the worker-start pipeline imports far more than a request needs.
         const [{ startLocalWorker }, modeModule, timing] = await Promise.all([
           import('../runtime/rpc/methods/orchestration/worker/local-worker-start'),
@@ -199,7 +200,12 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
           existingTask: task,
           firstPrompt: (childSessionId) =>
             delegatedChildFirstPrompt(
-              { childSessionId, originSessionId: caller.sessionId, taskSpec: task.spec },
+              {
+                childSessionId,
+                originSessionId: caller.sessionId,
+                taskSpec: task.spec,
+                ...(prototypeCount === undefined ? {} : { count: prototypeCount })
+              },
               delegatedChildPromptDeps(runtime)
             ),
           mode: modeModule.decideWorkerStartMode({

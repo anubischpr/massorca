@@ -20,6 +20,7 @@ import { createRootDispatch } from '../runtime/orchestration/db/root-dispatch-te
 import { DelegationAnswerService } from './delegation-answer-service'
 import type { DelegationLauncher } from './delegation-launch-types'
 import { DelegationRequestService } from './delegation-request-service'
+import { readStoredDelegationAgents, readStoredPrototypeCount } from './delegation-stored-request'
 import type {
   DelegationHostDeps,
   DelegationParentSession,
@@ -111,7 +112,8 @@ describe('DelegationAnswerService', () => {
     const requestDeps: DelegationRequestDeps = {
       ...host,
       requireDb: () => db,
-      listAgents: async () => AGENTS
+      listAgents: async () => AGENTS,
+      readPrototypeCount: () => ({ mode: 'always', count: 2 })
     }
     requests = new DelegationRequestService(requestDeps)
     answers = new DelegationAnswerService({ ...host, launch, warn: vi.fn() })
@@ -389,6 +391,64 @@ describe('DelegationAnswerService', () => {
       })
     ).resolves.toMatchObject({ ok: true })
     expect(launch).not.toHaveBeenCalled()
+  })
+
+  describe('the count the card answers with', () => {
+    it('is stored with the request, keeps the agents, and starts the child', async () => {
+      const { requestId, itemId } = await filed()
+      const outcome = await answers.hostOwnedPrompts.answer({
+        sessionId: PARENT.sessionId,
+        itemId,
+        optionId: 'agent:codex',
+        count: 3
+      })
+      expect(outcome.ok).toBe(true)
+      if (outcome.ok) {
+        outcome.afterCommit()
+      }
+      await answers.idle()
+
+      const row = db.getDelegationRequest(requestId)
+      expect(row).toMatchObject({ status: 'started', choice: 'agent:codex' })
+      expect(row && readStoredPrototypeCount(row)).toBe(3)
+      expect(row && readStoredDelegationAgents(row).map((entry) => entry.agent)).toEqual(
+        AGENTS.map((entry) => entry.agent)
+      )
+    })
+
+    it('is taken back with the choice when the journal does not record the answer', async () => {
+      const { requestId, itemId } = await filed()
+      const first = await answers.hostOwnedPrompts.answer({
+        sessionId: PARENT.sessionId,
+        itemId,
+        optionId: 'agent:codex',
+        count: 3
+      })
+      if (first.ok) {
+        first.rollback?.()
+      }
+
+      const row = db.getDelegationRequest(requestId)
+      expect(row).toMatchObject({ status: 'pending', choice: null })
+      expect(row && readStoredPrototypeCount(row)).toBeUndefined()
+    })
+
+    it('is left out when the answer names none, so the Settings count applies', async () => {
+      const { requestId, itemId } = await filed()
+      const outcome = await answers.hostOwnedPrompts.answer({
+        sessionId: PARENT.sessionId,
+        itemId,
+        optionId: 'agent:codex'
+      })
+      if (outcome.ok) {
+        outcome.afterCommit()
+      }
+      await answers.idle()
+
+      const row = db.getDelegationRequest(requestId)
+      expect(row).toMatchObject({ status: 'started' })
+      expect(row && readStoredPrototypeCount(row)).toBeUndefined()
+    })
   })
 
   it('takes a cancel back when the journal does not record it, so the card can still be answered', async () => {
