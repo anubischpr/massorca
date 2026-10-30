@@ -36,13 +36,13 @@ export function PrototypeSetRow({
   }
   return (
     <div className="group/row relative">
-      <RowButton row={row} selected={selected} onSelect={onSelect} />
+      <RowButton row={row} selected={selected} onSelect={onSelect} reserveAction />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
             aria-label={prototypeSetActionsLabel(row.title)}
-            className="absolute right-1.5 bottom-1.5 flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 hover:bg-accent hover:text-accent-foreground data-[state=open]:opacity-100"
+            className="absolute top-2 right-1.5 flex size-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-focus-within/row:opacity-100 group-hover/row:opacity-100 hover:bg-accent hover:text-accent-foreground data-[state=open]:opacity-100"
           >
             <MoreHorizontal className="size-3.5" />
           </button>
@@ -89,14 +89,17 @@ export function PrototypeArchivedRow({
   )
 }
 
+// `reserveAction`: the row's menu button sits in its top-right corner, so the text keeps clear of it.
 function RowButton({
   row,
   selected,
-  onSelect
+  onSelect,
+  reserveAction = false
 }: {
   row: PrototypeListRow
   selected: boolean
   onSelect: () => void
+  reserveAction?: boolean
 }): React.JSX.Element {
   const builtOn = row.set.builtOn
   return (
@@ -106,6 +109,7 @@ function RowButton({
       aria-current={selected ? 'true' : undefined}
       className={cn(
         'flex w-full flex-col gap-0.5 rounded-md p-2.5 text-left text-foreground transition-colors',
+        reserveAction && 'pr-8',
         selected ? 'bg-accent' : 'hover:bg-accent/60'
       )}
     >

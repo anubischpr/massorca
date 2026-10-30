@@ -130,16 +130,19 @@ export function PrototypeViewerToolbar({
       )}
     >
       <Star aria-hidden="true" className="size-3.5 fill-status-amber text-status-amber" />
-      {starCount < 2 ? null : <span>{translate('components.prototypes.merge', 'Merge')}</span>}
+      {starCount < 2 ? null : (
+        <span className="hidden @[620px]:inline">
+          {translate('components.prototypes.merge', 'Merge')}
+        </span>
+      )}
       {starCount === 0 ? null : <span>{starCount}</span>}
     </button>
   )
-  // Why: from two stars the button shows its own name, so only the icon-only button needs a tooltip.
-  const mergeControl =
-    starCount < 2 ? <NamedTooltip name={mergeName}>{mergeButton}</NamedTooltip> : mergeButton
+  // Why the tooltip at every count: a narrow header hides the visible name.
+  const mergeControl = <NamedTooltip name={mergeName}>{mergeButton}</NamedTooltip>
   return (
-    <div className="flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-2.5">
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+    <div className="@container flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-2.5">
+      <div className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
         <span className="truncate text-sm font-semibold">
           {`${prototypeTitle(set)} · ${prototypeCountLabel(status)}`}
         </span>
@@ -154,7 +157,7 @@ export function PrototypeViewerToolbar({
             type="button"
             onClick={openChat}
             disabled={set.worktreeId === null}
-            className="truncate text-left hover:text-foreground"
+            className="min-w-0 truncate text-left hover:text-foreground"
           >
             {chatTitle.length > 0
               ? translate(
@@ -175,7 +178,7 @@ export function PrototypeViewerToolbar({
                 disabled={origin === null}
                 className={cn(
                   badgeVariants({ variant: 'outline' }),
-                  'min-w-0 shrink truncate enabled:hover:bg-accent disabled:text-muted-foreground'
+                  'block max-w-1/2 shrink-0 truncate enabled:hover:bg-accent disabled:text-muted-foreground'
                 )}
               >
                 {origin === null
@@ -188,7 +191,7 @@ export function PrototypeViewerToolbar({
           )}
         </div>
       </div>
-      <div role="toolbar" className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
+      <div role="toolbar" className="flex max-w-full shrink-0 items-center gap-2">
         {single ? null : mergeControl}
         {single ? null : (
           <div

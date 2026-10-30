@@ -17860,6 +17860,16 @@
       "chatLink": "{{agent}} · chat “{{chat}}” — abrir chat ↗",
       "chatLinkNoTitle": "{{agent}} — abrir chat ↗",
       "originLink": "desde “{{chat}}” ↗",
+      "archived": {
+        "heading": "Archivados",
+        "archive": "Archivar",
+        "unarchive": "Desarchivar",
+        "delete": "Eliminar",
+        "rowActions": "Acciones de {{title}}",
+        "deleteTitle": "¿Eliminar este conjunto de prototipos?",
+        "deleteBody": "Esto elimina los archivos de \"{{title}}\" de este equipo. Su chat o worktree ya no existe, y no se puede deshacer.",
+        "deleteCancel": "Cancelar"
+      },
       "originLinkFallback": "desde el chat padre",
       "close": "Cerrar",
       "curIterating": "principal · v{{version}}",
