@@ -46,7 +46,7 @@ export type ListPrototypeSetsOptions = {
   /** Whether a chat's request folders may be listed; omitted, every chat on this host is listed. */
   isChatListed?: (sessionId: string) => boolean
   /** A chat's launch directory from its record; a Gentle Shell design/ folder is read only under it. */
-  launchDirectoryOf?: (sessionId: string) => string | undefined
+  launchDirectoryOf?: (sessionId: string) => string | undefined | Promise<string | undefined>
 }
 
 /**
@@ -90,7 +90,7 @@ async function withProjects(
   // Why the chat record and not the manifest: request.json sits in the folder the agent writes into.
   const launchDirectories = new Map<string, string>()
   for (const { manifest } of requests) {
-    const launchDirectory = options.launchDirectoryOf?.(manifest.sessionId)
+    const launchDirectory = await options.launchDirectoryOf?.(manifest.sessionId)
     if (launchDirectory !== undefined) {
       launchDirectories.set(manifest.sessionId, launchDirectory)
     }
@@ -249,7 +249,7 @@ async function listedRequestFor(
   if (options.isChatListed !== undefined && !options.isChatListed(manifest.sessionId)) {
     return null
   }
-  const launchDirectory = options.launchDirectoryOf?.(manifest.sessionId)
+  const launchDirectory = await options.launchDirectoryOf?.(manifest.sessionId)
   // Why recorded files first: a request lists the files its own folder holds, and its Gentle Shell design/
   // folder only when none is recorded, so one request never lists two sources.
   const recorded = await directionsWithMtime(

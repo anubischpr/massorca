@@ -41,6 +41,20 @@ function isLocalChatRecord(
   return record ? isLocalStructuredChat(record) : false
 }
 
+/**
+ * Where a local chat works. Why the workspace fallback: only a floating workspace's record pins a launch
+ * directory, so a worktree or folder chat has none and is found through its workspace.
+ */
+async function launchDirectoryOfChat(
+  record: Pick<AgentSessionRecord, 'location' | 'launchDirectory'>,
+  resolveWorkspacePath: ((workspaceId: string) => Promise<string>) | undefined
+): Promise<string | undefined> {
+  if (record.launchDirectory !== undefined) {
+    return record.launchDirectory
+  }
+  return resolveWorkspacePath?.(record.location.workspaceId).catch(() => undefined)
+}
+
 /** One line for a refusal the client reads as "no prototype capture", so a silent send is traceable. */
 function logPrototypeRefusal(method: string, sessionId: string, reason: string): void {
   console.warn(`[prototypes] ${method} refused for chat ${sessionId}: ${reason}`)
@@ -65,7 +79,7 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
       return createPrototypeRequest({
         stateDirectory: getProfileUserDataPath(),
         sessionId: params.sessionId,
-        launchDirectory: record.launchDirectory,
+        launchDirectory: await launchDirectoryOfChat(record, host.deps.resolveWorkspacePath),
         request: params,
         now: new Date(),
         random: Math.random
@@ -84,8 +98,12 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
       return listPrototypeSets({
         stateDirectory: getProfileUserDataPath(),
         ...(params.worktreeId !== undefined ? { worktreeId: params.worktreeId } : {}),
-        launchDirectoryOf: (sessionId: string) =>
-          host.deps.store.getRecord(sessionId)?.launchDirectory,
+        launchDirectoryOf: async (sessionId: string) => {
+          const record = host.deps.store.getRecord(sessionId)
+          return record && isLocalStructuredChat(record)
+            ? launchDirectoryOfChat(record, host.deps.resolveWorkspacePath)
+            : undefined
+        },
         ...(owner
           ? {}
           : {
@@ -115,7 +133,7 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
         sessionId: params.sessionId,
         requestId: params.requestId,
         fileName: params.fileName,
-        launchDirectory: record.launchDirectory
+        launchDirectory: await launchDirectoryOfChat(record, host.deps.resolveWorkspacePath)
       })
     }
   }),
@@ -127,7 +145,11 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
       const host = await requireInstalledStructuredHost(ctx)
       const record = host.deps.store.getRecord(params.sessionId)
       // Why the record: a client names a chat, and the host derives the project root from its launch directory.
-      if (!record || !isLocalStructuredChat(record) || record.launchDirectory === undefined) {
+      const launchDirectory =
+        record && isLocalStructuredChat(record)
+          ? await launchDirectoryOfChat(record, host.deps.resolveWorkspacePath)
+          : undefined
+      if (launchDirectory === undefined) {
         logPrototypeRefusal(
           'prototypes.readDesignSystem',
           params.sessionId,
@@ -135,7 +157,7 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
         )
         return { ok: false, error: 'not_found' }
       }
-      return readDesignSystemOfLaunchDirectory(record.launchDirectory)
+      return readDesignSystemOfLaunchDirectory(launchDirectory)
     }
   }),
   defineMethod({

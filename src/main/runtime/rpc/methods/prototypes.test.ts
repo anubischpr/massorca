@@ -548,3 +548,46 @@ describe('prototypes design system', () => {
     expect(await manifestOf('propose')).not.toHaveProperty('designSystemVersion')
   })
 })
+
+describe('a worktree chat whose record pins no launch directory', () => {
+  beforeEach(() => {
+    const { launchDirectory: _dropped, ...base } = agentSessionRecordFixture()
+    record = { ...base, sessionId: SESSION }
+    setStructuredAgentSessionHost(
+      Object.assign(hostStub(), {
+        deps: {
+          store: { getRecord: (id: string) => (record?.sessionId === id ? record : null) },
+          resolveWorkspacePath: async () => launchDirectory
+        }
+      })
+    )
+  })
+
+  it('reads the design system of its workspace, so the request card is not skipped', async () => {
+    await mkdir(join(launchDirectory, '.git'))
+    await mkdir(join(launchDirectory, 'design', 'system'), { recursive: true })
+    const reply = await call('prototypes.readDesignSystem', { sessionId: SESSION }, STRUCTURED_CLIENT)
+    expect(JSON.stringify(reply)).not.toContain('not_found')
+  })
+
+  it('lists its sets under the project of its workspace', async () => {
+    await mkdir(join(launchDirectory, '.git'))
+    const folder = join(nativeChatVisualsFolderFor(stateDirectory, SESSION), 'prototypes', 'req-1')
+    await mkdir(folder, { recursive: true })
+    await writeFile(
+      join(folder, 'request.json'),
+      JSON.stringify({
+        version: 1,
+        requestId: 'req-1',
+        agent: 'claude',
+        sessionId: SESSION,
+        originalPrompt: 'design',
+        count: 1,
+        createdAt: '2026-10-30T00:00:00.000Z'
+      })
+    )
+    await writeFile(join(folder, 'A.html'), '<html></html>')
+    const reply = JSON.stringify(await call('prototypes.list', {}, STRUCTURED_CLIENT))
+    expect(reply).toContain('"projectKey"')
+  })
+})
