@@ -1,13 +1,5 @@
 import { useState } from 'react'
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  useWindowDimensions
-} from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { Check } from 'lucide-react-native'
 import { joinDirectionLetters } from '../../../src/shared/prototype-merge-message'
 import {
@@ -29,9 +21,6 @@ import { MobilePrototypeSheetTabs } from './MobilePrototypeSheetTabs'
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
 type Review = Extract<PrototypeMergeState, { phase: 'review' }>
 type MergeTab = 'parts' | 'preview'
-
-/** How far the sheet may grow: a share of the screen, so the set behind it stays in view. */
-const SHEET_MAX_HEIGHT_SHARE = 0.85
 
 function PartRow({
   part,
@@ -85,8 +74,8 @@ function PartRow({
 }
 
 /**
- * The merge review as a sheet: the agent's source for each part (Parts), the planned direction with
- * each part's source letter (Preview), then "Anything else" and the send under both.
+ * The merge review as a sheet. Parts scrolls every option; Preview lists the planned direction and
+ * the "Anything else" note. The send sits in a footer under both tabs, so it is always in reach.
  */
 export function MobilePrototypeMergeSheet({
   review,
@@ -104,7 +93,6 @@ export function MobilePrototypeMergeSheet({
   update: Update
   onSend: () => void
 }) {
-  const { height: screenHeight } = useWindowDimensions()
   const [tab, setTab] = useState<MergeTab>('parts')
   const kept = keptMergeParts(review.parts)
   const sendDisabled = review.sending || kept.length === 0
@@ -144,7 +132,7 @@ export function MobilePrototypeMergeSheet({
       />
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        style={{ maxHeight: screenHeight * SHEET_MAX_HEIGHT_SHARE }}
+        style={styles.scroll}
         contentContainerStyle={styles.body}
       >
         {tab === 'parts' ? (
@@ -158,33 +146,42 @@ export function MobilePrototypeMergeSheet({
             />
           ))
         ) : (
-          <View style={styles.preview}>
-            {kept.map((part) => (
-              <View key={part.id} style={styles.previewRow}>
-                <View
-                  accessibilityRole="image"
-                  accessibilityLabel={part.name}
-                  style={styles.previewLetter}
-                >
-                  <Text style={styles.previewLetterText}>{part.from}</Text>
+          <>
+            <View style={styles.preview}>
+              {kept.map((part) => (
+                <View key={part.id} style={styles.previewRow}>
+                  <View
+                    accessibilityRole="image"
+                    accessibilityLabel={part.name}
+                    style={styles.previewLetter}
+                  >
+                    <Text style={styles.previewLetterText}>{part.from}</Text>
+                  </View>
+                  <View style={styles.previewText}>
+                    <Text style={styles.previewName}>{part.name}</Text>
+                    <Text style={styles.previewSelector} numberOfLines={1}>
+                      {part.selector}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.previewBar} />
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
+            <Text style={styles.label}>Anything else</Text>
+            <TextInput
+              accessibilityLabel="Anything else"
+              multiline
+              numberOfLines={2}
+              textAlignVertical="top"
+              placeholder="How the parts should fit together…"
+              placeholderTextColor={colors.textSecondary}
+              value={review.note}
+              onChangeText={(text) => update((current) => setMergeNote(current, text))}
+              style={styles.note}
+            />
+          </>
         )}
-        <Text style={styles.label}>Anything else</Text>
-        <TextInput
-          accessibilityLabel="Anything else"
-          multiline
-          numberOfLines={2}
-          textAlignVertical="top"
-          placeholder="How the parts should fit together…"
-          placeholderTextColor={colors.textSecondary}
-          value={review.note}
-          onChangeText={(text) => update((current) => setMergeNote(current, text))}
-          style={styles.note}
-        />
+      </ScrollView>
+      <View style={styles.footer}>
         <Pressable
           accessibilityRole="button"
           disabled={sendDisabled}
@@ -198,20 +195,28 @@ export function MobilePrototypeMergeSheet({
             Couldn't send: the chat is no longer active. Your draft is kept.
           </Text>
         ) : null}
-      </ScrollView>
+      </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  sheet: { gap: spacing.md, paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
+  sheet: {
+    flexShrink: 1,
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg
+  },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerText: { flex: 1, minWidth: 0, gap: 2 },
   title: { color: colors.textPrimary, fontWeight: '600', fontSize: 15 },
   subtitle: { color: colors.textSecondary, fontSize: 13 },
   close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   closeText: { color: colors.textSecondary, fontSize: 18 },
+  // Why: the list takes what the drawer leaves and scrolls, so no option is ever cut off.
+  scroll: { flexGrow: 0, flexShrink: 1, minHeight: 0 },
   body: { gap: spacing.md },
+  footer: { gap: spacing.sm },
   part: {
     gap: spacing.sm,
     paddingVertical: 10,
@@ -269,12 +274,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgBase
   },
   previewLetterText: { color: colors.textPrimary, fontSize: 12, fontWeight: '600' },
-  previewBar: {
-    flex: 1,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: colors.textMuted,
-    opacity: 0.35
+  previewText: { flex: 1, minWidth: 0 },
+  previewName: { color: colors.textPrimary, fontSize: 15, fontWeight: '500' },
+  previewSelector: {
+    color: colors.textSecondary,
+    fontFamily: typography.monoFamily,
+    fontSize: typography.metaSize
   },
   label: { color: colors.textSecondary, fontSize: 13 },
   note: {
