@@ -20,8 +20,13 @@ function stripDanglingDisplayApostrophes(input: string): string {
     .replace(/([\p{L}\p{N}])'(?=$|[^\p{L}\p{N}])/gu, '$1')
 }
 
+/** Keeps accented letters as their base letter, so "diseño" slugs to "diseno", not "dise-o". */
+export function foldSlugAccents(input: string): string {
+  return input.normalize('NFD').replace(/\p{M}+/gu, '')
+}
+
 export function slugifyForWorkspaceName(input: string): string {
-  const normalized = removeIntraWordApostrophes(input)
+  const normalized = foldSlugAccents(removeIntraWordApostrophes(input))
     .trim()
     .toLowerCase()
     .replace(/[\\/]+/g, '-')

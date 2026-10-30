@@ -19,7 +19,7 @@ export type StructuredChatNamingDeps = {
   readFirstPrompt: (sessionId: string, hostStartedAt: number) => Promise<string>
   now?: () => number
   generate: (record: AgentSessionRecord, firstPrompt: string) => Promise<string | null>
-  onNamed: (workspaceId: string, sessionId: string) => void
+  onNamed: (workspaceId: string, sessionId: string, conversationName: string) => void
   logger: StructuredAgentSessionLogger
 }
 
@@ -33,9 +33,9 @@ export function createStructuredChatNamingHandler(deps: StructuredChatNamingDeps
       sessionId,
       error
     })
-  const refresh = (record: AgentSessionRecord) => {
+  const refresh = (record: AgentSessionRecord, conversationName: string) => {
     try {
-      deps.onNamed(record.location.workspaceId, record.sessionId)
+      deps.onNamed(record.location.workspaceId, record.sessionId, conversationName)
     } catch (error) {
       warn(record.sessionId, error)
     }
@@ -64,7 +64,7 @@ export function createStructuredChatNamingHandler(deps: StructuredChatNamingDeps
     }
     const named = await store.compareAndSetConversationName(summary.sessionId, generated, null)
     if (named) {
-      refresh(named)
+      refresh(named, generated)
     }
   }
 

@@ -431,6 +431,12 @@ describe('delegationWorktreeName', () => {
     )
   })
 
+  it('keeps accented letters as their base letter', () => {
+    expect(delegationWorktreeName('Rediseño de página', 'deleg_a1b2c3d4e5f6')).toBe(
+      'rediseno-de-pagina-a1b2c3'
+    )
+  })
+
   it('falls back to a plain name when the title has nothing to slug', () => {
     expect(delegationWorktreeName('日本語', 'deleg_a1b2c3d4e5f6')).toBe('child-a1b2c3')
   })

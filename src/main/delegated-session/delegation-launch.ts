@@ -11,6 +11,7 @@ import { delegationChildAccessMode } from './delegation-access-mode'
 import type { DelegationLauncher } from './delegation-launch-types'
 import { delegationPlacementFor } from './delegation-router'
 import type { FailedDelegatedStart } from './delegation-failed-start'
+import { foldSlugAccents } from '../../shared/workspace-name'
 
 const RUN_OBJECTIVE = 'Delegated child sessions'
 const WORKTREE_SLUG_MAX_CHARS = 40
@@ -25,7 +26,7 @@ export type DelegationWorkerStarter = (input: {
 
 /** A branch-safe name for the worktree a child that writes code gets, unique per request. */
 export function delegationWorktreeName(title: string, requestId: string): string {
-  const slug = title
+  const slug = foldSlugAccents(title)
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')

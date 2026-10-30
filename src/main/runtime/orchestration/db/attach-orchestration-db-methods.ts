@@ -58,6 +58,7 @@ import { attachWorkerDispatchAbandon } from './worker-dispatch/worker-dispatch-a
 import { attachWorkerDispatchAuthority } from './worker-dispatch/worker-dispatch-authority'
 import { attachWorkerDispatchOutcome } from './worker-dispatch/worker-dispatch-outcome'
 import { attachWorkerDispatchStage } from './worker-dispatch/worker-dispatch-stage'
+import { attachWorkerDispatchCreatedChildren } from './worker-dispatch/worker-dispatch-created-children'
 import { attachWorkerDispatchStart } from './worker-dispatch/worker-dispatch-start'
 import { attachWorkerDispatchStop } from './worker-dispatch/worker-dispatch-stop'
 import { attachWorkerTerminalRecovery } from './worker-dispatch/worker-terminal-recovery'
@@ -105,6 +106,7 @@ export function attachOrchestrationDbMethods(ctor: { prototype: object }): void 
   attachTaskStatusTransition(ctor)
   attachWorkerDispatchStart(ctor)
   attachWorkerDispatchStage(ctor)
+  attachWorkerDispatchCreatedChildren(ctor)
   attachWorkerDispatchAuthority(ctor)
   attachWorkerDispatchOutcome(ctor)
   attachFederatedWorkerStartReconcile(ctor)

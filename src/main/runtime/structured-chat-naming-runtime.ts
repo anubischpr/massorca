@@ -11,13 +11,47 @@ import {
   resolveTextGenerationParams
 } from '../text-generation/commit-message-text-generation'
 import { resolveGenerationTarget } from '../agent-hooks/first-work-generation-target'
+import { firstWorkRenameDeps } from '../agent-hooks/first-work-rename-runtime'
+import {
+  nameDelegatedChildWorktree,
+  type DelegatedChildWorktreeNameDeps
+} from '../delegated-session/delegated-child-worktree-name'
+import { getRepoIdFromWorktreeId } from '../../shared/worktree/id'
 
 type StructuredChatNamingRuntime = {
   resolveWorkspace: (
     workspaceId: string
   ) => Promise<{ path: string; executionHostId: ExecutionHostId }>
   getAgentEnvResolvers: () => CommitMessageAgentEnvironmentResolvers | undefined
-  retitleOpenTab: StructuredChatNamingDeps['onNamed']
+  retitleOpenTab: (workspaceId: string, sessionId: string) => void
+  delegatedChild: DelegatedChildWorktreeNameDeps
+}
+
+/** What a delegated child's title needs from this host: its store, its orchestration DB, its rename path. */
+export type DelegatedChildNamingHost = Parameters<typeof firstWorkRenameDeps>[1] & {
+  requireStore: () => Store
+  getExistingOrchestrationDb: () => {
+    isWorktreeCreatedAsDelegatedChild: (worktreeId: string) => boolean
+  } | null
+  resolveRuntimeFileTarget: (selector: string) => Promise<{ worktree: { branch: string } }>
+}
+
+export function delegatedChildWorktreeNameDeps(
+  host: DelegatedChildNamingHost
+): DelegatedChildWorktreeNameDeps {
+  return {
+    isDelegatedChild: (worktreeId) =>
+      host.getExistingOrchestrationDb()?.isWorktreeCreatedAsDelegatedChild(worktreeId) ?? false,
+    getMeta: (worktreeId) => host.requireStore().getWorktreeMeta(worktreeId),
+    resolveBranch: async (worktreeId) =>
+      (await host.resolveRuntimeFileTarget(`id:${worktreeId}`)).worktree.branch,
+    renameWorktree: (worktreeId, displayName) => {
+      // Why: the same setter a first-message title uses, so the catalog and sidebar refresh alike.
+      const titleDeps = firstWorkRenameDeps(host.requireStore(), host)
+      titleDeps.setDisplayName(worktreeId, displayName)
+      titleDeps.onRenamed(getRepoIdFromWorktreeId(worktreeId))
+    }
+  }
 }
 
 export function structuredChatNamingDeps(
@@ -73,7 +107,7 @@ export function structuredChatNamingDeps(
       }
       return result.name
     },
-    onNamed: (workspaceId, sessionId) => {
+    onNamed: (workspaceId, sessionId, conversationName) => {
       try {
         // Lists that show the chat without its tab, a closed one too, learn the name from the feed.
         getStructuredAgentSessionHost()?.publishConversationName(sessionId)
@@ -85,6 +119,15 @@ export function structuredChatNamingDeps(
         })
       }
       runtime.retitleOpenTab(workspaceId, sessionId)
+      // Runs on the host that owns the chat, so a remote chat is titled in its own store.
+      void nameDelegatedChildWorktree(workspaceId, conversationName, runtime.delegatedChild).catch(
+        (error: unknown) =>
+          logger.warn('Delegated child worktree naming failed', {
+            scope: 'conversation-name',
+            sessionId,
+            error
+          })
+      )
     },
     logger
   }

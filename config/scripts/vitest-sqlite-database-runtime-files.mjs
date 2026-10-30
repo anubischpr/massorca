@@ -77,6 +77,7 @@ export const SQLITE_DATABASE_RUNTIME_INCLUDE = [
   'src/main/runtime/orchestration/db/schema/structured-pointer-schema-migration.test.ts',
   'src/main/runtime/orchestration/db/schema/structured-worker-orca-session-backfill.test.ts',
   'src/main/runtime/orchestration/db/worker-dispatch/worker-dispatch-abandon.test.ts',
+  'src/main/runtime/orchestration/db/worker-dispatch/worker-dispatch-created-children.test.ts',
   'src/main/runtime/orchestration/db/worker-dispatch/worker-dispatch-assignee-orca-session.test.ts',
   'src/main/runtime/orchestration/db/writer-run-required.test.ts',
   'src/main/runtime/orchestration/dispatch-consumer-generation-migration.test.ts',

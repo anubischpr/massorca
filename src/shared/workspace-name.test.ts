@@ -19,6 +19,10 @@ describe('slugifyForWorkspaceName', () => {
     expect(slugifyForWorkspaceName('a'.repeat(80))).toBe('a'.repeat(48))
   })
 
+  it('keeps accented letters as their base letter', () => {
+    expect(slugifyForWorkspaceName('Rediseño de página')).toBe('rediseno-de-pagina')
+  })
+
   it('removes apostrophes inside words instead of splitting them', () => {
     expect(slugifyForWorkspaceName("Can't enable browser notifications")).toBe(
       'cant-enable-browser-notifications'

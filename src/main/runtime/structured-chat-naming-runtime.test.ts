@@ -37,7 +37,13 @@ function rig() {
       executionHostId: 'local' as const
     })),
     getAgentEnvResolvers: vi.fn(() => undefined),
-    retitleOpenTab: vi.fn()
+    retitleOpenTab: vi.fn(),
+    delegatedChild: {
+      isDelegatedChild: vi.fn(() => false),
+      getMeta: vi.fn(() => undefined),
+      resolveBranch: vi.fn(async () => 'refs/heads/anubischpr/login-repair-a1b2c3'),
+      renameWorktree: vi.fn()
+    }
   }
   const logger = { warn: vi.fn(), error: vi.fn() }
   return {
@@ -120,9 +126,27 @@ describe('structured chat naming runtime', () => {
 
   it('publishes a new name to the host feed and retitles the open tab', () => {
     const state = rig()
-    state.deps.onNamed('workspace-1', 'session-1')
+    state.deps.onNamed('workspace-1', 'session-1', 'Login repair')
     expect(mocks.publishConversationName).toHaveBeenCalledWith('session-1')
     expect(state.runtime.retitleOpenTab).toHaveBeenCalledWith('workspace-1', 'session-1')
+  })
+
+  it('titles a delegated child worktree from its conversation name', async () => {
+    const state = rig()
+    state.runtime.delegatedChild.isDelegatedChild.mockReturnValueOnce(true)
+    state.deps.onNamed('workspace-1', 'session-1', 'Login repair')
+    await vi.waitFor(() => expect(state.runtime.delegatedChild.renameWorktree).toHaveBeenCalled())
+    expect(state.runtime.delegatedChild.renameWorktree).toHaveBeenCalledWith(
+      'workspace-1',
+      'Login repair'
+    )
+  })
+
+  it('leaves a worktree that no dispatch created as a child alone', async () => {
+    const state = rig()
+    state.deps.onNamed('workspace-1', 'session-1', 'Login repair')
+    await vi.waitFor(() => expect(state.runtime.delegatedChild.isDelegatedChild).toHaveBeenCalled())
+    expect(state.runtime.delegatedChild.renameWorktree).not.toHaveBeenCalled()
   })
 
   it('still retitles the open tab when the feed publication fails', () => {
@@ -130,7 +154,7 @@ describe('structured chat naming runtime', () => {
     mocks.publishConversationName.mockImplementationOnce(() => {
       throw new Error('journal unreadable')
     })
-    state.deps.onNamed('workspace-1', 'session-1')
+    state.deps.onNamed('workspace-1', 'session-1', 'Login repair')
     expect(state.runtime.retitleOpenTab).toHaveBeenCalledWith('workspace-1', 'session-1')
     expect(state.logger.warn).toHaveBeenCalledWith(
       'Chat name publication failed',

@@ -29,7 +29,10 @@ import type { AgentSessionRecordStore } from './agent-session-record-store'
 import { maybeAutoRenameWorkspaceOnFirstStructuredTurn } from '../agent-hooks/first-work-structured-session-rename'
 import { firstWorkRenameDeps } from '../agent-hooks/first-work-rename-runtime'
 import { createStructuredChatNamingHandler } from '../native-chat/structured-chat-naming'
-import { structuredChatNamingDeps } from './structured-chat-naming-runtime'
+import {
+  delegatedChildWorktreeNameDeps,
+  structuredChatNamingDeps
+} from './structured-chat-naming-runtime'
 import { createStructuredReplySuggestionHandler } from '../native-chat/structured-reply-suggestion'
 import { structuredReplySuggestionDeps } from './structured-reply-suggestion-runtime'
 import { getProfileUserDataPath } from '../orca-profiles/profile-storage-paths'
@@ -206,7 +209,8 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVis
           },
           getAgentEnvResolvers: () => this.getCommitMessageAgentEnvironmentResolvers(),
           retitleOpenTab: (workspaceId, sessionId) =>
-            this.refreshStructuredConversationTabTitle(workspaceId, sessionId)
+            this.refreshStructuredConversationTabTitle(workspaceId, sessionId),
+          delegatedChild: delegatedChildWorktreeNameDeps(this)
         },
         logger
       )

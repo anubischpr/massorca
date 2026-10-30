@@ -57,6 +57,7 @@ import type { WorkerDispatchAbandonMethods } from './worker-dispatch/worker-disp
 import type { WorkerDispatchAuthorityMethods } from './worker-dispatch/worker-dispatch-authority'
 import type { WorkerDispatchOutcomeMethods } from './worker-dispatch/worker-dispatch-outcome'
 import type { WorkerDispatchStageMethods } from './worker-dispatch/worker-dispatch-stage'
+import type { WorkerDispatchCreatedChildrenMethods } from './worker-dispatch/worker-dispatch-created-children'
 import type { WorkerDispatchStartMethods } from './worker-dispatch/worker-dispatch-start'
 import type { WorkerDispatchStopMethods } from './worker-dispatch/worker-dispatch-stop'
 import type { WorkerTerminalRecoveryMethods } from './worker-dispatch/worker-terminal-recovery'
@@ -103,6 +104,7 @@ export type OrchestrationDbMethods = AttemptObservationStoreMethods &
   TaskStatusTransitionMethods &
   WorkerDispatchStartMethods &
   WorkerDispatchStageMethods &
+  WorkerDispatchCreatedChildrenMethods &
   WorkerDispatchAuthorityMethods &
   WorkerDispatchOutcomeMethods &
   FederatedWorkerStartReconcileMethods &
