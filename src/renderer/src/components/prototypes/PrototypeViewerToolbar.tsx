@@ -191,7 +191,7 @@ export function PrototypeViewerToolbar({
           )}
         </div>
       </div>
-      <div role="toolbar" className="flex max-w-full shrink-0 items-center gap-2">
+      <div role="toolbar" className="flex max-w-full shrink-0 flex-wrap items-center gap-2">
         {single ? null : mergeControl}
         {single ? null : (
           <div
