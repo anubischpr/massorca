@@ -10,6 +10,7 @@ import {
   groupAiVaultSessions,
   type AiVaultSessionFilterState
 } from '../../../../shared/ai-vault-session-filters'
+import { markAutomatedAiVaultSearchRows } from './ai-vault-search-session'
 // Why: the pure filter/group/query core now lives in /shared so the mobile
 // package can reuse it (Metro can't import renderer). Re-export for renderer
 // import parity. Not a byte-for-byte move: tokenizeQuery gained quoted
@@ -54,13 +55,17 @@ export function useAiVaultPanelSessions(
     sessionProjectById,
     projectLabelByKey,
     hideEmptySessions,
-    showAutomatedRuns
-  }: AiVaultSessionFilterState & { showAutomatedRuns: boolean }
+    showAutomatedRuns,
+    listedSessions
+  }: AiVaultSessionFilterState & {
+    showAutomatedRuns: boolean
+    listedSessions: readonly AiVaultSession[]
+  }
 ) {
   const inScopeSessions = useMemo(
     () =>
       searching
-        ? sessions
+        ? markAutomatedAiVaultSearchRows(sessions, listedSessions)
         : filterAiVaultSessions(sessions, {
             query,
             agents,
@@ -76,6 +81,7 @@ export function useAiVaultPanelSessions(
     [
       searching,
       sessions,
+      listedSessions,
       query,
       agents,
       scope,

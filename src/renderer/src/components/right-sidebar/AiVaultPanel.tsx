@@ -222,7 +222,8 @@ export default function AiVaultPanel(): React.JSX.Element {
       sessionProjectById,
       projectLabelByKey,
       hideEmptySessions,
-      showAutomatedRuns
+      showAutomatedRuns,
+      listedSessions: history
     })
 
   const getSessionRowResumeArgs = useCallback(
