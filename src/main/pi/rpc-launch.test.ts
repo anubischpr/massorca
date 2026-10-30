@@ -143,6 +143,23 @@ describe('Pi RPC launch', () => {
     expect(buildPiRpcLaunch(options).args).not.toContain('--append-system-prompt')
   })
 
+  it('joins the chat-visuals instructions to the delegation text in one system-prompt flag, on one line', () => {
+    launcher.resolved = true
+    const visuals = 'Inline visuals: write one HTML file and reply with its directive.'
+    const structured = buildPiRpcLaunch({
+      ...options,
+      visualsInstructions: visuals,
+      structuredSession: { id: 'this-session', spawnToken: 'this-token' }
+    })
+    expect(structured.args.filter((arg) => arg === '--append-system-prompt')).toHaveLength(1)
+    const flag = structured.args.indexOf('--append-system-prompt')
+    expect(structured.args[flag + 1]).toBe(`${DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE} ${visuals}`)
+
+    const plain = buildPiRpcLaunch({ ...options, visualsInstructions: visuals })
+    const plainFlag = plain.args.indexOf('--append-system-prompt')
+    expect(plain.args[plainFlag + 1]).toBe(visuals)
+  })
+
   it('adds no flag to a structured chat whose Orca CLI launcher did not resolve', () => {
     launcher.resolved = false
     const launch = buildPiRpcLaunch({

@@ -10,6 +10,7 @@ import {
 } from './structured-launch-resolution'
 import { createAntigravityModelCatalogProbe } from './model-catalog-probe'
 import { ensureDelegationInstructionsFolder } from '../delegated-session/delegation-instructions-folder'
+import { nativeChatVisualsFor } from '../native-chat/native-chat-visuals-delivery'
 import { supportsSupervisedProviderChildLocation } from '../provider-process/supervised-provider-child-location'
 import { isAgentSessionPreSpawnError } from '../native-chat/agent-session-wire/structured-agent-session-adapter'
 import { createStructuredAgentEnvironmentResolvers } from '../runtime/structured-agent-shell-environment'
@@ -85,6 +86,7 @@ export const ANTIGRAVITY_RUNTIME_REGISTRATION: StructuredAgentRuntimeRegistratio
         resolveLaunchArgs: () => context.deps.resolveLaunchArgs('antigravity'),
         resolveDelegationInstructionsFolder: () =>
           ensureDelegationInstructionsFolder(context.deps.stateDirectory),
+        ...nativeChatVisualsFor(context.deps),
         logger: context.deps.logger
       }),
       ...(context.deps.readProcessStartTime

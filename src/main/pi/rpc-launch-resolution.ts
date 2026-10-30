@@ -28,6 +28,11 @@ import { isWindowsProcessStartTimeAvailable } from '../windows/windows-process-t
 import type { PiRpcLaunchOptions } from './rpc-launch'
 import { piStructuredLaunchArgs } from './rpc-saved-arguments'
 import { resolveAgentSessionFullAccess } from '../../shared/agent-session-access-mode'
+import {
+  withNativeChatVisualsEnv,
+  type PrepareNativeChatVisuals
+} from '../native-chat/native-chat-visuals-delivery'
+import { piChatVisualsFor } from './pi-chat-visuals'
 import { gentleShellModeForAccess, type GentleShellMode } from './gentle-shell-permission-mode'
 import {
   isPiRuntimeSelection,
@@ -55,6 +60,8 @@ export type PiRpcLaunchResolverDeps = {
   resolveFullAccess?: () => boolean
   /** The user's saved Arguments tokens for Pi, re-read per acquisition. */
   resolveLaunchArgs?: () => Promise<string[]> | string[]
+  /** Gives the chat its visuals folder and skill; absent, no Pi or Gentle Shell chat gets visuals. */
+  prepareVisuals?: PrepareNativeChatVisuals
 }
 
 // Stable releases from 0.84.0 emit agent_settled after retries and detached compaction; older
@@ -248,10 +255,12 @@ export function createPiRpcLaunchResolver(
         reason: 'hostUnsupported'
       })
     }
+    // Why: the visuals folder is named only beside its skill text, so a chat without that text gets neither.
+    const visuals = await piChatVisualsFor(deps, identity.sessionId)
     return {
       command,
       cwd,
-      env,
+      env: withNativeChatVisualsEnv(env, visuals?.visuals ?? null),
       piRuntime,
       // Why: Gentle Shell's posture is a mode command sent after start, never a launch flag, so
       // its launch is always allowed; stock Pi has no restricted mode and keeps the full-access rule.
@@ -273,7 +282,8 @@ export function createPiRpcLaunchResolver(
       previous,
       ...(sessionFile ? { sessionFile } : {}),
       ...(forkFile ? { forkFile } : {}),
-      ...(replacement ? { replacement } : {})
+      ...(replacement ? { replacement } : {}),
+      ...(visuals ? { visualsInstructions: visuals.instructions } : {})
     }
   }
 }

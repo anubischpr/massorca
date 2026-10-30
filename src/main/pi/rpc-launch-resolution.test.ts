@@ -7,6 +7,7 @@ import type { AgentSessionProviderHandleLink } from '../../shared/agent-session-
 import { agentSessionProviderHandleKey } from '../../shared/agent-session-provider-handle'
 import { closeTestJournalHostDatabase } from '../native-chat/agent-session-journal/journal-host-database-test-support'
 import { openTestAgentSessionRecordStore } from '../runtime/agent-session-record-store-test-harness'
+import type { NativeChatVisualsSkillLocation } from '../native-chat/native-chat-visuals-skill-location'
 import { buildPiRpcLaunch } from './rpc-launch'
 import {
   createPiRpcLaunchResolver,
@@ -184,6 +185,18 @@ async function installGentleShellStub(): Promise<string> {
   return command
 }
 
+/** The chat-visuals skill laid out as the host ships it: a plugin folder holding its skills. */
+async function installVisualsSkill(): Promise<NativeChatVisualsSkillLocation> {
+  const pluginDir = join(root, 'visuals-plugin')
+  const skillDir = join(pluginDir, 'skills', 'orca-chat-visuals')
+  await mkdir(skillDir, { recursive: true })
+  await writeFile(
+    join(skillDir, 'SKILL.md'),
+    '---\nname: orca-chat-visuals\ndescription: Show a chart.\n---\n\n# Inline visuals\n\n::orca-visual{file="chart.html"}\n'
+  )
+  return { pluginDir, skillsRoot: join(pluginDir, 'skills') }
+}
+
 describe('Pi host launch resolution', () => {
   it.each([
     [undefined, false, 'normal'],
@@ -237,6 +250,98 @@ describe('Pi host launch resolution', () => {
     })
     vi.spyOn(h.store, 'getRecord').mockReturnValue(h.record)
     expect((await h.resolver(identity)).env).not.toHaveProperty('GENTLE_SHELL_INTERACTIVE_HOST')
+  })
+
+  it('gives a Gentle Shell chat its visuals folder, with the skill as its instructions', async () => {
+    const h = await setup()
+    await installGentleShellStub()
+    const environment = {
+      PATH: root,
+      HOME: '/host/home',
+      PI_CODING_AGENT_DIR: '/inherited/wrong',
+      ORCA_CHAT_VISUALS_DIR: '/inherited/visuals'
+    }
+    vi.spyOn(h.store, 'getRecord').mockReturnValue({
+      ...h.record,
+      options: { piRuntime: 'gentle-shell' }
+    })
+    const folder = join(root, 'visuals', 'gentle-chat')
+    const resolver = createPiRpcLaunchResolver({
+      store: h.store,
+      resolveWorkspacePath: async () => h.workspace,
+      resolveEnvironment: async () => environment,
+      resolveCommandSettings: () => h.settings,
+      prepareVisuals: async () => ({ folder, skill: await installVisualsSkill() })
+    })
+
+    const launch = await resolver(identity)
+
+    expect(launch).toMatchObject({
+      piRuntime: 'gentle-shell',
+      env: { ORCA_CHAT_VISUALS_DIR: folder }
+    })
+    expect(launch.visualsInstructions).toContain('::orca-visual{file="chart.html"}')
+    expect(launch.visualsInstructions).not.toContain('user-invocable')
+  })
+
+  it('starts a Gentle Shell chat without visuals, and drops an inherited folder, when its skill cannot be read', async () => {
+    const h = await setup()
+    await installGentleShellStub()
+    const environment = {
+      PATH: root,
+      HOME: '/host/home',
+      PI_CODING_AGENT_DIR: '/inherited/wrong',
+      ORCA_CHAT_VISUALS_DIR: '/inherited/visuals'
+    }
+    vi.spyOn(h.store, 'getRecord').mockReturnValue({
+      ...h.record,
+      options: { piRuntime: 'gentle-shell' }
+    })
+    const missing = join(root, 'no-plugin')
+    const resolver = createPiRpcLaunchResolver({
+      store: h.store,
+      resolveWorkspacePath: async () => h.workspace,
+      resolveEnvironment: async () => environment,
+      resolveCommandSettings: () => h.settings,
+      prepareVisuals: async () => ({
+        folder: join(root, 'visuals', 'gentle-chat'),
+        skill: { pluginDir: missing, skillsRoot: join(missing, 'skills') }
+      })
+    })
+
+    const launch = await resolver(identity)
+
+    expect(launch.piRuntime).toBe('gentle-shell')
+    expect(launch.env).not.toHaveProperty('ORCA_CHAT_VISUALS_DIR')
+    expect(launch.visualsInstructions).toBeUndefined()
+  })
+
+  it('gives a stock Pi chat the same visuals folder, and drops an inherited one when it has none', async () => {
+    const h = await setup()
+    const folder = join(root, 'visuals', 'stock-chat')
+    const environment = {
+      PATH: '/host/bin',
+      HOME: '/host/home',
+      ORCA_CHAT_VISUALS_DIR: '/inherited/visuals'
+    }
+    const base = {
+      store: h.store,
+      resolveWorkspacePath: async () => h.workspace,
+      resolveEnvironment: async () => environment,
+      resolveCommandSettings: () => h.settings,
+      resolveCommand: h.resolveCommand,
+      probeVersion
+    }
+
+    const withVisuals = await createPiRpcLaunchResolver({
+      ...base,
+      prepareVisuals: async () => ({ folder, skill: await installVisualsSkill() })
+    })(identity)
+    expect(withVisuals).toMatchObject({ piRuntime: 'pi', env: { ORCA_CHAT_VISUALS_DIR: folder } })
+
+    const withoutVisuals = await createPiRpcLaunchResolver(base)(identity)
+    expect(withoutVisuals.env).not.toHaveProperty('ORCA_CHAT_VISUALS_DIR')
+    expect(withoutVisuals.visualsInstructions).toBeUndefined()
   })
 
   it('gives stock Pi no Gentle Shell mode and leaves a preset it does not have restricted', async () => {

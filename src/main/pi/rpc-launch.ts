@@ -20,6 +20,8 @@ export type PiRpcLaunchOptions = {
   sessionFile?: string
   forkFile?: string
   structuredSession?: { id: string; spawnToken: string }
+  /** The chat-visuals skill as system-prompt text; the launch appends it to the delegation text. */
+  visualsInstructions?: string
 }
 
 const CHILD_ENV_TO_DELETE: readonly string[] = [
@@ -101,6 +103,10 @@ export function buildPiRpcLaunch(options: PiRpcLaunchOptions): ProviderProcessLa
   const delegation = options.structuredSession
     ? delegationInstructionsForEnv(childEnv, 'one-line')
     : null
+  // Why: one line, like the delegation text: a .cmd launcher would split a multi-line argument.
+  const systemPrompt = [delegation, options.visualsInstructions]
+    .filter((part): part is string => Boolean(part))
+    .join(' ')
   return {
     command: options.command,
     cwd: options.cwd,
@@ -108,7 +114,7 @@ export function buildPiRpcLaunch(options: PiRpcLaunchOptions): ProviderProcessLa
       '--mode',
       'rpc',
       ...args,
-      ...(delegation ? ['--append-system-prompt', delegation] : []),
+      ...(systemPrompt ? ['--append-system-prompt', systemPrompt] : []),
       ...(options.sessionFile ? ['--session', options.sessionFile] : []),
       ...(options.forkFile ? ['--fork', options.forkFile] : [])
     ],

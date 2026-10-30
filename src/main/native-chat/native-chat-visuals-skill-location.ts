@@ -1,7 +1,7 @@
 // Where this host's copy of the chat-visuals skill plugin lives. Resolved on the host that spawns
 // the agent: a client's install path means nothing to another machine.
 
-import { access } from 'node:fs/promises'
+import { access, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { getAppEnvironment, hasAppEnvironment } from '../../shared/app-environment'
 
@@ -71,4 +71,21 @@ export async function resolveNativeChatVisualsSkillLocation(
 
 export function resetNativeChatVisualsSkillLocationForTests(): void {
   found = null
+}
+
+/** The skill's SKILL.md body, frontmatter dropped, for an agent that takes instructions as text;
+ *  null when the skill cannot be read. */
+export async function readNativeChatVisualsInstructions(
+  skill: NativeChatVisualsSkillLocation
+): Promise<string | null> {
+  try {
+    const text = await readFile(
+      join(skill.skillsRoot, NATIVE_CHAT_VISUALS_SKILL_NAME, 'SKILL.md'),
+      'utf8'
+    )
+    const body = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim()
+    return body.length > 0 ? body : null
+  } catch {
+    return null
+  }
 }

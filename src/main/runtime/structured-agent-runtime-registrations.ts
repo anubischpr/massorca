@@ -26,10 +26,7 @@ import type { StructuredAgentSessionHost } from '../native-chat/agent-session-wi
 import { readClaudeManagedAccountGateSettings } from '../native-chat/claude-structured-managed-account-support'
 import { agentModelCatalogStore } from '../native-chat/agent-model-catalog/agent-model-catalog-store'
 import { agentSessionAttachmentStoreRoot } from '../native-chat/agent-session-attachments/agent-session-attachment-references'
-import {
-  createNativeChatVisualsDelivery,
-  type PrepareNativeChatVisuals
-} from '../native-chat/native-chat-visuals-delivery'
+import { nativeChatVisualsFor } from '../native-chat/native-chat-visuals-delivery'
 import type { JournalHostDatabase } from '../native-chat/agent-session-journal/journal-host-database'
 import { replayJournal } from '../native-chat/agent-session-journal/journal-open'
 import type { AgentSessionRecordStore } from './agent-session-record-store'
@@ -119,20 +116,6 @@ export type StructuredAgentRuntimeRegistration = {
     request: StructuredAgentAccountHomeRequest,
     services: StructuredAgentAccountHomeServices
   ) => Promise<AgentSessionAccountHome>
-}
-
-function nativeChatVisualsFor(deps: StructuredAgentSessionRuntimeDeps): {
-  prepareVisuals?: PrepareNativeChatVisuals
-} {
-  return deps.nativeChatVisuals
-    ? {
-        prepareVisuals: createNativeChatVisualsDelivery({
-          stateDirectory: deps.stateDirectory,
-          logger: deps.logger,
-          isEnabled: deps.nativeChatVisuals.isEnabled
-        })
-      }
-    : {}
 }
 
 function createCodexAdapter(context: StructuredAgentAdapterContext): StructuredAgentRuntimeAdapter {

@@ -1,5 +1,7 @@
 import { resolveAgentSessionFullAccess } from '../../shared/agent-session-access-mode'
 import { randomUUID } from 'node:crypto'
+import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import {
   agentSessionProviderHandleChainHead,
@@ -30,6 +32,12 @@ import { prepareAntigravityAccountForLaunch } from './native-account-launch'
 import type { StructuredAgentSessionLogger } from '../native-chat/agent-session-wire/structured-agent-session-logger'
 import { structuredSessionChildIdentityEnv } from '../runtime/structured-session-child-identity-env'
 import { delegationInstructionsForEnv } from '../delegated-session/delegation-agent-instructions'
+import {
+  withNativeChatVisualsEnv,
+  type NativeChatVisualsLaunch,
+  type PrepareNativeChatVisuals
+} from '../native-chat/native-chat-visuals-delivery'
+import { readNativeChatVisualsInstructions } from '../native-chat/native-chat-visuals-skill-location'
 
 export type AntigravityResolvedLaunch = ProviderProcessLaunch & {
   previous: AgentSessionProviderHandleLink | null
@@ -47,6 +55,8 @@ export type AntigravityLaunchDeps = {
   probeVersion?: typeof probeAgentCliVersionOutcome
   /** A folder holding the child-session instructions as AGENTS.md; null or absent adds none. */
   resolveDelegationInstructionsFolder?: () => Promise<string | null>
+  /** Gives the chat its visuals folder and skill; absent, the chat gets no visuals. */
+  prepareVisuals?: PrepareNativeChatVisuals
   logger?: StructuredAgentSessionLogger
 }
 
@@ -89,16 +99,47 @@ export function antigravityCliUnavailableReason(
   return outcome === 'did-not-start' ? 'cliMissing' : 'antigravityCliVersionUnsupported'
 }
 
+/** Whether this agy takes `--add-dir`; an older one gets no folder, since the flag would stop it. */
+function antigravityAddDirSupported(cliVersion: string | null): boolean {
+  return (
+    cliVersion !== null && isStableCliVersionFrom(cliVersion, ANTIGRAVITY_ADD_DIR_FIRST_VERSION)
+  )
+}
+
+/** The chat's visuals folder with the skill written into it as AGENTS.md, which agy reads from every
+ *  folder it is given; null leaves the chat without visuals. */
+async function antigravityVisualsFor(
+  deps: AntigravityLaunchDeps,
+  sessionId: string
+): Promise<NativeChatVisualsLaunch | null> {
+  const visuals = (await deps.prepareVisuals?.(sessionId)) ?? null
+  if (!visuals) {
+    return null
+  }
+  const instructions = await readNativeChatVisualsInstructions(visuals.skill)
+  if (instructions === null) {
+    return null
+  }
+  try {
+    await writeFile(join(visuals.folder, 'AGENTS.md'), `${instructions}\n`)
+    return visuals
+  } catch (error) {
+    deps.logger?.warn('the chat visuals instructions could not be written', {
+      scope: 'nativeChatVisuals.antigravity',
+      sessionId,
+      error
+    })
+    return null
+  }
+}
+
 /** The instructions folder agy can be given, or null: a missing folder or a CLI that predates
  *  `--add-dir` starts the chat without the instructions, never fails it. */
 async function resolveInstructionsFolder(
   deps: AntigravityLaunchDeps,
   cliVersion: string | null
 ): Promise<string | null> {
-  if (
-    cliVersion === null ||
-    !isStableCliVersionFrom(cliVersion, ANTIGRAVITY_ADD_DIR_FIRST_VERSION)
-  ) {
+  if (!antigravityAddDirSupported(cliVersion)) {
     deps.logger?.warn(
       'agy may not take --add-dir; the chat starts without child-session instructions',
       {
@@ -184,16 +225,20 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
     }
     const savedArgs = antigravitySavedLaunchArgs((await deps.resolveLaunchArgs?.()) ?? [], options)
     // The CLI and the caller id: without them `orca orchestration delegate` cannot reach this chat.
-    const childEnv = structuredSessionChildIdentityEnv(record.sessionId, env)
+    const identityEnv = structuredSessionChildIdentityEnv(record.sessionId, env)
     // Why: agy has no system-prompt flag; it reads AGENTS.md from every folder it is given, and
     // otherwise answers "create a child session" with its own invoke_subagent.
-    const instructionsFolder = delegationInstructionsForEnv(childEnv)
+    const instructionsFolder = delegationInstructionsForEnv(identityEnv)
       ? await resolveInstructionsFolder(deps, cliVersion)
+      : null
+    // Why: the visuals folder lies outside the workspace, so agy is given it with --add-dir too.
+    const visuals = antigravityAddDirSupported(cliVersion)
+      ? await antigravityVisualsFor(deps, record.sessionId)
       : null
     return {
       command,
       cwd,
-      env: childEnv,
+      env: withNativeChatVisualsEnv(identityEnv, visuals),
       previous,
       args: [
         ...savedArgs,
@@ -207,7 +252,8 @@ export function createAntigravityLaunchResolver(deps: AntigravityLaunchDeps) {
           : []),
         ...(options.effort ? ['--effort', options.effort] : []),
         ...antigravityAccessArgs(record.options?.accessMode, deps.resolveFullAccess?.() === true),
-        ...(instructionsFolder ? ['--add-dir', instructionsFolder] : [])
+        ...(instructionsFolder ? ['--add-dir', instructionsFolder] : []),
+        ...(visuals ? ['--add-dir', visuals.folder] : [])
       ]
     }
   }
