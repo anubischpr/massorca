@@ -1,0 +1,35 @@
+# pv57 child session QA fixes
+
+## Objective
+Fix four defects found in pv57 QA on the Antigravity session "Improve opportunities impact explorer" (VPS preview host).
+
+## Problems and evidence
+- History: Antigravity CLI has no `history.jsonl`; a session's cwd comes from `cache/last_conversations.json`, one conversation per workspace. A reply-suggestion run in the same worktree replaced the parent (58139719 over 7789620c in `abalone`), so the parent left scope and its child lost nesting.
+- Design system: `delegated-child-first-prompt.ts` chooses `skip` when no system exists, so a child never creates one. `resolveDesignSystemProject` stops at a linked worktree's `.git` file, so a system lives in one worktree and dies with it. Nothing tells the agent to say whether it reused or created the system.
+- Count: delegated children read the default count and never ask.
+- Naming: a delegated worktree name is a slug of the title; accents become dashes; the AI `conversationName` never reaches the worktree display name; the branch rename only acts on creature names.
+
+## Scope
+Host and renderer code on `custom/pv27-unified`, desktop and mobile where a card is involved. Remote wire stays compatible: new fields are optional. SSH and folder workspaces keep working.
+
+## Decision
+The user approved storing the design system at the project root, shared across worktrees (2026-10-30).
+
+## Tasks
+- [x] T1 History: an Antigravity conversation keeps its own workspace; an internal generation run never displaces it. Route: delegated writer (2+ non-trivial files). Done in `51b9d336aef`. Evidence: `session-scanner-antigravity-conversation-db.ts` reads `conversation_summaries.db` once per scan in-process, skips Orca's folders, and the cache files fill only the gaps; the relay provider reads on the host. Tests: conversation-db 14/14 and internal-run classification 3/3 (wrapped name, branch and reply prompts) pass. Gap: the VPS database path (root or `cache/`) and `workspace_uris` format are unverified on the VPS; WSL shares keep the cache-file fallback.
+- [x] T5 Set title: a prototype set shows a short AI-generated title that says what is viewed, not the chat description or the long prompt. The title is generated from the visible request text with the existing chat-name generation, stored as an optional manifest field; older hosts and clients keep the current text as fallback. Works for every agent and delegated children; an internal run must not disturb T1. No new UI. Route: delegated writer. Done in `f482ec6c834`. Evidence: `prototype-set-title.ts` names the set with `generateConversationNameFromContext` on the `conversationName` settings after the send returns, and patches an optional `title` into `request.json` through a temp file; `prototypeTitle` prefers it, and every Prototypes surface reads that function. Tests: prototype-set-title, prototype-set-title-display and prototypes RPC pass. Gap: lists pick up the title on their next load, not by push.
+- [x] T2 Design system: resolved at the main checkout root for linked worktrees; a child creates a missing one and continues; the agent states reused or created. Route: delegated writer. Done in `2f17de1475b`. Evidence: linked worktrees resolve to the main checkout (submodule, bare and missing-main cases stay put); absolute folder in every sender; worktree copy migrates when the shared root has none; delegated children create the system and continue; hidden reply-status line added; name-chat prompt no longer carries the hidden appendix. Grants: Claude `additionalDirectories`, Antigravity second `--add-dir`, Codex `writable_roots`; Gentle Shell and Pi have no sandbox. Gaps: no real agent run; ACP and other agents not granted; a running chat keeps its old grants until relaunch; an empty `<main>/design/system` is created at launch for linked-worktree chats; after migration the agent edits the worktree copy until the main checkout has its own system.
+- [ ] T3 Count: a delegated prototype asks the count in the parent chat, following the existing request decision. Route: delegated writer. Open, blocked on a choice, no code changed. The delegation card has no count step: the typed request decision never runs on the delegation path, the answer carries one option id, and `NativeChatPrototypeCountCard` cannot render from a journal row. Options: (1) a count group on the same delegation card, with an optional `count` on the answer RPC (older clients send none and get the Settings default), stored on the request row, on desktop and mobile; (2) a second question row after the agent pick, under a new `awaiting_count` request status, rendered by the generic question card.
+- [x] T4 Naming: the AI name reaches the child worktree display name unless the user set one; slugs keep accented letters as their base letter. Route: delegated writer. Done in `bedd6a3d6d0`. Evidence: `delegated-child-worktree-name.ts` renames the worktree from the AI chat name only for a dispatch-created child and only when the name is not user-set; `foldSlugAccents` gives "rediseno-de-pagina"; the host-side rename runs in `structured-chat-naming-runtime.ts`. Tests: delegated-child-worktree-name, worker-dispatch-created-children (SQLite, listed for the Node runtime), workspace-name and delegation-launch pass. Gaps: no runtime check on a native app or a remote host; PTY agents get no AI name; a user rename equal to the branch leaf counts as automatic; folder and branch names are unchanged.
+
+## Checks
+TDD mode: off (no project or session setting found). Ordinary checks: focused `pnpm test <file>`, `pnpm tc:node`, `pnpm run typecheck:web`, CLI tsc, `(cd mobile && pnpm run typecheck)`, `pnpm run check:code-quality:changed` with `ORCA_CODE_QUALITY_BASE` set to the commit before this work.
+
+## Delivery
+Strategy: single-pr. Work ships in the follow-up PR of `custom/pv27-unified` into `custom/integration`.
+
+## Progress
+- Committed on `custom/pv27-unified` (single-pr, not pushed): T1 `51b9d336aef`, T5 `f482ec6c834`, T2 `2f17de1475b`, T4 `bedd6a3d6d0`. T3 is open and needs a choice (see T3).
+- Checks on the final history: `pnpm tc:node`, `pnpm run typecheck:web`, CLI tsc and `(cd mobile && pnpm run typecheck)` exit 0; `ORCA_CODE_QUALITY_BASE=96bd27f1741 pnpm run check:code-quality:changed` 0 findings over 74 files; the 24 changed desktop test files pass (400 tests) and `mobile/src/prototypes` passes (36 files, 288 tests).
+- Known failures reproduced on the base under Bun: 3 in `session-scanner.test.ts`, 1 in `antigravity-ide-history.test.ts`. `delegation-request-service.test.ts` needs the Node runtime (it passes there, 8/8).
+- Environment: `pnpm test` cannot run in this worktree. `ensure-native-runtime` tries to rebuild `@vscode/windows-process-tree` and MSVC fails (C1083); its prebuilt binary is missing. Tests were run with `node node_modules/vitest/vitest.mjs run --config config/vitest.config.ts <files>`. Export `pnpm_config_verify_deps_before_run=false` before every pnpm command: without it pnpm re-runs the failing postinstall.
