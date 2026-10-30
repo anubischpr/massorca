@@ -18131,6 +18131,7 @@
       "mergeInto": "Merge into {{letter}}",
       "mergeNotePlaceholder": "How the parts should fit together…",
       "mergePlanPreview": "{{letter}} · preview of the plan",
+      "mergeProgress": "Processing merge",
       "mergeSource": "Source of {{name}}",
       "mergeSubtitle": "{{agent}} suggested a source for each part. Change any of them, or leave a part out.",
       "mergeTitle": "Merge {{letters}}",

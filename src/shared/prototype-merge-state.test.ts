@@ -7,11 +7,13 @@ import {
   canMerge,
   canSendMerge,
   cancelMerge,
+  cancelSentMerge,
   chatTookMerge,
   mergeRefused,
   mergeRequestRefused,
   mergeSent,
   planArrived,
+  setMergeBaseline,
   setMergeNote,
   setPartSource,
   togglePart
@@ -87,6 +89,31 @@ describe('starting a merge', () => {
     expect(state.merge).toBeNull()
     expect(state.mergeSendFailed).toBe(true)
     expect(state.starred).toEqual(['A', 'C'])
+  })
+})
+
+describe('the suggestion request', () => {
+  it('shows the wait from the click, before the plan file is read', () => {
+    const state = beginMerge(starred('A', 'C'), { planId: 'plan-1' })
+    expect(state.merge).toMatchObject({ phase: 'waiting', letters: ['A', 'C'], planId: 'plan-1' })
+    expect(state.merge?.phase === 'waiting' && state.merge.baseline).toBeUndefined()
+  })
+
+  it('takes no plan until the baseline is read, then the plan answers the request', () => {
+    const unread = beginMerge(starred('A', 'C'), { planId: 'plan-1' })
+    expect(planArrived(unread, plan(), PLAN_JSON)).toBe(unread)
+    const requested = setMergeBaseline(unread, 'plan-1', null)
+    expect(requested.merge).toMatchObject({ phase: 'waiting', baseline: null })
+    expect(planArrived(requested, plan(), PLAN_JSON).merge?.phase).toBe('review')
+  })
+
+  it('reads the baseline once, and only for the merge that is waiting', () => {
+    const unread = beginMerge(starred('A', 'C'), { planId: 'plan-1' })
+    expect(setMergeBaseline(unread, 'other', 'old')).toBe(unread)
+    const read = setMergeBaseline(unread, 'plan-1', 'old')
+    expect(read.merge).toMatchObject({ baseline: 'old' })
+    expect(setMergeBaseline(read, 'plan-1', 'newer')).toBe(read)
+    expect(setMergeBaseline(cancelMerge(unread), 'plan-1', 'old').merge).toBeNull()
   })
 })
 
@@ -170,6 +197,14 @@ describe('sending the merge', () => {
     expect(state.mergeSendFailed).toBe(true)
     expect(state.merge).toMatchObject({ phase: 'review', sending: false })
     expect(canSendMerge(state)).toBe(true)
+  })
+
+  it('ends the wait for a sent merge from its row and keeps the stars', () => {
+    const sent = mergeSent(reviewing(), { letter: 'D', visibleMessage: 'Merge into D.' })
+    const cancelled = cancelSentMerge(sent)
+    expect(cancelled.mergeInto).toBeNull()
+    expect(cancelled.starred).toEqual(['A', 'C'])
+    expect(cancelSentMerge(cancelled)).toBe(cancelled)
   })
 
   it('lets the user ask again while the merged direction has not shown up', () => {

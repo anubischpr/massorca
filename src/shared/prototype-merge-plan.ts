@@ -63,15 +63,16 @@ export type PrototypeMergeReviewPart = {
 }
 
 /**
- * A merge in progress. `waiting`: the suggestion request is out and the plan has not arrived;
- * `baseline` is the plan file's text at the send, which an answer without an id must differ from.
+ * A merge in progress. `waiting`: the plan has not arrived; `baseline` is the plan file's text at the
+ * request, which an answer without an id must differ from. It is absent until that text is read, and
+ * no file answers the request before then.
  */
 export type PrototypeMergeState =
   | {
       phase: 'waiting'
       letters: readonly string[]
       planId: string
-      baseline: string | null
+      baseline?: string | null
     }
   | {
       phase: 'review'
@@ -99,9 +100,10 @@ function sameLetters(left: readonly string[], right: readonly string[]): boolean
 export function isPlanForRequest(
   plan: PrototypeMergePlan,
   text: string,
-  request: { letters: readonly string[]; planId: string; baseline: string | null }
+  request: { letters: readonly string[]; planId: string; baseline?: string | null }
 ): boolean {
-  if (!sameLetters(plan.from, request.letters)) {
+  // Why: until the baseline is read the request is not out, so no file can answer it yet.
+  if (request.baseline === undefined || !sameLetters(plan.from, request.letters)) {
     return false
   }
   return plan.id === undefined ? text !== request.baseline : plan.id === request.planId

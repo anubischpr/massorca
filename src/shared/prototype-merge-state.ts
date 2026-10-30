@@ -19,10 +19,13 @@ export function canMerge(state: PrototypeSetState, nextLetter: string | null): b
   return state.starred.length >= 2 && state.merge === null && nextLetter !== null
 }
 
-/** The suggestion request goes out: the main area is blank until the plan arrives. */
+/**
+ * A merge starts on the click, so its progress row shows at once. The plan file's text is read next,
+ * and `setMergeBaseline` then sends the suggestion request; the main area is blank until the plan arrives.
+ */
 export function beginMerge(
   state: PrototypeSetState,
-  request: { planId: string; baseline: string | null }
+  request: { planId: string; baseline?: string | null }
 ): PrototypeSetState {
   if (state.starred.length < 2 || state.merge !== null) {
     return state
@@ -39,6 +42,19 @@ export function beginMerge(
     mergeSendFailed: false,
     sentMessage: null
   }
+}
+
+/** The plan file's text was read for a waiting merge: the request goes out after this, with that text. */
+export function setMergeBaseline(
+  state: PrototypeSetState,
+  planId: string,
+  baseline: string | null
+): PrototypeSetState {
+  const { merge } = state
+  if (merge?.phase !== 'waiting' || merge.planId !== planId || merge.baseline !== undefined) {
+    return state
+  }
+  return { ...state, merge: { ...merge, baseline } }
 }
 
 /** The chat refused the suggestion request: the merge does not start, the stars stay. */
@@ -141,6 +157,11 @@ export function mergeSent(
     sendFailed: false,
     sentMessage: sent.visibleMessage
   }
+}
+
+/** The progress row's Cancel for a sent merge: the wait for its direction ends, and the chat keeps its work. */
+export function cancelSentMerge(state: PrototypeSetState): PrototypeSetState {
+  return state.mergeInto === null ? state : { ...state, mergeInto: null }
 }
 
 /** Whether the chat took a merge message. A send that throws is a refusal, like one the chat declines. */

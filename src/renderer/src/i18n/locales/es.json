@@ -17917,6 +17917,7 @@
       "mergeInto": "Fusionar en {{letter}}",
       "mergeNotePlaceholder": "Cómo deben encajar las partes…",
       "mergePlanPreview": "{{letter}} · vista previa del plan",
+      "mergeProgress": "Procesando merge",
       "mergeSource": "Origen de {{name}}",
       "mergeSubtitle": "{{agent}} sugirió un origen para cada parte. Cambia cualquiera de ellos o deja una parte fuera.",
       "mergeTitle": "Fusionar {{letters}}",

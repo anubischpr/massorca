@@ -8,6 +8,7 @@ import type {
   NativeChatVisualAnnotateEvent,
   NativeChatVisualPickedElement
 } from '../../../../shared/native-chat-visual-annotate'
+import { beginMerge } from '../../../../shared/prototype-merge-state'
 import {
   createSetState,
   makeMain,
@@ -450,16 +451,42 @@ describe('PrototypeViewer Merge button', () => {
 describe('PrototypeViewer while a merge waits', () => {
   afterEach(cleanup)
 
-  it('leaves the main area blank, with no frame, banner or text, and keeps the strip', () => {
+  it('leaves the main area blank, with no frame, banner or hint, and keeps the strip and the row', () => {
     const stars = toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C')
     renderSet3({
       ...stars,
       merge: { phase: 'waiting', letters: ['A', 'C'], planId: 'p', baseline: null }
     })
     expect(screen.queryByTestId('frame')).toBeNull()
-    expect(screen.queryByRole('status')).toBeNull()
     expect(screen.queryByText(/click any element/u)).toBeNull()
+    expect(screen.getByRole('status')).toHaveTextContent('Processing merge')
     expect(screen.getByRole('group', { name: 'Directions in this set' })).toBeInTheDocument()
+  })
+
+  it('shows the progress row from the click, and its Cancel ends the wait and keeps the stars', () => {
+    const stars = toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C')
+    const state = beginMerge(stars, { planId: 'p' })
+    const update = vi.fn<Update>()
+    renderSet3(state, update)
+    expect(screen.getByRole('status')).toHaveTextContent('Processing merge')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    const next = applied(update, state)
+    expect(next.merge).toBeNull()
+    expect(next.starred).toEqual(['A', 'C'])
+  })
+
+  it('keeps the row on a sent merge in View all until its direction arrives', () => {
+    const sent: PrototypeSetState = {
+      ...toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C'),
+      layout: 'set',
+      mergeInto: { letter: 'D', from: ['A', 'C'] }
+    }
+    const update = vi.fn<Update>()
+    renderSet3(sent, update)
+    expect(screen.getByRole('button', { name: 'View all' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('status')).toHaveTextContent('Processing merge')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(applied(update, sent).mergeInto).toBeNull()
   })
 
   it('shows the send-failure line when the chat refused the request', () => {

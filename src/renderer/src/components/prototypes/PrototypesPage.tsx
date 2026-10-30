@@ -25,7 +25,8 @@ import {
   mergeRefused,
   mergeRequestRefused,
   mergeSent,
-  planArrived
+  planArrived,
+  setMergeBaseline
 } from '../../../../shared/prototype-merge-state'
 import { sendPrototypeIteration } from '../../../../shared/prototype-send'
 import type { PrototypeSetState } from '../../../../shared/prototype-set-state'
@@ -197,14 +198,17 @@ export default function PrototypesPage(): React.JSX.Element {
     if (folderPath === undefined || !canMerge(setState, nextLetter)) {
       return
     }
-    // The plan file as it is now: an answer without an id must differ from it.
+    const planId = `m${Date.now().toString(36)}`
+    update((current) => beginMerge(current, { planId }))
+    // The plan file as it is now: an answer without an id must differ from it. The request goes out after that read.
     const baseline = await readPrototypeMergePlanText(selected)
     const latest = usePrototypeViewStore.getState().states[selected.requestId]
-    if (latest === undefined || !canMerge(latest, nextLetter)) {
+    const merge = latest?.merge
+    if (latest === undefined || merge?.phase !== 'waiting' || merge.planId !== planId) {
+      // Why: the user cancelled or left while the file was read, so nothing is asked.
       return
     }
-    const planId = `m${Date.now().toString(36)}`
-    update((current) => beginMerge(current, { planId, baseline }))
+    update((current) => setMergeBaseline(current, planId, baseline))
     const message = buildMergeSuggestionMessage({
       requestId: selected.requestId,
       letters: latest.starred,
