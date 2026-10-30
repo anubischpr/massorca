@@ -10,13 +10,14 @@ import {
 import { useHostClient } from '../transport/host-client-hooks'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import { MobilePrototypeHeader } from './MobilePrototypeHeader'
+import { MobilePrototypeSystemRow } from './MobilePrototypeSystemRow'
 import { MobilePrototypeTile } from './MobilePrototypeTile'
 import {
   MOBILE_PROTOTYPE_FILTERS,
-  buildMobilePrototypeRows,
+  buildMobilePrototypeGroups,
   mobilePrototypeAgentLabel,
   mobilePrototypeFilterLabel,
-  mobilePrototypeStatusLabel
+  mobilePrototypeRowStatusLine
 } from './mobile-prototype-list-model'
 import { mobilePrototypeStateKey, useMobilePrototypeViewStore } from './mobile-prototype-view-store'
 import { useMobilePrototypeSets } from './use-mobile-prototype-sets'
@@ -26,13 +27,16 @@ export function MobilePrototypeListScreen({
   hostId,
   sessionId,
   onBack,
-  onOpenSet
+  onOpenSet,
+  onOpenSystem
 }: {
   hostId: string
   /** The chat the list was opened from; "This chat" shows its sets. */
   sessionId: string | null
   onBack: () => void
   onOpenSet: (row: PrototypeListRow) => void
+  /** Opens the Design system of the project with this key. */
+  onOpenSystem: (projectKey: string) => void
 }) {
   const { client } = useHostClient(hostId)
   const listed = useMobilePrototypeSets(hostId)
@@ -42,17 +46,18 @@ export function MobilePrototypeListScreen({
   const setFilter = useMobilePrototypeViewStore((s) => s.setFilter)
   const states = useMobilePrototypeViewStore((s) => s.states)
   const now = useNow(60_000)
-  const rows = useMemo(
+  const groups = useMemo(
     () =>
-      buildMobilePrototypeRows({
+      buildMobilePrototypeGroups({
         sets: listed.sets,
+        designSystems: listed.designSystems,
         scope,
         sessionId,
         filter,
         activeLetterOf: (requestId) => states[mobilePrototypeStateKey(hostId, requestId)]?.active,
         nowMs: now
       }),
-    [listed.sets, scope, sessionId, filter, states, hostId, now]
+    [listed.sets, listed.designSystems, scope, sessionId, filter, states, hostId, now]
   )
   // Tiles near the viewport draw their pages; scrolling tells them to look again.
   const viewport = useRef<View>(null)
@@ -114,13 +119,28 @@ export function MobilePrototypeListScreen({
             scrollEventThrottle={120}
             onScroll={() => scrollListeners.current.forEach((listener) => listener())}
           >
-            {rows.map((row) => (
-              <PrototypeRow
-                key={row.set.requestId}
-                row={row}
-                client={client}
-                onPress={() => onOpenSet(row)}
-              />
+            {groups.map((group) => (
+              <View key={group.projectKey ?? 'unprojected'} style={styles.group}>
+                {group.projectName === null ? null : (
+                  <Text accessibilityRole="header" style={styles.groupTitle}>
+                    {group.projectName}
+                  </Text>
+                )}
+                {group.projectKey === null || group.system === null ? null : (
+                  <MobilePrototypeSystemRow
+                    system={group.system}
+                    onPress={() => onOpenSystem(group.projectKey ?? '')}
+                  />
+                )}
+                {group.rows.map((row) => (
+                  <PrototypeRow
+                    key={row.set.requestId}
+                    row={row}
+                    client={client}
+                    onPress={() => onOpenSet(row)}
+                  />
+                ))}
+              </View>
             ))}
           </ScrollView>
         </ArtifactScrollScopeContext.Provider>
@@ -183,7 +203,7 @@ function PrototypeRow({
           <Text style={styles.mono}>{prototypeAgentMono(row.set.agent)}</Text>
           <Text style={styles.rowMeta}>{mobilePrototypeAgentLabel(row.set.agent)}</Text>
         </View>
-        <Text style={styles.rowStatus}>{mobilePrototypeStatusLabel(row.status)}</Text>
+        <Text style={styles.rowStatus}>{mobilePrototypeRowStatusLine(row)}</Text>
       </View>
     </Pressable>
   )
@@ -228,6 +248,15 @@ const styles = StyleSheet.create({
   chipTextSelected: { color: colors.bgBase },
   listFrame: { flex: 1 },
   list: { paddingHorizontal: spacing.lg, paddingTop: 6, paddingBottom: spacing.lg, gap: 10 },
+  group: { gap: 10 },
+  groupTitle: {
+    paddingTop: 6,
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.65,
+    textTransform: 'uppercase'
+  },
   row: {
     minHeight: 44,
     flexDirection: 'row',

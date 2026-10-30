@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   MOBILE_PROTOTYPE_FILTERS,
+  buildMobilePrototypeGroups,
   buildMobilePrototypeRows,
   mobilePrototypeFilterLabel,
   mobilePrototypeMenuCount,
+  mobilePrototypeRowStatusLine,
   mobilePrototypeSetsInScope,
-  mobilePrototypeStatusLabel
+  mobilePrototypeStatusLabel,
+  mobilePrototypeSystemLine
 } from './mobile-prototype-list-model'
 import { FIXTURE_NOW, listedSet, singleDirectionSet } from './mobile-prototype-sets.test-fixture'
 
@@ -134,5 +137,105 @@ describe('mobilePrototypeMenuCount', () => {
 
   it('counts nothing for a chat without a session', () => {
     expect(mobilePrototypeMenuCount([THIS_CHAT], null)).toBe(0)
+  })
+})
+
+const NEXUS_SYSTEM = {
+  projectKey: '/work/nexuscare',
+  projectName: 'nexuscare',
+  status: 'detected' as const,
+  version: 2,
+  tokenCount: 24,
+  swatches: ['#1d4ed8', '#e5e5e5', '#737373', '#16a34a']
+}
+const LANDING_SYSTEM = {
+  projectKey: '/work/landing-site',
+  projectName: 'landing-site',
+  status: 'proposed' as const,
+  version: 1,
+  tokenCount: 12,
+  swatches: []
+}
+
+function groups(
+  overrides: Partial<Parameters<typeof buildMobilePrototypeGroups>[0]> = {}
+): ReturnType<typeof buildMobilePrototypeGroups> {
+  return buildMobilePrototypeGroups({
+    sets: [
+      listedSet({
+        requestId: 'req-this',
+        sessionId: 'session-this',
+        projectKey: '/work/nexuscare',
+        projectName: 'nexuscare',
+        builtOn: 2
+      }),
+      listedSet({
+        requestId: 'req-other',
+        sessionId: 'session-other',
+        projectKey: '/work/checkout',
+        projectName: 'checkout'
+      })
+    ],
+    designSystems: [NEXUS_SYSTEM, LANDING_SYSTEM],
+    scope: 'all',
+    sessionId: 'session-this',
+    filter: 'all',
+    activeLetterOf: () => undefined,
+    nowMs: FIXTURE_NOW,
+    ...overrides
+  })
+}
+
+describe('mobile prototype list groups', () => {
+  it('groups the rows by project with its design system pinned, then a system with no set', () => {
+    expect(
+      groups().map((group) => [group.projectName, group.system?.status, group.rows.length])
+    ).toEqual([
+      ['nexuscare', 'detected', 1],
+      ['checkout', undefined, 1],
+      ['landing-site', 'proposed', 0]
+    ])
+  })
+
+  it('keeps only the projects of this chat under "This chat"', () => {
+    expect(groups({ scope: 'chat' }).map((group) => group.projectName)).toEqual(['nexuscare'])
+  })
+
+  it('keeps a project whose proposal waits in this chat', () => {
+    const pending = {
+      ...LANDING_SYSTEM,
+      pendingRequest: { requestId: 'req-p', sessionId: 'session-this', agent: 'codex' as const }
+    }
+    expect(
+      groups({ scope: 'chat', designSystems: [NEXUS_SYSTEM, pending] }).map(
+        (group) => group.projectName
+      )
+    ).toEqual(['nexuscare', 'landing-site'])
+  })
+
+  it('keeps a design system row when the agent filter hides every set of its project', () => {
+    const [group] = groups({ filter: 'claude' })
+    expect(group?.system?.projectKey).toBe('/work/nexuscare')
+    expect(group?.rows).toEqual([])
+  })
+})
+
+describe('mobile prototype row and system labels', () => {
+  it('appends the version a set was built on to its status line', () => {
+    const [group] = groups()
+    const [row] = group?.rows ?? []
+    expect(row && mobilePrototypeRowStatusLine(row)).toBe(
+      '3 directions · iterating A · built on v2'
+    )
+  })
+
+  it('adds no suffix when the set recorded no version', () => {
+    const row = groups().find((group) => group.projectName === 'checkout')?.rows[0]
+    expect(row && mobilePrototypeRowStatusLine(row)).toBe('3 directions · iterating A')
+  })
+
+  it('reads a detected system as its version and token count, a proposed one as needing review', () => {
+    expect(mobilePrototypeSystemLine(NEXUS_SYSTEM)).toBe('Detected · v2 · 24 tokens')
+    expect(mobilePrototypeSystemLine(LANDING_SYSTEM)).toBe('Proposed · needs review')
   })
 })
