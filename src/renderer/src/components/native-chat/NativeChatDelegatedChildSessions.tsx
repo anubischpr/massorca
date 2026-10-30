@@ -10,6 +10,7 @@ import {
   type DelegatedChildJournalItem
 } from '../../../../shared/delegated-children'
 import { delegatedChildStatusText } from './delegated-child-copy'
+import { useDelegatedChildTitle } from './use-delegated-child-title'
 
 export type DelegatedChildSessions = {
   running: readonly DelegatedChild[]
@@ -91,6 +92,7 @@ export function NativeChatDelegatedChildRow({
 }): React.JSX.Element {
   const { t } = useTranslation()
   const childSessionId = session.childSessionId
+  const title = useDelegatedChildTitle(childSessionId, session.title)
   // A new-child placement lives in another worktree, so look in every worktree.
   const childWorktreeId = useAppStore((state) =>
     childSessionId === null
@@ -100,8 +102,8 @@ export function NativeChatDelegatedChildRow({
   return (
     <li className="flex min-w-0 items-center gap-2">
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-foreground" title={session.title}>
-          {session.title}
+        <span className="truncate text-foreground" title={title}>
+          {title}
         </span>
         <span className="truncate text-muted-foreground">
           {delegatedChildStatusText(session, now)}
@@ -115,7 +117,7 @@ export function NativeChatDelegatedChildRow({
             'components.nativeChatBackground.openChildNamed',
             'Open child chat: {{title}}',
             {
-              title: session.title
+              title
             }
           )}
           onClick={() => {

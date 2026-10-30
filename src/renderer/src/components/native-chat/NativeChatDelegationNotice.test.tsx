@@ -12,11 +12,19 @@ import type { Tab } from '../../../../shared/tab-types'
 import { DelegatedChildrenProvider } from './delegated-children-context'
 import { NativeChatDelegationNotice } from './NativeChatDelegationNotice'
 
-const mocks = vi.hoisted(() => ({ activate: vi.fn(() => true), reveal: vi.fn(() => true) }))
+const mocks = vi.hoisted(() => ({
+  activate: vi.fn(() => true),
+  reveal: vi.fn(() => true),
+  chatName: vi.fn((): string | null => null)
+}))
 
 vi.mock('@/lib/structured-agent-session-tab-activation', async (importOriginal) => ({
   ...(await importOriginal<typeof ActivationModule>()),
   activateStructuredAgentSessionById: mocks.activate
+}))
+
+vi.mock('@/runtime/structured-conversation-name', () => ({
+  useStructuredChatTabConversationName: mocks.chatName
 }))
 
 vi.mock('@/lib/worktree-activation', () => ({ activateAndRevealWorktree: mocks.reveal }))
@@ -48,6 +56,8 @@ afterEach(() => {
   cleanup()
   mocks.activate.mockClear()
   mocks.reveal.mockClear()
+  mocks.chatName.mockReset()
+  mocks.chatName.mockReturnValue(null)
   useAppStore.setState({ unifiedTabsByWorktree: {}, activeWorktreeId: null })
 })
 
@@ -125,6 +135,13 @@ describe('NativeChatDelegationNotice', () => {
     render(<NativeChatDelegationNotice payload={finished} />)
     fireEvent.click(screen.getByRole('button', { name: 'Open child chat' }))
     expect(mocks.activate).toHaveBeenCalledWith({ worktreeId: 'wt-child', sessionId: 'child-1' })
+  })
+
+  it('titles a finished child with its generated name once it has one', () => {
+    useAppStore.setState({ unifiedTabsByWorktree: { 'wt-child': [childTab] } })
+    mocks.chatName.mockReturnValue('Clinical audit screen design')
+    render(<NativeChatDelegationNotice payload={finished} />)
+    expect(screen.getByText('Child session finished: Clinical audit screen design')).toBeInTheDocument()
   })
 
   it('switches to the worktree a child lives in, so the click visibly opens it', () => {

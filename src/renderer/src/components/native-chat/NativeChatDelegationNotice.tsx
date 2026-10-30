@@ -14,6 +14,7 @@ import type {
 import type { DelegatedChild } from '../../../../shared/delegated-children'
 import { delegatedAgentLabel, delegatedDurationText } from './delegated-child-copy'
 import { useDelegatedChild } from './delegated-children-context'
+import { useDelegatedChildTitle } from './use-delegated-child-title'
 
 /** A delegated session's start, failure or finish, drawn in the parent chat in place of its plain line. */
 export function NativeChatDelegationNotice({
@@ -69,13 +70,14 @@ function WorkingNotice({
   const childWorktreeId = useAppStore((state) =>
     findStructuredAgentSessionWorktreeId(state.unifiedTabsByWorktree, payload.childSessionId)
   )
+  const title = useDelegatedChildTitle(payload.childSessionId, payload.title)
   const details = `${startDetails(payload)}${payload.automatic ? ' (Automatic)' : ''}`
   const elapsed =
     child.startedAt === null ? null : delegatedDurationText(Math.max(0, now - child.startedAt))
   const heading = translate(
     'components.native-chat.delegation.working',
     'Child session working: {{title}}',
-    { title: payload.title }
+    { title }
   )
   const detailLine =
     elapsed === null
@@ -151,15 +153,16 @@ function FinishedNotice({ payload }: { payload: DelegationFinishedPayload }): Re
       ? null
       : findStructuredAgentSessionWorktreeId(state.unifiedTabsByWorktree, childSessionId)
   )
+  const title = useDelegatedChildTitle(childSessionId, payload.title)
   const heading = succeeded
     ? translate('components.native-chat.delegation.finished', 'Child session finished: {{title}}', {
-        title: payload.title
+        title
       })
     : translate(
         'components.native-chat.delegation.failedFinish',
         'Child session failed: {{title}}',
         {
-          title: payload.title
+          title
         }
       )
   const outcome = succeeded
