@@ -11,6 +11,7 @@ import { NATIVE_CHAT_VISUAL_THEME_TOKENS } from '../../shared/native-chat-visual
 import { ORCAD_NATIVE_CHAT_VISUALS_ARTIFACTS } from '../../shared/orcad-artifacts'
 import {
   createNativeChatVisualsDelivery,
+  nativeChatVisualsFor,
   NATIVE_CHAT_VISUALS_DIR_ENV,
   withNativeChatVisualsEnv
 } from './native-chat-visuals-delivery'
@@ -20,6 +21,7 @@ import { codexStructuredChildEnvironment } from '../codex/codex-structured-child
 import { resolveProviderChildEnv } from '../provider-process/provider-process-launch'
 import {
   NATIVE_CHAT_VISUALS_SKILL_NAME,
+  readNativeChatVisualsInstructions,
   resetNativeChatVisualsSkillLocationForTests,
   resolveNativeChatVisualsSkillLocation
 } from './native-chat-visuals-skill-location'
@@ -154,6 +156,38 @@ describe('preparing a chat for visuals', () => {
       [NATIVE_CHAT_VISUALS_DIR_ENV]: '/mine'
     })
     expect(withNativeChatVisualsEnv(inherited, null)).toEqual({ PATH: '/bin' })
+  })
+})
+
+describe('the instructions a text-only agent is given', () => {
+  it('is the bundled skill without its frontmatter, so the agent reads the reply line it must write', async () => {
+    const instructions = await readNativeChatVisualsInstructions({
+      pluginDir: RESOURCE_DIR,
+      skillsRoot: join(RESOURCE_DIR, 'skills')
+    })
+
+    expect(instructions).toContain('::orca-visual{')
+    expect(instructions?.startsWith('---')).toBe(false)
+    expect(instructions).not.toContain(`name: ${NATIVE_CHAT_VISUALS_SKILL_NAME}`)
+  })
+
+  it('is null when the install has no skill to read', async () => {
+    await expect(
+      readNativeChatVisualsInstructions({ pluginDir: '/nope', skillsRoot: '/nope/skills' })
+    ).resolves.toBeNull()
+  })
+
+  it('is handed to a chat only by a host that wires visuals', () => {
+    expect(
+      nativeChatVisualsFor({ stateDirectory: tempDir(), logger: logger() }).prepareVisuals
+    ).toBeUndefined()
+    expect(
+      nativeChatVisualsFor({
+        stateDirectory: tempDir(),
+        logger: logger(),
+        nativeChatVisuals: { isEnabled: () => true }
+      }).prepareVisuals
+    ).toEqual(expect.any(Function))
   })
 })
 

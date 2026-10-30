@@ -191,6 +191,16 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
     - `ORCA_CODE_QUALITY_BASE=0e0bce31b92 pnpm run check:code-quality:changed` → 0 new findings across 30 changed files.
     - `pnpm run build:mobile-web`: not run. Mobile does not import the new shared module yet.
   - Rollback: revert `ddde26552ba`, `83776081a07` and `c86d066ef57`. Nothing on the wire or in mobile changes.
+- [x] T8 — pv54 desktop QA fixes (2026-10-29). Route: delegated direct (writer trigger), three writers in sequence. Branch fast-forwarded to `custom/pv27-unified` `644540c3e67` first, to build on the rebrand; its 2 rebrand commits were reviewed here on the user's grant and approved.
+  - Antigravity refused as a child: agy 1.4.10 writes `id_token_email` and no `id_token`, so no Google identity was derived (top-level structured chats too). `4be1e7a33b7` derives the identity from `id_token_email` (plain email → subject `email:<address>`, or a JWT), keeps the old shape. Known limit: a conversation bound under the old numeric subject is refused as another account after the credential is rewritten in the new shape.
+  - Hidden orphan after a failed start: the new-child worktree and the open Task stayed behind. `7297d9d659b` releases the failed Dispatch through the shared release logic, removes only a worktree that start created (forced), and closes the Task as failed; the failure reason still reaches the parent. The choice card was already resolved before the start.
+  - "Orca" in the child prompt: `b75f65ff701` says MassOrca in the preamble header and lead line; readers accept both wordings; the compact status keeps writing the legacy prefix for older peers (rebrand plan M6).
+  - ORCA_CHAT_VISUALS_DIR missing: Gentle Shell (agent `pi` with `piRuntime: 'gentle-shell'`, sharing the Pi RPC adapter; label and routing still resolve to Gentle Shell) and Antigravity never got the visuals folder or instructions. `b53547593c2` wires both, with Gentle Shell tests.
+  - No AI title: naming skipped every session with an open dispatch and would have read the preamble boilerplate. `be071637e73` names dispatched workers from their task body. The coordinator's sender label now shows a worker chat's generated name.
+  - Skill-registry warning: not produced by MassOrca (no match in the repo); it comes from the agent's own Gentle AI tooling.
+  - Desktop nesting stays with the session-history session.
+  - Reviews: `b75f65ff701`, `be071637e73`, `4be1e7a33b7` approved and acknowledged; `7297d9d659b` and `b53547593c2` approved together as one range and acknowledged.
+  - Checks (writers): targeted `pnpm test` / `pnpm test:node` suites pass; `pnpm tc` exit 0; oxlint and oxfmt clean on changed files. Known environmental failures: symlink EPERM in `native-chat-visuals-sweep.test.ts` (unchanged file, Windows) and `orca-runtime-structured-agent-registration-seam.test.ts` (`getRepo is not a function`, fails on base too). Not verified end to end: real gentle-shell/agy runs, SSH execution host.
 
 ## Acceptance criteria
 
@@ -296,5 +306,5 @@ T7 review follow-ups (2026-10-29, approved reviews of desktop `a473f6929f9..797e
 - Skipped:
   - `R3-agents-empty-line-suppressed`: unreachable. The summary renders the agents panel only when it holds agent rows, so that section's empty line never shows.
 - Decision: children take their share of the Finished bound first, so 30 finished children hide finished tasks in the sheet. Revisit if that trade is wrong.
-- Open, not fixed: the mobile sheet's child clock does not tick while only a child runs. `useNow` in `MobileNativeChatBackgroundTasks.tsx` is enabled only by a working turn or live task rows, so the elapsed time freezes while the sheet is open.
+- Fixed later in `8d9ec0e065d`: the mobile sheet's child clock now ticks while only a child runs and the sheet is open.
 - Checks: desktop `src/renderer/src/components/native-chat` 412 files, 4179 tests passed; mobile touched suites 5 files, 39 tests passed; `pnpm tc:web` exit 0; mobile `pnpm run typecheck` exit 0; `oxlint` exit 0 and `oxfmt --check` clean on the changed files; `pnpm run build:mobile-web` exit 0 at 169 assets.

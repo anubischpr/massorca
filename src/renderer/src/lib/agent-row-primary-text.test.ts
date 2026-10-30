@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { normalizeAgentStatusPayload } from '../../../shared/agent-status-types'
+import { ORCA_DISPATCH_PROMPT_LEAD_LINE } from '../../../shared/orca-dispatch-status-prompt'
 import {
   getAgentRowGeneratedTitleText,
   getAgentRowPrimaryText,
@@ -200,6 +201,28 @@ body`
         `You are working inside Orca, a multi-agent IDE.\nYour task ID is: task_1\n\n=== TASK ===\nbody`
       )
     ).toBe('task_1')
+  })
+})
+
+describe('MassOrca-worded dispatch prompts', () => {
+  const NEW_PREAMBLE = `You are working inside MassOrca, a multi-agent IDE. You are a dispatched worker.
+Your task ID is: task_new
+
+=== CLI COMMANDS ===
+orca orchestration check
+
+=== TASK ===
+Rename the sidebar label`
+
+  it('detects the new sentence, bare or behind its typed lead line', () => {
+    expect(isOrcaDispatchPrompt(NEW_PREAMBLE)).toBe(true)
+    expect(isOrcaDispatchPrompt(`${ORCA_DISPATCH_PROMPT_LEAD_LINE}\n\n${NEW_PREAMBLE}`)).toBe(true)
+  })
+
+  it('reads the task id and body from the compacted status prompt', () => {
+    const entry = normalizeAgentStatusPayload({ state: 'working', prompt: NEW_PREAMBLE })!
+    expect(getOrcaDispatchTaskId(entry.prompt)).toBe('task_new')
+    expect(getAgentRowPrimaryText(entry)).toBe('Rename the sidebar label')
   })
 })
 

@@ -38,6 +38,29 @@ describe('Antigravity file credential authority', () => {
       rmSync(home, { recursive: true, force: true })
     }
   })
+  it('reads the identity of a credential that stores only id_token_email', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'orca-agy-identity-'))
+    try {
+      const backend = createAntigravityFileCredentialBackend(
+        join(home, '.gemini', 'antigravity-cli', 'antigravity-oauth-token')
+      )
+      await backend.write(
+        JSON.stringify({
+          auth_method: 'consumer',
+          id_token_email: 'synthetic@example.invalid',
+          token: { access_token: 'synthetic-access', refresh_token: 'synthetic-refresh' }
+        }),
+        null
+      )
+      expect(await readAntigravityFileIdentity(home)).toEqual({
+        issuer: 'https://accounts.google.com',
+        subject: 'email:synthetic@example.invalid',
+        authMethod: 'consumer'
+      })
+    } finally {
+      rmSync(home, { recursive: true, force: true })
+    }
+  })
   it('verifies file fallback with a present bus and conclusively absent Secret Service', async () => {
     const deps = fixture()
     expect(await verifyAntigravityFileAuthority(env, 'linux', 'generic', deps)).toBe(

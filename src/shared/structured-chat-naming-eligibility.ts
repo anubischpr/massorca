@@ -1,8 +1,9 @@
-import type { AgentJournalSnapshot } from './agent-session-journal-types'
+import type { AgentJournalRenderItem, AgentJournalSnapshot } from './agent-session-journal-types'
 import { agentJournalSubmissionKey } from './agent-session-journal-item-key'
 import { isRootAgentJournalItem } from './agent-session-journal-producer'
 import { isStructuredAgentSessionCommandEntry } from './structured-agent-session-command-entry'
 import { firstStructuredAgentSessionPrompt } from './structured-agent-session-first-prompt'
+import { findOrcaDispatchTaskBody } from './orca-dispatch-status-prompt'
 
 export function firstStructuredChatNamingPrompt(
   snapshot: AgentJournalSnapshot,
@@ -31,6 +32,22 @@ export function firstStructuredChatNamingPrompt(
     (submission.dispatchState !== 'accepted' && submission.dispatchState !== 'pending')
   ) {
     return ''
+  }
+  return firstNamingText(first)
+}
+
+/**
+ * A dispatch preamble is named from its task body, never its boilerplate. The body sits past the
+ * prompt cap, so it is read from the whole block; an empty task yields '' rather than the preamble.
+ */
+function firstNamingText(first: AgentJournalRenderItem): string {
+  if (first.body.kind === 'message') {
+    for (const block of first.body.blocks) {
+      const task = block.type === 'text' ? findOrcaDispatchTaskBody(block.text) : null
+      if (task !== null) {
+        return task
+      }
+    }
   }
   return firstStructuredAgentSessionPrompt([first])
 }

@@ -6,12 +6,25 @@
 // inside AGENT_STATUS_MAX_FIELD_LENGTH.
 
 export const ORCA_DISPATCH_STATUS_PREAMBLE_PREFIX =
+  'You are working inside MassOrca, a multi-agent IDE.'
+// Why: dispatches sent before the rename carry the old sentence; readers still accept it.
+export const ORCA_DISPATCH_LEGACY_STATUS_PREAMBLE_PREFIX =
   'You are working inside Orca, a multi-agent IDE.'
 export const ORCA_DISPATCH_STATUS_TASK_MARKER = '=== TASK ==='
 // Why: typed, not pasted, so Claude Code honors the brief: it follows a <pasted_content> block
 // only where the user's own words ask it to, and refused bare pasted briefs (STA-8200).
 export const ORCA_DISPATCH_PROMPT_LEAD_LINE =
+  'Please carry out this task from my MassOrca coordinator by following the brief I pasted below.'
+export const ORCA_DISPATCH_LEGACY_PROMPT_LEAD_LINE =
   'Please carry out this task from my Orca coordinator by following the brief I pasted below.'
+const DISPATCH_PREAMBLE_PREFIXES = [
+  ORCA_DISPATCH_STATUS_PREAMBLE_PREFIX,
+  ORCA_DISPATCH_LEGACY_STATUS_PREAMBLE_PREFIX
+] as const
+const DISPATCH_PROMPT_LEAD_LINES = [
+  ORCA_DISPATCH_PROMPT_LEAD_LINE,
+  ORCA_DISPATCH_LEGACY_PROMPT_LEAD_LINE
+] as const
 const ORCA_DISPATCH_STATUS_TASK_ID_MARKER = 'Your task ID is:'
 // Why: real preambles put === TASK === near the end (~4KB+). Scan past the
 // normal single-line budget so the task body is still reachable for compacting.
@@ -30,8 +43,9 @@ export function findOrcaDispatchPreambleStart(value: string): number {
   // bounded too, or leading whitespace can bypass the normalizer's scan cap.
   const scanEnd = Math.min(value.length, ORCA_DISPATCH_STATUS_SOURCE_SCAN_LIMIT)
   let start = skipTrimWhitespace(value, 0, scanEnd)
-  if (value.startsWith(ORCA_DISPATCH_PROMPT_LEAD_LINE, start)) {
-    start = skipTrimWhitespace(value, start + ORCA_DISPATCH_PROMPT_LEAD_LINE.length, scanEnd)
+  const leadLine = DISPATCH_PROMPT_LEAD_LINES.find((line) => value.startsWith(line, start))
+  if (leadLine !== undefined) {
+    start = skipTrimWhitespace(value, start + leadLine.length, scanEnd)
   }
   if (value.startsWith(PASTED_CONTENT_OPEN_TAG, start)) {
     const tagLength = value.slice(start, start + PASTED_CONTENT_OPEN_TAG_MAX_LENGTH).indexOf('>')
@@ -40,10 +54,10 @@ export function findOrcaDispatchPreambleStart(value: string): number {
     }
     start = skipTrimWhitespace(value, start + tagLength + 1, scanEnd)
   }
-  return start + ORCA_DISPATCH_STATUS_PREAMBLE_PREFIX.length <= scanEnd &&
-    value.startsWith(ORCA_DISPATCH_STATUS_PREAMBLE_PREFIX, start)
-    ? start
-    : -1
+  const prefix = DISPATCH_PREAMBLE_PREFIXES.find(
+    (candidate) => start + candidate.length <= scanEnd && value.startsWith(candidate, start)
+  )
+  return prefix === undefined ? -1 : start
 }
 
 function skipTrimWhitespace(value: string, from: number, scanEnd: number): number {
@@ -101,7 +115,8 @@ export function compactDispatchPromptForStatus(
 
   // Why: keep the dispatch prefix (isOrcaDispatchPrompt) + task id (label match)
   // + task body (fallback preview) so UI helpers still work on the 200-char field.
-  let compact = ORCA_DISPATCH_STATUS_PREAMBLE_PREFIX
+  // Why legacy prefix: this status string reaches older peers that match only the old sentence.
+  let compact = ORCA_DISPATCH_LEGACY_STATUS_PREAMBLE_PREFIX
   if (taskId) {
     compact += ` ${ORCA_DISPATCH_STATUS_TASK_ID_MARKER} ${taskId}`
   }
@@ -109,6 +124,21 @@ export function compactDispatchPromptForStatus(
     compact += ` ${ORCA_DISPATCH_STATUS_TASK_MARKER} ${taskBody}`
   }
   return normalizeSingleLine(compact, maxLength)
+}
+
+/**
+ * The task body of a dispatch preamble (the text after its standalone `=== TASK ===` line), or
+ * null when `value` is not one. Unbounded: callers clamp it to their own limit.
+ */
+export function findOrcaDispatchTaskBody(value: string): string | null {
+  if (findOrcaDispatchPreambleStart(value) === -1) {
+    return null
+  }
+  const markerIndex = findOrcaDispatchTaskMarkerIndex(value)
+  if (markerIndex === -1) {
+    return null
+  }
+  return value.slice(markerIndex + ORCA_DISPATCH_STATUS_TASK_MARKER.length).trim()
 }
 
 /**

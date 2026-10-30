@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -360,4 +360,84 @@ it('adds no instructions folder when none is wired or the Orca CLI launcher did 
   })(identity)
   expect(noCli.args).not.toContain('--add-dir')
   launcher.resolved = true
+})
+
+describe('chat visuals', () => {
+  /** The chat-visuals skill laid out as the host ships it, under a folder of the test's own. */
+  async function skillUnder(dir: string) {
+    const pluginDir = join(dir, 'plugin')
+    const skillDir = join(pluginDir, 'skills', 'orca-chat-visuals')
+    await mkdir(skillDir, { recursive: true })
+    await writeFile(
+      join(skillDir, 'SKILL.md'),
+      '---\nname: orca-chat-visuals\ndescription: Show a chart.\n---\n\n# Inline visuals\n\n::orca-visual{file="chart.html"}\n'
+    )
+    return { pluginDir, skillsRoot: join(pluginDir, 'skills') }
+  }
+
+  it('gives agy its visuals folder, with the skill as the AGENTS.md inside it, and adds that folder', async () => {
+    launcher.resolved = true
+    const h = await setup()
+    const dir = await mkdtemp(join(tmpdir(), 'orca-agy-visuals-'))
+    try {
+      const folder = join(dir, 'chat')
+      await mkdir(folder)
+      const skill = await skillUnder(dir)
+
+      const launch = await createAntigravityLaunchResolver({
+        ...h.deps,
+        prepareVisuals: async () => ({ folder, skill })
+      })(identity)
+
+      expect(launch.env).toMatchObject({ ORCA_CHAT_VISUALS_DIR: folder })
+      expect(launch.args.slice(-2)).toEqual(['--add-dir', folder])
+      await expect(readFile(join(folder, 'AGENTS.md'), 'utf8')).resolves.toContain(
+        '::orca-visual{file="chart.html"}'
+      )
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('starts agy without visuals, and without its folder in the environment, when agy predates --add-dir', async () => {
+    launcher.resolved = true
+    const h = await setup('1.3.5')
+    const dir = await mkdtemp(join(tmpdir(), 'orca-agy-visuals-'))
+    try {
+      const prepareVisuals = vi.fn(async () => ({
+        folder: join(dir, 'chat'),
+        skill: await skillUnder(dir)
+      }))
+
+      const launch = await createAntigravityLaunchResolver({
+        ...h.deps,
+        resolveEnvironment: async () => ({
+          HOME: '/host/home',
+          ORCA_CHAT_VISUALS_DIR: '/inherited/visuals'
+        }),
+        prepareVisuals
+      })(identity)
+
+      expect(prepareVisuals).not.toHaveBeenCalled()
+      expect(launch.env).not.toHaveProperty('ORCA_CHAT_VISUALS_DIR')
+      expect(launch.args).not.toContain('--add-dir')
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('drops an inherited visuals folder from an agy chat that gets no visuals', async () => {
+    launcher.resolved = true
+    const h = await setup()
+
+    const launch = await createAntigravityLaunchResolver({
+      ...h.deps,
+      resolveEnvironment: async () => ({
+        HOME: '/host/home',
+        ORCA_CHAT_VISUALS_DIR: '/inherited/visuals'
+      })
+    })(identity)
+
+    expect(launch.env).not.toHaveProperty('ORCA_CHAT_VISUALS_DIR')
+  })
 })

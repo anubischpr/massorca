@@ -10,6 +10,7 @@ import type { RunRow, TaskRow } from '../runtime/orchestration/types'
 import { delegationChildAccessMode } from './delegation-access-mode'
 import type { DelegationLauncher } from './delegation-launch-types'
 import { delegationPlacementFor } from './delegation-router'
+import type { FailedDelegatedStart } from './delegation-failed-start'
 
 const RUN_OBJECTIVE = 'Delegated child sessions'
 const WORKTREE_SLUG_MAX_CHARS = 40
@@ -45,8 +46,23 @@ export function folderWorkspaceOwnershipParagraph(folderPath: string): string {
 const StartReceipt = z.object({
   dispatchId: z.string().optional(),
   state: z.string().optional(),
-  lastError: z.string().optional()
+  lastError: z.string().optional(),
+  residualResources: z.array(z.unknown()).optional()
 })
+
+const CreatedWorktree = z.object({
+  kind: z.literal('worktree'),
+  action: z.string(),
+  id: z.string()
+})
+
+/** The worktrees a start created, never one it reused: only a created one is its to remove. */
+function createdWorktreeIds(residualResources: readonly unknown[] | undefined): string[] {
+  return (residualResources ?? []).flatMap((resource) => {
+    const parsed = CreatedWorktree.safeParse(resource)
+    return parsed.success && parsed.data.action.startsWith('created') ? [parsed.data.id] : []
+  })
+}
 
 /** The child's Run, Task and worker-start for one answered request. */
 export function createDelegationLauncher(deps: {
@@ -56,7 +72,18 @@ export function createDelegationLauncher(deps: {
   declaredAccess: (agent: string) => AgentSessionDeclaredAccess | undefined
   /** The local folder a folder workspace runs in; null when it has none on this machine. */
   folderPath: (workspaceId: string) => Promise<string | null>
+  /** Undoes what a failed start left: its Dispatch's residue and the worktrees it created. */
+  discardFailedStart: (failed: FailedDelegatedStart) => Promise<void>
+  warn: (message: string, error: unknown) => void
 }): DelegationLauncher {
+  const discardFailedStart = async (failed: FailedDelegatedStart): Promise<void> => {
+    try {
+      await deps.discardFailedStart(failed)
+    } catch (error) {
+      // Never replaces the start's own reason: the caller still fails with that.
+      deps.warn('undoing a failed child start failed', error)
+    }
+  }
   return async ({ request, parent, target, record }) => {
     const db = deps.requireDb()
     const sessionId = parent.sessionId
@@ -133,6 +160,12 @@ export function createDelegationLauncher(deps: {
       record({ dispatch_id: dispatchId })
     }
     if (!started.success || started.data.state === 'failed' || dispatchId === undefined) {
+      await discardFailedStart({
+        dispatchId: dispatchId ?? null,
+        createdWorktreeIds: started.success
+          ? createdWorktreeIds(started.data.residualResources)
+          : []
+      })
       throw new OrchestrationError(
         'delegation_start_failed',
         (started.success ? started.data.lastError : undefined) ?? 'The child session did not start.'

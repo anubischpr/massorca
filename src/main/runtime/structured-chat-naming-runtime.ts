@@ -17,7 +17,6 @@ type StructuredChatNamingRuntime = {
     workspaceId: string
   ) => Promise<{ path: string; executionHostId: ExecutionHostId }>
   getAgentEnvResolvers: () => CommitMessageAgentEnvironmentResolvers | undefined
-  hasOpenDispatch: StructuredChatNamingDeps['hasOpenDispatch']
   retitleOpenTab: StructuredChatNamingDeps['onNamed']
 }
 
@@ -35,7 +34,6 @@ export function structuredChatNamingDeps(
         ? firstStructuredChatNamingPrompt(await host.journalSnapshot(sessionId), hostStartedAt)
         : ''
     },
-    hasOpenDispatch: runtime.hasOpenDispatch,
     generate: async (record, firstPrompt) => {
       const settings = resolveTextGenerationParams(
         getStore().getSettings(),

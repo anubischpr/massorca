@@ -13,6 +13,7 @@ import {
   type DelegationWorkerStarter
 } from './delegation-launch'
 import type { DelegationLaunchTarget } from './delegation-launch-types'
+import type { FailedDelegatedStart } from './delegation-failed-start'
 import type { DelegationParentSession } from './delegation-service-types'
 
 const PARENT: DelegationParentSession = {
@@ -90,15 +91,21 @@ describe('createDelegationLauncher', () => {
 
   function launcher(
     startWorker = fakeStart(),
-    folderPath: () => Promise<string | null> = async () => FOLDER_PATH
+    folderPath: () => Promise<string | null> = async () => FOLDER_PATH,
+    discardFailedStart = vi.fn<(failed: FailedDelegatedStart) => Promise<void>>(
+      async () => undefined
+    )
   ) {
+    const warn = vi.fn()
     const launch = createDelegationLauncher({
       requireDb: () => db,
       declaredAccess: (agent) => DECLARED[agent],
       folderPath,
-      startWorker
+      startWorker,
+      discardFailedStart,
+      warn
     })
-    return { startWorker, launch }
+    return { startWorker, launch, discardFailedStart, warn }
   }
 
   function run(
@@ -313,6 +320,89 @@ describe('createDelegationLauncher', () => {
       const { launch } = launcher(fakeStart(() => ({ state: 'ready' })))
 
       await expect(run(launch)).rejects.toThrow('The child session did not start.')
+    })
+
+    it('undoes a refused new-child start: its Dispatch and the worktree it created are discarded', async () => {
+      const { launch, discardFailedStart } = launcher(
+        fakeStart((dispatchId) => ({
+          dispatchId,
+          state: 'failed',
+          lastError: 'Antigravity refused the session',
+          residualResources: [{ kind: 'worktree', action: 'created_child', id: 'wt_child' }]
+        }))
+      )
+
+      await expect(
+        run(launch, { target: { placement: 'new-child' }, request: { workspace_kind: 'git' } })
+      ).rejects.toMatchObject({
+        code: 'delegation_start_failed',
+        message: 'Antigravity refused the session'
+      })
+      expect(discardFailedStart).toHaveBeenCalledWith({
+        dispatchId: expect.stringMatching(/./),
+        createdWorktreeIds: ['wt_child']
+      })
+    })
+
+    it('discards only the Dispatch of a failed start in the current workspace, never a worktree it reused', async () => {
+      const { launch, discardFailedStart } = launcher(
+        fakeStart((dispatchId) => ({
+          dispatchId,
+          state: 'failed',
+          lastError: 'boom',
+          residualResources: [{ kind: 'worktree', action: 'reused', id: 'wt_parent' }]
+        }))
+      )
+
+      await expect(run(launch)).rejects.toThrow('boom')
+      expect(discardFailedStart).toHaveBeenCalledWith({
+        dispatchId: expect.stringMatching(/./),
+        createdWorktreeIds: []
+      })
+    })
+
+    it('keeps the start’s own reason when undoing it fails, and reports the cleanup error', async () => {
+      const discardFailedStart = vi.fn(async () => {
+        throw new Error('git is locked')
+      })
+      const { launch, warn } = launcher(
+        fakeStart((dispatchId) => ({
+          dispatchId,
+          state: 'failed',
+          lastError: 'Claude is not signed in'
+        })),
+        undefined,
+        discardFailedStart
+      )
+
+      await expect(run(launch)).rejects.toMatchObject({
+        code: 'delegation_start_failed',
+        message: 'Claude is not signed in'
+      })
+      expect(warn).toHaveBeenCalledWith('undoing a failed child start failed', expect.any(Error))
+    })
+
+    it('fails a start that throws before it files a Dispatch, discarding nothing', async () => {
+      const { launch, discardFailedStart } = launcher(
+        vi.fn().mockRejectedValue(new Error('Workspace is gone'))
+      )
+
+      await expect(run(launch)).rejects.toThrow('Workspace is gone')
+      expect(discardFailedStart).not.toHaveBeenCalled()
+    })
+
+    it('leaves a start whose outcome is unknown alone, since its agent may still be running', async () => {
+      const { launch, discardFailedStart } = launcher(
+        fakeStart((dispatchId) => ({
+          dispatchId,
+          state: 'outcome_unknown',
+          lastError: 'The start timed out.',
+          residualResources: [{ kind: 'worktree', action: 'created_child', id: 'wt_child' }]
+        }))
+      )
+
+      await run(launch, { target: { placement: 'new-child' }, request: { workspace_kind: 'git' } })
+      expect(discardFailedStart).not.toHaveBeenCalled()
     })
 
     it('keeps a worker that ran as a terminal, with no chat to link', async () => {

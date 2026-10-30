@@ -8,6 +8,7 @@ import type {
   StructuredAgentRuntimeAdapter,
   StructuredAgentRuntimeRegistration
 } from '../runtime/structured-agent-runtime-registrations'
+import { nativeChatVisualsFor } from '../native-chat/native-chat-visuals-delivery'
 import { PI_RPC_AGENT } from './rpc-agent-definition'
 import {
   createPiRpcLaunchResolver,
@@ -46,7 +47,8 @@ function createPiRpcAdapter(context: StructuredAgentAdapterContext): StructuredA
       ...(deps.resolveAgentCommandSettings
         ? { resolveCommandSettings: deps.resolveAgentCommandSettings }
         : {}),
-      resolveLaunchArgs: () => deps.resolveLaunchArgs('pi')
+      resolveLaunchArgs: () => deps.resolveLaunchArgs('pi'),
+      ...nativeChatVisualsFor(deps)
     }),
     ...(deps.openPiConnection ? { openConnection: deps.openPiConnection } : {}),
     ...(deps.readProcessStartTime ? { readProcessStartTime: deps.readProcessStartTime } : {}),

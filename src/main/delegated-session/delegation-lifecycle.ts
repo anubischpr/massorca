@@ -148,8 +148,16 @@ export class DelegationLifecycle {
     const failed = db?.transitionDelegationRequest(row.id, ['pending', 'starting'], 'failed', {
       failure: reason
     })
-    if (!failed) {
+    if (!db || !failed) {
       return
+    }
+    // The Task was filed before its child started; a request that failed must not leave it open.
+    if (failed.task_id) {
+      try {
+        db.updateTaskStatus(failed.task_id, 'failed')
+      } catch (error) {
+        this.deps.warn(`closing the Task of failed delegation ${row.id} failed`, error)
+      }
     }
     const payload: DelegationFailedPayload = {
       requestId: row.id,

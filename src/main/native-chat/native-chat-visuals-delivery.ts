@@ -68,3 +68,21 @@ export function withNativeChatVisualsEnv(
   const { [NATIVE_CHAT_VISUALS_DIR_ENV]: _inherited, ...rest } = env
   return visuals ? { ...rest, [NATIVE_CHAT_VISUALS_DIR_ENV]: visuals.folder } : rest
 }
+
+/** The visuals preparer every structured launch gets from this host; none when the host has no
+ *  visuals wiring, so a test runtime never loads the bundled skill. */
+export function nativeChatVisualsFor(deps: {
+  stateDirectory: string
+  logger: StructuredAgentSessionLogger
+  nativeChatVisuals?: { isEnabled: () => boolean }
+}): { prepareVisuals?: PrepareNativeChatVisuals } {
+  return deps.nativeChatVisuals
+    ? {
+        prepareVisuals: createNativeChatVisualsDelivery({
+          stateDirectory: deps.stateDirectory,
+          logger: deps.logger,
+          isEnabled: deps.nativeChatVisuals.isEnabled
+        })
+      }
+    : {}
+}

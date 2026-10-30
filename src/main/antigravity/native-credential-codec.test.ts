@@ -92,3 +92,82 @@ describe('native Antigravity credential format', () => {
     })
   })
 })
+
+describe('Antigravity credentials without an id_token', () => {
+  function emailCredential(idTokenEmail: unknown): string {
+    return JSON.stringify({
+      auth_method: 'consumer',
+      id_token_email: idTokenEmail,
+      token: {
+        access_token: 'synthetic-access',
+        refresh_token: 'synthetic-refresh',
+        token_type: 'Bearer'
+      }
+    })
+  }
+
+  it('derives a namespaced, lowercased identity from a plain id_token_email', () => {
+    expect(
+      parseAntigravityNativeCredential(emailCredential('  Test.User@Example.Invalid \n')).identity
+    ).toEqual({
+      issuer: 'https://accounts.google.com',
+      subject: 'email:test.user@example.invalid',
+      email: 'test.user@example.invalid'
+    })
+  })
+
+  it('parses a JWT id_token_email like an id_token', () => {
+    const claims = {
+      iss: 'https://accounts.google.com',
+      sub: 'synthetic-subject',
+      email: 'test@example.invalid',
+      email_verified: true
+    }
+    const jwt = `e30.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.synthetic`
+    expect(parseAntigravityNativeCredential(emailCredential(jwt)).identity).toEqual({
+      issuer: 'https://accounts.google.com',
+      subject: 'synthetic-subject',
+      email: 'test@example.invalid'
+    })
+  })
+
+  it('keeps the id_token authoritative when both shapes are present', () => {
+    const claims = { iss: 'accounts.google.com', sub: 'jwt-subject' }
+    const idToken = `e30.${Buffer.from(JSON.stringify(claims)).toString('base64url')}.synthetic`
+    const contents = JSON.stringify({
+      auth_method: 'consumer',
+      id_token: idToken,
+      id_token_email: 'other@example.invalid',
+      token: { access_token: 'synthetic-access' }
+    })
+    expect(parseAntigravityNativeCredential(contents).identity?.subject).toBe('jwt-subject')
+    // A bad id_token never falls through to the unsigned label.
+    const broken = JSON.stringify({
+      auth_method: 'consumer',
+      id_token: 'not-a-jwt',
+      id_token_email: 'other@example.invalid',
+      token: { access_token: 'synthetic-access' }
+    })
+    expect(parseAntigravityNativeCredential(broken).identity).toBeNull()
+  })
+
+  it.each([
+    undefined,
+    null,
+    42,
+    '',
+    '   ',
+    'no-at-sign',
+    '@example.invalid',
+    'user@',
+    'a@b@example.invalid',
+    'us er@example.invalid',
+    'user@example.invalid\n@x',
+    'user@exa\u0000mple.invalid',
+    `${'a'.repeat(320)}@example.invalid`,
+    'e30.!!!.synthetic',
+    'not.a.jwt'
+  ])('treats an unusable id_token_email as no identity (%#)', (label) => {
+    expect(parseAntigravityNativeCredential(emailCredential(label)).identity).toBeNull()
+  })
+})

@@ -18,7 +18,6 @@ export type StructuredChatNamingDeps = {
   getSettings: () => Pick<GlobalSettings, 'nativeChatAutoName'>
   readFirstPrompt: (sessionId: string, hostStartedAt: number) => Promise<string>
   now?: () => number
-  hasOpenDispatch: (record: AgentSessionRecord) => boolean
   generate: (record: AgentSessionRecord, firstPrompt: string) => Promise<string | null>
   onNamed: (workspaceId: string, sessionId: string) => void
   logger: StructuredAgentSessionLogger
@@ -45,12 +44,8 @@ export function createStructuredChatNamingHandler(deps: StructuredChatNamingDeps
   async function name(summary: AgentSessionStatusSummary) {
     const store = deps.getStore()
     const record = store?.getRecord(summary.sessionId)
-    if (
-      !store ||
-      !record ||
-      record.conversationName !== undefined ||
-      deps.hasOpenDispatch(record)
-    ) {
+    // Why: dispatched workers are named too; their first prompt is the task body, not the preamble.
+    if (!store || !record || record.conversationName !== undefined) {
       return
     }
     const firstPrompt = clampConversationNameFirstPrompt(

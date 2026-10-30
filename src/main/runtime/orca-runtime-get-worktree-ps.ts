@@ -205,8 +205,6 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVis
             return { path: target.worktree.path, executionHostId: target.executionHostId }
           },
           getAgentEnvResolvers: () => this.getCommitMessageAgentEnvironmentResolvers(),
-          hasOpenDispatch: (record) =>
-            structuredWorkerOwesWork(this.getOrchestrationDbIfAvailable?.() ?? null, record),
           retitleOpenTab: (workspaceId, sessionId) =>
             this.refreshStructuredConversationTabTitle(workspaceId, sessionId)
         },

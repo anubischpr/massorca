@@ -14,6 +14,7 @@ import { STRUCTURED_AGENT_RUNTIME_REGISTRATIONS } from '../runtime/structured-ag
 import { declaredAccessForStructuredAgent } from '../runtime/rpc/methods/orchestration/worker/worker-start-access-mode'
 import { DelegationAnswerService } from './delegation-answer-service'
 import { createDelegationLauncher } from './delegation-launch'
+import { discardFailedDelegatedStart } from './delegation-failed-start'
 import type { DelegationStoredAgent } from './delegation-options'
 import { DelegationRequestService } from './delegation-request-service'
 import type { DelegationParentSession, DelegationRequestDeps } from './delegation-service-types'
@@ -155,6 +156,30 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
       declaredAccess: declaredAccessForStructuredAgent,
       folderPath: (workspaceId) =>
         runtime.resolveStructuredAgentSessionLocalWorkspacePath(`id:${workspaceId}`),
+      discardFailedStart: (failed) =>
+        discardFailedDelegatedStart(
+          {
+            releaseDispatch: async (dispatchId) => {
+              // Loaded on use, like the worker-start pipeline below.
+              const { releaseLocalWorkerDispatch } =
+                await import('../runtime/rpc/methods/orchestration/worker/worker-release')
+              return releaseLocalWorkerDispatch({
+                runtime,
+                db: runtime.getOrchestrationDb(),
+                dispatchId
+              })
+            },
+            // Forced: this start created the worktree and no agent ever ran in it.
+            removeWorktree: (worktreeId) =>
+              runtime.removeManagedWorktree(`id:${worktreeId}`, {
+                force: true,
+                waitForBackgroundRemoval: true
+              }),
+            warn: (message, error) => console.warn(`[delegated-session] ${message}`, error)
+          },
+          failed
+        ),
+      warn: (message, error) => console.warn(`[delegated-session] ${message}`, error),
       startWorker: async ({ params, run, caller, task }) => {
         // Loaded on use: the worker-start pipeline imports far more than a request needs.
         const [{ startLocalWorker }, modeModule, timing] = await Promise.all([

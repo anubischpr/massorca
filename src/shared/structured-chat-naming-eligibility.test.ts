@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { AgentJournalRenderItem, AgentJournalSnapshot } from './agent-session-journal-types'
 import { agentJournalSubmissionKey } from './agent-session-journal-item-key'
 import { firstStructuredChatNamingPrompt } from './structured-chat-naming-eligibility'
+import { STRUCTURED_CHAT_NAME_PROMPT_LIMIT } from './structured-agent-session-first-prompt'
 
 function message(
   text: string,
@@ -53,6 +54,33 @@ describe('first-turn chat naming eligibility', () => {
   it('expires when a second root user message exists', () => {
     const state = snapshot()
     state.items.push(message('Second turn', { itemId: 'second' }))
+    expect(firstStructuredChatNamingPrompt(state, 100)).toBe('')
+  })
+
+  it('names a dispatch preamble from its task body, read past the prompt cap', () => {
+    const cliNoise = Array.from(
+      { length: 200 },
+      (_, index) => `orca orchestration check --terminal term_${index} --json`
+    ).join('\n')
+    const preamble = (prefix: string) =>
+      `${prefix} You are a dispatched worker.\nYour task ID is: task_9\n\n=== CLI COMMANDS ===\n${cliNoise}\n\n=== TASK ===\nRename the sidebar label`
+    expect(preamble('').length).toBeGreaterThan(STRUCTURED_CHAT_NAME_PROMPT_LIMIT)
+
+    for (const prefix of [
+      'You are working inside MassOrca, a multi-agent IDE.',
+      'You are working inside Orca, a multi-agent IDE.'
+    ]) {
+      const state = snapshot()
+      state.items[0] = message(preamble(prefix))
+      expect(firstStructuredChatNamingPrompt(state, 100)).toBe('Rename the sidebar label')
+    }
+  })
+
+  it('yields no name for a dispatch preamble with an empty task, not its boilerplate', () => {
+    const state = snapshot()
+    state.items[0] = message(
+      'You are working inside MassOrca, a multi-agent IDE. You are a dispatched worker.\nYour task ID is: task_9\n\n=== TASK ===\n'
+    )
     expect(firstStructuredChatNamingPrompt(state, 100)).toBe('')
   })
 

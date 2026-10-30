@@ -1,3 +1,5 @@
+import type { OrchestrationDb } from '../../../../orchestration/db'
+import type { OrcaRuntimeService } from '../../../../orca-runtime'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import { defineMethod } from '../../../core'
 import { releaseFederatedWorker } from '../federation/federated-worker-release'
@@ -10,6 +12,59 @@ import {
 } from './worker-release-completion'
 import { WorkerDispatchParams, WorkerRetainParams } from './worker-release-schemas'
 import { OrchestrationWorkerTerminalUserInputParams } from '../../../../../../shared/rpc-contract/orchestration-worker-release-params'
+
+/** Releases a local Dispatch's terminal custody. `orchestration.workerRelease` and a failed delegated
+ *  start both run this, so a coordinator's release and the host's own cleanup close the same things. */
+export async function releaseLocalWorkerDispatch(args: {
+  runtime: OrcaRuntimeService
+  db: OrchestrationDb
+  dispatchId: string
+}): Promise<WorkerReleaseReceipt> {
+  const { runtime, db, dispatchId } = args
+  const requested = db.requestWorkerTerminalRelease(dispatchId)
+  if (requested.disposition === 'already_released') {
+    return {
+      dispatchId,
+      state: 'already_released',
+      processAction: 'none',
+      archive: archiveSummary(requested.resource)
+    }
+  }
+  if (requested.disposition === 'retained') {
+    const resource = requested.resource
+    const processIncarnation = resource?.process_incarnation
+    if (
+      processIncarnation &&
+      (await runtime.inspectTerminalProcessIncarnationLiveness(
+        processIncarnation,
+        resource.host_scope
+      )) === 'exited'
+    ) {
+      const reconciled = db.settleDeadWorkerTerminalRelease({
+        requestingDispatchId: dispatchId,
+        resourceId: resource.id,
+        processIncarnation
+      })
+      if (reconciled.disposition === 'released') {
+        runtime.notifyMessageArrived(`dispatch:${dispatchId}`, 'status')
+        return {
+          dispatchId,
+          state: 'released',
+          processAction: 'none',
+          archive: archiveSummary(reconciled.resource)
+        }
+      }
+    }
+    return {
+      dispatchId,
+      state: 'retained',
+      reason: requested.reason,
+      processAction: 'none',
+      archive: archiveSummary(resource)
+    }
+  }
+  return completeWorkerTerminalRelease({ runtime, db, dispatchId, resource: requested.resource })
+}
 
 export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
   defineMethod({
@@ -34,54 +89,7 @@ export const ORCHESTRATION_WORKER_RELEASE_METHODS = [
           requestId: orchestrationMutation.requestId
         })
       }
-      const requested = db.requestWorkerTerminalRelease(params.dispatch)
-      if (requested.disposition === 'already_released') {
-        return {
-          dispatchId: params.dispatch,
-          state: 'already_released',
-          processAction: 'none',
-          archive: archiveSummary(requested.resource)
-        }
-      }
-      if (requested.disposition === 'retained') {
-        const resource = requested.resource
-        const processIncarnation = resource?.process_incarnation
-        if (
-          processIncarnation &&
-          (await runtime.inspectTerminalProcessIncarnationLiveness(
-            processIncarnation,
-            resource.host_scope
-          )) === 'exited'
-        ) {
-          const reconciled = db.settleDeadWorkerTerminalRelease({
-            requestingDispatchId: params.dispatch,
-            resourceId: resource.id,
-            processIncarnation
-          })
-          if (reconciled.disposition === 'released') {
-            runtime.notifyMessageArrived(`dispatch:${params.dispatch}`, 'status')
-            return {
-              dispatchId: params.dispatch,
-              state: 'released',
-              processAction: 'none',
-              archive: archiveSummary(reconciled.resource)
-            }
-          }
-        }
-        return {
-          dispatchId: params.dispatch,
-          state: 'retained',
-          reason: requested.reason,
-          processAction: 'none',
-          archive: archiveSummary(resource)
-        }
-      }
-      return completeWorkerTerminalRelease({
-        runtime,
-        db,
-        dispatchId: params.dispatch,
-        resource: requested.resource
-      })
+      return releaseLocalWorkerDispatch({ runtime, db, dispatchId: params.dispatch })
     }
   }),
   defineMethod({
