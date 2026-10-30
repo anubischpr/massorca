@@ -1,7 +1,15 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { makeMain, openDirection } from '../../../src/shared/prototype-set-state'
+import { parsePrototypeMergePlan } from '../../../src/shared/prototype-merge-plan'
+import { beginMerge, planArrived } from '../../../src/shared/prototype-merge-state'
+import {
+  makeMain,
+  openDirection,
+  toggleStar,
+  type PrototypeSetState
+} from '../../../src/shared/prototype-set-state'
+import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
 import { MobilePrototypeSetScreen } from './MobilePrototypeSetScreen'
 import {
   createMobileSetState,
@@ -15,20 +23,45 @@ vi.mock('react-native', () => ({
   ScrollView: 'ScrollView',
   StyleSheet: { create: (styles: unknown) => styles },
   Text: 'Text',
-  View: 'View'
+  TextInput: 'TextInput',
+  View: 'View',
+  useWindowDimensions: () => ({ width: 390, height: 844 })
 }))
 vi.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }))
 vi.mock('react-native-svg', () => ({ default: 'Svg', Path: 'Path' }))
-vi.mock('lucide-react-native', () => ({ ChevronLeft: 'ChevronLeft' }))
+vi.mock('lucide-react-native', () => ({ ChevronLeft: 'ChevronLeft', Check: 'Check' }))
 vi.mock('../transport/host-client-hooks', () => ({ useHostClient: () => ({ client: null }) }))
 vi.mock('./MobilePrototypeTile', () => ({ MobilePrototypeTile: 'MobilePrototypeTile' }))
 
+const merge = vi.hoisted(() => ({ start: vi.fn(), send: vi.fn() }))
+vi.mock('./mobile-prototype-merge-flow', () => ({
+  startMobilePrototypeMerge: merge.start,
+  sendMobilePrototypeMerge: merge.send
+}))
+vi.mock('./use-mobile-prototype-merge-plan', () => ({ useMobilePrototypeMergePlan: vi.fn() }))
+// The drawer's own animation is not under test: it shows its sheet's content while it has one.
+vi.mock('../components/keyed-bottom-drawer', () => ({
+  KeyedBottomDrawer: ({
+    sheet,
+    children
+  }: {
+    sheet: string | null
+    children: (sheet: string) => unknown
+  }) => (sheet === null ? null : children(sheet))
+}))
+
 const SET = listedSet({ requestId: 'req-1' })
+const listing: { set: PrototypeListedSet } = { set: SET }
 vi.mock('./use-mobile-prototype-sets', () => ({
-  useMobilePrototypeSets: () => ({ status: 'ready', sets: [SET] })
+  useMobilePrototypeSets: () => ({ status: 'ready', sets: [listing.set] })
 }))
 
 const KEY = mobilePrototypeStateKey('host-1', 'req-1')
+
+/** A host element by its type name; the mocked native components are host strings. */
+function isHost(node: ReactTestInstance, type: string): boolean {
+  return node.type === type
+}
 
 function textOf(node: ReactTestInstance): string {
   return node.children.map((child) => (typeof child === 'string' ? child : textOf(child))).join('')
@@ -40,7 +73,7 @@ function texts(root: ReactTestInstance, type: string): string[] {
 
 function byLabel(root: ReactTestInstance, label: string): ReactTestInstance {
   const [found] = root.findAll(
-    (node) => node.type === 'Pressable' && node.props.accessibilityLabel === label
+    (node) => isHost(node, 'Pressable') && node.props.accessibilityLabel === label
   )
   if (found === undefined) {
     throw new Error(`no control labelled ${label}`)
@@ -51,7 +84,7 @@ function byLabel(root: ReactTestInstance, label: string): ReactTestInstance {
 function mergeButton(root: ReactTestInstance): ReactTestInstance {
   const [found] = root.findAll(
     (node) =>
-      node.type === 'Pressable' && textOf(node).startsWith('Merge') && node.props.accessibilityState
+      isHost(node, 'Pressable') && textOf(node).startsWith('Merge') && node.props.accessibilityState
   )
   if (found === undefined) {
     throw new Error('no Merge button')
@@ -59,11 +92,16 @@ function mergeButton(root: ReactTestInstance): ReactTestInstance {
   return found
 }
 
-function mount(onOpenDirection: () => void = vi.fn()): ReactTestRenderer {
-  // B is the main: the strip and the cards start with it.
-  useMobilePrototypeViewStore.setState({
-    states: { [KEY]: makeMain(openDirection(createMobileSetState(['A', 'B', 'C']), 'B')) }
-  })
+/** B is the main: the strip and the cards start with it. */
+function mainOnB(): PrototypeSetState {
+  return makeMain(openDirection(createMobileSetState(['A', 'B', 'C']), 'B'))
+}
+
+function mount(
+  onOpenDirection: () => void = vi.fn(),
+  initial: PrototypeSetState = mainOnB()
+): ReactTestRenderer {
+  useMobilePrototypeViewStore.setState({ states: { [KEY]: initial } })
   let renderer: ReactTestRenderer | undefined
   act(() => {
     renderer = create(
@@ -80,7 +118,7 @@ function mount(onOpenDirection: () => void = vi.fn()): ReactTestRenderer {
   }
   const tree = renderer
   const [carousel] = tree.root.findAll(
-    (node) => node.type === 'ScrollView' && node.props.snapToInterval !== undefined
+    (node) => isHost(node, 'ScrollView') && node.props.snapToInterval !== undefined
   )
   act(() => {
     carousel?.props.onLayout({ nativeEvent: { layout: { height: 600 } } })
@@ -88,8 +126,31 @@ function mount(onOpenDirection: () => void = vi.fn()): ReactTestRenderer {
   return tree
 }
 
+function reviewState(): PrototypeSetState {
+  const text = JSON.stringify({
+    id: 'plan-1',
+    from: ['A', 'C'],
+    parts: [
+      { name: 'Heading', selector: 'main > h1', from: 'A' },
+      { name: 'Pay button', selector: 'button.cta', from: 'C' }
+    ]
+  })
+  const plan = parsePrototypeMergePlan(text)
+  if (plan === null) {
+    throw new Error('expected a valid plan')
+  }
+  const waiting = beginMerge(['A', 'C'].reduce(toggleStar, mainOnB()), {
+    planId: 'plan-1',
+    baseline: null
+  })
+  return planArrived(waiting, plan, text)
+}
+
 afterEach(() => {
   useMobilePrototypeViewStore.setState({ states: {} })
+  listing.set = SET
+  merge.start.mockReset()
+  merge.send.mockReset()
 })
 
 describe('the set screen header', () => {
@@ -125,7 +186,7 @@ describe('the directions strip', () => {
     }
     const items = (parent: ReactTestInstance): string[] =>
       parent
-        .findAll((node) => node.type === 'Pressable' && node.props.accessibilityState !== undefined)
+        .findAll((node) => isHost(node, 'Pressable') && node.props.accessibilityState !== undefined)
         .map(textOf)
     expect(items(children)).toEqual(['Aread-only', 'Cread-only'])
     expect(items(bar)).toEqual(['Bmain', 'Aread-only', 'Cread-only'])
@@ -134,7 +195,7 @@ describe('the directions strip', () => {
 
   it('gives every strip item a 44px minimum height', () => {
     const { root } = mount()
-    const [first] = root.findAll((node) => node.type === 'Pressable' && textOf(node) === 'Bmain')
+    const [first] = root.findAll((node) => isHost(node, 'Pressable') && textOf(node) === 'Bmain')
     const style = [first?.props.style].flat(2)
     expect(style).toContainEqual(expect.objectContaining({ minHeight: 44 }))
   })
@@ -184,5 +245,86 @@ describe('the cards', () => {
   it('end with the swipe hint that says a tap opens a design', () => {
     const { root } = mount()
     expect(texts(root, 'Text')).toContain('Swipe to compare · tap a design to open it')
+  })
+})
+
+describe('the merge', () => {
+  it('asks for the plan from the Merge button once two directions are starred', () => {
+    const tree = mount()
+    act(() => byLabel(tree.root, 'Star A for merge').props.onPress())
+    act(() => byLabel(tree.root, 'Star C for merge').props.onPress())
+
+    act(() => mergeButton(tree.root).props.onPress())
+
+    expect(merge.start).toHaveBeenCalledTimes(1)
+    expect(merge.start.mock.calls[0]?.[0]).toMatchObject({ set: SET, nextLetter: 'D' })
+  })
+
+  it('shows nothing while the plan is awaited', () => {
+    const waiting = beginMerge(['A', 'C'].reduce(toggleStar, mainOnB()), {
+      planId: 'plan-1',
+      baseline: null
+    })
+    const { root } = mount(vi.fn(), waiting)
+    expect(texts(root, 'Text').some((line) => line.startsWith('Merge A and C'))).toBe(false)
+    expect(root.findAllByProps({ accessibilityRole: 'tab' })).toHaveLength(0)
+  })
+
+  it('shows the review as a sheet with Parts and Preview once the plan arrived, and sends from it', () => {
+    const { root } = mount(vi.fn(), reviewState())
+    const lines = texts(root, 'Text')
+    expect(lines).toContain('Merge A and C')
+    expect(root.findAllByProps({ accessibilityRole: 'tab' }).map(textOf)).toEqual([
+      'Parts',
+      'Preview'
+    ])
+
+    const [send] = root.findAll(
+      (node) => isHost(node, 'Pressable') && textOf(node) === 'Merge into D'
+    )
+    act(() => send?.props.onPress())
+    expect(merge.send).toHaveBeenCalledTimes(1)
+  })
+
+  it('puts the merged direction first and tagged main once the set lists it, with the stars cleared', () => {
+    const sent: PrototypeSetState = {
+      ...mainOnB(),
+      starred: ['A', 'C'],
+      mergeInto: { letter: 'D', from: ['A', 'C'] }
+    }
+    const tree = mount(vi.fn(), sent)
+    const [a, b, c] = SET.directions
+    if (a === undefined || b === undefined || c === undefined) {
+      throw new Error('the fixture has three directions')
+    }
+    const merged = {
+      letter: 'D',
+      name: 'Merged from A + C',
+      versions: [{ version: 1, fileName: 'prototypes/req-1/D.html', mtime: 1 }]
+    }
+    listing.set = { ...SET, directions: [a, b, c, merged] }
+    act(() => {
+      tree.update(
+        createElement(MobilePrototypeSetScreen, {
+          hostId: 'host-1',
+          requestId: 'req-1',
+          onBack: vi.fn(),
+          onOpenDirection: vi.fn()
+        })
+      )
+    })
+
+    expect(useMobilePrototypeViewStore.getState().states[KEY]).toMatchObject({
+      active: 'D',
+      starred: [],
+      mergedFrom: { D: ['A', 'C'] }
+    })
+    expect(texts(tree.root, 'Text').filter((line) => / · (main|read-only)$/u.test(line))).toEqual([
+      'D · Merged from A + C · main',
+      'A · Single column · read-only',
+      'B · Split summary · read-only',
+      'C · read-only'
+    ])
+    expect(mergeButton(tree.root).props.disabled).toBe(true)
   })
 })

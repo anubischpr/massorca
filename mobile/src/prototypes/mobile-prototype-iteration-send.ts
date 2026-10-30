@@ -4,8 +4,7 @@ import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/protot
 import { writeMobilePrototypeAttachment } from '../session/mobile-prototype-host-rpc'
 import type { RpcClient } from '../transport/rpc-client'
 import type { MobilePrototypeFrameHandle } from './mobile-prototype-capture-math'
-import { sendToMobilePrototypeChat } from './mobile-prototype-chat-send-registry'
-import { sendToStructuredSessionOnHost } from './mobile-prototype-host-chat-send'
+import { sendMobilePrototypeText } from './mobile-prototype-chat-text-send'
 
 /** Each pin's picture is taken from the frame and saved on the host; a failure drops that picture only. */
 function screenshotDeps(
@@ -40,10 +39,6 @@ export function sendMobilePrototypeIteration(
   client: RpcClient | null,
   frame: MobilePrototypeFrameHandle | null = null
 ): ReturnType<typeof sendPrototypeIteration> {
-  const viaHost =
-    client === null
-      ? null
-      : (text: string) => sendToStructuredSessionOnHost(client, set.sessionId, text)
   return sendPrototypeIteration(
     {
       state,
@@ -53,7 +48,7 @@ export function sendMobilePrototypeIteration(
     },
     {
       ...(client !== null && frame !== null ? screenshotDeps(client, set, frame) : {}),
-      sendMessage: (text) => sendToMobilePrototypeChat(set.sessionId, text, viaHost),
+      sendMessage: (text) => sendMobilePrototypeText(client, set, text),
       now: Date.now
     }
   )

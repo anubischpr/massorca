@@ -22,6 +22,7 @@ import {
   type MobilePrototypePulseTarget
 } from './MobilePrototypeEditFields'
 import { MobilePrototypePulse } from './MobilePrototypePulse'
+import { MobilePrototypeSheetTabs } from './MobilePrototypeSheetTabs'
 import {
   NOTE_EXAMPLE_CHIPS,
   NOTE_LABEL,
@@ -100,14 +101,17 @@ export function MobilePrototypePinSheet({
           <Text style={styles.closeText}>×</Text>
         </Pressable>
       </View>
-      <View accessibilityRole="tablist" style={styles.tabs}>
-        <TabButton
-          label={`Edit · ${selectedPinEditCount(state)}`}
-          selected={showEdit}
-          onPress={() => onTab('edit')}
-        />
-        <TabButton label="Note" selected={!showEdit} onPress={() => onTab('note')} />
-      </View>
+      <MobilePrototypeSheetTabs
+        tabs={[
+          {
+            key: 'edit',
+            label: `Edit · ${selectedPinEditCount(state)}`,
+            selected: showEdit,
+            onPress: () => onTab('edit')
+          },
+          { key: 'note', label: 'Note', selected: !showEdit, onPress: () => onTab('note') }
+        ]}
+      />
       <ScrollView
         ref={scroll}
         keyboardShouldPersistTaps="handled"
@@ -161,27 +165,6 @@ export function MobilePrototypePinSheet({
   )
 }
 
-function TabButton({
-  label,
-  selected,
-  onPress
-}: {
-  label: string
-  selected: boolean
-  onPress: () => void
-}) {
-  return (
-    <Pressable
-      accessibilityRole="tab"
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      style={[styles.tab, selected && styles.tabOn]}
-    >
-      <Text style={[styles.tabText, selected && styles.tabTextOn]}>{label}</Text>
-    </Pressable>
-  )
-}
-
 const styles = StyleSheet.create({
   sheet: { gap: spacing.md, paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -194,17 +177,6 @@ const styles = StyleSheet.create({
   },
   close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   closeText: { color: colors.textSecondary, fontSize: 18 },
-  tabs: { flexDirection: 'row', padding: 3, borderRadius: 10, backgroundColor: colors.bgBase },
-  tab: {
-    flex: 1,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8
-  },
-  tabOn: { backgroundColor: colors.bgRaised },
-  tabText: { color: colors.textSecondary, fontSize: 14 },
-  tabTextOn: { color: colors.textPrimary },
   body: { gap: spacing.md },
   note: { gap: 8, padding: 2 },
   noteLabel: { color: colors.textSecondary, fontSize: 13 },

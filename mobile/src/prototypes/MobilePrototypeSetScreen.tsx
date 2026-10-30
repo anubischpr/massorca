@@ -11,22 +11,27 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { prototypeTitle } from '../../../src/shared/prototype-list-model'
 import { nextFreeDirectionLetter } from '../../../src/shared/prototype-merge-plan'
-import { canMerge } from '../../../src/shared/prototype-merge-state'
+import { cancelMerge, canMerge, planArrived } from '../../../src/shared/prototype-merge-state'
 import {
   openDirection,
   toggleStar,
   type PrototypeSetState
 } from '../../../src/shared/prototype-set-state'
+import { KeyedBottomDrawer } from '../components/keyed-bottom-drawer'
+import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
 import { useHostClient } from '../transport/host-client-hooks'
 import { colors, spacing } from '../theme/mobile-theme'
 import { MobilePrototypeDirectionCard, PROTOTYPE_CARD_WIDTH } from './MobilePrototypeDirectionCard'
 import { MobilePrototypeDirectionStrip } from './MobilePrototypeDirectionStrip'
 import { MobilePrototypeHeader } from './MobilePrototypeHeader'
 import { MobilePrototypeMergeButton } from './MobilePrototypeMergeButton'
+import { MobilePrototypeMergeSheet } from './MobilePrototypeMergeSheet'
 import { directionTag, mainFirst } from './mobile-prototype-directions-model'
 import { mobilePrototypeAgentLabel } from './mobile-prototype-list-model'
+import { sendMobilePrototypeMerge, startMobilePrototypeMerge } from './mobile-prototype-merge-flow'
 import { findMobilePrototypeSet } from './mobile-prototype-sets-state'
 import { mobilePrototypeStateKey, useMobilePrototypeViewStore } from './mobile-prototype-view-store'
+import { useMobilePrototypeMergePlan } from './use-mobile-prototype-merge-plan'
 import { useMobilePrototypeSets } from './use-mobile-prototype-sets'
 
 const CARD_GAP = 12
@@ -81,6 +86,17 @@ export function MobilePrototypeSetScreen({
     }
   }
   const nextLetter = nextFreeDirectionLetter(directions.map((direction) => direction.letter))
+  useMobilePrototypeMergePlan(client, set, state?.merge, (plan, text) =>
+    update((current) => planArrived(current, plan, text))
+  )
+  const mergeFlow = (listedSet: PrototypeListedSet) => ({
+    client,
+    set: listedSet,
+    nextLetter,
+    getState: () => useMobilePrototypeViewStore.getState().states[stateKey],
+    update
+  })
+  const review = state?.merge?.phase === 'review' ? state.merge : null
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -98,7 +114,9 @@ export function MobilePrototypeSetScreen({
             <MobilePrototypeMergeButton
               starCount={state.starred.length}
               enabled={canMerge(state, nextLetter)}
-              onPress={() => undefined}
+              onPress={() =>
+                set === null ? undefined : void startMobilePrototypeMerge(mergeFlow(set))
+              }
             />
           )
         }
@@ -148,6 +166,26 @@ export function MobilePrototypeSetScreen({
         ))}
       </View>
       <Text style={styles.hint}>Swipe to compare · tap a design to open it</Text>
+      <KeyedBottomDrawer<'merge'>
+        sheet={review === null || set === null || nextLetter === null ? null : 'merge'}
+        sheetKey={(presented) => presented}
+        contentScrollable={false}
+        dragContentToDismiss={false}
+        onClose={() => update(cancelMerge)}
+      >
+        {() =>
+          review === null || set === null || nextLetter === null ? null : (
+            <MobilePrototypeMergeSheet
+              review={review}
+              agentName={mobilePrototypeAgentLabel(set.agent)}
+              nextLetter={nextLetter}
+              sendFailed={state?.mergeSendFailed ?? false}
+              update={update}
+              onSend={() => void sendMobilePrototypeMerge(mergeFlow(set))}
+            />
+          )
+        }
+      </KeyedBottomDrawer>
     </SafeAreaView>
   )
 }
