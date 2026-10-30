@@ -5,6 +5,8 @@ export const PROTOTYPE_FOLDER = 'prototypes'
 export const PROTOTYPE_MANIFEST_FILE_NAME = 'request.json'
 // The agent's short name and one-line tradeoff for each direction.
 export const PROTOTYPE_DIRECTIONS_FILE_NAME = 'directions.json'
+// The agent's answer to a merge suggestion request: which part comes from which direction.
+export const PROTOTYPE_MERGE_PLAN_FILE_NAME = 'merge-plan.json'
 export const PROTOTYPE_DIRECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 /** One direction letter, as a file name and a reply name it: `A` to `Z`. */
 export const DIRECTION_LETTER_PATTERN = /^[A-Z]$/u

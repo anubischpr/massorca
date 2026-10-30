@@ -1,16 +1,20 @@
-// What the viewer screen reads off a set and its state: the header lines, the direction chips, the
-// peek banner, and the labels of the pin sheet.
-import { buildDraft, type PrototypeDraftField } from '../../../src/shared/prototype-draft'
+// What the viewer screen reads off a set and its state: the header lines, the direction chips, and
+// the labels of the pin sheet.
+import {
+  buildDraft,
+  type PrototypeDraftField,
+  type PrototypeElementState,
+  type PrototypeSize
+} from '../../../src/shared/prototype-draft'
 import { latestVersionOf } from '../../../src/shared/prototype-list-model'
-import { pinsOf, type PrototypeSetState } from '../../../src/shared/prototype-set-state'
+import {
+  isReadOnlyView,
+  pinsOf,
+  type PrototypeSetState
+} from '../../../src/shared/prototype-set-state'
 import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
-import { mobilePrototypeAgentLabel } from './mobile-prototype-list-model'
 
-export function isPeeking(state: PrototypeSetState): boolean {
-  return state.view !== state.active
-}
-
-/** The header: the shown direction and its name, then the agent and where the direction stands. */
+/** The header: the shown direction and its name, then where it stands: "main · v2" or "read-only". */
 export function viewerHeaderLines(
   set: PrototypeListedSet,
   state: PrototypeSetState
@@ -18,14 +22,14 @@ export function viewerHeaderLines(
   const direction = set.directions.find((candidate) => candidate.letter === state.view)
   // A direction the host lists with no version has no number to show, so none is made up.
   const version = latestVersionOf(direction)?.version
-  const standing = isPeeking(state)
-    ? 'peeking'
+  const standing = isReadOnlyView(state)
+    ? 'read-only'
     : version === undefined
-      ? 'iterating'
-      : `iterating · v${version}`
+      ? 'main'
+      : `main · v${version}`
   return {
     title: direction?.name === undefined ? state.view : `${state.view} · ${direction.name}`,
-    subtitle: `${mobilePrototypeAgentLabel(set.agent)} · ${standing}`
+    subtitle: standing
   }
 }
 
@@ -38,14 +42,14 @@ export function viewerChips(set: PrototypeListedSet, state: PrototypeSetState): 
   }
   return set.directions.map((direction) => ({
     letter: direction.letter,
-    label: direction.letter === state.active ? `${direction.letter} · iterating` : direction.letter,
+    label: direction.letter === state.active ? `${direction.letter} · main` : direction.letter,
     selected: direction.letter === state.view
   }))
 }
 
-/** The edits of the selected pin, which the Edit tab counts; peeking shows no edits. */
+/** The edits of the selected pin, which the Edit tab counts; a read-only direction has no Edit tab. */
 export function selectedPinEditCount(state: PrototypeSetState): number {
-  if (state.selectedPinKey === null || isPeeking(state)) {
+  if (state.selectedPinKey === null || isReadOnlyView(state)) {
     return 0
   }
   const draft = buildDraft({
@@ -60,11 +64,6 @@ export function selectedPinEditCount(state: PrototypeSetState): number {
   )
 }
 
-/** The tab the pin sheet shows: a peeked direction has no Edit section, so its Note tab is the one shown. */
-export function shownPinTab(tab: 'edit' | 'note', state: PrototypeSetState): 'edit' | 'note' {
-  return isPeeking(state) ? 'note' : tab
-}
-
 /** The control a draft item jumped to, while its pin is the one shown; null otherwise. */
 export function pulseFieldFor(
   jump: { letter: string; pinKey: string; field: PrototypeDraftField } | null,
@@ -75,17 +74,9 @@ export function pulseFieldFor(
     : null
 }
 
-export function noteLabelFor(state: PrototypeSetState): string {
-  return isPeeking(state)
-    ? `What to take from ${state.view} into ${state.active}`
-    : 'Anything Edit can’t do, for this element'
-}
+export const NOTE_LABEL = 'Anything Edit can’t do, for this element'
 
-export function notePlaceholderFor(state: PrototypeSetState): string {
-  return isPeeking(state)
-    ? 'e.g. use this wallet button above the card form'
-    : 'Describe a change Edit can’t do: animation, behavior, style…'
-}
+export const NOTE_PLACEHOLDER = 'Describe a change Edit can’t do: animation, behavior, style…'
 
 export const NOTE_EXAMPLE_CHIPS = [
   'Animated rainbow border',
@@ -96,4 +87,13 @@ export const NOTE_EXAMPLE_CHIPS = [
 /** An example chip writes its sentence on the selected element. */
 export function noteFromExampleChip(chip: string, pinLabel: string): string {
   return `${chip} on the ${pinLabel}.`
+}
+
+function sizeText(size: PrototypeSize): string {
+  return size.unit === 'auto' ? 'auto' : `${size.value}${size.unit}`
+}
+
+/** The read-only Size line: "100% × 44px · 14px" is width, height and font size. */
+export function readOnlySizeLine(element: PrototypeElementState): string {
+  return `${sizeText(element.width)} × ${sizeText(element.height)} · ${element.fontSize}px`
 }

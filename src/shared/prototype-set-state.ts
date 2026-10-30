@@ -1,98 +1,65 @@
-import type {
-  NativeChatVisualPickedElement,
-  NativeChatVisualRect
-} from './native-chat-visual-annotate'
+import type { NativeChatVisualPickedElement } from './native-chat-visual-annotate'
 import {
   isPinTouched,
   type PrototypeDraftField,
-  type PrototypeElementState,
-  type PrototypeNotes,
-  type PrototypePin
+  type PrototypeElementState
 } from './prototype-draft'
+import {
+  createSetState,
+  DEFAULT_PICKER_HUE,
+  pinKeyFor,
+  pinsOf,
+  selectedPinOf,
+  type PrototypeLayout,
+  type PrototypePicker,
+  type PrototypeSetPin,
+  type PrototypeSetState,
+  type PrototypeTool,
+  type PrototypeViewport
+} from './prototype-set-state-model'
 
-// The screen state of one prototype set: which direction is iterated and which is shown, the pins
-// and their edits, the notes, the prompt and the send. Every transition is a pure function.
-// Invariants: a picker exists only with a selected pin, a selection stays on the shown direction,
-// and an element is picked only while annotating. A transition that would break one is refused or
-// clears what it would leave stale. A pin nothing has changed or noted is dropped when the
-// selection moves.
-
-export type PrototypeLayout = 'set' | 'focus'
-export type PrototypeViewport = 'desktop' | 'phone'
-export type PrototypeTool = 'browse' | 'annotate'
-export type PrototypePicker = 'color' | 'bg'
-
-export type PrototypeSetState = {
-  layout: PrototypeLayout
-  viewport: PrototypeViewport
-  tool: PrototypeTool
-  /** The direction being iterated: the one a message goes back about. */
-  active: string
-  /** The direction on screen; a letter other than `active` is a peek. */
-  view: string
-  selectedPinKey: string | null
-  picker: PrototypePicker | null
-  hue: number
-  /** Pins by the letter of the direction whose file they sit on. */
-  pins: Readonly<Record<string, readonly PrototypeSetPin[]>>
-  /** Keyed `${letter}:${pinKey}`, as buildDraft reads them. */
-  notes: PrototypeNotes
-  prompt: string
-  /** The draft item last jumped to: its control pulses once per nonce. */
-  pulse: { field: PrototypeDraftField; nonce: number } | null
-  sending: boolean
-  sendFailed: boolean
-  /** The message the last successful send carried, shown until the next change. */
-  sentMessage: string | null
+export {
+  createSetState,
+  DEFAULT_PICKER_HUE,
+  pinKeyFor,
+  pinsOf,
+  selectedPinOf,
+  type PrototypeLayout,
+  type PrototypePicker,
+  type PrototypeSetPin,
+  type PrototypeSetState,
+  type PrototypeTool,
+  type PrototypeViewport
 }
 
-export const DEFAULT_PICKER_HUE = 210
-
-/** A pin with the frame rectangle and viewport it was picked at, for its screenshot at send. */
-export type PrototypeSetPin = PrototypePin & {
-  rect: NativeChatVisualRect
-  viewport: PrototypeViewport
-}
-
-export function createSetState(letters: readonly string[]): PrototypeSetState {
-  const first = letters[0] ?? 'A'
-  return {
-    layout: 'focus',
-    viewport: 'desktop',
-    tool: 'annotate',
-    active: first,
-    view: first,
-    selectedPinKey: null,
-    picker: null,
-    hue: DEFAULT_PICKER_HUE,
-    pins: {},
-    notes: {},
-    prompt: '',
-    pulse: null,
-    sending: false,
-    sendFailed: false,
-    sentMessage: null
-  }
-}
+// The screen state of one prototype set: which direction is the main and which is shown, the pins
+// and their edits, the notes, the prompt, the send, the stars and the merge. Every transition is a
+// pure function. Invariants: a picker exists only with a selected pin, a selection stays on the
+// shown direction, and an element is picked only while annotating. A direction other than the main
+// is read-only: it takes no edit and no note, but its own pins, edits and notes stay on it. A
+// transition that would break an invariant is refused or clears what it would leave stale. A pin
+// nothing has changed or noted is dropped when the selection moves.
 
 /**
- * The state with its iterated and shown letters still among the set's letters. A letter the set no
- * longer has moves to the first direction; the shown one then follows the iterated one, and its selection goes.
+ * The state with its main and shown letters still among the set's letters. A letter the set no
+ * longer has moves to the first direction; the shown one then follows the main, and its selection
+ * goes. A star on a letter the set no longer has goes too, and a merge that names one ends.
  */
 export function keepListedLetters(
   state: PrototypeSetState,
   letters: readonly string[]
 ): PrototypeSetState {
   const listed = (letter: string): boolean => letters.includes(letter)
-  if (listed(state.active) && listed(state.view)) {
-    return state
+  const kept = dropUnlistedStars(state, listed)
+  if (listed(kept.active) && listed(kept.view)) {
+    return kept
   }
-  const active = listed(state.active) ? state.active : (letters[0] ?? 'A')
-  if (listed(state.view)) {
-    return { ...state, active }
+  const active = listed(kept.active) ? kept.active : (letters[0] ?? 'A')
+  if (listed(kept.view)) {
+    return { ...kept, active }
   }
   return {
-    ...pruneUntouched(state, null),
+    ...pruneUntouched(kept, null),
     active,
     view: active,
     selectedPinKey: null,
@@ -100,25 +67,16 @@ export function keepListedLetters(
   }
 }
 
-/** A pin's key is its selector's hash: the same element on two directions has the same key. */
-export function pinKeyFor(selector: string): string {
-  let hash = 0x811c9dc5
-  for (let index = 0; index < selector.length; index += 1) {
-    hash ^= selector.charCodeAt(index)
-    hash = Math.imul(hash, 0x01000193)
+function dropUnlistedStars(
+  state: PrototypeSetState,
+  listed: (letter: string) => boolean
+): PrototypeSetState {
+  const starred = state.starred.filter(listed)
+  const mergeLost = state.merge !== null && !state.merge.letters.every(listed)
+  if (starred.length === state.starred.length && !mergeLost) {
+    return state
   }
-  return `pin-${(hash >>> 0).toString(16)}`
-}
-
-export function pinsOf(state: PrototypeSetState, letter: string): readonly PrototypeSetPin[] {
-  return state.pins[letter] ?? []
-}
-
-export function selectedPinOf(state: PrototypeSetState): PrototypeSetPin | null {
-  if (state.selectedPinKey === null) {
-    return null
-  }
-  return pinsOf(state, state.view).find((pin) => pin.pinKey === state.selectedPinKey) ?? null
+  return { ...state, starred, merge: mergeLost ? null : state.merge }
 }
 
 /**
@@ -147,9 +105,24 @@ function pruneUntouched(
   return removed ? { ...state, pins } : state
 }
 
-/** Edits apply only to the iterated direction; a peek shows its pins without the Edit section. */
+/** The state without its untouched pins, for a transition that moves the selection elsewhere. */
+export function dropUntouchedPins(state: PrototypeSetState): PrototypeSetState {
+  return pruneUntouched(state, null)
+}
+
+/** Edits and notes go only on the main; any other direction is read-only. */
 export function isEditable(state: PrototypeSetState): boolean {
   return state.view === state.active && selectedPinOf(state) !== null
+}
+
+/** The shown direction is not the main. */
+export function isReadOnlyView(state: PrototypeSetState): boolean {
+  return state.view !== state.active
+}
+
+/** Leaving the merge view ends a merge that waits for its plan or is under review. */
+function leaveMerge(state: PrototypeSetState): PrototypeSetState {
+  return state.merge === null ? state : { ...state, merge: null, mergeSendFailed: false }
 }
 
 function dirty(state: PrototypeSetState): PrototypeSetState {
@@ -157,42 +130,35 @@ function dirty(state: PrototypeSetState): PrototypeSetState {
 }
 
 export function showSet(state: PrototypeSetState): PrototypeSetState {
-  return { ...state, layout: 'set' }
+  return { ...leaveMerge(state), layout: 'set' }
 }
 
 export function showFocus(state: PrototypeSetState): PrototypeSetState {
-  if (state.view === state.active) {
-    return { ...state, layout: 'focus' }
+  const left = leaveMerge(state)
+  if (left.view === left.active) {
+    return { ...left, layout: 'focus' }
   }
-  // A selection on the peeked direction does not carry over to the iterated one.
+  // A selection on a read-only direction does not carry over to the main.
   return {
-    ...pruneUntouched(state, null),
+    ...pruneUntouched(left, null),
     layout: 'focus',
-    view: state.active,
+    view: left.active,
     selectedPinKey: null,
     picker: null
   }
 }
 
-/** A card in the set grid: it becomes the iterated direction and opens focus on it. */
+/**
+ * A card in the set grid or an item of the side strip: shows that direction. It never changes the
+ * main; only `makeMain` does.
+ */
 export function openDirection(state: PrototypeSetState, letter: string): PrototypeSetState {
-  return dirty({
-    ...pruneUntouched(state, null),
-    layout: 'focus',
-    active: letter,
-    view: letter,
-    selectedPinKey: null,
-    picker: null
-  })
-}
-
-/** A side-strip click: shows the sibling without changing which direction is iterated. */
-export function peekDirection(state: PrototypeSetState, letter: string): PrototypeSetState {
-  if (letter === state.view) {
-    return { ...state, layout: 'focus' }
+  const left = leaveMerge(state)
+  if (letter === left.view) {
+    return { ...left, layout: 'focus' }
   }
   return dirty({
-    ...pruneUntouched(state, null),
+    ...pruneUntouched(left, null),
     layout: 'focus',
     view: letter,
     selectedPinKey: null,
@@ -201,16 +167,30 @@ export function peekDirection(state: PrototypeSetState, letter: string): Prototy
 }
 
 export function backToActive(state: PrototypeSetState): PrototypeSetState {
+  const left = leaveMerge(state)
   return dirty({
-    ...pruneUntouched(state, null),
-    view: state.active,
+    ...pruneUntouched(left, null),
+    view: left.active,
     selectedPinKey: null,
     picker: null
   })
 }
 
-export function iterateHere(state: PrototypeSetState): PrototypeSetState {
-  return dirty({ ...state, active: state.view })
+/**
+ * The shown direction becomes the main. The old main keeps its pins, edits and notes, read-only;
+ * its unsent items are not part of the new main's draft.
+ */
+export function makeMain(state: PrototypeSetState): PrototypeSetState {
+  const left = leaveMerge(state)
+  return dirty({ ...left, active: left.view })
+}
+
+/** A star toggles a direction for merge; it changes nothing else, and a merge under way ends. */
+export function toggleStar(state: PrototypeSetState, letter: string): PrototypeSetState {
+  const starred = state.starred.includes(letter)
+    ? state.starred.filter((starredLetter) => starredLetter !== letter)
+    : [...state.starred, letter].sort()
+  return { ...leaveMerge(state), starred }
 }
 
 export function setViewport(
@@ -246,7 +226,8 @@ export function closeSelection(state: PrototypeSetState): PrototypeSetState {
 /**
  * A click on an element of the shown direction. The first pick of an element makes its pin and
  * keeps its state as the original; a later pick selects that pin, and its state is not taken again.
- * Untouched pins are dropped first, so the new pin takes the next free number.
+ * Untouched pins are dropped first, so the new pin takes the next free number. On a read-only
+ * direction the pin only shows the element's properties.
  */
 export function pickElement(
   state: PrototypeSetState,
@@ -273,12 +254,14 @@ export function pickElement(
     rect: element.rect,
     viewport: state.viewport
   }
-  return dirty({
+  const picked = {
     ...kept,
     pins: { ...kept.pins, [letter]: [...list, pin] },
     selectedPinKey: pinKey,
     picker: null
-  })
+  }
+  // Looking at a read-only direction changes nothing the chat was told.
+  return letter === state.active ? dirty(picked) : picked
 }
 
 /** A click on a numbered pin in the frame. */
@@ -314,8 +297,8 @@ export function setPicker(
   state: PrototypeSetState,
   picker: PrototypePicker | null
 ): PrototypeSetState {
-  // A picker edits the selected pin, so it opens only with one; closing it is always allowed.
-  if (picker !== null && state.selectedPinKey === null) {
+  // A picker edits the selected pin of the main, so it opens only with one; closing is always allowed.
+  if (picker !== null && !isEditable(state)) {
     return state
   }
   return { ...state, picker }
@@ -325,7 +308,7 @@ export function setHue(state: PrototypeSetState, hue: number): PrototypeSetState
   return { ...state, hue }
 }
 
-/** The note of the selected pin, on the shown direction. */
+/** The note of the selected pin on the shown direction: editable on the main, read-only elsewhere. */
 export function noteFor(state: PrototypeSetState): string {
   if (state.selectedPinKey === null) {
     return ''
@@ -334,7 +317,8 @@ export function noteFor(state: PrototypeSetState): string {
 }
 
 export function setNote(state: PrototypeSetState, text: string): PrototypeSetState {
-  if (state.selectedPinKey === null || selectedPinOf(state) === null) {
+  // A read-only direction takes no note; the one it has stays visible through `noteFor`.
+  if (!isEditable(state)) {
     return state
   }
   const key = `${state.view}:${state.selectedPinKey}`
@@ -358,7 +342,7 @@ export function jumpToDraftItem(
 ): PrototypeSetState {
   const picker = target.field === 'color' || target.field === 'bg' ? target.field : null
   return {
-    ...pruneUntouched(state, { letter: target.letter, pinKey: target.pinKey }),
+    ...pruneUntouched(leaveMerge(state), { letter: target.letter, pinKey: target.pinKey }),
     layout: 'focus',
     tool: 'annotate',
     view: target.letter,

@@ -5,7 +5,7 @@ import type { NativeChatVisualPickedElement } from '../../../src/shared/native-c
 import {
   createSetState,
   editSelected,
-  peekDirection,
+  openDirection,
   pickElement,
   selectedPinOf,
   setPrompt,
@@ -15,7 +15,9 @@ import { draftOf } from '../../../src/shared/prototype-set-view'
 import { MobilePrototypeDraftSheet } from './MobilePrototypeDraftSheet'
 import { MobilePrototypePinSheet } from './MobilePrototypePinSheet'
 import { MobilePrototypeSizeRow } from './MobilePrototypeSizeRow'
-import { noteLabelFor } from './mobile-prototype-viewer-model'
+import { MobilePrototypeReadOnlyBanner } from './MobilePrototypeReadOnlyBanner'
+import { MobilePrototypeReadOnlySheet } from './MobilePrototypeReadOnlySheet'
+import { NOTE_LABEL } from './mobile-prototype-viewer-model'
 
 vi.mock('react-native', () => ({
   AccessibilityInfo: { isReduceMotionEnabled: () => Promise.resolve(false) },
@@ -60,9 +62,15 @@ const HEADING: NativeChatVisualPickedElement = {
   }
 }
 
-/** A pin on the direction B, which is then peeked at while A is the one being iterated. */
-function peekingB(): PrototypeSetState {
-  return pickElement(peekDirection(createSetState(['A', 'B']), 'B'), HEADING)
+/** A pin on the direction B, shown read-only while A is the main. */
+function readOnlyB(): PrototypeSetState {
+  return pickElement(openDirection(createSetState(['A', 'B']), 'B'), HEADING)
+}
+
+function flatText(node: ReactTestInstance): string {
+  return node.children
+    .map((child) => (typeof child === 'string' ? child : flatText(child)))
+    .join('')
 }
 
 /** The host elements of one type; the test doubles for Text and the like are host strings. */
@@ -127,23 +135,105 @@ function sendButton(renderer: ReactTestRenderer): ReactTestInstance {
   return button
 }
 
-describe('the pin sheet while a sibling direction is peeked at', () => {
-  it('does not offer the Edit tab, and shows the Note tab and its note', () => {
-    const state = peekingB()
-    const onTab = vi.fn()
-    const renderer = mountPinSheet(state, onTab)
+describe('the pin sheet of the main', () => {
+  it('offers the Edit and Note tabs, both pressable', () => {
+    const state = pickElement(createSetState(['A', 'B']), HEADING)
+    const renderer = mountPinSheet(state, vi.fn())
 
     const tabs = renderer.root.findAllByProps({ accessibilityRole: 'tab' })
-    const [edit, note] = tabs
-    expect(tabs).toHaveLength(2)
-    expect(edit?.props.accessibilityState).toEqual({ selected: false, disabled: true })
-    expect(edit?.props.disabled).toBe(true)
-    expect(note?.props.accessibilityState).toEqual({ selected: true, disabled: false })
+    expect(tabs.map((tab) => tab.props.accessibilityState)).toEqual([
+      { selected: true },
+      { selected: false }
+    ])
+    expect(tabs.map((tab) => tab.props.disabled)).toEqual([undefined, undefined])
+  })
+})
 
-    expect(renderer.root.findAllByProps({ accessibilityLabel: noteLabelFor(state) })).toHaveLength(
-      1
+describe('the properties sheet of a read-only direction', () => {
+  function mountReadOnlySheet(update: () => void = () => {}): ReactTestRenderer {
+    const state = readOnlyB()
+    const pin = selectedPinOf(state)
+    if (pin === null) {
+      throw new Error('the state has no selected pin')
+    }
+    let renderer: ReactTestRenderer | undefined
+    act(() => {
+      renderer = create(createElement(MobilePrototypeReadOnlySheet, { pin, state, update }))
+    })
+    if (renderer === undefined) {
+      throw new Error('the read-only sheet did not mount')
+    }
+    return renderer
+  }
+
+  it('titles the element, shows its selector and the read-only heading, and has no tabs or note', () => {
+    const { root } = mountReadOnlySheet()
+    const texts = hosts(root, 'Text').map((text) => text.props.children)
+
+    expect(texts).toContain('B · 1 · heading')
+    expect(texts).toContain('main > h1')
+    expect(texts).toContain('Properties · read-only')
+    expect(root.findAllByProps({ accessibilityRole: 'tab' })).toHaveLength(0)
+    expect(root.findAllByProps({ accessibilityLabel: NOTE_LABEL })).toHaveLength(0)
+    expect(texts).not.toContain('Note')
+  })
+
+  it('shows Text as a disabled field and the colors and size as they are', () => {
+    const { root } = mountReadOnlySheet()
+    const [input] = root.findAllByProps({ accessibilityLabel: 'Text' })
+    expect(input?.props.editable).toBe(false)
+    expect(input?.props.value).toBe('Checkout')
+
+    const texts = hosts(root, 'Text').map((text) => text.props.children)
+    expect(texts).toEqual(expect.arrayContaining(['Text color', '#171717', 'Fill', '#ffffff']))
+    expect(texts).toContain('Size')
+    expect(texts).toContain('100% × auto · 20px')
+  })
+
+  it('closes the selection from the × button', () => {
+    const update = vi.fn()
+    const { root } = mountReadOnlySheet(update)
+    act(() => {
+      root.findByProps({ accessibilityLabel: 'Close' }).props.onPress()
+    })
+    expect(update).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('the read-only banner', () => {
+  it('names the direction and the main, and has Back to main and Make main', () => {
+    const onBackToMain = vi.fn()
+    const onMakeMain = vi.fn()
+    let renderer: ReactTestRenderer | undefined
+    act(() => {
+      renderer = create(
+        createElement(MobilePrototypeReadOnlyBanner, {
+          view: 'C',
+          main: 'B',
+          onBackToMain,
+          onMakeMain
+        })
+      )
+    })
+    const root = renderer?.root
+    if (root === undefined) {
+      throw new Error('the banner did not mount')
+    }
+    const [sentence] = hosts(root, 'Text')
+    expect(sentence === undefined ? '' : flatText(sentence)).toBe(
+      'Viewing C, read-only. Tap any element to see its properties; notes and edits go on the main, B.'
     )
-    expect(onTab).not.toHaveBeenCalled()
+    const labels = hosts(root, 'Text').map((text) => text.props.children)
+    expect(labels).toEqual(expect.arrayContaining(['Back to main', 'Make main']))
+
+    const buttons = root.findAllByProps({ accessibilityRole: 'button' })
+    act(() => {
+      buttons[0]?.props.onPress()
+      buttons[1]?.props.onPress()
+    })
+    expect(onBackToMain).toHaveBeenCalledTimes(1)
+    expect(onMakeMain).toHaveBeenCalledTimes(1)
+    expect(buttons).toHaveLength(2)
   })
 })
 

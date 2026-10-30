@@ -14,24 +14,70 @@ export const PROTOTYPE_POSITIVE_TERMS: readonly string[] = [
   'maqueta',
   'maquetas',
   'wireframe',
-  'wireframes'
+  'wireframes',
+  'wireframing',
+  'maquetar',
+  'prototipar',
+  'prototipe',
+  'prototipen',
+  'prototipado',
+  'prototipando',
+  'prototyping'
 ]
 
 // Each matches only with a UI noun from PROTOTYPE_UI_NOUNS in the same sentence, at most ten words away.
+// Maquetación, boceto and bosquejo also name print layouts or ordinary drafts, so they need the noun too.
 export const PROTOTYPE_DESIGN_TERMS: readonly string[] = [
   'design',
   'designs',
   'designing',
+  'designed',
+  'designer',
+  'designers',
   'redesign',
+  'redesigning',
   'diseño',
   'diseños',
   'diseñar',
   'diseña',
+  'diseñas',
+  'diseñamos',
+  'diseñan',
+  'diseñe',
+  'diseñes',
+  'diseñen',
+  'diseñemos',
+  'diseñéis',
+  'diseñad',
+  'diseñando',
+  'diseñado',
+  'diseñada',
+  'diseñados',
+  'diseñadas',
+  'diseñaría',
+  'diseñarían',
   'diseñame',
   'diséñame',
   'rediseño',
   'rediseñar',
-  'rediseña'
+  'rediseña',
+  'rediseñas',
+  'rediseñamos',
+  'rediseñan',
+  'rediseñe',
+  'rediseñes',
+  'rediseñen',
+  'rediseñemos',
+  'rediseñando',
+  'rediseñado',
+  'rediseñada',
+  'rediseñados',
+  'rediseñadas',
+  'maquetación',
+  'boceto',
+  'bocetos',
+  'bosquejo',
+  'bosquejos'
 ]
 
 export const PROTOTYPE_UI_NOUNS: readonly string[] = [
@@ -133,6 +179,96 @@ const designPhrases = PROTOTYPE_DESIGN_TERMS.map((term) => wordsOf(term))
 const uiNounPhrases = PROTOTYPE_UI_NOUNS.map((term) => wordsOf(term))
 const negativePhrases = PROTOTYPE_NEGATIVE_TERMS.map((term) => wordsOf(term))
 
+// Typos are tolerated only for single words of at least five letters, against design terms and UI nouns.
+const FUZZY_MIN_LENGTH = 5
+// Real words one edit away from a design term or UI noun; they keep their own meaning.
+const FUZZY_EXCEPTIONS: ReadonlySet<string> = new Set([
+  'resign',
+  'resigns',
+  'deign',
+  'designa',
+  'designas',
+  'designan',
+  'designo',
+  'designe',
+  'designes',
+  'desena',
+  'lista',
+  'listas',
+  'visto',
+  'vistos',
+  'menos',
+  'model',
+  'models',
+  'medal',
+  'modas',
+  'pagos',
+  'pagas',
+  'lending',
+  'terms',
+  'botin'
+])
+const FUZZY_TERMS: ReadonlySet<string> = new Set(
+  [...designPhrases, ...uiNounPhrases]
+    .filter((phrase) => phrase.length === 1)
+    .map((phrase) => phrase[0] ?? '')
+    .filter((word) => word.length >= FUZZY_MIN_LENGTH)
+)
+const FUZZY_TERMS_BY_LENGTH: ReadonlyMap<number, readonly string[]> = groupByLength([
+  ...FUZZY_TERMS
+])
+
+function groupByLength(words: readonly string[]): Map<number, string[]> {
+  const groups = new Map<number, string[]>()
+  for (const word of words) {
+    const group = groups.get(word.length)
+    if (group) {
+      group.push(word)
+    } else {
+      groups.set(word.length, [word])
+    }
+  }
+  return groups
+}
+
+// True when two different words differ by one substitution, insertion, deletion or adjacent transposition.
+function isOneEditApart(word: string, term: string): boolean {
+  let start = 0
+  while (start < word.length && start < term.length && word[start] === term[start]) {
+    start += 1
+  }
+  if (word.length === term.length) {
+    if (word.slice(start + 1) === term.slice(start + 1)) {
+      return true
+    }
+    return (
+      start + 1 < word.length &&
+      word[start] === term[start + 1] &&
+      word[start + 1] === term[start] &&
+      word.slice(start + 2) === term.slice(start + 2)
+    )
+  }
+  const [longer, shorter] = word.length > term.length ? [word, term] : [term, word]
+  return longer.length === shorter.length + 1 && longer.slice(start + 1) === shorter.slice(start)
+}
+
+// Replaces a typo of a design term or UI noun with that term; every other word is kept as written.
+function canonicalWords(words: readonly string[]): string[] {
+  return words.map((word) => {
+    if (word.length < FUZZY_MIN_LENGTH || FUZZY_TERMS.has(word) || FUZZY_EXCEPTIONS.has(word)) {
+      return word
+    }
+    for (let length = word.length - 1; length <= word.length + 1; length += 1) {
+      for (const term of FUZZY_TERMS_BY_LENGTH.get(length) ?? []) {
+        if (isOneEditApart(word, term)) {
+          return term
+        }
+      }
+    }
+    return word
+  })
+}
+
 // The index of each place where a phrase occurs in the words.
 function occurrences(words: readonly string[], phrases: readonly Phrase[]): number[] {
   const starts: number[] = []
@@ -166,7 +302,8 @@ function firstAtOrAfter(ascending: readonly number[], value: number): number {
 
 // Each design word checks only the UI nouns in its window, found by binary search, so a long message
 // costs time in its words rather than in every pair of a design word and a noun.
-function designNearUiNoun(words: readonly string[]): boolean {
+function designNearUiNoun(rawWords: readonly string[]): boolean {
+  const words = canonicalWords(rawWords)
   const nounStarts = occurrences(words, uiNounPhrases).sort((left, right) => left - right)
   return occurrences(words, designPhrases).some((verb) => {
     const first = firstAtOrAfter(nounStarts, verb - UI_NOUN_WINDOW)

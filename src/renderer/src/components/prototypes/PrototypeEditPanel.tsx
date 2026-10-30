@@ -17,7 +17,7 @@ import {
 import {
   closeSelection,
   editSelected,
-  isEditable,
+  isReadOnlyView,
   noteFor,
   selectedPinOf,
   setColorField,
@@ -59,27 +59,8 @@ export function PrototypeEditPanel({
   if (pin === null) {
     return null
   }
-  const editable = isEditable(state)
-  const peeking = state.view !== state.active
-  const noteHeading = peeking
-    ? translate(
-        'components.prototypes.noteHeadingPeek',
-        'Note — what to take from {{view}} into {{active}}',
-        {
-          view: state.view,
-          active: state.active
-        }
-      )
-    : translate('components.prototypes.noteHeading', 'Note — anything Edit can’t do')
-  const notePlaceholder = peeking
-    ? translate(
-        'components.prototypes.notePlaceholderPeek',
-        'e.g. use this wallet button above the card form'
-      )
-    : translate(
-        'components.prototypes.notePlaceholder',
-        'Describe a change Edit can’t do: animation, behavior, style…'
-      )
+  const readOnly = isReadOnlyView(state)
+  const note = noteFor(state)
   const isPulsing = (field: string): string | undefined =>
     pulseField === field ? `${field}:${state.pulse?.nonce ?? 0}` : undefined
   const pulseClass = (field: string): string | false => pulseField === field && 'prototype-pulse'
@@ -177,148 +158,162 @@ export function PrototypeEditPanel({
         </button>
       </div>
 
-      {editable ? (
-        <>
-          <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-            {translate('components.prototypes.editHeading', 'Edit')}
-          </span>
-          <label key={isPulsing('text')} className={cn(LABEL_CLASS, pulseClass('text'))}>
-            {translate('components.prototypes.textLabel', 'Text')}
-            <input
-              className={INPUT_CLASS}
-              value={textValue}
-              onChange={(event) =>
-                update((latest) => editSelected(latest, { text: event.target.value }))
-              }
-            />
-          </label>
-          {colorRow(
-            'color',
-            translate('components.prototypes.textColorLabel', 'Text color'),
-            TEXT_COLOR_PALETTE,
-            'color'
-          )}
-          {state.picker !== null ? (
-            <PrototypeColorPicker
-              field={colorField}
-              value={colorField === 'bg' ? pin.current.bg : pin.current.color}
-              hue={state.hue}
-              onHue={(hue) => update((latest) => setHue(latest, hue))}
-              onPick={(hex) => update((latest) => setColorField(latest, colorField, hex))}
-              onDone={() => update((latest) => setPicker(latest, null))}
-            />
-          ) : null}
-          {colorRow(
-            'bg',
-            translate('components.prototypes.fillLabel', 'Fill'),
-            FILL_COLOR_PALETTE,
-            'bg'
-          )}
-          {(['width', 'height'] as const).map((field) => {
-            const size = pin.current[field]
-            const dimmed = size.unit === 'auto'
-            return (
-              <div key={isPulsing(field)} className={cn(LABEL_CLASS, pulseClass(field))}>
-                <span>
-                  {field === 'width'
-                    ? translate('components.prototypes.widthLabel', 'Width')
-                    : translate('components.prototypes.heightLabel', 'Height')}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <PrototypeNumberField
-                    key={`${state.view}:${pin.pinKey}:${field}`}
-                    ariaLabel={
-                      field === 'width'
-                        ? translate('components.prototypes.widthValue', 'Width value')
-                        : translate('components.prototypes.heightValue', 'Height value')
-                    }
-                    className={cn(INPUT_CLASS, 'w-14', dimmed && 'opacity-40')}
-                    value={size.value}
-                    bounds={sizeBoundsOf(size.unit)}
-                    onCommit={(value) => setSize(field, { value, unit: size.unit })}
-                  />
-                  <span
-                    role="group"
-                    aria-label={
-                      field === 'width'
-                        ? translate('components.prototypes.widthUnit', 'Width unit')
-                        : translate('components.prototypes.heightUnit', 'Height unit')
-                    }
-                    className="flex rounded-md border border-border bg-sidebar p-0.5"
-                  >
-                    {UNIT_OPTIONS.map((unit) => (
-                      <button
-                        key={unit}
-                        type="button"
-                        aria-pressed={size.unit === unit}
-                        onClick={() =>
-                          setSize(field, {
-                            value: clampToBounds(size.value, sizeBoundsOf(unit)),
-                            unit
-                          })
-                        }
-                        className={cn(
-                          'h-[22px] rounded px-2 text-[11px]',
-                          size.unit === unit
-                            ? 'bg-accent text-accent-foreground'
-                            : 'text-muted-foreground'
-                        )}
-                      >
-                        {unit}
-                      </button>
-                    ))}
-                  </span>
-                </span>
-              </div>
-            )
-          })}
-          <label key={isPulsing('fontSize')} className={cn(LABEL_CLASS, pulseClass('fontSize'))}>
-            {translate('components.prototypes.fontSizeLabel', 'Font size')}
-            <span className="flex items-center gap-1.5">
-              <PrototypeNumberField
-                key={`${state.view}:${pin.pinKey}:fontSize`}
-                className={cn(INPUT_CLASS, 'w-14')}
-                value={pin.current.fontSize}
-                bounds={FONT_SIZE_BOUNDS}
-                onCommit={(fontSize) => update((latest) => editSelected(latest, { fontSize }))}
-              />
-              px
-            </span>
-          </label>
-        </>
-      ) : null}
-
-      <div
-        key={isPulsing('note')}
-        className={cn('flex flex-col gap-1.5 px-0.5', pulseClass('note'))}
-      >
-        <label
-          htmlFor="prototype-note"
-          className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
-        >
-          {noteHeading}
+      <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+        {readOnly
+          ? translate('components.prototypes.propertiesHeading', 'Properties · read-only')
+          : translate('components.prototypes.editHeading', 'Edit')}
+      </span>
+      <fieldset disabled={readOnly} className="m-0 flex min-w-0 flex-col gap-2.5 border-0 p-0">
+        <label key={isPulsing('text')} className={cn(LABEL_CLASS, pulseClass('text'))}>
+          {translate('components.prototypes.textLabel', 'Text')}
+          <input
+            className={INPUT_CLASS}
+            value={textValue}
+            onChange={(event) =>
+              update((latest) => editSelected(latest, { text: event.target.value }))
+            }
+          />
         </label>
-        <textarea
-          id="prototype-note"
-          rows={2}
-          value={noteFor(state)}
-          placeholder={notePlaceholder}
-          onChange={(event) => update((latest) => setNote(latest, event.target.value))}
-          className="resize-none rounded-md border border-border bg-input p-2 text-[13px] text-foreground"
-        />
-        <div className="flex flex-wrap gap-1.5">
-          {noteChips().map((chip) => (
-            <button
-              key={chip}
-              type="button"
-              onClick={() => update((latest) => setNote(latest, `${chip} on the ${pin.label}.`))}
-              className="h-6 rounded-full border border-border px-2.5 text-[11px] hover:bg-accent"
-            >
-              {chip}
-            </button>
-          ))}
+        {colorRow(
+          'color',
+          translate('components.prototypes.textColorLabel', 'Text color'),
+          TEXT_COLOR_PALETTE,
+          'color'
+        )}
+        {state.picker !== null ? (
+          <PrototypeColorPicker
+            field={colorField}
+            value={colorField === 'bg' ? pin.current.bg : pin.current.color}
+            hue={state.hue}
+            onHue={(hue) => update((latest) => setHue(latest, hue))}
+            onPick={(hex) => update((latest) => setColorField(latest, colorField, hex))}
+            onDone={() => update((latest) => setPicker(latest, null))}
+          />
+        ) : null}
+        {colorRow(
+          'bg',
+          translate('components.prototypes.fillLabel', 'Fill'),
+          FILL_COLOR_PALETTE,
+          'bg'
+        )}
+        {(['width', 'height'] as const).map((field) => {
+          const size = pin.current[field]
+          const dimmed = size.unit === 'auto'
+          return (
+            <div key={isPulsing(field)} className={cn(LABEL_CLASS, pulseClass(field))}>
+              <span>
+                {field === 'width'
+                  ? translate('components.prototypes.widthLabel', 'Width')
+                  : translate('components.prototypes.heightLabel', 'Height')}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <PrototypeNumberField
+                  key={`${state.view}:${pin.pinKey}:${field}`}
+                  ariaLabel={
+                    field === 'width'
+                      ? translate('components.prototypes.widthValue', 'Width value')
+                      : translate('components.prototypes.heightValue', 'Height value')
+                  }
+                  className={cn(INPUT_CLASS, 'w-14', dimmed && 'opacity-40')}
+                  value={size.value}
+                  bounds={sizeBoundsOf(size.unit)}
+                  onCommit={(value) => setSize(field, { value, unit: size.unit })}
+                />
+                <span
+                  role="group"
+                  aria-label={
+                    field === 'width'
+                      ? translate('components.prototypes.widthUnit', 'Width unit')
+                      : translate('components.prototypes.heightUnit', 'Height unit')
+                  }
+                  className="flex rounded-md border border-border bg-sidebar p-0.5"
+                >
+                  {UNIT_OPTIONS.map((unit) => (
+                    <button
+                      key={unit}
+                      type="button"
+                      aria-pressed={size.unit === unit}
+                      onClick={() =>
+                        setSize(field, {
+                          value: clampToBounds(size.value, sizeBoundsOf(unit)),
+                          unit
+                        })
+                      }
+                      className={cn(
+                        'h-[22px] rounded px-2 text-[11px]',
+                        size.unit === unit
+                          ? 'bg-accent text-accent-foreground'
+                          : 'text-muted-foreground'
+                      )}
+                    >
+                      {unit}
+                    </button>
+                  ))}
+                </span>
+              </span>
+            </div>
+          )
+        })}
+        <label key={isPulsing('fontSize')} className={cn(LABEL_CLASS, pulseClass('fontSize'))}>
+          {translate('components.prototypes.fontSizeLabel', 'Font size')}
+          <span className="flex items-center gap-1.5">
+            <PrototypeNumberField
+              key={`${state.view}:${pin.pinKey}:fontSize`}
+              className={cn(INPUT_CLASS, 'w-14')}
+              value={pin.current.fontSize}
+              bounds={FONT_SIZE_BOUNDS}
+              onCommit={(fontSize) => update((latest) => editSelected(latest, { fontSize }))}
+            />
+            px
+          </span>
+        </label>
+      </fieldset>
+
+      {readOnly ? (
+        note.trim().length > 0 ? (
+          <div className="flex flex-col gap-1.5 px-0.5">
+            <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+              {translate('components.prototypes.noteReadOnly', 'Note')}
+            </span>
+            <span className="text-[13px] leading-snug">{note}</span>
+          </div>
+        ) : null
+      ) : (
+        <div
+          key={isPulsing('note')}
+          className={cn('flex flex-col gap-1.5 px-0.5', pulseClass('note'))}
+        >
+          <label
+            htmlFor="prototype-note"
+            className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
+          >
+            {translate('components.prototypes.noteHeading', 'Note — anything Edit can’t do')}
+          </label>
+          <textarea
+            id="prototype-note"
+            rows={2}
+            value={note}
+            placeholder={translate(
+              'components.prototypes.notePlaceholder',
+              'Describe a change Edit can’t do: animation, behavior, style…'
+            )}
+            onChange={(event) => update((latest) => setNote(latest, event.target.value))}
+            className="resize-none rounded-md border border-border bg-input p-2 text-[13px] text-foreground"
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {noteChips().map((chip) => (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => update((latest) => setNote(latest, `${chip} on the ${pin.label}.`))}
+                className="h-6 rounded-full border border-border px-2.5 text-[11px] hover:bg-accent"
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
       <span className="text-[11px] text-muted-foreground">
         {translate(
           'components.prototypes.editFooter',

@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,22 +10,35 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { prototypeTitle } from '../../../src/shared/prototype-list-model'
-import { openDirection } from '../../../src/shared/prototype-set-state'
+import { nextFreeDirectionLetter } from '../../../src/shared/prototype-merge-plan'
+import { cancelMerge, canMerge, planArrived } from '../../../src/shared/prototype-merge-state'
+import {
+  openDirection,
+  toggleStar,
+  type PrototypeSetState
+} from '../../../src/shared/prototype-set-state'
+import { KeyedBottomDrawer } from '../components/keyed-bottom-drawer'
+import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
 import { useHostClient } from '../transport/host-client-hooks'
 import { colors, spacing } from '../theme/mobile-theme'
+import { MobilePrototypeDirectionCard, PROTOTYPE_CARD_WIDTH } from './MobilePrototypeDirectionCard'
+import { MobilePrototypeDirectionStrip } from './MobilePrototypeDirectionStrip'
 import { MobilePrototypeHeader } from './MobilePrototypeHeader'
-import { MobilePrototypeTile } from './MobilePrototypeTile'
+import { MobilePrototypeMergeButton } from './MobilePrototypeMergeButton'
+import { MobilePrototypeMergeSheet } from './MobilePrototypeMergeSheet'
+import { directionTag, mainFirst } from './mobile-prototype-directions-model'
 import { mobilePrototypeAgentLabel } from './mobile-prototype-list-model'
+import { sendMobilePrototypeMerge, startMobilePrototypeMerge } from './mobile-prototype-merge-flow'
 import { findMobilePrototypeSet } from './mobile-prototype-sets-state'
 import { mobilePrototypeStateKey, useMobilePrototypeViewStore } from './mobile-prototype-view-store'
+import { useMobilePrototypeMergePlan } from './use-mobile-prototype-merge-plan'
 import { useMobilePrototypeSets } from './use-mobile-prototype-sets'
 
-const CARD_WIDTH = 316
 const CARD_GAP = 12
-const CARD_STEP = CARD_WIDTH + CARD_GAP
+const CARD_STEP = PROTOTYPE_CARD_WIDTH + CARD_GAP
 const CAROUSEL_PADDING_Y = 16
 
-/** One request's directions, swiped side by side; a tap opens one to iterate on. */
+/** One request's directions, swiped side by side; a tap opens one, and a star picks it for a merge. */
 export function MobilePrototypeSetScreen({
   hostId,
   requestId,
@@ -42,6 +54,7 @@ export function MobilePrototypeSetScreen({
   const listed = useMobilePrototypeSets(hostId)
   const set = findMobilePrototypeSet(listed, requestId)
   const stateKey = mobilePrototypeStateKey(hostId, requestId)
+  const state = useMobilePrototypeViewStore((s) => s.states[stateKey])
   const ensureSetState = useMobilePrototypeViewStore((s) => s.ensureSetState)
   const updateSetState = useMobilePrototypeViewStore((s) => s.updateSetState)
   const lettersKey = set?.directions.map((direction) => direction.letter).join('|') ?? ''
@@ -50,15 +63,40 @@ export function MobilePrototypeSetScreen({
       ensureSetState(stateKey, lettersKey.split('|'))
     }
   }, [ensureSetState, lettersKey, stateKey])
+  const update = useCallback(
+    (transform: (current: PrototypeSetState) => PrototypeSetState) =>
+      updateSetState(stateKey, transform),
+    [stateKey, updateSetState]
+  )
   const [page, setPage] = useState(0)
   const [areaHeight, setAreaHeight] = useState(0)
-  const scrolled = useRef(0)
+  const carousel = useRef<ScrollView>(null)
 
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>): void => {
-    scrolled.current = event.nativeEvent.contentOffset.x
-    setPage(Math.round(scrolled.current / CARD_STEP))
+    setPage(Math.round(event.nativeEvent.contentOffset.x / CARD_STEP))
   }
-  const directions = set?.directions ?? []
+  const directions =
+    set === null || state === undefined ? [] : mainFirst(set.directions, state.active)
+  const focusLetter = directions[page]?.letter ?? null
+  const focusDirection = (letter: string): void => {
+    const index = directions.findIndex((direction) => direction.letter === letter)
+    if (index !== -1) {
+      setPage(index)
+      carousel.current?.scrollTo({ x: index * CARD_STEP, animated: true })
+    }
+  }
+  const nextLetter = nextFreeDirectionLetter(directions.map((direction) => direction.letter))
+  useMobilePrototypeMergePlan(client, set, state?.merge, (plan, text) =>
+    update((current) => planArrived(current, plan, text))
+  )
+  const mergeFlow = (listedSet: PrototypeListedSet) => ({
+    client,
+    set: listedSet,
+    nextLetter,
+    getState: () => useMobilePrototypeViewStore.getState().states[stateKey],
+    update
+  })
+  const review = state?.merge?.phase === 'review' ? state.merge : null
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -71,8 +109,28 @@ export function MobilePrototypeSetScreen({
             })}
         backLabel="Back"
         onBack={onBack}
+        trailing={
+          state === undefined ? undefined : (
+            <MobilePrototypeMergeButton
+              starCount={state.starred.length}
+              enabled={canMerge(state, nextLetter)}
+              onPress={() =>
+                set === null ? undefined : void startMobilePrototypeMerge(mergeFlow(set))
+              }
+            />
+          )
+        }
       />
+      {set === null || state === undefined ? null : (
+        <MobilePrototypeDirectionStrip
+          directions={set.directions}
+          state={state}
+          focusLetter={focusLetter}
+          onFocus={focusDirection}
+        />
+      )}
       <ScrollView
+        ref={carousel}
         horizontal
         showsHorizontalScrollIndicator={false}
         snapToInterval={CARD_STEP}
@@ -83,40 +141,23 @@ export function MobilePrototypeSetScreen({
         style={styles.carousel}
         contentContainerStyle={styles.carouselContent}
       >
-        {set === null || areaHeight === 0
+        {set === null || state === undefined || areaHeight === 0
           ? null
           : directions.map((direction) => (
-              <View
+              <MobilePrototypeDirectionCard
                 key={direction.letter}
-                style={[styles.card, { height: areaHeight - CAROUSEL_PADDING_Y * 2 }]}
-              >
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Iterate on direction ${direction.letter}`}
-                  onPress={() => {
-                    updateSetState(stateKey, (current) => openDirection(current, direction.letter))
-                    onOpenDirection()
-                  }}
-                  style={styles.cardArt}
-                >
-                  <MobilePrototypeTile
-                    client={client}
-                    set={set}
-                    direction={direction}
-                    style={styles.cardTile}
-                  />
-                </Pressable>
-                <View style={styles.cardText}>
-                  <Text style={styles.cardName}>
-                    {direction.name === undefined
-                      ? direction.letter
-                      : `${direction.letter} · ${direction.name}`}
-                  </Text>
-                  {direction.tradeoff === undefined ? null : (
-                    <Text style={styles.cardTradeoff}>{direction.tradeoff}</Text>
-                  )}
-                </View>
-              </View>
+                client={client}
+                set={set}
+                direction={direction}
+                tag={directionTag(state, direction.letter)}
+                starred={state.starred.includes(direction.letter)}
+                height={areaHeight - CAROUSEL_PADDING_Y * 2}
+                onOpen={() => {
+                  update((current) => openDirection(current, direction.letter))
+                  onOpenDirection()
+                }}
+                onToggleStar={() => update((current) => toggleStar(current, direction.letter))}
+              />
             ))}
       </ScrollView>
       <View accessibilityElementsHidden importantForAccessibility="no" style={styles.dots}>
@@ -124,7 +165,27 @@ export function MobilePrototypeSetScreen({
           <View key={direction.letter} style={[styles.dot, index === page && styles.dotActive]} />
         ))}
       </View>
-      <Text style={styles.hint}>Swipe to compare · tap a design to iterate on it</Text>
+      <Text style={styles.hint}>Swipe to compare · tap a design to open it</Text>
+      <KeyedBottomDrawer<'merge'>
+        sheet={review === null || set === null || nextLetter === null ? null : 'merge'}
+        sheetKey={(presented) => presented}
+        contentScrollable={false}
+        dragContentToDismiss={false}
+        onClose={() => update(cancelMerge)}
+      >
+        {() =>
+          review === null || set === null || nextLetter === null ? null : (
+            <MobilePrototypeMergeSheet
+              review={review}
+              agentName={mobilePrototypeAgentLabel(set.agent)}
+              nextLetter={nextLetter}
+              sendFailed={state?.mergeSendFailed ?? false}
+              update={update}
+              onSend={() => void sendMobilePrototypeMerge(mergeFlow(set))}
+            />
+          )
+        }
+      </KeyedBottomDrawer>
     </SafeAreaView>
   )
 }
@@ -137,12 +198,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: CAROUSEL_PADDING_Y
   },
-  card: { width: CARD_WIDTH, gap: spacing.md },
-  cardArt: { flex: 1 },
-  cardTile: { flex: 1, borderRadius: 14 },
-  cardText: { gap: 2 },
-  cardName: { color: colors.textPrimary, fontSize: 15, fontWeight: '600' },
-  cardTradeoff: { color: colors.textSecondary, fontSize: 13 },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingBottom: 10 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.textMuted },
   dotActive: { backgroundColor: colors.textPrimary },

@@ -37,6 +37,34 @@ describe('mobile prototype view store', () => {
   })
 })
 
+describe('mobile prototype view store merge', () => {
+  it('makes the merged direction the main once the set lists it, and clears the stars', () => {
+    const key = mobilePrototypeStateKey('host-1', 'req-merge')
+    const store = useMobilePrototypeViewStore.getState()
+    store.ensureSetState(key, ['A', 'B', 'C'])
+    store.updateSetState(key, (state) => ({
+      ...state,
+      starred: ['A', 'C'],
+      mergeInto: { letter: 'D', from: ['A', 'C'] }
+    }))
+
+    useMobilePrototypeViewStore.getState().ensureSetState(key, ['A', 'B', 'C'])
+    expect(useMobilePrototypeViewStore.getState().states[key]).toMatchObject({
+      active: 'A',
+      starred: ['A', 'C']
+    })
+
+    useMobilePrototypeViewStore.getState().ensureSetState(key, ['A', 'B', 'C', 'D'])
+    expect(useMobilePrototypeViewStore.getState().states[key]).toMatchObject({
+      active: 'D',
+      view: 'D',
+      starred: [],
+      mergeInto: null,
+      mergedFrom: { D: ['A', 'C'] }
+    })
+  })
+})
+
 describe('mobile prototype view store letters', () => {
   it('moves an iterated letter the set no longer has to its first direction, and keeps the state', () => {
     const key = mobilePrototypeStateKey('host-1', 'req-letters')

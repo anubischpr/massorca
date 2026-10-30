@@ -79,3 +79,29 @@ describe('usePrototypeViewStore invariants', () => {
     })
   })
 })
+
+describe('a merged direction joining the set', () => {
+  it('becomes the main when the set lists it, and clears the stars', () => {
+    const store = usePrototypeViewStore.getState()
+    store.ensureSetState('r1', ['A', 'B', 'C'])
+    store.updateSetState('r1', (state) => ({
+      ...state,
+      starred: ['A', 'C'],
+      mergeInto: { letter: 'D', from: ['A', 'C'] }
+    }))
+    store.ensureSetState('r1', ['A', 'B', 'C'])
+    expect(usePrototypeViewStore.getState().states.r1).toMatchObject({
+      active: 'A',
+      starred: ['A', 'C']
+    })
+
+    store.ensureSetState('r1', ['A', 'B', 'C', 'D'])
+    expect(usePrototypeViewStore.getState().states.r1).toMatchObject({
+      active: 'D',
+      view: 'D',
+      starred: [],
+      mergeInto: null,
+      mergedFrom: { D: ['A', 'C'] }
+    })
+  })
+})

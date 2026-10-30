@@ -4,7 +4,7 @@ import { splitPrototypeHiddenInstruction } from '../../../src/shared/prototype-h
 import {
   createSetState,
   editSelected,
-  peekDirection,
+  openDirection,
   pickElement,
   setNote,
   setPrompt,
@@ -274,7 +274,7 @@ describe('sendMobilePrototypeIteration', () => {
     it('takes no pictures while another direction is being peeked at', async () => {
       const { client } = hostClient()
       const { frame, capturePin } = frameThatCaptures()
-      const peeking = peekDirection(draftedState(), 'B')
+      const peeking = openDirection(draftedState(), 'B')
       const leave = registerMobilePrototypeChatSend('session-1', async () => true)
       await sendMobilePrototypeIteration(peeking, SET, client, frame)
       leave()

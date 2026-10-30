@@ -10,11 +10,12 @@ import { DESIGN_SYSTEM_FILES_LINE_PREFIX } from './prototype-design-system-files
 // the agent's text differs from what the user typed (a /prototype command word), a second marker
 // opens an echo of the typed text, which is then what the chat shows. A design system message
 // opens with its own marker: `design-system:update`, `design-system:detect` or
-// `design-system:approve:<requestId>`.
+// `design-system:approve:<requestId>`. A merge message opens with `merge:<requestId>:suggest` (ask for
+// the plan) or `merge:<requestId>:<letter>` (write the merged direction `<letter>`).
 
 const REQUEST_ID_SOURCE = '[A-Za-z0-9][A-Za-z0-9_-]{0,127}'
 const MARKER_LINE = new RegExp(
-  `^[ \t]*<!-- orca-prototype-(request|iteration|design-system):(${REQUEST_ID_SOURCE})(?::(${REQUEST_ID_SOURCE}))? -->[ \t]*$`,
+  `^[ \t]*<!-- orca-prototype-(request|iteration|design-system|merge):(${REQUEST_ID_SOURCE})(?::(${REQUEST_ID_SOURCE}))? -->[ \t]*$`,
   'mu'
 )
 
@@ -36,6 +37,9 @@ export type PrototypeHiddenInstructionMarker =
   | { kind: 'design-system'; action: 'update' | 'detect' }
   /** `requestId` is the pending request an `approve` builds the directions of. */
   | { kind: 'design-system'; action: 'approve'; requestId: string }
+  | { kind: 'merge'; requestId: string; step: 'suggest' }
+  /** `letter` is the merged direction the message asks the agent to write. */
+  | { kind: 'merge'; requestId: string; step: 'build'; letter: string }
 
 export type PrototypeHiddenInstructionSplit = {
   /** What the user wrote: the typed echo when the message has one, else the text before the
@@ -75,6 +79,19 @@ export function prototypeDesignSystemMarkerLine(
 
 export function prototypeIterationMarkerLine(requestId: string, letter: string): string {
   return `<!-- orca-prototype-iteration:${requestId}:${letter} -->`
+}
+
+/** Opens the hidden block of a merge message: the plan request, or the merged direction's letter. */
+export function prototypeMergeMarkerLine(requestId: string, target: string): string {
+  return `<!-- orca-prototype-merge:${requestId}:${target} -->`
+}
+
+/** The start of the line that follows a merge suggestion marker; the plan file's path comes after it. */
+export const MERGE_SUGGEST_INSTRUCTION_PREFIX = 'Write the merge plan to '
+
+/** The start of the line that follows a merge marker; the merged direction's file path comes after it. */
+export function mergeBuildInstructionPrefix(letter: string): string {
+  return `Write the merged direction ${letter} as `
 }
 
 /** The start of the line that follows an iteration marker; the new version's path comes after it. */
@@ -123,7 +140,22 @@ function markerOf(match: RegExpExecArray): PrototypeHiddenInstructionMarker | nu
   if (kind === 'iteration' && third !== undefined && /^[A-Z]$/u.test(third)) {
     return { kind: 'iteration', requestId: name, letter: third }
   }
+  if (kind === 'merge') {
+    return mergeMarkerOf(name, third)
+  }
   return kind === 'design-system' ? designSystemMarkerOf(name, third) : null
+}
+
+function mergeMarkerOf(
+  requestId: string,
+  target: string | undefined
+): PrototypeHiddenInstructionMarker | null {
+  if (target === 'suggest') {
+    return { kind: 'merge', requestId, step: 'suggest' }
+  }
+  return target !== undefined && /^[A-Z]$/u.test(target)
+    ? { kind: 'merge', requestId, step: 'build', letter: target }
+    : null
 }
 
 // The first slot of a design system marker is its action; only `approve` has a request after it.
@@ -158,7 +190,7 @@ function splitAtMarker(
 }
 
 // The line MassOrca's builders write right after a marker: the Settings line of a request, the
-// new-version line of an iteration, or the files line of a design system message.
+// new-version line of an iteration, the files line of a design system message, or the file line of a merge.
 function opensMassOrcaInstruction(
   marker: PrototypeHiddenInstructionMarker,
   after: string
@@ -171,7 +203,13 @@ function opensMassOrcaInstruction(
   if (marker.kind === 'request') {
     return REQUEST_OPENING_LINES.has(line)
   }
-  return marker.kind === 'iteration'
-    ? line.startsWith(iterationInstructionPrefix(marker.letter))
-    : line.startsWith(DESIGN_SYSTEM_FILES_LINE_PREFIX)
+  if (marker.kind === 'iteration') {
+    return line.startsWith(iterationInstructionPrefix(marker.letter))
+  }
+  if (marker.kind === 'merge') {
+    return marker.step === 'suggest'
+      ? line.startsWith(MERGE_SUGGEST_INSTRUCTION_PREFIX)
+      : line.startsWith(mergeBuildInstructionPrefix(marker.letter))
+  }
+  return line.startsWith(DESIGN_SYSTEM_FILES_LINE_PREFIX)
 }

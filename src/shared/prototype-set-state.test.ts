@@ -7,20 +7,24 @@ import {
   closeSelection,
   createSetState,
   editSelected,
-  iterateHere,
+  isReadOnlyView,
   jumpToDraftItem,
+  keepListedLetters,
+  makeMain,
   openDirection,
-  peekDirection,
   pickElement,
   pinClicked,
   pinKeyFor,
   pinsOf,
+  noteFor,
   selectedPinOf,
   setNote,
   setPicker,
   setPrompt,
   setTool,
   showFocus,
+  showSet,
+  toggleStar,
   type PrototypeSetState
 } from './prototype-set-state'
 import {
@@ -137,10 +141,6 @@ describe('untouched pins', () => {
     expect(pinsOf(edited, 'A')).toHaveLength(1)
   })
 
-  it('drops an untouched pin when a peek moves to a sibling', () => {
-    expect(peekDirection(withPin(), 'B').pins).toEqual({})
-  })
-
   it('drops an untouched pin when another direction is opened', () => {
     expect(openDirection(withPin(), 'B').pins).toEqual({})
   })
@@ -155,9 +155,9 @@ describe('draft from edits', () => {
     expect(draftOf(state).itemCount).toBe(0)
   })
 
-  it('edits only the iterated direction', () => {
-    const peek = peekDirection(withPin(), 'B')
-    expect(editSelected(peek, { text: 'x' })).toBe(peek)
+  it('edits only the main', () => {
+    const readOnly = pickElement(openDirection(withPin(), 'B'), picked('button.cta'))
+    expect(editSelected(readOnly, { text: 'x' })).toBe(readOnly)
   })
 
   it('reports only changed fields as live overrides', () => {
@@ -168,17 +168,84 @@ describe('draft from edits', () => {
   })
 })
 
-describe('peek and iterate', () => {
-  it('peeks at a sibling without changing the iterated direction', () => {
-    const state = peekDirection(createSetState(['A', 'B']), 'B')
+describe('the main and read-only directions', () => {
+  it('opens another direction without changing the main', () => {
+    const state = openDirection(createSetState(['A', 'B']), 'B')
     expect(state.view).toBe('B')
     expect(state.active).toBe('A')
+    expect(isReadOnlyView(state)).toBe(true)
   })
 
-  it('goes back to the iterated direction, and iterates on the one shown', () => {
-    const peeking = peekDirection(createSetState(['A', 'B']), 'B')
-    expect(backToActive(peeking).view).toBe('A')
-    expect(iterateHere(peeking).active).toBe('B')
+  it('opening the card of the main keeps it the main', () => {
+    const state = openDirection(showSet(createSetState(['A', 'B'])), 'A')
+    expect(state).toMatchObject({ layout: 'focus', view: 'A', active: 'A' })
+  })
+
+  it('goes back to the main, and makes the one shown the main', () => {
+    const readOnly = openDirection(createSetState(['A', 'B']), 'B')
+    expect(backToActive(readOnly).view).toBe('A')
+    expect(makeMain(readOnly).active).toBe('B')
+  })
+
+  it('shows the properties of an element on a read-only direction from its own state', () => {
+    const state = pickElement(
+      openDirection(createSetState(['A', 'B']), 'B'),
+      picked('button.cta', { color: '#00ff00' })
+    )
+    expect(selectedPinOf(state)?.current.color).toBe('#00ff00')
+    expect(state.pins.B).toHaveLength(1)
+  })
+
+  it('does not tell the chat anything by looking at a read-only direction', () => {
+    const before = {
+      ...openDirection(createSetState(['A', 'B']), 'B'),
+      sentMessage: 'Iterate on A.'
+    }
+    expect(pickElement(before, picked('button.cta')).sentMessage).toBe('Iterate on A.')
+  })
+
+  it('refuses a picker on a read-only direction', () => {
+    const state = pickElement(openDirection(createSetState(['A', 'B']), 'B'), picked('button.cta'))
+    expect(setPicker(state, 'color').picker).toBeNull()
+  })
+
+  it('keeps the edits and notes of a former main on it, out of the new main draft', () => {
+    let state = setNote(editSelected(withPin(), { color: '#ff0000' }), 'Heavy header')
+    state = makeMain(openDirection(state, 'B'))
+    expect(state.active).toBe('B')
+    expect(draftOf(state).itemCount).toBe(0)
+    expect(pinsOf(state, 'A')).toHaveLength(1)
+    expect(overridesOf(state, 'A')).toHaveLength(1)
+    const readOnly = pickElement(openDirection(state, 'A'), picked('button.cta'))
+    expect(noteFor(readOnly)).toBe('Heavy header')
+    expect(selectedPinOf(readOnly)?.current.color).toBe('#ff0000')
+  })
+
+  it('moves the main to the first direction when its letter leaves the set', () => {
+    const state = keepListedLetters(makeMain(openDirection(createSetState(['A', 'B']), 'B')), ['A'])
+    expect(state).toMatchObject({ active: 'A', view: 'A' })
+  })
+})
+
+describe('stars', () => {
+  it('toggles a direction for merge, in letter order, on any direction', () => {
+    let state = toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'C'), 'A')
+    expect(state.starred).toEqual(['A', 'C'])
+    state = toggleStar(state, 'C')
+    expect(state.starred).toEqual(['A'])
+  })
+
+  it('changes nothing but the stars', () => {
+    const before = withPin()
+    const after = toggleStar(before, 'B')
+    expect({ ...after, starred: [] }).toEqual(before)
+  })
+
+  it('drops the star of a direction the set no longer has', () => {
+    const state = keepListedLetters(toggleStar(toggleStar(createSetState(['A', 'B']), 'A'), 'B'), [
+      'A'
+    ])
+    expect(state.starred).toEqual(['A'])
   })
 })
 
@@ -192,13 +259,12 @@ describe('notes', () => {
     })
   })
 
-  it('lists a sibling note under its own direction with the take-into label', () => {
-    let state = peekDirection(withPin(), 'B')
-    state = pickElement(state, picked('button.cta'))
-    state = setNote(state, 'Use this wallet button')
-    const groups = draftOf(backToActive(state)).groups
-    const sibling = groups.find((group) => group.title.startsWith('from B'))
-    expect(sibling?.items[0]?.label).toBe('take into A')
+  it('takes no note on a read-only direction', () => {
+    const readOnly = pickElement(
+      openDirection(createSetState(['A', 'B']), 'B'),
+      picked('button.cta')
+    )
+    expect(setNote(readOnly, 'Use this wallet button')).toBe(readOnly)
   })
 })
 
@@ -222,7 +288,7 @@ describe('the frame annotate state', () => {
   it('marks the selected pin active only on the shown direction', () => {
     const state = editSelected(withPin(), { color: '#ff0000' })
     expect(annotateStateOf(state, 'A').pins[0]).toMatchObject({ number: 1, active: true })
-    expect(annotateStateOf(peekDirection(state, 'B'), 'A').pins[0]?.active).toBe(false)
+    expect(annotateStateOf(openDirection(state, 'B'), 'A').pins[0]?.active).toBe(false)
   })
 })
 
@@ -272,6 +338,16 @@ describe('the send outcome', () => {
     expect(state.sendFailed).toBe(false)
   })
 
+  it('clears only the main draft, keeping what a former main has', () => {
+    let state = setNote(withPin(), 'Heavy header')
+    state = makeMain(openDirection(state, 'B'))
+    state = setNote(pickElement(state, picked('div.summary')), 'Bolder total')
+    const sent = sendSucceeded(state, 'Iterate on B.')
+    expect(sent.pins.B).toBeUndefined()
+    expect(sent.notes).toEqual({ [`A:${KEY}`]: 'Heavy header' })
+    expect(pinsOf(sent, 'A')).toHaveLength(1)
+  })
+
   it('keeps the draft when the send is refused', () => {
     const before = setNote(withPin(), 'note')
     const after = sendRefused(before)
@@ -315,8 +391,8 @@ describe('transition guards', () => {
     })
   })
 
-  it('drops a selection on the peeked direction when focus returns', () => {
-    const peeking = pickElement(peekDirection(withPin(), 'B'), picked('div.summary'))
+  it('drops a selection on a read-only direction when focus returns', () => {
+    const peeking = pickElement(openDirection(withPin(), 'B'), picked('div.summary'))
     expect(selectedPinOf(peeking)).not.toBeNull()
     expect(showFocus(peeking)).toMatchObject({ view: 'A', selectedPinKey: null, picker: null })
   })

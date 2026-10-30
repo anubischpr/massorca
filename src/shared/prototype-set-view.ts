@@ -19,7 +19,7 @@ import { pinsOf, type PrototypeSetState } from './prototype-set-state'
 // What the screen derives from a set's state: its draft, the visible message, the live overrides and
 // frame annotate state, and the text an iteration sends.
 
-/** The draft of the iterated direction: edits and notes grouped by pin, then the sibling notes. */
+/** The draft of the main: its edits and notes, grouped by pin. */
 export function draftOf(state: PrototypeSetState): PrototypeDraft {
   return buildDraft({
     activeLetter: state.active,
@@ -111,7 +111,7 @@ export function annotateStateOf(
   }
 }
 
-/** The version an iteration writes next: one past the newest of the iterated direction, from v2 on. */
+/** The version an iteration writes next: one past the newest of the main, from v2 on. */
 export function nextVersionOf(
   directions: readonly PrototypeListedDirection[],
   letter: string
@@ -150,12 +150,21 @@ export function beginSend(state: PrototypeSetState): PrototypeSetState {
   return { ...state, sending: true, sendFailed: false, sentMessage: null }
 }
 
-/** After a successful send the set's draft is cleared; the sent card shows what went out. */
+/**
+ * After a successful send the main's draft is cleared; the sent card shows what went out. A former
+ * main keeps its own pins, edits and notes: they were never part of this message.
+ */
 export function sendSucceeded(state: PrototypeSetState, sentMessage: string): PrototypeSetState {
+  const pins = Object.fromEntries(
+    Object.entries(state.pins).filter(([letter]) => letter !== state.active)
+  )
+  const notes = Object.fromEntries(
+    Object.entries(state.notes).filter(([key]) => !key.startsWith(`${state.active}:`))
+  )
   return {
     ...state,
-    pins: {},
-    notes: {},
+    pins,
+    notes,
     prompt: '',
     selectedPinKey: null,
     picker: null,
