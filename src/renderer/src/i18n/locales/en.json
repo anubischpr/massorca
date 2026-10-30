@@ -13950,7 +13950,6 @@
           "AiVaultPanelControls": {
             "scanningSessions": "Scanning sessions",
             "scopeAriaLabel": "Session History scope: {{value0}}",
-            "currentWorkspaceLower": "current workspace",
             "currentWorktreeLower": "current worktree",
             "currentFolderLower": "current folder",
             "allSessionsLower": "all sessions",
