@@ -18076,6 +18076,7 @@
       "cardName": "{{letter}} · {{name}}",
       "chatLink": "{{agent}} · chat “{{chat}}” — open chat ↗",
       "chatLinkNoTitle": "{{agent}} — open chat ↗",
+      "originLink": "from “{{chat}}” ↗",
       "close": "Close",
       "curIterating": "main · v{{version}}",
       "curPeeking": "read-only",
