@@ -184,6 +184,13 @@ describe('annotate script: picking', () => {
     })
   })
 
+  it('reports a transparent fill when no ancestor paints behind the element', () => {
+    document.body.innerHTML = '<div id="bare"><span>Bare</span></div>'
+    expect(pick(element('#bare span')).state).toEqual(
+      expect.objectContaining({ bg: 'transparent' })
+    )
+  })
+
   it('takes the label from aria-label, then the trimmed text cut at 24 characters, then the tag', () => {
     expect(pick(element('h1')).label).toBe('title')
     expect(pick(element('#empty')).label).toBe('div')

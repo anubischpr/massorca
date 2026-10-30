@@ -150,12 +150,14 @@ describe('the pin sheet of the main', () => {
 })
 
 describe('the properties sheet of a read-only direction', () => {
-  function mountReadOnlySheet(update: () => void = () => {}): ReactTestRenderer {
+  function mountReadOnlySheet(update: () => void = () => {}, fill?: string): ReactTestRenderer {
     const state = readOnlyB()
-    const pin = selectedPinOf(state)
-    if (pin === null) {
+    const selected = selectedPinOf(state)
+    if (selected === null) {
       throw new Error('the state has no selected pin')
     }
+    const pin =
+      fill === undefined ? selected : { ...selected, current: { ...selected.current, bg: fill } }
     let renderer: ReactTestRenderer | undefined
     act(() => {
       renderer = create(createElement(MobilePrototypeReadOnlySheet, { pin, state, update }))
@@ -188,6 +190,14 @@ describe('the properties sheet of a read-only direction', () => {
     expect(texts).toEqual(expect.arrayContaining(['Text color', '#171717', 'Fill', '#ffffff']))
     expect(texts).toContain('Size')
     expect(texts).toContain('100% × auto · 20px')
+  })
+
+  it('leaves the Fill row out when no ancestor paints, rather than showing a value that is not there', () => {
+    const { root } = mountReadOnlySheet(() => {}, 'transparent')
+    const texts = hosts(root, 'Text').map((text) => text.props.children)
+    expect(texts).toContain('Text color')
+    expect(texts).not.toContain('Fill')
+    expect(texts).not.toContain('transparent')
   })
 
   it('closes the selection from the × button', () => {

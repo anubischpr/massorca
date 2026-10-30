@@ -119,6 +119,14 @@ describe('readNativeChatVisualAnnotateEvent', () => {
     }
   })
 
+  it('keeps a pick whose fill is transparent, and drops any other fill that is not a hex color', () => {
+    const withFill = (bg: string) =>
+      readNativeChatVisualAnnotateEvent(picked({ state: { ...state, bg } }), CHANNEL)
+    const result = withFill('transparent')
+    expect(result?.kind === 'element-picked' && result.element.state.bg).toBe('transparent')
+    expect(withFill('red')).toBeNull()
+  })
+
   it('drops a state with a color that is not #rrggbb or a size with a bad unit or value', () => {
     const withState = (patch: Record<string, unknown>) =>
       readNativeChatVisualAnnotateEvent(picked({ state: { ...state, ...patch } }), CHANNEL)
