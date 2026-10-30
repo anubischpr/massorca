@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import {
+  isPlanForRequest,
   parsePrototypeMergePlan,
   type PrototypeMergePlan,
   type PrototypeMergeState
@@ -22,7 +23,12 @@ export function useMobilePrototypeMergePlan(
   useEffect(() => {
     onPlanRef.current = onPlan
   }, [onPlan])
-  const waitingFor = merge?.phase === 'waiting' ? merge.planId : null
+  const waiting = merge?.phase === 'waiting' ? merge : null
+  const waitingRef = useRef(waiting)
+  useEffect(() => {
+    waitingRef.current = waiting
+  }, [waiting])
+  const waitingFor = waiting?.planId ?? null
   const sessionId = set?.sessionId
   const requestId = set?.requestId
   useEffect(() => {
@@ -37,7 +43,14 @@ export function useMobilePrototypeMergePlan(
         return
       }
       const plan = text === null ? null : parsePrototypeMergePlan(text)
-      if (plan !== null && text !== null) {
+      // The file keeps earlier merges' plans: only the one answering this merge is handed over.
+      const awaited = waitingRef.current
+      if (
+        plan !== null &&
+        text !== null &&
+        awaited !== null &&
+        isPlanForRequest(plan, text, awaited)
+      ) {
         onPlanRef.current(plan, text)
       }
       timer = setTimeout(() => void poll(), PLAN_POLL_MS)

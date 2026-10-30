@@ -77,6 +77,72 @@ describe('waiting for the merge plan', () => {
     expect(onPlan).not.toHaveBeenCalled()
   })
 
+  it('does not hand over a plan left by an earlier merge on the same request', async () => {
+    readPlan.mockResolvedValue(
+      JSON.stringify({
+        id: 'plan-0',
+        from: ['A', 'C'],
+        parts: [{ name: 'Heading', selector: 'main > h1', from: 'A' }]
+      })
+    )
+    const onPlan = vi.fn()
+    act(() => {
+      create(createElement(Watcher, { merge: WAITING, onPlan }))
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(9_000)
+    })
+    expect(readPlan).toHaveBeenCalledTimes(3)
+    expect(onPlan).not.toHaveBeenCalled()
+  })
+
+  it('does not hand over a plan for other directions', async () => {
+    readPlan.mockResolvedValue(
+      JSON.stringify({
+        id: 'plan-1',
+        from: ['A', 'B'],
+        parts: [{ name: 'Heading', selector: 'main > h1', from: 'A' }]
+      })
+    )
+    const onPlan = vi.fn()
+    act(() => {
+      create(createElement(Watcher, { merge: WAITING, onPlan }))
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6_000)
+    })
+    expect(readPlan).toHaveBeenCalledTimes(2)
+    expect(onPlan).not.toHaveBeenCalled()
+  })
+
+  it('takes a plan without an id only when it differs from the file read at the send', async () => {
+    const before = JSON.stringify({
+      from: ['A', 'C'],
+      parts: [{ name: 'Heading', selector: 'main > h1', from: 'A' }]
+    })
+    const after = JSON.stringify({
+      from: ['A', 'C'],
+      parts: [{ name: 'Heading', selector: 'main > h1', from: 'C' }]
+    })
+    const onPlan = vi.fn()
+    readPlan.mockResolvedValue(before)
+    act(() => {
+      create(createElement(Watcher, { merge: { ...WAITING, baseline: before }, onPlan }))
+    })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6_000)
+    })
+    expect(readPlan).toHaveBeenCalledTimes(2)
+    expect(onPlan).not.toHaveBeenCalled()
+
+    readPlan.mockResolvedValue(after)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000)
+    })
+    expect(onPlan).toHaveBeenCalledTimes(1)
+    expect(onPlan.mock.calls[0]?.[1]).toBe(after)
+  })
+
   it('reads nothing when no merge waits, and stops once it unmounts', async () => {
     readPlan.mockResolvedValue(PLAN_JSON)
     const onPlan = vi.fn()
