@@ -22,15 +22,21 @@ type FrameProps = {
   file: MobilePrototypeFileHtml
   handle: { current: MobilePrototypeFrameHandle | null }
   fileKey?: string
+  viewport?: 'desktop' | 'phone'
 }
 
 const READY: MobilePrototypeFileHtml = { status: 'ready', html: '<main>Checkout A</main>' }
 
-function frameElement({ file, handle, fileKey = 'request-1:A.html' }: FrameProps) {
+function frameElement({
+  file,
+  handle,
+  fileKey = 'request-1:A.html',
+  viewport = 'desktop'
+}: FrameProps) {
   return createElement(MobilePrototypeFrame, {
     file,
     fileKey,
-    viewport: 'desktop',
+    viewport,
     annotate: { enabled: false, pins: [], overrides: [] },
     onAnnotateEvent: () => {},
     handle
@@ -72,7 +78,14 @@ describe('MobilePrototypeFrame', () => {
     expect(hosts(renderer, 'MobileNativeChatVisualFrame')).toHaveLength(0)
     layOut(renderer)
     expect(hosts(renderer, 'MobileNativeChatVisualFrame')).toHaveLength(1)
-    expect(handle.current?.pageSize.width).toBe(640)
+    expect(handle.current?.pageSize.width).toBe(1440)
+  })
+
+  it('offers a phone page at the phone width', () => {
+    const handle: FrameProps['handle'] = { current: null }
+    const renderer = mount({ file: READY, handle, viewport: 'phone' })
+    layOut(renderer)
+    expect(handle.current?.pageSize.width).toBe(390)
   })
 
   it('shows the one approved line when the page fails, and shows the page again after a fresh read', () => {
@@ -93,7 +106,7 @@ describe('MobilePrototypeFrame', () => {
     })
     expect(hosts(renderer, 'MobileNativeChatVisualFrame')).toHaveLength(1)
     expect(shownText(renderer)).toEqual([])
-    expect(handle.current?.pageSize.width).toBe(640)
+    expect(handle.current?.pageSize.width).toBe(1440)
   })
 
   it('keeps the same capture handle across renders that leave the frame the same size', () => {

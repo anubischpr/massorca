@@ -36,6 +36,8 @@ export type PrototypeSendInput = {
   set: PrototypeListedSet
   /** The frame's box in the window; null when no frame is on screen. */
   frameOrigin: NativeChatVisualRect | null
+  /** Window pixels per page pixel, since a pin's rect is in page pixels. Defaults to 1. */
+  scale?: number
 }
 
 export type PrototypeSendOutcome = {
@@ -48,7 +50,7 @@ async function captureScreenshots(
   input: PrototypeSendInput,
   deps: PrototypeSendDeps
 ): Promise<Record<string, string>> {
-  const { state, frameOrigin } = input
+  const { state, frameOrigin, scale = 1 } = input
   const { captureRect, writeAttachment } = deps
   const screenshots: Record<string, string> = {}
   // Captures need the iterated direction on screen; a peek shows another frame.
@@ -70,10 +72,10 @@ async function captureScreenshots(
       continue
     }
     const rect = {
-      x: frameOrigin.x + pin.rect.x,
-      y: frameOrigin.y + pin.rect.y,
-      width: pin.rect.width,
-      height: pin.rect.height
+      x: frameOrigin.x + pin.rect.x * scale,
+      y: frameOrigin.y + pin.rect.y * scale,
+      width: pin.rect.width * scale,
+      height: pin.rect.height * scale
     }
     try {
       const capture = await captureRect(rect)
