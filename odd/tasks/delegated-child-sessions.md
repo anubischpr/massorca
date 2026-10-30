@@ -201,6 +201,11 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
   - Desktop nesting stays with the session-history session.
   - Reviews: `b75f65ff701`, `be071637e73`, `4be1e7a33b7` approved and acknowledged; `7297d9d659b` and `b53547593c2` approved together as one range and acknowledged.
   - Checks (writers): targeted `pnpm test` / `pnpm test:node` suites pass; `pnpm tc` exit 0; oxlint and oxfmt clean on changed files. Known environmental failures: symlink EPERM in `native-chat-visuals-sweep.test.ts` (unchanged file, Windows) and `orca-runtime-structured-agent-registration-seam.test.ts` (`getRepo is not a function`, fails on base too). Not verified end to end: real gentle-shell/agy runs, SSH execution host.
+- [x] T9 — pv56 desktop QA fixes (2026-10-30). Route: inline for the fixes; two delegated read-only agents for mapping and for a hidden real-app reproduction.
+  - `1c08d8cff48`: "Open child chat" switches to a child's worktree. Both pv56 children were `new-child`, so the old click stayed on the parent's worktree. Review abandoned (stuck `corrupted_or_unverifiable_authority`); its critical finding was disproved by the code.
+  - `df977304f83`: delegated rows and notices show the child's generated name when its host has one. The record already had the name on pv56. Review approved with warnings: the row's generated-name branch and the cross-worktree lookup are not directly tested.
+  - Real-app check: local hidden app with a fake agent; the button opened the child in `current` and `new-child`, also after a restart. Not run: a paired remote host, real agents, parents in splits, clicks from a non-terminal view, or a generated name on screen.
+  - Prototype capture is owned by the Prototipos session.
 
 ## Acceptance criteria
 

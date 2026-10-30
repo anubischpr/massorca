@@ -134,6 +134,16 @@ export async function activateAiVaultStructuredSession(
   }
 }
 
+/** Opens a chat from a click, switching to its worktree when that is not the one on screen. */
+export function openStructuredChatInWorktree(args: {
+  worktreeId: string
+  sessionId: string
+}): void {
+  void activateAiVaultStructuredSession({
+    structuredSession: { workspaceId: args.worktreeId, sessionId: args.sessionId }
+  })
+}
+
 const activationsInFlight = new Map<string, Promise<boolean>>()
 
 async function activateStructuredSession(

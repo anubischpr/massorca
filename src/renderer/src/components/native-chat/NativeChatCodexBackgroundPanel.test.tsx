@@ -27,9 +27,11 @@ vi.mock('@/components/AgentStateDot', async (importOriginal) => ({
 }))
 vi.mock('@/hooks/use-now', () => ({ useNow: mocks.useNow }))
 const mocks = vi.hoisted(() => ({
+  revealWorktree: vi.fn(() => true),
   activate: vi.fn(() => true),
   useNow: vi.fn((_intervalMs: number, _enabled?: boolean) => 1_000)
 }))
+vi.mock('@/lib/worktree-activation', () => ({ activateAndRevealWorktree: mocks.revealWorktree }))
 vi.mock('@/lib/structured-agent-session-tab-activation', async (importOriginal) => ({
   ...(await importOriginal<typeof ActivationModule>()),
   activateStructuredAgentSessionById: mocks.activate
@@ -667,6 +669,7 @@ describe('child sessions in the background popover', () => {
     expect(screen.getByText('Codex · working · under 1 min')).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: 'Open child chat: Explore routing' }))
     expect(mocks.activate).toHaveBeenCalledWith({ worktreeId: 'wt-child', sessionId: 'child-1' })
+    expect(mocks.revealWorktree).toHaveBeenCalledWith('wt-child')
   })
 
   it('moves a finished child under the Finished group, with no open action when no tab lists it', () => {
