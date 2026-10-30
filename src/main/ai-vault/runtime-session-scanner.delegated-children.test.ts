@@ -53,6 +53,10 @@ describe('runtime scan keeps delegated children nestable', () => {
     })
     const scanned = await scanRuntimeAiVaultSessions('/u', 'env-1', {})
     const nesting = nestAiVaultDelegatedChildren(scanned.sessions, scanned.sessions)
-    expect(nesting.roots).toHaveLength(1)
+    const [root] = nesting.roots
+    expect(nesting.roots.map((session) => session.sessionId)).toEqual(['p'])
+    expect(nesting.childrenByRootId.get(root.id)?.map((session) => session.sessionId)).toEqual([
+      'c'
+    ])
   })
 })

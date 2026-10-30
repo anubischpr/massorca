@@ -463,7 +463,9 @@ describe('useAiVaultSessionRefresh refocus behavior', () => {
     })
     await renderHook()
     await flushMicrotasks()
-    expect(latest?.sessions.find((row) => row.id === child.id)?.delegatedFrom).toBeUndefined()
+    const before = latest?.sessions.find((row) => row.id === child.id)
+    expect(before).toBeDefined()
+    expect(before?.delegatedFrom).toBeUndefined()
 
     listSessionsMock.mockResolvedValueOnce({
       sessions: [
