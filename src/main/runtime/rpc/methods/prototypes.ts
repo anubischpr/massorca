@@ -18,6 +18,7 @@ import {
   type ReadPrototypeFileResult,
   type WriteAttachmentResult
 } from '../../../../shared/rpc-contract/prototype-params'
+import { launchDirectoryOfChat } from '../../../native-chat/chat-launch-directory'
 import { readDesignSystemOfLaunchDirectory } from '../../../native-chat/prototype-design-system-files'
 import {
   createPrototypeRequest,
@@ -39,20 +40,6 @@ function isLocalChatRecord(
   record: Pick<AgentSessionRecord, 'location'> | null | undefined
 ): boolean {
   return record ? isLocalStructuredChat(record) : false
-}
-
-/**
- * Where a local chat works. Why the workspace fallback: only a floating workspace's record pins a launch
- * directory, so a worktree or folder chat has none and is found through its workspace.
- */
-async function launchDirectoryOfChat(
-  record: Pick<AgentSessionRecord, 'location' | 'launchDirectory'>,
-  resolveWorkspacePath: ((workspaceId: string) => Promise<string>) | undefined
-): Promise<string | undefined> {
-  if (record.launchDirectory !== undefined) {
-    return record.launchDirectory
-  }
-  return resolveWorkspacePath?.(record.location.workspaceId).catch(() => undefined)
 }
 
 /** One line for a refusal the client reads as "no prototype capture", so a silent send is traceable. */
