@@ -46,3 +46,21 @@ export function applyPublishedAiVaultList(
 ): void {
   setScanResult((prev) => reuseAiVaultListResult(prev, published))
 }
+
+// Why: the host reads chat ownership and delegation links after its scan cache, so a replayed
+// scan stamp can carry new links; the stamp alone cannot say the snapshot on screen is current.
+export function aiVaultScanStamp(result: AiVaultListResult): string {
+  const links = result.sessions.flatMap((session) =>
+    session.structuredSession || session.delegatedFrom
+      ? [
+          [
+            session.id,
+            session.structuredSession?.sessionId,
+            session.delegatedFrom?.parentSessionId,
+            session.delegatedFrom?.status
+          ].join('|')
+        ]
+      : []
+  )
+  return [result.scannedAt, ...links].join('\n')
+}

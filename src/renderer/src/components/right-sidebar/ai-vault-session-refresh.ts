@@ -13,7 +13,7 @@ import {
 import { useAppStore } from '@/store'
 import type { AiVaultSessionLimit } from './ai-vault-session-limit'
 import { AiVaultSessionPublicationGate } from './ai-vault-session-publication-gate'
-import { EMPTY_AI_VAULT_SESSIONS } from './ai-vault-session-identity'
+import { aiVaultScanStamp, EMPTY_AI_VAULT_SESSIONS } from './ai-vault-session-identity'
 import { useAppliedAiVaultScan } from './ai-vault-applied-scan'
 import {
   aiVaultSessionResultCacheKey,
@@ -115,7 +115,7 @@ export function useAiVaultSessionRefresh(
   const pendingRefreshRef = useRef(false)
   const pendingForceRef = useRef(false)
   const pendingBackgroundRef = useRef(true)
-  const lastAppliedScanRef = useRef<{ scopeKey: string; scannedAt: string } | null>(null)
+  const lastAppliedScanRef = useRef<{ scopeKey: string; stamp: string } | null>(null)
   const mountedRef = useRef(true)
   const publicationGateRef = useRef<AiVaultSessionPublicationGate>(undefined!)
   publicationGateRef.current ??= new AiVaultSessionPublicationGate()
@@ -152,7 +152,7 @@ export function useAiVaultSessionRefresh(
           : null
       if (cachedResult) {
         const scanKey = `${baseKey}\n${selectedLimit}`
-        lastAppliedScanRef.current = { scopeKey: scanKey, scannedAt: cachedResult.scannedAt }
+        lastAppliedScanRef.current = { scopeKey: scanKey, stamp: aiVaultScanStamp(cachedResult) }
         setError(null)
         publicationGateRef.current.publish(cachedResult, (published) => {
           applyScan(published, selectedLimit)
@@ -214,14 +214,15 @@ export function useAiVaultSessionRefresh(
         // is a merge of legs on independent clocks stamped with the newest leg,
         // so a lagging host's leg can change while the merged stamp stands
         // still — there, only the structural reconcile below may decide.
+        const stamp = aiVaultScanStamp(result)
         if (
           !isMergedAiVaultHostScope(hostScope) &&
           lastAppliedScanRef.current?.scopeKey === scanKey &&
-          lastAppliedScanRef.current.scannedAt === result.scannedAt
+          lastAppliedScanRef.current.stamp === stamp
         ) {
           return
         }
-        lastAppliedScanRef.current = { scopeKey: scanKey, scannedAt: result.scannedAt }
+        lastAppliedScanRef.current = { scopeKey: scanKey, stamp }
         cacheAiVaultSessionList(request, result, { replaceHostEntries: args.force === true })
         publicationGateRef.current.publish(result, (published) => {
           if (mountedRef.current && scanKey === currentScanScopeKey()) {
