@@ -1,3 +1,4 @@
+import { PULL_REQUEST_FIELDS_PROMPT_PREFIX } from './internal-generation-prompt-prefixes'
 import { truncateDiffForPrompt } from './commit-message-prompt'
 import { assertJsonTextStructureWithinLimits } from './json-text-structure-limit'
 import type { HostedReviewProvider } from './hosted-review'
@@ -81,7 +82,7 @@ export function buildPullRequestFieldsPrompt(
       `complete fix; otherwise say it is partial and use \`${references!.partial}\`.`
     : `- No ${providerLabel} issue is linked; do not invent one.`
   const base = [
-    'You are generating pull request details.',
+    PULL_REQUEST_FIELDS_PROMPT_PREFIX,
     'Return ONLY compact JSON with this exact shape:',
     '{"base":"branch-name","title":"short title","body":"markdown description","draft":false}',
     '',

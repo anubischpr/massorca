@@ -1,3 +1,4 @@
+import { CONVERSATION_NAME_PROMPT_PREFIX } from './internal-generation-prompt-prefixes'
 import { normalizeAgentSessionConversationName } from './agent-session-conversation-name'
 import { cleanGeneratedCommitMessage } from './commit-message-agent-output'
 import { sliceAtCodeUnitLimit } from './surrogate-safe-text-slice'
@@ -16,7 +17,7 @@ export function buildConversationNamePrompt(
   customPrompt = ''
 ): string {
   const firstPrompt = clampConversationNameFirstPrompt(context.firstPrompt)
-  const basePrompt = `Name this chat from the user's first request.
+  const basePrompt = `${CONVERSATION_NAME_PROMPT_PREFIX}
 Write a short, specific title of at most ${MAX_GENERATED_NAME_LENGTH} characters.
 Output only the title, with no heading, quotes, or explanation.
 

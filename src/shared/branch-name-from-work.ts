@@ -1,3 +1,4 @@
+import { BRANCH_NAME_PROMPT_PREFIX } from './internal-generation-prompt-prefixes'
 import { MARINE_CREATURES } from './marine-creatures'
 
 // Why: post-generation sanitization still bounds the leaf so a long model dump
@@ -117,7 +118,7 @@ export function buildBranchNamePrompt(context: BranchNameWorkContext, customProm
   sections.push(
     prompt
       ? 'Generate a git branch name that summarizes the coding task described below.'
-      : 'Generate a short git branch name that summarizes the coding task described below.',
+      : BRANCH_NAME_PROMPT_PREFIX,
     'Output ONLY the branch name on a single line, nothing else.',
     ''
   )

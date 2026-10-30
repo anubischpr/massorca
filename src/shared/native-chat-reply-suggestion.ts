@@ -1,3 +1,4 @@
+import { REPLY_SUGGESTION_PROMPT_PREFIX } from './internal-generation-prompt-prefixes'
 import type { AgentJournalRenderItem } from './agent-session-journal-types'
 import { isRootAgentJournalItem } from './agent-session-journal-producer'
 import { isStructuredAgentSessionCommandEntry } from './structured-agent-session-command-entry'
@@ -123,7 +124,7 @@ export function buildReplySuggestionPrompt(exchange: ReplySuggestionExchange): s
     exchange.assistantMessage,
     REPLY_SUGGESTION_CONTEXT_LIMIT - user.length
   )
-  return `Predict what the user will most likely type next in this chat with a coding agent.
+  return `${REPLY_SUGGESTION_PROMPT_PREFIX}
 Write one short message of at most ${MAX_REPLY_SUGGESTION_LENGTH} characters, in the user's voice and language.
 Output only that message, on a single line, with no quotes, label, or explanation.
 If no follow-up is natural, output nothing.
