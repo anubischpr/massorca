@@ -112,8 +112,8 @@ export function PrototypeViewerToolbar({
       : translate('components.prototypes.mergeCount', 'Merge ({{count}})', { count: starCount })
   const viewAllName = translate('components.prototypes.layoutAll', 'View all')
   const designMainName = translate('components.prototypes.layoutIterating', 'Design main')
-  const desktopName = translate('components.prototypes.viewportDesktop', 'Desktop')
-  const phoneName = translate('components.prototypes.viewportPhone', 'Phone')
+  const desktopName = translate('components.prototypes.viewportDesktop', 'Desktop view')
+  const phoneName = translate('components.prototypes.viewportPhone', 'Phone view')
   const browseName = translate('components.prototypes.toolBrowse', 'Browse')
   const annotateName = translate('components.prototypes.toolAnnotate', 'Annotate')
   const panelName = sidePanelHidden

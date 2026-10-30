@@ -485,8 +485,8 @@ describe('PrototypeViewer icon-only controls', () => {
     for (const text of [
       'View all',
       'Design main',
-      'Desktop',
-      'Phone',
+      'Desktop view',
+      'Phone view',
       'Browse',
       'Annotate',
       'Merge'
@@ -506,8 +506,14 @@ describe('PrototypeViewer icon-only controls', () => {
       'aria-pressed',
       'false'
     )
-    expect(screen.getByRole('button', { name: 'Desktop' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Phone' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Desktop view' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    expect(screen.getByRole('button', { name: 'Phone view' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    )
     expect(screen.getByRole('button', { name: 'Annotate' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Browse' })).toHaveAttribute('aria-pressed', 'false')
   })
@@ -518,8 +524,8 @@ describe('PrototypeViewer icon-only controls', () => {
       'Merge (2)',
       'View all',
       'Design main',
-      'Desktop',
-      'Phone',
+      'Desktop view',
+      'Phone view',
       'Browse',
       'Annotate',
       'Hide panel'
