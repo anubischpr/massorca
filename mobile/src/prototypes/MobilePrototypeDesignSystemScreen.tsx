@@ -12,7 +12,9 @@ import { KeyedBottomDrawer } from '../components/keyed-bottom-drawer'
 import { useHostClient } from '../transport/host-client-hooks'
 import { colors, spacing } from '../theme/mobile-theme'
 import { MobilePrototypeDesignSystemAddSheet } from './MobilePrototypeDesignSystemAddSheet'
+import { MobilePrototypeDesignSystemBar } from './MobilePrototypeDesignSystemBar'
 import { MobilePrototypeDesignSystemComponentSheet } from './MobilePrototypeDesignSystemComponentSheet'
+import { MobilePrototypeDesignSystemDraftSheet } from './MobilePrototypeDesignSystemDraftSheet'
 import {
   MobilePrototypeDesignSystemComponents,
   MobilePrototypeDesignSystemSource,
@@ -21,6 +23,12 @@ import {
 import { MobilePrototypeDesignSystemTokenSheet } from './MobilePrototypeDesignSystemTokenSheet'
 import { MobilePrototypeHeader } from './MobilePrototypeHeader'
 import { mobileDesignSystemSubtitle } from './mobile-prototype-design-system-model'
+import {
+  mobileDesignSystemDraftCount,
+  mobileDesignSystemDraftText,
+  sendMobileDesignSystemText
+} from './mobile-prototype-design-system-send'
+import { mobilePrototypeAgentLabel } from './mobile-prototype-list-model'
 import { findMobilePrototypeDesignSystem } from './mobile-prototype-sets-state'
 import {
   mobilePrototypeDesignSystemKey,
@@ -29,7 +37,7 @@ import {
 import { useMobilePrototypeDesignSystemContent } from './use-mobile-prototype-design-system-content'
 import { useMobilePrototypeSets } from './use-mobile-prototype-sets'
 
-type Sheet = 'token' | 'component' | 'add'
+type Sheet = 'token' | 'component' | 'add' | 'draft'
 
 // One shared empty state, so a project with no state yet hands the same object to every render.
 const NO_VIEW_STATE = emptyDesignSystemViewState()
@@ -83,7 +91,28 @@ export function MobilePrototypeDesignSystemScreen({
   const panel =
     system === null || readyContent === null
       ? null
-      : { system, content: readyContent, state, update }
+      : { system, content: readyContent, state, update, target, rebuildSets }
+  const draftCount = panel === null ? 0 : mobileDesignSystemDraftCount(panel)
+  const agentName =
+    target === undefined ? (system?.agent ?? '') : mobilePrototypeAgentLabel(target.agent)
+  const sendDraft = async (): Promise<void> => {
+    if (panel === null) {
+      return
+    }
+    const accepted = await sendMobileDesignSystemText(
+      {
+        client,
+        target,
+        getState: () => useMobilePrototypeViewStore.getState().designSystemViews[viewKey],
+        update
+      },
+      'draft',
+      mobileDesignSystemDraftText(panel)
+    )
+    if (accepted) {
+      setSheet(null)
+    }
+  }
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -139,6 +168,13 @@ export function MobilePrototypeDesignSystemScreen({
           <MobilePrototypeDesignSystemSource content={panel.content} />
         )}
       </ScrollView>
+      {draftCount === 0 ? null : (
+        <MobilePrototypeDesignSystemBar
+          count={draftCount}
+          agentName={agentName}
+          onPress={() => setSheet('draft')}
+        />
+      )}
       <KeyedBottomDrawer<Sheet>
         sheet={panel === null ? null : sheet}
         sheetKey={(presented) => presented}
@@ -149,6 +185,21 @@ export function MobilePrototypeDesignSystemScreen({
         {(presented) => {
           if (panel === null) {
             return null
+          }
+          if (presented === 'draft') {
+            return (
+              <MobilePrototypeDesignSystemDraftSheet
+                system={panel.system}
+                content={panel.content}
+                state={state}
+                update={update}
+                target={target}
+                rebuildSets={rebuildSets}
+                agentName={agentName}
+                onClose={() => setSheet(null)}
+                onSend={() => void sendDraft()}
+              />
+            )
           }
           if (presented === 'add') {
             return (

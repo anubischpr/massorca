@@ -49,6 +49,9 @@ vi.mock('../components/keyed-bottom-drawer', () => ({
   }) => (sheet === null ? null : children(sheet))
 }))
 
+const chat = vi.hoisted(() => ({ send: vi.fn() }))
+vi.mock('./mobile-prototype-chat-text-send', () => ({ sendMobilePrototypeText: chat.send }))
+
 const hooks = vi.hoisted(
   (): {
     sets: PrototypeListedSet[]
@@ -91,6 +94,14 @@ function pressable(tree: ReactTestRenderer, name: string): ReactTestInstance {
     throw new Error(`no control named ${name}`)
   }
   return found
+}
+
+/** Presses a control whose handler sends, and lets the send finish. */
+async function pressAndSettle(tree: ReactTestRenderer, name: string): Promise<void> {
+  await act(async () => {
+    pressable(tree, name).props.onPress()
+    await new Promise<void>((resolve) => setTimeout(resolve, 0))
+  })
 }
 
 function input(tree: ReactTestRenderer, label: string): ReactTestInstance {
@@ -138,6 +149,8 @@ beforeEach(() => {
   hooks.content = nexusContent()
   hooks.sets = [nexusSet()]
   hooks.systems = [NEXUS_SYSTEM]
+  chat.send.mockReset()
+  chat.send.mockResolvedValue(true)
   useMobilePrototypeViewStore.setState({ designSystemViews: {} })
 })
 
@@ -325,5 +338,158 @@ describe('the add sheet', () => {
     act(() => first.unmount())
     mount()
     expect(draftItems()).toEqual(['add: Add component: Badge'])
+  })
+})
+
+/** A draft with one color change and one new component: two items. */
+function draftTwoChanges(tree: ReactTestRenderer): void {
+  press(tree, 'Tokens')
+  press(tree, 'color.primary')
+  act(() => input(tree, 'Hex').props.onChangeText('#1d4ed8'))
+  press(tree, 'Close')
+  press(tree, 'Components')
+  press(tree, '+ Add component')
+  press(tree, 'Toast')
+  press(tree, 'Add to draft')
+}
+
+describe('the change bar', () => {
+  it('shows only when the draft holds changes, with their count and the agent', () => {
+    const tree = mount()
+    expect(allText(tree)).not.toContain('Review & send ›')
+    draftTwoChanges(tree)
+    const texts = allText(tree)
+    expect(texts).toEqual(
+      expect.arrayContaining(['2', 'changes ready for Codex', 'Review & send ›'])
+    )
+  })
+
+  it('goes away when the changes are taken back', () => {
+    const tree = mount()
+    press(tree, 'Tokens')
+    press(tree, 'color.primary')
+    act(() => input(tree, 'Hex').props.onChangeText('#1d4ed8'))
+    press(tree, 'Close')
+    expect(allText(tree)).toContain('Review & send ›')
+    press(tree, 'color.primary')
+    press(tree, 'Color #2563eb')
+    press(tree, 'Close')
+    expect(allText(tree)).not.toContain('Review & send ›')
+  })
+})
+
+describe('the draft sheet', () => {
+  it('lists the items by group, the rebuild line, Anything else and Send to the agent', () => {
+    const tree = mount()
+    draftTwoChanges(tree)
+    press(tree, 'Review & send')
+    const texts = allText(tree)
+    expect(texts).toEqual(
+      expect.arrayContaining([
+        'Draft for Codex · 2',
+        'Design system · tokens',
+        'color.primary #2563eb → #1d4ed8',
+        'Design system · components',
+        'Add component: Toast',
+        'Also rebuild the sets built on v2 (Liquidaciones fases 1-3) with the new tokens and components',
+        'Anything else',
+        'Send to Codex'
+      ])
+    )
+    expect(texts).not.toContain("Couldn't send: the chat is no longer active. Your draft is kept.")
+  })
+
+  it('leaves out the rebuild line when no set is built on this version', () => {
+    hooks.sets = [nexusSet({ builtOn: 1 })]
+    const tree = mount()
+    draftTwoChanges(tree)
+    press(tree, 'Review & send')
+    expect(allText(tree).some((text) => text.startsWith('Also rebuild'))).toBe(false)
+  })
+
+  it('sends one update message with the rebuild line, then clears the draft and closes', async () => {
+    const tree = mount()
+    draftTwoChanges(tree)
+    press(tree, 'Review & send')
+    act(() => input(tree, 'Anything else').props.onChangeText('Calmer tone'))
+    await pressAndSettle(tree, 'Send to Codex')
+    expect(chat.send).toHaveBeenCalledTimes(1)
+    const [, target, text] = chat.send.mock.calls[0] as [unknown, { sessionId: string }, string]
+    expect(target.sessionId).toBe('session-nexus')
+    expect(text).toContain('Update the design system to v3.')
+    expect(text).toContain('Design system · tokens')
+    expect(text).toContain('color: color.primary #2563eb → #1d4ed8')
+    expect(text).toContain('add: Add component: Toast')
+    expect(text).toContain('Rebuild Liquidaciones fases 1-3 on v3.')
+    expect(text).toContain('Calmer tone')
+    expect(draftItems()).toEqual([])
+    expect(allText(tree)).not.toContain('Review & send ›')
+    expect(allText(tree)).not.toContain('Send to Codex')
+  })
+
+  it('sends without the rebuild line when the option is off', async () => {
+    const tree = mount()
+    draftTwoChanges(tree)
+    press(tree, 'Review & send')
+    act(() =>
+      pressable(
+        tree,
+        'Also rebuild the sets built on v2 (Liquidaciones fases 1-3) with the new tokens and components'
+      ).props.onPress()
+    )
+    await pressAndSettle(tree, 'Send to Codex')
+    const text = (chat.send.mock.calls[0] as [unknown, unknown, string])[2]
+    expect(text).not.toContain('Rebuild ')
+  })
+
+  it('keeps the draft and shows the failure line when the chat does not take the message', async () => {
+    chat.send.mockResolvedValue(false)
+    const tree = mount()
+    draftTwoChanges(tree)
+    press(tree, 'Review & send')
+    await pressAndSettle(tree, 'Send to Codex')
+    expect(allText(tree)).toContain(
+      "Couldn't send: the chat is no longer active. Your draft is kept."
+    )
+    expect(draftItems()).toHaveLength(2)
+    expect(allText(tree)).toContain('Draft for Codex · 2')
+  })
+
+  it('treats a send that throws as a refusal and keeps the draft', async () => {
+    chat.send.mockRejectedValue(new Error('offline'))
+    const tree = mount()
+    draftTwoChanges(tree)
+    press(tree, 'Review & send')
+    await pressAndSettle(tree, 'Send to Codex')
+    expect(allText(tree)).toContain(
+      "Couldn't send: the chat is no longer active. Your draft is kept."
+    )
+    expect(draftItems()).toHaveLength(2)
+  })
+
+  it('cannot send when the project has no chat to send to', () => {
+    hooks.sets = []
+    const tree = mount()
+    draftTwoChanges(tree)
+    press(tree, 'Review & send')
+    expect(pressable(tree, 'Send to Codex').props.disabled).toBe(true)
+  })
+
+  it('sends to the chat of the pending request when the project has no set', async () => {
+    hooks.sets = []
+    hooks.systems = [
+      {
+        ...NEXUS_SYSTEM,
+        pendingRequest: { requestId: 'req-pending', sessionId: 'session-pending', agent: 'claude' }
+      }
+    ]
+    const tree = mount()
+    draftTwoChanges(tree)
+    expect(allText(tree)).toContain('changes ready for Claude')
+    press(tree, 'Review & send')
+    await pressAndSettle(tree, 'Send to Claude')
+    expect((chat.send.mock.calls[0] as [unknown, { sessionId: string }])[1].sessionId).toBe(
+      'session-pending'
+    )
   })
 })
