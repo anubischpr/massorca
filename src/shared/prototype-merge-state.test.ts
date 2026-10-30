@@ -16,7 +16,8 @@ import {
   setMergeBaseline,
   setMergeNote,
   setPartSource,
-  togglePart
+  togglePart,
+  withMergeKept
 } from './prototype-merge-state'
 import {
   createSetState,
@@ -73,7 +74,8 @@ describe('starting a merge', () => {
       phase: 'waiting',
       letters: ['A', 'C'],
       planId: 'plan-1',
-      baseline: 'old'
+      baseline: 'old',
+      layoutBefore: 'set'
     })
   })
 
@@ -199,6 +201,49 @@ describe('sending the merge', () => {
     expect(canSendMerge(state)).toBe(true)
   })
 
+  it('lands back on the layout the merge started from, so View all shows the directions again', () => {
+    const fromSet = planArrived(
+      beginMerge(showSet(starred('A', 'C')), { planId: 'plan-1', baseline: null }),
+      plan(),
+      PLAN_JSON
+    )
+    const sent = mergeSent(beginMergeSend(fromSet), {
+      letter: 'D',
+      visibleMessage: 'Merge into D.'
+    })
+    expect(sent.layout).toBe('set')
+    const fromFocus = mergeSent(beginMergeSend(reviewing()), {
+      letter: 'D',
+      visibleMessage: 'Merge into D.'
+    })
+    expect(fromFocus.layout).toBe('focus')
+  })
+
+  it('lands back on View all after a second merge sent from there too', () => {
+    const adopted = adoptMergedDirection(
+      mergeSent(reviewing(), { letter: 'D', visibleMessage: 'Merge into D.' }),
+      ['A', 'B', 'C', 'D']
+    )
+    const secondText = JSON.stringify({
+      id: 'plan-2',
+      from: ['A', 'D'],
+      parts: [{ name: 'Hero', selector: 'section.hero', from: 'D' }]
+    })
+    const secondPlan = parsePrototypeMergePlan(secondText)
+    if (secondPlan === null) {
+      throw new Error('expected a valid plan')
+    }
+    const started = beginMerge(showSet(toggleStar(toggleStar(adopted, 'A'), 'D')), {
+      planId: 'plan-2',
+      baseline: null
+    })
+    const second = mergeSent(beginMergeSend(planArrived(started, secondPlan, secondText)), {
+      letter: 'E',
+      visibleMessage: 'Merge into E.'
+    })
+    expect(second).toMatchObject({ layout: 'set', mergeInto: { letter: 'E', from: ['A', 'D'] } })
+  })
+
   it('ends the wait for a sent merge from its row and keeps the stars', () => {
     const sent = mergeSent(reviewing(), { letter: 'D', visibleMessage: 'Merge into D.' })
     const cancelled = cancelSentMerge(sent)
@@ -264,6 +309,25 @@ describe('leaving the merge', () => {
   it('ends when a starred direction leaves the set', () => {
     expect(keepListedLetters(waiting(), ['A', 'B']).merge).toBeNull()
     expect(keepListedLetters(waiting(), ['A', 'B', 'C']).merge).not.toBeNull()
+  })
+})
+
+describe('the Layout toggle', () => {
+  it('keeps a merge under way and a sent one through View all and Design main', () => {
+    const waitingState = waiting()
+    const inSet = withMergeKept(waitingState, showSet)
+    expect(inSet).toMatchObject({ layout: 'set', merge: waitingState.merge })
+    expect(withMergeKept(inSet, showFocus)).toMatchObject({
+      layout: 'focus',
+      merge: waitingState.merge
+    })
+    const reviewState = reviewing()
+    expect(withMergeKept(reviewState, showSet).merge).toEqual(reviewState.merge)
+    const sent = mergeSent(reviewing(), { letter: 'D', visibleMessage: 'Merge into D.' })
+    expect(withMergeKept(sent, showSet)).toMatchObject({
+      layout: 'set',
+      mergeInto: { letter: 'D', from: ['A', 'C'] }
+    })
   })
 })
 

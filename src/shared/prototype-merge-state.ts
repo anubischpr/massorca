@@ -37,7 +37,8 @@ export function beginMerge(
       phase: 'waiting',
       letters: state.starred,
       planId: request.planId,
-      baseline: request.baseline
+      baseline: request.baseline,
+      layoutBefore: state.layout
     },
     mergeSendFailed: false,
     sentMessage: null
@@ -79,7 +80,8 @@ export function planArrived(
       letters: merge.letters,
       parts: reviewPartsOf(plan),
       note: '',
-      sending: false
+      sending: false,
+      layoutBefore: merge.layoutBefore
     }
   }
 }
@@ -126,6 +128,18 @@ export function cancelMerge(state: PrototypeSetState): PrototypeSetState {
   return state.merge === null ? state : { ...state, merge: null, mergeSendFailed: false }
 }
 
+/**
+ * A Layout toggle (View all or Design main) only changes the layout: a merge under way and a sent one
+ * stay. The transitions of prototype-set-state.ts still end a merge that they leave.
+ */
+export function withMergeKept(
+  state: PrototypeSetState,
+  change: (current: PrototypeSetState) => PrototypeSetState
+): PrototypeSetState {
+  const changed = change(state)
+  return { ...changed, merge: state.merge, mergeSendFailed: state.mergeSendFailed }
+}
+
 /** "Merge into D" needs at least one part kept, and no send in flight. */
 export function canSendMerge(state: PrototypeSetState): boolean {
   const { merge } = state
@@ -151,6 +165,7 @@ export function mergeSent(
   }
   return {
     ...state,
+    layout: merge.layoutBefore ?? state.layout,
     merge: null,
     mergeInto: { letter: sent.letter, from: merge.letters },
     mergeSendFailed: false,

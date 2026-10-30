@@ -489,6 +489,31 @@ describe('PrototypeViewer while a merge waits', () => {
     expect(applied(update, sent).mergeInto).toBeNull()
   })
 
+  it('lets View all and Design main switch the layout without ending a review under way', () => {
+    const stars = toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C')
+    const review: PrototypeSetState = {
+      ...stars,
+      merge: {
+        phase: 'review',
+        letters: ['A', 'C'],
+        parts: [
+          { id: 0, name: 'Heading', selector: 'main > h1', suggested: 'A', from: 'A', on: true }
+        ],
+        note: '',
+        sending: false
+      }
+    }
+    const update = vi.fn<Update>()
+    renderSet3(review, update)
+    fireEvent.click(screen.getByRole('button', { name: 'View all' }))
+    const inSet = applied(update, review)
+    expect(inSet).toMatchObject({ layout: 'set', merge: review.merge })
+    cleanup()
+    renderSet3(inSet, update)
+    fireEvent.click(screen.getByRole('button', { name: 'Design main' }))
+    expect(applied(update, inSet)).toMatchObject({ layout: 'focus', merge: review.merge })
+  })
+
   it('shows the send-failure line when the chat refused the request', () => {
     renderSet3({ ...createSetState(['A', 'B', 'C']), mergeSendFailed: true })
     expect(screen.getByRole('alert').textContent).toBe(

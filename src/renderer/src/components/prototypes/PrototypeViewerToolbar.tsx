@@ -24,6 +24,7 @@ import {
   showSet,
   type PrototypeSetState
 } from '../../../../shared/prototype-set-state'
+import { withMergeKept } from '../../../../shared/prototype-merge-state'
 import { PrototypeBuiltOnLink } from './PrototypeBuiltOnLink'
 import { originChatOf } from './prototype-origin-chat'
 import { prototypeAgentLabel, prototypeCountLabel } from './prototype-labels'
@@ -196,7 +197,7 @@ export function PrototypeViewerToolbar({
                 type="button"
                 aria-label={viewAllName}
                 aria-pressed={layout === 'set'}
-                onClick={() => update(showSet)}
+                onClick={() => update((current) => withMergeKept(current, showSet))}
                 className={segmentButtonClass(layout === 'set')}
               >
                 <LayoutGrid aria-hidden="true" className="size-4" />
@@ -207,7 +208,7 @@ export function PrototypeViewerToolbar({
                 type="button"
                 aria-label={designMainName}
                 aria-pressed={layout === 'focus'}
-                onClick={() => update(showFocus)}
+                onClick={() => update((current) => withMergeKept(current, showFocus))}
                 className={segmentButtonClass(layout === 'focus')}
               >
                 <Pencil aria-hidden="true" className="size-4" />

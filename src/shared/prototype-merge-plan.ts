@@ -73,6 +73,8 @@ export type PrototypeMergeState =
       letters: readonly string[]
       planId: string
       baseline?: string | null
+      /** The Layout the user had when the merge started; a sent merge returns to it. */
+      layoutBefore?: 'set' | 'focus'
     }
   | {
       phase: 'review'
@@ -80,6 +82,7 @@ export type PrototypeMergeState =
       parts: readonly PrototypeMergeReviewPart[]
       note: string
       sending: boolean
+      layoutBefore?: 'set' | 'focus'
     }
 
 /** The merged direction a send asked for, until it shows up in the set. */
