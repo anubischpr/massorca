@@ -21,6 +21,7 @@ import {
   beginMerge,
   beginMergeSend,
   canMerge,
+  chatTookMerge,
   mergeRefused,
   mergeRequestRefused,
   mergeSent,
@@ -210,7 +211,7 @@ export default function PrototypesPage(): React.JSX.Element {
       planId,
       folderPath
     })
-    if (!(await sendToChat(selected, message.sentText))) {
+    if (!(await chatTookMerge(() => sendToChat(selected, message.sentText)))) {
       update(mergeRequestRefused)
     }
   }
@@ -230,7 +231,7 @@ export default function PrototypesPage(): React.JSX.Element {
       note: merge.note,
       folderPath
     })
-    const sent = await sendToChat(selected, message.sentText)
+    const sent = await chatTookMerge(() => sendToChat(selected, message.sentText))
     update((latest) =>
       sent
         ? mergeSent(latest, { letter: nextLetter, visibleMessage: message.visibleText })

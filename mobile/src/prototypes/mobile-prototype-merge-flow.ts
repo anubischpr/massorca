@@ -7,6 +7,7 @@ import {
   beginMerge,
   beginMergeSend,
   canMerge,
+  chatTookMerge,
   mergeRefused,
   mergeRequestRefused,
   mergeSent
@@ -72,7 +73,7 @@ export async function startMobilePrototypeMerge(flow: MobilePrototypeMergeFlow):
     planId,
     folderPath
   })
-  if (!(await sendMobilePrototypeText(client, set, message.sentText))) {
+  if (!(await chatTookMerge(() => sendMobilePrototypeText(client, set, message.sentText)))) {
     update(mergeRequestRefused)
   }
 }
@@ -94,7 +95,7 @@ export async function sendMobilePrototypeMerge(flow: MobilePrototypeMergeFlow): 
     note: merge.note,
     folderPath
   })
-  const sent = await sendMobilePrototypeText(client, set, message.sentText)
+  const sent = await chatTookMerge(() => sendMobilePrototypeText(client, set, message.sentText))
   update((latest) =>
     sent
       ? mergeSent(latest, { letter: nextLetter, visibleMessage: message.visibleText })

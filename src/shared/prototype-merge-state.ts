@@ -143,6 +143,15 @@ export function mergeSent(
   }
 }
 
+/** Whether the chat took a merge message. A send that throws is a refusal, like one the chat declines. */
+export async function chatTookMerge(send: () => Promise<boolean>): Promise<boolean> {
+  try {
+    return await send()
+  } catch {
+    return false
+  }
+}
+
 /** The chat refused "Merge into D": the review stays as it was, with the send-failure line. */
 export function mergeRefused(state: PrototypeSetState): PrototypeSetState {
   const { merge } = state

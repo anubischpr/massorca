@@ -114,6 +114,18 @@ describe('asking the chat for a merge plan', () => {
     expect(box.state.starred).toEqual(['A', 'C'])
   })
 
+  it('ends the merge request and keeps the stars when the send throws', async () => {
+    readFile.mockResolvedValue({ kind: 'unreachable' })
+    sendText.mockRejectedValue(new Error('lost'))
+    const { flow, box } = flowOver(starred('A', 'C'))
+
+    await expect(startMobilePrototypeMerge(flow)).resolves.toBeUndefined()
+
+    expect(box.state.merge).toBeNull()
+    expect(box.state.mergeSendFailed).toBe(true)
+    expect(box.state.starred).toEqual(['A', 'C'])
+  })
+
   it('sends nothing below two stars, without a free letter, or without a request folder', async () => {
     const one = flowOver(starred('A'))
     await startMobilePrototypeMerge(one.flow)
@@ -146,6 +158,17 @@ describe('sending the merge', () => {
     const { flow, box } = flowOver(reviewing())
 
     await sendMobilePrototypeMerge(flow)
+
+    expect(box.state.merge).toMatchObject({ phase: 'review', sending: false })
+    expect(box.state.mergeSendFailed).toBe(true)
+    expect(box.state.mergeInto).toBeNull()
+  })
+
+  it('keeps the review with the failure line when the send throws, free to send again', async () => {
+    sendText.mockRejectedValue(new Error('lost'))
+    const { flow, box } = flowOver(reviewing())
+
+    await expect(sendMobilePrototypeMerge(flow)).resolves.toBeUndefined()
 
     expect(box.state.merge).toMatchObject({ phase: 'review', sending: false })
     expect(box.state.mergeSendFailed).toBe(true)

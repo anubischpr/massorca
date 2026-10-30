@@ -7,6 +7,7 @@ import {
   canMerge,
   canSendMerge,
   cancelMerge,
+  chatTookMerge,
   mergeRefused,
   mergeRequestRefused,
   mergeSent,
@@ -228,5 +229,16 @@ describe('leaving the merge', () => {
   it('ends when a starred direction leaves the set', () => {
     expect(keepListedLetters(waiting(), ['A', 'B']).merge).toBeNull()
     expect(keepListedLetters(waiting(), ['A', 'B', 'C']).merge).not.toBeNull()
+  })
+})
+
+describe('a merge message the chat is asked to take', () => {
+  it('is taken when the chat takes it, and refused when it declines it', async () => {
+    await expect(chatTookMerge(async () => true)).resolves.toBe(true)
+    await expect(chatTookMerge(async () => false)).resolves.toBe(false)
+  })
+
+  it('is refused when the send throws, so the review stays to be sent again', async () => {
+    await expect(chatTookMerge(() => Promise.reject(new Error('lost')))).resolves.toBe(false)
   })
 })
