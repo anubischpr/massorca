@@ -21,6 +21,9 @@ import {
   type PrototypeSetState
 } from '../../../../shared/prototype-set-state'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
+import { activateStructuredAgentSessionById } from '@/lib/structured-agent-session-tab-activation'
+import { useAppStore } from '@/store'
+import type { Tab } from '../../../../shared/tab-types'
 import { PrototypeViewer } from './PrototypeViewer'
 import { usePrototypeViewStore } from './prototype-view-store'
 
@@ -43,7 +46,8 @@ vi.mock('react-i18next', () => ({
   )
 }))
 
-vi.mock('@/lib/structured-agent-session-tab-activation', () => ({
+vi.mock('@/lib/structured-agent-session-tab-activation', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   activateStructuredAgentSessionById: vi.fn()
 }))
 
@@ -541,3 +545,44 @@ describe('PrototypeViewer icon-only controls', () => {
     expect(screen.getByText(/· 3 directions$/)).toHaveClass('truncate')
   })
 })
+
+describe('PrototypeViewer origin link', () => {
+  afterEach(() => {
+    cleanup()
+    useAppStore.setState({ unifiedTabsByWorktree: {} })
+  })
+
+  it('names the parent chat from this client and opens it on click', () => {
+    useAppStore.setState({
+      unifiedTabsByWorktree: { 'wt-1': [parentTab('wt-1', 'parent-1', 'nexuscare-planning')] }
+    })
+    renderSet3(createSetState(['A', 'B', 'C']), vi.fn(), {
+      set: { ...SET3, origin: { sessionId: 'parent-1' } }
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'from “nexuscare-planning” ↗' }))
+    expect(activateStructuredAgentSessionById).toHaveBeenCalledWith({
+      worktreeId: 'wt-1',
+      sessionId: 'parent-1'
+    })
+  })
+
+  it('drops the origin part when this client holds no tab for the parent chat', () => {
+    renderSet3(createSetState(['A', 'B', 'C']), vi.fn(), {
+      set: { ...SET3, origin: { sessionId: 'parent-1' } }
+    })
+    expect(screen.queryByRole('button', { name: /^from / })).toBeNull()
+  })
+})
+
+function parentTab(worktreeId: string, entityId: string, label: string): Tab {
+  // SAFETY: the origin lookup reads only these fields; the rest of Tab is not used by it.
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the origin lookup reads only the fields set here.
+  return {
+    id: `tab-${entityId}`,
+    worktreeId,
+    entityId,
+    contentType: 'agent-session',
+    label,
+    customLabel: null
+  } as unknown as Tab
+}

@@ -162,6 +162,24 @@ describe('hasPrototypeKeyword typo tolerance', () => {
     expect(hasPrototypeKeyword(text)).toBe(true)
   })
 
+  it.each([
+    'Resigned from the screen of the app',
+    'We are resigning the screen of the app',
+    'The founder resigns the screen of the app',
+    'Designar la pantalla de ajustes',
+    'Designaron la pantalla de ajustes',
+    'La designación de la pantalla de ajustes'
+  ])('keeps the real word family of %j off design words', (text) => {
+    expect(hasPrototypeKeyword(text)).toBe(false)
+  })
+
+  it.each(['desing the screen', 'diseniar la pantalla', 'desgin the screen'])(
+    'still reads the genuine typo %j as a design word',
+    (text) => {
+      expect(hasPrototypeKeyword(text)).toBe(true)
+    }
+  )
+
   it.each(['design the sren', 'desgnr the screen', 'dezain the screen', 'Diseña el pagos'])(
     'does not stretch %j beyond one edit or below five letters',
     (text) => {

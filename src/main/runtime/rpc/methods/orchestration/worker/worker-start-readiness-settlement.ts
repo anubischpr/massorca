@@ -17,6 +17,30 @@ import {
   type WorkerSetupReceipt
 } from './worker-topology'
 
+/** What a worker's first prompt says in place of its task spec; `discard` undoes what making it created. */
+export type WorkerFirstPrompt = {
+  body: string
+  appendix: string
+  discard: () => Promise<void>
+}
+
+export type WorkerFirstPromptResolver = (sessionId: string) => Promise<WorkerFirstPrompt | null>
+
+/** A resolver that throws, or rejects, leaves the start its stored spec: the start is never aborted for it. */
+async function resolveFirstPrompt(
+  resolver: WorkerFirstPromptResolver,
+  sessionId: string
+): Promise<WorkerFirstPrompt | null> {
+  try {
+    return await resolver(sessionId)
+  } catch (error) {
+    console.warn(
+      `[orchestration] first prompt not resolved for session ${sessionId}; delivering the task spec: ${String(error)}`
+    )
+    return null
+  }
+}
+
 /**
  * Delivers the dispatch preamble and settles the worker's start state on the strongest
  * evidence available: `ready` only with a positive turn-start (or a provider that cannot
@@ -43,11 +67,18 @@ export async function deliverAndSettleWorkerStartReadiness(args: {
   timeoutMs: number
   effects: WorkerEffect[]
   terminalRevealWarning: string | undefined
+  /** Resolves the first prompt once the worker's session exists; absent delivers the task spec as stored. */
+  firstPrompt?: WorkerFirstPromptResolver
   /** Keeps the caller's failure receipt naming the stage that actually failed. */
   onStage: (stage: 'dispatch_input' | 'turn_observation') => void
 }): Promise<unknown> {
   const { runtime, db, run, task, structuredSession, terminalHandle, effects } = args
 
+  // Made once the session exists and just before its first prompt goes out; a failed delivery undoes it.
+  const firstPrompt =
+    args.firstPrompt && structuredSession
+      ? await resolveFirstPrompt(args.firstPrompt, structuredSession.identity.sessionId)
+      : null
   args.onStage('dispatch_input')
   const delivery = await deliverWorkerDispatchPreamble({
     runtime,
@@ -58,11 +89,15 @@ export async function deliverAndSettleWorkerStartReadiness(args: {
     dispatchDepth: args.dispatchDepth,
     runId: run.id,
     taskId: task.id,
-    taskSpec: task.spec,
+    taskSpec: firstPrompt?.body ?? task.spec,
     coordinatorHandle: args.coordinatorHandle,
     devMode: args.devMode,
     requestId: args.requestId,
-    launchedAgent: args.launchedAgent
+    launchedAgent: args.launchedAgent,
+    appendix: firstPrompt?.appendix
+  }).catch(async (error: unknown) => {
+    await firstPrompt?.discard().catch(() => undefined)
+    throw error
   })
   effects.push({
     kind: 'dispatch_input',

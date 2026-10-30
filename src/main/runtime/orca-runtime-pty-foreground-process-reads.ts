@@ -201,6 +201,11 @@ export class OrcaRuntimeWithPtyForegroundProcessReads extends OrcaRuntimeWithSta
     return this.clientSettings.get()
   }
 
+  /** The saved Settings value for how many directions a prototype request asks for, unsanitized. */
+  readPrototypeCountSetting(): unknown {
+    return this.store.getSettings().prototypeCount
+  }
+
   async updateClientSettings(updates: RuntimeClientSettingsUpdate) {
     return await this.clientSettings.update(updates)
   }

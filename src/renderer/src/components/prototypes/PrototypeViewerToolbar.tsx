@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   LayoutGrid,
   MessageCircle,
@@ -13,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { activateStructuredAgentSessionById } from '@/lib/structured-agent-session-tab-activation'
+import { useAppStore } from '@/store'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
 import { prototypeStatus, prototypeTitle } from '../../../../shared/prototype-list-model'
 import {
@@ -23,6 +25,7 @@ import {
   type PrototypeSetState
 } from '../../../../shared/prototype-set-state'
 import { PrototypeBuiltOnLink } from './PrototypeBuiltOnLink'
+import { originChatOf } from './prototype-origin-chat'
 import { prototypeAgentLabel, prototypeCountLabel } from './prototype-labels'
 import { usePrototypeViewStore } from './prototype-view-store'
 
@@ -87,6 +90,21 @@ export function PrototypeViewerToolbar({
       activateStructuredAgentSessionById({ worktreeId: set.worktreeId, sessionId: set.sessionId })
     }
   }
+  const tabsByWorktree = useAppStore((state) => state.unifiedTabsByWorktree)
+  const originSessionId = set.origin?.sessionId
+  // Why: the parent's name is read from this client's tabs; a chat this client does not hold drops the link.
+  const origin = useMemo(
+    () => (originSessionId === undefined ? null : originChatOf(tabsByWorktree, originSessionId)),
+    [originSessionId, tabsByWorktree]
+  )
+  const openOrigin = (): void => {
+    if (origin !== null && originSessionId !== undefined) {
+      activateStructuredAgentSessionById({
+        worktreeId: origin.worktreeId,
+        sessionId: originSessionId
+      })
+    }
+  }
   const starCount = state.starred.length
   const mergeName =
     starCount < 2
@@ -113,22 +131,38 @@ export function PrototypeViewerToolbar({
             onOpen={() => onOpenDesignSystem(builtOn.projectKey)}
           />
         )}
-        <button
-          type="button"
-          onClick={openChat}
-          disabled={set.worktreeId === null}
-          className="truncate text-left text-xs text-muted-foreground hover:text-foreground"
-        >
-          {chatTitle.length > 0
-            ? translate(
-                'components.prototypes.chatLink',
-                '{{agent}} · chat “{{chat}}” — open chat ↗',
-                { agent: agentLabel, chat: chatTitle }
-              )
-            : translate('components.prototypes.chatLinkNoTitle', '{{agent}} — open chat ↗', {
-                agent: agentLabel
-              })}
-        </button>
+        <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+          <button
+            type="button"
+            onClick={openChat}
+            disabled={set.worktreeId === null}
+            className="truncate text-left hover:text-foreground"
+          >
+            {chatTitle.length > 0
+              ? translate(
+                  'components.prototypes.chatLink',
+                  '{{agent}} · chat “{{chat}}” — open chat ↗',
+                  { agent: agentLabel, chat: chatTitle }
+                )
+              : translate('components.prototypes.chatLinkNoTitle', '{{agent}} — open chat ↗', {
+                  agent: agentLabel
+                })}
+          </button>
+          {origin === null ? null : (
+            <>
+              <span aria-hidden="true">·</span>
+              <button
+                type="button"
+                onClick={openOrigin}
+                className="truncate text-left hover:text-foreground"
+              >
+                {translate('components.prototypes.originLink', 'from “{{chat}}” ↗', {
+                  chat: origin.title
+                })}
+              </button>
+            </>
+          )}
+        </div>
       </div>
       <div role="toolbar" className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
         {single ? null : (

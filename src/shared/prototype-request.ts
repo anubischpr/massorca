@@ -107,6 +107,19 @@ export function buildPrototypeRequestMessage(
   return { visibleText: text, sentText: sentTextFor(request, { ...input, text }) }
 }
 
+/**
+ * The same message as `buildPrototypeRequestMessage`, split: the body the agent works from, and the
+ * hidden instruction that asks for prototypes. A caller that frames the body itself places the
+ * hidden part outside its frame; `body` and `hidden` joined as the message joins them give `sentText`.
+ */
+export function buildPrototypeRequestParts(input: PrototypeRequestInput): {
+  body: string
+  hidden: string
+} {
+  const text = neutralizePrototypeMarkers(input.text)
+  return partsFor(classifyPrototypeRequest(text, input.agent), { ...input, text })
+}
+
 export type PrototypeIterationInput = {
   requestId: string
   letter: string
@@ -133,9 +146,17 @@ export function buildPrototypeIterationInstruction({
 }
 
 function sentTextFor(request: PrototypeRequest, input: PrototypeRequestInput): string {
+  const { body, hidden } = partsFor(request, input)
+  return hidden.length > 0 ? withBody(body, hidden) : body
+}
+
+function partsFor(
+  request: PrototypeRequest,
+  input: PrototypeRequestInput
+): { body: string; hidden: string } {
   const { text, agent, folderPath } = input
   if (request.kind === 'none') {
-    return text
+    return { body: text, hidden: '' }
   }
   assertRequestId(input.requestId)
   assertFolderPath(folderPath)
@@ -157,13 +178,13 @@ function sentTextFor(request: PrototypeRequest, input: PrototypeRequestInput): s
     // The agent gets the text without the MassOrca command word, which no agent knows, or the
     // Gentle Shell design command; the chat shows the typed text, echoed at the end.
     const typed = [TYPED_ECHO_NOTE, prototypeTypedMarkerLine(), text.trim()].join('\n')
-    return withBody(
-      translated ?? massorcaCommand.rest,
-      `${hidden}
+    return {
+      body: translated ?? massorcaCommand.rest,
+      hidden: `${hidden}
 ${typed}`
-    )
+    }
   }
-  return withBody(text.trim(), hidden)
+  return { body: text.trim(), hidden }
 }
 
 // A /prototype instruction on Gentle Shell becomes its design command, unless that command would

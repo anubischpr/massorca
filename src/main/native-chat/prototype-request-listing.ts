@@ -279,6 +279,9 @@ async function listedRequestFor(
           ...(manifest.designSystemVersion !== undefined
             ? { builtOn: manifest.designSystemVersion }
             : {}),
+          ...(manifest.originSessionId !== undefined
+            ? { origin: { sessionId: manifest.originSessionId } }
+            : {}),
           directions
         }
   return { set, manifest, requestFolder }

@@ -45,6 +45,8 @@ const prototypeRequestManifestSchema = z.object({
   // Optional, so manifests written before these fields existed still parse.
   worktreeId: z.string().min(1).max(MANIFEST_TEXT_MAX_LENGTH).optional(),
   chatTitle: z.string().max(MANIFEST_TEXT_MAX_LENGTH).optional(),
+  // The parent chat that delegated this request to a child session; absent for a chat's own request.
+  originSessionId: z.string().min(1).max(MANIFEST_TEXT_MAX_LENGTH).optional(),
   // The chat's launch directory on the host: where Gentle Shell's design/ folder lives.
   sessionCwd: z.string().min(1).max(4096).optional(),
   // What the request did with the project's design system, and the version it was built on.

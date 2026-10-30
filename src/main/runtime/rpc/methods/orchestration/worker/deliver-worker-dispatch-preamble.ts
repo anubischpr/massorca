@@ -46,12 +46,14 @@ export async function deliverWorkerDispatchPreamble(args: {
   requestId: string
   /** The agent this worker start launched into `terminalHandle`; absent for a caller's terminal. */
   launchedAgent?: string | null
+  /** Text sent after the preamble, outside the task body: a hidden instruction the task's title never reads. */
+  appendix?: string
 }): Promise<{
   prompt?: RuntimeTerminalSend['prompt']
   structuredTurnStart?: WorkerTurnStartObservation
 }> {
   const { runtime, structuredSession, terminalHandle } = args
-  const preamble = buildDispatchPreamble({
+  const dispatchPreamble = buildDispatchPreamble({
     // Depth only. A worker is taught the same verbs whichever mode it runs in, so this must not
     // become a second gate: resolving the caller's worktree is what lets a structured worker
     // dispatch sub-workers exactly like a PTY one.
@@ -68,6 +70,7 @@ export async function deliverWorkerDispatchPreamble(args: {
     devMode: args.devMode,
     cliCommand: runtime.getTerminalOrchestrationCliCommand(terminalHandle)
   })
+  const preamble = args.appendix ? `${dispatchPreamble}\n\n${args.appendix}` : dispatchPreamble
   if (chatAssigneeSessionId(terminalHandle)) {
     const dispatch = args.db.getDispatchContextById(args.dispatchId)
     if (!dispatch) {

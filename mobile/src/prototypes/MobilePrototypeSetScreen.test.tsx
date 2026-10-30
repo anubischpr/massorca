@@ -10,6 +10,8 @@ import {
   type PrototypeSetState
 } from '../../../src/shared/prototype-set-state'
 import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
+import { structuredAgentSessionTabId } from '../../../src/shared/structured-agent-session-projection'
+import type { WorktreeAgentRows } from '../session/mobile-worktree-agent-rows'
 import { MobilePrototypeSetScreen } from './MobilePrototypeSetScreen'
 import {
   createMobileSetState,
@@ -55,6 +57,13 @@ const listing: { set: PrototypeListedSet } = { set: SET }
 vi.mock('./use-mobile-prototype-sets', () => ({
   useMobilePrototypeSets: () => ({ status: 'ready', sets: [listing.set] })
 }))
+
+const hostRows = vi.hoisted((): { worktrees: WorktreeAgentRows[] } => ({ worktrees: [] }))
+vi.mock('../session/use-worktree-agent-rows', () => ({
+  useWorktreeAgentRows: () => ({ worktrees: hostRows.worktrees, refresh: () => undefined })
+}))
+const openSession = vi.hoisted(() => vi.fn())
+vi.mock('../session/use-open-mobile-session', () => ({ useOpenMobileSession: () => openSession }))
 
 const KEY = mobilePrototypeStateKey('host-1', 'req-1')
 
@@ -326,5 +335,52 @@ describe('the merge', () => {
       'C · read-only'
     ])
     expect(mergeButton(tree.root).props.disabled).toBe(true)
+  })
+})
+
+describe('the set screen names the parent chat of a delegated set', () => {
+  const PARENT_PANE = `${structuredAgentSessionTabId('parent-1')}:leaf-1`
+
+  afterEach(() => {
+    listing.set = SET
+    hostRows.worktrees = []
+    openSession.mockReset()
+  })
+
+  it('shows the parent after the subtitle, and opens the parent chat on tap', () => {
+    listing.set = { ...SET, origin: { sessionId: 'parent-1' } }
+    hostRows.worktrees = [
+      {
+        worktreeId: 'wt-1',
+        agents: [{ paneKey: PARENT_PANE, parentPaneKey: null, title: 'nexuscare-planning' }]
+      }
+    ]
+    const tree = mount()
+    expect(texts(tree.root, 'Text')).toContain('Codex · 3 directions · from “nexuscare-planning” ›')
+    const [link] = tree.root.findAll(
+      (node) => node.type === 'Text' && node.props.accessibilityRole === 'link'
+    )
+    act(() => link?.props.onPress())
+    expect(openSession).toHaveBeenCalledWith({
+      hostId: 'host-1',
+      worktreeId: 'wt-1',
+      paneKey: PARENT_PANE
+    })
+  })
+
+  it('hides the origin part when the host lists the parent without a name', () => {
+    listing.set = { ...SET, origin: { sessionId: 'parent-1' } }
+    hostRows.worktrees = [
+      { worktreeId: 'wt-1', agents: [{ paneKey: PARENT_PANE, parentPaneKey: null }] }
+    ]
+    const tree = mount()
+    expect(texts(tree.root, 'Text')).toContain('Codex · 3 directions')
+    expect(texts(tree.root, 'Text').some((line) => line.includes('from '))).toBe(false)
+  })
+
+  it('shows no origin part for a set made directly in a chat', () => {
+    const tree = mount()
+    expect(texts(tree.root, 'Text')).toContain('Codex · 3 directions')
+    expect(tree.root.findAll((node) => node.props.accessibilityRole === 'link')).toHaveLength(0)
   })
 })

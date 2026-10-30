@@ -17886,6 +17886,7 @@
       "cardName": "{{letter}} · {{name}}",
       "chatLink": "{{agent}} · chat “{{chat}}” — abrir chat ↗",
       "chatLinkNoTitle": "{{agent}} — abrir chat ↗",
+      "originLink": "desde “{{chat}}” ↗",
       "close": "Cerrar",
       "curIterating": "principal · v{{version}}",
       "curMerged": "principal · fusionada de {{letters}}",

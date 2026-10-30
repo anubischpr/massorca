@@ -17943,6 +17943,7 @@
       "cardName": "{{letter}} · {{name}}",
       "chatLink": "{{agent}} · chat « {{chat}} » — ouvrir le chat ↗",
       "chatLinkNoTitle": "{{agent}} — ouvrir le chat ↗",
+      "originLink": "depuis “{{chat}}” ↗",
       "close": "Fermer",
       "curIterating": "principale · v{{version}}",
       "curMerged": "principale · fusion de {{letters}}",

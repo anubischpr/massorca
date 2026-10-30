@@ -189,12 +189,30 @@ describe('readPrototypeSystemCard', () => {
     warn.mockRestore()
   })
 
-  it('gives no card when the host does not answer in time, so the send is not held', async () => {
+  it('still shows the card when the host answers after 3 s but within the request budget', async () => {
+    vi.useFakeTimers()
+    const answer = {
+      ok: true,
+      projectKey: 'nexus',
+      projectName: 'nexuscare',
+      fileNames: ['design/system/tokens.json'],
+      tokensJson: SYSTEM_TOKENS
+    }
+    mocks.readSystem.mockReturnValue(
+      new Promise((resolve) => setTimeout(() => resolve(answer), 5_000))
+    )
+    const pending = readPrototypeSystemCard(target, 'chat-1')
+    await vi.advanceTimersByTimeAsync(5_000)
+    await expect(pending).resolves.toMatchObject({ kind: 'existing', projectName: 'nexuscare' })
+  })
+
+  it('gives no card when the host does not answer within the request budget, so the send is not held', async () => {
     vi.useFakeTimers()
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     mocks.readSystem.mockReturnValue(new Promise(() => undefined))
     const pending = readPrototypeSystemCard(target, 'chat-1')
-    await vi.advanceTimersByTimeAsync(3_000)
+    await vi.advanceTimersByTimeAsync(19_999)
+    await vi.advanceTimersByTimeAsync(1)
     await expect(pending).resolves.toBeNull()
     warn.mockRestore()
   })

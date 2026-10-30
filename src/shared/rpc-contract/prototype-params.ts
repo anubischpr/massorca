@@ -161,6 +161,8 @@ export const PrototypeListedSetSchema = z.object({
   projectName: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
   /** The design system version the request was built on, when it recorded one. */
   builtOn: z.int().min(1).optional(),
+  /** The parent chat that delegated this set's request to a child session; absent for a chat's own request. */
+  origin: z.object({ sessionId: z.string().min(1).max(TEXT_MAX_LENGTH) }).optional(),
   directions: z.array(PrototypeListedDirectionSchema)
 })
 
