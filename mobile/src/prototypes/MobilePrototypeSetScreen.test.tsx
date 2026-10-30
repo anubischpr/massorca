@@ -58,7 +58,7 @@ vi.mock('./use-mobile-prototype-sets', () => ({
   useMobilePrototypeSets: () => ({ status: 'ready', sets: [listing.set] })
 }))
 
-const hostRows = vi.hoisted(() => ({ worktrees: [] as WorktreeAgentRows[] }))
+const hostRows = vi.hoisted((): { worktrees: WorktreeAgentRows[] } => ({ worktrees: [] }))
 vi.mock('../session/use-worktree-agent-rows', () => ({
   useWorktreeAgentRows: () => ({ worktrees: hostRows.worktrees, refresh: () => undefined })
 }))
