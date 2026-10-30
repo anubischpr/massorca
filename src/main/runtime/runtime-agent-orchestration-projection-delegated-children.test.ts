@@ -229,7 +229,7 @@ describe('delegated children in the orchestration projection', () => {
     expect(projectionFor(db, [WORKER]).buildByPaneKey()).toBeUndefined()
   })
 
-  it('publishes only the links whose child and parent sessions still exist, out of fifty', () => {
+  it('publishes only the links whose child session still shows, out of fifty', () => {
     db = new OrchestrationDb(':memory:')
     const children = Array.from({ length: 50 }, (_, index) => `child-${index}`)
     for (const child of children) {
@@ -249,11 +249,15 @@ describe('delegated children in the orchestration projection', () => {
     expect(projectionFor(db, [], [PARENT, CHILD]).buildByPaneKey()).toBeUndefined()
   })
 
-  it('drops a link whose parent session no longer exists', () => {
+  it('keeps a child parent pane key when the parent no longer has a row', () => {
+    // Why: a finished parent drops its host status row while its child still shows; the renderer
+    // ignores a parent pane key that names no row, so the nesting is decided there, not by the read.
     db = new OrchestrationDb(':memory:')
     startLink(db, CHILD, 'gone-parent')
 
-    expect(projectionFor(db, [], [CHILD]).buildByPaneKey()).toBeUndefined()
+    expect(projectionFor(db, [], [CHILD]).buildByPaneKey()?.[rowKey(CHILD)]).toMatchObject({
+      parentPaneKey: rowKey('gone-parent')
+    })
   })
 
   it('skips the delegated-link read when no structured session is shown', () => {
