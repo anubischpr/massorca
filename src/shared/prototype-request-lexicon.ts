@@ -181,33 +181,31 @@ const negativePhrases = PROTOTYPE_NEGATIVE_TERMS.map((term) => wordsOf(term))
 
 // Typos are tolerated only for single words of at least five letters, against design terms and UI nouns.
 const FUZZY_MIN_LENGTH = 5
-// Real words one edit away from a design term or UI noun; they keep their own meaning.
-const FUZZY_EXCEPTIONS: ReadonlySet<string> = new Set([
+// Real word families one edit away from a design term or UI noun: a token that starts with one keeps
+// its own meaning (resigned, designar, designación), so no inflection of these slips into design.
+const FUZZY_EXEMPT_FAMILIES: readonly string[] = [
   'resign',
-  'resigns',
   'deign',
   'designa',
-  'designas',
-  'designan',
   'designo',
   'designe',
-  'designes',
-  'desena',
   'lista',
-  'listas',
   'visto',
-  'vistos',
   'menos',
   'model',
-  'models',
   'medal',
   'modas',
   'pagos',
   'pagas',
   'lending',
   'terms',
-  'botin'
-])
+  'botin',
+  'desena'
+]
+
+function isFuzzyExempt(word: string): boolean {
+  return FUZZY_EXEMPT_FAMILIES.some((family) => word.startsWith(family))
+}
 const FUZZY_TERMS: ReadonlySet<string> = new Set(
   [...designPhrases, ...uiNounPhrases]
     .filter((phrase) => phrase.length === 1)
@@ -255,7 +253,7 @@ function isOneEditApart(word: string, term: string): boolean {
 // Replaces a typo of a design term or UI noun with that term; every other word is kept as written.
 function canonicalWords(words: readonly string[]): string[] {
   return words.map((word) => {
-    if (word.length < FUZZY_MIN_LENGTH || FUZZY_TERMS.has(word) || FUZZY_EXCEPTIONS.has(word)) {
+    if (word.length < FUZZY_MIN_LENGTH || FUZZY_TERMS.has(word) || isFuzzyExempt(word)) {
       return word
     }
     for (let length = word.length - 1; length <= word.length + 1; length += 1) {
