@@ -54,6 +54,7 @@ function run(sessions: AiVaultSession[], over: Record<string, unknown> = {}) {
       projectLabelByKey: new Map(),
       hideEmptySessions: true,
       showAutomatedRuns: false,
+      listedSessions: [],
       ...over
     })
   ).result.current
