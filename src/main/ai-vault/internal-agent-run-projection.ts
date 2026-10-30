@@ -8,8 +8,6 @@ import { listInternalAgentRuns, type InternalAgentRun } from './internal-agent-r
 
 // Clock and flush slack between the spawn and the first/last transcript write.
 const CLOCK_SLACK_MS = 5_000
-// Longest an unfinished record can still own a transcript (the app quit mid-run).
-const UNFINISHED_RUN_MAX_MS = 10 * 60_000
 
 /**
  * Marks local rows left by a background run MassOrca started as `headlessRun`, so the list hides
@@ -48,7 +46,9 @@ function isInternalAgentRunSession(
   const lastActivityMs = parseMs(session.updatedAt) ?? startedMs
   const cwd = comparableCwd(session.cwd)
   return runs.some((run) => {
-    const windowEndMs = run.endedAtMs ?? run.startedAtMs + UNFINISHED_RUN_MAX_MS
+    // Why: a record with no end (quit or crash mid-run) must not widen the window over user
+    // sessions; it claims only a session born at the spawn, and the prompt prefix covers the rest.
+    const windowEndMs = run.endedAtMs ?? run.startedAtMs
     return (
       agentMatches(run.agentId, session.agent) &&
       comparableCwd(run.cwd) === cwd &&

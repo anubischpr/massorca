@@ -64,6 +64,14 @@ describe('projectInternalAgentRunAiVaultSessions', () => {
     expect(marked.headlessRun).toBe(true)
   })
 
+  it('leaves a user session minutes after a run whose end was never recorded', () => {
+    const later = session({
+      createdAt: new Date(START + 120_000).toISOString(),
+      updatedAt: new Date(START + 150_000).toISOString()
+    })
+    expect(project([later], [run({ endedAtMs: null })])[0].headlessRun).toBeUndefined()
+  })
+
   it('leaves a session the user kept using after the run ended', () => {
     const [kept] = project(
       [session({ updatedAt: new Date(START + 600_000).toISOString() })],
