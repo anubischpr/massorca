@@ -144,8 +144,13 @@ function reviewState(): PrototypeSetState {
     id: 'plan-1',
     from: ['A', 'C'],
     parts: [
-      { name: 'Heading', selector: 'main > h1', from: 'A' },
-      { name: 'Pay button', selector: 'button.cta', from: 'C' }
+      {
+        name: 'Heading',
+        kind: 'section',
+        selectors: { A: 'main > h1', C: 'main > h1' },
+        from: 'A'
+      },
+      { name: 'Pay button', kind: 'component', selectors: { C: 'button.cta' }, from: 'C' }
     ]
   })
   const plan = parsePrototypeMergePlan(text)

@@ -17,7 +17,7 @@ const SET = { sessionId: 'session-1', requestId: 'req-1' }
 const PLAN_JSON = JSON.stringify({
   id: 'plan-1',
   from: ['A', 'C'],
-  parts: [{ name: 'Heading', selector: 'main > h1', from: 'A' }]
+  parts: [{ name: 'Heading', kind: 'section', selectors: { A: 'main > h1' }, from: 'A' }]
 })
 const WAITING: PrototypeMergeState = {
   phase: 'waiting',
@@ -82,7 +82,7 @@ describe('waiting for the merge plan', () => {
       JSON.stringify({
         id: 'plan-0',
         from: ['A', 'C'],
-        parts: [{ name: 'Heading', selector: 'main > h1', from: 'A' }]
+        parts: [{ name: 'Heading', kind: 'section', selectors: { A: 'main > h1' }, from: 'A' }]
       })
     )
     const onPlan = vi.fn()
@@ -101,7 +101,7 @@ describe('waiting for the merge plan', () => {
       JSON.stringify({
         id: 'plan-1',
         from: ['A', 'B'],
-        parts: [{ name: 'Heading', selector: 'main > h1', from: 'A' }]
+        parts: [{ name: 'Heading', kind: 'section', selectors: { A: 'main > h1' }, from: 'A' }]
       })
     )
     const onPlan = vi.fn()
@@ -118,11 +118,11 @@ describe('waiting for the merge plan', () => {
   it('takes a plan without an id only when it differs from the file read at the send', async () => {
     const before = JSON.stringify({
       from: ['A', 'C'],
-      parts: [{ name: 'Heading', selector: 'main > h1', from: 'A' }]
+      parts: [{ name: 'Heading', kind: 'section', selectors: { A: 'main > h1' }, from: 'A' }]
     })
     const after = JSON.stringify({
       from: ['A', 'C'],
-      parts: [{ name: 'Heading', selector: 'main > h1', from: 'C' }]
+      parts: [{ name: 'Heading', kind: 'section', selectors: { C: 'main > h1' }, from: 'C' }]
     })
     const onPlan = vi.fn()
     readPlan.mockResolvedValue(before)
