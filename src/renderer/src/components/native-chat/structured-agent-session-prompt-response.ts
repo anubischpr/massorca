@@ -15,7 +15,7 @@ export async function respondToStructuredAgentSessionPrompt({
   mutate,
   count
 }: {
-  item: StructuredPromptItem
+  item: Pick<StructuredPromptItem, 'itemId' | 'revision' | 'body'>
   response: AgentSessionPromptResponse
   target: RuntimeClientTarget
   mutate: StructuredAgentSessionMutate
@@ -39,7 +39,8 @@ export async function respondToStructuredAgentSessionPrompt({
     if (optionId === null) {
       return null
     }
-    fields = { ...promptTarget, optionId, ...countField }
+    // Why: a host that predates answers takes no count, so its default count applies.
+    fields = { ...promptTarget, optionId }
   }
   return mutate<AgentSessionPromptResult>(
     item.body.kind === 'approval'
