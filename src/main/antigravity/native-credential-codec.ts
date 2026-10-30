@@ -53,7 +53,7 @@ export type AntigravityCredentialIdentity = {
 }
 
 // These claims label a locally stored account; they never authorize an operation.
-function readIdentity(idToken: unknown): AntigravityCredentialIdentity | null {
+function readJwtIdentity(idToken: unknown): AntigravityCredentialIdentity | null {
   if (typeof idToken !== 'string') {
     return null
   }
@@ -82,6 +82,42 @@ function readIdentity(idToken: unknown): AntigravityCredentialIdentity | null {
   } catch {
     return null
   }
+}
+
+const MAX_EMAIL_LENGTH = 320
+
+// Why: agy 1.4.10+ stores no id_token, only the signed-in address; the `email:` namespace cannot
+// collide with the numeric Google subjects of the older shape.
+function readEmailIdentity(value: string): AntigravityCredentialIdentity | null {
+  const email = value.trim().toLowerCase()
+  const at = email.indexOf('@')
+  if (
+    email.length > MAX_EMAIL_LENGTH ||
+    at < 1 ||
+    at !== email.lastIndexOf('@') ||
+    at === email.length - 1 ||
+    // oxlint-disable-next-line no-control-regex -- rejecting control characters is the point
+    /[\s\u0000-\u001f\u007f]/.test(email)
+  ) {
+    return null
+  }
+  return { issuer: 'https://accounts.google.com', subject: `email:${email}`, email }
+}
+
+function readCredentialIdentity(
+  value: Record<string, unknown>,
+  token: Record<string, unknown>
+): AntigravityCredentialIdentity | null {
+  const idToken = value.id_token ?? token.id_token
+  if (idToken !== undefined && idToken !== null) {
+    return readJwtIdentity(idToken)
+  }
+  const label = value.id_token_email
+  if (typeof label !== 'string') {
+    return null
+  }
+  // A JWT segment alphabet has no '@', so the character decides which shape this is.
+  return label.includes('@') ? readEmailIdentity(label) : readJwtIdentity(label)
 }
 
 export type AntigravityNativeCredential = {
@@ -114,6 +150,6 @@ export function parseAntigravityNativeCredential(contents: string): AntigravityN
     // Keep the exact native blob: a CLI upgrade may depend on fields Orca does not know.
     contents,
     authMethod: value.auth_method,
-    identity: readIdentity(value.id_token ?? value.token.id_token)
+    identity: readCredentialIdentity(value, value.token)
   }
 }

@@ -1,5 +1,6 @@
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
+import { parseAntigravityNativeCredential } from './native-credential-codec'
 import { readAntigravityAccountBinding } from './structured-account-binding'
 
 const home = resolve('/synthetic/host')
@@ -50,6 +51,38 @@ describe('Antigravity execution-host account binding', () => {
       locator: { home, credentialStore: 'file', ...identity }
     })
     expect(await readAntigravityAccountBinding({ ...input, previous }, deps)).toEqual(previous)
+  })
+
+  it('binds the agy 1.4.10 credential shape that carries only id_token_email', async () => {
+    const { input, deps } = fixture()
+    const parsed = parseAntigravityNativeCredential(
+      JSON.stringify({
+        auth_method: 'consumer',
+        id_token_email: 'Test@Example.Invalid',
+        token: { access_token: 'synthetic-access', refresh_token: 'synthetic-refresh' }
+      })
+    )
+    const readIdentity = async () =>
+      parsed.identity ? { ...parsed.identity, authMethod: parsed.authMethod } : null
+    const binding = await readAntigravityAccountBinding(input, { ...deps, readIdentity })
+    expect(binding.locator).toMatchObject({
+      issuer: 'https://accounts.google.com',
+      subject: 'email:test@example.invalid',
+      authMethod: 'consumer'
+    })
+    expect(
+      await readAntigravityAccountBinding(
+        { ...input, previous: binding },
+        { ...deps, readIdentity }
+      )
+    ).toEqual(binding)
+    // A conversation bound under the numeric-subject shape is refused, never silently rebound.
+    await expect(
+      readAntigravityAccountBinding(
+        { ...input, previous: await readAntigravityAccountBinding(input, deps) },
+        { ...deps, readIdentity }
+      )
+    ).rejects.toMatchObject({ reason: 'historyInOtherAccount' })
   })
 
   it('does not infer SSH-file authority for a systemd/Xvfb execution host', async () => {
