@@ -76,8 +76,14 @@ export type AntigravityWorkspaceResolver = {
   enrich(session: AiVaultSession, historyPath: string): Promise<AiVaultSession>
 }
 
+export type AntigravityConversationWorkspaceReader = (
+  historyPath: string,
+  signal?: AbortSignal
+) => Promise<Map<string, string> | null>
+
 export function createAntigravityWorkspaceResolver(
-  readHistory: (historyPath: string) => Promise<string | null>
+  readHistory: (historyPath: string) => Promise<string | null>,
+  readConversationWorkspaces?: AntigravityConversationWorkspaceReader
 ): AntigravityWorkspaceResolver {
   const indexes = new Map<string, Promise<AntigravityHistoryIndex>>()
 
@@ -91,9 +97,17 @@ export function createAntigravityWorkspaceResolver(
         // Why: a read failure is transient (a stalled WSL distro refuses here),
         // so it must not be memoized — every later session under this history
         // file would inherit the rejection for the process lifetime.
-        const pending: Promise<AntigravityHistoryIndex> = readHistory(historyPath)
-          .then(async (history) => {
+        const pending: Promise<AntigravityHistoryIndex> = Promise.all([
+          readHistory(historyPath),
+          readConversationWorkspaces?.(historyPath) ?? null
+        ])
+          .then(async ([history, conversationWorkspaces]) => {
             const index = indexAntigravityHistory(history)
+            // Why: the conversation database names each conversation's own worktree; the cache
+            // files keep one conversation per workspace, so an internal run replaces the parent.
+            for (const [id, path] of conversationWorkspaces ?? []) {
+              index.byId.set(id, path)
+            }
             const [metadata, projects, lastConversations] = await Promise.all(
               ['conversation_metadata.json', 'projects.json', 'last_conversations.json'].map(
                 (name) => readHistory(antigravityCachePath(historyPath, name))
@@ -105,6 +119,9 @@ export function createAntigravityWorkspaceResolver(
               lastConversations: lastConversations ?? null
             })
             for (const [id, path] of paths) {
+              if (conversationWorkspaces?.has(id)) {
+                continue
+              }
               if (!index.byId.has(id)) {
                 index.byId.set(id, path)
               } else if (index.byId.get(id) !== path) {

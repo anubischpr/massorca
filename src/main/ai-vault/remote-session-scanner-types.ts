@@ -4,7 +4,10 @@ import type { IFilesystemProvider } from '../providers/types'
 import type { RemoteHostPlatform } from '../ssh/ssh-remote-platform'
 import type { FileWithMtime } from './session-scanner-types'
 import type { SubagentTranscriptPartition } from './session-scanner-subagent-transcripts'
-import type { AntigravityWorkspaceResolver } from './session-scanner-antigravity-history'
+import type {
+  AntigravityConversationWorkspaceReader,
+  AntigravityWorkspaceResolver
+} from './session-scanner-antigravity-history'
 import type { OpenCodeSqliteWorkerClient } from './session-scanner-opencode-sqlite-worker-client'
 
 export type RemoteOpenCodeSessionReader = Pick<OpenCodeSqliteWorkerClient, 'list' | 'parse'> & {
@@ -34,6 +37,8 @@ export type RemoteSessionFilesystemProvider = Pick<
   ) => AsyncIterable<Buffer>
   /** Execution-host database access; absent from remote filesystem RPC providers. */
   openCode?: RemoteOpenCodeSessionReader
+  /** Execution-host conversation workspaces; absent from remote filesystem RPC providers. */
+  antigravityConversationWorkspaces?: AntigravityConversationWorkspaceReader
 }
 
 export type RemoteParserOptions = {
