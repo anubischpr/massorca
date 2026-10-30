@@ -27,7 +27,10 @@ import {
 import { mobileEffortDescriptorWithDescriptions } from './mobile-native-chat-effort-descriptions'
 import { effortMeterLevel, effortMeterLevelForValue } from './mobile-native-chat-effort-meter'
 import { isMobileFastModeOn } from './mobile-native-chat-fast-mode'
-import { splitModelSheet } from './mobile-native-chat-featured-models'
+import {
+  featuredModelAgentFor,
+  splitModelSheet
+} from '../../../src/shared/native-chat-featured-models'
 import {
   DescriptorRows,
   SessionOptionCaption,
@@ -141,14 +144,15 @@ export function MobileNativeChatSessionOptionPickers({
   const modelView = activeDescriptor?.id === model.id
   const backToModels = activeDescriptor !== undefined && !modelView && returnsToModels
   // Featured models lead; the rest fold behind "More models" until that view is open.
-  const modelSplit = splitModelSheet(model, agent)
+  const featuredKey = featuredModelAgentFor(agent, piRuntime)
+  const modelSplit = splitModelSheet(model, featuredKey)
   const moreModels = modelView && inMoreModels ? modelSplit.more : null
   const moreView = moreModels !== null
   const modelRows = moreModels ?? modelSplit.featured
   const navigatesBack = moreView || backToModels
   const accessSheet = activeDescriptor?.id === 'accessMode'
   const reason = mobileSessionOptionDisabledReason(activeDescriptor?.disabledReason)
-  const modelLabel = mobileModelPillLabel(model, modelLoading)
+  const modelLabel = mobileModelPillLabel(model, modelLoading, featuredKey)
   const fast = isMobileFastModeOn(snapshot)
   const effortLabel = (effort ? mobileSelectedChoiceLabel(effort) : null) ?? 'Not set'
   const accessValue = access ? mobileAccessCurrentValue(access) : 'inherit'

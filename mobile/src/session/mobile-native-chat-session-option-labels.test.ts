@@ -79,6 +79,20 @@ describe('mobileModelPillLabel', () => {
     expect(mobileModelPillLabel(select('model', 'Model', 'gpt-6-astra'))).toBe('Model gpt-6-astra')
   })
 
+  it('names a featured model by its name alone when its agent has a featured set', () => {
+    const descriptor: SessionOptionDescriptor = {
+      ...untracked('Model'),
+      valueSource: 'reported',
+      kind: {
+        type: 'select',
+        currentValue: 'deepseek-v4-flash',
+        choices: [{ value: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash' }]
+      }
+    }
+    expect(mobileModelPillLabel(descriptor, false, 'gentle-shell')).toBe('DeepSeek Flash')
+    expect(mobileModelPillLabel(descriptor)).toBe('DeepSeek V4 Flash')
+  })
+
   it('reads Loading… for an untracked model while its options answer is pending', () => {
     expect(mobileModelPillLabel(untracked('Model'), true)).toBe('Loading…')
   })

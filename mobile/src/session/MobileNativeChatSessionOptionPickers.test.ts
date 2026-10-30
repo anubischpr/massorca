@@ -762,13 +762,30 @@ describe('MobileNativeChatSessionOptionPickers', () => {
     viewport.width = 320
     mount([MODEL_DESCRIPTOR], false, 'claude')
     expect(renderer!.root.findByType('MobileAgentIcon')).toBeDefined()
-    expect(texts()).not.toContain('Sonnet 5')
-    expect(control('Model').props.accessibilityLabel).toBe('Model, Sonnet 5')
+    expect(texts()).not.toContain('Sonnet')
+    expect(control('Model').props.accessibilityLabel).toBe('Model, Sonnet')
   })
 
   it('shows the model name in the pill at 390pt', () => {
     mount([MODEL_DESCRIPTOR], false, 'claude')
-    expect(texts()).toContain('Sonnet 5')
+    expect(texts()).toContain('Sonnet')
+  })
+
+  it('names a Gentle Shell model in the pill by its featured name and folds the rest', () => {
+    const gentleShellModel: SessionOptionDescriptor = {
+      ...MODEL_DESCRIPTOR,
+      kind: {
+        type: 'select',
+        currentValue: 'deepseek-v4-flash',
+        choices: [
+          { value: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash' },
+          { value: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro' }
+        ]
+      }
+    }
+    mount([gentleShellModel], false, 'pi', 'gentle-shell')
+    expect(texts()).toContain('DeepSeek Flash')
+    expect(texts()).not.toContain('DeepSeek V4 Flash')
   })
 
   it('always shows the model name in the pill when no agent icon can stand in', () => {

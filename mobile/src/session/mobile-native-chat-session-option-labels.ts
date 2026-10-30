@@ -8,6 +8,10 @@ import type {
   SessionOptionNote,
   SessionOptionSelectChoice
 } from '../../../src/shared/native-chat-session-options'
+import {
+  featuredModelDisplay,
+  type FeaturedModelAgent
+} from '../../../src/shared/native-chat-featured-models'
 
 export function mobileSessionOptionDisabledReason(
   reason: SessionOptionDisabledReason | undefined
@@ -54,11 +58,21 @@ export function mobileSelectedChoiceLabel(descriptor: SessionOptionDescriptor): 
 const LOADING_MODEL_PILL_LABEL = 'Loading…'
 
 /** Value-only pill text — the category lives on the sheet title, not the pill. */
-export function mobileModelPillLabel(descriptor: SessionOptionDescriptor, loading = false): string {
+export function mobileModelPillLabel(
+  descriptor: SessionOptionDescriptor,
+  loading = false,
+  featuredKey: FeaturedModelAgent | null = null
+): string {
   if (loading) {
     return LOADING_MODEL_PILL_LABEL
   }
-  return mobileSelectedChoiceLabel(descriptor) ?? descriptor.label
+  const label = mobileSelectedChoiceLabel(descriptor) ?? descriptor.label
+  if (descriptor.kind.type !== 'select' || featuredKey === null) {
+    return label
+  }
+  const current = descriptor.kind.currentValue
+  const choice = descriptor.kind.choices.find((candidate) => candidate.value === current)
+  return choice ? featuredModelDisplay(choice, featuredKey).name : label
 }
 
 /** Sheet title; the access descriptor's internal id would read as "accessmode", so it has its own. */
