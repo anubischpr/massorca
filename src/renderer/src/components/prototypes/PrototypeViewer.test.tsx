@@ -410,6 +410,30 @@ describe('PrototypeViewer Merge button', () => {
     expect(screen.getByRole('button', { name: 'Merge (2)' })).toBeDisabled()
   })
 
+  it('reads Merge beside its count and pulses with a rainbow border at two stars', () => {
+    renderSet3(toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C'))
+    const button = screen.getByRole('button', { name: 'Merge (2)' })
+    expect(button).toBeEnabled()
+    expect(button).toHaveClass('prototype-merge-ready')
+    expect(button.textContent).toBe('Merge2')
+  })
+
+  it('stays icon-only with a tooltip below two stars, and loses the pulse while a merge waits', () => {
+    renderSet3(toggleStar(createSetState(['A', 'B', 'C']), 'A'))
+    const one = screen.getByRole('button', { name: 'Merge' })
+    expect(one).not.toHaveClass('prototype-merge-ready')
+    expect(one.textContent).toBe('1')
+    cleanup()
+    const stars = toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C')
+    renderSet3({
+      ...stars,
+      merge: { phase: 'waiting', letters: ['A', 'C'], planId: 'p', baseline: null }
+    })
+    const waiting = screen.getByRole('button', { name: 'Merge (2)' })
+    expect(waiting).toBeDisabled()
+    expect(waiting).not.toHaveClass('prototype-merge-ready')
+  })
+
   it('comes before the Layout group, and a single direction has none', () => {
     renderSet3(createSetState(['A', 'B', 'C']))
     const merge = screen.getByRole('button', { name: 'Merge' })
@@ -479,7 +503,7 @@ describe('PrototypeViewer toolbar structure', () => {
 describe('PrototypeViewer icon-only controls', () => {
   afterEach(cleanup)
 
-  it('shows the controls as icons, with no visible text except the Merge count', () => {
+  it('shows the controls as icons, with the Merge label and count only at two stars', () => {
     renderSet3(toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C'))
     const controls = screen.getByRole('toolbar')
     for (const text of [
@@ -488,12 +512,11 @@ describe('PrototypeViewer icon-only controls', () => {
       'Desktop view',
       'Phone view',
       'Browse',
-      'Annotate',
-      'Merge'
+      'Annotate'
     ]) {
       expect(within(controls).queryByText(text)).toBeNull()
     }
-    expect(within(controls).getByRole('button', { name: 'Merge (2)' }).textContent).toBe('2')
+    expect(within(controls).getByRole('button', { name: 'Merge (2)' }).textContent).toBe('Merge2')
   })
 
   it('names each icon and marks the selected layout, viewport and tool', () => {
@@ -519,9 +542,9 @@ describe('PrototypeViewer icon-only controls', () => {
   })
 
   it('shows the name of each icon in a tooltip on focus', async () => {
-    renderSet3(toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C'))
+    renderSet3(toggleStar(createSetState(['A', 'B', 'C']), 'A'))
     for (const name of [
-      'Merge (2)',
+      'Merge',
       'View all',
       'Design main',
       'Desktop view',

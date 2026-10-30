@@ -119,6 +119,25 @@ export function PrototypeViewerToolbar({
   const panelName = sidePanelHidden
     ? translate('components.prototypes.showPanel', 'Show panel')
     : translate('components.prototypes.hidePanel', 'Hide panel')
+  const mergeButton = (
+    <button
+      type="button"
+      onClick={onMerge}
+      disabled={!mergeEnabled}
+      aria-label={mergeName}
+      className={cn(
+        'flex h-7.5 items-center gap-1 rounded-lg whitespace-nowrap border border-status-amber/50 px-2 text-xs disabled:border-border disabled:text-muted-foreground',
+        mergeEnabled && starCount >= 2 && 'prototype-merge-ready'
+      )}
+    >
+      <Star aria-hidden="true" className="size-3.5 fill-status-amber text-status-amber" />
+      {starCount < 2 ? null : <span>{translate('components.prototypes.merge', 'Merge')}</span>}
+      {starCount === 0 ? null : <span>{starCount}</span>}
+    </button>
+  )
+  // Why: from two stars the button shows its own name, so only the icon-only button needs a tooltip.
+  const mergeControl =
+    starCount < 2 ? <NamedTooltip name={mergeName}>{mergeButton}</NamedTooltip> : mergeButton
   return (
     <div className="flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-2.5">
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -165,20 +184,7 @@ export function PrototypeViewerToolbar({
         </div>
       </div>
       <div role="toolbar" className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
-        {single ? null : (
-          <NamedTooltip name={mergeName}>
-            <button
-              type="button"
-              onClick={onMerge}
-              disabled={!mergeEnabled}
-              aria-label={mergeName}
-              className="flex h-7.5 items-center gap-1 rounded-lg whitespace-nowrap border border-status-amber/50 px-2 text-xs disabled:border-border disabled:text-muted-foreground"
-            >
-              <Star aria-hidden="true" className="size-3.5 fill-status-amber text-status-amber" />
-              {starCount === 0 ? null : <span>{starCount}</span>}
-            </button>
-          </NamedTooltip>
-        )}
+        {single ? null : mergeControl}
         {single ? null : (
           <div
             role="group"

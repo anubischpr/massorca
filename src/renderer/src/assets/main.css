@@ -3449,3 +3449,38 @@ html.native-shell .app-layout {
     animation: prototype-pulse 0.5s ease-out 2;
   }
 }
+
+/* Merge ready (two or more starred): a rainbow border from the status and chart tokens, and a soft
+   pulse; reduced motion keeps the border only. */
+.prototype-merge-ready {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--background), var(--background)) padding-box,
+    conic-gradient(
+        var(--destructive),
+        var(--status-amber),
+        var(--status-warning),
+        var(--status-success),
+        var(--chart-2),
+        var(--destructive)
+      )
+      border-box;
+}
+
+@keyframes prototype-merge-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--status-amber) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--status-amber) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--status-amber) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .prototype-merge-ready {
+    animation: prototype-merge-pulse 1.8s ease-out infinite;
+  }
+}
