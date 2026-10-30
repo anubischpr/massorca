@@ -25,7 +25,21 @@ export function useMobilePrototypeThumbnailHtml(
   const [html, setHtml] = useState<string | null>(null)
   const requestedFor = useRef<string | null>(null)
   const failures = useRef<{ token: string; count: number } | null>(null)
+  const [retryWait, setRetryWait] = useState(false)
   const [retryTick, setRetryTick] = useState(0)
+  // The pause before a retry is a timer its own effect owns, so it is cleared with the card.
+  useEffect(() => {
+    if (!retryWait) {
+      return
+    }
+    const timer = setTimeout(() => {
+      setRetryWait(false)
+      setRetryTick((tick) => tick + 1)
+    }, THUMBNAIL_READ_RETRY_DELAY_MS)
+    return () => {
+      clearTimeout(timer)
+    }
+  }, [retryWait])
   const sessionId = file?.sessionId
   const requestId = file?.requestId
   const fileName = file?.fileName
@@ -46,7 +60,6 @@ export function useMobilePrototypeThumbnailHtml(
     }
     requestedFor.current = token
     let current = true
-    let retry: ReturnType<typeof setTimeout> | undefined
     // Why: a read with no verdict (the host unreachable) is asked again; a refusal is final.
     const noAnswer = (): void => {
       const failed = failures.current?.token === token ? failures.current.count : 0
@@ -54,7 +67,7 @@ export function useMobilePrototypeThumbnailHtml(
         return
       }
       failures.current = { token, count: failed + 1 }
-      retry = setTimeout(() => setRetryTick((tick) => tick + 1), THUMBNAIL_READ_RETRY_DELAY_MS)
+      setRetryWait(true)
     }
     void artifactThumbnailLimiter(() =>
       readMobilePrototypeFile(client, { sessionId, requestId, fileName })
@@ -78,9 +91,6 @@ export function useMobilePrototypeThumbnailHtml(
     )
     return () => {
       current = false
-      if (retry !== undefined) {
-        clearTimeout(retry)
-      }
       // A cut-short read is asked again on the next pass.
       if (requestedFor.current === token) {
         requestedFor.current = null
