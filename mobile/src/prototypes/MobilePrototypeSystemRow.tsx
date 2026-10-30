@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { keyedEntries } from '../../../src/shared/prototype-entry-keys'
 import type { PrototypeListedDesignSystem } from '../../../src/shared/rpc-contract/prototype-params'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
 import { mobilePrototypeSystemLine } from './mobile-prototype-list-model'
@@ -32,8 +33,8 @@ export function MobilePrototypeSystemRow({
 function SwatchIcon({ swatches }: { swatches: readonly string[] }) {
   return (
     <View accessibilityElementsHidden importantForAccessibility="no" style={styles.icon}>
-      {swatches.map((color, index) => (
-        <View key={`${index}:${color}`} style={[styles.cell, { backgroundColor: color }]} />
+      {keyedEntries(swatches, (color) => color).map(({ key, entry: color }) => (
+        <View key={key} style={[styles.cell, { backgroundColor: color }]} />
       ))}
     </View>
   )

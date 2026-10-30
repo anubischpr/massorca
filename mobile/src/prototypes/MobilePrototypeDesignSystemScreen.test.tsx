@@ -49,7 +49,9 @@ vi.mock('../components/keyed-bottom-drawer', () => ({
   }) => (sheet === null ? null : children(sheet))
 }))
 
-const chat = vi.hoisted(() => ({ send: vi.fn() }))
+const chat = vi.hoisted(() => ({
+  send: vi.fn<(client: unknown, target: { sessionId: string }, text: string) => Promise<boolean>>()
+}))
 vi.mock('./mobile-prototype-chat-text-send', () => ({ sendMobilePrototypeText: chat.send }))
 
 const hooks = vi.hoisted(
@@ -414,8 +416,8 @@ describe('the draft sheet', () => {
     act(() => input(tree, 'Anything else').props.onChangeText('Calmer tone'))
     await pressAndSettle(tree, 'Send to Codex')
     expect(chat.send).toHaveBeenCalledTimes(1)
-    const [, target, text] = chat.send.mock.calls[0] as [unknown, { sessionId: string }, string]
-    expect(target.sessionId).toBe('session-nexus')
+    const [, target, text] = chat.send.mock.calls[0] ?? []
+    expect(target?.sessionId).toBe('session-nexus')
     expect(text).toContain('Update the design system to v3.')
     expect(text).toContain('Design system · tokens')
     expect(text).toContain('color: color.primary #2563eb → #1d4ed8')
@@ -438,7 +440,7 @@ describe('the draft sheet', () => {
       ).props.onPress()
     )
     await pressAndSettle(tree, 'Send to Codex')
-    const text = (chat.send.mock.calls[0] as [unknown, unknown, string])[2]
+    const text = chat.send.mock.calls[0]?.[2]
     expect(text).not.toContain('Rebuild ')
   })
 
@@ -488,8 +490,6 @@ describe('the draft sheet', () => {
     expect(allText(tree)).toContain('changes ready for Claude')
     press(tree, 'Review & send')
     await pressAndSettle(tree, 'Send to Claude')
-    expect((chat.send.mock.calls[0] as [unknown, { sessionId: string }])[1].sessionId).toBe(
-      'session-pending'
-    )
+    expect(chat.send.mock.calls[0]?.[1].sessionId).toBe('session-pending')
   })
 })
