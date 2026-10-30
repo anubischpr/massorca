@@ -1,9 +1,10 @@
 import { Fragment, type ReactNode } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -24,6 +25,15 @@ export type CreateChatMenuGroup = {
   placeholder?: string
   /** True keeps the menu open after this value is picked, for a choice that has a next step. */
   keepOpenAfter?: (value: string) => boolean
+  /** Items behind a collapsible row, listed after the group's own items. */
+  folded?: CreateChatFoldedItems
+}
+
+export type CreateChatFoldedItems = {
+  label: string
+  open: boolean
+  onToggle: () => void
+  items: readonly CreateChatMenuItem[]
 }
 
 export type CreateChatChipTone = 'neutral' | 'warning' | 'accent'
@@ -79,29 +89,65 @@ export function CreateChatChipMenu({
               <div className="px-2 py-1.5 text-xs text-muted-foreground">{group.placeholder}</div>
             ) : null}
             <DropdownMenuRadioGroup value={group.value} onValueChange={group.onValueChange}>
-              {group.items.map((item) => (
-                <DropdownMenuRadioItem
-                  key={item.value}
-                  value={item.value}
-                  disabled={item.disabled}
-                  onSelect={(event) => {
-                    // Why: Radix closes on select; the next step of the choice is in this same menu.
-                    if (group.keepOpenAfter?.(item.value)) {
-                      event.preventDefault()
-                    }
-                  }}
-                >
-                  {item.icon}
-                  <NativeChatSessionOptionChoiceBody
-                    label={item.label}
-                    description={item.description}
-                  />
-                </DropdownMenuRadioItem>
-              ))}
+              {renderChoiceItems(group, group.items)}
             </DropdownMenuRadioGroup>
+            {group.folded ? <FoldedRows group={group} folded={group.folded} /> : null}
           </Fragment>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  )
+}
+
+function renderChoiceItems(
+  group: CreateChatMenuGroup,
+  items: readonly CreateChatMenuItem[]
+): React.JSX.Element[] {
+  return items.map((item) => (
+    <DropdownMenuRadioItem
+      key={item.value}
+      value={item.value}
+      disabled={item.disabled}
+      onSelect={(event) => {
+        // Why: Radix closes on select; the next step of the choice is in this same menu.
+        if (group.keepOpenAfter?.(item.value)) {
+          event.preventDefault()
+        }
+      }}
+    >
+      {item.icon}
+      <NativeChatSessionOptionChoiceBody label={item.label} description={item.description} />
+    </DropdownMenuRadioItem>
+  ))
+}
+
+function FoldedRows({
+  group,
+  folded
+}: {
+  group: CreateChatMenuGroup
+  folded: CreateChatFoldedItems
+}): React.JSX.Element {
+  return (
+    <>
+      <DropdownMenuItem
+        aria-expanded={folded.open}
+        onSelect={(event) => {
+          // Why: the row expands in place; Radix would otherwise close the menu on select.
+          event.preventDefault()
+          folded.onToggle()
+        }}
+      >
+        <ChevronRight
+          className={cn('size-3 shrink-0 transition-transform', folded.open && 'rotate-90')}
+        />
+        {folded.label}
+      </DropdownMenuItem>
+      {folded.open ? (
+        <DropdownMenuRadioGroup value={group.value} onValueChange={group.onValueChange}>
+          {renderChoiceItems(group, folded.items)}
+        </DropdownMenuRadioGroup>
+      ) : null}
+    </>
   )
 }

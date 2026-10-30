@@ -3,6 +3,12 @@ import type {
   AgentSessionModelOption,
   AgentSessionOptionChoice
 } from '../../../../shared/agent-session-wire'
+import {
+  splitFeaturedModels,
+  type FeaturedModelAgent,
+  type FeaturedModelChoice,
+  type FeaturedModelRow
+} from '../../../../shared/native-chat-featured-models'
 import type { ExecutionHostId } from '../../../../shared/execution-host'
 import type { TuiAgent } from '../../../../shared/tui-agent'
 import { translate } from '@/i18n/i18n'
@@ -168,20 +174,50 @@ export function buildAgentMenuItems(
   }))
 }
 
+/** The default row, then the featured models; the rest fold behind "More models" as `folded`. */
 export function buildModelMenuItems(
-  models: readonly AgentSessionModelOption[]
-): CreateChatMenuItem[] {
-  return [
-    {
-      value: DEFAULT_MODEL_MENU_VALUE,
-      label: translate('components.createChat.defaultModel', 'Default model')
-    },
-    ...models.map((model) => ({
+  models: readonly AgentSessionModelOption[],
+  featuredKey: FeaturedModelAgent | null,
+  selectedId: string | undefined
+): { items: CreateChatMenuItem[]; folded: CreateChatMenuItem[] } {
+  const defaultItem: CreateChatMenuItem = {
+    value: DEFAULT_MODEL_MENU_VALUE,
+    label: translate('components.createChat.defaultModel', 'Default model')
+  }
+  const split = splitFeaturedModels(
+    models.map((model) => ({
       value: model.id,
       label: model.label,
       ...(model.description ? { description: model.description } : {})
-    }))
-  ]
+    })),
+    featuredKey,
+    selectedId
+  )
+  if (split === null) {
+    return {
+      items: [
+        defaultItem,
+        ...models.map((model) => ({
+          value: model.id,
+          label: model.label,
+          ...(model.description ? { description: model.description } : {})
+        }))
+      ],
+      folded: []
+    }
+  }
+  return {
+    items: [defaultItem, ...split.featured.map(toModelItem)],
+    folded: split.more.map(toModelItem)
+  }
+}
+
+function toModelItem(row: FeaturedModelRow<FeaturedModelChoice>): CreateChatMenuItem {
+  return {
+    value: row.choice.value,
+    label: row.display.name,
+    ...(row.display.detail ? { description: row.display.detail } : {})
+  }
 }
 
 export function buildEffortMenuItems(

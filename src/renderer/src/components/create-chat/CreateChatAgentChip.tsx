@@ -3,6 +3,7 @@ import { translate } from '@/i18n/i18n'
 import { AgentIcon, getAgentDisplayLabel } from '@/lib/agent-catalog'
 import type { PiDisplayRuntime } from '@/lib/pi-agent-display'
 import type { TuiAgent } from '../../../../shared/tui-agent'
+import { featuredModelAgentFor } from '../../../../shared/native-chat-featured-models'
 import { nativeChatSessionChoiceLabel } from '../native-chat/native-chat-session-option-labels'
 import { CreateChatChipMenu, type CreateChatMenuGroup } from './CreateChatChipMenu'
 import {
@@ -33,6 +34,8 @@ export function CreateChatAgentChip({
 }: AgentChipProps): React.JSX.Element {
   const { models } = catalog
   const [open, setOpen] = useState(false)
+  // Why: the folded models start collapsed in each open menu, and again after an agent pick.
+  const [moreOpen, setMoreOpen] = useState(false)
   // Why: an agent picked in this open menu whose catalog has not answered, so the menu cannot yet
   // tell whether the pick still has a model to choose.
   const [awaitingAgent, setAwaitingAgent] = useState<TuiAgent | null>(null)
@@ -77,6 +80,7 @@ export function CreateChatAgentChip({
         const agent = agents.find((candidate) => candidate === value)
         if (agent) {
           setAwaitingAgent(agent !== selection.agent ? agent : null)
+          setMoreOpen(false)
           onSelectionChange({ ...selection, agent, model: undefined, effort: undefined })
         }
       },
@@ -85,11 +89,16 @@ export function CreateChatAgentChip({
     }
   ]
   if (models.length > 0) {
+    const modelMenu = buildModelMenuItems(
+      models,
+      featuredModelAgentFor(selection.agent, piRuntime),
+      selection.model
+    )
     groups.push({
       key: 'model',
       title: translate('components.createChat.modelGroup', 'Model'),
       value: selection.model ?? DEFAULT_MODEL_MENU_VALUE,
-      items: buildModelMenuItems(models),
+      items: modelMenu.items,
       onValueChange: (value) => {
         const next = models.find((model) => model.id === value)
         onSelectionChange({
@@ -100,7 +109,17 @@ export function CreateChatAgentChip({
       },
       keepOpenAfter: (value) =>
         ((models.find((model) => model.id === value) ?? models.find((model) => model.isDefault))
-          ?.efforts?.length ?? 0) > 0
+          ?.efforts?.length ?? 0) > 0,
+      ...(modelMenu.folded.length > 0
+        ? {
+            folded: {
+              label: translate('components.createChat.moreModels', 'More models'),
+              open: moreOpen,
+              onToggle: () => setMoreOpen(!moreOpen),
+              items: modelMenu.folded
+            }
+          }
+        : {})
     })
   } else {
     groups.push({
@@ -146,6 +165,7 @@ export function CreateChatAgentChip({
         setOpen(next)
         if (!next) {
           setAwaitingAgent(null)
+          setMoreOpen(false)
         }
       }}
     />

@@ -131,7 +131,7 @@ describe('CreateChatAgentChip', () => {
     render(<Harness />)
     await openMenu()
 
-    await pick('haiku')
+    await pick(/^Haiku/)
 
     expect(menuIsOpen()).toBe(false)
     expect(latestSelection).toMatchObject({ model: 'haiku' })
@@ -154,6 +154,49 @@ describe('CreateChatAgentChip', () => {
 
     await openMenu()
     expect(screen.getByText('Model set by the agent')).toBeTruthy()
+  })
+
+  it('lists the featured Claude models first and folds the rest behind More models', async () => {
+    catalogs = {
+      claude: { status: 'ready', models: [model('opus'), model('haiku'), model('sonnet[1m]')] }
+    }
+    render(<Harness />)
+    await openMenu()
+
+    expect(screen.getByRole('menuitemradio', { name: /^Opus/ })).toBeTruthy()
+    expect(screen.getByRole('menuitemradio', { name: /^Haiku/ })).toBeTruthy()
+    expect(screen.queryByRole('menuitemradio', { name: 'sonnet[1m]' })).toBeNull()
+    expect(
+      screen.getByRole('menuitem', { name: 'More models' }).getAttribute('aria-expanded')
+    ).toBe('false')
+  })
+
+  it('expands the folded models in place when More models is picked', async () => {
+    catalogs = { claude: { status: 'ready', models: [model('opus'), model('sonnet[1m]')] } }
+    render(<Harness />)
+    await openMenu()
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'More models' }))
+    await settle()
+
+    expect(
+      screen.getByRole('menuitem', { name: 'More models' }).getAttribute('aria-expanded')
+    ).toBe('true')
+    expect(screen.getByRole('menuitemradio', { name: 'sonnet[1m]' })).toBeTruthy()
+    expect(menuIsOpen()).toBe(true)
+  })
+
+  it('names a Gentle Shell model by its featured name and folds the rest', async () => {
+    catalogs = {
+      claude: NONE,
+      pi: { status: 'ready', models: [model('deepseek-v4-flash'), model('deepseek-v4-pro')] }
+    }
+    render(<Harness />)
+    await openMenu()
+    await pick('Gentle Shell')
+
+    expect(screen.getByRole('menuitemradio', { name: /^DeepSeek Flash/ })).toBeTruthy()
+    expect(screen.queryByRole('menuitemradio', { name: 'deepseek-v4-pro' })).toBeNull()
   })
 
   it('closes on Escape and returns focus to the chip', async () => {
