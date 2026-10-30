@@ -122,6 +122,7 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
         sessionId: params.sessionId,
         launchDirectory: await launchDirectoryOfChat(record, host.deps.resolveWorkspacePath),
         request: params,
+        generateTitle: ctx.runtime.prototypeSetTitles(),
         now: new Date(),
         random: Math.random
       })

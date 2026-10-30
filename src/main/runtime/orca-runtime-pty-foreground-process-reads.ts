@@ -21,6 +21,10 @@ import type { TerminalQuickCommand } from '../../shared/terminal-quick-command-t
 import type { TerminalQuickCommandMutation } from '../../shared/terminal-quick-commands'
 import type { NativeChatSessionOptionSettingsMutation } from '../../shared/native-chat-session-options'
 import type { Automation } from '../../shared/automations-types'
+import {
+  prototypeSetTitleGenerator,
+  type PrototypeSetTitleGenerator
+} from '../native-chat/prototype-set-title'
 
 export class OrcaRuntimeWithPtyForegroundProcessReads extends OrcaRuntimeWithStateFields {
   get ptyForegroundProcessReads() {
@@ -204,6 +208,14 @@ export class OrcaRuntimeWithPtyForegroundProcessReads extends OrcaRuntimeWithSta
   /** The saved Settings value for how many directions a prototype request asks for, unsanitized. */
   readPrototypeCountSetting(): unknown {
     return this.store.getSettings().prototypeCount
+  }
+
+  /** Names a prototype set on this runtime with its own chat-name settings and agent environments. */
+  prototypeSetTitles(): PrototypeSetTitleGenerator {
+    return prototypeSetTitleGenerator({
+      getStore: () => this.store,
+      getAgentEnvResolvers: () => this.getCommitMessageAgentEnvironmentResolvers()
+    })
   }
 
   async updateClientSettings(updates: RuntimeClientSettingsUpdate) {

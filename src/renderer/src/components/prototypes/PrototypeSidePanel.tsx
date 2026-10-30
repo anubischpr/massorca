@@ -48,8 +48,7 @@ export function PrototypeSidePanel({
 }): React.JSX.Element {
   const draft = draftOf(state)
   const agent = prototypeAgentLabel(set.agent)
-  const chat = set.chatTitle?.trim() ?? ''
-  const chatName = chat.length > 0 ? chat : prototypeTitle(set)
+  const chatName = prototypeTitle(set)
   return (
     <>
       <PrototypeEditPanel state={state} update={update} pulseField={state.pulse?.field ?? null} />

@@ -40,10 +40,17 @@ export function prototypeAgentMono(agent: PrototypeAgent): string {
   return AGENT_MONO[agent]
 }
 
-/** The chat title when the chat has one, else the first words of the prompt the user wrote. */
+/**
+ * The AI title once naming finished; else the chat title; else the first words of the prompt the user
+ * wrote. Hosts and clients that predate the AI title keep the last two.
+ */
 export function prototypeTitle(
-  set: Pick<PrototypeListedSet, 'chatTitle' | 'originalPrompt'>
+  set: Pick<PrototypeListedSet, 'chatTitle' | 'originalPrompt' | 'title'>
 ): string {
+  const title = set.title?.trim() ?? ''
+  if (title.length > 0) {
+    return title
+  }
   const chatTitle = set.chatTitle?.trim() ?? ''
   if (chatTitle.length > 0) {
     return chatTitle

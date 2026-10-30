@@ -37,7 +37,7 @@ export function matchPrototypeSetsToUserTurns(
 
 /** The link card's words: the request's first words, and how many directions it asked for. */
 export function prototypeRequestLinkLabel(
-  set: Pick<PrototypeListedSet, 'originalPrompt' | 'count'>
+  set: Pick<PrototypeListedSet, 'title' | 'originalPrompt' | 'count'>
 ): string {
-  return `${prototypeTitle({ chatTitle: null, originalPrompt: set.originalPrompt })} · set of ${set.count}`
+  return `${prototypeTitle({ title: set.title, chatTitle: null, originalPrompt: set.originalPrompt })} · set of ${set.count}`
 }

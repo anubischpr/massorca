@@ -35,6 +35,7 @@ import {
 } from './prototype-request-disk'
 import { readNativeChatContainedTextFile } from './native-chat-visual-file-read'
 import { nativeChatVisualsFolderFor } from './native-chat-visuals-folder'
+import { writePrototypeSetTitle, type PrototypeSetTitleGenerator } from './prototype-set-title'
 
 export { listPrototypeSets, type ListPrototypeSetsOptions } from './prototype-request-listing'
 export { writePrototypeAttachment } from './prototype-note-attachment'
@@ -50,6 +51,8 @@ export type CreatePrototypeRequestOptions = {
     Partial<Pick<CreatePrototypeRequestParams, 'worktreeId' | 'chatTitle' | 'designSystem'>>
   /** The parent chat when a child session was delegated this request. */
   originSessionId?: string
+  /** Names the set in the background; without it the set keeps its prompt text as its title. */
+  generateTitle?: PrototypeSetTitleGenerator
   now: Date
   random: () => number
 }
@@ -95,7 +98,22 @@ export async function createPrototypeRequest(
     logPrototypeFailure('creating a prototype request', error)
     return { ok: false, error: 'unwritable' }
   }
+  if (options.generateTitle && launchDirectory !== undefined) {
+    nameRequestInBackground(folder, manifest.originalPrompt, launchDirectory, options.generateTitle)
+  }
   return { ok: true, requestId, folderPath: folder }
+}
+
+/** Names the set after the send returns; a failed or late name leaves the set on its prompt text. */
+function nameRequestInBackground(
+  folder: string,
+  originalPrompt: string,
+  launchDirectory: string,
+  generateTitle: PrototypeSetTitleGenerator
+): void {
+  void generateTitle({ originalPrompt, launchDirectory })
+    .then((title) => (title ? writePrototypeSetTitle(folder, title) : false))
+    .catch((error: unknown) => logPrototypeFailure('naming a prototype set', error))
 }
 
 // The version the request is built on is read now: a later edit of the system must not change it.

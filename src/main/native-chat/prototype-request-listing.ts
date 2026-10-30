@@ -280,6 +280,7 @@ async function listedRequestFor(
           agent: manifest.agent,
           worktreeId: manifest.worktreeId ?? null,
           chatTitle: manifest.chatTitle ?? null,
+          ...(manifest.title !== undefined ? { title: manifest.title } : {}),
           originalPrompt: manifest.originalPrompt,
           createdAt: manifest.createdAt,
           count: manifest.count,

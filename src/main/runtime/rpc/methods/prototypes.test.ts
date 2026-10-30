@@ -21,7 +21,14 @@ import {
 type CallClient = Parameters<typeof callStructured>[2]
 
 function call(method: string, params: unknown, client: CallClient) {
-  return callStructured(method, params, client, {}, STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS)
+  // Why: createRequest names the set through the runtime; a stub that names nothing keeps these tests off the agent.
+  return callStructured(
+    method,
+    params,
+    client,
+    { prototypeSetTitles: () => async () => null },
+    STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS
+  )
 }
 
 let stateDirectory: string

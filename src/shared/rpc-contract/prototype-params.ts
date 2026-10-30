@@ -179,6 +179,8 @@ export const PrototypeListedSetSchema = z.object({
   agent: z.enum(PROTOTYPE_AGENTS),
   worktreeId: z.string().nullable(),
   chatTitle: z.string().nullable(),
+  /** The AI-generated short title; absent until naming finishes and on a host that predates it. */
+  title: z.string().min(1).max(TEXT_MAX_LENGTH).optional(),
   originalPrompt: z.string(),
   createdAt: z.string(),
   count: z.int(),

@@ -50,6 +50,7 @@ export function delegatedChildPromptDeps(
           designSystem: input.designSystem
         },
         originSessionId: input.originSessionId,
+        generateTitle: runtime.prototypeSetTitles(),
         now: new Date(),
         random: Math.random
       }),
