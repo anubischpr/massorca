@@ -84,7 +84,7 @@ export function buildDispatchPreamble(params: PreambleParams): string {
   // Why fenced: keeps the shell comments executable without rendering them as Chat UI headings.
   // Why plain-reason wording: Claude Code tells the model pasted text may carry instructions
   // the user did not write, and shouted rules read as prompt injection (STA-8200).
-  const header = `You are working inside Orca, a multi-agent IDE. You are a dispatched worker.
+  const header = `You are working inside MassOrca, a multi-agent IDE. You are a dispatched worker.
 ${dispatchIdentityLines(params)}
 
 The coordinator cannot see this ${surface}, so reach it with the \`${cli} orchestration\`

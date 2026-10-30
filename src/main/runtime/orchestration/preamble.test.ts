@@ -7,6 +7,7 @@ import {
   CHAT_REDISPATCH_PARAGRAPH as CHAT_REDISPATCH,
   TERMINAL_REDISPATCH_PARAGRAPH as TERMINAL_REDISPATCH
 } from './preamble'
+import { ORCA_DISPATCH_STATUS_PREAMBLE_PREFIX } from '../../../shared/orca-dispatch-status-prompt'
 
 function baseParams(overrides: Partial<Parameters<typeof buildDispatchPreamble>[0]> = {}) {
   return {
@@ -407,7 +408,13 @@ describe('how the preamble names the worker and its coordinator, by kind', () =>
   const SESSION_COORD = 'orca_session_id:4a1f6c2e-8b3d-4e7a-9c15-0d2b6e8f1a37'
   const SESSION_WORKER = 'orca_session_id:7e3b9d15-2c4a-4f86-a0b1-5c9e2d7f3b64'
   const header = (preamble: string) => preamble.slice(0, preamble.indexOf('\n\n'))
-  const FIRST = 'You are working inside Orca, a multi-agent IDE. You are a dispatched worker.'
+  const FIRST = 'You are working inside MassOrca, a multi-agent IDE. You are a dispatched worker.'
+
+  it('opens with the status prefix the readers detect', () => {
+    expect(
+      buildDispatchPreamble(baseParams()).startsWith(ORCA_DISPATCH_STATUS_PREAMBLE_PREFIX)
+    ).toBe(true)
+  })
 
   it('names terminals by their handle, with no line about the worker itself', () => {
     expect(header(buildDispatchPreamble(baseParams()))).toBe(

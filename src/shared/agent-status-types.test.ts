@@ -19,6 +19,8 @@ import {
 import type { AgentType, WellKnownAgentType } from './agent-status-types'
 import type { TuiAgent } from './tui-agent'
 import {
+  ORCA_DISPATCH_LEGACY_PROMPT_LEAD_LINE,
+  ORCA_DISPATCH_LEGACY_STATUS_PREAMBLE_PREFIX,
   ORCA_DISPATCH_PROMPT_LEAD_LINE,
   ORCA_DISPATCH_STATUS_PREAMBLE_PREFIX
 } from './orca-dispatch-status-prompt'
@@ -171,6 +173,18 @@ Fix dispatch fallback preview for normalized status prompts`
     expect(result!.prompt).not.toContain('heartbeat')
   })
 
+  it('compacts a MassOrca-worded dispatch preamble to the legacy prefix older peers match', () => {
+    // Why: the compact status crosses to older peers, so it is written with the legacy sentence.
+    const result = normalizeAgentStatusPayload({
+      state: 'working',
+      prompt: `${ORCA_DISPATCH_STATUS_PREAMBLE_PREFIX} You are a dispatched worker.\nYour task ID is: task_new_1\n\n=== CLI COMMANDS ===\norca orchestration check\n\n=== TASK ===\nRename the chat title`
+    })
+
+    expect(result!.prompt).toBe(
+      `${ORCA_DISPATCH_LEGACY_STATUS_PREAMBLE_PREFIX} Your task ID is: task_new_1 === TASK === Rename the chat title`
+    )
+  })
+
   it('ignores task-marker text inside base-drift commit subjects', () => {
     const result = normalizeAgentStatusPayload({
       state: 'working',
@@ -196,12 +210,17 @@ Fix dispatch fallback preview for normalized status prompts`
     const preamble = `${ORCA_DISPATCH_STATUS_PREAMBLE_PREFIX}\nYour task ID is: task_lead\n\n=== TASK ===\nAdd greet()`
     const normalize = (prompt: string): string =>
       normalizeAgentStatusPayload({ state: 'working', prompt })!.prompt
-    const compact = `${ORCA_DISPATCH_STATUS_PREAMBLE_PREFIX} Your task ID is: task_lead === TASK === Add greet()`
+    const compact = `${ORCA_DISPATCH_LEGACY_STATUS_PREAMBLE_PREFIX} Your task ID is: task_lead === TASK === Add greet()`
 
     // Why: the shape Claude Code's UserPromptSubmit hook reports for a typed lead plus a paste.
     expect(
       normalize(
         `${ORCA_DISPATCH_PROMPT_LEAD_LINE}\n\n<pasted_content id="aac2">\n${preamble}\n</pasted_content id="aac2">\n`
+      )
+    ).toBe(compact)
+    expect(
+      normalize(
+        `${ORCA_DISPATCH_LEGACY_PROMPT_LEAD_LINE}\n\n<pasted_content id="7f1e">\n${preamble}\n</pasted_content id="7f1e">\n`
       )
     ).toBe(compact)
     expect(normalize(`\n\n<pasted_content id="965a">\n${preamble}`)).toBe(compact)
@@ -215,7 +234,7 @@ Fix dispatch fallback preview for normalized status prompts`
       normalize(
         `<pasted_content id="1">\n${ORCA_DISPATCH_STATUS_PREAMBLE_PREFIX}\n=== TASK ===\n</pasted_content id="1">`
       )
-    ).toBe(ORCA_DISPATCH_STATUS_PREAMBLE_PREFIX)
+    ).toBe(ORCA_DISPATCH_LEGACY_STATUS_PREAMBLE_PREFIX)
   })
 
   it('keeps dispatch detection bounded for oversized whitespace prompts', () => {
