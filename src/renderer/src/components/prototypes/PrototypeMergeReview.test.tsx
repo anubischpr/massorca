@@ -81,8 +81,8 @@ describe('PrototypeMergeReview', () => {
 
   it('lists each part with its name, selector, source letters and marker', () => {
     renderReview(review())
-    expect(screen.getByText('Heading')).toBeInTheDocument()
-    expect(screen.getByText('main > h1')).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /Heading/u })).toBeInTheDocument()
+    expect(screen.getAllByText('main > h1')).toHaveLength(2)
     const source = screen.getByRole('group', { name: 'Source of Pay button' })
     expect(
       within(source)
@@ -132,12 +132,32 @@ describe('PrototypeMergeReview', () => {
     expect(merge?.phase === 'review' && merge.parts[0]?.on).toBe(false)
   })
 
-  it('previews the plan with the source letter of each kept part only', () => {
+  it('previews the plan as one row per kept part: its source letter, name and selector', () => {
     renderReview(review())
     expect(screen.getByText('D · preview of the plan')).toBeInTheDocument()
-    expect(screen.getByRole('img', { name: 'Heading' })).toHaveTextContent('A')
-    expect(screen.getByRole('img', { name: 'Pay button' })).toHaveTextContent('A')
-    expect(screen.queryByRole('img', { name: 'Order summary' })).toBeNull()
+    const preview = screen.getByRole('list', { name: 'D · preview of the plan' })
+    const [heading, pay] = within(preview).getAllByRole('listitem')
+    if (heading === undefined || pay === undefined) {
+      throw new Error('expected a preview row for each kept part')
+    }
+    expect(heading).toHaveTextContent('A')
+    expect(within(heading).getByText('Heading')).toBeInTheDocument()
+    expect(within(heading).getByText('main > h1')).toBeInTheDocument()
+    expect(pay).toHaveTextContent('A')
+    expect(within(pay).getByText('Pay button')).toBeInTheDocument()
+    expect(within(pay).getByText('button.cta')).toBeInTheDocument()
+    expect(within(preview).queryByText('Order summary')).toBeNull()
+  })
+
+  it('previews a source changed in the review, and no row for a part left out', () => {
+    const changed = review({
+      parts: review().parts.map((part) => (part.id === 1 ? { ...part, from: 'C' } : part))
+    })
+    renderReview(changed)
+    const preview = screen.getByRole('list', { name: 'D · preview of the plan' })
+    const [, pay] = within(preview).getAllByRole('listitem')
+    expect(pay).toHaveTextContent('C')
+    expect(within(preview).getAllByRole('listitem')).toHaveLength(2)
   })
 
   it('takes the words under Anything else', () => {
