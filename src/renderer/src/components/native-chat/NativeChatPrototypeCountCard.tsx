@@ -1,10 +1,8 @@
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
+import { PROTOTYPE_CARD_COUNT_CHOICES } from '../../../../shared/prototype-count-setting'
 import type { NativeChatPrototypeChoice } from '../../../../shared/prototype-request-decision'
 import type { NativeChatPrototypeAsk } from './native-chat-prototype-request-store'
-
-// The board's three counts; a default of 4, which Settings allows, marks no button.
-const CARD_COUNT_CHOICES = [1, 2, 3] as const
 
 /** Asks how many prototypes before a message that asks for them is sent. */
 export function NativeChatPrototypeCountCard({
@@ -33,7 +31,7 @@ export function NativeChatPrototypeCountCard({
             )}
           </span>
           <div className="flex gap-2">
-            {CARD_COUNT_CHOICES.map((count) => (
+            {PROTOTYPE_CARD_COUNT_CHOICES.map((count) => (
               <Button
                 key={count}
                 type="button"

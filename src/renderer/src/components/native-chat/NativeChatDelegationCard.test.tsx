@@ -113,6 +113,14 @@ function startButton(): HTMLButtonElement {
   return button
 }
 
+function countButtons(): HTMLButtonElement[] {
+  return [
+    ...container.querySelectorAll<HTMLButtonElement>(
+      '[role="group"][aria-label="How many prototypes?"] button'
+    )
+  ]
+}
+
 describe('NativeChatDelegationCard', () => {
   it('starts with Automatic chosen and says which agent it picked', () => {
     renderCard(payload)
@@ -189,5 +197,48 @@ describe('NativeChatDelegationCard', () => {
     expect(startButton().textContent?.trim()).toBe('Starting…')
     click(startButton())
     expect(onAnswer).not.toHaveBeenCalled()
+  })
+
+  it('offers the count question with the Settings default highlighted, for a task that asks for prototypes', () => {
+    renderCard({ ...payload, prototypeCount: { choices: [1, 2, 3], defaultCount: 2 } })
+    expect(countButtons().map((button) => button.textContent)).toEqual(['1', '2', '3'])
+    expect(countButtons().map((button) => button.getAttribute('aria-pressed'))).toEqual([
+      'false',
+      'true',
+      'false'
+    ])
+  })
+
+  it('sends the count the person picked with the agent answer', () => {
+    const { onAnswer } = renderCard({
+      ...payload,
+      prototypeCount: { choices: [1, 2, 3], defaultCount: 2 }
+    })
+    click(countButtons()[2])
+    expect(countButtons().map((button) => button.getAttribute('aria-pressed'))).toEqual([
+      'false',
+      'false',
+      'true'
+    ])
+    click(startButton())
+    expect(onAnswer).toHaveBeenCalledWith(
+      { kind: 'answers', answers: [{ questionId: 'q1', optionIds: ['automatic'] }] },
+      3
+    )
+  })
+
+  it('sends no count when the person picked none, so the Settings count applies', () => {
+    const { onAnswer } = renderCard({
+      ...payload,
+      prototypeCount: { choices: [1, 2, 3], defaultCount: 2 }
+    })
+    click(startButton())
+    expect(onAnswer).toHaveBeenCalledOnce()
+    expect(onAnswer.mock.calls[0]).toHaveLength(1)
+  })
+
+  it('offers no count question for a task that asks for no prototype', () => {
+    renderCard(payload)
+    expect(countButtons()).toHaveLength(0)
   })
 })

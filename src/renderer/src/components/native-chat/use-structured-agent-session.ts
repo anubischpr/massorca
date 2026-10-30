@@ -319,8 +319,8 @@ export function useStructuredAgentSession(args: {
     },
     stopBackgroundTask,
     backgroundStops,
-    respond: (item: StructuredPromptItem, response: AgentSessionPromptResponse) =>
-      respondToStructuredAgentSessionPrompt({ item, response, target, mutate }),
+    respond: (item: StructuredPromptItem, response: AgentSessionPromptResponse, count?: number) =>
+      respondToStructuredAgentSessionPrompt({ item, response, target, mutate, count }),
     optionSnapshot,
     optionSurface,
     sessionCommands: transportEnabled ? (state.commands ?? undefined) : undefined,

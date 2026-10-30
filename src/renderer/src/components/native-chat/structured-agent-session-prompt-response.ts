@@ -12,20 +12,25 @@ export async function respondToStructuredAgentSessionPrompt({
   item,
   response,
   target,
-  mutate
+  mutate,
+  count
 }: {
   item: StructuredPromptItem
   response: AgentSessionPromptResponse
   target: RuntimeClientTarget
   mutate: StructuredAgentSessionMutate
+  /** The prototype count a delegated task's card picked; only a question's answer carries it. */
+  count?: number
 }): Promise<AgentSessionPromptResult | null> {
   const promptTarget = { itemId: item.itemId, expectedRevision: item.revision }
+  // Why: approvals take no count (their RPC is strict), so the field rides only a question's answer.
+  const countField = count === undefined || item.body.kind !== 'question' ? {} : { count }
   let fields: Record<string, unknown>
   if (response.kind === 'option') {
     fields = { ...promptTarget, optionId: response.optionId }
   } else if (await supportsStructuredAgentSessionQuestionAnswers(target)) {
     // Negotiated before mutate fingerprints the call: older hosts reject the strict field.
-    fields = { ...promptTarget, answers: response.answers }
+    fields = { ...promptTarget, answers: response.answers, ...countField }
   } else {
     const optionId =
       item.body.kind === 'question'
@@ -34,7 +39,7 @@ export async function respondToStructuredAgentSessionPrompt({
     if (optionId === null) {
       return null
     }
-    fields = { ...promptTarget, optionId }
+    fields = { ...promptTarget, optionId, ...countField }
   }
   return mutate<AgentSessionPromptResult>(
     item.body.kind === 'approval'

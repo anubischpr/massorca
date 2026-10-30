@@ -15,7 +15,7 @@ export function NativeChatStructuredQuestionCard({
   delegation
 }: {
   questions: readonly AgentJournalQuestion[]
-  onAnswer: (response: AgentSessionPromptResponse) => void
+  onAnswer: (response: AgentSessionPromptResponse, count?: number) => void
   onCancel: () => void
   isSubmitting?: boolean
   shouldFocus?: boolean

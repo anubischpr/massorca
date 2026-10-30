@@ -40,7 +40,7 @@ export function NativeChatDelegationCard({
   question: string
   questionId: string
   isSubmitting?: boolean
-  onAnswer: (response: AgentSessionPromptResponse) => void
+  onAnswer: (response: AgentSessionPromptResponse, count?: number) => void
   onCancel: () => void
   shouldFocus?: boolean
 }): React.JSX.Element {
@@ -49,10 +49,21 @@ export function NativeChatDelegationCard({
   const baseId = useId()
   const rows = delegationOptionRows(body)
   const [selectedId, setSelectedId] = useState<string | null>(() => defaultDelegationOption(body))
+  const [pickedCount, setPickedCount] = useState<number | null>(null)
   const detail = selectedDetail(body, selectedId)
   const start = (): void => {
-    if (selectedId !== null && !isSubmitting) {
-      onAnswer({ kind: 'answers', answers: [{ questionId, optionIds: [selectedId] }] })
+    if (selectedId === null || isSubmitting) {
+      return
+    }
+    const response: AgentSessionPromptResponse = {
+      kind: 'answers',
+      answers: [{ questionId, optionIds: [selectedId] }]
+    }
+    // Why: a count is sent only when the person picked one; otherwise the host keeps the Settings count.
+    if (pickedCount === null) {
+      onAnswer(response)
+    } else {
+      onAnswer(response, pickedCount)
     }
   }
 
@@ -94,6 +105,14 @@ export function NativeChatDelegationCard({
               />
             ))}
           </RadioGroup>
+          {body.prototypeCount ? (
+            <DelegationCountChoices
+              choices={body.prototypeCount.choices}
+              highlighted={pickedCount ?? body.prototypeCount.defaultCount}
+              disabled={isSubmitting}
+              onChoose={setPickedCount}
+            />
+          ) : null}
           {detail ? <DelegationFacts heading={detail.heading} facts={detail.facts} /> : null}
           <div className="flex items-center justify-end gap-2">
             <Button variant="ghost" onClick={onCancel} disabled={isSubmitting}>
@@ -176,6 +195,41 @@ function DelegationOptionTile({
         <span className="block truncate text-xs text-muted-foreground">{row.detail}</span>
       </span>
     </label>
+  )
+}
+
+/** How many prototypes the task asks for; the highlighted count is the one the answer sends. */
+function DelegationCountChoices({
+  choices,
+  highlighted,
+  disabled,
+  onChoose
+}: {
+  choices: readonly number[]
+  highlighted: number
+  disabled: boolean
+  onChoose: (count: number) => void
+}): React.JSX.Element {
+  const title = translate('components.prototypes.ask.title', 'How many prototypes?')
+  return (
+    <div role="group" aria-label={title} className="space-y-2">
+      <p className="text-sm font-medium text-foreground">{title}</p>
+      <div className="flex gap-2">
+        {choices.map((count) => (
+          <Button
+            key={count}
+            type="button"
+            variant={count === highlighted ? 'default' : 'outline'}
+            aria-pressed={count === highlighted}
+            className="flex-1"
+            disabled={disabled}
+            onClick={() => onChoose(count)}
+          >
+            {count}
+          </Button>
+        ))}
+      </div>
+    </div>
   )
 }
 

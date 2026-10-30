@@ -366,7 +366,9 @@ export function NativeChatStructuredSession(
                   key={`${prompt.itemId}:${prompt.revision}`}
                   questions={questions}
                   delegation={questionBody?.delegation}
-                  onAnswer={(response) => void promptResponse.respond(prompt, response)}
+                  onAnswer={(response, count) =>
+                    void promptResponse.respond(prompt, response, count)
+                  }
                   isSubmitting={promptResponse.holds(prompt)}
                   onCancel={cancelPrompt}
                   shouldFocus={!promptsUnanswerable && props.isVisible && props.isFocusedGroup}
