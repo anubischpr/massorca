@@ -148,7 +148,9 @@ describe('sending the merge', () => {
 
     const [, , text] = sendText.mock.calls[0] ?? []
     // Each part names its selector in every merged direction that has it, not only the chosen one.
-    expect(String(text)).toMatch(/^Merge into D\.\nHeading \(A: main > h1; C: h1\.title\): from A\n/u)
+    expect(String(text)).toMatch(
+      /^Merge into D\.\nHeading \(A: main > h1; C: h1\.title\): from A\n/u
+    )
     expect(String(text)).toContain('Pay button (C: button.cta): from C')
     expect(box.state.merge).toBeNull()
     expect(box.state.mergeInto).toEqual({ letter: 'D', from: ['A', 'C'] })

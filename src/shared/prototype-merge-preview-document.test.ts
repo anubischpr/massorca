@@ -44,7 +44,10 @@ describe('assembleMergePreview', () => {
   it('keeps the order of the parts it is given', () => {
     const { html } = assembleMergePreview({
       parts: [part(1, 'C'), part(0, 'A')],
-      matches: { 0: { css: '', outerHtml: '<p>first</p>' }, 1: { css: '', outerHtml: '<p>second</p>' } },
+      matches: {
+        0: { css: '', outerHtml: '<p>first</p>' },
+        1: { css: '', outerHtml: '<p>second</p>' }
+      },
       hoveredId: null,
       view: 'desktop',
       unplacedText: (name) => name
@@ -61,7 +64,8 @@ describe('assembleMergePreview', () => {
   })
 
   it('rewrites :root, html and body to :host and drops @import', () => {
-    const css = '@import url("https://fonts.example/a.css"); :root { --accent: teal } body h1 { color: red }'
+    const css =
+      '@import url("https://fonts.example/a.css"); :root { --accent: teal } body h1 { color: red }'
     const { html } = assemble({ 0: { css, outerHtml: '<h1>x</h1>' } })
     expect(html).toContain(':host { --accent: teal } :host h1 { color: red }')
     expect(html).not.toContain('@import')

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { Check } from 'lucide-react-native'
+import type { MergePreviewPlacement } from '../../../src/shared/prototype-merge-preview-document'
 import { joinDirectionLetters } from '../../../src/shared/prototype-merge-message'
 import {
   chosenSelectorOf,
@@ -18,8 +19,13 @@ import {
   togglePart
 } from '../../../src/shared/prototype-merge-state'
 import type { PrototypeSetState } from '../../../src/shared/prototype-set-state'
+import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
 import { colors, spacing, typography } from '../theme/mobile-theme'
+import type { RpcClient } from '../transport/rpc-client'
+import { MobilePrototypeMergeComposer } from './MobilePrototypeMergeComposer'
+import { MobilePrototypeMergePreview } from './MobilePrototypeMergePreview'
 import { MobilePrototypeSheetTabs } from './MobilePrototypeSheetTabs'
+import { useMobilePrototypeMergePreview } from './use-mobile-prototype-merge-preview'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
 type Review = Extract<PrototypeMergeState, { phase: 'review' }>
@@ -37,17 +43,20 @@ function groupHeading(kind: PrototypeMergePartKind): string {
 function PartRow({
   part,
   letters,
+  placement,
   onToggle,
   onSource
 }: {
   part: PrototypeMergeReviewPart
   /** The starred letters this part has, as its possible sources. */
   letters: readonly string[]
+  placement: MergePreviewPlacement
   onToggle: () => void
   onSource: (letter: string) => void
 }) {
   // Why: a part in one direction has one source, so its letter is shown but cannot change.
   const locked = letters.length === 1
+  const mark = mergeMarkOf(part, placement)
   return (
     <View style={[styles.part, !part.on && styles.partOff]}>
       <Pressable
@@ -66,7 +75,9 @@ function PartRow({
             {chosenSelectorOf(part)}
           </Text>
         </View>
-        <Text style={styles.mark}>{markLabel(mergeMarkOf(part), part.from)}</Text>
+        <Text style={[styles.mark, mark === 'no preview' && styles.markWarning]}>
+          {markLabel(mark, part.from)}
+        </Text>
       </Pressable>
       <View accessibilityLabel={`Source of ${part.name}`} style={styles.segment}>
         {letters.map((letter) => (
@@ -90,10 +101,12 @@ function PartRow({
 }
 
 /**
- * The merge review as a sheet. Parts scrolls every option; Preview lists the planned direction and
- * the "Anything else" note. The send sits in a footer under both tabs, so it is always in reach.
+ * The merge review as a sheet. Parts scrolls every option; Preview shows the composed page and the
+ * "Anything else" note. The send sits in a footer under both tabs, so it is always in reach.
  */
 export function MobilePrototypeMergeSheet({
+  client,
+  set,
   review,
   agentName,
   nextLetter,
@@ -101,6 +114,8 @@ export function MobilePrototypeMergeSheet({
   update,
   onSend
 }: {
+  client: RpcClient | null
+  set: PrototypeListedSet
   review: Review
   agentName: string
   /** The letter the merged direction takes. */
@@ -112,12 +127,19 @@ export function MobilePrototypeMergeSheet({
   const [tab, setTab] = useState<MergeTab>('parts')
   const kept = keptMergeParts(review.parts)
   const sendDisabled = review.sending || kept.length === 0
+  const preview = useMobilePrototypeMergePreview({
+    client,
+    set,
+    letters: review.letters,
+    parts: review.parts
+  })
   const groups = (['section', 'component'] as const).map((kind) => ({
     kind,
     parts: review.parts.filter((part) => part.kind === kind)
   }))
   return (
     <View style={styles.sheet}>
+      <MobilePrototypeMergeComposer request={preview.request} onResponse={preview.onResponse} />
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text style={styles.title}>{`Merge ${joinDirectionLetters(review.letters)}`}</Text>
@@ -164,7 +186,10 @@ export function MobilePrototypeMergeSheet({
                   <PartRow
                     key={part.id}
                     part={part}
-                    letters={review.letters.filter((letter) => part.selectors[letter] !== undefined)}
+                    letters={review.letters.filter(
+                      (letter) => part.selectors[letter] !== undefined
+                    )}
+                    placement={preview.placement[part.id] ?? 'placed'}
                     onToggle={() => update((current) => togglePart(current, part.id))}
                     onSource={(letter) =>
                       update((current) => setPartSource(current, part.id, letter))
@@ -176,25 +201,12 @@ export function MobilePrototypeMergeSheet({
           )
         ) : (
           <>
-            <View style={styles.preview}>
-              {kept.map((part) => (
-                <View key={part.id} style={styles.previewRow}>
-                  <View
-                    accessibilityRole="image"
-                    accessibilityLabel={part.name}
-                    style={styles.previewLetter}
-                  >
-                    <Text style={styles.previewLetterText}>{part.from}</Text>
-                  </View>
-                  <View style={styles.previewText}>
-                    <Text style={styles.previewName}>{part.name}</Text>
-                    <Text style={styles.previewSelector} numberOfLines={1}>
-                      {chosenSelectorOf(part)}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
+            <MobilePrototypeMergePreview
+              name={`${nextLetter} · preview`}
+              agentName={agentName}
+              html={preview.html}
+              failed={preview.failed}
+            />
             <Text style={styles.label}>Anything else</Text>
             <TextInput
               accessibilityLabel="Anything else"
@@ -277,6 +289,7 @@ const styles = StyleSheet.create({
     fontSize: typography.metaSize
   },
   mark: { color: colors.textSecondary, fontSize: typography.metaSize },
+  markWarning: { color: colors.statusAmber },
   segment: {
     flexDirection: 'row',
     padding: 3,
@@ -289,29 +302,6 @@ const styles = StyleSheet.create({
   sourceOn: { backgroundColor: colors.statusAmber },
   sourceText: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
   sourceTextOn: { color: colors.bgBase },
-  preview: {
-    gap: spacing.md,
-    padding: spacing.lg,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceBright
-  },
-  previewRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  previewLetter: {
-    width: 26,
-    height: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 6,
-    backgroundColor: colors.bgBase
-  },
-  previewLetterText: { color: colors.textPrimary, fontSize: 12, fontWeight: '600' },
-  previewText: { flex: 1, minWidth: 0 },
-  previewName: { color: colors.textPrimary, fontSize: 15, fontWeight: '500' },
-  previewSelector: {
-    color: colors.textSecondary,
-    fontFamily: typography.monoFamily,
-    fontSize: typography.metaSize
-  },
   label: { color: colors.textSecondary, fontSize: 13 },
   note: {
     minHeight: 64,

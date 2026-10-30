@@ -186,6 +186,8 @@ export function MobilePrototypeSetScreen({
         {() =>
           review === null || set === null || nextLetter === null ? null : (
             <MobilePrototypeMergeSheet
+              client={client}
+              set={set}
               review={review}
               agentName={mobilePrototypeAgentLabel(set.agent)}
               nextLetter={nextLetter}

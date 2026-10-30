@@ -30,6 +30,10 @@ vi.mock('react-native', () => ({
   useWindowDimensions: () => ({ width: 390, height: 844 })
 }))
 vi.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }))
+vi.mock('react-native-webview', () => ({ WebView: 'WebView' }))
+vi.mock('./MobilePrototypeFrame', () => ({
+  PROTOTYPE_UNREADABLE_LINE: "Couldn't open this prototype"
+}))
 vi.mock('react-native-svg', () => ({ default: 'Svg', Path: 'Path' }))
 vi.mock('lucide-react-native', () => ({ ChevronLeft: 'ChevronLeft', Check: 'Check' }))
 vi.mock('../transport/host-client-hooks', () => ({ useHostClient: () => ({ client: null }) }))
