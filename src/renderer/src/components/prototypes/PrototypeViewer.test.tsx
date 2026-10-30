@@ -60,6 +60,10 @@ vi.mock('@/lib/worktree-activation', async (importOriginal) => ({
 
 vi.mock('./use-prototype-file-html', () => ({ usePrototypeFileHtml: () => null }))
 
+vi.mock('./use-prototype-direction-html', () => ({
+  usePrototypeDirectionsHtml: () => ({ ready: false, htmlByLetter: {} })
+}))
+
 vi.mock('./PrototypeThumbnail', () => ({ PrototypeThumbnail: () => null }))
 
 vi.mock('./PrototypeFrame', () => ({
@@ -503,7 +507,16 @@ describe('PrototypeViewer while a merge waits', () => {
         phase: 'review',
         letters: ['A', 'C'],
         parts: [
-          { id: 0, name: 'Heading', selector: 'main > h1', suggested: 'A', from: 'A', on: true }
+          {
+            id: 0,
+            name: 'Heading',
+            kind: 'section',
+            selectors: { A: 'main > h1', C: 'main > h1' },
+            selector: 'main > h1',
+            suggested: 'A',
+            from: 'A',
+            on: true
+          }
         ],
         note: '',
         sending: false

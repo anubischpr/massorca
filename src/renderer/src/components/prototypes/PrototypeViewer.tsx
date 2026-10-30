@@ -116,6 +116,7 @@ export function PrototypeViewer({
           {single ? null : <PrototypeDirectionStrip set={set} state={state} update={update} />}
           {merge?.phase === 'review' && nextLetter !== null ? (
             <PrototypeMergeReview
+              set={set}
               review={merge}
               agent={prototypeAgentLabel(set.agent)}
               nextLetter={nextLetter}

@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import { translate } from '@/i18n/i18n'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -10,20 +11,33 @@ import {
   togglePart
 } from '../../../../shared/prototype-merge-state'
 import {
+  chosenSelectorOf,
   keptMergeParts,
   mergeMarkOf,
   type PrototypeMergeMark,
+  type PrototypeMergePartKind,
   type PrototypeMergeReviewPart,
   type PrototypeMergeState
 } from '../../../../shared/prototype-merge-plan'
 import type { PrototypeSetState } from '../../../../shared/prototype-set-state'
+import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
+import { PrototypeMergePreview } from './PrototypeMergePreview'
+import {
+  composeMergePreview,
+  type MergePreviewPlacement,
+  type MergePreviewView
+} from './prototype-merge-preview-document'
+import { usePrototypeDirectionsHtml } from './use-prototype-direction-html'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
 type Review = Extract<PrototypeMergeState, { phase: 'review' }>
 
 const LABEL_CLASS = 'text-[11px] font-semibold tracking-wider text-muted-foreground uppercase'
 
-function markLabel(mark: PrototypeMergeMark): string {
+/** The preview reloads on a hover change, so a sweep across rows settles before it does. */
+const HOVER_PREVIEW_DELAY_MS = 150
+
+function markLabel(mark: PrototypeMergeMark, letter: string): string {
   switch (mark) {
     case 'suggested':
       return translate('components.prototypes.markSuggested', 'suggested')
@@ -31,24 +45,45 @@ function markLabel(mark: PrototypeMergeMark): string {
       return translate('components.prototypes.markChanged', 'changed')
     case 'left out':
       return translate('components.prototypes.markLeftOut', 'left out')
+    case 'only in':
+      return translate('components.prototypes.markOnlyIn', 'only in {{letter}}', { letter })
+    case 'no preview':
+      return translate('components.prototypes.markNoPreview', 'no preview')
   }
+}
+
+function groupHeading(kind: PrototypeMergePartKind): string {
+  return kind === 'component'
+    ? translate('components.prototypes.mergeGroupComponents', 'Components')
+    : translate('components.prototypes.mergeGroupSections', 'Sections')
 }
 
 function PartRow({
   part,
   letters,
+  placement,
+  hovered,
+  onHover,
   onToggle,
   onSource
 }: {
   part: PrototypeMergeReviewPart
+  /** The starred letters this part has, as its possible sources. */
   letters: readonly string[]
+  placement: MergePreviewPlacement
+  hovered: boolean
+  onHover: (hovering: boolean) => void
   onToggle: () => void
   onSource: (letter: string) => void
 }): React.JSX.Element {
+  const mark = mergeMarkOf(part, placement)
   return (
     <div
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
       className={cn(
         'flex flex-wrap items-center gap-2.5 rounded-lg border border-border bg-sidebar px-3 py-2.5',
+        hovered && 'border-status-amber',
         !part.on && 'opacity-45'
       )}
     >
@@ -57,7 +92,7 @@ function PartRow({
         <span className="flex min-w-0 flex-col gap-px">
           <span className="font-medium">{part.name}</span>
           <span className="truncate font-mono text-[11px] text-muted-foreground">
-            {part.selector}
+            {chosenSelectorOf(part)}
           </span>
         </span>
       </label>
@@ -73,6 +108,7 @@ function PartRow({
             key={letter}
             type="button"
             aria-pressed={part.from === letter}
+            disabled={letters.length === 1}
             onClick={() => onSource(letter)}
             className={cn(
               'h-[26px] min-w-[34px] rounded-md px-2.5 text-xs font-semibold',
@@ -83,8 +119,13 @@ function PartRow({
           </button>
         ))}
       </div>
-      <span className="w-16 shrink-0 text-right text-[11px] text-muted-foreground">
-        {markLabel(mergeMarkOf(part))}
+      <span
+        className={cn(
+          'w-[74px] shrink-0 text-right text-[11px] text-muted-foreground',
+          mark === 'no preview' && 'text-status-amber'
+        )}
+      >
+        {markLabel(mark, part.from)}
       </span>
     </div>
   )
@@ -92,6 +133,7 @@ function PartRow({
 
 /** The merge review: the agent's source for each part, the plan preview, "Anything else" and the send. */
 export function PrototypeMergeReview({
+  set,
   review,
   agent,
   nextLetter,
@@ -99,6 +141,7 @@ export function PrototypeMergeReview({
   update,
   onSend
 }: {
+  set: Pick<PrototypeListedSet, 'sessionId' | 'requestId' | 'directions'>
   review: Review
   agent: string
   /** The letter the merged direction takes. */
@@ -107,12 +150,40 @@ export function PrototypeMergeReview({
   update: Update
   onSend: () => void
 }): React.JSX.Element {
-  const kept = keptMergeParts(review.parts)
-  const previewName = translate(
-    'components.prototypes.mergePlanPreview',
-    '{{letter}} · preview of the plan',
-    { letter: nextLetter }
+  const kept = useMemo(() => keptMergeParts(review.parts), [review.parts])
+  const previewName = translate('components.prototypes.mergePlanPreview', '{{letter}} · preview', {
+    letter: nextLetter
+  })
+  const [hoveredId, setHoveredId] = useState<number | null>(null)
+  const [previewHoveredId, setPreviewHoveredId] = useState<number | null>(null)
+  const [view, setView] = useState<MergePreviewView>('desktop')
+  useEffect(() => {
+    const timer = window.setTimeout(() => setPreviewHoveredId(hoveredId), HOVER_PREVIEW_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [hoveredId])
+  const directions = usePrototypeDirectionsHtml(set, review.letters)
+  const composition = useMemo(
+    () =>
+      directions.ready
+        ? composeMergePreview({
+            htmlByLetter: directions.htmlByLetter,
+            parts: kept,
+            hoveredId: previewHoveredId,
+            view,
+            unplacedText: (name) =>
+              translate(
+                'components.prototypes.mergePreviewUnplaced',
+                "{{name}}: couldn't be placed in the preview. The agent includes it in the result.",
+                { name }
+              )
+          })
+        : null,
+    [directions, kept, previewHoveredId, view]
   )
+  const groups = (['section', 'component'] as const).map((kind) => ({
+    kind,
+    parts: review.parts.filter((part) => part.kind === kind)
+  }))
   return (
     <div className="scrollbar-sleek flex min-w-0 flex-1 flex-wrap content-start gap-5 overflow-y-auto px-6 py-5">
       <div className="flex max-w-[520px] flex-[1_1_380px] flex-col gap-3">
@@ -130,15 +201,27 @@ export function PrototypeMergeReview({
             )}
           </span>
         </div>
-        {review.parts.map((part, index) => (
-          <PartRow
-            key={part.id}
-            part={part}
-            letters={review.letters}
-            onToggle={() => update((current) => togglePart(current, index))}
-            onSource={(letter) => update((current) => setPartSource(current, index, letter))}
-          />
-        ))}
+        {groups.map((group) =>
+          group.parts.length === 0 ? null : (
+            <div key={group.kind} className="flex flex-col gap-1.5">
+              <span className={cn(LABEL_CLASS, 'pt-1.5')}>{groupHeading(group.kind)}</span>
+              {group.parts.map((part) => (
+                <PartRow
+                  key={part.id}
+                  part={part}
+                  letters={review.letters.filter((letter) => part.selectors[letter] !== undefined)}
+                  placement={composition?.placement[part.id] ?? 'placed'}
+                  hovered={hoveredId === part.id}
+                  onHover={(hovering) => setHoveredId(hovering ? part.id : null)}
+                  onToggle={() => update((current) => togglePart(current, part.id))}
+                  onSource={(letter) =>
+                    update((current) => setPartSource(current, part.id, letter))
+                  }
+                />
+              ))}
+            </div>
+          )
+        )}
         <label htmlFor="prototype-merge-note" className={LABEL_CLASS}>
           {translate('components.prototypes.anythingElse', 'Anything else')}
         </label>
@@ -180,24 +263,13 @@ export function PrototypeMergeReview({
           </span>
         ) : null}
       </div>
-      <div className="flex max-w-[460px] flex-[1_1_320px] flex-col gap-2">
-        <span className={LABEL_CLASS}>{previewName}</span>
-        <ul aria-label={previewName} className="flex flex-col gap-3 rounded-lg bg-card p-4.5">
-          {kept.map((part) => (
-            <li key={part.id} className="flex min-w-0 items-center gap-2.5">
-              <span className="flex size-[22px] shrink-0 items-center justify-center rounded-md bg-primary text-[11px] font-semibold text-primary-foreground">
-                {part.from}
-              </span>
-              <span className="flex min-w-0 flex-col gap-px">
-                <span className="truncate font-medium">{part.name}</span>
-                <span className="truncate font-mono text-[11px] text-muted-foreground">
-                  {part.selector}
-                </span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <PrototypeMergePreview
+        name={previewName}
+        agent={agent}
+        html={composition?.html ?? null}
+        view={view}
+        onView={setView}
+      />
     </div>
   )
 }
