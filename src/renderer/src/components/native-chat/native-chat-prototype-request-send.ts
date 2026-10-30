@@ -22,10 +22,9 @@ import {
 import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
 
 // The local host's call has no timeout of its own, so a send gives up after this long and the
-// next press is not held behind it.
+// next press is not held behind it. The design system card reads within the same budget: a host
+// slower than this sends the request without a card.
 const HOST_REQUEST_DEADLINE_MS = 20_000
-// The design system card waits for this read; a host slower than this sends the request without a card.
-const HOST_SYSTEM_READ_DEADLINE_MS = 3_000
 
 function describeTarget(target: RuntimeClientTarget): string {
   return target.kind === 'local' ? 'local host' : `runtime ${target.environmentId}`
@@ -108,7 +107,7 @@ export async function readPrototypeSystemCard(
   try {
     const read = await withDeadline(
       readDesignSystemOnHost(target, { sessionId }),
-      HOST_SYSTEM_READ_DEADLINE_MS
+      HOST_REQUEST_DEADLINE_MS
     )
     return read.ok ? prototypeSystemCardOf(read) : null
   } catch (error) {
