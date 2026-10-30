@@ -89,7 +89,7 @@ export function PrototypeViewerToolbar({
   }
   const starCount = state.starred.length
   const mergeName =
-    starCount === 0
+    starCount < 2
       ? translate('components.prototypes.merge', 'Merge')
       : translate('components.prototypes.mergeCount', 'Merge ({{count}})', { count: starCount })
   const viewAllName = translate('components.prototypes.layoutAll', 'View all')

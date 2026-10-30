@@ -369,7 +369,8 @@ describe('PrototypeViewer Merge button', () => {
 
   it('is disabled below two stars and reads Merge', () => {
     renderSet3(toggleStar(createSetState(['A', 'B', 'C']), 'A'))
-    expect(screen.getByRole('button', { name: 'Merge (1)' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Merge' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Merge' }).textContent).toBe('1')
     cleanup()
     renderSet3(createSetState(['A', 'B', 'C']))
     expect(screen.getByRole('button', { name: 'Merge' })).toBeDisabled()
