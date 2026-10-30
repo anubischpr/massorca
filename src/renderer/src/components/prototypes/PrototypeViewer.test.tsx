@@ -23,6 +23,7 @@ import {
 } from '../../../../shared/prototype-set-state'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
 import { activateStructuredAgentSessionById } from '@/lib/structured-agent-session-tab-activation'
+import { activateAndRevealWorktree } from '@/lib/worktree-activation'
 import { useAppStore } from '@/store'
 import type { Tab } from '../../../../shared/tab-types'
 import { PrototypeViewer } from './PrototypeViewer'
@@ -50,6 +51,11 @@ vi.mock('react-i18next', () => ({
 vi.mock('@/lib/structured-agent-session-tab-activation', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   activateStructuredAgentSessionById: vi.fn()
+}))
+
+vi.mock('@/lib/worktree-activation', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  activateAndRevealWorktree: vi.fn()
 }))
 
 vi.mock('./use-prototype-file-html', () => ({ usePrototypeFileHtml: () => null }))
@@ -641,17 +647,50 @@ describe('PrototypeViewer origin link', () => {
       set: { ...SET3, origin: { sessionId: 'parent-1' } }
     })
     fireEvent.click(screen.getByRole('button', { name: 'from “nexuscare-planning” ↗' }))
+    expect(activateAndRevealWorktree).toHaveBeenCalledWith('wt-1')
     expect(activateStructuredAgentSessionById).toHaveBeenCalledWith({
       worktreeId: 'wt-1',
       sessionId: 'parent-1'
     })
   })
 
-  it('drops the origin part when this client holds no tab for the parent chat', () => {
+  it('shows a fallback chip, disabled, when this client holds no tab for the parent chat', () => {
     renderSet3(createSetState(['A', 'B', 'C']), vi.fn(), {
       set: { ...SET3, origin: { sessionId: 'parent-1' } }
     })
-    expect(screen.queryByRole('button', { name: /^from / })).toBeNull()
+    expect(screen.getByRole('button', { name: 'from parent chat' })).toBeDisabled()
+  })
+
+  it('keeps the chip through a sent merge and a change of layout', () => {
+    useAppStore.setState({
+      unifiedTabsByWorktree: { 'wt-1': [parentTab('wt-1', 'parent-1', 'nexuscare-planning')] }
+    })
+    const sent: PrototypeSetState = {
+      ...toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C'),
+      layout: 'set',
+      mergeInto: { letter: 'D', from: ['A', 'C'] }
+    }
+    const update = vi.fn<Update>()
+    renderSet3(sent, update, { set: { ...SET3, origin: { sessionId: 'parent-1' } } })
+    fireEvent.click(screen.getByRole('button', { name: 'Design main' }))
+    expect(applied(update, sent)).toMatchObject({ mergeInto: { letter: 'D', from: ['A', 'C'] } })
+    fireEvent.click(screen.getByRole('button', { name: 'from “nexuscare-planning” ↗' }))
+    expect(activateStructuredAgentSessionById).toHaveBeenCalledWith({
+      worktreeId: 'wt-1',
+      sessionId: 'parent-1'
+    })
+  })
+
+  it('opens the set chat in its own worktree', () => {
+    renderSet3(createSetState(['A', 'B', 'C']), vi.fn(), {
+      set: { ...SET3, worktreeId: 'wt-2', sessionId: 'child-1' }
+    })
+    fireEvent.click(screen.getByRole('button', { name: /open chat/u }))
+    expect(activateAndRevealWorktree).toHaveBeenCalledWith('wt-2')
+    expect(activateStructuredAgentSessionById).toHaveBeenCalledWith({
+      worktreeId: 'wt-2',
+      sessionId: 'child-1'
+    })
   })
 })
 

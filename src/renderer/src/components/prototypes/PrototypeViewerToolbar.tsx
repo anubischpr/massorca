@@ -10,10 +10,10 @@ import {
   Star
 } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
+import { badgeVariants } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import { activateStructuredAgentSessionById } from '@/lib/structured-agent-session-tab-activation'
 import { useAppStore } from '@/store'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
 import { prototypeStatus, prototypeTitle } from '../../../../shared/prototype-list-model'
@@ -26,6 +26,7 @@ import {
 } from '../../../../shared/prototype-set-state'
 import { withMergeKept } from '../../../../shared/prototype-merge-state'
 import { PrototypeBuiltOnLink } from './PrototypeBuiltOnLink'
+import { openPrototypeChat } from './open-prototype-chat'
 import { originChatOf } from './prototype-origin-chat'
 import { prototypeAgentLabel, prototypeCountLabel } from './prototype-labels'
 import { usePrototypeViewStore } from './prototype-view-store'
@@ -88,22 +89,19 @@ export function PrototypeViewerToolbar({
   const chatTitle = set.chatTitle?.trim() ?? ''
   const openChat = (): void => {
     if (set.worktreeId !== null) {
-      activateStructuredAgentSessionById({ worktreeId: set.worktreeId, sessionId: set.sessionId })
+      openPrototypeChat({ worktreeId: set.worktreeId, sessionId: set.sessionId })
     }
   }
   const tabsByWorktree = useAppStore((state) => state.unifiedTabsByWorktree)
   const originSessionId = set.origin?.sessionId
-  // Why: the parent's name is read from this client's tabs; a chat this client does not hold drops the link.
+  // Why: the parent's worktree and name come from this client's tabs; without that tab the chip stays, disabled.
   const origin = useMemo(
     () => (originSessionId === undefined ? null : originChatOf(tabsByWorktree, originSessionId)),
     [originSessionId, tabsByWorktree]
   )
   const openOrigin = (): void => {
     if (origin !== null && originSessionId !== undefined) {
-      activateStructuredAgentSessionById({
-        worktreeId: origin.worktreeId,
-        sessionId: originSessionId
-      })
+      openPrototypeChat({ worktreeId: origin.worktreeId, sessionId: originSessionId })
     }
   }
   const starCount = state.starred.length
@@ -168,17 +166,23 @@ export function PrototypeViewerToolbar({
                   agent: agentLabel
                 })}
           </button>
-          {origin === null ? null : (
+          {originSessionId === undefined ? null : (
             <>
               <span aria-hidden="true">·</span>
               <button
                 type="button"
                 onClick={openOrigin}
-                className="truncate text-left hover:text-foreground"
+                disabled={origin === null}
+                className={cn(
+                  badgeVariants({ variant: 'outline' }),
+                  'min-w-0 shrink truncate enabled:hover:bg-accent disabled:text-muted-foreground'
+                )}
               >
-                {translate('components.prototypes.originLink', 'from “{{chat}}” ↗', {
-                  chat: origin.title
-                })}
+                {origin === null
+                  ? translate('components.prototypes.originLinkFallback', 'from parent chat')
+                  : translate('components.prototypes.originLink', 'from “{{chat}}” ↗', {
+                      chat: origin.title
+                    })}
               </button>
             </>
           )}
