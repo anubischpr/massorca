@@ -1,6 +1,7 @@
 // What a mobile composer send does with a message that may ask for prototypes: the same decision
 // table as desktop, then the request folder on the host and the hidden instruction behind the text.
 import type { PrototypeCountSetting } from '../../../src/shared/prototype-count-setting'
+import type { PrototypeDesignSystemMode } from '../../../src/shared/prototype-design-system-files'
 import { neutralizePrototypeMarkers } from '../../../src/shared/prototype-hidden-instruction'
 import {
   buildPrototypeRequestMessage,
@@ -35,9 +36,15 @@ export type MobilePrototypePlanInput = {
   readSetting: () => Promise<PrototypeCountSetting>
   /** Makes the request folder on the chat's host; null when the chat cannot make one. */
   createRequest:
-    | ((params: { text: string; count: number }) => Promise<MobilePrototypeRequest>)
+    | ((params: {
+        text: string
+        count: number
+        designSystem?: PrototypeDesignSystemMode
+      }) => Promise<MobilePrototypeRequest>)
     | null
   choice?: NativeChatPrototypeChoice
+  /** The host takes the design system mode: the request asks the agent to use the project's system. */
+  useDesignSystem?: boolean
 }
 
 export async function planMobilePrototypeOutgoing(
@@ -65,7 +72,12 @@ export async function planMobilePrototypeOutgoing(
   if (text.length > PROTOTYPE_PROMPT_MAX_LENGTH || input.createRequest === null) {
     return asTyped
   }
-  const request = await input.createRequest({ text, count: decision.count })
+  const designSystem = input.useDesignSystem === true ? ('use' as const) : undefined
+  const request = await input.createRequest({
+    text,
+    count: decision.count,
+    ...(designSystem ? { designSystem } : {})
+  })
   if (request.kind === 'unwritable') {
     console.warn('[prototypes] request not created: the host could not write the request folder')
     return asTyped
@@ -83,7 +95,8 @@ export async function planMobilePrototypeOutgoing(
     agent: input.agent,
     count: decision.count,
     requestId: request.requestId,
-    folderPath: request.folderPath
+    folderPath: request.folderPath,
+    ...(designSystem ? { designSystem } : {})
   })
   return { kind: 'send', wireText: message.sentText, shownText: message.visibleText }
 }

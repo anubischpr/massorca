@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { PrototypeCountSetting } from '../../../src/shared/prototype-count-setting'
 import type { PrototypeAgent } from '../../../src/shared/prototype-request'
+import { buildPrototypeRequestMessage } from '../../../src/shared/prototype-request'
 import { splitPrototypeHiddenInstruction } from '../../../src/shared/prototype-hidden-instruction'
 import type { MobilePrototypeRequest } from '../session/mobile-prototype-host-rpc'
 import { planMobilePrototypeOutgoing } from './mobile-prototype-outgoing'
@@ -20,6 +21,7 @@ function plan(
     agent?: PrototypeAgent
     request?: MobilePrototypeRequest | null
     choice?: Parameters<typeof planMobilePrototypeOutgoing>[0]['choice']
+    useDesignSystem?: boolean
   } = {}
 ) {
   const request = options.request === undefined ? READY : options.request
@@ -33,7 +35,8 @@ function plan(
       agent: options.agent ?? 'codex',
       readSetting,
       createRequest,
-      ...(options.choice ? { choice: options.choice } : {})
+      ...(options.choice ? { choice: options.choice } : {}),
+      ...(options.useDesignSystem === undefined ? {} : { useDesignSystem: options.useDesignSystem })
     })
   }
 }
@@ -183,5 +186,42 @@ describe('planMobilePrototypeOutgoing with a reply that names no usable folder',
       '[prototypes] request not used: the host named no usable request folder'
     )
     warn.mockRestore()
+  })
+})
+
+describe('planMobilePrototypeOutgoing design system', () => {
+  it('asks the host to use the design system and carries the instruction when the host supports it', async () => {
+    const { result, createRequest } = plan('/prototype a login page', ALWAYS_3, {
+      useDesignSystem: true
+    })
+    const planned = await result
+    expect(createRequest).toHaveBeenCalledWith({
+      text: '/prototype a login page',
+      count: 3,
+      designSystem: 'use'
+    })
+    expect(planned.kind === 'send' && planned.wireText).toContain('design/system/tokens.json')
+    expect(planned.kind === 'send' && planned.shownText).toBe('/prototype a login page')
+  })
+
+  it('keeps the usual request byte for byte when the host has not shown support', async () => {
+    const { result, createRequest } = plan('/prototype a login page', ALWAYS_3)
+    const planned = await result
+    expect(createRequest).toHaveBeenCalledWith({ text: '/prototype a login page', count: 3 })
+    const expected = buildPrototypeRequestMessage({
+      text: '/prototype a login page',
+      agent: 'codex',
+      count: 3,
+      requestId: 'req-1',
+      folderPath: '/chats/c1/prototypes/req-1'
+    })
+    expect(planned).toEqual({
+      kind: 'send',
+      wireText: expected.sentText,
+      shownText: expected.visibleText
+    })
+    expect(expected.sentText).not.toContain('design/system/tokens.json')
+    const off = await plan('/prototype a login page', ALWAYS_3, { useDesignSystem: false }).result
+    expect(off).toEqual(planned)
   })
 })

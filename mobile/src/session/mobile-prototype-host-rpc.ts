@@ -23,6 +23,15 @@ import type { RpcResponse } from '../transport/types'
 
 const READ_TIMEOUT_MS = 15_000
 
+// Hosts whose last listing carried `designSystems`: the field and the createRequest `designSystem` param came
+// together, so a host that sent it accepts the param. Keyed by client, so a host never inherits another's answer.
+const hostsListingDesignSystems = new WeakSet<object>()
+
+/** Whether the last `prototypes.list` reply of this host carried design systems; false before any listing. */
+export function hostListsDesignSystems(client: HostClient): boolean {
+  return hostsListingDesignSystems.has(client)
+}
+
 /** The one call these reads make, so a test can stand in for the client without a cast. */
 type HostClient = Pick<RpcClient, 'sendRequest'>
 
@@ -104,6 +113,11 @@ export async function listMobilePrototypeSets(
   const reply = ListPrototypeSetsReplySchema.safeParse(response.result)
   if (!reply.success) {
     return { kind: 'unreachable' }
+  }
+  if (reply.data.designSystems === undefined) {
+    hostsListingDesignSystems.delete(client)
+  } else {
+    hostsListingDesignSystems.add(client)
   }
   // Why omitted when absent: an older host sends no design systems, and its answer reads as before.
   return {
