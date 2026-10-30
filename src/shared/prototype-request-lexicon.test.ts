@@ -34,7 +34,27 @@ const PROTOTYPE_REQUESTS = [
   'Rediseña por favor la versión actual de la pantalla de facturación de los clientes',
   'Please design a new version of the screen for NexusCare where claims are currently processed in phases 1, 2 and 3.',
   'Can you redesign the current version of the page where users review their settings and billing?',
-  'Arregla el bug. Diseña una nueva versión de la pantalla de pagos'
+  'Arregla el bug. Diseña una nueva versión de la pantalla de pagos',
+  'Crea una sesión hija que diseñe una nueva versión de la pantalla de NexusCare donde actualmente se procesan las liquidaciones en la fase 1, 2 y 3.',
+  'Quiero que diseñemos el dashboard de ventas del mes',
+  'Necesito que diseñen el formulario de alta de clientes',
+  'Diseñando la pantalla de ajustes ahora mismo',
+  'Le pedí que rediseñe la pantalla de facturación',
+  'Rediseñemos la landing con más aire',
+  'Hazme un boceto de la pantalla de login',
+  'Haz un bosquejo de la landing page',
+  'Maquetar la pantalla de login para móvil',
+  'Maquetación de la pantalla de pagos con tres columnas',
+  'Quiero que prototipe la pantalla de cobros',
+  'Let us start prototyping the checkout',
+  'Some wireframing for the onboarding screens, please',
+  'Hire a designer to design the new screen of the app',
+  'Desing a new login screen',
+  'Diseniar la pantalla de inicio',
+  'Rediseno la pantala de ajustes',
+  'dsign the screen for the new flow',
+  'deisgn the settings screen',
+  'Desgin the pantalla de cobros'
 ]
 
 const NOT_PROTOTYPE_REQUESTS = [
@@ -64,7 +84,18 @@ const NOT_PROTOTYPE_REQUESTS = [
   'Diseña una nueva versión de la base de datos donde se guardan las liquidaciones para la pantalla de NexusCare',
   'Design the new architecture of the service that processes claims in phases 1, 2 and 3, then show the screen',
   'Diseña el sistema. La pantalla de NexusCare ya existe y funciona bien en fase 1, 2 y 3',
-  'design the whole new login flow for our users and then add one modal'
+  'design the whole new login flow for our users and then add one modal',
+  'Diseño de base de datos para la pantalla de cobros',
+  'system design for the screen of the app',
+  'design doc for the screen of the app',
+  'Designa al responsable de la pantalla',
+  'Resign from the screen of the app',
+  'Diseña la lista de precios',
+  'Diseña los pagos del mes',
+  'design the model and the terms',
+  'design menos cosas de la app',
+  'Diseña la pantalla de la base de datos de cobros',
+  'Diseñamos el sistema de pagos para la API'
 ]
 
 describe('hasPrototypeKeyword', () => {
@@ -119,6 +150,24 @@ describe('lexicon terms', () => {
     ]
     expect(terms.every((term) => term.trim().length > 0)).toBe(true)
   })
+})
+
+describe('hasPrototypeKeyword typo tolerance', () => {
+  it.each([
+    'dezign the screen',
+    'desgin the screen',
+    'design the scren',
+    'pnatalla de ajustes diseña'
+  ])('accepts the one-edit typo %j', (text) => {
+    expect(hasPrototypeKeyword(text)).toBe(true)
+  })
+
+  it.each(['design the sren', 'desgnr the screen', 'dezain the screen', 'Diseña el pagos'])(
+    'does not stretch %j beyond one edit or below five letters',
+    (text) => {
+      expect(hasPrototypeKeyword(text)).toBe(false)
+    }
+  )
 })
 
 describe('hasPrototypeKeyword on a long message', () => {
