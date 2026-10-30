@@ -4,6 +4,7 @@ import { rm } from 'node:fs/promises'
 import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
 import { launchDirectoryOfChat } from '../native-chat/chat-launch-directory'
+import { readDesignSystemVersion } from '../native-chat/prototype-design-system-files'
 import { createPrototypeRequest } from '../native-chat/prototype-requests'
 import { getProfileUserDataPath } from '../orca-profiles/profile-storage-paths'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
@@ -32,6 +33,9 @@ export function delegatedChildPromptDeps(
         ...(piRuntime ? { piRuntime } : {})
       }
     },
+    hasDesignSystem: async (launchDirectory) =>
+      launchDirectory !== undefined &&
+      (await readDesignSystemVersion(launchDirectory)) !== undefined,
     readPrototypeCount: () => runtime.readPrototypeCountSetting(),
     createRequest: (input) =>
       createPrototypeRequest({
@@ -43,7 +47,7 @@ export function delegatedChildPromptDeps(
           originalPrompt: input.text,
           count: input.count,
           worktreeId: input.worktreeId,
-          designSystem: 'use'
+          designSystem: input.designSystem
         },
         originSessionId: input.originSessionId,
         now: new Date(),

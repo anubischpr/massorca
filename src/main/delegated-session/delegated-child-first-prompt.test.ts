@@ -28,6 +28,7 @@ function fakeDeps(overrides: Partial<DelegatedChildFirstPromptDeps> = {}) {
       launchDirectory: '/repo',
       workspaceId: 'workspace-1'
     }),
+    hasDesignSystem: async () => true,
     readPrototypeCount: () => ({ mode: 'always', count: 3 }),
     createRequest,
     removeFolder,
@@ -57,6 +58,7 @@ describe('delegatedChildFirstPrompt', () => {
       originSessionId: PARENT,
       agent: 'claude',
       count: 3,
+      designSystem: 'use',
       text: NEXUS_TASK
     })
   })
@@ -67,6 +69,21 @@ describe('delegatedChildFirstPrompt', () => {
     expect(prompt?.body).toBe(NEXUS_TASK)
     expect(prompt?.appendix).toContain(prototypeRequestMarkerLine(REQUEST))
     expect(prompt?.appendix).toContain(designSystemRequestInstruction())
+  })
+
+  it('asks for no design system in a project that has none, and goes straight to the directions', async () => {
+    const { deps, createRequest } = fakeDeps({ hasDesignSystem: async () => false })
+    const prompt = await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)
+    expect(createRequest).toHaveBeenCalledWith(expect.objectContaining({ designSystem: 'skip' }))
+    expect(prompt?.appendix).toContain(prototypeRequestMarkerLine(REQUEST))
+    expect(prompt?.appendix).not.toContain(designSystemRequestInstruction())
+  })
+
+  it('reads whether the directory the child launched in has a design system', async () => {
+    const hasDesignSystem = vi.fn(async () => true)
+    const { deps } = fakeDeps({ hasDesignSystem })
+    await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)
+    expect(hasDesignSystem).toHaveBeenCalledWith('/repo')
   })
 
   it('keeps the hidden instruction out of the body, so a title read from it never sees it', async () => {

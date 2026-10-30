@@ -10,6 +10,7 @@ import {
   type PrototypeAgent
 } from '../../shared/prototype-request'
 import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
+import type { PrototypeDesignSystemMode } from '../../shared/prototype-design-system-files'
 import type { WorkerFirstPrompt } from '../runtime/rpc/methods/orchestration/worker/worker-start-readiness-settlement'
 
 export type DelegatedChildChat = {
@@ -28,6 +29,8 @@ export type DelegatedChildRequest =
 export type DelegatedChildFirstPromptDeps = {
   /** The child's chat record on this host, with where it works; null when this host does not hold it. */
   readChat: (sessionId: string) => Promise<DelegatedChildChat | null>
+  /** Whether the child's project has a design system; a project without one is asked for none. */
+  hasDesignSystem: (launchDirectory: string | undefined) => Promise<boolean>
   /** The saved Settings value for the prototype count, unsanitized. */
   readPrototypeCount: () => unknown
   /** Makes the child's request folder and manifest; the caller supplies the state directory and clock. */
@@ -38,6 +41,7 @@ export type DelegatedChildFirstPromptDeps = {
     originSessionId: string
     agent: PrototypeAgent
     count: number
+    designSystem: PrototypeDesignSystemMode
     text: string
   }) => Promise<DelegatedChildRequest>
   removeFolder: (folderPath: string) => Promise<void>
@@ -84,6 +88,10 @@ async function buildDelegatedChildFirstPrompt(
     return null
   }
   const count = sanitizePrototypeCountSetting(deps.readPrototypeCount()).count
+  // Why: a child has no card to choose a design system, so it uses the project's own system only when there is one.
+  const designSystem: PrototypeDesignSystemMode = (await deps.hasDesignSystem(chat.launchDirectory))
+    ? 'use'
+    : 'skip'
   const created = await deps
     .createRequest({
       sessionId: input.childSessionId,
@@ -92,6 +100,7 @@ async function buildDelegatedChildFirstPrompt(
       originSessionId: input.originSessionId,
       agent,
       count,
+      designSystem,
       text: input.taskSpec
     })
     .catch((error: unknown): DelegatedChildRequest => ({ ok: false, error: String(error) }))
@@ -110,7 +119,7 @@ async function buildDelegatedChildFirstPrompt(
       count,
       requestId: created.requestId,
       folderPath,
-      designSystem: 'use'
+      designSystem
     })
     return { body: parts.body, appendix: parts.hidden, discard }
   } catch (error) {
