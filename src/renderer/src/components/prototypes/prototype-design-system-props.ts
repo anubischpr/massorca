@@ -1,25 +1,15 @@
-import type { ComponentSection } from '../../../../shared/prototype-design-system-components'
+import type { DesignSystemContent } from '../../../../shared/prototype-design-system-content'
 import type {
   DesignSystemSendKind,
   DesignSystemViewState
 } from '../../../../shared/prototype-design-system-view-state'
-import type {
-  DesignSystemMeta,
-  DesignToken
-} from '../../../../shared/prototype-design-system-tokens'
 import type { DesignSystemChat } from '../../../../shared/prototype-design-system-view'
 import type {
   PrototypeListedDesignSystem,
   PrototypeListedSet
 } from '../../../../shared/rpc-contract/prototype-params'
 
-/** What a system's files hold once read: its tokens with their metadata, and its components with their style block. */
-export type DesignSystemContent = {
-  tokens: readonly DesignToken[]
-  meta: DesignSystemMeta
-  components: readonly ComponentSection[]
-  styleBlock: string
-}
+export type { DesignSystemContent }
 
 export type DesignSystemUpdate = (
   transform: (state: DesignSystemViewState) => DesignSystemViewState

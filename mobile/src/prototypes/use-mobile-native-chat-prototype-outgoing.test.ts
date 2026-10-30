@@ -12,8 +12,10 @@ import {
 
 const createRequest = vi.fn<(...args: unknown[]) => Promise<MobilePrototypeRequest>>()
 const readSetting = vi.fn<() => Promise<PrototypeCountSetting>>()
+const hostListsDesignSystems = vi.fn<(client: unknown) => boolean>()
 vi.mock('../session/mobile-prototype-host-rpc', () => ({
-  createMobilePrototypeRequest: (...args: unknown[]) => createRequest(...args)
+  createMobilePrototypeRequest: (...args: unknown[]) => createRequest(...args),
+  hostListsDesignSystems: (client: unknown) => hostListsDesignSystems(client)
 }))
 vi.mock('./mobile-prototype-count-setting', () => ({
   readMobilePrototypeCountSetting: () => readSetting()
@@ -56,6 +58,7 @@ describe('useMobileNativeChatPrototypeOutgoing', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mobilePrototypeAsks.take(SCOPE)
+    hostListsDesignSystems.mockReturnValue(false)
     readSetting.mockResolvedValue({ mode: 'ask', count: 3 })
     createRequest.mockResolvedValue({
       kind: 'ready',
@@ -107,6 +110,38 @@ describe('useMobileNativeChatPrototypeOutgoing', () => {
       expect(resolution.wireText).toContain('orca-prototype-request:req-1')
     }
     expect(mobilePrototypeAsks.read(SCOPE)).toBeUndefined()
+  })
+
+  it('asks to use the design system only once the host has listed design systems', async () => {
+    hostListsDesignSystems.mockReturnValue(true)
+    mount()
+    let resolution: MobilePrototypeSendResolution | undefined
+    await act(async () => {
+      resolution = await resolve({ text: 'Make a mockup of the cart', choice: { count: 2 } })
+    })
+    expect(hostListsDesignSystems).toHaveBeenCalledWith(CLIENT)
+    expect(createRequest).toHaveBeenCalledWith(
+      CLIENT,
+      expect.objectContaining({ designSystem: 'use' })
+    )
+    expect(resolution?.kind === 'send' && resolution.wireText).toContain(
+      'design/system/tokens.json'
+    )
+  })
+
+  it('sends the request without a design system param to a host that has not shown support', async () => {
+    mount()
+    await act(async () => {
+      await resolve({ text: 'Make a mockup of the cart', choice: { count: 2 } })
+    })
+    const [, params] = createRequest.mock.calls[0] ?? []
+    expect(params).toEqual({
+      sessionId: 'session-1',
+      agent: 'codex',
+      originalPrompt: 'Make a mockup of the cart',
+      count: 2,
+      worktreeId: 'wt'
+    })
   })
 
   it('retires a card still waiting when another message is sent', async () => {

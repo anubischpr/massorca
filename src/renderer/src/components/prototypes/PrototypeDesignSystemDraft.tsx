@@ -1,16 +1,13 @@
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { translate } from '@/i18n/i18n'
-import {
-  buildDesignSystemUpdateMessage,
-  type DesignSystemRebuildSet
-} from '../../../../shared/prototype-design-system-message'
+import { buildDesignSystemUpdateMessage } from '../../../../shared/prototype-design-system-message'
+import { designSystemRebuildSetsOf } from '../../../../shared/prototype-design-system-rebuild'
 import {
   designSystemDraftCount,
   designSystemDraftGroups
 } from '../../../../shared/prototype-design-system-draft'
 import { prototypeTitle } from '../../../../shared/prototype-list-model'
-import { nextVersionOf } from '../../../../shared/prototype-set-view'
 import { prototypeAgentLabel } from './prototype-labels'
 import { keyedEntries } from './prototype-entry-keys'
 import type { DesignSystemPanelProps } from './prototype-design-system-props'
@@ -37,22 +34,7 @@ export function PrototypeDesignSystemDraft({
   const rebuilding = state.rebuild && rebuildSets.length > 0
   const nothingToSend = count === 0 && state.freeText.trim() === ''
   const send = (): void => {
-    const rebuild: DesignSystemRebuildSet[] = rebuilding
-      ? rebuildSets.flatMap((set) =>
-          set.folderPath === undefined
-            ? []
-            : [
-                {
-                  title: prototypeTitle(set),
-                  folderPath: set.folderPath,
-                  directions: set.directions.map((direction) => ({
-                    letter: direction.letter,
-                    nextVersion: nextVersionOf(set.directions, direction.letter)
-                  }))
-                }
-              ]
-        )
-      : []
+    const rebuild = rebuilding ? designSystemRebuildSetsOf(rebuildSets) : []
     const message = buildDesignSystemUpdateMessage({
       currentVersion: system.version,
       groups,

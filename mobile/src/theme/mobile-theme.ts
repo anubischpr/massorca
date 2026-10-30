@@ -31,6 +31,8 @@ export const colors = {
   // Outline of the Prototypes "Merge" button, the same hue as statusAmber.
   statusAmberBorder: 'rgba(245, 158, 11, 0.5)',
   statusRed: '#ef4444',
+  // Outline of a destructive sheet action, the same hue as statusRed.
+  statusRedBorder: 'rgba(239, 68, 68, 0.5)',
   // Full-access wash behind the red access lock, same rgba form as the diff tints below.
   statusRedTint: 'rgba(239, 68, 68, 0.14)',
   // Merge CTA fill + its on-fill text, mirroring the desktop ChecksPanel's

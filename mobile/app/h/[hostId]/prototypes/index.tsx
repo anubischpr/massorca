@@ -15,6 +15,12 @@ export default function MobilePrototypesRoute() {
       hostId={hostId}
       sessionId={firstParam(params.session) ?? null}
       onBack={() => router.back()}
+      onOpenSystem={(projectKey) =>
+        router.push({
+          pathname: '/h/[hostId]/prototypes/system',
+          params: { hostId, project: projectKey }
+        })
+      }
       onOpenSet={(row) => {
         router.push({
           // A one-direction set opens straight in the viewer.

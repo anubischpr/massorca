@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { parseComponentsHtml } from '../../../../shared/prototype-design-system-components'
-import { parseDesignTokens } from '../../../../shared/prototype-design-system-tokens'
+import {
+  designSystemContentOf,
+  type DesignSystemContent
+} from '../../../../shared/prototype-design-system-content'
 import { readDesignSystemOnHost } from '../../runtime/runtime-prototype-client'
 import { prototypeTargetForSession } from './prototype-host-targets'
-import type { DesignSystemContent } from './prototype-design-system-props'
 
 export type DesignSystemContentState =
   | { status: 'loading' }
@@ -30,7 +31,9 @@ export function useDesignSystemContent(
       .then((result) => {
         if (active) {
           setState(
-            result.ok ? { status: 'ready', content: contentOf(result) } : { status: 'error' }
+            result.ok
+              ? { status: 'ready', content: designSystemContentOf(result) }
+              : { status: 'error' }
           )
         }
       })
@@ -47,16 +50,4 @@ export function useDesignSystemContent(
     }
   }, [sessionId, reloadKey])
   return state
-}
-
-function contentOf(files: { tokensJson?: string; componentsHtml?: string }): DesignSystemContent {
-  const tokens = files.tokensJson === undefined ? null : parseDesignTokens(files.tokensJson)
-  const components =
-    files.componentsHtml === undefined ? null : parseComponentsHtml(files.componentsHtml)
-  return {
-    tokens: tokens?.tokens ?? [],
-    meta: tokens?.meta ?? { history: [], sources: [], palettes: [] },
-    components: components?.sections ?? [],
-    styleBlock: components?.styleBlock ?? ''
-  }
 }

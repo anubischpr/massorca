@@ -43,14 +43,17 @@ function RainbowSwatch() {
  */
 export function MobilePrototypeColorRow({
   label,
+  accessibility,
   palette,
   value,
   pickerOpen,
   onPick,
   onTogglePicker
 }: {
-  /** "Text color" or "Fill". */
-  label: string
+  /** "Text color" or "Fill"; a row with no label shows none and names its controls through `accessibility`. */
+  label?: string
+  /** The names of the row's controls when it has no label to derive them from. */
+  accessibility?: { swatch: (hex: string) => string; custom: string; hex: string }
   palette: readonly string[]
   value: string
   pickerOpen: boolean
@@ -61,13 +64,13 @@ export function MobilePrototypeColorRow({
   const custom = pickerOpen || !palette.includes(value)
   return (
     <View style={styles.row}>
-      <Text style={styles.label}>{label}</Text>
+      {label === undefined ? null : <Text style={styles.label}>{label}</Text>}
       <View style={styles.controls}>
         {palette.map((hex) => (
           <Pressable
             key={hex}
             accessibilityRole="button"
-            accessibilityLabel={`${label} ${hex}`}
+            accessibilityLabel={accessibility?.swatch(hex) ?? `${label} ${hex}`}
             onPress={() => {
               setTyped(null)
               onPick(hex)
@@ -79,7 +82,9 @@ export function MobilePrototypeColorRow({
         ))}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={label === 'Fill' ? 'Custom fill' : 'Custom text color'}
+          accessibilityLabel={
+            accessibility?.custom ?? (label === 'Fill' ? 'Custom fill' : 'Custom text color')
+          }
           onPress={onTogglePicker}
           style={[styles.ring, custom && styles.ringOn]}
         >
@@ -88,7 +93,9 @@ export function MobilePrototypeColorRow({
           </View>
         </Pressable>
         <TextInput
-          accessibilityLabel={label === 'Fill' ? 'Fill hex' : 'Text color hex'}
+          accessibilityLabel={
+            accessibility?.hex ?? (label === 'Fill' ? 'Fill hex' : 'Text color hex')
+          }
           autoCapitalize="none"
           autoCorrect={false}
           value={typed ?? value}

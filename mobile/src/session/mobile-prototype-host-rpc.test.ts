@@ -3,6 +3,7 @@ import type { RpcClient } from '../transport/rpc-client'
 import type { RpcResponse } from '../transport/types'
 import {
   createMobilePrototypeRequest,
+  hostListsDesignSystems,
   listMobilePrototypeSets,
   readMobilePrototypeDesignSystem,
   readMobilePrototypeFile,
@@ -260,5 +261,41 @@ describe('listMobilePrototypeSets design systems', () => {
       kind: 'ready',
       sets: [validSet]
     })
+  })
+})
+
+describe('hostListsDesignSystems', () => {
+  const withSystems = ok({ sets: [validSet], designSystems: [] })
+
+  it('is false before any listing, true after a reply that carries designSystems, even empty', async () => {
+    const client = clientAnswering(withSystems)
+    expect(hostListsDesignSystems(client)).toBe(false)
+    await listMobilePrototypeSets(client, {})
+    expect(hostListsDesignSystems(client)).toBe(true)
+  })
+
+  it('is false after a reply without designSystems, which an older host sends', async () => {
+    const client = clientAnswering(ok({ sets: [validSet] }))
+    await listMobilePrototypeSets(client, {})
+    expect(hostListsDesignSystems(client)).toBe(false)
+  })
+
+  it('follows the last reply, and a failed listing leaves it as it was', async () => {
+    let reply: RpcResponse | Error = withSystems
+    const client: Pick<RpcClient, 'sendRequest'> = {
+      sendRequest: () => (reply instanceof Error ? Promise.reject(reply) : Promise.resolve(reply))
+    }
+    await listMobilePrototypeSets(client, {})
+    reply = new Error('offline')
+    await listMobilePrototypeSets(client, {})
+    expect(hostListsDesignSystems(client)).toBe(true)
+    reply = ok({ sets: [validSet] })
+    await listMobilePrototypeSets(client, {})
+    expect(hostListsDesignSystems(client)).toBe(false)
+  })
+
+  it('does not carry the answer of one host to another', async () => {
+    await listMobilePrototypeSets(clientAnswering(withSystems), {})
+    expect(hostListsDesignSystems(clientAnswering(withSystems))).toBe(false)
   })
 })

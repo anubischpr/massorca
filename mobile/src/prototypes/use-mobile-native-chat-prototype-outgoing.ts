@@ -1,7 +1,10 @@
 import { useCallback } from 'react'
 import type { PiRowRuntime } from '../../../src/shared/agent-type-label'
 import type { NativeChatPrototypeChoice } from '../../../src/shared/prototype-request-decision'
-import { createMobilePrototypeRequest } from '../session/mobile-prototype-host-rpc'
+import {
+  createMobilePrototypeRequest,
+  hostListsDesignSystems
+} from '../session/mobile-prototype-host-rpc'
 import type { StructuredMobileSendAttachment } from '../session/use-mobile-structured-send-with-outcome'
 import type { RpcClient } from '../transport/rpc-client'
 import { mobilePrototypeAgentFor, mobilePrototypeAgentName } from './mobile-prototype-agent'
@@ -53,6 +56,8 @@ export function useMobileNativeChatPrototypeOutgoing(args: {
             client === null
               ? Promise.resolve({ mode: 'always' as const, count: 2 })
               : readMobilePrototypeCountSetting(client),
+          // Only a host that has listed design systems takes the mode; any other gets today's request.
+          useDesignSystem: client !== null && hostListsDesignSystems(client),
           createRequest:
             client === null || sessionId === null
               ? null
@@ -62,6 +67,7 @@ export function useMobileNativeChatPrototypeOutgoing(args: {
                     agent: prototypeAgent,
                     originalPrompt: params.text,
                     count: params.count,
+                    ...(params.designSystem ? { designSystem: params.designSystem } : {}),
                     ...(worktreeId ? { worktreeId } : {})
                   }),
           ...(input.choice ? { choice: input.choice } : {})
