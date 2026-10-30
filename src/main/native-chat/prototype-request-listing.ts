@@ -22,6 +22,7 @@ import { usesDesignSystemInstruction } from '../../shared/prototype-design-syste
 import type { DesignSystemSummary } from '../../shared/prototype-design-system-summary'
 import { nativeChatVisualsFolderName, nativeChatVisualsRootFor } from './native-chat-visuals-folder'
 import { directionNotesFor, withDirectionNotes } from './prototype-direction-notes'
+import { deletableChecker, withDeletable } from './prototype-listed-deletable'
 import { projectsOfLaunchDirectories, type ListedProject } from './prototype-design-system-files'
 import {
   fileMtime,
@@ -101,7 +102,7 @@ async function withProjects(
   const pendingRequests = new Map<string, PrototypeListedPendingRequest>()
   const proposals: PrototypeListedProposal[] = []
   const sets: PrototypeListedSet[] = []
-  const deletableOf = deletableChecker(options)
+  const deletableOf = deletableChecker(options.isDeletable)
   for (const request of requests) {
     const { set: listedSet, manifest } = request
     const set = listedSet === null ? null : await withDeletable(listedSet, deletableOf)
@@ -146,31 +147,6 @@ async function withProjects(
     ...(designSystems.length > 0 ? { designSystems } : {}),
     ...(proposals.length > 0 ? { proposals } : {})
   }
-}
-
-function deletableChecker(
-  options: ListPrototypeSetsOptions
-): (sessionId: string) => Promise<boolean> {
-  const answers = new Map<string, Promise<boolean>>()
-  return (sessionId) => {
-    const known = answers.get(sessionId)
-    if (known !== undefined) {
-      return known
-    }
-    const answer = (options.isDeletable?.(sessionId) ?? Promise.resolve(false)).catch(() => false)
-    answers.set(sessionId, answer)
-    return answer
-  }
-}
-
-// Only archived sets carry it: they are the ones a client offers Delete on, so the others cost no check.
-async function withDeletable(
-  set: PrototypeListedSet,
-  deletableOf: (sessionId: string) => Promise<boolean>
-): Promise<PrototypeListedSet> {
-  return set.archived === true && (await deletableOf(set.sessionId))
-    ? { ...set, deletable: true }
-    : set
 }
 
 /** One entry per project with a system; a summary the list contract refuses is logged once and left out. */

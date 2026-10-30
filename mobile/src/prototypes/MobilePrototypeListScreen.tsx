@@ -1,17 +1,10 @@
 import { useMemo, useRef, useState } from 'react'
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Archive, ArchiveRestore, MoreHorizontal } from 'lucide-react-native'
+import { MoreHorizontal } from 'lucide-react-native'
 import { prototypeAgentMono, type PrototypeListRow } from '../../../src/shared/prototype-list-model'
-import { ActionSheetModal, type ActionSheetAction } from '../components/ActionSheetModal'
+import { ActionSheetModal } from '../components/ActionSheetModal'
 import { useNow } from '../hooks/use-now'
-import {
-  archiveMobilePrototypeRequest,
-  deleteMobilePrototypeRequest,
-  hostMayArchivePrototypes,
-  unarchiveMobilePrototypeRequest,
-  type MobilePrototypeSetAction
-} from '../session/mobile-prototype-host-rpc'
 import {
   ArtifactScrollScopeContext,
   type ArtifactScrollScope
@@ -30,6 +23,7 @@ import {
   mobilePrototypeRowStatusLine
 } from './mobile-prototype-list-model'
 import { mobilePrototypeStateKey, useMobilePrototypeViewStore } from './mobile-prototype-view-store'
+import { useMobilePrototypeSetActions } from './use-mobile-prototype-set-actions'
 import { useMobilePrototypeSets } from './use-mobile-prototype-sets'
 
 /** Every agent's prototype sets: This chat or All agents, narrowed by agent, newest first. */
@@ -82,78 +76,7 @@ export function MobilePrototypeListScreen({
     [listed.sets, scope, sessionId, filter, states, hostId, now]
   )
   const [archivedOpen, setArchivedOpen] = useState(false)
-  const [menuRow, setMenuRow] = useState<PrototypeListRow | null>(null)
-  // Why: a host that predates archiving answers its actions as a missing method, and then offers none.
-  const [hostLacksArchive, setHostLacksArchive] = useState(false)
-  const canAct = client !== null && !hostLacksArchive && hostMayArchivePrototypes(client)
-  const runAction = async (
-    send: (target: { sessionId: string; requestId: string }) => Promise<MobilePrototypeSetAction>,
-    row: PrototypeListRow
-  ): Promise<void> => {
-    const result = await send({ sessionId: row.set.sessionId, requestId: row.set.requestId })
-    if (result.kind === 'unsupported-host') {
-      setHostLacksArchive(true)
-    } else if (result.kind === 'unreachable') {
-      Alert.alert('Could not reach your computer', 'Try again in a moment.')
-    } else if (result.kind === 'refused' && result.error === 'not_deletable') {
-      Alert.alert(
-        'Could not delete',
-        'A set can be deleted only after its chat or worktree is gone.'
-      )
-    }
-    listed.reload()
-  }
-  const confirmDelete = (row: PrototypeListRow): void => {
-    if (client === null) {
-      return
-    }
-    Alert.alert(
-      'Delete this prototype set?',
-      `This removes the files of "${row.title}" from your computer. This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () =>
-            void runAction((target) => deleteMobilePrototypeRequest(client, target), row)
-        }
-      ]
-    )
-  }
-  const menuActions = (row: PrototypeListRow): ActionSheetAction[] => {
-    if (client === null) {
-      return []
-    }
-    if (row.set.archived !== true) {
-      return [
-        {
-          label: 'Archive',
-          icon: Archive,
-          onPress: () =>
-            void runAction((target) => archiveMobilePrototypeRequest(client, target), row)
-        }
-      ]
-    }
-    return [
-      {
-        label: 'Unarchive',
-        icon: ArchiveRestore,
-        onPress: () =>
-          void runAction((target) => unarchiveMobilePrototypeRequest(client, target), row)
-      },
-      ...(row.set.deletable === true
-        ? [
-            {
-              label: 'Delete',
-              destructive: true,
-              closeBeforePress: true,
-              onPress: () => confirmDelete(row)
-            }
-          ]
-        : [])
-    ]
-  }
+  const setActions = useMobilePrototypeSetActions(client, listed.reload)
   // Tiles near the viewport draw their pages; scrolling tells them to look again.
   const viewport = useRef<View>(null)
   const scrollListeners = useRef(new Set<() => void>())
@@ -233,7 +156,7 @@ export function MobilePrototypeListScreen({
                     row={row}
                     client={client}
                     onPress={() => onOpenSet(row)}
-                    onMore={canAct ? () => setMenuRow(row) : undefined}
+                    onMore={setActions.canAct ? () => setActions.openMenu(row) : undefined}
                   />
                 ))}
               </View>
@@ -257,7 +180,7 @@ export function MobilePrototypeListScreen({
                         row={row}
                         client={client}
                         onPress={() => onOpenSet(row)}
-                        onMore={canAct ? () => setMenuRow(row) : undefined}
+                        onMore={setActions.canAct ? () => setActions.openMenu(row) : undefined}
                       />
                     ))
                   : null}
@@ -267,10 +190,10 @@ export function MobilePrototypeListScreen({
         </ArtifactScrollScopeContext.Provider>
       </View>
       <ActionSheetModal
-        visible={menuRow !== null}
-        title={menuRow?.title}
-        actions={menuRow === null ? [] : menuActions(menuRow)}
-        onClose={() => setMenuRow(null)}
+        visible={setActions.menuRow !== null}
+        title={setActions.menuRow?.title}
+        actions={setActions.menuActions}
+        onClose={setActions.closeMenu}
       />
     </SafeAreaView>
   )
