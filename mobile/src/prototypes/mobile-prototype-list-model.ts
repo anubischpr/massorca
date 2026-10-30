@@ -10,6 +10,10 @@ import {
   type PrototypeListRow,
   type PrototypeStatus
 } from '../../../src/shared/prototype-list-model'
+import {
+  activePrototypeSets,
+  archivedPrototypeSets
+} from '../../../src/shared/prototype-archived-sets'
 import type { PrototypeAgent } from '../../../src/shared/prototype-request'
 import type {
   PrototypeListedDesignSystem,
@@ -86,12 +90,26 @@ export function buildMobilePrototypeRows(input: {
   })
 }
 
-/** The menu's count: the sets of this chat. */
+/** The menu's count: the sets of this chat, archived ones left out. */
 export function mobilePrototypeMenuCount(
   sets: readonly PrototypeListedSet[],
   sessionId: string | null
 ): number {
-  return sessionId === null ? 0 : sets.filter((set) => set.sessionId === sessionId).length
+  return sessionId === null
+    ? 0
+    : activePrototypeSets(sets).filter((set) => set.sessionId === sessionId).length
+}
+
+/** The rows of the Archived group, at the end of the list: the archived sets in this scope and filter. */
+export function buildMobilePrototypeArchivedRows(input: {
+  sets: readonly PrototypeListedSet[]
+  scope: MobilePrototypeScope
+  sessionId: string | null
+  filter: PrototypeFilter
+  activeLetterOf: (requestId: string) => string | undefined
+  nowMs: number
+}): PrototypeListRow[] {
+  return buildMobilePrototypeRows({ ...input, sets: archivedPrototypeSets(input.sets) })
 }
 
 /**
@@ -107,14 +125,16 @@ export function buildMobilePrototypeGroups(input: {
   activeLetterOf: (requestId: string) => string | undefined
   nowMs: number
 }): PrototypeListGroup[] {
-  const scoped = mobilePrototypeSetsInScope(input.sets, input.scope, input.sessionId)
+  // Why: archived sets leave the groups and what they count; the Archived group lists them.
+  const active = activePrototypeSets(input.sets)
+  const scoped = mobilePrototypeSetsInScope(active, input.scope, input.sessionId)
   const chatOnly = input.scope === 'chat' && input.sessionId !== null
   const projectKeys = new Set(
     scoped.flatMap((set) => (set.projectKey === undefined ? [] : [set.projectKey]))
   )
   return buildPrototypeListGroups({
     sets: scoped,
-    rows: buildMobilePrototypeRows(input),
+    rows: buildMobilePrototypeRows({ ...input, sets: active }),
     designSystems: chatOnly
       ? input.designSystems.filter(
           (system) =>

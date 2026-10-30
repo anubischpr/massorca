@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   MOBILE_PROTOTYPE_FILTERS,
+  buildMobilePrototypeArchivedRows,
   buildMobilePrototypeGroups,
   buildMobilePrototypeRows,
   mobilePrototypeFilterLabel,
@@ -237,5 +238,42 @@ describe('mobile prototype row and system labels', () => {
   it('reads a detected system as its version and token count, a proposed one as needing review', () => {
     expect(mobilePrototypeSystemLine(NEXUS_SYSTEM)).toBe('Detected · v2 · 24 tokens')
     expect(mobilePrototypeSystemLine(LANDING_SYSTEM)).toBe('Proposed · needs review')
+  })
+})
+
+describe('archived sets in the mobile list', () => {
+  const ARCHIVED = listedSet({
+    requestId: 'req-archived',
+    sessionId: 'session-this',
+    archived: true,
+    projectKey: 'nexus',
+    projectName: 'nexuscare'
+  })
+  const input = {
+    sets: [THIS_CHAT, OTHER_CHAT, ARCHIVED],
+    scope: 'all' as const,
+    sessionId: 'session-this',
+    filter: 'all' as const,
+    activeLetterOf: () => undefined,
+    nowMs: FIXTURE_NOW
+  }
+
+  it('keeps archived sets out of the groups and out of the menu count', () => {
+    const groups = buildMobilePrototypeGroups({ ...input, designSystems: [] })
+    expect(groups.flatMap((group) => group.rows.map((row) => row.set.requestId))).toEqual([
+      'req-this',
+      'req-other'
+    ])
+    expect(mobilePrototypeMenuCount(input.sets, 'session-this')).toBe(1)
+  })
+
+  it('lists them in the Archived rows, under the scope and the agent filter', () => {
+    expect(buildMobilePrototypeArchivedRows(input).map((row) => row.set.requestId)).toEqual([
+      'req-archived'
+    ])
+    expect(
+      buildMobilePrototypeArchivedRows({ ...input, scope: 'chat', sessionId: 'session-other' })
+    ).toEqual([])
+    expect(buildMobilePrototypeArchivedRows({ ...input, filter: 'claude' })).toEqual([])
   })
 })

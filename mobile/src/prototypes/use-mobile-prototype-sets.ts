@@ -14,8 +14,13 @@ const REFRESH_MS = 10_000
 // The last listing per host: a screen opened from another starts with what that one read.
 const lastListing = new Map<string, MobilePrototypeSetsState>()
 
+export type MobilePrototypeSetsListing = MobilePrototypeSetsState & {
+  /** Lists again now, so an archive or a delete shows without waiting for the next refresh. */
+  reload: () => void
+}
+
 /** The host's prototype sets, across chats; refreshed while the screen is focused. */
-export function useMobilePrototypeSets(hostId: string): MobilePrototypeSetsState {
+export function useMobilePrototypeSets(hostId: string): MobilePrototypeSetsListing {
   const { client } = useHostClient(hostId)
   const [state, setState] = useState(() => lastListing.get(hostId) ?? LOADING_PROTOTYPE_SETS)
   const stateRef = useRef(state)
@@ -40,5 +45,5 @@ export function useMobilePrototypeSets(hostId: string): MobilePrototypeSetsState
       return () => clearInterval(timer)
     }, [load])
   )
-  return state
+  return { ...state, reload: () => void load() }
 }
