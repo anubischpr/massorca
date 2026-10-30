@@ -159,6 +159,20 @@ describe('the review', () => {
     expect(setPartSource(unchanged, 0, 'B')).toBe(unchanged)
   })
 
+  it('keeps a part present in one direction on that source', () => {
+    const json = JSON.stringify({
+      id: 'plan-1',
+      from: ['A', 'C'],
+      parts: [{ name: 'Timeline', kind: 'section', selectors: { C: '.timeline' }, from: 'C' }]
+    })
+    const parsedPlan = parsePrototypeMergePlan(json)
+    if (parsedPlan === null) {
+      throw new Error('expected a valid plan')
+    }
+    const state = planArrived(waiting(), parsedPlan, json)
+    expect(setPartSource(state, 0, 'A')).toBe(state)
+  })
+
   it('leaves a part out and takes it back in', () => {
     const out = togglePart(reviewing(), 1)
     expect(out.merge?.phase === 'review' && out.merge.parts[1]?.on).toBe(false)

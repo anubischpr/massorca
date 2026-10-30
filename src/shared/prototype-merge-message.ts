@@ -7,7 +7,10 @@ import {
   neutralizePrototypeMarkers,
   prototypeMergeMarkerLine
 } from './prototype-hidden-instruction'
-import type { PrototypeMergeReviewPart } from './prototype-merge-plan'
+import {
+  PROTOTYPE_MERGE_PLAN_PARTS_MAX,
+  type PrototypeMergeReviewPart
+} from './prototype-merge-plan'
 import { joinFolderPath } from './prototype-request'
 import {
   DIRECTION_LETTER_PATTERN,
@@ -65,14 +68,17 @@ export function buildMergeSuggestionMessage(
     parts: [
       {
         name: '<short name of the part>',
-        selector: '<CSS selector of the part>',
+        kind: '<section or component>',
+        selectors: Object.fromEntries(
+          input.letters.map((letter) => [letter, `<CSS selector of the part in ${letter}>`])
+        ),
         from: '<letter of the direction to take it from>'
       }
     ]
   })
   const hidden = [
     prototypeMergeMarkerLine(input.requestId, 'suggest'),
-    `${MERGE_SUGGEST_INSTRUCTION_PREFIX}${plan} and stop. Compare the latest version of directions ${joinDirectionLetters(input.letters)} in this request and list the parts worth combining into one direction, each taken from one of them. The file is JSON of this shape: ${shape}. Do not write the merged direction yet, and do not modify other files.`
+    `${MERGE_SUGGEST_INSTRUCTION_PREFIX}${plan} and stop. Compare the latest version of directions ${joinDirectionLetters(input.letters)} in this request and list every section of each direction in page order, plus the notable components, at most ${PROTOTYPE_MERGE_PLAN_PARTS_MAX} parts in all, each taken from one of them. Pair the parts that play the same role in two directions into one part. Give each part its kind (section or component) and a selectors entry for every direction that has it, matching an element in that direction's latest version; a part that exists in one direction has one entry and is taken from that direction. The file is JSON of this shape: ${shape}. Do not write the merged direction yet, and do not modify other files.`
   ]
   return { visibleText, sentText: `${visibleText}\n\n${hidden.join('\n')}` }
 }
@@ -83,7 +89,7 @@ export function buildMergeMessage(input: PrototypeMergeInput): PrototypeMergeMes
   const lines = [`Merge into ${input.letter}.`]
   for (const part of input.parts) {
     const origin = part.on ? `from ${part.from}` : 'left out'
-    lines.push(`${singleLine(part.name)} (${singleLine(part.selector)}): ${origin}`)
+    lines.push(`${singleLine(part.name)} (${selectorsOf(part, input.letters)}): ${origin}`)
   }
   const note = input.note.trim()
   if (note.length > 0) {
@@ -106,6 +112,15 @@ function assertLetters(letters: readonly string[]): void {
   if (!letters.every((letter) => DIRECTION_LETTER_PATTERN.test(letter))) {
     throw new RangeError('A merge names directions by their letters')
   }
+}
+
+// "A: sel; B: sel" for the directions the part has, in the merge's order.
+function selectorsOf(part: PrototypeMergeReviewPart, letters: readonly string[]): string {
+  const entries = letters.flatMap((letter) => {
+    const selector = part.selectors[letter]
+    return selector === undefined ? [] : [`${letter}: ${singleLine(selector)}`]
+  })
+  return entries.join('; ')
 }
 
 // Each part stays on one line, so a multi-line name cannot break the list.

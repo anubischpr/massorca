@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   isPlanForRequest,
+  chosenSelectorOf,
   keptMergeParts,
   mergeMarkOf,
   nextFreeDirectionLetter,
@@ -103,11 +104,86 @@ describe('isPlanForRequest', () => {
 })
 
 describe('the review parts', () => {
-  it('starts every part kept, from the source the plan suggested', () => {
+  it('reads an old plan with one selector as sections that both directions can supply', () => {
     expect(reviewPartsOf(parsed())).toEqual([
-      { id: 0, name: 'Heading', selector: 'main > h1', suggested: 'A', from: 'A', on: true },
-      { id: 1, name: 'Pay button', selector: 'button.cta', suggested: 'C', from: 'C', on: true }
+      {
+        id: 0,
+        name: 'Heading',
+        kind: 'section',
+        selectors: { A: 'main > h1', C: 'main > h1' },
+        selector: 'main > h1',
+        suggested: 'A',
+        from: 'A',
+        on: true
+      },
+      {
+        id: 1,
+        name: 'Pay button',
+        kind: 'section',
+        selectors: { A: 'button.cta', C: 'button.cta' },
+        selector: 'button.cta',
+        suggested: 'C',
+        from: 'C',
+        on: true
+      }
     ])
+  })
+
+  it('reads a part present in two directions, with its kind and one selector per direction', () => {
+    const [part] = reviewPartsOf(
+      parsed({
+        ...PLAN,
+        parts: [
+          {
+            name: 'Primary button',
+            kind: 'component',
+            selectors: { A: 'button.primary', C: '.cta-button' },
+            from: 'C'
+          }
+        ]
+      })
+    )
+    expect(part).toMatchObject({
+      kind: 'component',
+      selectors: { A: 'button.primary', C: '.cta-button' },
+      from: 'C'
+    })
+    expect(part && chosenSelectorOf(part)).toBe('.cta-button')
+    expect(part && mergeMarkOf(part)).toBe('suggested')
+    expect(part && mergeMarkOf({ ...part, from: 'A' })).toBe('changed')
+  })
+
+  it('locks a part present in one direction to that source and marks it only in', () => {
+    const [part] = reviewPartsOf(
+      parsed({ ...PLAN, parts: [{ name: 'Timeline', selectors: { C: '.timeline' }, from: 'C' }] })
+    )
+    expect(part?.selectors).toEqual({ C: '.timeline' })
+    expect(part && mergeMarkOf(part)).toBe('only in')
+    expect(part && mergeMarkOf({ ...part, on: false })).toBe('left out')
+  })
+
+  it('refuses a part with no selector in the direction it comes from', () => {
+    const plan = {
+      ...PLAN,
+      parts: [{ name: 'Timeline', selectors: { A: '.timeline' }, from: 'C' }]
+    }
+    expect(parsePrototypeMergePlan(JSON.stringify(plan))).toBeNull()
+  })
+
+  it('ignores selectors for a letter the plan does not merge', () => {
+    const [part] = reviewPartsOf(
+      parsed({
+        ...PLAN,
+        parts: [{ name: 'Hero', selectors: { A: '.hero', C: '#hero', Z: '#other' }, from: 'A' }]
+      })
+    )
+    expect(part?.selectors).toEqual({ A: '.hero', C: '#hero' })
+  })
+
+  it('marks a part with no match in the preview as no preview while it is kept', () => {
+    const [part] = reviewPartsOf(parsed())
+    expect(part && mergeMarkOf(part, 'unmatched')).toBe('no preview')
+    expect(part && mergeMarkOf({ ...part, on: false }, 'unmatched')).toBe('left out')
   })
 
   it('marks a part suggested, changed or left out', () => {

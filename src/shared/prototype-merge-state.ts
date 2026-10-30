@@ -104,13 +104,18 @@ export function togglePart(state: PrototypeSetState, index: number): PrototypeSe
   )
 }
 
-/** The segmented source of a part; only a starred letter is a source. */
+/** The segmented source of a part; only a starred letter the part has is a source. */
 export function setPartSource(
   state: PrototypeSetState,
   index: number,
   letter: string
 ): PrototypeSetState {
-  if (state.merge?.phase !== 'review' || !state.merge.letters.includes(letter)) {
+  const { merge } = state
+  if (
+    merge?.phase !== 'review' ||
+    !merge.letters.includes(letter) ||
+    merge.parts[index]?.selectors[letter] === undefined
+  ) {
     return state
   }
   return withParts(state, (parts) =>

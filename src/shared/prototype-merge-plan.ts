@@ -6,16 +6,27 @@ import { DIRECTION_LETTER_PATTERN, PROTOTYPE_DIRECTION_LETTERS } from './prototy
 
 /** Largest merge-plan.json the host serves and a client parses. */
 export const PROTOTYPE_MERGE_PLAN_MAX_BYTES = 64 * 1024
-export const PROTOTYPE_MERGE_PLAN_PARTS_MAX = 24
+// Why: every section of two directions plus their components, with parts present in one direction only.
+export const PROTOTYPE_MERGE_PLAN_PARTS_MAX = 48
 const PART_NAME_MAX_LENGTH = 80
 const PART_SELECTOR_MAX_LENGTH = 300
 const PLAN_ID_MAX_LENGTH = 64
 
 const LetterSchema = z.string().regex(DIRECTION_LETTER_PATTERN)
 
+const SelectorSchema = z.string().trim().min(1).max(PART_SELECTOR_MAX_LENGTH)
+
+export const PrototypeMergePartKindSchema = z.enum(['section', 'component'])
+export type PrototypeMergePartKind = z.infer<typeof PrototypeMergePartKindSchema>
+
 export const PrototypeMergePlanPartSchema = z.object({
   name: z.string().trim().min(1).max(PART_NAME_MAX_LENGTH),
-  selector: z.string().trim().min(1).max(PART_SELECTOR_MAX_LENGTH),
+  /** Absent means a section, so a plan written before kinds existed reads as sections. */
+  kind: PrototypeMergePartKindSchema.optional(),
+  /** The part's selector in the `from` direction; a plan written before `selectors` carries only this. */
+  selector: SelectorSchema.optional(),
+  /** One selector per direction that has the part; a part in one direction has one entry. */
+  selectors: z.record(z.string(), SelectorSchema).optional(),
   /** The starred direction the part is taken from. */
   from: LetterSchema
 })
@@ -33,6 +44,11 @@ export const PrototypeMergePlanSchema = z
   .refine((plan) => plan.parts.every((part) => plan.from.includes(part.from)), {
     message: 'A part comes from a direction the plan merges'
   })
+  .refine(
+    (plan) =>
+      plan.parts.every((part) => (part.selectors?.[part.from] ?? part.selector) !== undefined),
+    { message: 'A part has a selector in the direction it comes from' }
+  )
 
 export type PrototypeMergePlan = z.infer<typeof PrototypeMergePlanSchema>
 
@@ -56,6 +72,10 @@ export type PrototypeMergeReviewPart = {
   /** The part's place in the plan; stable while the review is open. */
   id: number
   name: string
+  kind: PrototypeMergePartKind
+  /** The part's selector in each direction that has it; its letters are the part's possible sources. */
+  selectors: Readonly<Record<string, string>>
+  /** The selector of the suggested source; the phone sheet reads this until it reads `selectors`. */
   selector: string
   suggested: string
   from: string
@@ -114,21 +134,54 @@ export function isPlanForRequest(
 
 /** The review's parts: each one kept, from the source the plan suggested. */
 export function reviewPartsOf(plan: PrototypeMergePlan): PrototypeMergeReviewPart[] {
-  return plan.parts.map((part, id) => ({
-    id,
-    name: part.name,
-    selector: part.selector,
-    suggested: part.from,
-    from: part.from,
-    on: true
-  }))
+  return plan.parts.map((part, id) => {
+    // A plan without `selectors` has one selector, taken to fit every merged direction.
+    const entries =
+      part.selectors === undefined
+        ? plan.from.map((letter): [string, string | undefined] => [letter, part.selector])
+        : plan.from.map((letter): [string, string | undefined] => [
+            letter,
+            part.selectors?.[letter] ?? (letter === part.from ? part.selector : undefined)
+          ])
+    const selectors: Record<string, string> = {}
+    for (const [letter, selector] of entries) {
+      if (selector !== undefined) {
+        selectors[letter] = selector
+      }
+    }
+    return {
+      id,
+      name: part.name,
+      kind: part.kind ?? 'section',
+      selectors,
+      selector: selectors[part.from] ?? '',
+      suggested: part.from,
+      from: part.from,
+      on: true
+    }
+  })
 }
 
-export type PrototypeMergeMark = 'suggested' | 'changed' | 'left out'
+/** The selector of the direction the part is taken from. */
+export function chosenSelectorOf(part: PrototypeMergeReviewPart): string {
+  return part.selectors[part.from] ?? part.selector
+}
 
-export function mergeMarkOf(part: PrototypeMergeReviewPart): PrototypeMergeMark {
+/** `no preview` is the renderer's: the selector did not match in the composed preview. */
+export type PrototypeMergeMark = 'suggested' | 'changed' | 'left out' | 'only in' | 'no preview'
+
+export function mergeMarkOf(
+  part: PrototypeMergeReviewPart,
+  placement: 'placed' | 'unmatched' = 'placed'
+): PrototypeMergeMark {
   if (!part.on) {
     return 'left out'
+  }
+  if (placement === 'unmatched') {
+    return 'no preview'
+  }
+  if (Object.keys(part.selectors).length === 1) {
+    return 'only in'
   }
   return part.from === part.suggested ? 'suggested' : 'changed'
 }

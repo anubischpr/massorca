@@ -14,9 +14,36 @@ const REQUEST_ID = '20261028-201500-k3f9q2'
 const FOLDER = `C:/chat/prototypes/${REQUEST_ID}`
 
 const PARTS: PrototypeMergeReviewPart[] = [
-  { id: 0, name: 'Heading', selector: 'main > h1', suggested: 'A', from: 'A', on: true },
-  { id: 1, name: 'Pay button', selector: 'button.cta', suggested: 'C', from: 'A', on: true },
-  { id: 2, name: 'Order summary', selector: 'aside.summary', suggested: 'A', from: 'A', on: false }
+  {
+    id: 0,
+    name: 'Heading',
+    kind: 'section',
+    selectors: { A: 'main > h1', C: '.hero h1' },
+    selector: 'main > h1',
+    suggested: 'A',
+    from: 'A',
+    on: true
+  },
+  {
+    id: 1,
+    name: 'Pay button',
+    kind: 'component',
+    selectors: { A: 'button.pay', C: 'button.cta' },
+    selector: 'button.cta',
+    suggested: 'C',
+    from: 'A',
+    on: true
+  },
+  {
+    id: 2,
+    name: 'Order summary',
+    kind: 'section',
+    selectors: { A: 'aside.summary' },
+    selector: 'aside.summary',
+    suggested: 'A',
+    from: 'A',
+    on: false
+  }
 ]
 
 describe('joinDirectionLetters', () => {
@@ -49,6 +76,13 @@ describe('the merge suggestion request', () => {
     expect(message.sentText).toContain('"id":"m1"')
     expect(message.sentText).toContain('"from":["A","C"]')
     expect(message.sentText).toContain('"parts":[{"name"')
+    expect(message.sentText).toContain('"kind":"<section or component>"')
+    expect(message.sentText).toContain(
+      '"selectors":{"A":"<CSS selector of the part in A>","C":"<CSS selector of the part in C>"}'
+    )
+    expect(message.sentText).toContain('list every section of each direction in page order')
+    expect(message.sentText).toContain('plus the notable components')
+    expect(message.sentText).toContain('a part that exists in one direction has one entry')
     expect(message.sentText).toContain('Do not write the merged direction yet')
   })
 
@@ -86,9 +120,9 @@ describe('the merge message', () => {
     expect(buildMergeMessage(base).visibleText).toBe(
       [
         'Merge into D.',
-        'Heading (main > h1): from A',
-        'Pay button (button.cta): from A',
-        'Order summary (aside.summary): left out',
+        'Heading (A: main > h1; C: .hero h1): from A',
+        'Pay button (A: button.pay; C: button.cta): from A',
+        'Order summary (A: aside.summary): left out',
         '',
         'Keep the heading small.'
       ].join('\n')
@@ -117,9 +151,9 @@ describe('the merge message', () => {
     }
     const text = buildMergeMessage({
       ...base,
-      parts: [{ ...heading, name: 'Two\n  lines', selector: 'a\nb' }]
+      parts: [{ ...heading, name: 'Two\n  lines', selectors: { A: 'a\nb' } }]
     }).visibleText
-    expect(text.split('\n')[1]).toBe('Two lines (a b): from A')
+    expect(text.split('\n')[1]).toBe('Two lines (A: a b): from A')
   })
 
   it('never lets a marker typed by the user, or in a part name, become a hidden instruction', () => {
