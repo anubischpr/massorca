@@ -12,6 +12,10 @@ import {
   type NativeChatVisualsSweepDeps,
   type NativeChatVisualsWorkspaceVerdict
 } from './native-chat-visuals-sweep'
+import { deletePrototypeRequest, setPrototypeRequestArchived } from './prototype-request-lifecycle'
+import { listPrototypeSets } from './prototype-requests'
+
+const REQUEST = '20261028-201500-aaaaaa'
 
 const scratch: string[] = []
 afterEach(() => {
@@ -32,6 +36,26 @@ function visualsFor(state: string, sessionId: string): string {
   mkdirSync(folder, { recursive: true })
   writeFileSync(join(folder, 'chart.html'), '<p>chart</p>')
   return folder
+}
+
+// A request folder under the chat's `prototypes/`, written the way the host writes one.
+function addRequest(folder: string, sessionId: string): string {
+  const request = join(folder, 'prototypes', REQUEST)
+  mkdirSync(request, { recursive: true })
+  writeFileSync(
+    join(request, 'request.json'),
+    JSON.stringify({
+      version: 1,
+      requestId: REQUEST,
+      agent: 'claude',
+      sessionId,
+      originalPrompt: 'a dashboard',
+      count: 1,
+      createdAt: '2026-10-28T20:15:00.000Z'
+    })
+  )
+  writeFileSync(join(request, 'A.html'), '<p>a</p>')
+  return request
 }
 
 const location = (workspaceId: string): AgentSessionExecutionLocation => ({
@@ -185,5 +209,76 @@ describe('the visuals folder sweep', () => {
     const workspaceVerdicts = vi.fn(() => async () => 'present' as const)
     await sweepNativeChatVisualsFolders({ ...deps(state, ['chat-a', 'chat-b']), workspaceVerdicts })
     expect(workspaceVerdicts).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the prototype requests of a deleted chat and removes only the rest of its folder', async () => {
+    const state = stateDirectory()
+    const folder = visualsFor(state, 'chat-deleted')
+    const request = addRequest(folder, 'chat-deleted')
+    await expect(sweepNativeChatVisualsFolders(deps(state, []))).resolves.toEqual({
+      removed: 1,
+      failed: 0
+    })
+    expect(existsSync(join(folder, 'chart.html'))).toBe(false)
+    expect(existsSync(join(request, 'request.json'))).toBe(true)
+  })
+
+  it('keeps the prototype requests of a chat whose workspace was removed', async () => {
+    const state = stateDirectory()
+    const folder = visualsFor(state, 'chat-a')
+    const request = addRequest(folder, 'chat-a')
+    await sweepNativeChatVisualsFolders(deps(state, ['chat-a'], { 'ws-chat-a': 'removed' }))
+    expect(existsSync(join(folder, 'chart.html'))).toBe(false)
+    expect(existsSync(join(request, 'A.html'))).toBe(true)
+  })
+
+  it('counts nothing on later runs once only the prototype requests are left', async () => {
+    const state = stateDirectory()
+    const folder = visualsFor(state, 'chat-deleted')
+    addRequest(folder, 'chat-deleted')
+    await sweepNativeChatVisualsFolders(deps(state, []))
+    await expect(sweepNativeChatVisualsFolders(deps(state, []))).resolves.toEqual({
+      removed: 0,
+      failed: 0
+    })
+    expect(existsSync(join(folder, 'prototypes', REQUEST, 'A.html'))).toBe(true)
+  })
+
+  it('removes a folder whose prototypes folder holds no request folder', async () => {
+    const state = stateDirectory()
+    const folder = visualsFor(state, 'chat-deleted')
+    mkdirSync(join(folder, 'prototypes'))
+    writeFileSync(join(folder, 'prototypes', 'stray.txt'), 'not a request')
+    await sweepNativeChatVisualsFolders(deps(state, []))
+    expect(existsSync(folder)).toBe(false)
+  })
+
+  it("keeps a deleted chat's unarchived set through the sweep, so it lists, archives and deletes", async () => {
+    const state = stateDirectory()
+    const folder = visualsFor(state, 'chat-deleted')
+    const request = addRequest(folder, 'chat-deleted')
+    await sweepNativeChatVisualsFolders(deps(state, []))
+    expect((await listPrototypeSets({ stateDirectory: state })).sets.map((set) => set.requestId)).toEqual([
+      REQUEST
+    ])
+    await expect(
+      setPrototypeRequestArchived({
+        stateDirectory: state,
+        sessionId: 'chat-deleted',
+        requestId: REQUEST,
+        archived: true,
+        canAct: () => true
+      })
+    ).resolves.toEqual({ ok: true })
+    await expect(
+      deletePrototypeRequest({
+        stateDirectory: state,
+        sessionId: 'chat-deleted',
+        requestId: REQUEST,
+        canAct: () => true,
+        isDeletable: async () => true
+      })
+    ).resolves.toEqual({ ok: true })
+    expect(existsSync(request)).toBe(false)
   })
 })

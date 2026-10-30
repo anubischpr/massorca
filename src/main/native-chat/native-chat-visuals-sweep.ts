@@ -3,6 +3,8 @@
 //   1. a folder no chat record (readable or not) maps to is removed, so any future record
 //      deletion cleans up for free;
 //   2. a folder whose chat ran in a local workspace this host can prove was removed is removed.
+// A prototype request is deleted only by the user, from the Archived group, so a folder that holds
+// one keeps its `prototypes/` folder: both rules remove the rest of the folder and nothing more.
 // Anything unproven is kept. A failure is logged and never blocks anything else.
 
 import type { Dirent } from 'node:fs'
@@ -11,6 +13,7 @@ import { join } from 'node:path'
 import type { AgentSessionExecutionLocation } from '../../shared/agent-session-record'
 import { isDefinitiveAbsence } from '../../shared/definitive-filesystem-absence'
 import { yieldToEventLoop } from '../../shared/event-loop-yield'
+import { PROTOTYPE_FOLDER } from '../../shared/prototype-request-folder'
 import type { StructuredAgentSessionLogger } from './agent-session-wire/structured-agent-session-logger'
 import { nativeChatVisualsFolderName, nativeChatVisualsRootFor } from './native-chat-visuals-folder'
 
@@ -93,8 +96,9 @@ export async function sweepNativeChatVisualsFolders(
       continue
     }
     try {
-      await remove(join(root, entry.name))
-      result.removed += 1
+      if (await removeOutsidePrototypes(join(root, entry.name), remove)) {
+        result.removed += 1
+      }
     } catch (error) {
       result.failed += 1
       deps.logger.warn('native-chat visuals folder could not be removed', {
@@ -106,6 +110,44 @@ export async function sweepNativeChatVisualsFolders(
     }
   }
   return result
+}
+
+/**
+ * Removes a chat's visuals folder, except its `prototypes/` folder when that holds a request folder: that stays
+ * whole. True when anything was removed.
+ */
+async function removeOutsidePrototypes(
+  folder: string,
+  remove: (path: string) => Promise<void>
+): Promise<boolean> {
+  const entries = await entriesOf(folder)
+  const prototypes = entries.find((entry) => entry.name === PROTOTYPE_FOLDER)
+  if (!prototypes?.isDirectory() || !(await holdsRequestFolder(join(folder, PROTOTYPE_FOLDER)))) {
+    await remove(folder)
+    return true
+  }
+  const rest = entries.filter((entry) => entry.name !== PROTOTYPE_FOLDER)
+  for (const entry of rest) {
+    await remove(join(folder, entry.name))
+  }
+  return rest.length > 0
+}
+
+// A Dirent is the entry itself, so a linked folder is never taken for a request the user may delete.
+async function holdsRequestFolder(prototypes: string): Promise<boolean> {
+  return (await entriesOf(prototypes)).some((entry) => entry.isDirectory())
+}
+
+// An absent folder holds nothing; any other failure throws, so nothing under it is removed on a guess.
+async function entriesOf(folder: string): Promise<Dirent[]> {
+  try {
+    return await readdir(folder, { withFileTypes: true })
+  } catch (error) {
+    if (isDefinitiveAbsence(error)) {
+      return []
+    }
+    throw error
+  }
 }
 
 async function removedWorkspace(
