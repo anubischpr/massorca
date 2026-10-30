@@ -1,10 +1,8 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
-import {
-  activateStructuredAgentSessionById,
-  findStructuredAgentSessionWorktreeId
-} from '@/lib/structured-agent-session-tab-activation'
+import { openStructuredChatInWorktree } from '@/lib/activate-ai-vault-structured-session'
+import { findStructuredAgentSessionWorktreeId } from '@/lib/structured-agent-session-tab-activation'
 import { useAppStore } from '@/store'
 import {
   delegatedChildrenFromJournal,
@@ -121,7 +119,7 @@ export function NativeChatDelegatedChildRow({
             }
           )}
           onClick={() => {
-            activateStructuredAgentSessionById({
+            openStructuredChatInWorktree({
               worktreeId: childWorktreeId,
               sessionId: childSessionId
             })

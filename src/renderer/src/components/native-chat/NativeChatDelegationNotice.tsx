@@ -2,10 +2,8 @@ import { AlertCircle, Check, CornerDownRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { useNow } from '@/hooks/use-now'
-import {
-  activateStructuredAgentSessionById,
-  findStructuredAgentSessionWorktreeId
-} from '@/lib/structured-agent-session-tab-activation'
+import { openStructuredChatInWorktree } from '@/lib/activate-ai-vault-structured-session'
+import { findStructuredAgentSessionWorktreeId } from '@/lib/structured-agent-session-tab-activation'
 import { useAppStore } from '@/store'
 import type {
   DelegationFailedPayload,
@@ -106,7 +104,7 @@ function WorkingNotice({
           variant="outline"
           size="sm"
           onClick={() => {
-            activateStructuredAgentSessionById({
+            openStructuredChatInWorktree({
               worktreeId: childWorktreeId,
               sessionId: payload.childSessionId
             })
@@ -197,7 +195,7 @@ function FinishedNotice({ payload }: { payload: DelegationFinishedPayload }): Re
             variant="outline"
             size="sm"
             onClick={() => {
-              activateStructuredAgentSessionById({
+              openStructuredChatInWorktree({
                 worktreeId: childWorktreeId,
                 sessionId: childSessionId
               })
