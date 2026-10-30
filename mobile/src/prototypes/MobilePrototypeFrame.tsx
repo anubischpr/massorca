@@ -9,7 +9,7 @@ import { MobileNativeChatVisualFrame } from '../session/MobileNativeChatVisualFr
 import { colors } from '../theme/mobile-theme'
 import { capturePrototypePin } from './mobile-prototype-capture'
 import type { MobilePrototypeFrameHandle } from './mobile-prototype-capture-math'
-import { prototypeFrameLayout } from './mobile-prototype-frame-layout'
+import { prototypeFrameLayout } from '../../../src/shared/prototype-frames'
 import type { MobilePrototypeFileHtml } from './use-mobile-prototype-file'
 
 const AREA_PADDING = 16

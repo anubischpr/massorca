@@ -109,6 +109,15 @@ describe('sendPrototypeIteration', () => {
     expect(text).toContain('A-v2.html')
   })
 
+  it('scales a pin rect by the frame scale', async () => {
+    const fakes = makeDeps()
+    await sendPrototypeIteration(
+      { state: editedState(), set: SET, frameOrigin: FRAME, scale: 0.5 },
+      fakes.deps
+    )
+    expect(fakes.captureRect).toHaveBeenCalledWith({ x: 105, y: 60, width: 60, height: 20 })
+  })
+
   it('sends without screenshots from a client that cannot capture its window', async () => {
     const sendMessage = vi.fn(async (_text: string) => true)
     const outcome = await sendPrototypeIteration(

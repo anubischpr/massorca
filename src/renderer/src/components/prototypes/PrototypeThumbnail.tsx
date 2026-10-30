@@ -5,11 +5,8 @@ import type {
   PrototypeListedSet
 } from '../../../../shared/rpc-contract/prototype-params'
 import { latestVersionOf } from '../../../../shared/prototype-list-model'
-import { PROTOTYPE_FRAME_WIDTH } from './PrototypeFrame'
+import { PROTOTYPE_FRAMES } from '../../../../shared/prototype-frames'
 import { usePrototypeFileHtml } from './use-prototype-file-html'
-
-/** The design height of a thumbnail's page by viewport: a desktop page is 1.6:1, a phone page as tall as its frame. */
-const THUMBNAIL_DESIGN_HEIGHT = { desktop: 400, phone: 640 } as const
 
 /** A live, scaled-down render of a direction's latest version; it takes no pointer input. */
 export function PrototypeThumbnail({
@@ -19,11 +16,10 @@ export function PrototypeThumbnail({
 }: {
   set: PrototypeListedSet
   direction: PrototypeListedDirection | undefined
-  /** The page is drawn at this viewport's frame width, so a phone thumbnail is a phone-width page. */
-  viewport?: keyof typeof PROTOTYPE_FRAME_WIDTH
+  /** The page is drawn at this viewport's artboard, so a phone thumbnail is a phone-size page. */
+  viewport?: keyof typeof PROTOTYPE_FRAMES
 }): React.JSX.Element {
-  const designWidth = PROTOTYPE_FRAME_WIDTH[viewport]
-  const designHeight = THUMBNAIL_DESIGN_HEIGHT[viewport]
+  const { width: designWidth, height: designHeight } = PROTOTYPE_FRAMES[viewport]
   const latest = latestVersionOf(direction)
   const file = usePrototypeFileHtml(
     latest === null
@@ -52,7 +48,7 @@ export function PrototypeThumbnail({
     >
       {file.status === 'ready' ? (
         <div
-          className="absolute top-0 left-0 origin-top-left"
+          className="absolute top-0 left-0 flex origin-top-left flex-col"
           style={{
             width: designWidth,
             height: designHeight,
