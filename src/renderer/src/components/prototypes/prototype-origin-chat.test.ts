@@ -6,6 +6,7 @@ const PARENT = 'parent-session'
 
 function agentTab(worktreeId: string, entityId: string, label: string, customLabel: string | null) {
   // SAFETY: the lookup reads only the fields set here; the rest of Tab is not used by originChatOf.
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the origin lookup reads only the fields set here.
   return {
     id: `tab-${entityId}`,
     worktreeId,

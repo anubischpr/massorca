@@ -576,6 +576,7 @@ describe('PrototypeViewer origin link', () => {
 
 function parentTab(worktreeId: string, entityId: string, label: string): Tab {
   // SAFETY: the origin lookup reads only these fields; the rest of Tab is not used by it.
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the origin lookup reads only the fields set here.
   return {
     id: `tab-${entityId}`,
     worktreeId,
