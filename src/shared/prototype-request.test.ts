@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildPrototypeCountLine } from './prototype-count-setting'
+import { prototypeDesignBrief, PROTOTYPE_VERSION_CRAFT_LINE } from './prototype-design-brief'
 import { neutralizePrototypeMarkers } from './prototype-hidden-instruction'
 import {
   buildPrototypeIterationInstruction,
@@ -31,7 +32,8 @@ const TWO_DIRECTIONS = [
   `${FOLDER}/A.html`,
   `${FOLDER}/B.html`,
   'Write nothing else in that folder. Do not announce these files as chat visuals. Reply with one line per direction: its letter, a short name, and a one-line tradeoff.',
-  DIRECTIONS_LINE
+  DIRECTIONS_LINE,
+  prototypeDesignBrief(2)
 ].join('\n')
 
 describe('PROTOTYPE_NATIVE_COMMANDS', () => {
@@ -198,12 +200,14 @@ describe('buildPrototypeRequestMessage', () => {
       })
     ).toEqual({
       visibleText: '/prototype make a login page',
-      sentText: `/gentle:design make a login page\n\n${MARKER}\n${buildPrototypeCountLine(3)}\n${typedEcho('/prototype make a login page')}`
+      sentText: `/gentle:design make a login page\n\n${MARKER}\n${buildPrototypeCountLine(3)}\n${prototypeDesignBrief(3)}\n${typedEcho('/prototype make a login page')}`
     })
     expect(
       buildPrototypeRequestMessage({ ...base, text: '/prototipo', agent: 'gentle-shell', count: 1 })
         .sentText
-    ).toBe(`/gentle:design\n\n${MARKER}\n${ONE_LINE}\n${typedEcho('/prototipo')}`)
+    ).toBe(
+      `/gentle:design\n\n${MARKER}\n${ONE_LINE}\n${prototypeDesignBrief(1)}\n${typedEcho('/prototipo')}`
+    )
   })
 
   it('sends /prototype on Gentle Shell as the plain instruction, with folder paths, when it would be a control subcommand', () => {
@@ -298,6 +302,7 @@ describe('buildPrototypeRequestMessage', () => {
         `${FOLDER}/A.html`,
         'Write nothing else in that folder. Do not announce this file as a chat visual. Reply with one line: its letter, a short name, and a one-line tradeoff.',
         DIRECTIONS_LINE,
+        prototypeDesignBrief(1),
         typedEcho('/prototype a login page')
       ].join('\n')
     )
@@ -507,7 +512,8 @@ describe('buildPrototypeIterationInstruction', () => {
     expect(buildPrototypeIterationInstruction({ ...base, letter: 'B', nextVersion: 2 })).toBe(
       [
         `<!-- orca-prototype-iteration:${REQUEST_ID}:B -->`,
-        `Write the new version of direction B as ${FOLDER}/B-v2.html, self-contained with inline CSS and no external network resources, and do not modify other files.`
+        `Write the new version of direction B as ${FOLDER}/B-v2.html, self-contained with inline CSS and no external network resources, and do not modify other files.`,
+        PROTOTYPE_VERSION_CRAFT_LINE
       ].join('\n')
     )
   })

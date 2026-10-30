@@ -1,5 +1,6 @@
 // The two messages of a merge, each with the visible text the chat shows and a hidden block, opened
 // by a merge marker, for the agent: the plan request, and the merge itself.
+import { PROTOTYPE_VERSION_CRAFT_LINE } from './prototype-design-brief'
 import {
   mergeBuildInstructionPrefix,
   MERGE_SUGGEST_INSTRUCTION_PREFIX,
@@ -95,6 +96,7 @@ export function buildMergeMessage(input: PrototypeMergeInput): PrototypeMergeMes
   const hidden = [
     prototypeMergeMarkerLine(input.requestId, input.letter),
     `${mergeBuildInstructionPrefix(input.letter)}${file}, self-contained with inline CSS and no external network resources, built from the parts above: take each part from the latest version of the direction it names, and leave out the parts marked left out.`,
+    PROTOTYPE_VERSION_CRAFT_LINE,
     `Then add ${input.letter} to ${directions} with the name "Merged from ${input.letters.join(' + ')}" and a one-line tradeoff, keeping its other entries as they are. Do not modify other files.`
   ]
   return { visibleText, sentText: `${visibleText}\n\n${hidden.join('\n')}` }
