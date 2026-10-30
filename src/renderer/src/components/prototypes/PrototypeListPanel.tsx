@@ -1,24 +1,15 @@
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import type { PrototypeListGroup } from '../../../../shared/prototype-list-groups'
-import {
-  PROTOTYPE_FILTERS,
-  type PrototypeFilter,
-  type PrototypeListRow
-} from '../../../../shared/prototype-list-model'
-import { joinParts } from '../../../../shared/prototype-design-system-view'
+import { PROTOTYPE_FILTERS, type PrototypeFilter } from '../../../../shared/prototype-list-model'
 import type { PrototypeListedDesignSystem } from '../../../../shared/rpc-contract/prototype-params'
-import {
-  prototypeAgentLabel,
-  prototypeBuiltOnLabel,
-  prototypeFilterLabel,
-  prototypeStatusLabel,
-  prototypeSystemLine
-} from './prototype-labels'
+import { PrototypeArchivedGroup, type PrototypeArchiveControls } from './PrototypeArchivedGroup'
+import { PrototypeSetRow } from './PrototypeSetRow'
+import { prototypeFilterLabel, prototypeSystemLine } from './prototype-labels'
 
 /**
  * The left column: the heading, the agent filter, and one group per project: its name, its design system
- * row, then its sets, newest first.
+ * row, then its sets, newest first. Archived sets follow in a collapsed group when `archive` is given.
  */
 export function PrototypeListPanel({
   groups,
@@ -27,7 +18,8 @@ export function PrototypeListPanel({
   selectedRequestId,
   selectedProjectKey,
   onSelect,
-  onSelectSystem
+  onSelectSystem,
+  archive
 }: {
   groups: readonly PrototypeListGroup[]
   filter: PrototypeFilter
@@ -36,6 +28,7 @@ export function PrototypeListPanel({
   selectedProjectKey: string | null
   onSelect: (requestId: string) => void
   onSelectSystem: (projectKey: string) => void
+  archive?: PrototypeArchiveControls
 }): React.JSX.Element {
   return (
     <section
@@ -87,16 +80,26 @@ export function PrototypeListPanel({
                 />
               )}
               {group.rows.map((row) => (
-                <SetRow
+                <PrototypeSetRow
                   key={row.set.requestId}
                   row={row}
                   selected={row.set.requestId === selectedRequestId}
                   onSelect={() => onSelect(row.set.requestId)}
+                  {...(archive !== undefined && archive.supports(row.set)
+                    ? { onArchive: () => archive.onArchive(row.set) }
+                    : {})}
                 />
               ))}
             </div>
           )
         })}
+        {archive === undefined ? null : (
+          <PrototypeArchivedGroup
+            controls={archive}
+            selectedRequestId={selectedRequestId}
+            onSelect={onSelect}
+          />
+        )}
       </div>
     </section>
   )
@@ -144,45 +147,5 @@ function SwatchIcon({ swatches }: { swatches: readonly string[] }): React.JSX.El
         <span key={`${index}:${color}`} className="rounded-sm" style={{ background: color }} />
       ))}
     </span>
-  )
-}
-
-function SetRow({
-  row,
-  selected,
-  onSelect
-}: {
-  row: PrototypeListRow
-  selected: boolean
-  onSelect: () => void
-}): React.JSX.Element {
-  const builtOn = row.set.builtOn
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-current={selected ? 'true' : undefined}
-      className={cn(
-        'flex flex-col gap-0.5 rounded-md p-2.5 text-left text-foreground transition-colors',
-        selected ? 'bg-accent' : 'hover:bg-accent/60'
-      )}
-    >
-      <span className="flex w-full justify-between gap-1.5">
-        <span className="font-medium">{row.title}</span>
-        <span className="text-[11px] text-muted-foreground">{row.age}</span>
-      </span>
-      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <span className="rounded border border-border px-1 font-mono text-[10px] text-foreground">
-          {row.mono}
-        </span>
-        {prototypeAgentLabel(row.set.agent)}
-      </span>
-      <span className="text-xs text-muted-foreground">
-        {joinParts([
-          prototypeStatusLabel(row.status),
-          builtOn === undefined ? null : prototypeBuiltOnLabel(builtOn)
-        ])}
-      </span>
-    </button>
   )
 }

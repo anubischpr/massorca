@@ -74,3 +74,40 @@ export function prototypeSystemLine(
 export function prototypeBuiltOnLabel(version: number): string {
   return translate('components.prototypes.list.builtOn', 'built on v{{version}}', { version })
 }
+
+export function prototypeArchivedHeading(): string {
+  return translate('components.prototypes.archived.heading', 'Archived')
+}
+
+export function prototypeArchiveLabel(): string {
+  return translate('components.prototypes.archived.archive', 'Archive')
+}
+
+export function prototypeUnarchiveLabel(): string {
+  return translate('components.prototypes.archived.unarchive', 'Unarchive')
+}
+
+export function prototypeDeleteLabel(): string {
+  return translate('components.prototypes.archived.delete', 'Delete')
+}
+
+/** The accessible name of a set row's menu button. */
+export function prototypeSetActionsLabel(title: string): string {
+  return translate('components.prototypes.archived.rowActions', 'Actions for {{title}}', { title })
+}
+
+export function prototypeDeleteDialogTitle(): string {
+  return translate('components.prototypes.archived.deleteTitle', 'Delete this prototype set?')
+}
+
+export function prototypeDeleteDialogBody(title: string): string {
+  return translate(
+    'components.prototypes.archived.deleteBody',
+    'This removes the files of "{{title}}" from this computer. Its chat or worktree is already gone, and this cannot be undone.',
+    { title }
+  )
+}
+
+export function prototypeDeleteCancelLabel(): string {
+  return translate('components.prototypes.archived.deleteCancel', 'Cancel')
+}

@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { callRuntimeRpc } from './runtime-rpc-client'
 import {
+  archivePrototypeRequestOnHost,
   createPrototypeRequestOnHost,
+  deletePrototypeRequestOnHost,
   listPrototypeSetsOnHost,
   PrototypeHostOutdatedError,
   readDesignSystemOnHost,
   readPrototypeSetFileOnHost,
+  unarchivePrototypeRequestOnHost,
   writePrototypeAttachmentOnHost
 } from './runtime-prototype-client'
 
@@ -217,5 +220,40 @@ describe('runtime prototype client', () => {
     await expect(listPrototypeSetsOnHost(LOCAL, {})).rejects.toMatchObject({
       name: 'PrototypeHostMalformedReplyError'
     })
+  })
+
+  it('names the host action and the request alone for an archive, an unarchive and a delete', async () => {
+    const target = { sessionId: 'session-alpha-0001', requestId: '20261028-201500-aaaaaa' }
+    callMock.mockResolvedValue({ ok: true })
+
+    expect(await archivePrototypeRequestOnHost(LOCAL, target)).toEqual({ ok: true })
+    expect(await unarchivePrototypeRequestOnHost(LOCAL, target)).toEqual({ ok: true })
+    expect(await deletePrototypeRequestOnHost(LOCAL, target)).toEqual({ ok: true })
+
+    expect(callMock.mock.calls.map((call) => [call[1], call[2]])).toEqual([
+      ['prototypes.archive', target],
+      ['prototypes.unarchive', target],
+      ['prototypes.delete', target]
+    ])
+  })
+
+  it('returns the host refusal of a delete as a value', async () => {
+    callMock.mockResolvedValueOnce({ ok: false, error: 'not_deletable' })
+    expect(
+      await deletePrototypeRequestOnHost(LOCAL, {
+        sessionId: 'session-alpha-0001',
+        requestId: '20261028-201500-aaaaaa'
+      })
+    ).toEqual({ ok: false, error: 'not_deletable' })
+  })
+
+  it('reads method_not_found of an archive as an outdated host', async () => {
+    callMock.mockRejectedValueOnce(new Error('method_not_found'))
+    await expect(
+      archivePrototypeRequestOnHost(LOCAL, {
+        sessionId: 'session-alpha-0001',
+        requestId: '20261028-201500-aaaaaa'
+      })
+    ).rejects.toBeInstanceOf(PrototypeHostOutdatedError)
   })
 })
