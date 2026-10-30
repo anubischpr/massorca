@@ -28,8 +28,8 @@ const PLAN_JSON = JSON.stringify({
   id: 'plan-1',
   from: ['A', 'C'],
   parts: [
-    { name: 'Heading', selector: 'main > h1', from: 'A' },
-    { name: 'Pay button', selector: 'button.cta', from: 'C' }
+    { name: 'Heading', kind: 'section', selectors: { A: 'main > h1', C: 'h1.title' }, from: 'A' },
+    { name: 'Pay button', kind: 'component', selectors: { C: 'button.cta' }, from: 'C' }
   ]
 })
 
@@ -147,8 +147,9 @@ describe('sending the merge', () => {
     await sendMobilePrototypeMerge(flow)
 
     const [, , text] = sendText.mock.calls[0] ?? []
-    expect(String(text)).toMatch(/^Merge into D\.\nHeading \(main > h1\): from A\n/u)
-    expect(String(text)).toContain('Pay button (button.cta): from C')
+    // Each part names its selector in every merged direction that has it, not only the chosen one.
+    expect(String(text)).toMatch(/^Merge into D\.\nHeading \(A: main > h1; C: h1\.title\): from A\n/u)
+    expect(String(text)).toContain('Pay button (C: button.cta): from C')
     expect(box.state.merge).toBeNull()
     expect(box.state.mergeInto).toEqual({ letter: 'D', from: ['A', 'C'] })
   })

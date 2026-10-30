@@ -3,8 +3,11 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { Check } from 'lucide-react-native'
 import { joinDirectionLetters } from '../../../src/shared/prototype-merge-message'
 import {
+  chosenSelectorOf,
   keptMergeParts,
   mergeMarkOf,
+  type PrototypeMergeMark,
+  type PrototypeMergePartKind,
   type PrototypeMergeReviewPart,
   type PrototypeMergeState
 } from '../../../src/shared/prototype-merge-plan'
@@ -22,6 +25,15 @@ type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => vo
 type Review = Extract<PrototypeMergeState, { phase: 'review' }>
 type MergeTab = 'parts' | 'preview'
 
+// Mobile has no translation layer; these are the English values of the desktop keys.
+function markLabel(mark: PrototypeMergeMark, letter: string): string {
+  return mark === 'only in' ? `only in ${letter}` : mark
+}
+
+function groupHeading(kind: PrototypeMergePartKind): string {
+  return kind === 'component' ? 'Components' : 'Sections'
+}
+
 function PartRow({
   part,
   letters,
@@ -29,10 +41,13 @@ function PartRow({
   onSource
 }: {
   part: PrototypeMergeReviewPart
+  /** The starred letters this part has, as its possible sources. */
   letters: readonly string[]
   onToggle: () => void
   onSource: (letter: string) => void
 }) {
+  // Why: a part in one direction has one source, so its letter is shown but cannot change.
+  const locked = letters.length === 1
   return (
     <View style={[styles.part, !part.on && styles.partOff]}>
       <Pressable
@@ -48,17 +63,18 @@ function PartRow({
         <View style={styles.partText}>
           <Text style={styles.partName}>{part.name}</Text>
           <Text style={styles.partSelector} numberOfLines={1}>
-            {part.selector}
+            {chosenSelectorOf(part)}
           </Text>
         </View>
-        <Text style={styles.mark}>{mergeMarkOf(part)}</Text>
+        <Text style={styles.mark}>{markLabel(mergeMarkOf(part), part.from)}</Text>
       </Pressable>
       <View accessibilityLabel={`Source of ${part.name}`} style={styles.segment}>
         {letters.map((letter) => (
           <Pressable
             key={letter}
             accessibilityRole="button"
-            accessibilityState={{ selected: part.from === letter }}
+            accessibilityState={{ selected: part.from === letter, disabled: locked }}
+            disabled={locked}
             hitSlop={{ top: 4, bottom: 4 }}
             onPress={() => onSource(letter)}
             style={[styles.source, part.from === letter && styles.sourceOn]}
@@ -96,6 +112,10 @@ export function MobilePrototypeMergeSheet({
   const [tab, setTab] = useState<MergeTab>('parts')
   const kept = keptMergeParts(review.parts)
   const sendDisabled = review.sending || kept.length === 0
+  const groups = (['section', 'component'] as const).map((kind) => ({
+    kind,
+    parts: review.parts.filter((part) => part.kind === kind)
+  }))
   return (
     <View style={styles.sheet}>
       <View style={styles.header}>
@@ -136,15 +156,24 @@ export function MobilePrototypeMergeSheet({
         contentContainerStyle={styles.body}
       >
         {tab === 'parts' ? (
-          review.parts.map((part, index) => (
-            <PartRow
-              key={part.id}
-              part={part}
-              letters={review.letters}
-              onToggle={() => update((current) => togglePart(current, index))}
-              onSource={(letter) => update((current) => setPartSource(current, index, letter))}
-            />
-          ))
+          groups.map((group) =>
+            group.parts.length === 0 ? null : (
+              <View key={group.kind} style={styles.group}>
+                <Text style={styles.groupHeading}>{groupHeading(group.kind)}</Text>
+                {group.parts.map((part) => (
+                  <PartRow
+                    key={part.id}
+                    part={part}
+                    letters={review.letters.filter((letter) => part.selectors[letter] !== undefined)}
+                    onToggle={() => update((current) => togglePart(current, part.id))}
+                    onSource={(letter) =>
+                      update((current) => setPartSource(current, part.id, letter))
+                    }
+                  />
+                ))}
+              </View>
+            )
+          )
         ) : (
           <>
             <View style={styles.preview}>
@@ -160,7 +189,7 @@ export function MobilePrototypeMergeSheet({
                   <View style={styles.previewText}>
                     <Text style={styles.previewName}>{part.name}</Text>
                     <Text style={styles.previewSelector} numberOfLines={1}>
-                      {part.selector}
+                      {chosenSelectorOf(part)}
                     </Text>
                   </View>
                 </View>
@@ -216,6 +245,8 @@ const styles = StyleSheet.create({
   // Why: the list takes what the drawer leaves and scrolls, so no option is ever cut off.
   scroll: { flexGrow: 0, flexShrink: 1, minHeight: 0 },
   body: { gap: spacing.md },
+  group: { gap: spacing.sm },
+  groupHeading: { paddingTop: 4, color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   footer: { gap: spacing.sm },
   part: {
     gap: spacing.sm,

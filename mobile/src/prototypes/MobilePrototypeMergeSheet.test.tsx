@@ -25,10 +25,20 @@ const PLAN_JSON = JSON.stringify({
   id: 'plan-1',
   from: ['A', 'C'],
   parts: [
-    { name: 'Heading', selector: 'main > h1', from: 'A' },
-    { name: 'Email and card form', selector: 'form.pay', from: 'C' },
-    { name: 'Order summary', selector: 'aside.summary', from: 'A' },
-    { name: 'Pay button', selector: 'button.cta', from: 'C' }
+    { name: 'Heading', kind: 'section', selectors: { A: 'main > h1', C: 'main > h1' }, from: 'A' },
+    { name: 'Email and card form', kind: 'section', selectors: { C: 'form.pay' }, from: 'C' },
+    {
+      name: 'Order summary',
+      kind: 'section',
+      selectors: { A: 'aside.summary', C: 'aside.summary' },
+      from: 'A'
+    },
+    {
+      name: 'Pay button',
+      kind: 'component',
+      selectors: { A: 'button.cta', C: '.checkout .cta' },
+      from: 'C'
+    }
   ]
 })
 
@@ -144,19 +154,50 @@ describe('the merge sheet header and tabs', () => {
 })
 
 describe('the Parts tab', () => {
-  it('lists each part with its selector, its mark and a source of the starred letters', () => {
+  it('lists each part with the selector of its chosen source, its mark and a source of the starred letters', () => {
     const { tree } = mount()
     const texts = tree.root.findAll((node) => isHost(node, 'Text')).map(flatText)
     expect(texts).toEqual(
-      expect.arrayContaining(['Heading', 'main > h1', 'Pay button', 'button.cta', 'suggested'])
+      expect.arrayContaining(['Heading', 'main > h1', 'Pay button', '.checkout .cta', 'suggested'])
     )
     const group = tree.root.findAllByProps({ accessibilityLabel: 'Source of Heading' })[0]
     const sources = group?.findAllByProps({ accessibilityRole: 'button' }) ?? []
     expect(sources.map(flatText)).toEqual(['A', 'C'])
     expect(sources.map((node) => node.props.accessibilityState)).toEqual([
-      { selected: true },
-      { selected: false }
+      { selected: true, disabled: false },
+      { selected: false, disabled: false }
     ])
+  })
+
+  it('groups the parts under Sections and then Components', () => {
+    const { tree } = mount()
+    const texts = tree.root.findAll((node) => isHost(node, 'Text')).map(flatText)
+    const at = (text: string) => texts.indexOf(text)
+    expect(at('Sections')).toBeGreaterThanOrEqual(0)
+    expect(at('Sections')).toBeLessThan(at('Heading'))
+    expect(at('Heading')).toBeLessThan(at('Components'))
+    expect(at('Components')).toBeLessThan(at('Pay button'))
+  })
+
+  it('shows the selector of the source a part was switched to', () => {
+    const { tree, rerender } = mount()
+    act(() => byLabelGroup(tree.root, 'Source of Pay button', 'A').props.onPress())
+    rerender()
+    const texts = tree.root.findAll((node) => isHost(node, 'Text')).map(flatText)
+    expect(texts).toContain('button.cta')
+    expect(texts).not.toContain('.checkout .cta')
+    expect(texts).toContain('changed')
+  })
+
+  it('locks the source of a part that exists in one direction, and names its letter in the mark', () => {
+    const { tree } = mount()
+    const group = tree.root.findAllByProps({ accessibilityLabel: 'Source of Email and card form' })[0]
+    const sources = group?.findAllByProps({ accessibilityRole: 'button' }) ?? []
+    expect(sources.map(flatText)).toEqual(['C'])
+    expect(sources[0]?.props.disabled).toBe(true)
+    expect(sources[0]?.props.accessibilityState).toEqual({ selected: true, disabled: true })
+    const texts = tree.root.findAll((node) => isHost(node, 'Text')).map(flatText)
+    expect(texts).toContain('only in C')
   })
 
   it('marks a part changed once its source is switched, and suggested again when put back', () => {
