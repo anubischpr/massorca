@@ -8,6 +8,7 @@ import {
   backToActive,
   closeSelection,
   makeMain,
+  isReadOnlyView,
   jumpToDraftItem,
   openDirection,
   pickElement,
@@ -33,15 +34,12 @@ import { MobilePrototypeFrame } from './MobilePrototypeFrame'
 import type { MobilePrototypeFrameHandle } from './mobile-prototype-capture-math'
 import { MobilePrototypeHeader } from './MobilePrototypeHeader'
 import { MobilePrototypePinSheet, type MobilePrototypePinTab } from './MobilePrototypePinSheet'
+import { MobilePrototypeReadOnlyBanner } from './MobilePrototypeReadOnlyBanner'
+import { MobilePrototypeReadOnlySheet } from './MobilePrototypeReadOnlySheet'
 import { sendMobilePrototypeIteration } from './mobile-prototype-iteration-send'
 import { mobilePrototypeAgentLabel } from './mobile-prototype-list-model'
 import { findMobilePrototypeSet } from './mobile-prototype-sets-state'
-import {
-  isPeeking,
-  pulseFieldFor,
-  viewerChips,
-  viewerHeaderLines
-} from './mobile-prototype-viewer-model'
+import { pulseFieldFor, viewerChips, viewerHeaderLines } from './mobile-prototype-viewer-model'
 import { mobilePrototypeStateKey, useMobilePrototypeViewStore } from './mobile-prototype-view-store'
 import { useMobilePrototypeFile } from './use-mobile-prototype-file'
 import { useMobilePrototypeSets } from './use-mobile-prototype-sets'
@@ -207,30 +205,13 @@ export function MobilePrototypeViewerScreen({
           ))}
         </ScrollView>
       )}
-      {isPeeking(state) ? (
-        <View accessibilityRole="summary" style={styles.peek}>
-          <Text style={styles.peekText}>
-            {`Peeking at ${state.view} while iterating on `}
-            <Text style={styles.peekBold}>{state.active}</Text>
-            {`. Notes here go in as “take this from ${state.view} into ${state.active}”.`}
-          </Text>
-          <View style={styles.peekActions}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => update(backToActive)}
-              style={styles.peekButton}
-            >
-              <Text style={styles.peekButtonText}>{`Back to ${state.active}`}</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => update(makeMain)}
-              style={styles.peekButton}
-            >
-              <Text style={styles.peekButtonText}>{`Iterate on ${state.view}`}</Text>
-            </Pressable>
-          </View>
-        </View>
+      {isReadOnlyView(state) ? (
+        <MobilePrototypeReadOnlyBanner
+          view={state.view}
+          main={state.active}
+          onBackToMain={() => update(backToActive)}
+          onMakeMain={() => update(makeMain)}
+        />
       ) : null}
       <MobilePrototypeFrame
         file={file}
@@ -288,7 +269,14 @@ export function MobilePrototypeViewerScreen({
               onJump={jumpTo}
               onSend={() => void send()}
             />
-          ) : pin === null ? null : (
+          ) : pin === null ? null : isReadOnlyView(state) ? (
+            <MobilePrototypeReadOnlySheet
+              key={`${state.view}:${pin.pinKey}`}
+              pin={pin}
+              state={state}
+              update={update}
+            />
+          ) : (
             // Keyed by the pin, so a value typed into one pin's field never shows on the next pin.
             <MobilePrototypePinSheet
               key={`${state.view}:${pin.pinKey}`}
@@ -343,28 +331,6 @@ const styles = StyleSheet.create({
   chipOn: { backgroundColor: colors.textPrimary },
   chipText: { color: colors.textPrimary, fontSize: 13 },
   chipTextOn: { color: colors.bgBase },
-  peek: {
-    gap: spacing.sm,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
-    padding: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: colors.textMuted
-  },
-  peekText: { color: colors.textPrimary, fontSize: 13, lineHeight: 20 },
-  peekBold: { fontWeight: '700' },
-  peekActions: { flexDirection: 'row', gap: spacing.sm },
-  peekButton: {
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.md,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle
-  },
-  peekButtonText: { color: colors.textPrimary, fontSize: 13 },
   draftBar: {
     minHeight: 48,
     flexDirection: 'row',

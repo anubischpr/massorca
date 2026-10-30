@@ -19,13 +19,12 @@ import {
 } from '../../../src/shared/prototype-number-input'
 import {
   NOTE_EXAMPLE_CHIPS,
-  isPeeking,
+  NOTE_LABEL,
+  NOTE_PLACEHOLDER,
   noteFromExampleChip,
-  noteLabelFor,
-  notePlaceholderFor,
   pulseFieldFor,
+  readOnlySizeLine,
   selectedPinEditCount,
-  shownPinTab,
   viewerChips,
   viewerHeaderLines
 } from './mobile-prototype-viewer-model'
@@ -52,16 +51,16 @@ function stateOnB() {
 }
 
 describe('viewerHeaderLines', () => {
-  it('names the iterated direction and its latest version', () => {
+  it('names the main and its latest version', () => {
     expect(viewerHeaderLines(SET, stateOnB())).toEqual({
       title: 'B · Split summary',
-      subtitle: 'Codex · iterating · v2'
+      subtitle: 'main · v2'
     })
   })
 
-  it('says a sibling is being peeked at', () => {
-    const peeking = openDirection(stateOnB(), 'C')
-    expect(viewerHeaderLines(SET, peeking)).toEqual({ title: 'C', subtitle: 'Codex · peeking' })
+  it('says a direction that is not the main is read-only', () => {
+    const readOnly = openDirection(stateOnB(), 'C')
+    expect(viewerHeaderLines(SET, readOnly)).toEqual({ title: 'C', subtitle: 'read-only' })
   })
 
   it('names no version for a direction the host lists with none', () => {
@@ -71,17 +70,11 @@ describe('viewerHeaderLines', () => {
         direction.letter === 'B' ? { ...direction, versions: [] } : direction
       )
     }
-    expect(viewerHeaderLines(unversioned, stateOnB()).subtitle).toBe('Codex · iterating')
+    expect(viewerHeaderLines(unversioned, stateOnB()).subtitle).toBe('main')
   })
 })
 
-describe('the pin sheet tab and the jump pulse', () => {
-  it('shows the Note tab while a sibling is peeked at, whatever tab was chosen', () => {
-    expect(shownPinTab('edit', openDirection(stateOnB(), 'C'))).toBe('note')
-    expect(shownPinTab('edit', stateOnB())).toBe('edit')
-    expect(shownPinTab('note', stateOnB())).toBe('note')
-  })
-
+describe('the jump pulse', () => {
   it('pulses the control a jump reached only while its pin is the one shown', () => {
     const picked = pickElement(stateOnB(), HEADING)
     const jump = { letter: 'B', pinKey: pinKeyFor(HEADING.selector), field: 'width' as const }
@@ -93,11 +86,11 @@ describe('the pin sheet tab and the jump pulse', () => {
 })
 
 describe('viewerChips', () => {
-  it('lists the directions and marks the iterated one and the shown one', () => {
-    const peeking = openDirection(stateOnB(), 'C')
-    expect(viewerChips(SET, peeking)).toEqual([
+  it('lists the directions and marks the main and the shown one', () => {
+    const readOnly = openDirection(stateOnB(), 'C')
+    expect(viewerChips(SET, readOnly)).toEqual([
       { letter: 'A', label: 'A', selected: false },
-      { letter: 'B', label: 'B · iterating', selected: false },
+      { letter: 'B', label: 'B · main', selected: false },
       { letter: 'C', label: 'C', selected: true }
     ])
   })
@@ -116,21 +109,26 @@ describe('the pin sheet', () => {
     expect(selectedPinEditCount(state)).toBe(2)
   })
 
-  it('counts no edits while peeking', () => {
+  it('counts no edits on a read-only direction', () => {
     const edited = editSelected(pickElement(stateOnB(), HEADING), { fontSize: 18 })
     expect(selectedPinEditCount(openDirection(edited, 'C'))).toBe(0)
   })
 
-  it('words the note for the shown direction', () => {
-    const state = stateOnB()
-    expect(isPeeking(state)).toBe(false)
-    expect(noteLabelFor(state)).toBe('Anything Edit can’t do, for this element')
-    expect(notePlaceholderFor(state)).toBe(
-      'Describe a change Edit can’t do: animation, behavior, style…'
-    )
-    const peeking = openDirection(state, 'C')
-    expect(noteLabelFor(peeking)).toBe('What to take from C into B')
-    expect(notePlaceholderFor(peeking)).toBe('e.g. use this wallet button above the card form')
+  it('words the note for the main', () => {
+    expect(NOTE_LABEL).toBe('Anything Edit can’t do, for this element')
+    expect(NOTE_PLACEHOLDER).toBe('Describe a change Edit can’t do: animation, behavior, style…')
+  })
+
+  it('writes the read-only Size line as width, height and font size', () => {
+    expect(readOnlySizeLine(HEADING.state)).toBe('100% × auto · 20px')
+    expect(
+      readOnlySizeLine({
+        ...HEADING.state,
+        width: { value: 100, unit: '%' },
+        height: { value: 44, unit: 'px' },
+        fontSize: 14
+      })
+    ).toBe('100% × 44px · 14px')
   })
 
   it('writes an example chip on the selected element', () => {

@@ -24,12 +24,10 @@ import {
 import { MobilePrototypePulse } from './MobilePrototypePulse'
 import {
   NOTE_EXAMPLE_CHIPS,
-  isPeeking,
+  NOTE_LABEL,
+  NOTE_PLACEHOLDER,
   noteFromExampleChip,
-  noteLabelFor,
-  notePlaceholderFor,
-  selectedPinEditCount,
-  shownPinTab
+  selectedPinEditCount
 } from './mobile-prototype-viewer-model'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
@@ -42,8 +40,8 @@ const SHEET_MAX_HEIGHT_SHARE = 0.8
 const SCROLL_MARGIN = 80
 
 /**
- * The selected pin: its heading, an Edit tab (when the shown direction is the one being iterated)
- * and a Note tab. Every change and note joins the draft on its own.
+ * The selected pin of the main: its heading, an Edit tab and a Note tab. Every change and note
+ * joins the draft on its own. A read-only direction shows MobilePrototypeReadOnlySheet instead.
  */
 export function MobilePrototypePinSheet({
   pin,
@@ -66,10 +64,7 @@ export function MobilePrototypePinSheet({
   const { height: screenHeight } = useWindowDimensions()
   const scroll = useRef<ScrollView>(null)
   const rowY = useRef(new Map<PrototypeDraftField, number>())
-  // A peeked direction has no Edit section, so the Edit tab is neither shown selected nor pressable.
-  const shown = shownPinTab(tab, state)
-  const peeking = isPeeking(state)
-  const showEdit = shown === 'edit'
+  const showEdit = tab === 'edit'
   const pulse: MobilePrototypePulseTarget = {
     field: pulseField,
     nonce: pulseNonce,
@@ -108,11 +103,10 @@ export function MobilePrototypePinSheet({
       <View accessibilityRole="tablist" style={styles.tabs}>
         <TabButton
           label={`Edit · ${selectedPinEditCount(state)}`}
-          selected={shown === 'edit'}
-          disabled={peeking}
+          selected={showEdit}
           onPress={() => onTab('edit')}
         />
-        <TabButton label="Note" selected={shown === 'note'} onPress={() => onTab('note')} />
+        <TabButton label="Note" selected={!showEdit} onPress={() => onTab('note')} />
       </View>
       <ScrollView
         ref={scroll}
@@ -129,13 +123,13 @@ export function MobilePrototypePinSheet({
             onLayout={onNoteLayout}
           >
             <View style={styles.note}>
-              <Text style={styles.noteLabel}>{noteLabelFor(state)}</Text>
+              <Text style={styles.noteLabel}>{NOTE_LABEL}</Text>
               <TextInput
-                accessibilityLabel={noteLabelFor(state)}
+                accessibilityLabel={NOTE_LABEL}
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
-                placeholder={notePlaceholderFor(state)}
+                placeholder={NOTE_PLACEHOLDER}
                 placeholderTextColor={colors.textSecondary}
                 value={noteFor(state)}
                 onChangeText={(text) => update((latest) => setNote(latest, text))}
@@ -170,19 +164,16 @@ export function MobilePrototypePinSheet({
 function TabButton({
   label,
   selected,
-  disabled = false,
   onPress
 }: {
   label: string
   selected: boolean
-  disabled?: boolean
   onPress: () => void
 }) {
   return (
     <Pressable
       accessibilityRole="tab"
-      accessibilityState={{ selected, disabled }}
-      disabled={disabled}
+      accessibilityState={{ selected }}
       onPress={onPress}
       style={[styles.tab, selected && styles.tabOn]}
     >
