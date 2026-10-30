@@ -5,11 +5,12 @@ import type {
   PrototypeListedSet
 } from '../../../../shared/rpc-contract/prototype-params'
 import { latestVersionOf } from '../../../../shared/prototype-list-model'
+import { PROTOTYPE_FRAMES } from '../../../../shared/prototype-frames'
 import { usePrototypeFileHtml } from './use-prototype-file-html'
 
-/** The design size of a thumbnail's page: the desktop frame's width and a 1.6:1 height. */
-const THUMBNAIL_DESIGN_WIDTH = 640
-const THUMBNAIL_DESIGN_HEIGHT = 400
+/** The design size of a thumbnail's page: the desktop artboard, which keeps the 1.6:1 ratio. */
+const THUMBNAIL_DESIGN_WIDTH = PROTOTYPE_FRAMES.desktop.width
+const THUMBNAIL_DESIGN_HEIGHT = PROTOTYPE_FRAMES.desktop.height
 
 /** A live, scaled-down render of a direction's latest version; it takes no pointer input. */
 export function PrototypeThumbnail({
@@ -47,7 +48,7 @@ export function PrototypeThumbnail({
     >
       {file.status === 'ready' ? (
         <div
-          className="absolute top-0 left-0 origin-top-left"
+          className="absolute top-0 left-0 flex origin-top-left flex-col"
           style={{
             width: THUMBNAIL_DESIGN_WIDTH,
             height: THUMBNAIL_DESIGN_HEIGHT,

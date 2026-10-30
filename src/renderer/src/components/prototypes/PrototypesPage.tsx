@@ -27,6 +27,7 @@ import {
   mergeSent,
   planArrived
 } from '../../../../shared/prototype-merge-state'
+import { PROTOTYPE_FRAMES } from '../../../../shared/prototype-frames'
 import { sendPrototypeIteration } from '../../../../shared/prototype-send'
 import type { PrototypeSetState } from '../../../../shared/prototype-set-state'
 import { beginSend, sendRefused, sendSucceeded } from '../../../../shared/prototype-set-view'
@@ -253,7 +254,8 @@ export default function PrototypesPage(): React.JSX.Element {
         frameOrigin:
           frame === undefined
             ? null
-            : { x: frame.left, y: frame.top, width: frame.width, height: frame.height }
+            : { x: frame.left, y: frame.top, width: frame.width, height: frame.height },
+        scale: frame === undefined ? 1 : frame.width / PROTOTYPE_FRAMES[current.viewport].width
       },
       {
         captureRect: captureFrameRect,

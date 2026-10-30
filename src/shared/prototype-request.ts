@@ -13,6 +13,7 @@ import {
   prototypeFileName,
   prototypeRequestFolder
 } from './prototype-request-folder'
+import { prototypeDesignBrief, PROTOTYPE_VERSION_CRAFT_LINE } from './prototype-design-brief'
 import type { PrototypeDesignSystemMode } from './prototype-design-system-files'
 import {
   designSystemRequestInstruction,
@@ -141,7 +142,8 @@ export function buildPrototypeIterationInstruction({
   const file = joinFolderPath(folderPath, prototypeFileName(letter, nextVersion))
   return [
     prototypeIterationMarkerLine(requestId, letter),
-    `${iterationInstructionPrefix(letter)}${file}, self-contained with inline CSS and no external network resources, and do not modify other files.`
+    `${iterationInstructionPrefix(letter)}${file}, self-contained with inline CSS and no external network resources, and do not modify other files.`,
+    PROTOTYPE_VERSION_CRAFT_LINE
   ].join('\n')
 }
 
@@ -172,6 +174,7 @@ function partsFor(
   const hidden = [
     prototypeRequestMarkerLine(input.requestId),
     directionInstruction(directions, folderPath, agent, isGentleDesign),
+    prototypeDesignBrief(directions),
     ...(usesDesignSystemInstruction(input.designSystem) ? [designSystemRequestInstruction()] : [])
   ].join('\n')
   if (massorcaCommand) {
