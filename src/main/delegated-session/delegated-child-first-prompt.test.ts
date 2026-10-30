@@ -152,3 +152,30 @@ describe('prototypeAgentOfChild', () => {
     expect(prototypeAgentOfChild('')).toBe('other')
   })
 })
+
+describe('a read that throws', () => {
+  it('gives the task unchanged, with no request, when the chat record cannot be read', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const { deps, createRequest } = fakeDeps({
+      readChat: () => {
+        throw new Error('record unreadable')
+      }
+    })
+    expect(await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)).toBeNull()
+    expect(createRequest).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
+  })
+
+  it('gives the task unchanged, with no request, when the Settings count cannot be read', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const { deps, createRequest } = fakeDeps({
+      readPrototypeCount: () => {
+        throw new Error('settings unreadable')
+      }
+    })
+    expect(await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)).toBeNull()
+    expect(createRequest).not.toHaveBeenCalled()
+    warn.mockRestore()
+  })
+})

@@ -48,7 +48,22 @@ export type DelegatedChildPromptInput = {
 }
 
 /** The first prompt for a child whose task asks for a prototype, or null to deliver the task spec as stored. */
+/** Any read or write that throws gives the task unchanged: the child's start is never aborted for its prompt. */
 export async function delegatedChildFirstPrompt(
+  input: DelegatedChildPromptInput,
+  deps: DelegatedChildFirstPromptDeps
+): Promise<WorkerFirstPrompt | null> {
+  try {
+    return await buildDelegatedChildFirstPrompt(input, deps)
+  } catch (error) {
+    console.warn(
+      `[delegated-session] first prompt not made for child ${input.childSessionId}; delivering the task spec: ${String(error)}`
+    )
+    return null
+  }
+}
+
+async function buildDelegatedChildFirstPrompt(
   input: DelegatedChildPromptInput,
   deps: DelegatedChildFirstPromptDeps
 ): Promise<WorkerFirstPrompt | null> {

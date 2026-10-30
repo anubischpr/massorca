@@ -187,3 +187,33 @@ const SENT_OK = {
   ok: true,
   value: { clientMessageId: 'c1', submission: { dispatchState: 'pending', reason: null } }
 }
+
+describe('a first prompt that throws', () => {
+  it('still starts the worker, on the stored spec, when the resolver rejects', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const { receipt, sent } = deliverWithFirstPrompt(
+      async () => {
+        throw new Error('settings unreadable')
+      },
+      async () => SENT_OK
+    )
+    await expect(receipt).resolves.toBeDefined()
+    expect(JSON.stringify(sent)).toContain('"text":"preamble"')
+    expect(JSON.stringify(sent)).not.toContain('HIDDEN')
+    expect(warn).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
+  })
+
+  it('does the same when the resolver throws before it returns a promise', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const { receipt, sent } = deliverWithFirstPrompt(
+      () => {
+        throw new Error('chat record unreadable')
+      },
+      async () => SENT_OK
+    )
+    await expect(receipt).resolves.toBeDefined()
+    expect(JSON.stringify(sent)).toContain('"text":"preamble"')
+    warn.mockRestore()
+  })
+})

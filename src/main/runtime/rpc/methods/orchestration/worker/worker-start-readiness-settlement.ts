@@ -26,6 +26,21 @@ export type WorkerFirstPrompt = {
 
 export type WorkerFirstPromptResolver = (sessionId: string) => Promise<WorkerFirstPrompt | null>
 
+/** A resolver that throws, or rejects, leaves the start its stored spec: the start is never aborted for it. */
+async function resolveFirstPrompt(
+  resolver: WorkerFirstPromptResolver,
+  sessionId: string
+): Promise<WorkerFirstPrompt | null> {
+  try {
+    return await resolver(sessionId)
+  } catch (error) {
+    console.warn(
+      `[orchestration] first prompt not resolved for session ${sessionId}; delivering the task spec: ${String(error)}`
+    )
+    return null
+  }
+}
+
 /**
  * Delivers the dispatch preamble and settles the worker's start state on the strongest
  * evidence available: `ready` only with a positive turn-start (or a provider that cannot
@@ -62,7 +77,7 @@ export async function deliverAndSettleWorkerStartReadiness(args: {
   // Made once the session exists and just before its first prompt goes out; a failed delivery undoes it.
   const firstPrompt =
     args.firstPrompt && structuredSession
-      ? await args.firstPrompt(structuredSession.identity.sessionId)
+      ? await resolveFirstPrompt(args.firstPrompt, structuredSession.identity.sessionId)
       : null
   args.onStage('dispatch_input')
   const delivery = await deliverWorkerDispatchPreamble({
