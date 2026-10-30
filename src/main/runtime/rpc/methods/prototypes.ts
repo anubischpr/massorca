@@ -9,10 +9,13 @@ import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 import {
   CreatePrototypeRequestParams,
   ListPrototypeSetsParams,
+  PrototypeRequestTargetParams,
   ReadPrototypeDesignSystemParams,
   ReadPrototypeFileParams,
   WriteAttachmentParams,
+  type ArchivePrototypeRequestResult,
   type CreatePrototypeRequestResult,
+  type DeletePrototypeRequestResult,
   type ListPrototypeSetsResult,
   type ReadPrototypeDesignSystemResult,
   type ReadPrototypeFileResult,
@@ -20,6 +23,11 @@ import {
 } from '../../../../shared/rpc-contract/prototype-params'
 import { launchDirectoryOfChat } from '../../../native-chat/chat-launch-directory'
 import { readDesignSystemOfLaunchDirectory } from '../../../native-chat/prototype-design-system-files'
+import { isLocalChatWorkingDirectoryGone } from '../../../native-chat/prototype-request-deletability'
+import {
+  deletePrototypeRequest,
+  setPrototypeRequestArchived
+} from '../../../native-chat/prototype-request-lifecycle'
 import {
   createPrototypeRequest,
   listPrototypeSets,
@@ -27,7 +35,7 @@ import {
   writePrototypeAttachment
 } from '../../../native-chat/prototype-requests'
 import { getProfileUserDataPath } from '../../../orca-profiles/profile-storage-paths'
-import { defineMethod } from '../core'
+import { defineMethod, type RpcContext } from '../core'
 import { requireInstalledStructuredHost } from './structured-agent-session-gate'
 
 /** Structured chats run on their owning runtime's own filesystem; any other location has no folder here. */
@@ -35,16 +43,62 @@ function isLocalStructuredChat(record: Pick<AgentSessionRecord, 'location'>): bo
   return record.location.executionHostId === LOCAL_EXECUTION_HOST_ID && !record.location.wslDistro
 }
 
-/** A chat this host keeps as a local structured chat; a missing record has no folder here. */
-function isLocalChatRecord(
-  record: Pick<AgentSessionRecord, 'location'> | null | undefined
+/**
+ * Whether a caller other than this desktop and its CLI may see a request: one of a local chat the host keeps, or
+ * one whose chat record is gone but that was archived, so the phone's Archived group can reach it to delete it.
+ * Why archived only: a gone chat's sets stay out of the phone's normal list and of anything it never listed; an
+ * archive is a choice made on a client that could list the set, and it grants no read of the set's files.
+ */
+function isRequestVisibleToGuest(
+  record: Pick<AgentSessionRecord, 'location'> | null | undefined,
+  archived: boolean
 ): boolean {
-  return record ? isLocalStructuredChat(record) : false
+  return record ? isLocalStructuredChat(record) : archived
+}
+
+/** This desktop and its CLI, the owner, see every folder on the host; any other caller, one naming no identity included, is a guest. */
+function isOwnerCaller(ctx: RpcContext): boolean {
+  return ctx.caller?.kind === 'desktop' || ctx.caller?.kind === 'local-cli'
 }
 
 /** One line for a refusal the client reads as "no prototype capture", so a silent send is traceable. */
 function logPrototypeRefusal(method: string, sessionId: string, reason: string): void {
   console.warn(`[prototypes] ${method} refused for chat ${sessionId}: ${reason}`)
+}
+
+type InstalledHost = Awaited<ReturnType<typeof requireInstalledStructuredHost>>
+
+/** The host decides: a request is deletable when its chat record is gone, or its local chat's directory is. */
+async function isRequestDeletable(host: InstalledHost, sessionId: string): Promise<boolean> {
+  const record = host.deps.store.getRecord(sessionId)
+  if (!record) {
+    return true
+  }
+  // Why local only: a remote chat out of contact has no readable directory here, and that is not a deletion.
+  return isLocalStructuredChat(record)
+    ? isLocalChatWorkingDirectoryGone(record, host.deps.resolveWorkspacePath)
+    : false
+}
+
+async function archivePrototypeRequest(
+  params: PrototypeRequestTargetParams,
+  ctx: RpcContext,
+  archived: boolean
+): Promise<ArchivePrototypeRequestResult> {
+  const host = await requireInstalledStructuredHost(ctx)
+  const owner = isOwnerCaller(ctx)
+  return setPrototypeRequestArchived({
+    stateDirectory: getProfileUserDataPath(),
+    sessionId: params.sessionId,
+    requestId: params.requestId,
+    archived,
+    canAct: (manifest) =>
+      owner ||
+      isRequestVisibleToGuest(
+        host.deps.store.getRecord(params.sessionId),
+        manifest.archived === true
+      )
+  })
 }
 
 export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
@@ -79,9 +133,7 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
     params: ListPrototypeSetsParams,
     handler: async (params, ctx): Promise<ListPrototypeSetsResult> => {
       const host = await requireInstalledStructuredHost(ctx)
-      // Why: this desktop and its CLI, the owner, list every folder on the host. Any other caller, one that
-      // names no identity included, lists only the chats this host still keeps, as its chat list does.
-      const owner = ctx.caller?.kind === 'desktop' || ctx.caller?.kind === 'local-cli'
+      const owner = isOwnerCaller(ctx)
       return listPrototypeSets({
         stateDirectory: getProfileUserDataPath(),
         ...(params.worktreeId !== undefined ? { worktreeId: params.worktreeId } : {}),
@@ -91,12 +143,48 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
             ? launchDirectoryOfChat(record, host.deps.resolveWorkspacePath)
             : undefined
         },
+        isDeletable: (sessionId: string) => isRequestDeletable(host, sessionId),
         ...(owner
           ? {}
           : {
-              isChatListed: (sessionId: string): boolean =>
-                isLocalChatRecord(host.deps.store.getRecord(sessionId))
+              isChatListed: (sessionId: string, archived: boolean): boolean =>
+                isRequestVisibleToGuest(host.deps.store.getRecord(sessionId), archived)
             })
+      })
+    }
+  }),
+  defineMethod({
+    name: 'prototypes.archive',
+    permission: 'workspace',
+    params: PrototypeRequestTargetParams,
+    handler: (params, ctx): Promise<ArchivePrototypeRequestResult> =>
+      archivePrototypeRequest(params, ctx, true)
+  }),
+  defineMethod({
+    name: 'prototypes.unarchive',
+    permission: 'workspace',
+    params: PrototypeRequestTargetParams,
+    handler: (params, ctx): Promise<ArchivePrototypeRequestResult> =>
+      archivePrototypeRequest(params, ctx, false)
+  }),
+  defineMethod({
+    name: 'prototypes.delete',
+    permission: 'workspace',
+    params: PrototypeRequestTargetParams,
+    handler: async (params, ctx): Promise<DeletePrototypeRequestResult> => {
+      const host = await requireInstalledStructuredHost(ctx)
+      const owner = isOwnerCaller(ctx)
+      return deletePrototypeRequest({
+        stateDirectory: getProfileUserDataPath(),
+        sessionId: params.sessionId,
+        requestId: params.requestId,
+        canAct: (manifest) =>
+          owner ||
+          isRequestVisibleToGuest(
+            host.deps.store.getRecord(params.sessionId),
+            manifest.archived === true
+          ),
+        isDeletable: () => isRequestDeletable(host, params.sessionId)
       })
     }
   }),

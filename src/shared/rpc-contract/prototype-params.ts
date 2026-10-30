@@ -48,6 +48,16 @@ export const ReadPrototypeDesignSystemParams = z.object({ sessionId: SessionId }
 
 export type ReadPrototypeDesignSystemParams = z.infer<typeof ReadPrototypeDesignSystemParams>
 
+/** One request of one chat: the target of an archive, an unarchive or a delete. Never a path. */
+export const PrototypeRequestTargetParams = z
+  .object({
+    sessionId: SessionId,
+    requestId: z.string().regex(REQUEST_ID_PATTERN)
+  })
+  .strict()
+
+export type PrototypeRequestTargetParams = z.infer<typeof PrototypeRequestTargetParams>
+
 export const ReadPrototypeFileParams = z
   .object({
     sessionId: SessionId,
@@ -101,6 +111,24 @@ export type PrototypeReadFileError = (typeof PROTOTYPE_READ_FILE_ERRORS)[number]
 export type ReadPrototypeFileResult =
   | { ok: true; html: string }
   | { ok: false; error: PrototypeReadFileError }
+
+/** Why a set is not archived or unarchived: `not_found` is no such request this caller may touch; `unwritable`, the host could not rewrite its request.json. */
+export const PROTOTYPE_ARCHIVE_ERRORS = ['not_found', 'unwritable'] as const
+
+export type ArchivePrototypeRequestResult =
+  | { ok: true }
+  | { ok: false; error: (typeof PROTOTYPE_ARCHIVE_ERRORS)[number] }
+
+/**
+ * Why a set is not deleted. `not_deletable`: its chat and its worktree both still exist, or the host cannot
+ * tell they are gone (a remote chat out of contact is never read as deleted). `unwritable`: the folder could
+ * not be removed.
+ */
+export const PROTOTYPE_DELETE_ERRORS = ['not_found', 'not_deletable', 'unwritable'] as const
+
+export type DeletePrototypeRequestResult =
+  | { ok: true }
+  | { ok: false; error: (typeof PROTOTYPE_DELETE_ERRORS)[number] }
 
 export const PrototypeListedVersionSchema = z.object({
   version: z.int().min(1),
@@ -163,6 +191,13 @@ export const PrototypeListedSetSchema = z.object({
   builtOn: z.int().min(1).optional(),
   /** The parent chat that delegated this set's request to a child session; absent for a chat's own request. */
   origin: z.object({ sessionId: z.string().min(1).max(TEXT_MAX_LENGTH) }).optional(),
+  /** Set once the set is archived; absent from a host that predates archiving. */
+  archived: z.literal(true).optional(),
+  /**
+   * Set when the host would accept `prototypes.delete` for this set: its chat or its worktree no longer
+   * exists. The host decides; listed for archived sets only, which are the ones a client offers Delete on.
+   */
+  deletable: z.literal(true).optional(),
   directions: z.array(PrototypeListedDirectionSchema)
 })
 
@@ -226,6 +261,16 @@ export const ListPrototypeSetsReplySchema = z.object({
   designSystems: z.array(PrototypeListedDesignSystemSchema).optional(),
   proposals: z.array(PrototypeListedProposalSchema).optional()
 })
+
+export const ArchivePrototypeRequestReplySchema = z.union([
+  z.object({ ok: z.literal(true) }),
+  z.object({ ok: z.literal(false), error: z.enum(PROTOTYPE_ARCHIVE_ERRORS) })
+])
+
+export const DeletePrototypeRequestReplySchema = z.union([
+  z.object({ ok: z.literal(true) }),
+  z.object({ ok: z.literal(false), error: z.enum(PROTOTYPE_DELETE_ERRORS) })
+])
 
 export const ReadPrototypeDesignSystemReplySchema = z.union([
   z.object({

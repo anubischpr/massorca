@@ -53,7 +53,9 @@ const prototypeRequestManifestSchema = z.object({
   designSystemMode: z.enum(PROTOTYPE_DESIGN_SYSTEM_MODES).optional(),
   designSystemVersion: z.int().min(1).optional(),
   // The design/<slug>/ folder bound on first resolution, so a design folder that appears later cannot rebind it.
-  gentleDesignSlug: z.string().refine(isPlainPathSegment).optional()
+  gentleDesignSlug: z.string().refine(isPlainPathSegment).optional(),
+  // Set by the host when the set is archived. Read as a hint only: it hides a set from the main list.
+  archived: z.boolean().optional()
 })
 
 export type PrototypeRequestManifest = z.infer<typeof prototypeRequestManifestSchema>

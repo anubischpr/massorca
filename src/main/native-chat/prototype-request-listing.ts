@@ -43,8 +43,10 @@ const MAX_REQUEST_FOLDERS_SCANNED = 500
 export type ListPrototypeSetsOptions = {
   stateDirectory: string
   worktreeId?: string
-  /** Whether a chat's request folders may be listed; omitted, every chat on this host is listed. */
-  isChatListed?: (sessionId: string) => boolean
+  /** Whether a chat's request folders may be listed, given whether the request is archived; omitted, all are. */
+  isChatListed?: (sessionId: string, archived: boolean) => boolean
+  /** Whether the host would delete this chat's requests; asked once per chat, for archived sets only. */
+  isDeletable?: (sessionId: string) => Promise<boolean>
   /** A chat's launch directory from its record; a Gentle Shell design/ folder is read only under it. */
   launchDirectoryOf?: (sessionId: string) => string | undefined | Promise<string | undefined>
 }
@@ -99,8 +101,10 @@ async function withProjects(
   const pendingRequests = new Map<string, PrototypeListedPendingRequest>()
   const proposals: PrototypeListedProposal[] = []
   const sets: PrototypeListedSet[] = []
+  const deletableOf = deletableChecker(options)
   for (const request of requests) {
-    const { set, manifest } = request
+    const { set: listedSet, manifest } = request
+    const set = listedSet === null ? null : await withDeletable(listedSet, deletableOf)
     const project = projects.get(launchDirectories.get(manifest.sessionId) ?? '')
     // Why the first only: requests are newest first, so the first proposal with no direction files is the newest.
     if (
@@ -142,6 +146,31 @@ async function withProjects(
     ...(designSystems.length > 0 ? { designSystems } : {}),
     ...(proposals.length > 0 ? { proposals } : {})
   }
+}
+
+function deletableChecker(
+  options: ListPrototypeSetsOptions
+): (sessionId: string) => Promise<boolean> {
+  const answers = new Map<string, Promise<boolean>>()
+  return (sessionId) => {
+    const known = answers.get(sessionId)
+    if (known !== undefined) {
+      return known
+    }
+    const answer = (options.isDeletable?.(sessionId) ?? Promise.resolve(false)).catch(() => false)
+    answers.set(sessionId, answer)
+    return answer
+  }
+}
+
+// Only archived sets carry it: they are the ones a client offers Delete on, so the others cost no check.
+async function withDeletable(
+  set: PrototypeListedSet,
+  deletableOf: (sessionId: string) => Promise<boolean>
+): Promise<PrototypeListedSet> {
+  return set.archived === true && (await deletableOf(set.sessionId))
+    ? { ...set, deletable: true }
+    : set
 }
 
 /** One entry per project with a system; a summary the list contract refuses is logged once and left out. */
@@ -246,7 +275,10 @@ async function listedRequestFor(
   if (options.worktreeId !== undefined && manifest.worktreeId !== options.worktreeId) {
     return null
   }
-  if (options.isChatListed !== undefined && !options.isChatListed(manifest.sessionId)) {
+  if (
+    options.isChatListed !== undefined &&
+    !options.isChatListed(manifest.sessionId, manifest.archived === true)
+  ) {
     return null
   }
   const launchDirectory = await options.launchDirectoryOf?.(manifest.sessionId)
@@ -282,6 +314,7 @@ async function listedRequestFor(
           ...(manifest.originSessionId !== undefined
             ? { origin: { sessionId: manifest.originSessionId } }
             : {}),
+          ...(manifest.archived === true ? { archived: true as const } : {}),
           directions
         }
   return { set, manifest, requestFolder }
