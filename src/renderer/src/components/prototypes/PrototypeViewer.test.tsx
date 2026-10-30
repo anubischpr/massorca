@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 import '@testing-library/jest-dom/vitest'
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { createRef } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import type {
   NativeChatVisualAnnotateEvent,
   NativeChatVisualPickedElement
@@ -97,16 +98,18 @@ const PICKED: NativeChatVisualPickedElement = {
 
 function renderViewer(state: PrototypeSetState, update: Update): void {
   render(
-    <PrototypeViewer
-      set={SET}
-      state={state}
-      update={update}
-      frameBoxRef={createRef<HTMLDivElement>()}
-      onOpenDesignSystem={vi.fn()}
-      nextLetter="C"
-      onMerge={vi.fn()}
-      onSendMerge={vi.fn()}
-    />
+    <TooltipProvider>
+      <PrototypeViewer
+        set={SET}
+        state={state}
+        update={update}
+        frameBoxRef={createRef<HTMLDivElement>()}
+        onOpenDesignSystem={vi.fn()}
+        nextLetter="C"
+        onMerge={vi.fn()}
+        onSendMerge={vi.fn()}
+      />
+    </TooltipProvider>
   )
 }
 
@@ -205,16 +208,18 @@ function renderSet3(
   extra: { onMerge?: () => void; nextLetter?: string | null; set?: PrototypeListedSet } = {}
 ): Update {
   render(
-    <PrototypeViewer
-      set={extra.set ?? SET3}
-      state={state}
-      update={update}
-      frameBoxRef={createRef<HTMLDivElement>()}
-      onOpenDesignSystem={vi.fn()}
-      nextLetter={extra.nextLetter === undefined ? 'D' : extra.nextLetter}
-      onMerge={extra.onMerge ?? vi.fn()}
-      onSendMerge={vi.fn()}
-    />
+    <TooltipProvider>
+      <PrototypeViewer
+        set={extra.set ?? SET3}
+        state={state}
+        update={update}
+        frameBoxRef={createRef<HTMLDivElement>()}
+        onOpenDesignSystem={vi.fn()}
+        nextLetter={extra.nextLetter === undefined ? 'D' : extra.nextLetter}
+        onMerge={extra.onMerge ?? vi.fn()}
+        onSendMerge={vi.fn()}
+      />
+    </TooltipProvider>
   )
   return update
 }
@@ -463,5 +468,75 @@ describe('PrototypeViewer toolbar structure', () => {
       screen.getByRole('button', { name: 'Hide panel' }).parentElement
     )
     expect(tool.parentElement).not.toBe(screen.getByRole('toolbar'))
+  })
+})
+
+describe('PrototypeViewer icon-only controls', () => {
+  afterEach(cleanup)
+
+  it('shows the controls as icons, with no visible text except the Merge count', () => {
+    renderSet3(toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C'))
+    const controls = screen.getByRole('toolbar')
+    for (const text of [
+      'View all',
+      'Design main',
+      'Desktop',
+      'Phone',
+      'Browse',
+      'Annotate',
+      'Merge'
+    ]) {
+      expect(within(controls).queryByText(text)).toBeNull()
+    }
+    expect(within(controls).getByRole('button', { name: 'Merge (2)' }).textContent).toBe('2')
+  })
+
+  it('names each icon and marks the selected layout, viewport and tool', () => {
+    renderSet3(createSetState(['A', 'B', 'C']))
+    expect(screen.getByRole('button', { name: 'Design main' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    expect(screen.getByRole('button', { name: 'View all' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    )
+    expect(screen.getByRole('button', { name: 'Desktop' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Phone' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Annotate' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Browse' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('shows the name of each icon in a tooltip on focus', async () => {
+    renderSet3(toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C'))
+    for (const name of [
+      'Merge (2)',
+      'View all',
+      'Design main',
+      'Desktop',
+      'Phone',
+      'Browse',
+      'Annotate',
+      'Hide panel'
+    ]) {
+      const control = screen.getByRole('button', { name })
+      fireEvent.focus(control)
+      expect(await screen.findByRole('tooltip')).toHaveTextContent(name)
+      fireEvent.blur(control)
+      await waitFor(() => expect(screen.queryByRole('tooltip')).toBeNull())
+    }
+  })
+
+  it('shows the name of an icon in a tooltip on hover', async () => {
+    renderSet3(createSetState(['A', 'B', 'C']))
+    fireEvent.pointerMove(screen.getByRole('button', { name: 'Annotate' }), {
+      pointerType: 'mouse'
+    })
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Annotate')
+  })
+
+  it('truncates the title with an ellipsis beside the controls', () => {
+    renderSet3(createSetState(['A', 'B', 'C']))
+    expect(screen.getByText(/· 3 directions$/)).toHaveClass('truncate')
   })
 })

@@ -1,6 +1,16 @@
-import { PanelRight, Star } from 'lucide-react'
+import {
+  LayoutGrid,
+  MessageCircle,
+  Monitor,
+  MousePointer,
+  PanelRight,
+  Pencil,
+  Smartphone,
+  Star
+} from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { activateStructuredAgentSessionById } from '@/lib/structured-agent-session-tab-activation'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
@@ -19,10 +29,28 @@ import { usePrototypeViewStore } from './prototype-view-store'
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
 
 const SEGMENT_CLASS = 'flex rounded-md border border-border bg-sidebar p-0.5'
-const SEGMENT_BUTTON = 'h-6 rounded px-2.5 text-xs whitespace-nowrap transition-colors'
+const SEGMENT_BUTTON = 'flex h-6 w-7 items-center justify-center rounded transition-colors'
 
 function segmentButtonClass(on: boolean): string {
   return cn(SEGMENT_BUTTON, on ? 'bg-accent text-accent-foreground' : 'text-muted-foreground')
+}
+
+/** Shows the name of an icon-only control on hover or focus; the control keeps the same name as its label. */
+function NamedTooltip({
+  name,
+  children
+}: {
+  name: string
+  children: React.ReactElement
+}): React.JSX.Element {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="bottom" sideOffset={4} showArrow={false}>
+        {name}
+      </TooltipContent>
+    </Tooltip>
+  )
 }
 
 /** The viewer's header: the set's title and chat, Merge, the Layout, Viewport and Tool groups, the panel toggle. */
@@ -60,9 +88,22 @@ export function PrototypeViewerToolbar({
     }
   }
   const starCount = state.starred.length
+  const mergeName =
+    starCount === 0
+      ? translate('components.prototypes.merge', 'Merge')
+      : translate('components.prototypes.mergeCount', 'Merge ({{count}})', { count: starCount })
+  const viewAllName = translate('components.prototypes.layoutAll', 'View all')
+  const designMainName = translate('components.prototypes.layoutIterating', 'Design main')
+  const desktopName = translate('components.prototypes.viewportDesktop', 'Desktop')
+  const phoneName = translate('components.prototypes.viewportPhone', 'Phone')
+  const browseName = translate('components.prototypes.toolBrowse', 'Browse')
+  const annotateName = translate('components.prototypes.toolAnnotate', 'Annotate')
+  const panelName = sidePanelHidden
+    ? translate('components.prototypes.showPanel', 'Show panel')
+    : translate('components.prototypes.hidePanel', 'Hide panel')
   return (
     <div className="flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-2.5">
-      <div className="flex min-w-0 flex-[1_1_160px] flex-col gap-0.5">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-sm font-semibold">
           {`${prototypeTitle(set)} · ${prototypeCountLabel(status)}`}
         </span>
@@ -91,19 +132,18 @@ export function PrototypeViewerToolbar({
       </div>
       <div role="toolbar" className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
         {single ? null : (
-          <button
-            type="button"
-            onClick={onMerge}
-            disabled={!mergeEnabled}
-            className="flex h-7 items-center gap-1.5 rounded-lg whitespace-nowrap border border-status-amber/50 px-3 text-xs disabled:border-border disabled:text-muted-foreground"
-          >
-            <Star aria-hidden="true" className="size-3.5 fill-status-amber text-status-amber" />
-            {starCount === 0
-              ? translate('components.prototypes.merge', 'Merge')
-              : translate('components.prototypes.mergeCount', 'Merge ({{count}})', {
-                  count: starCount
-                })}
-          </button>
+          <NamedTooltip name={mergeName}>
+            <button
+              type="button"
+              onClick={onMerge}
+              disabled={!mergeEnabled}
+              aria-label={mergeName}
+              className="flex h-7.5 items-center gap-1 rounded-lg whitespace-nowrap border border-status-amber/50 px-2 text-xs disabled:border-border disabled:text-muted-foreground"
+            >
+              <Star aria-hidden="true" className="size-3.5 fill-status-amber text-status-amber" />
+              {starCount === 0 ? null : <span>{starCount}</span>}
+            </button>
+          </NamedTooltip>
         )}
         {single ? null : (
           <div
@@ -111,22 +151,28 @@ export function PrototypeViewerToolbar({
             aria-label={translate('components.prototypes.layoutGroup', 'Layout')}
             className={SEGMENT_CLASS}
           >
-            <button
-              type="button"
-              aria-pressed={layout === 'set'}
-              onClick={() => update(showSet)}
-              className={segmentButtonClass(layout === 'set')}
-            >
-              {translate('components.prototypes.layoutAll', 'View all')}
-            </button>
-            <button
-              type="button"
-              aria-pressed={layout === 'focus'}
-              onClick={() => update(showFocus)}
-              className={segmentButtonClass(layout === 'focus')}
-            >
-              {translate('components.prototypes.layoutIterating', 'Design main')}
-            </button>
+            <NamedTooltip name={viewAllName}>
+              <button
+                type="button"
+                aria-label={viewAllName}
+                aria-pressed={layout === 'set'}
+                onClick={() => update(showSet)}
+                className={segmentButtonClass(layout === 'set')}
+              >
+                <LayoutGrid aria-hidden="true" className="size-4" />
+              </button>
+            </NamedTooltip>
+            <NamedTooltip name={designMainName}>
+              <button
+                type="button"
+                aria-label={designMainName}
+                aria-pressed={layout === 'focus'}
+                onClick={() => update(showFocus)}
+                className={segmentButtonClass(layout === 'focus')}
+              >
+                <Pencil aria-hidden="true" className="size-4" />
+              </button>
+            </NamedTooltip>
           </div>
         )}
         <div
@@ -134,22 +180,28 @@ export function PrototypeViewerToolbar({
           aria-label={translate('components.prototypes.viewportGroup', 'Viewport')}
           className={SEGMENT_CLASS}
         >
-          <button
-            type="button"
-            aria-pressed={state.viewport === 'desktop'}
-            onClick={() => update((current) => setViewport(current, 'desktop'))}
-            className={segmentButtonClass(state.viewport === 'desktop')}
-          >
-            {translate('components.prototypes.viewportDesktop', 'Desktop')}
-          </button>
-          <button
-            type="button"
-            aria-pressed={state.viewport === 'phone'}
-            onClick={() => update((current) => setViewport(current, 'phone'))}
-            className={segmentButtonClass(state.viewport === 'phone')}
-          >
-            {translate('components.prototypes.viewportPhone', 'Phone')}
-          </button>
+          <NamedTooltip name={desktopName}>
+            <button
+              type="button"
+              aria-label={desktopName}
+              aria-pressed={state.viewport === 'desktop'}
+              onClick={() => update((current) => setViewport(current, 'desktop'))}
+              className={segmentButtonClass(state.viewport === 'desktop')}
+            >
+              <Monitor aria-hidden="true" className="size-4" />
+            </button>
+          </NamedTooltip>
+          <NamedTooltip name={phoneName}>
+            <button
+              type="button"
+              aria-label={phoneName}
+              aria-pressed={state.viewport === 'phone'}
+              onClick={() => update((current) => setViewport(current, 'phone'))}
+              className={segmentButtonClass(state.viewport === 'phone')}
+            >
+              <Smartphone aria-hidden="true" className="size-4" />
+            </button>
+          </NamedTooltip>
         </div>
         <div className="flex items-center gap-2">
           <div
@@ -157,36 +209,40 @@ export function PrototypeViewerToolbar({
             aria-label={translate('components.prototypes.toolGroup', 'Tool')}
             className={SEGMENT_CLASS}
           >
-            <button
-              type="button"
-              aria-pressed={state.tool === 'browse'}
-              onClick={() => update((current) => setTool(current, 'browse'))}
-              className={segmentButtonClass(state.tool === 'browse')}
-            >
-              {translate('components.prototypes.toolBrowse', 'Browse')}
-            </button>
-            <button
-              type="button"
-              aria-pressed={state.tool === 'annotate'}
-              onClick={() => update((current) => setTool(current, 'annotate'))}
-              className={segmentButtonClass(state.tool === 'annotate')}
-            >
-              {translate('components.prototypes.toolAnnotate', 'Annotate')}
-            </button>
+            <NamedTooltip name={browseName}>
+              <button
+                type="button"
+                aria-label={browseName}
+                aria-pressed={state.tool === 'browse'}
+                onClick={() => update((current) => setTool(current, 'browse'))}
+                className={segmentButtonClass(state.tool === 'browse')}
+              >
+                <MousePointer aria-hidden="true" className="size-4" />
+              </button>
+            </NamedTooltip>
+            <NamedTooltip name={annotateName}>
+              <button
+                type="button"
+                aria-label={annotateName}
+                aria-pressed={state.tool === 'annotate'}
+                onClick={() => update((current) => setTool(current, 'annotate'))}
+                className={segmentButtonClass(state.tool === 'annotate')}
+              >
+                <MessageCircle aria-hidden="true" className="size-4" />
+              </button>
+            </NamedTooltip>
           </div>
-          <Button
-            type="button"
-            variant={sidePanelHidden ? 'secondary' : 'ghost'}
-            size="icon-xs"
-            aria-label={
-              sidePanelHidden
-                ? translate('components.prototypes.showPanel', 'Show panel')
-                : translate('components.prototypes.hidePanel', 'Hide panel')
-            }
-            onClick={() => setSidePanelHidden(!sidePanelHidden)}
-          >
-            <PanelRight />
-          </Button>
+          <NamedTooltip name={panelName}>
+            <Button
+              type="button"
+              variant={sidePanelHidden ? 'secondary' : 'ghost'}
+              size="icon-sm"
+              aria-label={panelName}
+              onClick={() => setSidePanelHidden(!sidePanelHidden)}
+            >
+              <PanelRight />
+            </Button>
+          </NamedTooltip>
         </div>
       </div>
     </div>
