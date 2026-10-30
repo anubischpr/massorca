@@ -73,7 +73,6 @@ describe.each(['claude', 'codex'] as const)('%s first-message naming status hook
       const deps: StructuredChatNamingDeps = {
         getStore: () => store,
         getSettings: () => ({}),
-        hasOpenDispatch: () => false,
         readFirstPrompt,
         generate,
         onNamed: vi.fn(),

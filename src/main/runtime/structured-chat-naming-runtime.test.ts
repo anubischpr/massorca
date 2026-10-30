@@ -37,7 +37,6 @@ function rig() {
       executionHostId: 'local' as const
     })),
     getAgentEnvResolvers: vi.fn(() => undefined),
-    hasOpenDispatch: vi.fn(() => false),
     retitleOpenTab: vi.fn()
   }
   const logger = { warn: vi.fn(), error: vi.fn() }

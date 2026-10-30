@@ -44,7 +44,6 @@ function rig(provider: 'claude' | 'codex') {
     getStore: () => ({ getRecord, compareAndSetConversationName: setConversationName }),
     getSettings: () => ({}),
     now: () => 100,
-    hasOpenDispatch: vi.fn(() => false),
     readFirstPrompt: vi.fn(async () => 'Please repair the login flow'),
     generate: vi.fn(async () => 'auth/login'),
     onNamed: vi.fn(),
@@ -104,7 +103,7 @@ describe.each(['claude', 'codex'] as const)('structured %s chat naming', (provid
     expect(state.deps.generate).not.toHaveBeenCalled()
   })
 
-  it.each(['missing', 'named', 'worker'] as const)('skips a %s record', async (kind) => {
+  it.each(['missing', 'named'] as const)('skips a %s record', async (kind) => {
     const state = rig(provider)
     const record = state.read()
     if (!record) {
@@ -112,15 +111,35 @@ describe.each(['claude', 'codex'] as const)('structured %s chat naming', (provid
     }
     if (kind === 'missing') {
       state.replace(null)
-    } else if (kind === 'named') {
-      state.replace({ ...record, conversationName: 'Existing name' })
     } else {
-      state.deps.hasOpenDispatch = () => true
+      state.replace({ ...record, conversationName: 'Existing name' })
     }
     state.handle(state.summary, { replay: false })
     await settle()
     expect(state.deps.readFirstPrompt).not.toHaveBeenCalled()
     expect(state.deps.generate).not.toHaveBeenCalled()
+  })
+
+  it('names a dispatched worker from its task body', async () => {
+    const state = rig(provider)
+    state.deps.readFirstPrompt = vi.fn(async () => 'Rename the sidebar label')
+    state.handle(state.summary, { replay: false })
+    await settle()
+    expect(state.deps.generate).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: state.summary.sessionId }),
+      'Rename the sidebar label'
+    )
+    expect(state.read()?.conversationName).toBe('auth/login')
+  })
+
+  it('leaves a dispatched worker unnamed when chat naming is disabled', async () => {
+    const state = rig(provider)
+    state.deps.readFirstPrompt = vi.fn(async () => 'Rename the sidebar label')
+    state.deps.getSettings = () => ({ nativeChatAutoName: false })
+    state.handle(state.summary, { replay: false })
+    await settle()
+    expect(state.deps.generate).not.toHaveBeenCalled()
+    expect(state.read()?.conversationName).toBeUndefined()
   })
 
   it('stays unnamed when disabled, including after enabling', async () => {
