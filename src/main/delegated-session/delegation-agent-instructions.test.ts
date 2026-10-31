@@ -40,6 +40,12 @@ describe('delegation agent instructions', () => {
     }
   })
 
+  it('tells the parent to pass on whether a child reused or created the design system', () => {
+    for (const text of [DELEGATION_AGENT_INSTRUCTIONS, DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE]) {
+      expect(text).toMatch(/reused or created a design system, tell the user which/)
+    }
+  })
+
   it('keeps the one-line form free of newlines and cmd.exe metacharacters', () => {
     expect(DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE).not.toMatch(/[\r\n"<>|&%^]/)
   })

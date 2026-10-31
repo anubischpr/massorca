@@ -68,6 +68,13 @@ describe('designSystemReadInstruction', () => {
     expect(designSystemReadInstruction({ unattended: true })).toContain(REPORT)
   })
 
+  it('asks an unattended child to open its worker_done report with the same statement', () => {
+    expect(designSystemReadInstruction({ unattended: true })).toContain(
+      'Begin the --body of your worker_done report with that same statement.'
+    )
+    expect(designSystemReadInstruction()).not.toContain('worker_done')
+  })
+
   it('names project-relative paths without a folder, as it always did', () => {
     expect(DESIGN_SYSTEM_READ_INSTRUCTION).toContain(
       'read design/system/tokens.json, components.html and system.md.'
