@@ -79,8 +79,6 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
   const [sessionTarget, setSessionTarget] = useState<{
     item: Worktree
     agent: RuntimeWorktreeAgentRow
-    /** The session runs in another worktree than the one its row is listed under. */
-    runsElsewhere: boolean
   } | null>(null)
   const [renameTarget, setRenameTarget] = useState<{ handle: string } | null>(null)
   const groupMode = state.groupMode
@@ -118,8 +116,7 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
   }
   // Why: the handle is offered only while the row may manage its terminal; a row without one gets Copy Path alone.
   const sessionHandle =
-    sessionTarget &&
-    canManageSessionTerminal(sessionTarget.agent, { runsElsewhere: sessionTarget.runsElsewhere })
+    sessionTarget && canManageSessionTerminal(sessionTarget.agent, { runsElsewhere: false })
       ? (sessionTarget.agent.terminalHandle ?? null)
       : null
   const renameSession = async (handle: string, title: string) => {
@@ -325,11 +322,12 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
               onLongPress={state.setActionTarget}
               onLongPressSession={(row, agent) => {
                 const owner = agentOwners.get(agent.paneKey)
-                setSessionTarget({
-                  item: owner?.item ?? row,
-                  agent,
-                  runsElsewhere: owner !== undefined
-                })
+                // Why: this session stands in for its worktree's hidden row, so it opens that worktree's sheet.
+                if (owner) {
+                  state.setActionTarget(owner.item)
+                  return
+                }
+                setSessionTarget({ item: row, agent })
               }}
               onToggleLineage={settings.toggleWorktreeLineage}
             />
@@ -365,10 +363,7 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
                 onRename: sessionHandle
                   ? () => setRenameTarget({ handle: sessionHandle })
                   : undefined,
-                onClose: sessionHandle ? () => void closeSession(sessionHandle) : undefined,
-                onOpenWorktree: sessionTarget.runsElsewhere
-                  ? () => state.setActionTarget(sessionTarget.item)
-                  : undefined
+                onClose: sessionHandle ? () => void closeSession(sessionHandle) : undefined
               })
             : []
         }
