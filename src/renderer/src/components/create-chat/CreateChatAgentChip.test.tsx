@@ -156,6 +156,19 @@ describe('CreateChatAgentChip', () => {
     expect(screen.getByText('Model set by the agent')).toBeTruthy()
   })
 
+  it('labels the chip with the selected model by its featured name alone', async () => {
+    catalogs = { claude: CLAUDE }
+    render(<Harness />)
+    const trigger = await openMenu()
+
+    await pick(/^Opus/)
+    await pick(/^high$/i)
+
+    expect(trigger.textContent).toContain('Opus')
+    expect(trigger.textContent).not.toContain('opus')
+    expect(trigger.textContent).not.toContain('5.5')
+  })
+
   it('lists the featured Claude models first and folds the rest behind More models', async () => {
     catalogs = {
       claude: { status: 'ready', models: [model('opus'), model('haiku'), model('sonnet[1m]')] }

@@ -3,7 +3,10 @@ import { translate } from '@/i18n/i18n'
 import { AgentIcon, getAgentDisplayLabel } from '@/lib/agent-catalog'
 import type { PiDisplayRuntime } from '@/lib/pi-agent-display'
 import type { TuiAgent } from '../../../../shared/tui-agent'
-import { featuredModelAgentFor } from '../../../../shared/native-chat-featured-models'
+import {
+  featuredModelAgentFor,
+  featuredModelDisplay
+} from '../../../../shared/native-chat-featured-models'
 import { nativeChatSessionChoiceLabel } from '../native-chat/native-chat-session-option-labels'
 import { CreateChatChipMenu, type CreateChatMenuGroup } from './CreateChatChipMenu'
 import {
@@ -55,8 +58,14 @@ export function CreateChatAgentChip({
     models.find((model) => model.isDefault) ??
     models[0]
   const efforts = activeModel?.efforts ?? []
-  const modelLabel = selection.model
-    ? models.find((model) => model.id === selection.model)?.label
+  const featuredAgent = featuredModelAgentFor(selection.agent, piRuntime)
+  const selectedModel = selection.model
+    ? models.find((model) => model.id === selection.model)
+    : undefined
+  // Why: the chip reads the model by its featured name alone, as the picker rows do, not the raw label.
+  const modelLabel = selectedModel
+    ? featuredModelDisplay({ value: selectedModel.id, label: selectedModel.label }, featuredAgent)
+        .name
     : undefined
   const effortValue = selection.effort ?? activeModel?.defaultEffort
   const effortLabel = efforts.find((effort) => effort.value === effortValue)
@@ -89,11 +98,7 @@ export function CreateChatAgentChip({
     }
   ]
   if (models.length > 0) {
-    const modelMenu = buildModelMenuItems(
-      models,
-      featuredModelAgentFor(selection.agent, piRuntime),
-      selection.model
-    )
+    const modelMenu = buildModelMenuItems(models, featuredAgent, selection.model)
     groups.push({
       key: 'model',
       title: translate('components.createChat.modelGroup', 'Model'),
