@@ -54,10 +54,10 @@ describe('PrototypeThumbnail', () => {
   afterEach(cleanup)
 
   it('keeps the desktop page shape by default', () => {
-    expect(renderedAspectRatio()).toContain('aspect-ratio: 640 / 400')
+    expect(renderedAspectRatio()).toContain('aspect-ratio: 1440 / 900')
   })
 
   it('takes the phone frame width and a phone height in phone view', () => {
-    expect(renderedAspectRatio('phone')).toContain('aspect-ratio: 360 / 640')
+    expect(renderedAspectRatio('phone')).toContain('aspect-ratio: 390 / 844')
   })
 })
