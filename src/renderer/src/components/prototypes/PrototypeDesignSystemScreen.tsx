@@ -72,12 +72,12 @@ export function PrototypeDesignSystemScreen({
   }
   if (content.status === 'loading') {
     return (
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border" />
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border bg-sidebar" />
     )
   }
   if (content.status === 'error') {
     return (
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border bg-sidebar">
         <p className="p-6 text-sm text-muted-foreground">
           {translate(
             'components.prototypes.designSystem.unreadable',
@@ -98,10 +98,10 @@ export function PrototypeDesignSystemScreen({
   }
   return (
     <>
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border bg-sidebar">
         <PrototypeDesignSystemView {...panel} />
       </section>
-      <aside className="scrollbar-sleek flex min-h-0 w-[340px] shrink-0 flex-col overflow-y-auto border-l border-border">
+      <aside className="scrollbar-sleek flex min-h-0 w-[340px] shrink-0 flex-col overflow-y-auto border-l border-border bg-sidebar">
         <PrototypeDesignSystemAside {...panel} />
       </aside>
     </>

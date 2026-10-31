@@ -49,7 +49,7 @@ export function PrototypeDesignSystemTokens({
                   aria-pressed={selected}
                   onClick={() => choose(token.id)}
                   className={cn(
-                    'flex min-w-0 items-center gap-2.5 rounded-lg border border-border bg-background p-2 text-left',
+                    'flex min-w-0 items-center gap-2.5 rounded-lg border border-border bg-card p-2 text-left',
                     selected && 'ring-2 ring-ring'
                   )}
                 >

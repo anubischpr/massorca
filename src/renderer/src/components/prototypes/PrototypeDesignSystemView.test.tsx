@@ -179,6 +179,13 @@ describe('PrototypeDesignSystemView Tokens tab', () => {
     expect(screen.getByText('type.body · 14px/400')).toBeInTheDocument()
   })
 
+  it('paints each color token tile with the card surface, not the canvas', () => {
+    renderView({ state: { tab: 'tokens' } })
+    const tile = screen.getByRole('button', { name: /color\.primary/u })
+    expect(tile).toHaveClass('bg-card')
+    expect(tile).not.toHaveClass('bg-background')
+  })
+
   it('shows the type scale without a font when the system has no font family token', () => {
     const noFamily = JSON.stringify({ type: { body: { $value: '14px' } } })
     renderView({ state: { tab: 'tokens' }, content: contentWith(noFamily, COMPONENTS) })

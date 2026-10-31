@@ -70,6 +70,8 @@ describe('PrototypeDesignSystemScreen', () => {
     )
     expect(await screen.findByText('Design system · landing-site')).toBeInTheDocument()
     expect(screen.queryByText(UNREADABLE)).not.toBeInTheDocument()
+    expect(container.querySelector('section')).toHaveClass('bg-sidebar')
+    expect(container.querySelector('aside')).toHaveClass('bg-sidebar')
   })
 
   it('shows a short message, not an empty pane, when the project names no chat at all', async () => {
@@ -78,6 +80,7 @@ describe('PrototypeDesignSystemScreen', () => {
     )
     expect(await screen.findByText(UNREADABLE)).toBeInTheDocument()
     expect(mocks.read).not.toHaveBeenCalled()
+    expect(container.firstElementChild).toHaveClass('bg-sidebar')
   })
 
   it('shows the same message when the host cannot read the system through its chat', async () => {
