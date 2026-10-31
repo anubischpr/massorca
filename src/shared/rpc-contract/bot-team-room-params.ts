@@ -35,6 +35,10 @@ export const BotTeamRoomSelector = z.object({
   teamId: requiredString('Missing team id')
 })
 
+export const BotTeamTaskStart = z.object({
+  taskId: requiredString('Missing task id')
+})
+
 export type BotTeamTask = z.output<typeof BotTeamTaskSchema>
 export type BotTeamMessage = z.output<typeof BotTeamMessageSchema>
 export type BotTeamTaskInput = z.output<typeof BotTeamTaskCreate>

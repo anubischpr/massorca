@@ -15,6 +15,10 @@ export function migrateV45(this: OrchestrationDb, current: number): void {
     );
     CREATE INDEX IF NOT EXISTS idx_bot_team_tasks_team ON bot_team_tasks(team_id);
     CREATE INDEX IF NOT EXISTS idx_bot_team_tasks_session ON bot_team_tasks(session_id);
+    CREATE TABLE IF NOT EXISTS bot_team_workspaces (
+      team_id TEXT PRIMARY KEY REFERENCES bot_teams(id),
+      workspace_id TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS bot_team_messages (
       id TEXT PRIMARY KEY,
       team_id TEXT NOT NULL REFERENCES bot_teams(id),

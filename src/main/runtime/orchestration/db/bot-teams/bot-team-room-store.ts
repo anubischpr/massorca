@@ -86,7 +86,34 @@ export function listBotTeamMessages(this: OrchestrationDb, teamId: string): BotT
     .parse(this.db.prepare(`${MESSAGE_SELECT} WHERE team_id = ? ORDER BY rowid`).all(teamId))
 }
 
+export function getBotTeamWorkspace(this: OrchestrationDb, teamId: string): string | null {
+  const row = z
+    .object({ workspace_id: z.string() })
+    .optional()
+    .parse(
+      this.db.prepare('SELECT workspace_id FROM bot_team_workspaces WHERE team_id = ?').get(teamId)
+    )
+  return row?.workspace_id ?? null
+}
+
+export function setBotTeamWorkspace(
+  this: OrchestrationDb,
+  teamId: string,
+  workspaceId: string
+): void {
+  this.db
+    .prepare('INSERT OR REPLACE INTO bot_team_workspaces (team_id, workspace_id) VALUES (?, ?)')
+    .run(teamId, workspaceId)
+}
+
+export function getBotTeamTask(this: OrchestrationDb, taskId: string): BotTeamTask {
+  return requireBotTeamTask(this, taskId)
+}
+
 export type BotTeamRoomStoreMethods = {
+  getBotTeamTask: typeof getBotTeamTask
+  getBotTeamWorkspace: typeof getBotTeamWorkspace
+  setBotTeamWorkspace: typeof setBotTeamWorkspace
   createBotTeamTask: typeof createBotTeamTask
   listBotTeamTasks: typeof listBotTeamTasks
   setBotTeamTaskSession: typeof setBotTeamTaskSession
@@ -97,6 +124,9 @@ export type BotTeamRoomStoreMethods = {
 
 export function attachBotTeamRoomStore(ctor: { prototype: object }): void {
   Object.assign(ctor.prototype, {
+    getBotTeamTask,
+    getBotTeamWorkspace,
+    setBotTeamWorkspace,
     createBotTeamTask,
     listBotTeamTasks,
     setBotTeamTaskSession,
