@@ -53,6 +53,27 @@ describe('resolveWorktreeCardSurfaceLayout', () => {
     expect(resolveWorktreeCardSurfaceLayout({ compactWorktreeCards: true }, false)).toBe('compact')
   })
 
+  it('follows the explicit layout over a stale compact flag on the non-sidebar surfaces', () => {
+    expect(
+      resolveWorktreeCardSurfaceLayout(
+        { compactWorktreeCards: true, worktreeCardLayout: 'detailed' },
+        false
+      )
+    ).toBe('detailed')
+    expect(
+      resolveWorktreeCardSurfaceLayout(
+        { compactWorktreeCards: false, worktreeCardLayout: 'compact' },
+        false
+      )
+    ).toBe('compact')
+    expect(
+      resolveWorktreeCardSurfaceLayout(
+        { compactWorktreeCards: true, worktreeCardLayout: 'one-line' },
+        false
+      )
+    ).toBe('detailed')
+  })
+
   it('lets the experimental card style win on every surface', () => {
     const settings = { experimentalNewWorktreeCardStyle: true, compactWorktreeCards: true }
     expect(resolveWorktreeCardSurfaceLayout(settings, true)).toBe('detailed')
