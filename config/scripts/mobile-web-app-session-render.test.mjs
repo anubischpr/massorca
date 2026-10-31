@@ -189,10 +189,16 @@ async function waitForRoute({ page, errors }, route, awaitText) {
     throw named('never mounted')
   }
   try {
-    await page.waitForFunction((needle) => document.body.innerText.includes(needle), awaitText, {
-      timeout: 60_000,
-      polling: 250
-    })
+    await page.waitForFunction(
+      (needle) =>
+        document.body.innerText.includes(needle) ||
+        document.querySelector(`[aria-label="${needle}"]`) !== null,
+      awaitText,
+      {
+        timeout: 60_000,
+        polling: 250
+      }
+    )
   } catch {
     throw named(`mounted but never painted ${JSON.stringify(awaitText)}`)
   }
@@ -220,13 +226,11 @@ describeRender(
   'the session route in a real browser',
   () => {
     it('mounts the session screen rather than the unmatched route, with nothing on the console', async () => {
-      const opened = await openRoute(SESSION_ROUTE, 'Terminal')
+      const opened = await openRoute(SESSION_ROUTE, BACK_LABEL)
       const text = await opened.page.evaluate(() => document.body.innerText)
-      // The command dock's own keys, which is the session screen and not a header that happens to
-      // say the word: no other page route renders an accessory bar.
-      for (const key of ['Esc', 'Tab', 'Ctrl+C', 'Ctrl+R']) {
-        expect(text).toContain(key)
-      }
+      // A double that answers no RPC leaves the session's kind unknown, which draws the neutral Back
+      // bar over the loading state: no other page route draws both.
+      expect(await opened.page.locator('[role="progressbar"]').count()).toBeGreaterThan(0)
       expect(text).not.toContain(UNMATCHED)
       // Exact, because this closure's defects are exactly console lines: the unguarded
       // `BackHandler` put two here and the uncaught diff-notes rejection one, and both are fixed.
@@ -236,7 +240,7 @@ describeRender(
 
     it('puts the Back control in the accessibility tree by name', async () => {
       // Verify the role and label in the rendered accessibility tree.
-      const opened = await openRoute(SESSION_ROUTE, 'Terminal')
+      const opened = await openRoute(SESSION_ROUTE, BACK_LABEL)
       const control = await opened.page.evaluate((label) => {
         const found = document.querySelector(`[aria-label="${label}"]`)
         return found === null ? null : { role: found.getAttribute('role'), tag: found.tagName }
@@ -255,7 +259,7 @@ describeRender(
         history.pushState(null, '', to)
         dispatchEvent(new PopStateEvent('popstate'))
       }, SESSION_ROUTE)
-      await waitForRoute(opened, SESSION_ROUTE, 'Terminal')
+      await waitForRoute(opened, SESSION_ROUTE, BACK_LABEL)
       const chunk = routeChunks[SESSION_CHUNK_KEY]
       expect(chunk, Object.keys(routeChunks).join(' ')).toBeTruthy()
       // Named by the builder rather than guessed from the bytes: this is what says the route came
@@ -268,7 +272,7 @@ describeRender(
     }, 120_000)
 
     it('paints under the shipped policy without violating it or leaving the origin', async () => {
-      const opened = await openRoute(SESSION_ROUTE, 'Terminal')
+      const opened = await openRoute(SESSION_ROUTE, BACK_LABEL)
       // Chromium reports a refused subresource as a console error naming the directive, so
       // anything this closure loaded that the policy blocked lands here.
       expect(opened.errors.filter((entry) => entry.includes('Content Security Policy'))).toEqual([])
@@ -292,7 +296,7 @@ describeRender(
       // Read off the server's own log, not the page's: a favicon fetch is made by the browser
       // process rather than the page, and Playwright's `page.on('request')` never reports one.
       // The whole file's log, because no case here may produce this request.
-      const opened = await openRoute(SESSION_ROUTE, 'Terminal')
+      const opened = await openRoute(SESSION_ROUTE, BACK_LABEL)
       // Settled rather than read at the paint: a browser asks for the icon after `load`, later
       // than the text the route waited on, and reading there passes on a request still to come.
       await opened.page.waitForLoadState('networkidle')
@@ -309,7 +313,7 @@ describeRender(
       // a `typeof localStorage === 'undefined'` guard, which `null` walks straight through. That
       // put "Cannot read properties of null (reading 'getItem')" at error level on every page load
       // on the device. The page has no push registration; the shell owns it.
-      const opened = await openRoute(SESSION_ROUTE, 'Terminal', {}, { domStorageOff: true })
+      const opened = await openRoute(SESSION_ROUTE, BACK_LABEL, {}, { domStorageOff: true })
       // Exact and not a filter, like the case above it: a module reaching browser storage the page
       // does not have is a defect wherever it comes from.
       expect(opened.errors).toEqual([])
@@ -323,7 +327,7 @@ describeRender(
       // does not admit, so the bridge refused it and logged one `storage-write-dropped` per mount
       // on the device. Answered here because the other cases' double answers no RPC at all, which
       // is exactly why this went unseen: the write needs a reply, not a control.
-      const opened = await openRoute(SESSION_ROUTE, 'Terminal', {
+      const opened = await openRoute(SESSION_ROUTE, BACK_LABEL, {
         'status.get': {
           protocolVersion: 9,
           minCompatibleMobileVersion: 1,
@@ -343,9 +347,9 @@ describeRender(
       // and the terminal inventory, each carrying the workspace the route named.
       //
       // Waited for and not read at the paint: all three are issued from effects that run after the
-      // commit putting 'Terminal' on screen, which is why this case reds on CI's loaded job and
+      // commit putting the Back bar on screen, which is why this case reds on CI's loaded job and
       // never here. Under a 20x CPU throttle the snapshot at the paint holds none of them.
-      const opened = await openRoute(SESSION_ROUTE, 'Terminal')
+      const opened = await openRoute(SESSION_ROUTE, BACK_LABEL)
       const requests = await waitForRecordedRequests(opened.page, SESSION_MOUNT_READS)
       expect(JSON.stringify(requests)).toContain(WORKTREE)
       await opened.page.close()
@@ -358,7 +362,7 @@ describeRender(
  * What this file does not claim, and where each is answered instead.
  *
  * **The terminal.** No terminal is attached here, for the reason in the header: the screen paints
- * "Loading tabs" against a double that answers no RPC. `mobile-web-app-terminal-render.test.mjs`
+ * its loading state against a double that answers no RPC. `mobile-web-app-terminal-render.test.mjs`
  * is the browser proof of the terminal itself — xterm opening under `script-src 'self'`, an
  * escape-dense byte stream read back through the document's own selection path, zero CSP
  * violations — and it drives the same component through a probe route because a session screen

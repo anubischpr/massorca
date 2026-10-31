@@ -45,7 +45,7 @@ function isDeveloperInstructionsUnsupported(error: unknown): boolean {
 /** Orca's instructions must never stop a thread from opening: a Codex that refuses the field gets
  *  the request without it, and is not asked with it again. */
 async function withDeveloperInstructions(
-  connection: object,
+  connection: Pick<CodexAppServerConnection, 'request'>,
   developerInstructions: string | undefined,
   params: Record<string, unknown>,
   run: (params: Record<string, unknown>) => Promise<unknown>

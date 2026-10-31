@@ -157,8 +157,16 @@ export function launchSurfaceNotice(surface: AgentLaunchCreateOutcome['surface']
 export const AGENT_DEFAULT_TAB_NOTE =
   'This computer will open its default kind of tab for the agent, which may be a terminal.'
 
+/** The parts of a create reply these readers trust; hosts of any age may leave any of them out. */
+type AgentLaunchReply = {
+  worktreeId?: unknown
+  receipt?: unknown
+  outcome?: unknown
+  prompt?: unknown
+}
+
 /** What the host built, so a terminal is never presented as a chat. Absent when it said nothing. */
-export function readLaunchSurface(source: object): AgentLaunchCreateOutcome['surface'] {
+export function readLaunchSurface(source: AgentLaunchReply): AgentLaunchCreateOutcome['surface'] {
   const receipt = 'receipt' in source ? source.receipt : undefined
   if (!receipt || typeof receipt !== 'object' || !('mode' in receipt)) {
     return undefined
@@ -173,7 +181,7 @@ export function readLaunchSurface(source: object): AgentLaunchCreateOutcome['sur
  * The pane key of the tab a launch built: a terminal names its own, and a chat is listed under the
  * tab id the host reports. Anything the host leaves out lands the phone on the host active tab.
  */
-export function readLandingPaneKey(source: object): string | undefined {
+export function readLandingPaneKey(source: AgentLaunchReply): string | undefined {
   const outcome = 'outcome' in source ? source.outcome : undefined
   if (!outcome || typeof outcome !== 'object' || !('kind' in outcome)) {
     return undefined
@@ -194,7 +202,7 @@ export function readLandingPaneKey(source: object): string | undefined {
 }
 
 /** Only a receipt that names how the text went can say it arrived; anything else under-claims. */
-function readPromptDelivered(source: object): boolean | undefined {
+function readPromptDelivered(source: AgentLaunchReply): boolean | undefined {
   if (!('prompt' in source) || !source.prompt || typeof source.prompt !== 'object') {
     return undefined
   }

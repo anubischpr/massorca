@@ -107,7 +107,7 @@ describe('MobileChatFloatingChrome', () => {
 
   it('publishes its measured height to the content column, and clears it when it goes', () => {
     const { mounted, setHeight } = mount(controllerWith())
-    const layer = mounted.root.find((node) => node.type === 'View' && node.props.onLayout)
+    const layer = mounted.root.find((node) => String(node.type) === 'View' && node.props.onLayout)
     act(() => layer.props.onLayout({ nativeEvent: { layout: { height: 151 } } }))
     expect(setHeight).toHaveBeenCalledWith(151)
     act(() => renderer?.unmount())

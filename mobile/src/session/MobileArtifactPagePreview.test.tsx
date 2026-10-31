@@ -34,8 +34,10 @@ describe('MobileArtifactPagePreview', () => {
 
   it('draws an inert page: no touches, no scripts, no scrolling, and no outside loads', () => {
     const mounted = mount(195, 110)
-    expect(mounted.root.find((node) => node.type === 'View').props.pointerEvents).toBe('none')
-    const web = mounted.root.find((node) => node.type === 'WebView')
+    expect(mounted.root.find((node) => String(node.type) === 'View').props.pointerEvents).toBe(
+      'none'
+    )
+    const web = mounted.root.find((node) => String(node.type) === 'WebView')
     expect(web.props.javaScriptEnabled).toBe(false)
     expect(web.props.scrollEnabled).toBe(false)
     expect(web.props.originWhitelist).toEqual(['about:blank'])
@@ -46,7 +48,7 @@ describe('MobileArtifactPagePreview', () => {
 
   it('scales the 390px render width into the tile and keeps its corner in place', () => {
     const mounted = mount(195, 110)
-    const page = mounted.root.findAll((node) => node.type === 'View')[1]
+    const page = mounted.root.findAll((node) => String(node.type) === 'View')[1]
     const scale = 0.5
     expect(page.props.style[1].transform).toEqual([{ scale }])
     expect(page.props.style[1].width).toBe(390)

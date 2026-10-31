@@ -419,7 +419,7 @@ describeRender('the Route A page in a real browser', () => {
       // The one control this route paints with no RPC answered. Positioned against the bottom of
       // the root, so it is also the element a collapsed root moves furthest.
       const fab = [...document.querySelectorAll('[role="button"]')].find(
-        (element) => element.getAttribute('aria-label') === 'New workspace'
+        (element) => element.getAttribute('aria-label') === 'New session'
       )
       const box = fab?.getBoundingClientRect() ?? null
       const hit =

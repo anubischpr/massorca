@@ -1,9 +1,9 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { SessionOptionDescriptor } from '../../../src/shared/native-chat-session-options'
 import type { RpcClient } from '../transport/rpc-client'
 import type { ConnectionState } from '../transport/types'
+import { structuredOptionSnapshot } from './use-mobile-native-chat-controller.test-fixture'
 
 const acceptSend = vi.fn()
 const captureSendOrigin = vi.fn()
@@ -22,21 +22,6 @@ const structuredRespondPermission = vi.fn(async () => true)
 const structuredRespondQuestion = vi.fn(async () => true)
 const structuredSetOption = vi.fn(async () => true)
 const structuredInvokeOption = vi.fn(async () => true)
-const structuredOptionSnapshot: SessionOptionDescriptor[] = [
-  {
-    id: 'model',
-    label: 'Model',
-    category: 'model',
-    kind: {
-      type: 'select',
-      currentValue: 'gpt-fast',
-      choices: [{ value: 'gpt-fast', label: 'GPT Fast' }]
-    },
-    valueSource: 'reported',
-    transport: 'agent-session',
-    settable: true
-  }
-]
 const structuredOptionSurface = {
   getSnapshot: () => structuredOptionSnapshot,
   setOption: async () => ({ snapshot: structuredOptionSnapshot }),

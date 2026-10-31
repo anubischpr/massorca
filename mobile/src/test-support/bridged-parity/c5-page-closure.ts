@@ -6,9 +6,9 @@
  * `app/h/[hostId]/agent-history/[worktreeId].web.tsx` and everything they import. The suite next
  * door proves the whole corpus replays byte-identically or in a named class, but it proves it as
  * counts over 793 goldens, and a count cannot tell this domain's regression from another domain's
- * improvement. These 125 are the ones whose divergence would be this domain's.
+ * improvement. These 149 are the ones whose divergence would be this domain's.
  *
- * C1's 20 families are a strict subset of these 25, and their verdicts are inherited from
+ * C1's 24 families are a strict subset of these 29, and their verdicts are inherited from
  * `c1-page-closure.ts` rather than derived again. That is not tidiness: deriving them from C2's
  * classification rule disagrees with the committed file on 13 pins, in three ways that are each a
  * true statement read too far — all 7 in `tasks.smart-source-search`, all 5 in
@@ -43,6 +43,40 @@
 import type { PageClosurePins } from './page-closure'
 
 export const C5_PAGE_CLOSURE: PageClosurePins = {
+  'agentSession.structured-create': {
+    'matrix-agentsession.structured-create-agentsession.create-1': 'result-absent-settlement',
+    'matrix-agentsession.structured-create-agentsession.createsupport-1':
+      'result-absent-settlement',
+    'structured-agent-session-created': 'identical'
+  },
+  'agentSession.structured-launch': {
+    'matrix-agentsession.structured-launch-agentsession.createsupport-1':
+      'result-absent-settlement',
+    'structured-launch-created': 'identical',
+    'structured-launch-definitive-refusal': 'identical',
+    'structured-launch-replays-dropped-create': 'identical',
+    'structured-launch-support-refused': 'identical',
+    'structured-launch-unsupported': 'identical'
+  },
+  'settings-agent-read': {
+    'matrix-settings-agent-read-preflight.detectremoteagents-1': 'result-absent-settlement',
+    'matrix-settings-agent-read-repo.list-1': 'result-absent-settlement',
+    'matrix-settings-agent-read-settings.get-1': 'result-absent-settlement',
+    'probe-new-tab-both-refused': 'identical',
+    'probe-new-tab-null-sibling-refused': 'identical',
+    'probe-new-tab-refused-sibling-rejects': 'identical',
+    'probe-new-tab-rejects-sibling-refused': 'identical',
+    'schedules-settings-new-tab-ssh': 'identical',
+    'settings-new-tab-refused': 'identical',
+    'settings-new-tab-ssh': 'identical',
+    'settings-new-tab-transport-error': 'identical'
+  },
+  'settings.new-tab-local-agents': {
+    'matrix-settings.new-tab-local-agents-preflight.detectagents-1': 'result-absent-settlement',
+    'matrix-settings.new-tab-local-agents-repo.list-1': 'result-absent-settlement',
+    'matrix-settings.new-tab-local-agents-settings.get-1': 'result-absent-settlement',
+    'new-tab-local-agents': 'identical'
+  },
   'aiVault.history': {
     'aivault-history-scan-fulfilled': 'identical',
     'aivault-history-scan-unsupported': 'identical',
