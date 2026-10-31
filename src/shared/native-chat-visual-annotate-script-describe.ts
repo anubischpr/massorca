@@ -153,8 +153,88 @@ function describeElement(element) {
     label: labelFor(element),
     rect: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
     htmlSnippet: String(element.outerHTML || '').slice(0, L.snippet),
-    state: stateOf(element, rect)
+    state: stateOf(element, rect),
+    design: designOf(element),
+    trail: trailOf(element)
   }
+}
+
+// The design the file gives: this frame's own inline overrides are taken off for the read, then put back as they were.
+var ALIGNS = { left: 'left', start: 'left', center: 'center', right: 'right', end: 'right', justify: 'justify' }
+var PILL_RADIUS = 999
+
+function designOf(element) {
+  var saved = element.getAttribute('style')
+  for (var i = 0; i < applied.length; i++) if (applied[i].target === element) unsetProps(applied[i])
+  var design = readDesign(element)
+  if (saved === null) element.removeAttribute('style')
+  else element.setAttribute('style', saved)
+  return design
+}
+
+function unsetProps(entry) {
+  for (var j = entry.props.length - 1; j >= 0; j--) {
+    var prop = entry.props[j]
+    if (prop.value === '') entry.target.style.removeProperty(prop.name)
+    else entry.target.style.setProperty(prop.name, prop.value, prop.priority)
+  }
+}
+
+function readDesign(element) {
+  var style = window.getComputedStyle(element)
+  var rect = element.getBoundingClientRect()
+  var fontSize = parseFloat(style.fontSize)
+  var lineHeight = parseFloat(style.lineHeight)
+  if (style.lineHeight.indexOf('px') >= 0 && fontSize > 0) lineHeight = lineHeight / fontSize
+  if (!isFinite(lineHeight)) lineHeight = 1.2
+  var text = parseColor(style.color)
+  var border = parseColor(style.borderTopColor)
+  var weight = parseFloat(style.fontWeight)
+  return {
+    kind: kindOf(element, style),
+    fill: fillOf(element),
+    color: text ? toHex(text) : '#000000',
+    border: border && parseFloat(style.borderTopWidth) > 0 ? toHex(border) : 'transparent',
+    borderWidth: pixels(style.borderTopWidth, 0, L.px),
+    radius: pixels(style.borderTopLeftRadius, 0, L.px),
+    shadow: String(style.boxShadow || 'none').slice(0, L.shadow),
+    width: { value: pixels(style.width, rect.width, L.px), unit: 'px' },
+    height: { value: pixels(style.height, rect.height, L.px), unit: 'px' },
+    padding: pixels(style.paddingTop, 0, L.px),
+    gap: pixels(style.rowGap, 0, L.px),
+    fontFamily: String(style.fontFamily || '').slice(0, L.family),
+    fontSize: pixels(style.fontSize, 0, L.fontSize),
+    lineHeight: Math.round(Math.min(L.px, Math.max(0, lineHeight)) * 100) / 100,
+    bold: style.fontWeight === 'bold' || (isFinite(weight) && weight >= 600),
+    italic: style.fontStyle === 'italic' || style.fontStyle === 'oblique',
+    underline: String(style.textDecorationLine || '').indexOf('underline') >= 0,
+    align: ALIGNS[style.textAlign] || 'left'
+  }
+}
+
+// A box holds blocks; a text-only element is a text, or a control or pill when it is painted or interactive.
+function kindOf(element, style) {
+  for (var child = element.firstElementChild; child; child = child.nextElementSibling) {
+    if (!INLINE_PART.test(child.localName)) return 'box'
+  }
+  if (!hasOwnText(element)) return 'box'
+  if (element.matches('button, a, [role=button], input, select, textarea')) return 'button'
+  var own = parseColor(style.backgroundColor)
+  var painted = (own !== null && own.a > 0) || parseFloat(style.borderTopWidth) > 0
+  if (!painted) return 'text'
+  return parseFloat(style.borderTopLeftRadius) >= PILL_RADIUS ? 'badge' : 'button'
+}
+
+// The nearest ancestors below the body, outermost first, each with its selector and design; at most the cap.
+function trailOf(element) {
+  var nodes = []
+  for (var node = element.parentElement; node && node !== root && node.localName !== 'body' && nodes.length < L.trail; node = node.parentElement) nodes.push(node)
+  var items = []
+  for (var i = nodes.length - 1; i >= 0; i--) {
+    var selector = selectorFor(nodes[i])
+    if (selector !== null) items.push({ selector: selector, label: labelFor(nodes[i]), design: designOf(nodes[i]) })
+  }
+  return items
 }
 
 // An inline part of a control (an icon, a span) picks the control it sits in, up to four levels up.

@@ -55,7 +55,8 @@ export function NativeChatVisualFrame({
   themeScope,
   onRetired,
   annotate,
-  onAnnotateEvent
+  onAnnotateEvent,
+  strictScripts = false
 }: {
   document: NativeChatVisualDocument
   title: string
@@ -63,6 +64,11 @@ export function NativeChatVisualFrame({
   /** An element already mounted where the frame sits, so the first paint wears that scope's theme. */
   themeScope: RefObject<Element | null>
   onRetired: () => void
+  /**
+   * Only the shell's own scripts run, under a per-build nonce, so the markup runs no script of its own.
+   * Fixed per mount, like `annotate`.
+   */
+  strictScripts?: boolean
   /**
    * Given, the frame is built with the element-annotate script and reports picks and pin clicks to
    * `onAnnotateEvent`. Whether it is given is fixed per mount; its value may change at any time.
@@ -98,10 +104,11 @@ export function NativeChatVisualFrame({
         html: visual.html,
         channel,
         theme: themeRef.current,
-        annotate: annotateCapable
+        annotate: annotateCapable,
+        scriptNonce: strictScripts ? newChannel() : undefined
       })
     }
-  }, [visual.html, annotateCapable])
+  }, [visual.html, annotateCapable, strictScripts])
 
   useEffect(() => {
     loadsRef.current = 0

@@ -12,6 +12,7 @@ function isFiniteNumber(value) {
 function isHex(value) {
   return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value)
 }
+var CSS_VALUE = new RegExp(C.cssValue, 'u')
 // A size as CSS, or null when it is not one of the documented shapes.
 function cssSize(size) {
   if (!size || typeof size !== 'object') return null
@@ -31,7 +32,8 @@ function readPins(list) {
     if (!isText(pin.pinKey, L.pinKey, 1) || !isText(pin.selector, L.selector, 1)) return null
     if (!isFiniteNumber(pin.number) || pin.number < 1 || pin.number > L.pinNumber || Math.floor(pin.number) !== pin.number) return null
     if (typeof pin.active !== 'boolean') return null
-    pins.push({ pinKey: pin.pinKey, number: pin.number, selector: pin.selector, active: pin.active })
+    if (pin.badge !== undefined && typeof pin.badge !== 'boolean') return null
+    pins.push({ pinKey: pin.pinKey, number: pin.number, selector: pin.selector, active: pin.active, badge: pin.badge !== false })
   }
   return pins
 }
@@ -68,6 +70,16 @@ function readOverrides(list) {
       if (style.fontSize !== undefined) {
         if (!isFiniteNumber(style.fontSize) || style.fontSize < 1 || style.fontSize > L.fontSize) return null
         declarations.push(['font-size', style.fontSize + 'px'])
+      }
+      if (style.css !== undefined) {
+        if (!style.css || typeof style.css !== 'object') return null
+        var names = Object.keys(style.css)
+        if (names.length > C.cssProps.length) return null
+        for (var n = 0; n < names.length; n++) {
+          var value = style.css[names[n]]
+          if (C.cssProps.indexOf(names[n]) < 0 || typeof value !== 'string' || !CSS_VALUE.test(value)) return null
+          declarations.push([names[n], value])
+        }
       }
     }
     overrides.push({ selector: item.selector, text: item.text === undefined ? null : item.text, declarations: declarations })

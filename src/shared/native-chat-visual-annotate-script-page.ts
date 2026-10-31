@@ -89,6 +89,7 @@ function setPins(pins) {
       overlay.appendChild(outline)
       outlines.push({ element: outline, target: target })
     }
+    if (pin.badge === false) continue
     var badge = document.createElement('div')
     badge.style.cssText = BADGE + (pin.active ? BADGE_ACTIVE : BADGE_IDLE)
     badge.textContent = String(pin.number)
