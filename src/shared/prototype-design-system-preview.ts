@@ -18,6 +18,37 @@ export function buildComponentPreviewDocument(
   section: ComponentSection,
   bindingOverrides: Readonly<Record<string, string>> = {}
 ): string {
+  return [
+    '<!doctype html>',
+    '<html><head><meta charset="utf-8">',
+    `<meta http-equiv="Content-Security-Policy" content="${POLICY}">`,
+    '</head><body>',
+    componentBodyOf(tokens, overrides, styleBlock, section, bindingOverrides),
+    '</body></html>'
+  ].join('')
+}
+
+/**
+ * The same section as markup, for a frame that builds its own document (the Annotate frame): the style
+ * and the section with no document wrapper, no policy and no script.
+ */
+export function buildComponentFrameHtml(
+  tokens: readonly DesignToken[],
+  overrides: Readonly<Record<string, string>>,
+  styleBlock: string,
+  section: ComponentSection,
+  bindingOverrides: Readonly<Record<string, string>> = {}
+): string {
+  return componentBodyOf(tokens, overrides, styleBlock, section, bindingOverrides)
+}
+
+function componentBodyOf(
+  tokens: readonly DesignToken[],
+  overrides: Readonly<Record<string, string>>,
+  styleBlock: string,
+  section: ComponentSection,
+  bindingOverrides: Readonly<Record<string, string>>
+): string {
   const variables = tokens.flatMap((token) => {
     const value =
       (Object.hasOwn(overrides, token.id) ? overrides[token.id] : undefined) ?? token.value
@@ -28,15 +59,7 @@ export function buildComponentPreviewDocument(
     /^[A-Za-z0-9_-]+$/u.test(prop) ? [`--bind-${prop}:var(${designTokenCssVar(tokenId)});`] : []
   )
   const markup = section.html.replace(BLOCKED_PAIR, '').replace(BLOCKED_TAG, '')
-  return [
-    '<!doctype html>',
-    '<html><head><meta charset="utf-8">',
-    `<meta http-equiv="Content-Security-Policy" content="${POLICY}">`,
-    `<style>:root{${variables.join('')}}body{margin:0}${styleBlock.replace(STYLE_END, '<\\/style')}</style>`,
-    '</head><body>',
-    `<section data-component="${escapeAttribute(section.name)}" style="${bound.join('')}">${markup}</section>`,
-    '</body></html>'
-  ].join('')
+  return `<style>:root{${variables.join('')}}body{margin:0}${styleBlock.replace(STYLE_END, '<\\/style')}</style><section data-component="${escapeAttribute(section.name)}" style="${bound.join('')}">${markup}</section>`
 }
 
 // A value that cannot end its declaration or rule, or leave a quote or bracket open, is safe to inline.

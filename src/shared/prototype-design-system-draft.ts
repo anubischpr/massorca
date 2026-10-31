@@ -1,6 +1,12 @@
 // The draft of a design system edit: every token, component and note the user changed, as the items
 // that one message sends to the agent. Reverting a change removes its item.
 import type { ComponentSection } from './prototype-design-system-components'
+import {
+  DESIGN_ELEMENT_ROOT,
+  designElementValueText,
+  sameDesignValue,
+  type DesignElementEdit
+} from './prototype-design-system-element'
 import type { DesignToken } from './prototype-design-system-tokens'
 
 export const DESIGN_SYSTEM_TOKENS_GROUP_TITLE = 'Design system · tokens'
@@ -12,9 +18,18 @@ export type DesignSystemBase = {
   components: readonly ComponentSection[]
 }
 
+/** One element of a component the user edited: its label when picked, its changed values and its note. */
+export type DesignElementDraft = {
+  label: string
+  edits: DesignElementEdit
+  note?: string
+}
+
 export type DesignSystemComponentDraft = {
   variants?: string[]
   bindings?: Record<string, string>
+  /** Element locator (see elementLocatorOf) to the element's edits. Older drafts lack it. */
+  elements?: Record<string, DesignElementDraft>
 }
 
 export type DesignSystemDraft = {
@@ -111,6 +126,107 @@ export function setDraftBinding(
     section.name,
     Object.keys(next).length > 0 ? { ...rest, bindings: next } : rest
   )
+}
+
+/** The element's draft entry, if the draft holds one; an entry of another shape reads as none. */
+export function draftElementOf(
+  draft: DesignSystemDraft,
+  section: ComponentSection,
+  locator: string
+): DesignElementDraft | undefined {
+  const entry = ownEntry(elementsOf(draft, section), locator)
+  return entry !== undefined && typeof entry.label === 'string' && isRecord(entry.edits)
+    ? entry
+    : undefined
+}
+
+/** The element's edits in the draft; none when the draft holds no edit for it. */
+export function draftElementEdits(
+  draft: DesignSystemDraft,
+  section: ComponentSection,
+  locator: string
+): DesignElementEdit {
+  return draftElementOf(draft, section, locator)?.edits ?? {}
+}
+
+/**
+ * Sets one value of an element. The value back at its original drops the edit; an element left with no
+ * edit and no note drops out of the draft.
+ */
+export function setDraftElementValue<Prop extends keyof DesignElementEdit>(
+  draft: DesignSystemDraft,
+  section: ComponentSection,
+  locator: string,
+  label: string,
+  prop: Prop,
+  value: DesignElementEdit[Prop],
+  original: DesignElementEdit[Prop]
+): DesignSystemDraft {
+  const current = draftElementOf(draft, section, locator)
+  const edits: DesignElementEdit = { ...current?.edits }
+  if (sameDesignValue(value, original)) {
+    delete edits[prop]
+  } else {
+    edits[prop] = value
+  }
+  return withElementDraft(draft, section, locator, elementEntry(label, edits, current?.note))
+}
+
+/** Sets an element's note; a blank note drops out. */
+export function setDraftElementNote(
+  draft: DesignSystemDraft,
+  section: ComponentSection,
+  locator: string,
+  label: string,
+  note: string
+): DesignSystemDraft {
+  const current = draftElementOf(draft, section, locator)
+  return withElementDraft(
+    draft,
+    section,
+    locator,
+    elementEntry(label, current?.edits ?? {}, note.trim().length === 0 ? undefined : note)
+  )
+}
+
+function elementEntry(
+  label: string,
+  edits: DesignElementEdit,
+  note: string | undefined
+): DesignElementDraft | null {
+  if (Object.keys(edits).length === 0 && note === undefined) {
+    return null
+  }
+  return note === undefined ? { label, edits } : { label, edits, note }
+}
+
+function withElementDraft(
+  draft: DesignSystemDraft,
+  section: ComponentSection,
+  locator: string,
+  entry: DesignElementDraft | null
+): DesignSystemDraft {
+  const elements = { ...elementsOf(draft, section) }
+  if (entry === null) {
+    delete elements[locator]
+  } else {
+    elements[locator] = entry
+  }
+  const { elements: _kept, ...rest } = ownEntry(draft.comps, section.name) ?? {}
+  return withComponentDraft(
+    draft,
+    section.name,
+    Object.keys(elements).length > 0 ? { ...rest, elements } : rest
+  )
+}
+
+// An older draft has no elements, and a malformed one reads as none: the draft never throws on them.
+function elementsOf(
+  draft: DesignSystemDraft,
+  section: ComponentSection
+): Record<string, DesignElementDraft> {
+  const elements: unknown = ownEntry(draft.comps, section.name)?.elements
+  return isRecord<DesignElementDraft>(elements) ? elements : {}
 }
 
 export function setDraftNote(
@@ -217,8 +333,24 @@ function componentItemsOf(
           ]
     )
   ]
+  const elementItems = Object.entries(elementsOf(draft, section)).flatMap(([locator, entry]) => {
+    if (!isRecord(entry.edits) || typeof entry.label !== 'string') {
+      return []
+    }
+    const where = locator === DESIGN_ELEMENT_ROOT ? name : `${name} ${entry.label} (${locator})`
+    const edited = Object.entries(entry.edits).map(([prop, value]): DesignSystemDraftItem => ({
+      label: 'element',
+      text: `${where}: ${prop} → ${designElementValueText(prop, value)}`
+    }))
+    const elementNote = (entry.note ?? '').trim()
+    return elementNote.length > 0
+      ? [...edited, { label: 'note', text: `${where}: ${elementNote}` }]
+      : edited
+  })
   const note = (ownEntry(draft.notes, name) ?? '').trim()
-  return note.length > 0 ? [...items, { label: 'note', text: `${name}: ${note}` }] : items
+  return note.length > 0
+    ? [...items, ...elementItems, { label: 'note', text: `${name}: ${note}` }]
+    : [...items, ...elementItems]
 }
 
 function withComponentDraft(
@@ -238,6 +370,10 @@ function withComponentDraft(
 // Names are file content: only an own entry counts, so `constructor` or `__proto__` read as absent.
 function ownEntry<Value>(record: Readonly<Record<string, Value>>, name: string): Value | undefined {
   return Object.hasOwn(record, name) ? record[name] : undefined
+}
+
+function isRecord<Value = unknown>(value: unknown): value is Record<string, Value> {
+  return typeof value === 'object' && value !== null
 }
 
 function sameList(left: readonly string[], right: readonly string[]): boolean {
