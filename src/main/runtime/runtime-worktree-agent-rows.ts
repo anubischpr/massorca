@@ -64,7 +64,8 @@ export function attachRuntimeWorktreeAgentRows(args: {
       stateStartedAt: source.stateStartedAt,
       updatedAt: source.updatedAt,
       ...(source.structuredHost === 'owned' ? { structuredHostOwned: true as const } : {}),
-      ...(source.piRuntime ? { piRuntime: source.piRuntime } : {})
+      ...(source.piRuntime ? { piRuntime: source.piRuntime } : {}),
+      ...(source.terminalHandle ? { terminalHandle: source.terminalHandle } : {})
     }
     const rows = rowsByWorktree.get(summary.worktreeId)
     if (rows) {

@@ -35,6 +35,9 @@ export type RuntimeWorktreeAgentRow = {
   structuredHostOwned?: true
   /** Gentle Shell marks a Pi row; stock Pi and other agents omit it. Optional on the wire: old hosts never send it. */
   piRuntime?: 'gentle-shell'
+  /** The terminal handle `terminal.rename` and `terminal.close` take. Sent only while it reaches a live
+   *  PTY, so a stale or subagent row carries none. Optional on the wire: old hosts never send it. */
+  terminalHandle?: string
 }
 
 export type RuntimeWorktreePsSummary = {
@@ -46,6 +49,10 @@ export type RuntimeWorktreePsSummary = {
   repo: string
   path: string
   branch: string
+  /** The commit a detached HEAD sits on; sent only when `branch` is empty. Optional on the wire: old hosts never send it. */
+  head?: string
+  /** The user's own branch prefix for this repo, when one applies. Optional on the wire: absent shows the full branch. */
+  ownBranchPrefix?: string
   isArchived: boolean
   isMainWorktree: boolean
   hasHostSidebarActivity: boolean
