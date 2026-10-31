@@ -182,6 +182,7 @@ export type FolderWorkspacesApi = {
         | 'createdWithAgent'
         | 'pendingFirstAgentMessageRename'
         | 'firstAgentMessageRenameError'
+        | 'manualDisplayName'
         | 'lastActivityAt'
         | 'diffComments'
       >

@@ -39,6 +39,8 @@ export type WorktreeListRowItem = {
   repo: string
   branch: string
   displayName: string
+  /** The row name the user set on desktop; shown in place of the title when present. */
+  manualDisplayName?: string | null
   path?: string
   liveTerminalCount: number
   preview: string
@@ -134,7 +136,7 @@ function WorktreeListRowComponent<T extends WorktreeListRowItem>({
             ]}
             numberOfLines={1}
           >
-            {item.displayName || item.repo}
+            {item.manualDisplayName || item.displayName || item.repo}
           </Text>
           {item.linkedPR && (
             <View style={styles.prBadge}>

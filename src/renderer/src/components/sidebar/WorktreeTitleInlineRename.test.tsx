@@ -78,3 +78,29 @@ describe('WorktreeTitleInlineRename', () => {
     expect(markup).not.toContain('Unread:')
   })
 })
+
+describe('getWorktreeTitleRenameCommit with clearOnEmpty', () => {
+  it('clears a row name on a blank submit', () => {
+    expect(getWorktreeTitleRenameCommit('Billing fix', '   ', { clearOnEmpty: true })).toEqual({
+      kind: 'save',
+      displayName: ''
+    })
+  })
+
+  it('does nothing on a blank submit when no row name is set', () => {
+    expect(getWorktreeTitleRenameCommit('', '  ', { clearOnEmpty: true })).toEqual({
+      kind: 'cancel'
+    })
+  })
+
+  it('saves a trimmed row name', () => {
+    expect(getWorktreeTitleRenameCommit('', ' Billing fix ', { clearOnEmpty: true })).toEqual({
+      kind: 'save',
+      displayName: 'Billing fix'
+    })
+  })
+
+  it('still cancels a blank title submit when clearing is off', () => {
+    expect(getWorktreeTitleRenameCommit('feature/login', '  ')).toEqual({ kind: 'cancel' })
+  })
+})

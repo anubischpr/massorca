@@ -55,6 +55,8 @@ export type RuntimeWorktreePsSummary = {
   parentWorktreeId: string | null
   childWorktreeIds: string[]
   displayName: string
+  /** Set only when the user named the row; absent shows the derived branch or folder label. */
+  manualDisplayName?: string
   workspaceStatus: string
   sortOrder: number
   manualOrder?: number

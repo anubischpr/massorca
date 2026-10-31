@@ -4,6 +4,10 @@ import { ChevronDown, Folder, GitBranch, GitCommitHorizontal } from 'lucide-reac
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
+import {
+  normalizeManualDisplayName,
+  resolveOneLineRowLabel
+} from '../../../../shared/worktree/branch-display-label'
 import { SessionStatusGlyphIcon } from './SessionStatusGlyphIcon'
 import { TruncatedSidebarLabel } from './truncated-sidebar-label'
 import { useWorktreeActivityStatus } from './use-worktree-activity-status'
@@ -103,17 +107,39 @@ export function BranchRowLabel({
     setRenamingWorktreeId,
     setTitleRenaming,
     titleRenaming,
-    handleRenameTitle
+    handleRenameTitle,
+    rowNameRenaming,
+    setRowNameRenaming,
+    handleRenameRowName
   } = card
-  const text = isFolder
+  const derivedLabel = isFolder
     ? getDirectoryName(worktree.path)
     : detachedHeadDisplay
       ? detachedHeadDisplay.shortHead
       : branchLabel || branch || worktree.displayName
+  const text = resolveOneLineRowLabel(worktree.manualDisplayName, derivedLabel)
   const beginEditing =
     !affiliateListMode && shouldBeginWorktreeRename(renamingWorktreeId, worktree.id, renameRowKey)
-  if (titleRenaming || beginEditing) {
-    // Why: Rename in the menu still edits the workspace title, so the editor takes the label's place.
+  // Why: this row shows the row name, so Rename and Update edit that name, not the workspace title.
+  if (beginEditing || rowNameRenaming) {
+    return (
+      <WorktreeTitleInlineRename
+        displayName={normalizeManualDisplayName(worktree.manualDisplayName) ?? ''}
+        clearOnEmpty
+        disabled={isDeleting || affiliateListMode}
+        showUnreadEmphasis={false}
+        dimReadTitle={false}
+        className="font-mono text-xs leading-5"
+        editingClassName="flex-1"
+        onEditingChange={affiliateListMode ? undefined : setRowNameRenaming}
+        onRename={handleRenameRowName}
+        beginEditing={beginEditing}
+        onBeginEditingConsumed={affiliateListMode ? undefined : () => setRenamingWorktreeId(null)}
+      />
+    )
+  }
+  if (titleRenaming) {
+    // Why: while the hover card renames the workspace title, this row keeps showing that title.
     return (
       <WorktreeTitleInlineRename
         displayName={visibleCardTitle}
@@ -124,8 +150,6 @@ export function BranchRowLabel({
         editingClassName="flex-1"
         onEditingChange={affiliateListMode ? undefined : setTitleRenaming}
         onRename={handleRenameTitle}
-        beginEditing={beginEditing}
-        onBeginEditingConsumed={affiliateListMode ? undefined : () => setRenamingWorktreeId(null)}
       />
     )
   }

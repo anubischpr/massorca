@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore } from '@/store'
 import { useAllWorktrees, useRepoById, useRepoMap, useWorktreeMap } from '@/store/selectors'
 import type { Worktree } from '../../../../shared/worktree/types'
+import type { WorktreeRenameRequest } from './worktree-card-model'
 import {
   getCyclicProjectedWorktreeLineageIds,
   getLineageRenderInfo
@@ -41,6 +42,9 @@ export type WorktreeContextMenuProps = {
   onAssignWorkspaceStatus?: (worktreeIds: readonly string[], status: string) => void
   onOpenChange?: (open: boolean) => void
   onLifecycleComplete?: () => void
+  /** One-line rows rename the row name inline; other layouts keep the Update dialog. */
+  renameInRow?: boolean
+  renameRowKey?: string
 }
 
 export function useWorktreeContextMenuModel({
@@ -51,7 +55,9 @@ export function useWorktreeContextMenuModel({
   onContextMenuSelect,
   onAssignWorkspaceStatus,
   onOpenChange,
-  onLifecycleComplete
+  onLifecycleComplete,
+  renameInRow = false,
+  renameRowKey
 }: WorktreeContextMenuProps) {
   const defaultSelectedWorktrees = useMemo(() => [worktree], [worktree])
   const effectiveSelectedWorktrees = selectedWorktrees ?? defaultSelectedWorktrees
@@ -59,6 +65,12 @@ export function useWorktreeContextMenuModel({
   const setWorktreesPinnedAndReveal = useAppStore((s) => s.setWorktreesPinnedAndReveal)
   const workspaceStatuses = useAppStore((s) => s.workspaceStatuses)
   const openModal = useAppStore((s) => s.openModal)
+  const setRenamingWorktreeId = useAppStore((s) => s.setRenamingWorktreeId)
+  // Why: the row editor commits on blur, so it opens only after the menu's close-focus restore.
+  const pendingRowRenameRef = useRef<WorktreeRenameRequest | null>(null)
+  const requestRowRename = useCallback(() => {
+    pendingRowRenameRef.current = { worktreeId: worktree.id, rowKey: renameRowKey }
+  }, [renameRowKey, worktree.id])
   const projectGroups = useAppStore((s) => s.projectGroups)
   const createProjectGroup = useAppStore((s) => s.createProjectGroup)
   const moveProjectToGroup = useAppStore((s) => s.moveProjectToGroup)
@@ -283,6 +295,8 @@ export function useWorktreeContextMenuModel({
   )
 
   const commands = useWorktreeContextMenuCommands({
+    renameInRow,
+    requestRowRename,
     activeContextWorktrees,
     batchDeleteWorktrees,
     createGroupDialogActiveRef,
@@ -329,6 +343,12 @@ export function useWorktreeContextMenuModel({
       // that focus restore can scroll the virtual list away from the row the
       // user just acted on.
       event.preventDefault()
+      const pendingRowRename = pendingRowRenameRef.current
+      if (pendingRowRename) {
+        pendingRowRenameRef.current = null
+        window.setTimeout(() => setRenamingWorktreeId(pendingRowRename), 0)
+        return
+      }
       if (pendingParentPickerRef.current) {
         window.setTimeout(openPendingParentPicker, 0)
         return
@@ -338,7 +358,7 @@ export function useWorktreeContextMenuModel({
         sidebar.focus({ preventScroll: true })
       }
     },
-    [openPendingParentPicker]
+    [openPendingParentPicker, setRenamingWorktreeId]
   )
 
   return {

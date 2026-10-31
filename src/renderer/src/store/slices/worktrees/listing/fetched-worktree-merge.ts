@@ -31,7 +31,8 @@ import {
 } from './authoritative-worktree-removal-memory'
 import type { FencedWorktreeMergeArgs } from './worktree-slice-types'
 
-export function preserveConcurrentManualOrder<T extends Worktree>(
+/** User-set row fields a refresh may predate: a value changed while it was in flight wins. */
+export function preserveConcurrentUserRowFields<T extends Worktree>(
   incoming: readonly T[],
   requestStarted: readonly Worktree[] | undefined,
   current: readonly Worktree[] | undefined,
@@ -49,11 +50,21 @@ export function preserveConcurrentManualOrder<T extends Worktree>(
   return incoming.map((worktree) => {
     const started = startedById.get(worktree.id)
     const latest = currentById.get(worktree.id)
-    if (!started || !latest || started.manualOrder === latest.manualOrder) {
+    if (!started || !latest) {
       return worktree
     }
-    // Why: a refresh response may predate a completed drag; the renderer's optimistic rank is newer.
-    return { ...worktree, manualOrder: latest.manualOrder }
+    const manualOrderChanged = started.manualOrder !== latest.manualOrder
+    const manualDisplayNameChanged =
+      (started.manualDisplayName ?? null) !== (latest.manualDisplayName ?? null)
+    if (!manualOrderChanged && !manualDisplayNameChanged) {
+      return worktree
+    }
+    // Why: a refresh may predate a finished drag or rename; the optimistic value is newer.
+    return {
+      ...worktree,
+      ...(manualOrderChanged ? { manualOrder: latest.manualOrder } : {}),
+      ...(manualDisplayNameChanged ? { manualDisplayName: latest.manualDisplayName } : {})
+    }
   })
 }
 
@@ -160,7 +171,7 @@ export function mergeFetchedWorktrees(
     const refreshResult = {
       ...args.refresh.result,
       worktrees: preserveConcurrentDisplayName(
-        preserveConcurrentManualOrder(
+        preserveConcurrentUserRowFields(
           args.refresh.result.worktrees,
           args.requestStartedWorktrees,
           currentWorktrees,

@@ -229,4 +229,18 @@ describe('areWorktreeListsEqual', () => {
 
     expect(areWorktreeListsEqual(first, second)).toBe(true)
   })
+
+  it('treats a changed row name as a list change', () => {
+    const named = [worktree({ manualDisplayName: 'Billing fix' })]
+    const unnamed = [worktree()]
+
+    expect(areWorktreeListsEqual(named, unnamed)).toBe(false)
+  })
+
+  it('treats an absent row name the same as an unset one', () => {
+    const absent = [worktree({ manualDisplayName: undefined })]
+    const unset = [worktree()]
+
+    expect(areWorktreeListsEqual(absent, unset)).toBe(true)
+  })
 })

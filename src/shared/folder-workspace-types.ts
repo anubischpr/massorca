@@ -21,6 +21,8 @@ export type FolderWorkspace = {
   projectGroupId: string
   name: string
   folderPath: string
+  /** One-line row name set by the user; null or absent shows the folder name. */
+  manualDisplayName?: string | null
   /** SSH target ID for folder workspaces whose folder path lives remotely. */
   connectionId?: string | null
   /** Renderer-owned host stamp for host-qualified folder catalogs. */

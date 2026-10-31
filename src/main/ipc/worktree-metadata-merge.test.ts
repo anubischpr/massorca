@@ -104,3 +104,35 @@ describe('mergeWorktree identity projection', () => {
     expect(worktree.suppressedGitHubPR).toBe(42)
   })
 })
+
+describe('mergeWorktree manual row name', () => {
+  const meta = {
+    displayName: 'feature',
+    comment: '',
+    linkedIssue: null,
+    linkedPR: null,
+    linkedLinearIssue: null,
+    isArchived: false,
+    isUnread: false,
+    isPinned: false,
+    sortOrder: 0,
+    lastActivityAt: 0
+  }
+
+  it('carries a set row name and leaves the git branch name alone', () => {
+    const worktree = mergeWorktree('repo-1', git, { ...meta, manualDisplayName: 'Billing fix' })
+
+    expect(worktree.manualDisplayName).toBe('Billing fix')
+    expect(worktree.branch).toBe('refs/heads/feature')
+  })
+
+  it('omits the field when the row name was never set', () => {
+    expect('manualDisplayName' in mergeWorktree('repo-1', git, meta)).toBe(false)
+  })
+
+  it('omits the field once the row name is cleared', () => {
+    const cleared = mergeWorktree('repo-1', git, { ...meta, manualDisplayName: null })
+
+    expect('manualDisplayName' in cleared).toBe(false)
+  })
+})

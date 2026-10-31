@@ -8,6 +8,7 @@ import { getExplicitWorktreeIdSelector } from '../../runtime-worktree-selection'
 import { splitWorktreeId } from '../../../../shared/worktree/id'
 import { buildCliWorkspaceProvenance } from '../../../../shared/cli-workspace-provenance'
 import { displayNameUpdatePinsLabel } from '../../../../shared/worktree/display-name-provenance'
+import { normalizeManualDisplayName } from '../../../../shared/worktree/branch-display-label'
 import { createWorktreeWithStartupAgent } from '../../../agent-launch/startup-agent-worktree-create'
 import { defineMethod } from '../core'
 import { buildManagedWorktreeCreateArgs } from './worktree-create-args'
@@ -155,6 +156,10 @@ export const WORKTREE_METHODS = [
         ...(params.displayName !== undefined
           ? { displayNameIsPinned: displayNameUpdatePinsLabel(params.displayName) }
           : {}),
+        manualDisplayName:
+          params.manualDisplayName === undefined
+            ? undefined
+            : normalizeManualDisplayName(params.manualDisplayName),
         linkedIssue: params.linkedIssue,
         linkedPR: params.linkedPR,
         suppressedGitHubPR: params.suppressedGitHubPR,

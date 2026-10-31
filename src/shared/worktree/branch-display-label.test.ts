@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   getBranchDisplayLabels,
   getOwnBranchPrefix,
+  normalizeManualDisplayName,
+  resolveOneLineRowLabel,
   stripOwnBranchPrefix
 } from './branch-display-label'
 
@@ -79,5 +81,22 @@ describe('getBranchDisplayLabels', () => {
     ])
     expect(labels.get('a')).toBe('fix')
     expect(labels.get('b')).toBe('fix')
+  })
+})
+
+describe('manual row name', () => {
+  it('trims a set name and reads blank, null, or absent as no name', () => {
+    expect(normalizeManualDisplayName('  Billing fix  ')).toBe('Billing fix')
+    expect(normalizeManualDisplayName('   ')).toBeNull()
+    expect(normalizeManualDisplayName('')).toBeNull()
+    expect(normalizeManualDisplayName(null)).toBeNull()
+    expect(normalizeManualDisplayName(undefined)).toBeNull()
+  })
+
+  it('replaces the derived label only while a name is set', () => {
+    expect(resolveOneLineRowLabel('Billing fix', 'feature/billing')).toBe('Billing fix')
+    expect(resolveOneLineRowLabel(null, 'feature/billing')).toBe('feature/billing')
+    expect(resolveOneLineRowLabel(undefined, 'feature/billing')).toBe('feature/billing')
+    expect(resolveOneLineRowLabel('  ', 'feature/billing')).toBe('feature/billing')
   })
 })

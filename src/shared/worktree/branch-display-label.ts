@@ -25,6 +25,20 @@ export function getOwnBranchPrefix(
   return prefix && getBranchPrefixIssue(prefix) === null ? prefix : null
 }
 
+/** The trimmed row name the user set, or null when absent or blank. */
+export function normalizeManualDisplayName(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? ''
+  return trimmed.length > 0 ? trimmed : null
+}
+
+/** The one-line row label: the manual row name when set, otherwise the derived label. */
+export function resolveOneLineRowLabel(
+  manualDisplayName: string | null | undefined,
+  derivedLabel: string
+): string {
+  return normalizeManualDisplayName(manualDisplayName) ?? derivedLabel
+}
+
 export function stripOwnBranchPrefix(branch: string, ownPrefix: string | null): string {
   if (!ownPrefix) {
     return branch

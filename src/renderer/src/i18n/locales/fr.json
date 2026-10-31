@@ -542,6 +542,7 @@
               "meta": {
                 "persist": {
                   "877e3638d8": "Mettez à jour le runtime distant pour modifier l'issue liée à cet espace de travail",
+                  "0b03251e5b": "Mettez à jour le runtime distant pour renommer la ligne de cet espace de travail",
                   "4367540861": "Mettez à jour le runtime distant pour lier des issues Linear",
                   "github": {
                     "pr": {

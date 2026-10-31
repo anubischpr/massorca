@@ -16,6 +16,8 @@ export type Worktree = {
   repo: string
   branch: string
   displayName: string
+  /** Row name the user set on desktop; absent when unset. Never the branch name. */
+  manualDisplayName?: string
   workspaceStatus?: string
   sortOrder?: number
   manualOrder?: number

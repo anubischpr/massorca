@@ -447,6 +447,7 @@
               "meta": {
                 "persist": {
                   "877e3638d8": "Actualizar el tiempo de ejecución remoto para cambiar el problema vinculado de este espacio de trabajo",
+                  "0b03251e5b": "Actualizar el tiempo de ejecución remoto para renombrar la fila de este espacio de trabajo",
                   "4367540861": "Actualizar el tiempo de ejecución remoto para vincular problemas Lineares",
                   "github": {
                     "pr": {

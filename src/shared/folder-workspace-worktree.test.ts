@@ -248,3 +248,22 @@ describe('recognising a folder workspace repoId', () => {
     expect(projectGroupIdFromRepoId(undefined)).toBeNull()
   })
 })
+
+describe('folderWorkspaceToWorktree manual row name', () => {
+  it('carries a set row name and keeps the folder name as the workspace name', () => {
+    const worktree = folderWorkspaceToWorktree(
+      makeFolderWorkspace({ name: 'docs', manualDisplayName: 'Billing docs' })
+    )
+
+    expect(worktree.manualDisplayName).toBe('Billing docs')
+    expect(worktree.displayName).toBe('docs')
+  })
+
+  it('omits the field when the row name is cleared or never set', () => {
+    const cleared = folderWorkspaceToWorktree(makeFolderWorkspace({ manualDisplayName: null }))
+    const unset = folderWorkspaceToWorktree(makeFolderWorkspace())
+
+    expect('manualDisplayName' in cleared).toBe(false)
+    expect('manualDisplayName' in unset).toBe(false)
+  })
+})

@@ -215,6 +215,8 @@ export function useWorktreeCardFoundation({
     )
   })
   const [titleRenaming, setTitleRenaming] = useState(false)
+  // Why: the one-line row name has its own flag, so editing it never flips the workspace title editor.
+  const [rowNameRenaming, setRowNameRenaming] = useState(false)
   const [showRenameErrorDialog, setShowRenameErrorDialog] = useState(false)
   // Why: read the target label from its owning host's store instead of exposing HUB-private SSH metadata as client-local state.
   const sshTargetLabel = useAppStore((s) =>
@@ -259,6 +261,8 @@ export function useWorktreeCardFoundation({
     isRuntimeDisconnected,
     titleRenaming,
     setTitleRenaming,
+    rowNameRenaming,
+    setRowNameRenaming,
     showRenameErrorDialog,
     setShowRenameErrorDialog,
     sshTargetLabel

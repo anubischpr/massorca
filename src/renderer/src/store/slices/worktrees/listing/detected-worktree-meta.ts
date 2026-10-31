@@ -164,6 +164,7 @@ export function getFolderWorkspaceMetaUpdates(
         'createdWithAgent',
         'pendingFirstAgentMessageRename',
         'firstAgentMessageRenameError',
+        'manualDisplayName',
         'diffComments',
         'linkedItems',
         'linkedItemsBase',

@@ -25,7 +25,9 @@ export function useWorktreeContextMenuCommands(args: {
   moveProjectToGroup: ReturnType<typeof useAppStore.getState>['moveProjectToGroup']
   onAssignWorkspaceStatus?: (worktreeIds: readonly string[], status: string) => void
   openModal: ReturnType<typeof useAppStore.getState>['openModal']
+  renameInRow: boolean
   repo: Repo | null | undefined
+  requestRowRename: () => void
   scopeRef: React.RefObject<HTMLDivElement | null>
   setCreateGroupDialogOpen: (open: boolean) => void
   setMenuOpenState: (open: boolean) => void
@@ -124,6 +126,10 @@ export function useWorktreeContextMenuCommands(args: {
     [args]
   )
   const handleRename = useCallback(() => {
+    if (args.renameInRow) {
+      args.requestRowRename()
+      return
+    }
     args.openModal('edit-meta', {
       worktreeId: args.worktree.id,
       repoId: args.worktree.repoId,

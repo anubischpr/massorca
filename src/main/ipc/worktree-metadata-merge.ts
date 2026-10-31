@@ -5,6 +5,7 @@ import { DEFAULT_WORKSPACE_STATUS_ID } from '../../shared/workspace-statuses'
 import { getLinkedWorkItemMetadata } from './worktree-linked-work-item-metadata'
 import { normalizeWorkspaceCreatorProvenance } from '../../shared/workspace-creator-provenance'
 import { createWorktreeIdentity } from '../../shared/worktree/identity'
+import { normalizeManualDisplayName } from '../../shared/worktree/branch-display-label'
 
 /**
  * Merge raw git worktree info with persisted user metadata into a full Worktree.
@@ -22,6 +23,7 @@ export function mergeWorktree(
   // CLI-created labels predate displayNameIsPinned but are still explicit names.
   const legacyCliDisplayNameIsPinned =
     meta?.displayNameIsPinned === undefined && meta?.cliProvenance?.kind === 'created-by-cli'
+  const manualDisplayName = normalizeManualDisplayName(meta?.manualDisplayName)
   return {
     id: worktreeId,
     ...(meta?.instanceId && meta.hostId
@@ -92,6 +94,8 @@ export function mergeWorktree(
     ...(meta?.firstAgentMessageRenameError !== undefined
       ? { firstAgentMessageRenameError: meta.firstAgentMessageRenameError }
       : {}),
+    // Why: absent when unset, so a host that never wrote the field and a cleared name read the same.
+    ...(manualDisplayName ? { manualDisplayName } : {}),
     ...(git.isSparse === true
       ? {
           sparseDirectories: meta?.sparseDirectories,

@@ -28,6 +28,7 @@ export function WorktreeCardSurface({ card }: { card: WorktreeCardController }):
     lineageChildrenStyle,
     newCardStyle,
     oneLineCards,
+    renameRowKey,
     titleRenaming,
     isDeleting,
     isRuntimeDisconnected,
@@ -133,6 +134,8 @@ export function WorktreeCardSurface({ card }: { card: WorktreeCardController }):
           selectedWorktrees={selectedWorktrees}
           onContextMenuSelect={handleContextMenuSelect}
           onAssignWorkspaceStatus={onAssignWorkspaceStatus}
+          renameInRow={oneLineCards}
+          renameRowKey={renameRowKey}
         >
           {cardBody}
         </WorktreeContextMenu>

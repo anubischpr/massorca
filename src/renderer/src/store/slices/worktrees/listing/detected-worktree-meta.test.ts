@@ -1,6 +1,23 @@
 import { describe, expect, it } from 'vitest'
 import type { DetectedWorktreeListResult } from '../../../../../../shared/worktree/types'
-import { applyDetectedWorktreeUpdates } from './detected-worktree-meta'
+import {
+  applyDetectedWorktreeUpdates,
+  getFolderWorkspaceMetaUpdates
+} from './detected-worktree-meta'
+
+describe('getFolderWorkspaceMetaUpdates manual row name', () => {
+  it('forwards a cleared row name so the folder record clears it', () => {
+    expect(getFolderWorkspaceMetaUpdates({ manualDisplayName: null })).toEqual({
+      manualDisplayName: null
+    })
+  })
+
+  it('forwards nothing when the update does not name the row', () => {
+    expect(getFolderWorkspaceMetaUpdates({ isPinned: true })).not.toHaveProperty(
+      'manualDisplayName'
+    )
+  })
+})
 
 describe('applyDetectedWorktreeUpdates display-name provenance', () => {
   it('projects pinning changes into detected rows', () => {

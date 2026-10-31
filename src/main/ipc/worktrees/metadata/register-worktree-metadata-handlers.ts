@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import type { WorktreeMeta } from '../../../../shared/worktree/meta-types'
+import { normalizeManualDisplayName } from '../../../../shared/worktree/branch-display-label'
 import { displayNameUpdatePinsLabel } from '../../../../shared/worktree/display-name-provenance'
 import { parseExecutionHostId } from '../../../../shared/execution-host'
 import { stripOrcaProvenanceMetaUpdates } from '../../../worktree-removal-safety'
@@ -35,7 +36,17 @@ export function registerWorktreeMetadataHandlers(context: WorktreeIpcContext): v
       if (args.executionHostId !== undefined && !executionHostId) {
         throw new Error('Invalid execution host identity.')
       }
-      const validatedUpdates = normalizeLinkedWorkItemFields(args.updates)
+      const linkedNormalizedUpdates = normalizeLinkedWorkItemFields(args.updates)
+      // Why: a blank row name is a clear, stored as null like the other nullable meta fields.
+      const validatedUpdates =
+        linkedNormalizedUpdates.manualDisplayName === undefined
+          ? linkedNormalizedUpdates
+          : {
+              ...linkedNormalizedUpdates,
+              manualDisplayName: normalizeManualDisplayName(
+                linkedNormalizedUpdates.manualDisplayName
+              )
+            }
       const updates =
         validatedUpdates.displayName !== undefined
           ? {
