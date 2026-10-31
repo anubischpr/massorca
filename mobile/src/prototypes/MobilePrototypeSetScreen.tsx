@@ -26,6 +26,7 @@ import { MobilePrototypeDirectionStrip } from './MobilePrototypeDirectionStrip'
 import { MobilePrototypeHeader } from './MobilePrototypeHeader'
 import { MobilePrototypeMergeButton } from './MobilePrototypeMergeButton'
 import { MobilePrototypeMergeSheet } from './MobilePrototypeMergeSheet'
+import { MobilePrototypeMergeSkeleton } from './MobilePrototypeMergeSkeleton'
 import { directionTag, mainFirst } from './mobile-prototype-directions-model'
 import { mobilePrototypeAgentLabel } from './mobile-prototype-list-model'
 import { originChipOf } from './mobile-prototype-origin'
@@ -106,6 +107,8 @@ export function MobilePrototypeSetScreen({
     update
   })
   const review = state?.merge?.phase === 'review' ? state.merge : null
+  // Why: a merge waiting for its plan opens the sheet as a skeleton, so the wait is not a blank screen.
+  const mergeUnderWay = (state?.merge ?? null) !== null
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
@@ -177,14 +180,16 @@ export function MobilePrototypeSetScreen({
       </View>
       <Text style={styles.hint}>Swipe to compare · tap a design to open it</Text>
       <KeyedBottomDrawer<'merge'>
-        sheet={review === null || set === null || nextLetter === null ? null : 'merge'}
+        sheet={!mergeUnderWay || set === null || nextLetter === null ? null : 'merge'}
         sheetKey={(presented) => presented}
         contentScrollable={false}
         dragContentToDismiss={false}
         onClose={() => update(cancelMerge)}
       >
         {() =>
-          review === null || set === null || nextLetter === null ? null : (
+          !mergeUnderWay || set === null || nextLetter === null ? null : review === null ? (
+            <MobilePrototypeMergeSkeleton />
+          ) : (
             <MobilePrototypeMergeSheet
               client={client}
               set={set}

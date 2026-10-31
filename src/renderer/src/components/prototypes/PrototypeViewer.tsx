@@ -14,6 +14,7 @@ import { PrototypeDirectionStrip } from './PrototypeDirectionStrip'
 import { PrototypeFrame } from './PrototypeFrame'
 import { PrototypeMergeProgress } from './PrototypeMergeProgress'
 import { PrototypeMergeReview } from './PrototypeMergeReview'
+import { PrototypeMergeSkeleton } from './PrototypeMergeSkeleton'
 import { PrototypeReadOnlyBanner } from './PrototypeReadOnlyBanner'
 import { PrototypeSetGrid } from './PrototypeSetGrid'
 import { PrototypeViewerToolbar } from './PrototypeViewerToolbar'
@@ -153,6 +154,8 @@ export function PrototypeViewer({
                 boxRef={frameBoxRef}
               />
             </div>
+          ) : merge?.phase === 'waiting' ? (
+            <PrototypeMergeSkeleton />
           ) : (
             <div className="min-w-0 flex-1" />
           )}

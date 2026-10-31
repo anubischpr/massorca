@@ -62,7 +62,9 @@ export function MobilePrototypeMergePreview({
         </View>
       ) : failed ? (
         <Text style={styles.failed}>{PROTOTYPE_UNREADABLE_LINE}</Text>
-      ) : null}
+      ) : (
+        <View testID="mobile-merge-page-skeleton" style={[styles.frame, styles.placeholder]} />
+      )}
     </View>
   )
 }
@@ -87,6 +89,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.surfaceBright
   },
+  placeholder: { backgroundColor: colors.bgPanel },
   page: { flex: 1 },
   failed: {
     paddingVertical: spacing.lg,
