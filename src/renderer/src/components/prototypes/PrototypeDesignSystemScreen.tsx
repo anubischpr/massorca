@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { translate } from '@/i18n/i18n'
 import {
   designSystemChatOf,
   setsBuiltOn,
@@ -69,8 +70,22 @@ export function PrototypeDesignSystemScreen({
     const accepted = await sendText(chat, text).catch(() => false)
     update((latest) => (accepted ? sendAccepted(latest, kind) : sendRefused(latest, kind)))
   }
-  if (content.status !== 'ready') {
-    return <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border" />
+  if (content.status === 'loading') {
+    return (
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border bg-sidebar" />
+    )
+  }
+  if (content.status === 'error') {
+    return (
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border bg-sidebar">
+        <p className="p-6 text-sm text-muted-foreground">
+          {translate(
+            'components.prototypes.designSystem.unreadable',
+            "Couldn't open this design system"
+          )}
+        </p>
+      </section>
+    )
   }
   const panel: DesignSystemPanelProps = {
     system,
@@ -83,10 +98,10 @@ export function PrototypeDesignSystemScreen({
   }
   return (
     <>
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border bg-sidebar">
         <PrototypeDesignSystemView {...panel} />
       </section>
-      <aside className="scrollbar-sleek flex min-h-0 w-[340px] shrink-0 flex-col overflow-y-auto border-l border-border">
+      <aside className="scrollbar-sleek flex min-h-0 w-[340px] shrink-0 flex-col overflow-y-auto border-l border-border bg-sidebar">
         <PrototypeDesignSystemAside {...panel} />
       </aside>
     </>

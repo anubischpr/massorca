@@ -88,9 +88,11 @@ export async function listPrototypeSetsFromAllHosts(): Promise<PrototypeHostList
       proposals.push(...(outcome.value.proposals ?? []))
       for (const system of outcome.value.designSystems ?? []) {
         designSystems.push(system)
-        // Why: the pending request's chat has no set in the list, so its host is recorded here.
-        if (system.pendingRequest !== undefined) {
-          targetBySessionId.set(system.pendingRequest.sessionId, target)
+        // Why: a request's chat has no set in the list, so its host is recorded here.
+        for (const request of [system.pendingRequest, system.newestRequest]) {
+          if (request !== undefined) {
+            targetBySessionId.set(request.sessionId, target)
+          }
         }
       }
       return

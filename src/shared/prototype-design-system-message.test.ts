@@ -19,6 +19,7 @@ const CHANGE_NOTHING_ELSE =
 
 const REDETECT_SENTENCES = [
   "Re-read the project's sources and compare them with the existing design/system files.",
+  'Check which of those files exist first: list their folder or test each path, and read only the ones that exist.',
   'Change only the tokens and components whose source changed, add ones that are new, keep every other token, value and component exactly as it is, bump the version with a history entry, and update the sources in tokens.json and system.md.',
   'If the files are missing, derive tokens from the project (CSS variables, theme or Tailwind config, style guide docs, existing components), list each source, write the three files, and stop.'
 ]

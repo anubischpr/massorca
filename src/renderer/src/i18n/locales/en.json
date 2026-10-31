@@ -18241,6 +18241,7 @@
         "tabTokens": "Tokens",
         "tabComponents": "Components",
         "tabSource": "Source",
+        "unreadable": "Couldn't open this design system",
         "color": "Color",
         "typeScale": "Type scale",
         "typeScaleFont": "Type scale · {{font}}",
