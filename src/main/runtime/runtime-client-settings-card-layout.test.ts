@@ -10,7 +10,7 @@ function makeController(settings: GlobalSettings) {
   const controller = new RuntimeClientSettingsController({
     getSettings: () => settings,
     updateSettings
-  } as never)
+  })
   return { controller, updateSettings }
 }
 
