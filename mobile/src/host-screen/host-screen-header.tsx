@@ -12,6 +12,7 @@ import {
   UserCircle,
   X
 } from 'lucide-react-native'
+import { MobileBotTeamModeSwitch } from '../bot-teams/MobileBotTeamModeSwitch'
 import { StatusDot } from '../components/StatusDot'
 import { classifyConnection, type ConnectionVerdict } from '../transport/connection-health'
 import { colors } from '../theme/mobile-theme'
@@ -33,6 +34,7 @@ export function HostScreenHeader({ controller }: { controller: HostScreenControl
     hostDisplay,
     lastConnectedAt,
     onHideSidebar,
+    onShowTeams,
     reconnectAttempts,
     relayRecovery,
     settings,
@@ -103,6 +105,7 @@ export function HostScreenHeader({ controller }: { controller: HostScreenControl
             </>
           )
         })()}
+        {onShowTeams ? <MobileBotTeamModeSwitch mode="workspaces" onChange={onShowTeams} /> : null}
         {!embedded && floatingWorkspaceEnabled ? (
           <Pressable
             style={[
@@ -159,7 +162,8 @@ export function HostScreenHeader({ controller }: { controller: HostScreenControl
                 ]}
                 numberOfLines={1}
               >
-                Filter{settings.activeFilterCount > 0 ? ` ${settings.activeFilterCount}` : ''}
+                Filter
+                {settings.activeFilterCount > 0 ? ` ${settings.activeFilterCount}` : ''}
               </Text>
             </Pressable>
 
@@ -295,7 +299,8 @@ export function HostScreenHeader({ controller }: { controller: HostScreenControl
                 settings.activeFilterCount > 0 && styles.filterChipTextActive
               ]}
             >
-              Filter{settings.activeFilterCount > 0 ? ` (${settings.activeFilterCount})` : ''}
+              Filter
+              {settings.activeFilterCount > 0 ? ` (${settings.activeFilterCount})` : ''}
             </Text>
           </Pressable>
 
