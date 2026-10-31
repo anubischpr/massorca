@@ -8,6 +8,12 @@ import {
 import { getRepoMapFromState, getWorktreeMapFromState } from '@/store/selectors'
 import { getProjectHostSetupProjectionFromState } from '@/store/project-host-setup-selector'
 import { buildRows } from './worktree-list/grouping/build-rows'
+import { resolveWorktreeCardLayout } from '../../../../shared/worktree/card-layout'
+import {
+  selectBranchRowCandidatesByWorktree,
+  selectWorktreeIdsWithListedSessions
+} from './worktree-child-placement'
+import { NO_BRANCH_ROW_PLACEMENT, resolveBranchRowPlacement } from './worktree-branch-row-placement'
 import { getPinnedWorktreeDisplayPolicy } from './worktree-list/grouping/row-types'
 import { addHostSectionRows, type HostSectionRow } from './host-section-rows'
 import { orderHostSectionOptions } from './host-section-order'
@@ -64,6 +70,19 @@ export function computeRenderedSidebarRows(
     state.worktreeCardProperties
   )
 
+  // Why: switching and Cmd+N still reach a branch row that is hidden, so only its lineage nesting is mirrored here.
+  const branchRowPlacement =
+    resolveWorktreeCardLayout(state.settings) === 'one-line'
+      ? {
+          hiddenWorktreeIds: NO_BRANCH_ROW_PLACEMENT.hiddenWorktreeIds,
+          unnestedWorktreeIds: resolveBranchRowPlacement({
+            candidatesByWorktree: selectBranchRowCandidatesByWorktree(state),
+            listedWorktreeIds: selectWorktreeIdsWithListedSessions(state),
+            worktrees: visibleWorktrees,
+            worktreeLineageById: state.worktreeLineageById
+          }).unnestedWorktreeIds
+        }
+      : NO_BRANCH_ROW_PLACEMENT
   const rows = buildRows(
     state.groupBy,
     [...visibleWorktrees],
@@ -93,7 +112,8 @@ export function computeRenderedSidebarRows(
     // Why no hostLabelById: it only feeds display-only host context labels, never row order.
     undefined,
     defaultHostId,
-    pinnedDisplayPolicy
+    pinnedDisplayPolicy,
+    branchRowPlacement
   )
 
   // Why lazy: with no host filter, addHostSectionRows is a pass-through, so skip building the whole host registry on a keystroke.

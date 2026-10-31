@@ -5,6 +5,7 @@ import { getLineageRenderInfo, getWorktreeLineageAncestors } from './worktree-li
 import { worktree, repoMap } from './worktree-list-groups-test-fixtures'
 import type { WorktreeLineage } from '../../../../shared/worktree/lineage-types'
 import type { Worktree } from '../../../../shared/worktree/types'
+import type { BranchRowPlacement } from './worktree-branch-row-placement'
 
 describe('buildRows workspace lineage nesting', () => {
   type ResolvedLineageWorktree = Worktree & {
@@ -653,5 +654,110 @@ describe('buildRows workspace lineage nesting', () => {
       worktree: { id: child.id }
     })
     expect(rows[1]).not.toHaveProperty('parentLabel')
+  })
+})
+
+describe('buildRows branch row placement', () => {
+  const parent: Worktree = { ...worktree, id: 'wt-parent', instanceId: 'parent-instance' }
+  const child: Worktree = { ...worktree, id: 'wt-child', instanceId: 'child-instance' }
+  const grandchild: Worktree = {
+    ...worktree,
+    id: 'wt-grandchild',
+    instanceId: 'grandchild-instance'
+  }
+  const childLineage: WorktreeLineage = {
+    worktreeId: child.id,
+    worktreeInstanceId: 'child-instance',
+    parentWorktreeId: parent.id,
+    parentWorktreeInstanceId: 'parent-instance',
+    origin: 'cli',
+    capture: { source: 'terminal-context', confidence: 'inferred' },
+    createdAt: 1
+  }
+  const grandchildLineage: WorktreeLineage = {
+    worktreeId: grandchild.id,
+    worktreeInstanceId: 'grandchild-instance',
+    parentWorktreeId: child.id,
+    parentWorktreeInstanceId: 'child-instance',
+    origin: 'cli',
+    capture: { source: 'terminal-context', confidence: 'inferred' },
+    createdAt: 1
+  }
+
+  function rowsWith(worktrees: Worktree[], placement?: BranchRowPlacement) {
+    const lineageById = { [child.id]: childLineage, [grandchild.id]: grandchildLineage }
+    return buildRows(
+      'none',
+      worktrees,
+      repoMap,
+      null,
+      new Set(),
+      undefined,
+      undefined,
+      undefined,
+      lineageById,
+      new Map(worktrees.map((entry) => [entry.id, entry])),
+      true,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      placement
+    )
+  }
+
+  function itemIdsAndDepths(rows: ReturnType<typeof buildRows>) {
+    return rows.flatMap((row) =>
+      row.type === 'item' ? [[row.worktree.id, row.depth] as const] : []
+    )
+  }
+
+  it('leaves a hidden child row out and keeps the parent row', () => {
+    const rows = rowsWith([parent, child], {
+      hiddenWorktreeIds: new Set([child.id]),
+      unnestedWorktreeIds: new Set()
+    })
+
+    expect(itemIdsAndDepths(rows)).toEqual([[parent.id, 0]])
+  })
+
+  it('returns an unnested child at top level instead of under its lineage parent', () => {
+    const rows = rowsWith([parent, child], {
+      hiddenWorktreeIds: new Set(),
+      unnestedWorktreeIds: new Set([child.id])
+    })
+
+    expect(itemIdsAndDepths(rows)).toEqual([
+      [parent.id, 0],
+      [child.id, 0]
+    ])
+  })
+
+  it('still nests a child under its lineage parent when nothing is placed', () => {
+    const rows = rowsWith([parent, child])
+
+    expect(itemIdsAndDepths(rows)).toEqual([
+      [parent.id, 0],
+      [child.id, 1]
+    ])
+  })
+
+  it('lists a grandchild at top level when its hidden parent is left out', () => {
+    const rows = rowsWith([parent, child, grandchild], {
+      hiddenWorktreeIds: new Set([child.id]),
+      unnestedWorktreeIds: new Set()
+    })
+
+    expect(itemIdsAndDepths(rows)).toEqual([
+      [parent.id, 0],
+      [grandchild.id, 0]
+    ])
   })
 })

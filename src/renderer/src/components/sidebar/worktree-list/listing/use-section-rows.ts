@@ -21,6 +21,15 @@ import { deferHostSectionCollapse, scopeHostSectionCollapse } from '../../host-s
 import { addHostSectionRows } from '../../host-section-rows'
 import { orderHostSectionOptions } from '../../host-section-order'
 import { buildSidebarHostOptions } from '../../sidebar-host-options'
+import {
+  selectBranchRowCandidatesByWorktree,
+  selectWorktreeIdsWithListedSessions
+} from '../../worktree-child-placement'
+import {
+  NO_BRANCH_ROW_PLACEMENT,
+  resolveBranchRowPlacement
+} from '../../worktree-branch-row-placement'
+import { resolveWorktreeCardLayout } from '../../../../../../shared/worktree/card-layout'
 import { selectPendingWorktreeCreationKeys } from './pending-worktree-creation-keys'
 
 type SectionRowsArgs = {
@@ -155,6 +164,22 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
     [effectiveCollapsedGroups, hostScopedGroups]
   )
 
+  // Why: only the one-line layout hides a branch row whose sessions all run under another worktree's parent.
+  const branchRowCandidates = useAppStore(selectBranchRowCandidatesByWorktree)
+  const listedWorktreeIds = useAppStore(selectWorktreeIdsWithListedSessions)
+  const branchRowPlacement = useMemo(
+    () =>
+      resolveWorktreeCardLayout(args.settings) === 'one-line'
+        ? resolveBranchRowPlacement({
+            candidatesByWorktree: branchRowCandidates,
+            listedWorktreeIds,
+            worktrees,
+            worktreeLineageById: args.worktreeLineageById
+          })
+        : NO_BRANCH_ROW_PLACEMENT,
+    [args.settings, args.worktreeLineageById, branchRowCandidates, listedWorktreeIds, worktrees]
+  )
+
   const rows: Row[] = useMemo(
     () =>
       buildRows(
@@ -179,7 +204,8 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
         args.visibleFolderWorkspacesForRows,
         hostLabelById,
         defaultHostId,
-        args.pinnedDisplayPolicy
+        args.pinnedDisplayPolicy,
+        branchRowPlacement
       ),
     [
       args.groupBy,
@@ -202,7 +228,8 @@ export function useSidebarSectionRows(args: SectionRowsArgs) {
       args.newExternalWorktreesInboxByRepo,
       pendingCreations,
       hostLabelById,
-      args.pinnedDisplayPolicy
+      args.pinnedDisplayPolicy,
+      branchRowPlacement
     ]
   )
   const orderedHostOptions = useMemo(

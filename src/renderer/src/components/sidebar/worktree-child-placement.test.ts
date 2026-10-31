@@ -9,6 +9,13 @@ import type {
 import { makePaneKey } from '../../../../shared/stable-pane-id'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import { buildWorktreeAgentRows } from './worktree-agent-rows'
+import { resolveBranchRowPlacement } from './worktree-branch-row-placement'
+import {
+  selectBranchRowCandidatesByWorktree,
+  selectWorktreeIdsWithListedSessions
+} from './worktree-child-placement'
+import type { WorktreeLineage } from '../../../../shared/worktree/lineage-types'
+import type { Worktree } from '../../../../shared/worktree/types'
 import {
   selectCrossWorktreeChildTabs,
   selectCrossWorktreeLiveChildEntries,
@@ -277,5 +284,127 @@ describe('worktree agent rows across worktrees', () => {
 
     expect(rowsInB.map((row) => row.paneKey)).toEqual([CHILD])
     expect(rowsInB[0].crossWorktree).toBeUndefined()
+  })
+})
+
+describe('branch row placement for cross-worktree children', () => {
+  function worktreeStub(id: string): Worktree {
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the placement resolver reads only the worktree id.
+    return { id } as unknown as Worktree
+  }
+
+  function lineageOf(childId: string, parentId: string): Record<string, WorktreeLineage> {
+    return {
+      [childId]: {
+        worktreeId: childId,
+        worktreeInstanceId: `${childId}-instance`,
+        parentWorktreeId: parentId,
+        parentWorktreeInstanceId: `${parentId}-instance`,
+        origin: 'cli',
+        capture: { source: 'explicit-cli-flag', confidence: 'explicit' },
+        createdAt: 1
+      }
+    }
+  }
+
+  function resolveFor(
+    state: AppState,
+    worktreeIds: string[],
+    lineageById: Record<string, WorktreeLineage> = {}
+  ) {
+    return resolveBranchRowPlacement({
+      candidatesByWorktree: selectBranchRowCandidatesByWorktree(state),
+      listedWorktreeIds: selectWorktreeIdsWithListedSessions(state),
+      worktrees: worktreeIds.map(worktreeStub),
+      worktreeLineageById: lineageById
+    })
+  }
+
+  const ALL = ['wt-a', 'wt-b', 'wt-c']
+
+  it('hides the child worktree row when its only session runs under a parent in another worktree', () => {
+    const state = stateWith(parentAndChild())
+    const placement = resolveFor(state, ['wt-a', 'wt-b'])
+
+    expect([...placement.hiddenWorktreeIds]).toEqual(['wt-b'])
+  })
+
+  it('keeps the child worktree row when it also lists a session of its own', () => {
+    const own = makeEntry(makePaneKey('tab-b2', LEAF_C), {})
+    const state = stateWith({
+      ...parentAndChild(),
+      agents: {
+        ...parentAndChild().agents,
+        [makePaneKey('tab-b2', LEAF_C)]: own
+      },
+      tabs: {
+        'wt-a': [makeTab('tab-a', 'wt-a')],
+        'wt-b': [makeTab('tab-b', 'wt-b'), makeTab('tab-b2', 'wt-b')]
+      }
+    })
+    const placement = resolveFor(state, ['wt-a', 'wt-b'])
+
+    expect(placement.hiddenWorktreeIds.has('wt-b')).toBe(false)
+  })
+
+  it('returns the child row at top level, unnested, once its session is gone', () => {
+    const state = stateWith({
+      agents: { [PARENT]: makeEntry(PARENT) },
+      tabs: { 'wt-a': [makeTab('tab-a', 'wt-a')], 'wt-b': [] }
+    })
+    const placement = resolveFor(state, ALL.slice(0, 2), lineageOf('wt-b', 'wt-a'))
+
+    expect(placement.hiddenWorktreeIds.size).toBe(0)
+    expect(placement.unnestedWorktreeIds.has('wt-b')).toBe(true)
+    expect(placement.unnestedWorktreeIds.has('wt-a')).toBe(false)
+  })
+
+  it('keeps the child row when its parent session is gone and nothing places it', () => {
+    const state = stateWith({
+      agents: { [CHILD]: makeEntry(CHILD, { orchestration: parentOf(PARENT) }) },
+      tabs: { 'wt-a': [makeTab('tab-a', 'wt-a')], 'wt-b': [makeTab('tab-b', 'wt-b')] }
+    })
+    const placement = resolveFor(state, ALL.slice(0, 2))
+
+    expect(placement.hiddenWorktreeIds.size).toBe(0)
+  })
+
+  it('keeps the child row when its parent worktree is filtered out of the list', () => {
+    const state = stateWith(parentAndChild())
+    const placement = resolveFor(state, ['wt-b'])
+
+    expect(placement.hiddenWorktreeIds.size).toBe(0)
+  })
+
+  it('hides the middle of a nested chain and keeps the top-level parent row', () => {
+    const state = stateWith({
+      agents: {
+        [PARENT]: makeEntry(PARENT),
+        [CHILD]: makeEntry(CHILD, { orchestration: parentOf(PARENT) }),
+        [GRANDCHILD]: makeEntry(GRANDCHILD, { orchestration: parentOf(CHILD) })
+      },
+      tabs: {
+        'wt-a': [makeTab('tab-a', 'wt-a')],
+        'wt-b': [makeTab('tab-b', 'wt-b')],
+        'wt-c': [makeTab('tab-c', 'wt-c')]
+      }
+    })
+    const placement = resolveFor(state, ALL)
+
+    expect([...placement.hiddenWorktreeIds].sort()).toEqual(['wt-b', 'wt-c'])
+    expect(placement.hiddenWorktreeIds.has('wt-a')).toBe(false)
+  })
+
+  it('keeps the rows of a session cycle so the cycle never hides every row', () => {
+    const state = stateWith({
+      agents: {
+        [PARENT]: makeEntry(PARENT, { orchestration: parentOf(CHILD) }),
+        [CHILD]: makeEntry(CHILD, { orchestration: parentOf(PARENT) })
+      },
+      tabs: { 'wt-a': [makeTab('tab-a', 'wt-a')], 'wt-b': [makeTab('tab-b', 'wt-b')] }
+    })
+    const placement = resolveFor(state, ALL.slice(0, 2))
+
+    expect(placement.hiddenWorktreeIds.size).toBe(0)
   })
 })

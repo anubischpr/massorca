@@ -10,6 +10,8 @@ import { LOCAL_EXECUTION_HOST_ID } from '../../../../../../shared/execution-host
 import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import { getWorktreeHostIdentity } from '../../../../../../shared/worktree/host-qualified-identity'
 import { getCyclicProjectedWorktreeLineageIds } from '../../worktree-lineage-projection'
+import { NO_BRANCH_ROW_PLACEMENT } from '../../worktree-branch-row-placement'
+import type { BranchRowPlacement } from '../../worktree-branch-row-placement'
 import { ALL_GROUP_KEY, ALL_GROUP_META } from './group-keys'
 import { appendOrderedGroups } from './group-sections'
 import type { SectionAppendContext } from './group-sections'
@@ -71,7 +73,8 @@ export function buildRows(
   folderWorkspaces: readonly FolderWorkspace[] = [],
   hostLabelById?: ReadonlyMap<string, string>,
   defaultHostId: ExecutionHostId = LOCAL_EXECUTION_HOST_ID,
-  pinnedDisplayPolicy: PinnedWorktreeDisplayPolicy = getPinnedWorktreeDisplayPolicy(settings)
+  pinnedDisplayPolicy: PinnedWorktreeDisplayPolicy = getPinnedWorktreeDisplayPolicy(settings),
+  branchRowPlacement: BranchRowPlacement = NO_BRANCH_ROW_PLACEMENT
 ): Row[] {
   const result: Row[] = []
   const projectIndex = buildProjectGroupingIndex(projectGrouping)
@@ -90,8 +93,12 @@ export function buildRows(
   // Membership is decided once, above the groupBy switch: every mode renders the
   // same set of folder workspaces and only chooses where they land (#15362).
   const renderableFolderWorkspaces = getRenderableFolderWorkspaces(folderWorkspaces, projectGroups)
+  // Why: a worktree that lists no session is shown top-level, so its lineage parent does not nest it.
   const cyclicLineageIds = nestLineage
-    ? getCyclicProjectedWorktreeLineageIds(lineageById, worktreeMap)
+    ? new Set([
+        ...getCyclicProjectedWorktreeLineageIds(lineageById, worktreeMap),
+        ...branchRowPlacement.unnestedWorktreeIds
+      ])
     : new Set<string>()
 
   const pendingByRepo = new Map<string, PendingCreationRef[]>()
@@ -114,10 +121,12 @@ export function buildRows(
     ? getPinnedSectionWorktrees(worktrees, lineageById, worktreeMap)
     : worktrees.filter((worktree) => worktree.isPinned)
   const pinnedSectionIds = new Set(pinnedSectionWorktrees.map(getWorktreeHostIdentity))
-  const naturalWorktrees =
+  // Why: a hidden branch row is left out of the sections only; pinned rows and collision labels still see it.
+  const naturalWorktrees = (
     pinnedDisplayPolicy === 'duplicate-in-groups'
       ? worktrees
       : worktrees.filter((worktree) => !pinnedSectionIds.has(getWorktreeHostIdentity(worktree)))
+  ).filter((worktree) => !branchRowPlacement.hiddenWorktreeIds.has(worktree.id))
   // Why the full set: under the default pinned policy a pinned worktree exists
   // only in the Pinned section, and its host is part of whether the sidebar is
   // mixed at all. Scoping to naturalWorktrees left pinned remotes unlabelled.
