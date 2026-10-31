@@ -33,7 +33,7 @@ export function PrototypeListPanel({
   return (
     <section
       aria-label={translate('components.prototypes.listLabel', 'All prototypes')}
-      className="flex min-h-0 w-[250px] shrink-0 flex-col"
+      className="flex min-h-0 w-[250px] shrink-0 flex-col bg-sidebar"
     >
       <div className="flex flex-col gap-2.5 px-3.5 pt-3.5 pb-2.5">
         <h1 className="m-0 text-sm font-semibold">

@@ -49,8 +49,9 @@ export function PrototypeSidePanel({
   const draft = draftOf(state)
   const agent = prototypeAgentLabel(set.agent)
   const chatName = prototypeTitle(set)
+  // Why: a transparent panel shows the canvas, which reads as black in dark.
   return (
-    <>
+    <div className="flex flex-1 flex-col bg-sidebar">
       <PrototypeEditPanel state={state} update={update} pulseField={state.pulse?.field ?? null} />
       <div className="flex flex-1 flex-col gap-2.5 p-3">
         <div className="flex items-baseline justify-between">
@@ -148,6 +149,6 @@ export function PrototypeSidePanel({
           )}
         </span>
       </div>
-    </>
+    </div>
   )
 }

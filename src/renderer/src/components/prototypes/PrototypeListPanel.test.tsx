@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { buildPrototypeListGroups } from '../../../../shared/prototype-list-groups'
 import { buildPrototypeListRows } from '../../../../shared/prototype-list-model'
 import type {
@@ -81,15 +82,17 @@ function renderList(options: {
     designSystems: options.designSystems ?? []
   })
   render(
-    <PrototypeListPanel
-      groups={groups}
-      filter="all"
-      onFilter={vi.fn()}
-      selectedRequestId={options.selectedRequestId ?? null}
-      selectedProjectKey={options.selectedProjectKey ?? null}
-      onSelect={options.onSelect ?? vi.fn()}
-      onSelectSystem={options.onSelectSystem ?? vi.fn()}
-    />
+    <TooltipProvider>
+      <PrototypeListPanel
+        groups={groups}
+        filter="all"
+        onFilter={vi.fn()}
+        selectedRequestId={options.selectedRequestId ?? null}
+        selectedProjectKey={options.selectedProjectKey ?? null}
+        onSelect={options.onSelect ?? vi.fn()}
+        onSelectSystem={options.onSelectSystem ?? vi.fn()}
+      />
+    </TooltipProvider>
   )
 }
 
@@ -175,5 +178,23 @@ describe('PrototypeListPanel groups', () => {
       'true'
     )
     expect(screen.getByRole('button', { name: /1 screen/u })).not.toHaveAttribute('aria-current')
+  })
+})
+
+describe('PrototypeListPanel surface and titles', () => {
+  afterEach(cleanup)
+
+  it('paints the panel with the sidebar surface the right sidebar uses', () => {
+    renderList({ sets: [set('r1', NEXUS)] })
+    expect(screen.getByRole('region', { name: 'All prototypes' })).toHaveClass('bg-sidebar')
+  })
+
+  it('keeps a long row title on one line and names the full title in its tooltip', async () => {
+    const title = 'A long prototype title that would wrap onto a second line in the list'
+    renderList({ sets: [{ ...set('r1', NEXUS), title }] })
+    const label = screen.getByText(title)
+    expect(label).toHaveClass('truncate', 'text-[13px]')
+    fireEvent.pointerMove(label, { pointerType: 'mouse' })
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(title)
   })
 })

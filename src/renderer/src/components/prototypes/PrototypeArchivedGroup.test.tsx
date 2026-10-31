@@ -3,6 +3,7 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { buildPrototypeListGroups } from '../../../../shared/prototype-list-groups'
 import { buildPrototypeListRows } from '../../../../shared/prototype-list-model'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
@@ -66,20 +67,22 @@ function renderList(options: {
     ...controls
   }
   render(
-    <PrototypeListPanel
-      groups={buildPrototypeListGroups({
-        sets: options.active,
-        rows: rowsOf(options.active),
-        designSystems: []
-      })}
-      filter="all"
-      onFilter={vi.fn()}
-      selectedRequestId={null}
-      selectedProjectKey={null}
-      onSelect={options.onSelect ?? vi.fn()}
-      onSelectSystem={vi.fn()}
-      archive={archive}
-    />
+    <TooltipProvider>
+      <PrototypeListPanel
+        groups={buildPrototypeListGroups({
+          sets: options.active,
+          rows: rowsOf(options.active),
+          designSystems: []
+        })}
+        filter="all"
+        onFilter={vi.fn()}
+        selectedRequestId={null}
+        selectedProjectKey={null}
+        onSelect={options.onSelect ?? vi.fn()}
+        onSelectSystem={vi.fn()}
+        archive={archive}
+      />
+    </TooltipProvider>
   )
   return controls
 }

@@ -6,6 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { joinParts } from '../../../../shared/prototype-design-system-view'
 import type { PrototypeListRow } from '../../../../shared/prototype-list-model'
@@ -114,8 +115,15 @@ function RowButton({
       )}
     >
       <span className="flex w-full justify-between gap-1.5">
-        <span className="font-medium">{row.title}</span>
-        <span className="text-[11px] text-muted-foreground">{row.age}</span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="min-w-0 truncate text-[13px] font-medium">{row.title}</span>
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={4}>
+            {row.title}
+          </TooltipContent>
+        </Tooltip>
+        <span className="shrink-0 text-[11px] text-muted-foreground">{row.age}</span>
       </span>
       <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <span className="rounded border border-border px-1 font-mono text-[10px] text-foreground">

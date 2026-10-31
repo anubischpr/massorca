@@ -40,6 +40,22 @@ function sendButton(): HTMLElement {
   return screen.getByRole('button', { name: /^Send to/u })
 }
 
+describe('PrototypeSidePanel surface', () => {
+  afterEach(cleanup)
+
+  it('paints the panel with the sidebar surface the right sidebar uses', () => {
+    const { container } = render(
+      <PrototypeSidePanel
+        set={SET}
+        state={createSetState(['A'])}
+        update={vi.fn()}
+        onSend={vi.fn()}
+      />
+    )
+    expect(container.firstElementChild).toHaveClass('bg-sidebar')
+  })
+})
+
 describe('PrototypeSidePanel Send', () => {
   afterEach(cleanup)
 

@@ -644,6 +644,12 @@ describe('PrototypeViewer icon-only controls', () => {
     renderSet3(createSetState(['A', 'B', 'C']))
     expect(screen.getByText(/· 3 directions$/)).toHaveClass('truncate')
   })
+
+  it('names the full title in a tooltip on hover', async () => {
+    renderSet3(createSetState(['A', 'B', 'C']))
+    fireEvent.pointerMove(screen.getByText(/· 3 directions$/), { pointerType: 'mouse' })
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(/^Checkout$/u)
+  })
 })
 
 describe('PrototypeViewer origin link', () => {

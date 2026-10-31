@@ -143,9 +143,11 @@ export function PrototypeViewerToolbar({
   return (
     <div className="@container flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-2.5">
       <div className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
-        <span className="truncate text-sm font-semibold">
-          {`${prototypeTitle(set)} · ${prototypeCountLabel(status)}`}
-        </span>
+        <NamedTooltip name={prototypeTitle(set)}>
+          <span className="truncate text-sm font-semibold">
+            {`${prototypeTitle(set)} · ${prototypeCountLabel(status)}`}
+          </span>
+        </NamedTooltip>
         {builtOn === null ? null : (
           <PrototypeBuiltOnLink
             version={builtOn.version}
