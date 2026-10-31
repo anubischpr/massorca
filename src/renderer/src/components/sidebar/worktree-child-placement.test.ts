@@ -7,6 +7,10 @@ import type {
   AgentStatusOrchestrationContext
 } from '../../../../shared/agent-status-types'
 import { makePaneKey } from '../../../../shared/stable-pane-id'
+import {
+  structuredAgentSessionPaneKey,
+  structuredAgentSessionTabId
+} from '../../../../shared/structured-agent-session-projection'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import { buildWorktreeAgentRows } from './worktree-agent-rows'
 import { resolveBranchRowPlacement } from './worktree-branch-row-placement'
@@ -380,5 +384,40 @@ describe('branch row placement for cross-worktree children', () => {
     const placement = resolveFor(state, ALL.slice(0, 2))
 
     expect(placement.hiddenWorktreeIds.size).toBe(0)
+  })
+})
+
+describe('a finished delegated child on a paired host', () => {
+  it('hides the child worktree from the link on its own entry, with no runtime orchestration', () => {
+    const parentTabId = structuredAgentSessionTabId('parent')
+    const childTabId = structuredAgentSessionTabId('child')
+    const parentKey = structuredAgentSessionPaneKey(parentTabId, 'parent')
+    const childKey = structuredAgentSessionPaneKey(childTabId, 'child')
+    const state = {
+      tabsByWorktree: {
+        'wt-parent': [makeTab(parentTabId, 'wt-parent')],
+        'wt-child': [makeTab(childTabId, 'wt-child')]
+      },
+      unifiedTabsByWorktree: {},
+      runtimeAgentOrchestrationByPaneKey: {},
+      retainedAgentsByPaneKey: {},
+      agentStatusByPaneKey: {
+        [parentKey]: makeEntry(parentKey, { worktreeId: 'wt-parent' }),
+        [childKey]: makeEntry(childKey, {
+          worktreeId: 'wt-child',
+          state: 'done',
+          orchestration: {
+            taskId: 'task_1',
+            dispatchId: 'ctx_1',
+            dispatchStatus: 'completed',
+            parentPaneKey: parentKey
+          }
+        })
+      }
+    }
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the topology reads only the maps set here.
+    const candidates = selectBranchRowCandidatesByWorktree(state as unknown as AppState)
+    expect(candidates.get('wt-child')).toEqual(['wt-parent'])
+    expect(candidates.has('wt-parent')).toBe(false)
   })
 })
