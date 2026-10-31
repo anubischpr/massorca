@@ -193,6 +193,44 @@ describe('project groups', () => {
     ])
   })
 
+  it('gives a project group header the worktrees under it, so a folded group can show their status', () => {
+    const group: ProjectGroup = {
+      id: 'group-1',
+      name: 'Platform',
+      parentPath: '/platform',
+      parentGroupId: null,
+      createdFrom: 'folder-scan',
+      tabOrder: 0,
+      isCollapsed: false,
+      color: null,
+      createdAt: 1,
+      updatedAt: 1
+    }
+    const grouped: Repo = { ...repo, projectGroupId: group.id }
+
+    const rows = buildRows(
+      'repo',
+      [worktree],
+      new Map([[grouped.id, grouped]]),
+      null,
+      new Set(),
+      new Map([[grouped.id, 0]]),
+      undefined,
+      'manual',
+      {},
+      new Map([[worktree.id, worktree]]),
+      false,
+      undefined,
+      [group]
+    )
+
+    expect(
+      rows.find((row) => row.type === 'header' && row.key === 'project-group:group-1')
+    ).toMatchObject({
+      worktreeIds: [worktree.id]
+    })
+  })
+
   it('renders ungrouped repos as top-level repo rows when Project Groups exist', () => {
     const group: ProjectGroup = {
       id: 'group-1',

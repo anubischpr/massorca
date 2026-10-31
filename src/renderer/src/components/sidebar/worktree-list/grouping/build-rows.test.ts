@@ -368,3 +368,14 @@ describe('buildRows with pinned worktrees', () => {
     ])
   })
 })
+
+describe('buildRows with a folded repo header', () => {
+  it('lists the worktrees it hides, so its worst-status glyph can read them', () => {
+    const second = { ...worktree, id: 'wt-2', displayName: 'second' }
+    const rows = buildRows('repo', [worktree, second], repoMap, null, new Set(['repo:repo-1']))
+
+    expect(rows.filter((r) => r.type === 'item')).toHaveLength(0)
+    expect(rows[0]).toMatchObject({ type: 'header', key: 'repo:repo-1', count: 2 })
+    expect(rows[0]).toMatchObject({ worktreeIds: expect.arrayContaining(['wt-1', 'wt-2']) })
+  })
+})

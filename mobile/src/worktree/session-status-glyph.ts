@@ -2,6 +2,8 @@ import type { AgentWorkingMode } from '../../../src/shared/agent-status-types'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
 import { agentDotState, type AgentDotState } from './agent-row-display'
 import { flattenAgentRowLineage } from './agent-row-lineage'
+import { getWorktreeStatus } from './workspace-list-ordering'
+import type { Worktree } from './workspace-list-types'
 
 /** What a one-line row shows at its trailing edge. Done-and-seen, idle and a user's Stop show nothing. */
 export type SessionStatusGlyph =
@@ -165,4 +167,35 @@ export function buildSessionListView(input: {
     rootCount: blocks.length,
     worst: worstSessionStatusGlyph(blocks.map((block) => block.worst))
   }
+}
+
+/**
+ * The glyph a folded group header shows for the worktree rows it hides: the worst of their hidden
+ * sessions, placed children included, else the rollup of a row with no session. An unreachable host
+ * reads unconfirmed on every session and shows no rollup.
+ */
+export function foldedSectionGlyph(
+  items: readonly Worktree[],
+  now: number,
+  disconnected: boolean
+): SessionStatusGlyph | null {
+  return worstSessionStatusGlyph(
+    items.map((item) => {
+      const agents = item.agents ?? []
+      if (agents.length > 0) {
+        const sessions = buildSessionListView({
+          agents,
+          now,
+          unvisited: item.unread,
+          disconnected,
+          allShown: true
+        }).worst
+        return worstSessionStatusGlyph([sessions, item.unread ? 'unread' : null])
+      }
+      if (disconnected) {
+        return null
+      }
+      return worktreeStatusGlyph(getWorktreeStatus(item), item.unread, item.workingMode)
+    })
+  )
 }

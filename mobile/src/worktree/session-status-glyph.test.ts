@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
 import type { AgentDotState } from './agent-row-display'
+import type { Worktree } from './workspace-list-types'
 import {
   buildSessionListView,
+  foldedSectionGlyph,
   isSessionGlyphUrgent,
   selectVisibleSessions,
   sessionStatusGlyph,
@@ -201,5 +203,58 @@ describe('failed state from the wire', () => {
     const oldHost = agent('old-host-root')
     const view = buildSessionListView({ ...base, agents: [oldHost] })
     expect(view.rows[0]?.glyph).toBeNull()
+  })
+})
+
+describe('foldedSectionGlyph', () => {
+  function folded(
+    id: string,
+    agents: RuntimeWorktreeAgentRow[],
+    extra: Partial<Worktree> = {}
+  ): Worktree {
+    return {
+      worktreeId: id,
+      repoId: 'repo',
+      repo: 'app',
+      branch: id,
+      displayName: id,
+      path: `/work/${id}`,
+      liveTerminalCount: 0,
+      hasAttachedPty: false,
+      preview: '',
+      unread: false,
+      isPinned: false,
+      linkedPR: null,
+      agents,
+      ...extra
+    }
+  }
+
+  it('shows the needs-human mark of a placed child under the parent that is folded', () => {
+    // The child session is listed under the parent row, so the parent's folded header carries it.
+    const parent = folded('wt-api', [
+      agent('parent', { state: 'done' }),
+      agent('child', { state: 'waiting' }, 'parent')
+    ])
+
+    expect(foldedSectionGlyph([parent], NOW, false)).toBe('needs-human')
+  })
+
+  it('shows failed over working, and nothing for a quiet folded group', () => {
+    const working = folded('wt-a', [agent('w', { state: 'working' })])
+    const failed = folded('wt-b', [
+      agent('f', { mainAgent: { state: 'done', outcome: 'failure', stateStartedAt: 1_000 } })
+    ])
+
+    expect(foldedSectionGlyph([working, failed], NOW, false)).toBe('failed')
+    expect(
+      foldedSectionGlyph([folded('wt-c', [agent('q', { state: 'done' })])], NOW, false)
+    ).toBeNull()
+  })
+
+  it('reads unconfirmed on every session when the host is unreachable', () => {
+    expect(
+      foldedSectionGlyph([folded('wt-a', [agent('w', { state: 'working' })])], NOW, true)
+    ).toBe('unconfirmed')
   })
 })

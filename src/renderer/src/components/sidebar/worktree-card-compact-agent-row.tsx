@@ -222,6 +222,7 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
         <>
           {/* Why: the row's actionable disabled reason must win on every hit area. */}
           <AgentStateDot
+            blockedIsFailure={Boolean(agent.childRow)}
             state={dotState}
             size="sm"
             title={sendTargetDisabledReason ? null : undefined}

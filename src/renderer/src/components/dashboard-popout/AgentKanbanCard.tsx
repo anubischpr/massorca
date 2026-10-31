@@ -305,7 +305,7 @@ export const AgentKanbanCard = memo(
                     key={subagent.id}
                     className="flex items-center gap-1.5 py-0.5 text-[11px] text-muted-foreground"
                   >
-                    <AgentStateDot state={subagent.dotState} />
+                    <AgentStateDot state={subagent.dotState} blockedIsFailure />
                     <span className="truncate">{subagent.name}</span>
                   </div>
                 ))}

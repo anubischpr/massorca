@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { buildSessionSheetActions, canManageSessionTerminal } from './session-sheet-actions'
 
-vi.mock('lucide-react-native', () => ({ Copy: 'Copy', Pencil: 'Pencil', X: 'X' }))
+vi.mock('lucide-react-native', () => ({
+  Copy: 'Copy',
+  FolderGit2: 'FolderGit2',
+  Pencil: 'Pencil',
+  X: 'X'
+}))
 
 const LEAF = '33333333-3333-4333-8333-333333333333'
 const OTHER_LEAF = '44444444-4444-4444-8444-444444444444'
@@ -27,6 +32,15 @@ describe('buildSessionSheetActions', () => {
     expect(actions.map((action) => action.label)).toEqual(['Rename', 'Copy Path', 'Close'])
     expect(actions[0]?.closeBeforePress).toBe(true)
     expect(actions[2]?.destructive).toBe(true)
+  })
+
+  it('opens the worktree sheet after this sheet closes when the row asks for it', () => {
+    const onOpenWorktree = vi.fn()
+    const actions = buildSessionSheetActions({ onCopyPath: vi.fn(), onOpenWorktree })
+    expect(actions.map((action) => action.label)).toEqual(['Copy Path', 'Worktree'])
+    expect(actions[1]?.closeBeforePress).toBe(true)
+    actions[1]?.onPress()
+    expect(onOpenWorktree).toHaveBeenCalledOnce()
   })
 
   it('runs the callback of the action it names', () => {

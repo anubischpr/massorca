@@ -64,6 +64,7 @@ export function computeRenderedSidebarRows(
     state.worktreeCardProperties
   )
 
+  // Why: no branch-row placement here, so switching and Cmd+N still reach a branch row that is hidden.
   const rows = buildRows(
     state.groupBy,
     [...visibleWorktrees],

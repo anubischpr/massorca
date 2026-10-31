@@ -97,6 +97,18 @@ export function appendProjectGroupSections(
     )
   }
 
+  // Why: a folded project group's header speaks for every worktree under it, nested groups included.
+  const getProjectGroupSubtreeWorktreeIds = (groupId: string): string[] => {
+    const direct = (groupByProjectGroupId.get(groupId) ?? []).flatMap(([, entry]) =>
+      entry.items.map((worktree) => worktree.id)
+    )
+    const children = childGroupsByParentId.get(groupId) ?? []
+    return children.reduce(
+      (ids, child) => [...ids, ...getProjectGroupSubtreeWorktreeIds(child.id)],
+      direct
+    )
+  }
+
   const appendProjectGroup = (projectGroup: ProjectGroup, depth: number): void => {
     const repoEntries = sortRepoEntriesWithinGroup(groupByProjectGroupId.get(projectGroup.id) ?? [])
     const childGroups = childGroupsByParentId.get(projectGroup.id) ?? []
@@ -109,7 +121,8 @@ export function appendProjectGroupSections(
       tone: PROJECT_GROUP_META.tone,
       icon: PROJECT_GROUP_META.icon,
       projectGroup,
-      projectGroupDepth: depth
+      projectGroupDepth: depth,
+      worktreeIds: getProjectGroupSubtreeWorktreeIds(projectGroup.id)
     })
     if (!collapsedGroups.has(key)) {
       for (const pair of folderWorkspacesByProjectGroupId.get(projectGroup.id) ?? []) {

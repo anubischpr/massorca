@@ -9,6 +9,7 @@ import { MobileRepoIcon } from '../components/MobileRepoIcon'
 import { MobileSearchField } from '../components/MobileSearchField'
 import { NewWorkspaceFab, FAB_SIZE } from '../components/NewWorkspaceFab'
 import { TextInputModal } from '../components/TextInputModal'
+import { SessionStatusMark } from '../components/SessionStatusMark'
 import { WorktreeListRow } from '../components/WorktreeListRow'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
 import { useClipboardWriter } from '../platform/clipboard'
@@ -25,6 +26,7 @@ import {
 } from '../worktree/branch-row-label'
 import { getWorktreeRowIdentity } from '../worktree/worktree-host-row-identity'
 import { HostWorkspaceListStates } from '../worktree/host-workspace-list-states'
+import { foldedSectionGlyph } from '../worktree/session-status-glyph'
 import { getWorktreeStatus } from '../worktree/workspace-list-sections'
 import type { Worktree } from '../worktree/workspace-list-types'
 import { repoGroupAccountLabel } from './host-repo-group-account'
@@ -245,6 +247,10 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
             const isCollapsed = state.collapsedGroups.has(section.key)
             const rawSection = rawSections.find((s) => s.key === section.key)
             const count = rawSection?.data.length ?? 0
+            // Why: a folded group hides its rows, so its header speaks for the worst of them, placed children included.
+            const foldedGlyph = isCollapsed
+              ? foldedSectionGlyph(rawSection?.data ?? [], now, isHostRowUnreachable(connState))
+              : null
             const repoSectionColor =
               state.groupMode === 'repo' ? uniqueRepoColors.get(section.title) : null
             const repoSectionIcon =
@@ -290,6 +296,7 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
                     {repoAccount}
                   </Text>
                 ) : null}
+                {foldedGlyph ? <SessionStatusMark glyph={foldedGlyph} /> : null}
                 <Text style={styles.sectionCount}>{count}</Text>
               </Pressable>
             )
@@ -358,7 +365,10 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
                 onRename: sessionHandle
                   ? () => setRenameTarget({ handle: sessionHandle })
                   : undefined,
-                onClose: sessionHandle ? () => void closeSession(sessionHandle) : undefined
+                onClose: sessionHandle ? () => void closeSession(sessionHandle) : undefined,
+                onOpenWorktree: sessionTarget.runsElsewhere
+                  ? () => state.setActionTarget(sessionTarget.item)
+                  : undefined
               })
             : []
         }

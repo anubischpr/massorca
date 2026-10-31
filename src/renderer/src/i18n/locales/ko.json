@@ -6460,7 +6460,9 @@
           "unread": "읽지 않음"
         },
         "OneLineSessionMenu": {
-          "copyTitle": "제목 복사"
+          "copyTitle": "제목 복사",
+          "worktree": "워크트리",
+          "sleep": "절전"
         }
       },
       "shared": {

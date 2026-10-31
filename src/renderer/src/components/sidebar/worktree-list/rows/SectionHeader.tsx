@@ -341,7 +341,7 @@ export function renderWorktreeSectionHeaderRow(args: {
           </div>
         </div>
 
-        {isHeaderCollapsed && isRepoHeader ? (
+        {isHeaderCollapsed && (isRepoHeader || showHeaderCollapseAffordance) ? (
           <CollapsedProjectStatus worktreeIds={row.worktreeIds} />
         ) : null}
 
