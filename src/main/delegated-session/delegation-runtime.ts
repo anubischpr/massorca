@@ -18,7 +18,11 @@ import type { OrchestrationDb } from '../runtime/orchestration/db'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { STRUCTURED_AGENT_RUNTIME_REGISTRATIONS } from '../runtime/structured-agent-runtime-registrations'
 import { declaredAccessForStructuredAgent } from '../runtime/rpc/methods/orchestration/worker/worker-start-access-mode'
+import type { ChildBringBackPolicy } from '../../shared/child-bring-back'
+import { launchedAccessPosture } from '../native-chat/agent-session-wire/structured-agent-session-access-posture'
 import { ChildBringBackService } from './child-bring-back'
+import { ChildBringBackAutomatic, childBringBackPolicyOf } from './child-bring-back-automatic'
+import { storedOptionsWithAutomaticBringBack } from './delegation-stored-request'
 import { DelegationAnswerService } from './delegation-answer-service'
 import { createDelegationLauncher } from './delegation-launch'
 import { discardFailedDelegatedStart } from './delegation-failed-start'
@@ -45,6 +49,7 @@ type DelegationRuntime = Pick<
 const requestServices = new WeakMap<object, DelegationRequestService>()
 const answerServices = new WeakMap<object, DelegationAnswerService>()
 const bringBackServices = new WeakMap<object, ChildBringBackService>()
+const bringBackAutomatics = new WeakMap<object, ChildBringBackAutomatic>()
 const reconciled = new WeakSet<object>()
 
 function requireHost(): StructuredAgentSessionHost {
@@ -233,6 +238,41 @@ export function getChildBringBackService(runtime: OrcaRuntimeService): ChildBrin
   return service
 }
 
+function readBringBackPolicy(parentSessionId: string): ChildBringBackPolicy {
+  const host = getStructuredAgentSessionHost()
+  return childBringBackPolicyOf(
+    host ? launchedAccessPosture(host.deps, parentSessionId) : undefined
+  )
+}
+
+function getChildBringBackAutomatic(runtime: OrcaRuntimeService): ChildBringBackAutomatic {
+  const existing = bringBackAutomatics.get(runtime)
+  if (existing) {
+    return existing
+  }
+  const automatic = new ChildBringBackAutomatic({
+    service: getChildBringBackService(runtime),
+    readRequest: (requestId) => existingDb(runtime)?.getDelegationRequest(requestId),
+    listFinishedRequests: () =>
+      existingDb(runtime)?.listDelegationRequestsByStatus('finished') ?? [],
+    readWorkspaceId: readSessionWorkspaceId,
+    readPolicy: readBringBackPolicy,
+    mark: (requestId, mark) => {
+      const db = existingDb(runtime)
+      const row = db?.getDelegationRequest(requestId)
+      if (db && row) {
+        db.patchDelegationRequest(requestId, {
+          options_json: storedOptionsWithAutomaticBringBack(row, mark)
+        })
+      }
+    },
+    tellParent: tellParentAgent,
+    warn: (message, error) => console.warn(`[delegated-session] ${message}`, error)
+  })
+  bringBackAutomatics.set(runtime, automatic)
+  return automatic
+}
+
 /** The runtime's delegation answer service; its dispatch listener lives as long as the process. */
 export function getDelegationAnswerService(runtime: OrcaRuntimeService): DelegationAnswerService {
   const existing = answerServices.get(runtime)
@@ -246,6 +286,8 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
     readRateLimits: () => readRateLimits(runtime),
     refreshUsage: () => runtime.refreshAccountsForMobileSubscriber(),
     tellParent: tellParentAgent,
+    onChildSucceeded: (requestId) =>
+      void getChildBringBackAutomatic(runtime).onChildFinished(requestId),
     launch: createDelegationLauncher({
       requireDb: () => runtime.getOrchestrationDb(),
       declaredAccess: declaredAccessForStructuredAgent,
@@ -353,4 +395,14 @@ export function reconcileDelegationRequests(runtime: OrcaRuntimeService): void {
     .catch((error: unknown) => {
       console.warn('[delegated-session] reconciling delegation requests failed', error)
     })
+  const automatic = getChildBringBackAutomatic(runtime)
+  void automatic.reconcile()
+  getStructuredAgentSessionHost()?.subscribeTurnCompletions({
+    id: 'child-bring-back-automatic',
+    emit: (event) => {
+      if (event.type === 'completion') {
+        void automatic.onTurnEnded(event.completion.sessionId)
+      }
+    }
+  })
 }

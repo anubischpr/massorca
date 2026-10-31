@@ -55,7 +55,7 @@ export function NativeChatChildBringBack({
         <ConflictSummaryCard
           conflictOperation="merge"
           unresolvedCount={view.conflicts.unresolved}
-          sourceControlAiActionsVisible
+          sourceControlAiActionsVisible={!view.conflicts.agentResolving}
           isResolvingWithAI={busy}
           isAbortingOperation={busy}
           onAbortOperation={abort}

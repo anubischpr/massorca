@@ -6,6 +6,11 @@ export const CHILD_BRING_BACK_BLOCKS = [
   'parent-no-branch'
 ] as const
 
+/** What the parent's access lets Bring back do unasked. Bot teams will pass `full`. */
+export type ChildBringBackPolicy = 'ask' | 'auto' | 'full'
+
+export const CHILD_BRING_BACK_AUTOMATIC_STATES = ['waiting', 'asked-commit', 'undone'] as const
+
 export const ChildBringBackStatus = z.discriminatedUnion('kind', [
   // Folder workspace, child in the parent's worktree, or anything the host cannot read: no control.
   z.object({ kind: z.literal('unavailable') }),
@@ -23,13 +28,20 @@ export const ChildBringBackStatus = z.discriminatedUnion('kind', [
     /** Null when Git predates `merge-tree --write-tree` or the merge is blocked anyway. */
     predictedConflicts: z.number().nullable(),
     block: z.enum(CHILD_BRING_BACK_BLOCKS).nullable(),
-    parentUncommitted: z.number()
+    parentUncommitted: z.number(),
+    // Optional on all three: an older host sends none, and an older client strips them.
+    automatic: z.enum(CHILD_BRING_BACK_AUTOMATIC_STATES).optional()
   }),
-  z.object({ kind: z.literal('conflicts'), unresolved: z.number() }),
+  z.object({
+    kind: z.literal('conflicts'),
+    unresolved: z.number(),
+    agentResolving: z.boolean().optional()
+  }),
   z.object({
     kind: z.literal('brought-back'),
     into: z.string(),
-    commit: z.string()
+    commit: z.string(),
+    automatically: z.boolean().optional()
   })
 ])
 export type ChildBringBackStatus = z.infer<typeof ChildBringBackStatus>
@@ -45,7 +57,7 @@ export type ChildBringBackView = {
   warnings: ChildBringBackLine[]
   /** Absent when the state offers no merge. */
   action: { enabled: boolean } | null
-  conflicts: { unresolved: number } | null
+  conflicts: { unresolved: number; agentResolving: boolean } | null
   /** False once the child's worktree is gone, so Open child chat has nothing to open. */
   childOpenable: boolean
 }
@@ -78,6 +90,12 @@ function uncommittedInChild(count: number): ChildBringBackLine {
 function readyWarnings(
   status: Extract<ChildBringBackStatus, { kind: 'ready' }>
 ): ChildBringBackLine[] {
+  if (status.automatic === 'waiting') {
+    return [warning('automaticWaiting', 'Will bring back when the parent session stops.')]
+  }
+  if (status.automatic === 'asked-commit') {
+    return [warning('automaticAskedCommit', 'Asked the parent session to commit first.')]
+  }
   switch (status.block) {
     case 'parent-uncommitted':
       return [
@@ -102,6 +120,9 @@ function readyWarnings(
       break
   }
   return [
+    ...(status.automatic === 'undone'
+      ? [warning('automaticUndone', 'Merging hit conflicts, so it was undone.')]
+      : []),
     ...(status.childWorktreeRemoved
       ? [warning('worktreeRemoved', 'The child worktree was removed. Its branch is kept.')]
       : []),
@@ -154,14 +175,22 @@ export function childBringBackView(status: ChildBringBackStatus): ChildBringBack
         ? { ...empty, warnings: [uncommittedInChild(status.childUncommitted)] }
         : empty
     case 'conflicts':
-      return { ...empty, conflicts: { unresolved: status.unresolved } }
+      return {
+        ...empty,
+        warnings: status.agentResolving
+          ? [warning('automaticResolving', 'The parent session is resolving these.')]
+          : [],
+        conflicts: { unresolved: status.unresolved, agentResolving: status.agentResolving === true }
+      }
     case 'brought-back':
       return {
         ...empty,
         meta: [
           {
-            id: 'broughtBack',
-            template: 'Brought back into {{into}} · {{commit}}',
+            id: status.automatically ? 'broughtBackAutomatically' : 'broughtBack',
+            template: status.automatically
+              ? 'Brought back automatically into {{into}} · {{commit}}'
+              : 'Brought back into {{into}} · {{commit}}',
             params: { into: status.into, commit: status.commit }
           }
         ]
@@ -192,7 +221,11 @@ export function childBringBackView(status: ChildBringBackStatus): ChildBringBack
             : [])
         ],
         warnings: readyWarnings(status),
-        action: { enabled: status.block === null },
+        // Waiting and asked-commit clear by themselves, so they offer nothing to click.
+        action:
+          status.automatic === 'waiting' || status.automatic === 'asked-commit'
+            ? null
+            : { enabled: status.block === null },
         conflicts: null,
         childOpenable: !status.childWorktreeRemoved
       }

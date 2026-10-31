@@ -15,6 +15,17 @@ import { delegationPlacementFor } from './delegation-router'
 import type { DelegationStoredAgent } from './delegation-options'
 import type { DelegationLaunchTarget } from './delegation-launch-types'
 
+export const AUTOMATIC_BRING_BACK_MARKS = [
+  'child-finishing',
+  'waiting',
+  'asked-commit',
+  'resolving',
+  'merged',
+  'undone',
+  'notice'
+] as const
+export type AutomaticBringBackMark = (typeof AUTOMATIC_BRING_BACK_MARKS)[number]
+
 const StoredOptions = z.object({
   agents: z.array(
     z.object({
@@ -77,6 +88,25 @@ export function storedOptionsWithChildGit(
 ): string {
   const options = z.record(z.string(), z.unknown()).safeParse(parseJson(row.options_json))
   return JSON.stringify({ ...(options.success ? options.data : {}), childGit })
+}
+
+const StoredAutomaticBringBack = z.object({
+  automaticBringBack: z.enum(AUTOMATIC_BRING_BACK_MARKS)
+})
+
+/** How far automatic bring back got; stored so a restart keeps the notice and the retry. */
+export function readStoredAutomaticBringBack(
+  row: DelegationRequestRow
+): AutomaticBringBackMark | undefined {
+  return StoredAutomaticBringBack.safeParse(parseJson(row.options_json)).data?.automaticBringBack
+}
+
+export function storedOptionsWithAutomaticBringBack(
+  row: DelegationRequestRow,
+  automaticBringBack: AutomaticBringBackMark
+): string {
+  const options = z.record(z.string(), z.unknown()).safeParse(parseJson(row.options_json))
+  return JSON.stringify({ ...(options.success ? options.data : {}), automaticBringBack })
 }
 
 /** The stored options with the card's prototype answers added; the agents stay as the card offered them. */

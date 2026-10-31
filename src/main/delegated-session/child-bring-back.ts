@@ -3,7 +3,7 @@ import type { ChildBringBackStatus } from '../../shared/child-bring-back'
 import type { GitCapabilityCache } from '../../shared/git-capability-cache'
 import { isUnsupportedMergeTreeWriteTreeError } from '../../shared/git-merge-tree-capability'
 import type { DelegationRequestRow } from '../runtime/orchestration/db/delegation/delegation-request-store'
-import { readStoredChildGit } from './delegation-stored-request'
+import { readStoredAutomaticBringBack, readStoredChildGit } from './delegation-stored-request'
 
 /** Git in one worktree, on whichever host runs it. */
 export type ChildBringBackGit = {
@@ -144,11 +144,16 @@ async function readChildBringBack(
     return { status: { kind: 'gone' }, head: null }
   }
   const { head } = child
+  const mark = readStoredAutomaticBringBack(row)
   const mergeHead = await optional(parentGit, ['rev-parse', '--verify', '-q', 'MERGE_HEAD'])
   if (mergeHead === head) {
     const unresolved = lines(await parentGit.run(['diff', '--name-only', '--diff-filter=U']))
     return {
-      status: { kind: 'conflicts', unresolved: unresolved.length },
+      status: {
+        kind: 'conflicts',
+        unresolved: unresolved.length,
+        ...(mark === 'resolving' ? { agentResolving: true } : {})
+      },
       head
     }
   }
@@ -174,7 +179,12 @@ async function readChildBringBack(
     }
     const commit = await parentGit.run(['rev-parse', '--short', merge ?? head])
     return {
-      status: { kind: 'brought-back', into, commit: commit.trim() },
+      status: {
+        kind: 'brought-back',
+        into,
+        commit: commit.trim(),
+        ...(mark === 'merged' ? { automatically: true } : {})
+      },
       head
     }
   }
@@ -196,6 +206,15 @@ async function readChildBringBack(
         : (await deps.isSessionWorking(row.parent_session_id))
           ? ('parent-working' as const)
           : null
+  const pending = mark === 'waiting' || mark === 'asked-commit'
+  const automatic =
+    pending && (await deps.isSessionWorking(row.parent_session_id))
+      ? ('waiting' as const)
+      : mark === 'asked-commit' && block === 'parent-uncommitted'
+        ? ('asked-commit' as const)
+        : mark === 'undone' && block === null
+          ? ('undone' as const)
+          : null
   return {
     status: {
       kind: 'ready',
@@ -207,7 +226,8 @@ async function readChildBringBack(
       childWorktreeRemoved: child.removed,
       predictedConflicts: block === null ? await predictConflicts(parentGit, 'HEAD', head) : null,
       block,
-      parentUncommitted
+      parentUncommitted,
+      ...(automatic ? { automatic } : {})
     },
     head
   }

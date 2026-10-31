@@ -93,7 +93,9 @@ export function MobileChildBringBack({
           <Text style={styles.conflicts}>
             {`Merge conflicts: ${view.conflicts.unresolved} unresolved`}
           </Text>
-          <NoticeButton label="Resolve with AI" primary disabled={busy} onPress={resolve} />
+          {view.conflicts.agentResolving ? null : (
+            <NoticeButton label="Resolve with AI" primary disabled={busy} onPress={resolve} />
+          )}
           <NoticeButton label="Abort merge" disabled={busy} onPress={abort} />
         </>
       ) : null}

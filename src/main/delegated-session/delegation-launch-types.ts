@@ -37,5 +37,6 @@ export type DelegationAnswerDeps = DelegationHostDeps & {
   launch: DelegationLauncher
   /** Sends the parent agent a message from the host, never failing the step that asked. */
   tellParent: (parentSessionId: string, text: string) => void
+  onChildSucceeded?: (requestId: string) => void
   warn: (message: string, error: unknown) => void
 }
