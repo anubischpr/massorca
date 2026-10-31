@@ -100,12 +100,7 @@ export function OneLineSessionMenu({
           {translate('auto.components.sidebar.WorktreeContextMenu.3350101edb', 'Copy Path')}
         </ContextMenuItem>
         {/* Why: a session from another worktree stands in for that worktree's hidden row. */}
-        {agent.crossWorktree ? (
-          <>
-            <ContextMenuSeparator />
-            <OneLineSessionWorktreeSubmenu worktreeId={worktreeId} />
-          </>
-        ) : null}
+        {agent.crossWorktree ? <OneLineSessionWorktreeSubmenu worktreeId={worktreeId} /> : null}
         {kind.ownsTab ? (
           <>
             <ContextMenuSeparator />

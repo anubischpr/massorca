@@ -3,13 +3,14 @@ import { FolderGit2, Moon, Pin, PinOff, Trash2 } from 'lucide-react'
 
 import {
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuSub,
   ContextMenuSubContent,
   ContextMenuSubTrigger
 } from '@/components/ui/context-menu'
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
-import { findWorktreeById } from '@/store/github/worktree-refresh'
+import { getWorktreeLookupIndex } from '@/store/github/worktree-refresh'
 import { useAllWorktrees } from '@/store/selectors'
 import type { Worktree } from '../../../../shared/worktree/types'
 import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
@@ -45,7 +46,10 @@ export function OneLineSessionWorktreeSubmenu({
 }: {
   worktreeId: string
 }): React.JSX.Element | null {
-  const worktree = useAppStore((s) => findWorktreeById(s, worktreeId))
+  // Why unique: a session row knows only the bare id, so an id two hosts share fails closed.
+  const worktree = useAppStore(
+    (s) => getWorktreeLookupIndex(s).byId.get(worktreeId)?.unique ?? null
+  )
   const allWorktrees = useAllWorktrees()
   const lineageById = useAppStore((s) => s.worktreeLineageById)
   const canSleep = useAppStore((s) =>
@@ -76,53 +80,56 @@ export function OneLineSessionWorktreeSubmenu({
           )
         : translate('auto.components.sidebar.WorktreeContextMenu.f4475537d8', 'Delete')
   return (
-    <ContextMenuSub>
-      <ContextMenuSubTrigger>
-        <FolderGit2 className="size-3.5" />
-        {translate('auto.components.sidebar.OneLineSessionMenu.worktree', 'Worktree')}
-      </ContextMenuSubTrigger>
-      <ContextMenuSubContent>
-        <ContextMenuItem
-          disabled={isDeleting}
-          onSelect={() =>
-            useAppStore.getState().setWorktreesPinnedAndReveal([worktree.id], !worktree.isPinned)
-          }
-        >
-          {worktree.isPinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
-          {worktree.isPinned
-            ? translate('auto.components.sidebar.WorktreeContextMenu.697d0f6e1b', 'Unpin')
-            : translate('auto.components.sidebar.WorktreeContextMenu.3baa7d6507', 'Pin')}
-        </ContextMenuItem>
-        <ContextMenuItem
-          disabled={isDeleting || !canSleep}
-          // Why the delay: the branch menu's own, so the menu has closed before the panels go away.
-          onSelect={() => window.setTimeout(() => void runSleepWorktrees([worktree.id]), 50)}
-        >
-          <Moon className="size-3.5" />
-          {translate('auto.components.sidebar.OneLineSessionMenu.sleep', 'Sleep')}
-        </ContextMenuItem>
-        {removal ? (
+    <>
+      <ContextMenuSeparator />
+      <ContextMenuSub>
+        <ContextMenuSubTrigger>
+          <FolderGit2 className="size-3.5" />
+          {translate('auto.components.sidebar.OneLineSessionMenu.worktree', 'Worktree')}
+        </ContextMenuSubTrigger>
+        <ContextMenuSubContent>
           <ContextMenuItem
-            variant="destructive"
             disabled={isDeleting}
             onSelect={() =>
-              deferWorktreeContextMenuDeleteIntent(
-                createWorktreeContextMenuDeleteIntent({
-                  worktree,
-                  batchDeleteWorktrees: [],
-                  isMultiContext: false,
-                  ...(removal.kind === 'folder'
-                    ? { folderWorkspaceId: removal.folderWorkspaceId }
-                    : {})
-                })
-              )
+              useAppStore.getState().setWorktreesPinnedAndReveal([worktree.id], !worktree.isPinned)
             }
           >
-            <Trash2 className="size-3.5" />
-            {removeLabel}
+            {worktree.isPinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
+            {worktree.isPinned
+              ? translate('auto.components.sidebar.WorktreeContextMenu.697d0f6e1b', 'Unpin')
+              : translate('auto.components.sidebar.WorktreeContextMenu.3baa7d6507', 'Pin')}
           </ContextMenuItem>
-        ) : null}
-      </ContextMenuSubContent>
-    </ContextMenuSub>
+          <ContextMenuItem
+            disabled={isDeleting || !canSleep}
+            // Why the delay: the branch menu's own, so the menu has closed before the panels go away.
+            onSelect={() => window.setTimeout(() => void runSleepWorktrees([worktree.id]), 50)}
+          >
+            <Moon className="size-3.5" />
+            {translate('auto.components.sidebar.OneLineSessionMenu.sleep', 'Sleep')}
+          </ContextMenuItem>
+          {removal ? (
+            <ContextMenuItem
+              variant="destructive"
+              disabled={isDeleting}
+              onSelect={() =>
+                deferWorktreeContextMenuDeleteIntent(
+                  createWorktreeContextMenuDeleteIntent({
+                    worktree,
+                    batchDeleteWorktrees: [],
+                    isMultiContext: false,
+                    ...(removal.kind === 'folder'
+                      ? { folderWorkspaceId: removal.folderWorkspaceId }
+                      : {})
+                  })
+                )
+              }
+            >
+              <Trash2 className="size-3.5" />
+              {removeLabel}
+            </ContextMenuItem>
+          ) : null}
+        </ContextMenuSubContent>
+      </ContextMenuSub>
+    </>
   )
 }
