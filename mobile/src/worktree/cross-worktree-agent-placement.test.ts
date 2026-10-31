@@ -206,14 +206,6 @@ describe('branch rows of worktrees whose sessions run under another parent', () 
     expect([...placement.hiddenIdentities].sort()).toEqual([identityOf(B), identityOf(C)].sort())
   })
 
-  it('marks a worktree with no session of its own as unnested when it has a lineage parent', () => {
-    const empty = worktree('wt-b', 'feature', [], { parentWorktreeId: 'wt-a' })
-    const placement = placeCrossWorktreeAgents([section('all', [A, empty])])
-
-    expect(placement.unnestedIdentities.has(identityOf(empty))).toBe(true)
-    expect(placement.unnestedIdentities.has(identityOf(A))).toBe(false)
-  })
-
   it('removes a hidden row outside the pinned section and keeps it there', () => {
     const placement = placeCrossWorktreeAgents([section('all', [A, B]), section('pinned', [B])])
     const laidOut = arrangeBranchRowSections(placement.sections, placement, new Set())

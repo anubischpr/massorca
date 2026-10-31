@@ -17,8 +17,6 @@ export type CrossWorktreeAgentPlacement = {
   ownersByPaneKey: ReadonlyMap<string, AgentRunOwner>
   /** Worktree rows whose every session is listed under another worktree's parent. Pinned rows still show. */
   hiddenIdentities: ReadonlySet<string>
-  /** Worktree rows that list no session of their own. Their lineage parent does not nest them. */
-  unnestedIdentities: ReadonlySet<string>
 }
 
 type AgentSource = { row: RuntimeWorktreeAgentRow; item: Worktree; identity: string }
@@ -91,7 +89,6 @@ export function placeCrossWorktreeAgents(
     }
   }
   const hiddenIdentities = new Set<string>()
-  const unnestedIdentities = new Set<string>()
   for (const section of sections) {
     for (const item of section.data) {
       const identity = getWorktreeRowIdentity(item)
@@ -103,9 +100,6 @@ export function placeCrossWorktreeAgents(
         !own.some((row) => loopingPaneKeys.has(row.paneKey))
       ) {
         hiddenIdentities.add(identity)
-      }
-      if (item.parentWorktreeId && kept.length === 0) {
-        unnestedIdentities.add(identity)
       }
     }
   }
@@ -128,7 +122,7 @@ export function placeCrossWorktreeAgents(
       }
     })
   }))
-  return { sections: placed, ownersByPaneKey, hiddenIdentities, unnestedIdentities }
+  return { sections: placed, ownersByPaneKey, hiddenIdentities }
 }
 
 function parentLinkLoops(start: string, sources: ReadonlyMap<string, AgentSource>): boolean {
@@ -149,44 +143,22 @@ function parentLinkLoops(start: string, sources: ReadonlyMap<string, AgentSource
 
 /**
  * Drops the hidden worktree rows from each section, except the pinned section, and lays the lineage out
- * again: a row whose lineage parent is hidden or unnested comes back at top level.
+ * again, so a row whose lineage parent is hidden comes back at top level.
  */
 export function arrangeBranchRowSections(
   sections: readonly Section[],
-  placement: Pick<CrossWorktreeAgentPlacement, 'hiddenIdentities' | 'unnestedIdentities'>,
+  placement: Pick<CrossWorktreeAgentPlacement, 'hiddenIdentities'>,
   collapsedGroups: ReadonlySet<string>
 ): Section[] {
-  const { hiddenIdentities, unnestedIdentities } = placement
-  if (hiddenIdentities.size === 0 && unnestedIdentities.size === 0) {
+  const { hiddenIdentities } = placement
+  if (hiddenIdentities.size === 0) {
     return [...sections]
   }
   return sections.map((section) => {
     const shown = section.data.filter(
       (item) => section.key === 'pinned' || !hiddenIdentities.has(getWorktreeRowIdentity(item))
     )
-    const byIdentity = new Map(shown.map((item) => [getWorktreeRowIdentity(item), item]))
-    const detached = shown.map((item) =>
-      unnestedIdentities.has(getWorktreeRowIdentity(item))
-        ? { ...item, parentWorktreeId: undefined }
-        : item
-    )
-    const laidOut = applyMobileWorkspaceLineage(detached, collapsedGroups)
-    return {
-      ...section,
-      data: laidOut.map((row) => {
-        const original = byIdentity.get(getWorktreeRowIdentity(row))
-        // Why: the laid-out copy drops a detached parent link, so the row keeps its original fields.
-        return original
-          ? {
-              ...original,
-              lineageDepth: row.lineageDepth,
-              lineageChildCount: row.lineageChildCount,
-              lineageCollapsed: row.lineageCollapsed,
-              isLastLineageChild: row.isLastLineageChild
-            }
-          : row
-      })
-    }
+    return { ...section, data: applyMobileWorkspaceLineage(shown, collapsedGroups) }
   })
 }
 

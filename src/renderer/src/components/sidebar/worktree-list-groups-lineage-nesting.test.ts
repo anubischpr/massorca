@@ -721,23 +721,10 @@ describe('buildRows branch row placement', () => {
 
   it('leaves a hidden child row out and keeps the parent row', () => {
     const rows = rowsWith([parent, child], {
-      hiddenWorktreeIds: new Set([child.id]),
-      unnestedWorktreeIds: new Set()
+      hiddenWorktreeIds: new Set([child.id])
     })
 
     expect(itemIdsAndDepths(rows)).toEqual([[parent.id, 0]])
-  })
-
-  it('returns an unnested child at top level instead of under its lineage parent', () => {
-    const rows = rowsWith([parent, child], {
-      hiddenWorktreeIds: new Set(),
-      unnestedWorktreeIds: new Set([child.id])
-    })
-
-    expect(itemIdsAndDepths(rows)).toEqual([
-      [parent.id, 0],
-      [child.id, 0]
-    ])
   })
 
   it('still nests a child under its lineage parent when nothing is placed', () => {
@@ -751,8 +738,7 @@ describe('buildRows branch row placement', () => {
 
   it('lists a grandchild at top level when its hidden parent is left out', () => {
     const rows = rowsWith([parent, child, grandchild], {
-      hiddenWorktreeIds: new Set([child.id]),
-      unnestedWorktreeIds: new Set()
+      hiddenWorktreeIds: new Set([child.id])
     })
 
     expect(itemIdsAndDepths(rows)).toEqual([

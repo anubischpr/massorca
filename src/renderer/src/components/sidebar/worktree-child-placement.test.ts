@@ -10,11 +10,7 @@ import { makePaneKey } from '../../../../shared/stable-pane-id'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import { buildWorktreeAgentRows } from './worktree-agent-rows'
 import { resolveBranchRowPlacement } from './worktree-branch-row-placement'
-import {
-  selectBranchRowCandidatesByWorktree,
-  selectWorktreeIdsWithListedSessions
-} from './worktree-child-placement'
-import type { WorktreeLineage } from '../../../../shared/worktree/lineage-types'
+import { selectBranchRowCandidatesByWorktree } from './worktree-child-placement'
 import type { Worktree } from '../../../../shared/worktree/types'
 import {
   selectCrossWorktreeChildTabs,
@@ -293,30 +289,10 @@ describe('branch row placement for cross-worktree children', () => {
     return { id } as unknown as Worktree
   }
 
-  function lineageOf(childId: string, parentId: string): Record<string, WorktreeLineage> {
-    return {
-      [childId]: {
-        worktreeId: childId,
-        worktreeInstanceId: `${childId}-instance`,
-        parentWorktreeId: parentId,
-        parentWorktreeInstanceId: `${parentId}-instance`,
-        origin: 'cli',
-        capture: { source: 'explicit-cli-flag', confidence: 'explicit' },
-        createdAt: 1
-      }
-    }
-  }
-
-  function resolveFor(
-    state: AppState,
-    worktreeIds: string[],
-    lineageById: Record<string, WorktreeLineage> = {}
-  ) {
+  function resolveFor(state: AppState, worktreeIds: string[]) {
     return resolveBranchRowPlacement({
       candidatesByWorktree: selectBranchRowCandidatesByWorktree(state),
-      listedWorktreeIds: selectWorktreeIdsWithListedSessions(state),
-      worktrees: worktreeIds.map(worktreeStub),
-      worktreeLineageById: lineageById
+      worktrees: worktreeIds.map(worktreeStub)
     })
   }
 
@@ -347,16 +323,14 @@ describe('branch row placement for cross-worktree children', () => {
     expect(placement.hiddenWorktreeIds.has('wt-b')).toBe(false)
   })
 
-  it('returns the child row at top level, unnested, once its session is gone', () => {
+  it('shows the child row again once its session is gone', () => {
     const state = stateWith({
       agents: { [PARENT]: makeEntry(PARENT) },
       tabs: { 'wt-a': [makeTab('tab-a', 'wt-a')], 'wt-b': [] }
     })
-    const placement = resolveFor(state, ALL.slice(0, 2), lineageOf('wt-b', 'wt-a'))
+    const placement = resolveFor(state, ALL.slice(0, 2))
 
     expect(placement.hiddenWorktreeIds.size).toBe(0)
-    expect(placement.unnestedWorktreeIds.has('wt-b')).toBe(true)
-    expect(placement.unnestedWorktreeIds.has('wt-a')).toBe(false)
   })
 
   it('keeps the child row when its parent session is gone and nothing places it', () => {

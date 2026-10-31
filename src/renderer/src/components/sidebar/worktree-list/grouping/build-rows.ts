@@ -93,12 +93,8 @@ export function buildRows(
   // Membership is decided once, above the groupBy switch: every mode renders the
   // same set of folder workspaces and only chooses where they land (#15362).
   const renderableFolderWorkspaces = getRenderableFolderWorkspaces(folderWorkspaces, projectGroups)
-  // Why: a worktree that lists no session is shown top-level, so its lineage parent does not nest it.
   const cyclicLineageIds = nestLineage
-    ? new Set([
-        ...getCyclicProjectedWorktreeLineageIds(lineageById, worktreeMap),
-        ...branchRowPlacement.unnestedWorktreeIds
-      ])
+    ? getCyclicProjectedWorktreeLineageIds(lineageById, worktreeMap)
     : new Set<string>()
 
   const pendingByRepo = new Map<string, PendingCreationRef[]>()

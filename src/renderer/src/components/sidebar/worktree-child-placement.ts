@@ -35,8 +35,6 @@ type PlacementTopology = {
   retainedChildrenByWorktree: ReadonlyMap<string, readonly string[]>
   /** Worktrees whose every listed session is placed away, mapped to the worktrees those sessions are placed under. */
   branchRowCandidatesByWorktree: ReadonlyMap<string, readonly string[]>
-  /** Worktrees that list at least one session of their own (not placed away). */
-  worktreesWithListedSessions: ReadonlySet<string>
 }
 
 /** True when the parent links from this session loop back on themselves. */
@@ -181,8 +179,7 @@ function buildTopology(state: AppState): PlacementTopology {
     placedAwayByWorktree: placedAway,
     liveChildrenByWorktree: liveChildren,
     retainedChildrenByWorktree: retainedChildren,
-    branchRowCandidatesByWorktree: branchRowCandidates,
-    worktreesWithListedSessions: listedWorktreeIds
+    branchRowCandidatesByWorktree: branchRowCandidates
   }
 }
 
@@ -341,9 +338,4 @@ export function selectBranchRowCandidatesByWorktree(
   state: AppState
 ): ReadonlyMap<string, readonly string[]> {
   return topologyOf(state).branchRowCandidatesByWorktree
-}
-
-/** Worktrees that list at least one session of their own, not placed under another worktree. */
-export function selectWorktreeIdsWithListedSessions(state: AppState): ReadonlySet<string> {
-  return topologyOf(state).worktreesWithListedSessions
 }
