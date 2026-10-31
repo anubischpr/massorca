@@ -6,7 +6,7 @@ import {
   createRelayOpenCodeReader,
   type RelayOpenCodeReaderOptions
 } from './ai-vault-opencode-reader'
-import { readLocalAntigravityConversationWorkspaces } from '../main/ai-vault/session-scanner-antigravity-conversation-db'
+import { readLocalAntigravityConversationIndex } from '../main/ai-vault/session-scanner-antigravity-conversation-db'
 
 export function createRelayAiVaultFilesystemProvider(
   options: RelayOpenCodeReaderOptions = {}
@@ -15,7 +15,7 @@ export function createRelayAiVaultFilesystemProvider(
   return {
     openCode,
     // Why: the relay runs on the execution host, so its own disk holds the conversation database.
-    antigravityConversationWorkspaces: readLocalAntigravityConversationWorkspaces,
+    antigravityConversationIndex: readLocalAntigravityConversationIndex,
     dispose: () => openCode.dispose(),
     async readDir(dirPath) {
       const entries = await readdir(dirPath, { withFileTypes: true })

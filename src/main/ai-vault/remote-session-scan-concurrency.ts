@@ -15,7 +15,7 @@ export function limitRemoteScanFilesystemConcurrency(
   const gate = createConcurrencyGate(maxInFlight)
   return {
     openCode: provider.openCode,
-    antigravityConversationWorkspaces: provider.antigravityConversationWorkspaces,
+    antigravityConversationIndex: provider.antigravityConversationIndex,
     readDir: (dirPath) => gate(() => provider.readDir(dirPath)),
     readFile: (filePath, limits) => gate(() => provider.readFile(filePath, limits)),
     stat: (filePath) => gate(() => provider.stat(filePath)),

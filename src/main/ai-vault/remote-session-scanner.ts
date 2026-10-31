@@ -69,7 +69,7 @@ export async function scanRemoteAiVaultSessions(args: {
   // One ceiling for the whole scan: discovery walks, stats and transcript reads
   // all queue behind it instead of multiplying into a nested fan-out.
   const provider = limitRemoteScanFilesystemConcurrency(args.provider)
-  const readConversationWorkspaces = provider.antigravityConversationWorkspaces
+  const readConversationIndex = provider.antigravityConversationIndex
   const context: RemoteScannerContext = {
     provider,
     executionHostId: args.executionHostId,
@@ -78,9 +78,7 @@ export async function scanRemoteAiVaultSessions(args: {
     titleCaches: new Map(),
     antigravityWorkspaceResolver: createAntigravityWorkspaceResolver(
       (path) => readRemoteAntigravityIndex(provider, path, args.signal),
-      readConversationWorkspaces
-        ? (path) => readConversationWorkspaces(path, args.signal)
-        : undefined
+      readConversationIndex ? (path) => readConversationIndex(path, args.signal) : undefined
     )
   }
   const discoveredCandidates = dedupeCodexRolloutFileAliases(

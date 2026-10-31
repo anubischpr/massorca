@@ -14,7 +14,20 @@ export const ANTIGRAVITY_CONVERSATION_DB_NAME = 'conversation_summaries.db'
 // Why: Orca adds these folders to every chat it launches, ahead of the real worktree.
 const ORCA_PROFILE_FOLDERS = new Set(['delegation-instructions', NATIVE_CHAT_VISUALS_DIR_NAME])
 
-type ConversationRow = { conversationId: unknown; workspaceUris: unknown }
+type ConversationRow = {
+  conversationId: unknown
+  workspaceUris: unknown
+  parentConversationId: unknown
+  nestingDepth: unknown
+}
+
+/** What the conversation database says about each conversation, keyed by Antigravity's own id. */
+export type AntigravityConversationIndex = {
+  /** Conversation id to worktree path; ambiguous conversations are omitted. */
+  workspaces: Map<string, string>
+  /** Conversations an Antigravity agent started for another conversation (not a user chat). */
+  subagentIds: Set<string>
+}
 
 /**
  * Where the conversation database may sit beside the history file's root. Its folder is not
@@ -32,16 +45,17 @@ export function antigravityConversationDbPaths(historyPath: string): string[] {
 }
 
 /**
- * Each conversation's workspace from Antigravity's conversation database, read with one in-process
- * query per scan. Null when the database is absent, unreadable, or cannot be opened from this host.
+ * Each conversation's workspace and sub-agent flag from Antigravity's conversation database, read
+ * with one in-process query per scan. Null when the database is absent, unreadable, or cannot be
+ * opened from this host.
  * @param historyPath - The `history.jsonl` path the scan keys its index by.
  * @param signal - The scan's cancellation signal.
- * @returns Conversation id to worktree path; ambiguous conversations are omitted.
+ * @returns The conversation index, or null when the database cannot be read.
  */
-export async function readLocalAntigravityConversationWorkspaces(
+export async function readLocalAntigravityConversationIndex(
   historyPath: string,
   signal?: AbortSignal
-): Promise<Map<string, string> | null> {
+): Promise<AntigravityConversationIndex | null> {
   // Why: SQLite over a WSL UNC share is unsafe; those conversations keep the cache-file fallback.
   if (isWslUncPath(historyPath) || !isSqliteAvailable()) {
     return null
@@ -54,7 +68,7 @@ export async function readLocalAntigravityConversationWorkspaces(
     try {
       return readOpenCodeDatabase({
         dbPath,
-        read: (db) => antigravityWorkspacesFromRows(readConversationRows(db))
+        read: (db) => antigravityIndexFromRows(readConversationRows(db))
       })
     } catch {
       return null
@@ -81,13 +95,20 @@ export function antigravityWorkspaceFromUris(value: unknown): string | null {
   return workspace
 }
 
-function antigravityWorkspacesFromRows(rows: readonly ConversationRow[]): Map<string, string> {
+function antigravityIndexFromRows(rows: readonly ConversationRow[]): AntigravityConversationIndex {
   const workspaces = new Map<string, string>()
   const ambiguous = new Set<string>()
+  const subagentIds = new Set<string>()
   for (const row of rows) {
     const id = typeof row.conversationId === 'string' ? row.conversationId : ''
+    if (!id || id.length > 512) {
+      continue
+    }
+    if (isSubagentRow(row)) {
+      subagentIds.add(id)
+    }
     const path = antigravityWorkspaceFromUris(row.workspaceUris)
-    if (!id || id.length > 512 || !path || ambiguous.has(id)) {
+    if (!path || ambiguous.has(id)) {
       continue
     }
     const previous = workspaces.get(id)
@@ -98,7 +119,16 @@ function antigravityWorkspacesFromRows(rows: readonly ConversationRow[]): Map<st
     }
     workspaces.set(id, path)
   }
-  return workspaces
+  return { workspaces, subagentIds }
+}
+
+// Why: a user chat has no parent; Antigravity's own sub-agents (jev-worker-inherit, self, ...) carry
+// the parent's id and a nesting depth of 1, and their prompt arrives as a system message.
+function isSubagentRow(row: ConversationRow): boolean {
+  return (
+    (typeof row.parentConversationId === 'string' && row.parentConversationId.length > 0) ||
+    (typeof row.nestingDepth === 'number' && row.nestingDepth > 0)
+  )
 }
 
 function readConversationRows(db: SyncDatabase): ConversationRow[] {
@@ -113,12 +143,20 @@ function readConversationRows(db: SyncDatabase): ConversationRow[] {
       .all()
       .map((column) => column.name)
     if (columns.includes('conversation_id') && columns.includes('workspace_uris')) {
+      // Why: older CLI builds lack the sub-agent columns; select only what the table has.
+      const parent = columns.includes('parent_conversation_id') ? 'parent_conversation_id' : "''"
+      const depth = columns.includes('nesting_depth') ? 'nesting_depth' : '0'
       return db
         .prepare(
-          `SELECT conversation_id AS conversationId, workspace_uris AS workspaceUris FROM ${quoted}`
+          `SELECT conversation_id AS conversationId, workspace_uris AS workspaceUris, ${parent} AS parentConversationId, ${depth} AS nestingDepth FROM ${quoted}`
         )
         .all()
-        .map((row) => ({ conversationId: row.conversationId, workspaceUris: row.workspaceUris }))
+        .map((row) => ({
+          conversationId: row.conversationId,
+          workspaceUris: row.workspaceUris,
+          parentConversationId: row.parentConversationId,
+          nestingDepth: row.nestingDepth
+        }))
     }
   }
   return []
