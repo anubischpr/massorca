@@ -11,6 +11,9 @@ import { useAppStore } from '@/store'
 import { piRuntimeForSessionFilePath } from '../../../../shared/pi-runtime-selection'
 import { getCompactAgentPrimary } from './worktree-card-compact-agent-row'
 import { SessionStatusGlyphIcon } from './SessionStatusGlyphIcon'
+import { OneLineSessionHover } from './worktree-card-one-line-session-hover'
+import { getAgentDotState } from './worktree-card-agent-summary'
+import { sessionStatusGlyph } from './worktree-session-status'
 import { OneLineSessionMenu } from './worktree-card-one-line-session-menu'
 import { CrossWorktreeBranchIcon } from './worktree-card-one-line-cross-worktree-branch'
 import { WorktreeTitleInlineRename } from './WorktreeTitleInlineRename'
@@ -212,13 +215,27 @@ export const OneLineSessionRow = React.memo(function OneLineSessionRow({
       {shownGlyph ? <SessionStatusGlyphIcon glyph={shownGlyph} /> : null}
     </div>
   )
+  // Why: the row's own state decides the hover, not the folded children's worst glyph.
+  const ownGlyph = sessionStatusGlyph(getAgentDotState(agent), isUnvisited)
   return (
-    <OneLineSessionMenu
-      agent={agent}
-      title={title}
-      onStartRename={() => setRenameStep('requested')}
+    <OneLineSessionHover
+      paneKey={agent.paneKey}
+      tabId={agent.tab.id}
+      worktreeId={agent.tab.worktreeId}
+      ownGlyph={ownGlyph}
+      dimmed={dimmed}
+      enabled={renameStep === 'off' && !sendTargetStatus}
+      crossWorktreeBranch={crossWorktreeBranch}
     >
-      {row}
-    </OneLineSessionMenu>
+      <div className="min-w-0" data-one-line-session-hover-trigger="">
+        <OneLineSessionMenu
+          agent={agent}
+          title={title}
+          onStartRename={() => setRenameStep('requested')}
+        >
+          {row}
+        </OneLineSessionMenu>
+      </div>
+    </OneLineSessionHover>
   )
 })
