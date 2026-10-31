@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useState } from 'react'
 import { DashboardAgentChildDisclosure } from '@/components/dashboard/DashboardAgentChildDisclosure'
 import type { DashboardAgentRow as DashboardAgentRowData } from '@/components/dashboard/useDashboardData'
 import { useAgentRowConversationName } from '@/components/dashboard/use-agent-row-conversation-name'
@@ -7,9 +7,12 @@ import { AgentIcon } from '@/lib/agent-catalog'
 import { agentTypeToIconAgent, formatAgentRowTypeLabel } from '@/lib/agent-status'
 import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { cn } from '@/lib/utils'
+import { useAppStore } from '@/store'
 import { piRuntimeForSessionFilePath } from '../../../../shared/pi-runtime-selection'
 import { getCompactAgentPrimary } from './worktree-card-compact-agent-row'
 import { SessionStatusGlyphIcon } from './SessionStatusGlyphIcon'
+import { OneLineSessionMenu } from './worktree-card-one-line-session-menu'
+import { WorktreeTitleInlineRename } from './WorktreeTitleInlineRename'
 import type { SessionStatusGlyph } from './worktree-session-status'
 
 export const ONE_LINE_SESSION_ROW_HEIGHT_PX = 26
@@ -77,14 +80,20 @@ export const OneLineSessionRow = React.memo(function OneLineSessionRow({
   // Why: a subagent child carries its own name in agentType, which is not an iconable agent.
   const hideIcon = agent.rowSource === 'subagent'
   const shownGlyph = dimmed && glyph !== null ? 'unconfirmed' : glyph
+  const setTabCustomTitle = useAppStore((s) => s.setTabCustomTitle)
+  // Why three steps: the editor takes a one-shot "begin" request, then reports when it closes.
+  const [renameStep, setRenameStep] = useState<'off' | 'requested' | 'editing'>('off')
 
   const handleActivate = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
+      if (renameStep !== 'off') {
+        return
+      }
       // Why: subagent rows have no pane of their own; they focus the pane that spawned them.
       onActivate(agent.tab.id, agent.activationPaneKey ?? agent.paneKey)
     },
-    [agent.activationPaneKey, agent.paneKey, agent.tab.id, onActivate]
+    [agent.activationPaneKey, agent.paneKey, agent.tab.id, onActivate, renameStep]
   )
   const handleSendTargetClickCapture = useCallback(
     (e: React.MouseEvent) => {
@@ -106,7 +115,7 @@ export const OneLineSessionRow = React.memo(function OneLineSessionRow({
     [agent.paneKey, onSendTargetClick, sendTargetStatus]
   )
 
-  return (
+  const row = (
     <div
       draggable={false}
       className={cn(
@@ -144,15 +153,31 @@ export const OneLineSessionRow = React.memo(function OneLineSessionRow({
           />
         </span>
       )}
-      <span
-        className={cn(
-          'min-w-0 flex-1 truncate',
-          getOneLineSessionTitleClassName({ isUnvisited, isFocusedPane, glyph: shownGlyph })
-        )}
-        title={sendTargetDisabledReason ? undefined : title}
-      >
-        {title}
-      </span>
+      {renameStep === 'off' ? (
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate',
+            getOneLineSessionTitleClassName({ isUnvisited, isFocusedPane, glyph: shownGlyph })
+          )}
+          title={sendTargetDisabledReason ? undefined : title}
+        >
+          {title}
+        </span>
+      ) : (
+        <WorktreeTitleInlineRename
+          displayName={title}
+          className="text-xs"
+          editingClassName="flex-1"
+          beginEditing={renameStep === 'requested'}
+          onBeginEditingConsumed={() => setRenameStep('editing')}
+          onEditingChange={(editing) => {
+            if (!editing) {
+              setRenameStep('off')
+            }
+          }}
+          onRename={(name) => setTabCustomTitle(agent.tab.id, name)}
+        />
+      )}
       {hasChildDisclosure && !childAgentsExpanded ? (
         <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
           +{childAgentCount}
@@ -167,5 +192,14 @@ export const OneLineSessionRow = React.memo(function OneLineSessionRow({
       ) : null}
       {shownGlyph ? <SessionStatusGlyphIcon glyph={shownGlyph} /> : null}
     </div>
+  )
+  return (
+    <OneLineSessionMenu
+      agent={agent}
+      title={title}
+      onStartRename={() => setRenameStep('requested')}
+    >
+      {row}
+    </OneLineSessionMenu>
   )
 })

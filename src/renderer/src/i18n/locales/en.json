@@ -6710,6 +6710,9 @@
         },
         "SessionStatusGlyphIcon": {
           "unread": "Unread"
+        },
+        "OneLineSessionMenu": {
+          "copyTitle": "Copy Title"
         }
       },
       "shared": {

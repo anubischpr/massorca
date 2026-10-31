@@ -6481,6 +6481,9 @@
         },
         "SessionStatusGlyphIcon": {
           "unread": "Sin leer"
+        },
+        "OneLineSessionMenu": {
+          "copyTitle": "Copiar título"
         }
       },
       "shared": {

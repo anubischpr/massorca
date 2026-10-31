@@ -6456,6 +6456,9 @@
         },
         "SessionStatusGlyphIcon": {
           "unread": "읽지 않음"
+        },
+        "OneLineSessionMenu": {
+          "copyTitle": "제목 복사"
         }
       },
       "shared": {
