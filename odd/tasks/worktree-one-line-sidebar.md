@@ -129,6 +129,17 @@ Strategy `ask-on-risk`. Forecast is above 400 authored lines, so the chain choic
   - Verification, foreground: `pnpm tc` exit 0. Grouping and rows folders: 13 files, 127 tests pass. Worktree-list folder: 47 of 48 files and 422 of 423 tests pass; the failure is `worktree-list-groups-project-order.test.ts` "builds rows for a very large repo-group list" (30 s timeout, already recorded in T2; not re-run at base). New switch test: 1 of 1 passes under the Node SQLite runtime. `vitest-sqlite-runtime-boundary.test.ts`: 8 of 9 pass; the failing check lists 9 files missing from the Node SQLite list, none touched here; not checked at base. `ORCA_CODE_QUALITY_BASE=e3a62635bbd pnpm run check:code-quality:changed` exit 0 (0 new findings, 5 files).
   - Open: folder workspaces are not counted on a folded repo or project header (the project-group header does the same); not checked whether folder workspaces carry agent sessions in one-line rows. Harness links stay store-seeded; a dispatch-backed link needs the orchestration DB in the app.
 
+### Worktree submenu of a hidden child (2026-10-31)
+
+Approved by the user. Commits: e69cc6b9f34, 9d26083242e, c24718e34da.
+
+- Desktop: a session from another worktree gets a Worktree submenu with Pin, Sleep and Delete, running the branch menu's flows. No Delete on a main checkout; folders read Remove Workspace. Left out when two hosts share the id, because the row knows only the bare id.
+- Phone: the session sheet gets a Worktree action that opens that worktree's existing sheet.
+- Observed in the app: submenu items, Pin brings the row back in Pinned, unpin hides it, Delete opens the confirmation and deletes nothing until confirmed. Sleep was disabled for the seeded session, so it did not run. Phone sheet covered by unit test only. Native review of the first two commits approved with warnings; c24718e34da came after it.
+- Base comparison at bf40751843a: large list test was a regression from getBranchQualifiers, quadratic on many same-named rows; fixed. vitest-sqlite-runtime-boundary already fails at base with 7 files; the 2 more come from prototype commits 39e6668cf11 and d966abc3efa, not this feature. subagent-child-row-fallback-pixels: 3 snapshots fail because of 97a0bf59270.
+- Open defect: AgentStateDot draws blocked as the question icon, and Claude background tasks map failed to blocked, so a failed child shows orange instead of red. Snapshots left unchanged on purpose.
+- PR/CI of a hidden child: not shown on any surface unless pinned. Needs a design decision.
+
 ## Next step
 
 T5 is partial. Decisions for the user first: the unnest question (Progress, change 1), the hidden-row action gaps (menu approval), the six T2 product gaps, the T4 and T4 follow-up gaps, and whether the switch check should use a dispatch-backed link. Then the agent runs the rest of T5: mobile rows on a device, the unread amber glyph, and a dispatch-backed child in the app. Owner: the user decides; then the agent runs T5.
