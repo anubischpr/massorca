@@ -145,7 +145,7 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
           const record = host.deps.store.getRecord(sessionId)
           // Why the repository fallback: a removed worktree no longer resolves, and its project must not vanish.
           return record && isLocalStructuredChat(record)
-            ? projectDirectoryOfChat(record, host.deps.resolveWorkspacePath, (workspaceId) =>
+            ? projectDirectoryOfChat(record, host.deps.resolveWorkspacePath, async (workspaceId) =>
                 ctx.runtime.resolveWorkspaceRepositoryPath(workspaceId)
               )
             : undefined
@@ -229,8 +229,10 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
       // Why the record: a client names a chat, and the host derives the project root from its launch directory.
       const launchDirectory =
         record && isLocalStructuredChat(record)
-          ? await projectDirectoryOfChat(record, host.deps.resolveWorkspacePath, (workspaceId) =>
-              ctx.runtime.resolveWorkspaceRepositoryPath(workspaceId)
+          ? await projectDirectoryOfChat(
+              record,
+              host.deps.resolveWorkspacePath,
+              async (workspaceId) => ctx.runtime.resolveWorkspaceRepositoryPath(workspaceId)
             )
           : undefined
       if (launchDirectory === undefined) {
