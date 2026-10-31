@@ -60,12 +60,15 @@ export function getBranchQualifiers(
     }
     const projectsDiffer = new Set(group.map((input) => input.projectKey)).size > 1
     const hostsDiffer = new Set(group.map((input) => input.hostId)).size > 1
+    // Why counted up front: a list of many same-named rows must stay linear.
+    const slotKey = (input: BranchQualifierInput): string => `${input.projectKey}\0${input.hostId}`
+    const slotSizes = new Map<string, number>()
+    for (const input of group) {
+      slotSizes.set(slotKey(input), (slotSizes.get(slotKey(input)) ?? 0) + 1)
+    }
     for (const input of group) {
       // Folders of one project on one host share every fact above, so their parent folder decides.
-      const sharesSlot = group.some(
-        (other) =>
-          other !== input && other.projectKey === input.projectKey && other.hostId === input.hostId
-      )
+      const sharesSlot = (slotSizes.get(slotKey(input)) ?? 0) > 1
       const parts = [
         ...(projectsDiffer ? [input.projectLabel] : []),
         ...(hostsDiffer ? [input.hostLabel] : []),
