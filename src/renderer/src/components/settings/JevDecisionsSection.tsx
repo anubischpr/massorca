@@ -111,7 +111,11 @@ export function JevDecisionsSection({
               variant="ghost"
               size="sm"
               disabled={busy}
-              onClick={() => void updateKey(() => window.api.jevDecisions.clearApiKey())}
+              onClick={() => {
+                // Why: without a key the switch could not be turned on again, so it must not stay on.
+                onEnabledChange(false)
+                void updateKey(() => window.api.jevDecisions.clearApiKey())
+              }}
             >
               {translate('auto.components.settings.OrchestrationPane.jevRemove', 'Remove')}
             </Button>
