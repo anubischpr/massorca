@@ -15,6 +15,7 @@ import type { DesignToken } from '../../../../shared/prototype-design-system-tok
 import { componentsUsingToken, tokenGroupOf } from '../../../../shared/prototype-design-system-view'
 import { effectiveSelectionOf } from '../../../../shared/prototype-design-system-view-state'
 import { isHexColor, pickerHueOf } from '../../../../shared/prototype-color'
+import { DESIGN_ELEMENT_ROOT } from '../../../../shared/prototype-design-system-element'
 import { PrototypeColorPicker } from './PrototypeColorPicker'
 import { PrototypeDesignSystemElement } from './PrototypeDesignSystemElement'
 import { TokenChipRow } from './PrototypeDesignSystemRows'
@@ -36,11 +37,19 @@ export function PrototypeDesignSystemSelection(
   if (section === undefined) {
     return null
   }
-  return selection.element === undefined ? (
-    <ComponentEditor {...props} section={section} />
-  ) : (
-    <PrototypeDesignSystemElement {...props} section={section} pick={selection.element} />
-  )
+  if (selection.element === undefined) {
+    return <ComponentEditor {...props} section={section} />
+  }
+  // The whole component's Layout rows sit above its own editor; an element's rows replace it.
+  if (selection.element.locator === DESIGN_ELEMENT_ROOT) {
+    return (
+      <>
+        <PrototypeDesignSystemElement {...props} section={section} pick={selection.element} />
+        <ComponentEditor {...props} section={section} />
+      </>
+    )
+  }
+  return <PrototypeDesignSystemElement {...props} section={section} pick={selection.element} />
 }
 
 // A token: its id, the components and sets that use it, its value, and the note that changes preview on their own.

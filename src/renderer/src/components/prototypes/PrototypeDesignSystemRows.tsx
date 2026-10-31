@@ -105,6 +105,11 @@ export function TokenChipRow({
   return (
     <>
       <Row label={label}>
+        {tokens.length === 0 ? (
+          <span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">
+            {value}
+          </span>
+        ) : null}
         {shown.map((token) => (
           <button
             key={token.id}

@@ -79,20 +79,19 @@ export function AddComponentPanel({
 export function AddedComponent({
   description,
   index,
-  itemClass,
+  style,
   update
 }: {
   description: string
   index: number
-  itemClass: string
+  /** The grid placement the Collage view gives it; absent in the other views. */
+  style?: React.CSSProperties | undefined
   update: DesignSystemUpdate
 }): React.JSX.Element {
   return (
     <div
-      className={cn(
-        'flex min-h-[120px] flex-col justify-center gap-1.5 rounded-xl border border-dashed border-border p-4',
-        itemClass
-      )}
+      style={style}
+      className="flex min-h-[120px] flex-col justify-center gap-1.5 rounded-xl border border-dashed border-border p-4"
     >
       <span className="font-mono text-xs">{description}</span>
       <span className="text-xs text-muted-foreground">

@@ -1,5 +1,4 @@
 import { translate } from '@/i18n/i18n'
-import { cn } from '@/lib/utils'
 import {
   colorHexOf,
   DESIGN_ELEMENT_ROOT,
@@ -192,6 +191,20 @@ export function PrototypeDesignSystemElement({
   )
   const note = draftElementOf(state.draft, section, locator)?.note ?? ''
   const hasText = kind === 'text' || kind === 'button' || kind === 'badge'
+  const groups = DESIGN_ELEMENT_ROWS[kind].map((group) => (
+    <div key={group.heading} className="flex flex-col gap-1.5 border-t border-border pt-2.5">
+      <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+        {translate('components.prototypes.designSystem.editGroup', 'Edit · {{group}}', {
+          group: group.heading
+        })}
+      </span>
+      {group.rows.map((row) => rowElement(row))}
+    </div>
+  ))
+  // The whole component's Layout rows: its note and removal stay with the component editor beside them.
+  if (isRoot) {
+    return <div className="flex flex-col gap-2.5 border-b border-border p-3">{groups}</div>
+  }
   return (
     <div className="flex flex-col gap-2.5 border-b border-border p-3">
       <nav
@@ -236,25 +249,14 @@ export function PrototypeDesignSystemElement({
             </button>
           </span>
         ))}
-        {isRoot ? null : (
-          <span className="flex items-center gap-0.5">
-            <span aria-hidden="true">›</span>
-            <span aria-current="true" className="px-1 py-0.5 font-semibold text-foreground">
-              {label}
-            </span>
+        <span className="flex items-center gap-0.5">
+          <span aria-hidden="true">›</span>
+          <span aria-current="true" className="px-1 py-0.5 font-semibold text-foreground">
+            {label}
           </span>
-        )}
+        </span>
       </nav>
-      {DESIGN_ELEMENT_ROWS[kind].map((group) => (
-        <div key={group.heading} className="flex flex-col gap-1.5 border-t border-border pt-2.5">
-          <span className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-            {translate('components.prototypes.designSystem.editGroup', 'Edit · {{group}}', {
-              group: group.heading
-            })}
-          </span>
-          {group.rows.map((row) => rowElement(row))}
-        </div>
-      ))}
+      {groups}
       {hasText ? (
         <span className="text-[11px] text-muted-foreground">
           {translate(
@@ -284,9 +286,7 @@ export function PrototypeDesignSystemElement({
             draft: setDraftElementNote(latest.draft, section, locator, label, text)
           }))
         }}
-        className={cn(
-          'resize-none rounded-md border border-border bg-input p-2 text-[13px] text-foreground'
-        )}
+        className="resize-none rounded-md border border-border bg-input p-2 text-[13px] text-foreground"
       />
       <span className="text-[11px] text-muted-foreground">
         {translate(
