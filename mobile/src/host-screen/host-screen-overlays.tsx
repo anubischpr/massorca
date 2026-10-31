@@ -40,14 +40,19 @@ export function HostScreenOverlays({ controller }: { controller: HostScreenContr
   const copyPath = (path: string) => {
     void clipboard
       .writeText(path)
+      .then(() => state.setCopyNotice('Path copied'))
       .catch(() => state.setActionError('Could not copy the path to the clipboard.'))
   }
+  const labelOf = (target: Worktree) =>
+    resolveBranchRowLabel(target, {
+      branchLabel: controller.sectionsResult.branchLabels.get(getWorktreeRowIdentity(target))
+    }).label
 
   // Why: a folder workspace has no branch to sleep, pin or delete differently, but it has no git
   // source control, so its sheet leaves that action out.
   const branchSheetActions = (target: Worktree): ActionSheetAction[] => {
     const isFolder = target.workspaceKind === 'folder-workspace'
-    const label = resolveBranchRowLabel(target).label
+    const label = labelOf(target)
     const pinned = isWorktreePinned(target, state.pinnedIds)
     return [
       {
@@ -228,7 +233,7 @@ export function HostScreenOverlays({ controller }: { controller: HostScreenContr
           </View>
         ) : (
           <ActionSheetContent
-            title={actionTarget ? resolveBranchRowLabel(actionTarget).label : undefined}
+            title={actionTarget ? labelOf(actionTarget) : undefined}
             message={
               actionTarget
                 ? [

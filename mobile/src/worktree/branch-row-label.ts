@@ -1,13 +1,24 @@
-import { resolveOneLineRowLabel } from '../../../src/shared/worktree/branch-display-label'
+import {
+  getBranchDisplayLabels,
+  resolveOneLineRowLabel,
+  type BranchLabelEntry
+} from '../../../src/shared/worktree/branch-display-label'
 
-export type BranchRowIcon = 'branch' | 'folder'
+export type BranchRowIcon = 'branch' | 'folder' | 'commit'
 
 export type BranchRowLabelSource = {
   workspaceKind?: 'git' | 'folder-workspace'
   repo: string
   branch: string
+  /** The commit a detached HEAD sits on; a row with no branch names itself by its short SHA. */
+  head?: string
   manualDisplayName?: string | null
   path?: string
+}
+
+/** The commit's short SHA, abbreviated the way git does by default. */
+export function shortCommitSha(head: string): string {
+  return head.trim().slice(0, 7)
 }
 
 /** The branch as the row shows it, without its refs/heads/ prefix. Mobile cannot reach the user's own prefix. */
@@ -23,10 +34,14 @@ export function folderNameFromPath(path: string | undefined): string {
 
 /**
  * The one-line row label: the user's row name when set, else the branch (a folder workspace shows
- * its folder name). The repo is the last resort, and only when there is no branch at all. The
- * generated display name never labels a row.
+ * its folder name). A detached row shows its short SHA with a commit icon. The repo is the last
+ * resort, and only when there is no branch and no commit. The generated display name never labels a row.
+ * `branchLabel` is the branch with the user's own prefix dropped, when the list computed one.
  */
-export function resolveBranchRowLabel(source: BranchRowLabelSource): {
+export function resolveBranchRowLabel(
+  source: BranchRowLabelSource,
+  options: { branchLabel?: string | null } = {}
+): {
   label: string
   icon: BranchRowIcon
 } {
@@ -39,13 +54,47 @@ export function resolveBranchRowLabel(source: BranchRowLabelSource): {
       icon: 'folder'
     }
   }
+  const branch = displayBranchName(source.branch)
+  const sha = branch ? '' : shortCommitSha(source.head ?? '')
+  if (sha) {
+    return { label: resolveOneLineRowLabel(source.manualDisplayName, sha), icon: 'commit' }
+  }
   return {
     label: resolveOneLineRowLabel(
       source.manualDisplayName,
-      displayBranchName(source.branch) || source.repo
+      options.branchLabel || branch || source.repo
     ),
     icon: 'branch'
   }
+}
+
+export type BranchRowLabelInput = {
+  key: string
+  /** Rows compete for a label only inside one scope: a project, or the whole list. */
+  scope: string
+  workspaceKind?: 'git' | 'folder-workspace'
+  branch: string
+  ownBranchPrefix?: string
+}
+
+/**
+ * The branch part of each git row's label, keyed by the row key. The user's own prefix is dropped,
+ * except where two different branches in one scope would then share a label.
+ */
+export function getBranchRowLabels(rows: readonly BranchRowLabelInput[]): Map<string, string> {
+  const entries: BranchLabelEntry[] = []
+  for (const row of rows) {
+    const branch = row.workspaceKind === 'folder-workspace' ? '' : displayBranchName(row.branch)
+    if (branch) {
+      entries.push({
+        key: row.key,
+        branch,
+        scope: row.scope,
+        ownPrefix: row.ownBranchPrefix ?? null
+      })
+    }
+  }
+  return getBranchDisplayLabels(entries)
 }
 
 export type BranchCollisionEntry = {

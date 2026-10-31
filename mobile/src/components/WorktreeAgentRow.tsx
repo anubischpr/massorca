@@ -1,4 +1,5 @@
 import { memo } from 'react'
+import { GitBranch } from 'lucide-react-native'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
 import { withoutNativeChatVisualDirectiveLines } from '../../../src/shared/native-chat-visual-directive'
@@ -18,12 +19,22 @@ type Props = {
   depth: number
   now: number
   glyph: SessionStatusGlyph | null
+  /** The branch this session runs on, when it runs in another worktree than the one it is listed in. */
+  runsOnBranch?: string | null
   onPress?: (agent: RuntimeWorktreeAgentRow) => void
   onLongPress?: (agent: RuntimeWorktreeAgentRow) => void
 }
 
 // One session line: agent identity, title, trailing status. The model and the time are not shown.
-function WorktreeAgentRowComponent({ agent, depth, now, glyph, onPress, onLongPress }: Props) {
+function WorktreeAgentRowComponent({
+  agent,
+  depth,
+  now,
+  glyph,
+  runsOnBranch,
+  onPress,
+  onLongPress
+}: Props) {
   // A visual line renders only in the transcript; the row shows the words around it, and a reply
   // that is only a visual falls back like an empty one.
   const reply = agent.lastAssistantMessage
@@ -44,7 +55,7 @@ function WorktreeAgentRowComponent({ agent, depth, now, glyph, onPress, onLongPr
       onLongPress={onLongPress ? () => onLongPress(agent) : undefined}
       delayLongPress={400}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={runsOnBranch ? `${label}, runs on branch ${runsOnBranch}` : label}
     >
       {depth > 0 ? <View style={[styles.rule, { left: indent - 10 }]} /> : null}
       {agent.agentType ? (
@@ -56,6 +67,16 @@ function WorktreeAgentRowComponent({ agent, depth, now, glyph, onPress, onLongPr
       ) : (
         <View style={styles.iconSpacer} />
       )}
+      {/* Why: a session listed under a parent in another worktree names the branch it runs on. */}
+      {runsOnBranch ? (
+        <View
+          accessible
+          accessibilityLabel={`Runs on branch ${runsOnBranch}`}
+          style={styles.branchMark}
+        >
+          <GitBranch size={12} color={colors.textMuted} />
+        </View>
+      ) : null}
       <Text style={[styles.label, emphasis]} numberOfLines={1}>
         {label}
       </Text>
@@ -86,6 +107,10 @@ const styles = StyleSheet.create({
   },
   iconSpacer: {
     width: 14
+  },
+  branchMark: {
+    flexDirection: 'row',
+    alignItems: 'center'
   },
   label: {
     flex: 1,

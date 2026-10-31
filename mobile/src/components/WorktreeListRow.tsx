@@ -1,12 +1,20 @@
 import { memo, useCallback, useMemo, useState } from 'react'
-import { ChevronDown, ChevronRight, Folder, GitBranch, GitPullRequest } from 'lucide-react-native'
+import {
+  ChevronDown,
+  ChevronRight,
+  Folder,
+  GitBranch,
+  GitCommitHorizontal,
+  GitPullRequest
+} from 'lucide-react-native'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { ExecutionHostId } from '../../../src/shared/execution-host'
 import type { AgentWorkingMode } from '../../../src/shared/agent-status-types'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
 import { triggerMediumImpact } from '../platform/haptics'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
-import { resolveBranchRowLabel } from '../worktree/branch-row-label'
+import { resolveBranchRowLabel, type BranchRowIcon } from '../worktree/branch-row-label'
+import type { AgentRunOwner } from '../worktree/cross-worktree-agent-placement'
 import {
   buildSessionListView,
   worstSessionStatusGlyph,
@@ -30,6 +38,8 @@ export type WorktreeListRowItem = {
   hostContextHostId?: ExecutionHostId
   repo: string
   branch: string
+  /** The commit a detached HEAD sits on; with no branch, the row names itself by it. */
+  head?: string
   displayName: string
   /** The row name the user set on desktop; the row label when present. */
   manualDisplayName?: string | null
@@ -60,6 +70,10 @@ type Props<T extends WorktreeListRowItem> = {
   collisionChip?: string | null
   /** The host is unreachable: the row dims, and its sessions show the unconfirmed mark. */
   hostDisconnected?: boolean
+  /** The branch label with the user's own prefix dropped, when the list computed one. */
+  branchLabel?: string | null
+  /** The worktree each session listed under a parent here actually runs in. */
+  agentOwners?: ReadonlyMap<string, AgentRunOwner<T>>
   onPress: (item: T) => void
   onLongPress?: (item: T) => void
   onLongPressSession?: (item: T, agent: RuntimeWorktreeAgentRow) => void
@@ -69,8 +83,9 @@ type Props<T extends WorktreeListRowItem> = {
 const EMPTY_AGENTS: RuntimeWorktreeAgentRow[] = []
 const LINEAGE_INDENT_PER_DEPTH = 18
 
-// The branch row's trailing mark. A folded branch speaks for its hidden sessions; a branch with no
-// sessions speaks for its worktree. An unreachable host has no current state to show.
+// The branch row's trailing mark. A folded branch speaks for its hidden sessions, and an expanded one
+// for its own unread mark (a background bell has no session to carry it); a branch with no sessions
+// speaks for its worktree. An unreachable host has no current state to show.
 function branchRowGlyph(input: {
   hasSessions: boolean
   collapsed: boolean
@@ -81,14 +96,22 @@ function branchRowGlyph(input: {
   workingMode?: AgentWorkingMode
 }): SessionStatusGlyph | null {
   if (input.hasSessions) {
-    return input.collapsed
-      ? worstSessionStatusGlyph([input.collapsedWorst, input.unread ? 'unread' : null])
-      : null
+    if (!input.collapsed) {
+      return input.unread ? 'unread' : null
+    }
+    return worstSessionStatusGlyph([input.collapsedWorst, input.unread ? 'unread' : null])
   }
   if (input.disconnected) {
     return null
   }
   return worktreeStatusGlyph(input.status, input.unread, input.workingMode)
+}
+
+// Why: static icon components, looked up by the row's icon kind rather than picked by a call in render.
+const BRANCH_ROW_ICONS: Record<BranchRowIcon, typeof GitBranch> = {
+  folder: Folder,
+  commit: GitCommitHorizontal,
+  branch: GitBranch
 }
 
 function RowChip({ text }: { text: string }) {
@@ -110,13 +133,15 @@ function WorktreeListRowComponent<T extends WorktreeListRowItem>({
   status,
   collisionChip,
   hostDisconnected = false,
+  branchLabel,
+  agentOwners,
   onPress,
   onLongPress,
   onLongPressSession,
   onToggleLineage
 }: Props<T>) {
-  const { label, icon } = resolveBranchRowLabel(item)
-  const LeadIcon = icon === 'folder' ? Folder : GitBranch
+  const { label, icon } = resolveBranchRowLabel(item, { branchLabel })
+  const LeadIcon = BRANCH_ROW_ICONS[icon]
   const lineageDepth = Math.max(0, item.lineageDepth ?? 0)
   const lineageChildCount = item.lineageChildCount ?? 0
   const agents = item.agents ?? EMPTY_AGENTS
@@ -144,7 +169,22 @@ function WorktreeListRowComponent<T extends WorktreeListRowItem>({
     status,
     workingMode: item.workingMode
   })
+  const runsOnBranchByPaneKey = useMemo(() => {
+    const branches = new Map<string, string>()
+    for (const agent of agents) {
+      const branch = agentOwners?.get(agent.paneKey)?.branch
+      if (branch) {
+        branches.set(agent.paneKey, branch)
+      }
+    }
+    return branches
+  }, [agents, agentOwners])
   const openWorktree = useCallback(() => onPress(item), [item, onPress])
+  // Why: a session listed here under a parent in another worktree opens the worktree it runs in.
+  const openSession = useCallback(
+    (agent: RuntimeWorktreeAgentRow) => onPress(agentOwners?.get(agent.paneKey)?.item ?? item),
+    [agentOwners, item, onPress]
+  )
   const longPressSession = useCallback(
     (agent: RuntimeWorktreeAgentRow) => onLongPressSession?.(item, agent),
     [item, onLongPressSession]
@@ -159,21 +199,27 @@ function WorktreeListRowComponent<T extends WorktreeListRowItem>({
       ]}
     >
       <View style={[styles.branchLine, hostDisconnected && styles.dimmed]}>
-        <Pressable
-          style={styles.leadButton}
-          disabled={!hasSessions || isReadOnly}
-          onPress={() => setSessionsCollapsed((value) => !value)}
-          accessibilityRole="button"
-          accessibilityLabel={
-            sessionsCollapsed ? `Show sessions of ${label}` : `Hide sessions of ${label}`
-          }
-        >
-          {hasSessions && sessionsCollapsed ? (
-            <ChevronRight size={14} color={colors.textSecondary} />
-          ) : (
+        {/* Why: a branch with no sessions has nothing to fold, so its lead icon is not a control. */}
+        {hasSessions ? (
+          <Pressable
+            style={styles.leadButton}
+            onPress={() => setSessionsCollapsed((value) => !value)}
+            accessibilityRole="button"
+            accessibilityLabel={
+              sessionsCollapsed ? `Show sessions of ${label}` : `Hide sessions of ${label}`
+            }
+          >
+            {sessionsCollapsed ? (
+              <ChevronRight size={14} color={colors.textSecondary} />
+            ) : (
+              <LeadIcon size={14} color={colors.textSecondary} />
+            )}
+          </Pressable>
+        ) : (
+          <View style={styles.leadButton}>
             <LeadIcon size={14} color={colors.textSecondary} />
-          )}
-        </Pressable>
+          </View>
+        )}
 
         <Pressable
           style={({ pressed }) => [styles.mainTap, pressed && styles.worktreeRowPressed]}
@@ -249,7 +295,8 @@ function WorktreeListRowComponent<T extends WorktreeListRowItem>({
             now={now}
             unvisited={item.unread}
             disconnected={hostDisconnected}
-            onOpen={isReadOnly ? undefined : openWorktree}
+            runsOnBranchByPaneKey={runsOnBranchByPaneKey}
+            onOpen={isReadOnly ? undefined : openSession}
             onLongPress={isReadOnly ? undefined : longPressSession}
           />
         </View>

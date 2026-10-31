@@ -3,8 +3,10 @@ import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'rea
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('react-native', () => ({
+  Platform: { OS: 'ios' },
   Pressable: 'Pressable',
   RefreshControl: 'RefreshControl',
+  TextInput: 'TextInput',
   SectionList: 'SectionList',
   StyleSheet: { create: (styles: unknown) => styles },
   Text: 'Text',

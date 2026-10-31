@@ -11,6 +11,8 @@ type Props = {
   unvisited: boolean
   /** The host cannot be reached: every session shows the unconfirmed mark instead of its state. */
   disconnected: boolean
+  /** The branch each session listed here runs on, for a session that runs in another worktree. */
+  runsOnBranchByPaneKey?: ReadonlyMap<string, string>
   onOpen?: (agent: RuntimeWorktreeAgentRow) => void
   onLongPress?: (agent: RuntimeWorktreeAgentRow) => void
 }
@@ -22,6 +24,7 @@ export function WorktreeAgentList({
   now,
   unvisited,
   disconnected,
+  runsOnBranchByPaneKey,
   onOpen,
   onLongPress
 }: Props) {
@@ -41,6 +44,7 @@ export function WorktreeAgentList({
           depth={row.depth}
           now={now}
           glyph={row.glyph}
+          runsOnBranch={runsOnBranchByPaneKey?.get(row.agent.paneKey) ?? null}
           onPress={onOpen}
           onLongPress={onLongPress}
         />

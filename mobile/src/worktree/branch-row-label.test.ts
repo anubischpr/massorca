@@ -3,7 +3,9 @@ import {
   displayBranchName,
   folderNameFromPath,
   getBranchCollisionChips,
+  getBranchRowLabels,
   resolveBranchRowLabel,
+  shortCommitSha,
   type BranchCollisionEntry
 } from './branch-row-label'
 
@@ -80,6 +82,72 @@ describe('resolveBranchRowLabel', () => {
         manualDisplayName: 'Notes'
       }).label
     ).toBe('Notes')
+  })
+})
+
+describe('detached rows and the own prefix', () => {
+  const head = '0123456789abcdef0123456789abcdef01234567'
+
+  it('names a detached row by its short commit SHA, with a commit icon', () => {
+    expect(resolveBranchRowLabel({ repo: 'orca', branch: '', head })).toEqual({
+      label: '0123456',
+      icon: 'commit'
+    })
+  })
+
+  it('prefers the row name over the commit of a detached row', () => {
+    expect(
+      resolveBranchRowLabel({ repo: 'orca', branch: '', head, manualDisplayName: 'Spike' }).label
+    ).toBe('Spike')
+  })
+
+  it('keeps the repo name for a detached row whose commit is unknown', () => {
+    expect(resolveBranchRowLabel({ repo: 'orca', branch: '' })).toEqual({
+      label: 'orca',
+      icon: 'branch'
+    })
+  })
+
+  it('uses the prefix-free branch label the list computed', () => {
+    expect(
+      resolveBranchRowLabel(
+        { repo: 'orca', branch: 'refs/heads/alice/login' },
+        { branchLabel: 'login' }
+      ).label
+    ).toBe('login')
+  })
+
+  it('shortens a commit to seven characters, trimmed', () => {
+    expect(shortCommitSha('  abcdef0123  ')).toBe('abcdef0')
+  })
+
+  it('drops the own prefix, but keeps a branch whose short label would be shared', () => {
+    const labels = getBranchRowLabels([
+      { key: 'mine', scope: '', branch: 'refs/heads/alice/login', ownBranchPrefix: 'alice' },
+      { key: 'plain', scope: '', branch: 'login' },
+      { key: 'teammate', scope: '', branch: 'bob/review', ownBranchPrefix: 'alice' }
+    ])
+    expect(labels.get('mine')).toBe('alice/login')
+    expect(labels.get('plain')).toBe('login')
+    expect(labels.get('teammate')).toBe('bob/review')
+  })
+
+  it('strips the own prefix when no other branch in the scope shares the short label', () => {
+    const labels = getBranchRowLabels([
+      { key: 'mine', scope: '', branch: 'alice/login', ownBranchPrefix: 'alice' },
+      { key: 'other', scope: '', branch: 'alice/search', ownBranchPrefix: 'alice' }
+    ])
+    expect(labels.get('mine')).toBe('login')
+    expect(labels.get('other')).toBe('search')
+  })
+
+  it('gives no label to a folder or a row with no branch', () => {
+    expect(
+      getBranchRowLabels([
+        { key: 'folder', scope: '', workspaceKind: 'folder-workspace', branch: '' },
+        { key: 'detached', scope: '', branch: '' }
+      ]).size
+    ).toBe(0)
   })
 })
 

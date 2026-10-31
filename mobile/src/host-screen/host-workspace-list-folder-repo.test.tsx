@@ -8,8 +8,10 @@ vi.mock('react-native', async () => {
   type HeaderRenderer = (args: { section: { key: string } }) => ReactNode
   return {
     ActivityIndicator: 'ActivityIndicator',
+    Platform: { OS: 'ios' },
     Pressable: 'Pressable',
     RefreshControl: 'RefreshControl',
+    TextInput: 'TextInput',
     // Why: renders each section's header the way SectionList does, so the header under test shows.
     SectionList: ({
       sections,

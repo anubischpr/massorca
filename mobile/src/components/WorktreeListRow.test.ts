@@ -30,6 +30,7 @@ vi.mock('lucide-react-native', () => ({
   ChevronRight: 'ChevronRight',
   Folder: 'Folder',
   GitBranch: 'GitBranch',
+  GitCommitHorizontal: 'GitCommitHorizontal',
   GitPullRequest: 'GitPullRequest'
 }))
 

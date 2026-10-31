@@ -10,6 +10,7 @@ vi.mock('react-native', () => ({
   Text: 'Text',
   View: 'View'
 }))
+vi.mock('lucide-react-native', () => ({ GitBranch: 'GitBranch' }))
 vi.mock('./SessionStatusMark', () => ({ SessionStatusMark: () => null }))
 vi.mock('./MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
 
