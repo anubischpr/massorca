@@ -140,6 +140,16 @@ Approved by the user. Commits: e69cc6b9f34, 9d26083242e, c24718e34da.
 - Open defect: AgentStateDot draws blocked as the question icon, and Claude background tasks map failed to blocked, so a failed child shows orange instead of red. Snapshots left unchanged on purpose.
 - PR/CI of a hidden child: not shown on any surface unless pinned. Needs a design decision.
 
+### pv62 QA on a paired host (2026-10-31)
+
+User QA verbatim: "La sesión hija sigue mostrando su propio worktree"; "3. No funciona"; phone: "deberían aparecer todas las opciones en la primera pantalla de menú."
+
+- Cause: a paired desktop client never receives the host's parent links. syncWindowGraph fills runtimeAgentOrchestrationByPaneKey from the local runtime only, and agentSession.subscribeStatus carried no parent. Earlier checks seeded the link in the local store, so they could not catch this.
+- Fix: 750e033bb09. The host stamps delegatedParent on the status summary from delegation_requests; the client turns it into entry.orchestration. Optional field, so an older host changes nothing. Needs the new host on the VPS.
+- Phone: c9c477ec382. A session from another worktree opens that worktree's sheet directly.
+- Observed: the real query on the VPS returns this delegation's link; hidden app with an empty runtime map hides the row and shows Environment on hover. Not observed: a real paired client end to end.
+- Hover answer for structured sessions: 167d77d9f55, approved by the user. It reads the journal only while the card is open, holds no provider and counts as no view. Covered by tests with mocked hooks; not observed against a real pending prompt.
+
 ## Next step
 
 T5 is partial. Decisions for the user first: the unnest question (Progress, change 1), the hidden-row action gaps (menu approval), the six T2 product gaps, the T4 and T4 follow-up gaps, and whether the switch check should use a dispatch-backed link. Then the agent runs the rest of T5: mobile rows on a device, the unread amber glyph, and a dispatch-backed child in the app. Owner: the user decides; then the agent runs T5.

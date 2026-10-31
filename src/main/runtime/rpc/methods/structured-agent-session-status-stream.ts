@@ -7,6 +7,7 @@ import { defineStreamingMethod, type RpcContext } from '../core'
 import { requireStructuredHost as requireHost } from './structured-agent-session-gate'
 import { structuredAgentSessionStatusSubscriptionId } from './structured-agent-session-subscription-id'
 import { clientReadsStructuredSessionAgent } from './structured-agent-session-policy'
+import { attachDelegatedParents } from './structured-agent-session-status-delegated-parent'
 
 /** Ties a stream to both ends that can close it — the runtime's subscription registry and the
  *  transport abort — so either one runs `onClose` exactly once. */
@@ -55,21 +56,31 @@ export const STRUCTURED_AGENT_SESSION_STATUS_METHODS = [
       if (stream.isClosed()) {
         return
       }
+      const withParents = (sessions: Parameters<typeof attachDelegatedParents>[0]) => {
+        const db = ctx.runtime.getOrchestrationDb?.()
+        return attachDelegatedParents(sessions, db?.listDelegatedChildLinks?.bind(db))
+      }
       dispose = host.subscribeStatus({
         id: subscriptionId,
         emit: (event) => {
           if (event.type === 'snapshot') {
             emit({
               ...event,
-              sessions: event.sessions.filter((session) =>
-                clientReadsStructuredSessionAgent(ctx, session.agent)
+              sessions: withParents(
+                event.sessions.filter((session) =>
+                  clientReadsStructuredSessionAgent(ctx, session.agent)
+                )
               )
             })
           } else if (
             event.type !== 'status' ||
             clientReadsStructuredSessionAgent(ctx, event.session.agent)
           ) {
-            emit(event)
+            emit(
+              event.type === 'status'
+                ? { ...event, session: withParents([event.session])[0] ?? event.session }
+                : event
+            )
           }
         }
       })

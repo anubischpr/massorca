@@ -22,7 +22,10 @@ import {
   type AgentSubagentSnapshot
 } from '../../../../shared/agent-status-types'
 import { structuredChildWorkLegacySubagents } from '../../../../shared/structured-agent-session-child-work-legacy'
-import { structuredAgentSessionPaneKey } from '../../../../shared/structured-agent-session-projection'
+import {
+  structuredAgentSessionPaneKey,
+  structuredAgentSessionTabId
+} from '../../../../shared/structured-agent-session-projection'
 import { structuredAgentSessionAgentStatus } from '../../../../shared/structured-agent-session-agent-status'
 import {
   structuredAgentSessionDatedMainAgent,
@@ -208,6 +211,19 @@ function projectStatus(
     structuredAgentSessionDatedMainAgent(agentStatus.mainAgent, summary),
     summary.updatedAt
   )
+  const delegated = summary.delegatedParent
+  // Why: a paired client's only record of the parent; the local graph sync knows nothing of a remote host.
+  const orchestration = delegated
+    ? {
+        taskId: delegated.taskId,
+        dispatchId: delegated.dispatchId,
+        ...(delegated.dispatchStatus ? { dispatchStatus: delegated.dispatchStatus } : {}),
+        parentPaneKey: structuredAgentSessionPaneKey(
+          structuredAgentSessionTabId(delegated.parentSessionId),
+          delegated.parentSessionId
+        )
+      }
+    : undefined
   const desired = {
     state: agentStatus.state,
     ...(agentStatus.workingMode ? { workingMode: agentStatus.workingMode } : {}),
@@ -225,6 +241,7 @@ function projectStatus(
     ...(subagents ? { subagents } : {}),
     ...(children ? { children } : {}),
     ...(subagents || children ? { subagentObservation: observation } : {}),
+    ...(orchestration ? { orchestration } : {}),
     sessionBoundary: false
   } as const
   if (
@@ -242,6 +259,9 @@ function projectStatus(
     agentChildWorkViewsEqual(current.children, children) &&
     current.subagentObservation === desired.subagentObservation &&
     current.sessionBoundary === desired.sessionBoundary &&
+    (!orchestration ||
+      (current.orchestration?.parentPaneKey === orchestration.parentPaneKey &&
+        current.orchestration?.dispatchStatus === orchestration.dispatchStatus)) &&
     current.updatedAt === summary.updatedAt &&
     current.terminalTitle === tab.label &&
     current.tabId === tab.id &&

@@ -1,5 +1,9 @@
 // @vitest-environment happy-dom
 
+import {
+  structuredAgentSessionPaneKey,
+  structuredAgentSessionTabId
+} from '../../../../shared/structured-agent-session-projection'
 import { act, cleanup, render, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
@@ -182,6 +186,37 @@ describe('StructuredAgentSessionStatusBridge', () => {
         providerSession
       })
     ])
+  })
+
+  it('turns the host record of a delegating parent into the row link', async () => {
+    render(<StructuredAgentSessionStatusBridge />)
+    await waitFor(() => expect(mocks.subscribeStatus).toHaveBeenCalledOnce())
+
+    act(() =>
+      feed().emit({
+        type: 'snapshot',
+        sessions: [
+          summary({
+            delegatedParent: {
+              parentSessionId: 'parent-session',
+              taskId: 'task_1',
+              dispatchId: 'ctx_1',
+              dispatchStatus: 'completed'
+            }
+          })
+        ]
+      })
+    )
+
+    expect(statuses()[0]?.orchestration).toEqual({
+      taskId: 'task_1',
+      dispatchId: 'ctx_1',
+      dispatchStatus: 'completed',
+      parentPaneKey: structuredAgentSessionPaneKey(
+        structuredAgentSessionTabId('parent-session'),
+        'parent-session'
+      )
+    })
   })
 
   // Hiddenness is the host's side of this: see structured-agent-session-subscribers.test.ts,
