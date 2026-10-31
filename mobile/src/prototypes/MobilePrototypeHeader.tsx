@@ -113,6 +113,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     maxWidth: 200,
     height: 26,
+    alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 10,
     borderRadius: 999,
@@ -122,6 +123,7 @@ const styles = StyleSheet.create({
   },
   originText: {
     color: colors.textPrimary,
-    fontSize: typography.metaSize
+    fontSize: typography.metaSize,
+    textAlign: 'center'
   }
 })

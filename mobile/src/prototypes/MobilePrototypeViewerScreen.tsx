@@ -16,8 +16,7 @@ import {
   selectedPinOf,
   setTool,
   setViewport,
-  type PrototypeSetState,
-  type PrototypeViewport
+  type PrototypeSetState
 } from '../../../src/shared/prototype-set-state'
 import {
   annotateStateOf,
@@ -38,6 +37,7 @@ import { MobilePrototypeHeader } from './MobilePrototypeHeader'
 import { MobilePrototypePinSheet, type MobilePrototypePinTab } from './MobilePrototypePinSheet'
 import { MobilePrototypeReadOnlyBanner } from './MobilePrototypeReadOnlyBanner'
 import { MobilePrototypeReadOnlySheet } from './MobilePrototypeReadOnlySheet'
+import { MobilePrototypeViewportToggle } from './MobilePrototypeViewportToggle'
 import { sendMobilePrototypeIteration } from './mobile-prototype-iteration-send'
 import { mobilePrototypeAgentLabel } from './mobile-prototype-list-model'
 import { originChipOf } from './mobile-prototype-origin'
@@ -51,11 +51,6 @@ type Sheet = 'pin' | 'draft'
 
 /** The control a draft item jumped to, kept while its pin is the one open. */
 type Jump = { letter: string; pinKey: string; field: PrototypeDraftField; nonce: number }
-
-const VIEWPORTS: readonly { viewport: PrototypeViewport; label: string }[] = [
-  { viewport: 'phone', label: 'Phone' },
-  { viewport: 'desktop', label: 'Desktop' }
-]
 
 /** One prototype: its direction chips, the live page with its pins, and the Browse and Annotate tools. */
 export function MobilePrototypeViewerScreen({
@@ -164,24 +159,10 @@ export function MobilePrototypeViewerScreen({
         backLabel={chips.length > 0 ? 'Back to the set' : 'Back'}
         onBack={onBack}
         trailing={
-          <View accessibilityLabel="Viewport" style={styles.segment}>
-            {VIEWPORTS.map(({ viewport, label }) => (
-              <Pressable
-                key={viewport}
-                accessibilityRole="button"
-                accessibilityState={{ selected: state.viewport === viewport }}
-                hitSlop={{ top: 6, bottom: 6 }}
-                onPress={() => update((current) => setViewport(current, viewport))}
-                style={[styles.segmentButton, state.viewport === viewport && styles.segmentOn]}
-              >
-                <Text
-                  style={[styles.segmentText, state.viewport === viewport && styles.segmentTextOn]}
-                >
-                  {label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          <MobilePrototypeViewportToggle
+            viewport={state.viewport}
+            onChange={(viewport) => update((current) => setViewport(current, viewport))}
+          />
         }
       />
       {chips.length === 0 ? null : (
@@ -306,23 +287,6 @@ export function MobilePrototypeViewerScreen({
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bgBase },
-  segment: {
-    flexDirection: 'row',
-    padding: 3,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.bgPanel
-  },
-  segmentButton: {
-    height: 32,
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-    borderRadius: 8
-  },
-  segmentOn: { backgroundColor: colors.bgRaised },
-  segmentText: { color: colors.textSecondary, fontSize: 12 },
-  segmentTextOn: { color: colors.textPrimary },
   chipsBar: {
     flexGrow: 0,
     borderBottomWidth: StyleSheet.hairlineWidth,
