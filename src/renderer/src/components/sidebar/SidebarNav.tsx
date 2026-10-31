@@ -17,6 +17,7 @@ import { ShortcutKeyCombo } from '@/components/ShortcutKeyCombo'
 import { useMobileSidebarOnboardingBadge } from './mobile-sidebar-onboarding-badge'
 import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { Button } from '@/components/ui/button'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { SetupGuideSidebarEntry } from './SetupGuideSidebarEntry'
 import { SidebarTaskNavButton } from './SidebarTaskNavButton'
@@ -72,6 +73,7 @@ const SidebarNav = React.memo(function SidebarNav() {
   const openModal = useAppStore((s) => s.openModal)
   const updateSettings = useAppStore((s) => s.updateSettings)
   const activeView = useAppStore((s) => s.activeView)
+  const setActiveView = useAppStore((s) => s.setActiveView)
   const showAgentDashboardButton = useAppStore((s) => shouldShowAgentDashboardButton(s.settings))
   const showAutomationsButton = useAppStore((s) => shouldShowAutomationsButton(s.settings))
   const showMobileButton = useAppStore((s) => shouldShowMobileButton(s.settings))
@@ -103,6 +105,25 @@ const SidebarNav = React.memo(function SidebarNav() {
       className="flex flex-col gap-0.5 px-2 pt-2 pb-1"
       data-contextual-tour-target="sidebar-navigation"
     >
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        size="sm"
+        className="mb-1 w-full"
+        value={activeView === 'bot-teams' ? 'bot-teams' : 'workspaces'}
+        onValueChange={(mode) => {
+          if (mode) {
+            setActiveView(mode === 'bot-teams' ? 'bot-teams' : 'terminal')
+          }
+        }}
+      >
+        <ToggleGroupItem value="workspaces" className="flex-1">
+          {translate('components.botTeams.modeWorkspaces', 'Workspaces')}
+        </ToggleGroupItem>
+        <ToggleGroupItem value="bot-teams" className="flex-1">
+          {translate('components.botTeams.modeBotTeams', 'Bot teams')}
+        </ToggleGroupItem>
+      </ToggleGroup>
       <Button
         type="button"
         size="sm"

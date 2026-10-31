@@ -48,19 +48,22 @@ export type BotTeamCreateInput = z.output<typeof BotTeamCreate>
 export type BotTeamUpdateInput = z.output<typeof BotTeamUpdate>
 export type BotDraftInput = z.output<typeof BotDraft>
 
-export type BotTeamBot = {
-  id: string
-  name: string
-  job: string
-  agent: string
-}
+export const BotTeamBotSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  job: z.string(),
+  agent: z.string().refine(isTuiAgent)
+})
 
-export type BotTeam = {
-  id: string
-  name: string
-  purpose: string
-  character: BotTeamCharacter
-  workspacesEnabled: boolean
-  accessMode: (typeof AGENT_SESSION_ACCESS_MODES)[number]
-  bots: BotTeamBot[]
-}
+export const BotTeamSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  purpose: z.string(),
+  character: z.enum(BOT_TEAM_CHARACTERS),
+  workspacesEnabled: z.boolean(),
+  accessMode: z.enum(AGENT_SESSION_ACCESS_MODES),
+  bots: z.array(BotTeamBotSchema)
+})
+
+export type BotTeamBot = z.output<typeof BotTeamBotSchema>
+export type BotTeam = z.output<typeof BotTeamSchema>

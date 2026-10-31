@@ -32,10 +32,13 @@ export type HostScreenProps = {
   hostId?: string
   action?: string
   onHideSidebar?: () => void
+  // Set where the host's teams are the other mode of this screen.
+  onShowTeams?: () => void
 }
 
 export function useHostScreenController({
   embedded = false,
+  onShowTeams,
   hostId: hostIdProp,
   action: actionProp,
   onHideSidebar
@@ -141,6 +144,7 @@ export function useHostScreenController({
   const activeWorktreeScroll = useActiveWorktreeScroll(sectionsResult.sections)
 
   return {
+    onShowTeams,
     actions,
     activeWorktreeScroll,
     catalog,

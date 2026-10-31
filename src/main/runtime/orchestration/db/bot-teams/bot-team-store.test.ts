@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { OrchestrationDb } from '../orchestration-db'
 import { SCHEMA_VERSION } from '../contract-constants'
 
-const IRIS = { name: 'Iris', job: 'Designs flyers', agent: 'claude' }
+const IRIS = { name: 'Iris', job: 'Designs flyers', agent: 'claude' as 'claude' | 'codex' }
 
 describe('bot team store', () => {
   let db: OrchestrationDb | undefined

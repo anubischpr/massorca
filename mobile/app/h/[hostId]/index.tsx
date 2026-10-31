@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useLocalSearchParams } from 'expo-router'
+import { MobileBotTeamsScreen } from '../../../src/bot-teams/MobileBotTeamsScreen'
 import { WorkspaceDetailPlaceholder } from '../../../src/components/WorkspaceDetailPlaceholder'
 import { firstParam } from '../../../src/navigation/route-param-reader'
 import { HostScreen } from '../../../src/host-screen/HostScreen'
@@ -19,7 +21,7 @@ import { shellSwitchDecision } from '../../../src/mobile-web-shell/shell-switch-
  * `?`, `#` or whitespace would build a pathname the page refuses, and a refusal here is a failure
  * screen rather than the native list this route already has.
  */
-function HostListScreen() {
+function HostListScreen({ onShowTeams }: { onShowTeams: () => void }) {
   // Through `firstParam`, as the other four switches do: expo-router answers a repeated key with
   // an array, and a bare read puts it straight into the template, where `String(['a','b'])` is
   // `a,b` and `encodeURIComponent` makes it the single segment `a%2Cb` — which the bridge's
@@ -31,11 +33,13 @@ function HostListScreen() {
   // Asked here as every switch asks it: encoding does not save a `.` or `..` host id, which fails
   // the bridge's segment rule, and handing that over paints the page's failure screen over the
   // native list this route already has.
-  const route = shellScreenRoute({ pathname: `/h/${encodeURIComponent(hostId)}` })
+  const route = shellScreenRoute({
+    pathname: `/h/${encodeURIComponent(hostId)}`
+  })
   const decision = shellSwitchDecision(hostId === '' ? null : route)
 
   if (decision.kind === 'native') {
-    return <HostScreen />
+    return <HostScreen onShowTeams={onShowTeams} />
   }
   return (
     <MobileWebShellScreen
@@ -44,7 +48,7 @@ function HostListScreen() {
       key={hostId}
       hostId={hostId}
       route={decision.route}
-      fallback={<HostScreen />}
+      fallback={<HostScreen onShowTeams={onShowTeams} />}
     />
   )
 }
@@ -52,8 +56,19 @@ function HostListScreen() {
 // On wide layouts the sidebar hosts the list, so this route is just the empty detail pane.
 export default function HostWorktreeRoute() {
   const { isWideLayout } = useResponsiveLayout()
+  const params = useLocalSearchParams<{ hostId?: string | string[] }>()
+  // Teams are the first screen of a host; a new visit starts there again.
+  const [showTeams, setShowTeams] = useState(true)
   if (isWideLayout) {
     return <WorkspaceDetailPlaceholder />
   }
-  return <HostListScreen />
+  if (showTeams) {
+    return (
+      <MobileBotTeamsScreen
+        hostId={firstParam(params.hostId)}
+        onShowWorkspaces={() => setShowTeams(false)}
+      />
+    )
+  }
+  return <HostListScreen onShowTeams={() => setShowTeams(true)} />
 }

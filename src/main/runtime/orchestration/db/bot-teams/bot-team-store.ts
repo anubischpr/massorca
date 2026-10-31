@@ -7,6 +7,7 @@ import {
   type BotTeamCreateInput,
   type BotTeamUpdateInput
 } from '../../../../../shared/rpc-contract/bot-team-params'
+import { isTuiAgent } from '../../../../../shared/tui-agent-config'
 import { generateId } from '../generated-id'
 import type { OrchestrationDb } from '../orchestration-db'
 
@@ -24,7 +25,7 @@ const BotRow = z.object({
   team_id: z.string(),
   name: z.string(),
   job: z.string(),
-  agent: z.string()
+  agent: z.string().refine(isTuiAgent)
 })
 
 const TEAM_COLUMNS = 'id, name, purpose, character, workspaces_enabled, access_mode'

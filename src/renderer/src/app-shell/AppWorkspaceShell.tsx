@@ -24,6 +24,7 @@ const Settings = lazy(() => import('../components/settings/Settings'))
 const SkillsPage = lazy(() => import('../components/skills/SkillsPage'))
 const ArtifactsPage = lazy(() => import('../components/artifacts/ArtifactsPage'))
 const PrototypesPage = lazy(() => import('../components/prototypes/PrototypesPage'))
+const BotTeamsPage = lazy(() => import('../components/bot-teams/BotTeamsPage'))
 const WorkspaceSpacePage = lazy(() => import('../components/workspace-space/WorkspaceSpacePage'))
 const MobilePage = lazy(() => import('../components/mobile/MobilePage'))
 const CreateChatPage = lazy(() => import('../components/create-chat/CreateChatPage'))
@@ -75,6 +76,7 @@ function ActivePage({ layout }: { layout: AppChromeLayout }): React.JSX.Element 
       {activeView === 'skills' ? <SkillsPage /> : null}
       {activeView === 'artifacts' ? <ArtifactsPage /> : null}
       {activeView === 'prototypes' ? <PrototypesPage /> : null}
+      {activeView === 'bot-teams' ? <BotTeamsPage /> : null}
       {activeView === 'tasks' ? <TaskPage /> : null}
       {activeView === 'automations' ? <AutomationsPage /> : null}
       {activeView === 'activity' ? <ActivityPrototypePage /> : null}
