@@ -210,12 +210,8 @@ describe('MobileNativeChatDelegationCard', () => {
       expect(
         renderer!.root.findByProps({ accessibilityLabel: 'Why Automatic picked this agent' })
       ).toBeTruthy()
-      const rows = renderer!.root.findByType('ScrollView' as never)
-      expect(
-        rows.props.style
-          .flat()
-          .some((style: { maxHeight?: number } | undefined) => style?.maxHeight === 200)
-      ).toBe(true)
+      const rows = renderer!.root.findAll((node) => node.type === 'ScrollView')[0]
+      expect(JSON.stringify(rows?.props.style)).toContain('"maxHeight":200')
     })
 
     it('draws no count question for a task that asks for no prototype', async () => {

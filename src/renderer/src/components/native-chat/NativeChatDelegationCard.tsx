@@ -89,7 +89,7 @@ export function NativeChatDelegationCard({
             </span>
           </div>
           {/* Why: a short pane scrolls the choices, count and explanation, so the buttons never leave the card. */}
-          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+          <div className="scrollbar-sleek flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
             <RadioGroup
               aria-label={translate('components.native-chat.delegation.choices', 'Agent choices')}
               value={selectedId ?? ''}
