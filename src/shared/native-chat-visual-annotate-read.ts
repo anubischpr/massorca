@@ -1,6 +1,6 @@
 // Host-side reads of what the annotate frame sends: a picked element, its design and trail. Each read is
 // validated and bounded, and a malformed one reads as null, so the whole message is dropped.
-import type { PrototypeSize } from './prototype-draft'
+import type { PrototypeElementState, PrototypeSize } from './prototype-draft'
 import type {
   NativeChatVisualDesignKind,
   NativeChatVisualDesignReadout,
@@ -9,7 +9,6 @@ import type {
   NativeChatVisualTrailItem
 } from './native-chat-visual-annotate'
 import { NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS } from './native-chat-visual-annotate-limits'
-import type { PrototypeElementState } from './prototype-draft'
 
 export function readPickedElement(value: unknown): NativeChatVisualPickedElement | null {
   if (!isRecord(value)) {
@@ -44,38 +43,39 @@ export function readPickedElement(value: unknown): NativeChatVisualPickedElement
   }
 }
 
-const DESIGN_KINDS: readonly string[] = ['button', 'badge', 'box', 'text']
-const DESIGN_ALIGNS: readonly string[] = ['left', 'center', 'right', 'justify']
-
 // Null for a readout outside the documented shape, so the pick is dropped whole.
 export function readDesign(value: unknown): NativeChatVisualDesignReadout | null {
   if (!isRecord(value)) {
     return null
   }
   const limits = NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS
-  const { kind, fill, color, border, shadow, fontFamily, align } = value
+  const kind = designKindOf(value.kind)
+  const align = designAlignOf(value.align)
+  const { fill, color, border, shadow, fontFamily, bold, italic, underline } = value
+  const borderWidth = lengthOf(value.borderWidth)
+  const radius = lengthOf(value.radius)
+  const padding = lengthOf(value.padding)
+  const gap = lengthOf(value.gap)
+  const lineHeight = lengthOf(value.lineHeight)
+  const fontSize = value.fontSize
+  const width = readSize(value.width)
+  const height = readSize(value.height)
   if (
-    typeof kind !== 'string' ||
-    !DESIGN_KINDS.includes(kind) ||
+    kind === null ||
+    align === null ||
     !isFillColor(fill) ||
     !isHexColor(color) ||
     !isFillColor(border) ||
     !isBoundedString(shadow, limits.shadow, 0) ||
     !isBoundedString(fontFamily, limits.family, 0) ||
-    typeof align !== 'string' ||
-    !DESIGN_ALIGNS.includes(align) ||
-    typeof value.bold !== 'boolean' ||
-    typeof value.italic !== 'boolean' ||
-    typeof value.underline !== 'boolean'
-  ) {
-    return null
-  }
-  const lengths = [value.borderWidth, value.radius, value.padding, value.gap, value.lineHeight]
-  const width = readSize(value.width)
-  const height = readSize(value.height)
-  const { fontSize } = value
-  if (
-    !lengths.every((length) => isFiniteNumber(length) && length >= 0 && length <= limits.px) ||
+    typeof bold !== 'boolean' ||
+    typeof italic !== 'boolean' ||
+    typeof underline !== 'boolean' ||
+    borderWidth === null ||
+    radius === null ||
+    padding === null ||
+    gap === null ||
+    lineHeight === null ||
     !isFiniteNumber(fontSize) ||
     fontSize < 0 ||
     fontSize > limits.fontSize ||
@@ -85,25 +85,62 @@ export function readDesign(value: unknown): NativeChatVisualDesignReadout | null
     return null
   }
   return {
-    kind: kind as NativeChatVisualDesignKind,
+    kind,
     fill,
     color,
     border,
-    borderWidth: value.borderWidth as number,
-    radius: value.radius as number,
+    borderWidth,
+    radius,
     shadow,
     width,
     height,
-    padding: value.padding as number,
-    gap: value.gap as number,
+    padding,
+    gap,
     fontFamily,
     fontSize,
-    lineHeight: value.lineHeight as number,
-    bold: value.bold,
-    italic: value.italic,
-    underline: value.underline,
-    align: align as NativeChatVisualDesignReadout['align']
+    lineHeight,
+    bold,
+    italic,
+    underline,
+    align
   }
+}
+
+function designKindOf(value: unknown): NativeChatVisualDesignKind | null {
+  switch (value) {
+    case 'button':
+      return 'button'
+    case 'badge':
+      return 'badge'
+    case 'box':
+      return 'box'
+    case 'text':
+      return 'text'
+    default:
+      return null
+  }
+}
+
+function designAlignOf(value: unknown): NativeChatVisualDesignReadout['align'] | null {
+  switch (value) {
+    case 'left':
+      return 'left'
+    case 'center':
+      return 'center'
+    case 'right':
+      return 'right'
+    case 'justify':
+      return 'justify'
+    default:
+      return null
+  }
+}
+
+// A length in CSS pixels within the cap, or null.
+function lengthOf(value: unknown): number | null {
+  return isFiniteNumber(value) && value >= 0 && value <= NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS.px
+    ? value
+    : null
 }
 
 // Null for a trail over its cap or with an item outside the documented shape.

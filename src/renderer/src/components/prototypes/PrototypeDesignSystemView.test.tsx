@@ -290,9 +290,17 @@ describe('PrototypeDesignSystemView Components views', () => {
     const user = userEvent.setup()
     renderView({ state: { tab: 'components' } })
     await user.click(screen.getByRole('button', { name: 'Grid' }))
-    await user.click(screen.getAllByRole('button', { name: 'View full size' })[0] as HTMLElement)
+    await user.click(firstOf(screen.getAllByRole('button', { name: 'View full size' })))
     expect(screen.getAllByRole('button', { name: 'Back to compact size' })).toHaveLength(1)
     await user.click(screen.getByRole('button', { name: 'Back to compact size' }))
     expect(screen.queryByRole('button', { name: 'Back to compact size' })).toBeNull()
   })
 })
+
+function firstOf(elements: HTMLElement[]): HTMLElement {
+  const [first] = elements
+  if (first === undefined) {
+    throw new Error('missing element')
+  }
+  return first
+}

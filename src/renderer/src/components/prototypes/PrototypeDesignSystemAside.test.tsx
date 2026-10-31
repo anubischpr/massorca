@@ -329,7 +329,7 @@ describe('PrototypeDesignSystemAside element selection', () => {
     const { update } = renderAside({
       state: { selection: { kind: 'component', name: 'Button', element } }
     })
-    fireEvent.change(screen.getAllByRole('textbox', { name: 'Hex' })[0] as HTMLElement, {
+    fireEvent.change(firstOf(screen.getAllByRole('textbox', { name: 'Hex' })), {
       target: { value: '#123456' }
     })
     expect(
@@ -362,7 +362,7 @@ describe('PrototypeDesignSystemAside element selection', () => {
       }
     }
     const back = renderAside({ state: edited })
-    fireEvent.change(screen.getAllByRole('textbox', { name: 'Hex' })[0] as HTMLElement, {
+    fireEvent.change(firstOf(screen.getAllByRole('textbox', { name: 'Hex' })), {
       target: { value: '#2563eb' }
     })
     expect(lastUpdate(back.update, edited).draft.comps.Button).toBeUndefined()
@@ -395,3 +395,11 @@ describe('PrototypeDesignSystemAside element selection', () => {
     })
   })
 })
+
+function firstOf(elements: HTMLElement[]): HTMLElement {
+  const [first] = elements
+  if (first === undefined) {
+    throw new Error('missing element')
+  }
+  return first
+}

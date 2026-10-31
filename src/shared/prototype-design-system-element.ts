@@ -167,22 +167,24 @@ export function boundTokenOf(
     if (token.group !== group) {
       return false
     }
-    switch (row) {
-      case 'fill':
-        return colorHexOf(token.value) === readout.fill
-      case 'color':
-        return colorHexOf(token.value) === readout.color
-      case 'border':
-        return colorHexOf(token.value) === readout.border
-      case 'radius':
-        return (
-          PX_PATTERN.test(token.value.trim()) && Number.parseFloat(token.value) === readout.radius
-        )
-      case 'font':
-        return normalizeFamily(token.value) === normalizeFamily(readout.fontFamily)
-      default:
-        return token.value.trim() === readout.shadow
+    if (row === 'fill') {
+      return colorHexOf(token.value) === readout.fill
     }
+    if (row === 'color') {
+      return colorHexOf(token.value) === readout.color
+    }
+    if (row === 'border') {
+      return colorHexOf(token.value) === readout.border
+    }
+    if (row === 'radius') {
+      return (
+        PX_PATTERN.test(token.value.trim()) && Number.parseFloat(token.value) === readout.radius
+      )
+    }
+    if (row === 'font') {
+      return normalizeFamily(token.value) === normalizeFamily(readout.fontFamily)
+    }
+    return token.value.trim() === readout.shadow
   }
   return tokens.find(matches)?.id ?? null
 }
@@ -204,25 +206,23 @@ export function originalTokenValueOf(
   if (bound !== null) {
     return bound
   }
-  switch (row) {
-    case 'fill':
-      return readout.fill
-    case 'color':
-      return readout.color
-    case 'border':
-      return readout.border
-    case 'radius':
-      return `${readout.radius}px`
-    case 'shadow':
-      return readout.shadow
-    case 'font':
-      return readout.fontFamily
-  }
+  return rawTokenValueOf(row, readout)
 }
 
-/** The edit key a row writes: `style` writes bold, and the flags have their own keys. */
-export function editKeyOf(row: DesignRow): DesignElementProp {
-  return row === 'style' ? 'bold' : (row as DesignElementProp)
+function rawTokenValueOf(row: TokenRow, readout: NativeChatVisualDesignReadout): string {
+  if (row === 'fill') {
+    return readout.fill
+  }
+  if (row === 'color') {
+    return readout.color
+  }
+  if (row === 'border') {
+    return readout.border
+  }
+  if (row === 'radius') {
+    return `${readout.radius}px`
+  }
+  return row === 'shadow' ? readout.shadow : readout.fontFamily
 }
 
 /** The text a draft item shows for one edited value. */
@@ -233,21 +233,29 @@ export function designElementValueText(prop: string, value: unknown): string {
   if (typeof value === 'number') {
     return prop === 'lineHeight' ? String(value) : `${value}px`
   }
-  if (typeof value === 'object' && value !== null && 'unit' in value) {
-    const size = value as PrototypeSize
-    return size.unit === 'auto' ? 'auto' : `${size.value}${size.unit}`
+  if (isPrototypeSize(value)) {
+    return value.unit === 'auto' ? 'auto' : `${value.value}${value.unit}`
   }
   return typeof value === 'string' ? value : ''
 }
 
 /** Two draft values are the same when the primitive or the size is: a value back at its original drops out. */
 export function sameDesignValue(left: unknown, right: unknown): boolean {
-  if (typeof left === 'object' && left !== null && typeof right === 'object' && right !== null) {
-    const a = left as PrototypeSize
-    const b = right as PrototypeSize
-    return a.value === b.value && a.unit === b.unit
+  if (isPrototypeSize(left) && isPrototypeSize(right)) {
+    return left.value === right.value && left.unit === right.unit
   }
   return left === right
+}
+
+function isPrototypeSize(value: unknown): value is PrototypeSize {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'value' in value &&
+    typeof value.value === 'number' &&
+    'unit' in value &&
+    (value.unit === 'px' || value.unit === '%' || value.unit === 'auto')
+  )
 }
 
 /** The CSS an edited value writes, with a token id as its variable; null for a value that resolves to nothing. */

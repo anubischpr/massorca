@@ -218,10 +218,9 @@ describe('element edits in the draft', () => {
   it('reads an older draft with no elements, and a malformed one, as no edits', () => {
     const older = { ...emptyDesignSystemDraft(), comps: { DecisionButton: { variants: [] } } }
     expect(draftElementEdits(older, SECTION, 'button:nth-of-type(1)')).toEqual({})
-    const malformed = {
-      ...emptyDesignSystemDraft(),
-      comps: { DecisionButton: { elements: 'broken' } }
-    } as unknown as DesignSystemDraft
+    const malformed: DesignSystemDraft = JSON.parse(
+      '{"values":{},"comps":{"DecisionButton":{"elements":"broken"}},"notes":{},"removed":{},"added":[]}'
+    )
     expect(draftElementEdits(malformed, SECTION, 'button:nth-of-type(1)')).toEqual({})
     expect(() =>
       designSystemDraftGroups({ tokens: TOKENS, components: [SECTION] }, malformed)

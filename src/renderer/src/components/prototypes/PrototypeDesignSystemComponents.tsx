@@ -11,6 +11,7 @@ import { ComponentCard } from './PrototypeDesignSystemCard'
 import { keyedEntries } from './prototype-entry-keys'
 import type { DesignSystemPanelProps } from './prototype-design-system-props'
 import {
+  COMPONENTS_VIEWS,
   readComponentsView,
   writeComponentsView,
   type ComponentsView
@@ -144,7 +145,7 @@ function ViewSwitch({
       aria-label={translate('components.prototypes.designSystem.viewGroup', 'Component view')}
       className="flex rounded-md border border-border p-0.5"
     >
-      {(Object.keys(VIEW_ICONS) as ComponentsView[]).map((option) => {
+      {COMPONENTS_VIEWS.map((option) => {
         const Icon = VIEW_ICONS[option]
         return (
           <button

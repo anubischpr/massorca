@@ -31,6 +31,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
+function fieldOf(value: unknown, key: string): unknown {
+  return isRecord(value) ? value[key] : undefined
+}
+
+function listOf(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : []
+}
+
 function send(data: Record<string, unknown>): void {
   window.dispatchEvent(
     new MessageEvent('message', { data: { channel: CHANNEL, ...data }, source: window.parent })
@@ -93,7 +101,7 @@ beforeEach(() => {
 describe('annotate script: design readout', () => {
   it('reads a painted, interactive element as a button with its own values', () => {
     const picked = pick(element('button.go'))
-    const design = picked.design as Record<string, unknown>
+    const design = picked.design
     expect(design).toMatchObject({
       kind: 'button',
       fill: '#112233',
@@ -111,8 +119,8 @@ describe('annotate script: design readout', () => {
   })
 
   it('reads a pill with a border as a badge, and a bare text as a text', () => {
-    expect((pick(element('span.pill')).design as Record<string, unknown>).kind).toBe('badge')
-    const copy = pick(element('p.copy')).design as Record<string, unknown>
+    expect(fieldOf(pick(element('span.pill')).design, 'kind')).toBe('badge')
+    const copy = pick(element('p.copy')).design
     expect(copy).toMatchObject({
       kind: 'text',
       color: '#112233',
@@ -125,7 +133,7 @@ describe('annotate script: design readout', () => {
   })
 
   it('reads a container that holds blocks as a box', () => {
-    expect((pick(element('div.box')).design as Record<string, unknown>).kind).toBe('box')
+    expect(fieldOf(pick(element('div.box')).design, 'kind')).toBe('box')
   })
 
   it('reads the file value while the frame applies an override to the same element', () => {
@@ -134,7 +142,7 @@ describe('annotate script: design readout', () => {
       overrides: [{ selector: 'button.go', style: { css: { 'background-color': '#ff0000' } } }]
     })
     const picked = pick(element('button.go'))
-    expect((picked.design as Record<string, unknown>).fill).toBe('#112233')
+    expect(fieldOf(picked.design, 'fill')).toBe('#112233')
     expect(element('button.go').style.getPropertyValue('background-color')).toBe(
       normalised('background-color', '#ff0000')
     )
@@ -142,12 +150,12 @@ describe('annotate script: design readout', () => {
 
   it('reports the ancestors outermost first, each with its own readout', () => {
     const picked = pick(element('p.inner'))
-    const trail = picked.trail as Record<string, unknown>[]
+    const trail = listOf(picked.trail)
     expect(trail).toHaveLength(2)
-    expect(trail[0]?.selector).toBe('#card')
-    expect(trail[0]?.design).toMatchObject({ padding: 16 })
-    expect(trail[1]?.label).toBe('inside')
-    expect(trail[1]?.design).toMatchObject({ kind: 'box' })
+    expect(fieldOf(trail[0], 'selector')).toBe('#card')
+    expect(fieldOf(trail[0], 'design')).toMatchObject({ padding: 16 })
+    expect(fieldOf(trail[1], 'label')).toBe('inside')
+    expect(fieldOf(trail[1], 'design')).toMatchObject({ kind: 'box' })
   })
 
   it('accepts a pick with a design and a trail through the host reader', () => {
