@@ -17,7 +17,7 @@ import type { Row, WorktreeRow } from './row-types'
 function input(overrides: Partial<BranchQualifierInput>): BranchQualifierInput {
   return {
     identity: 'a',
-    branch: 'main',
+    name: 'main',
     projectKey: 'p1',
     projectLabel: 'Alpha',
     hostId: 'local',
@@ -27,15 +27,15 @@ function input(overrides: Partial<BranchQualifierInput>): BranchQualifierInput {
 }
 
 describe('getBranchQualifiers', () => {
-  it('names nothing when no branch repeats', () => {
+  it('names nothing when no name repeats', () => {
     const qualifiers = getBranchQualifiers(
-      [input({ identity: 'a', branch: 'one' }), input({ identity: 'b', branch: 'two' })],
+      [input({ identity: 'a', name: 'one' }), input({ identity: 'b', name: 'two' })],
       'list'
     )
     expect(qualifiers.size).toBe(0)
   })
 
-  it('names only the host when one project has the same branch on two hosts', () => {
+  it('names only the host when one project has the same name on two hosts', () => {
     const qualifiers = getBranchQualifiers(
       [
         input({ identity: 'a', hostId: 'local', hostLabel: 'This computer' }),
@@ -47,7 +47,7 @@ describe('getBranchQualifiers', () => {
     expect(qualifiers.get('b')).toBe('gpu-box')
   })
 
-  it('names only the project when ungrouped rows of two projects share a branch on one host', () => {
+  it('names only the project when ungrouped rows of two projects share a name on one host', () => {
     const qualifiers = getBranchQualifiers(
       [
         input({ identity: 'a', projectKey: 'p1', projectLabel: 'Alpha' }),
@@ -87,10 +87,30 @@ describe('getBranchQualifiers', () => {
     expect(qualifiers.size).toBe(0)
   })
 
-  it('names nothing for the same branch twice on the same host in one project', () => {
+  it('names nothing for the same name twice on the same host in one project', () => {
     const qualifiers = getBranchQualifiers(
       [input({ identity: 'a' }), input({ identity: 'b' })],
       'project'
+    )
+    expect(qualifiers.size).toBe(0)
+  })
+
+  it('names the parent folder when two folders of one project and host share a name', () => {
+    const qualifiers = getBranchQualifiers(
+      [
+        input({ identity: 'a', name: 'app', location: 'work' }),
+        input({ identity: 'b', name: 'app', location: 'old' })
+      ],
+      'project'
+    )
+    expect(qualifiers.get('a')).toBe('work')
+    expect(qualifiers.get('b')).toBe('old')
+  })
+
+  it('names nothing for a row without a name', () => {
+    const qualifiers = getBranchQualifiers(
+      [input({ identity: 'a', name: '' }), input({ identity: 'b', name: '' })],
+      'list'
     )
     expect(qualifiers.size).toBe(0)
   })
@@ -226,5 +246,86 @@ describe('attachBranchRowIdentity', () => {
     const grouped = [itemRow(wa, 'repo:ra')]
     attach(grouped, [wa, wb], [a, b], { groupBy: 'repo' })
     expect(grouped[0].type === 'item' && grouped[0].branchQualifier).toBeUndefined()
+  })
+
+  it('de-duplicates a stripped label across projects in a flat list only', () => {
+    const r1 = makeRepo('r1', { gitUsername: 'alice' })
+    const r2 = makeRepo('r2')
+    const mine = makeWorktree('wa', 'r1', 'alice/fix-login')
+    const theirs = makeWorktree('wb', 'r2', 'fix-login')
+    const options = { branchPrefixSettings: { branchPrefix: 'git-username' as const } }
+
+    const flat = [itemRow(mine, 'all'), itemRow(theirs, 'all')]
+    attach(flat, [mine, theirs], [r1, r2], { ...options, groupBy: 'none' })
+    expect(flat.map((row) => (row.type === 'item' ? row.branchLabel : null))).toEqual([
+      'alice/fix-login',
+      'fix-login'
+    ])
+
+    const grouped = [itemRow(mine, 'repo:r1'), itemRow(theirs, 'repo:r2')]
+    attach(grouped, [mine, theirs], [r1, r2], { ...options, groupBy: 'repo' })
+    expect(grouped.map((row) => (row.type === 'item' ? row.branchLabel : null))).toEqual([
+      'fix-login',
+      'fix-login'
+    ])
+  })
+
+  it('qualifies two folder workspaces that share a name on two hosts', () => {
+    const folders = makeRepo('fr', { kind: 'folder', displayName: 'Folders' })
+    const here = makeWorktree('f1', 'fr', '', {
+      branch: '',
+      head: '',
+      path: '/work/app',
+      hostId: 'local'
+    })
+    const there = makeWorktree('f2', 'fr', '', {
+      branch: '',
+      head: '',
+      path: '/srv/app',
+      hostId: 'ssh:gpu'
+    })
+    const rows = [itemRow(here, 'repo:fr'), itemRow(there, 'repo:fr')]
+
+    attach(rows, [here, there], [folders], { groupBy: 'repo' })
+
+    const qualifiers = rows.map((row) => (row.type === 'item' ? row.branchQualifier : undefined))
+    expect(qualifiers[0]).toBeTruthy()
+    expect(qualifiers[1]).toBeTruthy()
+    expect(qualifiers[0]).not.toBe(qualifiers[1])
+  })
+
+  it('tells two folders of one project and host apart by their parent folder', () => {
+    const folders = makeRepo('fr', { kind: 'folder', displayName: 'Folders' })
+    const work = makeWorktree('f1', 'fr', '', { branch: '', head: '', path: '/work/app' })
+    const old = makeWorktree('f2', 'fr', '', { branch: '', head: '', path: '/old/app' })
+    const rows = [itemRow(work, 'repo:fr'), itemRow(old, 'repo:fr')]
+
+    attach(rows, [work, old], [folders], { groupBy: 'repo' })
+
+    expect(rows.map((row) => (row.type === 'item' ? row.branchQualifier : null))).toEqual([
+      'work',
+      'old'
+    ])
+  })
+
+  it('compares a detached HEAD by its short SHA across hosts', () => {
+    const r1 = makeRepo('r1')
+    const here = makeWorktree('d1', 'r1', '', {
+      branch: '',
+      head: 'abc1234def5678',
+      hostId: 'local'
+    })
+    const there = makeWorktree('d2', 'r1', '', {
+      branch: '',
+      head: 'abc1234def5678',
+      hostId: 'ssh:gpu'
+    })
+    const rows = [itemRow(here), itemRow(there)]
+
+    attach(rows, [here, there], [r1])
+
+    const qualifiers = rows.map((row) => (row.type === 'item' ? row.branchQualifier : undefined))
+    expect(qualifiers[0]).toBeTruthy()
+    expect(qualifiers[0]).not.toBe(qualifiers[1])
   })
 })
