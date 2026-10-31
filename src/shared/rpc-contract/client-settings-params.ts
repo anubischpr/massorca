@@ -116,6 +116,7 @@ export const SettingsUpdate = z
     defaultRepoSelection: z.array(z.string()).nullable().optional(),
     defaultLinearTeamSelection: z.array(z.string()).nullable().optional(),
     compactWorktreeCards: z.boolean().optional(),
+    worktreeCardLayout: z.enum(['one-line', 'detailed', 'compact']).optional(),
     minimaxGroupId: z.string().optional(),
     minimaxUsageModels: z.string().optional(),
     minimaxEndpoint: z.enum(['overseas', 'cn']).optional(),
