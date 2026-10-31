@@ -146,6 +146,9 @@ export function MobilePrototypeDesignSystemScreen({
         ))}
       </View>
       <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent}>
+        {system !== null && content.status === 'error' ? (
+          <Text style={styles.message}>Couldn't open this design system</Text>
+        ) : null}
         {panel === null ? null : state.tab === 'tokens' ? (
           <MobilePrototypeDesignSystemTokens
             content={panel.content}
@@ -258,5 +261,6 @@ const styles = StyleSheet.create({
   tabText: { color: colors.textSecondary, fontSize: 14 },
   tabTextOn: { color: colors.textPrimary },
   body: { flex: 1 },
-  bodyContent: { gap: 12, paddingHorizontal: spacing.lg, paddingTop: 4, paddingBottom: spacing.lg }
+  bodyContent: { gap: 12, paddingHorizontal: spacing.lg, paddingTop: 4, paddingBottom: spacing.lg },
+  message: { color: colors.textSecondary, fontSize: 14 }
 })

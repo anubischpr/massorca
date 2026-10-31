@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { ComponentSection } from './prototype-design-system-components'
 import {
-  chatOfPendingRequest,
+  chatOfListedRequest,
   componentsUsingToken,
   designSystemChatOf,
   designSystemDayLabel,
@@ -231,13 +231,37 @@ describe('designSystemChatOf', () => {
     })
   })
 
-  it('has no chat when the project has neither a set nor a pending request', () => {
+  it('falls back to the newest request’s chat when the project has no set and no pending request', () => {
+    const newest = {
+      requestId: 'request-newest',
+      sessionId: 'session-newest',
+      agent: 'claude' as const
+    }
+    expect(
+      designSystemChatOf([], { ...SYSTEM, pendingRequest: undefined, newestRequest: newest })
+    ).toEqual({ sessionId: 'session-newest', agent: 'claude', worktreeId: null })
+  })
+
+  it('names the pending request’s chat before the newest request’s, and a set before both', () => {
+    const newest = {
+      requestId: 'request-newest',
+      sessionId: 'session-newest',
+      agent: 'claude' as const
+    }
+    const withNewest = { ...SYSTEM, newestRequest: newest }
+    expect(designSystemChatOf([], withNewest)?.sessionId).toBe('session-pending')
+    expect(designSystemChatOf([SET], withNewest)?.sessionId).toBe('session-set')
+  })
+
+  it('has no chat when the project has no set, no pending request and no newest request', () => {
     expect(designSystemChatOf([], { ...SYSTEM, pendingRequest: undefined })).toBeUndefined()
   })
 
-  it('names the chat of a pending request with no worktree', () => {
-    expect(chatOfPendingRequest({ requestId: 'r', sessionId: 's', agent: 'gentle-shell' })).toEqual(
-      { sessionId: 's', agent: 'gentle-shell', worktreeId: null }
-    )
+  it('names the chat of a listed request with no worktree', () => {
+    expect(chatOfListedRequest({ requestId: 'r', sessionId: 's', agent: 'gentle-shell' })).toEqual({
+      sessionId: 's',
+      agent: 'gentle-shell',
+      worktreeId: null
+    })
   })
 })

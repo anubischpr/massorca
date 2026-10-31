@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { translate } from '@/i18n/i18n'
 import {
   designSystemChatOf,
   setsBuiltOn,
@@ -69,8 +70,22 @@ export function PrototypeDesignSystemScreen({
     const accepted = await sendText(chat, text).catch(() => false)
     update((latest) => (accepted ? sendAccepted(latest, kind) : sendRefused(latest, kind)))
   }
-  if (content.status !== 'ready') {
-    return <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border" />
+  if (content.status === 'loading') {
+    return (
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border" />
+    )
+  }
+  if (content.status === 'error') {
+    return (
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border">
+        <p className="p-6 text-sm text-muted-foreground">
+          {translate(
+            'components.prototypes.designSystem.unreadable',
+            "Couldn't open this design system"
+          )}
+        </p>
+      </section>
+    )
   }
   const panel: DesignSystemPanelProps = {
     system,

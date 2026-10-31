@@ -3,7 +3,7 @@ import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import { buildDesignSystemPaletteApproveMessage } from '../../../../shared/prototype-design-system-message'
 import {
-  chatOfPendingRequest,
+  chatOfListedRequest,
   designSystemSectionsOf,
   joinParts,
   paletteTypeParts
@@ -57,7 +57,7 @@ export function PrototypeDesignSystemPalettes({
       requestId: pending.requestId,
       ...(system.folderPath !== undefined ? { systemFolder: system.folderPath } : {})
     })
-    void runSend('palette', message.sentText, chatOfPendingRequest(pending))
+    void runSend('palette', message.sentText, chatOfListedRequest(pending))
   }
   return (
     <div className="flex flex-col gap-2.5 border-b border-border p-3">

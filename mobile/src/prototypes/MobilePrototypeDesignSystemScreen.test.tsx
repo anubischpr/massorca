@@ -59,7 +59,9 @@ const hooks = vi.hoisted(
     sets: PrototypeListedSet[]
     systems: PrototypeListedDesignSystem[]
     content: DesignSystemContent | null
-  } => ({ sets: [], systems: [], content: null })
+    /** The system's files cannot be read: the hook reports an error instead of content. */
+    unreadable: boolean
+  } => ({ sets: [], systems: [], content: null, unreadable: false })
 )
 vi.mock('./use-mobile-prototype-sets', () => ({
   useMobilePrototypeSets: () => ({
@@ -69,7 +71,8 @@ vi.mock('./use-mobile-prototype-sets', () => ({
   })
 }))
 vi.mock('./use-mobile-prototype-design-system-content', () => ({
-  useMobilePrototypeDesignSystemContent: () => ({ status: 'ready', content: hooks.content })
+  useMobilePrototypeDesignSystemContent: () =>
+    hooks.unreadable ? { status: 'error' } : { status: 'ready', content: hooks.content }
 }))
 
 const KEY = mobilePrototypeDesignSystemKey('host-1', NEXUS_PROJECT_KEY)
@@ -151,6 +154,7 @@ beforeEach(() => {
   hooks.content = nexusContent()
   hooks.sets = [nexusSet()]
   hooks.systems = [NEXUS_SYSTEM]
+  hooks.unreadable = false
   chat.send.mockReset()
   chat.send.mockResolvedValue(true)
   useMobilePrototypeViewStore.setState({ designSystemViews: {} })
@@ -491,5 +495,34 @@ describe('the draft sheet', () => {
     press(tree, 'Review & send')
     await pressAndSettle(tree, 'Send to Claude')
     expect(chat.send.mock.calls[0]?.[1].sessionId).toBe('session-pending')
+  })
+})
+
+describe('MobilePrototypeDesignSystemScreen chat and unreadable system', () => {
+  it('sends to the chat of the newest request when the project has no set and no pending request', async () => {
+    hooks.sets = []
+    hooks.systems = [
+      {
+        ...NEXUS_SYSTEM,
+        newestRequest: { requestId: 'req-newest', sessionId: 'session-newest', agent: 'claude' }
+      }
+    ]
+    const tree = mount()
+    draftTwoChanges(tree)
+    press(tree, 'Review & send')
+    await pressAndSettle(tree, 'Send to Claude')
+    expect(chat.send.mock.calls[0]?.[1].sessionId).toBe('session-newest')
+  })
+
+  it('shows a short message, not an empty body, when the system cannot be read', () => {
+    hooks.unreadable = true
+    const tree = mount()
+    expect(allText(tree)).toContain("Couldn't open this design system")
+  })
+
+  it('shows no message when the project’s system is not listed yet', () => {
+    hooks.systems = []
+    const tree = mount()
+    expect(allText(tree)).not.toContain("Couldn't open this design system")
   })
 })

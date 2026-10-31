@@ -91,6 +91,27 @@ describe('listPrototypeSetsFromAllHosts', () => {
     expect(listed.designSystems).toEqual([system('a')])
   })
 
+  it('routes the newest request’s chat, with no set and no pending request, back to its host', async () => {
+    const newest = { requestId: 'r-newest', sessionId: 'newest-chat', agent: 'claude' }
+    const landing = {
+      projectKey: 'landing',
+      projectName: 'landing',
+      status: 'detected',
+      version: 1,
+      tokenCount: 3,
+      swatches: [],
+      newestRequest: newest
+    }
+    mocks.list.mockImplementation(async (target: { kind: string }) =>
+      target.kind === 'local' ? { sets: [] } : { sets: [], designSystems: [landing] }
+    )
+    await listPrototypeSetsFromAllHosts()
+    expect(prototypeTargetForSession('newest-chat')).toEqual({
+      kind: 'environment',
+      environmentId: 'env-1'
+    })
+  })
+
   it('routes the chat of a pending request, which has no set, back to the host that listed it', async () => {
     const pending = { requestId: 'r-pending', sessionId: 'pending-chat', agent: 'codex' }
     const landing = {

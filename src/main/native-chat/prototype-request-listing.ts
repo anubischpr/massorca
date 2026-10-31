@@ -100,6 +100,7 @@ async function withProjects(
   }
   const projects = await projectsOfLaunchDirectories(launchDirectories.values())
   const pendingRequests = new Map<string, PrototypeListedPendingRequest>()
+  const newestRequests = new Map<string, PrototypeListedPendingRequest>()
   const proposals: PrototypeListedProposal[] = []
   const sets: PrototypeListedSet[] = []
   const deletableOf = deletableChecker(options.isDeletable)
@@ -107,6 +108,10 @@ async function withProjects(
     const { set: listedSet, manifest } = request
     const set = listedSet === null ? null : await withDeletable(listedSet, deletableOf)
     const project = projects.get(launchDirectories.get(manifest.sessionId) ?? '')
+    // Why the first only: requests are newest first, so the first request of a project is its newest.
+    if (project !== undefined && !newestRequests.has(project.projectKey)) {
+      newestRequests.set(project.projectKey, requestChatOf(manifest))
+    }
     // Why the first only: requests are newest first, so the first proposal with no direction files is the newest.
     if (
       project !== undefined &&
@@ -114,11 +119,7 @@ async function withProjects(
       manifest.designSystemMode === 'propose' &&
       !pendingRequests.has(project.projectKey)
     ) {
-      pendingRequests.set(project.projectKey, {
-        requestId: manifest.requestId,
-        sessionId: manifest.sessionId,
-        agent: manifest.agent
-      })
+      pendingRequests.set(project.projectKey, requestChatOf(manifest))
     }
     if (project !== undefined && manifest.designSystemMode === 'propose') {
       proposals.push({ requestId: manifest.requestId, projectKey: project.projectKey })
@@ -140,13 +141,23 @@ async function withProjects(
   }
   const designSystems = listedDesignSystemsOf(projects.values()).map((entry) => {
     const pendingRequest = pendingRequests.get(entry.projectKey)
-    return pendingRequest === undefined ? entry : { ...entry, pendingRequest }
+    const newestRequest = newestRequests.get(entry.projectKey)
+    return {
+      ...entry,
+      ...(pendingRequest === undefined ? {} : { pendingRequest }),
+      ...(newestRequest === undefined ? {} : { newestRequest })
+    }
   })
   return {
     sets,
     ...(designSystems.length > 0 ? { designSystems } : {}),
     ...(proposals.length > 0 ? { proposals } : {})
   }
+}
+
+/** A request's chat in the pending request's shape: the chat a design system message can go to. */
+function requestChatOf(manifest: PrototypeRequestManifest): PrototypeListedPendingRequest {
+  return { requestId: manifest.requestId, sessionId: manifest.sessionId, agent: manifest.agent }
 }
 
 /** One entry per project with a system; a summary the list contract refuses is logged once and left out. */

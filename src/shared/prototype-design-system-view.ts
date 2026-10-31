@@ -105,15 +105,18 @@ export function designSystemTargetSet(
   return sets.find((set) => set.projectKey === projectKey)
 }
 
-/** A chat a design system message goes to: a set's chat, or the chat of a proposal still waiting on its directions. */
+/** A chat a design system message goes to: a set's chat, or the chat of a request the list names for the project. */
 export type DesignSystemChat = {
   sessionId: string
   agent: PrototypeAgent
-  /** The worktree a set was made in; null for a pending request, which the list does not place in one. */
+  /** The worktree a set was made in; null for a request, which the list does not place in one. */
   worktreeId: string | null
 }
 
-/** The chat of the project's newest set, else the chat of its pending request; undefined when neither exists. */
+/**
+ * The chat of the project's newest set, else its pending request's chat, else its newest request's; undefined when
+ * none exists. A pending request is where Approve sends, so it is named before the newest request.
+ */
 export function designSystemChatOf(
   sets: readonly PrototypeListedSet[],
   system: PrototypeListedDesignSystem
@@ -122,14 +125,13 @@ export function designSystemChatOf(
   if (set !== undefined) {
     return { sessionId: set.sessionId, agent: set.agent, worktreeId: set.worktreeId }
   }
-  return system.pendingRequest === undefined
-    ? undefined
-    : chatOfPendingRequest(system.pendingRequest)
+  const request = system.pendingRequest ?? system.newestRequest
+  return request === undefined ? undefined : chatOfListedRequest(request)
 }
 
-/** The chat of a pending request: where Approve sends, and the draft's fallback when the project has no set. */
-export function chatOfPendingRequest(pending: PrototypeListedPendingRequest): DesignSystemChat {
-  return { sessionId: pending.sessionId, agent: pending.agent, worktreeId: null }
+/** The chat of a request the list names: where a message goes when the project has no set. */
+export function chatOfListedRequest(request: PrototypeListedPendingRequest): DesignSystemChat {
+  return { sessionId: request.sessionId, agent: request.agent, worktreeId: null }
 }
 
 /** The version a history entry was before the current one: the newest entry older than `version`. */
