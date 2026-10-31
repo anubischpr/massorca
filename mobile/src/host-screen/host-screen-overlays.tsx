@@ -21,6 +21,7 @@ import { isWorktreePinned } from '../worktree/workspace-list-sections'
 import type { Worktree } from '../worktree/workspace-list-types'
 import { hostScreenStyles as styles } from './host-screen-styles'
 import type { HostScreenController } from './use-host-screen-controller'
+import { canDeleteFromWorktreeSheet } from './worktree-row-policy'
 
 export function HostScreenOverlays({ controller }: { controller: HostScreenController }) {
   const {
@@ -89,12 +90,16 @@ export function HostScreenOverlays({ controller }: { controller: HostScreenContr
           state.setActionTarget(null)
         }
       },
-      {
-        label: 'Delete',
-        icon: Trash2,
-        destructive: true,
-        onPress: () => state.setConfirmDelete(target)
-      }
+      ...(canDeleteFromWorktreeSheet(target)
+        ? [
+            {
+              label: 'Delete',
+              icon: Trash2,
+              destructive: true,
+              onPress: () => state.setConfirmDelete(target)
+            }
+          ]
+        : [])
     ]
   }
 
