@@ -63,10 +63,11 @@ export function useWorktreeCardFoundation({
         currentIssue: worktree.linkedIssue,
         currentPR: worktree.linkedPR,
         currentComment: worktree.comment,
-        focus: 'issue'
+        focus: 'issue',
+        showRowName: oneLineCards
       })
     },
-    [worktree, openModal]
+    [worktree, oneLineCards, openModal]
   )
 
   const handleManageLinks = useCallback(
@@ -78,10 +79,11 @@ export function useWorktreeCardFoundation({
         executionHostId: worktree.hostId,
         currentDisplayName: worktree.displayName,
         currentComment: worktree.comment,
-        focus: 'links'
+        focus: 'links',
+        showRowName: oneLineCards
       })
     },
-    [worktree, openModal]
+    [worktree, oneLineCards, openModal]
   )
 
   const handleEditComment = useCallback(
@@ -95,10 +97,11 @@ export function useWorktreeCardFoundation({
         currentIssue: worktree.linkedIssue,
         currentPR: worktree.linkedPR,
         currentComment: worktree.comment,
-        focus: 'comment'
+        focus: 'comment',
+        showRowName: oneLineCards
       })
     },
-    [worktree, openModal]
+    [worktree, oneLineCards, openModal]
   )
 
   const handleOpenAutomation = useCallback(

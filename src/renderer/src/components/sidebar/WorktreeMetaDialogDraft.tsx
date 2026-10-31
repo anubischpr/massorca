@@ -25,8 +25,10 @@ import {
 import { findIndexedRepoOwnerForHost } from '@/lib/worktree-runtime-owner-index'
 import { getWorkspaceAttachments } from '../../../../shared/workspace-attachments'
 import type { WorkspaceAttachment } from '../../../../shared/worktree/types'
+import { normalizeManualDisplayName } from '../../../../shared/worktree/branch-display-label'
 import { WorktreeDisplayNameField } from './WorktreeDisplayNameField'
 import { WorktreeLinkedItemsField } from './WorktreeLinkedItemsField'
+import { WorktreeRowNameField } from './WorktreeRowNameField'
 import { buildWorkspaceAttachmentEdits } from './worktree-attachment-editing'
 import { resizeCommentTextarea } from './worktree-comment-textarea-sizing'
 import {
@@ -49,6 +51,8 @@ const WorktreeMetaDialogDraft = React.memo(function WorktreeMetaDialogDraft() {
       : undefined
   const focusField = typeof modalData.focus === 'string' ? modalData.focus : 'comment'
   const suppressHostedReviewRefresh = modalData.suppressHostedReviewRefresh === true
+  // Why: the one-line row shows the row name, so only the one-line card's opens edit it here.
+  const showRowName = modalData.showRowName === true
   const suggestedReviewNumber =
     typeof modalData.currentReview === 'number'
       ? modalData.currentReview
@@ -81,9 +85,11 @@ const WorktreeMetaDialogDraft = React.memo(function WorktreeMetaDialogDraft() {
       typeof modalData.currentComment === 'string'
         ? modalData.currentComment
         : (worktree?.comment ?? ''),
-    items: getWorkspaceAttachments(worktree ?? {})
+    items: getWorkspaceAttachments(worktree ?? {}),
+    rowName: worktree?.manualDisplayName ?? ''
   }))
   const [displayNameInput, setDisplayNameInput] = useState(initial.displayName)
+  const [rowNameInput, setRowNameInput] = useState(initial.rowName)
   const [commentInput, setCommentInput] = useState(initial.comment)
   const [items, setItems] = useState<WorkspaceAttachment[]>(initial.items)
   const [notesOpen, setNotesOpen] = useState(
@@ -93,6 +99,7 @@ const WorktreeMetaDialogDraft = React.memo(function WorktreeMetaDialogDraft() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [dialogElement, setDialogElement] = useState<HTMLElement | null>(null)
   const displayNameInputRef = useRef<HTMLInputElement>(null)
+  const rowNameInputRef = useRef<HTMLInputElement>(null)
   const linkInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const focusNotesOnMountRef = useRef(false)
@@ -109,6 +116,11 @@ const WorktreeMetaDialogDraft = React.memo(function WorktreeMetaDialogDraft() {
       const updates = {
         ...(displayNameInput.trim() !== initial.displayName
           ? { displayName: displayNameInput.trim() }
+          : {}),
+        // Why: a blank row name clears it, and the title and git branch are never touched by it.
+        ...(showRowName &&
+        normalizeManualDisplayName(rowNameInput) !== normalizeManualDisplayName(initial.rowName)
+          ? { manualDisplayName: normalizeManualDisplayName(rowNameInput) }
           : {}),
         ...(commentInput.trim() !== initial.comment ? { comment: commentInput.trim() } : {}),
         ...buildWorkspaceAttachmentEdits({
@@ -216,6 +228,15 @@ const WorktreeMetaDialogDraft = React.memo(function WorktreeMetaDialogDraft() {
             portalContainer={dialogElement}
             value={displayNameInput}
           />
+          {showRowName ? (
+            <WorktreeRowNameField
+              disabled={saving}
+              inputRef={rowNameInputRef}
+              onEnter={handleSave}
+              onValueChange={setRowNameInput}
+              value={rowNameInput}
+            />
+          ) : null}
           <WorktreeLinkedItemsField
             key={`${worktreeId}:${isOpen}`}
             items={items}

@@ -94,7 +94,8 @@ export function useWorktreeCardController(props: ResolvedWorktreeCardProps) {
     isDeleting: linked.isDeleting,
     isSshDisconnected: foundation.isSshDisconnected,
     updateWorktreeMeta: foundation.updateWorktreeMeta,
-    openModal: foundation.openModal
+    openModal: foundation.openModal,
+    oneLineCards: foundation.oneLineCards
   })
 
   // Why: delete is destructive, so it only appears while holding Option/Alt, not in the ordinary hover chrome.

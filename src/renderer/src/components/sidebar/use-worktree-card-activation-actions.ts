@@ -24,7 +24,8 @@ export function useWorktreeCardActivationActions({
   isDeleting,
   isSshDisconnected,
   updateWorktreeMeta,
-  openModal
+  openModal,
+  oneLineCards
 }: Pick<
   WorktreeCardProps,
   | 'worktree'
@@ -37,7 +38,7 @@ export function useWorktreeCardActivationActions({
   | 'onWorktreeCardClick'
   | 'onImmediateActivate'
 > &
-  Pick<Foundation, 'isSshDisconnected' | 'updateWorktreeMeta' | 'openModal'> &
+  Pick<Foundation, 'isSshDisconnected' | 'updateWorktreeMeta' | 'openModal' | 'oneLineCards'> &
   Pick<LinkedDetails, 'isDeleting'>) {
   const worktreeRef = useRef(worktree)
   useLayoutEffect(() => {
@@ -150,11 +151,13 @@ export function useWorktreeCardActivationActions({
         currentDisplayName: worktree.displayName,
         currentIssue: worktree.linkedIssue,
         currentPR: worktree.linkedPR,
-        currentComment: worktree.comment
+        currentComment: worktree.comment,
+        showRowName: oneLineCards
       })
     },
     [
       openModal,
+      oneLineCards,
       affiliateListMode,
       worktree.comment,
       worktree.displayName,

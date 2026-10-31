@@ -20229,6 +20229,8 @@
       "clearSearch": "Clear search",
       "inlineSearchHint": "Select a result to attach it.",
       "nameHelp": "Shown in the sidebar. The folder name stays the same.",
+      "rowName": "Row name",
+      "rowNameHelp": "Shown on the one-line row. The git branch is not renamed.",
       "notes": "Notes",
       "addNotes": "Add notes",
       "notesOptional": "Optional · Markdown",
