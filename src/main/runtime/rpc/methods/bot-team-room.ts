@@ -91,7 +91,7 @@ async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeam
       },
       sendPrompt: async (sessionId, text) =>
         (await commitStructuredAgentSessionLaunchPrompt({
-          host: getStructuredAgentSessionHost(),
+          host: requireHost(),
           caller,
           sessionId,
           fence,

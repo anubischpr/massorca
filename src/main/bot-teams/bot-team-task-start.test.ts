@@ -61,7 +61,7 @@ describe('startBotTeamTask', () => {
     expect(vi.mocked(d.sendPrompt).mock.calls[0][1]).toContain('Flyer')
   })
 
-  it('links the session before sending, so a lost prompt still leaves the task reachable', async () => {
+  it('links the session only after the request is delivered', async () => {
     const order: string[] = []
     const d = deps({
       linkSession: vi.fn((_taskId, sessionId) => {
@@ -75,7 +75,16 @@ describe('startBotTeamTask', () => {
     })
     await startBotTeamTask(d, { team: TEAM, task: TASK })
 
-    expect(order).toEqual(['link', 'send'])
+    expect(order).toEqual(['send', 'link'])
+  })
+
+  it('keeps the task in Todo and reports it when the request is not delivered', async () => {
+    const d = deps({ sendPrompt: vi.fn(async () => false) })
+
+    await expect(startBotTeamTask(d, { team: TEAM, task: TASK })).rejects.toThrow(
+      'did not reach the bot'
+    )
+    expect(d.linkSession).not.toHaveBeenCalled()
   })
 
   it('refuses a task that already started, and creates nothing', async () => {

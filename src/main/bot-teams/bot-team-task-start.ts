@@ -39,8 +39,9 @@ export async function startBotTeamTask(
     agent: bot.agent,
     accessMode: team.accessMode
   })
-  // Linked first: a prompt lost after this point leaves an openable thread, not an orphan session.
-  const started = deps.linkSession(task.id, sessionId)
-  await deps.sendPrompt(sessionId, taskPrompt(team, bot, task))
-  return started
+  // Linked only once delivered: an undelivered request must keep the task in Todo, with Start.
+  if (!(await deps.sendPrompt(sessionId, taskPrompt(team, bot, task)))) {
+    throw new Error(`The request for task ${task.id} did not reach the bot.`)
+  }
+  return deps.linkSession(task.id, sessionId)
 }
