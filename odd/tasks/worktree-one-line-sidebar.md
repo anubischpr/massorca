@@ -52,7 +52,7 @@ Strategy `ask-on-risk`. Forecast is above 400 authored lines, so the chain choic
 
 - [x] T1 Desktop one-line rows, status and collapse (delegated: 2+ non-trivial files) - commit 97a0bf59270
 - [~] T2 Desktop session menu, hover card Environment section, cross-worktree child (delegated) - commit a2144e7b2f9; menu and Environment section done, cross-worktree child NOT done
-- [ ] T3 Manual display name for the branch row, desktop and mobile data (delegated)
+- [x] T3 Manual display name for the branch row, desktop and mobile data (delegated) - commit c56e8ba5edc
 - [ ] T4 Mobile rows, sheets, status colors and failed state (delegated)
 - [ ] T5 Verification in the real app, desktop and mobile
 
@@ -63,7 +63,9 @@ Strategy `ask-on-risk`. Forecast is above 400 authored lines, so the chain choic
 - Not done in T2: a child session in another worktree shown once under its parent with a branch icon. It needs a cross-worktree agent row index (rows are built per worktree), which is a separate data change.
 - Known gaps: branch prefix is hidden only when the git-username or custom prefix setting yields a prefix; `compactWorktreeCards: false` cannot be told apart from a deliberate Detailed choice, so such profiles move to one line.
 - Verification: see the delegation report (tc, targeted tests, code-quality gate with ORCA_CODE_QUALITY_BASE=HEAD).
+- T3 (delegated writer, route: delegated, trigger: 2+ non-trivial files) done in c56e8ba5edc. Optional `manualDisplayName` (string or null, where null clears) on worktree meta, folder workspaces, the merged Worktree, `worktree.ps` rows (present only when set) and the `worktree.set` RPC. Remote writes are gated on `worktree.manual-display-name.v1`. In the one-line layout Update and Rename edit the row name inline; Detailed and Compact keep the Update dialog and `displayName`. The row shows the row name, otherwise the existing label. Collisions still compare real branches, and the hover card keeps the real branch. Mobile list rows show the row name first when set.
+- T3 verification: `pnpm tc` exit 0; targeted vitest (src/shared/worktree and the touched files) 32 files and 370 tests pass; `ORCA_CODE_QUALITY_BASE=b3b04b1f49f pnpm run check:code-quality:changed` exit 0. Not run: mobile vitest and mobile typecheck, because mobile's tsconfig cannot resolve `expo/tsconfig.base.json` in this worktree. `WorktreeCard.quick-actions.test.tsx` times out in its `beforeAll` import (20 s), alone and in the batch; not yet compared with the base commit.
 
 ## Next step
 
-T3 (manual display name, desktop and mobile data), then the cross-worktree child.
+T4 (mobile rows, sheets, status colors and failed state), then the T2 cross-worktree child.
