@@ -1,4 +1,5 @@
 import { STATUS_METHODS } from './status'
+import { BOT_TEAM_METHODS } from './bot-teams'
 import { ORCAD_TERMINAL_CENSUS_METHODS } from './orcad-terminal-census'
 import { ORCAD_MIGRATION_METHODS } from './orcad-migration'
 import { AI_VAULT_METHODS } from './ai-vault'
@@ -68,6 +69,7 @@ export const ALL_RPC_METHODS = [
   ...ORCAD_MIGRATION_METHODS,
   ...AGENT_HOOK_METHODS,
   ...AI_VAULT_METHODS,
+  ...BOT_TEAM_METHODS,
   ...ARTIFACT_METHODS,
   ...AUTOMATION_METHODS,
   ...REPO_METHODS,
