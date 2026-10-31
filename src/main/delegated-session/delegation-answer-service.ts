@@ -13,6 +13,7 @@ import {
   readStoredDelegationAgents,
   storedOptionsWithPrototypeCount
 } from './delegation-stored-request'
+import { waitForDelegationUsageRefresh } from './delegation-usage-refresh'
 
 type HostOwnedAnswer = Awaited<ReturnType<StructuredAgentSessionHostOwnedPrompts['answer']>>
 
@@ -81,6 +82,9 @@ export class DelegationAnswerService {
         reason: 'optionRejected',
         message: `Option ${input.optionId} is not offered by item ${input.itemId}.`
       }
+    }
+    if (choice.kind === 'automatic') {
+      await waitForDelegationUsageRefresh(this.deps.refreshUsage)
     }
     const claimed = db.transitionDelegationRequest(row.id, 'pending', 'starting', {
       choice: input.optionId,

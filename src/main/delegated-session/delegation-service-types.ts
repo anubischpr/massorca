@@ -21,6 +21,8 @@ export type DelegationHostDeps = {
   rows: StructuredAgentSessionHostRows
   readParent: (sessionId: string) => DelegationParentSession | null
   readRateLimits: () => RateLimitState | null
+  /** Asks this host's meters to refresh when stale; the router reads them afterwards. */
+  refreshUsage: () => Promise<void>
   now: () => number
 }
 

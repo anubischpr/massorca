@@ -75,7 +75,7 @@ describe('rankDelegationAgents', () => {
     { name: 'no fetch time', usage: { sessionPercent: 10 } },
     {
       name: 'a sample older than 15 minutes',
-      usage: { sessionPercent: 10, fetchedAt: NOW - 15 * MINUTE - 1 }
+      usage: { sessionPercent: 10, fetchedAt: NOW - 30 * MINUTE - 1 }
     },
     {
       name: 'a sample more than a minute ahead of the clock',
@@ -92,9 +92,9 @@ describe('rankDelegationAgents', () => {
     })
   })
 
-  it('treats a sample exactly 15 minutes old as fresh', () => {
+  it('treats a sample exactly 30 minutes old as fresh', () => {
     const [entry] = rank([
-      { agent: 'codex', usage: { sessionPercent: 10, fetchedAt: NOW - 15 * MINUTE } }
+      { agent: 'codex', usage: { sessionPercent: 10, fetchedAt: NOW - 30 * MINUTE } }
     ]).ranking
     expect(entry).toMatchObject({ bindingPercent: 10, noData: false })
   })

@@ -27,6 +27,7 @@ type DelegationRuntime = Pick<
   | 'getOrchestrationDb'
   | 'getExistingOrchestrationDb'
   | 'getAccountsSnapshot'
+  | 'refreshAccountsForMobileSubscriber'
   | 'getStructuredAgentSessionCreateSupport'
   | 'resolveStructuredAgentSessionLocalWorkspacePath'
 >
@@ -137,6 +138,7 @@ export function getDelegationRequestService(runtime: OrcaRuntimeService): Delega
     listAgents: (parent) => listUsableAgents(runtime, parent),
     readPrototypeCount: () => runtime.readPrototypeCountSetting(),
     readRateLimits: () => readRateLimits(runtime),
+    refreshUsage: () => runtime.refreshAccountsForMobileSubscriber(),
     now: () => Date.now()
   })
   requestServices.set(runtime, service)
@@ -154,6 +156,7 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
     rows: hostRows(),
     readParent: readParentSession,
     readRateLimits: () => readRateLimits(runtime),
+    refreshUsage: () => runtime.refreshAccountsForMobileSubscriber(),
     launch: createDelegationLauncher({
       requireDb: () => runtime.getOrchestrationDb(),
       declaredAccess: declaredAccessForStructuredAgent,
