@@ -35,6 +35,8 @@ describe('useStructuredPromptResponseHold', () => {
     const item = {
       itemId: 'i',
       revision: 1,
+      sequence: 1,
+      observedAt: 0,
       body: {
         kind: 'question' as const,
         question: 'q',
