@@ -378,7 +378,7 @@ describe('NativeChatComposer', () => {
       .filter((item) => item.kind === 'command')
       .filter((item) => item.providerFunction?.availability !== 'terminal-only')
       .map((item) => item.name)
-    expect(names).toEqual([...offered, 'resume', 'session'])
+    expect(names).toEqual([...offered, 'resume', 'session', 'prototype'])
     expect(names).not.toContain(withheld)
   })
 

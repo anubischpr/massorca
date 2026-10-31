@@ -15,6 +15,8 @@ function providerCommands(commands: readonly SlashCommandSuggestion[]) {
     (entry) =>
       entry.name !== 'resume' &&
       entry.name !== 'session' &&
+      entry.name !== 'prototype' &&
+      entry.name !== 'prototipo' &&
       !(
         entry.providerFunction?.provenance === 'orca' &&
         entry.providerFunction.execution.kind === 'terminal'
