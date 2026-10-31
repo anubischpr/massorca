@@ -15,6 +15,17 @@ import { delegationPlacementFor } from './delegation-router'
 import type { DelegationStoredAgent } from './delegation-options'
 import type { DelegationLaunchTarget } from './delegation-launch-types'
 
+export const AUTOMATIC_BRING_BACK_MARKS = [
+  'child-finishing',
+  'waiting',
+  'asked-commit',
+  'resolving',
+  'merged',
+  'undone',
+  'notice'
+] as const
+export type AutomaticBringBackMark = (typeof AUTOMATIC_BRING_BACK_MARKS)[number]
+
 const StoredOptions = z.object({
   agents: z.array(
     z.object({
@@ -63,6 +74,45 @@ export function readStoredDesignSystemMode(
 /** Whether the request was filed as a prototype task, by its own words or by the person's message. */
 export function readStoredPrototypeTask(row: DelegationRequestRow): boolean {
   return StoredPrototypeAnswers.safeParse(parseJson(row.options_json)).data?.prototype === true
+}
+
+const StoredChildGit = z.object({
+  childGit: z.object({ branch: z.string().min(1), baseSha: z.string().min(1) })
+})
+
+export type StoredChildGit = z.infer<typeof StoredChildGit>['childGit']
+
+/** The child's branch and first commit, recorded at launch; a request older than that has none. */
+export function readStoredChildGit(row: DelegationRequestRow): StoredChildGit | undefined {
+  return StoredChildGit.safeParse(parseJson(row.options_json)).data?.childGit
+}
+
+/** The stored options with the child's git identity added; every other key stays as it is. */
+export function storedOptionsWithChildGit(
+  row: DelegationRequestRow,
+  childGit: StoredChildGit
+): string {
+  const options = z.record(z.string(), z.unknown()).safeParse(parseJson(row.options_json))
+  return JSON.stringify({ ...(options.success ? options.data : {}), childGit })
+}
+
+const StoredAutomaticBringBack = z.object({
+  automaticBringBack: z.enum(AUTOMATIC_BRING_BACK_MARKS)
+})
+
+/** How far automatic bring back got; stored so a restart keeps the notice and the retry. */
+export function readStoredAutomaticBringBack(
+  row: DelegationRequestRow
+): AutomaticBringBackMark | undefined {
+  return StoredAutomaticBringBack.safeParse(parseJson(row.options_json)).data?.automaticBringBack
+}
+
+export function storedOptionsWithAutomaticBringBack(
+  row: DelegationRequestRow,
+  automaticBringBack: AutomaticBringBackMark
+): string {
+  const options = z.record(z.string(), z.unknown()).safeParse(parseJson(row.options_json))
+  return JSON.stringify({ ...(options.success ? options.data : {}), automaticBringBack })
 }
 
 /** The stored options with the card's prototype answers added; the agents stay as the card offered them. */

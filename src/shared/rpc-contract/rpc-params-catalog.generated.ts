@@ -385,6 +385,7 @@ import {
   NotificationsSubscribeParams
 } from './notifications-params'
 import { OrcadMigrationCatalogParams } from './orcad-migration-params'
+import { ChildBringBackParams } from './orchestration-child-bring-back-params'
 import { DelegateRequestParams } from './orchestration-delegate-request-params'
 import {
   FederationDispatchParams,
@@ -805,6 +806,10 @@ export const RPC_PARAMS_BY_METHOD = {
   'computer.scroll': ScrollOfComputerSchemasParams,
   'computer.setValue': SetValue,
   'computer.typeText': TypeText,
+  'delegation.bringBack': ChildBringBackParams,
+  'delegation.bringBackAbort': ChildBringBackParams,
+  'delegation.bringBackResolve': ChildBringBackParams,
+  'delegation.bringBackStatus': ChildBringBackParams,
   'diagnostics.memory': null,
   'emulator.attach': AttachParamsOfEmulatorParams,
   'emulator.availability': EmulatorAvailabilityParams,

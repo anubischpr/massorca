@@ -19,6 +19,11 @@ import type { OrchestrationDb } from '../runtime/orchestration/db'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { STRUCTURED_AGENT_RUNTIME_REGISTRATIONS } from '../runtime/structured-agent-runtime-registrations'
 import { declaredAccessForStructuredAgent } from '../runtime/rpc/methods/orchestration/worker/worker-start-access-mode'
+import type { ChildBringBackPolicy } from '../../shared/child-bring-back'
+import { launchedAccessPosture } from '../native-chat/agent-session-wire/structured-agent-session-access-posture'
+import { ChildBringBackService } from './child-bring-back'
+import { ChildBringBackAutomatic, childBringBackPolicyOf } from './child-bring-back-automatic'
+import { storedOptionsWithAutomaticBringBack } from './delegation-stored-request'
 import { DelegationAnswerService } from './delegation-answer-service'
 import { createDelegationLauncher } from './delegation-launch'
 import { discardFailedDelegatedStart } from './delegation-failed-start'
@@ -44,6 +49,8 @@ type DelegationRuntime = Pick<
 
 const requestServices = new WeakMap<object, DelegationRequestService>()
 const answerServices = new WeakMap<object, DelegationAnswerService>()
+const bringBackServices = new WeakMap<object, ChildBringBackService>()
+const bringBackAutomatics = new WeakMap<object, ChildBringBackAutomatic>()
 const reconciled = new WeakSet<object>()
 
 function requireHost(): StructuredAgentSessionHost {
@@ -210,6 +217,74 @@ export function getDelegationRequestService(runtime: OrcaRuntimeService): Delega
   return service
 }
 
+function readSessionWorkspaceId(sessionId: string): string | null {
+  return (
+    getStructuredAgentSessionHost()?.deps.store.getRecord(sessionId)?.location.workspaceId ?? null
+  )
+}
+
+async function isSessionWorking(sessionId: string): Promise<boolean> {
+  const host = getStructuredAgentSessionHost()
+  if (!host?.deps.store.getRecord(sessionId)) {
+    return false
+  }
+  const { journal } = await host.lifetime.conversation(sessionId)
+  return journal.activeTurnId() !== null
+}
+
+/** The runtime's Bring back service: git runs wherever each worktree's host is. */
+export function getChildBringBackService(runtime: OrcaRuntimeService): ChildBringBackService {
+  const existing = bringBackServices.get(runtime)
+  if (existing) {
+    return existing
+  }
+  const service = new ChildBringBackService({
+    readRequest: (requestId) => existingDb(runtime)?.getDelegationRequest(requestId),
+    readWorkspaceId: readSessionWorkspaceId,
+    isSessionWorking,
+    gitIn: (workspaceId) => runtime.openRuntimeGitWorktree(`id:${workspaceId}`),
+    tellParent: tellParentAgent,
+    warn: (message, error) => console.warn(`[delegated-session] ${message}`, error)
+  })
+  bringBackServices.set(runtime, service)
+  return service
+}
+
+function readBringBackPolicy(parentSessionId: string): ChildBringBackPolicy {
+  const host = getStructuredAgentSessionHost()
+  return childBringBackPolicyOf(
+    host ? launchedAccessPosture(host.deps, parentSessionId) : undefined
+  )
+}
+
+function getChildBringBackAutomatic(runtime: OrcaRuntimeService): ChildBringBackAutomatic {
+  const existing = bringBackAutomatics.get(runtime)
+  if (existing) {
+    return existing
+  }
+  const automatic = new ChildBringBackAutomatic({
+    service: getChildBringBackService(runtime),
+    readRequest: (requestId) => existingDb(runtime)?.getDelegationRequest(requestId),
+    listFinishedRequests: () =>
+      existingDb(runtime)?.listDelegationRequestsByStatus('finished') ?? [],
+    readWorkspaceId: readSessionWorkspaceId,
+    readPolicy: readBringBackPolicy,
+    mark: (requestId, mark) => {
+      const db = existingDb(runtime)
+      const row = db?.getDelegationRequest(requestId)
+      if (db && row) {
+        db.patchDelegationRequest(requestId, {
+          options_json: storedOptionsWithAutomaticBringBack(row, mark)
+        })
+      }
+    },
+    tellParent: tellParentAgent,
+    warn: (message, error) => console.warn(`[delegated-session] ${message}`, error)
+  })
+  bringBackAutomatics.set(runtime, automatic)
+  return automatic
+}
+
 /** The runtime's delegation answer service; its dispatch listener lives as long as the process. */
 export function getDelegationAnswerService(runtime: OrcaRuntimeService): DelegationAnswerService {
   const existing = answerServices.get(runtime)
@@ -223,6 +298,8 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
     readRateLimits: () => readRateLimits(runtime),
     refreshUsage: () => runtime.refreshAccountsForMobileSubscriber(),
     tellParent: tellParentAgent,
+    onChildSucceeded: (requestId) =>
+      void getChildBringBackAutomatic(runtime).onChildFinished(requestId),
     launch: createDelegationLauncher({
       requireDb: () => runtime.getOrchestrationDb(),
       declaredAccess: declaredAccessForStructuredAgent,
@@ -251,6 +328,18 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
           },
           failed
         ),
+      readChildGit: async (childSessionId) => {
+        const workspaceId = readSessionWorkspaceId(childSessionId)
+        const git = workspaceId && (await runtime.openRuntimeGitWorktree(`id:${workspaceId}`))
+        if (!git) {
+          return null
+        }
+        const [branch, baseSha] = await Promise.all([
+          git.run(['symbolic-ref', '--short', '-q', 'HEAD']),
+          git.run(['rev-parse', 'HEAD'])
+        ])
+        return { branch: branch.trim(), baseSha: baseSha.trim() }
+      },
       warn: (message, error) => console.warn(`[delegated-session] ${message}`, error),
       startWorker: async ({
         params,
@@ -268,7 +357,10 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
           import('../../shared/orchestration-timing-budgets')
         ])
         return startLocalWorker({
-          params: { ...params, timeoutMs: timing.resolveWorkerStartReadinessTimeoutMs(undefined) },
+          params: {
+            ...params,
+            timeoutMs: timing.resolveWorkerStartReadinessTimeoutMs(undefined)
+          },
           runtime,
           db: runtime.getOrchestrationDb(),
           run,
@@ -324,4 +416,14 @@ export function reconcileDelegationRequests(runtime: OrcaRuntimeService): void {
     .catch((error: unknown) => {
       console.warn('[delegated-session] reconciling delegation requests failed', error)
     })
+  const automatic = getChildBringBackAutomatic(runtime)
+  void automatic.reconcile()
+  getStructuredAgentSessionHost()?.subscribeTurnCompletions({
+    id: 'child-bring-back-automatic',
+    emit: (event) => {
+      if (event.type === 'completion') {
+        void automatic.onTurnEnded(event.completion.sessionId)
+      }
+    }
+  })
 }

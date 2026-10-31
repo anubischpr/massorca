@@ -12,6 +12,7 @@ import type {
   DelegationStartedPayload
 } from '../../../../shared/delegated-session-journal'
 import type { DelegatedChild } from '../../../../shared/delegated-children'
+import { NativeChatChildBringBack } from './NativeChatChildBringBack'
 import { delegatedAgentLabel, delegatedDurationText } from './delegated-child-copy'
 import { useDelegatedChild } from './delegated-children-context'
 import { useDelegatedChildTitle } from './use-delegated-child-title'
@@ -192,22 +193,18 @@ function FinishedNotice({ payload }: { payload: DelegationFinishedPayload }): Re
           {payload.resultSummary}
         </p>
       ) : null}
-      {childSessionId !== null && childWorktreeId !== null ? (
-        <div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              openStructuredChatInWorktree({
-                worktreeId: childWorktreeId,
-                sessionId: childSessionId
-              })
-            }}
-          >
-            {translate('components.native-chat.delegation.openChild', 'Open child chat')}
-          </Button>
-        </div>
-      ) : null}
+      <NativeChatChildBringBack
+        requestId={payload.requestId}
+        openChild={
+          childSessionId !== null && childWorktreeId !== null
+            ? () =>
+                openStructuredChatInWorktree({
+                  worktreeId: childWorktreeId,
+                  sessionId: childSessionId
+                })
+            : null
+        }
+      />
     </section>
   )
 }

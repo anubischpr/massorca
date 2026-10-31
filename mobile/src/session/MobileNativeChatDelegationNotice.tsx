@@ -9,6 +9,7 @@ import type {
 import type { DelegatedChild } from '../../../src/shared/delegated-children'
 import { useNow } from '../hooks/use-now'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
+import { MobileChildBringBack } from './MobileChildBringBack'
 import {
   MobileDelegatedChildContext,
   type MobileDelegatedChildAccess
@@ -123,16 +124,7 @@ function FinishedNotice({ payload }: { payload: DelegationFinishedPayload }): Re
         {delegationFinishedMeta(payload)}
       </Text>
       {payload.resultSummary ? <Text style={styles.summary}>{payload.resultSummary}</Text> : null}
-      {openChild ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Open child chat"
-          style={({ pressed }) => [styles.open, pressed && styles.pressed]}
-          onPress={openChild}
-        >
-          <Text style={styles.openText}>Open child chat</Text>
-        </Pressable>
-      ) : null}
+      <MobileChildBringBack requestId={payload.requestId} openChild={openChild} />
     </View>
   )
 }
