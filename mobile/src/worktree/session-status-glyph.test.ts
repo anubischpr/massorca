@@ -227,7 +227,7 @@ describe('foldedSectionGlyph', () => {
       linkedPR: null,
       agents,
       ...extra
-    } as Worktree
+    }
   }
 
   it('shows the needs-human mark of a placed child under the parent that is folded', () => {

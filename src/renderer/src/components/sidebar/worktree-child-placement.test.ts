@@ -10,9 +10,9 @@ import { makePaneKey } from '../../../../shared/stable-pane-id'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import { buildWorktreeAgentRows } from './worktree-agent-rows'
 import { resolveBranchRowPlacement } from './worktree-branch-row-placement'
-import { selectBranchRowCandidatesByWorktree } from './worktree-child-placement'
 import type { Worktree } from '../../../../shared/worktree/types'
 import {
+  selectBranchRowCandidatesByWorktree,
   selectCrossWorktreeChildTabs,
   selectCrossWorktreeLiveChildEntries,
   selectCrossWorktreeRetainedChildren,

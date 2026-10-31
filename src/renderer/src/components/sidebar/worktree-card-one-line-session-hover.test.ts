@@ -9,21 +9,11 @@ const APPROVAL = JSON.stringify({ approval: { tool: 'Bash', summary: 'git status
 
 describe('livePtyIdForSessionPane', () => {
   it('reads the pane leaf PTY from the store while the tab is not mounted', () => {
-    const state = {
-      terminalLayoutsByTabId: { [TAB]: { ptyIdsByLeafId: { [LEAF]: 'pty-1' } } },
-      ptyIdsByTabId: { [TAB]: ['pty-1'] }
-    }
-
-    expect(livePtyIdForSessionPane(state as never, TAB, PANE)).toBe('pty-1')
+    expect(livePtyIdForSessionPane(PANE, { [LEAF]: 'pty-1' }, ['pty-1'])).toBe('pty-1')
   })
 
   it('returns null for a stale layout PTY that is no longer live', () => {
-    const state = {
-      terminalLayoutsByTabId: { [TAB]: { ptyIdsByLeafId: { [LEAF]: 'pty-old' } } },
-      ptyIdsByTabId: { [TAB]: ['pty-new'] }
-    }
-
-    expect(livePtyIdForSessionPane(state as never, TAB, PANE)).toBeNull()
+    expect(livePtyIdForSessionPane(PANE, { [LEAF]: 'pty-old' }, ['pty-new'])).toBeNull()
   })
 })
 

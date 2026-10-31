@@ -10,7 +10,6 @@ import type { AgentStatusEntry } from '../../../../shared/agent-status-types'
 import type { AgentType } from '../../../../shared/native-chat-types'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 import { parsePaneKey } from '../../../../shared/stable-pane-id'
-import type { TerminalLayoutSnapshot } from '../../../../shared/terminal-tab-types'
 import { getHostContextLabel } from '../../../../shared/worktree/host-context-labels'
 import { useAppStore } from '@/store'
 import { findWorktreeById } from '@/store/github/worktree-refresh'
@@ -34,16 +33,13 @@ const WorktreeCardEnvironmentSection = React.lazy(() =>
  * Null when the pane has no live PTY: a stale layout id never receives an answer.
  */
 export function livePtyIdForSessionPane(
-  state: {
-    terminalLayoutsByTabId: Readonly<Record<string, TerminalLayoutSnapshot | undefined>>
-    ptyIdsByTabId: Readonly<Record<string, readonly string[] | undefined>>
-  },
-  tabId: string,
-  paneKey: string
+  paneKey: string,
+  layoutPtyIdsByLeafId: Readonly<Record<string, string>> | undefined,
+  livePtyIds: readonly string[] | undefined
 ): string | null {
   const leafId = parsePaneKey(paneKey)?.leafId
-  const ptyId = leafId ? state.terminalLayoutsByTabId[tabId]?.ptyIdsByLeafId?.[leafId] : undefined
-  return ptyId && (state.ptyIdsByTabId[tabId] ?? []).includes(ptyId) ? ptyId : null
+  const ptyId = leafId ? layoutPtyIdsByLeafId?.[leafId] : undefined
+  return ptyId && (livePtyIds ?? []).includes(ptyId) ? ptyId : null
 }
 
 /**
@@ -97,7 +93,13 @@ export function OneLineSessionHover({
 }: OneLineSessionHoverProps): React.JSX.Element {
   const hover = useWorktreeCardDetailsHoverControl()
   const contentRef = useRef<HTMLDivElement>(null)
-  const ptyId = useAppStore((s) => livePtyIdForSessionPane(s, tabId, paneKey))
+  const ptyId = useAppStore((s) =>
+    livePtyIdForSessionPane(
+      paneKey,
+      s.terminalLayoutsByTabId[tabId]?.ptyIdsByLeafId,
+      s.ptyIdsByTabId[tabId]
+    )
+  )
   const entry = useAppStore((s) => s.agentStatusByPaneKey[paneKey])
   const worktree = useAppStore((s) => (enabled ? findWorktreeById(s, worktreeId) : null))
   const repo = useAppStore((s) =>
