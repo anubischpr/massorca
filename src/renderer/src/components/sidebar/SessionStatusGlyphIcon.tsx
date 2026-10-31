@@ -29,7 +29,7 @@ export const SessionStatusGlyphIcon = React.memo(function SessionStatusGlyphIcon
           data-session-status-glyph="unread"
           aria-label={label}
         >
-          <span className="block size-1.5 rounded-full bg-amber-500" />
+          <span className="block size-1.5 rounded-full bg-status-amber" />
         </span>
       </StateIndicatorTooltip>
     )

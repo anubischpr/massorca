@@ -44,12 +44,9 @@ export function resolveWorktreeCardLayout(
 }
 
 export function getWorktreeCardModeForLayout(layout: string): WorktreeCardMode {
-  switch (normalizeWorktreeCardLayout(layout)) {
-    case 'compact':
-      return 'Compact'
-    case 'detailed':
-      return 'Default'
-    default:
-      return 'OneLine'
+  const normalized = normalizeWorktreeCardLayout(layout)
+  if (normalized === 'compact') {
+    return 'Compact'
   }
+  return normalized === 'detailed' ? 'Default' : 'OneLine'
 }
