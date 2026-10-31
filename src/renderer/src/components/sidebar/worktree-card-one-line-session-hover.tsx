@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import React, { useMemo, useRef } from 'react'
 
 import { NativeChatInteractiveCard } from '@/components/native-chat/NativeChatInteractiveCard'
 import {
@@ -14,6 +14,11 @@ import { getHostContextLabel } from '../../../../shared/worktree/host-context-la
 import { useAppStore } from '@/store'
 import { findWorktreeById } from '@/store/github/worktree-refresh'
 import { selectRuntimeAwareSshTargetLabel } from '@/store/slices/runtime-environment-ssh-selectors'
+import {
+  structuredAgentSessionOwnerForTab,
+  structuredAgentSessionTargetForHost
+} from '@/runtime/structured-agent-session-owner'
+import { isStructuredTab } from '@/components/native-chat/structured-agent-session-tabs'
 import { WorktreeCardDetailsHover } from './WorktreeCardMeta'
 import {
   useWorktreeCardDetailsHoverControl,
@@ -26,6 +31,10 @@ const WorktreeCardEnvironmentSection = React.lazy(() =>
   import('./WorktreeCardEnvironmentSection').then((module) => ({
     default: module.WorktreeCardEnvironmentSection
   }))
+)
+
+const OneLineStructuredSessionPrompt = React.lazy(
+  () => import('./worktree-card-one-line-structured-session-prompt')
 )
 
 /**
@@ -109,6 +118,21 @@ export function OneLineSessionHover({
     repo?.connectionId ? selectRuntimeAwareSshTargetLabel(s, null, repo.connectionId) : ''
   )
   const prompt = enabled ? sessionHoverPrompt({ ownGlyph, dimmed, ptyId, entry }) : null
+  // Why: a structured session has no PTY; its prompt lives in the host's journal.
+  const structuredTab = useAppStore((s) =>
+    enabled && ownGlyph === 'needs-human' && !dimmed
+      ? (s.unifiedTabsByWorktree[worktreeId] ?? []).find((tab) => tab.id === tabId)
+      : undefined
+  )
+  const structuredOwner = useAppStore((s) =>
+    structuredTab && isStructuredTab(structuredTab)
+      ? structuredAgentSessionOwnerForTab(s, structuredTab)
+      : null
+  )
+  const structuredTarget = useMemo(
+    () => structuredAgentSessionTargetForHost(structuredOwner),
+    [structuredOwner]
+  )
 
   // Why: keyboard focus inside the card keeps it open, so a choice made with the keyboard is not cut off.
   const guardedHover: WorktreeCardDetailsHoverControl = {
@@ -139,10 +163,23 @@ export function OneLineSessionHover({
     const host = repo?.connectionId
       ? sshTargetLabel || repo.displayName
       : getHostContextLabel(worktree.hostId ?? LOCAL_EXECUTION_HOST_ID)
+    const environment = (
+      <WorktreeCardEnvironmentSection worktree={worktree} repo={repo} host={host} />
+    )
     details = (
       <div ref={contentRef}>
         <React.Suspense fallback={null}>
-          <WorktreeCardEnvironmentSection worktree={worktree} repo={repo} host={host} />
+          {structuredTab?.entityId && structuredTarget ? (
+            <OneLineStructuredSessionPrompt
+              sessionId={structuredTab.entityId}
+              target={structuredTarget}
+              agent={structuredTab.agentSessionAgent ?? ''}
+              fallback={environment}
+              onDone={hover.closeHover}
+            />
+          ) : (
+            environment
+          )}
         </React.Suspense>
       </div>
     )
