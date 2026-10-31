@@ -11,7 +11,7 @@ const TEAM = {
   bots: [{ id: 'bot_1', name: 'Iris', job: '', agent: 'claude' }]
 }
 
-function clientAnswering(reply: object) {
+function clientAnswering(reply: { ok: boolean; result?: unknown; error?: unknown }) {
   return {
     sendRequest: async () => ({ id: '1', _meta: { runtimeId: 'r' }, ...reply })
   } as unknown as Parameters<typeof listMobileBotTeams>[0]
