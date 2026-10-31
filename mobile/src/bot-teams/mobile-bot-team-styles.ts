@@ -23,6 +23,7 @@ export const botTeamStyles = StyleSheet.create({
     justifyContent: 'center'
   },
   grow: { flex: 1 },
+  hidden: { display: 'none' },
   modeSwitch: {
     flexDirection: 'row',
     height: 34,

@@ -88,31 +88,40 @@ export function MobileBotTeamsScreen({
   const openTeam = screen.name === 'team' ? teams.find((t) => t.id === screen.teamId) : undefined
 
   let body
-  if (client !== null && screen.name === 'newTeam') {
+  if (client !== null && (screen.name === 'newTeam' || screen.name === 'newTeamBot')) {
+    const addingBot = screen.name === 'newTeamBot'
     body = (
       <>
-        <SubBar title="New team" onBack={backHome} />
-        <MobileNewTeamForm
-          usedCharacters={teams.map((team) => team.character)}
-          bots={draftBots}
-          onOpenAddBot={() => setScreen({ name: 'newTeamBot' })}
-          onCreate={(input) => {
-            setDraftBots([])
-            void apply(createMobileBotTeam(client, input), { name: 'home' })
-          }}
-        />
-      </>
-    )
-  } else if (screen.name === 'newTeamBot') {
-    body = (
-      <>
-        <SubBar title="Add a bot" onBack={() => setScreen({ name: 'newTeam' })} />
-        <MobileAddBotForm
-          onAdd={(bot) => {
-            setDraftBots((current) => [...current, bot])
-            setScreen({ name: 'newTeam' })
-          }}
-        />
+        {/* Stays mounted while a bot is added: the team name and choices live in this form. */}
+        <View style={addingBot ? styles.hidden : styles.grow}>
+          <SubBar
+            title="New team"
+            onBack={() => {
+              setDraftBots([])
+              backHome()
+            }}
+          />
+          <MobileNewTeamForm
+            usedCharacters={teams.map((team) => team.character)}
+            bots={draftBots}
+            onOpenAddBot={() => setScreen({ name: 'newTeamBot' })}
+            onCreate={(input) => {
+              setDraftBots([])
+              void apply(createMobileBotTeam(client, input), { name: 'home' })
+            }}
+          />
+        </View>
+        {addingBot ? (
+          <>
+            <SubBar title="Add a bot" onBack={() => setScreen({ name: 'newTeam' })} />
+            <MobileAddBotForm
+              onAdd={(bot) => {
+                setDraftBots((current) => [...current, bot])
+                setScreen({ name: 'newTeam' })
+              }}
+            />
+          </>
+        ) : null}
       </>
     )
   } else if (client !== null && screen.name === 'teamBot') {
