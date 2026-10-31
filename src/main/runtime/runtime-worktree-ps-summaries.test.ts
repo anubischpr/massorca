@@ -84,6 +84,7 @@ describe('buildRuntimeWorktreePsSummaries', () => {
       lineage: null,
       lastActivityAt: 0
     } as unknown as ResolvedWorktree
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the builder reads only these store members.
     const store = {
       getRepos: () => [{ id: 'repo-1', displayName: 'app', gitUsername: 'alice' }],
       getSettings: () => ({ branchPrefix: 'git-username', branchPrefixCustom: '' }),
@@ -118,6 +119,7 @@ describe('buildRuntimeWorktreePsSummaries', () => {
       lastActivityAt: 0
     } as unknown as ResolvedWorktree
     const withSettings = (settings: { branchPrefix: string; branchPrefixCustom: string }) =>
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the builder reads only these store members.
       ({
         getRepos: () => [{ id: 'repo-1', displayName: 'app', gitUsername: 'alice' }],
         getSettings: () => settings,
@@ -125,7 +127,6 @@ describe('buildRuntimeWorktreePsSummaries', () => {
         getAllWorktreeMeta: () => ({}),
         getFolderWorkspaces: () => [],
         getProjectGroups: () => []
-        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the builder reads only these store members.
       }) as unknown as RuntimeStore
     const prefixFor = (store: RuntimeStore) =>
       buildRuntimeWorktreePsSummaries({
@@ -140,7 +141,11 @@ describe('buildRuntimeWorktreePsSummaries', () => {
     expect(prefixFor(withSettings({ branchPrefix: 'git-username', branchPrefixCustom: '' }))).toBe(
       'alice'
     )
-    expect(prefixFor(withSettings({ branchPrefix: 'none', branchPrefixCustom: '' }))).toBeUndefined()
-    expect(prefixFor(withSettings({ branchPrefix: 'unknown', branchPrefixCustom: '' }))).toBeUndefined()
+    expect(
+      prefixFor(withSettings({ branchPrefix: 'none', branchPrefixCustom: '' }))
+    ).toBeUndefined()
+    expect(
+      prefixFor(withSettings({ branchPrefix: 'unknown', branchPrefixCustom: '' }))
+    ).toBeUndefined()
   })
 })
