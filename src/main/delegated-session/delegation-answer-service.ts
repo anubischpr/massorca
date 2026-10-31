@@ -25,6 +25,11 @@ function gone(message: string): HostOwnedAnswer {
  * Resolves the answers to agent-choice cards, from the durable request alone: a card answered after
  * a host restart finds its request in the database, not in memory.
  */
+// Why a message and not a notice: the agent reads no notice, and it ended its turn waiting for this answer.
+function delegationDeclinedMessage(title: string): string {
+  return `The user cancelled the child session "${title}". No child was started and no worktree was created. Do not request it again unless the user asks.`
+}
+
 export class DelegationAnswerService {
   private readonly lifecycle: DelegationLifecycle
 
@@ -130,7 +135,11 @@ export class DelegationAnswerService {
     }
     return {
       ok: true,
-      afterCommit: () => undefined,
+      afterCommit: () => {
+        if (cancelled) {
+          this.deps.tellParent(row.parent_session_id, delegationDeclinedMessage(row.title))
+        }
+      },
       ...(cancelled
         ? {
             rollback: () => {

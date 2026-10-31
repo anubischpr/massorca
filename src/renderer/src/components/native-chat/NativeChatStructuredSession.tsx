@@ -61,6 +61,7 @@ import { pendingPromptsAllUnanswerableHere } from '../../../../shared/agent-sess
 import { NativeChatSessionSummary } from './NativeChatSessionSummary'
 import { NativeChatStructuredPaneHeaderBar } from './NativeChatStructuredPaneHeaderBar'
 import { useStructuredSessionChildRowContext } from './use-structured-session-child-row-context'
+import { delegationRequestIdOfQuestionItem } from '../../../../shared/delegated-session-journal'
 
 export function NativeChatStructuredSession(
   props: Omit<NativeChatStructuredViewProps, 'mode'>
@@ -192,7 +193,13 @@ export function NativeChatStructuredSession(
   const composerShown = (prompt === null || promptsUnanswerable) && !readFailedFinally
   const approval = prompt?.body.kind === 'approval' ? chatApprovalFromJournal(prompt.body) : null
   const cancelPrompt = () => {
-    if (prompt && (controller.turnId || props.agent === 'pi')) {
+    // Why: a host-owned card outlives the turn that raised it, and the host resolves it with no turn.
+    if (
+      prompt &&
+      (controller.turnId ||
+        props.agent === 'pi' ||
+        delegationRequestIdOfQuestionItem(prompt.itemId) !== null)
+    ) {
       void controller.cancel(controller.turnId ?? undefined, {
         itemId: prompt.itemId,
         expectedRevision: prompt.revision

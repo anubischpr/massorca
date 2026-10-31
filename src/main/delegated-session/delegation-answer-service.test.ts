@@ -94,6 +94,7 @@ describe('DelegationAnswerService', () => {
   let rows: Row[]
   let rateLimits: RateLimitState
   let launch: DelegationLauncher
+  const tellParent = vi.fn()
   let host: DelegationHostDeps
   let requests: DelegationRequestService
   let answers: DelegationAnswerService
@@ -117,7 +118,7 @@ describe('DelegationAnswerService', () => {
       readPrototypeCount: () => ({ mode: 'always', count: 2 })
     }
     requests = new DelegationRequestService(requestDeps)
-    answers = new DelegationAnswerService({ ...host, launch, warn: vi.fn() })
+    answers = new DelegationAnswerService({ ...host, launch, tellParent, warn: vi.fn() })
   }
 
   beforeEach(() => {
@@ -356,6 +357,25 @@ describe('DelegationAnswerService', () => {
       })
     ).resolves.toMatchObject({ ok: false, reason: 'promptGone' })
     expect(launch).not.toHaveBeenCalled()
+  })
+
+  it('tells the parent agent once that the user declined, only after the journal records it', async () => {
+    tellParent.mockClear()
+    const { itemId } = await filed()
+    const cancelled = await answers.hostOwnedPrompts.cancel({ sessionId: PARENT.sessionId, itemId })
+    expect(tellParent).not.toHaveBeenCalled()
+    if (cancelled.ok) {
+      cancelled.afterCommit()
+    }
+    const again = await answers.hostOwnedPrompts.cancel({ sessionId: PARENT.sessionId, itemId })
+    if (again.ok) {
+      again.afterCommit()
+    }
+    expect(tellParent).toHaveBeenCalledTimes(1)
+    expect(tellParent).toHaveBeenCalledWith(
+      PARENT.sessionId,
+      expect.stringContaining('The user cancelled the child session')
+    )
   })
 
   it('refuses to cancel a request that was already answered', async () => {
