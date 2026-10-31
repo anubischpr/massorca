@@ -3,6 +3,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   NATIVE_CHAT_VISUAL_ANNOTATE_TYPE,
+  NATIVE_CHAT_VISUAL_MEASURE_TYPE,
+  NATIVE_CHAT_VISUAL_NATURAL_TYPE,
+  readNativeChatVisualNatural,
   NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE,
   NATIVE_CHAT_VISUAL_OVERRIDES_TYPE,
   NATIVE_CHAT_VISUAL_PINS_TYPE,
@@ -46,10 +49,10 @@ function pick(target: Element): Record<string, unknown> {
   sent.mockClear()
   send({ type: NATIVE_CHAT_VISUAL_ANNOTATE_TYPE, enabled: true })
   target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
-  const [picked] = sent.mock.calls
+  const picked = sent.mock.calls
     .map(([message]) => message)
     .filter(isRecord)
-    .filter((message) => message.type === NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE)
+    .find((message) => message.type === NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE)
   if (!isRecord(picked) || !isRecord(picked.element)) {
     throw new Error('no pick reported')
   }
@@ -142,9 +145,9 @@ describe('annotate script: design readout', () => {
     const trail = picked.trail as Record<string, unknown>[]
     expect(trail).toHaveLength(2)
     expect(trail[0]?.selector).toBe('#card')
-    expect((trail[0]?.design as Record<string, unknown>).padding).toBe(16)
+    expect(trail[0]?.design).toMatchObject({ padding: 16 })
     expect(trail[1]?.label).toBe('inside')
-    expect((trail[1]?.design as Record<string, unknown>).kind).toBe('box')
+    expect(trail[1]?.design).toMatchObject({ kind: 'box' })
   })
 
   it('accepts a pick with a design and a trail through the host reader', () => {
@@ -228,5 +231,44 @@ describe('annotate script: outline-only pins', () => {
     )
     expect(badges).toContain('7')
     expect(badges).not.toContain('1')
+  })
+})
+
+describe('annotate script: natural width', () => {
+  it('answers a measure request with the body width at max-content and the section readout', () => {
+    sent.mockClear()
+    send({ type: NATIVE_CHAT_VISUAL_MEASURE_TYPE })
+    const answer = sent.mock.calls
+      .map(([message]) => message)
+      .filter(isRecord)
+      .find((message) => message.type === NATIVE_CHAT_VISUAL_NATURAL_TYPE)
+    expect(answer).toMatchObject({ channel: CHANNEL, width: expect.any(Number) })
+    expect(
+      answer === undefined ? null : readNativeChatVisualNatural(answer, CHANNEL)?.root
+    ).toMatchObject({
+      gap: 0,
+      padding: 16
+    })
+  })
+
+  it('reads only a width in range, and drops a message on another channel', () => {
+    expect(
+      readNativeChatVisualNatural(
+        { type: NATIVE_CHAT_VISUAL_NATURAL_TYPE, channel: CHANNEL, width: -1 },
+        CHANNEL
+      )
+    ).toBeNull()
+    expect(
+      readNativeChatVisualNatural(
+        { type: NATIVE_CHAT_VISUAL_NATURAL_TYPE, channel: CHANNEL, width: 320 },
+        CHANNEL
+      )
+    ).toEqual({ width: 320 })
+    expect(
+      readNativeChatVisualNatural(
+        { type: NATIVE_CHAT_VISUAL_NATURAL_TYPE, channel: 'other', width: 320 },
+        CHANNEL
+      )
+    ).toBeNull()
   })
 })
