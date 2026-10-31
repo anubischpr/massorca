@@ -15,12 +15,14 @@ Test runner: `pnpm test`, `pnpm tc`. Approved design: https://claude.ai/artifact
 - S7. Stopped reuses the status `done` with `interrupted`; no new status state. Assumption to verify: it survives a host restart.
 - S8. Bot teams runs on the host selected in mobile; team data lives on that host. Sharing teams across hosts is out of this version.
 - S9. Code is never copied from nightly-labs/openbot (PolyForm Noncommercial) or CopilotKit/openbot; ideas only.
+- S10. Phase 2, create a task without starting it: a task can be saved as "Not started" in the Todo column, with no agent working on it, and starts only when the person says so. The task record must exist before its delegated child session is launched. Stopped stays separate: a task that started and was interrupted (S7).
+- S11. Phase 2, bots read and create tasks from the conversation: a bot in a Conference room can create a task on request and list pending tasks from the real board, not from memory.
 
 ## Tasks
 
 - [x] T0 (S2-S9) Phase 0 technical decisions, recorded in the Log (L3). Route: delegated read-only map (understanding exceeded the inline budget), then inline document. No UI, no production code.
 - [ ] T1 (S1, S2, S6) Phase 1 mode and teams. Route: to be decided.
-- [ ] T2 (S1, S2, S3, S6, S7) Phase 2 Conference room and tasks, starting with one team, one bot and one task end to end. Route: to be decided.
+- [ ] T2 (S1, S2, S3, S6, S7, S10, S11) Phase 2 Conference room and tasks, starting with one team, one bot and one task end to end. Route: to be decided.
 - [ ] T3 (S2, S4, S5) Phase 3 projects and versions. Route: to be decided.
 - [ ] T4 (S2, S5, S6) Phase 4 memory, hand-offs and integrations. Route: to be decided.
 - [ ] T5 (S2, S8) Phase 5 Workspaces option. Route: to be decided.
@@ -43,4 +45,5 @@ Test runner: `pnpm test`, `pnpm tc`. Approved design: https://claude.ai/artifact
   - Versions: the exploration in odd/research/fine-grained-versioning.md (branch claude/explore-fine-grained-versioning-250308) also recommends git, pending an owner decision; T3 reconciles with it.
 - Canvas gap for T1: the design shows restrictive permissions and a publish approval, which conflicts with S6. Adjust before implementing those screens.
 - L4 (2026-10-31), user: "Sí, empieza con la phase 1, y si utilizar sqlite no cambia nada, entonces simplemente veamos la mejor manera de trabajarlo en Git como has planteado. De acuerdo." Closes the large-binaries question for T3: git snapshots, no SQLite storage.
+- L6 (2026-10-31), user, relayed by the parent session: "yo le podría pedir a mi bot en bot team que me cree una tarea en Todo (Stopped) simplemente para ir organizándome e ir acumulando próximas tareas y que no se me olviden?" and "yo podría preguntar por las tareas que quedaron pendientes, cierto?" Approval: "Sí, agrégalas". Out of scope: the proactive Monday or next-day check-in belongs to T6, and no coordinator bot role is defined.
 - L5 (2026-10-31), T1 scope: branch claude/bot-teams-phase-1 from origin/custom/integration, so the PR leaves out the unrelated work on claude/peaceful-solomon-017ef2. Tables `bot_teams` and `bot_team_bots` (schema v44), RPC `botTeams.*` allowed on mobile, desktop view `bot-teams` with a Workspaces/Bot teams switch, all teams, new team, add a bot, team bots, a Settings pane for each team's access mode, and a mobile Teams home with the same screens. Access defaults to `full-access` (S6), so the design's "limited access" copy is dropped. The Conference room stays for T2, and the sidebar filter moves to T2 because T1 creates no workspaces.
