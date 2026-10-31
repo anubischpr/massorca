@@ -171,6 +171,24 @@ describe('listPrototypeSets design systems', () => {
     expect(listed.designSystems?.[0]?.pendingRequest?.requestId).not.toBe(otherProposal.requestId)
   })
 
+  it('keeps the system when the chat worktree is gone and the main checkout answers for the project', async () => {
+    await writeTokensIn(projectDirectory)
+    await create(SESSION, NOW, 'use')
+    const removedWorktree = join(projectDirectory, '.claude', 'worktrees', 'removed')
+
+    // The chat's own worktree no longer resolves: its project is unknown, and so is its system.
+    const lost = await listPrototypeSets({ launchDirectoryOf: () => undefined, stateDirectory })
+    expect(lost.designSystems).toBeUndefined()
+
+    const kept = await listPrototypeSets({
+      launchDirectoryOf: () => projectDirectory,
+      stateDirectory
+    })
+    expect(removedWorktree).not.toBe(projectDirectory)
+    expect(kept.designSystems).toHaveLength(1)
+    expect(kept.designSystems?.[0]).toMatchObject({ projectName: basename(projectDirectory) })
+  })
+
   it('lists no design system for a project that has no tokens.json', async () => {
     await create(OTHER_SESSION, NOW, 'propose')
 

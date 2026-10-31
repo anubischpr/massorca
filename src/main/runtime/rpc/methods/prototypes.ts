@@ -21,7 +21,10 @@ import {
   type ReadPrototypeFileResult,
   type WriteAttachmentResult
 } from '../../../../shared/rpc-contract/prototype-params'
-import { launchDirectoryOfChat } from '../../../native-chat/chat-launch-directory'
+import {
+  launchDirectoryOfChat,
+  projectDirectoryOfChat
+} from '../../../native-chat/chat-launch-directory'
 import { readDesignSystemOfLaunchDirectory } from '../../../native-chat/prototype-design-system-files'
 import { isLocalChatWorkingDirectoryGone } from '../../../native-chat/prototype-request-deletability'
 import {
@@ -140,8 +143,11 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
         ...(params.worktreeId !== undefined ? { worktreeId: params.worktreeId } : {}),
         launchDirectoryOf: async (sessionId: string) => {
           const record = host.deps.store.getRecord(sessionId)
+          // Why the repository fallback: a removed worktree no longer resolves, and its project must not vanish.
           return record && isLocalStructuredChat(record)
-            ? launchDirectoryOfChat(record, host.deps.resolveWorkspacePath)
+            ? projectDirectoryOfChat(record, host.deps.resolveWorkspacePath, (workspaceId) =>
+                ctx.runtime.resolveWorkspaceRepositoryPath(workspaceId)
+              )
             : undefined
         },
         isDeletable: (sessionId: string) => isRequestDeletable(host, sessionId),
@@ -223,7 +229,9 @@ export const STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS = [
       // Why the record: a client names a chat, and the host derives the project root from its launch directory.
       const launchDirectory =
         record && isLocalStructuredChat(record)
-          ? await launchDirectoryOfChat(record, host.deps.resolveWorkspacePath)
+          ? await projectDirectoryOfChat(record, host.deps.resolveWorkspacePath, (workspaceId) =>
+              ctx.runtime.resolveWorkspaceRepositoryPath(workspaceId)
+            )
           : undefined
       if (launchDirectory === undefined) {
         logPrototypeRefusal(
