@@ -45,10 +45,6 @@ const WINNER_REASONS: readonly DelegationReasonCode[] = [
   'fixed-order-tie'
 ]
 
-function t(key: string, fallback: string, options?: Record<string, string | number>): string {
-  return translate(`components.native-chat.delegation.${key}`, fallback, options)
-}
-
 /** Automatic first when the router has a decision, then every agent in the host's ranking order. */
 export function delegationOptionRows(card: DelegationCardPayload): DelegationOptionRow[] {
   const automatic = card.decision ? [automaticRow(card, card.decision)] : []
@@ -62,14 +58,16 @@ export function defaultDelegationOption(card: DelegationCardPayload): string | n
 
 export function delegationUsageText(usage: DelegationAgentUsage): string {
   if (usage.excluded === 'limit-reached') {
-    return t('limitReached', 'Limit reached')
+    return translate('components.native-chat.delegation.limitReached', 'Limit reached')
   }
   if (usage.noData) {
-    return t('noUsageData', 'No usage data')
+    return translate('components.native-chat.delegation.noUsageData', 'No usage data')
   }
   const used = usedText(usage)
   return usage.excluded === 'usage-limit'
-    ? t('nearLimit', '{{used}} · near its limit', { used })
+    ? translate('components.native-chat.delegation.nearLimit', '{{used}} · near its limit', {
+        used
+      })
     : used
 }
 
@@ -81,7 +79,8 @@ export function delegationBarPercent(usage: DelegationAgentUsage): number | null
 }
 
 export function modelEffortText(model: string | null, effort: string | null): string {
-  const name = model ?? t('defaultModel', 'Default model')
+  const name =
+    model ?? translate('components.native-chat.delegation.defaultModelName', 'Default model')
   return effort ? `${name} · ${effort}` : name
 }
 
@@ -92,14 +91,16 @@ export function delegationAutomaticFacts(
   const usage = decision.ranking.find((entry) => entry.agent === decision.agent)
   return [
     {
-      title: t('agent', 'Agent'),
+      title: translate('components.native-chat.delegation.agent', 'Agent'),
       value: agentLabel(card, decision.agent),
       mono: false,
       lines: [...reasonLines(decision.reasons, WINNER_REASONS), ...(usage ? usageLines(usage) : [])]
     },
     {
-      title: t('task', 'Task'),
-      value: t('tier', 'Tier {{tier}} of 5', { tier: decision.tier }),
+      title: translate('components.native-chat.delegation.task', 'Task'),
+      value: translate('components.native-chat.delegation.tier', 'Tier {{tier}} of 5', {
+        tier: decision.tier
+      }),
       mono: false,
       lines: [
         dimensionsLine(decision.dimensions),
@@ -107,13 +108,13 @@ export function delegationAutomaticFacts(
       ]
     },
     {
-      title: t('modelEffort', 'Model · effort'),
+      title: translate('components.native-chat.delegation.modelEffort', 'Model · effort'),
       value: modelEffortText(decision.model, decision.effort),
       mono: true,
       lines: reasonLines(decision.reasons, ['model-unavailable', 'effort-clamped'])
     },
     {
-      title: t('runsIn', 'Runs in'),
+      title: translate('components.native-chat.delegation.runsIn', 'Runs in'),
       value: placementText(decision.placement),
       mono: false,
       lines: placementLines(decision.placement, decision.placementWarning)
@@ -128,13 +129,13 @@ export function delegationManualFacts(
 ): DelegationFact[] {
   return [
     {
-      title: t('modelEffort', 'Model · effort'),
+      title: translate('components.native-chat.delegation.modelEffort', 'Model · effort'),
       value: modelEffortText(agent.model, agent.effort),
       mono: true,
       lines: []
     },
     {
-      title: t('runsIn', 'Runs in'),
+      title: translate('components.native-chat.delegation.runsIn', 'Runs in'),
       value: placementText(card.placement),
       mono: false,
       lines: placementLines(card.placement, card.placementWarning)
@@ -143,7 +144,11 @@ export function delegationManualFacts(
 }
 
 export function automaticPickedHeading(card: DelegationCardPayload, agentId: string): string {
-  return t('automaticPicked', 'Automatic picked {{agent}}', { agent: agentLabel(card, agentId) })
+  return translate(
+    'components.native-chat.delegation.automaticPicked',
+    'Automatic picked {{agent}}',
+    { agent: agentLabel(card, agentId) }
+  )
 }
 
 function automaticRow(
@@ -153,11 +158,16 @@ function automaticRow(
   return {
     optionId: DELEGATION_AUTOMATIC_OPTION_ID,
     agentId: null,
-    label: t('automatic', 'Automatic'),
-    usageText: t('picks', 'Picks {{agent}}', { agent: agentLabel(card, decision.agent) }),
+    label: translate('components.native-chat.delegation.automatic', 'Automatic'),
+    usageText: translate('components.native-chat.delegation.picks', 'Picks {{agent}}', {
+      agent: agentLabel(card, decision.agent)
+    }),
     excluded: false,
     barPercent: null,
-    detail: t('automaticDetail', 'Chooses by usage, then model and effort by task')
+    detail: translate(
+      'components.native-chat.delegation.automaticDetail',
+      'Chooses by usage, then model and effort by task'
+    )
   }
 }
 
@@ -180,33 +190,47 @@ function agentLabel(card: DelegationCardPayload, agentId: string): string {
 function usageLines(usage: DelegationAgentUsage): string[] {
   const percent = Math.round(usage.bindingPercent)
   if (usage.noData) {
-    return [t('countedAs', 'No usage data, counted as {{percent}}%', { percent })]
+    return [
+      translate(
+        'components.native-chat.delegation.countedAs',
+        'No usage data, counted as {{percent}}%',
+        { percent }
+      )
+    ]
   }
   if (usage.window === null) {
     return [usedText(usage)]
   }
   return [
-    t('usedFromWindow', '{{percent}}% used, from the {{window}} window', {
-      percent,
-      window: windowText(usage.window)
-    })
+    translate(
+      'components.native-chat.delegation.usedFromWindow',
+      '{{percent}}% used, from the {{window}} window',
+      {
+        percent,
+        window: windowText(usage.window)
+      }
+    )
   ]
 }
 
 function usedText(usage: DelegationAgentUsage): string {
   const percent = Math.round(usage.bindingPercent)
   return usage.monthly
-    ? t('usedThisMonth', '{{percent}}% used this month', { percent })
-    : t('usedPercent', '{{percent}}% used', { percent })
+    ? translate('components.native-chat.delegation.usedThisMonth', '{{percent}}% used this month', {
+        percent
+      })
+    : translate('components.native-chat.delegation.usedPercent', '{{percent}}% used', { percent })
 }
 
 function windowText(window: DelegationUsageWindow): string {
-  return window === 'session' ? t('fiveHour', '5h') : t('weekly', 'weekly')
+  return window === 'session'
+    ? translate('components.native-chat.delegation.fiveHour', '5h')
+    : translate('components.native-chat.delegation.weekly', 'weekly')
 }
 
 function dimensionsLine(dimensions: DelegationTaskDimensions): string {
-  return t(
-    'dimensions',
+  return translate(
+    'components.native-chat.delegation.dimensions',
     'Risk {{risk}} · Complexity {{complexity}} · Verifiability {{verifiability}} · Ambiguity {{ambiguity}}',
     {
       risk: levelText(dimensions.risk),
@@ -220,18 +244,18 @@ function dimensionsLine(dimensions: DelegationTaskDimensions): string {
 function levelText(level: DelegationDimensionLevel): string {
   switch (level) {
     case 'low':
-      return t('levelLow', 'Low')
+      return translate('components.native-chat.delegation.levelLow', 'Low')
     case 'medium':
-      return t('levelMedium', 'Medium')
+      return translate('components.native-chat.delegation.levelMedium', 'Medium')
     case 'high':
-      return t('levelHigh', 'High')
+      return translate('components.native-chat.delegation.levelHigh', 'High')
   }
 }
 
 function placementText(placement: DelegationPlacement): string {
   return placement === 'new-child'
-    ? t('newChildWorktree', 'New child worktree')
-    : t('thisWorktree', 'This worktree')
+    ? translate('components.native-chat.delegation.newChildWorktree', 'New child worktree')
+    : translate('components.native-chat.delegation.thisWorktree', 'This worktree')
 }
 
 /** The placement reason follows from the placement and its warning, so both boxes word it alike. */
@@ -265,23 +289,47 @@ function textLines(codes: readonly DelegationReasonCode[]): string[] {
 function reasonText(code: DelegationReasonCode): string | undefined {
   switch (code) {
     case 'lowest-usage':
-      return t('lowestUsage', 'Lowest usage')
+      return translate('components.native-chat.delegation.lowestUsage', 'Lowest usage')
     case 'parent-agent-tie':
-      return t('parentAgentTie', "Within 5 points of the lowest usage, so the parent's agent wins")
+      return translate(
+        'components.native-chat.delegation.parentAgentTie',
+        "Within 5 points of the lowest usage, so the parent's agent wins"
+      )
     case 'fixed-order-tie':
-      return t('fixedOrderTie', 'Tied on usage, so the fixed agent order decides')
+      return translate(
+        'components.native-chat.delegation.fixedOrderTie',
+        'Tied on usage, so the fixed agent order decides'
+      )
     case 'high-risk-tier-floor':
-      return t('riskFloor', 'High risk raises the task to tier 4')
+      return translate(
+        'components.native-chat.delegation.riskFloor',
+        'High risk raises the task to tier 4'
+      )
     case 'model-unavailable':
-      return t('modelUnavailable', 'This agent has no model for this tier, so its default runs')
+      return translate(
+        'components.native-chat.delegation.modelUnavailable',
+        'This agent has no model for this tier, so its default runs'
+      )
     case 'effort-clamped':
-      return t('effortClamped', 'Effort is lowered to what this agent supports')
+      return translate(
+        'components.native-chat.delegation.effortClamped',
+        'Effort is lowered to what this agent supports'
+      )
     case 'read-only-current-worktree':
-      return t('readOnly', 'Read-only task, so it runs in this worktree')
+      return translate(
+        'components.native-chat.delegation.readOnly',
+        'Read-only task, so it runs in this worktree'
+      )
     case 'writes-new-child-worktree':
-      return t('writes', 'Writes code, so it gets its own worktree')
+      return translate(
+        'components.native-chat.delegation.writes',
+        'Writes code, so it gets its own worktree'
+      )
     case 'folder-workspace-writes':
-      return t('folderWrites', 'Folder workspace, so writes land in this folder')
+      return translate(
+        'components.native-chat.delegation.folderWrites',
+        'Folder workspace, so writes land in this folder'
+      )
     // Shown by the usage line instead of as a reason.
     case 'no-usage-data':
       return undefined

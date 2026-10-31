@@ -282,7 +282,7 @@ export function PrototypeEditPanel({
                 bounds={FONT_SIZE_BOUNDS}
                 onCommit={(fontSize) => update((latest) => editSelected(latest, { fontSize }))}
               />
-              px
+              {translate('components.prototypes.pixelUnit', 'px')}
             </span>
           </label>
         </>
