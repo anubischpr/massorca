@@ -168,6 +168,7 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
           plan: false,
           summary: false,
           artifacts: false,
+          prototypes: false,
           quickCommands: false
         },
         environment: { branch: true, checks: false }
@@ -188,6 +189,7 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
           plan: false,
           summary: false,
           artifacts: false,
+          prototypes: false,
           quickCommands: false
         },
         environment: { branch: false, checks: false }

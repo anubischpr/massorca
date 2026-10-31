@@ -77,7 +77,9 @@ function mount(props: {
 }
 
 function textsOf(root: ReturnType<typeof mount>): string[] {
-  return root.findAllByType('Text').map((text) => String(text.props.children))
+  return root
+    .findAll((node) => String(node.type) === 'Text')
+    .map((text) => String(text.props.children))
 }
 
 describe('CreateSessionComposerRow', () => {
@@ -118,7 +120,7 @@ describe('CreateSessionComposerRow', () => {
       onSubmit: vi.fn()
     })
     expect(textsOf(root)).toContain('Antigravity · default model')
-    expect(root.findAllByType('OptionPickers')).toHaveLength(0)
+    expect(root.findAll((node) => String(node.type) === 'OptionPickers')).toHaveLength(0)
     expect(root.findByProps({ accessibilityLabel: 'Create session' })).toBeDefined()
   })
 
@@ -130,7 +132,7 @@ describe('CreateSessionComposerRow', () => {
       canSubmit: false,
       onSubmit: vi.fn()
     })
-    expect(root.findAllByType('OptionPickers')).toHaveLength(1)
+    expect(root.findAll((node) => String(node.type) === 'OptionPickers')).toHaveLength(1)
     expect(textsOf(root).some((text) => text.includes('default model'))).toBe(false)
   })
 
@@ -142,7 +144,7 @@ describe('CreateSessionComposerRow', () => {
       canSubmit: false,
       onSubmit: vi.fn()
     })
-    expect(root.findAllByType('OptionPickers')).toHaveLength(0)
+    expect(root.findAll((node) => String(node.type) === 'OptionPickers')).toHaveLength(0)
     expect(textsOf(root)).toEqual([])
   })
 
@@ -154,7 +156,7 @@ describe('CreateSessionComposerRow', () => {
       canSubmit: false,
       onSubmit: vi.fn()
     })
-    expect(root.findAllByType('OptionPickers')).toHaveLength(1)
+    expect(root.findAll((node) => String(node.type) === 'OptionPickers')).toHaveLength(1)
     expect(textsOf(root).some((text) => text.includes('default model'))).toBe(false)
   })
 
@@ -166,7 +168,7 @@ describe('CreateSessionComposerRow', () => {
       canSubmit: false,
       onSubmit: vi.fn()
     })
-    expect(root.findAllByType('OptionPickers')).toHaveLength(0)
+    expect(root.findAll((node) => String(node.type) === 'OptionPickers')).toHaveLength(0)
     expect(textsOf(root)).toContain('Antigravity · default model')
   })
 })

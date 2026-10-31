@@ -27,6 +27,7 @@ const SET = listedSet({ requestId: 'req-1', sessionId: 'session-1' })
 const CTA: NativeChatVisualPickedElement = {
   selector: 'button.cta',
   label: 'pay button',
+  htmlSnippet: '<button class="cta">Pay now</button>',
   rect: { x: 10, y: 20, width: 120, height: 40 },
   state: {
     text: 'Pay now',
@@ -78,7 +79,7 @@ function hostClient(): {
     return {
       ok: true,
       id: '2',
-      result: { ok: true, value: structuredSendResultFixture('dispatched') }
+      result: { ok: true, value: structuredSendResultFixture('accepted') }
     }
   })
   return {
@@ -248,7 +249,7 @@ describe('sendMobilePrototypeIteration', () => {
           : {
               ok: true,
               id: '2',
-              result: { ok: true, value: structuredSendResultFixture('dispatched') }
+              result: { ok: true, value: structuredSendResultFixture('accepted') }
             }
       )
       const { frame } = frameThatCaptures()
