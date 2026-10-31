@@ -90,4 +90,42 @@ describe('respondToStructuredAgentSessionPrompt count', () => {
     await respondToStructuredAgentSessionPrompt({ item, response: picked, target, mutate })
     expect(sent[0]?.fields).not.toHaveProperty('count')
   })
+
+  it('sends the design system choice with the count, and omits it when none was asked', async () => {
+    host.takesAnswers = true
+    const { sent, mutate } = recordingMutate()
+    await respondToStructuredAgentSessionPrompt({
+      item,
+      response: picked,
+      target,
+      mutate,
+      count: 3,
+      designSystem: 'propose'
+    })
+    await respondToStructuredAgentSessionPrompt({ item, response: picked, target, mutate })
+    expect(sent[0]?.fields).toMatchObject({ count: 3, designSystem: 'propose' })
+    expect(sent[1]?.fields).not.toHaveProperty('designSystem')
+  })
+
+  it('keeps the design system choice out of an approval, whose RPC is strict', async () => {
+    host.takesAnswers = true
+    const { sent, mutate } = recordingMutate()
+    await respondToStructuredAgentSessionPrompt({
+      item: {
+        ...item,
+        body: {
+          kind: 'approval',
+          title: 'Run a command',
+          detail: null,
+          options: [],
+          resolution: item.body.resolution
+        }
+      },
+      response: { kind: 'option', optionId: 'allow' },
+      target,
+      mutate,
+      designSystem: 'skip'
+    })
+    expect(sent[0]?.fields).not.toHaveProperty('designSystem')
+  })
 })

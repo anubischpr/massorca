@@ -192,12 +192,20 @@ describe('MobileNativeChatDelegationCard', () => {
         true
       ])
       await act(async () => startButton().props.onPress())
-      expect(onAnswer).toHaveBeenLastCalledWith('token-automatic', 3)
+      expect(onAnswer).toHaveBeenLastCalledWith('token-automatic', 3, undefined)
     })
 
-    it('sends no count when the person picked none, so the Settings count applies', async () => {
+    it('sends the count it shows highlighted when the person picked none', async () => {
       const onAnswer = vi.fn(async () => true)
       await mount({ onAnswer, payload: withCount })
+
+      await act(async () => startButton().props.onPress())
+      expect(onAnswer).toHaveBeenLastCalledWith('token-automatic', 2, undefined)
+    })
+
+    it('sends only the answer for a card without the group, an older host', async () => {
+      const onAnswer = vi.fn(async () => true)
+      await mount({ onAnswer })
 
       await act(async () => startButton().props.onPress())
       expect(onAnswer).toHaveBeenLastCalledWith('token-automatic')
@@ -212,6 +220,63 @@ describe('MobileNativeChatDelegationCard', () => {
       ).toBeTruthy()
       const rows = renderer!.root.findAll((node) => node.type === 'ScrollView')[0]
       expect(JSON.stringify(rows?.props.style)).toContain('"maxHeight":200')
+    })
+
+    it('asks Propose one first or Skip for a project with no design system, and sends the pick', async () => {
+      const onAnswer = vi.fn(async () => true)
+      await mount({
+        onAnswer,
+        payload: {
+          ...withCount,
+          card: {
+            ...withCount.card,
+            designSystem: { kind: 'none', projectKey: 'nexuscare', projectName: 'NexusCare' }
+          }
+        }
+      })
+      const systemRadios = () =>
+        renderer!.root
+          .findAllByProps({ accessibilityRole: 'radio' })
+          .filter((radio) =>
+            ['Propose one first', 'Skip'].includes(String(radio.props.accessibilityLabel))
+          )
+      expect(systemRadios().map((radio) => radio.props.accessibilityLabel)).toEqual([
+        'Propose one first',
+        'Skip'
+      ])
+      expect(systemRadios().map((radio) => radio.props.accessibilityState.checked)).toEqual([
+        true,
+        false
+      ])
+
+      await act(async () => systemRadios()[1]!.props.onPress())
+      await act(async () => startButton().props.onPress())
+      expect(onAnswer).toHaveBeenLastCalledWith('token-automatic', 2, 'skip')
+    })
+
+    it('uses an existing design system by default', async () => {
+      const onAnswer = vi.fn(async () => true)
+      await mount({
+        onAnswer,
+        payload: {
+          ...delegation,
+          card: {
+            ...card,
+            designSystem: {
+              kind: 'existing',
+              projectKey: 'nexuscare',
+              projectName: 'NexusCare',
+              version: 1,
+              tokenCount: 24,
+              sourceNames: ['main.css'],
+              swatches: []
+            }
+          }
+        }
+      })
+      expect(texts()).toContain('Design system · NexusCare')
+      await act(async () => startButton().props.onPress())
+      expect(onAnswer).toHaveBeenLastCalledWith('token-automatic', undefined, 'use')
     })
 
     it('draws no count question for a task that asks for no prototype', async () => {

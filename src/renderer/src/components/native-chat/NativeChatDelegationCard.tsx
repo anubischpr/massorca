@@ -5,12 +5,18 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { translate } from '@/i18n/i18n'
 import { AgentIcon } from '@/lib/agent-catalog'
 import { cn } from '@/lib/utils'
+import { useAppStore } from '@/store'
 import type { AgentSessionPromptResponse } from '../../../../shared/agent-session-question-answer'
 import {
   DELEGATION_AUTOMATIC_OPTION_ID,
   delegationAgentOptionId,
   type DelegationCardPayload
 } from '../../../../shared/delegated-session-journal'
+import {
+  defaultDelegationDesignSystemMode,
+  delegationCountDefault
+} from '../../../../shared/delegation-prototype-choices'
+import type { PrototypeDesignSystemMode } from '../../../../shared/prototype-design-system-files'
 import { isTuiAgent } from '../../../../shared/tui-agent-config'
 import {
   automaticPickedHeading,
@@ -21,7 +27,12 @@ import {
   type DelegationFact,
   type DelegationOptionRow
 } from './native-chat-delegation-card-model'
+import {
+  DelegationCountChoices,
+  DelegationDesignSystemChoices
+} from './NativeChatDelegationPrototypeChoices'
 import { useNativeChatPromptCardFocus } from './use-native-chat-prompt-card-focus'
+import { openPrototypeDesignSystem } from '../prototypes/open-prototype-design-system'
 
 /**
  * The host's agent-choice card for a delegated session: each agent with its usage, and the "why"
@@ -40,7 +51,11 @@ export function NativeChatDelegationCard({
   question: string
   questionId: string
   isSubmitting?: boolean
-  onAnswer: (response: AgentSessionPromptResponse, count?: number) => void
+  onAnswer: (
+    response: AgentSessionPromptResponse,
+    count?: number,
+    designSystem?: PrototypeDesignSystemMode
+  ) => void
   onCancel: () => void
   shouldFocus?: boolean
 }): React.JSX.Element {
@@ -50,6 +65,15 @@ export function NativeChatDelegationCard({
   const rows = delegationOptionRows(body)
   const [selectedId, setSelectedId] = useState<string | null>(() => defaultDelegationOption(body))
   const [pickedCount, setPickedCount] = useState<number | null>(null)
+  const [pickedSystem, setPickedSystem] = useState<PrototypeDesignSystemMode | null>(null)
+  // Why the viewer's Settings: a paired client edits its own, so the host's default may be another number.
+  const viewerCount = useAppStore((state) => state.settings?.prototypeCount?.count)
+  const shownCount = body.prototypeCount
+    ? (pickedCount ?? delegationCountDefault(body.prototypeCount, viewerCount))
+    : undefined
+  const shownSystem = body.designSystem
+    ? (pickedSystem ?? defaultDelegationDesignSystemMode(body.designSystem))
+    : undefined
   const detail = selectedDetail(body, selectedId)
   const start = (): void => {
     if (selectedId === null || isSubmitting) {
@@ -59,11 +83,12 @@ export function NativeChatDelegationCard({
       kind: 'answers',
       answers: [{ questionId, optionIds: [selectedId] }]
     }
-    // Why: a count is sent only when the person picked one; otherwise the host keeps the Settings count.
-    if (pickedCount === null) {
+    // Why: a group the card draws sends what it shows highlighted, so the answer is what the person saw;
+    // a card without the group (an older host) sends nothing and the host keeps its defaults.
+    if (shownCount === undefined && shownSystem === undefined) {
       onAnswer(response)
     } else {
-      onAnswer(response, pickedCount)
+      onAnswer(response, shownCount, shownSystem)
     }
   }
 
@@ -110,9 +135,23 @@ export function NativeChatDelegationCard({
             {body.prototypeCount ? (
               <DelegationCountChoices
                 choices={body.prototypeCount.choices}
-                highlighted={pickedCount ?? body.prototypeCount.defaultCount}
+                highlighted={shownCount ?? body.prototypeCount.defaultCount}
                 disabled={isSubmitting}
                 onChoose={setPickedCount}
+              />
+            ) : null}
+            {body.designSystem && shownSystem ? (
+              <DelegationDesignSystemChoices
+                card={body.designSystem}
+                count={shownCount ?? body.prototypeCount?.defaultCount ?? 2}
+                highlighted={shownSystem}
+                disabled={isSubmitting}
+                onChoose={setPickedSystem}
+                onReview={() => {
+                  if (body.designSystem) {
+                    openPrototypeDesignSystem(body.designSystem.projectKey)
+                  }
+                }}
               />
             ) : null}
             {detail ? <DelegationFacts heading={detail.heading} facts={detail.facts} /> : null}
@@ -198,41 +237,6 @@ function DelegationOptionTile({
         <span className="block truncate text-xs text-muted-foreground">{row.detail}</span>
       </span>
     </label>
-  )
-}
-
-/** How many prototypes the task asks for; the highlighted count is the one the answer sends. */
-function DelegationCountChoices({
-  choices,
-  highlighted,
-  disabled,
-  onChoose
-}: {
-  choices: readonly number[]
-  highlighted: number
-  disabled: boolean
-  onChoose: (count: number) => void
-}): React.JSX.Element {
-  const title = translate('components.prototypes.ask.title', 'How many prototypes?')
-  return (
-    <div role="group" aria-label={title} className="space-y-2">
-      <p className="text-sm font-medium text-foreground">{title}</p>
-      <div className="flex gap-2">
-        {choices.map((count) => (
-          <Button
-            key={count}
-            type="button"
-            variant={count === highlighted ? 'default' : 'outline'}
-            aria-pressed={count === highlighted}
-            className="flex-1"
-            disabled={disabled}
-            onClick={() => onChoose(count)}
-          >
-            {count}
-          </Button>
-        ))}
-      </div>
-    </div>
   )
 }
 

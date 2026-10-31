@@ -1,3 +1,4 @@
+import type { PrototypeSystemCard } from '../../shared/prototype-design-system-card'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   AgentJournalItemBody,
@@ -284,7 +285,7 @@ describe('DelegationRequestService.request', () => {
       expect(cardPayload().prototypeCount).toBeUndefined()
     })
 
-    const EXISTING_SYSTEM = {
+    const EXISTING_SYSTEM: PrototypeSystemCard = {
       kind: 'existing',
       projectKey: 'nexuscare',
       projectName: 'NexusCare',
@@ -292,7 +293,7 @@ describe('DelegationRequestService.request', () => {
       tokenCount: 24,
       sourceNames: ['main.css'],
       swatches: ['#111111', '#ffffff', '#888888', '#22aa55']
-    } as const
+    }
 
     it('asks the design system for a keyword task, with the project system the host read', async () => {
       const read = vi.fn(async () => EXISTING_SYSTEM)
@@ -304,7 +305,11 @@ describe('DelegationRequestService.request', () => {
     })
 
     it('asks the design system for a command under the always setting, which asks no count', async () => {
-      const none = { kind: 'none', projectKey: 'nexuscare', projectName: 'NexusCare' } as const
+      const none: PrototypeSystemCard = {
+        kind: 'none',
+        projectKey: 'nexuscare',
+        projectName: 'NexusCare'
+      }
       await new DelegationRequestService({
         ...deps,
         readDesignSystemCard: async () => none

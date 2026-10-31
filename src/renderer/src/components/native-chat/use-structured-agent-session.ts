@@ -14,6 +14,7 @@ import {
 import { structuredAgentSessionStopControl } from './structured-agent-session-stop-control'
 import type { AgentSessionPromptResponse } from '../../../../shared/agent-session-question-answer'
 import { respondToStructuredAgentSessionPrompt } from './structured-agent-session-prompt-response'
+import type { PrototypeDesignSystemMode } from '../../../../shared/prototype-design-system-files'
 import {
   pendingStructuredSessionPrompts,
   type StructuredPromptItem
@@ -319,8 +320,20 @@ export function useStructuredAgentSession(args: {
     },
     stopBackgroundTask,
     backgroundStops,
-    respond: (item: StructuredPromptItem, response: AgentSessionPromptResponse, count?: number) =>
-      respondToStructuredAgentSessionPrompt({ item, response, target, mutate, count }),
+    respond: (
+      item: StructuredPromptItem,
+      response: AgentSessionPromptResponse,
+      count?: number,
+      designSystem?: PrototypeDesignSystemMode
+    ) =>
+      respondToStructuredAgentSessionPrompt({
+        item,
+        response,
+        target,
+        mutate,
+        count,
+        designSystem
+      }),
     optionSnapshot,
     optionSurface,
     sessionCommands: transportEnabled ? (state.commands ?? undefined) : undefined,

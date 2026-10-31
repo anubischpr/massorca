@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import type { PrototypeDesignSystemMode } from '../../../src/shared/prototype-design-system-files'
 import type { AgentSessionPromptResult } from '../../../src/shared/agent-session-wire'
 import type { AgentJournalQuestionItem } from '../../../src/shared/agent-session-journal-types'
 import {
@@ -38,7 +39,11 @@ export function useMobileStructuredPromptResponses(args: {
 }): {
   groupedDraft: GroupedQuestionDraft | null
   respondPermission: (optionId: string) => Promise<boolean>
-  respondQuestion: (answer: string, count?: number) => Promise<boolean>
+  respondQuestion: (
+    answer: string,
+    count?: number,
+    designSystem?: PrototypeDesignSystemMode
+  ) => Promise<boolean>
 } {
   const { mutate, onSendError, questionAnswersSupported, sessionKey, stateRef } = args
   // Partially answered grouped question, held only until its last step is submitted. The session it
@@ -78,10 +83,14 @@ export function useMobileStructuredPromptResponses(args: {
       target: { itemId: string; expectedRevision: number },
       body: Pick<AgentJournalQuestionItem, 'questions'>,
       answers: AgentSessionQuestionAnswer[],
-      count?: number
+      count?: number,
+      designSystem?: PrototypeDesignSystemMode
     ): Promise<StructuredAgentSessionMutationResult<AgentSessionPromptResult> | null> => {
-      // Only a delegation card's single answer carries a count.
-      const countField = count === undefined ? {} : { count }
+      // Only a delegation card's single answer carries a count and a design system choice.
+      const countField = {
+        ...(count === undefined ? {} : { count }),
+        ...(designSystem === undefined ? {} : { designSystem })
+      }
       const send = (fields: Record<string, unknown>) =>
         mutate<AgentSessionPromptResult>(
           'agentSession.respondToQuestion',
@@ -109,7 +118,11 @@ export function useMobileStructuredPromptResponses(args: {
   )
 
   const respondQuestion = useCallback(
-    async (answer: string, count?: number): Promise<boolean> => {
+    async (
+      answer: string,
+      count?: number,
+      designSystem?: PrototypeDesignSystemMode
+    ): Promise<boolean> => {
       const prompt = stateRef.current.items.find(pendingStructuredQuestion) ?? null
       if (prompt?.body.questions) {
         const promptKey = groupedQuestionPromptKey(prompt.itemId, prompt.revision)
@@ -157,7 +170,8 @@ export function useMobileStructuredPromptResponses(args: {
         // Grouped questions returned above, so this is a single question.
         {},
         [target.answer],
-        count
+        count,
+        designSystem
       )
       if (!result) {
         return false

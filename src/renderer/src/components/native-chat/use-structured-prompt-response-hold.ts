@@ -16,12 +16,14 @@ export function useStructuredPromptResponseHold(respond: Respond): {
 } {
   const [heldKey, setHeldKey] = useState<string | null>(null)
   const holdingRespond = useCallback<Respond>(
-    async (item, response) => {
+    async (item, response, count, designSystem) => {
       const key = promptKey(item)
       setHeldKey(key)
       const release = (): void => setHeldKey((held) => (held === key ? null : held))
       try {
-        const result = await respond(item, response)
+        // Why forwarded: a delegation card's count and design system ride the answer, and dropping them here
+        // sends the host's defaults whatever the card showed.
+        const result = await respond(item, response, count, designSystem)
         if (result === null) {
           release()
         }

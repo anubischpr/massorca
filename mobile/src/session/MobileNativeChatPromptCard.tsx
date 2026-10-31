@@ -1,4 +1,5 @@
 import { StyleSheet, View } from 'react-native'
+import type { PrototypeDesignSystemMode } from '../../../src/shared/prototype-design-system-files'
 import type { AskAnswerSelection, AskPrompt } from '../../../src/shared/native-chat-ask'
 import { MobileNativeChatAsk } from './MobileNativeChatAsk'
 import { MobileNativeChatDelegationCard } from './MobileNativeChatDelegationCard'
@@ -41,7 +42,11 @@ export function MobileNativeChatPromptCard({
   permission?: MobileChatPermission | null
   onRespondPermission?: (send: string) => Promise<boolean>
   question?: MobileChatQuestion | null
-  onAnswerQuestion?: (text: string, count?: number) => Promise<boolean>
+  onAnswerQuestion?: (
+    text: string,
+    count?: number,
+    designSystem?: PrototypeDesignSystemMode
+  ) => Promise<boolean>
 }): React.JSX.Element | null {
   const card = ask ? (
     <MobileNativeChatAsk

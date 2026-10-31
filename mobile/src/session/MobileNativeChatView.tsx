@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import type { PrototypeDesignSystemMode } from '../../../src/shared/prototype-design-system-files'
 import {
   ActivityIndicator,
   FlatList,
@@ -143,7 +144,11 @@ type Props = ComposerTrayProps & {
   onCollapsePrompt?: () => void
   collapsedPrompt?: { title: string; expand: () => void } | null
   question?: MobileChatQuestion | null
-  onAnswerQuestion?: (text: string, count?: number) => Promise<boolean>
+  onAnswerQuestion?: (
+    text: string,
+    count?: number,
+    designSystem?: PrototypeDesignSystemMode
+  ) => Promise<boolean>
   permission?: MobileChatPermission | null
   promptKey?: string | null
   onRespondPermission?: (send: string) => Promise<boolean>

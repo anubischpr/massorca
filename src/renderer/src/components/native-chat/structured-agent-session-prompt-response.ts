@@ -5,6 +5,7 @@ import {
   type AgentSessionPromptResponse
 } from '../../../../shared/agent-session-question-answer'
 import type { AgentSessionPromptResult } from '../../../../shared/agent-session-wire'
+import type { PrototypeDesignSystemMode } from '../../../../shared/prototype-design-system-files'
 import type { StructuredPromptItem } from './structured-agent-session-message-projection'
 import type { StructuredAgentSessionMutate } from './use-structured-agent-session-mutate'
 
@@ -13,7 +14,8 @@ export async function respondToStructuredAgentSessionPrompt({
   response,
   target,
   mutate,
-  count
+  count,
+  designSystem
 }: {
   item: Pick<StructuredPromptItem, 'itemId' | 'revision' | 'body'>
   response: AgentSessionPromptResponse
@@ -21,10 +23,18 @@ export async function respondToStructuredAgentSessionPrompt({
   mutate: StructuredAgentSessionMutate
   /** The prototype count a delegated task's card picked; only a question's answer carries it. */
   count?: number
+  /** The design system choice a delegated task's card picked; only a question's answer carries it. */
+  designSystem?: PrototypeDesignSystemMode
 }): Promise<AgentSessionPromptResult | null> {
   const promptTarget = { itemId: item.itemId, expectedRevision: item.revision }
   // Why: approvals take no count (their RPC is strict), so the field rides only a question's answer.
-  const countField = count === undefined || item.body.kind !== 'question' ? {} : { count }
+  const countField =
+    item.body.kind !== 'question'
+      ? {}
+      : {
+          ...(count === undefined ? {} : { count }),
+          ...(designSystem === undefined ? {} : { designSystem })
+        }
   let fields: Record<string, unknown>
   if (response.kind === 'option') {
     fields = { ...promptTarget, optionId: response.optionId }
