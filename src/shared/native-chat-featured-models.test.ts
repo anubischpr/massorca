@@ -186,7 +186,7 @@ describe('splitFeaturedModels', () => {
     ])
   })
 
-  it('shows a folded model under its live label and description only', () => {
+  it('shows a folded model as its prototype name, with the version and the live description', () => {
     const split = splitFeaturedModels(
       [
         { value: 'opus', label: 'Opus' },
@@ -196,9 +196,60 @@ describe('splitFeaturedModels', () => {
       'claude'
     )
     expect(split?.more.map((row) => row.display)).toEqual([
-      { name: 'Opus (1M context)', detail: 'Live 1M text' },
-      { name: 'Sonnet (1M context)', detail: undefined }
+      { name: 'Opus 1M', detail: '5.5 · Live 1M text' },
+      { name: 'Sonnet 1M', detail: '5.5 · Sonnet with a 1M context window' }
     ])
+  })
+
+  it('reads a Codex label that carries its version as the prototype name and version line', () => {
+    const split = splitFeaturedModels(CODEX_CHOICES, 'codex')
+    expect(split?.more.map((row) => row.display)).toEqual([
+      { name: 'Sol', detail: '6 · Previous generation workhorse model' },
+      { name: 'Luna', detail: '5.6 · Older fast and efficient model' },
+      { name: 'GPT-5.5', detail: undefined }
+    ])
+  })
+
+  it('splits an unlisted folded label at its trailing version and reads the rest whole', () => {
+    const split = splitFeaturedModels(
+      [
+        { value: 'opus', label: 'Opus' },
+        { value: 'claude-opus-5-5', label: 'Opus 5.5' },
+        { value: 'default', label: 'Default (recommended)' }
+      ],
+      'claude'
+    )
+    expect(split?.more.map((row) => row.display)).toEqual([
+      { name: 'Opus', detail: '5.5' },
+      { name: 'Default (recommended)', detail: undefined }
+    ])
+  })
+
+  it('keeps an unfamiliar folded label whole rather than guessing its name', () => {
+    const split = splitFeaturedModels(
+      [
+        { value: 'gpt-6-astra', label: 'GPT-6 Astra' },
+        { value: 'gpt-5.6-luna-pro', label: 'GPT-5.6 Luna Pro', description: 'Live pro text' },
+        { value: 'gpt-7-nova', label: 'GPT-7 Nova' }
+      ],
+      'codex'
+    )
+    expect(split?.more.map((row) => row.display)).toEqual([
+      { name: 'GPT-5.6 Luna Pro', detail: 'Live pro text' },
+      { name: 'GPT-7 Nova', detail: undefined }
+    ])
+  })
+
+  it('keeps the selected folded model in the main list under its prototype name', () => {
+    const split = splitFeaturedModels(
+      [
+        { value: 'opus', label: 'Opus' },
+        { value: 'opus[1m]', label: 'Opus (1M context)' }
+      ],
+      'claude',
+      'opus[1m]'
+    )
+    expect(split?.featured.map((row) => row.display.name)).toEqual(['Opus', 'Opus 1M'])
   })
 
   it('reads a featured model as its name alone, with the version on the detail line', () => {
@@ -208,7 +259,14 @@ describe('splitFeaturedModels', () => {
     })
     expect(
       featuredModelDisplay({ value: 'opus[1m]', label: 'Opus (1M context)' }, 'claude')
-    ).toEqual({ name: 'Opus (1M context)', detail: undefined })
+    ).toEqual({ name: 'Opus 1M', detail: '5.5 · Opus with a 1M context window' })
+  })
+
+  it('reads a model of an agent with no featured set as its raw label', () => {
+    expect(featuredModelDisplay({ value: 'foo', label: 'Foo 2' }, null)).toEqual({
+      name: 'Foo 2',
+      detail: undefined
+    })
   })
 
   it('shows a Gentle Shell model with its version and description', () => {

@@ -660,7 +660,7 @@ describe('MobileNativeChatSessionOptionPickers', () => {
     await act(async () => control('Model').props.onPress())
     expect(rowByText('Opus').props.accessibilityState).toMatchObject({ checked: true })
     expect(control('More models').props.accessibilityLabel).toBe('More models, 3')
-    expect(() => rowByText('Opus (1M context)')).toThrow('No row labeled Opus (1M context)')
+    expect(() => rowByText('Opus 1M')).toThrow('No row labeled Opus 1M')
   })
 
   it('opens More models, picks a folded model there, and applies it', async () => {
@@ -669,7 +669,7 @@ describe('MobileNativeChatSessionOptionPickers', () => {
     await act(async () => control('More models').props.onPress())
     expect(texts()).toContain('More models')
     expect(controls('More models')).toHaveLength(0)
-    await act(async () => rowByText('Sonnet (1M context)').props.onPress())
+    await act(async () => rowByText('Sonnet 1M').props.onPress())
     expect(setOption).toHaveBeenCalledWith('model', 'sonnet[1m]')
   })
 
@@ -685,7 +685,7 @@ describe('MobileNativeChatSessionOptionPickers', () => {
   it('keeps the selected folded model featured and counts only the rest under More models', async () => {
     mount([claudeModels('sonnet[1m]')], false, 'claude')
     await act(async () => control('Model').props.onPress())
-    expect(rowByText('Sonnet (1M context)').props.accessibilityState).toMatchObject({
+    expect(rowByText('Sonnet 1M').props.accessibilityState).toMatchObject({
       checked: true
     })
     expect(control('More models').props.accessibilityLabel).toBe('More models, 2')

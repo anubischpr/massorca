@@ -165,7 +165,7 @@ describe('CreateChatAgentChip', () => {
 
     expect(screen.getByRole('menuitemradio', { name: /^Opus/ })).toBeTruthy()
     expect(screen.getByRole('menuitemradio', { name: /^Haiku/ })).toBeTruthy()
-    expect(screen.queryByRole('menuitemradio', { name: 'sonnet[1m]' })).toBeNull()
+    expect(screen.queryByRole('menuitemradio', { name: /^Sonnet 1M/ })).toBeNull()
     expect(
       screen.getByRole('menuitem', { name: 'More models' }).getAttribute('aria-expanded')
     ).toBe('false')
@@ -182,7 +182,7 @@ describe('CreateChatAgentChip', () => {
     expect(
       screen.getByRole('menuitem', { name: 'More models' }).getAttribute('aria-expanded')
     ).toBe('true')
-    expect(screen.getByRole('menuitemradio', { name: 'sonnet[1m]' })).toBeTruthy()
+    expect(screen.getByRole('menuitemradio', { name: /^Sonnet 1M/ })).toBeTruthy()
     expect(menuIsOpen()).toBe(true)
   })
 
