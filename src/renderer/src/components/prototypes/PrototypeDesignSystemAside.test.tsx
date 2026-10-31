@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import '@testing-library/jest-dom/vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { parseComponentsHtml } from '../../../../shared/prototype-design-system-components'
@@ -272,3 +272,134 @@ describe('PrototypeDesignSystemAside component selection', () => {
     expect(lastUpdate(update, emptyDesignSystemViewState()).draft.removed).toEqual({ Button: true })
   })
 })
+
+const BUTTON_READOUT = {
+  kind: 'button' as const,
+  fill: '#2563eb',
+  color: '#ffffff',
+  border: 'transparent',
+  borderWidth: 0,
+  radius: 10,
+  shadow: 'none',
+  width: { value: 120, unit: 'px' as const },
+  height: { value: 36, unit: 'px' as const },
+  padding: 12,
+  gap: 0,
+  fontFamily: 'system-ui,sans-serif',
+  fontSize: 15,
+  lineHeight: 1.2,
+  bold: true,
+  italic: false,
+  underline: false,
+  align: 'left' as const
+}
+
+describe('PrototypeDesignSystemAside element selection', () => {
+  afterEach(cleanup)
+
+  it('shows the picked element with its file values and a breadcrumb back to the component', () => {
+    renderAside({
+      state: {
+        selection: {
+          kind: 'component',
+          name: 'Button',
+          element: {
+            locator: 'span:nth-of-type(1)',
+            label: 'save',
+            readout: BUTTON_READOUT,
+            trail: [{ locator: '.', label: 'Button', readout: BUTTON_READOUT }]
+          }
+        }
+      }
+    })
+    const crumbs = screen.getByRole('navigation', { name: 'Breadcrumb' })
+    expect(within(crumbs).getByText('save')).toHaveAttribute('aria-current', 'true')
+    expect(within(crumbs).getByRole('button', { name: 'Button' })).toBeInTheDocument()
+    expect(screen.getByText('Border width')).toBeInTheDocument()
+    expect(screen.getByText('Text is never edited here: only its style is.')).toBeInTheDocument()
+  })
+
+  it('writes the element edit into the draft, and writes nothing when set back to the file value', () => {
+    const element = {
+      locator: 'span:nth-of-type(1)',
+      label: 'save',
+      readout: BUTTON_READOUT,
+      trail: []
+    }
+    const { update } = renderAside({
+      state: { selection: { kind: 'component', name: 'Button', element } }
+    })
+    fireEvent.change(firstOf(screen.getAllByRole('textbox', { name: 'Hex' })), {
+      target: { value: '#123456' }
+    })
+    expect(
+      lastUpdate(update, emptyDesignSystemViewState()).draft.comps.Button?.elements?.[
+        'span:nth-of-type(1)'
+      ]?.edits.fill
+    ).toBe('#123456')
+  })
+
+  it('drops an element edit when its value is set back to the file value', () => {
+    const element = {
+      locator: 'span:nth-of-type(1)',
+      label: 'save',
+      readout: BUTTON_READOUT,
+      trail: []
+    }
+    const edited = {
+      ...emptyDesignSystemViewState(),
+      selection: { kind: 'component' as const, name: 'Button', element },
+      draft: {
+        values: {},
+        comps: {
+          Button: {
+            elements: { 'span:nth-of-type(1)': { label: 'save', edits: { fill: '#123456' } } }
+          }
+        },
+        notes: {},
+        removed: {},
+        added: []
+      }
+    }
+    const back = renderAside({ state: edited })
+    fireEvent.change(firstOf(screen.getAllByRole('textbox', { name: 'Hex' })), {
+      target: { value: '#2563eb' }
+    })
+    expect(lastUpdate(back.update, edited).draft.comps.Button).toBeUndefined()
+  })
+
+  it('breadcrumb steps back up to the whole component', async () => {
+    const user = userEvent.setup()
+    const { update } = renderAside({
+      state: {
+        selection: {
+          kind: 'component',
+          name: 'Button',
+          element: {
+            locator: 'span:nth-of-type(1)',
+            label: 'save',
+            readout: BUTTON_READOUT,
+            trail: [{ locator: '.', label: 'Button', readout: BUTTON_READOUT }]
+          }
+        }
+      }
+    })
+    await user.click(
+      within(screen.getByRole('navigation', { name: 'Breadcrumb' })).getByRole('button', {
+        name: 'Button'
+      })
+    )
+    expect(lastUpdate(update, emptyDesignSystemViewState()).selection).toEqual({
+      kind: 'component',
+      name: 'Button'
+    })
+  })
+})
+
+function firstOf(elements: HTMLElement[]): HTMLElement {
+  const [first] = elements
+  if (first === undefined) {
+    throw new Error('missing element')
+  }
+  return first
+}

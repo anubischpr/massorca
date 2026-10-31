@@ -12,6 +12,9 @@ import {
 } from '../../../../shared/native-chat-visual-shell'
 import {
   nativeChatVisualAnnotateMessages,
+  nativeChatVisualMeasureMessage,
+  readNativeChatVisualNatural,
+  type NativeChatVisualNatural,
   type NativeChatVisualAnnotateEvent,
   type NativeChatVisualAnnotateState
 } from '../../../../shared/native-chat-visual-annotate'
@@ -55,7 +58,10 @@ export function NativeChatVisualFrame({
   themeScope,
   onRetired,
   annotate,
-  onAnnotateEvent
+  onAnnotateEvent,
+  strictScripts = false,
+  onNatural,
+  minHeight
 }: {
   document: NativeChatVisualDocument
   title: string
@@ -63,6 +69,15 @@ export function NativeChatVisualFrame({
   /** An element already mounted where the frame sits, so the first paint wears that scope's theme. */
   themeScope: RefObject<Element | null>
   onRetired: () => void
+  /**
+   * Only the shell's own scripts run, under a per-build nonce, so the markup runs no script of its own.
+   * Fixed per mount, like `annotate`.
+   */
+  strictScripts?: boolean
+  /** Gets the frame's natural width and section readout after each measure request. */
+  onNatural?: (natural: NativeChatVisualNatural) => void
+  /** The floor of an inline frame's height; the chat visual's own floor when not given. */
+  minHeight?: number
   /**
    * Given, the frame is built with the element-annotate script and reports picks and pin clicks to
    * `onAnnotateEvent`. Whether it is given is fixed per mount; its value may change at any time.
@@ -80,10 +95,12 @@ export function NativeChatVisualFrame({
   const annotateCapable = annotate !== undefined
   const annotateRef = useRef(annotate)
   const onAnnotateEventRef = useRef(onAnnotateEvent)
+  const onNaturalRef = useRef(onNatural)
   useLayoutEffect(() => {
     annotateRef.current = annotate
     onAnnotateEventRef.current = onAnnotateEvent
-  }, [annotate, onAnnotateEvent])
+    onNaturalRef.current = onNatural
+  }, [annotate, onAnnotateEvent, onNatural])
   const [height, setHeight] = useState(NATIVE_CHAT_VISUAL_RESERVED_HEIGHT)
   const loadsRef = useRef(0)
   // The latest later load still awaiting an answer, and the timer that retires the frame.
@@ -98,14 +115,15 @@ export function NativeChatVisualFrame({
         html: visual.html,
         channel,
         theme: themeRef.current,
-        annotate: annotateCapable
+        annotate: annotateCapable,
+        scriptNonce: strictScripts ? newChannel() : undefined
       })
     }
-  }, [visual.html, annotateCapable])
+  }, [visual.html, annotateCapable, strictScripts])
 
   useEffect(() => {
     loadsRef.current = 0
-    const governor = createNativeChatVisualHeightGovernor()
+    const governor = createNativeChatVisualHeightGovernor({ minHeight })
     let deferred: ReturnType<typeof setTimeout> | null = null
     let latestReported: number | null = null
     let lastLinkAt = -Infinity
@@ -132,6 +150,11 @@ export function NativeChatVisualFrame({
           clearTimeout(unansweredRef.current.timer)
           unansweredRef.current = null
         }
+        return
+      }
+      const natural = readNativeChatVisualNatural(event.data, built.channel)
+      if (natural !== null) {
+        onNaturalRef.current?.(natural)
         return
       }
       const message = readNativeChatVisualFrameMessage(event.data, built.channel, annotateCapable)
@@ -174,7 +197,7 @@ export function NativeChatVisualFrame({
         clearTimeout(deferred)
       }
     }
-  }, [built.channel, layout, annotateCapable])
+  }, [built.channel, layout, annotateCapable, minHeight])
 
   // A frame rebuilt for a new revision, or unmounted, owes no answer.
   useEffect(
@@ -200,6 +223,10 @@ export function NativeChatVisualFrame({
   useEffect(() => {
     if (annotate !== undefined && loadsRef.current > 0) {
       postAnnotateState(frameRef.current?.contentWindow, annotate, built.channel)
+      frameRef.current?.contentWindow?.postMessage(
+        nativeChatVisualMeasureMessage(built.channel),
+        '*'
+      )
     }
   }, [annotate, built.channel])
 
@@ -243,6 +270,7 @@ export function NativeChatVisualFrame({
           )
           if (annotateRef.current !== undefined) {
             postAnnotateState(frameWindow, annotateRef.current, built.channel)
+            frameWindow?.postMessage(nativeChatVisualMeasureMessage(built.channel), '*')
           }
         }}
       />

@@ -1,4 +1,18 @@
 import type { PrototypeElementState, PrototypeSize } from './prototype-draft'
+import { NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS } from './native-chat-visual-annotate-limits'
+import {
+  isBoundedString,
+  isFiniteNumber,
+  isRecord,
+  readDesign,
+  readPickedElement
+} from './native-chat-visual-annotate-read'
+
+export {
+  NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS,
+  NATIVE_CHAT_VISUAL_CSS_PROPERTIES,
+  NATIVE_CHAT_VISUAL_CSS_VALUE_PATTERN
+} from './native-chat-visual-annotate-limits'
 
 /**
  * The element-annotation channel of a chat visual, as the hosts see it. The host turns annotate mode
@@ -11,25 +25,17 @@ export const NATIVE_CHAT_VISUAL_PINS_TYPE = 'orca-visual-pins'
 export const NATIVE_CHAT_VISUAL_OVERRIDES_TYPE = 'orca-visual-overrides'
 export const NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE = 'orca-visual-element-picked'
 export const NATIVE_CHAT_VISUAL_PIN_CLICKED_TYPE = 'orca-visual-pin-clicked'
-
-/** Caps shared by the frame's validator and the hosts'. A command over a cap is dropped whole. */
-export const NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS = {
-  items: 200,
-  selector: 512,
-  pinKey: 128,
-  pinNumber: 9999,
-  text: 1000,
-  label: 64,
-  snippet: 600,
-  px: 10000,
-  fontSize: 400
-} as const
+/** The host asks the frame for its natural width and section readout; the frame answers with the natural type. */
+export const NATIVE_CHAT_VISUAL_MEASURE_TYPE = 'orca-visual-measure'
+export const NATIVE_CHAT_VISUAL_NATURAL_TYPE = 'orca-visual-natural'
 
 export type NativeChatVisualPin = {
   pinKey: string
   number: number
   selector: string
   active: boolean
+  /** False draws the outline only, with no numbered badge. Absent means a badge. */
+  badge?: boolean
 }
 
 export type NativeChatVisualStyleOverride = {
@@ -38,6 +44,8 @@ export type NativeChatVisualStyleOverride = {
   width?: PrototypeSize
   height?: PrototypeSize
   fontSize?: number
+  /** Allowlisted properties to values; see NATIVE_CHAT_VISUAL_CSS_PROPERTIES. */
+  css?: Readonly<Record<string, string>>
 }
 
 /** A live preview on the element `selector` finds first; removing it restores the original. */
@@ -60,6 +68,40 @@ export type NativeChatVisualRect = {
   height: number
 }
 
+export type NativeChatVisualDesignKind = 'button' | 'badge' | 'box' | 'text'
+
+/**
+ * An element's own design as the frame reads it, with the frame's own overrides taken off. Colors are
+ * 6-digit hex or 'transparent'; lengths are px.
+ */
+export type NativeChatVisualDesignReadout = {
+  kind: NativeChatVisualDesignKind
+  fill: string
+  color: string
+  border: string
+  borderWidth: number
+  radius: number
+  shadow: string
+  width: PrototypeSize
+  height: PrototypeSize
+  padding: number
+  gap: number
+  fontFamily: string
+  fontSize: number
+  lineHeight: number
+  bold: boolean
+  italic: boolean
+  underline: boolean
+  align: 'left' | 'center' | 'right' | 'justify'
+}
+
+/** An ancestor of the picked element, outermost first, with its own selector and readout. */
+export type NativeChatVisualTrailItem = {
+  selector: string
+  label: string
+  design: NativeChatVisualDesignReadout
+}
+
 export type NativeChatVisualPickedElement = {
   selector: string
   label: string
@@ -67,6 +109,9 @@ export type NativeChatVisualPickedElement = {
   rect: NativeChatVisualRect
   htmlSnippet: string
   state: PrototypeElementState
+  /** Absent when the frame sent none; present but malformed, the whole pick is dropped. */
+  design?: NativeChatVisualDesignReadout
+  trail?: readonly NativeChatVisualTrailItem[]
 }
 
 export type NativeChatVisualAnnotateEvent =
@@ -122,102 +167,39 @@ export function readNativeChatVisualAnnotateEvent(
   return null
 }
 
-function readPickedElement(value: unknown): NativeChatVisualPickedElement | null {
-  if (!isRecord(value)) {
-    return null
-  }
-  const { selector, label, htmlSnippet } = value
+export type NativeChatVisualNatural = {
+  /** The widest the document lays out at: its body at max-content, in CSS pixels. */
+  width: number
+  /** The section's own design, when the document has one. */
+  root?: NativeChatVisualDesignReadout
+}
+
+export function nativeChatVisualMeasureMessage(channel: string): {
+  type: string
+  channel: string
+} {
+  return { type: NATIVE_CHAT_VISUAL_MEASURE_TYPE, channel }
+}
+
+/** A frame's answer to a measure request on `channel`, validated; null for anything else. */
+export function readNativeChatVisualNatural(
+  data: unknown,
+  channel: string
+): NativeChatVisualNatural | null {
   if (
-    !isBoundedString(selector, NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS.selector, 1) ||
-    !isBoundedString(label, NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS.label, 1) ||
-    !isBoundedString(htmlSnippet, NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS.snippet, 0)
+    !isRecord(data) ||
+    data.channel !== channel ||
+    data.type !== NATIVE_CHAT_VISUAL_NATURAL_TYPE
   ) {
     return null
   }
-  const rect = readRect(value.rect)
-  const state = readElementState(value.state)
-  return rect && state ? { selector, label, rect, htmlSnippet, state } : null
-}
-
-function readRect(value: unknown): NativeChatVisualRect | null {
-  if (!isRecord(value)) {
+  const width = data.width
+  if (!isFiniteNumber(width) || width < 0 || width > NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS.px) {
     return null
   }
-  const { x, y, width, height } = value
-  if (
-    !isFiniteNumber(x) ||
-    !isFiniteNumber(y) ||
-    !isFiniteNumber(width) ||
-    !isFiniteNumber(height) ||
-    width < 0 ||
-    height < 0
-  ) {
-    return null
+  if (data.root === undefined) {
+    return { width }
   }
-  return { x, y, width, height }
-}
-
-function readElementState(value: unknown): PrototypeElementState | null {
-  if (!isRecord(value)) {
-    return null
-  }
-  const { text, color, bg, fontSize } = value
-  if (
-    !isBoundedString(text, NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS.text, 0) ||
-    !isHexColor(color) ||
-    !isFillColor(bg) ||
-    !isFiniteNumber(fontSize) ||
-    fontSize < 0 ||
-    fontSize > NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS.fontSize
-  ) {
-    return null
-  }
-  const width = readSize(value.width)
-  const height = readSize(value.height)
-  return width && height ? { text, color, bg, width, height, fontSize } : null
-}
-
-function readSize(value: unknown): PrototypeSize | null {
-  if (!isRecord(value)) {
-    return null
-  }
-  const { unit } = value
-  const amount = value.value
-  if (!isFiniteNumber(amount)) {
-    return null
-  }
-  if (unit === 'auto') {
-    return { value: amount, unit: 'auto' }
-  }
-  if (
-    (unit === 'px' || unit === '%') &&
-    amount >= 0 &&
-    amount <= NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS.px
-  ) {
-    return { value: amount, unit }
-  }
-  return null
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value)
-}
-
-function isBoundedString(value: unknown, max: number, min: number): value is string {
-  return typeof value === 'string' && value.length >= min && value.length <= max
-}
-
-const HEX_COLOR = /^#[0-9a-f]{6}$/i
-
-function isHexColor(value: unknown): value is string {
-  return typeof value === 'string' && HEX_COLOR.test(value)
-}
-
-/** A fill is a hex color, or 'transparent' when no ancestor paints behind the element. */
-function isFillColor(value: unknown): value is string {
-  return value === 'transparent' || isHexColor(value)
+  const root = readDesign(data.root)
+  return root === null ? null : { width, root }
 }

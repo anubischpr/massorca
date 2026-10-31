@@ -1,7 +1,10 @@
 // The draft of a design system edit: every token, component and note the user changed, as the items
 // that one message sends to the agent. Reverting a change removes its item.
 import type { ComponentSection } from './prototype-design-system-components'
+import { DESIGN_ELEMENT_ROOT, designElementValueText } from './prototype-design-system-element'
 import type { DesignToken } from './prototype-design-system-tokens'
+import { draftElementsOf, type DesignElementDraft } from './prototype-design-system-element-draft'
+import { isRecord, ownEntry, withComponentDraft } from './prototype-design-system-draft-entries'
 
 export const DESIGN_SYSTEM_TOKENS_GROUP_TITLE = 'Design system · tokens'
 export const DESIGN_SYSTEM_COMPONENTS_GROUP_TITLE = 'Design system · components'
@@ -15,6 +18,8 @@ export type DesignSystemBase = {
 export type DesignSystemComponentDraft = {
   variants?: string[]
   bindings?: Record<string, string>
+  /** Element locator (see elementLocatorOf) to the element's edits. Older drafts lack it. */
+  elements?: Record<string, DesignElementDraft>
 }
 
 export type DesignSystemDraft = {
@@ -112,6 +117,14 @@ export function setDraftBinding(
     Object.keys(next).length > 0 ? { ...rest, bindings: next } : rest
   )
 }
+
+export {
+  draftElementEdits,
+  draftElementOf,
+  setDraftElementNote,
+  setDraftElementValue,
+  draftElementsOf
+} from './prototype-design-system-element-draft'
 
 export function setDraftNote(
   draft: DesignSystemDraft,
@@ -217,27 +230,26 @@ function componentItemsOf(
           ]
     )
   ]
+  const elementItems = Object.entries(draftElementsOf(draft, section)).flatMap(
+    ([locator, entry]) => {
+      if (!isRecord(entry.edits) || typeof entry.label !== 'string') {
+        return []
+      }
+      const where = locator === DESIGN_ELEMENT_ROOT ? name : `${name} ${entry.label} (${locator})`
+      const edited = Object.entries(entry.edits).map(([prop, value]): DesignSystemDraftItem => ({
+        label: 'element',
+        text: `${where}: ${prop} → ${designElementValueText(prop, value)}`
+      }))
+      const elementNote = (entry.note ?? '').trim()
+      return elementNote.length > 0
+        ? [...edited, { label: 'note', text: `${where}: ${elementNote}` }]
+        : edited
+    }
+  )
   const note = (ownEntry(draft.notes, name) ?? '').trim()
-  return note.length > 0 ? [...items, { label: 'note', text: `${name}: ${note}` }] : items
-}
-
-function withComponentDraft(
-  draft: DesignSystemDraft,
-  name: string,
-  changes: DesignSystemComponentDraft
-): DesignSystemDraft {
-  const comps = { ...draft.comps }
-  if (Object.keys(changes).length === 0) {
-    delete comps[name]
-  } else {
-    comps[name] = changes
-  }
-  return { ...draft, comps }
-}
-
-// Names are file content: only an own entry counts, so `constructor` or `__proto__` read as absent.
-function ownEntry<Value>(record: Readonly<Record<string, Value>>, name: string): Value | undefined {
-  return Object.hasOwn(record, name) ? record[name] : undefined
+  return note.length > 0
+    ? [...items, ...elementItems, { label: 'note', text: `${name}: ${note}` }]
+    : [...items, ...elementItems]
 }
 
 function sameList(left: readonly string[], right: readonly string[]): boolean {

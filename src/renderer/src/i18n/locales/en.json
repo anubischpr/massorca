@@ -18292,7 +18292,36 @@
         "typeSpacing": "spacing {{value}}-based",
         "approve": "Approve {{name}}",
         "adjustTokens": "Adjust tokens",
-        "builtOnLink": "Built on Design system v{{version}} ›"
+        "builtOnLink": "Built on Design system v{{version}} ›",
+        "compactSize": "Back to compact size",
+        "fullSize": "View full size",
+        "viewGrid": "Grid",
+        "viewCollage": "Collage",
+        "viewList": "List",
+        "viewGroup": "Component view",
+        "editGroup": "Edit · {{group}}",
+        "breadcrumb": "Breadcrumb",
+        "textHint": "Text is never edited here: only its style is.",
+        "elementFooter": "Every change joins the draft on its own. Put a value back to remove it.",
+        "row": {
+          "fill": "Fill",
+          "color": "Text color",
+          "border": "Border",
+          "borderWidth": "Border width",
+          "radius": "Radius",
+          "shadow": "Shadow",
+          "padding": "Padding",
+          "gap": "Gap",
+          "font": "Font",
+          "lineHeight": "Line height",
+          "style": "Style",
+          "align": "Align"
+        },
+        "showLess": "Show less",
+        "moreTokens": "+{{count}} more",
+        "bold": "Bold",
+        "italic": "Italic",
+        "underline": "Underline"
       }
     },
     "createChat": {
