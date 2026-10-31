@@ -20,6 +20,9 @@ import { DelegationRequestService } from './delegation-request-service'
 import { delegatedChildFirstPrompt } from './delegated-child-first-prompt'
 import { delegatedChildPromptDeps } from './delegated-child-prompt-deps'
 import type { DelegationParentSession, DelegationRequestDeps } from './delegation-service-types'
+import { sendAgentTurn } from '../runtime/orchestration/send-agent-turn'
+import { structuredSessionPointerCallerKey } from '../runtime/orchestration/structured-mailbox-pointer-host'
+import { mintAgentSessionOperationId } from '../runtime/orchestration/structured-pointer-operation-id'
 
 /** The runtime surface delegation reads; everything else goes through the host registry. */
 type DelegationRuntime = Pick<
@@ -117,6 +120,34 @@ function readRateLimits(runtime: DelegationRuntime): RateLimitState | null {
   }
 }
 
+function tellParentAgent(parentSessionId: string, text: string): void {
+  const host = getStructuredAgentSessionHost()
+  const fence = host?.deps.store.getRecord(parentSessionId)?.lease.runtimeFence
+  if (!host || fence === undefined) {
+    return
+  }
+  void sendAgentTurn({
+    kind: 'structured-session',
+    host,
+    sessionId: parentSessionId,
+    callerKey: structuredSessionPointerCallerKey(parentSessionId),
+    turn: {
+      body: {
+        kind: 'message',
+        role: 'user',
+        blocks: [{ type: 'text', text }],
+        from: { kind: 'agent', senders: [], orchestration: null }
+      },
+      // As a person's message is: a busy chat queues it, an idle one starts a turn on it.
+      delivery: 'queue',
+      operationId: mintAgentSessionOperationId(Date.now()),
+      expectedRuntimeFence: fence
+    }
+  }).catch((error: unknown) => {
+    console.warn('[delegation] telling the parent agent failed', parentSessionId, error)
+  })
+}
+
 function hostRows(): DelegationRequestDeps['rows'] {
   return {
     appendHostRow: (sessionId, identity, body) =>
@@ -157,6 +188,7 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
     readParent: readParentSession,
     readRateLimits: () => readRateLimits(runtime),
     refreshUsage: () => runtime.refreshAccountsForMobileSubscriber(),
+    tellParent: tellParentAgent,
     launch: createDelegationLauncher({
       requireDb: () => runtime.getOrchestrationDb(),
       declaredAccess: declaredAccessForStructuredAgent,

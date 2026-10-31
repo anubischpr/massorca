@@ -4,6 +4,7 @@ import type { RpcClient } from '../transport/rpc-client'
 import { markRpcDeliveryUnknown } from '../transport/rpc-delivery-ambiguity'
 import { requestMobileStructuredAgentSessionCancel } from './mobile-structured-agent-session-cancel'
 import { requestStructuredAgentSessionMutation } from './mobile-structured-agent-session-rpc'
+import { delegationQuestionItemId } from '../../../src/shared/delegated-session-journal'
 
 type SentParams = { envelope: { clientOperationId: string } }
 
@@ -300,5 +301,39 @@ describe('what a structured refusal says on the phone', () => {
       message:
         'This needs a newer MassOrca on the computer running this chat. Update MassOrca there, then try again.'
     })
+  })
+})
+
+describe('cancelling a delegation card with no turn running', () => {
+  const idle = (client: RpcClient, itemId: string, promptCancelSupported: boolean | null) => {
+    const args = cancelArgs(client)
+    return {
+      ...args,
+      prompt: { itemId, expectedRevision: 1 },
+      promptCancelSupported,
+      stateRef: { current: { ...args.stateRef.current, items: [] } }
+    }
+  }
+
+  it('sends the card with no turn', async () => {
+    const fields: unknown[] = []
+    const client = fakeClient(async (_method, params) => {
+      fields.push(params)
+      return { cancelled: true }
+    })
+    const itemId = delegationQuestionItemId('deleg-1')
+    await requestMobileStructuredAgentSessionCancel(idle(client, itemId, true))
+    expect(fields[0]).toMatchObject({ prompt: { itemId, expectedRevision: 1 } })
+    expect(fields[0]).not.toHaveProperty('turnId')
+  })
+
+  it('still sends nothing for a provider prompt, or a host that cannot take a card', async () => {
+    const call = vi.fn()
+    const client = fakeClient(call)
+    await requestMobileStructuredAgentSessionCancel(idle(client, 'provider-item', true))
+    await requestMobileStructuredAgentSessionCancel(
+      idle(client, delegationQuestionItemId('deleg-1'), null)
+    )
+    expect(call).not.toHaveBeenCalled()
   })
 })

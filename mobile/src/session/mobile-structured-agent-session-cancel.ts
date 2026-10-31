@@ -1,6 +1,7 @@
 import type { AgentSessionCancelResult } from '../../../src/shared/agent-session-wire'
 import type { AgentJournalRenderItem } from '../../../src/shared/agent-session-journal-types'
 import type { StructuredAgentSessionState } from '../../../src/shared/structured-agent-session-reducer'
+import { delegationRequestIdOfQuestionItem } from '../../../src/shared/delegated-session-journal'
 import { runningStructuredAgentSessionTurnId } from '../../../src/shared/structured-agent-session-live-turn'
 import type { RpcClient } from '../transport/rpc-client'
 import {
@@ -38,13 +39,24 @@ export async function requestMobileStructuredAgentSessionCancel(args: {
   const { client, enabled, inFlight, onSendError, sessionId, stateRef } = args
   const current = stateRef.current
   const turnId = runningStructuredAgentSessionTurnId(current)
-  if (!client || !sessionId || !enabled || current.fence === null || !turnId) {
+  // Why: a host-owned card outlives the turn that raised it, and the host resolves it with no turn.
+  const hostOwnedPrompt =
+    args.prompt !== undefined &&
+    args.promptCancelSupported === true &&
+    delegationRequestIdOfQuestionItem(args.prompt.itemId) !== null
+  if (
+    !client ||
+    !sessionId ||
+    !enabled ||
+    current.fence === null ||
+    (!turnId && !hostOwnedPrompt)
+  ) {
     onSendError('Stop not sent')
     return false
   }
   // Check the capability before fields enter the fingerprint.
   const fields = {
-    turnId,
+    ...(turnId ? { turnId } : {}),
     ...(args.prompt && args.promptCancelSupported === true ? { prompt: args.prompt } : {})
   }
   // Every press is its own Stop: a kept id would be answered from the last one and stop nothing.

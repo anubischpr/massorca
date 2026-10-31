@@ -34,6 +34,7 @@ vi.mock('./NativeChatQuestionCard', () => moduleFactories.nativeChatQuestionCard
 import { NativeChatStructuredSession } from './NativeChatStructuredSession'
 import { structuredAgentSessionPaneKey } from '../../../../shared/structured-agent-session-projection'
 import { structuredAgentSessionDraftScopeKey } from './native-chat-composer-draft-store'
+import { delegationQuestionItemId } from '../../../../shared/delegated-session-journal'
 
 describe('NativeChatStructuredSession', () => {
   it.each(['codex', 'claude', 'pi', 'antigravity'] as const)(
@@ -360,6 +361,24 @@ describe('NativeChatStructuredSession', () => {
     )
 
     expect(mocks.messageListProps?.runtimeContext).not.toBeUndefined()
+  })
+
+  it('cancels a delegation card that outlived the turn that raised it', () => {
+    mocks.turnId = null
+    const itemId = delegationQuestionItemId('deleg-1')
+    mocks.promptItems = legacySingleQuestionPromptItems.map((item) => ({ ...item, itemId }))
+    render(
+      <NativeChatStructuredSession
+        isVisible
+        isFocusedGroup
+        tabId="structured-question"
+        sessionId="session-question"
+        target={{ kind: 'local' }}
+        agent="antigravity"
+      />
+    )
+    act(() => mocks.questionCardProps?.onCancel())
+    expect(mocks.cancel).toHaveBeenCalledWith(undefined, { itemId, expectedRevision: 1 })
   })
 
   it('suppresses live turn activity for a pending question without ending the turn', () => {
