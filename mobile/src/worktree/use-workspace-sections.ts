@@ -1,7 +1,11 @@
 import { useMemo } from 'react'
 import type { WorkspaceStatusDefinition } from '../../../src/shared/worktree/types'
 import { getBranchRowLabels } from './branch-row-label'
-import { placeCrossWorktreeAgents, type AgentRunOwner } from './cross-worktree-agent-placement'
+import {
+  arrangeBranchRowSections,
+  placeCrossWorktreeAgents,
+  type AgentRunOwner
+} from './cross-worktree-agent-placement'
 import type { MobileGroupMode, MobileSortMode } from './workspace-view-settings'
 import {
   buildSections,
@@ -103,7 +107,11 @@ export function useWorkspaceSections(args: {
   // Why: one pass over every section, before collapsed groups are emptied, so a session keeps its
   // place under a parent whose group is folded instead of reappearing in its own worktree.
   const placement = useMemo(() => placeCrossWorktreeAgents(listedSections), [listedSections])
-  const rawSections = placement.sections
+  // Why: a worktree row whose sessions all run under another parent is dropped here, and its lineage is laid out again.
+  const rawSections = useMemo(
+    () => arrangeBranchRowSections(placement.sections, placement, collapsedGroups),
+    [placement, collapsedGroups]
+  )
 
   const branchLabels = useMemo(
     () =>
