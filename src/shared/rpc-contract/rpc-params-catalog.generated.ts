@@ -385,6 +385,7 @@ import {
   NotificationsSubscribeParams
 } from './notifications-params'
 import { OrcadMigrationCatalogParams } from './orcad-migration-params'
+import { ChildBringBackParams } from './orchestration-child-bring-back-params'
 import { DelegateRequestParams } from './orchestration-delegate-request-params'
 import {
   FederationDispatchParams,
@@ -1078,6 +1079,10 @@ export const RPC_PARAMS_BY_METHOD = {
   'orchestration.ask': AskParams,
   'orchestration.callerShow': null,
   'orchestration.check': CheckParams,
+  'orchestration.childBringBack': ChildBringBackParams,
+  'orchestration.childBringBackAbort': ChildBringBackParams,
+  'orchestration.childBringBackResolve': ChildBringBackParams,
+  'orchestration.childBringBackStatus': ChildBringBackParams,
   'orchestration.delegateRequest': DelegateRequestParams,
   'orchestration.dispatch': DispatchParams,
   'orchestration.dispatchShow': DispatchShowParams,

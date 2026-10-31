@@ -13,6 +13,9 @@ export const ORCHESTRATION_WORKER_START_STRUCTURED_OPTIONS_RUNTIME_CAPABILITY =
 // Hosts with this accept `orchestration.delegateRequest`: a chat asks for a child session and posts
 // an agent-choice card. Older hosts do not know the method.
 export const ORCHESTRATION_DELEGATION_RUNTIME_CAPABILITY = 'orchestration.delegation.v1' as const
+// Hosts with this answer `orchestration.childBringBack*`; clients show today's notice on older hosts.
+export const ORCHESTRATION_CHILD_BRING_BACK_RUNTIME_CAPABILITY =
+  'orchestration.child-bring-back.v1' as const
 export const ORCHESTRATION_FEDERATION_STRUCTURED_READ_RUNTIME_CAPABILITY =
   'orchestration.federation-structured-read.v1' as const
 export const ORCHESTRATION_FEDERATION_FLEET_SNAPSHOT_RUNTIME_CAPABILITY =
@@ -25,6 +28,7 @@ export const ORCHESTRATION_CONTRACT_VERSION = 1 as const
 export const ORCHESTRATION_CONTRACT_RUNTIME_CAPABILITY = 'orchestration.contract.v1' as const
 
 export const ORCHESTRATION_RUNTIME_CAPABILITIES = [
+  ORCHESTRATION_CHILD_BRING_BACK_RUNTIME_CAPABILITY,
   ORCHESTRATION_FEDERATION_RUNTIME_CAPABILITY,
   ORCHESTRATION_FEDERATION_CONTROL_MAIL_RUNTIME_CAPABILITY,
   ORCHESTRATION_FEDERATION_LIFECYCLE_SETTLEMENT_RUNTIME_CAPABILITY,

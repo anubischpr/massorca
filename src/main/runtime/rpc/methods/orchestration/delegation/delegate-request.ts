@@ -2,7 +2,11 @@ import {
   DELEGATION_SUMMARY_MAX_CHARS,
   DelegateRequestParams
 } from '../../../../../../shared/rpc-contract/orchestration-delegate-request-params'
-import { getDelegationRequestService } from '../../../../../delegated-session/delegation-runtime'
+import { ChildBringBackParams } from '../../../../../../shared/rpc-contract/orchestration-child-bring-back-params'
+import {
+  getChildBringBackService,
+  getDelegationRequestService
+} from '../../../../../delegated-session/delegation-runtime'
 import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import { defineMethod } from '../../../core'
 
@@ -35,6 +39,43 @@ export const ORCHESTRATION_DELEGATION_METHODS = [
         ...(params.title ? { title: params.title } : {}),
         writes: params.writes === true
       })
+    }
+  }),
+  defineMethod({
+    name: 'orchestration.childBringBackStatus',
+    permission: 'workspace',
+    params: ChildBringBackParams,
+    handler: async ({ requestId }, { runtime }) => {
+      await runtime.ensureStructuredAgentSessionHost()
+      return getChildBringBackService(runtime).status(requestId)
+    }
+  }),
+  defineMethod({
+    name: 'orchestration.childBringBack',
+    permission: 'workspace',
+    params: ChildBringBackParams,
+    handler: async ({ requestId }, { runtime }) => {
+      await runtime.ensureStructuredAgentSessionHost()
+      return getChildBringBackService(runtime).bringBack(requestId)
+    }
+  }),
+  defineMethod({
+    name: 'orchestration.childBringBackAbort',
+    permission: 'workspace',
+    params: ChildBringBackParams,
+    handler: async ({ requestId }, { runtime }) => {
+      await runtime.ensureStructuredAgentSessionHost()
+      return getChildBringBackService(runtime).abort(requestId)
+    }
+  }),
+  defineMethod({
+    name: 'orchestration.childBringBackResolve',
+    permission: 'workspace',
+    params: ChildBringBackParams,
+    handler: async ({ requestId }, { runtime }) => {
+      await runtime.ensureStructuredAgentSessionHost()
+      await getChildBringBackService(runtime).resolveWithAgent(requestId)
+      return { ok: true }
     }
   })
 ]

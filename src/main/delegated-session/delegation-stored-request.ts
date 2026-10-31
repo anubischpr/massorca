@@ -59,6 +59,26 @@ export function readStoredDesignSystemMode(
   return StoredPrototypeAnswers.safeParse(parseJson(row.options_json)).data?.designSystem
 }
 
+const StoredChildGit = z.object({
+  childGit: z.object({ branch: z.string().min(1), baseSha: z.string().min(1) })
+})
+
+export type StoredChildGit = z.infer<typeof StoredChildGit>['childGit']
+
+/** The child's branch and first commit, recorded at launch; a request older than that has none. */
+export function readStoredChildGit(row: DelegationRequestRow): StoredChildGit | undefined {
+  return StoredChildGit.safeParse(parseJson(row.options_json)).data?.childGit
+}
+
+/** The stored options with the child's git identity added; every other key stays as it is. */
+export function storedOptionsWithChildGit(
+  row: DelegationRequestRow,
+  childGit: StoredChildGit
+): string {
+  const options = z.record(z.string(), z.unknown()).safeParse(parseJson(row.options_json))
+  return JSON.stringify({ ...(options.success ? options.data : {}), childGit })
+}
+
 /** The stored options with the card's prototype answers added; the agents stay as the card offered them. */
 export function storedOptionsWithPrototypeAnswers(
   row: DelegationRequestRow,

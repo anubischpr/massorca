@@ -12,7 +12,12 @@ import type { DelegationLauncher } from './delegation-launch-types'
 import { delegationPlacementFor } from './delegation-router'
 import type { FailedDelegatedStart } from './delegation-failed-start'
 import { foldSlugAccents } from '../../shared/workspace-name'
-import { readStoredDesignSystemMode, readStoredPrototypeCount } from './delegation-stored-request'
+import {
+  readStoredDesignSystemMode,
+  readStoredPrototypeCount,
+  storedOptionsWithChildGit,
+  type StoredChildGit
+} from './delegation-stored-request'
 import type { PrototypeDesignSystemMode } from '../../shared/prototype-design-system-files'
 
 const RUN_OBJECTIVE = 'Delegated child sessions'
@@ -81,6 +86,8 @@ export function createDelegationLauncher(deps: {
   folderPath: (workspaceId: string) => Promise<string | null>
   /** Undoes what a failed start left: its Dispatch's residue and the worktrees it created. */
   discardFailedStart: (failed: FailedDelegatedStart) => Promise<void>
+  /** The branch and head a new child worktree starts on, kept for Bring back. */
+  readChildGit?: (childSessionId: string) => Promise<StoredChildGit | null>
   warn: (message: string, error: unknown) => void
 }): DelegationLauncher {
   const discardFailedStart = async (failed: FailedDelegatedStart): Promise<void> => {
@@ -184,6 +191,22 @@ export function createDelegationLauncher(deps: {
     }
     // A terminal-agent worker has no chat to link; its dispatch still reports how it ends.
     const childSessionId = db.getDispatchContextById(dispatchId)?.assignee_orca_session_id ?? null
+    if (newWorktree && childSessionId) {
+      await deps
+        .readChildGit?.(childSessionId)
+        .then((childGit) => {
+          if (childGit) {
+            record({
+              options_json: storedOptionsWithChildGit(
+                db.getDelegationRequest(request.id) ?? request,
+                childGit
+              )
+            })
+          }
+        })
+        // Bring back still works from the live worktree; only a later removal loses the branch.
+        .catch((error: unknown) => deps.warn('recording the child branch failed', error))
+    }
     return { runId: run.id, taskId: task.id, dispatchId, childSessionId }
   }
 }
