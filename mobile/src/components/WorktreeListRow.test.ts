@@ -133,7 +133,7 @@ const baseItem: TestItem = {
 
 const textNodes = (renderer: ReactTestRenderer): string[] =>
   renderer.root
-    .findAllByType('Text' as never)
+    .findAll((node) => String(node.type) === 'Text')
     .flatMap((node) => node.props.children)
     .filter((child): child is string => typeof child === 'string')
 
@@ -247,7 +247,7 @@ describe('WorktreeListRow', () => {
       renderer = create(createElement(ListRowHarness, { item: baseItem, now: 2_000 }))
     })
     const toggle = renderer!.root
-      .findAllByType('Pressable' as never)
+      .findAll((node) => String(node.type) === 'Pressable')
       .find((node) => String(node.props.accessibilityLabel).startsWith('Hide sessions of'))
     expect(toggle).toBeDefined()
     const listRendersBefore = agentListRender.mock.calls.length

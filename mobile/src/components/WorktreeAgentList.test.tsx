@@ -65,7 +65,9 @@ function renderList(
 let renderer: ReactTestRenderer | null = null
 
 function buttonLabel(): string | undefined {
-  const text = renderer!.root.findAllByType('Text' as never).map((node) => node.props.children)
+  const text = renderer!.root
+    .findAll((node) => String(node.type) === 'Text')
+    .map((node) => node.props.children)
   return text.find((value) => typeof value === 'string' && value.startsWith('Show'))
 }
 
@@ -78,12 +80,18 @@ describe('WorktreeAgentList', () => {
   it('shows five sessions, then folds the rest behind "Show N more"', async () => {
     await renderList(quietAgents(7))
 
-    expect(renderer!.root.findAllByType('WorktreeAgentRow' as never)).toHaveLength(5)
+    expect(renderer!.root.findAll((node) => String(node.type) === 'WorktreeAgentRow')).toHaveLength(
+      5
+    )
     expect(buttonLabel()).toBe('Show 2 more')
 
-    await act(async () => renderer!.root.findByType('Pressable' as never).props.onPress())
+    await act(async () =>
+      renderer!.root.findAll((node) => String(node.type) === 'Pressable')[0]?.props.onPress()
+    )
 
-    expect(renderer!.root.findAllByType('WorktreeAgentRow' as never)).toHaveLength(7)
+    expect(renderer!.root.findAll((node) => String(node.type) === 'WorktreeAgentRow')).toHaveLength(
+      7
+    )
     expect(buttonLabel()).toBe('Show less')
   })
 
@@ -94,7 +102,7 @@ describe('WorktreeAgentList', () => {
     ]
     await renderList(agents)
 
-    const rows = renderer!.root.findAllByType('WorktreeAgentRow' as never)
+    const rows = renderer!.root.findAll((node) => String(node.type) === 'WorktreeAgentRow')
     expect(rows).toHaveLength(5)
     expect(rows.map((row) => row.props.agent.paneKey)).toContain('waiting-agent')
     expect(buttonLabel()).toBe('Show 2 more')
@@ -103,14 +111,16 @@ describe('WorktreeAgentList', () => {
   it('shows no fold control for four sessions', async () => {
     await renderList(quietAgents(4))
 
-    expect(renderer!.root.findAllByType('Pressable' as never)).toHaveLength(0)
-    expect(renderer!.root.findAllByType('WorktreeAgentRow' as never)).toHaveLength(4)
+    expect(renderer!.root.findAll((node) => String(node.type) === 'Pressable')).toHaveLength(0)
+    expect(renderer!.root.findAll((node) => String(node.type) === 'WorktreeAgentRow')).toHaveLength(
+      4
+    )
   })
 
   it('reads every session as unconfirmed on an unreachable host', async () => {
     await renderList([agent('waiting-agent', null, { state: 'waiting', updatedAt: 2_000 })], true)
 
-    const [row] = renderer!.root.findAllByType('WorktreeAgentRow' as never)
+    const [row] = renderer!.root.findAll((node) => String(node.type) === 'WorktreeAgentRow')
     expect(row!.props.glyph).toBe('unconfirmed')
   })
 
