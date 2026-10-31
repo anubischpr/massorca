@@ -11,6 +11,7 @@ import { MobileChatChromeLayoutContext, mobileChatContentTop } from './mobile-ch
 import { colors } from '../theme/mobile-theme'
 import { styles } from './mobile-session-styles'
 import type { MobileSessionController } from './use-mobile-session-controller'
+import { MobileChildBringBackClientContext } from './MobileChildBringBack'
 import { MobileDelegatedChildContext } from './mobile-delegated-child-access'
 import { FileReader } from './MobileSessionFileReader'
 import { MarkdownReader } from './MobileSessionMarkdownReader'
@@ -200,29 +201,31 @@ export function MobileSessionActiveContent({
     <View style={styles.terminalFrame}>
       {MOBILE_LEGACY_SESSION_VIEWS ? <MobileTerminalPaneStack controller={controller} /> : null}
       <MobileDelegatedChildContext.Provider value={delegatedChildren}>
-        <MobileNativeChatOverlay
-          controller={nativeChatController}
-          bridgeBackground={nativeChatBridgeBackground}
-          onOpenFile={handleNativeChatFileTap}
-          images={nativeChatImages}
-          onMicPress={handleDictationToggle}
-          micActive={dictation.isRecording}
-          dictationMode={dictationMode}
-          onMicPressIn={handleDictationPressIn}
-          onMicPressOut={handleDictationPressOut}
-          inputLockReason={nativeChatOverlayInputLockReason}
-          sendErrorMessage={nativeChatSendError.message}
-          onClearSendError={nativeChatSendError.clear}
-          sendSurfaceId={controller.nativeChatScopeKey ?? ''}
-          getSendCompletionGeneration={controller.getSendCompletionGeneration}
-          keyboardInset={keyboardLift}
-          chromeTopInset={
-            showSessionSwitcherChip ? mobileChatContentTop(chromeLayout.height, insets.top) : 0
-          }
-          onOpenArtifact={openArtifactViewer}
-          onOpenPrototypeSettings={openPrototypeSettings}
-          onOpenPrototypeSet={openPrototypeSet}
-        />
+        <MobileChildBringBackClientContext.Provider value={client}>
+          <MobileNativeChatOverlay
+            controller={nativeChatController}
+            bridgeBackground={nativeChatBridgeBackground}
+            onOpenFile={handleNativeChatFileTap}
+            images={nativeChatImages}
+            onMicPress={handleDictationToggle}
+            micActive={dictation.isRecording}
+            dictationMode={dictationMode}
+            onMicPressIn={handleDictationPressIn}
+            onMicPressOut={handleDictationPressOut}
+            inputLockReason={nativeChatOverlayInputLockReason}
+            sendErrorMessage={nativeChatSendError.message}
+            onClearSendError={nativeChatSendError.clear}
+            sendSurfaceId={controller.nativeChatScopeKey ?? ''}
+            getSendCompletionGeneration={controller.getSendCompletionGeneration}
+            keyboardInset={keyboardLift}
+            chromeTopInset={
+              showSessionSwitcherChip ? mobileChatContentTop(chromeLayout.height, insets.top) : 0
+            }
+            onOpenArtifact={openArtifactViewer}
+            onOpenPrototypeSettings={openPrototypeSettings}
+            onOpenPrototypeSet={openPrototypeSet}
+          />
+        </MobileChildBringBackClientContext.Provider>
       </MobileDelegatedChildContext.Provider>
       {toastMessage && (
         <Animated.View pointerEvents="none" style={[styles.toast, toastAnimatedStyle]}>
