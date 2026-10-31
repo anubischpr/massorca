@@ -365,7 +365,10 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
                 onRename: sessionHandle
                   ? () => setRenameTarget({ handle: sessionHandle })
                   : undefined,
-                onClose: sessionHandle ? () => void closeSession(sessionHandle) : undefined
+                onClose: sessionHandle ? () => void closeSession(sessionHandle) : undefined,
+                onOpenWorktree: sessionTarget.runsElsewhere
+                  ? () => state.setActionTarget(sessionTarget.item)
+                  : undefined
               })
             : []
         }

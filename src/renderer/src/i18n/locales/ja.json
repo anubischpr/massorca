@@ -6460,7 +6460,9 @@
           "unread": "未読"
         },
         "OneLineSessionMenu": {
-          "copyTitle": "タイトルをコピー"
+          "copyTitle": "タイトルをコピー",
+          "worktree": "ワークツリー",
+          "sleep": "スリープ"
         }
       },
       "shared": {

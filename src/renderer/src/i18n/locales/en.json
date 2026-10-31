@@ -6714,7 +6714,9 @@
           "unread": "Unread"
         },
         "OneLineSessionMenu": {
-          "copyTitle": "Copy Title"
+          "copyTitle": "Copy Title",
+          "worktree": "Worktree",
+          "sleep": "Sleep"
         }
       },
       "shared": {

@@ -6565,7 +6565,9 @@
           "unread": "Non lu"
         },
         "OneLineSessionMenu": {
-          "copyTitle": "Copier le titre"
+          "copyTitle": "Copier le titre",
+          "worktree": "Worktree",
+          "sleep": "Mettre en veille"
         }
       },
       "shared": {
