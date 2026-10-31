@@ -32,6 +32,14 @@ describe('delegation agent instructions', () => {
     expect(DELEGATION_AGENT_INSTRUCTIONS).toMatch(/only way to create a child session/)
   })
 
+  it('tells a child how to name its parent location in user-facing text, in both forms', () => {
+    for (const text of [DELEGATION_AGENT_INSTRUCTIONS, DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE]) {
+      expect(text).toMatch(/call the location of the session that started you the parent worktree/)
+      expect(text).toMatch(/never its folder or branch name alone/)
+      expect(text).toMatch(/never show internal ids/)
+    }
+  })
+
   it('keeps the one-line form free of newlines and cmd.exe metacharacters', () => {
     expect(DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE).not.toMatch(/[\r\n"<>|&%^]/)
   })
