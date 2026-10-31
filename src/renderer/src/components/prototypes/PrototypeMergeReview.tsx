@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { translate } from '@/i18n/i18n'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -19,6 +19,7 @@ import {
   type PrototypeMergeReviewPart,
   type PrototypeMergeState
 } from '../../../../shared/prototype-merge-plan'
+import { mergePartAnchor } from '../../../../shared/prototype-merge-preview-document'
 import type { PrototypeSetState } from '../../../../shared/prototype-set-state'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
 import { PrototypeMergePreview } from './PrototypeMergePreview'
@@ -33,9 +34,6 @@ type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => vo
 type Review = Extract<PrototypeMergeState, { phase: 'review' }>
 
 const LABEL_CLASS = 'text-[11px] font-semibold tracking-wider text-muted-foreground uppercase'
-
-/** The preview reloads on a hover change, so a sweep across rows settles before it does. */
-const HOVER_PREVIEW_DELAY_MS = 150
 
 function markLabel(mark: PrototypeMergeMark, letter: string): string {
   switch (mark) {
@@ -82,18 +80,16 @@ function PartRow({
       onMouseEnter={() => onHover(true)}
       onMouseLeave={() => onHover(false)}
       className={cn(
-        'flex flex-wrap items-center gap-2.5 rounded-lg border border-border bg-sidebar px-3 py-2.5',
+        'flex items-center gap-2 rounded-md border border-border bg-sidebar px-2.5 py-1.5',
         hovered && 'border-status-amber',
         !part.on && 'opacity-45'
       )}
     >
-      <label className="flex min-w-0 flex-[1_1_160px] items-center gap-2">
+      <label className="flex min-w-0 flex-1 items-center gap-2">
         <Checkbox checked={part.on} onCheckedChange={onToggle} />
-        <span className="flex min-w-0 flex-col gap-px">
-          <span className="font-medium">{part.name}</span>
-          <span className="truncate font-mono text-[11px] text-muted-foreground">
-            {chosenSelectorOf(part)}
-          </span>
+        <span className="shrink-0 font-medium">{part.name}</span>
+        <span className="min-w-0 truncate font-mono text-[11px] text-muted-foreground">
+          {chosenSelectorOf(part)}
         </span>
       </label>
       <div
@@ -101,7 +97,7 @@ function PartRow({
         aria-label={translate('components.prototypes.mergeSource', 'Source of {{name}}', {
           name: part.name
         })}
-        className="flex rounded-lg border border-border bg-background p-0.5"
+        className="flex shrink-0 rounded-md border border-border bg-background p-px"
       >
         {letters.map((letter) => (
           <button
@@ -111,7 +107,7 @@ function PartRow({
             disabled={letters.length === 1}
             onClick={() => onSource(letter)}
             className={cn(
-              'h-[26px] min-w-[34px] rounded-md px-2.5 text-xs font-semibold',
+              'h-5 min-w-[28px] rounded-sm px-2 text-[11px] font-semibold',
               part.from === letter ? 'bg-status-amber text-black' : 'text-muted-foreground'
             )}
           >
@@ -121,7 +117,7 @@ function PartRow({
       </div>
       <span
         className={cn(
-          'w-[74px] shrink-0 text-right text-[11px] text-muted-foreground',
+          'w-[72px] shrink-0 text-right text-[11px] text-muted-foreground',
           mark === 'no preview' && 'text-status-amber'
         )}
       >
@@ -155,12 +151,9 @@ export function PrototypeMergeReview({
     letter: nextLetter
   })
   const [hoveredId, setHoveredId] = useState<number | null>(null)
-  const [previewHoveredId, setPreviewHoveredId] = useState<number | null>(null)
+  // The part the user last changed: the preview moves to its section.
+  const [revealedId, setRevealedId] = useState<number | null>(null)
   const [view, setView] = useState<MergePreviewView>('desktop')
-  useEffect(() => {
-    const timer = window.setTimeout(() => setPreviewHoveredId(hoveredId), HOVER_PREVIEW_DELAY_MS)
-    return () => window.clearTimeout(timer)
-  }, [hoveredId])
   const directions = usePrototypeDirectionsHtml(set, review.letters)
   const composition = useMemo(
     () =>
@@ -168,7 +161,6 @@ export function PrototypeMergeReview({
         ? composeMergePreview({
             htmlByLetter: directions.htmlByLetter,
             parts: kept,
-            hoveredId: previewHoveredId,
             view,
             unplacedText: (name) =>
               translate(
@@ -178,7 +170,7 @@ export function PrototypeMergeReview({
               )
           })
         : null,
-    [directions, kept, previewHoveredId, view]
+    [directions, kept, view]
   )
   const groups = (['section', 'component'] as const).map((kind) => ({
     kind,
@@ -203,8 +195,8 @@ export function PrototypeMergeReview({
         </div>
         {groups.map((group) =>
           group.parts.length === 0 ? null : (
-            <div key={group.kind} className="flex flex-col gap-1.5">
-              <span className={cn(LABEL_CLASS, 'pt-1.5')}>{groupHeading(group.kind)}</span>
+            <div key={group.kind} className="flex flex-col gap-1">
+              <span className={cn(LABEL_CLASS, 'pt-1')}>{groupHeading(group.kind)}</span>
               {group.parts.map((part) => (
                 <PartRow
                   key={part.id}
@@ -213,10 +205,14 @@ export function PrototypeMergeReview({
                   placement={composition?.placement[part.id] ?? 'placed'}
                   hovered={hoveredId === part.id}
                   onHover={(hovering) => setHoveredId(hovering ? part.id : null)}
-                  onToggle={() => update((current) => togglePart(current, part.id))}
-                  onSource={(letter) =>
+                  onToggle={() => {
+                    setRevealedId(part.id)
+                    update((current) => togglePart(current, part.id))
+                  }}
+                  onSource={(letter) => {
+                    setRevealedId(part.id)
                     update((current) => setPartSource(current, part.id, letter))
-                  }
+                  }}
                 />
               ))}
             </div>
@@ -267,6 +263,7 @@ export function PrototypeMergeReview({
         name={previewName}
         agent={agent}
         html={composition?.html ?? null}
+        anchor={revealedId === null ? null : mergePartAnchor(revealedId)}
         view={view}
         onView={setView}
       />

@@ -31,7 +31,14 @@ export function isMergePreviewEventAttribute(name: string): boolean {
   return name.toLowerCase().startsWith('on')
 }
 
+/** The anchor of a part's section: a frame moves to it by a fragment, with no reload of the page. */
+export function mergePartAnchor(id: number): string {
+  return `merge-part-${id}`
+}
+
 const AMBER = '#f59e0b'
+// Why: the section a frame moved to is outlined by the browser's :target, so no script or reload marks it.
+const TARGET_OUTLINE_CSS = `[data-part]:target{outline:2px solid ${AMBER};outline-offset:-2px}`
 
 // Why: a regex rewrite, not a CSS parser. It maps :root/html/body to the shadow host, so a
 // direction's page background, font and custom properties reach its block. It misses those names
@@ -54,39 +61,31 @@ function escapeHtml(text: string): string {
 function blockOf(options: {
   id: number
   letter: string
-  hovered: boolean
   view: MergePreviewView
   inner: string
 }): string {
   const padding = options.view === 'phone' ? '14px' : '18px 22px'
-  const outline = options.hovered ? `outline:2px solid ${AMBER};outline-offset:-2px;` : ''
   const badge = `<span style="position:absolute;top:6px;right:6px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:5px;background:${AMBER};color:#000000;font:600 11px system-ui,sans-serif">${escapeHtml(options.letter)}</span>`
-  return `<div data-part="${options.id}" style="position:relative;box-sizing:border-box;padding:${padding};${outline}">${options.inner}${badge}</div>`
+  return `<div id="${mergePartAnchor(options.id)}" data-part="${options.id}" style="position:relative;box-sizing:border-box;padding:${padding};">${options.inner}${badge}</div>`
 }
 
 /**
- * The preview document for the kept parts, in plan page order. A part with a match becomes its
- * element in its own declarative shadow root, so the directions' styles cannot reach each other; a
- * part without one becomes a dashed placeholder in the same position.
+ * The preview document for the kept parts, in plan page order. Each part is an anchored block: a part
+ * with a match becomes its element in its own declarative shadow root, so the directions' styles
+ * cannot reach each other; a part without one becomes a dashed placeholder in the same position.
  */
 export function assembleMergePreview(input: {
   /** The parts the merge keeps, in plan page order. */
   parts: readonly Pick<PrototypeMergeReviewPart, 'id' | 'name' | 'from'>[]
   /** The match of each kept part, by part id; a part with none, or null, is unmatched. */
   matches: Readonly<Record<number, MergePreviewMatch | null | undefined>>
-  hoveredId: number | null
   view: MergePreviewView
   /** The placeholder line of a part that could not be placed. */
   unplacedText: (name: string) => string
 }): MergePreviewComposition {
   const placement: Record<number, MergePreviewPlacement> = {}
   const blocks = input.parts.map((part) => {
-    const shared = {
-      id: part.id,
-      letter: part.from,
-      hovered: input.hoveredId === part.id,
-      view: input.view
-    }
+    const shared = { id: part.id, letter: part.from, view: input.view }
     const match = input.matches[part.id]
     if (match === null || match === undefined) {
       placement[part.id] = 'unmatched'
@@ -103,6 +102,6 @@ export function assembleMergePreview(input: {
     })
   })
   // Why: the base target keeps a clicked link from navigating the frame itself.
-  const html = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${MERGE_PREVIEW_CSP}"><base target="_blank"></head><body style="margin:0;background:#ffffff;font-family:system-ui,sans-serif">${blocks.join('')}</body></html>`
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${MERGE_PREVIEW_CSP}"><base target="_blank"><style>${TARGET_OUTLINE_CSS}</style></head><body style="margin:0;background:#ffffff;font-family:system-ui,sans-serif">${blocks.join('')}</body></html>`
   return { html, placement }
 }

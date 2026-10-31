@@ -461,16 +461,43 @@ describe('PrototypeViewer Merge button', () => {
 describe('PrototypeViewer while a merge waits', () => {
   afterEach(cleanup)
 
-  it('leaves the main area blank, with no frame, banner or hint, and keeps the strip and the row', () => {
+  it('shows a skeleton of the review while the plan is generated, with no frame, banner or hint', () => {
     const stars = toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C')
     renderSet3({
       ...stars,
       merge: { phase: 'waiting', letters: ['A', 'C'], planId: 'p', baseline: null }
     })
+    expect(screen.getByTestId('prototype-merge-skeleton')).toBeInTheDocument()
     expect(screen.queryByTestId('frame')).toBeNull()
     expect(screen.queryByText(/click any element/u)).toBeNull()
     expect(screen.getByRole('status')).toHaveTextContent('Processing merge')
     expect(screen.getByRole('group', { name: 'Directions in this set' })).toBeInTheDocument()
+  })
+
+  it('holds a page placeholder in the review until every direction is read', () => {
+    const stars = toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C')
+    renderSet3({
+      ...stars,
+      merge: {
+        phase: 'review',
+        letters: ['A', 'C'],
+        parts: [
+          {
+            id: 0,
+            name: 'Heading',
+            kind: 'section',
+            selectors: { A: 'main > h1', C: 'main > h1' },
+            selector: 'main > h1',
+            suggested: 'A',
+            from: 'A',
+            on: true
+          }
+        ],
+        note: '',
+        sending: false
+      }
+    })
+    expect(screen.getByTestId('prototype-merge-page-skeleton')).toBeInTheDocument()
   })
 
   it('shows the progress row from the click, and its Cancel ends the wait and keeps the stars', () => {

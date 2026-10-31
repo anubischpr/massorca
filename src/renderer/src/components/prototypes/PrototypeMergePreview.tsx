@@ -3,6 +3,8 @@ import { translate } from '@/i18n/i18n'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import type { MergePreviewView } from './prototype-merge-preview-document'
+import { PrototypeMergePageSkeleton } from './PrototypeMergeSkeleton'
+import { useComposedMergePageUrl } from './use-composed-merge-page-url'
 
 const LABEL_CLASS = 'text-[11px] font-semibold tracking-wider text-muted-foreground uppercase'
 const VIEW_BUTTON = 'h-[26px] rounded-md px-2.5 text-xs font-medium text-foreground'
@@ -12,6 +14,7 @@ export function PrototypeMergePreview({
   name,
   agent,
   html,
+  anchor,
   view,
   onView
 }: {
@@ -20,9 +23,12 @@ export function PrototypeMergePreview({
   agent: string
   /** The composed document; null until every direction was read. */
   html: string | null
+  /** The section the frame moves to, by its anchor; null leaves it where it is. */
+  anchor: string | null
   view: MergePreviewView
   onView: (view: MergePreviewView) => void
 }): React.JSX.Element {
+  const pageSrc = useComposedMergePageUrl(html, anchor)
   return (
     <div className="flex min-w-[320px] flex-[2_1_380px] flex-col gap-2">
       <div className="flex items-center gap-2">
@@ -70,11 +76,13 @@ export function PrototypeMergePreview({
         </div>
       </div>
       <div className="flex justify-center rounded-lg bg-card p-3">
-        {html === null ? null : (
+        {pageSrc === null ? (
+          <PrototypeMergePageSkeleton />
+        ) : (
           <iframe
             title={name}
             sandbox=""
-            srcDoc={html}
+            src={pageSrc}
             referrerPolicy="no-referrer"
             className={cn(
               'h-[70vh] min-h-[480px] rounded-md border-0',
