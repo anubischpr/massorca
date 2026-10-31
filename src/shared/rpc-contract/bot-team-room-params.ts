@@ -28,7 +28,9 @@ export const BotTeamTaskCreate = z.object({
 
 export const BotTeamMessagePost = z.object({
   teamId: requiredString('Missing team id'),
-  text: requiredString('Missing message text')
+  text: requiredString('Missing message text'),
+  /** False saves the task to Todo without starting a bot. */
+  start: z.boolean().default(true)
 })
 
 export const BotTeamRoomSelector = z.object({
@@ -42,6 +44,8 @@ export const BotTeamTaskStart = z.object({
 export type BotTeamTask = z.output<typeof BotTeamTaskSchema>
 export type BotTeamMessage = z.output<typeof BotTeamMessageSchema>
 export type BotTeamTaskInput = z.output<typeof BotTeamTaskCreate>
-export type BotTeamMessageInput = z.output<typeof BotTeamMessagePost> & {
+export type BotTeamMessageInput = {
+  teamId: string
+  text: string
   authorBotId: string | null
 }
