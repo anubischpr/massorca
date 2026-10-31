@@ -1,0 +1,45 @@
+# Bot teams
+
+Objective: add a Bot teams mode to MassOrca, desktop and mobile, for non-technical users, reusing what MassOrca already has.
+Branch: claude/peaceful-solomon-017ef2 for phase 0; each later phase gets its own branch. Delivery: ask-on-risk. PRs target custom/integration.
+Test runner: `pnpm test`, `pnpm tc`. Approved design: https://claude.ai/artifact/RciXSHfXaHRyWECoQrKRLx (version 17).
+
+## Specs
+
+- S1. Model: Company > Team > one Conference room > Tasks, each with its own thread, optionally grouped in Projects. Design canvas version 17 is the UI reference.
+- S2. Phases, approved by the user: 0 foundations, 1 mode and teams, 2 Conference room and tasks, 3 projects and versions, 4 memory, hand-offs and integrations, 5 Workspaces option, 6 routines and webhooks.
+- S3. Minimal scope: "tengamos MUCHO cuidado en NO hacer sobre ingeniería, la base de MassOrca ya tiene bastantes cosas que se pueden reutilizar, mantengamos esto a lo mínimo necesario."
+- S4. Git: "agreguemos Git en el instalador pesará más, pero es necesario para que funcionen ciertas features."
+- S5. Engram: "no nos olvidemos de Engram, lo íbamos a incorporar como nativo en el proyecto para el tema de memorias compartidas". Whether it also solves large binaries is an open question for phase 0 (user: "pensaría que podríamos utilizarlo aquí también a nuestra manera").
+- S6. Access: "Bot teams en general manera modo full access por defecto, en settings se podría configurar si se quiere granularidad por team y qué modo tendría cada team". Reason: "para usuarios no técnicos es importante que no sientan fricción al realizar tareas."
+- S7. Stopped reuses the status `done` with `interrupted`; no new status state. Assumption to verify: it survives a host restart.
+- S8. Bot teams runs on the host selected in mobile; team data lives on that host. Sharing teams across hosts is out of this version.
+- S9. Code is never copied from nightly-labs/openbot (PolyForm Noncommercial) or CopilotKit/openbot; ideas only.
+
+## Tasks
+
+- [x] T0 (S2-S9) Phase 0 technical decisions, recorded in the Log (L3). Route: delegated read-only map (understanding exceeded the inline budget), then inline document. No UI, no production code.
+- [ ] T1 (S1, S2, S6) Phase 1 mode and teams. Route: to be decided.
+- [ ] T2 (S1, S2, S3, S6, S7) Phase 2 Conference room and tasks, starting with one team, one bot and one task end to end. Route: to be decided.
+- [ ] T3 (S2, S4, S5) Phase 3 projects and versions. Route: to be decided.
+- [ ] T4 (S2, S5, S6) Phase 4 memory, hand-offs and integrations. Route: to be decided.
+- [ ] T5 (S2, S8) Phase 5 Workspaces option. Route: to be decided.
+- [ ] T6 (S2) Phase 6 routines and webhooks; needs its own design first, the canvas has none. Route: to be decided.
+
+## Log
+
+- L1 (2026-10-31), user request: "Empecemos por las fases antes de desarrollar código."
+- L2 (2026-10-31), user: "Sí, y una última cosas, agreguemos Git en el instalador pesará más, pero es necesario para que funcionen ciertas features. Además no nos olvidemos de Engram, lo íbamos a incorporar como nativo en el proyecto para el tema de memorias compartidas, y eso te resuelve un problema respecto a los binarios grandes, porque este maneja SQL Lite, pensaría que podríamos utilizarlo aquí también a nuestra manera, no? Por último Bot teams en general manera modo full access por defecto, en settings se podría configurar si se quiere granularidad por team y qué modo tendría cada team, se entiende? Esto debido a que para usuarios no técnicos es importante que no sientan fricción al realizar tareas."
+- L3 (2026-10-31), phase 0 decisions, from a code read without running anything (CodeGraph failed, plain search used):
+  - Data: Bot teams tables in orchestration SQLite, next migration after `SCHEMA_VERSION = 43` (`src/main/runtime/orchestration/db/contract-constants.ts:23`). It is per host (S8) and `delegation_requests` can gain a column to link a task. Mobile needs new RPC methods and allowlist entries (`src/main/runtime/runtime-rpc/runtime-rpc-mobile-method-allowlist.ts`).
+  - Naming: `botTeams` in code and RPC; "Task" only in UI, since `tasks` already means orchestration tasks and tracker issues.
+  - Chats: reuse the projectless flow (`src/main/projectless-chats/projectless-chat-workspace.ts:25-65`) with a "Bot teams" group and root, one folder per project and one for tasks without a project. Unverified: how to keep them out of the Workspaces sidebar; no hidden flag was found, T1 traces it.
+  - Task threads: delegated child sessions (`src/main/delegated-session/`), adding a named bot as the routing target.
+  - Access (S6): team `accessMode`, default `full-access`, passed at start. Children inherit it unchanged (`src/main/delegated-session/delegation-access-mode.ts:15-50`). ACP agents declare no modes, so their prompts may still appear; whether they are answered automatically is unverified.
+  - Stopped (S7): `done` with `interrupted`. Structured rows are not in the last-status file; the journal is the durable source (`src/main/agent-hooks/server/server-persistence.ts:29-33`). Surviving a restart is unverified; T2 adds a test.
+  - Git (S4): bundled on all platforms in T3, following the ripgrep packaging and `beforePack` guard (`config/bundled-ripgrep-resources.cjs`, `config/electron-builder.config.cjs:357-362`), Windows first. Git is resolved as bare `git` today (`src/main/git/command-runner/git-exec-file.ts:321`); reaching agents through PATH is untraced. License notice required.
+  - Engram (S5): not bundled today. It appears only as a name in `src/main/ports/agent-infrastructure-listener.ts` and `NativeChatSessionConnectorRow.tsx` on custom/integration. Native Engram is new work in T4, for team and bot memory.
+  - Large binaries (S5): Engram does not solve them. SQLite storage alone gives no restore flow and the database would grow with each copy; Engram's own limits were not checked. T3 uses git snapshots on hidden refs, with a size limit to skip large files.
+  - Versions: the exploration in odd/research/fine-grained-versioning.md (branch claude/explore-fine-grained-versioning-250308) also recommends git, pending an owner decision; T3 reconciles with it.
+- Canvas gap for T1: the design shows restrictive permissions and a publish approval, which conflicts with S6. Adjust before implementing those screens.
+- Next step: T1, once the user gives the go-ahead.
