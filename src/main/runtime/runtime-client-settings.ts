@@ -162,7 +162,7 @@ export class RuntimeClientSettingsController {
     }
     const beforeSettings = this.store.getSettings()
     const before = beforeSettings.agentStatusHooksEnabled !== false
-    this.store.updateSettings(updates, { notifyListeners: true })
+    this.store.updateSettings(withLegacyCardLayout(updates), { notifyListeners: true })
     const settings = this.store.getSettings()
     if (updates.worktreeVisibilityDefaults !== undefined) {
       this.notifyReposChanged?.()
@@ -249,6 +249,14 @@ export class RuntimeClientSettingsController {
     this.reconciliationTail = reconciliation.catch(() => {})
     return reconciliation
   }
+}
+
+// Why: a stored layout outranks compactWorktreeCards, so an older client's bare flag must set one too.
+function withLegacyCardLayout(updates: RuntimeClientSettingsUpdate): RuntimeClientSettingsUpdate {
+  if (updates.compactWorktreeCards === undefined || updates.worktreeCardLayout !== undefined) {
+    return updates
+  }
+  return { ...updates, worktreeCardLayout: updates.compactWorktreeCards ? 'compact' : 'detailed' }
 }
 
 function projectSourceControlLaunchRecipes(
