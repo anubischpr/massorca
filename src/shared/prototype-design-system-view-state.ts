@@ -1,6 +1,7 @@
 // The Design system view's own state, held per project in memory: its tab, its selection, the draft and
 // the sends that carry it, and the controls around them. Each transition is a function of the state, so
 // the screen renders what these return and nothing else decides.
+import type { NativeChatVisualDesignReadout } from './native-chat-visual-annotate'
 import type { ComponentSection } from './prototype-design-system-components'
 import {
   addDraftComponent,
@@ -23,9 +24,24 @@ export const DESIGN_SYSTEM_ADD_CHOICES = [
   'Toggle'
 ] as const
 
+/** An element a pick chose inside a component: its locator, label and file readout, and its ancestors. */
+export type DesignElementPick = {
+  locator: string
+  label: string
+  readout: NativeChatVisualDesignReadout
+  /** The ancestors below the section, outermost first; the section itself is the component. */
+  trail: readonly DesignElementTrailItem[]
+}
+
+export type DesignElementTrailItem = {
+  locator: string
+  label: string
+  readout: NativeChatVisualDesignReadout
+}
+
 export type DesignSystemSelection =
   | { kind: 'token'; id: string }
-  | { kind: 'component'; name: string }
+  | { kind: 'component'; name: string; element?: DesignElementPick }
 
 /** The sends of the view: the draft, a re-detect, and a palette approval. */
 export type DesignSystemSendKind = 'draft' | 'redetect' | 'palette'

@@ -131,7 +131,11 @@ const PX_PATTERN = /^\d+(?:\.\d+)?px$/u
 export function colorHexOf(text: string): string | null {
   const value = text.trim().toLowerCase()
   if (/^#[0-9a-f]{3}$/u.test(value)) {
-    return `#${[...value.slice(1)].map((digit) => `${digit}${digit}`).join('')}`
+    return `#${value
+      .slice(1)
+      .split('')
+      .map((digit) => `${digit}${digit}`)
+      .join('')}`
   }
   if (HEX_PATTERN.test(value)) {
     return value
@@ -187,42 +191,19 @@ function normalizeFamily(text: string): string {
   return text.replaceAll(/["']/gu, '').replaceAll(/\s+/gu, '').toLowerCase()
 }
 
-/** The value a row shows when the draft has no edit: the bound token, a raw color, or a number. */
-export function originalValueOf(
-  row: DesignRow,
+/** The rows that bind to a token, or to a raw color, px or family when no token of their group holds the value. */
+export type TokenRow = 'fill' | 'color' | 'border' | 'radius' | 'shadow' | 'font'
+
+/** The value a token row shows with no draft edit: the bound token id, else the raw value. */
+export function originalTokenValueOf(
+  row: TokenRow,
   readout: NativeChatVisualDesignReadout,
   tokens: readonly DesignToken[]
-): DesignElementEdit[keyof DesignElementEdit] {
-  switch (row) {
-    case 'fill':
-    case 'color':
-    case 'border':
-    case 'radius':
-    case 'shadow':
-    case 'font':
-      return boundTokenOf(row, readout, tokens) ?? rawOriginalOf(row, readout)
-    case 'borderWidth':
-      return readout.borderWidth
-    case 'width':
-      return readout.width
-    case 'height':
-      return readout.height
-    case 'padding':
-      return readout.padding
-    case 'gap':
-      return readout.gap
-    case 'fontSize':
-      return readout.fontSize
-    case 'lineHeight':
-      return readout.lineHeight
-    case 'style':
-      return readout.bold
-    case 'align':
-      return readout.align
+): string {
+  const bound = boundTokenOf(row, readout, tokens)
+  if (bound !== null) {
+    return bound
   }
-}
-
-function rawOriginalOf(row: DesignRow, readout: NativeChatVisualDesignReadout): string {
   switch (row) {
     case 'fill':
       return readout.fill
@@ -232,8 +213,10 @@ function rawOriginalOf(row: DesignRow, readout: NativeChatVisualDesignReadout): 
       return readout.border
     case 'radius':
       return `${readout.radius}px`
-    default:
+    case 'shadow':
       return readout.shadow
+    case 'font':
+      return readout.fontFamily
   }
 }
 

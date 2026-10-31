@@ -16,6 +16,8 @@ import { componentsUsingToken, tokenGroupOf } from '../../../../shared/prototype
 import { effectiveSelectionOf } from '../../../../shared/prototype-design-system-view-state'
 import { isHexColor, pickerHueOf } from '../../../../shared/prototype-color'
 import { PrototypeColorPicker } from './PrototypeColorPicker'
+import { PrototypeDesignSystemElement } from './PrototypeDesignSystemElement'
+import { TokenChipRow } from './PrototypeDesignSystemRows'
 import type { DesignSystemPanelProps } from './prototype-design-system-props'
 
 /** The aside's selection block: the chosen token's value, or the chosen component's edits. */
@@ -31,7 +33,14 @@ export function PrototypeDesignSystemSelection(
     return token === undefined ? null : <TokenEditor {...props} token={token} />
   }
   const section = props.content.components.find((candidate) => candidate.name === selection.name)
-  return section === undefined ? null : <ComponentEditor {...props} section={section} />
+  if (section === undefined) {
+    return null
+  }
+  return selection.element === undefined ? (
+    <ComponentEditor {...props} section={section} />
+  ) : (
+    <PrototypeDesignSystemElement {...props} section={section} pick={selection.element} />
+  )
 }
 
 // A token: its id, the components and sets that use it, its value, and the note that changes preview on their own.
@@ -254,36 +263,18 @@ function ComponentEditor({
             const bound = drafted.bindings[prop] ?? tokenId
             const options = content.tokens.filter((token) => token.group === tokenGroupOf(tokenId))
             return (
-              <div
+              <TokenChipRow
                 key={prop}
-                className="grid grid-cols-[76px_minmax(0,1fr)] items-center gap-2 text-xs text-muted-foreground"
-              >
-                <span>{prop}</span>
-                <span className="flex flex-wrap gap-1">
-                  {options.map((option) => {
-                    const on = bound === option.id
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() =>
-                          update((latest) => ({
-                            ...latest,
-                            draft: setDraftBinding(latest.draft, section, prop, option.id)
-                          }))
-                        }
-                        className={cn(
-                          'h-6 rounded-md border border-border px-2 font-mono text-[11px]',
-                          on ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
-                        )}
-                      >
-                        {option.id}
-                      </button>
-                    )
-                  })}
-                </span>
-              </div>
+                label={prop}
+                tokens={options}
+                value={bound}
+                onPick={(optionId) =>
+                  update((latest) => ({
+                    ...latest,
+                    draft: setDraftBinding(latest.draft, section, prop, optionId)
+                  }))
+                }
+              />
             )
           })}
         </>

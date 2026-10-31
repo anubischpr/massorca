@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
 import type { PrototypeSize } from '../../../../shared/prototype-draft'
-import {
-  clampToBounds,
-  FONT_SIZE_BOUNDS,
-  sizeBoundsOf
-} from '../../../../shared/prototype-number-input'
+import { FONT_SIZE_BOUNDS, sizeBoundsOf } from '../../../../shared/prototype-number-input'
 import { PrototypeColorPicker } from './PrototypeColorPicker'
+import {
+  EDIT_INPUT_CLASS as INPUT_CLASS,
+  EDIT_LABEL_CLASS as LABEL_CLASS,
+  PrototypeUnitGroup
+} from './PrototypeEditControls'
 import { PrototypeNumberField } from './PrototypeNumberField'
 import {
   FILL_COLOR_PALETTE,
@@ -29,11 +30,6 @@ import {
 } from '../../../../shared/prototype-set-state'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
-
-const LABEL_CLASS =
-  'grid grid-cols-[64px_minmax(0,1fr)] items-center gap-2 px-0.5 py-0.5 text-xs text-muted-foreground'
-const INPUT_CLASS = 'h-7 rounded-md border border-border bg-input px-2 text-xs text-foreground'
-const UNIT_OPTIONS = ['px', '%', 'auto'] as const
 
 /** The example notes: each one is written on the selected element. */
 function noteChips(): readonly string[] {
@@ -219,37 +215,15 @@ export function PrototypeEditPanel({
                   bounds={sizeBoundsOf(size.unit)}
                   onCommit={(value) => setSize(field, { value, unit: size.unit })}
                 />
-                <span
-                  role="group"
-                  aria-label={
+                <PrototypeUnitGroup
+                  label={
                     field === 'width'
                       ? translate('components.prototypes.widthUnit', 'Width unit')
                       : translate('components.prototypes.heightUnit', 'Height unit')
                   }
-                  className="flex rounded-md border border-border bg-sidebar p-0.5"
-                >
-                  {UNIT_OPTIONS.map((unit) => (
-                    <button
-                      key={unit}
-                      type="button"
-                      aria-pressed={size.unit === unit}
-                      onClick={() =>
-                        setSize(field, {
-                          value: clampToBounds(size.value, sizeBoundsOf(unit)),
-                          unit
-                        })
-                      }
-                      className={cn(
-                        'h-[22px] rounded px-2 text-[11px]',
-                        size.unit === unit
-                          ? 'bg-accent text-accent-foreground'
-                          : 'text-muted-foreground'
-                      )}
-                    >
-                      {unit}
-                    </button>
-                  ))}
-                </span>
+                  size={size}
+                  onChange={(next) => setSize(field, next)}
+                />
               </span>
             </div>
           )
