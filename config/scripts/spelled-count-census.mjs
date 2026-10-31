@@ -29,7 +29,14 @@ export const NUMBER_WORDS = [
   'twelve',
   'thirteen',
   'fourteen',
-  'fifteen'
+  'fifteen',
+  'sixteen',
+  'seventeen',
+  'eighteen',
+  'nineteen',
+  'twenty',
+  'twenty-one',
+  'twenty-two'
 ]
 
 /** Comment markers and their wrapping dropped, so a phrase is found wherever the line broke. */

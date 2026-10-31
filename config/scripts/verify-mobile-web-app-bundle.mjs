@@ -199,7 +199,7 @@ export async function readMobileWebBundleMaxAssets() {
  * shells return null for a manifest over MOBILE_WEB_BUNDLE_MAX_ASSETS rather than dropping the
  * extra assets, so a route count that pushes the chunk envelope plus images plus the document past
  * it would pass this build and fail on the device with nothing to read. At today's 42 images that
- * is 29 routes, inside what Phase C adds, which is why this is a build failure and not a comment.
+ * is 27 routes, inside what Phase C adds, which is why this is a build failure and not a comment.
  * The envelope grants the worst swept route to each one past the sweep, so re-measuring a tree
  * whose routes share more moves that crossing out again.
  */
