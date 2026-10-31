@@ -541,6 +541,38 @@ describe('PrototypeViewer while a merge waits', () => {
   })
 })
 
+describe('PrototypeViewer panels during a merge', () => {
+  beforeEach(() => {
+    usePrototypeViewStore.setState({ listPanelHidden: false, sidePanelHidden: false })
+  })
+  afterEach(cleanup)
+
+  function waitingState(): PrototypeSetState {
+    return {
+      ...toggleStar(toggleStar(createSetState(['A', 'B', 'C']), 'A'), 'C'),
+      merge: { phase: 'waiting', letters: ['A', 'C'], planId: 'p', baseline: null }
+    }
+  }
+
+  it('offers no Hide list toggle outside a merge', () => {
+    renderSet3(createSetState(['A', 'B', 'C']))
+    expect(screen.queryByRole('button', { name: 'Hide list' })).toBeNull()
+  })
+
+  it('offers a Hide list toggle during a merge, and flips the list flag from it', () => {
+    renderSet3(waitingState())
+    fireEvent.click(screen.getByRole('button', { name: 'Hide list' }))
+    expect(usePrototypeViewStore.getState().listPanelHidden).toBe(true)
+    expect(screen.getByRole('button', { name: 'Show list' })).toBeInTheDocument()
+  })
+
+  it('shows the draft panel toggle as hidden and disabled during a merge, and keeps the preference', () => {
+    renderSet3(waitingState())
+    expect(screen.getByRole('button', { name: 'Show panel' })).toBeDisabled()
+    expect(usePrototypeViewStore.getState().sidePanelHidden).toBe(false)
+  })
+})
+
 describe('PrototypeViewer toolbar structure', () => {
   afterEach(cleanup)
 

@@ -18084,6 +18084,8 @@
       "curMerged": "main · merged from {{letters}}",
       "heightUnit": "Height unit",
       "hidePanel": "Hide panel",
+      "hideList": "Hide list",
+      "showList": "Show list",
       "link": {
         "setOf": "{{title}} · set of {{count}}",
         "proposed": "Design system · proposed",
