@@ -1,6 +1,7 @@
 import type { AttemptObservationStoreMethods } from './attempt-observation-store'
 import type { CoordinatorRunStoreMethods } from './coordinator-runs/coordinator-run-store'
 import type { DecisionGateStoreMethods } from './decision-gates/decision-gate-store'
+import type { BotTeamRoomStoreMethods } from './bot-teams/bot-team-room-store'
 import type { BotTeamStoreMethods } from './bot-teams/bot-team-store'
 import type { DelegationRequestStoreMethods } from './delegation/delegation-request-store'
 import type { DispatchCompletionMethods } from './dispatch-context/dispatch-completion'
@@ -135,5 +136,6 @@ export type OrchestrationDbMethods = AttemptObservationStoreMethods &
   DecisionGateStoreMethods &
   DelegationRequestStoreMethods &
   BotTeamStoreMethods &
+  BotTeamRoomStoreMethods &
   CoordinatorRunStoreMethods &
   OrchestrationResetMethods
