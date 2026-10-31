@@ -119,7 +119,8 @@ describe('recent project rank scan budget', () => {
         tone: PROJECT_GROUP_META.tone,
         icon: PROJECT_GROUP_META.icon,
         repo: group.repo,
-        projectGroupDepth: 1
+        projectGroupDepth: 1,
+        worktreeIds: group.items.map((worktree) => worktree.id)
       }))
     )
     expect(readCount()).toBe(128 * 33)
