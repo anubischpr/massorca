@@ -102,7 +102,7 @@ function readEdges(page) {
       range.selectNodeContents(title)
     }
     const fab = [...document.querySelectorAll('[role="button"]')].find(
-      (element) => element.getAttribute('aria-label') === 'New workspace'
+      (element) => element.getAttribute('aria-label') === 'New session'
     )
     return {
       titleTop: title === null ? null : range.getBoundingClientRect().top,
