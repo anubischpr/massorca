@@ -192,6 +192,33 @@ describe('DelegationAnswerService', () => {
     )
   })
 
+  it('keeps the tier Jev chose for the card when Automatic is decided again, with no second call', async () => {
+    const adviseTier = vi.fn(async () => 5 as const)
+    requests = new DelegationRequestService({
+      ...host,
+      requireDb: () => db,
+      listAgents: async () => AGENTS,
+      adviseTier
+    })
+    const { requestId, itemId } = await filed()
+
+    const outcome = await answers.hostOwnedPrompts.answer({
+      sessionId: PARENT.sessionId,
+      itemId,
+      optionId: 'automatic'
+    })
+    if (outcome.ok) {
+      outcome.afterCommit()
+    }
+    await answers.idle()
+
+    expect(adviseTier).toHaveBeenCalledOnce()
+    expect(JSON.parse(db.getDelegationRequest(requestId)?.decision_json ?? '{}')).toMatchObject({
+      tier: 5,
+      tierAdvisedBy: 'jev'
+    })
+  })
+
   it('decides Automatic again at the answer, with the usage read then', async () => {
     const { requestId, itemId } = await filed()
     // Claude led when the card was posted; by the answer Codex has more room.

@@ -9,7 +9,7 @@ import {
 import { DelegationLifecycle } from './delegation-lifecycle'
 import type { DelegationAnswerDeps } from './delegation-launch-types'
 import { routeDelegationRequest } from './delegation-options'
-import { readStoredDelegationAgents } from './delegation-stored-request'
+import { readStoredAdvisedTier, readStoredDelegationAgents } from './delegation-stored-request'
 
 type HostOwnedAnswer = Awaited<ReturnType<StructuredAgentSessionHostOwnedPrompts['answer']>>
 
@@ -151,7 +151,8 @@ export class DelegationAnswerService {
       parentAgent: this.deps.readParent(sessionId)?.agent ?? null,
       agents: readStoredDelegationAgents(row),
       rateLimits: this.deps.readRateLimits(),
-      now: this.deps.now()
+      now: this.deps.now(),
+      ...readStoredAdvisedTier(row)
     })
     return { decision_json: route.status === 'routed' ? JSON.stringify(route.decision) : null }
   }

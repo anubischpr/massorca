@@ -12,7 +12,9 @@ import type { OrchestrationDb } from '../runtime/orchestration/db'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { STRUCTURED_AGENT_RUNTIME_REGISTRATIONS } from '../runtime/structured-agent-runtime-registrations'
 import { declaredAccessForStructuredAgent } from '../runtime/rpc/methods/orchestration/worker/worker-start-access-mode'
+import { readJevApiKey } from '../jev/jev-api-key-store'
 import { DelegationAnswerService } from './delegation-answer-service'
+import { createJevDelegationTierAdvisor } from './delegation-jev-tier'
 import { createDelegationLauncher } from './delegation-launch'
 import type { DelegationStoredAgent } from './delegation-options'
 import { DelegationRequestService } from './delegation-request-service'
@@ -24,6 +26,7 @@ type DelegationRuntime = Pick<
   | 'getOrchestrationDb'
   | 'getExistingOrchestrationDb'
   | 'getAccountsSnapshot'
+  | 'isJevDecisionsEnabled'
   | 'getStructuredAgentSessionCreateSupport'
   | 'resolveStructuredAgentSessionLocalWorkspacePath'
 >
@@ -133,7 +136,12 @@ export function getDelegationRequestService(runtime: OrcaRuntimeService): Delega
     readParent: readParentSession,
     listAgents: (parent) => listUsableAgents(runtime, parent),
     readRateLimits: () => readRateLimits(runtime),
-    now: () => Date.now()
+    now: () => Date.now(),
+    // Why here: the host holding the chat decides, with its own setting and key.
+    adviseTier: createJevDelegationTierAdvisor({
+      isEnabled: () => runtime.isJevDecisionsEnabled(),
+      readApiKey: readJevApiKey
+    })
   })
   requestServices.set(runtime, service)
   return service

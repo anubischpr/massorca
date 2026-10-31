@@ -114,6 +114,15 @@ function tierForPoints(points: number): DelegationTier {
   return points <= 7 ? 4 : 5
 }
 
+/** A tier chosen outside the classifier; it replaces the tier but never lowers high risk below the floor. */
+export function withAdvisedDelegationTier(
+  classification: DelegationClassification,
+  advisedTier: DelegationTier
+): DelegationClassification {
+  const riskFloorApplied = classification.dimensions.risk === 'high' && advisedTier < 4
+  return { ...classification, tier: riskFloorApplied ? 4 : advisedTier, riskFloorApplied }
+}
+
 export function classifyDelegationTask({
   summary,
   writesCode

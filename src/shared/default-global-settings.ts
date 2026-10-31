@@ -252,6 +252,8 @@ export function buildDefaultSettings(args: {
     machineName: '',
     // Why: off keeps the cosmetic overlay unmounted for users who never opt in.
     experimentalPet: false,
+    // Why: decisions leave this host only for someone who opted in and saved a key.
+    jevDecisionsEnabled: false,
     experimentalActivity: false,
     experimentalActivityDefaultedOffForAllUsers: true,
     experimentalTerminalAttention: false,

@@ -23,6 +23,18 @@ export function createMiniMaxCredentialsApi(): NonNullable<
   }
 }
 
+export function createJevDecisionsApi(): PreloadApi['jevDecisions'] {
+  const unsupported = () =>
+    Promise.reject(
+      new Error('Jev keys can only be changed in the desktop app on the computer running MassOrca.')
+    )
+  return {
+    getStatus: () => Promise.resolve({ apiKeyConfigured: false }),
+    saveApiKey: unsupported,
+    clearApiKey: unsupported
+  }
+}
+
 export function createZcodePlanCredentialsApi(): PreloadApi['zcodePlanCredentials'] {
   const status = {
     detailsUnavailable: true,

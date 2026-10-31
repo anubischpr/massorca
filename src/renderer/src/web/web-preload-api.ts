@@ -6,6 +6,7 @@ import {
   createCodexAccountsApi,
   createCursorAccountsApi,
   createGrokAccountsApi,
+  createJevDecisionsApi,
   createZcodePlanCredentialsApi,
   createOpenCodeGoCredentialsApi,
   createMiniMaxCredentialsApi
@@ -115,6 +116,7 @@ function createWebPreloadApi(): Partial<PreloadApi> {
     opencodeGoCredentials: createOpenCodeGoCredentialsApi(),
     minimaxCredentials: createMiniMaxCredentialsApi(),
     zcodePlanCredentials: createZcodePlanCredentialsApi(),
+    jevDecisions: createJevDecisionsApi(),
     grokAccounts: createGrokAccountsApi(),
     cursorAccounts: createCursorAccountsApi(),
     codexAccounts: createCodexAccountsApi(),

@@ -10,10 +10,11 @@ import {
 import type { AgentJournalPromptOption } from '../../shared/agent-session-journal-types'
 import type {
   DelegationDecision,
-  DelegationRouteResult
+  DelegationRouteResult,
+  DelegationTier
 } from '../../shared/delegated-session-types'
 import { delegationUsageCandidates } from './delegation-usage-input'
-import { classifyDelegationTask } from './delegation-task-classifier'
+import { classifyDelegationTask, withAdvisedDelegationTier } from './delegation-task-classifier'
 import {
   delegationLaunchCatalog,
   resolveLaunchableDelegationModel
@@ -40,7 +41,14 @@ export type DelegationRoutingInput = {
   /** Null when this host reads no usage at all; every agent then counts as having no data. */
   rateLimits: RateLimitState | null
   now: number
+  advisedTier?: DelegationTier
 }
+
+/** Picks a task's tier from outside the classifier; null keeps the classifier's tier. */
+export type DelegationTierAdvisor = (task: {
+  summary: string
+  writes: boolean
+}) => Promise<DelegationTier | null>
 
 function usageCandidates(input: DelegationRoutingInput): DelegationRankingCandidate[] {
   return input.rateLimits === null
@@ -59,7 +67,14 @@ function usageCandidates(input: DelegationRoutingInput): DelegationRankingCandid
  * apply them: clamped to what each agent's catalog accepts, and no effort where no model is named.
  */
 export function routeDelegationRequest(input: DelegationRoutingInput): DelegationRouteResult {
-  const { tier } = classifyDelegationTask({ summary: input.summary, writesCode: input.writes })
+  const classification = classifyDelegationTask({
+    summary: input.summary,
+    writesCode: input.writes
+  })
+  const { tier } =
+    input.advisedTier === undefined
+      ? classification
+      : withAdvisedDelegationTier(classification, input.advisedTier)
   const catalogs = Object.fromEntries(
     input.agents.map(({ agent }) => [agent, delegationLaunchCatalog(agent, tier)])
   )
@@ -70,11 +85,30 @@ export function routeDelegationRequest(input: DelegationRoutingInput): Delegatio
     parentAgent: input.parentAgent,
     candidates: usageCandidates(input),
     now: input.now,
-    catalogs
+    catalogs,
+    ...(input.advisedTier === undefined ? {} : { advisedTier: input.advisedTier })
   })
   return route.status === 'routed' && route.decision.model === null
     ? { status: 'routed', decision: { ...route.decision, effort: null } }
     : route
+}
+
+/** The deterministic route, with its tier replaced when the advisor answers. */
+export async function routeDelegationRequestWithAdvice(
+  input: DelegationRoutingInput,
+  adviseTier: DelegationTierAdvisor | undefined
+): Promise<DelegationRouteResult> {
+  const route = routeDelegationRequest(input)
+  // Why: with no agent to start there is nothing to tier, so no paid call.
+  if (!adviseTier || route.status !== 'routed') {
+    return route
+  }
+  try {
+    const advisedTier = await adviseTier({ summary: input.summary, writes: input.writes })
+    return advisedTier === null ? route : routeDelegationRequest({ ...input, advisedTier })
+  } catch {
+    return route
+  }
 }
 
 function describeUsage(agent: DelegationCardAgent): string {
