@@ -24,6 +24,10 @@ export type WorktreeCardProps = {
   selectedWorktrees?: readonly Worktree[]
   hideRepoBadge?: boolean
   hostContextLabel?: string
+  /** One-line card: branch name without the user's own prefix; absent shows the full branch. */
+  branchLabel?: string
+  /** One-line card: project and/or host that tells a same-named branch apart. */
+  branchQualifier?: string
   inPinnedSection?: boolean
   activationRowKey?: string
   renameRowKey?: string

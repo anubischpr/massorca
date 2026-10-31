@@ -3,9 +3,9 @@ import React from 'react'
 import { cn } from '@/lib/utils'
 import { getWorkspaceAttachments } from '../../../../shared/workspace-attachments'
 import { WorktreeCardHeader } from './worktree-card-header'
+import { WorktreeCardIdentityHover } from './worktree-card-identity-hover'
 import { WorktreeCardMetaRow } from './worktree-card-meta-row'
-import { WorktreeCardDetailsHover } from './WorktreeCardMeta'
-import { WorktreeCardPortsDetails } from './WorktreeCardPorts'
+import { WorktreeCardOneLineContent } from './worktree-card-one-line'
 import type { WorktreeCardPresentation } from './worktree-card-presentation'
 import { WorktreeCardSecondaryRows } from './worktree-card-secondary-rows'
 import { WorktreeCardStatusSlot } from './WorktreeCardStatusSlot'
@@ -22,6 +22,7 @@ export function WorktreeCardParentContent({
     worktree,
     affiliateListMode,
     newCardStyle,
+    oneLineCards,
     lineageChildren,
     showStatus,
     unreadTooltip,
@@ -30,43 +31,14 @@ export function WorktreeCardParentContent({
     statusLaneReview,
     reviewChecks,
     branchIdentityDisplay,
-    showInlineAgentList,
-    titleRenaming,
-    isDeleting,
-    referenceDetails,
-    hoverIssue,
-    hoverLinearIssue,
-    hoverJiraIssue,
-    hoverReview,
-    hoverComment,
-    metaAutomationProvenance,
-    metaCliProvenance,
-    workspacePorts,
-    detailsHoverControl,
-    handleRenameTitle,
-    handleEditIssue,
-    handleManageLinks,
-    handleEditComment,
-    handleOpenGitHubIssueInOrca,
-    handleOpenIssueInBrowser,
-    linearIssue,
-    handleOpenLinearIssueInOrca,
-    handleOpenReviewInOrca,
-    handleOpenReviewInBrowser,
-    handleOpenAutomation,
-    handleOpenAutomationRun,
-    canUnlinkReview,
-    handleUnlinkReview
+    showInlineAgentList
   } = card
-  const {
-    titleOnlyCard,
-    parentContentMarginLeft,
-    showCombinedStatusSlot,
-    showUnreadQuickAction,
-    hasHoverDetails,
-    hoverBranchName,
-    hoverWorkspaceTitle
-  } = presentation
+  const { titleOnlyCard, parentContentMarginLeft, showCombinedStatusSlot, showUnreadQuickAction } =
+    presentation
+
+  if (oneLineCards) {
+    return <WorktreeCardOneLineContent card={card} presentation={presentation} />
+  }
 
   const identityContent = (
     <div
@@ -77,53 +49,6 @@ export function WorktreeCardParentContent({
       {presentation.hasMetaRow && <WorktreeCardMetaRow card={card} presentation={presentation} />}
     </div>
   )
-  // Why: status glyphs and agent rows own their tooltips; only identity content should open the larger details card.
-  const identityContentWithHover =
-    hasHoverDetails && !titleRenaming ? (
-      <WorktreeCardDetailsHover
-        workspace={worktree}
-        referenceDetails={referenceDetails}
-        onManageLinks={affiliateListMode ? undefined : handleManageLinks}
-        issue={hoverIssue}
-        linearIssue={hoverLinearIssue}
-        jiraIssue={hoverJiraIssue}
-        review={hoverReview}
-        comment={hoverComment}
-        automationProvenance={metaAutomationProvenance}
-        cliProvenance={metaCliProvenance}
-        branchName={hoverBranchName}
-        workspaceTitle={hoverWorkspaceTitle}
-        workspaceTitleRenameDisabled={isDeleting || affiliateListMode}
-        detailsAfter={
-          workspacePorts.length > 0 ? <WorktreeCardPortsDetails ports={workspacePorts} /> : null
-        }
-        openDelay={100}
-        hoverControl={detailsHoverControl}
-        onRenameWorkspaceTitle={affiliateListMode ? undefined : handleRenameTitle}
-        onEditIssue={affiliateListMode ? undefined : handleEditIssue}
-        onEditComment={affiliateListMode ? undefined : handleEditComment}
-        onOpenGitHubIssueInOrca={
-          hoverIssue && 'url' in hoverIssue && hoverIssue.url
-            ? handleOpenGitHubIssueInOrca
-            : undefined
-        }
-        onOpenIssueInBrowser={
-          hoverIssue && 'url' in hoverIssue && hoverIssue.url ? handleOpenIssueInBrowser : undefined
-        }
-        onOpenLinearIssueInOrca={linearIssue?.url ? handleOpenLinearIssueInOrca : undefined}
-        onOpenReviewInOrca={
-          hoverReview?.url && hoverReview.provider === 'github' ? handleOpenReviewInOrca : undefined
-        }
-        onOpenReviewInBrowser={hoverReview?.url ? handleOpenReviewInBrowser : undefined}
-        onOpenAutomation={affiliateListMode ? undefined : handleOpenAutomation}
-        onOpenAutomationRun={affiliateListMode ? undefined : handleOpenAutomationRun}
-        onUnlinkReview={!affiliateListMode && canUnlinkReview ? handleUnlinkReview : undefined}
-      >
-        {identityContent}
-      </WorktreeCardDetailsHover>
-    ) : (
-      identityContent
-    )
 
   return (
     <div
@@ -173,7 +98,10 @@ export function WorktreeCardParentContent({
             : 'overflow-hidden'
         )}
       >
-        {identityContentWithHover}
+        {/* Why: status glyphs and agent rows own their tooltips; only identity content opens the larger details card. */}
+        <WorktreeCardIdentityHover card={card} presentation={presentation}>
+          {identityContent}
+        </WorktreeCardIdentityHover>
         <WorktreeCardSecondaryRows card={card} presentation={presentation} />
       </div>
     </div>

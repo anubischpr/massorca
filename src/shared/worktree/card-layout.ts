@@ -1,0 +1,55 @@
+import type { WorktreeCardMode } from '../ui-chrome-types'
+
+export type WorktreeCardLayout = 'one-line' | 'detailed' | 'compact'
+
+export const DEFAULT_WORKTREE_CARD_LAYOUT: WorktreeCardLayout = 'one-line'
+
+const WORKTREE_CARD_LAYOUTS: readonly WorktreeCardLayout[] = ['one-line', 'detailed', 'compact']
+
+export function normalizeWorktreeCardLayout(value: unknown): WorktreeCardLayout | undefined {
+  return WORKTREE_CARD_LAYOUTS.find((layout) => layout === value)
+}
+
+/** `{ worktreeCardLayout }` for a known value, else `{}`, so a spread never overwrites with undefined. */
+export function pickWorktreeCardLayout(value: unknown): {
+  worktreeCardLayout?: WorktreeCardLayout
+} {
+  const worktreeCardLayout = normalizeWorktreeCardLayout(value)
+  return worktreeCardLayout ? { worktreeCardLayout } : {}
+}
+
+type WorktreeCardLayoutSettings = {
+  compactWorktreeCards?: boolean
+  worktreeCardLayout?: WorktreeCardLayout
+}
+
+/**
+ * The layout the sidebar renders. An explicit `worktreeCardLayout` wins; profiles that predate it
+ * keep Compact when `compactWorktreeCards` was switched on and otherwise get the new default.
+ * `false` is the old shipped default, so it cannot tell a deliberate Detailed from an untouched
+ * profile and is treated as unset.
+ */
+export function resolveWorktreeCardLayout(
+  settings: WorktreeCardLayoutSettings | null | undefined
+): WorktreeCardLayout {
+  // Settings not hydrated yet: keep the long-standing Detailed card instead of flashing a layout.
+  if (!settings) {
+    return 'detailed'
+  }
+  const explicit = normalizeWorktreeCardLayout(settings.worktreeCardLayout)
+  if (explicit) {
+    return explicit
+  }
+  return settings.compactWorktreeCards === true ? 'compact' : DEFAULT_WORKTREE_CARD_LAYOUT
+}
+
+export function getWorktreeCardModeForLayout(layout: string): WorktreeCardMode {
+  switch (normalizeWorktreeCardLayout(layout)) {
+    case 'compact':
+      return 'Compact'
+    case 'detailed':
+      return 'Default'
+    default:
+      return 'OneLine'
+  }
+}

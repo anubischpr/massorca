@@ -15,7 +15,7 @@ describe('worktree card properties', () => {
 
   it('returns combined mode update payloads', () => {
     expect(getWorktreeCardModeUpdates('Compact')).toEqual({
-      settings: { compactWorktreeCards: true },
+      settings: { compactWorktreeCards: true, worktreeCardLayout: 'compact' },
       ui: {
         worktreeCardProperties: getWorktreeCardModeProperties('Compact'),
         _worktreeCardModeDefaulted: true

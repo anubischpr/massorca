@@ -1,12 +1,10 @@
 import React from 'react'
-import { GitMerge } from 'lucide-react'
 
 import { DetachedHeadBadge } from '@/components/DetachedHeadBadge'
 import { RepoBadgeMark } from '@/components/repo/RepoBadgeLabel'
-import { Badge } from '@/components/ui/badge'
 import CacheTimer from './CacheTimer'
 import { WorktreeHostContextBadge } from './WorktreeHostContextBadge'
-import { CONFLICT_OPERATION_LABELS } from './WorktreeCardHelpers'
+import { WorktreeConflictOperationBadge } from './worktree-card-conflict-badge'
 import { TruncatedSidebarLabel } from './truncated-sidebar-label'
 import { getDirectoryName } from './worktree-card-model'
 import type { WorktreeCardPresentation } from './worktree-card-presentation'
@@ -88,13 +86,7 @@ export function WorktreeCardMetaRow({
         ) : null}
 
         {showConflictOperationBadge && (
-          <Badge
-            variant="outline"
-            className="h-[16px] px-1.5 text-[10px] font-medium rounded shrink-0 gap-1 text-amber-600 border-amber-500/30 bg-amber-500/5 dark:text-amber-400 dark:border-amber-400/30 dark:bg-amber-400/5 leading-none"
-          >
-            <GitMerge className="size-2.5" />
-            {CONFLICT_OPERATION_LABELS[conflictOperation]}
-          </Badge>
+          <WorktreeConflictOperationBadge operation={conflictOperation} />
         )}
 
         {cacheStartedAt != null && <CacheTimer startedAt={cacheStartedAt} ttlMs={cacheTtlMs} />}

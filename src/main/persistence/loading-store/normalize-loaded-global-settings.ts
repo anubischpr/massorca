@@ -6,6 +6,7 @@ import { normalizeTerminalQuickCommands } from '../../../shared/terminal-quick-c
 import { normalizeOpenInApplications } from '../../../shared/open-in-applications'
 import { normalizeTerminalShortcutPolicy } from '../../../shared/keybindings'
 import { normalizeAppIconId } from '../../../shared/app-icon'
+import { normalizeWorktreeCardLayout } from '../../../shared/worktree/card-layout'
 import { normalizeTerminalCustomThemes } from '../../../shared/terminal-custom-themes'
 import { projectSourceControlAiToLegacyCommitMessageAi } from '../../../shared/source-control-ai'
 import { normalizeUiLanguage } from '../../../shared/ui-language'
@@ -107,6 +108,8 @@ export function normalizeLoadedGlobalSettings(
     // Why: compact worktree cards graduated from Experimental; preserve the old opt-in for rollout-era profiles.
     compactWorktreeCards: loadedCompactWorktreeCards,
     experimentalCompactWorktreeCards: undefined,
+    // Why: left unset when absent so resolveWorktreeCardLayout can tell an untouched profile from a chosen layout.
+    worktreeCardLayout: normalizeWorktreeCardLayout(parsed.settings?.worktreeCardLayout),
     terminalMacOptionAsAlt: migratedOptionAsAlt,
     terminalMacOptionAsAltMigrated: true,
     localWindowsRuntimeDefault: migratedWindowsRuntimeDefault,

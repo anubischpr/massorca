@@ -5668,7 +5668,8 @@
           "219ebf1961": "Nom de branche",
           "folderPathIdentity": "Branche / chemin de dossier",
           "cli": "MassOrca CLI",
-          "workspaceOptions": "Options de l'espace de travail"
+          "workspaceOptions": "Options de l'espace de travail",
+          "oneLine": "Une ligne"
         },
         "SshTargetRow": {
           "4677394048": "Connexion…",
@@ -6143,6 +6144,16 @@
                 "289a1d2ca7": "Développer {{value0}}. {{value1}}",
                 "0c1debfe84": "Réduire {{value0}}"
               }
+            },
+            "one": {
+              "line": {
+                "expandSessions": "Afficher les sessions",
+                "collapseSessions": "Masquer les sessions",
+                "sessions": {
+                  "showMore": "Afficher {{hiddenCount}} de plus",
+                  "showLess": "Afficher moins"
+                }
+              }
             }
           },
           "list": {
@@ -6547,6 +6558,9 @@
           "title": "Tri modifié en Manuel",
           "description": "Manuel conserve les espaces de travail là où vous les déposez.",
           "restore": "Retour à {{label}}"
+        },
+        "SessionStatusGlyphIcon": {
+          "unread": "Non lu"
         }
       },
       "shared": {

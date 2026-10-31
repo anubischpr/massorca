@@ -25,6 +25,7 @@ export function buildWorktreeCardPresentation(card: WorktreeCardController) {
     contentIndent,
     newCardStyle,
     compactCards,
+    oneLineCards,
     isFolder,
     detachedHeadDisplay,
     branch,
@@ -124,18 +125,16 @@ export function buildWorktreeCardPresentation(card: WorktreeCardController) {
       !cardProps.includes('branch') &&
       identityDisplay !== trimmedVisibleCardTitle
     : compactCards && showBranch
-  const hoverBranchName = newCardStyle
-    ? identityDisplay
-    : showBranchIdentityHover
-      ? branch
-      : undefined
+  // Why: the one-line row may show a shortened branch, so the hover card always carries the full name.
+  const hoverBranchName =
+    newCardStyle || oneLineCards ? identityDisplay : showBranchIdentityHover ? branch : undefined
   const hoverWorkspaceTitle =
     trimmedVisibleCardTitle.length > 0 && trimmedVisibleCardTitle !== hoverBranchName
       ? trimmedVisibleCardTitle
       : undefined
   const hasHoverIdentity = Boolean(hoverWorkspaceTitle || hoverBranchName)
   const hasHoverDetails =
-    (newCardStyle || compactCards) &&
+    (newCardStyle || compactCards || oneLineCards) &&
     (getWorkspaceAttachments(worktree).length > 0 ||
       hasWorktreeCardDetails({
         issue: hoverIssue,

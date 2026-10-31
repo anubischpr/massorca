@@ -27,6 +27,7 @@ import {
 } from './indentation'
 import { FolderPathStatusIndicator } from './FolderPathStatusIndicator'
 import { RepoScanUnavailableIndicator } from './RepoScanUnavailableIndicator'
+import { CollapsedProjectStatus } from './CollapsedProjectStatus'
 import { RepoHeaderTitle } from './RepoHeaderTitle'
 import {
   ProjectGroupCreateWorkspaceButton,
@@ -339,6 +340,10 @@ export function renderWorktreeSectionHeaderRow(args: {
             </div>
           </div>
         </div>
+
+        {isHeaderCollapsed && isRepoHeader ? (
+          <CollapsedProjectStatus worktreeIds={row.worktreeIds} />
+        ) : null}
 
         <ProjectHeaderActions>
           {showHeaderCollapseAffordance ? (

@@ -258,13 +258,14 @@ describe('DashboardAgentRow', () => {
     expect(tokens).not.toContain('bg-red-500')
   })
 
-  it('keeps blocked rows red', () => {
+  it('shows blocked rows with the needs-human icon, not the failure red', () => {
     const markup = renderRow(makeAgent({}, { state: 'blocked' }))
     const tokens = classTokens(markup)
 
     expect(markup).toContain('aria-label="Blocked"')
-    expect(tokens).toContain('bg-red-500')
-    expect(tokens).not.toContain('bg-amber-500')
+    expect(markup).toContain('lucide-message-circle-question-mark')
+    expect(tokens).toContain('text-agent-question')
+    expect(tokens).not.toContain('bg-red-500')
   })
 
   it('keeps each row hover boundary inside an anonymous ancestor group', () => {

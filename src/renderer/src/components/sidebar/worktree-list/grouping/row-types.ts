@@ -45,6 +45,10 @@ export type WorktreeRow = {
   lineageGroupKey?: string
   lineageCollapsed?: boolean
   hostContextLabel?: string
+  /** One-line card: the branch without the user's own prefix. Absent means show the full branch. */
+  branchLabel?: string
+  /** One-line card: the project and/or host that tells this branch from a same-named one. */
+  branchQualifier?: string
 }
 
 export type ImportedWorktreesCardCandidate = {

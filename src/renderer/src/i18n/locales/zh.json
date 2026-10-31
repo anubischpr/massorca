@@ -5521,7 +5521,8 @@
           "automation": "自动化",
           "folderPathIdentity": "分支 / 文件夹路径",
           "cli": "MassOrca CLI",
-          "workspaceOptions": "工作区选项"
+          "workspaceOptions": "工作区选项",
+          "oneLine": "单行"
         },
         "SshTargetRow": {
           "4677394048": "正在连接…",
@@ -6022,6 +6023,16 @@
                 "289a1d2ca7": "展开{{value0}}。 {{value1}}",
                 "0c1debfe84": "折叠 {{value0}}"
               }
+            },
+            "one": {
+              "line": {
+                "expandSessions": "显示会话",
+                "collapseSessions": "隐藏会话",
+                "sessions": {
+                  "showMore": "再显示 {{hiddenCount}} 个",
+                  "showLess": "收起"
+                }
+              }
             }
           },
           "list": {
@@ -6442,6 +6453,9 @@
           "title": "排序更改为手动",
           "description": "手动将工作区保留在您放置它们的位置。",
           "restore": "返回{{label}}"
+        },
+        "SessionStatusGlyphIcon": {
+          "unread": "未读"
         }
       },
       "shared": {

@@ -28,6 +28,8 @@ import {
   getWorkspaceCardLayoutEntry
 } from './appearance-sidebar-search'
 import { translate } from '@/i18n/i18n'
+import { resolveWorktreeCardLayout } from '../../../../shared/constants'
+import { getWorktreeCardModeForLayout } from '../../../../shared/worktree/card-layout'
 import { matchesSettingsSearch, normalizeSettingsSearchQuery } from './settings-search'
 
 type AppearanceWindowSidebarSectionProps = {
@@ -216,12 +218,19 @@ export function AppearanceWindowSidebarSection({
                       description={workspaceCardLayoutEntry.description}
                       control={
                         <SettingsSegmentedControl
-                          value={settings.compactWorktreeCards ? 'compact' : 'detailed'}
+                          value={resolveWorktreeCardLayout(settings)}
                           onChange={(value) =>
-                            setWorktreeCardMode(value === 'compact' ? 'Compact' : 'Default')
+                            setWorktreeCardMode(getWorktreeCardModeForLayout(value))
                           }
                           ariaLabel={workspaceCardLayoutEntry.title}
                           options={[
+                            {
+                              value: 'one-line',
+                              label: translate(
+                                'auto.components.sidebar.SidebarWorkspaceOptionsMenu.oneLine',
+                                'One line'
+                              )
+                            },
                             {
                               value: 'detailed',
                               label: translate(

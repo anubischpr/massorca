@@ -21,6 +21,8 @@ import {
 } from './sidebar-workspace-option-items'
 import { PROPERTY_OPTIONS } from './worktree-card-display-property-options'
 import { translate } from '@/i18n/i18n'
+import { resolveWorktreeCardLayout } from '../../../../shared/constants'
+import { getWorktreeCardModeForLayout } from '../../../../shared/worktree/card-layout'
 
 type WorktreeCardDisplayMenuSectionProps = {
   preserveWorkspaceBoardOpen: boolean
@@ -37,7 +39,7 @@ export function WorktreeCardDisplayMenuSection({
   const setAgentActivityDisplayMode = useAppStore((s) => s.setAgentActivityDisplayMode)
   const projectGroups = useAppStore((s) => s.projectGroups)
   const newCardStyle = settings?.experimentalNewWorktreeCardStyle === true
-  const cardLayout = settings?.compactWorktreeCards ? 'compact' : 'detailed'
+  const cardLayout = resolveWorktreeCardLayout(settings)
   const cardLayoutLabel =
     CARD_LAYOUT_OPTIONS.find((opt) => opt.id === cardLayout)?.label ?? 'Detailed'
   const visiblePropertyCount = PROPERTY_OPTIONS.filter((opt) =>
@@ -115,7 +117,7 @@ export function WorktreeCardDisplayMenuSection({
             onValueChange={(value) => {
               // Why: layout changes are presets, not just density toggles; keep
               // the visible menu path aligned with card property defaults.
-              setWorktreeCardMode(value === 'compact' ? 'Compact' : 'Default')
+              setWorktreeCardMode(getWorktreeCardModeForLayout(value))
             }}
           >
             {CARD_LAYOUT_OPTIONS.map((opt) => (

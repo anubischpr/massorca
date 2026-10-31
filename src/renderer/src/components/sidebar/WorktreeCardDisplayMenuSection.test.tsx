@@ -10,7 +10,11 @@ const setWorktreeCardMode = vi.fn()
 const setWorktreeCardProperties = vi.fn()
 const setAgentActivityDisplayMode = vi.fn()
 
-let settings = { compactWorktreeCards: false, experimentalNewWorktreeCardStyle: false }
+let settings: {
+  compactWorktreeCards: boolean
+  experimentalNewWorktreeCardStyle: boolean
+  worktreeCardLayout?: 'one-line' | 'detailed' | 'compact'
+} = { compactWorktreeCards: false, experimentalNewWorktreeCardStyle: false }
 let projectGroups: unknown[] = []
 let worktreeCardProperties = [
   'status',
@@ -144,19 +148,58 @@ afterEach(() => {
 })
 
 describe('WorktreeCardDisplayMenuSection', () => {
+  const clickLayout = (selectedValue: string, itemValue: string): void => {
+    const button = document.querySelector<HTMLButtonElement>(
+      `[data-radio-group-value="${selectedValue}"] [data-radio-item-value="${itemValue}"]`
+    )
+    expect(button).not.toBeNull()
+    act(() => {
+      button?.click()
+    })
+  }
+
+  it('selects the one-line layout when no layout was ever chosen', () => {
+    renderMenu()
+
+    expect(
+      document.querySelector(
+        '[data-radio-group-value="one-line"] [data-radio-item-value="detailed"]'
+      )
+    ).not.toBeNull()
+    expect(
+      document.querySelector(
+        '[data-radio-group-value="one-line"] [data-radio-item-value="compact"]'
+      )
+    ).not.toBeNull()
+  })
+
   it('applies the compact card mode preset from the visible card layout menu', () => {
     renderMenu()
 
-    const compactLayoutButton = document.querySelector<HTMLButtonElement>(
-      '[data-radio-group-value="detailed"] [data-radio-item-value="compact"]'
-    )
-    expect(compactLayoutButton).not.toBeNull()
-
-    act(() => {
-      compactLayoutButton?.click()
-    })
+    clickLayout('one-line', 'compact')
 
     expect(setWorktreeCardMode).toHaveBeenCalledWith('Compact')
+  })
+
+  it('keeps Detailed selectable and applies its preset', () => {
+    renderMenu()
+
+    clickLayout('one-line', 'detailed')
+
+    expect(setWorktreeCardMode).toHaveBeenCalledWith('Default')
+  })
+
+  it('shows a persisted Detailed choice as selected and can return to one line', () => {
+    settings = {
+      compactWorktreeCards: false,
+      experimentalNewWorktreeCardStyle: false,
+      worktreeCardLayout: 'detailed'
+    }
+    renderMenu()
+
+    clickLayout('detailed', 'one-line')
+
+    expect(setWorktreeCardMode).toHaveBeenCalledWith('OneLine')
   })
 
   it('keeps branch-only copy when project groups are unavailable', () => {

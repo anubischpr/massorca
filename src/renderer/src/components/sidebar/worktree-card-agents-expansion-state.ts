@@ -4,17 +4,22 @@ import { useCallback, useState } from 'react'
  * Expand/collapse state for a WorktreeCard's inline agent list:
  *  - `collapsedLineageParents`: agent-lineage parent paneKeys the user folded.
  *  - `compactRootListExpanded`: whether the "N agents" compact summary is open.
+ *  - `sessionsCollapsed` / `allSessionsShown`: the one-line card's folded branch and "Show N more".
  */
 export type WorktreeAgentExpansionState = {
   collapsedLineageParents: ReadonlySet<string>
   compactRootListExpanded: boolean
+  sessionsCollapsed: boolean
+  allSessionsShown: boolean
 }
 
 const EMPTY_COLLAPSED_PARENTS: ReadonlySet<string> = new Set()
 
 const DEFAULT_EXPANSION_STATE: WorktreeAgentExpansionState = {
   collapsedLineageParents: EMPTY_COLLAPSED_PARENTS,
-  compactRootListExpanded: false
+  compactRootListExpanded: false,
+  sessionsCollapsed: false,
+  allSessionsShown: false
 }
 
 // Why: the inline agent list's expand/collapse must outlive the WorktreeCard
@@ -47,7 +52,12 @@ function persistExpansionState(worktreeId: string, state: WorktreeAgentExpansion
   // Re-insert to refresh LRU order; drop entries that carry no non-default
   // state so idle worktrees never occupy a slot.
   expansionByWorktreeId.delete(worktreeId)
-  if (state.compactRootListExpanded || state.collapsedLineageParents.size > 0) {
+  if (
+    state.compactRootListExpanded ||
+    state.collapsedLineageParents.size > 0 ||
+    state.sessionsCollapsed ||
+    state.allSessionsShown
+  ) {
     expansionByWorktreeId.set(worktreeId, state)
     trimPersistedExpansions()
   }
@@ -56,10 +66,16 @@ function persistExpansionState(worktreeId: string, state: WorktreeAgentExpansion
 export type WorktreeAgentExpansionControls = {
   collapsedLineageParents: ReadonlySet<string>
   compactRootListExpanded: boolean
+  sessionsCollapsed: boolean
+  allSessionsShown: boolean
   /** Fold/unfold a single agent-lineage parent by its paneKey. */
   toggleLineageParent: (paneKey: string) => void
   /** Open/close the compact multi-agent summary panel. */
   toggleCompactRootList: () => void
+  /** Fold/unfold the one-line card's whole session list. */
+  toggleSessionsCollapsed: () => void
+  /** Reveal or re-fold the sessions past the visible limit. */
+  toggleAllSessionsShown: () => void
 }
 
 /**
@@ -106,11 +122,25 @@ export function useWorktreeAgentExpansionState(worktreeId: string): WorktreeAgen
     commit({ ...base, compactRootListExpanded: !base.compactRootListExpanded })
   }, [commit, worktreeId])
 
+  const toggleSessionsCollapsed = useCallback(() => {
+    const base = readExpansionState(worktreeId)
+    commit({ ...base, sessionsCollapsed: !base.sessionsCollapsed })
+  }, [commit, worktreeId])
+
+  const toggleAllSessionsShown = useCallback(() => {
+    const base = readExpansionState(worktreeId)
+    commit({ ...base, allSessionsShown: !base.allSessionsShown })
+  }, [commit, worktreeId])
+
   return {
     collapsedLineageParents: current.collapsedLineageParents,
     compactRootListExpanded: current.compactRootListExpanded,
+    sessionsCollapsed: current.sessionsCollapsed,
+    allSessionsShown: current.allSessionsShown,
     toggleLineageParent,
-    toggleCompactRootList
+    toggleCompactRootList,
+    toggleSessionsCollapsed,
+    toggleAllSessionsShown
   }
 }
 
@@ -124,7 +154,7 @@ export function getWorktreeAgentExpansionCountForTests(): number {
 
 export function seedWorktreeAgentExpansionStateForTests(
   worktreeId: string,
-  state: WorktreeAgentExpansionState
+  state: Partial<WorktreeAgentExpansionState>
 ): void {
-  persistExpansionState(worktreeId, state)
+  persistExpansionState(worktreeId, { ...DEFAULT_EXPANSION_STATE, ...state })
 }

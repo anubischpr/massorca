@@ -5521,7 +5521,8 @@
           "automation": "자동화",
           "folderPathIdentity": "브랜치 / 폴더 경로",
           "cli": "MassOrca CLI",
-          "workspaceOptions": "워크스페이스 옵션"
+          "workspaceOptions": "워크스페이스 옵션",
+          "oneLine": "한 줄"
         },
         "SshTargetRow": {
           "4677394048": "연결 중…",
@@ -6022,6 +6023,16 @@
                 "289a1d2ca7": "{{value0}}을 확장합니다. {{value1}}",
                 "0c1debfe84": "{{value0}} 접기"
               }
+            },
+            "one": {
+              "line": {
+                "expandSessions": "세션 표시",
+                "collapseSessions": "세션 숨기기",
+                "sessions": {
+                  "showMore": "{{hiddenCount}}개 더 보기",
+                  "showLess": "간단히 보기"
+                }
+              }
             }
           },
           "list": {
@@ -6442,6 +6453,9 @@
           "title": "정렬이 수동으로 변경됨",
           "description": "매뉴얼 은 워크스페이스를 드롭하는 위치에 유지합니다.",
           "restore": "{{label}} (으) 로 돌아가기"
+        },
+        "SessionStatusGlyphIcon": {
+          "unread": "읽지 않음"
         }
       },
       "shared": {

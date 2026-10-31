@@ -145,7 +145,11 @@ function renderWorktreeCardMarkup(element: ReactNode): string {
 describe('WorktreeCard merged PR fallback display', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    settings = { compactWorktreeCards: false, experimentalNewWorktreeCardStyle: false }
+    settings = {
+      compactWorktreeCards: false,
+      worktreeCardLayout: 'detailed',
+      experimentalNewWorktreeCardStyle: false
+    }
     worktreeCardProperties = ['pr']
     hostedReviewCache = {
       'local::repo-1::feature/local-branch': {

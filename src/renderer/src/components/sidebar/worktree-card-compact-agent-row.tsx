@@ -21,7 +21,7 @@ import { agentVerdictStatusLine } from '@/lib/agent-verdict-status-line'
 import { agentRowStoppingLabel } from '@/lib/agent-row-stopping-label'
 import { getCompactAgentLineOrder } from './worktree-card-compact-agent-line-order'
 
-function getCompactAgentPrimary(
+export function getCompactAgentPrimary(
   agent: DashboardAgentRowData,
   conversationName: string | null
 ): string {

@@ -387,7 +387,7 @@ describe('WorktreeCard compact hover details', () => {
   }, 30_000)
 
   it('keeps branch identity visible on detailed cards by default', async () => {
-    settings = { compactWorktreeCards: false }
+    settings = { compactWorktreeCards: false, worktreeCardLayout: 'detailed' }
     worktreeCardProperties = ['status', 'issue', 'linear-issue', 'comment', 'ports']
     const { default: WorktreeCard } = await import('./WorktreeCard')
 
@@ -514,7 +514,7 @@ describe('WorktreeCard compact hover details', () => {
   })
 
   it('keeps detailed metadata hover scoped to metadata icons by default', async () => {
-    settings = { compactWorktreeCards: false }
+    settings = { compactWorktreeCards: false, worktreeCardLayout: 'detailed' }
     worktreeCardProperties = ['status', 'issue', 'linear-issue', 'comment', 'ports']
     const { default: WorktreeCard } = await import('./WorktreeCard')
 
@@ -540,7 +540,7 @@ describe('WorktreeCard compact hover details', () => {
   })
 
   it('keeps child card markup inside the parent card by default', async () => {
-    settings = { compactWorktreeCards: false }
+    settings = { compactWorktreeCards: false, worktreeCardLayout: 'detailed' }
     worktreeCardProperties = ['status', 'comment']
     const { default: WorktreeCard } = await import('./WorktreeCard')
 
@@ -792,7 +792,7 @@ describe('WorktreeCard compact hover details', () => {
   })
 
   it('shows the branch row for migrated Default cards with branch enabled', async () => {
-    settings = { compactWorktreeCards: false }
+    settings = { compactWorktreeCards: false, worktreeCardLayout: 'detailed' }
     worktreeCardProperties = ['status', 'branch']
     const { default: WorktreeCard } = await import('./WorktreeCard')
 

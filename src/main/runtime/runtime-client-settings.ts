@@ -43,6 +43,7 @@ export type RuntimeClientSettings = Pick<
   | 'experimentalNewWorktreeCardStyle'
   | 'experimentalNativeChat'
   | 'compactWorktreeCards'
+  | 'worktreeCardLayout'
   | 'minimaxGroupId'
   | 'minimaxUsageModels'
   | 'minimaxEndpoint'
@@ -83,6 +84,7 @@ export type RuntimeClientSettingsUpdate = Pick<
   | 'githubProjects'
   | 'experimentalNewWorktreeCardStyle'
   | 'compactWorktreeCards'
+  | 'worktreeCardLayout'
   | 'minimaxGroupId'
   | 'minimaxUsageModels'
   | 'minimaxEndpoint'
@@ -132,6 +134,8 @@ export class RuntimeClientSettingsController {
       openAgentTabsInChatByDefault: false,
       experimentalStructuredNativeChat: settings.experimentalNativeChat === true,
       compactWorktreeCards: settings.compactWorktreeCards === true,
+      // Why: omitted when unset so an older client keeps reading only compactWorktreeCards.
+      ...(settings.worktreeCardLayout ? { worktreeCardLayout: settings.worktreeCardLayout } : {}),
       minimaxGroupId: settings.minimaxGroupId ?? '',
       minimaxUsageModels: settings.minimaxUsageModels ?? 'general',
       minimaxEndpoint: settings.minimaxEndpoint ?? 'overseas',

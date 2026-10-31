@@ -3,7 +3,8 @@ import { normalizeAutoRenameBranchFromWorkDefaultOn } from '../../../../shared/a
 import {
   getDefaultSettings,
   getDefaultUIState,
-  getWorktreeCardModeProperties
+  getWorktreeCardModeProperties,
+  pickWorktreeCardLayout
 } from '../../../../shared/constants'
 import { normalizeWorktreeVisibilityDefaults } from '../../../../shared/external-worktree-visibility'
 import type { GlobalSettings } from '../../../../shared/global-settings-types'
@@ -137,6 +138,7 @@ export async function getRuntimeBackedStoredSettings(): Promise<GlobalSettings> 
     if (typeof result.settings.compactWorktreeCards === 'boolean') {
       runtimeSettings.compactWorktreeCards = result.settings.compactWorktreeCards
     }
+    Object.assign(runtimeSettings, pickWorktreeCardLayout(result.settings.worktreeCardLayout))
     if (typeof result.settings.minimaxGroupId === 'string') {
       runtimeSettings.minimaxGroupId = result.settings.minimaxGroupId
     }
@@ -215,6 +217,7 @@ export async function syncRuntimeBackedSettings(
   if (typeof updates.compactWorktreeCards === 'boolean') {
     runtimeUpdates.compactWorktreeCards = updates.compactWorktreeCards
   }
+  Object.assign(runtimeUpdates, pickWorktreeCardLayout(updates.worktreeCardLayout))
   if (typeof updates.minimaxGroupId === 'string') {
     runtimeUpdates.minimaxGroupId = updates.minimaxGroupId
   }
