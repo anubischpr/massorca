@@ -1,17 +1,28 @@
+import { useMemo, useState } from 'react'
 import { Pressable, RefreshControl, SectionList, Text, View } from 'react-native'
 import { ChevronDown, ChevronRight, Pin } from 'lucide-react-native'
 import { AuthFailedBanner } from '../components/AuthFailedBanner'
+import { ActionSheetModal } from '../components/ActionSheetModal'
 import { HostDiagnosticsLink } from '../components/HostDiagnosticsLink'
 import { HostRouteNoticeBanner } from '../components/HostRouteNoticeBanner'
 import { MobileRepoIcon } from '../components/MobileRepoIcon'
 import { MobileSearchField } from '../components/MobileSearchField'
 import { NewWorkspaceFab, FAB_SIZE } from '../components/NewWorkspaceFab'
 import { WorktreeListRow } from '../components/WorktreeListRow'
+import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
+import { useClipboardWriter } from '../platform/clipboard'
 import { colors, spacing } from '../theme/mobile-theme'
+import { agentDisplayLabel } from '../worktree/agent-row-display'
+import { buildSessionSheetActions } from '../worktree/session-sheet-actions'
+import {
+  displayBranchName,
+  getBranchCollisionChips,
+  resolveBranchRowLabel
+} from '../worktree/branch-row-label'
 import { getWorktreeRowIdentity } from '../worktree/worktree-host-row-identity'
 import { HostWorkspaceListStates } from '../worktree/host-workspace-list-states'
 import { getWorktreeStatus } from '../worktree/workspace-list-sections'
-import { repoColor } from '../worktree/repo-color'
+import type { Worktree } from '../worktree/workspace-list-types'
 import { repoGroupAccountLabel } from './host-repo-group-account'
 import { hostScreenStyles as styles } from './host-screen-styles'
 import { FolderRepoNoGitPill, FolderRepoNoGitSheet } from './folder-repo-no-git'
@@ -53,6 +64,34 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
     refreshRepos: () => void fetchRepoMetadata({ force: true }),
     onFailure: state.setActionError
   })
+  const clipboard = useClipboardWriter()
+  const [sessionTarget, setSessionTarget] = useState<{
+    item: Worktree
+    agent: RuntimeWorktreeAgentRow
+  } | null>(null)
+  const groupMode = state.groupMode
+  // Why: a same-branch collision names the host (or the project when the hosts match) only here.
+  const collisionChips = useMemo(
+    () =>
+      getBranchCollisionChips(
+        sections.flatMap((section) =>
+          section.data.map((item) => ({
+            key: getWorktreeRowIdentity(item),
+            scope: groupMode === 'repo' ? section.key : '',
+            branch: item.workspaceKind === 'folder-workspace' ? '' : displayBranchName(item.branch),
+            repo: item.repo,
+            hostKey: String(item.hostContextHostId ?? item.hostId ?? ''),
+            hostLabel: item.hostContextLabel
+          }))
+        )
+      ),
+    [sections, groupMode]
+  )
+  const copyPath = (path: string) => {
+    void clipboard
+      .writeText(path)
+      .catch(() => state.setActionError('Could not copy the path to the clipboard.'))
+  }
 
   return (
     <>
@@ -210,13 +249,11 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
               isReadOnly={isReadOnly}
               now={now}
               status={getWorktreeStatus(item)}
-              repoColor={uniqueRepoColors.get(item.repo) ?? repoColor(item.repo)}
-              repoIcon={state.repoIconsByName.get(item.repo) ?? null}
-              hideRepo={state.groupMode === 'repo'}
+              collisionChip={collisionChips.get(getWorktreeRowIdentity(item)) ?? null}
+              hostDisconnected={connState !== 'connected'}
               onPress={actions.openWorktreeSession}
-              onLongPress={
-                item.workspaceKind === 'folder-workspace' ? undefined : state.setActionTarget
-              }
+              onLongPress={state.setActionTarget}
+              onLongPressSession={(row, agent) => setSessionTarget({ item: row, agent })}
               onToggleLineage={settings.toggleWorktreeLineage}
             />
           )}
@@ -231,6 +268,21 @@ export function HostWorkspaceList({ controller }: { controller: HostScreenContro
         initializing={noGit.initializing}
         onInitialize={() => void noGit.initialize()}
         onClose={noGit.close}
+      />
+
+      {/* Long-press sheet for one session row: its title, and the worktree it runs in. */}
+      <ActionSheetModal
+        visible={sessionTarget !== null}
+        title={sessionTarget ? agentDisplayLabel(sessionTarget.agent, now) : undefined}
+        message={sessionTarget ? resolveBranchRowLabel(sessionTarget.item).label : undefined}
+        actions={
+          sessionTarget
+            ? buildSessionSheetActions({
+                onCopyPath: () => copyPath(sessionTarget.item.path)
+              })
+            : []
+        }
+        onClose={() => setSessionTarget(null)}
       />
 
       {/* Floating "new workspace" button — phone only; embedded sidebars keep the toolbar +. */}

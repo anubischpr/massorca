@@ -35,6 +35,10 @@ vi.mock('lucide-react-native', () => ({
   ChevronRight: 'ChevronRight',
   Pin: 'Pin'
 }))
+// Why: expo-clipboard needs the native runtime's __DEV__ global, which this node test does not provide.
+vi.mock('../platform/clipboard', () => ({
+  useClipboardWriter: () => ({ writeText: async () => undefined })
+}))
 vi.mock('../components/AuthFailedBanner', () => ({ AuthFailedBanner: 'AuthFailedBanner' }))
 vi.mock('../components/HostDiagnosticsLink', () => ({ HostDiagnosticsLink: 'HostDiagnosticsLink' }))
 vi.mock('../components/HostRouteNoticeBanner', () => ({

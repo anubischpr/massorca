@@ -16,6 +16,10 @@ vi.mock('lucide-react-native', () => ({
   Pin: 'Pin',
   X: 'X'
 }))
+// Why: expo-clipboard needs the native runtime's __DEV__ global, which this node test does not provide.
+vi.mock('../platform/clipboard', () => ({
+  useClipboardWriter: () => ({ writeText: async () => undefined })
+}))
 vi.mock('../components/AuthFailedBanner', () => ({ AuthFailedBanner: 'AuthFailedBanner' }))
 // Why: the real drawer loads gesture and reanimated code this node test cannot parse; the stand-in
 // shows its children only while visible, as the real drawer does.

@@ -10,12 +10,12 @@ import { Text } from 'react-native'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
-import { WorktreeAgentRow } from './WorktreeAgentRow'
 import { WorktreeListRow, type WorktreeListRowItem } from './WorktreeListRow'
 
-const { agentSpinnerRender, agentStateDotRender } = vi.hoisted(() => ({
-  agentSpinnerRender: vi.fn(),
-  agentStateDotRender: vi.fn()
+const { markRender, agentListRender, metaRender } = vi.hoisted(() => ({
+  markRender: vi.fn(),
+  agentListRender: vi.fn(),
+  metaRender: vi.fn()
 }))
 
 vi.mock('react-native', () => ({
@@ -26,34 +26,32 @@ vi.mock('react-native', () => ({
 }))
 
 vi.mock('lucide-react-native', () => ({
-  Bell: 'Bell',
   ChevronDown: 'ChevronDown',
   ChevronRight: 'ChevronRight',
+  Folder: 'Folder',
   GitBranch: 'GitBranch',
-  GitPullRequest: 'GitPullRequest',
-  Monitor: 'Monitor',
-  Server: 'Server'
+  GitPullRequest: 'GitPullRequest'
 }))
 
 vi.mock('../platform/haptics', () => ({ triggerMediumImpact: vi.fn() }))
-vi.mock('./AgentSpinner', () => ({
-  AgentSpinner: (props: unknown) => {
-    agentSpinnerRender(props)
+vi.mock('./SessionStatusMark', () => ({
+  SessionStatusMark: (props: unknown) => {
+    markRender(props)
     return null
   }
 }))
-vi.mock('./AgentStateDot', () => ({
-  AgentStateDot: (props: unknown) => {
-    agentStateDotRender(props)
+vi.mock('./WorktreeAgentList', () => ({
+  WorktreeAgentList: (props: unknown) => {
+    agentListRender(props)
     return null
   }
 }))
-vi.mock('./MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
-vi.mock('./MobileRepoIcon', () => ({ MobileRepoIcon: () => null }))
-vi.mock('./WorktreeAgentList', () => ({ WorktreeAgentList: () => null }))
 vi.mock('./WorktreeMetaGlyphs', () => ({
   prStateColor: () => '#000000',
-  WorktreeMetaGlyphs: () => null
+  WorktreeMetaGlyphs: () => {
+    metaRender()
+    return null
+  }
 }))
 
 type TestItem = WorktreeListRowItem & {
@@ -61,10 +59,19 @@ type TestItem = WorktreeListRowItem & {
   lastOutputAt: number
 }
 
-const stableRepoIcon = { type: 'emoji', emoji: 'o' } as const
 let updateSibling: Dispatch<SetStateAction<number>> = () => undefined
 
-function ListRowHarness({ item, now }: { item: TestItem; now: number }) {
+function ListRowHarness({
+  item,
+  now,
+  collisionChip = null,
+  hostDisconnected = false
+}: {
+  item: TestItem
+  now: number
+  collisionChip?: string | null
+  hostDisconnected?: boolean
+}) {
   const [sibling, setSibling] = useState(0)
   updateSibling = setSibling
   const onPress = useCallback(() => undefined, [])
@@ -81,10 +88,9 @@ function ListRowHarness({ item, now }: { item: TestItem; now: number }) {
       item,
       isReadOnly: false,
       now,
-      repoColor: '#000000',
-      repoIcon: stableRepoIcon,
-      hideRepo: false,
       status: item.status,
+      collisionChip,
+      hostDisconnected,
       onPress,
       onLongPress,
       onToggleLineage
@@ -115,7 +121,7 @@ const baseItem: TestItem = {
   worktreeId: 'worktree-1',
   repo: 'orca',
   branch: 'feature/mobile-list',
-  displayName: 'mobile-list',
+  displayName: 'Brave otter session title that is long',
   liveTerminalCount: 1,
   preview: 'Waiting',
   unread: false,
@@ -125,12 +131,19 @@ const baseItem: TestItem = {
   lastOutputAt: 1_000
 }
 
-describe('memoized worktree rows', () => {
+const textNodes = (renderer: ReactTestRenderer): string[] =>
+  renderer.root
+    .findAllByType('Text' as never)
+    .flatMap((node) => node.props.children)
+    .filter((child): child is string => typeof child === 'string')
+
+describe('WorktreeListRow', () => {
   let renderer: ReactTestRenderer | null = null
 
   beforeEach(() => {
-    agentSpinnerRender.mockClear()
-    agentStateDotRender.mockClear()
+    markRender.mockClear()
+    agentListRender.mockClear()
+    metaRender.mockClear()
   })
 
   afterEach(() => {
@@ -142,10 +155,10 @@ describe('memoized worktree rows', () => {
     await act(async () => {
       renderer = create(createElement(ListRowHarness, { item: baseItem, now: 2_000 }))
     })
-    expect(agentSpinnerRender).toHaveBeenCalledTimes(1)
+    expect(metaRender).toHaveBeenCalledTimes(1)
 
     await act(async () => updateSibling((value) => value + 1))
-    expect(agentSpinnerRender).toHaveBeenCalledTimes(1)
+    expect(metaRender).toHaveBeenCalledTimes(1)
 
     let expectedRenders = 1
     const liveUpdates: TestItem[] = [
@@ -159,82 +172,41 @@ describe('memoized worktree rows', () => {
       await act(async () =>
         renderer!.update(createElement(ListRowHarness, { item: liveUpdate, now: 2_000 }))
       )
-      expect(agentSpinnerRender).toHaveBeenCalledTimes(++expectedRenders)
+      expect(metaRender).toHaveBeenCalledTimes(++expectedRenders)
       await act(async () =>
         renderer!.update(createElement(ListRowHarness, { item: baseItem, now: 2_000 }))
       )
-      expect(agentSpinnerRender).toHaveBeenCalledTimes(++expectedRenders)
+      expect(metaRender).toHaveBeenCalledTimes(++expectedRenders)
     }
 
     await act(async () =>
       renderer!.update(createElement(ListRowHarness, { item: baseItem, now: 32_000 }))
     )
-    expect(agentSpinnerRender).toHaveBeenCalledTimes(++expectedRenders)
+    expect(metaRender).toHaveBeenCalledTimes(++expectedRenders)
   })
 
-  it('memoizes agent rows without hiding agent updates', async () => {
-    const firstAgent = agent()
+  it('labels the row with the branch, never the generated display name', async () => {
     await act(async () => {
-      renderer = create(
-        createElement(WorktreeAgentRow, {
-          agent: firstAgent,
-          depth: 0,
-          now: 2_000,
-          unvisited: false
-        })
-      )
+      renderer = create(createElement(ListRowHarness, { item: baseItem, now: 2_000 }))
     })
-    expect(agentStateDotRender).toHaveBeenCalledTimes(1)
-
-    await act(async () => {
-      renderer!.update(
-        createElement(WorktreeAgentRow, {
-          agent: firstAgent,
-          depth: 0,
-          now: 2_000,
-          unvisited: false
-        })
-      )
-    })
-    expect(agentStateDotRender).toHaveBeenCalledTimes(1)
-
-    await act(async () => {
-      renderer!.update(
-        createElement(WorktreeAgentRow, {
-          agent: agent({ state: 'working', workingMode: 'monitoring', updatedAt: 2_000 }),
-          depth: 0,
-          now: 2_000,
-          unvisited: false
-        })
-      )
-    })
-    expect(agentStateDotRender).toHaveBeenCalledTimes(2)
-    expect(agentStateDotRender).toHaveBeenLastCalledWith({ state: 'monitoring' })
+    expect(textNodes(renderer!)).toContain('feature/mobile-list')
+    expect(textNodes(renderer!)).not.toContain(baseItem.displayName)
   })
 
-  it('passes workspace monitoring mode to the status indicator', async () => {
+  it('shows the monitoring mode on the mark of a session-less working branch', async () => {
     await act(async () => {
       renderer = create(
         createElement(ListRowHarness, {
-          item: { ...baseItem, status: 'working', workingMode: 'monitoring' },
+          item: { ...baseItem, agents: undefined, status: 'working', workingMode: 'monitoring' },
           now: 2_000
         })
       )
     })
 
-    expect(agentSpinnerRender).toHaveBeenLastCalledWith({
-      status: 'working',
-      workingMode: 'monitoring'
-    })
+    expect(markRender).toHaveBeenLastCalledWith({ glyph: 'monitoring' })
   })
 
-  it('names the host with a glyph that matches the host kind', async () => {
-    const textNodes = (): string[] =>
-      renderer!.root
-        .findAllByType('Text' as never)
-        .flatMap((node) => node.props.children)
-        .filter((child): child is string => typeof child === 'string')
-
+  it('names the host only through the collision chip', async () => {
     await act(async () => {
       renderer = create(
         createElement(ListRowHarness, {
@@ -243,25 +215,46 @@ describe('memoized worktree rows', () => {
         })
       )
     })
-    expect(textNodes()).toContain('openclaw')
-    expect(renderer!.root.findAllByType('Server' as never)).toHaveLength(1)
-    expect(renderer!.root.findAllByType('Monitor' as never)).toHaveLength(0)
+    expect(textNodes(renderer!)).not.toContain('openclaw')
 
     await act(async () =>
       renderer!.update(
         createElement(ListRowHarness, {
-          item: { ...baseItem, hostContextLabel: 'Local Mac' },
-          now: 2_000
+          item: { ...baseItem, hostId: 'ssh:ssh-1', hostContextLabel: 'openclaw' },
+          now: 2_000,
+          collisionChip: 'openclaw'
         })
       )
     )
-    expect(textNodes()).toContain('Local Mac')
-    expect(renderer!.root.findAllByType('Monitor' as never)).toHaveLength(1)
+    expect(textNodes(renderer!)).toContain('openclaw')
+  })
 
-    await act(async () =>
-      renderer!.update(createElement(ListRowHarness, { item: baseItem, now: 2_000 }))
+  it('marks a disconnected host as dimmed and unconfirmed, never exited', async () => {
+    await act(async () => {
+      renderer = create(
+        createElement(ListRowHarness, { item: baseItem, now: 2_000, hostDisconnected: true })
+      )
+    })
+
+    expect(textNodes(renderer!)).toContain('Disconnected')
+    expect(agentListRender).toHaveBeenLastCalledWith(
+      expect.objectContaining({ disconnected: true })
     )
-    expect(textNodes()).not.toContain('Local Mac')
-    expect(renderer!.root.findAllByType('Monitor' as never)).toHaveLength(0)
+  })
+
+  it('folds the sessions of a branch and marks it with the worst folded status', async () => {
+    await act(async () => {
+      renderer = create(createElement(ListRowHarness, { item: baseItem, now: 2_000 }))
+    })
+    const toggle = renderer!.root
+      .findAllByType('Pressable' as never)
+      .find((node) => String(node.props.accessibilityLabel).startsWith('Hide sessions of'))
+    expect(toggle).toBeDefined()
+    const listRendersBefore = agentListRender.mock.calls.length
+
+    await act(async () => toggle!.props.onPress())
+
+    expect(agentListRender).toHaveBeenCalledTimes(listRendersBefore)
+    expect(markRender).toHaveBeenLastCalledWith({ glyph: 'working' })
   })
 })

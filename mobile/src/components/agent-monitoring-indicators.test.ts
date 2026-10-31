@@ -1,8 +1,8 @@
 import { createElement } from 'react'
 import { act, create } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AgentSpinner } from './AgentSpinner'
 import { AgentStateDot } from './AgentStateDot'
+import { SessionStatusMark } from './SessionStatusMark'
 import { colors } from '../theme/mobile-theme'
 
 const DESKTOP_WORKING_COLOR = '#eab308'
@@ -21,7 +21,11 @@ const { animationLoop, animationTiming, setValue } = vi.hoisted(() => ({
   setValue: vi.fn()
 }))
 
-vi.mock('lucide-react-native', () => ({ Activity: 'Activity' }))
+vi.mock('lucide-react-native', () => ({
+  Activity: 'Activity',
+  Bell: 'Bell',
+  MessageCircleQuestion: 'MessageCircleQuestion'
+}))
 vi.mock('react-native', () => ({
   Animated: {
     Value: function Value() {
@@ -64,11 +68,9 @@ describe('mobile monitoring indicators', () => {
     expect(animationLoop).not.toHaveBeenCalled()
   })
 
-  it('renders a static Activity heartbeat for an all-monitoring workspace', async () => {
+  it('renders a static Activity heartbeat for a monitoring branch', async () => {
     await act(async () => {
-      renderer = create(
-        createElement(AgentSpinner, { status: 'working', workingMode: 'monitoring' })
-      )
+      renderer = create(createElement(SessionStatusMark, { glyph: 'monitoring' }))
     })
 
     expect(renderer?.root.findByType('Activity').props).toMatchObject({
@@ -79,9 +81,9 @@ describe('mobile monitoring indicators', () => {
     expect(animationLoop).not.toHaveBeenCalled()
   })
 
-  it('keeps the spinner fallback when workingMode is absent', async () => {
+  it('keeps the spinner for a working branch', async () => {
     await act(async () => {
-      renderer = create(createElement(AgentSpinner, { status: 'working' }))
+      renderer = create(createElement(SessionStatusMark, { glyph: 'working' }))
     })
 
     expect(animationTiming).toHaveBeenCalledOnce()
@@ -92,7 +94,7 @@ describe('mobile monitoring indicators', () => {
     await act(async () => {
       renderer = create(
         createElement('View', null, [
-          createElement(AgentSpinner, { key: 'spinner', status: 'working' }),
+          createElement(SessionStatusMark, { key: 'spinner', glyph: 'working' }),
           createElement(AgentStateDot, { key: 'dot', state: 'working' })
         ])
       )

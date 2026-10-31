@@ -1,55 +1,80 @@
 import { useMemo, useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
-import { buildAgentRowLineageTree, flattenAgentRowLineage } from '../worktree/agent-row-lineage'
-import { WorktreeAgentRow } from './WorktreeAgentRow'
-import { WorktreeAgentSummary } from './WorktreeAgentSummary'
+import { colors, spacing } from '../theme/mobile-theme'
+import { buildSessionListView, VISIBLE_SESSION_LIMIT } from '../worktree/session-status-glyph'
+import { SESSION_INDENT, WorktreeAgentRow } from './WorktreeAgentRow'
 
 type Props = {
   agents: RuntimeWorktreeAgentRow[]
   now: number
   unvisited: boolean
+  /** The host cannot be reached: every session shows the unconfirmed mark instead of its state. */
+  disconnected: boolean
+  onOpen?: (agent: RuntimeWorktreeAgentRow) => void
+  onLongPress?: (agent: RuntimeWorktreeAgentRow) => void
 }
 
-// Inline agent list for one worktree row: flattens the spawn lineage and renders
-// a depth-indented WorktreeAgentRow per agent, mirroring the desktop sidebar's
-// WorktreeCardAgents.
-export function WorktreeAgentList({ agents, now, unvisited }: Props) {
-  const nodes = useMemo(() => flattenAgentRowLineage(agents), [agents])
-  const summaryAgents = useMemo(() => {
-    const lineage = buildAgentRowLineageTree(agents)
-    return lineage.childrenByParentPaneKey.size > 0 ? lineage.rootRows : agents
-  }, [agents])
-  const [expanded, setExpanded] = useState(false)
-  const usesSummary = summaryAgents.length > 1
+// The sessions under one branch row: nested by spawn lineage, five root sessions visible, the rest
+// folded behind "Show N more". Urgent sessions stay on screen even past the limit.
+export function WorktreeAgentList({
+  agents,
+  now,
+  unvisited,
+  disconnected,
+  onOpen,
+  onLongPress
+}: Props) {
+  const [allShown, setAllShown] = useState(false)
+  const view = useMemo(
+    () => buildSessionListView({ agents, now, unvisited, disconnected, allShown }),
+    [agents, now, unvisited, disconnected, allShown]
+  )
+  const canFold = allShown && view.rootCount > VISIBLE_SESSION_LIMIT
 
   return (
     <View style={styles.list}>
-      {usesSummary ? (
-        <WorktreeAgentSummary
-          agents={summaryAgents}
-          expanded={expanded}
+      {view.rows.map((row) => (
+        <WorktreeAgentRow
+          key={row.agent.paneKey}
+          agent={row.agent}
+          depth={row.depth}
           now={now}
-          onToggle={() => setExpanded((value) => !value)}
+          glyph={row.glyph}
+          onPress={onOpen}
+          onLongPress={onLongPress}
         />
+      ))}
+      {view.hiddenCount > 0 || canFold ? (
+        <Pressable
+          style={({ pressed }) => [styles.more, pressed && styles.morePressed]}
+          onPress={() => setAllShown((value) => !value)}
+          accessibilityRole="button"
+        >
+          <Text style={styles.moreText}>
+            {view.hiddenCount > 0 ? `Show ${view.hiddenCount} more` : 'Show less'}
+          </Text>
+        </Pressable>
       ) : null}
-      {!usesSummary || expanded
-        ? nodes.map((node) => (
-            <WorktreeAgentRow
-              key={node.row.paneKey}
-              agent={node.row}
-              depth={node.depth}
-              now={now}
-              unvisited={unvisited}
-            />
-          ))
-        : null}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   list: {
-    marginTop: 3
+    marginTop: 2
+  },
+  more: {
+    minHeight: 30,
+    justifyContent: 'center',
+    paddingLeft: SESSION_INDENT,
+    paddingRight: spacing.xs
+  },
+  morePressed: {
+    opacity: 0.72
+  },
+  moreText: {
+    fontSize: 12,
+    color: colors.textSecondary
   }
 })

@@ -5,11 +5,12 @@ import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
 import { WorktreeAgentRow } from './WorktreeAgentRow'
 
 vi.mock('react-native', () => ({
+  Pressable: 'Pressable',
   StyleSheet: { create: <T,>(styles: T) => styles },
   Text: 'Text',
   View: 'View'
 }))
-vi.mock('./AgentStateDot', () => ({ AgentStateDot: () => null }))
+vi.mock('./SessionStatusMark', () => ({ SessionStatusMark: () => null }))
 vi.mock('./MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
 
 function agent(lastAssistantMessage: string | null): RuntimeWorktreeAgentRow {
@@ -41,7 +42,7 @@ describe('WorktreeAgentRow visual lines', () => {
   function label(row: RuntimeWorktreeAgentRow): string {
     act(() => {
       renderer = create(
-        createElement(WorktreeAgentRow, { agent: row, depth: 0, now: 2_000, unvisited: false })
+        createElement(WorktreeAgentRow, { agent: row, depth: 0, now: 2_000, glyph: null })
       )
     })
     return String(renderer!.root.findAll((node) => String(node.type) === 'Text')[0]!.props.children)
