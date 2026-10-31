@@ -12,6 +12,7 @@ import {
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { botTeamTaskTitle, routeBotTeamRequest } from '../../../../shared/bot-team-request-route'
 import { createStructuredAgentSessionId } from '../../../../shared/structured-agent-session-create'
+import { createStructuredAgentSessionOperationId } from '../../../../shared/structured-agent-session-mutation'
 import { folderWorkspaceKey } from '../../../../shared/workspace-scope'
 import { startBotTeamTask } from '../../../bot-teams/bot-team-task-start'
 import { getStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
@@ -72,7 +73,7 @@ async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeam
           caller,
           envelope: {
             sessionId: createStructuredAgentSessionId(agent, randomUUID),
-            clientOperationId: randomUUID(),
+            clientOperationId: createStructuredAgentSessionOperationId(randomUUID),
             expectedRuntimeFence: null,
             payloadFingerprint: ''
           },
