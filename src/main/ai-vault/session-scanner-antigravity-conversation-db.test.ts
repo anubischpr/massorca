@@ -80,7 +80,42 @@ async function parseConversation(conversationId: string, prompt: string) {
   return session
 }
 
+// Shapes read from a preview host's conversation_summaries.db: Orca's folders first, the worktree,
+// then the shared design system folder Orca grants a linked worktree's chat.
+const HOST_PROFILE = 'file:///home/ada/orca-preview/profile'
+const HOST_WORKTREE_PATH = '/home/ada/orca/workspaces/NexusCare/elkhorn'
+const HOST_PARENT_URIS = [
+  `${HOST_PROFILE}/delegation-instructions`,
+  `${HOST_PROFILE}/native-chat-visuals/073948329eae4e21cec1720836da394d`,
+  `file://${HOST_WORKTREE_PATH}`,
+  'file:///home/ada/projects/NexusCare/design/system'
+]
+
 describe('antigravityWorkspaceFromUris', () => {
+  it('skips the shared design system folder that follows the worktree', () => {
+    expect(antigravityWorkspaceFromUris(JSON.stringify(HOST_PARENT_URIS))).toBe(HOST_WORKTREE_PATH)
+  })
+
+  it('skips a Windows design system folder and keeps the worktree', () => {
+    const value = JSON.stringify([WORKTREE_URI, 'file:///D:/projects/massorca/design/system'])
+
+    expect(antigravityWorkspaceFromUris(value)).toBe(WORKTREE_PATH)
+  })
+
+  it('returns null when only the design system folder remains', () => {
+    expect(
+      antigravityWorkspaceFromUris(
+        JSON.stringify(['file:///home/ada/projects/NexusCare/design/system'])
+      )
+    ).toBeNull()
+  })
+
+  it('keeps a worktree that merely contains a design folder', () => {
+    expect(
+      antigravityWorkspaceFromUris(JSON.stringify(['file:///home/ada/design/system-ui']))
+    ).toBe('/home/ada/design/system-ui')
+  })
+
   it('keeps the worktree listed after Orca folders', () => {
     const value = JSON.stringify([ORCA_DELEGATION_FOLDER, ORCA_VISUALS_FOLDER, WORKTREE_URI])
 
@@ -126,11 +161,31 @@ describe('readLocalAntigravityConversationWorkspaces', () => {
     )
   })
 
+  it('keeps a parent and its native children in their worktree despite the design system folder', async () => {
+    const root = makeRoot()
+    const uris = JSON.stringify(HOST_PARENT_URIS)
+    writeConversationDb(join(root, 'conversation_summaries.db'), 'conversation_summaries', [
+      ['df145e48-c555-439b-b056-c9c8f95e3d92', uris],
+      ['9766d644-11ea-415e-bdbe-72961bf982cc', uris],
+      ['c0b35b2a-db8c-41e2-bac5-7b142507ce5f', JSON.stringify([`file://${HOST_WORKTREE_PATH}`])]
+    ])
+
+    const workspaces = await readLocalAntigravityConversationWorkspaces(join(root, 'history.jsonl'))
+
+    expect([...(workspaces?.values() ?? [])]).toEqual([
+      HOST_WORKTREE_PATH,
+      HOST_WORKTREE_PATH,
+      HOST_WORKTREE_PATH
+    ])
+  })
+
   it('falls back to a database under cache/', async () => {
     const root = makeRoot()
-    writeConversationDb(join(root, 'cache', 'conversation_summaries.db'), 'conversation_summaries', [
-      ['parent-conv', JSON.stringify([WORKTREE_URI])]
-    ])
+    writeConversationDb(
+      join(root, 'cache', 'conversation_summaries.db'),
+      'conversation_summaries',
+      [['parent-conv', JSON.stringify([WORKTREE_URI])]]
+    )
 
     const workspaces = await readLocalAntigravityConversationWorkspaces(join(root, 'history.jsonl'))
 

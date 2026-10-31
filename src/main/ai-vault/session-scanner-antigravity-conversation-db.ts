@@ -3,6 +3,7 @@ import type SyncDatabase from '../sqlite/sync-database'
 import { isSqliteAvailable } from '../sqlite/sync-database'
 import { fileUriToFilesystemPath } from '../../shared/file-uri-path'
 import { NATIVE_CHAT_VISUALS_DIR_NAME } from '../../shared/native-chat-visuals-folder-layout'
+import { DESIGN_SYSTEM_FOLDER } from '../../shared/prototype-design-system-files'
 import { isWslUncPath } from '../../shared/wsl-paths'
 import { throwIfAiVaultScanCancelled } from './ai-vault-scan-cancellation'
 import { antigravityCachePath } from './session-scanner-antigravity-metadata'
@@ -64,7 +65,7 @@ export async function readLocalAntigravityConversationWorkspaces(
 
 /**
  * The worktree a conversation ran in. Orca's own folders are skipped and the last remaining entry
- * wins, because Orca's folders precede the real worktree in the list.
+ * wins, because Orca's profile folders precede the real worktree in the list.
  * @param value - The raw `workspace_uris` cell: a JSON array of file URIs, or one plain path.
  * @returns The worktree path, or null when no usable entry remains.
  */
@@ -72,7 +73,8 @@ export function antigravityWorkspaceFromUris(value: unknown): string | null {
   let workspace: string | null = null
   for (const entry of workspaceUriEntries(value)) {
     const path = workspaceUriPath(entry)
-    if (path && !isOrcaOwnedFolder(path)) {
+    // Why: the shared design system folder is granted after the worktree, so it is last in the list.
+    if (path && !isOrcaOwnedFolder(path) && !isSharedDesignSystemFolder(path)) {
       workspace = path
     }
   }
@@ -156,6 +158,13 @@ function isOrcaOwnedFolder(path: string): boolean {
   return segments.some(
     (segment, index) => segment === 'profile' && ORCA_PROFILE_FOLDERS.has(segments[index + 1] ?? '')
   )
+}
+
+function isSharedDesignSystemFolder(path: string): boolean {
+  const folder = DESIGN_SYSTEM_FOLDER.split('/')
+  const segments = path.split(/[\\/]+/).filter((segment) => segment.length > 0)
+  const tail = segments.slice(-folder.length)
+  return tail.length === folder.length && tail.every((segment, index) => segment === folder[index])
 }
 
 async function isRegularFile(path: string): Promise<boolean> {
