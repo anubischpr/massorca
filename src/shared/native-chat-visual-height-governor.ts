@@ -19,7 +19,7 @@ export type NativeChatVisualHeightDecision =
  * further growth once the page is plainly growing because the frame grew (the same small step, again
  * and again). Shrinking stays allowed.
  */
-export function createNativeChatVisualHeightGovernor(): {
+export function createNativeChatVisualHeightGovernor(options: { minHeight?: number } = {}): {
   decide: (reported: number, now: number) => NativeChatVisualHeightDecision
 } {
   let applied: number | null = null
@@ -32,7 +32,7 @@ export function createNativeChatVisualHeightGovernor(): {
 
   return {
     decide(reported, now) {
-      const height = clampNativeChatVisualHeight(reported)
+      const height = clampNativeChatVisualHeight(reported, options.minHeight)
       if (height === applied) {
         return { kind: 'ignore' }
       }

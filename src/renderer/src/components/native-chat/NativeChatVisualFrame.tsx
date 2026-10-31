@@ -60,7 +60,8 @@ export function NativeChatVisualFrame({
   annotate,
   onAnnotateEvent,
   strictScripts = false,
-  onNatural
+  onNatural,
+  minHeight
 }: {
   document: NativeChatVisualDocument
   title: string
@@ -75,6 +76,8 @@ export function NativeChatVisualFrame({
   strictScripts?: boolean
   /** Gets the frame's natural width and section readout after each measure request. */
   onNatural?: (natural: NativeChatVisualNatural) => void
+  /** The floor of an inline frame's height; the chat visual's own floor when not given. */
+  minHeight?: number
   /**
    * Given, the frame is built with the element-annotate script and reports picks and pin clicks to
    * `onAnnotateEvent`. Whether it is given is fixed per mount; its value may change at any time.
@@ -120,7 +123,7 @@ export function NativeChatVisualFrame({
 
   useEffect(() => {
     loadsRef.current = 0
-    const governor = createNativeChatVisualHeightGovernor()
+    const governor = createNativeChatVisualHeightGovernor({ minHeight })
     let deferred: ReturnType<typeof setTimeout> | null = null
     let latestReported: number | null = null
     let lastLinkAt = -Infinity
@@ -194,7 +197,7 @@ export function NativeChatVisualFrame({
         clearTimeout(deferred)
       }
     }
-  }, [built.channel, layout, annotateCapable])
+  }, [built.channel, layout, annotateCapable, minHeight])
 
   // A frame rebuilt for a new revision, or unmounted, owes no answer.
   useEffect(

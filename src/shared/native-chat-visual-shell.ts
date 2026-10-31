@@ -319,11 +319,11 @@ export function readNativeChatVisualPong(data: unknown, channel: string): number
   return typeof id === 'number' && Number.isSafeInteger(id) ? id : null
 }
 
-export function clampNativeChatVisualHeight(height: number): number {
-  return Math.min(
-    NATIVE_CHAT_VISUAL_MAX_HEIGHT,
-    Math.max(NATIVE_CHAT_VISUAL_MIN_HEIGHT, Math.round(height))
-  )
+export function clampNativeChatVisualHeight(
+  height: number,
+  minHeight = NATIVE_CHAT_VISUAL_MIN_HEIGHT
+): number {
+  return Math.min(NATIVE_CHAT_VISUAL_MAX_HEIGHT, Math.max(minHeight, Math.round(height)))
 }
 
 export function nativeChatVisualPingMessage(

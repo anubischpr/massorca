@@ -10,6 +10,12 @@ describe('createNativeChatVisualHeightGovernor', () => {
     expect(governor.decide(50_000, 30)).toEqual({ kind: 'apply', height: 2000 })
   })
 
+  it('keeps a frame as short as its content when the caller sets a lower floor', () => {
+    const governor = createNativeChatVisualHeightGovernor({ minHeight: 0 })
+    expect(governor.decide(40, 0)).toEqual({ kind: 'apply', height: 40 })
+    expect(governor.decide(5, 2_000)).toEqual({ kind: 'apply', height: 5 })
+  })
+
   it('defers changes past the per-second budget instead of dropping the last one', () => {
     const governor = createNativeChatVisualHeightGovernor()
     let now = 0

@@ -203,6 +203,8 @@ export function ComponentCard({
           onAnnotateEvent={onAnnotateEvent}
           strictScripts
           onNatural={setNatural}
+          // Why: the chat visual's 80 px floor would pad a small component card.
+          minHeight={0}
         />
       </div>
       {removed ? (
