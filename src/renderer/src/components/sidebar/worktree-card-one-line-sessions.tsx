@@ -2,15 +2,13 @@ import React, { useMemo } from 'react'
 import type { DashboardAgentRow as DashboardAgentRowData } from '@/components/dashboard/useDashboardData'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
-import { getAgentDotState } from './worktree-card-agent-summary'
 import { OneLineSessionRow } from './worktree-card-one-line-session-row'
 import {
+  collectSubtreeGlyphs,
   isSessionGlyphUrgent,
   selectVisibleSessions,
-  sessionStatusGlyph,
   VISIBLE_SESSION_LIMIT,
-  worstSessionStatusGlyph,
-  type SessionStatusGlyph
+  worstSessionStatusGlyph
 } from './worktree-session-status'
 import { SIDEBAR_TREE_INDENT } from './worktree-list/rows/indentation'
 
@@ -35,28 +33,6 @@ export type OneLineSessionTreeProps = {
   onActivateRetained: () => void
   getSendTarget?: (paneKey: string) => SendTarget
   onSendTargetClick?: (paneKey: string) => void
-}
-
-// Every glyph in a session's subtree, own first. The visited set guards malformed lineage cycles.
-export function collectSubtreeGlyphs(
-  agent: DashboardAgentRowData,
-  childrenByParentPaneKey: ReadonlyMap<string, readonly DashboardAgentRowData[]>,
-  unvisitedByPaneKey: Readonly<Record<string, boolean>>,
-  visited = new Set<string>()
-): (SessionStatusGlyph | null)[] {
-  if (visited.has(agent.paneKey)) {
-    return []
-  }
-  visited.add(agent.paneKey)
-  const glyphs = [
-    sessionStatusGlyph(getAgentDotState(agent), unvisitedByPaneKey[agent.paneKey] ?? false)
-  ]
-  for (const child of childrenByParentPaneKey.get(agent.paneKey) ?? []) {
-    glyphs.push(
-      ...collectSubtreeGlyphs(child, childrenByParentPaneKey, unvisitedByPaneKey, visited)
-    )
-  }
-  return glyphs
 }
 
 export function OneLineSessionTree(props: OneLineSessionTreeProps): React.JSX.Element {

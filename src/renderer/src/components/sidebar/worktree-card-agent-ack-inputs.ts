@@ -10,3 +10,15 @@ export function selectAcknowledgedAgentTimes(
 ): number[] {
   return agents.map((agent) => state.acknowledgedAgentsByPaneKey[agent.paneKey] ?? 0)
 }
+
+/** Whether each row's current state is still unseen, keyed by pane; the times line up with `agents`. */
+export function unvisitedByPaneKeyFor(
+  agents: readonly Pick<DashboardAgentRow, 'paneKey' | 'entry'>[],
+  acknowledgedAgentTimes: readonly number[]
+): Record<string, boolean> {
+  const out: Record<string, boolean> = {}
+  for (const [index, agent] of agents.entries()) {
+    out[agent.paneKey] = (acknowledgedAgentTimes[index] ?? 0) < agent.entry.stateStartedAt
+  }
+  return out
+}

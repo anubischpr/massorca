@@ -23,7 +23,10 @@ import { DEFAULT_AGENT_ACTIVITY_DISPLAY_MODE } from '../../../../shared/constant
 import { revealElementInScrollContainer } from './worktree-sidebar-reveal'
 import { useWorktreeAgentExpansionState } from './worktree-card-agents-expansion-state'
 import { translate } from '@/i18n/i18n'
-import { selectAcknowledgedAgentTimes } from './worktree-card-agent-ack-inputs'
+import {
+  selectAcknowledgedAgentTimes,
+  unvisitedByPaneKeyFor
+} from './worktree-card-agent-ack-inputs'
 import { OneLineSessionTree } from './worktree-card-one-line-sessions'
 import { SIDEBAR_TREE_INDENT } from './worktree-list/rows/indentation'
 
@@ -112,14 +115,10 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
   const acknowledgedAgentTimes = useAppStore(
     useShallow((s) => selectAcknowledgedAgentTimes(s, agents))
   )
-  const unvisitedByPaneKey = useMemo(() => {
-    const out: Record<string, boolean> = {}
-    for (const [index, agent] of agents.entries()) {
-      const ackAt = acknowledgedAgentTimes[index] ?? 0
-      out[agent.paneKey] = ackAt < agent.entry.stateStartedAt
-    }
-    return out
-  }, [agents, acknowledgedAgentTimes])
+  const unvisitedByPaneKey = useMemo(
+    () => unvisitedByPaneKeyFor(agents, acknowledgedAgentTimes),
+    [agents, acknowledgedAgentTimes]
+  )
 
   const handleDismissAgent = useCallback(
     (paneKey: string) => {

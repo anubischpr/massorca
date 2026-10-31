@@ -1,9 +1,11 @@
 import React from 'react'
 import { ChevronDown, Folder, GitBranch, GitCommitHorizontal } from 'lucide-react'
+import { useShallow } from 'zustand/react/shallow'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
+import { useAppStore } from '@/store'
 import {
   normalizeManualDisplayName,
   resolveOneLineRowLabel
@@ -14,7 +16,8 @@ import { useWorktreeActivityStatus } from './use-worktree-activity-status'
 import { getReviewStatusLabel } from './WorktreeCardStatusSlot'
 import { getDirectoryName, shouldBeginWorktreeRename } from './worktree-card-model'
 import { ReviewIcon } from './worktree-review-helpers'
-import { worktreeStatusGlyph } from './worktree-session-status'
+import { selectAcknowledgedAgentTimes } from './worktree-card-agent-ack-inputs'
+import { worktreeRowGlyph } from './worktree-session-status'
 import { WorktreeTitleInlineRename } from './WorktreeTitleInlineRename'
 import {
   WorkspaceReviewChecksIndicator,
@@ -246,7 +249,14 @@ export function BranchRowStatusGlyph({
   show: boolean
 }): React.JSX.Element | null {
   const status = useWorktreeActivityStatus(card.worktree.id)
-  const glyph = show ? worktreeStatusGlyph(status, card.worktree.isUnread) : null
+  const agents = card.compactInlineAgentRows
+  const acknowledgedAgentTimes = useAppStore(
+    useShallow((s) => selectAcknowledgedAgentTimes(s, agents))
+  )
+  // Why: the sessions this row folds speak for it, so a retained failure outranks live work.
+  const glyph = show
+    ? worktreeRowGlyph({ agents, acknowledgedAgentTimes, status, isUnread: card.worktree.isUnread })
+    : null
   // Why: an unreachable host is lost contact, never an exit, so any status falls back to unconfirmed.
   const shown =
     glyph && (card.isSshDisconnected || card.isRuntimeDisconnected ? 'unconfirmed' : glyph)
