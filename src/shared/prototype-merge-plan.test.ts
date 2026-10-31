@@ -104,13 +104,13 @@ describe('isPlanForRequest', () => {
 })
 
 describe('the review parts', () => {
-  it('reads an old plan with one selector as sections that both directions can supply', () => {
+  it('locks an old plan with one selector to the direction the part comes from', () => {
     expect(reviewPartsOf(parsed())).toEqual([
       {
         id: 0,
         name: 'Heading',
         kind: 'section',
-        selectors: { A: 'main > h1', C: 'main > h1' },
+        selectors: { A: 'main > h1' },
         selector: 'main > h1',
         suggested: 'A',
         from: 'A',
@@ -120,13 +120,16 @@ describe('the review parts', () => {
         id: 1,
         name: 'Pay button',
         kind: 'section',
-        selectors: { A: 'button.cta', C: 'button.cta' },
+        selectors: { C: 'button.cta' },
         selector: 'button.cta',
         suggested: 'C',
         from: 'C',
         on: true
       }
     ])
+    const [heading, button] = reviewPartsOf(parsed())
+    expect(heading && mergeMarkOf(heading)).toBe('only in')
+    expect(button && mergeMarkOf(button)).toBe('only in')
   })
 
   it('reads a part present in two directions, with its kind and one selector per direction', () => {
@@ -187,7 +190,12 @@ describe('the review parts', () => {
   })
 
   it('marks a part suggested, changed or left out', () => {
-    const [heading] = reviewPartsOf(parsed())
+    const [heading] = reviewPartsOf(
+      parsed({
+        ...PLAN,
+        parts: [{ name: 'Heading', selectors: { A: 'main > h1', C: 'main > h1' }, from: 'A' }]
+      })
+    )
     if (heading === undefined) {
       throw new Error('expected a part')
     }

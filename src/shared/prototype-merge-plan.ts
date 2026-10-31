@@ -135,16 +135,11 @@ export function isPlanForRequest(
 /** The review's parts: each one kept, from the source the plan suggested. */
 export function reviewPartsOf(plan: PrototypeMergePlan): PrototypeMergeReviewPart[] {
   return plan.parts.map((part, id) => {
-    // A plan without `selectors` has one selector, taken to fit every merged direction.
-    const entries =
-      part.selectors === undefined
-        ? plan.from.map((letter): [string, string | undefined] => [letter, part.selector])
-        : plan.from.map((letter): [string, string | undefined] => [
-            letter,
-            part.selectors?.[letter] ?? (letter === part.from ? part.selector : undefined)
-          ])
+    // Why: a lone `selector` is known only in its `from` direction.
     const selectors: Record<string, string> = {}
-    for (const [letter, selector] of entries) {
+    for (const letter of plan.from) {
+      const selector =
+        part.selectors?.[letter] ?? (letter === part.from ? part.selector : undefined)
       if (selector !== undefined) {
         selectors[letter] = selector
       }

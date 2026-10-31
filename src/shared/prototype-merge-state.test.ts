@@ -34,7 +34,7 @@ const PLAN_JSON = JSON.stringify({
   id: 'plan-1',
   from: ['A', 'C'],
   parts: [
-    { name: 'Heading', selector: 'main > h1', from: 'A' },
+    { name: 'Heading', selectors: { A: 'main > h1', C: 'h1' }, from: 'A' },
     { name: 'Pay button', selector: 'button.cta', from: 'C' }
   ]
 })
