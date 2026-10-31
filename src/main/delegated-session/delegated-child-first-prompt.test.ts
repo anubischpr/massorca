@@ -98,7 +98,7 @@ describe('delegatedChildFirstPrompt', () => {
       createRequest: async () => ({ ok: true as const, requestId: REQUEST, folderPath: FOLDER })
     })
     const prompt = await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)
-    expect(prompt?.appendix).toContain('read design/system/tokens.json, components.html')
+    expect(prompt?.appendix).toContain('check whether design/system/tokens.json, components.html')
     expect(prompt?.appendix).toContain('do not stop')
   })
 
@@ -106,7 +106,7 @@ describe('delegatedChildFirstPrompt', () => {
     const { deps } = fakeDeps()
     const prompt = await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)
     expect(prompt?.body).not.toContain(prototypeRequestMarkerLine(REQUEST))
-    expect(prompt?.body).not.toContain('Before designing, read')
+    expect(prompt?.body).not.toContain('Before designing, check whether')
   })
 
   it('drops a MassOrca command word from the body the agent works from', async () => {
