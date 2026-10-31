@@ -25,9 +25,10 @@ const DETECTED: PrototypeListedDesignSystem = {
 type Style = Record<string, unknown>
 
 function flat(style: unknown): Style {
-  return Array.isArray(style)
-    ? Object.assign({}, ...style.map((entry) => flat(entry)))
-    : ((style ?? {}) as Style)
+  if (Array.isArray(style)) {
+    return Object.assign({}, ...style.map((entry) => flat(entry)))
+  }
+  return typeof style === 'object' && style !== null ? { ...style } : {}
 }
 
 describe('MobilePrototypeSystemRow swatch icon', () => {

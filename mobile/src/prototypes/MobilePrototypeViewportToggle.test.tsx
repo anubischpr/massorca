@@ -28,7 +28,7 @@ describe('MobilePrototypeViewportToggle', () => {
     const tree = mount('phone')
     expect(tree.root.findAllByType('Smartphone')).toHaveLength(1)
     expect(tree.root.findAllByType('Monitor')).toHaveLength(1)
-    expect(tree.root.findAllByType('Text' as never)).toHaveLength(0)
+    expect(tree.root.findAll((node) => node.type === 'Text')).toHaveLength(0)
   })
 
   it('names each button for a screen reader and marks the current screen', () => {

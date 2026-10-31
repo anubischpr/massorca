@@ -31,12 +31,15 @@ export function MobilePrototypeSystemRow({
 
 // Four color values in a 2x2 grid: two explicit rows, so the grid never depends on the cells wrapping.
 function SwatchIcon({ swatches }: { swatches: readonly string[] }) {
-  const rows = [swatches.slice(0, 2), swatches.slice(2, 4)]
+  const rows = [
+    { key: 'top', colors: swatches.slice(0, 2) },
+    { key: 'bottom', colors: swatches.slice(2, 4) }
+  ]
   return (
     <View accessibilityElementsHidden importantForAccessibility="no" style={styles.icon}>
-      {rows.map((row, index) => (
-        <View key={index} style={styles.swatchRow}>
-          {keyedEntries(row, (color) => color).map(({ key, entry: color }) => (
+      {rows.map((row) => (
+        <View key={row.key} style={styles.swatchRow}>
+          {keyedEntries(row.colors, (color) => color).map(({ key, entry: color }) => (
             <View key={key} style={[styles.cell, { backgroundColor: color }]} />
           ))}
         </View>
