@@ -11,6 +11,10 @@ export function childBringBackPolicyOf(access: string | undefined): ChildBringBa
   return access === 'full-access' ? 'full' : access === 'auto' ? 'auto' : 'ask'
 }
 
+function isWaitingMark(mark: AutomaticBringBackMark | undefined): boolean {
+  return mark === 'child-finishing' || mark === 'waiting' || mark === 'asked-commit'
+}
+
 export type ChildBringBackAutomaticDeps = {
   service: Pick<ChildBringBackService, 'status' | 'bringBack' | 'abort' | 'resolveWithAgent'>
   readRequest: (requestId: string) => DelegationRequestRow | undefined
@@ -62,10 +66,9 @@ export class ChildBringBackAutomatic {
 
   /** Picks up what a restart interrupted. */
   async reconcile(): Promise<void> {
-    const waiting = this.deps.listFinishedRequests().filter((row) => {
-      const mark = readStoredAutomaticBringBack(row)
-      return mark === 'child-finishing' || mark === 'waiting' || mark === 'asked-commit'
-    })
+    const waiting = this.deps
+      .listFinishedRequests()
+      .filter((row) => isWaitingMark(readStoredAutomaticBringBack(row)))
     await Promise.all(waiting.map((row) => this.enqueue(row)))
   }
 
@@ -93,7 +96,14 @@ export class ChildBringBackAutomatic {
       deps.mark(requestId, 'child-finishing')
       return
     }
-    if (policy === 'ask' || status.kind !== 'ready') {
+    if (status.kind !== 'ready') {
+      // Settled, so a later commit in the child waits for the person; unavailable may be a blip.
+      if (status.kind !== 'unavailable' && isWaitingMark(readStoredAutomaticBringBack(row))) {
+        deps.mark(requestId, 'notice')
+      }
+      return
+    }
+    if (policy === 'ask') {
       return
     }
     if (policy === 'auto' && (status.block !== null || (status.predictedConflicts ?? 0) > 0)) {

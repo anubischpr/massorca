@@ -270,6 +270,25 @@ describe('full policy', () => {
   })
 })
 
+describe('a child that finished with nothing to bring back', () => {
+  it('stops waiting, so a later commit in the child is left for the person', async () => {
+    policy = 'full'
+    await git(child, 'reset', '-q', '--hard', 'HEAD~1')
+    working.add('child-session')
+    const { automatic: auto } = automatic()
+    await auto.onChildFinished(row.id)
+    expect(JSON.parse(row.options_json).automaticBringBack).toBe('child-finishing')
+    working.clear()
+    await auto.onTurnEnded('child-session')
+    expect(JSON.parse(row.options_json).automaticBringBack).toBe('notice')
+    await commit(child, 'child.txt', 'later\n')
+    await auto.reconcile()
+    await auto.onTurnEnded('child-session')
+    expect(merged()).toBe(false)
+    expect(tellParent).not.toHaveBeenCalled()
+  })
+})
+
 describe('serial merges', () => {
   it('runs attempts for one parent worktree one at a time', async () => {
     const { automatic: auto } = automatic()
