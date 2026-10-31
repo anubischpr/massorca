@@ -164,15 +164,19 @@ export type WorktreeGlyphInput = {
 /**
  * A worktree's glyph where no card shows its sessions. The worst of its session rows speaks for
  * it, so a retained failure beats live work and an unseen session stays unread after activation.
+ * The worktree's own unread mark still counts: a background bell sets it with no session to show.
  */
 export function worktreeRowGlyph(input: WorktreeGlyphInput): SessionStatusGlyph | null {
   if (input.agents.length === 0) {
     return input.status ? worktreeStatusGlyph(input.status, input.isUnread) : null
   }
   const { rootRows, childrenByParentPaneKey } = buildAgentRowLineageTree(input.agents)
-  return worstSessionTreeGlyph(
-    rootRows,
-    childrenByParentPaneKey,
-    unvisitedByPaneKeyFor(input.agents, input.acknowledgedAgentTimes)
-  )
+  return worstSessionStatusGlyph([
+    worstSessionTreeGlyph(
+      rootRows,
+      childrenByParentPaneKey,
+      unvisitedByPaneKeyFor(input.agents, input.acknowledgedAgentTimes)
+    ),
+    input.isUnread ? 'unread' : null
+  ])
 }

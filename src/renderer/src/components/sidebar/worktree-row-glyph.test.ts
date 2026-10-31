@@ -43,9 +43,32 @@ describe('worktreeRowGlyph', () => {
         agents: [makeAgent('done', 'done')],
         acknowledgedAgentTimes: [1],
         status: 'working',
-        isUnread: true
+        isUnread: false
       })
     ).toBeNull()
+  })
+
+  it('keeps the worktree unread mark on a folded branch when every session is seen', () => {
+    // Why: a background terminal bell marks the worktree unread with no unseen session row to show it.
+    expect(
+      worktreeRowGlyph({
+        agents: [makeAgent('done', 'done')],
+        acknowledgedAgentTimes: [1],
+        status: 'done',
+        isUnread: true
+      })
+    ).toBe('unread')
+  })
+
+  it('lets a session that is working outrank the worktree unread mark', () => {
+    expect(
+      worktreeRowGlyph({
+        agents: [makeAgent('live', 'working')],
+        acknowledgedAgentTimes: [0],
+        status: 'working',
+        isUnread: true
+      })
+    ).toBe('working')
   })
 
   it('uses the worktree status only when the worktree has no session rows', () => {
