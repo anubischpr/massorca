@@ -148,7 +148,7 @@ User QA verbatim: "La sesión hija sigue mostrando su propio worktree"; "3. No f
 - Fix: 750e033bb09. The host stamps delegatedParent on the status summary from delegation_requests; the client turns it into entry.orchestration. Optional field, so an older host changes nothing. Needs the new host on the VPS.
 - Phone: c9c477ec382. A session from another worktree opens that worktree's sheet directly.
 - Observed: the real query on the VPS returns this delegation's link; hidden app with an empty runtime map hides the row and shows Environment on hover. Not observed: a real paired client end to end.
-- Open: the hover answer needs a PTY, and structured sessions have none, so an orange structured session shows Environment. Mounting useStructuredAgentSession in a hover is a second controller on one session, so it was not done without a decision.
+- Hover answer for structured sessions: 167d77d9f55, approved by the user. It reads the journal only while the card is open, holds no provider and counts as no view. Covered by tests with mocked hooks; not observed against a real pending prompt.
 
 ## Next step
 
