@@ -164,7 +164,7 @@ describe('delegationUsageCandidates', () => {
 
   it('lets the router treat a stale meter as no data', () => {
     const state = createEmptyRateLimitState({
-      codex: provider('codex', { session: window(5), updatedAt: NOW - 16 * MINUTE })
+      codex: provider('codex', { session: window(5), updatedAt: NOW - 31 * MINUTE })
     })
     const { ranking } = rankDelegationAgents({
       candidates: delegationUsageCandidates(state, [{ agent: 'codex' }]),

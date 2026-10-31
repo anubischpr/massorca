@@ -47,7 +47,8 @@ type BindingWindow = { percent: number; window: DelegationUsageWindow | 'monthly
 const NO_DATA_BINDING_PERCENT = 60
 const USAGE_LIMIT_PERCENT = 90
 const TIE_TOLERANCE_POINTS = 5
-const DEFAULT_STALE_AFTER_MS = 15 * 60 * 1000
+// Why twice the host meter's 15-minute poll: a sample waiting on its next poll is still a real reading.
+const DEFAULT_STALE_AFTER_MS = 30 * 60 * 1000
 // Why: a sample a little ahead of this clock is clock skew; further ahead it cannot be a real reading.
 const FUTURE_SAMPLE_TOLERANCE_MS = 60 * 1000
 // Why: a fixed order breaks ties, so the same inputs always pick the same agent.

@@ -107,6 +107,7 @@ describe('DelegationAnswerService', () => {
       rows: fakeRows(rows),
       readParent: (sessionId) => (sessionId === PARENT.sessionId ? PARENT : null),
       readRateLimits: () => rateLimits,
+      refreshUsage: async () => {},
       now: () => NOW
     }
     const requestDeps: DelegationRequestDeps = {

@@ -19,6 +19,7 @@ import {
   type DelegationStoredAgent
 } from './delegation-options'
 import type { DelegationRequestDeps } from './delegation-service-types'
+import { waitForDelegationUsageRefresh } from './delegation-usage-refresh'
 
 export type DelegationRequestInput = {
   parentSessionId: string
@@ -88,6 +89,7 @@ export class DelegationRequestService {
       )
     }
     const title = titleFor(input)
+    await waitForDelegationUsageRefresh(this.deps.refreshUsage)
     const route = routeDelegationRequest({
       summary: input.summary,
       writes: input.writes,

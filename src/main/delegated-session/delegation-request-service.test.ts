@@ -58,6 +58,7 @@ describe('DelegationRequestService.request', () => {
         { agent: 'codex', label: 'Codex' }
       ],
       readRateLimits: () => createEmptyRateLimitState({}),
+      refreshUsage: async () => {},
       readPrototypeCount: () => ({ mode: 'always', count: 2 }),
       now: () => NOW
     }
@@ -163,6 +164,30 @@ describe('DelegationRequestService.request', () => {
         { agent: 'codex', label: 'Codex' }
       ]
     })
+  })
+
+  it('lets a stale meter refresh before routing on it', async () => {
+    let rateLimits = createEmptyRateLimitState({})
+    const { requestId } = await new DelegationRequestService({
+      ...deps,
+      readRateLimits: () => rateLimits,
+      refreshUsage: async () => {
+        rateLimits = createEmptyRateLimitState({
+          codex: {
+            provider: 'codex',
+            session: null,
+            weekly: { usedPercent: 37, windowMinutes: 10_080, resetsAt: null, resetDescription: null },
+            updatedAt: NOW,
+            error: null,
+            status: 'ok'
+          }
+        })
+      }
+    }).request(input)
+    const stored = JSON.parse(db.getDelegationRequest(requestId)?.decision_json ?? 'null')
+    expect(stored.ranking).toContainEqual(
+      expect.objectContaining({ agent: 'codex', bindingPercent: 37, noData: false })
+    )
   })
 
   it('places a child that writes code in a new worktree, or warns for a folder workspace', async () => {
