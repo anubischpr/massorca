@@ -45,7 +45,7 @@ export function NativeChatChildBringBack({
         <p className="text-xs text-muted-foreground">{view.meta.map(lineText).join(' · ')}</p>
       ) : null}
       {view.warnings.map((line) => (
-        <p key={line.id} className="text-xs text-amber-600 dark:text-amber-400">
+        <p key={line.id} className="text-xs text-status-warning">
           {lineText(line)}
         </p>
       ))}
