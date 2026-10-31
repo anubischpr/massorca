@@ -137,3 +137,20 @@ QA1–QA4, then DS4. Pending user approval: main-direction + merge design (artif
 - [x] Narrow header and Spanish archive strings: `f28440a07a4`, `99249f06820`. Not rendered.
 - Review: slices up to `469c1eb4856` approved. Later slices ran no reviewer lenses after the reboot.
 - Design choices for review: https://claude.ai/artifact/LokvPTZC85njupM8ktSX6Z
+
+## pv57 Components editing (2026-10-30)
+
+Approved design reference: the pv57 scratchpad page `design-system-components-edit.html` (fake colors and text; the real values come from tokens.json and components.html).
+
+- [x] E1 — `c7d4842af35` — The annotate frame reports each picked element's own design (its file values, with the frame's own overrides taken off) and its ancestors; overrides may set an allowlisted set of CSS properties; a pin may draw its outline without a badge; a chat visual may opt into a nonce-only script policy.
+- [x] E2 — `dd48e8e8789` — Element model and draft: locators relative to the section (`elementLocatorOf`), the rows each kind offers, token binding by value, the CSS a draft edit becomes; per-element edits keyed by locator in the draft, a value back at its original drops out, an older draft reads as none; each edit is one item of the message.
+- [x] E3 — `8607beb1c8e` — Aside for a picked element: rows per kind, token chips that collapse to four with `+N more` and keep the bound token, custom swatch and hex for colors, number and px / % / auto sizes, B / I / U, align, breadcrumb back up the component, text-only hint, a note per element. The Annotate panel now shares its unit group and field classes instead of copying them.
+- [x] E4 — `8ee50475c0b` — Components tab: each card renders the component live in the annotate frame under a nonce-only policy; clicking an element picks it (hover and selected outlines are the Annotate ones); draft edits apply live; Grid (two compact cards, per-card full-size toggle), Collage and List, with the choice remembered per viewer; a rule under the Design system row.
+- [ ] E5 — Collage is CSS multi-column: each card takes its natural height, but its width is the column width, not its content width. The approved design measures each card's width too.
+- [ ] E6 — Render check in the Electron app: not run.
+
+Verification evidence:
+- `pnpm tc` exit 0 after the last source change (typecheck node, cli, web).
+- Shared: annotate script, annotate design, design-system element/draft/preview/message suites: 19 files, 292 tests passed.
+- Renderer: design system view, aside, rows, view mode, list panel, edit panel: 6 files, 73 tests passed (run with `config/vitest.config.ts`).
+- oxlint and oxfmt clean on the changed files. The `max-lines` rule forced the draft and the components tab into smaller modules; no disable was added.
