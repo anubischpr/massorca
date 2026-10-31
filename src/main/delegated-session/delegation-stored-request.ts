@@ -8,6 +8,7 @@ import {
   PROTOTYPE_DESIGN_SYSTEM_MODES,
   type PrototypeDesignSystemMode
 } from '../../shared/prototype-design-system-files'
+import type { DelegationTier } from '../../shared/delegated-session-types'
 import type { DelegationRequestRow } from '../runtime/orchestration/db/delegation/delegation-request-store'
 import { classifyDelegationTask } from './delegation-task-classifier'
 import { resolveLaunchableDelegationModel } from './delegation-launch-preferences'
@@ -128,6 +129,12 @@ export function storedOptionsWithPrototypeAnswers(
   })
 }
 
+/** The tier Jev chose when the card was filed, so an answer neither pays again nor drifts from the card. */
+export function readStoredAdvisedTier(row: DelegationRequestRow): { advisedTier?: DelegationTier } {
+  const decision = readDelegationDecision(parseJson(row.decision_json))
+  return decision?.tierAdvisedBy === 'jev' ? { advisedTier: decision.tier } : {}
+}
+
 /** What the request starts, from its choice: Automatic's stored decision, or the picked agent's tier row. */
 export function resolveDelegationTarget(row: DelegationRequestRow): DelegationLaunchTarget | null {
   const choice = parseDelegationOptionId(row.choice ?? '')
@@ -151,7 +158,9 @@ export function resolveDelegationTarget(row: DelegationRequestRow): DelegationLa
       : null
   }
   const writes = row.writes === 1
-  const { tier } = classifyDelegationTask({ summary: row.summary, writesCode: writes })
+  const tier =
+    readStoredAdvisedTier(row).advisedTier ??
+    classifyDelegationTask({ summary: row.summary, writesCode: writes }).tier
   const { model, effort } = resolveLaunchableDelegationModel({ agent: choice.agent, tier })
   return {
     agent: choice.agent,

@@ -2,7 +2,7 @@ import type { PrototypeSystemCard } from '../../shared/prototype-design-system-c
 import type { RateLimitState } from '../../shared/rate-limit-types'
 import type { StructuredAgentSessionHostRows } from '../native-chat/agent-session-wire/structured-agent-session-host-rows'
 import type { OrchestrationDb } from '../runtime/orchestration/db'
-import type { DelegationStoredAgent } from './delegation-options'
+import type { DelegationStoredAgent, DelegationTierAdvisor } from './delegation-options'
 
 /** The parent chat as a delegation request reads it. */
 export type DelegationParentSession = {
@@ -37,4 +37,5 @@ export type DelegationRequestDeps = DelegationHostDeps & {
   readDesignSystemCard: (parentSessionId: string) => Promise<PrototypeSystemCard | null>
   /** What the person last typed in the parent chat, or undefined when this host holds no such message. */
   readParentUserMessage: (parentSessionId: string) => Promise<string | undefined>
+  adviseTier?: DelegationTierAdvisor
 }

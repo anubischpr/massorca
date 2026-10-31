@@ -188,7 +188,8 @@ const DecisionSchema = z.object({
   placement: Placement,
   placementWarning: z.literal('folder-workspace-writes').nullable(),
   ranking: z.array(UsageSchema),
-  reasons: ReasonsSchema
+  reasons: ReasonsSchema,
+  tierAdvisedBy: z.literal('jev').optional().catch(undefined)
 })
 
 const PrototypeCountSchema = z.object({

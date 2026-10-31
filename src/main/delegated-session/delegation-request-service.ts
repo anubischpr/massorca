@@ -19,7 +19,7 @@ import { PROTOTYPE_PROMPT_MAX_LENGTH } from '../../shared/rpc-contract/prototype
 import { prototypeAgentOfChild } from './delegated-child-first-prompt'
 import {
   buildDelegationCardContent,
-  routeDelegationRequest,
+  routeDelegationRequestWithAdvice,
   type DelegationStoredAgent
 } from './delegation-options'
 import type { DelegationRequestDeps } from './delegation-service-types'
@@ -182,15 +182,18 @@ export class DelegationRequestService {
     }
     const title = titleFor(input)
     await waitForDelegationUsageRefresh(this.deps.refreshUsage)
-    const route = routeDelegationRequest({
-      summary: input.summary,
-      writes: input.writes,
-      workspaceKind: parent.workspaceKind,
-      parentAgent: parent.agent,
-      agents,
-      rateLimits: this.deps.readRateLimits(),
-      now: this.deps.now()
-    })
+    const route = await routeDelegationRequestWithAdvice(
+      {
+        summary: input.summary,
+        writes: input.writes,
+        workspaceKind: parent.workspaceKind,
+        parentAgent: parent.agent,
+        agents,
+        rateLimits: this.deps.readRateLimits(),
+        now: this.deps.now()
+      },
+      this.deps.adviseTier
+    )
     const userMessage = await userMessageOf(this.deps.readParentUserMessage, input.parentSessionId)
     const prototypeTask = asksForPrototypes(input, agents, userMessage)
     const prototypeCount = prototypeCountFor(

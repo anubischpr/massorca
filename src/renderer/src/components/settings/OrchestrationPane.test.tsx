@@ -45,6 +45,10 @@ vi.mock('./AgentSkillSetupPanel', () => ({
   }
 }))
 
+vi.mock('./JevDecisionsSection', () => ({
+  JevDecisionsSection: () => null
+}))
+
 vi.mock('./OrchestrationSkillPromptDialog', () => ({
   OrchestrationSkillPromptDialog: (props: Record<string, unknown>) => {
     mocks.dialogProps.push(props)
