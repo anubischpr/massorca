@@ -31,9 +31,10 @@ export const colors = {
   // Outline of the Prototypes "Merge" button, the same hue as statusAmber.
   statusAmberBorder: 'rgba(245, 158, 11, 0.5)',
   statusRed: '#ef4444',
-  // Needs-human mark (blocked, waiting, a permission prompt): the desktop agent-question token,
-  // orange-500. Red is reserved for failures.
-  statusOrange: '#f97316',
+  // Needs-human mark (blocked, waiting, a permission prompt): the desktop dark-mode --agent-question
+  // token, Tailwind orange-500 (oklch 70.5% 0.213 47.6), as its sRGB approximation. Light mode is
+  // orange-600 (#f54900). Red is reserved for failures.
+  statusOrange: '#ff6900',
   // Outline of a destructive sheet action, the same hue as statusRed.
   statusRedBorder: 'rgba(239, 68, 68, 0.5)',
   // Full-access wash behind the red access lock, same rgba form as the diff tints below.
