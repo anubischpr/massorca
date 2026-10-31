@@ -100,12 +100,17 @@ export class ChildBringBackAutomatic {
       deps.mark(requestId, 'notice')
       return
     }
-    if (status.block === 'parent-no-branch') {
+    // A detached HEAD has nowhere to merge into, and only a person can change that.
+    if (status.block === 'parent-no-branch' && status.into === '') {
       deps.mark(requestId, 'notice')
       return
     }
-    // Working is checked before uncommitted: a running agent's edits are not ready to commit yet.
-    if (status.block === 'parent-working' || status.automatic === 'waiting') {
+    // With a branch, this block is an operation running, such as a sibling child's merge.
+    if (
+      status.block === 'parent-no-branch' ||
+      status.block === 'parent-working' ||
+      status.automatic === 'waiting'
+    ) {
       deps.mark(requestId, 'waiting')
       return
     }
@@ -143,6 +148,9 @@ export class ChildBringBackAutomatic {
     } else if (after?.kind === 'conflicts') {
       await deps.service.abort(row.id)
       deps.mark(row.id, 'undone')
+    } else if (after?.kind === 'ready' && policy === 'full') {
+      // The parent started a turn between the read and the merge.
+      deps.mark(row.id, 'waiting')
     }
   }
 }

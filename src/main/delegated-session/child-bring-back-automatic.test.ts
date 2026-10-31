@@ -248,6 +248,22 @@ describe('full policy', () => {
     expect(tellParent.mock.calls[0][1]).toContain('merge conflicts')
   })
 
+  it('waits out a sibling child still merging, then merges', async () => {
+    await git(parent, 'checkout', '-q', '-b', 'sibling')
+    await commit(parent, 'base.txt', 'sibling side\n')
+    await git(parent, 'checkout', '-q', 'main')
+    await commit(parent, 'base.txt', 'parent side\n')
+    await expect(git(parent, 'merge', 'sibling')).rejects.toThrow()
+    const { automatic: auto } = automatic()
+    await auto.onChildFinished(row.id)
+    expect(merged()).toBe(false)
+    writeFileSync(join(parent, 'base.txt'), 'both\n')
+    await git(parent, 'add', 'base.txt')
+    await git(parent, 'commit', '-q', '--no-edit')
+    await auto.onTurnEnded('parent-session')
+    expect(merged()).toBe(true)
+  })
+
   it('does not merge an older finished request it was never waiting on', async () => {
     await automatic().automatic.onTurnEnded('parent-session')
     expect(merged()).toBe(false)
