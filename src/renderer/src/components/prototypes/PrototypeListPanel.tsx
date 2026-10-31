@@ -73,11 +73,14 @@ export function PrototypeListPanel({
                 </span>
               )}
               {projectKey === null || system === null ? null : (
-                <SystemRow
-                  system={system}
-                  selected={selectedProjectKey === projectKey}
-                  onSelect={() => onSelectSystem(projectKey)}
-                />
+                <>
+                  <SystemRow
+                    system={system}
+                    selected={selectedProjectKey === projectKey}
+                    onSelect={() => onSelectSystem(projectKey)}
+                  />
+                  <div role="separator" className="mx-2 my-1 h-px bg-border" />
+                </>
               )}
               {group.rows.map((row) => (
                 <PrototypeSetRow
