@@ -60,6 +60,7 @@ describe('DelegationRequestService.request', () => {
       readRateLimits: () => createEmptyRateLimitState({}),
       refreshUsage: async () => {},
       readPrototypeCount: () => ({ mode: 'always', count: 2 }),
+      readDesignSystemCard: async () => null,
       now: () => NOW
     }
   })
@@ -176,7 +177,12 @@ describe('DelegationRequestService.request', () => {
           codex: {
             provider: 'codex',
             session: null,
-            weekly: { usedPercent: 37, windowMinutes: 10_080, resetsAt: null, resetDescription: null },
+            weekly: {
+              usedPercent: 37,
+              windowMinutes: 10_080,
+              resetsAt: null,
+              resetDescription: null
+            },
             updatedAt: NOW,
             error: null,
             status: 'ok'
@@ -276,6 +282,57 @@ describe('DelegationRequestService.request', () => {
         prompt: '/prototype the onboarding screen'
       })
       expect(cardPayload().prototypeCount).toBeUndefined()
+    })
+
+    const EXISTING_SYSTEM = {
+      kind: 'existing',
+      projectKey: 'nexuscare',
+      projectName: 'NexusCare',
+      version: 1,
+      tokenCount: 24,
+      sourceNames: ['main.css'],
+      swatches: ['#111111', '#ffffff', '#888888', '#22aa55']
+    } as const
+
+    it('asks the design system for a keyword task, with the project system the host read', async () => {
+      const read = vi.fn(async () => EXISTING_SYSTEM)
+      await new DelegationRequestService({ ...deps, readDesignSystemCard: read }).request(
+        prototypeInput
+      )
+      expect(read).toHaveBeenCalledWith(PARENT.sessionId)
+      expect(cardPayload().designSystem).toEqual(EXISTING_SYSTEM)
+    })
+
+    it('asks the design system for a command under the always setting, which asks no count', async () => {
+      const none = { kind: 'none', projectKey: 'nexuscare', projectName: 'NexusCare' } as const
+      await new DelegationRequestService({
+        ...deps,
+        readDesignSystemCard: async () => none
+      }).request({ ...input, prompt: '/prototype the onboarding screen' })
+      expect(cardPayload().prototypeCount).toBeUndefined()
+      expect(cardPayload().designSystem).toEqual(none)
+    })
+
+    it('asks no design system for a task that asks for no prototype, and reads nothing', async () => {
+      const read = vi.fn(async () => EXISTING_SYSTEM)
+      await new DelegationRequestService({ ...deps, readDesignSystemCard: read }).request(input)
+      expect(read).not.toHaveBeenCalled()
+      expect(cardPayload().designSystem).toBeUndefined()
+    })
+
+    it('asks no design system when the host cannot read the project, or the read throws', async () => {
+      await new DelegationRequestService(deps).request(prototypeInput)
+      expect(cardPayload().designSystem).toBeUndefined()
+      appended.length = 0
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+      await new DelegationRequestService({
+        ...deps,
+        readDesignSystemCard: async () => {
+          throw new Error('unreadable')
+        }
+      }).request(prototypeInput)
+      expect(cardPayload().designSystem).toBeUndefined()
+      expect(cardPayload().prototypeCount).toBeDefined()
     })
 
     it('asks no count for a task that asks for no prototype', async () => {

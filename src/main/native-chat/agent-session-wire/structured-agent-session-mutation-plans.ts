@@ -275,7 +275,10 @@ export function promptPlan(
       itemId: params.itemId,
       expectedRevision: params.expectedRevision,
       optionId: params.optionId,
-      answers: params.answers
+      answers: params.answers,
+      // Why: a delegation card's count and design system ride the digest, or the host refuses the answer.
+      count: params.count,
+      designSystem: params.designSystem
     },
     run: (ctx) => performPrompt(ctx, params),
     replay: (ctx) => {

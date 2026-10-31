@@ -24,6 +24,7 @@ import {
   AgentSessionPromptAnswerRejectedError,
   AgentSessionPromptUnavailableError
 } from './structured-agent-session-adapter'
+import type { PrototypeDesignSystemMode } from '../../../shared/prototype-design-system-files'
 import { isHostOwnedPromptItem } from './structured-agent-session-host-owned-prompts'
 import { settledPrompt, validatePendingPrompt } from './structured-agent-session-prompt-state'
 import type { AgentSessionTurnContext, TurnOutcome } from './structured-agent-session-turns'
@@ -37,6 +38,8 @@ export type AgentSessionPromptRequest = {
   answers?: AgentSessionQuestionAnswer[]
   /** The prototype count a delegated task's card asked; only a host-owned question reads it. */
   count?: number
+  /** The design system choice a delegated task's card asked; only a host-owned question reads it. */
+  designSystem?: PrototypeDesignSystemMode
 }
 
 function invalid(
@@ -109,7 +112,8 @@ async function performHostOwnedPrompt(
     sessionId: ctx.sessionId,
     itemId: input.itemId,
     optionId,
-    ...(input.count === undefined ? {} : { count: input.count })
+    ...(input.count === undefined ? {} : { count: input.count }),
+    ...(input.designSystem === undefined ? {} : { designSystem: input.designSystem })
   })
   if (!outcome.ok) {
     return invalid(outcome.reason, outcome.message)

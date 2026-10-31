@@ -4,6 +4,10 @@ import {
   readDelegationDecision
 } from '../../shared/delegated-session-journal'
 import { PROTOTYPE_COUNT_MAX, PROTOTYPE_COUNT_MIN } from '../../shared/prototype-count-setting'
+import {
+  PROTOTYPE_DESIGN_SYSTEM_MODES,
+  type PrototypeDesignSystemMode
+} from '../../shared/prototype-design-system-files'
 import type { DelegationRequestRow } from '../runtime/orchestration/db/delegation/delegation-request-store'
 import { classifyDelegationTask } from './delegation-task-classifier'
 import { resolveLaunchableDelegationModel } from './delegation-launch-preferences'
@@ -38,18 +42,33 @@ export function readStoredDelegationAgents(row: DelegationRequestRow): Delegatio
   return parsed.success ? parsed.data.agents : []
 }
 
-const StoredPrototypeCount = z.object({
-  count: z.int().min(PROTOTYPE_COUNT_MIN).max(PROTOTYPE_COUNT_MAX).optional().catch(undefined)
+const StoredPrototypeAnswers = z.object({
+  count: z.int().min(PROTOTYPE_COUNT_MIN).max(PROTOTYPE_COUNT_MAX).optional().catch(undefined),
+  designSystem: z.enum(PROTOTYPE_DESIGN_SYSTEM_MODES).optional().catch(undefined)
 })
 
 /** The prototype count the person answered on the card, or undefined when they picked none. */
 export function readStoredPrototypeCount(row: DelegationRequestRow): number | undefined {
-  return StoredPrototypeCount.safeParse(parseJson(row.options_json)).data?.count
+  return StoredPrototypeAnswers.safeParse(parseJson(row.options_json)).data?.count
 }
 
-/** The stored options with the answered count added; the agents stay as the card offered them. */
-export function storedOptionsWithPrototypeCount(row: DelegationRequestRow, count: number): string {
-  return JSON.stringify({ agents: readStoredDelegationAgents(row), count })
+/** The design system choice the person answered on the card, or undefined when the card asked none. */
+export function readStoredDesignSystemMode(
+  row: DelegationRequestRow
+): PrototypeDesignSystemMode | undefined {
+  return StoredPrototypeAnswers.safeParse(parseJson(row.options_json)).data?.designSystem
+}
+
+/** The stored options with the card's prototype answers added; the agents stay as the card offered them. */
+export function storedOptionsWithPrototypeAnswers(
+  row: DelegationRequestRow,
+  answers: { count?: number; designSystem?: PrototypeDesignSystemMode }
+): string {
+  return JSON.stringify({
+    agents: readStoredDelegationAgents(row),
+    ...(answers.count === undefined ? {} : { count: answers.count }),
+    ...(answers.designSystem === undefined ? {} : { designSystem: answers.designSystem })
+  })
 }
 
 /** What the request starts, from its choice: Automatic's stored decision, or the picked agent's tier row. */

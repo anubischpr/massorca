@@ -3,7 +3,8 @@ import type { PrototypeAgent } from './prototype-request'
 import type { PrototypeCountSetting } from './prototype-count-setting'
 import {
   decideDelegatedTaskPrototypeCount,
-  decideNativeChatPrototypeRequest
+  decideNativeChatPrototypeRequest,
+  delegatedTaskAsksForPrototypes
 } from './prototype-request-decision'
 
 const ALWAYS_3: PrototypeCountSetting = { mode: 'always', count: 3 }
@@ -124,5 +125,22 @@ describe('decideDelegatedTaskPrototypeCount', () => {
       defaultCount: 2
     })
     expect(decideTask('/design a login page', ALWAYS_3, agents)).toEqual({ kind: 'none' })
+  })
+})
+
+describe('delegatedTaskAsksForPrototypes', () => {
+  const asks = (text: string, agents: PrototypeAgent[] = ['codex']) =>
+    delegatedTaskAsksForPrototypes({ text, agents })
+
+  it('is true for a command, which asks no count under "Always make"', () => {
+    expect(asks('/prototype a login page')).toBe(true)
+  })
+
+  it('is true for a keyword match', () => {
+    expect(asks('Make a prototype of the onboarding screen')).toBe(true)
+  })
+
+  it('is false for a task that asks for no prototype', () => {
+    expect(asks('Fix the failing build')).toBe(false)
   })
 })

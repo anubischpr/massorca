@@ -20,7 +20,11 @@ import { createRootDispatch } from '../runtime/orchestration/db/root-dispatch-te
 import { DelegationAnswerService } from './delegation-answer-service'
 import type { DelegationLauncher } from './delegation-launch-types'
 import { DelegationRequestService } from './delegation-request-service'
-import { readStoredDelegationAgents, readStoredPrototypeCount } from './delegation-stored-request'
+import {
+  readStoredDelegationAgents,
+  readStoredDesignSystemMode,
+  readStoredPrototypeCount
+} from './delegation-stored-request'
 import type {
   DelegationHostDeps,
   DelegationParentSession,
@@ -115,7 +119,8 @@ describe('DelegationAnswerService', () => {
       ...host,
       requireDb: () => db,
       listAgents: async () => AGENTS,
-      readPrototypeCount: () => ({ mode: 'always', count: 2 })
+      readPrototypeCount: () => ({ mode: 'always', count: 2 }),
+      readDesignSystemCard: async () => null
     }
     requests = new DelegationRequestService(requestDeps)
     answers = new DelegationAnswerService({ ...host, launch, tellParent, warn: vi.fn() })
@@ -435,6 +440,35 @@ describe('DelegationAnswerService', () => {
       expect(row && readStoredDelegationAgents(row).map((entry) => entry.agent)).toEqual(
         AGENTS.map((entry) => entry.agent)
       )
+    })
+
+    it('is stored with the design system choice, and either one alone is kept', async () => {
+      const { requestId, itemId } = await filed()
+      const outcome = await answers.hostOwnedPrompts.answer({
+        sessionId: PARENT.sessionId,
+        itemId,
+        optionId: 'agent:codex',
+        count: 3,
+        designSystem: 'propose'
+      })
+      expect(outcome.ok).toBe(true)
+      const row = db.getDelegationRequest(requestId)
+      expect(row && readStoredPrototypeCount(row)).toBe(3)
+      expect(row && readStoredDesignSystemMode(row)).toBe('propose')
+      expect(row && readStoredDelegationAgents(row).length).toBe(AGENTS.length)
+    })
+
+    it('stores a design system choice alone, leaving the count to Settings', async () => {
+      const { requestId, itemId } = await filed()
+      await answers.hostOwnedPrompts.answer({
+        sessionId: PARENT.sessionId,
+        itemId,
+        optionId: 'agent:codex',
+        designSystem: 'skip'
+      })
+      const row = db.getDelegationRequest(requestId)
+      expect(row && readStoredDesignSystemMode(row)).toBe('skip')
+      expect(row && readStoredPrototypeCount(row)).toBeUndefined()
     })
 
     it('is taken back with the choice when the journal does not record the answer', async () => {

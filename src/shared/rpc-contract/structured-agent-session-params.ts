@@ -22,6 +22,7 @@ import { isAgentSessionSurfaceTabId } from '../agent-session-surface-tab-id'
 import { isStructuredAgentId } from '../agent-session-provider-handle-encoding'
 import { normalizeExecutionHostId } from '../execution-host'
 import { PROTOTYPE_COUNT_MAX, PROTOTYPE_COUNT_MIN } from '../prototype-count-setting'
+import { PROTOTYPE_DESIGN_SYSTEM_MODES } from '../prototype-design-system-files'
 import {
   AGENT_SESSION_QUESTION_ANSWER_MAX_BYTES,
   AGENT_SESSION_RESPONSE_OPTION_ID_MAX_LENGTH
@@ -265,7 +266,9 @@ export const RespondToQuestionParams = z
     optionId: Identifier('Invalid option id', MAX_RESPONSE_OPTION_ID_LENGTH).optional(),
     answers: z.array(QuestionAnswer).min(1).max(MAX_QUESTION_ANSWER_QUESTIONS).optional(),
     /** The prototype count a delegated task's card asked; absent keeps the Settings count. */
-    count: z.int().min(PROTOTYPE_COUNT_MIN).max(PROTOTYPE_COUNT_MAX).optional()
+    count: z.int().min(PROTOTYPE_COUNT_MIN).max(PROTOTYPE_COUNT_MAX).optional(),
+    /** The design system choice a delegated task's card asked; absent keeps a child's default of using it. */
+    designSystem: z.enum(PROTOTYPE_DESIGN_SYSTEM_MODES).optional()
   })
   .strict()
   .superRefine((value, ctx) => {

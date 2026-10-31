@@ -11,8 +11,9 @@ import type { DelegationAnswerDeps } from './delegation-launch-types'
 import { routeDelegationRequest } from './delegation-options'
 import {
   readStoredDelegationAgents,
-  storedOptionsWithPrototypeCount
+  storedOptionsWithPrototypeAnswers
 } from './delegation-stored-request'
+import type { PrototypeDesignSystemMode } from '../../shared/prototype-design-system-files'
 import { waitForDelegationUsageRefresh } from './delegation-usage-refresh'
 
 type HostOwnedAnswer = Awaited<ReturnType<StructuredAgentSessionHostOwnedPrompts['answer']>>
@@ -74,6 +75,8 @@ export class DelegationAnswerService {
     optionId: string
     /** The prototype count the card's answer carried; absent keeps the Settings count. */
     count?: number
+    /** The design system choice the card's answer carried; absent keeps a child's default of using it. */
+    designSystem?: PrototypeDesignSystemMode
   }): Promise<HostOwnedAnswer> {
     const found = this.findRequest(input.sessionId, input.itemId)
     if (!found) {
@@ -94,9 +97,14 @@ export class DelegationAnswerService {
     const claimed = db.transitionDelegationRequest(row.id, 'pending', 'starting', {
       choice: input.optionId,
       ...this.recomputedDecision(row, choice, input.sessionId),
-      ...(input.count === undefined
+      ...(input.count === undefined && input.designSystem === undefined
         ? {}
-        : { options_json: storedOptionsWithPrototypeCount(row, input.count) })
+        : {
+            options_json: storedOptionsWithPrototypeAnswers(row, {
+              ...(input.count === undefined ? {} : { count: input.count }),
+              ...(input.designSystem === undefined ? {} : { designSystem: input.designSystem })
+            })
+          })
     })
     // A re-answer after a lost reply, or after a restart cut the first one short: same choice, same answer.
     const held = claimed ?? db.getDelegationRequest(row.id)

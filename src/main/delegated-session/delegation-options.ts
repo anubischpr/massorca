@@ -1,4 +1,5 @@
 import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
+import type { PrototypeSystemCard } from '../../shared/prototype-design-system-card'
 import type { RateLimitState } from '../../shared/rate-limit-types'
 import type { DelegationRankingCandidate } from './delegation-agent-ranking'
 import {
@@ -126,6 +127,8 @@ export function buildDelegationCardContent(input: {
   workspaceKind: DelegationWorkspaceKind
   /** The count question of a task that asks for prototypes; absent for any other task. */
   prototypeCount?: DelegationPrototypeCount
+  /** The design system question of a task that asks for prototypes; absent for any other task. */
+  designSystem?: PrototypeSystemCard
 }): DelegationCardContent {
   const decision: DelegationDecision | null =
     input.route.status === 'routed' ? input.route.decision : null
@@ -156,7 +159,8 @@ export function buildDelegationCardContent(input: {
       agents: cardAgents,
       placement: placement.placement,
       placementWarning: placement.placementWarning,
-      ...(input.prototypeCount ? { prototypeCount: input.prototypeCount } : {})
+      ...(input.prototypeCount ? { prototypeCount: input.prototypeCount } : {}),
+      ...(input.designSystem ? { designSystem: input.designSystem } : {})
     }
   }
 }

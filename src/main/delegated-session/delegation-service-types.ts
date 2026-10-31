@@ -1,3 +1,4 @@
+import type { PrototypeSystemCard } from '../../shared/prototype-design-system-card'
 import type { RateLimitState } from '../../shared/rate-limit-types'
 import type { StructuredAgentSessionHostRows } from '../native-chat/agent-session-wire/structured-agent-session-host-rows'
 import type { OrchestrationDb } from '../runtime/orchestration/db'
@@ -32,4 +33,6 @@ export type DelegationRequestDeps = DelegationHostDeps & {
   listAgents: (parent: DelegationParentSession) => Promise<DelegationStoredAgent[]>
   /** The saved Settings value for the prototype count, unsanitized. */
   readPrototypeCount: () => unknown
+  /** The parent chat's project design system as its card shows it; null when it cannot be shown. */
+  readDesignSystemCard: (parentSessionId: string) => Promise<PrototypeSystemCard | null>
 }

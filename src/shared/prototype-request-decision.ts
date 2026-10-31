@@ -65,11 +65,31 @@ export function decideDelegatedTaskPrototypeCount(input: {
   agents: readonly PrototypeAgent[]
   setting: PrototypeCountSetting
 }): DelegatedTaskPrototypeCount {
-  const requests = input.agents.map((agent) => classifyPrototypeRequest(input.text, agent))
-  const request: PrototypeRequest = requests.find((entry) => entry.kind === 'command') ??
-    requests.find((entry) => entry.kind === 'keyword') ?? { kind: 'none' }
+  const request = delegatedTaskPrototypeRequest(input.text, input.agents)
   if (request.kind === 'none' || settingAnswers(request, input.setting)) {
     return { kind: 'none' }
   }
   return { kind: 'ask', defaultCount: input.setting.count }
+}
+
+/**
+ * Whether a delegated task makes a prototype request for its child, whatever the count setting says. The
+ * design system question follows this, as the direct request's card follows every created request.
+ */
+export function delegatedTaskAsksForPrototypes(input: {
+  text: string
+  agents: readonly PrototypeAgent[]
+}): boolean {
+  return delegatedTaskPrototypeRequest(input.text, input.agents).kind !== 'none'
+}
+
+function delegatedTaskPrototypeRequest(
+  text: string,
+  agents: readonly PrototypeAgent[]
+): PrototypeRequest {
+  const requests = agents.map((agent) => classifyPrototypeRequest(text, agent))
+  return (
+    requests.find((entry) => entry.kind === 'command') ??
+    requests.find((entry) => entry.kind === 'keyword') ?? { kind: 'none' }
+  )
 }

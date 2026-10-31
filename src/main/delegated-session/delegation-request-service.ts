@@ -10,7 +10,11 @@ import {
   sanitizePrototypeCountSetting
 } from '../../shared/prototype-count-setting'
 import { neutralizePrototypeMarkers } from '../../shared/prototype-hidden-instruction'
-import { decideDelegatedTaskPrototypeCount } from '../../shared/prototype-request-decision'
+import {
+  decideDelegatedTaskPrototypeCount,
+  delegatedTaskAsksForPrototypes
+} from '../../shared/prototype-request-decision'
+import type { PrototypeSystemCard } from '../../shared/prototype-design-system-card'
 import { PROTOTYPE_PROMPT_MAX_LENGTH } from '../../shared/rpc-contract/prototype-params'
 import { prototypeAgentOfChild } from './delegated-child-first-prompt'
 import {
@@ -66,6 +70,35 @@ function prototypeCountFor(
     : undefined
 }
 
+/**
+ * The design system question a task that asks for prototypes puts on its card, as a direct request's card
+ * does: whatever the count setting says, and only when the project's system could be read.
+ */
+async function designSystemFor(
+  input: DelegationRequestInput,
+  agents: readonly DelegationStoredAgent[],
+  read: DelegationRequestDeps['readDesignSystemCard']
+): Promise<PrototypeSystemCard | undefined> {
+  if (input.prompt.length > PROTOTYPE_PROMPT_MAX_LENGTH) {
+    return undefined
+  }
+  const asks = delegatedTaskAsksForPrototypes({
+    text: neutralizePrototypeMarkers(input.prompt),
+    agents: agents.map((agent) => prototypeAgentOfChild(agent.agent, agent.piRuntime))
+  })
+  if (!asks) {
+    return undefined
+  }
+  try {
+    return (await read(input.parentSessionId)) ?? undefined
+  } catch (error) {
+    console.warn(
+      `[delegated-session] design system not read for ${input.parentSessionId}; the card asks none: ${String(error)}`
+    )
+    return undefined
+  }
+}
+
 /** Files delegated-session requests and posts their agent-choice cards to the parent chat. */
 export class DelegationRequestService {
   constructor(private readonly deps: DelegationRequestDeps) {}
@@ -100,6 +133,7 @@ export class DelegationRequestService {
       now: this.deps.now()
     })
     const prototypeCount = prototypeCountFor(input, agents, this.deps.readPrototypeCount)
+    const designSystem = await designSystemFor(input, agents, this.deps.readDesignSystemCard)
     const db = this.deps.requireDb()
     const row = db.createDelegationRequest({
       parentSessionId: parent.sessionId,
@@ -118,7 +152,8 @@ export class DelegationRequestService {
       agents,
       writes: input.writes,
       workspaceKind: parent.workspaceKind,
-      ...(prototypeCount ? { prototypeCount } : {})
+      ...(prototypeCount ? { prototypeCount } : {}),
+      ...(designSystem ? { designSystem } : {})
     })
     // Recorded before the card can be seen, so a card in the chat always has its question on record.
     const questionItemId = delegationQuestionItemId(row.id)
