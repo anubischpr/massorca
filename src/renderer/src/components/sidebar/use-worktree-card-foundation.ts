@@ -11,18 +11,17 @@ import { getHostDisplayLabelOverrides } from '../../../../shared/host-setting-ov
 import { getWorkspacePortsByWorktreeId } from '@/lib/workspace-port-groups'
 import { getExplicitRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { hydrateRuntimeEnvironmentSshState } from '@/runtime/runtime-environment-ssh-state'
-import {
-  isDisconnectedRuntimeHostState,
-  runtimeHostConnectionStateForEntry
-} from '@/runtime/runtime-host-connection-state'
 import { useAppStore } from '@/store'
 import {
-  selectRuntimeAwareSshStatus,
   selectRuntimeAwareSshTargetLabel,
   selectRuntimeAwareSshTargetRemoved
 } from '@/store/slices/runtime-environment-ssh'
 import { EMPTY_WORKSPACE_PORTS, type WorktreeCardProps } from './worktree-card-model'
 import { getDeleteStateForWorktreeHost } from './worktree-delete-state-host-match'
+import {
+  isWorktreeRuntimeHostDisconnected,
+  selectWorktreeSshStatus
+} from './worktree-host-reachability'
 
 export function useWorktreeCardFoundation({
   worktree,
@@ -165,13 +164,7 @@ export function useWorktreeCardFoundation({
   const sshOwnerEnvironmentId = useAppStore((s) =>
     repo?.connectionId ? getExplicitRuntimeEnvironmentIdForWorktree(s, worktree.id) : null
   )
-  const sshStatus = useAppStore((s) => {
-    // Why: runtime-owned SSH targets suppress their ssh:state-changed broadcasts, so don't show a false "disconnected" chip for them.
-    if (!repo?.connectionId || isRuntimeOwnedSshTargetId(repo.connectionId)) {
-      return null
-    }
-    return selectRuntimeAwareSshStatus(s, sshOwnerEnvironmentId, repo.connectionId)
-  })
+  const sshStatus = useAppStore((s) => selectWorktreeSshStatus(s, { worktree, repo }))
   useEffect(() => {
     if (sshOwnerEnvironmentId) {
       void hydrateRuntimeEnvironmentSshState(sshOwnerEnvironmentId).catch(() => {})
@@ -203,18 +196,9 @@ export function useWorktreeCardFoundation({
   const runtimeHostLabel = runtimeHostId
     ? (getHostDisplayLabelOverrides(settings).get(runtimeHostId) ?? runtimeEnvironmentName)
     : null
-  // Why the shared derivation, not raw truthiness: an absent entry means "not probed yet",
-  // which is not the same verdict as a probe that came back unreachable.
-  const isRuntimeDisconnected = useAppStore((s) => {
-    if (!runtimeOwnerEnvironmentId) {
-      return false
-    }
-    return isDisconnectedRuntimeHostState(
-      runtimeHostConnectionStateForEntry(
-        s.runtimeStatusByEnvironmentId.get(runtimeOwnerEnvironmentId)
-      )
-    )
-  })
+  const isRuntimeDisconnected = useAppStore((s) =>
+    isWorktreeRuntimeHostDisconnected(s, { worktree, repo })
+  )
   const [titleRenaming, setTitleRenaming] = useState(false)
   // Why: the one-line row name has its own flag, so editing it never flips the workspace title editor.
   const [rowNameRenaming, setRowNameRenaming] = useState(false)
