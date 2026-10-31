@@ -447,6 +447,7 @@
               "meta": {
                 "persist": {
                   "877e3638d8": "Actualizar el tiempo de ejecución remoto para cambiar el problema vinculado de este espacio de trabajo",
+                  "0b03251e5b": "Actualizar el tiempo de ejecución remoto para renombrar la fila de este espacio de trabajo",
                   "4367540861": "Actualizar el tiempo de ejecución remoto para vincular problemas Lineares",
                   "github": {
                     "pr": {
@@ -5554,7 +5555,8 @@
           "219ebf1961": "Nombre de rama",
           "folderPathIdentity": "Rama / ruta de carpeta",
           "cli": "MassOrca CLI",
-          "workspaceOptions": "Opciones de espacio de trabajo"
+          "workspaceOptions": "Opciones de espacio de trabajo",
+          "oneLine": "Una línea"
         },
         "SshTargetRow": {
           "4677394048": "Conectando…",
@@ -6055,6 +6057,17 @@
                 "289a1d2ca7": "Expandir {{value0}}. {{value1}}",
                 "0c1debfe84": "Contraer {{value0}}"
               }
+            },
+            "one": {
+              "line": {
+                "expandSessions": "Mostrar sesiones",
+                "collapseSessions": "Ocultar sesiones",
+                "sessions": {
+                  "crossWorktreeBranch": "Se ejecuta en la rama {{branch}}",
+                  "showMore": "Mostrar {{hiddenCount}} más",
+                  "showLess": "Mostrar menos"
+                }
+              }
             }
           },
           "list": {
@@ -6467,6 +6480,12 @@
           "title": "Orden cambiado a Manual",
           "description": "Manual mantiene los espacios de trabajo donde los colocas.",
           "restore": "Volver a {{label}}"
+        },
+        "SessionStatusGlyphIcon": {
+          "unread": "Sin leer"
+        },
+        "OneLineSessionMenu": {
+          "copyTitle": "Copiar título"
         }
       },
       "shared": {

@@ -1,4 +1,5 @@
 import type { GlobalSettings } from '../global-settings-types'
+import type { WorktreeCardLayout } from './card-layout'
 import type { PersistedUIState } from '../persisted-ui-state-types'
 import type { WorktreeCardMode, WorktreeCardProperty } from '../ui-chrome-types'
 
@@ -79,12 +80,22 @@ export function getWorktreeCardModeProperties(mode: WorktreeCardMode): WorktreeC
     : [...DEFAULT_WORKTREE_CARD_PROPERTIES]
 }
 
+const WORKTREE_CARD_LAYOUT_BY_MODE: Record<WorktreeCardMode, WorktreeCardLayout> = {
+  Default: 'detailed',
+  Compact: 'compact',
+  OneLine: 'one-line'
+}
+
 export function getWorktreeCardModeUpdates(mode: WorktreeCardMode): {
-  settings: Pick<GlobalSettings, 'compactWorktreeCards'>
+  settings: Pick<GlobalSettings, 'compactWorktreeCards' | 'worktreeCardLayout'>
   ui: Pick<PersistedUIState, 'worktreeCardProperties' | '_worktreeCardModeDefaulted'>
 } {
   return {
-    settings: { compactWorktreeCards: mode === 'Compact' },
+    // Why: compactWorktreeCards stays in step so an older paired client still reads the choice.
+    settings: {
+      compactWorktreeCards: mode === 'Compact',
+      worktreeCardLayout: WORKTREE_CARD_LAYOUT_BY_MODE[mode]
+    },
     ui: {
       worktreeCardProperties: getWorktreeCardModeProperties(mode),
       _worktreeCardModeDefaulted: true

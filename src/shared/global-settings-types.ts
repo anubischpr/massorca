@@ -41,6 +41,7 @@ import type {
 } from './ui-chrome-types'
 import type { SetupScriptLaunchMode } from './worktree/launch-types'
 import type { WorktreeVisibilityDefaults } from './repo-types'
+import type { WorktreeCardLayout } from './worktree/card-layout'
 import type { PrototypeCountSetting } from './prototype-count-setting'
 
 export type { WorktreeVisibilityDefaults } from './repo-types'
@@ -504,6 +505,8 @@ export type GlobalSettings = NativeChatGlobalSettings & {
   experimentalEphemeralVms?: boolean
   /** Compact worktree cards: hide the metadata row when title and branch say the same thing. */
   compactWorktreeCards: boolean
+  /** Sidebar card layout. Unset means the default (one line); see resolveWorktreeCardLayout. */
+  worktreeCardLayout?: WorktreeCardLayout
   /** Legacy persisted key from the Experimental rollout; new writes use compactWorktreeCards. */
   experimentalCompactWorktreeCards?: boolean
   /** Active non-local runtime environment for client-routed RPC; null keeps local desktop behavior. */

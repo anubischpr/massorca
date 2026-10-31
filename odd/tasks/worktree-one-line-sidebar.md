@@ -1,0 +1,106 @@
+# Worktree one-line sidebar
+
+Locator: `odd/tasks/worktree-one-line-sidebar.md` · Engram topic: `odd/worktree-one-line-sidebar/tasks`
+Approved design: https://claude.ai/artifact/XW87cyN1anQAffEk2kaacf
+
+## Objective
+
+Replace the multi-line worktree card, on desktop and mobile, with one line per branch, then one line per session (agent icon and title), then nested child sessions.
+
+## Problem and why
+
+The card repeats title, account, worktree and path that the Environment card already shows. The list should read like the clean sidebar in the Bot teams prototype, without hiding a session that needs the user.
+
+## Scope
+
+- Desktop worktree sidebar rows, context menus and hover card.
+- Mobile worktree list rows and long-press sheets.
+- Manual display name for a branch row.
+- Mobile needs-human and failed status presentation.
+
+Out of scope: Environment card content, push, PR, the `custom/pv27-unified` branch.
+
+## Approved decisions
+
+- Branch row: `GitBranch` icon and branch without the user's own prefix. Folder workspace: `Folder` and folder name. Detached HEAD: commit icon and short SHA.
+- Host shows only on a same-branch collision in the project, including collapsed rows, or when disconnected. Two projects with one branch while ungrouped show what differs.
+- Session row: agent icon, title, trailing status. Model and time leave the row.
+- Status: needs-human is the orange `MessageCircleQuestion` on desktop and mobile; red is only for failures. Blocked and waiting share the needs-human icon. Done and seen shows nothing.
+- Collapsed branch or project shows the worst hidden status.
+- Five sessions visible, then "Show N more". Needs-human, failed, working and unread sessions are never hidden.
+- PR and CI: one tinted icon on the branch row, desktop; existing `#N` badge on mobile.
+- A child in another worktree shows once, under its parent, with a branch icon whose tooltip names the branch. Its own branch row stays, nested under the parent branch.
+- Worktree, host, account and path move to a section in the branch hover card and stay in Environment. Issue, notes, automation, CLI and ports stay in the hover card only.
+- Desktop branch menu is unchanged. New session menu: Rename, Mark Read, Copy Title, Copy Path, Close.
+- Mobile sheets: branch adds Copy Path; Pin and Agent Session History get real icons instead of the pencil fallback; folders get the sheet without Source Control; new session sheet: Rename, Copy Path, Close.
+- "Update" stays and can set a manual display name for the row. It never renames the git branch and must not reuse an auto-generated worktree name.
+- Loss of contact is never shown as exit: a disconnected host dims rows and uses the unconfirmed state.
+
+## Constraints
+
+SSH, folder workspaces, GitLab and mixed client and host versions must keep working: new wire fields are optional and an old host means the branch name shows.
+
+## Test mode
+
+TDD off (no project or session configuration found). Runner: `pnpm test`, plus `pnpm tc` and `pnpm run check:code-quality:changed`.
+
+## Delivery
+
+Strategy `ask-on-risk`. Forecast is above 400 authored lines, so the chain choice is asked before any PR. Commits stay local on `claude/jolly-faraday-764c3f`.
+
+## Tasks
+
+- [x] T1 Desktop one-line rows, status and collapse (delegated: 2+ non-trivial files) - commit 97a0bf59270
+- [x] T2 Desktop session menu, hover card Environment section, cross-worktree child (delegated) - commits a2144e7b2f9 (menu, Environment section) and 7250d8c15f3 + c6358f9a7d0 (cross-worktree child); product gaps listed under Progress
+- [x] T3 Manual display name for the branch row, desktop and mobile data (delegated) - commit c56e8ba5edc
+- [x] T4 Mobile rows, sheets, status colors and failed state (delegated) - commits fdccb0d40a6, af04186f463 and 3b0e97946ce; follow-up commits 537c703cac6, 324e99525f2, 8983f5c7a92 and 9e31a796c9d (see Progress); gaps under Progress
+- [ ] T5 Verification in the real app, desktop and mobile
+
+## Progress
+
+- T1 (delegated writer, trigger: 2+ non-trivial files, 4+ files to read) done in 97a0bf59270. New `worktreeCardLayout` setting ('one-line' | 'detailed' | 'compact'), unset resolves to one line; `compactWorktreeCards: true` without it stays Compact; the experimental card style still wins; settings not loaded yet keeps Detailed.
+- T2 (delegated writer) done except the cross-worktree child, in a2144e7b2f9. Session menu: Rename (tab custom title), Mark Read (acknowledgeAgents), Copy Title, Copy Path, Close (tab close command). Rename and Close are left out for subagent children, retained rows and children sharing a parent tab; Mark Read is left out for subagent children.
+- Not done in T2: a child session in another worktree shown once under its parent with a branch icon. It needs a cross-worktree agent row index (rows are built per worktree), which is a separate data change.
+- Known gaps: branch prefix is hidden only when the git-username or custom prefix setting yields a prefix; `compactWorktreeCards: false` cannot be told apart from a deliberate Detailed choice, so such profiles move to one line.
+- Verification: see the delegation report (tc, targeted tests, code-quality gate with ORCA_CODE_QUALITY_BASE=HEAD).
+- T3 (delegated writer, route: delegated, trigger: 2+ non-trivial files) done in c56e8ba5edc. Optional `manualDisplayName` (string or null, where null clears) on worktree meta, folder workspaces, the merged Worktree, `worktree.ps` rows (present only when set) and the `worktree.set` RPC. Remote writes are gated on `worktree.manual-display-name.v1`. In the one-line layout Update and Rename edit the row name inline; Detailed and Compact keep the Update dialog and `displayName`. The row shows the row name, otherwise the existing label. Collisions still compare real branches, and the hover card keeps the real branch. Mobile list rows show the row name first when set.
+- T3 verification: `pnpm tc` exit 0; targeted vitest (src/shared/worktree and the touched files) 32 files and 370 tests pass; `ORCA_CODE_QUALITY_BASE=b3b04b1f49f pnpm run check:code-quality:changed` exit 0. Not run: mobile vitest and mobile typecheck, because mobile's tsconfig cannot resolve `expo/tsconfig.base.json` in this worktree. `WorktreeCard.quick-actions.test.tsx` times out in its `beforeAll` import (20 s), alone and in the batch; not yet compared with the base commit.
+- Review of 97a0bf59270 fixed in 49b9eaec0da..d6f1a5f312f (independent read-only review):
+  - Settings: `settings.update` accepts `worktreeCardLayout`. The strict schema had no key, so the dispatcher rejected the whole update and web and paired clients could not change the layout. A bare `compactWorktreeCards` update now also stores `compact` or `detailed`.
+  - Folded status: a folded branch and a folded project show the worst glyph across the worktree's session rows, so a retained failure beats live work and an unseen session stays unread after activation. The worktree status is used only when there are no session rows.
+  - Identity: folder workspaces and detached HEADs collide by the name they show; two folders of one project and host are told apart by their parent folder. Labels de-duplicate over the whole list in flat lists and per project when grouped by repo.
+  - Surfaces: only sidebar rows take the one-line layout. The folder panel and the kanban card keep Compact and Detailed as before, and the experimental card style still wins.
+  - T3: Update opens the full dialog in every layout. On one-line it also edits the row name (`manualDisplayName`; blank clears it; title and git branch untouched). The `workspace.rename` shortcut keeps the inline row editor. This replaces the T3 note above that Update edits the row name inline.
+- Native review of T1 unavailable (lens_context_budget_exceeded); independent read-only review done, findings fixed. Native review of T3 unavailable (operation_timeout, twice).
+- Review-fix verification: `pnpm tc` exit 0 before the last two edits (a row-name field class cleanup and a test cast); `pnpm run typecheck:node` and `typecheck:web` exit 0 after them; `node config/scripts/generate-rpc-params-catalog.mjs --check` exit 0; 40 touched and dependent test files pass (496 tests) on the final tree; `ORCA_CODE_QUALITY_BASE=3742bd6f0e3 pnpm run check:code-quality:changed` exit 0.
+- Not caused by this work (same at 3742bd6f0e3): the `WorktreeList` group, folder and lineage tests fail with `Missing getServerSnapshot` from `RepoHeaderTitle` (`use-repo-gh-account-display.ts`, unchanged on this branch); `WorktreeCard.host-badge-toggle`, `compact-hover` and `WorktreeCardAgents.send-target` time out in first-test imports. `pnpm run verify:localization-*` fails on native-chat delegation keys and `PrototypeEditPanel.tsx`, which this branch does not touch; the new strings are not flagged.
+- T2 cross-worktree child (delegated writer, route: delegated, trigger: 4+ files to map, 2+ non-trivial files) done in 7250d8c15f3 (host checks moved out of the card foundation into `worktree-host-reachability.ts`) and c6358f9a7d0 (placement, rows, branch icon, host dimming, activation, menu). A session whose parent is listed in another worktree leaves its own worktree's list and is listed once under that parent, with a `GitBranch` icon after its agent icon titled "Runs on branch <branch>". Placement uses the lineage tree's parent rules (parent pane key, parent terminal handle, coordinator handle) over live and retained sessions, so chains resolve and a cycle lists each session once. A session with no listed parent stays a root row in its own worktree. Only the one-line layout places children across worktrees. Its dimming and unconfirmed state follow the host of the worktree it runs in. Clicking focuses it in its own worktree. Its menu offers the subagent child actions (Copy Title, Copy Path).
+- T2 review point 1 fixed in 3b933f78d7e: a folded branch with session rows now also shows the worktree's unread mark. The glyph came from the sessions alone, so a background terminal bell (which sets that mark with no unseen session) showed nothing. This changes the earlier test that expected no glyph for seen sessions with the mark set: it now expects the unread glyph. Please confirm this behavior.
+- T2 review point 2 fixed in 3873fd76042: the folder panel and kanban card resolve the same layout as the sidebar, so an explicit `worktreeCardLayout` is no longer overridden by a stale `compactWorktreeCards`.
+- T2 verification: `pnpm tc` exit 0 after the final edits. Targeted vitest: 87 files, 887 tests pass (sidebar placement, row, tree, menu, glyph, collapsed-status and one-line card tests, dashboard, `src/shared/worktree`). WorktreeCard host-badge, compact-hover, quick-actions and pr-display: 4 files, 81 tests pass. Folder `worktree-list`: 417 of 418 pass; `worktree-list-groups-project-order.test.ts` "builds rows for a very large repo-group list" times out at 30 s also when run alone. Its import graph has no change in this range, and it was not re-run at base. `ORCA_CODE_QUALITY_BASE=1f500f85f9d pnpm run check:code-quality:changed` exit 0 (0 new findings across 24 changed files); oxlint and oxfmt clean on the changed files. Not checked in the running app (T5); mobile not touched.
+- T2 product gaps, not decided here: (1) the child's menu offers only Copy Title and Copy Path, the subagent set, although its tab lives in the other worktree; should Mark Read, Rename or Close work from the parent's card? (2) the branch icon sits after the agent icon, which is kept; should it replace the agent icon, as the approved design may show? (3) a folder or detached-HEAD child has no branch to name, so it gets no icon; should it show the Folder or commit icon? (4) the child's own worktree row no longer lists the child, so its folded glyph speaks only for its other sessions and otherwise falls back to its worktree status; should it also show the child's status? (5) a child's branch row nests under its parent branch only where a worktree lineage record already links them (existing list rule); should a session parent also nest the branch row? (6) the Agents dashboard still lists such a child in its own worktree.
+- Known gap: a bare `worktreeCardLayout` write does not update `compactWorktreeCards`, so pre-T1 paired clients read the old flag.
+
+- T4 (delegated writer, route: delegated, trigger: 4+ files to map, 2+ non-trivial files) done in fdccb0d40a6 (label, status glyph, hide rules, status mark, theme token) and af04186f463 (one-line branch and session rows, sheets, collision chips).
+  - Branch row: one line. Lead icon is GitBranch or Folder, or the fold toggle when the branch has sessions. Label is the row name, else the branch, else the repo (`branch-row-label.ts`; the generated display name no longer labels a row). A host or project chip shows only on a same-branch collision. A `Disconnected` chip shows and the row dims when the host is unreachable. `#N` PR badge and GitLab meta glyphs stay.
+  - Session rows: agent icon, title, one trailing mark. Model and time left the row. Children stay nested. Five root sessions show, and needs-human, failed, working, monitoring and unread sessions never fold. "Show N more" and "Show less" toggle the rest. A folded branch shows the worst status of its sessions. An unreachable host reads unconfirmed on every session.
+  - Status: blocked and waiting share the orange `MessageCircleQuestion` (`colors.statusOrange`, `#f97316`, the desktop `--agent-question` token). Red is only for failed. Done and seen show nothing.
+  - Failed state: no wire field added. The host already sends it per session in `mainAgent.outcome` (failure or interruption, read by `agentRowVerdictMark`). The branch rollup has no failed value, so a branch derives failed from its session rows. A host without `mainAgent` shows no failed mark.
+  - Sheets: branch sheet adds Copy Path, Pin and Unpin get `Pin`/`PinOff` icons, folders get the sheet without Source Control. `iconForAction` keeps the pencil only for rename and edit. Session sheet (long press) offers Copy Path only.
+  - Removed `AgentSpinner.tsx` and `WorktreeAgentSummary.tsx`. `WorktreeMetaGlyphs` stays on the branch row.
+  - Not done at T4, needs a decision (items 1 to 4 are done in the T4 follow-up below): (1) session Rename and Close: an agent row carries no terminal handle, which `terminal.rename` and `terminal.close` take; left out rather than adding a lookup or RPC. (2) Cross-worktree child: mobile builds rows per worktree, so placement under a parent in another worktree needs a cross-worktree pass over the sections; not done. (3) Detached HEAD: the mobile wire has no `head` field, so no short SHA or commit icon; detached rows fall back to the repo name. (4) Own branch prefix: mobile has no branch-prefix setting or git username, so full branches show. (5) The design's disconnected chip is red; shown muted to keep red for failures. (6) Flat lists no longer name the repo on rows that do not collide, as the design shows; confirm. (7) "Child" badge dropped; indentation and the inline count remain.
+  - Verification: `pnpm tc` exit 0. Mobile `pnpm typecheck` exit 0 after running mobile's postinstall generators by hand (`--ignore-scripts` install; generators write gitignored outputs only). Final tree: 56 touched suites (worktree, touched components, host-screen, agent-history, theme) pass, 462 tests, including the two T3 component suites that never ran before. Two host-screen suites gained a `platform/clipboard` mock, as other suites do. Full mobile suite: 1078 files pass, 20 fail, 2 skipped; 181 tests fail. Rerun in isolation: 18 of the 19 failing files still fail (180 tests); the metro cache-key script times out alone; the query-string suite passes alone. Causes seen: Windows absolute path in a bundle-digest test, sqlite EBUSY on unlink, 5 s timeouts, react-native mock gaps through `react-native-worklets`, recording-golden drift in the rpc-recording suites. None of these suites import a changed module; not verified on the base commit. `ORCA_CODE_QUALITY_BASE=47b58488843 pnpm run check:code-quality:changed` exit 0 (0 new findings, 21 files). `pnpm check:tests-typecheck` exits 1 on 14 untouched test files that are not in the baseline; the touched suites typecheck, and `WorktreeAgentList.test.tsx` left the baseline.
+
+- T4 follow-up (delegated worker: 4+ files to map, 2+ non-trivial files; route: delegated; TDD off; commits local, nothing pushed):
+  - 537c703cac6, host wire: `terminalHandle` on an agent row only while it reaches a connected PTY; `head` on a summary only when `branch` is empty (detached); `ownBranchPrefix` from `getOwnBranchPrefix` over the store settings and `repo.gitUsername`. All optional: old hosts omit them and old clients ignore them.
+  - 324e99525f2, folder sheets and connecting hosts: folder sheets offer no Delete (`canDeleteFromWorktreeSheet`); `isHostRowUnreachable` treats connecting and handshaking as reachable. The call sites land in 9e31a796c9d.
+  - 8983f5c7a92, test-only: assertion-lint and format fix in the host summary tests.
+  - 9e31a796c9d, mobile: the session sheet offers Rename (the existing `terminal.rename` write, "Rename Terminal" input) and Close (the existing `terminal.close` write, which keeps the worktree) only when the row has a handle, is not a cross-worktree child, and does not share its parent's tab, as desktop's `ownsTab` rule does. Copy Path stays. A session that runs in another worktree than its parent is placed once under that parent by `placeCrossWorktreeAgents`, which runs once per render over the raw sections, follows the parent chain, attaches a child once to the first occurrence of its parent worktree, and drops it from its own list. The row shows a `GitBranch` icon labelled "Runs on branch <name>"; tapping it or opening its sheet uses the worktree it runs in. A detached row shows `GitCommitHorizontal` and a 7-character SHA; without `head` it keeps the repo name. A branch label drops only the user's own prefix, through the shared `getBranchDisplayLabels`, which keeps the full name where two branches in one scope would share a label. Copy Path shows "Path copied" above the list for 2 s; a failure keeps the error banner.
+  - Review warnings: (a) fixed: an expanded branch shows its own unread mark, since a bell has no session to carry it; (b) fixed: the Disconnected chip, dimming and unconfirmed marks follow `isHostRowUnreachable`; (c) fixed: folder sheets offer no Delete; (d) fixed: a branch with no sessions has a plain lead icon, not a disabled control, and read-only hosts keep the local fold toggle; (e) not changed: the unread rule stays (see gap 2).
+  - Verification, foreground: `pnpm tc` exit 0; mobile `pnpm typecheck` exit 0; host vitest for runtime-worktree-ps-summaries, runtime-worktree-agent-sources, runtime-worktree-agent-rows-verdict and runtime-worktree-agent-rows-structured: 4 files, 22 tests pass; mobile vitest over src/worktree, src/host-screen, and the WorktreeAgent*, WorktreeListRow*, WorktreeMeta* and SessionStatus* component suites: 44 files, 384 tests pass; `ORCA_CODE_QUALITY_BASE=67f86b9dacf pnpm run check:code-quality:changed` exit 0 (0 new findings, 29 files); oxfmt check clean on the changed files. `generate-rpc-params-catalog --check` not run: no RPC params changed. The full mobile suite was not run (known unrelated failures).
+  - Not verified: the running app, SSH-backed and folder hosts (T5). The handle map for SSH-backed PTYs is reasoned from `ptyIdByTerminalHandle`, not run.
+  - Product gaps, not decided here: (1) a rename does not change the list label: a session's label comes from its message, prompt or state, and the terminal title is not on the wire. (2) Per-session unread: the wire has no per-session acknowledgement, so while a worktree is unread every finished session counts as unread and the five-session limit folds nothing; a per-session unseen flag from the host would fix it. (3) The expanded-branch unread mark is mobile-only; desktop's expanded rows show no worktree mark. (4) A child's own worktree lists no session for it, so its branch status is the worktree rollup, which can still show the child's work. (5) Folder workspaces have no phone removal path, because `folderWorkspace.delete` is not on the mobile allowlist. (6) The "Path copied" notice exists only on the host list; the session screen's toast is session-scoped. (7) A child at depth 2 or deeper that shares its parent's tab gets no Rename or Close; desktop checks depth 1 only.
+
+## Next step
+
+T5 (verification in the real app, desktop and mobile). First the decisions: the six T2 product gaps, the T4 gaps under Progress, and T4 follow-up gaps (1) to (7). Owner: the user decides; then the agent runs T5.

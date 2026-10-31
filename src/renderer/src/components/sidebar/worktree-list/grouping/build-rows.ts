@@ -19,6 +19,7 @@ import {
   getMixedWorktreeHostContextLabels,
   getNoticeHostContextLabels
 } from './host-labels'
+import { attachBranchRowIdentity } from './branch-row-identity'
 import { buildProjectGroupingIndex } from './project-grouping'
 import type { ProjectGroupingModel } from './project-grouping'
 import { appendProjectGroupSections } from './project-group-sections'
@@ -74,6 +75,18 @@ export function buildRows(
 ): Row[] {
   const result: Row[] = []
   const projectIndex = buildProjectGroupingIndex(projectGrouping)
+  const finish = (): Row[] => {
+    attachBranchRowIdentity(result, {
+      groupBy,
+      worktrees,
+      repoMap,
+      projectIndex,
+      branchPrefixSettings: settings ?? null,
+      hostLabelById,
+      defaultHostId
+    })
+    return result
+  }
   // Membership is decided once, above the groupBy switch: every mode renders the
   // same set of folder workspaces and only chooses where they land (#15362).
   const renderableFolderWorkspaces = getRenderableFolderWorkspaces(folderWorkspaces, projectGroups)
@@ -192,7 +205,7 @@ export function buildRows(
         }
       }
     }
-    return result
+    return finish()
   }
 
   const orderedGroups = buildOrderedGroups({
@@ -237,7 +250,7 @@ export function buildRows(
       sectionContext,
       groupBy === 'repo' ? withRepoSectionDisplayLabels(orderedGroups) : orderedGroups
     )
-    return result
+    return finish()
   }
 
   appendProjectGroupSections(sectionContext, {
@@ -248,5 +261,5 @@ export function buildRows(
     repoOrder
   })
 
-  return result
+  return finish()
 }

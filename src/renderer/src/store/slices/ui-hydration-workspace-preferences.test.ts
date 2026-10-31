@@ -830,7 +830,10 @@ describe('createUISlice hydratePersistedUI', () => {
     const expected = getWorktreeCardModeProperties('Default')
     expect(store.getState().settings?.compactWorktreeCards).toBe(false)
     expect(store.getState().worktreeCardProperties).toEqual(expected)
-    expect(setSettings).toHaveBeenCalledWith({ compactWorktreeCards: false })
+    expect(setSettings).toHaveBeenCalledWith({
+      compactWorktreeCards: false,
+      worktreeCardLayout: 'detailed'
+    })
     expect(setUI).toHaveBeenCalledWith({
       worktreeCardProperties: expected,
       _worktreeCardModeDefaulted: true
@@ -856,7 +859,10 @@ describe('createUISlice hydratePersistedUI', () => {
     expect(store.getState().worktreeCardProperties).toEqual(expected)
     expect(store.getState().worktreeCardProperties).not.toContain('branch')
     expect(store.getState().worktreeCardProperties).not.toContain('inline-agents')
-    expect(setSettings).toHaveBeenCalledWith({ compactWorktreeCards: true })
+    expect(setSettings).toHaveBeenCalledWith({
+      compactWorktreeCards: true,
+      worktreeCardLayout: 'compact'
+    })
     expect(setUI).toHaveBeenCalledWith({
       worktreeCardProperties: expected,
       _worktreeCardModeDefaulted: true

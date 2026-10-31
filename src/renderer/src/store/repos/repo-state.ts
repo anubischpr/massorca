@@ -80,6 +80,7 @@ export type FolderWorkspaceUpdates = Partial<
     | 'createdWithAgent'
     | 'pendingFirstAgentMessageRename'
     | 'firstAgentMessageRenameError'
+    | 'manualDisplayName'
     | 'lastActivityAt'
     | 'diffComments'
   >

@@ -25,9 +25,12 @@ function areWorktreesEqual(left: Worktree, right: Worktree): boolean {
     left.repoId === right.repoId &&
     left.repo === right.repo &&
     left.branch === right.branch &&
+    (left.head ?? null) === (right.head ?? null) &&
+    (left.ownBranchPrefix ?? null) === (right.ownBranchPrefix ?? null) &&
     (left.hostId ?? null) === (right.hostId ?? null) &&
     (left.terminalPlatform ?? null) === (right.terminalPlatform ?? null) &&
     left.displayName === right.displayName &&
+    (left.manualDisplayName ?? null) === (right.manualDisplayName ?? null) &&
     (left.workspaceStatus ?? null) === (right.workspaceStatus ?? null) &&
     (left.sortOrder ?? null) === (right.sortOrder ?? null) &&
     (left.manualOrder ?? null) === (right.manualOrder ?? null) &&
@@ -102,6 +105,7 @@ function areAgentRowsEqual(
     if (
       a.paneKey !== b.paneKey ||
       a.parentPaneKey !== b.parentPaneKey ||
+      a.terminalHandle !== b.terminalHandle ||
       a.state !== b.state ||
       a.workingMode !== b.workingMode ||
       a.agentType !== b.agentType ||

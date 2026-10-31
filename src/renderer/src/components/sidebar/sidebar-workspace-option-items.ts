@@ -34,6 +34,12 @@ export const GROUP_BY_OPTIONS = [
 
 export const CARD_LAYOUT_OPTIONS = [
   {
+    id: 'one-line',
+    get label() {
+      return translate('auto.components.sidebar.SidebarWorkspaceOptionsMenu.oneLine', 'One line')
+    }
+  },
+  {
     id: 'detailed',
     get label() {
       return translate('auto.components.sidebar.SidebarWorkspaceOptionsMenu.cc17bd443b', 'Detailed')

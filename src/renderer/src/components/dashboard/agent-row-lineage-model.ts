@@ -13,7 +13,7 @@ export type AgentRowLineageTree<T extends AgentLineageSourceRow> = {
   childPaneKeys: Set<string>
 }
 
-function buildPaneKeyByTerminalHandle<T extends AgentLineageSourceRow>(
+export function buildPaneKeyByTerminalHandle<T extends AgentLineageSourceRow>(
   rows: readonly T[]
 ): Map<string, string> {
   const paneKeyByTerminalHandle = new Map<string, string>()

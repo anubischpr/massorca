@@ -73,10 +73,10 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
     handleOpenParentPicker,
     handleRemoveParentLink,
     handleRemoveProjectFromGroup,
-    handleRename,
     handleSleepSubtree,
     handleTogglePin,
     handleToggleRead,
+    handleUpdate,
     hasAnyContextLineage,
     hasParentLink,
     isDeleting,
@@ -158,7 +158,7 @@ export default function WorktreeContextMenuView({ model }: { model: WorktreeCont
             {translate('auto.components.sidebar.WorktreeContextMenu.workspaceSection', 'Workspace')}
           </DropdownMenuLabel>
           {!isMultiContext && (
-            <DropdownMenuItem onSelect={handleRename} disabled={isDeleting}>
+            <DropdownMenuItem onSelect={handleUpdate} disabled={isDeleting}>
               <Pencil className="size-3.5" />
               {translate('auto.components.sidebar.WorktreeContextMenu.439fa94d53', 'Update')}
             </DropdownMenuItem>

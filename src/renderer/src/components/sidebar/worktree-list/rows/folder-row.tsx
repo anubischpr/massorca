@@ -125,6 +125,7 @@ export function renderFolderWorkspaceVirtualRow(args: {
           isCurrentWorktree={ctx.currentWorktreeId === folderWorktree.id}
           contentIndent={cardContentIndent}
           flushSurface
+          sidebarRow
           nativeDragEnabled={false}
           onImmediateActivate={activationDisabled ? undefined : ctx.onImmediateActivate}
           activationRowKey={folderWorktreeIdentity}

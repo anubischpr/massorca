@@ -1,22 +1,22 @@
 import React from 'react'
-import { AlertCircle, Server, ServerOff, Star, Trash2 } from 'lucide-react'
+import { AlertCircle, Server, ServerOff, Star } from 'lucide-react'
 
 import { RepoIconGlyph } from '@/components/repo/repo-icon'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
-import { cn } from '@/lib/utils'
 import type { Repo } from '../../../../shared/repo-types'
 import { resolveRepoHeaderColor } from './project-header-color'
 import { formatSparseDirectoryPreview, shouldBeginWorktreeRename } from './worktree-card-model'
 import type { WorktreeCardPresentation } from './worktree-card-presentation'
+import { WorktreeDeleteQuickAction } from './worktree-card-delete-quick-action'
 import { WorktreeCardSshHostControl } from './WorktreeCardSshHostControl'
 import { WorktreeTitleInlineRename } from './WorktreeTitleInlineRename'
 import type { WorktreeCardController } from './use-worktree-card-controller'
 
 // Why: pinned repo icon and compact inline badge share this chip shell so both repo cues read as the same affordance.
-function RepoIdentityChip({
+export function RepoIdentityChip({
   repo,
   children
 }: {
@@ -289,30 +289,10 @@ export function WorktreeCardHeader({
           )}
 
           {showDeleteQuickAction && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  data-workspace-board-preserve-open=""
-                  onPointerDown={stopQuickActionPointerPropagation}
-                  onClick={handleWorkspaceQuickAction}
-                  className={cn(
-                    'inline-flex size-4 items-center justify-center rounded bg-transparent opacity-0 transition-colors transition-opacity',
-                    'group-hover/worktree-card:opacity-100 group-focus-within/worktree-card:opacity-100 focus-visible:opacity-100',
-                    'text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:bg-destructive/10 focus-visible:text-destructive'
-                  )}
-                  aria-label={translate(
-                    'auto.components.sidebar.WorktreeCard.6f09f58541',
-                    'Delete workspace'
-                  )}
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={8}>
-                {translate('auto.components.sidebar.WorktreeCard.6f09f58541', 'Delete workspace')}
-              </TooltipContent>
-            </Tooltip>
+            <WorktreeDeleteQuickAction
+              onPointerDown={stopQuickActionPointerPropagation}
+              onClick={handleWorkspaceQuickAction}
+            />
           )}
         </div>
       )}

@@ -24,7 +24,8 @@ export function useWorktreeCardActivationActions({
   isDeleting,
   isSshDisconnected,
   updateWorktreeMeta,
-  openModal
+  openModal,
+  oneLineCards
 }: Pick<
   WorktreeCardProps,
   | 'worktree'
@@ -37,7 +38,7 @@ export function useWorktreeCardActivationActions({
   | 'onWorktreeCardClick'
   | 'onImmediateActivate'
 > &
-  Pick<Foundation, 'isSshDisconnected' | 'updateWorktreeMeta' | 'openModal'> &
+  Pick<Foundation, 'isSshDisconnected' | 'updateWorktreeMeta' | 'openModal' | 'oneLineCards'> &
   Pick<LinkedDetails, 'isDeleting'>) {
   const worktreeRef = useRef(worktree)
   useLayoutEffect(() => {
@@ -120,6 +121,21 @@ export function useWorktreeCardActivationActions({
     [updateWorktreeMeta, worktree.hostId, worktree.id]
   )
 
+  const handleRenameRowName = useCallback(
+    // Why: the row editor has no failure surface, so a refused write is thrown to show its message.
+    async (rowName: string): Promise<void> => {
+      const result = await updateWorktreeMeta(
+        worktree.id,
+        { manualDisplayName: rowName.trim() || null },
+        { executionHostId: worktree.hostId ?? 'local' }
+      )
+      if (!result.ok) {
+        throw new Error(result.error)
+      }
+    },
+    [updateWorktreeMeta, worktree.hostId, worktree.id]
+  )
+
   const handleDoubleClick = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       if (affiliateListMode) {
@@ -135,11 +151,13 @@ export function useWorktreeCardActivationActions({
         currentDisplayName: worktree.displayName,
         currentIssue: worktree.linkedIssue,
         currentPR: worktree.linkedPR,
-        currentComment: worktree.comment
+        currentComment: worktree.comment,
+        showRowName: oneLineCards
       })
     },
     [
       openModal,
+      oneLineCards,
       affiliateListMode,
       worktree.comment,
       worktree.displayName,
@@ -164,5 +182,11 @@ export function useWorktreeCardActivationActions({
     [worktree.hostId, worktree.id, worktree.isUnread, updateWorktreeMeta]
   )
 
-  return { handleClick, handleRenameTitle, handleDoubleClick, handleToggleUnreadQuick }
+  return {
+    handleClick,
+    handleRenameTitle,
+    handleRenameRowName,
+    handleDoubleClick,
+    handleToggleUnreadQuick
+  }
 }

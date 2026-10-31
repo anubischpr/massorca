@@ -125,7 +125,11 @@ describe('WorktreeCard host badge toggle', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     worktreeCardProperties = []
-    settings = { compactWorktreeCards: false, experimentalNewWorktreeCardStyle: false }
+    settings = {
+      compactWorktreeCards: false,
+      worktreeCardLayout: 'detailed',
+      experimentalNewWorktreeCardStyle: false
+    }
   })
 
   it(

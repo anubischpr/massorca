@@ -14,7 +14,7 @@ import { useWorktreeCardWorkspaceActions } from './use-worktree-card-workspace-a
 
 export function useWorktreeCardController(props: ResolvedWorktreeCardProps) {
   const { worktree, repo } = props
-  const foundation = useWorktreeCardFoundation({ worktree, repo })
+  const foundation = useWorktreeCardFoundation({ worktree, repo, sidebarRow: props.sidebarRow })
   const review = useWorktreeCardReviewDetails({
     worktree,
     repo,
@@ -94,7 +94,8 @@ export function useWorktreeCardController(props: ResolvedWorktreeCardProps) {
     isDeleting: linked.isDeleting,
     isSshDisconnected: foundation.isSshDisconnected,
     updateWorktreeMeta: foundation.updateWorktreeMeta,
-    openModal: foundation.openModal
+    openModal: foundation.openModal,
+    oneLineCards: foundation.oneLineCards
   })
 
   // Why: delete is destructive, so it only appears while holding Option/Alt, not in the ordinary hover chrome.
@@ -148,6 +149,7 @@ export function useWorktreeCardController(props: ResolvedWorktreeCardProps) {
     cardProps: foundation.cardProps,
     newCardStyle: foundation.newCardStyle,
     compactCards: foundation.compactCards,
+    oneLineCards: foundation.oneLineCards,
     agentActivityDisplayMode: foundation.agentActivityDisplayMode,
     workspacePorts: foundation.workspacePorts,
     openTaskPage: foundation.openTaskPage,

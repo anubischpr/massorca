@@ -114,6 +114,9 @@ export function normalizeFolderWorkspaces(
         : raw.firstAgentMessageRenameError === null
           ? { firstAgentMessageRenameError: null }
           : {}),
+      ...(typeof raw.manualDisplayName === 'string' && raw.manualDisplayName.trim().length > 0
+        ? { manualDisplayName: raw.manualDisplayName.trim() }
+        : {}),
       lastActivityAt:
         typeof raw.lastActivityAt === 'number' && Number.isFinite(raw.lastActivityAt)
           ? raw.lastActivityAt

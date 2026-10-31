@@ -15,7 +15,13 @@ export type Worktree = {
   hostContextHostId?: ExecutionHostId
   repo: string
   branch: string
+  /** The commit a detached HEAD sits on; absent for a row on a branch or from a host that predates it. */
+  head?: string
+  /** The user's own branch prefix, dropped from the row label; absent shows the full branch. */
+  ownBranchPrefix?: string
   displayName: string
+  /** Row name the user set on desktop; absent when unset. Never the branch name. */
+  manualDisplayName?: string
   workspaceStatus?: string
   sortOrder?: number
   manualOrder?: number

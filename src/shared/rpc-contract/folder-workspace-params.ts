@@ -64,6 +64,7 @@ export const FolderWorkspaceUpdate = z.object({
       createdWithAgent: z.string().refine(isTuiAgent).optional(),
       pendingFirstAgentMessageRename: z.boolean().optional(),
       firstAgentMessageRenameError: z.string().nullable().optional(),
+      manualDisplayName: z.string().nullable().optional(),
       lastActivityAt: OptionalFiniteNumber,
       diffComments: z.array(DiffCommentSchema).optional()
     })

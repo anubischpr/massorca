@@ -1,8 +1,6 @@
 import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useAppStore } from '@/store'
-import { activateAndRevealWorktree } from '@/lib/worktree-activation'
-import { activateTabAndFocusPane } from '@/lib/activate-tab-and-focus-pane'
 import DashboardAgentRow from '@/components/dashboard/DashboardAgentRow'
 import { useNow } from '@/hooks/use-now'
 import { deriveRunningAgentSendTargets } from '@/lib/running-agent-targets'
@@ -13,8 +11,8 @@ import {
 import { useWorktreeAgentRows } from './useWorktreeAgentRows'
 import { cn } from '@/lib/utils'
 import type { DashboardAgentRow as DashboardAgentRowData } from '@/components/dashboard/useDashboardData'
-import { parsePaneKey } from '../../../../shared/stable-pane-id'
-import { dismissStaleAgentRowByKey } from '../terminal-pane/stale-agent-row'
+import { useActivateAgentRowInOwner, useActivateAgentTab } from './worktree-card-agent-activation'
+import { useCrossWorktreeChildMetadata } from './use-cross-worktree-child-metadata'
 import { useFocusedAgentPaneKey } from './focused-agent-row-highlight'
 import {
   CompactAgentExpansion,
@@ -26,8 +24,12 @@ import { DEFAULT_AGENT_ACTIVITY_DISPLAY_MODE } from '../../../../shared/constant
 import { revealElementInScrollContainer } from './worktree-sidebar-reveal'
 import { useWorktreeAgentExpansionState } from './worktree-card-agents-expansion-state'
 import { translate } from '@/i18n/i18n'
-import { activateStructuredAgentSessionTab } from '@/lib/structured-agent-session-tab-activation'
-import { selectAcknowledgedAgentTimes } from './worktree-card-agent-ack-inputs'
+import {
+  selectAcknowledgedAgentTimes,
+  unvisitedByPaneKeyFor
+} from './worktree-card-agent-ack-inputs'
+import { OneLineSessionTree } from './worktree-card-one-line-sessions'
+import { SIDEBAR_TREE_INDENT } from './worktree-list/rows/indentation'
 
 export const SUPPRESS_WORKTREE_LIST_SCROLL_ADJUSTMENT_EVENT =
   'orca-suppress-worktree-list-scroll-adjustment'
@@ -50,13 +52,19 @@ type Props = {
   agents?: DashboardAgentRowData[]
   /** Spacing from the card body above; parent decides whether a divider is appropriate. */
   className?: string
+  /** 'one-line' renders the one-line card's session rows instead of the activity list. */
+  layout?: 'activity' | 'one-line'
+  /** The host cannot be reached, so one-line rows dim and show the unconfirmed state. */
+  dimmed?: boolean
 }
 
 /** Inline agent list rendered inside WorktreeCard when 'inline-agents' is enabled. */
 const WorktreeCardAgents = React.memo(function WorktreeCardAgents({
   worktreeId,
   agents: precomputedAgents,
-  className
+  className,
+  layout = 'activity',
+  dimmed = false
 }: Props) {
   const selectedAgents = useWorktreeAgentRows(worktreeId, precomputedAgents === undefined)
   const agents = precomputedAgents ?? selectedAgents
@@ -64,19 +72,31 @@ const WorktreeCardAgents = React.memo(function WorktreeCardAgents({
     return null
   }
   // Why: mount the inner body (owns the 30s useNow tick) only for non-empty rows, so idle worktrees pay no timer cost.
-  return <WorktreeCardAgentsBody worktreeId={worktreeId} agents={agents} className={className} />
+  return (
+    <WorktreeCardAgentsBody
+      worktreeId={worktreeId}
+      agents={agents}
+      className={className}
+      layout={layout}
+      dimmed={dimmed}
+    />
+  )
 })
 
 type BodyProps = {
   worktreeId: string
   agents: DashboardAgentRowData[]
   className?: string
+  layout: 'activity' | 'one-line'
+  dimmed: boolean
 }
 
 const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
   worktreeId,
   agents,
-  className
+  className,
+  layout,
+  dimmed
 }: BodyProps) {
   const agentActivityDisplayMode =
     useAppStore((s) => s.agentActivityDisplayMode) ?? DEFAULT_AGENT_ACTIVITY_DISPLAY_MODE
@@ -96,14 +116,10 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
   const acknowledgedAgentTimes = useAppStore(
     useShallow((s) => selectAcknowledgedAgentTimes(s, agents))
   )
-  const unvisitedByPaneKey = useMemo(() => {
-    const out: Record<string, boolean> = {}
-    for (const [index, agent] of agents.entries()) {
-      const ackAt = acknowledgedAgentTimes[index] ?? 0
-      out[agent.paneKey] = ackAt < agent.entry.stateStartedAt
-    }
-    return out
-  }, [agents, acknowledgedAgentTimes])
+  const unvisitedByPaneKey = useMemo(
+    () => unvisitedByPaneKeyFor(agents, acknowledgedAgentTimes),
+    [agents, acknowledgedAgentTimes]
+  )
 
   const handleDismissAgent = useCallback(
     (paneKey: string) => {
@@ -152,43 +168,9 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
     [sendPromptToSidebarAgentTarget]
   )
 
-  const handleActivateAgentTab = useCallback(
-    (tabId: string, paneKey: string) => {
-      const parsed = parsePaneKey(paneKey)
-      if (!parsed) {
-        // Why: malformed/legacy numeric keys can't be resolved after pane replay/remount, so drop the stale row instead of guessing.
-        console.warn('[WorktreeCardAgents] malformed paneKey, skipping pane focus', paneKey)
-        dismissStaleAgentRowByKey(paneKey)
-        return
-      }
-      if (parsed.tabId !== tabId) {
-        console.warn('[WorktreeCardAgents] paneKey tabId mismatch, dismissing row', {
-          tabId,
-          paneKey
-        })
-        dismissStaleAgentRowByKey(paneKey)
-        return
-      }
-      // Why: design-doc rule — every user-initiated worktree switch must route through activateAndRevealWorktree (cross-repo activation + nav history).
-      activateAndRevealWorktree(worktreeId)
-      const tabs = useAppStore.getState().tabsByWorktree[worktreeId] ?? []
-      if (tabs.some((t) => t.id === tabId)) {
-        activateTabAndFocusPane(tabId, parsed.leafId, {
-          ackPaneKeyOnSuccess: paneKey,
-          flashFocusedPane: true,
-          scrollToBottomIfOutputSinceLastView: true
-        })
-      } else if (!activateStructuredAgentSessionTab({ worktreeId, tabId })) {
-        const liveEntry = useAppStore.getState().agentStatusByPaneKey[paneKey]
-        if (liveEntry?.worktreeId === worktreeId) {
-          // Why: orchestration worker status can be worktree-attributed before the renderer knows its tab; keep the live row instead of dismissing as stale.
-          return
-        }
-        dismissStaleAgentRowByKey(paneKey)
-      }
-    },
-    [worktreeId]
-  )
+  const handleActivateAgentTab = useActivateAgentTab(worktreeId)
+  const handleActivateOneLineSession = useActivateAgentRowInOwner(worktreeId)
+  const crossWorktreeMetadata = useCrossWorktreeChildMetadata(agents)
   const handleActivateRetainedAgent = useCallback(() => {
     // Why: hibernation-retained rows are passive completion evidence; activating would resume sleeping sessions, so the row is inert.
   }, [])
@@ -204,8 +186,10 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
   const {
     collapsedLineageParents,
     compactRootListExpanded,
+    allSessionsShown,
     toggleLineageParent: toggleLineageParentState,
-    toggleCompactRootList
+    toggleCompactRootList,
+    toggleAllSessionsShown
   } = useWorktreeAgentExpansionState(worktreeId)
 
   // Why: reveal only on a genuine user collapse→expand; seeding an already-expanded panel from cache on remount must not re-trigger the reveal scroll.
@@ -347,6 +331,49 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
           </CompactAgentExpansion>
         ) : null}
       </React.Fragment>
+    )
+  }
+
+  if (layout === 'one-line') {
+    return (
+      // Why: swallow bubbling so gutter clicks don't reach WorktreeCard's activate / edit-meta handlers.
+      <div
+        className={cn('flex flex-col', className)}
+        style={{ paddingLeft: SIDEBAR_TREE_INDENT }}
+        onClick={stopBubble}
+        onDoubleClick={stopBubble}
+        onMouseDown={stopBubble}
+        onPointerDown={stopBubble}
+        role={hasLineage ? 'tree' : 'group'}
+        aria-label={translate('auto.components.sidebar.WorktreeCardAgents.1b0a156717', 'Agents')}
+        data-one-line-session-list=""
+      >
+        <OneLineSessionTree
+          rootAgents={rootAgents}
+          childrenByParentPaneKey={childrenByParentPaneKey}
+          collapsedLineageParents={collapsedLineageParents}
+          unvisitedByPaneKey={unvisitedByPaneKey}
+          now={now}
+          focusedAgentPaneKey={focusedAgentPaneKey}
+          dimmed={dimmed}
+          allSessionsShown={allSessionsShown}
+          onToggleAllSessionsShown={toggleAllSessionsShown}
+          onToggleLineageParent={toggleLineageParent}
+          onActivate={handleActivateOneLineSession}
+          onActivateRetained={handleActivateRetainedAgent}
+          {...crossWorktreeMetadata}
+          getSendTarget={
+            isAgentSendTargetModeActive
+              ? (paneKey) =>
+                  sendTargetsByPaneKey.get(paneKey) ?? {
+                    status: 'disabled',
+                    disabledReason: 'Agent is not available'
+                  }
+              : undefined
+          }
+          onSendTargetClick={isAgentSendTargetModeActive ? handleSendTargetClick : undefined}
+        />
+      </div>
     )
   }
 

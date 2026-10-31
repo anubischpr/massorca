@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import type { AppState } from '@/store/types'
 import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import type { Worktree } from '../../../../../../shared/worktree/types'
+import { resolveWorktreeCardLayout } from '../../../../../../shared/constants'
 import {
   composeWorktreeHostIdentity,
   getWorktreeHostIdentity
@@ -63,6 +64,13 @@ export type WorktreeItemRowContext = {
   onCardDragEnd: () => void
 }
 
+function rendersLineageInCard(settings: AppState['settings']): boolean {
+  return (
+    settings?.experimentalNewWorktreeCardStyle === true ||
+    resolveWorktreeCardLayout(settings) === 'one-line'
+  )
+}
+
 // Geometry differs three ways: a plain grouped row, a lineage child inheriting its parent's
 // surface, and a row inside a folder-backed project group.
 function getWorktreeItemRowGeometry(
@@ -89,7 +97,8 @@ function getWorktreeItemRowGeometry(
         })
   const nestedLineageGeometry = nested
     ? getLineageNestedRowGeometry({
-        experimentalNewWorktreeCardStyle: ctx.settings?.experimentalNewWorktreeCardStyle === true,
+        // Why: the one-line card, like the experimental one, draws its child workspaces inside its own body.
+        experimentalNewWorktreeCardStyle: rendersLineageInCard(ctx.settings),
         inheritedCardContentIndent: getCardContentIndent(0),
         lineageDepth: itemRow.depth
       })
@@ -215,6 +224,9 @@ export function renderWorktreeItemRow(
         hideRepoBadge={ctx.groupBy === 'repo'}
         // Why: pinned worktrees mix repos in one section, so only it needs the leading repo identity chip.
         hostContextLabel={itemRow.hostContextLabel}
+        branchLabel={itemRow.branchLabel}
+        branchQualifier={itemRow.branchQualifier}
+        sidebarRow
         inPinnedSection={itemRow.sectionKey === PINNED_GROUP_KEY}
         renameRowKey={itemRow.rowKey}
         lineageChildCount={itemRow.lineageChildCount}

@@ -25,14 +25,19 @@ type Props = {
   onClose: () => void
 }
 
-function iconForAction(label: string, destructive?: boolean, icon?: LucideIcon): LucideIcon {
+// Why: an action without an icon of its own shows none. The pencil belongs to rename and edit, not
+// to every unlabelled action.
+function iconForAction(label: string, destructive?: boolean, icon?: LucideIcon): LucideIcon | null {
   if (icon) {
     return icon
   }
   if (destructive || /delete|remove/i.test(label)) {
     return Trash2
   }
-  return Edit3
+  if (/rename|edit/i.test(label)) {
+    return Edit3
+  }
+  return null
 }
 
 type ContentProps = {
@@ -77,12 +82,13 @@ export function ActionSheetContent({ title, message, actions, onClose }: Content
                   }
                 }}
               >
-                {customIcon ?? (
-                  <Icon
-                    size={16}
-                    color={action.destructive ? colors.statusRed : colors.textSecondary}
-                  />
-                )}
+                {customIcon ??
+                  (Icon ? (
+                    <Icon
+                      size={16}
+                      color={action.destructive ? colors.statusRed : colors.textSecondary}
+                    />
+                  ) : null)}
                 <View style={styles.actionTextBlock}>
                   <Text
                     style={[

@@ -19,6 +19,8 @@ export type DashboardAgentRow = {
    *  stateHistory entry, falling back to updatedAt when no history exists yet.
    *  Used to sort agents by when they started. */
   startedAt: number
+  /** The session runs in another worktree (`tab.worktreeId`) and is listed here under its parent. */
+  crossWorktree?: boolean
   /** Subagent rows only: what the row shows, decided once for every surface. */
   childRow?: AgentChildRowModel
   lineage?: {

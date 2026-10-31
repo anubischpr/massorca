@@ -51,6 +51,8 @@ export function useHostScreenState(hostId: string | undefined, action: string | 
   // An action that did not happen, said above the list rather than instead of it. Separate from
   // `error`, which is the screen's identity and is the one thing worth taking the whole view for.
   const [actionError, setActionError] = useState('')
+  // A confirmation for an action that did happen, such as a copied path; the list clears it on its own.
+  const [copyNotice, setCopyNotice] = useState('')
   const [lastKnownWorktrees, setLastKnownWorktrees] = useState<Worktree[]>(initialCache ?? [])
   const [search, setSearch] = useState('')
   const [showSearch, setShowSearch] = useState(false)
@@ -109,6 +111,7 @@ export function useHostScreenState(hostId: string | undefined, action: string | 
     confirmDelete,
     confirmRemoveHost,
     actionError,
+    copyNotice,
     error,
     fetchRepoMetadataInFlightRef,
     fetchRepoMetadataPendingRef,
@@ -139,6 +142,7 @@ export function useHostScreenState(hostId: string | undefined, action: string | 
     setConfirmDelete,
     setConfirmRemoveHost,
     setActionError,
+    setCopyNotice,
     setError,
     setFilters,
     setGroupMode,

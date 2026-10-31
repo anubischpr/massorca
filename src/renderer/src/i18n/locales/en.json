@@ -615,6 +615,7 @@
               "meta": {
                 "persist": {
                   "877e3638d8": "Update the remote runtime to change this workspace’s linked issue",
+                  "0b03251e5b": "Update the remote runtime to rename this workspace row",
                   "4367540861": "Update the remote runtime to link Linear issues",
                   "github": {
                     "pr": {
@@ -5806,7 +5807,8 @@
           "219ebf1961": "Branch name",
           "folderPathIdentity": "Branch / folder path",
           "cli": "MassOrca CLI",
-          "workspaceOptions": "Workspace options"
+          "workspaceOptions": "Workspace options",
+          "oneLine": "One line"
         },
         "SshTargetRow": {
           "4677394048": "Connecting…",
@@ -6281,6 +6283,17 @@
                 "289a1d2ca7": "Expand {{value0}}. {{value1}}",
                 "0c1debfe84": "Collapse {{value0}}"
               }
+            },
+            "one": {
+              "line": {
+                "expandSessions": "Show sessions",
+                "collapseSessions": "Hide sessions",
+                "sessions": {
+                  "crossWorktreeBranch": "Runs on branch {{branch}}",
+                  "showMore": "Show {{hiddenCount}} more",
+                  "showLess": "Show less"
+                }
+              }
             }
           },
           "list": {
@@ -6696,6 +6709,12 @@
           "title": "Sort changed to Manual",
           "description": "Manual keeps workspaces where you drop them.",
           "restore": "Back to {{label}}"
+        },
+        "SessionStatusGlyphIcon": {
+          "unread": "Unread"
+        },
+        "OneLineSessionMenu": {
+          "copyTitle": "Copy Title"
         }
       },
       "shared": {
@@ -20244,6 +20263,8 @@
       "clearSearch": "Clear search",
       "inlineSearchHint": "Select a result to attach it.",
       "nameHelp": "Shown in the sidebar. The folder name stays the same.",
+      "rowName": "Row name",
+      "rowNameHelp": "Shown on the one-line row. The git branch is not renamed.",
       "notes": "Notes",
       "addNotes": "Add notes",
       "notesOptional": "Optional · Markdown",

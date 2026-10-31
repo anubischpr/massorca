@@ -444,6 +444,7 @@
               "meta": {
                 "persist": {
                   "877e3638d8": "リモートランタイムを更新して、このワークスペースのリンクされた問題を変更します",
+                  "0b03251e5b": "リモートランタイムを更新して、このワークスペースの行名を変更します",
                   "4367540861": "リモートランタイムを更新して Linear Issue をリンクする",
                   "github": {
                     "pr": {
@@ -5521,7 +5522,8 @@
           "automation": "オートメーション",
           "folderPathIdentity": "ブランチ / フォルダーパス",
           "cli": "MassOrca CLI",
-          "workspaceOptions": "ワークスペースのオプション"
+          "workspaceOptions": "ワークスペースのオプション",
+          "oneLine": "1行"
         },
         "SshTargetRow": {
           "4677394048": "接続中…",
@@ -6022,6 +6024,17 @@
                 "289a1d2ca7": "{{value0}} を展開します。 {{value1}}",
                 "0c1debfe84": "{{value0}} を折りたたむ"
               }
+            },
+            "one": {
+              "line": {
+                "expandSessions": "セッションを表示",
+                "collapseSessions": "セッションを非表示",
+                "sessions": {
+                  "crossWorktreeBranch": "ブランチ {{branch}} で実行中",
+                  "showMore": "さらに{{hiddenCount}}件を表示",
+                  "showLess": "表示を減らす"
+                }
+              }
             }
           },
           "list": {
@@ -6442,6 +6455,12 @@
           "title": "並べ替えが手動に変更されました",
           "description": "手動では、ドロップした場所にワークスペースが保持されます。",
           "restore": "{{label}} に戻る"
+        },
+        "SessionStatusGlyphIcon": {
+          "unread": "未読"
+        },
+        "OneLineSessionMenu": {
+          "copyTitle": "タイトルをコピー"
         }
       },
       "shared": {
