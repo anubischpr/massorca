@@ -36,6 +36,7 @@ export const AgentChildRowContent = React.memo(function AgentChildRowContent({
   return (
     <>
       <AgentStateDot
+        blockedIsFailure
         state={row.displayState}
         size="sm"
         title={dotTitle}

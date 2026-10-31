@@ -208,7 +208,7 @@ function SubagentSessionLine({
           // Why: a plain inline span would baseline-align the dot; flex keeps it
           // vertically centered with the row text.
           <span className="flex shrink-0 items-center">
-            <AgentStateDot state={dotState} />
+            <AgentStateDot blockedIsFailure state={dotState} />
           </span>
         ) : null}
         <span

@@ -76,6 +76,15 @@ describe('AgentStateDot', () => {
     }
   )
 
+  it('renders a blocked session as the question glyph and a blocked child row as the fault red', () => {
+    expect(renderMarkup('blocked')).toContain('text-agent-question')
+    const child = renderToStaticMarkup(
+      React.createElement(AgentStateDot, { state: 'blocked', blockedIsFailure: true })
+    )
+    expect(child).toContain('bg-red-500')
+    expect(child).not.toContain('text-agent-question')
+  })
+
   it('renders unverifiable as an amber dashed ring, never the done check or the spinner', () => {
     const markup = renderMarkup('unverifiable')
 
@@ -85,15 +94,12 @@ describe('AgentStateDot', () => {
     expect(markup).not.toContain('data-agent-spinner')
   })
 
-  it.each(['blocked', 'failed'] satisfies AgentDotState[])(
-    'renders %s as a red attention dot',
-    (state) => {
-      const classNames = renderDotClassNames(state)
+  it.each(['failed'] satisfies AgentDotState[])('renders %s as a red attention dot', (state) => {
+    const classNames = renderDotClassNames(state)
 
-      expect(classNames).toContain('bg-red-500')
-      expect(classNames).not.toContain('bg-amber-500')
-    }
-  )
+    expect(classNames).toContain('bg-red-500')
+    expect(classNames).not.toContain('bg-amber-500')
+  })
 
   it("renders a user's Stop as a muted dot, neither the fault red nor the idle grey", () => {
     const classNames = renderDotClassNames('interrupted')

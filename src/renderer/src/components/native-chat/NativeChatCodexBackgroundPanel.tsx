@@ -93,7 +93,7 @@ function BackgroundRow({
         >
           {row.kind === 'agent' ? (
             <>
-              <AgentStateDot state={row.displayState} size="sm" />
+              <AgentStateDot blockedIsFailure state={row.displayState} size="sm" />
               <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
                 <span
                   className="min-w-24 max-w-full flex-1 truncate"

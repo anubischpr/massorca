@@ -256,7 +256,12 @@ const DashboardAgentRow = React.memo(function DashboardAgentRow({
               className="inline-flex shrink-0 items-center justify-center"
               aria-label={dotTooltipLabel}
             >
-              <AgentStateDot state={dotState} size={stateDotSize} title={null} />
+              <AgentStateDot
+                blockedIsFailure={Boolean(agent.childRow)}
+                state={dotState}
+                size={stateDotSize}
+                title={null}
+              />
             </span>
           </TooltipTrigger>
           <TooltipContent side="top" sideOffset={4}>
