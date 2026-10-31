@@ -106,7 +106,8 @@ export function isTokenRow(row: DesignRow): boolean {
  * The locator of an element from the selector the frame reports: the path below the component's section,
  * or the id-anchored path the frame chose when an id makes it unique. Null for any other selector.
  */
-const SECTION_PATH_PATTERN = /^html > body > section(?::nth-of-type\(\d+\))?(?: > (.+))?$/u
+// Why: the frame reports its body as `body:nth-of-type(1)`, so the body may carry that index too.
+const SECTION_PATH_PATTERN = /^html > body(?::nth-of-type\(\d+\))? > section(?::nth-of-type\(\d+\))?(?: > (.+))?$/u
 
 export function elementLocatorOf(selector: string): string | null {
   if (selector.startsWith('#')) {

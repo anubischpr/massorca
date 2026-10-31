@@ -73,6 +73,18 @@ describe('element locators', () => {
     ).toBe('div:nth-of-type(2) > button')
   })
 
+  it('reads the body path the frame reports, with its nth-of-type index, the same way', () => {
+    expect(
+      elementLocatorOf(
+        'html > body:nth-of-type(1) > section:nth-of-type(1) > div:nth-of-type(1) > button:nth-of-type(1)'
+      )
+    ).toBe('div:nth-of-type(1) > button:nth-of-type(1)')
+    expect(elementLocatorOf('html > body:nth-of-type(1) > section:nth-of-type(1)')).toBe(
+      DESIGN_ELEMENT_ROOT
+    )
+    expect(elementLocatorOf('html > body:nth-of-type(1) > p:nth-of-type(1)')).toBeNull()
+  })
+
   it('keeps an id-anchored path as it is, and refuses a selector outside the section', () => {
     expect(elementLocatorOf('#go > span:nth-of-type(1)')).toBe('#go > span:nth-of-type(1)')
     expect(elementLocatorOf('html > body > p:nth-of-type(1)')).toBeNull()
