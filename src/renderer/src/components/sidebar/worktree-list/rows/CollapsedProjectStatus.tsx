@@ -33,7 +33,8 @@ function selectHiddenProjectGlyph(
   const statuses = selectWorktreeActivityStatuses(state, worktreeIds)
   return getWorstHiddenProjectGlyph(
     worktreeIds.map((worktreeId) => {
-      const agents = selectWorktreeAgentRowsFromState(state, worktreeId, now)
+      // Why: this status only runs in the one-line layout, which lists cross-worktree children under their parent.
+      const agents = selectWorktreeAgentRowsFromState(state, worktreeId, now, true)
       return {
         agents,
         acknowledgedAgentTimes: selectAcknowledgedAgentTimes(state, agents),

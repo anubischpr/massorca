@@ -11,7 +11,8 @@ import {
 import { useWorktreeAgentRows } from './useWorktreeAgentRows'
 import { cn } from '@/lib/utils'
 import type { DashboardAgentRow as DashboardAgentRowData } from '@/components/dashboard/useDashboardData'
-import { useActivateAgentTab } from './worktree-card-agent-activation'
+import { useActivateAgentRowInOwner, useActivateAgentTab } from './worktree-card-agent-activation'
+import { useCrossWorktreeChildMetadata } from './use-cross-worktree-child-metadata'
 import { useFocusedAgentPaneKey } from './focused-agent-row-highlight'
 import {
   CompactAgentExpansion,
@@ -168,6 +169,8 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
   )
 
   const handleActivateAgentTab = useActivateAgentTab(worktreeId)
+  const handleActivateOneLineSession = useActivateAgentRowInOwner(worktreeId)
+  const crossWorktreeMetadata = useCrossWorktreeChildMetadata(agents)
   const handleActivateRetainedAgent = useCallback(() => {
     // Why: hibernation-retained rows are passive completion evidence; activating would resume sleeping sessions, so the row is inert.
   }, [])
@@ -356,8 +359,9 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
           allSessionsShown={allSessionsShown}
           onToggleAllSessionsShown={toggleAllSessionsShown}
           onToggleLineageParent={toggleLineageParent}
-          onActivate={handleActivateAgentTab}
+          onActivate={handleActivateOneLineSession}
           onActivateRetained={handleActivateRetainedAgent}
+          {...crossWorktreeMetadata}
           getSendTarget={
             isAgentSendTargetModeActive
               ? (paneKey) =>

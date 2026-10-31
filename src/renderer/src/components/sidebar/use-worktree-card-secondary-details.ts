@@ -96,7 +96,11 @@ export function useWorktreeCardSecondaryDetails({
   // Why: the one-line card reads the rows itself (collapsed-branch status), then hands them to the list.
   const readsInlineAgentRows =
     showInlineAgentList && (agentActivityDisplayMode === 'compact' || oneLineCards)
-  const compactInlineAgentRows = useWorktreeAgentRows(worktree.id, readsInlineAgentRows)
+  const compactInlineAgentRows = useWorktreeAgentRows(
+    worktree.id,
+    readsInlineAgentRows,
+    oneLineCards
+  )
   const compactInlineAgentRowsVisible = readsInlineAgentRows && compactInlineAgentRows.length > 0
   const showAggregateCacheTimer = !compactCards && !oneLineCards && !compactInlineAgentRowsVisible
   const handleOpenGitHubIssueInOrca = useCallback(

@@ -139,6 +139,19 @@ function markCompletedWorkerParentPaneKeysSeen(args: {
   }
 }
 
+/** Sessions another worktree runs that this worktree lists under their parent, with what their rows read. */
+export type CrossWorktreeChildInputs = {
+  entries: AgentStatusEntry[]
+  retained: RetainedAgentEntry[]
+  tabs: TerminalTab[]
+  ptyIdsByTabId: Record<string, string[]>
+  terminalLayoutsByTabId: Record<string, TerminalLayoutSnapshot | undefined>
+}
+
+function crossWorktreeRows(rows: DashboardAgentRow[], crossWorktree: boolean): DashboardAgentRow[] {
+  return crossWorktree ? rows.map((row) => ({ ...row, crossWorktree: true })) : rows
+}
+
 export function buildWorktreeAgentRows(args: {
   tabs: TerminalTab[]
   entries: AgentStatusEntry[]
@@ -148,14 +161,36 @@ export function buildWorktreeAgentRows(args: {
   terminalLayoutsByTabId?: Record<string, TerminalLayoutSnapshot | undefined>
   runtimeAgentOrchestrationByPaneKey?: Record<string, AgentStatusOrchestrationContext>
   paneForegroundAgentByPaneKey?: Record<string, TitleDerivedPaneForeground>
+  /** Sessions whose parent another worktree lists: this worktree lists neither them nor their subtrees. */
+  placedElsewherePaneKeys?: readonly string[]
+  /** Sessions another worktree runs that this worktree lists under their parent. */
+  crossWorktreeChildren?: CrossWorktreeChildInputs
   now: number
 }): DashboardAgentRow[] {
   const rows: DashboardAgentRow[] = []
-  const seenPaneKeys = new Set<string>()
+  const placedElsewhere = new Set(args.placedElsewherePaneKeys ?? [])
+  const seenPaneKeys = new Set<string>(placedElsewhere)
   const currentTabsById = new Map(args.tabs.map((tab) => [tab.id, tab] as const))
+  const cross = args.crossWorktreeChildren
+  const crossEntryPaneKeys = new Set((cross?.entries ?? []).map((entry) => entry.paneKey))
+  const crossRetainedPaneKeys = new Set((cross?.retained ?? []).map((ra) => ra.entry.paneKey))
+  const crossTabsById = new Map((cross?.tabs ?? []).map((tab) => [tab.id, tab] as const))
+  const entries = [
+    ...args.entries.filter((entry) => !placedElsewhere.has(entry.paneKey)),
+    ...(cross?.entries ?? [])
+  ]
+  const retained = [
+    ...args.retained.filter((ra) => !placedElsewhere.has(ra.entry.paneKey)),
+    ...(cross?.retained ?? [])
+  ]
+  const explicitTabs = [...args.tabs, ...(cross?.tabs ?? [])]
+  const terminalLayoutsByTabId = {
+    ...args.terminalLayoutsByTabId,
+    ...cross?.terminalLayoutsByTabId
+  }
 
   const entriesByTabId = new Map<string, AgentStatusEntry[]>()
-  for (const entry of args.entries) {
+  for (const entry of entries) {
     const parsed = parsePaneKey(entry.paneKey)
     if (!parsed) {
       continue
@@ -168,13 +203,14 @@ export function buildWorktreeAgentRows(args: {
     }
   }
 
-  const ptyIdsByTabId = args.ptyIdsByTabId ?? {}
+  const ptyIdsByTabId = { ...args.ptyIdsByTabId, ...cross?.ptyIdsByTabId }
 
-  for (const tab of args.tabs) {
+  for (const tab of explicitTabs) {
     const explicitEntries = entriesByTabId.get(tab.id) ?? []
     const hasLivePty = tabHasLivePty(ptyIdsByTabId, tab.id)
     for (const entry of explicitEntries) {
       const rowEntry = entryWithRuntimeOrchestration(entry, args.runtimeAgentOrchestrationByPaneKey)
+      const crossWorktree = crossEntryPaneKeys.has(rowEntry.paneKey)
       const isFresh = isExplicitAgentStatusFresh(rowEntry, args.now, AGENT_STATUS_STALE_AFTER_MS)
       const shouldDecay =
         !isFresh &&
@@ -182,25 +218,34 @@ export function buildWorktreeAgentRows(args: {
           rowEntry.state === 'blocked' ||
           rowEntry.state === 'waiting')
       const startedAt = effectiveWorktreeAgentRowStartedAt(rowEntry)
-      rows.push({
-        paneKey: rowEntry.paneKey,
-        entry: rowEntry,
-        tab,
-        agentType: resolveRowAgentType(rowEntry, tab),
-        rowSource: 'live',
-        state: shouldDecay ? resolveDecayedAgentRowState(rowEntry, hasLivePty) : rowEntry.state,
-        startedAt
-      })
-      rows.push(...buildSubagentChildRows({ parentEntry: rowEntry, tab, parentIsFresh: isFresh }))
+      rows.push(
+        ...crossWorktreeRows(
+          [
+            {
+              paneKey: rowEntry.paneKey,
+              entry: rowEntry,
+              tab,
+              agentType: resolveRowAgentType(rowEntry, tab),
+              rowSource: 'live',
+              state: shouldDecay
+                ? resolveDecayedAgentRowState(rowEntry, hasLivePty)
+                : rowEntry.state,
+              startedAt
+            },
+            ...buildSubagentChildRows({ parentEntry: rowEntry, tab, parentIsFresh: isFresh })
+          ],
+          crossWorktree
+        )
+      )
       seenPaneKeys.add(rowEntry.paneKey)
     }
   }
 
   markCompletedWorkerParentPaneKeysSeen({
-    entries: args.entries,
-    retained: args.retained,
+    entries,
+    retained,
     runtimeAgentOrchestrationByPaneKey: args.runtimeAgentOrchestrationByPaneKey,
-    terminalLayoutsByTabId: args.terminalLayoutsByTabId,
+    terminalLayoutsByTabId,
     currentTabsById,
     seenPaneKeys
   })
@@ -210,7 +255,7 @@ export function buildWorktreeAgentRows(args: {
   // Why: orchestration workers can be attributed to a worktree by main before
   // their tab is present in this renderer. Keep those live rows visible in the
   // worktree card instead of waiting for tab membership that may never arrive.
-  for (const entry of args.entries) {
+  for (const entry of entries) {
     if (seenPaneKeys.has(entry.paneKey)) {
       continue
     }
@@ -220,35 +265,43 @@ export function buildWorktreeAgentRows(args: {
     if (!tab) {
       continue
     }
+    const crossWorktree = crossEntryPaneKeys.has(rowEntry.paneKey)
     const isFresh = isExplicitAgentStatusFresh(rowEntry, args.now, AGENT_STATUS_STALE_AFTER_MS)
     const shouldDecay =
       !isFresh &&
       (rowEntry.state === 'working' || rowEntry.state === 'blocked' || rowEntry.state === 'waiting')
-    rows.push({
-      paneKey: rowEntry.paneKey,
-      entry: rowEntry,
-      tab,
-      agentType: resolveRowAgentType(rowEntry, tab),
-      rowSource: 'live',
-      // Why: this row's tab is synthesized because no tab for it exists in this renderer,
-      // so there is no live-PTY evidence to hold — the decay destination is always `idle`.
-      state: shouldDecay
-        ? resolveDecayedAgentRowState(rowEntry, tabHasLivePty(ptyIdsByTabId, tab.id))
-        : rowEntry.state,
-      startedAt
-    })
-    rows.push(...buildSubagentChildRows({ parentEntry: rowEntry, tab, parentIsFresh: isFresh }))
+    rows.push(
+      ...crossWorktreeRows(
+        [
+          {
+            paneKey: rowEntry.paneKey,
+            entry: rowEntry,
+            tab,
+            agentType: resolveRowAgentType(rowEntry, tab),
+            rowSource: 'live',
+            // Why: this row's tab is synthesized because no tab for it exists in this renderer,
+            // so there is no live-PTY evidence to hold — the decay destination is always `idle`.
+            state: shouldDecay
+              ? resolveDecayedAgentRowState(rowEntry, tabHasLivePty(ptyIdsByTabId, tab.id))
+              : rowEntry.state,
+            startedAt
+          },
+          ...buildSubagentChildRows({ parentEntry: rowEntry, tab, parentIsFresh: isFresh })
+        ],
+        crossWorktree
+      )
+    )
     seenPaneKeys.add(rowEntry.paneKey)
   }
 
-  for (const ra of args.retained) {
+  for (const ra of retained) {
     if (seenPaneKeys.has(ra.entry.paneKey)) {
       continue
     }
     if (
       isRetainedLegacyAliasOfSeenStablePane({
         paneKey: ra.entry.paneKey,
-        terminalLayoutsByTabId: args.terminalLayoutsByTabId,
+        terminalLayoutsByTabId,
         seenPaneKeys
       })
     ) {
@@ -258,7 +311,7 @@ export function buildWorktreeAgentRows(args: {
       ra.entry,
       args.runtimeAgentOrchestrationByPaneKey
     )
-    const tab = currentTabsById.get(ra.tab.id) ?? ra.tab
+    const tab = currentTabsById.get(ra.tab.id) ?? crossTabsById.get(ra.tab.id) ?? ra.tab
     rows.push({
       paneKey: rowEntry.paneKey,
       entry: rowEntry,
@@ -266,7 +319,8 @@ export function buildWorktreeAgentRows(args: {
       agentType: resolveRowAgentType(rowEntry, tab),
       rowSource: 'retained',
       state: 'done',
-      startedAt: ra.startedAt
+      startedAt: ra.startedAt,
+      ...(crossRetainedPaneKeys.has(ra.entry.paneKey) ? { crossWorktree: true } : {})
     })
   }
 

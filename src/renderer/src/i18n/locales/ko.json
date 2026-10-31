@@ -6030,6 +6030,7 @@
                 "expandSessions": "세션 표시",
                 "collapseSessions": "세션 숨기기",
                 "sessions": {
+                  "crossWorktreeBranch": "{{branch}} 브랜치에서 실행 중",
                   "showMore": "{{hiddenCount}}개 더 보기",
                   "showLess": "간단히 보기"
                 }

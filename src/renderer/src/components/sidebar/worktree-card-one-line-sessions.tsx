@@ -28,11 +28,38 @@ export type OneLineSessionTreeProps = {
   allSessionsShown: boolean
   onToggleAllSessionsShown: () => void
   onToggleLineageParent: (paneKey: string) => void
-  onActivate: (tabId: string, paneKey: string) => void
+  /** Activates a row's pane; a child session in another worktree passes that worktree. */
+  onActivate: (tabId: string, paneKey: string, ownerWorktreeId?: string) => void
   /** Hibernation-retained rows are completion evidence, so activating them does nothing. */
   onActivateRetained: () => void
+  /** Whether each other worktree's host cannot be reached, read by the rows of its child sessions. */
+  hostDisconnectedByWorktreeId?: Readonly<Record<string, boolean>>
+  /** The branch each other worktree runs on, named by the branch icon of its child session. */
+  branchByWorktreeId?: Readonly<Record<string, string>>
   getSendTarget?: (paneKey: string) => SendTarget
   onSendTargetClick?: (paneKey: string) => void
+}
+
+/** A row dims by its own host, except a child session, which dims by the host of the worktree it runs in. */
+export function oneLineRowDimmed(
+  agent: DashboardAgentRowData,
+  cardDimmed: boolean,
+  hostDisconnectedByWorktreeId: Readonly<Record<string, boolean>> | undefined
+): boolean {
+  return agent.crossWorktree
+    ? hostDisconnectedByWorktreeId?.[agent.tab.worktreeId] === true
+    : cardDimmed
+}
+
+/** The branch a child session in another worktree runs on; subagent rows carry no icon of their own. */
+export function crossWorktreeBranchOf(
+  agent: DashboardAgentRowData,
+  branchByWorktreeId: Readonly<Record<string, string>> | undefined
+): string | undefined {
+  if (!agent.crossWorktree || agent.rowSource === 'subagent') {
+    return undefined
+  }
+  return branchByWorktreeId?.[agent.tab.worktreeId] || undefined
 }
 
 export function OneLineSessionTree(props: OneLineSessionTreeProps): React.JSX.Element {
@@ -76,7 +103,8 @@ export function OneLineSessionTree(props: OneLineSessionTreeProps): React.JSX.El
           glyph={glyph}
           isUnvisited={unvisitedByPaneKey[agent.paneKey] ?? false}
           isFocusedPane={agent.paneKey === props.focusedAgentPaneKey}
-          dimmed={props.dimmed}
+          dimmed={oneLineRowDimmed(agent, props.dimmed, props.hostDisconnectedByWorktreeId)}
+          crossWorktreeBranch={crossWorktreeBranchOf(agent, props.branchByWorktreeId)}
           onActivate={agent.rowSource === 'retained' ? props.onActivateRetained : props.onActivate}
           sendTargetStatus={sendTarget?.status}
           sendTargetDisabledReason={sendTarget?.disabledReason}

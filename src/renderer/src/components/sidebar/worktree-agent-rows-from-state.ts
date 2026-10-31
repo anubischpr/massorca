@@ -16,15 +16,25 @@ import {
   selectPaneForegroundAgentsForWorktree,
   selectRuntimePaneTitlesForWorktree
 } from './worktree-card-status-inputs'
+import {
+  selectCrossWorktreeChildLayouts,
+  selectCrossWorktreeChildPtyIds,
+  selectCrossWorktreeChildTabs,
+  selectCrossWorktreeLiveChildEntries,
+  selectCrossWorktreeRetainedChildren,
+  selectPlacedAwayPaneKeysForWorktree
+} from './worktree-child-placement'
 
 /**
  * A worktree's session rows read straight from the store, for a row that has no card mounted (a
- * folded project's hidden worktrees). Takes the same inputs as useWorktreeAgentRows.
+ * folded project's hidden worktrees). Takes the same inputs as useWorktreeAgentRows, and places
+ * cross-worktree child sessions the same way when `placeAcrossWorktrees` is set.
  */
 export function selectWorktreeAgentRowsFromState(
   state: AppState,
   worktreeId: string,
-  now: number
+  now: number,
+  placeAcrossWorktrees = false
 ): DashboardAgentRow[] {
   const liveEntries = selectLiveAgentStatusEntriesForWorktree(state, worktreeId)
   const migrationUnsupported = selectMigrationUnsupportedEntriesForWorktree(state, worktreeId)
@@ -51,6 +61,18 @@ export function selectWorktreeAgentRowsFromState(
         worktreeId
       ),
       paneForegroundAgentByPaneKey: selectPaneForegroundAgentsForWorktree(state, worktreeId),
+      ...(placeAcrossWorktrees
+        ? {
+            placedElsewherePaneKeys: selectPlacedAwayPaneKeysForWorktree(state, worktreeId),
+            crossWorktreeChildren: {
+              entries: selectCrossWorktreeLiveChildEntries(state, worktreeId),
+              retained: selectCrossWorktreeRetainedChildren(state, worktreeId),
+              tabs: selectCrossWorktreeChildTabs(state, worktreeId),
+              ptyIdsByTabId: selectCrossWorktreeChildPtyIds(state, worktreeId),
+              terminalLayoutsByTabId: selectCrossWorktreeChildLayouts(state, worktreeId)
+            }
+          }
+        : {}),
       now
     })
   )

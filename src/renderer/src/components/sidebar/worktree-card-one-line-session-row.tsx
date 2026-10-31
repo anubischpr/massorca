@@ -12,6 +12,7 @@ import { piRuntimeForSessionFilePath } from '../../../../shared/pi-runtime-selec
 import { getCompactAgentPrimary } from './worktree-card-compact-agent-row'
 import { SessionStatusGlyphIcon } from './SessionStatusGlyphIcon'
 import { OneLineSessionMenu } from './worktree-card-one-line-session-menu'
+import { CrossWorktreeBranchIcon } from './worktree-card-one-line-cross-worktree-branch'
 import { WorktreeTitleInlineRename } from './WorktreeTitleInlineRename'
 import type { SessionStatusGlyph } from './worktree-session-status'
 
@@ -26,7 +27,10 @@ type OneLineSessionRowProps = {
   isFocusedPane: boolean
   /** The host cannot be reached: rows dim and show the unconfirmed state, never an exit. */
   dimmed: boolean
-  onActivate: (tabId: string, paneKey: string) => void
+  /** The branch a child session in another worktree runs on; its icon names it. */
+  crossWorktreeBranch?: string
+  /** A child session in another worktree passes that worktree, so its pane is focused there. */
+  onActivate: (tabId: string, paneKey: string, ownerWorktreeId?: string) => void
   // Why: send-target mode turns sidebar rows into the picker surface, as the other row layouts do.
   sendTargetStatus?: 'eligible' | 'disabled' | 'sending'
   sendTargetDisabledReason?: string
@@ -57,6 +61,7 @@ export const OneLineSessionRow = React.memo(function OneLineSessionRow({
   isUnvisited,
   isFocusedPane,
   dimmed,
+  crossWorktreeBranch,
   onActivate,
   sendTargetStatus,
   sendTargetDisabledReason,
@@ -91,9 +96,22 @@ export const OneLineSessionRow = React.memo(function OneLineSessionRow({
         return
       }
       // Why: subagent rows have no pane of their own; they focus the pane that spawned them.
-      onActivate(agent.tab.id, agent.activationPaneKey ?? agent.paneKey)
+      // Why: a session in another worktree focuses its own worktree, not the card that lists it.
+      onActivate(
+        agent.tab.id,
+        agent.activationPaneKey ?? agent.paneKey,
+        agent.crossWorktree ? agent.tab.worktreeId : undefined
+      )
     },
-    [agent.activationPaneKey, agent.paneKey, agent.tab.id, onActivate, renameStep]
+    [
+      agent.activationPaneKey,
+      agent.crossWorktree,
+      agent.paneKey,
+      agent.tab.id,
+      agent.tab.worktreeId,
+      onActivate,
+      renameStep
+    ]
   )
   const handleSendTargetClickCapture = useCallback(
     (e: React.MouseEvent) => {
@@ -153,6 +171,7 @@ export const OneLineSessionRow = React.memo(function OneLineSessionRow({
           />
         </span>
       )}
+      {crossWorktreeBranch ? <CrossWorktreeBranchIcon branch={crossWorktreeBranch} /> : null}
       {renameStep === 'off' ? (
         <span
           className={cn(

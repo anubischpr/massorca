@@ -6289,6 +6289,7 @@
                 "expandSessions": "Show sessions",
                 "collapseSessions": "Hide sessions",
                 "sessions": {
+                  "crossWorktreeBranch": "Runs on branch {{branch}}",
                   "showMore": "Show {{hiddenCount}} more",
                   "showLess": "Show less"
                 }

@@ -23,10 +23,11 @@ type SessionMenuKind = {
 
 /**
  * Which actions a session kind supports. A subagent child has no pane or tab of its own, a retained
- * row outlives its tab, and a child sharing its parent's tab cannot name or close it alone.
+ * row outlives its tab, and a child sharing its parent's tab cannot name or close it alone. A session
+ * from another worktree, listed under its parent, takes the subagent child's actions.
  */
 export function getSessionMenuKind(agent: DashboardAgentRow): SessionMenuKind {
-  const isSubagent = agent.rowSource === 'subagent'
+  const isSubagent = agent.rowSource === 'subagent' || agent.crossWorktree === true
   const isRetained = agent.rowSource === 'retained'
   const sharesParentTab =
     agent.lineage?.depth === 1 &&

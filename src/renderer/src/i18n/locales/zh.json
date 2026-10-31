@@ -6030,6 +6030,7 @@
                 "expandSessions": "显示会话",
                 "collapseSessions": "隐藏会话",
                 "sessions": {
+                  "crossWorktreeBranch": "运行于分支 {{branch}}",
                   "showMore": "再显示 {{hiddenCount}} 个",
                   "showLess": "收起"
                 }

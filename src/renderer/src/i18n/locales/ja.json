@@ -6030,6 +6030,7 @@
                 "expandSessions": "セッションを表示",
                 "collapseSessions": "セッションを非表示",
                 "sessions": {
+                  "crossWorktreeBranch": "ブランチ {{branch}} で実行中",
                   "showMore": "さらに{{hiddenCount}}件を表示",
                   "showLess": "表示を減らす"
                 }

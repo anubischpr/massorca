@@ -25,6 +25,14 @@ import {
   selectTerminalLayoutsForWorktree
 } from './worktree-agent-row-selectors'
 import { EMPTY_WORKTREE_AGENT_ORCHESTRATION } from './worktree-agent-orchestration-index'
+import {
+  selectCrossWorktreeChildLayouts,
+  selectCrossWorktreeChildPtyIds,
+  selectCrossWorktreeChildTabs,
+  selectCrossWorktreeLiveChildEntries,
+  selectCrossWorktreeRetainedChildren,
+  selectPlacedAwayPaneKeysForWorktree
+} from './worktree-child-placement'
 import { EMPTY_TABS } from './WorktreeCardHelpers'
 import {
   createWorktreeAgentFreshnessSelector,
@@ -33,6 +41,7 @@ import {
 
 // Why frozen: shared by every inactive card, and callers only read these rows.
 const EMPTY_AGENT_ROWS = Object.freeze([]) as unknown as DashboardAgentRow[]
+const EMPTY_PLACED_PANE_KEYS: readonly string[] = Object.freeze([])
 
 export { buildWorktreeAgentRows } from './worktree-agent-rows'
 export {
@@ -52,7 +61,11 @@ export {
  * store slice and then shared by every visible card, avoiding O(cards × agents)
  * selector work on high-frequency agent status pings.
  */
-export function useWorktreeAgentRows(worktreeId: string, active = true): DashboardAgentRow[] {
+export function useWorktreeAgentRows(
+  worktreeId: string,
+  active = true,
+  placeAcrossWorktrees = false
+): DashboardAgentRow[] {
   const selectAgentFreshness = useMemo(
     () => createWorktreeAgentFreshnessSelector(worktreeId),
     [worktreeId]
@@ -111,6 +124,32 @@ export function useWorktreeAgentRows(worktreeId: string, active = true): Dashboa
   const agentFreshnessSignature = useAppStore((s) =>
     active ? selectAgentFreshness(s) : EMPTY_WORKTREE_AGENT_FRESHNESS_SIGNATURE
   )
+  // Why: a child session another worktree runs is listed under its parent only when this card places across worktrees.
+  const placing = active && placeAcrossWorktrees
+  const placedAwayPaneKeys = useAppStore(
+    useShallow((s) =>
+      placing ? selectPlacedAwayPaneKeysForWorktree(s, worktreeId) : EMPTY_PLACED_PANE_KEYS
+    )
+  )
+  const crossWorktreeEntries = useAppStore(
+    useShallow((s) =>
+      placing ? selectCrossWorktreeLiveChildEntries(s, worktreeId) : EMPTY_LIVE_ENTRIES
+    )
+  )
+  const crossWorktreeRetained = useAppStore(
+    useShallow((s) =>
+      placing ? selectCrossWorktreeRetainedChildren(s, worktreeId) : EMPTY_RETAINED
+    )
+  )
+  const crossWorktreeTabs = useAppStore(
+    useShallow((s) => (placing ? selectCrossWorktreeChildTabs(s, worktreeId) : []))
+  )
+  const crossWorktreePtyIdsByTabId = useAppStore(
+    useShallow((s) => (placing ? selectCrossWorktreeChildPtyIds(s, worktreeId) : {}))
+  )
+  const crossWorktreeLayoutsByTabId = useAppStore(
+    useShallow((s) => (placing ? selectCrossWorktreeChildLayouts(s, worktreeId) : {}))
+  )
 
   return useMemo<DashboardAgentRow[]>(() => {
     if (!active) {
@@ -139,12 +178,23 @@ export function useWorktreeAgentRows(worktreeId: string, active = true): Dashboa
         terminalLayoutsByTabId,
         runtimeAgentOrchestrationByPaneKey,
         paneForegroundAgentByPaneKey,
+        placedElsewherePaneKeys: placedAwayPaneKeys,
+        crossWorktreeChildren: placing
+          ? {
+              entries: crossWorktreeEntries,
+              retained: crossWorktreeRetained,
+              tabs: crossWorktreeTabs,
+              ptyIdsByTabId: crossWorktreePtyIdsByTabId,
+              terminalLayoutsByTabId: crossWorktreeLayoutsByTabId
+            }
+          : undefined,
         now
       })
     )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     active,
+    placing,
     tabs,
     liveEntries,
     migrationUnsupported,
@@ -154,6 +204,12 @@ export function useWorktreeAgentRows(worktreeId: string, active = true): Dashboa
     terminalLayoutsByTabId,
     runtimeAgentOrchestrationByPaneKey,
     paneForegroundAgentByPaneKey,
+    placedAwayPaneKeys,
+    crossWorktreeEntries,
+    crossWorktreeRetained,
+    crossWorktreeTabs,
+    crossWorktreePtyIdsByTabId,
+    crossWorktreeLayoutsByTabId,
     agentFreshnessSignature
   ])
 }
