@@ -5866,6 +5866,7 @@
           "complete": "agent.launch#1",
           "params": {
             "agent": "codex",
+            "preferredMode": "chat",
             "target": {
               "kind": "create-worktree",
               "create": {
@@ -9279,6 +9280,7 @@
           "complete": "agent.launchReplay#1",
           "params": {
             "agent": "codex",
+            "preferredMode": "chat",
             "operationId": "1767225600000-00000000000040008000000000000001",
             "target": {
               "kind": "existing",
@@ -9372,6 +9374,7 @@
           "complete": "agent.launchReplay#1",
           "params": {
             "agent": "codex",
+            "preferredMode": "chat",
             "operationId": "1767225600000-00000000000040008000000000000001",
             "target": {
               "kind": "existing",
@@ -9465,6 +9468,7 @@
           "complete": "agent.launchReplay#1",
           "params": {
             "agent": "codex",
+            "preferredMode": "chat",
             "operationId": "1767225600000-00000000000040008000000000000001",
             "target": {
               "kind": "existing",
@@ -18549,6 +18553,7 @@
           "complete": "agent.launchReplay#1",
           "params": {
             "agent": "claude",
+            "preferredMode": "chat",
             "operationId": "1767225600000-00000000000040008000000000000001",
             "target": {
               "kind": "existing",
@@ -22058,6 +22063,7 @@
           "complete": "agent.launchReplay#1",
           "params": {
             "agent": "claude",
+            "preferredMode": "chat",
             "operationId": "1767225600000-00000000000040008000000000000004",
             "target": {
               "kind": "existing",
@@ -22125,6 +22131,7 @@
           "complete": "agent.launchReplay#1",
           "params": {
             "agent": "claude",
+            "preferredMode": "chat",
             "operationId": "1767225600000-00000000000040008000000000000004",
             "target": {
               "kind": "existing",
@@ -22195,6 +22202,7 @@
           "complete": "agent.launchReplay#1",
           "params": {
             "agent": "codex",
+            "preferredMode": "chat",
             "operationId": "1767225600000-00000000000040008000000000000004",
             "target": {
               "kind": "existing",
@@ -22273,6 +22281,7 @@
           "complete": "agent.launchReplay#1",
           "params": {
             "agent": "codex",
+            "preferredMode": "chat",
             "operationId": "1767225600000-00000000000040008000000000000004",
             "target": {
               "kind": "existing",

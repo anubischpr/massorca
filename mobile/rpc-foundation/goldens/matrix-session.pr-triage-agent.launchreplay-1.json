@@ -41,15 +41,53 @@
         }
       }
     },
+    "121ec2ca79ba": {
+      "launched": {
+        "kind": "sent",
+        "warning": "Opened as a terminal agent, not a chat. Started a terminal agent, the default for new agent tabs in your settings."
+      }
+    },
+    "16d7a8ad5ad5": {
+      "name": "agent.launchReplay#2",
+      "ordinal": 9,
+      "args": [
+        {
+          "name": "method",
+          "value": "agent.launchReplay"
+        },
+        {
+          "name": "params",
+          "value": {
+            "agent": "codex",
+            "launchSource": "task_page",
+            "operationId": "1767225600000-00000000000040008000000000000001",
+            "preferredMode": "chat",
+            "prompt": {
+              "delivery": "submit",
+              "text": "Fix the failing checks"
+            },
+            "target": {
+              "kind": "existing",
+              "worktree": "id:repo-9::/w"
+            }
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "timeoutMs": 90000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "pending",
+        "startedAt": 0
+      }
+    },
     "1c2564f1daca": {
       "name": "settings.get#1",
       "ordinal": 4,
       "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"settings.get\"}"
-    },
-    "28339abecf78": {
-      "name": "agent.launchReplay#1",
-      "ordinal": 8,
-      "json": "{\"id\":\"frame-4\",\"deviceToken\":\"recording-device\",\"method\":\"agent.launchReplay\",\"params\":{\"agent\":\"codex\",\"operationId\":\"1767225600000-00000000000040008000000000000001\",\"target\":{\"kind\":\"existing\",\"worktree\":\"id:repo-9::/w\"},\"prompt\":{\"text\":\"Fix the failing checks\",\"delivery\":\"submit\"},\"launchSource\":\"task_page\"}}"
     },
     "331b3596787f": {
       "launched": {
@@ -87,48 +125,6 @@
       "launched": {
         "kind": "not-started",
         "message": "Update MassOrca on your computer to start an agent from your phone."
-      }
-    },
-    "3b9fb3dfed63": {
-      "name": "agent.launchReplay#1",
-      "ordinal": 7,
-      "args": [
-        {
-          "name": "method",
-          "value": "agent.launchReplay"
-        },
-        {
-          "name": "params",
-          "value": {
-            "agent": "codex",
-            "launchSource": "task_page",
-            "operationId": "1767225600000-00000000000040008000000000000001",
-            "prompt": {
-              "delivery": "submit",
-              "text": "Fix the failing checks"
-            },
-            "target": {
-              "kind": "existing",
-              "worktree": "id:repo-9::/w"
-            }
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "timeoutMs": 90000
-          }
-        }
-      ],
-      "settlement": {
-        "status": "rejected",
-        "startedAt": 0,
-        "settledAt": 0,
-        "error": {
-          "category": "Error",
-          "message": "transport failure",
-          "isRpcDeliveryUnknown": true
-        }
       }
     },
     "3e6a0417d2ee": {
@@ -169,7 +165,7 @@
         }
       }
     },
-    "4a304acaf84f": {
+    "444e02ab8924": {
       "name": "agent.launchReplay#1",
       "ordinal": 7,
       "args": [
@@ -183,467 +179,7 @@
             "agent": "codex",
             "launchSource": "task_page",
             "operationId": "1767225600000-00000000000040008000000000000001",
-            "prompt": {
-              "delivery": "submit",
-              "text": "Fix the failing checks"
-            },
-            "target": {
-              "kind": "existing",
-              "worktree": "id:repo-9::/w"
-            }
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "timeoutMs": 90000
-          }
-        }
-      ],
-      "settlement": {
-        "status": "fulfilled",
-        "startedAt": 0,
-        "settledAt": 0,
-        "value": {
-          "error": {
-            "code": "refused",
-            "message": ""
-          },
-          "id": "frame-4",
-          "ok": false
-        }
-      }
-    },
-    "51d4cb56be85": {
-      "name": "settings.get#1",
-      "ordinal": 2,
-      "args": [
-        {
-          "name": "method",
-          "value": "settings.get"
-        },
-        {
-          "name": "params",
-          "value": {
-            "$rpc": "absent"
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "$rpc": "absent"
-          }
-        }
-      ],
-      "settlement": {
-        "status": "pending",
-        "startedAt": 0
-      }
-    },
-    "5b817dac4c7d": {
-      "name": "agent.launchReplay#1",
-      "ordinal": 7,
-      "args": [
-        {
-          "name": "method",
-          "value": "agent.launchReplay"
-        },
-        {
-          "name": "params",
-          "value": {
-            "agent": "codex",
-            "launchSource": "task_page",
-            "operationId": "1767225600000-00000000000040008000000000000001",
-            "prompt": {
-              "delivery": "submit",
-              "text": "Fix the failing checks"
-            },
-            "target": {
-              "kind": "existing",
-              "worktree": "id:repo-9::/w"
-            }
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "timeoutMs": 90000
-          }
-        }
-      ],
-      "settlement": {
-        "status": "fulfilled",
-        "startedAt": 0,
-        "settledAt": 0,
-        "value": {
-          "id": "frame-4",
-          "ok": true,
-          "result": {
-            "error": "inner refused",
-            "ok": false
-          }
-        }
-      }
-    },
-    "675c01bc8b85": {
-      "name": "agent.launchReplay#1",
-      "ordinal": 7,
-      "args": [
-        {
-          "name": "method",
-          "value": "agent.launchReplay"
-        },
-        {
-          "name": "params",
-          "value": {
-            "agent": "codex",
-            "launchSource": "task_page",
-            "operationId": "1767225600000-00000000000040008000000000000001",
-            "prompt": {
-              "delivery": "submit",
-              "text": "Fix the failing checks"
-            },
-            "target": {
-              "kind": "existing",
-              "worktree": "id:repo-9::/w"
-            }
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "timeoutMs": 90000
-          }
-        }
-      ],
-      "settlement": {
-        "status": "rejected",
-        "startedAt": 0,
-        "settledAt": 0,
-        "error": {
-          "category": "Error",
-          "message": "",
-          "isRpcDeliveryUnknown": true
-        }
-      }
-    },
-    "6d9b52e88b73": {
-      "launched": {
-        "kind": "not-started",
-        "message": "Couldn't start the agent."
-      }
-    },
-    "7cdbda15d605": {
-      "name": "agent.launchReplay#1",
-      "ordinal": 7,
-      "args": [
-        {
-          "name": "method",
-          "value": "agent.launchReplay"
-        },
-        {
-          "name": "params",
-          "value": {
-            "agent": "codex",
-            "launchSource": "task_page",
-            "operationId": "1767225600000-00000000000040008000000000000001",
-            "prompt": {
-              "delivery": "submit",
-              "text": "Fix the failing checks"
-            },
-            "target": {
-              "kind": "existing",
-              "worktree": "id:repo-9::/w"
-            }
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "timeoutMs": 90000
-          }
-        }
-      ],
-      "settlement": {
-        "status": "fulfilled",
-        "startedAt": 0,
-        "settledAt": 0,
-        "value": {
-          "id": "frame-4",
-          "ok": true,
-          "result": {
-            "error": {
-              "message": "inner refused"
-            },
-            "ok": false
-          }
-        }
-      }
-    },
-    "8638ab90602a": {
-      "name": "agent.launchReplay#1",
-      "ordinal": 7,
-      "args": [
-        {
-          "name": "method",
-          "value": "agent.launchReplay"
-        },
-        {
-          "name": "params",
-          "value": {
-            "agent": "codex",
-            "launchSource": "task_page",
-            "operationId": "1767225600000-00000000000040008000000000000001",
-            "prompt": {
-              "delivery": "submit",
-              "text": "Fix the failing checks"
-            },
-            "target": {
-              "kind": "existing",
-              "worktree": "id:repo-9::/w"
-            }
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "timeoutMs": 90000
-          }
-        }
-      ],
-      "settlement": {
-        "status": "fulfilled",
-        "startedAt": 0,
-        "settledAt": 0,
-        "value": {
-          "id": "frame-4",
-          "ok": true
-        }
-      }
-    },
-    "9270aeb7d9c6": {
-      "status": "pending",
-      "startedAt": 0
-    },
-    "9c16efc31903": {
-      "name": "preflight.detectAgents#1",
-      "ordinal": 5,
-      "args": [
-        {
-          "name": "method",
-          "value": "preflight.detectAgents"
-        },
-        {
-          "name": "params",
-          "value": {
-            "$rpc": "absent"
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "$rpc": "absent"
-          }
-        }
-      ],
-      "settlement": {
-        "status": "fulfilled",
-        "startedAt": 0,
-        "settledAt": 0,
-        "value": {
-          "id": "frame-3",
-          "ok": true,
-          "result": ["codex"]
-        }
-      }
-    },
-    "a4273b38df83": {
-      "launched": "unlaunched"
-    },
-    "a8f475e8a3a8": {
-      "name": "agent.launchReplay#1",
-      "ordinal": 7,
-      "args": [
-        {
-          "name": "method",
-          "value": "agent.launchReplay"
-        },
-        {
-          "name": "params",
-          "value": {
-            "agent": "codex",
-            "launchSource": "task_page",
-            "operationId": "1767225600000-00000000000040008000000000000001",
-            "prompt": {
-              "delivery": "submit",
-              "text": "Fix the failing checks"
-            },
-            "target": {
-              "kind": "existing",
-              "worktree": "id:repo-9::/w"
-            }
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "timeoutMs": 90000
-          }
-        }
-      ],
-      "settlement": {
-        "status": "fulfilled",
-        "startedAt": 0,
-        "settledAt": 0,
-        "value": {
-          "error": {
-            "code": "refused",
-            "message": "outer refused"
-          },
-          "id": "frame-4",
-          "ok": false
-        }
-      }
-    },
-    "ab12d545c466": {
-      "name": "agent.launchReplay#1",
-      "ordinal": 7,
-      "args": [
-        {
-          "name": "method",
-          "value": "agent.launchReplay"
-        },
-        {
-          "name": "params",
-          "value": {
-            "agent": "codex",
-            "launchSource": "task_page",
-            "operationId": "1767225600000-00000000000040008000000000000001",
-            "prompt": {
-              "delivery": "submit",
-              "text": "Fix the failing checks"
-            },
-            "target": {
-              "kind": "existing",
-              "worktree": "id:repo-9::/w"
-            }
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "timeoutMs": 90000
-          }
-        }
-      ],
-      "settlement": {
-        "status": "fulfilled",
-        "startedAt": 0,
-        "settledAt": 0,
-        "value": {
-          "id": "frame-4",
-          "ok": true,
-          "result": {
-            "error": "refused"
-          }
-        }
-      }
-    },
-    "b613a82cee3d": {
-      "name": "agent.launchReplay#1",
-      "ordinal": 7,
-      "args": [
-        {
-          "name": "method",
-          "value": "agent.launchReplay"
-        },
-        {
-          "name": "params",
-          "value": {
-            "agent": "codex",
-            "launchSource": "task_page",
-            "operationId": "1767225600000-00000000000040008000000000000001",
-            "prompt": {
-              "delivery": "submit",
-              "text": "Fix the failing checks"
-            },
-            "target": {
-              "kind": "existing",
-              "worktree": "id:repo-9::/w"
-            }
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "timeoutMs": 90000
-          }
-        }
-      ],
-      "settlement": {
-        "status": "fulfilled",
-        "startedAt": 0,
-        "settledAt": 0,
-        "value": {
-          "error": {
-            "code": "method_not_found",
-            "message": "Unknown method"
-          },
-          "id": "frame-4",
-          "ok": false
-        }
-      }
-    },
-    "b81eb9edc2b2": {
-      "name": "agent.launchReplay#2",
-      "ordinal": 9,
-      "args": [
-        {
-          "name": "method",
-          "value": "agent.launchReplay"
-        },
-        {
-          "name": "params",
-          "value": {
-            "agent": "codex",
-            "launchSource": "task_page",
-            "operationId": "1767225600000-00000000000040008000000000000001",
-            "prompt": {
-              "delivery": "submit",
-              "text": "Fix the failing checks"
-            },
-            "target": {
-              "kind": "existing",
-              "worktree": "id:repo-9::/w"
-            }
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "timeoutMs": 90000
-          }
-        }
-      ],
-      "settlement": {
-        "status": "pending",
-        "startedAt": 0
-      }
-    },
-    "ba3fac1eb199": {
-      "name": "agent.launchReplay#1",
-      "ordinal": 7,
-      "args": [
-        {
-          "name": "method",
-          "value": "agent.launchReplay"
-        },
-        {
-          "name": "params",
-          "value": {
-            "agent": "codex",
-            "launchSource": "task_page",
-            "operationId": "1767225600000-00000000000040008000000000000001",
+            "preferredMode": "chat",
             "prompt": {
               "delivery": "submit",
               "text": "Fix the failing checks"
@@ -688,7 +224,33 @@
         }
       }
     },
-    "c39600966772": {
+    "51d4cb56be85": {
+      "name": "settings.get#1",
+      "ordinal": 2,
+      "args": [
+        {
+          "name": "method",
+          "value": "settings.get"
+        },
+        {
+          "name": "params",
+          "value": {
+            "$rpc": "absent"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "$rpc": "absent"
+          }
+        }
+      ],
+      "settlement": {
+        "status": "pending",
+        "startedAt": 0
+      }
+    },
+    "61090231d449": {
       "name": "agent.launchReplay#1",
       "ordinal": 7,
       "args": [
@@ -702,6 +264,375 @@
             "agent": "codex",
             "launchSource": "task_page",
             "operationId": "1767225600000-00000000000040008000000000000001",
+            "preferredMode": "chat",
+            "prompt": {
+              "delivery": "submit",
+              "text": "Fix the failing checks"
+            },
+            "target": {
+              "kind": "existing",
+              "worktree": "id:repo-9::/w"
+            }
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "timeoutMs": 90000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "rejected",
+        "startedAt": 0,
+        "settledAt": 0,
+        "error": {
+          "category": "Error",
+          "message": "transport failure",
+          "isRpcDeliveryUnknown": true
+        }
+      }
+    },
+    "6d9b52e88b73": {
+      "launched": {
+        "kind": "not-started",
+        "message": "Couldn't start the agent."
+      }
+    },
+    "759300580bc3": {
+      "name": "agent.launchReplay#1",
+      "ordinal": 7,
+      "args": [
+        {
+          "name": "method",
+          "value": "agent.launchReplay"
+        },
+        {
+          "name": "params",
+          "value": {
+            "agent": "codex",
+            "launchSource": "task_page",
+            "operationId": "1767225600000-00000000000040008000000000000001",
+            "preferredMode": "chat",
+            "prompt": {
+              "delivery": "submit",
+              "text": "Fix the failing checks"
+            },
+            "target": {
+              "kind": "existing",
+              "worktree": "id:repo-9::/w"
+            }
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "timeoutMs": 90000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "fulfilled",
+        "startedAt": 0,
+        "settledAt": 0,
+        "value": {
+          "id": "frame-4",
+          "ok": true,
+          "result": {
+            "error": "inner refused",
+            "ok": false
+          }
+        }
+      }
+    },
+    "76f4a3ccc1d8": {
+      "name": "agent.launchReplay#1",
+      "ordinal": 7,
+      "args": [
+        {
+          "name": "method",
+          "value": "agent.launchReplay"
+        },
+        {
+          "name": "params",
+          "value": {
+            "agent": "codex",
+            "launchSource": "task_page",
+            "operationId": "1767225600000-00000000000040008000000000000001",
+            "preferredMode": "chat",
+            "prompt": {
+              "delivery": "submit",
+              "text": "Fix the failing checks"
+            },
+            "target": {
+              "kind": "existing",
+              "worktree": "id:repo-9::/w"
+            }
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "timeoutMs": 90000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "rejected",
+        "startedAt": 0,
+        "settledAt": 0,
+        "error": {
+          "category": "Error",
+          "message": "",
+          "isRpcDeliveryUnknown": true
+        }
+      }
+    },
+    "8b0eb80be2c8": {
+      "name": "agent.launchReplay#1",
+      "ordinal": 7,
+      "args": [
+        {
+          "name": "method",
+          "value": "agent.launchReplay"
+        },
+        {
+          "name": "params",
+          "value": {
+            "agent": "codex",
+            "launchSource": "task_page",
+            "operationId": "1767225600000-00000000000040008000000000000001",
+            "preferredMode": "chat",
+            "prompt": {
+              "delivery": "submit",
+              "text": "Fix the failing checks"
+            },
+            "target": {
+              "kind": "existing",
+              "worktree": "id:repo-9::/w"
+            }
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "timeoutMs": 90000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "fulfilled",
+        "startedAt": 0,
+        "settledAt": 0,
+        "value": {
+          "error": {
+            "code": "refused",
+            "message": "outer refused"
+          },
+          "id": "frame-4",
+          "ok": false
+        }
+      }
+    },
+    "9270aeb7d9c6": {
+      "status": "pending",
+      "startedAt": 0
+    },
+    "9c16efc31903": {
+      "name": "preflight.detectAgents#1",
+      "ordinal": 5,
+      "args": [
+        {
+          "name": "method",
+          "value": "preflight.detectAgents"
+        },
+        {
+          "name": "params",
+          "value": {
+            "$rpc": "absent"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "$rpc": "absent"
+          }
+        }
+      ],
+      "settlement": {
+        "status": "fulfilled",
+        "startedAt": 0,
+        "settledAt": 0,
+        "value": {
+          "id": "frame-3",
+          "ok": true,
+          "result": ["codex"]
+        }
+      }
+    },
+    "9fa6a40ac36b": {
+      "name": "agent.launchReplay#1",
+      "ordinal": 7,
+      "args": [
+        {
+          "name": "method",
+          "value": "agent.launchReplay"
+        },
+        {
+          "name": "params",
+          "value": {
+            "agent": "codex",
+            "launchSource": "task_page",
+            "operationId": "1767225600000-00000000000040008000000000000001",
+            "preferredMode": "chat",
+            "prompt": {
+              "delivery": "submit",
+              "text": "Fix the failing checks"
+            },
+            "target": {
+              "kind": "existing",
+              "worktree": "id:repo-9::/w"
+            }
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "timeoutMs": 90000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "fulfilled",
+        "startedAt": 0,
+        "settledAt": 0,
+        "value": {
+          "error": {
+            "code": "refused",
+            "message": ""
+          },
+          "id": "frame-4",
+          "ok": false
+        }
+      }
+    },
+    "a1d777cf0920": {
+      "name": "agent.launchReplay#1",
+      "ordinal": 8,
+      "json": "{\"id\":\"frame-4\",\"deviceToken\":\"recording-device\",\"method\":\"agent.launchReplay\",\"params\":{\"agent\":\"codex\",\"operationId\":\"1767225600000-00000000000040008000000000000001\",\"target\":{\"kind\":\"existing\",\"worktree\":\"id:repo-9::/w\"},\"prompt\":{\"text\":\"Fix the failing checks\",\"delivery\":\"submit\"},\"preferredMode\":\"chat\",\"launchSource\":\"task_page\"}}"
+    },
+    "a4273b38df83": {
+      "launched": "unlaunched"
+    },
+    "b283b672c017": {
+      "name": "agent.launchReplay#1",
+      "ordinal": 7,
+      "args": [
+        {
+          "name": "method",
+          "value": "agent.launchReplay"
+        },
+        {
+          "name": "params",
+          "value": {
+            "agent": "codex",
+            "launchSource": "task_page",
+            "operationId": "1767225600000-00000000000040008000000000000001",
+            "preferredMode": "chat",
+            "prompt": {
+              "delivery": "submit",
+              "text": "Fix the failing checks"
+            },
+            "target": {
+              "kind": "existing",
+              "worktree": "id:repo-9::/w"
+            }
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "timeoutMs": 90000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "fulfilled",
+        "startedAt": 0,
+        "settledAt": 0,
+        "value": {
+          "error": {
+            "code": "method_not_found",
+            "message": "Unknown method"
+          },
+          "id": "frame-4",
+          "ok": false
+        }
+      }
+    },
+    "bc13c4f38e8e": {
+      "name": "agent.launchReplay#1",
+      "ordinal": 7,
+      "args": [
+        {
+          "name": "method",
+          "value": "agent.launchReplay"
+        },
+        {
+          "name": "params",
+          "value": {
+            "agent": "codex",
+            "launchSource": "task_page",
+            "operationId": "1767225600000-00000000000040008000000000000001",
+            "preferredMode": "chat",
+            "prompt": {
+              "delivery": "submit",
+              "text": "Fix the failing checks"
+            },
+            "target": {
+              "kind": "existing",
+              "worktree": "id:repo-9::/w"
+            }
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "timeoutMs": 90000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "fulfilled",
+        "startedAt": 0,
+        "settledAt": 0,
+        "value": {
+          "id": "frame-4",
+          "ok": true,
+          "result": {
+            "error": {
+              "message": "inner refused"
+            },
+            "ok": false
+          }
+        }
+      }
+    },
+    "c69c9a3d5f33": {
+      "name": "agent.launchReplay#1",
+      "ordinal": 7,
+      "args": [
+        {
+          "name": "method",
+          "value": "agent.launchReplay"
+        },
+        {
+          "name": "params",
+          "value": {
+            "agent": "codex",
+            "launchSource": "task_page",
+            "operationId": "1767225600000-00000000000040008000000000000001",
+            "preferredMode": "chat",
             "prompt": {
               "delivery": "submit",
               "text": "Fix the failing checks"
@@ -732,10 +663,97 @@
         }
       }
     },
-    "dca101029f70": {
+    "d8d193348e45": {
+      "name": "agent.launchReplay#1",
+      "ordinal": 7,
+      "args": [
+        {
+          "name": "method",
+          "value": "agent.launchReplay"
+        },
+        {
+          "name": "params",
+          "value": {
+            "agent": "codex",
+            "launchSource": "task_page",
+            "operationId": "1767225600000-00000000000040008000000000000001",
+            "preferredMode": "chat",
+            "prompt": {
+              "delivery": "submit",
+              "text": "Fix the failing checks"
+            },
+            "target": {
+              "kind": "existing",
+              "worktree": "id:repo-9::/w"
+            }
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "timeoutMs": 90000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "fulfilled",
+        "startedAt": 0,
+        "settledAt": 0,
+        "value": {
+          "id": "frame-4",
+          "ok": true,
+          "result": {
+            "error": "refused"
+          }
+        }
+      }
+    },
+    "dd49b71a379d": {
       "name": "agent.launchReplay#2",
       "ordinal": 10,
-      "json": "{\"id\":\"frame-5\",\"deviceToken\":\"recording-device\",\"method\":\"agent.launchReplay\",\"params\":{\"agent\":\"codex\",\"operationId\":\"1767225600000-00000000000040008000000000000001\",\"target\":{\"kind\":\"existing\",\"worktree\":\"id:repo-9::/w\"},\"prompt\":{\"text\":\"Fix the failing checks\",\"delivery\":\"submit\"},\"launchSource\":\"task_page\"}}"
+      "json": "{\"id\":\"frame-5\",\"deviceToken\":\"recording-device\",\"method\":\"agent.launchReplay\",\"params\":{\"agent\":\"codex\",\"operationId\":\"1767225600000-00000000000040008000000000000001\",\"target\":{\"kind\":\"existing\",\"worktree\":\"id:repo-9::/w\"},\"prompt\":{\"text\":\"Fix the failing checks\",\"delivery\":\"submit\"},\"preferredMode\":\"chat\",\"launchSource\":\"task_page\"}}"
+    },
+    "de820a7d4312": {
+      "name": "agent.launchReplay#1",
+      "ordinal": 7,
+      "args": [
+        {
+          "name": "method",
+          "value": "agent.launchReplay"
+        },
+        {
+          "name": "params",
+          "value": {
+            "agent": "codex",
+            "launchSource": "task_page",
+            "operationId": "1767225600000-00000000000040008000000000000001",
+            "preferredMode": "chat",
+            "prompt": {
+              "delivery": "submit",
+              "text": "Fix the failing checks"
+            },
+            "target": {
+              "kind": "existing",
+              "worktree": "id:repo-9::/w"
+            }
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "timeoutMs": 90000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "fulfilled",
+        "startedAt": 0,
+        "settledAt": 0,
+        "value": {
+          "id": "frame-4",
+          "ok": true
+        }
+      }
     },
     "e0eef7c9fafe": {
       "name": "repo.list#1",
@@ -754,11 +772,6 @@
       "settledAt": 0,
       "value": {
         "$rpc": "undefined"
-      }
-    },
-    "eb8d47f90956": {
-      "launched": {
-        "kind": "sent"
       }
     },
     "f49d184679d1": {
@@ -785,20 +798,20 @@
       {
         "id": "pr-triage-launch.normal:launched",
         "observation": {
-          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "ba3fac1eb199"],
-          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "28339abecf78"],
+          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "444e02ab8924"],
+          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "a1d777cf0920"],
           "settlements": {
             "launch": "eb79a9b3682a"
           },
-          "state": "eb8d47f90956",
+          "state": "121ec2ca79ba",
           "effects": []
         }
       },
       {
         "id": "pr-triage-launch.result-absent:launched",
         "observation": {
-          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "8638ab90602a"],
-          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "28339abecf78"],
+          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "de820a7d4312"],
+          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "a1d777cf0920"],
           "settlements": {
             "launch": "eb79a9b3682a"
           },
@@ -809,8 +822,8 @@
       {
         "id": "pr-triage-launch.result-null:launched",
         "observation": {
-          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "c39600966772"],
-          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "28339abecf78"],
+          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "c69c9a3d5f33"],
+          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "a1d777cf0920"],
           "settlements": {
             "launch": "eb79a9b3682a"
           },
@@ -821,8 +834,8 @@
       {
         "id": "pr-triage-launch.inner-ok-missing:launched",
         "observation": {
-          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "ab12d545c466"],
-          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "28339abecf78"],
+          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "d8d193348e45"],
+          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "a1d777cf0920"],
           "settlements": {
             "launch": "eb79a9b3682a"
           },
@@ -833,8 +846,8 @@
       {
         "id": "pr-triage-launch.inner-false-string-error:launched",
         "observation": {
-          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "5b817dac4c7d"],
-          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "28339abecf78"],
+          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "759300580bc3"],
+          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "a1d777cf0920"],
           "settlements": {
             "launch": "eb79a9b3682a"
           },
@@ -845,8 +858,8 @@
       {
         "id": "pr-triage-launch.inner-false-object-error:launched",
         "observation": {
-          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "7cdbda15d605"],
-          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "28339abecf78"],
+          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "bc13c4f38e8e"],
+          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "a1d777cf0920"],
           "settlements": {
             "launch": "eb79a9b3682a"
           },
@@ -857,8 +870,8 @@
       {
         "id": "pr-triage-launch.outer-refused:launched",
         "observation": {
-          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "a8f475e8a3a8"],
-          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "28339abecf78"],
+          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "8b0eb80be2c8"],
+          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "a1d777cf0920"],
           "settlements": {
             "launch": "eb79a9b3682a"
           },
@@ -869,8 +882,8 @@
       {
         "id": "pr-triage-launch.outer-refused-no-message:launched",
         "observation": {
-          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "4a304acaf84f"],
-          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "28339abecf78"],
+          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "9fa6a40ac36b"],
+          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "a1d777cf0920"],
           "settlements": {
             "launch": "eb79a9b3682a"
           },
@@ -881,8 +894,8 @@
       {
         "id": "pr-triage-launch.method-not-found:launched",
         "observation": {
-          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "b613a82cee3d"],
-          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "28339abecf78"],
+          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "b283b672c017"],
+          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "a1d777cf0920"],
           "settlements": {
             "launch": "eb79a9b3682a"
           },
@@ -897,15 +910,15 @@
             "3e6a0417d2ee",
             "02188f091419",
             "9c16efc31903",
-            "3b9fb3dfed63",
-            "b81eb9edc2b2"
+            "61090231d449",
+            "16d7a8ad5ad5"
           ],
           "payloads": [
             "e0eef7c9fafe",
             "1c2564f1daca",
             "f49d184679d1",
-            "28339abecf78",
-            "dca101029f70"
+            "a1d777cf0920",
+            "dd49b71a379d"
           ],
           "settlements": {
             "launch": "9270aeb7d9c6"
@@ -921,15 +934,15 @@
             "3e6a0417d2ee",
             "02188f091419",
             "9c16efc31903",
-            "675c01bc8b85",
-            "b81eb9edc2b2"
+            "76f4a3ccc1d8",
+            "16d7a8ad5ad5"
           ],
           "payloads": [
             "e0eef7c9fafe",
             "1c2564f1daca",
             "f49d184679d1",
-            "28339abecf78",
-            "dca101029f70"
+            "a1d777cf0920",
+            "dd49b71a379d"
           ],
           "settlements": {
             "launch": "9270aeb7d9c6"

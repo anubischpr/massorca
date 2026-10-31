@@ -86,6 +86,7 @@ export function workspaceSettingsMounts(
         selectedAgent: { id: 'claude', label: 'Claude' },
         runtimeSettings: { disabledTuiAgents: ['claude'] },
         detectedAgentIds: new Set(['codex']),
+        detectedPiRuntimes: null,
         sshGate: { requiresConnection: false },
         composer: { name: 'recorded', createSelection: null, isNameAutoManaged: false },
         note: '',

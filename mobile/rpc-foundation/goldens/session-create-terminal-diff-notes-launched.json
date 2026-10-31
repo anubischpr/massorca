@@ -4,14 +4,51 @@
   "family": "session.create-terminal",
   "namedDeltas": [],
   "values": {
-    "0e3a24adf091": {
+    "10864c857edd": {
+      "name": "agent.launchReplay#1",
+      "ordinal": 1,
+      "args": [
+        {
+          "name": "method",
+          "value": "agent.launchReplay"
+        },
+        {
+          "name": "params",
+          "value": {
+            "agent": "codex",
+            "launchSource": "diff_notes_send",
+            "operationId": "1767225600000-00000000000040008000000000000004",
+            "paneKey": "00000000-0000-4000-8000-000000000001:00000000-0000-4000-8000-000000000002",
+            "preferredMode": "chat",
+            "prompt": {
+              "delivery": "submit",
+              "text": "review these notes"
+            },
+            "sessionId": "codex_00000000_0000_4000_8000_000000000003",
+            "target": {
+              "kind": "existing",
+              "worktree": "id:wt-1"
+            }
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "timeoutMs": 90000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "pending",
+        "startedAt": 0
+      }
+    },
+    "3df0d7c5c0bc": {
       "name": "toast",
       "ordinal": 4,
       "value": {
-        "durationMs": {
-          "$rpc": "null"
-        },
-        "message": "Notes sent"
+        "durationMs": 3200,
+        "message": "Opened as a terminal agent, not a chat. Started a terminal agent."
       }
     },
     "553cfc6cdea5": {
@@ -67,7 +104,24 @@
       "sessionTabs": [],
       "terminals": []
     },
-    "79b24f8555fe": {
+    "87c8e0a0f80e": {
+      "name": "agent.launchReplay#1",
+      "ordinal": 2,
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"agent.launchReplay\",\"params\":{\"agent\":\"codex\",\"operationId\":\"1767225600000-00000000000040008000000000000004\",\"target\":{\"kind\":\"existing\",\"worktree\":\"id:wt-1\"},\"prompt\":{\"text\":\"review these notes\",\"delivery\":\"submit\"},\"preferredMode\":\"chat\",\"launchSource\":\"diff_notes_send\",\"paneKey\":\"00000000-0000-4000-8000-000000000001:00000000-0000-4000-8000-000000000002\",\"sessionId\":\"codex_00000000_0000_4000_8000_000000000003\"}}"
+    },
+    "9270aeb7d9c6": {
+      "status": "pending",
+      "startedAt": 0
+    },
+    "eb79a9b3682a": {
+      "status": "fulfilled",
+      "startedAt": 0,
+      "settledAt": 0,
+      "value": {
+        "$rpc": "undefined"
+      }
+    },
+    "f2a1760ba63e": {
       "name": "agent.launchReplay#1",
       "ordinal": 1,
       "args": [
@@ -82,6 +136,7 @@
             "launchSource": "diff_notes_send",
             "operationId": "1767225600000-00000000000040008000000000000004",
             "paneKey": "00000000-0000-4000-8000-000000000001:00000000-0000-4000-8000-000000000002",
+            "preferredMode": "chat",
             "prompt": {
               "delivery": "submit",
               "text": "review these notes"
@@ -127,59 +182,14 @@
         }
       }
     },
-    "9270aeb7d9c6": {
-      "status": "pending",
-      "startedAt": 0
-    },
-    "ad660413fab0": {
-      "name": "agent.launchReplay#1",
-      "ordinal": 1,
-      "args": [
-        {
-          "name": "method",
-          "value": "agent.launchReplay"
-        },
-        {
-          "name": "params",
-          "value": {
-            "agent": "codex",
-            "launchSource": "diff_notes_send",
-            "operationId": "1767225600000-00000000000040008000000000000004",
-            "paneKey": "00000000-0000-4000-8000-000000000001:00000000-0000-4000-8000-000000000002",
-            "prompt": {
-              "delivery": "submit",
-              "text": "review these notes"
-            },
-            "sessionId": "codex_00000000_0000_4000_8000_000000000003",
-            "target": {
-              "kind": "existing",
-              "worktree": "id:wt-1"
-            }
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "timeoutMs": 90000
-          }
-        }
-      ],
-      "settlement": {
-        "status": "pending",
-        "startedAt": 0
-      }
-    },
-    "e41ec8af1dfd": {
-      "name": "agent.launchReplay#1",
-      "ordinal": 2,
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"agent.launchReplay\",\"params\":{\"agent\":\"codex\",\"operationId\":\"1767225600000-00000000000040008000000000000004\",\"target\":{\"kind\":\"existing\",\"worktree\":\"id:wt-1\"},\"prompt\":{\"text\":\"review these notes\",\"delivery\":\"submit\"},\"launchSource\":\"diff_notes_send\",\"paneKey\":\"00000000-0000-4000-8000-000000000001:00000000-0000-4000-8000-000000000002\",\"sessionId\":\"codex_00000000_0000_4000_8000_000000000003\"}}"
-    },
-    "eb79a9b3682a": {
-      "status": "fulfilled",
-      "startedAt": 0,
-      "settledAt": 0,
+    "fe4a54811ce7": {
+      "name": "toast",
+      "ordinal": 5,
       "value": {
-        "$rpc": "undefined"
+        "durationMs": {
+          "$rpc": "null"
+        },
+        "message": "Notes sent"
       }
     }
   },
@@ -189,8 +199,8 @@
       {
         "id": "creating",
         "observation": {
-          "sender": ["ad660413fab0"],
-          "payloads": ["e41ec8af1dfd"],
+          "sender": ["10864c857edd"],
+          "payloads": ["87c8e0a0f80e"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "create": "9270aeb7d9c6"
@@ -202,27 +212,27 @@
       {
         "id": "notes-sent",
         "observation": {
-          "sender": ["79b24f8555fe"],
-          "payloads": ["e41ec8af1dfd"],
+          "sender": ["f2a1760ba63e"],
+          "payloads": ["87c8e0a0f80e"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "create": "eb79a9b3682a"
           },
           "state": "73449f52ee06",
-          "effects": ["6248a3dd0710", "0e3a24adf091"]
+          "effects": ["6248a3dd0710", "3df0d7c5c0bc", "fe4a54811ce7"]
         }
       },
       {
         "id": "tabs-refreshed",
         "observation": {
-          "sender": ["79b24f8555fe"],
-          "payloads": ["e41ec8af1dfd"],
+          "sender": ["f2a1760ba63e"],
+          "payloads": ["87c8e0a0f80e"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "create": "eb79a9b3682a"
           },
           "state": "73449f52ee06",
-          "effects": ["6248a3dd0710", "0e3a24adf091"]
+          "effects": ["6248a3dd0710", "3df0d7c5c0bc", "fe4a54811ce7"]
         }
       }
     ]

@@ -153,7 +153,15 @@ describe('mobile launch retries through the host ledger', () => {
   it('replays a lost reply beyond the legacy cache window without creating again', async () => {
     const launch = mobileLaunch({ loseFirstReplyAfterMs: 61_000 })
 
-    await expect(launch.result).resolves.toEqual({ worktreeId: 'wt-new', name: 'otter' })
+    await expect(launch.result).resolves.toEqual({
+      worktreeId: 'wt-new',
+      name: 'otter',
+      surface: {
+        mode: 'structured',
+        detail:
+          'Started a structured chat session, the default for new agent tabs in your settings.'
+      }
+    })
     expect(launch.runtime.createManagedWorktree).toHaveBeenCalledTimes(1)
     expect(createStructuredSession).toHaveBeenCalledTimes(1)
     expect(launch.attempts).toHaveLength(2)
@@ -164,7 +172,15 @@ describe('mobile launch retries through the host ledger', () => {
   it('recovers a named launch whose reply timed out on a connected transport', async () => {
     const launch = mobileLaunch({ loseFirstReplyAfterMs: 10 * 60_000, replyLoss: 'timeout' })
 
-    await expect(launch.result).resolves.toEqual({ worktreeId: 'wt-new', name: 'otter' })
+    await expect(launch.result).resolves.toEqual({
+      worktreeId: 'wt-new',
+      name: 'otter',
+      surface: {
+        mode: 'structured',
+        detail:
+          'Started a structured chat session, the default for new agent tabs in your settings.'
+      }
+    })
     expect(launch.runtime.createManagedWorktree).toHaveBeenCalledTimes(1)
     expect(createStructuredSession).toHaveBeenCalledTimes(1)
     expect(launch.attempts).toHaveLength(2)

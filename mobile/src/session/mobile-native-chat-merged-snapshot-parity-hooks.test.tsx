@@ -10,6 +10,9 @@ import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'rea
 import { afterEach, describe, expect, it, vi } from 'vitest'
 vi.mock('react-native-webview', () => ({ WebView: 'WebView' }))
 vi.mock('./MobileBackgroundWorkSheet', () => ({ MobileBackgroundWorkSheet: () => null }))
+vi.mock('./MobileNativeChatDelegationWhySheet', () => ({
+  MobileNativeChatDelegationWhySheet: () => null
+}))
 import type {
   AgentSessionStatusEvent,
   AgentSessionSubscribeEvent

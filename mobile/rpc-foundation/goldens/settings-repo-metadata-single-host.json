@@ -14,21 +14,6 @@
       "ordinal": 4,
       "value": []
     },
-    "2bd489a9fa29": {
-      "repoColorsByName": [
-        ["Remote", "#f97316"],
-        ["Remote folder", "#ec4899"]
-      ],
-      "repoHostIdByRepoId": [
-        ["repo-1", "ssh:ssh-1"],
-        ["repo-2", "ssh:ssh-1"]
-      ],
-      "repoIconsByName": [],
-      "repoIdsByName": [
-        ["Remote", "repo-1"],
-        ["Remote folder", "repo-2"]
-      ]
-    },
     "4b6956e45bac": {
       "name": "repo.list#1",
       "ordinal": 1,
@@ -74,6 +59,23 @@
         }
       }
     },
+    "5c7571296ea7": {
+      "folderRepoIds": [],
+      "repoAccountsByName": [],
+      "repoColorsByName": [
+        ["Remote", "#f97316"],
+        ["Remote folder", "#ec4899"]
+      ],
+      "repoHostIdByRepoId": [
+        ["repo-1", "ssh:ssh-1"],
+        ["repo-2", "ssh:ssh-1"]
+      ],
+      "repoIconsByName": [],
+      "repoIdsByName": [
+        ["Remote", "repo-1"],
+        ["Remote folder", "repo-2"]
+      ]
+    },
     "937107a86348": {
       "name": "repoIdsByName",
       "ordinal": 5,
@@ -82,13 +84,60 @@
         ["Remote folder", "repo-2"]
       ]
     },
-    "a086cfd03185": {
-      "name": "repoHostIdByRepoId",
+    "964b1de0995d": {
+      "name": "folderRepoIds",
       "ordinal": 6,
+      "value": []
+    },
+    "a2dee1d972b1": {
+      "name": "repoHostIdByRepoId",
+      "ordinal": 8,
       "value": [
         ["repo-1", "ssh:ssh-1"],
         ["repo-2", "ssh:ssh-1"]
       ]
+    },
+    "a54eeb78662c": {
+      "name": "github.readAccountGitConfig#1",
+      "ordinal": 11,
+      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"github.readAccountGitConfig\",\"params\":{\"repo\":\"id:repo-1\"}}"
+    },
+    "b0df5796e8b4": {
+      "name": "github.readAccountGitConfig#1",
+      "ordinal": 9,
+      "args": [
+        {
+          "name": "method",
+          "value": "github.readAccountGitConfig"
+        },
+        {
+          "name": "params",
+          "value": {
+            "repo": "id:repo-1"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "budgetSpansConnect": true,
+            "timeoutMs": 15000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "pending",
+        "startedAt": 0
+      }
+    },
+    "b4729ee47905": {
+      "name": "repoAccountsByName",
+      "ordinal": 7,
+      "value": []
+    },
+    "e01e3ef11c94": {
+      "name": "github.readAccountGitConfig#2",
+      "ordinal": 12,
+      "json": "{\"id\":\"frame-3\",\"deviceToken\":\"recording-device\",\"method\":\"github.readAccountGitConfig\",\"params\":{\"repo\":\"id:repo-2\"}}"
     },
     "eb79a9b3682a": {
       "status": "fulfilled",
@@ -96,6 +145,33 @@
       "settledAt": 0,
       "value": {
         "$rpc": "undefined"
+      }
+    },
+    "f7c2fd411078": {
+      "name": "github.readAccountGitConfig#2",
+      "ordinal": 10,
+      "args": [
+        {
+          "name": "method",
+          "value": "github.readAccountGitConfig"
+        },
+        {
+          "name": "params",
+          "value": {
+            "repo": "id:repo-2"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "budgetSpansConnect": true,
+            "timeoutMs": 15000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "pending",
+        "startedAt": 0
       }
     },
     "fc0785cc0b08": {
@@ -113,14 +189,21 @@
       {
         "id": "single-host-without-label-lookups",
         "observation": {
-          "sender": ["4b6956e45bac"],
-          "payloads": ["19b2979d7fc2"],
+          "sender": ["4b6956e45bac", "b0df5796e8b4", "f7c2fd411078"],
+          "payloads": ["19b2979d7fc2", "a54eeb78662c", "e01e3ef11c94"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "eb79a9b3682a"
           },
-          "state": "2bd489a9fa29",
-          "effects": ["fc0785cc0b08", "1ff13ee8621c", "937107a86348", "a086cfd03185"]
+          "state": "5c7571296ea7",
+          "effects": [
+            "fc0785cc0b08",
+            "1ff13ee8621c",
+            "937107a86348",
+            "964b1de0995d",
+            "b4729ee47905",
+            "a2dee1d972b1"
+          ]
         }
       }
     ]

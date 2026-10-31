@@ -30,23 +30,6 @@
         "startedAt": 0
       }
     },
-    "035edfd9a1b9": {
-      "crash": {
-        "$rpc": "null"
-      },
-      "elements": {
-        "ChevronLeft": 1,
-        "Pressable": 5,
-        "RefreshCw": 1,
-        "SafeAreaView": 1,
-        "SectionList": 1,
-        "Text": 5,
-        "TextInput": 1,
-        "View": 5
-      },
-      "labels": ["Back", "Refresh agent sessions"],
-      "text": ["Agent Session History", "orca-history", "Workspace", "Project", "All"]
-    },
     "3a91d2093c6e": {
       "name": "worktree.ps#1",
       "ordinal": 3,
@@ -144,6 +127,32 @@
       "name": "status.get#1",
       "ordinal": 4,
       "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"status.get\"}"
+    },
+    "50a4961b9cb0": {
+      "crash": {
+        "$rpc": "null"
+      },
+      "elements": {
+        "ChevronLeft": 1,
+        "Pressable": 5,
+        "RefreshCw": 1,
+        "SafeAreaView": 1,
+        "SectionList": 1,
+        "Switch": 1,
+        "Text": 7,
+        "TextInput": 1,
+        "View": 6
+      },
+      "labels": ["Back", "Refresh agent sessions", "Automated runs"],
+      "text": [
+        "Agent Session History",
+        "orca-history",
+        "This worktree",
+        "Project",
+        "All",
+        "Automated runs",
+        "0"
+      ]
     },
     "8d930b47bf2f": {
       "name": "worktree.ps#1",
@@ -358,7 +367,7 @@
           "settlements": {
             "mount": "eb79a9b3682a"
           },
-          "state": "035edfd9a1b9",
+          "state": "50a4961b9cb0",
           "effects": []
         }
       }

@@ -128,7 +128,9 @@ export function operationModuleLoader(
       cache.set(file, result)
       return result
     }
-    if (mutation && file.endsWith(mutation.file)) {
+    // Why: suffix matches are written with `/`; Windows resolves module paths with `\`.
+    const posixFile = file.replaceAll('\\', '/')
+    if (mutation && posixFile.endsWith(mutation.file)) {
       // Counting occurrences, not replace calls: `replace` would silently take only the first.
       const occurrences = source.split(mutation.before).length - 1
       if (occurrences !== 1) {
@@ -139,10 +141,10 @@ export function operationModuleLoader(
     }
     const exports: OperationModule = {}
     cache.set(file, exports)
-    const exposure = exposures.find(([suffix]) => file.endsWith(suffix))?.[1] ?? ''
+    const exposure = exposures.find(([suffix]) => posixFile.endsWith(suffix))?.[1] ?? ''
     const evaluate = compiledOperationModule(file, source, exposure)
     evaluate((name: string) => imported(file, name), exports)
-    observeSalvagedReads(file, exports)
+    observeSalvagedReads(posixFile, exports)
     return exports
   }
   return {

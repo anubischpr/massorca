@@ -4,14 +4,36 @@
   "family": "session.create-terminal",
   "namedDeltas": [],
   "values": {
-    "27c32960f51e": {
+    "1e1ddeb40fdc": {
       "name": "session.tabs.createTerminal#1",
-      "ordinal": 2,
+      "ordinal": 3,
       "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"session.tabs.createTerminal\",\"params\":{\"worktree\":\"id:wt-1\",\"afterTabId\":\"tab-0\",\"clientMutationId\":\"mobile-create:mjuohs00-8ig2hens\",\"agentPrompt\":\"summarize the diff\",\"agent\":\"claude\",\"activate\":false,\"select\":true,\"navigation\":\"caller\"}}"
     },
-    "3166a9d93c25": {
-      "name": "session.tabs.createTerminal#1",
+    "4cc8ebc23ca4": {
+      "name": "toast",
       "ordinal": 1,
+      "value": {
+        "durationMs": 3200,
+        "message": "This computer will open its default kind of tab for the agent, which may be a terminal."
+      }
+    },
+    "4e377b1c4bf7": {
+      "activeHandle": "terminal-1",
+      "activeSessionTabId": "tab-1",
+      "createError": "",
+      "creating": false,
+      "initializedHandles": [],
+      "pendingSelection": {
+        "handle": "terminal-1",
+        "kind": "terminal",
+        "tabId": "tab-1"
+      },
+      "sessionTabs": ["tab-1"],
+      "terminals": ["terminal-1"]
+    },
+    "53f34abaa30e": {
+      "name": "session.tabs.createTerminal#1",
+      "ordinal": 2,
       "args": [
         {
           "name": "method",
@@ -42,9 +64,21 @@
         "startedAt": 0
       }
     },
-    "3225d4a6ece6": {
+    "6275ace50da2": {
+      "activeHandle": "terminal-0",
+      "activeSessionTabId": "tab-0",
+      "createError": "",
+      "creating": true,
+      "initializedHandles": ["terminal-0"],
+      "pendingSelection": {
+        "$rpc": "null"
+      },
+      "sessionTabs": [],
+      "terminals": []
+    },
+    "6a649b70545a": {
       "name": "session.tabs.createTerminal#1",
-      "ordinal": 1,
+      "ordinal": 2,
       "args": [
         {
           "name": "method",
@@ -89,60 +123,41 @@
         }
       }
     },
-    "4d318de3b635": {
+    "7349d27ae37c": {
       "name": "unsubscribe-terminal",
-      "ordinal": 3,
+      "ordinal": 4,
       "value": {
         "handle": "terminal-0"
       }
     },
-    "4e377b1c4bf7": {
-      "activeHandle": "terminal-1",
-      "activeSessionTabId": "tab-1",
-      "createError": "",
-      "creating": false,
-      "initializedHandles": [],
-      "pendingSelection": {
-        "handle": "terminal-1",
-        "kind": "terminal",
-        "tabId": "tab-1"
-      },
-      "sessionTabs": ["tab-1"],
-      "terminals": ["terminal-1"]
-    },
-    "59de30d666ef": {
+    "780f2e0b88ec": {
       "name": "fetch-session-tabs",
-      "ordinal": 7,
+      "ordinal": 8,
       "value": {}
-    },
-    "6275ace50da2": {
-      "activeHandle": "terminal-0",
-      "activeSessionTabId": "tab-0",
-      "createError": "",
-      "creating": true,
-      "initializedHandles": ["terminal-0"],
-      "pendingSelection": {
-        "$rpc": "null"
-      },
-      "sessionTabs": [],
-      "terminals": []
-    },
-    "8b5144e3301d": {
-      "name": "schedule-delayed-action",
-      "ordinal": 6,
-      "value": {
-        "delayMs": 500
-      }
     },
     "9270aeb7d9c6": {
       "status": "pending",
       "startedAt": 0
     },
-    "c13357779299": {
+    "95bcf41e673e": {
+      "name": "schedule-delayed-action",
+      "ordinal": 7,
+      "value": {
+        "delayMs": 500
+      }
+    },
+    "bd0a769ba43e": {
       "name": "subscribe-terminal",
-      "ordinal": 5,
+      "ordinal": 6,
       "value": {
         "handle": "terminal-1"
+      }
+    },
+    "bea91c729a4b": {
+      "name": "default-live-input",
+      "ordinal": 5,
+      "value": {
+        "handles": ["terminal-1"]
       }
     },
     "eb79a9b3682a": {
@@ -152,13 +167,6 @@
       "value": {
         "$rpc": "undefined"
       }
-    },
-    "fb6329365e0b": {
-      "name": "default-live-input",
-      "ordinal": 4,
-      "value": {
-        "handles": ["terminal-1"]
-      }
     }
   },
   "recording": {
@@ -167,45 +175,52 @@
       {
         "id": "creating",
         "observation": {
-          "sender": ["3166a9d93c25"],
-          "payloads": ["27c32960f51e"],
+          "sender": ["53f34abaa30e"],
+          "payloads": ["1e1ddeb40fdc"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "create": "9270aeb7d9c6"
           },
           "state": "6275ace50da2",
-          "effects": []
+          "effects": ["4cc8ebc23ca4"]
         }
       },
       {
         "id": "created",
         "observation": {
-          "sender": ["3225d4a6ece6"],
-          "payloads": ["27c32960f51e"],
-          "settlements": {
-            "mount": "eb79a9b3682a",
-            "create": "eb79a9b3682a"
-          },
-          "state": "4e377b1c4bf7",
-          "effects": ["4d318de3b635", "fb6329365e0b", "c13357779299", "8b5144e3301d"]
-        }
-      },
-      {
-        "id": "tabs-refreshed",
-        "observation": {
-          "sender": ["3225d4a6ece6"],
-          "payloads": ["27c32960f51e"],
+          "sender": ["6a649b70545a"],
+          "payloads": ["1e1ddeb40fdc"],
           "settlements": {
             "mount": "eb79a9b3682a",
             "create": "eb79a9b3682a"
           },
           "state": "4e377b1c4bf7",
           "effects": [
-            "4d318de3b635",
-            "fb6329365e0b",
-            "c13357779299",
-            "8b5144e3301d",
-            "59de30d666ef"
+            "4cc8ebc23ca4",
+            "7349d27ae37c",
+            "bea91c729a4b",
+            "bd0a769ba43e",
+            "95bcf41e673e"
+          ]
+        }
+      },
+      {
+        "id": "tabs-refreshed",
+        "observation": {
+          "sender": ["6a649b70545a"],
+          "payloads": ["1e1ddeb40fdc"],
+          "settlements": {
+            "mount": "eb79a9b3682a",
+            "create": "eb79a9b3682a"
+          },
+          "state": "4e377b1c4bf7",
+          "effects": [
+            "4cc8ebc23ca4",
+            "7349d27ae37c",
+            "bea91c729a4b",
+            "bd0a769ba43e",
+            "95bcf41e673e",
+            "780f2e0b88ec"
           ]
         }
       }
