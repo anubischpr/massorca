@@ -75,11 +75,11 @@ export function NativeChatDelegationCard({
       aria-label={question}
       aria-busy={isSubmitting}
       tabIndex={-1}
-      className="shrink-0 bg-chat-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      className="flex min-h-0 flex-col bg-chat-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
-      <div className="mx-auto w-full max-w-(--chat-content-max-width) px-3 pt-2 pb-4 sm:px-4">
-        <div className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-xs">
-          <div className="flex items-baseline justify-between gap-3">
+      <div className="mx-auto flex min-h-0 w-full max-w-(--chat-content-max-width) flex-col px-3 pt-2 pb-4 sm:px-4">
+        <div className="flex min-h-0 flex-col gap-3 rounded-lg border border-border bg-card p-4 shadow-xs">
+          <div className="flex shrink-0 items-baseline justify-between gap-3">
             <p className="min-w-0 text-sm font-semibold text-foreground">{question}</p>
             <span className="shrink-0 text-xs text-muted-foreground">
               {translate(
@@ -88,33 +88,36 @@ export function NativeChatDelegationCard({
               )}
             </span>
           </div>
-          <RadioGroup
-            aria-label={translate('components.native-chat.delegation.choices', 'Agent choices')}
-            value={selectedId ?? ''}
-            onValueChange={setSelectedId}
-            disabled={isSubmitting}
-            className="sm:grid-cols-2"
-          >
-            {rows.map((row, index) => (
-              <DelegationOptionTile
-                key={row.optionId}
-                id={`${baseId}-${index}`}
-                row={row}
-                selected={row.optionId === selectedId}
-                disabled={isSubmitting}
-              />
-            ))}
-          </RadioGroup>
-          {body.prototypeCount ? (
-            <DelegationCountChoices
-              choices={body.prototypeCount.choices}
-              highlighted={pickedCount ?? body.prototypeCount.defaultCount}
+          {/* Why: a short pane scrolls the choices, count and explanation, so the buttons never leave the card. */}
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+            <RadioGroup
+              aria-label={translate('components.native-chat.delegation.choices', 'Agent choices')}
+              value={selectedId ?? ''}
+              onValueChange={setSelectedId}
               disabled={isSubmitting}
-              onChoose={setPickedCount}
-            />
-          ) : null}
-          {detail ? <DelegationFacts heading={detail.heading} facts={detail.facts} /> : null}
-          <div className="flex items-center justify-end gap-2">
+              className="sm:grid-cols-2"
+            >
+              {rows.map((row, index) => (
+                <DelegationOptionTile
+                  key={row.optionId}
+                  id={`${baseId}-${index}`}
+                  row={row}
+                  selected={row.optionId === selectedId}
+                  disabled={isSubmitting}
+                />
+              ))}
+            </RadioGroup>
+            {body.prototypeCount ? (
+              <DelegationCountChoices
+                choices={body.prototypeCount.choices}
+                highlighted={pickedCount ?? body.prototypeCount.defaultCount}
+                disabled={isSubmitting}
+                onChoose={setPickedCount}
+              />
+            ) : null}
+            {detail ? <DelegationFacts heading={detail.heading} facts={detail.facts} /> : null}
+          </div>
+          <div className="flex shrink-0 items-center justify-end gap-2">
             <Button variant="ghost" onClick={onCancel} disabled={isSubmitting}>
               {translate('components.native-chat.question.cancel', 'Cancel')}
             </Button>

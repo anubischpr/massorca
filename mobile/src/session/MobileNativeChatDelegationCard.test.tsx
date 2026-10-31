@@ -203,6 +203,21 @@ describe('MobileNativeChatDelegationCard', () => {
       expect(onAnswer).toHaveBeenLastCalledWith('token-automatic')
     })
 
+    it('keeps the Automatic explanation and Why with the count, and shortens the agent rows to make room', async () => {
+      await mount({ payload: withCount })
+
+      expect(texts()).toContain('Picks Codex · gpt-6.1-sol · medium')
+      expect(
+        renderer!.root.findByProps({ accessibilityLabel: 'Why Automatic picked this agent' })
+      ).toBeTruthy()
+      const rows = renderer!.root.findByType('ScrollView' as never)
+      expect(
+        rows.props.style
+          .flat()
+          .some((style: { maxHeight?: number } | undefined) => style?.maxHeight === 200)
+      ).toBe(true)
+    })
+
     it('draws no count question for a task that asks for no prototype', async () => {
       await mount({})
       expect(countRadios()).toHaveLength(0)

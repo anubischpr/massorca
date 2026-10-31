@@ -67,7 +67,11 @@ export function MobileNativeChatDelegationCard({
   return (
     <View style={styles.card} accessibilityLabel={question} accessibilityState={{ busy: sending }}>
       <Text style={styles.question}>{question}</Text>
-      <ScrollView style={styles.rows} keyboardShouldPersistTaps="always">
+      {/* Why: the count group takes room back from the agent rows, so the explanation and Start stay on screen. */}
+      <ScrollView
+        style={[styles.rows, prototypeCount ? styles.rowsWithCount : undefined]}
+        keyboardShouldPersistTaps="always"
+      >
         {rows.map((row) => (
           <OptionRow
             key={row.optionId}
@@ -238,6 +242,9 @@ const styles = StyleSheet.create({
   rows: {
     flexGrow: 0,
     maxHeight: 300
+  },
+  rowsWithCount: {
+    maxHeight: 200
   },
   option: {
     flexDirection: 'row',

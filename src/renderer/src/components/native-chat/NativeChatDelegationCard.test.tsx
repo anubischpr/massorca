@@ -209,6 +209,16 @@ describe('NativeChatDelegationCard', () => {
     ])
   })
 
+  it('keeps the Automatic explanation beside the count question, with the buttons outside the scrolling choices', () => {
+    renderCard({ ...payload, prototypeCount: { choices: [1, 2, 3], defaultCount: 2 } })
+
+    const scroller = container.querySelector('.overflow-y-auto')
+    expect(scroller?.textContent).toContain('How many prototypes?')
+    expect(scroller?.textContent).toContain('Automatic picked Codex')
+    expect(scroller?.contains(startButton())).toBe(false)
+    expect(scroller?.contains(footerButton('Cancel') ?? null)).toBe(false)
+  })
+
   it('sends the count the person picked with the agent answer', () => {
     const { onAnswer } = renderCard({
       ...payload,
