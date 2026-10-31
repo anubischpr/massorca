@@ -55,7 +55,8 @@ function titleFor(input: DelegationRequestInput): string {
 function prototypeCountFor(
   input: DelegationRequestInput,
   agents: readonly DelegationStoredAgent[],
-  readSetting: () => unknown
+  readSetting: () => unknown,
+  userMessage: string | undefined
 ): DelegationPrototypeCount | undefined {
   if (input.prompt.length > PROTOTYPE_PROMPT_MAX_LENGTH) {
     return undefined
@@ -63,11 +64,46 @@ function prototypeCountFor(
   const decision = decideDelegatedTaskPrototypeCount({
     text: neutralizePrototypeMarkers(input.prompt),
     agents: agents.map((agent) => prototypeAgentOfChild(agent.agent, agent.piRuntime)),
-    setting: sanitizePrototypeCountSetting(readSetting())
+    setting: sanitizePrototypeCountSetting(readSetting()),
+    ...(userMessage === undefined ? {} : { userMessage })
   })
   return decision.kind === 'ask'
     ? { choices: PROTOTYPE_CARD_COUNT_CHOICES, defaultCount: decision.defaultCount }
     : undefined
+}
+
+/**
+ * Whether the task makes a prototype request for its child: by its own words, or because the person asked for
+ * the design in a child session. A task too long for a child's first prompt makes none.
+ */
+function asksForPrototypes(
+  input: DelegationRequestInput,
+  agents: readonly DelegationStoredAgent[],
+  userMessage: string | undefined
+): boolean {
+  return (
+    input.prompt.length <= PROTOTYPE_PROMPT_MAX_LENGTH &&
+    delegatedTaskAsksForPrototypes({
+      text: neutralizePrototypeMarkers(input.prompt),
+      agents: agents.map((agent) => prototypeAgentOfChild(agent.agent, agent.piRuntime)),
+      ...(userMessage === undefined ? {} : { userMessage })
+    })
+  )
+}
+
+/** The person's last message in the parent chat; a read that fails leaves the task to its own words. */
+async function userMessageOf(
+  read: DelegationRequestDeps['readParentUserMessage'],
+  parentSessionId: string
+): Promise<string | undefined> {
+  try {
+    return await read(parentSessionId)
+  } catch (error) {
+    console.warn(
+      `[delegated-session] last message not read for ${parentSessionId}; the task is read by its own words: ${String(error)}`
+    )
+    return undefined
+  }
 }
 
 /**
@@ -76,16 +112,9 @@ function prototypeCountFor(
  */
 async function designSystemFor(
   input: DelegationRequestInput,
-  agents: readonly DelegationStoredAgent[],
+  asks: boolean,
   read: DelegationRequestDeps['readDesignSystemCard']
 ): Promise<PrototypeSystemCard | undefined> {
-  if (input.prompt.length > PROTOTYPE_PROMPT_MAX_LENGTH) {
-    return undefined
-  }
-  const asks = delegatedTaskAsksForPrototypes({
-    text: neutralizePrototypeMarkers(input.prompt),
-    agents: agents.map((agent) => prototypeAgentOfChild(agent.agent, agent.piRuntime))
-  })
   if (!asks) {
     return undefined
   }
@@ -132,8 +161,15 @@ export class DelegationRequestService {
       rateLimits: this.deps.readRateLimits(),
       now: this.deps.now()
     })
-    const prototypeCount = prototypeCountFor(input, agents, this.deps.readPrototypeCount)
-    const designSystem = await designSystemFor(input, agents, this.deps.readDesignSystemCard)
+    const userMessage = await userMessageOf(this.deps.readParentUserMessage, input.parentSessionId)
+    const prototypeTask = asksForPrototypes(input, agents, userMessage)
+    const prototypeCount = prototypeCountFor(
+      input,
+      agents,
+      this.deps.readPrototypeCount,
+      userMessage
+    )
+    const designSystem = await designSystemFor(input, prototypeTask, this.deps.readDesignSystemCard)
     const db = this.deps.requireDb()
     const row = db.createDelegationRequest({
       parentSessionId: parent.sessionId,
@@ -142,7 +178,8 @@ export class DelegationRequestService {
       prompt: input.prompt,
       writes: input.writes,
       workspaceKind: parent.workspaceKind,
-      optionsJson: JSON.stringify({ agents }),
+      // Why stored: the child's first prompt makes its request from this decision, not from the wording again.
+      optionsJson: JSON.stringify({ agents, ...(prototypeTask ? { prototype: true } : {}) }),
       decisionJson: route.status === 'routed' ? JSON.stringify(route.decision) : null
     })
     const card = buildDelegationCardContent({

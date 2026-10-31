@@ -12,7 +12,11 @@ import type { DelegationLauncher } from './delegation-launch-types'
 import { delegationPlacementFor } from './delegation-router'
 import type { FailedDelegatedStart } from './delegation-failed-start'
 import { foldSlugAccents } from '../../shared/workspace-name'
-import { readStoredDesignSystemMode, readStoredPrototypeCount } from './delegation-stored-request'
+import {
+  readStoredDesignSystemMode,
+  readStoredPrototypeCount,
+  readStoredPrototypeTask
+} from './delegation-stored-request'
 import type { PrototypeDesignSystemMode } from '../../shared/prototype-design-system-files'
 
 const RUN_OBJECTIVE = 'Delegated child sessions'
@@ -28,6 +32,8 @@ export type DelegationWorkerStarter = (input: {
   prototypeCount?: number
   /** The design system choice the person answered on the card, for the child's first prompt. */
   designSystem?: PrototypeDesignSystemMode
+  /** The request was filed as a prototype task, so the child's first prompt makes its request. */
+  prototypeTask?: boolean
 }) => Promise<unknown>
 
 /** A branch-safe name for the worktree a child that writes code gets, unique per request. */
@@ -147,12 +153,14 @@ export function createDelegationLauncher(deps: {
     const newWorktree = target.placement === 'new-child' && request.workspace_kind === 'git'
     const prototypeCount = readStoredPrototypeCount(request)
     const designSystem = readStoredDesignSystemMode(request)
+    const prototypeTask = readStoredPrototypeTask(request)
     const receipt = await deps.startWorker({
       run,
       caller,
       task,
       ...(prototypeCount === undefined ? {} : { prototypeCount }),
       ...(designSystem === undefined ? {} : { designSystem }),
+      ...(prototypeTask ? { prototypeTask } : {}),
       params: {
         task: task.id,
         from: caller.address,

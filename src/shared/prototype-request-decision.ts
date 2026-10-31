@@ -64,8 +64,10 @@ export function decideDelegatedTaskPrototypeCount(input: {
   text: string
   agents: readonly PrototypeAgent[]
   setting: PrototypeCountSetting
+  /** What the person last typed in the parent chat; it can make a task a prototype task its own words do not. */
+  userMessage?: string
 }): DelegatedTaskPrototypeCount {
-  const request = delegatedTaskPrototypeRequest(input.text, input.agents)
+  const request = delegatedTaskPrototypeRequest(input.text, input.agents, input.userMessage)
   if (request.kind === 'none' || settingAnswers(request, input.setting)) {
     return { kind: 'none' }
   }
@@ -79,17 +81,39 @@ export function decideDelegatedTaskPrototypeCount(input: {
 export function delegatedTaskAsksForPrototypes(input: {
   text: string
   agents: readonly PrototypeAgent[]
+  userMessage?: string
 }): boolean {
-  return delegatedTaskPrototypeRequest(input.text, input.agents).kind !== 'none'
+  return delegatedTaskPrototypeRequest(input.text, input.agents, input.userMessage).kind !== 'none'
+}
+
+/**
+ * Whether the person asked, in their own words, for a design to be made in a child session. The composer sent
+ * that message as typed and left the request to the child, so the task the parent agent wrote for it is a
+ * prototype task even when the agent's wording (it may say "architecture") reads as none.
+ */
+export function personHandedPrototypeToChild(
+  userMessage: string,
+  agents: readonly PrototypeAgent[]
+): boolean {
+  return (
+    asksForDelegatedSession(userMessage) &&
+    agents.some((agent) => classifyPrototypeRequest(userMessage, agent).kind === 'keyword')
+  )
 }
 
 function delegatedTaskPrototypeRequest(
   text: string,
-  agents: readonly PrototypeAgent[]
+  agents: readonly PrototypeAgent[],
+  userMessage?: string
 ): PrototypeRequest {
   const requests = agents.map((agent) => classifyPrototypeRequest(text, agent))
-  return (
+  const own =
     requests.find((entry) => entry.kind === 'command') ??
-    requests.find((entry) => entry.kind === 'keyword') ?? { kind: 'none' }
-  )
+    requests.find((entry) => entry.kind === 'keyword')
+  if (own !== undefined) {
+    return own
+  }
+  return userMessage !== undefined && personHandedPrototypeToChild(userMessage, agents)
+    ? { kind: 'keyword' }
+    : { kind: 'none' }
 }

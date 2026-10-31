@@ -43,6 +43,7 @@ export function readStoredDelegationAgents(row: DelegationRequestRow): Delegatio
 }
 
 const StoredPrototypeAnswers = z.object({
+  prototype: z.literal(true).optional().catch(undefined),
   count: z.int().min(PROTOTYPE_COUNT_MIN).max(PROTOTYPE_COUNT_MAX).optional().catch(undefined),
   designSystem: z.enum(PROTOTYPE_DESIGN_SYSTEM_MODES).optional().catch(undefined)
 })
@@ -59,6 +60,11 @@ export function readStoredDesignSystemMode(
   return StoredPrototypeAnswers.safeParse(parseJson(row.options_json)).data?.designSystem
 }
 
+/** Whether the request was filed as a prototype task, by its own words or by the person's message. */
+export function readStoredPrototypeTask(row: DelegationRequestRow): boolean {
+  return StoredPrototypeAnswers.safeParse(parseJson(row.options_json)).data?.prototype === true
+}
+
 /** The stored options with the card's prototype answers added; the agents stay as the card offered them. */
 export function storedOptionsWithPrototypeAnswers(
   row: DelegationRequestRow,
@@ -66,6 +72,7 @@ export function storedOptionsWithPrototypeAnswers(
 ): string {
   return JSON.stringify({
     agents: readStoredDelegationAgents(row),
+    ...(readStoredPrototypeTask(row) ? { prototype: true } : {}),
     ...(answers.count === undefined ? {} : { count: answers.count }),
     ...(answers.designSystem === undefined ? {} : { designSystem: answers.designSystem })
   })

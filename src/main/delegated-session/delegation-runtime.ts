@@ -7,6 +7,7 @@ import { TUI_AGENT_DISPLAY_NAMES } from '../../shared/tui-agent-display-names'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
 import type { StructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-host'
 import { structuredAgentSessionHostRows } from '../native-chat/agent-session-wire/structured-agent-session-host-rows'
+import { lastPersonMessageText } from './delegation-person-message'
 import { launchDirectoryOfChat } from '../native-chat/chat-launch-directory'
 import { readDesignSystemOfLaunchDirectory } from '../native-chat/prototype-design-system-files'
 import {
@@ -65,6 +66,16 @@ function readParentSession(sessionId: string): DelegationParentSession | null {
     workspaceKind: record.location.workspaceKind === 'folder' ? 'folder' : 'git',
     accessMode: record.options?.accessMode
   }
+}
+
+/** The person's last message in the parent chat, read from its journal on this host. */
+async function readParentUserMessage(sessionId: string): Promise<string | undefined> {
+  const host = getStructuredAgentSessionHost()
+  if (!host?.deps.store.getRecord(sessionId)) {
+    return undefined
+  }
+  const { journal } = await host.lifetime.conversation(sessionId)
+  return lastPersonMessageText(journal.snapshot().items)
 }
 
 /** The design system card of the parent chat's project, read on this host like the composer's request does. */
@@ -190,6 +201,7 @@ export function getDelegationRequestService(runtime: OrcaRuntimeService): Delega
     listAgents: (parent) => listUsableAgents(runtime, parent),
     readPrototypeCount: () => runtime.readPrototypeCountSetting(),
     readDesignSystemCard: readParentDesignSystemCard,
+    readParentUserMessage,
     readRateLimits: () => readRateLimits(runtime),
     refreshUsage: () => runtime.refreshAccountsForMobileSubscriber(),
     now: () => Date.now()
@@ -240,7 +252,15 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
           failed
         ),
       warn: (message, error) => console.warn(`[delegated-session] ${message}`, error),
-      startWorker: async ({ params, run, caller, task, prototypeCount, designSystem }) => {
+      startWorker: async ({
+        params,
+        run,
+        caller,
+        task,
+        prototypeCount,
+        designSystem,
+        prototypeTask
+      }) => {
         // Loaded on use: the worker-start pipeline imports far more than a request needs.
         const [{ startLocalWorker }, modeModule, timing] = await Promise.all([
           import('../runtime/rpc/methods/orchestration/worker/local-worker-start'),
@@ -262,7 +282,8 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
                 originSessionId: caller.sessionId,
                 taskSpec: task.spec,
                 ...(prototypeCount === undefined ? {} : { count: prototypeCount }),
-                ...(designSystem === undefined ? {} : { designSystem })
+                ...(designSystem === undefined ? {} : { designSystem }),
+                ...(prototypeTask ? { prototypeTask } : {})
               },
               delegatedChildPromptDeps(runtime)
             ),

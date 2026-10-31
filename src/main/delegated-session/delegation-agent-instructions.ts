@@ -8,6 +8,7 @@ const DELEGATION_INSTRUCTION_LINES = [
   'That command is the only way to create a child session. Never use your own subagent tools for it: not Task or Agent, not invoke_subagent (TypeName self included), not any built-in subagent or self-spawn.',
   'The command returns at once and a card in this chat asks the user which agent runs the child. Tell the user the request is waiting for their choice, then end your turn without polling.',
   'When the child finishes, its result arrives in this chat as a message. Read it and report to the user; do not redo the work. If the report says the child reused or created a design system, tell the user which.',
+  'For a design or prototype task, write the design request itself in TASK. Do not name output folders or design tools in it: the host gives the child its prototype folder and the design system choice.',
   'If you are a dispatched worker, you are a child session. In anything the user reads, such as questions, options and reports, call the location of the session that started you the parent worktree, never its folder or branch name alone, and never show internal ids. Use its real path only inside commands.'
 ] as const
 

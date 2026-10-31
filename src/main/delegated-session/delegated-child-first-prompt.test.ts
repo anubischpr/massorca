@@ -154,6 +154,28 @@ describe('delegatedChildFirstPrompt', () => {
     expect(skipped?.appendix).not.toContain('Before designing, read')
   })
 
+  // A parent agent worded this task so that its own words read as no prototype request ("architecture").
+  const AGENT_WORDED_TASK =
+    'Create a NEW UI design for the page. Study the information architecture first.'
+
+  it('delivers a task as stored when its words ask for no prototype and the host decided nothing', async () => {
+    const { deps, createRequest } = fakeDeps()
+    expect(await delegatedChildFirstPrompt(promptInput(AGENT_WORDED_TASK), deps)).toBeNull()
+    expect(createRequest).not.toHaveBeenCalled()
+  })
+
+  it('makes the prototype request for a task the host decided is one, whatever its words', async () => {
+    const { deps, createRequest } = fakeDeps()
+    const prompt = await delegatedChildFirstPrompt(
+      { ...promptInput(AGENT_WORDED_TASK), prototypeTask: true },
+      deps
+    )
+    expect(createRequest).toHaveBeenCalledTimes(1)
+    expect(prompt?.appendix).toContain(prototypeRequestMarkerLine(REQUEST))
+    expect(prompt?.appendix).toContain('Produce 3 distinct design directions')
+    expect(prompt?.body).toBe(AGENT_WORDED_TASK)
+  })
+
   it('uses the project system and goes on when the answer names no design system', async () => {
     const { deps, createRequest } = fakeDeps()
     await delegatedChildFirstPrompt(promptInput(NEXUS_TASK), deps)

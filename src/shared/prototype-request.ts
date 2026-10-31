@@ -94,6 +94,8 @@ export type PrototypeRequestInput = {
   designSystemFolder?: string
   /** No user reviews the result (a delegated child): a missing system is created and the work goes on. */
   designSystemUnattended?: boolean
+  /** The host already decided this text is a prototype request, so its own wording is not read again. */
+  decidedAsPrototypeRequest?: boolean
 }
 
 export type PrototypeRequestMessage = {
@@ -108,7 +110,7 @@ export function buildPrototypeRequestMessage(
 ): PrototypeRequestMessage {
   // Only markers this builder writes may reach a transcript, never ones the user pasted.
   const text = neutralizePrototypeMarkers(input.text)
-  const request = classifyPrototypeRequest(text, input.agent)
+  const request = requestOf(text, input)
   return { visibleText: text, sentText: sentTextFor(request, { ...input, text }) }
 }
 
@@ -122,7 +124,7 @@ export function buildPrototypeRequestParts(input: PrototypeRequestInput): {
   hidden: string
 } {
   const text = neutralizePrototypeMarkers(input.text)
-  return partsFor(classifyPrototypeRequest(text, input.agent), { ...input, text })
+  return partsFor(requestOf(text, input), { ...input, text })
 }
 
 export type PrototypeIterationInput = {
@@ -149,6 +151,13 @@ export function buildPrototypeIterationInstruction({
     `${iterationInstructionPrefix(letter)}${file}, self-contained with inline CSS and no external network resources, and do not modify other files.`,
     PROTOTYPE_VERSION_CRAFT_LINE
   ].join('\n')
+}
+
+function requestOf(text: string, input: PrototypeRequestInput): PrototypeRequest {
+  const request = classifyPrototypeRequest(text, input.agent)
+  return request.kind === 'none' && input.decidedAsPrototypeRequest === true
+    ? { kind: 'keyword' }
+    : request
 }
 
 function sentTextFor(request: PrototypeRequest, input: PrototypeRequestInput): string {

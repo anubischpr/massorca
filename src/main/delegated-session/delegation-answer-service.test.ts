@@ -120,7 +120,8 @@ describe('DelegationAnswerService', () => {
       requireDb: () => db,
       listAgents: async () => AGENTS,
       readPrototypeCount: () => ({ mode: 'always', count: 2 }),
-      readDesignSystemCard: async () => null
+      readDesignSystemCard: async () => null,
+      readParentUserMessage: async () => undefined
     }
     requests = new DelegationRequestService(requestDeps)
     answers = new DelegationAnswerService({ ...host, launch, tellParent, warn: vi.fn() })

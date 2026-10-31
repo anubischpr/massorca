@@ -180,6 +180,14 @@ describe('createDelegationLauncher', () => {
     expect(startWorker.mock.calls[0]?.[0].designSystem).toBe('skip')
   })
 
+  it('hands a prototype task filed from the person message to the worker start', async () => {
+    const { launch, startWorker } = launcher()
+    await run(launch, { request: { options_json: '{"agents":[],"prototype":true}' } })
+    expect(startWorker.mock.calls[0]?.[0].prototypeTask).toBe(true)
+    await run(launch)
+    expect(startWorker.mock.calls[1]?.[0].prototypeTask).toBeUndefined()
+  })
+
   it('ignores a design system choice this host does not know', async () => {
     const { launch, startWorker } = launcher()
     await run(launch, { request: { options_json: '{"agents":[],"designSystem":"invent"}' } })

@@ -1,3 +1,4 @@
+import { readStoredPrototypeTask } from './delegation-stored-request'
 import type { PrototypeSystemCard } from '../../shared/prototype-design-system-card'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
@@ -62,6 +63,7 @@ describe('DelegationRequestService.request', () => {
       refreshUsage: async () => {},
       readPrototypeCount: () => ({ mode: 'always', count: 2 }),
       readDesignSystemCard: async () => null,
+      readParentUserMessage: async () => undefined,
       now: () => NOW
     }
   })
@@ -338,6 +340,52 @@ describe('DelegationRequestService.request', () => {
       }).request(prototypeInput)
       expect(cardPayload().designSystem).toBeUndefined()
       expect(cardPayload().prototypeCount).toBeDefined()
+    })
+
+    // The task a parent agent wrote for a design request: "information architecture" is a negative term of the
+    // prototype lexicon, so its own words read as no prototype request.
+    const AGENT_WORDED_TASK = {
+      ...input,
+      prompt:
+        'Create a NEW UI design for the pipeline page. Study the information architecture, then write 2 to 3 HTML artboards.'
+    }
+    const PERSON_MESSAGE =
+      'Explora el proyecto con sub agentes. Por último, en una sesión hija crea un nuevo diseño para la página "clinical-report"'
+
+    it('asks nothing for a task worded as no prototype when the person asked for no design', async () => {
+      await new DelegationRequestService(deps).request(AGENT_WORDED_TASK)
+      expect(cardPayload().prototypeCount).toBeUndefined()
+      expect(cardPayload().designSystem).toBeUndefined()
+    })
+
+    it('asks the count and the design system when the person asked for the design in a child session', async () => {
+      await new DelegationRequestService({
+        ...deps,
+        readDesignSystemCard: async () => EXISTING_SYSTEM,
+        readParentUserMessage: async () => PERSON_MESSAGE
+      }).request(AGENT_WORDED_TASK)
+      expect(cardPayload().prototypeCount).toEqual({ choices: [1, 2, 3], defaultCount: 2 })
+      expect(cardPayload().designSystem).toEqual(EXISTING_SYSTEM)
+    })
+
+    it('files the request as a prototype task, so the child makes its prototype request', async () => {
+      const receipt = await new DelegationRequestService({
+        ...deps,
+        readParentUserMessage: async () => PERSON_MESSAGE
+      }).request(AGENT_WORDED_TASK)
+      const row = db.getDelegationRequest(receipt.requestId)
+      expect(row && readStoredPrototypeTask(row)).toBe(true)
+    })
+
+    it('reads the task by its own words when the last message cannot be read', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+      await new DelegationRequestService({
+        ...deps,
+        readParentUserMessage: async () => {
+          throw new Error('journal unavailable')
+        }
+      }).request(AGENT_WORDED_TASK)
+      expect(cardPayload().prototypeCount).toBeUndefined()
     })
 
     it('asks no count for a task that asks for no prototype', async () => {

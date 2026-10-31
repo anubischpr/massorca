@@ -35,4 +35,6 @@ export type DelegationRequestDeps = DelegationHostDeps & {
   readPrototypeCount: () => unknown
   /** The parent chat's project design system as its card shows it; null when it cannot be shown. */
   readDesignSystemCard: (parentSessionId: string) => Promise<PrototypeSystemCard | null>
+  /** What the person last typed in the parent chat, or undefined when this host holds no such message. */
+  readParentUserMessage: (parentSessionId: string) => Promise<string | undefined>
 }
