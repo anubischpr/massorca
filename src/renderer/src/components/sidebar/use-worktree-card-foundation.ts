@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 
-import {
-  DEFAULT_AGENT_ACTIVITY_DISPLAY_MODE,
-  resolveWorktreeCardLayout
-} from '../../../../shared/constants'
+import { DEFAULT_AGENT_ACTIVITY_DISPLAY_MODE } from '../../../../shared/constants'
+import { resolveWorktreeCardSurfaceLayout } from '../../../../shared/worktree/card-layout'
 import {
   isRuntimeOwnedSshTargetId,
   parseExecutionHostId,
@@ -28,8 +26,9 @@ import { getDeleteStateForWorktreeHost } from './worktree-delete-state-host-matc
 
 export function useWorktreeCardFoundation({
   worktree,
-  repo
-}: Pick<WorktreeCardProps, 'worktree' | 'repo'>) {
+  repo,
+  sidebarRow = false
+}: Pick<WorktreeCardProps, 'worktree' | 'repo' | 'sidebarRow'>) {
   const openModal = useAppStore((s) => s.openModal)
   const openTaskPage = useAppStore((s) => s.openTaskPage)
   const openAutomationsPage = useAppStore((s) => s.openAutomationsPage)
@@ -48,8 +47,7 @@ export function useWorktreeCardFoundation({
     useAppStore((s) => s.agentActivityDisplayMode) ?? DEFAULT_AGENT_ACTIVITY_DISPLAY_MODE
   const projectGroups = useAppStore((s) => s.projectGroups)
   const newCardStyle = settings?.experimentalNewWorktreeCardStyle === true
-  // Why: the experimental card style is an explicit opt-in, so it keeps winning over the layout setting.
-  const cardLayout = newCardStyle ? 'detailed' : resolveWorktreeCardLayout(settings)
+  const cardLayout = resolveWorktreeCardSurfaceLayout(settings, sidebarRow)
   const oneLineCards = cardLayout === 'one-line'
   const compactCards = cardLayout === 'compact'
   const handleEditIssue = useCallback(

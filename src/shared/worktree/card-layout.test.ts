@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   getWorktreeCardModeForLayout,
   normalizeWorktreeCardLayout,
-  resolveWorktreeCardLayout
+  resolveWorktreeCardLayout,
+  resolveWorktreeCardSurfaceLayout
 } from './card-layout'
 import { getWorktreeCardModeUpdates } from './card-properties'
 
@@ -33,6 +34,34 @@ describe('resolveWorktreeCardLayout', () => {
   it('keeps the Detailed card until settings have loaded', () => {
     expect(resolveWorktreeCardLayout(null)).toBe('detailed')
     expect(resolveWorktreeCardLayout(undefined)).toBe('detailed')
+  })
+})
+
+describe('resolveWorktreeCardSurfaceLayout', () => {
+  it('gives sidebar rows the layout setting, so One line is their default', () => {
+    expect(resolveWorktreeCardSurfaceLayout({}, true)).toBe('one-line')
+    expect(resolveWorktreeCardSurfaceLayout({ worktreeCardLayout: 'detailed' }, true)).toBe(
+      'detailed'
+    )
+  })
+
+  it('keeps the folder panel and kanban card on the compact flag, never One line', () => {
+    expect(resolveWorktreeCardSurfaceLayout({}, false)).toBe('detailed')
+    expect(resolveWorktreeCardSurfaceLayout({ worktreeCardLayout: 'one-line' }, false)).toBe(
+      'detailed'
+    )
+    expect(resolveWorktreeCardSurfaceLayout({ compactWorktreeCards: true }, false)).toBe('compact')
+  })
+
+  it('lets the experimental card style win on every surface', () => {
+    const settings = { experimentalNewWorktreeCardStyle: true, compactWorktreeCards: true }
+    expect(resolveWorktreeCardSurfaceLayout(settings, true)).toBe('detailed')
+    expect(resolveWorktreeCardSurfaceLayout(settings, false)).toBe('detailed')
+  })
+
+  it('keeps the Detailed card until settings have loaded on either surface', () => {
+    expect(resolveWorktreeCardSurfaceLayout(null, true)).toBe('detailed')
+    expect(resolveWorktreeCardSurfaceLayout(undefined, false)).toBe('detailed')
   })
 })
 

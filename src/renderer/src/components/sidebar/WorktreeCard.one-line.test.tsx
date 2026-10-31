@@ -114,7 +114,12 @@ function makeWorktree(overrides: Partial<Worktree> = {}): Worktree {
 
 // Imported per test so the mocked store is seeded before the module reads it.
 async function renderCardMarkup(
-  props: { branchLabel?: string; branchQualifier?: string; worktree?: Worktree } = {}
+  props: {
+    branchLabel?: string
+    branchQualifier?: string
+    sidebarRow?: boolean
+    worktree?: Worktree
+  } = {}
 ): Promise<string> {
   const { default: WorktreeCard } = await import('./WorktreeCard')
   return renderToStaticMarkup(
@@ -122,6 +127,7 @@ async function renderCardMarkup(
       worktree={props.worktree ?? makeWorktree()}
       repo={makeRepo()}
       isActive={false}
+      sidebarRow={props.sidebarRow ?? true}
       branchLabel={props.branchLabel}
       branchQualifier={props.branchQualifier}
     />
@@ -134,6 +140,17 @@ describe('WorktreeCard layout default', () => {
     worktreeCardProperties = ['status', 'pr', 'inline-agents']
     settings = {}
   })
+
+  it(
+    'keeps the Detailed card on a surface that is not a sidebar row',
+    async () => {
+      const markup = await renderCardMarkup({ sidebarRow: false })
+
+      expect(markup).not.toContain('data-worktree-card-branch-row')
+      expect(markup).toContain('data-worktree-card-meta-row')
+    },
+    WORKTREE_CARD_IMPORT_TIMEOUT_MS
+  )
 
   it(
     'renders the one-line branch row when no layout was ever chosen',

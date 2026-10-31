@@ -28,6 +28,8 @@ export type WorktreeCardProps = {
   branchLabel?: string
   /** One-line card: project and/or host that tells a same-named branch apart. */
   branchQualifier?: string
+  /** A sidebar list row, the only surface that takes the one-line layout; other surfaces keep Compact and Detailed. */
+  sidebarRow?: boolean
   inPinnedSection?: boolean
   activationRowKey?: string
   renameRowKey?: string

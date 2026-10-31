@@ -43,6 +43,26 @@ export function resolveWorktreeCardLayout(
   return settings.compactWorktreeCards === true ? 'compact' : DEFAULT_WORKTREE_CARD_LAYOUT
 }
 
+/**
+ * The layout one card surface renders. Only sidebar rows take the layout setting; the folder panel
+ * and the kanban card keep the compact flag they always read. The experimental card style still wins.
+ */
+export function resolveWorktreeCardSurfaceLayout(
+  settings:
+    | (WorktreeCardLayoutSettings & { experimentalNewWorktreeCardStyle?: boolean })
+    | null
+    | undefined,
+  sidebarRow: boolean
+): WorktreeCardLayout {
+  if (settings?.experimentalNewWorktreeCardStyle === true) {
+    return 'detailed'
+  }
+  if (sidebarRow) {
+    return resolveWorktreeCardLayout(settings)
+  }
+  return settings?.compactWorktreeCards === true ? 'compact' : 'detailed'
+}
+
 export function getWorktreeCardModeForLayout(layout: string): WorktreeCardMode {
   const normalized = normalizeWorktreeCardLayout(layout)
   if (normalized === 'compact') {

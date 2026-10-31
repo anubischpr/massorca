@@ -226,6 +226,7 @@ export function renderWorktreeItemRow(
         hostContextLabel={itemRow.hostContextLabel}
         branchLabel={itemRow.branchLabel}
         branchQualifier={itemRow.branchQualifier}
+        sidebarRow
         inPinnedSection={itemRow.sectionKey === PINNED_GROUP_KEY}
         renameRowKey={itemRow.rowKey}
         lineageChildCount={itemRow.lineageChildCount}
