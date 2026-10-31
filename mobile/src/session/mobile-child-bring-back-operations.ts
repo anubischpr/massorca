@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { ChildBringBackStatus } from '../../../src/shared/child-bring-back'
-import type { ChildBringBackCall } from '../../../src/shared/use-child-bring-back'
+import type { ChildBringBackCall } from '../../../src/shared/child-bring-back-controller'
 import { defineRpcOperation, runRpcOperation } from '../transport/rpc-operation'
 import { rpcResultVariant } from '../transport/rpc-operation-result-reader'
 import type { UnvalidatedRpcRequestPort } from '../transport/unvalidated-rpc-request-port'
@@ -8,32 +8,32 @@ import type { UnvalidatedRpcRequestPort } from '../transport/unvalidated-rpc-req
 const TIMEOUT_MS = 120_000
 
 const statusOperation = defineRpcOperation({
-  name: 'orchestration.child-bring-back-status',
-  method: 'orchestration.childBringBackStatus',
+  name: 'delegation.bring-back-status',
+  method: 'delegation.bringBackStatus',
   acceptance: 'require-result-or-throw-message',
   barrier: 'on-settle',
   read: rpcResultVariant('status', ChildBringBackStatus)
 })
 
 const bringBackOperation = defineRpcOperation({
-  name: 'orchestration.child-bring-back',
-  method: 'orchestration.childBringBack',
+  name: 'delegation.bring-back',
+  method: 'delegation.bringBack',
   acceptance: 'require-result-or-throw-message',
   barrier: 'on-settle',
   read: rpcResultVariant('status', ChildBringBackStatus)
 })
 
 const abortOperation = defineRpcOperation({
-  name: 'orchestration.child-bring-back-abort',
-  method: 'orchestration.childBringBackAbort',
+  name: 'delegation.bring-back-abort',
+  method: 'delegation.bringBackAbort',
   acceptance: 'require-result-or-throw-message',
   barrier: 'on-settle',
   read: rpcResultVariant('status', ChildBringBackStatus)
 })
 
 const resolveOperation = defineRpcOperation({
-  name: 'orchestration.child-bring-back-resolve',
-  method: 'orchestration.childBringBackResolve',
+  name: 'delegation.bring-back-resolve',
+  method: 'delegation.bringBackResolve',
   acceptance: 'require-result-or-throw-message',
   barrier: 'on-settle',
   read: rpcResultVariant('accepted', z.object({ ok: z.literal(true) }))
@@ -44,13 +44,13 @@ export function mobileChildBringBackCall(client: UnvalidatedRpcRequestPort): Chi
   const options = { timeoutMs: TIMEOUT_MS, budgetSpansConnect: true }
   return (method, params) => {
     switch (method) {
-      case 'orchestration.childBringBackStatus':
+      case 'delegation.bringBackStatus':
         return runRpcOperation(client, statusOperation, params, options)
-      case 'orchestration.childBringBack':
+      case 'delegation.bringBack':
         return runRpcOperation(client, bringBackOperation, params, options)
-      case 'orchestration.childBringBackAbort':
+      case 'delegation.bringBackAbort':
         return runRpcOperation(client, abortOperation, params, options)
-      case 'orchestration.childBringBackResolve':
+      case 'delegation.bringBackResolve':
         return runRpcOperation(client, resolveOperation, params, options)
     }
   }

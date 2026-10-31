@@ -1,11 +1,11 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
 import { useWorktreeRuntimeTarget } from '@/runtime/use-worktree-runtime-target'
 import { useAppStore } from '@/store'
 import { childBringBackView, type ChildBringBackLine } from '../../../../shared/child-bring-back'
-import { useChildBringBack, type ChildBringBackCall } from '../../../../shared/use-child-bring-back'
+import { ChildBringBackController } from '../../../../shared/child-bring-back-controller'
 import { ConflictSummaryCard } from '../right-sidebar/source-control/listing/conflict-status-cards'
 import { openNativeChatSourceControl } from './native-chat-session-navigation'
 
@@ -28,15 +28,17 @@ export function NativeChatChildBringBack({
 }): React.JSX.Element | null {
   const worktreeId = useAppStore((state) => state.activeWorktreeId)
   const target = useWorktreeRuntimeTarget(worktreeId)
-  const call = useMemo<ChildBringBackCall>(
-    // Why: no target means direct SSH, whose git this process's runtime drives over the relay.
-    () => (method, params) =>
-      callRuntimeRpc(target ?? { kind: 'local' }, method, params, {
-        timeoutMs: 120_000
-      }),
-    [target]
+  const controller = useMemo(
+    () =>
+      new ChildBringBackController(requestId, (method, params) =>
+        // Why: no target means direct SSH, whose git this process's runtime drives over the relay.
+        callRuntimeRpc(target ?? { kind: 'local' }, method, params, { timeoutMs: 120_000 })
+      ),
+    [requestId, target]
   )
-  const { status, busy, error, bringBack, abort, resolve } = useChildBringBack(requestId, call)
+  useEffect(() => controller.start(), [controller])
+  const { status, busy, error } = useSyncExternalStore(controller.subscribe, controller.getSnapshot)
+  const { bringBack, abort, resolve } = controller
   const view = childBringBackView(status)
   const open = view.childOpenable ? openChild : null
   return (

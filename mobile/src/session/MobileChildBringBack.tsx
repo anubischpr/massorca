@@ -1,16 +1,27 @@
-import { createContext, useContext, useMemo } from 'react'
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
 import {
   childBringBackView,
   interpolateChildBringBackLine
 } from '../../../src/shared/child-bring-back'
-import { useChildBringBack } from '../../../src/shared/use-child-bring-back'
+import {
+  ChildBringBackController,
+  type ChildBringBackSnapshot
+} from '../../../src/shared/child-bring-back-controller'
 import { colors, radii, typography } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
 import { mobileChildBringBackCall } from './mobile-child-bring-back-operations'
 
 /** Null where no host connection backs the chat, so a notice offers nothing. */
 export const MobileChildBringBackClientContext = createContext<RpcClient | null>(null)
+
+const NO_HOST: ChildBringBackSnapshot = {
+  status: { kind: 'unavailable' },
+  busy: false,
+  error: null
+}
+const readNoHost = () => NO_HOST
+const subscribeToNothing = () => () => undefined
 
 function NoticeButton({
   label,
@@ -52,8 +63,19 @@ export function MobileChildBringBack({
   openChild: (() => void) | null
 }): React.JSX.Element {
   const client = useContext(MobileChildBringBackClientContext)
-  const call = useMemo(() => (client ? mobileChildBringBackCall(client) : null), [client])
-  const { status, busy, error, bringBack, abort, resolve } = useChildBringBack(requestId, call)
+  const controller = useMemo(
+    () =>
+      client ? new ChildBringBackController(requestId, mobileChildBringBackCall(client)) : null,
+    [client, requestId]
+  )
+  useEffect(() => controller?.start(), [controller])
+  const { status, busy, error } = useSyncExternalStore(
+    controller?.subscribe ?? subscribeToNothing,
+    controller?.getSnapshot ?? readNoHost
+  )
+  const bringBack = () => controller?.bringBack()
+  const abort = () => controller?.abort()
+  const resolve = () => controller?.resolve()
   const view = childBringBackView(status)
   const open = view.childOpenable ? openChild : null
   return (

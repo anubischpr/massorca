@@ -88,7 +88,8 @@ async function resolveChild(
     return {
       kind: 'head',
       head,
-      uncommitted: lines(await childGit.run(['status', '--porcelain'])).length,
+      uncommitted: lines(await childGit.run(['status', '--porcelain', '--untracked-files=all']))
+        .length,
       removed: false
     }
   }

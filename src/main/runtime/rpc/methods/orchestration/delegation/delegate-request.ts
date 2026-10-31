@@ -42,7 +42,7 @@ export const ORCHESTRATION_DELEGATION_METHODS = [
     }
   }),
   defineMethod({
-    name: 'orchestration.childBringBackStatus',
+    name: 'delegation.bringBackStatus',
     permission: 'workspace',
     params: ChildBringBackParams,
     handler: async ({ requestId }, { runtime }) => {
@@ -51,7 +51,7 @@ export const ORCHESTRATION_DELEGATION_METHODS = [
     }
   }),
   defineMethod({
-    name: 'orchestration.childBringBack',
+    name: 'delegation.bringBack',
     permission: 'workspace',
     params: ChildBringBackParams,
     handler: async ({ requestId }, { runtime }) => {
@@ -60,7 +60,7 @@ export const ORCHESTRATION_DELEGATION_METHODS = [
     }
   }),
   defineMethod({
-    name: 'orchestration.childBringBackAbort',
+    name: 'delegation.bringBackAbort',
     permission: 'workspace',
     params: ChildBringBackParams,
     handler: async ({ requestId }, { runtime }) => {
@@ -69,7 +69,7 @@ export const ORCHESTRATION_DELEGATION_METHODS = [
     }
   }),
   defineMethod({
-    name: 'orchestration.childBringBackResolve',
+    name: 'delegation.bringBackResolve',
     permission: 'workspace',
     params: ChildBringBackParams,
     handler: async ({ requestId }, { runtime }) => {
