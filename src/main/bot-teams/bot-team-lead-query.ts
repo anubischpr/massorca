@@ -1,4 +1,7 @@
+import { mkdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
+import path from 'node:path'
+import { BOT_TEAMS_FOLDER_NAME } from '../../shared/bot-team-folder'
 import {
   getCommitMessageAgentSpec,
   resolveCommitMessageAgentChoice
@@ -9,11 +12,25 @@ import { queryBotTeamLead } from '../text-generation/bot-team-lead-generation-re
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
 import { spawnSourceControlAgent } from '../text-generation/source-control-agent-launch'
 
-/** Asks the Settings default agent one short question. Null when it cannot answer. */
+type LeadQuerySettings = Pick<GlobalSettings, 'defaultTuiAgent' | 'disabledTuiAgents'> &
+  Partial<Pick<GlobalSettings, 'agentCmdOverrides'>>
+
+/** Asks the Settings default agent one short question. Null when it cannot answer, so the room asks. */
 export async function askDefaultAgentForBotTeamLead(args: {
   prompt: string
-  settings: Pick<GlobalSettings, 'defaultTuiAgent' | 'disabledTuiAgents'> &
-    Partial<Pick<GlobalSettings, 'agentCmdOverrides'>>
+  settings: LeadQuerySettings
+  getAgentEnvResolvers: () => CommitMessageAgentEnvironmentResolvers | undefined
+}): Promise<string | null> {
+  try {
+    return await runLeadQuery(args)
+  } catch {
+    return null
+  }
+}
+
+async function runLeadQuery(args: {
+  prompt: string
+  settings: LeadQuerySettings
   getAgentEnvResolvers: () => CommitMessageAgentEnvironmentResolvers | undefined
 }): Promise<string | null> {
   const { prompt, settings, getAgentEnvResolvers } = args
@@ -26,7 +43,10 @@ export async function askDefaultAgentForBotTeamLead(args: {
   if (!agentId || agentId === 'custom' || !spec) {
     return null
   }
-  const target = await resolveGenerationTarget(homedir(), agentId, null, { getAgentEnvResolvers })
+  // Runs in the teams' folder, not the person's home, so the query has nothing else at hand.
+  const cwd = path.join(homedir(), BOT_TEAMS_FOLDER_NAME)
+  await mkdir(cwd, { recursive: true })
+  const target = await resolveGenerationTarget(cwd, agentId, null, { getAgentEnvResolvers })
   if (!target) {
     return null
   }
