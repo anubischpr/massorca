@@ -10,7 +10,9 @@ import type { VirtualizedScrollAnchor } from '../hooks/useVirtualizedScrollAncho
 import { AppRail } from './AppRail'
 import { AppStatusBarSlot } from './AppStatusBarSlot'
 import { TitlebarLeftControls } from './TitlebarLeftControls'
-import { RightSidebarToggle, TitlebarMainStrip } from './TitlebarMainStrip'
+import { TitlebarMainStrip } from './TitlebarMainStrip'
+import { hasCustomTitleBar } from './app-window-chrome'
+import { SessionBar } from './SessionBar'
 import type { AppChromeLayout } from './use-app-chrome-layout'
 import type { FloatingWorkspacePanelState } from './use-floating-workspace-panel'
 import { submitCreateChatDraft } from '../components/create-chat/create-chat-submit'
@@ -168,22 +170,23 @@ export function AppWorkspaceShell(props: {
               layout.activeView !== 'artifacts' ? (
                 <div className="titlebar">{titlebarMainStrip}</div>
               ) : null}
+              {layout.workspaceChromeActive && layout.activeWorktreeId ? (
+                <SessionBar
+                  worktreeId={layout.activeWorktreeId}
+                  // Why: the collapsed sidebar's floating header sits over the bar's left end.
+                  reserveCollapsedSidebarHeader={
+                    layout.leftTitlebarChromeLayout.isFloating && !layout.sidebarOpen
+                  }
+                  // Why: with no center titlebar above it, the bar's right end sits under the window-controls overlay unless the right sidebar covers that corner.
+                  reserveWindowControls={
+                    hasCustomTitleBar &&
+                    !layout.rightSidebarOpen &&
+                    layout.leftTitlebarChromeLayout.shouldMount &&
+                    !layout.stackedSidebarOpen
+                  }
+                />
+              ) : null}
               <div className="relative flex flex-1 min-w-0 min-h-0 overflow-hidden">
-                {/* Why: match the RightSidebar header's 36px/top-0 so the toggle's vertical center is identical open vs closed — else the icon jitters. */}
-                {layout.workspaceChromeActive && !layout.rightSidebarOpen && (
-                  <div
-                    className="absolute top-0 z-10 flex items-center h-[36px]"
-                    style={
-                      {
-                        // Why: --window-controls-width keeps the toggle clear of the fixed window-controls overlay (138px on custom chrome, 0px otherwise); no internal spacer — one would cover the pane-actions Ellipsis button with an unclickable div.
-                        right: 'var(--window-controls-width)',
-                        WebkitAppRegion: 'no-drag'
-                      } as React.CSSProperties
-                    }
-                  >
-                    {layout.showRightSidebarControls ? <RightSidebarToggle /> : null}
-                  </div>
-                )}
                 <div className="flex flex-1 min-w-0 min-h-0 flex-col">
                   {layout.shouldMountTerminalWorkbench ? (
                     <TerminalWorkbenchContainer isVisible={layout.terminalWorkbenchVisible}>
@@ -245,7 +248,7 @@ export function AppWorkspaceShell(props: {
                   'Retry the sidebar or switch tabs to reload this surface.'
                 )}
               >
-                <RightSidebar />
+                <RightSidebar hideCloseButton={layout.workspaceChromeActive} />
               </RecoverableRenderErrorBoundary>
             ) : null}
           </div>

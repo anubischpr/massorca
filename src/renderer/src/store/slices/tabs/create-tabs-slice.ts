@@ -11,12 +11,16 @@ import { createTabsMoveActions } from './tabs-move-actions'
 import { createTabsDropActions } from './tabs-drop-actions'
 import { createTabsSecondaryActions } from './tabs-secondary-actions'
 import { createTabsSessionActions } from './tabs-session-actions'
+import { createSidePanelActions, DEFAULT_SIDE_PANEL_WIDTH } from './side-panel-state'
 
 export const createTabsSlice: StateCreator<AppState, [], [], TabsSlice> = (set, get) => ({
   unifiedTabsByWorktree: {},
   groupsByWorktree: {},
   activeGroupIdByWorktree: {},
   layoutByWorktree: {},
+  sidePanelOpenByWorktree: {},
+  sidePanelWidth: DEFAULT_SIDE_PANEL_WIDTH,
+  ...createSidePanelActions(set),
   ...createTabsCreateActions(set, get),
   ...createTabsFocusActions(set, get),
   ...createTabsCloseActions(set, get),

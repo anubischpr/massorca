@@ -32,7 +32,12 @@ import { useWindowWidth } from './use-window-width'
 
 const ACTIVITY_BAR_SIDE_WIDTH = 40
 
-function RightSidebarInner(): React.JSX.Element {
+function RightSidebarInner({
+  hideCloseButton = false
+}: {
+  /** True when the session bar already carries the toggle. */
+  hideCloseButton?: boolean
+}): React.JSX.Element {
   const hasDesktopWindowChrome = shouldRenderDesktopWindowChrome({
     platform: getRendererAppPlatform(),
     isWebClient: isPairedWebClientWindow()
@@ -121,30 +126,31 @@ function RightSidebarInner(): React.JSX.Element {
     />
   ))
 
-  const closeButton = rightSidebarOpen ? (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          className="sidebar-toggle mr-1"
-          onClick={toggleRightSidebar}
-          aria-label={translate(
-            'auto.components.right.sidebar.index.e8e2e4ce74',
-            'Toggle right sidebar'
+  const closeButton =
+    rightSidebarOpen && !hideCloseButton ? (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="sidebar-toggle mr-1"
+            onClick={toggleRightSidebar}
+            aria-label={translate(
+              'auto.components.right.sidebar.index.e8e2e4ce74',
+              'Toggle right sidebar'
+            )}
+          >
+            <PanelRight size={16} />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" sideOffset={6}>
+          {translate(
+            'auto.components.right.sidebar.index.9fffaf17c1',
+            'Toggle right sidebar ({{value0}})',
+            { value0: rightSidebarShortcut }
           )}
-        >
-          <PanelRight size={16} />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" sideOffset={6}>
-        {translate(
-          'auto.components.right.sidebar.index.9fffaf17c1',
-          'Toggle right sidebar ({{value0}})',
-          { value0: rightSidebarShortcut }
-        )}
-      </TooltipContent>
-    </Tooltip>
-  ) : null
+        </TooltipContent>
+      </Tooltip>
+    ) : null
 
   return (
     <div

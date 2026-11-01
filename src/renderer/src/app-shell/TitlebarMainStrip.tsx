@@ -31,7 +31,7 @@ export function RightSidebarToggle(): React.JSX.Element {
   )
 }
 
-/** The titlebar's center/right strip: the tab-strip portal slot and the trailing chrome buttons. */
+/** The titlebar's center/right strip: the trailing chrome buttons. */
 export function TitlebarMainStrip({ layout }: { layout: AppChromeLayout }): React.JSX.Element {
   const handleToggleExpand = (): void => {
     if (!layout.effectiveActiveTabId) {
@@ -48,11 +48,9 @@ export function TitlebarMainStrip({ layout }: { layout: AppChromeLayout }): Reac
     <>
       {layout.activeView === 'activity' ? (
         <ActivityTitlebarControls />
-      ) : layout.creationLayoutActive ? null : (
-        <div
-          id="titlebar-tabs"
-          className={`flex flex-1 min-w-0 self-stretch${!layout.workspaceChromeActive ? ' invisible pointer-events-none' : ''}`}
-        />
+      ) : (
+        // Why: a spacer keeps the strip's buttons right-aligned; sessions have no tab strip any more.
+        <div className="flex flex-1 min-w-0 self-stretch" />
       )}
       {layout.showTitlebarExpandButton && (
         <Tooltip>
@@ -71,8 +69,12 @@ export function TitlebarMainStrip({ layout }: { layout: AppChromeLayout }): Reac
           </TooltipContent>
         </Tooltip>
       )}
-      {/* Why: the open right sidebar's header renders its own close button, so hide this duplicate. */}
-      {layout.showRightSidebarControls && !layout.rightSidebarOpen ? <RightSidebarToggle /> : null}
+      {/* Why: the open right sidebar's header renders its own close button, and a workspace's session bar carries the toggle. */}
+      {layout.showRightSidebarControls &&
+      !layout.rightSidebarOpen &&
+      !layout.workspaceChromeActive ? (
+        <RightSidebarToggle />
+      ) : null}
       {/* Why: reserve space so the Windows/Linux window-controls overlay doesn't obscure content. */}
       {hasCustomTitleBar && <div className="window-controls-titlebar-spacer" />}
     </>
