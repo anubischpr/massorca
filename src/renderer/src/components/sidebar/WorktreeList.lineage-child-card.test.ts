@@ -33,6 +33,9 @@ vi.mock('./WorktreeCard', () => createWorktreeCardModuleMock())
 vi.mock('./WorktreeCardAgents', () => createWorktreeCardAgentsModuleMock())
 vi.mock('./WorktreeTitleInlineRename', () => createWorktreeTitleInlineRenameModuleMock())
 vi.mock('./WorktreeContextMenu', () => createWorktreeContextMenuModuleMock())
+vi.mock('@/components/repo/use-repo-gh-account-display', () => ({
+  useRepoGhAccountDisplay: () => ({ label: null, source: null, mismatch: false })
+}))
 vi.mock('@/components/ui/tooltip', () => createTooltipModuleMock())
 vi.mock('@/components/ui/dropdown-menu', () => createDropdownMenuModuleMock())
 

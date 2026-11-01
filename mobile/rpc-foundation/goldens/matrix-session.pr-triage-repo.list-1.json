@@ -47,6 +47,12 @@
         }
       }
     },
+    "121ec2ca79ba": {
+      "launched": {
+        "kind": "sent",
+        "warning": "Opened as a terminal agent, not a chat. Started a terminal agent, the default for new agent tabs in your settings."
+      }
+    },
     "12e70439f294": {
       "name": "repo.list#1",
       "ordinal": 1,
@@ -159,11 +165,6 @@
       "ordinal": 4,
       "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"settings.get\"}"
     },
-    "28339abecf78": {
-      "name": "agent.launchReplay#1",
-      "ordinal": 8,
-      "json": "{\"id\":\"frame-4\",\"deviceToken\":\"recording-device\",\"method\":\"agent.launchReplay\",\"params\":{\"agent\":\"codex\",\"operationId\":\"1767225600000-00000000000040008000000000000001\",\"target\":{\"kind\":\"existing\",\"worktree\":\"id:repo-9::/w\"},\"prompt\":{\"text\":\"Fix the failing checks\",\"delivery\":\"submit\"},\"launchSource\":\"task_page\"}}"
-    },
     "331b3596787f": {
       "launched": {
         "kind": "not-started",
@@ -230,6 +231,65 @@
                 "id": "repo-9"
               }
             ]
+          }
+        }
+      }
+    },
+    "444e02ab8924": {
+      "name": "agent.launchReplay#1",
+      "ordinal": 7,
+      "args": [
+        {
+          "name": "method",
+          "value": "agent.launchReplay"
+        },
+        {
+          "name": "params",
+          "value": {
+            "agent": "codex",
+            "launchSource": "task_page",
+            "operationId": "1767225600000-00000000000040008000000000000001",
+            "preferredMode": "chat",
+            "prompt": {
+              "delivery": "submit",
+              "text": "Fix the failing checks"
+            },
+            "target": {
+              "kind": "existing",
+              "worktree": "id:repo-9::/w"
+            }
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "timeoutMs": 90000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "fulfilled",
+        "startedAt": 0,
+        "settledAt": 0,
+        "value": {
+          "id": "frame-4",
+          "ok": true,
+          "result": {
+            "outcome": {
+              "handle": "term-1",
+              "kind": "terminal"
+            },
+            "prompt": {
+              "delivery": "submit",
+              "outcome": "handed-to-terminal"
+            },
+            "receipt": {
+              "detail": "Started a terminal agent, the default for new agent tabs in your settings.",
+              "mode": "terminal",
+              "preferred": "terminal",
+              "reason": "user_default"
+            },
+            "worktreeId": "repo-9::/w"
           }
         }
       }
@@ -431,6 +491,11 @@
         }
       }
     },
+    "a1d777cf0920": {
+      "name": "agent.launchReplay#1",
+      "ordinal": 8,
+      "json": "{\"id\":\"frame-4\",\"deviceToken\":\"recording-device\",\"method\":\"agent.launchReplay\",\"params\":{\"agent\":\"codex\",\"operationId\":\"1767225600000-00000000000040008000000000000001\",\"target\":{\"kind\":\"existing\",\"worktree\":\"id:repo-9::/w\"},\"prompt\":{\"text\":\"Fix the failing checks\",\"delivery\":\"submit\"},\"preferredMode\":\"chat\",\"launchSource\":\"task_page\"}}"
+    },
     "a4273b38df83": {
       "launched": "unlaunched"
     },
@@ -438,64 +503,6 @@
       "launched": {
         "kind": "not-started",
         "message": "Could not load the available agents."
-      }
-    },
-    "ba3fac1eb199": {
-      "name": "agent.launchReplay#1",
-      "ordinal": 7,
-      "args": [
-        {
-          "name": "method",
-          "value": "agent.launchReplay"
-        },
-        {
-          "name": "params",
-          "value": {
-            "agent": "codex",
-            "launchSource": "task_page",
-            "operationId": "1767225600000-00000000000040008000000000000001",
-            "prompt": {
-              "delivery": "submit",
-              "text": "Fix the failing checks"
-            },
-            "target": {
-              "kind": "existing",
-              "worktree": "id:repo-9::/w"
-            }
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "timeoutMs": 90000
-          }
-        }
-      ],
-      "settlement": {
-        "status": "fulfilled",
-        "startedAt": 0,
-        "settledAt": 0,
-        "value": {
-          "id": "frame-4",
-          "ok": true,
-          "result": {
-            "outcome": {
-              "handle": "term-1",
-              "kind": "terminal"
-            },
-            "prompt": {
-              "delivery": "submit",
-              "outcome": "handed-to-terminal"
-            },
-            "receipt": {
-              "detail": "Started a terminal agent, the default for new agent tabs in your settings.",
-              "mode": "terminal",
-              "preferred": "terminal",
-              "reason": "user_default"
-            },
-            "worktreeId": "repo-9::/w"
-          }
-        }
       }
     },
     "d68475063b62": {
@@ -586,11 +593,6 @@
         "$rpc": "undefined"
       }
     },
-    "eb8d47f90956": {
-      "launched": {
-        "kind": "sent"
-      }
-    },
     "f1d579dd459c": {
       "name": "repo.list#1",
       "ordinal": 1,
@@ -650,12 +652,12 @@
       {
         "id": "pr-triage-launch.normal:launched",
         "observation": {
-          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "ba3fac1eb199"],
-          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "28339abecf78"],
+          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "444e02ab8924"],
+          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "a1d777cf0920"],
           "settlements": {
             "launch": "eb79a9b3682a"
           },
-          "state": "eb8d47f90956",
+          "state": "121ec2ca79ba",
           "effects": []
         }
       },

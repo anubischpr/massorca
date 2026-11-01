@@ -42,7 +42,7 @@ describe('MobileArtifactHtmlPage', () => {
   }
 
   function frameOf(mounted: ReactTestRenderer): ReactTestInstance[] {
-    return mounted.root.findAll((node) => node.type === 'Frame')
+    return mounted.root.findAll((node) => String(node.type) === 'Frame')
   }
 
   it('renders the page in the sandboxed frame, fullscreen and titled, by default', () => {
@@ -62,7 +62,7 @@ describe('MobileArtifactHtmlPage', () => {
     act(() => source.props.onPress())
     expect(frameOf(mounted)).toHaveLength(0)
     expect(
-      mounted.root.findAll((node) => node.type === 'Text').map((node) => node.children)
+      mounted.root.findAll((node) => String(node.type) === 'Text').map((node) => node.children)
     ).toEqual(expect.arrayContaining([['Preview'], ['Source']]))
   })
 

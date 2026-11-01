@@ -5,15 +5,15 @@
  * C1 moves a screen to the web: `app/h/_layout.tsx` and `app/h/[hostId]/index.tsx` and everything
  * they import. The suite next door already proves the corpus replays byte-identically or in a named
  * class, but it proves it as counts over 793 goldens, and a count is the wrong instrument for the
- * claim C1 needs. These 94 are the ones whose divergence would be this domain's divergence, so
+ * claim C1 needs. These 118 are the ones whose divergence would be this domain's divergence, so
  * each is pinned by id to the verdict it gives, not counted into a total another golden can pay for.
  *
- * The rule is not "none excluded". 48 replay byte for byte and 46 do not, in four of the five
- * classes the suite next door names — 34 `result-absent-settlement`, 7 `params-undefined`, 3
+ * The rule is not "none excluded". 63 replay byte for byte and 55 do not, in four of the five
+ * classes the suite next door names — 43 `result-absent-settlement`, 7 `params-undefined`, 3
  * `result-absent-stream-release`, 2 `write-ordinal`. Every one is a recorder observation artifact
  * whose wire bytes C0.5 and C0.8 proved identical: what differs is the shape the recorder injects
  * below the frame boundary, or the pre-serialization object a step is matched against, and neither
- * is something a transport carries. What the pin buys is that the 46 are named. A forty-seventh arriving
+ * is something a transport carries. What the pin buys is that the 55 are named. A fifty-sixth arriving
  * is a red test here even though every count in `BRIDGED_PARITY_BASELINE` still holds, because the
  * class it joined has room in its bound for a golden that left.
  *
@@ -26,6 +26,42 @@
 import type { PageClosurePins } from './page-closure'
 
 export const C1_PAGE_CLOSURE: PageClosurePins = {
+  // The new-session flow put these four in the shared layout's closure: starting a session from the
+  // host screen reaches the structured launch and the new-tab agent loader.
+  'agentSession.structured-create': {
+    'matrix-agentsession.structured-create-agentsession.create-1': 'result-absent-settlement',
+    'matrix-agentsession.structured-create-agentsession.createsupport-1':
+      'result-absent-settlement',
+    'structured-agent-session-created': 'identical'
+  },
+  'agentSession.structured-launch': {
+    'matrix-agentsession.structured-launch-agentsession.createsupport-1':
+      'result-absent-settlement',
+    'structured-launch-created': 'identical',
+    'structured-launch-definitive-refusal': 'identical',
+    'structured-launch-replays-dropped-create': 'identical',
+    'structured-launch-support-refused': 'identical',
+    'structured-launch-unsupported': 'identical'
+  },
+  'settings-agent-read': {
+    'matrix-settings-agent-read-preflight.detectremoteagents-1': 'result-absent-settlement',
+    'matrix-settings-agent-read-repo.list-1': 'result-absent-settlement',
+    'matrix-settings-agent-read-settings.get-1': 'result-absent-settlement',
+    'probe-new-tab-both-refused': 'identical',
+    'probe-new-tab-null-sibling-refused': 'identical',
+    'probe-new-tab-refused-sibling-rejects': 'identical',
+    'probe-new-tab-rejects-sibling-refused': 'identical',
+    'schedules-settings-new-tab-ssh': 'identical',
+    'settings-new-tab-refused': 'identical',
+    'settings-new-tab-ssh': 'identical',
+    'settings-new-tab-transport-error': 'identical'
+  },
+  'settings.new-tab-local-agents': {
+    'matrix-settings.new-tab-local-agents-preflight.detectagents-1': 'result-absent-settlement',
+    'matrix-settings.new-tab-local-agents-repo.list-1': 'result-absent-settlement',
+    'matrix-settings.new-tab-local-agents-settings.get-1': 'result-absent-settlement',
+    'new-tab-local-agents': 'identical'
+  },
   'settings.repo-metadata': {
     'matrix-settings.repo-metadata-host.platform-1': 'result-absent-settlement',
     'matrix-settings.repo-metadata-repo.list-1': 'result-absent-settlement',

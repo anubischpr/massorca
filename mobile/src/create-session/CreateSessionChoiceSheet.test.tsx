@@ -60,6 +60,10 @@ describe('CreateSessionChoiceSheet', () => {
   it('leaves out the icon slot for a row that has no icon', () => {
     const root = mountSheet([{ value: 'web', label: 'web', description: '' }])
     expect(root.findAllByProps({ testID: 'claude-icon' })).toHaveLength(0)
-    expect(root.findByProps({ accessibilityLabel: 'web' }).findAllByType('View')).toHaveLength(1)
+    expect(
+      root
+        .findByProps({ accessibilityLabel: 'web' })
+        .findAll((node) => String(node.type) === 'View')
+    ).toHaveLength(1)
   })
 })

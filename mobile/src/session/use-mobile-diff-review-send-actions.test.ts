@@ -319,7 +319,9 @@ describe('useMobileDiffReviewSendActions', () => {
     })
     expect(sendRequest.mock.calls.some(([method]) => method === 'terminal.send')).toBe(false)
     expect(saveCommentsAndReviewState).toHaveBeenCalledOnce()
-    expect(setActionError).toHaveBeenLastCalledWith('Review notes sent')
+    expect(setActionError).toHaveBeenLastCalledWith(
+      'Review notes sent. Opened as a terminal agent, not a chat. d'
+    )
   })
 
   it('keeps saying the notes were sent when the host adds a warning', async () => {
@@ -333,7 +335,7 @@ describe('useMobileDiffReviewSendActions', () => {
     })
     expect(saveCommentsAndReviewState).toHaveBeenCalledOnce()
     expect(setActionError).toHaveBeenLastCalledWith(
-      'Review notes sent. the requested arguments were ignored.'
+      'Review notes sent. the requested arguments were ignored. Opened as a terminal agent, not a chat. d'
     )
   })
 
@@ -410,7 +412,9 @@ describe('useMobileDiffReviewSendActions', () => {
       READY.reviewState
     )
     expect(saveCommentsAndReviewState.mock.calls[0]?.[0]?.[1]?.id).toBe('comment-2')
-    expect(setActionError).toHaveBeenLastCalledWith('Review notes sent')
+    expect(setActionError).toHaveBeenLastCalledWith(
+      'Review notes sent. Opened as a terminal agent, not a chat. d'
+    )
   })
 
   // The save rolls back to the screen it was created with, so a stale one would drop newer notes.

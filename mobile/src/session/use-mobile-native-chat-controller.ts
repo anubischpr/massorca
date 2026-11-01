@@ -3,18 +3,15 @@ import type { RpcClient } from '../transport/rpc-client'
 import type { ConnectionState } from '../transport/types'
 import type { MobileNativeChatTab } from './mobile-native-chat-eligibility'
 import type { StructuredAgentSessionHostSupport } from './mobile-structured-agent-session-host-support'
-import { useMobileNativeChatAskDismiss } from './use-mobile-native-chat-ask-dismiss'
 import { useMobileNativeChatDrafts } from './use-mobile-native-chat-drafts'
 import { useMobileNativeChatFileSearch } from './use-mobile-native-chat-file-search'
-import { useMobileNativeChatMessageSend } from './use-mobile-native-chat-message-send'
 import { useMobileNativeChatStreamingState } from './use-mobile-native-chat-streaming-state'
 import { useMobileNativeChatSessionOptionController } from './use-mobile-native-chat-session-option-controller'
 import { useMobileNativeChatSessionLane } from './use-mobile-native-chat-session-lane'
 import { useMobileStructuredNativeChatSendBridge } from './use-mobile-structured-native-chat-send-bridge'
-import { useMobileNativeChatPrompts } from './use-mobile-native-chat-prompts'
 import { useNativeChatAcceptedAction } from './use-native-chat-action-outcomes'
 import type { MobileNativeChatController } from './mobile-native-chat-controller-contract'
-import { useMobileBridgeChatPromptWrites } from './use-mobile-bridge-chat-prompt-writes'
+import { useMobileBridgeNativeChatLane } from './use-mobile-bridge-native-chat-lane'
 import { useMobileNativeChatActiveResolution } from './use-mobile-native-chat-active-resolution'
 import { useMobileNativeChatPromptCards } from './use-mobile-native-chat-prompt-cards'
 import { mobileNativeChatScopeKey } from './mobile-native-chat-scope-key'
@@ -144,51 +141,12 @@ export function useMobileNativeChatController(args: {
     status: nativeChatStatus
   })
   const nativeChatAgentWorking = streaming.agentWorking
-  const {
-    permission: legacyNativeChatPermission,
-    question: legacyQuestion,
-    detectedAsk: nativeChatDetectedAsk,
-    ask: nativeChatAskPrompt
-  } = useMobileNativeChatPrompts({
-    enabled: activeChatResolution != null && !activeChatStructured,
-    status: nativeChatStatus,
-    messages: nativeChatSession.messages,
-    transcriptLoading: nativeChatSession.transcriptLoading
-  })
-  // A never-read transcript cannot prove that a dismissed prompt cleared.
-  const nativeChatTranscriptSettled =
-    nativeChatSession.status === 'ready' ||
-    (nativeChatSession.status === 'error' && nativeChatSession.messages.length > 0)
   const promptScopeKey = mobileNativeChatScopeKey(hostId, worktreeId, activeSessionTabId)
-  const askDismissal = useMobileNativeChatAskDismiss({
-    ask: nativeChatAskPrompt,
-    detectedAsk: nativeChatDetectedAsk,
-    scopeKey: promptScopeKey,
-    sessionKey: activeChatSessionId,
-    observing: showNativeChat && (nativeChatDetectedAsk != null || nativeChatTranscriptSettled)
-  })
-
   // Every chat write gates on both: the lease proves the input floor is ours, and
   // `connState` collapses a render before the lease does on disconnect.
   const inputSendable = activeChatStructured
     ? client != null && activeChatSessionId != null && connState === 'connected'
     : nativeChatInputLeaseReady && connState === 'connected'
-
-  const {
-    answerAsk: handleNativeChatAnswerAsk,
-    cancelAsk: handleNativeChatCancelAsk,
-    respondPermission: legacyHandleNativeChatRespondPermission,
-    stop: handleNativeChatStop
-  } = useMobileBridgeChatPromptWrites({
-    client,
-    enabled: inputSendable && !activeChatStructured,
-    handleRef: activeHandleRef,
-    deviceTokenRef,
-    agentRef: activeChatAgentRef,
-    sessionId: activeChatSessionId,
-    streamIdentity,
-    onSendError
-  })
 
   const nativeChatFiles = useMobileNativeChatFileSearch({ client, worktreeId })
 
@@ -198,13 +156,24 @@ export function useMobileNativeChatController(args: {
   const recordSessionOptionCommandRef = useRef<(command: string) => void>(() => {})
 
   const {
-    send: handleNativeChatSend,
-    sendWithOutcome: handleNativeChatSendWithOutcome,
-    answerQuestion: legacyHandleNativeChatQuestionAnswer,
-    dispatchCommand: handleNativeChatDispatchCommand
-  } = useMobileNativeChatMessageSend({
+    prompts,
+    askDismissal,
+    promptWrites: bridgeWrites,
+    messageSend: bridgeSend
+  } = useMobileBridgeNativeChatLane({
     client,
-    enabled: inputSendable && !activeChatStructured,
+    promptsEnabled: activeChatResolution != null && !activeChatStructured,
+    writesEnabled: inputSendable && !activeChatStructured,
+    status: nativeChatStatus,
+    messages: nativeChatSession.messages,
+    transcriptLoading: nativeChatSession.transcriptLoading,
+    transcriptSettled:
+      nativeChatSession.status === 'ready' ||
+      (nativeChatSession.status === 'error' && nativeChatSession.messages.length > 0),
+    chatVisible: showNativeChat,
+    scopeKey: promptScopeKey,
+    sessionId: activeChatSessionId,
+    streamIdentity,
     handleRef: activeHandleRef,
     deviceTokenRef,
     agentRef: activeChatAgentRef,
@@ -246,7 +215,7 @@ export function useMobileNativeChatController(args: {
       activeChatStructured,
       activeSessionTabId,
       agent: activeChatResolution?.agent ?? null,
-      dispatchCommand: handleNativeChatDispatchCommand,
+      dispatchCommand: bridgeSend.dispatchCommand,
       hostId,
       isTabChatView,
       isWorking: nativeChatAgentWorking,
@@ -275,18 +244,18 @@ export function useMobileNativeChatController(args: {
     structuredNativeChatSend.sendWithOutcome
   ])
   // Card actions retire the route's held failure banner too, not just sends.
-  const answerAsk = useNativeChatAcceptedAction(handleNativeChatAnswerAsk, onSendResolved)
-  const cancelAsk = useNativeChatAcceptedAction(handleNativeChatCancelAsk, onSendResolved)
+  const answerAsk = useNativeChatAcceptedAction(bridgeWrites.answerAsk, onSendResolved)
+  const cancelAsk = useNativeChatAcceptedAction(bridgeWrites.cancelAsk, onSendResolved)
   const promptCards = useMobileNativeChatPromptCards({
     terminal: {
-      permission: legacyNativeChatPermission,
-      question: legacyQuestion,
+      permission: prompts.permission,
+      question: prompts.question,
       waitStartedAt: nativeChatStatus?.stateStartedAt ?? null,
       scopeKey: promptScopeKey,
       sessionKey: streamIdentity,
       observing: showNativeChat && !activeChatStructured && nativeChatStatus != null,
-      respondPermission: legacyHandleNativeChatRespondPermission,
-      answerQuestion: legacyHandleNativeChatQuestionAnswer
+      respondPermission: bridgeWrites.respondPermission,
+      answerQuestion: bridgeSend.answerQuestion
     },
     structured: activeChatStructured ? structuredNativeChat : null,
     onSendResolved
@@ -324,7 +293,7 @@ export function useMobileNativeChatController(args: {
     ...promptCards,
     nativeChatAsk:
       !activeChatStructured && (askDismissal.showAsk || askDismissal.collapsedAsk)
-        ? nativeChatAskPrompt
+        ? prompts.ask
         : null,
     nativeChatAskKey: askDismissal.askKey,
     dismissNativeChatAsk: askDismissal.dismissAsk,
@@ -332,17 +301,15 @@ export function useMobileNativeChatController(args: {
     nativeChatCollapsedPrompt: askDismissal.collapsedAsk ?? promptCards.nativeChatCollapsedPrompt,
     handleNativeChatAnswerAsk: answerAsk,
     handleNativeChatCancelAsk: cancelAsk,
-    handleNativeChatStop: activeChatStructured ? structuredNativeChat.cancel : handleNativeChatStop,
+    handleNativeChatStop: activeChatStructured ? structuredNativeChat.cancel : bridgeWrites.stop,
     // The inactive lane's session is starved of identity, so its cards stay empty.
     nativeChatQueued: structuredNativeChat.queued,
     nativeChatBackgroundTasks: activeChatStructured ? structuredNativeChat.backgroundTasks : null,
     ...nativeChatFiles,
-    handleNativeChatSend: activeChatStructured
-      ? structuredNativeChatSend.send
-      : handleNativeChatSend,
+    handleNativeChatSend: activeChatStructured ? structuredNativeChatSend.send : bridgeSend.send,
     handleNativeChatSendWithOutcome: activeChatStructured
       ? structuredNativeChatSend.sendWithOutcome
-      : handleNativeChatSendWithOutcome,
+      : bridgeSend.sendWithOutcome,
     ...prototypes.fields,
     readSeededLaunchDraft,
     nativeChatSessionOptions

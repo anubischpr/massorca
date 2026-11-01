@@ -89,6 +89,7 @@ export function reactNativeScreenMembers(): Record<string, unknown> {
       'Pressable',
       'RefreshControl',
       'SectionList',
+      'Switch',
       'Text',
       'TextInput',
       'View'

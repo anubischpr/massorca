@@ -102,10 +102,10 @@ describe('managed orcad environment store', () => {
 
   it('keeps a managed server from being removed or re-paired outside its lifecycle', () => {
     add()
-    expect(() => removeEnvironment(userDataPath, 'Managed')).toThrow('managed by Orca over SSH')
+    expect(() => removeEnvironment(userDataPath, 'Managed')).toThrow('managed by MassOrca over SSH')
     expect(() =>
       updateEnvironmentFromPairingCode(userDataPath, 'Managed', { pairingCode: pairingCode() })
-    ).toThrow('managed by Orca over SSH')
+    ).toThrow('managed by MassOrca over SSH')
     expect(listEnvironments(userDataPath)).toHaveLength(1)
   })
 

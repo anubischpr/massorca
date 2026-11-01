@@ -216,7 +216,7 @@ describe.each(['orcadDeployment', 'sshAccess'] as const)(
         46_768,
         '127.0.0.1',
         6_768,
-        'Managed Orca server: Managed server'
+        'Managed MassOrca server: Managed server'
       )
     })
 
@@ -261,7 +261,7 @@ describe.each(['orcadDeployment', 'sshAccess'] as const)(
         46_768,
         '127.0.0.1',
         after,
-        'Managed Orca server: Managed server'
+        'Managed MassOrca server: Managed server'
       )
     })
 
@@ -558,7 +558,7 @@ describe.each(['orcadDeployment', 'sshAccess'] as const)(
         46_768,
         '127.0.0.1',
         6_768,
-        'Managed Orca server: Managed server'
+        'Managed MassOrca server: Managed server'
       )
 
       await state.manager.ensure(environment())
@@ -689,7 +689,7 @@ describe('OrcadManagedTunnelManager bound port', () => {
       46_768,
       '127.0.0.1',
       58_520,
-      'Managed Orca server: Managed server'
+      'Managed MassOrca server: Managed server'
     )
     expect(state.verifyIdentity).toHaveBeenCalledOnce()
   })
@@ -708,7 +708,7 @@ describe('OrcadManagedTunnelManager bound port', () => {
       46_768,
       '127.0.0.1',
       58_520,
-      'Managed Orca server: Managed server'
+      'Managed MassOrca server: Managed server'
     )
     expect(state.ensureServing).toHaveBeenLastCalledWith(
       expect.objectContaining({ remotePort: 58_520 })
@@ -734,7 +734,7 @@ describe('OrcadManagedTunnelManager bound port', () => {
       46_768,
       '127.0.0.1',
       58_520,
-      'Managed Orca server: Managed server'
+      'Managed MassOrca server: Managed server'
     )
   })
 

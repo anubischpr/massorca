@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type {
+  AgentSessionModelCatalogResult,
   AgentSessionModelOption,
   AgentSessionOptionsResult
 } from '../../../src/shared/agent-session-wire'
@@ -38,9 +39,13 @@ const HOST_LISTING = [
   'fable',
   'claude-opus-5-5'
 ].map(option)
+const HOST_CATALOG: AgentSessionModelCatalogResult = {
+  origin: 'probe',
+  models: HOST_LISTING,
+  fetchedAt: 1
+}
 
-const idsOf = (models: readonly AgentSessionModelOption[]): string[] =>
-  models.map((model) => model.id)
+const idsOf = (models: readonly { id: string }[]): string[] => models.map((model) => model.id)
 
 describe('applyStructuredAgentSessionOptionsResult', () => {
   it('records a built-in fallback as builtin, so a host listing that lands later replaces it', () => {
@@ -51,14 +56,11 @@ describe('applyStructuredAgentSessionOptionsResult', () => {
       optionsResult(BUILT_IN, { model: 'opus' })
     )
     expect(fallback.catalogSource).toBe('builtin')
-    const hosted = applyStructuredAgentSessionModelCatalog(
-      fallback,
-      seed,
-      { origin: 'probe', models: HOST_LISTING },
-      { newLaunch: false }
-    )
+    const hosted = applyStructuredAgentSessionModelCatalog(fallback, seed, HOST_CATALOG, {
+      newLaunch: false
+    })
     expect(hosted.catalogSource).toBe('host')
-    expect(idsOf(hosted.catalog.models ?? [])).toEqual(idsOf(HOST_LISTING))
+    expect(idsOf(hosted.catalog?.models ?? [])).toEqual(idsOf(HOST_LISTING))
   })
 
   it('keeps a live listing that names a model beyond the built-in ones as live', () => {
@@ -72,30 +74,22 @@ describe('applyStructuredAgentSessionOptionsResult', () => {
     )
     expect(live.catalogSource).toBe('live')
     expect(
-      applyStructuredAgentSessionModelCatalog(
-        live,
-        seed,
-        { origin: 'probe', models: HOST_LISTING },
-        { newLaunch: false }
-      )
+      applyStructuredAgentSessionModelCatalog(live, seed, HOST_CATALOG, { newLaunch: false })
     ).toBe(live)
   })
 
   it('does not let a built-in fallback replace the listing the host already applied', () => {
     const start = createStructuredAgentSessionOptionState('claude', seed)
-    const hosted = applyStructuredAgentSessionModelCatalog(
-      start,
-      seed,
-      { origin: 'probe', models: HOST_LISTING },
-      { newLaunch: false }
-    )
+    const hosted = applyStructuredAgentSessionModelCatalog(start, seed, HOST_CATALOG, {
+      newLaunch: false
+    })
     const later = applyStructuredAgentSessionOptionsResult(
       hosted,
       seed,
       optionsResult(BUILT_IN, { model: 'opus' })
     )
     expect(later.catalogSource).toBe('host')
-    expect(idsOf(later.catalog.models ?? [])).toEqual(idsOf(HOST_LISTING))
+    expect(idsOf(later.catalog?.models ?? [])).toEqual(idsOf(HOST_LISTING))
   })
 
   it('leaves an options read with no models as a live catalog', () => {

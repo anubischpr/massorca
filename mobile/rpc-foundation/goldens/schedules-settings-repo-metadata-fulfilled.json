@@ -4,97 +4,41 @@
   "family": "settings.repo-metadata",
   "namedDeltas": [],
   "values": {
-    "031c2df78b67": {
-      "name": "host.platform#1",
-      "ordinal": 9,
+    "13f402b2558d": {
+      "name": "github.readAccountGitConfig#2",
+      "ordinal": 13,
       "args": [
         {
           "name": "method",
-          "value": "host.platform"
+          "value": "github.readAccountGitConfig"
         },
         {
           "name": "params",
           "value": {
-            "$rpc": "absent"
+            "repo": "id:repo-2"
           }
         },
         {
           "name": "options",
           "value": {
-            "$rpc": "absent"
+            "budgetSpansConnect": true,
+            "timeoutMs": 15000
           }
         }
       ],
       "settlement": {
-        "status": "rejected",
-        "startedAt": 0,
-        "settledAt": 0,
-        "error": {
-          "category": "LogicalClientCutoverError",
-          "message": "RPC interrupted by connection migration",
-          "isRpcDeliveryUnknown": true,
-          "cause": {
-            "category": "Error",
-            "message": "Connection closed",
-            "isRpcDeliveryUnknown": true
-          }
-        }
+        "status": "pending",
+        "startedAt": 0
       }
     },
-    "03c9a2ba60b9": {
-      "name": "host.platform#1",
-      "ordinal": 9,
-      "args": [
-        {
-          "name": "method",
-          "value": "host.platform"
-        },
-        {
-          "name": "params",
-          "value": {
-            "$rpc": "absent"
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "$rpc": "absent"
-          }
-        }
-      ],
-      "settlement": {
-        "status": "fulfilled",
-        "startedAt": 0,
-        "settledAt": 0,
-        "value": {
-          "id": "frame-4",
-          "ok": true,
-          "result": {
-            "platform": "linux"
-          }
-        }
-      }
+    "19b2979d7fc2": {
+      "name": "repo.list#1",
+      "ordinal": 2,
+      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"repo.list\"}"
     },
-    "071880b671a1": {
-      "hostLabelById": [["ssh:ssh-1", "SSH"]],
-      "hostPlatform": "linux",
-      "repoColorsByName": [
-        ["Local", "#6366f1"],
-        ["Remote", "#f97316"]
-      ],
-      "repoHostIdByRepoId": [
-        ["repo-1", "local"],
-        ["repo-2", "ssh:ssh-1"]
-      ],
-      "repoIconsByName": [],
-      "repoIdsByName": [
-        ["Local", "repo-1"],
-        ["Remote", "repo-2"]
-      ]
-    },
-    "0c4296f215a4": {
+    "1fc86ceaee6f": {
       "name": "settings.get#1",
-      "ordinal": 8,
+      "ordinal": 10,
       "args": [
         {
           "name": "method",
@@ -132,18 +76,18 @@
         }
       }
     },
-    "19b2979d7fc2": {
-      "name": "repo.list#1",
-      "ordinal": 2,
-      "json": "{\"id\":\"frame-1\",\"deviceToken\":\"recording-device\",\"method\":\"repo.list\"}"
+    "1ff13ee8621c": {
+      "name": "repoIconsByName",
+      "ordinal": 4,
+      "value": []
     },
-    "1a160fc2d137": {
-      "name": "host.platform#1",
-      "ordinal": 9,
+    "21118dad0c33": {
+      "name": "settings.get#1",
+      "ordinal": 10,
       "args": [
         {
           "name": "method",
-          "value": "host.platform"
+          "value": "settings.get"
         },
         {
           "name": "params",
@@ -163,29 +107,105 @@
         "startedAt": 0
       }
     },
-    "1de50f3b4aac": {
-      "hostLabelById": [["ssh:ssh-1", "SSH"]],
-      "hostPlatform": {
-        "$rpc": "null"
-      },
-      "repoColorsByName": [
-        ["Local", "#6366f1"],
-        ["Remote", "#f97316"]
+    "2a984e6a215b": {
+      "name": "host.platform#1",
+      "ordinal": 11,
+      "args": [
+        {
+          "name": "method",
+          "value": "host.platform"
+        },
+        {
+          "name": "params",
+          "value": {
+            "$rpc": "absent"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "$rpc": "absent"
+          }
+        }
       ],
-      "repoHostIdByRepoId": [
-        ["repo-1", "local"],
-        ["repo-2", "ssh:ssh-1"]
-      ],
-      "repoIconsByName": [],
-      "repoIdsByName": [
-        ["Local", "repo-1"],
-        ["Remote", "repo-2"]
-      ]
+      "settlement": {
+        "status": "fulfilled",
+        "startedAt": 0,
+        "settledAt": 0,
+        "value": {
+          "id": "frame-4",
+          "ok": true,
+          "result": {
+            "platform": "linux"
+          }
+        }
+      }
     },
-    "1ff13ee8621c": {
-      "name": "repoIconsByName",
-      "ordinal": 4,
-      "value": []
+    "2b7f078b74f0": {
+      "name": "github.readAccountGitConfig#1",
+      "ordinal": 12,
+      "args": [
+        {
+          "name": "method",
+          "value": "github.readAccountGitConfig"
+        },
+        {
+          "name": "params",
+          "value": {
+            "repo": "id:repo-1"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "budgetSpansConnect": true,
+            "timeoutMs": 15000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "rejected",
+        "startedAt": 0,
+        "settledAt": 0,
+        "error": {
+          "category": "Error",
+          "message": "Connection closed",
+          "isRpcDeliveryUnknown": true
+        }
+      }
+    },
+    "2c30f4110c0c": {
+      "name": "github.readAccountGitConfig#1",
+      "ordinal": 12,
+      "args": [
+        {
+          "name": "method",
+          "value": "github.readAccountGitConfig"
+        },
+        {
+          "name": "params",
+          "value": {
+            "repo": "id:repo-1"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "budgetSpansConnect": true,
+            "timeoutMs": 15000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "rejected",
+        "startedAt": 0,
+        "settledAt": 15000,
+        "error": {
+          "category": "Error",
+          "message": "Request timed out: github.readAccountGitConfig",
+          "isRpcDeliveryUnknown": true
+        }
+      }
     },
     "2f1b95eac8f1": {
       "name": "repoColorsByName",
@@ -195,9 +215,9 @@
         ["Remote", "#f97316"]
       ]
     },
-    "32bd1f0384a8": {
+    "2fa38fac1c9d": {
       "name": "settings.get#1",
-      "ordinal": 8,
+      "ordinal": 10,
       "args": [
         {
           "name": "method",
@@ -227,10 +247,133 @@
         }
       }
     },
-    "36a96ddbd396": {
-      "name": "host.platform#1",
+    "32c8028866c2": {
+      "name": "hostLabelById",
+      "ordinal": 19,
+      "value": [["ssh:ssh-1", "SSH"]]
+    },
+    "3410aba31261": {
+      "folderRepoIds": [],
+      "hostLabelById": [["ssh:ssh-1", "SSH"]],
+      "hostPlatform": {
+        "$rpc": "null"
+      },
+      "repoAccountsByName": [],
+      "repoColorsByName": [
+        ["Local", "#6366f1"],
+        ["Remote", "#f97316"]
+      ],
+      "repoHostIdByRepoId": [
+        ["repo-1", "local"],
+        ["repo-2", "ssh:ssh-1"]
+      ],
+      "repoIconsByName": [],
+      "repoIdsByName": [
+        ["Local", "repo-1"],
+        ["Remote", "repo-2"]
+      ]
+    },
+    "36b9da86c68e": {
+      "name": "github.readAccountGitConfig#1",
       "ordinal": 12,
-      "json": "{\"id\":\"frame-4\",\"deviceToken\":\"recording-device\",\"method\":\"host.platform\"}"
+      "args": [
+        {
+          "name": "method",
+          "value": "github.readAccountGitConfig"
+        },
+        {
+          "name": "params",
+          "value": {
+            "repo": "id:repo-1"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "budgetSpansConnect": true,
+            "timeoutMs": 15000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "rejected",
+        "startedAt": 0,
+        "settledAt": 0,
+        "error": {
+          "category": "LogicalClientCutoverError",
+          "message": "RPC interrupted by connection migration",
+          "isRpcDeliveryUnknown": true,
+          "cause": {
+            "category": "Error",
+            "message": "Connection closed",
+            "isRpcDeliveryUnknown": true
+          }
+        }
+      }
+    },
+    "39c733a58b69": {
+      "name": "settings.get#1",
+      "ordinal": 10,
+      "args": [
+        {
+          "name": "method",
+          "value": "settings.get"
+        },
+        {
+          "name": "params",
+          "value": {
+            "$rpc": "absent"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "$rpc": "absent"
+          }
+        }
+      ],
+      "settlement": {
+        "status": "rejected",
+        "startedAt": 0,
+        "settledAt": 0,
+        "error": {
+          "category": "Error",
+          "message": "settings.get#1 rejected",
+          "isRpcDeliveryUnknown": true
+        }
+      }
+    },
+    "4266aa4da08c": {
+      "name": "host.platform#1",
+      "ordinal": 11,
+      "args": [
+        {
+          "name": "method",
+          "value": "host.platform"
+        },
+        {
+          "name": "params",
+          "value": {
+            "$rpc": "absent"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "$rpc": "absent"
+          }
+        }
+      ],
+      "settlement": {
+        "status": "rejected",
+        "startedAt": 0,
+        "settledAt": 0,
+        "error": {
+          "category": "Error",
+          "message": "Connection closed",
+          "isRpcDeliveryUnknown": true
+        }
+      }
     },
     "4526bff18b74": {
       "name": "repo.list#1",
@@ -279,13 +422,13 @@
         }
       }
     },
-    "53dea128b181": {
-      "name": "host.platform#1",
+    "4dad27538485": {
+      "name": "ssh.listTargetSummaries#1",
       "ordinal": 9,
       "args": [
         {
           "name": "method",
-          "value": "host.platform"
+          "value": "ssh.listTargetSummaries"
         },
         {
           "name": "params",
@@ -301,54 +444,26 @@
         }
       ],
       "settlement": {
-        "status": "rejected",
+        "status": "fulfilled",
         "startedAt": 0,
         "settledAt": 0,
-        "error": {
-          "category": "Error",
-          "message": "Connection closed",
-          "isRpcDeliveryUnknown": true
+        "value": {
+          "id": "frame-2",
+          "ok": true,
+          "result": {
+            "targets": [
+              {
+                "id": "ssh-1",
+                "label": "SSH"
+              }
+            ]
+          }
         }
       }
     },
-    "56ab81cb67dc": {
-      "name": "hostLabelById",
-      "ordinal": 13,
-      "value": [["ssh:ssh-1", "SSH"]]
-    },
-    "5b781918b903": {
-      "name": "host.platform#1",
-      "ordinal": 9,
-      "args": [
-        {
-          "name": "method",
-          "value": "host.platform"
-        },
-        {
-          "name": "params",
-          "value": {
-            "$rpc": "absent"
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "$rpc": "absent"
-          }
-        }
-      ],
-      "settlement": {
-        "status": "rejected",
-        "startedAt": 0,
-        "settledAt": 0,
-        "error": {
-          "category": "Error",
-          "message": "Connection lost",
-          "isRpcDeliveryUnknown": true
-        }
-      }
-    },
-    "6134b73f18d0": {
+    "5d2c5d455506": {
+      "folderRepoIds": [],
+      "repoAccountsByName": [],
       "repoColorsByName": [
         ["Local", "#6366f1"],
         ["Remote", "#f97316"]
@@ -363,18 +478,72 @@
         ["Remote", "repo-2"]
       ]
     },
-    "668a7e313975": {
-      "name": "ssh.listTargetSummaries#1",
-      "ordinal": 10,
-      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"ssh.listTargetSummaries\"}"
-    },
-    "6b33c36aba17": {
-      "name": "settings.get#1",
-      "ordinal": 8,
+    "5fb6025946e0": {
+      "name": "github.readAccountGitConfig#1",
+      "ordinal": 12,
       "args": [
         {
           "name": "method",
-          "value": "settings.get"
+          "value": "github.readAccountGitConfig"
+        },
+        {
+          "name": "params",
+          "value": {
+            "repo": "id:repo-1"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "budgetSpansConnect": true,
+            "timeoutMs": 15000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "pending",
+        "startedAt": 0
+      }
+    },
+    "635c5f85f792": {
+      "name": "host.platform#1",
+      "ordinal": 11,
+      "args": [
+        {
+          "name": "method",
+          "value": "host.platform"
+        },
+        {
+          "name": "params",
+          "value": {
+            "$rpc": "absent"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "$rpc": "absent"
+          }
+        }
+      ],
+      "settlement": {
+        "status": "rejected",
+        "startedAt": 0,
+        "settledAt": 30000,
+        "error": {
+          "category": "Error",
+          "message": "Request timed out: host.platform",
+          "isRpcDeliveryUnknown": true
+        }
+      }
+    },
+    "729f9794fdc8": {
+      "name": "host.platform#1",
+      "ordinal": 11,
+      "args": [
+        {
+          "name": "method",
+          "value": "host.platform"
         },
         {
           "name": "params",
@@ -413,79 +582,92 @@
         ["Remote", "repo-2"]
       ]
     },
-    "823fd36df8ac": {
-      "name": "settings.get#1",
-      "ordinal": 8,
+    "7ffcf473c51d": {
+      "name": "github.readAccountGitConfig#2",
+      "ordinal": 13,
       "args": [
         {
           "name": "method",
-          "value": "settings.get"
+          "value": "github.readAccountGitConfig"
         },
         {
           "name": "params",
           "value": {
-            "$rpc": "absent"
+            "repo": "id:repo-2"
           }
         },
         {
           "name": "options",
           "value": {
-            "$rpc": "absent"
+            "budgetSpansConnect": true,
+            "timeoutMs": 15000
           }
         }
       ],
       "settlement": {
         "status": "rejected",
         "startedAt": 0,
-        "settledAt": 30000,
+        "settledAt": 0,
         "error": {
           "category": "Error",
-          "message": "Request timed out: settings.get",
+          "message": "Connection closed",
           "isRpcDeliveryUnknown": true
         }
       }
     },
-    "8ef3b348c179": {
+    "8b60e159a069": {
+      "name": "ssh.listTargetSummaries#1",
+      "ordinal": 14,
+      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"ssh.listTargetSummaries\"}"
+    },
+    "8cfdd18c5fe6": {
       "name": "repoHostIdByRepoId",
-      "ordinal": 6,
+      "ordinal": 8,
       "value": [
         ["repo-1", "local"],
         ["repo-2", "ssh:ssh-1"]
       ]
     },
-    "9270aeb7d9c6": {
-      "status": "pending",
-      "startedAt": 0
-    },
-    "96e0c54d86b0": {
-      "name": "settings.get#1",
-      "ordinal": 8,
+    "8f11f5502726": {
+      "name": "github.readAccountGitConfig#1",
+      "ordinal": 12,
       "args": [
         {
           "name": "method",
-          "value": "settings.get"
+          "value": "github.readAccountGitConfig"
         },
         {
           "name": "params",
           "value": {
-            "$rpc": "absent"
+            "repo": "id:repo-1"
           }
         },
         {
           "name": "options",
           "value": {
-            "$rpc": "absent"
+            "budgetSpansConnect": true,
+            "timeoutMs": 15000
           }
         }
       ],
       "settlement": {
-        "status": "pending",
-        "startedAt": 0
+        "status": "rejected",
+        "startedAt": 0,
+        "settledAt": 0,
+        "error": {
+          "category": "Error",
+          "message": "Connection lost",
+          "isRpcDeliveryUnknown": true
+        }
       }
     },
-    "9ae54f671699": {
+    "9270aeb7d9c6": {
+      "status": "pending",
+      "startedAt": 0
+    },
+    "92799d39bfe9": {
       "name": "host.platform#1",
-      "ordinal": 9,
+      "ordinal": 11,
       "args": [
         {
           "name": "method",
@@ -515,65 +697,71 @@
         }
       }
     },
-    "b428bce85ee7": {
-      "name": "settings.get#1",
-      "ordinal": 11,
-      "json": "{\"id\":\"frame-3\",\"deviceToken\":\"recording-device\",\"method\":\"settings.get\"}"
+    "964b1de0995d": {
+      "name": "folderRepoIds",
+      "ordinal": 6,
+      "value": []
     },
-    "c752e67787f9": {
-      "name": "ssh.listTargetSummaries#1",
-      "ordinal": 7,
+    "a581e406b36a": {
+      "name": "hostPlatform",
+      "ordinal": 20,
+      "value": "linux"
+    },
+    "a86ccbb23baf": {
+      "name": "github.readAccountGitConfig#2",
+      "ordinal": 13,
       "args": [
         {
           "name": "method",
-          "value": "ssh.listTargetSummaries"
+          "value": "github.readAccountGitConfig"
         },
         {
           "name": "params",
           "value": {
-            "$rpc": "absent"
+            "repo": "id:repo-2"
           }
         },
         {
           "name": "options",
           "value": {
-            "$rpc": "absent"
+            "budgetSpansConnect": true,
+            "timeoutMs": 15000
           }
         }
       ],
       "settlement": {
-        "status": "fulfilled",
+        "status": "rejected",
         "startedAt": 0,
         "settledAt": 0,
-        "value": {
-          "id": "frame-2",
-          "ok": true,
-          "result": {
-            "targets": [
-              {
-                "id": "ssh-1",
-                "label": "SSH"
-              }
-            ]
-          }
+        "error": {
+          "category": "Error",
+          "message": "Connection lost",
+          "isRpcDeliveryUnknown": true
         }
       }
     },
-    "c7f150c7a054": {
-      "status": "fulfilled",
-      "startedAt": 0,
-      "settledAt": 30000,
-      "value": {
-        "$rpc": "undefined"
-      }
-    },
-    "df9bd2cc2b3c": {
+    "ad05136cb3a3": {
       "name": "host.platform#1",
-      "ordinal": 9,
+      "ordinal": 16,
+      "json": "{\"id\":\"frame-4\",\"deviceToken\":\"recording-device\",\"method\":\"host.platform\"}"
+    },
+    "b1cd79b96fd4": {
+      "name": "github.readAccountGitConfig#1",
+      "ordinal": 17,
+      "json": "{\"id\":\"frame-5\",\"deviceToken\":\"recording-device\",\"method\":\"github.readAccountGitConfig\",\"params\":{\"repo\":\"id:repo-1\"}}"
+    },
+    "b4729ee47905": {
+      "name": "repoAccountsByName",
+      "ordinal": 7,
+      "value": []
+    },
+    "b4f75c0d5c34": {
+      "name": "settings.get#1",
+      "ordinal": 10,
       "args": [
         {
           "name": "method",
-          "value": "host.platform"
+          "value": "settings.get"
         },
         {
           "name": "params",
@@ -594,14 +782,155 @@
         "settledAt": 30000,
         "error": {
           "category": "Error",
-          "message": "Request timed out: host.platform",
+          "message": "Request timed out: settings.get",
           "isRpcDeliveryUnknown": true
         }
       }
     },
-    "e03d2292c377": {
+    "bce488496d96": {
+      "name": "github.readAccountGitConfig#2",
+      "ordinal": 18,
+      "json": "{\"id\":\"frame-6\",\"deviceToken\":\"recording-device\",\"method\":\"github.readAccountGitConfig\",\"params\":{\"repo\":\"id:repo-2\"}}"
+    },
+    "beb220606b17": {
+      "name": "host.platform#1",
+      "ordinal": 11,
+      "args": [
+        {
+          "name": "method",
+          "value": "host.platform"
+        },
+        {
+          "name": "params",
+          "value": {
+            "$rpc": "absent"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "$rpc": "absent"
+          }
+        }
+      ],
+      "settlement": {
+        "status": "pending",
+        "startedAt": 0
+      }
+    },
+    "c7f150c7a054": {
+      "status": "fulfilled",
+      "startedAt": 0,
+      "settledAt": 30000,
+      "value": {
+        "$rpc": "undefined"
+      }
+    },
+    "c8e2ebbd0561": {
+      "name": "github.readAccountGitConfig#2",
+      "ordinal": 13,
+      "args": [
+        {
+          "name": "method",
+          "value": "github.readAccountGitConfig"
+        },
+        {
+          "name": "params",
+          "value": {
+            "repo": "id:repo-2"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "budgetSpansConnect": true,
+            "timeoutMs": 15000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "rejected",
+        "startedAt": 0,
+        "settledAt": 0,
+        "error": {
+          "category": "LogicalClientCutoverError",
+          "message": "RPC interrupted by connection migration",
+          "isRpcDeliveryUnknown": true,
+          "cause": {
+            "category": "Error",
+            "message": "Connection closed",
+            "isRpcDeliveryUnknown": true
+          }
+        }
+      }
+    },
+    "cb9472c85a44": {
+      "folderRepoIds": [],
+      "hostLabelById": [["ssh:ssh-1", "SSH"]],
+      "hostPlatform": "linux",
+      "repoAccountsByName": [],
+      "repoColorsByName": [
+        ["Local", "#6366f1"],
+        ["Remote", "#f97316"]
+      ],
+      "repoHostIdByRepoId": [
+        ["repo-1", "local"],
+        ["repo-2", "ssh:ssh-1"]
+      ],
+      "repoIconsByName": [],
+      "repoIdsByName": [
+        ["Local", "repo-1"],
+        ["Remote", "repo-2"]
+      ]
+    },
+    "cd5cadcd7da3": {
+      "name": "hostPlatform",
+      "ordinal": 20,
+      "value": {
+        "$rpc": "null"
+      }
+    },
+    "d0f9e16c3751": {
       "name": "settings.get#1",
-      "ordinal": 8,
+      "ordinal": 15,
+      "json": "{\"id\":\"frame-3\",\"deviceToken\":\"recording-device\",\"method\":\"settings.get\"}"
+    },
+    "d5409a61754d": {
+      "name": "github.readAccountGitConfig#2",
+      "ordinal": 13,
+      "args": [
+        {
+          "name": "method",
+          "value": "github.readAccountGitConfig"
+        },
+        {
+          "name": "params",
+          "value": {
+            "repo": "id:repo-2"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "budgetSpansConnect": true,
+            "timeoutMs": 15000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "rejected",
+        "startedAt": 0,
+        "settledAt": 15000,
+        "error": {
+          "category": "Error",
+          "message": "Request timed out: github.readAccountGitConfig",
+          "isRpcDeliveryUnknown": true
+        }
+      }
+    },
+    "e3a87ef9ca1a": {
+      "name": "settings.get#1",
+      "ordinal": 10,
       "args": [
         {
           "name": "method",
@@ -625,17 +954,15 @@
         "startedAt": 0,
         "settledAt": 0,
         "error": {
-          "category": "Error",
-          "message": "settings.get#1 rejected",
-          "isRpcDeliveryUnknown": true
+          "category": "LogicalClientCutoverError",
+          "message": "RPC interrupted by connection migration",
+          "isRpcDeliveryUnknown": true,
+          "cause": {
+            "category": "Error",
+            "message": "Connection closed",
+            "isRpcDeliveryUnknown": true
+          }
         }
-      }
-    },
-    "e9480602a4c6": {
-      "name": "hostPlatform",
-      "ordinal": 14,
-      "value": {
-        "$rpc": "null"
       }
     },
     "eb79a9b3682a": {
@@ -646,10 +973,37 @@
         "$rpc": "undefined"
       }
     },
-    "f9193cae5824": {
-      "name": "hostPlatform",
-      "ordinal": 14,
-      "value": "linux"
+    "f3e4329bc66d": {
+      "name": "host.platform#1",
+      "ordinal": 11,
+      "args": [
+        {
+          "name": "method",
+          "value": "host.platform"
+        },
+        {
+          "name": "params",
+          "value": {
+            "$rpc": "absent"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "$rpc": "absent"
+          }
+        }
+      ],
+      "settlement": {
+        "status": "rejected",
+        "startedAt": 0,
+        "settledAt": 0,
+        "error": {
+          "category": "Error",
+          "message": "Connection lost",
+          "isRpcDeliveryUnknown": true
+        }
+      }
     }
   },
   "recording": {
@@ -658,240 +1012,494 @@
       {
         "id": "settings-repo-metadata-fulfilled.forward:sibling-pending",
         "observation": {
-          "sender": ["4526bff18b74", "c752e67787f9", "0c4296f215a4", "1a160fc2d137"],
-          "payloads": ["19b2979d7fc2", "668a7e313975", "b428bce85ee7", "36a96ddbd396"],
+          "sender": [
+            "4526bff18b74",
+            "4dad27538485",
+            "1fc86ceaee6f",
+            "beb220606b17",
+            "5fb6025946e0",
+            "13f402b2558d"
+          ],
+          "payloads": [
+            "19b2979d7fc2",
+            "8b60e159a069",
+            "d0f9e16c3751",
+            "ad05136cb3a3",
+            "b1cd79b96fd4",
+            "bce488496d96"
+          ],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "9270aeb7d9c6"
           },
-          "state": "6134b73f18d0",
-          "effects": ["2f1b95eac8f1", "1ff13ee8621c", "7e772c1c111d", "8ef3b348c179"]
+          "state": "5d2c5d455506",
+          "effects": [
+            "2f1b95eac8f1",
+            "1ff13ee8621c",
+            "7e772c1c111d",
+            "964b1de0995d",
+            "b4729ee47905",
+            "8cfdd18c5fe6"
+          ]
         }
       },
       {
         "id": "settings-repo-metadata-fulfilled.forward:settled",
         "observation": {
-          "sender": ["4526bff18b74", "c752e67787f9", "0c4296f215a4", "03c9a2ba60b9"],
-          "payloads": ["19b2979d7fc2", "668a7e313975", "b428bce85ee7", "36a96ddbd396"],
+          "sender": [
+            "4526bff18b74",
+            "4dad27538485",
+            "1fc86ceaee6f",
+            "2a984e6a215b",
+            "5fb6025946e0",
+            "13f402b2558d"
+          ],
+          "payloads": [
+            "19b2979d7fc2",
+            "8b60e159a069",
+            "d0f9e16c3751",
+            "ad05136cb3a3",
+            "b1cd79b96fd4",
+            "bce488496d96"
+          ],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "eb79a9b3682a"
           },
-          "state": "071880b671a1",
+          "state": "cb9472c85a44",
           "effects": [
             "2f1b95eac8f1",
             "1ff13ee8621c",
             "7e772c1c111d",
-            "8ef3b348c179",
-            "56ab81cb67dc",
-            "f9193cae5824"
+            "964b1de0995d",
+            "b4729ee47905",
+            "8cfdd18c5fe6",
+            "32c8028866c2",
+            "a581e406b36a"
           ]
         }
       },
       {
         "id": "settings-repo-metadata-fulfilled.reverse:sibling-pending",
         "observation": {
-          "sender": ["4526bff18b74", "c752e67787f9", "96e0c54d86b0", "03c9a2ba60b9"],
-          "payloads": ["19b2979d7fc2", "668a7e313975", "b428bce85ee7", "36a96ddbd396"],
+          "sender": [
+            "4526bff18b74",
+            "4dad27538485",
+            "21118dad0c33",
+            "2a984e6a215b",
+            "5fb6025946e0",
+            "13f402b2558d"
+          ],
+          "payloads": [
+            "19b2979d7fc2",
+            "8b60e159a069",
+            "d0f9e16c3751",
+            "ad05136cb3a3",
+            "b1cd79b96fd4",
+            "bce488496d96"
+          ],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "9270aeb7d9c6"
           },
-          "state": "6134b73f18d0",
-          "effects": ["2f1b95eac8f1", "1ff13ee8621c", "7e772c1c111d", "8ef3b348c179"]
+          "state": "5d2c5d455506",
+          "effects": [
+            "2f1b95eac8f1",
+            "1ff13ee8621c",
+            "7e772c1c111d",
+            "964b1de0995d",
+            "b4729ee47905",
+            "8cfdd18c5fe6"
+          ]
         }
       },
       {
         "id": "settings-repo-metadata-fulfilled.reverse:settled",
         "observation": {
-          "sender": ["4526bff18b74", "c752e67787f9", "0c4296f215a4", "03c9a2ba60b9"],
-          "payloads": ["19b2979d7fc2", "668a7e313975", "b428bce85ee7", "36a96ddbd396"],
+          "sender": [
+            "4526bff18b74",
+            "4dad27538485",
+            "1fc86ceaee6f",
+            "2a984e6a215b",
+            "5fb6025946e0",
+            "13f402b2558d"
+          ],
+          "payloads": [
+            "19b2979d7fc2",
+            "8b60e159a069",
+            "d0f9e16c3751",
+            "ad05136cb3a3",
+            "b1cd79b96fd4",
+            "bce488496d96"
+          ],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "eb79a9b3682a"
           },
-          "state": "071880b671a1",
+          "state": "cb9472c85a44",
           "effects": [
             "2f1b95eac8f1",
             "1ff13ee8621c",
             "7e772c1c111d",
-            "8ef3b348c179",
-            "56ab81cb67dc",
-            "f9193cae5824"
+            "964b1de0995d",
+            "b4729ee47905",
+            "8cfdd18c5fe6",
+            "32c8028866c2",
+            "a581e406b36a"
           ]
         }
       },
       {
         "id": "settings-repo-metadata-fulfilled.both-reject-forward:sibling-pending",
         "observation": {
-          "sender": ["4526bff18b74", "c752e67787f9", "e03d2292c377", "1a160fc2d137"],
-          "payloads": ["19b2979d7fc2", "668a7e313975", "b428bce85ee7", "36a96ddbd396"],
+          "sender": [
+            "4526bff18b74",
+            "4dad27538485",
+            "39c733a58b69",
+            "beb220606b17",
+            "5fb6025946e0",
+            "13f402b2558d"
+          ],
+          "payloads": [
+            "19b2979d7fc2",
+            "8b60e159a069",
+            "d0f9e16c3751",
+            "ad05136cb3a3",
+            "b1cd79b96fd4",
+            "bce488496d96"
+          ],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "9270aeb7d9c6"
           },
-          "state": "6134b73f18d0",
-          "effects": ["2f1b95eac8f1", "1ff13ee8621c", "7e772c1c111d", "8ef3b348c179"]
+          "state": "5d2c5d455506",
+          "effects": [
+            "2f1b95eac8f1",
+            "1ff13ee8621c",
+            "7e772c1c111d",
+            "964b1de0995d",
+            "b4729ee47905",
+            "8cfdd18c5fe6"
+          ]
         }
       },
       {
         "id": "settings-repo-metadata-fulfilled.both-reject-forward:settled",
         "observation": {
-          "sender": ["4526bff18b74", "c752e67787f9", "e03d2292c377", "9ae54f671699"],
-          "payloads": ["19b2979d7fc2", "668a7e313975", "b428bce85ee7", "36a96ddbd396"],
+          "sender": [
+            "4526bff18b74",
+            "4dad27538485",
+            "39c733a58b69",
+            "92799d39bfe9",
+            "5fb6025946e0",
+            "13f402b2558d"
+          ],
+          "payloads": [
+            "19b2979d7fc2",
+            "8b60e159a069",
+            "d0f9e16c3751",
+            "ad05136cb3a3",
+            "b1cd79b96fd4",
+            "bce488496d96"
+          ],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "eb79a9b3682a"
           },
-          "state": "1de50f3b4aac",
+          "state": "3410aba31261",
           "effects": [
             "2f1b95eac8f1",
             "1ff13ee8621c",
             "7e772c1c111d",
-            "8ef3b348c179",
-            "56ab81cb67dc",
-            "e9480602a4c6"
+            "964b1de0995d",
+            "b4729ee47905",
+            "8cfdd18c5fe6",
+            "32c8028866c2",
+            "cd5cadcd7da3"
           ]
         }
       },
       {
         "id": "settings-repo-metadata-fulfilled.both-reject-reverse:sibling-pending",
         "observation": {
-          "sender": ["4526bff18b74", "c752e67787f9", "96e0c54d86b0", "9ae54f671699"],
-          "payloads": ["19b2979d7fc2", "668a7e313975", "b428bce85ee7", "36a96ddbd396"],
+          "sender": [
+            "4526bff18b74",
+            "4dad27538485",
+            "21118dad0c33",
+            "92799d39bfe9",
+            "5fb6025946e0",
+            "13f402b2558d"
+          ],
+          "payloads": [
+            "19b2979d7fc2",
+            "8b60e159a069",
+            "d0f9e16c3751",
+            "ad05136cb3a3",
+            "b1cd79b96fd4",
+            "bce488496d96"
+          ],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "9270aeb7d9c6"
           },
-          "state": "6134b73f18d0",
-          "effects": ["2f1b95eac8f1", "1ff13ee8621c", "7e772c1c111d", "8ef3b348c179"]
+          "state": "5d2c5d455506",
+          "effects": [
+            "2f1b95eac8f1",
+            "1ff13ee8621c",
+            "7e772c1c111d",
+            "964b1de0995d",
+            "b4729ee47905",
+            "8cfdd18c5fe6"
+          ]
         }
       },
       {
         "id": "settings-repo-metadata-fulfilled.both-reject-reverse:settled",
         "observation": {
-          "sender": ["4526bff18b74", "c752e67787f9", "e03d2292c377", "9ae54f671699"],
-          "payloads": ["19b2979d7fc2", "668a7e313975", "b428bce85ee7", "36a96ddbd396"],
+          "sender": [
+            "4526bff18b74",
+            "4dad27538485",
+            "39c733a58b69",
+            "92799d39bfe9",
+            "5fb6025946e0",
+            "13f402b2558d"
+          ],
+          "payloads": [
+            "19b2979d7fc2",
+            "8b60e159a069",
+            "d0f9e16c3751",
+            "ad05136cb3a3",
+            "b1cd79b96fd4",
+            "bce488496d96"
+          ],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "eb79a9b3682a"
           },
-          "state": "1de50f3b4aac",
+          "state": "3410aba31261",
           "effects": [
             "2f1b95eac8f1",
             "1ff13ee8621c",
             "7e772c1c111d",
-            "8ef3b348c179",
-            "56ab81cb67dc",
-            "e9480602a4c6"
+            "964b1de0995d",
+            "b4729ee47905",
+            "8cfdd18c5fe6",
+            "32c8028866c2",
+            "cd5cadcd7da3"
           ]
         }
       },
       {
         "id": "settings-repo-metadata-fulfilled.reject-peer-pending:sibling-pending",
         "observation": {
-          "sender": ["4526bff18b74", "c752e67787f9", "e03d2292c377", "1a160fc2d137"],
-          "payloads": ["19b2979d7fc2", "668a7e313975", "b428bce85ee7", "36a96ddbd396"],
+          "sender": [
+            "4526bff18b74",
+            "4dad27538485",
+            "39c733a58b69",
+            "beb220606b17",
+            "5fb6025946e0",
+            "13f402b2558d"
+          ],
+          "payloads": [
+            "19b2979d7fc2",
+            "8b60e159a069",
+            "d0f9e16c3751",
+            "ad05136cb3a3",
+            "b1cd79b96fd4",
+            "bce488496d96"
+          ],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "9270aeb7d9c6"
           },
-          "state": "6134b73f18d0",
-          "effects": ["2f1b95eac8f1", "1ff13ee8621c", "7e772c1c111d", "8ef3b348c179"]
+          "state": "5d2c5d455506",
+          "effects": [
+            "2f1b95eac8f1",
+            "1ff13ee8621c",
+            "7e772c1c111d",
+            "964b1de0995d",
+            "b4729ee47905",
+            "8cfdd18c5fe6"
+          ]
         }
       },
       {
         "id": "settings-repo-metadata-fulfilled.reject-peer-pending:settled",
         "observation": {
-          "sender": ["4526bff18b74", "c752e67787f9", "e03d2292c377", "1a160fc2d137"],
-          "payloads": ["19b2979d7fc2", "668a7e313975", "b428bce85ee7", "36a96ddbd396"],
+          "sender": [
+            "4526bff18b74",
+            "4dad27538485",
+            "39c733a58b69",
+            "beb220606b17",
+            "5fb6025946e0",
+            "13f402b2558d"
+          ],
+          "payloads": [
+            "19b2979d7fc2",
+            "8b60e159a069",
+            "d0f9e16c3751",
+            "ad05136cb3a3",
+            "b1cd79b96fd4",
+            "bce488496d96"
+          ],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "9270aeb7d9c6"
           },
-          "state": "6134b73f18d0",
-          "effects": ["2f1b95eac8f1", "1ff13ee8621c", "7e772c1c111d", "8ef3b348c179"]
+          "state": "5d2c5d455506",
+          "effects": [
+            "2f1b95eac8f1",
+            "1ff13ee8621c",
+            "7e772c1c111d",
+            "964b1de0995d",
+            "b4729ee47905",
+            "8cfdd18c5fe6"
+          ]
         }
       },
       {
         "id": "settings-repo-metadata-fulfilled.reject-peer-pending:cleanup",
         "observation": {
-          "sender": ["4526bff18b74", "c752e67787f9", "e03d2292c377", "53dea128b181"],
-          "payloads": ["19b2979d7fc2", "668a7e313975", "b428bce85ee7", "36a96ddbd396"],
+          "sender": [
+            "4526bff18b74",
+            "4dad27538485",
+            "39c733a58b69",
+            "4266aa4da08c",
+            "2b7f078b74f0",
+            "7ffcf473c51d"
+          ],
+          "payloads": [
+            "19b2979d7fc2",
+            "8b60e159a069",
+            "d0f9e16c3751",
+            "ad05136cb3a3",
+            "b1cd79b96fd4",
+            "bce488496d96"
+          ],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "eb79a9b3682a"
           },
-          "state": "6134b73f18d0",
+          "state": "5d2c5d455506",
           "effects": [
             "2f1b95eac8f1",
             "1ff13ee8621c",
             "7e772c1c111d",
-            "8ef3b348c179",
-            "56ab81cb67dc",
-            "e9480602a4c6"
+            "964b1de0995d",
+            "b4729ee47905",
+            "8cfdd18c5fe6",
+            "32c8028866c2",
+            "cd5cadcd7da3"
           ]
         }
       },
       {
         "id": "settings-repo-metadata-fulfilled.timeout:settled",
         "observation": {
-          "sender": ["4526bff18b74", "c752e67787f9", "823fd36df8ac", "df9bd2cc2b3c"],
-          "payloads": ["19b2979d7fc2", "668a7e313975", "b428bce85ee7", "36a96ddbd396"],
+          "sender": [
+            "4526bff18b74",
+            "4dad27538485",
+            "b4f75c0d5c34",
+            "635c5f85f792",
+            "2c30f4110c0c",
+            "d5409a61754d"
+          ],
+          "payloads": [
+            "19b2979d7fc2",
+            "8b60e159a069",
+            "d0f9e16c3751",
+            "ad05136cb3a3",
+            "b1cd79b96fd4",
+            "bce488496d96"
+          ],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "c7f150c7a054"
           },
-          "state": "1de50f3b4aac",
+          "state": "3410aba31261",
           "effects": [
             "2f1b95eac8f1",
             "1ff13ee8621c",
             "7e772c1c111d",
-            "8ef3b348c179",
-            "56ab81cb67dc",
-            "e9480602a4c6"
+            "964b1de0995d",
+            "b4729ee47905",
+            "8cfdd18c5fe6",
+            "32c8028866c2",
+            "cd5cadcd7da3"
           ]
         }
       },
       {
         "id": "settings-repo-metadata-fulfilled.disconnect:settled",
         "observation": {
-          "sender": ["4526bff18b74", "c752e67787f9", "32bd1f0384a8", "5b781918b903"],
-          "payloads": ["19b2979d7fc2", "668a7e313975", "b428bce85ee7", "36a96ddbd396"],
+          "sender": [
+            "4526bff18b74",
+            "4dad27538485",
+            "2fa38fac1c9d",
+            "f3e4329bc66d",
+            "8f11f5502726",
+            "a86ccbb23baf"
+          ],
+          "payloads": [
+            "19b2979d7fc2",
+            "8b60e159a069",
+            "d0f9e16c3751",
+            "ad05136cb3a3",
+            "b1cd79b96fd4",
+            "bce488496d96"
+          ],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "eb79a9b3682a",
             "disconnect": "eb79a9b3682a"
           },
-          "state": "1de50f3b4aac",
+          "state": "3410aba31261",
           "effects": [
             "2f1b95eac8f1",
             "1ff13ee8621c",
             "7e772c1c111d",
-            "8ef3b348c179",
-            "56ab81cb67dc",
-            "e9480602a4c6"
+            "964b1de0995d",
+            "b4729ee47905",
+            "8cfdd18c5fe6",
+            "32c8028866c2",
+            "cd5cadcd7da3"
           ]
         }
       },
       {
         "id": "settings-repo-metadata-fulfilled.client-cutover:settled",
         "observation": {
-          "sender": ["4526bff18b74", "c752e67787f9", "6b33c36aba17", "031c2df78b67"],
-          "payloads": ["19b2979d7fc2", "668a7e313975", "b428bce85ee7", "36a96ddbd396"],
+          "sender": [
+            "4526bff18b74",
+            "4dad27538485",
+            "e3a87ef9ca1a",
+            "729f9794fdc8",
+            "36b9da86c68e",
+            "c8e2ebbd0561"
+          ],
+          "payloads": [
+            "19b2979d7fc2",
+            "8b60e159a069",
+            "d0f9e16c3751",
+            "ad05136cb3a3",
+            "b1cd79b96fd4",
+            "bce488496d96"
+          ],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "eb79a9b3682a",
             "cutover": "eb79a9b3682a"
           },
-          "state": "1de50f3b4aac",
+          "state": "3410aba31261",
           "effects": [
             "2f1b95eac8f1",
             "1ff13ee8621c",
             "7e772c1c111d",
-            "8ef3b348c179",
-            "56ab81cb67dc",
-            "e9480602a4c6"
+            "964b1de0995d",
+            "b4729ee47905",
+            "8cfdd18c5fe6",
+            "32c8028866c2",
+            "cd5cadcd7da3"
           ]
         }
       }

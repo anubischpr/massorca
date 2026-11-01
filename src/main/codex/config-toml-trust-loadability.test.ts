@@ -173,7 +173,7 @@ describe('hook approval writes never break a config.toml Codex can load', () => 
 
     expect(status).toMatchObject({
       state: 'error',
-      detail: expect.stringContaining('defines hook approvals in a form Orca cannot add to')
+      detail: expect.stringContaining('defines hook approvals in a form MassOrca cannot add to')
     })
     expect(mocks.remoteFiles.get(remoteToml)).toBe(original)
   })

@@ -94,7 +94,7 @@ describe('Windows upload-stage identity commands', () => {
     expect(lines).toMatchInlineSnapshot(`
       [
         "function ConvertTo-OrcaFileIdentity([string]$value) { (($value.Trim().ToLowerInvariant() -split ':') | ForEach-Object { $digits = $_.TrimStart('0'); if ($digits -eq '') { '0' } else { $digits } }) -join ':' }",
-        "$getFileIdentity = { param($path) $value = & $orcaIdentityNode -e 'const s=require(''fs'').lstatSync(process.argv[1],{bigint:true});const m=0xffffffffn;process.stdout.write((s.dev&m).toString(16)+'':''+(s.ino>>32n).toString(16)+'':''+(s.ino&m).toString(16))' -- $path; if ($LASTEXITCODE -ne 0) { throw 'Orca could not read a relay upload stage file identity' }; ConvertTo-OrcaFileIdentity ([string]$value) }",
+        "$getFileIdentity = { param($path) $value = & $orcaIdentityNode -e 'const s=require(''fs'').lstatSync(process.argv[1],{bigint:true});const m=0xffffffffn;process.stdout.write((s.dev&m).toString(16)+'':''+(s.ino>>32n).toString(16)+'':''+(s.ino&m).toString(16))' -- $path; if ($LASTEXITCODE -ne 0) { throw 'MassOrca could not read a relay upload stage file identity' }; ConvertTo-OrcaFileIdentity ([string]$value) }",
       ]
     `)
   })

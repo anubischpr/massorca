@@ -197,6 +197,88 @@ const extraMetadata = {
 }
 
 /** @type {import('electron-builder').Configuration} */
+const packagedAppFiles = [
+  '!**/.vscode/*',
+  // Why: these repo-only inputs are either bundled into out/ or copied via
+  // extraResources. Shipping them in app.asar bloats the desktop bundle.
+  '!src{,/**/*}',
+  '!out/orcad{,/**/*}',
+  // Never in app.asar: the template ships via orcadTemplateExtraResource; prebuilds are build inputs.
+  '!out/orcad-*{,/**/*}',
+  '!out/.orcad-*{,/**/*}',
+  // Why: the pinned Node a local orcad build references (~120 MB) and its download cache.
+  '!out/runtimes{,/**/*}',
+  '!out/node-runtime-cache{,/**/*}',
+  '!config{,/**/*}',
+  // Release archives and other build staging are not runtime resources.
+  '!.build{,/**/*}',
+  '!dist{,/**/*}',
+  '!docs{,/**/*}',
+  '!mobile{,/**/*}',
+  '!native{,/**/*}',
+  '!skills{,/**/*}',
+  // Why: guide/stub authoring sources are compiled into runtime artifacts; shipping
+  // either source tree would duplicate content without a runtime consumer.
+  '!skill-guides{,/**/*}',
+  '!skill-stubs{,/**/*}',
+  '!tests{,/**/*}',
+  // Why: examples/ is plugin authoring documentation with no runtime consumer —
+  // bundled plugins ship via extraResources from resources/plugins/launch/. It also
+  // carries hostile-panel, the adversarial fixture the containment tests point at,
+  // which must never reach a user's install.
+  '!examples{,/**/*}',
+  // Why: pr-evidence/ is a local e2e screenshot output (ORCA_CAPTURE_EVIDENCE);
+  // it is gitignored, but exclude it defensively so a stray local capture at
+  // package time never bloats app.asar.
+  '!pr-evidence{,/**/*}',
+  // Local build logs and rollback copies are never application resources.
+  '!notes{,/**/*}',
+  // Private task records and live SQLite indexes are never runtime inputs.
+  '!{odd,.codegraph}{,/**/*}',
+  // Why: local agent/tooling directories may contain worktree symlink loops;
+  // they are never runtime inputs and must not be traversed by electron-builder.
+  '!{.claude,.grok,.agents,.codex}{,/**/*}',
+  '!Casks{,/**/*}',
+  '!{AGENTS.md,CLAUDE.md,DEVELOPING.md,bundle-size-progress.md,ORCHESTRATION_IMPLEMENTATION_CHECKLIST.md,ORCHESTRATION_STRUCTURED_OUTPUT_DESIGN.md}',
+  '!out/**/*.test.js',
+  // Why: main builds with sourcemap:'hidden' so release CI can publish maps
+  // for decoding minified crash traces. The app never loads them (no
+  // sourceMappingURL is emitted), and packing them would add ~34MB to app.asar.
+  '!out/**/*.map',
+  // Why: Vite's manifest is only used to project the paired web client.
+  '!out/renderer/.vite{,/**/*}',
+  // Why: out/electron-dev caches `pnpm dev`'s per-branch Electron.app copies (~270MB each).
+  // CI never creates it, but packaging on a machine that has run dev would pack them all.
+  '!out/electron-dev{,/**/*}',
+  // Why: relayExtraResource already ships out/relay to resources/relay, which is
+  // the only path a packaged build resolves. Packing it again added 14MB and put
+  // relay.js inside app.asar, so a script-heuristic verdict on relay.js took the
+  // whole asar with it as a compound object and gutted the install (#20966, #20972).
+  '!out/relay{,/**/*}',
+  '!electron.vite.config.{js,ts,mjs,cjs}',
+  '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md,README.md}',
+  '!{.env,.env.*,.npmrc,pnpm-lock.yaml}',
+  '!tsconfig.json',
+  // Why: feature-wall media is copied via extraResources so runtime can read
+  // it from process.resourcesPath; exclude the source copy from app.asar.
+  '!resources/onboarding/feature-wall/**',
+  '!resources/skills/**',
+  '!resources/native-chat-visuals/**',
+  // Why: bundled plugins ship via extraResources to resources/plugins/launch;
+  // packing the source tree into app.asar would duplicate those exact bytes.
+  '!resources/plugins/launch/**',
+  // Why: speech packages are copied selectively through the platform
+  // extraResources entry below; keeping them in app.asar would ship every
+  // native variant (and duplicate the selected one).
+  '!node_modules/sherpa-onnx*{,/**/*}',
+  // Why: the Windows CLI shim ships via extraResources to resources/bin/orca.cmd
+  // (beside the native resources/bin/orca.exe). Packing the source tree into
+  // app.asar too lets asarUnpack:['resources/**'] extract a second copy at
+  // app.asar.unpacked/resources/win32/bin/orca.cmd with no adjacent orca.exe,
+  // which fails to launch the CLI (#7351).
+  '!resources/win32{,/**/*}'
+]
+
 module.exports = {
   appId,
   // Why: productName keeps the install identity. electron-builder derives the Linux install directory
@@ -211,87 +293,7 @@ module.exports = {
   directories: {
     buildResources: 'resources/build'
   },
-  files: [
-    '!**/.vscode/*',
-    // Why: these repo-only inputs are either bundled into out/ or copied via
-    // extraResources. Shipping them in app.asar bloats the desktop bundle.
-    '!src{,/**/*}',
-    '!out/orcad{,/**/*}',
-    // Never in app.asar: the template ships via orcadTemplateExtraResource; prebuilds are build inputs.
-    '!out/orcad-*{,/**/*}',
-    '!out/.orcad-*{,/**/*}',
-    // Why: the pinned Node a local orcad build references (~120 MB) and its download cache.
-    '!out/runtimes{,/**/*}',
-    '!out/node-runtime-cache{,/**/*}',
-    '!config{,/**/*}',
-    // Release archives and other build staging are not runtime resources.
-    '!.build{,/**/*}',
-    '!dist{,/**/*}',
-    '!docs{,/**/*}',
-    '!mobile{,/**/*}',
-    '!native{,/**/*}',
-    '!skills{,/**/*}',
-    // Why: guide/stub authoring sources are compiled into runtime artifacts; shipping
-    // either source tree would duplicate content without a runtime consumer.
-    '!skill-guides{,/**/*}',
-    '!skill-stubs{,/**/*}',
-    '!tests{,/**/*}',
-    // Why: examples/ is plugin authoring documentation with no runtime consumer —
-    // bundled plugins ship via extraResources from resources/plugins/launch/. It also
-    // carries hostile-panel, the adversarial fixture the containment tests point at,
-    // which must never reach a user's install.
-    '!examples{,/**/*}',
-    // Why: pr-evidence/ is a local e2e screenshot output (ORCA_CAPTURE_EVIDENCE);
-    // it is gitignored, but exclude it defensively so a stray local capture at
-    // package time never bloats app.asar.
-    '!pr-evidence{,/**/*}',
-    // Local build logs and rollback copies are never application resources.
-    '!notes{,/**/*}',
-    // Private task records and live SQLite indexes are never runtime inputs.
-    '!{odd,.codegraph}{,/**/*}',
-    // Why: local agent/tooling directories may contain worktree symlink loops;
-    // they are never runtime inputs and must not be traversed by electron-builder.
-    '!{.claude,.grok,.agents,.codex}{,/**/*}',
-    '!Casks{,/**/*}',
-    '!{AGENTS.md,CLAUDE.md,DEVELOPING.md,bundle-size-progress.md,ORCHESTRATION_IMPLEMENTATION_CHECKLIST.md,ORCHESTRATION_STRUCTURED_OUTPUT_DESIGN.md}',
-    '!out/**/*.test.js',
-    // Why: main builds with sourcemap:'hidden' so release CI can publish maps
-    // for decoding minified crash traces. The app never loads them (no
-    // sourceMappingURL is emitted), and packing them would add ~34MB to app.asar.
-    '!out/**/*.map',
-    // Why: Vite's manifest is only used to project the paired web client.
-    '!out/renderer/.vite{,/**/*}',
-    // Why: out/electron-dev caches `pnpm dev`'s per-branch Electron.app copies (~270MB each).
-    // CI never creates it, but packaging on a machine that has run dev would pack them all.
-    '!out/electron-dev{,/**/*}',
-    // Why: relayExtraResource already ships out/relay to resources/relay, which is
-    // the only path a packaged build resolves. Packing it again added 14MB and put
-    // relay.js inside app.asar, so a script-heuristic verdict on relay.js took the
-    // whole asar with it as a compound object and gutted the install (#20966, #20972).
-    '!out/relay{,/**/*}',
-    '!electron.vite.config.{js,ts,mjs,cjs}',
-    '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md,README.md}',
-    '!{.env,.env.*,.npmrc,pnpm-lock.yaml}',
-    '!tsconfig.json',
-    // Why: feature-wall media is copied via extraResources so runtime can read
-    // it from process.resourcesPath; exclude the source copy from app.asar.
-    '!resources/onboarding/feature-wall/**',
-    '!resources/skills/**',
-    '!resources/native-chat-visuals/**',
-    // Why: bundled plugins ship via extraResources to resources/plugins/launch;
-    // packing the source tree into app.asar would duplicate those exact bytes.
-    '!resources/plugins/launch/**',
-    // Why: speech packages are copied selectively through the platform
-    // extraResources entry below; keeping them in app.asar would ship every
-    // native variant (and duplicate the selected one).
-    '!node_modules/sherpa-onnx*{,/**/*}',
-    // Why: the Windows CLI shim ships via extraResources to resources/bin/orca.cmd
-    // (beside the native resources/bin/orca.exe). Packing the source tree into
-    // app.asar too lets asarUnpack:['resources/**'] extract a second copy at
-    // app.asar.unpacked/resources/win32/bin/orca.cmd with no adjacent orca.exe,
-    // which fails to launch the CLI (#7351).
-    '!resources/win32{,/**/*}'
-  ],
+  files: packagedAppFiles,
   // Why: the CLI entry-point lives in out/cli/ but imports shared modules
   // from out/shared/ and local hook mutators from out/main/. These paths must be
   // unpacked so that Node's require() can resolve the cross-directory imports
@@ -660,7 +662,8 @@ module.exports = {
     // packed node-pty lands in app.asar.unpacked, which the daemon resolves before
     // resources/node_modules. Linux ships its addon through extraResources instead, so keep the
     // package out of app.asar here only.
-    files: ['!node_modules/node-pty{,/**/*}'],
+    // Spread because a platform `files` replaces these exclusions in the packaged app.asar.
+    files: [...packagedAppFiles, '!node_modules/node-pty{,/**/*}'],
     // Why mimeTypes and not fileAssociations: shared-mime-info already maps *.md/*.markdown to
     // text/markdown, so reusing that type puts Orca in the Open With list without shipping a glob
     // override. A desktop entry's MimeType only adds a handler - mimeapps.list still owns the

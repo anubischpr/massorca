@@ -22,7 +22,7 @@ describe('SSH Git provider registry', () => {
     setSshPlainSshMode(connectionId, { reason: 'no_runtime', message: 'm' })
     try {
       expect(() => requireSshGitProvider(connectionId)).toThrow(
-        'Git needs the Orca remote server, which is not running on this host (no_runtime).'
+        'Git needs the MassOrca remote server, which is not running on this host (no_runtime).'
       )
     } finally {
       clearSshPlainSshMode(connectionId)

@@ -736,7 +736,7 @@ describe('repos:add + repos:clone', () => {
 
       await expect(
         handlers.get('repos:clone')!(null, { url: 'https://github.com/me/orca.git', destination })
-      ).rejects.toThrow('"orca" is already an Orca project')
+      ).rejects.toThrow('"orca" is already a MassOrca project')
 
       expect(gitSpawnMock).not.toHaveBeenCalled()
     })

@@ -200,6 +200,7 @@ export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   'repo.baseRefDefault',
   'repo.gitAvailable',
   'repo.hooks',
+  'repo.initGit',
   'repo.list',
   'repo.saveSparsePreset',
   'repo.searchRefs',

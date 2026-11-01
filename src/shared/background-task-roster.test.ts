@@ -447,7 +447,7 @@ describe('groupBackgroundTaskRows', () => {
       view('early', { firstObservedAt: NOW - 9_000 })
     ]).flatMap((group) => group.tasks.map((entry) => entry.row))
 
-    const groups = groupBackgroundTaskRows([...rows].reverse())
+    const groups = groupBackgroundTaskRows(rows.toReversed())
 
     expect(groups.map((group) => [group.kind, group.tasks.map((entry) => entry.row.id)])).toEqual([
       ['agent', ['early', 'late']],

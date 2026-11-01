@@ -46,11 +46,6 @@
       "ordinal": 4,
       "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"settings.get\"}"
     },
-    "28339abecf78": {
-      "name": "agent.launchReplay#1",
-      "ordinal": 8,
-      "json": "{\"id\":\"frame-4\",\"deviceToken\":\"recording-device\",\"method\":\"agent.launchReplay\",\"params\":{\"agent\":\"codex\",\"operationId\":\"1767225600000-00000000000040008000000000000001\",\"target\":{\"kind\":\"existing\",\"worktree\":\"id:repo-9::/w\"},\"prompt\":{\"text\":\"Fix the failing checks\",\"delivery\":\"submit\"},\"launchSource\":\"task_page\"}}"
-    },
     "3e6a0417d2ee": {
       "name": "repo.list#1",
       "ordinal": 1,
@@ -89,6 +84,52 @@
         }
       }
     },
+    "45bcbdd0f650": {
+      "name": "agent.launchReplay#1",
+      "ordinal": 7,
+      "args": [
+        {
+          "name": "method",
+          "value": "agent.launchReplay"
+        },
+        {
+          "name": "params",
+          "value": {
+            "agent": "codex",
+            "launchSource": "task_page",
+            "operationId": "1767225600000-00000000000040008000000000000001",
+            "preferredMode": "chat",
+            "prompt": {
+              "delivery": "submit",
+              "text": "Fix the failing checks"
+            },
+            "target": {
+              "kind": "existing",
+              "worktree": "id:repo-9::/w"
+            }
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "timeoutMs": 90000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "fulfilled",
+        "startedAt": 0,
+        "settledAt": 0,
+        "value": {
+          "error": {
+            "code": "agent_session_operation_unknown",
+            "message": "agent_session_operation_unknown"
+          },
+          "id": "frame-4",
+          "ok": false
+        }
+      }
+    },
     "9c16efc31903": {
       "name": "preflight.detectAgents#1",
       "ordinal": 5,
@@ -121,50 +162,10 @@
         }
       }
     },
-    "c15f33d27bd2": {
+    "a1d777cf0920": {
       "name": "agent.launchReplay#1",
-      "ordinal": 7,
-      "args": [
-        {
-          "name": "method",
-          "value": "agent.launchReplay"
-        },
-        {
-          "name": "params",
-          "value": {
-            "agent": "codex",
-            "launchSource": "task_page",
-            "operationId": "1767225600000-00000000000040008000000000000001",
-            "prompt": {
-              "delivery": "submit",
-              "text": "Fix the failing checks"
-            },
-            "target": {
-              "kind": "existing",
-              "worktree": "id:repo-9::/w"
-            }
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "timeoutMs": 90000
-          }
-        }
-      ],
-      "settlement": {
-        "status": "fulfilled",
-        "startedAt": 0,
-        "settledAt": 0,
-        "value": {
-          "error": {
-            "code": "agent_session_operation_unknown",
-            "message": "agent_session_operation_unknown"
-          },
-          "id": "frame-4",
-          "ok": false
-        }
-      }
+      "ordinal": 8,
+      "json": "{\"id\":\"frame-4\",\"deviceToken\":\"recording-device\",\"method\":\"agent.launchReplay\",\"params\":{\"agent\":\"codex\",\"operationId\":\"1767225600000-00000000000040008000000000000001\",\"target\":{\"kind\":\"existing\",\"worktree\":\"id:repo-9::/w\"},\"prompt\":{\"text\":\"Fix the failing checks\",\"delivery\":\"submit\"},\"preferredMode\":\"chat\",\"launchSource\":\"task_page\"}}"
     },
     "e0eef7c9fafe": {
       "name": "repo.list#1",
@@ -197,8 +198,8 @@
       {
         "id": "unconfirmed",
         "observation": {
-          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "c15f33d27bd2"],
-          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "28339abecf78"],
+          "sender": ["3e6a0417d2ee", "02188f091419", "9c16efc31903", "45bcbdd0f650"],
+          "payloads": ["e0eef7c9fafe", "1c2564f1daca", "f49d184679d1", "a1d777cf0920"],
           "settlements": {
             "launch": "eb79a9b3682a"
           },

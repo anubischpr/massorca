@@ -181,7 +181,12 @@ describe('foreground commands in the background-task channel', () => {
       views.find((v) => v.description === 'git status --short --branch' && v.ownership === 'child')
         ?.parentChildWorkId
     ).toBe(agent?.id)
-    expect(page.page.backgroundTasks?.children?.every((v) => v.kind !== 'command')).toBe(true)
+    // A child's command is background work from its start, so only it reaches the roster.
+    expect(
+      page.page.backgroundTasks?.children
+        ?.filter((v) => v.kind === 'command')
+        .map((v) => ({ ownership: v.ownership, parentChildWorkId: v.parentChildWorkId }))
+    ).toEqual([{ ownership: 'child', parentChildWorkId: agent?.id }])
     await command('item/completed', 'main-command')
     await command('item/completed', 'child-command', 'child-turn', child)
     await notify('turn/completed', {
@@ -189,10 +194,11 @@ describe('foreground commands in the background-task channel', () => {
       turn: { id: 'child-turn', status: 'completed' }
     })
     await turn('turn/completed', 'turn-1')
-    // Codex drops a stopped command's record; the finished subagent stays for the finished group.
+    // Codex drops the root command's record; the finished subagent and its command stay for the finished group.
     const after = (await host.history({ sessionId: SESSION, direction: 'tail' })).page
     expect(after.commandActivity).toEqual([
-      expect.objectContaining({ kind: 'agent', membership: 'settled', state: 'done' })
+      expect.objectContaining({ kind: 'agent', membership: 'settled', state: 'done' }),
+      expect.objectContaining({ kind: 'command', ownership: 'child', membership: 'settled' })
     ])
   })
 })

@@ -103,7 +103,7 @@ describe('useMobilePrAiTriage', () => {
     expect(triage?.noticeFor('resolve-conflicts')).toEqual({
       success: 'Agent started in feature-login',
       error: null,
-      warning: null,
+      warning: 'Opened as a terminal agent, not a chat. d',
       undeliveredPrompt: null
     })
     expect(triage?.noticeFor('fix-checks').success).toBeNull()

@@ -326,7 +326,15 @@ describe('mobile launch retry authority', () => {
 
   it('replays through a current replacement under the same paired-device identity', async () => {
     const launch = scenario({ replacement: 'current' })
-    await expect(launch.result).resolves.toEqual({ worktreeId: 'wt-new', name: 'otter' })
+    await expect(launch.result).resolves.toEqual({
+      worktreeId: 'wt-new',
+      name: 'otter',
+      surface: {
+        mode: 'structured',
+        detail:
+          'Started a structured chat session, the default for new agent tabs in your settings.'
+      }
+    })
     expect(launch.runtime.createManagedWorktree).toHaveBeenCalledTimes(1)
     expect(launch.replacement.createManagedWorktree).not.toHaveBeenCalled()
     expect(createStructuredSession).toHaveBeenCalledTimes(1)

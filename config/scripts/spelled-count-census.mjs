@@ -29,7 +29,14 @@ export const NUMBER_WORDS = [
   'twelve',
   'thirteen',
   'fourteen',
-  'fifteen'
+  'fifteen',
+  'sixteen',
+  'seventeen',
+  'eighteen',
+  'nineteen',
+  'twenty',
+  'twenty-one',
+  'twenty-two'
 ]
 
 /** Comment markers and their wrapping dropped, so a phrase is found wherever the line broke. */
@@ -39,7 +46,7 @@ function unwrapped(source) {
 
 /** Every number word that appears before `words` in this source, in the order they are written. */
 export function numberWordsBefore(source, words) {
-  return [...unwrapped(source).matchAll(new RegExp(`\\b([A-Za-z]+) ${words}\\b`, 'g'))]
+  return [...unwrapped(source).matchAll(new RegExp(`\\b([A-Za-z-]+) ${words}\\b`, 'g'))]
     .map((match) => match[1].toLowerCase())
     .filter((word) => NUMBER_WORDS.includes(word))
 }

@@ -18255,7 +18255,8 @@
         "approve": "Approve {{name}}",
         "adjustTokens": "Adjust tokens",
         "builtOnLink": "Built on Design system v{{version}} ›"
-      }
+      },
+      "pixelUnit": "px"
     },
     "createChat": {
       "accessAcceptEditsDescription": "Apply file edits without asking. Commands still ask.",
@@ -19113,7 +19114,63 @@
         "usedResets": "{{percent}}% used · resets in {{duration}}"
       },
       "showEarlierConversation": "Show earlier conversation",
-      "hideEarlierConversation": "Hide earlier conversation"
+      "hideEarlierConversation": "Hide earlier conversation",
+      "delegation": {
+        "underAMinute": "under 1 min",
+        "minutes": "{{minutes}} min",
+        "hours": "{{hours}} h",
+        "hoursMinutes": "{{hours}} h {{minutes}} min",
+        "limitReached": "Limit reached",
+        "noUsageData": "No usage data",
+        "nearLimit": "{{used}} · near its limit",
+        "defaultModelName": "Default model",
+        "agent": "Agent",
+        "task": "Task",
+        "tier": "Tier {{tier}} of 5",
+        "modelEffort": "Model · effort",
+        "runsIn": "Runs in",
+        "automaticPicked": "Automatic picked {{agent}}",
+        "automatic": "Automatic",
+        "picks": "Picks {{agent}}",
+        "automaticDetail": "Chooses by usage, then model and effort by task",
+        "countedAs": "No usage data, counted as {{percent}}%",
+        "usedFromWindow": "{{percent}}% used, from the {{window}} window",
+        "usedThisMonth": "{{percent}}% used this month",
+        "usedPercent": "{{percent}}% used",
+        "fiveHour": "5h",
+        "weekly": "weekly",
+        "dimensions": "Risk {{risk}} · Complexity {{complexity}} · Verifiability {{verifiability}} · Ambiguity {{ambiguity}}",
+        "levelLow": "Low",
+        "levelMedium": "Medium",
+        "levelHigh": "High",
+        "newChildWorktree": "New child worktree",
+        "thisWorktree": "This worktree",
+        "lowestUsage": "Lowest usage",
+        "parentAgentTie": "Within 5 points of the lowest usage, so the parent's agent wins",
+        "fixedOrderTie": "Tied on usage, so the fixed agent order decides",
+        "riskFloor": "High risk raises the task to tier 4",
+        "modelUnavailable": "This agent has no model for this tier, so its default runs",
+        "effortClamped": "Effort is lowered to what this agent supports",
+        "readOnly": "Read-only task, so it runs in this worktree",
+        "writes": "Writes code, so it gets its own worktree",
+        "folderWrites": "Folder workspace, so writes land in this folder",
+        "connected": "Connected on this computer",
+        "choices": "Agent choices",
+        "starting": "Starting…",
+        "start": "Start child session",
+        "startedAutomatic": "Started child session “{{title}}” with {{details}} (Automatic)",
+        "started": "Started child session “{{title}}” with {{details}}",
+        "working": "Child session working: {{title}}",
+        "workingDetails": "{{details}} · started {{elapsed}} ago",
+        "workingStatus": "Working",
+        "openChild": "Open child chat",
+        "defaultModel": "default model",
+        "failed": "Child session “{{title}}” did not start: {{reason}}",
+        "finished": "Child session finished: {{title}}",
+        "failedFinish": "Child session failed: {{title}}",
+        "succeeded": "succeeded",
+        "outcomeFailed": "failed"
+      }
     },
     "tab": {
       "bar": {
@@ -19587,7 +19644,16 @@
       "finishedCount_one": "{{count}} finished",
       "finishedCount_other": "{{count}} finished",
       "stopProviderUnavailable": "This provider cannot stop background tasks.",
-      "stopRowUnavailable": "This task cannot be stopped on its own."
+      "stopRowUnavailable": "This task cannot be stopped on its own.",
+      "childStatus": {
+        "working": "working",
+        "succeeded": "finished",
+        "failed": "failed",
+        "notStarted": "did not start"
+      },
+      "childSessions": "Child sessions",
+      "openChildNamed": "Open child chat: {{title}}",
+      "openChild": "Open"
     }
   },
   "dashboardPopout": {

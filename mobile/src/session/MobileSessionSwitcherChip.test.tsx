@@ -1,10 +1,12 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { mobileSessionSwitcherChipAlignment } from './MobileSessionSwitcherChip'
 import type { MobileSessionTab } from './mobile-session-route-types'
 import type { MobileSessionSwitcherRow } from './mobile-session-switcher-rows'
-import { MobileSessionSwitcherChip } from './MobileSessionSwitcherChip'
+import {
+  MobileSessionSwitcherChip,
+  mobileSessionSwitcherChipAlignment
+} from './MobileSessionSwitcherChip'
 
 vi.mock('react-native', () => ({
   Pressable: 'Pressable',
@@ -98,7 +100,7 @@ describe('MobileSessionSwitcherChip placement', () => {
         })
       )
     })
-    const pressable = mounted!.root.find((node) => node.type === 'Pressable')
+    const pressable = mounted!.root.find((node) => String(node.type) === 'Pressable')
     const style = pressable.props.style({ pressed: false }) as Array<Record<string, unknown>>
     act(() => mounted!.unmount())
     return style.find((part) => 'alignSelf' in part)?.alignSelf

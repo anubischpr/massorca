@@ -162,6 +162,14 @@
       "reason": "The auth-failed banner offers Retry, Re-pair and Remove, and on the page only Re-pair works. /pair-scan sits outside the page's route root of app/h (config/scripts/mobile-web-app-route-manifest.mjs:6), so route-handoff.web.ts:207 hands the push to the shell, which opens the native scan screen and returns to the same page document on Back. Retry and Remove are inert here: forceReconnect is null (client-context.web.tsx:57, read through host-client-hooks.ts:88) and removal refuses (page-host-removal-refusal.ts). The banner is reachable on the page because the shell forwards the native client's state (mobile-web-shell/bridge-host.ts:301) and auth-failed is in the wire enum (bridge/bridge-envelope.ts:44). So this one renders Re-pair as native does and one line naming the app for reconnect and removal."
     },
     {
+      "file": "src/prototypes/mobile-prototype-capture.web.ts",
+      "reason": "The page shows a sealed frame that takes no picks, so there is no pin to capture; react-native-view-shot and expo-image-manipulator stay out of the page bundle."
+    },
+    {
+      "file": "src/session/MobileArtifactPagePreview.web.tsx",
+      "reason": "react-native-webview cannot render on the web; the same inert thumbnail is drawn in a sandboxed frame."
+    },
+    {
       "file": "src/session/MobileNativeChatVisualFrame.web.tsx",
       "reason": "The native frame runs a chat visual's scripts in a sandboxed child of a trusted host document inside a react-native-webview, which throws at import in a browser. The page's response-header policy (script-src 'self', frame-src 'none') is inherited by a srcdoc frame, so a visual's inline scripts cannot run here without loosening the page policy. This one renders the visual sealed, as MobileHtmlPreview.web.tsx does: an empty sandbox, no script, a fixed-height frame the visual scrolls inside."
     },

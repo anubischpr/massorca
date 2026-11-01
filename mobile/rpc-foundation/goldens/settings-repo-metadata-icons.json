@@ -4,10 +4,32 @@
   "family": "settings.repo-metadata",
   "namedDeltas": [],
   "values": {
-    "12ba3f41d4db": {
-      "name": "hostPlatform",
-      "ordinal": 14,
-      "value": "darwin"
+    "13f402b2558d": {
+      "name": "github.readAccountGitConfig#2",
+      "ordinal": 13,
+      "args": [
+        {
+          "name": "method",
+          "value": "github.readAccountGitConfig"
+        },
+        {
+          "name": "params",
+          "value": {
+            "repo": "id:repo-2"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "budgetSpansConnect": true,
+            "timeoutMs": 15000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "pending",
+        "startedAt": 0
+      }
     },
     "19b2979d7fc2": {
       "name": "repo.list#1",
@@ -23,13 +45,13 @@
         ["Avatar", "#f97316"]
       ]
     },
-    "1a160fc2d137": {
-      "name": "host.platform#1",
-      "ordinal": 9,
+    "21118dad0c33": {
+      "name": "settings.get#1",
+      "ordinal": 10,
       "args": [
         {
           "name": "method",
-          "value": "host.platform"
+          "value": "settings.get"
         },
         {
           "name": "params",
@@ -49,17 +71,94 @@
         "startedAt": 0
       }
     },
-    "36a96ddbd396": {
-      "name": "host.platform#1",
-      "ordinal": 12,
-      "json": "{\"id\":\"frame-4\",\"deviceToken\":\"recording-device\",\"method\":\"host.platform\"}"
+    "30014554ec3a": {
+      "name": "hostPlatform",
+      "ordinal": 20,
+      "value": "darwin"
     },
-    "56ab81cb67dc": {
+    "32c8028866c2": {
       "name": "hostLabelById",
-      "ordinal": 13,
+      "ordinal": 19,
       "value": [["ssh:ssh-1", "SSH"]]
     },
-    "6338d57f282f": {
+    "4dad27538485": {
+      "name": "ssh.listTargetSummaries#1",
+      "ordinal": 9,
+      "args": [
+        {
+          "name": "method",
+          "value": "ssh.listTargetSummaries"
+        },
+        {
+          "name": "params",
+          "value": {
+            "$rpc": "absent"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "$rpc": "absent"
+          }
+        }
+      ],
+      "settlement": {
+        "status": "fulfilled",
+        "startedAt": 0,
+        "settledAt": 0,
+        "value": {
+          "id": "frame-2",
+          "ok": true,
+          "result": {
+            "targets": [
+              {
+                "id": "ssh-1",
+                "label": "SSH"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "5fb6025946e0": {
+      "name": "github.readAccountGitConfig#1",
+      "ordinal": 12,
+      "args": [
+        {
+          "name": "method",
+          "value": "github.readAccountGitConfig"
+        },
+        {
+          "name": "params",
+          "value": {
+            "repo": "id:repo-1"
+          }
+        },
+        {
+          "name": "options",
+          "value": {
+            "budgetSpansConnect": true,
+            "timeoutMs": 15000
+          }
+        }
+      ],
+      "settlement": {
+        "status": "pending",
+        "startedAt": 0
+      }
+    },
+    "77cbfd1f087c": {
+      "name": "repoIdsByName",
+      "ordinal": 5,
+      "value": [
+        ["Lucide", "repo-1"],
+        ["Emoji", "repo-2"],
+        ["Avatar", "repo-3"]
+      ]
+    },
+    "8090fb67f3c8": {
+      "folderRepoIds": [],
+      "repoAccountsByName": [],
       "repoColorsByName": [
         ["Lucide", "#123456"],
         ["Emoji", "#f97316"],
@@ -101,9 +200,64 @@
         ["Avatar", "repo-3"]
       ]
     },
-    "64f5522cc303": {
+    "837bcd4a513d": {
+      "folderRepoIds": [],
+      "hostLabelById": [["ssh:ssh-1", "SSH"]],
+      "hostPlatform": "darwin",
+      "repoAccountsByName": [],
+      "repoColorsByName": [
+        ["Lucide", "#123456"],
+        ["Emoji", "#f97316"],
+        ["Avatar", "#f97316"]
+      ],
+      "repoHostIdByRepoId": [
+        ["repo-1", "local"],
+        ["repo-2", "ssh:ssh-1"],
+        ["repo-3", "ssh:ssh-1"]
+      ],
+      "repoIconsByName": [
+        [
+          "Lucide",
+          {
+            "name": "Rocket",
+            "type": "lucide"
+          }
+        ],
+        [
+          "Emoji",
+          {
+            "emoji": "🐳",
+            "type": "emoji"
+          }
+        ],
+        [
+          "Avatar",
+          {
+            "label": "acme/orca",
+            "source": "github",
+            "src": "https://github.com/acme.png?size=64",
+            "type": "image"
+          }
+        ]
+      ],
+      "repoIdsByName": [
+        ["Lucide", "repo-1"],
+        ["Emoji", "repo-2"],
+        ["Avatar", "repo-3"]
+      ]
+    },
+    "8b60e159a069": {
+      "name": "ssh.listTargetSummaries#1",
+      "ordinal": 14,
+      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"ssh.listTargetSummaries\"}"
+    },
+    "9270aeb7d9c6": {
+      "status": "pending",
+      "startedAt": 0
+    },
+    "962842ff5bfa": {
       "name": "settings.get#1",
-      "ordinal": 8,
+      "ordinal": 10,
       "args": [
         {
           "name": "method",
@@ -139,40 +293,18 @@
         }
       }
     },
-    "668a7e313975": {
-      "name": "ssh.listTargetSummaries#1",
-      "ordinal": 10,
-      "json": "{\"id\":\"frame-2\",\"deviceToken\":\"recording-device\",\"method\":\"ssh.listTargetSummaries\"}"
-    },
-    "6bc5e5b7a259": {
-      "name": "repoHostIdByRepoId",
+    "964b1de0995d": {
+      "name": "folderRepoIds",
       "ordinal": 6,
-      "value": [
-        ["repo-1", "local"],
-        ["repo-2", "ssh:ssh-1"],
-        ["repo-3", "ssh:ssh-1"]
-      ]
+      "value": []
     },
-    "77cbfd1f087c": {
-      "name": "repoIdsByName",
-      "ordinal": 5,
-      "value": [
-        ["Lucide", "repo-1"],
-        ["Emoji", "repo-2"],
-        ["Avatar", "repo-3"]
-      ]
-    },
-    "9270aeb7d9c6": {
-      "status": "pending",
-      "startedAt": 0
-    },
-    "96e0c54d86b0": {
-      "name": "settings.get#1",
-      "ordinal": 8,
+    "9bf78684ff71": {
+      "name": "host.platform#1",
+      "ordinal": 11,
       "args": [
         {
           "name": "method",
-          "value": "settings.get"
+          "value": "host.platform"
         },
         {
           "name": "params",
@@ -188,8 +320,16 @@
         }
       ],
       "settlement": {
-        "status": "pending",
-        "startedAt": 0
+        "status": "fulfilled",
+        "startedAt": 0,
+        "settledAt": 0,
+        "value": {
+          "id": "frame-4",
+          "ok": true,
+          "result": {
+            "platform": "darwin"
+          }
+        }
       }
     },
     "a9add325bb0a": {
@@ -259,6 +399,11 @@
         }
       }
     },
+    "ad05136cb3a3": {
+      "name": "host.platform#1",
+      "ordinal": 16,
+      "json": "{\"id\":\"frame-4\",\"deviceToken\":\"recording-device\",\"method\":\"host.platform\"}"
+    },
     "ae27a5b525fa": {
       "name": "repoIconsByName",
       "ordinal": 4,
@@ -288,105 +433,24 @@
         ]
       ]
     },
-    "b428bce85ee7": {
-      "name": "settings.get#1",
-      "ordinal": 11,
-      "json": "{\"id\":\"frame-3\",\"deviceToken\":\"recording-device\",\"method\":\"settings.get\"}"
+    "b1cd79b96fd4": {
+      "name": "github.readAccountGitConfig#1",
+      "ordinal": 17,
+      "json": "{\"id\":\"frame-5\",\"deviceToken\":\"recording-device\",\"method\":\"github.readAccountGitConfig\",\"params\":{\"repo\":\"id:repo-1\"}}"
     },
-    "c752e67787f9": {
-      "name": "ssh.listTargetSummaries#1",
+    "b4729ee47905": {
+      "name": "repoAccountsByName",
       "ordinal": 7,
-      "args": [
-        {
-          "name": "method",
-          "value": "ssh.listTargetSummaries"
-        },
-        {
-          "name": "params",
-          "value": {
-            "$rpc": "absent"
-          }
-        },
-        {
-          "name": "options",
-          "value": {
-            "$rpc": "absent"
-          }
-        }
-      ],
-      "settlement": {
-        "status": "fulfilled",
-        "startedAt": 0,
-        "settledAt": 0,
-        "value": {
-          "id": "frame-2",
-          "ok": true,
-          "result": {
-            "targets": [
-              {
-                "id": "ssh-1",
-                "label": "SSH"
-              }
-            ]
-          }
-        }
-      }
+      "value": []
     },
-    "e62b46a04ba1": {
-      "hostLabelById": [["ssh:ssh-1", "SSH"]],
-      "hostPlatform": "darwin",
-      "repoColorsByName": [
-        ["Lucide", "#123456"],
-        ["Emoji", "#f97316"],
-        ["Avatar", "#f97316"]
-      ],
-      "repoHostIdByRepoId": [
-        ["repo-1", "local"],
-        ["repo-2", "ssh:ssh-1"],
-        ["repo-3", "ssh:ssh-1"]
-      ],
-      "repoIconsByName": [
-        [
-          "Lucide",
-          {
-            "name": "Rocket",
-            "type": "lucide"
-          }
-        ],
-        [
-          "Emoji",
-          {
-            "emoji": "🐳",
-            "type": "emoji"
-          }
-        ],
-        [
-          "Avatar",
-          {
-            "label": "acme/orca",
-            "source": "github",
-            "src": "https://github.com/acme.png?size=64",
-            "type": "image"
-          }
-        ]
-      ],
-      "repoIdsByName": [
-        ["Lucide", "repo-1"],
-        ["Emoji", "repo-2"],
-        ["Avatar", "repo-3"]
-      ]
+    "bce488496d96": {
+      "name": "github.readAccountGitConfig#2",
+      "ordinal": 18,
+      "json": "{\"id\":\"frame-6\",\"deviceToken\":\"recording-device\",\"method\":\"github.readAccountGitConfig\",\"params\":{\"repo\":\"id:repo-2\"}}"
     },
-    "eb79a9b3682a": {
-      "status": "fulfilled",
-      "startedAt": 0,
-      "settledAt": 0,
-      "value": {
-        "$rpc": "undefined"
-      }
-    },
-    "ee8e16df5187": {
+    "beb220606b17": {
       "name": "host.platform#1",
-      "ordinal": 9,
+      "ordinal": 11,
       "args": [
         {
           "name": "method",
@@ -406,16 +470,30 @@
         }
       ],
       "settlement": {
-        "status": "fulfilled",
-        "startedAt": 0,
-        "settledAt": 0,
-        "value": {
-          "id": "frame-4",
-          "ok": true,
-          "result": {
-            "platform": "darwin"
-          }
-        }
+        "status": "pending",
+        "startedAt": 0
+      }
+    },
+    "d0f9e16c3751": {
+      "name": "settings.get#1",
+      "ordinal": 15,
+      "json": "{\"id\":\"frame-3\",\"deviceToken\":\"recording-device\",\"method\":\"settings.get\"}"
+    },
+    "d4ee33c46b05": {
+      "name": "repoHostIdByRepoId",
+      "ordinal": 8,
+      "value": [
+        ["repo-1", "local"],
+        ["repo-2", "ssh:ssh-1"],
+        ["repo-3", "ssh:ssh-1"]
+      ]
+    },
+    "eb79a9b3682a": {
+      "status": "fulfilled",
+      "startedAt": 0,
+      "settledAt": 0,
+      "value": {
+        "$rpc": "undefined"
       }
     }
   },
@@ -425,33 +503,70 @@
       {
         "id": "settings-pending",
         "observation": {
-          "sender": ["a9add325bb0a", "c752e67787f9", "96e0c54d86b0", "1a160fc2d137"],
-          "payloads": ["19b2979d7fc2", "668a7e313975", "b428bce85ee7", "36a96ddbd396"],
+          "sender": [
+            "a9add325bb0a",
+            "4dad27538485",
+            "21118dad0c33",
+            "beb220606b17",
+            "5fb6025946e0",
+            "13f402b2558d"
+          ],
+          "payloads": [
+            "19b2979d7fc2",
+            "8b60e159a069",
+            "d0f9e16c3751",
+            "ad05136cb3a3",
+            "b1cd79b96fd4",
+            "bce488496d96"
+          ],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "9270aeb7d9c6"
           },
-          "state": "6338d57f282f",
-          "effects": ["19bf6d2469a6", "ae27a5b525fa", "77cbfd1f087c", "6bc5e5b7a259"]
+          "state": "8090fb67f3c8",
+          "effects": [
+            "19bf6d2469a6",
+            "ae27a5b525fa",
+            "77cbfd1f087c",
+            "964b1de0995d",
+            "b4729ee47905",
+            "d4ee33c46b05"
+          ]
         }
       },
       {
         "id": "settled",
         "observation": {
-          "sender": ["a9add325bb0a", "c752e67787f9", "64f5522cc303", "ee8e16df5187"],
-          "payloads": ["19b2979d7fc2", "668a7e313975", "b428bce85ee7", "36a96ddbd396"],
+          "sender": [
+            "a9add325bb0a",
+            "4dad27538485",
+            "962842ff5bfa",
+            "9bf78684ff71",
+            "5fb6025946e0",
+            "13f402b2558d"
+          ],
+          "payloads": [
+            "19b2979d7fc2",
+            "8b60e159a069",
+            "d0f9e16c3751",
+            "ad05136cb3a3",
+            "b1cd79b96fd4",
+            "bce488496d96"
+          ],
           "settlements": {
             "mount": "eb79a9b3682a",
             "load": "eb79a9b3682a"
           },
-          "state": "e62b46a04ba1",
+          "state": "837bcd4a513d",
           "effects": [
             "19bf6d2469a6",
             "ae27a5b525fa",
             "77cbfd1f087c",
-            "6bc5e5b7a259",
-            "56ab81cb67dc",
-            "12ba3f41d4db"
+            "964b1de0995d",
+            "b4729ee47905",
+            "d4ee33c46b05",
+            "32c8028866c2",
+            "30014554ec3a"
           ]
         }
       }

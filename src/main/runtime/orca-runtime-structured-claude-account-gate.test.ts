@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OrcaRuntimeService } from './orca-runtime'
+import { structuredAgentRuntimeRegistration } from './structured-agent-runtime-registrations'
 import { setStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
 import type { StructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-host'
 import type { ClaudeManagedAccountGateSettings } from '../native-chat/claude-structured-managed-account-support'
@@ -9,6 +10,11 @@ vi.mock('electron', () => ({
   webContents: { fromId: vi.fn(() => null) },
   ipcMain: { on: vi.fn(), removeListener: vi.fn() },
   app: { getPath: vi.fn(() => '/tmp') }
+}))
+
+// The CLI check reads the host shell environment; the gate under test is the account rule.
+vi.mock('../startup/login-shell-environment', () => ({
+  resolveLoginShellEnvironment: async () => ({})
 }))
 
 function managedAccount(id: string, managedAuthRuntime: 'host' | 'wsl') {
@@ -45,13 +51,24 @@ const HOST_SELECTED: ClaudeManagedAccountGateSettings = {
 }
 
 function runtimeWithAccounts(claude: ClaudeManagedAccountGateSettings | null): OrcaRuntimeService {
-  // No store at all is the unreadable-settings case the gate must fail closed on.
-  const runtime = claude
-    ? new OrcaRuntimeService({ getSettings: () => claude } as never)
-    : new OrcaRuntimeService()
+  // Settings the CLI check reads once but the gate cannot read are the case it must fail closed on.
+  let reads = 0
+  const getSettings = () => {
+    if (claude) {
+      return claude
+    }
+    if (reads++ > 0) {
+      throw new Error('settings unreadable')
+    }
+    return {}
+  }
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: this path reads only getSettings from the store.
+  const runtime = new OrcaRuntimeService({ getSettings } as never)
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: these private members exist on the runtime and are replaced for the test.
   const internal = runtime as unknown as {
     resolveStructuredAgentSessionLocation: (selector: string) => Promise<unknown>
     ensureStructuredAgentSessionHost: () => Promise<void>
+    resolveRuntimeFileTarget: () => Promise<unknown>
   }
   internal.resolveStructuredAgentSessionLocation = vi.fn(async () => ({
     executionHostId: 'local',
@@ -62,14 +79,22 @@ function runtimeWithAccounts(claude: ClaudeManagedAccountGateSettings | null): O
   // The adapter's own location answer is irrelevant here; pin it supported so only the account
   // gate can refuse.
   internal.ensureStructuredAgentSessionHost = vi.fn(async () => {})
+  internal.resolveRuntimeFileTarget = vi.fn(async () => ({ worktree: { path: '/tmp' } }))
   setStructuredAgentSessionHost({
     supportsCreate: () => true
   } as unknown as StructuredAgentSessionHost)
   return runtime
 }
 
+beforeEach(() => {
+  // Each agent is offered only where its CLI resolves; pin that so only the account gate can refuse.
+  vi.spyOn(structuredAgentRuntimeRegistration('claude')!, 'supportsLaunch').mockResolvedValue(true)
+  vi.spyOn(structuredAgentRuntimeRegistration('codex')!, 'supportsLaunch').mockResolvedValue(true)
+})
+
 afterEach(() => {
   setStructuredAgentSessionHost(null)
+  vi.restoreAllMocks()
 })
 
 describe('structured Claude managed-account gate', () => {

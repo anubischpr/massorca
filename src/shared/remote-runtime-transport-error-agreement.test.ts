@@ -213,7 +213,9 @@ const REQUEST_TRANSPORT_ERRORS: TransportErrorPair[] = [
   frameError('remote-runtime-request-frames.ts:103', JSON.stringify({ not: 'an envelope' })),
   producedPair(
     'remote-runtime-request-frames.ts:37 (invalid handshake frame)',
-    invalidRemoteRuntimeResponseError('Remote MassOrca runtime returned an invalid E2EE auth frame.')
+    invalidRemoteRuntimeResponseError(
+      'Remote MassOrca runtime returned an invalid E2EE auth frame.'
+    )
   ),
   producedPair(
     'runtime-rpc-call-queue.ts:70 / :74 / :81',
@@ -401,6 +403,18 @@ const CODELESS_TRANSPORT_ERRORS: (TransportErrorPair & { recoverable: boolean })
     message: 'Remote MassOrca runtime closed the connection.',
     recoverable: true
   },
+  // Why: paired hosts and clients that predate the rebrand still send the "Orca" wording.
+  ...[
+    'Could not connect to the remote Orca runtime.',
+    'Remote Orca runtime closed the connection.',
+    'Remote Orca runtime connection closed.',
+    'Remote Orca runtime is not connected.',
+    'Timed out waiting for the remote Orca runtime.'
+  ].map((message) => ({
+    producer: 'a paired host or client that predates the MassOrca rebrand',
+    message,
+    recoverable: true
+  })),
   {
     producer: 'remote-runtime-terminal-multiplexer.ts:1295 / :1308',
     message: 'Remote runtime connection closed.',

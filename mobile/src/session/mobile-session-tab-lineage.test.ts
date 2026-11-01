@@ -119,12 +119,14 @@ describe('mobileSessionChildParentTabIds', () => {
       type: 'terminal',
       id: 'term-split-leaf',
       parentTabId: 'term-tab',
+      title: 'shell',
       terminal: 'h4',
       isActive: false
     }
     const plain: MobileSessionTab = {
       type: 'terminal',
       id: 'term-plain',
+      title: 'shell',
       terminal: 'h5',
       isActive: false
     }

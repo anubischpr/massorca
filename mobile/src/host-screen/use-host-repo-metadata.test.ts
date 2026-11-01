@@ -21,7 +21,7 @@ function mountMetadata(client: FakeSession) {
       repoMetadataFetchedAtRef: { current: 0 },
       setFolderRepoIds: (ids: Set<string>) => folderSets.push([...ids])
     },
-    { get: (target, key) => (key in target ? Reflect.get(target, key) : () => {}) }
+    { get: (target, key) => (typeof key === 'string' && key in target ? target[key] : () => {}) }
   )
   let refresh!: (options?: { force?: boolean }) => Promise<void>
   const mount = hookMount(() => {

@@ -1,6 +1,7 @@
 import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { structuredAgentRuntimeRegistration } from './structured-agent-runtime-registrations'
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import type { StructuredAgentId } from '../../shared/agent-session-provider-handle'
 import { OrcaRuntimeService } from './orca-runtime'
@@ -113,7 +114,8 @@ describe('structured agent-session create-support probe', () => {
     bin = join(root, 'bin')
     await mkdir(bin)
     // Codex and Claude are offered only where their CLI is installed, so the probe installs stand-ins.
-    for (const name of ['codex', 'claude']) {
+    // A Windows launch only starts .cmd/.exe files, so each stand-in also exists as a .cmd.
+    for (const name of ['codex', 'claude', 'codex.cmd', 'claude.cmd']) {
       const file = join(bin, name)
       await writeFile(file, '#!/bin/sh\n')
       await chmod(file, 0o755)
@@ -134,6 +136,7 @@ describe('structured agent-session create-support probe', () => {
     'does not offer %s support when its CLI is not installed on this host',
     async (agent) => {
       await rm(join(bin, agent))
+      await rm(join(bin, `${agent}.cmd`))
       const support = await createRuntime({
         executionHostId: 'local',
         wslDistro: null
@@ -164,6 +167,8 @@ describe('structured agent-session create-support probe', () => {
     async (agent, creationTimesReadable) => {
       setPlatform('win32')
       isWindowsProcessStartTimeAvailable.mockReturnValue(creationTimesReadable)
+      // Why: a faked platform cannot resolve a real Windows CLI on other hosts; this case is about the clock.
+      vi.spyOn(structuredAgentRuntimeRegistration(agent)!, 'supportsLaunch').mockResolvedValue(true)
 
       await expectSupportWithoutInstall({
         agent,

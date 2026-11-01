@@ -24,6 +24,13 @@ import {
   getTree
 } from './__mocks__/mobile-prompt-controller'
 
+// Native modules the artifact preview and the animated drawer sheets load, which the mock lacks.
+vi.mock('react-native-webview', () => ({ WebView: 'WebView' }))
+vi.mock('./MobileBackgroundWorkSheet', () => ({ MobileBackgroundWorkSheet: () => null }))
+vi.mock('./MobileNativeChatDelegationWhySheet', () => ({
+  MobileNativeChatDelegationWhySheet: () => null
+}))
+
 const client: RpcClient = {
   sendRequest: vi.fn<RpcClient['sendRequest']>(),
   subscribe: () => () => {},

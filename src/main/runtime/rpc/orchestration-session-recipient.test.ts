@@ -112,7 +112,7 @@ describe('a send addressed to an agent session', () => {
     ['a bare provider id', () => PROVIDER_ID_X]
   ])('hands back the Orca session address to paste instead of %s', async (_label, to) => {
     expect(errorMessage(await send(to()))).toBe(
-      `${PROVIDER_ID_X} is the provider's own session id, which changes on /clear. This session's Orca session ID is orca_session_id:${SESSION_X}; address it by that instead. No message was sent.`
+      `${PROVIDER_ID_X} is the provider's own session id, which changes on /clear. This session's MassOrca session ID is orca_session_id:${SESSION_X}; address it by that instead. No message was sent.`
     )
   })
 

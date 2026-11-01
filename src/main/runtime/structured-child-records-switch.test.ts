@@ -211,7 +211,7 @@ describe('the chat strip and the session list read the same host child records',
       source: 'unifiedExecStartup',
       status: 'inProgress'
     })
-    // Foreground shell records keep status live; surfaces show the child's tool instead.
+    // A child's shell is background work from its start: it lists beside its working agent row.
     both([
       {
         kind: 'agent',
@@ -219,10 +219,24 @@ describe('the chat strip and the session list read the same host child records',
         state: 'working',
         membership: 'live',
         tool: 'Bash: npm run dev'
+      },
+      {
+        kind: 'command',
+        description: 'npm test',
+        state: 'working',
+        membership: 'live',
+        owner: 'review'
+      },
+      {
+        kind: 'command',
+        description: 'npm run dev',
+        state: 'working',
+        membership: 'live',
+        owner: 'review'
       }
     ])
 
-    // A command that exits leaves nothing behind.
+    // A command that exits leaves nothing behind on either surface.
     await item('item/completed', REVIEWER, 'r1', {
       type: 'commandExecution',
       id: 'cmd-1',
@@ -238,6 +252,13 @@ describe('the chat strip and the session list read the same host child records',
         state: 'working',
         membership: 'live',
         tool: 'Bash: npm run dev'
+      },
+      {
+        kind: 'command',
+        description: 'npm run dev',
+        state: 'working',
+        membership: 'live',
+        owner: 'review'
       }
     ])
 
@@ -278,7 +299,7 @@ describe('the chat strip and the session list read the same host child records',
     })
     expect(parentRow()).toMatchObject({ state: 'done' })
     // Nothing runs: the sidebar and the strip list nothing, and the strip hides. The finished
-    // child's record and the dev server's, settled when its process exited, stay in the store
+    // child's record and its commands', settled when their processes exited, stay in the store
     // until the user's next turn.
     expect(summaries.at(-1)).not.toHaveProperty('children')
     expect(strip.at(-1)).toBeNull()
@@ -293,6 +314,14 @@ describe('the chat strip and the session list read the same host child records',
       },
       {
         kind: 'command',
+        description: 'npm test',
+        state: 'done',
+        membership: 'settled',
+        outcome: 'succeeded',
+        owner: 'review'
+      },
+      {
+        kind: 'command',
         description: 'npm run dev',
         state: 'done',
         membership: 'settled',
@@ -304,7 +333,7 @@ describe('the chat strip and the session list read the same host child records',
     // A turn nobody sent retires nothing: only the user's next message does.
     await notify('turn/started', { threadId: THREAD, turn: { id: 'p-own', status: 'inProgress' } })
     await notify('turn/completed', { threadId: THREAD, turn: { id: 'p-own', status: 'completed' } })
-    expect(stored()).toHaveLength(2)
+    expect(stored()).toHaveLength(3)
     // The user's next message, which Codex takes into its next turn.
     const body = hostTestMessage('check it again')
     const clientOperationId = `${Date.now()}-${'2'.padStart(32, '0')}`

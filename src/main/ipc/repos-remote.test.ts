@@ -286,7 +286,7 @@ describe('repos:addRemote', () => {
         url: 'https://github.com/stablyai/orca.git',
         destination: '/home/user'
       })
-    ).rejects.toThrow('"orca" is already an Orca project')
+    ).rejects.toThrow('"orca" is already a MassOrca project')
     expect(mockGitProvider.clone).not.toHaveBeenCalled()
   })
 

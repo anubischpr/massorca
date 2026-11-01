@@ -9,7 +9,10 @@ import {
   type CreateSessionAgentChoiceInputs
 } from './create-session-agent-choices'
 import type { CreateSessionSelection } from './create-session-model'
-import { readCreateSessionPiRuntimes } from './use-create-session-pi-runtimes'
+import {
+  readCreateSessionPiRuntimes,
+  type PiRuntimeRequest
+} from './use-create-session-pi-runtimes'
 
 const catalog: CreateSessionAgentChoiceInputs['catalog'] = [
   { id: 'claude', label: 'Claude' },
@@ -160,7 +163,7 @@ describe('createSessionAgentChoiceValue', () => {
 
 describe('readCreateSessionPiRuntimes', () => {
   it('asks the local host for its Pi runtimes', async () => {
-    const request = vi.fn(() => Promise.resolve(['pi', 'gentle-shell']))
+    const request = vi.fn<PiRuntimeRequest>(() => Promise.resolve(['pi', 'gentle-shell']))
     await expect(readCreateSessionPiRuntimes(request, null)).resolves.toEqual([
       'pi',
       'gentle-shell'
@@ -169,7 +172,7 @@ describe('readCreateSessionPiRuntimes', () => {
   })
 
   it('asks an SSH host for its Pi runtimes by connection', async () => {
-    const request = vi.fn(() => Promise.resolve(['gentle-shell']))
+    const request = vi.fn<PiRuntimeRequest>(() => Promise.resolve(['gentle-shell']))
     await readCreateSessionPiRuntimes(request, 'ssh-1')
     expect(request.mock.calls[0]?.[0]).toBe('preflight.detectRemotePiRuntimes')
     expect(request.mock.calls[0]?.[1]).toEqual({ connectionId: 'ssh-1' })
