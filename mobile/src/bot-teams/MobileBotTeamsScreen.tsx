@@ -106,11 +106,12 @@ export function MobileBotTeamsScreen({
     screen.name === 'teamBots' ? teams.find((t) => t.id === screen.teamId) : undefined
 
   const notice = unreachable ? (
-    <Pressable accessibilityRole="button" onPress={() => void reload()}>
-      <Text style={styles.message}>
-        Can’t reach this host. Its bots may still be working. Tap to try again.
-      </Text>
-    </Pressable>
+    <View style={styles.notice}>
+      <Text style={styles.rowTitle}>Can’t reach this host. Its bots may still be working.</Text>
+      <Pressable accessibilityRole="button" onPress={() => void reload()} style={styles.secondary}>
+        <Text style={styles.rowTitle}>Try again</Text>
+      </Pressable>
+    </View>
   ) : null
 
   let body

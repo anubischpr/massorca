@@ -79,6 +79,14 @@ export const botTeamStyles = StyleSheet.create({
     borderColor: colors.borderSubtle,
     backgroundColor: colors.bgPanel
   },
+  notice: {
+    gap: spacing.sm,
+    margin: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.statusAmber
+  },
   floatBar: {
     flexDirection: 'row',
     alignItems: 'center',
