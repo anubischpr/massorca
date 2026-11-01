@@ -31,6 +31,9 @@ const teams: BotTeam[] = [
 
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
   listBotTeams: () => Promise.resolve(teams),
+  listBotTeamRoom: () => Promise.resolve({ tasks: [], messages: [] }),
+  updateBotOnTeam: vi.fn(),
+  updateBotTeam: vi.fn(),
   addBotToTeam: vi.fn(),
   createBotTeam: vi.fn(),
   deleteBotTeam: vi.fn(),
@@ -39,6 +42,8 @@ vi.mock('@/runtime/runtime-bot-team-client', () => ({
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
 vi.mock('@/lib/agent-catalog', () => ({ AgentIcon: () => null }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+vi.mock('./use-bot-team-task-status', () => ({ useBotTeamSessionStatuses: () => new Map() }))
+vi.mock('@/components/sidebar/StatusIndicator', () => ({ default: () => null }))
 vi.mock('./BotTeamRoom', () => ({
   BotTeamRoom: ({ openTaskId }: { openTaskId: string | null }) => (
     <div data-testid="room">{openTaskId ?? 'room'}</div>
@@ -67,6 +72,20 @@ afterEach(() => {
     act(() => root.unmount())
     container.remove()
   }
+})
+
+describe('the team cards', () => {
+  it('shows each team’s state and description, and edits without opening it', async () => {
+    const container = await mount(<BotTeamsPage />)
+    expect(container.textContent).toContain('Nothing running')
+    expect(container.textContent).toContain('Leads')
+
+    const edit = container.querySelector('[aria-label="Edit team"]')
+    await act(async () => edit?.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+
+    expect(container.textContent).toContain('Edit team')
+    expect(container.querySelector('[data-testid="room"]')).toBeNull()
+  })
 })
 
 describe('the Bot teams page with a controlled selection', () => {

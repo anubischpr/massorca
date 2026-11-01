@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ChevronLeft, Plus, Settings, Users } from 'lucide-react-native'
-import { MobileAgentIcon } from '../components/MobileAgentIcon'
 import { colors } from '../theme/mobile-theme'
 import { useHostClient } from '../transport/host-client-hooks'
 import { botAgentLabel } from '../../../src/shared/bot-team-character-art'
@@ -21,6 +20,7 @@ import {
   updateMobileBotTeam,
   type MobileBotTeamList
 } from './mobile-bot-team-rpc'
+import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 
 const HOST_CHECK_MS = 20_000
 
@@ -150,6 +150,7 @@ export function MobileBotTeamsScreen({
               onBack={() => setScreen({ name: 'newTeam' })}
             />
             <MobileAddBotForm
+              client={client}
               key={editIndex ?? 'new'}
               {...(editIndex === null ? {} : { initial: draftBots[editIndex] })}
               onAdd={(bot) => {
@@ -174,6 +175,7 @@ export function MobileBotTeamsScreen({
       <>
         <SubBar title="Edit bot" onBack={() => setScreen(back)} />
         <MobileAddBotForm
+          client={client}
           {...(editing ? { initial: editing } : {})}
           onAdd={(bot) =>
             void apply(updateMobileBot(client, screen.teamId, screen.botId, bot), back)
@@ -187,6 +189,7 @@ export function MobileBotTeamsScreen({
       <>
         <SubBar title="Add a bot" onBack={() => setScreen(back)} />
         <MobileAddBotForm
+          client={client}
           onAdd={(bot) => void apply(addMobileBot(client, screen.teamId, bot), back)}
         />
       </>
@@ -219,27 +222,15 @@ export function MobileBotTeamsScreen({
         <ScrollView contentContainerStyle={styles.form}>
           {openTeam.purpose ? <Text style={styles.rowMeta}>{openTeam.purpose}</Text> : null}
           {openTeam.bots.map((bot) => (
-            <Pressable
-              key={bot.id}
-              accessibilityRole="button"
-              accessibilityLabel={`Edit ${bot.name}`}
-              onPress={() => setScreen({ name: 'editBot', teamId: openTeam.id, botId: bot.id })}
-              style={styles.row}
-            >
-              <MobileAgentIcon agentId={bot.agent} size={20} />
+            <View key={bot.id} style={styles.row}>
+              <MobileBotAgentIcon agentId={bot.agent} size={20} />
               <View style={styles.rowText}>
                 <Text style={styles.rowTitle}>{bot.name}</Text>
-                <Text style={styles.rowMeta}>{bot.job || botAgentLabel(bot.agent)}</Text>
+                {bot.job ? <Text style={styles.rowMeta}>{bot.job}</Text> : null}
+                <Text style={styles.rowMeta}>{botAgentLabel(bot.agent)}</Text>
               </View>
-            </Pressable>
+            </View>
           ))}
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setScreen({ name: 'teamBot', teamId: openTeam.id })}
-            style={styles.row}
-          >
-            <Text style={styles.rowTitle}>Add a bot</Text>
-          </Pressable>
         </ScrollView>
       </>
     )

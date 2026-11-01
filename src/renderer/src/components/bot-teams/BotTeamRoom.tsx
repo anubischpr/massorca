@@ -3,7 +3,6 @@ import { ArrowUp, ChevronLeft, Play } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { AgentIcon } from '@/lib/agent-catalog'
 import NativeChatView from '@/components/native-chat/NativeChatView'
 import { botTeamHostTarget, useBotTeamHost } from '@/runtime/bot-team-host'
 import { translate } from '@/i18n/i18n'
@@ -20,6 +19,7 @@ import type {
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
+import { BotAgentIcon } from './BotAgentIcon'
 
 function statusLabel(status: BotTeamTaskStatus): string {
   switch (status) {
@@ -152,7 +152,7 @@ export function BotTeamRoom({
     const owner = botOf(task.ownerBotId)
     return (
       <div key={task.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
-        <AgentIcon agent={owner?.agent} size={20} />
+        <BotAgentIcon agent={owner?.agent} size={20} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium">{task.title}</div>
           <div className="truncate text-xs text-muted-foreground">
@@ -223,7 +223,7 @@ export function BotTeamRoom({
               <div key={message.id} className="flex flex-col gap-3">
                 {author ? (
                   <div className="flex items-center gap-2 text-[13px] font-medium">
-                    <AgentIcon agent={author.agent} size={16} />
+                    <BotAgentIcon agent={author.agent} size={16} />
                     {author.name}
                   </div>
                 ) : null}

@@ -25,9 +25,9 @@ import { botTeamHostTarget, currentBotTeamHost } from '@/runtime/bot-team-host'
 import { discoverSkillsForRuntimeTarget } from '@/runtime/runtime-skills-client'
 import { useAppStore } from '@/store'
 import { botAgentLabel } from '../../../../shared/bot-team-character-art'
-import { botModelOptions } from '../../../../shared/bot-team-model-options'
 import type { BotDraftInput } from '../../../../shared/rpc-contract/bot-team-params'
 import type { SkillDiscoveryResult } from '../../../../shared/skills'
+import { useBotModelOptions } from './use-bot-model-options'
 
 export type BotAdvancedValue = {
   modelMode: 'auto' | 'manual'
@@ -155,7 +155,7 @@ export function BotAdvancedOptions({
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [choosingSkills, setChoosingSkills] = useState(false)
-  const models = botModelOptions(agent)
+  const models = useBotModelOptions(agent)
   const model = models.find((entry) => entry.id === value.model)
   const manual = value.modelMode === 'manual' && models.length > 0
 

@@ -74,7 +74,7 @@ async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeam
   return startBotTeamTask(
     {
       ensureTeamWorkspace: (entry) => ensureTeamWorkspace(ctx, entry),
-      createSession: async ({ workspaceId, agent, accessMode, options }) => {
+      createSession: async ({ workspaceId, agent, accessMode, piRuntime, options }) => {
         const attempt = (seed: typeof options) =>
           createStructuredAgentSessionForWorktree({
             runtime: ctx.runtime,
@@ -89,6 +89,7 @@ async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeam
             worktree: `id:${workspaceId}`,
             agent,
             accessMode,
+            ...(piRuntime ? { piRuntime } : {}),
             ...(seed ? { options: seed } : {}),
             // A task runs in the background; opening it is up to the person.
             activate: false

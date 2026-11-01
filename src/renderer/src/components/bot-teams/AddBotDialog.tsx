@@ -11,12 +11,12 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { AgentIcon } from '@/lib/agent-catalog'
 import { translate } from '@/i18n/i18n'
 import { BOT_AGENT_CHOICES } from '../../../../shared/bot-team-character-art'
 import { botModelSummary } from '../../../../shared/bot-team-model-options'
 import type { BotDraftInput } from '../../../../shared/rpc-contract/bot-team-params'
 import { BotAdvancedOptions, type BotAdvancedValue } from './BotAdvancedOptions'
+import { BotAgentIcon } from './BotAgentIcon'
 
 export function AddBotDialog({
   initial,
@@ -93,7 +93,7 @@ export function AddBotDialog({
           >
             {BOT_AGENT_CHOICES.map((choice) => (
               <ToggleGroupItem key={choice.id} value={choice.id}>
-                <AgentIcon agent={choice.id} size={14} />
+                <BotAgentIcon agent={choice.id} size={14} />
                 {choice.label}
               </ToggleGroupItem>
             ))}

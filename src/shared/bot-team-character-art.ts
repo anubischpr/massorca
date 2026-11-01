@@ -79,6 +79,11 @@ export const BOT_AGENT_CHOICES = [
 
 export type BotAgentId = (typeof BOT_AGENT_CHOICES)[number]['id']
 
+/** A bot on `pi` is Gentle Shell: its own identity, its own mark, its own runtime. Never stock Pi. */
+export function botAgentPiRuntime(agent: string): 'gentle-shell' | undefined {
+  return agent === 'pi' ? 'gentle-shell' : undefined
+}
+
 export function botAgentLabel(agent: string): string {
   return BOT_AGENT_CHOICES.find((choice) => choice.id === agent)?.label ?? agent
 }

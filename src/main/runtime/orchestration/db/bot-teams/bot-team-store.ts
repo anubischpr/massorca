@@ -127,8 +127,13 @@ export function createBotTeam(this: OrchestrationDb, input: BotTeamCreateInput):
 export function updateBotTeam(this: OrchestrationDb, input: BotTeamUpdateInput): BotTeam {
   const team = requireBotTeam(this, input.teamId)
   this.db
-    .prepare('UPDATE bot_teams SET access_mode = ?, workspaces_enabled = ? WHERE id = ?')
+    .prepare(
+      'UPDATE bot_teams SET name = ?, purpose = ?, character = ?, access_mode = ?, workspaces_enabled = ? WHERE id = ?'
+    )
     .run(
+      input.name ?? team.name,
+      input.purpose ?? team.purpose,
+      input.character ?? team.character,
       input.accessMode ?? team.accessMode,
       (input.workspacesEnabled ?? team.workspacesEnabled) ? 1 : 0,
       input.teamId

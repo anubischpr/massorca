@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { Bot, Check, ChevronDown, ChevronLeft, Ellipsis, MessageSquare } from 'lucide-react-native'
 import { BottomDrawer } from '../components/BottomDrawer'
-import { MobileAgentIcon } from '../components/MobileAgentIcon'
 import { useMobileDictation } from '../hooks/use-mobile-dictation'
 import { MobileNativeChatComposer } from '../session/MobileNativeChatComposer'
 import { MobileNativeChatMessage } from '../session/MobileNativeChatMessage'
@@ -23,6 +22,7 @@ import {
   postMobileBotTeamRequest,
   startMobileBotTeamTask
 } from './mobile-bot-team-room-rpc'
+import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 
 const NO_GENERATION = () => 0
 
@@ -65,7 +65,7 @@ function TaskCard({
         style={styles.taskCardBody}
       >
         <View style={styles.taskCardTitle}>
-          {owner ? <MobileAgentIcon agentId={owner.agent} size={14} /> : null}
+          {owner ? <MobileBotAgentIcon agentId={owner.agent} size={14} /> : null}
           <Text style={styles.rowTitle} numberOfLines={2}>
             {task.title}
           </Text>
@@ -266,7 +266,7 @@ export function MobileBotTeamRoom({
             <View key={message.id} style={styles.roomEntry}>
               {author ? (
                 <View style={styles.roomWho}>
-                  <MobileAgentIcon agentId={author.agent} size={14} />
+                  <MobileBotAgentIcon agentId={author.agent} size={14} />
                   <Text style={styles.roomWhoText}>{author.name}</Text>
                 </View>
               ) : null}

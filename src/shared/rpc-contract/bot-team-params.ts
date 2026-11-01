@@ -39,6 +39,9 @@ export const BotTeamSelector = z.object({
 })
 
 export const BotTeamUpdate = BotTeamSelector.extend({
+  name: requiredString('Missing team name').optional(),
+  purpose: z.string().trim().optional(),
+  character: z.enum(BOT_TEAM_CHARACTERS).optional(),
   accessMode: z.enum(AGENT_SESSION_ACCESS_MODES).optional(),
   workspacesEnabled: z.boolean().optional()
 })

@@ -1,10 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown, ChevronRight, SlidersHorizontal, Sparkles } from 'lucide-react-native'
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native'
-import { MobileAgentIcon } from '../components/MobileAgentIcon'
 import { colors } from '../theme/mobile-theme'
 import { BOT_AGENT_CHOICES, botAgentLabel } from '../../../src/shared/bot-team-character-art'
-import { botModelOptions, botModelSummary } from '../../../src/shared/bot-team-model-options'
+import {
+  botModelOptions,
+  botModelOptionsFromListing,
+  botModelSummary,
+  type BotModelOption
+} from '../../../src/shared/bot-team-model-options'
+import { readHostModelCatalog } from '../create-session/use-create-session-options'
+import type { RpcClient } from '../transport/rpc-client'
 import {
   BOT_TEAM_CHARACTERS,
   type BotDraftInput,
@@ -12,6 +18,7 @@ import {
 } from '../../../src/shared/rpc-contract/bot-team-params'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
+import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 
 function PrimaryButton({
   label,
@@ -62,9 +69,11 @@ function ChoiceRow({
 }
 
 export function MobileAddBotForm({
+  client,
   initial,
   onAdd
 }: {
+  client: RpcClient
   /** The bot being edited; absent when adding a new one. */
   initial?: BotDraftInput
   onAdd: (bot: BotDraftInput) => void
@@ -79,7 +88,30 @@ export function MobileAddBotForm({
   const [model, setModel] = useState(initial?.model ?? null)
   const [effort, setEffort] = useState(initial?.effort ?? null)
   const trimmedName = name.trim()
-  const models = botModelOptions(agent)
+  const [listed, setListed] = useState<{ agent: string; options: BotModelOption[] } | null>(null)
+  // The list the session chooser reads, from the host that will run the bot.
+  useEffect(() => {
+    let stale = false
+    readHostModelCatalog(client, agent, null).then(
+      (catalog) => {
+        if (!stale) {
+          setListed({
+            agent,
+            options: botModelOptionsFromListing(
+              agent,
+              catalog.origin === 'unknown' ? [] : catalog.models
+            )
+          })
+        }
+      },
+      () => {}
+    )
+    return () => {
+      stale = true
+    }
+  }, [client, agent])
+  const fromHost = listed?.agent === agent ? listed.options : []
+  const models = fromHost.length > 0 ? fromHost : botModelOptions(agent)
   const manual = modelMode === 'manual' && models.length > 0
   const efforts = models.find((entry) => entry.id === model)?.efforts ?? []
   // The host picks again on save, so what it picked before only holds while these are unchanged.
@@ -127,7 +159,7 @@ export function MobileAddBotForm({
           onPress={() => pickAgent(choice.id)}
           style={[styles.row, agent === choice.id && styles.rowSelected]}
         >
-          <MobileAgentIcon agentId={choice.id} size={20} />
+          <MobileBotAgentIcon agentId={choice.id} size={20} />
           <Text style={styles.rowTitle}>{choice.label}</Text>
         </Pressable>
       ))}
@@ -280,7 +312,7 @@ export function MobileNewTeamForm({
           onPress={() => onEditBot(index)}
           style={styles.row}
         >
-          <MobileAgentIcon agentId={bot.agent} size={20} />
+          <MobileBotAgentIcon agentId={bot.agent} size={20} />
           <View style={styles.rowText}>
             <Text style={styles.rowTitle}>{bot.name}</Text>
             <Text style={styles.rowMeta}>{botAgentLabel(bot.agent)}</Text>

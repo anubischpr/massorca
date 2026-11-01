@@ -1,5 +1,6 @@
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
 import type { BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
+import { botAgentPiRuntime } from '../../shared/bot-team-character-art'
 import { botLaunchOptions } from './bot-team-model-choice'
 
 export type BotTeamTaskStartDeps = {
@@ -9,6 +10,7 @@ export type BotTeamTaskStartDeps = {
     workspaceId: string
     agent: BotTeamBot['agent']
     accessMode: BotTeam['accessMode']
+    piRuntime?: 'gentle-shell'
     options?: Readonly<Record<string, string>>
   }) => Promise<string>
   sendPrompt: (sessionId: string, text: string) => Promise<boolean>
@@ -47,10 +49,12 @@ export async function startBotTeamTask(
   }
   const workspaceId = await deps.ensureTeamWorkspace(team)
   const options = botLaunchOptions(bot)
+  const piRuntime = botAgentPiRuntime(bot.agent)
   const sessionId = await deps.createSession({
     workspaceId,
     agent: bot.agent,
     accessMode: team.accessMode,
+    ...(piRuntime ? { piRuntime } : {}),
     ...(options ? { options } : {})
   })
   // Linked only once delivered: an undelivered request must keep the task in Todo, with Start.
