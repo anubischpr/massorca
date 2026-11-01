@@ -82,25 +82,13 @@ describe('the Bot teams sidebar', () => {
     expect(rowLabels(container)).toEqual(['Search', 'All teams', 'Marketing', 'Sales'])
   })
 
-  it('has no Create button, no Projects list and no row without a built surface', async () => {
+  it('has no Create button or workspace list', async () => {
     seedStore(store, { botTeamsSelection: { teamId: 't1', taskId: null, creating: false } })
     const container = await mount()
-    const text = container.textContent ?? ''
-    for (const absent of [
-      'Create',
-      'Projects',
-      'New project',
-      'Board',
-      'Files',
-      'Memory',
-      'Permissions'
-    ]) {
-      expect(rowLabels(container)).not.toContain(absent)
-    }
-    expect(text).not.toContain('Projects')
+    expect(rowLabels(container)).not.toContain('Create')
   })
 
-  it('shows the Conference room only under the open team', async () => {
+  it('shows every board row under the open team only, in order', async () => {
     seedStore(store, { botTeamsSelection: { teamId: 't2', taskId: null, creating: false } })
     const container = await mount()
     expect(rowLabels(container)).toEqual([
@@ -108,9 +96,31 @@ describe('the Bot teams sidebar', () => {
       'All teams',
       'Marketing',
       'Sales',
-      'Conference room'
+      'Conference room',
+      'Board',
+      'New project',
+      'Files',
+      'Memory',
+      'Permissions'
     ])
+    expect(container.textContent).toContain('Projects')
     expect(rowByLabel(container, 'Conference room').getAttribute('aria-current')).toBe('page')
+  })
+
+  it('keeps rows without a screen disabled, so clicking them changes nothing', async () => {
+    seedStore(store, { botTeamsSelection: { teamId: 't1', taskId: null, creating: false } })
+    const container = await mount()
+    expect(rowByLabel(container, 'Conference room').disabled).toBe(false)
+    for (const label of ['Board', 'New project', 'Files', 'Memory', 'Permissions']) {
+      const row = rowByLabel(container, label)
+      expect(row.disabled).toBe(true)
+      act(() => row.click())
+      expect(store.getState().botTeamsSelection).toEqual({
+        teamId: 't1',
+        taskId: null,
+        creating: false
+      })
+    }
   })
 
   it('opens a team, All teams and the Conference room through the store', async () => {

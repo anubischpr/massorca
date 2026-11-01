@@ -19810,7 +19810,13 @@
       "stuck": "Stuck",
       "done": "Done",
       "backToRoom": "Back to Conference room",
-      "open": "Open"
+      "open": "Open",
+      "board": "Board",
+      "projects": "Projects",
+      "newProject": "New project",
+      "files": "Files",
+      "memory": "Memory",
+      "permissions": "Permissions"
     }
   },
   "dashboardPopout": {
