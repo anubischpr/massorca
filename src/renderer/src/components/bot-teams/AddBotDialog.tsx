@@ -14,7 +14,9 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { AgentIcon } from '@/lib/agent-catalog'
 import { translate } from '@/i18n/i18n'
 import { BOT_AGENT_CHOICES } from '../../../../shared/bot-team-character-art'
+import { botModelSummary } from '../../../../shared/bot-team-model-options'
 import type { BotDraftInput } from '../../../../shared/rpc-contract/bot-team-params'
+import { BotAdvancedOptions, type BotAdvancedValue } from './BotAdvancedOptions'
 
 export function AddBotDialog({
   initial,
@@ -31,7 +33,19 @@ export function AddBotDialog({
   const [agent, setAgent] = useState<BotDraftInput['agent']>(
     initial?.agent ?? BOT_AGENT_CHOICES[0].id
   )
+  const [advanced, setAdvanced] = useState<BotAdvancedValue>({
+    modelMode: initial?.modelMode ?? 'auto',
+    model: initial?.model ?? null,
+    effort: initial?.effort ?? null,
+    skills: initial?.skills ?? []
+  })
   const trimmedName = name.trim()
+  // The host picks again on save, so what it picked before only holds while these are unchanged.
+  const unchanged = initial?.agent === agent && initial.job === job.trim()
+  const automaticSummary =
+    unchanged && initial.modelMode === 'auto'
+      ? botModelSummary({ agent, model: initial.model ?? null, effort: initial.effort ?? null })
+      : null
 
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel()}>
@@ -67,6 +81,13 @@ export function AddBotDialog({
               const choice = BOT_AGENT_CHOICES.find((c) => c.id === next)
               if (choice) {
                 setAgent(choice.id)
+                // A model belongs to its agent, so a new agent starts automatic again.
+                setAdvanced((current) => ({
+                  ...current,
+                  modelMode: 'auto',
+                  model: null,
+                  effort: null
+                }))
               }
             }}
           >
@@ -78,13 +99,20 @@ export function AddBotDialog({
             ))}
           </ToggleGroup>
         </div>
+        <BotAdvancedOptions
+          botName={trimmedName}
+          agent={agent}
+          automaticSummary={automaticSummary}
+          value={advanced}
+          onChange={setAdvanced}
+        />
         <DialogFooter>
           <Button variant="ghost" onClick={onCancel}>
             {translate('components.botTeams.cancel', 'Cancel')}
           </Button>
           <Button
             disabled={trimmedName === ''}
-            onClick={() => onAdd({ name: trimmedName, job: job.trim(), agent })}
+            onClick={() => onAdd({ name: trimmedName, job: job.trim(), agent, ...advanced })}
           >
             {initial
               ? translate('components.botTeams.saveBot', 'Save')

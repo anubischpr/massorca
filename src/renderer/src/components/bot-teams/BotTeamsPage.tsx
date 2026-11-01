@@ -21,10 +21,12 @@ import { useBotTeams, type BotTeamsState } from './use-bot-teams'
 
 function TeamDetail({
   team,
+  offline,
   applyChange,
   onBack
 }: {
   team: BotTeam
+  offline: boolean
   applyChange: BotTeamsState['applyChange']
   onBack: () => void
 }): React.JSX.Element {
@@ -34,7 +36,14 @@ function TeamDetail({
   const [openTaskId, setOpenTaskId] = useState<string | null>(null)
   // A task's thread is a full chat, so it takes the page rather than the team's column.
   if (openTaskId !== null) {
-    return <BotTeamRoom team={team} openTaskId={openTaskId} onOpenTask={setOpenTaskId} />
+    return (
+      <BotTeamRoom
+        team={team}
+        openTaskId={openTaskId}
+        onOpenTask={setOpenTaskId}
+        offline={offline}
+      />
+    )
   }
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-4 p-6">
@@ -61,7 +70,7 @@ function TeamDetail({
         </Button>
       </div>
       {team.purpose ? <p className="text-sm text-muted-foreground">{team.purpose}</p> : null}
-      <BotTeamRoom team={team} openTaskId={null} onOpenTask={setOpenTaskId} />
+      <BotTeamRoom team={team} openTaskId={null} onOpenTask={setOpenTaskId} offline={offline} />
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium">{translate('components.botTeams.bots', 'Bots')}</h2>
         <Button variant="outline" size="sm" onClick={() => setAddingBot(true)}>
@@ -118,6 +127,40 @@ function TeamDetail({
   )
 }
 
+/** Losing contact says nothing about the bots, which run on the host: they may still be working. */
+function HostUnreachableNotice({
+  lastSeenAt,
+  onRetry
+}: {
+  lastSeenAt: number | null
+  onRetry: () => void
+}): React.JSX.Element {
+  return (
+    <div className="mx-auto flex w-full max-w-4xl items-center gap-3 px-6 pt-4 text-sm">
+      <p className="min-w-0 flex-1 text-muted-foreground">
+        {lastSeenAt === null
+          ? translate(
+              'components.botTeams.hostUnreachable',
+              'Can’t reach this host. Its bots may still be working.'
+            )
+          : translate(
+              'components.botTeams.hostUnreachableSince',
+              'Can’t reach this host. Its bots may still be working. Last update at {{time}}.',
+              {
+                time: new Date(lastSeenAt).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })
+              }
+            )}
+      </p>
+      <Button variant="outline" size="sm" onClick={onRetry}>
+        {translate('components.botTeams.tryAgain', 'Try again')}
+      </Button>
+    </div>
+  )
+}
+
 function TeamGrid({
   teams,
   onNew,
@@ -154,10 +197,8 @@ function TeamGrid({
               onClick={() => onOpen(team.id)}
               className="flex flex-col gap-2 rounded-lg border border-border p-3 text-left transition-colors hover:bg-accent"
             >
-              <span className="flex items-center gap-2 text-sm font-semibold">
-                <BotTeamCharacterIcon character={team.character} size={20} />
-                <span className="truncate">{team.name}</span>
-              </span>
+              <BotTeamCharacterIcon character={team.character} size={64} />
+              <span className="truncate text-sm font-semibold">{team.name}</span>
               <span className="flex-1 text-xs text-muted-foreground">{team.purpose}</span>
               <span className="flex items-center gap-1">
                 {team.bots.map((bot) => (
@@ -173,26 +214,21 @@ function TeamGrid({
 }
 
 export default function BotTeamsPage(): React.JSX.Element {
-  const { teams, failed, reload, applyChange } = useBotTeams()
+  const { teams, failed, lastSeenAt, reload, applyChange } = useBotTeams()
   const [creating, setCreating] = useState(false)
   const [openTeamId, setOpenTeamId] = useState<string | null>(null)
   const openTeam = teams?.find((team) => team.id === openTeamId)
 
   return (
     <div className="scrollbar-sleek h-full overflow-y-auto">
-      <BotTeamHostPicker />
-      {teams === null ? (
-        failed ? (
-          <div className="flex flex-col items-start gap-2 p-6 text-sm text-muted-foreground">
-            {translate('components.botTeams.loadFailed', 'Could not reach this host.')}
-            <Button variant="outline" size="sm" onClick={reload}>
-              {translate('components.botTeams.retry', 'Retry')}
-            </Button>
-          </div>
-        ) : null
-      ) : creating ? (
+      {creating ? null : <BotTeamHostPicker />}
+      {failed && !creating ? (
+        <HostUnreachableNotice lastSeenAt={lastSeenAt} onRetry={reload} />
+      ) : null}
+      {/* Before the list: choosing another host in the form must not lose what was typed. */}
+      {creating ? (
         <NewBotTeamForm
-          usedCharacters={teams.map((team) => team.character)}
+          usedCharacters={(teams ?? []).map((team) => team.character)}
           onCancel={() => setCreating(false)}
           onCreate={(input) => {
             void applyChange(() => createBotTeam(input)).then((done) => {
@@ -202,8 +238,13 @@ export default function BotTeamsPage(): React.JSX.Element {
             })
           }}
         />
-      ) : openTeam ? (
-        <TeamDetail team={openTeam} applyChange={applyChange} onBack={() => setOpenTeamId(null)} />
+      ) : teams === null ? null : openTeam ? (
+        <TeamDetail
+          team={openTeam}
+          offline={failed}
+          applyChange={applyChange}
+          onBack={() => setOpenTeamId(null)}
+        />
       ) : (
         <TeamGrid teams={teams} onNew={() => setCreating(true)} onOpen={setOpenTeamId} />
       )}
