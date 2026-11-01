@@ -18,6 +18,7 @@ The canvas is the visual source; nothing outside it gets added ("por favor, que 
 - S11 Toggle right sidebar keeps the rectangle with a right strip icon; it stays at the far right and can be open with the side panel.
 - S12 "el panel principal del chat debe llegar hasta arriba (mira cómo está Claude Code)": no title bar above; window controls share the session bar. Must keep window dragging and macOS traffic lights.
 - S13 Shortcuts: Mod+T and Mod+Shift+B open the panel and add the tab; Mod+W closes the focused panel tab and never a session; reopen and tab switching target the panel.
+- S15 Status bar stays, its four segments right-aligned (keep awake, resource usage, ports, remote hosts), without usage meters: "antes esa barra de estado iba de extremo a extremo, ahora debería ir del final del side panel izquierdo al borde final derecho". It runs under the main area, side panel and right sidebar, never under the rail or left sidebar. Built in T4 with the shell layout.
 - S14 Every change considers SSH, folder workspaces, Windows, macOS and Linux.
 
 ## Tasks

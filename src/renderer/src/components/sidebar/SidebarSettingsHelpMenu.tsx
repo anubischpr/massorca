@@ -10,8 +10,7 @@ import {
   RefreshCw,
   RotateCw,
   School,
-  ScrollText,
-  Settings
+  ScrollText
 } from 'lucide-react'
 import { toast } from 'sonner'
 import logo from '../../../../../resources/logo.svg'
@@ -26,8 +25,6 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { useMountedRef } from '@/hooks/useMountedRef'
-import { useShortcutKeyDetails } from '@/hooks/useShortcutLabel'
-import { ShortcutKeyCombo } from '@/components/ShortcutKeyCombo'
 import { showOnboardingFromRenderer } from '../onboarding/show-onboarding-event'
 import { SetupGuideProgressRing } from '../setup-guide/SetupGuideProgressRing'
 import { useSetupGuideProgress } from '../setup-guide/use-setup-guide-progress'
@@ -105,7 +102,6 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
   const updateStatus = useAppStore((s) => s.updateStatus)
   const setupProgress = useSetupGuideProgress(true, false, false)
 
-  const settingsShortcut = useShortcutKeyDetails('app.settings')
   const [menuOpen, setMenuOpen] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   // Why sticky: the dialog animates itself closed off `open`, so unmounting on close cuts that short.
@@ -197,35 +193,6 @@ export function SidebarSettingsHelpMenu(): React.JSX.Element {
   return (
     <>
       <div className="flex items-center gap-1">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              type="button"
-              aria-label={translate(
-                'auto.components.sidebar.SidebarSettingsHelpMenu.a428c25998',
-                'Settings'
-              )}
-              className="text-muted-foreground"
-              onClick={openSettingsPage}
-            >
-              <Settings className="size-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="top" sideOffset={4} className="flex items-center gap-1.5">
-            {translate('auto.components.sidebar.SidebarSettingsHelpMenu.a428c25998', 'Settings')}
-            {settingsShortcut.keys.length > 0 ? (
-              <ShortcutKeyCombo
-                keys={settingsShortcut.keys}
-                doubleTap={settingsShortcut.doubleTap}
-                className="gap-0.5"
-                keyCapClassName="min-w-0 border-background/20 bg-background/10 px-1 py-0 text-[10px] text-background shadow-none"
-                separatorClassName="text-[10px] text-background/70"
-              />
-            ) : null}
-          </TooltipContent>
-        </Tooltip>
         <DropdownMenu modal={false} open={menuOpen} onOpenChange={handleMenuOpenChange}>
           <Tooltip>
             <TooltipTrigger asChild>

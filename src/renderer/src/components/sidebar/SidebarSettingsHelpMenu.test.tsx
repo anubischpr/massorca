@@ -196,17 +196,10 @@ describe('SidebarSettingsHelpMenu', () => {
     expect(html).toContain('Help')
   })
 
-  it('renders the settings button with correct aria-label', () => {
+  it('leaves the settings button to the app rail', () => {
     const html = renderToStaticMarkup(<SidebarSettingsHelpMenu />)
-    expect(html).toContain('aria-label="Settings"')
-  })
-
-  it('renders the settings button before the help button', () => {
-    const html = renderToStaticMarkup(<SidebarSettingsHelpMenu />)
-    const settingsIndex = html.indexOf('lucide-settings')
-    const helpIndex = html.indexOf('lucide-circle-question-mark')
-    expect(settingsIndex).toBeGreaterThanOrEqual(0)
-    expect(helpIndex).toBeGreaterThan(settingsIndex)
+    expect(html).not.toContain('aria-label="Settings"')
+    expect(html).not.toContain('lucide-settings')
   })
 
   it('renders Send Feedback menu item', () => {
@@ -339,11 +332,5 @@ describe('SidebarSettingsHelpMenu', () => {
     expect(mocks.feedbackChunkLoads).toBe(1)
     // Warming must not mount the dialog: it stays behind its own open state.
     expect(document.body.querySelector('[data-testid="feedback-dialog"]')).toBeNull()
-  })
-
-  it('renders shortcut keys in the settings tooltip', () => {
-    const html = renderToStaticMarkup(<SidebarSettingsHelpMenu />)
-    expect(html).toContain('⌘')
-    expect(html).toContain('>,</span>')
   })
 })

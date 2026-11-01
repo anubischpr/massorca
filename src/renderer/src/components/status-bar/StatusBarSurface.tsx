@@ -1,21 +1,10 @@
-import { PanelsTopLeft, RefreshCw } from 'lucide-react'
+import { PanelsTopLeft } from 'lucide-react'
 import React from 'react'
 import { lazyWithRetry } from '@/lib/lazy-with-retry'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
 import { translate } from '@/i18n/i18n'
-import { UsageRosterPanel } from './UsageRosterPanel'
-import { getUsageProviderAccountsSectionId } from './usage-provider-settings-target'
-import {
-  STATUS_BAR_CONTEXT_MENU_EXEMPT_PROPS,
-  shouldOpenStatusBarContextMenu
-} from './status-bar-context-menu-policy'
+import { shouldOpenStatusBarContextMenu } from './status-bar-context-menu-policy'
 import { StatusBarUsageEmptyCta } from './StatusBarUsageEmptyCta'
-import { StatusBarUsageChangeNotices } from './StatusBarUsageChangeNotices'
 import { UpdateStatusSegment } from './UpdateStatusSegment'
 import { SkillUpdateStatusSegment } from './SkillUpdateStatusSegment'
 import { NativeChatResumeStatusSegment } from './NativeChatResumeStatusSegment'
@@ -23,11 +12,7 @@ import { CaffeinateStatusSegment } from './CaffeinateStatusSegment'
 import { RemoteServerUpdateStatusSegment } from './RemoteServerUpdateStatusSegment'
 import { TOGGLE_FLOATING_TERMINAL_EVENT } from '@/lib/floating-terminal'
 import { FloatingTerminalIconContextMenu } from '@/components/floating-terminal/FloatingTerminalIconContextMenu'
-import { ClaudeSwitcherMenu } from './ClaudeSwitcherMenu'
-import { CodexSwitcherMenu } from './CodexSwitcherMenu'
-import { ProviderDetailsMenu } from './ProviderDetailsMenu'
 import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/close-all-context-menus'
-import { ProviderSegment, UsageOverflowChip, getUsageTone } from './StatusBarProviderSegment'
 import { useStatusBarController } from './use-status-bar-controller'
 import { StatusBarVisibilityMenu } from './StatusBarVisibilityMenu'
 import { isPairedWebClientWindow } from '@/lib/desktop-window-chrome'
@@ -59,43 +44,24 @@ export function StatusBarSurface({
     return null
   }
   const {
-    anyFetching,
-    anyVisible,
     barRef,
-    collapseUsage,
-    collapsedUsageProviders,
     compact,
     floatingTerminalActionLabel,
     floatingTerminalShortcut,
-    handleManageAccounts,
-    handleOpenProviderAccounts,
-    handleRefresh,
-    handleUsageDetails,
-    handleUsageMenuOpenChange,
-    hasVisibleUsageMeters,
     isEmptyUsageState,
-    isRefreshing,
     overflowing,
     petEnabled,
-    rosterProviders,
-    usageHostLabel,
     segmentsIconOnly,
     segmentsRef,
     setMenuOpen,
     setMenuPoint,
-    setStatusBarUsageMode,
     showEmptyUsageCta,
     showFloatingTerminalToggle,
     showFloatingWorkspaceAttentionDot,
     showPorts,
     showResourceUsage,
     showSsh,
-    statusBarUsageMode,
-    usageMenuFocusHandoff,
-    usageMenuOpen,
-    usagePercentageDisplay,
     usageRef,
-    usageTightestOnly
   } = controller
 
   return (
@@ -125,145 +91,7 @@ export function StatusBarSurface({
             showEmptyUsageCta ? (
               <StatusBarUsageEmptyCta />
             ) : null
-          ) : hasVisibleUsageMeters ? (
-            // Consolidated roster pill → opens the all-agents Usage popover (mock parity).
-            <StatusBarUsageChangeNotices hasVisibleUsageMeters={hasVisibleUsageMeters}>
-              <DropdownMenu
-                open={usageMenuOpen}
-                onOpenChange={handleUsageMenuOpenChange}
-                modal={false}
-              >
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    className="inline-flex items-center gap-3 rounded px-1 py-0.5 hover:bg-accent/70"
-                    aria-label={translate(
-                      'auto.components.status.bar.UsageRosterPanel.title',
-                      'Usage'
-                    )}
-                  >
-                    {rosterProviders.map((p) => (
-                      // Why: collapsed chips leave the row but stay measurable, so the density hook can bring them back.
-                      <span
-                        key={p.provider}
-                        data-usage-chip={p.provider}
-                        data-usage-urgent={getUsageTone(p) === 'urgent'}
-                        data-usage-collapsed={collapsedUsageProviders.includes(p.provider)}
-                        aria-hidden={collapsedUsageProviders.includes(p.provider)}
-                        className="inline-flex data-[usage-collapsed=true]:invisible data-[usage-collapsed=true]:absolute"
-                      >
-                        <ProviderSegment
-                          p={p}
-                          compact={compact}
-                          display={usagePercentageDisplay}
-                          mode={usageTightestOnly ? 'compact' : statusBarUsageMode}
-                        />
-                      </span>
-                    ))}
-                    {collapseUsage ? (
-                      <UsageOverflowChip
-                        providerCount={rosterProviders.length}
-                        hidden={rosterProviders.filter((p) =>
-                          collapsedUsageProviders.includes(p.provider)
-                        )}
-                        display={usagePercentageDisplay}
-                      />
-                    ) : null}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  {...STATUS_BAR_CONTEXT_MENU_EXEMPT_PROPS}
-                  side="top"
-                  align="start"
-                  sideOffset={8}
-                  // Keep the popover (and its drill-in submenus) above the status
-                  // bar instead of overlapping it — bottom padding ≈ footer height.
-                  collisionPadding={{ top: 8, bottom: 32, left: 8, right: 8 }}
-                  className="w-[360px] p-0"
-                  onPointerDownOutside={usageMenuFocusHandoff.onPointerDownOutside}
-                  onCloseAutoFocus={usageMenuFocusHandoff.onCloseAutoFocus}
-                >
-                  <UsageRosterPanel
-                    providers={rosterProviders}
-                    sourceLabel={usageHostLabel}
-                    display={usagePercentageDisplay}
-                    statusBarUsageMode={statusBarUsageMode}
-                    onStatusBarUsageModeChange={setStatusBarUsageMode}
-                    isRefreshing={isRefreshing || anyFetching}
-                    onRefresh={handleRefresh}
-                    onOpenProvider={handleOpenProviderAccounts}
-                    onSignIn={handleOpenProviderAccounts}
-                    canSignIn={(provider) => getUsageProviderAccountsSectionId(provider) !== null}
-                    onManageAccounts={handleManageAccounts}
-                    onUsageDetails={handleUsageDetails}
-                    renderRow={(p, rowNode) => {
-                      // Every provider drills into its detail panel (parity with the
-                      // per-provider dropdowns on main); Claude/Codex additionally get
-                      // the account switcher + runtime toggle + Codex reset credits.
-                      if (p.provider === 'claude') {
-                        return (
-                          <ClaudeSwitcherMenu
-                            claude={p}
-                            compact={compact}
-                            iconOnly={false}
-                            asSubmenu
-                            triggerContent={rowNode}
-                          />
-                        )
-                      }
-                      if (p.provider === 'codex') {
-                        return (
-                          <CodexSwitcherMenu
-                            codex={p}
-                            compact={compact}
-                            iconOnly={false}
-                            asSubmenu
-                            triggerContent={rowNode}
-                          />
-                        )
-                      }
-                      return (
-                        <ProviderDetailsMenu
-                          provider={p}
-                          compact={compact}
-                          iconOnly={false}
-                          asSubmenu
-                          triggerContent={rowNode}
-                          ariaLabel={translate(
-                            'auto.components.status.bar.UsageRosterPanel.openDetails',
-                            'Open usage details'
-                          )}
-                        />
-                      )
-                    }}
-                  />
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </StatusBarUsageChangeNotices>
           ) : null}
-          {anyVisible && !isEmptyUsageState && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={handleRefresh}
-                  disabled={isRefreshing}
-                  className="p-0.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
-                  aria-label={translate(
-                    'auto.components.status.bar.StatusBar.3325d996cb',
-                    'Refresh rate limits'
-                  )}
-                >
-                  <RefreshCw
-                    size={11}
-                    className={isRefreshing || anyFetching ? 'animate-spin' : ''}
-                  />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={6}>
-                {translate('auto.components.status.bar.StatusBar.c8857b40f7', 'Refresh usage data')}
-              </TooltipContent>
-            </Tooltip>
-          )}
         </div>
       </div>
 
