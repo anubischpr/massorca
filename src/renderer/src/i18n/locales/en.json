@@ -19805,7 +19805,11 @@
       "stuck": "Stuck",
       "done": "Done",
       "backToRoom": "Back to Conference room",
-      "open": "Open"
+      "open": "Open",
+      "editBot": "Edit bot",
+      "saveBot": "Save",
+      "host": "Host",
+      "thisComputer": "This computer"
     }
   },
   "dashboardPopout": {

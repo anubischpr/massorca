@@ -40,6 +40,11 @@ export const BotTeamAddBot = BotTeamSelector.extend({
   bot: BotDraft
 })
 
+export const BotTeamUpdateBot = BotTeamSelector.extend({
+  botId: requiredString('Missing bot id'),
+  bot: BotDraft
+})
+
 export const BotTeamRemoveBot = BotTeamSelector.extend({
   botId: requiredString('Missing bot id')
 })

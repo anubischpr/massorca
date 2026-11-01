@@ -78,7 +78,8 @@ import {
   BotTeamCreate,
   BotTeamRemoveBot,
   BotTeamSelector,
-  BotTeamUpdate
+  BotTeamUpdate,
+  BotTeamUpdateBot
 } from './bot-team-params'
 import {
   BotTeamMessagePost,
@@ -724,6 +725,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.removeBot': BotTeamRemoveBot,
   'botTeams.startTask': BotTeamTaskStart,
   'botTeams.update': BotTeamUpdate,
+  'botTeams.updateBot': BotTeamUpdateBot,
   'browser.back': BrowserTarget,
   'browser.capture.start': BrowserTarget,
   'browser.capture.stop': BrowserTarget,

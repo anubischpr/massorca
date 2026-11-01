@@ -2,11 +2,7 @@ import { useState } from 'react'
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native'
 import { MobileAgentIcon } from '../components/MobileAgentIcon'
 import { colors } from '../theme/mobile-theme'
-import {
-  BOT_AGENT_CHOICES,
-  botAgentLabel,
-  type BotAgentId
-} from '../../../src/shared/bot-team-character-art'
+import { BOT_AGENT_CHOICES, botAgentLabel } from '../../../src/shared/bot-team-character-art'
 import {
   BOT_TEAM_CHARACTERS,
   type BotDraftInput,
@@ -37,10 +33,19 @@ function PrimaryButton({
   )
 }
 
-export function MobileAddBotForm({ onAdd }: { onAdd: (bot: BotDraftInput) => void }) {
-  const [name, setName] = useState('')
-  const [job, setJob] = useState('')
-  const [agent, setAgent] = useState<BotAgentId>(BOT_AGENT_CHOICES[0].id)
+export function MobileAddBotForm({
+  initial,
+  onAdd
+}: {
+  /** The bot being edited; absent when adding a new one. */
+  initial?: BotDraftInput
+  onAdd: (bot: BotDraftInput) => void
+}) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [job, setJob] = useState(initial?.job ?? '')
+  const [agent, setAgent] = useState<BotDraftInput['agent']>(
+    initial?.agent ?? BOT_AGENT_CHOICES[0].id
+  )
   const trimmedName = name.trim()
   return (
     <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
@@ -67,7 +72,7 @@ export function MobileAddBotForm({ onAdd }: { onAdd: (bot: BotDraftInput) => voi
         </Pressable>
       ))}
       <PrimaryButton
-        label="Add bot"
+        label={initial ? 'Save' : 'Add bot'}
         disabled={trimmedName === ''}
         onPress={() => onAdd({ name: trimmedName, job: job.trim(), agent })}
       />
@@ -78,11 +83,13 @@ export function MobileAddBotForm({ onAdd }: { onAdd: (bot: BotDraftInput) => voi
 export function MobileNewTeamForm({
   usedCharacters,
   onOpenAddBot,
+  onEditBot,
   bots,
   onCreate
 }: {
   usedCharacters: readonly string[]
   onOpenAddBot: () => void
+  onEditBot: (index: number) => void
   bots: readonly BotDraftInput[]
   onCreate: (input: BotTeamCreateInput) => void
 }) {
@@ -127,14 +134,20 @@ export function MobileNewTeamForm({
         accessibilityLabel="What is this team for?"
       />
       <Text style={styles.label}>Bots</Text>
-      {bots.map((bot) => (
-        <View key={bot.name} style={styles.row}>
+      {bots.map((bot, index) => (
+        <Pressable
+          key={index}
+          accessibilityRole="button"
+          accessibilityLabel={`Edit ${bot.name}`}
+          onPress={() => onEditBot(index)}
+          style={styles.row}
+        >
           <MobileAgentIcon agentId={bot.agent} size={20} />
           <View style={styles.rowText}>
             <Text style={styles.rowTitle}>{bot.name}</Text>
             <Text style={styles.rowMeta}>{botAgentLabel(bot.agent)}</Text>
           </View>
-        </View>
+        </Pressable>
       ))}
       <Pressable accessibilityRole="button" onPress={onOpenAddBot} style={styles.row}>
         <Text style={styles.rowTitle}>Add a bot</Text>

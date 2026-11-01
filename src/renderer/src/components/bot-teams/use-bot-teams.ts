@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { useBotTeamHost } from '@/runtime/bot-team-host'
 import { listBotTeams } from '@/runtime/runtime-bot-team-client'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 
@@ -13,6 +14,7 @@ export type BotTeamsState = {
 }
 
 export function useBotTeams(): BotTeamsState {
+  const host = useBotTeamHost()
   const [teams, setTeams] = useState<BotTeam[] | null>(null)
   const [failed, setFailed] = useState(false)
 
@@ -24,9 +26,15 @@ export function useBotTeams(): BotTeamsState {
       },
       () => setFailed(true)
     )
-  }, [])
+    // The host is read inside the client; a change of host must list again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [host])
 
-  useEffect(reload, [reload])
+  // Another host's teams are not these: show nothing until it answers.
+  useEffect(() => {
+    setTeams(null)
+    reload()
+  }, [reload])
 
   const applyChange = useCallback(
     async (change: () => Promise<unknown>) => {

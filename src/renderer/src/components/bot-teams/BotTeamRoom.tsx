@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { AgentIcon } from '@/lib/agent-catalog'
 import NativeChatView from '@/components/native-chat/NativeChatView'
-import { getActiveRuntimeTarget } from '@/runtime/runtime-client-target'
-import { useAppStore } from '@/store'
+import { botTeamHostTarget, useBotTeamHost } from '@/runtime/bot-team-host'
 import { translate } from '@/i18n/i18n'
 import {
   listBotTeamRoom,
@@ -49,8 +48,8 @@ function BotTeamTaskThread({
   agent: BotTeam['bots'][number]['agent']
   onBack: () => void
 }): React.JSX.Element | null {
-  const settings = useAppStore((state) => state.settings)
-  const target = useMemo(() => getActiveRuntimeTarget(settings), [settings])
+  const host = useBotTeamHost()
+  const target = useMemo(() => botTeamHostTarget(host), [host])
   if (task.sessionId === null) {
     return null
   }

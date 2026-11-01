@@ -10,7 +10,11 @@ import type {
   BotTeamTask
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
-import { listMobileBotTeamRoom, postMobileBotTeamRequest, startMobileBotTeamTask } from './mobile-bot-team-room-rpc'
+import {
+  listMobileBotTeamRoom,
+  postMobileBotTeamRequest,
+  startMobileBotTeamTask
+} from './mobile-bot-team-room-rpc'
 
 function TaskRow({
   client,
@@ -83,7 +87,11 @@ export function MobileBotTeamRoom({
   }, [reload])
 
   const send = async (start: boolean) => {
-    const sent = await postMobileBotTeamRequest(client, { teamId: team.id, text: text.trim(), start })
+    const sent = await postMobileBotTeamRequest(client, {
+      teamId: team.id,
+      text: text.trim(),
+      start
+    })
     if (!sent.ok) {
       Alert.alert('That did not send', 'Check the connection to this host and try again.')
       return

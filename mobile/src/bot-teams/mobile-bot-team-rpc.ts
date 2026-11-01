@@ -67,6 +67,15 @@ export function updateMobileBotTeam(client: HostClient, input: BotTeamUpdateInpu
   return changeTeam(client, 'botTeams.update', input)
 }
 
+export function updateMobileBot(
+  client: HostClient,
+  teamId: string,
+  botId: string,
+  bot: BotDraftInput
+) {
+  return changeTeam(client, 'botTeams.updateBot', { teamId, botId, bot })
+}
+
 export function addMobileBot(client: HostClient, teamId: string, bot: BotDraftInput) {
   return changeTeam(client, 'botTeams.addBot', { teamId, bot })
 }

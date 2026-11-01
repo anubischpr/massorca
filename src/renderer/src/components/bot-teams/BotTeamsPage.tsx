@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronLeft, Plus, Trash2 } from 'lucide-react'
+import { ChevronLeft, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AgentIcon } from '@/lib/agent-catalog'
 import { translate } from '@/i18n/i18n'
@@ -7,12 +7,14 @@ import {
   addBotToTeam,
   createBotTeam,
   deleteBotTeam,
-  removeBotFromTeam
+  removeBotFromTeam,
+  updateBotOnTeam
 } from '@/runtime/runtime-bot-team-client'
 import { botAgentLabel } from '../../../../shared/bot-team-character-art'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { AddBotDialog } from './AddBotDialog'
 import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
+import { BotTeamHostPicker } from './BotTeamHostPicker'
 import { BotTeamRoom } from './BotTeamRoom'
 import { NewBotTeamForm } from './NewBotTeamForm'
 import { useBotTeams, type BotTeamsState } from './use-bot-teams'
@@ -27,6 +29,8 @@ function TeamDetail({
   onBack: () => void
 }): React.JSX.Element {
   const [addingBot, setAddingBot] = useState(false)
+  const [editingBotId, setEditingBotId] = useState<string | null>(null)
+  const editingBot = team.bots.find((bot) => bot.id === editingBotId)
   const [openTaskId, setOpenTaskId] = useState<string | null>(null)
   // A task's thread is a full chat, so it takes the page rather than the team's column.
   if (openTaskId !== null) {
@@ -76,6 +80,14 @@ function TeamDetail({
           <Button
             variant="ghost"
             size="icon"
+            aria-label={translate('components.botTeams.editBot', 'Edit bot')}
+            onClick={() => setEditingBotId(bot.id)}
+          >
+            <Pencil className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             aria-label={translate('components.botTeams.removeBot', 'Remove bot')}
             onClick={() => void applyChange(() => removeBotFromTeam(team.id, bot.id))}
           >
@@ -83,6 +95,16 @@ function TeamDetail({
           </Button>
         </div>
       ))}
+      {editingBot ? (
+        <AddBotDialog
+          initial={editingBot}
+          onCancel={() => setEditingBotId(null)}
+          onAdd={(bot) => {
+            setEditingBotId(null)
+            void applyChange(() => updateBotOnTeam(team.id, editingBot.id, bot))
+          }}
+        />
+      ) : null}
       {addingBot ? (
         <AddBotDialog
           onCancel={() => setAddingBot(false)}
@@ -158,6 +180,7 @@ export default function BotTeamsPage(): React.JSX.Element {
 
   return (
     <div className="scrollbar-sleek h-full overflow-y-auto">
+      <BotTeamHostPicker />
       {teams === null ? (
         failed ? (
           <div className="flex flex-col items-start gap-2 p-6 text-sm text-muted-foreground">
