@@ -12,8 +12,16 @@ function apiKeyPath(): string {
 }
 
 export function hasJevApiKey(): boolean {
-  // Why: Settings asks on open; checking the file avoids a decrypt that raises a keychain prompt.
   return existsSync(apiKeyPath())
+}
+
+/** Whether a stored key can be used on this host; a key sealed elsewhere exists but cannot. */
+export function isJevApiKeyReadable(): boolean {
+  try {
+    return readJevApiKey() !== null
+  } catch {
+    return false
+  }
 }
 
 export function saveJevApiKey(key: string): void {

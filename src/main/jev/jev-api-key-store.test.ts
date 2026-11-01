@@ -1,10 +1,16 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import type * as NodeOs from 'node:os'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setSecretStore, type SecretStore } from '../../shared/secret-store'
-import { clearJevApiKey, hasJevApiKey, readJevApiKey, saveJevApiKey } from './jev-api-key-store'
+import {
+  clearJevApiKey,
+  hasJevApiKey,
+  isJevApiKeyReadable,
+  readJevApiKey,
+  saveJevApiKey
+} from './jev-api-key-store'
 
 const KEY = 'test-jev-plain-key'
 const fakeHome = vi.hoisted(() => ({ path: '' }))
@@ -56,6 +62,26 @@ describe('jev-api-key-store', () => {
   it('rejects an empty or multi-line key', () => {
     expect(() => saveJevApiKey('   ')).toThrow('required')
     expect(() => saveJevApiKey('one\ntwo')).toThrow('single line')
+  })
+
+  it('reports a stored key this host cannot decrypt as unreadable', () => {
+    mkdirSync(join(fakeHome.path, '.orca'), { recursive: true })
+    writeFileSync(join(fakeHome.path, '.orca', 'jev-api-key.enc'), 'c2VhbGVkLWVsc2V3aGVyZQ==')
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the key store only calls this method on the read path.
+    setSecretStore({
+      decryptString: () => {
+        throw new Error('decrypt failed')
+      }
+    } as unknown as SecretStore)
+
+    expect(hasJevApiKey()).toBe(true)
+    expect(isJevApiKeyReadable()).toBe(false)
+  })
+
+  it('reports a saved key as readable', () => {
+    saveJevApiKey(KEY)
+
+    expect(isJevApiKeyReadable()).toBe(true)
   })
 
   it('forgets the key when cleared', () => {

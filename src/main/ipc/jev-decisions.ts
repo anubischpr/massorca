@@ -1,9 +1,15 @@
 import { ipcMain } from 'electron'
-import { clearJevApiKey, hasJevApiKey, saveJevApiKey } from '../jev/jev-api-key-store'
+import {
+  clearJevApiKey,
+  hasJevApiKey,
+  isJevApiKeyReadable,
+  saveJevApiKey
+} from '../jev/jev-api-key-store'
 import type { JevDecisionsStatus } from '../../shared/jev-decisions-status'
 
 function getStatus(): JevDecisionsStatus {
-  return { apiKeyConfigured: hasJevApiKey() }
+  const apiKeyConfigured = hasJevApiKey()
+  return { apiKeyConfigured, apiKeyUnreadable: apiKeyConfigured && !isJevApiKeyReadable() }
 }
 
 export function registerJevDecisionsHandlers(): void {

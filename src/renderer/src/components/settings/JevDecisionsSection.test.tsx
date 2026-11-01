@@ -16,9 +16,13 @@ describe('JevDecisionsSection', () => {
     document.body.innerHTML = ''
   })
 
-  async function render(enabled: boolean, apiKeyConfigured: boolean): Promise<HTMLElement> {
+  async function render(
+    enabled: boolean,
+    apiKeyConfigured: boolean,
+    apiKeyUnreadable = false
+  ): Promise<HTMLElement> {
     Reflect.set(window, 'api', {
-      jevDecisions: { getStatus: vi.fn(async () => ({ apiKeyConfigured })) }
+      jevDecisions: { getStatus: vi.fn(async () => ({ apiKeyConfigured, apiKeyUnreadable })) }
     })
     const host = document.body.appendChild(document.createElement('div'))
     root = createRoot(host)
@@ -42,6 +46,21 @@ describe('JevDecisionsSection', () => {
 
   it('can be turned on once a key is saved', async () => {
     expect(isSwitchDisabled(await render(false, true))).toBe(false)
+  })
+
+  it('says so and cannot be turned on when the saved key is unreadable', async () => {
+    const host = await render(false, true, true)
+
+    expect(isSwitchDisabled(host)).toBe(true)
+    expect(host.textContent).toContain('cannot be read here')
+    expect(host.textContent).not.toContain('saved on this computer')
+  })
+
+  it('warns while on when the saved key is unreadable', async () => {
+    const host = await render(true, true, true)
+
+    expect(isSwitchDisabled(host)).toBe(false)
+    expect(host.textContent).toContain('cannot be read here')
   })
 
   it('can always be turned off', async () => {
