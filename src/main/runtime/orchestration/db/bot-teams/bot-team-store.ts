@@ -133,6 +133,21 @@ export function addBotToTeam(this: OrchestrationDb, teamId: string, bot: BotDraf
   return requireBotTeam(this, teamId)
 }
 
+export function updateBotOnTeam(
+  this: OrchestrationDb,
+  teamId: string,
+  botId: string,
+  bot: BotDraftInput
+): BotTeam {
+  const changed = this.db
+    .prepare('UPDATE bot_team_bots SET name = ?, job = ?, agent = ? WHERE id = ? AND team_id = ?')
+    .run(bot.name, bot.job, bot.agent, botId, teamId)
+  if (changed.changes === 0) {
+    throw new Error(`Bot ${botId} is not on team ${teamId}.`)
+  }
+  return requireBotTeam(this, teamId)
+}
+
 export function removeBotFromTeam(this: OrchestrationDb, teamId: string, botId: string): BotTeam {
   const owned = this.db
     .prepare('SELECT id FROM bot_team_tasks WHERE owner_bot_id = ? LIMIT 1')
@@ -150,6 +165,7 @@ export type BotTeamStoreMethods = {
   updateBotTeam: typeof updateBotTeam
   deleteBotTeam: typeof deleteBotTeam
   addBotToTeam: typeof addBotToTeam
+  updateBotOnTeam: typeof updateBotOnTeam
   removeBotFromTeam: typeof removeBotFromTeam
 }
 
@@ -160,6 +176,7 @@ export function attachBotTeamStore(ctor: { prototype: object }): void {
     updateBotTeam,
     deleteBotTeam,
     addBotToTeam,
+    updateBotOnTeam,
     removeBotFromTeam
   })
 }

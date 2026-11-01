@@ -76,6 +76,32 @@ describe('bot team store', () => {
     expect(db.removeBotFromTeam(team.id, added.bots[0].id).bots).toEqual([])
   })
 
+  it('updates every attribute of a bot and keeps its id', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    const botId = team.bots[0].id
+
+    const updated = db.updateBotOnTeam(team.id, botId, {
+      name: 'Juan',
+      job: 'Backend',
+      agent: 'codex'
+    })
+
+    expect(updated.bots).toEqual([{ id: botId, name: 'Juan', job: 'Backend', agent: 'codex' }])
+    expect(db.listBotTeams()[0].bots[0].name).toBe('Juan')
+  })
+
+  it('refuses to update a bot through another team', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    const other = createTeam(db, [])
+
+    expect(() =>
+      db?.updateBotOnTeam(other.id, team.bots[0].id, { name: 'X', job: '', agent: 'codex' })
+    ).toThrow('is not on team')
+    expect(db.listBotTeams()[0].bots[0].name).toBe('Iris')
+  })
+
   it('removes a team together with its bots', () => {
     db = new OrchestrationDb(':memory:')
     const team = createTeam(db)

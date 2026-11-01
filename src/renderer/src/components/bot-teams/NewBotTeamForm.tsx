@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,6 +32,7 @@ export function NewBotTeamForm({
   const [workspacesEnabled, setWorkspacesEnabled] = useState(false)
   const [bots, setBots] = useState<BotDraftInput[]>([])
   const [addingBot, setAddingBot] = useState(false)
+  const [editingBotIndex, setEditingBotIndex] = useState<number | null>(null)
   const trimmedName = name.trim()
 
   const nextCharacter = (): void => {
@@ -83,17 +84,22 @@ export function NewBotTeamForm({
             {translate('components.botTeams.addBot', 'Add a bot')}
           </Button>
         </div>
-        {bots.map((bot) => (
-          <div
-            key={bot.name}
-            className="flex items-center gap-3 rounded-lg border border-border p-3"
-          >
+        {bots.map((bot, index) => (
+          <div key={index} className="flex items-center gap-3 rounded-lg border border-border p-3">
             <AgentIcon agent={bot.agent} size={20} />
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium">{bot.name}</div>
               <div className="truncate text-xs text-muted-foreground">{bot.job}</div>
             </div>
             <span className="text-xs text-muted-foreground">{botAgentLabel(bot.agent)}</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={translate('components.botTeams.editBot', 'Edit bot')}
+              onClick={() => setEditingBotIndex(index)}
+            >
+              <Pencil className="size-4" />
+            </Button>
           </div>
         ))}
       </div>
@@ -134,6 +140,18 @@ export function NewBotTeamForm({
           {translate('components.botTeams.createTeam', 'Create team')}
         </Button>
       </div>
+      {editingBotIndex !== null ? (
+        <AddBotDialog
+          initial={bots[editingBotIndex]}
+          onCancel={() => setEditingBotIndex(null)}
+          onAdd={(bot) => {
+            setBots((current) =>
+              current.map((entry, index) => (index === editingBotIndex ? bot : entry))
+            )
+            setEditingBotIndex(null)
+          }}
+        />
+      ) : null}
       {addingBot ? (
         <AddBotDialog
           onCancel={() => setAddingBot(false)}

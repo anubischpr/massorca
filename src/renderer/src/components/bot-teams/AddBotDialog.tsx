@@ -13,26 +13,35 @@ import { Label } from '@/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { AgentIcon } from '@/lib/agent-catalog'
 import { translate } from '@/i18n/i18n'
-import { BOT_AGENT_CHOICES, type BotAgentId } from '../../../../shared/bot-team-character-art'
+import { BOT_AGENT_CHOICES } from '../../../../shared/bot-team-character-art'
 import type { BotDraftInput } from '../../../../shared/rpc-contract/bot-team-params'
 
 export function AddBotDialog({
+  initial,
   onCancel,
   onAdd
 }: {
+  /** The bot being edited; absent when adding a new one. */
+  initial?: BotDraftInput
   onCancel: () => void
   onAdd: (bot: BotDraftInput) => void
 }): React.JSX.Element {
-  const [name, setName] = useState('')
-  const [job, setJob] = useState('')
-  const [agent, setAgent] = useState<BotAgentId>(BOT_AGENT_CHOICES[0].id)
+  const [name, setName] = useState(initial?.name ?? '')
+  const [job, setJob] = useState(initial?.job ?? '')
+  const [agent, setAgent] = useState<BotDraftInput['agent']>(
+    initial?.agent ?? BOT_AGENT_CHOICES[0].id
+  )
   const trimmedName = name.trim()
 
   return (
     <Dialog open onOpenChange={(open) => !open && onCancel()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{translate('components.botTeams.addBot', 'Add a bot')}</DialogTitle>
+          <DialogTitle>
+            {initial
+              ? translate('components.botTeams.editBot', 'Edit bot')
+              : translate('components.botTeams.addBot', 'Add a bot')}
+          </DialogTitle>
           <DialogDescription>
             {translate(
               'components.botTeams.addBotHelp',
@@ -77,7 +86,9 @@ export function AddBotDialog({
             disabled={trimmedName === ''}
             onClick={() => onAdd({ name: trimmedName, job: job.trim(), agent })}
           >
-            {translate('components.botTeams.addBotConfirm', 'Add bot')}
+            {initial
+              ? translate('components.botTeams.saveBot', 'Save')
+              : translate('components.botTeams.addBotConfirm', 'Add bot')}
           </Button>
         </DialogFooter>
       </DialogContent>

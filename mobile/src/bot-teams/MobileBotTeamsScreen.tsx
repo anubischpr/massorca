@@ -15,6 +15,7 @@ import { MobileBotTeamModeSwitch } from './MobileBotTeamModeSwitch'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 import {
   addMobileBot,
+  updateMobileBot,
   createMobileBotTeam,
   listMobileBotTeams,
   updateMobileBotTeam,
@@ -28,6 +29,8 @@ type Screen =
   | { name: 'newTeamBot' }
   | { name: 'team'; teamId: string }
   | { name: 'teamBots'; teamId: string }
+  | { name: 'editBot'; teamId: string; botId: string }
+  | { name: 'editNewTeamBot'; index: number }
   | { name: 'teamBot'; teamId: string }
 
 function SubBar({ title, onBack }: { title: string; onBack: () => void }) {
@@ -95,8 +98,12 @@ export function MobileBotTeamsScreen({
     screen.name === 'teamBots' ? teams.find((t) => t.id === screen.teamId) : undefined
 
   let body
-  if (client !== null && (screen.name === 'newTeam' || screen.name === 'newTeamBot')) {
-    const addingBot = screen.name === 'newTeamBot'
+  if (
+    client !== null &&
+    (screen.name === 'newTeam' || screen.name === 'newTeamBot' || screen.name === 'editNewTeamBot')
+  ) {
+    const addingBot = screen.name === 'newTeamBot' || screen.name === 'editNewTeamBot'
+    const editIndex = screen.name === 'editNewTeamBot' ? screen.index : null
     body = (
       <>
         {/* Stays mounted while a bot is added: the team name and choices live in this form. */}
@@ -112,6 +119,7 @@ export function MobileBotTeamsScreen({
             usedCharacters={teams.map((team) => team.character)}
             bots={draftBots}
             onOpenAddBot={() => setScreen({ name: 'newTeamBot' })}
+            onEditBot={(index) => setScreen({ name: 'editNewTeamBot', index })}
             onCreate={(input) => {
               setDraftBots([])
               void apply(createMobileBotTeam(client, input), { name: 'home' })
@@ -120,15 +128,40 @@ export function MobileBotTeamsScreen({
         </View>
         {addingBot ? (
           <>
-            <SubBar title="Add a bot" onBack={() => setScreen({ name: 'newTeam' })} />
+            <SubBar
+              title={editIndex === null ? 'Add a bot' : 'Edit bot'}
+              onBack={() => setScreen({ name: 'newTeam' })}
+            />
             <MobileAddBotForm
+              key={editIndex ?? 'new'}
+              {...(editIndex === null ? {} : { initial: draftBots[editIndex] })}
               onAdd={(bot) => {
-                setDraftBots((current) => [...current, bot])
+                setDraftBots((current) =>
+                  editIndex === null
+                    ? [...current, bot]
+                    : current.map((entry, index) => (index === editIndex ? bot : entry))
+                )
                 setScreen({ name: 'newTeam' })
               }}
             />
           </>
         ) : null}
+      </>
+    )
+  } else if (client !== null && screen.name === 'editBot') {
+    const back: Screen = { name: 'teamBots', teamId: screen.teamId }
+    const editing = teams
+      .find((team) => team.id === screen.teamId)
+      ?.bots.find((bot) => bot.id === screen.botId)
+    body = (
+      <>
+        <SubBar title="Edit bot" onBack={() => setScreen(back)} />
+        <MobileAddBotForm
+          {...(editing ? { initial: editing } : {})}
+          onAdd={(bot) =>
+            void apply(updateMobileBot(client, screen.teamId, screen.botId, bot), back)
+          }
+        />
       </>
     )
   } else if (client !== null && screen.name === 'teamBot') {
@@ -170,13 +203,19 @@ export function MobileBotTeamsScreen({
         <ScrollView contentContainerStyle={styles.form}>
           {openTeam.purpose ? <Text style={styles.rowMeta}>{openTeam.purpose}</Text> : null}
           {openTeam.bots.map((bot) => (
-            <View key={bot.id} style={styles.row}>
+            <Pressable
+              key={bot.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${bot.name}`}
+              onPress={() => setScreen({ name: 'editBot', teamId: openTeam.id, botId: bot.id })}
+              style={styles.row}
+            >
               <MobileAgentIcon agentId={bot.agent} size={20} />
               <View style={styles.rowText}>
                 <Text style={styles.rowTitle}>{bot.name}</Text>
                 <Text style={styles.rowMeta}>{bot.job || botAgentLabel(bot.agent)}</Text>
               </View>
-            </View>
+            </Pressable>
           ))}
           <Pressable
             accessibilityRole="button"

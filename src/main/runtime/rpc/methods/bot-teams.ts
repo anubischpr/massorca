@@ -3,6 +3,7 @@ import {
   BotTeamAddBot,
   BotTeamCreate,
   BotTeamRemoveBot,
+  BotTeamUpdateBot,
   BotTeamSelector,
   BotTeamUpdate
 } from '../../../../shared/rpc-contract/bot-team-params'
@@ -47,6 +48,14 @@ export const BOT_TEAM_METHODS = [
     params: BotTeamAddBot,
     handler: (params, { runtime }) => ({
       team: runtime.getOrchestrationDb().addBotToTeam(params.teamId, params.bot)
+    })
+  }),
+  defineMethod({
+    name: 'botTeams.updateBot',
+    permission: 'workspace',
+    params: BotTeamUpdateBot,
+    handler: (params, { runtime }) => ({
+      team: runtime.getOrchestrationDb().updateBotOnTeam(params.teamId, params.botId, params.bot)
     })
   }),
   defineMethod({

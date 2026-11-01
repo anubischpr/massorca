@@ -44,7 +44,11 @@ describe('MobileBotTeamsScreen', () => {
     let renderer!: ReactTestRenderer
     await act(async () => {
       renderer = create(
-        createElement(MobileBotTeamsScreen, { hostId: 'host', onShowWorkspaces: () => {}, onOpenTask: () => {} })
+        createElement(MobileBotTeamsScreen, {
+          hostId: 'host',
+          onShowWorkspaces: () => {},
+          onOpenTask: () => {}
+        })
       )
     })
     press(renderer, 'New team')
@@ -56,5 +60,32 @@ describe('MobileBotTeamsScreen', () => {
     press(renderer, 'Add bot')
 
     expect(nameInput().props.value).toBe('Marketing')
+  })
+
+  it('edits a bot while creating a team, in the add form with its values', async () => {
+    let renderer!: ReactTestRenderer
+    await act(async () => {
+      renderer = create(
+        createElement(MobileBotTeamsScreen, {
+          hostId: 'host',
+          onShowWorkspaces: () => {},
+          onOpenTask: () => {}
+        })
+      )
+    })
+    press(renderer, 'New team')
+    press(renderer, 'Add a bot')
+    act(() => renderer.root.findByProps({ accessibilityLabel: 'Name' }).props.onChangeText('Juan'))
+    press(renderer, 'Add bot')
+
+    press(renderer, 'Edit Juan')
+    const name = () => renderer.root.findByProps({ accessibilityLabel: 'Name' })
+    expect(name().props.value).toBe('Juan')
+    act(() => name().props.onChangeText('Ana'))
+    press(renderer, 'Save')
+
+    expect(renderer.root.findAllByProps({ accessibilityLabel: 'Edit Ana' }).length).toBeGreaterThan(
+      0
+    )
   })
 })
