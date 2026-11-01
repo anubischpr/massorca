@@ -1,3 +1,4 @@
+import { isBotTeamFolderPath } from '../../../../shared/bot-team-folder'
 import type { Repo } from '../../../../shared/repo-types'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import type { WorktreeLineage } from '../../../../shared/worktree/lineage-types'
@@ -98,6 +99,9 @@ export function computeVisibleWorktrees(
 
   // Filter archived
   all = all.filter((w) => !w.isArchived)
+
+  // A team's folder belongs to Bot teams mode, not to the Workspaces list.
+  all = all.filter((w) => !isBotTeamFolderPath(w.path))
 
   // Why: sidebar lineage is structural. Archived workspaces stay hidden, but
   // every other valid ancestor can bypass filters so children never orphan.

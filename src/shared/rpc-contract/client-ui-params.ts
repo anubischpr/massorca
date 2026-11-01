@@ -119,6 +119,7 @@ export const TopLevelViewSchema = z.enum([
   'skills',
   'artifacts',
   'prototypes',
+  'bot-teams',
   'mobile',
   'create-chat'
 ])
