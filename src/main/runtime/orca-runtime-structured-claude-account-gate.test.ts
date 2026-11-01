@@ -87,8 +87,9 @@ function runtimeWithAccounts(claude: ClaudeManagedAccountGateSettings | null): O
 }
 
 beforeEach(() => {
-  // Claude is offered only where its CLI resolves; pin that so only the account gate can refuse.
+  // Each agent is offered only where its CLI resolves; pin that so only the account gate can refuse.
   vi.spyOn(structuredAgentRuntimeRegistration('claude')!, 'supportsLaunch').mockResolvedValue(true)
+  vi.spyOn(structuredAgentRuntimeRegistration('codex')!, 'supportsLaunch').mockResolvedValue(true)
 })
 
 afterEach(() => {

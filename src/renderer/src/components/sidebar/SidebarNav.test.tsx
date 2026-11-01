@@ -30,6 +30,10 @@ const mocks = vi.hoisted(() => ({
   setSetupGuideSidebarDismissed: vi.fn()
 }))
 
+vi.mock('@/components/prototypes/use-prototype-set-count', () => ({
+  usePrototypeSetCount: () => 0
+}))
+
 vi.mock('@/store', () => ({
   useAppStore: (selector: (state: Record<string, unknown>) => unknown) => selector(mocks.state)
 }))
