@@ -157,7 +157,10 @@ User QA verbatim: "La sesión hija sigue mostrando su propio worktree"; "3. No f
 - Missing branch icon: deleg_b9031afc3984 has writes=0 and runs in the parent's worktree, so no icon is correct.
 - Slow delete: host spans are 86 to 230 ms, one git worktree call took 2376 ms. Renderer timing not seen.
 - Worktree switch: the hidden row stayed hidden across four switches, with the link on the entry, not a real dispatch.
-- Open: closing a child removes its worktree. Not built; waits on the trigger and on the Don't ask again case.
+- Closing a child: built per the parent session's decision, on the existing Delete flow. Without force git refuses a dirty worktree, and the branch goes with -d. Native review review-d24eb73b142b6529 did NOT approve it: three critical findings, correction_required, left open.
+
+- Delegation card names its request (38e539f65e3). The real payload of the pending card is titled probe. The render on the VPS client is not yet seen.
+- Delete timing on a local throwaway worktree: dialog closed 2295 ms, row gone 3800 ms, store 4636 ms. The VPS client was not measured: creating a worktree there needs write authorization.
 
 ## Next step
 
