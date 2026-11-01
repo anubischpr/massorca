@@ -77,13 +77,17 @@ function WorktreeSidebar({
 function ActivePage({ layout }: { layout: AppChromeLayout }): React.JSX.Element {
   const { activeView, activeWorktreeId, activePendingCreationId, creationLayoutActive } = layout
   const tasksHomeOpen = useAppStore((s) => s.tasksHomeOpen)
+  const botTeamsSelection = useAppStore((s) => s.botTeamsSelection)
+  const setBotTeamsSelection = useAppStore((s) => s.setBotTeamsSelection)
   return (
     <>
       {activeView === 'settings' ? <Settings /> : null}
       {activeView === 'skills' ? <SkillsPage /> : null}
       {activeView === 'artifacts' ? <ArtifactsPage /> : null}
       {activeView === 'prototypes' ? <PrototypesPage /> : null}
-      {activeView === 'bot-teams' ? <BotTeamsPage /> : null}
+      {activeView === 'bot-teams' ? (
+        <BotTeamsPage selection={botTeamsSelection} onSelectionChange={setBotTeamsSelection} />
+      ) : null}
       {activeView === 'tasks' ? tasksHomeOpen ? <TasksHomePage /> : <TaskPage /> : null}
       {activeView === 'automations' ? <AutomationsPage /> : null}
       {activeView === 'activity' ? <ActivityPrototypePage /> : null}
@@ -162,12 +166,10 @@ export function AppWorkspaceShell(props: {
         <div className="flex flex-col flex-1 min-w-0 min-h-0">
           <div className="flex flex-row flex-1 min-h-0 overflow-hidden">
             <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
-              {/* Why: a band only in the center column - the rail and sidebar reach the window top, and automations/artifacts draw their own page headers. */}
+              {/* Why: a band only in the center column - the rail and sidebar reach the window top. Every section wears the same band. */}
               {!layout.leftTitlebarChromeLayout.shouldMount ? (
                 <PageTopBand layout={layout} withLeftControls />
-              ) : layout.stackedSidebarOpen &&
-                layout.activeView !== 'automations' &&
-                layout.activeView !== 'artifacts' ? (
+              ) : layout.stackedSidebarOpen ? (
                 <PageTopBand layout={layout} withLeftControls={false} />
               ) : null}
               {layout.workspaceChromeActive && layout.activeWorktreeId ? (

@@ -65,10 +65,24 @@ describe('SidePanelTabStrip', () => {
       onClosePanel: vi.fn()
     }
     const container = mount(
-      <SidePanelTabStrip groupId="side-panel:wt" worktreeId="wt" items={ITEMS} newTabOptions={OPTIONS} {...handlers} />
+      <SidePanelTabStrip
+        groupId="side-panel:wt"
+        worktreeId="wt"
+        items={ITEMS}
+        newTabOptions={OPTIONS}
+        {...handlers}
+      />
     )
     return { container, handlers }
   }
+
+  it('is not a window drag surface, so its buttons stay clickable while the terminal is unfocused', () => {
+    const { container } = render()
+    const strip = container.querySelector('[data-tab-group-strip-id]')
+    // Why: main.css makes every focus-release surface a window drag region unless xterm has focus,
+    // and Electron swallows clicks on a drag region; the strip sits mid-window, not in the top chrome.
+    expect(strip?.hasAttribute('data-terminal-focus-release-surface')).toBe(false)
+  })
 
   it('shows each tab with its label and marks the active one', () => {
     const { container } = render()

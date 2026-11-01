@@ -16,6 +16,7 @@ vi.mock('./TitlebarMainStrip', () => ({
 }))
 
 const { PageTopBand } = await import('./PageTopBand')
+const { TOP_BAR_SURFACE_CLASS } = await import('./top-bar-surface')
 
 const layout = {} as AppChromeLayout
 const mounted: HTMLElement[] = []
@@ -53,5 +54,12 @@ describe('PageTopBand', () => {
   it('carries the sidebar toggle and history controls only when the sidebar column has none', () => {
     expect(render(true).querySelector('[data-testid="left-controls"]')).not.toBeNull()
     expect(render(false).querySelector('[data-testid="left-controls"]')).toBeNull()
+  })
+
+  it('uses the one top bar surface, the same token the session bar uses', () => {
+    const band = render(false).querySelector<HTMLElement>('[data-page-top-band]')
+    for (const token of TOP_BAR_SURFACE_CLASS.split(' ')) {
+      expect(band?.className).toContain(token)
+    }
   })
 })

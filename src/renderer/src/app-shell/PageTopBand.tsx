@@ -1,5 +1,7 @@
+import { cn } from '@/lib/utils'
 import { TitlebarLeftControls } from './TitlebarLeftControls'
 import { TitlebarMainStrip } from './TitlebarMainStrip'
+import { TOP_BAR_SURFACE_CLASS } from './top-bar-surface'
 import type { AppChromeLayout } from './use-app-chrome-layout'
 
 /**
@@ -18,7 +20,7 @@ export function PageTopBand({
     <div
       data-page-top-band="true"
       data-terminal-focus-release-surface="true"
-      className="flex h-11 min-h-11 shrink-0 select-none items-center border-b border-border bg-[var(--bg-titlebar,var(--card))]"
+      className={cn('flex h-11 min-h-11 shrink-0 select-none items-center', TOP_BAR_SURFACE_CLASS)}
     >
       {withLeftControls ? (
         <div className="mr-2 flex shrink-0 items-center">

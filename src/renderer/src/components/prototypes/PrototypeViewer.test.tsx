@@ -28,6 +28,7 @@ import { useAppStore } from '@/store'
 import type { Tab } from '../../../../shared/tab-types'
 import { PrototypeViewer } from './PrototypeViewer'
 import { usePrototypeViewStore } from './prototype-view-store'
+import { setPageTopBandActionsTarget } from '../../app-shell/page-top-band-slot'
 
 const frame = vi.hoisted(() => {
   const captured: { onAnnotateEvent: ((event: NativeChatVisualAnnotateEvent) => void) | null } = {
@@ -138,6 +139,28 @@ describe('PrototypeViewer header', () => {
   })
 })
 
+describe('PrototypeViewer side panel toggle in the top band', () => {
+  afterEach(() => {
+    cleanup()
+    act(() => setPageTopBandActionsTarget(null))
+  })
+
+  it('renders into the top band next to the window controls, not into the toolbar', () => {
+    usePrototypeViewStore.setState({ sidePanelHidden: false, states: {} })
+    const band = document.createElement('div')
+    document.body.appendChild(band)
+    act(() => setPageTopBandActionsTarget(band))
+    renderViewer(createSetState(['A', 'B']), vi.fn<Update>())
+    expect(within(band).getByRole('button', { name: 'Hide panel' })).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('toolbar')).queryByRole('button', { name: 'Hide panel' })
+    ).toBeNull()
+    fireEvent.click(within(band).getByRole('button', { name: 'Hide panel' }))
+    expect(usePrototypeViewStore.getState().sidePanelHidden).toBe(true)
+    band.remove()
+  })
+})
+
 describe('PrototypeViewer side panel toggle', () => {
   beforeEach(() => {
     usePrototypeViewStore.setState({ sidePanelHidden: false, states: {} })
@@ -153,13 +176,17 @@ describe('PrototypeViewer side panel toggle', () => {
     expect(screen.getByRole('button', { name: 'Hide panel' })).toBeInTheDocument()
   })
 
-  it('takes the secondary look while hidden, and leaves the set state alone', () => {
+  it('reads as not pressed while hidden, and leaves the set state alone', () => {
     const update = vi.fn<Update>()
     renderViewer(createSetState(['A', 'B']), update)
+    expect(screen.getByRole('button', { name: 'Hide panel' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Hide panel' }))
     expect(screen.getByRole('button', { name: 'Show panel' })).toHaveAttribute(
-      'data-variant',
-      'secondary'
+      'aria-pressed',
+      'false'
     )
     expect(update).not.toHaveBeenCalled()
   })

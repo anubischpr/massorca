@@ -102,11 +102,13 @@ export function AppRail(): React.JSX.Element {
           // Why: "again" only holds once the user has come back to Workspaces from another page.
           if (outcome === 'returned' && railMode === 'workspaces' && !hintShown) {
             markHintShown()
+            // Why: the 4s default in the far corner went unnoticed; stay longer, away from the corner controls.
             toast.info(
               translate(
                 'components.app-rail.workspacesAgainHint',
                 'Click Workspaces again to switch to Bot teams.'
-              )
+              ),
+              { duration: 8000, position: 'bottom-center' }
             )
           }
         }}

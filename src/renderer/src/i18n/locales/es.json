@@ -17886,7 +17886,22 @@
     "tasksHome": {
       "approvals": "Necesitan tu aprobación",
       "heading": "¿Qué quieres hacer?",
-      "open": "Abrir"
+      "open": "Abrir",
+      "botTeamCreating": "Creando la tarea…",
+      "botTeamCreatingAria": "Creando la tarea",
+      "botTeamHint": "Intro para crear la tarea · Mayús+Intro para una línea nueva",
+      "botTeamPlaceAria": "Adónde va",
+      "botTeamPlaceholder": "Describe la tarea para el equipo…",
+      "botTeamSendAria": "Crear tarea",
+      "createModeAria": "Crear",
+      "createModeBotTeam": "Bot Team",
+      "createModeWorkspaces": "WorkSpaces",
+      "originBotTeam": "Bot Team",
+      "originWorkspaces": "WorkSpaces",
+      "startAria": "Cuándo empieza la tarea",
+      "startNow": "Empezar ahora",
+      "teamAria": "Equipo",
+      "teamChoose": "Elegir un equipo"
     },
     "prototypes": {
       "settings": {

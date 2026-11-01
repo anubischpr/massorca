@@ -107,7 +107,11 @@ describe('the Workspaces again hint', () => {
     const container = mount()
     act(() => modeButton(container).click())
     expect(toastInfo).toHaveBeenCalledTimes(1)
-    expect(toastInfo).toHaveBeenCalledWith('Click Workspaces again to switch to Bot teams.')
+    // Why: the default 4s in the far corner went unnoticed, so the hint stays longer and sits mid-window.
+    expect(toastInfo).toHaveBeenCalledWith('Click Workspaces again to switch to Bot teams.', {
+      duration: 8000,
+      position: 'bottom-center'
+    })
     expect(store.getState().railWorkspacesHintShown).toBe(true)
 
     act(() => store.getState().openTasksHome())

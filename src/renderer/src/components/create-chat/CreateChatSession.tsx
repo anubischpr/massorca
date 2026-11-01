@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react'
-import { translate } from '@/i18n/i18n'
 import { CreateChatAgentChip } from './CreateChatAgentChip'
 import { CreateChatComposer } from './CreateChatComposer'
+import { CreateChatPageFrame } from './CreateChatPageFrame'
 import { CreateChatPermissionsChip, CreateChatPlaceChips } from './CreateChatLeftChips'
 import { CreateChatSessionViewSwitch } from './CreateChatSessionViewSwitch'
 import { CreateChatTerminalNotice } from './CreateChatTerminalNotice'
@@ -27,6 +27,8 @@ type CreateChatSessionProps = {
   subheading?: string | null
   /** 'top' pins the heading to the top and lets `below` follow the composer. */
   layout?: 'centered' | 'top'
+  /** Centered over the place row; see CreateChatPageFrame. */
+  aboveComposer?: ReactNode
   /** Content under the composer. */
   below?: ReactNode
 }
@@ -38,6 +40,7 @@ export function CreateChatSession({
   heading,
   subheading,
   layout = 'centered',
+  aboveComposer,
   below
 }: CreateChatSessionProps): React.JSX.Element {
   const [selection, setSelection] = useState<CreateChatSelection>(() =>
@@ -85,68 +88,51 @@ export function CreateChatSession({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 pb-6 scrollbar-sleek">
-      <div
-        className={
-          layout === 'top'
-            ? 'flex flex-col items-center gap-2 pb-6 pt-14 text-center'
-            : 'flex flex-1 flex-col items-center justify-center gap-2 py-8 text-center'
+    <CreateChatPageFrame
+      heading={heading}
+      subheading={subheading}
+      layout={layout}
+      aboveComposer={aboveComposer}
+      below={below}
+    >
+      <CreateChatComposer
+        draft={draft}
+        onDraftChange={setDraft}
+        canSubmit={canSubmit}
+        pending={pending}
+        error={error}
+        onSubmit={submit}
+        placeChips={
+          <CreateChatPlaceChips
+            selection={selection}
+            options={options}
+            onSelectionChange={setSelection}
+          />
         }
-      >
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {heading ?? translate('components.createChat.emptyHeading', 'What do you want to build?')}
-        </h1>
-        {subheading === null ? null : (
-          <p className="max-w-md text-sm text-muted-foreground">
-            {subheading ??
-              translate(
-                'components.createChat.emptySubheading',
-                'Pick where it runs, the project and the agent, then write the first message to create the session.'
-              )}
-          </p>
-        )}
-      </div>
-      <div className="mx-auto w-full max-w-3xl">
-        <CreateChatComposer
-          draft={draft}
-          onDraftChange={setDraft}
-          canSubmit={canSubmit}
-          pending={pending}
-          error={error}
-          onSubmit={submit}
-          placeChips={
-            <CreateChatPlaceChips
+        footerChips={
+          <>
+            <CreateChatPermissionsChip
               selection={selection}
               options={options}
               onSelectionChange={setSelection}
             />
-          }
-          footerChips={
-            <>
-              <CreateChatPermissionsChip
-                selection={selection}
-                options={options}
-                onSelectionChange={setSelection}
-              />
-              <CreateChatSessionViewSwitch
-                view={view}
-                onViewChange={(next) => setSelection({ ...selection, sessionView: next })}
-              />
-            </>
-          }
-          notice={view === 'terminal' ? <CreateChatTerminalNotice block={terminalBlock} /> : null}
-          rightChips={
-            <CreateChatAgentChip
-              selection={selection}
-              agents={agents}
-              piRuntime={piRuntime}
-              catalog={catalog}
-              onSelectionChange={setSelection}
+            <CreateChatSessionViewSwitch
+              view={view}
+              onViewChange={(next) => setSelection({ ...selection, sessionView: next })}
             />
-          }
-        />
-      </div>
-      {below ? <div className="mx-auto mt-8 w-full max-w-3xl">{below}</div> : null}
-    </div>
+          </>
+        }
+        notice={view === 'terminal' ? <CreateChatTerminalNotice block={terminalBlock} /> : null}
+        rightChips={
+          <CreateChatAgentChip
+            selection={selection}
+            agents={agents}
+            piRuntime={piRuntime}
+            catalog={catalog}
+            onSelectionChange={setSelection}
+          />
+        }
+      />
+    </CreateChatPageFrame>
   )
 }
