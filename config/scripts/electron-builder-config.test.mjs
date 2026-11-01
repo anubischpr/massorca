@@ -22,6 +22,13 @@ describe('electron-builder config', () => {
     )
   })
 
+  it('keeps every global exclusion in the Linux file list, which would otherwise replace it', () => {
+    expect(electronBuilderConfig.linux.files).toEqual([
+      ...electronBuilderConfig.files,
+      '!node_modules/node-pty{,/**/*}'
+    ])
+  })
+
   it('excludes repo-only source trees from app.asar', () => {
     expect(electronBuilderConfig.files).toEqual(
       expect.arrayContaining([
