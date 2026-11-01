@@ -1044,7 +1044,7 @@ html.native-shell .app-layout {
   z-index: 9999;
   display: flex;
   flex-direction: row;
-  height: 36px;
+  height: 44px;
   -webkit-app-region: no-drag;
 }
 
@@ -1053,7 +1053,7 @@ html.native-shell .app-layout {
   align-items: center;
   justify-content: center;
   width: 46px;
-  height: 36px;
+  height: 44px;
   background: transparent;
   border: none;
   color: var(--muted-foreground);
@@ -1113,7 +1113,7 @@ html.native-shell .app-layout {
 }
 
 /* Why: in side-bar activity-bar mode the icon strip sits flush against the
-   right window edge. The fixed-position window-controls overlay (height 36px,
+   right window edge. The fixed-position window-controls overlay (height 44px,
    width 138px) covers the top-right corner when custom desktop chrome is
    active, so the topmost sidebar icons are unreachable without this offset. */
 .side-activity-bar-windows-inset {

@@ -3,8 +3,9 @@ import {
   configureGoldenStubAgent,
   getGoldenStubAgentLaunchEnv,
   GOLDEN_STUB_EXIT_MARKER,
-  launchGoldenStubAgentFromNewTab
+  launchGoldenStubAgentFromCreate
 } from './helpers/golden-stub-agent'
+import { createTerminalTabFromMenu } from './helpers/terminal-tab-menu'
 import { ensureTerminalVisible, waitForActiveWorktree, waitForSessionReady } from './helpers/store'
 import { waitForRestoredTerminalInputReady } from './helpers/restored-terminal-input-readiness'
 import {
@@ -31,18 +32,15 @@ test('opens a clean live shell after an agent exits', async ({ orcaPage }) => {
   await waitForActiveWorktree(orcaPage)
   await ensureTerminalVisible(orcaPage)
   await configureGoldenStubAgent(orcaPage)
-  await launchGoldenStubAgentFromNewTab(orcaPage)
+  await launchGoldenStubAgentFromCreate(orcaPage)
 
   await orcaPage.keyboard.type('exit')
   await orcaPage.keyboard.press('Enter')
   await waitForTerminalOutput(orcaPage, GOLDEN_STUB_EXIT_MARKER, 15_000)
 
   const tabsBeforeShell = await orcaPage.locator('[data-testid="side-panel-tab"]').count()
-  await orcaPage.getByRole('button', { name: 'New tab' }).click({ force: true })
-  await orcaPage
-    .getByRole('menuitem', { name: /New Terminal/i })
-    .first()
-    .click({ force: true })
+  // Why: the session holds the main area; the new shell is a side panel tab, opened from the panel's + menu.
+  await createTerminalTabFromMenu(orcaPage)
   await expect(orcaPage.locator('[data-testid="side-panel-tab"]')).toHaveCount(tabsBeforeShell + 1)
   const shellPtyId = await waitForActivePanePtyId(orcaPage)
   // Why: a bound ptyId only means the pane exists; the renderer transport can

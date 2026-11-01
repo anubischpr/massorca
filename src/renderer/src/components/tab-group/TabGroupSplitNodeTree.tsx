@@ -218,7 +218,7 @@ function SplitNode({
           focusedGroupId={focusedGroupId}
           isWorktreeActive={isWorktreeActive}
           hasSplitGroups={hasSplitGroups}
-            markdownAnnotationsEnabled={markdownAnnotationsEnabled}
+          markdownAnnotationsEnabled={markdownAnnotationsEnabled}
           touchesTopEdge={touchesTopEdge}
           touchesRightEdge={isHorizontal ? false : touchesRightEdge}
           touchesLeftEdge={touchesLeftEdge}
@@ -244,7 +244,7 @@ function SplitNode({
           focusedGroupId={focusedGroupId}
           isWorktreeActive={isWorktreeActive}
           hasSplitGroups={hasSplitGroups}
-            markdownAnnotationsEnabled={markdownAnnotationsEnabled}
+          markdownAnnotationsEnabled={markdownAnnotationsEnabled}
           touchesTopEdge={isHorizontal ? touchesTopEdge : false}
           touchesRightEdge={touchesRightEdge}
           touchesLeftEdge={isHorizontal ? false : touchesLeftEdge}

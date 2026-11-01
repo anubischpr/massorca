@@ -101,3 +101,19 @@ describe('installSidePanelNormalizer', () => {
     stop()
   })
 })
+
+describe('a terminal that becomes a session after it was created', () => {
+  it('returns to the main area once it carries a view mode', () => {
+    const store = mainWithChat()
+    const stop = installSidePanelNormalizer(store)
+    const created = store.getState().createUnifiedTab(WT, 'terminal', { targetGroupId: MAIN })
+    expect(store.getState().unifiedTabsByWorktree[WT].find((t) => t.id === created.id)?.groupId).toBe(
+      sidePanelGroupId(WT)
+    )
+    store.getState().setTabViewMode(created.id, 'terminal')
+    const moved = store.getState().unifiedTabsByWorktree[WT].find((t) => t.id === created.id)
+    expect(moved?.viewMode).toBe('terminal')
+    expect(moved?.groupId).not.toBe(sidePanelGroupId(WT))
+    stop()
+  })
+})

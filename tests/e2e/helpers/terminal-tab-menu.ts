@@ -7,7 +7,7 @@ export const SORTABLE_TAB = '[data-testid="side-panel-tab"]'
 // Why: hidden worktrees keep their own side panels mounted, so the "+" has to come from the
 // visible one; a closed panel is opened first through the session bar's Side panel button.
 async function sidePanelRoot(page: Page): Promise<Locator> {
-  const panel = page.locator('[data-side-panel="true"][data-open="true"]')
+  const panel = page.locator('[data-side-panel="true"][data-open="true"]').filter({ visible: true })
   if ((await panel.count()) === 0) {
     await page.getByRole('button', { name: 'Side panel' }).click({ force: true })
     await expect(panel).toHaveCount(1, { timeout: 5_000 })

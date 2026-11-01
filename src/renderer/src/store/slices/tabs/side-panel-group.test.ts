@@ -267,3 +267,45 @@ describe('the floating workspace', () => {
     expect(planSidePanelNormalization(store.getState(), FLOATING_TERMINAL_WORKTREE_ID)).toBeNull()
   })
 })
+
+describe('a terminal launched as an agent', () => {
+  function withRow(launchAgent: 'codex' | undefined) {
+    const store = seeded({
+      tabs: [{ id: 'agent', worktreeId: WT, groupId: MAIN, contentType: 'terminal' }],
+      groups: [{ id: MAIN, worktreeId: WT, tabOrder: ['agent'], activeTabId: 'agent' }]
+    })
+    store.setState({
+      tabsByWorktree: {
+        [WT]: [
+          {
+            id: 'agent',
+            worktreeId: WT,
+            ptyId: null,
+            title: 'Terminal 1',
+            customTitle: null,
+            color: null,
+            sortOrder: 0,
+            createdAt: 1,
+            ...(launchAgent ? { launchAgent } : {})
+          }
+        ]
+      }
+    })
+    return store
+  }
+
+  it('is a session from its first frame, before any view mode is set, and keeps that after a restart', () => {
+    const store = withRow('codex')
+    store.setState(planSidePanelNormalization(store.getState(), WT) ?? {})
+    const tab = store.getState().unifiedTabsByWorktree[WT][0]
+    expect(tab.groupId).toBe(MAIN)
+    expect(tab.viewMode).toBe('terminal')
+    expect(planSidePanelNormalization(store.getState(), WT)).toBeNull()
+  })
+
+  it('stays in the panel when nothing says it is an agent', () => {
+    const store = withRow(undefined)
+    store.setState(planSidePanelNormalization(store.getState(), WT) ?? {})
+    expect(store.getState().unifiedTabsByWorktree[WT][0].groupId).toBe(sidePanelGroupId(WT))
+  })
+})

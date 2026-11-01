@@ -147,7 +147,7 @@ export function AppWorkspaceShell(props: {
               >
                 {titlebarLeftControls}
               </div>
-              {/* Why: flex-1/min-h-0 slot needed under the fixed 36px header, else the sidebar collapses to content height and loses its scroll viewport. */}
+              {/* Why: flex-1/min-h-0 slot needed under the fixed 44px header, else the sidebar collapses to content height and loses its scroll viewport. */}
               <div className="flex min-h-0 flex-1">
                 <WorktreeSidebar layout={layout} scrollRefs={sidebarScrollRefs} />
               </div>
@@ -171,6 +171,14 @@ export function AppWorkspaceShell(props: {
               {layout.workspaceChromeActive && layout.activeWorktreeId ? (
                 <SessionBar
                   worktreeId={layout.activeWorktreeId}
+                  collapsePane={
+                    layout.showTitlebarExpandButton && layout.effectiveActiveTabId
+                      ? {
+                          tabId: layout.effectiveActiveTabId,
+                          canExpand: layout.activeTabCanExpand
+                        }
+                      : null
+                  }
                   // Why: the collapsed sidebar's floating header sits over the bar's left end.
                   reserveCollapsedSidebarHeader={
                     layout.leftTitlebarChromeLayout.isFloating && !layout.sidebarOpen

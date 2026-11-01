@@ -1,5 +1,6 @@
 import type { TabGroupLayoutNode } from '../../../../shared/tab-types'
 import { SidePanel } from '../side-panel/SidePanel'
+import { MainSessionEmptyState } from './MainSessionEmptyState'
 import { TabGroupSplitNodeTree } from './TabGroupSplitNodeTree'
 import { WorkspaceTabDragLayer } from './WorkspaceTabDragLayer'
 
@@ -25,7 +26,7 @@ export default function TabGroupSplitLayout({
           ref={setDragRootNode}
           className="flex flex-1 min-w-0 min-h-0 overflow-hidden border-l border-border"
         >
-          <div className="flex flex-1 min-w-0 min-h-0 overflow-hidden">
+          <div className="relative flex flex-1 min-w-0 min-h-0 overflow-hidden">
             <TabGroupSplitNodeTree
               layout={layout}
               worktreeId={worktreeId}
@@ -33,6 +34,7 @@ export default function TabGroupSplitLayout({
               isWorktreeActive={isWorktreeActive}
               isTabDragActive={isTabDragActive}
             />
+            {isWorktreeActive ? <MainSessionEmptyState worktreeId={worktreeId} /> : null}
           </div>
           <SidePanel
             worktreeId={worktreeId}

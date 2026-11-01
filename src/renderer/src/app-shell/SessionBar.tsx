@@ -1,4 +1,5 @@
-import { PanelRight, SquareArrowOutUpRight } from 'lucide-react'
+import { Minimize2, PanelRight, SquareArrowOutUpRight } from 'lucide-react'
+import { TOGGLE_TERMINAL_PANE_EXPAND_EVENT } from '@/constants/terminal'
 import { translate } from '@/i18n/i18n'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -52,18 +53,22 @@ function BarToggle({
 export function SessionBar({
   worktreeId,
   reserveWindowControls,
-  reserveCollapsedSidebarHeader = false
+  reserveCollapsedSidebarHeader = false,
+  collapsePane = null
 }: {
   worktreeId: string
   /** True when the window-controls overlay sits over this bar's right end. */
   reserveWindowControls: boolean
   /** True when the collapsed left sidebar's floating header sits over this bar's left end. */
   reserveCollapsedSidebarHeader?: boolean
+  /** Set while the active pane is expanded: the tab the Collapse pane button returns to its split. */
+  collapsePane?: { tabId: string; canExpand: boolean } | null
 }): React.JSX.Element {
   const name = useAppStore((s) => {
     const tab = selectFocusedSessionTab(s, worktreeId)
     if (!tab) {
-      return ''
+      // Why: with no session to name, the bar names the workspace the main area belongs to.
+      return s.allWorktrees().find((worktree) => worktree.id === worktreeId)?.displayName ?? ''
     }
     const terminal =
       tab.contentType === 'terminal'
@@ -84,6 +89,7 @@ export function SessionBar({
   const rightSidebarOpen = useAppStore((s) => s.rightSidebarOpen)
   const toggleRightSidebar = useAppStore((s) => s.toggleRightSidebar)
   const rightSidebarShortcut = useShortcutLabel('sidebar.right.toggle')
+  const collapseLabel = translate('auto.App.c1cf0b0e4a', 'Collapse pane')
   const sidePanelLabel = translate('components.side-panel.label', 'Side panel')
   const rightSidebarLabel = translate('auto.App.9e0b441a91', 'Toggle right sidebar')
   return (
@@ -105,6 +111,32 @@ export function SessionBar({
         className="flex items-center gap-1 [-webkit-app-region:no-drag]"
       />
       <div className="flex items-center gap-1 [-webkit-app-region:no-drag]">
+        {collapsePane ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground [&_svg]:size-4"
+                aria-label={collapseLabel}
+                disabled={!collapsePane.canExpand}
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent(TOGGLE_TERMINAL_PANE_EXPAND_EVENT, {
+                      detail: { tabId: collapsePane.tabId }
+                    })
+                  )
+                }
+              >
+                <Minimize2 />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={6}>
+              {collapseLabel}
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
         <BarToggle
           label={sidePanelLabel}
           tooltip={sidePanelLabel}

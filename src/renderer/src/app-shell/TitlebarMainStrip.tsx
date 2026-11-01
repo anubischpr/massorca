@@ -1,7 +1,6 @@
-import { Minimize2, PanelRight } from 'lucide-react'
+import { PanelRight } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { TOGGLE_TERMINAL_PANE_EXPAND_EVENT } from '@/constants/terminal'
 import { ActivityTitlebarControls } from '../components/activity/ActivityTitlebarControls'
 import { useShortcutLabel } from '../hooks/useShortcutLabel'
 import { useAppStore } from '../store'
@@ -33,17 +32,6 @@ export function RightSidebarToggle(): React.JSX.Element {
 
 /** The titlebar's center/right strip: the trailing chrome buttons. */
 export function TitlebarMainStrip({ layout }: { layout: AppChromeLayout }): React.JSX.Element {
-  const handleToggleExpand = (): void => {
-    if (!layout.effectiveActiveTabId) {
-      return
-    }
-    window.dispatchEvent(
-      new CustomEvent(TOGGLE_TERMINAL_PANE_EXPAND_EVENT, {
-        detail: { tabId: layout.effectiveActiveTabId }
-      })
-    )
-  }
-
   return (
     <>
       {layout.activeView === 'activity' ? (
@@ -51,23 +39,6 @@ export function TitlebarMainStrip({ layout }: { layout: AppChromeLayout }): Reac
       ) : (
         // Why: a spacer keeps the strip's buttons right-aligned; sessions have no tab strip any more.
         <div className="flex flex-1 min-w-0 self-stretch" />
-      )}
-      {layout.showTitlebarExpandButton && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              className="titlebar-icon-button"
-              onClick={handleToggleExpand}
-              aria-label={translate('auto.App.c1cf0b0e4a', 'Collapse pane')}
-              disabled={!layout.activeTabCanExpand}
-            >
-              <Minimize2 size={14} />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={6}>
-            {translate('auto.App.c1cf0b0e4a', 'Collapse pane')}
-          </TooltipContent>
-        </Tooltip>
       )}
       {/* Why: the open right sidebar's header renders its own close button, and a workspace's session bar carries the toggle. */}
       {layout.showRightSidebarControls &&

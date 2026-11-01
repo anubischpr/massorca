@@ -382,11 +382,16 @@ for (const daemonSessionGone of [false, true]) {
         .locator(`[role="option"][data-worktree-id="${targetWorktreeId}"]`)
         .first()
         .click()
+      // Why: a worker is an agent session, so it shows in the main area and is switched to
+      // through the store (the sidebar's action) rather than a tab strip.
+      await second.page.evaluate(
+        (tabId) => window.__store?.getState().activateTab(tabId),
+        workerTabId
+      )
       const visibleTab = second.page
-        .locator(`[data-testid="side-panel-tab"][data-tab-id="${workerTabId}"]`)
+        .locator(`[data-terminal-overlay-tab-id="${workerTabId}"]`)
         .first()
-      await visibleTab.click({ timeout: 10_000 })
-      await expect(visibleTab).toBeVisible()
+      await expect(visibleTab).toBeVisible({ timeout: 10_000 })
       await ensureTerminalVisible(second.page)
       // Give the reconciler's async verdict time to land; the tab must never have left.
       await second.page.waitForTimeout(3_000)

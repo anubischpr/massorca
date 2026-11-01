@@ -25,6 +25,10 @@ vi.mock('../../store', () => ({
   ) => useAppStoreMock(selector)
 }))
 
+vi.mock('./MainSessionEmptyState', () => ({
+  MainSessionEmptyState: (props: unknown) => ({ __mock: 'MainSessionEmptyState', props })
+}))
+
 vi.mock('../side-panel/SidePanel', () => ({
   SidePanel: (props: unknown) => ({ __mock: 'SidePanel', props })
 }))
@@ -89,10 +93,11 @@ describe('TabGroupSplitLayout', () => {
       asElement(getLayoutWrapper(element)).props.children as React.ReactNode
     )
     const splitBody = layoutWrapperChildren[0]
-    const treeElement = React.Children.only(
-      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the wrapper's split body renders exactly the tree element; props are untyped in this shallow-walk rig.
+    // Why: the main area hosts the tree first, then its empty-state entry.
+    const treeElement = React.Children.toArray(
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the wrapper's split body renders the tree element first; props are untyped in this shallow-walk rig.
       asElement(splitBody).props.children as React.ReactNode
-    )
+    )[0]
     // TabGroupSplitNodeTree renders the recursive SplitNode; invoke both to reach the leaf/split.
     const splitNodeElement = invokeComponent(asElement(treeElement))
     return invokeComponent(asElement(splitNodeElement))

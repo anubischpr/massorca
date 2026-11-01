@@ -4,7 +4,7 @@ import {
   configureGoldenStubAgent,
   getGoldenStubAgentLaunchEnv,
   GOLDEN_STUB_EXIT_MARKER,
-  launchGoldenStubAgentFromNewTab
+  launchGoldenStubAgentFromCreate
 } from './helpers/golden-stub-agent'
 import { ensureTerminalVisible, waitForActiveWorktree, waitForSessionReady } from './helpers/store'
 import {
@@ -59,7 +59,7 @@ test('resets standard keyboard bytes after a protocol-mode agent exits on ConPTY
     agent: 'grok',
     agentArgs: '--keyboard-protocol --grok'
   })
-  await launchGoldenStubAgentFromNewTab(orcaPage, /^Grok(?:\s|$)/i)
+  await launchGoldenStubAgentFromCreate(orcaPage, /^Grok(?:\s|$)/i)
 
   const ptyId = await waitForActivePanePtyId(orcaPage)
   await expect.poll(() => getKittyKeyboardFlags(orcaPage), { timeout: 10_000 }).toBe(1)

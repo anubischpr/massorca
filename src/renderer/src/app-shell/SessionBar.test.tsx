@@ -18,7 +18,7 @@ vi.mock('@/i18n/i18n', () => ({
 }))
 vi.mock('../hooks/useShortcutLabel', () => ({ useShortcutLabel: () => 'Ctrl+B' }))
 
-const { createTestStore, makeTabGroup, makeUnifiedTab, seedStore } =
+const { createTestStore, makeTabGroup, makeUnifiedTab, makeWorktree, seedStore } =
   await import('../store/slices/store-test-helpers')
 const store = createTestStore()
 vi.mock('../store', () => ({ useAppStore: store }))
@@ -34,7 +34,10 @@ function SessionActions(): React.JSX.Element | null {
   return target ? createPortal(<button aria-label="Split Terminal Right" />, target) : null
 }
 
-function mountBar(reserveWindowControls = false): HTMLDivElement {
+function mountBar(
+  reserveWindowControls = false,
+  collapsePane: { tabId: string; canExpand: boolean } | null = null
+): HTMLDivElement {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
@@ -42,7 +45,11 @@ function mountBar(reserveWindowControls = false): HTMLDivElement {
   act(() =>
     root.render(
       <>
-        <SessionBar worktreeId={WT} reserveWindowControls={reserveWindowControls} />
+        <SessionBar
+          worktreeId={WT}
+          reserveWindowControls={reserveWindowControls}
+          collapsePane={collapsePane}
+        />
         <SessionActions />
       </>
     )
@@ -119,5 +126,41 @@ describe('SessionBar', () => {
     expect(
       container.querySelector<HTMLElement>('[data-session-bar]')?.style.paddingRight
     ).toContain('--window-controls-width')
+  })
+
+  it('shows Collapse pane only while a pane is expanded, and sends the toggle for that tab', () => {
+    expect(mountBar().querySelector('button[aria-label="Collapse pane"]')).toBeNull()
+    const seen: string[] = []
+    const listener = (event: Event): void => {
+      seen.push((event as CustomEvent<{ tabId: string }>).detail.tabId)
+    }
+    window.addEventListener('orca-toggle-terminal-pane-expand', listener)
+    const container = mountBar(false, { tabId: 'term-1', canExpand: true })
+    const button = container.querySelector<HTMLButtonElement>('button[aria-label="Collapse pane"]')
+    act(() => button?.click())
+    window.removeEventListener('orca-toggle-terminal-pane-expand', listener)
+    expect(seen).toEqual(['term-1'])
+  })
+
+  it('disables Collapse pane when the active tab cannot expand', () => {
+    const container = mountBar(false, { tabId: 'term-1', canExpand: false })
+    expect(
+      container.querySelector<HTMLButtonElement>('button[aria-label="Collapse pane"]')?.disabled
+    ).toBe(true)
+  })
+
+  it('names the bar after the workspace while the main area has no session', () => {
+    seedStore(store, {
+      unifiedTabsByWorktree: { [WT]: [] },
+      groupsByWorktree: { [WT]: [] },
+      layoutByWorktree: {},
+      worktreesByRepo: {
+        repo1: [makeWorktree({ id: WT, repoId: 'repo1', displayName: 'verify-secondary' })]
+      }
+    })
+    const container = mountBar()
+    expect(container.querySelector('[data-session-bar]')?.firstElementChild?.textContent).toBe(
+      'verify-secondary'
+    )
   })
 })

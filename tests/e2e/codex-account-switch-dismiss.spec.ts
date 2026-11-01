@@ -2,7 +2,7 @@ import { expect, test } from './helpers/orca-app'
 import {
   configureGoldenStubAgent,
   getGoldenStubAgentLaunchEnv,
-  launchGoldenStubAgentFromNewTab
+  launchGoldenStubAgentFromCreate
 } from './helpers/golden-stub-agent'
 import { ensureTerminalVisible, waitForActiveWorktree, waitForSessionReady } from './helpers/store'
 import { waitForActivePanePtyId, waitForTerminalOutput } from './helpers/terminal'
@@ -16,7 +16,7 @@ test('account switch actions return keyboard input to the terminal', async ({
   await waitForActiveWorktree(orcaPage)
   await ensureTerminalVisible(orcaPage)
   await configureGoldenStubAgent(orcaPage)
-  await launchGoldenStubAgentFromNewTab(orcaPage)
+  await launchGoldenStubAgentFromCreate(orcaPage)
 
   for (const action of ['outside', 'keep', 'escape', 'restart'] as const) {
     const ptyId = await waitForActivePanePtyId(orcaPage)

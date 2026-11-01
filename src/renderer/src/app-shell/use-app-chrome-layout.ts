@@ -35,13 +35,8 @@ export function useAppChromeLayout() {
       s.activePendingCreationId !== null &&
       s.pendingWorktreeCreations[s.activePendingCreationId] !== undefined
   )
-  const {
-    activeWorktreeId,
-    tabCount,
-    effectiveActiveTabId,
-    activeTabCanExpand,
-    effectiveActiveTabExpanded
-  } = useAppStore(useShallow(selectActiveTerminalChromeState))
+  const { activeWorktreeId, effectiveActiveTabId, activeTabCanExpand, effectiveActiveTabExpanded } =
+    useAppStore(useShallow(selectActiveTerminalChromeState))
   const backgroundTerminalMountRequested = useSyncExternalStore(
     subscribeBackgroundTerminalWorktreeMountRequests,
     hasRequestedBackgroundTerminalWorktreeMount,
@@ -78,7 +73,6 @@ export function useAppChromeLayout() {
   })
   const workspaceChromeActive =
     activeView === 'terminal' && activeWorktreeId !== null && !creationLayoutActive
-  const hasTabBar = tabCount >= 2
   // Activity/Space are full-page navigation surfaces (like Settings), so the worktree sidebar is hidden there.
   const showSidebar =
     activeView !== 'settings' && activeView !== 'activity' && activeView !== 'space'
@@ -143,7 +137,7 @@ export function useAppChromeLayout() {
     // Full-page navigation surfaces own the whole content area, so suppress right-sidebar controls.
     showRightSidebarControls: !creationLayoutActive && canShowRightSidebarForView(activeView),
     showTitlebarAppName: settings?.showTitlebarAppName !== false,
-    showTitlebarExpandButton: workspaceChromeActive && !hasTabBar && effectiveActiveTabExpanded,
+    showTitlebarExpandButton: workspaceChromeActive && effectiveActiveTabExpanded,
     sidebarOpen,
     stackedSidebarOpen,
     // Why: the workbench stays mounted while hidden, so visibility tracks the same condition separately.

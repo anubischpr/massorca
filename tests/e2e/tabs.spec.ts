@@ -88,6 +88,13 @@ test.describe('Tabs', () => {
     await waitForStartupWorktreeRefresh(orcaPage)
     await waitForActiveWorktree(orcaPage)
     await ensureTerminalVisible(orcaPage)
+    // Why: tabs live in the side panel, and its New tab button only exists while the panel is open.
+    await orcaPage.evaluate(() => {
+      const state = window.__store?.getState()
+      if (state?.activeWorktreeId) {
+        state.setSidePanelOpen(state.activeWorktreeId, true)
+      }
+    })
     const initialTabId = (await getActiveTabId(orcaPage))!
     await expect(tabLocator(orcaPage, initialTabId)).toBeVisible()
   })

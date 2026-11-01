@@ -53,7 +53,6 @@ export function useTerminalWorkspaceProjection(controller: TerminalWorkspaceStor
   const terminalProviderSnapshotCapabilityRevision = useTerminalProviderSnapshotCapability(
     workspaceSessionReady && hydrationSucceeded
   )
-  const titlebarTabsTarget = document.getElementById('titlebar-tabs')
 
   useEffect(() => {
     if (!activeWorktreeId) {
@@ -101,7 +100,6 @@ export function useTerminalWorkspaceProjection(controller: TerminalWorkspaceStor
   return {
     foregroundTerminalTabIds,
     tabs,
-    titlebarTabsTarget,
     worktreeFiles,
     worktreeBrowserTabs,
     worktreeClientHostedBrowserRows,

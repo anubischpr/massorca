@@ -67,7 +67,22 @@ export function planSidePanelNormalization(
   if (worktreeId === FLOATING_TERMINAL_WORKTREE_ID) {
     return null
   }
-  const tabs = state.unifiedTabsByWorktree[worktreeId] ?? []
+  const storedTabs = state.unifiedTabsByWorktree[worktreeId] ?? []
+  // Why: an agent launch creates its terminal before any view mode is set, and a panel move in
+  // between would strand the session there; the terminal row's launch agent names it a session.
+  const launchedAgentTabIds = new Set(
+    (state.tabsByWorktree[worktreeId] ?? []).flatMap((row) => (row.launchAgent ? [row.id] : []))
+  )
+  const needsViewMode = (tab: Tab): boolean =>
+    tab.contentType === 'terminal' &&
+    tab.viewMode === undefined &&
+    launchedAgentTabIds.has(tab.entityId)
+  const stamped = storedTabs.some(needsViewMode)
+  const tabs = stamped
+    ? storedTabs.map((tab) =>
+        needsViewMode(tab) ? { ...tab, viewMode: 'terminal' as const } : tab
+      )
+    : storedTabs
   const groups = state.groupsByWorktree[worktreeId] ?? []
   const panelId = sidePanelGroupId(worktreeId)
   const layout = state.layoutByWorktree[worktreeId]
@@ -75,7 +90,9 @@ export function planSidePanelNormalization(
   const toMain = tabs.filter((tab) => isSessionTab(tab) && tab.groupId === panelId)
   const layoutHasPanelLeaf = layout ? layoutHasLeaf(layout, panelId) : false
   if (toPanel.length === 0 && toMain.length === 0 && !layoutHasPanelLeaf) {
-    return null
+    return stamped
+      ? { unifiedTabsByWorktree: { ...state.unifiedTabsByWorktree, [worktreeId]: tabs } }
+      : null
   }
 
   const groupIndex = new Map(groups.map((group, index) => [group.id, index]))
