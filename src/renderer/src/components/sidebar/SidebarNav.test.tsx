@@ -436,8 +436,8 @@ describe('SidebarNav', () => {
     )
     const tasksButton = getButtonByText(container, 'Tasks')
 
-    expect(nav?.children[0]).toBe(getButtonByText(container, 'Create'))
-    expect(nav?.children[1]).toBe(searchButton)
+    expect(nav?.children[1]).toBe(getButtonByText(container, 'Create'))
+    expect(nav?.children[2]).toBe(searchButton)
     if (!searchButton) {
       throw new Error('worktree palette search button not rendered')
     }

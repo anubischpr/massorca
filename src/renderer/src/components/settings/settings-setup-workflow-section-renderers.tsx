@@ -1,3 +1,4 @@
+import { BotTeamsSettingsPane } from './BotTeamsSettingsPane'
 import { SessionHistorySettingsPane } from './SessionHistorySettingsPane'
 import { ArtifactsSettingsPane } from './ArtifactsSettingsPane'
 import { PrototypesSettingsPane } from './PrototypesSettingsPane'
@@ -155,6 +156,23 @@ export function renderArtifactsSettingsSection(context: SettingsRenderContext): 
       {view.isSectionMounted('artifacts') ? (
         <ArtifactsSettingsPane settings={model.settings} updateSettings={model.updateSettings} />
       ) : null}
+    </SettingsSection>
+  )
+}
+
+export function renderBotTeamsSettingsSection(context: SettingsRenderContext): React.JSX.Element {
+  const { navigation, view } = context
+  return (
+    <SettingsSection
+      id="bot-teams"
+      title={translate('components.botTeams.settings.title', 'Bot teams')}
+      description={translate(
+        'components.botTeams.settings.description',
+        'What each team can do without asking. New teams start with full access.'
+      )}
+      searchEntries={navigation.getSectionSearchEntries('bot-teams')}
+    >
+      {view.isSectionMounted('bot-teams') ? <BotTeamsSettingsPane /> : null}
     </SettingsSection>
   )
 }
