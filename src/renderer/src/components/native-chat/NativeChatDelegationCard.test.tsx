@@ -122,6 +122,11 @@ function countButtons(): HTMLButtonElement[] {
 }
 
 describe('NativeChatDelegationCard', () => {
+  it('names the request it asks about, since the question is the same for all', () => {
+    renderCard(payload)
+    expect(container.textContent).toContain('Explore Gentle Shell v5')
+  })
+
   it('starts with Automatic chosen and says which agent it picked', () => {
     renderCard(payload)
     expect(choices().map((button) => button.getAttribute('aria-checked'))).toEqual([

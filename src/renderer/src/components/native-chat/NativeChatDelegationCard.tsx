@@ -88,6 +88,8 @@ export function NativeChatDelegationCard({
               )}
             </span>
           </div>
+          {/* Why: the question is the same for every request; the title says which one this is. */}
+          {body.title ? <p className="text-xs text-muted-foreground">{body.title}</p> : null}
           <RadioGroup
             aria-label={translate('components.native-chat.delegation.choices', 'Agent choices')}
             value={selectedId ?? ''}
