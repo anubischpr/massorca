@@ -11,6 +11,7 @@ import { ORCHESTRATION_GATE_METHODS } from './orchestration/gates/gates'
 import { ORCHESTRATION_RESET_METHODS } from './orchestration/runs/reset-methods'
 import { ORCHESTRATION_CALLER_METHODS } from './orchestration/caller-show'
 import { ORCHESTRATION_DELEGATION_METHODS } from './orchestration/delegation/delegate-request'
+import { ORCHESTRATION_BOT_TEAM_METHODS } from './orchestration/bot-team-agent-methods'
 
 export const ORCHESTRATION_METHODS = [
   ...ORCHESTRATION_RUN_METHODS,
@@ -25,5 +26,6 @@ export const ORCHESTRATION_METHODS = [
   ...ORCHESTRATION_GATE_METHODS,
   ...ORCHESTRATION_RESET_METHODS,
   ...ORCHESTRATION_CALLER_METHODS,
-  ...ORCHESTRATION_DELEGATION_METHODS
+  ...ORCHESTRATION_DELEGATION_METHODS,
+  ...ORCHESTRATION_BOT_TEAM_METHODS
 ]

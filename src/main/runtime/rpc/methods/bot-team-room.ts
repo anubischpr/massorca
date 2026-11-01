@@ -10,6 +10,7 @@ import {
   type BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import { BOT_TEAMS_FOLDER_NAME } from '../../../../shared/bot-team-folder'
 import { botTeamTaskTitle, routeBotTeamRequest } from '../../../../shared/bot-team-request-route'
 import { createStructuredAgentSessionId } from '../../../../shared/structured-agent-session-create'
 import { createStructuredAgentSessionOperationId } from '../../../../shared/structured-agent-session-mutation'
@@ -29,7 +30,7 @@ async function ensureTeamWorkspace(ctx: RpcContext, team: BotTeam): Promise<stri
   if (existing) {
     return existing
   }
-  const parentPath = path.join(homedir(), 'MassOrca Bot Teams')
+  const parentPath = path.join(homedir(), BOT_TEAMS_FOLDER_NAME)
   const folderPath = path.join(parentPath, team.id)
   await mkdir(folderPath, { recursive: true })
   const group =

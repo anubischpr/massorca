@@ -19752,7 +19752,14 @@
       "tasks": "Tasks",
       "notStarted": "Not started",
       "started": "Started",
-      "start": "Start"
+      "start": "Start",
+      "working": "Working",
+      "waitingForYou": "Waiting for you",
+      "stopped": "Stopped",
+      "stuck": "Stuck",
+      "done": "Done",
+      "backToRoom": "Back to Conference room",
+      "open": "Open"
     }
   },
   "dashboardPopout": {
