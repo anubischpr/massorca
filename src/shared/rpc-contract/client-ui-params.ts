@@ -198,6 +198,8 @@ export const UiUpdateFields = z
     statusBarVisible: z.boolean().optional(),
     usagePercentageDisplay: z.enum(['used', 'remaining']).optional(),
     statusBarUsageMode: z.enum(['verbose', 'compact']).optional(),
+    sidePanelWidth: z.number().finite().nonnegative().optional(),
+    sidePanelOpenByWorktree: z.record(z.string(), z.boolean()).optional(),
     dismissedUpdateVersion: NullableString.optional(),
     dismissedUnexpectedSignoutVersion: NullableString.optional(),
     lastUpdateCheckAt: z.number().finite().nullable().optional(),
