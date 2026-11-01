@@ -68,6 +68,19 @@ import {
   AutomationRuns,
   AutomationUpdate
 } from './automation-params'
+import {
+  BotTeamAddBot,
+  BotTeamCreate,
+  BotTeamRemoveBot,
+  BotTeamSelector,
+  BotTeamUpdate
+} from './bot-team-params'
+import {
+  BotTeamMessagePost,
+  BotTeamRoomSelector,
+  BotTeamTaskCreate,
+  BotTeamTaskStart
+} from './bot-team-room-params'
 import { CertificateProceed } from './browser-core-params'
 import { MouseClick } from './browser-extras-params'
 import { BrowserIdentitySet, ProfileCreate } from './browser-identity-params'
@@ -695,6 +708,16 @@ export const RPC_PARAMS_BY_METHOD = {
   'automation.runs': AutomationRuns,
   'automation.show': AutomationId,
   'automation.update': AutomationUpdate,
+  'botTeams.addBot': BotTeamAddBot,
+  'botTeams.create': BotTeamCreate,
+  'botTeams.createTask': BotTeamTaskCreate,
+  'botTeams.delete': BotTeamSelector,
+  'botTeams.list': null,
+  'botTeams.listRoom': BotTeamRoomSelector,
+  'botTeams.postMessage': BotTeamMessagePost,
+  'botTeams.removeBot': BotTeamRemoveBot,
+  'botTeams.startTask': BotTeamTaskStart,
+  'botTeams.update': BotTeamUpdate,
   'browser.back': BrowserTarget,
   'browser.capture.start': BrowserTarget,
   'browser.capture.stop': BrowserTarget,
