@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { folderWorkspaceKey } from '../../../../shared/workspace-scope'
-import { getSessionWorktreeRemoval } from './worktree-card-one-line-session-worktree-submenu'
+import { getSessionWorktreeRemoval } from './worktree-card-one-line-session-worktree-items'
 
 describe('getSessionWorktreeRemoval', () => {
   it('deletes a linked git worktree', () => {

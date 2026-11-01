@@ -13,7 +13,7 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { parsePaneKey } from '../../../../shared/stable-pane-id'
 import { WORKTREE_CONTEXT_MENU_SCOPE_ATTR } from './worktree-context-menu-policy'
-import { OneLineSessionWorktreeSubmenu } from './worktree-card-one-line-session-worktree-submenu'
+import { OneLineSessionWorktreeItems } from './worktree-card-one-line-session-worktree-items'
 
 type SessionMenuKind = {
   /** The session owns a tab, so it can be renamed and closed like any tab. */
@@ -65,7 +65,7 @@ export function OneLineSessionMenu({
       >
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-44">
+      <ContextMenuContent className="w-52">
         {kind.ownsTab ? (
           <ContextMenuItem onSelect={onStartRename}>
             <Pencil className="size-3.5" />
@@ -100,7 +100,7 @@ export function OneLineSessionMenu({
           {translate('auto.components.sidebar.WorktreeContextMenu.3350101edb', 'Copy Path')}
         </ContextMenuItem>
         {/* Why: a session from another worktree stands in for that worktree's hidden row. */}
-        {agent.crossWorktree ? <OneLineSessionWorktreeSubmenu worktreeId={worktreeId} /> : null}
+        {agent.crossWorktree ? <OneLineSessionWorktreeItems worktreeId={worktreeId} /> : null}
         {kind.ownsTab ? (
           <>
             <ContextMenuSeparator />

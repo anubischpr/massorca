@@ -195,6 +195,7 @@ export function OneLineSessionHover({
       hoverControl={guardedHover}
       branchName={enabled ? crossWorktreeBranch : undefined}
       detailsAfter={details}
+      contentClassName={prompt || structuredTarget ? 'w-[544px] max-h-[36rem]' : undefined}
       openDelay={100}
     >
       {children}
