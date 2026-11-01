@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import type * as NodeOs from 'node:os'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -10,6 +10,7 @@ import {
   hasJevApiKey,
   isJevApiKeyReadable,
   readJevApiKey,
+  readJevApiKeyStatus,
   saveJevApiKey
 } from './jev-api-key-store'
 
@@ -41,6 +42,14 @@ function installSecretStore(available: boolean): void {
   setSecretStore(store as SecretStore)
 }
 
+// Why: the store caches the key, so a real read needs the cache gone while the file stays.
+function clearCache(): void {
+  const path = join(fakeHome.path, '.orca', 'jev-api-key.enc')
+  const contents = readFileSync(path)
+  clearJevApiKey()
+  writeFileSync(path, contents)
+}
+
 describe('jev-api-key-store', () => {
   beforeEach(() => {
     fakeHome.path = mkdtempSync(join(tmpdir(), 'jev-key-'))
@@ -63,12 +72,33 @@ describe('jev-api-key-store', () => {
     expect(readJevApiKey()).toBe(KEY)
   })
 
-  it('refuses to store the key on a host that cannot seal it', () => {
+  it('stores the key in the owner-only file on a host with no keyring, and says so', () => {
     installSecretStore(false)
 
+    saveJevApiKey(KEY)
+    clearCache()
+
+    expect(readJevApiKey()).toBe(KEY)
+    expect(readJevApiKeyStatus()).toEqual({
+      apiKeyConfigured: true,
+      apiKeyUnreadable: false,
+      apiKeyProtection: 'plaintext'
+    })
+  })
+
+  it('refuses a plaintext key when the file cannot be restricted', () => {
+    installSecretStore(false)
+    secureWrite.restricted = false
+
     expect(() => saveJevApiKey(KEY)).toThrow('could not be stored securely')
-    expect(existsSync(join(fakeHome.path, '.orca', 'jev-api-key.enc'))).toBe(false)
-    expect(readJevApiKey()).toBeNull()
+
+    expect(hasJevApiKey()).toBe(false)
+  })
+
+  it('reports a sealed key as sealed', () => {
+    saveJevApiKey(KEY)
+
+    expect(readJevApiKeyStatus().apiKeyProtection).toBe('sealed')
   })
 
   it('reports a failed secure write, leaving no file when none existed', () => {

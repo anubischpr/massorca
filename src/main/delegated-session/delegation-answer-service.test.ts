@@ -209,6 +209,9 @@ describe('DelegationAnswerService', () => {
       ...host,
       requireDb: () => db,
       listAgents: async () => AGENTS,
+      readPrototypeCount: () => ({ mode: 'always', count: 2 }),
+      readDesignSystemCard: async () => null,
+      readParentUserMessage: async () => undefined,
       adviseTier
     })
     const { requestId, itemId } = await filed()

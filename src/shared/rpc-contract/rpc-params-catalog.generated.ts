@@ -335,6 +335,7 @@ import {
   HostedReviewCreationEligibility,
   HostedReviewForBranch
 } from './hosted-review-params'
+import { JevDecisionsSaveApiKey, JevDecisionsSetEnabled } from './jev-decisions-params'
 import {
   AssignableUsers,
   Connect,
@@ -1015,6 +1016,10 @@ export const RPC_PARAMS_BY_METHOD = {
   'hostedReview.createStacked': HostedReviewCreate,
   'hostedReview.forBranch': HostedReviewForBranch,
   'hostedReview.getCreationEligibility': HostedReviewCreationEligibility,
+  'jevDecisions.clearApiKey': null,
+  'jevDecisions.getStatus': null,
+  'jevDecisions.saveApiKey': JevDecisionsSaveApiKey,
+  'jevDecisions.setEnabled': JevDecisionsSetEnabled,
   'jira.addIssueComment': IssueCommentOfJiraParams,
   'jira.connect': Connect,
   'jira.createIssue': CreateIssueOfJiraParams,

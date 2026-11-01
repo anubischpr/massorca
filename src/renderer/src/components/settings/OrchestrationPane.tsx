@@ -27,6 +27,7 @@ import { resolveNestedWorkerMaxDepth } from '../../../../shared/nested-worker-de
 import { isPairedWebClientWindow } from '@/lib/desktop-window-chrome'
 import { NumberField } from './SettingsFormControls'
 import { JevDecisionsSection } from './JevDecisionsSection'
+import { getActiveRuntimeTarget } from '@/runtime/runtime-client-target'
 import {
   getNestedWorkerDepthDescription,
   getNestedWorkerDepthTitle
@@ -178,9 +179,10 @@ export function OrchestrationPane({
         />
       ) : null}
 
-      {/* The key and the decision both live on the host, so a paired client does not configure them. */}
+      {/* The key and the decision live on the host the chats run on: this window's, or the connected server's. */}
       {showNestedWorkerDepth ? (
         <JevDecisionsSection
+          target={getActiveRuntimeTarget(settings)}
           enabled={settings.jevDecisionsEnabled === true}
           onEnabledChange={(jevDecisionsEnabled) => {
             void updateSettings({ jevDecisionsEnabled })

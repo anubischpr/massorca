@@ -29,7 +29,8 @@ export function createJevDecisionsApi(): PreloadApi['jevDecisions'] {
       new Error('Jev keys can only be changed in the desktop app on the computer running MassOrca.')
     )
   return {
-    getStatus: () => Promise.resolve({ apiKeyConfigured: false, apiKeyUnreadable: false }),
+    getStatus: () =>
+      Promise.resolve({ apiKeyConfigured: false, apiKeyUnreadable: false, apiKeyProtection: null }),
     saveApiKey: unsupported,
     clearApiKey: unsupported
   }

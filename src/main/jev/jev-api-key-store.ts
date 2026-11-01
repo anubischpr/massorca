@@ -3,8 +3,12 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { getSecretStore } from '../../shared/secret-store'
 import { writeSecureFile } from '../../shared/secure-file'
+import type { SecretAtRestProtection } from '../../shared/secret-at-rest-protection'
+import type { JevDecisionsStatus } from '../../shared/jev-decisions-status'
 
 const JEV_API_KEY_FILE = 'jev-api-key.enc'
+// Why a marker: base64 ciphertext never contains ':', so the bytes say how the key was stored.
+const PLAINTEXT_PREFIX = 'plaintext:'
 let cachedApiKey: string | null = null
 
 function apiKeyPath(): string {
@@ -24,6 +28,24 @@ export function isJevApiKeyReadable(): boolean {
   }
 }
 
+/** How the stored key sits on disk, or null when none is stored. Never decrypts. */
+function jevApiKeyProtection(): SecretAtRestProtection | null {
+  if (!hasJevApiKey()) {
+    return null
+  }
+  return readFileSync(apiKeyPath(), 'utf8').startsWith(PLAINTEXT_PREFIX) ? 'plaintext' : 'sealed'
+}
+
+/** What Settings may know about the key on this host; never its value. */
+export function readJevApiKeyStatus(): JevDecisionsStatus {
+  const apiKeyConfigured = hasJevApiKey()
+  return {
+    apiKeyConfigured,
+    apiKeyUnreadable: apiKeyConfigured && !isJevApiKeyReadable(),
+    apiKeyProtection: jevApiKeyProtection()
+  }
+}
+
 export function saveJevApiKey(key: string): void {
   const trimmed = key.trim()
   if (!trimmed) {
@@ -32,14 +54,14 @@ export function saveJevApiKey(key: string): void {
   if (/[\r\n]/.test(trimmed)) {
     throw new Error('Jev API key must be a single line')
   }
-  // Why: this key is optional, so a host without a keyring goes without Jev, not with a plaintext key.
-  if (!getSecretStore().isEncryptionAvailable()) {
-    throw new Error('Jev API key could not be stored securely on this device')
-  }
+  // Why: a headless host has no keyring, and the decision runs there; the owner-only file and the
+  // Settings notice are how other credentials handle that host.
+  const contents = getSecretStore().isEncryptionAvailable()
+    ? getSecretStore().encryptString(trimmed).toString('base64')
+    : `${PLAINTEXT_PREFIX}${trimmed}`
   // Why captured first: writeSecureFile has replaced the file by the time it reports a failure.
   const previous = hasJevApiKey() ? readFileSync(apiKeyPath(), 'utf8') : null
-  const sealed = getSecretStore().encryptString(trimmed).toString('base64')
-  if (!writeSecureFile(apiKeyPath(), sealed)) {
+  if (!writeSecureFile(apiKeyPath(), contents)) {
     if (previous === null) {
       rmSync(apiKeyPath(), { force: true })
     } else {
@@ -58,8 +80,10 @@ export function readJevApiKey(): string | null {
   if (!hasJevApiKey()) {
     return null
   }
-  const sealed = Buffer.from(readFileSync(apiKeyPath(), 'utf8'), 'base64')
-  cachedApiKey = getSecretStore().decryptString(sealed)
+  const contents = readFileSync(apiKeyPath(), 'utf8')
+  cachedApiKey = contents.startsWith(PLAINTEXT_PREFIX)
+    ? contents.slice(PLAINTEXT_PREFIX.length)
+    : getSecretStore().decryptString(Buffer.from(contents, 'base64'))
   return cachedApiKey
 }
 

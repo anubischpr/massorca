@@ -122,6 +122,10 @@ export class OrcaRuntimeWithResolveWorktreeSelector extends OrcaRuntimeWithResol
     )
   }
 
+  setJevDecisionsEnabled(enabled: boolean): void {
+    this.store?.updateSettings?.({ jevDecisionsEnabled: enabled })
+  }
+
   getNestedWorkerMaxDepth(): number {
     return resolveNestedWorkerMaxDepth({
       nestedWorkerMaxDepth: (

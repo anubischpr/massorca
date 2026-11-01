@@ -2,38 +2,59 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import type { JevDecisionsStatus } from '../../../../shared/jev-decisions-status'
+import {
+  clearJevApiKey,
+  getJevDecisionsStatus,
+  saveJevApiKey,
+  setRemoteJevDecisionsEnabled
+} from '@/runtime/runtime-jev-decisions-client'
+import type { RuntimeClientTarget } from '@/runtime/runtime-client-target'
+import { UnsealedCredentialNotice } from './UnsealedCredentialNotice'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Switch } from '../ui/switch'
 
 type JevDecisionsSectionProps = {
+  target: RuntimeClientTarget
+  /** The local setting; a connected server reports its own switch in its status. */
   enabled: boolean
   onEnabledChange: (enabled: boolean) => void
 }
 
 export function JevDecisionsSection({
+  target,
   enabled,
   onEnabledChange
 }: JevDecisionsSectionProps): React.JSX.Element {
   const [status, setStatus] = useState<JevDecisionsStatus | null>(null)
   const [keyDraft, setKeyDraft] = useState('')
   const [busy, setBusy] = useState(false)
+  const [statusFailed, setStatusFailed] = useState(false)
+  const remote = target.kind === 'environment'
+  const environmentId = target.kind === 'environment' ? target.environmentId : null
 
   useEffect(() => {
     let current = true
-    void window.api.jevDecisions.getStatus().then(
+    setStatus(null)
+    setStatusFailed(false)
+    void getJevDecisionsStatus(target).then(
       (next) => {
         if (current) {
           setStatus(next)
         }
       },
-      () => undefined
+      () => {
+        if (current) {
+          setStatusFailed(true)
+        }
+      }
     )
     return () => {
       current = false
     }
-  }, [])
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- `target` is a fresh object each render; its environment id is its identity.
+  }, [environmentId])
 
   const updateKey = async (update: () => Promise<JevDecisionsStatus>): Promise<void> => {
     setBusy(true)
@@ -55,6 +76,14 @@ export function JevDecisionsSection({
 
   const keyConfigured = status?.apiKeyConfigured === true
   const keyUnreadable = status?.apiKeyUnreadable === true
+  const isOn = remote ? status?.enabled === true : enabled
+  const changeEnabled = (next: boolean): void => {
+    if (target.kind === 'environment') {
+      void updateKey(() => setRemoteJevDecisionsEnabled(target, next))
+    } else {
+      onEnabledChange(next)
+    }
+  }
 
   return (
     <div className="space-y-3">
@@ -75,10 +104,10 @@ export function JevDecisionsSection({
             'auto.components.settings.OrchestrationPane.jevTitle',
             'Jev decisions'
           )}
-          checked={enabled}
+          checked={isOn}
           // Why: a switch that is on without a key would do nothing and say nothing; off stays reachable.
-          disabled={!enabled && (!keyConfigured || keyUnreadable)}
-          onCheckedChange={onEnabledChange}
+          disabled={busy || (!isOn && (!keyConfigured || keyUnreadable))}
+          onCheckedChange={changeEnabled}
         />
       </div>
       <div className="space-y-1.5">
@@ -103,7 +132,7 @@ export function JevDecisionsSection({
             variant="outline"
             size="sm"
             disabled={busy || keyDraft.trim().length === 0}
-            onClick={() => void updateKey(() => window.api.jevDecisions.saveApiKey(keyDraft))}
+            onClick={() => void updateKey(() => saveJevApiKey(target, keyDraft))}
           >
             {translate('auto.components.settings.OrchestrationPane.jevSave', 'Save')}
           </Button>
@@ -114,8 +143,10 @@ export function JevDecisionsSection({
               disabled={busy}
               onClick={() => {
                 // Why: without a key the switch could not be turned on again, so it must not stay on.
-                onEnabledChange(false)
-                void updateKey(() => window.api.jevDecisions.clearApiKey())
+                if (!remote) {
+                  onEnabledChange(false)
+                }
+                void updateKey(() => clearJevApiKey(target))
               }}
             >
               {translate('auto.components.settings.OrchestrationPane.jevRemove', 'Remove')}
@@ -123,21 +154,38 @@ export function JevDecisionsSection({
           ) : null}
         </div>
         <p className="text-xs text-muted-foreground">
-          {keyUnreadable
+          {statusFailed
             ? translate(
-                'auto.components.settings.OrchestrationPane.jevKeyUnreadable',
-                'The saved key cannot be read here, so MassOrca is deciding on its own. Paste it and save it again.'
+                'auto.components.settings.OrchestrationPane.jevStatusUnavailable',
+                'This server cannot report Jev decisions. Update it to use them here.'
               )
-            : keyConfigured
+            : keyUnreadable
               ? translate(
-                  'auto.components.settings.OrchestrationPane.jevKeySaved',
-                  'API key saved on this computer, encrypted.'
+                  'auto.components.settings.OrchestrationPane.jevKeyUnreadable',
+                  'The saved key cannot be read here, so MassOrca is deciding on its own. Paste it and save it again.'
                 )
-              : translate(
-                  'auto.components.settings.OrchestrationPane.jevKeyMissing',
-                  'Save a key to turn this on.'
-                )}
+              : keyConfigured
+                ? remote
+                  ? translate(
+                      'auto.components.settings.OrchestrationPane.jevKeySavedRemote',
+                      'API key saved on the connected server. Its delegations use it.'
+                    )
+                  : translate(
+                      'auto.components.settings.OrchestrationPane.jevKeySaved',
+                      'API key saved on this computer, encrypted.'
+                    )
+                : translate(
+                    'auto.components.settings.OrchestrationPane.jevKeyMissing',
+                    'Save a key to turn this on.'
+                  )}
         </p>
+        <UnsealedCredentialNotice
+          protection={status?.apiKeyProtection ?? null}
+          credentialName={translate(
+            'auto.components.settings.OrchestrationPane.jevKeyLabel',
+            'typesafe API key'
+          )}
+        />
       </div>
     </div>
   )

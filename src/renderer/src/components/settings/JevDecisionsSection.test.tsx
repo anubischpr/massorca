@@ -4,7 +4,12 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getDefaultSettings } from '../../../../shared/constants'
+import type { JevDecisionsStatus } from '../../../../shared/jev-decisions-status'
 import { JevDecisionsSection } from './JevDecisionsSection'
+
+const rpc = vi.hoisted(() => vi.fn())
+
+vi.mock('@/runtime/runtime-rpc-client', () => ({ callRuntimeRpc: rpc }))
 
 Reflect.set(globalThis, 'IS_REACT_ACT_ENVIRONMENT', true)
 
@@ -22,12 +27,24 @@ describe('JevDecisionsSection', () => {
     apiKeyUnreadable = false
   ): Promise<HTMLElement> {
     Reflect.set(window, 'api', {
-      jevDecisions: { getStatus: vi.fn(async () => ({ apiKeyConfigured, apiKeyUnreadable })) }
+      jevDecisions: {
+        getStatus: vi.fn(async () => ({
+          apiKeyConfigured,
+          apiKeyUnreadable,
+          apiKeyProtection: apiKeyConfigured ? 'sealed' : null
+        }))
+      }
     })
     const host = document.body.appendChild(document.createElement('div'))
     root = createRoot(host)
     await act(async () => {
-      root?.render(<JevDecisionsSection enabled={enabled} onEnabledChange={vi.fn()} />)
+      root?.render(
+        <JevDecisionsSection
+          target={{ kind: 'local' }}
+          enabled={enabled}
+          onEnabledChange={vi.fn()}
+        />
+      )
     })
     return host
   }
@@ -61,6 +78,81 @@ describe('JevDecisionsSection', () => {
 
     expect(isSwitchDisabled(host)).toBe(false)
     expect(host.textContent).toContain('cannot be read here')
+  })
+
+  describe('connected to a server', () => {
+    const target = { kind: 'environment', environmentId: 'vps' } as const
+
+    async function renderRemote(onEnabledChange = vi.fn()): Promise<HTMLElement> {
+      const host = document.body.appendChild(document.createElement('div'))
+      root = createRoot(host)
+      await act(async () => {
+        root?.render(
+          <JevDecisionsSection target={target} enabled={false} onEnabledChange={onEnabledChange} />
+        )
+      })
+      return host
+    }
+
+    function serverStatus(enabled: boolean): JevDecisionsStatus {
+      return {
+        apiKeyConfigured: true,
+        apiKeyUnreadable: false,
+        apiKeyProtection: 'plaintext',
+        enabled
+      }
+    }
+
+    it('reads the status from the server, never from this window', async () => {
+      const localStatus = vi.fn()
+      Reflect.set(window, 'api', { jevDecisions: { getStatus: localStatus } })
+      rpc.mockResolvedValueOnce(serverStatus(true))
+
+      const host = await renderRemote()
+
+      expect(rpc).toHaveBeenCalledWith(target, 'jevDecisions.getStatus', undefined, {
+        timeoutMs: 30_000
+      })
+      expect(localStatus).not.toHaveBeenCalled()
+      expect(host.querySelector('[role="switch"]')?.getAttribute('aria-checked')).toBe('true')
+      expect(host.textContent).toContain('saved on the connected server')
+    })
+
+    it('turns the server switch on through the server, leaving the local setting alone', async () => {
+      const onEnabledChange = vi.fn()
+      rpc.mockResolvedValueOnce(serverStatus(false))
+      const host = await renderRemote(onEnabledChange)
+      rpc.mockResolvedValueOnce(serverStatus(true))
+
+      await act(async () => {
+        host.querySelector<HTMLElement>('[role="switch"]')?.click()
+      })
+
+      expect(rpc).toHaveBeenLastCalledWith(
+        target,
+        'jevDecisions.setEnabled',
+        { enabled: true },
+        { timeoutMs: 30_000 }
+      )
+      expect(onEnabledChange).not.toHaveBeenCalled()
+    })
+
+    it('warns about a key stored unencrypted on the server', async () => {
+      rpc.mockResolvedValueOnce(serverStatus(true))
+
+      const host = await renderRemote()
+
+      expect(host.querySelector('[role="alert"]')).not.toBeNull()
+    })
+
+    it('says so when the server predates this feature', async () => {
+      rpc.mockRejectedValueOnce(new Error('method_not_found'))
+
+      const host = await renderRemote()
+
+      expect(host.textContent).toContain('Update it to use them here')
+      expect(host.querySelector('[role="switch"]')?.hasAttribute('disabled')).toBe(true)
+    })
   })
 
   it('can always be turned off', async () => {
