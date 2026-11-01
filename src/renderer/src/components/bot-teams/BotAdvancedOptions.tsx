@@ -87,7 +87,7 @@ function SkillsDialog({
             {translate('components.botTeams.skillsFailed', 'Could not read this host’s skills.')}
           </p>
         ) : null}
-        <div className="flex max-h-72 flex-col gap-1 overflow-y-auto">
+        <div className="scrollbar-sleek flex max-h-72 flex-col gap-1 overflow-y-auto">
           {result?.skills.map((skill) => {
             const usable = isNativeChatSkillForAgent(agent, skill, result)
             return (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, Play } from 'lucide-react'
+import { ArrowUp, ChevronLeft, Play } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -148,94 +148,139 @@ export function BotTeamRoom({
   }
 
   const empty = offline || text.trim() === ''
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        {messages.map((message) => {
-          const author = botOf(message.authorBotId)
-          return (
-            <div key={message.id} className="rounded-lg border border-border p-3 text-sm">
-              <div className="mb-1 text-xs text-muted-foreground">
-                {author?.name ?? translate('components.botTeams.you', 'You')}
-              </div>
-              {message.text}
-            </div>
-          )
-        })}
-        {needsLead ? (
-          <p className="text-xs text-muted-foreground">
-            {translate(
-              'components.botTeams.whoTakesIt',
-              'Who should take this? Mention a bot with @ and its name.'
-            )}
-          </p>
-        ) : null}
+  const taskCard = (task: BotTeamTask): React.JSX.Element => {
+    const owner = botOf(task.ownerBotId)
+    return (
+      <div key={task.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
+        <AgentIcon agent={owner?.agent} size={20} />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-medium">{task.title}</div>
+          <div className="truncate text-xs text-muted-foreground">
+            {owner?.name}
+            {owner?.job ? `, ${owner.job}` : ''}
+          </div>
+        </div>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {statusLabel(
+            botTeamTaskStatus(
+              task.sessionId,
+              task.sessionId === null ? undefined : statuses.get(task.sessionId)
+            )
+          )}
+          {offline && task.sessionId !== null
+            ? translate('components.botTeams.cannotConfirm', ', can’t confirm now')
+            : ''}
+        </span>
+        {task.sessionId === null ? (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={offline}
+            onClick={() => void startTask(task.id)}
+          >
+            <Play className="size-3.5" />
+            {translate('components.botTeams.start', 'Start')}
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={offline}
+            onClick={() => onOpenTask(task.id)}
+          >
+            {translate('components.botTeams.open', 'Open')}
+          </Button>
+        )}
       </div>
-      <div className="flex flex-col gap-2">
-        <Textarea
-          aria-label={translate('components.botTeams.messageTeam', 'Message the team')}
-          placeholder={translate('components.botTeams.messageTeam', 'Message the team')}
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-        />
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" size="sm" disabled={empty} onClick={() => void send(false)}>
-            {translate('components.botTeams.saveToTodo', 'Save to Todo')}
-          </Button>
-          <Button size="sm" disabled={empty} onClick={() => void send(true)}>
-            {translate('components.botTeams.send', 'Send')}
-          </Button>
+    )
+  }
+  // A task sits under the request that made it; the rest follow the conversation.
+  const requestOf = (task: BotTeamTask): BotTeamMessage | undefined =>
+    messages.find((message) => message.authorBotId === null && message.text === task.prompt)
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto flex w-full max-w-[736px] flex-col gap-5 px-4 py-6">
+          {messages.length === 0 && tasks.length === 0 ? (
+            <div className="py-12 text-center">
+              <h2 className="text-lg font-semibold">
+                {translate('components.botTeams.askTeam', 'Ask {{team}} for something', {
+                  team: team.name
+                })}
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                {translate(
+                  'components.botTeams.askTeamHelp',
+                  'Each request becomes one or more tasks.'
+                )}
+              </p>
+            </div>
+          ) : null}
+          {messages.map((message) => {
+            const author = botOf(message.authorBotId)
+            return (
+              <div key={message.id} className="flex flex-col gap-3">
+                {author ? (
+                  <div className="flex items-center gap-2 text-[13px] font-medium">
+                    <AgentIcon agent={author.agent} size={16} />
+                    {author.name}
+                  </div>
+                ) : null}
+                <div
+                  className={
+                    author
+                      ? 'whitespace-pre-wrap text-sm leading-relaxed text-foreground/80'
+                      : 'max-w-[80%] self-end whitespace-pre-wrap rounded-xl border border-border bg-muted px-3.5 py-2.5 text-sm leading-relaxed'
+                  }
+                >
+                  {message.text}
+                </div>
+                {tasks.filter((task) => requestOf(task)?.id === message.id).map(taskCard)}
+              </div>
+            )
+          })}
+          {tasks.filter((task) => requestOf(task) === undefined).map(taskCard)}
+          {needsLead ? (
+            <p className="text-xs text-muted-foreground">
+              {translate(
+                'components.botTeams.whoTakesIt',
+                'Who should take this? Mention a bot with @ and its name.'
+              )}
+            </p>
+          ) : null}
         </div>
       </div>
-      <div className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium">{translate('components.botTeams.tasks', 'Tasks')}</h2>
-        {tasks.map((task) => {
-          const owner = botOf(task.ownerBotId)
-          return (
-            <div
-              key={task.id}
-              className="flex items-center gap-3 rounded-lg border border-border p-3"
-            >
-              <AgentIcon agent={owner?.agent} size={20} />
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{task.title}</div>
-                <div className="truncate text-xs text-muted-foreground">
-                  {owner?.name}
-                  {' · '}
-                  {statusLabel(
-                    botTeamTaskStatus(
-                      task.sessionId,
-                      task.sessionId === null ? undefined : statuses.get(task.sessionId)
-                    )
-                  )}
-                  {offline && task.sessionId !== null
-                    ? translate('components.botTeams.cannotConfirm', ', can’t confirm now')
-                    : ''}
-                </div>
-              </div>
-              {task.sessionId === null ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={offline}
-                  onClick={() => void startTask(task.id)}
-                >
-                  <Play className="size-3.5" />
-                  {translate('components.botTeams.start', 'Start')}
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={offline}
-                  onClick={() => onOpenTask(task.id)}
-                >
-                  {translate('components.botTeams.open', 'Open')}
-                </Button>
-              )}
-            </div>
-          )
-        })}
+      <div className="shrink-0 px-4 pb-4 pt-2">
+        <div className="mx-auto flex max-w-[736px] items-end gap-2 rounded-xl border border-input p-1.5">
+          <Textarea
+            className="min-h-12 flex-1 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
+            aria-label={translate('components.botTeams.messageTeam', 'Message the team')}
+            placeholder={
+              offline
+                ? translate(
+                    'components.botTeams.writeWhenBack',
+                    'You can write again when this host is back'
+                  )
+                : translate(
+                    'components.botTeams.messageTeamHint',
+                    'Message the team, or type @ to ask one bot'
+                  )
+            }
+            disabled={offline}
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+          />
+          <Button
+            size="icon"
+            className="rounded-full"
+            aria-label={translate('components.botTeams.send', 'Send')}
+            disabled={empty}
+            onClick={() => void send(true)}
+          >
+            <ArrowUp className="size-4" />
+          </Button>
+        </div>
       </div>
     </div>
   )
