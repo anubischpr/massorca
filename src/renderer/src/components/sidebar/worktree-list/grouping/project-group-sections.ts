@@ -2,6 +2,7 @@ import {
   compareFolderWorkspacesForDisplay,
   type RenderableFolderWorkspace
 } from './folder-workspace-lanes'
+import { isBotTeamFolderPath } from '../../../../../../shared/bot-team-folder'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
 import type { ProjectOrderBy } from '../../../../../../shared/ui-chrome-types'
 import { getEffectiveProjectGroupManualRank } from '../../../../../../shared/project-groups'
@@ -26,7 +27,14 @@ export function appendProjectGroupSections(
     repoOrder: Map<string, number> | undefined
   }
 ): void {
-  const { orderedGroups, projectGroups, folderWorkspaces, projectOrderBy, repoOrder } = args
+  const { orderedGroups, projectOrderBy, repoOrder } = args
+  // Teams' folders belong to Bot teams mode, so their group and rows stay out of this list.
+  const projectGroups = args.projectGroups.filter(
+    (group) => !isBotTeamFolderPath(group.parentPath ?? '')
+  )
+  const folderWorkspaces = args.folderWorkspaces.filter(
+    (entry) => !isBotTeamFolderPath(entry.projectGroup.parentPath ?? '')
+  )
   const { result, collapsedGroups } = ctx
 
   const groupByProjectGroupId = new Map<string | null, OrderedGroupEntry[]>()

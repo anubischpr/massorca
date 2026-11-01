@@ -39,6 +39,11 @@ test('creates a team with a bot from the Bot teams mode', async ({ orcaPage: pag
   await page.screenshot({ path: testInfo.outputPath('thread.png') })
   await page.getByRole('button', { name: 'Back to Conference room' }).click()
 
+  // This home has no Claude login, so the agent refuses the request; the room must say so.
+  await expect(page.getByText('Stuck')).toBeVisible({ timeout: 30_000 })
+  // The team's folder stays out of the Workspaces list.
+  await expect(page.getByText('Bot teams', { exact: true })).toHaveCount(1)
+
   // The host persists the team: leaving the mode and coming back reads it again.
   await page.getByRole('radio', { name: 'Workspaces' }).click()
   await page.getByRole('radio', { name: 'Bot teams' }).click()
