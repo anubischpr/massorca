@@ -17872,6 +17872,7 @@
   },
   "components": {
     "app-rail": {
+      "workspacesAgainHint": "Haz clic en Workspaces de nuevo para cambiar a Bot teams.",
       "label": "Aplicación",
       "settings": "Ajustes",
       "tasks": "Tareas",

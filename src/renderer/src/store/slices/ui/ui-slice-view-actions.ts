@@ -111,6 +111,24 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
         activeView: 'create-chat',
         createChatResetNonce: state.createChatResetNonce + 1
       })),
+    railMode: 'workspaces',
+    railWorkspacesHintShown: false,
+    markRailWorkspacesHintShown: () => set({ railWorkspacesHintShown: true }),
+    pressRailModeButton: () => {
+      const state = get()
+      const atHome =
+        state.activeView === 'terminal' ||
+        state.activeView === 'create-chat' ||
+        state.activeView === 'bot-teams'
+      const mode = atHome
+        ? state.railMode === 'bot-teams'
+          ? 'workspaces'
+          : 'bot-teams'
+        : state.railMode
+      set({ railMode: mode })
+      state.setActiveView(mode === 'bot-teams' ? 'bot-teams' : 'terminal')
+      return atHome ? 'switched' : 'returned'
+    },
     // Why: the rail's Tasks button lands on the clean home; every other entry point still opens the board through openTaskPage.
     openTasksHome: () => {
       get().recordViewVisit('tasks')

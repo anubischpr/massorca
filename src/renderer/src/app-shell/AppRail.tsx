@@ -1,5 +1,7 @@
 import React from 'react'
-import { LayoutGrid, ListChecks, Settings } from 'lucide-react'
+import { Bot, LayoutGrid, ListChecks, Settings } from 'lucide-react'
+import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
@@ -46,10 +48,36 @@ function RailButton({
   )
 }
 
+const MODE_ICON_CLASS =
+  'absolute inset-0 size-5 transition-[opacity,scale] duration-200 ease-out motion-reduce:transition-none'
+
+/** Both mode icons are always mounted so a mode change crossfades them; reduced motion swaps them at once. */
+function RailModeIcon({ mode }: { mode: 'workspaces' | 'bot-teams' }): React.JSX.Element {
+  return (
+    <span data-mode={mode} className="group/mode relative size-5">
+      <LayoutGrid
+        className={cn(
+          MODE_ICON_CLASS,
+          'group-data-[mode=bot-teams]/mode:scale-75 group-data-[mode=bot-teams]/mode:opacity-0'
+        )}
+      />
+      <Bot
+        className={cn(
+          MODE_ICON_CLASS,
+          'scale-75 opacity-0 group-data-[mode=bot-teams]/mode:scale-100 group-data-[mode=bot-teams]/mode:opacity-100'
+        )}
+      />
+    </span>
+  )
+}
+
 /** Always visible navigation at the far left. Bot team, Workflows, Canvas and Calendar join it when they ship. */
 export function AppRail(): React.JSX.Element {
   const activeView = useAppStore((s) => s.activeView)
-  const setActiveView = useAppStore((s) => s.setActiveView)
+  const railMode = useAppStore((s) => s.railMode)
+  const pressRailModeButton = useAppStore((s) => s.pressRailModeButton)
+  const hintShown = useAppStore((s) => s.railWorkspacesHintShown)
+  const markHintShown = useAppStore((s) => s.markRailWorkspacesHintShown)
   const openTasksHome = useAppStore((s) => s.openTasksHome)
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const settingsShortcut = useShortcutKeyDetails('app.settings')
@@ -61,11 +89,29 @@ export function AppRail(): React.JSX.Element {
       className="app-rail flex w-[52px] shrink-0 flex-col items-center gap-1 border-r border-border bg-background py-2 data-[mac=true]:pt-9"
     >
       <RailButton
-        label={translate('components.app-rail.workspaces', 'Workspaces')}
-        active={activeView === 'terminal' || activeView === 'create-chat'}
-        onClick={() => setActiveView('terminal')}
+        label={
+          railMode === 'bot-teams'
+            ? translate('components.botTeams.modeBotTeams', 'Bot teams')
+            : translate('components.botTeams.modeWorkspaces', 'Workspaces')
+        }
+        active={
+          activeView === 'terminal' || activeView === 'create-chat' || activeView === 'bot-teams'
+        }
+        onClick={() => {
+          const outcome = pressRailModeButton()
+          // Why: "again" only holds once the user has come back to Workspaces from another page.
+          if (outcome === 'returned' && railMode === 'workspaces' && !hintShown) {
+            markHintShown()
+            toast.info(
+              translate(
+                'components.app-rail.workspacesAgainHint',
+                'Click Workspaces again to switch to Bot teams.'
+              )
+            )
+          }
+        }}
       >
-        <LayoutGrid className="size-5" />
+        <RailModeIcon mode={railMode} />
       </RailButton>
       <RailButton
         label={translate('components.app-rail.tasks', 'Tasks')}
