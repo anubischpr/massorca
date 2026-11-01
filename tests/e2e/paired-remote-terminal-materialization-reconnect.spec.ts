@@ -201,7 +201,7 @@ async function runMaterializationJourney(
 
   const webTabId = toWebTerminalSurfaceTabId(created.tab.parentTabId)
   await page.evaluate((id) => window.__store?.getState().setActiveWorktree(id), worktreeId)
-  const tab = page.locator(`[data-testid="sortable-tab"][data-tab-id="${webTabId}"]`)
+  const tab = page.locator(`[data-testid="side-panel-tab"][data-tab-id="${webTabId}"]`)
   await expect(tab).toBeVisible({ timeout: 30_000 })
   await tab.click()
   await expect(tab).toHaveAttribute('data-active', 'true')

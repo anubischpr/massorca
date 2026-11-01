@@ -16,6 +16,14 @@ export type TabsSlice = {
   groupsByWorktree: Record<string, TabGroup[]>
   activeGroupIdByWorktree: Record<string, string>
   layoutByWorktree: Record<string, TabGroupLayoutNode>
+  /** Explicit open/closed choice per workspace; absent means "open exactly when it has tabs". */
+  sidePanelOpenByWorktree: Record<string, boolean>
+  sidePanelWidth: number
+  setSidePanelOpen: (worktreeId: string, open: boolean) => void
+  toggleSidePanel: (worktreeId: string) => void
+  /** Opens the panel, makes its group the focused one (creating it if needed) and returns its id. */
+  focusSidePanel: (worktreeId: string) => string
+  setSidePanelWidth: (width: number) => void
   createUnifiedTab: (
     worktreeId: string,
     contentType: TabContentType,

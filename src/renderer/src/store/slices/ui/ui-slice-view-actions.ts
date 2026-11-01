@@ -111,6 +111,16 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
         activeView: 'create-chat',
         createChatResetNonce: state.createChatResetNonce + 1
       })),
+    // Why: the rail's Tasks button lands on the clean home; every other entry point still opens the board through openTaskPage.
+    openTasksHome: () => {
+      get().recordViewVisit('tasks')
+      set((state) => ({
+        activeView: 'tasks',
+        previousViewBeforeTasks:
+          state.activeView === 'tasks' ? state.previousViewBeforeTasks : state.activeView,
+        tasksHomeOpen: true
+      }))
+    },
     openMobilePage: () =>
       set((state) => ({
         activeView: 'mobile',

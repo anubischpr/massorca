@@ -28,7 +28,7 @@ async function activateTerminalTab(page: Page, tabId: string): Promise<void> {
   }, tabId)
   await expect
     .poll(() =>
-      page.locator('[data-testid="sortable-tab"][data-active="true"]').getAttribute('data-tab-id')
+      page.locator('[data-testid="side-panel-tab"][data-active="true"]').getAttribute('data-tab-id')
     )
     .toBe(tabId)
 }

@@ -215,7 +215,7 @@ export async function runBulkOpenFreezeOracle(
   }
   // One more full pass clicking visible tabs if present.
   for (const session of sessions) {
-    const locator = page.locator(`[data-testid="sortable-tab"][data-tab-id="${session.tabId}"]`)
+    const locator = page.locator(`[data-testid="side-panel-tab"][data-tab-id="${session.tabId}"]`)
     if (await locator.isVisible().catch(() => false)) {
       await locator.click({ timeout: 2_000 }).catch(() => undefined)
     }

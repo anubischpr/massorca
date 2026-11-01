@@ -14,6 +14,7 @@ import {
   normalizeCtrlTabOrderMode,
   type RecentTabSwitcherItem
 } from './recent-tab-switching'
+import { focusSidePanelForSwitching } from '../side-panel/side-panel-focus'
 import { translate } from '@/i18n/i18n'
 
 type SwitcherState = {
@@ -60,8 +61,12 @@ export default function RecentTabSwitcher(): React.JSX.Element | null {
         return
       }
 
+      // Why: tab switching belongs to the side panel; sessions are switched from the sidebar.
+      if (!switcherRef.current && !focusSidePanelForSwitching(store.activeWorktreeId)) {
+        return
+      }
       const model = buildRecentTabSwitcherModel(
-        store,
+        useAppStore.getState(),
         store.activeWorktreeId,
         normalizeCtrlTabOrderMode(store.settings?.ctrlTabOrderMode)
       )

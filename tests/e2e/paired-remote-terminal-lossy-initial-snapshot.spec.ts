@@ -176,7 +176,7 @@ test('paints a nonempty lossy initial snapshot on a paired Electron client @head
       },
       { tabId: webTabId, worktreeId }
     )
-    const tab = client.page.locator(`[data-testid="sortable-tab"][data-tab-id="${webTabId}"]`)
+    const tab = client.page.locator(`[data-testid="side-panel-tab"][data-tab-id="${webTabId}"]`)
     await expect(tab).toBeVisible({ timeout: 30_000 })
     await expect(tab).toHaveAttribute('data-active', 'true')
     await expect

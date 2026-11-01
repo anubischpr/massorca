@@ -40,6 +40,12 @@ describe('getOrcaElectronLaunchArgs', () => {
     }
   )
 
+  it('starts every launch in English so label-based specs do not depend on the host locale', () => {
+    expect(getOrcaElectronLaunchArgs(join('orca', 'out', 'main', 'index.js'), false)[0]).toBe(
+      '--lang=en-US'
+    )
+  })
+
   it('launches the package root that owns the compiled main entry', () => {
     const root = join('workspace', 'orca')
     const mainPath = join(root, 'out', 'main', 'index.js')
@@ -47,6 +53,7 @@ describe('getOrcaElectronLaunchArgs', () => {
     const args = getOrcaElectronLaunchArgs(mainPath, true)
     if (process.platform === 'darwin') {
       expect(args).toEqual([
+        '--lang=en-US',
         '--password-store=basic',
         '--use-mock-keychain',
         root,

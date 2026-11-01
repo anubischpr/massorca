@@ -78,7 +78,9 @@ export async function runPairedTerminalColdActivationOracle(
       },
       { tabId: fallbackTabId, targetWorktreeId: fallbackWorktreeId }
     )
-    const fallbackTab = page.locator(`[data-testid="sortable-tab"][data-tab-id="${fallbackTabId}"]`)
+    const fallbackTab = page.locator(
+      `[data-testid="side-panel-tab"][data-tab-id="${fallbackTabId}"]`
+    )
     await expect(fallbackTab).toBeVisible({ timeout: 30_000 })
     await fallbackTab.click()
     await expect(fallbackTab).toHaveAttribute('data-active', 'true')
@@ -178,7 +180,7 @@ export async function runPairedTerminalColdActivationOracle(
       },
       { activeTabId: tabs[0].tabId, targetWorktreeId: worktreeId }
     )
-    const firstTab = page.locator(`[data-testid="sortable-tab"][data-tab-id="${tabs[0].tabId}"]`)
+    const firstTab = page.locator(`[data-testid="side-panel-tab"][data-tab-id="${tabs[0].tabId}"]`)
     await expect(firstTab).toBeVisible({ timeout: 30_000 })
     await expect(firstTab).toHaveAttribute('data-active', 'true')
     await expectStableColdActivationMountState(page, tabIds, {
@@ -196,7 +198,7 @@ export async function runPairedTerminalColdActivationOracle(
       parked: 0
     })
     const deferredTab = page.locator(
-      `[data-testid="sortable-tab"][data-tab-id="${deferred.tabId}"]`
+      `[data-testid="side-panel-tab"][data-tab-id="${deferred.tabId}"]`
     )
     await deferredTab.click()
     await expect(deferredTab).toHaveAttribute('data-active', 'true')
@@ -229,7 +231,7 @@ export async function runPairedTerminalColdActivationOracle(
       parked: TARGET_TAB_COUNT - 2
     })
 
-    const secondTab = page.locator(`[data-testid="sortable-tab"][data-tab-id="${tabs[1].tabId}"]`)
+    const secondTab = page.locator(`[data-testid="side-panel-tab"][data-tab-id="${tabs[1].tabId}"]`)
     await secondTab.click()
     await expect(secondTab).toHaveAttribute('data-active', 'true')
     await expectStableColdActivationMountState(page, tabIds, {

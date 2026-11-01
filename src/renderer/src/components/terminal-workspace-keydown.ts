@@ -20,6 +20,10 @@ import {
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../shared/constants'
 import { translate } from '@/i18n/i18n'
 import { getKeybindingContext } from './terminal-workspace-model'
+import { closeSidePanelActiveTab } from './side-panel/side-panel-shortcuts'
+import { focusSidePanelForSwitching, prepareSidePanelCreation } from './side-panel/side-panel-focus'
+import { sidePanelGroupId } from '../store/slices/tabs/side-panel-group'
+import { openMobileEmulatorTab } from '@/lib/open-mobile-emulator-tab'
 import { resolveTerminalAgentTabShortcut } from './terminal-agent-tab-shortcut'
 import { handleTerminalWorkspaceEditorShortcut } from './terminal-workspace-editor-shortcuts'
 import type { TerminalActivationController } from './use-terminal-activation-actions'
@@ -35,7 +39,6 @@ export function handleTerminalWorkspaceKeyDown(
     handleNewAgentTab,
     handleNewBrowserTab,
     handleNewFile,
-    handleNewSimulatorTab,
     handleNewTab,
     keybindings,
     mobileEmulatorEnabled,
@@ -68,6 +71,7 @@ export function handleTerminalWorkspaceKeyDown(
       void createFloatingWorkspaceTerminalTab(useAppStore.getState())
       return
     }
+    prepareSidePanelCreation(activeWorktreeId)
     handleNewTab()
     return
   }
@@ -120,6 +124,7 @@ export function handleTerminalWorkspaceKeyDown(
       )
       return
     }
+    prepareSidePanelCreation(activeWorktreeId)
     handleNewBrowserTab()
     return
   }
@@ -130,7 +135,13 @@ export function handleTerminalWorkspaceKeyDown(
       return
     }
     if (!floatingWorkspaceFocused) {
-      handleNewSimulatorTab()
+      prepareSidePanelCreation(activeWorktreeId)
+      void openMobileEmulatorTab(activeWorktreeId, {
+        placement: 'activeGroup',
+        targetGroupId: sidePanelGroupId(activeWorktreeId)
+      }).catch((error) => {
+        toast.error(error instanceof Error ? error.message : String(error))
+      })
     }
     return
   }
@@ -160,6 +171,7 @@ export function handleTerminalWorkspaceKeyDown(
       })
       return
     }
+    prepareSidePanelCreation(activeWorktreeId)
     void handleNewFile()
     return
   }
@@ -179,7 +191,8 @@ export function handleTerminalWorkspaceKeyDown(
     if (floatingPanelOwnsEvent) {
       return
     }
-    if (dispatchWorkspaceTabCommand({ type: 'close', context })) {
+    // Why: only the side panel's tab closes from the keyboard; a session is never a target.
+    if (closeSidePanelActiveTab(activeWorktreeId, context)) {
       event.preventDefault()
       notifyTerminalCapture('tab.close')
     }
@@ -203,7 +216,9 @@ export function handleTerminalWorkspaceKeyDown(
     event.preventDefault()
     event.stopPropagation()
     event.stopImmediatePropagation()
-    dispatchWorkspaceTabCommand({ type: 'previous-recent' })
+    if (focusSidePanelForSwitching(activeWorktreeId)) {
+      dispatchWorkspaceTabCommand({ type: 'previous-recent' })
+    }
     return
   }
   const switchSameTypeDirection = matchShortcut('tab.nextSameType')
@@ -229,11 +244,13 @@ export function handleTerminalWorkspaceKeyDown(
           ? 'tab.nextSameType'
           : 'tab.previousSameType'
     )
-    dispatchWorkspaceTabCommand({
-      type: 'switch',
-      direction: switchAllTypesDirection ?? switchSameTypeDirection ?? 1,
-      scope: switchAllTypesDirection !== null ? 'all-types' : 'same-type'
-    })
+    if (focusSidePanelForSwitching(activeWorktreeId)) {
+      dispatchWorkspaceTabCommand({
+        type: 'switch',
+        direction: switchAllTypesDirection ?? switchSameTypeDirection ?? 1,
+        scope: switchAllTypesDirection !== null ? 'all-types' : 'same-type'
+      })
+    }
   }
   const terminalTabDirection = matchShortcut('tab.nextTerminal')
     ? 1
@@ -244,10 +261,12 @@ export function handleTerminalWorkspaceKeyDown(
     event.preventDefault()
     event.stopPropagation()
     event.stopImmediatePropagation()
-    dispatchWorkspaceTabCommand({
-      type: 'switch',
-      direction: terminalTabDirection,
-      scope: 'terminal'
-    })
+    if (focusSidePanelForSwitching(activeWorktreeId)) {
+      dispatchWorkspaceTabCommand({
+        type: 'switch',
+        direction: terminalTabDirection,
+        scope: 'terminal'
+      })
+    }
   }
 }

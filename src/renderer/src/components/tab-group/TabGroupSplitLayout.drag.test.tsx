@@ -21,6 +21,9 @@ vi.mock('../../store', () => ({
     })
 }))
 
+vi.mock('../side-panel/SidePanel', () => ({ SidePanel: () => null }))
+vi.mock('./MainSessionEmptyState', () => ({ MainSessionEmptyState: () => null }))
+
 vi.mock('./TabGroupPanel', () => ({
   default: ({ groupId }: { groupId: string }) => <div data-testid={`panel-${groupId}`} />
 }))

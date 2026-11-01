@@ -3,6 +3,7 @@ import { useAppStore } from '@/store'
 import type { AppState } from '@/store/types'
 import { getRuntimeEnvironmentIdForWorktree } from '@/lib/worktree-runtime-owner'
 import { dedupeTabOrder } from '@/store/slices/tab-group-state'
+import { isSidePanelGroupId, sidePanelGroupId } from '@/store/slices/tabs/side-panel-group'
 import type { Tab } from '../../../shared/tab-types'
 import {
   activateWebRuntimeSessionTab,
@@ -30,11 +31,12 @@ export function resolveTabNumberShortcutTarget(
   }
 
   const worktreeId = state.activeWorktreeId
+  const groups = state.groupsByWorktree[worktreeId]
+  // Why: digits address the side panel's tabs; sessions are switched from the sidebar.
+  const panelGroup = groups?.find((candidate) => candidate.id === sidePanelGroupId(worktreeId))
   const groupId = state.activeGroupIdByWorktree[worktreeId]
   const group =
-    state.groupsByWorktree[worktreeId]?.find((candidate) => candidate.id === groupId) ??
-    state.groupsByWorktree[worktreeId]?.[0] ??
-    null
+    panelGroup ?? groups?.find((candidate) => candidate.id === groupId) ?? groups?.[0] ?? null
   if (!group) {
     return null
   }
@@ -63,6 +65,9 @@ export function activateTabNumberShortcut(index: number): boolean {
 
   const worktreeId = target.worktreeId
   const runtimeEnvironmentId = getRuntimeEnvironmentIdForWorktree(store, worktreeId)
+  if (isSidePanelGroupId(target.groupId)) {
+    store.focusSidePanel(worktreeId)
+  }
   store.focusGroup(worktreeId, target.groupId)
   store.activateTab(target.id)
 

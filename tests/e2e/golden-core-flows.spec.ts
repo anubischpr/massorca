@@ -19,7 +19,7 @@ import {
 } from './helpers/terminal'
 
 const tempRoots: string[] = []
-const SORTABLE_TAB = '[data-testid="sortable-tab"]'
+const SORTABLE_TAB = '[data-testid="side-panel-tab"]'
 const TASK_SOURCES_HEADING = /Set up GitHub tasks|Connect your task sources/i
 const WINDOWS_TERMINAL_HEADING = /Set Windows terminal defaults/i
 const ONBOARDING_ADVANCE_LABEL = /^Continue\b|^Add your first project\b/

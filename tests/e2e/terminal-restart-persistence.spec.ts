@@ -281,7 +281,7 @@ test.describe('Terminal restart persistence', () => {
         { targetTabId: restoredTabId, title: runtimeTitle }
       )
       await expect(
-        secondLaunch.page.locator(`[data-testid="sortable-tab"][data-tab-id="${restoredTabId}"]`)
+        secondLaunch.page.locator(`[data-testid="side-panel-tab"][data-tab-id="${restoredTabId}"]`)
       ).toHaveAttribute('data-tab-title', runtimeTitle)
       await expect(secondLaunch.page.locator('.pane-title-text', { hasText: title })).toBeVisible()
       await expect

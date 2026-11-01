@@ -215,6 +215,9 @@ export type UISliceCore = {
   /** Opens a blank create-chat view; each open bumps the nonce so the view remounts blank. */
   createChatResetNonce: number
   openCreateChatPage: () => void
+  /** True while the tasks view shows the Tasks home instead of the source-control board. */
+  tasksHomeOpen: boolean
+  openTasksHome: () => void
   setNewWorkspaceDraft: (draft: NonNullable<UISliceCore['newWorkspaceDraft']>) => void
   clearNewWorkspaceDraft: () => void
   pendingRevealWorktree: PendingSidebarWorktreeReveal | null

@@ -10,6 +10,7 @@ import {
   ORCA_EDITOR_REQUEST_CMD_SAVE_EVENT,
   type EditorRequestCmdSaveDetail
 } from './editor/editor-autosave'
+import { sidePanelGroupId } from '../store/slices/tabs/side-panel-group'
 import { handleTerminalWorkspaceKeyDown } from './terminal-workspace-keydown'
 import type { TerminalActivationController } from './use-terminal-activation-actions'
 
@@ -131,8 +132,9 @@ describe('handleTerminalWorkspaceKeyDown editor.save', () => {
   })
 })
 
-describe('tab.close uses the unified active tab', () => {
+describe('tab.close closes only the side panel tab', () => {
   const worktreeId = controller.activeWorktreeId!
+  const panelGroupId = sidePanelGroupId(worktreeId)
   let tab: Tab
   const closeUnifiedTab = vi.fn()
   const closeFile = vi.fn()
@@ -143,12 +145,12 @@ describe('tab.close uses the unified active tab', () => {
     mocks.floatingFocused = false
     mocks.targetInsideFloatingPanel = false
     tab = {
-      id: 'chat-tab',
-      entityId: 'chat-session',
+      id: 'panel-tab',
+      entityId: 'panel-file',
       worktreeId,
-      groupId: 'right-group',
-      contentType: 'agent-session',
-      label: 'Chat',
+      groupId: panelGroupId,
+      contentType: 'editor',
+      label: 'notes.md',
       customLabel: null,
       color: null,
       sortOrder: 0,
@@ -164,6 +166,9 @@ describe('tab.close uses the unified active tab', () => {
       activeBrowserTabId: 'other-browser',
       getActiveTab: () => tab,
       unifiedTabsByWorktree: { [worktreeId]: [tab] },
+      groupsByWorktree: {
+        [worktreeId]: [{ id: panelGroupId, activeTabId: tab.id, tabOrder: [tab.id] }]
+      },
       openFiles: [],
       browserPagesByWorkspace: {},
       closeUnifiedTab,
@@ -192,17 +197,45 @@ describe('tab.close uses the unified active tab', () => {
   }
 
   it.each(['darwin', 'win32', 'linux'] as const)(
-    'routes native chat close from its composer through the unified tab action on %s',
-    async (platform) => {
-      expect(close(platform).defaultPrevented).toBe(true)
-      await vi.waitFor(() => expect(closeUnifiedTab).toHaveBeenCalledWith(tab.id))
-      // Why: the unified store action owns cancellation and host retirement for every close path.
+    'never closes a session from the keyboard on %s',
+    (platform) => {
+      const session: Tab = {
+        ...tab,
+        id: 'chat-tab',
+        groupId: 'main-group',
+        contentType: 'agent-session'
+      }
+      mocks.state.getActiveTab = () => session
+      mocks.state.unifiedTabsByWorktree = { [worktreeId]: [session] }
+      mocks.state.groupsByWorktree = {
+        [worktreeId]: [{ id: 'main-group', activeTabId: session.id, tabOrder: [session.id] }]
+      }
+      expect(close(platform).defaultPrevented).toBe(false)
+      expect(closeUnifiedTab).not.toHaveBeenCalled()
       expect(mocks.closeStructuredAgentSession).not.toHaveBeenCalled()
-      expect(mocks.callRuntimeRpc).not.toHaveBeenCalled()
-      expect(mocks.cancelStructuredAgentLaunch).not.toHaveBeenCalled()
       expect(mocks.closeTerminalTab).not.toHaveBeenCalled()
     }
   )
+
+  it('closes the panel tab even while a session holds focus in the main area', () => {
+    const session: Tab = {
+      ...tab,
+      id: 'chat-tab',
+      groupId: 'main-group',
+      contentType: 'agent-session'
+    }
+    mocks.state.getActiveTab = () => session
+    mocks.state.unifiedTabsByWorktree = { [worktreeId]: [session, tab] }
+    mocks.state.groupsByWorktree = {
+      [worktreeId]: [
+        { id: 'main-group', activeTabId: session.id, tabOrder: [session.id] },
+        { id: panelGroupId, activeTabId: tab.id, tabOrder: [tab.id] }
+      ]
+    }
+    expect(close().defaultPrevented).toBe(true)
+    expect(closeUnifiedTab).toHaveBeenCalledWith(tab.id)
+    expect(closeUnifiedTab).not.toHaveBeenCalledWith(session.id)
+  })
 
   it.each(['editor', 'diff', 'conflict-review', 'check-details', 'browser', 'simulator'] as const)(
     'closes the focused %s tab through the same command',
@@ -224,9 +257,8 @@ describe('tab.close uses the unified active tab', () => {
     expect(mocks.closeTerminalTab).not.toHaveBeenCalled()
   })
 
-  it('closes a terminal tab from its native chat overlay through terminal teardown', () => {
+  it('closes a panel terminal through terminal teardown', () => {
     tab.contentType = 'terminal'
-    tab.viewMode = 'chat'
     close()
     expect(mocks.closeTerminalTab).toHaveBeenCalledWith(tab.entityId, {
       onClosed: expect.any(Function)
@@ -297,7 +329,15 @@ describe('shared tab navigation routing', () => {
     vi.clearAllMocks()
     mocks.floatingFocused = false
     mocks.targetInsideFloatingPanel = false
-    mocks.state = { activeWorktreeId: controller.activeWorktreeId }
+    mocks.state = {
+      activeWorktreeId: controller.activeWorktreeId,
+      groupsByWorktree: {
+        [controller.activeWorktreeId!]: [
+          { id: sidePanelGroupId(controller.activeWorktreeId!), activeTabId: 't', tabOrder: ['t'] }
+        ]
+      },
+      focusSidePanel: vi.fn()
+    }
   })
 
   function nextTab(): void {
@@ -321,6 +361,18 @@ describe('shared tab navigation routing', () => {
     expect(switchFloatingWorkspaceTab).not.toHaveBeenCalled()
   })
 
+  it('points tab switching at the side panel before it cycles', () => {
+    nextTab()
+    expect(mocks.state.focusSidePanel).toHaveBeenCalledWith(controller.activeWorktreeId)
+  })
+
+  it('leaves sessions alone when the side panel has no tabs to switch between', () => {
+    mocks.state.groupsByWorktree = {}
+    nextTab()
+    expect(handleSwitchTabAcrossAllTypes).not.toHaveBeenCalled()
+    expect(mocks.state.focusSidePanel).not.toHaveBeenCalled()
+  })
+
   it('routes both entry points to the floating panel when it owns focus', () => {
     mocks.floatingFocused = true
     nextTab()
@@ -328,5 +380,43 @@ describe('shared tab navigation routing', () => {
     expect(switchFloatingWorkspaceTab).toHaveBeenCalledTimes(2)
     expect(switchFloatingWorkspaceTab).toHaveBeenLastCalledWith(mocks.state, 1, 'all-types')
     expect(handleSwitchTabAcrossAllTypes).not.toHaveBeenCalled()
+  })
+})
+
+describe('creation shortcuts open the side panel', () => {
+  const worktreeId = controller.activeWorktreeId!
+  const calls: string[] = []
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    calls.length = 0
+    mocks.floatingFocused = false
+    mocks.targetInsideFloatingPanel = false
+    mocks.state = {
+      activeWorktreeId: worktreeId,
+      focusSidePanel: vi.fn(() => calls.push('focus-panel'))
+    }
+    vi.mocked(controller.handleNewTab).mockImplementation(() => void calls.push('new-terminal'))
+    vi.mocked(controller.handleNewBrowserTab).mockImplementation(
+      () => void calls.push('new-browser')
+    )
+  })
+
+  function press(init: KeyboardEventInit): KeyboardEvent {
+    const event = new KeyboardEvent('keydown', { cancelable: true, ...init })
+    Object.defineProperty(event, 'target', { value: document.createElement('div') })
+    handleTerminalWorkspaceKeyDown(event, controller, 'darwin')
+    return event
+  }
+
+  it('Mod+T focuses the panel, then creates the terminal', () => {
+    expect(press({ key: 't', metaKey: true }).defaultPrevented).toBe(true)
+    expect(calls).toEqual(['focus-panel', 'new-terminal'])
+  })
+
+  it('Mod+Shift+B focuses the panel, then creates the browser tab', () => {
+    mocks.state.settings = {}
+    press({ key: 'b', metaKey: true, shiftKey: true })
+    expect(calls).toEqual(['focus-panel', 'new-browser'])
   })
 })

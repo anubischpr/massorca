@@ -36,7 +36,7 @@ type SchedulerDebugWindow = Window & {
   }
 }
 
-const SORTABLE_TAB = '[data-testid="sortable-tab"]'
+const SORTABLE_TAB = '[data-testid="side-panel-tab"]'
 const TAB_COUNT = 5
 
 function tabLocator(page: Page, tabId: string) {

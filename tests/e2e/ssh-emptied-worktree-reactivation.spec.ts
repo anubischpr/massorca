@@ -45,7 +45,7 @@ async function closeLastTabAndClickWorktree(page: Page, worktreeId: string): Pro
     worktreeId
   )
   expect(tabId, 'the worktree has no tab to close').not.toBeNull()
-  const tab = page.locator(`[data-testid="sortable-tab"][data-tab-id="${tabId}"]`).first()
+  const tab = page.locator(`[data-testid="side-panel-tab"][data-tab-id="${tabId}"]`).first()
   await tab.hover()
   await tab.locator('button[aria-label^="Close tab"]').first().click()
   await expect.poll(() => readTabCount(page, worktreeId), { timeout: 15_000 }).toBe(0)

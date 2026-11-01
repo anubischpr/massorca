@@ -118,7 +118,7 @@ export async function runPairedTerminalParkingOracle(
         (id) => window.__store?.getState().setActiveWorktree(id),
         created.worktreeId
       )
-      const tab = page.locator(`[data-testid="sortable-tab"][data-tab-id="${created.tabId}"]`)
+      const tab = page.locator(`[data-testid="side-panel-tab"][data-tab-id="${created.tabId}"]`)
       await expect(tab).toBeVisible({ timeout: 30_000 })
       await tab.click()
       const originalPtyId = await waitForActivePanePtyId(page, 30_000)
@@ -238,7 +238,7 @@ export async function runPairedTerminalParkingOracle(
       state?.setActiveView('terminal')
       state?.setActiveWorktree(worktreeId)
     }, evicted.worktreeId)
-    const restored = page.locator(`[data-testid="sortable-tab"][data-tab-id="${evicted.tabId}"]`)
+    const restored = page.locator(`[data-testid="side-panel-tab"][data-tab-id="${evicted.tabId}"]`)
     await expect(restored).toBeVisible({ timeout: 30_000 })
     await restored.click()
     expect(await waitForActivePanePtyId(page, 30_000)).toBe(evicted.originalPtyId)

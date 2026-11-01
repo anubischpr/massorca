@@ -173,7 +173,7 @@ export async function createStartupExecTerminal(
       ? toWebTerminalSurfaceTabId(created.tab.parentTabId)
       : created.tab.parentTabId
   await page.evaluate((id) => window.__store?.getState().setActiveWorktree(id), worktreeId)
-  const tab = page.locator(`[data-testid="sortable-tab"][data-tab-id="${tabId}"]`)
+  const tab = page.locator(`[data-testid="side-panel-tab"][data-tab-id="${tabId}"]`)
   await expect(tab).toBeVisible({ timeout: 30_000 })
   await tab.click()
   await expect(tab).toHaveAttribute('data-active', 'true')

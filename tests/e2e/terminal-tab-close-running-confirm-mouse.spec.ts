@@ -20,7 +20,7 @@ import {
   waitForTerminalOutput
 } from './helpers/terminal'
 
-const SORTABLE_TAB = '[data-testid="sortable-tab"]'
+const SORTABLE_TAB = '[data-testid="side-panel-tab"]'
 
 function closeDialogTitle(page: Page) {
   return page.getByText(/Stop running command\?|Stop this agent\?/)
@@ -75,7 +75,7 @@ test('confirming the X-button prompt closes the busy tab', async ({ orcaPage }) 
   const busyTab = orcaPage.locator(`${SORTABLE_TAB}[data-tab-id="${busyTabId}"]`).first()
 
   await busyTab.hover()
-  await busyTab.getByRole('button', { name: /^Close tab /i }).click()
+  await busyTab.getByRole('button', { name: 'Close tab', exact: true }).click()
   await expect(closeDialogTitle(orcaPage)).toBeVisible({ timeout: 15_000 })
   await orcaPage.getByRole('button', { name: /^Stop and Close$/ }).click()
 

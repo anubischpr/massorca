@@ -5,6 +5,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Tab } from '../../../../shared/tab-types'
 import type { AppState } from '../../store/types'
+import { sidePanelGroupId } from '../../store/slices/tabs/side-panel-group'
 
 const { activateCyclableTabMock, getStateMock } = vi.hoisted(() => ({
   activateCyclableTabMock: vi.fn(),
@@ -28,7 +29,8 @@ vi.mock('@/i18n/i18n', () => ({
 import RecentTabSwitcher from './RecentTabSwitcher'
 
 const WORKTREE_ID = 'wt-1'
-const GROUP_ID = 'group-1'
+// Why: tab switching cycles the side panel's tabs; sessions are switched from the sidebar.
+const GROUP_ID = sidePanelGroupId(WORKTREE_ID)
 
 type CtrlTabKeyDownCallback = (data: { shiftKey: boolean }) => void
 type CtrlTabKeyUpCallback = () => void
@@ -50,6 +52,8 @@ function makeTab(id: string, entityId: string, label: string): Tab {
   }
 }
 
+const focusSidePanelMock = vi.fn()
+
 function makeStore(): AppState {
   const tabs = [
     makeTab('tab-a', 'file-a', 'A'),
@@ -59,6 +63,7 @@ function makeStore(): AppState {
   return {
     activeView: 'terminal',
     activeWorktreeId: WORKTREE_ID,
+    focusSidePanel: focusSidePanelMock,
     activeBrowserTabId: null,
     activeFileId: 'file-a',
     activeGroupIdByWorktree: { [WORKTREE_ID]: GROUP_ID },
@@ -154,6 +159,7 @@ describe('RecentTabSwitcher', () => {
   beforeEach(() => {
     ctrlTabKeyDownCallback = null
     activateCyclableTabMock.mockReset()
+    focusSidePanelMock.mockReset()
     getStateMock.mockReturnValue(makeStore())
     installWindowApi()
   })
@@ -210,6 +216,30 @@ describe('RecentTabSwitcher', () => {
     expect(terminal.keyUp).not.toHaveBeenCalled()
     expectCommittedToTabB()
 
+    await act(async () => {
+      root.unmount()
+    })
+  })
+
+  it('points the switcher at the side panel when it opens', async () => {
+    const { root } = await renderSwitcher()
+    await act(async () => {
+      ctrlTabKeyDownCallback?.({ shiftKey: false })
+    })
+    expect(focusSidePanelMock).toHaveBeenCalledWith(WORKTREE_ID)
+    await act(async () => {
+      root.unmount()
+    })
+  })
+
+  it('stays closed when the side panel has no tabs to switch between', async () => {
+    getStateMock.mockReturnValue({ ...makeStore(), groupsByWorktree: {} })
+    const { root } = await renderSwitcher()
+    await act(async () => {
+      ctrlTabKeyDownCallback?.({ shiftKey: false })
+    })
+    expect(document.body.querySelector('[role="listbox"]')).toBeNull()
+    expect(focusSidePanelMock).not.toHaveBeenCalled()
     await act(async () => {
       root.unmount()
     })

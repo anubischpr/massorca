@@ -59,7 +59,7 @@ function persistedSessionEvidence(
 async function expectSurvivingTabsVisible(page: Page): Promise<void> {
   for (const title of [FIRST_SURVIVOR_TITLE, SECOND_SURVIVOR_TITLE]) {
     await expect(
-      page.locator('[data-testid="sortable-tab"]').filter({ hasText: title })
+      page.locator('[data-testid="side-panel-tab"]').filter({ hasText: title })
     ).toBeVisible({ timeout: 15_000 })
   }
 }

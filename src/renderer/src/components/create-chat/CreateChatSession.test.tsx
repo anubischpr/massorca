@@ -138,8 +138,34 @@ const options: CreateChatOptions = {
     }
   ],
   preferredAgent: 'claude',
-  projectlessDirectory: 'C:/Users/me/orca/chats'
+  projectlessDirectory: 'C:/Users/me/orca/chats',
+  worktrees: [
+    {
+      worktreeId: 'wt-fix',
+      repoId: 'repo-1',
+      hostId: 'local',
+      branch: 'fix-login-redirect',
+      sessions: 2
+    },
+    {
+      worktreeId: 'wt-artifact',
+      repoId: 'repo-1',
+      hostId: 'local',
+      branch: 'improve-areas-artifact',
+      sessions: 0
+    },
+    {
+      worktreeId: 'wt-ssh',
+      repoId: 'repo-ssh',
+      hostId: 'ssh:devbox',
+      branch: 'feature-x',
+      sessions: null
+    }
+  ]
 }
+
+const TERMINAL_NOTICE =
+  "Terminal view uses the agent's own interface. These will not be available in this session: Chat summary (Results, Subagents, Connectors, Background tasks) and the chat composer."
 
 const mountedRoots: Root[] = []
 
@@ -194,6 +220,31 @@ async function typeDraft(container: ParentNode, text: string): Promise<HTMLTextA
     textarea.dispatchEvent(new Event('input', { bubbles: true }))
   })
   return textarea
+}
+
+function requiredElement<T extends Element>(found: T | null, name: string): T {
+  if (!found) {
+    throw new Error(`${name} not found`)
+  }
+  return found
+}
+
+function sessionViewGroup(container: ParentNode): HTMLElement {
+  return requiredElement(
+    container.querySelector<HTMLElement>('[role="radiogroup"][aria-label="Session view"]'),
+    'Session view'
+  )
+}
+
+function sessionViewOption(container: ParentNode, name: string): HTMLButtonElement {
+  const found = Array.from(
+    sessionViewGroup(container).querySelectorAll<HTMLButtonElement>('[role="radio"]')
+  ).find((candidate) => candidate.textContent?.trim() === name)
+  return requiredElement(found ?? null, `Session view option ${name}`)
+}
+
+function sessionViewFrame(container: ParentNode): HTMLElement {
+  return requiredElement(sessionViewGroup(container).parentElement, 'Session view frame')
 }
 
 async function pressEnter(textarea: HTMLTextAreaElement, shiftKey: boolean): Promise<void> {
@@ -261,9 +312,9 @@ describe('CreateChatSession', () => {
     await click(menuItem(container, 'notes'))
 
     expect(button(container, 'Workspace mode').textContent).toContain('No Git')
-    await click(button(container, 'Workspace mode'))
-    expect(menuItem(container, 'New worktree').disabled).toBe(true)
-    expect(menuItem(container, 'Current checkout').disabled).toBe(true)
+    // Why: the canvas disables the chip itself for a folder, so its menu never opens.
+    expect(button(container, 'Workspace mode').disabled).toBe(true)
+    expect(container.querySelector('[role="menuitemradio"]')).toBeNull()
   })
 
   it('keeps send disabled while the draft is blank', async () => {
@@ -354,5 +405,145 @@ describe('CreateChatSession', () => {
     )
     expect(composer(container).value).toBe('Fix the login bug')
     expect(button(container, 'Create session').disabled).toBe(false)
+  })
+
+  it('places Location, Project and Workspace mode above the composer and keeps Permissions in its footer', async () => {
+    const container = await renderSession()
+    const place = requiredElement(
+      container.querySelector('[role="group"][aria-label="Where it runs"]'),
+      'Where it runs group'
+    )
+    const box = requiredElement(composer(container).parentElement, 'composer box')
+
+    expect(place.contains(button(container, 'Location'))).toBe(true)
+    expect(place.contains(button(container, 'Project'))).toBe(true)
+    expect(place.contains(button(container, 'Workspace mode'))).toBe(true)
+    expect(place.contains(button(container, 'Permissions'))).toBe(false)
+    expect(box.contains(button(container, 'Permissions'))).toBe(true)
+    expect(
+      place.compareDocumentPosition(composer(container)) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).not.toBe(0)
+  })
+
+  it('lists the project worktrees under Existing worktrees with their session state', async () => {
+    const container = await renderSession()
+
+    await click(button(container, 'Workspace mode'))
+
+    expect(container.textContent).toContain('Existing worktrees')
+    expect(menuItem(container, 'fix-login-redirect').textContent).toContain('2 sessions')
+    expect(menuItem(container, 'improve-areas-artifact').textContent).toContain('Not running')
+    expect(container.textContent).not.toContain('feature-x')
+  })
+
+  it('creates the session in the picked existing worktree', async () => {
+    const container = await renderSession()
+    await click(button(container, 'Workspace mode'))
+    await click(menuItem(container, 'fix-login-redirect'))
+    expect(button(container, 'Workspace mode').textContent).toContain('fix-login-redirect')
+
+    await typeDraft(container, 'Fix the login bug')
+    await click(button(container, 'Create session'))
+
+    expect(mocks.submit).toHaveBeenCalledWith(
+      'Fix the login bug',
+      expect.objectContaining({ workspaceMode: 'existing-worktree', existingWorktreeId: 'wt-fix' })
+    )
+  })
+
+  it('lists worktrees on a lost SSH host as unverifiable and not pickable', async () => {
+    const container = await renderSession()
+    await click(button(container, 'Location'))
+    await click(menuItem(container, 'devbox'))
+
+    await click(button(container, 'Workspace mode'))
+
+    const lost = menuItem(container, 'feature-x')
+    expect(lost.textContent).toContain('Unverifiable')
+    expect(lost.disabled).toBe(true)
+  })
+
+  it('defaults the session view to Chat and lights the rainbow border on the switch only', async () => {
+    const container = await renderSession()
+
+    expect(sessionViewOption(container, 'Chat').getAttribute('aria-checked')).toBe('true')
+    expect(sessionViewOption(container, 'Terminal').getAttribute('aria-checked')).toBe('false')
+    expect(sessionViewFrame(container).classList.contains('chat-view-rainbow')).toBe(true)
+    expect(container.querySelectorAll('.chat-view-rainbow')).toHaveLength(1)
+    expect(composer(container).closest('.chat-view-rainbow')).toBeNull()
+  })
+
+  it('removes the border and shows the exact terminal notice when Terminal is picked', async () => {
+    const container = await renderSession()
+
+    await click(sessionViewOption(container, 'Terminal'))
+
+    expect(sessionViewFrame(container).classList.contains('chat-view-rainbow')).toBe(false)
+    expect(container.querySelector('[role="status"]')?.textContent).toBe(TERMINAL_NOTICE)
+  })
+
+  it('wobbles the switch and relights the border when going back to Chat', async () => {
+    vi.useFakeTimers()
+    try {
+      const container = await renderSession()
+      await click(sessionViewOption(container, 'Terminal'))
+
+      await click(sessionViewOption(container, 'Chat'))
+
+      expect(sessionViewFrame(container).classList.contains('chat-view-rainbow')).toBe(true)
+      expect(sessionViewFrame(container).classList.contains('chat-view-wobble')).toBe(true)
+      await act(async () => {
+        vi.advanceTimersByTime(500)
+      })
+      expect(sessionViewFrame(container).classList.contains('chat-view-wobble')).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('relights the border without a wobble when reduced motion is requested', async () => {
+    const original = Object.getOwnPropertyDescriptor(window, 'matchMedia')
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      writable: true,
+      value: (query: string) => ({
+        matches: query.includes('prefers-reduced-motion'),
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false
+      })
+    })
+    try {
+      const container = await renderSession()
+      await click(sessionViewOption(container, 'Terminal'))
+
+      await click(sessionViewOption(container, 'Chat'))
+
+      expect(sessionViewFrame(container).classList.contains('chat-view-rainbow')).toBe(true)
+      expect(sessionViewFrame(container).classList.contains('chat-view-wobble')).toBe(false)
+    } finally {
+      if (original) {
+        Object.defineProperty(window, 'matchMedia', original)
+      } else {
+        Reflect.deleteProperty(window, 'matchMedia')
+      }
+    }
+  })
+
+  it('submits the Terminal choice as the session view', async () => {
+    const container = await renderSession()
+    await click(sessionViewOption(container, 'Terminal'))
+    await typeDraft(container, 'Fix the login bug')
+
+    await click(button(container, 'Create session'))
+
+    expect(mocks.submit).toHaveBeenCalledWith(
+      'Fix the login bug',
+      expect.objectContaining({ sessionView: 'terminal' })
+    )
   })
 })

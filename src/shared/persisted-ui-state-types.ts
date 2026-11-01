@@ -37,6 +37,10 @@ export type PersistedUIState = {
   rightSidebarTab: RightSidebarTab
   rightSidebarExplorerView: RightSidebarExplorerView
   rightSidebarWidth: number
+  /** Side panel width; absent in profiles written before the panel existed. */
+  sidePanelWidth?: number
+  /** Explicit side panel open/closed choice per workspace; absent means "open exactly when it has tabs". */
+  sidePanelOpenByWorktree?: Record<string, boolean>
   markdownTocPanelWidth?: number
   combinedDiffFileTreeWidth?: number
   groupBy: 'none' | 'workspace-status' | 'repo' | 'pr-status'

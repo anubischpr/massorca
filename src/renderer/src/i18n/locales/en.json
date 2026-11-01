@@ -18067,6 +18067,22 @@
     }
   },
   "components": {
+    "app-rail": {
+      "label": "App",
+      "settings": "Settings",
+      "tasks": "Tasks",
+      "workspaces": "Workspaces"
+    },
+    "side-panel": {
+      "close": "Close panel",
+      "label": "Side panel",
+      "new-tab": "New tab"
+    },
+    "tasksHome": {
+      "approvals": "Needs your approval",
+      "heading": "What do you want to do?",
+      "open": "Open"
+    },
     "prototypes": {
       "settings": {
         "title": "Prototypes",
@@ -18346,6 +18362,19 @@
       }
     },
     "createChat": {
+      "errorWorktreeGone": "This worktree is no longer available. Pick another one.",
+      "existingWorktrees": "Existing worktrees",
+      "placeAria": "Where it runs",
+      "sessionViewAria": "Session view",
+      "sessionViewChat": "Chat",
+      "sessionViewTerminal": "Terminal",
+      "terminalNoticeBody": "These will not be available in this session: Chat summary (Results, Subagents, Connectors, Background tasks) and the chat composer.",
+      "terminalNoticeLead": "Terminal view uses the agent's own interface.",
+      "workspaceExistingFallback": "Existing worktree",
+      "worktreeNotRunning": "Not running",
+      "worktreeOneSession": "1 session",
+      "worktreeSessions": "{{count}} sessions",
+      "worktreeUnverifiable": "Unverifiable",
       "accessAcceptEditsDescription": "Apply file edits without asking. Commands still ask.",
       "accessAria": "Permissions",
       "accessDefaultDescription": "Ask before each edit or command.",
@@ -18436,6 +18465,10 @@
       "empty": "No users found"
     },
     "native-chat": {
+      "summary": {
+        "hide": "Hide Chat summary",
+        "show": "Show Chat summary"
+      },
       "reasoning": "Reasoning",
       "failureWords": {
         "theAgent": "The agent",

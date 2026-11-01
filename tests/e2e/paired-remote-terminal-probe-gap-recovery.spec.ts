@@ -114,7 +114,7 @@ test('replaces a stale paired stream when the PTY snapshot advanced @headful', a
     }
     const webTabId = toWebTerminalSurfaceTabId(created.tab.parentTabId)
     await client.page.evaluate((id) => window.__store?.getState().setActiveWorktree(id), worktreeId)
-    const tab = client.page.locator(`[data-testid="sortable-tab"][data-tab-id="${webTabId}"]`)
+    const tab = client.page.locator(`[data-testid="side-panel-tab"][data-tab-id="${webTabId}"]`)
     await expect(tab).toBeVisible({ timeout: 30_000 })
     await tab.click()
     await expect(tab).toHaveAttribute('data-active', 'true')

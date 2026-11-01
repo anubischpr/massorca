@@ -99,8 +99,6 @@ describe('TabGroupPanel editor area OS file drops', () => {
         hasSplitGroups
         touchesLeftEdge={false}
         touchesRightEdge={false}
-        reserveClosedExplorerToggleSpace={false}
-        reserveCollapsedSidebarHeaderSpace={false}
       />
     )
     const input = await view.findByTestId('monaco-input')

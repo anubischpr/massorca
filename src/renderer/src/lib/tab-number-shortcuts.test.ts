@@ -132,4 +132,38 @@ describe('resolveTabNumberShortcutTarget', () => {
     expect(resolveTabNumberShortcutTarget({ ...base, activeWorktreeId: null }, 0)).toBeNull()
     expect(resolveTabNumberShortcutTarget(base, -1)).toBeNull()
   })
+
+  it('addresses the side panel tabs when the panel has any, not the focused session group', () => {
+    const chat = tab({ id: 'chat', groupId: 'group-a', contentType: 'agent-session' })
+    const term = tab({ id: 'term', groupId: 'side-panel:wt-1' })
+    const web = tab({ id: 'web', groupId: 'side-panel:wt-1', contentType: 'browser' })
+    const groups: TabGroup[] = [
+      { id: 'group-a', worktreeId: 'wt-1', activeTabId: 'chat', tabOrder: ['chat'] },
+      {
+        id: 'side-panel:wt-1',
+        worktreeId: 'wt-1',
+        activeTabId: 'term',
+        tabOrder: ['term', 'web']
+      }
+    ]
+    const base = state({ activeGroupId: 'group-a', groups, tabs: [chat, term, web] })
+
+    expect(resolveTabNumberShortcutTarget(base, 0)).toBe(term)
+    expect(resolveTabNumberShortcutTarget(base, 1)).toBe(web)
+    expect(resolveTabNumberShortcutTarget(base, 2)).toBeNull()
+  })
+
+  it('never falls back to a session when the side panel exists but is empty', () => {
+    const chat = tab({ id: 'chat', groupId: 'group-a', contentType: 'agent-session' })
+    const base = state({
+      activeGroupId: 'group-a',
+      groups: [
+        { id: 'group-a', worktreeId: 'wt-1', activeTabId: 'chat', tabOrder: ['chat'] },
+        { id: 'side-panel:wt-1', worktreeId: 'wt-1', activeTabId: null, tabOrder: [] }
+      ],
+      tabs: [chat]
+    })
+
+    expect(resolveTabNumberShortcutTarget(base, 0)).toBeNull()
+  })
 })

@@ -99,7 +99,7 @@ async function readActiveUiContext(page: Page): Promise<ActiveUiContext> {
       activeWorktreeId,
       domActiveTabId:
         document
-          .querySelector('[data-testid="sortable-tab"][data-active="true"]')
+          .querySelector('[data-testid="side-panel-tab"][data-active="true"]')
           ?.getAttribute('data-tab-id') ?? null,
       focusedTerminalTabId:
         focused instanceof HTMLElement && focused.classList.contains('xterm-helper-textarea')

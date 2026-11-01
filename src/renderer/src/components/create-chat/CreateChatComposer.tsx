@@ -12,11 +12,16 @@ type CreateChatComposerProps = {
   pending: boolean
   error: string | null
   onSubmit: () => void
-  leftChips: ReactNode
+  /** Location, project and workspace mode: the row attached above the box. */
+  placeChips: ReactNode
+  /** The box footer, left: Permissions and the session view switch. */
+  footerChips: ReactNode
+  /** Below the box: what the chosen session view leaves out, or why it cannot open. */
+  notice: ReactNode
   rightChips: ReactNode
 }
 
-/** The first-message box: text, the footer chips, the send button, any launch error and the keyboard hint. */
+/** The first-message box: the place row above it, the text, footer chips, send, any launch error and the hint. */
 export function CreateChatComposer({
   draft,
   onDraftChange,
@@ -24,7 +29,9 @@ export function CreateChatComposer({
   pending,
   error,
   onSubmit,
-  leftChips,
+  placeChips,
+  footerChips,
+  notice,
   rightChips
 }: CreateChatComposerProps): React.JSX.Element {
   const placeholder = translate(
@@ -44,7 +51,16 @@ export function CreateChatComposer({
 
   return (
     <div className="flex w-full flex-col gap-2">
-      <div className="rounded-xl border border-border bg-card shadow-xs transition-[box-shadow] focus-within:ring-1 focus-within:ring-ring/50">
+      <div
+        role="group"
+        aria-label={translate('components.createChat.placeAria', 'Where it runs')}
+        className="relative mx-3 -mb-1.5 flex items-center gap-0.5 rounded-t-xl border border-b-0 border-border bg-card px-1.5 pt-1 pb-2"
+      >
+        <fieldset disabled={pending} className="contents">
+          {placeChips}
+        </fieldset>
+      </div>
+      <div className="relative rounded-xl border border-border bg-card shadow-xs transition-[box-shadow] focus-within:ring-1 focus-within:ring-ring/50">
         <ImeTextarea
           rows={3}
           value={draft}
@@ -55,9 +71,9 @@ export function CreateChatComposer({
           className="block max-h-60 min-h-20 w-full resize-none rounded-xl bg-transparent px-4 pt-3 pb-1 text-sm outline-none placeholder:text-muted-foreground/60"
         />
         <div className="flex items-center justify-between gap-2 px-2 pb-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-0.5">
+          <div className="flex min-w-0 flex-wrap items-center gap-1">
             <fieldset disabled={pending} className="contents">
-              {leftChips}
+              {footerChips}
             </fieldset>
           </div>
           <div className="flex shrink-0 items-center gap-1">
@@ -84,6 +100,7 @@ export function CreateChatComposer({
           </div>
         </div>
       </div>
+      {notice}
       {error ? (
         <p role="alert" className="text-center text-xs text-destructive">
           {error}
