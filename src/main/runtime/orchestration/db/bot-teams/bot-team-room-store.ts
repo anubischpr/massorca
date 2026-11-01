@@ -44,9 +44,33 @@ function requireBotTeamTask(db: OrchestrationDb, taskId: string): BotTeamTask {
 }
 
 export function listBotTeamTasks(this: OrchestrationDb, teamId: string): BotTeamTask[] {
+  linkDelegatedBotTeamTasks(this)
   return z
     .array(BotTeamTaskSchema)
     .parse(this.db.prepare(`${TASK_SELECT} WHERE team_id = ? ORDER BY rowid`).all(teamId))
+}
+
+/** A delegated task learns its session from its request, once the child has started. */
+function linkDelegatedBotTeamTasks(db: OrchestrationDb): void {
+  db.db.exec(`
+    UPDATE bot_team_tasks SET session_id = (
+      SELECT d.child_session_id FROM delegation_requests d
+      JOIN bot_team_task_delegations l ON l.request_id = d.id
+      WHERE l.task_id = bot_team_tasks.id
+    )
+    WHERE session_id IS NULL
+      AND id IN (SELECT task_id FROM bot_team_task_delegations)
+  `)
+}
+
+export function linkBotTeamTaskDelegation(
+  this: OrchestrationDb,
+  taskId: string,
+  requestId: string
+): void {
+  this.db
+    .prepare('INSERT INTO bot_team_task_delegations (task_id, request_id) VALUES (?, ?)')
+    .run(taskId, requestId)
 }
 
 export function setBotTeamTaskSession(
@@ -62,6 +86,7 @@ export function findBotTeamTaskBySession(
   this: OrchestrationDb,
   sessionId: string
 ): BotTeamTask | null {
+  linkDelegatedBotTeamTasks(this)
   const row = this.db.prepare(`${TASK_SELECT} WHERE session_id = ?`).get(sessionId)
   return row === undefined ? null : BotTeamTaskSchema.parse(row)
 }
@@ -111,6 +136,7 @@ export function getBotTeamTask(this: OrchestrationDb, taskId: string): BotTeamTa
 }
 
 export type BotTeamRoomStoreMethods = {
+  linkBotTeamTaskDelegation: typeof linkBotTeamTaskDelegation
   getBotTeamTask: typeof getBotTeamTask
   getBotTeamWorkspace: typeof getBotTeamWorkspace
   setBotTeamWorkspace: typeof setBotTeamWorkspace
@@ -124,6 +150,7 @@ export type BotTeamRoomStoreMethods = {
 
 export function attachBotTeamRoomStore(ctor: { prototype: object }): void {
   Object.assign(ctor.prototype, {
+    linkBotTeamTaskDelegation,
     getBotTeamTask,
     getBotTeamWorkspace,
     setBotTeamWorkspace,

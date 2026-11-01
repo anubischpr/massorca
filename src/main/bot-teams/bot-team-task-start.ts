@@ -13,14 +13,14 @@ export type BotTeamTaskStartDeps = {
   linkSession: (taskId: string, sessionId: string) => BotTeamTask
 }
 
-function taskPrompt(team: BotTeam, bot: BotTeamBot, task: BotTeamTask): string {
+export function botTeamTaskPrompt(team: BotTeam, bot: BotTeamBot, task: BotTeamTask): string {
   const role = bot.job ? `Your job: ${bot.job}.` : ''
   return [
     `You are ${bot.name}, a bot on the ${team.name} team. ${role}`.trim(),
     task.prompt || task.title,
     [
       'Tell the team in its Conference room when you take this on and when you finish, in one short line each: `orca orchestration team-post --text "<line>"`.',
-      'For this team\'s tasks, read the real board with `orca orchestration team-tasks`, and save a task for later with `orca orchestration team-task-create --text "<task>"`.'
+      'For this team\'s tasks, read the real board with `orca orchestration team-tasks`, and save a task for later with `orca orchestration team-task-create --text "<task>"`. To hand work to a teammate, run `orca orchestration team-delegate --bot <name> --text "<task>"`.'
     ].join(' ')
   ].join('\n\n')
 }
@@ -44,7 +44,7 @@ export async function startBotTeamTask(
     accessMode: team.accessMode
   })
   // Linked only once delivered: an undelivered request must keep the task in Todo, with Start.
-  if (!(await deps.sendPrompt(sessionId, taskPrompt(team, bot, task)))) {
+  if (!(await deps.sendPrompt(sessionId, botTeamTaskPrompt(team, bot, task)))) {
     throw new Error(`The request for task ${task.id} did not reach the bot.`)
   }
   return deps.linkSession(task.id, sessionId)
