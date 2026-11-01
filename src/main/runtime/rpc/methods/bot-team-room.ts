@@ -10,11 +10,17 @@ import {
   type BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import { chooseBotTeamLead } from '../../../../shared/bot-team-lead-selection'
+import {
+  buildBotTeamLeadPrompt,
+  parseBotTeamLeadReply
+} from '../../../../shared/bot-team-lead-query'
 import { BOT_TEAMS_FOLDER_NAME } from '../../../../shared/bot-team-folder'
 import { botTeamTaskTitle, routeBotTeamRequest } from '../../../../shared/bot-team-request-route'
 import { createStructuredAgentSessionId } from '../../../../shared/structured-agent-session-create'
 import { createStructuredAgentSessionOperationId } from '../../../../shared/structured-agent-session-mutation'
 import { folderWorkspaceKey } from '../../../../shared/workspace-scope'
+import { askDefaultAgentForBotTeamLead } from '../../../bot-teams/bot-team-lead-query'
 import { startBotTeamTask } from '../../../bot-teams/bot-team-task-start'
 import { getStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
 import { defineMethod, type RpcContext } from '../core'
@@ -104,6 +110,36 @@ async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeam
   )
 }
 
+/** One query over the bots' descriptions on the Settings default agent; ties go to the least busy. */
+async function chooseLeadByDescription(
+  ctx: RpcContext,
+  team: BotTeam,
+  text: string
+): Promise<BotTeam['bots'][number] | null> {
+  if (team.bots.length < 2) {
+    return null
+  }
+  const reply = await askDefaultAgentForBotTeamLead({
+    prompt: buildBotTeamLeadPrompt(team, team.bots, text),
+    settings: ctx.runtime.getClientSettings(),
+    getAgentEnvResolvers: () => ctx.runtime.getCommitMessageAgentEnvironmentResolvers()
+  })
+  if (reply === null) {
+    return null
+  }
+  const activeTasksByBot: Record<string, number> = {}
+  for (const task of ctx.runtime.getOrchestrationDb().listBotTeamTasks(team.id)) {
+    if (task.sessionId !== null) {
+      activeTasksByBot[task.ownerBotId] = (activeTasksByBot[task.ownerBotId] ?? 0) + 1
+    }
+  }
+  return chooseBotTeamLead({
+    matchedBotIds: parseBotTeamLeadReply(reply, team.bots),
+    bots: team.bots,
+    activeTasksByBot
+  })
+}
+
 export const BOT_TEAM_ROOM_METHODS = [
   defineMethod({
     name: 'botTeams.listRoom',
@@ -135,7 +171,10 @@ export const BOT_TEAM_ROOM_METHODS = [
       const db = ctx.runtime.getOrchestrationDb()
       const message = db.postBotTeamMessage({ teamId, text, authorBotId: null })
       const bots = db.listBotTeams().find((entry) => entry.id === teamId)?.bots ?? []
-      const lead = routeBotTeamRequest(text, bots)
+      const team = db.listBotTeams().find((entry) => entry.id === teamId)
+      const lead =
+        routeBotTeamRequest(text, bots) ??
+        (team ? await chooseLeadByDescription(ctx, team, text) : null)
       if (!lead) {
         return { message, task: null, startError: null }
       }
