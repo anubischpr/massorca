@@ -222,7 +222,7 @@ describe('SshSftpFilesystemProvider', () => {
     sftp.nodes.set('/d', { kind: 'dir' })
     sftp.nodes.set('/d/x', { kind: 'file', content: Buffer.from('x') })
     await expect(provider.deletePath('/d', true)).rejects.toThrow(
-      'Deleting a non-empty folder needs the Orca remote server'
+      'Deleting a non-empty folder needs the MassOrca remote server'
     )
     await provider.deletePath('/d/x')
     await provider.deletePath('/d')
@@ -232,7 +232,7 @@ describe('SshSftpFilesystemProvider', () => {
   it('refuses relay-only features with the classified reason', async () => {
     const { provider } = createProvider()
     await expect(provider.watch()).rejects.toThrow('(home_noexec)')
-    await expect(provider.search()).rejects.toThrow('Search needs the Orca remote server')
+    await expect(provider.search()).rejects.toThrow('Search needs the MassOrca remote server')
     await expect(provider.listFiles()).rejects.toThrow('Quick Open')
     await expect(provider.copy()).rejects.toThrow('Copying files')
     await expect(provider.supportsQuickOpenSearch()).resolves.toBe(false)

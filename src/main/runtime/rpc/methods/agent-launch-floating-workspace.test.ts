@@ -2,6 +2,7 @@ import { homedir } from 'node:os'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
 import { OrcaRuntimeService } from '../../orca-runtime'
+import { structuredAgentRuntimeRegistration } from '../../structured-agent-runtime-registrations'
 import type { ResolvedWorktree } from '../../runtime-worktree-path-identity'
 import { AGENT_LAUNCH_METHODS } from './agent-launch'
 import { CAPABLE_CLIENT, methodNamed, STRUCTURED_PREFERENCE } from './agent-launch.test-fixture'
@@ -24,8 +25,22 @@ vi.mock('electron', () => ({
   app: { getPath: vi.fn(() => '/tmp') }
 }))
 
+vi.mock('../../../startup/login-shell-environment', () => ({
+  resolveLoginShellEnvironment: async () => ({})
+}))
+
 const launch = methodNamed(AGENT_LAUNCH_METHODS, 'agent.launch')
 const selectors = [FLOATING_TERMINAL_WORKTREE_ID, `id:${FLOATING_TERMINAL_WORKTREE_ID}`]
+
+/** A runtime whose store answers the reads a Codex create check makes, with the CLI pinned installed
+ *  so only the floating workspace's location decides. */
+function runtimeWithCodexInstalled(): OrcaRuntimeService {
+  vi.spyOn(structuredAgentRuntimeRegistration('codex')!, 'supportsLaunch').mockResolvedValue(true)
+  return new OrcaRuntimeService(
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the create check reads only settings and repo lookups from the store.
+    { getSettings: () => ({ agentDefaultEnv: {} }), getRepo: () => undefined } as never
+  )
+}
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -75,7 +90,7 @@ describe('agent.launch with the real floating workspace resolver', () => {
   // Why here: the runtime resolvers this crosses are @ts-nocheck, so only a call that runs them
   // proves the floating workspace resolves to a location a structured session can be filed under.
   it.each(selectors)('supports a structured session for %s on the local host', async (selector) => {
-    const runtime = new OrcaRuntimeService()
+    const runtime = runtimeWithCodexInstalled()
 
     await expect(
       runtime.getStructuredAgentSessionCreateSupport(selector, 'codex')
@@ -86,7 +101,7 @@ describe('agent.launch with the real floating workspace resolver', () => {
 
   describe.each([true, false])('structured preference %s', (structuredPreference) => {
     it.each(selectors)('routes %s by preference, not by workspace kind', async (selector) => {
-      const runtime = new OrcaRuntimeService()
+      const runtime = runtimeWithCodexInstalled()
       vi.spyOn(runtime, 'getClientSettings').mockReturnValue(
         // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the launch reads only these preferences and optional agentCmdOverrides; no other settings consumer runs because terminal creation is stubbed.
         {

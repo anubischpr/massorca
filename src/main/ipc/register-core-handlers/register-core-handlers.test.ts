@@ -267,6 +267,10 @@ vi.mock('../shell', () => ({
   registerShellHandlers: registerShellHandlersMock
 }))
 
+vi.mock('../prototype-capture', () => ({
+  registerPrototypeCaptureHandlers: vi.fn()
+}))
+
 vi.mock('../pet', () => ({
   registerPetHandlers: registerPetHandlersMock
 }))

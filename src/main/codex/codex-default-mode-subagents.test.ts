@@ -218,10 +218,11 @@ describe('Codex default-mode helpers', () => {
       })
     ])
 
-    // While the helper runs, its command is the helper's work, not the session's own.
+    // While the helper runs, its command is the helper's work, listed beside its agent row.
     run.send(helperShell('item/started'))
     expect(run.strip()).toEqual([
-      { id: `codex-agent:${HELPER}`, kind: 'agent', description: LABEL }
+      { id: `codex-agent:${HELPER}`, kind: 'agent', description: LABEL },
+      expect.objectContaining({ kind: 'command', description: `${LABEL} — ${COMMAND}` })
     ])
     expect(run.commands()).toEqual([
       expect.objectContaining({
@@ -233,8 +234,10 @@ describe('Codex default-mode helpers', () => {
     expect(run.agents()[0]?.operation).toMatchObject({ toolName: 'Bash', input: COMMAND })
 
     run.send(helperShell('item/completed'))
-    // A finished command leaves no record behind.
-    expect(run.commands()).toEqual([])
+    // A helper's finished command stays as a settled row under its agent.
+    expect(run.commands()).toEqual([
+      expect.objectContaining({ membership: 'settled', outcome: 'succeeded', description: COMMAND })
+    ])
 
     run.send(helperReply, turn('turn/completed', HELPER, HELPER_TURN))
     expect(run.agents()).toEqual([
@@ -353,7 +356,8 @@ describe('Codex default-mode helpers', () => {
     ])
     // Its command is the helper's, not a bare command of the session's own.
     expect(run.strip()).toEqual([
-      { id: `codex-agent:${HELPER}`, kind: 'agent', description: LABEL }
+      { id: `codex-agent:${HELPER}`, kind: 'agent', description: LABEL },
+      expect.objectContaining({ kind: 'command', description: `${LABEL} — ${COMMAND}` })
     ])
     expect(run.rosterRows()).toEqual([
       expect.objectContaining({
@@ -503,14 +507,20 @@ describe('a helper whose spawn was never seen', () => {
       turn('turn/started', HELPER, HELPER_TURN),
       helperShell('item/started')
     )
-    expect(run.strip()).toEqual([])
+    // Unregistered, it is a bare command, but a non-root thread's command is background work from its start.
+    expect(run.strip()).toEqual([
+      expect.objectContaining({ kind: 'command', description: COMMAND })
+    ])
     expect(run.commands()).toEqual([
-      expect.objectContaining({ membership: 'live', residency: 'foreground' })
+      expect.objectContaining({ membership: 'live', residency: 'background' })
     ])
 
     run.send(sendInput)
     // No spawn named it, so it reads as any unnamed subagent does.
-    expect(run.strip()).toEqual([{ id: `codex-agent:${HELPER}`, kind: 'agent' }])
+    expect(run.strip()).toEqual([
+      { id: `codex-agent:${HELPER}`, kind: 'agent' },
+      expect.objectContaining({ kind: 'command' })
+    ])
     expect(run.agents()).toEqual([
       expect.objectContaining({ membership: 'live', state: 'working' })
     ])

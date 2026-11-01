@@ -138,7 +138,7 @@ describe('CodexHookService', () => {
 
     expect(status).toMatchObject({
       state: 'error',
-      detail: expect.stringContaining('defines hook approvals in a form Orca cannot add to')
+      detail: expect.stringContaining('defines hook approvals in a form MassOrca cannot add to')
     })
     const managedToml = join(homes.userDataDir, 'codex-runtime-home', 'home', 'config.toml')
     expect(readFileSync(managedToml, 'utf-8')).not.toContain('[hooks.state.')

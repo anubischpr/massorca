@@ -246,10 +246,7 @@ describe('OrcaRuntimeService', () => {
     const runtime = new OrcaRuntimeService(store)
     const activateWorktree = vi.fn()
     const revealTerminalSession = vi.fn().mockResolvedValue({ tabId: 'tab-created-worktree' })
-    const spawn = vi
-      .fn()
-      .mockResolvedValueOnce({ id: 'pty-primary' })
-      .mockResolvedValueOnce({ id: 'pty-setup' })
+    const spawn = vi.fn().mockResolvedValueOnce({ id: 'pty-setup' })
     runtime.setPtyController({
       spawn,
       write: () => true,
@@ -320,17 +317,9 @@ describe('OrcaRuntimeService', () => {
     })
     expect(result.setup).toBeUndefined()
     expect(activateWorktree).not.toHaveBeenCalled()
-    await vi.waitFor(() => expect(spawn).toHaveBeenCalledTimes(2))
+    await vi.waitFor(() => expect(spawn).toHaveBeenCalledTimes(1))
     expect(spawn).toHaveBeenNthCalledWith(
       1,
-      expect.objectContaining({
-        cwd: '/tmp/workspaces/runtime-hook-skip',
-        command: undefined,
-        worktreeId: result.worktree.id
-      })
-    )
-    expect(spawn).toHaveBeenNthCalledWith(
-      2,
       expect.objectContaining({
         cwd: '/tmp/workspaces/runtime-hook-skip',
         command: 'bash /tmp/repo/.git/orca/setup-runner.sh',
@@ -346,7 +335,7 @@ describe('OrcaRuntimeService', () => {
       })
     )
     const setupSpawnEnv =
-      (spawn.mock.calls[1]?.[0] as { env?: Record<string, string> } | undefined)?.env ?? {}
+      (spawn.mock.calls[0]?.[0] as { env?: Record<string, string> } | undefined)?.env ?? {}
     expectStablePaneKeyEnv(setupSpawnEnv)
     const setupLeafId = setupSpawnEnv.ORCA_PANE_KEY.slice(`${setupSpawnEnv.ORCA_TAB_ID}:`.length)
     // Why: a background CLI create adopts its tabs silently — surfaceOwner:false
@@ -365,10 +354,7 @@ describe('OrcaRuntimeService', () => {
     setPlatform('win32')
     const runtime = new OrcaRuntimeService(store)
     const revealTerminalSession = vi.fn().mockResolvedValue({ tabId: 'tab-created-worktree' })
-    const spawn = vi
-      .fn()
-      .mockResolvedValueOnce({ id: 'pty-primary' })
-      .mockResolvedValueOnce({ id: 'pty-setup' })
+    const spawn = vi.fn().mockResolvedValueOnce({ id: 'pty-setup' })
     runtime.setPtyController({
       spawn,
       write: () => true,
@@ -423,9 +409,9 @@ describe('OrcaRuntimeService', () => {
     })
 
     expect(result.setup).toBeUndefined()
-    await vi.waitFor(() => expect(spawn).toHaveBeenCalledTimes(2))
+    await vi.waitFor(() => expect(spawn).toHaveBeenCalledTimes(1))
     expect(spawn).toHaveBeenNthCalledWith(
-      2,
+      1,
       expect.objectContaining({
         command: 'bash /mnt/c/repo/.git/orca/setup-runner.sh',
         env: expect.objectContaining({
@@ -447,10 +433,7 @@ describe('OrcaRuntimeService', () => {
     setPlatform('win32')
     const runtime = new OrcaRuntimeService(store)
     const revealTerminalSession = vi.fn().mockResolvedValue({ tabId: 'tab-windowless' })
-    const spawn = vi
-      .fn()
-      .mockResolvedValueOnce({ id: 'pty-primary' })
-      .mockResolvedValueOnce({ id: 'pty-setup' })
+    const spawn = vi.fn().mockResolvedValueOnce({ id: 'pty-setup' })
     runtime.setPtyController({
       spawn,
       write: () => true,
@@ -516,9 +499,9 @@ describe('OrcaRuntimeService', () => {
     )
     expect(runHook).not.toHaveBeenCalled()
     expect(result.setupReceipt).toMatchObject({ state: 'running' })
-    await vi.waitFor(() => expect(spawn).toHaveBeenCalledTimes(2))
+    await vi.waitFor(() => expect(spawn).toHaveBeenCalledTimes(1))
     expect(spawn).toHaveBeenNthCalledWith(
-      2,
+      1,
       expect.objectContaining({
         command: 'bash /c/repo/.git/orca/setup-runner.sh',
         worktreeId: result.worktree.id

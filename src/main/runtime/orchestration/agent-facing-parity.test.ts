@@ -196,9 +196,17 @@ describe('a chat agent and a terminal agent see the same text but for how each i
 })
 
 describe('the orchestration guide an agent loads', () => {
-  const kernel = readFileSync(join(process.cwd(), 'skill-guides', 'orchestration.md'), 'utf8')
+  const guideText = readFileSync(join(process.cwd(), 'skill-guides', 'orchestration.md'), 'utf8')
+  // The fork's `orchestration delegate` section is chat-only by design; the rest must match main.
+  const DELEGATE_SECTION = /\n## Start a child session from a chat\n[\s\S]*?(?=\n## |$)/
+  const kernel = guideText.replace(DELEGATE_SECTION, '')
 
-  it('has no chat-only section and grows only by the Orca session ID line', () => {
+  it('keeps the chat-only delegate command in its own section', () => {
+    expect(guideText).toMatch(DELEGATE_SECTION)
+    expect(guideText).toContain('orchestration delegate --summary')
+  })
+
+  it('has no other chat-only section and grows only by the Orca session ID line', () => {
     expect(kernel.split('\n').length - 1).toBeLessThanOrEqual(MAIN_KERNEL_LINES)
     expect(kernel).not.toMatch(/chat|session:<id>|ORCA_CLI_COMMAND|\/clear|end your turn/i)
     expect(kernel).toContain(

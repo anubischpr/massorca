@@ -93,7 +93,12 @@ describe.skipIf(process.platform === 'win32')('OMP create check and launch, real
     expect(await structuredAgentSupportsLaunch('omp', 'id:w', runtimeWith(settings))).toBe(true)
     const launch = await launchWith(settings)
     expect(launch.command).toBe(join(privateBin, 'omp'))
-    expect(launch.args).toEqual(['acp'])
+    // The fork appends its child-session instructions to the OMP system prompt.
+    expect(launch.args).toEqual([
+      'acp',
+      '--append-system-prompt',
+      expect.stringContaining('orca orchestration delegate')
+    ])
   })
 
   it('asks the OMP the per-agent PATH names, not the one first on the shell PATH', async () => {

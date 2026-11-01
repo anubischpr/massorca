@@ -212,7 +212,7 @@ describe('a chat as the assignee of orchestration dispatch', () => {
 
     expect(error).toMatchObject({
       code: 'terminal_is_coordinator',
-      message: expect.stringContaining("is this coordinator's own Orca session ID")
+      message: expect.stringContaining("is this coordinator's own MassOrca session ID")
     })
     expect(dispatchCount()).toEqual({ n: 0 })
     expect(db.getTask(taskId)?.status).toBe('ready')

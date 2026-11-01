@@ -51,6 +51,8 @@ describe('web preload API composition', () => {
       'memory',
       'aiVault',
       'preflight',
+      'projectlessChats',
+      'worktreeSetupRuns',
       'notifications',
       'rateLimits',
       'opencodeGoCredentials',

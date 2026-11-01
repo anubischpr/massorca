@@ -329,7 +329,7 @@ describe('a /clear-ed chat is shown the Orca session ID it had before the clear'
       ok: false,
       error: {
         code: CODES.providerId,
-        message: expect.stringContaining(`This session's Orca session ID is ${ADDRESS_X};`)
+        message: expect.stringContaining(`This session's MassOrca session ID is ${ADDRESS_X};`)
       }
     })
   })

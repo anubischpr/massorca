@@ -9,6 +9,11 @@ import { join } from 'node:path'
 import { OrcaRuntimeService } from './orca-runtime'
 import { structuredAgentRuntimeRegistration } from './structured-agent-runtime-registrations'
 
+// The CLI check reads the host shell environment; the seam under test is the location rule.
+vi.mock('../startup/login-shell-environment', () => ({
+  resolveLoginShellEnvironment: async () => ({})
+}))
+
 afterEach(() => vi.restoreAllMocks())
 
 const LOCAL = {
@@ -28,6 +33,7 @@ function runtimeAt(location = LOCAL, settings: Record<string, unknown> = { agent
   })
   Object.assign(runtime, {
     resolveStructuredAgentSessionLocation: vi.fn(async () => location),
+    resolveRuntimeFileTarget: vi.fn(async () => ({ worktree: { path: tmpdir() } })),
     ensureStructuredAgentSessionHost: installHost
   })
   return { runtime, installHost }
@@ -36,6 +42,8 @@ function runtimeAt(location = LOCAL, settings: Record<string, unknown> = { agent
 describe('the structured agent registration list', () => {
   it("answers createSupport from the agent's own location rule", async () => {
     const codex = structuredAgentRuntimeRegistration('codex')!
+    // Codex is offered only where its CLI resolves; pin that so only the location rule decides.
+    vi.spyOn(codex, 'supportsLaunch').mockResolvedValue(true)
     const { runtime, installHost } = runtimeAt()
     expect(await runtime.getStructuredAgentSessionCreateSupport('id:workspace-1', 'codex')).toEqual(
       { supported: true }

@@ -634,7 +634,7 @@ describe('OrcaRuntimeService', () => {
     try {
       await expect(
         createRuntime().cloneRepo('https://github.com/me/orca.git', destination)
-      ).rejects.toThrow('"orca" is already an Orca project')
+      ).rejects.toThrow('"orca" is already a MassOrca project')
       expect(spawnSpy).not.toHaveBeenCalled()
     } finally {
       getReposSpy.mockRestore()
