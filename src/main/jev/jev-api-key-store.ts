@@ -36,8 +36,17 @@ export function saveJevApiKey(key: string): void {
   if (!getSecretStore().isEncryptionAvailable()) {
     throw new Error('Jev API key could not be stored securely on this device')
   }
-  // Why the result is ignored: the bytes are ciphertext, so unrestricted file permissions expose nothing.
-  writeSecureFile(apiKeyPath(), getSecretStore().encryptString(trimmed).toString('base64'))
+  // Why captured first: writeSecureFile has replaced the file by the time it reports a failure.
+  const previous = hasJevApiKey() ? readFileSync(apiKeyPath(), 'utf8') : null
+  const sealed = getSecretStore().encryptString(trimmed).toString('base64')
+  if (!writeSecureFile(apiKeyPath(), sealed)) {
+    if (previous === null) {
+      rmSync(apiKeyPath(), { force: true })
+    } else {
+      writeSecureFile(apiKeyPath(), previous)
+    }
+    throw new Error('Jev API key could not be stored securely on this device')
+  }
   cachedApiKey = trimmed
 }
 

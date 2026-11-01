@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { setSecretStore, type SecretStore } from '../../shared/secret-store'
+import type * as SecureFile from '../../shared/secure-file'
 import {
   clearJevApiKey,
   hasJevApiKey,
@@ -14,6 +15,16 @@ import {
 
 const KEY = 'test-jev-plain-key'
 const fakeHome = vi.hoisted(() => ({ path: '' }))
+const secureWrite = vi.hoisted(() => ({ restricted: true }))
+
+vi.mock('../../shared/secure-file', async (importOriginal) => {
+  const actual = await importOriginal<typeof SecureFile>()
+  return {
+    ...actual,
+    writeSecureFile: (...args: Parameters<typeof actual.writeSecureFile>) =>
+      actual.writeSecureFile(...args) && secureWrite.restricted
+  }
+})
 
 vi.mock('node:os', async (importOriginal) => ({
   ...(await importOriginal<typeof NodeOs>()),
@@ -33,6 +44,7 @@ function installSecretStore(available: boolean): void {
 describe('jev-api-key-store', () => {
   beforeEach(() => {
     fakeHome.path = mkdtempSync(join(tmpdir(), 'jev-key-'))
+    secureWrite.restricted = true
     installSecretStore(true)
   })
 
@@ -57,6 +69,27 @@ describe('jev-api-key-store', () => {
     expect(() => saveJevApiKey(KEY)).toThrow('could not be stored securely')
     expect(existsSync(join(fakeHome.path, '.orca', 'jev-api-key.enc'))).toBe(false)
     expect(readJevApiKey()).toBeNull()
+  })
+
+  it('reports a failed secure write, leaving no file when none existed', () => {
+    secureWrite.restricted = false
+
+    expect(() => saveJevApiKey(KEY)).toThrow('could not be stored securely')
+
+    expect(hasJevApiKey()).toBe(false)
+    expect(readJevApiKey()).toBeNull()
+  })
+
+  it('keeps the previous key when a later secure write fails', () => {
+    saveJevApiKey(KEY)
+    secureWrite.restricted = false
+
+    expect(() => saveJevApiKey('test-jev-other-key')).toThrow('could not be stored securely')
+
+    expect(readJevApiKey()).toBe(KEY)
+    expect(readFileSync(join(fakeHome.path, '.orca', 'jev-api-key.enc'), 'utf8')).toBe(
+      Buffer.from(`sealed:${KEY}`).toString('base64')
+    )
   })
 
   it('rejects an empty or multi-line key', () => {
