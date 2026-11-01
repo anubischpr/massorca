@@ -15,6 +15,12 @@ import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { AddBotDialog } from './AddBotDialog'
 import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
 import { BotTeamHostPicker } from './BotTeamHostPicker'
+import {
+  BotTeamBoard,
+  BotTeamProjectBoard,
+  NewBotProjectForm,
+  useTeamWork
+} from './BotTeamProjectViews'
 import { BotTeamRoom } from './BotTeamRoom'
 import { NewBotTeamForm } from './NewBotTeamForm'
 import { useBotTeams, type BotTeamsState } from './use-bot-teams'
@@ -34,6 +40,12 @@ function TeamDetail({
   const [editingBotId, setEditingBotId] = useState<string | null>(null)
   const editingBot = team.bots.find((bot) => bot.id === editingBotId)
   const [openTaskId, setOpenTaskId] = useState<string | null>(null)
+  // Until the shell's sidebar routes here, the team's own column reaches these views.
+  const [view, setView] = useState<
+    { name: 'room' } | { name: 'board' } | { name: 'newProject' } | { name: 'project'; id: string }
+  >({ name: 'room' })
+  const { projects } = useTeamWork(team.id, view.name)
+  const toRoom = (): void => setView({ name: 'room' })
   // A task's thread is a full chat, so it takes the page rather than the team's column.
   if (openTaskId !== null) {
     return (
@@ -42,6 +54,28 @@ function TeamDetail({
         openTaskId={openTaskId}
         onOpenTask={setOpenTaskId}
         offline={offline}
+      />
+    )
+  }
+  if (view.name === 'board') {
+    return <BotTeamBoard team={team} onBack={toRoom} onOpenTask={setOpenTaskId} />
+  }
+  if (view.name === 'newProject') {
+    return (
+      <NewBotProjectForm
+        team={team}
+        onCancel={toRoom}
+        onCreated={(project) => setView({ name: 'project', id: project.id })}
+      />
+    )
+  }
+  if (view.name === 'project') {
+    return (
+      <BotTeamProjectBoard
+        team={team}
+        projectId={view.id}
+        onBack={toRoom}
+        onOpenTask={setOpenTaskId}
       />
     )
   }
@@ -65,6 +99,33 @@ function TeamDetail({
       <div className="flex min-h-0 flex-1">
         <BotTeamRoom team={team} openTaskId={null} onOpenTask={setOpenTaskId} offline={offline} />
         <aside className="scrollbar-sleek flex w-[280px] shrink-0 flex-col gap-2 overflow-y-auto border-l border-border p-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="justify-start"
+            onClick={() => setView({ name: 'board' })}
+          >
+            {translate('components.botTeams.board', 'Board')}
+          </Button>
+          {projects.map((project) => (
+            <Button
+              key={project.id}
+              variant="ghost"
+              size="sm"
+              className="justify-start"
+              onClick={() => setView({ name: 'project', id: project.id })}
+            >
+              {project.name}
+            </Button>
+          ))}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="justify-start"
+            onClick={() => setView({ name: 'newProject' })}
+          >
+            {translate('components.botTeams.newProject', 'New project')}
+          </Button>
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium">{translate('components.botTeams.bots', 'Bots')}</h2>
             <Button

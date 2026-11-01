@@ -2,6 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowUp, ChevronLeft, Play } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { AgentIcon } from '@/lib/agent-catalog'
 import NativeChatView from '@/components/native-chat/NativeChatView'
@@ -10,6 +17,7 @@ import { translate } from '@/i18n/i18n'
 import {
   listBotTeamRoom,
   postBotTeamRequest,
+  setBotTeamTaskProject,
   startBotTeamTask
 } from '@/runtime/runtime-bot-team-client'
 import { botTeamTaskStatus, type BotTeamTaskStatus } from '../../../../shared/bot-team-task-status'
@@ -17,9 +25,12 @@ import { structuredAgentSessionTabId } from '../../../../shared/structured-agent
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type {
   BotTeamMessage,
+  BotTeamProject,
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
+
+const NO_PROJECT = 'none'
 
 function statusLabel(status: BotTeamTaskStatus): string {
   switch (status) {
@@ -95,6 +106,7 @@ export function BotTeamRoom({
 }): React.JSX.Element {
   const [messages, setMessages] = useState<BotTeamMessage[]>([])
   const [tasks, setTasks] = useState<BotTeamTask[]>([])
+  const [projects, setProjects] = useState<BotTeamProject[]>([])
   const [text, setText] = useState('')
   const [needsLead, setNeedsLead] = useState(false)
   const statuses = useBotTeamSessionStatuses()
@@ -105,6 +117,7 @@ export function BotTeamRoom({
       (room) => {
         setMessages(room.messages)
         setTasks(room.tasks)
+        setProjects(room.projects ?? [])
       },
       (error: unknown) => toast.error(String(error))
     )
@@ -141,6 +154,15 @@ export function BotTeamRoom({
     }
   }
 
+  const moveTask = async (taskId: string, next: string): Promise<void> => {
+    try {
+      await setBotTeamTaskProject(taskId, next === NO_PROJECT ? null : next)
+      reload()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error))
+    }
+  }
+
   const openTask = tasks.find((task) => task.id === openTaskId)
   const openAgent = botOf(openTask?.ownerBotId ?? null)?.agent
   if (openTask && openAgent) {
@@ -171,6 +193,30 @@ export function BotTeamRoom({
             ? translate('components.botTeams.cannotConfirm', ', can’t confirm now')
             : ''}
         </span>
+        {projects.length > 0 ? (
+          <Select
+            value={task.projectId ?? NO_PROJECT}
+            disabled={offline}
+            onValueChange={(next) => void moveTask(task.id, next)}
+          >
+            <SelectTrigger
+              size="sm"
+              aria-label={translate('components.botTeams.projectForTask', 'Project for this task')}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_PROJECT}>
+                {translate('components.botTeams.noProject', 'No project')}
+              </SelectItem>
+              {projects.map((project) => (
+                <SelectItem key={project.id} value={project.id}>
+                  {project.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
         {task.sessionId === null ? (
           <Button
             variant="outline"

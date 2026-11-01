@@ -4,7 +4,11 @@ import type {
   BotTeamCreateInput,
   BotTeamUpdateInput
 } from '../../../shared/rpc-contract/bot-team-params'
-import type { BotTeamMessage, BotTeamTask } from '../../../shared/rpc-contract/bot-team-room-params'
+import type {
+  BotTeamMessage,
+  BotTeamProject,
+  BotTeamTask
+} from '../../../shared/rpc-contract/bot-team-room-params'
 import { botTeamHostTarget, currentBotTeamHost } from './bot-team-host'
 import { callRuntimeRpc } from './runtime-rpc-client'
 
@@ -15,8 +19,23 @@ function call<TResult>(method: string, params?: unknown): Promise<TResult> {
 
 export function listBotTeamRoom(
   teamId: string
-): Promise<{ tasks: BotTeamTask[]; messages: BotTeamMessage[] }> {
+): Promise<{ tasks: BotTeamTask[]; messages: BotTeamMessage[]; projects?: BotTeamProject[] }> {
   return call('botTeams.listRoom', { teamId })
+}
+
+export async function createBotTeamProject(input: {
+  teamId: string
+  name: string
+  goal: string
+}): Promise<BotTeamProject> {
+  return (await call<{ project: BotTeamProject }>('botTeams.createProject', input)).project
+}
+
+export async function setBotTeamTaskProject(
+  taskId: string,
+  projectId: string | null
+): Promise<BotTeamTask> {
+  return (await call<{ task: BotTeamTask }>('botTeams.setTaskProject', { taskId, projectId })).task
 }
 
 export function postBotTeamRequest(input: {
