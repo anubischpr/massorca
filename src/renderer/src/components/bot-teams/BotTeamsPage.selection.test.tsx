@@ -45,8 +45,17 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 vi.mock('./use-bot-team-task-status', () => ({ useBotTeamSessionStatuses: () => new Map() }))
 vi.mock('@/components/sidebar/StatusIndicator', () => ({ default: () => null }))
 vi.mock('./BotTeamRoom', () => ({
-  BotTeamRoom: ({ openTaskId }: { openTaskId: string | null }) => (
-    <div data-testid="room">{openTaskId ?? 'room'}</div>
+  BotTeamRoom: ({
+    openTaskId,
+    header
+  }: {
+    openTaskId: string | null
+    header?: React.ReactNode
+  }) => (
+    <div>
+      {header}
+      <div data-testid="room">{openTaskId ?? 'room'}</div>
+    </div>
   )
 }))
 
