@@ -63,7 +63,8 @@ const TASK = {
   title: 'Flyer',
   prompt: '',
   ownerBotId: 'bot',
-  sessionId: null as string | null
+  sessionId: null as string | null,
+  projectId: null
 }
 
 function hostAnswering(room: object, post: object = {}) {

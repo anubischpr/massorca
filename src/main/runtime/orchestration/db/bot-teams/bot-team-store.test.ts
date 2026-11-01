@@ -164,7 +164,9 @@ describe('bot team store', () => {
 
   it('adds the tables to a database from the previous version and keeps its rows', () => {
     db = new OrchestrationDb(':memory:')
-    db.db.exec('DROP TABLE bot_team_bots; DROP TABLE bot_teams;')
+    db.db.exec(
+      'DROP TABLE bot_team_task_delegations; DROP TABLE bot_team_workspaces; DROP TABLE bot_team_messages; DROP TABLE bot_team_tasks; DROP TABLE bot_team_projects; DROP TABLE bot_team_bots; DROP TABLE bot_teams;'
+    )
     db.db.pragma('user_version = 43')
 
     db.migrate()

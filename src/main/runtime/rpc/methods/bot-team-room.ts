@@ -5,7 +5,9 @@ import path from 'node:path'
 import {
   BotTeamMessagePost,
   BotTeamRoomSelector,
+  BotTeamProjectCreate,
   BotTeamTaskCreate,
+  BotTeamTaskSetProject,
   BotTeamTaskStart,
   type BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
@@ -158,6 +160,7 @@ export const BOT_TEAM_ROOM_METHODS = [
       return {
         tasks: db.listBotTeamTasks(teamId),
         messages: db.listBotTeamMessages(teamId),
+        projects: db.listBotTeamProjects(teamId),
         // Null until a task starts; a client opens a task's session in this workspace.
         workspaceId: db.getBotTeamWorkspace(teamId)
       }
@@ -201,6 +204,23 @@ export const BOT_TEAM_ROOM_METHODS = [
         // The request is kept: the task waits in Todo and can be started again.
         return { message, task, startError: error instanceof Error ? error.message : String(error) }
       }
+    }
+  }),
+  defineMethod({
+    name: 'botTeams.createProject',
+    permission: 'workspace',
+    params: BotTeamProjectCreate,
+    handler: (params, { runtime }) => ({
+      project: runtime.getOrchestrationDb().createBotTeamProject(params)
+    })
+  }),
+  defineMethod({
+    name: 'botTeams.setTaskProject',
+    permission: 'workspace',
+    params: BotTeamTaskSetProject,
+    handler: ({ taskId, projectId }, { runtime }) => {
+      runtime.getOrchestrationDb().setBotTeamTaskProject(taskId, projectId)
+      return { task: runtime.getOrchestrationDb().getBotTeamTask(taskId) }
     }
   }),
   defineMethod({

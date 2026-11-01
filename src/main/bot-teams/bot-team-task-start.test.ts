@@ -29,7 +29,8 @@ const TASK: BotTeamTask = {
   title: 'Flyer',
   prompt: 'Design the flyer',
   ownerBotId: 'bot',
-  sessionId: null
+  sessionId: null,
+  projectId: null
 }
 
 function deps(overrides: Partial<BotTeamTaskStartDeps> = {}): BotTeamTaskStartDeps {

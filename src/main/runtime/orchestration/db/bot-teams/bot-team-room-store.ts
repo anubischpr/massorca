@@ -11,7 +11,7 @@ import { generateId } from '../generated-id'
 import type { OrchestrationDb } from '../orchestration-db'
 
 const TASK_SELECT =
-  'SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId, session_id AS sessionId FROM bot_team_tasks'
+  'SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId, session_id AS sessionId, project_id AS projectId FROM bot_team_tasks'
 const MESSAGE_SELECT =
   'SELECT id, team_id AS teamId, author_bot_id AS authorBotId, text FROM bot_team_messages'
 

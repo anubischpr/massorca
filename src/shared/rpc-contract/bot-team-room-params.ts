@@ -8,7 +8,27 @@ export const BotTeamTaskSchema = z.object({
   prompt: z.string(),
   ownerBotId: z.string(),
   /** Null until the task starts: it waits in Todo with no agent working on it. */
-  sessionId: z.string().nullable()
+  sessionId: z.string().nullable(),
+  // The default reads a host from before projects existed.
+  projectId: z.string().nullable().default(null)
+})
+
+export const BotTeamProjectSchema = z.object({
+  id: z.string(),
+  teamId: z.string(),
+  name: z.string(),
+  goal: z.string()
+})
+
+export const BotTeamProjectCreate = z.object({
+  teamId: requiredString('Missing team id'),
+  name: requiredString('Missing project name'),
+  goal: z.string().trim().default('')
+})
+
+export const BotTeamTaskSetProject = z.object({
+  taskId: requiredString('Missing task id'),
+  projectId: z.string().min(1).nullable()
 })
 
 export const BotTeamMessageSchema = z.object({
@@ -42,6 +62,8 @@ export const BotTeamTaskStart = z.object({
 })
 
 export type BotTeamTask = z.output<typeof BotTeamTaskSchema>
+export type BotTeamProject = z.output<typeof BotTeamProjectSchema>
+export type BotTeamProjectInput = z.output<typeof BotTeamProjectCreate>
 export type BotTeamMessage = z.output<typeof BotTeamMessageSchema>
 export type BotTeamTaskInput = z.output<typeof BotTeamTaskCreate>
 export type BotTeamMessageInput = {

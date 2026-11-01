@@ -146,6 +146,7 @@ export function deleteBotTeam(this: OrchestrationDb, teamId: string): void {
     this.db.prepare('DELETE FROM bot_team_workspaces WHERE team_id = ?').run(teamId)
     this.db.prepare('DELETE FROM bot_team_messages WHERE team_id = ?').run(teamId)
     this.db.prepare('DELETE FROM bot_team_tasks WHERE team_id = ?').run(teamId)
+    this.db.prepare('DELETE FROM bot_team_projects WHERE team_id = ?').run(teamId)
     this.db.prepare('DELETE FROM bot_team_bots WHERE team_id = ?').run(teamId)
     this.db.prepare('DELETE FROM bot_teams WHERE id = ?').run(teamId)
   })
