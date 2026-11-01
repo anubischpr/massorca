@@ -22,6 +22,8 @@ import {
   type MobileBotTeamList
 } from './mobile-bot-team-rpc'
 
+const HOST_CHECK_MS = 20_000
+
 type Screen =
   | { name: 'home' }
   | { name: 'settings' }
@@ -63,17 +65,23 @@ export function MobileBotTeamsScreen({
 }) {
   const { client } = useHostClient(hostId)
   const [list, setList] = useState<MobileBotTeamList | null>(null)
+  const [unreachable, setUnreachable] = useState(false)
   const [screen, setScreen] = useState<Screen>({ name: 'home' })
   const [draftBots, setDraftBots] = useState<BotDraftInput[]>([])
 
   const reload = useCallback(async () => {
     if (client !== null) {
-      setList(await listMobileBotTeams(client))
+      const next = await listMobileBotTeams(client)
+      setUnreachable(next.kind === 'failed')
+      // What was last seen stays on screen, marked out of date, rather than disappearing.
+      setList((current) => (next.kind === 'failed' && current?.kind === 'ready' ? current : next))
     }
   }, [client])
 
   useEffect(() => {
     void reload()
+    const timer = setInterval(() => void reload(), HOST_CHECK_MS)
+    return () => clearInterval(timer)
   }, [reload])
 
   useEffect(() => {
@@ -96,6 +104,14 @@ export function MobileBotTeamsScreen({
   const openTeam = screen.name === 'team' ? teams.find((t) => t.id === screen.teamId) : undefined
   const openBotsTeam =
     screen.name === 'teamBots' ? teams.find((t) => t.id === screen.teamId) : undefined
+
+  const notice = unreachable ? (
+    <Pressable accessibilityRole="button" onPress={() => void reload()}>
+      <Text style={styles.message}>
+        Can’t reach this host. Its bots may still be working. Tap to try again.
+      </Text>
+    </Pressable>
+  ) : null
 
   let body
   if (
@@ -177,19 +193,18 @@ export function MobileBotTeamsScreen({
   } else if (client !== null && openTeam && screen.name === 'team') {
     body = (
       <>
-        <SubBar title={openTeam.name} onBack={backHome} />
+        {notice}
         <MobileBotTeamRoom
+          key={openTeam.id}
           client={client}
           team={openTeam}
+          teams={teams}
+          offline={unreachable}
+          onBack={backHome}
+          onPickTeam={(teamId) => setScreen({ name: 'team', teamId })}
+          onOpenBots={() => setScreen({ name: 'teamBots', teamId: openTeam.id })}
           onOpenTask={(workspaceId, task) => onOpenTask(workspaceId, task)}
         />
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setScreen({ name: 'teamBots', teamId: openTeam.id })}
-          style={styles.row}
-        >
-          <Text style={styles.rowTitle}>Bots</Text>
-        </Pressable>
       </>
     )
   } else if (openBotsTeam) {
@@ -286,11 +301,8 @@ export function MobileBotTeamsScreen({
             <Plus size={24} color={colors.textPrimary} />
           </Pressable>
         </View>
-        {list?.kind === 'failed' ? (
-          <Pressable accessibilityRole="button" onPress={() => void reload()}>
-            <Text style={styles.message}>Could not reach this host. Tap to retry.</Text>
-          </Pressable>
-        ) : list?.kind === 'ready' && teams.length === 0 ? (
+        {notice}
+        {list?.kind === 'failed' ? null : list?.kind === 'ready' && teams.length === 0 ? (
           <View style={styles.form}>
             <Users size={28} color={colors.textMuted} />
             <Text style={styles.message}>

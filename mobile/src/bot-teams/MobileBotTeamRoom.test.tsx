@@ -9,10 +9,27 @@ vi.mock('react-native', () => ({
   ScrollView: 'ScrollView',
   StyleSheet: { create: (styles: unknown) => styles },
   Text: 'Text',
-  TextInput: 'TextInput',
   View: 'View'
 }))
+vi.mock('lucide-react-native', () => ({
+  Bot: 'Bot',
+  Check: 'Check',
+  ChevronDown: 'ChevronDown',
+  ChevronLeft: 'ChevronLeft',
+  Ellipsis: 'Ellipsis',
+  MessageSquare: 'MessageSquare'
+}))
 vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
+vi.mock('./MobileBotTeamCharacterIcon', () => ({ MobileBotTeamCharacterIcon: () => null }))
+vi.mock('../components/BottomDrawer', () => ({
+  BottomDrawer: ({ visible, children }: { visible: boolean; children: unknown }) =>
+    visible ? children : null
+}))
+vi.mock('../hooks/use-mobile-dictation', () => ({
+  useMobileDictation: () => ({ isRecording: false, start: vi.fn(), stop: vi.fn() })
+}))
+vi.mock('../session/MobileNativeChatComposer', () => ({ MobileNativeChatComposer: 'Composer' }))
+vi.mock('../session/MobileNativeChatMessage', () => ({ MobileNativeChatMessage: 'ChatMessage' }))
 vi.mock('../session/mobile-structured-session-status-feed', () => ({
   mobileStructuredSessionStatusFeed: () => ({
     subscribe: () => () => {},
@@ -27,7 +44,18 @@ const TEAM = {
   character: 'circle' as const,
   workspacesEnabled: false,
   accessMode: 'full-access' as const,
-  bots: [{ id: 'bot', name: 'Iris', job: '', agent: 'claude' as const }]
+  bots: [
+    {
+      id: 'bot',
+      name: 'Iris',
+      job: '',
+      agent: 'claude' as const,
+      modelMode: 'auto' as const,
+      model: null,
+      effort: null,
+      skills: []
+    }
+  ]
 }
 const TASK = {
   id: 'task',
@@ -47,7 +75,12 @@ function hostAnswering(room: object, post: object = {}) {
   return { sendRequest }
 }
 
-async function render(client: { sendRequest: unknown }, onOpenTask = vi.fn()) {
+async function render(
+  client: { sendRequest: unknown },
+  onOpenTask = vi.fn(),
+  onOpenBots = vi.fn(),
+  onBack = vi.fn()
+) {
   let renderer!: ReactTestRenderer
   await act(async () => {
     renderer = create(
@@ -55,6 +88,10 @@ async function render(client: { sendRequest: unknown }, onOpenTask = vi.fn()) {
         // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: The room only calls sendRequest and the mocked status feed.
         client: client as never,
         team: TEAM,
+        teams: [TEAM],
+        onBack,
+        onPickTeam: vi.fn(),
+        onOpenBots,
         onOpenTask
       })
     )
@@ -73,20 +110,54 @@ const press = async (renderer: ReactTestRenderer, label: string) => {
 }
 
 describe('MobileBotTeamRoom', () => {
-  it('saves a request to Todo without starting a bot', async () => {
+  it('sends through the chat composer and starts the bot', async () => {
     const client = hostAnswering({ tasks: [], messages: [], workspaceId: null })
     const renderer = await render(client)
-    act(() =>
-      renderer.root.findByProps({ accessibilityLabel: 'Message the team' }).props.onChangeText('Hi')
-    )
+    const composer = renderer.root.findByType('Composer' as never)
+    expect(composer.props.placeholder).toBe('Message the team')
 
-    await press(renderer, 'Save to Todo')
+    await act(async () => {
+      await composer.props.onSend('Hi')
+    })
 
     expect(client.sendRequest).toHaveBeenCalledWith(
       'botTeams.postMessage',
-      { teamId: 'team', text: 'Hi', start: false },
+      { teamId: 'team', text: 'Hi', start: true },
       expect.anything()
     )
+  })
+
+  it('reaches the bots from the room menu and goes back', async () => {
+    const client = hostAnswering({ tasks: [], messages: [], workspaceId: null })
+    const onOpenBots = vi.fn()
+    const onBack = vi.fn()
+    const renderer = await render(client, vi.fn(), onOpenBots, onBack)
+
+    await press(renderer, 'Back')
+    expect(onBack).toHaveBeenCalled()
+    await press(renderer, 'Room menu')
+    await press(renderer, 'Bots')
+    expect(onOpenBots).toHaveBeenCalled()
+  })
+
+  it('locks the composer when the host stops answering', async () => {
+    let renderer!: ReactTestRenderer
+    await act(async () => {
+      renderer = create(
+        createElement(MobileBotTeamRoom, {
+          // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: The room only calls sendRequest and the mocked status feed.
+          client: hostAnswering({ tasks: [], messages: [], workspaceId: null }) as never,
+          team: TEAM,
+          teams: [TEAM],
+          offline: true,
+          onBack: vi.fn(),
+          onPickTeam: vi.fn(),
+          onOpenBots: vi.fn(),
+          onOpenTask: vi.fn()
+        })
+      )
+    })
+    expect(renderer.root.findByType('Composer' as never).props.disabled).toBe(true)
   })
 
   it('starts a waiting task and opens a started one in its workspace', async () => {
@@ -109,11 +180,10 @@ describe('MobileBotTeamRoom', () => {
   it('asks who takes a request when the host gives it to no bot', async () => {
     const client = hostAnswering({ tasks: [], messages: [], workspaceId: null }, { task: null })
     const renderer = await render(client)
-    act(() =>
-      renderer.root.findByProps({ accessibilityLabel: 'Message the team' }).props.onChangeText('Hi')
-    )
 
-    await press(renderer, 'Send')
+    await act(async () => {
+      await renderer.root.findByType('Composer' as never).props.onSend('Hi')
+    })
 
     expect(JSON.stringify(renderer.toJSON())).toContain('Who should take this?')
   })

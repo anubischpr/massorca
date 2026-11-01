@@ -15,6 +15,7 @@ import {
 } from '../../../../shared/rpc-contract/bot-team-params'
 import { AddBotDialog } from './AddBotDialog'
 import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
+import { BotTeamHostField } from './BotTeamHostPicker'
 import { firstUnusedBotTeamCharacter } from './bot-team-character-pick'
 
 export function NewBotTeamForm({
@@ -66,6 +67,7 @@ export function NewBotTeamForm({
           {translate('components.botTeams.change', 'Change')}
         </Button>
       </div>
+      <BotTeamHostField />
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="team-purpose">
           {translate('components.botTeams.teamPurpose', 'What is this team for?')}

@@ -84,9 +84,12 @@ function BotTeamTaskThread({
 export function BotTeamRoom({
   team,
   openTaskId,
-  onOpenTask
+  onOpenTask,
+  offline
 }: {
   team: BotTeam
+  /** The host stopped answering: nothing can be sent, and what is shown may be out of date. */
+  offline: boolean
   openTaskId: string | null
   onOpenTask: (taskId: string | null) => void
 }): React.JSX.Element {
@@ -108,6 +111,12 @@ export function BotTeamRoom({
   }, [team.id])
 
   useEffect(reload, [reload])
+  // Catches up on what happened while the host was out of reach.
+  useEffect(() => {
+    if (!offline) {
+      reload()
+    }
+  }, [offline, reload])
 
   const send = async (start: boolean): Promise<void> => {
     try {
@@ -138,7 +147,7 @@ export function BotTeamRoom({
     return <BotTeamTaskThread task={openTask} agent={openAgent} onBack={() => onOpenTask(null)} />
   }
 
-  const empty = text.trim() === ''
+  const empty = offline || text.trim() === ''
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
@@ -199,15 +208,28 @@ export function BotTeamRoom({
                       task.sessionId === null ? undefined : statuses.get(task.sessionId)
                     )
                   )}
+                  {offline && task.sessionId !== null
+                    ? translate('components.botTeams.cannotConfirm', ', can’t confirm now')
+                    : ''}
                 </div>
               </div>
               {task.sessionId === null ? (
-                <Button variant="outline" size="sm" onClick={() => void startTask(task.id)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={offline}
+                  onClick={() => void startTask(task.id)}
+                >
                   <Play className="size-3.5" />
                   {translate('components.botTeams.start', 'Start')}
                 </Button>
               ) : (
-                <Button variant="outline" size="sm" onClick={() => onOpenTask(task.id)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={offline}
+                  onClick={() => onOpenTask(task.id)}
+                >
                   {translate('components.botTeams.open', 'Open')}
                 </Button>
               )}

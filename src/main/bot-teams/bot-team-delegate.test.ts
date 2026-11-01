@@ -9,7 +9,18 @@ const TEAM: BotTeam = {
   character: 'circle',
   workspacesEnabled: false,
   accessMode: 'full-access',
-  bots: [{ id: 'max', name: 'Max', job: 'Writes files', agent: 'codex' }]
+  bots: [
+    {
+      id: 'max',
+      name: 'Max',
+      job: 'Writes files',
+      agent: 'codex',
+      modelMode: 'manual',
+      model: 'gpt-6-astra',
+      effort: 'high',
+      skills: []
+    }
+  ]
 }
 
 function deps(overrides: Partial<BotTeamDelegateDeps> = {}): BotTeamDelegateDeps {
@@ -23,6 +34,15 @@ function deps(overrides: Partial<BotTeamDelegateDeps> = {}): BotTeamDelegateDeps
 }
 
 describe('delegateToBotTeammate', () => {
+  it("files the child with the teammate's own model", async () => {
+    const d = deps()
+    await delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Write the file' })
+    expect(vi.mocked(d.fileRequest).mock.calls[0][0].launch).toEqual({
+      model: 'gpt-6-astra',
+      effort: 'high'
+    })
+  })
+
   it("files the request on the teammate's engine, then links and starts its task", async () => {
     const d = deps()
     const task = await delegateToBotTeammate(d, { team: TEAM, botName: 'max', text: 'Do it' })

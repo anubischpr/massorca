@@ -20,7 +20,15 @@ function clientAnswering(reply: { ok: boolean; result?: unknown; error?: unknown
 describe('listMobileBotTeams', () => {
   it('reads the teams a host lists', async () => {
     const list = await listMobileBotTeams(clientAnswering({ ok: true, result: { teams: [TEAM] } }))
-    expect(list).toEqual({ kind: 'ready', teams: [TEAM] })
+    expect(list).toEqual({
+      kind: 'ready',
+      teams: [
+        {
+          ...TEAM,
+          bots: [{ ...TEAM.bots[0], modelMode: 'auto', model: null, effort: null, skills: [] }]
+        }
+      ]
+    })
   })
 
   it('treats a host without the method as unsupported, so the app stays on Workspaces', async () => {

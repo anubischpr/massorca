@@ -19,14 +19,19 @@ vi.mock('react-native', () => ({
 }))
 vi.mock('react-native-safe-area-context', () => ({ SafeAreaView: 'SafeAreaView' }))
 vi.mock('lucide-react-native', () => ({
+  ChevronDown: 'ChevronDown',
   ChevronLeft: 'ChevronLeft',
+  ChevronRight: 'ChevronRight',
   Layers: 'Layers',
   Plus: 'Plus',
   Settings: 'Settings',
+  SlidersHorizontal: 'SlidersHorizontal',
+  Sparkles: 'Sparkles',
   Users: 'Users'
 }))
 vi.mock('../transport/host-client-hooks', () => ({ useHostClient: () => ({ client }) }))
 vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
+vi.mock('./MobileBotTeamRoom', () => ({ MobileBotTeamRoom: () => null }))
 vi.mock('./MobileBotTeamCharacterIcon', () => ({ MobileBotTeamCharacterIcon: () => null }))
 
 function press(renderer: ReactTestRenderer, label: string) {
