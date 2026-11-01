@@ -1,5 +1,13 @@
 import { useEffect, useRef } from 'react'
-import { LayoutGrid, Plus, UserCheck } from 'lucide-react'
+import {
+  BookOpen,
+  Files,
+  LayoutGrid,
+  Plus,
+  ShieldAlert,
+  UserCheck,
+  type LucideIcon
+} from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '@/store'
 import { cn } from '@/lib/utils'
@@ -33,6 +41,38 @@ function SidebarRow({
     >
       {children}
     </button>
+  )
+}
+
+function PendingRow({ icon: Icon, label }: { icon: LucideIcon; label: string }): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      disabled
+      className={cn(ROW_CLASS, 'pl-8 text-worktree-sidebar-foreground/60 disabled:opacity-50')}
+    >
+      <Icon className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+      <span className="flex-1">{label}</span>
+    </button>
+  )
+}
+
+/** Rows of an open team whose screens are still being built; each turns on with its screen. */
+function PendingTeamRows(): React.JSX.Element {
+  return (
+    <>
+      <PendingRow icon={LayoutGrid} label={translate('components.botTeams.board', 'Board')} />
+      <div className="px-8 pt-2 pb-0.5 text-[10px] font-semibold tracking-wider text-worktree-sidebar-foreground/45 uppercase">
+        {translate('components.botTeams.projects', 'Projects')}
+      </div>
+      <PendingRow icon={Plus} label={translate('components.botTeams.newProject', 'New project')} />
+      <PendingRow icon={Files} label={translate('components.botTeams.files', 'Files')} />
+      <PendingRow icon={BookOpen} label={translate('components.botTeams.memory', 'Memory')} />
+      <PendingRow
+        icon={ShieldAlert}
+        label={translate('components.botTeams.permissions', 'Permissions')}
+      />
+    </>
   )
 }
 
@@ -88,16 +128,19 @@ export function BotTeamsSidebar(): React.JSX.Element {
                 <span className="min-w-0 flex-1 truncate">{team.name}</span>
               </SidebarRow>
               {open ? (
-                <SidebarRow
-                  indented
-                  active={onPage && selection.taskId === null}
-                  onClick={() => openBotTeamsView({ teamId: team.id })}
-                >
-                  <UserCheck className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
-                  <span className="flex-1">
-                    {translate('components.botTeams.conferenceRoom', 'Conference room')}
-                  </span>
-                </SidebarRow>
+                <>
+                  <SidebarRow
+                    indented
+                    active={onPage && selection.taskId === null}
+                    onClick={() => openBotTeamsView({ teamId: team.id })}
+                  >
+                    <UserCheck className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+                    <span className="flex-1">
+                      {translate('components.botTeams.conferenceRoom', 'Conference room')}
+                    </span>
+                  </SidebarRow>
+                  <PendingTeamRows />
+                </>
               ) : null}
             </div>
           )

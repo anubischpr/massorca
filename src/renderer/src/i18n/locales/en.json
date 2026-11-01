@@ -19826,7 +19826,13 @@
       "editBot": "Edit bot",
       "saveBot": "Save",
       "host": "Host",
-      "thisComputer": "This computer"
+      "thisComputer": "This computer",
+      "board": "Board",
+      "projects": "Projects",
+      "newProject": "New project",
+      "files": "Files",
+      "memory": "Memory",
+      "permissions": "Permissions"
     }
   },
   "dashboardPopout": {
