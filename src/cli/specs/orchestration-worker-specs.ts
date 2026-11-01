@@ -132,6 +132,29 @@ export const ORCHESTRATION_WORKER_COMMAND_SPECS: CommandSpec[] = [
     ]
   },
   {
+    path: ['orchestration', 'team-post'],
+    summary: 'Post to your Bot teams Conference room',
+    usage: 'orca orchestration team-post --text <message> [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'text', 'retry-request'],
+    notes: ["Only a chat that runs a Bot teams task can post; it posts as that task's bot."]
+  },
+  {
+    path: ['orchestration', 'team-tasks'],
+    summary: "List your team's tasks from its board",
+    usage: 'orca orchestration team-tasks [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'retry-request'],
+    notes: ['Reads the real board, so answer questions about pending tasks from this list.']
+  },
+  {
+    path: ['orchestration', 'team-task-create'],
+    summary: "Save a task to your team's Todo",
+    usage: 'orca orchestration team-task-create --text <task> [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'text', 'retry-request'],
+    notes: [
+      'The task waits in Todo with no agent working until a person starts it. Mention @Name to give it to a teammate.'
+    ]
+  },
+  {
     path: ['orchestration', 'delegate'],
     summary: 'Ask which agent should run a child session of this chat',
     usage:

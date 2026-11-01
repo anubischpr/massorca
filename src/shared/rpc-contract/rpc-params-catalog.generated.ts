@@ -68,6 +68,7 @@ import {
   AutomationRuns,
   AutomationUpdate
 } from './automation-params'
+import { BotTeamAgentPost, BotTeamAgentTaskCreate } from './bot-team-agent-params'
 import {
   BotTeamAddBot,
   BotTeamCreate,
@@ -1098,6 +1099,9 @@ export const RPC_PARAMS_BY_METHOD = {
   'orcad.migration.stageSnapshotChunk': OrcadMigrationSnapshotChunkRequestSchema,
   'orcad.terminalCensus': OrcadTerminalCensusParamsSchema,
   'orchestration.ask': AskParams,
+  'orchestration.botTeamPost': BotTeamAgentPost,
+  'orchestration.botTeamTaskCreate': BotTeamAgentTaskCreate,
+  'orchestration.botTeamTasks': null,
   'orchestration.callerShow': null,
   'orchestration.check': CheckParams,
   'orchestration.delegateRequest': DelegateRequestParams,

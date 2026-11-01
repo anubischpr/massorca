@@ -17,7 +17,11 @@ function taskPrompt(team: BotTeam, bot: BotTeamBot, task: BotTeamTask): string {
   const role = bot.job ? `Your job: ${bot.job}.` : ''
   return [
     `You are ${bot.name}, a bot on the ${team.name} team. ${role}`.trim(),
-    task.prompt || task.title
+    task.prompt || task.title,
+    [
+      'Tell the team in its Conference room when you take this on and when you finish, in one short line each: `orca orchestration team-post --text "<line>"`.',
+      'For this team\'s tasks, read the real board with `orca orchestration team-tasks`, and save a task for later with `orca orchestration team-task-create --text "<task>"`.'
+    ].join(' ')
   ].join('\n\n')
 }
 
