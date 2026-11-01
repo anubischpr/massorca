@@ -41,7 +41,8 @@ export const JEV_DECISIONS_METHODS = [
   }),
   defineMethod({
     name: 'jevDecisions.setEnabled',
-    permission: 'settings-write',
+    // Why: switching it on spends the key, so it needs the same permission as the key itself.
+    permission: 'accounts-admin',
     params: JevDecisionsSetEnabled,
     handler: (params, { runtime }) => {
       runtime.setJevDecisionsEnabled(params.enabled)

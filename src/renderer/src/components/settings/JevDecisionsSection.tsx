@@ -168,7 +168,7 @@ export function JevDecisionsSection({
           {statusFailed
             ? translate(
                 'auto.components.settings.OrchestrationPane.jevStatusUnavailable',
-                'This server cannot report Jev decisions. Update it to use them here.'
+                'Could not read Jev decisions from this server. Reopen Settings to retry; if it keeps failing, update the server.'
               )
             : keyUnreadable
               ? translate(

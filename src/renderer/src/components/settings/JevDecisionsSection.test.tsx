@@ -176,12 +176,12 @@ describe('JevDecisionsSection', () => {
       expect(host.querySelector('[role="alert"]')).not.toBeNull()
     })
 
-    it('says so when the server predates this feature', async () => {
+    it('says so when the server cannot report its status', async () => {
       rpc.mockRejectedValueOnce(new Error('method_not_found'))
 
       const host = await renderRemote()
 
-      expect(host.textContent).toContain('Update it to use them here')
+      expect(host.textContent).toContain('update the server')
       expect(host.querySelector('[role="switch"]')?.hasAttribute('disabled')).toBe(true)
     })
   })

@@ -74,7 +74,7 @@ describe('jevDecisions RPC', () => {
       ['jevDecisions.getStatus', 'accounts-admin'],
       ['jevDecisions.saveApiKey', 'accounts-admin'],
       ['jevDecisions.clearApiKey', 'accounts-admin'],
-      ['jevDecisions.setEnabled', 'settings-write']
+      ['jevDecisions.setEnabled', 'accounts-admin']
     ])
   })
 })
