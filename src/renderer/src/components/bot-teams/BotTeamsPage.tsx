@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ChevronLeft, Pencil, Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import StatusIndicator, { type Status } from '@/components/sidebar/StatusIndicator'
 import { translate } from '@/i18n/i18n'
@@ -11,7 +11,6 @@ import {
   updateBotOnTeam,
   updateBotTeam
 } from '@/runtime/runtime-bot-team-client'
-import { botAgentLabel } from '../../../../shared/bot-team-character-art'
 import type { BotTeamOverallStatus } from '../../../../shared/bot-team-overall-status'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { BotAgentIcon } from './BotAgentIcon'
@@ -32,14 +31,12 @@ function TeamDetail({
   team,
   offline,
   openTaskId,
-  onOpenTask,
-  onBack
+  onOpenTask
 }: {
   team: BotTeam
   offline: boolean
   openTaskId: string | null
   onOpenTask: (taskId: string | null) => void
-  onBack: () => void
 }): React.JSX.Element {
   // A task's thread is a full chat, so it takes the page rather than the team's column.
   if (openTaskId !== null) {
@@ -48,45 +45,21 @@ function TeamDetail({
     )
   }
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-4 text-sm font-medium">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={translate('components.botTeams.back', 'Back')}
-          onClick={onBack}
-        >
-          <ChevronLeft className="size-4" />
-        </Button>
-        <span className="min-w-0 flex-1 truncate">
-          {translate('components.botTeams.conferenceRoom', 'Conference room')}
-        </span>
-        <BotTeamCharacterIcon character={team.character} size={20} />
-        <span className="truncate text-xs text-muted-foreground">{team.name}</span>
-      </div>
-      <div className="flex min-h-0 flex-1">
-        <BotTeamRoom team={team} openTaskId={null} onOpenTask={onOpenTask} offline={offline} />
-        <aside className="scrollbar-sleek flex w-[300px] shrink-0 flex-col gap-1 overflow-y-auto border-l border-border p-2">
-          <h2 className="px-2 py-1 text-sm font-semibold">
-            {translate('components.botTeams.bots', 'Bots')}
-          </h2>
-          {team.bots.map((bot) => (
-            <div key={bot.id} className="flex gap-2.5 rounded-lg p-2">
-              <span className="mt-0.5 shrink-0">
-                <BotAgentIcon agent={bot.agent} size={16} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-medium">{bot.name}</span>
-                <span className="block text-xs text-muted-foreground">{bot.job}</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">
-                  {botAgentLabel(bot.agent)}
-                </span>
-              </span>
-            </div>
-          ))}
-        </aside>
-      </div>
-    </div>
+    <BotTeamRoom
+      team={team}
+      openTaskId={null}
+      onOpenTask={onOpenTask}
+      offline={offline}
+      header={
+        <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-4 text-sm font-medium">
+          <span className="min-w-0 flex-1 truncate">
+            {translate('components.botTeams.conferenceRoom', 'Conference room')}
+          </span>
+          <BotTeamCharacterIcon character={team.character} size={20} />
+          <span className="truncate text-xs text-muted-foreground">{team.name}</span>
+        </div>
+      }
+    />
   )
 }
 
@@ -296,7 +269,6 @@ export default function BotTeamsPage({
           offline={failed}
           openTaskId={selection.taskId}
           onOpenTask={(taskId) => select({ teamId: openTeam.id, taskId, creating: false })}
-          onBack={() => select(NOTHING_OPEN)}
         />
       ) : (
         <TeamGrid
