@@ -23,6 +23,27 @@ export type NativeChatStructuredPaneHeaderProps = {
   terminalPending?: boolean
   onSplitRight: () => void
   onClose: () => void
+  summaryVisible: boolean
+  onToggleSummary: () => void
+}
+
+function ChatSummaryIcon(): React.JSX.Element {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      className="size-3"
+      aria-hidden="true"
+    >
+      <circle cx="6" cy="7" r="3" />
+      <path d="M13 7h8" />
+      <circle cx="6" cy="17" r="3" />
+      <path d="M13 17h8" />
+    </svg>
+  )
 }
 
 function terminalViewBlockText(reason: StructuredChatTerminalViewBlock): string {
@@ -50,11 +71,13 @@ function HeaderAction({
   icon,
   disabledReason,
   pending = false,
+  pressed,
   onClick
 }: {
   label: string
   icon: ReactNode
   pending?: boolean
+  pressed?: boolean
   /** Set when the action cannot run; the tooltip then says why. */
   disabledReason?: string
   onClick: () => void
@@ -67,6 +90,7 @@ function HeaderAction({
       size="icon-xs"
       aria-label={label}
       aria-busy={pending || undefined}
+      aria-pressed={pressed}
       disabled={disabled || pending}
       onClick={(event) => {
         event.stopPropagation()
@@ -110,8 +134,13 @@ export function NativeChatStructuredPaneHeader({
   onShowTerminal,
   terminalPending = false,
   onSplitRight,
-  onClose
+  onClose,
+  summaryVisible,
+  onToggleSummary
 }: NativeChatStructuredPaneHeaderProps): React.JSX.Element {
+  const summaryLabel = summaryVisible
+    ? translate('components.native-chat.summary.hide', 'Hide Chat summary')
+    : translate('components.native-chat.summary.show', 'Show Chat summary')
   const handOffLabel = translate(
     'components.agentSessionContinuation.handOffToAnotherAgent',
     'Hand Off to Another Agent'
@@ -159,6 +188,12 @@ export function NativeChatStructuredPaneHeader({
         label={splitRightLabel}
         icon={<SquareSplitVertical className="size-3" />}
         onClick={onSplitRight}
+      />
+      <HeaderAction
+        label={summaryLabel}
+        icon={<ChatSummaryIcon />}
+        pressed={summaryVisible}
+        onClick={onToggleSummary}
       />
       <HeaderAction label={closeLabel} icon={<X className="size-3" />} onClick={onClose} />
     </div>

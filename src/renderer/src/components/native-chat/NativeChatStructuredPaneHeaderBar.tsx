@@ -1,6 +1,7 @@
 import type { AgentJournalItemBody } from '../../../../shared/agent-session-journal-types'
 import { structuredAgentSessionPaneKey } from '../../../../shared/structured-agent-session-projection'
 import { AgentSessionContinuationDialog } from '@/components/agent-session-continuation/AgentSessionContinuationDialog'
+import { useAppStore } from '../../store'
 import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
 import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 import { NativeChatStructuredPaneHeader } from './NativeChatStructuredPaneHeader'
@@ -50,6 +51,8 @@ export function NativeChatStructuredPaneHeaderBar({
     hostPiRuntime: controller.hostPiRuntime
   })
   const terminalPending = useChatTransitionPending(chatTransitionKeyForSession(sessionId))
+  const summaryVisible = useAppStore((store) => store.settings?.nativeChatSummaryVisible !== false)
+  const updateSettings = useAppStore((store) => store.updateSettings)
   return (
     <>
       {isVisible ? (
@@ -61,6 +64,8 @@ export function NativeChatStructuredPaneHeaderBar({
           terminalPending={terminalPending}
           onSplitRight={actions.splitRight}
           onClose={actions.close}
+          summaryVisible={summaryVisible}
+          onToggleSummary={() => void updateSettings({ nativeChatSummaryVisible: !summaryVisible })}
         />
       ) : null}
       {handOffRequest ? (

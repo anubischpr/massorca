@@ -40,7 +40,8 @@ function render(props: Partial<Parameters<typeof NativeChatStructuredPaneHeader>
     onHandOff: vi.fn(),
     onShowTerminal: vi.fn(),
     onSplitRight: vi.fn(),
-    onClose: vi.fn()
+    onClose: vi.fn(),
+    onToggleSummary: vi.fn()
   }
   const container = document.createElement('div')
   document.body.appendChild(container)
@@ -48,7 +49,13 @@ function render(props: Partial<Parameters<typeof NativeChatStructuredPaneHeader>
   mounted.push({ container, root })
   act(() =>
     root.render(
-      <NativeChatStructuredPaneHeader canHandOff terminalView={ENABLED} {...handlers} {...props} />
+      <NativeChatStructuredPaneHeader
+        canHandOff
+        terminalView={ENABLED}
+        summaryVisible
+        {...handlers}
+        {...props}
+      />
     )
   )
   return { container, handlers }
@@ -73,6 +80,19 @@ describe('NativeChatStructuredPaneHeader', () => {
     ]) {
       expect(button(container, label)).toBeTruthy()
     }
+  })
+
+  it('names the Chat summary button after what a click will do', () => {
+    const shown = render({ summaryVisible: true })
+    const hide = button(shown.container, 'Hide Chat summary')
+    expect(hide.getAttribute('aria-pressed')).toBe('true')
+    act(() => hide.click())
+    expect(shown.handlers.onToggleSummary).toHaveBeenCalledTimes(1)
+
+    const hidden = render({ summaryVisible: false })
+    const show = button(hidden.container, 'Show Chat summary')
+    expect(show.getAttribute('aria-pressed')).toBe('false')
+    expect(hidden.container.querySelector('button[aria-label="Hide Chat summary"]')).toBeNull()
   })
 
   it('routes each action to its own handler', () => {

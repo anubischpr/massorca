@@ -78,6 +78,7 @@ export function NativeChatStructuredSession(
   const backgroundRowContext = useStructuredSessionChildRowContext(paneKey)
   // Chat-wide: absent means on; only an explicit off keeps mid-turn sends immediate.
   const queueFollowUps = useAppStore((store) => store.settings?.nativeChatQueueFollowUps !== false)
+  const summaryVisible = useAppStore((store) => store.settings?.nativeChatSummaryVisible !== false)
   const composerRef = useRef<NativeChatComposerHandle>(null)
   // Paste target while a question card replaces the composer.
   const questionAnswerInputRef = useRef<HTMLInputElement>(null)
@@ -401,21 +402,23 @@ export function NativeChatStructuredSession(
             </>
           )}
         </div>
-        <NativeChatSessionSummary
-          key={props.sessionId}
-          target={props.target}
-          sessionId={props.sessionId}
-          fileContext={fileLinkContext}
-          connectorSnapshot={controller.connectors}
-          contextSummary={controller.contextSummary}
-          subagentRoster={controller.subagentRoster}
-          onLinkClick={onLinkClick}
-          journalItems={controller.journalItems}
-          commandActivity={controller.commandActivity}
-          {...controller.backgroundSummary}
-          context={backgroundRowContext}
-          isVisible={props.isVisible}
-        />
+        {summaryVisible ? (
+          <NativeChatSessionSummary
+            key={props.sessionId}
+            target={props.target}
+            sessionId={props.sessionId}
+            fileContext={fileLinkContext}
+            connectorSnapshot={controller.connectors}
+            contextSummary={controller.contextSummary}
+            subagentRoster={controller.subagentRoster}
+            onLinkClick={onLinkClick}
+            journalItems={controller.journalItems}
+            commandActivity={controller.commandActivity}
+            {...controller.backgroundSummary}
+            context={backgroundRowContext}
+            isVisible={props.isVisible}
+          />
+        ) : null}
       </div>
       {paneCommands.menu}
       <NativeChatLinkSurfaces sessionId={props.sessionId} {...linkSurfaces} />
