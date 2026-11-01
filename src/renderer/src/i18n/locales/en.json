@@ -19672,7 +19672,9 @@
       "backToRoom": "Back to Conference room",
       "open": "Open",
       "editBot": "Edit bot",
-      "saveBot": "Save"
+      "saveBot": "Save",
+      "host": "Host",
+      "thisComputer": "This computer"
     }
   },
   "dashboardPopout": {

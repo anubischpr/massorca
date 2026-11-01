@@ -14,6 +14,7 @@ import { botAgentLabel } from '../../../../shared/bot-team-character-art'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { AddBotDialog } from './AddBotDialog'
 import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
+import { BotTeamHostPicker } from './BotTeamHostPicker'
 import { BotTeamRoom } from './BotTeamRoom'
 import { NewBotTeamForm } from './NewBotTeamForm'
 import { useBotTeams, type BotTeamsState } from './use-bot-teams'
@@ -179,6 +180,7 @@ export default function BotTeamsPage(): React.JSX.Element {
 
   return (
     <div className="scrollbar-sleek h-full overflow-y-auto">
+      <BotTeamHostPicker />
       {teams === null ? (
         failed ? (
           <div className="flex flex-col items-start gap-2 p-6 text-sm text-muted-foreground">
