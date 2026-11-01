@@ -61,7 +61,12 @@ export function resolveDelegationTarget(row: DelegationRequestRow): DelegationLa
   }
   const writes = row.writes === 1
   const { tier } = classifyDelegationTask({ summary: row.summary, writesCode: writes })
-  const { model, effort } = resolveLaunchableDelegationModel({ agent: choice.agent, tier })
+  const fixed = z
+    .object({ launch: z.object({ model: z.string(), effort: z.string().optional() }) })
+    .safeParse(parseJson(row.decision_json))
+  const { model, effort } = fixed.success
+    ? { model: fixed.data.launch.model, effort: fixed.data.launch.effort ?? null }
+    : resolveLaunchableDelegationModel({ agent: choice.agent, tier })
   return {
     agent: choice.agent,
     label: labelOf(choice.agent),

@@ -1,6 +1,7 @@
 import { botTeamTaskTitle } from '../../shared/bot-team-request-route'
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
 import type { BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
+import { botLaunchOptions } from './bot-team-model-choice'
 import { botTeamTaskPrompt } from './bot-team-task-start'
 
 export type BotTeamDelegateDeps = {
@@ -8,6 +9,7 @@ export type BotTeamDelegateDeps = {
     title: string
     prompt: string
     agent: BotTeamBot['agent']
+    launch?: Readonly<Record<string, string>>
   }) => Promise<string>
   createTask: (args: { title: string; prompt: string; ownerBotId: string }) => BotTeamTask
   linkTask: (taskId: string, requestId: string) => void
@@ -24,10 +26,12 @@ export async function delegateToBotTeammate(
     throw new Error(`${botName} is not on this team. No effects were applied.`)
   }
   const title = botTeamTaskTitle(text, team.bots)
+  const launch = botLaunchOptions(teammate)
   const requestId = await deps.fileRequest({
     title,
     prompt: botTeamTaskPrompt(team, teammate, { title, prompt: text }),
-    agent: teammate.agent
+    agent: teammate.agent,
+    ...(launch ? { launch } : {})
   })
   const task = deps.createTask({ title, prompt: text, ownerBotId: teammate.id })
   deps.linkTask(task.id, requestId)

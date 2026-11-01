@@ -25,6 +25,7 @@ import { startBotTeamTask } from '../../../bot-teams/bot-team-task-start'
 import { getStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
 import { defineMethod, type RpcContext } from '../core'
 import { commitStructuredAgentSessionLaunchPrompt } from './agent-launch-structured-prompt'
+import { isDefinitiveAgentSessionCreateRefusal } from '../../../../shared/agent-session-definitive-refusal'
 import { createStructuredAgentSessionForWorktree } from './structured-agent-session-create'
 import { structuredCallerFor } from './structured-agent-session-gate'
 
@@ -73,23 +74,30 @@ async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeam
   return startBotTeamTask(
     {
       ensureTeamWorkspace: (entry) => ensureTeamWorkspace(ctx, entry),
-      createSession: async ({ workspaceId, agent, accessMode }) => {
-        const created = await createStructuredAgentSessionForWorktree({
-          runtime: ctx.runtime,
-          ensureHost: async () => requireHost(),
-          caller,
-          envelope: {
-            sessionId: createStructuredAgentSessionId(agent, randomUUID),
-            clientOperationId: createStructuredAgentSessionOperationId(randomUUID),
-            expectedRuntimeFence: null,
-            payloadFingerprint: ''
-          },
-          worktree: `id:${workspaceId}`,
-          agent,
-          accessMode,
-          // A task runs in the background; opening it is up to the person.
-          activate: false
-        })
+      createSession: async ({ workspaceId, agent, accessMode, options }) => {
+        const attempt = (seed: typeof options) =>
+          createStructuredAgentSessionForWorktree({
+            runtime: ctx.runtime,
+            ensureHost: async () => requireHost(),
+            caller,
+            envelope: {
+              sessionId: createStructuredAgentSessionId(agent, randomUUID),
+              clientOperationId: createStructuredAgentSessionOperationId(randomUUID),
+              expectedRuntimeFence: null,
+              payloadFingerprint: ''
+            },
+            worktree: `id:${workspaceId}`,
+            agent,
+            accessMode,
+            ...(seed ? { options: seed } : {}),
+            // A task runs in the background; opening it is up to the person.
+            activate: false
+          })
+        let created = await attempt(options)
+        // A model this host's agent no longer offers must not block the task: it runs its default.
+        if (!created.ok && options && isDefinitiveAgentSessionCreateRefusal(created.refusal.code)) {
+          created = await attempt(undefined)
+        }
         if (!created.ok) {
           throw new Error(created.refusal.message)
         }

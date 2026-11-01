@@ -35,7 +35,13 @@ export class DelegationRequestService {
   constructor(private readonly deps: DelegationRequestDeps) {}
 
   /** Files a request whose agent is already decided, so no card asks; the answer service starts it. */
-  async requestForAgent(input: DelegationRequestInput & { agent: string }): Promise<string> {
+  async requestForAgent(
+    input: DelegationRequestInput & {
+      agent: string
+      /** The model and effort this child must run with, rather than ones sized from its summary. */
+      launch?: Readonly<Record<string, string>>
+    }
+  ): Promise<string> {
     const parent = this.deps.readParent(input.parentSessionId)
     if (!parent) {
       throw new OrchestrationError(
@@ -60,7 +66,7 @@ export class DelegationRequestService {
       writes: input.writes,
       workspaceKind: parent.workspaceKind,
       optionsJson: JSON.stringify({ agents }),
-      decisionJson: null
+      decisionJson: input.launch ? JSON.stringify({ launch: input.launch }) : null
     }).id
   }
 
