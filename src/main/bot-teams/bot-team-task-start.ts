@@ -13,7 +13,11 @@ export type BotTeamTaskStartDeps = {
   linkSession: (taskId: string, sessionId: string) => BotTeamTask
 }
 
-export function botTeamTaskPrompt(team: BotTeam, bot: BotTeamBot, task: BotTeamTask): string {
+export function botTeamTaskPrompt(
+  team: BotTeam,
+  bot: BotTeamBot,
+  task: Pick<BotTeamTask, 'title' | 'prompt'>
+): string {
   const role = bot.job ? `Your job: ${bot.job}.` : ''
   return [
     `You are ${bot.name}, a bot on the ${team.name} team. ${role}`.trim(),

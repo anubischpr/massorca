@@ -6,7 +6,7 @@ import {
   BotTeamAgentTaskCreate
 } from '../../../../../shared/rpc-contract/bot-team-agent-params'
 import { botTeamTaskTitle, routeBotTeamRequest } from '../../../../../shared/bot-team-request-route'
-import { botTeamTaskPrompt } from '../../../../bot-teams/bot-team-task-start'
+import { delegateToBotTeammate } from '../../../../bot-teams/bot-team-delegate'
 import {
   getDelegationAnswerService,
   getDelegationRequestService
@@ -38,32 +38,32 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
       const db = runtime.getOrchestrationDb()
       const caller = requireBotTeamCallerTask(db, orchestrationCaller?.sessionId)
       const team = db.listBotTeams().find((entry) => entry.id === caller.teamId)
-      const teammate = team?.bots.find((entry) => entry.name.toLowerCase() === bot.toLowerCase())
-      if (!team || !teammate) {
-        throw new OrchestrationError(
-          'invalid_argument',
-          `${bot} is not on this team. No effects were applied.`,
-          { effectsApplied: false }
-        )
+      if (!team) {
+        throw new OrchestrationError('invalid_argument', 'This team no longer exists.', {
+          effectsApplied: false
+        })
       }
       await runtime.ensureStructuredAgentSessionHost()
-      const task = db.createBotTeamTask({
-        teamId: team.id,
-        title: botTeamTaskTitle(text, team.bots),
-        prompt: text,
-        ownerBotId: teammate.id
-      })
-      const requestId = await getDelegationRequestService(runtime).requestForAgent({
-        parentSessionId: caller.sessionId ?? '',
-        summary: botTeamTaskTitle(text, team.bots),
-        prompt: botTeamTaskPrompt(team, teammate, task),
-        title: task.title,
-        writes: false,
-        agent: teammate.agent
-      })
-      db.linkBotTeamTaskDelegation(task.id, requestId)
-      getDelegationAnswerService(runtime).startChosenAgent(requestId, teammate.agent)
-      return { task }
+      return {
+        task: await delegateToBotTeammate(
+          {
+            fileRequest: (request) =>
+              getDelegationRequestService(runtime).requestForAgent({
+                parentSessionId: caller.sessionId ?? '',
+                summary: request.title,
+                prompt: request.prompt,
+                title: request.title,
+                writes: false,
+                agent: request.agent
+              }),
+            createTask: (args) => db.createBotTeamTask({ teamId: team.id, ...args }),
+            linkTask: (taskId, requestId) => db.linkBotTeamTaskDelegation(taskId, requestId),
+            startRequest: (requestId, agent) =>
+              getDelegationAnswerService(runtime).startChosenAgent(requestId, agent)
+          },
+          { team, botName: bot, text }
+        )
+      }
     }
   }),
   defineMethod({
