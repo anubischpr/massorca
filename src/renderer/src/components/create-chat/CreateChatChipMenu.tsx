@@ -48,6 +48,8 @@ type CreateChatChipMenuProps = {
   /** Controlled open state, for a chip whose menu stays open across steps. */
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  /** The chip cannot open its menu, such as Workspace mode for a folder. */
+  disabled?: boolean
 }
 
 // Why: <Button> owns its colour, so the tone sits on the inner span.
@@ -66,12 +68,20 @@ export function CreateChatChipMenu({
   note,
   groups,
   open,
-  onOpenChange
+  onOpenChange,
+  disabled = false
 }: CreateChatChipMenuProps): React.JSX.Element {
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
-        <Button type="button" variant="ghost" size="xs" aria-label={ariaLabel} className="max-w-48">
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          aria-label={ariaLabel}
+          disabled={disabled}
+          className="max-w-48"
+        >
           <span className={cn('flex min-w-0 items-center gap-1 rounded-sm', TONE_CLASS[tone])}>
             {icon}
             <span className="truncate">{label}</span>
@@ -117,6 +127,11 @@ function renderChoiceItems(
     >
       {item.icon}
       <NativeChatSessionOptionChoiceBody label={item.label} description={item.description} />
+      {item.trailing ? (
+        <span className="ml-auto pl-4 text-xs whitespace-nowrap text-muted-foreground">
+          {item.trailing}
+        </span>
+      ) : null}
     </DropdownMenuRadioItem>
   ))
 }

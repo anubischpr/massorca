@@ -2,15 +2,19 @@ import { useRef, useState } from 'react'
 import { translate } from '@/i18n/i18n'
 import { CreateChatAgentChip } from './CreateChatAgentChip'
 import { CreateChatComposer } from './CreateChatComposer'
-import { CreateChatLeftChips } from './CreateChatLeftChips'
+import { CreateChatPermissionsChip, CreateChatPlaceChips } from './CreateChatLeftChips'
+import { CreateChatSessionViewSwitch } from './CreateChatSessionViewSwitch'
+import { CreateChatTerminalNotice } from './CreateChatTerminalNotice'
 import { useCreateChatAgents } from './use-create-chat-agents'
 import { useCreateChatModelCatalog } from './use-create-chat-model-catalog'
 import {
   buildDefaultCreateChatSelection,
   canSubmitCreateChat,
+  createChatTerminalBlock,
   withAvailableCreateChatAgent,
   type CreateChatOptions,
   type CreateChatSelection,
+  type CreateChatSessionView,
   type CreateChatSubmit
 } from './create-chat-selection'
 
@@ -43,7 +47,12 @@ export function CreateChatSession({
     selection.executionHostId,
     modelListingContext
   )
-  const canSubmit = !pending && canSubmitCreateChat(draft, selection, options.repos)
+  const view: CreateChatSessionView = selection.sessionView ?? 'chat'
+  const terminalBlock = view === 'terminal' ? createChatTerminalBlock(selection.agent) : null
+  const canSubmit =
+    !pending &&
+    terminalBlock === null &&
+    canSubmitCreateChat(draft, selection, options.repos, options.worktrees)
 
   const submit = async (): Promise<void> => {
     if (!canSubmit || inFlight.current) {
@@ -84,13 +93,27 @@ export function CreateChatSession({
           pending={pending}
           error={error}
           onSubmit={submit}
-          leftChips={
-            <CreateChatLeftChips
+          placeChips={
+            <CreateChatPlaceChips
               selection={selection}
               options={options}
               onSelectionChange={setSelection}
             />
           }
+          footerChips={
+            <>
+              <CreateChatPermissionsChip
+                selection={selection}
+                options={options}
+                onSelectionChange={setSelection}
+              />
+              <CreateChatSessionViewSwitch
+                view={view}
+                onViewChange={(next) => setSelection({ ...selection, sessionView: next })}
+              />
+            </>
+          }
+          notice={view === 'terminal' ? <CreateChatTerminalNotice block={terminalBlock} /> : null}
           rightChips={
             <CreateChatAgentChip
               selection={selection}

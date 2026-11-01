@@ -27,7 +27,7 @@ The canvas is the visual source; nothing outside it gets added ("por favor, que 
 - T2 S1 S2 Rail, usage rings, Settings. Route inline. Pending.
 - T3 S7 S8 S10 S11 S13 Tabless main area and side panel. Route inline. Pending. Risk item 3 and 6 possible: persisted tab groups.
 - T4 S12 Remove the title bar. Route inline. Pending.
-- T5 S4 S5 S6 + Create. Route inline. Pending.
+- T5 S4 S5 S6 + Create. Route delegated, context backstop with T3 in parallel. Done in tests, 81 create-chat tests pass; not yet seen in the app. Locale keys pending. The notice drops "You can move back with Switch to chat view." because the control is absent for unsupported agents and for some agents on SSH.
 - T6 S3 Tasks page. Route inline. Pending.
 
 ## Log

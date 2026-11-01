@@ -10,6 +10,7 @@ import { beginStructuredAgentSessionProvisionalLaunch } from '@/lib/structured-a
 import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
 import { runBackgroundWorktreeCreation } from '@/lib/worktree-creation-flow'
 import { LOCAL_EXECUTION_HOST_ID, type ExecutionHostId } from '../../../../shared/execution-host'
+import type { Repo } from '../../../../shared/repo-types'
 import { getRepoMainWorktreeId } from '../../../../shared/worktree/id'
 import type { CreateChatNamingOverride } from '../../../../shared/create-chat-session-naming'
 import type { ProjectlessChatWorkspaceErrorCode } from '../../../../shared/projectless-chat-folder'
@@ -25,6 +26,8 @@ import {
   type CreateChatSelection,
   type CreateChatSubmitOutcome
 } from './create-chat-selection'
+import { launchTerminalInWorkspace } from './create-chat-terminal-launch'
+import { buildCreateChatTerminalStartup } from './create-chat-terminal-startup'
 
 const started: CreateChatSubmitOutcome = { started: true }
 
@@ -36,6 +39,13 @@ function startFailedMessage(): string {
   return translate(
     'components.createChat.errorStart',
     'Could not start the session. Your draft is kept.'
+  )
+}
+
+function openWorkspaceMessage(): string {
+  return translate(
+    'components.createChat.errorOpenWorkspace',
+    'Could not open the workspace for this chat. Your draft is kept.'
   )
 }
 
@@ -101,6 +111,23 @@ function primaryWorkspaceId(repo: CreateChatRepoOption): string {
   )
 }
 
+/** Starts the session the view picked in this workspace: the structured chat, or the agent's terminal. */
+async function launchInWorkspace(
+  worktreeId: string,
+  executionHostId: ExecutionHostId,
+  draft: string,
+  selection: CreateChatSelection
+): Promise<CreateChatSubmitOutcome> {
+  if (selection.sessionView !== 'terminal') {
+    return launchChatInWorkspace(worktreeId, executionHostId, draft, selection)
+  }
+  const launch = await launchTerminalInWorkspace(worktreeId, draft, selection)
+  if (launch === 'workspace-unavailable') {
+    return failed(openWorkspaceMessage())
+  }
+  return launch === 'opened' ? started : failed(startFailedMessage())
+}
+
 /** Opens the workspace, then starts the structured chat there with the first message. */
 function launchChatInWorkspace(
   worktreeId: string,
@@ -110,12 +137,7 @@ function launchChatInWorkspace(
 ): CreateChatSubmitOutcome {
   const activated = activateAndRevealWorkspace(worktreeId, { providesInitialSurface: true })
   if (activated === false) {
-    return failed(
-      translate(
-        'components.createChat.errorOpenWorkspace',
-        'Could not open the workspace for this chat. Your draft is kept.'
-      )
-    )
+    return failed(openWorkspaceMessage())
   }
   const plan = adoptAgentSessionLaunchVerdict({
     route: 'structured-native-chat',
@@ -161,7 +183,7 @@ async function submitProjectless(
   const store = useAppStore.getState()
   await store.fetchProjectGroupsForAllHosts({ remoteHosts: 'skip' })
   await store.fetchFolderWorkspacesForAllHosts({ remoteHosts: 'skip' })
-  return launchChatInWorkspace(result.workspaceKey, LOCAL_EXECUTION_HOST_ID, draft, selection)
+  return await launchInWorkspace(result.workspaceKey, LOCAL_EXECUTION_HOST_ID, draft, selection)
 }
 
 /** A new worktree goes through the composer's create flow; the chat launches once it exists. */
@@ -196,13 +218,68 @@ async function createChatInNewWorktree(
   return started
 }
 
+/** A new worktree whose startup runs the agent in a terminal: the terminal is the session's surface. */
+async function createTerminalInNewWorktree(
+  draft: string,
+  selection: CreateChatSelection,
+  repo: CreateChatRepoOption,
+  fullRepo: Repo
+): Promise<CreateChatSubmitOutcome> {
+  const { startupPlan, backendStartup, telemetry } = buildCreateChatTerminalStartup(
+    fullRepo,
+    selection.agent,
+    draft
+  )
+  const request: WorktreeCreationRequest = {
+    repoId: repo.repoId,
+    executionHostId: repo.hostId,
+    name: await temporaryWorkspaceName(repo.repoId),
+    nameWasGenerated: true,
+    setupDecision: 'run',
+    agent: selection.agent,
+    agentLaunchRoute: 'terminal-tui',
+    quickPrompt: draft,
+    promptDelivery: 'auto-submit',
+    startupPlan,
+    startup: backendStartup,
+    quickTelemetry: telemetry,
+    // Why: the card shows the pending rename only when auto-rename will actually run.
+    pendingFirstAgentMessageRename:
+      useAppStore.getState().settings?.autoRenameBranchFromWork === true,
+    note: ''
+  }
+  runBackgroundWorktreeCreation(request)
+  return started
+}
+
+async function launchExistingWorktree(
+  draft: string,
+  selection: CreateChatSelection,
+  repo: CreateChatRepoOption
+): Promise<CreateChatSubmitOutcome> {
+  const worktreeId = selection.existingWorktreeId
+  const exists = (useAppStore.getState().worktreesByRepo[repo.repoId] ?? []).some(
+    (worktree) => worktree.id === worktreeId
+  )
+  if (worktreeId === undefined || !exists) {
+    return failed(
+      translate(
+        'components.createChat.errorWorktreeGone',
+        'This worktree is no longer available. Pick another one.'
+      )
+    )
+  }
+  return await launchInWorkspace(worktreeId, repo.hostId, draft, selection)
+}
+
 async function submitInProject(
   draft: string,
   selection: CreateChatSelection
 ): Promise<CreateChatSubmitOutcome> {
-  const repos = createChatRepoOptions(useAppStore.getState().repos)
-  const repo = findRepo(repos, selection.project)
-  if (!repo || repo.hostId !== selection.executionHostId) {
+  const state = useAppStore.getState()
+  const repo = findRepo(createChatRepoOptions(state.repos), selection.project)
+  const fullRepo = state.repos.find((candidate) => candidate.id === repo?.repoId)
+  if (!repo || !fullRepo || repo.hostId !== selection.executionHostId) {
     return failed(
       translate(
         'components.createChat.errorMissingProject',
@@ -212,7 +289,13 @@ async function submitInProject(
   }
   // Why: a folder has no git worktrees, so it always opens its one workspace.
   if (repo.isFolder || selection.workspaceMode === 'current-checkout') {
-    return launchChatInWorkspace(primaryWorkspaceId(repo), repo.hostId, draft, selection)
+    return await launchInWorkspace(primaryWorkspaceId(repo), repo.hostId, draft, selection)
+  }
+  if (selection.workspaceMode === 'existing-worktree') {
+    return await launchExistingWorktree(draft, selection, repo)
+  }
+  if (selection.sessionView === 'terminal') {
+    return await createTerminalInNewWorktree(draft, selection, repo, fullRepo)
   }
   return await createChatInNewWorktree(draft, selection, repo)
 }

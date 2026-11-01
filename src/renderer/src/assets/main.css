@@ -3494,3 +3494,86 @@ html.native-shell .app-layout {
 .app-rail [role='button'] {
   -webkit-app-region: no-drag;
 }
+
+/* Session view rainbow: the Chat and Terminal switch in the create-chat composer. Documented in docs/STYLEGUIDE.md. */
+:root {
+  --rainbow-red: #f87171;
+  --rainbow-amber: #fbbf24;
+  --rainbow-green: #34d399;
+  --rainbow-sky: #38bdf8;
+  --rainbow-violet: #a78bfa;
+  --rainbow-pink: #f472b6;
+}
+
+.dark {
+  --rainbow-red: #f87171;
+  --rainbow-amber: #fbbf24;
+  --rainbow-green: #34d399;
+  --rainbow-sky: #38bdf8;
+  --rainbow-violet: #a78bfa;
+  --rainbow-pink: #f472b6;
+}
+
+.chat-view-switch {
+  display: flex;
+  border-radius: var(--radius-md);
+  padding: 1.5px;
+}
+
+.chat-view-rainbow {
+  background: linear-gradient(
+    90deg,
+    var(--rainbow-red),
+    var(--rainbow-amber),
+    var(--rainbow-green),
+    var(--rainbow-sky),
+    var(--rainbow-violet),
+    var(--rainbow-pink),
+    var(--rainbow-red)
+  );
+  background-size: 200% 100%;
+  animation: chat-view-rainbow-move 6s linear infinite;
+}
+
+.chat-view-wobble {
+  animation: chat-view-wobble 0.45s ease-in-out;
+}
+
+.chat-view-rainbow.chat-view-wobble {
+  animation:
+    chat-view-wobble 0.45s ease-in-out,
+    chat-view-rainbow-move 6s linear infinite;
+}
+
+@keyframes chat-view-rainbow-move {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes chat-view-wobble {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  20% {
+    transform: rotate(-4deg);
+  }
+  45% {
+    transform: rotate(3deg);
+  }
+  70% {
+    transform: rotate(-2deg);
+  }
+  85% {
+    transform: rotate(1deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-view-rainbow,
+  .chat-view-wobble,
+  .chat-view-rainbow.chat-view-wobble {
+    animation: none;
+  }
+}
