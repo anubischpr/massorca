@@ -4,6 +4,7 @@ import type {
   CodexConfigSyncApi,
   CursorAccountsApi,
   GrokAccountsApi,
+  JevDecisionsApi,
   MinimaxCredentialsApi,
   ZcodePlanCredentialsApi
 } from './api/agent-account-api'
@@ -160,6 +161,7 @@ export type PreloadApi = {
   }
   minimaxCredentials: MinimaxCredentialsApi
   zcodePlanCredentials: ZcodePlanCredentialsApi
+  jevDecisions: JevDecisionsApi
   grokAccounts: GrokAccountsApi
   cursorAccounts: CursorAccountsApi
   ssh: SshApi

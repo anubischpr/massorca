@@ -1,3 +1,4 @@
+import type { JevDecisionsStatus } from '../../shared/jev-decisions-status'
 import type { SecretAtRestProtection } from '../../shared/secret-at-rest-protection'
 import type {
   ClaudeRateLimitAccountsState,
@@ -93,6 +94,12 @@ export type MinimaxCredentialsApi = {
     apiKeyConfigured: boolean
     apiKeyProtection: SecretAtRestProtection | null
   }>
+}
+
+export type JevDecisionsApi = {
+  getStatus: () => Promise<JevDecisionsStatus>
+  saveApiKey: (key: string) => Promise<JevDecisionsStatus>
+  clearApiKey: () => Promise<JevDecisionsStatus>
 }
 
 export type ZcodePlanCredentialsApi = {

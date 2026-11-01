@@ -4,7 +4,7 @@ import {
   delegationQuestionItemId,
   delegationQuestionRowIdentity
 } from '../../shared/delegated-session-journal'
-import { buildDelegationCardContent, routeDelegationRequest } from './delegation-options'
+import { buildDelegationCardContent, routeDelegationRequestWithAdvice } from './delegation-options'
 import type { DelegationRequestDeps } from './delegation-service-types'
 
 export type DelegationRequestInput = {
@@ -53,15 +53,18 @@ export class DelegationRequestService {
       )
     }
     const title = titleFor(input)
-    const route = routeDelegationRequest({
-      summary: input.summary,
-      writes: input.writes,
-      workspaceKind: parent.workspaceKind,
-      parentAgent: parent.agent,
-      agents,
-      rateLimits: this.deps.readRateLimits(),
-      now: this.deps.now()
-    })
+    const route = await routeDelegationRequestWithAdvice(
+      {
+        summary: input.summary,
+        writes: input.writes,
+        workspaceKind: parent.workspaceKind,
+        parentAgent: parent.agent,
+        agents,
+        rateLimits: this.deps.readRateLimits(),
+        now: this.deps.now()
+      },
+      this.deps.adviseTier
+    )
     const db = this.deps.requireDb()
     const row = db.createDelegationRequest({
       parentSessionId: parent.sessionId,

@@ -8077,6 +8077,16 @@
           "f79084947b": "New app"
         },
         "OrchestrationPane": {
+          "jevTitle": "Jev decisions",
+          "jevDescription": "Let Jev by typesafe pick how demanding each delegated task is, for a small provider cost per task. Only the one-line task summary is sent to typesafe. If Jev is off, slow or failing, MassOrca decides on its own.",
+          "jevKeyLabel": "typesafe API key",
+          "jevKeyPlaceholder": "Paste your typesafe API key",
+          "jevKeySaved": "API key saved on this computer, encrypted.",
+          "jevKeyMissing": "Save a key to turn this on.",
+          "jevKeyUnreadable": "The saved key cannot be read here, so MassOrca is deciding on its own. Paste it and save it again.",
+          "jevSave": "Save",
+          "jevRemove": "Remove",
+          "jevUpdateFailed": "Jev API key update failed.",
           "52e0634e2c": "Ask a coordinator agent to use orchestration for handoffs, worktree handovers, and sequential or parallel child agents.",
           "ae79504732": "How to use it",
           "7bc082f4de": "Copy install command",
