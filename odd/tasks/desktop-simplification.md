@@ -24,14 +24,15 @@ The canvas is the visual source; nothing outside it gets added ("por favor, que 
 ## Tasks
 
 - T1 S9 Hide or show Chat summary. Route inline. Done, setting nativeChatSummaryVisible; RED then GREEN on the pane header test. NativeChatStructuredSession.test.tsx has 3 failures that also fail at the base commit.
-- T2 S1 S2 Rail, usage rings, Settings. Route inline. Pending.
-- T3 S7 S8 S10 S11 S13 Tabless main area and side panel. Route inline. Pending. Risk item 3 and 6 possible: persisted tab groups.
-- T4 S12 Remove the title bar. Route inline. Pending.
+- T2 S1 S2 Rail, usage rings, Settings. Route inline. Done, 3aea932d985; status bar slot 929448c5ba5.
+- T3 S7 S8 S10 S11 S13 Tabless main area and side panel. Route delegated, context backstop. Done, 6e5b8ed0fc0 and 15049c0737d. Risk items 1 and 3; independent verifier passed, tab identity kept across upgrade, two relaunches and downgrade. A populated split group was not seeded.
+- T4 S12 S15 Remove the title bar. Route delegated. Done, 8d79dac1bfe and 15049c0737d. Verified on Windows only.
 - T5 S4 S5 S6 + Create. Route delegated, context backstop with T3 in parallel. Done in tests, 81 create-chat tests pass; not yet seen in the app. Locale keys pending. The notice drops "You can move back with Switch to chat view." because the control is absent for unsupported agents and for some agents on SSH.
-- T6 S3 Tasks page. Route inline. Pending.
+- T6 S3 Tasks page. Route delegated. Done, 8d79dac1bfe. WorkSpaces and Bot Team switch waits for PR #93 behind TASKS_HOME_CREATE_MODES; the old board stays reachable through openTaskPage.
 
 ## Log
 
 L1 (2026-10-31, user, verbatim excerpts in Specs; full request on canvas board 19): "oye. siguiendo el tema de simplificar la interfaz de la versión desktop".
 L2 (2026-10-31, user): "Igual lo importante aquí más que nada es tener claro el concepto de la limpieza de la nueva interfaz, queda claro para su implementación? hay opciones que aún no se van a implementar porque depende de \"Prototipo de Bot teams sobre MassOrca\" que termine de implementar su parte. Se entiende? Si ya lo entendiste, prototipo aprobado y puedes continuar."
 L3 Map: no bot team mode on this branch. WindowControls, TitlebarMainStrip and TitlebarLeftControls own the title bar. Seam for tabs: per-worktree panel group through createUnifiedTab targetGroupId, FloatingTerminalPanel as template. About 40 tab-bar test files and several e2e specs assert current structure.
+L4 (2026-11-01) Verification: orchestration-worker-terminal-visibility duplicate spawn and settled-worker-tab-survives-restart codex probe fail identically at 60b4fb3f70d, so they are baseline defects. paired-* specs and two layout oracle fixtures cannot run on this Windows host. remote-agent-session-focus-authority and golden-quit-relaunch-session are not rewritten. Not checked: SSH, folder workspaces, macOS, Linux, window dragging, populated split groups.
