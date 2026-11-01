@@ -1,6 +1,6 @@
 /* oxlint-disable react-doctor/no-adjust-state-on-prop-change -- Why: feedback viewer details are loaded through GitHub IPC after the dialog receives the issue URL. */
 import React, { useRef, useState } from 'react'
-import { ExternalLink, Github } from 'lucide-react'
+import { Clipboard, ExternalLink, Github } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,28 +13,15 @@ import {
 } from '@/components/ui/dialog'
 import { useMountedRef } from '@/hooks/useMountedRef'
 import { useAppStore } from '@/store'
-import { cn } from '@/lib/utils'
 import type { GitHubViewer } from '../../../../shared/github/pull-request-types'
 import { translate } from '@/i18n/i18n'
-import {
-  extractImageFilesFromDataTransfer,
-  hasAttachableFeedbackImage
-} from '@/lib/feedback-image-attachments'
 import { stripClientEnvironmentFooter } from '../../../../shared/client-environment-info'
-import { FEEDBACK_PAYLOAD_TOO_LARGE_STATUS } from '../../../../shared/feedback-image-limits'
-import { SidebarFeedbackImageAttachments } from './SidebarFeedbackImageAttachments'
 import { useSidebarFeedbackEnvironmentPrefill } from './use-sidebar-feedback-environment-prefill'
-import { useSidebarFeedbackImages } from './use-sidebar-feedback-images'
 import { MASSORCA_ISSUES_URL } from '../../../../shared/massorca-distribution'
 
 const GITHUB_ISSUES_URL = `${MASSORCA_ISSUES_URL}/`
 const DISCORD_URL = 'https://discord.gg/fzjDKHxv8Q'
 const X_URL = 'https://x.com/orca_build'
-
-type SubmitIdentity = {
-  githubLogin: string | null
-  githubEmail: string | null
-}
 
 type SidebarFeedbackDialogProps = {
   open: boolean
@@ -43,20 +30,6 @@ type SidebarFeedbackDialogProps = {
 
 function openExternalUrl(url: string): void {
   void window.api.shell.openUrl(url)
-}
-
-function getSubmitIdentity(viewer: GitHubViewer | null, anonymous: boolean): SubmitIdentity {
-  if (anonymous || !viewer) {
-    return {
-      githubLogin: null,
-      githubEmail: null
-    }
-  }
-
-  return {
-    githubLogin: viewer.login,
-    githubEmail: viewer.email
-  }
 }
 
 export function SidebarFeedbackDialog({
@@ -68,7 +41,6 @@ export function SidebarFeedbackDialog({
   // and would otherwise discard a report the user has not managed to send yet
   // (orca#22466).
   const feedback = useAppStore((s) => s.feedbackDraft.feedback)
-  const submitAnonymously = useAppStore((s) => s.feedbackDraft.submitAnonymously)
   const setFeedbackDraft = useAppStore((s) => s.setFeedbackDraft)
   const clearFeedbackDraft = useAppStore((s) => s.clearFeedbackDraft)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -76,19 +48,6 @@ export function SidebarFeedbackDialog({
   const [isViewerLoading, setIsViewerLoading] = useState(false)
   const mountedRef = useMountedRef()
   const feedbackTextareaRef = useRef<HTMLTextAreaElement>(null)
-  const {
-    images,
-    pendingImageReadCount,
-    isDragActive,
-    contentRef,
-    dragHandlers,
-    handleAddFiles,
-    handleRemoveImage,
-    clearImages,
-    hasPendingImageReads,
-    getReservedImageCapacity
-  } = useSidebarFeedbackImages({ open, isSubmitting, mountedRef })
-
   // Why: reads the committed draft at call time so a late-resolving prefill
   // cannot overwrite characters typed while it was in flight.
   const setFeedback = React.useCallback(
@@ -138,7 +97,7 @@ export function SidebarFeedbackDialog({
   }, [open])
 
   const handleSubmit = async (): Promise<void> => {
-    if (isSubmitting || hasPendingImageReads()) {
+    if (isSubmitting || !viewer) {
       return
     }
     const trimmed = feedback.trim()
@@ -155,28 +114,13 @@ export function SidebarFeedbackDialog({
 
     setIsSubmitting(true)
     try {
-      const identity = getSubmitIdentity(viewer, submitAnonymously)
-      // Why: submission is proxied through the main process via IPC because
-      // the packaged Mac build loads the renderer from file://, which makes
-      // cross-origin fetch() fail CORS preflight. Electron's net module in
-      // the main process has no CORS restrictions and works uniformly in dev
-      // and prod.
-      const result = await window.api.feedback.submit({
-        feedback: trimmed,
-        submitAnonymously,
-        githubLogin: identity.githubLogin,
-        githubEmail: identity.githubEmail,
-        images: images.map((image) => ({
-          contentType: image.contentType,
-          data: image.data
-        }))
-      })
+      const result = await window.api.feedback.submit({ feedback: trimmed })
 
       if (!result.ok) {
         throw new Error(`Feedback request failed: ${result.error}`)
       }
 
-      // Why: the report landed, so the draft has to go even if the sidebar
+      // Why: the issue exists, so the draft has to go even if the sidebar
       // collapsed mid-flight — otherwise it reappears on remount and invites a
       // duplicate send. Store actions outlive the component but `mountedRef`
       // does not, so this runs unguarded and instead compares what the user
@@ -191,48 +135,30 @@ export function SidebarFeedbackDialog({
       }
 
       if (mountedRef.current) {
-        // Why: the text reached us but the screenshots did not. The dialog
-        // closes either way, so the copy states the outcome rather than
-        // implying the screenshots are still recoverable from here.
-        if (result.imagesFailure) {
-          toast.warning(
-            // Why: only 413 means the upload was over the host's size limit.
-            // The other shed-the-attachment statuses (403 from a corporate
-            // filter, 415, 422…) would be a false explanation.
-            result.imagesFailure.status === FEEDBACK_PAYLOAD_TOO_LARGE_STATUS
-              ? translate(
-                  'auto.components.sidebar.SidebarFeedbackDialog.imagesRejected',
-                  'Feedback sent. Your screenshots were too large to upload and were not included.'
-                )
-              : translate(
-                  'auto.components.sidebar.SidebarFeedbackDialog.imagesNotIncluded',
-                  'Feedback sent. Your screenshots could not be uploaded and were not included.'
-                )
-          )
-        } else if (result.imagesDelivered === false) {
-          toast.warning(
-            translate(
-              'auto.components.sidebar.SidebarFeedbackDialog.imagesNotDelivered',
-              'Feedback sent, but image delivery could not be confirmed.'
-            )
-          )
-        } else {
-          toast.success(
-            translate(
-              'auto.components.sidebar.SidebarFeedbackDialog.7a46c228b8',
-              'Thanks for the feedback.'
-            )
-          )
-        }
-        clearImages()
+        const issueUrl = result.url
+        toast.success(
+          translate(
+            'auto.components.sidebar.SidebarFeedbackDialog.issueCreated',
+            'GitHub issue created.'
+          ),
+          {
+            action: {
+              label: translate(
+                'auto.components.sidebar.SidebarFeedbackDialog.viewIssue',
+                'View issue'
+              ),
+              onClick: () => openExternalUrl(issueUrl)
+            }
+          }
+        )
         onOpenChange(false)
       }
     } catch (err) {
       if (mountedRef.current) {
         toast.error(
           translate(
-            'auto.components.sidebar.SidebarFeedbackDialog.60b721e857',
-            'Failed to submit feedback. Please try again.'
+            'auto.components.sidebar.SidebarFeedbackDialog.issueNotCreated',
+            "GitHub issue wasn't created. Your text is still here; try again or copy it."
           )
         )
       }
@@ -244,39 +170,31 @@ export function SidebarFeedbackDialog({
     }
   }
 
+  const handleCopy = async (): Promise<void> => {
+    try {
+      await window.api.ui.writeClipboardText(feedback)
+      toast.success(
+        translate('auto.components.sidebar.SidebarFeedbackDialog.copied', 'Feedback copied.')
+      )
+    } catch (err) {
+      toast.error(
+        translate(
+          'auto.components.sidebar.SidebarFeedbackDialog.copyFailed',
+          "Couldn't copy your feedback."
+        )
+      )
+      console.error('Failed to copy feedback:', err)
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        ref={contentRef}
         className="max-h-[calc(100vh-3rem)] overflow-y-auto scrollbar-sleek sm:max-w-lg"
         onOpenAutoFocus={(event) => {
           event.preventDefault()
           feedbackTextareaRef.current?.focus()
         }}
-        // Why: paste is bound on the dialog rather than the textarea so a
-        // screenshot lands whether or not the caret is in the message box.
-        onPaste={(event) => {
-          const pasted = extractImageFilesFromDataTransfer(event.clipboardData)
-          if (pasted.length === 0) {
-            return
-          }
-          // Why: consume the paste only when something is actually attachable.
-          // An unsupported image still routes through for its rejection toast,
-          // but preventing default there would silently eat co-pasted text.
-          const reserved = getReservedImageCapacity()
-          // An optimistic shrink may fail; let co-pasted text insert now rather than restore it later.
-          if (
-            hasAttachableFeedbackImage(pasted, reserved.count, reserved.bytes, {
-              allowShrinking: event.clipboardData.getData('text/plain').length === 0
-            })
-          ) {
-            event.preventDefault()
-          }
-          handleAddFiles(pasted)
-        }}
-        // Why: dragenter/leave fire per nested child; the hook counts depth so
-        // the highlight only clears once the pointer leaves the dialog.
-        {...dragHandlers}
       >
         <DialogHeader>
           <DialogTitle className="text-sm">
@@ -284,8 +202,8 @@ export function SidebarFeedbackDialog({
           </DialogTitle>
           <DialogDescription className="text-xs">
             {translate(
-              'auto.components.sidebar.SidebarFeedbackDialog.a828fa4aee',
-              "Share what's working, what's broken, or what MassOrca should do next."
+              'auto.components.sidebar.SidebarFeedbackDialog.publicIssueDescription',
+              "Share what's working, what's broken, or what MassOrca should do next. This publishes a public GitHub issue."
             )}
           </DialogDescription>
         </DialogHeader>
@@ -356,42 +274,14 @@ export function SidebarFeedbackDialog({
           className="min-h-32 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         />
 
-        <SidebarFeedbackImageAttachments
-          images={images}
-          pendingCount={pendingImageReadCount}
-          disabled={isSubmitting}
-          isDragActive={isDragActive}
-          onAddFiles={handleAddFiles}
-          onRemove={handleRemoveImage}
-        />
-
         <div className="min-h-9 rounded-md border border-border/70 bg-muted/30 px-3 py-2">
           {viewer ? (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              <span>
-                {translate('auto.components.sidebar.SidebarFeedbackDialog.c9e5ea0791', 'GitHub:')}{' '}
-                <span className="font-mono text-foreground">
-                  {viewer.login}
-                  {viewer.email ? ` (${viewer.email})` : ''}
-                </span>
-              </span>
-              <label className="flex cursor-pointer items-center gap-2 text-foreground">
-                <input
-                  type="checkbox"
-                  checked={submitAnonymously}
-                  onChange={(event) =>
-                    setFeedbackDraft({ submitAnonymously: event.target.checked })
-                  }
-                  className={cn(
-                    'size-3.5 rounded border border-border bg-background align-middle',
-                    'accent-foreground'
-                  )}
-                />
-                {translate(
-                  'auto.components.sidebar.SidebarFeedbackDialog.5b120b9634',
-                  'Submit anonymously'
-                )}
-              </label>
+            <div className="text-xs text-muted-foreground">
+              {translate(
+                'auto.components.sidebar.SidebarFeedbackDialog.publicIssueAs',
+                'Anyone can read this issue. It will be published as {{value0}}.',
+                { value0: viewer.login }
+              )}
             </div>
           ) : isViewerLoading ? (
             <div className="text-xs text-muted-foreground">
@@ -403,8 +293,8 @@ export function SidebarFeedbackDialog({
           ) : (
             <div className="text-xs text-muted-foreground">
               {translate(
-                'auto.components.sidebar.SidebarFeedbackDialog.8de03e23c5',
-                'Submit with your typed feedback only, or connect `gh` to include GitHub identity.'
+                'auto.components.sidebar.SidebarFeedbackDialog.accountRequired',
+                'Sign in with `gh auth login` to create an issue, or copy your feedback instead.'
               )}
             </div>
           )}
@@ -413,17 +303,25 @@ export function SidebarFeedbackDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             {translate('auto.components.sidebar.SidebarFeedbackDialog.8bf619e4cf', 'Cancel')}
           </Button>
+          <Button variant="outline" onClick={() => void handleCopy()}>
+            <Clipboard className="size-3.5" />
+            {translate('auto.components.sidebar.SidebarFeedbackDialog.copy', 'Copy')}
+          </Button>
           <Button
             onClick={() => void handleSubmit()}
             disabled={
-              isSubmitting ||
-              pendingImageReadCount > 0 ||
-              stripClientEnvironmentFooter(feedback).trim() === ''
+              isSubmitting || !viewer || stripClientEnvironmentFooter(feedback).trim() === ''
             }
           >
             {isSubmitting
-              ? translate('auto.components.sidebar.SidebarFeedbackDialog.69969ba364', 'Sending…')
-              : translate('auto.components.sidebar.SidebarFeedbackDialog.f2e42e1307', 'Send')}
+              ? translate(
+                  'auto.components.sidebar.SidebarFeedbackDialog.creatingIssue',
+                  'Creating…'
+                )
+              : translate(
+                  'auto.components.sidebar.SidebarFeedbackDialog.createIssue',
+                  'Create GitHub Issue'
+                )}
           </Button>
         </DialogFooter>
       </DialogContent>

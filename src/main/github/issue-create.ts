@@ -10,6 +10,8 @@ import {
 } from './github-api-repository'
 import { acquire, extractExecError, ghExecFileAsync, release } from './gh-utils'
 
+type GhExecOptions = NonNullable<Parameters<typeof ghExecFileAsync>[1]>
+
 function githubIssueErrorMessage(error: unknown): string {
   const { stderr, stdout } = extractExecError(error)
   return stderr.trim() || stdout.trim()
@@ -50,6 +52,17 @@ export async function createIssue(
   if (!ownerRepo) {
     return { ok: false, error: 'Could not resolve GitHub owner/repo for this repository' }
   }
+  return createIssueInRepository(ownerRepo, ghOptions, trimmedTitle, body, fields)
+}
+
+/** Creates an issue on an explicit repository, skipping issue-source resolution. */
+export async function createIssueInRepository(
+  ownerRepo: { owner: string; repo: string },
+  ghOptions: GhExecOptions,
+  trimmedTitle: string,
+  body: string,
+  fields?: GitHubCreateIssueFields
+): Promise<GitHubCreateIssueResult> {
   await acquire()
   try {
     const createArgs = (issueBody: string) => {
