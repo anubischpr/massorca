@@ -137,6 +137,37 @@ describe('JevDecisionsSection', () => {
       expect(onEnabledChange).not.toHaveBeenCalled()
     })
 
+    it('ignores a late reply from a server the window has left', async () => {
+      rpc.mockResolvedValueOnce(serverStatus(false))
+      const host = await renderRemote()
+      let finishOldRequest: (status: JevDecisionsStatus) => void = () => undefined
+      rpc.mockReturnValueOnce(
+        new Promise<JevDecisionsStatus>((resolve) => {
+          finishOldRequest = resolve
+        })
+      )
+      await act(async () => {
+        host.querySelector<HTMLElement>('[role="switch"]')?.click()
+      })
+
+      rpc.mockResolvedValueOnce(serverStatus(false))
+      await act(async () => {
+        root?.render(
+          <JevDecisionsSection
+            target={{ kind: 'environment', environmentId: 'other' }}
+            enabled={false}
+            onEnabledChange={vi.fn()}
+          />
+        )
+      })
+      await act(async () => {
+        finishOldRequest(serverStatus(true))
+      })
+
+      expect(host.querySelector('[role="switch"]')?.getAttribute('aria-checked')).toBe('false')
+      expect(host.querySelector('[role="switch"]')?.hasAttribute('disabled')).toBe(false)
+    })
+
     it('warns about a key stored unencrypted on the server', async () => {
       rpc.mockResolvedValueOnce(serverStatus(true))
 

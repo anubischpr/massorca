@@ -33,7 +33,12 @@ function jevApiKeyProtection(): SecretAtRestProtection | null {
   if (!hasJevApiKey()) {
     return null
   }
-  return readFileSync(apiKeyPath(), 'utf8').startsWith(PLAINTEXT_PREFIX) ? 'plaintext' : 'sealed'
+  try {
+    return readFileSync(apiKeyPath(), 'utf8').startsWith(PLAINTEXT_PREFIX) ? 'plaintext' : 'sealed'
+  } catch {
+    // Why: an unreadable file is reported as apiKeyUnreadable, not as a failed status.
+    return null
+  }
 }
 
 /** What Settings may know about the key on this host; never its value. */
@@ -43,6 +48,14 @@ export function readJevApiKeyStatus(): JevDecisionsStatus {
     apiKeyConfigured,
     apiKeyUnreadable: apiKeyConfigured && !isJevApiKeyReadable(),
     apiKeyProtection: jevApiKeyProtection()
+  }
+}
+
+function tryWriteRestricted(contents: string): boolean {
+  try {
+    return writeSecureFile(apiKeyPath(), contents)
+  } catch {
+    return false
   }
 }
 
@@ -61,11 +74,11 @@ export function saveJevApiKey(key: string): void {
     : `${PLAINTEXT_PREFIX}${trimmed}`
   // Why captured first: writeSecureFile has replaced the file by the time it reports a failure.
   const previous = hasJevApiKey() ? readFileSync(apiKeyPath(), 'utf8') : null
-  if (!writeSecureFile(apiKeyPath(), contents)) {
+  if (!tryWriteRestricted(contents)) {
     if (previous === null) {
       rmSync(apiKeyPath(), { force: true })
     } else {
-      writeSecureFile(apiKeyPath(), previous)
+      tryWriteRestricted(previous)
     }
     throw new Error('Jev API key could not be stored securely on this device')
   }

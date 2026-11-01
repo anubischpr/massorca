@@ -122,6 +122,15 @@ describe('jev-api-key-store', () => {
     )
   })
 
+  it('reads back a key that itself starts with the plaintext marker', () => {
+    installSecretStore(false)
+
+    saveJevApiKey('plaintext:odd-key')
+    clearCache()
+
+    expect(readJevApiKey()).toBe('plaintext:odd-key')
+  })
+
   it('rejects an empty or multi-line key', () => {
     expect(() => saveJevApiKey('   ')).toThrow('required')
     expect(() => saveJevApiKey('one\ntwo')).toThrow('single line')

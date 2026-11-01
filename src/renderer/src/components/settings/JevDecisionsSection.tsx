@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import type { JevDecisionsStatus } from '../../../../shared/jev-decisions-status'
@@ -33,11 +33,15 @@ export function JevDecisionsSection({
   const [statusFailed, setStatusFailed] = useState(false)
   const remote = target.kind === 'environment'
   const environmentId = target.kind === 'environment' ? target.environmentId : null
+  const latestEnvironmentId = useRef(environmentId)
+  latestEnvironmentId.current = environmentId
 
   useEffect(() => {
     let current = true
     setStatus(null)
     setStatusFailed(false)
+    setBusy(false)
+    setKeyDraft('')
     void getJevDecisionsStatus(target).then(
       (next) => {
         if (current) {
@@ -57,10 +61,15 @@ export function JevDecisionsSection({
   }, [environmentId])
 
   const updateKey = async (update: () => Promise<JevDecisionsStatus>): Promise<void> => {
+    // Why: a reply from a server the window has since left must not overwrite the new server's state.
+    const isStale = (): boolean => latestEnvironmentId.current !== environmentId
     setBusy(true)
     try {
-      setStatus(await update())
-      setKeyDraft('')
+      const next = await update()
+      if (!isStale()) {
+        setStatus(next)
+        setKeyDraft('')
+      }
     } catch (error) {
       toast.error(
         translate(
@@ -70,7 +79,9 @@ export function JevDecisionsSection({
         { description: error instanceof Error ? error.message : String(error) }
       )
     } finally {
-      setBusy(false)
+      if (!isStale()) {
+        setBusy(false)
+      }
     }
   }
 
