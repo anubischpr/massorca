@@ -22,27 +22,25 @@ import { useBotTeams, type BotTeamsState } from './use-bot-teams'
 function TeamDetail({
   team,
   offline,
+  openTaskId,
+  onOpenTask,
   applyChange,
   onBack
 }: {
   team: BotTeam
   offline: boolean
+  openTaskId: string | null
+  onOpenTask: (taskId: string | null) => void
   applyChange: BotTeamsState['applyChange']
   onBack: () => void
 }): React.JSX.Element {
   const [addingBot, setAddingBot] = useState(false)
   const [editingBotId, setEditingBotId] = useState<string | null>(null)
   const editingBot = team.bots.find((bot) => bot.id === editingBotId)
-  const [openTaskId, setOpenTaskId] = useState<string | null>(null)
   // A task's thread is a full chat, so it takes the page rather than the team's column.
   if (openTaskId !== null) {
     return (
-      <BotTeamRoom
-        team={team}
-        openTaskId={openTaskId}
-        onOpenTask={setOpenTaskId}
-        offline={offline}
-      />
+      <BotTeamRoom team={team} openTaskId={openTaskId} onOpenTask={onOpenTask} offline={offline} />
     )
   }
   return (
@@ -63,7 +61,7 @@ function TeamDetail({
         <span className="truncate text-xs text-muted-foreground">{team.name}</span>
       </div>
       <div className="flex min-h-0 flex-1">
-        <BotTeamRoom team={team} openTaskId={null} onOpenTask={setOpenTaskId} offline={offline} />
+        <BotTeamRoom team={team} openTaskId={null} onOpenTask={onOpenTask} offline={offline} />
         <aside className="scrollbar-sleek flex w-[280px] shrink-0 flex-col gap-2 overflow-y-auto border-l border-border p-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium">{translate('components.botTeams.bots', 'Bots')}</h2>
@@ -227,27 +225,48 @@ function TeamGrid({
   )
 }
 
-export default function BotTeamsPage(): React.JSX.Element {
-  const { teams, failed, lastSeenAt, reload, applyChange } = useBotTeams()
-  const [creating, setCreating] = useState(false)
-  const [openTeamId, setOpenTeamId] = useState<string | null>(null)
-  const openTeam = teams?.find((team) => team.id === openTeamId)
+/** What the page shows: the open team, a task thread inside it, or the new team form. */
+export type BotTeamsPageSelection = {
+  teamId: string | null
+  taskId: string | null
+  creating: boolean
+}
 
+const NOTHING_OPEN: BotTeamsPageSelection = { teamId: null, taskId: null, creating: false }
+
+/** With no `selection` the page keeps its own; the left sidebar passes one to share it. */
+export default function BotTeamsPage({
+  selection: controlled,
+  onSelectionChange
+}: {
+  selection?: BotTeamsPageSelection
+  onSelectionChange?: (selection: BotTeamsPageSelection) => void
+} = {}): React.JSX.Element {
+  const { teams, failed, lastSeenAt, reload, applyChange } = useBotTeams()
+  const [own, setOwn] = useState<BotTeamsPageSelection>(NOTHING_OPEN)
+  const selection = controlled ?? own
+  const select = (next: BotTeamsPageSelection): void => {
+    if (controlled === undefined) {
+      setOwn(next)
+    }
+    onSelectionChange?.(next)
+  }
+  const openTeam = teams?.find((team) => team.id === selection.teamId)
   return (
     <div className="scrollbar-sleek h-full overflow-y-auto">
-      {creating ? null : <BotTeamHostPicker />}
-      {failed && !creating ? (
+      {selection.creating ? null : <BotTeamHostPicker />}
+      {failed && !selection.creating ? (
         <HostUnreachableNotice lastSeenAt={lastSeenAt} onRetry={reload} />
       ) : null}
       {/* Before the list: choosing another host in the form must not lose what was typed. */}
-      {creating ? (
+      {selection.creating ? (
         <NewBotTeamForm
           usedCharacters={(teams ?? []).map((team) => team.character)}
-          onCancel={() => setCreating(false)}
+          onCancel={() => select(NOTHING_OPEN)}
           onCreate={(input) => {
             void applyChange(() => createBotTeam(input)).then((done) => {
               if (done) {
-                setCreating(false)
+                select(NOTHING_OPEN)
               }
             })
           }}
@@ -256,11 +275,17 @@ export default function BotTeamsPage(): React.JSX.Element {
         <TeamDetail
           team={openTeam}
           offline={failed}
+          openTaskId={selection.taskId}
+          onOpenTask={(taskId) => select({ teamId: openTeam.id, taskId, creating: false })}
           applyChange={applyChange}
-          onBack={() => setOpenTeamId(null)}
+          onBack={() => select(NOTHING_OPEN)}
         />
       ) : (
-        <TeamGrid teams={teams} onNew={() => setCreating(true)} onOpen={setOpenTeamId} />
+        <TeamGrid
+          teams={teams}
+          onNew={() => select({ teamId: null, taskId: null, creating: true })}
+          onOpen={(teamId) => select({ teamId, taskId: null, creating: false })}
+        />
       )}
     </div>
   )

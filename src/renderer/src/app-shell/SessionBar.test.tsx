@@ -25,6 +25,7 @@ vi.mock('../store', () => ({ useAppStore: store }))
 
 const { SessionBar } = await import('./SessionBar')
 const { useSessionBarActionsTarget } = await import('./session-bar-slot')
+const { TOP_BAR_SURFACE_CLASS } = await import('./top-bar-surface')
 
 const WT = 'repo::/work/a'
 const mounted: { container: HTMLDivElement; root: Root }[] = []
@@ -183,5 +184,15 @@ describe('SessionBar', () => {
 
   it('has no such island while the sidebar header is not floating over it', () => {
     expect(mountBar().querySelector('[data-sidebar-header-island]')).toBeNull()
+  })
+})
+
+describe('SessionBar surface', () => {
+  it('is the same grey as every other top bar, not the page background', () => {
+    const bar = mountBar().querySelector<HTMLElement>('header[data-session-bar]')
+    for (const token of TOP_BAR_SURFACE_CLASS.split(' ')) {
+      expect(bar?.className).toContain(token)
+    }
+    expect(bar?.className).not.toContain('bg-background')
   })
 })

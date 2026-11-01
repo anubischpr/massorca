@@ -44,7 +44,6 @@ export function SidePanelTabStrip({
   return (
     <div
       className="flex h-9 shrink-0 items-center gap-0.5 border-b border-border px-1"
-      data-terminal-focus-release-surface="true"
       data-tab-group-strip-id={groupId}
       data-worktree-id={worktreeId}
     >

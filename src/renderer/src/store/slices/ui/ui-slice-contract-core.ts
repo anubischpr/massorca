@@ -15,6 +15,15 @@ import type { TaskSourceContext } from '../../../../../shared/task-source-contex
 import type { ExecutionHostId } from '../../../../../shared/execution-host'
 import type { TaskResumeState, TopLevelView } from '../../../../../shared/ui-chrome-types'
 
+export type BotTeamsSelection = {
+  /** The open team, or null for All teams. */
+  teamId: string | null
+  /** A task thread open inside the team. */
+  taskId: string | null
+  /** The new team form is open. */
+  creating: boolean
+}
+
 export type PendingSidebarWorktreeReveal = {
   worktreeId: string
   executionHostId?: ExecutionHostId
@@ -227,6 +236,12 @@ export type UISliceCore = {
    * returns to the current mode's home. Reports which one happened.
    */
   pressRailModeButton: () => 'switched' | 'returned'
+  /** What the Bot teams page shows; the left sidebar and the page both read and write it. */
+  botTeamsSelection: BotTeamsSelection
+  /** Shows the Bot teams page with this selection and puts the rail in Bot teams mode. */
+  openBotTeamsView: (selection?: Partial<BotTeamsSelection>) => void
+  /** Changes what the open Bot teams page shows, without moving the page. */
+  setBotTeamsSelection: (selection: BotTeamsSelection) => void
   openTasksHome: () => void
   setNewWorkspaceDraft: (draft: NonNullable<UISliceCore['newWorkspaceDraft']>) => void
   clearNewWorkspaceDraft: () => void

@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import {
   LayoutGrid,
   MessageCircle,
@@ -32,6 +33,8 @@ import { originChatOf } from './prototype-origin-chat'
 import { prototypeAgentLabel, prototypeCountLabel } from './prototype-labels'
 import { prototypePanelsShown } from './prototype-panel-visibility'
 import { usePrototypeViewStore } from './prototype-view-store'
+import { BarToggle } from '../../app-shell/BarToggle'
+import { usePageTopBandActionsTarget } from '../../app-shell/page-top-band-slot'
 
 type Update = (transform: (state: PrototypeSetState) => PrototypeSetState) => void
 
@@ -91,6 +94,7 @@ export function PrototypeViewerToolbar({
   const setListPanelHidden = usePrototypeViewStore((s) => s.setListPanelHidden)
   // Why: a merge under way hides the draft panel, so its toggle waits until the merge ends.
   const mergeUnderWay = state.merge !== null
+  const topBandTarget = usePageTopBandActionsTarget()
   const draftShown = prototypePanelsShown({ sidePanelHidden, listPanelHidden, mergeUnderWay }).draft
   const agentLabel = prototypeAgentLabel(set.agent)
   const chatTitle = set.chatTitle?.trim() ?? ''
@@ -150,6 +154,17 @@ export function PrototypeViewerToolbar({
   )
   // Why the tooltip at every count: a narrow header hides the visible name.
   const mergeControl = <NamedTooltip name={mergeName}>{mergeButton}</NamedTooltip>
+  const panelToggle = (
+    <BarToggle
+      label={panelName}
+      tooltip={panelName}
+      pressed={draftShown}
+      disabled={mergeUnderWay}
+      onClick={() => setSidePanelHidden(!sidePanelHidden)}
+    >
+      <PanelRight />
+    </BarToggle>
+  )
   return (
     <div className="@container flex flex-wrap items-center gap-2.5 border-b border-border px-4 py-2.5">
       <div className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
@@ -305,18 +320,8 @@ export function PrototypeViewerToolbar({
               </Button>
             </NamedTooltip>
           ) : null}
-          <NamedTooltip name={panelName}>
-            <Button
-              type="button"
-              variant={draftShown ? 'ghost' : 'secondary'}
-              size="icon-sm"
-              aria-label={panelName}
-              disabled={mergeUnderWay}
-              onClick={() => setSidePanelHidden(!sidePanelHidden)}
-            >
-              <PanelRight />
-            </Button>
-          </NamedTooltip>
+          {/* Why: sessions keep their panel toggles in the top bar by the window controls, so this one goes there too. */}
+          {topBandTarget ? createPortal(panelToggle, topBandTarget) : panelToggle}
         </div>
       </div>
     </div>

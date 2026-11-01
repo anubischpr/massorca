@@ -18094,7 +18094,22 @@
     "tasksHome": {
       "approvals": "Needs your approval",
       "heading": "What do you want to do?",
-      "open": "Open"
+      "open": "Open",
+      "botTeamCreating": "Creating task…",
+      "botTeamCreatingAria": "Creating task",
+      "botTeamHint": "Enter to create the task · Shift+Enter for a new line",
+      "botTeamPlaceAria": "Where it goes",
+      "botTeamPlaceholder": "Describe the task for the team…",
+      "botTeamSendAria": "Create task",
+      "createModeAria": "Create",
+      "createModeBotTeam": "Bot Team",
+      "createModeWorkspaces": "WorkSpaces",
+      "originBotTeam": "Bot Team",
+      "originWorkspaces": "WorkSpaces",
+      "startAria": "When the task starts",
+      "startNow": "Start now",
+      "teamAria": "Team",
+      "teamChoose": "Choose a team"
     },
     "prototypes": {
       "settings": {
@@ -19756,6 +19771,8 @@
       "openChild": "Open"
     },
     "botTeams": {
+      "conferenceRoom": "Conference room",
+      "sidebarAria": "Bot teams",
       "addBot": "Add a bot",
       "addBotHelp": "This bot keeps its name and job between tasks.",
       "botName": "Name",

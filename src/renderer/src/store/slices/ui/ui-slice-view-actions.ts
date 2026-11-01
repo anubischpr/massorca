@@ -129,6 +129,19 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
       state.setActiveView(mode === 'bot-teams' ? 'bot-teams' : 'terminal')
       return atHome ? 'switched' : 'returned'
     },
+    botTeamsSelection: { teamId: null, taskId: null, creating: false },
+    openBotTeamsView: (selection = {}) => {
+      set({
+        railMode: 'bot-teams',
+        botTeamsSelection: {
+          teamId: selection.teamId ?? null,
+          taskId: selection.taskId ?? null,
+          creating: selection.creating ?? false
+        }
+      })
+      get().setActiveView('bot-teams')
+    },
+    setBotTeamsSelection: (selection) => set({ botTeamsSelection: selection }),
     // Why: the rail's Tasks button lands on the clean home; every other entry point still opens the board through openTaskPage.
     openTasksHome: () => {
       get().recordViewVisit('tasks')

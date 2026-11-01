@@ -3,48 +3,15 @@ import { TOGGLE_TERMINAL_PANE_EXPAND_EVENT } from '@/constants/terminal'
 import { translate } from '@/i18n/i18n'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 import { resolveUnifiedTabLabel } from '../../../shared/tab-title-resolution'
 import { useShortcutLabel } from '../hooks/useShortcutLabel'
 import { useAppStore } from '../store'
 import { selectFocusedSessionTab } from '../store/slices/tabs/side-panel-group'
 import { selectSidePanelOpen } from '../store/slices/tabs/side-panel-state'
+import { BarToggle } from './BarToggle'
 import { setSessionBarActionsTarget } from './session-bar-slot'
-
-function BarToggle({
-  label,
-  tooltip,
-  pressed,
-  onClick,
-  children
-}: {
-  label: string
-  tooltip: string
-  pressed: boolean
-  onClick: () => void
-  children: React.ReactNode
-}): React.JSX.Element {
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label={label}
-          aria-pressed={pressed}
-          data-active={pressed}
-          className="text-muted-foreground data-[active=true]:bg-accent data-[active=true]:text-foreground [&_svg]:size-4"
-          onClick={onClick}
-        >
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" sideOffset={6}>
-        {tooltip}
-      </TooltipContent>
-    </Tooltip>
-  )
-}
+import { TOP_BAR_SURFACE_CLASS } from './top-bar-surface'
 
 /**
  * The one bar at the top of the workspace: the session's name on the left, its actions
@@ -95,7 +62,10 @@ export function SessionBar({
   return (
     <header
       data-session-bar="true"
-      className="relative flex h-11 shrink-0 items-center gap-1 border-b border-border bg-background px-4 [-webkit-app-region:drag]"
+      className={cn(
+        'relative flex h-11 shrink-0 items-center gap-1 px-4 [-webkit-app-region:drag]',
+        TOP_BAR_SURFACE_CLASS
+      )}
       style={{
         ...(reserveWindowControls
           ? { paddingRight: 'calc(1rem + var(--window-controls-width, 0px))' }

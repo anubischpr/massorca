@@ -16,13 +16,19 @@ vi.mock('@/components/sidebar/worktree-card-agent-activation', () => ({
   activateAgentTabInWorktree: activate
 }))
 vi.mock('@/components/AgentStateDot', () => ({ AgentStateDot: () => <span data-dot /> }))
+const botRows = vi.hoisted(() => {
+  const state: { current: unknown[] } = { current: [] }
+  return state
+})
+vi.mock('./use-bot-team-approval-rows', () => ({
+  useBotTeamApprovalRows: () => botRows.current
+}))
 
 const { createTestStore, seedStore } = await import('../../store/slices/store-test-helpers')
 const store = createTestStore()
 vi.mock('@/store', () => ({ useAppStore: store }))
 
 const { TasksHomeApprovals } = await import('./TasksHomeApprovals')
-const { TASKS_HOME_CREATE_MODES } = await import('./tasks-home-create-modes')
 
 const WT = 'repo::/work/a'
 const LEAF = '11111111-1111-4111-8111-111111111111'
@@ -53,6 +59,7 @@ function mount(): HTMLDivElement {
 
 beforeEach(() => {
   activate.mockReset()
+  botRows.current = []
   seedStore(store, { agentStatusByPaneKey: {}, tabsByWorktree: {}, unifiedTabsByWorktree: {} })
 })
 
@@ -87,10 +94,57 @@ describe('TasksHomeApprovals', () => {
     act(() => open?.click())
     expect(activate).toHaveBeenCalledWith(WT, 't1', `t1:${LEAF}`)
   })
-})
 
-describe('Tasks home create modes', () => {
-  it('has only WorkSpaces until Bot Team ships, so no mode switch is rendered', () => {
-    expect(TASKS_HOME_CREATE_MODES).toEqual(['workspaces'])
+  it('labels a session row WorkSpaces', () => {
+    seedStore(store, { agentStatusByPaneKey: { [`t1:${LEAF}`]: waiting('t1') } })
+    const badge = mount().querySelector(
+      'li span[data-slot="badge"], li .badge, li [class*="badge"]'
+    )
+    expect(mount().querySelector('li')?.textContent).toContain('WorkSpaces')
+    expect(badge === null || badge.textContent === 'WorkSpaces').toBe(true)
+  })
+
+  it('adds the Bot Team tasks waiting for the person, with the Bot Team badge and a joint count', () => {
+    seedStore(store, { agentStatusByPaneKey: { [`t1:${LEAF}`]: waiting('t1') } })
+    botRows.current = [
+      {
+        taskId: 'k1',
+        teamId: 'team-1',
+        title: 'Publish the flyer',
+        teamName: 'Marketing',
+        botName: 'Iris'
+      }
+    ]
+    const container = mount()
+    expect(container.querySelector('h2')?.textContent).toContain('2')
+    const rows = [...container.querySelectorAll('li')]
+    expect(rows).toHaveLength(2)
+    expect(rows[1].textContent).toContain('Publish the flyer')
+    expect(rows[1].textContent).toContain('Marketing · Iris · Waiting for you')
+    expect(rows[1].textContent).toContain('Bot Team')
+    expect(rows[0].textContent).not.toContain('Bot Team')
+  })
+
+  it('shows the section for Bot Team tasks alone, and opens the task thread of the row', () => {
+    botRows.current = [
+      {
+        taskId: 'k1',
+        teamId: 'team-1',
+        title: 'Publish the flyer',
+        teamName: 'Marketing',
+        botName: 'Iris'
+      }
+    ]
+    const container = mount()
+    expect(container.querySelectorAll('li')).toHaveLength(1)
+    const open = [...container.querySelectorAll('button')].find((b) => b.textContent === 'Open')
+    act(() => open?.click())
+    expect(store.getState().activeView).toBe('bot-teams')
+    expect(store.getState().botTeamsSelection).toEqual({
+      teamId: 'team-1',
+      taskId: 'k1',
+      creating: false
+    })
+    expect(activate).not.toHaveBeenCalled()
   })
 })

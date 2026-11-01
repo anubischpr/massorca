@@ -5,6 +5,7 @@ import { ActivityTitlebarControls } from '../components/activity/ActivityTitleba
 import { useShortcutLabel } from '../hooks/useShortcutLabel'
 import { useAppStore } from '../store'
 import { hasCustomTitleBar } from './app-window-chrome'
+import { setPageTopBandActionsTarget } from './page-top-band-slot'
 import type { AppChromeLayout } from './use-app-chrome-layout'
 
 export function RightSidebarToggle(): React.JSX.Element {
@@ -31,7 +32,14 @@ export function RightSidebarToggle(): React.JSX.Element {
 }
 
 /** The titlebar's center/right strip: the trailing chrome buttons. */
-export function TitlebarMainStrip({ layout }: { layout: AppChromeLayout }): React.JSX.Element {
+export function TitlebarMainStrip({
+  layout
+}: {
+  layout: Pick<
+    AppChromeLayout,
+    'activeView' | 'showRightSidebarControls' | 'rightSidebarOpen' | 'workspaceChromeActive'
+  >
+}): React.JSX.Element {
   return (
     <>
       {layout.activeView === 'activity' ? (
@@ -40,6 +48,12 @@ export function TitlebarMainStrip({ layout }: { layout: AppChromeLayout }): Reac
         // Why: a spacer keeps the strip's buttons right-aligned; sessions have no tab strip any more.
         <div className="flex flex-1 min-w-0 self-stretch" />
       )}
+      {/* Why: a page with a panel of its own (Prototypes) renders that panel's toggle here, where sessions keep theirs. */}
+      <div
+        ref={setPageTopBandActionsTarget}
+        data-page-top-band-actions="true"
+        className="flex shrink-0 items-center gap-1 [-webkit-app-region:no-drag]"
+      />
       {/* Why: the open right sidebar's header renders its own close button, and a workspace's session bar carries the toggle. */}
       {layout.showRightSidebarControls &&
       !layout.rightSidebarOpen &&

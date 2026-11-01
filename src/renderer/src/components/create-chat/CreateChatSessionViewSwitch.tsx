@@ -69,7 +69,7 @@ export function CreateChatSessionViewSwitch({
   )
 }
 
-function ViewOption({
+export function ViewOption({
   label,
   checked,
   onSelect
