@@ -54,6 +54,7 @@ export function JevDecisionsSection({
   }
 
   const keyConfigured = status?.apiKeyConfigured === true
+  const keyUnreadable = status?.apiKeyUnreadable === true
 
   return (
     <div className="space-y-3">
@@ -76,7 +77,7 @@ export function JevDecisionsSection({
           )}
           checked={enabled}
           // Why: a switch that is on without a key would do nothing and say nothing; off stays reachable.
-          disabled={!enabled && !keyConfigured}
+          disabled={!enabled && (!keyConfigured || keyUnreadable)}
           onCheckedChange={onEnabledChange}
         />
       </div>
@@ -122,15 +123,20 @@ export function JevDecisionsSection({
           ) : null}
         </div>
         <p className="text-xs text-muted-foreground">
-          {keyConfigured
+          {keyUnreadable
             ? translate(
-                'auto.components.settings.OrchestrationPane.jevKeySaved',
-                'API key saved on this computer, encrypted.'
+                'auto.components.settings.OrchestrationPane.jevKeyUnreadable',
+                'The saved key cannot be read here, so MassOrca is deciding on its own. Paste it and save it again.'
               )
-            : translate(
-                'auto.components.settings.OrchestrationPane.jevKeyMissing',
-                'Save a key to turn this on.'
-              )}
+            : keyConfigured
+              ? translate(
+                  'auto.components.settings.OrchestrationPane.jevKeySaved',
+                  'API key saved on this computer, encrypted.'
+                )
+              : translate(
+                  'auto.components.settings.OrchestrationPane.jevKeyMissing',
+                  'Save a key to turn this on.'
+                )}
         </p>
       </div>
     </div>
