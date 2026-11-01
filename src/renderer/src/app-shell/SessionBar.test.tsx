@@ -163,4 +163,25 @@ describe('SessionBar', () => {
       'verify-secondary'
     )
   })
+
+  it('keeps the floating sidebar header clickable: its spot is a no-drag island inside the bar', () => {
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    mounted.push({ container, root })
+    act(() =>
+      root.render(
+        <SessionBar worktreeId={WT} reserveWindowControls={false} reserveCollapsedSidebarHeader />
+      )
+    )
+    const island = container.querySelector<HTMLElement>(
+      '[data-session-bar] [data-sidebar-header-island]'
+    )
+    expect(island?.className).toContain('[-webkit-app-region:no-drag]')
+    expect(island?.style.width).toContain('--collapsed-sidebar-header-width')
+  })
+
+  it('has no such island while the sidebar header is not floating over it', () => {
+    expect(mountBar().querySelector('[data-sidebar-header-island]')).toBeNull()
+  })
 })

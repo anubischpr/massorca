@@ -1,5 +1,9 @@
 import { useState } from 'react'
-import { useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
+import {
+  structuredAgentSessionPaneKey,
+  structuredAgentSessionTabId
+} from '../../../../src/shared/structured-agent-session-projection'
 import { MobileBotTeamsScreen } from '../../../src/bot-teams/MobileBotTeamsScreen'
 import { WorkspaceDetailPlaceholder } from '../../../src/components/WorkspaceDetailPlaceholder'
 import { firstParam } from '../../../src/navigation/route-param-reader'
@@ -57,6 +61,7 @@ function HostListScreen({ onShowTeams }: { onShowTeams: () => void }) {
 export default function HostWorktreeRoute() {
   const { isWideLayout } = useResponsiveLayout()
   const params = useLocalSearchParams<{ hostId?: string | string[] }>()
+  const router = useRouter()
   // Teams are the first screen of a host; a new visit starts there again.
   const [showTeams, setShowTeams] = useState(true)
   if (isWideLayout) {
@@ -67,6 +72,18 @@ export default function HostWorktreeRoute() {
       <MobileBotTeamsScreen
         hostId={firstParam(params.hostId)}
         onShowWorkspaces={() => setShowTeams(false)}
+        onOpenTask={(workspaceId, task) => {
+          // A task's thread is the normal session screen, on that task's chat.
+          const paneKey = structuredAgentSessionPaneKey(
+            structuredAgentSessionTabId(task.sessionId ?? ''),
+            task.sessionId ?? ''
+          )
+          router.push(
+            `/h/${encodeURIComponent(firstParam(params.hostId))}/session/${encodeURIComponent(workspaceId)}?name=${encodeURIComponent(task.title)}&paneKey=${encodeURIComponent(paneKey)}` as Parameters<
+              typeof router.push
+            >[0]
+          )
+        }}
       />
     )
   }

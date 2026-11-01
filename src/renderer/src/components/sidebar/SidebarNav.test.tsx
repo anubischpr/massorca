@@ -45,6 +45,11 @@ vi.mock('@/components/activity/useActivityUnreadCount', () => ({
   useActivityUnreadCount: () => 0
 }))
 
+// Why: the real hook calls the store's getState, which this file's store mock does not provide.
+vi.mock('../prototypes/use-prototype-set-count', () => ({
+  usePrototypeSetCount: () => 0
+}))
+
 vi.mock('@/components/dashboard/useAgentBucketCounts', () => ({
   useAgentBucketCounts: () => {
     mocks.getAgentBucketCounts()
@@ -216,6 +221,14 @@ describe('SidebarNav', () => {
     mocks.hasPairedMobileDevice = false
     mocks.agentBucketCounts = { attention: 0, working: 0, done: 0, idle: 0 }
     setSidebarState()
+  })
+
+  it('has no Workspaces and Bot teams switch: the rail button owns the mode', async () => {
+    const container = await renderSidebarNav()
+    expect(container.querySelector('[role="group"][data-slot="toggle-group"]')).toBeNull()
+    expect(queryButtonByText(container, 'Workspaces')).toBeNull()
+    expect(queryButtonByText(container, 'Bot teams')).toBeNull()
+    expect(queryButtonByText(container, 'Create')).not.toBeNull()
   })
 
   it('keeps the Agent Dashboard row unmounted while its experiment is off', async () => {
@@ -436,8 +449,8 @@ describe('SidebarNav', () => {
     )
     const tasksButton = getButtonByText(container, 'Tasks')
 
-    expect(nav?.children[1]).toBe(getButtonByText(container, 'Create'))
-    expect(nav?.children[2]).toBe(searchButton)
+    expect(nav?.children[0]).toBe(getButtonByText(container, 'Create'))
+    expect(nav?.children[1]).toBe(searchButton)
     if (!searchButton) {
       throw new Error('worktree palette search button not rendered')
     }

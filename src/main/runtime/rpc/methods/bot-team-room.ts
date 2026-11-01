@@ -111,7 +111,12 @@ export const BOT_TEAM_ROOM_METHODS = [
     params: BotTeamRoomSelector,
     handler: ({ teamId }, { runtime }) => {
       const db = runtime.getOrchestrationDb()
-      return { tasks: db.listBotTeamTasks(teamId), messages: db.listBotTeamMessages(teamId) }
+      return {
+        tasks: db.listBotTeamTasks(teamId),
+        messages: db.listBotTeamMessages(teamId),
+        // Null until a task starts; a client opens a task's session in this workspace.
+        workspaceId: db.getBotTeamWorkspace(teamId)
+      }
     }
   }),
   defineMethod({

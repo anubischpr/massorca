@@ -18068,6 +18068,7 @@
   },
   "components": {
     "app-rail": {
+      "workspacesAgainHint": "Click Workspaces again to switch to Bot teams.",
       "label": "App",
       "settings": "Settings",
       "tasks": "Tasks",

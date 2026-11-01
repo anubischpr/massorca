@@ -95,7 +95,7 @@ export function SessionBar({
   return (
     <header
       data-session-bar="true"
-      className="flex h-11 shrink-0 items-center gap-1 border-b border-border bg-background px-4 [-webkit-app-region:drag]"
+      className="relative flex h-11 shrink-0 items-center gap-1 border-b border-border bg-background px-4 [-webkit-app-region:drag]"
       style={{
         ...(reserveWindowControls
           ? { paddingRight: 'calc(1rem + var(--window-controls-width, 0px))' }
@@ -105,6 +105,16 @@ export function SessionBar({
           : {})
       }}
     >
+      {reserveCollapsedSidebarHeader ? (
+        // Why: Electron resolves drag regions in DOM order, so this bar (later than the sidebar
+        // column) would otherwise re-cover the floating sidebar header and swallow its clicks.
+        <div
+          data-sidebar-header-island="true"
+          aria-hidden
+          className="absolute inset-y-0 left-0 [-webkit-app-region:no-drag]"
+          style={{ width: 'var(--collapsed-sidebar-header-width, 0px)' }}
+        />
+      ) : null}
       <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{name}</span>
       <div
         ref={setSessionBarActionsTarget}

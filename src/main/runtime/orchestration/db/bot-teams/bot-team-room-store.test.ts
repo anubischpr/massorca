@@ -80,6 +80,15 @@ describe('bot team room store', () => {
     ])
   })
 
+  it('refuses to remove a bot that still has tasks, and keeps it', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    db.createBotTeamTask({ teamId: team.id, title: 'A', prompt: '', ownerBotId: team.bots[0].id })
+
+    expect(() => db?.removeBotFromTeam(team.id, team.bots[0].id)).toThrow('still has tasks')
+    expect(db.listBotTeams()[0].bots).toHaveLength(1)
+  })
+
   it('removes tasks and messages with their team', () => {
     db = new OrchestrationDb(':memory:')
     const team = createTeam(db)

@@ -217,6 +217,16 @@ export type UISliceCore = {
   openCreateChatPage: () => void
   /** True while the tasks view shows the Tasks home instead of the source-control board. */
   tasksHomeOpen: boolean
+  /** Which mode the rail's first button is in; it survives every page change and restart. */
+  railMode: 'workspaces' | 'bot-teams'
+  /** The one-time "click Workspaces again" hint has been shown. */
+  railWorkspacesHintShown: boolean
+  markRailWorkspacesHintShown: () => void
+  /**
+   * The rail's first button: from its mode's home it switches mode, from any other page it
+   * returns to the current mode's home. Reports which one happened.
+   */
+  pressRailModeButton: () => 'switched' | 'returned'
   openTasksHome: () => void
   setNewWorkspaceDraft: (draft: NonNullable<UISliceCore['newWorkspaceDraft']>) => void
   clearNewWorkspaceDraft: () => void

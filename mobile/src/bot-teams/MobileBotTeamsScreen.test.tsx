@@ -44,7 +44,7 @@ describe('MobileBotTeamsScreen', () => {
     let renderer!: ReactTestRenderer
     await act(async () => {
       renderer = create(
-        createElement(MobileBotTeamsScreen, { hostId: 'host', onShowWorkspaces: () => {} })
+        createElement(MobileBotTeamsScreen, { hostId: 'host', onShowWorkspaces: () => {}, onOpenTask: () => {} })
       )
     })
     press(renderer, 'New team')

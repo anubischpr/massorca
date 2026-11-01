@@ -129,6 +129,12 @@ export function addBotToTeam(this: OrchestrationDb, teamId: string, bot: BotDraf
 }
 
 export function removeBotFromTeam(this: OrchestrationDb, teamId: string, botId: string): BotTeam {
+  const owned = this.db
+    .prepare('SELECT id FROM bot_team_tasks WHERE owner_bot_id = ? LIMIT 1')
+    .get(botId)
+  if (owned !== undefined) {
+    throw new Error('This bot still has tasks, so it cannot be removed.')
+  }
   this.db.prepare('DELETE FROM bot_team_bots WHERE id = ? AND team_id = ?').run(botId, teamId)
   return requireBotTeam(this, teamId)
 }

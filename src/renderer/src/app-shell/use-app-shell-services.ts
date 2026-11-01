@@ -28,6 +28,7 @@ import { useVisibleHostedReviewRefresh } from './use-visible-hosted-review-refre
 import { useProfileStateSaveDelayNotice } from './use-profile-state-save-delay-notice'
 import { useSidePanelNormalizer } from './use-side-panel-normalizer'
 import { useSidePanelPersistence } from './use-side-panel-persistence'
+import { useRailModePersistence } from './use-rail-mode-persistence'
 
 /**
  * App-level subscriptions that must outlive any individual surface. Each one is here because
@@ -44,6 +45,7 @@ export function useAppShellServices(): void {
   useClosedEditorTabCleanup()
   useSidePanelNormalizer()
   useSidePanelPersistence()
+  useRailModePersistence()
   useRadixBodyPointerEventsRecovery()
   useWebSessionTabsSync()
   useLocalStructuredSessionTabsSync()

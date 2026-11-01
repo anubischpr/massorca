@@ -38,6 +38,10 @@ export type PersistedUIState = {
   rightSidebarExplorerView: RightSidebarExplorerView
   rightSidebarWidth: number
   /** Side panel width; absent in profiles written before the panel existed. */
+  /** Mode of the rail's first button; absent in profiles written before Bot teams. */
+  railMode?: 'workspaces' | 'bot-teams'
+  /** The one-time "click Workspaces again" hint has been shown. */
+  railWorkspacesHintShown?: boolean
   sidePanelWidth?: number
   /** Explicit side panel open/closed choice per workspace; absent means "open exactly when it has tabs". */
   sidePanelOpenByWorktree?: Record<string, boolean>
