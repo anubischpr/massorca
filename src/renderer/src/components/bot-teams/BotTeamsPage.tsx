@@ -27,6 +27,11 @@ function TeamDetail({
   onBack: () => void
 }): React.JSX.Element {
   const [addingBot, setAddingBot] = useState(false)
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null)
+  // A task's thread is a full chat, so it takes the page rather than the team's column.
+  if (openTaskId !== null) {
+    return <BotTeamRoom team={team} openTaskId={openTaskId} onOpenTask={setOpenTaskId} />
+  }
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-4 p-6">
       <div className="flex items-center gap-2">
@@ -52,7 +57,7 @@ function TeamDetail({
         </Button>
       </div>
       {team.purpose ? <p className="text-sm text-muted-foreground">{team.purpose}</p> : null}
-      <BotTeamRoom team={team} />
+      <BotTeamRoom team={team} openTaskId={null} onOpenTask={setOpenTaskId} />
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium">{translate('components.botTeams.bots', 'Bots')}</h2>
         <Button variant="outline" size="sm" onClick={() => setAddingBot(true)}>

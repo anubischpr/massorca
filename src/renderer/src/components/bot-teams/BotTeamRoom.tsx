@@ -55,7 +55,7 @@ function BotTeamTaskThread({
     return null
   }
   return (
-    <div className="flex h-[70vh] min-h-0 flex-col gap-2">
+    <div className="flex h-full min-h-0 flex-col gap-2 p-2">
       <div className="flex items-center gap-2">
         <Button
           variant="ghost"
@@ -82,12 +82,19 @@ function BotTeamTaskThread({
   )
 }
 
-export function BotTeamRoom({ team }: { team: BotTeam }): React.JSX.Element {
+export function BotTeamRoom({
+  team,
+  openTaskId,
+  onOpenTask
+}: {
+  team: BotTeam
+  openTaskId: string | null
+  onOpenTask: (taskId: string | null) => void
+}): React.JSX.Element {
   const [messages, setMessages] = useState<BotTeamMessage[]>([])
   const [tasks, setTasks] = useState<BotTeamTask[]>([])
   const [text, setText] = useState('')
   const [needsLead, setNeedsLead] = useState(false)
-  const [openTaskId, setOpenTaskId] = useState<string | null>(null)
   const statuses = useBotTeamSessionStatuses()
   const botOf = (botId: string | null) => team.bots.find((bot) => bot.id === botId)
 
@@ -129,9 +136,7 @@ export function BotTeamRoom({ team }: { team: BotTeam }): React.JSX.Element {
   const openTask = tasks.find((task) => task.id === openTaskId)
   const openAgent = botOf(openTask?.ownerBotId ?? null)?.agent
   if (openTask && openAgent) {
-    return (
-      <BotTeamTaskThread task={openTask} agent={openAgent} onBack={() => setOpenTaskId(null)} />
-    )
+    return <BotTeamTaskThread task={openTask} agent={openAgent} onBack={() => onOpenTask(null)} />
   }
 
   const empty = text.trim() === ''
@@ -203,7 +208,7 @@ export function BotTeamRoom({ team }: { team: BotTeam }): React.JSX.Element {
                   {translate('components.botTeams.start', 'Start')}
                 </Button>
               ) : (
-                <Button variant="outline" size="sm" onClick={() => setOpenTaskId(task.id)}>
+                <Button variant="outline" size="sm" onClick={() => onOpenTask(task.id)}>
                   {translate('components.botTeams.open', 'Open')}
                 </Button>
               )}
