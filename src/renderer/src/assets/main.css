@@ -3484,3 +3484,13 @@ html.native-shell .app-layout {
     animation: prototype-merge-pulse 1.8s ease-out infinite;
   }
 }
+
+/* Why: with no title bar above it the rail carries window dragging; its macOS top inset leaves the native traffic lights uncovered. */
+.app-rail {
+  -webkit-app-region: drag;
+}
+
+.app-rail button,
+.app-rail [role='button'] {
+  -webkit-app-region: no-drag;
+}

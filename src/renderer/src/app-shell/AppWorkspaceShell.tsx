@@ -8,6 +8,7 @@ import { FloatingTerminalToggleButton } from '../components/floating-terminal/Fl
 import { TerminalWorkbenchContainer } from '../components/TerminalWorkbenchContainer'
 import type { VirtualizedScrollAnchor } from '../hooks/useVirtualizedScrollAnchor'
 import { AppRail } from './AppRail'
+import { AppStatusBarSlot } from './AppStatusBarSlot'
 import { TitlebarLeftControls } from './TitlebarLeftControls'
 import { RightSidebarToggle, TitlebarMainStrip } from './TitlebarMainStrip'
 import type { AppChromeLayout } from './use-app-chrome-layout'
@@ -120,48 +121,47 @@ export function AppWorkspaceShell(props: {
     >
       <div className="flex flex-row flex-1 min-h-0 overflow-hidden">
         <AppRail />
-        {/* Why: keep the non-workspace titlebar inside this left+center wrapper so it doesn't span over the right-sidebar column. */}
-        <div className="flex flex-col flex-1 min-w-0 min-h-0">
-          {/* Why: workspace view drops the full-width titlebar so tab groups extend to the top; settings/landing/tasks keep it. */}
-          {!layout.leftTitlebarChromeLayout.shouldMount ? (
-            <div className="titlebar">
-              <div className="flex items-center shrink-0 mr-2">{titlebarLeftControls}</div>
-              {titlebarMainStrip}
-            </div>
-          ) : null}
-          <div className="flex flex-row flex-1 min-h-0 overflow-hidden">
-            {layout.showSidebar ? (
-              layout.leftTitlebarChromeLayout.shouldMount ? (
-                /* Why: when the sidebar is collapsed, take this titlebar-height header out of flex layout so the terminal/editor reclaim the left edge. */
-                <div
-                  className={`flex min-h-0 flex-col shrink-0${layout.sidebarOpen ? '' : ' relative w-0 overflow-visible'}`}
-                >
-                  <div
-                    // Why: floating titlebar-left occludes the center column's border-l seam; border-r restores that line, w-max sizes it to its own controls.
-                    className={`titlebar-left${
-                      layout.leftTitlebarChromeLayout.isFloating
-                        ? ' titlebar-left-floating absolute top-0 left-0 z-10 w-max border-r border-border'
-                        : ''
-                    }`}
-                    style={{
-                      // Why: custom sidebar appearances are scoped to the sidebar root; mirror those vars onto the header in the same left-column panel.
-                      ...(layout.sidebarOpen ? layout.leftSidebarStyle : undefined),
-                      // Why: size from the wrapper's live width so the header tracks in-flight drag resizes (persisted to Zustand only on mouseup).
-                      width: layout.sidebarOpen ? '100%' : undefined
-                    }}
-                  >
-                    {titlebarLeftControls}
-                  </div>
-                  {/* Why: flex-1/min-h-0 slot needed under the fixed 36px header, else the sidebar collapses to content height and loses its scroll viewport. */}
-                  <div className="flex min-h-0 flex-1">
-                    <WorktreeSidebar layout={layout} scrollRefs={sidebarScrollRefs} />
-                  </div>
-                </div>
-              ) : (
+        {layout.showSidebar ? (
+          layout.leftTitlebarChromeLayout.shouldMount ? (
+            /* Why: when the sidebar is collapsed, take this titlebar-height header out of flex layout so the terminal/editor reclaim the left edge. */
+            <div
+              className={`flex min-h-0 flex-col shrink-0${layout.sidebarOpen ? '' : ' relative w-0 overflow-visible'}`}
+            >
+              <div
+                // Why: floating titlebar-left occludes the center column's border-l seam; border-r restores that line, w-max sizes it to its own controls.
+                className={`titlebar-left${
+                  layout.leftTitlebarChromeLayout.isFloating
+                    ? ' titlebar-left-floating absolute top-0 left-0 z-10 w-max border-r border-border'
+                    : ''
+                }`}
+                style={{
+                  // Why: custom sidebar appearances are scoped to the sidebar root; mirror those vars onto the header in the same left-column panel.
+                  ...(layout.sidebarOpen ? layout.leftSidebarStyle : undefined),
+                  // Why: size from the wrapper's live width so the header tracks in-flight drag resizes (persisted to Zustand only on mouseup).
+                  width: layout.sidebarOpen ? '100%' : undefined
+                }}
+              >
+                {titlebarLeftControls}
+              </div>
+              {/* Why: flex-1/min-h-0 slot needed under the fixed 36px header, else the sidebar collapses to content height and loses its scroll viewport. */}
+              <div className="flex min-h-0 flex-1">
                 <WorktreeSidebar layout={layout} scrollRefs={sidebarScrollRefs} />
-              )
-            ) : null}
+              </div>
+            </div>
+          ) : (
+            <WorktreeSidebar layout={layout} scrollRefs={sidebarScrollRefs} />
+          )
+        ) : null}
+        {/* Why: the status bar runs from the end of the left sidebar to the window's right edge, under the right sidebar too. */}
+        <div className="flex flex-col flex-1 min-w-0 min-h-0">
+          <div className="flex flex-row flex-1 min-h-0 overflow-hidden">
             <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
+              {!layout.leftTitlebarChromeLayout.shouldMount ? (
+                <div className="titlebar">
+                  <div className="flex items-center shrink-0 mr-2">{titlebarLeftControls}</div>
+                  {titlebarMainStrip}
+                </div>
+              ) : null}
               {/* Why: automations/artifacts own their page headers; the stacked titlebar would be an empty 36px stripe. */}
               {layout.stackedSidebarOpen &&
               layout.activeView !== 'automations' &&
@@ -229,27 +229,28 @@ export function AppWorkspaceShell(props: {
                 ) : null}
               </div>
             </div>
+            {/* Why: keep the shell mounted for layout stability (heavy panels disconnect while closed); unmount on the distraction-free tasks view. */}
+            {layout.showRightSidebarControls ? (
+              <RecoverableRenderErrorBoundary
+                boundaryId="right-sidebar"
+                surface="right-sidebar"
+                resetKey={
+                  layout.rightSidebarTab === 'explorer'
+                    ? `${layout.rightSidebarTab}:${layout.rightSidebarExplorerView}`
+                    : layout.rightSidebarTab
+                }
+                title={translate('auto.App.ed6b168d00', 'The right sidebar hit an error.')}
+                description={translate(
+                  'auto.App.8d1e160ed1',
+                  'Retry the sidebar or switch tabs to reload this surface.'
+                )}
+              >
+                <RightSidebar />
+              </RecoverableRenderErrorBoundary>
+            ) : null}
           </div>
+          <AppStatusBarSlot floatingTerminalOpen={floatingWorkspace.open} />
         </div>
-        {/* Why: keep the shell mounted for layout stability (heavy panels disconnect while closed); unmount on the distraction-free tasks view. */}
-        {layout.showRightSidebarControls ? (
-          <RecoverableRenderErrorBoundary
-            boundaryId="right-sidebar"
-            surface="right-sidebar"
-            resetKey={
-              layout.rightSidebarTab === 'explorer'
-                ? `${layout.rightSidebarTab}:${layout.rightSidebarExplorerView}`
-                : layout.rightSidebarTab
-            }
-            title={translate('auto.App.ed6b168d00', 'The right sidebar hit an error.')}
-            description={translate(
-              'auto.App.8d1e160ed1',
-              'Retry the sidebar or switch tabs to reload this surface.'
-            )}
-          >
-            <RightSidebar />
-          </RecoverableRenderErrorBoundary>
-        ) : null}
       </div>
     </RecoverableRenderErrorBoundary>
   )

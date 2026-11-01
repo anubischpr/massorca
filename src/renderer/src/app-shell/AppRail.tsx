@@ -6,6 +6,7 @@ import { translate } from '@/i18n/i18n'
 import { useAppStore } from '../store'
 import { useShortcutKeyDetails } from '@/hooks/useShortcutLabel'
 import { ShortcutKeyCombo } from '@/components/ShortcutKeyCombo'
+import { isMac } from './app-window-chrome'
 import { AppRailUsage } from './AppRailUsage'
 
 function RailButton({
@@ -56,7 +57,8 @@ export function AppRail(): React.JSX.Element {
     <nav
       aria-label={translate('components.app-rail.label', 'App')}
       data-app-rail="true"
-      className="flex w-[52px] shrink-0 flex-col items-center gap-1 border-r border-border bg-background py-2"
+      data-mac={isMac}
+      className="app-rail flex w-[52px] shrink-0 flex-col items-center gap-1 border-r border-border bg-background py-2 data-[mac=true]:pt-9"
     >
       <RailButton
         label={translate('components.app-rail.workspaces', 'Workspaces')}
