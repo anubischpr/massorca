@@ -1,9 +1,7 @@
 import { translate } from '@/i18n/i18n'
 import {
   sanitizeCrashReportString,
-  type CrashReportCopySubmissionFailure,
-  type CrashReportDiagnosticBundle,
-  type CrashReportSubmitResult
+  type CrashReportCopySubmissionFailure
 } from '../../../../shared/crash-reporting'
 
 export const CRASH_REPORT_SUBMIT_FAILURE_TOAST_ID = 'crash-report-submit-failure'
@@ -14,14 +12,8 @@ export type CrashReportSubmitFailureNotice = {
   actionLabel: string
 }
 
-export type CrashReportSubmitWarningNotice = {
-  title: string
-  description: string
-}
-
 type CrashReportSubmitFailureLike = {
   error: unknown
-  diagnosticBundle?: CrashReportDiagnosticBundle
 }
 
 function normalizedFailureMessage(error: unknown): string {
@@ -43,92 +35,24 @@ function asSentence(message: string): string {
 export function getCrashReportCopySubmissionFailure(
   failure: CrashReportSubmitFailureLike
 ): CrashReportCopySubmissionFailure {
-  const diagnosticContext =
-    failure.diagnosticBundle?.status === 'uploaded'
-      ? {
-          status: 'uploaded' as const,
-          ticketId: sanitizeCrashReportString(failure.diagnosticBundle.ticketId)
-        }
-      : failure.diagnosticBundle?.status === 'not_uploaded'
-        ? {
-            status: 'not_uploaded' as const,
-            reason: normalizedFailureMessage(failure.diagnosticBundle.reason)
-          }
-        : undefined
-  return {
-    error: normalizedFailureMessage(failure.error),
-    ...(diagnosticContext ? { diagnosticContext } : {})
-  }
+  return { error: normalizedFailureMessage(failure.error) }
 }
 
 export function getCrashReportSubmitFailureNotice(
-  failure: CrashReportSubmitFailureLike,
-  includeDiagnosticLogs: boolean
+  failure: CrashReportSubmitFailureLike
 ): CrashReportSubmitFailureNotice {
-  const ticketDetail =
-    failure.diagnosticBundle?.status === 'uploaded'
-      ? translate(
-          'auto.components.crash.report.submit.notice.ticketUploaded',
-          'Diagnostic ticket {{value0}} was uploaded but not linked.',
-          { value0: sanitizeCrashReportString(failure.diagnosticBundle.ticketId) }
-        )
-      : null
-  const omittedDetail =
-    failure.diagnosticBundle?.status === 'not_uploaded'
-      ? asSentence(
-          translate(
-            'auto.components.crash.report.submit.notice.diagnosticsReason',
-            'Diagnostic logs were not attached: {{value0}}',
-            { value0: normalizedFailureMessage(failure.diagnosticBundle.reason) }
-          )
-        )
-      : null
-  const attachmentAlreadyOmitted = failure.diagnosticBundle?.status === 'not_uploaded'
-  const recovery =
-    includeDiagnosticLogs && !attachmentAlreadyOmitted
-      ? translate(
-          'auto.components.crash.report.submit.notice.uncheckDiagnostics',
-          'Uncheck "Attach recent diagnostic logs" and try again, or copy the details.'
-        )
-      : translate(
-          'auto.components.crash.report.submit.notice.checkConnection',
-          'Check your connection and try again, or copy the details.'
-        )
-
   return {
     title: translate(
-      'auto.components.crash.report.submit.notice.notSent',
-      "Crash report wasn't sent"
+      'auto.components.crash.report.submit.notice.issueNotCreated',
+      "GitHub issue wasn't created"
     ),
     description: [
       asSentence(normalizedFailureMessage(failure.error)),
-      ticketDetail,
-      omittedDetail,
-      recovery
-    ]
-      .filter((part): part is string => Boolean(part))
-      .join(' '),
+      translate(
+        'auto.components.crash.report.submit.notice.checkGh',
+        'Check your connection and `gh` sign-in and try again, or copy the details.'
+      )
+    ].join(' '),
     actionLabel: translate('auto.components.crash.report.submit.notice.copyDetails', 'Copy Details')
-  }
-}
-
-export function getCrashReportSubmitWarningNotice(
-  result: Extract<CrashReportSubmitResult, { ok: true }>,
-  includeDiagnosticLogs: boolean
-): CrashReportSubmitWarningNotice | null {
-  if (!includeDiagnosticLogs || result.diagnosticBundle?.status !== 'not_uploaded') {
-    return null
-  }
-
-  return {
-    title: translate(
-      'auto.components.crash.report.submit.notice.sentWithoutDiagnostics',
-      'Crash report sent without diagnostic logs'
-    ),
-    description: translate(
-      'auto.components.crash.report.submit.notice.diagnosticsReason',
-      'Diagnostic logs were not attached: {{value0}}',
-      { value0: normalizedFailureMessage(result.diagnosticBundle.reason) }
-    )
   }
 }

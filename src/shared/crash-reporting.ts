@@ -103,20 +103,15 @@ export type ReactErrorBoundaryReportResult =
 export type CrashReportSubmitArgs = {
   reportId?: string
   notes?: string
-  includeDiagnosticLogs?: boolean
-  submitAnonymously?: boolean
-  githubLogin: string | null
-  githubEmail: string | null
 }
 
 export type CrashReportSubmitResult =
-  | { ok: true; report: CrashReportRecord | null; diagnosticBundle?: CrashReportDiagnosticBundle }
+  | { ok: true; report: CrashReportRecord | null }
   | {
       ok: false
       status: number | null
       error: string
       report?: CrashReportRecord | null
-      diagnosticBundle?: CrashReportDiagnosticBundle
     }
 
 export type CrashReportCopySubmissionFailure = {

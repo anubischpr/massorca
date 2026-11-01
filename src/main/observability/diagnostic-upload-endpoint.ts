@@ -19,7 +19,23 @@ export function resolveDiagnosticBuildIdentity(): 'stable' | 'rc' | null {
   return ident === 'stable' || ident === 'rc' ? ident : null
 }
 
+// Why: release workflows inherited from upstream still inject its endpoint, and
+// MassOrca logs must never reach that service.
+function isUpstreamOrcaEndpoint(endpoint: string): boolean {
+  try {
+    const { hostname } = new URL(endpoint)
+    return hostname === 'onorca.dev' || hostname.endsWith('.onorca.dev')
+  } catch {
+    return false
+  }
+}
+
 export function resolveDiagnosticTokenEndpoint(): string | null {
+  const endpoint = resolveConfiguredDiagnosticTokenEndpoint()
+  return endpoint && !isUpstreamOrcaEndpoint(endpoint) ? endpoint : null
+}
+
+function resolveConfiguredDiagnosticTokenEndpoint(): string | null {
   const buildEndpoint = resolveDiagnosticBuildTokenEndpoint()
   // Official builds must stay pinned to the CI-substituted endpoint; user env
   // cannot redirect uploads that the UI labels as going to Orca support.
