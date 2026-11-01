@@ -20,6 +20,7 @@ Test runner: `pnpm test`, `pnpm tc`. Approved design: https://claude.ai/artifact
 - S12. Phase 2, a Workspaces session that comes from a team shows that team's character beside it in its row, as in the user's reference from Codex.
 - S13. Phase 2, automatic Team Lead: a mentioned bot leads the request. Otherwise one short query on the host compares the request with every bot's description; when several match, the bot with the fewest active tasks leads; when none clearly matches, the room asks the person. Bots do not each analyze the request.
 - S14. Phase 2, the lead owns the parent session and delegates to other bots as child sessions, each on its bot's engine, with no agent-choice card. The Conference room is a channel of the person's messages and short bot posts, not a merged transcript.
+- S15. Phase 4, automatic memory: "empezamos por una memoria por team, esa es la memoria por defecto". "si la tarea está relacionada a un proyecto, como massorca, entonces va a la del proyecto, si es una tarea sin proyecto, va a la memoria del team". "si desde un team digo \"oye, recuérdale tal cosa a logística, para que en el futuro no se le olvide\", entonces la memoria debe estar guardad en el team origen y el destino". A project task reads both project and team memory (user: "Yes, read both") and saves to the project. Assumptions, not yet confirmed: a request about how the team works in general saves to the team; team memory is named from the team name; a relayed memory is two independent copies that record the sender; an unknown target team is reported in the room.
 
 ## Tasks
 
@@ -27,7 +28,7 @@ Test runner: `pnpm test`, `pnpm tc`. Approved design: https://claude.ai/artifact
 - [x] T1 (S1, S2, S6) Phase 1 mode and teams. Route: inline. Commits 2d1784d7b3b, a723349f867, 080f0c4a49c on claude/bot-teams-phase-1.
 - [ ] T2 (S1, S2, S3, S6, S7, S10, S11, S12, S13, S14) Phase 2 Conference room and tasks, starting with one team, one bot and one task end to end. Route: to be decided.
 - [ ] T3 (S2, S4, S5) Phase 3 projects and versions. Route: to be decided.
-- [ ] T4 (S2, S5, S6) Phase 4 memory, hand-offs and integrations. Route: to be decided.
+- [ ] T4 (S2, S5, S6, S15) Phase 4 memory, hand-offs and integrations. Route: to be decided.
 - [ ] T5 (S2, S8) Phase 5 Workspaces option. Route: to be decided.
 - [ ] T6 (S2) Phase 6 routines and webhooks; needs its own design first, the canvas has none. Route: to be decided.
 
