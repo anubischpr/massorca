@@ -17,6 +17,8 @@ import {
 } from './floating-workspace-terminal-actions'
 import { TOGGLE_FLOATING_TERMINAL_EVENT } from './floating-terminal'
 import { closeWorkspaceBrowserTab } from './workspace-browser-tab-close'
+import { closingTabRemovesHiddenChildWorktree } from './hidden-child-worktree-close'
+import { runWorktreeDelete } from '@/components/sidebar/delete-worktree-flow'
 import { resolveBrowserWorkspaceOwner } from './browser-workspace-source-resolution'
 
 export type WorkspaceTabTarget =
@@ -138,6 +140,15 @@ export function dispatchWorkspaceTabCommand(command: WorkspaceTabCommand): boole
     const tab = target.tab
     if (command.context === 'terminal' && tab.contentType === 'terminal') {
       return false
+    }
+    // Why: Delete owns the confirmation and its handling of uncommitted work; a cancel closes nothing.
+    if (
+      !command.bulk &&
+      !command.skipEmptyCheck &&
+      closingTabRemovesHiddenChildWorktree(state, target.worktreeId)
+    ) {
+      runWorktreeDelete(target.worktreeId)
+      return true
     }
     const commands = createWorkspaceTabCloseCommands({
       worktreeId: target.worktreeId,
