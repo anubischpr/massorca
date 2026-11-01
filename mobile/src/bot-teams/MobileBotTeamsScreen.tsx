@@ -7,8 +7,10 @@ import { colors } from '../theme/mobile-theme'
 import { useHostClient } from '../transport/host-client-hooks'
 import { botAgentLabel } from '../../../src/shared/bot-team-character-art'
 import type { BotDraftInput, BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
+import type { BotTeamTask } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
 import { MobileAddBotForm, MobileNewTeamForm } from './MobileBotTeamForms'
+import { MobileBotTeamRoom } from './MobileBotTeamRoom'
 import { MobileBotTeamModeSwitch } from './MobileBotTeamModeSwitch'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 import {
@@ -25,6 +27,7 @@ type Screen =
   | { name: 'newTeam' }
   | { name: 'newTeamBot' }
   | { name: 'team'; teamId: string }
+  | { name: 'teamBots'; teamId: string }
   | { name: 'teamBot'; teamId: string }
 
 function SubBar({ title, onBack }: { title: string; onBack: () => void }) {
@@ -48,10 +51,12 @@ function SubBar({ title, onBack }: { title: string; onBack: () => void }) {
 /** The first screen of a host: its teams. A host older than Bot teams opens on Workspaces instead. */
 export function MobileBotTeamsScreen({
   hostId,
-  onShowWorkspaces
+  onShowWorkspaces,
+  onOpenTask
 }: {
   hostId: string
   onShowWorkspaces: () => void
+  onOpenTask: (workspaceId: string, task: BotTeamTask) => void
 }) {
   const { client } = useHostClient(hostId)
   const [list, setList] = useState<MobileBotTeamList | null>(null)
@@ -86,6 +91,8 @@ export function MobileBotTeamsScreen({
   const teams = list?.kind === 'ready' ? list.teams : []
   const backHome = () => setScreen({ name: 'home' })
   const openTeam = screen.name === 'team' ? teams.find((t) => t.id === screen.teamId) : undefined
+  const openBotsTeam =
+    screen.name === 'teamBots' ? teams.find((t) => t.id === screen.teamId) : undefined
 
   let body
   if (client !== null && (screen.name === 'newTeam' || screen.name === 'newTeamBot')) {
@@ -125,7 +132,7 @@ export function MobileBotTeamsScreen({
       </>
     )
   } else if (client !== null && screen.name === 'teamBot') {
-    const back: Screen = { name: 'team', teamId: screen.teamId }
+    const back: Screen = { name: 'teamBots', teamId: screen.teamId }
     body = (
       <>
         <SubBar title="Add a bot" onBack={() => setScreen(back)} />
@@ -134,10 +141,32 @@ export function MobileBotTeamsScreen({
         />
       </>
     )
-  } else if (openTeam) {
+  } else if (client !== null && openTeam && screen.name === 'team') {
     body = (
       <>
         <SubBar title={openTeam.name} onBack={backHome} />
+        <MobileBotTeamRoom
+          client={client}
+          team={openTeam}
+          onOpenTask={(workspaceId, task) => onOpenTask(workspaceId, task)}
+        />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setScreen({ name: 'teamBots', teamId: openTeam.id })}
+          style={styles.row}
+        >
+          <Text style={styles.rowTitle}>Bots</Text>
+        </Pressable>
+      </>
+    )
+  } else if (openBotsTeam) {
+    const openTeam = openBotsTeam
+    body = (
+      <>
+        <SubBar
+          title={`${openTeam.name} bots`}
+          onBack={() => setScreen({ name: 'team', teamId: openTeam.id })}
+        />
         <ScrollView contentContainerStyle={styles.form}>
           {openTeam.purpose ? <Text style={styles.rowMeta}>{openTeam.purpose}</Text> : null}
           {openTeam.bots.map((bot) => (
