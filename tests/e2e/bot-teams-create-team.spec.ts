@@ -32,6 +32,13 @@ test('creates a team with a bot from the Bot teams mode', async ({ orcaPage: pag
   await expect(page.getByText('Not started')).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('room.png') })
 
+  // Starting it opens a session; the task's thread is the normal chat, inside the room.
+  await page.getByRole('button', { name: 'Start', exact: true }).click()
+  await page.getByRole('button', { name: 'Open', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Back to Conference room' })).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('thread.png') })
+  await page.getByRole('button', { name: 'Back to Conference room' }).click()
+
   // The host persists the team: leaving the mode and coming back reads it again.
   await page.getByRole('radio', { name: 'Workspaces' }).click()
   await page.getByRole('radio', { name: 'Bot teams' }).click()

@@ -2800,6 +2800,9 @@
     }
   },
   "components": {
+    "botTeams": {
+      "started": "Started"
+    },
     "native-chat": {
       "ask": {
         "asked": "Asked:",

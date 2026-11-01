@@ -1,26 +1,94 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Play } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ChevronLeft, Play } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { AgentIcon } from '@/lib/agent-catalog'
+import NativeChatView from '@/components/native-chat/NativeChatView'
+import { getActiveRuntimeTarget } from '@/runtime/runtime-client-target'
+import { useAppStore } from '@/store'
 import { translate } from '@/i18n/i18n'
 import {
   listBotTeamRoom,
   postBotTeamRequest,
   startBotTeamTask
 } from '@/runtime/runtime-bot-team-client'
+import { botTeamTaskStatus, type BotTeamTaskStatus } from '../../../../shared/bot-team-task-status'
+import { structuredAgentSessionTabId } from '../../../../shared/structured-agent-session-projection'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type {
   BotTeamMessage,
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
+import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
+
+function statusLabel(status: BotTeamTaskStatus): string {
+  switch (status) {
+    case 'Not started':
+      return translate('components.botTeams.notStarted', 'Not started')
+    case 'Working':
+      return translate('components.botTeams.working', 'Working')
+    case 'Waiting for you':
+      return translate('components.botTeams.waitingForYou', 'Waiting for you')
+    case 'Stopped':
+      return translate('components.botTeams.stopped', 'Stopped')
+    case 'Stuck':
+      return translate('components.botTeams.stuck', 'Stuck')
+    case 'Done':
+      return translate('components.botTeams.done', 'Done')
+  }
+}
+
+/** A task's thread: the normal chat, which already holds the composer, Stop and Continue. */
+function BotTeamTaskThread({
+  task,
+  agent,
+  onBack
+}: {
+  task: BotTeamTask
+  agent: BotTeam['bots'][number]['agent']
+  onBack: () => void
+}): React.JSX.Element | null {
+  const settings = useAppStore((state) => state.settings)
+  const target = useMemo(() => getActiveRuntimeTarget(settings), [settings])
+  if (task.sessionId === null) {
+    return null
+  }
+  return (
+    <div className="flex h-[70vh] min-h-0 flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={translate('components.botTeams.backToRoom', 'Back to Conference room')}
+          onClick={onBack}
+        >
+          <ChevronLeft className="size-4" />
+        </Button>
+        <h2 className="min-w-0 flex-1 truncate text-sm font-medium">{task.title}</h2>
+      </div>
+      <div className="min-h-0 flex-1">
+        <NativeChatView
+          mode="structured"
+          tabId={structuredAgentSessionTabId(task.sessionId)}
+          sessionId={task.sessionId}
+          agent={agent}
+          isVisible
+          isFocusedGroup
+          target={target}
+        />
+      </div>
+    </div>
+  )
+}
 
 export function BotTeamRoom({ team }: { team: BotTeam }): React.JSX.Element {
   const [messages, setMessages] = useState<BotTeamMessage[]>([])
   const [tasks, setTasks] = useState<BotTeamTask[]>([])
   const [text, setText] = useState('')
   const [needsLead, setNeedsLead] = useState(false)
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null)
+  const statuses = useBotTeamSessionStatuses()
   const botOf = (botId: string | null) => team.bots.find((bot) => bot.id === botId)
 
   const reload = useCallback(() => {
@@ -56,6 +124,14 @@ export function BotTeamRoom({ team }: { team: BotTeam }): React.JSX.Element {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error))
     }
+  }
+
+  const openTask = tasks.find((task) => task.id === openTaskId)
+  const openAgent = botOf(openTask?.ownerBotId ?? null)?.agent
+  if (openTask && openAgent) {
+    return (
+      <BotTeamTaskThread task={openTask} agent={openAgent} onBack={() => setOpenTaskId(null)} />
+    )
   }
 
   const empty = text.trim() === ''
@@ -113,9 +189,12 @@ export function BotTeamRoom({ team }: { team: BotTeam }): React.JSX.Element {
                 <div className="truncate text-xs text-muted-foreground">
                   {owner?.name}
                   {' · '}
-                  {task.sessionId === null
-                    ? translate('components.botTeams.notStarted', 'Not started')
-                    : translate('components.botTeams.started', 'Started')}
+                  {statusLabel(
+                    botTeamTaskStatus(
+                      task.sessionId,
+                      task.sessionId === null ? undefined : statuses.get(task.sessionId)
+                    )
+                  )}
                 </div>
               </div>
               {task.sessionId === null ? (
@@ -123,7 +202,11 @@ export function BotTeamRoom({ team }: { team: BotTeam }): React.JSX.Element {
                   <Play className="size-3.5" />
                   {translate('components.botTeams.start', 'Start')}
                 </Button>
-              ) : null}
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => setOpenTaskId(task.id)}>
+                  {translate('components.botTeams.open', 'Open')}
+                </Button>
+              )}
             </div>
           )
         })}
