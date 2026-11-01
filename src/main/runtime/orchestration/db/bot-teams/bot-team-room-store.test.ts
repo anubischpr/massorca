@@ -80,6 +80,34 @@ describe('bot team room store', () => {
     ])
   })
 
+  it('links a delegated task to its child session once the child has started', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    const task = db.createBotTeamTask({
+      teamId: team.id,
+      title: 'A',
+      prompt: '',
+      ownerBotId: team.bots[0].id
+    })
+    const request = db.createDelegationRequest({
+      parentSessionId: 'orca_parent',
+      title: 'A',
+      summary: 'A',
+      prompt: 'A',
+      writes: false,
+      workspaceKind: 'folder',
+      optionsJson: '{}',
+      decisionJson: null
+    })
+    db.linkBotTeamTaskDelegation(task.id, request.id)
+    expect(db.listBotTeamTasks(team.id)[0].sessionId).toBeNull()
+
+    db.patchDelegationRequest(request.id, { child_session_id: 'child-1' })
+
+    expect(db.findBotTeamTaskBySession('child-1')?.id).toBe(task.id)
+    expect(db.listBotTeamTasks(team.id)[0].sessionId).toBe('child-1')
+  })
+
   it('refuses to remove a bot that still has tasks, and keeps it', () => {
     db = new OrchestrationDb(':memory:')
     const team = createTeam(db)

@@ -4,7 +4,8 @@ import type { DelegationRequestRow } from '../runtime/orchestration/db/delegatio
 import {
   delegationRequestIdOfQuestionItem,
   parseDelegationOptionId,
-  type DelegationChoice
+  type DelegationChoice,
+  delegationAgentOptionId
 } from '../../shared/delegated-session-journal'
 import { DelegationLifecycle } from './delegation-lifecycle'
 import type { DelegationAnswerDeps } from './delegation-launch-types'
@@ -67,6 +68,24 @@ export class DelegationAnswerService {
     const db = this.deps.getDb()
     const row = requestId && db ? db.getDelegationRequest(requestId) : undefined
     return db && row && row.parent_session_id === sessionId ? { db, row } : null
+  }
+
+  /** Starts a request filed with its agent already decided; there is no card to answer. */
+  startChosenAgent(requestId: string, agent: string): void {
+    const db = this.deps.getDb()
+    const row = db?.getDelegationRequest(requestId)
+    const choice = { kind: 'agent' as const, agent }
+    if (!db || !row || !this.offers(row, choice)) {
+      throw new Error(`Delegation request ${requestId} cannot start ${agent}.`)
+    }
+    const claimed = db.transitionDelegationRequest(row.id, 'pending', 'starting', {
+      choice: delegationAgentOptionId(agent),
+      ...this.recomputedDecision(row, choice, row.parent_session_id)
+    })
+    if (!claimed) {
+      throw new Error(`Delegation request ${requestId} was already settled.`)
+    }
+    this.lifecycle.start(row.id)
   }
 
   private async answer(input: {

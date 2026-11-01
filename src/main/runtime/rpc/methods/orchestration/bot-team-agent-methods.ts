@@ -1,10 +1,16 @@
 import { OrchestrationError } from '../../../orchestration/orchestration-error'
 import type { BotTeamTask } from '../../../../../shared/rpc-contract/bot-team-room-params'
 import {
+  BotTeamAgentDelegate,
   BotTeamAgentPost,
   BotTeamAgentTaskCreate
 } from '../../../../../shared/rpc-contract/bot-team-agent-params'
 import { botTeamTaskTitle, routeBotTeamRequest } from '../../../../../shared/bot-team-request-route'
+import { delegateToBotTeammate } from '../../../../bot-teams/bot-team-delegate'
+import {
+  getDelegationAnswerService,
+  getDelegationRequestService
+} from '../../../../delegated-session/delegation-runtime'
 import { defineMethod } from '../../core'
 
 /** The task a calling chat runs, which says which team and bot it speaks for. */
@@ -24,6 +30,42 @@ export function requireBotTeamCallerTask(
 }
 
 export const ORCHESTRATION_BOT_TEAM_METHODS = [
+  defineMethod({
+    name: 'orchestration.botTeamDelegate',
+    permission: 'workspace',
+    params: BotTeamAgentDelegate,
+    handler: async ({ bot, text }, { runtime, orchestrationCaller }) => {
+      const db = runtime.getOrchestrationDb()
+      const caller = requireBotTeamCallerTask(db, orchestrationCaller?.sessionId)
+      const team = db.listBotTeams().find((entry) => entry.id === caller.teamId)
+      if (!team) {
+        throw new OrchestrationError('invalid_argument', 'This team no longer exists.', {
+          effectsApplied: false
+        })
+      }
+      await runtime.ensureStructuredAgentSessionHost()
+      return {
+        task: await delegateToBotTeammate(
+          {
+            fileRequest: (request) =>
+              getDelegationRequestService(runtime).requestForAgent({
+                parentSessionId: caller.sessionId ?? '',
+                summary: request.title,
+                prompt: request.prompt,
+                title: request.title,
+                writes: false,
+                agent: request.agent
+              }),
+            createTask: (args) => db.createBotTeamTask({ teamId: team.id, ...args }),
+            linkTask: (taskId, requestId) => db.linkBotTeamTaskDelegation(taskId, requestId),
+            startRequest: (requestId, agent) =>
+              getDelegationAnswerService(runtime).startChosenAgent(requestId, agent)
+          },
+          { team, botName: bot, text }
+        )
+      }
+    }
+  }),
   defineMethod({
     name: 'orchestration.botTeamPost',
     permission: 'workspace',

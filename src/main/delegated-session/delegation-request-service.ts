@@ -132,6 +132,36 @@ async function designSystemFor(
 export class DelegationRequestService {
   constructor(private readonly deps: DelegationRequestDeps) {}
 
+  /** Files a request whose agent is already decided, so no card asks; the answer service starts it. */
+  async requestForAgent(input: DelegationRequestInput & { agent: string }): Promise<string> {
+    const parent = this.deps.readParent(input.parentSessionId)
+    if (!parent) {
+      throw new OrchestrationError(
+        'delegation_parent_unavailable',
+        `Chat ${input.parentSessionId} is not held by this host, so it cannot start a child session. No effects were applied.`,
+        { effectsApplied: false }
+      )
+    }
+    const agents = await this.deps.listAgents(parent)
+    if (!agents.some((entry) => entry.agent === input.agent)) {
+      throw new OrchestrationError(
+        'delegation_no_agent',
+        `${input.agent} cannot run a chat in this workspace, so no child session can start. No effects were applied.`,
+        { effectsApplied: false }
+      )
+    }
+    return this.deps.requireDb().createDelegationRequest({
+      parentSessionId: parent.sessionId,
+      title: titleFor(input),
+      summary: input.summary,
+      prompt: input.prompt,
+      writes: input.writes,
+      workspaceKind: parent.workspaceKind,
+      optionsJson: JSON.stringify({ agents }),
+      decisionJson: null
+    }).id
+  }
+
   /** Files a request and posts its card to the parent chat; returns without waiting for a choice. */
   async request(input: DelegationRequestInput): Promise<DelegationRequestReceipt> {
     const parent = this.deps.readParent(input.parentSessionId)

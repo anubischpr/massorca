@@ -114,6 +114,11 @@ export function updateBotTeam(this: OrchestrationDb, input: BotTeamUpdateInput):
 
 export function deleteBotTeam(this: OrchestrationDb, teamId: string): void {
   inSavepoint(this, 'delete_bot_team', () => {
+    this.db
+      .prepare(
+        'DELETE FROM bot_team_task_delegations WHERE task_id IN (SELECT id FROM bot_team_tasks WHERE team_id = ?)'
+      )
+      .run(teamId)
     this.db.prepare('DELETE FROM bot_team_workspaces WHERE team_id = ?').run(teamId)
     this.db.prepare('DELETE FROM bot_team_messages WHERE team_id = ?').run(teamId)
     this.db.prepare('DELETE FROM bot_team_tasks WHERE team_id = ?').run(teamId)
