@@ -96,7 +96,7 @@ test.describe('Tabs', () => {
    * User Prompt:
    * - New tab works
    *
-   * Why: asserting on a new `[data-testid="sortable-tab"]` in the DOM (not
+   * Why: asserting on a new `[data-testid="side-panel-tab"]` in the DOM (not
    * `tabsByWorktree.length` in the store) is the guard that would have caught
    * a tab-bar render regression. Clicking the real "+" button and then "New
    * Terminal" drives the same code path a user takes.
@@ -286,7 +286,7 @@ test.describe('Tabs', () => {
    *
    * Why: clicking the real per-tab close (X) button exercises the same path a
    * user takes and catches regressions where the button silently unmounts.
-   * The final assertion counts rendered `[data-testid="sortable-tab"]` nodes
+   * The final assertion counts rendered `[data-testid="side-panel-tab"]` nodes
    * so the test fails if the store cleared the tab but the DOM didn't
    * re-render.
    */

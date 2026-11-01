@@ -348,7 +348,7 @@ test('a missing legacy worker cannot spawn a replacement during restart recovery
       })
       .toEqual([])
     await expect(
-      second.page.locator(`[data-testid="sortable-tab"][data-tab-id="${worker!.tabId}"]`)
+      second.page.locator(`[data-testid="side-panel-tab"][data-tab-id="${worker!.tabId}"]`)
     ).toHaveCount(0)
     await expect
       .poll(() => readSettledDispatch(session.userDataDir, dispatch.result.dispatch!.id))

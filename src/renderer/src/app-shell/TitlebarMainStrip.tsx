@@ -76,7 +76,10 @@ export function TitlebarMainStrip({ layout }: { layout: AppChromeLayout }): Reac
         <RightSidebarToggle />
       ) : null}
       {/* Why: reserve space so the Windows/Linux window-controls overlay doesn't obscure content. */}
-      {hasCustomTitleBar && <div className="window-controls-titlebar-spacer" />}
+      {/* Why: an open right sidebar already covers the corner under the overlay. */}
+      {hasCustomTitleBar && !(layout.showRightSidebarControls && layout.rightSidebarOpen) ? (
+        <div className="window-controls-titlebar-spacer" />
+      ) : null}
     </>
   )
 }

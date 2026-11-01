@@ -65,7 +65,7 @@ describe('SidePanelTabStrip', () => {
       onClosePanel: vi.fn()
     }
     const container = mount(
-      <SidePanelTabStrip items={ITEMS} newTabOptions={OPTIONS} {...handlers} />
+      <SidePanelTabStrip groupId="side-panel:wt" worktreeId="wt" items={ITEMS} newTabOptions={OPTIONS} {...handlers} />
     )
     return { container, handlers }
   }

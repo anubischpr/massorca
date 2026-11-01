@@ -7,10 +7,11 @@ import { RecoverableRenderErrorBoundary } from '../components/error-boundaries/R
 import { FloatingTerminalToggleButton } from '../components/floating-terminal/FloatingTerminalToggleButton'
 import { TerminalWorkbenchContainer } from '../components/TerminalWorkbenchContainer'
 import type { VirtualizedScrollAnchor } from '../hooks/useVirtualizedScrollAnchor'
+import { useAppStore } from '../store'
 import { AppRail } from './AppRail'
 import { AppStatusBarSlot } from './AppStatusBarSlot'
 import { TitlebarLeftControls } from './TitlebarLeftControls'
-import { TitlebarMainStrip } from './TitlebarMainStrip'
+import { PageTopBand } from './PageTopBand'
 import { hasCustomTitleBar } from './app-window-chrome'
 import { SessionBar } from './SessionBar'
 import type { AppChromeLayout } from './use-app-chrome-layout'
@@ -22,6 +23,7 @@ const WorktreeCreationPanel = lazy(
   () => import('../components/worktree-creation/WorktreeCreationPanel')
 )
 const TaskPage = lazy(() => import('../components/task-page/TaskPage'))
+const TasksHomePage = lazy(() => import('../components/tasks-home/TasksHomePage'))
 const AutomationsPage = lazy(() => import('../components/automations/AutomationsPage'))
 const ActivityPrototypePage = lazy(() => import('../components/activity/ActivityPrototypePage'))
 const Settings = lazy(() => import('../components/settings/Settings'))
@@ -73,13 +75,14 @@ function WorktreeSidebar({
 
 function ActivePage({ layout }: { layout: AppChromeLayout }): React.JSX.Element {
   const { activeView, activeWorktreeId, activePendingCreationId, creationLayoutActive } = layout
+  const tasksHomeOpen = useAppStore((s) => s.tasksHomeOpen)
   return (
     <>
       {activeView === 'settings' ? <Settings /> : null}
       {activeView === 'skills' ? <SkillsPage /> : null}
       {activeView === 'artifacts' ? <ArtifactsPage /> : null}
       {activeView === 'prototypes' ? <PrototypesPage /> : null}
-      {activeView === 'tasks' ? <TaskPage /> : null}
+      {activeView === 'tasks' ? tasksHomeOpen ? <TasksHomePage /> : <TaskPage /> : null}
       {activeView === 'automations' ? <AutomationsPage /> : null}
       {activeView === 'activity' ? <ActivityPrototypePage /> : null}
       {activeView === 'space' ? <WorkspaceSpacePage /> : null}
@@ -96,14 +99,13 @@ function ActivePage({ layout }: { layout: AppChromeLayout }): React.JSX.Element 
   )
 }
 
-/** The left sidebar + titlebar + page/workbench content area + right sidebar. */
+/** The rail, left sidebar, page/workbench content area and right sidebar; no title bar spans them. */
 export function AppWorkspaceShell(props: {
   layout: AppChromeLayout
   floatingWorkspace: FloatingWorkspacePanelState
 }): React.JSX.Element {
   const { layout, floatingWorkspace } = props
   const titlebarLeftControls = <TitlebarLeftControls layout={layout} />
-  const titlebarMainStrip = <TitlebarMainStrip layout={layout} />
   // Why: keep virtualized scroll memory above the sidebar's workspace/landing remount so the left list doesn't restart at scrollTop 0.
   const scrollOffsetRef = useRef(0)
   const scrollAnchorRef = useRef<VirtualizedScrollAnchor>(null)
@@ -158,17 +160,13 @@ export function AppWorkspaceShell(props: {
         <div className="flex flex-col flex-1 min-w-0 min-h-0">
           <div className="flex flex-row flex-1 min-h-0 overflow-hidden">
             <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
+              {/* Why: a band only in the center column - the rail and sidebar reach the window top, and automations/artifacts draw their own page headers. */}
               {!layout.leftTitlebarChromeLayout.shouldMount ? (
-                <div className="titlebar">
-                  <div className="flex items-center shrink-0 mr-2">{titlebarLeftControls}</div>
-                  {titlebarMainStrip}
-                </div>
-              ) : null}
-              {/* Why: automations/artifacts own their page headers; the stacked titlebar would be an empty 36px stripe. */}
-              {layout.stackedSidebarOpen &&
-              layout.activeView !== 'automations' &&
-              layout.activeView !== 'artifacts' ? (
-                <div className="titlebar">{titlebarMainStrip}</div>
+                <PageTopBand layout={layout} withLeftControls />
+              ) : layout.stackedSidebarOpen &&
+                layout.activeView !== 'automations' &&
+                layout.activeView !== 'artifacts' ? (
+                <PageTopBand layout={layout} withLeftControls={false} />
               ) : null}
               {layout.workspaceChromeActive && layout.activeWorktreeId ? (
                 <SessionBar
@@ -177,13 +175,8 @@ export function AppWorkspaceShell(props: {
                   reserveCollapsedSidebarHeader={
                     layout.leftTitlebarChromeLayout.isFloating && !layout.sidebarOpen
                   }
-                  // Why: with no center titlebar above it, the bar's right end sits under the window-controls overlay unless the right sidebar covers that corner.
-                  reserveWindowControls={
-                    hasCustomTitleBar &&
-                    !layout.rightSidebarOpen &&
-                    layout.leftTitlebarChromeLayout.shouldMount &&
-                    !layout.stackedSidebarOpen
-                  }
+                  // Why: the bar sits at the window top, so its right end is under the window-controls overlay unless the right sidebar covers that corner.
+                  reserveWindowControls={hasCustomTitleBar && !layout.rightSidebarOpen}
                 />
               ) : null}
               <div className="relative flex flex-1 min-w-0 min-h-0 overflow-hidden">

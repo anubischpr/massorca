@@ -658,13 +658,13 @@ for (const contractVersion of [LEGACY_CONTRACT_VERSION, CURRENT_CONTRACT_VERSION
         ])
 
       const recoveredTab = second.page.locator(
-        `[data-testid="sortable-tab"][data-tab-id="${initialWorker.tabId}"]`
+        `[data-testid="side-panel-tab"][data-tab-id="${initialWorker.tabId}"]`
       )
       await expect(recoveredTab).toBeVisible()
       await expect(recoveredTab).toHaveCount(1)
       await expect(recoveredTab).toHaveAttribute('data-active', 'false')
       await expect(
-        second.page.locator(`[data-testid="sortable-tab"][data-tab-id="${coordinatorTabId!}"]`)
+        second.page.locator(`[data-testid="side-panel-tab"][data-tab-id="${coordinatorTabId!}"]`)
       ).toHaveAttribute('data-active', 'true')
       await expect
         .poll(async () => {

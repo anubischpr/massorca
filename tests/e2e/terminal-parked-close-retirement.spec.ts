@@ -54,7 +54,7 @@ test('closing a parked terminal tab retires its exact PTY session', async ({ orc
     throw new Error('active terminal pane did not bind a PTY')
   }
 
-  const tab = orcaPage.locator(`[data-testid="sortable-tab"][data-tab-id="${tabId}"]`)
+  const tab = orcaPage.locator(`[data-testid="side-panel-tab"][data-tab-id="${tabId}"]`)
   await expect(tab).toBeVisible()
 
   const marker = `PARKED_CLOSE_READY_${randomUUID()}`

@@ -54,6 +54,8 @@ export function SidePanel({
       className="relative flex min-h-0 shrink-0 flex-col overflow-hidden bg-sidebar data-[open=true]:border-l data-[open=true]:border-border"
     >
       <SidePanelTabStrip
+        groupId={panelGroupId}
+        worktreeId={worktreeId}
         items={model.items}
         newTabOptions={model.newTabOptions}
         onActivate={model.activate}

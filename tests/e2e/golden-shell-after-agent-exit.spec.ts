@@ -37,13 +37,13 @@ test('opens a clean live shell after an agent exits', async ({ orcaPage }) => {
   await orcaPage.keyboard.press('Enter')
   await waitForTerminalOutput(orcaPage, GOLDEN_STUB_EXIT_MARKER, 15_000)
 
-  const tabsBeforeShell = await orcaPage.locator('[data-testid="sortable-tab"]').count()
+  const tabsBeforeShell = await orcaPage.locator('[data-testid="side-panel-tab"]').count()
   await orcaPage.getByRole('button', { name: 'New tab' }).click({ force: true })
   await orcaPage
     .getByRole('menuitem', { name: /New Terminal/i })
     .first()
     .click({ force: true })
-  await expect(orcaPage.locator('[data-testid="sortable-tab"]')).toHaveCount(tabsBeforeShell + 1)
+  await expect(orcaPage.locator('[data-testid="side-panel-tab"]')).toHaveCount(tabsBeforeShell + 1)
   const shellPtyId = await waitForActivePanePtyId(orcaPage)
   // Why: a bound ptyId only means the pane exists; the renderer transport can
   // still drop keystrokes until it connects, which would strand the markers.
@@ -60,5 +60,5 @@ test('opens a clean live shell after an agent exits', async ({ orcaPage }) => {
   await orcaPage.keyboard.type(afterShiftEnter.command)
   await orcaPage.keyboard.press('Enter')
   await waitForTerminalOutput(orcaPage, afterShiftEnter.marker, 15_000)
-  await expect(orcaPage.locator('[data-testid="sortable-tab"]')).toHaveCount(tabsBeforeShell + 1)
+  await expect(orcaPage.locator('[data-testid="side-panel-tab"]')).toHaveCount(tabsBeforeShell + 1)
 })

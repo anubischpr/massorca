@@ -106,9 +106,8 @@ async function createWindowsDefaultShellTerminalTab(
     return terminal.id
   }, shell)
 
-  const tab = page.locator(`[data-testid="sortable-tab"][data-tab-id="${tabId}"]`)
+  const tab = page.locator(`[data-testid="side-panel-tab"][data-tab-id="${tabId}"]`)
   await expect(tab).toBeVisible()
-  await expect(tab.locator('[data-shell-icon]')).toHaveAttribute('data-shell-icon', shell)
 
   return tabId
 }
@@ -149,7 +148,7 @@ async function configureActiveProjectWslRuntime(page: Page): Promise<string | nu
 
 async function createWindowsProjectRuntimeTerminalTab(
   page: Page,
-  shell: WindowsPasteShell
+  _shell: WindowsPasteShell
 ): Promise<string> {
   const tabId = await page.evaluate(async () => {
     const store = window.__store
@@ -168,9 +167,8 @@ async function createWindowsProjectRuntimeTerminalTab(
     return terminal.id
   })
 
-  const tab = page.locator(`[data-testid="sortable-tab"][data-tab-id="${tabId}"]`)
+  const tab = page.locator(`[data-testid="side-panel-tab"][data-tab-id="${tabId}"]`)
   await expect(tab).toBeVisible()
-  await expect(tab.locator('[data-shell-icon]')).toHaveAttribute('data-shell-icon', shell)
 
   return tabId
 }
@@ -422,7 +420,7 @@ test.describe('Windows terminal shell paste ownership', () => {
     await ensureTerminalVisible(orcaPage)
     const wslDistro = await configureActiveProjectWslRuntime(orcaPage)
     test.skip(!wslDistro, 'No WSL distro is available on this Windows host')
-    const tabId = await createWindowsProjectRuntimeTerminalTab(orcaPage, 'wsl.exe')
+    await createWindowsProjectRuntimeTerminalTab(orcaPage, 'wsl.exe')
     await waitForActiveTerminalManager(orcaPage, 30_000)
     await installTerminalPtyWriteSpy(electronApp)
 
@@ -452,9 +450,6 @@ test.describe('Windows terminal shell paste ownership', () => {
 
       // Exercise a live WSL process across the settings change.
       await updateWindowsDefaultShellSetting(orcaPage, 'cmd.exe')
-      await expect(
-        orcaPage.locator(`[data-testid="sortable-tab"][data-tab-id="${tabId}"] [data-shell-icon]`)
-      ).toHaveAttribute('data-shell-icon', 'wsl.exe')
       expect(await waitForActivePanePtyId(orcaPage)).toBe(ptyId)
 
       await clearTerminalPtyWriteLog(electronApp)

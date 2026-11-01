@@ -223,10 +223,7 @@ test.describe('workspace layout oracle over SSH', () => {
           await run.oracle.step('split remote tab', { worktreeId, panesPerTab: [1, 2] })
 
           const tabs = run.page.locator(SORTABLE_TAB)
-          await tabs
-            .first()
-            .getByRole('button', { name: /^Close tab /i })
-            .click()
+          await tabs.first().getByRole('button', { name: 'Close tab', exact: true }).click()
           await expect(tabs).toHaveCount(1)
           await run.oracle.step('close first tab', { worktreeId, panesPerTab: [2], removed: 1 })
 

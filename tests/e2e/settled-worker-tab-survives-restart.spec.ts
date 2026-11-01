@@ -383,7 +383,7 @@ for (const daemonSessionGone of [false, true]) {
         .first()
         .click()
       const visibleTab = second.page
-        .locator(`[data-testid="sortable-tab"][data-tab-id="${workerTabId}"]`)
+        .locator(`[data-testid="side-panel-tab"][data-tab-id="${workerTabId}"]`)
         .first()
       await visibleTab.click({ timeout: 10_000 })
       await expect(visibleTab).toBeVisible()

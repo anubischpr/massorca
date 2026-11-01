@@ -21,6 +21,8 @@ function TabKindIcon({ kind }: { kind: SidePanelTabKind }): React.JSX.Element {
 }
 
 export function SidePanelTabStrip({
+  groupId,
+  worktreeId,
   items,
   newTabOptions,
   onActivate,
@@ -28,6 +30,8 @@ export function SidePanelTabStrip({
   onCreate,
   onClosePanel
 }: {
+  groupId: string
+  worktreeId: string
   items: readonly SidePanelTabItem[]
   newTabOptions: readonly SidePanelNewTabOption[]
   onActivate: (id: string) => void
@@ -41,6 +45,8 @@ export function SidePanelTabStrip({
     <div
       className="flex h-9 shrink-0 items-center gap-0.5 border-b border-border px-1"
       data-terminal-focus-release-surface="true"
+      data-tab-group-strip-id={groupId}
+      data-worktree-id={worktreeId}
     >
       <div role="tablist" className="flex min-w-0 items-center gap-0.5 overflow-x-auto">
         {items.map((item) => (
@@ -48,6 +54,7 @@ export function SidePanelTabStrip({
             key={item.id}
             data-testid="side-panel-tab"
             data-tab-id={item.visibleId}
+            data-tab-title={item.label}
             data-active={item.active}
             className="flex h-7 shrink-0 items-center rounded-md text-xs text-muted-foreground hover:bg-accent data-[active=true]:bg-sidebar-accent data-[active=true]:text-foreground"
           >

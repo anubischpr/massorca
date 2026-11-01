@@ -250,7 +250,7 @@ test.describe('Terminal Panes', () => {
     // continues to follow the active PTY.
     await expect(orcaPage.locator('.pane-title-text', { hasText: paneTitle })).toBeVisible()
     await expect(
-      orcaPage.locator(`[data-testid="sortable-tab"][data-tab-id="${tabId}"]`)
+      orcaPage.locator(`[data-testid="side-panel-tab"][data-tab-id="${tabId}"]`)
     ).toHaveAttribute('data-tab-title', runtimeTitle)
     await expectTabCustomTitle(orcaPage, worktreeId, tabId, null)
 
@@ -277,7 +277,7 @@ test.describe('Terminal Panes', () => {
       { targetTabId: tabId, title: runtimeTitle }
     )
     await expect(
-      orcaPage.locator(`[data-testid="sortable-tab"][data-tab-id="${tabId}"]`)
+      orcaPage.locator(`[data-testid="side-panel-tab"][data-tab-id="${tabId}"]`)
     ).toHaveAttribute('data-tab-title', runtimeTitle)
   })
 })

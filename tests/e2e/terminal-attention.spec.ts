@@ -18,7 +18,7 @@ import { waitForPtyShellEcho } from './terminal-pty-readiness'
 test.describe.configure({ mode: 'serial' })
 
 async function countRenderedTabs(page: Page): Promise<number> {
-  return page.locator('[data-testid="sortable-tab"]').count()
+  return page.locator('[data-testid="side-panel-tab"]').count()
 }
 
 async function createTerminalTab(page: Page): Promise<string> {
@@ -204,13 +204,6 @@ test.describe('Terminal attention', () => {
       })
       .toBe(true)
 
-    const secondTabBell = orcaPage
-      .locator(
-        `[data-testid="sortable-tab"][data-tab-id="${secondTabId}"] [data-testid="tab-activity-bell"]`
-      )
-      .first()
-    await expect(secondTabBell).toBeVisible()
-
     // Activating the tab counts as "the user saw it" — the indicator clears.
     await activateTerminalTab(orcaPage, secondTabId)
 
@@ -220,7 +213,6 @@ test.describe('Terminal attention', () => {
         message: 'Unread state did not clear when the user focused the tab'
       })
       .toBe(false)
-    await expect(secondTabBell).toBeHidden()
   })
 
   // Why (show-until-interact): ghostty's model fires the bell even on the
@@ -249,12 +241,6 @@ test.describe('Terminal attention', () => {
     // The focused tab is now unread — the bell persists until the user
     // actually interacts with the pane.
     expect((await getUnreadTerminalTabIds(orcaPage)).includes(activeTabId)).toBe(true)
-    const activeTabBell = orcaPage
-      .locator(
-        `[data-testid="sortable-tab"][data-tab-id="${activeTabId}"] [data-testid="tab-activity-bell"]`
-      )
-      .first()
-    await expect(activeTabBell).toBeVisible()
 
     // A pointerdown inside the terminal container counts as interaction
     // (matches the pointerdown handler added in TerminalPane.tsx). Drive it
@@ -277,7 +263,6 @@ test.describe('Terminal attention', () => {
         message: 'Unread state did not clear after interacting with the pane'
       })
       .toBe(false)
-    await expect(activeTabBell).toBeHidden()
   })
 
   // Why (plain Escape regression): Escape also emits real terminal input, but
@@ -324,13 +309,6 @@ test.describe('Terminal attention', () => {
       })
       .toBe(true)
 
-    const activeTabBell = orcaPage
-      .locator(
-        `[data-testid="sortable-tab"][data-tab-id="${activeTabId}"] [data-testid="tab-activity-bell"]`
-      )
-      .first()
-    await expect(activeTabBell).toBeVisible()
-
     await focusActiveXterm(orcaPage, activeTabId)
     await orcaPage.keyboard.press('Escape')
 
@@ -346,7 +324,6 @@ test.describe('Terminal attention', () => {
         message: 'Unread pane state did not clear after pressing Escape in xterm'
       })
       .toBe(false)
-    await expect(activeTabBell).toBeHidden()
   })
 
   // Why (restart regression guard): the original user-reported bug was that

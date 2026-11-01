@@ -63,6 +63,7 @@ import {
 } from './ui-slice-hydration-sanitizers'
 import { hydrateAgentReadState, sanitizeTaskResumeState } from './ui-slice-hydration-values'
 import { hydrateStatusBarItems } from './ui-slice-hydration-status-bar-items'
+import { hydrateSidePanelState } from './ui-slice-hydration-side-panel'
 
 const MAX_LEFT_SIDEBAR_WIDTH = 500
 const MAX_RIGHT_SIDEBAR_WIDTH = 4000
@@ -258,6 +259,8 @@ export function createUiHydrationActions(set: UISliceSet, _get: UISliceGet): Par
             source === 'startup'
               ? normalizeWorkspaceCleanupBrowseState(ui.workspaceCleanup?.browse)
               : s.workspaceCleanupBrowse,
+          // Why startup only: the panel is per-window chrome, so a sync broadcast must not clobber an unsaved local drag.
+          ...(source === 'startup' ? hydrateSidePanelState(ui) : {}),
           // Why: restore only on startup; on 'sync' broadcasts it would clobber the window's current per-window view.
           activeView:
             source === 'startup' ? sanitizeHydratedActiveView(ui.activeView) : s.activeView,

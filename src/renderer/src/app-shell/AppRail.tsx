@@ -50,7 +50,7 @@ function RailButton({
 export function AppRail(): React.JSX.Element {
   const activeView = useAppStore((s) => s.activeView)
   const setActiveView = useAppStore((s) => s.setActiveView)
-  const openTaskPage = useAppStore((s) => s.openTaskPage)
+  const openTasksHome = useAppStore((s) => s.openTasksHome)
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const settingsShortcut = useShortcutKeyDetails('app.settings')
   return (
@@ -70,7 +70,7 @@ export function AppRail(): React.JSX.Element {
       <RailButton
         label={translate('components.app-rail.tasks', 'Tasks')}
         active={activeView === 'tasks'}
-        onClick={() => openTaskPage()}
+        onClick={openTasksHome}
       >
         <ListChecks className="size-5" />
       </RailButton>

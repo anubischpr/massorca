@@ -972,26 +972,16 @@ html.native-shell .app-layout {
   -webkit-app-region: no-drag;
 }
 
-.titlebar {
-  height: 36px;
-  min-height: 36px;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  background: var(--bg-titlebar, var(--card));
-  border-bottom: 1px solid var(--border);
-  -webkit-app-region: drag;
-  user-select: none;
-}
-
-/* Why: workspace view still needs a full titlebar-height strip above the
-   sidebar so the native macOS traffic lights and sidebar chrome sit in the
-   same vertical band they use in settings/landing. The center and right
-   workspace columns are offset separately to align with this 36px baseline
-   (4px drag strip + 32px tab row). */
+/* Why: the sidebar header carries the menu, sidebar toggle and history
+   controls at the window top, in the same 44px band as the session bar and
+   the page top band, with the native macOS traffic lights beside it. */
 .titlebar-left {
-  height: 36px;
-  min-height: 36px;
+  height: 44px;
+  min-height: 44px;
+  /* Why: the header matches the 44px session bar band, while the 36px content box above this
+     padding keeps its controls centered on the native traffic lights at y=18. */
+  padding-bottom: 8px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -1020,7 +1010,9 @@ html.native-shell .app-layout {
 }
 
 .titlebar-traffic-light-pad {
-  width: calc(80px / var(--ui-zoom-factor, 1));
+  /* Why: the 52px rail sits left of the sidebar header and already lies under the first 52px of
+     the native traffic lights, so only the remainder is padded here. */
+  width: max(0px, calc(80px / var(--ui-zoom-factor, 1) - 52px));
   flex-shrink: 0;
 }
 
@@ -1101,7 +1093,6 @@ html.native-shell .app-layout {
 /* Why: Electron drag regions swallow renderer pointer events. While regular
    xterm owns focus, make the next top-chrome click observable so it can release
    terminal zoom ownership; after release these surfaces become draggable again. */
-:root[data-regular-terminal-input-focused] .titlebar,
 :root[data-regular-terminal-input-focused] .titlebar-left,
 :root[data-regular-terminal-input-focused] .window-controls-titlebar-spacer,
 :root[data-regular-terminal-input-focused] .right-sidebar-header-drag,

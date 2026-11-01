@@ -2,32 +2,21 @@ import { expect } from '@stablyai/playwright-test'
 import type { Locator, Page } from '@stablyai/playwright-test'
 import { getActiveTabId } from './store'
 
-export const SORTABLE_TAB = '[data-testid="sortable-tab"]'
+export const SORTABLE_TAB = '[data-testid="side-panel-tab"]'
 
-// Why: split groups and hidden worktrees keep extra tab bars mounted, so the "+" has to come from
-// the active group's strip; the pre-layout titlebar fallback has no strip to scope to.
-async function activeTabBarRoot(page: Page): Promise<Locator> {
-  const groupId = await page.evaluate(() => {
-    const state = window.__store?.getState()
-    const worktreeId = state?.activeWorktreeId
-    if (!worktreeId) {
-      return null
-    }
-    return (
-      state?.activeGroupIdByWorktree?.[worktreeId] ??
-      state?.groupsByWorktree?.[worktreeId]?.[0]?.id ??
-      null
-    )
-  })
-  if (!groupId) {
-    return page.locator('body')
+// Why: hidden worktrees keep their own side panels mounted, so the "+" has to come from the
+// visible one; a closed panel is opened first through the session bar's Side panel button.
+async function sidePanelRoot(page: Page): Promise<Locator> {
+  const panel = page.locator('[data-side-panel="true"][data-open="true"]')
+  if ((await panel.count()) === 0) {
+    await page.getByRole('button', { name: 'Side panel' }).click({ force: true })
+    await expect(panel).toHaveCount(1, { timeout: 5_000 })
   }
-  const strip = page.locator(`[data-tab-group-strip-id="${groupId}"]`)
-  return (await strip.count()) > 0 ? strip : page.locator('body')
+  return panel
 }
 
 export async function createTerminalTabFromMenu(page: Page): Promise<string> {
-  const tabBar = await activeTabBarRoot(page)
+  const tabBar = await sidePanelRoot(page)
   const tabsBefore = await tabBar.locator(SORTABLE_TAB).count()
   const activeBefore = await getActiveTabId(page)
 

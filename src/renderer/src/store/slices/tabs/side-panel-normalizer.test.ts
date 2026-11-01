@@ -73,4 +73,31 @@ describe('installSidePanelNormalizer', () => {
       store.getState().unifiedTabsByWorktree[WT].find((t) => t.id === created.id)?.groupId
     ).toBe(MAIN)
   })
+
+  it('converges after a paired-runtime snapshot re-adds the panel group to the layout', () => {
+    const store = mainWithChat()
+    const stop = installSidePanelNormalizer(store)
+    store.getState().createUnifiedTab(WT, 'browser', { targetGroupId: MAIN })
+    const panel = sidePanelGroupId(WT)
+    let notifications = 0
+    const unsubscribe = store.subscribe(() => void (notifications += 1))
+    // Why: client-owned placement appends a leaf for every surviving group that the layout lacks.
+    for (let snapshot = 0; snapshot < 3; snapshot += 1) {
+      const before = notifications
+      store.setState({
+        layoutByWorktree: {
+          [WT]: {
+            type: 'split',
+            direction: 'horizontal',
+            first: { type: 'leaf', groupId: MAIN },
+            second: { type: 'leaf', groupId: panel }
+          }
+        }
+      })
+      expect(store.getState().layoutByWorktree[WT]).toEqual({ type: 'leaf', groupId: MAIN })
+      expect(notifications - before).toBeLessThanOrEqual(2)
+    }
+    unsubscribe()
+    stop()
+  })
 })

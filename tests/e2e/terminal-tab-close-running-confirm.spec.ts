@@ -21,7 +21,7 @@ import {
   waitForTerminalOutput
 } from './helpers/terminal'
 
-const SORTABLE_TAB = '[data-testid="sortable-tab"]'
+const SORTABLE_TAB = '[data-testid="side-panel-tab"]'
 
 function countRenderedTabs(page: Page): Promise<number> {
   return page.locator(SORTABLE_TAB).count()
@@ -77,7 +77,7 @@ test('the tab X button applies the same running-process confirmation as Cmd+W', 
 
   // 2. Same tab, same running child, mouse close.
   await busyTab.hover()
-  await busyTab.getByRole('button', { name: /^Close tab /i }).click()
+  await busyTab.getByRole('button', { name: 'Close tab', exact: true }).click()
   await orcaPage.waitForTimeout(1_500)
 
   expect(
