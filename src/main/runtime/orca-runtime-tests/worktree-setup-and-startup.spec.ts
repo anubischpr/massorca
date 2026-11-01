@@ -335,6 +335,7 @@ describe('OrcaRuntimeService', () => {
       })
     )
     const setupSpawnEnv =
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the spawn mock's first argument is the PTY options, which carry env.
       (spawn.mock.calls[0]?.[0] as { env?: Record<string, string> } | undefined)?.env ?? {}
     expectStablePaneKeyEnv(setupSpawnEnv)
     const setupLeafId = setupSpawnEnv.ORCA_PANE_KEY.slice(`${setupSpawnEnv.ORCA_TAB_ID}:`.length)

@@ -62,7 +62,9 @@ function runtimeWithAccounts(claude: ClaudeManagedAccountGateSettings | null): O
     }
     return {}
   }
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: this path reads only getSettings from the store.
   const runtime = new OrcaRuntimeService({ getSettings } as never)
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: these private members exist on the runtime and are replaced for the test.
   const internal = runtime as unknown as {
     resolveStructuredAgentSessionLocation: (selector: string) => Promise<unknown>
     ensureStructuredAgentSessionHost: () => Promise<void>
