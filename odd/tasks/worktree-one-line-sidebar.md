@@ -150,6 +150,18 @@ User QA verbatim: "La sesión hija sigue mostrando su propio worktree"; "3. No f
 - Observed: the real query on the VPS returns this delegation's link; hidden app with an empty runtime map hides the row and shows Environment on hover. Not observed: a real paired client end to end.
 - Hover answer for structured sessions: 167d77d9f55, approved by the user. It reads the journal only while the card is open, holds no provider and counts as no view. Covered by tests with mocked hooks; not observed against a real pending prompt.
 
+### pv63 QA (2026-11-01)
+
+- Fixed in 179627edbac: Pin, Sleep and Delete sit in the child's main menu; the prompt hover is 544px wide.
+- Stuck card: session pi_cf84d906 has a second pending request, deleg_4159bd921915 ("probe"), created by the agent by accident. deleg_b2b6c2a26372 was answered and recorded. Not proven that the card on screen is the probe.
+- Missing branch icon: deleg_b9031afc3984 has writes=0 and runs in the parent's worktree, so no icon is correct.
+- Slow delete: host spans are 86 to 230 ms, one git worktree call took 2376 ms. Renderer timing not seen.
+- Worktree switch: the hidden row stayed hidden across four switches, with the link on the entry, not a real dispatch.
+- Closing a child: built per the parent session's decision, on the existing Delete flow. Without force git refuses a dirty worktree, and the branch goes with -d. Native review review-d24eb73b142b6529 did NOT approve it: three critical findings, correction_required, left open.
+
+- Delegation card names its request (38e539f65e3). The real payload of the pending card is titled probe. The render on the VPS client is not yet seen.
+- Delete timing on a local throwaway worktree: dialog closed 2295 ms, row gone 3800 ms, store 4636 ms. The VPS client was not measured: creating a worktree there needs write authorization.
+
 ## Next step
 
 T5 is partial. Decisions for the user first: the unnest question (Progress, change 1), the hidden-row action gaps (menu approval), the six T2 product gaps, the T4 and T4 follow-up gaps, and whether the switch check should use a dispatch-backed link. Then the agent runs the rest of T5: mobile rows on a device, the unread amber glyph, and a dispatch-backed child in the app. Owner: the user decides; then the agent runs T5.

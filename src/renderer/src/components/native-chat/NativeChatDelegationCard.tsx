@@ -113,6 +113,8 @@ export function NativeChatDelegationCard({
               )}
             </span>
           </div>
+          {/* Why: the question is the same for every request; the title says which one this is. */}
+          {body.title ? <p className="text-xs text-muted-foreground">{body.title}</p> : null}
           {/* Why: a short pane scrolls the choices, count and explanation, so the buttons never leave the card. */}
           <div className="scrollbar-sleek flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
             <RadioGroup
