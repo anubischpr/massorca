@@ -13,6 +13,7 @@ import { botAgentLabel } from '../../../../shared/bot-team-character-art'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { AddBotDialog } from './AddBotDialog'
 import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
+import { BotTeamRoom } from './BotTeamRoom'
 import { NewBotTeamForm } from './NewBotTeamForm'
 import { useBotTeams, type BotTeamsState } from './use-bot-teams'
 
@@ -51,6 +52,7 @@ function TeamDetail({
         </Button>
       </div>
       {team.purpose ? <p className="text-sm text-muted-foreground">{team.purpose}</p> : null}
+      <BotTeamRoom team={team} />
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium">{translate('components.botTeams.bots', 'Bots')}</h2>
         <Button variant="outline" size="sm" onClick={() => setAddingBot(true)}>

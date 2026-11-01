@@ -4,6 +4,7 @@ import type {
   BotTeamCreateInput,
   BotTeamUpdateInput
 } from '../../../shared/rpc-contract/bot-team-params'
+import type { BotTeamMessage, BotTeamTask } from '../../../shared/rpc-contract/bot-team-room-params'
 import { useAppStore } from '@/store'
 import { getActiveRuntimeTarget } from './runtime-client-target'
 import { callRuntimeRpc } from './runtime-rpc-client'
@@ -15,6 +16,24 @@ function call<TResult>(method: string, params?: unknown): Promise<TResult> {
     method,
     params
   )
+}
+
+export function listBotTeamRoom(
+  teamId: string
+): Promise<{ tasks: BotTeamTask[]; messages: BotTeamMessage[] }> {
+  return call('botTeams.listRoom', { teamId })
+}
+
+export function postBotTeamRequest(input: {
+  teamId: string
+  text: string
+  start: boolean
+}): Promise<{ task: BotTeamTask | null; startError: string | null }> {
+  return call('botTeams.postMessage', input)
+}
+
+export async function startBotTeamTask(taskId: string): Promise<BotTeamTask> {
+  return (await call<{ task: BotTeamTask }>('botTeams.startTask', { taskId })).task
 }
 
 export async function listBotTeams(): Promise<BotTeam[]> {

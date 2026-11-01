@@ -26,6 +26,12 @@ test('creates a team with a bot from the Bot teams mode', async ({ orcaPage: pag
   await expect(page.getByText('Iris')).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('team.png') })
 
+  // Saved for later: the request becomes a task with no bot working on it.
+  await page.getByLabel('Message the team').fill('Draft the price list')
+  await page.getByRole('button', { name: 'Save to Todo' }).click()
+  await expect(page.getByText('Not started')).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('room.png') })
+
   // The host persists the team: leaving the mode and coming back reads it again.
   await page.getByRole('radio', { name: 'Workspaces' }).click()
   await page.getByRole('radio', { name: 'Bot teams' }).click()
