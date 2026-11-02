@@ -75,7 +75,7 @@ function requireHost() {
   return host
 }
 
-async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeamTask> {
+export async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeamTask> {
   if (
     tasksBeingStarted.has(taskId) ||
     ctx.runtime.getOrchestrationDb().isBotTeamTaskHandedOff(taskId)

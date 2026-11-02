@@ -96,6 +96,12 @@ import {
   BotTeamTaskStart
 } from './bot-team-room-params'
 import {
+  BotTeamRoutineCreate,
+  BotTeamRoutineList,
+  BotTeamRoutineSelector,
+  BotTeamRoutineSetPaused
+} from './bot-team-routine-params'
+import {
   BotTeamFileVersionsSelector,
   BotTeamVersionFileSelector,
   BotTeamVersionsSelector
@@ -732,6 +738,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.assignRequest': BotTeamRequestAssign,
   'botTeams.create': BotTeamCreate,
   'botTeams.createProject': BotTeamProjectCreate,
+  'botTeams.createRoutine': BotTeamRoutineCreate,
   'botTeams.createTask': BotTeamTaskCreate,
   'botTeams.delete': BotTeamSelector,
   'botTeams.deleteMemory': BotTeamMemoryDelete,
@@ -739,12 +746,15 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.list': null,
   'botTeams.listMemory': BotTeamMemoryList,
   'botTeams.listRoom': BotTeamRoomSelector,
+  'botTeams.listRoutineRuns': BotTeamRoutineSelector,
+  'botTeams.listRoutines': BotTeamRoutineList,
   'botTeams.postMessage': BotTeamMessagePost,
   'botTeams.reassignTask': BotTeamTaskReassign,
   'botTeams.removeBot': BotTeamRemoveBot,
   'botTeams.restoreFileVersion': BotTeamVersionFileSelector,
   'botTeams.setProjectBrief': BotTeamProjectSetBrief,
   'botTeams.setProjectCodeSource': BotTeamProjectSetCodeSource,
+  'botTeams.setRoutinePaused': BotTeamRoutineSetPaused,
   'botTeams.setTaskProject': BotTeamTaskSetProject,
   'botTeams.startTask': BotTeamTaskStart,
   'botTeams.update': BotTeamUpdate,
