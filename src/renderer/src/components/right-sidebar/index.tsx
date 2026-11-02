@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { useSidebarResize } from '@/hooks/useSidebarResize'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu'
+import { setRightSidebarPageTarget } from '../../app-shell/right-sidebar-page-slot'
 import { getTopActivityBarLayout } from './activity-bar-overflow'
 import { ActivityBarButton } from './activity-bar-buttons'
 import { getActiveChecksStatus } from './active-checks-status'
@@ -44,6 +45,13 @@ function RightSidebarInner({
   })
   const rightSidebarShortcut = useShortcutLabel('sidebar.right.toggle')
   const rightSidebarOpen = useAppStore((s) => s.rightSidebarOpen)
+  // Why: a Conference room's tasks and bots live here, so the room has one sidebar like a session.
+  const pageOwnsSidebar = useAppStore(
+    (s) =>
+      s.activeView === 'bot-teams' &&
+      s.botTeamsSelection.teamId !== null &&
+      s.botTeamsSelection.taskId === null
+  )
   const rightSidebarWidth = useAppStore((s) => s.rightSidebarWidth)
   const setRightSidebarWidth = useAppStore((s) => s.setRightSidebarWidth)
   const visual = useAppStore(selectVisibleRightSidebarVisual)
@@ -172,7 +180,13 @@ function RightSidebarInner({
           borderLeft: rightSidebarOpen ? '1px solid var(--sidebar-border)' : 'none'
         }}
       >
-        {activityBarPosition === 'top' ? (
+        {pageOwnsSidebar ? (
+          <div className="flex items-center justify-end h-11 min-h-11 border-b border-border right-sidebar-header-inset right-sidebar-header-drag">
+            <TooltipProvider delayDuration={400}>
+              <div className="mr-1 flex items-center">{closeButton}</div>
+            </TooltipProvider>
+          </div>
+        ) : activityBarPosition === 'top' ? (
           <RightSidebarTopActivityBar
             hasDesktopWindowChrome={hasDesktopWindowChrome}
             topActivityStripRef={topActivityStripRef}
@@ -202,7 +216,13 @@ function RightSidebarInner({
           </div>
         )}
 
-        {panelContent}
+        {pageOwnsSidebar ? (
+          rightSidebarOpen ? (
+            <div ref={setRightSidebarPageTarget} className="flex flex-col flex-1 min-h-0" />
+          ) : null
+        ) : (
+          panelContent
+        )}
 
         {/* Resize handle on LEFT side */}
         <div
