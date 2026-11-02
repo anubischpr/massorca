@@ -13,11 +13,11 @@ export function useMobilePrototypeChatSets(args: {
   sessionId: string | null
   userTurnCount: number
   /** Delegated children that finished here: their sets link from their finish notices. */
-  childSessionIds: readonly string[]
+  childSessionIds?: readonly string[]
 }): readonly PrototypeListedSet[] {
   const { client, sessionId, userTurnCount } = args
   // Why a string: a fresh array each render would refetch on every message.
-  const childKey = args.childSessionIds.join(' ')
+  const childKey = (args.childSessionIds ?? []).join(' ')
   const [sets, setSets] = useState<readonly PrototypeListedSet[]>([])
   useEffect(() => {
     if (client === null || sessionId === null) {
@@ -26,7 +26,7 @@ export function useMobilePrototypeChatSets(args: {
     let active = true
     void listMobilePrototypeSets(client, {}).then((listed) => {
       if (active && listed.kind === 'ready') {
-        const chats = new Set([sessionId, ...childKey.split(' ')])
+        const chats = new Set([sessionId, ...childKey.split(' ').filter(Boolean)])
         setSets(listed.sets.filter((set) => chats.has(set.sessionId)))
       }
     })
