@@ -5,6 +5,7 @@ import type {
   BotTeamUpdateInput
 } from '../../../shared/rpc-contract/bot-team-params'
 import type {
+  BotTeamBrief,
   BotTeamCodeSource,
   BotTeamMessage,
   BotTeamProject,
@@ -19,9 +20,14 @@ function call<TResult>(method: string, params?: unknown): Promise<TResult> {
   return callRuntimeRpc<TResult>(botTeamHostTarget(currentBotTeamHost()), method, params)
 }
 
-// A host from before code sources sends projects without one: not connected.
-function withCodeSource(project: BotTeamProject): BotTeamProject {
-  return { ...project, codeSource: project.codeSource ?? null }
+// A host from before code sources or briefs sends projects without them: not connected, empty.
+function withProjectDefaults(project: BotTeamProject): BotTeamProject {
+  return {
+    ...project,
+    codeSource: project.codeSource ?? null,
+    brief: project.brief ?? { requirements: [], constraints: [], decisions: [] },
+    briefUpdatedAt: project.briefUpdatedAt ?? null
+  }
 }
 
 export async function listBotTeamRoom(
@@ -32,7 +38,7 @@ export async function listBotTeamRoom(
     messages: BotTeamMessage[]
     projects?: BotTeamProject[]
   }>('botTeams.listRoom', { teamId })
-  return room.projects ? { ...room, projects: room.projects.map(withCodeSource) } : room
+  return room.projects ? { ...room, projects: room.projects.map(withProjectDefaults) } : room
 }
 
 export async function createBotTeamProject(input: {
@@ -41,7 +47,7 @@ export async function createBotTeamProject(input: {
   goal: string
   codeSource: BotTeamCodeSource | null
 }): Promise<BotTeamProject> {
-  return withCodeSource(
+  return withProjectDefaults(
     (await call<{ project: BotTeamProject }>('botTeams.createProject', input)).project
   )
 }
@@ -52,7 +58,7 @@ export async function setBotTeamProjectCodeSource(
   codeSource: BotTeamCodeSource
 ): Promise<BotTeamProject | 'unavailable'> {
   try {
-    return withCodeSource(
+    return withProjectDefaults(
       (
         await call<{ project: BotTeamProject }>('botTeams.setProjectCodeSource', {
           projectId,
@@ -117,4 +123,22 @@ export async function updateBotOnTeam(
 
 export async function removeBotFromTeam(teamId: string, botId: string): Promise<BotTeam> {
   return (await call<{ team: BotTeam }>('botTeams.removeBot', { teamId, botId })).team
+}
+
+/** Keeps what the person wrote in a project's Brief; 'unavailable' on a host from before briefs. */
+export async function setBotTeamProjectBrief(
+  projectId: string,
+  input: { goal: string; brief: BotTeamBrief }
+): Promise<BotTeamProject | 'unavailable'> {
+  try {
+    return withProjectDefaults(
+      (await call<{ project: BotTeamProject }>('botTeams.setProjectBrief', { projectId, ...input }))
+        .project
+    )
+  } catch (error) {
+    if (error instanceof RuntimeRpcCallError && error.code === 'method_not_found') {
+      return 'unavailable'
+    }
+    throw error
+  }
 }

@@ -31,7 +31,23 @@ const teams: BotTeam[] = [
 
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
   listBotTeams: () => Promise.resolve(teams),
-  listBotTeamRoom: () => Promise.resolve({ tasks: [], messages: [] }),
+  listBotTeamRoom: () =>
+    Promise.resolve({
+      tasks: [],
+      messages: [],
+      projects: [
+        {
+          id: 'p1',
+          teamId: 't1',
+          name: 'Website',
+          goal: '',
+          codeSource: null,
+          brief: { requirements: [], constraints: [], decisions: [] },
+          briefUpdatedAt: null
+        }
+      ]
+    }),
+  setBotTeamProjectBrief: vi.fn(),
   updateBotOnTeam: vi.fn(),
   updateBotTeam: vi.fn(),
   addBotToTeam: vi.fn(),
@@ -147,6 +163,45 @@ describe('the Bot teams page with a controlled selection', () => {
     )
     act(() => back?.click())
     expect(onSelectionChange).toHaveBeenCalledWith({ teamId: 't1', taskId: null, creating: false })
+  })
+
+  it('opens a project on its Board, and on its Brief when the section says so', async () => {
+    const onSelectionChange = vi.fn()
+    const board = await mount(
+      <BotTeamsPage
+        selection={{
+          teamId: 't1',
+          taskId: null,
+          creating: false,
+          section: { kind: 'project', projectId: 'p1' }
+        }}
+        onSelectionChange={onSelectionChange}
+      />
+    )
+    expect(board.textContent).toContain('Todo')
+    const brief = [...board.querySelectorAll('[role="radiogroup"] button')].find(
+      (b) => b.textContent?.trim() === 'Brief'
+    )
+    await act(async () => brief?.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    expect(onSelectionChange).toHaveBeenCalledWith({
+      teamId: 't1',
+      taskId: null,
+      creating: false,
+      section: { kind: 'project', projectId: 'p1', tab: 'brief' }
+    })
+
+    const page = await mount(
+      <BotTeamsPage
+        selection={{
+          teamId: 't1',
+          taskId: null,
+          creating: false,
+          section: { kind: 'project', projectId: 'p1', tab: 'brief' }
+        }}
+        onSelectionChange={() => {}}
+      />
+    )
+    expect(page.textContent).toContain('The project holds the why. Each task holds the how.')
   })
 
   it('opens the new project form from its section', async () => {

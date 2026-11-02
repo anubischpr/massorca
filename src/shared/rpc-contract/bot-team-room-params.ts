@@ -16,13 +16,25 @@ export const BotTeamTaskSchema = z.object({
 /** Where a project's code comes from: a repository that exists, or a new folder set up with git. */
 export const BotTeamCodeSourceSchema = z.enum(['repo', 'folder'])
 
+/** What a project's bots read before they start: the Brief on the design. */
+export const BotTeamBriefSchema = z.object({
+  requirements: z.array(z.string()),
+  constraints: z.array(z.string()),
+  decisions: z.array(z.string())
+})
+
+const EMPTY_BRIEF = { requirements: [], constraints: [], decisions: [] }
+
 export const BotTeamProjectSchema = z.object({
   id: z.string(),
   teamId: z.string(),
   name: z.string(),
   goal: z.string(),
   // Null: not connected to code. The default reads a host from before code sources existed.
-  codeSource: BotTeamCodeSourceSchema.nullable().default(null)
+  codeSource: BotTeamCodeSourceSchema.nullable().default(null),
+  // The defaults read a host from before briefs existed.
+  brief: BotTeamBriefSchema.default(EMPTY_BRIEF),
+  briefUpdatedAt: z.number().nullable().default(null)
 })
 
 export const BotTeamProjectCreate = z.object({
@@ -35,6 +47,12 @@ export const BotTeamProjectCreate = z.object({
 export const BotTeamProjectSetCodeSource = z.object({
   projectId: requiredString('Missing project id'),
   codeSource: BotTeamCodeSourceSchema
+})
+
+export const BotTeamProjectSetBrief = z.object({
+  projectId: requiredString('Missing project id'),
+  goal: z.string().trim(),
+  brief: BotTeamBriefSchema
 })
 
 export const BotTeamTaskSetProject = z.object({
@@ -73,6 +91,7 @@ export const BotTeamTaskStart = z.object({
 })
 
 export type BotTeamTask = z.output<typeof BotTeamTaskSchema>
+export type BotTeamBrief = z.output<typeof BotTeamBriefSchema>
 export type BotTeamCodeSource = z.output<typeof BotTeamCodeSourceSchema>
 export type BotTeamProject = z.output<typeof BotTeamProjectSchema>
 export type BotTeamProjectInput = z.output<typeof BotTeamProjectCreate>

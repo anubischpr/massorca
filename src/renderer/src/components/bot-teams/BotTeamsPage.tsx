@@ -19,6 +19,7 @@ import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { BotAgentIcon } from './BotAgentIcon'
 import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
 import { BotTeamHostPicker } from './BotTeamHostPicker'
+import { BotTeamProjectBrief, type BotTeamProjectTab } from './BotTeamProjectBrief'
 import { BotTeamBoard, BotTeamProjectBoard, NewBotProjectForm } from './BotTeamProjectViews'
 import { BotTeamRoom } from './BotTeamRoom'
 import { NewBotTeamForm } from './NewBotTeamForm'
@@ -81,11 +82,22 @@ function TeamDetail({
     )
   }
   if (section?.kind === 'project') {
-    return (
+    const { projectId } = section
+    const openTab = (tab: BotTeamProjectTab): void =>
+      toTeam({ section: { kind: 'project', projectId, ...(tab === 'brief' ? { tab } : {}) } })
+    return section.tab === 'brief' ? (
+      <BotTeamProjectBrief
+        team={team}
+        projectId={projectId}
+        onBack={() => openTab('board')}
+        onTab={openTab}
+      />
+    ) : (
       <BotTeamProjectBoard
         team={team}
-        projectId={section.projectId}
+        projectId={projectId}
         onBack={toRoom}
+        onTab={openTab}
         onOpenTask={onOpenTask}
       />
     )

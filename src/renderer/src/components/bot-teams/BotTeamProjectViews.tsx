@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { ChevronLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -24,6 +23,8 @@ import type {
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { CodeSourcePick, ConnectToCodeCard, codeSourceLabel } from './BotTeamCodeSource'
+import { BotTeamProjectTabs, type BotTeamProjectTab } from './BotTeamProjectBrief'
+import { BotTeamViewHeader as ViewHeader } from './BotTeamViewHeader'
 import { useTeamWork } from './use-bot-team-work'
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
 
@@ -32,27 +33,6 @@ const HOST_CANNOT_CONNECT = (): string =>
     'components.botTeams.hostCannotConnect',
     'This host cannot connect projects to code yet.'
   )
-
-function ViewHeader({
-  title,
-  detail,
-  onBack
-}: {
-  title: string
-  detail: string
-  onBack: () => void
-}): React.JSX.Element {
-  return (
-    <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-4 text-sm font-medium">
-      <Button variant="ghost" size="sm" onClick={onBack}>
-        <ChevronLeft className="size-3.5" />
-        {translate('components.botTeams.conferenceRoom', 'Conference room')}
-      </Button>
-      <span className="min-w-0 flex-1 truncate">{title}</span>
-      <span className="truncate text-xs text-muted-foreground">{detail}</span>
-    </div>
-  )
-}
 
 export function NewBotProjectForm({
   team,
@@ -152,11 +132,13 @@ export function BotTeamProjectBoard({
   team,
   projectId,
   onBack,
+  onTab,
   onOpenTask
 }: {
   team: BotTeam
   projectId: string
   onBack: () => void
+  onTab: (tab: BotTeamProjectTab) => void
   onOpenTask: (taskId: string) => void
 }): React.JSX.Element {
   const [refresh, setRefresh] = useState(0)
@@ -183,7 +165,12 @@ export function BotTeamProjectBoard({
   const own = tasks.filter((task) => task.projectId === projectId)
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ViewHeader title={project?.name ?? ''} detail={team.name} onBack={onBack} />
+      <ViewHeader
+        title={project?.name ?? ''}
+        detail={team.name}
+        onBack={onBack}
+        trailing={<BotTeamProjectTabs value="board" onChange={onTab} />}
+      />
       {project?.goal ? (
         <p className="px-4 pt-2.5 text-xs text-muted-foreground">
           {translate('components.botTeams.goalLine', 'Goal: {{goal}}', { goal: project.goal })}

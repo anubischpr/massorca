@@ -84,6 +84,7 @@ import {
 import {
   BotTeamMessagePost,
   BotTeamProjectCreate,
+  BotTeamProjectSetBrief,
   BotTeamProjectSetCodeSource,
   BotTeamRoomSelector,
   BotTeamTaskCreate,
@@ -727,6 +728,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.listRoom': BotTeamRoomSelector,
   'botTeams.postMessage': BotTeamMessagePost,
   'botTeams.removeBot': BotTeamRemoveBot,
+  'botTeams.setProjectBrief': BotTeamProjectSetBrief,
   'botTeams.setProjectCodeSource': BotTeamProjectSetCodeSource,
   'botTeams.setTaskProject': BotTeamTaskSetProject,
   'botTeams.startTask': BotTeamTaskStart,

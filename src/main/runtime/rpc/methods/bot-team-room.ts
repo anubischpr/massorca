@@ -6,6 +6,7 @@ import {
   BotTeamMessagePost,
   BotTeamRoomSelector,
   BotTeamProjectCreate,
+  BotTeamProjectSetBrief,
   BotTeamProjectSetCodeSource,
   BotTeamTaskCreate,
   BotTeamTaskSetProject,
@@ -146,7 +147,11 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
         })) !== null,
       linkSession: (id, sessionId) => db.setBotTeamTaskSession(id, sessionId)
     },
-    { team, task }
+    {
+      team,
+      task,
+      project: db.listBotTeamProjects(team.id).find((entry) => entry.id === task.projectId) ?? null
+    }
   )
 }
 
@@ -242,6 +247,14 @@ export const BOT_TEAM_ROOM_METHODS = [
     params: BotTeamProjectCreate,
     handler: (params, { runtime }) => ({
       project: runtime.getOrchestrationDb().createBotTeamProject(params)
+    })
+  }),
+  defineMethod({
+    name: 'botTeams.setProjectBrief',
+    permission: 'workspace',
+    params: BotTeamProjectSetBrief,
+    handler: ({ projectId, goal, brief }, { runtime }) => ({
+      project: runtime.getOrchestrationDb().setBotTeamProjectBrief(projectId, { goal, brief })
     })
   }),
   defineMethod({

@@ -8,7 +8,8 @@ vi.mock('./bot-team-host', () => ({
   currentBotTeamHost: () => 'local'
 }))
 
-const { listBotTeamRoom, setBotTeamProjectCodeSource } = await import('./runtime-bot-team-client')
+const { listBotTeamRoom, setBotTeamProjectBrief, setBotTeamProjectCodeSource } =
+  await import('./runtime-bot-team-client')
 
 function failure(code: string): RuntimeRpcCallError {
   return new RuntimeRpcCallError({ id: '1', ok: false, error: { code, message: code } })
@@ -20,7 +21,7 @@ describe('connecting a project to code', () => {
   it('asks the host and returns the connected project', async () => {
     callRuntimeRpc.mockResolvedValue({ project: { ...PROJECT, codeSource: 'repo' } })
 
-    await expect(setBotTeamProjectCodeSource('p1', 'repo')).resolves.toEqual({
+    await expect(setBotTeamProjectCodeSource('p1', 'repo')).resolves.toMatchObject({
       ...PROJECT,
       codeSource: 'repo'
     })
@@ -43,11 +44,33 @@ describe('connecting a project to code', () => {
     await expect(setBotTeamProjectCodeSource('p1', 'repo')).rejects.toThrow('internal_error')
   })
 
-  it('lists a project from an older host as not connected', async () => {
+  it('lists a project from an older host as not connected and without a brief', async () => {
     callRuntimeRpc.mockResolvedValue({ tasks: [], messages: [], projects: [PROJECT] })
 
     const room = await listBotTeamRoom('t1')
 
-    expect(room.projects).toEqual([{ ...PROJECT, codeSource: null }])
+    expect(room.projects).toEqual([
+      {
+        ...PROJECT,
+        codeSource: null,
+        brief: { requirements: [], constraints: [], decisions: [] },
+        briefUpdatedAt: null
+      }
+    ])
+  })
+
+  it('keeps a brief on the host, and reads a host without the method as unavailable', async () => {
+    const brief = { requirements: ['Flyer'], constraints: [], decisions: [] }
+    callRuntimeRpc.mockResolvedValue({ project: { ...PROJECT, codeSource: null, brief } })
+
+    await setBotTeamProjectBrief('p1', { goal: 'Sell', brief })
+    expect(callRuntimeRpc).toHaveBeenLastCalledWith({ kind: 'local' }, 'botTeams.setProjectBrief', {
+      projectId: 'p1',
+      goal: 'Sell',
+      brief
+    })
+
+    callRuntimeRpc.mockRejectedValue(failure('method_not_found'))
+    await expect(setBotTeamProjectBrief('p1', { goal: 'Sell', brief })).resolves.toBe('unavailable')
   })
 })

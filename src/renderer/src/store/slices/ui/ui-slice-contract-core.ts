@@ -19,7 +19,7 @@ import type { TaskResumeState, TopLevelView } from '../../../../../shared/ui-chr
 export type BotTeamsSection =
   | { kind: 'board' }
   | { kind: 'new-project' }
-  | { kind: 'project'; projectId: string }
+  | { kind: 'project'; projectId: string; tab?: 'brief' }
 
 export type BotTeamsSelection = {
   /** The open team, or null for All teams. */

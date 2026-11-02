@@ -42,7 +42,15 @@ function team(workspacesEnabled: boolean): BotTeam {
 }
 
 function project(codeSource: BotTeamProject['codeSource']): BotTeamProject {
-  return { id: 'p1', teamId: 't1', name: 'Website', goal: 'Faster', codeSource }
+  return {
+    id: 'p1',
+    teamId: 't1',
+    name: 'Website',
+    goal: 'Faster',
+    codeSource,
+    brief: { requirements: [], constraints: [], decisions: [] },
+    briefUpdatedAt: null
+  }
 }
 
 const mounted: { container: HTMLDivElement; root: Root }[] = []
@@ -161,6 +169,7 @@ describe('the project board and connecting to code', () => {
         team={team(true)}
         projectId="p1"
         onBack={() => {}}
+        onTab={() => {}}
         onOpenTask={() => {}}
       />
     )
@@ -186,6 +195,7 @@ describe('the project board and connecting to code', () => {
         team={team(false)}
         projectId="p1"
         onBack={() => {}}
+        onTab={() => {}}
         onOpenTask={() => {}}
       />
     )
@@ -200,6 +210,7 @@ describe('the project board and connecting to code', () => {
         team={team(true)}
         projectId="p1"
         onBack={() => {}}
+        onTab={() => {}}
         onOpenTask={() => {}}
       />
     )
@@ -214,6 +225,7 @@ describe('the project board and connecting to code', () => {
         team={team(true)}
         projectId="p1"
         onBack={() => {}}
+        onTab={() => {}}
         onOpenTask={() => {}}
       />
     )

@@ -1,5 +1,5 @@
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
-import type { BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
+import type { BotTeamProject, BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import { botAgentPiRuntime } from '../../shared/bot-team-character-art'
 import { botLaunchOptions } from './bot-team-model-choice'
 
@@ -17,16 +17,34 @@ export type BotTeamTaskStartDeps = {
   linkSession: (taskId: string, sessionId: string) => BotTeamTask
 }
 
+/** The project's goal and brief, which the person wrote for the bots; empty sections are left out. */
+function botTeamProjectBriefText(project: BotTeamProject): string {
+  const sections: [string, string[]][] = [
+    ['Requirements', project.brief.requirements],
+    ['Constraints', project.brief.constraints],
+    ['Decisions', project.brief.decisions]
+  ]
+  return [
+    `This task is part of the project "${project.name}". Read its brief before you start.`,
+    ...(project.goal ? [`Goal: ${project.goal}`] : []),
+    ...sections
+      .filter(([, lines]) => lines.length > 0)
+      .map(([title, lines]) => `${title}:\n${lines.map((line) => `- ${line}`).join('\n')}`)
+  ].join('\n')
+}
+
 export function botTeamTaskPrompt(
   team: BotTeam,
   bot: BotTeamBot,
-  task: Pick<BotTeamTask, 'title' | 'prompt'>
+  task: Pick<BotTeamTask, 'title' | 'prompt'>,
+  project: BotTeamProject | null = null
 ): string {
   const role = bot.job ? `Your job: ${bot.job}.` : ''
   const skills =
     bot.skills.length > 0 ? `Use these skills when they fit: ${bot.skills.join(', ')}.` : ''
   return [
     `You are ${bot.name}, a bot on the ${team.name} team. ${role} ${skills}`.trim(),
+    ...(project ? [botTeamProjectBriefText(project)] : []),
     task.prompt || task.title,
     [
       'Tell the team in its Conference room when you take this on and when you finish, in one short line each: `orca orchestration team-post --text "<line>"`.',
@@ -38,7 +56,11 @@ export function botTeamTaskPrompt(
 /** Starts the owner bot's session for a task that was waiting in Todo. */
 export async function startBotTeamTask(
   deps: BotTeamTaskStartDeps,
-  { team, task }: { team: BotTeam; task: BotTeamTask }
+  {
+    team,
+    task,
+    project = null
+  }: { team: BotTeam; task: BotTeamTask; project?: BotTeamProject | null }
 ): Promise<BotTeamTask> {
   if (task.sessionId !== null) {
     throw new Error(`Task ${task.id} already started.`)
@@ -58,7 +80,7 @@ export async function startBotTeamTask(
     ...(options ? { options } : {})
   })
   // Linked only once delivered: an undelivered request must keep the task in Todo, with Start.
-  if (!(await deps.sendPrompt(sessionId, botTeamTaskPrompt(team, bot, task)))) {
+  if (!(await deps.sendPrompt(sessionId, botTeamTaskPrompt(team, bot, task, project)))) {
     throw new Error(`The request for task ${task.id} did not reach the bot.`)
   }
   return deps.linkSession(task.id, sessionId)

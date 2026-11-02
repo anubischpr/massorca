@@ -41,7 +41,9 @@ describe('bot team project store', () => {
       teamId: team.id,
       name: 'Summer campaign',
       goal: 'More sales',
-      codeSource: null
+      codeSource: null,
+      brief: { requirements: [], constraints: [], decisions: [] },
+      briefUpdatedAt: null
     })
     expect(db.listBotTeamProjects(team.id)).toEqual([project])
   })
@@ -137,6 +139,82 @@ describe('bot team project store', () => {
     // A skewed database restarts from v6 with the column already there.
     db.db.pragma('user_version = 6')
     expect(() => db?.migrate()).not.toThrow()
-    expect(db.db.pragma('user_version', { simple: true })).toBe(49)
+    expect(db.db.pragma('user_version', { simple: true })).toBe(50)
+  })
+
+  it('stores a project brief with its goal, drops blank lines and stamps the time', () => {
+    db = new OrchestrationDb(':memory:')
+    const { team } = seed(db)
+    const project = db.createBotTeamProject({
+      teamId: team.id,
+      name: 'Summer',
+      goal: 'Old goal',
+      codeSource: null
+    })
+
+    const saved = db.setBotTeamProjectBrief(project.id, {
+      goal: 'Sell the offers',
+      brief: {
+        requirements: ['Flyer for the offers', '  ', 'Offer email'],
+        constraints: ['Prices are checked first'],
+        decisions: []
+      }
+    })
+
+    expect(saved).toEqual({
+      ...project,
+      goal: 'Sell the offers',
+      brief: {
+        requirements: ['Flyer for the offers', 'Offer email'],
+        constraints: ['Prices are checked first'],
+        decisions: []
+      },
+      briefUpdatedAt: expect.any(Number)
+    })
+    expect(db.listBotTeamProjects(team.id)).toEqual([saved])
+    expect(() =>
+      db?.setBotTeamProjectBrief('missing', {
+        goal: '',
+        brief: { requirements: [], constraints: [], decisions: [] }
+      })
+    ).toThrow('was not found')
+  })
+
+  it('reads an unreadable stored brief as empty instead of failing the list', () => {
+    db = new OrchestrationDb(':memory:')
+    const { team } = seed(db)
+    const project = db.createBotTeamProject({
+      teamId: team.id,
+      name: 'S',
+      goal: '',
+      codeSource: null
+    })
+    db.db
+      .prepare('UPDATE bot_team_projects SET brief_json = ? WHERE id = ?')
+      .run('{nope', project.id)
+
+    expect(db.listBotTeamProjects(team.id)[0].brief).toEqual({
+      requirements: [],
+      constraints: [],
+      decisions: []
+    })
+  })
+
+  it('adds the brief columns to a v49 database and survives a replay', () => {
+    db = new OrchestrationDb(':memory:')
+    const { team } = seed(db)
+    db.createBotTeamProject({ teamId: team.id, name: 'Summer', goal: 'Sales', codeSource: 'repo' })
+    db.db.exec('ALTER TABLE bot_team_projects DROP COLUMN brief_json')
+    db.db.exec('ALTER TABLE bot_team_projects DROP COLUMN brief_updated_at')
+    db.db.pragma('user_version = 49')
+
+    db.migrate()
+    expect(db.listBotTeamProjects(team.id)).toEqual([
+      expect.objectContaining({ name: 'Summer', codeSource: 'repo', briefUpdatedAt: null })
+    ])
+
+    db.db.pragma('user_version = 6')
+    expect(() => db?.migrate()).not.toThrow()
+    expect(db.db.pragma('user_version', { simple: true })).toBe(50)
   })
 })
