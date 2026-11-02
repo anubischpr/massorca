@@ -58,6 +58,22 @@ function reply(text: string, observedAt: number): AgentJournalRenderItem {
   }
 }
 
+/** The host's record with an item the person added, which the agent has not seen yet. */
+function personStateWithAddedItem() {
+  return {
+    ...personState(),
+    revision: 3,
+    marks: {
+      ...personState().marks,
+      'ask the agent for logs': {
+        text: 'Ask the agent for logs',
+        addedAt: AT_PERSON,
+        revision: 3
+      }
+    }
+  }
+}
+
 /** The host's record: the person checked "Open the summary" after the agent's last delivery. */
 function personState() {
   return {
@@ -190,7 +206,7 @@ describe('NativeChatSessionChecklistSection', () => {
     openCard()
 
     fireEvent.click((await screen.findAllByRole('button', { name: 'Add note' }))[0]!)
-    const note = await screen.findByRole('textbox')
+    const note = await screen.findByRole('textbox', { name: 'Note' })
     fireEvent.change(note, { target: { value: 'Falla el login' } })
     const editor = note.closest<HTMLElement>('[data-native-chat-checklist-editor]')
     if (!editor) {
@@ -226,9 +242,115 @@ describe('NativeChatSessionChecklistSection', () => {
     })
   })
 
-  it('renders nothing when the agent has written no checklist', () => {
-    const { container } = renderCard([reply('No list yet', AT_WRITE)])
+  it('shows the empty card with its add row when the agent has written no checklist', async () => {
+    rpc.call.mockImplementation(async () => ({ ok: true, state: { ...personState(), marks: {} } }))
+    renderCard([reply('No list yet', AT_WRITE)])
 
-    expect(container.textContent).toBe('')
+    expect(await screen.findByText('No checklist yet')).toBeTruthy()
+    openCard()
+
+    expect(
+      screen.getByText('No checklist yet. Ask the agent for one, or add your own items.')
+    ).toBeTruthy()
+    expect(screen.getByLabelText('Add an item')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Add' })).toBeTruthy()
+  })
+
+  it('adds the person item through the host and clears the field', async () => {
+    rpc.call.mockImplementation(
+      async (_target: unknown, method: string, params: { add?: boolean }) => {
+        if (method === 'agentSessionChecklist.setItem' && params.add) {
+          return { ok: true, state: personStateWithAddedItem() }
+        }
+        return { ok: true, state: { ...personState(), marks: {} } }
+      }
+    )
+    renderCard([reply('No list yet', AT_WRITE)])
+    openCard()
+
+    const input = screen.getByLabelText('Add an item')
+    fireEvent.change(input, { target: { value: '  Ask the agent for logs  ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    await waitFor(() =>
+      expect(rpc.call).toHaveBeenCalledWith(
+        { kind: 'local' },
+        'agentSessionChecklist.setItem',
+        expect.objectContaining({
+          sessionId: 'chat-1',
+          text: 'Ask the agent for logs',
+          add: true
+        })
+      )
+    )
+    await waitFor(() => expect(input).toHaveProperty('value', ''))
+  })
+
+  it('adds the item on Enter and ignores blank text', async () => {
+    rpc.call.mockImplementation(
+      async (_target: unknown, method: string, params: { add?: boolean }) => {
+        if (method === 'agentSessionChecklist.setItem' && params.add) {
+          return { ok: true, state: personStateWithAddedItem() }
+        }
+        return { ok: true, state: { ...personState(), marks: {} } }
+      }
+    )
+    renderCard([reply('No list yet', AT_WRITE)])
+    openCard()
+
+    const input = screen.getByLabelText('Add an item')
+    fireEvent.change(input, { target: { value: '   ' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(rpc.call).not.toHaveBeenCalledWith(
+      expect.anything(),
+      'agentSessionChecklist.setItem',
+      expect.anything()
+    )
+
+    fireEvent.change(input, { target: { value: 'Ask the agent for logs' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    await waitFor(() =>
+      expect(rpc.call).toHaveBeenCalledWith(
+        { kind: 'local' },
+        'agentSessionChecklist.setItem',
+        expect.objectContaining({ text: 'Ask the agent for logs', add: true })
+      )
+    )
+  })
+
+  it('hides the add row on a host without the checklist methods', async () => {
+    rpc.call.mockRejectedValue(new failures.MockRuntimeRpcCallError('method_not_found'))
+    renderCard([reply('No list yet', AT_WRITE)])
+    openCard()
+
+    expect(await screen.findByText('Update the host to check items here.')).toBeTruthy()
+    expect(screen.queryByLabelText('Add an item')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add' })).toBeNull()
+  })
+
+  it('names an item the person added and takes it back with Remove item', async () => {
+    rpc.call.mockImplementation(
+      async (_target: unknown, method: string, params: { remove?: boolean }) => {
+        if (method === 'agentSessionChecklist.setItem' && params.remove) {
+          return { ok: true, state: personState() }
+        }
+        return { ok: true, state: personStateWithAddedItem() }
+      }
+    )
+    renderCard([reply(CHECKLIST_REPLY, AT_WRITE)])
+    openCard()
+
+    expect(await screen.findByText(`Added by you · ${time(AT_PERSON)}`)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove item' }))
+
+    await waitFor(() =>
+      expect(rpc.call).toHaveBeenCalledWith(
+        { kind: 'local' },
+        'agentSessionChecklist.setItem',
+        { sessionId: 'chat-1', text: 'Ask the agent for logs', remove: true }
+      )
+    )
+    await waitFor(() => expect(screen.queryByText('Ask the agent for logs')).toBeNull())
   })
 })

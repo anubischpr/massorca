@@ -26,6 +26,8 @@ export type NativeChatChecklistState = {
   readOnly: boolean
   /** Writes one item's marks; false when the host did not take them. */
   setItem: (params: NativeChatChecklistSetItem) => Promise<boolean>
+  /** When the person added each item they added, by item key. */
+  addedAt: Record<string, number>
 }
 
 function isMethodMissing(error: unknown): boolean {
@@ -35,7 +37,8 @@ function isMethodMissing(error: unknown): boolean {
 /**
  * The chat's checklist: the agent's items from its replies, merged with the person's marks as the
  * chat's host keeps them. The marks are read on mount, when the chat gains a message, and every few
- * seconds while the card is open; a mark the person sets applies at once.
+ * seconds while the card is open; a mark the person sets applies at once. A chat with no agent list
+ * still reads them, since the person may have added items of their own.
  */
 export function useNativeChatChecklist(args: {
   target: RuntimeClientTarget
@@ -51,11 +54,6 @@ export function useNativeChatChecklist(args: {
   })
 
   const replies = useMemo(() => nativeChatChecklistRepliesFromItems(journalItems), [journalItems])
-  // Why: a chat that never wrote a list makes no host reads; the marks only mean something beside one.
-  const hasBlocks = useMemo(
-    () => replies.some((reply) => nativeChatChecklistBlocksInReply(reply.markdown).length > 0),
-    [replies]
-  )
   const messageCount = useMemo(
     () => journalItems.filter((item) => item.body.kind === 'message').length,
     [journalItems]
@@ -111,18 +109,16 @@ export function useNativeChatChecklist(args: {
   )
 
   useEffect(() => {
-    if (hasBlocks) {
-      void read()
-    }
-  }, [hasBlocks, messageCount, read])
+    void read()
+  }, [messageCount, read])
 
   useEffect(() => {
-    if (!polling || readOnly || !hasBlocks) {
+    if (!polling || readOnly) {
       return
     }
     const timer = setInterval(() => void read(), POLL_INTERVAL_MS)
     return () => clearInterval(timer)
-  }, [hasBlocks, polling, read, readOnly])
+  }, [polling, read, readOnly])
 
   const checklist = useMemo(() => nativeChatChecklist(replies, person), [person, replies])
   const writtenAt = useMemo(
@@ -131,5 +127,14 @@ export function useNativeChatChecklist(args: {
         ?.at ?? null,
     [replies]
   )
-  return { checklist, writtenAt, readOnly, setItem }
+  const addedAt = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(person?.marks ?? {}).flatMap(([key, mark]) =>
+          mark.addedAt === undefined ? [] : [[key, mark.addedAt]]
+        )
+      ),
+    [person]
+  )
+  return { checklist, writtenAt, readOnly, setItem, addedAt }
 }
