@@ -27,6 +27,10 @@ vi.mock('lucide-react-native', () => ({
   ChevronLeft: 'ChevronLeft',
   ChevronRight: 'ChevronRight',
   Layers: 'Layers',
+  Calendar: 'Calendar',
+  FolderOpen: 'FolderOpen',
+  Mail: 'Mail',
+  Plug: 'Plug',
   Plus: 'Plus',
   Settings: 'Settings',
   SlidersHorizontal: 'SlidersHorizontal',
@@ -56,6 +60,21 @@ function press(renderer: ReactTestRenderer, label: string) {
 }
 
 describe('MobileBotTeamsScreen', () => {
+  it('opens the apps list from an Integrations row on the home screen', async () => {
+    let renderer!: ReactTestRenderer
+    await act(async () => {
+      renderer = create(
+        createElement(MobileBotTeamsScreen, {
+          hostId: 'host',
+          onShowWorkspaces: () => {},
+          onOpenTask: () => {}
+        })
+      )
+    })
+    press(renderer, 'Integrations')
+    expect(JSON.stringify(renderer.toJSON())).toContain('Connecting apps is not available yet.')
+  })
+
   it('keeps the typed team name after adding a bot', async () => {
     let renderer!: ReactTestRenderer
     await act(async () => {

@@ -9,6 +9,8 @@ import { botAgentLabel } from '../../../src/shared/bot-team-character-art'
 import type { BotDraftInput, BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import type { BotTeamTask } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
+import { MobileBotTeamIntegrations } from './MobileBotTeamIntegrations'
+import { MobileBotTeamIntegrationsRow } from './MobileBotTeamIntegrationsRow'
 import { MobileAddBotForm, MobileNewTeamForm } from './MobileBotTeamForms'
 import { MobileBotTeamRoom } from './MobileBotTeamRoom'
 import { MobileBotTeamWork, isBotTeamWorkScreen, type BotTeamWorkScreen } from './MobileBotTeamWork'
@@ -41,6 +43,7 @@ type Screen =
   | { name: 'editBot'; teamId: string; botId: string }
   | { name: 'editNewTeamBot'; index: number }
   | { name: 'teamBot'; teamId: string }
+  | { name: 'integrations' }
   | BotTeamWorkScreen
 
 function SubBar({ title, onBack }: { title: string; onBack: () => void }) {
@@ -311,6 +314,8 @@ export function MobileBotTeamsScreen({
         onOpenTask={onOpenTask}
       />
     )
+  } else if (screen.name === 'integrations') {
+    body = <MobileBotTeamIntegrations onBack={backHome} />
   } else if (client !== null && screen.name === 'settings') {
     body = (
       <>
@@ -400,6 +405,7 @@ export function MobileBotTeamsScreen({
             onOpen={(teamId) => setScreen({ name: 'team', teamId })}
           />
         ) : null}
+        <MobileBotTeamIntegrationsRow onPress={() => setScreen({ name: 'integrations' })} />
       </>
     )
   }
