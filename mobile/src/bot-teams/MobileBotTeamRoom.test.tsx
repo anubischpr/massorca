@@ -492,6 +492,57 @@ describe('MobileBotTeamRoom', () => {
     expect(JSON.stringify(renderer.toJSON())).toContain('Choose where this task goes')
   })
 
+  it('says the host cannot route requests when it predates the method', async () => {
+    vi.mocked(Alert.alert).mockClear()
+    const client = {
+      sendRequest: vi.fn(async (method: string) => {
+        if (method === 'botTeams.listRoom') {
+          return { ok: true, result: { tasks: [], messages: [], projects: [], workspaceId: null } }
+        }
+        if (method === 'botTeams.postMessage') {
+          return {
+            ok: true,
+            result: { task: null, startError: null, choice: { kind: 'new-team' } }
+          }
+        }
+        return { ok: false, error: { code: 'method_not_found', message: 'nope' } }
+      })
+    }
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
+      teams: [TEAM, OTHER_TEAM]
+    })
+    await act(async () => {
+      await renderer.root.findByType('Composer' as never).props.onSend('Taxes')
+    })
+    await press(renderer, 'Send to Warehouse')
+    await settle()
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'That did not send',
+      'This host cannot route requests yet.'
+    )
+  })
+
+  it('says the host cannot move tasks when it predates the method', async () => {
+    vi.mocked(Alert.alert).mockClear()
+    const client = {
+      sendRequest: vi.fn(async (method: string) =>
+        method === 'botTeams.listRoom'
+          ? { ok: true, result: { tasks: [TASK], messages: [], projects: [], workspaceId: null } }
+          : { ok: false, error: { code: 'method_not_found', message: 'nope' } }
+      )
+    }
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
+      teams: [TEAM, OTHER_TEAM]
+    })
+    await press(renderer, 'Reassign')
+    await press(renderer, 'Give to Max')
+    await settle()
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'That did not save',
+      'This host cannot move tasks yet.'
+    )
+  })
+
   it('hands an idle task to a bot of another team and reads the room again', async () => {
     const client = hostAnswering({
       tasks: [TASK],

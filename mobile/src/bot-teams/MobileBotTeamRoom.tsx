@@ -178,7 +178,11 @@ export function MobileBotTeamRoom({
       ...target
     })
     setChoiceBusy(false)
-    if (!filed.ok) {
+    if (filed.kind === 'unsupported') {
+      Alert.alert('That did not send', 'This host cannot route requests yet.')
+      return
+    }
+    if (filed.kind === 'failed') {
       Alert.alert('That did not send', 'Check the connection to this host and try again.')
       return
     }

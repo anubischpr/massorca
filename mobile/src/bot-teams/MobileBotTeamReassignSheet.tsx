@@ -30,7 +30,11 @@ export function MobileBotTeamReassignSheet({
     setBusy(true)
     const filed = await reassignMobileBotTeamTask(client, { taskId: task.id, botId })
     setBusy(false)
-    if (!filed.ok) {
+    if (filed.kind === 'unsupported') {
+      Alert.alert('That did not save', 'This host cannot move tasks yet.')
+      return
+    }
+    if (filed.kind === 'failed') {
       Alert.alert('That did not save', 'Check the connection to this host and try again.')
       return
     }

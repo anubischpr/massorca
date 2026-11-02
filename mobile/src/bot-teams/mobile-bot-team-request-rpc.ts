@@ -3,6 +3,7 @@ import {
   BotTeamTaskSchema,
   type BotTeamTask
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
+import { isMobileMethodUnavailableError } from '../transport/mobile-method-unavailable'
 import type { RpcClient } from '../transport/rpc-client'
 
 type HostClient = Pick<RpcClient, 'sendRequest'>
@@ -11,10 +12,13 @@ type HostClient = Pick<RpcClient, 'sendRequest'>
 const START_TIMEOUT_MS = 60_000
 const FiledReply = z.object({ task: BotTeamTaskSchema, startError: z.string().nullable() })
 
-/** The task the host filed, and why it did not start; `ok: false` when nothing was filed. */
+/** What the host did with a filing: the task it filed, a host too old to file this way, or no answer. */
 export type MobileBotTeamFiling =
-  | { ok: true; task: BotTeamTask; startError: string | null }
-  | { ok: false }
+  /** The task, and why it did not start (null when it did). */
+  | { kind: 'filed'; task: BotTeamTask; startError: string | null }
+  /** A host from before this method: the screen says so rather than blaming the connection. */
+  | { kind: 'unsupported' }
+  | { kind: 'failed' }
 
 async function fileWith(
   client: HostClient,
@@ -24,12 +28,16 @@ async function fileWith(
   try {
     const response = await client.sendRequest(method, params, { timeoutMs: START_TIMEOUT_MS })
     if (!response.ok) {
-      return { ok: false }
+      return isMobileMethodUnavailableError(response.error.code, response.error.message)
+        ? { kind: 'unsupported' }
+        : { kind: 'failed' }
     }
     const parsed = FiledReply.safeParse(response.result)
-    return parsed.success ? { ok: true, ...parsed.data } : { ok: false }
+    return parsed.success
+      ? { kind: 'filed', task: parsed.data.task, startError: parsed.data.startError }
+      : { kind: 'failed' }
   } catch {
-    return { ok: false }
+    return { kind: 'failed' }
   }
 }
 

@@ -37,7 +37,7 @@ describe('assignMobileBotTeamRequest', () => {
       { teamId: 'team_1', text: 'Count the stock', toTeamId: 'team_2', start: true },
       expect.anything()
     )
-    expect(filed).toEqual({ ok: true, task: TASK, startError: null })
+    expect(filed).toEqual({ kind: 'filed', task: TASK, startError: null })
   })
 
   it('sends no bot or team when the person keeps the request in its team', async () => {
@@ -51,27 +51,37 @@ describe('assignMobileBotTeamRequest', () => {
       { teamId: 'team_1', text: 'Hi', start: true },
       expect.anything()
     )
-    expect(filed).toEqual({ ok: true, task: TASK, startError: 'No API key' })
+    expect(filed).toEqual({ kind: 'filed', task: TASK, startError: 'No API key' })
   })
 
-  it('reports a refused request as not filed', async () => {
+  it('reports a refused request as failed, not as an old host', async () => {
     const { client } = clientAnswering({
       ok: false,
       error: { code: 'internal', message: 'nope' }
     })
     expect(await assignMobileBotTeamRequest(client, { teamId: 'team_1', text: 'Hi' })).toEqual({
-      ok: false
+      kind: 'failed'
     })
   })
 
-  it('reports a lost connection as not filed', async () => {
+  it('reports a host without the method as unsupported', async () => {
+    const { client } = clientAnswering({
+      ok: false,
+      error: { code: 'method_not_found', message: 'nope' }
+    })
+    expect(await assignMobileBotTeamRequest(client, { teamId: 'team_1', text: 'Hi' })).toEqual({
+      kind: 'unsupported'
+    })
+  })
+
+  it('reports a lost connection as failed', async () => {
     const client = {
       sendRequest: async () => {
         throw new Error('socket closed')
       }
     } as unknown as HostClient
     expect(await assignMobileBotTeamRequest(client, { teamId: 'team_1', text: 'Hi' })).toEqual({
-      ok: false
+      kind: 'failed'
     })
   })
 })
@@ -88,16 +98,20 @@ describe('reassignMobileBotTeamTask', () => {
       { taskId: 'task_1', botId: 'bot_9', start: true },
       expect.anything()
     )
-    expect(moved).toEqual({ ok: true, task: { ...TASK, ownerBotId: 'bot_9' }, startError: null })
+    expect(moved).toEqual({
+      kind: 'filed',
+      task: { ...TASK, ownerBotId: 'bot_9' },
+      startError: null
+    })
   })
 
-  it('reports a host without the method as not moved', async () => {
+  it('reports a host without the method as unsupported, not as a lost connection', async () => {
     const { client } = clientAnswering({
       ok: false,
       error: { code: 'method_not_found', message: 'nope' }
     })
     expect(await reassignMobileBotTeamTask(client, { taskId: 'task_1', botId: 'bot_9' })).toEqual({
-      ok: false
+      kind: 'unsupported'
     })
   })
 })
