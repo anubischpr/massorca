@@ -19,6 +19,7 @@ import type {
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
+import { MobileBotTeamTypingLine } from './MobileBotTeamTypingLine'
 import { MobileBotTeamRequestChoice } from './MobileBotTeamRequestChoice'
 import { MobileBotTeamRoomMenu } from './MobileBotTeamRoomMenu'
 import { botTeamRoomSuggestions } from './MobileBotTeamRoomSuggestions'
@@ -99,6 +100,7 @@ export function MobileBotTeamRoom({
 }) {
   const [text, setText] = useState('')
   const [needsOwner, setNeedsOwner] = useState(false)
+  const [typing, setTyping] = useState<string | null>(null)
   // The person's line, held until they choose where it goes; leaving the room drops it.
   const [pending, setPending] = useState<{ choice: BotTeamRequestChoice; text: string } | null>(
     null
@@ -141,12 +143,14 @@ export function MobileBotTeamRoom({
     sending.current = true
     // Clears at once; a refused send puts the text back unless more was typed.
     setText('')
+    setTyping(typed)
     const sent = await postMobileBotTeamRequest(client, {
       teamId: team.id,
       text: typed,
       start: true
     }).finally(() => {
       sending.current = false
+      setTyping(null)
     })
     if (!sent.ok) {
       setText((current) => (current === '' ? typed : current))
@@ -295,6 +299,7 @@ export function MobileBotTeamRoom({
           )
         })}
         {tasksOf.rest.map(card)}
+        {typing !== null ? <MobileBotTeamTypingLine text={typing} bots={team.bots} /> : null}
         {pending ? (
           <MobileBotTeamRequestChoice
             choice={pending.choice}

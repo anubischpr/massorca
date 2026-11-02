@@ -28,6 +28,17 @@ vi.mock('lucide-react-native', () => ({
 }))
 vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
 vi.mock('./MobileBotTeamCharacterIcon', () => ({ MobileBotTeamCharacterIcon: () => null }))
+vi.mock('react-native-reanimated', () => ({
+  default: { View: 'AnimatedView' },
+  cancelAnimation: () => {},
+  useAnimatedStyle: (style: () => object) => style(),
+  useSharedValue: (value: number) => ({ value }),
+  withDelay: (_delay: number, value: unknown) => value,
+  withRepeat: (value: unknown) => value,
+  withSequence: (...values: unknown[]) => values[0],
+  withTiming: (value: number) => value
+}))
+vi.mock('../onboarding/use-reduced-motion', () => ({ useReducedMotionEnabled: () => false }))
 vi.mock('../components/BottomDrawer', () => ({
   BottomDrawer: ({ visible, children }: { visible: boolean; children: unknown }) =>
     visible ? children : null
@@ -210,11 +221,15 @@ describe('MobileBotTeamRoom', () => {
       sending = composer().props.onSend('Hi')
     })
     expect(composer().props.value).toBe('')
+    expect(
+      renderer.root.findAll((node) => node.children.includes('All is typing'))
+    ).not.toHaveLength(0)
     await act(async () => {
       answer({ ok: false, error: { code: 'unavailable', message: 'gone' } })
       await sending
     })
     expect(composer().props.value).toBe('Hi')
+    expect(renderer.root.findAll((node) => node.children.includes('All is typing'))).toHaveLength(0)
   })
 
   it('reaches the bots from the room menu and goes back', async () => {

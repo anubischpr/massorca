@@ -33,6 +33,8 @@ import type {
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
 import { BotAgentIcon } from './BotAgentIcon'
 import { BotTeamAllAuthor } from './BotTeamAllAuthor'
+import { BotTeamTypingLine } from './BotTeamTypingLine'
+import { botTeamTypingAuthor } from '../../../../shared/bot-team-typing'
 import { BotTeamReassignButton } from './BotTeamReassignButton'
 import { BotTeamPendingChoice, type BotTeamPendingChoiceRequest } from './BotTeamPendingChoice'
 import { BotTeamRoomComposer } from './BotTeamRoomComposer'
@@ -119,6 +121,8 @@ export function BotTeamRoom({
   const [projects, setProjects] = useState<BotTeamProject[]>([])
   const [needsOwner, setNeedsOwner] = useState(false)
   const [pending, setPending] = useState<BotTeamPendingChoiceRequest | null>(null)
+  // The text with the host, if any; the room shows who is typing until the reply comes back.
+  const [typing, setTyping] = useState<string | null>(null)
   const sidePanel = useRightSidebarPageTarget()
   const statuses = useBotTeamSessionStatuses()
   const botOf = (botId: string | null) => team.bots.find((bot) => bot.id === botId)
@@ -161,6 +165,9 @@ export function BotTeamRoom({
       return false
     }
     sending.current = true
+    setTyping(text)
+    // Shows the person's line while the host prepares the reply.
+    window.setTimeout(reload, 400)
     try {
       const sent = await postBotTeamRequest({ teamId: team.id, text, start: true })
       setNeedsOwner(sent.task === null && !sent.greeted && !sent.choice && !sent.answered)
@@ -182,6 +189,7 @@ export function BotTeamRoom({
       return false
     } finally {
       sending.current = false
+      setTyping(null)
     }
   }
 
@@ -355,6 +363,9 @@ export function BotTeamRoom({
               )
             })}
             {tasks.filter((task) => requestOf(task) === undefined).map(taskCard)}
+            {typing !== null ? (
+              <BotTeamTypingLine author={botTeamTypingAuthor(typing, team.bots)} bots={team.bots} />
+            ) : null}
             {pending ? (
               <BotTeamPendingChoice
                 pending={pending}
