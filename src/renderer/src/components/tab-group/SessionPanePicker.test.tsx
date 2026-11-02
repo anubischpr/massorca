@@ -15,6 +15,7 @@ const { createTestStore, makeTabGroup, makeUnifiedTab, seedStore } =
 const store = createTestStore()
 vi.mock('../../store', () => ({ useAppStore: store }))
 
+const { makeWorktree } = await import('../../store/slices/worktrees-slice-test-fixtures')
 const { SessionPanePicker } = await import('./SessionPanePicker')
 
 const WT = 'repo::/work/a'
@@ -125,5 +126,64 @@ describe('SessionPanePicker', () => {
         (b) => b.getAttribute('aria-label') ?? b.textContent?.trim()
       )
     ).toEqual(['Create', 'Close split pane'])
+  })
+
+  describe('with sessions in other workspaces', () => {
+    const OTHER = 'repo1::/work/b'
+
+    beforeEach(() => {
+      seedStore(store, {
+        worktreesByRepo: {
+          repo1: [
+            makeWorktree({ id: WT, repoId: 'repo1', displayName: 'main' }),
+            makeWorktree({ id: OTHER, repoId: 'repo1', displayName: 'feature-login' })
+          ]
+        },
+        unifiedTabsByWorktree: {
+          ...store.getState().unifiedTabsByWorktree,
+          [OTHER]: [
+            makeUnifiedTab({
+              id: 'X',
+              worktreeId: OTHER,
+              groupId: 'other-main',
+              contentType: 'agent-session',
+              label: 'Fix the login page'
+            })
+          ]
+        },
+        groupsByWorktree: {
+          ...store.getState().groupsByWorktree,
+          [OTHER]: [
+            makeTabGroup({
+              id: 'other-main',
+              worktreeId: OTHER,
+              tabOrder: ['X'],
+              activeTabId: 'X'
+            })
+          ]
+        }
+      })
+    })
+
+    it('lists them under their project and workspace, after this workspace’s own', () => {
+      const container = mount('pane2')
+      expect(
+        [...container.querySelectorAll('button')].map(
+          (b) => b.getAttribute('aria-label') ?? b.textContent?.trim()
+        )
+      ).toEqual(['Write the release notes', 'Fix the login page', 'Create', 'Close split pane'])
+      expect(container.textContent).toContain('Repo 1 / feature-login')
+    })
+
+    it('shows the chosen session by reference, leaving it in its own workspace', () => {
+      const container = mount('pane2')
+      act(() => button(container, 'Fix the login page').click())
+      const state = store.getState()
+      expect(state.groupsByWorktree[WT].find((group) => group.id === 'pane2')?.sessionRef).toEqual({
+        worktreeId: OTHER,
+        tabId: 'X'
+      })
+      expect(state.groupsByWorktree[OTHER][0].tabOrder).toEqual(['X'])
+    })
   })
 })

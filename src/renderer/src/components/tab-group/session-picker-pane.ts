@@ -1,6 +1,9 @@
 import { useAppStore } from '../../store'
 import { isSessionTab, isSidePanelGroupId } from '../../store/slices/tabs/side-panel-group'
 import { selectSessionTabLabel } from '../../store/slices/tabs/session-tab-label'
+import { selectReferencedSessions } from '../../store/slices/tabs/pane-session-ref'
+import { findKnownWorktreeById } from '../../store/slices/worktrees/listing/detected-worktree-meta'
+import { getWorktreeAttachmentLabel } from '../../lib/worktree-attachment-label'
 import { mirrorWebRuntimeTabMove } from '../tab-bar/web-runtime-tab-move-mirror'
 
 type PickerState = Pick<
@@ -8,7 +11,20 @@ type PickerState = Pick<
   'groupsByWorktree' | 'unifiedTabsByWorktree' | 'tabsByWorktree' | 'settings'
 >
 
+type OtherWorkspacesState = PickerState &
+  Pick<
+    ReturnType<typeof useAppStore.getState>,
+    'repos' | 'worktreesByRepo' | 'detectedWorktreesByRepo' | 'folderWorkspaces'
+  > &
+  Partial<Pick<ReturnType<typeof useAppStore.getState>, 'floatingWorkspacePath'>>
+
 export type SessionPickerCandidate = { tabId: string; label: string }
+export type OtherWorkspaceSessionCandidate = SessionPickerCandidate & { worktreeId: string }
+export type OtherWorkspaceSessionGroup = {
+  worktreeId: string
+  heading: string
+  candidates: OtherWorkspaceSessionCandidate[]
+}
 
 /**
  * A split opens an empty pane, never a second view of the focused session: the person picks what
@@ -89,4 +105,62 @@ export function closeSessionPane(worktreeId: string, groupId: string): boolean {
     )
   }
   return closed
+}
+
+/**
+ * Sessions of every other workspace the app lists (local, SSH and folder), grouped under the
+ * sidebar's own project and workspace names. A session some pane already shows is left out.
+ */
+export function listOtherWorkspaceSessionGroups(
+  state: OtherWorkspacesState,
+  layoutWorktreeId: string
+): OtherWorkspaceSessionGroup[] {
+  const referenced = selectReferencedSessions(state)
+  const lookup = { floatingWorkspacePath: null, ...state }
+  const groups: (OtherWorkspaceSessionGroup & { order: number })[] = []
+  for (const [worktreeId, tabs] of Object.entries(state.unifiedTabsByWorktree)) {
+    const worktree =
+      worktreeId === layoutWorktreeId ? undefined : findKnownWorktreeById(lookup, worktreeId)
+    if (!worktree) {
+      continue
+    }
+    const mainIds = new Set(
+      (state.groupsByWorktree[worktreeId] ?? [])
+        .filter((group) => !isSidePanelGroupId(group.id))
+        .map((group) => group.id)
+    )
+    const candidates = tabs
+      .filter((tab) => isSessionTab(tab) && mainIds.has(tab.groupId) && !referenced.has(tab.id))
+      .map((tab) => ({
+        tabId: tab.id,
+        worktreeId,
+        label: selectSessionTabLabel(state, worktreeId, tab)
+      }))
+    if (candidates.length === 0) {
+      continue
+    }
+    const repoIndex = state.repos.findIndex((repo) => repo.id === worktree.repoId)
+    const label = getWorktreeAttachmentLabel(worktree)
+    groups.push({
+      worktreeId,
+      heading: repoIndex !== -1 ? `${state.repos[repoIndex].displayName} / ${label}` : label,
+      candidates,
+      order: repoIndex !== -1 ? repoIndex : state.repos.length
+    })
+  }
+  return groups.sort((a, b) => a.order - b.order).map(({ order: _order, ...group }) => group)
+}
+
+/** A session of this layout's workspace moves into the pane; another workspace's is shown by reference. */
+export function chooseSessionForPane(
+  layoutWorktreeId: string,
+  groupId: string,
+  session: { tabId: string; worktreeId: string }
+): boolean {
+  return session.worktreeId === layoutWorktreeId
+    ? moveSessionIntoPane(layoutWorktreeId, session.tabId, groupId)
+    : useAppStore.getState().showSessionInPane(layoutWorktreeId, groupId, {
+        worktreeId: session.worktreeId,
+        tabId: session.tabId
+      })
 }

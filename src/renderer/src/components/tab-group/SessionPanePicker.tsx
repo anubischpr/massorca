@@ -4,9 +4,10 @@ import { translate } from '@/i18n/i18n'
 import { Button } from '@/components/ui/button'
 import { useAppStore } from '../../store'
 import {
+  chooseSessionForPane,
   closeSessionPane,
-  listSessionPickerCandidates,
-  moveSessionIntoPane
+  listOtherWorkspaceSessionGroups,
+  listSessionPickerCandidates
 } from './session-picker-pane'
 
 /**
@@ -24,6 +25,14 @@ export function SessionPanePicker({
   const tabs = useAppStore((s) => s.unifiedTabsByWorktree[worktreeId])
   const terminals = useAppStore((s) => s.tabsByWorktree[worktreeId])
   const settings = useAppStore((s) => s.settings)
+  const repos = useAppStore((s) => s.repos)
+  const worktreesByRepo = useAppStore((s) => s.worktreesByRepo)
+  const detectedWorktreesByRepo = useAppStore((s) => s.detectedWorktreesByRepo)
+  const folderWorkspaces = useAppStore((s) => s.folderWorkspaces)
+  const floatingWorkspacePath = useAppStore((s) => s.floatingWorkspacePath)
+  const allGroups = useAppStore((s) => s.groupsByWorktree)
+  const allTabs = useAppStore((s) => s.unifiedTabsByWorktree)
+  const allTerminals = useAppStore((s) => s.tabsByWorktree)
   const openCreateChatPage = useAppStore((s) => s.openCreateChatPage)
   const candidates = useMemo(
     () =>
@@ -38,6 +47,35 @@ export function SessionPanePicker({
       ),
     [worktreeId, groups, tabs, terminals, settings]
   )
+  const otherGroups = useMemo(
+    () =>
+      listOtherWorkspaceSessionGroups(
+        {
+          groupsByWorktree: allGroups,
+          unifiedTabsByWorktree: allTabs,
+          tabsByWorktree: allTerminals,
+          settings,
+          repos,
+          worktreesByRepo,
+          detectedWorktreesByRepo,
+          folderWorkspaces,
+          floatingWorkspacePath
+        },
+        worktreeId
+      ),
+    [
+      allGroups,
+      allTabs,
+      allTerminals,
+      settings,
+      repos,
+      worktreesByRepo,
+      detectedWorktreesByRepo,
+      folderWorkspaces,
+      floatingWorkspacePath,
+      worktreeId
+    ]
+  )
   const closePaneLabel = translate(
     'auto.components.tab.group.TabGroupPanel.closePaneColumn',
     'Close split pane'
@@ -47,7 +85,7 @@ export function SessionPanePicker({
       data-session-pane-picker="true"
       className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6"
     >
-      <div className="flex w-full max-w-xs flex-col gap-1.5">
+      <div className="flex max-h-full w-full max-w-xs flex-col gap-1.5 overflow-y-auto scrollbar-sleek">
         {candidates.map((candidate) => (
           <Button
             key={candidate.tabId}
@@ -55,11 +93,29 @@ export function SessionPanePicker({
             variant="outline"
             size="sm"
             className="w-full justify-start"
-            onClick={() => moveSessionIntoPane(worktreeId, candidate.tabId, groupId)}
+            onClick={() => chooseSessionForPane(worktreeId, groupId, { ...candidate, worktreeId })}
           >
             <MessageSquare className="size-4 shrink-0" />
             <span className="min-w-0 truncate">{candidate.label}</span>
           </Button>
+        ))}
+        {otherGroups.map((group) => (
+          <div key={group.worktreeId} className="flex flex-col gap-1.5">
+            <p className="truncate pt-1 text-xs text-muted-foreground">{group.heading}</p>
+            {group.candidates.map((candidate) => (
+              <Button
+                key={candidate.tabId}
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full justify-start"
+                onClick={() => chooseSessionForPane(worktreeId, groupId, candidate)}
+              >
+                <MessageSquare className="size-4 shrink-0" />
+                <span className="min-w-0 truncate">{candidate.label}</span>
+              </Button>
+            ))}
+          </div>
         ))}
         <Button type="button" size="sm" className="w-full" onClick={openCreateChatPage}>
           <Plus className="size-4 shrink-0" strokeWidth={2} />
