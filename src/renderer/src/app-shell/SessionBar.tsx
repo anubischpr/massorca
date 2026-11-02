@@ -1,4 +1,4 @@
-import { Minimize2, PanelRight, SquareArrowOutUpRight } from 'lucide-react'
+import { Minimize2, PanelRight, SquareArrowOutUpRight, X } from 'lucide-react'
 import { TOGGLE_TERMINAL_PANE_EXPAND_EVENT } from '@/constants/terminal'
 import { translate } from '@/i18n/i18n'
 import { Button } from '@/components/ui/button'
@@ -7,8 +7,9 @@ import { cn } from '@/lib/utils'
 import { resolveUnifiedTabLabel } from '../../../shared/tab-title-resolution'
 import { useShortcutLabel } from '../hooks/useShortcutLabel'
 import { useAppStore } from '../store'
-import { selectFocusedSessionTab } from '../store/slices/tabs/side-panel-group'
+import { isSidePanelGroupId, selectFocusedSessionTab } from '../store/slices/tabs/side-panel-group'
 import { selectSidePanelOpen } from '../store/slices/tabs/side-panel-state'
+import { closeSessionPane } from '../components/tab-group/session-picker-pane'
 import { BarToggle } from './BarToggle'
 import { setSessionBarActionsTarget } from './session-bar-slot'
 import { TOP_BAR_SURFACE_CLASS } from './top-bar-surface'
@@ -51,6 +52,21 @@ export function SessionBar({
       tab.label
     )
   })
+  // Why: with tabs gone, this is the mouse way out of a split; it merges the focused pane into its neighbour.
+  const splitPane = useAppStore((s) => {
+    const main = (s.groupsByWorktree[worktreeId] ?? []).filter(
+      (group) => !isSidePanelGroupId(group.id)
+    )
+    if (main.length < 2) {
+      return null
+    }
+    const focused = main.find((group) => group.id === s.activeGroupIdByWorktree[worktreeId])
+    return focused?.id ?? null
+  })
+  const closePaneLabel = translate(
+    'auto.components.tab.group.TabGroupPanel.closePaneColumn',
+    'Close split pane'
+  )
   const sidePanelOpen = useAppStore((s) => selectSidePanelOpen(s, worktreeId))
   const toggleSidePanel = useAppStore((s) => s.toggleSidePanel)
   const rightSidebarOpen = useAppStore((s) => s.rightSidebarOpen)
@@ -114,6 +130,25 @@ export function SessionBar({
             </TooltipTrigger>
             <TooltipContent side="bottom" sideOffset={6}>
               {collapseLabel}
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+        {splitPane ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground [&_svg]:size-4"
+                aria-label={closePaneLabel}
+                onClick={() => closeSessionPane(worktreeId, splitPane)}
+              >
+                <X />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" sideOffset={6}>
+              {closePaneLabel}
             </TooltipContent>
           </Tooltip>
         ) : null}
