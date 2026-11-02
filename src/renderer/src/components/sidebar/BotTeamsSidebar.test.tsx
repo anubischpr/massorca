@@ -34,6 +34,8 @@ const store = createTestStore()
 vi.mock('@/store', () => ({ useAppStore: store }))
 
 const { BotTeamsSidebar } = await import('./BotTeamsSidebar')
+const { useBotTeams } = await import('../bot-teams/use-bot-teams')
+type BotTeamsState = ReturnType<typeof useBotTeams>
 
 const mounted: { container: HTMLDivElement; root: Root }[] = []
 
@@ -152,21 +154,22 @@ describe('the Bot teams sidebar', () => {
     expect(store.getState().activeView).toBe('bot-teams')
   })
 
-  it('lists the teams again when what the page shows changes, so a new team appears', async () => {
+  it('drops a team deleted on the page at once, with no click in the sidebar', async () => {
     const container = await mount()
-    expect(listBotTeams).toHaveBeenCalledTimes(1)
-    listBotTeams.mockResolvedValue([
-      team('t1', 'Marketing', 'square'),
-      team('t2', 'Sales', 'circle'),
-      team('t3', 'Purchasing', 'triangle')
-    ])
-    await act(async () =>
-      store.getState().setBotTeamsSelection({ teamId: null, taskId: null, creating: false })
-    )
-    await act(async () =>
-      store.getState().setBotTeamsSelection({ teamId: 't3', taskId: null, creating: false })
-    )
-    expect(listBotTeams.mock.calls.length).toBeGreaterThan(1)
-    expect(rowLabels(container)).toContain('Purchasing')
+    expect(rowLabels(container)).toContain('Marketing')
+    let applyChange!: BotTeamsState['applyChange']
+    const Page = (): null => {
+      ;({ applyChange } = useBotTeams())
+      return null
+    }
+    const pageRoot = createRoot(document.createElement('div'))
+    await act(async () => pageRoot.render(<Page />))
+    listBotTeams.mockResolvedValue([team('t2', 'Sales', 'circle')])
+    await act(async () => {
+      await applyChange(async () => {})
+    })
+    expect(rowLabels(container)).not.toContain('Marketing')
+    expect(rowLabels(container)).toContain('Sales')
+    await act(async () => pageRoot.unmount())
   })
 })
