@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
-import { Check, ChevronDown, ChevronLeft, Ellipsis } from 'lucide-react-native'
-import { BottomDrawer } from '../components/BottomDrawer'
+import { ChevronDown, ChevronLeft, Ellipsis } from 'lucide-react-native'
 import { useMobileDictation } from '../hooks/use-mobile-dictation'
 import { MobileNativeChatComposer } from '../session/MobileNativeChatComposer'
 import { MobileNativeChatMessage } from '../session/MobileNativeChatMessage'
@@ -25,6 +24,8 @@ import { MobileBotTeamTypingLine } from './MobileBotTeamTypingLine'
 import { MobileBotTeamProjectQuestion } from './MobileBotTeamProjectQuestion'
 import { MobileBotTeamRequestChoice } from './MobileBotTeamRequestChoice'
 import { MobileBotTeamRoomMenu } from './MobileBotTeamRoomMenu'
+import { MobileBotTeamRoomSwitcher } from './MobileBotTeamRoomSwitcher'
+import { MobileBotTeamRoomQuestions } from './MobileBotTeamRoomQuestion'
 import { botTeamRoomSuggestions } from './MobileBotTeamRoomSuggestions'
 import { MobileBotTeamTaskCard } from './MobileBotTeamTaskCard'
 import type { BotTeamWorkScreen } from './MobileBotTeamWork'
@@ -262,6 +263,7 @@ export function MobileBotTeamRoom({
     />
   )
 
+  const waitingTasks = tasks.filter((task) => statusOf(task) === 'Waiting for you')
   const openCount = tasks.filter((task) => botTeamBoardColumn(statusOf(task)) !== 'Done').length
 
   return (
@@ -321,6 +323,14 @@ export function MobileBotTeamRoom({
           )
         })}
         {placement.trailing.map(card)}
+        {offline ? null : (
+          <MobileBotTeamRoomQuestions
+            client={client}
+            team={team}
+            tasks={waitingTasks}
+            scope={`${team.id}:${workspaceId ?? ''}`}
+          />
+        )}
         <MobileBotTeamTypingLine text={typing} author={replying.author} bots={team.bots} />
         {pending && pending.choice.kind === 'project' ? (
           <MobileBotTeamProjectQuestion
@@ -362,29 +372,15 @@ export function MobileBotTeamRoom({
         onMicPress={() => void (dictation.isRecording ? dictation.stop() : dictation.start())}
         micActive={dictation.isRecording}
       />
-      <BottomDrawer visible={sheet === 'rooms'} onClose={() => setSheet(null)}>
-        <Text style={styles.sheetTitle}>Conference rooms</Text>
-        {teams.map((entry) => (
-          <Pressable
-            key={entry.id}
-            accessibilityRole="button"
-            onPress={() => {
-              setSheet(null)
-              onPickTeam(entry.id)
-            }}
-            style={styles.row}
-          >
-            <MobileBotTeamCharacterIcon
-              character={entry.character}
-              size={28}
-              working={workingOf(entry.id)}
-              unreachable={offline}
-            />
-            <Text style={[styles.rowTitle, styles.grow]}>{entry.name}</Text>
-            {entry.id === team.id ? <Check size={18} color={colors.textPrimary} /> : null}
-          </Pressable>
-        ))}
-      </BottomDrawer>
+      <MobileBotTeamRoomSwitcher
+        visible={sheet === 'rooms'}
+        teams={teams}
+        currentTeamId={team.id}
+        workingOf={workingOf}
+        unreachable={offline}
+        onClose={() => setSheet(null)}
+        onPick={onPickTeam}
+      />
       <MobileBotTeamRoomMenu
         client={offline ? undefined : client}
         teams={teams}
@@ -396,6 +392,7 @@ export function MobileBotTeamRoom({
         unreachable={offline}
         openCount={openCount}
         taskCount={tasks.length}
+        waiting={waitingTasks.length > 0}
         projects={allProjects}
         projectTaskCount={(projectId) =>
           [...tasks, ...projectTasks].filter((task) => task.projectId === projectId).length

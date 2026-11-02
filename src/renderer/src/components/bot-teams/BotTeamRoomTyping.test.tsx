@@ -29,6 +29,12 @@ vi.mock('@/runtime/bot-team-host', () => ({
   useBotTeamHost: () => 'local'
 }))
 vi.mock('@/components/native-chat/NativeChatView', () => ({ default: () => null }))
+vi.mock('@/components/native-chat/use-pending-session-question', () => ({
+  usePendingSessionQuestion: () => null
+}))
+vi.mock('@/components/native-chat/NativeChatStructuredQuestionCard', () => ({
+  NativeChatStructuredQuestionCard: () => null
+}))
 vi.mock('../../app-shell/right-sidebar-page-slot', () => ({
   useRightSidebarPageTarget: () => null
 }))

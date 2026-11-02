@@ -8,7 +8,9 @@ import { translate } from '@/i18n/i18n'
 import { botTeamBoardColumn } from '../../../../shared/bot-team-board-column'
 import { botTeamTaskStatus } from '../../../../shared/bot-team-task-status'
 import { BotTeamCharacterIcon } from '../bot-teams/BotTeamCharacterIcon'
+import { BotTeamWaitingMark } from '../bot-teams/BotTeamRoomQuestionMark'
 import { useTeamProjectWork } from '../bot-teams/BotTeamProjectTeamsWork'
+import { useBotTeamAttention } from '../bot-teams/use-bot-team-attention'
 import { useBotTeamSessionStatuses } from '../bot-teams/use-bot-team-task-status'
 import { useBotTeams } from '../bot-teams/use-bot-teams'
 import { BotTeamsSidebarProjects } from './BotTeamsSidebarProjects'
@@ -46,6 +48,11 @@ function OpenTeamRows({
         )
       ) !== 'Done'
   ).length
+  const waiting = tasks.some(
+    (task) =>
+      task.sessionId !== null &&
+      botTeamTaskStatus(task.sessionId, statuses.get(task.sessionId)) === 'Waiting for you'
+  )
   const inRoom = onPage && selection.taskId === null && !section
   return (
     <>
@@ -54,6 +61,7 @@ function OpenTeamRows({
         <span className="flex-1">
           {translate('components.botTeams.conferenceRoom', 'Conference room')}
         </span>
+        {waiting ? <BotTeamWaitingMark /> : null}
         <RowMeta>
           {open > 0
             ? translate('components.botTeams.openCount', '{{count}} open', { count: open })
@@ -134,6 +142,7 @@ export function BotTeamsSidebar(): React.JSX.Element {
   const selection = useAppStore((s) => s.botTeamsSelection)
   const openBotTeamsView = useAppStore((s) => s.openBotTeamsView)
   const { teams } = useBotTeams()
+  const waitingTeam = useBotTeamAttention(teams ?? [])
 
   const onPage = activeView === 'bot-teams'
   const allTeamsActive = onPage && selection.teamId === null && !selection.creating
@@ -166,6 +175,7 @@ export function BotTeamsSidebar(): React.JSX.Element {
               <SidebarRow onClick={() => openBotTeamsView({ teamId: team.id })}>
                 <BotTeamCharacterIcon character={team.character} size={16} />
                 <span className="min-w-0 flex-1 truncate">{team.name}</span>
+                {waitingTeam(team.id) ? <BotTeamWaitingMark /> : null}
               </SidebarRow>
               {open ? (
                 <OpenTeamRows
