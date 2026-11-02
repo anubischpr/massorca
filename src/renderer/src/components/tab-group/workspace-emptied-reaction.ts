@@ -1,5 +1,6 @@
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
 import { useAppStore } from '../../store'
+import { hasLiveReferencePane } from '../../store/slices/tabs/pane-session-ref'
 import { armFloatingPanelReclaimIntent } from '@/lib/floating-workspace-focus-reclaim'
 import { isFloatingWorkspacePanelFocused } from '@/lib/floating-workspace-terminal-actions'
 import { selectFloatingVisibleTabCount } from '@/store/selectors'
@@ -29,7 +30,7 @@ export function captureWorkspaceEmptiedReaction(
 
 function leaveWorktreeIfEmpty(worktreeId: string): void {
   const state = useAppStore.getState()
-  if (state.activeWorktreeId !== worktreeId) {
+  if (state.activeWorktreeId !== worktreeId || hasLiveReferencePane(state, worktreeId)) {
     return
   }
   // Why: split-group closes bypass legacy Terminal.tsx; deselect the emptied worktree here or the window goes blank instead of landing.

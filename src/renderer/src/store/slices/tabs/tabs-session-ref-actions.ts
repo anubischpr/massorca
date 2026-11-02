@@ -10,6 +10,7 @@ export function createTabsSessionRefActions(
   return {
     showSessionInPane: (worktreeId, groupId, ref: TabGroupSessionRef) => {
       const state = get()
+      const target = resolveSessionRefTab(state, ref)
       const group = (state.groupsByWorktree[worktreeId] ?? []).find(
         (candidate) => candidate.id === groupId
       )
@@ -20,7 +21,9 @@ export function createTabsSessionRefActions(
         isSidePanelGroupId(groupId) ||
         group.tabOrder.length > 0 ||
         ref.worktreeId === worktreeId ||
-        !resolveSessionRefTab(state, ref) ||
+        !target ||
+        // Why: the picker offers only sessions in the main area, so a side panel tab is not one.
+        isSidePanelGroupId(target.groupId) ||
         selectReferencedSessions(state).has(ref.tabId)
       ) {
         return false
