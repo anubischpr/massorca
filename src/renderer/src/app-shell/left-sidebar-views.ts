@@ -8,12 +8,17 @@ export function isLeftSidebarView(view: TopLevelView): boolean {
   return view === 'terminal' || view === 'create-chat' || view === 'bot-teams'
 }
 
+/** Views whose left column follows the sidebar toggle: the home views, plus the Prototypes list. */
+export function hasLeftSidebarToggle(view: TopLevelView): boolean {
+  return isLeftSidebarView(view) || view === 'prototypes'
+}
+
 /** The shortcut and the menu item toggle the sidebar only where it exists, so it is never left toggled out of sight. */
 export function toggleLeftSidebarWhereShown(state: {
   activeView: TopLevelView
   toggleSidebar: () => void
 }): boolean {
-  if (!isLeftSidebarView(state.activeView)) {
+  if (!hasLeftSidebarToggle(state.activeView)) {
     return false
   }
   state.toggleSidebar()
