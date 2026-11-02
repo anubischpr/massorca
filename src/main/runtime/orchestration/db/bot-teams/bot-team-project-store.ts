@@ -1,13 +1,15 @@
 import { z } from 'zod'
 import {
   BotTeamProjectSchema,
+  type BotTeamCodeSource,
   type BotTeamProject,
   type BotTeamProjectInput
 } from '../../../../../shared/rpc-contract/bot-team-room-params'
 import { generateId } from '../generated-id'
 import type { OrchestrationDb } from '../orchestration-db'
 
-const PROJECT_SELECT = 'SELECT id, team_id AS teamId, name, goal FROM bot_team_projects'
+const PROJECT_SELECT =
+  'SELECT id, team_id AS teamId, name, goal, code_source AS codeSource FROM bot_team_projects'
 
 export function createBotTeamProject(
   this: OrchestrationDb,
@@ -15,9 +17,28 @@ export function createBotTeamProject(
 ): BotTeamProject {
   const id = generateId('botproject')
   this.db
-    .prepare('INSERT INTO bot_team_projects (id, team_id, name, goal) VALUES (?, ?, ?, ?)')
-    .run(id, input.teamId, input.name, input.goal)
+    .prepare(
+      'INSERT INTO bot_team_projects (id, team_id, name, goal, code_source) VALUES (?, ?, ?, ?, ?)'
+    )
+    .run(id, input.teamId, input.name, input.goal, input.codeSource)
   return BotTeamProjectSchema.parse(this.db.prepare(`${PROJECT_SELECT} WHERE id = ?`).get(id))
+}
+
+/** Connects a project to code; its tasks then work on that code. */
+export function setBotTeamProjectCodeSource(
+  this: OrchestrationDb,
+  projectId: string,
+  codeSource: BotTeamCodeSource
+): BotTeamProject {
+  const changed = this.db
+    .prepare('UPDATE bot_team_projects SET code_source = ? WHERE id = ?')
+    .run(codeSource, projectId)
+  if (changed.changes === 0) {
+    throw new Error(`Project ${projectId} was not found.`)
+  }
+  return BotTeamProjectSchema.parse(
+    this.db.prepare(`${PROJECT_SELECT} WHERE id = ?`).get(projectId)
+  )
 }
 
 export function listBotTeamProjects(this: OrchestrationDb, teamId: string): BotTeamProject[] {
@@ -49,6 +70,7 @@ export function setBotTeamTaskProject(
 export type BotTeamProjectStoreMethods = {
   createBotTeamProject: typeof createBotTeamProject
   listBotTeamProjects: typeof listBotTeamProjects
+  setBotTeamProjectCodeSource: typeof setBotTeamProjectCodeSource
   setBotTeamTaskProject: typeof setBotTeamTaskProject
 }
 
@@ -56,6 +78,7 @@ export function attachBotTeamProjectStore(ctor: { prototype: object }): void {
   Object.assign(ctor.prototype, {
     createBotTeamProject,
     listBotTeamProjects,
+    setBotTeamProjectCodeSource,
     setBotTeamTaskProject
   })
 }

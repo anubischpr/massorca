@@ -13,17 +13,28 @@ export const BotTeamTaskSchema = z.object({
   projectId: z.string().nullable().default(null)
 })
 
+/** Where a project's code comes from: a repository that exists, or a new folder set up with git. */
+export const BotTeamCodeSourceSchema = z.enum(['repo', 'folder'])
+
 export const BotTeamProjectSchema = z.object({
   id: z.string(),
   teamId: z.string(),
   name: z.string(),
-  goal: z.string()
+  goal: z.string(),
+  // Null: not connected to code. The default reads a host from before code sources existed.
+  codeSource: BotTeamCodeSourceSchema.nullable().default(null)
 })
 
 export const BotTeamProjectCreate = z.object({
   teamId: requiredString('Missing team id'),
   name: requiredString('Missing project name'),
-  goal: z.string().trim().default('')
+  goal: z.string().trim().default(''),
+  codeSource: BotTeamCodeSourceSchema.nullable().default(null)
+})
+
+export const BotTeamProjectSetCodeSource = z.object({
+  projectId: requiredString('Missing project id'),
+  codeSource: BotTeamCodeSourceSchema
 })
 
 export const BotTeamTaskSetProject = z.object({
@@ -62,6 +73,7 @@ export const BotTeamTaskStart = z.object({
 })
 
 export type BotTeamTask = z.output<typeof BotTeamTaskSchema>
+export type BotTeamCodeSource = z.output<typeof BotTeamCodeSourceSchema>
 export type BotTeamProject = z.output<typeof BotTeamProjectSchema>
 export type BotTeamProjectInput = z.output<typeof BotTeamProjectCreate>
 export type BotTeamMessage = z.output<typeof BotTeamMessageSchema>

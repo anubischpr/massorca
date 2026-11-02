@@ -25,6 +25,7 @@ export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   'botTeams.postMessage',
   'botTeams.startTask',
   'botTeams.removeBot',
+  'botTeams.setProjectCodeSource',
   'botTeams.setTaskProject',
   'botTeams.update',
   'botTeams.updateBot',

@@ -32,14 +32,16 @@ describe('bot team project store', () => {
     const project = db.createBotTeamProject({
       teamId: team.id,
       name: 'Summer campaign',
-      goal: 'More sales'
+      goal: 'More sales',
+      codeSource: null
     })
 
     expect(project).toEqual({
       id: expect.any(String),
       teamId: team.id,
       name: 'Summer campaign',
-      goal: 'More sales'
+      goal: 'More sales',
+      codeSource: null
     })
     expect(db.listBotTeamProjects(team.id)).toEqual([project])
   })
@@ -48,7 +50,12 @@ describe('bot team project store', () => {
     db = new OrchestrationDb(':memory:')
     const { team, task } = seed(db)
     expect(task.projectId).toBeNull()
-    const project = db.createBotTeamProject({ teamId: team.id, name: 'Summer', goal: '' })
+    const project = db.createBotTeamProject({
+      teamId: team.id,
+      name: 'Summer',
+      goal: '',
+      codeSource: null
+    })
 
     db.setBotTeamTaskProject(task.id, project.id)
     expect(db.getBotTeamTask(task.id)).toEqual({ ...task, projectId: project.id })
@@ -61,7 +68,12 @@ describe('bot team project store', () => {
     db = new OrchestrationDb(':memory:')
     const { task } = seed(db)
     const other = seed(db, 'Sales')
-    const foreign = db.createBotTeamProject({ teamId: other.team.id, name: 'Quotes', goal: '' })
+    const foreign = db.createBotTeamProject({
+      teamId: other.team.id,
+      name: 'Quotes',
+      goal: '',
+      codeSource: null
+    })
 
     expect(() => db?.setBotTeamTaskProject(task.id, foreign.id)).toThrow('cannot move')
     expect(db.getBotTeamTask(task.id).projectId).toBeNull()
@@ -71,11 +83,60 @@ describe('bot team project store', () => {
   it('removes projects with their team', () => {
     db = new OrchestrationDb(':memory:')
     const { team, task } = seed(db)
-    const project = db.createBotTeamProject({ teamId: team.id, name: 'Summer', goal: '' })
+    const project = db.createBotTeamProject({
+      teamId: team.id,
+      name: 'Summer',
+      goal: '',
+      codeSource: null
+    })
     db.setBotTeamTaskProject(task.id, project.id)
 
     db.deleteBotTeam(team.id)
 
     expect(db.listBotTeamProjects(team.id)).toEqual([])
+  })
+
+  it('keeps the code source a project was created with, and connects one later', () => {
+    db = new OrchestrationDb(':memory:')
+    const { team } = seed(db)
+    const made = db.createBotTeamProject({
+      teamId: team.id,
+      name: 'Website',
+      goal: '',
+      codeSource: 'repo'
+    })
+    const plain = db.createBotTeamProject({
+      teamId: team.id,
+      name: 'Flyer',
+      goal: '',
+      codeSource: null
+    })
+    expect(made.codeSource).toBe('repo')
+    expect(plain.codeSource).toBeNull()
+
+    expect(db.setBotTeamProjectCodeSource(plain.id, 'folder').codeSource).toBe('folder')
+    expect(db.listBotTeamProjects(team.id).map((project) => project.codeSource)).toEqual([
+      'repo',
+      'folder'
+    ])
+    expect(() => db?.setBotTeamProjectCodeSource('missing', 'repo')).toThrow('was not found')
+  })
+
+  it('adds the code source column to a v48 database and survives a replay', () => {
+    db = new OrchestrationDb(':memory:')
+    const { team } = seed(db)
+    db.createBotTeamProject({ teamId: team.id, name: 'Summer', goal: 'Sales', codeSource: null })
+    db.db.exec('ALTER TABLE bot_team_projects DROP COLUMN code_source')
+    db.db.pragma('user_version = 48')
+
+    db.migrate()
+    expect(db.listBotTeamProjects(team.id)).toEqual([
+      expect.objectContaining({ name: 'Summer', goal: 'Sales', codeSource: null })
+    ])
+
+    // A skewed database restarts from v6 with the column already there.
+    db.db.pragma('user_version = 6')
+    expect(() => db?.migrate()).not.toThrow()
+    expect(db.db.pragma('user_version', { simple: true })).toBe(49)
   })
 })

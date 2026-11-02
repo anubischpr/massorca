@@ -6,6 +6,7 @@ import {
   BotTeamMessagePost,
   BotTeamRoomSelector,
   BotTeamProjectCreate,
+  BotTeamProjectSetCodeSource,
   BotTeamTaskCreate,
   BotTeamTaskSetProject,
   BotTeamTaskStart,
@@ -241,6 +242,14 @@ export const BOT_TEAM_ROOM_METHODS = [
     params: BotTeamProjectCreate,
     handler: (params, { runtime }) => ({
       project: runtime.getOrchestrationDb().createBotTeamProject(params)
+    })
+  }),
+  defineMethod({
+    name: 'botTeams.setProjectCodeSource',
+    permission: 'workspace',
+    params: BotTeamProjectSetCodeSource,
+    handler: ({ projectId, codeSource }, { runtime }) => ({
+      project: runtime.getOrchestrationDb().setBotTeamProjectCodeSource(projectId, codeSource)
     })
   }),
   defineMethod({

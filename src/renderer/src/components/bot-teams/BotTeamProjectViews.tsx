@@ -8,7 +8,10 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { AgentIcon } from '@/lib/agent-catalog'
 import { translate } from '@/i18n/i18n'
-import { createBotTeamProject } from '@/runtime/runtime-bot-team-client'
+import {
+  createBotTeamProject,
+  setBotTeamProjectCodeSource
+} from '@/runtime/runtime-bot-team-client'
 import {
   BOT_TEAM_BOARD_COLUMNS,
   botTeamBoardColumn
@@ -16,11 +19,19 @@ import {
 import { botTeamTaskStatus } from '../../../../shared/bot-team-task-status'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type {
+  BotTeamCodeSource,
   BotTeamProject,
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
+import { CodeSourcePick, ConnectToCodeCard, codeSourceLabel } from './BotTeamCodeSource'
 import { useTeamWork } from './use-bot-team-work'
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
+
+const HOST_CANNOT_CONNECT = (): string =>
+  translate(
+    'components.botTeams.hostCannotConnect',
+    'This host cannot connect projects to code yet.'
+  )
 
 function ViewHeader({
   title,
@@ -54,12 +65,22 @@ export function NewBotProjectForm({
 }): React.JSX.Element {
   const [name, setName] = useState('')
   const [goal, setGoal] = useState('')
+  const [source, setSource] = useState<BotTeamCodeSource>('repo')
   const trimmedName = name.trim()
   const create = async (): Promise<void> => {
+    const codeSource = team.workspacesEnabled ? source : null
     try {
-      onCreated(
-        await createBotTeamProject({ teamId: team.id, name: trimmedName, goal: goal.trim() })
-      )
+      const project = await createBotTeamProject({
+        teamId: team.id,
+        name: trimmedName,
+        goal: goal.trim(),
+        codeSource
+      })
+      // An older host drops the source it does not know and still creates the project.
+      if (codeSource !== null && project.codeSource !== codeSource) {
+        toast.error(HOST_CANNOT_CONNECT())
+      }
+      onCreated(project)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error))
     }
@@ -104,6 +125,7 @@ export function NewBotProjectForm({
               onChange={(event) => setGoal(event.target.value)}
             />
           </div>
+          {team.workspacesEnabled ? <CodeSourcePick value={source} onChange={setSource} /> : null}
           <p className="text-xs text-muted-foreground">
             {translate(
               'components.botTeams.projectBelongsTo',
@@ -137,9 +159,22 @@ export function BotTeamProjectBoard({
   onBack: () => void
   onOpenTask: (taskId: string) => void
 }): React.JSX.Element {
-  const { tasks, projects } = useTeamWork(team.id)
+  const [refresh, setRefresh] = useState(0)
+  const { tasks, projects } = useTeamWork(team.id, String(refresh))
   const statuses = useBotTeamSessionStatuses()
   const project = projects.find((entry) => entry.id === projectId)
+  const connect = async (source: BotTeamCodeSource): Promise<void> => {
+    try {
+      const done = await setBotTeamProjectCodeSource(projectId, source)
+      if (done === 'unavailable') {
+        toast.error(HOST_CANNOT_CONNECT())
+      } else {
+        setRefresh((current) => current + 1)
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error))
+    }
+  }
   const statusOf = (task: BotTeamTask) =>
     botTeamTaskStatus(
       task.sessionId,
@@ -152,6 +187,16 @@ export function BotTeamProjectBoard({
       {project?.goal ? (
         <p className="px-4 pt-2.5 text-xs text-muted-foreground">
           {translate('components.botTeams.goalLine', 'Goal: {{goal}}', { goal: project.goal })}
+        </p>
+      ) : null}
+      {project && team.workspacesEnabled && project.codeSource === null ? (
+        <ConnectToCodeCard onConnect={connect} />
+      ) : null}
+      {project && team.workspacesEnabled && project.codeSource !== null ? (
+        <p className="px-4 pt-2.5 text-xs text-muted-foreground">
+          {translate('components.botTeams.connectedTo', 'Connected to code: {{source}}.', {
+            source: codeSourceLabel(project.codeSource)
+          })}
         </p>
       ) : null}
       <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto">
