@@ -1,17 +1,15 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
-import { Check, ChevronDown, ChevronLeft, Ellipsis, FileText } from 'lucide-react-native'
+import { Check, ChevronDown, ChevronLeft, Ellipsis } from 'lucide-react-native'
 import { BottomDrawer } from '../components/BottomDrawer'
 import { useMobileDictation } from '../hooks/use-mobile-dictation'
 import { MobileNativeChatComposer } from '../session/MobileNativeChatComposer'
-import type { ComposerSuggestion } from '../session/MobileNativeChatComposerSuggestions'
 import { MobileNativeChatMessage } from '../session/MobileNativeChatMessage'
 import { useMobileNativeChatFileSearch } from '../session/use-mobile-native-chat-file-search'
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
 import { botTeamBoardColumn } from '../../../src/shared/bot-team-board-column'
 import { BOT_TEAM_ALL_AUTHOR } from '../../../src/shared/bot-team-greeting'
-import { botTeamComposerMenu } from '../../../src/shared/bot-team-composer-menu'
 import type { BotTeamRequestChoice } from '../../../src/shared/bot-team-request-choice'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
@@ -23,6 +21,7 @@ import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
 import { MobileBotTeamRequestChoice } from './MobileBotTeamRequestChoice'
 import { MobileBotTeamRoomMenu } from './MobileBotTeamRoomMenu'
+import { botTeamRoomSuggestions } from './MobileBotTeamRoomSuggestions'
 import { MobileBotTeamTaskCard } from './MobileBotTeamTaskCard'
 import type { BotTeamWorkScreen } from './MobileBotTeamWork'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
@@ -128,42 +127,11 @@ export function MobileBotTeamRoom({
 
   // The phone has no Sessions panel to open, so the room's two commands stay on the desktop.
   const files = workspaceId === null ? NO_FILES : nativeChatFilePaths
+  const otherTeams = useMemo(() => teams.filter((entry) => entry.id !== team.id), [teams, team.id])
   const roomSuggestions = useCallback(
-    (composerText: string, cursor: number): ComposerSuggestion[] | null => {
-      const menu = botTeamComposerMenu({
-        text: composerText,
-        caret: cursor,
-        bots: team.bots,
-        files
-      })
-      return (
-        menu?.items.flatMap((item) =>
-          item.kind === 'bot'
-            ? [
-                {
-                  kind: 'custom' as const,
-                  key: item.bot.id,
-                  insert: item.insert,
-                  label: item.bot.name,
-                  ...(item.bot.job ? { detail: item.bot.job } : {}),
-                  icon: <MobileBotAgentIcon agentId={item.bot.agent} size={16} />
-                }
-              ]
-            : item.kind === 'file'
-              ? [
-                  {
-                    kind: 'custom' as const,
-                    key: `file:${item.path}`,
-                    insert: item.insert,
-                    label: item.path,
-                    icon: <FileText size={16} color={colors.textSecondary} />
-                  }
-                ]
-              : []
-        ) ?? null
-      )
-    },
-    [team.bots, files]
+    (composerText: string, cursor: number) =>
+      botTeamRoomSuggestions({ text: composerText, caret: cursor, team, otherTeams, files }),
+    [team, otherTeams, files]
   )
 
   const send = async (typed: string): Promise<boolean> => {
@@ -408,6 +376,10 @@ export function MobileBotTeamRoom({
         onOpenFiles={() => {
           setSheet(null)
           onOpenWork({ name: 'files', teamId: team.id })
+        }}
+        onOpenMemory={() => {
+          setSheet(null)
+          onOpenWork({ name: 'memory', teamId: team.id })
         }}
       />
     </View>

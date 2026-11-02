@@ -15,6 +15,7 @@ vi.mock('react-native', () => ({
 }))
 vi.mock('lucide-react-native', () => ({
   Bot: 'Bot',
+  Brain: 'Brain',
   Check: 'Check',
   ChevronDown: 'ChevronDown',
   ChevronLeft: 'ChevronLeft',
@@ -292,6 +293,41 @@ describe('MobileBotTeamRoom', () => {
       .findByType('Composer' as never)
       .props.customSuggestions('@fly', 4)
     expect(suggestions.map((item: { label: string }) => item.label)).toEqual(['flyer.md'])
+  })
+
+  it('lists the other teams after the bots, and @Team inserts the team name', async () => {
+    const client = hostWithFiles(
+      { tasks: [], messages: [], projects: [], workspaceId: 'folder:1' },
+      ['flyer.md']
+    )
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
+      teams: [TEAM, OTHER_TEAM]
+    })
+    await act(async () => {
+      renderer.root.findByType('Composer' as never).props.onNeedFiles('')
+      await new Promise((resolve) => setTimeout(resolve, 200))
+    })
+    const suggestions = renderer.root
+      .findByType('Composer' as never)
+      .props.customSuggestions('@', 1)
+    expect(suggestions.map((item: { label: string }) => item.label)).toEqual([
+      'Iris',
+      'Warehouse',
+      'flyer.md'
+    ])
+    expect(suggestions[1].insert).toBe('@Warehouse ')
+    expect(
+      renderer.root.findByType('Composer' as never).props.customSuggestions('@war', 4)
+    ).toEqual([expect.objectContaining({ label: 'Warehouse', insert: '@Warehouse ' })])
+  })
+
+  it('reaches the team memory from the room menu', async () => {
+    const client = hostAnswering({ tasks: [], messages: [], projects: [], workspaceId: null })
+    const onOpenWork = vi.fn()
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { onOpenWork })
+    await press(renderer, 'Room menu')
+    await press(renderer, 'Memory')
+    expect(onOpenWork).toHaveBeenLastCalledWith({ name: 'memory', teamId: 'team' })
   })
 
   it('reaches the team files from the room menu', async () => {

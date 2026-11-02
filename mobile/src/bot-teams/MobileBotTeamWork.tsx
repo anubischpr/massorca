@@ -3,6 +3,7 @@ import type { BotTeamTask } from '../../../src/shared/rpc-contract/bot-team-room
 import type { RpcClient } from '../transport/rpc-client'
 import { MobileBotTeamBoard } from './MobileBotTeamBoard'
 import { MobileBotTeamFile, MobileBotTeamFiles } from './MobileBotTeamFiles'
+import { MobileBotTeamMemory } from './MobileBotTeamMemory'
 import { MobileBotTeamNewProject } from './MobileBotTeamNewProject'
 import { MobileBotTeamProject } from './MobileBotTeamProject'
 import { MobileBotTeamWorkBar } from './MobileBotTeamWorkBar'
@@ -16,8 +17,16 @@ export type BotTeamWorkScreen =
   | { name: 'newProject'; teamId: string }
   | { name: 'files'; teamId: string }
   | { name: 'file'; teamId: string; path: string }
+  | { name: 'memory'; teamId: string }
 
-const WORK_SCREEN_NAMES: readonly string[] = ['board', 'project', 'newProject', 'files', 'file']
+const WORK_SCREEN_NAMES: readonly string[] = [
+  'board',
+  'project',
+  'newProject',
+  'files',
+  'file',
+  'memory'
+]
 
 /** True for the screens a room menu opens, so the screen file can hand them to this module. */
 export function isBotTeamWorkScreen(screen: { name: string }): screen is BotTeamWorkScreen {
@@ -92,6 +101,9 @@ export function MobileBotTeamWork({
         onOpenFile={(path) => onOpen({ name: 'file', teamId: team.id, path })}
       />
     )
+  }
+  if (screen.name === 'memory') {
+    return <MobileBotTeamMemory client={client} team={team} offline={offline} onBack={onOpenRoom} />
   }
   if (screen.name === 'file') {
     return (
