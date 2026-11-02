@@ -18,6 +18,7 @@ import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { BotAgentIcon } from './BotAgentIcon'
 import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
 import { BotTeamHostPicker } from './BotTeamHostPicker'
+import { BotTeamBoard, BotTeamProjectBoard, NewBotProjectForm } from './BotTeamProjectViews'
 import { BotTeamRoom } from './BotTeamRoom'
 import { NewBotTeamForm } from './NewBotTeamForm'
 import { useBotTeamCardStatus } from './use-bot-team-card-status'
@@ -57,10 +58,37 @@ function TeamDetail({
   openTaskId: string | null
   onOpenTask: (taskId: string | null) => void
 }): React.JSX.Element {
+  // Until the sidebar routes here this stays on the room.
+  const [view, setView] = useState<
+    { name: 'room' } | { name: 'board' } | { name: 'newProject' } | { name: 'project'; id: string }
+  >({ name: 'room' })
+  const toRoom = (): void => setView({ name: 'room' })
   // A task's thread is a full chat, so it takes the page rather than the team's column.
   if (openTaskId !== null) {
     return (
       <BotTeamRoom team={team} openTaskId={openTaskId} onOpenTask={onOpenTask} offline={offline} />
+    )
+  }
+  if (view.name === 'board') {
+    return <BotTeamBoard team={team} onBack={toRoom} onOpenTask={onOpenTask} />
+  }
+  if (view.name === 'newProject') {
+    return (
+      <NewBotProjectForm
+        team={team}
+        onCancel={toRoom}
+        onCreated={(project) => setView({ name: 'project', id: project.id })}
+      />
+    )
+  }
+  if (view.name === 'project') {
+    return (
+      <BotTeamProjectBoard
+        team={team}
+        projectId={view.id}
+        onBack={toRoom}
+        onOpenTask={onOpenTask}
+      />
     )
   }
   return (

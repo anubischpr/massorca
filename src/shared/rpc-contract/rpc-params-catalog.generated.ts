@@ -83,8 +83,10 @@ import {
 } from './bot-team-params'
 import {
   BotTeamMessagePost,
+  BotTeamProjectCreate,
   BotTeamRoomSelector,
   BotTeamTaskCreate,
+  BotTeamTaskSetProject,
   BotTeamTaskStart
 } from './bot-team-room-params'
 import { CertificateProceed } from './browser-core-params'
@@ -717,12 +719,14 @@ export const RPC_PARAMS_BY_METHOD = {
   'automation.update': AutomationUpdate,
   'botTeams.addBot': BotTeamAddBot,
   'botTeams.create': BotTeamCreate,
+  'botTeams.createProject': BotTeamProjectCreate,
   'botTeams.createTask': BotTeamTaskCreate,
   'botTeams.delete': BotTeamSelector,
   'botTeams.list': null,
   'botTeams.listRoom': BotTeamRoomSelector,
   'botTeams.postMessage': BotTeamMessagePost,
   'botTeams.removeBot': BotTeamRemoveBot,
+  'botTeams.setTaskProject': BotTeamTaskSetProject,
   'botTeams.startTask': BotTeamTaskStart,
   'botTeams.update': BotTeamUpdate,
   'botTeams.updateBot': BotTeamUpdateBot,
