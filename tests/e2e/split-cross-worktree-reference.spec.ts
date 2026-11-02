@@ -1,5 +1,8 @@
-import type { Page } from '@stablyai/playwright-test'
+import { existsSync, readFileSync } from 'node:fs'
+import type { ElectronApplication, Page } from '@stablyai/playwright-test'
 import { expect, test } from './helpers/orca-app'
+import { attachRepoAndOpenTerminal, createRestartSession } from './helpers/orca-restart'
+import { TEST_REPO_PATH_FILE } from './global-setup'
 import { configureGoldenStubAgent, getGoldenStubAgentLaunchEnv } from './helpers/golden-stub-agent'
 import { ensureTerminalVisible, waitForActiveWorktree, waitForSessionReady } from './helpers/store'
 
@@ -51,6 +54,28 @@ async function snapshot(page: Page): Promise<Snapshot> {
   })
 }
 
+type Pair = {
+  first: Snapshot['worktrees'][number]
+  second: Snapshot['worktrees'][number]
+}
+
+/** One stub session in the current checkout and one in the second worktree. */
+async function startTwoSessions(page: Page, secondWorkspace = 'e2e-secondary'): Promise<Pair> {
+  await launchInWorktree(page, null, 'session in the first workspace')
+  await expect
+    .poll(async () => (await snapshot(page)).worktrees.filter((w) => w.sessions.length).length)
+    .toBe(1)
+  const first = (await snapshot(page)).worktrees.find((w) => w.sessions.length)!
+  await launchInWorktree(page, secondWorkspace, 'session in the second workspace')
+  await expect
+    .poll(async () => (await snapshot(page)).worktrees.filter((w) => w.sessions.length).length)
+    .toBe(2)
+  const second = (await snapshot(page)).worktrees.find(
+    (w) => w.sessions.length && w.id !== first.id
+  )!
+  return { first, second }
+}
+
 test('a pane shows another workspace’s live session by reference, and the focus follows it', async ({
   orcaPage
 }, testInfo) => {
@@ -60,18 +85,7 @@ test('a pane shows another workspace’s live session by reference, and the focu
   await ensureTerminalVisible(orcaPage)
   await configureGoldenStubAgent(orcaPage)
 
-  await launchInWorktree(orcaPage, null, 'session in the first workspace')
-  await expect
-    .poll(async () => (await snapshot(orcaPage)).worktrees.filter((w) => w.sessions.length).length)
-    .toBe(1)
-  const first = (await snapshot(orcaPage)).worktrees.find((w) => w.sessions.length)!
-  await launchInWorktree(orcaPage, 'e2e-secondary', 'session in the second workspace')
-  await expect
-    .poll(async () => (await snapshot(orcaPage)).worktrees.filter((w) => w.sessions.length).length)
-    .toBe(2)
-  const second = (await snapshot(orcaPage)).worktrees.find(
-    (w) => w.sessions.length && w.id !== first.id
-  )!
+  const { first, second } = await startTwoSessions(orcaPage)
 
   // Back on the first workspace, add an empty pane and show the second workspace's session in it.
   await orcaPage.evaluate((id) => window.__store?.getState().setActiveWorktree(id), first.id)
@@ -146,4 +160,135 @@ test('a pane shows another workspace’s live session by reference, and the focu
     1
   )
   await orcaPage.screenshot({ path: testInfo.outputPath('reference-owner-layout.png') })
+})
+
+async function refPaneOf(page: Page, worktreeId: string) {
+  return page.evaluate(
+    (id) =>
+      window.__store
+        ?.getState()
+        .groupsByWorktree[id]?.filter((group) => group.sessionRef)
+        .map((group) => ({ id: group.id, sessionRef: group.sessionRef })) ?? [],
+    worktreeId
+  )
+}
+
+test('the new pane’s picker lists the other workspace’s session under its names, and choosing it puts both side by side', async ({
+  orcaPage
+}, testInfo) => {
+  test.setTimeout(300_000)
+  await waitForSessionReady(orcaPage)
+  await waitForActiveWorktree(orcaPage)
+  await ensureTerminalVisible(orcaPage)
+  await configureGoldenStubAgent(orcaPage)
+  const { first, second } = await startTwoSessions(orcaPage)
+
+  await orcaPage.evaluate((id) => window.__store?.getState().setActiveWorktree(id), first.id)
+  await expect.poll(async () => (await snapshot(orcaPage)).activeWorktreeId).toBe(first.id)
+  // The split a chat's button, shortcut and Cmd-J run: an empty pane that offers the sessions.
+  await orcaPage.evaluate(
+    ({ id, groupId }) => window.__store?.getState().createEmptySplitGroup(id, groupId, 'right'),
+    { id: first.id, groupId: first.sessions[0].groupId }
+  )
+  const picker = orcaPage.locator('[data-session-pane-picker="true"]')
+  await expect(picker).toBeVisible()
+  // This workspace's only session is on screen, so the only row is the other workspace's, headed by its names.
+  await expect(picker.locator('p')).toHaveCount(1)
+  await expect(picker.locator('p')).toContainText(second.branch.replace('refs/heads/', ''))
+  await expect(picker.locator('button')).toHaveCount(3)
+  await picker.locator('button').first().click()
+
+  await expect.poll(async () => (await refPaneOf(orcaPage, first.id)).length).toBe(1)
+  const [pane] = await refPaneOf(orcaPage, first.id)
+  expect(pane.sessionRef).toEqual({ worktreeId: second.id, tabId: second.sessions[0].id })
+  // Why: the owner's own layout, hidden, keeps its picker; none is on screen.
+  await expect(picker.filter({ visible: true })).toHaveCount(0)
+  // One live copy of each session on screen.
+  const entities = await orcaPage.evaluate(
+    (ids) =>
+      ids.map(
+        ({ worktreeId, tabId }) =>
+          window.__store?.getState().unifiedTabsByWorktree[worktreeId].find((t) => t.id === tabId)
+            ?.entityId
+      ),
+    [
+      { worktreeId: first.id, tabId: first.sessions[0].id },
+      { worktreeId: second.id, tabId: second.sessions[0].id }
+    ]
+  )
+  for (const entity of entities) {
+    await expect(orcaPage.locator(`[data-terminal-overlay-tab-id="${entity}"]`)).toHaveCount(1)
+  }
+  await orcaPage.waitForTimeout(2500)
+  await orcaPage.screenshot({ path: testInfo.outputPath('picker-two-workspaces.png') })
+  // The session is still where it was, and the other pane's session did not move.
+  const state = await snapshot(orcaPage)
+  expect(state.worktrees.find((w) => w.id === second.id)?.sessions).toHaveLength(1)
+  expect(state.worktrees.find((w) => w.id === first.id)?.sessions).toHaveLength(1)
+})
+
+test('the pane that shows another workspace’s session is saved, and is back after quit and relaunch', async (// oxlint-disable-next-line no-empty-pattern -- this test owns both Electron launches.
+{}, testInfo) => {
+  test.setTimeout(420_000)
+  const repoPath = existsSync(TEST_REPO_PATH_FILE)
+    ? readFileSync(TEST_REPO_PATH_FILE, 'utf8').trim()
+    : ''
+  if (!repoPath || !existsSync(repoPath)) {
+    throw new Error('This test needs the seeded test repo from global setup')
+  }
+  const launchEnv: Record<string, string> = {}
+  for (const [key, value] of Object.entries(getGoldenStubAgentLaunchEnv())) {
+    if (value !== undefined) {
+      launchEnv[key] = value
+    }
+  }
+  const session = createRestartSession(testInfo, launchEnv)
+  let app: ElectronApplication | null = null
+  try {
+    const firstLaunch = await session.launch()
+    app = firstLaunch.app
+    const page = firstLaunch.page
+    await waitForSessionReady(page)
+    await attachRepoAndOpenTerminal(page, repoPath)
+    await ensureTerminalVisible(page)
+    await configureGoldenStubAgent(page)
+    // Why: the restart fixture's repo lists only its main checkout, so the second workspace is a new worktree.
+    const { first, second } = await startTwoSessions(page, 'New worktree')
+    await page.evaluate((id) => window.__store?.getState().setActiveWorktree(id), first.id)
+    await expect.poll(async () => (await snapshot(page)).activeWorktreeId).toBe(first.id)
+    await page.evaluate(
+      ({ id, groupId }) => window.__store?.getState().createEmptySplitGroup(id, groupId, 'right'),
+      { id: first.id, groupId: first.sessions[0].groupId }
+    )
+    await page.locator('[data-session-pane-picker="true"] button').first().click()
+    await expect.poll(async () => (await refPaneOf(page, first.id)).length).toBe(1)
+
+    // A page reload re-reads the saved profile through the same checkpoint a quit uses.
+    await page.reload()
+    await waitForSessionReady(page)
+    await expect
+      .poll(async () => (await refPaneOf(page, first.id))[0]?.sessionRef, { timeout: 60_000 })
+      .toEqual({ worktreeId: second.id, tabId: second.sessions[0].id })
+
+    await session.close(app)
+    app = null
+
+    const secondLaunch = await session.launch()
+    app = secondLaunch.app
+    await waitForSessionReady(secondLaunch.page)
+    await expect
+      .poll(async () => (await refPaneOf(secondLaunch.page, first.id))[0]?.sessionRef, {
+        timeout: 60_000
+      })
+      .toEqual({ worktreeId: second.id, tabId: second.sessions[0].id })
+    const restored = await snapshot(secondLaunch.page)
+    expect(restored.worktrees.find((w) => w.id === second.id)?.sessions).toHaveLength(1)
+    await secondLaunch.page.waitForTimeout(2500)
+    await secondLaunch.page.screenshot({ path: testInfo.outputPath('relaunch-two-workspaces.png') })
+  } finally {
+    if (app) {
+      await session.close(app)
+    }
+    await session.dispose()
+  }
 })
