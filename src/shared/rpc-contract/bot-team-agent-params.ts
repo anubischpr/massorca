@@ -15,3 +15,11 @@ export const BotTeamAgentDelegate = z.object({
 export const BotTeamAgentTaskCreate = z.object({
   text: requiredString('Missing task text')
 })
+
+export const BotTeamAgentRemember = z.object({
+  text: requiredString('Missing memory text'),
+  /** True: only the calling bot uses it. Absent: the whole team does. */
+  me: z.boolean().default(false),
+  /** True: the person asked the team to remember it, rather than a task teaching it. */
+  told: z.boolean().default(false)
+})

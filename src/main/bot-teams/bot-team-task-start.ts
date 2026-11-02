@@ -33,12 +33,25 @@ function botTeamProjectBriefText(project: BotTeamProject): string {
   ].join('\n')
 }
 
+/** What the person can delete from the Memory page, as the bot reads it when a task starts. */
+export type BotTeamMemoryLines = { team: readonly string[]; bot: readonly string[] }
+
+function memoryText(heading: string, lines: readonly string[]): string[] {
+  return lines.length > 0 ? [`${heading}\n${lines.map((line) => `- ${line}`).join('\n')}`] : []
+}
+
+export type BotTeamPromptExtras = {
+  project?: BotTeamProject | null
+  /** What the task's start was saved with: a hand-over, or the bots a composite task needs. */
+  notes?: string | null
+  memory?: BotTeamMemoryLines
+}
+
 export function botTeamTaskPrompt(
   team: BotTeam,
   bot: BotTeamBot,
   task: Pick<BotTeamTask, 'title' | 'prompt'>,
-  project: BotTeamProject | null = null,
-  notes: string | null = null
+  { project = null, notes = null, memory }: BotTeamPromptExtras = {}
 ): string {
   const role = bot.job ? `Your job: ${bot.job}.` : ''
   const skills =
@@ -48,9 +61,12 @@ export function botTeamTaskPrompt(
     ...(project ? [botTeamProjectBriefText(project)] : []),
     task.prompt || task.title,
     ...(notes ? [notes] : []),
+    ...memoryText('What the team remembers (use it, and do not ask again):', memory?.team ?? []),
+    ...memoryText(`What ${bot.name} remembers:`, memory?.bot ?? []),
     [
       'Tell the team in its Conference room when you take this on and when you finish, in one short line each: `orca orchestration team-post --text "<line>"`.',
-      'For this team\'s tasks, read the real board with `orca orchestration team-tasks`, and save a task for later with `orca orchestration team-task-create --text "<task>"`. To hand work to a teammate, run `orca orchestration team-delegate --bot <name> --text "<task>"`; add `--team <team>` for a bot of another team.'
+      'For this team\'s tasks, read the real board with `orca orchestration team-tasks`, and save a task for later with `orca orchestration team-task-create --text "<task>"`. To hand work to a teammate, run `orca orchestration team-delegate --bot <name> --text "<task>"`; add `--team <team>` for a bot of another team.',
+      'To keep something for later tasks, run `orca orchestration team-remember --text "<what>"`; add `--me` when only you need it, and `--told` when the person asked you to remember it.'
     ].join(' ')
   ].join('\n\n')
 }
@@ -58,18 +74,7 @@ export function botTeamTaskPrompt(
 /** Starts the owner bot's session for a task that was waiting in Todo. */
 export async function startBotTeamTask(
   deps: BotTeamTaskStartDeps,
-  {
-    team,
-    task,
-    project = null,
-    notes = null
-  }: {
-    team: BotTeam
-    task: BotTeamTask
-    project?: BotTeamProject | null
-    /** What the task's start was saved with: a hand-over, or the bots a composite task needs. */
-    notes?: string | null
-  }
+  { team, task, ...extras }: { team: BotTeam; task: BotTeamTask } & BotTeamPromptExtras
 ): Promise<BotTeamTask> {
   if (task.sessionId !== null) {
     throw new Error(`Task ${task.id} already started.`)
@@ -89,7 +94,7 @@ export async function startBotTeamTask(
     ...(options ? { options } : {})
   })
   // Linked only once delivered: an undelivered request must keep the task in Todo, with Start.
-  if (!(await deps.sendPrompt(sessionId, botTeamTaskPrompt(team, bot, task, project, notes)))) {
+  if (!(await deps.sendPrompt(sessionId, botTeamTaskPrompt(team, bot, task, extras)))) {
     throw new Error(`The request for task ${task.id} did not reach the bot.`)
   }
   return deps.linkSession(task.id, sessionId)

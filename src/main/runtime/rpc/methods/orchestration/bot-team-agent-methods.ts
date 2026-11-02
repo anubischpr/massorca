@@ -3,9 +3,11 @@ import type { BotTeamTask } from '../../../../../shared/rpc-contract/bot-team-ro
 import {
   BotTeamAgentDelegate,
   BotTeamAgentPost,
+  BotTeamAgentRemember,
   BotTeamAgentTaskCreate
 } from '../../../../../shared/rpc-contract/bot-team-agent-params'
 import { botTeamTaskTitle, routeBotTeamRequest } from '../../../../../shared/bot-team-request-route'
+import { readBotTeamMemoryLines } from '../../../../bot-teams/bot-team-memory-read'
 import { delegateToBotTeammate, findDelegationTeam } from '../../../../bot-teams/bot-team-delegate'
 import {
   getDelegationAnswerService,
@@ -75,6 +77,7 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
               db.setBotTeamTaskProject(created.id, project.id)
               return db.getBotTeamTask(created.id)
             },
+            memoryFor: (botId) => readBotTeamMemoryLines(db, team.id, botId),
             linkTask: (taskId, requestId) => db.linkBotTeamTaskDelegation(taskId, requestId),
             startRequest: (requestId, agent) =>
               getDelegationAnswerService(runtime).startChosenAgent(requestId, agent)
@@ -96,6 +99,23 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
           teamId: task.teamId,
           authorBotId: task.ownerBotId,
           text
+        })
+      }
+    }
+  }),
+  defineMethod({
+    name: 'orchestration.botTeamRemember',
+    permission: 'workspace',
+    params: BotTeamAgentRemember,
+    handler: ({ text, me, told }, { runtime, orchestrationCaller }) => {
+      const db = runtime.getOrchestrationDb()
+      const task = requireBotTeamCallerTask(db, orchestrationCaller?.sessionId)
+      return {
+        memory: db.addBotTeamMemory({
+          teamId: task.teamId,
+          botId: me ? task.ownerBotId : null,
+          text,
+          source: { kind: told ? 'person' : 'task', taskTitle: told ? null : task.title }
         })
       }
     }

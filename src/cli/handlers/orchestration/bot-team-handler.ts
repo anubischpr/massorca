@@ -45,6 +45,15 @@ export const ORCHESTRATION_BOT_TEAM_HANDLER: Record<string, CommandHandler> = {
     )
     printResult(result, json, (value) => `Handed to teammate: ${value.task.title}`)
   },
+  'orchestration team-remember': async ({ flags, client, json }) => {
+    requireChat('orchestration team-remember')
+    const result = await callOrchestrationMutation(client, flags, 'orchestration.botTeamRemember', {
+      text: getRequiredStringFlag(flags, 'text'),
+      me: flags.get('me') === true,
+      told: flags.get('told') === true
+    })
+    printResult(result, json, () => 'Remembered.')
+  },
   'orchestration team-tasks': async ({ flags, client, json }) => {
     requireChat('orchestration team-tasks')
     const result = await callOrchestrationMutation<{ tasks: ListedTask[] }>(

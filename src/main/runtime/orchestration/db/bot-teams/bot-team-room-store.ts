@@ -9,6 +9,10 @@ import {
 } from '../../../../../shared/rpc-contract/bot-team-room-params'
 import { BOT_TEAM_ALL_AUTHOR } from '../../../../../shared/bot-team-greeting'
 import { generateId } from '../generated-id'
+import {
+  BOT_TEAM_MEMORY_STORE_METHODS,
+  type BotTeamMemoryStoreMethods
+} from './bot-team-memory-store'
 import type { OrchestrationDb } from '../orchestration-db'
 
 const TASK_SELECT =
@@ -208,7 +212,7 @@ export function isBotTeamTaskHandedOff(this: OrchestrationDb, taskId: string): b
   )
 }
 
-export type BotTeamRoomStoreMethods = {
+export type BotTeamRoomStoreMethods = BotTeamMemoryStoreMethods & {
   linkBotTeamTaskDelegation: typeof linkBotTeamTaskDelegation
   getBotTeamTask: typeof getBotTeamTask
   isBotTeamTaskHandedOff: typeof isBotTeamTaskHandedOff
@@ -226,7 +230,7 @@ export type BotTeamRoomStoreMethods = {
 }
 
 export function attachBotTeamRoomStore(ctor: { prototype: object }): void {
-  Object.assign(ctor.prototype, {
+  Object.assign(ctor.prototype, BOT_TEAM_MEMORY_STORE_METHODS, {
     isBotTeamTaskHandedOff,
     getBotTeamTaskStartNotes,
     setBotTeamTaskStartNotes,

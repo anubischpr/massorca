@@ -4,7 +4,7 @@ import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
 import type { BotTeamProject, BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import { botLaunchOptions } from './bot-team-model-choice'
-import { botTeamTaskPrompt } from './bot-team-task-start'
+import { botTeamTaskPrompt, type BotTeamMemoryLines } from './bot-team-task-start'
 
 export type BotTeamDelegateDeps = {
   fileRequest: (args: {
@@ -17,6 +17,8 @@ export type BotTeamDelegateDeps = {
   createTask: (args: { title: string; prompt: string; ownerBotId: string }) => BotTeamTask
   linkTask: (taskId: string, requestId: string) => void
   startRequest: (requestId: string, agent: BotTeamBot['agent']) => void
+  /** What the team and the teammate remember, as a task's own start would read it. */
+  memoryFor?: (botId: string) => BotTeamMemoryLines
 }
 
 /** Hands work to a teammate as a child session. The request is filed first: when it is refused, nothing was changed. */
@@ -44,7 +46,12 @@ export async function delegateToBotTeammate(
   const piRuntime = botAgentPiRuntime(teammate.agent)
   const requestId = await deps.fileRequest({
     title,
-    prompt: botTeamTaskPrompt(team, teammate, { title, prompt: text }, project),
+    prompt: botTeamTaskPrompt(
+      team,
+      teammate,
+      { title, prompt: text },
+      { project, memory: deps.memoryFor?.(teammate.id) }
+    ),
     agent: teammate.agent,
     ...(launch ? { launch } : {}),
     ...(piRuntime ? { piRuntime } : {})

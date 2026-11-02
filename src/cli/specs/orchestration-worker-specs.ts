@@ -142,6 +142,16 @@ export const ORCHESTRATION_WORKER_COMMAND_SPECS: CommandSpec[] = [
     ]
   },
   {
+    path: ['orchestration', 'team-remember'],
+    summary: 'Keep something your Bot team should remember for later tasks',
+    usage: 'orca orchestration team-remember --text <what> [--me] [--told] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'text', 'me', 'told', 'retry-request'],
+    notes: [
+      'Without --me the whole team uses it; with --me only this bot does. Use --told when the person asked you to remember it.',
+      'The person can read and delete it on the team Memory page.'
+    ]
+  },
+  {
     path: ['orchestration', 'team-post'],
     summary: 'Post to your Bot teams Conference room',
     usage: 'orca orchestration team-post --text <message> [--json]',

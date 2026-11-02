@@ -17,11 +17,13 @@ import { createStructuredAgentSessionOperationId } from '../../../../shared/stru
 import { folderWorkspaceKey } from '../../../../shared/workspace-scope'
 import { ensureBotTeamVersionWatcher } from '../../../bot-teams/bot-team-task-versions'
 import { botTeamFolderPath, botTeamsParentPath } from '../../../bot-teams/bot-team-version-deps'
+import { readBotTeamMemoryLines } from '../../../bot-teams/bot-team-memory-read'
 import { botSessionOptions } from '../../../bot-teams/bot-team-model-choice'
 import { startBotTeamTask } from '../../../bot-teams/bot-team-task-start'
 import { getStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
 import { defineMethod, type RpcContext } from '../core'
 import { botTeamAssignMethods } from './bot-team-assign-methods'
+import { BOT_TEAM_MEMORY_METHODS } from './bot-team-memory-methods'
 import { postBotTeamRequestOnHost } from './bot-team-post-request'
 import { BOT_TEAM_VERSION_METHODS } from './bot-team-versions'
 import { commitStructuredAgentSessionLaunchPrompt } from './agent-launch-structured-prompt'
@@ -147,7 +149,8 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
       team,
       task,
       project: db.listBotTeamProjects(team.id).find((entry) => entry.id === task.projectId) ?? null,
-      notes: db.getBotTeamTaskStartNotes(task.id)
+      notes: db.getBotTeamTaskStartNotes(task.id),
+      memory: readBotTeamMemoryLines(db, team.id, task.ownerBotId)
     }
   )
 }
@@ -155,6 +158,7 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
 export const BOT_TEAM_ROOM_METHODS = [
   ...BOT_TEAM_VERSION_METHODS,
   ...botTeamAssignMethods(startTaskOnHost),
+  ...BOT_TEAM_MEMORY_METHODS,
   defineMethod({
     name: 'botTeams.listRoom',
     permission: 'workspace',

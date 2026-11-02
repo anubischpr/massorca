@@ -126,6 +126,29 @@ describe('startBotTeamTask', () => {
     expect(text.indexOf('Design the flyer')).toBeLessThan(text.indexOf("It was Max's before."))
   })
 
+  it('hands the bot what the team and the bot remember, and how to keep more', async () => {
+    const d = deps()
+    await startBotTeamTask(d, {
+      team: TEAM,
+      task: TASK,
+      memory: { team: ['Offices are closed on Monday.'], bot: ['Large photo at the top.'] }
+    })
+    const text = vi.mocked(d.sendPrompt).mock.calls[0][1]
+    expect(text).toContain('What the team remembers')
+    expect(text).toContain('- Offices are closed on Monday.')
+    expect(text).toContain('What Iris remembers')
+    expect(text).toContain('- Large photo at the top.')
+    expect(text).toContain('orca orchestration team-remember --text')
+  })
+
+  it('names no memory section when there is nothing remembered', async () => {
+    const d = deps()
+    await startBotTeamTask(d, { team: TEAM, task: TASK, memory: { team: [], bot: [] } })
+    const text = vi.mocked(d.sendPrompt).mock.calls[0][1]
+    expect(text).not.toContain('What the team remembers')
+    expect(text).not.toContain('What Iris remembers')
+  })
+
   it('adds nothing when there are no notes', async () => {
     const d = deps()
     await startBotTeamTask(d, { team: TEAM, task: TASK, notes: null })

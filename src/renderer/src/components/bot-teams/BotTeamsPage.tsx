@@ -22,6 +22,7 @@ import { BotTeamHostPicker } from './BotTeamHostPicker'
 import { BotTeamFiles } from './BotTeamFiles'
 import { BotTeamProjectBrief, type BotTeamProjectTab } from './BotTeamProjectBrief'
 import { BotTeamBoard, BotTeamProjectBoard, NewBotProjectForm } from './BotTeamProjectViews'
+import { BotTeamMemory } from './BotTeamMemory'
 import { BotTeamRoom } from './BotTeamRoom'
 import { NewBotTeamForm } from './NewBotTeamForm'
 import { useBotTeamCardStatus } from './use-bot-team-card-status'
@@ -79,6 +80,9 @@ function TeamDetail({
   }
   if (section?.kind === 'files') {
     return <BotTeamFiles team={team} />
+  }
+  if (section?.kind === 'memory') {
+    return <BotTeamMemory team={team} />
   }
   if (section?.kind === 'new-project') {
     return (

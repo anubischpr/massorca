@@ -20,6 +20,7 @@ export type BotTeamsSection =
   | { kind: 'board' }
   | { kind: 'new-project' }
   | { kind: 'files' }
+  | { kind: 'memory' }
   | { kind: 'project'; projectId: string; tab?: 'brief' }
 
 export type BotTeamsSelection = {
@@ -29,7 +30,7 @@ export type BotTeamsSelection = {
   taskId: string | null
   /** The new team form is open. */
   creating: boolean
-  /** The open team's Board, a project, New project or Files; none means the Conference room. */
+  /** The open team's Board, a project, New project, Files or Memory; none means the Conference room. */
   section?: BotTeamsSection
 }
 

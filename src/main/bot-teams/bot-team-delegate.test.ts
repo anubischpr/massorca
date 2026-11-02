@@ -71,6 +71,17 @@ describe('delegateToBotTeammate', () => {
     expect(prompt).toContain('- Flyers in two colors')
   })
 
+  it('gives the teammate what the team and the teammate remember', async () => {
+    const d = deps({
+      memoryFor: vi.fn(() => ({ team: ['Closed on Monday.'], bot: ['Short sentences.'] }))
+    })
+    await delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Write the file' })
+    expect(d.memoryFor).toHaveBeenCalledWith('max')
+    const prompt = vi.mocked(d.fileRequest).mock.calls[0][0].prompt
+    expect(prompt).toContain('- Closed on Monday.')
+    expect(prompt).toContain('What Max remembers')
+  })
+
   it('names no brief when the caller has no project', async () => {
     const d = deps()
     await delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Write the file' })

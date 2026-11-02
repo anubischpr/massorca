@@ -71,8 +71,10 @@ import {
 import {
   BotTeamAgentDelegate,
   BotTeamAgentPost,
+  BotTeamAgentRemember,
   BotTeamAgentTaskCreate
 } from './bot-team-agent-params'
+import { BotTeamMemoryDelete, BotTeamMemoryList } from './bot-team-memory-params'
 import {
   BotTeamAddBot,
   BotTeamCreate,
@@ -732,8 +734,10 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.createProject': BotTeamProjectCreate,
   'botTeams.createTask': BotTeamTaskCreate,
   'botTeams.delete': BotTeamSelector,
+  'botTeams.deleteMemory': BotTeamMemoryDelete,
   'botTeams.fileVersions': BotTeamFileVersionsSelector,
   'botTeams.list': null,
+  'botTeams.listMemory': BotTeamMemoryList,
   'botTeams.listRoom': BotTeamRoomSelector,
   'botTeams.postMessage': BotTeamMessagePost,
   'botTeams.reassignTask': BotTeamTaskReassign,
@@ -1140,6 +1144,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'orchestration.ask': AskParams,
   'orchestration.botTeamDelegate': BotTeamAgentDelegate,
   'orchestration.botTeamPost': BotTeamAgentPost,
+  'orchestration.botTeamRemember': BotTeamAgentRemember,
   'orchestration.botTeamTaskCreate': BotTeamAgentTaskCreate,
   'orchestration.botTeamTasks': null,
   'orchestration.callerShow': null,
