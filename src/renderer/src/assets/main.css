@@ -972,26 +972,16 @@ html.native-shell .app-layout {
   -webkit-app-region: no-drag;
 }
 
-.titlebar {
-  height: 36px;
-  min-height: 36px;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  background: var(--bg-titlebar, var(--card));
-  border-bottom: 1px solid var(--border);
-  -webkit-app-region: drag;
-  user-select: none;
-}
-
-/* Why: workspace view still needs a full titlebar-height strip above the
-   sidebar so the native macOS traffic lights and sidebar chrome sit in the
-   same vertical band they use in settings/landing. The center and right
-   workspace columns are offset separately to align with this 36px baseline
-   (4px drag strip + 32px tab row). */
+/* Why: the sidebar header carries the menu, sidebar toggle and history
+   controls at the window top, in the same 44px band as the session bar and
+   the page top band, with the native macOS traffic lights beside it. */
 .titlebar-left {
-  height: 36px;
-  min-height: 36px;
+  height: 44px;
+  min-height: 44px;
+  /* Why: the header matches the 44px session bar band, while the 36px content box above this
+     padding keeps its controls centered on the native traffic lights at y=18. */
+  padding-bottom: 8px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -1020,7 +1010,9 @@ html.native-shell .app-layout {
 }
 
 .titlebar-traffic-light-pad {
-  width: calc(80px / var(--ui-zoom-factor, 1));
+  /* Why: the 52px rail sits left of the sidebar header and already lies under the first 52px of
+     the native traffic lights, so only the remainder is padded here. */
+  width: max(0px, calc(80px / var(--ui-zoom-factor, 1) - 52px));
   flex-shrink: 0;
 }
 
@@ -1052,7 +1044,7 @@ html.native-shell .app-layout {
   z-index: 9999;
   display: flex;
   flex-direction: row;
-  height: 36px;
+  height: 44px;
   -webkit-app-region: no-drag;
 }
 
@@ -1061,7 +1053,7 @@ html.native-shell .app-layout {
   align-items: center;
   justify-content: center;
   width: 46px;
-  height: 36px;
+  height: 44px;
   background: transparent;
   border: none;
   color: var(--muted-foreground);
@@ -1101,7 +1093,6 @@ html.native-shell .app-layout {
 /* Why: Electron drag regions swallow renderer pointer events. While regular
    xterm owns focus, make the next top-chrome click observable so it can release
    terminal zoom ownership; after release these surfaces become draggable again. */
-:root[data-regular-terminal-input-focused] .titlebar,
 :root[data-regular-terminal-input-focused] .titlebar-left,
 :root[data-regular-terminal-input-focused] .window-controls-titlebar-spacer,
 :root[data-regular-terminal-input-focused] .right-sidebar-header-drag,
@@ -1122,7 +1113,7 @@ html.native-shell .app-layout {
 }
 
 /* Why: in side-bar activity-bar mode the icon strip sits flush against the
-   right window edge. The fixed-position window-controls overlay (height 36px,
+   right window edge. The fixed-position window-controls overlay (height 44px,
    width 138px) covers the top-right corner when custom desktop chrome is
    active, so the topmost sidebar icons are unreachable without this offset. */
 .side-activity-bar-windows-inset {
@@ -3482,5 +3473,98 @@ html.native-shell .app-layout {
 @media (prefers-reduced-motion: no-preference) {
   .prototype-merge-ready {
     animation: prototype-merge-pulse 1.8s ease-out infinite;
+  }
+}
+
+/* Why: with no title bar above it the rail carries window dragging; its macOS top inset leaves the native traffic lights uncovered. */
+.app-rail {
+  -webkit-app-region: drag;
+}
+
+.app-rail button,
+.app-rail [role='button'] {
+  -webkit-app-region: no-drag;
+}
+
+/* Session view rainbow: the Chat and Terminal switch in the create-chat composer. Documented in docs/STYLEGUIDE.md. */
+:root {
+  --rainbow-red: #f87171;
+  --rainbow-amber: #fbbf24;
+  --rainbow-green: #34d399;
+  --rainbow-sky: #38bdf8;
+  --rainbow-violet: #a78bfa;
+  --rainbow-pink: #f472b6;
+}
+
+.dark {
+  --rainbow-red: #f87171;
+  --rainbow-amber: #fbbf24;
+  --rainbow-green: #34d399;
+  --rainbow-sky: #38bdf8;
+  --rainbow-violet: #a78bfa;
+  --rainbow-pink: #f472b6;
+}
+
+.chat-view-switch {
+  display: flex;
+  border-radius: var(--radius-md);
+  padding: 1.5px;
+}
+
+.chat-view-rainbow {
+  background: linear-gradient(
+    90deg,
+    var(--rainbow-red),
+    var(--rainbow-amber),
+    var(--rainbow-green),
+    var(--rainbow-sky),
+    var(--rainbow-violet),
+    var(--rainbow-pink),
+    var(--rainbow-red)
+  );
+  background-size: 200% 100%;
+  animation: chat-view-rainbow-move 6s linear infinite;
+}
+
+.chat-view-wobble {
+  animation: chat-view-wobble 0.45s ease-in-out;
+}
+
+.chat-view-rainbow.chat-view-wobble {
+  animation:
+    chat-view-wobble 0.45s ease-in-out,
+    chat-view-rainbow-move 6s linear infinite;
+}
+
+@keyframes chat-view-rainbow-move {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes chat-view-wobble {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  20% {
+    transform: rotate(-4deg);
+  }
+  45% {
+    transform: rotate(3deg);
+  }
+  70% {
+    transform: rotate(-2deg);
+  }
+  85% {
+    transform: rotate(1deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-view-rainbow,
+  .chat-view-wobble,
+  .chat-view-rainbow.chat-view-wobble {
+    animation: none;
   }
 }

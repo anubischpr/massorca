@@ -5,12 +5,18 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { translate } from '@/i18n/i18n'
 import { AgentIcon } from '@/lib/agent-catalog'
 import { cn } from '@/lib/utils'
+import { useAppStore } from '@/store'
 import type { AgentSessionPromptResponse } from '../../../../shared/agent-session-question-answer'
 import {
   DELEGATION_AUTOMATIC_OPTION_ID,
   delegationAgentOptionId,
   type DelegationCardPayload
 } from '../../../../shared/delegated-session-journal'
+import {
+  defaultDelegationDesignSystemMode,
+  delegationCountDefault
+} from '../../../../shared/delegation-prototype-choices'
+import type { PrototypeDesignSystemMode } from '../../../../shared/prototype-design-system-files'
 import { isTuiAgent } from '../../../../shared/tui-agent-config'
 import {
   automaticPickedHeading,
@@ -21,7 +27,12 @@ import {
   type DelegationFact,
   type DelegationOptionRow
 } from './native-chat-delegation-card-model'
+import {
+  DelegationCountChoices,
+  DelegationDesignSystemChoices
+} from './NativeChatDelegationPrototypeChoices'
 import { useNativeChatPromptCardFocus } from './use-native-chat-prompt-card-focus'
+import { openPrototypeDesignSystem } from '../prototypes/open-prototype-design-system'
 
 /**
  * The host's agent-choice card for a delegated session: each agent with its usage, and the "why"
@@ -40,7 +51,11 @@ export function NativeChatDelegationCard({
   question: string
   questionId: string
   isSubmitting?: boolean
-  onAnswer: (response: AgentSessionPromptResponse, count?: number) => void
+  onAnswer: (
+    response: AgentSessionPromptResponse,
+    count?: number,
+    designSystem?: PrototypeDesignSystemMode
+  ) => void
   onCancel: () => void
   shouldFocus?: boolean
 }): React.JSX.Element {
@@ -50,6 +65,15 @@ export function NativeChatDelegationCard({
   const rows = delegationOptionRows(body)
   const [selectedId, setSelectedId] = useState<string | null>(() => defaultDelegationOption(body))
   const [pickedCount, setPickedCount] = useState<number | null>(null)
+  const [pickedSystem, setPickedSystem] = useState<PrototypeDesignSystemMode | null>(null)
+  // Why the viewer's Settings: a paired client edits its own, so the host's default may be another number.
+  const viewerCount = useAppStore((state) => state.settings?.prototypeCount?.count)
+  const shownCount = body.prototypeCount
+    ? (pickedCount ?? delegationCountDefault(body.prototypeCount, viewerCount))
+    : undefined
+  const shownSystem = body.designSystem
+    ? (pickedSystem ?? defaultDelegationDesignSystemMode(body.designSystem))
+    : undefined
   const detail = selectedDetail(body, selectedId)
   const start = (): void => {
     if (selectedId === null || isSubmitting) {
@@ -59,11 +83,12 @@ export function NativeChatDelegationCard({
       kind: 'answers',
       answers: [{ questionId, optionIds: [selectedId] }]
     }
-    // Why: a count is sent only when the person picked one; otherwise the host keeps the Settings count.
-    if (pickedCount === null) {
+    // Why: a group the card draws sends what it shows highlighted, so the answer is what the person saw;
+    // a card without the group (an older host) sends nothing and the host keeps its defaults.
+    if (shownCount === undefined && shownSystem === undefined) {
       onAnswer(response)
     } else {
-      onAnswer(response, pickedCount)
+      onAnswer(response, shownCount, shownSystem)
     }
   }
 
@@ -75,11 +100,11 @@ export function NativeChatDelegationCard({
       aria-label={question}
       aria-busy={isSubmitting}
       tabIndex={-1}
-      className="shrink-0 bg-chat-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      className="flex min-h-0 flex-col bg-chat-canvas focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
-      <div className="mx-auto w-full max-w-(--chat-content-max-width) px-3 pt-2 pb-4 sm:px-4">
-        <div className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-xs">
-          <div className="flex items-baseline justify-between gap-3">
+      <div className="mx-auto flex min-h-0 w-full max-w-(--chat-content-max-width) flex-col px-3 pt-2 pb-4 sm:px-4">
+        <div className="flex min-h-0 flex-col gap-3 rounded-lg border border-border bg-card p-4 shadow-xs">
+          <div className="flex shrink-0 items-baseline justify-between gap-3">
             <p className="min-w-0 text-sm font-semibold text-foreground">{question}</p>
             <span className="shrink-0 text-xs text-muted-foreground">
               {translate(
@@ -88,33 +113,52 @@ export function NativeChatDelegationCard({
               )}
             </span>
           </div>
-          <RadioGroup
-            aria-label={translate('components.native-chat.delegation.choices', 'Agent choices')}
-            value={selectedId ?? ''}
-            onValueChange={setSelectedId}
-            disabled={isSubmitting}
-            className="sm:grid-cols-2"
-          >
-            {rows.map((row, index) => (
-              <DelegationOptionTile
-                key={row.optionId}
-                id={`${baseId}-${index}`}
-                row={row}
-                selected={row.optionId === selectedId}
-                disabled={isSubmitting}
-              />
-            ))}
-          </RadioGroup>
-          {body.prototypeCount ? (
-            <DelegationCountChoices
-              choices={body.prototypeCount.choices}
-              highlighted={pickedCount ?? body.prototypeCount.defaultCount}
+          {/* Why: the question is the same for every request; the title says which one this is. */}
+          {body.title ? <p className="text-xs text-muted-foreground">{body.title}</p> : null}
+          {/* Why: a short pane scrolls the choices, count and explanation, so the buttons never leave the card. */}
+          <div className="scrollbar-sleek flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+            <RadioGroup
+              aria-label={translate('components.native-chat.delegation.choices', 'Agent choices')}
+              value={selectedId ?? ''}
+              onValueChange={setSelectedId}
               disabled={isSubmitting}
-              onChoose={setPickedCount}
-            />
-          ) : null}
-          {detail ? <DelegationFacts heading={detail.heading} facts={detail.facts} /> : null}
-          <div className="flex items-center justify-end gap-2">
+              className="sm:grid-cols-2"
+            >
+              {rows.map((row, index) => (
+                <DelegationOptionTile
+                  key={row.optionId}
+                  id={`${baseId}-${index}`}
+                  row={row}
+                  selected={row.optionId === selectedId}
+                  disabled={isSubmitting}
+                />
+              ))}
+            </RadioGroup>
+            {body.prototypeCount ? (
+              <DelegationCountChoices
+                choices={body.prototypeCount.choices}
+                highlighted={shownCount ?? body.prototypeCount.defaultCount}
+                disabled={isSubmitting}
+                onChoose={setPickedCount}
+              />
+            ) : null}
+            {body.designSystem && shownSystem ? (
+              <DelegationDesignSystemChoices
+                card={body.designSystem}
+                count={shownCount ?? body.prototypeCount?.defaultCount ?? 2}
+                highlighted={shownSystem}
+                disabled={isSubmitting}
+                onChoose={setPickedSystem}
+                onReview={() => {
+                  if (body.designSystem) {
+                    openPrototypeDesignSystem(body.designSystem.projectKey)
+                  }
+                }}
+              />
+            ) : null}
+            {detail ? <DelegationFacts heading={detail.heading} facts={detail.facts} /> : null}
+          </div>
+          <div className="flex shrink-0 items-center justify-end gap-2">
             <Button variant="ghost" onClick={onCancel} disabled={isSubmitting}>
               {translate('components.native-chat.question.cancel', 'Cancel')}
             </Button>
@@ -195,41 +239,6 @@ function DelegationOptionTile({
         <span className="block truncate text-xs text-muted-foreground">{row.detail}</span>
       </span>
     </label>
-  )
-}
-
-/** How many prototypes the task asks for; the highlighted count is the one the answer sends. */
-function DelegationCountChoices({
-  choices,
-  highlighted,
-  disabled,
-  onChoose
-}: {
-  choices: readonly number[]
-  highlighted: number
-  disabled: boolean
-  onChoose: (count: number) => void
-}): React.JSX.Element {
-  const title = translate('components.prototypes.ask.title', 'How many prototypes?')
-  return (
-    <div role="group" aria-label={title} className="space-y-2">
-      <p className="text-sm font-medium text-foreground">{title}</p>
-      <div className="flex gap-2">
-        {choices.map((count) => (
-          <Button
-            key={count}
-            type="button"
-            variant={count === highlighted ? 'default' : 'outline'}
-            aria-pressed={count === highlighted}
-            className="flex-1"
-            disabled={disabled}
-            onClick={() => onChoose(count)}
-          >
-            {count}
-          </Button>
-        ))}
-      </div>
-    </div>
   )
 }
 

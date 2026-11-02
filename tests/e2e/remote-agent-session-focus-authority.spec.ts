@@ -123,14 +123,14 @@ async function readRenderedActiveTabId(page: Page): Promise<string | null> {
   return page.evaluate(
     () =>
       document
-        .querySelector('[data-testid="sortable-tab"][data-active="true"]')
+        .querySelector('[data-testid="side-panel-tab"][data-active="true"]')
         ?.getAttribute('data-tab-id') ?? null
   )
 }
 
 async function readRenderedTabOrder(page: Page): Promise<string[]> {
   return page
-    .locator('[data-testid="sortable-tab"]')
+    .locator('[data-testid="side-panel-tab"]')
     .evaluateAll((tabs) =>
       tabs
         .map((tab) => tab.getAttribute('data-tab-id'))
@@ -232,7 +232,7 @@ async function launchAgent(
     .toBe(args.activate ? expectedActiveId : priorRenderedActiveTabId)
   await expect(
     page.locator(
-      `[data-testid="sortable-tab"][data-tab-id="${expectedActiveId}"][data-active="${args.activate ? 'true' : 'false'}"]`
+      `[data-testid="side-panel-tab"][data-tab-id="${expectedActiveId}"][data-active="${args.activate ? 'true' : 'false'}"]`
     )
   ).toBeVisible()
   await expect

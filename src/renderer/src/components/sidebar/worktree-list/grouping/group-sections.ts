@@ -89,7 +89,9 @@ export function appendOrderedGroups(
             tone: PROJECT_GROUP_META.tone,
             icon: PROJECT_GROUP_META.icon,
             repo,
-            projectGroupDepth
+            projectGroupDepth,
+            // Why: a folded repo header's status glyph reads the worktrees it hides.
+            worktreeIds: group.items.map((worktree) => worktree.id)
           }
         : groupBy === 'workspace-status'
           ? (() => {

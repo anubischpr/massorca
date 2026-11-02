@@ -179,6 +179,13 @@ describe('PrototypeDesignSystemView Tokens tab', () => {
     expect(screen.getByText('type.body · 14px/400')).toBeInTheDocument()
   })
 
+  it('paints each color token tile with the card surface, not the canvas', () => {
+    renderView({ state: { tab: 'tokens' } })
+    const tile = screen.getByRole('button', { name: /color\.primary/u })
+    expect(tile).toHaveClass('bg-card')
+    expect(tile).not.toHaveClass('bg-background')
+  })
+
   it('shows the type scale without a font when the system has no font family token', () => {
     const noFamily = JSON.stringify({ type: { body: { $value: '14px' } } })
     renderView({ state: { tab: 'tokens' }, content: contentWith(noFamily, COMPONENTS) })
@@ -190,7 +197,7 @@ describe('PrototypeDesignSystemView Tokens tab', () => {
 describe('PrototypeDesignSystemView Components tab', () => {
   afterEach(cleanup)
 
-  it('counts the components and renders each in a script-less sandboxed frame', () => {
+  it('counts the components and renders each in a strict frame that runs only the shell scripts', () => {
     renderView({ state: { tab: 'components' } })
     expect(
       screen.getByText(
@@ -199,7 +206,7 @@ describe('PrototypeDesignSystemView Components tab', () => {
     ).toBeInTheDocument()
     const frame = screen.getByTitle('Button')
     expect(frame.tagName).toBe('IFRAME')
-    expect(frame).toHaveAttribute('sandbox', '')
+    expect(frame).toHaveAttribute('sandbox', 'allow-scripts')
     expect(screen.getByRole('button', { name: 'Select Button' })).toBeInTheDocument()
   })
 
@@ -268,3 +275,39 @@ describe('PrototypeDesignSystemView Source tab', () => {
     expect(within(alert).getByText(/Your draft is kept/u)).toBeInTheDocument()
   })
 })
+
+describe('PrototypeDesignSystemView Components views', () => {
+  afterEach(() => {
+    cleanup()
+    window.localStorage.clear()
+  })
+
+  it('shows the size toggle only in Grid, and remembers the last view for this viewer', async () => {
+    const user = userEvent.setup()
+    renderView({ state: { tab: 'components' } })
+    expect(screen.queryByRole('button', { name: 'View full size' })).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Grid' }))
+    expect(screen.getAllByRole('button', { name: 'View full size' }).length).toBeGreaterThan(0)
+    await user.click(screen.getByRole('button', { name: 'List' }))
+    expect(screen.queryByRole('button', { name: 'View full size' })).toBeNull()
+    expect(window.localStorage.getItem('orca.prototypes.designSystem.componentsView')).toBe('list')
+  })
+
+  it('opens a card to full size and back, through its own toggle', async () => {
+    const user = userEvent.setup()
+    renderView({ state: { tab: 'components' } })
+    await user.click(screen.getByRole('button', { name: 'Grid' }))
+    await user.click(firstOf(screen.getAllByRole('button', { name: 'View full size' })))
+    expect(screen.getAllByRole('button', { name: 'Back to compact size' })).toHaveLength(1)
+    await user.click(screen.getByRole('button', { name: 'Back to compact size' }))
+    expect(screen.queryByRole('button', { name: 'Back to compact size' })).toBeNull()
+  })
+})
+
+function firstOf(elements: HTMLElement[]): HTMLElement {
+  const [first] = elements
+  if (first === undefined) {
+    throw new Error('missing element')
+  }
+  return first
+}

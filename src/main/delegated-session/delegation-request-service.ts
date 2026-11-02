@@ -1,3 +1,4 @@
+import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
 import { boundJournalPromptBody } from '../native-chat/agent-session-journal/journal-prompt-body-bounds'
 import { OrchestrationError } from '../runtime/orchestration/orchestration-error'
 import {
@@ -10,12 +11,16 @@ import {
   sanitizePrototypeCountSetting
 } from '../../shared/prototype-count-setting'
 import { neutralizePrototypeMarkers } from '../../shared/prototype-hidden-instruction'
-import { decideDelegatedTaskPrototypeCount } from '../../shared/prototype-request-decision'
+import {
+  decideDelegatedTaskPrototypeCount,
+  delegatedTaskAsksForPrototypes
+} from '../../shared/prototype-request-decision'
+import type { PrototypeSystemCard } from '../../shared/prototype-design-system-card'
 import { PROTOTYPE_PROMPT_MAX_LENGTH } from '../../shared/rpc-contract/prototype-params'
 import { prototypeAgentOfChild } from './delegated-child-first-prompt'
 import {
   buildDelegationCardContent,
-  routeDelegationRequest,
+  routeDelegationRequestWithAdvice,
   type DelegationStoredAgent
 } from './delegation-options'
 import type { DelegationRequestDeps } from './delegation-service-types'
@@ -51,7 +56,8 @@ function titleFor(input: DelegationRequestInput): string {
 function prototypeCountFor(
   input: DelegationRequestInput,
   agents: readonly DelegationStoredAgent[],
-  readSetting: () => unknown
+  readSetting: () => unknown,
+  userMessage: string | undefined
 ): DelegationPrototypeCount | undefined {
   if (input.prompt.length > PROTOTYPE_PROMPT_MAX_LENGTH) {
     return undefined
@@ -59,16 +65,117 @@ function prototypeCountFor(
   const decision = decideDelegatedTaskPrototypeCount({
     text: neutralizePrototypeMarkers(input.prompt),
     agents: agents.map((agent) => prototypeAgentOfChild(agent.agent, agent.piRuntime)),
-    setting: sanitizePrototypeCountSetting(readSetting())
+    setting: sanitizePrototypeCountSetting(readSetting()),
+    ...(userMessage === undefined ? {} : { userMessage })
   })
   return decision.kind === 'ask'
     ? { choices: PROTOTYPE_CARD_COUNT_CHOICES, defaultCount: decision.defaultCount }
     : undefined
 }
 
+/**
+ * Whether the task makes a prototype request for its child: by its own words, or because the person asked for
+ * the design in a child session. A task too long for a child's first prompt makes none.
+ */
+function asksForPrototypes(
+  input: DelegationRequestInput,
+  agents: readonly DelegationStoredAgent[],
+  userMessage: string | undefined
+): boolean {
+  return (
+    input.prompt.length <= PROTOTYPE_PROMPT_MAX_LENGTH &&
+    delegatedTaskAsksForPrototypes({
+      text: neutralizePrototypeMarkers(input.prompt),
+      agents: agents.map((agent) => prototypeAgentOfChild(agent.agent, agent.piRuntime)),
+      ...(userMessage === undefined ? {} : { userMessage })
+    })
+  )
+}
+
+/** The person's last message in the parent chat; a read that fails leaves the task to its own words. */
+async function userMessageOf(
+  read: DelegationRequestDeps['readParentUserMessage'],
+  parentSessionId: string
+): Promise<string | undefined> {
+  try {
+    return await read(parentSessionId)
+  } catch (error) {
+    console.warn(
+      `[delegated-session] last message not read for ${parentSessionId}; the task is read by its own words: ${String(error)}`
+    )
+    return undefined
+  }
+}
+
+/**
+ * The design system question a task that asks for prototypes puts on its card, as a direct request's card
+ * does: whatever the count setting says, and only when the project's system could be read.
+ */
+async function designSystemFor(
+  input: DelegationRequestInput,
+  asks: boolean,
+  read: DelegationRequestDeps['readDesignSystemCard']
+): Promise<PrototypeSystemCard | undefined> {
+  if (!asks) {
+    return undefined
+  }
+  try {
+    return (await read(input.parentSessionId)) ?? undefined
+  } catch (error) {
+    console.warn(
+      `[delegated-session] design system not read for ${input.parentSessionId}; the card asks none: ${String(error)}`
+    )
+    return undefined
+  }
+}
+
 /** Files delegated-session requests and posts their agent-choice cards to the parent chat. */
 export class DelegationRequestService {
   constructor(private readonly deps: DelegationRequestDeps) {}
+
+  /** Files a request whose agent is already decided, so no card asks; the answer service starts it. */
+  async requestForAgent(
+    input: DelegationRequestInput & {
+      agent: string
+      /** The model and effort this child must run with, rather than ones sized from its summary. */
+      launch?: Readonly<Record<string, string>>
+      /** Which Pi this child runs; absent, the host picks whichever it has. */
+      piRuntime?: PiRuntimeSelection
+    }
+  ): Promise<string> {
+    const parent = this.deps.readParent(input.parentSessionId)
+    if (!parent) {
+      throw new OrchestrationError(
+        'delegation_parent_unavailable',
+        `Chat ${input.parentSessionId} is not held by this host, so it cannot start a child session. No effects were applied.`,
+        { effectsApplied: false }
+      )
+    }
+    const agents = await this.deps.listAgents(parent)
+    if (!agents.some((entry) => entry.agent === input.agent)) {
+      throw new OrchestrationError(
+        'delegation_no_agent',
+        `${input.agent} cannot run a chat in this workspace, so no child session can start. No effects were applied.`,
+        { effectsApplied: false }
+      )
+    }
+    return this.deps.requireDb().createDelegationRequest({
+      parentSessionId: parent.sessionId,
+      title: titleFor(input),
+      summary: input.summary,
+      prompt: input.prompt,
+      writes: input.writes,
+      workspaceKind: parent.workspaceKind,
+      optionsJson: JSON.stringify({ agents }),
+      decisionJson:
+        input.launch || input.piRuntime
+          ? JSON.stringify({
+              ...(input.launch ? { launch: input.launch } : {}),
+              ...(input.piRuntime ? { piRuntime: input.piRuntime } : {})
+            })
+          : null
+    }).id
+  }
 
   /** Files a request and posts its card to the parent chat; returns without waiting for a choice. */
   async request(input: DelegationRequestInput): Promise<DelegationRequestReceipt> {
@@ -90,18 +197,29 @@ export class DelegationRequestService {
     }
     const title = titleFor(input)
     await waitForDelegationUsageRefresh(this.deps.refreshUsage)
-    const route = routeDelegationRequest({
-      summary: input.summary,
-      title,
-      prompt: input.prompt,
-      writes: input.writes,
-      workspaceKind: parent.workspaceKind,
-      parentAgent: parent.agent,
+    const route = await routeDelegationRequestWithAdvice(
+      {
+        summary: input.summary,
+        title,
+        prompt: input.prompt,
+        writes: input.writes,
+        workspaceKind: parent.workspaceKind,
+        parentAgent: parent.agent,
+        agents,
+        rateLimits: this.deps.readRateLimits(),
+        now: this.deps.now()
+      },
+      this.deps.adviseTier
+    )
+    const userMessage = await userMessageOf(this.deps.readParentUserMessage, input.parentSessionId)
+    const prototypeTask = asksForPrototypes(input, agents, userMessage)
+    const prototypeCount = prototypeCountFor(
+      input,
       agents,
-      rateLimits: this.deps.readRateLimits(),
-      now: this.deps.now()
-    })
-    const prototypeCount = prototypeCountFor(input, agents, this.deps.readPrototypeCount)
+      this.deps.readPrototypeCount,
+      userMessage
+    )
+    const designSystem = await designSystemFor(input, prototypeTask, this.deps.readDesignSystemCard)
     const db = this.deps.requireDb()
     const row = db.createDelegationRequest({
       parentSessionId: parent.sessionId,
@@ -110,7 +228,8 @@ export class DelegationRequestService {
       prompt: input.prompt,
       writes: input.writes,
       workspaceKind: parent.workspaceKind,
-      optionsJson: JSON.stringify({ agents }),
+      // Why stored: the child's first prompt makes its request from this decision, not from the wording again.
+      optionsJson: JSON.stringify({ agents, ...(prototypeTask ? { prototype: true } : {}) }),
       decisionJson: route.status === 'routed' ? JSON.stringify(route.decision) : null
     })
     const card = buildDelegationCardContent({
@@ -122,7 +241,8 @@ export class DelegationRequestService {
       agents,
       writes: input.writes,
       workspaceKind: parent.workspaceKind,
-      ...(prototypeCount ? { prototypeCount } : {})
+      ...(prototypeCount ? { prototypeCount } : {}),
+      ...(designSystem ? { designSystem } : {})
     })
     // Recorded before the card can be seen, so a card in the chat always has its question on record.
     const questionItemId = delegationQuestionItemId(row.id)

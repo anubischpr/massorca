@@ -1,4 +1,5 @@
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
+import type { PrototypeDesignSystemMode } from '../../../src/shared/prototype-design-system-files'
 import type { PiRowRuntime } from '../../../src/shared/agent-type-label'
 import type {
   AskAnswerSelection,
@@ -93,7 +94,11 @@ export type MobileNativeChatController = {
   nativeChatBackgroundTasks: MobileStructuredBackgroundTasks | null
   nativeChatFilePaths: string[]
   loadNativeChatFiles: (query: string) => void
-  handleNativeChatQuestionAnswer: (text: string, count?: number) => Promise<boolean>
+  handleNativeChatQuestionAnswer: (
+    text: string,
+    count?: number,
+    designSystem?: PrototypeDesignSystemMode
+  ) => Promise<boolean>
   handleNativeChatSend: (text: string, images?: string[]) => Promise<boolean>
   /** Outcome-preserving send: callers that pasted terminal input beforehand
    *  (image sends) must see 'unknown' to heal a possibly-orphaned paste. Such a

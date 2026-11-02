@@ -68,6 +68,54 @@ import {
   AutomationRuns,
   AutomationUpdate
 } from './automation-params'
+import {
+  BotTeamAgentDelegate,
+  BotTeamAgentPost,
+  BotTeamAgentRemember,
+  BotTeamAgentTaskCreate
+} from './bot-team-agent-params'
+import { BotTeamMemoryDelete, BotTeamMemoryList } from './bot-team-memory-params'
+import {
+  BotTeamAddBot,
+  BotTeamCreate,
+  BotTeamRemoveBot,
+  BotTeamSelector,
+  BotTeamUpdate,
+  BotTeamUpdateBot
+} from './bot-team-params'
+import {
+  BotTeamMessagePost,
+  BotTeamProjectArchive,
+  BotTeamProjectCreate,
+  BotTeamProjectDelete,
+  BotTeamProjectSetBrief,
+  BotTeamProjectSetCodeSource,
+  BotTeamProjectSetWorkspace,
+  BotTeamProjectUpdate,
+  BotTeamRequestAssign,
+  BotTeamRoomListSelector,
+  BotTeamRoomSelector,
+  BotTeamTaskCreate,
+  BotTeamTaskReassign,
+  BotTeamTaskSetProject,
+  BotTeamTaskStart
+} from './bot-team-room-params'
+import {
+  BotTeamRoutineCreate,
+  BotTeamRoutineList,
+  BotTeamRoutineSelector,
+  BotTeamRoutineSetPaused
+} from './bot-team-routine-params'
+import {
+  BotTeamFileVersionsSelector,
+  BotTeamVersionFileSelector,
+  BotTeamVersionsSelector
+} from './bot-team-version-params'
+import {
+  BotTeamWebhookCreate,
+  BotTeamWebhookList,
+  BotTeamWebhookSelector
+} from './bot-team-webhook-params'
 import { CertificateProceed } from './browser-core-params'
 import { MouseClick } from './browser-extras-params'
 import { BrowserIdentitySet, ProfileCreate } from './browser-identity-params'
@@ -317,6 +365,7 @@ import {
   HostedReviewCreationEligibility,
   HostedReviewForBranch
 } from './hosted-review-params'
+import { JevDecisionsSaveApiKey, JevDecisionsSetEnabled } from './jev-decisions-params'
 import {
   AssignableUsers,
   Connect,
@@ -385,6 +434,7 @@ import {
   NotificationsSubscribeParams
 } from './notifications-params'
 import { OrcadMigrationCatalogParams } from './orcad-migration-params'
+import { ChildBringBackParams } from './orchestration-child-bring-back-params'
 import { DelegateRequestParams } from './orchestration-delegate-request-params'
 import {
   FederationDispatchParams,
@@ -694,6 +744,42 @@ export const RPC_PARAMS_BY_METHOD = {
   'automation.runs': AutomationRuns,
   'automation.show': AutomationId,
   'automation.update': AutomationUpdate,
+  'botTeams.addBot': BotTeamAddBot,
+  'botTeams.archiveProject': BotTeamProjectArchive,
+  'botTeams.assignRequest': BotTeamRequestAssign,
+  'botTeams.create': BotTeamCreate,
+  'botTeams.createProject': BotTeamProjectCreate,
+  'botTeams.createRoutine': BotTeamRoutineCreate,
+  'botTeams.createTask': BotTeamTaskCreate,
+  'botTeams.createWebhook': BotTeamWebhookCreate,
+  'botTeams.delete': BotTeamSelector,
+  'botTeams.deleteMemory': BotTeamMemoryDelete,
+  'botTeams.deleteProject': BotTeamProjectDelete,
+  'botTeams.fileVersions': BotTeamFileVersionsSelector,
+  'botTeams.list': null,
+  'botTeams.listLinkableWorkspaces': BotTeamRoomSelector,
+  'botTeams.listMemory': BotTeamMemoryList,
+  'botTeams.listRoom': BotTeamRoomListSelector,
+  'botTeams.listRoutineRuns': BotTeamRoutineSelector,
+  'botTeams.listRoutines': BotTeamRoutineList,
+  'botTeams.listWebhooks': BotTeamWebhookList,
+  'botTeams.postMessage': BotTeamMessagePost,
+  'botTeams.reassignTask': BotTeamTaskReassign,
+  'botTeams.removeBot': BotTeamRemoveBot,
+  'botTeams.replaceWebhookSecret': BotTeamWebhookSelector,
+  'botTeams.restoreFileVersion': BotTeamVersionFileSelector,
+  'botTeams.setProjectBrief': BotTeamProjectSetBrief,
+  'botTeams.setProjectCodeSource': BotTeamProjectSetCodeSource,
+  'botTeams.setProjectWorkspace': BotTeamProjectSetWorkspace,
+  'botTeams.setRoutinePaused': BotTeamRoutineSetPaused,
+  'botTeams.setTaskProject': BotTeamTaskSetProject,
+  'botTeams.startTask': BotTeamTaskStart,
+  'botTeams.update': BotTeamUpdate,
+  'botTeams.updateBot': BotTeamUpdateBot,
+  'botTeams.updateProject': BotTeamProjectUpdate,
+  'botTeams.versionFile': BotTeamVersionFileSelector,
+  'botTeams.versions': BotTeamVersionsSelector,
+  'botTeams.workspace': BotTeamRoomSelector,
   'browser.back': BrowserTarget,
   'browser.capture.start': BrowserTarget,
   'browser.capture.stop': BrowserTarget,
@@ -805,6 +891,10 @@ export const RPC_PARAMS_BY_METHOD = {
   'computer.scroll': ScrollOfComputerSchemasParams,
   'computer.setValue': SetValue,
   'computer.typeText': TypeText,
+  'delegation.bringBack': ChildBringBackParams,
+  'delegation.bringBackAbort': ChildBringBackParams,
+  'delegation.bringBackResolve': ChildBringBackParams,
+  'delegation.bringBackStatus': ChildBringBackParams,
   'diagnostics.memory': null,
   'emulator.attach': AttachParamsOfEmulatorParams,
   'emulator.availability': EmulatorAvailabilityParams,
@@ -982,6 +1072,10 @@ export const RPC_PARAMS_BY_METHOD = {
   'hostedReview.createStacked': HostedReviewCreate,
   'hostedReview.forBranch': HostedReviewForBranch,
   'hostedReview.getCreationEligibility': HostedReviewCreationEligibility,
+  'jevDecisions.clearApiKey': null,
+  'jevDecisions.getStatus': null,
+  'jevDecisions.saveApiKey': JevDecisionsSaveApiKey,
+  'jevDecisions.setEnabled': JevDecisionsSetEnabled,
   'jira.addIssueComment': IssueCommentOfJiraParams,
   'jira.connect': Connect,
   'jira.createIssue': CreateIssueOfJiraParams,
@@ -1076,6 +1170,11 @@ export const RPC_PARAMS_BY_METHOD = {
   'orcad.migration.stageSnapshotChunk': OrcadMigrationSnapshotChunkRequestSchema,
   'orcad.terminalCensus': OrcadTerminalCensusParamsSchema,
   'orchestration.ask': AskParams,
+  'orchestration.botTeamDelegate': BotTeamAgentDelegate,
+  'orchestration.botTeamPost': BotTeamAgentPost,
+  'orchestration.botTeamRemember': BotTeamAgentRemember,
+  'orchestration.botTeamTaskCreate': BotTeamAgentTaskCreate,
+  'orchestration.botTeamTasks': null,
   'orchestration.callerShow': null,
   'orchestration.check': CheckParams,
   'orchestration.delegateRequest': DelegateRequestParams,

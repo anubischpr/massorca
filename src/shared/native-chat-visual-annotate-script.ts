@@ -1,10 +1,14 @@
 import {
   NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS,
   NATIVE_CHAT_VISUAL_ANNOTATE_TYPE,
+  NATIVE_CHAT_VISUAL_CSS_PROPERTIES,
+  NATIVE_CHAT_VISUAL_CSS_VALUE_PATTERN,
   NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE,
   NATIVE_CHAT_VISUAL_OVERRIDES_TYPE,
   NATIVE_CHAT_VISUAL_PINS_TYPE,
-  NATIVE_CHAT_VISUAL_PIN_CLICKED_TYPE
+  NATIVE_CHAT_VISUAL_PIN_CLICKED_TYPE,
+  NATIVE_CHAT_VISUAL_MEASURE_TYPE,
+  NATIVE_CHAT_VISUAL_NATURAL_TYPE
 } from './native-chat-visual-annotate'
 import { ANNOTATE_FRAME_VALIDATE_SCRIPT } from './native-chat-visual-annotate-script-validate'
 import { ANNOTATE_FRAME_PAGE_SCRIPT } from './native-chat-visual-annotate-script-page'
@@ -23,8 +27,12 @@ export function nativeChatVisualAnnotateScript(channel: string): string {
     pins: NATIVE_CHAT_VISUAL_PINS_TYPE,
     overrides: NATIVE_CHAT_VISUAL_OVERRIDES_TYPE,
     picked: NATIVE_CHAT_VISUAL_ELEMENT_PICKED_TYPE,
+    measure: NATIVE_CHAT_VISUAL_MEASURE_TYPE,
+    natural: NATIVE_CHAT_VISUAL_NATURAL_TYPE,
     pinClicked: NATIVE_CHAT_VISUAL_PIN_CLICKED_TYPE,
-    limits: NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS
+    limits: NATIVE_CHAT_VISUAL_ANNOTATE_LIMITS,
+    cssProps: NATIVE_CHAT_VISUAL_CSS_PROPERTIES,
+    cssValue: NATIVE_CHAT_VISUAL_CSS_VALUE_PATTERN.source
   })
   return String.raw`(function () {
 'use strict'
@@ -59,6 +67,19 @@ function send(message) {
 ${ANNOTATE_FRAME_VALIDATE_SCRIPT}
 ${ANNOTATE_FRAME_PAGE_SCRIPT}
 ${ANNOTATE_FRAME_DESCRIBE_SCRIPT}
+// The natural width is the body at max-content, read and restored in one pass. The section's readout rides along.
+function measure() {
+  var body = document.body
+  var section = body ? body.firstElementChild : null
+  var before = body.style.width
+  body.style.width = 'max-content'
+  var width = Math.ceil(body.getBoundingClientRect().width)
+  body.style.width = before
+  var message = { type: C.natural, width: Math.min(L.px, Math.max(0, width)) }
+  if (section && section.localName === 'section') message.root = designOf(section)
+  send(message)
+}
+
 function onPointerEvent(event) {
   if (!enabled || isOverlay(event.target)) return
   event.preventDefault()
@@ -112,6 +133,10 @@ window.addEventListener('message', function (event) {
   if (event.source !== host || !data || typeof data !== 'object' || data.channel !== C.channel) return
   if (data.type === C.annotate) {
     if (typeof data.enabled === 'boolean') setEnabled(data.enabled)
+    return
+  }
+  if (data.type === C.measure) {
+    measure()
     return
   }
   if (data.type === C.pins) {

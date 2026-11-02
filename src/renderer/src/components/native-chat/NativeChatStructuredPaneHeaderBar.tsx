@@ -1,6 +1,11 @@
+import { createPortal } from 'react-dom'
 import type { AgentJournalItemBody } from '../../../../shared/agent-session-journal-types'
 import { structuredAgentSessionPaneKey } from '../../../../shared/structured-agent-session-projection'
 import { AgentSessionContinuationDialog } from '@/components/agent-session-continuation/AgentSessionContinuationDialog'
+import { useAppStore } from '../../store'
+import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
+import { useSessionBarActionsTarget } from '../../app-shell/session-bar-slot'
+import { selectFocusedSessionTab } from '../../store/slices/tabs/side-panel-group'
 import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
 import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 import { NativeChatStructuredPaneHeader } from './NativeChatStructuredPaneHeader'
@@ -10,7 +15,7 @@ import {
   useChatTransitionPending
 } from './structured-chat-transition-guard'
 
-/** A structured chat's header and its hand-off dialog. The header shows only while the pane is visible. */
+/** A structured chat's session actions and its hand-off dialog. The actions show only while the pane is the visible session. */
 export function NativeChatStructuredPaneHeaderBar({
   isVisible,
   tabId,
@@ -50,18 +55,36 @@ export function NativeChatStructuredPaneHeaderBar({
     hostPiRuntime: controller.hostPiRuntime
   })
   const terminalPending = useChatTransitionPending(chatTransitionKeyForSession(sessionId))
+  const summaryVisible = useAppStore((store) => store.settings?.nativeChatSummaryVisible !== false)
+  const updateSettings = useAppStore((store) => store.updateSettings)
+  const barTarget = useSessionBarActionsTarget()
+  const ownsSessionBar = useAppStore(
+    (store) => selectFocusedSessionTab(store, worktreeId)?.id === tabId
+  )
+  // Why inline: the floating panel and a not-yet-placed chat have no session bar to render into.
+  const inline = !barTarget || worktreeId === '' || worktreeId === FLOATING_TERMINAL_WORKTREE_ID
+  const header = (
+    <NativeChatStructuredPaneHeader
+      canHandOff={actions.canHandOff}
+      terminalView={actions.terminalView}
+      onHandOff={startHandOff}
+      onShowTerminal={() => void actions.showTerminal()}
+      terminalPending={terminalPending}
+      onSplitRight={actions.splitRight}
+      summaryVisible={summaryVisible}
+      onToggleSummary={() => void updateSettings({ nativeChatSummaryVisible: !summaryVisible })}
+    />
+  )
   return (
     <>
       {isVisible ? (
-        <NativeChatStructuredPaneHeader
-          canHandOff={actions.canHandOff}
-          terminalView={actions.terminalView}
-          onHandOff={startHandOff}
-          onShowTerminal={() => void actions.showTerminal()}
-          terminalPending={terminalPending}
-          onSplitRight={actions.splitRight}
-          onClose={actions.close}
-        />
+        inline ? (
+          <div className="flex h-8 shrink-0 items-center justify-end border-b border-border px-2">
+            {header}
+          </div>
+        ) : ownsSessionBar && barTarget ? (
+          createPortal(header, barTarget)
+        ) : null
       ) : null}
       {handOffRequest ? (
         <AgentSessionContinuationDialog

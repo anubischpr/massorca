@@ -1,3 +1,5 @@
+import { OrchestrationError } from '../../../../orchestration/orchestration-error'
+import type { PiRuntimeSelection } from '../../../../../../shared/pi-runtime-selection'
 /**
  * Where a worker's agent comes from: the terminal the caller passed, or a fresh launch through the
  * shared executor — into a worktree this start creates or into an existing one.
@@ -66,6 +68,7 @@ type WorkerAgentPlacementArgs = {
   launchPreferences: AgentLaunchPreferences | undefined
   /** Resolved against the agent's declared modes; present only for an explicit `--access-mode`. */
   accessMode?: AgentSessionExplicitAccess
+  piRuntime?: PiRuntimeSelection
   effects: WorkerEffect[]
   /** Attributes a throw to the step that was running, the way the caller's own stages do. */
   onStage: (stage: string) => void
@@ -196,6 +199,7 @@ function workerSurfaceFactory(
         dispatchId: args.dispatchId,
         ...(args.launchPreferences ? { launchPreferences: args.launchPreferences } : {}),
         ...(args.accessMode ? { accessMode: args.accessMode } : {}),
+        ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
         effects: args.effects
       })
       onStructuredSession(session)
@@ -206,6 +210,14 @@ function workerSurfaceFactory(
       }
     },
     createTerminalAgent: async ({ worktreeId }) => {
+      // A terminal cannot pin the runtime: it would quietly start whichever Pi the host has.
+      if (args.piRuntime) {
+        throw new OrchestrationError(
+          'capability_unsupported',
+          `This Pi runtime needs a chat worker, but this start would run a terminal: ${args.mode.detail}`,
+          { effectsApplied: false }
+        )
+      }
       recordSurfaceStage(worktreeId)
       const terminal = await createExistingWorktreeWorkerTerminal({
         runtime: args.runtime,

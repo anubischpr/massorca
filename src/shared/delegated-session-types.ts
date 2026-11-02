@@ -58,6 +58,8 @@ export type DelegationDecision = {
   placementWarning: DelegationPlacementWarning | null
   ranking: DelegationAgentUsage[]
   reasons: DelegationReasonCode[]
+  /** Set when Jev chose the tier; absent when the classifier did. */
+  tierAdvisedBy?: 'jev'
 }
 
 export type DelegationRouteResult =

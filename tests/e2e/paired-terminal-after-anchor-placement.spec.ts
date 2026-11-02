@@ -8,7 +8,7 @@ import { waitForActiveWorktree, waitForSessionReady } from './helpers/store'
 import { toHostSessionTabId, toWebTerminalSurfaceTabId } from '../../src/shared/terminal-surface-id'
 
 async function createTerminal(page: Page, worktreeId: string, afterTabId?: string) {
-  const tabs = page.locator('[data-testid="sortable-tab"]')
+  const tabs = page.locator('[data-testid="side-panel-tab"]')
   const before = await tabs.evaluateAll((tabs) =>
     tabs.map((tab) => tab.getAttribute('data-tab-id'))
   )
@@ -82,7 +82,7 @@ async function createTerminal(page: Page, worktreeId: string, afterTabId?: strin
 }
 
 async function tabWindow(page: Page, anchor: string) {
-  return page.locator('[data-testid="sortable-tab"]').evaluateAll((tabs, anchor) => {
+  return page.locator('[data-testid="side-panel-tab"]').evaluateAll((tabs, anchor) => {
     const ids = tabs.map((tab) => tab.getAttribute('data-tab-id'))
     const index = ids.indexOf(anchor)
     return index === -1 ? [] : ids.slice(index, index + 3)
@@ -104,7 +104,7 @@ test('paired web creation places a terminal after its anchor on both host and cl
     }
     await client.page.evaluate((id) => window.__store?.getState().setActiveWorktree(id), worktreeId)
     await expect(
-      client.page.locator('[data-testid="sortable-tab"][data-active="true"]')
+      client.page.locator('[data-testid="side-panel-tab"][data-active="true"]')
     ).toBeVisible()
     const first = await createTerminal(client.page, worktreeId)
     const second = await createTerminal(client.page, worktreeId)

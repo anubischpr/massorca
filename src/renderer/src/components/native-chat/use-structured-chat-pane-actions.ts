@@ -15,7 +15,7 @@ import { closeStructuredAgentSession } from '../../runtime/structured-agent-sess
 import { readStructuredAgentSessionProviderSession } from '../../runtime/structured-agent-session-provider-session'
 import type { RuntimeClientTarget } from '../../runtime/runtime-rpc-client'
 import { prepareAgentSessionContinuationFromSource } from '../terminal-pane/terminal-agent-session-continuation'
-import { runNativeChatSplitTarget } from './native-chat-layout-actions'
+import { openSessionPickerPane } from '../tab-group/session-picker-pane'
 import { structuredAgentSessionMessageText } from './structured-agent-session-message-hand-back'
 import {
   createStructuredChatPaneActions,
@@ -105,11 +105,9 @@ export function useStructuredChatPaneActions(args: {
           lastAssistantMessage
         },
         {
-          splitRight: (unifiedTabId, splitGroupId) =>
-            runNativeChatSplitTarget(
-              { kind: 'workspace-tab', unifiedTabId, groupId: splitGroupId },
-              'right'
-            ),
+          // Why: the new pane starts empty and the person picks its session, instead of this one moving or repeating.
+          splitRight: (_unifiedTabId, splitGroupId) =>
+            worktreeId ? openSessionPickerPane(worktreeId, splitGroupId, 'right') : false,
           closeTab: (closeTabId) => {
             useAppStore.getState().closeUnifiedTab(closeTabId)
           },

@@ -7,12 +7,26 @@ import { TUI_AGENT_DISPLAY_NAMES } from '../../shared/tui-agent-display-names'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
 import type { StructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-host'
 import { structuredAgentSessionHostRows } from '../native-chat/agent-session-wire/structured-agent-session-host-rows'
+import { lastPersonMessageText } from './delegation-person-message'
+import { launchDirectoryOfChat } from '../native-chat/chat-launch-directory'
+import { readDesignSystemOfLaunchDirectory } from '../native-chat/prototype-design-system-files'
+import {
+  prototypeSystemCardOf,
+  type PrototypeSystemCard
+} from '../../shared/prototype-design-system-card'
 import { observeDispatchSettlements } from '../runtime/orchestration/db/dispatch-settlement-observers'
 import type { OrchestrationDb } from '../runtime/orchestration/db'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { STRUCTURED_AGENT_RUNTIME_REGISTRATIONS } from '../runtime/structured-agent-runtime-registrations'
 import { declaredAccessForStructuredAgent } from '../runtime/rpc/methods/orchestration/worker/worker-start-access-mode'
+import type { ChildBringBackPolicy } from '../../shared/child-bring-back'
+import { launchedAccessPosture } from '../native-chat/agent-session-wire/structured-agent-session-access-posture'
+import { ChildBringBackService } from './child-bring-back'
+import { ChildBringBackAutomatic, childBringBackPolicyOf } from './child-bring-back-automatic'
+import { storedOptionsWithAutomaticBringBack } from './delegation-stored-request'
+import { readJevApiKey } from '../jev/jev-api-key-store'
 import { DelegationAnswerService } from './delegation-answer-service'
+import { createJevDelegationTierAdvisor } from './delegation-jev-tier'
 import { createDelegationLauncher } from './delegation-launch'
 import { discardFailedDelegatedStart } from './delegation-failed-start'
 import type { DelegationStoredAgent } from './delegation-options'
@@ -31,12 +45,15 @@ type DelegationRuntime = Pick<
   | 'getExistingOrchestrationDb'
   | 'getAccountsSnapshot'
   | 'refreshAccountsForMobileSubscriber'
+  | 'isJevDecisionsEnabled'
   | 'getStructuredAgentSessionCreateSupport'
   | 'resolveStructuredAgentSessionLocalWorkspacePath'
 >
 
 const requestServices = new WeakMap<object, DelegationRequestService>()
 const answerServices = new WeakMap<object, DelegationAnswerService>()
+const bringBackServices = new WeakMap<object, ChildBringBackService>()
+const bringBackAutomatics = new WeakMap<object, ChildBringBackAutomatic>()
 const reconciled = new WeakSet<object>()
 
 function requireHost(): StructuredAgentSessionHost {
@@ -59,6 +76,31 @@ function readParentSession(sessionId: string): DelegationParentSession | null {
     workspaceKind: record.location.workspaceKind === 'folder' ? 'folder' : 'git',
     accessMode: record.options?.accessMode
   }
+}
+
+/** The person's last message in the parent chat, read from its journal on this host. */
+async function readParentUserMessage(sessionId: string): Promise<string | undefined> {
+  const host = getStructuredAgentSessionHost()
+  if (!host?.deps.store.getRecord(sessionId)) {
+    return undefined
+  }
+  const { journal } = await host.lifetime.conversation(sessionId)
+  return lastPersonMessageText(journal.snapshot().items)
+}
+
+/** The design system card of the parent chat's project, read on this host like the composer's request does. */
+async function readParentDesignSystemCard(sessionId: string): Promise<PrototypeSystemCard | null> {
+  const host = getStructuredAgentSessionHost()
+  const record = host?.deps.store.getRecord(sessionId)
+  if (!host || !record) {
+    return null
+  }
+  const launchDirectory = await launchDirectoryOfChat(record, host.deps.resolveWorkspacePath)
+  if (launchDirectory === undefined) {
+    return null
+  }
+  const read = await readDesignSystemOfLaunchDirectory(launchDirectory)
+  return read.ok ? prototypeSystemCardOf(read) : null
 }
 
 function agentLabel(agent: string, piRuntime: string | undefined): string {
@@ -168,12 +210,87 @@ export function getDelegationRequestService(runtime: OrcaRuntimeService): Delega
     readParent: readParentSession,
     listAgents: (parent) => listUsableAgents(runtime, parent),
     readPrototypeCount: () => runtime.readPrototypeCountSetting(),
+    readDesignSystemCard: readParentDesignSystemCard,
+    readParentUserMessage,
     readRateLimits: () => readRateLimits(runtime),
     refreshUsage: () => runtime.refreshAccountsForMobileSubscriber(),
-    now: () => Date.now()
+    now: () => Date.now(),
+    // Why here: the host holding the chat decides, with its own setting and key.
+    adviseTier: createJevDelegationTierAdvisor({
+      isEnabled: () => runtime.isJevDecisionsEnabled(),
+      readApiKey: readJevApiKey
+    })
   })
   requestServices.set(runtime, service)
   return service
+}
+
+function readSessionWorkspaceId(sessionId: string): string | null {
+  return (
+    getStructuredAgentSessionHost()?.deps.store.getRecord(sessionId)?.location.workspaceId ?? null
+  )
+}
+
+async function isSessionWorking(sessionId: string): Promise<boolean> {
+  const host = getStructuredAgentSessionHost()
+  if (!host?.deps.store.getRecord(sessionId)) {
+    return false
+  }
+  const { journal } = await host.lifetime.conversation(sessionId)
+  return journal.activeTurnId() !== null
+}
+
+/** The runtime's Bring back service: git runs wherever each worktree's host is. */
+export function getChildBringBackService(runtime: OrcaRuntimeService): ChildBringBackService {
+  const existing = bringBackServices.get(runtime)
+  if (existing) {
+    return existing
+  }
+  const service = new ChildBringBackService({
+    readRequest: (requestId) => existingDb(runtime)?.getDelegationRequest(requestId),
+    readWorkspaceId: readSessionWorkspaceId,
+    isSessionWorking,
+    gitIn: (workspaceId) => runtime.openRuntimeGitWorktree(`id:${workspaceId}`),
+    tellParent: tellParentAgent,
+    warn: (message, error) => console.warn(`[delegated-session] ${message}`, error)
+  })
+  bringBackServices.set(runtime, service)
+  return service
+}
+
+function readBringBackPolicy(parentSessionId: string): ChildBringBackPolicy {
+  const host = getStructuredAgentSessionHost()
+  return childBringBackPolicyOf(
+    host ? launchedAccessPosture(host.deps, parentSessionId) : undefined
+  )
+}
+
+function getChildBringBackAutomatic(runtime: OrcaRuntimeService): ChildBringBackAutomatic {
+  const existing = bringBackAutomatics.get(runtime)
+  if (existing) {
+    return existing
+  }
+  const automatic = new ChildBringBackAutomatic({
+    service: getChildBringBackService(runtime),
+    readRequest: (requestId) => existingDb(runtime)?.getDelegationRequest(requestId),
+    listFinishedRequests: () =>
+      existingDb(runtime)?.listDelegationRequestsByStatus('finished') ?? [],
+    readWorkspaceId: readSessionWorkspaceId,
+    readPolicy: readBringBackPolicy,
+    mark: (requestId, mark) => {
+      const db = existingDb(runtime)
+      const row = db?.getDelegationRequest(requestId)
+      if (db && row) {
+        db.patchDelegationRequest(requestId, {
+          options_json: storedOptionsWithAutomaticBringBack(row, mark)
+        })
+      }
+    },
+    tellParent: tellParentAgent,
+    warn: (message, error) => console.warn(`[delegated-session] ${message}`, error)
+  })
+  bringBackAutomatics.set(runtime, automatic)
+  return automatic
 }
 
 /** The runtime's delegation answer service; its dispatch listener lives as long as the process. */
@@ -189,6 +306,8 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
     readRateLimits: () => readRateLimits(runtime),
     refreshUsage: () => runtime.refreshAccountsForMobileSubscriber(),
     tellParent: tellParentAgent,
+    onChildSucceeded: (requestId) =>
+      void getChildBringBackAutomatic(runtime).onChildFinished(requestId),
     launch: createDelegationLauncher({
       requireDb: () => runtime.getOrchestrationDb(),
       declaredAccess: declaredAccessForStructuredAgent,
@@ -217,8 +336,28 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
           },
           failed
         ),
+      readChildGit: async (childSessionId) => {
+        const workspaceId = readSessionWorkspaceId(childSessionId)
+        const git = workspaceId && (await runtime.openRuntimeGitWorktree(`id:${workspaceId}`))
+        if (!git) {
+          return null
+        }
+        const [branch, baseSha] = await Promise.all([
+          git.run(['symbolic-ref', '--short', '-q', 'HEAD']),
+          git.run(['rev-parse', 'HEAD'])
+        ])
+        return { branch: branch.trim(), baseSha: baseSha.trim() }
+      },
       warn: (message, error) => console.warn(`[delegated-session] ${message}`, error),
-      startWorker: async ({ params, run, caller, task, prototypeCount }) => {
+      startWorker: async ({
+        params,
+        run,
+        caller,
+        task,
+        prototypeCount,
+        designSystem,
+        prototypeTask
+      }) => {
         // Loaded on use: the worker-start pipeline imports far more than a request needs.
         const [{ startLocalWorker }, modeModule, timing] = await Promise.all([
           import('../runtime/rpc/methods/orchestration/worker/local-worker-start'),
@@ -226,7 +365,10 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
           import('../../shared/orchestration-timing-budgets')
         ])
         return startLocalWorker({
-          params: { ...params, timeoutMs: timing.resolveWorkerStartReadinessTimeoutMs(undefined) },
+          params: {
+            ...params,
+            timeoutMs: timing.resolveWorkerStartReadinessTimeoutMs(undefined)
+          },
           runtime,
           db: runtime.getOrchestrationDb(),
           run,
@@ -239,7 +381,9 @@ export function getDelegationAnswerService(runtime: OrcaRuntimeService): Delegat
                 childSessionId,
                 originSessionId: caller.sessionId,
                 taskSpec: task.spec,
-                ...(prototypeCount === undefined ? {} : { count: prototypeCount })
+                ...(prototypeCount === undefined ? {} : { count: prototypeCount }),
+                ...(designSystem === undefined ? {} : { designSystem }),
+                ...(prototypeTask ? { prototypeTask } : {})
               },
               delegatedChildPromptDeps(runtime)
             ),
@@ -280,4 +424,14 @@ export function reconcileDelegationRequests(runtime: OrcaRuntimeService): void {
     .catch((error: unknown) => {
       console.warn('[delegated-session] reconciling delegation requests failed', error)
     })
+  const automatic = getChildBringBackAutomatic(runtime)
+  void automatic.reconcile()
+  getStructuredAgentSessionHost()?.subscribeTurnCompletions({
+    id: 'child-bring-back-automatic',
+    emit: (event) => {
+      if (event.type === 'completion') {
+        void automatic.onTurnEnded(event.completion.sessionId)
+      }
+    }
+  })
 }

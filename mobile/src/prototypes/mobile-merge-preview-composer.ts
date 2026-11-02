@@ -167,7 +167,6 @@ export function mergePreviewFromResponse(input: {
   return assembleMergePreview({
     parts: input.parts,
     matches,
-    hoveredId: null,
     view: 'phone',
     unplacedText: unplacedLine
   })

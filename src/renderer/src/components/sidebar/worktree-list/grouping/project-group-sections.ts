@@ -2,6 +2,7 @@ import {
   compareFolderWorkspacesForDisplay,
   type RenderableFolderWorkspace
 } from './folder-workspace-lanes'
+import { isBotTeamFolderPath } from '../../../../../../shared/bot-team-folder'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
 import type { ProjectOrderBy } from '../../../../../../shared/ui-chrome-types'
 import { getEffectiveProjectGroupManualRank } from '../../../../../../shared/project-groups'
@@ -26,7 +27,14 @@ export function appendProjectGroupSections(
     repoOrder: Map<string, number> | undefined
   }
 ): void {
-  const { orderedGroups, projectGroups, folderWorkspaces, projectOrderBy, repoOrder } = args
+  const { orderedGroups, projectOrderBy, repoOrder } = args
+  const folderWorkspaces = args.folderWorkspaces
+  // Why: team folders are narrowed to teams with Workspaces on before this list; their group shows only with one.
+  const projectGroups = args.projectGroups.filter(
+    (group) =>
+      !isBotTeamFolderPath(group.parentPath ?? '') ||
+      folderWorkspaces.some((entry) => entry.projectGroup.id === group.id)
+  )
   const { result, collapsedGroups } = ctx
 
   const groupByProjectGroupId = new Map<string | null, OrderedGroupEntry[]>()
@@ -97,6 +105,18 @@ export function appendProjectGroupSections(
     )
   }
 
+  // Why: a folded project group's header speaks for every worktree under it, nested groups included.
+  const getProjectGroupSubtreeWorktreeIds = (groupId: string): string[] => {
+    const direct = (groupByProjectGroupId.get(groupId) ?? []).flatMap(([, entry]) =>
+      entry.items.map((worktree) => worktree.id)
+    )
+    const children = childGroupsByParentId.get(groupId) ?? []
+    return children.reduce(
+      (ids, child) => [...ids, ...getProjectGroupSubtreeWorktreeIds(child.id)],
+      direct
+    )
+  }
+
   const appendProjectGroup = (projectGroup: ProjectGroup, depth: number): void => {
     const repoEntries = sortRepoEntriesWithinGroup(groupByProjectGroupId.get(projectGroup.id) ?? [])
     const childGroups = childGroupsByParentId.get(projectGroup.id) ?? []
@@ -109,7 +129,8 @@ export function appendProjectGroupSections(
       tone: PROJECT_GROUP_META.tone,
       icon: PROJECT_GROUP_META.icon,
       projectGroup,
-      projectGroupDepth: depth
+      projectGroupDepth: depth,
+      worktreeIds: getProjectGroupSubtreeWorktreeIds(projectGroup.id)
     })
     if (!collapsedGroups.has(key)) {
       for (const pair of folderWorkspacesByProjectGroupId.get(projectGroup.id) ?? []) {

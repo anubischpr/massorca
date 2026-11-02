@@ -10,6 +10,21 @@ import { reconcileClientOwnedTabPlacement } from '../web-session-client-owned-ta
 import { buildMirroredHostGroups, retainClientPlacedMirroredTabs } from './layout-groups'
 import { sanitizeRecentTabIds, pushRecentTabId } from './state-equality-core'
 
+/** Empty groups go, except the target, a reserved pending create, and a pane that shows another workspace's session. */
+export function retainGroupsAfterMirrorMerge(
+  groups: readonly TabGroup[],
+  targetGroupId: string,
+  worktreeId: string
+): TabGroup[] {
+  return groups.filter(
+    (group) =>
+      group.id === targetGroupId ||
+      group.tabOrder.length > 0 ||
+      group.sessionRef !== undefined ||
+      isWebSessionBrowserPlacementGroupReserved({ worktreeId, groupId: group.id })
+  )
+}
+
 export function prepareWebSessionTabsSnapshotGroups(
   base: ReturnType<typeof prepareWebSessionTabsSnapshotUnified>
 ) {
@@ -182,15 +197,7 @@ export function prepareWebSessionTabsSnapshotGroups(
     const merged = strippedGroups.some((group) => group.id === targetGroupId)
       ? strippedGroups.map((group) => (group.id === targetGroupId ? updatedTarget : group))
       : [...strippedGroups, updatedTarget]
-    return merged.filter(
-      (group) =>
-        group.id === targetGroupId ||
-        group.tabOrder.length > 0 ||
-        isWebSessionBrowserPlacementGroupReserved({
-          worktreeId,
-          groupId: group.id
-        })
-    )
+    return retainGroupsAfterMirrorMerge(merged, targetGroupId, worktreeId)
   })()
 
   const nextTabBarOrder = (() => {

@@ -28,6 +28,7 @@ import {
 import type { TerminalPaneController } from './use-terminal-pane-controller'
 import { useAppStore } from '@/store'
 import { isTerminalPaneOnClient } from './terminal-pane-client-host'
+import { useTerminalSessionBar } from './TerminalSessionBarActions'
 
 export function TerminalPaneSurface({
   controller
@@ -119,6 +120,7 @@ export function TerminalPaneSurface({
     worktreeId
   } = controller
   const paneOnClient = useAppStore((state) => isTerminalPaneOnClient(state, worktreeId))
+  const sessionBar = useTerminalSessionBar(worktreeId, tabId)
 
   return (
     <>
@@ -345,6 +347,7 @@ export function TerminalPaneSurface({
         managerRef={managerRef}
         paneTransportsRef={paneTransportsRef}
         canToggleNativeChat={activePaneCanToggleChat}
+        sessionBar={sessionBar}
         isChatViewMode={activePaneIsChatLeaf}
         onToggleNativeChat={handleToggleNativeChat}
         canContinueAgentSessionInNewSession={activePaneCanContinueInNewSession}

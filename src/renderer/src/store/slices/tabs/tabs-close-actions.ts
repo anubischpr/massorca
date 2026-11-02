@@ -8,6 +8,7 @@ import {
   sanitizeRecentTabIds
 } from '../tab-group-state'
 import { buildActiveSurfacePatch } from './tabs-surface'
+import { hasLiveReferencePane } from './pane-session-ref'
 import { beginStructuredAgentSessionTabClose } from '@/runtime/structured-agent-session-tab-retirement'
 import {
   hasStructuredAgentSessionLaunchCancellationTombstone,
@@ -128,6 +129,9 @@ export function createTabsCloseActions(
         const shouldDeactivateWorktree =
           !opts?.preserveWorktreeSelection &&
           current.activeWorktreeId === worktreeId &&
+          // Why: a live reference pane is content, and focus following a shown session is handed back by the normalizer.
+          !hasLiveReferencePane(current, worktreeId) &&
+          current.paneFocus?.ownerWorktreeId !== worktreeId &&
           nextTabs.length === 0 &&
           (current.tabsByWorktree[worktreeId] ?? []).length === 0 &&
           (current.browserTabsByWorktree[worktreeId] ?? []).length === 0 &&

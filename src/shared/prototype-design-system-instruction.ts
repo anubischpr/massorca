@@ -52,6 +52,8 @@ const NO_IDENTITY_UNATTENDED =
 // Tells the user at a glance which of the two happened.
 const REPORT_LINE =
   'Start your visible reply with one line saying whether the design system was reused (with its version) or created.'
+// Why: a child's own reply is not read by the user; its report is what the parent session passes on.
+const REPORT_LINE_UNATTENDED = `${REPORT_LINE} Begin the --body of your worker_done report with that same statement.`
 
 /**
  * Appended to every prototype request except "Skip", before the format of the files it names. The system is built
@@ -64,13 +66,13 @@ export function designSystemReadInstruction(options: DesignSystemInstructionOpti
       ? `${paths.tokens}, components.html and system.md`
       : `${paths.tokens}, ${paths.components} and ${paths.source}`
   const unattended = options.unattended === true
-  return `Before designing, read ${files}. If they are missing: ${unattended ? DERIVE_MISSING_SYSTEM_UNATTENDED : DERIVE_MISSING_SYSTEM} If they exist, reuse them as they are: never regenerate, rewrite or reformat them. If a direction needs a token or component the system lacks, add only that one, keep every existing token, value and component unchanged, bump the version with a history entry, and note the addition in system.md. ${unattended ? NO_IDENTITY_UNATTENDED : NO_IDENTITY_FOR_REVIEW} Build every direction only with these tokens and components. ${REPORT_LINE}`
+  return `Before designing, check whether ${files} exist: list their folder or test each path, and read a file only when it exists. If they are missing: ${unattended ? DERIVE_MISSING_SYSTEM_UNATTENDED : DERIVE_MISSING_SYSTEM} If they exist, reuse them as they are: never regenerate, rewrite or reformat them. If a direction needs a token or component the system lacks, add only that one, keep every existing token, value and component unchanged, bump the version with a history entry, and note the addition in system.md. ${unattended ? NO_IDENTITY_UNATTENDED : NO_IDENTITY_FOR_REVIEW} Build every direction only with these tokens and components. ${unattended ? REPORT_LINE_UNATTENDED : REPORT_LINE}`
 }
 
 export const DESIGN_SYSTEM_READ_INSTRUCTION = designSystemReadInstruction()
 
 /** The re-detect message's instruction: the sources are read again, and only what they changed is written. */
-export const DESIGN_SYSTEM_REDETECT_INSTRUCTION = `Re-read the project's sources and compare them with the existing design/system files. Change only the tokens and components whose source changed, add ones that are new, keep every other token, value and component exactly as it is, bump the version with a history entry, and update the sources in tokens.json and system.md. If the files are missing, ${DERIVE_MISSING_SYSTEM}`
+export const DESIGN_SYSTEM_REDETECT_INSTRUCTION = `Re-read the project's sources and compare them with the existing design/system files. Check which of those files exist first: list their folder or test each path, and read only the ones that exist. Change only the tokens and components whose source changed, add ones that are new, keep every other token, value and component exactly as it is, bump the version with a history entry, and update the sources in tokens.json and system.md. If the files are missing, ${DERIVE_MISSING_SYSTEM}`
 
 /** The two file contracts, briefly: what an agent writes and what MassOrca reads back. */
 export function designSystemFormatInstruction(folder?: string): string {

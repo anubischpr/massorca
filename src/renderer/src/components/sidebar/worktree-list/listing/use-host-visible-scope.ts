@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import type { FolderWorkspace } from '../../../../../../shared/folder-workspace-types'
+import { isBotTeamFolderShown } from '../../../../../../shared/bot-team-folder'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
+import { useBotTeamWorkspaceIds } from '../../../bot-teams/use-bot-teams'
 import type { Repo } from '../../../../../../shared/repo-types'
 import {
   getRepoExecutionHostId,
@@ -45,9 +47,12 @@ export function useSidebarHostVisibleScope(args: {
     () => filterProjectGroupsForVisibleHosts(projectGroups, visibleHostIdSet, defaultHostId),
     [defaultHostId, projectGroups, visibleHostIdSet]
   )
+  const botTeamWorkspaceIds = useBotTeamWorkspaceIds()
   const visibleFolderWorkspacesForRows = useMemo(() => {
     const hostVisibleWorkspaces = filterFolderWorkspacesForVisibleHosts(
-      folderWorkspaces,
+      folderWorkspaces.filter((folderWorkspace) =>
+        isBotTeamFolderShown(folderWorkspace.folderPath, botTeamWorkspaceIds)
+      ),
       projectGroups,
       visibleHostIdSet,
       defaultHostId
@@ -61,6 +66,7 @@ export function useSidebarHostVisibleScope(args: {
     )
   }, [
     args.pairedDeviceIdsByEnvironment,
+    botTeamWorkspaceIds,
     defaultHostId,
     folderWorkspaces,
     hideWorkspacesFromOtherDevices,

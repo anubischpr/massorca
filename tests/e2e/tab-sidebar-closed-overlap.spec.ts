@@ -118,12 +118,10 @@ test.describe('Tab visibility with closed sidebar', () => {
     } | null> =>
       orcaPage.evaluate(() => {
         const titlebarLeft = document.querySelector<HTMLElement>('.titlebar-left')
-        // Why: split tab groups render multiple sortable-tab elements, and
-        // DOM order is not guaranteed to match visual order. The tab the
-        // floating titlebar can occlude is the leftmost one on screen, so
-        // pick by smallest bounding-rect left instead of DOM querySelector.
+        // Why: the main area has no tab strip any more; the session bar's name is the
+        // leftmost content the floating titlebar can occlude.
         const allTabs = Array.from(
-          document.querySelectorAll<HTMLElement>('[data-testid="sortable-tab"]')
+          document.querySelectorAll<HTMLElement>('[data-session-bar] > span')
         )
         if (!titlebarLeft || allTabs.length === 0) {
           return null

@@ -107,14 +107,14 @@ async function ensureTwoTerminalTabs(
   page: Page
 ): Promise<{ firstTabId: string; secondTabId: string }> {
   const worktreeId = (await getActiveWorktreeId(page))!
-  if ((await page.locator('[data-testid="sortable-tab"]').count()) < 2) {
+  if ((await page.locator('[data-testid="side-panel-tab"]').count()) < 2) {
     await page.getByRole('button', { name: 'New tab' }).click({ force: true })
     await page
       .getByRole('menuitem', { name: /New Terminal/i })
       .first()
       .click({ force: true })
     await expect
-      .poll(() => page.locator('[data-testid="sortable-tab"]').count(), { timeout: 5_000 })
+      .poll(() => page.locator('[data-testid="side-panel-tab"]').count(), { timeout: 5_000 })
       .toBeGreaterThanOrEqual(2)
   }
   const firstTabId = (await getActiveTabId(page))!
@@ -188,7 +188,7 @@ async function activateTerminalTab(page: Page, tabId: string): Promise<void> {
     .poll(
       () =>
         page
-          .locator(`[data-testid="sortable-tab"][data-active="true"]`)
+          .locator(`[data-testid="side-panel-tab"][data-active="true"]`)
           .getAttribute('data-tab-id'),
       {
         timeout: 3_000

@@ -1,4 +1,6 @@
 // @ts-nocheck -- mechanically split from OrcaRuntimeService; behavior is covered by AST equivalence and characterization tests.
+import { repoIsRemote } from '../../shared/agent-launch-remote'
+import { splitWorktreeIdForFilesystem } from '../../shared/worktree/id'
 import { agentSessionRefusalError } from '../../shared/agent-session-wire-refusals'
 import type { StructuredAgentSessionCreateIntentInput } from './structured-agent-session-create-intent-types'
 import { OrcaRuntimeWithGetWorktreePs } from './orca-runtime-get-worktree-ps'
@@ -139,6 +141,16 @@ export class OrcaRuntimeWithGetStructuredAgentSessionCreateSupport extends OrcaR
       return null
     }
     return (await this.resolveRuntimeFileTarget(worktreeSelector)).worktree.path
+  }
+
+  /**
+   * The path of the repository a workspace belongs to, read from the repository record rather than the
+   * worktree, so it still answers after the worktree is removed. Null for a repository on another host.
+   */
+  async resolveWorkspaceRepositoryPath(workspaceId: string): Promise<string | undefined> {
+    const repoId = splitWorktreeIdForFilesystem(workspaceId)?.repoId
+    const repo = repoId === undefined ? undefined : this.store?.getRepo(repoId)
+    return repo && !repoIsRemote(repo) ? repo.path : undefined
   }
 
   async resolveStructuredAgentSessionCreateIntent(

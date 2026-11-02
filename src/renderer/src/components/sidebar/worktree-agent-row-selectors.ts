@@ -99,7 +99,7 @@ export function getTabIdToWorktreeId(
   return tabIdToWorktreeId
 }
 
-function getLiveTabIdToWorktreeId(
+export function getLiveTabIdToWorktreeId(
   tabsByWorktree: WorktreeAgentRowsState['tabsByWorktree'],
   unifiedTabsByWorktree: WorktreeAgentRowsState['unifiedTabsByWorktree']
 ): Map<string, string> {

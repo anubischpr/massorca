@@ -142,6 +142,7 @@ export class FolderWorkspacePersistenceOperations {
         | 'createdWithAgent'
         | 'pendingFirstAgentMessageRename'
         | 'firstAgentMessageRenameError'
+        | 'manualDisplayName'
         | 'lastActivityAt'
         | 'diffComments'
       >
@@ -236,6 +237,9 @@ export class FolderWorkspacePersistenceOperations {
     }
     if (updates.firstAgentMessageRenameError !== undefined) {
       workspace.firstAgentMessageRenameError = updates.firstAgentMessageRenameError
+    }
+    if (updates.manualDisplayName !== undefined) {
+      workspace.manualDisplayName = updates.manualDisplayName
     }
     if (updates.lastActivityAt !== undefined && Number.isFinite(updates.lastActivityAt)) {
       workspace.lastActivityAt = updates.lastActivityAt

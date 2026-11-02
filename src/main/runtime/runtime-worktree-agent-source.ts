@@ -23,4 +23,6 @@ export type RuntimeWorktreeAgentSource = {
   structuredHost?: StructuredHostStatus
   /** Gentle Shell marks a Pi row, from its structured record or transcript; stock Pi omits it. */
   piRuntime?: 'gentle-shell'
+  /** The handle of the connected PTY this row runs in; absent when no live PTY answers to it. */
+  terminalHandle?: string
 }

@@ -1,3 +1,5 @@
+import { readStoredPrototypeTask } from './delegation-stored-request'
+import type { PrototypeSystemCard } from '../../shared/prototype-design-system-card'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   AgentJournalItemBody,
@@ -60,6 +62,8 @@ describe('DelegationRequestService.request', () => {
       readRateLimits: () => createEmptyRateLimitState({}),
       refreshUsage: async () => {},
       readPrototypeCount: () => ({ mode: 'always', count: 2 }),
+      readDesignSystemCard: async () => null,
+      readParentUserMessage: async () => undefined,
       now: () => NOW
     }
   })
@@ -176,7 +180,12 @@ describe('DelegationRequestService.request', () => {
           codex: {
             provider: 'codex',
             session: null,
-            weekly: { usedPercent: 37, windowMinutes: 10_080, resetsAt: null, resetDescription: null },
+            weekly: {
+              usedPercent: 37,
+              windowMinutes: 10_080,
+              resetsAt: null,
+              resetDescription: null
+            },
             updatedAt: NOW,
             error: null,
             status: 'ok'
@@ -275,6 +284,107 @@ describe('DelegationRequestService.request', () => {
         ...input,
         prompt: '/prototype the onboarding screen'
       })
+      expect(cardPayload().prototypeCount).toBeUndefined()
+    })
+
+    const EXISTING_SYSTEM: PrototypeSystemCard = {
+      kind: 'existing',
+      projectKey: 'nexuscare',
+      projectName: 'NexusCare',
+      version: 1,
+      tokenCount: 24,
+      sourceNames: ['main.css'],
+      swatches: ['#111111', '#ffffff', '#888888', '#22aa55']
+    }
+
+    it('asks the design system for a keyword task, with the project system the host read', async () => {
+      const read = vi.fn(async () => EXISTING_SYSTEM)
+      await new DelegationRequestService({ ...deps, readDesignSystemCard: read }).request(
+        prototypeInput
+      )
+      expect(read).toHaveBeenCalledWith(PARENT.sessionId)
+      expect(cardPayload().designSystem).toEqual(EXISTING_SYSTEM)
+    })
+
+    it('asks the design system for a command under the always setting, which asks no count', async () => {
+      const none: PrototypeSystemCard = {
+        kind: 'none',
+        projectKey: 'nexuscare',
+        projectName: 'NexusCare'
+      }
+      await new DelegationRequestService({
+        ...deps,
+        readDesignSystemCard: async () => none
+      }).request({ ...input, prompt: '/prototype the onboarding screen' })
+      expect(cardPayload().prototypeCount).toBeUndefined()
+      expect(cardPayload().designSystem).toEqual(none)
+    })
+
+    it('asks no design system for a task that asks for no prototype, and reads nothing', async () => {
+      const read = vi.fn(async () => EXISTING_SYSTEM)
+      await new DelegationRequestService({ ...deps, readDesignSystemCard: read }).request(input)
+      expect(read).not.toHaveBeenCalled()
+      expect(cardPayload().designSystem).toBeUndefined()
+    })
+
+    it('asks no design system when the host cannot read the project, or the read throws', async () => {
+      await new DelegationRequestService(deps).request(prototypeInput)
+      expect(cardPayload().designSystem).toBeUndefined()
+      appended.length = 0
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+      await new DelegationRequestService({
+        ...deps,
+        readDesignSystemCard: async () => {
+          throw new Error('unreadable')
+        }
+      }).request(prototypeInput)
+      expect(cardPayload().designSystem).toBeUndefined()
+      expect(cardPayload().prototypeCount).toBeDefined()
+    })
+
+    // The task a parent agent wrote for a design request: "information architecture" is a negative term of the
+    // prototype lexicon, so its own words read as no prototype request.
+    const AGENT_WORDED_TASK = {
+      ...input,
+      prompt:
+        'Create a NEW UI design for the pipeline page. Study the information architecture, then write 2 to 3 HTML artboards.'
+    }
+    const PERSON_MESSAGE =
+      'Explora el proyecto con sub agentes. Por último, en una sesión hija crea un nuevo diseño para la página "clinical-report"'
+
+    it('asks nothing for a task worded as no prototype when the person asked for no design', async () => {
+      await new DelegationRequestService(deps).request(AGENT_WORDED_TASK)
+      expect(cardPayload().prototypeCount).toBeUndefined()
+      expect(cardPayload().designSystem).toBeUndefined()
+    })
+
+    it('asks the count and the design system when the person asked for the design in a child session', async () => {
+      await new DelegationRequestService({
+        ...deps,
+        readDesignSystemCard: async () => EXISTING_SYSTEM,
+        readParentUserMessage: async () => PERSON_MESSAGE
+      }).request(AGENT_WORDED_TASK)
+      expect(cardPayload().prototypeCount).toEqual({ choices: [1, 2, 3], defaultCount: 2 })
+      expect(cardPayload().designSystem).toEqual(EXISTING_SYSTEM)
+    })
+
+    it('files the request as a prototype task, so the child makes its prototype request', async () => {
+      const receipt = await new DelegationRequestService({
+        ...deps,
+        readParentUserMessage: async () => PERSON_MESSAGE
+      }).request(AGENT_WORDED_TASK)
+      const row = db.getDelegationRequest(receipt.requestId)
+      expect(row && readStoredPrototypeTask(row)).toBe(true)
+    })
+
+    it('reads the task by its own words when the last message cannot be read', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+      await new DelegationRequestService({
+        ...deps,
+        readParentUserMessage: async () => {
+          throw new Error('journal unavailable')
+        }
+      }).request(AGENT_WORDED_TASK)
       expect(cardPayload().prototypeCount).toBeUndefined()
     })
 

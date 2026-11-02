@@ -77,7 +77,7 @@ async function getActiveTabTitle(page: Page, worktreeId: string): Promise<string
 
 function tabLocatorByTitle(page: Page, title: string): ReturnType<Page['locator']> {
   const escaped = title.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
-  return page.locator(`[data-testid="sortable-tab"][data-tab-title="${escaped}"]`).first()
+  return page.locator(`[data-testid="side-panel-tab"][data-tab-title="${escaped}"]`).first()
 }
 
 test.describe('app menu paste ownership', () => {

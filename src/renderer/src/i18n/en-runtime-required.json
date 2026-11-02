@@ -707,7 +707,7 @@
           "AiVaultPanelControls": {
             "allSessions": "All sessions",
             "currentWorkspace": "Current workspace",
-            "currentWorktreeLower": "current worktree",
+            "currentWorkspaceLower": "current workspace",
             "globalScope": "Global",
             "scope": "Scope",
             "thisScope": "This",
@@ -2800,6 +2800,9 @@
     }
   },
   "components": {
+    "botTeams": {
+      "started": "Started"
+    },
     "native-chat": {
       "ask": {
         "asked": "Asked:",

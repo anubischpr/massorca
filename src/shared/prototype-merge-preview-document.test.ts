@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import type { PrototypeMergeReviewPart } from './prototype-merge-plan'
-import { assembleMergePreview, MERGE_PREVIEW_CSP } from './prototype-merge-preview-document'
+import {
+  assembleMergePreview,
+  mergePartAnchor,
+  MERGE_PREVIEW_CSP
+} from './prototype-merge-preview-document'
 
 function part(id: number, from: string, name = `Part ${id}`): PrototypeMergeReviewPart {
   return {
@@ -17,13 +21,12 @@ function part(id: number, from: string, name = `Part ${id}`): PrototypeMergeRevi
 
 function assemble(
   matches: Parameters<typeof assembleMergePreview>[0]['matches'],
-  options: Partial<Pick<Parameters<typeof assembleMergePreview>[0], 'hoveredId' | 'view'>> = {}
+  view: 'desktop' | 'phone' = 'desktop'
 ) {
   return assembleMergePreview({
     parts: [part(0, 'A'), part(1, 'C', 'Pay <button>')],
     matches,
-    hoveredId: options.hoveredId ?? null,
-    view: options.view ?? 'desktop',
+    view,
     unplacedText: (name) => `${name}: not placed`
   })
 }
@@ -48,7 +51,6 @@ describe('assembleMergePreview', () => {
         0: { css: '', outerHtml: '<p>first</p>' },
         1: { css: '', outerHtml: '<p>second</p>' }
       },
-      hoveredId: null,
       view: 'desktop',
       unplacedText: (name) => name
     })
@@ -79,19 +81,22 @@ describe('assembleMergePreview', () => {
     expect(html).toContain('<\\/style><script>alert(1)</script>')
   })
 
-  it('outlines only the hovered part', () => {
-    const { html } = assemble(
-      { 0: { css: '', outerHtml: '<p>a</p>' }, 1: { css: '', outerHtml: '<p>b</p>' } },
-      { hoveredId: 1 }
-    )
-    expect(html.match(/outline:2px solid #f59e0b/gu)).toHaveLength(1)
-    expect(html.indexOf('outline:2px')).toBeGreaterThan(html.indexOf('data-part="0"'))
+  it('anchors every part by id, and outlines only the section a frame navigates to', () => {
+    const { html } = assemble({
+      0: { css: '', outerHtml: '<p>a</p>' },
+      1: { css: '', outerHtml: '<p>b</p>' }
+    })
+    expect(html).toContain(`id="${mergePartAnchor(0)}" data-part="0"`)
+    expect(html).toContain(`id="${mergePartAnchor(1)}" data-part="1"`)
+    expect(html).toContain('[data-part]:target{outline:2px solid #f59e0b;outline-offset:-2px}')
+    // Why: no part carries an outline of its own, so a change of target never rewrites the page.
+    expect(html.match(/outline:/gu)).toHaveLength(1)
   })
 
   it('pads phone blocks tighter than desktop blocks', () => {
     const matches = { 0: { css: '', outerHtml: '<p>a</p>' } }
     expect(assemble(matches).html).toContain('padding:18px 22px')
-    expect(assemble(matches, { view: 'phone' }).html).toContain('padding:14px;')
+    expect(assemble(matches, 'phone').html).toContain('padding:14px;')
   })
 
   it('carries the content security policy that keeps the network off', () => {

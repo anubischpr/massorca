@@ -1,3 +1,4 @@
+import type { PiRuntimeSelection } from '../../../../../../shared/pi-runtime-selection'
 import type { AgentLaunchPreferences } from '../../../../../../shared/agent-session-host-authority'
 import type { AgentSessionExplicitAccess } from '../../../../../../shared/agent-session-access-mode'
 import { narrowStructuredLaunchSeedOptions } from '../../../../../../shared/native-chat-session-option-defaults'
@@ -104,6 +105,7 @@ export async function createStructuredWorkerSessionForWorktree(args: {
   launchPreferences?: AgentLaunchPreferences
   /** Already resolved against the agent's declared modes, so it never widens the request. */
   accessMode?: AgentSessionExplicitAccess
+  piRuntime?: PiRuntimeSelection
   effects: WorkerEffect[]
 }): Promise<Awaited<ReturnType<typeof createStructuredWorkerSession>>> {
   if (!structuredAgentRuntimeRegistration(args.agent)) {
@@ -123,6 +125,7 @@ export async function createStructuredWorkerSessionForWorktree(args: {
     dispatchId: args.dispatchId,
     ...(options ? { options } : {}),
     ...(args.accessMode ? { accessMode: args.accessMode } : {}),
+    ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
     onJournalActivity: (sessionId) =>
       args.runtime.notifyStructuredSessionJournalActivity?.(sessionId)
   })

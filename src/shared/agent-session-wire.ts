@@ -1,3 +1,4 @@
+import type { DelegatedSessionParent, SessionRestartResume } from './agent-session-status-fields'
 import type { AgentSessionConnectorSnapshot } from './agent-session-connectors'
 import type { AgentSessionFrameFields } from './agent-session-frame-fields'
 import type { AgentSessionUnavailable } from './agent-session-availability'
@@ -245,10 +246,9 @@ export type AgentSessionStatusSummary = {
   hostExecutionPhase?: 'starting' | 'ready'
   /** This restart action's progress, derived by the live host and never persisted.
    *  Cleared when the action returns; absent on older hosts. */
-  restartResume?: {
-    phase: 'queued' | 'starting' | 'continued' | 'refused' | 'unconfirmed' | 'skipped'
-  }
+  restartResume?: SessionRestartResume
   latestPrompt: string
+  delegatedParent?: DelegatedSessionParent
   /** Provider model in force for the next turn; absent until the host has read the options. */
   model?: string
   /** The tool the running turn is inside, else the last one it used. Absent unless `status`

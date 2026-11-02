@@ -6,6 +6,7 @@
 
 import { z } from 'zod'
 import { PROTOTYPE_COUNT_MAX, PROTOTYPE_COUNT_MIN } from './prototype-count-setting'
+import type { PrototypeSystemCard } from './prototype-design-system-card'
 import { agentJournalItemKey, parseAgentJournalItemKey } from './agent-session-journal-item-key'
 import type { AgentJournalItemBody, AgentJournalItemIdentity } from './agent-session-journal-types'
 import type {
@@ -67,6 +68,8 @@ export type DelegationCardPayload = {
   placementWarning: DelegationPlacementWarning | null
   /** Present only when the task asks for prototypes; older clients never see it. */
   prototypeCount?: DelegationPrototypeCount
+  /** The parent project's design system, present only when the task asks for prototypes and the host read it. */
+  designSystem?: PrototypeSystemCard
 }
 
 type DelegationNoticeBase = { requestId: string; title: string }
@@ -186,13 +189,27 @@ const DecisionSchema = z.object({
   placement: Placement,
   placementWarning: z.literal('folder-workspace-writes').nullable(),
   ranking: z.array(UsageSchema),
-  reasons: ReasonsSchema
+  reasons: ReasonsSchema,
+  tierAdvisedBy: z.literal('jev').optional().catch(undefined)
 })
 
 const PrototypeCountSchema = z.object({
   choices: z.array(z.int().min(PROTOTYPE_COUNT_MIN).max(PROTOTYPE_COUNT_MAX)),
   defaultCount: z.int().min(PROTOTYPE_COUNT_MIN).max(PROTOTYPE_COUNT_MAX)
 })
+
+const DesignSystemCardSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('existing'),
+    projectKey: z.string(),
+    projectName: z.string(),
+    version: z.int().min(0),
+    tokenCount: z.int().min(0),
+    sourceNames: z.array(z.string()),
+    swatches: z.array(z.string())
+  }),
+  z.object({ kind: z.literal('none'), projectKey: z.string(), projectName: z.string() })
+])
 
 const CardSchema = z.object({
   requestId: z.string().min(1),
@@ -210,7 +227,8 @@ const CardSchema = z.object({
   placement: Placement,
   placementWarning: z.literal('folder-workspace-writes').nullable().catch(null),
   // Why: a count question a newer host sends in a shape this client cannot read is dropped, not the card.
-  prototypeCount: PrototypeCountSchema.optional().catch(undefined)
+  prototypeCount: PrototypeCountSchema.optional().catch(undefined),
+  designSystem: DesignSystemCardSchema.optional().catch(undefined)
 })
 
 const NoticeBase = { requestId: z.string().min(1), title: z.string() }

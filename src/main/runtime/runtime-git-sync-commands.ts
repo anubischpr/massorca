@@ -1,7 +1,12 @@
 import type { GitForkSyncExpectedUpstream, GitForkSyncResult } from '../../shared/git-fork-sync'
 import type { GitUpstreamStatus } from '../../shared/git-status-types'
 import type { GitPushTarget } from '../../shared/worktree/types'
+import type { GitCapabilityCache } from '../../shared/git-capability-cache'
 import { gitSyncForkDefaultBranch } from '../git/fork-sync'
+import { getLocalGitCapabilityCache, getSshGitCapabilityCache } from '../git/git-capability-state'
+import { gitOptionsForWorktree } from '../git/git-runtime-options'
+import { gitExecFileAsync } from '../git/runner'
+import { runWithGitReadCacheInvalidation } from '../git/source-control/git-read-cache-invalidation'
 import { gitFastForward, gitFetch, gitPull, gitPullRebaseFromBase, gitPush } from '../git/remote'
 import { abortMerge, abortRebase, commitChanges } from '../git/status'
 import { getUpstreamStatus } from '../git/upstream'
@@ -29,6 +34,36 @@ export class RuntimeGitSyncCommands {
   ): void {
     if (materialized?.remoteCreated) {
       this.host.persistMaterializedPushTarget?.(target.worktree.id, materialized)
+    }
+  }
+
+  /** Git in one worktree on the host that runs it; null when the selector no longer resolves. */
+  async openRuntimeGitWorktree(worktreeSelector: string): Promise<{
+    run: (args: string[]) => Promise<string>
+    capabilities: GitCapabilityCache
+  } | null> {
+    let target: RuntimeGitTarget
+    try {
+      target = await this.host.resolveRuntimeGitTarget(worktreeSelector)
+    } catch {
+      return null
+    }
+    const cwd = target.worktree.path
+    const provider = requireRuntimeGitProvider(target)
+    if (provider) {
+      return {
+        run: async (args) => (await provider.exec(args, cwd)).stdout,
+        capabilities: getSshGitCapabilityCache(provider)
+      }
+    }
+    const options = gitOptionsForWorktree(cwd, {
+      ...localGitOptionsForTarget(target),
+      admissionTier: 'interactive'
+    })
+    return {
+      run: async (args) =>
+        (await runWithGitReadCacheInvalidation(() => gitExecFileAsync(args, options))).stdout,
+      capabilities: getLocalGitCapabilityCache(options)
     }
   }
 

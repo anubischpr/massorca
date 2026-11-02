@@ -32,6 +32,8 @@ export type WorktreeMeta = {
   displayName: string
   /** True when a user-authored label must survive branch changes. */
   displayNameIsPinned?: boolean
+  /** One-line row name set by the user. Never renames the branch; null or absent shows the derived label. */
+  manualDisplayName?: string | null
   comment: string
   linkedIssue: number | null
   linkedPR: number | null

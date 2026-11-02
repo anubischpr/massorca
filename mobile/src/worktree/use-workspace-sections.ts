@@ -1,5 +1,11 @@
 import { useMemo } from 'react'
 import type { WorkspaceStatusDefinition } from '../../../src/shared/worktree/types'
+import { getBranchRowLabels } from './branch-row-label'
+import {
+  arrangeBranchRowSections,
+  placeCrossWorktreeAgents,
+  type AgentRunOwner
+} from './cross-worktree-agent-placement'
 import type { MobileGroupMode, MobileSortMode } from './workspace-view-settings'
 import {
   buildSections,
@@ -8,6 +14,7 @@ import {
   type Worktree
 } from './workspace-list-sections'
 import { repoColor } from './repo-color'
+import { getWorktreeRowIdentity } from './worktree-host-row-identity'
 
 export type WorkspaceSectionRepo = {
   name: string
@@ -32,6 +39,10 @@ export function useWorkspaceSections(args: {
   rawSections: Section[]
   uniqueRepos: WorkspaceSectionRepo[]
   uniqueRepoColors: Map<string, string>
+  /** Each session listed under a parent in another worktree: the worktree it runs in and its branch. */
+  agentOwners: ReadonlyMap<string, AgentRunOwner>
+  /** The branch part of each git row's label, keyed by the row identity. */
+  branchLabels: ReadonlyMap<string, string>
 } {
   const {
     displayWorktrees,
@@ -65,7 +76,7 @@ export function useWorkspaceSections(args: {
     [uniqueRepos]
   )
 
-  const rawSections = useMemo(
+  const listedSections = useMemo(
     () =>
       buildSections(
         displayWorktrees,
@@ -93,6 +104,31 @@ export function useWorkspaceSections(args: {
     ]
   )
 
+  // Why: one pass over every section, before collapsed groups are emptied, so a session keeps its
+  // place under a parent whose group is folded instead of reappearing in its own worktree.
+  const placement = useMemo(() => placeCrossWorktreeAgents(listedSections), [listedSections])
+  // Why: a worktree row whose sessions all run under another parent is dropped here, and its lineage is laid out again.
+  const rawSections = useMemo(
+    () => arrangeBranchRowSections(placement.sections, placement, collapsedGroups),
+    [placement, collapsedGroups]
+  )
+
+  const branchLabels = useMemo(
+    () =>
+      getBranchRowLabels(
+        rawSections.flatMap((section) =>
+          section.data.map((item) => ({
+            key: getWorktreeRowIdentity(item),
+            scope: groupMode === 'repo' ? item.repoId : '',
+            workspaceKind: item.workspaceKind,
+            branch: item.branch,
+            ownBranchPrefix: item.ownBranchPrefix
+          }))
+        )
+      ),
+    [rawSections, groupMode]
+  )
+
   const sections = useMemo(
     () =>
       rawSections.map((s) => ({
@@ -102,5 +138,12 @@ export function useWorkspaceSections(args: {
     [rawSections, collapsedGroups]
   )
 
-  return { sections, rawSections, uniqueRepos, uniqueRepoColors }
+  return {
+    sections,
+    rawSections,
+    uniqueRepos,
+    uniqueRepoColors,
+    agentOwners: placement.ownersByPaneKey,
+    branchLabels
+  }
 }

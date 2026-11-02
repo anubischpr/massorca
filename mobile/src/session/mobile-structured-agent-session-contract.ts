@@ -1,4 +1,5 @@
 import type { MobileNativeChatSendOutcome } from './mobile-native-chat-send'
+import type { PrototypeDesignSystemMode } from '../../../src/shared/prototype-design-system-files'
 import type { MobileNativeChatVisualSource } from './mobile-native-chat-visual-read'
 import type { MobileChatPermission } from './mobile-native-chat-permission'
 import type { MobileChatQuestion } from './mobile-native-chat-question'
@@ -28,7 +29,11 @@ export type StructuredMobileSession = ReturnType<typeof useMobileStructuredAgent
     permission: MobileChatPermission | null
     question: MobileChatQuestion | null
     respondPermission: (optionId: string) => Promise<boolean>
-    respondQuestion: (answer: string, count?: number) => Promise<boolean>
+    respondQuestion: (
+      answer: string,
+      count?: number,
+      designSystem?: PrototypeDesignSystemMode
+    ) => Promise<boolean>
     cancelPrompt: (prompt?: { itemId: string; expectedRevision: number }) => Promise<boolean>
     /** The queued-draft cards and their actions, from any host that publishes them. */
     queued: MobileStructuredQueuedMessageControls

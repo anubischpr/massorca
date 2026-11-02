@@ -42,6 +42,7 @@ export const WORKSPACE_SESSION_FIELD_OWNERSHIP = {
   lastVisitedAtByWorktreeId: 'worktreeKeyed',
   defaultTerminalTabsAppliedByWorktreeId: 'worktreeKeyed',
   activeWorkspaceKey: 'global',
+  paneFocus: 'global',
   activeWorktreeIdsOnShutdown: 'worktreeArray',
   terminalLayoutsByTabId: 'tabKeyed',
   // Local-only, never uploaded — but still routed per host so a tab's park scrollback follows its

@@ -1,4 +1,5 @@
 import type { WorkspaceKey } from '../../../shared/folder-workspace-types'
+import { repointSessionRefs } from './worktree-identity-migration-session-refs'
 import type { BrowserPage, BrowserWorkspace } from '../../../shared/browser-workspace-types'
 import { remapBrowserPageDocLocation } from '../../../shared/browser-page-doc-location'
 import type { WorkspaceSessionState } from '../../../shared/workspace-session-state-types'
@@ -187,6 +188,8 @@ export function migrateWorktreeIdentity(
       moveSessionKey(session.unifiedTabs, (tabs) => tabs.map(withNewWorktreeId)) || sessionChanged
     sessionChanged =
       moveSessionKey(session.tabGroups, (groups) => groups.map(withNewWorktreeId)) || sessionChanged
+    sessionChanged =
+      repointSessionRefs(session.tabGroups, oldWorktreeId, newWorktreeId) || sessionChanged
     sessionChanged = moveSessionKey(session.tabGroupLayouts) || sessionChanged
     sessionChanged = moveSessionKey(session.activeGroupIdByWorktree) || sessionChanged
     if (session.lastVisitedAtByWorktreeId) {

@@ -47,7 +47,7 @@ export type WorktreeCardProperty =
   // Execution-host pill, shown only when the visible workspaces span more than one host; on by default.
   | 'host'
 
-export type WorktreeCardMode = 'Default' | 'Compact'
+export type WorktreeCardMode = 'Default' | 'Compact' | 'OneLine'
 
 export type AgentActivityDisplayMode = 'compact' | 'full'
 
@@ -125,5 +125,6 @@ export type TopLevelView =
   | 'skills'
   | 'artifacts'
   | 'prototypes'
+  | 'bot-teams'
   | 'mobile'
   | 'create-chat'

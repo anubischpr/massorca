@@ -20,6 +20,7 @@ import {
   GitBranch,
   Globe,
   Layers,
+  UsersRound,
   ListChecks,
   PanelsTopLeft,
   Play,
@@ -80,6 +81,17 @@ export function buildWorkflowSettingsSections(
       ),
       icon: Layers,
       searchEntries: getPrototypesSettingsSearchEntries(),
+      group: 'workflows'
+    },
+    {
+      id: 'bot-teams',
+      title: translate('components.botTeams.settings.title', 'Bot teams'),
+      description: translate(
+        'components.botTeams.settings.description',
+        'What each team can do without asking. New teams start with full access.'
+      ),
+      icon: UsersRound,
+      searchEntries: [],
       group: 'workflows'
     },
     {

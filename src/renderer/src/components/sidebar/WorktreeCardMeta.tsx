@@ -71,6 +71,7 @@ export function WorktreeCardDetailsHover({
   identityOrder = 'workspace-first',
   workspaceTitleRenameDisabled = false,
   detailsAfter,
+  contentClassName,
   openDelay = 250,
   closeDelay = 120,
   onRenameWorkspaceTitle,
@@ -208,6 +209,7 @@ export function WorktreeCardDetailsHover({
         align="start"
         sideOffset={8}
         variant="workspace-details"
+        className={contentClassName}
         {...{ [WORKTREE_NATIVE_CONTEXT_MENU_ATTR]: '' }}
         onClick={(event) => event.stopPropagation()}
         onDoubleClick={(event) => event.stopPropagation()}

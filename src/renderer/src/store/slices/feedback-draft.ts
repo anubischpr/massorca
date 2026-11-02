@@ -5,14 +5,9 @@ import type { AppState } from '../types'
  *  no disk surface): the dialog renders inside the sidebar subtree, which
  *  unmounts whenever the sidebar collapses, and a failed submit is precisely
  *  when the user still needs what they typed (orca#22466). Cleared on a
- *  confirmed delivery or app restart.
- *
- *  Image drafts deliberately stay in the dialog: they hold object URLs and
- *  Uint8Arrays that the unmount cleanup has to revoke, so they cannot outlive
- *  it without leaking the underlying blobs. */
+ *  confirmed delivery or app restart. */
 export type FeedbackDraft = {
   feedback: string
-  submitAnonymously: boolean
 }
 
 export type FeedbackDraftSlice = {
@@ -24,7 +19,7 @@ export type FeedbackDraftSlice = {
 
 // Why a shared constant is safe here (unlike newIssueDraft's factory): every
 // field is a primitive, so no caller can mutate one draft into another's state.
-const EMPTY_FEEDBACK_DRAFT: FeedbackDraft = { feedback: '', submitAnonymously: false }
+const EMPTY_FEEDBACK_DRAFT: FeedbackDraft = { feedback: '' }
 
 export const createFeedbackDraftSlice: StateCreator<AppState, [], [], FeedbackDraftSlice> = (
   set

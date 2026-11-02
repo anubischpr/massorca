@@ -49,14 +49,23 @@ export async function configureGoldenStubAgent(
   )
 }
 
-export async function launchGoldenStubAgentFromNewTab(
+/** Starts the stub agent as a Terminal-mode session through the + Create composer, the only agent launcher. */
+export async function launchGoldenStubAgentFromCreate(
   page: Page,
-  menuItemName: RegExp = /^Codex(?:\s|$)/i
+  agentName: RegExp = /^Codex(?:\s|$)/i
 ): Promise<void> {
-  await page.getByRole('button', { name: 'New tab' }).click({ force: true })
-  const launchOption = page.getByRole('menuitem', { name: menuItemName }).first()
-  await expect(launchOption).toBeVisible({ timeout: 15_000 })
-  await launchOption.click({ force: true })
+  await page.evaluate(() => window.__store?.getState().openCreateChatPage())
+  await expect(page.getByRole('heading', { name: 'What do you want to build?' })).toBeVisible()
+  await page
+    .getByRole('radiogroup', { name: 'Session view' })
+    .getByRole('radio', { name: 'Terminal', exact: true })
+    .click()
+  await page.getByRole('button', { name: 'Agent, model and effort' }).click()
+  await page.getByRole('menuitemradio', { name: agentName }).first().click()
+  await page.keyboard.press('Escape')
+  const composer = page.getByRole('textbox').last()
+  await composer.fill('start the golden stub')
+  await composer.press('Enter')
   await focusActiveTerminalInput(page)
   await waitForTerminalOutput(page, GOLDEN_STUB_READY_MARKER, 20_000)
 }

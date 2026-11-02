@@ -52,6 +52,29 @@ const POLICY_WITHOUT_BASE = [
 export const NATIVE_CHAT_VISUAL_CSP = [...POLICY_WITHOUT_BASE, "base-uri 'none'"].join('; ')
 
 /**
+ * The policy of a document whose markup may not run script: only the shell's own scripts, which carry
+ * the nonce, run; inline handlers and injected scripts are refused, and nothing loads from a CDN.
+ */
+export function nativeChatVisualNoncePolicy(nonce: string): string {
+  return [
+    "default-src 'none'",
+    `script-src 'nonce-${nonce}'`,
+    "style-src 'unsafe-inline'",
+    'font-src data:',
+    'img-src data:',
+    "connect-src 'none'",
+    "frame-src 'none'",
+    "child-src 'none'",
+    "worker-src 'none'",
+    "object-src 'none'",
+    "media-src 'none'",
+    "manifest-src 'none'",
+    "form-action 'none'",
+    "base-uri 'none'"
+  ].join('; ')
+}
+
+/**
  * For a page that hosts the visual frame and has no URL of its own (mobile). The srcdoc child
  * inherits this policy before its own meta parses, so it must admit the shell's `about:srcdoc` base
  * (CSP cannot name that URL exactly); the child's own policy then refuses every other base.
@@ -214,21 +237,28 @@ export function buildNativeChatVisualDocument(args: {
   theme: NativeChatVisualTheme
   /** Adds the element-annotate script. Without it the document is exactly the same as before. */
   annotate?: boolean
+  /** Given, the document runs only the shell's own scripts, which carry this nonce. */
+  scriptNonce?: string
 }): string {
   const scheme = args.theme.colorScheme === 'dark' ? 'dark' : 'light'
+  const nonce = args.scriptNonce === undefined ? '' : ` nonce="${args.scriptNonce}"`
+  const policy =
+    args.scriptNonce === undefined
+      ? NATIVE_CHAT_VISUAL_CSP
+      : nativeChatVisualNoncePolicy(args.scriptNonce)
   const annotateScript = args.annotate
-    ? `\n<script>${nativeChatVisualAnnotateScript(args.channel)}</script>`
+    ? `\n<script${nonce}>${nativeChatVisualAnnotateScript(args.channel)}</script>`
     : ''
   return `<!doctype html>
 <html class="${scheme}">
 <head>
 <meta charset="utf-8">
 ${INERT_BASE}
-<meta http-equiv="Content-Security-Policy" content="${NATIVE_CHAT_VISUAL_CSP}">
+<meta http-equiv="Content-Security-Policy" content="${policy}">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style id="orca-visual-theme">${nativeChatVisualThemeCss(args.theme)}</style>
 <style>${BASE_CSS}</style>
-<script>${bootstrapScript(args.channel)}</script>${annotateScript}
+<script${nonce}>${bootstrapScript(args.channel)}</script>${annotateScript}
 </head>
 ${args.html}`
 }
@@ -289,11 +319,11 @@ export function readNativeChatVisualPong(data: unknown, channel: string): number
   return typeof id === 'number' && Number.isSafeInteger(id) ? id : null
 }
 
-export function clampNativeChatVisualHeight(height: number): number {
-  return Math.min(
-    NATIVE_CHAT_VISUAL_MAX_HEIGHT,
-    Math.max(NATIVE_CHAT_VISUAL_MIN_HEIGHT, Math.round(height))
-  )
+export function clampNativeChatVisualHeight(
+  height: number,
+  minHeight = NATIVE_CHAT_VISUAL_MIN_HEIGHT
+): number {
+  return Math.min(NATIVE_CHAT_VISUAL_MAX_HEIGHT, Math.max(minHeight, Math.round(height)))
 }
 
 export function nativeChatVisualPingMessage(

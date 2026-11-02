@@ -5,6 +5,7 @@ import { basename, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parsePrototypeRequestManifest } from '../../shared/prototype-sets'
 import { ListPrototypeSetsReplySchema } from '../../shared/rpc-contract/prototype-params'
+import { listedDesignSystemOf } from './prototype-request-listing'
 import { createPrototypeRequest, listPrototypeSets } from './prototype-requests'
 
 const SESSION = 'session-test-0001'
@@ -170,6 +171,24 @@ describe('listPrototypeSets design systems', () => {
     expect(listed.designSystems?.[0]?.pendingRequest?.requestId).not.toBe(otherProposal.requestId)
   })
 
+  it('keeps the system when the chat worktree is gone and the main checkout answers for the project', async () => {
+    await writeTokensIn(projectDirectory)
+    await create(SESSION, NOW, 'use')
+    const removedWorktree = join(projectDirectory, '.claude', 'worktrees', 'removed')
+
+    // The chat's own worktree no longer resolves: its project is unknown, and so is its system.
+    const lost = await listPrototypeSets({ launchDirectoryOf: () => undefined, stateDirectory })
+    expect(lost.designSystems).toBeUndefined()
+
+    const kept = await listPrototypeSets({
+      launchDirectoryOf: () => projectDirectory,
+      stateDirectory
+    })
+    expect(removedWorktree).not.toBe(projectDirectory)
+    expect(kept.designSystems).toHaveLength(1)
+    expect(kept.designSystems?.[0]).toMatchObject({ projectName: basename(projectDirectory) })
+  })
+
   it('lists no design system for a project that has no tokens.json', async () => {
     await create(OTHER_SESSION, NOW, 'propose')
 
@@ -255,5 +274,67 @@ describe('listPrototypeSets design systems', () => {
     expect(
       (await listPrototypeSets({ launchDirectoryOf, stateDirectory })).proposals
     ).toBeUndefined()
+  })
+
+  it('publishes the chat of a use-mode request that has no set, so the system can be read', async () => {
+    await writeTokensIn(projectDirectory)
+    const made = await create(SESSION, NOW, 'use')
+
+    const listed = await listPrototypeSets({ launchDirectoryOf, stateDirectory })
+
+    expect(listed.sets).toEqual([])
+    expect(listed.designSystems?.[0]?.newestRequest).toEqual({
+      requestId: made.requestId,
+      sessionId: SESSION,
+      agent: 'claude'
+    })
+    expect(listed.designSystems?.[0]).not.toHaveProperty('pendingRequest')
+    expect(ListPrototypeSetsReplySchema.safeParse(listed).success).toBe(true)
+  })
+
+  it('names the newest request’s chat across the chats of a project, not an older one', async () => {
+    await writeTokensIn(projectDirectory)
+    launchDirectories.set(OTHER_SESSION, projectDirectory)
+    await create(SESSION, NOW, 'use')
+    const newest = await create(OTHER_SESSION, LATER, 'skip')
+
+    const listed = await listPrototypeSets({ launchDirectoryOf, stateDirectory })
+
+    expect(listed.designSystems).toHaveLength(1)
+    expect(listed.designSystems?.[0]?.newestRequest).toEqual({
+      requestId: newest.requestId,
+      sessionId: OTHER_SESSION,
+      agent: 'claude'
+    })
+  })
+
+  it('keeps the chat of a project whose requests are all archived, so its system still opens', async () => {
+    await writeTokensIn(projectDirectory)
+    const made = await create(SESSION, NOW, 'use')
+    await writeFile(join(made.folderPath, 'A.html'), '<p>a</p>')
+    const manifestPath = join(made.folderPath, 'request.json')
+    const manifest: Record<string, unknown> = JSON.parse(await readFile(manifestPath, 'utf8'))
+    await writeFile(manifestPath, JSON.stringify({ ...manifest, archived: true }))
+
+    const listed = await listPrototypeSets({ launchDirectoryOf, stateDirectory })
+
+    expect(listed.sets.map((set) => set.archived)).toEqual([true])
+    expect(listed.designSystems?.[0]?.newestRequest?.requestId).toBe(made.requestId)
+  })
+
+  it('keeps newestRequest through the list contract, and reads an entry from an older host without it', () => {
+    const entry = {
+      projectKey: 'landing',
+      projectName: 'landing-site',
+      status: 'detected',
+      version: 1,
+      tokenCount: 1,
+      swatches: []
+    }
+    const newest = { requestId: 'r-newest', sessionId: 'chat-newest', agent: 'claude' }
+    expect(listedDesignSystemOf(entry)).toEqual(entry)
+    expect(listedDesignSystemOf({ ...entry, newestRequest: newest })).toMatchObject({
+      newestRequest: newest
+    })
   })
 })

@@ -18,7 +18,10 @@ import {
 } from './mobile-delegated-child-rows'
 import { MobilePrototypeCountCard } from '../prototypes/MobilePrototypeCountCard'
 import { MobilePrototypeRequestLink } from '../prototypes/MobilePrototypeRequestLink'
-import { matchPrototypeSetsToUserTurns } from '../prototypes/mobile-prototype-request-links'
+import {
+  matchChildPrototypeSetsToNotices,
+  matchPrototypeSetsToUserTurns
+} from '../prototypes/mobile-prototype-request-links'
 import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
 
 type Props = {
@@ -87,20 +90,27 @@ export function MobileNativeChatOverlay({
   const artifactSource = controller.nativeChatVisualSource
   const prototypeSessionId = controller.nativeChatPrototypeSend?.sessionId ?? null
   const prototypeSets = controller.nativeChatPrototypeSets
-  const prototypeLinks = useMemo(
-    () =>
-      prototypeSessionId === null
-        ? new Map<string, PrototypeListedSet>()
-        : matchPrototypeSetsToUserTurns(prototypeSets, folded, prototypeSessionId),
-    [folded, prototypeSessionId, prototypeSets]
-  )
+  const prototypeLinks = useMemo(() => {
+    if (prototypeSessionId === null) {
+      return new Map<string, PrototypeListedSet[]>()
+    }
+    const links = matchChildPrototypeSetsToNotices(prototypeSets, folded)
+    for (const [messageId, set] of matchPrototypeSetsToUserTurns(
+      prototypeSets,
+      folded,
+      prototypeSessionId
+    )) {
+      links.set(messageId, [set])
+    }
+    return links
+  }, [folded, prototypeSessionId, prototypeSets])
   const renderTurnArtifacts = useMemo(
     () =>
       onOpenArtifact || onOpenPrototypeSet
         ? (messageId: string) => {
             const pages = onOpenArtifact ? artifactCards.get(messageId) : undefined
-            const link = onOpenPrototypeSet ? prototypeLinks.get(messageId) : undefined
-            return pages || link ? (
+            const links = onOpenPrototypeSet ? prototypeLinks.get(messageId) : undefined
+            return pages || links ? (
               <>
                 {pages && onOpenArtifact ? (
                   <MobileChatTurnArtifacts
@@ -109,9 +119,15 @@ export function MobileNativeChatOverlay({
                     onOpen={onOpenArtifact}
                   />
                 ) : null}
-                {link && onOpenPrototypeSet ? (
-                  <MobilePrototypeRequestLink set={link} onOpen={onOpenPrototypeSet} />
-                ) : null}
+                {links && onOpenPrototypeSet
+                  ? links.map((link) => (
+                      <MobilePrototypeRequestLink
+                        key={link.requestId}
+                        set={link}
+                        onOpen={onOpenPrototypeSet}
+                      />
+                    ))
+                  : null}
               </>
             ) : null
           }

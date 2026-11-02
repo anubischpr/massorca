@@ -20,6 +20,9 @@ import {
   profileStateStartupFailureClass
 } from './persistence/profile-state/profile-state-startup-failure'
 import { recordDurableCrashBreadcrumb } from './crash-reporting/durable-crash-breadcrumb'
+import { startBotTeamRoutineScheduler } from './bot-teams/bot-team-routine-host'
+import { startBotTeamWebhookListener } from './bot-teams/bot-team-webhook-host'
+import { startBotTeamTaskNaming } from './bot-teams/bot-team-task-naming'
 import {
   chooseProfileStateCopy,
   presentProfileStateStartupRecoveryDialog,
@@ -125,6 +128,11 @@ if (preflightReady) {
         openMainWindow,
         handleMacAppActivation
       })
+      if (state.runtime) {
+        startBotTeamRoutineScheduler(state.runtime)
+        startBotTeamWebhookListener(state.runtime)
+        startBotTeamTaskNaming(state.runtime)
+      }
     } catch (error) {
       const message =
         formatProfileStateStartupFailure(error) ??

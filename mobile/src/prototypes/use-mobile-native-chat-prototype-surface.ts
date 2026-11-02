@@ -6,6 +6,7 @@ import type { MobileNativeChatSendOutcome } from '../session/mobile-native-chat-
 import type { StructuredMobileSendAttachment } from '../session/use-mobile-structured-send-with-outcome'
 import type { RpcClient } from '../transport/rpc-client'
 import { mobilePrototypeAsks, type MobilePrototypeAsk } from './mobile-prototype-ask-store'
+import { finishedChildSessionIds } from './mobile-prototype-request-links'
 import { useMobileNativeChatPrototypeOutgoing } from './use-mobile-native-chat-prototype-outgoing'
 import { useMobilePrototypeChatSets } from './use-mobile-prototype-chat-sets'
 
@@ -70,7 +71,8 @@ export function useMobileNativeChatPrototypeSurface(args: {
     () => messages.filter((message) => message.role === 'user').length,
     [messages]
   )
-  const sets = useMobilePrototypeChatSets({ client, sessionId, userTurnCount })
+  const childSessionIds = useMemo(() => finishedChildSessionIds(messages), [messages])
+  const sets = useMobilePrototypeChatSets({ client, sessionId, userTurnCount, childSessionIds })
   const send = useMemo(
     () =>
       sessionId === null

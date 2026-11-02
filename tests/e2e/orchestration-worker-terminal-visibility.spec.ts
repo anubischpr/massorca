@@ -214,12 +214,12 @@ test('worker-start preserves one live inactive worker across workspace re-entry'
   expect(isProcessAlive(spawn.pid)).toBe(true)
   expect(readLedger(interruptionLedgerPath)).toEqual([])
   const workerTab = orcaPage.locator(
-    `[data-testid="sortable-tab"][data-tab-id="${workerTerminal!.tabId}"]`
+    `[data-testid="side-panel-tab"][data-tab-id="${workerTerminal!.tabId}"]`
   )
   await expect(workerTab).toBeVisible()
   await expect(workerTab).toHaveAttribute('data-active', 'false')
   await expect(
-    orcaPage.locator(`[data-testid="sortable-tab"][data-tab-id="${coordinatorTabId}"]`)
+    orcaPage.locator(`[data-testid="side-panel-tab"][data-tab-id="${coordinatorTabId}"]`)
   ).toHaveAttribute('data-active', 'true')
 
   await client.call('orchestration.send', {
@@ -240,10 +240,10 @@ test('worker-start preserves one live inactive worker across workspace re-entry'
 
   await expect(workerTab).toBeVisible()
   await expect(
-    orcaPage.locator(`[data-testid="sortable-tab"][data-tab-id="${workerTerminal!.tabId}"]`)
+    orcaPage.locator(`[data-testid="side-panel-tab"][data-tab-id="${workerTerminal!.tabId}"]`)
   ).toHaveCount(1)
   await expect(
-    orcaPage.locator(`[data-testid="sortable-tab"][data-tab-title="${workerTabTitle}"]`)
+    orcaPage.locator(`[data-testid="side-panel-tab"][data-tab-title="${workerTabTitle}"]`)
   ).toHaveCount(1)
   const terminalsAfterReturn = await client.call<RuntimeTerminalListResult>('terminal.list')
   const workerAfterReturn = terminalsAfterReturn.result.terminals.find(

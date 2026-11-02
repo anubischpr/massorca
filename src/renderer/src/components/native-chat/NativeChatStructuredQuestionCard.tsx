@@ -2,6 +2,7 @@ import type { RefObject } from 'react'
 import type { AgentJournalQuestion } from '../../../../shared/agent-session-journal-types'
 import type { AgentSessionPromptResponse } from '../../../../shared/agent-session-question-answer'
 import { readDelegationCardPayload } from '../../../../shared/delegated-session-journal'
+import type { PrototypeDesignSystemMode } from '../../../../shared/prototype-design-system-files'
 import { NativeChatDelegationCard } from './NativeChatDelegationCard'
 import { NativeChatQuestionCard } from './NativeChatQuestionCard'
 
@@ -15,7 +16,11 @@ export function NativeChatStructuredQuestionCard({
   delegation
 }: {
   questions: readonly AgentJournalQuestion[]
-  onAnswer: (response: AgentSessionPromptResponse, count?: number) => void
+  onAnswer: (
+    response: AgentSessionPromptResponse,
+    count?: number,
+    designSystem?: PrototypeDesignSystemMode
+  ) => void
   onCancel: () => void
   isSubmitting?: boolean
   shouldFocus?: boolean

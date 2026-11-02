@@ -1,3 +1,4 @@
+import { MOBILE_BOT_TEAM_RPC_METHODS } from './runtime-rpc-mobile-bot-team-methods'
 import { MOBILE_AGENT_SESSION_RPC_METHODS } from './runtime-rpc-mobile-agent-session-methods'
 
 export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
@@ -220,6 +221,7 @@ export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   'session.tabs.unsubscribe',
   'session.tabs.unsubscribeAll',
   ...MOBILE_AGENT_SESSION_RPC_METHODS,
+  ...MOBILE_BOT_TEAM_RPC_METHODS,
   'nativeChat.readSession',
   'nativeChat.subscribe',
   'nativeChat.unsubscribe',
@@ -246,6 +248,10 @@ export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   'agentTeams.prepareLaunch',
   'agentTeams.tmuxCompat',
   // Why: the phone reports a takeover out of band, the same signal the desktop renderer sends.
+  'delegation.bringBack',
+  'delegation.bringBackAbort',
+  'delegation.bringBackResolve',
+  'delegation.bringBackStatus',
   'orchestration.workerTerminalUserInput',
   'terminal.clearBuffer',
   'terminal.close',

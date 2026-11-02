@@ -27,6 +27,7 @@ export function useWorktreeContextMenuCommands(args: {
   openModal: ReturnType<typeof useAppStore.getState>['openModal']
   repo: Repo | null | undefined
   scopeRef: React.RefObject<HTMLDivElement | null>
+  showRowName: boolean
   setCreateGroupDialogOpen: (open: boolean) => void
   setMenuOpenState: (open: boolean) => void
   setWorktreesPinnedAndReveal: ReturnType<
@@ -123,7 +124,8 @@ export function useWorktreeContextMenuCommands(args: {
     },
     [args]
   )
-  const handleRename = useCallback(() => {
+  // Why: Update always opens the full dialog; on the one-line layout that dialog also holds the row name.
+  const handleUpdate = useCallback(() => {
     args.openModal('edit-meta', {
       worktreeId: args.worktree.id,
       repoId: args.worktree.repoId,
@@ -132,7 +134,8 @@ export function useWorktreeContextMenuCommands(args: {
       currentIssue: args.worktree.linkedIssue,
       currentPR: args.worktree.linkedPR,
       currentComment: args.worktree.comment,
-      focus: 'displayName'
+      focus: 'displayName',
+      showRowName: args.showRowName
     })
   }, [args])
   const sleepWorktreesAfterMenuClose = useCallback(
@@ -178,10 +181,10 @@ export function useWorktreeContextMenuCommands(args: {
     handleMoveProjectToGroup,
     handleOpenParent,
     handleRemoveProjectFromGroup,
-    handleRename,
     handleSleepSubtree,
     handleSubmitNewProjectGroup,
     handleTogglePin,
-    handleToggleRead
+    handleToggleRead,
+    handleUpdate
   }
 }

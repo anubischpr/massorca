@@ -1,30 +1,30 @@
-import { memo } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import {
-  Bell,
   ChevronDown,
   ChevronRight,
+  Folder,
   GitBranch,
-  GitPullRequest,
-  Monitor,
-  Server
+  GitCommitHorizontal,
+  GitPullRequest
 } from 'lucide-react-native'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { parseExecutionHostId, type ExecutionHostId } from '../../../src/shared/execution-host'
+import type { ExecutionHostId } from '../../../src/shared/execution-host'
 import type { AgentWorkingMode } from '../../../src/shared/agent-status-types'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
-import type { MobileRenderableRepoIcon } from '../host-screen/host-screen-reply-schema'
 import { triggerMediumImpact } from '../platform/haptics'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
-import { AgentSpinner } from './AgentSpinner'
-import { MobileRepoIcon } from './MobileRepoIcon'
+import { resolveBranchRowLabel, type BranchRowIcon } from '../worktree/branch-row-label'
+import type { AgentRunOwner } from '../worktree/cross-worktree-agent-placement'
+import {
+  buildSessionListView,
+  worstSessionStatusGlyph,
+  worktreeStatusGlyph,
+  type SessionStatusGlyph,
+  type WorktreeRollupStatus
+} from '../worktree/session-status-glyph'
+import { SessionStatusMark } from './SessionStatusMark'
 import { WorktreeAgentList } from './WorktreeAgentList'
 import { WorktreeMetaGlyphs, prStateColor } from './WorktreeMetaGlyphs'
-
-// Strip the refs/heads/ prefix for display, matching the desktop sidebar
-// (WorktreeCardHelpers.formatBranchName).
-function displayBranch(branch: string): string {
-  return branch.replace(/^refs\/heads\//, '')
-}
 
 // Minimal row shape needed for rendering — a structural subset of the screen's
 // Worktree so this component stays decoupled from the screen's local type.
@@ -38,7 +38,11 @@ export type WorktreeListRowItem = {
   hostContextHostId?: ExecutionHostId
   repo: string
   branch: string
+  /** The commit a detached HEAD sits on; with no branch, the row names itself by it. */
+  head?: string
   displayName: string
+  /** The row name the user set on desktop; the row label when present. */
+  manualDisplayName?: string | null
   path?: string
   liveTerminalCount: number
   preview: string
@@ -57,154 +61,217 @@ export type WorktreeListRowItem = {
   workingMode?: AgentWorkingMode
 }
 
-type WorktreeRollupStatus = 'working' | 'active' | 'permission' | 'done' | 'inactive'
-
 type Props<T extends WorktreeListRowItem> = {
   item: T
   isReadOnly: boolean
   now: number
-  repoColor: string
-  repoIcon?: MobileRenderableRepoIcon | null
-  // When the list is already grouped under this repo's section header, the row
-  // omits its own repo icon+name to avoid the redundant "📁 orca" on every row.
-  hideRepo?: boolean
   status: WorktreeRollupStatus
+  /** Names what differs from another row on the same branch: the host, else the project. */
+  collisionChip?: string | null
+  /** The host is unreachable: the row dims, and its sessions show the unconfirmed mark. */
+  hostDisconnected?: boolean
+  /** The branch label with the user's own prefix dropped, when the list computed one. */
+  branchLabel?: string | null
+  /** The worktree each session listed under a parent here actually runs in. */
+  agentOwners?: ReadonlyMap<string, AgentRunOwner<T>>
   onPress: (item: T) => void
   onLongPress?: (item: T) => void
+  onLongPressSession?: (item: T, agent: RuntimeWorktreeAgentRow) => void
   onToggleLineage?: (item: T) => void
 }
 
+const EMPTY_AGENTS: RuntimeWorktreeAgentRow[] = []
+const LINEAGE_INDENT_PER_DEPTH = 18
+
+// The branch row's trailing mark. A folded branch speaks for its hidden sessions, and an expanded one
+// for its own unread mark (a background bell has no session to carry it); a branch with no sessions
+// speaks for its worktree. An unreachable host has no current state to show.
+function branchRowGlyph(input: {
+  hasSessions: boolean
+  collapsed: boolean
+  collapsedWorst: SessionStatusGlyph | null
+  unread: boolean
+  disconnected: boolean
+  status: WorktreeRollupStatus
+  workingMode?: AgentWorkingMode
+}): SessionStatusGlyph | null {
+  if (input.hasSessions) {
+    if (!input.collapsed) {
+      return input.unread ? 'unread' : null
+    }
+    return worstSessionStatusGlyph([input.collapsedWorst, input.unread ? 'unread' : null])
+  }
+  if (input.disconnected) {
+    return null
+  }
+  return worktreeStatusGlyph(input.status, input.unread, input.workingMode)
+}
+
+// Why: static icon components, looked up by the row's icon kind rather than picked by a call in render.
+const BRANCH_ROW_ICONS: Record<BranchRowIcon, typeof GitBranch> = {
+  folder: Folder,
+  commit: GitCommitHorizontal,
+  branch: GitBranch
+}
+
+function RowChip({ text }: { text: string }) {
+  return (
+    <View style={styles.chip}>
+      <Text style={styles.chipText} numberOfLines={1}>
+        {text}
+      </Text>
+    </View>
+  )
+}
+
+// One line per branch: the lead icon (or the fold toggle when it has sessions), the label, the PR
+// number, the host or project chip, the status mark, and the sessions folded beneath it.
 function WorktreeListRowComponent<T extends WorktreeListRowItem>({
   item,
   isReadOnly,
   now,
-  repoColor,
-  repoIcon,
-  hideRepo = false,
   status,
+  collisionChip,
+  hostDisconnected = false,
+  branchLabel,
+  agentOwners,
   onPress,
   onLongPress,
+  onLongPressSession,
   onToggleLineage
 }: Props<T>) {
-  const isFolderWorkspace = item.workspaceKind === 'folder-workspace'
-  const folderMeta = item.comment?.trim() || item.path || 'Folder'
-  const metaText = isFolderWorkspace ? folderMeta : displayBranch(item.branch)
+  const { label, icon } = resolveBranchRowLabel(item, { branchLabel })
+  const LeadIcon = BRANCH_ROW_ICONS[icon]
   const lineageDepth = Math.max(0, item.lineageDepth ?? 0)
   const lineageChildCount = item.lineageChildCount ?? 0
+  const agents = item.agents ?? EMPTY_AGENTS
+  const hasSessions = agents.length > 0
+  const [sessionsCollapsed, setSessionsCollapsed] = useState(false)
+  const collapsedWorst = useMemo(
+    () =>
+      sessionsCollapsed && hasSessions
+        ? buildSessionListView({
+            agents,
+            now,
+            unvisited: item.unread,
+            disconnected: hostDisconnected,
+            allShown: false
+          }).worst
+        : null,
+    [sessionsCollapsed, hasSessions, agents, now, item.unread, hostDisconnected]
+  )
+  const glyph = branchRowGlyph({
+    hasSessions,
+    collapsed: sessionsCollapsed,
+    collapsedWorst,
+    unread: item.unread,
+    disconnected: hostDisconnected,
+    status,
+    workingMode: item.workingMode
+  })
+  const runsOnBranchByPaneKey = useMemo(() => {
+    const branches = new Map<string, string>()
+    for (const agent of agents) {
+      const branch = agentOwners?.get(agent.paneKey)?.branch
+      if (branch) {
+        branches.set(agent.paneKey, branch)
+      }
+    }
+    return branches
+  }, [agents, agentOwners])
+  const openWorktree = useCallback(() => onPress(item), [item, onPress])
+  // Why: a session listed here under a parent in another worktree opens the worktree it runs in.
+  const openSession = useCallback(
+    (agent: RuntimeWorktreeAgentRow) => onPress(agentOwners?.get(agent.paneKey)?.item ?? item),
+    [agentOwners, item, onPress]
+  )
+  const longPressSession = useCallback(
+    (agent: RuntimeWorktreeAgentRow) => onLongPressSession?.(item, agent),
+    [item, onLongPressSession]
+  )
 
   return (
-    <Pressable
-      style={({ pressed }) => [
+    <View
+      style={[
         styles.worktreeRow,
-        lineageDepth > 0 && { paddingLeft: spacing.lg + lineageDepth * 18 },
-        item.isActive && styles.worktreeRowActive,
-        pressed && styles.worktreeRowPressed
+        lineageDepth > 0 && { paddingLeft: spacing.sm + lineageDepth * LINEAGE_INDENT_PER_DEPTH },
+        item.isActive && styles.worktreeRowActive
       ]}
-      disabled={isReadOnly}
-      onPress={() => onPress(item)}
-      onLongPress={
-        onLongPress
-          ? () => {
-              triggerMediumImpact()
-              onLongPress(item)
-            }
-          : undefined
-      }
-      delayLongPress={400}
     >
-      <View style={styles.indicatorCol}>
-        <AgentSpinner status={status} workingMode={item.workingMode} />
-        {item.unread && (
-          <Bell
-            size={10}
-            color={colors.statusAmber}
-            fill={colors.statusAmber}
-            style={styles.unreadBell}
-          />
-        )}
-      </View>
-
-      <View style={styles.worktreeMain}>
-        <View style={styles.worktreeNameRow}>
-          <Text
-            style={[
-              styles.worktreeName,
-              item.unread && styles.worktreeNameUnread,
-              isReadOnly && styles.textReadOnly
-            ]}
-            numberOfLines={1}
+      <View style={[styles.branchLine, hostDisconnected && styles.dimmed]}>
+        {/* Why: a branch with no sessions has nothing to fold, so its lead icon is not a control. */}
+        {hasSessions ? (
+          <Pressable
+            style={styles.leadButton}
+            onPress={() => setSessionsCollapsed((value) => !value)}
+            accessibilityRole="button"
+            accessibilityLabel={
+              sessionsCollapsed ? `Show sessions of ${label}` : `Hide sessions of ${label}`
+            }
           >
-            {item.displayName || item.repo}
-          </Text>
-          {item.linkedPR && (
-            <View style={styles.prBadge}>
-              <GitPullRequest size={10} color={prStateColor(item.linkedPR.state)} />
-              <Text style={[styles.prNumber, { color: prStateColor(item.linkedPR.state) }]}>
-                #{item.linkedPR.number}
-              </Text>
-            </View>
-          )}
-          {isFolderWorkspace && (
-            <View style={styles.folderBadge}>
-              <Text style={styles.folderBadgeText}>Folder</Text>
-            </View>
-          )}
-          <WorktreeMetaGlyphs
-            comment={item.comment}
-            linkedLinearIssue={item.linkedLinearIssue}
-            linkedGitLabMR={item.linkedGitLabMR}
-            linkedIssue={item.linkedIssue}
-            linkedGitLabIssue={item.linkedGitLabIssue}
-          />
-        </View>
-        <View style={styles.worktreeMetaRow}>
-          {lineageDepth > 0 && (
-            <View style={styles.childBadge}>
-              <GitBranch size={10} color={colors.textMuted} />
-              <Text style={styles.childBadgeText}>Child</Text>
-            </View>
-          )}
-          {item.hostContextLabel ? (
-            <View style={[styles.childBadge, styles.hostBadge]}>
-              {/* Rows from hosts that predate hostId stamping are local: a remote row always carries one. */}
-              {(parseExecutionHostId(item.hostContextHostId ?? item.hostId)?.kind ?? 'local') ===
-              'local' ? (
-                <Monitor size={10} color={colors.textMuted} />
-              ) : (
-                <Server size={10} color={colors.textMuted} />
-              )}
-              <Text style={[styles.childBadgeText, styles.hostBadgeText]} numberOfLines={1}>
-                {item.hostContextLabel}
-              </Text>
-            </View>
-          ) : null}
-          {/* Repo glyph+name only when not already grouped under this repo;
-              MobileRepoIcon falls back to a Folder (matching desktop's default)
-              rather than a bare colored dot. */}
-          {!hideRepo && (
-            <>
-              <MobileRepoIcon repoIcon={repoIcon} size={11} color={repoColor} />
-              <Text style={styles.repoName} numberOfLines={1}>
-                {item.repo}
-              </Text>
-            </>
-          )}
-          <Text style={styles.branchName} numberOfLines={1}>
-            {metaText}
-          </Text>
-        </View>
-        {/* Only agents get a secondary activity line, matching desktop. A plain
-            terminal's shell-output tail is intentionally not surfaced here. */}
-        {item.agents && item.agents.length > 0 ? (
-          <WorktreeAgentList agents={item.agents} now={now} unvisited={item.unread} />
-        ) : null}
+            {sessionsCollapsed ? (
+              <ChevronRight size={14} color={colors.textSecondary} />
+            ) : (
+              <LeadIcon size={14} color={colors.textSecondary} />
+            )}
+          </Pressable>
+        ) : (
+          <View style={styles.leadButton}>
+            <LeadIcon size={14} color={colors.textSecondary} />
+          </View>
+        )}
+
+        <Pressable
+          style={({ pressed }) => [styles.mainTap, pressed && styles.worktreeRowPressed]}
+          disabled={isReadOnly}
+          onPress={openWorktree}
+          onLongPress={
+            onLongPress
+              ? () => {
+                  triggerMediumImpact()
+                  onLongPress(item)
+                }
+              : undefined
+          }
+          delayLongPress={400}
+        >
+          <View style={styles.mainLine}>
+            <Text
+              style={[
+                styles.label,
+                item.unread && styles.labelUnread,
+                isReadOnly && styles.textReadOnly
+              ]}
+              numberOfLines={1}
+            >
+              {label}
+            </Text>
+            {item.linkedPR && (
+              <View style={styles.prBadge}>
+                <GitPullRequest size={10} color={prStateColor(item.linkedPR.state)} />
+                <Text style={[styles.prNumber, { color: prStateColor(item.linkedPR.state) }]}>
+                  #{item.linkedPR.number}
+                </Text>
+              </View>
+            )}
+            <WorktreeMetaGlyphs
+              comment={item.comment}
+              linkedLinearIssue={item.linkedLinearIssue}
+              linkedGitLabMR={item.linkedGitLabMR}
+              linkedIssue={item.linkedIssue}
+              linkedGitLabIssue={item.linkedGitLabIssue}
+            />
+            {collisionChip ? <RowChip text={collisionChip} /> : null}
+            {hostDisconnected ? <RowChip text="Disconnected" /> : null}
+            <SessionStatusMark glyph={glyph} />
+          </View>
+        </Pressable>
+
         {lineageChildCount > 0 && onToggleLineage ? (
           <Pressable
             style={styles.lineageToggle}
-            onPress={(event) => {
-              event.stopPropagation()
-              onToggleLineage(item)
-            }}
+            onPress={() => onToggleLineage(item)}
+            accessibilityRole="button"
           >
             {item.lineageCollapsed ? (
               <ChevronRight size={12} color={colors.textSecondary} />
@@ -212,17 +279,29 @@ function WorktreeListRowComponent<T extends WorktreeListRowItem>({
               <ChevronDown size={12} color={colors.textSecondary} />
             )}
             <GitBranch size={12} color={colors.textSecondary} />
-            <Text style={styles.lineageToggleText}>
-              {lineageChildCount} {lineageChildCount === 1 ? 'child' : 'children'}
-            </Text>
+            <Text style={styles.lineageToggleText}>{lineageChildCount}</Text>
           </Pressable>
         ) : null}
+
+        {item.liveTerminalCount > 0 && (
+          <Text style={styles.terminalCount}>{item.liveTerminalCount}</Text>
+        )}
       </View>
 
-      {item.liveTerminalCount > 0 && (
-        <Text style={styles.terminalCount}>{item.liveTerminalCount}</Text>
-      )}
-    </Pressable>
+      {hasSessions && !sessionsCollapsed ? (
+        <View style={hostDisconnected && styles.dimmed}>
+          <WorktreeAgentList
+            agents={agents}
+            now={now}
+            unvisited={item.unread}
+            disconnected={hostDisconnected}
+            runsOnBranchByPaneKey={runsOnBranchByPaneKey}
+            onOpen={isReadOnly ? undefined : openSession}
+            onLongPress={isReadOnly ? undefined : longPressSession}
+          />
+        </View>
+      ) : null}
+    </View>
   )
 }
 
@@ -230,17 +309,12 @@ export const WorktreeListRow = memo(WorktreeListRowComponent) as typeof Worktree
 
 const styles = StyleSheet.create({
   worktreeRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: spacing.sm + 2,
-    paddingLeft: spacing.lg,
+    paddingLeft: spacing.sm,
     paddingRight: spacing.lg,
+    paddingVertical: 2,
     // Reserve the active accent bar width so active/inactive rows align.
     borderLeftWidth: 2,
     borderLeftColor: 'transparent'
-  },
-  worktreeRowPressed: {
-    backgroundColor: colors.bgRaised
   },
   // Highlight the worktree currently focused on the desktop, mirroring the
   // desktop sidebar's selected-card treatment (raised fill + left accent).
@@ -250,36 +324,47 @@ const styles = StyleSheet.create({
     // than a blue line.
     borderLeftColor: colors.textSecondary
   },
-  indicatorCol: {
-    width: 20,
-    alignItems: 'center',
-    paddingTop: 6,
-    marginRight: spacing.sm,
-    gap: 4
+  worktreeRowPressed: {
+    backgroundColor: colors.bgRaised
   },
-  unreadBell: {
-    marginTop: 2
-  },
-  worktreeMain: {
-    flex: 1,
-    marginRight: spacing.sm
-  },
-  worktreeNameRow: {
+  branchLine: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm
+    minHeight: 32,
+    gap: spacing.xs
   },
-  worktreeName: {
-    fontSize: 14,
+  leadButton: {
+    width: 28,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  mainTap: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center'
+  },
+  mainLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    minWidth: 0
+  },
+  label: {
+    flexShrink: 1,
+    fontSize: 13,
     fontWeight: '600',
-    color: colors.textPrimary,
-    flexShrink: 1
+    fontFamily: typography.monoFamily,
+    color: colors.textPrimary
   },
-  worktreeNameUnread: {
+  labelUnread: {
     fontWeight: '700'
   },
   textReadOnly: {
     opacity: 0.5
+  },
+  dimmed: {
+    opacity: 0.6
   },
   prBadge: {
     flexDirection: 'row',
@@ -294,62 +379,25 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: colors.textSecondary
   },
-  folderBadge: {
+  chip: {
+    flexShrink: 1,
+    maxWidth: 120,
     backgroundColor: colors.bgRaised,
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 4
   },
-  folderBadgeText: {
+  chipText: {
     fontSize: 10,
     color: colors.textSecondary
   },
-  worktreeMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-    gap: spacing.xs
-  },
-  repoName: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    maxWidth: 100
-  },
-  branchName: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontFamily: typography.monoFamily,
-    flexShrink: 1
-  },
-  childBadge: {
+  lineageToggle: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
     backgroundColor: colors.bgRaised,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4
-  },
-  childBadgeText: {
-    fontSize: 10,
-    color: colors.textMuted
-  },
-  hostBadge: {
-    flexShrink: 1,
-    maxWidth: 140
-  },
-  hostBadgeText: {
-    flexShrink: 1
-  },
-  lineageToggle: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: spacing.xs,
-    backgroundColor: colors.bgRaised,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: radii.button
   },
   lineageToggleText: {
@@ -361,7 +409,6 @@ const styles = StyleSheet.create({
     fontSize: typography.metaSize,
     color: colors.textMuted,
     minWidth: 16,
-    textAlign: 'right',
-    paddingTop: 3
+    textAlign: 'right'
   }
 })

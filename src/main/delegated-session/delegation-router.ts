@@ -2,9 +2,10 @@ import type {
   DelegationPlacement,
   DelegationPlacementWarning,
   DelegationReasonCode,
-  DelegationRouteResult
+  DelegationRouteResult,
+  DelegationTier
 } from '../../shared/delegated-session-types'
-import { classifyDelegationTask } from './delegation-task-classifier'
+import { classifyDelegationTask, withAdvisedDelegationTier } from './delegation-task-classifier'
 import {
   isClearlyReadOnlyDelegationTask,
   type DelegationTaskText
@@ -23,6 +24,8 @@ export type DelegationRouteInput = DelegationTaskText & {
   staleAfterMs?: number
   /** Model catalogs keyed by agent id; an agent without one keeps its table model and effort. */
   catalogs?: Readonly<Record<string, DelegationModelCatalog | undefined>>
+  /** Jev's tier for this task; absent, the classifier's tier applies. */
+  advisedTier?: DelegationTier
 }
 
 export type DelegationPlacementChoice = {
@@ -55,10 +58,14 @@ export function delegationPlacementFor(
 }
 
 export function decideDelegation(input: DelegationRouteInput): DelegationRouteResult {
-  const { dimensions, tier, riskFloorApplied } = classifyDelegationTask({
+  const classification = classifyDelegationTask({
     summary: input.summary,
     writesCode: input.writesCode
   })
+  const { dimensions, tier, riskFloorApplied } =
+    input.advisedTier === undefined
+      ? classification
+      : withAdvisedDelegationTier(classification, input.advisedTier)
   const { ranking, winner } = rankDelegationAgents({
     candidates: input.candidates,
     now: input.now,
@@ -92,7 +99,8 @@ export function decideDelegation(input: DelegationRouteInput): DelegationRouteRe
       placement: placement.placement,
       placementWarning: placement.placementWarning,
       ranking,
-      reasons
+      reasons,
+      ...(input.advisedTier === undefined ? {} : { tierAdvisedBy: 'jev' as const })
     }
   }
 }

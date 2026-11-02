@@ -12,10 +12,13 @@ import type { WorktreeCardController } from './use-worktree-card-controller'
 
 export function WorktreeCardSecondaryRows({
   card,
-  presentation
+  presentation,
+  sessionsFolded = false
 }: {
   card: WorktreeCardController
   presentation: WorktreeCardPresentation
+  /** One-line card only: the branch is folded, so its session list is not rendered. */
+  sessionsFolded?: boolean
 }): React.JSX.Element {
   const {
     worktree,
@@ -33,7 +36,10 @@ export function WorktreeCardSecondaryRows({
     showLineageChildChip,
     lineageChildAriaLabel,
     childWorkspaceShortLabel,
-    isDeleting
+    isDeleting,
+    oneLineCards,
+    isSshDisconnected,
+    isRuntimeDisconnected
   } = card
   const { hasMetaRow } = presentation
 
@@ -57,7 +63,7 @@ export function WorktreeCardSecondaryRows({
 
       {/* Why from the row: the host lists a failed delete until it is retried, forgotten or gone.
           Why a tooltip: the error leads with the path; the Delete dialog shows it inline too. */}
-      {worktree.removalError && !isDeleting ? (
+      {worktree.removalError && !isDeleting && !oneLineCards ? (
         <Tooltip>
           <TooltipTrigger asChild>
             <div
@@ -86,15 +92,23 @@ export function WorktreeCardSecondaryRows({
       ) : null}
 
       {/* Why: counterbalance the card stack gap (-mt-1) so agents right after the title read as one header group. */}
-      {showInlineAgentList && (
+      {showInlineAgentList && !sessionsFolded && (
         <WorktreeCardAgents
           worktreeId={worktree.id}
-          agents={agentActivityDisplayMode === 'compact' ? compactInlineAgentRows : undefined}
-          className={hasMetaRow || remoteBranchConflict ? 'mt-0' : '-mt-1'}
+          agents={
+            agentActivityDisplayMode === 'compact' || oneLineCards
+              ? compactInlineAgentRows
+              : undefined
+          }
+          layout={oneLineCards ? 'one-line' : 'activity'}
+          dimmed={isSshDisconnected || isRuntimeDisconnected}
+          className={
+            oneLineCards ? undefined : hasMetaRow || remoteBranchConflict ? 'mt-0' : '-mt-1'
+          }
         />
       )}
 
-      {showLineageChildChip && (
+      {showLineageChildChip && !oneLineCards && (
         <div
           className={cn('relative mt-1 flex min-w-0 justify-start', !newCardStyle && '-ml-1')}
           style={{
@@ -134,7 +148,7 @@ export function WorktreeCardSecondaryRows({
         </div>
       )}
 
-      {!newCardStyle && lineageChildren && (
+      {!newCardStyle && !oneLineCards && lineageChildren && (
         <div className="-ml-[1.125rem] mt-1.5 w-[calc(100%+1.125rem)] space-y-1">
           {lineageChildren}
         </div>

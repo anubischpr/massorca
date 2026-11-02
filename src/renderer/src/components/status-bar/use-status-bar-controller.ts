@@ -13,7 +13,10 @@ import { CLOSE_ALL_CONTEXT_MENUS_EVENT } from '@/lib/close-all-context-menus'
 import { useStatusBarDensity } from './status-bar-density'
 import { useEffectiveRateLimits } from './use-effective-rate-limits'
 
-export function useStatusBarController(floatingTerminalOpen: boolean) {
+export function useStatusBarController(
+  floatingTerminalOpen: boolean,
+  options: { ignoreStatusBarVisibility?: boolean } = {}
+) {
   const floatingTerminalShortcut = useShortcutLabel('floatingTerminal.toggle')
   const settings = useAppStore((s) => s.settings)
   const {
@@ -95,7 +98,7 @@ export function useStatusBarController(floatingTerminalOpen: boolean) {
     }
   }, [isRefreshing, refreshRateLimits, refreshDetectedAgents])
 
-  if (!statusBarVisible) {
+  if (!statusBarVisible && !options.ignoreStatusBarVisibility) {
     return null
   }
 

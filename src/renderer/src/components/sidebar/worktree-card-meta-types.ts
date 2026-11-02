@@ -59,6 +59,7 @@ export type WorktreeCardDetailsHoverProps = WorktreeCardMetaBadgesProps & {
   identityOrder?: 'workspace-first' | 'branch-first'
   workspaceTitleRenameDisabled?: boolean
   detailsAfter?: React.ReactNode
+  contentClassName?: string
   openDelay?: number
   closeDelay?: number
   onRenameWorkspaceTitle?: (displayName: string) => Promise<void> | void

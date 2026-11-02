@@ -87,7 +87,6 @@ export function composeMergePreview(input: {
   htmlByLetter: Readonly<Record<string, string>>
   /** The parts the merge keeps, in plan page order. */
   parts: readonly PrototypeMergeReviewPart[]
-  hoveredId: number | null
   view: MergePreviewView
   /** The placeholder line of a part that could not be placed. */
   unplacedText: (name: string) => string
@@ -105,7 +104,6 @@ export function composeMergePreview(input: {
   return assembleMergePreview({
     parts: input.parts,
     matches,
-    hoveredId: input.hoveredId,
     view: input.view,
     unplacedText: input.unplacedText
   })

@@ -443,7 +443,7 @@ async function activateTerminal(page: Page, worktreeId: string, tabId: string): 
   )
   await ensureTerminalVisible(page)
   await waitForActiveTerminalManager(page, 30_000)
-  await page.locator(`[data-testid="sortable-tab"][data-tab-id="${tabId}"]`).click({ force: true })
+  await page.locator(`[data-testid=side-panel-tab][data-tab-id="${tabId}"]`).click({ force: true })
 }
 
 async function enableTerminalAccessibility(page: Page, tabId: string): Promise<void> {

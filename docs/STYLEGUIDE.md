@@ -81,6 +81,21 @@ background: color-mix(in srgb, var(--primary) 12%, var(--background));
 
 This keeps light/dark parity automatic.
 
+### Session view rainbow
+
+The Chat and Terminal switch in the create-chat composer lights a rainbow border while Chat is selected. Its hues are tokens, so raw palette colors stay out of the component code, and the same values sit in `:root` and `.dark`:
+
+| Token            | Value     | Hue    |
+| ---------------- | --------- | ------ |
+| `--rainbow-red`    | `#f87171` | Red    |
+| `--rainbow-amber`  | `#fbbf24` | Amber  |
+| `--rainbow-green`  | `#34d399` | Green  |
+| `--rainbow-sky`    | `#38bdf8` | Sky    |
+| `--rainbow-violet` | `#a78bfa` | Violet |
+| `--rainbow-pink`   | `#f472b6` | Pink   |
+
+Use the classes `.chat-view-switch`, `.chat-view-rainbow` and `.chat-view-wobble` from `main.css`. The rainbow belongs to the switch only, never to a composer box. Going back to Chat wobbles the switch once and relights the border; under `prefers-reduced-motion` nothing wobbles and the border stays static.
+
 ## Typography
 
 - **Family:** `Geist` is loaded as a single variable woff2 (weight range 100–900). Always reach for `Geist` for sans, never `Inter` or system sans.

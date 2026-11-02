@@ -13,6 +13,7 @@ import {
 } from './settings-capability-section-renderers'
 import {
   renderArtifactsSettingsSection,
+  renderBotTeamsSettingsSection,
   renderPrototypesSettingsSection,
   renderSessionHistorySettingsSection,
   renderAutomationsSettingsSection,
@@ -131,6 +132,7 @@ export function renderSettingsPage(context: SettingsRenderContext): React.JSX.El
                 {renderArtifactsSettingsSection(context)}
                 {renderShareSkillsSettingsSection(context)}
                 {renderPrototypesSettingsSection(context)}
+                {renderBotTeamsSettingsSection(context)}
                 {renderSessionHistorySettingsSection(context)}
                 {renderGitSettingsSection(context)}
                 {renderTasksSettingsSection(context)}

@@ -216,9 +216,6 @@ export function renderFloatingTerminalPanelSurface({
                     focusedGroupId={surface.focusedGroupId}
                     isWorktreeActive={open}
                     isTabDragActive={isTabDragActive}
-                    hoveredTabInsertion={hoveredTabInsertion}
-                    // Why external: the titlebar strip above is the panel's one tab row.
-                    tabStrip="external"
                     // Why: floating workspace markdown is scratch/local context,
                     // not a repo review surface that should expose agent notes.
                     markdownAnnotationsEnabled={false}

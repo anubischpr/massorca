@@ -242,7 +242,7 @@ test.describe('SSH cold activation restore', () => {
       // has to be a real down/up pair at one position; a synthetic click event would not select.
       // The retry asserts on the store, so a press that lands wrong is retried rather than believed.
       const tabStrip = orcaPage.locator('.terminal-tab-strip').first()
-      const firstTab = orcaPage.getByRole('button', { name: /^Terminal 1 Close tab Terminal 1/ })
+      const firstTab = orcaPage.getByRole('tab', { name: 'Terminal 1' })
       await expect
         .poll(
           async () => {

@@ -29,12 +29,20 @@ export function MobilePrototypeSystemRow({
   )
 }
 
-// Four color values in a 2x2 grid.
+// Four color values in a 2x2 grid: two explicit rows, so the grid never depends on the cells wrapping.
 function SwatchIcon({ swatches }: { swatches: readonly string[] }) {
+  const rows = [
+    { key: 'top', colors: swatches.slice(0, 2) },
+    { key: 'bottom', colors: swatches.slice(2, 4) }
+  ]
   return (
     <View accessibilityElementsHidden importantForAccessibility="no" style={styles.icon}>
-      {keyedEntries(swatches, (color) => color).map(({ key, entry: color }) => (
-        <View key={key} style={[styles.cell, { backgroundColor: color }]} />
+      {rows.map((row) => (
+        <View key={row.key} style={styles.swatchRow}>
+          {keyedEntries(row.colors, (color) => color).map(({ key, entry: color }) => (
+            <View key={key} style={[styles.cell, { backgroundColor: color }]} />
+          ))}
+        </View>
       ))}
     </View>
   )
@@ -55,16 +63,18 @@ const styles = StyleSheet.create({
   icon: {
     width: 44,
     height: 44,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexShrink: 0,
+    justifyContent: 'center',
     gap: 3,
-    padding: 7,
+    paddingHorizontal: 7,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    backgroundColor: colors.bgBase
+    backgroundColor: colors.bgBase,
+    overflow: 'hidden'
   },
-  cell: { width: 13, height: 13, borderRadius: 3 },
+  swatchRow: { flexDirection: 'row', gap: 3 },
+  cell: { width: 12, height: 12, borderRadius: 3 },
   text: { flex: 1, minWidth: 0, gap: 3 },
   title: { color: colors.textPrimary, fontSize: 15, fontWeight: '500' },
   line: { color: colors.textSecondary, fontSize: 13 },

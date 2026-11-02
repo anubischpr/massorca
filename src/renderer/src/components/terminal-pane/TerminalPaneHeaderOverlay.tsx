@@ -20,6 +20,7 @@ import { isImeCompositionKeyDown } from '@/lib/ime-composition-keyboard-event'
 import type { PtyTransport } from './pty-transport'
 import { TerminalPaneHeaderDropSurface } from './TerminalPaneHeaderDropSurface'
 import { makePaneKey } from '../../../../shared/stable-pane-id'
+import { TerminalSessionBarActions, type TerminalSessionBar } from './TerminalSessionBarActions'
 
 export type PaneTitleOverlayRect = {
   left: number
@@ -55,6 +56,8 @@ type TerminalPaneHeaderOverlayProps = {
    *  avoid duplicating it across splits, and to bridge chat only — a structured
    *  session has no terminal underneath to switch to. */
   canToggleNativeChat?: boolean
+  /** Set for a terminal session: its actions render into the shell's session bar instead of pane headers. */
+  sessionBar?: TerminalSessionBar | null
   /** True when the active pane is currently showing the native chat view. */
   isChatViewMode?: boolean
   /** Flip the active pane between the terminal and the native chat view. */
@@ -96,6 +99,7 @@ export default function TerminalPaneHeaderOverlay({
   managerRef,
   paneTransportsRef,
   canToggleNativeChat,
+  sessionBar,
   isChatViewMode,
   onToggleNativeChat,
   canContinueAgentSessionInNewSession,
@@ -118,6 +122,9 @@ export default function TerminalPaneHeaderOverlay({
     'auto.components.terminal.pane.TerminalContextMenu.20e565d865',
     'Split Terminal Right'
   )
+  // Why: a terminal session's actions live in the shell's session bar, not on each pane header.
+  const actionsInBar = sessionBar != null
+  const barPane = panes.find((pane) => pane.id === activePaneId) ?? panes[0]
 
   return (
     <div
@@ -146,7 +153,8 @@ export default function TerminalPaneHeaderOverlay({
         // Why: a titled split pane keeps its X as remove-title, but a titled single
         // pane (agent terminals get runtime titles) still needs a close control.
         const showCloseButton =
-          showAlwaysOnHeaders && (paneCount > 1 ? !title : showSplitButton && !isTabPinned)
+          showAlwaysOnHeaders &&
+          (paneCount > 1 ? !title : showSplitButton && !isTabPinned && !actionsInBar)
         if (!showHeader || !overlayRect) {
           return null
         }
@@ -233,7 +241,7 @@ export default function TerminalPaneHeaderOverlay({
                   </button>
                 ) : null}
                 <div className="pane-title-actions ml-auto flex shrink-0 items-center gap-0">
-                  {canContinueAgentSessionInNewSession && isActivePane ? (
+                  {!actionsInBar && canContinueAgentSessionInNewSession && isActivePane ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -261,7 +269,7 @@ export default function TerminalPaneHeaderOverlay({
                       </TooltipContent>
                     </Tooltip>
                   ) : null}
-                  {canToggleNativeChat && isActivePane ? (
+                  {!actionsInBar && canToggleNativeChat && isActivePane ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -306,7 +314,7 @@ export default function TerminalPaneHeaderOverlay({
                       </TooltipContent>
                     </Tooltip>
                   ) : null}
-                  {showAlwaysOnHeaders && showSplitButton ? (
+                  {!actionsInBar && showAlwaysOnHeaders && showSplitButton ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
@@ -388,6 +396,18 @@ export default function TerminalPaneHeaderOverlay({
           </TerminalPaneHeaderDropSurface>
         )
       })}
+      {sessionBar?.ownsBar && terminalContentVisible && barPane ? (
+        <TerminalSessionBarActions
+          target={sessionBar.target}
+          tabId={tabId}
+          canToggleNativeChat={Boolean(canToggleNativeChat)}
+          isChatViewMode={Boolean(isChatViewMode)}
+          onToggleNativeChat={() => onToggleNativeChat?.()}
+          canHandOff={Boolean(canContinueAgentSessionInNewSession)}
+          onHandOff={() => onContinueAgentSessionInNewSession?.(barPane)}
+          onSplitRight={() => onSplitPane(barPane, 'vertical')}
+        />
+      ) : null}
     </div>
   )
 }

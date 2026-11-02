@@ -11,6 +11,8 @@ type Args = {
   hostCapabilities: readonly string[]
   navigate: (target: string) => void
   onDone: () => void
+  /** Folder workspaces have no git source control, so their sheet leaves it out. Default true. */
+  includeSourceControl?: boolean
 }
 
 // Why: builds the per-worktree "navigate to a screen" action-sheet actions
@@ -19,8 +21,9 @@ type Args = {
 // navigate to a screen that would call a missing RPC method. Extracted from the
 // host index action sheet to keep that file under its max-lines budget.
 export function buildWorktreeNavigationActions(args: Args): ActionSheetAction[] {
-  const actions: ActionSheetAction[] = [
-    {
+  const actions: ActionSheetAction[] = []
+  if (args.includeSourceControl !== false) {
+    actions.push({
       label: 'Source Control',
       icon: GitBranch,
       onPress: () => {
@@ -30,8 +33,8 @@ export function buildWorktreeNavigationActions(args: Args): ActionSheetAction[] 
         )
         args.onDone()
       }
-    }
-  ]
+    })
+  }
   if (args.hostCapabilities.includes(MOBILE_AI_VAULT_CAPABILITY)) {
     actions.push({
       label: 'Agent Session History',

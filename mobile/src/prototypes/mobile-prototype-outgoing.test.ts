@@ -218,7 +218,7 @@ describe('planMobilePrototypeOutgoing design system', () => {
     })
     const planned = await result
     expect(planned.kind === 'send' && planned.wireText).toContain(
-      'read /main/design/system/tokens.json, /main/design/system/components.html'
+      'check whether /main/design/system/tokens.json, /main/design/system/components.html'
     )
     expect(planned.kind === 'send' && planned.shownText).toBe('/prototype a login page')
   })

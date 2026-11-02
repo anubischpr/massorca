@@ -1,14 +1,16 @@
 import { openExternalLink } from '../platform/external-link'
 import { Pressable, Text, View } from 'react-native'
-import { Check, Moon } from 'lucide-react-native'
+import { Check, Copy, Moon, Pin, PinOff, Trash2 } from 'lucide-react-native'
 import { buildWorktreeNavigationActions } from '../agent-history/worktree-navigation-actions'
-import { ActionSheetContent } from '../components/ActionSheetModal'
+import { ActionSheetContent, type ActionSheetAction } from '../components/ActionSheetModal'
 import { BottomDrawer } from '../components/BottomDrawer'
 import { ConfirmModal } from '../components/ConfirmModal'
 import { NewWorktreeModalController } from '../components/NewWorktreeModalController'
 import { PickerModal } from '../components/PickerModal'
+import { useClipboardWriter } from '../platform/clipboard'
 import { colors } from '../theme/mobile-theme'
 import { hostNewWorktreeSessionRoute } from '../host-route-action-state'
+import { displayBranchName, resolveBranchRowLabel } from '../worktree/branch-row-label'
 import { getWorktreeRowIdentity } from '../worktree/worktree-host-row-identity'
 import {
   WORKSPACE_GROUP_OPTIONS as GROUP_OPTIONS,
@@ -16,8 +18,10 @@ import {
   WORKSPACE_VIEW_SHARED_NOTE
 } from '../worktree/workspace-list-picker-options'
 import { isWorktreePinned } from '../worktree/workspace-list-sections'
+import type { Worktree } from '../worktree/workspace-list-types'
 import { hostScreenStyles as styles } from './host-screen-styles'
 import type { HostScreenController } from './use-host-screen-controller'
+import { canDeleteFromWorktreeSheet } from './worktree-row-policy'
 
 export function HostScreenOverlays({ controller }: { controller: HostScreenController }) {
   const {
@@ -32,6 +36,77 @@ export function HostScreenOverlays({ controller }: { controller: HostScreenContr
     state
   } = controller
   const actionTarget = state.actionTarget
+  const clipboard = useClipboardWriter()
+  const copyPath = (path: string) => {
+    void clipboard
+      .writeText(path)
+      .then(() => state.setCopyNotice('Path copied'))
+      .catch(() => state.setActionError('Could not copy the path to the clipboard.'))
+  }
+  const labelOf = (target: Worktree) =>
+    resolveBranchRowLabel(target, {
+      branchLabel: controller.sectionsResult.branchLabels.get(getWorktreeRowIdentity(target))
+    }).label
+
+  // Why: a folder workspace has no branch to sleep, pin or delete differently, but it has no git
+  // source control, so its sheet leaves that action out.
+  const branchSheetActions = (target: Worktree): ActionSheetAction[] => {
+    const isFolder = target.workspaceKind === 'folder-workspace'
+    const label = labelOf(target)
+    const pinned = isWorktreePinned(target, state.pinnedIds)
+    return [
+      {
+        label: 'Copy Path',
+        icon: Copy,
+        onPress: () => {
+          copyPath(target.path)
+          state.setActionTarget(null)
+        }
+      },
+      ...buildWorktreeNavigationActions({
+        hostId,
+        worktreeId: target.worktreeId,
+        worktreeName: label,
+        hostCapabilities,
+        navigate: actions.navigateFromHostList,
+        onDone: () => state.setActionTarget(null),
+        includeSourceControl: !isFolder
+      }),
+      {
+        label: 'Sleep',
+        icon: Moon,
+        onPress: () => {
+          if (client) {
+            state.setSleptIds((prev) => new Set(prev).add(getWorktreeRowIdentity(target)))
+            void client
+              .sendRequest('worktree.sleep', {
+                worktree: `id:${target.worktreeId}`
+              })
+              .catch(() => null)
+          }
+          state.setActionTarget(null)
+        }
+      },
+      {
+        label: pinned ? 'Unpin' : 'Pin',
+        icon: pinned ? PinOff : Pin,
+        onPress: () => {
+          actions.togglePin(target.worktreeId)
+          state.setActionTarget(null)
+        }
+      },
+      ...(canDeleteFromWorktreeSheet(target)
+        ? [
+            {
+              label: 'Delete',
+              icon: Trash2,
+              destructive: true,
+              onPress: () => state.setConfirmDelete(target)
+            }
+          ]
+        : [])
+    ]
+  }
 
   return (
     <>
@@ -120,8 +195,11 @@ export function HostScreenOverlays({ controller }: { controller: HostScreenContr
             <View style={styles.confirmContent}>
               <Text style={styles.confirmTitle}>Delete Worktree</Text>
               <Text style={styles.confirmMessage}>
-                Delete "{state.confirmDelete.displayName || state.confirmDelete.repo}" (
-                {state.confirmDelete.branch})?
+                {`Delete "${resolveBranchRowLabel(state.confirmDelete).label}"${
+                  state.confirmDelete.branch
+                    ? ` (${displayBranchName(state.confirmDelete.branch)})`
+                    : ''
+                }?`}
               </Text>
             </View>
             <View style={styles.confirmButtons}>
@@ -155,51 +233,20 @@ export function HostScreenOverlays({ controller }: { controller: HostScreenContr
           </View>
         ) : (
           <ActionSheetContent
-            title={actionTarget ? actionTarget.displayName || actionTarget.repo : undefined}
-            message={actionTarget?.branch}
-            actions={
+            title={actionTarget ? labelOf(actionTarget) : undefined}
+            message={
               actionTarget
                 ? [
-                    ...buildWorktreeNavigationActions({
-                      hostId,
-                      worktreeId: actionTarget.worktreeId,
-                      worktreeName: actionTarget.displayName || actionTarget.repo,
-                      hostCapabilities,
-                      navigate: actions.navigateFromHostList,
-                      onDone: () => state.setActionTarget(null)
-                    }),
-                    {
-                      label: 'Sleep',
-                      icon: Moon,
-                      onPress: () => {
-                        if (client) {
-                          state.setSleptIds((prev) =>
-                            new Set(prev).add(getWorktreeRowIdentity(actionTarget))
-                          )
-                          void client
-                            .sendRequest('worktree.sleep', {
-                              worktree: `id:${actionTarget.worktreeId}`
-                            })
-                            .catch(() => null)
-                        }
-                        state.setActionTarget(null)
-                      }
-                    },
-                    {
-                      label: isWorktreePinned(actionTarget, state.pinnedIds) ? 'Unpin' : 'Pin',
-                      onPress: () => {
-                        actions.togglePin(actionTarget.worktreeId)
-                        state.setActionTarget(null)
-                      }
-                    },
-                    {
-                      label: 'Delete',
-                      destructive: true,
-                      onPress: () => state.setConfirmDelete(actionTarget)
-                    }
+                    actionTarget.workspaceKind === 'folder-workspace'
+                      ? ''
+                      : displayBranchName(actionTarget.branch),
+                    actionTarget.path
                   ]
-                : []
+                    .filter((part) => part.length > 0)
+                    .join(' · ')
+                : undefined
             }
+            actions={actionTarget ? branchSheetActions(actionTarget) : []}
           />
         )}
       </BottomDrawer>

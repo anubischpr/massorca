@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AgentSessionRecord } from '../../shared/agent-session-record'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
-import { launchDirectoryOfChat } from './chat-launch-directory'
+import { launchDirectoryOfChat, projectDirectoryOfChat } from './chat-launch-directory'
 
 function chatRecord(
   launchDirectory?: string
@@ -39,5 +39,35 @@ describe('launchDirectoryOfChat', () => {
       })
     ).toBeUndefined()
     expect(await launchDirectoryOfChat(chatRecord(), undefined)).toBeUndefined()
+  })
+})
+
+describe('projectDirectoryOfChat', () => {
+  const gone = async (): Promise<string> => {
+    throw new Error('workspace gone')
+  }
+
+  it('is the chat directory while its workspace exists, without asking the repository', async () => {
+    const resolveRepositoryPath = vi.fn(async () => '/repos/main')
+    expect(
+      await projectDirectoryOfChat(
+        chatRecord(),
+        async () => '/workspaces/one',
+        resolveRepositoryPath
+      )
+    ).toBe('/workspaces/one')
+    expect(resolveRepositoryPath).not.toHaveBeenCalled()
+  })
+
+  it("falls back to the repository's own path once the worktree is removed", async () => {
+    expect(await projectDirectoryOfChat(chatRecord(), gone, async () => '/repos/main')).toBe(
+      '/repos/main'
+    )
+  })
+
+  it('gives no directory when neither the workspace nor its repository resolves', async () => {
+    expect(await projectDirectoryOfChat(chatRecord(), gone, async () => undefined)).toBeUndefined()
+    expect(await projectDirectoryOfChat(chatRecord(), gone, gone)).toBeUndefined()
+    expect(await projectDirectoryOfChat(chatRecord(), gone, undefined)).toBeUndefined()
   })
 })

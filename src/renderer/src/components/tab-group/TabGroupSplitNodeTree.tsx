@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { TabGroupLayoutNode } from '../../../../shared/tab-types'
 import { useAppStore } from '../../store'
-import TabGroupPanel, { type TabGroupPanelTabStrip } from './TabGroupPanel'
-import type { HoveredTabInsertion } from './useTabDragSplit'
+import { isSidePanelGroupId } from '../../store/slices/tabs/side-panel-group'
+import TabGroupPanel from './TabGroupPanel'
 
 const MIN_RATIO = 0.15
 const MAX_RATIO = 0.85
@@ -144,7 +144,6 @@ function SplitNode({
   focusedGroupId,
   isWorktreeActive,
   hasSplitGroups,
-  tabStrip,
   markdownAnnotationsEnabled,
   touchesTopEdge,
   touchesRightEdge,
@@ -153,8 +152,7 @@ function SplitNode({
   suppressLeftBorder,
   suppressRightBorder,
   suppressBottomBorder,
-  isTabDragActive,
-  hoveredTabInsertion
+  isTabDragActive
 }: {
   node: TabGroupLayoutNode
   nodePath: string
@@ -162,7 +160,6 @@ function SplitNode({
   focusedGroupId?: string
   isWorktreeActive: boolean
   hasSplitGroups: boolean
-  tabStrip: TabGroupPanelTabStrip
   markdownAnnotationsEnabled: boolean
   touchesTopEdge: boolean
   touchesRightEdge: boolean
@@ -172,10 +169,14 @@ function SplitNode({
   suppressRightBorder: boolean
   suppressBottomBorder: boolean
   isTabDragActive: boolean
-  hoveredTabInsertion: HoveredTabInsertion | null
 }): React.JSX.Element {
   const setTabGroupSplitRatio = useAppStore((state) => state.setTabGroupSplitRatio)
   const recordFeatureInteraction = useAppStore((state) => state.recordFeatureInteraction)
+
+  if (node.type === 'leaf' && isSidePanelGroupId(node.groupId)) {
+    // Why: the side panel renders beside the tree, so a panel leaf has no main-area surface.
+    return <div className="flex min-w-0 flex-1" />
+  }
 
   if (node.type === 'leaf') {
     return (
@@ -189,7 +190,6 @@ function SplitNode({
         // "focused", Cmd/Ctrl+W and split shortcuts can hit the wrong worktree.
         isFocused={isWorktreeActive && node.groupId === focusedGroupId}
         hasSplitGroups={hasSplitGroups}
-        tabStrip={tabStrip}
         markdownAnnotationsEnabled={markdownAnnotationsEnabled}
         touchesRightEdge={touchesRightEdge}
         touchesLeftEdge={touchesLeftEdge}
@@ -197,12 +197,7 @@ function SplitNode({
         suppressLeftBorder={suppressLeftBorder}
         suppressRightBorder={suppressRightBorder}
         suppressBottomBorder={suppressBottomBorder}
-        reserveClosedExplorerToggleSpace={touchesTopEdge && touchesRightEdge}
-        reserveCollapsedSidebarHeaderSpace={touchesTopEdge && touchesLeftEdge}
         isTabDragActive={isTabDragActive}
-        hoveredTabInsertion={
-          hoveredTabInsertion?.groupId === node.groupId ? hoveredTabInsertion : null
-        }
       />
     )
   }
@@ -223,7 +218,6 @@ function SplitNode({
           focusedGroupId={focusedGroupId}
           isWorktreeActive={isWorktreeActive}
           hasSplitGroups={hasSplitGroups}
-          tabStrip={tabStrip}
           markdownAnnotationsEnabled={markdownAnnotationsEnabled}
           touchesTopEdge={touchesTopEdge}
           touchesRightEdge={isHorizontal ? false : touchesRightEdge}
@@ -235,7 +229,6 @@ function SplitNode({
           suppressRightBorder={isHorizontal ? true : suppressRightBorder}
           suppressBottomBorder={isHorizontal ? suppressBottomBorder : true}
           isTabDragActive={isTabDragActive}
-          hoveredTabInsertion={hoveredTabInsertion}
         />
       </div>
       <ResizeHandle
@@ -251,7 +244,6 @@ function SplitNode({
           focusedGroupId={focusedGroupId}
           isWorktreeActive={isWorktreeActive}
           hasSplitGroups={hasSplitGroups}
-          tabStrip={tabStrip}
           markdownAnnotationsEnabled={markdownAnnotationsEnabled}
           touchesTopEdge={isHorizontal ? touchesTopEdge : false}
           touchesRightEdge={touchesRightEdge}
@@ -261,7 +253,6 @@ function SplitNode({
           suppressRightBorder={suppressRightBorder}
           suppressBottomBorder={suppressBottomBorder}
           isTabDragActive={isTabDragActive}
-          hoveredTabInsertion={hoveredTabInsertion}
         />
       </div>
     </div>
@@ -282,8 +273,6 @@ export function TabGroupSplitNodeTree({
   focusedGroupId,
   isWorktreeActive,
   isTabDragActive,
-  hoveredTabInsertion,
-  tabStrip = 'attached',
   markdownAnnotationsEnabled = true,
   rootTouchesBottomEdge = false
 }: {
@@ -292,8 +281,6 @@ export function TabGroupSplitNodeTree({
   focusedGroupId?: string
   isWorktreeActive: boolean
   isTabDragActive: boolean
-  hoveredTabInsertion: HoveredTabInsertion | null
-  tabStrip?: TabGroupPanelTabStrip
   /** Off for scratch workspaces (the floating panel) whose markdown is not a review surface. */
   markdownAnnotationsEnabled?: boolean
   /** True when the host's own chrome bounds the tree's bottom edge (no border-b to paint). */
@@ -307,7 +294,6 @@ export function TabGroupSplitNodeTree({
       focusedGroupId={focusedGroupId}
       isWorktreeActive={isWorktreeActive}
       hasSplitGroups={layout.type === 'split'}
-      tabStrip={tabStrip}
       markdownAnnotationsEnabled={markdownAnnotationsEnabled}
       touchesTopEdge={true}
       touchesRightEdge={true}
@@ -317,7 +303,6 @@ export function TabGroupSplitNodeTree({
       suppressRightBorder={false}
       suppressBottomBorder={false}
       isTabDragActive={isTabDragActive}
-      hoveredTabInsertion={hoveredTabInsertion}
     />
   )
 }

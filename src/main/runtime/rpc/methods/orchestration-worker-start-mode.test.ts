@@ -6,8 +6,9 @@
  * wrong for a preference: a dispatch that cannot be a structured session must still start.
  */
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
+  resolveWorkerStartModeOnHost,
   decideWorkerStartMode,
   downgradeWorkerStartModeForHost,
   type WorkerStartModeReceipt
@@ -96,6 +97,26 @@ describe('a structured default this dispatch cannot honour', () => {
       preferred: 'structured',
       reason: 'user_default'
     })
+  })
+})
+
+describe('a pinned Pi runtime', () => {
+  it('asks the host about that runtime, not whichever Pi it has', async () => {
+    const getStructuredAgentSessionCreateSupport = vi.fn(async () => ({ supported: true as const }))
+    await resolveWorkerStartModeOnHost(
+      { getStructuredAgentSessionCreateSupport } as never,
+      decide(),
+      'folder:1',
+      'pi',
+      undefined,
+      'gentle-shell'
+    )
+    expect(getStructuredAgentSessionCreateSupport).toHaveBeenCalledWith(
+      'id:folder:1',
+      'pi',
+      'gentle-shell',
+      undefined
+    )
   })
 })
 

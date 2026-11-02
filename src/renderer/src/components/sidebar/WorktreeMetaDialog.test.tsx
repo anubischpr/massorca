@@ -290,6 +290,34 @@ describe('workspace linked work editor', () => {
     await save()
     expect(updateWorktreeMeta.mock.calls[0]?.[1]).toEqual({ comment: 'new note' })
   })
+  it('edits the row name in the one-line layout without touching the title', async () => {
+    openDialog({ displayName: 'Feature work' }, { showRowName: true })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Row name' }), {
+      target: { value: 'Login lane' }
+    })
+    await save()
+    expect(updateWorktreeMeta.mock.calls[0]?.[1]).toEqual({ manualDisplayName: 'Login lane' })
+  })
+  it('clears the row name when the field is left blank', async () => {
+    openDialog({ manualDisplayName: 'Login lane' }, { showRowName: true })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Row name' }), {
+      target: { value: '   ' }
+    })
+    await save()
+    expect(updateWorktreeMeta.mock.calls[0]?.[1]).toEqual({ manualDisplayName: null })
+  })
+  it('writes only the title when the row name is untouched', async () => {
+    openDialog({ manualDisplayName: 'Login lane' }, { showRowName: true })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Display Name' }), {
+      target: { value: 'Login work' }
+    })
+    await save()
+    expect(updateWorktreeMeta.mock.calls[0]?.[1]).toEqual({ displayName: 'Login work' })
+  })
+  it('keeps the row name out of the dialog outside the one-line layout', () => {
+    openDialog({ manualDisplayName: 'Login lane' })
+    expect(screen.queryByRole('textbox', { name: 'Row name' })).toBeNull()
+  })
   it('keeps the draft and error visible after a failed save', async () => {
     updateWorktreeMeta.mockResolvedValue({ ok: false, error: 'Host is disconnected' })
     openDialog()

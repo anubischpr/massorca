@@ -27,6 +27,7 @@ export function WorktreeCardSurface({ card }: { card: WorktreeCardController }):
     lineageChildren,
     lineageChildrenStyle,
     newCardStyle,
+    oneLineCards,
     titleRenaming,
     isDeleting,
     isRuntimeDisconnected,
@@ -49,7 +50,7 @@ export function WorktreeCardSurface({ card }: { card: WorktreeCardController }):
     <div
       className={cn(
         'relative flex cursor-pointer flex-col pr-1.5 transition-[background-color,border-color,opacity,box-shadow] duration-200 outline-none select-none',
-        titleOnlyCard ? 'py-2' : 'pt-1.25 pb-1.5',
+        oneLineCards ? 'py-px' : titleOnlyCard ? 'py-2' : 'pt-1.25 pb-1.5',
         flushSurface ? 'ml-1 w-[calc(100%-0.25rem)]' : 'ml-1',
         'overflow-hidden rounded-lg',
         // Why: the live data attribute updates before React state during navigation,
@@ -110,9 +111,9 @@ export function WorktreeCardSurface({ card }: { card: WorktreeCardController }):
         parentCardContent
       )}
 
-      {newCardStyle && lineageChildren ? (
+      {(newCardStyle || oneLineCards) && lineageChildren ? (
         <div
-          className="mt-1.5 space-y-1"
+          className={oneLineCards ? 'space-y-0.5' : 'mt-1.5 space-y-1'}
           data-worktree-lineage-children=""
           style={lineageChildrenStyle}
         >
@@ -132,6 +133,7 @@ export function WorktreeCardSurface({ card }: { card: WorktreeCardController }):
           selectedWorktrees={selectedWorktrees}
           onContextMenuSelect={handleContextMenuSelect}
           onAssignWorkspaceStatus={onAssignWorkspaceStatus}
+          showRowName={oneLineCards}
         >
           {cardBody}
         </WorktreeContextMenu>

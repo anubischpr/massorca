@@ -41,6 +41,8 @@ export type WorktreeContextMenuProps = {
   onAssignWorkspaceStatus?: (worktreeIds: readonly string[], status: string) => void
   onOpenChange?: (open: boolean) => void
   onLifecycleComplete?: () => void
+  /** One-line rows: the Update dialog also edits the row name. */
+  showRowName?: boolean
 }
 
 export function useWorktreeContextMenuModel({
@@ -51,7 +53,8 @@ export function useWorktreeContextMenuModel({
   onContextMenuSelect,
   onAssignWorkspaceStatus,
   onOpenChange,
-  onLifecycleComplete
+  onLifecycleComplete,
+  showRowName = false
 }: WorktreeContextMenuProps) {
   const defaultSelectedWorktrees = useMemo(() => [worktree], [worktree])
   const effectiveSelectedWorktrees = selectedWorktrees ?? defaultSelectedWorktrees
@@ -283,6 +286,7 @@ export function useWorktreeContextMenuModel({
   )
 
   const commands = useWorktreeContextMenuCommands({
+    showRowName,
     activeContextWorktrees,
     batchDeleteWorktrees,
     createGroupDialogActiveRef,

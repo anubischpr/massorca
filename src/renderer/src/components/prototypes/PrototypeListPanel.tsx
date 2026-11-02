@@ -1,4 +1,8 @@
+import { useMemo, type CSSProperties } from 'react'
 import { translate } from '@/i18n/i18n'
+import { resolveLeftSidebarStyleVariables } from '@/lib/left-sidebar-appearance'
+import { useAppStore } from '@/store'
+import { useSystemPrefersDark } from '../terminal-pane/use-system-prefers-dark'
 import { cn } from '@/lib/utils'
 import type { PrototypeListGroup } from '../../../../shared/prototype-list-groups'
 import { PROTOTYPE_FILTERS, type PrototypeFilter } from '../../../../shared/prototype-list-model'
@@ -30,10 +34,19 @@ export function PrototypeListPanel({
   onSelectSystem: (projectKey: string) => void
   archive?: PrototypeArchiveControls
 }): React.JSX.Element {
+  const settings = useAppStore((s) => s.settings)
+  const systemPrefersDark = useSystemPrefersDark()
+  // Why: the same surface and custom appearance as the Workspaces sidebar, so both left columns match.
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the helper returns only CSS custom properties, which React applies as style.
+  const sidebarStyle = useMemo(
+    () => resolveLeftSidebarStyleVariables(settings, systemPrefersDark),
+    [settings, systemPrefersDark]
+  ) as CSSProperties | undefined
   return (
     <section
       aria-label={translate('components.prototypes.listLabel', 'All prototypes')}
-      className="flex min-h-0 w-[250px] shrink-0 flex-col bg-sidebar"
+      className="flex min-h-0 w-[250px] shrink-0 flex-col bg-worktree-sidebar"
+      style={sidebarStyle}
     >
       <div className="flex flex-col gap-2.5 px-3.5 pt-3.5 pb-2.5">
         <h1 className="m-0 text-sm font-semibold">
@@ -73,11 +86,14 @@ export function PrototypeListPanel({
                 </span>
               )}
               {projectKey === null || system === null ? null : (
-                <SystemRow
-                  system={system}
-                  selected={selectedProjectKey === projectKey}
-                  onSelect={() => onSelectSystem(projectKey)}
-                />
+                <>
+                  <SystemRow
+                    system={system}
+                    selected={selectedProjectKey === projectKey}
+                    onSelect={() => onSelectSystem(projectKey)}
+                  />
+                  <div role="separator" className="mx-2 my-1 h-px bg-border" />
+                </>
               )}
               {group.rows.map((row) => (
                 <PrototypeSetRow

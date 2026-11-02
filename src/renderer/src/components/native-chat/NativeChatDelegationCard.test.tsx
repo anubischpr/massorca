@@ -2,7 +2,10 @@
 import { act } from 'react'
 import { createRoot } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useAppStore } from '@/store'
+import { getDefaultSettings } from '../../../../shared/constants'
 import type { DelegationCardPayload } from '../../../../shared/delegated-session-journal'
+import type { PrototypeSystemCard } from '../../../../shared/prototype-design-system-card'
 import type {
   DelegationAgentUsage,
   DelegationDecision
@@ -65,7 +68,37 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount())
   container.remove()
+  useAppStore.setState({ settings: null })
 })
+
+function setViewerCount(count: number): void {
+  useAppStore.setState({
+    settings: { ...getDefaultSettings('/tmp'), prototypeCount: { mode: 'ask', count } }
+  })
+}
+
+const EXISTING_SYSTEM: PrototypeSystemCard = {
+  kind: 'existing',
+  projectKey: 'nexuscare',
+  projectName: 'NexusCare',
+  version: 1,
+  tokenCount: 24,
+  sourceNames: ['main.css'],
+  swatches: ['#111111', '#ffffff', '#888888', '#22aa55']
+}
+const NO_SYSTEM: PrototypeSystemCard = {
+  kind: 'none',
+  projectKey: 'nexuscare',
+  projectName: 'NexusCare'
+}
+
+function systemButtons(): HTMLButtonElement[] {
+  return [
+    ...container.querySelectorAll<HTMLButtonElement>(
+      '[role="group"][aria-label^="Design system"] button, [role="group"][aria-label^="No design system"] button'
+    )
+  ]
+}
 
 function renderCard(
   body: DelegationCardPayload,
@@ -122,6 +155,11 @@ function countButtons(): HTMLButtonElement[] {
 }
 
 describe('NativeChatDelegationCard', () => {
+  it('names the request it asks about, since the question is the same for all', () => {
+    renderCard(payload)
+    expect(container.textContent).toContain('Explore Gentle Shell v5')
+  })
+
   it('starts with Automatic chosen and says which agent it picked', () => {
     renderCard(payload)
     expect(choices().map((button) => button.getAttribute('aria-checked'))).toEqual([
@@ -209,6 +247,16 @@ describe('NativeChatDelegationCard', () => {
     ])
   })
 
+  it('keeps the Automatic explanation beside the count question, with the buttons outside the scrolling choices', () => {
+    renderCard({ ...payload, prototypeCount: { choices: [1, 2, 3], defaultCount: 2 } })
+
+    const scroller = container.querySelector('.overflow-y-auto')
+    expect(scroller?.textContent).toContain('How many prototypes?')
+    expect(scroller?.textContent).toContain('Automatic picked Codex')
+    expect(scroller?.contains(startButton())).toBe(false)
+    expect(scroller?.contains(footerButton('Cancel') ?? null)).toBe(false)
+  })
+
   it('sends the count the person picked with the agent answer', () => {
     const { onAnswer } = renderCard({
       ...payload,
@@ -223,18 +271,79 @@ describe('NativeChatDelegationCard', () => {
     click(startButton())
     expect(onAnswer).toHaveBeenCalledWith(
       { kind: 'answers', answers: [{ questionId: 'q1', optionIds: ['automatic'] }] },
-      3
+      3,
+      undefined
     )
   })
 
-  it('sends no count when the person picked none, so the Settings count applies', () => {
+  it('sends the count it shows highlighted when the person picked none', () => {
     const { onAnswer } = renderCard({
       ...payload,
       prototypeCount: { choices: [1, 2, 3], defaultCount: 2 }
     })
     click(startButton())
     expect(onAnswer).toHaveBeenCalledOnce()
+    expect(onAnswer.mock.calls[0]?.[1]).toBe(2)
+  })
+
+  it("highlights and sends the viewer's own Settings count over the host's default", () => {
+    setViewerCount(3)
+    const { onAnswer } = renderCard({
+      ...payload,
+      prototypeCount: { choices: [1, 2, 3], defaultCount: 2 }
+    })
+    expect(countButtons().map((button) => button.getAttribute('aria-pressed'))).toEqual([
+      'false',
+      'false',
+      'true'
+    ])
+    click(startButton())
+    expect(onAnswer.mock.calls[0]?.[1]).toBe(3)
+  })
+
+  it('keeps the host default when the viewer Settings count is one the card does not offer', () => {
+    setViewerCount(4)
+    const { onAnswer } = renderCard({
+      ...payload,
+      prototypeCount: { choices: [1, 2, 3], defaultCount: 2 }
+    })
+    click(startButton())
+    expect(onAnswer.mock.calls[0]?.[1]).toBe(2)
+  })
+
+  it('sends no count and no design system for a card that draws neither, an older host', () => {
+    const { onAnswer } = renderCard(payload)
+    click(startButton())
     expect(onAnswer.mock.calls[0]).toHaveLength(1)
+  })
+
+  it('asks Use it and Review first for an existing design system, and sends use', () => {
+    const { onAnswer } = renderCard({
+      ...payload,
+      prototypeCount: { choices: [1, 2, 3], defaultCount: 3 },
+      designSystem: EXISTING_SYSTEM
+    })
+    expect(systemButtons().map((button) => button.textContent)).toEqual(['Use it', 'Review first'])
+    expect(container.textContent).toContain(
+      'v1 · 24 tokens from main.css. All 3 directions will use it.'
+    )
+    click(startButton())
+    expect(onAnswer.mock.calls[0]?.slice(1)).toEqual([3, 'use'])
+  })
+
+  it('asks Propose one first or Skip for a project with no system, and sends the pick', () => {
+    const { onAnswer } = renderCard({ ...payload, designSystem: NO_SYSTEM })
+    expect(systemButtons().map((button) => button.textContent)).toEqual([
+      'Propose one first',
+      'Skip'
+    ])
+    expect(systemButtons().map((button) => button.getAttribute('aria-pressed'))).toEqual([
+      'true',
+      'false'
+    ])
+    click(systemButtons()[1])
+    click(startButton())
+    expect(onAnswer.mock.calls[0]?.slice(1)).toEqual([undefined, 'skip'])
   })
 
   it('offers no count question for a task that asks for no prototype', () => {

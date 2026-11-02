@@ -38,6 +38,11 @@ describe('DESIGN_SYSTEM_REDETECT_INSTRUCTION', () => {
     expect(DESIGN_SYSTEM_READ_INSTRUCTION).toContain(`If they are missing: ${FIRST_REQUEST_STEPS}`)
     expect(DESIGN_SYSTEM_REDETECT_INSTRUCTION).not.toContain('as for a first request')
   })
+
+  it('checks which design files exist, and reads only those, before it re-reads them', () => {
+    expect(DESIGN_SYSTEM_REDETECT_INSTRUCTION).toContain('Check which of those files exist first')
+    expect(DESIGN_SYSTEM_REDETECT_INSTRUCTION).toContain('read only the ones that exist')
+  })
 })
 
 describe('a prototype request that uses the design system', () => {
@@ -68,17 +73,25 @@ describe('designSystemReadInstruction', () => {
     expect(designSystemReadInstruction({ unattended: true })).toContain(REPORT)
   })
 
-  it('names project-relative paths without a folder, as it always did', () => {
-    expect(DESIGN_SYSTEM_READ_INSTRUCTION).toContain(
-      'read design/system/tokens.json, components.html and system.md.'
+  it('asks an unattended child to open its worker_done report with the same statement', () => {
+    expect(designSystemReadInstruction({ unattended: true })).toContain(
+      'Begin the --body of your worker_done report with that same statement.'
     )
+    expect(designSystemReadInstruction()).not.toContain('worker_done')
+  })
+
+  it('names project-relative paths without a folder, and checks them before reading', () => {
+    expect(DESIGN_SYSTEM_READ_INSTRUCTION).toContain(
+      'check whether design/system/tokens.json, components.html and system.md exist'
+    )
+    expect(DESIGN_SYSTEM_READ_INSTRUCTION).toContain('read a file only when it exists')
   })
 
   it('names the files under the absolute folder when given one', () => {
     const folder = '/repo/design/system'
     const text = designSystemRequestInstruction({ folder })
     expect(text).toContain(
-      `read ${folder}/tokens.json, ${folder}/components.html and ${folder}/system.md.`
+      `check whether ${folder}/tokens.json, ${folder}/components.html and ${folder}/system.md exist`
     )
     expect(text).toContain(`${folder}/tokens.json: W3C design tokens`)
     expect(text).not.toContain('read design/system/tokens.json')

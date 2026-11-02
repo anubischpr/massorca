@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { RuntimeTerminalOrphanAdoptionRequest } from '../../shared/runtime-types'
+import type { TabGroup } from '../../shared/tab-types'
 import type { WorkspaceSessionState } from '../../shared/workspace-session-state-types'
 import { collectPersistedTerminalLeafIds } from './mobile-session-layout-projection'
 import type { RuntimePtyWorktreeRecord } from './runtime-terminal-state-records'
@@ -111,7 +112,7 @@ export function buildRuntimeTerminalOrphanSession(args: {
     ...group,
     worktreeId: worktreeId
   }))
-  const groups =
+  const groups: TabGroup[] =
     existingGroups.length === 0 && proposedGroups.length > 0
       ? proposedGroups
       : existingGroups.length > 0
@@ -145,7 +146,10 @@ export function buildRuntimeTerminalOrphanSession(args: {
               )
             )
         : [{ id: targetGroupId, worktreeId: worktreeId, activeTabId, tabOrder: adoptedTabIds }]
-  const retainedGroups = groups.filter((group) => group.tabOrder.length > 0)
+  // Why: a pane that shows another workspace's session holds no tab of its own.
+  const retainedGroups = groups.filter(
+    (group) => group.tabOrder.length > 0 || group.sessionRef !== undefined
+  )
   next.tabGroups = {
     ...next.tabGroups,
     [worktreeId]: retainedGroups

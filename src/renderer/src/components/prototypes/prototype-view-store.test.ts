@@ -7,7 +7,8 @@ beforeEach(() => {
     filter: 'all',
     selectedRequestId: null,
     states: {},
-    sidePanelHidden: false
+    sidePanelHidden: false,
+    listPanelHidden: false
   })
 })
 
@@ -23,6 +24,24 @@ describe('the side panel flag', () => {
     store.setSidePanelHidden(false)
     expect(usePrototypeViewStore.getState().sidePanelHidden).toBe(false)
     expect(usePrototypeViewStore.getState().states.r1?.prompt).toBe('keep this draft')
+  })
+})
+
+describe('the list flag', () => {
+  it('hides and shows the list without touching the side panel preference or any draft', () => {
+    const store = usePrototypeViewStore.getState()
+    store.ensureSetState('r1', ['A', 'B'])
+    store.setSidePanelHidden(true)
+    store.setListPanelHidden(true)
+    expect(usePrototypeViewStore.getState()).toMatchObject({
+      listPanelHidden: true,
+      sidePanelHidden: true
+    })
+    store.setListPanelHidden(false)
+    expect(usePrototypeViewStore.getState()).toMatchObject({
+      listPanelHidden: false,
+      sidePanelHidden: true
+    })
   })
 })
 

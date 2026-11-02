@@ -76,7 +76,7 @@ function overlayNewCardUnreadStatus(
   )
 }
 
-function getReviewStatusLabel(review: WorktreeCardPrDisplay): string {
+export function getReviewStatusLabel(review: WorktreeCardPrDisplay): string {
   const label = getReviewLabel(review)
   if (review.state === 'merged') {
     return `${label}: Merged`

@@ -138,6 +138,7 @@ export function buildDefaultSettings(args: {
     experimentalNativeChat: false,
     nativeChatResumeWorkOnRestart: false,
     nativeChatQueueFollowUps: true,
+    nativeChatSummaryVisible: true,
     nativeChatInlineVisuals: true,
     nativeChatReplySuggestions: true,
     nativeChatEmulatedReplySuggestions: true,
@@ -198,6 +199,7 @@ export function buildDefaultSettings(args: {
     terminalHiddenDeliveryGate: true,
     terminalModelQueryAuthority: true,
     defaultTuiAgent: null,
+    botTeamCharacterAnimations: true,
     disabledTuiAgents: [...DEFAULT_DISABLED_TUI_AGENTS],
     pluginSystemEnabled: false,
     disabledPlugins: [],
@@ -252,6 +254,8 @@ export function buildDefaultSettings(args: {
     machineName: '',
     // Why: off keeps the cosmetic overlay unmounted for users who never opt in.
     experimentalPet: false,
+    // Why: decisions leave this host only for someone who opted in and saved a key.
+    jevDecisionsEnabled: false,
     experimentalActivity: false,
     experimentalActivityDefaultedOffForAllUsers: true,
     experimentalTerminalAttention: false,

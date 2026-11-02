@@ -41,6 +41,7 @@ import type {
 } from './ui-chrome-types'
 import type { SetupScriptLaunchMode } from './worktree/launch-types'
 import type { WorktreeVisibilityDefaults } from './repo-types'
+import type { WorktreeCardLayout } from './worktree/card-layout'
 import type { PrototypeCountSetting } from './prototype-count-setting'
 
 export type { WorktreeVisibilityDefaults } from './repo-types'
@@ -227,6 +228,7 @@ export type GlobalSettings = NativeChatGlobalSettings & {
   /** Chat-wide: hold a mid-turn send as an editable queued draft that goes when the turn ends
    *  (capable hosts only). Absent = on; off keeps mid-turn sends immediate. */
   nativeChatQueueFollowUps?: boolean
+  nativeChatSummaryVisible?: boolean
   /** Teach newly started native chats to create inline visuals; absent means on. */
   nativeChatInlineVisuals?: boolean
   /** Structured chat only: Codex/Claude children inherit the whole login-shell environment.
@@ -344,6 +346,8 @@ export type GlobalSettings = NativeChatGlobalSettings & {
    *  - 'blank': blank terminal (no agent launched)
    *  - TuiAgent: a specific agent id */
   defaultTuiAgent: TuiAgent | 'blank' | null
+  /** Team characters move and react; off, a still aura still shows who is working. */
+  botTeamCharacterAnimations: boolean
   /** Agents hidden from picker/auto-launch; detection stays a raw PATH snapshot. */
   disabledTuiAgents: TuiAgent[]
   /** Master switch for the experimental plugin system. Off by default: no
@@ -478,6 +482,8 @@ export type GlobalSettings = NativeChatGlobalSettings & {
   experimentalPet: boolean
   /** Legacy persisted key from before the sidekick -> pet rename; read only during migration, new writes use experimentalPet. */
   experimentalSidekick?: boolean
+  /** Lets Jev make MassOrca's decisions; off or on any Jev failure, the deterministic answer applies. */
+  jevDecisionsEnabled?: boolean
   /** Experimental: left-sidebar Agents view — threaded feed of agent completions, blocking/unread state, worktree creation. */
   experimentalActivity: boolean
   /** Experimental: pop-out Kanban dashboard for monitoring and opening agent terminals across worktrees. */
@@ -504,6 +510,8 @@ export type GlobalSettings = NativeChatGlobalSettings & {
   experimentalEphemeralVms?: boolean
   /** Compact worktree cards: hide the metadata row when title and branch say the same thing. */
   compactWorktreeCards: boolean
+  /** Sidebar card layout. Unset means the default (one line); see resolveWorktreeCardLayout. */
+  worktreeCardLayout?: WorktreeCardLayout
   /** Legacy persisted key from the Experimental rollout; new writes use compactWorktreeCards. */
   experimentalCompactWorktreeCards?: boolean
   /** Active non-local runtime environment for client-routed RPC; null keeps local desktop behavior. */

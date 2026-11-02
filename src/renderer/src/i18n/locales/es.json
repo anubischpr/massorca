@@ -447,6 +447,7 @@
               "meta": {
                 "persist": {
                   "877e3638d8": "Actualizar el tiempo de ejecución remoto para cambiar el problema vinculado de este espacio de trabajo",
+                  "0b03251e5b": "Actualizar el tiempo de ejecución remoto para renombrar la fila de este espacio de trabajo",
                   "4367540861": "Actualizar el tiempo de ejecución remoto para vincular problemas Lineares",
                   "github": {
                     "pr": {
@@ -5554,7 +5555,8 @@
           "219ebf1961": "Nombre de rama",
           "folderPathIdentity": "Rama / ruta de carpeta",
           "cli": "MassOrca CLI",
-          "workspaceOptions": "Opciones de espacio de trabajo"
+          "workspaceOptions": "Opciones de espacio de trabajo",
+          "oneLine": "Una línea"
         },
         "SshTargetRow": {
           "4677394048": "Conectando…",
@@ -6055,6 +6057,17 @@
                 "289a1d2ca7": "Expandir {{value0}}. {{value1}}",
                 "0c1debfe84": "Contraer {{value0}}"
               }
+            },
+            "one": {
+              "line": {
+                "expandSessions": "Mostrar sesiones",
+                "collapseSessions": "Ocultar sesiones",
+                "sessions": {
+                  "crossWorktreeBranch": "Se ejecuta en la rama {{branch}}",
+                  "showMore": "Mostrar {{hiddenCount}} más",
+                  "showLess": "Mostrar menos"
+                }
+              }
             }
           },
           "list": {
@@ -6467,6 +6480,13 @@
           "title": "Orden cambiado a Manual",
           "description": "Manual mantiene los espacios de trabajo donde los colocas.",
           "restore": "Volver a {{label}}"
+        },
+        "SessionStatusGlyphIcon": {
+          "unread": "Sin leer"
+        },
+        "OneLineSessionMenu": {
+          "copyTitle": "Copiar título",
+          "sleep": "Dormir"
         }
       },
       "shared": {
@@ -12284,11 +12304,11 @@
           "keyDescription": "Pegue la clave API de la página Claves API de la consola seleccionada. Almacenado localmente, cifrado cuando el sistema operativo lo admite y enviado únicamente a ese sitio para actualizaciones de uso.",
           "keyPlaceholder": "Pegue la clave API de su plan de codificación GLM",
           "replace": "Reemplazar",
-          "save": "Ahorrar",
+          "save": "Guardar",
           "keyHelp": "La misma clave que usan sus herramientas de codificación para el plan (por ejemplo, Claude Code con ANTHROPIC_BASE_URL apuntando al sitio). Cambiar el sitio anterior cambia qué host lo recibe.",
           "usageTitle": "Uso del plan",
           "usageDescription": "Ventanas de cuota activas para el plan de codificación vinculado, actualizadas con el ciclo de uso de la barra de estado.",
-          "planLevel": "Plano: {{value0}}",
+          "planLevel": "Plan: {{value0}}",
           "hostOnly": "Cambie el sitio del plan y la clave API en la aplicación de escritorio de la computadora que ejecuta MassOrca.",
           "detailsUnavailable": "Los detalles de las credenciales del plan solo se pueden leer en la computadora que ejecuta MassOrca.",
           "siteUnavailable": "El sitio del plan de host no está disponible"
@@ -16347,7 +16367,7 @@
                 "annotation": {
                   "tray": {
                     "024467ceac": "Cancelar",
-                    "c16f932cb3": "Ahorrar",
+                    "c16f932cb3": "Guardar",
                     "09a7c1df70": "Editar anotación {{value0}}",
                     "449d2c2629": "Intención de la anotación"
                   }
@@ -17851,6 +17871,38 @@
     }
   },
   "components": {
+    "app-rail": {
+      "workspacesAgainHint": "Haz clic en Workspaces de nuevo para cambiar a Bot teams.",
+      "label": "Aplicación",
+      "settings": "Ajustes",
+      "tasks": "Tareas",
+      "workspaces": "Espacios de trabajo"
+    },
+    "side-panel": {
+      "close": "Cerrar panel",
+      "label": "Panel lateral",
+      "new-tab": "Nueva pestaña"
+    },
+    "tasksHome": {
+      "approvals": "Necesitan tu aprobación",
+      "heading": "¿Qué quieres hacer?",
+      "open": "Abrir",
+      "botTeamCreating": "Creando la tarea…",
+      "botTeamCreatingAria": "Creando la tarea",
+      "botTeamHint": "Intro para crear la tarea · Mayús+Intro para una línea nueva",
+      "botTeamPlaceAria": "Adónde va",
+      "botTeamPlaceholder": "Describe la tarea para el equipo…",
+      "botTeamSendAria": "Crear tarea",
+      "createModeAria": "Crear",
+      "createModeBotTeam": "Bot Team",
+      "createModeWorkspaces": "WorkSpaces",
+      "originBotTeam": "Bot Team",
+      "originWorkspaces": "WorkSpaces",
+      "startAria": "Cuándo empieza la tarea",
+      "startNow": "Empezar ahora",
+      "teamAria": "Equipo",
+      "teamChoose": "Elegir un equipo"
+    },
     "prototypes": {
       "settings": {
         "title": "Prototipos",
@@ -18010,6 +18062,19 @@
       "widthValue": "Valor del ancho"
     },
     "createChat": {
+      "errorWorktreeGone": "Este worktree ya no está disponible. Elige otro.",
+      "existingWorktrees": "Worktrees existentes",
+      "placeAria": "Dónde se ejecuta",
+      "sessionViewAria": "Vista de la sesión",
+      "sessionViewChat": "Chat",
+      "sessionViewTerminal": "Terminal",
+      "terminalNoticeBody": "Esto no estará disponible en esta sesión: el resumen del chat (Resultados, Subagentes, Conectores, Tareas en segundo plano) y el compositor del chat.",
+      "terminalNoticeLead": "La vista de terminal usa la interfaz propia del agente.",
+      "workspaceExistingFallback": "Worktree existente",
+      "worktreeNotRunning": "Sin ejecutar",
+      "worktreeOneSession": "1 sesión",
+      "worktreeSessions": "{{count}} sesiones",
+      "worktreeUnverifiable": "No verificable",
       "accessAcceptEditsDescription": "Aplica ediciones de archivos sin preguntar. Los comandos siguen pidiendo permiso.",
       "accessAria": "Permisos",
       "accessDefaultDescription": "Pregunta antes de cada edición o comando.",
@@ -18055,6 +18120,10 @@
       "workspaceNoGitNote": "Esta carpeta no es un repositorio Git, así que no tiene una rama que aislar."
     },
     "native-chat": {
+      "summary": {
+        "hide": "Ocultar resumen del chat",
+        "show": "Mostrar resumen del chat"
+      },
       "reasoning": "Razonamiento",
       "contextMenu": {
         "copyOrcaSessionId": "Copiar ID de sesión de MassOrca",

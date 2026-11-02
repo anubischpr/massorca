@@ -80,6 +80,19 @@ export type Tab = {
   lastFocusedAt?: number
 }
 
+/**
+ * A pane that shows a live session owned by another workspace, by reference: the session keeps its
+ * workspace, host and working directory, and this pane holds no tab of its own.
+ */
+export type TabGroupSessionRef = { worktreeId: string; tabId: string }
+
+/** Focus on a pane that shows another workspace's session: whose layout shows it, and whose session it is. */
+export type PaneSessionFocus = {
+  layoutWorktreeId: string
+  ownerWorktreeId: string
+  groupId: string
+}
+
 export type TabGroup = {
   id: string
   worktreeId: string
@@ -92,4 +105,6 @@ export type TabGroup = {
    *  sessions persisted before this field was added still hydrate cleanly —
    *  hydration seeds from activeTabId. */
   recentTabIds?: string[]
+  /** Optional so older sessions hydrate unchanged, and an older build that ignores it keeps every tab. */
+  sessionRef?: TabGroupSessionRef
 }

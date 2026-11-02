@@ -12,6 +12,7 @@ import { throwIfAiVaultScanCancelled } from './ai-vault-scan-cancellation'
 import { WslTranscriptFsError } from '../native-chat/wsl-transcript-fs-gate'
 import { parseJsonObject, timestampMs } from './session-scanner-values'
 import { antigravityHistoryPromptHash } from './antigravity-history-prompt'
+import type { AntigravityConversationIndex } from './session-scanner-antigravity-conversation-db'
 
 const HISTORY_MATCH_WINDOW_MS = 2_000
 
@@ -70,26 +71,27 @@ type AntigravityHistoryEntry = {
 type AntigravityHistoryIndex = {
   byPrompt: Map<string, AntigravityHistoryEntry[]>
   byId: Map<string, string | null>
+  subagentIds: ReadonlySet<string>
 }
 
 export type AntigravityWorkspaceResolver = {
   enrich(session: AiVaultSession, historyPath: string): Promise<AiVaultSession>
 }
 
-export type AntigravityConversationWorkspaceReader = (
+export type AntigravityConversationIndexReader = (
   historyPath: string,
   signal?: AbortSignal
-) => Promise<Map<string, string> | null>
+) => Promise<AntigravityConversationIndex | null>
 
 export function createAntigravityWorkspaceResolver(
   readHistory: (historyPath: string) => Promise<string | null>,
-  readConversationWorkspaces?: AntigravityConversationWorkspaceReader
+  readConversationIndex?: AntigravityConversationIndexReader
 ): AntigravityWorkspaceResolver {
   const indexes = new Map<string, Promise<AntigravityHistoryIndex>>()
 
   return {
     async enrich(session, historyPath) {
-      if (session.agent !== 'antigravity' || session.cwd) {
+      if (session.agent !== 'antigravity') {
         return session
       }
       let index = indexes.get(historyPath)
@@ -99,10 +101,11 @@ export function createAntigravityWorkspaceResolver(
         // file would inherit the rejection for the process lifetime.
         const pending: Promise<AntigravityHistoryIndex> = Promise.all([
           readHistory(historyPath),
-          readConversationWorkspaces?.(historyPath) ?? null
+          readConversationIndex?.(historyPath) ?? null
         ])
-          .then(async ([history, conversationWorkspaces]) => {
-            const index = indexAntigravityHistory(history)
+          .then(async ([history, conversation]) => {
+            const conversationWorkspaces = conversation?.workspaces
+            const index = indexAntigravityHistory(history, conversation?.subagentIds)
             // Why: the conversation database names each conversation's own worktree; the cache
             // files keep one conversation per workspace, so an internal run replaces the parent.
             for (const [id, path] of conversationWorkspaces ?? []) {
@@ -139,14 +142,23 @@ export function createAntigravityWorkspaceResolver(
         index = pending
         indexes.set(historyPath, pending)
       }
-      const workspace = findAntigravityWorkspace(session, await index)
-      return workspace ? { ...session, cwd: workspace } : session
+      const resolved = await index
+      // Why: an Antigravity sub-agent is an automated run, not a chat the user opened.
+      const marked =
+        resolved.subagentIds.has(session.sessionId) && !session.headlessRun
+          ? { ...session, headlessRun: true as const }
+          : session
+      const workspace = marked.cwd ? null : findAntigravityWorkspace(marked, resolved)
+      return workspace ? { ...marked, cwd: workspace } : marked
     }
   }
 }
 
-function indexAntigravityHistory(content: string | null): AntigravityHistoryIndex {
-  const index: AntigravityHistoryIndex = { byPrompt: new Map(), byId: new Map() }
+function indexAntigravityHistory(
+  content: string | null,
+  subagentIds: ReadonlySet<string> = new Set()
+): AntigravityHistoryIndex {
+  const index: AntigravityHistoryIndex = { byPrompt: new Map(), byId: new Map(), subagentIds }
   if (content && Buffer.byteLength(content) > ANTIGRAVITY_INDEX_MAX_BYTES) {
     return index
   }

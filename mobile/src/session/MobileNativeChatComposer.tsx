@@ -73,6 +73,8 @@ type Props = {
   placeholder?: string
   filePaths?: string[]
   onNeedFiles?: (query: string) => void
+  /** Replaces the @ and / rows for a screen with its own, such as a Bot teams room. */
+  customSuggestions?: (text: string, cursor: number) => ComposerSuggestion[] | null
 }
 
 export function MobileNativeChatComposer({
@@ -99,7 +101,8 @@ export function MobileNativeChatComposer({
   sendDisabled = false,
   placeholder = 'Message, @files, /commands',
   filePaths = NO_FILE_PATHS,
-  onNeedFiles
+  onNeedFiles,
+  customSuggestions
 }: Props): React.JSX.Element {
   const [cursor, setCursor] = useState(0)
   // Transiently drives the native caret after a mid-text autocomplete insert,
@@ -136,6 +139,9 @@ export function MobileNativeChatComposer({
     if (!trigger) {
       return []
     }
+    if (customSuggestions) {
+      return customSuggestions(value, cursor) ?? []
+    }
     if (trigger.kind === 'slash') {
       // Why: a hidden row is a typed alias the chat answers but never lists, same as desktop.
       const commands = (
@@ -157,7 +163,7 @@ export function MobileNativeChatComposer({
       kind: 'file' as const,
       path
     }))
-  }, [trigger, filePaths, agent, structuredCommands])
+  }, [trigger, filePaths, agent, structuredCommands, customSuggestions, value, cursor])
 
   useEffect(() => {
     if (trigger?.kind === 'file') {

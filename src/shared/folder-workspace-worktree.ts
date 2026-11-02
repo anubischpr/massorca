@@ -6,6 +6,7 @@ import { composeWorktreeHostIdentity } from './worktree/host-qualified-identity'
 import { normalizeWorkspaceCreatorProvenance } from './workspace-creator-provenance'
 import { getWorkspaceAttachments } from './workspace-attachments'
 import { normalizeWorkspaceAttachment } from './workspace-attachment-normalization'
+import { normalizeManualDisplayName } from './worktree/branch-display-label'
 
 /**
  * A folder workspace has no git repo, so its synthetic `Worktree` borrows the `repoId` slot to
@@ -62,6 +63,9 @@ export function folderWorkspaceToWorktree(folderWorkspace: FolderWorkspace): Wor
     repoId: folderWorkspaceRepoId(folderWorkspace.projectGroupId),
     ...(creatorProvenance ? { creatorProvenance } : {}),
     displayName: folderWorkspace.name,
+    ...(normalizeManualDisplayName(folderWorkspace.manualDisplayName)
+      ? { manualDisplayName: normalizeManualDisplayName(folderWorkspace.manualDisplayName) }
+      : {}),
     comment: folderWorkspace.comment,
     linkedIssue:
       selectedTask?.provider === 'github' && selectedTask.type === 'issue'

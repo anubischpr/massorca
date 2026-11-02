@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { SYNC_FIT_PANES_EVENT } from '@/constants/terminal'
-import { canShowRightSidebarForView } from '@/lib/right-sidebar-visibility'
+import { canShowRightSidebarForView, rightSidebarOpenInView } from '@/lib/right-sidebar-visibility'
 import { resolveLeftSidebarStyleVariables } from '@/lib/left-sidebar-appearance'
 import { resolveLeftTitlebarChromeLayout } from '@/lib/titlebar-left-chrome'
 import { shouldShowWorktreeCreationSurface } from '@/lib/worktree-creation-surface'
@@ -9,6 +9,7 @@ import { useAppStore } from '../store'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../shared/constants'
 import { selectActiveTerminalChromeState } from '../store/active-terminal-chrome-selector'
 import { useSystemPrefersDark } from '../components/terminal-pane/use-system-prefers-dark'
+import { isLeftSidebarView } from './left-sidebar-views'
 import {
   hasRequestedBackgroundTerminalWorktreeMount,
   subscribeBackgroundTerminalWorktreeMountRequests
@@ -22,8 +23,9 @@ export type AppChromeLayout = ReturnType<typeof useAppChromeLayout>
  */
 export function useAppChromeLayout() {
   const activeView = useAppStore((s) => s.activeView)
+  const botTeamsSelection = useAppStore((s) => s.botTeamsSelection)
   const sidebarOpen = useAppStore((s) => s.sidebarOpen)
-  const rightSidebarOpen = useAppStore((s) => s.rightSidebarOpen)
+  const rightSidebarOpen = useAppStore(rightSidebarOpenInView)
   const rightSidebarTab = useAppStore((s) => s.rightSidebarTab)
   const rightSidebarExplorerView = useAppStore((s) => s.rightSidebarExplorerView)
   const isFullScreen = useAppStore((s) => s.isFullScreen)
@@ -35,13 +37,8 @@ export function useAppChromeLayout() {
       s.activePendingCreationId !== null &&
       s.pendingWorktreeCreations[s.activePendingCreationId] !== undefined
   )
-  const {
-    activeWorktreeId,
-    tabCount,
-    effectiveActiveTabId,
-    activeTabCanExpand,
-    effectiveActiveTabExpanded
-  } = useAppStore(useShallow(selectActiveTerminalChromeState))
+  const { activeWorktreeId, effectiveActiveTabId, activeTabCanExpand, effectiveActiveTabExpanded } =
+    useAppStore(useShallow(selectActiveTerminalChromeState))
   const backgroundTerminalMountRequested = useSyncExternalStore(
     subscribeBackgroundTerminalWorktreeMountRequests,
     hasRequestedBackgroundTerminalWorktreeMount,
@@ -78,10 +75,8 @@ export function useAppChromeLayout() {
   })
   const workspaceChromeActive =
     activeView === 'terminal' && activeWorktreeId !== null && !creationLayoutActive
-  const hasTabBar = tabCount >= 2
-  // Activity/Space are full-page navigation surfaces (like Settings), so the worktree sidebar is hidden there.
-  const showSidebar =
-    activeView !== 'settings' && activeView !== 'activity' && activeView !== 'space'
+  // Why: only the home views have a left sidebar; Tasks, Settings and every other page use the whole space beside the rail.
+  const showSidebar = isLeftSidebarView(activeView)
   // Tasks/Landing show the full titlebar only when the sidebar is collapsed; open, they mirror workspace view (creation suppresses it).
   const stackedSidebarOpen =
     !workspaceChromeActive && !creationLayoutActive && showSidebar && sidebarOpen
@@ -141,9 +136,10 @@ export function useAppChromeLayout() {
     shouldMountTerminalWorkbench,
     showSidebar,
     // Full-page navigation surfaces own the whole content area, so suppress right-sidebar controls.
-    showRightSidebarControls: !creationLayoutActive && canShowRightSidebarForView(activeView),
+    showRightSidebarControls:
+      !creationLayoutActive && canShowRightSidebarForView(activeView, botTeamsSelection),
     showTitlebarAppName: settings?.showTitlebarAppName !== false,
-    showTitlebarExpandButton: workspaceChromeActive && !hasTabBar && effectiveActiveTabExpanded,
+    showTitlebarExpandButton: workspaceChromeActive && effectiveActiveTabExpanded,
     sidebarOpen,
     stackedSidebarOpen,
     // Why: the workbench stays mounted while hidden, so visibility tracks the same condition separately.

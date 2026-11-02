@@ -369,7 +369,7 @@ test('restarts one ACK-starved paired terminal stream without replacing its PTY 
       (worktreeId) => window.__store?.getState().setActiveWorktree(worktreeId),
       worktree.id
     )
-    const tab = client.page.locator(`[data-testid="sortable-tab"][data-tab-id="${webTabId}"]`)
+    const tab = client.page.locator(`[data-testid="side-panel-tab"][data-tab-id="${webTabId}"]`)
     await expect(tab).toBeVisible({ timeout: 30_000 })
     await tab.click()
     const originalPtyId = await waitForActivePanePtyId(client.page, 30_000)
@@ -381,7 +381,7 @@ test('restarts one ACK-starved paired terminal stream without replacing its PTY 
       worktree.id
     )
     const observerTab = observer.page.locator(
-      `[data-testid="sortable-tab"][data-tab-id="${webTabId}"]`
+      `[data-testid="side-panel-tab"][data-tab-id="${webTabId}"]`
     )
     await expect(observerTab).toBeVisible({ timeout: 30_000 })
     await observerTab.click()
@@ -505,7 +505,7 @@ test('restarts one ACK-starved paired terminal stream without replacing its PTY 
       worktree.id
     )
     const hostTab = orcaPage.locator(
-      `[data-testid="sortable-tab"][data-tab-id="${created.tab.parentTabId}"]`
+      `[data-testid="side-panel-tab"][data-tab-id="${created.tab.parentTabId}"]`
     )
     await expect(hostTab).toBeVisible({ timeout: 30_000 })
     await hostTab.click()

@@ -24,6 +24,7 @@ export function createUiTaskActions(set: UISliceSet, get: UISliceGet): Partial<U
     pendingSkillShareId: null,
     pendingSkillsSharedView: false,
     createChatResetNonce: 0,
+    tasksHomeOpen: false,
     previousViewBeforeMobile: 'terminal',
     previousViewBeforeArtifacts: 'terminal',
     previousViewBeforePrototypes: 'terminal',
@@ -104,7 +105,8 @@ export function createUiTaskActions(set: UISliceSet, get: UISliceGet): Partial<U
         activeView: 'tasks',
         previousViewBeforeTasks:
           state.activeView === 'tasks' ? state.previousViewBeforeTasks : state.activeView,
-        taskPageData: data
+        taskPageData: data,
+        tasksHomeOpen: false
       }))
       // Why: prefetch the work-item list during first render so the page's effect hits a warm/in-flight SWR cache (~300–800ms win).
       const state = get()

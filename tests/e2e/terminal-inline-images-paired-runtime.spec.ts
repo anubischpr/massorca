@@ -152,7 +152,7 @@ test('paired runtime paints inline images and resumes the same PTY after host re
       },
       { environmentId: viewer.environmentId, worktreeId }
     )
-    const tab = viewer.page.locator(`[data-testid="sortable-tab"][data-tab-id="${tabId}"]`)
+    const tab = viewer.page.locator(`[data-testid="side-panel-tab"][data-tab-id="${tabId}"]`)
     await expect(tab).toBeVisible({ timeout: 60_000 })
     await tab.click()
     await expect

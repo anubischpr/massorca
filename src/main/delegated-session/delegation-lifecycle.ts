@@ -205,6 +205,9 @@ export class DelegationLifecycle {
     // Post first: a failed post leaves the row started, so the next reconcile retries it.
     if (await this.postNotice(row, payload, delegationFinishedNotice(payload))) {
       db.transitionDelegationRequest(row.id, 'started', 'finished', { result: result ?? '' })
+      if (outcome === 'succeeded') {
+        this.deps.onChildSucceeded?.(row.id)
+      }
     }
   }
 

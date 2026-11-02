@@ -1,9 +1,7 @@
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
-import {
-  joinNames,
-  type PrototypeSystemCard
-} from '../../../../shared/prototype-design-system-card'
+import type { PrototypeSystemCard } from '../../../../shared/prototype-design-system-card'
+import { existingPrototypeSystemLine } from './native-chat-prototype-system-line'
 import type { PrototypeDesignSystemMode } from '../../../../shared/prototype-design-system-files'
 
 /**
@@ -45,7 +43,7 @@ export function NativeChatPrototypeSystemCard({
           <span className="text-sm font-semibold text-foreground">{title}</span>
           <span className="text-xs text-muted-foreground">
             {card.kind === 'existing'
-              ? existingLine(card, count)
+              ? existingPrototypeSystemLine(card, count)
               : translate(
                   'components.prototypes.ask.systemNoneLine',
                   '{{agent}} will propose one first: tokens, components and 2 palettes. You review it before any direction is made.',
@@ -91,42 +89,5 @@ export function NativeChatPrototypeSystemCard({
         </div>
       </div>
     </div>
-  )
-}
-
-/** "v2 · 24 tokens from main.css and STYLEGUIDE.md. Both directions will use it.", the source part left out with no source. */
-function existingLine(
-  card: Extract<PrototypeSystemCard, { kind: 'existing' }>,
-  count: number
-): string {
-  const from =
-    card.sourceNames.length === 0
-      ? ''
-      : ` ${translate('components.prototypes.ask.systemFrom', 'from {{sources}}', {
-          sources: joinNames(
-            card.sourceNames,
-            translate('components.prototypes.ask.systemAnd', 'and')
-          )
-        })}`
-  return translate(
-    'components.prototypes.ask.systemSummary',
-    'v{{version}} · {{tokens}} tokens{{from}}. {{directions}}',
-    { version: card.version, tokens: card.tokenCount, from, directions: directionsLine(count) }
-  )
-}
-
-function directionsLine(count: number): string {
-  if (count === 1) {
-    return translate('components.prototypes.ask.systemDirectionOne', 'The direction will use it.')
-  }
-  if (count === 2) {
-    return translate('components.prototypes.ask.systemDirectionTwo', 'Both directions will use it.')
-  }
-  return translate(
-    'components.prototypes.ask.systemDirectionAll',
-    'All {{count}} directions will use it.',
-    {
-      count
-    }
   )
 }

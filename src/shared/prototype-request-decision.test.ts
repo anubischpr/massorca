@@ -3,7 +3,8 @@ import type { PrototypeAgent } from './prototype-request'
 import type { PrototypeCountSetting } from './prototype-count-setting'
 import {
   decideDelegatedTaskPrototypeCount,
-  decideNativeChatPrototypeRequest
+  decideNativeChatPrototypeRequest,
+  delegatedTaskAsksForPrototypes
 } from './prototype-request-decision'
 
 const ALWAYS_3: PrototypeCountSetting = { mode: 'always', count: 3 }
@@ -124,5 +125,63 @@ describe('decideDelegatedTaskPrototypeCount', () => {
       defaultCount: 2
     })
     expect(decideTask('/design a login page', ALWAYS_3, agents)).toEqual({ kind: 'none' })
+  })
+})
+
+describe('delegatedTaskAsksForPrototypes', () => {
+  const asks = (text: string, agents: PrototypeAgent[] = ['codex']) =>
+    delegatedTaskAsksForPrototypes({ text, agents })
+
+  it('is true for a command, which asks no count under "Always make"', () => {
+    expect(asks('/prototype a login page')).toBe(true)
+  })
+
+  it('is true for a keyword match', () => {
+    expect(asks('Make a prototype of the onboarding screen')).toBe(true)
+  })
+
+  it('is false for a task that asks for no prototype', () => {
+    expect(asks('Fix the failing build')).toBe(false)
+  })
+})
+
+describe('a delegated task whose wording is no prototype request', () => {
+  // What a parent agent wrote for its child: "information architecture" is a negative term of the composer's
+  // lexicon, so the task text alone is never a prototype request.
+  const AGENT_TASK =
+    'Create a NEW UI design for the pipeline page. Study the information architecture first, then write 2 to 3 HTML artboards.'
+  const USER_MESSAGE =
+    'Explora el proyecto con sub agentes. Por último, en una sesión hija crea un nuevo diseño para la página "clinical-report"'
+
+  it('is none by its own words, which is the defect the user message covers', () => {
+    expect(delegatedTaskAsksForPrototypes({ text: AGENT_TASK, agents: ['codex'] })).toBe(false)
+  })
+
+  it('is a prototype task when the person asked for the design in a child session', () => {
+    expect(
+      delegatedTaskAsksForPrototypes({
+        text: AGENT_TASK,
+        agents: ['codex'],
+        userMessage: USER_MESSAGE
+      })
+    ).toBe(true)
+    expect(
+      decideDelegatedTaskPrototypeCount({
+        text: AGENT_TASK,
+        agents: ['codex'],
+        setting: ASK,
+        userMessage: USER_MESSAGE
+      })
+    ).toEqual({ kind: 'ask', defaultCount: 2 })
+  })
+
+  it('stays no prototype task when the person asked for no design, or kept it in the chat', () => {
+    const noDesign = 'Explora el proyecto con sub agentes y resume los hallazgos'
+    const designHere = 'Crea un nuevo diseño para la página "clinical-report"'
+    for (const userMessage of [noDesign, designHere]) {
+      expect(
+        delegatedTaskAsksForPrototypes({ text: AGENT_TASK, agents: ['codex'], userMessage })
+      ).toBe(false)
+    }
   })
 })

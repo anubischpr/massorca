@@ -127,16 +127,19 @@ function chooseGroupActiveTab(
   return recent ?? group.tabOrder.find((tabId) => retainedTabIds.has(tabId)) ?? null
 }
 
-export function repairMobileSessionTabGroupsAfterRetirement(
-  groups: readonly RuntimeMobileSessionTabGroup[] | undefined,
+export function repairMobileSessionTabGroupsAfterRetirement<
+  Group extends RuntimeMobileSessionTabGroup & { sessionRef?: unknown }
+>(
+  groups: readonly Group[] | undefined,
   validTopLevelIds: ReadonlySet<string>
-): RuntimeMobileSessionTabGroup[] | undefined {
+): Group[] | undefined {
   if (!groups) {
     return undefined
   }
   const repaired = groups.flatMap((group) => {
     const tabOrder = group.tabOrder.filter((tabId) => validTopLevelIds.has(tabId))
-    if (tabOrder.length === 0) {
+    // Why: a pane that shows another workspace's session holds no tab; the renderer checks its target.
+    if (tabOrder.length === 0 && group.sessionRef === undefined) {
       return []
     }
     const retained = new Set(tabOrder)

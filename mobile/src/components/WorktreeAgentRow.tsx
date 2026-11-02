@@ -1,33 +1,40 @@
 import { memo } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { GitBranch } from 'lucide-react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
 import { withoutNativeChatVisualDirectiveLines } from '../../../src/shared/native-chat-visual-directive'
 import { colors, spacing } from '../theme/mobile-theme'
-import {
-  agentDisplayLabel,
-  agentDotState,
-  agentRowTimeAt,
-  formatTimeAgo
-} from '../worktree/agent-row-display'
-import { AgentStateDot } from './AgentStateDot'
+import { agentDisplayLabel } from '../worktree/agent-row-display'
+import type { SessionStatusGlyph } from '../worktree/session-status-glyph'
 import { MobileAgentIcon } from './MobileAgentIcon'
+import { SessionStatusMark } from './SessionStatusMark'
 import { mobilePiRuntimeFromMarker } from './mobile-pi-runtime'
 
-const INDENT_PER_DEPTH = 14
+// Lead column width plus gap: a session's icon sits under the branch row's label, one step in.
+export const SESSION_INDENT = 36
+export const SESSION_INDENT_PER_DEPTH = 18
 
 type Props = {
   agent: RuntimeWorktreeAgentRow
   depth: number
   now: number
-  // Bold/foreground until the user has visited the worktree, mirroring desktop's
-  // unvisited rule (the workspace title and its agent rows share one signal).
-  unvisited: boolean
+  glyph: SessionStatusGlyph | null
+  /** The branch this session runs on, when it runs in another worktree than the one it is listed in. */
+  runsOnBranch?: string | null
+  onPress?: (agent: RuntimeWorktreeAgentRow) => void
+  onLongPress?: (agent: RuntimeWorktreeAgentRow) => void
 }
 
-// One inline agent row: state dot → identity → last message/prompt → time ago.
-// Mirrors desktop DashboardAgentRow's compact in-card layout.
-function WorktreeAgentRowComponent({ agent, depth, now, unvisited }: Props) {
-  const dotState = agentDotState(agent, now)
+// One session line: agent identity, title, trailing status. The model and the time are not shown.
+function WorktreeAgentRowComponent({
+  agent,
+  depth,
+  now,
+  glyph,
+  runsOnBranch,
+  onPress,
+  onLongPress
+}: Props) {
   // A visual line renders only in the transcript; the row shows the words around it, and a reply
   // that is only a visual falls back like an empty one.
   const reply = agent.lastAssistantMessage
@@ -37,25 +44,44 @@ function WorktreeAgentRowComponent({ agent, depth, now, unvisited }: Props) {
       : agent,
     now
   )
-  const ts = formatTimeAgo(agentRowTimeAt(agent), now)
+  const indent = SESSION_INDENT + depth * SESSION_INDENT_PER_DEPTH
+  const emphasis =
+    glyph === 'unread' ? styles.labelUnread : glyph === 'needs-human' ? styles.labelLoud : null
 
   return (
-    <View style={[styles.row, { paddingLeft: depth * INDENT_PER_DEPTH }]}>
-      <AgentStateDot state={dotState} />
-      {/* Agent identity logo (Claude/Codex/…), matching the desktop sidebar's
-          agent icons instead of a two-letter text code. */}
+    <Pressable
+      style={({ pressed }) => [styles.row, { paddingLeft: indent }, pressed && styles.rowPressed]}
+      onPress={onPress ? () => onPress(agent) : undefined}
+      onLongPress={onLongPress ? () => onLongPress(agent) : undefined}
+      delayLongPress={400}
+      accessibilityRole="button"
+      accessibilityLabel={runsOnBranch ? `${label}, runs on branch ${runsOnBranch}` : label}
+    >
+      {depth > 0 ? <View style={[styles.rule, { left: indent - 10 }]} /> : null}
       {agent.agentType ? (
         <MobileAgentIcon
           agentId={agent.agentType}
-          size={13}
+          size={14}
           piRuntime={mobilePiRuntimeFromMarker(agent)}
         />
+      ) : (
+        <View style={styles.iconSpacer} />
+      )}
+      {/* Why: a session listed under a parent in another worktree names the branch it runs on. */}
+      {runsOnBranch ? (
+        <View
+          accessible
+          accessibilityLabel={`Runs on branch ${runsOnBranch}`}
+          style={styles.branchMark}
+        >
+          <GitBranch size={12} color={colors.textMuted} />
+        </View>
       ) : null}
-      <Text style={[styles.label, unvisited && styles.labelUnvisited]} numberOfLines={1}>
+      <Text style={[styles.label, emphasis]} numberOfLines={1}>
         {label}
       </Text>
-      <Text style={styles.time}>{ts}</Text>
-    </View>
+      <SessionStatusMark glyph={glyph} />
+    </Pressable>
   )
 }
 
@@ -65,20 +91,38 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    marginTop: 3
+    gap: spacing.sm,
+    minHeight: 30,
+    paddingRight: spacing.xs
+  },
+  rowPressed: {
+    backgroundColor: colors.bgRaised
+  },
+  rule: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 1,
+    backgroundColor: colors.borderSubtle
+  },
+  iconSpacer: {
+    width: 14
+  },
+  branchMark: {
+    flexDirection: 'row',
+    alignItems: 'center'
   },
   label: {
     flex: 1,
-    fontSize: 11,
-    color: colors.textMuted
+    minWidth: 0,
+    fontSize: 13,
+    color: colors.textSecondary
   },
-  labelUnvisited: {
+  labelUnread: {
     color: colors.textPrimary,
-    fontWeight: '600'
+    fontWeight: '700'
   },
-  time: {
-    fontSize: 10,
-    color: colors.textMuted
+  labelLoud: {
+    color: colors.textPrimary
   }
 })

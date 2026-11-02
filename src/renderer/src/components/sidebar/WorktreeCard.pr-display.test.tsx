@@ -723,7 +723,7 @@ describe('WorktreeCard linked PR display', () => {
   })
 
   it('keeps the detailed right-side PR badge during a transient hosted-review miss', async () => {
-    settings = { compactWorktreeCards: false, experimentalNewWorktreeCardStyle: false }
+    settings = { worktreeCardLayout: 'detailed' }
     worktreeCardProperties = ['pr']
     hostedReviewCache = {
       'local::repo-1::feature/local-branch': {
@@ -757,7 +757,7 @@ describe('WorktreeCard linked PR display', () => {
   })
 
   it('keeps the detailed PR badge when a transient miss still has an older review hint', async () => {
-    settings = { compactWorktreeCards: false, experimentalNewWorktreeCardStyle: false }
+    settings = { worktreeCardLayout: 'detailed' }
     worktreeCardProperties = ['pr']
     hostedReviewCache = {
       'local::repo-1::feature/local-branch': {
@@ -792,7 +792,7 @@ describe('WorktreeCard linked PR display', () => {
   })
 
   it('keeps durable non-GitHub linked review metadata ahead of branch PR cache', async () => {
-    settings = { compactWorktreeCards: false, experimentalNewWorktreeCardStyle: false }
+    settings = { worktreeCardLayout: 'detailed' }
     worktreeCardProperties = ['pr']
     hostedReviewCache = {
       'local::repo-1::feature/local-branch': {
@@ -826,7 +826,7 @@ describe('WorktreeCard linked PR display', () => {
   })
 
   it('does not resurrect an older PR cache entry after a newer hosted-review miss', async () => {
-    settings = { compactWorktreeCards: false, experimentalNewWorktreeCardStyle: false }
+    settings = { worktreeCardLayout: 'detailed' }
     worktreeCardProperties = ['pr']
     hostedReviewCache = {
       'local::repo-1::feature/local-branch': {
@@ -859,7 +859,7 @@ describe('WorktreeCard linked PR display', () => {
   })
 
   it('does not resurrect PR cache on the same millisecond as a hosted-review miss', async () => {
-    settings = { compactWorktreeCards: false, experimentalNewWorktreeCardStyle: false }
+    settings = { worktreeCardLayout: 'detailed' }
     worktreeCardProperties = ['pr']
     hostedReviewCache = {
       'local::repo-1::feature/local-branch': {

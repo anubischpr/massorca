@@ -261,8 +261,8 @@ const styles = StyleSheet.create({
   groupHeading: { paddingTop: 4, color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   footer: { gap: spacing.sm },
   part: {
-    gap: spacing.sm,
-    paddingVertical: 10,
+    gap: 6,
+    paddingVertical: 6,
     paddingHorizontal: spacing.md,
     borderRadius: 12,
     borderWidth: 1,

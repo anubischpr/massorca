@@ -615,6 +615,7 @@
               "meta": {
                 "persist": {
                   "877e3638d8": "Update the remote runtime to change this workspace’s linked issue",
+                  "0b03251e5b": "Update the remote runtime to rename this workspace row",
                   "4367540861": "Update the remote runtime to link Linear issues",
                   "github": {
                     "pr": {
@@ -5806,7 +5807,8 @@
           "219ebf1961": "Branch name",
           "folderPathIdentity": "Branch / folder path",
           "cli": "MassOrca CLI",
-          "workspaceOptions": "Workspace options"
+          "workspaceOptions": "Workspace options",
+          "oneLine": "One line"
         },
         "SshTargetRow": {
           "4677394048": "Connecting…",
@@ -6281,6 +6283,17 @@
                 "289a1d2ca7": "Expand {{value0}}. {{value1}}",
                 "0c1debfe84": "Collapse {{value0}}"
               }
+            },
+            "one": {
+              "line": {
+                "expandSessions": "Show sessions",
+                "collapseSessions": "Hide sessions",
+                "sessions": {
+                  "crossWorktreeBranch": "Runs on branch {{branch}}",
+                  "showMore": "Show {{hiddenCount}} more",
+                  "showLess": "Show less"
+                }
+              }
             }
           },
           "list": {
@@ -6696,6 +6709,13 @@
           "title": "Sort changed to Manual",
           "description": "Manual keeps workspaces where you drop them.",
           "restore": "Back to {{label}}"
+        },
+        "SessionStatusGlyphIcon": {
+          "unread": "Unread"
+        },
+        "OneLineSessionMenu": {
+          "copyTitle": "Copy Title",
+          "sleep": "Sleep"
         }
       },
       "shared": {
@@ -8077,6 +8097,18 @@
           "f79084947b": "New app"
         },
         "OrchestrationPane": {
+          "jevTitle": "Jev decisions",
+          "jevDescription": "Let Jev by typesafe pick how demanding each delegated task is, for a small provider cost per task. Only the one-line task summary is sent to typesafe. If Jev is off, slow or failing, MassOrca decides on its own.",
+          "jevKeyLabel": "typesafe API key",
+          "jevKeyPlaceholder": "Paste your typesafe API key",
+          "jevKeySaved": "API key saved on this computer, encrypted.",
+          "jevKeySavedRemote": "API key saved on the connected server. Its delegations use it.",
+          "jevStatusUnavailable": "Could not read Jev decisions from this server. Reopen Settings to retry; if it keeps failing, update the server.",
+          "jevKeyMissing": "Save a key to turn this on.",
+          "jevKeyUnreadable": "The saved key cannot be read here, so MassOrca is deciding on its own. Paste it and save it again.",
+          "jevSave": "Save",
+          "jevRemove": "Remove",
+          "jevUpdateFailed": "Jev API key update failed.",
           "52e0634e2c": "Ask a coordinator agent to use orchestration for handoffs, worktree handovers, and sequential or parallel child agents.",
           "ae79504732": "How to use it",
           "7bc082f4de": "Copy install command",
@@ -18047,6 +18079,38 @@
     }
   },
   "components": {
+    "app-rail": {
+      "workspacesAgainHint": "Click Workspaces again to switch to Bot teams.",
+      "label": "App",
+      "settings": "Settings",
+      "tasks": "Tasks",
+      "workspaces": "Workspaces"
+    },
+    "side-panel": {
+      "close": "Close panel",
+      "label": "Side panel",
+      "new-tab": "New tab"
+    },
+    "tasksHome": {
+      "approvals": "Needs your approval",
+      "heading": "What do you want to do?",
+      "open": "Open",
+      "botTeamCreating": "Creating task…",
+      "botTeamCreatingAria": "Creating task",
+      "botTeamHint": "Enter to create the task · Shift+Enter for a new line",
+      "botTeamPlaceAria": "Where it goes",
+      "botTeamPlaceholder": "Describe the task for the team…",
+      "botTeamSendAria": "Create task",
+      "createModeAria": "Create",
+      "createModeBotTeam": "Bot Team",
+      "createModeWorkspaces": "WorkSpaces",
+      "originBotTeam": "Bot Team",
+      "originWorkspaces": "WorkSpaces",
+      "startAria": "When the task starts",
+      "startNow": "Start now",
+      "teamAria": "Team",
+      "teamChoose": "Choose a team"
+    },
     "prototypes": {
       "settings": {
         "title": "Prototypes",
@@ -18084,6 +18148,8 @@
       "curMerged": "main · merged from {{letters}}",
       "heightUnit": "Height unit",
       "hidePanel": "Hide panel",
+      "hideList": "Hide list",
+      "showList": "Show list",
       "link": {
         "setOf": "{{title}} · set of {{count}}",
         "proposed": "Design system · proposed",
@@ -18239,6 +18305,7 @@
         "tabTokens": "Tokens",
         "tabComponents": "Components",
         "tabSource": "Source",
+        "unreadable": "Couldn't open this design system",
         "color": "Color",
         "typeScale": "Type scale",
         "typeScaleFont": "Type scale · {{font}}",
@@ -18290,10 +18357,52 @@
         "typeSpacing": "spacing {{value}}-based",
         "approve": "Approve {{name}}",
         "adjustTokens": "Adjust tokens",
-        "builtOnLink": "Built on Design system v{{version}} ›"
+        "builtOnLink": "Built on Design system v{{version}} ›",
+        "compactSize": "Back to compact size",
+        "fullSize": "View full size",
+        "viewGrid": "Grid",
+        "viewCollage": "Collage",
+        "viewList": "List",
+        "viewGroup": "Component view",
+        "editGroup": "Edit · {{group}}",
+        "breadcrumb": "Breadcrumb",
+        "textHint": "Text is never edited here: only its style is.",
+        "elementFooter": "Every change joins the draft on its own. Put a value back to remove it.",
+        "row": {
+          "fill": "Fill",
+          "color": "Text color",
+          "border": "Border",
+          "borderWidth": "Border width",
+          "radius": "Radius",
+          "shadow": "Shadow",
+          "padding": "Padding",
+          "gap": "Gap",
+          "font": "Font",
+          "lineHeight": "Line height",
+          "style": "Style",
+          "align": "Align"
+        },
+        "showLess": "Show less",
+        "moreTokens": "+{{count}} more",
+        "bold": "Bold",
+        "italic": "Italic",
+        "underline": "Underline"
       }
     },
     "createChat": {
+      "errorWorktreeGone": "This worktree is no longer available. Pick another one.",
+      "existingWorktrees": "Existing worktrees",
+      "placeAria": "Where it runs",
+      "sessionViewAria": "Session view",
+      "sessionViewChat": "Chat",
+      "sessionViewTerminal": "Terminal",
+      "terminalNoticeBody": "These will not be available in this session: Chat summary (Results, Subagents, Connectors, Background tasks) and the chat composer.",
+      "terminalNoticeLead": "Terminal view uses the agent's own interface.",
+      "workspaceExistingFallback": "Existing worktree",
+      "worktreeNotRunning": "Not running",
+      "worktreeOneSession": "1 session",
+      "worktreeSessions": "{{count}} sessions",
+      "worktreeUnverifiable": "Unverifiable",
       "accessAcceptEditsDescription": "Apply file edits without asking. Commands still ask.",
       "accessAria": "Permissions",
       "accessDefaultDescription": "Ask before each edit or command.",
@@ -18384,6 +18493,10 @@
       "empty": "No users found"
     },
     "native-chat": {
+      "summary": {
+        "hide": "Hide Chat summary",
+        "show": "Show Chat summary"
+      },
       "reasoning": "Reasoning",
       "failureWords": {
         "theAgent": "The agent",
@@ -19150,7 +19263,29 @@
         "usedResets": "{{percent}}% used · resets in {{duration}}"
       },
       "showEarlierConversation": "Show earlier conversation",
-      "hideEarlierConversation": "Hide earlier conversation"
+      "hideEarlierConversation": "Hide earlier conversation",
+      "delegation": {
+        "underAMinute": "under 1 min",
+        "minutes": "{{minutes}} min",
+        "hours": "{{hours}} h",
+        "hoursMinutes": "{{hours}} h {{minutes}} min",
+        "connected": "Connected on this computer",
+        "choices": "Agent choices",
+        "starting": "Starting…",
+        "start": "Start child session",
+        "startedAutomatic": "Started child session “{{title}}” with {{details}} (Automatic)",
+        "started": "Started child session “{{title}}” with {{details}}",
+        "working": "Child session working: {{title}}",
+        "workingDetails": "{{details}} · started {{elapsed}} ago",
+        "workingStatus": "Working",
+        "openChild": "Open child chat",
+        "defaultModel": "default model",
+        "failed": "Child session “{{title}}” did not start: {{reason}}",
+        "finished": "Child session finished: {{title}}",
+        "failedFinish": "Child session failed: {{title}}",
+        "succeeded": "succeeded",
+        "outcomeFailed": "failed"
+      }
     },
     "tab": {
       "bar": {
@@ -19624,7 +19759,80 @@
       "finishedCount_one": "{{count}} finished",
       "finishedCount_other": "{{count}} finished",
       "stopProviderUnavailable": "This provider cannot stop background tasks.",
-      "stopRowUnavailable": "This task cannot be stopped on its own."
+      "stopRowUnavailable": "This task cannot be stopped on its own.",
+      "childStatus": {
+        "working": "working",
+        "succeeded": "finished",
+        "failed": "failed",
+        "notStarted": "did not start"
+      },
+      "childSessions": "Child sessions",
+      "openChildNamed": "Open child chat: {{title}}",
+      "openChild": "Open"
+    },
+    "botTeams": {
+      "conferenceRoom": "Conference room",
+      "sidebarAria": "Bot teams",
+      "addBot": "Add a bot",
+      "addBotHelp": "This bot keeps its name and job between tasks.",
+      "botName": "Name",
+      "botJob": "Job",
+      "botAgent": "Powered by",
+      "cancel": "Cancel",
+      "addBotConfirm": "Add bot",
+      "back": "Back",
+      "deleteTeam": "Delete team",
+      "bots": "Bots",
+      "removeBot": "Remove bot",
+      "allTeams": "All teams",
+      "newTeam": "New team",
+      "empty": "No teams yet. Create one to give your bots a place to work.",
+      "loadFailed": "Could not reach this host.",
+      "retry": "Retry",
+      "teamName": "Team name",
+      "teamCharacter": "Team character",
+      "teamCharacterHelp": "Identifies the team. Bots keep their own avatars.",
+      "change": "Change",
+      "teamPurpose": "What is this team for?",
+      "workspaces": "Workspaces",
+      "workspacesHelp": "Projects can connect to code and be followed in Workspaces.",
+      "createTeam": "Create team",
+      "settings": {
+        "empty": "Teams you create appear here.",
+        "access": "Access",
+        "fullAccess": "Full access",
+        "askFirst": "Ask first",
+        "title": "Bot teams",
+        "description": "What each team can do without asking. New teams start with full access."
+      },
+      "modeWorkspaces": "Workspaces",
+      "modeBotTeams": "Bot teams",
+      "you": "You",
+      "whoTakesIt": "Who should take this? Mention a bot with @ and its name.",
+      "messageTeam": "Message the team",
+      "saveToTodo": "Save to Todo",
+      "send": "Send",
+      "tasks": "Tasks",
+      "notStarted": "Not started",
+      "started": "Started",
+      "start": "Start",
+      "working": "Working",
+      "waitingForYou": "Waiting for you",
+      "stopped": "Stopped",
+      "stuck": "Stuck",
+      "done": "Done",
+      "backToRoom": "Back to Conference room",
+      "open": "Open",
+      "editBot": "Edit bot",
+      "saveBot": "Save",
+      "host": "Host",
+      "thisComputer": "This computer",
+      "board": "Board",
+      "projects": "Projects",
+      "newProject": "New project",
+      "files": "Files",
+      "memory": "Memory",
+      "permissions": "Permissions"
     }
   },
   "dashboardPopout": {
@@ -20212,6 +20420,8 @@
       "clearSearch": "Clear search",
       "inlineSearchHint": "Select a result to attach it.",
       "nameHelp": "Shown in the sidebar. The folder name stays the same.",
+      "rowName": "Row name",
+      "rowNameHelp": "Shown on the one-line row. The git branch is not renamed.",
       "notes": "Notes",
       "addNotes": "Add notes",
       "notesOptional": "Optional · Markdown",
@@ -20247,5 +20457,39 @@
     "browser": "Browser",
     "editor": "Editor",
     "terminal": "Terminal"
-  }
+  },
+  "limitReached": "Limit reached",
+  "noUsageData": "No usage data",
+  "nearLimit": "{{used}} · near its limit",
+  "defaultModel": "Default model",
+  "agent": "Agent",
+  "task": "Task",
+  "tier": "Tier {{tier}} of 5",
+  "modelEffort": "Model · effort",
+  "runsIn": "Runs in",
+  "automaticPicked": "Automatic picked {{agent}}",
+  "automatic": "Automatic",
+  "picks": "Picks {{agent}}",
+  "automaticDetail": "Chooses by usage, then model and effort by task",
+  "countedAs": "No usage data, counted as {{percent}}%",
+  "usedFromWindow": "{{percent}}% used, from the {{window}} window",
+  "usedThisMonth": "{{percent}}% used this month",
+  "usedPercent": "{{percent}}% used",
+  "fiveHour": "5h",
+  "weekly": "weekly",
+  "dimensions": "Risk {{risk}} · Complexity {{complexity}} · Verifiability {{verifiability}} · Ambiguity {{ambiguity}}",
+  "levelLow": "Low",
+  "levelMedium": "Medium",
+  "levelHigh": "High",
+  "newChildWorktree": "New child worktree",
+  "thisWorktree": "This worktree",
+  "lowestUsage": "Lowest usage",
+  "parentAgentTie": "Within 5 points of the lowest usage, so the parent's agent wins",
+  "fixedOrderTie": "Tied on usage, so the fixed agent order decides",
+  "riskFloor": "High risk raises the task to tier 4",
+  "modelUnavailable": "This agent has no model for this tier, so its default runs",
+  "effortClamped": "Effort is lowered to what this agent supports",
+  "readOnly": "Read-only task, so it runs in this worktree",
+  "writes": "Writes code, so it gets its own worktree",
+  "folderWrites": "Folder workspace, so writes land in this folder"
 }

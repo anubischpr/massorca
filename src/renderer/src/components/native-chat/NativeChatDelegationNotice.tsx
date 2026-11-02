@@ -12,6 +12,9 @@ import type {
   DelegationStartedPayload
 } from '../../../../shared/delegated-session-journal'
 import type { DelegatedChild } from '../../../../shared/delegated-children'
+import { usePrototypeSetsOfChildSession } from '../prototypes/use-prototype-set-for-request'
+import { NativeChatChildBringBack } from './NativeChatChildBringBack'
+import { PrototypeSetLinkCard } from './NativeChatPrototypeLinkCard'
 import { delegatedAgentLabel, delegatedDurationText } from './delegated-child-copy'
 import { useDelegatedChild } from './delegated-children-context'
 import { useDelegatedChildTitle } from './use-delegated-child-title'
@@ -154,6 +157,7 @@ function FinishedNotice({ payload }: { payload: DelegationFinishedPayload }): Re
       : findStructuredAgentSessionWorktreeId(state.unifiedTabsByWorktree, childSessionId)
   )
   const title = useDelegatedChildTitle(childSessionId, payload.title)
+  const childPrototypes = usePrototypeSetsOfChildSession(childSessionId)
   const heading = succeeded
     ? translate('components.native-chat.delegation.finished', 'Child session finished: {{title}}', {
         title
@@ -192,22 +196,22 @@ function FinishedNotice({ payload }: { payload: DelegationFinishedPayload }): Re
           {payload.resultSummary}
         </p>
       ) : null}
-      {childSessionId !== null && childWorktreeId !== null ? (
-        <div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              openStructuredChatInWorktree({
-                worktreeId: childWorktreeId,
-                sessionId: childSessionId
-              })
-            }}
-          >
-            {translate('components.native-chat.delegation.openChild', 'Open child chat')}
-          </Button>
-        </div>
-      ) : null}
+      {/* Why: the child's request marker lives in the child chat only, so the parent finds its sets by child session. */}
+      {childPrototypes.map((set) => (
+        <PrototypeSetLinkCard key={set.requestId} set={set} />
+      ))}
+      <NativeChatChildBringBack
+        requestId={payload.requestId}
+        openChild={
+          childSessionId !== null && childWorktreeId !== null
+            ? () =>
+                openStructuredChatInWorktree({
+                  worktreeId: childWorktreeId,
+                  sessionId: childSessionId
+                })
+            : null
+        }
+      />
     </section>
   )
 }

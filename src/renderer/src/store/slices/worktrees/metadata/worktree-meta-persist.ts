@@ -11,7 +11,8 @@ import {
 import {
   TASK_SOURCE_CONTEXT_RUNTIME_CAPABILITY,
   WORKTREE_GITHUB_PR_SUPPRESSION_RUNTIME_CAPABILITY,
-  WORKTREE_LINKED_WORK_ITEM_CONTEXT_RUNTIME_CAPABILITY
+  WORKTREE_LINKED_WORK_ITEM_CONTEXT_RUNTIME_CAPABILITY,
+  WORKTREE_MANUAL_DISPLAY_NAME_RUNTIME_CAPABILITY
 } from '../../../../../../shared/protocol-version'
 import { toRuntimeWorktreeSelector } from '../../../../runtime/runtime-worktree-selector'
 import { translate } from '@/i18n/i18n'
@@ -123,6 +124,17 @@ async function persistWorktreeMetaUntracked(
       translate(
         'auto.store.slices.worktrees.metadata.worktree.meta.persist.4367540861',
         'Update the remote runtime to link Linear issues'
+      )
+    )
+  }
+  // Why: an older runtime strips `manualDisplayName` (strip-mode parse); the write would not stick.
+  if (target.kind === 'environment' && 'manualDisplayName' in updates) {
+    await assertRuntimeEnvironmentCapability(
+      target.environmentId,
+      WORKTREE_MANUAL_DISPLAY_NAME_RUNTIME_CAPABILITY,
+      translate(
+        'auto.store.slices.worktrees.metadata.worktree.meta.persist.0b03251e5b',
+        'Update the remote runtime to rename this workspace row'
       )
     )
   }

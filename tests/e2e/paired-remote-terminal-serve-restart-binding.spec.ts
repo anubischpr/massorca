@@ -366,7 +366,7 @@ async function openMirroredTerminal(
     },
     { environmentId: client.environmentId, worktreeId }
   )
-  const tab = client.page.locator(`[data-testid="sortable-tab"][data-tab-id="${webTabId}"]`)
+  const tab = client.page.locator(`[data-testid="side-panel-tab"][data-tab-id="${webTabId}"]`)
   await expect(tab).toBeVisible({ timeout: 60_000 })
   await tab.click()
   await expect(tab).toHaveAttribute('data-active', 'true')

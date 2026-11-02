@@ -25,6 +25,14 @@ vi.mock('../../store', () => ({
   ) => useAppStoreMock(selector)
 }))
 
+vi.mock('./MainSessionEmptyState', () => ({
+  MainSessionEmptyState: (props: unknown) => ({ __mock: 'MainSessionEmptyState', props })
+}))
+
+vi.mock('../side-panel/SidePanel', () => ({
+  SidePanel: (props: unknown) => ({ __mock: 'SidePanel', props })
+}))
+
 vi.mock('./TabGroupPanel', () => ({
   default: (props: unknown) => ({ __mock: 'TabGroupPanel', props })
 }))
@@ -84,11 +92,12 @@ describe('TabGroupSplitLayout', () => {
     const layoutWrapperChildren = React.Children.toArray(
       asElement(getLayoutWrapper(element)).props.children as React.ReactNode
     )
-    const splitBody = layoutWrapperChildren[1]
-    const treeElement = React.Children.only(
-      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the wrapper's split body renders exactly the tree element; props are untyped in this shallow-walk rig.
+    const splitBody = layoutWrapperChildren[0]
+    // Why: the main area hosts the tree first, then its empty-state entry.
+    const treeElement = React.Children.toArray(
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the wrapper's split body renders the tree element first; props are untyped in this shallow-walk rig.
       asElement(splitBody).props.children as React.ReactNode
-    )
+    )[0]
     // TabGroupSplitNodeTree renders the recursive SplitNode; invoke both to reach the leaf/split.
     const splitNodeElement = invokeComponent(asElement(treeElement))
     return invokeComponent(asElement(splitNodeElement))
@@ -109,8 +118,6 @@ describe('TabGroupSplitLayout', () => {
       isVisible: boolean
       isFocused: boolean
       hasSplitGroups: boolean
-      reserveClosedExplorerToggleSpace: boolean
-      reserveCollapsedSidebarHeaderSpace: boolean
     }
   }
 
@@ -121,9 +128,7 @@ describe('TabGroupSplitLayout', () => {
         worktreeId: 'wt-1',
         isVisible: false,
         isFocused: false,
-        hasSplitGroups: false,
-        reserveClosedExplorerToggleSpace: true,
-        reserveCollapsedSidebarHeaderSpace: true
+        hasSplitGroups: false
       })
     )
   })
@@ -135,9 +140,7 @@ describe('TabGroupSplitLayout', () => {
         worktreeId: 'wt-1',
         isVisible: true,
         isFocused: true,
-        hasSplitGroups: false,
-        reserveClosedExplorerToggleSpace: true,
-        reserveCollapsedSidebarHeaderSpace: true
+        hasSplitGroups: false
       })
     )
   })
@@ -153,45 +156,33 @@ describe('TabGroupSplitLayout', () => {
     expect(asElement(getLayoutWrapper(element)).props.ref).toBe(setDragRootNodeMock)
   })
 
-  it('only reserves top-right header space for the floating explorer toggle', () => {
+  it('mounts the side panel beside the group tree for the same workspace', () => {
     const element = TabGroupSplitLayout({
-      layout: {
-        type: 'split',
-        direction: 'horizontal',
-        ratio: 0.5,
-        first: { type: 'leaf', groupId: 'left-group' },
-        second: { type: 'leaf', groupId: 'right-group' }
-      },
+      layout: { type: 'leaf', groupId: 'group-1' },
       worktreeId: 'wt-1',
-      focusedGroupId: 'right-group',
+      focusedGroupId: 'group-1',
       isWorktreeActive: true
     })
 
-    const rootElement = asElement(getSplitNodeElement(element))
-    const rootChildren = rootElement.props.children as unknown[]
-    const leftChild = asElement(rootChildren[0]).props.children
-    const rightChild = asElement(rootChildren[2]).props.children
-    const leftPanelProps = asElement(invokeComponent(asElement(leftChild))).props as {
-      reserveClosedExplorerToggleSpace: boolean
-      reserveCollapsedSidebarHeaderSpace: boolean
-    }
-    const rightPanelProps = asElement(invokeComponent(asElement(rightChild))).props as {
-      reserveClosedExplorerToggleSpace: boolean
-      reserveCollapsedSidebarHeaderSpace: boolean
-    }
+    const wrapperChildren = React.Children.toArray(
+      asElement(getLayoutWrapper(element)).props.children as React.ReactNode
+    )
+    expect(wrapperChildren).toHaveLength(2)
+    expect(asElement(wrapperChildren[1]).props).toEqual(
+      expect.objectContaining({ worktreeId: 'wt-1', isWorktreeActive: true })
+    )
+  })
 
-    expect(leftPanelProps).toEqual(
-      expect.objectContaining({
-        reserveClosedExplorerToggleSpace: false,
-        reserveCollapsedSidebarHeaderSpace: true
-      })
-    )
-    expect(rightPanelProps).toEqual(
-      expect.objectContaining({
-        reserveClosedExplorerToggleSpace: true,
-        reserveCollapsedSidebarHeaderSpace: false
-      })
-    )
+  it('renders no group panel for a leaf that is the side panel group', () => {
+    const element = TabGroupSplitLayout({
+      layout: { type: 'leaf', groupId: 'side-panel:wt-1' },
+      worktreeId: 'wt-1',
+      focusedGroupId: 'side-panel:wt-1',
+      isWorktreeActive: true
+    })
+
+    const leaf = asElement(getSplitNodeElement(element))
+    expect(leaf.type).toBe('div')
   })
 
   it('records pane resizing at the start of the gesture', () => {

@@ -111,7 +111,7 @@ async function activateTerminalTab(page: Page, tabId: string): Promise<void> {
     .poll(
       () =>
         page
-          .locator(`[data-testid="sortable-tab"][data-active="true"]`)
+          .locator(`[data-testid="side-panel-tab"][data-active="true"]`)
           .getAttribute('data-tab-id'),
       {
         timeout: 3_000

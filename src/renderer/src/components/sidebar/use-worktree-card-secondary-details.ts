@@ -42,6 +42,7 @@ export function useWorktreeCardSecondaryDetails({
   cardProps,
   newCardStyle,
   compactCards,
+  oneLineCards = false,
   agentActivityDisplayMode,
   workspacePorts,
   openTaskPage,
@@ -64,6 +65,8 @@ export function useWorktreeCardSecondaryDetails({
     ReviewDetails,
     'prDisplay' | 'linkedGitLabMR' | 'linkedBitbucketPR' | 'linkedAzureDevOpsPR' | 'linkedGiteaPR'
   > & {
+    /** Omitted by surfaces that never render the one-line card. */
+    oneLineCards?: boolean
     showStatus: boolean
     showIssue: boolean
     showLinearIssue: boolean
@@ -90,15 +93,16 @@ export function useWorktreeCardSecondaryDetails({
   const metaCliProvenance = showCli ? worktree.cliProvenance : null
   const metaComment = showComment ? hoverComment : null
   const showInlineAgentList = cardProps.includes('inline-agents') && (newCardStyle || !compactCards)
+  // Why: the one-line card reads the rows itself (collapsed-branch status), then hands them to the list.
+  const readsInlineAgentRows =
+    showInlineAgentList && (agentActivityDisplayMode === 'compact' || oneLineCards)
   const compactInlineAgentRows = useWorktreeAgentRows(
     worktree.id,
-    showInlineAgentList && agentActivityDisplayMode === 'compact'
+    readsInlineAgentRows,
+    oneLineCards
   )
-  const compactInlineAgentRowsVisible =
-    showInlineAgentList &&
-    agentActivityDisplayMode === 'compact' &&
-    compactInlineAgentRows.length > 0
-  const showAggregateCacheTimer = !compactCards && !compactInlineAgentRowsVisible
+  const compactInlineAgentRowsVisible = readsInlineAgentRows && compactInlineAgentRows.length > 0
+  const showAggregateCacheTimer = !compactCards && !oneLineCards && !compactInlineAgentRowsVisible
   const handleOpenGitHubIssueInOrca = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()

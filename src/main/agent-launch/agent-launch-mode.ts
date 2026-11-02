@@ -1,3 +1,4 @@
+import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
 /**
  * Which surface a launch gets, from settings and the host answer. Callers pass no mode; the one
  * hint, `preferredMode: 'chat'`, overrides only a terminal default, and feasibility still wins.
@@ -199,14 +200,16 @@ export async function resolveAgentLaunchModeOnHost(
   agent: TuiAgent | undefined,
   vocabulary: AgentLaunchModeVocabulary = DEFAULT_LAUNCH_VOCABULARY,
   /** The access the structured session will run in, so the host judges that same posture. */
-  accessMode?: 'default' | 'full-access'
+  accessMode?: 'default' | 'full-access',
+  /** Which Pi will run: stock Pi and Gentle Shell answer differently about restricted access. */
+  piRuntime?: PiRuntimeSelection
 ): Promise<AgentLaunchModeReceipt> {
   if (receipt.mode !== 'structured' || !worktreeId) {
     return receipt
   }
   return downgradeAgentLaunchModeForHost(
     receipt,
-    await readStructuredCreateSupport(runtime, worktreeId, agent, accessMode),
+    await readStructuredCreateSupport(runtime, worktreeId, agent, accessMode, piRuntime),
     vocabulary
   )
 }
@@ -216,17 +219,18 @@ async function readStructuredCreateSupport(
   runtime: Pick<OrcaRuntimeService, 'getStructuredAgentSessionCreateSupport'>,
   worktreeId: string,
   agent: TuiAgent | undefined,
-  accessMode?: 'default' | 'full-access'
+  accessMode?: 'default' | 'full-access',
+  piRuntime?: PiRuntimeSelection
 ): Promise<{ supported: boolean; reason?: 'agent' | 'remote' | 'wsl' | 'access' } | null> {
   if (!agent || !REGISTERED_STRUCTURED_AGENTS.includes(agent)) {
     return { supported: false, reason: 'agent' }
   }
   try {
-    return accessMode
+    return accessMode || piRuntime
       ? await runtime.getStructuredAgentSessionCreateSupport(
           `id:${worktreeId}`,
           agent,
-          undefined,
+          piRuntime,
           accessMode
         )
       : await runtime.getStructuredAgentSessionCreateSupport(`id:${worktreeId}`, agent)

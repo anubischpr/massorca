@@ -137,3 +137,40 @@ QA1–QA4, then DS4. Pending user approval: main-direction + merge design (artif
 - [x] Narrow header and Spanish archive strings: `f28440a07a4`, `99249f06820`. Not rendered.
 - Review: slices up to `469c1eb4856` approved. Later slices ran no reviewer lenses after the reboot.
 - Design choices for review: https://claude.ai/artifact/LokvPTZC85njupM8ktSX6Z
+
+## pv57 Components editing (2026-10-30)
+
+Approved design reference: the pv57 scratchpad page `design-system-components-edit.html` (fake colors and text; the real values come from tokens.json and components.html).
+
+- [x] E1 — `c7d4842af35` — The annotate frame reports each picked element's own design (its file values, with the frame's own overrides taken off) and its ancestors; overrides may set an allowlisted set of CSS properties; a pin may draw its outline without a badge; a chat visual may opt into a nonce-only script policy.
+- [x] E2 — `dd48e8e8789` — Element model and draft: locators relative to the section (`elementLocatorOf`), the rows each kind offers, token binding by value, the CSS a draft edit becomes; per-element edits keyed by locator in the draft, a value back at its original drops out, an older draft reads as none; each edit is one item of the message.
+- [x] E3 — `8607beb1c8e` — Aside for a picked element: rows per kind, token chips that collapse to four with `+N more` and keep the bound token, custom swatch and hex for colors, number and px / % / auto sizes, B / I / U, align, breadcrumb back up the component, text-only hint, a note per element. The Annotate panel now shares its unit group and field classes instead of copying them.
+- [x] E4 — `8ee50475c0b` — Components tab: each card renders the component live in the annotate frame under a nonce-only policy; clicking an element picks it (hover and selected outlines are the Annotate ones); draft edits apply live; Grid (two compact cards, per-card full-size toggle), Collage and List, with the choice remembered per viewer; a rule under the Design system row.
+- [x] E5 — `fb898b05fff`, `5e5102bb8b8`, `323e36a8553` — Collage fits each card to its content: the frame answers a measure request with its natural width and section readout (validated and bounded); cards span the columns and rows their width and height need, dense flow fills the gaps, narrow containers take full width. The whole component's Gap and Padding rows are offered on a card click. A Font row with no font tokens shows its value. New keys added to en.json.
+- [x] E6 — Render check in the Electron app (2026-10-31): done on an isolated profile (`ORCA_E2E_USER_DATA_DIR` set to a fresh temp dir, Playwright's own ephemeral debugging port, headless window; the user's Orca was never connected or stopped). The check found two bugs, fixed in E7. Results are under Render check below. The earlier attempt failed because `ORCA_USER_DATA_PATH` is a CLI variable; the app reads `ORCA_E2E_USER_DATA_DIR`.
+- [x] E7 — `7938c375e66`, `fa4d382e8d1` — Render-check fixes. Picks inside a card were dropped: the frame reports `html > body:nth-of-type(1) > section ...`, which the locator refused (fixed in the locator). Collage and List cards kept the chat visual's 80 px height floor; design system cards now take their content height (the floor stays an option of the height governor; chat visuals keep 80 px). Tests for both.
+
+Verification evidence:
+- `pnpm tc` exit 0 after the last source change (typecheck node, cli, web).
+- Shared: annotate script, annotate design, design-system element/draft/preview/message suites: 19 files, 292 tests passed.
+- Renderer: design system view, aside, rows, view mode, list panel, edit panel: 6 files, 73 tests passed (run with `config/vitest.config.ts`).
+- oxlint and oxfmt clean on the changed files. The `max-lines` rule forced the draft and the components tab into smaller modules; no disable was added.
+- `pnpm tc` exit 0 after each fix (E7). `pnpm test src/shared/prototype-design-system-element.test.ts`: 14 passed. `pnpm test` on the governor, shell, `NativeChatVisualFrame` and design system view tests: 4 files, 70 passed. `ORCA_CODE_QUALITY_BASE=custom/pv27-unified pnpm run check:code-quality:changed`: 0 new findings.
+
+### Render check (2026-10-31)
+
+E2E build (`electron-vite build --mode e2e`), isolated profile, one seeded project with `design/system/` and a chat with two prototype requests. Screenshots in `scratchpad/pv57/render/`.
+
+- 1 Variants: pass. Variant chips toggle; the caption and the draft update (`Button: add hover state`, `Button: drop disabled state`). Editing the primary fill (`rgb(22, 163, 74)`) leaves the secondary at `rgb(241, 245, 249)`. Open: dropping a state does not hide its element in the preview; the state only reaches the draft.
+- 2 Kinds: pass. Rows per picked kind match `DESIGN_ELEMENT_ROWS`: button (fill, text color, border; radius, border width, shadow; width, height, padding; font, size, style, align), badge (no width, height or align), text (color; width; font, size, line height, style, align), box (fill, border; radius, border width, shadow; padding, gap). The component root shows Layout rows.
+- 3 Chips: pass. Four chips and `+2 more`; expanded shows six and `Show less`; a bound token past the fourth stays among the first four.
+- 4 Text: pass. Size 22px, italic, and the `type.family-mono` family token (`ui-monospace, Menlo, monospace`) applied; bold toggles weight 700 to 400. No editable text content (the "Text is never edited here" hint; no contenteditable).
+- 5 Inner element: pass. The card paragraph takes `color.primary` (`rgb(37, 99, 235)`); the card's own box takes `radius.sm` (6px).
+- 6 Separator: pass. A 1 px `bg-border` rule (`rgb(229, 229, 229)`) sits between the Design system row and the list. No prototype sets are seeded, so nothing is listed below it.
+- 7 Full size: pass. Grid cards show `<>` "View full size"; the toggled card spans two columns and shows `><` "Back to compact size".
+- 8 Layouts: pass for toggle, clipping and memory. Collage frames equal their section heights (40, 26, 151, 42 px) with no overflow. Grid, then List, survived a reload and a full relaunch (`localStorage` key `orca.prototypes.designSystem.componentsView`). Open: a card spans at least two of six columns (the approved rule), so a tiny component does not fill only its own width.
+
+Open, not fixed (product questions):
+- A design system whose project has only a `use` request and no direction set opens a blank view: the screen has no chat to read its files through (`designSystemChatOf` returns none). Needs a decision on which chat reads and sends.
+- Whether a variant state should change the preview, or only the draft message.
+- Whether a tiny component may span one collage column (the approved reference floors cards at two).

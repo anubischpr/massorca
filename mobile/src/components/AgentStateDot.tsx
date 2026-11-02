@@ -7,9 +7,8 @@ import { useWorkingRingRotation } from './use-working-ring-rotation'
 // Per-agent state indicator, 1:1 with desktop AgentStateDot
 // (src/renderer/src/components/AgentStateDot.tsx): yellow spinner for 'working',
 // emerald for 'done', red for blocked/waiting/failed (attention), muted for a user's Stop
-// ('interrupted'), amber for 'unconfirmed' (desktop's missing-evidence tone), neutral for idle. Distinct from the
-// worktree-level AgentSpinner, which collapses the agent vocabulary into the 5-state
-// rollup the sidebar dot uses.
+// ('interrupted'), amber for 'unconfirmed' (desktop's missing-evidence tone), neutral for idle.
+// Distinct from SessionStatusMark, the one trailing mark a branch or session row shows.
 const DOT_COLORS: Record<Exclude<AgentDotState, 'working' | 'monitoring'>, string> = {
   done: '#10b981',
   blocked: '#ef4444',

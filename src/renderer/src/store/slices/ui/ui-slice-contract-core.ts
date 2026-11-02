@@ -15,6 +15,30 @@ import type { TaskSourceContext } from '../../../../../shared/task-source-contex
 import type { ExecutionHostId } from '../../../../../shared/execution-host'
 import type { TaskResumeState, TopLevelView } from '../../../../../shared/ui-chrome-types'
 
+/** A page of the open team other than its Conference room. */
+export type BotTeamsSection =
+  | { kind: 'board' }
+  | { kind: 'new-project' }
+  | { kind: 'files' }
+  | { kind: 'memory' }
+  | { kind: 'routines' }
+  | { kind: 'routine-new' }
+  | { kind: 'routine'; routineId: string }
+  /** A team's web address that starts a task; no id means making a new one. */
+  | { kind: 'webhook'; webhookId?: string }
+  | { kind: 'project'; projectId: string; tab?: 'brief' }
+
+export type BotTeamsSelection = {
+  /** The open team, or null for All teams. */
+  teamId: string | null
+  /** A task thread open inside the team. */
+  taskId: string | null
+  /** The new team form is open. */
+  creating: boolean
+  /** The open team's Board, a project, New project, Files, Memory or Routines; none means the Conference room. */
+  section?: BotTeamsSection
+}
+
 export type PendingSidebarWorktreeReveal = {
   worktreeId: string
   executionHostId?: ExecutionHostId
@@ -123,6 +147,7 @@ export type UiViewHistory =
   | 'skills'
   | 'artifacts'
   | 'prototypes'
+  | 'bot-teams'
   | 'mobile'
   | 'create-chat'
 
@@ -214,6 +239,25 @@ export type UISliceCore = {
   /** Opens a blank create-chat view; each open bumps the nonce so the view remounts blank. */
   createChatResetNonce: number
   openCreateChatPage: () => void
+  /** True while the tasks view shows the Tasks home instead of the source-control board. */
+  tasksHomeOpen: boolean
+  /** Which mode the rail's first button is in; it survives every page change and restart. */
+  railMode: 'workspaces' | 'bot-teams'
+  /** The one-time "click Workspaces again" hint has been shown. */
+  railWorkspacesHintShown: boolean
+  markRailWorkspacesHintShown: () => void
+  /**
+   * The rail's first button: from its mode's home it switches mode, from any other page it
+   * returns to the current mode's home. Reports which one happened.
+   */
+  pressRailModeButton: () => 'switched' | 'returned'
+  /** What the Bot teams page shows; the left sidebar and the page both read and write it. */
+  botTeamsSelection: BotTeamsSelection
+  /** Shows the Bot teams page with this selection and puts the rail in Bot teams mode. */
+  openBotTeamsView: (selection?: Partial<BotTeamsSelection>) => void
+  /** Changes what the open Bot teams page shows, without moving the page. */
+  setBotTeamsSelection: (selection: BotTeamsSelection) => void
+  openTasksHome: () => void
   setNewWorkspaceDraft: (draft: NonNullable<UISliceCore['newWorkspaceDraft']>) => void
   clearNewWorkspaceDraft: () => void
   pendingRevealWorktree: PendingSidebarWorktreeReveal | null

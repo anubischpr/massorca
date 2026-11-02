@@ -7,6 +7,7 @@ import {
   isHostOwnedDelegationQuestion
 } from '../../../shared/delegated-session-journal'
 import type { AgentJournalItemBody } from '../../../shared/agent-session-journal-types'
+import type { PrototypeDesignSystemMode } from '../../../shared/prototype-design-system-files'
 
 export type StructuredAgentSessionHostOwnedPromptOutcome =
   | {
@@ -26,6 +27,8 @@ export type StructuredAgentSessionHostOwnedPrompts = {
     optionId: string
     /** The prototype count the answer carried, when the card drew one. */
     count?: number
+    /** The design system choice the answer carried, when the card drew one. */
+    designSystem?: PrototypeDesignSystemMode
   }) => Promise<StructuredAgentSessionHostOwnedPromptOutcome>
   /** The question dismissed without a choice. */
   cancel: (input: {

@@ -5,6 +5,7 @@ import { subscribeToUnpairedDeviceAuthNotification } from '../unpaired-device-au
 import { translate } from '@/i18n/i18n'
 import { toast } from 'sonner'
 import { useAppStore } from '../../store'
+import { toggleLeftSidebarWhereShown } from '../../app-shell/left-sidebar-views'
 
 function getShortcutPlatform(): NodeJS.Platform {
   if (navigator.userAgent.includes('Mac')) {
@@ -145,14 +146,14 @@ export function registerSettingsAndSidebarIpcBridge(unsubs: (() => void)[]): voi
 
   unsubs.push(
     window.api.ui.onToggleLeftSidebar(() => {
-      useAppStore.getState().toggleSidebar()
+      toggleLeftSidebarWhereShown(useAppStore.getState())
     })
   )
 
   unsubs.push(
     window.api.ui.onToggleRightSidebar(() => {
       const store = useAppStore.getState()
-      if (!canShowRightSidebarForView(store.activeView)) {
+      if (!canShowRightSidebarForView(store.activeView, store.botTeamsSelection)) {
         return
       }
       store.toggleRightSidebar()

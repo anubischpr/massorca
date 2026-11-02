@@ -145,7 +145,9 @@ test('paints a paired remote terminal when only its retained text tail overflowe
       (worktreeId) => window.__store?.getState().setActiveWorktree(worktreeId),
       worktree.id
     )
-    const remoteTab = client.page.locator(`[data-testid="sortable-tab"][data-tab-id="${webTabId}"]`)
+    const remoteTab = client.page.locator(
+      `[data-testid="side-panel-tab"][data-tab-id="${webTabId}"]`
+    )
     await expect(remoteTab).toBeVisible({ timeout: 30_000 })
     await remoteTab.click()
     await expect(remoteTab).toHaveAttribute('data-active', 'true')
@@ -198,7 +200,7 @@ test('paints a paired remote terminal when only its retained text tail overflowe
       worktree.id
     )
     const restoredRemoteTab = client.page.locator(
-      `[data-testid="sortable-tab"][data-tab-id="${webTabId}"]`
+      `[data-testid="side-panel-tab"][data-tab-id="${webTabId}"]`
     )
     await expect(restoredRemoteTab).toBeVisible({ timeout: 30_000 })
     await restoredRemoteTab.click()
@@ -319,7 +321,7 @@ test('legacy paired hosts retain the lossy hidden-manager budget fallback @headf
         (id) => window.__store?.getState().setActiveWorktree(id),
         worktreeId
       )
-      const tab = client.page.locator(`[data-testid="sortable-tab"][data-tab-id="${tabId}"]`)
+      const tab = client.page.locator(`[data-testid="side-panel-tab"][data-tab-id="${tabId}"]`)
       await expect(tab).toBeVisible({ timeout: 30_000 })
       await tab.click()
       await waitForActivePanePtyId(client.page, 30_000)
@@ -456,7 +458,7 @@ test('legacy paired hosts retain the lossy hidden-manager budget fallback @headf
       state?.setActiveWorktree(worktreeId)
     }, older.worktreeId)
     const olderTab = client.page.locator(
-      `[data-testid="sortable-tab"][data-tab-id="${older.tabId}"]`
+      `[data-testid="side-panel-tab"][data-tab-id="${older.tabId}"]`
     )
     await expect(olderTab).toBeVisible({ timeout: 30_000 })
     await olderTab.click()

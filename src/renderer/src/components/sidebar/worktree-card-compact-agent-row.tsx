@@ -21,7 +21,7 @@ import { agentVerdictStatusLine } from '@/lib/agent-verdict-status-line'
 import { agentRowStoppingLabel } from '@/lib/agent-row-stopping-label'
 import { getCompactAgentLineOrder } from './worktree-card-compact-agent-line-order'
 
-function getCompactAgentPrimary(
+export function getCompactAgentPrimary(
   agent: DashboardAgentRowData,
   conversationName: string | null
 ): string {
@@ -222,6 +222,7 @@ export const CompactAgentRow = React.memo(function CompactAgentRow({
         <>
           {/* Why: the row's actionable disabled reason must win on every hit area. */}
           <AgentStateDot
+            blockedIsFailure={Boolean(agent.childRow)}
             state={dotState}
             size="sm"
             title={sendTargetDisabledReason ? null : undefined}

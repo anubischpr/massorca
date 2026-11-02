@@ -18,7 +18,7 @@ import {
 // The host answers a waiting read when its first listing lands, within its own 30s picker wait.
 const LISTING_WAIT_TIMEOUT_MS = 45_000
 
-async function readHostModelCatalog(
+export async function readHostModelCatalog(
   client: RpcClient,
   agent: string,
   worktree: string | null

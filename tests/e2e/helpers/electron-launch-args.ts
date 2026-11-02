@@ -5,7 +5,14 @@ export function getElectronIsolatedKeychainArgs(): string[] {
   return process.platform === 'darwin' ? ['--password-store=basic', '--use-mock-keychain'] : []
 }
 
+// Why: specs match English labels, and the system language setting follows the host locale.
+const ENGLISH_UI_ARG = '--lang=en-US'
+
 export function getOrcaElectronLaunchArgs(mainPath: string, headful: boolean): string[] {
+  return [ENGLISH_UI_ARG, ...getPlatformLaunchArgs(mainPath, headful)]
+}
+
+function getPlatformLaunchArgs(mainPath: string, headful: boolean): string[] {
   // Launch through package.json so app version and resource paths match a packaged app.
   const appPath = dirname(dirname(dirname(mainPath)))
   const keychainArgs = getElectronIsolatedKeychainArgs()

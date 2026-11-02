@@ -52,6 +52,10 @@ export type DelegatedChildPromptInput = {
   taskSpec: string
   /** The count the person picked on the card; absent, the Settings count applies. */
   count?: number
+  /** The design system choice the person made on the card; absent, the child uses the project's system. */
+  designSystem?: PrototypeDesignSystemMode
+  /** The host decided, from the person's own message, that this task is a prototype task whatever its wording. */
+  prototypeTask?: boolean
 }
 
 /** The first prompt for a child whose task asks for a prototype, or null to deliver the task spec as stored. */
@@ -84,14 +88,14 @@ async function buildDelegatedChildFirstPrompt(
   }
   const agent = prototypeAgentOfChild(chat.agent, chat.piRuntime)
   const text = neutralizePrototypeMarkers(input.taskSpec)
-  if (classifyPrototypeRequest(text, agent).kind === 'none') {
+  if (classifyPrototypeRequest(text, agent).kind === 'none' && input.prototypeTask !== true) {
     return null
   }
   // Why: a count the person answered on the card wins; Settings only counts for a task answered without one.
   const count = input.count ?? sanitizePrototypeCountSetting(deps.readPrototypeCount()).count
-  // Why 'use', never 'skip': a child has no card to choose a system, so its instruction reuses the project's
-  // system or creates one; 'propose' would stop the child for a review nobody is there to give.
-  const designSystem: PrototypeDesignSystemMode = 'use'
+  // Why 'use' by default: a task answered without the design system choice (an older client) has nobody to
+  // review a proposal, so its instruction reuses the project's system or creates one and goes on.
+  const designSystem: PrototypeDesignSystemMode = input.designSystem ?? 'use'
   const created = await deps
     .createRequest({
       sessionId: input.childSessionId,
@@ -120,7 +124,9 @@ async function buildDelegatedChildFirstPrompt(
       requestId: created.requestId,
       folderPath,
       designSystem,
-      designSystemUnattended: true,
+      ...(input.prototypeTask === true ? { decidedAsPrototypeRequest: true } : {}),
+      // Why: a person who chose 'propose' reviews the system first, as for a direct request.
+      ...(designSystem === 'use' ? { designSystemUnattended: true } : {}),
       ...(created.designSystemFolderPath !== undefined
         ? { designSystemFolder: created.designSystemFolderPath }
         : {})

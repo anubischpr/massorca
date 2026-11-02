@@ -8,8 +8,10 @@ vi.mock('react-native', async () => {
   type HeaderRenderer = (args: { section: { key: string } }) => ReactNode
   return {
     ActivityIndicator: 'ActivityIndicator',
+    Platform: { OS: 'ios' },
     Pressable: 'Pressable',
     RefreshControl: 'RefreshControl',
+    TextInput: 'TextInput',
     // Why: renders each section's header the way SectionList does, so the header under test shows.
     SectionList: ({
       sections,
@@ -34,6 +36,10 @@ vi.mock('lucide-react-native', () => ({
   ChevronDown: 'ChevronDown',
   ChevronRight: 'ChevronRight',
   Pin: 'Pin'
+}))
+// Why: expo-clipboard needs the native runtime's __DEV__ global, which this node test does not provide.
+vi.mock('../platform/clipboard', () => ({
+  useClipboardWriter: () => ({ writeText: async () => undefined })
 }))
 vi.mock('../components/AuthFailedBanner', () => ({ AuthFailedBanner: 'AuthFailedBanner' }))
 vi.mock('../components/HostDiagnosticsLink', () => ({ HostDiagnosticsLink: 'HostDiagnosticsLink' }))

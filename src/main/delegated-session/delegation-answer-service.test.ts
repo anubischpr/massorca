@@ -20,7 +20,11 @@ import { createRootDispatch } from '../runtime/orchestration/db/root-dispatch-te
 import { DelegationAnswerService } from './delegation-answer-service'
 import type { DelegationLauncher } from './delegation-launch-types'
 import { DelegationRequestService } from './delegation-request-service'
-import { readStoredDelegationAgents, readStoredPrototypeCount } from './delegation-stored-request'
+import {
+  readStoredDelegationAgents,
+  readStoredDesignSystemMode,
+  readStoredPrototypeCount
+} from './delegation-stored-request'
 import type {
   DelegationHostDeps,
   DelegationParentSession,
@@ -115,7 +119,9 @@ describe('DelegationAnswerService', () => {
       ...host,
       requireDb: () => db,
       listAgents: async () => AGENTS,
-      readPrototypeCount: () => ({ mode: 'always', count: 2 })
+      readPrototypeCount: () => ({ mode: 'always', count: 2 }),
+      readDesignSystemCard: async () => null,
+      readParentUserMessage: async () => undefined
     }
     requests = new DelegationRequestService(requestDeps)
     answers = new DelegationAnswerService({ ...host, launch, tellParent, warn: vi.fn() })
@@ -195,6 +201,36 @@ describe('DelegationAnswerService', () => {
     expect(rows[1]?.body.kind === 'status' && rows[1].body.text).toMatch(
       /^Started child session “.+” with Codex .*\(Manual\)$/
     )
+  })
+
+  it('keeps the tier Jev chose for the card when Automatic is decided again, with no second call', async () => {
+    const adviseTier = vi.fn(async () => 5 as const)
+    requests = new DelegationRequestService({
+      ...host,
+      requireDb: () => db,
+      listAgents: async () => AGENTS,
+      readPrototypeCount: () => ({ mode: 'always', count: 2 }),
+      readDesignSystemCard: async () => null,
+      readParentUserMessage: async () => undefined,
+      adviseTier
+    })
+    const { requestId, itemId } = await filed()
+
+    const outcome = await answers.hostOwnedPrompts.answer({
+      sessionId: PARENT.sessionId,
+      itemId,
+      optionId: 'automatic'
+    })
+    if (outcome.ok) {
+      outcome.afterCommit()
+    }
+    await answers.idle()
+
+    expect(adviseTier).toHaveBeenCalledOnce()
+    expect(JSON.parse(db.getDelegationRequest(requestId)?.decision_json ?? '{}')).toMatchObject({
+      tier: 5,
+      tierAdvisedBy: 'jev'
+    })
   })
 
   it('decides Automatic again at the answer, with the usage read then', async () => {
@@ -435,6 +471,35 @@ describe('DelegationAnswerService', () => {
       expect(row && readStoredDelegationAgents(row).map((entry) => entry.agent)).toEqual(
         AGENTS.map((entry) => entry.agent)
       )
+    })
+
+    it('is stored with the design system choice, and either one alone is kept', async () => {
+      const { requestId, itemId } = await filed()
+      const outcome = await answers.hostOwnedPrompts.answer({
+        sessionId: PARENT.sessionId,
+        itemId,
+        optionId: 'agent:codex',
+        count: 3,
+        designSystem: 'propose'
+      })
+      expect(outcome.ok).toBe(true)
+      const row = db.getDelegationRequest(requestId)
+      expect(row && readStoredPrototypeCount(row)).toBe(3)
+      expect(row && readStoredDesignSystemMode(row)).toBe('propose')
+      expect(row && readStoredDelegationAgents(row).length).toBe(AGENTS.length)
+    })
+
+    it('stores a design system choice alone, leaving the count to Settings', async () => {
+      const { requestId, itemId } = await filed()
+      await answers.hostOwnedPrompts.answer({
+        sessionId: PARENT.sessionId,
+        itemId,
+        optionId: 'agent:codex',
+        designSystem: 'skip'
+      })
+      const row = db.getDelegationRequest(requestId)
+      expect(row && readStoredDesignSystemMode(row)).toBe('skip')
+      expect(row && readStoredPrototypeCount(row)).toBeUndefined()
     })
 
     it('is taken back with the choice when the journal does not record the answer', async () => {

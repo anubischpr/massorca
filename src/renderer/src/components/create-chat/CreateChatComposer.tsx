@@ -3,6 +3,17 @@ import { ArrowUp, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { ImeTextarea } from '@/lib/ime-text-field'
+import { CreateChatChipMenuGroup } from './CreateChatChipMenu'
+
+/** Wording that differs when another page, such as the Tasks home's Bot Team mode, reuses the box. */
+export type CreateChatComposerCopy = {
+  placeholder: string
+  placeAria: string
+  sendAria: string
+  creatingAria: string
+  creating: string
+  hint: string
+}
 
 type CreateChatComposerProps = {
   draft: string
@@ -12,11 +23,18 @@ type CreateChatComposerProps = {
   pending: boolean
   error: string | null
   onSubmit: () => void
-  leftChips: ReactNode
+  /** Location, project and workspace mode: the row attached above the box. */
+  placeChips: ReactNode
+  /** The box footer, left: Permissions and the session view switch. */
+  footerChips: ReactNode
+  /** Below the box: what the chosen session view leaves out, or why it cannot open. */
+  notice: ReactNode
   rightChips: ReactNode
+  /** Defaults to the session wording. */
+  copy?: CreateChatComposerCopy
 }
 
-/** The first-message box: text, the footer chips, the send button, any launch error and the keyboard hint. */
+/** The first-message box: the place row above it, the text, footer chips, send, any launch error and the hint. */
 export function CreateChatComposer({
   draft,
   onDraftChange,
@@ -24,13 +42,18 @@ export function CreateChatComposer({
   pending,
   error,
   onSubmit,
-  leftChips,
-  rightChips
+  placeChips,
+  footerChips,
+  notice,
+  rightChips,
+  copy
 }: CreateChatComposerProps): React.JSX.Element {
-  const placeholder = translate(
-    'components.createChat.composerPlaceholder',
-    'Describe the task to start the session…'
-  )
+  const placeholder =
+    copy?.placeholder ??
+    translate(
+      'components.createChat.composerPlaceholder',
+      'Describe the task to start the session…'
+    )
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>): void => {
     // Why: Shift+Enter keeps the newline; IME composition is filtered by ImeTextarea before this runs.
     if (event.key !== 'Enter' || event.shiftKey) {
@@ -43,60 +66,77 @@ export function CreateChatComposer({
   }
 
   return (
-    <div className="flex w-full flex-col gap-2">
-      <div className="rounded-xl border border-border bg-card shadow-xs transition-[box-shadow] focus-within:ring-1 focus-within:ring-ring/50">
-        <ImeTextarea
-          rows={3}
-          value={draft}
-          placeholder={placeholder}
-          aria-label={placeholder}
-          onChange={(event) => onDraftChange(event.target.value)}
-          onKeyDown={handleKeyDown}
-          className="block max-h-60 min-h-20 w-full resize-none rounded-xl bg-transparent px-4 pt-3 pb-1 text-sm outline-none placeholder:text-muted-foreground/60"
-        />
-        <div className="flex items-center justify-between gap-2 px-2 pb-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-0.5">
-            <fieldset disabled={pending} className="contents">
-              {leftChips}
-            </fieldset>
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <fieldset disabled={pending} className="contents">
-              {rightChips}
-            </fieldset>
-            <Button
-              type="button"
-              size="icon-sm"
-              aria-label={
-                pending
-                  ? translate('components.createChat.creatingAria', 'Creating session')
-                  : translate('components.createChat.sendAria', 'Create session')
-              }
-              disabled={!canSubmit}
-              onClick={onSubmit}
-            >
-              {pending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <ArrowUp className="size-4" />
-              )}
-            </Button>
+    <CreateChatChipMenuGroup>
+      <div className="flex w-full flex-col gap-2">
+        <div
+          role="group"
+          aria-label={
+            copy?.placeAria ?? translate('components.createChat.placeAria', 'Where it runs')
+          }
+          className="relative mx-3 -mb-1.5 flex items-center gap-0.5 rounded-t-xl border border-b-0 border-border bg-card px-1.5 pt-1 pb-2"
+        >
+          <fieldset disabled={pending} className="contents">
+            {placeChips}
+          </fieldset>
+        </div>
+        <div className="relative rounded-xl border border-border bg-card shadow-xs transition-[box-shadow] focus-within:ring-1 focus-within:ring-ring/50">
+          <ImeTextarea
+            rows={3}
+            value={draft}
+            placeholder={placeholder}
+            aria-label={placeholder}
+            onChange={(event) => onDraftChange(event.target.value)}
+            onKeyDown={handleKeyDown}
+            className="block max-h-60 min-h-20 w-full resize-none rounded-xl bg-transparent px-4 pt-3 pb-1 text-sm outline-none placeholder:text-muted-foreground/60"
+          />
+          <div className="flex items-center justify-between gap-2 px-2 pb-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-1">
+              <fieldset disabled={pending} className="contents">
+                {footerChips}
+              </fieldset>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <fieldset disabled={pending} className="contents">
+                {rightChips}
+              </fieldset>
+              <Button
+                type="button"
+                size="icon-sm"
+                aria-label={
+                  pending
+                    ? (copy?.creatingAria ??
+                      translate('components.createChat.creatingAria', 'Creating session'))
+                    : (copy?.sendAria ??
+                      translate('components.createChat.sendAria', 'Create session'))
+                }
+                disabled={!canSubmit}
+                onClick={onSubmit}
+              >
+                {pending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <ArrowUp className="size-4" />
+                )}
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-      {error ? (
-        <p role="alert" className="text-center text-xs text-destructive">
-          {error}
+        {notice}
+        {error ? (
+          <p role="alert" className="text-center text-xs text-destructive">
+            {error}
+          </p>
+        ) : null}
+        <p className="text-center text-xs text-muted-foreground">
+          {pending
+            ? (copy?.creating ?? translate('components.createChat.creating', 'Creating session…'))
+            : (copy?.hint ??
+              translate(
+                'components.createChat.composerHint',
+                'Enter to create the session · Shift+Enter for a new line'
+              ))}
         </p>
-      ) : null}
-      <p className="text-center text-xs text-muted-foreground">
-        {pending
-          ? translate('components.createChat.creating', 'Creating session…')
-          : translate(
-              'components.createChat.composerHint',
-              'Enter to create the session · Shift+Enter for a new line'
-            )}
-      </p>
-    </div>
+      </div>
+    </CreateChatChipMenuGroup>
   )
 }

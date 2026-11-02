@@ -1,3 +1,4 @@
+import { selectReferencedSessions } from '../store/slices/tabs/pane-session-ref'
 import { useAppStore } from '../store'
 import {
   canAdmitTerminalTabsForStartup,
@@ -165,6 +166,15 @@ export function applyTerminalColdActivation(controller: TerminalParkingFoundatio
       })
     }
     mountedWorktreeIdsRef.current.add(renderedActiveWorktreeId)
+    // Why: a session shown by reference runs in its owner's overlay layer, so that workspace must be mounted.
+    for (const shown of selectReferencedSessions({
+      groupsByWorktree,
+      unifiedTabsByWorktree: useAppStore.getState().unifiedTabsByWorktree
+    }).values()) {
+      if (shown.layoutWorktreeId === renderedActiveWorktreeId) {
+        mountedWorktreeIdsRef.current.add(shown.ownerWorktreeId)
+      }
+    }
   } else {
     lastActivationWorktreeIdRef.current = null
   }

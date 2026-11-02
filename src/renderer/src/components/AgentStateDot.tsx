@@ -80,6 +80,8 @@ type Props = {
   /** Overrides the hover tooltip; null suppresses it for an existing tooltip. */
   title?: string | null
   tooltipSide?: StateIndicatorTooltipSide
+  /** Child rows: a background task's failure reaches them as `blocked`, so it draws the fault red. */
+  blockedIsFailure?: boolean
 }
 
 /** Render the compact state glyph used by agent rows and terminal tabs. */
@@ -88,7 +90,8 @@ export const AgentStateDot = React.memo(function AgentStateDot({
   size = 'sm',
   className,
   title,
-  tooltipSide
+  tooltipSide,
+  blockedIsFailure = false
 }: Props): React.JSX.Element {
   const box = size === 'md' ? 'h-3 w-3' : 'h-2.5 w-2.5'
   const inner = size === 'md' ? 'size-2' : 'size-1.5'
@@ -139,7 +142,12 @@ export const AgentStateDot = React.memo(function AgentStateDot({
         <CircleDashed className={cn('text-amber-500', icon)} aria-hidden="true" />
       </span>
     )
-  } else if (state === 'permission' || state === 'waiting') {
+  } else if (
+    state === 'permission' ||
+    state === 'waiting' ||
+    (state === 'blocked' && !blockedIsFailure)
+  ) {
+    // Why: a session's blocked and waiting both mean a person has to act; red is kept for failures.
     indicator = (
       <span
         className={cn('inline-flex shrink-0 items-center justify-center', box, className)}
@@ -158,7 +166,7 @@ export const AgentStateDot = React.memo(function AgentStateDot({
           className={cn(
             'block rounded-full',
             inner,
-            state === 'blocked' || state === 'failed'
+            state === 'failed' || state === 'blocked'
               ? 'bg-red-500'
               : // Why: a user's Stop is not news; muted, never the fault red or the finished green.
                 state === 'interrupted'

@@ -1,4 +1,5 @@
 import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
+import type { PrototypeSystemCard } from '../../shared/prototype-design-system-card'
 import type { RateLimitState } from '../../shared/rate-limit-types'
 import type { DelegationRankingCandidate } from './delegation-agent-ranking'
 import {
@@ -11,10 +12,11 @@ import {
 import type { AgentJournalPromptOption } from '../../shared/agent-session-journal-types'
 import type {
   DelegationDecision,
-  DelegationRouteResult
+  DelegationRouteResult,
+  DelegationTier
 } from '../../shared/delegated-session-types'
 import { delegationUsageCandidates } from './delegation-usage-input'
-import { classifyDelegationTask } from './delegation-task-classifier'
+import { classifyDelegationTask, withAdvisedDelegationTier } from './delegation-task-classifier'
 import {
   delegationLaunchCatalog,
   resolveLaunchableDelegationModel
@@ -41,7 +43,14 @@ export type DelegationRoutingInput = DelegationTaskText & {
   /** Null when this host reads no usage at all; every agent then counts as having no data. */
   rateLimits: RateLimitState | null
   now: number
+  advisedTier?: DelegationTier
 }
+
+/** Picks a task's tier from outside the classifier; null keeps the classifier's tier. */
+export type DelegationTierAdvisor = (task: {
+  summary: string
+  writes: boolean
+}) => Promise<DelegationTier | null>
 
 function usageCandidates(input: DelegationRoutingInput): DelegationRankingCandidate[] {
   return input.rateLimits === null
@@ -60,7 +69,14 @@ function usageCandidates(input: DelegationRoutingInput): DelegationRankingCandid
  * apply them: clamped to what each agent's catalog accepts, and no effort where no model is named.
  */
 export function routeDelegationRequest(input: DelegationRoutingInput): DelegationRouteResult {
-  const { tier } = classifyDelegationTask({ summary: input.summary, writesCode: input.writes })
+  const classification = classifyDelegationTask({
+    summary: input.summary,
+    writesCode: input.writes
+  })
+  const { tier } =
+    input.advisedTier === undefined
+      ? classification
+      : withAdvisedDelegationTier(classification, input.advisedTier)
   const catalogs = Object.fromEntries(
     input.agents.map(({ agent }) => [agent, delegationLaunchCatalog(agent, tier)])
   )
@@ -73,11 +89,30 @@ export function routeDelegationRequest(input: DelegationRoutingInput): Delegatio
     parentAgent: input.parentAgent,
     candidates: usageCandidates(input),
     now: input.now,
-    catalogs
+    catalogs,
+    ...(input.advisedTier === undefined ? {} : { advisedTier: input.advisedTier })
   })
   return route.status === 'routed' && route.decision.model === null
     ? { status: 'routed', decision: { ...route.decision, effort: null } }
     : route
+}
+
+/** The deterministic route, with its tier replaced when the advisor answers. */
+export async function routeDelegationRequestWithAdvice(
+  input: DelegationRoutingInput,
+  adviseTier: DelegationTierAdvisor | undefined
+): Promise<DelegationRouteResult> {
+  const route = routeDelegationRequest(input)
+  // Why: with no agent to start there is nothing to tier, so no paid call.
+  if (!adviseTier || route.status !== 'routed') {
+    return route
+  }
+  try {
+    const advisedTier = await adviseTier({ summary: input.summary, writes: input.writes })
+    return advisedTier === null ? route : routeDelegationRequest({ ...input, advisedTier })
+  } catch {
+    return route
+  }
 }
 
 function describeUsage(agent: DelegationCardAgent): string {
@@ -130,6 +165,8 @@ export function buildDelegationCardContent(input: {
   workspaceKind: DelegationWorkspaceKind
   /** The count question of a task that asks for prototypes; absent for any other task. */
   prototypeCount?: DelegationPrototypeCount
+  /** The design system question of a task that asks for prototypes; absent for any other task. */
+  designSystem?: PrototypeSystemCard
 }): DelegationCardContent {
   const decision: DelegationDecision | null =
     input.route.status === 'routed' ? input.route.decision : null
@@ -160,7 +197,8 @@ export function buildDelegationCardContent(input: {
       agents: cardAgents,
       placement: placement.placement,
       placementWarning: placement.placementWarning,
-      ...(input.prototypeCount ? { prototypeCount: input.prototypeCount } : {})
+      ...(input.prototypeCount ? { prototypeCount: input.prototypeCount } : {}),
+      ...(input.designSystem ? { designSystem: input.designSystem } : {})
     }
   }
 }

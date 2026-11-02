@@ -444,6 +444,7 @@
               "meta": {
                 "persist": {
                   "877e3638d8": "更新远程运行时以更改此工作区的链接议题",
+                  "0b03251e5b": "更新远程运行时以重命名此工作区的行名称",
                   "4367540861": "更新远程运行时以链接 Linear 议题",
                   "github": {
                     "pr": {
@@ -5521,7 +5522,8 @@
           "automation": "自动化",
           "folderPathIdentity": "分支 / 文件夹路径",
           "cli": "MassOrca CLI",
-          "workspaceOptions": "工作区选项"
+          "workspaceOptions": "工作区选项",
+          "oneLine": "单行"
         },
         "SshTargetRow": {
           "4677394048": "正在连接…",
@@ -6022,6 +6024,17 @@
                 "289a1d2ca7": "展开{{value0}}。 {{value1}}",
                 "0c1debfe84": "折叠 {{value0}}"
               }
+            },
+            "one": {
+              "line": {
+                "expandSessions": "显示会话",
+                "collapseSessions": "隐藏会话",
+                "sessions": {
+                  "crossWorktreeBranch": "运行于分支 {{branch}}",
+                  "showMore": "再显示 {{hiddenCount}} 个",
+                  "showLess": "收起"
+                }
+              }
             }
           },
           "list": {
@@ -6442,6 +6455,13 @@
           "title": "排序更改为手动",
           "description": "手动将工作区保留在您放置它们的位置。",
           "restore": "返回{{label}}"
+        },
+        "SessionStatusGlyphIcon": {
+          "unread": "未读"
+        },
+        "OneLineSessionMenu": {
+          "copyTitle": "复制标题",
+          "sleep": "休眠"
         }
       },
       "shared": {

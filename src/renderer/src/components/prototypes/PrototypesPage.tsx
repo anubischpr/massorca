@@ -5,6 +5,7 @@ import type { NativeChatVisualRect } from '../../../../shared/native-chat-visual
 import type { DesignSystemChat } from '../../../../shared/prototype-design-system-view'
 import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
 import { writePrototypeAttachmentOnHost } from '../../runtime/runtime-prototype-client'
+import { prototypePanelsShown } from './prototype-panel-visibility'
 import { usePrototypeViewStore } from './prototype-view-store'
 import { buildPrototypeListRows } from '../../../../shared/prototype-list-model'
 import {
@@ -101,6 +102,10 @@ export default function PrototypesPage(): React.JSX.Element {
   const ensureSetState = usePrototypeViewStore((s) => s.ensureSetState)
   const updateSetState = usePrototypeViewStore((s) => s.updateSetState)
   const sidePanelHidden = usePrototypeViewStore((s) => s.sidePanelHidden)
+  const listPanelHidden = usePrototypeViewStore((s) => s.listPanelHidden)
+  const setListPanelHidden = usePrototypeViewStore((s) => s.setListPanelHidden)
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen)
+  const mergeUnderWay = selectedId !== null && (states[selectedId]?.merge ?? null) !== null
   const frameBoxRef = useRef<HTMLDivElement | null>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
   useEffect(() => {
@@ -169,6 +174,13 @@ export default function PrototypesPage(): React.JSX.Element {
     }
   }, [selectedRequestId, selectedLettersKey, ensureSetState])
 
+  // Why: the list comes back once a merge is skipped or finished, so its hide is per merge, not a preference.
+  useEffect(() => {
+    if (!mergeUnderWay) {
+      setListPanelHidden(false)
+    }
+  }, [mergeUnderWay, setListPanelHidden])
+
   usePrototypeMergePlan(
     selected,
     selectedRequestId === undefined ? null : (states[selectedRequestId]?.merge ?? null),
@@ -213,16 +225,18 @@ export default function PrototypesPage(): React.JSX.Element {
   if (system !== undefined) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1">
-        <PrototypeListPanel
-          groups={groups}
-          filter={filter}
-          onFilter={setFilter}
-          selectedRequestId={null}
-          selectedProjectKey={system.projectKey}
-          onSelect={selectRequest}
-          onSelectSystem={selectDesignSystem}
-          archive={archive}
-        />
+        {sidebarOpen ? (
+          <PrototypeListPanel
+            groups={groups}
+            filter={filter}
+            onFilter={setFilter}
+            selectedRequestId={null}
+            selectedProjectKey={system.projectKey}
+            onSelect={selectRequest}
+            onSelectSystem={selectDesignSystem}
+            archive={archive}
+          />
+        ) : null}
         <PrototypeDesignSystemScreen system={system} sets={activeSets} sendText={sendToChat} />
       </div>
     )
@@ -332,19 +346,33 @@ export default function PrototypesPage(): React.JSX.Element {
     )
   }
 
+  const panels = prototypePanelsShown({
+    sidePanelHidden,
+    listPanelHidden,
+    mergeUnderWay,
+    sidebarOpen
+  })
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
-      <PrototypeListPanel
-        groups={groups}
-        filter={filter}
-        onFilter={setFilter}
-        selectedRequestId={selected.requestId}
-        selectedProjectKey={null}
-        onSelect={selectRequest}
-        onSelectSystem={selectDesignSystem}
-        archive={archive}
-      />
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-border">
+      {panels.list ? (
+        <PrototypeListPanel
+          groups={groups}
+          filter={filter}
+          onFilter={setFilter}
+          selectedRequestId={selected.requestId}
+          selectedProjectKey={null}
+          onSelect={selectRequest}
+          onSelectSystem={selectDesignSystem}
+          archive={archive}
+        />
+      ) : null}
+      <section
+        className={
+          panels.list
+            ? 'flex min-h-0 min-w-0 flex-1 flex-col border-l border-border'
+            : 'flex min-h-0 min-w-0 flex-1 flex-col'
+        }
+      >
         <PrototypeViewer
           set={selected}
           state={setState}
@@ -356,11 +384,11 @@ export default function PrototypesPage(): React.JSX.Element {
           onSendMerge={() => void sendMerge()}
         />
       </section>
-      {sidePanelHidden ? null : (
+      {panels.draft ? (
         <aside className="scrollbar-sleek flex min-h-0 w-[340px] shrink-0 flex-col overflow-y-auto border-l border-border">
           <PrototypeSidePanel set={selected} state={setState} update={update} onSend={send} />
         </aside>
-      )}
+      ) : null}
     </div>
   )
 }

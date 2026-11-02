@@ -174,6 +174,8 @@ export const PrototypeListedDesignSystemSchema = z.object({
   swatches: z.array(z.string().max(DESIGN_SYSTEM_SWATCH_MAX_LENGTH)).max(4),
   /** The request whose directions Approve builds; absent when the project has no such request. */
   pendingRequest: PrototypeListedPendingRequestSchema.optional(),
+  /** The chat of the project's newest request, of any mode and with or without a set; absent from a host that predates it. */
+  newestRequest: PrototypeListedPendingRequestSchema.optional(),
   /** The system's folder on the host, absolute; a client quotes it to the agent. Absent from a host that predates it. */
   folderPath: z.string().min(1).optional()
 })

@@ -110,6 +110,8 @@ export type Worktree = {
   displayName: string
   /** Projection of persisted display-name provenance. */
   displayNameMode?: 'fixed' | 'automatic'
+  /** One-line row name set by the user; absent when unset. Never the branch name. */
+  manualDisplayName?: string | null
   comment: string
   linkedIssue: number | null
   linkedPR: number | null

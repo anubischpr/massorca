@@ -65,6 +65,18 @@ describe('worktree agent source admission', () => {
     expect(collectRuntimeWorktreeAgentSources(base).size).toBe(0)
   })
 
+  it('offers the terminal handle only while it reaches a connected PTY', () => {
+    expect(collectRuntimeWorktreeAgentSources(connected).get(paneKey)?.terminalHandle).toBe(
+      'term_row'
+    )
+    // Pane evidence still admits the row, but no connected PTY answers its handle, so it offers none.
+    const unanswered = collectRuntimeWorktreeAgentSources({
+      ...connected,
+      connectedPtyEvidence: { ...connected.connectedPtyEvidence, ptyIdByTerminalHandle: new Map() }
+    })
+    expect(unanswered.get(paneKey)?.terminalHandle).toBeUndefined()
+  })
+
   it('carries the row own working mode and drops non-live rows', () => {
     const monitoring = collectRuntimeWorktreeAgentSources({
       ...connected,

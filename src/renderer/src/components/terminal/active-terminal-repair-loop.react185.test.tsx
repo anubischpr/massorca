@@ -66,6 +66,7 @@ function RepairEffectHarness(): null {
     setActiveTab,
     tabs,
     activeTabIdByWorktree,
+    activeWorktreeId: renderedActiveWorktreeId,
     renderedActiveWorktreeId
   })
   return null

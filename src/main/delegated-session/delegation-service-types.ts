@@ -1,7 +1,8 @@
+import type { PrototypeSystemCard } from '../../shared/prototype-design-system-card'
 import type { RateLimitState } from '../../shared/rate-limit-types'
 import type { StructuredAgentSessionHostRows } from '../native-chat/agent-session-wire/structured-agent-session-host-rows'
 import type { OrchestrationDb } from '../runtime/orchestration/db'
-import type { DelegationStoredAgent } from './delegation-options'
+import type { DelegationStoredAgent, DelegationTierAdvisor } from './delegation-options'
 
 /** The parent chat as a delegation request reads it. */
 export type DelegationParentSession = {
@@ -32,4 +33,9 @@ export type DelegationRequestDeps = DelegationHostDeps & {
   listAgents: (parent: DelegationParentSession) => Promise<DelegationStoredAgent[]>
   /** The saved Settings value for the prototype count, unsanitized. */
   readPrototypeCount: () => unknown
+  /** The parent chat's project design system as its card shows it; null when it cannot be shown. */
+  readDesignSystemCard: (parentSessionId: string) => Promise<PrototypeSystemCard | null>
+  /** What the person last typed in the parent chat, or undefined when this host holds no such message. */
+  readParentUserMessage: (parentSessionId: string) => Promise<string | undefined>
+  adviseTier?: DelegationTierAdvisor
 }

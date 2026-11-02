@@ -14,19 +14,20 @@ vi.mock('react-native', () => ({
   Text: 'Text',
   View: 'View'
 }))
-vi.mock('lucide-react-native', () => ({
-  ChevronDown: 'ChevronDown',
-  ChevronRight: 'ChevronRight'
+vi.mock('./WorktreeAgentRow', () => ({
+  SESSION_INDENT: 36,
+  WorktreeAgentRow: 'WorktreeAgentRow'
 }))
-vi.mock('./AgentStateDot', () => ({ AgentStateDot: () => null }))
-vi.mock('./MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
-vi.mock('./WorktreeAgentRow', () => ({ WorktreeAgentRow: 'WorktreeAgentRow' }))
 
-function agent(paneKey: string, parentPaneKey: string | null = null): RuntimeWorktreeAgentRow {
+function agent(
+  paneKey: string,
+  parentPaneKey: string | null = null,
+  overrides: Partial<RuntimeWorktreeAgentRow> = {}
+): RuntimeWorktreeAgentRow {
   return {
     paneKey,
     parentPaneKey,
-    state: 'working',
+    state: 'done',
     agentType: 'codex',
     prompt: `Prompt ${paneKey}`,
     taskTitle: null,
@@ -36,71 +37,91 @@ function agent(paneKey: string, parentPaneKey: string | null = null): RuntimeWor
     toolInput: null,
     interrupted: false,
     stateStartedAt: 1_000,
-    updatedAt: 1_000
+    updatedAt: 1_000,
+    ...overrides
   }
 }
 
-describe('WorktreeAgentList', () => {
-  let renderer: ReactTestRenderer | null = null
+function quietAgents(count: number): RuntimeWorktreeAgentRow[] {
+  return Array.from({ length: count }, (_, index) => agent(`agent-${index + 1}`))
+}
 
+function renderList(
+  agents: RuntimeWorktreeAgentRow[],
+  disconnected = false
+): Promise<ReactTestRenderer> {
+  return act(async () => {
+    renderer = create(
+      createElement(WorktreeAgentList, {
+        agents,
+        now: 2_000,
+        unvisited: false,
+        disconnected
+      })
+    )
+  }).then(() => renderer!)
+}
+
+let renderer: ReactTestRenderer | null = null
+
+function buttonLabel(): string | undefined {
+  const text = renderer!.root
+    .findAll((node) => String(node.type) === 'Text')
+    .map((node) => node.props.children)
+  return text.find((value) => typeof value === 'string' && value.startsWith('Show'))
+}
+
+describe('WorktreeAgentList', () => {
   afterEach(() => {
     act(() => renderer?.unmount())
     renderer = null
   })
 
-  it('collapses multiple agents to their status icons by default', async () => {
-    const stopPropagation = vi.fn()
-    await act(async () => {
-      renderer = create(
-        createElement(WorktreeAgentList, {
-          agents: [agent('agent-1'), agent('agent-2'), agent('agent-3')],
-          now: 2_000,
-          unvisited: false
-        })
-      )
-    })
+  it('shows five sessions, then folds the rest behind "Show N more"', async () => {
+    await renderList(quietAgents(7))
 
-    const summary = renderer!.root.findByType('Pressable')
-    expect(summary.props.accessibilityLabel).toBe('Expand 3 agents')
-    expect(summary.props.accessibilityState).toEqual({ expanded: false })
-    expect(renderer!.root.findAllByType('WorktreeAgentRow')).toHaveLength(0)
-
-    await act(async () => summary.props.onPress({ stopPropagation }))
-
-    expect(stopPropagation).toHaveBeenCalledTimes(1)
-    expect(renderer!.root.findByType('Pressable').props.accessibilityLabel).toBe(
-      'Collapse 3 agents'
+    expect(renderer!.root.findAll((node) => String(node.type) === 'WorktreeAgentRow')).toHaveLength(
+      5
     )
-    expect(renderer!.root.findAllByType('WorktreeAgentRow')).toHaveLength(3)
+    expect(buttonLabel()).toBe('Show 2 more')
+
+    await act(async () =>
+      renderer!.root.findAll((node) => String(node.type) === 'Pressable')[0]?.props.onPress()
+    )
+
+    expect(renderer!.root.findAll((node) => String(node.type) === 'WorktreeAgentRow')).toHaveLength(
+      7
+    )
+    expect(buttonLabel()).toBe('Show less')
   })
 
-  it('keeps a single agent visible without a redundant disclosure control', async () => {
-    await act(async () => {
-      renderer = create(
-        createElement(WorktreeAgentList, {
-          agents: [agent('agent-1')],
-          now: 2_000,
-          unvisited: false
-        })
-      )
-    })
+  it('keeps a session that needs a person in view past the limit', async () => {
+    const agents = [
+      ...quietAgents(6),
+      agent('waiting-agent', null, { state: 'waiting', updatedAt: 2_000 })
+    ]
+    await renderList(agents)
 
-    expect(renderer!.root.findAllByType('Pressable')).toHaveLength(0)
-    expect(renderer!.root.findAllByType('WorktreeAgentRow')).toHaveLength(1)
+    const rows = renderer!.root.findAll((node) => String(node.type) === 'WorktreeAgentRow')
+    expect(rows).toHaveLength(5)
+    expect(rows.map((row) => row.props.agent.paneKey)).toContain('waiting-agent')
+    expect(buttonLabel()).toBe('Show 2 more')
   })
 
-  it('summarizes lineage by root agents like desktop', async () => {
-    await act(async () => {
-      renderer = create(
-        createElement(WorktreeAgentList, {
-          agents: [agent('parent-1'), agent('child-1', 'parent-1'), agent('parent-2')],
-          now: 2_000,
-          unvisited: false
-        })
-      )
-    })
+  it('shows no fold control for four sessions', async () => {
+    await renderList(quietAgents(4))
 
-    expect(renderer!.root.findByType('Pressable').props.accessibilityLabel).toBe('Expand 2 agents')
+    expect(renderer!.root.findAll((node) => String(node.type) === 'Pressable')).toHaveLength(0)
+    expect(renderer!.root.findAll((node) => String(node.type) === 'WorktreeAgentRow')).toHaveLength(
+      4
+    )
+  })
+
+  it('reads every session as unconfirmed on an unreachable host', async () => {
+    await renderList([agent('waiting-agent', null, { state: 'waiting', updatedAt: 2_000 })], true)
+
+    const [row] = renderer!.root.findAll((node) => String(node.type) === 'WorktreeAgentRow')
+    expect(row!.props.glyph).toBe('unconfirmed')
   })
 
   it('nests a delegated child under its structured parent, one level in', async () => {
@@ -113,15 +134,7 @@ describe('WorktreeAgentList', () => {
       structuredAgentSessionTabId('child-session'),
       'child-session'
     )
-    await act(async () => {
-      renderer = create(
-        createElement(WorktreeAgentList, {
-          agents: [agent(childKey, parentKey), agent(parentKey)],
-          now: 2_000,
-          unvisited: false
-        })
-      )
-    })
+    await renderList([agent(childKey, parentKey), agent(parentKey)])
     // A single root draws its tree straight away, with no summary to expand.
     const rows = renderer!.root.findAll((node) => 'depth' in node.props)
     expect(rows.map((row) => row.props.agent.paneKey)).toEqual([parentKey, childKey])

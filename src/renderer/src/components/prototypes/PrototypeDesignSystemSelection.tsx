@@ -15,7 +15,10 @@ import type { DesignToken } from '../../../../shared/prototype-design-system-tok
 import { componentsUsingToken, tokenGroupOf } from '../../../../shared/prototype-design-system-view'
 import { effectiveSelectionOf } from '../../../../shared/prototype-design-system-view-state'
 import { isHexColor, pickerHueOf } from '../../../../shared/prototype-color'
+import { DESIGN_ELEMENT_ROOT } from '../../../../shared/prototype-design-system-element'
 import { PrototypeColorPicker } from './PrototypeColorPicker'
+import { PrototypeDesignSystemElement } from './PrototypeDesignSystemElement'
+import { TokenChipRow } from './PrototypeDesignSystemRows'
 import type { DesignSystemPanelProps } from './prototype-design-system-props'
 
 /** The aside's selection block: the chosen token's value, or the chosen component's edits. */
@@ -31,7 +34,22 @@ export function PrototypeDesignSystemSelection(
     return token === undefined ? null : <TokenEditor {...props} token={token} />
   }
   const section = props.content.components.find((candidate) => candidate.name === selection.name)
-  return section === undefined ? null : <ComponentEditor {...props} section={section} />
+  if (section === undefined) {
+    return null
+  }
+  if (selection.element === undefined) {
+    return <ComponentEditor {...props} section={section} />
+  }
+  // The whole component's Layout rows sit above its own editor; an element's rows replace it.
+  if (selection.element.locator === DESIGN_ELEMENT_ROOT) {
+    return (
+      <>
+        <PrototypeDesignSystemElement {...props} section={section} pick={selection.element} />
+        <ComponentEditor {...props} section={section} />
+      </>
+    )
+  }
+  return <PrototypeDesignSystemElement {...props} section={section} pick={selection.element} />
 }
 
 // A token: its id, the components and sets that use it, its value, and the note that changes preview on their own.
@@ -254,36 +272,18 @@ function ComponentEditor({
             const bound = drafted.bindings[prop] ?? tokenId
             const options = content.tokens.filter((token) => token.group === tokenGroupOf(tokenId))
             return (
-              <div
+              <TokenChipRow
                 key={prop}
-                className="grid grid-cols-[76px_minmax(0,1fr)] items-center gap-2 text-xs text-muted-foreground"
-              >
-                <span>{prop}</span>
-                <span className="flex flex-wrap gap-1">
-                  {options.map((option) => {
-                    const on = bound === option.id
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() =>
-                          update((latest) => ({
-                            ...latest,
-                            draft: setDraftBinding(latest.draft, section, prop, option.id)
-                          }))
-                        }
-                        className={cn(
-                          'h-6 rounded-md border border-border px-2 font-mono text-[11px]',
-                          on ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'
-                        )}
-                      >
-                        {option.id}
-                      </button>
-                    )
-                  })}
-                </span>
-              </div>
+                label={prop}
+                tokens={options}
+                value={bound}
+                onPick={(optionId) =>
+                  update((latest) => ({
+                    ...latest,
+                    draft: setDraftBinding(latest.draft, section, prop, optionId)
+                  }))
+                }
+              />
             )
           })}
         </>

@@ -37,8 +37,9 @@ test.describe('Right sidebar native titlebar spacing', () => {
       orcaPage.evaluate(() => {
         const header = document.querySelector<HTMLElement>('.right-sidebar-header-inset')
         const strip = document.querySelector<HTMLElement>('.right-sidebar-activity-strip')
-        const closeButton = header?.querySelector<HTMLButtonElement>(
-          'button[aria-label="Toggle right sidebar"]'
+        // Why: the session bar carries the one Toggle right sidebar button for a workspace.
+        const closeButton = document.querySelector<HTMLButtonElement>(
+          '[data-session-bar] button[aria-label="Toggle right sidebar"]'
         )
         const titlebarActivityButtonCount =
           header?.querySelectorAll<HTMLButtonElement>(

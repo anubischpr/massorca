@@ -278,12 +278,13 @@ describe('the merge', () => {
     expect(merge.start.mock.calls[0]?.[0]).toMatchObject({ set: SET, nextLetter: 'D' })
   })
 
-  it('shows nothing while the plan is awaited', () => {
+  it('shows a skeleton of the sheet while the plan is awaited, with no review content', () => {
     const waiting = beginMerge(['A', 'C'].reduce(toggleStar, mainOnB()), {
       planId: 'plan-1',
       baseline: null
     })
     const { root } = mount(vi.fn(), waiting)
+    expect(root.findAllByProps({ testID: 'mobile-merge-skeleton' }).length).toBeGreaterThan(0)
     expect(texts(root, 'Text').some((line) => line.startsWith('Merge A and C'))).toBe(false)
     expect(root.findAllByProps({ accessibilityRole: 'tab' })).toHaveLength(0)
   })

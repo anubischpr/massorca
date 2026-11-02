@@ -37,15 +37,19 @@ function part(
 
 function compose(
   parts: readonly PrototypeMergeReviewPart[],
-  extra: { hoveredId?: number | null; view?: 'desktop' | 'phone' } = {}
+  extra: { view?: 'desktop' | 'phone' } = {}
 ): ReturnType<typeof composeMergePreview> {
   return composeMergePreview({
     htmlByLetter: { A: HTML_A, B: HTML_B },
     parts,
-    hoveredId: extra.hoveredId ?? null,
     view: extra.view ?? 'desktop',
     unplacedText: (name) => `${name}: could not be placed`
   })
+}
+
+/** The document from the block of part `id` on: the blocks follow each other in the order of the parts. */
+function blockFrom(html: string, id: number): string {
+  return html.slice(html.indexOf(`<div id="merge-part-${id}" data-part="${id}"`))
 }
 
 describe('composeMergePreview', () => {
@@ -55,7 +59,9 @@ describe('composeMergePreview', () => {
   it('places each part in its own declarative shadow root, in the given order', () => {
     const { html, placement } = compose([header, button])
     expect(placement).toEqual({ 0: 'placed', 1: 'placed' })
-    const blocks = [...html.matchAll(/<div data-part="(\d+)"/gu)].map((match) => match[1])
+    const blocks = [...html.matchAll(/<div id="merge-part-\d+" data-part="(\d+)"/gu)].map(
+      (match) => match[1]
+    )
     expect(blocks).toEqual(['0', '1'])
     expect(html.match(/<template shadowrootmode="open">/gu)).toHaveLength(2)
     expect(html).toContain('Title A')
@@ -84,7 +90,6 @@ describe('composeMergePreview', () => {
     const { placement } = composeMergePreview({
       htmlByLetter: { A: HTML_A },
       parts: [button],
-      hoveredId: null,
       view: 'desktop',
       unplacedText: (name) => name
     })
@@ -102,7 +107,8 @@ describe('composeMergePreview', () => {
 
   it('gives each block only its own direction styles', () => {
     const { html } = compose([header, button])
-    const [first, second] = html.split('<div data-part="1"')
+    const first = html.slice(0, html.indexOf('<div id="merge-part-1"'))
+    const second = blockFrom(html, 1)
     expect(first).toContain('--accent: teal')
     expect(first).not.toContain('color: blue')
     expect(second).toContain('color: blue')
@@ -124,13 +130,14 @@ describe('composeMergePreview', () => {
     )
   })
 
-  it('badges each block with its source letter, and outlines only the hovered one', () => {
-    const { html } = compose([header, button], { hoveredId: 1 })
-    const [first, second] = html.split('<div data-part="1"')
+  it('badges each block with its source letter, and outlines no block by its own style', () => {
+    const { html } = compose([header, button])
+    const first = html.slice(0, html.indexOf('<div id="merge-part-1"'))
+    const second = blockFrom(html, 1)
     expect(first).toMatch(/>A<\/span><\/div>/u)
     expect(second).toMatch(/>B<\/span><\/div>/u)
-    expect(first).not.toContain('outline:2px solid')
-    expect(second).toContain('outline:2px solid #f59e0b')
+    expect(html).not.toContain('outline:2px solid #f59e0b;outline-offset:-2px;')
+    expect(html.match(/outline:2px solid #f59e0b/gu)).toHaveLength(1)
   })
 
   it('pads blocks tighter in the phone view', () => {

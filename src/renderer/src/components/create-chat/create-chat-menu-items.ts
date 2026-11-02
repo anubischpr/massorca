@@ -33,6 +33,8 @@ export type CreateChatMenuItem = {
   description?: string
   disabled?: boolean
   icon?: ReactNode
+  /** Right-aligned state, such as a worktree's session count. */
+  trailing?: string
 }
 
 export const PROJECTLESS_PROJECT_VALUE = 'projectless'

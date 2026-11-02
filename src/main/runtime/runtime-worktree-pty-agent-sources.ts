@@ -33,11 +33,14 @@ export function collectRuntimeWorktreePtyAgentSources(args: {
       continue
     }
     const hookPayload = pickParsedAgentStatusPayload(entry)
+    const ptyId = entry.terminalHandle
+      ? args.connectedPtyEvidence.ptyIdByTerminalHandle.get(entry.terminalHandle)
+      : undefined
     rowSources.set(entry.paneKey, {
       paneKey: entry.paneKey,
-      ptyId: entry.terminalHandle
-        ? args.connectedPtyEvidence.ptyIdByTerminalHandle.get(entry.terminalHandle)
-        : undefined,
+      ptyId,
+      // Why: a handle is offered only while it reaches a connected PTY; a stale one would fail the rename or close.
+      ...(entry.terminalHandle && ptyId ? { terminalHandle: entry.terminalHandle } : {}),
       tabId: entry.tabId,
       worktreeId: entry.worktreeId,
       connectionId: entry.connectionId,

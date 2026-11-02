@@ -29,6 +29,10 @@ const mocks = vi.hoisted(() => ({
     >,
     detectedWorktreesByRepo: {},
     folderWorkspaces: [],
+    unifiedTabsByWorktree: {},
+    groupsByWorktree: {},
+    layoutByWorktree: {},
+    activeGroupIdByWorktree: {},
     sshConnectionStates: new Map([['target', { connectionGeneration: 4, remotePlatform: 'linux' }]])
   },
   prepare: vi.fn(),

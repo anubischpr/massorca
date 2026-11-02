@@ -40,7 +40,7 @@ function render(props: Partial<Parameters<typeof NativeChatStructuredPaneHeader>
     onHandOff: vi.fn(),
     onShowTerminal: vi.fn(),
     onSplitRight: vi.fn(),
-    onClose: vi.fn()
+    onToggleSummary: vi.fn()
   }
   const container = document.createElement('div')
   document.body.appendChild(container)
@@ -48,7 +48,13 @@ function render(props: Partial<Parameters<typeof NativeChatStructuredPaneHeader>
   mounted.push({ container, root })
   act(() =>
     root.render(
-      <NativeChatStructuredPaneHeader canHandOff terminalView={ENABLED} {...handlers} {...props} />
+      <NativeChatStructuredPaneHeader
+        canHandOff
+        terminalView={ENABLED}
+        summaryVisible
+        {...handlers}
+        {...props}
+      />
     )
   )
   return { container, handlers }
@@ -63,16 +69,30 @@ function button(container: HTMLElement, label: string): HTMLButtonElement {
 }
 
 describe('NativeChatStructuredPaneHeader', () => {
-  it('renders the four pane actions with the terminal pane labels', () => {
+  it('renders the session actions with the terminal pane labels and no Close tab', () => {
     const { container } = render()
     for (const label of [
       'Hand Off to Another Agent',
       'Show terminal',
       'Split Terminal Right',
-      'Close tab'
+      'Hide Chat summary'
     ]) {
       expect(button(container, label)).toBeTruthy()
     }
+    expect(container.querySelector('button[aria-label="Close tab"]')).toBeNull()
+  })
+
+  it('names the Chat summary button after what a click will do', () => {
+    const shown = render({ summaryVisible: true })
+    const hide = button(shown.container, 'Hide Chat summary')
+    expect(hide.getAttribute('aria-pressed')).toBe('true')
+    act(() => hide.click())
+    expect(shown.handlers.onToggleSummary).toHaveBeenCalledTimes(1)
+
+    const hidden = render({ summaryVisible: false })
+    const show = button(hidden.container, 'Show Chat summary')
+    expect(show.getAttribute('aria-pressed')).toBe('false')
+    expect(hidden.container.querySelector('button[aria-label="Hide Chat summary"]')).toBeNull()
   })
 
   it('routes each action to its own handler', () => {
@@ -80,11 +100,9 @@ describe('NativeChatStructuredPaneHeader', () => {
     act(() => button(container, 'Hand Off to Another Agent').click())
     act(() => button(container, 'Show terminal').click())
     act(() => button(container, 'Split Terminal Right').click())
-    act(() => button(container, 'Close tab').click())
     expect(handlers.onHandOff).toHaveBeenCalledTimes(1)
     expect(handlers.onShowTerminal).toHaveBeenCalledTimes(1)
     expect(handlers.onSplitRight).toHaveBeenCalledTimes(1)
-    expect(handlers.onClose).toHaveBeenCalledTimes(1)
   })
 
   it('disables the terminal view with the reason it is unavailable', () => {

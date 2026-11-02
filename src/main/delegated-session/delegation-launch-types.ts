@@ -14,6 +14,8 @@ export type DelegationLaunchTarget = {
   placement: DelegationPlacement
   /** Whether the host picked the agent (Automatic) or the person did. */
   automatic: boolean
+  /** Which Pi the child must run; absent, the host picks whichever it has. */
+  piRuntime?: 'pi' | 'gentle-shell'
 }
 
 export type DelegationLaunchResult = {
@@ -37,5 +39,6 @@ export type DelegationAnswerDeps = DelegationHostDeps & {
   launch: DelegationLauncher
   /** Sends the parent agent a message from the host, never failing the step that asked. */
   tellParent: (parentSessionId: string, text: string) => void
+  onChildSucceeded?: (requestId: string) => void
   warn: (message: string, error: unknown) => void
 }

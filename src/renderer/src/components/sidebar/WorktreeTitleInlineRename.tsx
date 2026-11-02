@@ -13,11 +13,16 @@ export type WorktreeTitleRenameCommit = { kind: 'cancel' } | { kind: 'save'; dis
 
 export function getWorktreeTitleRenameCommit(
   currentDisplayName: string,
-  nextDisplayName: string
+  nextDisplayName: string,
+  options: { clearOnEmpty?: boolean } = {}
 ): WorktreeTitleRenameCommit {
   const trimmed = nextDisplayName.trim()
-  if (!trimmed || trimmed === currentDisplayName) {
+  if (trimmed === currentDisplayName) {
     return { kind: 'cancel' }
+  }
+  if (!trimmed) {
+    // Why: a blank submit clears a row name; a workspace title keeps its label, so blank cancels.
+    return options.clearOnEmpty ? { kind: 'save', displayName: '' } : { kind: 'cancel' }
   }
   return { kind: 'save', displayName: trimmed }
 }
@@ -46,6 +51,7 @@ type WorktreeTitleInlineRenameProps = {
   // onBeginEditingConsumed so the request fires exactly once.
   beginEditing?: boolean
   onBeginEditingConsumed?: () => void
+  clearOnEmpty?: boolean
 }
 
 export function WorktreeTitleInlineRename({
@@ -62,7 +68,8 @@ export function WorktreeTitleInlineRename({
   onEditingChange,
   onRename,
   beginEditing = false,
-  onBeginEditingConsumed
+  onBeginEditingConsumed,
+  clearOnEmpty = false
 }: WorktreeTitleInlineRenameProps): React.JSX.Element {
   const editingRef = useRef(false)
   const savingRef = useRef(false)
@@ -208,7 +215,7 @@ export function WorktreeTitleInlineRename({
       return
     }
 
-    const commit = getWorktreeTitleRenameCommit(displayName, value)
+    const commit = getWorktreeTitleRenameCommit(displayName, value, { clearOnEmpty })
     if (commit.kind === 'cancel') {
       cancelRename()
       return
@@ -238,7 +245,7 @@ export function WorktreeTitleInlineRename({
         setSaving(false)
       }
     }
-  }, [cancelRename, displayName, onRename, setEditingMode, value])
+  }, [cancelRename, clearOnEmpty, displayName, onRename, setEditingMode, value])
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
