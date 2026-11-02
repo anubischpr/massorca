@@ -25,6 +25,7 @@ import type {
   PhysicalModifierToken
 } from '../../../shared/keybindings'
 import { shortcutPlatform } from './app-window-chrome'
+import { isLeftSidebarView } from './left-sidebar-views'
 
 type AppStoreState = ReturnType<typeof useAppStore.getState>
 
@@ -175,7 +176,10 @@ export function createAppCommandHandlers(
         return claim('worktree.history.forward', () => useAppStore.getState().goForwardWorktree())
       }
     ],
-    ['sidebar.left.toggle', () => claim('sidebar.left.toggle', () => actions.toggleSidebar())],
+    [
+      'sidebar.left.toggle',
+      () => isLeftSidebarView(activeView) && claim('sidebar.left.toggle', actions.toggleSidebar)
+    ],
     [
       'sidebar.sleepingWorkspaces.toggle',
       () =>

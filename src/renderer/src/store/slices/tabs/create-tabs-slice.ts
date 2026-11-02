@@ -11,6 +11,7 @@ import { createTabsMoveActions } from './tabs-move-actions'
 import { createTabsDropActions } from './tabs-drop-actions'
 import { createTabsSecondaryActions } from './tabs-secondary-actions'
 import { createTabsSessionActions } from './tabs-session-actions'
+import { createTabsSessionRefActions } from './tabs-session-ref-actions'
 import { createSidePanelActions, DEFAULT_SIDE_PANEL_WIDTH } from './side-panel-state'
 
 export const createTabsSlice: StateCreator<AppState, [], [], TabsSlice> = (set, get) => ({
@@ -20,6 +21,7 @@ export const createTabsSlice: StateCreator<AppState, [], [], TabsSlice> = (set, 
   layoutByWorktree: {},
   sidePanelOpenByWorktree: {},
   sidePanelWidth: DEFAULT_SIDE_PANEL_WIDTH,
+  paneFocus: null,
   ...createSidePanelActions(set),
   ...createTabsCreateActions(set, get),
   ...createTabsFocusActions(set, get),
@@ -30,5 +32,6 @@ export const createTabsSlice: StateCreator<AppState, [], [], TabsSlice> = (set, 
   ...createTabsMoveActions(set, get),
   ...createTabsDropActions(set, get),
   ...createTabsSecondaryActions(set, get),
-  ...createTabsSessionActions(set, get)
+  ...createTabsSessionActions(set, get),
+  ...createTabsSessionRefActions(set, get)
 })

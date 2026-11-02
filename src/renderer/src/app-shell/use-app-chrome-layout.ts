@@ -9,6 +9,7 @@ import { useAppStore } from '../store'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../shared/constants'
 import { selectActiveTerminalChromeState } from '../store/active-terminal-chrome-selector'
 import { useSystemPrefersDark } from '../components/terminal-pane/use-system-prefers-dark'
+import { isLeftSidebarView } from './left-sidebar-views'
 import {
   hasRequestedBackgroundTerminalWorktreeMount,
   subscribeBackgroundTerminalWorktreeMountRequests
@@ -74,9 +75,8 @@ export function useAppChromeLayout() {
   })
   const workspaceChromeActive =
     activeView === 'terminal' && activeWorktreeId !== null && !creationLayoutActive
-  // Activity/Space are full-page navigation surfaces (like Settings), so the worktree sidebar is hidden there.
-  const showSidebar =
-    activeView !== 'settings' && activeView !== 'activity' && activeView !== 'space'
+  // Why: only the home views have a left sidebar; Tasks, Settings and every other page use the whole space beside the rail.
+  const showSidebar = isLeftSidebarView(activeView)
   // Tasks/Landing show the full titlebar only when the sidebar is collapsed; open, they mirror workspace view (creation suppresses it).
   const stackedSidebarOpen =
     !workspaceChromeActive && !creationLayoutActive && showSidebar && sidebarOpen

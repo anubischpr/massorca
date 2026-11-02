@@ -1,6 +1,7 @@
 import { translate } from '@/i18n/i18n'
 import { useSidebarResize } from '@/hooks/useSidebarResize'
 import { useAppStore } from '../../store'
+import { selectSidePanelWorktreeId } from '../../store/slices/tabs/pane-session-ref'
 import { sidePanelGroupId } from '../../store/slices/tabs/side-panel-group'
 import {
   MAX_SIDE_PANEL_WIDTH,
@@ -13,7 +14,7 @@ import { SidePanelTabStrip } from './SidePanelTabStrip'
 import { useSidePanelModel } from './use-side-panel-model'
 
 /** The workspace's second tab surface, right of the main area. Stays mounted while closed so its panes keep their anchor. */
-export function SidePanel({
+function SidePanelFor({
   worktreeId,
   isWorktreeActive,
   isTabDragActive
@@ -84,4 +85,17 @@ export function SidePanel({
       />
     </aside>
   )
+}
+
+/**
+ * The panel the layout of `worktreeId` shows: that workspace's own, or, while a pane that shows
+ * another workspace's session has focus, the session owner's.
+ */
+export function SidePanel(props: {
+  worktreeId: string
+  isWorktreeActive: boolean
+  isTabDragActive: boolean
+}): React.JSX.Element | null {
+  const shownFor = useAppStore((state) => selectSidePanelWorktreeId(state, props.worktreeId))
+  return shownFor ? <SidePanelFor {...props} worktreeId={shownFor} /> : null
 }

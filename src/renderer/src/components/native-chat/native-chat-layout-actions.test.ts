@@ -25,18 +25,12 @@ function stateWithActiveTab(tab: Record<string, unknown>, tabOrder = ['chat', 'o
 }
 
 describe('native chat layout actions', () => {
-  it('resolves structured chats to the reusable workspace-tab move path', () => {
+  it('resolves structured chats to the workspace-tab split path', () => {
     const state = stateWithActiveTab({ contentType: 'agent-session' })
     const target = resolveActiveNativeChatSplitTarget(state, 'workspace', 'group')
 
     expect(target).toEqual({ kind: 'workspace-tab', unifiedTabId: 'chat', groupId: 'group' })
-    expect(canRunNativeChatSplitTarget(state, target)).toBe(true)
-    expect(
-      canRunNativeChatSplitTarget(
-        stateWithActiveTab({ contentType: 'agent-session' }, ['chat']),
-        target
-      )
-    ).toBe(false)
+    expect(canRunNativeChatSplitTarget(target)).toBe(true)
   })
 
   it('resolves terminal-backed chat mode to the existing pane split path', () => {

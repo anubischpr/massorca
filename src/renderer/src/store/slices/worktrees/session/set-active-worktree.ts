@@ -165,6 +165,8 @@ export function createSetActiveWorktree(
           ? s.activeTabTypeByWorktree
           : { ...s.activeTabTypeByWorktree, [worktreeId]: activeTabType }
       const hasStateChange =
+        // Why: opening a workspace from the sidebar ends a focus that was following a session shown in another workspace's pane.
+        s.paneFocus !== null ||
         s.activeWorktreeId !== worktreeId ||
         s.activeWorkspaceExecutionHostId !== (executionHostId ?? null) ||
         // Why: a pending-creation panel can show over the prior worktree; a non-null activePendingCreationId counts as a change.
@@ -192,6 +194,7 @@ export function createSetActiveWorktree(
         ...reconciliation?.patch,
         activeRepoId: nextActiveRepoId,
         activeWorktreeId: worktreeId,
+        paneFocus: null,
         activeWorkspaceKey: isWorkspaceKey(worktreeId)
           ? worktreeId
           : worktreeWorkspaceKey(worktreeId),

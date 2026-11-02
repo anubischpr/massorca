@@ -8,6 +8,7 @@ import { useTabGroupTabCloseCommands } from './useTabGroupTabCloseCommands'
 import { useTabGroupCloseScopeCommands } from './useTabGroupCloseScopeCommands'
 import { useTabGroupActivationCommands } from './useTabGroupActivationCommands'
 import { useTabGroupCreationCommands } from './useTabGroupCreationCommands'
+import { selectReferencedSessions } from '../../store/slices/tabs/pane-session-ref'
 
 const EMPTY_GROUPS: readonly TabGroup[] = []
 const EMPTY_UNIFIED_TABS: readonly Tab[] = []
@@ -78,9 +79,17 @@ export function useTabGroupWorkspaceModel({
 
   const creationCommands = useTabGroupCreationCommands({ groupId, worktreeId, worktreeState })
 
+  // Why: a session that another workspace's pane shows is not shown here too, so this pane offers the picker in its place.
+  const referenced = useAppStore(selectReferencedSessions)
+  const shownElsewhere = Boolean(activeTab && referenced.has(activeTab.id))
+  const showsReference = Boolean(
+    group?.sessionRef && referenced.get(group.sessionRef.tabId)?.groupId === groupId
+  )
   return {
     group,
-    activeTab,
+    activeTab: shownElsewhere ? null : activeTab,
+    shownElsewhere,
+    showsReference,
     browserItems,
     editorItems,
     agentSessionItems,

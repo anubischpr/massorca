@@ -1,9 +1,6 @@
 import type { AppState } from '@/store/types'
 import { useAppStore } from '@/store'
-import {
-  canMoveTabToNewPaneColumnFromState,
-  moveTabToNewPaneColumn
-} from '@/components/tab-bar/tab-move-to-pane-column'
+import { openSessionPickerPane } from '@/components/tab-group/session-picker-pane'
 import { requestActiveTerminalPaneSplit } from '@/components/tab-bar/request-active-terminal-pane-split'
 import type { NativeChatSplitDirection } from './native-chat-split-shortcut'
 
@@ -32,17 +29,9 @@ export function resolveActiveNativeChatSplitTarget(
   return null
 }
 
-export function canRunNativeChatSplitTarget(
-  state: Pick<AppState, 'groupsByWorktree' | 'unifiedTabsByWorktree'>,
-  target: NativeChatSplitTarget | null
-): boolean {
-  if (!target) {
-    return false
-  }
-  return (
-    target.kind === 'terminal-pane' ||
-    canMoveTabToNewPaneColumnFromState(state, target.unifiedTabId, target.groupId)
-  )
+// Why: a split opens an empty pane that offers every session, so even a chat alone in its pane can split.
+export function canRunNativeChatSplitTarget(target: NativeChatSplitTarget | null): boolean {
+  return target !== null
 }
 
 export function runNativeChatSplitTarget(
@@ -56,11 +45,10 @@ export function runNativeChatSplitTarget(
     })
     return true
   }
-  return moveTabToNewPaneColumn({
-    unifiedTabId: target.unifiedTabId,
-    groupId: target.groupId,
-    direction
-  })
+  const worktreeId = Object.entries(useAppStore.getState().unifiedTabsByWorktree).find(([, tabs]) =>
+    tabs.some((tab) => tab.id === target.unifiedTabId && tab.groupId === target.groupId)
+  )?.[0]
+  return worktreeId ? openSessionPickerPane(worktreeId, target.groupId, direction) : false
 }
 
 export function runActiveNativeChatSplit(

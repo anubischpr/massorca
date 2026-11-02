@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react'
 import { parseWorkspaceKey } from '../../../shared/workspace-scope'
 import type { TerminalTab } from '../../../shared/terminal-tab-types'
 import { useAppStore } from '../store'
+import { selectLayoutWorktreeId } from '../store/slices/tabs/pane-session-ref'
 import { useWorktreeMap } from '../store/selectors'
 import { getResolvedExecutionHostIdForWorktree } from '@/lib/resolved-worktree-execution-host'
 import type { WorktreeTabBucketProjection } from '@/lib/worktree-tab-bucket-projection'
@@ -27,7 +28,8 @@ export function useTerminalWorkspaceFoundation() {
   const worktreesById = useWorktreeMap()
   const folderWorkspaces = useAppStore((state) => state.folderWorkspaces)
   const activeWorktreeId = useAppStore((state) => state.activeWorktreeId)
-  const renderedActiveWorktreeId = activeWorktreeId
+  // Why: a pane that shows another workspace's session can take focus; the layout on screen stays its own.
+  const renderedActiveWorktreeId = useAppStore(selectLayoutWorktreeId)
   const activeWorktreeDeferralHostId = useAppStore((state) =>
     getResolvedExecutionHostIdForWorktree(state, renderedActiveWorktreeId)
   )

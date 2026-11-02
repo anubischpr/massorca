@@ -123,6 +123,11 @@ export type TabsSlice = {
   closeTabsToRight: (tabId: string) => string[]
   closeTabsToLeft: (tabId: string) => string[]
   ensureWorktreeRootGroup: (worktreeId: string) => string
+  /**
+   * Set while a pane that shows another workspace's session has focus: the layout on screen is
+   * `layoutWorktreeId`'s, while `activeWorktreeId` follows the workspace that owns the session.
+   */
+  paneFocus: { layoutWorktreeId: string; ownerWorktreeId: string; groupId: string } | null
   focusGroup: (worktreeId: string, groupId: string) => void
   closeEmptyGroup: (worktreeId: string, groupId: string) => boolean
   createEmptySplitGroup: (
@@ -162,6 +167,13 @@ export type TabsSlice = {
     >
   ) => Tab | null
   mergeGroupIntoSibling: (worktreeId: string, groupId: string) => string | null
+  /** Shows another workspace's live session in an empty pane, by reference; false when it cannot. */
+  showSessionInPane: (
+    worktreeId: string,
+    groupId: string,
+    ref: { worktreeId: string; tabId: string }
+  ) => boolean
+  clearPaneSessionRef: (worktreeId: string, groupId: string) => void
   setTabGroupSplitRatio: (worktreeId: string, nodePath: string, ratio: number) => void
   reconcileWorktreeTabModel: (worktreeId: string) => {
     renderableTabCount: number
