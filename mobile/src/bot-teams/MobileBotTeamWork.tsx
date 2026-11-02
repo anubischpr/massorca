@@ -6,6 +6,7 @@ import { MobileBotTeamFile, MobileBotTeamFiles } from './MobileBotTeamFiles'
 import { MobileBotTeamMemory } from './MobileBotTeamMemory'
 import { MobileBotTeamNewProject } from './MobileBotTeamNewProject'
 import { MobileBotTeamProject } from './MobileBotTeamProject'
+import { MobileBotTeamProjectTeams } from './MobileBotTeamProjectTeams'
 import { MobileBotTeamWorkBar } from './MobileBotTeamWorkBar'
 import { useMobileBotTeamRoom } from './use-mobile-bot-team-room'
 import { useMobileBotTeamStatus } from './use-mobile-bot-team-status'
@@ -57,7 +58,8 @@ export function MobileBotTeamWork({
   const statusOf = useMobileBotTeamStatus(client, teams)
   const working = statusOf(team.id) === 'Working'
   const tasks = room?.tasks ?? []
-  const projects = room?.projects ?? []
+  const allProjects = room?.projects ?? []
+  const projects = allProjects.filter((project) => project.archivedAt == null)
   const workspaceId = room?.workspaceId ?? null
 
   if (screen.name === 'board') {
@@ -83,6 +85,16 @@ export function MobileBotTeamWork({
         client={client}
         team={team}
         offline={offline}
+        renderTeams={(field) => (
+          <MobileBotTeamProjectTeams
+            owner={team}
+            teams={teams}
+            editing={false}
+            linkedTeamIds={field.linkedTeamIds}
+            disabled={field.disabled}
+            onChange={field.onChange}
+          />
+        )}
         onCancel={onOpenRoom}
         onCreated={(project) => {
           void reload()
@@ -115,7 +127,7 @@ export function MobileBotTeamWork({
       />
     )
   }
-  const project = projects.find((entry) => entry.id === screen.projectId)
+  const project = allProjects.find((entry) => entry.id === screen.projectId)
   if (!project) {
     return <MobileBotTeamWorkBar title={team.name} onBack={onOpenRoom} />
   }
@@ -126,6 +138,7 @@ export function MobileBotTeamWork({
       teams={teams}
       project={project}
       tasks={tasks}
+      projectTasks={room?.projectTasks}
       tab={screen.tab}
       offline={offline}
       workspaceId={workspaceId}

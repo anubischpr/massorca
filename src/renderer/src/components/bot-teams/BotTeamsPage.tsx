@@ -133,6 +133,7 @@ function TeamDetail({
     return (
       <NewBotProjectForm
         team={team}
+        allTeams={[team, ...otherTeams]}
         onCancel={toRoom}
         onCreated={(project) => toTeam({ section: { kind: 'project', projectId: project.id } })}
       />
@@ -152,6 +153,7 @@ function TeamDetail({
     ) : (
       <BotTeamProjectBoard
         team={team}
+        allTeams={[team, ...otherTeams]}
         projectId={projectId}
         onBack={toRoom}
         onTab={openTab}

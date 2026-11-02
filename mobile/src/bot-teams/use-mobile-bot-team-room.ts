@@ -10,7 +10,7 @@ export function useMobileBotTeamRoom(client: RpcClient, teamId: string, offline:
   const latestRead = useRef(0)
   const reload = useCallback(async () => {
     const read = ++latestRead.current
-    const next = await listMobileBotTeamRoom(client, teamId)
+    const next = await listMobileBotTeamRoom(client, teamId, { withLinkedProjects: true })
     // An older answer must not undo a newer one.
     if (next && read === latestRead.current) {
       setRoom(next)

@@ -34,6 +34,53 @@ describe('listMobileBotTeamRoom', () => {
     expect(await listMobileBotTeamRoom(client, 'team_1')).toMatchObject({ projects: [PROJECT] })
   })
 
+  it('asks for shared and archived projects only when told to, and reads the tasks of other teams', async () => {
+    const { client, sendRequest } = clientAnswering({
+      ok: true,
+      result: {
+        tasks: [],
+        messages: [],
+        projects: [{ ...PROJECT, archivedAt: 5, linkedTeamIds: ['team_2'] }],
+        projectTasks: [
+          {
+            id: 'k2',
+            teamId: 'team_2',
+            title: 'Launch email',
+            prompt: '',
+            ownerBotId: 'b2',
+            sessionId: null,
+            projectId: 'project_1'
+          }
+        ],
+        workspaceId: null
+      }
+    })
+
+    const room = await listMobileBotTeamRoom(client, 'team_1', { withLinkedProjects: true })
+
+    expect(sendRequest).toHaveBeenCalledWith(
+      'botTeams.listRoom',
+      { teamId: 'team_1', withLinkedProjects: true },
+      expect.anything()
+    )
+    expect(room?.projects[0]).toMatchObject({ archivedAt: 5, linkedTeamIds: ['team_2'] })
+    expect(room?.projectTasks.map((task) => task.id)).toEqual(['k2'])
+  })
+
+  it('sends nothing new to a host when not asked, and reads no other team’s tasks then', async () => {
+    const { client, sendRequest } = clientAnswering({
+      ok: true,
+      result: { tasks: [], messages: [], projects: [PROJECT], workspaceId: null }
+    })
+    const room = await listMobileBotTeamRoom(client, 'team_1')
+    expect(sendRequest).toHaveBeenCalledWith(
+      'botTeams.listRoom',
+      { teamId: 'team_1' },
+      expect.anything()
+    )
+    expect(room?.projectTasks).toEqual([])
+  })
+
   it('reads a host from before projects existed as having none', async () => {
     const { client } = clientAnswering({
       ok: true,
@@ -109,6 +156,40 @@ describe('setMobileBotProjectCodeSource', () => {
 describe('postMobileBotTeamRequest', () => {
   const POST = { teamId: 'team_1', text: 'Hi', start: true }
 
+  it('reads the project question the host asks, with the bot it is asked of', async () => {
+    const { client } = clientAnswering({
+      ok: true,
+      result: {
+        task: null,
+        startError: null,
+        choice: { kind: 'project', botId: 'bot_2', alsoNeeds: ['bot_3'] }
+      }
+    })
+    expect(await postMobileBotTeamRequest(client, POST)).toMatchObject({
+      ok: true,
+      choice: { kind: 'project', botId: 'bot_2', alsoNeeds: ['bot_3'] }
+    })
+  })
+
+  it('keeps the bot the host suggests for a new bot', async () => {
+    const { client } = clientAnswering({
+      ok: true,
+      result: { task: null, startError: null, choice: { kind: 'new-bot', suggestedBotId: 'bot_2' } }
+    })
+    expect(await postMobileBotTeamRequest(client, POST)).toMatchObject({
+      ok: true,
+      choice: { kind: 'new-bot', suggestedBotId: 'bot_2' }
+    })
+  })
+
+  it('reads that the person asked for the work later', async () => {
+    const { client } = clientAnswering({
+      ok: true,
+      result: { task: null, startError: null, later: true, choice: { kind: 'new-team' } }
+    })
+    expect(await postMobileBotTeamRequest(client, POST)).toMatchObject({ ok: true, later: true })
+  })
+
   it('reads the choice, composite, answered and sent-to fields the host adds', async () => {
     const { client } = clientAnswering({
       ok: true,
@@ -129,7 +210,8 @@ describe('postMobileBotTeamRequest', () => {
       choice: { kind: 'other-team', teamId: 'team_2' },
       composite: ['Max'],
       answered: false,
-      sentTo: null
+      sentTo: null,
+      later: false
     })
   })
 
@@ -163,7 +245,8 @@ describe('postMobileBotTeamRequest', () => {
       choice: null,
       composite: [],
       answered: false,
-      sentTo: null
+      sentTo: null,
+      later: false
     })
   })
 

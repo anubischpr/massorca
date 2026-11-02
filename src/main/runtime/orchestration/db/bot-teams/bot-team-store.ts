@@ -12,6 +12,7 @@ import { isTuiAgent } from '../../../../../shared/tui-agent-config'
 import { resolveBotModelChoice } from '../../../../bot-teams/bot-team-model-choice'
 import { generateId } from '../generated-id'
 import type { OrchestrationDb } from '../orchestration-db'
+import { deleteProjectRows } from './bot-team-project-teams-store'
 
 const TeamRow = z.object({
   id: z.string(),
@@ -143,6 +144,13 @@ export function updateBotTeam(this: OrchestrationDb, input: BotTeamUpdateInput):
 
 export function deleteBotTeam(this: OrchestrationDb, teamId: string): void {
   inSavepoint(this, 'delete_bot_team', () => {
+    // Why: other teams may have filed tasks in the projects this team owns; they go with the project.
+    for (const owned of this.db
+      .prepare('SELECT id FROM bot_team_projects WHERE team_id = ?')
+      .all(teamId)) {
+      deleteProjectRows(this, z.object({ id: z.string() }).parse(owned).id)
+    }
+    this.db.prepare('DELETE FROM bot_team_project_teams WHERE team_id = ?').run(teamId)
     this.db
       .prepare(
         'DELETE FROM bot_team_task_delegations WHERE task_id IN (SELECT id FROM bot_team_tasks WHERE team_id = ?)'

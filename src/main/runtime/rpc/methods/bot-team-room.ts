@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import {
   BotTeamMessagePost,
+  BotTeamRoomListSelector,
   BotTeamRoomSelector,
   BotTeamProjectCreate,
   BotTeamProjectSetBrief,
@@ -24,6 +25,7 @@ import { getStructuredAgentSessionHost } from '../../../native-chat/agent-sessio
 import { defineMethod, type RpcContext } from '../core'
 import { botTeamAssignMethods } from './bot-team-assign-methods'
 import { BOT_TEAM_MEMORY_METHODS } from './bot-team-memory-methods'
+import { BOT_TEAM_PROJECT_METHODS, roomProjectsFor } from './bot-team-project-methods'
 import { postBotTeamRequestOnHost } from './bot-team-post-request'
 import { BOT_TEAM_VERSION_METHODS } from './bot-team-versions'
 import { commitStructuredAgentSessionLaunchPrompt } from './agent-launch-structured-prompt'
@@ -155,7 +157,10 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
     {
       team,
       task,
-      project: db.listBotTeamProjects(team.id).find((entry) => entry.id === task.projectId) ?? null,
+      project:
+        db
+          .listBotTeamProjects(team.id, { includeLinked: true, includeArchived: true })
+          .find((entry) => entry.id === task.projectId) ?? null,
       notes: db.getBotTeamTaskStartNotes(task.id),
       memory: readBotTeamMemoryLines(db, team.id, task.ownerBotId)
     }
@@ -167,18 +172,19 @@ export const BOT_TEAM_ROOM_METHODS = [
   ...botTeamAssignMethods(startTaskOnHost),
   ...BOT_TEAM_MEMORY_METHODS,
   ...BOT_TEAM_PROJECT_WORKSPACE_METHODS,
+  ...BOT_TEAM_PROJECT_METHODS,
   defineMethod({
     name: 'botTeams.listRoom',
     permission: 'workspace',
-    params: BotTeamRoomSelector,
-    handler: ({ teamId }, { runtime }) => {
+    params: BotTeamRoomListSelector,
+    handler: ({ teamId, withLinkedProjects }, { runtime }) => {
       const db = runtime.getOrchestrationDb()
       // Rooms are read all the time, so this also covers tasks that outlive a restart.
       ensureBotTeamVersionWatcher(() => runtime.getOrchestrationDb())
       return {
         tasks: db.listBotTeamTasks(teamId),
         messages: db.listBotTeamMessages(teamId),
-        projects: db.listBotTeamProjects(teamId),
+        ...roomProjectsFor(db, { teamId, withLinkedProjects }),
         // Null until a task starts; a client opens a task's session in this workspace.
         workspaceId: db.getBotTeamWorkspace(teamId)
       }

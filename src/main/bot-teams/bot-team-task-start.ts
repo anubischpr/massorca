@@ -67,8 +67,8 @@ export function botTeamTaskPrompt(
     ...memoryText('What the team remembers (use it, and do not ask again):', memory?.team ?? []),
     ...memoryText(`What ${bot.name} remembers:`, memory?.bot ?? []),
     [
-      'Tell the team in its Conference room when you take this on and when you finish, in one short line each: `orca orchestration team-post --text "<line>"`.',
-      'For this team\'s tasks, read the real board with `orca orchestration team-tasks`, and save a task for later with `orca orchestration team-task-create --text "<task>"`. To hand work to a teammate, run `orca orchestration team-delegate --bot <name> --text "<task>"`; add `--team <team>` for a bot of another team.',
+      'This task is already on the board and the room already says you took it. Tell the team in its Conference room when you finish, in one short line: `orca orchestration team-post --text "<line>"`. Do not post for follow-up messages in this chat.',
+      'For this team\'s tasks, read the real board with `orca orchestration team-tasks`. Never add this task to the board again; save only separate work for later with `orca orchestration team-task-create --text "<task>"`. To hand work to a teammate, run `orca orchestration team-delegate --bot <name> --text "<task>"`; add `--team <team>` for a bot of another team.',
       'To keep something for later tasks, run `orca orchestration team-remember --text "<what>"`; add `--me` when only you need it, and `--told` when the person asked you to remember it.'
     ].join(' ')
   ].join('\n\n')

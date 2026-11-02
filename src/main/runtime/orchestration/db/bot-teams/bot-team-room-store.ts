@@ -16,9 +16,9 @@ import {
 import type { OrchestrationDb } from '../orchestration-db'
 
 const TASK_SELECT =
-  'SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId, session_id AS sessionId, project_id AS projectId FROM bot_team_tasks'
+  'SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId, session_id AS sessionId, project_id AS projectId, created_at AS createdAt FROM bot_team_tasks'
 // The greeting line has no bot row to point at, so it reads back as the All author.
-const MESSAGE_SELECT = `SELECT id, team_id AS teamId, text,
+const MESSAGE_SELECT = `SELECT id, team_id AS teamId, text, created_at AS createdAt,
   CASE WHEN author_kind = '${BOT_TEAM_ALL_AUTHOR}' THEN '${BOT_TEAM_ALL_AUTHOR}' ELSE author_bot_id END AS authorBotId
   FROM bot_team_messages`
 
@@ -49,9 +49,9 @@ export function createBotTeamTask(this: OrchestrationDb, input: BotTeamTaskInput
   const id = generateId('bottask')
   this.db
     .prepare(
-      'INSERT INTO bot_team_tasks (id, team_id, title, prompt, owner_bot_id) VALUES (?, ?, ?, ?, ?)'
+      'INSERT INTO bot_team_tasks (id, team_id, title, prompt, owner_bot_id, created_at) VALUES (?, ?, ?, ?, ?, ?)'
     )
-    .run(id, input.teamId, input.title, input.prompt, input.ownerBotId)
+    .run(id, input.teamId, input.title, input.prompt, input.ownerBotId, Date.now())
   const task = requireBotTeamTask(this, id)
   taskCreated?.(this, task)
   return task
@@ -138,14 +138,15 @@ export function postBotTeamMessage(
   const id = generateId('botmsg')
   this.db
     .prepare(
-      'INSERT INTO bot_team_messages (id, team_id, author_bot_id, author_kind, text) VALUES (?, ?, ?, ?, ?)'
+      'INSERT INTO bot_team_messages (id, team_id, author_bot_id, author_kind, text, created_at) VALUES (?, ?, ?, ?, ?, ?)'
     )
     .run(
       id,
       input.teamId,
       fromAll ? null : input.authorBotId,
       fromAll ? BOT_TEAM_ALL_AUTHOR : null,
-      input.text
+      input.text,
+      Date.now()
     )
   return BotTeamMessageSchema.parse(this.db.prepare(`${MESSAGE_SELECT} WHERE id = ?`).get(id))
 }

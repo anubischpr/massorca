@@ -1,10 +1,12 @@
 /** The Bot teams methods a paired phone may call. */
 export const MOBILE_BOT_TEAM_RPC_METHODS = [
   'botTeams.addBot',
+  'botTeams.archiveProject',
   'botTeams.assignRequest',
   'botTeams.create',
   'botTeams.delete',
   'botTeams.deleteMemory',
+  'botTeams.deleteProject',
   'botTeams.createProject',
   'botTeams.createRoutine',
   'botTeams.createTask',
@@ -28,5 +30,6 @@ export const MOBILE_BOT_TEAM_RPC_METHODS = [
   'botTeams.setTaskProject',
   'botTeams.update',
   'botTeams.updateBot',
+  'botTeams.updateProject',
   'botTeams.workspace'
 ] as const

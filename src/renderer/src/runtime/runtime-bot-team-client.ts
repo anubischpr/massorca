@@ -9,7 +9,6 @@ import type {
   BotTeamBrief,
   BotTeamCodeSource,
   BotTeamLinkableWorkspace,
-  BotTeamMessage,
   BotTeamProject,
   BotTeamTask
 } from '../../../shared/rpc-contract/bot-team-room-params'
@@ -25,6 +24,7 @@ import type {
   RuntimeFileReadResult
 } from '../../../shared/runtime-file-contracts'
 import { botTeamHostTarget, currentBotTeamHost } from './bot-team-host'
+import { withProjectDefaults } from './runtime-bot-team-project-client'
 import { callRuntimeRpc } from './runtime-rpc-client'
 import { RuntimeRpcCallError } from './runtime-rpc-result'
 import { toRuntimeWorktreeSelector } from './runtime-worktree-selector'
@@ -34,32 +34,13 @@ function call<TResult>(method: string, params?: unknown): Promise<TResult> {
   return callRuntimeRpc<TResult>(botTeamHostTarget(currentBotTeamHost()), method, params)
 }
 
-// A host from before code sources or briefs sends projects without them: not connected, empty.
-function withProjectDefaults(project: BotTeamProject): BotTeamProject {
-  return {
-    ...project,
-    codeSource: project.codeSource ?? null,
-    brief: project.brief ?? { requirements: [], constraints: [], decisions: [] },
-    briefUpdatedAt: project.briefUpdatedAt ?? null
-  }
-}
-
-export async function listBotTeamRoom(
-  teamId: string
-): Promise<{ tasks: BotTeamTask[]; messages: BotTeamMessage[]; projects?: BotTeamProject[] }> {
-  const room = await call<{
-    tasks: BotTeamTask[]
-    messages: BotTeamMessage[]
-    projects?: BotTeamProject[]
-  }>('botTeams.listRoom', { teamId })
-  return room.projects ? { ...room, projects: room.projects.map(withProjectDefaults) } : room
-}
-
 export async function createBotTeamProject(input: {
   teamId: string
   name: string
   goal: string
   codeSource: BotTeamCodeSource | null
+  /** Teams besides the owner; an older host drops it and makes an owner-only project. */
+  linkedTeamIds?: string[]
 }): Promise<BotTeamProject> {
   return withProjectDefaults(
     (await call<{ project: BotTeamProject }>('botTeams.createProject', input)).project
@@ -340,3 +321,5 @@ export function restoreBotTeamFileVersion(
       ).result
   )
 }
+
+export { listBotTeamRoom } from './runtime-bot-team-project-client'

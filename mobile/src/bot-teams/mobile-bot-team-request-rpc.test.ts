@@ -84,6 +84,51 @@ describe('assignMobileBotTeamRequest', () => {
       kind: 'failed'
     })
   })
+
+  it('reports the project question as asked, with nothing filed yet', async () => {
+    const { client } = clientAnswering({
+      ok: true,
+      result: { task: null, startError: null, choice: { kind: 'project', botId: 'bot_2' } }
+    })
+    expect(
+      await assignMobileBotTeamRequest(client, {
+        teamId: 'team_1',
+        text: 'Hi',
+        askProject: true,
+        botId: 'bot_2'
+      })
+    ).toEqual({ kind: 'asked', choice: { kind: 'project', botId: 'bot_2' } })
+  })
+
+  it('files with the project, the other bots and the later flag the person answered with', async () => {
+    const { client, sendRequest } = clientAnswering({
+      ok: true,
+      result: { task: TASK, startError: null }
+    })
+    await assignMobileBotTeamRequest(client, {
+      teamId: 'team_1',
+      text: 'Hi',
+      askProject: true,
+      botId: 'bot_2',
+      projectId: 'project_1',
+      alsoNeeds: ['bot_3'],
+      later: true
+    })
+    expect(sendRequest).toHaveBeenCalledWith(
+      'botTeams.assignRequest',
+      {
+        teamId: 'team_1',
+        text: 'Hi',
+        askProject: true,
+        botId: 'bot_2',
+        projectId: 'project_1',
+        alsoNeeds: ['bot_3'],
+        later: true,
+        start: true
+      },
+      expect.anything()
+    )
+  })
 })
 
 describe('reassignMobileBotTeamTask', () => {
@@ -95,7 +140,7 @@ describe('reassignMobileBotTeamTask', () => {
     const moved = await reassignMobileBotTeamTask(client, { taskId: 'task_1', botId: 'bot_9' })
     expect(sendRequest).toHaveBeenCalledWith(
       'botTeams.reassignTask',
-      { taskId: 'task_1', botId: 'bot_9', start: true },
+      { taskId: 'task_1', botId: 'bot_9' },
       expect.anything()
     )
     expect(moved).toEqual({

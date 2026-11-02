@@ -273,3 +273,32 @@ describe('startBotTeamTask', () => {
     )
   })
 })
+
+describe('the task prompt and the room', () => {
+  it('says the task is already on the board and asks for one finish line only', async () => {
+    const { botTeamTaskPrompt } = await import('./bot-team-task-start')
+    const bot = {
+      id: 'b',
+      name: 'José',
+      job: 'Front',
+      agent: 'claude' as const,
+      modelMode: 'auto' as const,
+      model: null,
+      effort: null,
+      skills: []
+    }
+    const team = {
+      id: 't',
+      name: 'Dev',
+      purpose: '',
+      character: 'circle' as const,
+      workspacesEnabled: false,
+      accessMode: 'default' as const,
+      bots: [bot]
+    }
+    const prompt = botTeamTaskPrompt(team, bot, { title: 'Colors', prompt: 'Show a colors card' })
+    expect(prompt).toContain('This task is already on the board')
+    expect(prompt).toContain('when you finish')
+    expect(prompt).not.toContain('when you take this on')
+  })
+})

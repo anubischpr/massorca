@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import type {
@@ -21,12 +21,19 @@ import { MobileBotTeamWorkBar } from './MobileBotTeamWorkBar'
 export function MobileBotTeamNewProject({
   client,
   team,
+  renderTeams,
   offline = false,
   onCancel,
   onCreated
 }: {
   client: RpcClient
   team: BotTeam
+  /** Draws the Teams field (MobileBotTeamProjectTeams); without it the field is not shown. */
+  renderTeams?: (field: {
+    linkedTeamIds: string[]
+    disabled: boolean
+    onChange: (linkedTeamIds: string[]) => void
+  }) => ReactNode
   offline?: boolean
   onCancel: () => void
   onCreated: (project: BotTeamProject) => void
@@ -35,6 +42,7 @@ export function MobileBotTeamNewProject({
   const [goal, setGoal] = useState('')
   const [source, setSource] = useState<BotTeamCodeSource>('repo')
   const [workspace, setWorkspace] = useState<BotTeamProjectWorkspace | null>(null)
+  const [linkedTeamIds, setLinkedTeamIds] = useState<string[]>([])
   const listing = useMobileLinkableWorkspaces(client, team.id, team.workspacesEnabled)
   const [saving, setSaving] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -49,7 +57,8 @@ export function MobileBotTeamNewProject({
       teamId: team.id,
       name: name.trim(),
       goal: goal.trim(),
-      codeSource: team.workspacesEnabled ? source : null
+      codeSource: team.workspacesEnabled ? source : null,
+      ...(linkedTeamIds.length > 0 ? { linkedTeamIds } : {})
     }).finally(() => setSaving(false))
     if (result.kind === 'ok') {
       if (team.workspacesEnabled && source === 'repo' && workspace !== null) {
@@ -93,6 +102,7 @@ export function MobileBotTeamNewProject({
           multiline
           placeholderTextColor={colors.textMuted}
         />
+        {renderTeams?.({ linkedTeamIds, disabled: saving, onChange: setLinkedTeamIds })}
         {team.workspacesEnabled ? (
           <>
             <Text style={styles.label}>Source</Text>
