@@ -8,6 +8,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { BotTeamsIntegrations } from './BotTeamsIntegrations'
 import { translate } from '@/i18n/i18n'
 import { updateBotTeam } from '@/runtime/runtime-bot-team-client'
 import { useAppStore } from '@/store'
@@ -44,6 +45,7 @@ export function BotTeamsSettingsPane(): React.JSX.Element {
         <p className="text-sm text-muted-foreground">
           {translate('components.botTeams.settings.empty', 'Teams you create appear here.')}
         </p>
+        <BotTeamsIntegrations />
       </div>
     )
   }
@@ -113,6 +115,7 @@ export function BotTeamsSettingsPane(): React.JSX.Element {
           </Select>
         </div>
       ))}
+      <BotTeamsIntegrations />
     </div>
   )
 }
