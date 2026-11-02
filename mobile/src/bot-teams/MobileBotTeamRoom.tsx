@@ -9,6 +9,7 @@ import { useMobileNativeChatFileSearch } from '../session/use-mobile-native-chat
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
 import { botTeamBoardColumn } from '../../../src/shared/bot-team-board-column'
+import { placeBotTeamRoomTasks } from '../../../src/shared/bot-team-room-order'
 import { BOT_TEAM_ALL_AUTHOR } from '../../../src/shared/bot-team-greeting'
 import type { BotTeamRequestChoice } from '../../../src/shared/bot-team-request-choice'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
@@ -20,6 +21,7 @@ import type {
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
 import { MobileBotTeamTypingLine } from './MobileBotTeamTypingLine'
+import { MobileBotTeamProjectQuestion } from './MobileBotTeamProjectQuestion'
 import { MobileBotTeamRequestChoice } from './MobileBotTeamRequestChoice'
 import { MobileBotTeamRoomMenu } from './MobileBotTeamRoomMenu'
 import { botTeamRoomSuggestions } from './MobileBotTeamRoomSuggestions'
@@ -27,13 +29,24 @@ import { MobileBotTeamTaskCard } from './MobileBotTeamTaskCard'
 import type { BotTeamWorkScreen } from './MobileBotTeamWork'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 import { postMobileBotTeamRequest, startMobileBotTeamTask } from './mobile-bot-team-room-rpc'
-import { assignMobileBotTeamRequest } from './mobile-bot-team-request-rpc'
+import {
+  assignMobileBotTeamRequest,
+  type MobileBotTeamRequestFiling
+} from './mobile-bot-team-request-rpc'
 import { useMobileBotTeamRoom } from './use-mobile-bot-team-room'
 import { useMobileBotTeamTaskStatus } from './use-mobile-bot-team-task-status'
 
 const NO_GENERATION = () => 0
 const NOT_WORKING = () => false
 const NO_FILES: readonly string[] = []
+
+/** A request the room holds until the person says where it goes. */
+type HeldRequest = { choice: BotTeamRequestChoice; text: string; later: boolean }
+/** The person's answer for a held request: a bot, another team, or a project. */
+type FilingTarget = Pick<
+  MobileBotTeamRequestFiling,
+  'botId' | 'toTeamId' | 'alsoNeeds' | 'projectId'
+>
 
 function roomChatMessage(message: BotTeamMessage): NativeChatMessage {
   return {
@@ -102,9 +115,7 @@ export function MobileBotTeamRoom({
   const [needsOwner, setNeedsOwner] = useState(false)
   const [typing, setTyping] = useState<string | null>(null)
   // The person's line, held until they choose where it goes; leaving the room drops it.
-  const [pending, setPending] = useState<{ choice: BotTeamRequestChoice; text: string } | null>(
-    null
-  )
+  const [pending, setPending] = useState<HeldRequest | null>(null)
   const [choiceBusy, setChoiceBusy] = useState(false)
   const [sheet, setSheet] = useState<'rooms' | 'menu' | null>(null)
   const { room, reload } = useMobileBotTeamRoom(client, team.id, offline)
@@ -147,7 +158,8 @@ export function MobileBotTeamRoom({
     const sent = await postMobileBotTeamRequest(client, {
       teamId: team.id,
       text: typed,
-      start: true
+      start: true,
+      askProject: true
     }).finally(() => {
       sending.current = false
       setTyping(null)
@@ -164,7 +176,7 @@ export function MobileBotTeamRoom({
         !sent.answered &&
         sent.sentTo === null
     )
-    setPending(sent.choice ? { choice: sent.choice, text: typed } : null)
+    setPending(sent.choice ? { choice: sent.choice, text: typed, later: sent.later } : null)
     if (sent.startError) {
       Alert.alert('The bot did not start', sent.startError)
     }
@@ -173,7 +185,7 @@ export function MobileBotTeamRoom({
   }
 
   // Files the held request where the person chose; an empty target keeps it in this team.
-  const fileChoice = async (target: { botId?: string; toTeamId?: string }) => {
+  const fileChoice = async (target: FilingTarget) => {
     if (pending === null) {
       return
     }
@@ -181,9 +193,16 @@ export function MobileBotTeamRoom({
     const filed = await assignMobileBotTeamRequest(client, {
       teamId: team.id,
       text: pending.text,
+      askProject: true,
+      ...(pending.later ? { later: true } : {}),
       ...target
     })
     setChoiceBusy(false)
+    // The host asks its next question before it files, so the held request stays.
+    if (filed.kind === 'asked') {
+      setPending((current) => (current ? { ...current, choice: filed.choice } : current))
+      return
+    }
     if (filed.kind === 'unsupported') {
       Alert.alert('That did not send', 'This host cannot route requests yet.')
       return
@@ -199,6 +218,14 @@ export function MobileBotTeamRoom({
     await reload()
   }
 
+  // The project question files the held request with the bot it was asked of.
+  const answerProject = (projectId: string | null) => {
+    if (pending?.choice.kind === 'project') {
+      const { botId, alsoNeeds } = pending.choice
+      void fileChoice({ botId, projectId, ...(alsoNeeds ? { alsoNeeds } : {}) })
+    }
+  }
+
   const start = async (taskId: string) => {
     const error = await startMobileBotTeamTask(client, taskId)
     if (error) {
@@ -207,20 +234,8 @@ export function MobileBotTeamRoom({
     await reload()
   }
 
-  // A task sits under the request that made it; the rest follow the conversation.
-  const tasksOf = useMemo(() => {
-    const placed = new Map<string, BotTeamTask[]>()
-    const rest: BotTeamTask[] = []
-    for (const task of tasks) {
-      const request = messages.find((m) => m.authorBotId === null && m.text === task.prompt)
-      if (request) {
-        placed.set(request.id, [...(placed.get(request.id) ?? []), task])
-      } else {
-        rest.push(task)
-      }
-    }
-    return { placed, rest }
-  }, [messages, tasks])
+  // A card sits right after the request that made it; the rest follow the conversation.
+  const placement = useMemo(() => placeBotTeamRoomTasks(messages, tasks), [messages, tasks])
 
   const card = (task: BotTeamTask) => (
     <MobileBotTeamTaskCard
@@ -294,13 +309,20 @@ export function MobileBotTeamRoom({
             <View key={message.id} style={styles.roomEntry}>
               <RoomWho bots={team.bots} authorBotId={message.authorBotId} />
               <MobileNativeChatMessage message={roomChatMessage(message)} />
-              {tasksOf.placed.get(message.id)?.map(card)}
+              {placement.cardsByMessageId.get(message.id)?.map(card)}
             </View>
           )
         })}
-        {tasksOf.rest.map(card)}
+        {placement.trailing.map(card)}
         {typing !== null ? <MobileBotTeamTypingLine text={typing} bots={team.bots} /> : null}
-        {pending ? (
+        {pending && pending.choice.kind === 'project' ? (
+          <MobileBotTeamProjectQuestion
+            projects={projects}
+            busy={choiceBusy}
+            onAnswer={answerProject}
+          />
+        ) : null}
+        {pending && pending.choice.kind !== 'project' ? (
           <MobileBotTeamRequestChoice
             choice={pending.choice}
             team={team}

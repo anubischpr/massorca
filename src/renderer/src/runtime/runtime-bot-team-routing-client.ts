@@ -7,21 +7,10 @@ function call<TResult>(method: string, params?: unknown): Promise<TResult> {
   return callRuntimeRpc<TResult>(botTeamHostTarget(currentBotTeamHost()), method, params)
 }
 
-/** Files a request the room asked about: with a bot, and in another team when `toTeamId` is set. */
-export function assignBotTeamRequest(input: {
-  teamId: string
-  text: string
-  botId?: string
-  toTeamId?: string
-  start: boolean
-}): Promise<{ task: BotTeamTask; startError: string | null }> {
-  return call('botTeams.assignRequest', input)
-}
-
 /** Gives an idle task to a bot of any team; the new owner starts it fresh, with the task so far. */
 export function reassignBotTeamTask(
   taskId: string,
   botId: string
 ): Promise<{ task: BotTeamTask; startError: string | null }> {
-  return call('botTeams.reassignTask', { taskId, botId, start: true })
+  return call('botTeams.reassignTask', { taskId, botId })
 }

@@ -10,7 +10,9 @@ export const BotTeamTaskSchema = z.object({
   /** Null until the task starts: it waits in Todo with no agent working on it. */
   sessionId: z.string().nullable(),
   // The default reads a host from before projects existed.
-  projectId: z.string().nullable().default(null)
+  projectId: z.string().nullable().default(null),
+  // The host's time the task was made; a host from before it sends none.
+  createdAt: z.number().nullable().optional()
 })
 
 /** Where a project's code comes from: a repository that exists, or a new folder set up with git. */
@@ -86,7 +88,9 @@ export const BotTeamMessageSchema = z.object({
   teamId: z.string(),
   /** Null when the person wrote it. */
   authorBotId: z.string().nullable(),
-  text: z.string()
+  text: z.string(),
+  /** The host's time the message was written; a host from before it sends none. */
+  createdAt: z.number().nullable().optional()
 })
 
 export const BotTeamTaskCreate = z.object({

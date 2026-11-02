@@ -109,6 +109,40 @@ describe('setMobileBotProjectCodeSource', () => {
 describe('postMobileBotTeamRequest', () => {
   const POST = { teamId: 'team_1', text: 'Hi', start: true }
 
+  it('reads the project question the host asks, with the bot it is asked of', async () => {
+    const { client } = clientAnswering({
+      ok: true,
+      result: {
+        task: null,
+        startError: null,
+        choice: { kind: 'project', botId: 'bot_2', alsoNeeds: ['bot_3'] }
+      }
+    })
+    expect(await postMobileBotTeamRequest(client, POST)).toMatchObject({
+      ok: true,
+      choice: { kind: 'project', botId: 'bot_2', alsoNeeds: ['bot_3'] }
+    })
+  })
+
+  it('keeps the bot the host suggests for a new bot', async () => {
+    const { client } = clientAnswering({
+      ok: true,
+      result: { task: null, startError: null, choice: { kind: 'new-bot', suggestedBotId: 'bot_2' } }
+    })
+    expect(await postMobileBotTeamRequest(client, POST)).toMatchObject({
+      ok: true,
+      choice: { kind: 'new-bot', suggestedBotId: 'bot_2' }
+    })
+  })
+
+  it('reads that the person asked for the work later', async () => {
+    const { client } = clientAnswering({
+      ok: true,
+      result: { task: null, startError: null, later: true, choice: { kind: 'new-team' } }
+    })
+    expect(await postMobileBotTeamRequest(client, POST)).toMatchObject({ ok: true, later: true })
+  })
+
   it('reads the choice, composite, answered and sent-to fields the host adds', async () => {
     const { client } = clientAnswering({
       ok: true,
@@ -129,7 +163,8 @@ describe('postMobileBotTeamRequest', () => {
       choice: { kind: 'other-team', teamId: 'team_2' },
       composite: ['Max'],
       answered: false,
-      sentTo: null
+      sentTo: null,
+      later: false
     })
   })
 
@@ -163,7 +198,8 @@ describe('postMobileBotTeamRequest', () => {
       choice: null,
       composite: [],
       answered: false,
-      sentTo: null
+      sentTo: null,
+      later: false
     })
   })
 

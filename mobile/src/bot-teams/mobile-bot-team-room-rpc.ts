@@ -27,10 +27,16 @@ const RoomReply = z.object({
   projects: z.array(BotTeamProjectSchema).default([]),
   workspaceId: z.string().nullable()
 })
-const RequestChoiceSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('new-bot') }),
+/** The question the room puts to the person, as the host sends it: every kind the desktop shows. */
+export const RequestChoiceSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('new-bot'), suggestedBotId: z.string().optional() }),
   z.object({ kind: z.literal('new-team') }),
-  z.object({ kind: z.literal('other-team'), teamId: z.string() })
+  z.object({ kind: z.literal('other-team'), teamId: z.string() }),
+  z.object({
+    kind: z.literal('project'),
+    botId: z.string(),
+    alsoNeeds: z.array(z.string()).optional()
+  })
 ])
 const PostReply = z.object({
   task: BotTeamTaskSchema.nullable(),
@@ -41,7 +47,9 @@ const PostReply = z.object({
   choice: RequestChoiceSchema.nullable().default(null),
   composite: z.array(z.string()).default([]),
   answered: z.boolean().default(false),
-  sentTo: z.object({ teamId: z.string(), teamName: z.string() }).nullable().default(null)
+  sentTo: z.object({ teamId: z.string(), teamName: z.string() }).nullable().default(null),
+  // The person asked for the work later: it waits in Todo and nothing starts.
+  later: z.boolean().default(false)
 })
 const ProjectReply = z.object({ project: BotTeamProjectSchema })
 const LinkableReply = z.object({ workspaces: z.array(BotTeamLinkableWorkspaceSchema) })
@@ -91,7 +99,7 @@ export async function listMobileBotTeamRoom(
 
 export async function postMobileBotTeamRequest(
   client: HostClient,
-  input: { teamId: string; text: string; start: boolean }
+  input: { teamId: string; text: string; start: boolean; askProject?: boolean }
 ): Promise<MobileBotTeamPostResult> {
   try {
     const response = await client.sendRequest('botTeams.postMessage', input, {

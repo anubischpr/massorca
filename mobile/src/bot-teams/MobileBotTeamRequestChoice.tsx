@@ -29,6 +29,11 @@ function optionsOf(choice: BotTeamRequestChoice, team: BotTeam, otherTeams: read
     }))
 }
 
+/** The bot the host reads as closest is picked first; none is picked otherwise. */
+function pickedOf(choice: BotTeamRequestChoice): string | null {
+  return choice.kind === 'new-bot' ? (choice.suggestedBotId ?? null) : null
+}
+
 function questionOf(choice: BotTeamRequestChoice, team: BotTeam, picked: string | null): string {
   if (choice.kind === 'other-team') {
     return picked === null
@@ -78,7 +83,13 @@ export function MobileBotTeamRequestChoice({
   onCreateBot: () => void
   onCreateTeam: () => void
 }) {
-  const [picked, setPicked] = useState<string | null>(null)
+  const [picked, setPicked] = useState<string | null>(pickedOf(choice))
+  // A new question starts from its own suggestion, not from the last answer.
+  const [shown, setShown] = useState(choice)
+  if (shown !== choice) {
+    setShown(choice)
+    setPicked(pickedOf(choice))
+  }
   const rows = optionsOf(choice, team, otherTeams)
   const selected = rows.find((row) => row.id === picked) ?? rows[0] ?? null
   const send = () => {

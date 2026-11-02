@@ -40,6 +40,7 @@ import { BotTeamPendingChoice, type BotTeamPendingChoiceRequest } from './BotTea
 import { BotTeamRoomComposer } from './BotTeamRoomComposer'
 import { BotTeamRoomSidePanel } from './BotTeamRoomSidePanel'
 import { botTeamTaskGlyph, botTeamTaskLabel } from './bot-team-task-status-display'
+import { placeBotTeamRoomTasks } from '../../../../shared/bot-team-room-order'
 
 const NO_PROJECT = 'none'
 const NO_TEAMS: readonly BotTeam[] = []
@@ -234,6 +235,8 @@ export function BotTeamRoom({
       />
     ) : null
 
+  // A card sits right after the request that made it; the rest follow the conversation.
+  const placement = useMemo(() => placeBotTeamRoomTasks(messages, tasks), [messages, tasks])
   const openTask = tasks.find((task) => task.id === openTaskId)
   const openAgent = botOf(openTask?.ownerBotId ?? null)?.agent
   if (openTask && openAgent) {
@@ -316,10 +319,6 @@ export function BotTeamRoom({
       </div>
     )
   }
-  // A task sits under the request that made it; the rest follow the conversation.
-  const requestOf = (task: BotTeamTask): BotTeamMessage | undefined =>
-    messages.find((message) => message.authorBotId === null && message.text === task.prompt)
-
   return (
     <div className="flex h-full min-h-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -362,11 +361,11 @@ export function BotTeamRoom({
                   >
                     {message.text}
                   </div>
-                  {tasks.filter((task) => requestOf(task)?.id === message.id).map(taskCard)}
+                  {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
                 </div>
               )
             })}
-            {tasks.filter((task) => requestOf(task) === undefined).map(taskCard)}
+            {placement.trailing.map(taskCard)}
             {typing !== null ? (
               <BotTeamTypingLine author={botTeamTypingAuthor(typing, team.bots)} bots={team.bots} />
             ) : null}

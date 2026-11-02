@@ -4,6 +4,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 import { MobileBotTeamRoom } from './MobileBotTeamRoom'
+import { MobileBotTeamTaskCard } from './MobileBotTeamTaskCard'
 
 vi.mock('react-native', () => ({
   Alert: { alert: vi.fn() },
@@ -199,7 +200,7 @@ describe('MobileBotTeamRoom', () => {
 
     expect(client.sendRequest).toHaveBeenCalledWith(
       'botTeams.postMessage',
-      { teamId: 'team', text: 'Hi', start: true },
+      { teamId: 'team', text: 'Hi', start: true, askProject: true },
       expect.anything()
     )
   })
@@ -414,6 +415,107 @@ describe('MobileBotTeamRoom', () => {
     expect(JSON.stringify(renderer.toJSON())).not.toContain('Who should take this?')
   })
 
+  it('keeps a card made from a request with other words after that request, before a later message', async () => {
+    const client = hostAnswering({
+      tasks: [
+        {
+          ...TASK,
+          id: 'task9',
+          title: 'Quarterly deck',
+          prompt: 'Build the slides',
+          createdAt: 200
+        }
+      ],
+      messages: [
+        { id: 'a', teamId: 'team', authorBotId: null, text: 'Make the report', createdAt: 100 },
+        { id: 'b', teamId: 'team', authorBotId: null, text: 'Thanks, that is all', createdAt: 300 }
+      ],
+      projects: [],
+      workspaceId: null
+    })
+    const renderer = await render(client)
+    const order = renderer.root
+      .findAll((node) => node.type === 'ChatMessage' || node.type === MobileBotTeamTaskCard)
+      .map((node) =>
+        node.type === MobileBotTeamTaskCard
+          ? node.props.task.title
+          : node.props.message.blocks[0].text
+      )
+    expect(order).toEqual(['Make the report', 'Quarterly deck', 'Thanks, that is all'])
+  })
+
+  it('asks which project a request is for, and files it in the one the person picks', async () => {
+    const client = {
+      sendRequest: vi.fn(async (method: string) => {
+        if (method === 'botTeams.listRoom') {
+          return {
+            ok: true,
+            result: { tasks: [], messages: [], projects: [PROJECT], workspaceId: null }
+          }
+        }
+        if (method === 'botTeams.postMessage') {
+          return {
+            ok: true,
+            result: { task: null, startError: null, choice: { kind: 'project', botId: 'bot' } }
+          }
+        }
+        return { ok: true, result: { task: TASK, startError: null } }
+      })
+    }
+    const renderer = await render(client)
+    await act(async () => {
+      await renderer.root.findByType('Composer' as never).props.onSend('Hi')
+    })
+    expect(JSON.stringify(renderer.toJSON())).toContain('Which project is this for?')
+
+    await press(renderer, 'Launch')
+    await press(renderer, 'Continue')
+    await settle()
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'botTeams.assignRequest',
+      {
+        teamId: 'team',
+        text: 'Hi',
+        start: true,
+        askProject: true,
+        botId: 'bot',
+        projectId: 'project'
+      },
+      expect.anything()
+    )
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('Which project is this for?')
+  })
+
+  it('asks the project question once a bot is chosen for a team that has projects', async () => {
+    const client = {
+      sendRequest: vi.fn(async (method: string) => {
+        if (method === 'botTeams.listRoom') {
+          return {
+            ok: true,
+            result: { tasks: [], messages: [], projects: [PROJECT], workspaceId: null }
+          }
+        }
+        if (method === 'botTeams.postMessage') {
+          return { ok: true, result: { task: null, startError: null, choice: { kind: 'new-bot' } } }
+        }
+        if (method === 'botTeams.assignRequest') {
+          return {
+            ok: true,
+            result: { task: null, startError: null, choice: { kind: 'project', botId: 'bot' } }
+          }
+        }
+        return { ok: false, error: { code: 'internal', message: 'nope' } }
+      })
+    }
+    const renderer = await render(client)
+    await act(async () => {
+      await renderer.root.findByType('Composer' as never).props.onSend('Hi')
+    })
+    await press(renderer, 'Send to Iris')
+    await settle()
+    expect(JSON.stringify(renderer.toJSON())).toContain('Which project is this for?')
+  })
+
   it('counts the open work and the tasks on the room menu', async () => {
     const client = hostAnswering({ tasks: [TASK], messages: [], projects: [], workspaceId: null })
     const renderer = await render(client)
@@ -445,7 +547,7 @@ describe('MobileBotTeamRoom', () => {
     await settle()
     expect(client.sendRequest).toHaveBeenCalledWith(
       'botTeams.assignRequest',
-      { teamId: 'team', text: 'Inventory?', start: true, toTeamId: 'team_2' },
+      { teamId: 'team', text: 'Inventory?', start: true, askProject: true, toTeamId: 'team_2' },
       expect.anything()
     )
     expect(JSON.stringify(renderer.toJSON())).not.toContain('Choose where this task goes')
@@ -466,7 +568,7 @@ describe('MobileBotTeamRoom', () => {
     await settle()
     expect(client.sendRequest).toHaveBeenCalledWith(
       'botTeams.assignRequest',
-      { teamId: 'team', text: 'Hi', start: true },
+      { teamId: 'team', text: 'Hi', start: true, askProject: true },
       expect.anything()
     )
   })
@@ -490,7 +592,7 @@ describe('MobileBotTeamRoom', () => {
     await settle()
     expect(client.sendRequest).toHaveBeenCalledWith(
       'botTeams.assignRequest',
-      { teamId: 'team', text: 'Hi', start: true, botId: 'bot' },
+      { teamId: 'team', text: 'Hi', start: true, askProject: true, botId: 'bot' },
       expect.anything()
     )
   })
@@ -517,7 +619,7 @@ describe('MobileBotTeamRoom', () => {
     await settle()
     expect(client.sendRequest).toHaveBeenCalledWith(
       'botTeams.assignRequest',
-      { teamId: 'team', text: 'Taxes', start: true, toTeamId: 'team_2' },
+      { teamId: 'team', text: 'Taxes', start: true, askProject: true, toTeamId: 'team_2' },
       expect.anything()
     )
   })
@@ -613,7 +715,7 @@ describe('MobileBotTeamRoom', () => {
     await settle()
     expect(client.sendRequest).toHaveBeenCalledWith(
       'botTeams.reassignTask',
-      { taskId: 'task', botId: 'max', start: true },
+      { taskId: 'task', botId: 'max' },
       expect.anything()
     )
     expect(
