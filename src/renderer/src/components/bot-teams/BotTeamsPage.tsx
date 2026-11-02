@@ -74,7 +74,7 @@ function TeamDetail({
           <span className="min-w-0 flex-1 truncate">
             {translate('components.botTeams.conferenceRoom', 'Conference room')}
           </span>
-          <BotTeamCharacterIcon character={team.character} size={20} />
+          <BotTeamCharacterIcon character={team.character} size={20} unreachable={offline} />
           <span className="truncate text-xs text-muted-foreground">{team.name}</span>
         </BotTeamRoomTitle>
       }
@@ -172,7 +172,12 @@ function TeamGrid({
                   onClick={() => onOpen(team.id)}
                   className="flex h-full min-h-[148px] w-full flex-col gap-2.5 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-muted"
                 >
-                  <BotTeamCharacterIcon character={team.character} size={64} />
+                  <BotTeamCharacterIcon
+                    character={team.character}
+                    size={64}
+                    working={status === 'Working'}
+                    unreachable={offline}
+                  />
                   <span className="truncate text-sm font-semibold">{team.name}</span>
                   <span className="flex-1 text-xs leading-normal text-muted-foreground">
                     {team.purpose}
