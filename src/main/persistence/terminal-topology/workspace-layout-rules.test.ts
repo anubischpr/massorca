@@ -113,6 +113,23 @@ describe('checkWorkspaceLayoutRules', () => {
   })
 
   // STA-9417: the activation sweep minted a second tab for a terminal the split already shows.
+  it('does not count a pane that shows another workspace’s session by reference as listing it', () => {
+    const state = session(SPLIT)
+    state.tabGroups = {
+      [WT]: [
+        ...(state.tabGroups?.[WT] ?? []),
+        {
+          id: 'ref-pane',
+          worktreeId: WT,
+          activeTabId: null,
+          tabOrder: [],
+          sessionRef: { worktreeId: 'repo-2::/tmp/other', tabId: 'other-session' }
+        }
+      ]
+    }
+    expect(rules(state)).toEqual([])
+  })
+
   it('flags a terminal shown in two panes', () => {
     const state = session([
       {

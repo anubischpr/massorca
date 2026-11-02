@@ -6,7 +6,14 @@ import {
   structuredAgentSessionOwnerForTab,
   structuredAgentSessionTargetForHost
 } from '@/runtime/structured-agent-session-owner'
+import { createPortal } from 'react-dom'
 import { RetainedPaneHost } from '../tab-group/RetainedPaneHost'
+import { useLayoutOverlayRoot } from '../tab-group/layout-overlay-root'
+import {
+  referencedPlacement,
+  selectLayoutWorktreeId,
+  selectReferencedSessions
+} from '../../store/slices/tabs/pane-session-ref'
 import NativeChatView from './NativeChatView'
 import { isStructuredTab } from './structured-agent-session-tabs'
 
@@ -23,14 +30,18 @@ const StructuredAgentSessionOverlaySlot = memo(function StructuredAgentSessionOv
   groupId,
   isActive,
   isFocusedGroup,
+  portalWorktreeId,
   onFocusOwningGroup
 }: {
   tab: StructuredAgentSessionTab
   groupId: string | undefined
   isActive: boolean
   isFocusedGroup: boolean
+  /** The layout that shows this session by reference from another workspace, when it does. */
+  portalWorktreeId: string | null
   onFocusOwningGroup: ((groupId: string) => void) | undefined
 }): React.JSX.Element | null {
+  const portalRoot = useLayoutOverlayRoot(portalWorktreeId)
   // Each chat is read from the host recorded on its tab, never from its workspace id, which two
   // hosts can share.
   const owner = useAppStore((state) => structuredAgentSessionOwnerForTab(state, tab))
@@ -38,7 +49,7 @@ const StructuredAgentSessionOverlaySlot = memo(function StructuredAgentSessionOv
   if (!target) {
     return null
   }
-  return (
+  const host = (
     <RetainedPaneHost
       groupId={groupId}
       isVisible={isActive}
@@ -57,6 +68,7 @@ const StructuredAgentSessionOverlaySlot = memo(function StructuredAgentSessionOv
       />
     </RetainedPaneHost>
   )
+  return portalRoot ? createPortal(host, portalRoot) : host
 })
 
 const StructuredAgentSessionPaneOverlayLayer = memo(
@@ -75,9 +87,16 @@ const StructuredAgentSessionPaneOverlayLayer = memo(
       }))
     )
     const focusGroup = useAppStore((state) => state.focusGroup)
+    const referenced = useAppStore(selectReferencedSessions)
+    const layoutWorktreeId = useAppStore(selectLayoutWorktreeId)
+    const activeGroupIdByWorktree = useAppStore((state) => state.activeGroupIdByWorktree)
     const focusOwningGroup = useCallback(
-      (groupId: string) => focusGroup(worktreeId, groupId),
-      [focusGroup, worktreeId]
+      (groupId: string) => {
+        // Why: a pane that shows this workspace's session from another workspace's layout takes the focus there.
+        const shownIn = [...referenced.values()].find((entry) => entry.groupId === groupId)
+        focusGroup(shownIn?.layoutWorktreeId ?? worktreeId, groupId)
+      },
+      [focusGroup, referenced, worktreeId]
     )
     const groupActiveTabById = useMemo(
       () => new Map(groups.map((group) => [group.id, group.activeTabId] as const)),
@@ -90,20 +109,41 @@ const StructuredAgentSessionPaneOverlayLayer = memo(
 
     return (
       <>
-        {structuredTabs.map((tab) => (
-          <StructuredAgentSessionOverlaySlot
-            key={tab.id}
-            tab={tab}
-            groupId={tab.groupId}
-            isActive={Boolean(isWorktreeActive && groupActiveTabById.get(tab.groupId) === tab.id)}
-            isFocusedGroup={Boolean(
-              isWorktreeActive &&
-              groupActiveTabById.get(tab.groupId) === tab.id &&
-              tab.groupId === activeGroupId
-            )}
-            onFocusOwningGroup={focusOwningGroup}
-          />
-        ))}
+        {structuredTabs.map((tab) => {
+          const shown = referencedPlacement(
+            referenced,
+            tab.id,
+            layoutWorktreeId,
+            activeGroupIdByWorktree
+          )
+          return (
+            <StructuredAgentSessionOverlaySlot
+              key={tab.id}
+              tab={tab}
+              groupId={shown ? shown.groupId : tab.groupId}
+              isActive={
+                shown
+                  ? shown.isVisible
+                  : Boolean(isWorktreeActive && groupActiveTabById.get(tab.groupId) === tab.id)
+              }
+              isFocusedGroup={
+                shown
+                  ? shown.isFocusedGroup
+                  : Boolean(
+                      isWorktreeActive &&
+                      groupActiveTabById.get(tab.groupId) === tab.id &&
+                      tab.groupId === activeGroupId
+                    )
+              }
+              portalWorktreeId={
+                shown?.isVisible && shown.focusWorktreeId !== worktreeId
+                  ? shown.focusWorktreeId
+                  : null
+              }
+              onFocusOwningGroup={focusOwningGroup}
+            />
+          )
+        })}
       </>
     )
   }

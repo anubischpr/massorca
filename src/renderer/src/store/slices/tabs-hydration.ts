@@ -2,6 +2,9 @@ import type { Tab, TabGroup, TabGroupLayoutNode } from '../../../../shared/tab-t
 import type { WorkspaceSessionState } from '../../../../shared/workspace-session-state-types'
 import { isValidTerminalTabId } from '../../../../shared/terminal-tab-id'
 import { createBrowserUuid } from '@/lib/browser-uuid'
+import { pruneTabGroupLayoutForGroups } from './tab-group-layout-pruning'
+import { dropDanglingSessionRefPanes } from './tabs-hydration-session-refs'
+
 import {
   adoptGrouplessTabs,
   appendOwnedTabIdsToGroups,
@@ -17,50 +20,13 @@ import {
   selectHydratedActiveGroupId
 } from './tab-group-state'
 
+export { pruneTabGroupLayoutForGroups }
+
 type HydratedTabState = {
   unifiedTabsByWorktree: Record<string, Tab[]>
   groupsByWorktree: Record<string, TabGroup[]>
   activeGroupIdByWorktree: Record<string, string>
   layoutByWorktree: Record<string, TabGroupLayoutNode>
-}
-
-/** Drops leaves whose group is gone, and repeat leaves for a group already
- *  placed earlier in the tree — one column per group is the render invariant,
- *  and a repeated leaf paints the same tab strip in every one of its columns. */
-export function pruneTabGroupLayoutForGroups(
-  root: TabGroupLayoutNode,
-  validGroupIds: Set<string>
-): TabGroupLayoutNode | null {
-  return pruneLayoutNodeForGroups(root, validGroupIds, new Set())
-}
-
-function pruneLayoutNodeForGroups(
-  root: TabGroupLayoutNode,
-  validGroupIds: Set<string>,
-  placedGroupIds: Set<string>
-): TabGroupLayoutNode | null {
-  if (root.type === 'leaf') {
-    if (!validGroupIds.has(root.groupId) || placedGroupIds.has(root.groupId)) {
-      return null
-    }
-    placedGroupIds.add(root.groupId)
-    return root
-  }
-
-  const first = pruneLayoutNodeForGroups(root.first, validGroupIds, placedGroupIds)
-  const second = pruneLayoutNodeForGroups(root.second, validGroupIds, placedGroupIds)
-
-  if (first === null) {
-    return second
-  }
-  if (second === null) {
-    return first
-  }
-  if (first === root.first && second === root.second) {
-    return root
-  }
-
-  return { ...root, first, second }
 }
 
 function hydrateUnifiedFormat(
@@ -191,7 +157,8 @@ function hydrateUnifiedFormat(
     })
     const hydratedGroups = validatedGroups.filter((group, index) => {
       const hadTabsBeforeHydration = groups[index]?.tabOrder.length > 0
-      if (group.tabOrder.length > 0) {
+      // Why: a pane that shows another workspace's session holds no tab of its own; its target is checked once every workspace has hydrated.
+      if (group.tabOrder.length > 0 || group.sessionRef) {
         return true
       }
       if (hadTabsBeforeHydration) {
@@ -222,6 +189,12 @@ function hydrateUnifiedFormat(
     layoutByWorktree[worktreeId] = layoutSpanningGroups(hydratedGroups, hydratedLayout)
   }
 
+  dropDanglingSessionRefPanes(
+    tabsByWorktree,
+    groupsByWorktree,
+    activeGroupIdByWorktree,
+    layoutByWorktree
+  )
   adoptGrouplessTabs(tabsByWorktree, groupsByWorktree, activeGroupIdByWorktree, layoutByWorktree)
 
   return {

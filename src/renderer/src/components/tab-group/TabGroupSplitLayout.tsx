@@ -3,6 +3,7 @@ import { SidePanel } from '../side-panel/SidePanel'
 import { MainSessionEmptyState } from './MainSessionEmptyState'
 import { TabGroupSplitNodeTree } from './TabGroupSplitNodeTree'
 import { WorkspaceTabDragLayer } from './WorkspaceTabDragLayer'
+import { layoutOverlayRootRef } from './layout-overlay-root'
 
 /** The main workspace surface: the shared drag scope, the session group tree and the workspace's
  *  side panel beside it. Hosts with their own chrome compose the tree directly. */
@@ -26,7 +27,10 @@ export default function TabGroupSplitLayout({
           ref={setDragRootNode}
           className="flex flex-1 min-w-0 min-h-0 overflow-hidden border-l border-border"
         >
-          <div className="relative flex flex-1 min-w-0 min-h-0 overflow-hidden">
+          <div
+            ref={layoutOverlayRootRef(worktreeId)}
+            className="relative flex flex-1 min-w-0 min-h-0 overflow-hidden"
+          >
             <TabGroupSplitNodeTree
               layout={layout}
               worktreeId={worktreeId}

@@ -172,3 +172,46 @@ describe('closing a pane', () => {
     expect(testStore.getState().layoutByWorktree[WT]).toEqual({ type: 'leaf', groupId: 'main' })
   })
 })
+
+describe('closing a pane that shows another workspace’s session', () => {
+  it('leaves that session running in its own workspace and gives the focus back to this layout', () => {
+    const B = 'repo::/work/b'
+    seedStore(testStore, {
+      unifiedTabsByWorktree: {
+        ...testStore.getState().unifiedTabsByWorktree,
+        [B]: [session('b-chat', 'b-main')].map((tab) => ({ ...tab, worktreeId: B }))
+      },
+      groupsByWorktree: {
+        ...testStore.getState().groupsByWorktree,
+        [WT]: [
+          makeTabGroup({ id: 'main', worktreeId: WT, tabOrder: ['A', 'B'], activeTabId: 'A' }),
+          {
+            ...makeTabGroup({ id: 'ref', worktreeId: WT, tabOrder: [], activeTabId: null }),
+            sessionRef: { worktreeId: B, tabId: 'b-chat' }
+          }
+        ],
+        [B]: [
+          makeTabGroup({ id: 'b-main', worktreeId: B, tabOrder: ['b-chat'], activeTabId: 'b-chat' })
+        ]
+      },
+      layoutByWorktree: {
+        [WT]: {
+          type: 'split',
+          direction: 'horizontal',
+          first: { type: 'leaf', groupId: 'main' },
+          second: { type: 'leaf', groupId: 'ref' }
+        },
+        [B]: { type: 'leaf', groupId: 'b-main' }
+      }
+    })
+    testStore.getState().focusGroup(WT, 'ref')
+    expect(testStore.getState().activeWorktreeId).toBe(B)
+    expect(closeSessionPane(WT, 'ref')).toBe(true)
+    const state = testStore.getState()
+    expect(state.activeWorktreeId).toBe(WT)
+    expect(state.paneFocus).toBeNull()
+    expect(state.groupsByWorktree[WT].map((group) => group.id)).toEqual(['main'])
+    expect(state.unifiedTabsByWorktree[B].map((tab) => tab.id)).toEqual(['b-chat'])
+    expect(state.groupsByWorktree[B][0].tabOrder).toEqual(['b-chat'])
+  })
+})

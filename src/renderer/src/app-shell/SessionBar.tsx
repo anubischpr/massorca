@@ -10,6 +10,7 @@ import { useAppStore } from '../store'
 import { isSidePanelGroupId, selectFocusedSessionTab } from '../store/slices/tabs/side-panel-group'
 import { selectSidePanelOpen } from '../store/slices/tabs/side-panel-state'
 import { closeSessionPane } from '../components/tab-group/session-picker-pane'
+import { selectLayoutWorktreeId } from '../store/slices/tabs/pane-session-ref'
 import { BarToggle } from './BarToggle'
 import { setSessionBarActionsTarget } from './session-bar-slot'
 import { TOP_BAR_SURFACE_CLASS } from './top-bar-surface'
@@ -53,14 +54,15 @@ export function SessionBar({
     )
   })
   // Why: with tabs gone, this is the mouse way out of a split; it merges the focused pane into its neighbour.
+  const layoutWorktreeId = useAppStore((s) => selectLayoutWorktreeId(s) ?? worktreeId)
   const splitPane = useAppStore((s) => {
-    const main = (s.groupsByWorktree[worktreeId] ?? []).filter(
+    const main = (s.groupsByWorktree[layoutWorktreeId] ?? []).filter(
       (group) => !isSidePanelGroupId(group.id)
     )
     if (main.length < 2) {
       return null
     }
-    const focused = main.find((group) => group.id === s.activeGroupIdByWorktree[worktreeId])
+    const focused = main.find((group) => group.id === s.activeGroupIdByWorktree[layoutWorktreeId])
     return focused?.id ?? null
   })
   const closePaneLabel = translate(
@@ -142,7 +144,7 @@ export function SessionBar({
                 size="icon-sm"
                 className="text-muted-foreground [&_svg]:size-4"
                 aria-label={closePaneLabel}
-                onClick={() => closeSessionPane(worktreeId, splitPane)}
+                onClick={() => closeSessionPane(layoutWorktreeId, splitPane)}
               >
                 <X />
               </Button>

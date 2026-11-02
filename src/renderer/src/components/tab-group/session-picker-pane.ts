@@ -72,8 +72,21 @@ export function closeSessionPane(worktreeId: string, groupId: string): boolean {
     state.reorderUnifiedTabs(groupId, kept, { recordInteraction: false })
   }
   const next = useAppStore.getState()
-  return (
+  const closed =
     next.mergeGroupIntoSibling(worktreeId, groupId) !== null ||
     next.closeEmptyGroup(worktreeId, groupId)
-  )
+  // Why: the pane that had the focus is gone; hand the focus to this layout's own pane, which also
+  // ends a focus that was following a session shown in another workspace.
+  const after = useAppStore.getState()
+  if (closed && after.paneFocus?.groupId === groupId) {
+    const remaining = after.activeGroupIdByWorktree[worktreeId]
+    const fallback = (after.groupsByWorktree[worktreeId] ?? []).find(
+      (group) => group.id === remaining
+    )
+    after.focusGroup(
+      worktreeId,
+      fallback?.id ?? after.groupsByWorktree[worktreeId]?.[0]?.id ?? groupId
+    )
+  }
+  return closed
 }

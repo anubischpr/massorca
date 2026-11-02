@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useAppStore } from '../../store'
 import { isProvenProcessExit } from '../../../../shared/terminal-exit-cause'
 import { RetainedPaneHost } from '../tab-group/RetainedPaneHost'
+import { useLayoutOverlayRoot } from '../tab-group/layout-overlay-root'
 import type { ActivityTerminalPortalTarget } from '../activity/activity-terminal-portal'
 import TerminalPane from './TerminalPane'
 import { closeTerminalTab } from '../terminal/terminal-tab-actions'
@@ -19,6 +20,8 @@ type TerminalOverlaySlotProps = {
   isVisible: boolean
   isActive: boolean
   activityTerminalPortal: ActivityTerminalPortalTarget | null
+  /** The layout that shows this session by reference from another workspace, when it does. */
+  portalWorktreeId?: string | null
   onFocusOwningGroup: ((groupId: string) => void) | undefined
   consumeSuppressedPtyExit: (ptyId: string) => boolean
   /** Read when a close is requested; the returned reaction runs once it lands. */
@@ -36,10 +39,12 @@ export const TerminalOverlaySlot = memo(function TerminalOverlaySlot({
   isVisible,
   isActive,
   activityTerminalPortal,
+  portalWorktreeId = null,
   onFocusOwningGroup,
   consumeSuppressedPtyExit,
   captureEmptiedReaction
 }: TerminalOverlaySlotProps): React.JSX.Element {
+  const portalRoot = useLayoutOverlayRoot(portalWorktreeId)
   const [shouldMeasureHiddenStartup, setShouldMeasureHiddenStartup] = useState(
     () => useAppStore.getState().pendingStartupByTabId[terminalTabId] !== undefined
   )
@@ -100,7 +105,7 @@ export const TerminalOverlaySlot = memo(function TerminalOverlaySlot({
     )
   }
 
-  return (
+  const host = (
     <RetainedPaneHost
       groupId={groupId}
       isVisible={isVisible}
@@ -112,4 +117,6 @@ export const TerminalOverlaySlot = memo(function TerminalOverlaySlot({
       {terminalPane}
     </RetainedPaneHost>
   )
+  // Why: shown by reference, the host belongs in the visible layout that shows it, not in its owner's hidden surface.
+  return portalRoot ? createPortal(host, portalRoot) : host
 })

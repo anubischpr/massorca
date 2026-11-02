@@ -4,6 +4,10 @@ import type { TabsSlice, TabsSliceGet, TabsSliceSet } from './tabs-slice-contrac
 import { activeSurfacePatchMatchesState, buildActiveSurfacePatch } from './tabs-surface'
 import { buildSplitNode, collapseGroupLayout, replaceLeaf } from './tabs-layout'
 import { ownsGlobalSelection } from '../../global-selection-owner'
+import { resolveSessionRefTab } from './pane-session-ref'
+import { isSidePanelGroupId } from './side-panel-group'
+import { isWorkspaceKey, worktreeWorkspaceKey } from '../../../../../shared/workspace-scope'
+import { getResolvedExecutionHostIdForWorktree } from '@/lib/resolved-worktree-execution-host'
 
 export function createTabsGroupActions(
   set: TabsSliceSet,
@@ -12,6 +16,75 @@ export function createTabsGroupActions(
   TabsSlice,
   'ensureWorktreeRootGroup' | 'focusGroup' | 'closeEmptyGroup' | 'createEmptySplitGroup'
 > {
+  const focusOwnGroup = (worktreeId: string, groupId: string): void =>
+    set((state) => {
+      const groupAlreadyFocused = state.activeGroupIdByWorktree[worktreeId] === groupId
+      const nextActiveGroupIdByWorktree = groupAlreadyFocused
+        ? state.activeGroupIdByWorktree
+        : {
+            ...state.activeGroupIdByWorktree,
+            [worktreeId]: groupId
+          }
+      // Why: focusing a group surfaces its active terminal tab, so dismiss the tab-level bell.
+      // Why (activeWorktree guard below): only when the group is in the active worktree, else the unseen tab's bell is swallowed.
+      if (state.activeWorktreeId !== worktreeId) {
+        if (groupAlreadyFocused) {
+          return state
+        }
+        return {
+          activeGroupIdByWorktree: nextActiveGroupIdByWorktree
+        }
+      }
+      const groups = state.groupsByWorktree[worktreeId] ?? []
+      const unifiedTabs = state.unifiedTabsByWorktree[worktreeId] ?? []
+      const visibleTerminalEntityIds = new Set(
+        groups
+          .map((group) =>
+            group.activeTabId ? unifiedTabs.find((tab) => tab.id === group.activeTabId) : null
+          )
+          .filter((tab): tab is (typeof unifiedTabs)[number] => tab?.contentType === 'terminal')
+          .map((tab) => tab.entityId)
+      )
+      const nextUnreadTerminalTabs =
+        visibleTerminalEntityIds.size > 0
+          ? (() => {
+              let changed = false
+              const copy = { ...state.unreadTerminalTabs }
+              for (const terminalEntityId of visibleTerminalEntityIds) {
+                if (!copy[terminalEntityId]) {
+                  continue
+                }
+                delete copy[terminalEntityId]
+                changed = true
+              }
+              return changed ? copy : state.unreadTerminalTabs
+            })()
+          : state.unreadTerminalTabs
+      const activeSurfacePatch = buildActiveSurfacePatch(
+        {
+          ...state,
+          activeGroupIdByWorktree: nextActiveGroupIdByWorktree
+        },
+        worktreeId,
+        groupId
+      )
+      if (
+        groupAlreadyFocused &&
+        nextUnreadTerminalTabs === state.unreadTerminalTabs &&
+        activeSurfacePatchMatchesState(state, worktreeId, activeSurfacePatch)
+      ) {
+        return state
+      }
+      return {
+        ...(groupAlreadyFocused ? {} : { activeGroupIdByWorktree: nextActiveGroupIdByWorktree }),
+        // Why: only write unreadTerminalTabs when it changed — preserving the reference keeps selectors/subscribers from firing spuriously.
+        ...(nextUnreadTerminalTabs !== state.unreadTerminalTabs
+          ? { unreadTerminalTabs: nextUnreadTerminalTabs }
+          : {}),
+        ...activeSurfacePatch
+      }
+    })
+
   return {
     ensureWorktreeRootGroup: (worktreeId) => {
       const existingGroups = get().groupsByWorktree[worktreeId] ?? []
@@ -38,75 +111,65 @@ export function createTabsGroupActions(
       return groupId
     },
 
-    focusGroup: (worktreeId, groupId) =>
-      set((state) => {
-        const groupAlreadyFocused = state.activeGroupIdByWorktree[worktreeId] === groupId
-        const nextActiveGroupIdByWorktree = groupAlreadyFocused
-          ? state.activeGroupIdByWorktree
-          : {
-              ...state.activeGroupIdByWorktree,
-              [worktreeId]: groupId
-            }
-        // Why: focusing a group surfaces its active terminal tab, so dismiss the tab-level bell.
-        // Why (activeWorktree guard below): only when the group is in the active worktree, else the unseen tab's bell is swallowed.
-        if (state.activeWorktreeId !== worktreeId) {
-          if (groupAlreadyFocused) {
-            return state
+    focusGroup: (worktreeId, groupId) => {
+      const state = get()
+      const group = (state.groupsByWorktree[worktreeId] ?? []).find(
+        (candidate) => candidate.id === groupId
+      )
+      const sessionTab = group?.sessionRef ? resolveSessionRefTab(state, group.sessionRef) : null
+      if (group?.sessionRef && sessionTab) {
+        // Why: the pane shows a session another workspace owns, so the focus, commands, right
+        // sidebar and side panel follow that workspace while this pane's layout stays on screen.
+        const owner = group.sessionRef.worktreeId
+        set((current) => {
+          const nextGroups = {
+            ...current.groupsByWorktree,
+            [owner]: (current.groupsByWorktree[owner] ?? []).map((candidate) =>
+              candidate.id === sessionTab.groupId
+                ? { ...candidate, activeTabId: sessionTab.id }
+                : candidate
+            )
+          }
+          const activeGroups = {
+            ...current.activeGroupIdByWorktree,
+            [worktreeId]: groupId,
+            [owner]: sessionTab.groupId
+          }
+          const focused = {
+            ...current,
+            groupsByWorktree: nextGroups,
+            activeGroupIdByWorktree: activeGroups
           }
           return {
-            activeGroupIdByWorktree: nextActiveGroupIdByWorktree
+            groupsByWorktree: nextGroups,
+            activeGroupIdByWorktree: activeGroups,
+            activeWorktreeId: owner,
+            // Why: the sidebar highlight and host routing read these, as setActiveWorktree would set them.
+            activeWorkspaceKey: isWorkspaceKey(owner) ? owner : worktreeWorkspaceKey(owner),
+            activeWorkspaceExecutionHostId:
+              getResolvedExecutionHostIdForWorktree(current, owner) ?? null,
+            activeRepoId: current.getKnownWorktreeById?.(owner)?.repoId ?? current.activeRepoId,
+            paneFocus: { layoutWorktreeId: worktreeId, ownerWorktreeId: owner, groupId },
+            ...buildActiveSurfacePatch(focused, owner, sessionTab.groupId)
           }
-        }
-        const groups = state.groupsByWorktree[worktreeId] ?? []
-        const unifiedTabs = state.unifiedTabsByWorktree[worktreeId] ?? []
-        const visibleTerminalEntityIds = new Set(
-          groups
-            .map((group) =>
-              group.activeTabId ? unifiedTabs.find((tab) => tab.id === group.activeTabId) : null
-            )
-            .filter((tab): tab is (typeof unifiedTabs)[number] => tab?.contentType === 'terminal')
-            .map((tab) => tab.entityId)
-        )
-        const nextUnreadTerminalTabs =
-          visibleTerminalEntityIds.size > 0
-            ? (() => {
-                let changed = false
-                const copy = { ...state.unreadTerminalTabs }
-                for (const terminalEntityId of visibleTerminalEntityIds) {
-                  if (!copy[terminalEntityId]) {
-                    continue
-                  }
-                  delete copy[terminalEntityId]
-                  changed = true
-                }
-                return changed ? copy : state.unreadTerminalTabs
-              })()
-            : state.unreadTerminalTabs
-        const activeSurfacePatch = buildActiveSurfacePatch(
-          {
-            ...state,
-            activeGroupIdByWorktree: nextActiveGroupIdByWorktree
-          },
-          worktreeId,
-          groupId
-        )
-        if (
-          groupAlreadyFocused &&
-          nextUnreadTerminalTabs === state.unreadTerminalTabs &&
-          activeSurfacePatchMatchesState(state, worktreeId, activeSurfacePatch)
-        ) {
-          return state
-        }
-        return {
-          ...(groupAlreadyFocused ? {} : { activeGroupIdByWorktree: nextActiveGroupIdByWorktree }),
-          // Why: only write unreadTerminalTabs when it changed — preserving the reference keeps selectors/subscribers from firing spuriously.
-          ...(nextUnreadTerminalTabs !== state.unreadTerminalTabs
-            ? { unreadTerminalTabs: nextUnreadTerminalTabs }
-            : {}),
-          ...activeSurfacePatch
-        }
-      }),
-
+        })
+        return
+      }
+      if (
+        state.paneFocus &&
+        state.paneFocus.layoutWorktreeId === worktreeId &&
+        state.activeWorktreeId === state.paneFocus.ownerWorktreeId &&
+        isSidePanelGroupId(groupId)
+      ) {
+        // Why: this layout's side panel is not the one on screen while the focus follows another workspace's session.
+        return
+      }
+      if (state.paneFocus && state.paneFocus.layoutWorktreeId === worktreeId) {
+        // Why: one of the layout's own panes took focus back from a referenced one.
+        set({ activeWorktreeId: worktreeId, paneFocus: null })
+      }
+      focusOwnGroup(worktreeId, groupId)
+    },
     closeEmptyGroup: (worktreeId, groupId) => {
       const state = get()
       const group = (state.groupsByWorktree[worktreeId] ?? []).find(

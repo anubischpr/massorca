@@ -43,7 +43,7 @@ export default function TabGroupPanel({
   isTabDragActive?: boolean
 }): React.JSX.Element {
   const model = useTabGroupWorkspaceModel({ groupId, worktreeId })
-  const { activeTab, commands } = model
+  const { activeTab, commands, shownElsewhere, showsReference } = model
   const { setNodeRef: setBodyDropRef } = useDroppable({
     id: getTabPaneBodyDroppableId(groupId),
     data: {
@@ -111,7 +111,10 @@ export default function TabGroupPanel({
           />
         ) : null}
         {/* Why: a split opens an empty pane, and the person picks which session goes in it. */}
-        {!activeTab && hasSplitGroups && !isSidePanelGroupId(groupId) ? (
+        {!activeTab &&
+        !showsReference &&
+        (hasSplitGroups || shownElsewhere) &&
+        !isSidePanelGroupId(groupId) ? (
           <SessionPanePicker worktreeId={worktreeId} groupId={groupId} />
         ) : null}
         {activeTab &&

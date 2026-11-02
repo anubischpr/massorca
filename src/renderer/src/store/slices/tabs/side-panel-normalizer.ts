@@ -1,4 +1,5 @@
 import type { AppState } from '../../types'
+import { planSessionRefCleanup } from './pane-session-ref'
 import { planSidePanelNormalization, sidePanelGroupId } from './side-panel-group'
 
 type NormalizableStore = {
@@ -34,6 +35,17 @@ export function installSidePanelNormalizer(store: NormalizableStore): () => void
     normalizeWorktree(store, worktreeId)
   }
   return store.subscribe((state, previous) => {
+    // Why: a reference outlives neither its session nor its workspace; clear it wherever either goes.
+    if (
+      state.unifiedTabsByWorktree !== previous.unifiedTabsByWorktree ||
+      state.groupsByWorktree !== previous.groupsByWorktree
+    ) {
+      const cleanup = planSessionRefCleanup(state)
+      if (cleanup) {
+        store.setState(cleanup)
+        return
+      }
+    }
     if (
       state.unifiedTabsByWorktree === previous.unifiedTabsByWorktree &&
       state.groupsByWorktree === previous.groupsByWorktree &&
