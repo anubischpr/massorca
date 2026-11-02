@@ -25,6 +25,21 @@ function clientAnswering(reply: { ok: boolean; result?: unknown; error?: unknown
   return { sendRequest, client: { sendRequest } as unknown as HostClient }
 }
 
+describe('listMobileBotTeamRoom replying', () => {
+  it('reads the bots the host is answering, empty from an older host', async () => {
+    const base = { tasks: [], messages: [], workspaceId: null }
+    const withField = clientAnswering({
+      ok: true,
+      result: { ...base, replying: [{ botId: 'bot_1', since: 5 }] }
+    })
+    expect((await listMobileBotTeamRoom(withField.client, 'team_1'))?.replying).toEqual([
+      { botId: 'bot_1', since: 5 }
+    ])
+    const older = clientAnswering({ ok: true, result: base })
+    expect((await listMobileBotTeamRoom(older.client, 'team_1'))?.replying).toEqual([])
+  })
+})
+
 describe('listMobileBotTeamRoom', () => {
   it('reads the projects the room lists', async () => {
     const { client } = clientAnswering({
@@ -182,6 +197,35 @@ describe('postMobileBotTeamRequest', () => {
     })
   })
 
+  it('reads the bot answering in the background, and none from an older host', async () => {
+    const replying = clientAnswering({
+      ok: true,
+      result: { task: null, startError: null, replying: { botId: 'bot_2' } }
+    })
+    expect(await postMobileBotTeamRequest(replying.client, POST)).toMatchObject({
+      ok: true,
+      replying: { botId: 'bot_2' }
+    })
+    const older = clientAnswering({ ok: true, result: { task: null, startError: null } })
+    expect(await postMobileBotTeamRequest(older.client, POST)).toMatchObject({
+      ok: true,
+      replying: null
+    })
+  })
+
+  it('sends the id of the send along', async () => {
+    const { client, sendRequest } = clientAnswering({
+      ok: true,
+      result: { task: null, startError: null }
+    })
+    await postMobileBotTeamRequest(client, { ...POST, clientRequestId: 'send-1' })
+    expect(sendRequest).toHaveBeenCalledWith(
+      'botTeams.postMessage',
+      expect.objectContaining({ clientRequestId: 'send-1' }),
+      expect.anything()
+    )
+  })
+
   it('reads that the person asked for the work later', async () => {
     const { client } = clientAnswering({
       ok: true,
@@ -210,6 +254,7 @@ describe('postMobileBotTeamRequest', () => {
       choice: { kind: 'other-team', teamId: 'team_2' },
       composite: ['Max'],
       answered: false,
+      replying: null,
       sentTo: null,
       later: false
     })
@@ -245,6 +290,7 @@ describe('postMobileBotTeamRequest', () => {
       choice: null,
       composite: [],
       answered: false,
+      replying: null,
       sentTo: null,
       later: false
     })

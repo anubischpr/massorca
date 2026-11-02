@@ -1,5 +1,6 @@
 import { botAgentPiRuntime } from '../../../../shared/bot-team-character-art'
-import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import { BOT_TEAM_ALL_AUTHOR } from '../../../../shared/bot-team-greeting'
+import type { BotTeam, BotTeamBot } from '../../../../shared/rpc-contract/bot-team-params'
 import type { BotTeamMessage } from '../../../../shared/rpc-contract/bot-team-room-params'
 import {
   buildBotTeamConversationPrompt,
@@ -11,6 +12,8 @@ import { askBotAgentForBotTeamReply } from '../../../bot-teams/bot-team-request-
 import { rankDelegationAgents } from '../../../delegated-session/delegation-agent-ranking'
 import { delegationUsageCandidates } from '../../../delegated-session/delegation-usage-input'
 import type { RpcContext } from '../core'
+import { botTeamReplyFailureLine } from './bot-team-reply-failure-line'
+import { clearBotTeamReplying, markBotTeamReplying } from './bot-team-reply-in-flight'
 
 // Kept in memory: a restart only forgets who spoke last, so the rotation starts again.
 const answering = new Set<string>()
@@ -36,14 +39,46 @@ function usagePercentByAgent(ctx: RpcContext, bots: BotTeam['bots']): Map<string
   }
 }
 
+/** Asks the chosen bot's agent once; null when nothing came back. */
+async function askConversationBot(
+  ctx: RpcContext,
+  args: { team: BotTeam; bot: BotTeamBot; text: string; research: boolean }
+): Promise<string | null> {
+  const { team, bot, research } = args
+  // Gentle Shell has no one-shot call of its own, and must never run as stock Pi.
+  const own = botAgentPiRuntime(bot.agent)
+    ? null
+    : { id: bot.agent, ...botConversationChoice(bot.agent) }
+  const db = ctx.runtime.getOrchestrationDb()
+  return cleanConversationReply(
+    await askBotAgentForBotTeamReply({
+      prompt: buildBotTeamConversationPrompt({
+        team,
+        bot,
+        bots: team.bots,
+        messages: db.listBotTeamMessages(team.id).slice(0, -1),
+        tasks: db.listBotTeamTasks(team.id),
+        text: args.text,
+        research
+      }),
+      agent: own,
+      settings: ctx.runtime.getClientSettings(),
+      getAgentEnvResolvers: () => ctx.runtime.getCommitMessageAgentEnvironmentResolvers(),
+      research
+    }),
+    { research }
+  )
+}
+
 /**
  * One bot answers a plain conversation, once, under its own name: one short query to its agent, not a
- * session. Null when nothing could answer, so the room asks the person instead.
+ * session. The bot is chosen at once and `done` settles when the room has its line: the reply, or
+ * one line from the team saying nobody could answer. Null when the team has no bot.
  */
-export async function replyToBotTeamConversation(
+export function startBotTeamConversationReply(
   ctx: RpcContext,
-  args: { team: BotTeam; text: string; subjectBotIds: readonly string[] }
-): Promise<BotTeamMessage | null> {
+  args: { team: BotTeam; text: string; subjectBotIds: readonly string[]; research?: boolean }
+): { botId: string; done: Promise<BotTeamMessage> } | null {
   const { team, text } = args
   if (team.bots.length === 0) {
     return null
@@ -58,30 +93,30 @@ export async function replyToBotTeamConversation(
   })
   answering.add(bot.id)
   lastToAnswer.set(team.id, bot.id)
-  try {
-    // Gentle Shell has no one-shot call of its own, and must never run as stock Pi.
-    const own = botAgentPiRuntime(bot.agent)
-      ? null
-      : { id: bot.agent, ...botConversationChoice(bot.agent) }
-    const reply = cleanConversationReply(
-      await askBotAgentForBotTeamReply({
-        prompt: buildBotTeamConversationPrompt({
-          team,
-          bot,
-          bots: team.bots,
-          messages: db.listBotTeamMessages(team.id).slice(0, -1),
-          tasks: db.listBotTeamTasks(team.id),
-          text
-        }),
-        agent: own,
-        settings: ctx.runtime.getClientSettings(),
-        getAgentEnvResolvers: () => ctx.runtime.getCommitMessageAgentEnvironmentResolvers()
+  markBotTeamReplying(team.id, bot.id)
+  const settle = async (): Promise<BotTeamMessage> => {
+    try {
+      const reply = await askConversationBot(ctx, {
+        team,
+        bot,
+        text,
+        research: args.research === true
       })
-    )
-    return reply
-      ? db.postBotTeamMessage({ teamId: team.id, authorBotId: bot.id, text: reply })
-      : null
-  } finally {
-    answering.delete(bot.id)
+      if (reply) {
+        return db.postBotTeamMessage({ teamId: team.id, authorBotId: bot.id, text: reply })
+      }
+    } catch {
+      // A failed query reads as no answer: the room shows the same line.
+    } finally {
+      answering.delete(bot.id)
+      clearBotTeamReplying(team.id, bot.id)
+    }
+    // The room always shows an outcome; a choice card cannot follow a reply already sent.
+    return db.postBotTeamMessage({
+      teamId: team.id,
+      authorBotId: BOT_TEAM_ALL_AUTHOR,
+      text: botTeamReplyFailureLine(text)
+    })
   }
+  return { botId: bot.id, done: settle() }
 }

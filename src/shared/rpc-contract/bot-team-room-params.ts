@@ -133,7 +133,9 @@ export const BotTeamMessagePost = z.object({
   /** False saves the task to Todo without starting a bot. */
   start: z.boolean().default(true),
   /** Only a client that can show the project question sends true; an older one never gets the question. */
-  askProject: z.boolean().optional()
+  askProject: z.boolean().optional(),
+  /** One id per send, reused when the client retries that send: the host then posts it once. */
+  clientRequestId: z.string().min(1).max(100).optional()
 })
 
 /** Files a request the room could not place by itself: to a bot, and to a team when `toTeamId` is set. */

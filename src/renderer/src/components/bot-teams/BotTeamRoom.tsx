@@ -35,6 +35,7 @@ import { BotAgentIcon } from './BotAgentIcon'
 import { BotTeamAllAuthor } from './BotTeamAllAuthor'
 import { BotTeamTypingLine } from './BotTeamTypingLine'
 import { botTeamTypingAuthor } from '../../../../shared/bot-team-typing'
+import { useBotTeamReplying } from './BotTeamRoomReplying'
 import { BotTeamReassignButton } from './BotTeamReassignButton'
 import { BotTeamPendingChoice, type BotTeamPendingChoiceRequest } from './BotTeamPendingChoice'
 import { BotTeamRoomComposer } from './BotTeamRoomComposer'
@@ -124,6 +125,8 @@ export function BotTeamRoom({
   const [pending, setPending] = useState<BotTeamPendingChoiceRequest | null>(null)
   // The text with the host, if any; the room shows who is typing until the reply comes back.
   const [typing, setTyping] = useState<string | null>(null)
+  const replying = useBotTeamReplying(team.bots)
+  const readReplying = replying.readRoom
   const sidePanel = useRightSidebarPageTarget()
   const statuses = useBotTeamSessionStatuses()
   const botOf = (botId: string | null) => team.bots.find((bot) => bot.id === botId)
@@ -139,6 +142,7 @@ export function BotTeamRoom({
           setMessages(room.messages)
           setTasks(room.tasks)
           setProjects(room.projects ?? [])
+          readReplying(room.replying)
         }
       },
       (error: unknown) => {
@@ -147,7 +151,7 @@ export function BotTeamRoom({
         }
       }
     )
-  }, [team.id])
+  }, [team.id, readReplying])
 
   useEffect(reload, [reload])
   // Catches up on what happened while the host was out of reach.
@@ -157,9 +161,9 @@ export function BotTeamRoom({
     }
     reload()
     // Bots post and add tasks on their own; the host has no push for the room.
-    const timer = window.setInterval(reload, ROOM_CHECK_MS)
+    const timer = window.setInterval(reload, replying.pollMs ?? ROOM_CHECK_MS)
     return () => window.clearInterval(timer)
-  }, [offline, reload])
+  }, [offline, reload, replying.pollMs])
 
   const send = async (text: string): Promise<boolean> => {
     if (sending.current) {
@@ -174,9 +178,13 @@ export function BotTeamRoom({
         teamId: team.id,
         text,
         start: true,
-        askProject: true
+        askProject: true,
+        clientRequestId: replying.requestIdFor(text)
       })
-      setNeedsOwner(sent.task === null && !sent.greeted && !sent.choice && !sent.answered)
+      replying.settle(sent.replying?.botId ?? null)
+      setNeedsOwner(
+        sent.task === null && !sent.greeted && !sent.choice && !sent.answered && !sent.replying
+      )
       setPending(
         sent.choice ? { choice: sent.choice, text, ...(sent.later ? { later: true } : {}) } : null
       )
@@ -219,6 +227,8 @@ export function BotTeamRoom({
     }
   }
 
+  // A send with the host shows who is typing; once it returns, the host's reply in flight does.
+  const typingAuthor = typing === null ? replying.author : botTeamTypingAuthor(typing, team.bots)
   const statusOf = (task: BotTeamTask): BotTeamTaskStatus =>
     botTeamTaskStatus(
       task.sessionId,
@@ -366,9 +376,7 @@ export function BotTeamRoom({
               )
             })}
             {placement.trailing.map(taskCard)}
-            {typing !== null ? (
-              <BotTeamTypingLine author={botTeamTypingAuthor(typing, team.bots)} bots={team.bots} />
-            ) : null}
+            {typingAuthor ? <BotTeamTypingLine author={typingAuthor} bots={team.bots} /> : null}
             {pending ? (
               <BotTeamPendingChoice
                 pending={pending}

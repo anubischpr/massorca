@@ -20,6 +20,8 @@ type QueryArgs = {
   prompt: string
   settings: RequestQuerySettings
   getAgentEnvResolvers: () => CommitMessageAgentEnvironmentResolvers | undefined
+  /** A researched reply: web search where the agent has a web-only mode, else text only. */
+  research?: boolean
 }
 
 /** A bot's own agent for one reply, at the model and effort chosen for it. */
@@ -76,6 +78,7 @@ async function runAgentQuery(args: QueryArgs, bot: BotQueryAgent | null): Promis
       ...(override ? { agentCommandOverride: override } : {})
     },
     target,
-    spawnAgent: spawnSourceControlAgent
+    spawnAgent: spawnSourceControlAgent,
+    ...(args.research ? { webResearch: true } : {})
   })
 }

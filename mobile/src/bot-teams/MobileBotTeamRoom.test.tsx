@@ -206,7 +206,13 @@ describe('MobileBotTeamRoom', () => {
 
     expect(client.sendRequest).toHaveBeenCalledWith(
       'botTeams.postMessage',
-      { teamId: 'team', text: 'Hi', start: true, askProject: true },
+      {
+        teamId: 'team',
+        text: 'Hi',
+        start: true,
+        askProject: true,
+        clientRequestId: expect.any(String)
+      },
       expect.anything()
     )
   })
@@ -237,6 +243,68 @@ describe('MobileBotTeamRoom', () => {
     })
     expect(composer().props.value).toBe('Hi')
     expect(renderer.root.findAll((node) => node.children.includes('All is typing'))).toHaveLength(0)
+  })
+
+  it('keeps the typing line while the host reports the reply in flight, polling faster, then clears it', async () => {
+    vi.useFakeTimers()
+    try {
+      let replying: { botId: string; since: number }[] = [{ botId: 'bot', since: 1 }]
+      const sendRequest = vi.fn(async (method: string) =>
+        method === 'botTeams.listRoom'
+          ? { ok: true, result: { tasks: [], messages: [], workspaceId: null, replying } }
+          : { ok: true, result: { task: null, startError: null, replying: { botId: 'bot' } } }
+      )
+      const renderer = await render({ sendRequest })
+      const typing = () =>
+        renderer.root.findAll((node) => node.children.includes('Iris is typing')).length
+      await act(async () => {
+        await renderer.root.findByType('Composer' as never).props.onSend('Qué es Jev AI?')
+      })
+      expect(typing()).toBeGreaterThan(0)
+      expect(
+        renderer.root.findAll((n) => n.children.includes('Who should take this?'))
+      ).toHaveLength(0)
+      const reads = () => sendRequest.mock.calls.filter(([m]) => m === 'botTeams.listRoom').length
+      const before = reads()
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3_100)
+      })
+      expect(reads()).toBeGreaterThanOrEqual(before + 2)
+      expect(typing()).toBeGreaterThan(0)
+      replying = []
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_600)
+      })
+      expect(typing()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('sends one id per send and reuses it when the same send is retried', async () => {
+    let posts = 0
+    const sendRequest = vi.fn(async (method: string) => {
+      if (method === 'botTeams.listRoom') {
+        return { ok: true, result: { tasks: [], messages: [], workspaceId: null } }
+      }
+      if (posts++ === 0) {
+        return { ok: false, error: { code: 'unavailable', message: 'gone' } }
+      }
+      return { ok: true, result: { task: null, startError: null, answered: true } }
+    })
+    const renderer = await render({ sendRequest })
+    const send = (text: string) =>
+      act(async () => {
+        await renderer.root.findByType('Composer' as never).props.onSend(text)
+      })
+    await send('Hola equipo')
+    await send('Hola equipo')
+    await send('Hola equipo')
+    const ids = sendRequest.mock.calls
+      .filter(([m]) => m === 'botTeams.postMessage')
+      .map(([, params]) => (params as { clientRequestId: string }).clientRequestId)
+    expect(ids[1]).toBe(ids[0])
+    expect(ids[2]).not.toBe(ids[0])
   })
 
   it('reaches the bots from the room menu and goes back', async () => {

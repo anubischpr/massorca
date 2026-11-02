@@ -45,6 +45,15 @@ export function buildPrimaryCommitMessageAgentSpecs({
         'plan',
         ...(thinkingLevel ? ['--effort', thinkingLevel] : [])
       ],
+      // Why: a research turn gets the two web tools and nothing else; --strict-mcp-config keeps the
+      // user's MCP servers out, and plan mode still refuses edits.
+      webResearchArgs: [
+        '--tools',
+        'WebSearch,WebFetch',
+        '--allowedTools',
+        'WebSearch,WebFetch',
+        '--strict-mcp-config'
+      ],
       modelSource: 'dynamic',
       // Why: the Claude CLI has no listing subcommand; one list_models control
       // request over --print stream-json returns the /model picker catalog.

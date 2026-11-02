@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildBotTeamClassifyPrompt,
   parseBotTeamClassifyLater,
+  parseBotTeamClassifyResearch,
   parseBotTeamClassifyReply
 } from './bot-team-request-classify'
 
@@ -132,5 +133,18 @@ describe('parseBotTeamClassifyReply', () => {
     ]) {
       expect(parseBotTeamClassifyReply(reply, input), reply).toBeNull()
     }
+  })
+
+  it('reads whether a conversation needs outside knowledge, false unless the reply says so', () => {
+    expect(parseBotTeamClassifyResearch('{"kind":"conversation","research":true}')).toBe(true)
+    expect(parseBotTeamClassifyResearch('{"kind":"conversation"}')).toBe(false)
+    expect(parseBotTeamClassifyResearch('{"kind":"conversation","research":"yes"}')).toBe(false)
+    expect(parseBotTeamClassifyResearch('not json')).toBe(false)
+  })
+
+  it('tells the query when a conversation needs research, and when it does not', () => {
+    const prompt = buildBotTeamClassifyPrompt({ name: 'T', purpose: '' }, [], [], 'x')
+    expect(prompt).toContain('"research":true')
+    expect(prompt).toContain('Greetings')
   })
 })

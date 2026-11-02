@@ -20,6 +20,7 @@ import type {
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
+import { useMobileBotTeamReplying } from './use-mobile-bot-team-room-replying'
 import { MobileBotTeamTypingLine } from './MobileBotTeamTypingLine'
 import { MobileBotTeamProjectQuestion } from './MobileBotTeamProjectQuestion'
 import { MobileBotTeamRequestChoice } from './MobileBotTeamRequestChoice'
@@ -121,6 +122,7 @@ export function MobileBotTeamRoom({
   const { room, reload } = useMobileBotTeamRoom(client, team.id, offline)
   const statusOf = useMobileBotTeamTaskStatus(client)
   const messages = room?.messages ?? []
+  const replying = useMobileBotTeamReplying(room?.replying, team.bots)
   const tasks = room?.tasks ?? []
   const allProjects = room?.projects ?? []
   const projects = allProjects.filter((project) => project.archivedAt == null)
@@ -161,7 +163,8 @@ export function MobileBotTeamRoom({
       teamId: team.id,
       text: typed,
       start: true,
-      askProject: true
+      askProject: true,
+      clientRequestId: replying.requestIdFor(typed)
     }).finally(() => {
       sending.current = false
       setTyping(null)
@@ -171,11 +174,13 @@ export function MobileBotTeamRoom({
       Alert.alert('That did not send', 'Check the connection to this host and try again.')
       return false
     }
+    replying.settle(sent.replying?.botId ?? null)
     setNeedsOwner(
       sent.task === null &&
         !sent.greeted &&
         sent.choice === null &&
         !sent.answered &&
+        sent.replying === null &&
         sent.sentTo === null
     )
     setPending(sent.choice ? { choice: sent.choice, text: typed, later: sent.later } : null)
@@ -316,7 +321,7 @@ export function MobileBotTeamRoom({
           )
         })}
         {placement.trailing.map(card)}
-        {typing !== null ? <MobileBotTeamTypingLine text={typing} bots={team.bots} /> : null}
+        <MobileBotTeamTypingLine text={typing} author={replying.author} bots={team.bots} />
         {pending && pending.choice.kind === 'project' ? (
           <MobileBotTeamProjectQuestion
             projects={projects}

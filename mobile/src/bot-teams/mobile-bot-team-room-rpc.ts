@@ -27,6 +27,8 @@ const RoomReply = z.object({
   projects: z.array(BotTeamProjectSchema).default([]),
   // Tasks other teams filed in this team's projects; only a host that shares projects sends them.
   projectTasks: z.array(BotTeamTaskSchema).default([]),
+  // The bots the host is answering in the background; an older host never sends it.
+  replying: z.array(z.object({ botId: z.string(), since: z.number() })).default([]),
   workspaceId: z.string().nullable()
 })
 /** The question the room puts to the person, as the host sends it: every kind the desktop shows. */
@@ -49,6 +51,8 @@ const PostReply = z.object({
   choice: RequestChoiceSchema.nullable().default(null),
   composite: z.array(z.string()).default([]),
   answered: z.boolean().default(false),
+  // A bot is answering in the background; its line reaches the room when ready.
+  replying: z.object({ botId: z.string() }).nullable().default(null),
   sentTo: z.object({ teamId: z.string(), teamName: z.string() }).nullable().default(null),
   // The person asked for the work later: it waits in Todo and nothing starts.
   later: z.boolean().default(false)
@@ -103,7 +107,14 @@ export async function listMobileBotTeamRoom(
 
 export async function postMobileBotTeamRequest(
   client: HostClient,
-  input: { teamId: string; text: string; start: boolean; askProject?: boolean }
+  input: {
+    teamId: string
+    text: string
+    start: boolean
+    askProject?: boolean
+    /** One id per send, reused when that send is retried, so the host posts it once. */
+    clientRequestId?: string
+  }
 ): Promise<MobileBotTeamPostResult> {
   try {
     const response = await client.sendRequest('botTeams.postMessage', input, {

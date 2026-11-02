@@ -1,3 +1,4 @@
+import { parseBotTeamClassifyResearch } from '../../../../shared/bot-team-request-classify'
 import { withoutBotTeamMention } from '../../../../shared/bot-team-request-route'
 import type { BotTeamRequestChoice } from '../../../../shared/bot-team-request-choice'
 import type {
@@ -9,7 +10,7 @@ import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-rep
 import { decideBotTeamRequest } from '../../../bot-teams/bot-team-request-flow'
 import { askDefaultAgentForBotTeamRequest } from '../../../bot-teams/bot-team-request-query'
 import type { RpcContext } from '../core'
-import { replyToBotTeamConversation } from './bot-team-conversation-reply'
+import { startBotTeamConversationReply } from './bot-team-conversation-reply'
 
 /** Every field after `startError` is optional, so a client from before it still reads the reply. */
 export type BotTeamPostResult = {
@@ -23,6 +24,8 @@ export type BotTeamPostResult = {
   composite?: string[]
   /** A bot answered a plain conversation in the room; nothing was filed. */
   answered?: true
+  /** A bot is answering a plain conversation in the background; its line reaches the room when ready. */
+  replying?: { botId: string }
   /** The request went to another team, because the person named it with @. */
   sentTo?: { teamId: string; teamName: string }
   /** The person asked for the work later: it waits in Todo and nothing starts. */
@@ -51,17 +54,21 @@ export async function postBotTeamRequestOnHost(
   if (!team) {
     return { message, task: null, startError: null }
   }
+  // The classify reply also says whether a conversation needs outside knowledge.
+  let classifyReply: string | null = null
   const decision = await decideBotTeamRequest({
     text,
     team,
     otherTeams: teams.filter((entry) => entry.id !== teamId),
     activeTasksByBot: activeTasksByBot(db, teamId),
-    classify: (prompt) =>
-      askDefaultAgentForBotTeamRequest({
+    classify: async (prompt) => {
+      classifyReply = await askDefaultAgentForBotTeamRequest({
         prompt,
         settings: ctx.runtime.getClientSettings(),
         getAgentEnvResolvers: () => ctx.runtime.getCommitMessageAgentEnvironmentResolvers()
       })
+      return classifyReply
+    }
   })
   const later = 'later' in decision && decision.later === true
   const laterFlag = later ? { later: true as const } : {}
@@ -86,23 +93,18 @@ export async function postBotTeamRequestOnHost(
     return { message, task: null, startError: null, choice: decision.choice, ...laterFlag }
   }
   if (decision.type === 'conversation') {
-    const reply = await replyToBotTeamConversation(ctx, {
+    // The reply can take a minute, so it runs on: the room shows the bot typing until it lands.
+    const started = startBotTeamConversationReply(ctx, {
       team,
       text,
-      subjectBotIds: decision.subjectBotIds
+      subjectBotIds: decision.subjectBotIds,
+      research: classifyReply !== null && parseBotTeamClassifyResearch(classifyReply)
     })
-    if (reply) {
-      return { message, task: null, startError: null, answered: true }
+    if (!started) {
+      return { message, task: null, startError: null }
     }
-    // No bot could answer, so the person picks who takes it: the room always shows an outcome.
-    const [suggested] = decision.subjectBotIds
-    return {
-      message,
-      task: null,
-      startError: null,
-      choice: { kind: 'new-bot', ...(suggested ? { suggestedBotId: suggested } : {}) },
-      ...laterFlag
-    }
+    started.done.catch(() => {})
+    return { message, task: null, startError: null, replying: { botId: started.botId } }
   }
   if (decision.type === 'ask') {
     return { message, task: null, startError: null }

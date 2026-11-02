@@ -27,12 +27,16 @@ export async function listBotTeamRoom(
   projects?: BotTeamProject[]
   /** Tasks other teams filed in the projects this team owns or is linked to. */
   projectTasks?: BotTeamTask[]
+  /** Bots the host is answering in the background; a host from before it never sends this. */
+  replying?: { botId: string; since: number }[]
 }> {
   const room = await callRuntimeRpc<{
     tasks: BotTeamTask[]
     messages: BotTeamMessage[]
     projects?: BotTeamProject[]
     projectTasks?: BotTeamTask[]
+    /** Bots the host is answering in the background; a host from before it never sends this. */
+    replying?: { botId: string; since: number }[]
   }>(botTeamHostTarget(currentBotTeamHost()), 'botTeams.listRoom', {
     teamId,
     withLinkedProjects: true
