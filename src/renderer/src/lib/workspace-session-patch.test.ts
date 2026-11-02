@@ -304,6 +304,16 @@ describe('buildWorkspaceSessionPatch', () => {
     expect(patch).toEqual({ localOnlyScrollbackByTabId: {} })
   })
 
+  it('writes the focus on a pane showing another workspace’s session, and clears it once gone', () => {
+    const focus = { layoutWorktreeId: 'wt-1', ownerWorktreeId: 'wt-2', groupId: 'pane-1' }
+    expect(buildWorkspaceSessionPatch(createSnapshot({ paneFocus: focus }), ['paneFocus'])).toEqual(
+      { paneFocus: focus }
+    )
+    const cleared = buildWorkspaceSessionPatch(createSnapshot({ paneFocus: null }), ['paneFocus'])
+    expect(Object.hasOwn(cleared, 'paneFocus')).toBe(true)
+    expect(cleared.paneFocus).toBeUndefined()
+  })
+
   it('keeps optional clearing keys in patches', () => {
     const patch = buildWorkspaceSessionPatch(createSnapshot({ sshConnectionStates: new Map() }), [
       'sshConnectionStates'

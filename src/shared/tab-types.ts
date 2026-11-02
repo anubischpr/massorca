@@ -86,6 +86,13 @@ export type Tab = {
  */
 export type TabGroupSessionRef = { worktreeId: string; tabId: string }
 
+/** Focus on a pane that shows another workspace's session: whose layout shows it, and whose session it is. */
+export type PaneSessionFocus = {
+  layoutWorktreeId: string
+  ownerWorktreeId: string
+  groupId: string
+}
+
 export type TabGroup = {
   id: string
   worktreeId: string

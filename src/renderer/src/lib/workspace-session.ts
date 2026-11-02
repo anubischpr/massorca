@@ -58,6 +58,7 @@ export type WorkspaceSessionSnapshot = Pick<
   | 'defaultTerminalTabsAppliedByWorktreeId'
 > & {
   activeWorkspaceExecutionHostId?: AppState['activeWorkspaceExecutionHostId']
+  paneFocus?: AppState['paneFocus']
   sleepingAgentSessionsByPaneKey?: AppState['sleepingAgentSessionsByPaneKey']
   clientHostedBrowserCloseIntentsByEnvironment?: AppState['clientHostedBrowserCloseIntentsByEnvironment']
   /** Optional so the many partial snapshot fixtures keep type-checking; see buildTerminalSessionData. */
@@ -92,6 +93,7 @@ export const SESSION_RELEVANT_FIELDS = [
   'groupsByWorktree',
   'layoutByWorktree',
   'activeGroupIdByWorktree',
+  'paneFocus',
   'sshConnectionStates',
   'repos',
   'worktreesByRepo',
@@ -297,6 +299,8 @@ export function buildWorkspaceSessionPayload(
     // Why: session:set fully replaces the persisted object, so dropping this silently disables eager terminal reconnect on restart.
     activeWorktreeIdsOnShutdown: terminalSessionData.activeWorktreeIdsOnShutdown,
     activeTabIdByWorktree: snapshot.activeTabIdByWorktree,
+    // Why: activeWorktreeId names the session's owner then, not the layout on screen.
+    ...(snapshot.paneFocus ? { paneFocus: snapshot.paneFocus } : {}),
     ...buildEditorSessionData(
       snapshot.openFiles,
       snapshot.editorDrafts,

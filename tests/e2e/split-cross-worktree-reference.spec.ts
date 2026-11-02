@@ -140,8 +140,14 @@ test('a pane shows another workspace’s live session by reference, and the focu
 
   // Focusing the pane: commands, right sidebar and side panel follow the session's workspace.
   await overlay.click({ position: { x: 40, y: 40 } })
-  await expect.poll(async () => (await snapshot(orcaPage)).activeWorktreeId).toBe(second.id)
-  await expect(orcaPage.locator('[data-side-panel="true"]').first()).toBeVisible()
+  await expect
+    .poll(async () => (await snapshot(orcaPage)).paneFocus)
+    .toEqual({
+      layoutWorktreeId: first.id,
+      ownerWorktreeId: second.id,
+      groupId: referenced
+    })
+  // Whichever side panel is on screen must be the session's own workspace's.
   const owners = await orcaPage.evaluate(() =>
     [...document.querySelectorAll('[data-side-panel="true"] [data-worktree-id]')]
       .filter((el) => el instanceof HTMLElement && el.offsetParent !== null)
@@ -273,6 +279,10 @@ test('the pane that shows another workspace’s session is saved, and is back af
     }, first.id)
     expect(panelTerminal, 'the showing workspace has a plain terminal to close').not.toBeNull()
     // The pane holding the focus decides whose side panel is on screen, so focus this workspace's own pane first.
+    // Why: a hidden test window holds animation frames back, so the picked pane's mount-time focus can land late.
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    )
     await page.evaluate(({ id, groupId }) => window.__store?.getState().focusGroup(id, groupId), {
       id: first.id,
       groupId: first.sessions[0].groupId
@@ -312,12 +322,41 @@ test('the pane that shows another workspace’s session is saved, and is back af
       )
       .toBe(true)
 
+    // The focus goes back to the reference pane, and must come back to it after a reload and a relaunch.
+    const refPaneId = (await refPaneOf(page, first.id))[0].id
+    const focusOnRefPane = {
+      layoutWorktreeId: first.id,
+      ownerWorktreeId: second.id,
+      groupId: refPaneId
+    }
+    // Click it, as a person would; the DOM focus is what the panes follow.
+    const refEntity = await page.evaluate(
+      ({ ownerId, tabId }) =>
+        window.__store?.getState().unifiedTabsByWorktree[ownerId].find((tab) => tab.id === tabId)
+          ?.entityId,
+      { ownerId: second.id, tabId: second.sessions[0].id }
+    )
+    await page
+      .locator(`[data-terminal-overlay-tab-id="${refEntity}"]`)
+      .click({ position: { x: 40, y: 40 } })
+    await expect.poll(async () => (await snapshot(page)).paneFocus).toEqual(focusOnRefPane)
+    await expect
+      .poll(
+        async () => {
+          await page.evaluate(() => window.api.session.flush())
+          return page.evaluate(async () => (await window.api.session.get()).paneFocus)
+        },
+        { timeout: 20_000 }
+      )
+      .toEqual(focusOnRefPane)
+
     // A page reload re-reads the saved profile through the same checkpoint a quit uses.
     await page.reload()
     await waitForSessionReady(page)
     await expect
       .poll(async () => (await refPaneOf(page, first.id))[0]?.sessionRef, { timeout: 60_000 })
       .toEqual({ worktreeId: second.id, tabId: second.sessions[0].id })
+    await expect.poll(async () => (await snapshot(page)).paneFocus).toEqual(focusOnRefPane)
 
     await session.close(app)
     app = null
@@ -330,6 +369,9 @@ test('the pane that shows another workspace’s session is saved, and is back af
         timeout: 60_000
       })
       .toEqual({ worktreeId: second.id, tabId: second.sessions[0].id })
+    await expect
+      .poll(async () => (await snapshot(secondLaunch.page)).paneFocus)
+      .toEqual(focusOnRefPane)
     const restored = await snapshot(secondLaunch.page)
     expect(restored.worktrees.find((w) => w.id === second.id)?.sessions).toHaveLength(1)
     await secondLaunch.page.waitForTimeout(2500)

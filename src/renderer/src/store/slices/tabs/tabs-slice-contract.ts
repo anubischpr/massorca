@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand'
 import type { AppState } from '../../types'
 import type {
+  PaneSessionFocus,
   Tab,
   TabContentType,
   TabGroup,
@@ -127,7 +128,7 @@ export type TabsSlice = {
    * Set while a pane that shows another workspace's session has focus: the layout on screen is
    * `layoutWorktreeId`'s, while `activeWorktreeId` follows the workspace that owns the session.
    */
-  paneFocus: { layoutWorktreeId: string; ownerWorktreeId: string; groupId: string } | null
+  paneFocus: PaneSessionFocus | null
   focusGroup: (worktreeId: string, groupId: string) => void
   closeEmptyGroup: (worktreeId: string, groupId: string) => boolean
   createEmptySplitGroup: (

@@ -30,6 +30,7 @@ describe('SESSION_RELEVANT_FIELDS', () => {
     groupsByWorktree: true,
     layoutByWorktree: true,
     activeGroupIdByWorktree: true,
+    paneFocus: true,
     sshConnectionStates: true,
     repos: true,
     worktreesByRepo: true,

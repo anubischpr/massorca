@@ -13,7 +13,7 @@
  */
 import { agentLaunchPaneOnTabSchema } from './agent-launch-pane-verdict'
 import { z } from 'zod'
-import { tabGroupSchema } from './workspace-session-tab-group-schema'
+import { paneSessionFocusSchema, tabGroupSchema } from './workspace-session-tab-group-schema'
 import { closedTerminalTabTombstoneSchema } from './closed-terminal-tab-tombstones'
 import type { WorkspaceKey } from './folder-workspace-types'
 import type { TabGroupLayoutNode } from './tab-types'
@@ -283,6 +283,7 @@ export const workspaceSessionStateSchema: z.ZodType<WorkspaceSessionState> = z.o
     'activeGroupIdByWorktree',
     salvagingRecord(worktreeIdSchema, z.string())
   ),
+  paneFocus: salvagedOptional('paneFocus', paneSessionFocusSchema),
   activeConnectionIdsAtShutdown: salvagedOptional(
     'activeConnectionIdsAtShutdown',
     salvagingArray(z.string())
