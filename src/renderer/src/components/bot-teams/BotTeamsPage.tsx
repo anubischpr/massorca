@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Pencil, Plus } from 'lucide-react'
+import { usePageTopBandTitleTarget } from '../../app-shell/page-top-band-slot'
 import { Button } from '@/components/ui/button'
 import StatusIndicator, { type Status } from '@/components/sidebar/StatusIndicator'
 import { translate } from '@/i18n/i18n'
@@ -27,6 +29,23 @@ const TEAM_STATUS_GLYPH: Record<BotTeamOverallStatus, Status> = {
   'Nothing running': 'inactive'
 }
 
+/** The room's title sits in the one top bar when there is one, otherwise over the conversation. */
+function BotTeamRoomTitle({ children }: { children: React.ReactNode }): React.JSX.Element {
+  const target = usePageTopBandTitleTarget()
+  return target ? (
+    createPortal(
+      <div className="flex min-w-0 flex-1 items-center gap-2 px-2 text-sm font-medium">
+        {children}
+      </div>,
+      target
+    )
+  ) : (
+    <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-4 text-sm font-medium">
+      {children}
+    </div>
+  )
+}
+
 function TeamDetail({
   team,
   offline,
@@ -51,13 +70,13 @@ function TeamDetail({
       onOpenTask={onOpenTask}
       offline={offline}
       header={
-        <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-4 text-sm font-medium">
+        <BotTeamRoomTitle>
           <span className="min-w-0 flex-1 truncate">
             {translate('components.botTeams.conferenceRoom', 'Conference room')}
           </span>
           <BotTeamCharacterIcon character={team.character} size={20} />
           <span className="truncate text-xs text-muted-foreground">{team.name}</span>
-        </div>
+        </BotTeamRoomTitle>
       }
     />
   )

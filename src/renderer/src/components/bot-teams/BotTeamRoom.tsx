@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ArrowUp, ChevronLeft, Play } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { ArrowUp, ChevronLeft, PanelRight, Play } from 'lucide-react'
 import { toast } from 'sonner'
+import { BarToggle } from '../../app-shell/BarToggle'
+import { usePageTopBandActionsTarget } from '../../app-shell/page-top-band-slot'
 import StatusIndicator, { type Status } from '@/components/sidebar/StatusIndicator'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -117,6 +120,8 @@ export function BotTeamRoom({
   const [text, setText] = useState('')
   const [needsLead, setNeedsLead] = useState(false)
   const [sideFilter, setSideFilter] = useState<SideFilter>('Active')
+  const [panelOpen, setPanelOpen] = useState(true)
+  const bandActions = usePageTopBandActionsTarget()
   const statuses = useBotTeamSessionStatuses()
   const botOf = (botId: string | null) => team.bots.find((bot) => bot.id === botId)
 
@@ -168,6 +173,7 @@ export function BotTeamRoom({
   }
 
   const empty = offline || text.trim() === ''
+  const panelName = translate('components.botTeams.roomPanel', 'Tasks and bots')
   const statusOf = (task: BotTeamTask): BotTeamTaskStatus =>
     botTeamTaskStatus(
       task.sessionId,
@@ -229,6 +235,19 @@ export function BotTeamRoom({
     <div className="flex h-full min-h-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {header}
+        {bandActions
+          ? createPortal(
+              <BarToggle
+                label={panelName}
+                tooltip={panelName}
+                pressed={panelOpen}
+                onClick={() => setPanelOpen(!panelOpen)}
+              >
+                <PanelRight />
+              </BarToggle>,
+              bandActions
+            )
+          : null}
         <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto flex w-full max-w-[736px] flex-col gap-5 px-4 py-6">
             {messages.length === 0 && tasks.length === 0 ? (
@@ -312,79 +331,81 @@ export function BotTeamRoom({
           </div>
         </div>
       </div>
-      <aside className="scrollbar-sleek flex w-[300px] shrink-0 flex-col overflow-y-auto border-l border-border bg-sidebar">
-        <h2 className="px-4 pb-2 pt-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {translate('components.botTeams.tasks', 'Tasks')}
-        </h2>
-        <div className="flex flex-wrap gap-1.5 px-4 pb-2">
-          {(['Active', 'Stopped', 'Done'] as const).map((filter) => (
-            <Button
-              key={filter}
-              variant={filter === sideFilter ? 'secondary' : 'outline'}
-              size="xs"
-              className="rounded-full"
-              onClick={() => setSideFilter(filter)}
-            >
-              {filter} {tasks.filter((task) => SIDE_FILTER_TEST[filter](statusOf(task))).length}
-            </Button>
-          ))}
-        </div>
-        <div className="flex flex-col gap-0.5 px-2">
-          {sideTasks.map((task) => (
-            <button
-              key={task.id}
-              type="button"
-              disabled={offline || task.sessionId === null}
-              onClick={() => onOpenTask(task.id)}
-              className="flex w-full gap-2.5 rounded-lg p-2 text-left hover:bg-sidebar-accent"
-            >
-              <span className="mt-0.5 shrink-0">
-                <BotAgentIcon agent={botOf(task.ownerBotId)?.agent} size={16} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[13px] font-medium">{task.title}</span>
-                <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <StatusIndicator status={statusGlyph(statusOf(task))} showTooltip={false} />
-                  {statusLabel(statusOf(task))}
-                </span>
-              </span>
-            </button>
-          ))}
-          {sideTasks.length === 0 ? (
-            <p className="px-2 py-1 text-xs text-muted-foreground">
-              {`No ${sideFilter.toLowerCase()} tasks`}
-            </p>
-          ) : null}
-        </div>
-        <h2 className="px-4 pb-1.5 pt-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {translate('components.botTeams.bots', 'Bots')}
-        </h2>
-        <div className="flex flex-col gap-0.5 px-2 pb-3">
-          {team.bots.map((bot) => {
-            const own = tasks.find(
-              (task) => task.ownerBotId === bot.id && statusOf(task) !== 'Done'
-            )
-            return (
-              <div key={bot.id} className="flex gap-2.5 rounded-lg p-2">
+      {panelOpen ? (
+        <aside className="scrollbar-sleek flex w-[300px] shrink-0 flex-col overflow-y-auto border-l border-border bg-sidebar">
+          <h2 className="px-4 pb-2 pt-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {translate('components.botTeams.tasks', 'Tasks')}
+          </h2>
+          <div className="flex flex-wrap gap-1.5 px-4 pb-2">
+            {(['Active', 'Stopped', 'Done'] as const).map((filter) => (
+              <Button
+                key={filter}
+                variant={filter === sideFilter ? 'secondary' : 'outline'}
+                size="xs"
+                className="rounded-full"
+                onClick={() => setSideFilter(filter)}
+              >
+                {filter} {tasks.filter((task) => SIDE_FILTER_TEST[filter](statusOf(task))).length}
+              </Button>
+            ))}
+          </div>
+          <div className="flex flex-col gap-0.5 px-2">
+            {sideTasks.map((task) => (
+              <button
+                key={task.id}
+                type="button"
+                disabled={offline || task.sessionId === null}
+                onClick={() => onOpenTask(task.id)}
+                className="flex w-full gap-2.5 rounded-lg p-2 text-left hover:bg-sidebar-accent"
+              >
                 <span className="mt-0.5 shrink-0">
-                  <BotAgentIcon agent={bot.agent} size={16} />
+                  <BotAgentIcon agent={botOf(task.ownerBotId)?.agent} size={16} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-medium">{bot.name}</span>
-                  <span className="block text-xs text-muted-foreground">{bot.job}</span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
-                    {own
-                      ? translate('components.botTeams.ownsTask', 'Owns {{title}}', {
-                          title: own.title
-                        })
-                      : translate('components.botTeams.notInTask', 'Not in a task')}
+                  <span className="block truncate text-[13px] font-medium">{task.title}</span>
+                  <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <StatusIndicator status={statusGlyph(statusOf(task))} showTooltip={false} />
+                    {statusLabel(statusOf(task))}
                   </span>
                 </span>
-              </div>
-            )
-          })}
-        </div>
-      </aside>
+              </button>
+            ))}
+            {sideTasks.length === 0 ? (
+              <p className="px-2 py-1 text-xs text-muted-foreground">
+                {`No ${sideFilter.toLowerCase()} tasks`}
+              </p>
+            ) : null}
+          </div>
+          <h2 className="px-4 pb-1.5 pt-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {translate('components.botTeams.bots', 'Bots')}
+          </h2>
+          <div className="flex flex-col gap-0.5 px-2 pb-3">
+            {team.bots.map((bot) => {
+              const own = tasks.find(
+                (task) => task.ownerBotId === bot.id && statusOf(task) !== 'Done'
+              )
+              return (
+                <div key={bot.id} className="flex gap-2.5 rounded-lg p-2">
+                  <span className="mt-0.5 shrink-0">
+                    <BotAgentIcon agent={bot.agent} size={16} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-medium">{bot.name}</span>
+                    <span className="block text-xs text-muted-foreground">{bot.job}</span>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">
+                      {own
+                        ? translate('components.botTeams.ownsTask', 'Owns {{title}}', {
+                            title: own.title
+                          })
+                        : translate('components.botTeams.notInTask', 'Not in a task')}
+                    </span>
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </aside>
+      ) : null}
     </div>
   )
 }
