@@ -25,6 +25,7 @@ import {
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 
 const NO_GENERATION = () => 0
+const NOT_WORKING = () => false
 
 function statusDotColor(status: string): string {
   if (status === 'Working' || status === 'Done') {
@@ -116,6 +117,7 @@ export function MobileBotTeamRoom({
   team,
   teams,
   offline = false,
+  workingOf = NOT_WORKING,
   onBack,
   onPickTeam,
   onOpenBots,
@@ -126,6 +128,8 @@ export function MobileBotTeamRoom({
   teams: readonly BotTeam[]
   /** The host stopped answering: nothing can be sent, and what is shown may be out of date. */
   offline?: boolean
+  /** The team's real state, so its character shows when its bots are working. */
+  workingOf?: (teamId: string) => boolean
   onBack: () => void
   onPickTeam: (teamId: string) => void
   onOpenBots: () => void
@@ -235,7 +239,12 @@ export function MobileBotTeamRoom({
           onPress={() => setSheet('rooms')}
           style={styles.roomPill}
         >
-          <MobileBotTeamCharacterIcon character={team.character} size={20} />
+          <MobileBotTeamCharacterIcon
+            character={team.character}
+            size={20}
+            working={workingOf(team.id)}
+            unreachable={offline}
+          />
           <Text style={styles.roomPillText} numberOfLines={1}>
             {team.name}
           </Text>
@@ -306,7 +315,12 @@ export function MobileBotTeamRoom({
             }}
             style={styles.row}
           >
-            <MobileBotTeamCharacterIcon character={entry.character} size={28} />
+            <MobileBotTeamCharacterIcon
+              character={entry.character}
+              size={28}
+              working={workingOf(entry.id)}
+              unreachable={offline}
+            />
             <Text style={[styles.rowTitle, styles.grow]}>{entry.name}</Text>
             {entry.id === team.id ? <Check size={18} color={colors.textPrimary} /> : null}
           </Pressable>
@@ -314,7 +328,12 @@ export function MobileBotTeamRoom({
       </BottomDrawer>
       <BottomDrawer visible={sheet === 'menu'} onClose={() => setSheet(null)}>
         <View style={styles.sheetHeader}>
-          <MobileBotTeamCharacterIcon character={team.character} size={28} />
+          <MobileBotTeamCharacterIcon
+            character={team.character}
+            size={28}
+            working={workingOf(team.id)}
+            unreachable={offline}
+          />
           <Text style={styles.sheetTitle}>{team.name}</Text>
         </View>
         <Text style={styles.label}>Work</Text>

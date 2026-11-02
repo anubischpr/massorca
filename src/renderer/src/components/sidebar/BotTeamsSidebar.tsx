@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react'
 import {
   BookOpen,
   Files,
@@ -82,18 +81,7 @@ export function BotTeamsSidebar(): React.JSX.Element {
   const activeView = useAppStore((s) => s.activeView)
   const selection = useAppStore((s) => s.botTeamsSelection)
   const openBotTeamsView = useAppStore((s) => s.openBotTeamsView)
-  const environmentId = useAppStore((s) => s.settings?.activeRuntimeEnvironmentId ?? null)
-  const { teams, reload } = useBotTeams()
-
-  // The page creates and deletes teams; what it shows changes right after, so list again then.
-  const listed = useRef(true)
-  useEffect(() => {
-    if (listed.current) {
-      listed.current = false
-      return
-    }
-    reload()
-  }, [reload, selection.teamId, selection.creating, environmentId])
+  const { teams } = useBotTeams()
 
   const onPage = activeView === 'bot-teams'
   const allTeamsActive = onPage && selection.teamId === null && !selection.creating

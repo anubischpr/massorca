@@ -126,7 +126,9 @@ export function createAppCommandHandlers(
     workspaceChromeActive
   } = state
   const floatingWorkspaceFocused = isFloatingWorkspacePanelFocused()
-  const canRevealRightSidebar = !creationLayoutActive && canShowRightSidebarForView(activeView)
+  const canRevealRightSidebar =
+    !creationLayoutActive &&
+    canShowRightSidebarForView(activeView, useAppStore.getState().botTeamsSelection)
   const claim = (actionId: KeybindingActionId, run: () => void): boolean => {
     input?.preventDefault()
     if (
