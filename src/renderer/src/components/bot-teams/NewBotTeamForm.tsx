@@ -73,7 +73,7 @@ export function NewBotTeamForm({
         <Input id="team-name" value={name} onChange={(event) => setName(event.target.value)} />
       </div>
       <div className="flex items-center gap-3 rounded-lg border border-border p-3">
-        <BotTeamCharacterIcon character={character} size={56} />
+        <BotTeamCharacterIcon character={character} size={56} still />
         <div className="min-w-0 flex-1">
           <div className="text-sm font-medium">
             {translate('components.botTeams.teamCharacter', 'Team character')}

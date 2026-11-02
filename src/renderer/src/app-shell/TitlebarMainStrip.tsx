@@ -5,7 +5,7 @@ import { ActivityTitlebarControls } from '../components/activity/ActivityTitleba
 import { useShortcutLabel } from '../hooks/useShortcutLabel'
 import { useAppStore } from '../store'
 import { hasCustomTitleBar } from './app-window-chrome'
-import { setPageTopBandActionsTarget } from './page-top-band-slot'
+import { setPageTopBandActionsTarget, setPageTopBandTitleTarget } from './page-top-band-slot'
 import type { AppChromeLayout } from './use-app-chrome-layout'
 
 export function RightSidebarToggle(): React.JSX.Element {
@@ -45,8 +45,13 @@ export function TitlebarMainStrip({
       {layout.activeView === 'activity' ? (
         <ActivityTitlebarControls />
       ) : (
-        // Why: a spacer keeps the strip's buttons right-aligned; sessions have no tab strip any more.
-        <div className="flex flex-1 min-w-0 self-stretch" />
+        // Why: this keeps the strip's buttons right-aligned; a page's title renders into it, and what
+        // is left stays draggable.
+        <div
+          ref={setPageTopBandTitleTarget}
+          data-page-top-band-title="true"
+          className="flex flex-1 min-w-0 self-stretch items-center"
+        />
       )}
       {/* Why: a page with a panel of its own (Prototypes) renders that panel's toggle here, where sessions keep theirs. */}
       <div
