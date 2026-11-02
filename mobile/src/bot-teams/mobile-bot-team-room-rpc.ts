@@ -1,11 +1,14 @@
 import { z } from 'zod'
 import {
+  BotTeamLinkableWorkspaceSchema,
   BotTeamMessageSchema,
   BotTeamProjectSchema,
   BotTeamTaskSchema,
   type BotTeamCodeSource,
+  type BotTeamLinkableWorkspace,
   type BotTeamProject,
-  type BotTeamProjectInput
+  type BotTeamProjectInput,
+  type BotTeamProjectWorkspace
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import { isMobileMethodUnavailableError } from '../transport/mobile-method-unavailable'
 import type { RpcClient } from '../transport/rpc-client'
@@ -41,6 +44,20 @@ const PostReply = z.object({
   sentTo: z.object({ teamId: z.string(), teamName: z.string() }).nullable().default(null)
 })
 const ProjectReply = z.object({ project: BotTeamProjectSchema })
+const LinkableReply = z.object({ workspaces: z.array(BotTeamLinkableWorkspaceSchema) })
+
+/** The Workspaces projects the team's host offers, or why it did not list them. */
+export type MobileBotTeamLinkableResult =
+  | { kind: 'ok'; workspaces: BotTeamLinkableWorkspace[] }
+  | { kind: 'unsupported' }
+  | { kind: 'failed' }
+
+/** A workspace link change: the saved project, a host's refusal in its own words, or an older host. */
+export type MobileBotTeamWorkspaceResult =
+  | { kind: 'ok'; project: BotTeamProject }
+  | { kind: 'refused'; message: string }
+  | { kind: 'unsupported' }
+  | { kind: 'failed' }
 
 export type MobileBotTeamRoomData = z.output<typeof RoomReply>
 export type MobileBotTeamPostResult = ({ ok: true } & z.output<typeof PostReply>) | { ok: false }
@@ -136,4 +153,50 @@ export function setMobileBotProjectCodeSource(
   codeSource: BotTeamCodeSource
 ) {
   return changeProject(client, 'botTeams.setProjectCodeSource', { projectId, codeSource })
+}
+
+export async function listMobileBotLinkableWorkspaces(
+  client: HostClient,
+  teamId: string
+): Promise<MobileBotTeamLinkableResult> {
+  try {
+    const response = await client.sendRequest(
+      'botTeams.listLinkableWorkspaces',
+      { teamId },
+      { timeoutMs: READ_TIMEOUT_MS }
+    )
+    if (!response.ok) {
+      return isMobileMethodUnavailableError(response.error.code, response.error.message)
+        ? { kind: 'unsupported' }
+        : { kind: 'failed' }
+    }
+    const parsed = LinkableReply.safeParse(response.result)
+    return parsed.success ? { kind: 'ok', workspaces: parsed.data.workspaces } : { kind: 'failed' }
+  } catch {
+    return { kind: 'failed' }
+  }
+}
+
+/** Links a project to a Workspaces project, or unlinks it with null. */
+export async function setMobileBotProjectWorkspace(
+  client: HostClient,
+  projectId: string,
+  workspaceKey: BotTeamProjectWorkspace['key'] | null
+): Promise<MobileBotTeamWorkspaceResult> {
+  try {
+    const response = await client.sendRequest(
+      'botTeams.setProjectWorkspace',
+      { projectId, workspaceKey },
+      { timeoutMs: CHANGE_TIMEOUT_MS }
+    )
+    if (!response.ok) {
+      return isMobileMethodUnavailableError(response.error.code, response.error.message)
+        ? { kind: 'unsupported' }
+        : { kind: 'refused', message: response.error.message }
+    }
+    const parsed = ProjectReply.safeParse(response.result)
+    return parsed.success ? { kind: 'ok', project: parsed.data.project } : { kind: 'failed' }
+  } catch {
+    return { kind: 'failed' }
+  }
 }

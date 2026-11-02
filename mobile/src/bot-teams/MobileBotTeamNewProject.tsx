@@ -3,13 +3,18 @@ import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-nativ
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import type {
   BotTeamCodeSource,
-  BotTeamProject
+  BotTeamProject,
+  BotTeamProjectWorkspace
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
 import { BOT_TEAM_CODE_SOURCES } from './mobile-bot-team-code-source'
-import { createMobileBotProject } from './mobile-bot-team-room-rpc'
+import { createMobileBotProject, setMobileBotProjectWorkspace } from './mobile-bot-team-room-rpc'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
+import {
+  MobileBotTeamWorkspaceOptions,
+  useMobileLinkableWorkspaces
+} from './MobileBotTeamProjectWorkspace'
 import { MobileBotTeamWorkBar } from './MobileBotTeamWorkBar'
 
 /** A new project: a name and a goal, plus where its code comes from when the team has Workspaces on. */
@@ -29,6 +34,8 @@ export function MobileBotTeamNewProject({
   const [name, setName] = useState('')
   const [goal, setGoal] = useState('')
   const [source, setSource] = useState<BotTeamCodeSource>('repo')
+  const [workspace, setWorkspace] = useState<BotTeamProjectWorkspace | null>(null)
+  const listing = useMobileLinkableWorkspaces(client, team.id, team.workspacesEnabled)
   const [saving, setSaving] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const canCreate = name.trim().length > 0 && !saving && !offline
@@ -45,6 +52,17 @@ export function MobileBotTeamNewProject({
       codeSource: team.workspacesEnabled ? source : null
     }).finally(() => setSaving(false))
     if (result.kind === 'ok') {
+      if (team.workspacesEnabled && source === 'repo' && workspace !== null) {
+        const linked = await setMobileBotProjectWorkspace(client, result.project.id, workspace.key)
+        if (linked.kind === 'ok') {
+          onCreated(linked.project)
+          return
+        }
+        Alert.alert(
+          'Not linked',
+          linked.kind === 'refused' ? linked.message : 'Link it from the project.'
+        )
+      }
       onCreated(result.project)
     } else if (result.kind === 'unsupported') {
       setNotice('This host cannot create projects yet.')
@@ -91,6 +109,14 @@ export function MobileBotTeamNewProject({
                 </View>
               </Pressable>
             ))}
+            {source === 'repo' ? (
+              <MobileBotTeamWorkspaceOptions
+                listing={listing}
+                value={workspace}
+                disabled={saving}
+                onChange={setWorkspace}
+              />
+            ) : null}
           </>
         ) : null}
         <Text style={styles.rowMeta}>

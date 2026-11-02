@@ -12,12 +12,16 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const createBotTeamProject = vi.hoisted(() => vi.fn())
 const listBotTeamRoom = vi.hoisted(() => vi.fn())
 const setBotTeamProjectCodeSource = vi.hoisted(() => vi.fn())
+const listBotTeamLinkableWorkspaces = vi.hoisted(() => vi.fn())
+const setBotTeamProjectWorkspace = vi.hoisted(() => vi.fn())
 const toastError = vi.hoisted(() => vi.fn())
 
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
   createBotTeamProject,
   listBotTeamRoom,
-  setBotTeamProjectCodeSource
+  listBotTeamLinkableWorkspaces,
+  setBotTeamProjectCodeSource,
+  setBotTeamProjectWorkspace
 }))
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string, options?: Record<string, unknown>) =>
@@ -78,6 +82,10 @@ beforeEach(() => {
   document.body.innerHTML = ''
   createBotTeamProject.mockReset()
   setBotTeamProjectCodeSource.mockReset()
+  setBotTeamProjectWorkspace.mockReset()
+  listBotTeamLinkableWorkspaces.mockReset()
+  // Why: a host that predates Workspaces projects is the default, so most tests see no section.
+  listBotTeamLinkableWorkspaces.mockResolvedValue('unavailable')
   toastError.mockReset()
   listBotTeamRoom.mockReset()
 })
@@ -233,5 +241,105 @@ describe('the project board and connecting to code', () => {
     await act(async () => buttonWith(container, 'Connect').click())
     expect(toastError).toHaveBeenCalledWith('This host cannot connect projects to code yet.')
     expect(container.textContent).toContain('Not connected to code')
+  })
+})
+
+describe('the Advanced options for a Workspaces project', () => {
+  const NEXUS = { key: 'worktree:repo-1::/work/nexus', name: 'NexusCare', kind: 'git' as const }
+
+  // Why: the listing arrives in a promise after mount, so the test lets it resolve first.
+  async function settle(): Promise<void> {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+  }
+
+  it('is not offered on a team with Workspaces off, and the host is never asked', async () => {
+    const container = await mount(
+      <NewBotProjectForm team={team(false)} onCancel={() => {}} onCreated={() => {}} />
+    )
+    await settle()
+    expect(container.textContent).not.toContain('Advanced options')
+    expect(listBotTeamLinkableWorkspaces).not.toHaveBeenCalled()
+  })
+
+  it('is not shown on a host that predates Workspaces projects', async () => {
+    const container = await mount(
+      <NewBotProjectForm team={team(true)} onCancel={() => {}} onCreated={() => {}} />
+    )
+    await settle()
+    expect(container.textContent).toContain('Existing repository')
+    expect(container.textContent).not.toContain('Advanced options')
+  })
+
+  it('is offered under Existing repository once the host lists its workspaces', async () => {
+    listBotTeamLinkableWorkspaces.mockResolvedValue([NEXUS])
+    const container = await mount(
+      <NewBotProjectForm team={team(true)} onCancel={() => {}} onCreated={() => {}} />
+    )
+    await settle()
+    expect(container.textContent).toContain('Advanced options')
+    await act(async () => buttonWith(container, 'Advanced options').click())
+    expect(container.textContent).toContain('Workspaces project')
+    expect(container.textContent).toContain("Tasks run in the team's own folder.")
+
+    await act(async () => buttonWith(container, 'New folder with git').click())
+    expect(container.textContent).not.toContain('Workspaces project')
+  })
+
+  it('says which Workspaces project a connected project is linked to, and changes nothing else', async () => {
+    listBotTeamLinkableWorkspaces.mockResolvedValue([NEXUS])
+    listBotTeamRoom.mockResolvedValue({
+      tasks: [],
+      messages: [],
+      projects: [{ ...project('repo'), workspace: { key: NEXUS.key, name: NEXUS.name } }]
+    })
+    const container = await mount(
+      <BotTeamProjectBoard
+        team={team(true)}
+        projectId="p1"
+        onBack={() => {}}
+        onTab={() => {}}
+        onOpenTask={() => {}}
+      />
+    )
+    await settle()
+    expect(container.textContent).toContain('Connected to code: Existing repository.')
+    expect(container.textContent).toContain('Linked to NexusCare.')
+    expect(container.textContent).toContain('Advanced options')
+  })
+
+  it('says a connected project is not linked, and offers the choice to link it', async () => {
+    listBotTeamLinkableWorkspaces.mockResolvedValue([NEXUS])
+    listBotTeamRoom.mockResolvedValue({ tasks: [], messages: [], projects: [project('repo')] })
+    const container = await mount(
+      <BotTeamProjectBoard
+        team={team(true)}
+        projectId="p1"
+        onBack={() => {}}
+        onTab={() => {}}
+        onOpenTask={() => {}}
+      />
+    )
+    await settle()
+    expect(container.textContent).toContain('Not linked to a Workspaces project.')
+    expect(container.textContent).not.toContain('Linked to NexusCare.')
+  })
+
+  it('shows no link line for a folder project', async () => {
+    listBotTeamLinkableWorkspaces.mockResolvedValue([NEXUS])
+    listBotTeamRoom.mockResolvedValue({ tasks: [], messages: [], projects: [project('folder')] })
+    const container = await mount(
+      <BotTeamProjectBoard
+        team={team(true)}
+        projectId="p1"
+        onBack={() => {}}
+        onTab={() => {}}
+        onOpenTask={() => {}}
+      />
+    )
+    await settle()
+    expect(container.textContent).not.toContain('Advanced options')
+    expect(container.textContent).not.toContain('Not linked to a Workspaces project.')
   })
 })

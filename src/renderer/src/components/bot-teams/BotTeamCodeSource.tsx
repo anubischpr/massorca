@@ -3,7 +3,11 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { translate } from '@/i18n/i18n'
-import type { BotTeamCodeSource } from '../../../../shared/rpc-contract/bot-team-room-params'
+import type {
+  BotTeamCodeSource,
+  BotTeamProjectWorkspace
+} from '../../../../shared/rpc-contract/bot-team-room-params'
+import { useLinkableWorkspaces, WorkspacesAdvancedOptions } from './BotTeamProjectWorkspace'
 
 const CODE_SOURCES: BotTeamCodeSource[] = ['repo', 'folder']
 
@@ -60,12 +64,16 @@ export function CodeSourcePick({
 
 /** A project of a team with Workspaces on that is not connected to code yet. */
 export function ConnectToCodeCard({
+  teamId,
   onConnect
 }: {
-  onConnect: (source: BotTeamCodeSource) => Promise<void>
+  teamId: string
+  onConnect: (source: BotTeamCodeSource, workspace: BotTeamProjectWorkspace | null) => Promise<void>
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [source, setSource] = useState<BotTeamCodeSource>('repo')
+  const [workspace, setWorkspace] = useState<BotTeamProjectWorkspace | null>(null)
+  const listing = useLinkableWorkspaces(teamId)
   return (
     <div className="mx-4 mt-3 rounded-xl border border-border bg-card">
       <div className="flex items-center gap-3 px-4 py-3">
@@ -87,11 +95,18 @@ export function ConnectToCodeCard({
       {open ? (
         <div className="flex flex-col gap-3 border-t border-border px-4 py-3">
           <CodeSourcePick value={source} onChange={setSource} />
+          {source === 'repo' ? (
+            <WorkspacesAdvancedOptions
+              listing={listing}
+              value={workspace}
+              onChange={setWorkspace}
+            />
+          ) : null}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setOpen(false)}>
               {translate('components.botTeams.cancel', 'Cancel')}
             </Button>
-            <Button onClick={() => void onConnect(source)}>
+            <Button onClick={() => void onConnect(source, source === 'repo' ? workspace : null)}>
               {translate('components.botTeams.connect', 'Connect')}
             </Button>
           </div>
