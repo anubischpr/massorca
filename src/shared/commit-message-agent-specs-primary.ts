@@ -107,6 +107,8 @@ export function buildPrimaryCommitMessageAgentSpecs({
         model,
         ...(thinkingLevel ? ['-c', `model_reasoning_effort=${thinkingLevel}`] : [])
       ],
+      // Why: `exec` has no --search flag; this override turns on the native web_search tool (CLI 0.159).
+      webResearchArgs: ['-c', 'web_search="live"'],
       // `-c` is intentionally absent: Codex accepts repeated overrides.
       singletonOptions: [['--model', '-m']],
       modelSource: 'dynamic',

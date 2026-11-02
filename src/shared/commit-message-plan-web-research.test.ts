@@ -31,6 +31,35 @@ describe('web research', () => {
     expect(claude.plan.webResearch).toBeUndefined()
   })
 
+  it('turns on live web search for Codex only on a research turn, keeping the read-only sandbox', () => {
+    const research = planCommitMessageGeneration(
+      { agentId: 'codex', model: 'gpt-5.5', webResearch: true },
+      'P'
+    )
+    const plain = planCommitMessageGeneration({ agentId: 'codex', model: 'gpt-5.5' }, 'P')
+    if (!research.ok || !plain.ok) {
+      throw new Error('plan failed')
+    }
+    expect(research.plan.args.join(' ')).toContain('-c web_search="live"')
+    expect(research.plan.args.join(' ')).toContain('-s read-only')
+    expect(research.plan.webResearch).toBe(true)
+    expect(plain.plan.args.join(' ')).not.toContain('web_search')
+  })
+
+  it('gives Antigravity the research timeout with its usual sandboxed flags', () => {
+    const research = planCommitMessageGeneration(
+      { agentId: 'antigravity', model: 'default', webResearch: true },
+      'P'
+    )
+    const plain = planCommitMessageGeneration({ agentId: 'antigravity', model: 'default' }, 'P')
+    if (!research.ok || !plain.ok) {
+      throw new Error('plan failed')
+    }
+    expect(research.plan.args).toEqual(plain.plan.args)
+    expect(research.plan.args).toContain('--sandbox')
+    expect(research.plan.webResearch).toBe(true)
+  })
+
   it('falls back to text only for an agent with no confirmed web-only mode', () => {
     const pi = planCommitMessageGeneration(
       { agentId: 'pi', model: 'default', webResearch: true },
