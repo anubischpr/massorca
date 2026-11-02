@@ -289,7 +289,7 @@ export function MobileNewTeamForm({
         onPress={nextCharacter}
         style={styles.row}
       >
-        <MobileBotTeamCharacterIcon character={character} size={56} />
+        <MobileBotTeamCharacterIcon character={character} size={56} still />
         <View style={styles.rowText}>
           <Text style={styles.rowTitle}>Team character</Text>
           <Text style={styles.rowMeta}>Tap to change</Text>

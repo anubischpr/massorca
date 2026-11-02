@@ -33,6 +33,13 @@ vi.mock('../transport/host-client-hooks', () => ({ useHostClient: () => ({ clien
 vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
 vi.mock('./MobileBotTeamRoom', () => ({ MobileBotTeamRoom: () => null }))
 vi.mock('./MobileBotTeamCharacterIcon', () => ({ MobileBotTeamCharacterIcon: () => null }))
+vi.mock('./mobile-bot-character-preference', () => ({
+  setBotCharacterAnimations: () => {},
+  useBotCharacterAnimations: () => true
+}))
+vi.mock('./use-mobile-bot-team-status', () => ({
+  useMobileBotTeamStatus: () => () => 'Nothing running'
+}))
 
 function press(renderer: ReactTestRenderer, label: string) {
   const target = renderer.root.findAll(
