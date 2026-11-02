@@ -412,7 +412,8 @@ describe('MobileBotTeamRoom', () => {
     await press(renderer, 'Room menu')
     const menu = JSON.stringify(renderer.toJSON())
     expect(menu).toContain('1 open')
-    expect(menu).toContain('1 tasks')
+    expect(menu).toContain('1 task')
+    expect(menu).not.toContain('1 tasks')
   })
 
   it('offers the suggested team, and files the request there when the person sends it', async () => {

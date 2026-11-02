@@ -26,7 +26,10 @@ vi.mock('@/runtime/runtime-bot-team-client', () => ({ listBotTeams, listBotTeamR
 vi.mock('../bot-teams/use-bot-team-task-status', () => ({
   useBotTeamSessionStatuses: () => new Map()
 }))
-vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
+vi.mock('@/i18n/i18n', () => ({
+  translate: (_key: string, fallback: string, values?: Record<string, unknown>) =>
+    fallback.replace(/\{\{(\w+)\}\}/g, (_all, name: string) => String(values?.[name] ?? ''))
+}))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({}) }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 vi.mock('./SidebarSearchRow', () => ({
@@ -125,6 +128,28 @@ describe('the Bot teams sidebar', () => {
     expect(container.textContent).toContain('No tasks')
     expect(container.textContent).toContain('Projects')
     expect(rowByLabel(container, 'Conference room').getAttribute('aria-current')).toBe('page')
+  })
+
+  it('counts one task in the singular', async () => {
+    seedStore(store, { botTeamsSelection: { teamId: 't2', taskId: null, creating: false } })
+    listBotTeamRoom.mockResolvedValue({
+      tasks: [
+        {
+          id: 'k1',
+          teamId: 't2',
+          title: 'Flyer',
+          prompt: 'Flyer',
+          ownerBotId: 'b1',
+          sessionId: null,
+          projectId: null
+        }
+      ],
+      messages: [],
+      projects: []
+    })
+    const container = await mount()
+    expect(container.textContent).toContain('1 task')
+    expect(container.textContent).not.toContain('1 tasks')
   })
 
   it('opens the Board, a project and New project through the store', async () => {

@@ -93,11 +93,13 @@ function OpenTeamRows({
         <LayoutGrid className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
         <span className="flex-1">{translate('components.botTeams.board', 'Board')}</span>
         <RowMeta>
-          {tasks.length > 0
-            ? translate('components.botTeams.taskCount', '{{count}} tasks', {
-                count: tasks.length
-              })
-            : translate('components.botTeams.noTasks', 'No tasks')}
+          {tasks.length === 0
+            ? translate('components.botTeams.noTasks', 'No tasks')
+            : tasks.length === 1
+              ? translate('components.botTeams.taskCount_one', '{{count}} task', { count: 1 })
+              : translate('components.botTeams.taskCount_other', '{{count}} tasks', {
+                  count: tasks.length
+                })}
         </RowMeta>
       </SidebarRow>
       <p className="px-2 pt-2.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-worktree-sidebar-foreground/45">

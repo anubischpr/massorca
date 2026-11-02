@@ -71,7 +71,7 @@ export function MobileBotTeamRoomMenu({
       <MenuRow
         icon={<LayoutGrid size={18} color={colors.textSecondary} />}
         title="Team board"
-        meta={taskCount > 0 ? `${taskCount} tasks` : 'No tasks'}
+        meta={taskCount === 0 ? 'No tasks' : taskCount === 1 ? '1 task' : `${taskCount} tasks`}
         onPress={onOpenBoard}
       />
       <Text style={styles.label}>Projects</Text>
