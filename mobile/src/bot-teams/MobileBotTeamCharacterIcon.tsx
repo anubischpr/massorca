@@ -146,10 +146,11 @@ export function MobileBotTeamCharacterIcon({
   useEffect(() => {
     if (leaning) {
       bodyRotate.value = withRepeat(withSequence(fade(8, 500), fade(5, 500)), -1)
-    } else {
-      cancelAnimation(bodyRotate)
-      bodyRotate.value = fade(0, 150)
+      // Stops the lean when it ends or the character leaves the screen.
+      return () => cancelAnimation(bodyRotate)
     }
+    cancelAnimation(bodyRotate)
+    bodyRotate.value = fade(0, 150)
   }, [bodyRotate, leaning])
 
   useEffect(() => {
