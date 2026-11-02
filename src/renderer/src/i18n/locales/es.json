@@ -6486,7 +6486,8 @@
         },
         "OneLineSessionMenu": {
           "copyTitle": "Copiar título",
-          "sleep": "Dormir"
+          "sleep": "Dormir",
+          "splitView": "Vista dividida"
         }
       },
       "shared": {

@@ -6715,7 +6715,8 @@
         },
         "OneLineSessionMenu": {
           "copyTitle": "Copy Title",
-          "sleep": "Sleep"
+          "sleep": "Sleep",
+          "splitView": "Split view"
         }
       },
       "shared": {

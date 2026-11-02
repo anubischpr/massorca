@@ -6566,7 +6566,8 @@
         },
         "OneLineSessionMenu": {
           "copyTitle": "Copier le titre",
-          "sleep": "Mettre en veille"
+          "sleep": "Mettre en veille",
+          "splitView": "Vue partagée"
         }
       },
       "shared": {

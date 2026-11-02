@@ -6461,7 +6461,8 @@
         },
         "OneLineSessionMenu": {
           "copyTitle": "제목 복사",
-          "sleep": "절전"
+          "sleep": "절전",
+          "splitView": "분할 보기"
         }
       },
       "shared": {
