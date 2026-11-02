@@ -32,12 +32,12 @@ describe('side panel state', () => {
     expect(DEFAULT_SIDE_PANEL_WIDTH).toBe(380)
   })
 
-  it('is closed for a workspace with no panel tabs and open for one that has them', () => {
+  it('is hidden until opened, whether or not the panel has tabs', () => {
     expect(selectSidePanelOpen(createTestStore().getState(), WT)).toBe(false)
-    expect(selectSidePanelOpen(storeWithPanelTab().getState(), WT)).toBe(true)
+    expect(selectSidePanelOpen(storeWithPanelTab().getState(), WT)).toBe(false)
   })
 
-  it('lets an explicit choice win over the has-tabs default', () => {
+  it('follows an explicit choice', () => {
     const store = storeWithPanelTab()
     store.getState().setSidePanelOpen(WT, false)
     expect(selectSidePanelOpen(store.getState(), WT)).toBe(false)

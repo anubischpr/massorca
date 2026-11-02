@@ -86,6 +86,10 @@ test('a pane shows another workspace’s live session by reference, and the focu
   await configureGoldenStubAgent(orcaPage)
 
   const { first, second } = await startTwoSessions(orcaPage)
+  // A session starts with its side panel hidden, though its workspace has a terminal for it.
+  await expect(
+    orcaPage.locator('[data-side-panel="true"][data-open="true"]').filter({ visible: true })
+  ).toHaveCount(0)
 
   // Back on the first workspace, add an empty pane and show the second workspace's session in it.
   await orcaPage.evaluate((id) => window.__store?.getState().setActiveWorktree(id), first.id)
@@ -147,7 +151,7 @@ test('a pane shows another workspace’s live session by reference, and the focu
       ownerWorktreeId: second.id,
       groupId: referenced
     })
-  // Whichever side panel is on screen must be the session's own workspace's.
+  // The side panel starts hidden; whichever is on screen must be the session's own workspace's.
   const owners = await orcaPage.evaluate(() =>
     [...document.querySelectorAll('[data-side-panel="true"] [data-worktree-id]')]
       .filter((el) => el instanceof HTMLElement && el.offsetParent !== null)
@@ -287,7 +291,15 @@ test('the pane that shows another workspace’s session is saved, and is back af
       id: first.id,
       groupId: first.sessions[0].groupId
     })
-    const strip = page.locator('[data-side-panel="true"]').filter({ visible: true }).first()
+    // The panel starts hidden, so open it as the person would.
+    await page.getByRole('button', { name: 'Side panel', exact: true }).click()
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    )
+    const strip = page
+      .locator('[data-side-panel="true"][data-open="true"]')
+      .filter({ visible: true })
+      .first()
     await strip
       .getByText(panelTerminal?.label ?? '', { exact: true })
       .first()

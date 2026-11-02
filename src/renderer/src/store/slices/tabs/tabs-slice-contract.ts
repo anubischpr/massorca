@@ -17,8 +17,13 @@ export type TabsSlice = {
   groupsByWorktree: Record<string, TabGroup[]>
   activeGroupIdByWorktree: Record<string, string>
   layoutByWorktree: Record<string, TabGroupLayoutNode>
-  /** Explicit open/closed choice per workspace; absent means "open exactly when it has tabs". */
+  /**
+   * Open/closed choice per session tab id, or per workspace id for a workspace with no session;
+   * absent means hidden. The name stays for the saved UI field it round-trips through.
+   */
   sidePanelOpenByWorktree: Record<string, boolean>
+  /** The session the panel served when it took the focus, so its choice holds while focused. */
+  sidePanelSessionByWorktree: Record<string, string>
   sidePanelWidth: number
   setSidePanelOpen: (worktreeId: string, open: boolean) => void
   toggleSidePanel: (worktreeId: string) => void

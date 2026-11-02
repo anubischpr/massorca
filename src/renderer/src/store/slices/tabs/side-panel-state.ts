@@ -10,7 +10,11 @@ export const MAX_SIDE_PANEL_WIDTH = 720
 
 const EMPTY_TAB_IDS: readonly string[] = []
 
-type SidePanelSelectorState = Pick<AppState, 'groupsByWorktree' | 'sidePanelOpenByWorktree'>
+type SidePanelSessionState = Pick<
+  AppState,
+  'groupsByWorktree' | 'activeGroupIdByWorktree' | 'sidePanelSessionByWorktree'
+>
+type SidePanelSelectorState = SidePanelSessionState & Pick<AppState, 'sidePanelOpenByWorktree'>
 
 /** Ordered ids of the tabs the workspace's side panel holds. */
 export function selectSidePanelTabIds(
@@ -24,11 +28,30 @@ export function selectSidePanelTabIds(
   )
 }
 
-/** An explicit choice wins; otherwise the panel shows exactly when it has tabs to show. */
+/**
+ * The session whose open choice the workspace's side panel follows: the one its focused main pane
+ * shows, or the one it served when the panel itself took the focus. A workspace with no session
+ * keys by its own id.
+ */
+export function selectSidePanelSessionKey(
+  state: SidePanelSessionState,
+  worktreeId: string
+): string {
+  const panelId = sidePanelGroupId(worktreeId)
+  const activeGroupId = state.activeGroupIdByWorktree[worktreeId]
+  if (activeGroupId === panelId) {
+    return state.sidePanelSessionByWorktree[worktreeId] ?? worktreeId
+  }
+  const groups = state.groupsByWorktree[worktreeId] ?? []
+  const pane =
+    groups.find((group) => group.id === activeGroupId) ??
+    groups.find((group) => group.id !== panelId && group.activeTabId)
+  return pane?.activeTabId ?? worktreeId
+}
+
+/** Hidden until the person opens it, for each session apart. */
 export function selectSidePanelOpen(state: SidePanelSelectorState, worktreeId: string): boolean {
-  return (
-    state.sidePanelOpenByWorktree[worktreeId] ?? selectSidePanelTabIds(state, worktreeId).length > 0
-  )
+  return state.sidePanelOpenByWorktree[selectSidePanelSessionKey(state, worktreeId)] ?? false
 }
 
 /** The workspace's groups with an (empty) panel group present, so a tab-less workspace can still mount the panel. */
@@ -62,10 +85,12 @@ export function createSidePanelActions(
       const panelId = sidePanelGroupId(worktreeId)
       set((state) => {
         const nextGroups = withPanelGroup(state.groupsByWorktree[worktreeId] ?? [], worktreeId)
+        const session = selectSidePanelSessionKey(state, worktreeId)
         const next = {
           groupsByWorktree: { ...state.groupsByWorktree, [worktreeId]: nextGroups },
           activeGroupIdByWorktree: { ...state.activeGroupIdByWorktree, [worktreeId]: panelId },
-          sidePanelOpenByWorktree: { ...state.sidePanelOpenByWorktree, [worktreeId]: true }
+          sidePanelOpenByWorktree: { ...state.sidePanelOpenByWorktree, [session]: true },
+          sidePanelSessionByWorktree: { ...state.sidePanelSessionByWorktree, [worktreeId]: session }
         }
         return {
           ...next,
@@ -77,19 +102,23 @@ export function createSidePanelActions(
       return panelId
     },
     setSidePanelOpen: (worktreeId, open) =>
-      set((state) =>
-        state.sidePanelOpenByWorktree[worktreeId] === open
+      set((state) => {
+        const session = selectSidePanelSessionKey(state, worktreeId)
+        return state.sidePanelOpenByWorktree[session] === open
           ? state
           : {
-              sidePanelOpenByWorktree: { ...state.sidePanelOpenByWorktree, [worktreeId]: open },
+              sidePanelOpenByWorktree: { ...state.sidePanelOpenByWorktree, [session]: open },
               ...(open ? openedPanelGroups(state, worktreeId) : {})
             }
-      ),
+      }),
     toggleSidePanel: (worktreeId) =>
       set((state) => {
         const open = !selectSidePanelOpen(state, worktreeId)
         return {
-          sidePanelOpenByWorktree: { ...state.sidePanelOpenByWorktree, [worktreeId]: open },
+          sidePanelOpenByWorktree: {
+            ...state.sidePanelOpenByWorktree,
+            [selectSidePanelSessionKey(state, worktreeId)]: open
+          },
           ...(open ? openedPanelGroups(state, worktreeId) : {})
         }
       }),
