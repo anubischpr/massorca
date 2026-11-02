@@ -1,4 +1,4 @@
-import { isBotTeamFolderPath } from '../../../../shared/bot-team-folder'
+import { isBotTeamFolderShown } from '../../../../shared/bot-team-folder'
 import type { Repo } from '../../../../shared/repo-types'
 import type { TerminalTab } from '../../../../shared/terminal-tab-types'
 import type { WorktreeLineage } from '../../../../shared/worktree/lineage-types'
@@ -65,6 +65,8 @@ import { getWorktreeHostIdentity } from '../../../../shared/worktree/host-qualif
  * Why shared: the sidebar pipeline and the jump palette both apply this, and a
  * second copy is how the two surfaces drift.
  */
+const EMPTY_BOT_TEAM_WORKSPACE_IDS: ReadonlySet<string> = new Set()
+
 export type VisibleWorktreeOptions = {
   filterRepoIds: readonly string[]
   showSleepingWorkspaces: boolean
@@ -88,6 +90,8 @@ export type VisibleWorktreeOptions = {
   injectLineageAncestors?: boolean
   preserveLineageParentOrder?: boolean
   forcedVisibleWorktreeIds?: readonly string[]
+  /** Teams whose folders show in Workspaces; a team's folder is hidden without its id. */
+  botTeamWorkspaceIds?: ReadonlySet<string>
 }
 
 export function computeVisibleWorktrees(
@@ -101,7 +105,9 @@ export function computeVisibleWorktrees(
   all = all.filter((w) => !w.isArchived)
 
   // A team's folder belongs to Bot teams mode, not to the Workspaces list.
-  all = all.filter((w) => !isBotTeamFolderPath(w.path))
+  all = all.filter((w) =>
+    isBotTeamFolderShown(w.path, opts.botTeamWorkspaceIds ?? EMPTY_BOT_TEAM_WORKSPACE_IDS)
+  )
 
   // Why: sidebar lineage is structural. Archived workspaces stay hidden, but
   // every other valid ancestor can bypass filters so children never orphan.

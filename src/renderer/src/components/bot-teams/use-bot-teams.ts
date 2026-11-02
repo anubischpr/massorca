@@ -1,9 +1,10 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { toast } from 'sonner'
 import { create } from 'zustand'
 import { useBotTeamHost } from '@/runtime/bot-team-host'
 import { listBotTeams } from '@/runtime/runtime-bot-team-client'
-import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import { botTeamIdFromFolderPath } from '../../../../shared/bot-team-folder'
+import type { BotTeam, BotTeamCharacter } from '../../../../shared/rpc-contract/bot-team-params'
 
 const HOST_CHECK_MS = 20_000
 
@@ -97,4 +98,26 @@ export function useBotTeams(): BotTeamsState {
 /** Changes when a team is added or removed, for a reader that keeps its own copy of team data. */
 export function useBotTeamIdsKey(): string {
   return useBotTeamsStore((state) => (state.teams ?? []).map((team) => team.id).join(','))
+}
+
+function workspaceIdsOf(teams: BotTeam[] | null): ReadonlySet<string> {
+  return new Set((teams ?? []).filter((team) => team.workspacesEnabled).map((team) => team.id))
+}
+
+/** Teams whose Workspaces option is on, for filters that run outside a render. */
+export function getBotTeamWorkspaceIds(): ReadonlySet<string> {
+  return workspaceIdsOf(useBotTeamsStore.getState().teams)
+}
+
+/** Teams whose Workspaces option is on; mounting it keeps the shared list loaded. */
+export function useBotTeamWorkspaceIds(): ReadonlySet<string> {
+  const { teams } = useBotTeams()
+  return useMemo(() => workspaceIdsOf(teams), [teams])
+}
+
+/** The character of the team a folder belongs to, read without loading the list. */
+export function useBotTeamCharacterForFolder(workspacePath: string): BotTeamCharacter | null {
+  const teams = useBotTeamsStore((state) => state.teams)
+  const teamId = botTeamIdFromFolderPath(workspacePath)
+  return teams?.find((team) => team.id === teamId)?.character ?? null
 }

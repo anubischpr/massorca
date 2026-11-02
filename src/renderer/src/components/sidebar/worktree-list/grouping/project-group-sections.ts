@@ -28,12 +28,12 @@ export function appendProjectGroupSections(
   }
 ): void {
   const { orderedGroups, projectOrderBy, repoOrder } = args
-  // Teams' folders belong to Bot teams mode, so their group and rows stay out of this list.
+  const folderWorkspaces = args.folderWorkspaces
+  // Why: team folders are narrowed to teams with Workspaces on before this list; their group shows only with one.
   const projectGroups = args.projectGroups.filter(
-    (group) => !isBotTeamFolderPath(group.parentPath ?? '')
-  )
-  const folderWorkspaces = args.folderWorkspaces.filter(
-    (entry) => !isBotTeamFolderPath(entry.projectGroup.parentPath ?? '')
+    (group) =>
+      !isBotTeamFolderPath(group.parentPath ?? '') ||
+      folderWorkspaces.some((entry) => entry.projectGroup.id === group.id)
   )
   const { result, collapsedGroups } = ctx
 

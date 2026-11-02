@@ -50,10 +50,32 @@ export function BotTeamsSettingsPane(): React.JSX.Element {
   return (
     <div className="space-y-2">
       {animationsRow}
+      <h2 className="pt-2 text-sm font-semibold">
+        {translate('components.botTeams.settings.workspaces', 'Workspaces')}
+      </h2>
+      <p className="text-xs text-muted-foreground">
+        {translate(
+          'components.botTeams.settings.workspacesHelp',
+          'Per team. Projects can connect to code and be followed in Workspaces. Turning it off hides access and deletes nothing.'
+        )}
+      </p>
       {teams.map((team) => (
         <div key={team.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
           <BotTeamCharacterIcon character={team.character} size={24} still />
-          <span className="min-w-0 flex-1 truncate text-sm font-medium">{team.name}</span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium">{team.name}</span>
+            <span className="block text-xs text-muted-foreground">
+              {team.workspacesEnabled
+                ? translate(
+                    'components.botTeams.settings.workspacesOn',
+                    'Projects can connect to code and be followed in Workspaces.'
+                  )
+                : translate(
+                    'components.botTeams.settings.workspacesOff',
+                    'Work stays out of Workspaces.'
+                  )}
+            </span>
+          </span>
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
             {translate('components.botTeams.workspaces', 'Workspaces')}
             <Switch

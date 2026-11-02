@@ -156,6 +156,22 @@ describe('computeVisibleWorktreeIds', () => {
     expect(result).toEqual([other.id])
   })
 
+  it('shows a team folder in Workspaces only while its team has Workspaces on', () => {
+    const on = { ...makeWorktree('team-on'), path: '/home/a/MassOrca Bot Teams/team_on' }
+    const off = { ...makeWorktree('team-off'), path: '/home/a/MassOrca Bot Teams/team_off' }
+    const worktrees = { repo1: [on, off] }
+    const ids = [on.id, off.id]
+
+    expect(computeVisibleWorktreeIds(worktrees, ids, visibleOptions())).toEqual([])
+    expect(
+      computeVisibleWorktreeIds(
+        worktrees,
+        ids,
+        visibleOptions({ botTeamWorkspaceIds: new Set(['team_on']) })
+      )
+    ).toEqual([on.id])
+  })
+
   it('keeps browser-tab worktrees visible when sleeping workspaces are hidden', () => {
     const wt = makeWorktree('wt-browser')
 
