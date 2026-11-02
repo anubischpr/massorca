@@ -1,7 +1,5 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import path from 'node:path'
 import {
   BotTeamMessagePost,
   BotTeamRoomSelector,
@@ -14,15 +12,17 @@ import {
   type BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
-import { BOT_TEAMS_FOLDER_NAME } from '../../../../shared/bot-team-folder'
 import { createStructuredAgentSessionId } from '../../../../shared/structured-agent-session-create'
 import { createStructuredAgentSessionOperationId } from '../../../../shared/structured-agent-session-mutation'
 import { folderWorkspaceKey } from '../../../../shared/workspace-scope'
+import { ensureBotTeamVersionWatcher } from '../../../bot-teams/bot-team-task-versions'
+import { botTeamFolderPath, botTeamsParentPath } from '../../../bot-teams/bot-team-version-deps'
 import { botSessionOptions } from '../../../bot-teams/bot-team-model-choice'
 import { startBotTeamTask } from '../../../bot-teams/bot-team-task-start'
 import { getStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
 import { defineMethod, type RpcContext } from '../core'
 import { postBotTeamRequestOnHost } from './bot-team-post-request'
+import { BOT_TEAM_VERSION_METHODS } from './bot-team-versions'
 import { commitStructuredAgentSessionLaunchPrompt } from './agent-launch-structured-prompt'
 import { isDefinitiveAgentSessionCreateRefusal } from '../../../../shared/agent-session-definitive-refusal'
 import { createStructuredAgentSessionForWorktree } from './structured-agent-session-create'
@@ -48,8 +48,8 @@ async function ensureTeamWorkspace(ctx: RpcContext, team: BotTeam): Promise<stri
 
 async function makeTeamWorkspace(ctx: RpcContext, team: BotTeam): Promise<string> {
   const db = ctx.runtime.getOrchestrationDb()
-  const parentPath = path.join(homedir(), BOT_TEAMS_FOLDER_NAME)
-  const folderPath = path.join(parentPath, team.id)
+  const parentPath = botTeamsParentPath()
+  const folderPath = botTeamFolderPath(team.id)
   await mkdir(folderPath, { recursive: true })
   const group =
     ctx.runtime.listProjectGroups().find((entry) => entry.parentPath === parentPath) ??
@@ -95,6 +95,7 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
     throw new Error(`Team ${task.teamId} was not found.`)
   }
   await ctx.runtime.ensureStructuredAgentSessionHost()
+  ensureBotTeamVersionWatcher(() => ctx.runtime.getOrchestrationDb())
   const caller = structuredCallerFor(ctx)
   let fence = 0
   return startBotTeamTask(
@@ -150,12 +151,15 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
 }
 
 export const BOT_TEAM_ROOM_METHODS = [
+  ...BOT_TEAM_VERSION_METHODS,
   defineMethod({
     name: 'botTeams.listRoom',
     permission: 'workspace',
     params: BotTeamRoomSelector,
     handler: ({ teamId }, { runtime }) => {
       const db = runtime.getOrchestrationDb()
+      // Rooms are read all the time, so this also covers tasks that outlive a restart.
+      ensureBotTeamVersionWatcher(() => runtime.getOrchestrationDb())
       return {
         tasks: db.listBotTeamTasks(teamId),
         messages: db.listBotTeamMessages(teamId),

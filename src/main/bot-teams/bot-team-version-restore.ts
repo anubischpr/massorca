@@ -49,15 +49,26 @@ async function applyVersion(
       await removeEmptyParents(deps.folder, file)
     }
   }
-  const toWrite = changes
-    .filter((entry) => entry.status !== 'deleted' && insideFolder(deps.folder, entry.path))
-    .map((entry) => entry.path)
+  await writeFilesFromTree(
+    deps,
+    target.tree,
+    changes.filter((entry) => entry.status !== 'deleted').map((entry) => entry.path)
+  )
+}
+
+async function writeFilesFromTree(
+  deps: BotTeamSnapshotDeps,
+  tree: string,
+  paths: string[]
+): Promise<void> {
+  const toWrite = paths.filter((entry) => insideFolder(deps.folder, entry))
   if (toWrite.length === 0) {
     return
   }
+  const git = gitOf(deps)
   const indexFile = path.join(deps.gitDir, `index.${randomUUID()}`)
   try {
-    await git.text(['read-tree', target.tree], { cwd: deps.folder, indexFile })
+    await git.text(['read-tree', tree], { cwd: deps.folder, indexFile })
     await git.text(['checkout-index', '-f', '-z', '--stdin'], {
       cwd: deps.folder,
       indexFile,
@@ -66,6 +77,54 @@ async function applyVersion(
   } finally {
     await rm(indexFile, { force: true })
   }
+}
+
+/** One file goes back to how a version held it; the rest of the folder stays as it is. */
+export function restoreBotTeamFile(
+  deps: BotTeamSnapshotDeps,
+  versionId: string,
+  relativePath: string
+): Promise<BotTeamRestoreResult> {
+  return inLane(deps.gitDir, async () => {
+    try {
+      const target = findBotTeamVersion(await listBotTeamVersions(deps), versionId)
+      if (!target || !insideFolder(deps.folder, relativePath)) {
+        return {
+          ok: false as const,
+          reason: 'missing-version' as const,
+          message: 'No such version.'
+        }
+      }
+      const held = await guarded(() =>
+        gitOf(deps)
+          .text(['cat-file', '-e', `${target.tree}:${relativePath}`], { cwd: deps.folder })
+          .then(
+            () => true,
+            () => false
+          )
+      )
+      if (!held) {
+        return {
+          ok: false as const,
+          reason: 'missing-version' as const,
+          message: 'That version has no such file.'
+        }
+      }
+      const saved = await guarded(() =>
+        saveBotTeamSnapshot(deps, { reason: 'before-restore', label: 'Before restoring' })
+      )
+      await guarded(() => writeFilesFromTree(deps, target.tree, [relativePath]))
+      await guarded(() => saveBotTeamSnapshot(deps, { reason: 'restored', label: 'Restored' }))
+      return {
+        ok: true as const,
+        restoredFrom: target,
+        savedBefore: saved.unchanged ? null : saved.version
+      }
+    } catch (error) {
+      const failure = toFailure(error)
+      return { ok: false as const, reason: failure.reason, message: failure.message }
+    }
+  })
 }
 
 /**

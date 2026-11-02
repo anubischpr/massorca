@@ -49,6 +49,7 @@ vi.mock('@/runtime/runtime-bot-team-client', () => ({
     }),
   setBotTeamProjectBrief: vi.fn(),
   listBotTeamFiles: () => Promise.resolve({ files: [], truncated: false }),
+  listBotTeamVersions: () => Promise.resolve('unavailable'),
   readBotTeamFile: vi.fn(),
   updateBotOnTeam: vi.fn(),
   updateBotTeam: vi.fn(),
@@ -213,7 +214,7 @@ describe('the Bot teams page with a controlled selection', () => {
         onSelectionChange={() => {}}
       />
     )
-    expect(container.textContent).toContain('One bot or person edits a file at a time.')
+    expect(container.textContent).toContain('Nothing here yet.')
   })
 
   it('opens the new project form from its section', async () => {

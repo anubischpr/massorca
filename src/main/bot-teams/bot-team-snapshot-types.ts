@@ -1,4 +1,11 @@
+import type {
+  BotTeamVersion,
+  BotTeamVersionFile,
+  BotTeamVersionReason
+} from '../../shared/rpc-contract/bot-team-version-params'
 import type { BotTeamSnapshotGit } from './bot-team-snapshot-git'
+
+export type { BotTeamVersion, BotTeamVersionFile, BotTeamVersionReason }
 
 export type BotTeamSnapshotLimits = {
   maxFileBytes: number
@@ -10,22 +17,6 @@ export const BOT_TEAM_SNAPSHOT_LIMITS: BotTeamSnapshotLimits = {
   maxFileBytes: 5 * 1024 * 1024,
   maxTotalBytes: 200 * 1024 * 1024,
   maxFiles: 20_000
-}
-
-export type BotTeamVersionReason = 'task-finished' | 'before-restore' | 'restored' | 'other'
-
-export type BotTeamVersion = {
-  /** The hidden ref's last segment; grows with each new version. */
-  id: string
-  commit: string
-  tree: string
-  createdAt: number
-  reason: BotTeamVersionReason
-  label: string
-  /** Files left out of this version because they were over the size limit. */
-  skipped: number
-  /** The bot whose finished task caused the save; null for the person's own actions. */
-  author: string | null
 }
 
 export type BotTeamSnapshotInput = {
@@ -45,12 +36,6 @@ export type BotTeamRestoreResult =
   | { ok: false; reason: BotTeamSnapshotFailure | 'missing-version'; message: string }
 
 export type BotTeamVersionChange = { status: 'added' | 'modified' | 'deleted'; path: string }
-
-export type BotTeamVersionFile =
-  | { kind: 'text'; text: string }
-  | { kind: 'binary' }
-  | { kind: 'too-large' }
-  | { kind: 'missing' }
 
 export type BotTeamSnapshotDeps = {
   /** The team's folder. */

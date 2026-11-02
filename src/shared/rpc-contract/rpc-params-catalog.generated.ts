@@ -91,6 +91,11 @@ import {
   BotTeamTaskSetProject,
   BotTeamTaskStart
 } from './bot-team-room-params'
+import {
+  BotTeamFileVersionsSelector,
+  BotTeamVersionFileSelector,
+  BotTeamVersionsSelector
+} from './bot-team-version-params'
 import { CertificateProceed } from './browser-core-params'
 import { MouseClick } from './browser-extras-params'
 import { BrowserIdentitySet, ProfileCreate } from './browser-identity-params'
@@ -724,16 +729,20 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.createProject': BotTeamProjectCreate,
   'botTeams.createTask': BotTeamTaskCreate,
   'botTeams.delete': BotTeamSelector,
+  'botTeams.fileVersions': BotTeamFileVersionsSelector,
   'botTeams.list': null,
   'botTeams.listRoom': BotTeamRoomSelector,
   'botTeams.postMessage': BotTeamMessagePost,
   'botTeams.removeBot': BotTeamRemoveBot,
+  'botTeams.restoreFileVersion': BotTeamVersionFileSelector,
   'botTeams.setProjectBrief': BotTeamProjectSetBrief,
   'botTeams.setProjectCodeSource': BotTeamProjectSetCodeSource,
   'botTeams.setTaskProject': BotTeamTaskSetProject,
   'botTeams.startTask': BotTeamTaskStart,
   'botTeams.update': BotTeamUpdate,
   'botTeams.updateBot': BotTeamUpdateBot,
+  'botTeams.versionFile': BotTeamVersionFileSelector,
+  'botTeams.versions': BotTeamVersionsSelector,
   'botTeams.workspace': BotTeamRoomSelector,
   'browser.back': BrowserTarget,
   'browser.capture.start': BrowserTarget,

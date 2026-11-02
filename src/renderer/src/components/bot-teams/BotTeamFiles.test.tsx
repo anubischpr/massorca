@@ -10,10 +10,23 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
 const listBotTeamFiles = vi.hoisted(() => vi.fn())
 const readBotTeamFile = vi.hoisted(() => vi.fn())
+const listBotTeamVersions = vi.hoisted(() => vi.fn())
+const listBotTeamFileVersions = vi.hoisted(() => vi.fn())
+const readBotTeamVersionFile = vi.hoisted(() => vi.fn())
 const toastError = vi.hoisted(() => vi.fn())
 
-vi.mock('@/runtime/runtime-bot-team-client', () => ({ listBotTeamFiles, readBotTeamFile }))
-vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
+vi.mock('@/runtime/runtime-bot-team-client', () => ({
+  listBotTeamFiles,
+  readBotTeamFile,
+  listBotTeamVersions,
+  listBotTeamFileVersions,
+  readBotTeamVersionFile,
+  restoreBotTeamFileVersion: vi.fn()
+}))
+vi.mock('@/i18n/i18n', () => ({
+  translate: (_key: string, fallback: string, values?: Record<string, string>) =>
+    fallback.replace(/\{\{(\w+)\}\}/g, (_all, name: string) => values?.[name] ?? '')
+}))
 vi.mock('sonner', () => ({ toast: { error: toastError } }))
 
 const { BotTeamFiles } = await import('./BotTeamFiles')
@@ -63,6 +76,12 @@ beforeEach(() => {
   listBotTeamFiles.mockReset()
   listBotTeamFiles.mockResolvedValue(LIST)
   readBotTeamFile.mockReset()
+  listBotTeamVersions.mockReset()
+  listBotTeamVersions.mockResolvedValue('unavailable')
+  listBotTeamFileVersions.mockReset()
+  listBotTeamFileVersions.mockResolvedValue([])
+  readBotTeamVersionFile.mockReset()
+  readBotTeamVersionFile.mockResolvedValue({ kind: 'text', text: '<p>Summer</p>' })
   toastError.mockReset()
 })
 
@@ -81,9 +100,59 @@ describe('the team files', () => {
     for (const path of ['flyer.html', 'brand/notes.md', 'logo.png']) {
       expect(container.textContent).toContain(path)
     }
-    expect(container.textContent).toContain(
-      'One bot or person edits a file at a time. Every change is saved as a version.'
-    )
+  })
+
+  const NOTE = 'One bot or person edits a file at a time. Every change is saved as a version.'
+  const VERSION = {
+    id: '000002',
+    commit: 'c2',
+    tree: 't2',
+    createdAt: Date.UTC(2026, 10, 1, 12, 0),
+    reason: 'task-finished' as const,
+    label: 'Flyer for June',
+    skipped: 0,
+    author: 'Iris'
+  }
+
+  it('does not say changes are saved as versions until the host has saved one', async () => {
+    for (const state of [
+      'unavailable',
+      { git: 'unavailable' },
+      { git: 'ok', versions: [], lastVersionOfFile: {} }
+    ]) {
+      listBotTeamVersions.mockResolvedValue(state)
+      const container = await mount()
+      expect(container.textContent).not.toContain('saved as a version')
+    }
+  })
+
+  it('says it, and who changed a file and when, only once versions exist', async () => {
+    listBotTeamVersions.mockResolvedValue({
+      git: 'ok',
+      versions: [VERSION, { ...VERSION, id: '000001', author: null, reason: 'other' }],
+      lastVersionOfFile: { 'flyer.html': '000002', 'brand/notes.md': '000001' }
+    })
+    const container = await mount()
+    expect(container.textContent).toContain(NOTE)
+    expect(fileButton(container, 'flyer.html').textContent).toMatch(/Changed by Iris, .+/)
+    // No one was recorded for this file's last version, and logo.png has none at all.
+    expect(fileButton(container, 'notes.md').textContent).not.toContain('Changed by')
+    expect(fileButton(container, 'logo.png').textContent).not.toContain('Changed by')
+  })
+
+  it('opens a file on its versions when the host keeps them', async () => {
+    listBotTeamVersions.mockResolvedValue({
+      git: 'ok',
+      versions: [VERSION],
+      lastVersionOfFile: { 'flyer.html': '000002' }
+    })
+    listBotTeamFileVersions.mockResolvedValue([{ version: VERSION, deleted: false }])
+    readBotTeamFile.mockResolvedValue({ content: '<p>Summer</p>', truncated: false })
+    const container = await mount()
+    await act(async () => fileButton(container, 'flyer.html').click())
+    expect(listBotTeamFileVersions).toHaveBeenCalledWith('t1', 'flyer.html')
+    expect(container.textContent).toContain('Versions')
+    expect(container.textContent).toContain('<p>Summer</p>')
   })
 
   it('opens a file read-only, and goes back to the list', async () => {

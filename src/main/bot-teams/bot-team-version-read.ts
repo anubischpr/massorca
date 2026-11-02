@@ -1,3 +1,4 @@
+import type { BotTeamFileVersion } from '../../shared/rpc-contract/bot-team-version-params'
 import { gitOf, guarded } from './bot-team-snapshot-run'
 import { listBotTeamVersions } from './bot-team-snapshots'
 import type {
@@ -8,6 +9,7 @@ import type {
 } from './bot-team-snapshot-types'
 
 const FILE_PREVIEW_BYTES = 1024 * 1024
+const MAX_LAST_CHANGES = 5000
 
 export function parseBotTeamVersionChanges(output: string): BotTeamVersionChange[] {
   const fields = output.split('\0').filter((field) => field.length > 0)
@@ -52,18 +54,63 @@ export async function botTeamVersionChanges(
 export async function botTeamFileVersions(
   deps: BotTeamSnapshotDeps,
   relativePath: string
-): Promise<BotTeamVersion[]> {
+): Promise<BotTeamFileVersion[]> {
   return guarded(async () => {
     const versions = await listBotTeamVersions(deps)
     if (versions.length === 0) {
       return []
     }
+    const log = async (...extra: string[]): Promise<Set<string>> => {
+      const output = await gitOf(deps).text(
+        [
+          '--literal-pathspecs',
+          'log',
+          '-z',
+          '--format=%H',
+          ...extra,
+          versions[0].commit,
+          '--',
+          relativePath
+        ],
+        { cwd: deps.folder }
+      )
+      return new Set(output.split('\0').filter((entry) => entry.length > 0))
+    }
+    const [touched, deleted] = await Promise.all([log(), log('--diff-filter=D')])
+    return versions
+      .filter((version) => touched.has(version.commit))
+      .map((version) => ({ version, deleted: deleted.has(version.commit) }))
+  })
+}
+
+/** For each file, the id of the newest version that touched it. */
+export async function botTeamLastVersionOfFile(
+  deps: BotTeamSnapshotDeps
+): Promise<Record<string, string>> {
+  return guarded(async () => {
+    const versions = await listBotTeamVersions(deps)
+    if (versions.length === 0) {
+      return {}
+    }
+    const idByCommit = new Map(versions.map((version) => [version.commit, version.id]))
     const output = await gitOf(deps).text(
-      ['--literal-pathspecs', 'log', '-z', '--format=%H', versions[0].commit, '--', relativePath],
+      ['log', '--no-renames', '--format=%x01%H', '--name-only', versions[0].commit],
       { cwd: deps.folder }
     )
-    const touched = new Set(output.split('\0').filter((entry) => entry.length > 0))
-    return versions.filter((version) => touched.has(version.commit))
+    const last: Record<string, string> = {}
+    let count = 0
+    for (const record of output.split('\x01')) {
+      const [commit, ...names] = record.split('\n')
+      const id = idByCommit.get(commit.trim())
+      for (const name of names) {
+        // Git quotes a name that holds a quote, a backslash or a control character; those are left out.
+        if (id && name && !name.startsWith('"') && !(name in last) && count < MAX_LAST_CHANGES) {
+          last[name] = id
+          count += 1
+        }
+      }
+    }
+    return last
   })
 }
 

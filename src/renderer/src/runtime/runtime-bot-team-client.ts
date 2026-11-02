@@ -13,6 +13,12 @@ import type {
   BotTeamTask
 } from '../../../shared/rpc-contract/bot-team-room-params'
 import type {
+  BotTeamFileVersion,
+  BotTeamVersionFile,
+  BotTeamVersionRestoreResult,
+  BotTeamVersionsResult
+} from '../../../shared/rpc-contract/bot-team-version-params'
+import type {
   RuntimeFileListEntry,
   RuntimeFileListResult,
   RuntimeFileReadResult
@@ -204,4 +210,61 @@ export function readBotTeamFile(
     }
     return call<RuntimeFileReadResult>('files.read', { worktree, relativePath })
   })
+}
+
+/** The team's saved versions, or 'unavailable' on a host from before versions. */
+export function listBotTeamVersions(
+  teamId: string
+): Promise<BotTeamVersionsResult | 'unavailable'> {
+  return orUnavailable(() => call<BotTeamVersionsResult>('botTeams.versions', { teamId }))
+}
+
+export function listBotTeamFileVersions(
+  teamId: string,
+  relativePath: string
+): Promise<BotTeamFileVersion[] | 'unavailable'> {
+  return orUnavailable(
+    async () =>
+      (
+        await call<{ versions: BotTeamFileVersion[] }>('botTeams.fileVersions', {
+          teamId,
+          relativePath
+        })
+      ).versions
+  )
+}
+
+export function readBotTeamVersionFile(
+  teamId: string,
+  versionId: string,
+  relativePath: string
+): Promise<BotTeamVersionFile | 'unavailable'> {
+  return orUnavailable(
+    async () =>
+      (
+        await call<{ file: BotTeamVersionFile }>('botTeams.versionFile', {
+          teamId,
+          versionId,
+          relativePath
+        })
+      ).file
+  )
+}
+
+/** Puts one file back as a version held it; the host saves the current state first. */
+export function restoreBotTeamFileVersion(
+  teamId: string,
+  versionId: string,
+  relativePath: string
+): Promise<BotTeamVersionRestoreResult | 'unavailable'> {
+  return orUnavailable(
+    async () =>
+      (
+        await call<{ result: BotTeamVersionRestoreResult }>('botTeams.restoreFileVersion', {
+          teamId,
+          versionId,
+          relativePath
+        })
+      ).result
+  )
 }

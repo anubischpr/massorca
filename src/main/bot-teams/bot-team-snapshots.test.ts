@@ -3,16 +3,20 @@ import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { BotTeamSnapshotGit } from './bot-team-snapshot-git'
 import { listBotTeamVersions, takeBotTeamSnapshot } from './bot-team-snapshots'
 import type { BotTeamSnapshotDeps } from './bot-team-snapshot-types'
 import {
   botTeamFileVersions,
+  botTeamLastVersionOfFile,
   botTeamVersionChanges,
   readBotTeamVersionFile
 } from './bot-team-version-read'
-import { restoreBotTeamVersion } from './bot-team-version-restore'
+import { restoreBotTeamFile, restoreBotTeamVersion } from './bot-team-version-restore'
+
+// Every case runs real Git many times, which is slow on a busy Windows machine.
+vi.setConfig({ testTimeout: 120_000 })
 
 const SAVE = { reason: 'task-finished', label: 'Flyer done' } as const
 
@@ -230,11 +234,16 @@ describe('versions of a team folder', () => {
       { status: 'added', path: 'price.txt' }
     ])
     const flyer = await botTeamFileVersions(deps, 'flyer.html')
-    expect(flyer.map((version) => version.label)).toEqual([
-      'Price list',
-      'Text only',
-      'First layout'
+    expect(flyer.map((entry) => [entry.version.label, entry.deleted])).toEqual([
+      ['Price list', true],
+      ['Text only', false],
+      ['First layout', false]
     ])
+    expect(await botTeamLastVersionOfFile(deps)).toMatchObject({
+      'flyer.html': third.version!.id,
+      'logo.png': first.version!.id,
+      'price.txt': third.version!.id
+    })
     expect(await readBotTeamVersionFile(deps, first.version!.id, 'flyer.html')).toEqual({
       kind: 'text',
       text: 'v1'
@@ -284,6 +293,47 @@ describe('versions of a team folder', () => {
     expect(await exists('brand/notes.md')).toBe(false)
     const reasons = (await listBotTeamVersions(deps)).map((version) => version.reason)
     expect(reasons).toContain('restored')
+  })
+
+  it('restores one file after saving everything, and leaves the other files as they are', async () => {
+    await write('flyer.html', 'v1')
+    await write('price.txt', 'p1')
+    const first = await save('First layout')
+    await write('flyer.html', 'v2')
+    await write('price.txt', 'p2')
+
+    const restored = await restoreBotTeamFile(deps, first.version!.id, 'flyer.html')
+
+    expect(restored).toMatchObject({ ok: true })
+    expect(await read('flyer.html')).toBe('v1')
+    expect(await read('price.txt')).toBe('p2')
+    if (!restored.ok) {
+      throw new Error('unreachable')
+    }
+    const before = restored.savedBefore!
+    expect(before.reason).toBe('before-restore')
+    expect(await readBotTeamVersionFile(deps, before.id, 'flyer.html')).toEqual({
+      kind: 'text',
+      text: 'v2'
+    })
+    // Going back to the state saved before the restore brings the newer text back.
+    await restoreBotTeamFile(deps, before.id, 'flyer.html')
+    expect(await read('flyer.html')).toBe('v2')
+  })
+
+  it('refuses to restore a file a version never held, or a path outside the folder', async () => {
+    await write('a.txt', 'a')
+    const first = await save()
+    expect(await restoreBotTeamFile(deps, first.version!.id, 'nope.txt')).toMatchObject({
+      ok: false
+    })
+    expect(await restoreBotTeamFile(deps, first.version!.id, '../outside.txt')).toMatchObject({
+      ok: false
+    })
+    expect(await restoreBotTeamFile(deps, first.version!.id, '.git/config')).toMatchObject({
+      ok: false
+    })
+    expect(await listBotTeamVersions(deps)).toHaveLength(1)
   })
 
   it('does not add a version when the folder already is the restored version', async () => {
