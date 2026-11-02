@@ -129,6 +129,7 @@ export const HANDLER_GROUPS: readonly HandlerGroup[] = [
       'orchestration team-remember',
       'orchestration team-tasks',
       'orchestration team-task-create',
+      'orchestration ask-user',
       'orchestration worker-show',
       'orchestration worker-read',
       'orchestration worker-stop',
