@@ -24,6 +24,9 @@ import { BotTeamProjectBrief, type BotTeamProjectTab } from './BotTeamProjectBri
 import { BotTeamBoard, BotTeamProjectBoard, NewBotProjectForm } from './BotTeamProjectViews'
 import { BotTeamMemory } from './BotTeamMemory'
 import { BotTeamRoom } from './BotTeamRoom'
+import { BotTeamRoutineNew } from './BotTeamRoutineNew'
+import { BotTeamRoutineRuns } from './BotTeamRoutineRuns'
+import { BotTeamRoutines } from './BotTeamRoutines'
 import { NewBotTeamForm } from './NewBotTeamForm'
 import { useBotTeamCardStatus } from './use-bot-team-card-status'
 import { useBotTeams } from './use-bot-teams'
@@ -83,6 +86,29 @@ function TeamDetail({
   }
   if (section?.kind === 'memory') {
     return <BotTeamMemory team={team} />
+  }
+  if (section?.kind === 'routines') {
+    return (
+      <BotTeamRoutines
+        team={team}
+        onNew={() => toTeam({ section: { kind: 'routine-new' } })}
+        onOpen={(routineId) => toTeam({ section: { kind: 'routine', routineId } })}
+      />
+    )
+  }
+  if (section?.kind === 'routine-new') {
+    const toRoutines = (): void => toTeam({ section: { kind: 'routines' } })
+    return <BotTeamRoutineNew team={team} onBack={toRoutines} onCreated={toRoutines} />
+  }
+  if (section?.kind === 'routine') {
+    return (
+      <BotTeamRoutineRuns
+        team={team}
+        routineId={section.routineId}
+        onBack={() => toTeam({ section: { kind: 'routines' } })}
+        onOpenTask={onOpenTask}
+      />
+    )
   }
   if (section?.kind === 'new-project') {
     return (

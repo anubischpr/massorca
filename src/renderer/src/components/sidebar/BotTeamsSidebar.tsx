@@ -1,4 +1,4 @@
-import { Brain, Files, Folder, LayoutGrid, Plus, UserCheck } from 'lucide-react'
+import { Brain, CalendarClock, Files, Folder, LayoutGrid, Plus, UserCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '@/store'
 import type { BotTeamsSelection } from '@/store/slices/ui/ui-slice-contract-core'
@@ -144,6 +144,20 @@ function OpenTeamRows({
       >
         <Brain className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
         <span className="flex-1">{translate('components.botTeams.memory', 'Memory')}</span>
+      </SidebarRow>
+      <SidebarRow
+        indented
+        active={
+          onPage &&
+          selection.taskId === null &&
+          (section?.kind === 'routines' ||
+            section?.kind === 'routine-new' ||
+            section?.kind === 'routine')
+        }
+        onClick={() => openBotTeamsView({ teamId, section: { kind: 'routines' } })}
+      >
+        <CalendarClock className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+        <span className="flex-1">{translate('components.botTeams.routines', 'Routines')}</span>
       </SidebarRow>
     </>
   )

@@ -118,7 +118,8 @@ describe('the Bot teams sidebar', () => {
       'Summer campaign',
       'New project',
       'Files',
-      'Memory'
+      'Memory',
+      'Routines'
     ])
     expect(container.textContent).toContain('Nothing open')
     expect(container.textContent).toContain('No tasks')
@@ -156,8 +157,33 @@ describe('the Bot teams sidebar', () => {
     act(() => rowByLabel(container, 'Memory').click())
     expect(store.getState().botTeamsSelection.section).toEqual({ kind: 'memory' })
     expect(rowByLabel(container, 'Memory').getAttribute('aria-current')).toBe('page')
+    act(() => rowByLabel(container, 'Routines').click())
+    expect(store.getState().botTeamsSelection.section).toEqual({ kind: 'routines' })
+    expect(rowByLabel(container, 'Routines').getAttribute('aria-current')).toBe('page')
     act(() => rowByLabel(container, 'Conference room').click())
     expect(store.getState().botTeamsSelection.section).toBeUndefined()
+  })
+
+  it('keeps Routines current while a routine or the new routine form is open', async () => {
+    seedStore(store, {
+      botTeamsSelection: {
+        teamId: 't1',
+        taskId: null,
+        creating: false,
+        section: { kind: 'routine-new' }
+      }
+    })
+    const container = await mount()
+    expect(rowByLabel(container, 'Routines').getAttribute('aria-current')).toBe('page')
+    act(() => {
+      store.getState().setBotTeamsSelection({
+        teamId: 't1',
+        taskId: null,
+        creating: false,
+        section: { kind: 'routine', routineId: 'r1' }
+      })
+    })
+    expect(rowByLabel(container, 'Routines').getAttribute('aria-current')).toBe('page')
   })
 
   it('opens a team, All teams and the Conference room through the store', async () => {

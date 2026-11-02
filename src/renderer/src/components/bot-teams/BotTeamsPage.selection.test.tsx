@@ -58,7 +58,16 @@ vi.mock('@/runtime/runtime-bot-team-client', () => ({
   deleteBotTeam: vi.fn(),
   removeBotFromTeam: vi.fn()
 }))
-vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
+vi.mock('@/runtime/runtime-bot-team-client-routines', () => ({
+  listBotTeamRoutines: () => Promise.resolve([]),
+  listBotTeamRoutineRuns: () => Promise.resolve([]),
+  createBotTeamRoutine: vi.fn(),
+  setBotTeamRoutinePaused: vi.fn()
+}))
+vi.mock('@/i18n/i18n', () => ({
+  translate: (_key: string, fallback: string, values?: Record<string, string>) =>
+    fallback.replace(/\{\{(\w+)\}\}/g, (_all, name: string) => values?.[name] ?? '')
+}))
 vi.mock('@/lib/agent-catalog', () => ({ AgentIcon: () => null }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 vi.mock('./use-bot-team-task-status', () => ({ useBotTeamSessionStatuses: () => new Map() }))
@@ -117,6 +126,29 @@ describe('the team cards', () => {
 })
 
 describe('the Bot teams page with a controlled selection', () => {
+  it('shows the routines of the team, and the form for a new one', async () => {
+    const container = await mount(
+      <BotTeamsPage
+        selection={{ teamId: 't1', taskId: null, creating: false, section: { kind: 'routines' } }}
+        onSelectionChange={() => {}}
+      />
+    )
+    expect(container.textContent).toContain('No routines yet')
+    expect(container.querySelector('[data-testid="room"]')).toBeNull()
+    const form = await mount(
+      <BotTeamsPage
+        selection={{
+          teamId: 't1',
+          taskId: null,
+          creating: false,
+          section: { kind: 'routine-new' }
+        }}
+        onSelectionChange={() => {}}
+      />
+    )
+    expect(form.textContent).toContain('What should it do?')
+  })
+
   it('shows the team the selection names', async () => {
     const container = await mount(
       <BotTeamsPage
