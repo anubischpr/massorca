@@ -56,7 +56,9 @@ export function TitlebarMainStrip({
       />
       {/* Why: one toggle, always left of the sidebar line; a workspace session bar has its own. */}
       {layout.showRightSidebarControls && !layout.workspaceChromeActive ? (
-        <RightSidebarToggle />
+        <div className="mr-4 flex shrink-0 items-center [-webkit-app-region:no-drag]">
+          <RightSidebarToggle />
+        </div>
       ) : null}
       {/* Why: reserve space so the Windows/Linux window-controls overlay doesn't obscure content. */}
       {/* Why: an open right sidebar already covers the corner under the overlay. */}
