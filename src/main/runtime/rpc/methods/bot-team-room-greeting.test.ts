@@ -3,8 +3,8 @@ import { OrchestrationDb } from '../../orchestration/db/orchestration-db'
 import type { RpcContext } from '../core'
 
 const askLead = vi.hoisted(() => vi.fn(async (): Promise<string | null> => null))
-vi.mock('../../../bot-teams/bot-team-lead-query', () => ({
-  askDefaultAgentForBotTeamLead: askLead
+vi.mock('../../../bot-teams/bot-team-request-query', () => ({
+  askDefaultAgentForBotTeamRequest: askLead
 }))
 
 import { BOT_TEAM_ROOM_METHODS } from './bot-team-room'

@@ -1,3 +1,4 @@
+import type { BotTeamRequestChoice } from '../../../shared/bot-team-request-choice'
 import type {
   BotDraftInput,
   BotTeam,
@@ -91,7 +92,14 @@ export function postBotTeamRequest(input: {
   teamId: string
   text: string
   start: boolean
-}): Promise<{ task: BotTeamTask | null; startError: string | null; greeted?: boolean }> {
+}): Promise<{
+  task: BotTeamTask | null
+  startError: string | null
+  greeted?: boolean
+  /** A host from before the query's classes never sends the next two. */
+  choice?: BotTeamRequestChoice
+  composite?: string[]
+}> {
   return call('botTeams.postMessage', input)
 }
 

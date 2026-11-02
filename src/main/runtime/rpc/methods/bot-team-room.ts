@@ -14,22 +14,15 @@ import {
   type BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
-import { chooseBotTeamLead } from '../../../../shared/bot-team-lead-selection'
-import {
-  buildBotTeamLeadPrompt,
-  parseBotTeamLeadReply
-} from '../../../../shared/bot-team-lead-query'
 import { BOT_TEAMS_FOLDER_NAME } from '../../../../shared/bot-team-folder'
-import { botTeamTaskTitle, routeBotTeamRequest } from '../../../../shared/bot-team-request-route'
 import { createStructuredAgentSessionId } from '../../../../shared/structured-agent-session-create'
 import { createStructuredAgentSessionOperationId } from '../../../../shared/structured-agent-session-mutation'
 import { folderWorkspaceKey } from '../../../../shared/workspace-scope'
-import { askDefaultAgentForBotTeamLead } from '../../../bot-teams/bot-team-lead-query'
-import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-reply'
 import { botSessionOptions } from '../../../bot-teams/bot-team-model-choice'
 import { startBotTeamTask } from '../../../bot-teams/bot-team-task-start'
 import { getStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
 import { defineMethod, type RpcContext } from '../core'
+import { postBotTeamRequestOnHost } from './bot-team-post-request'
 import { commitStructuredAgentSessionLaunchPrompt } from './agent-launch-structured-prompt'
 import { isDefinitiveAgentSessionCreateRefusal } from '../../../../shared/agent-session-definitive-refusal'
 import { createStructuredAgentSessionForWorktree } from './structured-agent-session-create'
@@ -156,36 +149,6 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
   )
 }
 
-/** One query over the bots' descriptions on the Settings default agent; ties go to the least busy. */
-async function chooseLeadByDescription(
-  ctx: RpcContext,
-  team: BotTeam,
-  text: string
-): Promise<BotTeam['bots'][number] | null> {
-  if (team.bots.length < 2) {
-    return null
-  }
-  const reply = await askDefaultAgentForBotTeamLead({
-    prompt: buildBotTeamLeadPrompt(team, team.bots, text),
-    settings: ctx.runtime.getClientSettings(),
-    getAgentEnvResolvers: () => ctx.runtime.getCommitMessageAgentEnvironmentResolvers()
-  })
-  if (reply === null) {
-    return null
-  }
-  const activeTasksByBot: Record<string, number> = {}
-  for (const task of ctx.runtime.getOrchestrationDb().listBotTeamTasks(team.id)) {
-    if (task.sessionId !== null) {
-      activeTasksByBot[task.ownerBotId] = (activeTasksByBot[task.ownerBotId] ?? 0) + 1
-    }
-  }
-  return chooseBotTeamLead({
-    matchedBotIds: parseBotTeamLeadReply(reply, team.bots),
-    bots: team.bots,
-    activeTasksByBot
-  })
-}
-
 export const BOT_TEAM_ROOM_METHODS = [
   defineMethod({
     name: 'botTeams.listRoom',
@@ -214,37 +177,7 @@ export const BOT_TEAM_ROOM_METHODS = [
     name: 'botTeams.postMessage',
     permission: 'workspace',
     params: BotTeamMessagePost,
-    handler: async ({ teamId, text, start }, ctx) => {
-      const db = ctx.runtime.getOrchestrationDb()
-      const message = db.postBotTeamMessage({ teamId, text, authorBotId: null })
-      // A greeting gets the team's one line and stops here: no query, task or usage.
-      if (replyToBotTeamGreeting(db, { teamId, text })) {
-        return { message, task: null, startError: null, greeted: true }
-      }
-      const bots = db.listBotTeams().find((entry) => entry.id === teamId)?.bots ?? []
-      const team = db.listBotTeams().find((entry) => entry.id === teamId)
-      const lead =
-        routeBotTeamRequest(text, bots) ??
-        (team ? await chooseLeadByDescription(ctx, team, text) : null)
-      if (!lead) {
-        return { message, task: null, startError: null }
-      }
-      const task = db.createBotTeamTask({
-        teamId,
-        title: botTeamTaskTitle(text, bots),
-        prompt: text,
-        ownerBotId: lead.id
-      })
-      if (!start) {
-        return { message, task, startError: null }
-      }
-      try {
-        return { message, task: await startTaskOnHost(ctx, task.id), startError: null }
-      } catch (error) {
-        // The request is kept: the task waits in Todo and can be started again.
-        return { message, task, startError: error instanceof Error ? error.message : String(error) }
-      }
-    }
+    handler: (params, ctx) => postBotTeamRequestOnHost(ctx, params, (id) => startTaskOnHost(ctx, id))
   }),
   defineMethod({
     name: 'botTeams.createProject',

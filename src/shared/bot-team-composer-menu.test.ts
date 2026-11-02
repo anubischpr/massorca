@@ -4,7 +4,7 @@ import {
   botTeamComposerMenu,
   botTeamMentionOpen
 } from './bot-team-composer-menu'
-import { findMentionedBot } from './bot-team-lead-selection'
+import { findMentionedBot } from './bot-team-owner-selection'
 
 const BOTS = [
   { id: 'a', name: 'Nora', job: 'Writes offers', agent: 'claude' as const },

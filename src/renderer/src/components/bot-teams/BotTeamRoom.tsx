@@ -102,7 +102,7 @@ export function BotTeamRoom({
   const [messages, setMessages] = useState<BotTeamMessage[]>([])
   const [tasks, setTasks] = useState<BotTeamTask[]>([])
   const [projects, setProjects] = useState<BotTeamProject[]>([])
-  const [needsLead, setNeedsLead] = useState(false)
+  const [needsOwner, setNeedsOwner] = useState(false)
   const sidePanel = useRightSidebarPageTarget()
   const statuses = useBotTeamSessionStatuses()
   const botOf = (botId: string | null) => team.bots.find((bot) => bot.id === botId)
@@ -147,7 +147,7 @@ export function BotTeamRoom({
     sending.current = true
     try {
       const sent = await postBotTeamRequest({ teamId: team.id, text, start: true })
-      setNeedsLead(sent.task === null && !sent.greeted)
+      setNeedsOwner(sent.task === null && !sent.greeted)
       if (sent.startError) {
         toast.error(sent.startError)
       }
@@ -312,7 +312,7 @@ export function BotTeamRoom({
               )
             })}
             {tasks.filter((task) => requestOf(task) === undefined).map(taskCard)}
-            {needsLead ? (
+            {needsOwner ? (
               <p className="text-xs text-muted-foreground">
                 {translate(
                   'components.botTeams.whoTakesIt',

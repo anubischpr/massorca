@@ -12,25 +12,25 @@ import { queryBotTeamLead } from '../text-generation/bot-team-lead-generation-re
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
 import { spawnSourceControlAgent } from '../text-generation/source-control-agent-launch'
 
-type LeadQuerySettings = Pick<GlobalSettings, 'defaultTuiAgent' | 'disabledTuiAgents'> &
+type RequestQuerySettings = Pick<GlobalSettings, 'defaultTuiAgent' | 'disabledTuiAgents'> &
   Partial<Pick<GlobalSettings, 'agentCmdOverrides'>>
 
 /** Asks the Settings default agent one short question. Null when it cannot answer, so the room asks. */
-export async function askDefaultAgentForBotTeamLead(args: {
+export async function askDefaultAgentForBotTeamRequest(args: {
   prompt: string
-  settings: LeadQuerySettings
+  settings: RequestQuerySettings
   getAgentEnvResolvers: () => CommitMessageAgentEnvironmentResolvers | undefined
 }): Promise<string | null> {
   try {
-    return await runLeadQuery(args)
+    return await runRequestQuery(args)
   } catch {
     return null
   }
 }
 
-async function runLeadQuery(args: {
+async function runRequestQuery(args: {
   prompt: string
-  settings: LeadQuerySettings
+  settings: RequestQuerySettings
   getAgentEnvResolvers: () => CommitMessageAgentEnvironmentResolvers | undefined
 }): Promise<string | null> {
   const { prompt, settings, getAgentEnvResolvers } = args

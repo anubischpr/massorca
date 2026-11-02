@@ -1,4 +1,4 @@
-import { findMentionedBot } from './bot-team-lead-selection'
+import { findMentionedBot } from './bot-team-owner-selection'
 
 type NamedBot = { id: string; name: string }
 

@@ -91,7 +91,7 @@ export function MobileBotTeamRoom({
   onOpenWork: (screen: BotTeamWorkScreen) => void
 }) {
   const [text, setText] = useState('')
-  const [needsLead, setNeedsLead] = useState(false)
+  const [needsOwner, setNeedsOwner] = useState(false)
   const [sheet, setSheet] = useState<'rooms' | 'menu' | null>(null)
   const { room, reload } = useMobileBotTeamRoom(client, team.id, offline)
   const statusOf = useMobileBotTeamTaskStatus(client)
@@ -170,7 +170,7 @@ export function MobileBotTeamRoom({
       return false
     }
     setText('')
-    setNeedsLead(sent.task === null && !sent.greeted)
+    setNeedsOwner(sent.task === null && !sent.greeted)
     if (sent.startError) {
       Alert.alert('The bot did not start', sent.startError)
     }
@@ -276,7 +276,7 @@ export function MobileBotTeamRoom({
           )
         })}
         {tasksOf.rest.map(card)}
-        {needsLead ? (
+        {needsOwner ? (
           <Text style={styles.rowMeta}>
             Who should take this? Mention a bot with @ and its name.
           </Text>
