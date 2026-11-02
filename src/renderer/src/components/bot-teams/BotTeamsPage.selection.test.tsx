@@ -132,6 +132,38 @@ describe('the Bot teams page with a controlled selection', () => {
     expect(container.textContent).not.toContain('All teams')
   })
 
+  it('shows the section the selection names instead of the room, and goes back to the room', async () => {
+    const onSelectionChange = vi.fn()
+    const container = await mount(
+      <BotTeamsPage
+        selection={{ teamId: 't1', taskId: null, creating: false, section: { kind: 'board' } }}
+        onSelectionChange={onSelectionChange}
+      />
+    )
+    expect(container.querySelector('[data-testid="room"]')).toBeNull()
+    expect(container.textContent).toContain('all tasks')
+    const back = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('Conference room')
+    )
+    act(() => back?.click())
+    expect(onSelectionChange).toHaveBeenCalledWith({ teamId: 't1', taskId: null, creating: false })
+  })
+
+  it('opens the new project form from its section', async () => {
+    const container = await mount(
+      <BotTeamsPage
+        selection={{
+          teamId: 't1',
+          taskId: null,
+          creating: false,
+          section: { kind: 'new-project' }
+        }}
+        onSelectionChange={() => {}}
+      />
+    )
+    expect(container.textContent).toContain('A project holds the why. Its tasks hold the how.')
+  })
+
   it('reports opening a team from the grid instead of keeping it to itself', async () => {
     const onSelectionChange = vi.fn()
     const container = await mount(

@@ -15,6 +15,12 @@ import type { TaskSourceContext } from '../../../../../shared/task-source-contex
 import type { ExecutionHostId } from '../../../../../shared/execution-host'
 import type { TaskResumeState, TopLevelView } from '../../../../../shared/ui-chrome-types'
 
+/** A page of the open team other than its Conference room. */
+export type BotTeamsSection =
+  | { kind: 'board' }
+  | { kind: 'new-project' }
+  | { kind: 'project'; projectId: string }
+
 export type BotTeamsSelection = {
   /** The open team, or null for All teams. */
   teamId: string | null
@@ -22,6 +28,8 @@ export type BotTeamsSelection = {
   taskId: string | null
   /** The new team form is open. */
   creating: boolean
+  /** The open team's Board, a project or New project; none means the Conference room. */
+  section?: BotTeamsSection
 }
 
 export type PendingSidebarWorktreeReveal = {

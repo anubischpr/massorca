@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { AgentIcon } from '@/lib/agent-catalog'
 import { translate } from '@/i18n/i18n'
-import { createBotTeamProject, listBotTeamRoom } from '@/runtime/runtime-bot-team-client'
+import { createBotTeamProject } from '@/runtime/runtime-bot-team-client'
 import {
   BOT_TEAM_BOARD_COLUMNS,
   botTeamBoardColumn
@@ -19,6 +19,7 @@ import type {
   BotTeamProject,
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
+import { useTeamWork } from './use-bot-team-work'
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
 
 function ViewHeader({
@@ -40,36 +41,6 @@ function ViewHeader({
       <span className="truncate text-xs text-muted-foreground">{detail}</span>
     </div>
   )
-}
-
-/** `refresh` lists again whenever it changes. */
-export function useTeamWork(
-  teamId: string,
-  refresh?: string
-): {
-  tasks: BotTeamTask[]
-  projects: BotTeamProject[]
-} {
-  const [work, setWork] = useState<{ tasks: BotTeamTask[]; projects: BotTeamProject[] }>({
-    tasks: [],
-    projects: []
-  })
-  useEffect(() => {
-    let closed = false
-    void listBotTeamRoom(teamId).then(
-      ({ tasks, projects }) => {
-        if (!closed) {
-          // A host from before projects lists none.
-          setWork({ tasks, projects: projects ?? [] })
-        }
-      },
-      (error: unknown) => toast.error(String(error))
-    )
-    return () => {
-      closed = true
-    }
-  }, [teamId, refresh])
-  return work
 }
 
 export function NewBotProjectForm({

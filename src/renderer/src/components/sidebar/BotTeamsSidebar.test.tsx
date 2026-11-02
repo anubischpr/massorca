@@ -21,7 +21,11 @@ function team(id: string, name: string, character: BotTeam['character']): BotTea
 }
 
 const listBotTeams = vi.hoisted(() => vi.fn())
-vi.mock('@/runtime/runtime-bot-team-client', () => ({ listBotTeams }))
+const listBotTeamRoom = vi.hoisted(() => vi.fn())
+vi.mock('@/runtime/runtime-bot-team-client', () => ({ listBotTeams, listBotTeamRoom }))
+vi.mock('../bot-teams/use-bot-team-task-status', () => ({
+  useBotTeamSessionStatuses: () => new Map()
+}))
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({}) }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
@@ -48,13 +52,15 @@ async function mount(): Promise<HTMLDivElement> {
   return container
 }
 
+// A row's label is its first flexible span; the count beside it is not part of the name.
+const labelOf = (button: HTMLButtonElement): string =>
+  (button.querySelector('span.flex-1') ?? button).textContent?.trim() ?? ''
+
 const rowLabels = (container: ParentNode): string[] =>
-  [...container.querySelectorAll('button')].map((button) => button.textContent?.trim() ?? '')
+  [...container.querySelectorAll('button')].map(labelOf)
 
 const rowByLabel = (container: ParentNode, label: string): HTMLButtonElement => {
-  const row = [...container.querySelectorAll('button')].find(
-    (button) => button.textContent?.trim() === label
-  )
+  const row = [...container.querySelectorAll('button')].find((button) => labelOf(button) === label)
   if (!row) {
     throw new Error(`Row ${label} missing`)
   }
@@ -64,6 +70,8 @@ const rowByLabel = (container: ParentNode, label: string): HTMLButtonElement => 
 beforeEach(() => {
   listBotTeams.mockReset()
   listBotTeams.mockResolvedValue([team('t1', 'Marketing', 'square'), team('t2', 'Sales', 'circle')])
+  listBotTeamRoom.mockReset()
+  listBotTeamRoom.mockResolvedValue({ tasks: [], messages: [], projects: [] })
   seedStore(store, {
     activeView: 'bot-teams',
     railMode: 'bot-teams',
@@ -84,35 +92,64 @@ describe('the Bot teams sidebar', () => {
     expect(rowLabels(container)).toEqual(['Search', 'All teams', 'Marketing', 'Sales'])
   })
 
-  it('has no Create button, no Projects list and no row without a built surface', async () => {
+  it('has no Create button and no row for a surface that is not built', async () => {
     seedStore(store, { botTeamsSelection: { teamId: 't1', taskId: null, creating: false } })
     const container = await mount()
-    const text = container.textContent ?? ''
-    for (const absent of [
-      'Create',
-      'Projects',
-      'New project',
-      'Board',
-      'Files',
-      'Memory',
-      'Permissions'
-    ]) {
+    for (const absent of ['Create', 'Files', 'Memory', 'Permissions']) {
       expect(rowLabels(container)).not.toContain(absent)
     }
-    expect(text).not.toContain('Projects')
   })
 
-  it('shows the Conference room only under the open team', async () => {
+  it('shows the open team rows in the order of the design, under that team only', async () => {
     seedStore(store, { botTeamsSelection: { teamId: 't2', taskId: null, creating: false } })
+    listBotTeamRoom.mockResolvedValue({
+      tasks: [],
+      messages: [],
+      projects: [{ id: 'p1', name: 'Summer campaign' }]
+    })
     const container = await mount()
     expect(rowLabels(container)).toEqual([
       'Search',
       'All teams',
       'Marketing',
       'Sales',
-      'Conference room'
+      'Conference room',
+      'Board',
+      'Summer campaign',
+      'New project'
     ])
+    expect(container.textContent).toContain('Nothing open')
+    expect(container.textContent).toContain('No tasks')
+    expect(container.textContent).toContain('Projects')
     expect(rowByLabel(container, 'Conference room').getAttribute('aria-current')).toBe('page')
+  })
+
+  it('opens the Board, a project and New project through the store', async () => {
+    seedStore(store, { botTeamsSelection: { teamId: 't1', taskId: null, creating: false } })
+    listBotTeamRoom.mockResolvedValue({
+      tasks: [],
+      messages: [],
+      projects: [{ id: 'p1', name: 'Summer campaign' }]
+    })
+    const container = await mount()
+    act(() => rowByLabel(container, 'Board').click())
+    expect(store.getState().botTeamsSelection).toEqual({
+      teamId: 't1',
+      taskId: null,
+      creating: false,
+      section: { kind: 'board' }
+    })
+    expect(rowByLabel(container, 'Board').getAttribute('aria-current')).toBe('page')
+    expect(rowByLabel(container, 'Conference room').getAttribute('aria-current')).toBeNull()
+    act(() => rowByLabel(container, 'Summer campaign').click())
+    expect(store.getState().botTeamsSelection.section).toEqual({
+      kind: 'project',
+      projectId: 'p1'
+    })
+    act(() => rowByLabel(container, 'New project').click())
+    expect(store.getState().botTeamsSelection.section).toEqual({ kind: 'new-project' })
+    act(() => rowByLabel(container, 'Conference room').click())
+    expect(store.getState().botTeamsSelection.section).toBeUndefined()
   })
 
   it('opens a team, All teams and the Conference room through the store', async () => {

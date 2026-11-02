@@ -13,6 +13,7 @@ import {
   updateBotOnTeam,
   updateBotTeam
 } from '@/runtime/runtime-bot-team-client'
+import type { BotTeamsSelection } from '@/store/slices/ui/ui-slice-contract-core'
 import type { BotTeamOverallStatus } from '../../../../shared/bot-team-overall-status'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { BotAgentIcon } from './BotAgentIcon'
@@ -50,42 +51,40 @@ function BotTeamRoomTitle({ children }: { children: React.ReactNode }): React.JS
 function TeamDetail({
   team,
   offline,
-  openTaskId,
-  onOpenTask
+  selection,
+  onSelect
 }: {
   team: BotTeam
   offline: boolean
-  openTaskId: string | null
-  onOpenTask: (taskId: string | null) => void
+  selection: BotTeamsPageSelection
+  onSelect: (selection: BotTeamsPageSelection) => void
 }): React.JSX.Element {
-  // Until the sidebar routes here this stays on the room.
-  const [view, setView] = useState<
-    { name: 'room' } | { name: 'board' } | { name: 'newProject' } | { name: 'project'; id: string }
-  >({ name: 'room' })
-  const toRoom = (): void => setView({ name: 'room' })
+  const { taskId, section } = selection
+  const toTeam = (next: Partial<BotTeamsPageSelection> = {}): void =>
+    onSelect({ teamId: team.id, taskId: null, creating: false, ...next })
+  const toRoom = (): void => toTeam()
+  const onOpenTask = (openTaskId: string | null): void => toTeam({ taskId: openTaskId })
   // A task's thread is a full chat, so it takes the page rather than the team's column.
-  if (openTaskId !== null) {
-    return (
-      <BotTeamRoom team={team} openTaskId={openTaskId} onOpenTask={onOpenTask} offline={offline} />
-    )
+  if (taskId !== null) {
+    return <BotTeamRoom team={team} openTaskId={taskId} onOpenTask={onOpenTask} offline={offline} />
   }
-  if (view.name === 'board') {
+  if (section?.kind === 'board') {
     return <BotTeamBoard team={team} onBack={toRoom} onOpenTask={onOpenTask} />
   }
-  if (view.name === 'newProject') {
+  if (section?.kind === 'new-project') {
     return (
       <NewBotProjectForm
         team={team}
         onCancel={toRoom}
-        onCreated={(project) => setView({ name: 'project', id: project.id })}
+        onCreated={(project) => toTeam({ section: { kind: 'project', projectId: project.id } })}
       />
     )
   }
-  if (view.name === 'project') {
+  if (section?.kind === 'project') {
     return (
       <BotTeamProjectBoard
         team={team}
-        projectId={view.id}
+        projectId={section.projectId}
         onBack={toRoom}
         onOpenTask={onOpenTask}
       />
@@ -243,12 +242,8 @@ function TeamGrid({
   )
 }
 
-/** What the page shows: the open team, a task thread inside it, or the new team form. */
-export type BotTeamsPageSelection = {
-  teamId: string | null
-  taskId: string | null
-  creating: boolean
-}
+/** What the page shows: the open team, a task thread or section inside it, or the new team form. */
+export type BotTeamsPageSelection = BotTeamsSelection
 
 const NOTHING_OPEN: BotTeamsPageSelection = { teamId: null, taskId: null, creating: false }
 
@@ -316,12 +311,7 @@ export default function BotTeamsPage({
           }}
         />
       ) : teams === null ? null : openTeam ? (
-        <TeamDetail
-          team={openTeam}
-          offline={failed}
-          openTaskId={selection.taskId}
-          onOpenTask={(taskId) => select({ teamId: openTeam.id, taskId, creating: false })}
-        />
+        <TeamDetail team={openTeam} offline={failed} selection={selection} onSelect={select} />
       ) : (
         <TeamGrid
           teams={teams}

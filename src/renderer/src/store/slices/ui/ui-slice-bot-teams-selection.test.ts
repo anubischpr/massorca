@@ -42,6 +42,13 @@ describe('the Bot teams selection', () => {
     })
   })
 
+  it('opens a section of a team and drops it when the team is opened again', () => {
+    store.getState().openBotTeamsView({ teamId: 'team-1', section: { kind: 'board' } })
+    expect(store.getState().botTeamsSelection.section).toEqual({ kind: 'board' })
+    store.getState().openBotTeamsView({ teamId: 'team-1' })
+    expect(store.getState().botTeamsSelection.section).toBeUndefined()
+  })
+
   it('changes the selection in place without moving the page', () => {
     seedStore(store, { activeView: 'bot-teams', railMode: 'bot-teams' })
     store.getState().setBotTeamsSelection({ teamId: 'team-2', taskId: null, creating: false })
