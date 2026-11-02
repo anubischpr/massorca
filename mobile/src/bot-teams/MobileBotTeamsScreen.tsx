@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ComponentProps } from 'react'
 import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ChevronLeft, Plus, Settings, Users } from 'lucide-react-native'
+import { Plus, Settings, Users } from 'lucide-react-native'
 import { colors } from '../theme/mobile-theme'
 import { useHostClient } from '../transport/host-client-hooks'
 import type { RpcClient } from '../transport/rpc-client'
@@ -13,7 +13,9 @@ import { MobileBotTeamIntegrations } from './MobileBotTeamIntegrations'
 import { MobileBotTeamIntegrationsRow } from './MobileBotTeamIntegrationsRow'
 import { MobileAddBotForm, MobileNewTeamForm } from './MobileBotTeamForms'
 import { MobileBotTeamRoom } from './MobileBotTeamRoom'
+import * as Routines from './MobileBotTeamRoutineScreens'
 import { MobileBotTeamWork, isBotTeamWorkScreen, type BotTeamWorkScreen } from './MobileBotTeamWork'
+import { MobileBotTeamWorkBar as SubBar } from './MobileBotTeamWorkBar'
 import { MobileBotTeamModeSwitch } from './MobileBotTeamModeSwitch'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 import {
@@ -45,24 +47,7 @@ type Screen =
   | { name: 'teamBot'; teamId: string }
   | { name: 'integrations' }
   | BotTeamWorkScreen
-
-function SubBar({ title, onBack }: { title: string; onBack: () => void }) {
-  return (
-    <View style={styles.bar}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-        onPress={onBack}
-        style={styles.iconButton}
-      >
-        <ChevronLeft size={22} color={colors.textSecondary} />
-      </Pressable>
-      <Text accessibilityRole="header" style={styles.barTitle} numberOfLines={1}>
-        {title}
-      </Text>
-    </View>
-  )
-}
+  | Routines.BotTeamRoutineScreen
 
 /** The first screen of a host: its teams. A host older than Bot teams opens on Workspaces instead. */
 /** Carousel of teams; kept apart so the status hook only runs where a client exists. */
@@ -297,6 +282,7 @@ export function MobileBotTeamsScreen({
               </View>
             </View>
           ))}
+          <Routines.MobileBotTeamRoutinesRow team={openTeam} onOpen={setScreen} />
         </ScrollView>
       </>
     )
@@ -311,6 +297,17 @@ export function MobileBotTeamsScreen({
         screen={screen}
         onOpenRoom={() => setScreen({ name: 'team', teamId: workTeam.id })}
         onOpen={setScreen}
+        onOpenTask={onOpenTask}
+      />
+    )
+  } else if (client !== null && Routines.isBotTeamRoutineScreen(screen)) {
+    body = (
+      <Routines.MobileBotTeamRoutineScreens
+        client={client}
+        teams={teams}
+        offline={unreachable}
+        screen={screen}
+        onScreen={setScreen}
         onOpenTask={onOpenTask}
       />
     )
