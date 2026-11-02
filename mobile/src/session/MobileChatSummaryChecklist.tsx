@@ -7,12 +7,14 @@ import type { NativeChatTaskList } from '../../../src/shared/native-chat-task-li
 import { MobileChecklistItemRow } from './MobileChecklistSheet'
 import { MobileNativeChatChecklistItemSheet } from './MobileNativeChatChecklistSheets'
 import { MobilePlanSheet } from './MobilePlanSheet'
+import { summaryStyles } from './mobile-chat-summary-styles'
 import { mobileNativeChatPlanProgress } from './mobile-native-chat-plan'
 import type { MobileNativeChatChecklistView } from './use-mobile-native-chat-checklist'
 
 /**
- * The Summary's Plan row and Checklist section, after Environment. Each hides when its source is
- * absent. The Plan opens the existing Plan sheet; an item opens the item sheet, as in the chat.
+ * The Summary's Plan row and Checklist section, after Environment. The Plan hides when the chat has
+ * none; the Checklist always shows, with an empty line until it has items. The Plan opens the
+ * existing Plan sheet; an item opens the item sheet, as in the chat.
  */
 export function MobileChatSummaryChecklist({
   plan,
@@ -26,6 +28,7 @@ export function MobileChatSummaryChecklist({
   const [planOpen, setPlanOpen] = useState(false)
   const progress = plan ? mobileNativeChatPlanProgress(plan) : null
   const checklist = view.checklist
+  const items = checklist?.items ?? []
   return (
     <>
       {plan && progress ? (
@@ -43,31 +46,31 @@ export function MobileChatSummaryChecklist({
           <MobilePlanSheet visible={planOpen} plan={plan} onClose={() => setPlanOpen(false)} />
         </>
       ) : null}
-      {checklist ? (
-        <>
-          <SheetSectionLabel
-            label="Checklist"
-            count={`${checklist.checked}/${checklist.items.length}`}
-          />
-          <View style={styles.group}>
-            {checklist.items.map((item, index) => (
-              <View key={item.key}>
-                {index > 0 ? <View style={styles.separator} /> : null}
-                <MobileChecklistItemRow
-                  item={item}
-                  agentLabel={agentLabel}
-                  readOnly={view.readOnly}
-                  onToggle={(next) => {
-                    void view.toggleItem(next)
-                  }}
-                  onOpen={view.openItem}
-                />
-              </View>
-            ))}
-          </View>
-          <MobileNativeChatChecklistItemSheet view={view} agentLabel={agentLabel} />
-        </>
-      ) : null}
+      <SheetSectionLabel
+        label="Checklist"
+        count={items.length > 0 ? `${checklist?.checked ?? 0}/${items.length}` : undefined}
+      />
+      {items.length === 0 ? (
+        <Text style={summaryStyles.emptyLine}>No checklist yet.</Text>
+      ) : (
+        <View style={styles.group}>
+          {items.map((item, index) => (
+            <View key={item.key}>
+              {index > 0 ? <View style={styles.separator} /> : null}
+              <MobileChecklistItemRow
+                item={item}
+                agentLabel={agentLabel}
+                readOnly={view.readOnly}
+                onToggle={(next) => {
+                  void view.toggleItem(next)
+                }}
+                onOpen={view.openItem}
+              />
+            </View>
+          ))}
+        </View>
+      )}
+      <MobileNativeChatChecklistItemSheet view={view} agentLabel={agentLabel} />
     </>
   )
 }

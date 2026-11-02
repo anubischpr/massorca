@@ -37,7 +37,7 @@ type Props = {
   menu: MobileSessionHeaderMenu
   /** "2 of 5 done" on the plan row; absent when the chat has no plan. */
   planHint?: string
-  /** "2 of 5" on the checklist row; shown only when the chat has a checklist. */
+  /** "2 of 5" on the checklist row, or "No items" while it is empty. */
   checklistHint?: string
   recordedFileCount: number
   /** the count on the Prototypes row; absent when this chat has no prototype set. */

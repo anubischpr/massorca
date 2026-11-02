@@ -28,6 +28,7 @@ vi.mock('../components/BottomDrawer', async () => {
 const ITEM: NativeChatChecklistItem = {
   key: 'open the summary',
   text: 'Open the summary',
+  source: 'agent',
   checked: false,
   by: null,
   at: null,
@@ -56,11 +57,13 @@ describe('MobileChecklistItemSheet', () => {
     onSave: ReturnType<typeof vi.fn>
     onClose: ReturnType<typeof vi.fn>
     onPickScreenshot: ReturnType<typeof vi.fn>
+    onRemove: ReturnType<typeof vi.fn>
   } {
     act(() => renderer?.unmount())
     const onSave = vi.fn(async () => true)
     const onClose = vi.fn()
     const onPickScreenshot = vi.fn(async () => [])
+    const onRemove = vi.fn(async () => true)
     const mounted = create(createElement('View'))
     renderer = mounted
     act(() => {
@@ -74,12 +77,13 @@ describe('MobileChecklistItemSheet', () => {
           readOnly: false,
           onClose,
           onSave,
+          onRemove,
           onPickScreenshot,
           ...overrides
         })
       )
     })
-    return { mounted, onSave, onClose, onPickScreenshot }
+    return { mounted, onSave, onClose, onPickScreenshot, onRemove }
   }
 
   function pressable(mounted: ReactTestRenderer, label: string): ReactTestInstance {
@@ -147,6 +151,29 @@ describe('MobileChecklistItemSheet', () => {
     expect(onSave).toHaveBeenCalledWith({
       screenshots: [{ path: '/var/tmp/clipboard-7.png', name: 'clipboard-7.png' }]
     })
+  })
+
+  it('offers Remove item for an item the person added, and removes it through onRemove', async () => {
+    const { mounted, onRemove, onSave } = mount({
+      item: { ...ITEM, source: 'person', text: 'Buy milk' }
+    })
+    const remove = pressable(mounted, 'Remove item')
+    await act(async () => {
+      remove.props.onPress()
+    })
+    expect(onRemove).toHaveBeenCalledTimes(1)
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('leaves Remove item out for the agent’s items and for a read-only host', () => {
+    expect(
+      mount().mounted.root.findAll((node) => node.props.accessibilityLabel === 'Remove item')
+    ).toEqual([])
+    expect(
+      mount({ item: { ...ITEM, source: 'person' }, readOnly: true }).mounted.root.findAll(
+        (node) => node.props.accessibilityLabel === 'Remove item'
+      )
+    ).toEqual([])
   })
 
   it('shows read-only: no Add tile, no agent line, and Save disabled', () => {

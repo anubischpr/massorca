@@ -9,6 +9,7 @@ vi.mock('react-native', () => ({
   Pressable: 'Pressable',
   StyleSheet: { create: (styles: unknown) => styles, hairlineWidth: 1 },
   Text: 'Text',
+  TextInput: 'TextInput',
   View: 'View'
 }))
 vi.mock('lucide-react-native', () => ({
@@ -34,6 +35,7 @@ const CHECKLIST: NativeChatChecklist = {
     {
       key: 'open the summary',
       text: 'Open the summary',
+      source: 'agent',
       checked: true,
       by: 'person',
       at: PERSON_AT,
@@ -45,6 +47,7 @@ const CHECKLIST: NativeChatChecklist = {
     {
       key: 'plan shows',
       text: 'Plan shows',
+      source: 'agent',
       checked: false,
       by: null,
       at: null,
@@ -70,10 +73,16 @@ describe('MobileChecklistSheet', () => {
 
   function mount(
     overrides: Partial<Parameters<typeof MobileChecklistSheet>[0]> = {}
-  ): { mounted: ReactTestRenderer; onToggle: ReturnType<typeof vi.fn>; onSendNow: ReturnType<typeof vi.fn> } {
+  ): {
+    mounted: ReactTestRenderer
+    onToggle: ReturnType<typeof vi.fn>
+    onSendNow: ReturnType<typeof vi.fn>
+    onAddItem: ReturnType<typeof vi.fn>
+  } {
     act(() => renderer?.unmount())
     const onToggle = vi.fn()
     const onSendNow = vi.fn()
+    const onAddItem = vi.fn(async () => true)
     const mounted = create(createElement('View'))
     renderer = mounted
     act(() => {
@@ -87,16 +96,86 @@ describe('MobileChecklistSheet', () => {
           onClose: () => undefined,
           onToggle,
           onOpenItem: () => undefined,
+          onAddItem,
           onSendNow,
           ...overrides
         })
       )
     })
-    return { mounted, onToggle, onSendNow }
+    return { mounted, onToggle, onSendNow, onAddItem }
+  }
+
+  function input(mounted: ReactTestRenderer): ReactTestInstance {
+    return mounted.root.find((node) => node.props.accessibilityLabel === 'Add an item')
   }
 
   it('draws nothing while closed', () => {
     expect(mount({ visible: false }).mounted.toJSON()).toBeNull()
+  })
+
+  it('shows the empty state and the add row when the chat has no items yet', () => {
+    const { mounted } = mount({ checklist: null, writtenAt: null })
+    const texts = mounted.root.findAll((node) => String(node.type) === 'Text').map(textOf)
+    expect(texts).toEqual(
+      expect.arrayContaining([
+        'Checklist',
+        'No checklist yet',
+        'Ask the agent for one, or add your own items.'
+      ])
+    )
+    expect(texts).not.toContain('0 of 0 checked')
+    expect(mounted.root.findAll((node) => node.props.accessibilityRole === 'progressbar')).toEqual(
+      []
+    )
+    expect(input(mounted).props.placeholder).toBe('Add an item')
+    expect(mounted.root.find((node) => node.props.accessibilityLabel === 'Add').props.disabled).toBe(
+      true
+    )
+  })
+
+  it('adds a typed item as the trimmed text, then clears the field', async () => {
+    const { mounted, onAddItem } = mount({ checklist: null, writtenAt: null })
+    act(() => input(mounted).props.onChangeText('  Buy milk  '))
+    await act(async () => {
+      mounted.root.find((node) => node.props.accessibilityLabel === 'Add').props.onPress()
+    })
+    expect(onAddItem).toHaveBeenCalledWith('Buy milk')
+    expect(input(mounted).props.value).toBe('')
+  })
+
+  it('adds from the keyboard submit too, and keeps the text when the host refuses it', async () => {
+    const { mounted, onAddItem } = mount({ checklist: null, writtenAt: null })
+    onAddItem.mockResolvedValueOnce(false)
+    act(() => input(mounted).props.onChangeText('Check the banner'))
+    await act(async () => {
+      input(mounted).props.onSubmitEditing()
+    })
+    expect(onAddItem).toHaveBeenCalledWith('Check the banner')
+    expect(input(mounted).props.value).toBe('Check the banner')
+  })
+
+  it('ignores a blank item', async () => {
+    const { mounted, onAddItem } = mount({ checklist: null, writtenAt: null })
+    act(() => input(mounted).props.onChangeText('   '))
+    await act(async () => {
+      input(mounted).props.onSubmitEditing()
+      mounted.root.find((node) => node.props.accessibilityLabel === 'Add').props.onPress()
+    })
+    expect(onAddItem).not.toHaveBeenCalled()
+  })
+
+  it('hides the add row when the host cannot take the person’s items', () => {
+    const { mounted } = mount({ readOnly: true })
+    expect(mounted.root.findAll((node) => node.props.accessibilityLabel === 'Add an item')).toEqual(
+      []
+    )
+    expect(mounted.root.findAll((node) => node.props.accessibilityLabel === 'Add')).toEqual([])
+  })
+
+  it('keeps the add row under the items when the checklist has items', () => {
+    const { mounted } = mount()
+    expect(input(mounted)).toBeDefined()
+    expect(mounted.root.findAll((node) => String(node.type) === 'TextInput')).toHaveLength(1)
   })
 
   it('shows the count, a progress bar, and the title with the agent and the clock it last wrote', () => {

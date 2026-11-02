@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useState } from 'react'
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { Check, ChevronRight } from 'lucide-react-native'
-import type { NativeChatChecklist, NativeChatChecklistItem } from '../../../src/shared/native-chat-checklist'
+import { NATIVE_CHAT_CHECKLIST_ITEM_MAX_LENGTH } from '../../../src/shared/native-chat-checklist'
 import { BottomDrawer } from '../components/BottomDrawer'
 import { SheetSectionLabel } from '../components/SheetSectionLabel'
 import { colors, radii, spacing, typography } from '../theme/mobile-theme'
@@ -9,18 +10,24 @@ import {
   mobileNativeChatChecklistSourceLine,
   mobileNativeChatChecklistUnseenText
 } from './mobile-native-chat-checklist-model'
+import type {
+  MobileNativeChatChecklist,
+  MobileNativeChatChecklistItem
+} from './use-mobile-native-chat-checklist'
 
 type SheetProps = {
   visible: boolean
-  checklist: NativeChatChecklist | null
+  checklist: MobileNativeChatChecklist | null
   /** When the agent last wrote the checklist. */
   writtenAt: number | null
   agentLabel: string
   readOnly: boolean
   onClose: () => void
   /** Ticks or unticks one item, which saves on the host. */
-  onToggle: (item: NativeChatChecklistItem) => void
+  onToggle: (item: MobileNativeChatChecklistItem) => void
   onOpenItem: (key: string) => void
+  /** Adds an item the person wrote; resolves true once the host has stored it. */
+  onAddItem: (text: string) => Promise<boolean>
   onSendNow: () => void
 }
 
@@ -34,6 +41,7 @@ export function MobileChecklistSheet({
   onClose,
   onToggle,
   onOpenItem,
+  onAddItem,
   onSendNow
 }: SheetProps): React.JSX.Element {
   const items = checklist?.items ?? []
@@ -41,20 +49,41 @@ export function MobileChecklistSheet({
   const checked = checklist?.checked ?? 0
   const percent = total > 0 ? Math.round((checked / total) * 100) : 0
   const unseen = checklist?.unseen ?? 0
+  const [draft, setDraft] = useState('')
+  const [adding, setAdding] = useState(false)
+  const text = draft.trim()
+  const canAdd = !readOnly && !adding && text.length > 0
+
+  const submit = async (): Promise<void> => {
+    if (!canAdd) {
+      return
+    }
+    setAdding(true)
+    try {
+      if (await onAddItem(text)) {
+        setDraft('')
+      }
+    } finally {
+      setAdding(false)
+    }
+  }
+
   return (
     <BottomDrawer visible={visible} onClose={onClose} dragContentToDismiss contentScrollable>
       <View style={styles.header}>
         <Text style={styles.title}>Checklist</Text>
-        <Text style={styles.count}>{`${checked} of ${total} checked`}</Text>
+        {total > 0 ? <Text style={styles.count}>{`${checked} of ${total} checked`}</Text> : null}
       </View>
-      <View
-        style={styles.track}
-        accessibilityRole="progressbar"
-        accessibilityValue={{ min: 0, max: total, now: checked }}
-      >
-        <View style={[styles.fill, { width: `${percent}%` }]} />
-      </View>
-      {checklist ? (
+      {total > 0 ? (
+        <View
+          style={styles.track}
+          accessibilityRole="progressbar"
+          accessibilityValue={{ min: 0, max: total, now: checked }}
+        >
+          <View style={[styles.fill, { width: `${percent}%` }]} />
+        </View>
+      ) : null}
+      {checklist && writtenAt !== null ? (
         <Text style={styles.source}>
           {mobileNativeChatChecklistSourceLine({
             title: checklist.title,
@@ -63,21 +92,56 @@ export function MobileChecklistSheet({
           })}
         </Text>
       ) : null}
-      <SheetSectionLabel label="Items" count={total} />
-      <View style={styles.group}>
-        {items.map((item, index) => (
-          <View key={item.key}>
-            {index > 0 ? <View style={styles.separator} /> : null}
-            <MobileChecklistItemRow
-              item={item}
-              agentLabel={agentLabel}
-              readOnly={readOnly}
-              onToggle={onToggle}
-              onOpen={onOpenItem}
-            />
+      {total === 0 ? (
+        <View style={[styles.group, styles.empty]}>
+          <Text style={styles.emptyTitle}>No checklist yet</Text>
+          <Text style={styles.emptyBody}>Ask the agent for one, or add your own items.</Text>
+        </View>
+      ) : (
+        <>
+          <SheetSectionLabel label="Items" count={total} />
+          <View style={styles.group}>
+            {items.map((item, index) => (
+              <View key={item.key}>
+                {index > 0 ? <View style={styles.separator} /> : null}
+                <MobileChecklistItemRow
+                  item={item}
+                  agentLabel={agentLabel}
+                  readOnly={readOnly}
+                  onToggle={onToggle}
+                  onOpen={onOpenItem}
+                />
+              </View>
+            ))}
           </View>
-        ))}
-      </View>
+        </>
+      )}
+      {readOnly ? null : (
+        <View style={styles.addRow}>
+          <TextInput
+            accessibilityLabel="Add an item"
+            placeholder="Add an item"
+            placeholderTextColor={colors.textMuted}
+            value={draft}
+            onChangeText={setDraft}
+            onSubmitEditing={() => void submit()}
+            editable={!adding}
+            maxLength={NATIVE_CHAT_CHECKLIST_ITEM_MAX_LENGTH}
+            returnKeyType="done"
+            style={styles.addInput}
+          />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add"
+            accessibilityState={{ disabled: !canAdd, busy: adding }}
+            disabled={!canAdd}
+            style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}
+            onPress={() => void submit()}
+          >
+            <Text style={styles.addButtonText}>Add</Text>
+          </Pressable>
+        </View>
+      )}
       {unseen > 0 ? (
         <View style={styles.footer}>
           <Text style={styles.footerText}>{mobileNativeChatChecklistUnseenText(unseen)}</Text>
@@ -99,10 +163,10 @@ export function MobileChecklistSheet({
 }
 
 type RowProps = {
-  item: NativeChatChecklistItem
+  item: MobileNativeChatChecklistItem
   agentLabel: string
   readOnly: boolean
-  onToggle: (item: NativeChatChecklistItem) => void
+  onToggle: (item: MobileNativeChatChecklistItem) => void
   onOpen: (key: string) => void
 }
 
@@ -276,5 +340,51 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     color: colors.textMuted,
     fontSize: typography.metaSize
+  },
+  empty: {
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    gap: spacing.xs
+  },
+  emptyTitle: {
+    color: colors.textPrimary,
+    fontSize: typography.bodySize,
+    fontWeight: '500'
+  },
+  emptyBody: {
+    color: colors.textMuted,
+    fontSize: typography.metaSize
+  },
+  addRow: {
+    marginTop: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm
+  },
+  addInput: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 44,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.input,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.bgPanel,
+    color: colors.textPrimary,
+    fontSize: typography.bodySize
+  },
+  addButton: {
+    minWidth: 44,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.button,
+    backgroundColor: colors.accentBlue
+  },
+  addButtonText: {
+    color: colors.onAccent,
+    fontSize: typography.bodySize,
+    fontWeight: '600'
   }
 })
