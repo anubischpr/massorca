@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
 import { Bot, Check, ChevronDown, ChevronLeft, Ellipsis, MessageSquare } from 'lucide-react-native'
 import { BottomDrawer } from '../components/BottomDrawer'
@@ -25,6 +25,7 @@ import {
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 
 const NO_GENERATION = () => 0
+const ROOM_CHECK_MS = 5_000
 const NOT_WORKING = () => false
 
 function statusDotColor(status: string): string {
@@ -149,9 +150,13 @@ export function MobileBotTeamRoom({
     onError: (error) => Alert.alert('Dictation failed', error.message)
   })
 
+  const latestRead = useRef(0)
+  const sending = useRef(false)
   const reload = useCallback(async () => {
+    const read = ++latestRead.current
     const room = await listMobileBotTeamRoom(client, team.id)
-    if (room) {
+    // An older answer must not undo a newer one.
+    if (room && read === latestRead.current) {
       setMessages(room.messages)
       setTasks(room.tasks)
       setWorkspaceId(room.workspaceId)
@@ -159,16 +164,26 @@ export function MobileBotTeamRoom({
   }, [client, team.id])
 
   useEffect(() => {
-    if (!offline) {
-      void reload()
+    if (offline) {
+      return
     }
+    void reload()
+    // Bots post and add tasks on their own; the host has no push for the room.
+    const timer = setInterval(() => void reload(), ROOM_CHECK_MS)
+    return () => clearInterval(timer)
   }, [reload, offline])
 
   const send = async (typed: string): Promise<boolean> => {
+    if (sending.current) {
+      return false
+    }
+    sending.current = true
     const sent = await postMobileBotTeamRequest(client, {
       teamId: team.id,
       text: typed,
       start: true
+    }).finally(() => {
+      sending.current = false
     })
     if (!sent.ok) {
       Alert.alert('That did not send', 'Check the connection to this host and try again.')

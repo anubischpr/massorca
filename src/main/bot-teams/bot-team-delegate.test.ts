@@ -34,6 +34,23 @@ function deps(overrides: Partial<BotTeamDelegateDeps> = {}): BotTeamDelegateDeps
 }
 
 describe('delegateToBotTeammate', () => {
+  it('runs a teammate on Gentle Shell as Gentle Shell, never as stock Pi', async () => {
+    const d = deps()
+    const shell = { ...TEAM.bots[0], name: 'Rosa', agent: 'pi' as const }
+    await delegateToBotTeammate(d, {
+      team: { ...TEAM, bots: [shell] },
+      botName: 'Rosa',
+      text: 'Write the file'
+    })
+    expect(vi.mocked(d.fileRequest).mock.calls[0][0].piRuntime).toBe('gentle-shell')
+  })
+
+  it('names no Pi runtime for any other agent', async () => {
+    const d = deps()
+    await delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Write the file' })
+    expect(vi.mocked(d.fileRequest).mock.calls[0][0].piRuntime).toBeUndefined()
+  })
+
   it("files the child with the teammate's own model", async () => {
     const d = deps()
     await delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Write the file' })

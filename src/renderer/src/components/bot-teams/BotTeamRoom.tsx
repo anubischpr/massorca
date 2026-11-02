@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowUp, ChevronLeft, Play } from 'lucide-react'
 import { toast } from 'sonner'
@@ -99,6 +99,8 @@ function BotTeamTaskThread({
   )
 }
 
+const ROOM_CHECK_MS = 5_000
+
 export function BotTeamRoom({
   team,
   openTaskId,
@@ -123,25 +125,43 @@ export function BotTeamRoom({
   const statuses = useBotTeamSessionStatuses()
   const botOf = (botId: string | null) => team.bots.find((bot) => bot.id === botId)
 
+  const latestRead = useRef(0)
+  const sending = useRef(false)
   const reload = useCallback(() => {
+    const read = ++latestRead.current
     void listBotTeamRoom(team.id).then(
       (room) => {
-        setMessages(room.messages)
-        setTasks(room.tasks)
+        // An older answer must not undo a newer one.
+        if (read === latestRead.current) {
+          setMessages(room.messages)
+          setTasks(room.tasks)
+        }
       },
-      (error: unknown) => toast.error(String(error))
+      (error: unknown) => {
+        if (read === latestRead.current) {
+          toast.error(String(error))
+        }
+      }
     )
   }, [team.id])
 
   useEffect(reload, [reload])
   // Catches up on what happened while the host was out of reach.
   useEffect(() => {
-    if (!offline) {
-      reload()
+    if (offline) {
+      return
     }
+    reload()
+    // Bots post and add tasks on their own; the host has no push for the room.
+    const timer = window.setInterval(reload, ROOM_CHECK_MS)
+    return () => window.clearInterval(timer)
   }, [offline, reload])
 
   const send = async (start: boolean): Promise<void> => {
+    if (sending.current) {
+      return
+    }
+    sending.current = true
     try {
       const sent = await postBotTeamRequest({ teamId: team.id, text: text.trim(), start })
       setText('')
@@ -152,6 +172,8 @@ export function BotTeamRoom({
       reload()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error))
+    } finally {
+      sending.current = false
     }
   }
 

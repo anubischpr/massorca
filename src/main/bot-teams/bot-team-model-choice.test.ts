@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { botLaunchOptions, botTeamTier, resolveBotModelChoice } from './bot-team-model-choice'
+import {
+  botLaunchOptions,
+  botSessionOptions,
+  botTeamTier,
+  resolveBotModelChoice
+} from './bot-team-model-choice'
 
 const DRAFT = { name: 'Nora', job: 'Writes offers and messages', agent: 'claude' as const }
 
@@ -22,7 +27,39 @@ describe('botTeamTier', () => {
   })
 })
 
+describe('botSessionOptions', () => {
+  it("carries the team's access with the bot's model, since only Pi reads it at create", () => {
+    expect(botSessionOptions({ model: 'sonnet' }, 'default')).toEqual({
+      model: 'sonnet',
+      accessMode: 'default'
+    })
+  })
+
+  it("keeps the team's access when the bot runs its agent's default model", () => {
+    expect(botSessionOptions(undefined, 'full-access')).toEqual({ accessMode: 'full-access' })
+  })
+})
+
 describe('resolveBotModelChoice', () => {
+  it('drops the old effort when the new model has none', () => {
+    const existing = {
+      agent: 'claude' as const,
+      modelMode: 'manual' as const,
+      model: 'opus',
+      effort: 'high',
+      skills: []
+    }
+    expect(
+      resolveBotModelChoice(
+        { ...DRAFT, modelMode: 'manual', model: 'haiku', effort: null },
+        existing
+      ).effort
+    ).toBeNull()
+    expect(
+      resolveBotModelChoice({ ...DRAFT, modelMode: 'manual', model: 'opus' }, existing).effort
+    ).toBe('high')
+  })
+
   it('picks a model able to orchestrate when the bot is saved', () => {
     expect(resolveBotModelChoice(DRAFT)).toEqual({
       modelMode: 'auto',

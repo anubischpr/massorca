@@ -1,3 +1,4 @@
+import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 /**
  * Starting and retiring a worker that IS a structured agent session.
  *
@@ -87,6 +88,8 @@ export async function createStructuredWorkerSession(args: {
   options?: Readonly<Record<string, string>>
   /** The resolved access, when the dispatch asked for one; the host checks it for Pi. */
   accessMode?: AgentSessionExplicitAccess
+  /** Which Pi to run; absent, the host picks whichever it has. */
+  piRuntime?: PiRuntimeSelection
   /** Retried whenever the session's journal moves, which is the structured idle edge. */
   onJournalActivity: (sessionId: string) => void
 }): Promise<{
@@ -132,6 +135,7 @@ export async function createStructuredWorkerSession(args: {
       },
       worktree: `id:${args.worktreeId}`,
       agent: args.agent,
+      ...(args.piRuntime ? { piRuntime: args.piRuntime } : {}),
       // Absent, the host seeds the user's saved selection — the same fallback a chat gets.
       ...(args.options ? { options: args.options } : {}),
       // The host judges only the two modes it knows at create; a preset rides in `options`.

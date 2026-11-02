@@ -78,7 +78,9 @@ export function setBotTeamTaskSession(
   taskId: string,
   sessionId: string
 ): BotTeamTask {
-  this.db.prepare('UPDATE bot_team_tasks SET session_id = ? WHERE id = ?').run(sessionId, taskId)
+  this.db
+    .prepare('UPDATE bot_team_tasks SET session_id = ? WHERE id = ? AND session_id IS NULL')
+    .run(sessionId, taskId)
   return requireBotTeamTask(this, taskId)
 }
 
@@ -132,12 +134,27 @@ export function setBotTeamWorkspace(
 }
 
 export function getBotTeamTask(this: OrchestrationDb, taskId: string): BotTeamTask {
+  linkDelegatedBotTeamTasks(this)
   return requireBotTeamTask(this, taskId)
+}
+
+/** A teammate's child is on its way: starting the task as well would run it twice. */
+export function isBotTeamTaskHandedOff(this: OrchestrationDb, taskId: string): boolean {
+  return (
+    this.db
+      .prepare(
+        `SELECT 1 FROM bot_team_task_delegations l
+         JOIN delegation_requests d ON d.id = l.request_id
+         WHERE l.task_id = ? AND d.status IN ('pending', 'starting')`
+      )
+      .get(taskId) !== undefined
+  )
 }
 
 export type BotTeamRoomStoreMethods = {
   linkBotTeamTaskDelegation: typeof linkBotTeamTaskDelegation
   getBotTeamTask: typeof getBotTeamTask
+  isBotTeamTaskHandedOff: typeof isBotTeamTaskHandedOff
   getBotTeamWorkspace: typeof getBotTeamWorkspace
   setBotTeamWorkspace: typeof setBotTeamWorkspace
   createBotTeamTask: typeof createBotTeamTask
@@ -150,6 +167,7 @@ export type BotTeamRoomStoreMethods = {
 
 export function attachBotTeamRoomStore(ctor: { prototype: object }): void {
   Object.assign(ctor.prototype, {
+    isBotTeamTaskHandedOff,
     linkBotTeamTaskDelegation,
     getBotTeamTask,
     getBotTeamWorkspace,

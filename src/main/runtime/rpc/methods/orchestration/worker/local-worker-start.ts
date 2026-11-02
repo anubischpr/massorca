@@ -196,6 +196,7 @@ export async function startLocalWorker(args: {
       agent,
       launchPreferences: launch.preferences,
       accessMode: access.accessMode,
+      ...(params.piRuntime ? { piRuntime: params.piRuntime } : {}),
       effects,
       onStage: (stage) => {
         failedStage = stage

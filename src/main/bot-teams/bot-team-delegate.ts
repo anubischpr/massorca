@@ -1,4 +1,6 @@
+import { botAgentPiRuntime } from '../../shared/bot-team-character-art'
 import { botTeamTaskTitle } from '../../shared/bot-team-request-route'
+import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
 import type { BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import { botLaunchOptions } from './bot-team-model-choice'
@@ -10,6 +12,7 @@ export type BotTeamDelegateDeps = {
     prompt: string
     agent: BotTeamBot['agent']
     launch?: Readonly<Record<string, string>>
+    piRuntime?: PiRuntimeSelection
   }) => Promise<string>
   createTask: (args: { title: string; prompt: string; ownerBotId: string }) => BotTeamTask
   linkTask: (taskId: string, requestId: string) => void
@@ -27,11 +30,13 @@ export async function delegateToBotTeammate(
   }
   const title = botTeamTaskTitle(text, team.bots)
   const launch = botLaunchOptions(teammate)
+  const piRuntime = botAgentPiRuntime(teammate.agent)
   const requestId = await deps.fileRequest({
     title,
     prompt: botTeamTaskPrompt(team, teammate, { title, prompt: text }),
     agent: teammate.agent,
-    ...(launch ? { launch } : {})
+    ...(launch ? { launch } : {}),
+    ...(piRuntime ? { piRuntime } : {})
   })
   const task = deps.createTask({ title, prompt: text, ownerBotId: teammate.id })
   deps.linkTask(task.id, requestId)

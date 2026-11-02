@@ -55,7 +55,8 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
                 title: request.title,
                 writes: false,
                 agent: request.agent,
-                ...(request.launch ? { launch: request.launch } : {})
+                ...(request.launch ? { launch: request.launch } : {}),
+                ...(request.piRuntime ? { piRuntime: request.piRuntime } : {})
               }),
             createTask: (args) => db.createBotTeamTask({ teamId: team.id, ...args }),
             linkTask: (taskId, requestId) => db.linkBotTeamTaskDelegation(taskId, requestId),

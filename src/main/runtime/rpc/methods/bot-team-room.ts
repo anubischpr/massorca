@@ -21,6 +21,7 @@ import { createStructuredAgentSessionId } from '../../../../shared/structured-ag
 import { createStructuredAgentSessionOperationId } from '../../../../shared/structured-agent-session-mutation'
 import { folderWorkspaceKey } from '../../../../shared/workspace-scope'
 import { askDefaultAgentForBotTeamLead } from '../../../bot-teams/bot-team-lead-query'
+import { botSessionOptions } from '../../../bot-teams/bot-team-model-choice'
 import { startBotTeamTask } from '../../../bot-teams/bot-team-task-start'
 import { getStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
 import { defineMethod, type RpcContext } from '../core'
@@ -31,12 +32,24 @@ import { structuredCallerFor } from './structured-agent-session-gate'
 
 const BOT_TEAMS_GROUP_NAME = 'Bot teams'
 
+const workspacesBeingMade = new Map<string, Promise<string>>()
+const tasksBeingStarted = new Set<string>()
+
+/** Two first requests at once must share one workspace: the later would replace the earlier. */
 async function ensureTeamWorkspace(ctx: RpcContext, team: BotTeam): Promise<string> {
-  const db = ctx.runtime.getOrchestrationDb()
-  const existing = db.getBotTeamWorkspace(team.id)
+  const existing = ctx.runtime.getOrchestrationDb().getBotTeamWorkspace(team.id)
   if (existing) {
     return existing
   }
+  const making =
+    workspacesBeingMade.get(team.id) ??
+    makeTeamWorkspace(ctx, team).finally(() => workspacesBeingMade.delete(team.id))
+  workspacesBeingMade.set(team.id, making)
+  return making
+}
+
+async function makeTeamWorkspace(ctx: RpcContext, team: BotTeam): Promise<string> {
+  const db = ctx.runtime.getOrchestrationDb()
   const parentPath = path.join(homedir(), BOT_TEAMS_FOLDER_NAME)
   const folderPath = path.join(parentPath, team.id)
   await mkdir(folderPath, { recursive: true })
@@ -62,6 +75,21 @@ function requireHost() {
 }
 
 async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeamTask> {
+  if (
+    tasksBeingStarted.has(taskId) ||
+    ctx.runtime.getOrchestrationDb().isBotTeamTaskHandedOff(taskId)
+  ) {
+    throw new Error('This task is already starting.')
+  }
+  tasksBeingStarted.add(taskId)
+  try {
+    return await startUnclaimedTaskOnHost(ctx, taskId)
+  } finally {
+    tasksBeingStarted.delete(taskId)
+  }
+}
+
+async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeamTask> {
   const db = ctx.runtime.getOrchestrationDb()
   const task = db.getBotTeamTask(taskId)
   const team = db.listBotTeams().find((entry) => entry.id === task.teamId)
@@ -90,7 +118,7 @@ async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeam
             agent,
             accessMode,
             ...(piRuntime ? { piRuntime } : {}),
-            ...(seed ? { options: seed } : {}),
+            options: botSessionOptions(seed, accessMode),
             // A task runs in the background; opening it is up to the person.
             activate: false
           })

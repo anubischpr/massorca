@@ -19,6 +19,45 @@ describe('bot team room store', () => {
     })
   }
 
+  it('never replaces the session of a task that already has one', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    const task = db.createBotTeamTask({
+      teamId: team.id,
+      title: 'Flyer',
+      prompt: 'Design the flyer',
+      ownerBotId: team.bots[0].id
+    })
+    expect(db.setBotTeamTaskSession(task.id, 'first').sessionId).toBe('first')
+    expect(db.setBotTeamTaskSession(task.id, 'second').sessionId).toBe('first')
+  })
+
+  it('knows a task handed to a teammate is on its way, until the request settles', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    const task = db.createBotTeamTask({
+      teamId: team.id,
+      title: 'Flyer',
+      prompt: 'Design the flyer',
+      ownerBotId: team.bots[0].id
+    })
+    expect(db.isBotTeamTaskHandedOff(task.id)).toBe(false)
+    const request = db.createDelegationRequest({
+      parentSessionId: 'parent',
+      title: 'Flyer',
+      summary: 'Flyer',
+      prompt: 'Design the flyer',
+      writes: false,
+      workspaceKind: 'folder',
+      optionsJson: '{"agents":[]}',
+      decisionJson: null
+    })
+    db.linkBotTeamTaskDelegation(task.id, request.id)
+    expect(db.isBotTeamTaskHandedOff(task.id)).toBe(true)
+    db.transitionDelegationRequest(request.id, 'pending', 'failed', {})
+    expect(db.isBotTeamTaskHandedOff(task.id)).toBe(false)
+  })
+
   it('saves a task with no session, so it waits in Todo until it starts', () => {
     db = new OrchestrationDb(':memory:')
     const team = createTeam(db)
