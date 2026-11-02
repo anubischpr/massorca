@@ -11,9 +11,15 @@ import type {
   BotTeamProject,
   BotTeamTask
 } from '../../../shared/rpc-contract/bot-team-room-params'
+import type {
+  RuntimeFileListEntry,
+  RuntimeFileListResult,
+  RuntimeFileReadResult
+} from '../../../shared/runtime-file-contracts'
 import { botTeamHostTarget, currentBotTeamHost } from './bot-team-host'
 import { callRuntimeRpc } from './runtime-rpc-client'
 import { RuntimeRpcCallError } from './runtime-rpc-result'
+import { toRuntimeWorktreeSelector } from './runtime-worktree-selector'
 
 // Teams live on one host; see `resolveBotTeamHost` for which.
 function call<TResult>(method: string, params?: unknown): Promise<TResult> {
@@ -141,4 +147,53 @@ export async function setBotTeamProjectBrief(
     }
     throw error
   }
+}
+
+/** The selector of the team's folder on its host, or null before any task made it. */
+async function teamFolderSelector(teamId: string): Promise<string | null> {
+  const { workspaceId } = await call<{ workspaceId: string | null }>('botTeams.workspace', {
+    teamId
+  })
+  return workspaceId === null ? null : toRuntimeWorktreeSelector(workspaceId)
+}
+
+/** A host from before team files lacks a method: the answer is 'unavailable', not a failure. */
+async function orUnavailable<TResult>(
+  read: () => Promise<TResult>
+): Promise<TResult | 'unavailable'> {
+  try {
+    return await read()
+  } catch (error) {
+    if (error instanceof RuntimeRpcCallError && error.code === 'method_not_found') {
+      return 'unavailable'
+    }
+    throw error
+  }
+}
+
+/** The files of the team's folder, through the host's own file listing. */
+export function listBotTeamFiles(
+  teamId: string
+): Promise<{ files: RuntimeFileListEntry[]; truncated: boolean } | 'unavailable'> {
+  return orUnavailable(async () => {
+    const worktree = await teamFolderSelector(teamId)
+    if (worktree === null) {
+      return { files: [], truncated: false }
+    }
+    const listed = await call<RuntimeFileListResult>('files.list', { worktree })
+    return { files: listed.files, truncated: listed.truncated }
+  })
+}
+
+export function readBotTeamFile(
+  teamId: string,
+  relativePath: string
+): Promise<RuntimeFileReadResult | 'unavailable'> {
+  return orUnavailable(async () => {
+    const worktree = await teamFolderSelector(teamId)
+    if (worktree === null) {
+      throw new Error('This team has no folder yet.')
+    }
+    return call<RuntimeFileReadResult>('files.read', { worktree, relativePath })
+  })
 }

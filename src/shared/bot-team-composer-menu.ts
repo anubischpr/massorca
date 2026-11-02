@@ -19,6 +19,12 @@ export type BotTeamComposerMenu = {
 }
 
 const MAX_ITEMS = 12
+const OPEN_MENTION = /(?:^|\s)@(\S*)$/
+
+/** True while an @ mention is being typed at the caret; files are listed only then. */
+export function botTeamMentionOpen(text: string, caret: number): boolean {
+  return OPEN_MENTION.test(text.slice(0, caret))
+}
 
 /** What the room's composer offers at the caret: bots and files after `@`, commands after a leading `/`. */
 export function botTeamComposerMenu(args: {
@@ -38,7 +44,7 @@ export function botTeamComposerMenu(args: {
       .map((name) => ({ kind: 'command' as const, command: name, insert: `/${name}` }))
     return items.length > 0 ? { items, start: 0, end: args.caret } : null
   }
-  const mention = before.match(/(?:^|\s)@(\S*)$/)
+  const mention = before.match(OPEN_MENTION)
   if (!mention) {
     return null
   }

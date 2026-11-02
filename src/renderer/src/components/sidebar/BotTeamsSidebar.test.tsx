@@ -95,7 +95,7 @@ describe('the Bot teams sidebar', () => {
   it('has no Create button and no row for a surface that is not built', async () => {
     seedStore(store, { botTeamsSelection: { teamId: 't1', taskId: null, creating: false } })
     const container = await mount()
-    for (const absent of ['Create', 'Files', 'Memory', 'Permissions']) {
+    for (const absent of ['Create', 'Memory', 'Permissions']) {
       expect(rowLabels(container)).not.toContain(absent)
     }
   })
@@ -116,7 +116,8 @@ describe('the Bot teams sidebar', () => {
       'Conference room',
       'Board',
       'Summer campaign',
-      'New project'
+      'New project',
+      'Files'
     ])
     expect(container.textContent).toContain('Nothing open')
     expect(container.textContent).toContain('No tasks')
@@ -148,6 +149,9 @@ describe('the Bot teams sidebar', () => {
     })
     act(() => rowByLabel(container, 'New project').click())
     expect(store.getState().botTeamsSelection.section).toEqual({ kind: 'new-project' })
+    act(() => rowByLabel(container, 'Files').click())
+    expect(store.getState().botTeamsSelection.section).toEqual({ kind: 'files' })
+    expect(rowByLabel(container, 'Files').getAttribute('aria-current')).toBe('page')
     act(() => rowByLabel(container, 'Conference room').click())
     expect(store.getState().botTeamsSelection.section).toBeUndefined()
   })

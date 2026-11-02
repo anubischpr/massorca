@@ -19,6 +19,7 @@ import type { TaskResumeState, TopLevelView } from '../../../../../shared/ui-chr
 export type BotTeamsSection =
   | { kind: 'board' }
   | { kind: 'new-project' }
+  | { kind: 'files' }
   | { kind: 'project'; projectId: string; tab?: 'brief' }
 
 export type BotTeamsSelection = {
@@ -28,7 +29,7 @@ export type BotTeamsSelection = {
   taskId: string | null
   /** The new team form is open. */
   creating: boolean
-  /** The open team's Board, a project or New project; none means the Conference room. */
+  /** The open team's Board, a project, New project or Files; none means the Conference room. */
   section?: BotTeamsSection
 }
 

@@ -19,6 +19,7 @@ import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { BotAgentIcon } from './BotAgentIcon'
 import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
 import { BotTeamHostPicker } from './BotTeamHostPicker'
+import { BotTeamFiles } from './BotTeamFiles'
 import { BotTeamProjectBrief, type BotTeamProjectTab } from './BotTeamProjectBrief'
 import { BotTeamBoard, BotTeamProjectBoard, NewBotProjectForm } from './BotTeamProjectViews'
 import { BotTeamRoom } from './BotTeamRoom'
@@ -71,6 +72,9 @@ function TeamDetail({
   }
   if (section?.kind === 'board') {
     return <BotTeamBoard team={team} onBack={toRoom} onOpenTask={onOpenTask} />
+  }
+  if (section?.kind === 'files') {
+    return <BotTeamFiles team={team} />
   }
   if (section?.kind === 'new-project') {
     return (

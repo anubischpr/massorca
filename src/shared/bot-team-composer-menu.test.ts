@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { applyBotTeamComposerItem, botTeamComposerMenu } from './bot-team-composer-menu'
+import {
+  applyBotTeamComposerItem,
+  botTeamComposerMenu,
+  botTeamMentionOpen
+} from './bot-team-composer-menu'
 import { findMentionedBot } from './bot-team-lead-selection'
 
 const BOTS = [
@@ -56,5 +60,15 @@ describe('findMentionedBot', () => {
     const bots = [{ id: 'm', name: 'Max' }]
     expect(findMentionedBot('@Maximo and @Max', bots)?.id).toBe('m')
     expect(findMentionedBot('@Maximo only', bots)).toBeNull()
+  })
+})
+
+describe('botTeamMentionOpen', () => {
+  it('is true while a mention is being typed, and only then', () => {
+    expect(botTeamMentionOpen('@', 1)).toBe(true)
+    expect(botTeamMentionOpen('please ask @no', 14)).toBe(true)
+    expect(botTeamMentionOpen('me@no', 5)).toBe(false)
+    expect(botTeamMentionOpen('@Nora hello', 11)).toBe(false)
+    expect(botTeamMentionOpen('@Nora hello', 3)).toBe(true)
   })
 })

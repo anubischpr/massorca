@@ -34,10 +34,12 @@ import {
   applyBotTeamComposerItem,
   BOT_TEAM_ROOM_COMMANDS,
   botTeamComposerMenu,
+  botTeamMentionOpen,
   type BotTeamComposerItem
 } from '../../../../shared/bot-team-composer-menu'
 import { BotTeamComposerMenu } from './BotTeamComposerMenu'
 import { openBotTeamRoomSessions } from './open-bot-team-room-sessions'
+import { useBotTeamFilePaths } from './use-bot-team-files'
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
 import { BotAgentIcon } from './BotAgentIcon'
 
@@ -183,10 +185,17 @@ export function BotTeamRoom({
     return () => window.clearInterval(timer)
   }, [offline, reload])
 
+  const files = useBotTeamFilePaths(team.id, !offline && botTeamMentionOpen(text, caret))
   const menu =
     menuDismissed || offline
       ? null
-      : botTeamComposerMenu({ text, caret, bots: team.bots, commands: BOT_TEAM_ROOM_COMMANDS })
+      : botTeamComposerMenu({
+          text,
+          caret,
+          bots: team.bots,
+          files,
+          commands: BOT_TEAM_ROOM_COMMANDS
+        })
   const chooseMenuItem = (item: BotTeamComposerItem): void => {
     if (!menu) {
       return

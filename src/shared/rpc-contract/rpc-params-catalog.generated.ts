@@ -734,6 +734,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.startTask': BotTeamTaskStart,
   'botTeams.update': BotTeamUpdate,
   'botTeams.updateBot': BotTeamUpdateBot,
+  'botTeams.workspace': BotTeamRoomSelector,
   'browser.back': BrowserTarget,
   'browser.capture.start': BrowserTarget,
   'browser.capture.stop': BrowserTarget,

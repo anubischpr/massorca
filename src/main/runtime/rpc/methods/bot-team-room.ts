@@ -250,6 +250,15 @@ export const BOT_TEAM_ROOM_METHODS = [
     })
   }),
   defineMethod({
+    name: 'botTeams.workspace',
+    permission: 'workspace',
+    params: BotTeamRoomSelector,
+    // Null until a task starts: listing a team's files never creates its folder.
+    handler: ({ teamId }, { runtime }) => ({
+      workspaceId: runtime.getOrchestrationDb().getBotTeamWorkspace(teamId)
+    })
+  }),
+  defineMethod({
     name: 'botTeams.setProjectBrief',
     permission: 'workspace',
     params: BotTeamProjectSetBrief,

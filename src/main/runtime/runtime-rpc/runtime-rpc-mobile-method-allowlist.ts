@@ -30,6 +30,7 @@ export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   'botTeams.setTaskProject',
   'botTeams.update',
   'botTeams.updateBot',
+  'botTeams.workspace',
   'browser.back',
   'browser.dialogAccept',
   'browser.dialogDismiss',

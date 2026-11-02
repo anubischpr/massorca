@@ -1,4 +1,4 @@
-import { Folder, LayoutGrid, Plus, UserCheck } from 'lucide-react'
+import { Files, Folder, LayoutGrid, Plus, UserCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '@/store'
 import type { BotTeamsSelection } from '@/store/slices/ui/ui-slice-contract-core'
@@ -128,6 +128,14 @@ function OpenTeamRows({
       >
         <Plus className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
         <span className="flex-1">{translate('components.botTeams.newProject', 'New project')}</span>
+      </SidebarRow>
+      <SidebarRow
+        indented
+        active={onPage && selection.taskId === null && section?.kind === 'files'}
+        onClick={() => openBotTeamsView({ teamId, section: { kind: 'files' } })}
+      >
+        <Files className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+        <span className="flex-1">{translate('components.botTeams.files', 'Files')}</span>
       </SidebarRow>
     </>
   )

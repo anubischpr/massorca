@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { RuntimeRpcCallError } from './runtime-rpc-result'
 
 const callRuntimeRpc = vi.hoisted(() => vi.fn())
@@ -8,8 +8,13 @@ vi.mock('./bot-team-host', () => ({
   currentBotTeamHost: () => 'local'
 }))
 
-const { listBotTeamRoom, setBotTeamProjectBrief, setBotTeamProjectCodeSource } =
-  await import('./runtime-bot-team-client')
+const {
+  listBotTeamFiles,
+  listBotTeamRoom,
+  readBotTeamFile,
+  setBotTeamProjectBrief,
+  setBotTeamProjectCodeSource
+} = await import('./runtime-bot-team-client')
 
 function failure(code: string): RuntimeRpcCallError {
   return new RuntimeRpcCallError({ id: '1', ok: false, error: { code, message: code } })
@@ -72,5 +77,69 @@ describe('connecting a project to code', () => {
 
     callRuntimeRpc.mockRejectedValue(failure('method_not_found'))
     await expect(setBotTeamProjectBrief('p1', { goal: 'Sell', brief })).resolves.toBe('unavailable')
+  })
+})
+
+describe('the files of a team', () => {
+  const LISTED = {
+    worktree: 'folder:1',
+    rootPath: '/teams/t1',
+    files: [{ relativePath: 'flyer.html', basename: 'flyer.html', kind: 'text' }],
+    totalCount: 1,
+    truncated: false
+  }
+
+  beforeEach(() => {
+    callRuntimeRpc.mockReset()
+  })
+
+  it('lists the team folder through the existing file listing of the same host', async () => {
+    callRuntimeRpc.mockImplementation(async (_target, method: string) =>
+      method === 'botTeams.workspace' ? { workspaceId: 'folder:1' } : LISTED
+    )
+
+    await expect(listBotTeamFiles('t1')).resolves.toEqual({
+      files: LISTED.files,
+      truncated: false
+    })
+    expect(callRuntimeRpc).toHaveBeenCalledWith({ kind: 'local' }, 'botTeams.workspace', {
+      teamId: 't1'
+    })
+    expect(callRuntimeRpc).toHaveBeenCalledWith({ kind: 'local' }, 'files.list', {
+      worktree: 'id:folder:1'
+    })
+  })
+
+  it('lists nothing, and starts nothing, for a team whose folder does not exist yet', async () => {
+    callRuntimeRpc.mockResolvedValue({ workspaceId: null })
+
+    await expect(listBotTeamFiles('t1')).resolves.toEqual({ files: [], truncated: false })
+    expect(callRuntimeRpc).toHaveBeenCalledTimes(1)
+  })
+
+  it('reads a host without the method as unavailable, not as a failure', async () => {
+    callRuntimeRpc.mockRejectedValue(failure('method_not_found'))
+
+    await expect(listBotTeamFiles('t1')).resolves.toBe('unavailable')
+  })
+
+  it('still reports any other failure, such as a host out of reach', async () => {
+    callRuntimeRpc.mockRejectedValue(failure('runtime_unavailable'))
+
+    await expect(listBotTeamFiles('t1')).rejects.toThrow('runtime_unavailable')
+  })
+
+  it('reads one file of the team folder', async () => {
+    callRuntimeRpc.mockImplementation(async (_target, method: string) =>
+      method === 'botTeams.workspace'
+        ? { workspaceId: 'folder:1' }
+        : { worktree: 'folder:1', relativePath: 'flyer.html', content: 'hi', truncated: false }
+    )
+
+    await expect(readBotTeamFile('t1', 'flyer.html')).resolves.toMatchObject({ content: 'hi' })
+    expect(callRuntimeRpc).toHaveBeenCalledWith({ kind: 'local' }, 'files.read', {
+      worktree: 'id:folder:1',
+      relativePath: 'flyer.html'
+    })
   })
 })

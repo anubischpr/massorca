@@ -48,6 +48,8 @@ vi.mock('@/runtime/runtime-bot-team-client', () => ({
       ]
     }),
   setBotTeamProjectBrief: vi.fn(),
+  listBotTeamFiles: () => Promise.resolve({ files: [], truncated: false }),
+  readBotTeamFile: vi.fn(),
   updateBotOnTeam: vi.fn(),
   updateBotTeam: vi.fn(),
   addBotToTeam: vi.fn(),
@@ -202,6 +204,16 @@ describe('the Bot teams page with a controlled selection', () => {
       />
     )
     expect(page.textContent).toContain('The project holds the why. Each task holds the how.')
+  })
+
+  it('shows the team files from the Files section', async () => {
+    const container = await mount(
+      <BotTeamsPage
+        selection={{ teamId: 't1', taskId: null, creating: false, section: { kind: 'files' } }}
+        onSelectionChange={() => {}}
+      />
+    )
+    expect(container.textContent).toContain('One bot or person edits a file at a time.')
   })
 
   it('opens the new project form from its section', async () => {
