@@ -42,8 +42,8 @@ function teamOfBot(teams: readonly BotTeam[], botId: string): BotTeam | undefine
 }
 
 /**
- * Gives a task that is not running to another bot, of this team or another. The new owner starts a
- * new session and reads, in its notes, what the old owner posted. The caller checks the task is idle.
+ * Gives a task that is not running to another bot, of this team or another. Only the owner (and the
+ * team) change: nothing starts, and the notes it had stay with the handover. The caller checks it is idle.
  */
 export function reassignBotTeamTask(
   db: OrchestrationDb,
@@ -70,5 +70,11 @@ export function reassignBotTeamTask(
     started: task.sessionId !== null,
     posts: previousPosts(db, task)
   })
-  return db.moveBotTeamTask(taskId, { teamId: to.id, ownerBotId: botId, startNotes: notes })
+  // The notes the task already had (a composite plan, a day it was asked for) stay, before the handover.
+  const kept = db.getBotTeamTaskStartNotes(taskId)
+  return db.moveBotTeamTask(taskId, {
+    teamId: to.id,
+    ownerBotId: botId,
+    startNotes: kept === null ? notes : `${kept}\n\n${notes}`
+  })
 }

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildBotTeamClassifyPrompt, parseBotTeamClassifyReply } from './bot-team-request-classify'
+import {
+  buildBotTeamClassifyPrompt,
+  parseBotTeamClassifyLater,
+  parseBotTeamClassifyReply
+} from './bot-team-request-classify'
 
 const BOTS = [
   { id: 'iris', name: 'Iris', job: 'Designs flyers' },
@@ -44,10 +48,52 @@ describe('parseBotTeamClassifyReply', () => {
     })
   })
 
-  it('reads a task the team owns that no bot covers', () => {
+  it('reads a task the team owns that no bot covers, with the closest bot when one is named', () => {
     expect(parseBotTeamClassifyReply('{"kind":"team-scope"}', input)).toEqual({
-      kind: 'team-scope'
+      kind: 'team-scope',
+      botIds: []
     })
+    expect(parseBotTeamClassifyReply('{"kind":"team-scope","bots":["Max"]}', input)).toEqual({
+      kind: 'team-scope',
+      botIds: ['max']
+    })
+  })
+
+  it('reads a bot named with a note after its name, as the query sometimes writes it', () => {
+    const team = { bots: [{ id: 'cristhofer', name: 'Cristhofer' }], teams: [] }
+    expect(parseBotTeamClassifyReply('{"kind":"bot","bots":["Cristhofer (front)"]}', team)).toEqual(
+      { kind: 'bot', botIds: ['cristhofer'] }
+    )
+  })
+
+  it('reads another team named with its word "team" after the name', () => {
+    expect(
+      parseBotTeamClassifyReply('{"kind":"other-team","team":"Warehouse team"}', input)
+    ).toEqual({ kind: 'other-team', teamId: 'wh' })
+  })
+
+  it('reads whether the query marked a task as later', () => {
+    expect(parseBotTeamClassifyLater('{"kind":"bot","bots":["Iris"],"later":true}')).toBe(true)
+    expect(parseBotTeamClassifyLater('{"kind":"bot","bots":["Iris"]}')).toBe(false)
+    expect(parseBotTeamClassifyLater('not json')).toBe(false)
+  })
+
+  it('states that a bot covers a request whatever the language, and that a later request is still a task', () => {
+    const prompt = buildBotTeamClassifyPrompt(
+      { name: 'Desarrollo', purpose: 'NexusCare' },
+      [
+        {
+          name: 'Cristhofer',
+          job: 'Se encarga del front de las aplicaciónes, web, mobile, desktop.'
+        }
+      ],
+      [],
+      'tengo como pendiente la tarea de analizar mejoras de front, pero no para hoy, sino para mañana, agréguenlo al Todo'
+    )
+    expect(prompt).toContain('Cristhofer: Se encarga del front de las aplicaciónes')
+    expect(prompt).toContain('whatever the language')
+    expect(prompt).toContain('"later":true')
+    expect(prompt).toContain('agréguenlo al Todo')
   })
 
   it('reads another existing team by name', () => {

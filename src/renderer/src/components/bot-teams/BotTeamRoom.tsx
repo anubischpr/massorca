@@ -169,9 +169,16 @@ export function BotTeamRoom({
     // Shows the person's line while the host prepares the reply.
     window.setTimeout(reload, 400)
     try {
-      const sent = await postBotTeamRequest({ teamId: team.id, text, start: true })
+      const sent = await postBotTeamRequest({
+        teamId: team.id,
+        text,
+        start: true,
+        askProject: true
+      })
       setNeedsOwner(sent.task === null && !sent.greeted && !sent.choice && !sent.answered)
-      setPending(sent.choice ? { choice: sent.choice, text } : null)
+      setPending(
+        sent.choice ? { choice: sent.choice, text, ...(sent.later ? { later: true } : {}) } : null
+      )
       if (sent.startError) {
         toast.error(sent.startError)
       }
@@ -247,10 +254,7 @@ export function BotTeamRoom({
         <BotAgentIcon agent={owner?.agent} size={20} />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium">{task.title}</div>
-          <div className="truncate text-xs text-muted-foreground">
-            {owner?.name}
-            {owner?.job ? `, ${owner.job}` : ''}
-          </div>
+          <div className="truncate text-xs text-muted-foreground">{owner?.name}</div>
         </div>
         <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
           <StatusIndicator status={botTeamTaskGlyph(statusOf(task))} showTooltip={false} />
@@ -371,6 +375,10 @@ export function BotTeamRoom({
                 pending={pending}
                 team={team}
                 otherTeams={otherTeams}
+                projects={projects}
+                onAsked={(choice) =>
+                  setPending((current) => (current ? { ...current, choice } : current))
+                }
                 onFiled={() => {
                   setPending(null)
                   reload()

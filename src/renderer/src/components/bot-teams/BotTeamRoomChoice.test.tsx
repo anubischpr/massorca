@@ -11,17 +11,15 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const client = vi.hoisted(() => ({
   listBotTeamRoom: vi.fn(),
   postBotTeamRequest: vi.fn(),
-  assignBotTeamRequest: vi.fn()
+  fileBotTeamRequest: vi.fn()
 }))
 
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
   listBotTeamRoom: client.listBotTeamRoom,
   postBotTeamRequest: client.postBotTeamRequest,
+  fileBotTeamRequest: client.fileBotTeamRequest,
   setBotTeamTaskProject: vi.fn(),
   startBotTeamTask: vi.fn()
-}))
-vi.mock('@/runtime/runtime-bot-team-routing-client', () => ({
-  assignBotTeamRequest: client.assignBotTeamRequest
 }))
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string, values?: Record<string, string>) =>
@@ -69,8 +67,15 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-async function mountRoom(props: Partial<Parameters<typeof BotTeamRoom>[0]> = {}) {
-  client.listBotTeamRoom.mockResolvedValue({ messages: [], tasks: [], projects: [] })
+async function mountRoom(
+  props: Partial<Parameters<typeof BotTeamRoom>[0]> = {},
+  room: { tasks?: unknown[]; projects?: unknown[] } = {}
+) {
+  client.listBotTeamRoom.mockResolvedValue({
+    messages: [],
+    tasks: room.tasks ?? [],
+    projects: room.projects ?? []
+  })
   const container = document.createElement('div')
   document.body.append(container)
   const root = createRoot(container)
@@ -100,18 +105,19 @@ describe('the room when the host offers a choice', () => {
       startError: null,
       choice: { kind: 'other-team', teamId: 'wh' }
     })
-    client.assignBotTeamRequest.mockResolvedValue({ task: { id: 't' }, startError: null })
+    client.fileBotTeamRequest.mockResolvedValue({ task: { id: 't' }, startError: null })
     const { container, button } = await mountRoom()
     expect(container.textContent).toContain(
       'Choose where this task goes: Send to Warehouse, or keep it in Marketing.'
     )
     expect(container.textContent).not.toContain('Who should take this?')
     await act(async () => button('Send to Warehouse')?.click())
-    expect(client.assignBotTeamRequest).toHaveBeenCalledWith({
+    expect(client.fileBotTeamRequest).toHaveBeenCalledWith({
       teamId: 'mk',
       text: 'Check inventory',
       toTeamId: 'wh',
-      start: true
+      start: true,
+      askProject: true
     })
     expect(container.textContent).not.toContain('Choose where this task goes')
   })
@@ -122,14 +128,82 @@ describe('the room when the host offers a choice', () => {
       startError: null,
       choice: { kind: 'other-team', teamId: 'wh' }
     })
-    client.assignBotTeamRequest.mockResolvedValue({ task: { id: 't' }, startError: null })
+    client.fileBotTeamRequest.mockResolvedValue({ task: { id: 't' }, startError: null })
     const { button } = await mountRoom()
     await act(async () => button('Keep in Marketing')?.click())
-    expect(client.assignBotTeamRequest).toHaveBeenCalledWith({
+    expect(client.fileBotTeamRequest).toHaveBeenCalledWith({
       teamId: 'mk',
       text: 'Check inventory',
-      start: true
+      start: true,
+      askProject: true
     })
+  })
+
+  it('preselects the bot the host suggests for a new-bot choice, not the first on the team', async () => {
+    const duo: BotTeam = {
+      ...TEAM,
+      bots: [
+        { ...TEAM.bots[0], id: 'iris', name: 'Iris', job: 'Designs flyers' },
+        { ...TEAM.bots[0], id: 'max', name: 'Max', job: 'Writes copy' }
+      ]
+    }
+    client.postBotTeamRequest.mockResolvedValue({
+      task: null,
+      startError: null,
+      choice: { kind: 'new-bot', suggestedBotId: 'max' }
+    })
+    const { button } = await mountRoom({ team: duo })
+    expect(button('Send to Max')).toBeDefined()
+    expect(button('Send to Iris')).toBeUndefined()
+  })
+
+  it('asks which project a request is for, offering the team projects and No project', async () => {
+    client.postBotTeamRequest.mockResolvedValue({
+      task: null,
+      startError: null,
+      choice: { kind: 'project', botId: 'iris' }
+    })
+    client.fileBotTeamRequest.mockResolvedValue({ task: { id: 't' }, startError: null })
+    const { container, button } = await mountRoom(
+      {},
+      { projects: [{ id: 'nexus', teamId: 'mk', name: 'NexusCare', goal: '' }] }
+    )
+    expect(container.textContent).toContain('Which project is this for?')
+    expect(container.textContent).toContain('No project')
+    const option = [...container.querySelectorAll('label')].find(
+      (label) => label.textContent === 'NexusCare'
+    )
+    await act(async () => option?.click())
+    await act(async () => button('Continue')?.click())
+    expect(client.fileBotTeamRequest).toHaveBeenCalledWith({
+      teamId: 'mk',
+      text: 'Check inventory',
+      botId: 'iris',
+      projectId: 'nexus',
+      start: true,
+      askProject: true
+    })
+  })
+
+  it('shows a task under only its owner name, not the job the owner was given', async () => {
+    const { container } = await mountRoom(
+      {},
+      {
+        tasks: [
+          {
+            id: 'task_1',
+            teamId: 'mk',
+            title: 'Make a flyer',
+            prompt: 'Make a flyer',
+            ownerBotId: 'iris',
+            sessionId: null,
+            projectId: null
+          }
+        ]
+      }
+    )
+    expect(container.textContent).toContain('Make a flyer')
+    expect(container.textContent).not.toContain('Designs flyers')
   })
 
   it('opens the add-bot form for a new bot and the new-team form for a new team', async () => {

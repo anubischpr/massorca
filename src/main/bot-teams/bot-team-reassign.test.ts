@@ -65,6 +65,16 @@ describe('reassignBotTeamTask', () => {
     expect(db.getBotTeamTaskStartNotes(task.id)).toContain('had not been started')
   })
 
+  it('keeps the notes the task already had, such as a day it was asked for, and its prompt', () => {
+    const { db, warehouse, task } = setup()
+    db.setBotTeamTaskStartNotes(task.id, 'Asked for tomorrow.')
+    const moved = reassignBotTeamTask(db, { taskId: task.id, botId: warehouse.bots[0].id })
+    expect(moved).toMatchObject({ sessionId: null, prompt: 'Count the boxes' })
+    const notes = db.getBotTeamTaskStartNotes(task.id) ?? ''
+    expect(notes).toContain('Asked for tomorrow.')
+    expect(notes).toContain('had not been started')
+  })
+
   it('keeps the task in its team and project when another bot of the team takes it', () => {
     const { db, marketing, max, task } = setup()
     const project = db.createBotTeamProject({

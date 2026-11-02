@@ -63,12 +63,7 @@ export function MobileBotTeamTaskCard({
             {task.title}
           </Text>
         </View>
-        {owner ? (
-          <Text style={styles.rowMeta}>
-            {owner.name}
-            {owner.job ? `, ${owner.job}` : ''}
-          </Text>
-        ) : null}
+        {owner ? <Text style={styles.rowMeta}>{owner.name}</Text> : null}
         {projectName ? <Text style={styles.rowMeta}>{projectName}</Text> : null}
         <View style={styles.taskCardStatus}>
           <View style={[styles.statusDot, { backgroundColor: statusDotColor(status) }]} />

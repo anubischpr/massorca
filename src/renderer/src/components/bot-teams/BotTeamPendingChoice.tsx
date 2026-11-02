@@ -1,40 +1,60 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
-import { assignBotTeamRequest } from '@/runtime/runtime-bot-team-routing-client'
+import { fileBotTeamRequest, type BotTeamRequestFiling } from '@/runtime/runtime-bot-team-client'
 import type { BotTeamRequestChoice } from '../../../../shared/bot-team-request-choice'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import type { BotTeamProject } from '../../../../shared/rpc-contract/bot-team-room-params'
+import { BotTeamProjectQuestion } from './BotTeamProjectQuestion'
 import { BotTeamRequestChoiceCard } from './BotTeamRequestChoiceCard'
 
-export type BotTeamPendingChoiceRequest = { choice: BotTeamRequestChoice; text: string }
+export type BotTeamPendingChoiceRequest = {
+  choice: BotTeamRequestChoice
+  text: string
+  /** The person asked for the work later: filed in Todo, never started. */
+  later?: boolean
+}
 
 /** Puts the room's question to the person and files the request where they decide. */
 export function BotTeamPendingChoice({
   pending,
   team,
   otherTeams,
+  projects,
   onFiled,
+  onAsked,
   onCreateBot,
   onCreateTeam
 }: {
   pending: BotTeamPendingChoiceRequest
   team: BotTeam
   otherTeams: readonly BotTeam[]
+  projects: readonly BotTeamProject[]
   /** The request was filed; the room reads itself again and drops the question. */
   onFiled: () => void
+  /** The host asks the next question before filing, the project one. */
+  onAsked: (choice: BotTeamRequestChoice) => void
   onCreateBot: () => void
   onCreateTeam: () => void
 }): React.JSX.Element {
   const [busy, setBusy] = useState(false)
-  const file = async (target: { botId?: string; toTeamId?: string }): Promise<void> => {
+  const file = async (
+    target: Omit<BotTeamRequestFiling, 'teamId' | 'text' | 'start'>
+  ): Promise<void> => {
     setBusy(true)
     try {
-      const filed = await assignBotTeamRequest({
+      const filed = await fileBotTeamRequest({
         teamId: team.id,
         text: pending.text,
         start: true,
+        askProject: true,
+        ...(pending.later ? { later: true } : {}),
         ...target
       })
+      if (filed.choice) {
+        onAsked(filed.choice)
+        return
+      }
       if (filed.startError) {
         toast.error(filed.startError)
       }
@@ -50,6 +70,18 @@ export function BotTeamPendingChoice({
     } finally {
       setBusy(false)
     }
+  }
+  if (pending.choice.kind === 'project') {
+    const { botId, alsoNeeds } = pending.choice
+    return (
+      <BotTeamProjectQuestion
+        projects={projects}
+        busy={busy}
+        onAnswer={(projectId) =>
+          void file({ botId, projectId, ...(alsoNeeds ? { alsoNeeds } : {}) })
+        }
+      />
+    )
   }
   return (
     <BotTeamRequestChoiceCard

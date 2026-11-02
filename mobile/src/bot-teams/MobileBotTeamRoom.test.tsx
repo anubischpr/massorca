@@ -282,6 +282,14 @@ describe('MobileBotTeamRoom', () => {
     expect(onOpenTask).toHaveBeenCalledWith('folder:1', started)
   })
 
+  it('shows a task under only its owner name, not the job the owner was given', async () => {
+    const jobTeam = { ...TEAM, bots: [{ ...TEAM.bots[0], job: 'Designs flyers' }] }
+    const client = hostAnswering({ tasks: [TASK], messages: [], projects: [], workspaceId: null })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { team: jobTeam })
+    expect(JSON.stringify(renderer.toJSON())).toContain('Flyer')
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('Designs flyers')
+  })
+
   it('asks who takes a request when the host gives it to no bot', async () => {
     const client = hostAnswering({ tasks: [], messages: [], workspaceId: null }, { task: null })
     const renderer = await render(client)
