@@ -51,14 +51,41 @@ export const BotTeamProjectSchema = z.object({
   brief: BotTeamBriefSchema.default(EMPTY_BRIEF),
   briefUpdatedAt: z.number().nullable().default(null),
   // Optional: a host from before Workspaces projects omits it. Null: tasks run in the team's folder.
-  workspace: BotTeamProjectWorkspaceSchema.nullable().optional()
+  workspace: BotTeamProjectWorkspaceSchema.nullable().optional(),
+  // Optional: a host from before shared projects omits both. Archived hides the project from lists.
+  archivedAt: z.number().nullable().optional(),
+  /** Teams besides the owner (teamId) that work on this project. */
+  linkedTeamIds: z.array(z.string()).optional()
 })
 
 export const BotTeamProjectCreate = z.object({
   teamId: requiredString('Missing team id'),
   name: requiredString('Missing project name'),
   goal: z.string().trim().default(''),
-  codeSource: BotTeamCodeSourceSchema.nullable().default(null)
+  codeSource: BotTeamCodeSourceSchema.nullable().default(null),
+  /** Optional: teams besides the owner that work on the project from the start. */
+  linkedTeamIds: z.array(z.string().min(1)).optional()
+})
+
+/** `teamId` is the team acting; only the owner team may delete, archive or restore. */
+export const BotTeamProjectUpdate = z.object({
+  projectId: requiredString('Missing project id'),
+  teamId: requiredString('Missing team id'),
+  name: z.string().trim().min(1).optional(),
+  goal: z.string().trim().optional(),
+  /** Replaces the linked teams (never the owner). Absent leaves them as they are. */
+  linkedTeamIds: z.array(z.string().min(1)).optional()
+})
+
+export const BotTeamProjectArchive = z.object({
+  projectId: requiredString('Missing project id'),
+  teamId: requiredString('Missing team id'),
+  archived: z.boolean()
+})
+
+export const BotTeamProjectDelete = z.object({
+  projectId: requiredString('Missing project id'),
+  teamId: requiredString('Missing team id')
 })
 
 export const BotTeamProjectSetCodeSource = z.object({
@@ -133,6 +160,11 @@ export const BotTeamTaskReassign = z.object({
 
 export const BotTeamRoomSelector = z.object({
   teamId: requiredString('Missing team id')
+})
+
+/** Only a client that understands shared and archived projects asks for them. */
+export const BotTeamRoomListSelector = BotTeamRoomSelector.extend({
+  withLinkedProjects: z.boolean().optional()
 })
 
 export const BotTeamTaskStart = z.object({

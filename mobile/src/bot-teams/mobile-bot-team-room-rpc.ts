@@ -25,6 +25,8 @@ const RoomReply = z.object({
   messages: z.array(BotTeamMessageSchema),
   // The default reads a host from before projects existed.
   projects: z.array(BotTeamProjectSchema).default([]),
+  // Tasks other teams filed in this team's projects; only a host that shares projects sends them.
+  projectTasks: z.array(BotTeamTaskSchema).default([]),
   workspaceId: z.string().nullable()
 })
 /** The question the room puts to the person, as the host sends it: every kind the desktop shows. */
@@ -77,14 +79,16 @@ export type MobileBotTeamProjectResult =
   | { kind: 'unsupported' }
   | { kind: 'failed' }
 
+/** `withLinkedProjects` also asks for the projects other teams own, archived ones, and their tasks. */
 export async function listMobileBotTeamRoom(
   client: HostClient,
-  teamId: string
+  teamId: string,
+  options: { withLinkedProjects?: boolean } = {}
 ): Promise<MobileBotTeamRoomData | null> {
   try {
     const response = await client.sendRequest(
       'botTeams.listRoom',
-      { teamId },
+      options.withLinkedProjects ? { teamId, withLinkedProjects: true } : { teamId },
       { timeoutMs: READ_TIMEOUT_MS }
     )
     if (!response.ok) {

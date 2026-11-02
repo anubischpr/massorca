@@ -122,7 +122,9 @@ export function MobileBotTeamRoom({
   const statusOf = useMobileBotTeamTaskStatus(client)
   const messages = room?.messages ?? []
   const tasks = room?.tasks ?? []
-  const projects = room?.projects ?? []
+  const allProjects = room?.projects ?? []
+  const projects = allProjects.filter((project) => project.archivedAt == null)
+  const projectTasks = room?.projectTasks ?? []
   const workspaceId = room?.workspaceId ?? null
   const { nativeChatFilePaths, loadNativeChatFiles } = useMobileNativeChatFileSearch({
     client: offline ? null : client,
@@ -379,6 +381,9 @@ export function MobileBotTeamRoom({
         ))}
       </BottomDrawer>
       <MobileBotTeamRoomMenu
+        client={offline ? undefined : client}
+        teams={teams}
+        onChanged={() => void reload()}
         visible={sheet === 'menu'}
         onClose={() => setSheet(null)}
         team={team}
@@ -386,9 +391,9 @@ export function MobileBotTeamRoom({
         unreachable={offline}
         openCount={openCount}
         taskCount={tasks.length}
-        projects={projects}
+        projects={allProjects}
         projectTaskCount={(projectId) =>
-          tasks.filter((task) => task.projectId === projectId).length
+          [...tasks, ...projectTasks].filter((task) => task.projectId === projectId).length
         }
         onOpenBoard={() => {
           setSheet(null)

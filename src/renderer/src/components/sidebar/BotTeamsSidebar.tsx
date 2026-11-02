@@ -1,65 +1,40 @@
-import { Brain, CalendarClock, Files, Folder, LayoutGrid, Plus, UserCheck } from 'lucide-react'
+import { Brain, CalendarClock, Files, LayoutGrid, Plus, UserCheck } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '@/store'
 import type { BotTeamsSelection } from '@/store/slices/ui/ui-slice-contract-core'
-import { cn } from '@/lib/utils'
+import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { translate } from '@/i18n/i18n'
 import { botTeamBoardColumn } from '../../../../shared/bot-team-board-column'
 import { botTeamTaskStatus } from '../../../../shared/bot-team-task-status'
 import { BotTeamCharacterIcon } from '../bot-teams/BotTeamCharacterIcon'
-import { useTeamWork } from '../bot-teams/use-bot-team-work'
+import { useTeamProjectWork } from '../bot-teams/BotTeamProjectTeamsWork'
 import { useBotTeamSessionStatuses } from '../bot-teams/use-bot-team-task-status'
 import { useBotTeams } from '../bot-teams/use-bot-teams'
+import { BotTeamsSidebarProjects } from './BotTeamsSidebarProjects'
+import { RowMeta, SidebarRow } from './BotTeamsSidebarProjectsRow'
 import { SidebarSearchRow } from './SidebarSearchRow'
 
-const ROW_CLASS =
-  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-medium tracking-tight transition-colors'
-const ROW_IDLE_CLASS = 'text-worktree-sidebar-foreground/60 hover:bg-worktree-sidebar-foreground/8'
-const ROW_ACTIVE_CLASS = 'bg-worktree-sidebar-accent text-worktree-sidebar-accent-foreground'
-
-function SidebarRow({
-  active = false,
-  indented = false,
-  onClick,
-  children
-}: {
-  active?: boolean
-  indented?: boolean
-  onClick: () => void
-  children: React.ReactNode
-}): React.JSX.Element {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-current={active ? 'page' : undefined}
-      className={cn(ROW_CLASS, indented && 'pl-8', active ? ROW_ACTIVE_CLASS : ROW_IDLE_CLASS)}
-    >
-      {children}
-    </button>
-  )
-}
-
-function RowMeta({ children }: { children: React.ReactNode }): React.JSX.Element {
-  return <span className="text-xs text-worktree-sidebar-foreground/45">{children}</span>
-}
-
-/** The open team's rows, in the order of the design: room, board, projects, New project. */
+/** The open team's rows, in the order of the design: room, board, projects. */
 function OpenTeamRows({
-  teamId,
+  team,
+  teams,
   selection,
   onPage
 }: {
-  teamId: string
+  team: BotTeam
+  teams: readonly BotTeam[]
   selection: BotTeamsSelection
   onPage: boolean
 }): React.JSX.Element {
+  const teamId = team.id
   const openBotTeamsView = useAppStore((s) => s.openBotTeamsView)
   const { section } = selection
+  const [changes, setChanges] = useState(0)
   // Relists when the page moves, so a project made or a task started shows without a reload.
-  const { tasks, projects } = useTeamWork(
+  const { tasks, projects, projectTasks, sharedProjects } = useTeamProjectWork(
     teamId,
-    `${section?.kind ?? 'room'}:${selection.taskId ?? ''}`
+    `${section?.kind ?? 'room'}:${selection.taskId ?? ''}:${changes}`
   )
   const statuses = useBotTeamSessionStatuses()
   const open = tasks.filter(
@@ -102,35 +77,21 @@ function OpenTeamRows({
                 })}
         </RowMeta>
       </SidebarRow>
-      <p className="px-2 pt-2.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-worktree-sidebar-foreground/45">
-        {translate('components.botTeams.projects', 'Projects')}
-      </p>
-      {projects.map((project) => (
-        <SidebarRow
-          key={project.id}
-          indented
-          active={
-            onPage &&
-            selection.taskId === null &&
-            section?.kind === 'project' &&
-            section.projectId === project.id
-          }
-          onClick={() =>
-            openBotTeamsView({ teamId, section: { kind: 'project', projectId: project.id } })
-          }
-        >
-          <Folder className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
-          <span className="min-w-0 flex-1 truncate">{project.name}</span>
-        </SidebarRow>
-      ))}
-      <SidebarRow
-        indented
-        active={onPage && selection.taskId === null && section?.kind === 'new-project'}
-        onClick={() => openBotTeamsView({ teamId, section: { kind: 'new-project' } })}
-      >
-        <Plus className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
-        <span className="flex-1">{translate('components.botTeams.newProject', 'New project')}</span>
-      </SidebarRow>
+      <BotTeamsSidebarProjects
+        team={team}
+        teams={teams}
+        projects={projects}
+        tasks={[...tasks, ...projectTasks]}
+        sharedProjects={sharedProjects}
+        selection={selection}
+        onPage={onPage}
+        onOpen={(projectId) =>
+          openBotTeamsView({ teamId, section: { kind: 'project', projectId } })
+        }
+        onNewProject={() => openBotTeamsView({ teamId, section: { kind: 'new-project' } })}
+        onLeaveProject={() => openBotTeamsView({ teamId })}
+        onChanged={() => setChanges((current) => current + 1)}
+      />
       <SidebarRow
         indented
         active={onPage && selection.taskId === null && section?.kind === 'files'}
@@ -207,7 +168,12 @@ export function BotTeamsSidebar(): React.JSX.Element {
                 <span className="min-w-0 flex-1 truncate">{team.name}</span>
               </SidebarRow>
               {open ? (
-                <OpenTeamRows teamId={team.id} selection={selection} onPage={onPage} />
+                <OpenTeamRows
+                  team={team}
+                  teams={teams ?? []}
+                  selection={selection}
+                  onPage={onPage}
+                />
               ) : null}
             </div>
           )

@@ -87,7 +87,7 @@ export async function fileBotTeamRequest(
     throw new Error(`${receiving.name} has no bots yet.`)
   }
   const alsoNeeds = input.alsoNeeds ?? []
-  const projects = db.listBotTeamProjects(receiving.id)
+  const projects = db.listBotTeamProjects(receiving.id, { includeLinked: true })
   const named = findNamedProject(input.text, projects)
   // Asked only of this team: a request sent to another team takes that team's own reading.
   if (

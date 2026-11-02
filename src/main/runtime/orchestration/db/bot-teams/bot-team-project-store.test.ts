@@ -53,7 +53,9 @@ describe('bot team project store', () => {
       codeSource: null,
       brief: { requirements: [], constraints: [], decisions: [] },
       briefUpdatedAt: null,
-      workspace: null
+      workspace: null,
+      archivedAt: null,
+      linkedTeamIds: []
     })
     expect(db.listBotTeamProjects(team.id)).toEqual([project])
   })

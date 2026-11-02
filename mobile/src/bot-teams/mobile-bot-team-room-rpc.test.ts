@@ -34,6 +34,53 @@ describe('listMobileBotTeamRoom', () => {
     expect(await listMobileBotTeamRoom(client, 'team_1')).toMatchObject({ projects: [PROJECT] })
   })
 
+  it('asks for shared and archived projects only when told to, and reads the tasks of other teams', async () => {
+    const { client, sendRequest } = clientAnswering({
+      ok: true,
+      result: {
+        tasks: [],
+        messages: [],
+        projects: [{ ...PROJECT, archivedAt: 5, linkedTeamIds: ['team_2'] }],
+        projectTasks: [
+          {
+            id: 'k2',
+            teamId: 'team_2',
+            title: 'Launch email',
+            prompt: '',
+            ownerBotId: 'b2',
+            sessionId: null,
+            projectId: 'project_1'
+          }
+        ],
+        workspaceId: null
+      }
+    })
+
+    const room = await listMobileBotTeamRoom(client, 'team_1', { withLinkedProjects: true })
+
+    expect(sendRequest).toHaveBeenCalledWith(
+      'botTeams.listRoom',
+      { teamId: 'team_1', withLinkedProjects: true },
+      expect.anything()
+    )
+    expect(room?.projects[0]).toMatchObject({ archivedAt: 5, linkedTeamIds: ['team_2'] })
+    expect(room?.projectTasks.map((task) => task.id)).toEqual(['k2'])
+  })
+
+  it('sends nothing new to a host when not asked, and reads no other team’s tasks then', async () => {
+    const { client, sendRequest } = clientAnswering({
+      ok: true,
+      result: { tasks: [], messages: [], projects: [PROJECT], workspaceId: null }
+    })
+    const room = await listMobileBotTeamRoom(client, 'team_1')
+    expect(sendRequest).toHaveBeenCalledWith(
+      'botTeams.listRoom',
+      { teamId: 'team_1' },
+      expect.anything()
+    )
+    expect(room?.projectTasks).toEqual([])
+  })
+
   it('reads a host from before projects existed as having none', async () => {
     const { client } = clientAnswering({
       ok: true,

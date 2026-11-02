@@ -25,7 +25,13 @@ vi.mock('lucide-react-native', () => ({
   Folder: 'Folder',
   FolderPlus: 'FolderPlus',
   LayoutGrid: 'LayoutGrid',
-  MessageSquare: 'MessageSquare'
+  MessageSquare: 'MessageSquare',
+  SlidersHorizontal: 'SlidersHorizontal',
+  Pencil: 'Pencil',
+  Link2: 'Link2',
+  Archive: 'Archive',
+  ArchiveRestore: 'ArchiveRestore',
+  Trash2: 'Trash2'
 }))
 vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
 vi.mock('./MobileBotTeamCharacterIcon', () => ({ MobileBotTeamCharacterIcon: () => null }))

@@ -343,3 +343,192 @@ describe('the Advanced options for a Workspaces project', () => {
     expect(container.textContent).not.toContain('Not linked to a Workspaces project.')
   })
 })
+
+describe('projects shared between teams', () => {
+  const marketing: BotTeam = {
+    ...team(false),
+    id: 't2',
+    name: 'Marketing',
+    character: 'circle',
+    bots: [
+      {
+        id: 'b2',
+        name: 'Nora',
+        job: '',
+        agent: 'claude',
+        modelMode: 'auto',
+        model: null,
+        effort: null,
+        skills: []
+      }
+    ]
+  }
+
+  async function settle(): Promise<void> {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+  }
+
+  async function fillName(container: HTMLElement, value: string): Promise<void> {
+    const name = container.querySelector<HTMLInputElement>('#project-name')
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+      setter?.call(name, value)
+      name?.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+  }
+
+  it('shows the owner team fixed in Teams and creates the project linked to the teams added', async () => {
+    createBotTeamProject.mockResolvedValue(project(null))
+    const container = await mount(
+      <NewBotProjectForm
+        team={team(false)}
+        allTeams={[team(false), marketing]}
+        onCancel={() => {}}
+        onCreated={() => {}}
+      />
+    )
+    expect(container.textContent).toContain('Teams')
+    expect(container.textContent).toContain('Development, owner')
+    expect(container.textContent).toContain("Linked teams can work on this project's tasks.")
+    expect(container.querySelector('[aria-label="Remove Development"]')).toBeNull()
+
+    await act(async () => {
+      buttonWith(container, 'Add team').dispatchEvent(
+        new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' })
+      )
+    })
+    const option = [...document.body.querySelectorAll('[role="menuitem"]')].find(
+      (item) => item.textContent === 'Marketing'
+    )
+    await act(async () => (option as HTMLElement).click())
+    expect(container.textContent).toContain('Marketing')
+    await fillName(container, 'NexusCare')
+    await act(async () => buttonWith(container, 'Create project').click())
+
+    expect(createBotTeamProject).toHaveBeenCalledWith({
+      teamId: 't1',
+      name: 'NexusCare',
+      goal: '',
+      codeSource: null,
+      linkedTeamIds: ['t2']
+    })
+  })
+
+  it('lets a team added by mistake be removed before creating', async () => {
+    createBotTeamProject.mockResolvedValue(project(null))
+    const container = await mount(
+      <NewBotProjectForm
+        team={team(false)}
+        allTeams={[team(false), marketing]}
+        onCancel={() => {}}
+        onCreated={() => {}}
+      />
+    )
+    await act(async () => {
+      buttonWith(container, 'Add team').dispatchEvent(
+        new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' })
+      )
+    })
+    const option = [...document.body.querySelectorAll('[role="menuitem"]')].find(
+      (item) => item.textContent === 'Marketing'
+    )
+    await act(async () => (option as HTMLElement).click())
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[aria-label="Remove Marketing"]')?.click()
+    )
+    await fillName(container, 'NexusCare')
+    await act(async () => buttonWith(container, 'Create project').click())
+    expect(createBotTeamProject.mock.calls[0][0]).not.toHaveProperty('linkedTeamIds')
+  })
+
+  it('shows, on a project another team owns, who owns it and the team of each task', async () => {
+    const shared = {
+      ...project(null),
+      teamId: 't2',
+      linkedTeamIds: ['t1']
+    }
+    listBotTeamRoom.mockResolvedValue({
+      tasks: [
+        {
+          id: 'k1',
+          teamId: 't1',
+          title: 'Booking page',
+          prompt: '',
+          ownerBotId: 'b1',
+          sessionId: null,
+          projectId: 'p1'
+        }
+      ],
+      messages: [],
+      projects: [shared],
+      projectTasks: [
+        {
+          id: 'k2',
+          teamId: 't2',
+          title: 'Launch email',
+          prompt: '',
+          ownerBotId: 'b2',
+          sessionId: null,
+          projectId: 'p1'
+        }
+      ]
+    })
+    const container = await mount(
+      <BotTeamProjectBoard
+        team={team(false)}
+        allTeams={[team(false), marketing]}
+        projectId="p1"
+        onBack={() => {}}
+        onTab={() => {}}
+        onOpenTask={() => {}}
+      />
+    )
+    await settle()
+    expect(container.textContent).toContain('Owner:')
+    expect(container.textContent).toContain('Marketing')
+    expect(container.textContent).toContain('Booking page')
+    expect(container.textContent).toContain('Launch email')
+    const card = [...container.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Launch email')
+    )
+    // The card names the team that made the task, and the owner bot from that team.
+    expect(card?.textContent).toContain('Marketing')
+    expect(card?.textContent).toContain('Nora')
+  })
+
+  it('does not name a team on the cards of a project that is not shared', async () => {
+    listBotTeamRoom.mockResolvedValue({
+      tasks: [
+        {
+          id: 'k1',
+          teamId: 't1',
+          title: 'Booking page',
+          prompt: '',
+          ownerBotId: 'b1',
+          sessionId: null,
+          projectId: 'p1'
+        }
+      ],
+      messages: [],
+      projects: [{ ...project(null), linkedTeamIds: [] }]
+    })
+    const container = await mount(
+      <BotTeamProjectBoard
+        team={team(false)}
+        allTeams={[team(false), marketing]}
+        projectId="p1"
+        onBack={() => {}}
+        onTab={() => {}}
+        onOpenTask={() => {}}
+      />
+    )
+    await settle()
+    expect(container.textContent).not.toContain('Owner:')
+    const card = [...container.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Booking page')
+    )
+    expect(card?.textContent).not.toContain('Development')
+  })
+})

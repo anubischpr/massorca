@@ -33,6 +33,9 @@ import {
   WorkspacesAdvancedOptions
 } from './BotTeamProjectWorkspace'
 import { BotTeamViewHeader as ViewHeader } from './BotTeamViewHeader'
+import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
+import { BotTeamProjectTeamsField } from './BotTeamProjectTeamsField'
+import { useTeamProjectWork } from './BotTeamProjectTeamsWork'
 import { useTeamWork } from './use-bot-team-work'
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
 
@@ -44,10 +47,13 @@ const HOST_CANNOT_CONNECT = (): string =>
 
 export function NewBotProjectForm({
   team,
+  allTeams,
   onCancel,
   onCreated
 }: {
   team: BotTeam
+  /** Every team on the host, for the Teams field. */
+  allTeams?: readonly BotTeam[]
   onCancel: () => void
   onCreated: (project: BotTeamProject) => void
 }): React.JSX.Element {
@@ -55,6 +61,8 @@ export function NewBotProjectForm({
   const [goal, setGoal] = useState('')
   const [source, setSource] = useState<BotTeamCodeSource>('repo')
   const [workspace, setWorkspace] = useState<BotTeamProjectWorkspace | null>(null)
+  const [linkedTeamIds, setLinkedTeamIds] = useState<string[]>([])
+  const teamsOnHost = allTeams ?? [team]
   const listing = useLinkableWorkspaces(team.id, team.workspacesEnabled)
   const trimmedName = name.trim()
   const create = async (): Promise<void> => {
@@ -64,7 +72,8 @@ export function NewBotProjectForm({
         teamId: team.id,
         name: trimmedName,
         goal: goal.trim(),
-        codeSource
+        codeSource,
+        ...(linkedTeamIds.length > 0 ? { linkedTeamIds } : {})
       })
       // An older host drops the source it does not know and still creates the project.
       if (codeSource !== null && project.codeSource !== codeSource) {
@@ -124,6 +133,13 @@ export function NewBotProjectForm({
               onChange={(event) => setGoal(event.target.value)}
             />
           </div>
+          <BotTeamProjectTeamsField
+            owner={team}
+            linkedTeamIds={linkedTeamIds}
+            allTeams={teamsOnHost}
+            editing={false}
+            onChange={setLinkedTeamIds}
+          />
           {team.workspacesEnabled ? <CodeSourcePick value={source} onChange={setSource} /> : null}
           {team.workspacesEnabled && source === 'repo' ? (
             <WorkspacesAdvancedOptions
@@ -156,21 +172,29 @@ export function NewBotProjectForm({
 /** One project's tasks in the four columns. */
 export function BotTeamProjectBoard({
   team,
+  allTeams,
   projectId,
   onBack,
   onTab,
   onOpenTask
 }: {
   team: BotTeam
+  /** Every team on the host, to name the team and the bot of tasks other teams filed here. */
+  allTeams?: readonly BotTeam[]
   projectId: string
   onBack: () => void
   onTab: (tab: BotTeamProjectTab) => void
   onOpenTask: (taskId: string) => void
 }): React.JSX.Element {
   const [refresh, setRefresh] = useState(0)
-  const { tasks, projects } = useTeamWork(team.id, String(refresh))
+  const { tasks, projects, projectTasks } = useTeamProjectWork(team.id, String(refresh))
   const statuses = useBotTeamSessionStatuses()
   const project = projects.find((entry) => entry.id === projectId)
+  // The owner team's Workspaces setting and workspace link apply to the project.
+  const teamsOnHost = allTeams ?? [team]
+  const ownerTeam = teamsOnHost.find((entry) => entry.id === project?.teamId) ?? team
+  const linkedHere = project !== undefined && project.teamId !== team.id
+  const shared = (project?.linkedTeamIds?.length ?? 0) > 0 || linkedHere
   const connect = async (
     source: BotTeamCodeSource,
     workspace: BotTeamProjectWorkspace | null
@@ -197,33 +221,46 @@ export function BotTeamProjectBoard({
       task.sessionId,
       task.sessionId === null ? undefined : statuses.get(task.sessionId)
     )
-  const own = tasks.filter((task) => task.projectId === projectId)
+  const own = [...tasks, ...projectTasks].filter((task) => task.projectId === projectId)
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ViewHeader
         title={project?.name ?? ''}
         detail={team.name}
         onBack={onBack}
-        trailing={<BotTeamProjectTabs value="board" onChange={onTab} />}
+        trailing={
+          <>
+            {linkedHere ? (
+              <span className="flex items-center gap-1.5 text-xs">
+                <span className="text-muted-foreground">
+                  {translate('components.botTeams.projectOwner', 'Owner:')}
+                </span>
+                <BotTeamCharacterIcon character={ownerTeam.character} size={16} />
+                <span>{ownerTeam.name}</span>
+              </span>
+            ) : null}
+            <BotTeamProjectTabs value="board" onChange={onTab} />
+          </>
+        }
       />
       {project?.goal ? (
         <p className="px-4 pt-2.5 text-xs text-muted-foreground">
           {translate('components.botTeams.goalLine', 'Goal: {{goal}}', { goal: project.goal })}
         </p>
       ) : null}
-      {project && team.workspacesEnabled && project.codeSource === null ? (
-        <ConnectToCodeCard teamId={team.id} onConnect={connect} />
+      {project && ownerTeam.workspacesEnabled && project.codeSource === null ? (
+        <ConnectToCodeCard teamId={ownerTeam.id} onConnect={connect} />
       ) : null}
-      {project && team.workspacesEnabled && project.codeSource !== null ? (
+      {project && ownerTeam.workspacesEnabled && project.codeSource !== null ? (
         <p className="px-4 pt-2.5 text-xs text-muted-foreground">
           {translate('components.botTeams.connectedTo', 'Connected to code: {{source}}.', {
             source: codeSourceLabel(project.codeSource)
           })}
         </p>
       ) : null}
-      {project && team.workspacesEnabled && project.codeSource === 'repo' ? (
+      {project && ownerTeam.workspacesEnabled && project.codeSource === 'repo' ? (
         <ProjectWorkspaceLink
-          team={team}
+          team={ownerTeam}
           project={project}
           onChanged={() => setRefresh((current) => current + 1)}
         />
@@ -239,7 +276,8 @@ export function BotTeamProjectBoard({
                   <Badge variant="secondary">{cards.length}</Badge>
                 </div>
                 {cards.map((task) => {
-                  const owner = team.bots.find((bot) => bot.id === task.ownerBotId)
+                  const taskTeam = teamsOnHost.find((entry) => entry.id === task.teamId) ?? team
+                  const owner = taskTeam.bots.find((bot) => bot.id === task.ownerBotId)
                   return (
                     <button
                       key={task.id}
@@ -253,6 +291,12 @@ export function BotTeamProjectBoard({
                         <AgentIcon agent={owner?.agent} size={16} />
                         <span className="truncate">{owner?.name}</span>
                       </span>
+                      {shared ? (
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <BotTeamCharacterIcon character={taskTeam.character} size={16} />
+                          <span className="truncate">{taskTeam.name}</span>
+                        </span>
+                      ) : null}
                       <span className="text-xs text-muted-foreground">{statusOf(task)}</span>
                     </button>
                   )
