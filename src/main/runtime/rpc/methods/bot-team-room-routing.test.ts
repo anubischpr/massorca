@@ -98,6 +98,18 @@ describe('botTeams.postMessage routing', () => {
     })
   })
 
+  it('sends a request that mentions another team to that team, with no query', async () => {
+    const { team, other, result } = await post(null, '@Warehouse   count the boxes')
+    expect(ask).not.toHaveBeenCalled()
+    expect(result).toMatchObject({
+      task: { teamId: other.id, ownerBotId: other.bots[0].id, prompt: 'count the boxes' },
+      sentTo: { teamId: other.id, teamName: 'Warehouse' },
+      startError: null
+    })
+    expect(db?.listBotTeamTasks(team.id)).toEqual([])
+    expect(db?.listBotTeamMessages(team.id)).toHaveLength(1)
+  })
+
   it('does not query for a mention', async () => {
     const { team, result } = await post(null, '@Max write a post')
     expect(ask).not.toHaveBeenCalled()

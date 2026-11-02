@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { OrchestrationDb } from '../../orchestration/db/orchestration-db'
 import type { RpcContext } from '../core'
-import { botTeamAssignMethods } from './bot-team-assign-methods'
+import { botTeamAssignRequestMethod, botTeamReassignTaskMethod } from './bot-team-assign-methods'
 
 describe('botTeams.assignRequest', () => {
   let db: OrchestrationDb | undefined
@@ -21,7 +21,7 @@ describe('botTeams.assignRequest', () => {
       workspacesEnabled: false,
       bots: [{ name: 'Iris', job: 'Designs flyers', agent: 'claude' }]
     })
-    const method = botTeamAssignMethods(startTask)[0]
+    const method = botTeamAssignRequestMethod(startTask)
     const ctx = { runtime: { getOrchestrationDb: () => db } } as unknown as RpcContext
     return { team, method, ctx, startTask }
   }
@@ -43,7 +43,11 @@ describe('botTeams.assignRequest', () => {
   })
 
   it('keeps a task it could not start in Todo and says why', async () => {
-    const { method, ctx, team } = setup(vi.fn(async () => Promise.reject(new Error('No host'))))
+    const { method, ctx, team } = setup(
+      vi.fn(async () => {
+        throw new Error('No host')
+      })
+    )
     const result = await method.handler({ teamId: team.id, text: 'Make a flyer', start: true }, ctx)
     expect(result).toMatchObject({ task: { sessionId: null }, startError: 'No host' })
     expect(db?.listBotTeamTasks(team.id)).toHaveLength(1)
@@ -53,5 +57,31 @@ describe('botTeams.assignRequest', () => {
     const { method, ctx, team, startTask } = setup()
     await method.handler({ teamId: team.id, text: 'Later', start: false }, ctx)
     expect(startTask).not.toHaveBeenCalled()
+  })
+
+  it('reassigns an idle task to a bot of another team and starts it there', async () => {
+    const { method: _assign, ctx, team, startTask } = setup()
+    const other = db!.createBotTeam({
+      name: 'Warehouse',
+      purpose: '',
+      character: 'square',
+      workspacesEnabled: false,
+      bots: [{ name: 'Bea', job: 'Counts', agent: 'claude' }]
+    })
+    const task = db!.createBotTeamTask({
+      teamId: team.id,
+      title: 'Count',
+      prompt: 'Count',
+      ownerBotId: team.bots[0].id
+    })
+    const reassign = botTeamReassignTaskMethod(startTask)
+    expect(reassign.name).toBe('botTeams.reassignTask')
+    expect(reassign.params?.parse({ taskId: task.id, botId: 'x' })).toMatchObject({ start: true })
+    const result = await reassign.handler(
+      { taskId: task.id, botId: other.bots[0].id, start: true },
+      ctx
+    )
+    expect(startTask).toHaveBeenCalledWith(ctx, task.id)
+    expect(result).toMatchObject({ task: { teamId: other.id, ownerBotId: other.bots[0].id } })
   })
 })

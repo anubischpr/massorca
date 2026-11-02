@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { botTeamTaskTitle, routeBotTeamRequest } from './bot-team-request-route'
+import {
+  botTeamTaskTitle,
+  routeBotTeamRequest,
+  withoutBotTeamMention
+} from './bot-team-request-route'
 
 const IRIS = { id: 'iris', name: 'Iris' }
 const MAX = { id: 'max', name: 'Max' }
@@ -35,5 +39,24 @@ describe('botTeamTaskTitle', () => {
 
   it('keeps the text when it is only a mention', () => {
     expect(botTeamTaskTitle('@Iris', [IRIS])).toBe('@Iris')
+  })
+})
+
+describe('withoutBotTeamMention', () => {
+  it('drops the team mention wherever it stands and tidies the spaces', () => {
+    expect(withoutBotTeamMention('@Warehouse  count the boxes', 'Warehouse')).toBe(
+      'count the boxes'
+    )
+    expect(withoutBotTeamMention('please, @warehouse, count them', 'Warehouse')).toBe(
+      'please, , count them'
+    )
+  })
+
+  it('does not cut a longer name that starts the same way', () => {
+    expect(withoutBotTeamMention('@Warehouses count', 'Warehouse')).toBe('@Warehouses count')
+  })
+
+  it('keeps the whole text when the mention is all there is', () => {
+    expect(withoutBotTeamMention('@Warehouse', 'Warehouse')).toBe('@Warehouse')
   })
 })

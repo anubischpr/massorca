@@ -10,6 +10,8 @@ export type BotTeamRequestDecision =
   /** `alsoNeeds` holds the other bots a composite task has parts for. */
   | { type: 'task'; bot: BotTeamBot; alsoNeeds: string[] }
   | { type: 'choice'; choice: BotTeamRequestChoice }
+  /** The person named another team with @: it goes there, with no query. */
+  | { type: 'team'; teamId: string }
   | { type: 'conversation' }
   /** Nothing could decide: the room asks the person who should take it. */
   | { type: 'ask' }
@@ -37,6 +39,10 @@ export async function decideBotTeamRequest(args: {
   const mentioned = findMentionedBot(text, team.bots)
   if (mentioned) {
     return { type: 'task', bot: mentioned, alsoNeeds: [] }
+  }
+  const mentionedTeam = findMentionedBot(text, args.otherTeams)
+  if (mentionedTeam) {
+    return { type: 'team', teamId: mentionedTeam.id }
   }
   if (team.bots.length === 0) {
     return { type: 'ask' }

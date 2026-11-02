@@ -150,6 +150,43 @@ export function getBotTeamTask(this: OrchestrationDb, taskId: string): BotTeamTa
   return requireBotTeamTask(this, taskId)
 }
 
+export function getBotTeamTaskStartNotes(this: OrchestrationDb, taskId: string): string | null {
+  const row = z
+    .object({ start_notes: z.string().nullable() })
+    .optional()
+    .parse(this.db.prepare('SELECT start_notes FROM bot_team_tasks WHERE id = ?').get(taskId))
+  return row?.start_notes ?? null
+}
+
+/**
+ * Gives a task to another bot, in this team or another. Its session and delegation belong to the old
+ * owner, so they are dropped and the new owner starts fresh; its project belongs to the old team.
+ */
+export function moveBotTeamTask(
+  this: OrchestrationDb,
+  taskId: string,
+  to: { teamId: string; ownerBotId: string; startNotes: string | null }
+): BotTeamTask {
+  requireBotOnTeam(this, to.teamId, to.ownerBotId)
+  this.db.exec('BEGIN')
+  try {
+    this.db.prepare('DELETE FROM bot_team_task_delegations WHERE task_id = ?').run(taskId)
+    this.db
+      .prepare(
+        `UPDATE bot_team_tasks SET
+           project_id = CASE WHEN team_id = ? THEN project_id ELSE NULL END,
+           team_id = ?, owner_bot_id = ?, session_id = NULL, start_notes = ?
+         WHERE id = ?`
+      )
+      .run(to.teamId, to.teamId, to.ownerBotId, to.startNotes, taskId)
+    this.db.exec('COMMIT')
+  } catch (error) {
+    this.db.exec('ROLLBACK')
+    throw error
+  }
+  return requireBotTeamTask(this, taskId)
+}
+
 /** A teammate's child is on its way: starting the task as well would run it twice. */
 export function isBotTeamTaskHandedOff(this: OrchestrationDb, taskId: string): boolean {
   return (
@@ -167,6 +204,8 @@ export type BotTeamRoomStoreMethods = {
   linkBotTeamTaskDelegation: typeof linkBotTeamTaskDelegation
   getBotTeamTask: typeof getBotTeamTask
   isBotTeamTaskHandedOff: typeof isBotTeamTaskHandedOff
+  getBotTeamTaskStartNotes: typeof getBotTeamTaskStartNotes
+  moveBotTeamTask: typeof moveBotTeamTask
   getBotTeamWorkspace: typeof getBotTeamWorkspace
   setBotTeamWorkspace: typeof setBotTeamWorkspace
   createBotTeamTask: typeof createBotTeamTask
@@ -180,6 +219,8 @@ export type BotTeamRoomStoreMethods = {
 export function attachBotTeamRoomStore(ctor: { prototype: object }): void {
   Object.assign(ctor.prototype, {
     isBotTeamTaskHandedOff,
+    getBotTeamTaskStartNotes,
+    moveBotTeamTask,
     linkBotTeamTaskDelegation,
     getBotTeamTask,
     getBotTeamWorkspace,

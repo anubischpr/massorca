@@ -6,7 +6,7 @@ import {
   BotTeamAgentTaskCreate
 } from '../../../../../shared/rpc-contract/bot-team-agent-params'
 import { botTeamTaskTitle, routeBotTeamRequest } from '../../../../../shared/bot-team-request-route'
-import { delegateToBotTeammate } from '../../../../bot-teams/bot-team-delegate'
+import { delegateToBotTeammate, findDelegationTeam } from '../../../../bot-teams/bot-team-delegate'
 import {
   getDelegationAnswerService,
   getDelegationRequestService
@@ -34,14 +34,18 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
     name: 'orchestration.botTeamDelegate',
     permission: 'workspace',
     params: BotTeamAgentDelegate,
-    handler: async ({ bot, text }, { runtime, orchestrationCaller }) => {
+    handler: async ({ bot, text, team: teamName }, { runtime, orchestrationCaller }) => {
       const db = runtime.getOrchestrationDb()
       const caller = requireBotTeamCallerTask(db, orchestrationCaller?.sessionId)
-      const team = db.listBotTeams().find((entry) => entry.id === caller.teamId)
-      if (!team) {
-        throw new OrchestrationError('invalid_argument', 'This team no longer exists.', {
-          effectsApplied: false
-        })
+      let team
+      try {
+        team = findDelegationTeam(db.listBotTeams(), caller.teamId, teamName)
+      } catch (error) {
+        throw new OrchestrationError(
+          'invalid_argument',
+          error instanceof Error ? error.message : String(error),
+          { effectsApplied: false }
+        )
       }
       await runtime.ensureStructuredAgentSessionHost()
       return {

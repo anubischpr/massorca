@@ -117,6 +117,21 @@ describe('startBotTeamTask', () => {
     expect(text).toContain('Design the flyer')
   })
 
+  it('hands the bot the notes saved for its start, after the request', async () => {
+    const d = deps()
+    await startBotTeamTask(d, { team: TEAM, task: TASK, notes: "It was Max's before." })
+
+    const text = vi.mocked(d.sendPrompt).mock.calls[0][1]
+    expect(text).toContain("It was Max's before.")
+    expect(text.indexOf('Design the flyer')).toBeLessThan(text.indexOf("It was Max's before."))
+  })
+
+  it('adds nothing when there are no notes', async () => {
+    const d = deps()
+    await startBotTeamTask(d, { team: TEAM, task: TASK, notes: null })
+    expect(vi.mocked(d.sendPrompt).mock.calls[0][1]).not.toContain('reassigned')
+  })
+
   it('uses the title when the task has no prompt', async () => {
     const d = deps()
     await startBotTeamTask(d, { team: TEAM, task: { ...TASK, prompt: '' } })

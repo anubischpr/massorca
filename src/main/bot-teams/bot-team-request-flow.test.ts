@@ -58,6 +58,18 @@ describe('decideBotTeamRequest', () => {
     expect(decision).toEqual({ type: 'task', bot: MAX, alsoNeeds: [] })
   })
 
+  it('sends a request that mentions another team there, without asking anything', async () => {
+    const { decision, classify } = await decide(null, { text: '@Warehouse count the boxes' })
+    expect(classify).not.toHaveBeenCalled()
+    expect(decision).toEqual({ type: 'team', teamId: 'wh' })
+  })
+
+  it('prefers a bot of this team when a bot and a team share the mention', async () => {
+    const same = team('mk', 'Marketing', '', [bot('w', 'Warehouse', 'Counts')])
+    const { decision } = await decide(null, { text: '@Warehouse hi', team: same })
+    expect(decision).toMatchObject({ type: 'task', bot: { id: 'w' } })
+  })
+
   it('gives a specific task to the matching bot with the fewest active tasks', async () => {
     const { decision, classify } = await decide('{"kind":"bot","bots":["Iris","Max"]}', {
       load: { iris: 3, max: 1 }

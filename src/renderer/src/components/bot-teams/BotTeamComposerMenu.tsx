@@ -10,9 +10,10 @@ import type {
   BotTeamComposerMenu as Menu
 } from '../../../../shared/bot-team-composer-menu'
 import { BotAgentIcon } from './BotAgentIcon'
+import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
 
 function itemKey(item: BotTeamComposerItem): string {
-  return item.kind === 'bot' ? item.bot.id : item.insert
+  return item.kind === 'bot' ? item.bot.id : item.kind === 'team' ? item.team.id : item.insert
 }
 
 function ItemRow({ item }: { item: BotTeamComposerItem }): React.JSX.Element {
@@ -26,6 +27,14 @@ function ItemRow({ item }: { item: BotTeamComposerItem }): React.JSX.Element {
             <span className="block truncate text-xs text-muted-foreground">{item.bot.job}</span>
           ) : null}
         </span>
+      </>
+    )
+  }
+  if (item.kind === 'team') {
+    return (
+      <>
+        <BotTeamCharacterIcon character={item.team.character} size={16} />
+        <span className="min-w-0 flex-1 truncate font-medium">{item.team.name}</span>
       </>
     )
   }

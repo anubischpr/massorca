@@ -92,6 +92,13 @@ export const BotTeamRequestAssign = z.object({
   start: z.boolean().default(true)
 })
 
+/** Gives an idle task to a bot of any team; its team follows the bot. */
+export const BotTeamTaskReassign = z.object({
+  taskId: requiredString('Missing task id'),
+  botId: requiredString('Missing bot id'),
+  start: z.boolean().default(true)
+})
+
 export const BotTeamRoomSelector = z.object({
   teamId: requiredString('Missing team id')
 })

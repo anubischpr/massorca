@@ -29,6 +29,23 @@ describe('botTeamComposerMenu', () => {
     ])
   })
 
+  it('offers the other teams between the bots and the files, each with its character', () => {
+    const teams = [
+      { id: 'wh', name: 'Warehouse', character: 'square' as const },
+      { id: 'no', name: 'Nora Labs', character: 'blob' as const }
+    ]
+    const menu = botTeamComposerMenu({
+      text: '@no',
+      caret: 3,
+      bots: BOTS,
+      teams,
+      files: ['notes.md']
+    })
+    expect(menu?.items.map((item) => item.insert)).toEqual(['@Nora ', '@Nora Labs ', '@notes.md '])
+    expect(menu?.items[1]).toMatchObject({ kind: 'team', team: { id: 'no', character: 'blob' } })
+    expect(inserts('@', { teams })).toEqual(['@Nora ', '@Max Power ', '@Warehouse ', '@Nora Labs '])
+  })
+
   it('does not open inside an email or after the mention closes', () => {
     expect(inserts('me@no')).toBeUndefined()
     expect(inserts('@Nora hello')).toBeUndefined()

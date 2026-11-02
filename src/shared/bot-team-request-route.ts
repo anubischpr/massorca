@@ -22,6 +22,16 @@ export function botTeamTaskTitle(text: string, bots: readonly NamedBot[]): strin
   return title.length > TITLE_MAX_CHARS ? `${title.slice(0, TITLE_MAX_CHARS - 1)}…` : title
 }
 
+/** The request without its `@Name` mention of a team, which only said where to send it. */
+export function withoutBotTeamMention(text: string, name: string): string {
+  const mention = new RegExp(`@${escapeRegExp(name)}(?![\\p{L}\\p{N}_])`, 'iu')
+  const stripped = text
+    .replace(mention, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+  return stripped || text.trim()
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

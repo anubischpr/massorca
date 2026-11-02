@@ -17,3 +17,11 @@ export function assignBotTeamRequest(input: {
 }): Promise<{ task: BotTeamTask; startError: string | null }> {
   return call('botTeams.assignRequest', input)
 }
+
+/** Gives an idle task to a bot of any team; the new owner starts it fresh, with the task so far. */
+export function reassignBotTeamTask(
+  taskId: string,
+  botId: string
+): Promise<{ task: BotTeamTask; startError: string | null }> {
+  return call('botTeams.reassignTask', { taskId, botId, start: true })
+}

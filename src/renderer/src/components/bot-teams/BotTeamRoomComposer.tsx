@@ -15,13 +15,18 @@ import { BotTeamComposerMenu } from './BotTeamComposerMenu'
 import { openBotTeamRoomSessions } from './open-bot-team-room-sessions'
 import { useBotTeamFilePaths } from './use-bot-team-files'
 
+const NO_TEAMS: readonly BotTeam[] = []
+
 /** The room's message box with its @ and / menu; `onSend` resolves true once the host took the text. */
 export function BotTeamRoomComposer({
   team,
+  otherTeams = NO_TEAMS,
   offline,
   onSend
 }: {
   team: BotTeam
+  /** `@Name` of one of these sends the request to that team. */
+  otherTeams?: readonly BotTeam[]
   offline: boolean
   onSend: (text: string) => Promise<boolean>
 }): React.JSX.Element {
@@ -39,6 +44,7 @@ export function BotTeamRoomComposer({
           text,
           caret,
           bots: team.bots,
+          teams: otherTeams,
           files,
           commands: BOT_TEAM_ROOM_COMMANDS
         })

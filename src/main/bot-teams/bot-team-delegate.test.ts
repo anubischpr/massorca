@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { delegateToBotTeammate, type BotTeamDelegateDeps } from './bot-team-delegate'
+import {
+  delegateToBotTeammate,
+  findDelegationTeam,
+  type BotTeamDelegateDeps
+} from './bot-team-delegate'
 import type { BotTeam } from '../../shared/rpc-contract/bot-team-params'
 
 const TEAM: BotTeam = {
@@ -91,5 +95,21 @@ describe('delegateToBotTeammate', () => {
       delegateToBotTeammate(d, { team: TEAM, botName: 'Ghost', text: 'Do it' })
     ).rejects.toThrow('not on this team')
     expect(d.fileRequest).not.toHaveBeenCalled()
+  })
+})
+
+describe('findDelegationTeam', () => {
+  const warehouse: BotTeam = { ...TEAM, id: 'wh', name: 'Warehouse' }
+
+  it('is the caller team unless another team is named, in any case', () => {
+    expect(findDelegationTeam([TEAM, warehouse], 'team')).toBe(TEAM)
+    expect(findDelegationTeam([TEAM, warehouse], 'team', 'warehouse')).toBe(warehouse)
+  })
+
+  it('refuses a team that does not exist, saying nothing was changed', () => {
+    expect(() => findDelegationTeam([TEAM], 'team', 'Ghost')).toThrow(
+      'Ghost is not a team here. No effects were applied.'
+    )
+    expect(() => findDelegationTeam([], 'team')).toThrow('This team no longer exists.')
   })
 })

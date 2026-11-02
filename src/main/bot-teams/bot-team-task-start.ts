@@ -37,7 +37,8 @@ export function botTeamTaskPrompt(
   team: BotTeam,
   bot: BotTeamBot,
   task: Pick<BotTeamTask, 'title' | 'prompt'>,
-  project: BotTeamProject | null = null
+  project: BotTeamProject | null = null,
+  notes: string | null = null
 ): string {
   const role = bot.job ? `Your job: ${bot.job}.` : ''
   const skills =
@@ -46,9 +47,10 @@ export function botTeamTaskPrompt(
     `You are ${bot.name}, a bot on the ${team.name} team. ${role} ${skills}`.trim(),
     ...(project ? [botTeamProjectBriefText(project)] : []),
     task.prompt || task.title,
+    ...(notes ? [notes] : []),
     [
       'Tell the team in its Conference room when you take this on and when you finish, in one short line each: `orca orchestration team-post --text "<line>"`.',
-      'For this team\'s tasks, read the real board with `orca orchestration team-tasks`, and save a task for later with `orca orchestration team-task-create --text "<task>"`. To hand work to a teammate, run `orca orchestration team-delegate --bot <name> --text "<task>"`.'
+      'For this team\'s tasks, read the real board with `orca orchestration team-tasks`, and save a task for later with `orca orchestration team-task-create --text "<task>"`. To hand work to a teammate, run `orca orchestration team-delegate --bot <name> --text "<task>"`; add `--team <team>` for a bot of another team.'
     ].join(' ')
   ].join('\n\n')
 }
@@ -59,8 +61,15 @@ export async function startBotTeamTask(
   {
     team,
     task,
-    project = null
-  }: { team: BotTeam; task: BotTeamTask; project?: BotTeamProject | null }
+    project = null,
+    notes = null
+  }: {
+    team: BotTeam
+    task: BotTeamTask
+    project?: BotTeamProject | null
+    /** What the task's start was saved with: a hand-over, or the bots a composite task needs. */
+    notes?: string | null
+  }
 ): Promise<BotTeamTask> {
   if (task.sessionId !== null) {
     throw new Error(`Task ${task.id} already started.`)
@@ -80,7 +89,7 @@ export async function startBotTeamTask(
     ...(options ? { options } : {})
   })
   // Linked only once delivered: an undelivered request must keep the task in Todo, with Start.
-  if (!(await deps.sendPrompt(sessionId, botTeamTaskPrompt(team, bot, task, project)))) {
+  if (!(await deps.sendPrompt(sessionId, botTeamTaskPrompt(team, bot, task, project, notes)))) {
     throw new Error(`The request for task ${task.id} did not reach the bot.`)
   }
   return deps.linkSession(task.id, sessionId)

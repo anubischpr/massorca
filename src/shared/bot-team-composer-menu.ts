@@ -1,4 +1,4 @@
-import type { BotTeamBot } from './rpc-contract/bot-team-params'
+import type { BotTeam, BotTeamBot } from './rpc-contract/bot-team-params'
 
 /** MassOrca's commands that assume no one session and no agent; the room has neither. */
 export const BOT_TEAM_ROOM_COMMANDS = ['resume', 'session'] as const
@@ -6,8 +6,11 @@ export type BotTeamRoomCommand = (typeof BOT_TEAM_ROOM_COMMANDS)[number]
 
 export type BotTeamMentionFile = { path: string }
 
+export type BotTeamMentionTeam = Pick<BotTeam, 'id' | 'name' | 'character'>
+
 export type BotTeamComposerItem =
   | { kind: 'bot'; bot: Pick<BotTeamBot, 'id' | 'name' | 'job' | 'agent'>; insert: string }
+  | { kind: 'team'; team: BotTeamMentionTeam; insert: string }
   | { kind: 'file'; path: string; insert: string }
   | { kind: 'command'; command: BotTeamRoomCommand; insert: string }
 
@@ -26,11 +29,13 @@ export function botTeamMentionOpen(text: string, caret: number): boolean {
   return OPEN_MENTION.test(text.slice(0, caret))
 }
 
-/** What the room's composer offers at the caret: bots and files after `@`, commands after a leading `/`. */
+/** What the room's composer offers at the caret: bots, other teams and files after `@`, commands after a leading `/`. */
 export function botTeamComposerMenu(args: {
   text: string
   caret: number
   bots: readonly Pick<BotTeamBot, 'id' | 'name' | 'job' | 'agent'>[]
+  /** The other teams: `@Name` sends the request there, with no query. */
+  teams?: readonly BotTeamMentionTeam[]
   files?: readonly string[]
   /** A surface that cannot run the room's commands offers none. */
   commands?: readonly BotTeamRoomCommand[]
@@ -52,10 +57,13 @@ export function botTeamComposerMenu(args: {
   const bots: BotTeamComposerItem[] = args.bots
     .filter((bot) => bot.name.toLowerCase().includes(query))
     .map((bot) => ({ kind: 'bot', bot, insert: `@${bot.name} ` }))
+  const teams: BotTeamComposerItem[] = (args.teams ?? [])
+    .filter((team) => team.name.toLowerCase().includes(query))
+    .map((team) => ({ kind: 'team', team, insert: `@${team.name} ` }))
   const files: BotTeamComposerItem[] = (args.files ?? [])
     .filter((path) => path.toLowerCase().includes(query))
     .map((path) => ({ kind: 'file', path, insert: `@${path} ` }))
-  const items = [...bots, ...files].slice(0, MAX_ITEMS)
+  const items = [...bots, ...teams, ...files].slice(0, MAX_ITEMS)
   return items.length > 0
     ? { items, start: args.caret - mention[1].length - 1, end: args.caret }
     : null

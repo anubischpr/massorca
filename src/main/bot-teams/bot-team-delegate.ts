@@ -43,3 +43,22 @@ export async function delegateToBotTeammate(
   deps.startRequest(requestId, teammate.agent)
   return task
 }
+
+/** The team a delegation goes to: the caller's own, or another one the caller named. */
+export function findDelegationTeam(
+  teams: readonly BotTeam[],
+  callerTeamId: string,
+  teamName?: string
+): BotTeam {
+  const found = teamName
+    ? teams.find((team) => team.name.toLowerCase() === teamName.toLowerCase())
+    : teams.find((team) => team.id === callerTeamId)
+  if (!found) {
+    throw new Error(
+      teamName
+        ? `${teamName} is not a team here. No effects were applied.`
+        : 'This team no longer exists. No effects were applied.'
+    )
+  }
+  return found
+}

@@ -33,6 +33,7 @@ import type {
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
 import { BotAgentIcon } from './BotAgentIcon'
 import { BotTeamAllAuthor } from './BotTeamAllAuthor'
+import { BotTeamReassignButton } from './BotTeamReassignButton'
 import { BotTeamPendingChoice, type BotTeamPendingChoiceRequest } from './BotTeamPendingChoice'
 import { BotTeamRoomComposer } from './BotTeamRoomComposer'
 import { BotTeamRoomSidePanel } from './BotTeamRoomSidePanel'
@@ -40,16 +41,20 @@ import { botTeamTaskGlyph, botTeamTaskLabel } from './bot-team-task-status-displ
 
 const NO_PROJECT = 'none'
 const NO_TEAMS: readonly BotTeam[] = []
+const IDLE_STATUSES: ReadonlySet<BotTeamTaskStatus> = new Set(['Not started', 'Stopped', 'Stuck'])
 
 /** A task's thread: the normal chat, which already holds the composer, Stop and Continue. */
 function BotTeamTaskThread({
   task,
   agent,
-  onBack
+  onBack,
+  reassign
 }: {
   task: BotTeamTask
   agent: BotTeam['bots'][number]['agent']
   onBack: () => void
+  /** Reassign, offered while the task is idle. */
+  reassign?: React.ReactNode
 }): React.JSX.Element | null {
   const host = useBotTeamHost()
   const target = useMemo(() => botTeamHostTarget(host), [host])
@@ -68,6 +73,7 @@ function BotTeamTaskThread({
           <ChevronLeft className="size-4" />
         </Button>
         <h2 className="min-w-0 flex-1 truncate text-sm font-medium">{task.title}</h2>
+        {reassign}
       </div>
       <div className="min-h-0 flex-1">
         <NativeChatView
@@ -190,17 +196,35 @@ export function BotTeamRoom({
     }
   }
 
-  const openTask = tasks.find((task) => task.id === openTaskId)
-  const openAgent = botOf(openTask?.ownerBotId ?? null)?.agent
-  if (openTask && openAgent) {
-    return <BotTeamTaskThread task={openTask} agent={openAgent} onBack={() => onOpenTask(null)} />
-  }
-
   const statusOf = (task: BotTeamTask): BotTeamTaskStatus =>
     botTeamTaskStatus(
       task.sessionId,
       task.sessionId === null ? undefined : statuses.get(task.sessionId)
     )
+  // Only a task nobody is working on can change hands.
+  const reassignButton = (task: BotTeamTask): React.ReactNode =>
+    IDLE_STATUSES.has(statusOf(task)) ? (
+      <BotTeamReassignButton
+        task={task}
+        teams={[team, ...otherTeams]}
+        disabled={offline}
+        onDone={reload}
+      />
+    ) : null
+
+  const openTask = tasks.find((task) => task.id === openTaskId)
+  const openAgent = botOf(openTask?.ownerBotId ?? null)?.agent
+  if (openTask && openAgent) {
+    return (
+      <BotTeamTaskThread
+        task={openTask}
+        agent={openAgent}
+        onBack={() => onOpenTask(null)}
+        reassign={reassignButton(openTask)}
+      />
+    )
+  }
+
   const taskCard = (task: BotTeamTask): React.JSX.Element => {
     const owner = botOf(task.ownerBotId)
     return (
@@ -249,6 +273,7 @@ export function BotTeamRoom({
             </SelectContent>
           </Select>
         ) : null}
+        {reassignButton(task)}
         {task.sessionId === null ? (
           <Button
             variant="outline"
@@ -346,7 +371,7 @@ export function BotTeamRoom({
             ) : null}
           </div>
         </div>
-        <BotTeamRoomComposer team={team} offline={offline} onSend={send} />
+        <BotTeamRoomComposer team={team} otherTeams={otherTeams} offline={offline} onSend={send} />
       </div>
       {sidePanel
         ? createPortal(

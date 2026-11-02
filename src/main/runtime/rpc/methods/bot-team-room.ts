@@ -146,7 +146,8 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
     {
       team,
       task,
-      project: db.listBotTeamProjects(team.id).find((entry) => entry.id === task.projectId) ?? null
+      project: db.listBotTeamProjects(team.id).find((entry) => entry.id === task.projectId) ?? null,
+      notes: db.getBotTeamTaskStartNotes(task.id)
     }
   )
 }

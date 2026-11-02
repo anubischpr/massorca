@@ -89,6 +89,7 @@ import {
   BotTeamRequestAssign,
   BotTeamRoomSelector,
   BotTeamTaskCreate,
+  BotTeamTaskReassign,
   BotTeamTaskSetProject,
   BotTeamTaskStart
 } from './bot-team-room-params'
@@ -735,6 +736,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.list': null,
   'botTeams.listRoom': BotTeamRoomSelector,
   'botTeams.postMessage': BotTeamMessagePost,
+  'botTeams.reassignTask': BotTeamTaskReassign,
   'botTeams.removeBot': BotTeamRemoveBot,
   'botTeams.restoreFileVersion': BotTeamVersionFileSelector,
   'botTeams.setProjectBrief': BotTeamProjectSetBrief,
