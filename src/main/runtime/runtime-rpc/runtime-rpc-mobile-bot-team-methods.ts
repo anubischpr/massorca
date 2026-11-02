@@ -12,6 +12,7 @@ export const MOBILE_BOT_TEAM_RPC_METHODS = [
   'botTeams.createTask',
   'botTeams.createWebhook',
   'botTeams.list',
+  'botTeams.listEngramMemory',
   'botTeams.listLinkableWorkspaces',
   'botTeams.listMemory',
   'botTeams.listRoom',

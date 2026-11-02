@@ -74,6 +74,7 @@ import {
   BotTeamAgentRemember,
   BotTeamAgentTaskCreate
 } from './bot-team-agent-params'
+import { BotTeamEngramList } from './bot-team-engram-params'
 import { BotTeamMemoryDelete, BotTeamMemoryList } from './bot-team-memory-params'
 import {
   BotTeamAddBot,
@@ -758,6 +759,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.deleteProject': BotTeamProjectDelete,
   'botTeams.fileVersions': BotTeamFileVersionsSelector,
   'botTeams.list': null,
+  'botTeams.listEngramMemory': BotTeamEngramList,
   'botTeams.listLinkableWorkspaces': BotTeamRoomSelector,
   'botTeams.listMemory': BotTeamMemoryList,
   'botTeams.listRoom': BotTeamRoomListSelector,
