@@ -77,3 +77,14 @@ Test runner: `pnpm test`, `pnpm tc`. Approved design: https://claude.ai/artifact
 - L5 (2026-10-31), T1 scope: branch claude/bot-teams-phase-1 from origin/custom/integration, so the PR leaves out the unrelated work on claude/peaceful-solomon-017ef2. Tables `bot_teams` and `bot_team_bots` (schema v44), RPC `botTeams.*` allowed on mobile, desktop view `bot-teams` with a Workspaces/Bot teams switch, all teams, new team, add a bot, team bots, a Settings pane for each team's access mode, and a mobile Teams home with the same screens. Access defaults to `full-access` (S6), so the design's "limited access" copy is dropped. The Conference room stays for T2, and the sidebar filter moves to T2 because T1 creates no workspaces.
 
 - 2026-11-01: Phone character animations (board 38) on claude/bot-teams-character-motion: real team status, Settings switch, still in forms. Tests and typecheck pass; not yet seen on a device.
+
+## Questions for the user
+
+- Q1 (2026-11-01). The phone has no Sessions panel, so `/resume` and `/session` are desktop only. Decided: conservative; confirm or give a phone target.
+- Q2 (from the phases map). Board 20 says "New bots start with limited access", but S6 defaults teams to full access. Kept S6.
+- Q3. Does a bot edit lock on a file also block the person? Kept: the person is not blocked and is told who is editing.
+- Q4. Integrations: the four app names on board 27 are placeholders. Built only the list and its copy, nothing connects yet.
+- Q5. Memory: two linked copies (S15) is unconfirmed; built as written.
+- Q6. Phase 6 has no board. Designing boards pending approval.
+
+Note for anyone testing: SQLite tests fail under Bun with pnpm test; run them with node node_modules/vitest/vitest.mjs run --config config/vitest.config.ts.
