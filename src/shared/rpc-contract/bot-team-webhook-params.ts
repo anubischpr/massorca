@@ -13,8 +13,8 @@ export const BotTeamWebhookSchema = z.object({
 })
 
 /**
- * Whether this host receives calls at all. Until a listener is mounted for them it is
- * 'unavailable', and the address and key it hands out cannot be used yet.
+ * Whether this host receives calls at all. 'unavailable' on a host from before the listener, or
+ * when its ports were taken; the address and key it hands out cannot be used then.
  */
 export const BotTeamWebhookEndpointSchema = z.discriminatedUnion('state', [
   z.object({ state: z.literal('unavailable') }),
