@@ -31,6 +31,19 @@ function requireBotOnTeam(db: OrchestrationDb, teamId: string, botId: string): v
   }
 }
 
+type BotTeamTaskCreated = (db: OrchestrationDb, task: BotTeamTask) => void
+let taskCreated: BotTeamTaskCreated | null = null
+
+/** One listener for every task made on this host, however it was made; returns its removal. */
+export function onBotTeamTaskCreated(listener: BotTeamTaskCreated): () => void {
+  taskCreated = listener
+  return () => {
+    if (taskCreated === listener) {
+      taskCreated = null
+    }
+  }
+}
+
 export function createBotTeamTask(this: OrchestrationDb, input: BotTeamTaskInput): BotTeamTask {
   requireBotOnTeam(this, input.teamId, input.ownerBotId)
   const id = generateId('bottask')
@@ -39,7 +52,21 @@ export function createBotTeamTask(this: OrchestrationDb, input: BotTeamTaskInput
       'INSERT INTO bot_team_tasks (id, team_id, title, prompt, owner_bot_id) VALUES (?, ?, ?, ?, ?)'
     )
     .run(id, input.teamId, input.title, input.prompt, input.ownerBotId)
-  return requireBotTeamTask(this, id)
+  const task = requireBotTeamTask(this, id)
+  taskCreated?.(this, task)
+  return task
+}
+
+/** Replaces a title only if it is still `from`, so a later change is never undone. */
+export function renameBotTeamTask(
+  db: OrchestrationDb,
+  taskId: string,
+  from: string,
+  to: string
+): void {
+  db.db
+    .prepare('UPDATE bot_team_tasks SET title = ? WHERE id = ? AND title = ?')
+    .run(to, taskId, from)
 }
 
 function requireBotTeamTask(db: OrchestrationDb, taskId: string): BotTeamTask {
