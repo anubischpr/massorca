@@ -10,6 +10,7 @@ import { useMobileNativeChatFileSearch } from '../session/use-mobile-native-chat
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
 import { botTeamBoardColumn } from '../../../src/shared/bot-team-board-column'
+import { BOT_TEAM_ALL_AUTHOR } from '../../../src/shared/bot-team-greeting'
 import { botTeamComposerMenu } from '../../../src/shared/bot-team-composer-menu'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
@@ -39,6 +40,27 @@ function roomChatMessage(message: BotTeamMessage): NativeChatMessage {
     timestamp: null,
     source: 'transcript'
   }
+}
+
+/** Who wrote a message: one bot, or every bot's icon under "All" for the team's greeting. */
+function RoomWho({ bots, authorBotId }: { bots: BotTeam['bots']; authorBotId: string | null }) {
+  if (authorBotId === BOT_TEAM_ALL_AUTHOR) {
+    return (
+      <View style={styles.roomWho}>
+        {bots.map((bot) => (
+          <MobileBotAgentIcon key={bot.id} agentId={bot.agent} size={14} />
+        ))}
+        <Text style={styles.roomWhoText}>All</Text>
+      </View>
+    )
+  }
+  const author = bots.find((bot) => bot.id === authorBotId)
+  return author ? (
+    <View style={styles.roomWho}>
+      <MobileBotAgentIcon agentId={author.agent} size={14} />
+      <Text style={styles.roomWhoText}>{author.name}</Text>
+    </View>
+  ) : null
 }
 
 /** A team's Conference room, drawn from the session chat's own composer and message row. */
@@ -148,7 +170,7 @@ export function MobileBotTeamRoom({
       return false
     }
     setText('')
-    setNeedsLead(sent.task === null)
+    setNeedsLead(sent.task === null && !sent.greeted)
     if (sent.startError) {
       Alert.alert('The bot did not start', sent.startError)
     }
@@ -245,15 +267,9 @@ export function MobileBotTeamRoom({
           </Text>
         ) : null}
         {messages.map((message) => {
-          const author = team.bots.find((bot) => bot.id === message.authorBotId)
           return (
             <View key={message.id} style={styles.roomEntry}>
-              {author ? (
-                <View style={styles.roomWho}>
-                  <MobileBotAgentIcon agentId={author.agent} size={14} />
-                  <Text style={styles.roomWhoText}>{author.name}</Text>
-                </View>
-              ) : null}
+              <RoomWho bots={team.bots} authorBotId={message.authorBotId} />
               <MobileNativeChatMessage message={roomChatMessage(message)} />
               {tasksOf.placed.get(message.id)?.map(card)}
             </View>

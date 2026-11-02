@@ -1,6 +1,7 @@
 import { createElement, type ComponentProps } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
+import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 import { MobileBotTeamRoom } from './MobileBotTeamRoom'
 
 vi.mock('react-native', () => ({
@@ -267,6 +268,34 @@ describe('MobileBotTeamRoom', () => {
     await press(renderer, 'Room menu')
     await press(renderer, 'Files')
     expect(onOpenWork).toHaveBeenLastCalledWith({ name: 'files', teamId: 'team' })
+  })
+
+  it("shows a team greeting from All, with every bot's icon", async () => {
+    const twoBots = {
+      ...TEAM,
+      bots: [TEAM.bots[0], { ...TEAM.bots[0], id: 'bot_2', name: 'Max' }]
+    }
+    const client = hostAnswering({
+      tasks: [],
+      messages: [{ id: 'm1', teamId: 'team', authorBotId: 'all', text: 'Hola!' }],
+      projects: [],
+      workspaceId: null
+    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { team: twoBots })
+    expect(JSON.stringify(renderer.toJSON())).toContain('All')
+    expect(renderer.root.findAll((node) => node.type === MobileBotAgentIcon)).toHaveLength(2)
+  })
+
+  it('does not ask who takes a greeting that a team answered', async () => {
+    const client = hostAnswering(
+      { tasks: [], messages: [], projects: [], workspaceId: null },
+      { task: null, greeted: true }
+    )
+    const renderer = await render(client)
+    await act(async () => {
+      await renderer.root.findByType('Composer' as never).props.onSend('Hola')
+    })
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('Who should take this?')
   })
 
   it('counts the open work and the tasks on the room menu', async () => {

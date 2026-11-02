@@ -26,7 +26,9 @@ const RoomReply = z.object({
 })
 const PostReply = z.object({
   task: BotTeamTaskSchema.nullable(),
-  startError: z.string().nullable()
+  startError: z.string().nullable(),
+  // True when the team answered a bare greeting: nothing is routed, so nobody is asked.
+  greeted: z.boolean().default(false)
 })
 const ProjectReply = z.object({ project: BotTeamProjectSchema })
 
@@ -63,7 +65,12 @@ export async function postMobileBotTeamRequest(
   client: HostClient,
   input: { teamId: string; text: string; start: boolean }
 ): Promise<
-  | { ok: true; task: z.output<typeof BotTeamTaskSchema> | null; startError: string | null }
+  | {
+      ok: true
+      task: z.output<typeof BotTeamTaskSchema> | null
+      startError: string | null
+      greeted: boolean
+    }
   | { ok: false }
 > {
   try {
