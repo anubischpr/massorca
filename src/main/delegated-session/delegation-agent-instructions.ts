@@ -1,4 +1,5 @@
 import { ORCA_AGENT_SESSION_ID_ENV } from '../../shared/agent-session-caller-env'
+import { CHECKLIST_INSTRUCTION_LINES } from './checklist-agent-instructions'
 
 // Free of quotes, angle brackets, pipes, ampersands, percent and caret, so a Windows .cmd shim
 // carries the single-line form as one argument unchanged.
@@ -12,10 +13,12 @@ const DELEGATION_INSTRUCTION_LINES = [
   'If you are a dispatched worker, you are a child session. In anything the user reads, such as questions, options and reports, call the location of the session that started you the parent worktree, never its folder or branch name alone, and never show internal ids. Use its real path only inside commands.'
 ] as const
 
-export const DELEGATION_AGENT_INSTRUCTIONS = DELEGATION_INSTRUCTION_LINES.join('\n')
+const AGENT_INSTRUCTION_LINES = [...DELEGATION_INSTRUCTION_LINES, ...CHECKLIST_INSTRUCTION_LINES]
+
+export const DELEGATION_AGENT_INSTRUCTIONS = AGENT_INSTRUCTION_LINES.join('\n')
 
 /** The same text on one line, for a channel that carries it as a single command-line argument. */
-export const DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE = DELEGATION_INSTRUCTION_LINES.join(' ')
+export const DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE = AGENT_INSTRUCTION_LINES.join(' ')
 
 /**
  * The text for a structured session whose child env can actually delegate: its own session id is

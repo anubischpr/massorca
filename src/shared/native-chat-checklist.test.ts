@@ -141,6 +141,37 @@ describe('nativeChatChecklistUpdateText', () => {
   })
 })
 
+describe('items the person adds', () => {
+  const marks = {
+    mine: { text: 'Mine', addedAt: 5, checked: true, checkedAt: 6, revision: 2 },
+    gone: { text: 'Gone', addedAt: 3, removed: true, revision: 3 },
+    one: { text: 'One', addedAt: 4, revision: 1 }
+  }
+
+  it('lists them after the agent items, without removed ones or ones the agent wrote', () => {
+    const list = nativeChatChecklist([{ at: 10, markdown: block('- [ ] One\n- [ ] Two') }], person(marks))
+    expect(list?.items.map((item) => [item.text, item.source, item.checked, item.by])).toEqual([
+      ['One', 'agent', false, null],
+      ['Two', 'agent', false, null],
+      ['Mine', 'person', true, 'person']
+    ])
+  })
+
+  it('make a list on their own, before the agent writes one', () => {
+    expect(nativeChatChecklist([], person(marks))?.items.map((item) => item.text)).toEqual([
+      'One',
+      'Mine'
+    ])
+    expect(nativeChatChecklist([], person({}))).toBeNull()
+  })
+
+  it('reach the agent as added or removed', () => {
+    const update = nativeChatChecklistUpdateText(person(marks, { deliveredRevision: 1 }))
+    expect(update).toContain('- [x] Mine (added by the person) (checked by the person)')
+    expect(update).toContain('- Gone (removed by the person)')
+  })
+})
+
 describe('splitNativeChatChecklistUpdate', () => {
   it('separates the host block from what the person typed', () => {
     expect(

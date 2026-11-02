@@ -46,6 +46,14 @@ describe('delegation agent instructions', () => {
     }
   })
 
+  it('teaches every agent the checklist block and the update it reads, in both forms', () => {
+    for (const text of [DELEGATION_AGENT_INSTRUCTIONS, DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE]) {
+      expect(text).toMatch(/fenced code block whose info string is orca-checklist/)
+      expect(text).toMatch(/- \[ \] text, or - \[x\] text/)
+      expect(text).toMatch(/starts with an orca-checklist-update block/)
+    }
+  })
+
   it('keeps the one-line form free of newlines and cmd.exe metacharacters', () => {
     expect(DELEGATION_AGENT_INSTRUCTIONS_ONE_LINE).not.toMatch(/[\r\n"<>|&%^]/)
   })
