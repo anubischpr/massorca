@@ -7,13 +7,20 @@ import {
   type BotTeamTask,
   type BotTeamTaskInput
 } from '../../../../../shared/rpc-contract/bot-team-room-params'
+import { BOT_TEAM_ALL_AUTHOR } from '../../../../../shared/bot-team-greeting'
 import { generateId } from '../generated-id'
+import {
+  BOT_TEAM_MEMORY_STORE_METHODS,
+  type BotTeamMemoryStoreMethods
+} from './bot-team-memory-store'
 import type { OrchestrationDb } from '../orchestration-db'
 
 const TASK_SELECT =
-  'SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId, session_id AS sessionId FROM bot_team_tasks'
-const MESSAGE_SELECT =
-  'SELECT id, team_id AS teamId, author_bot_id AS authorBotId, text FROM bot_team_messages'
+  'SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId, session_id AS sessionId, project_id AS projectId FROM bot_team_tasks'
+// The greeting line has no bot row to point at, so it reads back as the All author.
+const MESSAGE_SELECT = `SELECT id, team_id AS teamId, text,
+  CASE WHEN author_kind = '${BOT_TEAM_ALL_AUTHOR}' THEN '${BOT_TEAM_ALL_AUTHOR}' ELSE author_bot_id END AS authorBotId
+  FROM bot_team_messages`
 
 function requireBotOnTeam(db: OrchestrationDb, teamId: string, botId: string): void {
   const bot = db.db
@@ -78,7 +85,9 @@ export function setBotTeamTaskSession(
   taskId: string,
   sessionId: string
 ): BotTeamTask {
-  this.db.prepare('UPDATE bot_team_tasks SET session_id = ? WHERE id = ?').run(sessionId, taskId)
+  this.db
+    .prepare('UPDATE bot_team_tasks SET session_id = ? WHERE id = ? AND session_id IS NULL')
+    .run(sessionId, taskId)
   return requireBotTeamTask(this, taskId)
 }
 
@@ -95,13 +104,22 @@ export function postBotTeamMessage(
   this: OrchestrationDb,
   input: BotTeamMessageInput
 ): BotTeamMessage {
-  if (input.authorBotId !== null) {
+  const fromAll = input.authorBotId === BOT_TEAM_ALL_AUTHOR
+  if (input.authorBotId !== null && !fromAll) {
     requireBotOnTeam(this, input.teamId, input.authorBotId)
   }
   const id = generateId('botmsg')
   this.db
-    .prepare('INSERT INTO bot_team_messages (id, team_id, author_bot_id, text) VALUES (?, ?, ?, ?)')
-    .run(id, input.teamId, input.authorBotId, input.text)
+    .prepare(
+      'INSERT INTO bot_team_messages (id, team_id, author_bot_id, author_kind, text) VALUES (?, ?, ?, ?, ?)'
+    )
+    .run(
+      id,
+      input.teamId,
+      fromAll ? null : input.authorBotId,
+      fromAll ? BOT_TEAM_ALL_AUTHOR : null,
+      input.text
+    )
   return BotTeamMessageSchema.parse(this.db.prepare(`${MESSAGE_SELECT} WHERE id = ?`).get(id))
 }
 
@@ -132,12 +150,75 @@ export function setBotTeamWorkspace(
 }
 
 export function getBotTeamTask(this: OrchestrationDb, taskId: string): BotTeamTask {
+  linkDelegatedBotTeamTasks(this)
   return requireBotTeamTask(this, taskId)
 }
 
-export type BotTeamRoomStoreMethods = {
+export function getBotTeamTaskStartNotes(this: OrchestrationDb, taskId: string): string | null {
+  const row = z
+    .object({ start_notes: z.string().nullable() })
+    .optional()
+    .parse(this.db.prepare('SELECT start_notes FROM bot_team_tasks WHERE id = ?').get(taskId))
+  return row?.start_notes ?? null
+}
+
+export function setBotTeamTaskStartNotes(
+  this: OrchestrationDb,
+  taskId: string,
+  notes: string | null
+): void {
+  this.db.prepare('UPDATE bot_team_tasks SET start_notes = ? WHERE id = ?').run(notes, taskId)
+}
+
+/**
+ * Gives a task to another bot, in this team or another. Its session and delegation belong to the old
+ * owner, so they are dropped and the new owner starts fresh; its project belongs to the old team.
+ */
+export function moveBotTeamTask(
+  this: OrchestrationDb,
+  taskId: string,
+  to: { teamId: string; ownerBotId: string; startNotes: string | null }
+): BotTeamTask {
+  requireBotOnTeam(this, to.teamId, to.ownerBotId)
+  this.db.exec('BEGIN')
+  try {
+    this.db.prepare('DELETE FROM bot_team_task_delegations WHERE task_id = ?').run(taskId)
+    this.db
+      .prepare(
+        `UPDATE bot_team_tasks SET
+           project_id = CASE WHEN team_id = ? THEN project_id ELSE NULL END,
+           team_id = ?, owner_bot_id = ?, session_id = NULL, start_notes = ?
+         WHERE id = ?`
+      )
+      .run(to.teamId, to.teamId, to.ownerBotId, to.startNotes, taskId)
+    this.db.exec('COMMIT')
+  } catch (error) {
+    this.db.exec('ROLLBACK')
+    throw error
+  }
+  return requireBotTeamTask(this, taskId)
+}
+
+/** A teammate's child is on its way: starting the task as well would run it twice. */
+export function isBotTeamTaskHandedOff(this: OrchestrationDb, taskId: string): boolean {
+  return (
+    this.db
+      .prepare(
+        `SELECT 1 FROM bot_team_task_delegations l
+         JOIN delegation_requests d ON d.id = l.request_id
+         WHERE l.task_id = ? AND d.status IN ('pending', 'starting')`
+      )
+      .get(taskId) !== undefined
+  )
+}
+
+export type BotTeamRoomStoreMethods = BotTeamMemoryStoreMethods & {
   linkBotTeamTaskDelegation: typeof linkBotTeamTaskDelegation
   getBotTeamTask: typeof getBotTeamTask
+  isBotTeamTaskHandedOff: typeof isBotTeamTaskHandedOff
+  getBotTeamTaskStartNotes: typeof getBotTeamTaskStartNotes
+  setBotTeamTaskStartNotes: typeof setBotTeamTaskStartNotes
+  moveBotTeamTask: typeof moveBotTeamTask
   getBotTeamWorkspace: typeof getBotTeamWorkspace
   setBotTeamWorkspace: typeof setBotTeamWorkspace
   createBotTeamTask: typeof createBotTeamTask
@@ -149,7 +230,11 @@ export type BotTeamRoomStoreMethods = {
 }
 
 export function attachBotTeamRoomStore(ctor: { prototype: object }): void {
-  Object.assign(ctor.prototype, {
+  Object.assign(ctor.prototype, BOT_TEAM_MEMORY_STORE_METHODS, {
+    isBotTeamTaskHandedOff,
+    getBotTeamTaskStartNotes,
+    setBotTeamTaskStartNotes,
+    moveBotTeamTask,
     linkBotTeamTaskDelegation,
     getBotTeamTask,
     getBotTeamWorkspace,

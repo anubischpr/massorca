@@ -1,3 +1,4 @@
+import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
 import { boundJournalPromptBody } from '../native-chat/agent-session-journal/journal-prompt-body-bounds'
 import { OrchestrationError } from '../runtime/orchestration/orchestration-error'
 import {
@@ -138,6 +139,8 @@ export class DelegationRequestService {
       agent: string
       /** The model and effort this child must run with, rather than ones sized from its summary. */
       launch?: Readonly<Record<string, string>>
+      /** Which Pi this child runs; absent, the host picks whichever it has. */
+      piRuntime?: PiRuntimeSelection
     }
   ): Promise<string> {
     const parent = this.deps.readParent(input.parentSessionId)
@@ -164,7 +167,13 @@ export class DelegationRequestService {
       writes: input.writes,
       workspaceKind: parent.workspaceKind,
       optionsJson: JSON.stringify({ agents }),
-      decisionJson: input.launch ? JSON.stringify({ launch: input.launch }) : null
+      decisionJson:
+        input.launch || input.piRuntime
+          ? JSON.stringify({
+              ...(input.launch ? { launch: input.launch } : {}),
+              ...(input.piRuntime ? { piRuntime: input.piRuntime } : {})
+            })
+          : null
     }).id
   }
 

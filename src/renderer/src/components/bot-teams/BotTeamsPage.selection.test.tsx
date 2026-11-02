@@ -31,7 +31,26 @@ const teams: BotTeam[] = [
 
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
   listBotTeams: () => Promise.resolve(teams),
-  listBotTeamRoom: () => Promise.resolve({ tasks: [], messages: [] }),
+  listBotTeamRoom: () =>
+    Promise.resolve({
+      tasks: [],
+      messages: [],
+      projects: [
+        {
+          id: 'p1',
+          teamId: 't1',
+          name: 'Website',
+          goal: '',
+          codeSource: null,
+          brief: { requirements: [], constraints: [], decisions: [] },
+          briefUpdatedAt: null
+        }
+      ]
+    }),
+  setBotTeamProjectBrief: vi.fn(),
+  listBotTeamFiles: () => Promise.resolve({ files: [], truncated: false }),
+  listBotTeamVersions: () => Promise.resolve('unavailable'),
+  readBotTeamFile: vi.fn(),
   updateBotOnTeam: vi.fn(),
   updateBotTeam: vi.fn(),
   addBotToTeam: vi.fn(),
@@ -39,7 +58,21 @@ vi.mock('@/runtime/runtime-bot-team-client', () => ({
   deleteBotTeam: vi.fn(),
   removeBotFromTeam: vi.fn()
 }))
-vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
+vi.mock('@/runtime/runtime-bot-team-client-routines', () => ({
+  listBotTeamRoutines: () => Promise.resolve([]),
+  listBotTeamRoutineRuns: () => Promise.resolve([]),
+  createBotTeamRoutine: vi.fn(),
+  setBotTeamRoutinePaused: vi.fn()
+}))
+vi.mock('@/runtime/runtime-bot-team-client-webhooks', () => ({
+  listBotTeamWebhooks: () => Promise.resolve({ webhooks: [], endpoint: { state: 'unavailable' } }),
+  createBotTeamWebhook: vi.fn(),
+  replaceBotTeamWebhookSecret: vi.fn()
+}))
+vi.mock('@/i18n/i18n', () => ({
+  translate: (_key: string, fallback: string, values?: Record<string, string>) =>
+    fallback.replace(/\{\{(\w+)\}\}/g, (_all, name: string) => values?.[name] ?? '')
+}))
 vi.mock('@/lib/agent-catalog', () => ({ AgentIcon: () => null }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 vi.mock('./use-bot-team-task-status', () => ({ useBotTeamSessionStatuses: () => new Map() }))
@@ -98,6 +131,37 @@ describe('the team cards', () => {
 })
 
 describe('the Bot teams page with a controlled selection', () => {
+  it('shows the routines of the team, and the form for a new one', async () => {
+    const container = await mount(
+      <BotTeamsPage
+        selection={{ teamId: 't1', taskId: null, creating: false, section: { kind: 'routines' } }}
+        onSelectionChange={() => {}}
+      />
+    )
+    expect(container.textContent).toContain('No routines yet')
+    expect(container.textContent).toContain('No web addresses yet')
+    expect(container.querySelector('[data-testid="room"]')).toBeNull()
+    const form = await mount(
+      <BotTeamsPage
+        selection={{
+          teamId: 't1',
+          taskId: null,
+          creating: false,
+          section: { kind: 'routine-new' }
+        }}
+        onSelectionChange={() => {}}
+      />
+    )
+    expect(form.textContent).toContain('What should it do?')
+    const address = await mount(
+      <BotTeamsPage
+        selection={{ teamId: 't1', taskId: null, creating: false, section: { kind: 'webhook' } }}
+        onSelectionChange={() => {}}
+      />
+    )
+    expect(address.textContent).toContain('Create web address')
+  })
+
   it('shows the team the selection names', async () => {
     const container = await mount(
       <BotTeamsPage
@@ -130,6 +194,87 @@ describe('the Bot teams page with a controlled selection', () => {
       container.querySelector('form, [data-new-bot-team]') ?? container.textContent
     ).toBeTruthy()
     expect(container.textContent).not.toContain('All teams')
+  })
+
+  it('shows the section the selection names instead of the room, and goes back to the room', async () => {
+    const onSelectionChange = vi.fn()
+    const container = await mount(
+      <BotTeamsPage
+        selection={{ teamId: 't1', taskId: null, creating: false, section: { kind: 'board' } }}
+        onSelectionChange={onSelectionChange}
+      />
+    )
+    expect(container.querySelector('[data-testid="room"]')).toBeNull()
+    expect(container.textContent).toContain('all tasks')
+    const back = [...container.querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('Conference room')
+    )
+    act(() => back?.click())
+    expect(onSelectionChange).toHaveBeenCalledWith({ teamId: 't1', taskId: null, creating: false })
+  })
+
+  it('opens a project on its Board, and on its Brief when the section says so', async () => {
+    const onSelectionChange = vi.fn()
+    const board = await mount(
+      <BotTeamsPage
+        selection={{
+          teamId: 't1',
+          taskId: null,
+          creating: false,
+          section: { kind: 'project', projectId: 'p1' }
+        }}
+        onSelectionChange={onSelectionChange}
+      />
+    )
+    expect(board.textContent).toContain('Todo')
+    const brief = [...board.querySelectorAll('[role="radiogroup"] button')].find(
+      (b) => b.textContent?.trim() === 'Brief'
+    )
+    await act(async () => brief?.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+    expect(onSelectionChange).toHaveBeenCalledWith({
+      teamId: 't1',
+      taskId: null,
+      creating: false,
+      section: { kind: 'project', projectId: 'p1', tab: 'brief' }
+    })
+
+    const page = await mount(
+      <BotTeamsPage
+        selection={{
+          teamId: 't1',
+          taskId: null,
+          creating: false,
+          section: { kind: 'project', projectId: 'p1', tab: 'brief' }
+        }}
+        onSelectionChange={() => {}}
+      />
+    )
+    expect(page.textContent).toContain('The project holds the why. Each task holds the how.')
+  })
+
+  it('shows the team files from the Files section', async () => {
+    const container = await mount(
+      <BotTeamsPage
+        selection={{ teamId: 't1', taskId: null, creating: false, section: { kind: 'files' } }}
+        onSelectionChange={() => {}}
+      />
+    )
+    expect(container.textContent).toContain('Nothing here yet.')
+  })
+
+  it('opens the new project form from its section', async () => {
+    const container = await mount(
+      <BotTeamsPage
+        selection={{
+          teamId: 't1',
+          taskId: null,
+          creating: false,
+          section: { kind: 'new-project' }
+        }}
+        onSelectionChange={() => {}}
+      />
+    )
+    expect(container.textContent).toContain('A project holds the why. Its tasks hold the how.')
   })
 
   it('reports opening a team from the grid instead of keeping it to itself', async () => {

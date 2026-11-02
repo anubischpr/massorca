@@ -1,105 +1,38 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
-import { Bot, Check, ChevronDown, ChevronLeft, Ellipsis, MessageSquare } from 'lucide-react-native'
+import { Check, ChevronDown, ChevronLeft, Ellipsis } from 'lucide-react-native'
 import { BottomDrawer } from '../components/BottomDrawer'
 import { useMobileDictation } from '../hooks/use-mobile-dictation'
 import { MobileNativeChatComposer } from '../session/MobileNativeChatComposer'
 import { MobileNativeChatMessage } from '../session/MobileNativeChatMessage'
-import { mobileStructuredSessionStatusFeed } from '../session/mobile-structured-session-status-feed'
+import { useMobileNativeChatFileSearch } from '../session/use-mobile-native-chat-file-search'
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
-import { botTeamTaskStatus } from '../../../src/shared/bot-team-task-status'
+import { botTeamBoardColumn } from '../../../src/shared/bot-team-board-column'
+import { BOT_TEAM_ALL_AUTHOR } from '../../../src/shared/bot-team-greeting'
+import type { BotTeamRequestChoice } from '../../../src/shared/bot-team-request-choice'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import type {
   BotTeamMessage,
   BotTeamTask
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
-import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
-import { botTeamStyles as styles } from './mobile-bot-team-styles'
-import {
-  listMobileBotTeamRoom,
-  postMobileBotTeamRequest,
-  startMobileBotTeamTask
-} from './mobile-bot-team-room-rpc'
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
+import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
+import { MobileBotTeamRequestChoice } from './MobileBotTeamRequestChoice'
+import { MobileBotTeamRoomMenu } from './MobileBotTeamRoomMenu'
+import { botTeamRoomSuggestions } from './MobileBotTeamRoomSuggestions'
+import { MobileBotTeamTaskCard } from './MobileBotTeamTaskCard'
+import type { BotTeamWorkScreen } from './MobileBotTeamWork'
+import { botTeamStyles as styles } from './mobile-bot-team-styles'
+import { postMobileBotTeamRequest, startMobileBotTeamTask } from './mobile-bot-team-room-rpc'
+import { assignMobileBotTeamRequest } from './mobile-bot-team-request-rpc'
+import { useMobileBotTeamRoom } from './use-mobile-bot-team-room'
+import { useMobileBotTeamTaskStatus } from './use-mobile-bot-team-task-status'
 
 const NO_GENERATION = () => 0
 const NOT_WORKING = () => false
-
-function statusDotColor(status: string): string {
-  if (status === 'Working' || status === 'Done') {
-    return colors.statusGreen
-  }
-  return status === 'Waiting for you' ? colors.statusAmber : colors.textMuted
-}
-
-function TaskCard({
-  client,
-  task,
-  team,
-  offline,
-  onStart,
-  onOpen
-}: {
-  client: RpcClient
-  task: BotTeamTask
-  team: BotTeam
-  offline: boolean
-  onStart: () => void
-  onOpen: () => void
-}) {
-  const owner = team.bots.find((bot) => bot.id === task.ownerBotId)
-  const feed = mobileStructuredSessionStatusFeed(client)
-  const subscribe = useCallback((listener: () => void) => feed.subscribe(listener), [feed])
-  const readSummary = () => (task.sessionId ? feed.getSnapshot().get(task.sessionId) : undefined)
-  const summary = useSyncExternalStore(subscribe, readSummary, readSummary)
-  const status = botTeamTaskStatus(task.sessionId, summary)
-  return (
-    <View style={[styles.taskCard, status === 'Waiting for you' && styles.taskCardWaiting]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Open ${task.title}`}
-        accessibilityState={{ disabled: offline || task.sessionId === null }}
-        disabled={offline || task.sessionId === null}
-        onPress={onOpen}
-        style={styles.taskCardBody}
-      >
-        <View style={styles.taskCardTitle}>
-          {owner ? <MobileBotAgentIcon agentId={owner.agent} size={14} /> : null}
-          <Text style={styles.rowTitle} numberOfLines={2}>
-            {task.title}
-          </Text>
-        </View>
-        {owner ? (
-          <Text style={styles.rowMeta}>
-            {owner.name}
-            {owner.job ? `, ${owner.job}` : ''}
-          </Text>
-        ) : null}
-        <View style={styles.taskCardStatus}>
-          <View style={[styles.statusDot, { backgroundColor: statusDotColor(status) }]} />
-          <Text style={styles.rowMeta}>
-            {status}
-            {offline && task.sessionId !== null ? ', can’t confirm now' : ''}
-          </Text>
-        </View>
-      </Pressable>
-      {task.sessionId === null ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Start ${task.title}`}
-          accessibilityState={{ disabled: offline }}
-          disabled={offline}
-          onPress={onStart}
-          style={styles.secondary}
-        >
-          <Text style={styles.rowTitle}>Start</Text>
-        </Pressable>
-      ) : null}
-    </View>
-  )
-}
+const NO_FILES: readonly string[] = []
 
 function roomChatMessage(message: BotTeamMessage): NativeChatMessage {
   return {
@@ -109,6 +42,27 @@ function roomChatMessage(message: BotTeamMessage): NativeChatMessage {
     timestamp: null,
     source: 'transcript'
   }
+}
+
+/** Who wrote a message: one bot, or every bot's icon under "All" for the team's greeting. */
+function RoomWho({ bots, authorBotId }: { bots: BotTeam['bots']; authorBotId: string | null }) {
+  if (authorBotId === BOT_TEAM_ALL_AUTHOR) {
+    return (
+      <View style={styles.roomWho}>
+        {bots.map((bot) => (
+          <MobileBotAgentIcon key={bot.id} agentId={bot.agent} size={14} />
+        ))}
+        <Text style={styles.roomWhoText}>All</Text>
+      </View>
+    )
+  }
+  const author = bots.find((bot) => bot.id === authorBotId)
+  return author ? (
+    <View style={styles.roomWho}>
+      <MobileBotAgentIcon agentId={author.agent} size={14} />
+      <Text style={styles.roomWhoText}>{author.name}</Text>
+    </View>
+  ) : null
 }
 
 /** A team's Conference room, drawn from the session chat's own composer and message row. */
@@ -121,7 +75,10 @@ export function MobileBotTeamRoom({
   onBack,
   onPickTeam,
   onOpenBots,
-  onOpenTask
+  onOpenTask,
+  onOpenWork,
+  onAddBot,
+  onNewTeam
 }: {
   client: RpcClient
   team: BotTeam
@@ -134,13 +91,30 @@ export function MobileBotTeamRoom({
   onPickTeam: (teamId: string) => void
   onOpenBots: () => void
   onOpenTask: (workspaceId: string, task: BotTeamTask) => void
+  /** Opens one of the room menu's work screens: the team board, a project, or a new project. */
+  onOpenWork: (screen: BotTeamWorkScreen) => void
+  /** The choice card's "Create a new bot" and "Create a new team" open the existing forms. */
+  onAddBot: () => void
+  onNewTeam: () => void
 }) {
-  const [messages, setMessages] = useState<BotTeamMessage[]>([])
-  const [tasks, setTasks] = useState<BotTeamTask[]>([])
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [text, setText] = useState('')
-  const [needsLead, setNeedsLead] = useState(false)
+  const [needsOwner, setNeedsOwner] = useState(false)
+  // The person's line, held until they choose where it goes; leaving the room drops it.
+  const [pending, setPending] = useState<{ choice: BotTeamRequestChoice; text: string } | null>(
+    null
+  )
+  const [choiceBusy, setChoiceBusy] = useState(false)
   const [sheet, setSheet] = useState<'rooms' | 'menu' | null>(null)
+  const { room, reload } = useMobileBotTeamRoom(client, team.id, offline)
+  const statusOf = useMobileBotTeamTaskStatus(client)
+  const messages = room?.messages ?? []
+  const tasks = room?.tasks ?? []
+  const projects = room?.projects ?? []
+  const workspaceId = room?.workspaceId ?? null
+  const { nativeChatFilePaths, loadNativeChatFiles } = useMobileNativeChatFileSearch({
+    client: offline ? null : client,
+    worktreeId: workspaceId ?? ''
+  })
   const dictation = useMobileDictation({
     client,
     enabled: !offline,
@@ -149,38 +123,74 @@ export function MobileBotTeamRoom({
     onError: (error) => Alert.alert('Dictation failed', error.message)
   })
 
-  const reload = useCallback(async () => {
-    const room = await listMobileBotTeamRoom(client, team.id)
-    if (room) {
-      setMessages(room.messages)
-      setTasks(room.tasks)
-      setWorkspaceId(room.workspaceId)
-    }
-  }, [client, team.id])
+  const sending = useRef(false)
 
-  useEffect(() => {
-    if (!offline) {
-      void reload()
-    }
-  }, [reload, offline])
+  // The phone has no Sessions panel to open, so the room's two commands stay on the desktop.
+  const files = workspaceId === null ? NO_FILES : nativeChatFilePaths
+  const otherTeams = useMemo(() => teams.filter((entry) => entry.id !== team.id), [teams, team.id])
+  const roomSuggestions = useCallback(
+    (composerText: string, cursor: number) =>
+      botTeamRoomSuggestions({ text: composerText, caret: cursor, team, otherTeams, files }),
+    [team, otherTeams, files]
+  )
 
   const send = async (typed: string): Promise<boolean> => {
+    if (sending.current) {
+      return false
+    }
+    sending.current = true
     const sent = await postMobileBotTeamRequest(client, {
       teamId: team.id,
       text: typed,
       start: true
+    }).finally(() => {
+      sending.current = false
     })
     if (!sent.ok) {
       Alert.alert('That did not send', 'Check the connection to this host and try again.')
       return false
     }
     setText('')
-    setNeedsLead(sent.task === null)
+    setNeedsOwner(
+      sent.task === null &&
+        !sent.greeted &&
+        sent.choice === null &&
+        !sent.answered &&
+        sent.sentTo === null
+    )
+    setPending(sent.choice ? { choice: sent.choice, text: typed } : null)
     if (sent.startError) {
       Alert.alert('The bot did not start', sent.startError)
     }
     await reload()
     return true
+  }
+
+  // Files the held request where the person chose; an empty target keeps it in this team.
+  const fileChoice = async (target: { botId?: string; toTeamId?: string }) => {
+    if (pending === null) {
+      return
+    }
+    setChoiceBusy(true)
+    const filed = await assignMobileBotTeamRequest(client, {
+      teamId: team.id,
+      text: pending.text,
+      ...target
+    })
+    setChoiceBusy(false)
+    if (filed.kind === 'unsupported') {
+      Alert.alert('That did not send', 'This host cannot route requests yet.')
+      return
+    }
+    if (filed.kind === 'failed') {
+      Alert.alert('That did not send', 'Check the connection to this host and try again.')
+      return
+    }
+    setPending(null)
+    if (filed.startError) {
+      Alert.alert('The bot did not start', filed.startError)
+    }
+    await reload()
   }
 
   const start = async (taskId: string) => {
@@ -207,13 +217,15 @@ export function MobileBotTeamRoom({
   }, [messages, tasks])
 
   const card = (task: BotTeamTask) => (
-    <TaskCard
+    <MobileBotTeamTaskCard
       key={task.id}
       client={client}
       task={task}
       team={team}
+      teams={teams}
       offline={offline}
       onStart={() => void start(task.id)}
+      onReassigned={() => void reload()}
       onOpen={() => {
         if (workspaceId) {
           onOpenTask(workspaceId, task)
@@ -221,6 +233,8 @@ export function MobileBotTeamRoom({
       }}
     />
   )
+
+  const openCount = tasks.filter((task) => botTeamBoardColumn(statusOf(task)) !== 'Done').length
 
   return (
     <View style={styles.grow}>
@@ -270,22 +284,29 @@ export function MobileBotTeamRoom({
           </Text>
         ) : null}
         {messages.map((message) => {
-          const author = team.bots.find((bot) => bot.id === message.authorBotId)
           return (
             <View key={message.id} style={styles.roomEntry}>
-              {author ? (
-                <View style={styles.roomWho}>
-                  <MobileBotAgentIcon agentId={author.agent} size={14} />
-                  <Text style={styles.roomWhoText}>{author.name}</Text>
-                </View>
-              ) : null}
+              <RoomWho bots={team.bots} authorBotId={message.authorBotId} />
               <MobileNativeChatMessage message={roomChatMessage(message)} />
               {tasksOf.placed.get(message.id)?.map(card)}
             </View>
           )
         })}
         {tasksOf.rest.map(card)}
-        {needsLead ? (
+        {pending ? (
+          <MobileBotTeamRequestChoice
+            choice={pending.choice}
+            team={team}
+            otherTeams={teams.filter((entry) => entry.id !== team.id)}
+            busy={choiceBusy}
+            onSendToBot={(botId) => void fileChoice({ botId })}
+            onSendToTeam={(toTeamId) => void fileChoice({ toTeamId })}
+            onKeep={() => void fileChoice({})}
+            onCreateBot={onAddBot}
+            onCreateTeam={onNewTeam}
+          />
+        ) : null}
+        {needsOwner ? (
           <Text style={styles.rowMeta}>
             Who should take this? Mention a bot with @ and its name.
           </Text>
@@ -300,6 +321,8 @@ export function MobileBotTeamRoom({
         getComposerEditGeneration={NO_GENERATION}
         disabled={offline}
         placeholder="Message the team"
+        customSuggestions={roomSuggestions}
+        onNeedFiles={workspaceId === null ? undefined : loadNativeChatFiles}
         onMicPress={() => void (dictation.isRecording ? dictation.stop() : dictation.start())}
         micActive={dictation.isRecording}
       />
@@ -326,34 +349,43 @@ export function MobileBotTeamRoom({
           </Pressable>
         ))}
       </BottomDrawer>
-      <BottomDrawer visible={sheet === 'menu'} onClose={() => setSheet(null)}>
-        <View style={styles.sheetHeader}>
-          <MobileBotTeamCharacterIcon
-            character={team.character}
-            size={28}
-            working={workingOf(team.id)}
-            unreachable={offline}
-          />
-          <Text style={styles.sheetTitle}>{team.name}</Text>
-        </View>
-        <Text style={styles.label}>Work</Text>
-        <Pressable accessibilityRole="button" onPress={() => setSheet(null)} style={styles.row}>
-          <MessageSquare size={18} color={colors.textSecondary} />
-          <Text style={styles.rowTitle}>Conference room</Text>
-        </Pressable>
-        <Text style={styles.label}>Team</Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            setSheet(null)
-            onOpenBots()
-          }}
-          style={styles.row}
-        >
-          <Bot size={18} color={colors.textSecondary} />
-          <Text style={styles.rowTitle}>Bots</Text>
-        </Pressable>
-      </BottomDrawer>
+      <MobileBotTeamRoomMenu
+        visible={sheet === 'menu'}
+        onClose={() => setSheet(null)}
+        team={team}
+        working={workingOf(team.id)}
+        unreachable={offline}
+        openCount={openCount}
+        taskCount={tasks.length}
+        projects={projects}
+        projectTaskCount={(projectId) =>
+          tasks.filter((task) => task.projectId === projectId).length
+        }
+        onOpenBoard={() => {
+          setSheet(null)
+          onOpenWork({ name: 'board', teamId: team.id })
+        }}
+        onOpenProject={(projectId) => {
+          setSheet(null)
+          onOpenWork({ name: 'project', teamId: team.id, projectId, tab: 'board' })
+        }}
+        onNewProject={() => {
+          setSheet(null)
+          onOpenWork({ name: 'newProject', teamId: team.id })
+        }}
+        onOpenBots={() => {
+          setSheet(null)
+          onOpenBots()
+        }}
+        onOpenFiles={() => {
+          setSheet(null)
+          onOpenWork({ name: 'files', teamId: team.id })
+        }}
+        onOpenMemory={() => {
+          setSheet(null)
+          onOpenWork({ name: 'memory', teamId: team.id })
+        }}
+      />
     </View>
   )
 }

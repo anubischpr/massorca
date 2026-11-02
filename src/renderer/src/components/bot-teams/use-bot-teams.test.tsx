@@ -105,7 +105,7 @@ describe('useBotTeams', () => {
   })
 
   it('stops asking once no surface is open', async () => {
-    act(() => root.render(<></>))
+    act(() => root.render(null))
     listBotTeams.mockClear()
     await act(async () => {
       await vi.advanceTimersByTimeAsync(60_000)

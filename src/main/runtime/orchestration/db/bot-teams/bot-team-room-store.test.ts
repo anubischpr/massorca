@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { BOT_TEAM_ALL_AUTHOR } from '../../../../../shared/bot-team-greeting'
+import { SCHEMA_VERSION } from '../contract-constants'
 import { OrchestrationDb } from '../orchestration-db'
 
 describe('bot team room store', () => {
@@ -18,6 +20,45 @@ describe('bot team room store', () => {
       bots: [{ name: 'Iris', job: 'Designs flyers', agent: 'claude' }]
     })
   }
+
+  it('never replaces the session of a task that already has one', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    const task = db.createBotTeamTask({
+      teamId: team.id,
+      title: 'Flyer',
+      prompt: 'Design the flyer',
+      ownerBotId: team.bots[0].id
+    })
+    expect(db.setBotTeamTaskSession(task.id, 'first').sessionId).toBe('first')
+    expect(db.setBotTeamTaskSession(task.id, 'second').sessionId).toBe('first')
+  })
+
+  it('knows a task handed to a teammate is on its way, until the request settles', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    const task = db.createBotTeamTask({
+      teamId: team.id,
+      title: 'Flyer',
+      prompt: 'Design the flyer',
+      ownerBotId: team.bots[0].id
+    })
+    expect(db.isBotTeamTaskHandedOff(task.id)).toBe(false)
+    const request = db.createDelegationRequest({
+      parentSessionId: 'parent',
+      title: 'Flyer',
+      summary: 'Flyer',
+      prompt: 'Design the flyer',
+      writes: false,
+      workspaceKind: 'folder',
+      optionsJson: '{"agents":[]}',
+      decisionJson: null
+    })
+    db.linkBotTeamTaskDelegation(task.id, request.id)
+    expect(db.isBotTeamTaskHandedOff(task.id)).toBe(true)
+    db.transitionDelegationRequest(request.id, 'pending', 'failed', {})
+    expect(db.isBotTeamTaskHandedOff(task.id)).toBe(false)
+  })
 
   it('saves a task with no session, so it waits in Todo until it starts', () => {
     db = new OrchestrationDb(':memory:')
@@ -127,5 +168,138 @@ describe('bot team room store', () => {
 
     expect(db.listBotTeamTasks(team.id)).toEqual([])
     expect(db.listBotTeamMessages(team.id)).toEqual([])
+  })
+
+  it('keeps the team greeting as one line from All, with no bot behind it', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    db.postBotTeamMessage({ teamId: team.id, text: 'Hola', authorBotId: null })
+    const line = db.postBotTeamMessage({
+      teamId: team.id,
+      text: 'Hola! 👋',
+      authorBotId: BOT_TEAM_ALL_AUTHOR
+    })
+    expect(line.authorBotId).toBe(BOT_TEAM_ALL_AUTHOR)
+    expect(db.listBotTeamMessages(team.id).map((message) => message.authorBotId)).toEqual([
+      null,
+      BOT_TEAM_ALL_AUTHOR
+    ])
+    const stored = db.db
+      .prepare('SELECT author_bot_id AS bot FROM bot_team_messages WHERE id = ?')
+      .get(line.id)
+    expect(stored).toEqual({ bot: null })
+  })
+
+  it('adds the greeting marker to an older database and survives a restart from v6', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    db.postBotTeamMessage({ teamId: team.id, text: 'Design it', authorBotId: team.bots[0].id })
+    db.db.exec('ALTER TABLE bot_team_messages DROP COLUMN author_kind')
+    db.db.pragma('user_version = 50')
+
+    db.migrate()
+    expect(db.listBotTeamMessages(team.id)).toEqual([
+      expect.objectContaining({ text: 'Design it', authorBotId: team.bots[0].id })
+    ])
+
+    db.db.pragma('user_version = 6')
+    expect(() => db?.migrate()).not.toThrow()
+    expect(db.db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSION)
+  })
+
+  it('moves a task to another bot and team, clearing what the old owner started', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    const other = db.createBotTeam({
+      name: 'Warehouse',
+      purpose: '',
+      character: 'square',
+      workspacesEnabled: false,
+      bots: [{ name: 'Bea', job: 'Counts', agent: 'claude' }]
+    })
+    const project = db.createBotTeamProject({
+      teamId: team.id,
+      name: 'Summer',
+      goal: '',
+      codeSource: null
+    })
+    const task = db.createBotTeamTask({
+      teamId: team.id,
+      title: 'Count',
+      prompt: 'Count the boxes',
+      ownerBotId: team.bots[0].id
+    })
+    db.setBotTeamTaskProject(task.id, project.id)
+    db.setBotTeamTaskSession(task.id, 'session-1')
+
+    db.moveBotTeamTask(task.id, {
+      teamId: other.id,
+      ownerBotId: other.bots[0].id,
+      startNotes: 'Handed over'
+    })
+
+    expect(db.getBotTeamTask(task.id)).toMatchObject({
+      teamId: other.id,
+      ownerBotId: other.bots[0].id,
+      sessionId: null,
+      projectId: null,
+      prompt: 'Count the boxes'
+    })
+    expect(db.getBotTeamTaskStartNotes(task.id)).toBe('Handed over')
+    expect(db.listBotTeamTasks(team.id)).toEqual([])
+  })
+
+  it('keeps notes for a task start, and clears them with null', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    const task = db.createBotTeamTask({
+      teamId: team.id,
+      title: 'Flyer',
+      prompt: 'Design it',
+      ownerBotId: team.bots[0].id
+    })
+    db.setBotTeamTaskStartNotes(task.id, 'Needs Max')
+    expect(db.getBotTeamTaskStartNotes(task.id)).toBe('Needs Max')
+    db.setBotTeamTaskStartNotes(task.id, null)
+    expect(db.getBotTeamTaskStartNotes(task.id)).toBeNull()
+  })
+
+  it('does not bring back the old session of a task that was delegated, once it is moved', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    const task = db.createBotTeamTask({
+      teamId: team.id,
+      title: 'Flyer',
+      prompt: 'Design it',
+      ownerBotId: team.bots[0].id
+    })
+    db.db
+      .prepare('INSERT INTO bot_team_task_delegations (task_id, request_id) VALUES (?, ?)')
+      .run(task.id, 'request-1')
+    db.moveBotTeamTask(task.id, {
+      teamId: team.id,
+      ownerBotId: team.bots[0].id,
+      startNotes: null
+    })
+    expect(db.getBotTeamTask(task.id).sessionId).toBeNull()
+    expect(db.getBotTeamTaskStartNotes(task.id)).toBeNull()
+  })
+
+  it('adds the start notes to an older database and survives a restart from v6', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    const task = db.createBotTeamTask({
+      teamId: team.id,
+      title: 'Flyer',
+      prompt: 'Design it',
+      ownerBotId: team.bots[0].id
+    })
+    db.db.exec('ALTER TABLE bot_team_tasks DROP COLUMN start_notes')
+    db.db.pragma('user_version = 51')
+    db.migrate()
+    expect(db.getBotTeamTaskStartNotes(task.id)).toBeNull()
+    db.db.pragma('user_version = 6')
+    expect(() => db?.migrate()).not.toThrow()
+    expect(db.db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSION)
   })
 })

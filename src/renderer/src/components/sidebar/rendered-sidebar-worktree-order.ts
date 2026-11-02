@@ -5,6 +5,8 @@ import {
   ALL_EXECUTION_HOSTS_SCOPE,
   getSettingsFocusedExecutionHostId
 } from '../../../../shared/execution-host'
+import { isBotTeamFolderShown } from '../../../../shared/bot-team-folder'
+import { getBotTeamWorkspaceIds } from '../bot-teams/use-bot-teams'
 import { getRepoMapFromState, getWorktreeMapFromState } from '@/store/selectors'
 import { getProjectHostSetupProjectionFromState } from '@/store/project-host-setup-selector'
 import { buildRows } from './worktree-list/grouping/build-rows'
@@ -58,6 +60,7 @@ export function computeRenderedSidebarRows(
     state.workspaceHostScope
   )
   const projectGroups = state.projectGroups ?? []
+  const botTeamWorkspaceIds = getBotTeamWorkspaceIds()
   const { prCache } = selectWorktreeListReviewCacheInputs(
     state,
     state.groupBy,
@@ -86,7 +89,9 @@ export function computeRenderedSidebarRows(
     EMPTY_PENDING_CREATIONS,
     { projects: projection.projects, projectHostSetups: projection.setups },
     filterFolderWorkspacesForVisibleHosts(
-      state.folderWorkspaces,
+      state.folderWorkspaces.filter((folderWorkspace) =>
+        isBotTeamFolderShown(folderWorkspace.folderPath, botTeamWorkspaceIds)
+      ),
       projectGroups,
       visibleHostIdSet,
       defaultHostId

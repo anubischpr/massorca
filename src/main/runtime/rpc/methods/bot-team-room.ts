@@ -1,29 +1,31 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import path from 'node:path'
 import {
   BotTeamMessagePost,
   BotTeamRoomSelector,
+  BotTeamProjectCreate,
+  BotTeamProjectSetBrief,
+  BotTeamProjectSetCodeSource,
   BotTeamTaskCreate,
+  BotTeamTaskSetProject,
   BotTeamTaskStart,
   type BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
-import { chooseBotTeamLead } from '../../../../shared/bot-team-lead-selection'
-import {
-  buildBotTeamLeadPrompt,
-  parseBotTeamLeadReply
-} from '../../../../shared/bot-team-lead-query'
-import { BOT_TEAMS_FOLDER_NAME } from '../../../../shared/bot-team-folder'
-import { botTeamTaskTitle, routeBotTeamRequest } from '../../../../shared/bot-team-request-route'
 import { createStructuredAgentSessionId } from '../../../../shared/structured-agent-session-create'
 import { createStructuredAgentSessionOperationId } from '../../../../shared/structured-agent-session-mutation'
 import { folderWorkspaceKey } from '../../../../shared/workspace-scope'
-import { askDefaultAgentForBotTeamLead } from '../../../bot-teams/bot-team-lead-query'
+import { ensureBotTeamVersionWatcher } from '../../../bot-teams/bot-team-task-versions'
+import { botTeamFolderPath, botTeamsParentPath } from '../../../bot-teams/bot-team-version-deps'
+import { readBotTeamMemoryLines } from '../../../bot-teams/bot-team-memory-read'
+import { botSessionOptions } from '../../../bot-teams/bot-team-model-choice'
 import { startBotTeamTask } from '../../../bot-teams/bot-team-task-start'
 import { getStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
 import { defineMethod, type RpcContext } from '../core'
+import { botTeamAssignMethods } from './bot-team-assign-methods'
+import { BOT_TEAM_MEMORY_METHODS } from './bot-team-memory-methods'
+import { postBotTeamRequestOnHost } from './bot-team-post-request'
+import { BOT_TEAM_VERSION_METHODS } from './bot-team-versions'
 import { commitStructuredAgentSessionLaunchPrompt } from './agent-launch-structured-prompt'
 import { isDefinitiveAgentSessionCreateRefusal } from '../../../../shared/agent-session-definitive-refusal'
 import { createStructuredAgentSessionForWorktree } from './structured-agent-session-create'
@@ -31,14 +33,26 @@ import { structuredCallerFor } from './structured-agent-session-gate'
 
 const BOT_TEAMS_GROUP_NAME = 'Bot teams'
 
+const workspacesBeingMade = new Map<string, Promise<string>>()
+const tasksBeingStarted = new Set<string>()
+
+/** Two first requests at once must share one workspace: the later would replace the earlier. */
 async function ensureTeamWorkspace(ctx: RpcContext, team: BotTeam): Promise<string> {
-  const db = ctx.runtime.getOrchestrationDb()
-  const existing = db.getBotTeamWorkspace(team.id)
+  const existing = ctx.runtime.getOrchestrationDb().getBotTeamWorkspace(team.id)
   if (existing) {
     return existing
   }
-  const parentPath = path.join(homedir(), BOT_TEAMS_FOLDER_NAME)
-  const folderPath = path.join(parentPath, team.id)
+  const making =
+    workspacesBeingMade.get(team.id) ??
+    makeTeamWorkspace(ctx, team).finally(() => workspacesBeingMade.delete(team.id))
+  workspacesBeingMade.set(team.id, making)
+  return making
+}
+
+async function makeTeamWorkspace(ctx: RpcContext, team: BotTeam): Promise<string> {
+  const db = ctx.runtime.getOrchestrationDb()
+  const parentPath = botTeamsParentPath()
+  const folderPath = botTeamFolderPath(team.id)
   await mkdir(folderPath, { recursive: true })
   const group =
     ctx.runtime.listProjectGroups().find((entry) => entry.parentPath === parentPath) ??
@@ -61,7 +75,22 @@ function requireHost() {
   return host
 }
 
-async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeamTask> {
+export async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeamTask> {
+  if (
+    tasksBeingStarted.has(taskId) ||
+    ctx.runtime.getOrchestrationDb().isBotTeamTaskHandedOff(taskId)
+  ) {
+    throw new Error('This task is already starting.')
+  }
+  tasksBeingStarted.add(taskId)
+  try {
+    return await startUnclaimedTaskOnHost(ctx, taskId)
+  } finally {
+    tasksBeingStarted.delete(taskId)
+  }
+}
+
+async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeamTask> {
   const db = ctx.runtime.getOrchestrationDb()
   const task = db.getBotTeamTask(taskId)
   const team = db.listBotTeams().find((entry) => entry.id === task.teamId)
@@ -69,6 +98,7 @@ async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeam
     throw new Error(`Team ${task.teamId} was not found.`)
   }
   await ctx.runtime.ensureStructuredAgentSessionHost()
+  ensureBotTeamVersionWatcher(() => ctx.runtime.getOrchestrationDb())
   const caller = structuredCallerFor(ctx)
   let fence = 0
   return startBotTeamTask(
@@ -90,7 +120,7 @@ async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeam
             agent,
             accessMode,
             ...(piRuntime ? { piRuntime } : {}),
-            ...(seed ? { options: seed } : {}),
+            options: botSessionOptions(seed, accessMode),
             // A task runs in the background; opening it is up to the person.
             activate: false
           })
@@ -115,50 +145,32 @@ async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeam
         })) !== null,
       linkSession: (id, sessionId) => db.setBotTeamTaskSession(id, sessionId)
     },
-    { team, task }
+    {
+      team,
+      task,
+      project: db.listBotTeamProjects(team.id).find((entry) => entry.id === task.projectId) ?? null,
+      notes: db.getBotTeamTaskStartNotes(task.id),
+      memory: readBotTeamMemoryLines(db, team.id, task.ownerBotId)
+    }
   )
 }
 
-/** One query over the bots' descriptions on the Settings default agent; ties go to the least busy. */
-async function chooseLeadByDescription(
-  ctx: RpcContext,
-  team: BotTeam,
-  text: string
-): Promise<BotTeam['bots'][number] | null> {
-  if (team.bots.length < 2) {
-    return null
-  }
-  const reply = await askDefaultAgentForBotTeamLead({
-    prompt: buildBotTeamLeadPrompt(team, team.bots, text),
-    settings: ctx.runtime.getClientSettings(),
-    getAgentEnvResolvers: () => ctx.runtime.getCommitMessageAgentEnvironmentResolvers()
-  })
-  if (reply === null) {
-    return null
-  }
-  const activeTasksByBot: Record<string, number> = {}
-  for (const task of ctx.runtime.getOrchestrationDb().listBotTeamTasks(team.id)) {
-    if (task.sessionId !== null) {
-      activeTasksByBot[task.ownerBotId] = (activeTasksByBot[task.ownerBotId] ?? 0) + 1
-    }
-  }
-  return chooseBotTeamLead({
-    matchedBotIds: parseBotTeamLeadReply(reply, team.bots),
-    bots: team.bots,
-    activeTasksByBot
-  })
-}
-
 export const BOT_TEAM_ROOM_METHODS = [
+  ...BOT_TEAM_VERSION_METHODS,
+  ...botTeamAssignMethods(startTaskOnHost),
+  ...BOT_TEAM_MEMORY_METHODS,
   defineMethod({
     name: 'botTeams.listRoom',
     permission: 'workspace',
     params: BotTeamRoomSelector,
     handler: ({ teamId }, { runtime }) => {
       const db = runtime.getOrchestrationDb()
+      // Rooms are read all the time, so this also covers tasks that outlive a restart.
+      ensureBotTeamVersionWatcher(() => runtime.getOrchestrationDb())
       return {
         tasks: db.listBotTeamTasks(teamId),
         messages: db.listBotTeamMessages(teamId),
+        projects: db.listBotTeamProjects(teamId),
         // Null until a task starts; a client opens a task's session in this workspace.
         workspaceId: db.getBotTeamWorkspace(teamId)
       }
@@ -176,32 +188,49 @@ export const BOT_TEAM_ROOM_METHODS = [
     name: 'botTeams.postMessage',
     permission: 'workspace',
     params: BotTeamMessagePost,
-    handler: async ({ teamId, text, start }, ctx) => {
-      const db = ctx.runtime.getOrchestrationDb()
-      const message = db.postBotTeamMessage({ teamId, text, authorBotId: null })
-      const bots = db.listBotTeams().find((entry) => entry.id === teamId)?.bots ?? []
-      const team = db.listBotTeams().find((entry) => entry.id === teamId)
-      const lead =
-        routeBotTeamRequest(text, bots) ??
-        (team ? await chooseLeadByDescription(ctx, team, text) : null)
-      if (!lead) {
-        return { message, task: null, startError: null }
-      }
-      const task = db.createBotTeamTask({
-        teamId,
-        title: botTeamTaskTitle(text, bots),
-        prompt: text,
-        ownerBotId: lead.id
-      })
-      if (!start) {
-        return { message, task, startError: null }
-      }
-      try {
-        return { message, task: await startTaskOnHost(ctx, task.id), startError: null }
-      } catch (error) {
-        // The request is kept: the task waits in Todo and can be started again.
-        return { message, task, startError: error instanceof Error ? error.message : String(error) }
-      }
+    handler: (params, ctx) =>
+      postBotTeamRequestOnHost(ctx, params, (id) => startTaskOnHost(ctx, id))
+  }),
+  defineMethod({
+    name: 'botTeams.createProject',
+    permission: 'workspace',
+    params: BotTeamProjectCreate,
+    handler: (params, { runtime }) => ({
+      project: runtime.getOrchestrationDb().createBotTeamProject(params)
+    })
+  }),
+  defineMethod({
+    name: 'botTeams.workspace',
+    permission: 'workspace',
+    params: BotTeamRoomSelector,
+    // Null until a task starts: listing a team's files never creates its folder.
+    handler: ({ teamId }, { runtime }) => ({
+      workspaceId: runtime.getOrchestrationDb().getBotTeamWorkspace(teamId)
+    })
+  }),
+  defineMethod({
+    name: 'botTeams.setProjectBrief',
+    permission: 'workspace',
+    params: BotTeamProjectSetBrief,
+    handler: ({ projectId, goal, brief }, { runtime }) => ({
+      project: runtime.getOrchestrationDb().setBotTeamProjectBrief(projectId, { goal, brief })
+    })
+  }),
+  defineMethod({
+    name: 'botTeams.setProjectCodeSource',
+    permission: 'workspace',
+    params: BotTeamProjectSetCodeSource,
+    handler: ({ projectId, codeSource }, { runtime }) => ({
+      project: runtime.getOrchestrationDb().setBotTeamProjectCodeSource(projectId, codeSource)
+    })
+  }),
+  defineMethod({
+    name: 'botTeams.setTaskProject',
+    permission: 'workspace',
+    params: BotTeamTaskSetProject,
+    handler: ({ taskId, projectId }, { runtime }) => {
+      runtime.getOrchestrationDb().setBotTeamTaskProject(taskId, projectId)
+      return { task: runtime.getOrchestrationDb().getBotTeamTask(taskId) }
     }
   }),
   defineMethod({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { chooseBotTeamLead, findMentionedBot } from './bot-team-lead-selection'
+import { chooseBotTeamOwner, findMentionedBot } from './bot-team-owner-selection'
 
 const IRIS = { id: 'iris', name: 'Iris' }
 const MAX = { id: 'max', name: 'Max' }
@@ -21,20 +21,20 @@ describe('findMentionedBot', () => {
   })
 })
 
-describe('chooseBotTeamLead', () => {
-  it('leaves the lead open when no bot matches, so the room asks', () => {
-    expect(chooseBotTeamLead({ matchedBotIds: [], bots: BOTS, activeTasksByBot: {} })).toBeNull()
+describe('chooseBotTeamOwner', () => {
+  it('leaves the owner open when no bot matches, so the room asks', () => {
+    expect(chooseBotTeamOwner({ matchedBotIds: [], bots: BOTS, activeTasksByBot: {} })).toBeNull()
   })
 
   it('takes the only match even when it is busier', () => {
     expect(
-      chooseBotTeamLead({ matchedBotIds: ['max'], bots: BOTS, activeTasksByBot: { max: 5 } })
+      chooseBotTeamOwner({ matchedBotIds: ['max'], bots: BOTS, activeTasksByBot: { max: 5 } })
     ).toBe(MAX)
   })
 
   it('breaks a collision by the fewest active tasks', () => {
     expect(
-      chooseBotTeamLead({
+      chooseBotTeamOwner({
         matchedBotIds: ['iris', 'max'],
         bots: BOTS,
         activeTasksByBot: { iris: 2, max: 1 }
@@ -44,12 +44,12 @@ describe('chooseBotTeamLead', () => {
 
   it('breaks an equal load by team order, so the choice is stable', () => {
     expect(
-      chooseBotTeamLead({ matchedBotIds: ['max', 'iris'], bots: BOTS, activeTasksByBot: {} })
+      chooseBotTeamOwner({ matchedBotIds: ['max', 'iris'], bots: BOTS, activeTasksByBot: {} })
     ).toBe(IRIS)
   })
 
   it('ignores an id that is not on the team', () => {
-    expect(chooseBotTeamLead({ matchedBotIds: ['ghost'], bots: BOTS, activeTasksByBot: {} })).toBe(
+    expect(chooseBotTeamOwner({ matchedBotIds: ['ghost'], bots: BOTS, activeTasksByBot: {} })).toBe(
       null
     )
   })

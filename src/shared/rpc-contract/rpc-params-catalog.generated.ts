@@ -71,8 +71,10 @@ import {
 import {
   BotTeamAgentDelegate,
   BotTeamAgentPost,
+  BotTeamAgentRemember,
   BotTeamAgentTaskCreate
 } from './bot-team-agent-params'
+import { BotTeamMemoryDelete, BotTeamMemoryList } from './bot-team-memory-params'
 import {
   BotTeamAddBot,
   BotTeamCreate,
@@ -83,10 +85,32 @@ import {
 } from './bot-team-params'
 import {
   BotTeamMessagePost,
+  BotTeamProjectCreate,
+  BotTeamProjectSetBrief,
+  BotTeamProjectSetCodeSource,
+  BotTeamRequestAssign,
   BotTeamRoomSelector,
   BotTeamTaskCreate,
+  BotTeamTaskReassign,
+  BotTeamTaskSetProject,
   BotTeamTaskStart
 } from './bot-team-room-params'
+import {
+  BotTeamRoutineCreate,
+  BotTeamRoutineList,
+  BotTeamRoutineSelector,
+  BotTeamRoutineSetPaused
+} from './bot-team-routine-params'
+import {
+  BotTeamFileVersionsSelector,
+  BotTeamVersionFileSelector,
+  BotTeamVersionsSelector
+} from './bot-team-version-params'
+import {
+  BotTeamWebhookCreate,
+  BotTeamWebhookList,
+  BotTeamWebhookSelector
+} from './bot-team-webhook-params'
 import { CertificateProceed } from './browser-core-params'
 import { MouseClick } from './browser-extras-params'
 import { BrowserIdentitySet, ProfileCreate } from './browser-identity-params'
@@ -716,16 +740,36 @@ export const RPC_PARAMS_BY_METHOD = {
   'automation.show': AutomationId,
   'automation.update': AutomationUpdate,
   'botTeams.addBot': BotTeamAddBot,
+  'botTeams.assignRequest': BotTeamRequestAssign,
   'botTeams.create': BotTeamCreate,
+  'botTeams.createProject': BotTeamProjectCreate,
+  'botTeams.createRoutine': BotTeamRoutineCreate,
   'botTeams.createTask': BotTeamTaskCreate,
+  'botTeams.createWebhook': BotTeamWebhookCreate,
   'botTeams.delete': BotTeamSelector,
+  'botTeams.deleteMemory': BotTeamMemoryDelete,
+  'botTeams.fileVersions': BotTeamFileVersionsSelector,
   'botTeams.list': null,
+  'botTeams.listMemory': BotTeamMemoryList,
   'botTeams.listRoom': BotTeamRoomSelector,
+  'botTeams.listRoutineRuns': BotTeamRoutineSelector,
+  'botTeams.listRoutines': BotTeamRoutineList,
+  'botTeams.listWebhooks': BotTeamWebhookList,
   'botTeams.postMessage': BotTeamMessagePost,
+  'botTeams.reassignTask': BotTeamTaskReassign,
   'botTeams.removeBot': BotTeamRemoveBot,
+  'botTeams.replaceWebhookSecret': BotTeamWebhookSelector,
+  'botTeams.restoreFileVersion': BotTeamVersionFileSelector,
+  'botTeams.setProjectBrief': BotTeamProjectSetBrief,
+  'botTeams.setProjectCodeSource': BotTeamProjectSetCodeSource,
+  'botTeams.setRoutinePaused': BotTeamRoutineSetPaused,
+  'botTeams.setTaskProject': BotTeamTaskSetProject,
   'botTeams.startTask': BotTeamTaskStart,
   'botTeams.update': BotTeamUpdate,
   'botTeams.updateBot': BotTeamUpdateBot,
+  'botTeams.versionFile': BotTeamVersionFileSelector,
+  'botTeams.versions': BotTeamVersionsSelector,
+  'botTeams.workspace': BotTeamRoomSelector,
   'browser.back': BrowserTarget,
   'browser.capture.start': BrowserTarget,
   'browser.capture.stop': BrowserTarget,
@@ -1118,6 +1162,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'orchestration.ask': AskParams,
   'orchestration.botTeamDelegate': BotTeamAgentDelegate,
   'orchestration.botTeamPost': BotTeamAgentPost,
+  'orchestration.botTeamRemember': BotTeamAgentRemember,
   'orchestration.botTeamTaskCreate': BotTeamAgentTaskCreate,
   'orchestration.botTeamTasks': null,
   'orchestration.callerShow': null,

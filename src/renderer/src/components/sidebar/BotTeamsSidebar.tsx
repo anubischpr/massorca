@@ -1,17 +1,14 @@
-import {
-  BookOpen,
-  Files,
-  LayoutGrid,
-  Plus,
-  ShieldAlert,
-  UserCheck,
-  type LucideIcon
-} from 'lucide-react'
+import { Brain, CalendarClock, Files, Folder, LayoutGrid, Plus, UserCheck } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '@/store'
+import type { BotTeamsSelection } from '@/store/slices/ui/ui-slice-contract-core'
 import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
+import { botTeamBoardColumn } from '../../../../shared/bot-team-board-column'
+import { botTeamTaskStatus } from '../../../../shared/bot-team-task-status'
 import { BotTeamCharacterIcon } from '../bot-teams/BotTeamCharacterIcon'
+import { useTeamWork } from '../bot-teams/use-bot-team-work'
+import { useBotTeamSessionStatuses } from '../bot-teams/use-bot-team-task-status'
 import { useBotTeams } from '../bot-teams/use-bot-teams'
 import { SidebarSearchRow } from './SidebarSearchRow'
 
@@ -43,34 +40,126 @@ function SidebarRow({
   )
 }
 
-function PendingRow({ icon: Icon, label }: { icon: LucideIcon; label: string }): React.JSX.Element {
-  return (
-    <button
-      type="button"
-      disabled
-      className={cn(ROW_CLASS, 'pl-8 text-worktree-sidebar-foreground/60 disabled:opacity-50')}
-    >
-      <Icon className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
-      <span className="flex-1">{label}</span>
-    </button>
-  )
+function RowMeta({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return <span className="text-xs text-worktree-sidebar-foreground/45">{children}</span>
 }
 
-/** Rows of an open team whose screens are still being built; each turns on with its screen. */
-function PendingTeamRows(): React.JSX.Element {
+/** The open team's rows, in the order of the design: room, board, projects, New project. */
+function OpenTeamRows({
+  teamId,
+  selection,
+  onPage
+}: {
+  teamId: string
+  selection: BotTeamsSelection
+  onPage: boolean
+}): React.JSX.Element {
+  const openBotTeamsView = useAppStore((s) => s.openBotTeamsView)
+  const { section } = selection
+  // Relists when the page moves, so a project made or a task started shows without a reload.
+  const { tasks, projects } = useTeamWork(
+    teamId,
+    `${section?.kind ?? 'room'}:${selection.taskId ?? ''}`
+  )
+  const statuses = useBotTeamSessionStatuses()
+  const open = tasks.filter(
+    (task) =>
+      botTeamBoardColumn(
+        botTeamTaskStatus(
+          task.sessionId,
+          task.sessionId === null ? undefined : statuses.get(task.sessionId)
+        )
+      ) !== 'Done'
+  ).length
+  const inRoom = onPage && selection.taskId === null && !section
   return (
     <>
-      <PendingRow icon={LayoutGrid} label={translate('components.botTeams.board', 'Board')} />
-      <div className="px-8 pt-2 pb-0.5 text-[10px] font-semibold tracking-wider text-worktree-sidebar-foreground/45 uppercase">
+      <SidebarRow indented active={inRoom} onClick={() => openBotTeamsView({ teamId })}>
+        <UserCheck className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+        <span className="flex-1">
+          {translate('components.botTeams.conferenceRoom', 'Conference room')}
+        </span>
+        <RowMeta>
+          {open > 0
+            ? translate('components.botTeams.openCount', '{{count}} open', { count: open })
+            : translate('components.botTeams.nothingOpen', 'Nothing open')}
+        </RowMeta>
+      </SidebarRow>
+      <SidebarRow
+        indented
+        active={onPage && selection.taskId === null && section?.kind === 'board'}
+        onClick={() => openBotTeamsView({ teamId, section: { kind: 'board' } })}
+      >
+        <LayoutGrid className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+        <span className="flex-1">{translate('components.botTeams.board', 'Board')}</span>
+        <RowMeta>
+          {tasks.length > 0
+            ? translate('components.botTeams.taskCount', '{{count}} tasks', {
+                count: tasks.length
+              })
+            : translate('components.botTeams.noTasks', 'No tasks')}
+        </RowMeta>
+      </SidebarRow>
+      <p className="px-2 pt-2.5 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-worktree-sidebar-foreground/45">
         {translate('components.botTeams.projects', 'Projects')}
-      </div>
-      <PendingRow icon={Plus} label={translate('components.botTeams.newProject', 'New project')} />
-      <PendingRow icon={Files} label={translate('components.botTeams.files', 'Files')} />
-      <PendingRow icon={BookOpen} label={translate('components.botTeams.memory', 'Memory')} />
-      <PendingRow
-        icon={ShieldAlert}
-        label={translate('components.botTeams.permissions', 'Permissions')}
-      />
+      </p>
+      {projects.map((project) => (
+        <SidebarRow
+          key={project.id}
+          indented
+          active={
+            onPage &&
+            selection.taskId === null &&
+            section?.kind === 'project' &&
+            section.projectId === project.id
+          }
+          onClick={() =>
+            openBotTeamsView({ teamId, section: { kind: 'project', projectId: project.id } })
+          }
+        >
+          <Folder className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+          <span className="min-w-0 flex-1 truncate">{project.name}</span>
+        </SidebarRow>
+      ))}
+      <SidebarRow
+        indented
+        active={onPage && selection.taskId === null && section?.kind === 'new-project'}
+        onClick={() => openBotTeamsView({ teamId, section: { kind: 'new-project' } })}
+      >
+        <Plus className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+        <span className="flex-1">{translate('components.botTeams.newProject', 'New project')}</span>
+      </SidebarRow>
+      <SidebarRow
+        indented
+        active={onPage && selection.taskId === null && section?.kind === 'files'}
+        onClick={() => openBotTeamsView({ teamId, section: { kind: 'files' } })}
+      >
+        <Files className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+        <span className="flex-1">{translate('components.botTeams.files', 'Files')}</span>
+      </SidebarRow>
+      <SidebarRow
+        indented
+        active={onPage && selection.taskId === null && section?.kind === 'memory'}
+        onClick={() => openBotTeamsView({ teamId, section: { kind: 'memory' } })}
+      >
+        <Brain className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+        <span className="flex-1">{translate('components.botTeams.memory', 'Memory')}</span>
+      </SidebarRow>
+      <SidebarRow
+        indented
+        active={
+          onPage &&
+          selection.taskId === null &&
+          (section?.kind === 'routines' ||
+            section?.kind === 'routine-new' ||
+            section?.kind === 'webhook' ||
+            section?.kind === 'routine')
+        }
+        onClick={() => openBotTeamsView({ teamId, section: { kind: 'routines' } })}
+      >
+        <CalendarClock className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+        <span className="flex-1">{translate('components.botTeams.routines', 'Routines')}</span>
+      </SidebarRow>
     </>
   )
 }
@@ -116,19 +205,7 @@ export function BotTeamsSidebar(): React.JSX.Element {
                 <span className="min-w-0 flex-1 truncate">{team.name}</span>
               </SidebarRow>
               {open ? (
-                <>
-                  <SidebarRow
-                    indented
-                    active={onPage && selection.taskId === null}
-                    onClick={() => openBotTeamsView({ teamId: team.id })}
-                  >
-                    <UserCheck className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
-                    <span className="flex-1">
-                      {translate('components.botTeams.conferenceRoom', 'Conference room')}
-                    </span>
-                  </SidebarRow>
-                  <PendingTeamRows />
-                </>
+                <OpenTeamRows teamId={team.id} selection={selection} onPage={onPage} />
               ) : null}
             </div>
           )

@@ -19,7 +19,12 @@ const RIGHT_SIDEBAR_SUPPRESSED_VIEWS = new Set<ActiveView>([
 
 /** In Bot teams the sidebar is a Conference room's Tasks and Bots; anywhere else there it has nothing. */
 export function botTeamsRoomOpen(selection: AppState['botTeamsSelection']): boolean {
-  return selection.teamId !== null && selection.taskId === null && !selection.creating
+  return (
+    selection.teamId !== null &&
+    selection.taskId === null &&
+    !selection.creating &&
+    !selection.section
+  )
 }
 
 export function canShowRightSidebarForView(

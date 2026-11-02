@@ -173,6 +173,7 @@ export function createDelegationLauncher(deps: {
         ...(target.model && target.effort ? { effort: target.effort } : {}),
         preferredMode: 'chat',
         ...(accessMode ? { accessMode } : {}),
+        ...(target.piRuntime ? { piRuntime: target.piRuntime } : {}),
         worktree: newWorktree ? 'new-child' : 'current',
         ...(newWorktree ? { name: delegationWorktreeName(request.title, request.id) } : {})
       }

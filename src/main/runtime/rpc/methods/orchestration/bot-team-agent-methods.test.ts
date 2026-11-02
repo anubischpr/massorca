@@ -8,6 +8,7 @@ const TASK: BotTeamTask = {
   title: 'Flyer',
   prompt: '',
   ownerBotId: 'bot',
+  projectId: null,
   sessionId: 'session-1'
 }
 const db = {

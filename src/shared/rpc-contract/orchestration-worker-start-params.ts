@@ -34,6 +34,7 @@ export const WorkerStartParams = z
     preferredMode: z.literal('chat').optional(),
     /** The access the worker runs in. A mode the worker cannot honour narrows, never widens. */
     accessMode: z.enum(AGENT_SESSION_ACCESS_MODE_VALUES).optional(),
+    piRuntime: z.enum(['pi', 'gentle-shell']).optional(),
     retryOf: OptionalString,
     timeoutMs: OptionalFiniteNumber,
     devMode: z.boolean().optional()

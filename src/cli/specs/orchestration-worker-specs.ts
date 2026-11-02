@@ -134,10 +134,21 @@ export const ORCHESTRATION_WORKER_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['orchestration', 'team-delegate'],
     summary: 'Hand work to a teammate on your Bot team',
-    usage: 'orca orchestration team-delegate --bot <name> --text <task> [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'bot', 'text', 'retry-request'],
+    usage: 'orca orchestration team-delegate --bot <name> --text <task> [--team <name>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'bot', 'text', 'team', 'retry-request'],
     notes: [
-      'The teammate runs as a child session of this chat, on its own engine, with no choice card.'
+      'The teammate runs as a child session of this chat, on its own engine, with no choice card.',
+      'With --team, the bot is looked up on that other team and the task is filed in its Conference room.'
+    ]
+  },
+  {
+    path: ['orchestration', 'team-remember'],
+    summary: 'Keep something your Bot team should remember for later tasks',
+    usage: 'orca orchestration team-remember --text <what> [--me] [--told] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'text', 'me', 'told', 'retry-request'],
+    notes: [
+      'Without --me the whole team uses it; with --me only this bot does. Use --told when the person asked you to remember it.',
+      'The person can read and delete it on the team Memory page.'
     ]
   },
   {

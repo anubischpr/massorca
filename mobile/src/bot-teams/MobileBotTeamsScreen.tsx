@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ComponentProps } from 'react'
 import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ChevronLeft, Plus, Settings, Users } from 'lucide-react-native'
+import { Plus, Settings, Users } from 'lucide-react-native'
 import { colors } from '../theme/mobile-theme'
 import { useHostClient } from '../transport/host-client-hooks'
 import type { RpcClient } from '../transport/rpc-client'
@@ -9,8 +9,13 @@ import { botAgentLabel } from '../../../src/shared/bot-team-character-art'
 import type { BotDraftInput, BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import type { BotTeamTask } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
+import { MobileBotTeamIntegrations } from './MobileBotTeamIntegrations'
+import { MobileBotTeamIntegrationsRow } from './MobileBotTeamIntegrationsRow'
 import { MobileAddBotForm, MobileNewTeamForm } from './MobileBotTeamForms'
 import { MobileBotTeamRoom } from './MobileBotTeamRoom'
+import * as Routines from './MobileBotTeamRoutineScreens'
+import { MobileBotTeamWork, isBotTeamWorkScreen, type BotTeamWorkScreen } from './MobileBotTeamWork'
+import { MobileBotTeamWorkBar as SubBar } from './MobileBotTeamWorkBar'
 import { MobileBotTeamModeSwitch } from './MobileBotTeamModeSwitch'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 import {
@@ -40,24 +45,9 @@ type Screen =
   | { name: 'editBot'; teamId: string; botId: string }
   | { name: 'editNewTeamBot'; index: number }
   | { name: 'teamBot'; teamId: string }
-
-function SubBar({ title, onBack }: { title: string; onBack: () => void }) {
-  return (
-    <View style={styles.bar}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-        onPress={onBack}
-        style={styles.iconButton}
-      >
-        <ChevronLeft size={22} color={colors.textSecondary} />
-      </Pressable>
-      <Text accessibilityRole="header" style={styles.barTitle} numberOfLines={1}>
-        {title}
-      </Text>
-    </View>
-  )
-}
+  | { name: 'integrations' }
+  | BotTeamWorkScreen
+  | Routines.BotTeamRoutineScreen
 
 /** The first screen of a host: its teams. A host older than Bot teams opens on Workspaces instead. */
 /** Carousel of teams; kept apart so the status hook only runs where a client exists. */
@@ -159,6 +149,9 @@ export function MobileBotTeamsScreen({
   const openTeam = screen.name === 'team' ? teams.find((t) => t.id === screen.teamId) : undefined
   const openBotsTeam =
     screen.name === 'teamBots' ? teams.find((t) => t.id === screen.teamId) : undefined
+  const workTeam = isBotTeamWorkScreen(screen)
+    ? teams.find((t) => t.id === screen.teamId)
+    : undefined
 
   const notice = unreachable ? (
     <View style={styles.notice}>
@@ -263,6 +256,9 @@ export function MobileBotTeamsScreen({
           onPickTeam={(teamId) => setScreen({ name: 'team', teamId })}
           onOpenBots={() => setScreen({ name: 'teamBots', teamId: openTeam.id })}
           onOpenTask={(workspaceId, task) => onOpenTask(workspaceId, task)}
+          onOpenWork={setScreen}
+          onAddBot={() => setScreen({ name: 'teamBot', teamId: openTeam.id })}
+          onNewTeam={() => setScreen({ name: 'newTeam' })}
         />
       </>
     )
@@ -286,9 +282,37 @@ export function MobileBotTeamsScreen({
               </View>
             </View>
           ))}
+          <Routines.MobileBotTeamRoutinesRow team={openTeam} onOpen={setScreen} />
         </ScrollView>
       </>
     )
+  } else if (client !== null && workTeam && isBotTeamWorkScreen(screen)) {
+    body = (
+      <MobileBotTeamWork
+        key={workTeam.id}
+        client={client}
+        team={workTeam}
+        teams={teams}
+        offline={unreachable}
+        screen={screen}
+        onOpenRoom={() => setScreen({ name: 'team', teamId: workTeam.id })}
+        onOpen={setScreen}
+        onOpenTask={onOpenTask}
+      />
+    )
+  } else if (client !== null && Routines.isBotTeamRoutineScreen(screen)) {
+    body = (
+      <Routines.MobileBotTeamRoutineScreens
+        client={client}
+        teams={teams}
+        offline={unreachable}
+        screen={screen}
+        onScreen={setScreen}
+        onOpenTask={onOpenTask}
+      />
+    )
+  } else if (screen.name === 'integrations') {
+    body = <MobileBotTeamIntegrations onBack={backHome} />
   } else if (client !== null && screen.name === 'settings') {
     body = (
       <>
@@ -378,6 +402,7 @@ export function MobileBotTeamsScreen({
             onOpen={(teamId) => setScreen({ name: 'team', teamId })}
           />
         ) : null}
+        <MobileBotTeamIntegrationsRow onPress={() => setScreen({ name: 'integrations' })} />
       </>
     )
   }

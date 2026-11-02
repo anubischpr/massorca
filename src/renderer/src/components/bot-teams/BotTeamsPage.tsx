@@ -13,12 +13,22 @@ import {
   updateBotOnTeam,
   updateBotTeam
 } from '@/runtime/runtime-bot-team-client'
+import type { BotTeamsSelection } from '@/store/slices/ui/ui-slice-contract-core'
 import type { BotTeamOverallStatus } from '../../../../shared/bot-team-overall-status'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { BotAgentIcon } from './BotAgentIcon'
 import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
 import { BotTeamHostPicker } from './BotTeamHostPicker'
+import { BotTeamFiles } from './BotTeamFiles'
+import { BotTeamProjectBrief, type BotTeamProjectTab } from './BotTeamProjectBrief'
+import { BotTeamBoard, BotTeamProjectBoard, NewBotProjectForm } from './BotTeamProjectViews'
+import { BotTeamMemory } from './BotTeamMemory'
 import { BotTeamRoom } from './BotTeamRoom'
+import { BotTeamRoutineNew } from './BotTeamRoutineNew'
+import { BotTeamRoutineRuns } from './BotTeamRoutineRuns'
+import { BotTeamRoutines } from './BotTeamRoutines'
+import { BotTeamWebhook } from './BotTeamWebhook'
+import { BotTeamWebhookSection } from './BotTeamWebhookSection'
 import { NewBotTeamForm } from './NewBotTeamForm'
 import { useBotTeamCardStatus } from './use-bot-team-card-status'
 import { useBotTeams } from './use-bot-teams'
@@ -48,19 +58,105 @@ function BotTeamRoomTitle({ children }: { children: React.ReactNode }): React.JS
 
 function TeamDetail({
   team,
+  otherTeams,
   offline,
-  openTaskId,
-  onOpenTask
+  selection,
+  onSelect,
+  onEditTeam
 }: {
   team: BotTeam
+  otherTeams: readonly BotTeam[]
   offline: boolean
-  openTaskId: string | null
-  onOpenTask: (taskId: string | null) => void
+  selection: BotTeamsPageSelection
+  onSelect: (selection: BotTeamsPageSelection) => void
+  onEditTeam: (teamId: string) => void
 }): React.JSX.Element {
+  const { taskId, section } = selection
+  const toTeam = (next: Partial<BotTeamsPageSelection> = {}): void =>
+    onSelect({ teamId: team.id, taskId: null, creating: false, ...next })
+  const toRoom = (): void => toTeam()
+  const onOpenTask = (openTaskId: string | null): void => toTeam({ taskId: openTaskId })
   // A task's thread is a full chat, so it takes the page rather than the team's column.
-  if (openTaskId !== null) {
+  if (taskId !== null) {
+    return <BotTeamRoom team={team} openTaskId={taskId} onOpenTask={onOpenTask} offline={offline} />
+  }
+  if (section?.kind === 'board') {
+    return <BotTeamBoard team={team} onBack={toRoom} onOpenTask={onOpenTask} />
+  }
+  if (section?.kind === 'files') {
+    return <BotTeamFiles team={team} />
+  }
+  if (section?.kind === 'memory') {
+    return <BotTeamMemory team={team} />
+  }
+  if (section?.kind === 'routines') {
     return (
-      <BotTeamRoom team={team} openTaskId={openTaskId} onOpenTask={onOpenTask} offline={offline} />
+      <BotTeamRoutines
+        team={team}
+        onNew={() => toTeam({ section: { kind: 'routine-new' } })}
+        onOpen={(routineId) => toTeam({ section: { kind: 'routine', routineId } })}
+        webAddresses={
+          <BotTeamWebhookSection
+            team={team}
+            onOpen={(webhookId) =>
+              toTeam({ section: { kind: 'webhook', ...(webhookId ? { webhookId } : {}) } })
+            }
+          />
+        }
+      />
+    )
+  }
+  if (section?.kind === 'webhook') {
+    return (
+      <BotTeamWebhook
+        team={team}
+        {...(section.webhookId ? { webhookId: section.webhookId } : {})}
+        onBack={() => toTeam({ section: { kind: 'routines' } })}
+      />
+    )
+  }
+  if (section?.kind === 'routine-new') {
+    const toRoutines = (): void => toTeam({ section: { kind: 'routines' } })
+    return <BotTeamRoutineNew team={team} onBack={toRoutines} onCreated={toRoutines} />
+  }
+  if (section?.kind === 'routine') {
+    return (
+      <BotTeamRoutineRuns
+        team={team}
+        routineId={section.routineId}
+        onBack={() => toTeam({ section: { kind: 'routines' } })}
+        onOpenTask={onOpenTask}
+      />
+    )
+  }
+  if (section?.kind === 'new-project') {
+    return (
+      <NewBotProjectForm
+        team={team}
+        onCancel={toRoom}
+        onCreated={(project) => toTeam({ section: { kind: 'project', projectId: project.id } })}
+      />
+    )
+  }
+  if (section?.kind === 'project') {
+    const { projectId } = section
+    const openTab = (tab: BotTeamProjectTab): void =>
+      toTeam({ section: { kind: 'project', projectId, ...(tab === 'brief' ? { tab } : {}) } })
+    return section.tab === 'brief' ? (
+      <BotTeamProjectBrief
+        team={team}
+        projectId={projectId}
+        onBack={() => openTab('board')}
+        onTab={openTab}
+      />
+    ) : (
+      <BotTeamProjectBoard
+        team={team}
+        projectId={projectId}
+        onBack={toRoom}
+        onTab={openTab}
+        onOpenTask={onOpenTask}
+      />
     )
   }
   return (
@@ -69,6 +165,9 @@ function TeamDetail({
       openTaskId={null}
       onOpenTask={onOpenTask}
       offline={offline}
+      otherTeams={otherTeams}
+      onCreateBot={() => onEditTeam(team.id)}
+      onCreateTeam={() => onSelect({ teamId: null, taskId: null, creating: true })}
       header={
         <BotTeamRoomTitle>
           <span className="min-w-0 flex-1 truncate">
@@ -215,12 +314,8 @@ function TeamGrid({
   )
 }
 
-/** What the page shows: the open team, a task thread inside it, or the new team form. */
-export type BotTeamsPageSelection = {
-  teamId: string | null
-  taskId: string | null
-  creating: boolean
-}
+/** What the page shows: the open team, a task thread or section inside it, or the new team form. */
+export type BotTeamsPageSelection = BotTeamsSelection
 
 const NOTHING_OPEN: BotTeamsPageSelection = { teamId: null, taskId: null, creating: false }
 
@@ -290,9 +385,11 @@ export default function BotTeamsPage({
       ) : teams === null ? null : openTeam ? (
         <TeamDetail
           team={openTeam}
+          otherTeams={teams.filter((team) => team.id !== openTeam.id)}
           offline={failed}
-          openTaskId={selection.taskId}
-          onOpenTask={(taskId) => select({ teamId: openTeam.id, taskId, creating: false })}
+          selection={selection}
+          onSelect={select}
+          onEditTeam={setEditingTeamId}
         />
       ) : (
         <TeamGrid

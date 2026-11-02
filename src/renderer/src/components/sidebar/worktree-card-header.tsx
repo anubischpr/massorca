@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
 import type { Repo } from '../../../../shared/repo-types'
+import { isBotTeamFolderPath } from '../../../../shared/bot-team-folder'
+import { BotTeamCharacterIcon } from '../bot-teams/BotTeamCharacterIcon'
+import { useBotTeamCharacterForFolder } from '../bot-teams/use-bot-teams'
 import { resolveRepoHeaderColor } from './project-header-color'
 import { formatSparseDirectoryPreview, shouldBeginWorktreeRename } from './worktree-card-model'
 import type { WorktreeCardPresentation } from './worktree-card-presentation'
@@ -42,6 +45,12 @@ export function RepoIdentityChip({
       </TooltipContent>
     </Tooltip>
   )
+}
+
+/** A team's folder row shows the team's character beside its name. */
+function BotTeamFolderCharacter({ path }: { path: string }): React.JSX.Element | null {
+  const character = useBotTeamCharacterForFolder(path)
+  return character === null ? null : <BotTeamCharacterIcon character={character} size={16} still />
 }
 
 export function WorktreeCardHeader({
@@ -92,6 +101,9 @@ export function WorktreeCardHeader({
   return (
     <div className="flex min-w-0 items-center justify-between gap-2">
       <div className="flex min-w-0 flex-1 items-center gap-1.5">
+        {isBotTeamFolderPath(worktree.path) ? (
+          <BotTeamFolderCharacter path={worktree.path} />
+        ) : null}
         {showPinnedRepoIcon && (
           <RepoIdentityChip repo={repo!}>
             <RepoIconGlyph

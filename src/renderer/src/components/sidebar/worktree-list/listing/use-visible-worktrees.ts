@@ -6,6 +6,7 @@ import type { Repo } from '../../../../../../shared/repo-types'
 import type { WorktreeLineage } from '../../../../../../shared/worktree/lineage-types'
 import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import { computeVisibleWorktrees } from '../../visible-worktrees'
+import { useBotTeamWorkspaceIds } from '../../../bot-teams/use-bot-teams'
 import {
   EMPTY_PAIRED_DEVICE_IDS_BY_ENVIRONMENT,
   getPairedDeviceIdsByEnvironment
@@ -75,6 +76,7 @@ export function useVisibleSidebarWorktrees(args: {
     getStructuredChatWorktreeIds(showSleepingWorkspaces, s.unifiedTabsByWorktree)
   )
 
+  const botTeamWorkspaceIds = useBotTeamWorkspaceIds()
   const recomputedVisibleWorktrees = useMemo(() => {
     // Keyed on the epoch, not `agentStatusNow`: two bumps in one millisecond
     // share a sample, so the timestamp alone would not re-key this memo.
@@ -109,11 +111,13 @@ export function useVisibleSidebarWorktrees(args: {
       preserveLineageParentOrder: sortBy === 'manual',
       forcedVisibleWorktreeIds: args.agentSendTargetWorktreeId
         ? [args.agentSendTargetWorktreeId]
-        : undefined
+        : undefined,
+      botTeamWorkspaceIds
     })
   }, [
     args.agentSendTargetWorktreeId,
     agentStatusEpoch,
+    botTeamWorkspaceIds,
     agentStatusNow,
     filterRepoIds,
     showSleepingWorkspaces,
