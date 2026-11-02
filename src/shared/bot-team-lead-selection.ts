@@ -9,8 +9,17 @@ export function findMentionedBot<TBot extends NamedBot>(
   return (
     bots.find((bot) => {
       const mention = `@${bot.name.toLowerCase()}`
-      const end = lower.indexOf(mention)
-      return end >= 0 && !/[\p{L}\p{N}_]/u.test(lower.charAt(end + mention.length))
+      // Every occurrence counts: "@Maximo" must not hide a later "@Max".
+      for (
+        let at = lower.indexOf(mention);
+        at >= 0;
+        at = lower.indexOf(mention, at + mention.length)
+      ) {
+        if (!/[\p{L}\p{N}_]/u.test(lower.charAt(at + mention.length))) {
+          return true
+        }
+      }
+      return false
     }) ?? null
   )
 }

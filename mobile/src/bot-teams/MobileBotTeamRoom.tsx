@@ -4,10 +4,12 @@ import { Bot, Check, ChevronDown, ChevronLeft, Ellipsis, MessageSquare } from 'l
 import { BottomDrawer } from '../components/BottomDrawer'
 import { useMobileDictation } from '../hooks/use-mobile-dictation'
 import { MobileNativeChatComposer } from '../session/MobileNativeChatComposer'
+import type { ComposerSuggestion } from '../session/MobileNativeChatComposerSuggestions'
 import { MobileNativeChatMessage } from '../session/MobileNativeChatMessage'
 import { mobileStructuredSessionStatusFeed } from '../session/mobile-structured-session-status-feed'
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
+import { botTeamComposerMenu } from '../../../src/shared/bot-team-composer-menu'
 import { botTeamTaskStatus } from '../../../src/shared/bot-team-task-status'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
@@ -173,6 +175,30 @@ export function MobileBotTeamRoom({
     return () => clearInterval(timer)
   }, [reload, offline])
 
+  // The phone has no Sessions panel to open, so the room's two commands stay on the desktop.
+  const roomSuggestions = useCallback(
+    (composerText: string, cursor: number): ComposerSuggestion[] | null => {
+      const menu = botTeamComposerMenu({ text: composerText, caret: cursor, bots: team.bots })
+      return (
+        menu?.items.flatMap((item) =>
+          item.kind === 'bot'
+            ? [
+                {
+                  kind: 'custom' as const,
+                  key: item.bot.id,
+                  insert: item.insert,
+                  label: item.bot.name,
+                  ...(item.bot.job ? { detail: item.bot.job } : {}),
+                  icon: <MobileBotAgentIcon agentId={item.bot.agent} size={16} />
+                }
+              ]
+            : []
+        ) ?? null
+      )
+    },
+    [team.bots]
+  )
+
   const send = async (typed: string): Promise<boolean> => {
     if (sending.current) {
       return false
@@ -315,6 +341,7 @@ export function MobileBotTeamRoom({
         getComposerEditGeneration={NO_GENERATION}
         disabled={offline}
         placeholder="Message the team"
+        customSuggestions={roomSuggestions}
         onMicPress={() => void (dictation.isRecording ? dictation.stop() : dictation.start())}
         micActive={dictation.isRecording}
       />

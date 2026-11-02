@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowUp, ChevronLeft, Play } from 'lucide-react'
 import { toast } from 'sonner'
@@ -21,6 +21,14 @@ import type {
   BotTeamMessage,
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
+import {
+  applyBotTeamComposerItem,
+  BOT_TEAM_ROOM_COMMANDS,
+  botTeamComposerMenu,
+  type BotTeamComposerItem
+} from '../../../../shared/bot-team-composer-menu'
+import { BotTeamComposerMenu } from './BotTeamComposerMenu'
+import { openBotTeamRoomSessions } from './open-bot-team-room-sessions'
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
 import { BotAgentIcon } from './BotAgentIcon'
 
@@ -119,6 +127,11 @@ export function BotTeamRoom({
   const [messages, setMessages] = useState<BotTeamMessage[]>([])
   const [tasks, setTasks] = useState<BotTeamTask[]>([])
   const [text, setText] = useState('')
+  const [caret, setCaret] = useState(0)
+  const [menuIndex, setMenuIndex] = useState(0)
+  const [menuDismissed, setMenuDismissed] = useState(false)
+  const composerRef = useRef<HTMLTextAreaElement | null>(null)
+  const menuId = useId()
   const [needsLead, setNeedsLead] = useState(false)
   const [sideFilter, setSideFilter] = useState<SideFilter>('Active')
   const sidePanel = useRightSidebarPageTarget()
@@ -156,6 +169,30 @@ export function BotTeamRoom({
     const timer = window.setInterval(reload, ROOM_CHECK_MS)
     return () => window.clearInterval(timer)
   }, [offline, reload])
+
+  const menu =
+    menuDismissed || offline
+      ? null
+      : botTeamComposerMenu({ text, caret, bots: team.bots, commands: BOT_TEAM_ROOM_COMMANDS })
+  const chooseMenuItem = (item: BotTeamComposerItem): void => {
+    if (!menu) {
+      return
+    }
+    if (item.kind === 'command') {
+      setText('')
+      setCaret(0)
+      void openBotTeamRoomSessions()
+      return
+    }
+    const next = applyBotTeamComposerItem(text, menu, item)
+    setText(next.text)
+    setCaret(next.caret)
+    setMenuIndex(0)
+    requestAnimationFrame(() => {
+      composerRef.current?.focus()
+      composerRef.current?.setSelectionRange(next.caret, next.caret)
+    })
+  }
 
   const send = async (start: boolean): Promise<void> => {
     if (sending.current) {
@@ -306,7 +343,15 @@ export function BotTeamRoom({
           </div>
         </div>
         <div className="shrink-0 px-4 pb-4 pt-2">
-          <div className="mx-auto flex max-w-[736px] items-end gap-2 rounded-xl border border-input p-1.5">
+          <div className="relative mx-auto flex max-w-[736px] items-end gap-2 rounded-xl border border-input p-1.5">
+            {menu ? (
+              <BotTeamComposerMenu
+                menu={menu}
+                activeIndex={menuIndex}
+                listboxId={menuId}
+                onChoose={chooseMenuItem}
+              />
+            ) : null}
             <Textarea
               className="min-h-12 flex-1 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
               aria-label={translate('components.botTeams.messageTeam', 'Message the team')}
@@ -323,7 +368,33 @@ export function BotTeamRoom({
               }
               disabled={offline}
               value={text}
-              onChange={(event) => setText(event.target.value)}
+              ref={composerRef}
+              role="combobox"
+              aria-expanded={menu !== null}
+              aria-controls={menu ? menuId : undefined}
+              aria-activedescendant={menu ? `${menuId}-option-${menuIndex}` : undefined}
+              onChange={(event) => {
+                setText(event.target.value)
+                setCaret(event.target.selectionStart)
+                setMenuIndex(0)
+                setMenuDismissed(false)
+              }}
+              onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
+              onKeyDown={(event) => {
+                if (!menu) {
+                  return
+                }
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                  event.preventDefault()
+                  const step = event.key === 'ArrowDown' ? 1 : -1
+                  setMenuIndex((menuIndex + step + menu.items.length) % menu.items.length)
+                } else if (event.key === 'Enter' || event.key === 'Tab') {
+                  event.preventDefault()
+                  chooseMenuItem(menu.items[menuIndex])
+                } else if (event.key === 'Escape') {
+                  setMenuDismissed(true)
+                }
+              }}
             />
             <Button
               size="icon"

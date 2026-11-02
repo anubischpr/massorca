@@ -1,3 +1,4 @@
+import { OrchestrationError } from '../../../../orchestration/orchestration-error'
 import type { PiRuntimeSelection } from '../../../../../../shared/pi-runtime-selection'
 /**
  * Where a worker's agent comes from: the terminal the caller passed, or a fresh launch through the
@@ -209,6 +210,14 @@ function workerSurfaceFactory(
       }
     },
     createTerminalAgent: async ({ worktreeId }) => {
+      // A terminal cannot pin the runtime: it would quietly start whichever Pi the host has.
+      if (args.piRuntime) {
+        throw new OrchestrationError(
+          'capability_unsupported',
+          `This Pi runtime needs a chat worker, but this start would run a terminal: ${args.mode.detail}`,
+          { effectsApplied: false }
+        )
+      }
       recordSurfaceStage(worktreeId)
       const terminal = await createExistingWorktreeWorkerTerminal({
         runtime: args.runtime,
