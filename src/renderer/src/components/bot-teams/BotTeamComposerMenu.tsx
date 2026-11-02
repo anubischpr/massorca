@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { createElement, useEffect, useRef } from 'react'
 import { translate } from '@/i18n/i18n'
 import { getFileTypeIcon } from '@/lib/file-type-icons'
 import {
@@ -30,10 +30,11 @@ function ItemRow({ item }: { item: BotTeamComposerItem }): React.JSX.Element {
     )
   }
   if (item.kind === 'file') {
-    const FileIcon = getFileTypeIcon(item.path)
     return (
       <>
-        <FileIcon className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+        {createElement(getFileTypeIcon(item.path), {
+          className: 'mt-0.5 size-3.5 shrink-0 text-muted-foreground'
+        })}
         <span className="min-w-0 flex-1 truncate">{item.path}</span>
       </>
     )

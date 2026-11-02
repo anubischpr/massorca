@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowUp, ChevronLeft, Play } from 'lucide-react'
+import { ChevronLeft, Play } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRightSidebarPageTarget } from '../../app-shell/right-sidebar-page-slot'
-import StatusIndicator, { type Status } from '@/components/sidebar/StatusIndicator'
+import StatusIndicator from '@/components/sidebar/StatusIndicator'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -12,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import NativeChatView from '@/components/native-chat/NativeChatView'
 import { botTeamHostTarget, useBotTeamHost } from '@/runtime/bot-team-host'
 import { translate } from '@/i18n/i18n'
@@ -30,52 +29,13 @@ import type {
   BotTeamProject,
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
-import {
-  applyBotTeamComposerItem,
-  BOT_TEAM_ROOM_COMMANDS,
-  botTeamComposerMenu,
-  botTeamMentionOpen,
-  type BotTeamComposerItem
-} from '../../../../shared/bot-team-composer-menu'
-import { BotTeamComposerMenu } from './BotTeamComposerMenu'
-import { openBotTeamRoomSessions } from './open-bot-team-room-sessions'
-import { useBotTeamFilePaths } from './use-bot-team-files'
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
 import { BotAgentIcon } from './BotAgentIcon'
-
-type SideFilter = 'Active' | 'Stopped' | 'Done'
-
-const SIDE_FILTER_TEST: Record<SideFilter, (status: BotTeamTaskStatus) => boolean> = {
-  Active: (status) => status !== 'Done' && status !== 'Stopped',
-  Stopped: (status) => status === 'Stopped',
-  Done: (status) => status === 'Done'
-}
-
-function statusGlyph(status: BotTeamTaskStatus): Status {
-  if (status === 'Working') {
-    return 'working'
-  }
-  return status === 'Waiting for you' ? 'permission' : 'inactive'
-}
+import { BotTeamRoomComposer } from './BotTeamRoomComposer'
+import { BotTeamRoomSidePanel } from './BotTeamRoomSidePanel'
+import { botTeamTaskGlyph, botTeamTaskLabel } from './bot-team-task-status-display'
 
 const NO_PROJECT = 'none'
-
-function statusLabel(status: BotTeamTaskStatus): string {
-  switch (status) {
-    case 'Not started':
-      return translate('components.botTeams.notStarted', 'Not started')
-    case 'Working':
-      return translate('components.botTeams.working', 'Working')
-    case 'Waiting for you':
-      return translate('components.botTeams.waitingForYou', 'Waiting for you')
-    case 'Stopped':
-      return translate('components.botTeams.stopped', 'Stopped')
-    case 'Stuck':
-      return translate('components.botTeams.stuck', 'Stuck')
-    case 'Done':
-      return translate('components.botTeams.done', 'Done')
-  }
-}
 
 /** A task's thread: the normal chat, which already holds the composer, Stop and Continue. */
 function BotTeamTaskThread({
@@ -140,14 +100,7 @@ export function BotTeamRoom({
   const [messages, setMessages] = useState<BotTeamMessage[]>([])
   const [tasks, setTasks] = useState<BotTeamTask[]>([])
   const [projects, setProjects] = useState<BotTeamProject[]>([])
-  const [text, setText] = useState('')
-  const [caret, setCaret] = useState(0)
-  const [menuIndex, setMenuIndex] = useState(0)
-  const [menuDismissed, setMenuDismissed] = useState(false)
-  const composerRef = useRef<HTMLTextAreaElement | null>(null)
-  const menuId = useId()
   const [needsLead, setNeedsLead] = useState(false)
-  const [sideFilter, setSideFilter] = useState<SideFilter>('Active')
   const sidePanel = useRightSidebarPageTarget()
   const statuses = useBotTeamSessionStatuses()
   const botOf = (botId: string | null) => team.bots.find((bot) => bot.id === botId)
@@ -185,52 +138,22 @@ export function BotTeamRoom({
     return () => window.clearInterval(timer)
   }, [offline, reload])
 
-  const files = useBotTeamFilePaths(team.id, !offline && botTeamMentionOpen(text, caret))
-  const menu =
-    menuDismissed || offline
-      ? null
-      : botTeamComposerMenu({
-          text,
-          caret,
-          bots: team.bots,
-          files,
-          commands: BOT_TEAM_ROOM_COMMANDS
-        })
-  const chooseMenuItem = (item: BotTeamComposerItem): void => {
-    if (!menu) {
-      return
-    }
-    if (item.kind === 'command') {
-      setText('')
-      setCaret(0)
-      void openBotTeamRoomSessions()
-      return
-    }
-    const next = applyBotTeamComposerItem(text, menu, item)
-    setText(next.text)
-    setCaret(next.caret)
-    setMenuIndex(0)
-    requestAnimationFrame(() => {
-      composerRef.current?.focus()
-      composerRef.current?.setSelectionRange(next.caret, next.caret)
-    })
-  }
-
-  const send = async (start: boolean): Promise<void> => {
+  const send = async (text: string): Promise<boolean> => {
     if (sending.current) {
-      return
+      return false
     }
     sending.current = true
     try {
-      const sent = await postBotTeamRequest({ teamId: team.id, text: text.trim(), start })
-      setText('')
+      const sent = await postBotTeamRequest({ teamId: team.id, text, start: true })
       setNeedsLead(sent.task === null)
       if (sent.startError) {
         toast.error(sent.startError)
       }
       reload()
+      return true
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error))
+      return false
     } finally {
       sending.current = false
     }
@@ -260,13 +183,11 @@ export function BotTeamRoom({
     return <BotTeamTaskThread task={openTask} agent={openAgent} onBack={() => onOpenTask(null)} />
   }
 
-  const empty = offline || text.trim() === ''
   const statusOf = (task: BotTeamTask): BotTeamTaskStatus =>
     botTeamTaskStatus(
       task.sessionId,
       task.sessionId === null ? undefined : statuses.get(task.sessionId)
     )
-  const sideTasks = tasks.filter((task) => SIDE_FILTER_TEST[sideFilter](statusOf(task)))
   const taskCard = (task: BotTeamTask): React.JSX.Element => {
     const owner = botOf(task.ownerBotId)
     return (
@@ -280,8 +201,8 @@ export function BotTeamRoom({
           </div>
         </div>
         <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-          <StatusIndicator status={statusGlyph(statusOf(task))} showTooltip={false} />
-          {statusLabel(
+          <StatusIndicator status={botTeamTaskGlyph(statusOf(task))} showTooltip={false} />
+          {botTeamTaskLabel(
             botTeamTaskStatus(
               task.sessionId,
               task.sessionId === null ? undefined : statuses.get(task.sessionId)
@@ -397,148 +318,17 @@ export function BotTeamRoom({
             ) : null}
           </div>
         </div>
-        <div className="shrink-0 px-4 pb-4 pt-2">
-          <div className="relative mx-auto flex max-w-[736px] items-end gap-2 rounded-xl border border-input p-1.5">
-            {menu ? (
-              <BotTeamComposerMenu
-                menu={menu}
-                activeIndex={menuIndex}
-                listboxId={menuId}
-                onChoose={chooseMenuItem}
-              />
-            ) : null}
-            <Textarea
-              className="min-h-12 flex-1 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
-              aria-label={translate('components.botTeams.messageTeam', 'Message the team')}
-              placeholder={
-                offline
-                  ? translate(
-                      'components.botTeams.writeWhenBack',
-                      'You can write again when this host is back'
-                    )
-                  : translate(
-                      'components.botTeams.messageTeamHint',
-                      'Message the team, or type @ to ask one bot'
-                    )
-              }
-              disabled={offline}
-              value={text}
-              ref={composerRef}
-              role="combobox"
-              aria-expanded={menu !== null}
-              aria-controls={menu ? menuId : undefined}
-              aria-activedescendant={menu ? `${menuId}-option-${menuIndex}` : undefined}
-              onChange={(event) => {
-                setText(event.target.value)
-                setCaret(event.target.selectionStart)
-                setMenuIndex(0)
-                setMenuDismissed(false)
-              }}
-              onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
-              onKeyDown={(event) => {
-                if (!menu) {
-                  return
-                }
-                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-                  event.preventDefault()
-                  const step = event.key === 'ArrowDown' ? 1 : -1
-                  setMenuIndex((menuIndex + step + menu.items.length) % menu.items.length)
-                } else if (event.key === 'Enter' || event.key === 'Tab') {
-                  event.preventDefault()
-                  chooseMenuItem(menu.items[menuIndex])
-                } else if (event.key === 'Escape') {
-                  setMenuDismissed(true)
-                }
-              }}
-            />
-            <Button
-              size="icon"
-              className="rounded-full"
-              aria-label={translate('components.botTeams.send', 'Send')}
-              disabled={empty}
-              onClick={() => void send(true)}
-            >
-              <ArrowUp className="size-4" />
-            </Button>
-          </div>
-        </div>
+        <BotTeamRoomComposer team={team} offline={offline} onSend={send} />
       </div>
       {sidePanel
         ? createPortal(
-            <div className="scrollbar-sleek flex min-h-0 flex-1 flex-col overflow-y-auto">
-              <h2 className="px-4 pb-2 pt-3.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {translate('components.botTeams.tasks', 'Tasks')}
-              </h2>
-              <div className="flex flex-wrap gap-1.5 px-4 pb-2">
-                {(['Active', 'Stopped', 'Done'] as const).map((filter) => (
-                  <Button
-                    key={filter}
-                    variant={filter === sideFilter ? 'secondary' : 'outline'}
-                    size="xs"
-                    className="rounded-full"
-                    onClick={() => setSideFilter(filter)}
-                  >
-                    {filter}{' '}
-                    {tasks.filter((task) => SIDE_FILTER_TEST[filter](statusOf(task))).length}
-                  </Button>
-                ))}
-              </div>
-              <div className="flex flex-col gap-0.5 px-2">
-                {sideTasks.map((task) => (
-                  <button
-                    key={task.id}
-                    type="button"
-                    disabled={offline || task.sessionId === null}
-                    onClick={() => onOpenTask(task.id)}
-                    className="flex w-full gap-2.5 rounded-lg p-2 text-left hover:bg-sidebar-accent"
-                  >
-                    <span className="mt-0.5 shrink-0">
-                      <BotAgentIcon agent={botOf(task.ownerBotId)?.agent} size={16} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13px] font-medium">{task.title}</span>
-                      <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <StatusIndicator status={statusGlyph(statusOf(task))} showTooltip={false} />
-                        {statusLabel(statusOf(task))}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-                {sideTasks.length === 0 ? (
-                  <p className="px-2 py-1 text-xs text-muted-foreground">
-                    {`No ${sideFilter.toLowerCase()} tasks`}
-                  </p>
-                ) : null}
-              </div>
-              <h2 className="px-4 pb-1.5 pt-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {translate('components.botTeams.bots', 'Bots')}
-              </h2>
-              <div className="flex flex-col gap-0.5 px-2 pb-3">
-                {team.bots.map((bot) => {
-                  const own = tasks.find(
-                    (task) => task.ownerBotId === bot.id && statusOf(task) !== 'Done'
-                  )
-                  return (
-                    <div key={bot.id} className="flex gap-2.5 rounded-lg p-2">
-                      <span className="mt-0.5 shrink-0">
-                        <BotAgentIcon agent={bot.agent} size={16} />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13px] font-medium">{bot.name}</span>
-                        <span className="block text-xs text-muted-foreground">{bot.job}</span>
-                        <span className="mt-0.5 block text-xs text-muted-foreground">
-                          {own
-                            ? translate('components.botTeams.ownsTask', 'Owns {{title}}', {
-                                title: own.title
-                              })
-                            : translate('components.botTeams.notInTask', 'Not in a task')}
-                        </span>
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>,
+            <BotTeamRoomSidePanel
+              team={team}
+              tasks={tasks}
+              offline={offline}
+              statusOf={statusOf}
+              onOpenTask={onOpenTask}
+            />,
             sidePanel
           )
         : null}
