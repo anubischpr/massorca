@@ -11,7 +11,7 @@ import type { BotTeamTask } from '../../../src/shared/rpc-contract/bot-team-room
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
 import { MobileAddBotForm, MobileNewTeamForm } from './MobileBotTeamForms'
 import { MobileBotTeamRoom } from './MobileBotTeamRoom'
-import { MobileBotTeamWork, type BotTeamWorkScreen } from './MobileBotTeamWork'
+import { MobileBotTeamWork, isBotTeamWorkScreen, type BotTeamWorkScreen } from './MobileBotTeamWork'
 import { MobileBotTeamModeSwitch } from './MobileBotTeamModeSwitch'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 import {
@@ -161,10 +161,9 @@ export function MobileBotTeamsScreen({
   const openTeam = screen.name === 'team' ? teams.find((t) => t.id === screen.teamId) : undefined
   const openBotsTeam =
     screen.name === 'teamBots' ? teams.find((t) => t.id === screen.teamId) : undefined
-  const workTeam =
-    screen.name === 'board' || screen.name === 'project' || screen.name === 'newProject'
-      ? teams.find((t) => t.id === screen.teamId)
-      : undefined
+  const workTeam = isBotTeamWorkScreen(screen)
+    ? teams.find((t) => t.id === screen.teamId)
+    : undefined
 
   const notice = unreachable ? (
     <View style={styles.notice}>
@@ -296,11 +295,7 @@ export function MobileBotTeamsScreen({
         </ScrollView>
       </>
     )
-  } else if (
-    client !== null &&
-    workTeam &&
-    (screen.name === 'board' || screen.name === 'project' || screen.name === 'newProject')
-  ) {
+  } else if (client !== null && workTeam && isBotTeamWorkScreen(screen)) {
     body = (
       <MobileBotTeamWork
         key={workTeam.id}

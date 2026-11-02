@@ -17,6 +17,7 @@ vi.mock('lucide-react-native', () => ({
   ChevronDown: 'ChevronDown',
   ChevronLeft: 'ChevronLeft',
   Ellipsis: 'Ellipsis',
+  FileText: 'FileText',
   Folder: 'Folder',
   FolderPlus: 'FolderPlus',
   LayoutGrid: 'LayoutGrid',
@@ -68,6 +69,19 @@ const TASK = {
   ownerBotId: 'bot',
   sessionId: null as string | null,
   projectId: null
+}
+
+function hostWithFiles(room: object, paths: string[]) {
+  const sendRequest = vi.fn(async (method: string) => {
+    if (method === 'botTeams.listRoom') {
+      return { ok: true, result: room }
+    }
+    if (method === 'files.searchPaths') {
+      return { ok: true, result: { files: paths.map((relativePath) => ({ relativePath })) } }
+    }
+    return { ok: true, result: { task: TASK, startError: null } }
+  })
+  return { sendRequest }
 }
 
 function hostAnswering(room: object, post: object = {}) {
@@ -228,6 +242,31 @@ describe('MobileBotTeamRoom', () => {
     await press(renderer, 'Room menu')
     await press(renderer, 'New project')
     expect(onOpenWork).toHaveBeenLastCalledWith({ name: 'newProject', teamId: 'team' })
+  })
+
+  it('offers the team files after the bots while an @ mention is typed', async () => {
+    const client = hostWithFiles(
+      { tasks: [], messages: [], projects: [], workspaceId: 'folder:1' },
+      ['flyer.md']
+    )
+    const renderer = await render(client)
+    await act(async () => {
+      renderer.root.findByType('Composer' as never).props.onNeedFiles('fly')
+      await new Promise((resolve) => setTimeout(resolve, 200))
+    })
+    const suggestions = renderer.root
+      .findByType('Composer' as never)
+      .props.customSuggestions('@fly', 4)
+    expect(suggestions.map((item: { label: string }) => item.label)).toEqual(['flyer.md'])
+  })
+
+  it('reaches the team files from the room menu', async () => {
+    const client = hostAnswering({ tasks: [], messages: [], projects: [], workspaceId: null })
+    const onOpenWork = vi.fn()
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { onOpenWork })
+    await press(renderer, 'Room menu')
+    await press(renderer, 'Files')
+    expect(onOpenWork).toHaveBeenLastCalledWith({ name: 'files', teamId: 'team' })
   })
 
   it('counts the open work and the tasks on the room menu', async () => {

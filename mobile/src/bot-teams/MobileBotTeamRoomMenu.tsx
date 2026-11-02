@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { Bot, Folder, FolderPlus, LayoutGrid, MessageSquare } from 'lucide-react-native'
+import { Bot, FileText, Folder, FolderPlus, LayoutGrid, MessageSquare } from 'lucide-react-native'
 import { BottomDrawer } from '../components/BottomDrawer'
 import { colors } from '../theme/mobile-theme'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
@@ -22,7 +22,8 @@ export function MobileBotTeamRoomMenu({
   onOpenBoard,
   onOpenProject,
   onNewProject,
-  onOpenBots
+  onOpenBots,
+  onOpenFiles
 }: {
   visible: boolean
   onClose: () => void
@@ -37,6 +38,7 @@ export function MobileBotTeamRoomMenu({
   onOpenProject: (projectId: string) => void
   onNewProject: () => void
   onOpenBots: () => void
+  onOpenFiles: () => void
 }) {
   return (
     <BottomDrawer visible={visible} onClose={onClose}>
@@ -82,6 +84,11 @@ export function MobileBotTeamRoomMenu({
         icon={<Bot size={18} color={colors.textSecondary} />}
         title="Bots"
         onPress={onOpenBots}
+      />
+      <MenuRow
+        icon={<FileText size={18} color={colors.textSecondary} />}
+        title="Files"
+        onPress={onOpenFiles}
       />
     </BottomDrawer>
   )

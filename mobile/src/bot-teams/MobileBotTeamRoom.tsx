@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
-import { Check, ChevronDown, ChevronLeft, Ellipsis } from 'lucide-react-native'
+import { Check, ChevronDown, ChevronLeft, Ellipsis, FileText } from 'lucide-react-native'
 import { BottomDrawer } from '../components/BottomDrawer'
 import { useMobileDictation } from '../hooks/use-mobile-dictation'
 import { MobileNativeChatComposer } from '../session/MobileNativeChatComposer'
 import type { ComposerSuggestion } from '../session/MobileNativeChatComposerSuggestions'
 import { MobileNativeChatMessage } from '../session/MobileNativeChatMessage'
+import { useMobileNativeChatFileSearch } from '../session/use-mobile-native-chat-file-search'
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
 import { botTeamBoardColumn } from '../../../src/shared/bot-team-board-column'
@@ -28,6 +29,7 @@ import { useMobileBotTeamTaskStatus } from './use-mobile-bot-team-task-status'
 
 const NO_GENERATION = () => 0
 const NOT_WORKING = () => false
+const NO_FILES: readonly string[] = []
 
 function roomChatMessage(message: BotTeamMessage): NativeChatMessage {
   return {
@@ -75,6 +77,10 @@ export function MobileBotTeamRoom({
   const tasks = room?.tasks ?? []
   const projects = room?.projects ?? []
   const workspaceId = room?.workspaceId ?? null
+  const { nativeChatFilePaths, loadNativeChatFiles } = useMobileNativeChatFileSearch({
+    client: offline ? null : client,
+    worktreeId: workspaceId ?? ''
+  })
   const dictation = useMobileDictation({
     client,
     enabled: !offline,
@@ -86,9 +92,15 @@ export function MobileBotTeamRoom({
   const sending = useRef(false)
 
   // The phone has no Sessions panel to open, so the room's two commands stay on the desktop.
+  const files = workspaceId === null ? NO_FILES : nativeChatFilePaths
   const roomSuggestions = useCallback(
     (composerText: string, cursor: number): ComposerSuggestion[] | null => {
-      const menu = botTeamComposerMenu({ text: composerText, caret: cursor, bots: team.bots })
+      const menu = botTeamComposerMenu({
+        text: composerText,
+        caret: cursor,
+        bots: team.bots,
+        files
+      })
       return (
         menu?.items.flatMap((item) =>
           item.kind === 'bot'
@@ -102,11 +114,21 @@ export function MobileBotTeamRoom({
                   icon: <MobileBotAgentIcon agentId={item.bot.agent} size={16} />
                 }
               ]
-            : []
+            : item.kind === 'file'
+              ? [
+                  {
+                    kind: 'custom' as const,
+                    key: `file:${item.path}`,
+                    insert: item.insert,
+                    label: item.path,
+                    icon: <FileText size={16} color={colors.textSecondary} />
+                  }
+                ]
+              : []
         ) ?? null
       )
     },
-    [team.bots]
+    [team.bots, files]
   )
 
   const send = async (typed: string): Promise<boolean> => {
@@ -254,6 +276,7 @@ export function MobileBotTeamRoom({
         disabled={offline}
         placeholder="Message the team"
         customSuggestions={roomSuggestions}
+        onNeedFiles={workspaceId === null ? undefined : loadNativeChatFiles}
         onMicPress={() => void (dictation.isRecording ? dictation.stop() : dictation.start())}
         micActive={dictation.isRecording}
       />
@@ -307,6 +330,10 @@ export function MobileBotTeamRoom({
         onOpenBots={() => {
           setSheet(null)
           onOpenBots()
+        }}
+        onOpenFiles={() => {
+          setSheet(null)
+          onOpenWork({ name: 'files', teamId: team.id })
         }}
       />
     </View>
