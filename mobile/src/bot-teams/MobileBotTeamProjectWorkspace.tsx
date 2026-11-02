@@ -6,6 +6,7 @@ import type {
   BotTeamProject,
   BotTeamProjectWorkspace
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
+import { MobileRepoIcon } from '../components/MobileRepoIcon'
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
 import {
@@ -61,9 +62,11 @@ export function MobileBotTeamWorkspaceOptions({
     return null
   }
   // Why: a workspace that is gone keeps its stored name in the list until it is changed.
-  const options: BotTeamProjectWorkspace[] = [
+  const options: BotTeamLinkableWorkspace[] = [
     ...listing,
-    ...(value && !listing.some((entry) => entry.key === value.key) ? [value] : [])
+    ...(value && !listing.some((entry) => entry.key === value.key)
+      ? [{ ...value, kind: 'git' as const }]
+      : [])
   ]
   return (
     <View style={styles.form}>
@@ -94,6 +97,7 @@ export function MobileBotTeamWorkspaceOptions({
                 onPress={() => onChange(option)}
                 style={[styles.row, selected && styles.rowSelected]}
               >
+                {option ? <MobileRepoIcon repoIcon={option.icon} size={18} /> : null}
                 <View style={styles.rowText}>
                   <Text style={styles.rowTitle}>{option?.name ?? 'None'}</Text>
                 </View>

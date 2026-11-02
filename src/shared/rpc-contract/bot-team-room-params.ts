@@ -33,11 +33,28 @@ export const BotTeamProjectWorkspaceSchema = z.object({
   name: z.string()
 })
 
-/** A git worktree or a folder workspace on the team's host that a project can link to. */
+/** The icon the Workspaces sidebar shows for a project; an arm this build does not know reads as none. */
+const BotTeamProjectIconSchema = z
+  .union([
+    z.object({ type: z.literal('lucide'), name: z.string() }),
+    z.object({ type: z.literal('emoji'), emoji: z.string() }),
+    z.object({
+      type: z.literal('image'),
+      src: z.string(),
+      source: z.enum(['upload', 'file', 'favicon', 'github']),
+      label: z.string().optional()
+    })
+  ])
+  .optional()
+  .catch(undefined)
+
+/** A Workspaces project (a repo or a folder project) on the team's host that a bot project can link to. */
 export const BotTeamLinkableWorkspaceSchema = z.object({
   key: z.string(),
   name: z.string(),
-  kind: z.enum(['git', 'folder'])
+  kind: z.enum(['git', 'folder']),
+  // Optional: a host from before project icons omits it, and a project without one shows the default.
+  icon: BotTeamProjectIconSchema
 })
 
 export const BotTeamProjectSchema = z.object({

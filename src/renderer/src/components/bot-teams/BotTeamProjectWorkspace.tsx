@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { RepoIconGlyph } from '@/components/repo/repo-icon'
 import { translate } from '@/i18n/i18n'
 import {
   listBotTeamLinkableWorkspaces,
@@ -71,9 +72,11 @@ export function WorkspacesAdvancedOptions({
     return null
   }
   // Why: a workspace that is gone keeps its stored name in the picker until it is changed.
-  const options: BotTeamProjectWorkspace[] = [
+  const options: BotTeamLinkableWorkspace[] = [
     ...listing,
-    ...(value && !listing.some((entry) => entry.key === value.key) ? [value] : [])
+    ...(value && !listing.some((entry) => entry.key === value.key)
+      ? [{ ...value, kind: 'git' as const }]
+      : [])
   ]
   return (
     <div className="flex flex-col gap-2">
@@ -106,7 +109,14 @@ export function WorkspacesAdvancedOptions({
               </SelectItem>
               {options.map((entry) => (
                 <SelectItem key={entry.key} value={entry.key}>
-                  {entry.name}
+                  <span className="flex items-center gap-2">
+                    <RepoIconGlyph
+                      repoIcon={entry.icon}
+                      className="size-4 shrink-0"
+                      iconClassName="size-3.5"
+                    />
+                    {entry.name}
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>

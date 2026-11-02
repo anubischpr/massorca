@@ -18,6 +18,7 @@ vi.mock('./mobile-bot-team-rpc', async (importOriginal) => ({
   listMobileBotTeams: async () => ({ kind: 'ready', teams: TEAMS })
 }))
 
+vi.mock('../components/MobileRepoIcon', () => ({ MobileRepoIcon: 'MobileRepoIcon' }))
 vi.mock('../components/BottomDrawer', () => ({
   BottomDrawer: ({ visible, children }: { visible: boolean; children: unknown }) =>
     visible ? children : null
