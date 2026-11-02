@@ -55,6 +55,12 @@ export const botTeamUpdateProjectMethod = defineMethod({
   handler: ({ projectId, teamId, name, goal, linkedTeamIds }, { runtime }) => {
     const db = runtime.getOrchestrationDb()
     requireProjectOfTeam(db, projectId, teamId)
+    // Checked before any write, so a bad team id leaves the name and goal as they were.
+    const known = new Set(db.listBotTeams().map((entry) => entry.id))
+    const missing = linkedTeamIds?.find((id) => !known.has(id))
+    if (missing !== undefined) {
+      throw new Error(`Team ${missing} was not found.`)
+    }
     db.updateBotTeamProject(projectId, { name, goal })
     return {
       project:
