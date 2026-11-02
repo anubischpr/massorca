@@ -21,6 +21,7 @@ import {
   setBotTeamTaskProject,
   startBotTeamTask
 } from '@/runtime/runtime-bot-team-client'
+import { BOT_TEAM_ALL_AUTHOR } from '../../../../shared/bot-team-greeting'
 import { botTeamTaskStatus, type BotTeamTaskStatus } from '../../../../shared/bot-team-task-status'
 import { structuredAgentSessionTabId } from '../../../../shared/structured-agent-session-projection'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
@@ -31,6 +32,7 @@ import type {
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
 import { BotAgentIcon } from './BotAgentIcon'
+import { BotTeamAllAuthor } from './BotTeamAllAuthor'
 import { BotTeamRoomComposer } from './BotTeamRoomComposer'
 import { BotTeamRoomSidePanel } from './BotTeamRoomSidePanel'
 import { botTeamTaskGlyph, botTeamTaskLabel } from './bot-team-task-status-display'
@@ -145,7 +147,7 @@ export function BotTeamRoom({
     sending.current = true
     try {
       const sent = await postBotTeamRequest({ teamId: team.id, text, start: true })
-      setNeedsLead(sent.task === null)
+      setNeedsLead(sent.task === null && !sent.greeted)
       if (sent.startError) {
         toast.error(sent.startError)
       }
@@ -286,6 +288,7 @@ export function BotTeamRoom({
             ) : null}
             {messages.map((message) => {
               const author = botOf(message.authorBotId)
+              const fromAll = message.authorBotId === BOT_TEAM_ALL_AUTHOR
               return (
                 <div key={message.id} className="flex flex-col gap-3">
                   {author ? (
@@ -294,9 +297,10 @@ export function BotTeamRoom({
                       {author.name}
                     </div>
                   ) : null}
+                  {fromAll ? <BotTeamAllAuthor bots={team.bots} /> : null}
                   <div
                     className={
-                      author
+                      author || fromAll
                         ? 'whitespace-pre-wrap text-sm leading-relaxed text-foreground/80'
                         : 'max-w-[80%] self-end whitespace-pre-wrap rounded-xl border border-border bg-muted px-3.5 py-2.5 text-sm leading-relaxed'
                     }

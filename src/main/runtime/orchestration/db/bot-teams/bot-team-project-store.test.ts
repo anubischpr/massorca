@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { SCHEMA_VERSION } from '../contract-constants'
 import { OrchestrationDb } from '../orchestration-db'
 
 describe('bot team project store', () => {
@@ -139,7 +140,7 @@ describe('bot team project store', () => {
     // A skewed database restarts from v6 with the column already there.
     db.db.pragma('user_version = 6')
     expect(() => db?.migrate()).not.toThrow()
-    expect(db.db.pragma('user_version', { simple: true })).toBe(50)
+    expect(db.db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSION)
   })
 
   it('stores a project brief with its goal, drops blank lines and stamps the time', () => {
@@ -215,6 +216,6 @@ describe('bot team project store', () => {
 
     db.db.pragma('user_version = 6')
     expect(() => db?.migrate()).not.toThrow()
-    expect(db.db.pragma('user_version', { simple: true })).toBe(50)
+    expect(db.db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSION)
   })
 })

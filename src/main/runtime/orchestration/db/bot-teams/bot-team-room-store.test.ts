@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import { BOT_TEAM_ALL_AUTHOR } from '../../../../../shared/bot-team-greeting'
+import { SCHEMA_VERSION } from '../contract-constants'
 import { OrchestrationDb } from '../orchestration-db'
 
 describe('bot team room store', () => {
@@ -166,5 +168,42 @@ describe('bot team room store', () => {
 
     expect(db.listBotTeamTasks(team.id)).toEqual([])
     expect(db.listBotTeamMessages(team.id)).toEqual([])
+  })
+
+  it('keeps the team greeting as one line from All, with no bot behind it', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    db.postBotTeamMessage({ teamId: team.id, text: 'Hola', authorBotId: null })
+    const line = db.postBotTeamMessage({
+      teamId: team.id,
+      text: 'Hola! 👋',
+      authorBotId: BOT_TEAM_ALL_AUTHOR
+    })
+    expect(line.authorBotId).toBe(BOT_TEAM_ALL_AUTHOR)
+    expect(db.listBotTeamMessages(team.id).map((message) => message.authorBotId)).toEqual([
+      null,
+      BOT_TEAM_ALL_AUTHOR
+    ])
+    const stored = db.db
+      .prepare('SELECT author_bot_id AS bot FROM bot_team_messages WHERE id = ?')
+      .get(line.id)
+    expect(stored).toEqual({ bot: null })
+  })
+
+  it('adds the greeting marker to an older database and survives a restart from v6', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    db.postBotTeamMessage({ teamId: team.id, text: 'Design it', authorBotId: team.bots[0].id })
+    db.db.exec('ALTER TABLE bot_team_messages DROP COLUMN author_kind')
+    db.db.pragma('user_version = 50')
+
+    db.migrate()
+    expect(db.listBotTeamMessages(team.id)).toEqual([
+      expect.objectContaining({ text: 'Design it', authorBotId: team.bots[0].id })
+    ])
+
+    db.db.pragma('user_version = 6')
+    expect(() => db?.migrate()).not.toThrow()
+    expect(db.db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSION)
   })
 })

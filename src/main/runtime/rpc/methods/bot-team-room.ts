@@ -25,6 +25,7 @@ import { createStructuredAgentSessionId } from '../../../../shared/structured-ag
 import { createStructuredAgentSessionOperationId } from '../../../../shared/structured-agent-session-mutation'
 import { folderWorkspaceKey } from '../../../../shared/workspace-scope'
 import { askDefaultAgentForBotTeamLead } from '../../../bot-teams/bot-team-lead-query'
+import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-reply'
 import { botSessionOptions } from '../../../bot-teams/bot-team-model-choice'
 import { startBotTeamTask } from '../../../bot-teams/bot-team-task-start'
 import { getStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
@@ -216,6 +217,10 @@ export const BOT_TEAM_ROOM_METHODS = [
     handler: async ({ teamId, text, start }, ctx) => {
       const db = ctx.runtime.getOrchestrationDb()
       const message = db.postBotTeamMessage({ teamId, text, authorBotId: null })
+      // A greeting gets the team's one line and stops here: no query, task or usage.
+      if (replyToBotTeamGreeting(db, { teamId, text })) {
+        return { message, task: null, startError: null, greeted: true }
+      }
       const bots = db.listBotTeams().find((entry) => entry.id === teamId)?.bots ?? []
       const team = db.listBotTeams().find((entry) => entry.id === teamId)
       const lead =

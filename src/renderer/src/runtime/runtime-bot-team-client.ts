@@ -91,7 +91,7 @@ export function postBotTeamRequest(input: {
   teamId: string
   text: string
   start: boolean
-}): Promise<{ task: BotTeamTask | null; startError: string | null }> {
+}): Promise<{ task: BotTeamTask | null; startError: string | null; greeted?: boolean }> {
   return call('botTeams.postMessage', input)
 }
 

@@ -7,13 +7,16 @@ import {
   type BotTeamTask,
   type BotTeamTaskInput
 } from '../../../../../shared/rpc-contract/bot-team-room-params'
+import { BOT_TEAM_ALL_AUTHOR } from '../../../../../shared/bot-team-greeting'
 import { generateId } from '../generated-id'
 import type { OrchestrationDb } from '../orchestration-db'
 
 const TASK_SELECT =
   'SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId, session_id AS sessionId, project_id AS projectId FROM bot_team_tasks'
-const MESSAGE_SELECT =
-  'SELECT id, team_id AS teamId, author_bot_id AS authorBotId, text FROM bot_team_messages'
+// The greeting line has no bot row to point at, so it reads back as the All author.
+const MESSAGE_SELECT = `SELECT id, team_id AS teamId, text,
+  CASE WHEN author_kind = '${BOT_TEAM_ALL_AUTHOR}' THEN '${BOT_TEAM_ALL_AUTHOR}' ELSE author_bot_id END AS authorBotId
+  FROM bot_team_messages`
 
 function requireBotOnTeam(db: OrchestrationDb, teamId: string, botId: string): void {
   const bot = db.db
@@ -97,13 +100,22 @@ export function postBotTeamMessage(
   this: OrchestrationDb,
   input: BotTeamMessageInput
 ): BotTeamMessage {
-  if (input.authorBotId !== null) {
+  const fromAll = input.authorBotId === BOT_TEAM_ALL_AUTHOR
+  if (input.authorBotId !== null && !fromAll) {
     requireBotOnTeam(this, input.teamId, input.authorBotId)
   }
   const id = generateId('botmsg')
   this.db
-    .prepare('INSERT INTO bot_team_messages (id, team_id, author_bot_id, text) VALUES (?, ?, ?, ?)')
-    .run(id, input.teamId, input.authorBotId, input.text)
+    .prepare(
+      'INSERT INTO bot_team_messages (id, team_id, author_bot_id, author_kind, text) VALUES (?, ?, ?, ?, ?)'
+    )
+    .run(
+      id,
+      input.teamId,
+      fromAll ? null : input.authorBotId,
+      fromAll ? BOT_TEAM_ALL_AUTHOR : null,
+      input.text
+    )
   return BotTeamMessageSchema.parse(this.db.prepare(`${MESSAGE_SELECT} WHERE id = ?`).get(id))
 }
 
