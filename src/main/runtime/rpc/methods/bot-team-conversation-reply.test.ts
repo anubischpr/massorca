@@ -49,14 +49,14 @@ describe('startBotTeamConversationReply', () => {
     return { team, ctx }
   }
 
-  it('never runs Gentle Shell as stock Pi: its reply goes to the default agent', async () => {
+  it('answers a Gentle Shell bot through Gentle Shell itself, never another agent', async () => {
     const { team, ctx } = setup('pi')
     const posted = await startBotTeamConversationReply(ctx, {
       team,
       text: 'Hola',
       subjectBotIds: []
     })?.done
-    expect(askBot.mock.calls[0][0].agent).toBeNull()
+    expect(askBot.mock.calls[0][0].agent).toMatchObject({ id: 'pi', piRuntime: 'gentle-shell' })
     expect(posted?.authorBotId).toBe(team.bots[0].id)
   })
 

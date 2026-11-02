@@ -45,10 +45,13 @@ async function askConversationBot(
   args: { team: BotTeam; bot: BotTeamBot; text: string; research: boolean }
 ): Promise<string | null> {
   const { team, bot, research } = args
-  // Gentle Shell has no one-shot call of its own, and must never run as stock Pi.
-  const own = botAgentPiRuntime(bot.agent)
-    ? null
-    : { id: bot.agent, ...botConversationChoice(bot.agent) }
+  // A Gentle Shell bot answers through Gentle Shell itself, never stock Pi or another agent.
+  const piRuntime = botAgentPiRuntime(bot.agent)
+  const own = {
+    id: bot.agent,
+    ...botConversationChoice(bot.agent),
+    ...(piRuntime ? { piRuntime } : {})
+  }
   const db = ctx.runtime.getOrchestrationDb()
   return cleanConversationReply(
     await askBotAgentForBotTeamReply({
