@@ -12,7 +12,8 @@ export type BotTeamRequestDecision =
   | { type: 'choice'; choice: BotTeamRequestChoice }
   /** The person named another team with @: it goes there, with no query. */
   | { type: 'team'; teamId: string }
-  | { type: 'conversation' }
+  /** `subjectBotIds`: the bots whose description fits what was said, best first. */
+  | { type: 'conversation'; subjectBotIds: string[] }
   /** Nothing could decide: the room asks the person who should take it. */
   | { type: 'ask' }
 
@@ -83,6 +84,6 @@ export async function decideBotTeamRequest(args: {
     case 'no-team':
       return { type: 'choice', choice: { kind: 'new-team' } }
     case 'conversation':
-      return { type: 'conversation' }
+      return { type: 'conversation', subjectBotIds: result.botIds }
   }
 }

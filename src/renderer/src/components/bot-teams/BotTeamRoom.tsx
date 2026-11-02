@@ -163,10 +163,17 @@ export function BotTeamRoom({
     sending.current = true
     try {
       const sent = await postBotTeamRequest({ teamId: team.id, text, start: true })
-      setNeedsOwner(sent.task === null && !sent.greeted && !sent.choice)
+      setNeedsOwner(sent.task === null && !sent.greeted && !sent.choice && !sent.answered)
       setPending(sent.choice ? { choice: sent.choice, text } : null)
       if (sent.startError) {
         toast.error(sent.startError)
+      }
+      if (sent.sentTo) {
+        toast.success(
+          translate('components.botTeams.sentToTeam', 'Sent to {{team}}', {
+            team: sent.sentTo.teamName
+          })
+        )
       }
       reload()
       return true

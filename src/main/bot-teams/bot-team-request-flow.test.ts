@@ -103,7 +103,14 @@ describe('decideBotTeamRequest', () => {
   })
 
   it('leaves plain conversation to its own answer', async () => {
-    expect((await decide('{"kind":"conversation"}')).decision).toEqual({ type: 'conversation' })
+    expect((await decide('{"kind":"conversation"}')).decision).toEqual({
+      type: 'conversation',
+      subjectBotIds: []
+    })
+    expect((await decide('{"kind":"conversation","bots":["Max"]}')).decision).toEqual({
+      type: 'conversation',
+      subjectBotIds: ['max']
+    })
   })
 
   it('asks the person when the query fails, throws or is unreadable', async () => {

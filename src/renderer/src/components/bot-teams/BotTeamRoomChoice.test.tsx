@@ -43,7 +43,8 @@ vi.mock('./BotTeamRoomComposer', () => ({
 }))
 vi.mock('./BotAgentIcon', () => ({ BotAgentIcon: () => <i /> }))
 vi.mock('./BotTeamCharacterIcon', () => ({ BotTeamCharacterIcon: () => <i /> }))
-vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
+const toasts = vi.hoisted(() => ({ error: vi.fn(), success: vi.fn() }))
+vi.mock('sonner', () => ({ toast: toasts }))
 
 const { BotTeamRoom } = await import('./BotTeamRoom')
 
@@ -156,5 +157,21 @@ describe('the room when the host offers a choice', () => {
     client.postBotTeamRequest.mockResolvedValue({ task: null, startError: null })
     const { container } = await mountRoom()
     expect(container.textContent).toContain('Who should take this?')
+  })
+
+  it('does not ask who should take it when a bot already answered in the room', async () => {
+    client.postBotTeamRequest.mockResolvedValue({ task: null, startError: null, answered: true })
+    const { container } = await mountRoom()
+    expect(container.textContent).not.toContain('Who should take this?')
+  })
+
+  it('says where a request went when the person named another team with @', async () => {
+    client.postBotTeamRequest.mockResolvedValue({
+      task: { id: 't' },
+      startError: null,
+      sentTo: { teamId: 'wh', teamName: 'Warehouse' }
+    })
+    await mountRoom()
+    expect(toasts.success).toHaveBeenCalledWith('Sent to Warehouse')
   })
 })

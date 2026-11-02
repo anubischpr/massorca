@@ -5,8 +5,15 @@ import type { RpcContext } from '../core'
 const ask = vi.hoisted(() =>
   vi.fn(async (_args: { prompt: string }): Promise<string | null> => null)
 )
+const askBot = vi.hoisted(() =>
+  vi.fn(
+    async (_args: { prompt: string; agent: { id: string; model: string | null } | null }) =>
+      null as string | null
+  )
+)
 vi.mock('../../../bot-teams/bot-team-request-query', () => ({
-  askDefaultAgentForBotTeamRequest: ask
+  askDefaultAgentForBotTeamRequest: ask,
+  askBotAgentForBotTeamReply: askBot
 }))
 
 import { BOT_TEAM_ROOM_METHODS } from './bot-team-room'
@@ -18,6 +25,7 @@ describe('botTeams.postMessage routing', () => {
     db?.close()
     db = undefined
     ask.mockReset()
+    askBot.mockReset()
   })
 
   async function post(reply: string | null, text = 'Count the boxes') {
@@ -45,6 +53,7 @@ describe('botTeams.postMessage routing', () => {
       runtime: {
         getOrchestrationDb: () => db,
         getClientSettings: () => ({}),
+        getAccountsSnapshot: () => ({ rateLimits: {} }),
         getCommitMessageAgentEnvironmentResolvers: () => undefined
       }
     } as unknown as RpcContext
@@ -117,5 +126,48 @@ describe('botTeams.postMessage routing', () => {
     const { team, result } = await post(null, '@Max write a post')
     expect(ask).not.toHaveBeenCalled()
     expect(result).toMatchObject({ task: { ownerBotId: team.bots[1].id } })
+  })
+
+  describe('plain conversation', () => {
+    it('is answered once by one bot under its own name, with no task and no session', async () => {
+      askBot.mockResolvedValue('Todavía lo estamos revisando.')
+      const { team, result } = await post('{"kind":"conversation"}', 'Saben si ya terminó?')
+      expect(askBot).toHaveBeenCalledTimes(1)
+      const messages = db?.listBotTeamMessages(team.id) ?? []
+      expect(messages.map((message) => message.text)).toEqual([
+        'Saben si ya terminó?',
+        'Todavía lo estamos revisando.'
+      ])
+      expect(team.bots.map((bot) => bot.id)).toContain(messages[1].authorBotId)
+      expect(result).toMatchObject({ task: null, answered: true, startError: null })
+      expect(db?.listBotTeamTasks(team.id)).toEqual([])
+    })
+
+    it('lets the bot whose description fits the subject answer, on its own agent at a tier model', async () => {
+      askBot.mockResolvedValue('Eso lo veo yo.')
+      const { team } = await post('{"kind":"conversation","bots":["Max"]}', 'Cómo va el texto?')
+      const max = team.bots.find((bot) => bot.name === 'Max')
+      expect(db?.listBotTeamMessages(team.id)[1].authorBotId).toBe(max?.id)
+      expect(askBot.mock.calls[0][0].agent).toMatchObject({ id: 'claude' })
+      expect(askBot.mock.calls[0][0].agent?.model).toEqual(expect.any(String))
+    })
+
+    it('puts the room history and the real board in what the bot is asked', async () => {
+      askBot.mockResolvedValue('Sí.')
+      await post('{"kind":"conversation"}', 'Hay algo pendiente?')
+      expect(askBot.mock.calls[0][0].prompt).toContain('Hay algo pendiente?')
+      expect(askBot.mock.calls[0][0].prompt).toContain('No tasks yet.')
+    })
+
+    it('asks the person when no bot could answer, adding nothing to the room', async () => {
+      askBot.mockResolvedValue(null)
+      const { team, result } = await post('{"kind":"conversation"}', 'Hola equipo, cómo están?')
+      expect(db?.listBotTeamMessages(team.id)).toHaveLength(1)
+      expect(result).toEqual({
+        message: expect.objectContaining({ authorBotId: null }),
+        task: null,
+        startError: null
+      })
+    })
   })
 })

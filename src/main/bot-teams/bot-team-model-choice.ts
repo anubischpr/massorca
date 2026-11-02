@@ -63,3 +63,14 @@ export function botLaunchOptions(
     ? undefined
     : { model: bot.model, ...(bot.effort === null ? {} : { effort: bot.effort }) }
 }
+
+// Why: the capable tier, not the smallest, since a bot's one reply should still be a good one.
+const CONVERSATION_TIER: DelegationTier = 4
+
+/** The model and effort a bot answers a plain conversation with, from the same catalog as its tasks. */
+export function botConversationChoice(agent: BotDraftInput['agent']): {
+  model: string | null
+  effort: string | null
+} {
+  return resolveLaunchableDelegationModel({ agent, tier: CONVERSATION_TIER })
+}

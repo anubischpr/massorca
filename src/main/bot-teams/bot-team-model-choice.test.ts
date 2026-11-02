@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { resolveLaunchableDelegationModel } from '../delegated-session/delegation-launch-preferences'
 import {
+  botConversationChoice,
   botLaunchOptions,
   botSessionOptions,
   botTeamTier,
@@ -143,5 +145,17 @@ describe('botLaunchOptions', () => {
       model: 'opus',
       effort: 'high'
     })
+  })
+})
+
+describe('botConversationChoice', () => {
+  it('uses the capable tier of the same ladder as a task, never a name of its own', () => {
+    const claude = botConversationChoice('claude')
+    expect(claude).toEqual(resolveLaunchableDelegationModel({ agent: 'claude', tier: 4 }))
+    expect(claude.model).not.toBeNull()
+  })
+
+  it('leaves an agent without a tiered model on its own default', () => {
+    expect(botConversationChoice('gemini')).toEqual({ model: null, effort: null })
   })
 })

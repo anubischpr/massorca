@@ -60,8 +60,12 @@ describe('parseBotTeamClassifyReply', () => {
   it('reads a request that fits no team, and plain conversation', () => {
     expect(parseBotTeamClassifyReply('{"kind":"none"}', input)).toEqual({ kind: 'no-team' })
     expect(parseBotTeamClassifyReply('{"kind":"conversation"}', input)).toEqual({
-      kind: 'conversation'
+      kind: 'conversation',
+      botIds: []
     })
+    expect(
+      parseBotTeamClassifyReply('{"kind":"conversation","bots":["Max","Ghost"]}', input)
+    ).toEqual({ kind: 'conversation', botIds: ['max'] })
   })
 
   it('still reads the older reply, a bare array of bot names', () => {

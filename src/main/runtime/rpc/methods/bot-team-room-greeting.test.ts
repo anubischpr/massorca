@@ -2,9 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { OrchestrationDb } from '../../orchestration/db/orchestration-db'
 import type { RpcContext } from '../core'
 
-const askLead = vi.hoisted(() => vi.fn(async (): Promise<string | null> => null))
+const askRequest = vi.hoisted(() => vi.fn(async (): Promise<string | null> => null))
 vi.mock('../../../bot-teams/bot-team-request-query', () => ({
-  askDefaultAgentForBotTeamRequest: askLead
+  askDefaultAgentForBotTeamRequest: askRequest,
+  askBotAgentForBotTeamReply: vi.fn(async (): Promise<string | null> => null)
 }))
 
 import { BOT_TEAM_ROOM_METHODS } from './bot-team-room'
@@ -15,7 +16,7 @@ describe('botTeams.postMessage greeting', () => {
   afterEach(() => {
     db?.close()
     db = undefined
-    askLead.mockClear()
+    askRequest.mockClear()
   })
 
   async function post(text: string) {
@@ -40,7 +41,7 @@ describe('botTeams.postMessage greeting', () => {
 
   it('stores the person line and one reply from All, with no query and no task', async () => {
     const { team, result } = await post('Hola!')
-    expect(askLead).not.toHaveBeenCalled()
+    expect(askRequest).not.toHaveBeenCalled()
     expect(result).toMatchObject({ task: null, greeted: true })
     expect(db?.listBotTeamTasks(team.id)).toEqual([])
     expect(db?.listBotTeamMessages(team.id).map((message) => message.authorBotId)).toEqual([
@@ -51,7 +52,7 @@ describe('botTeams.postMessage greeting', () => {
 
   it('routes a request that starts with a greeting as usual', async () => {
     const { team, result } = await post('Hola, haz un flyer')
-    expect(askLead).toHaveBeenCalledTimes(1)
+    expect(askRequest).toHaveBeenCalledTimes(1)
     expect(result).not.toHaveProperty('greeted')
     expect(db?.listBotTeamMessages(team.id)).toHaveLength(1)
   })

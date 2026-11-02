@@ -10,6 +10,7 @@ import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-rep
 import { askDefaultAgentForBotTeamRequest } from '../../../bot-teams/bot-team-request-query'
 import { decideBotTeamRequest } from '../../../bot-teams/bot-team-request-flow'
 import type { RpcContext } from '../core'
+import { replyToBotTeamConversation } from './bot-team-conversation-reply'
 
 /** Every field after `startError` is optional, so a client from before it still reads the reply. */
 export type BotTeamPostResult = {
@@ -21,6 +22,8 @@ export type BotTeamPostResult = {
   choice?: BotTeamRequestChoice
   /** The other bots a composite task has parts for. */
   composite?: string[]
+  /** A bot answered a plain conversation in the room; nothing was filed. */
+  answered?: true
   /** The request went to another team, because the person named it with @. */
   sentTo?: { teamId: string; teamName: string }
 }
@@ -66,6 +69,16 @@ export async function postBotTeamRequestOnHost(
   }
   if (decision.type === 'choice') {
     return { message, task: null, startError: null, choice: decision.choice }
+  }
+  if (decision.type === 'conversation') {
+    const reply = await replyToBotTeamConversation(ctx, {
+      team,
+      text,
+      subjectBotIds: decision.subjectBotIds
+    })
+    return reply
+      ? { message, task: null, startError: null, answered: true }
+      : { message, task: null, startError: null }
   }
   if (decision.type !== 'task') {
     return { message, task: null, startError: null }

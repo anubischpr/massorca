@@ -105,6 +105,10 @@ export function postBotTeamRequest(input: {
   /** A host from before the query's classes never sends the next two. */
   choice?: BotTeamRequestChoice
   composite?: string[]
+  /** A bot answered a plain conversation in the room; nothing was filed. */
+  answered?: boolean
+  /** The request went to another team, because the person named it with @. */
+  sentTo?: { teamId: string; teamName: string }
 }> {
   return call('botTeams.postMessage', input)
 }
