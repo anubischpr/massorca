@@ -184,9 +184,11 @@ describe('PrototypeListPanel groups', () => {
 describe('PrototypeListPanel surface and titles', () => {
   afterEach(cleanup)
 
-  it('paints the panel with the sidebar surface the right sidebar uses', () => {
+  it('paints the panel with the surface the Workspaces left sidebar uses', () => {
     renderList({ sets: [set('r1', NEXUS)] })
-    expect(screen.getByRole('region', { name: 'All prototypes' })).toHaveClass('bg-sidebar')
+    expect(screen.getByRole('region', { name: 'All prototypes' })).toHaveClass(
+      'bg-worktree-sidebar'
+    )
   })
 
   it('keeps a long row title on one line and names the full title in its tooltip', async () => {

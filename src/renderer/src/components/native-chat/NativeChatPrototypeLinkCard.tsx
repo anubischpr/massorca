@@ -1,6 +1,7 @@
 import { translate } from '@/i18n/i18n'
 import { useAppStore } from '@/store'
 import { prototypeTitle } from '../../../../shared/prototype-list-model'
+import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
 import { usePrototypeViewStore } from '../prototypes/prototype-view-store'
 import { usePrototypeSetForRequest } from '../prototypes/use-prototype-set-for-request'
 
@@ -11,9 +12,11 @@ export function NativeChatPrototypeLinkCard({
   requestId: string
 }): React.JSX.Element | null {
   const set = usePrototypeSetForRequest(requestId)
-  if (set === null) {
-    return null
-  }
+  return set === null ? null : <PrototypeSetLinkCard set={set} />
+}
+
+/** One listed set as a card that opens it in the Prototypes view. */
+export function PrototypeSetLinkCard({ set }: { set: PrototypeListedSet }): React.JSX.Element {
   const title = translate('components.prototypes.link.setOf', '{{title}} · set of {{count}}', {
     title: prototypeTitle(set),
     count: set.count
@@ -23,7 +26,7 @@ export function NativeChatPrototypeLinkCard({
       type="button"
       data-native-chat-prototype-link-card="true"
       onClick={() => {
-        usePrototypeViewStore.getState().selectRequest(requestId)
+        usePrototypeViewStore.getState().selectRequest(set.requestId)
         useAppStore.getState().setActiveView('prototypes')
       }}
       className="flex w-[420px] max-w-full cursor-pointer items-center justify-between gap-3 self-start rounded-xl border border-border p-3 text-left text-sm text-foreground hover:bg-accent"
