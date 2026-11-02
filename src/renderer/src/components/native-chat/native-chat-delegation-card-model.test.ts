@@ -200,7 +200,7 @@ describe('a manually picked agent', () => {
     expect(model?.value).toBe('Default model')
     expect(runsIn).toMatchObject({
       value: 'New child worktree',
-      lines: ['Writes code, so it gets its own worktree']
+      lines: ['May change files, so it gets its own worktree']
     })
   })
 })

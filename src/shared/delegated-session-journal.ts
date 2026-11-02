@@ -151,6 +151,7 @@ const REASON_CODES: ReadonlySet<string> = new Set<DelegationReasonCode>([
   'effort-clamped',
   'read-only-current-worktree',
   'writes-new-child-worktree',
+  'uncertain-new-child-worktree',
   'folder-workspace-writes'
 ])
 

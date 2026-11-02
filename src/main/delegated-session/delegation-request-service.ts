@@ -92,6 +92,8 @@ export class DelegationRequestService {
     await waitForDelegationUsageRefresh(this.deps.refreshUsage)
     const route = routeDelegationRequest({
       summary: input.summary,
+      title,
+      prompt: input.prompt,
       writes: input.writes,
       workspaceKind: parent.workspaceKind,
       parentAgent: parent.agent,
@@ -114,6 +116,8 @@ export class DelegationRequestService {
     const card = buildDelegationCardContent({
       requestId: row.id,
       title,
+      summary: input.summary,
+      prompt: input.prompt,
       route,
       agents,
       writes: input.writes,

@@ -99,8 +99,11 @@ export function createDelegationLauncher(deps: {
     }
     // Why: a folder child writing in place shares the parent's folder, so its task names that folder.
     const sharesFolder =
-      delegationPlacementFor(request.writes === 1, request.workspace_kind).placementWarning ===
-      'folder-workspace-writes'
+      delegationPlacementFor({
+        ...request,
+        writesCode: request.writes === 1,
+        workspaceKind: request.workspace_kind
+      }).placementWarning === 'folder-workspace-writes'
     const folderPath = sharesFolder ? await deps.folderPath(parent.workspaceId) : null
     if (sharesFolder && folderPath === null) {
       throw new OrchestrationError(

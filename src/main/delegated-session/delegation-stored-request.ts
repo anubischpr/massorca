@@ -82,7 +82,11 @@ export function resolveDelegationTarget(row: DelegationRequestRow): DelegationLa
     label: labelOf(choice.agent),
     model,
     effort,
-    placement: delegationPlacementFor(writes, row.workspace_kind).placement,
+    placement: delegationPlacementFor({
+      ...row,
+      writesCode: writes,
+      workspaceKind: row.workspace_kind
+    }).placement,
     automatic: false
   }
 }

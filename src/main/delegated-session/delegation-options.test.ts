@@ -33,6 +33,8 @@ const AGENTS: DelegationStoredAgent[] = [
 
 const base = {
   summary: 'Implement the retry helper and add tests',
+  title: 'Retry helper',
+  prompt: 'Implement the retry helper and add tests.',
   writes: true,
   workspaceKind: 'git' as const,
   parentAgent: 'claude',
@@ -111,7 +113,9 @@ describe('buildDelegationCardContent', () => {
     const input = { ...base, rateLimits, ...overrides }
     return buildDelegationCardContent({
       requestId: 'deleg_aaaaaaaaaaaa',
-      title: 'Retry helper',
+      title: input.title,
+      summary: input.summary,
+      prompt: input.prompt,
       route: routeDelegationRequest(input),
       agents: input.agents,
       writes: input.writes,

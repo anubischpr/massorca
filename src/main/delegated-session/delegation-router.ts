@@ -5,13 +5,16 @@ import type {
   DelegationRouteResult
 } from '../../shared/delegated-session-types'
 import { classifyDelegationTask } from './delegation-task-classifier'
+import {
+  isClearlyReadOnlyDelegationTask,
+  type DelegationTaskText
+} from './delegation-read-only-task'
 import { rankDelegationAgents, type DelegationRankingCandidate } from './delegation-agent-ranking'
 import { resolveDelegationModel, type DelegationModelCatalog } from './delegation-model-tiers'
 
 export type DelegationWorkspaceKind = 'git' | 'folder'
 
-export type DelegationRouteInput = {
-  summary: string
+export type DelegationRouteInput = DelegationTaskText & {
   writesCode: boolean
   workspaceKind: DelegationWorkspaceKind
   parentAgent: string | null
@@ -29,14 +32,19 @@ export type DelegationPlacementChoice = {
 }
 
 export function delegationPlacementFor(
-  writesCode: boolean,
-  workspaceKind: DelegationWorkspaceKind
+  input: DelegationTaskText & { writesCode: boolean; workspaceKind: DelegationWorkspaceKind }
 ): DelegationPlacementChoice {
-  if (!writesCode) {
-    return { placement: 'current', placementWarning: null, reason: 'read-only-current-worktree' }
+  if (input.workspaceKind === 'git') {
+    if (input.writesCode) {
+      return { placement: 'new-child', placementWarning: null, reason: 'writes-new-child-worktree' }
+    }
+    // Why: agents differ on when they set writes, so only a task that clearly just reads stays in place.
+    return isClearlyReadOnlyDelegationTask(input)
+      ? { placement: 'current', placementWarning: null, reason: 'read-only-current-worktree' }
+      : { placement: 'new-child', placementWarning: null, reason: 'uncertain-new-child-worktree' }
   }
-  if (workspaceKind === 'git') {
-    return { placement: 'new-child', placementWarning: null, reason: 'writes-new-child-worktree' }
+  if (!input.writesCode) {
+    return { placement: 'current', placementWarning: null, reason: 'read-only-current-worktree' }
   }
   // Why: a folder workspace has no worktree to branch, so its writes land in the current folder.
   return {
@@ -63,7 +71,7 @@ export function decideDelegation(input: DelegationRouteInput): DelegationRouteRe
 
   const agent = winner.usage.agent
   const model = resolveDelegationModel({ agent, tier, catalog: input.catalogs?.[agent] })
-  const placement = delegationPlacementFor(input.writesCode, input.workspaceKind)
+  const placement = delegationPlacementFor(input)
   const reasons: DelegationReasonCode[] = [winner.reason]
   if (winner.usage.noData) {
     reasons.push('no-usage-data')

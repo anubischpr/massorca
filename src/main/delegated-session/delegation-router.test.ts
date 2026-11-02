@@ -11,6 +11,8 @@ const FRESH = NOW - 60_000
 function routeInput(overrides: Partial<DelegationRouteInput> = {}): DelegationRouteInput {
   return {
     summary: 'Summarize the changelog',
+    title: '',
+    prompt: '',
     writesCode: false,
     workspaceKind: 'git',
     parentAgent: null,
@@ -110,7 +112,73 @@ describe('decideDelegation', () => {
       model: 'sonnet',
       effort: 'high',
       tier: 4,
-      reasons: ['lowest-usage', 'high-risk-tier-floor', 'read-only-current-worktree']
+      reasons: ['lowest-usage', 'high-risk-tier-floor', 'uncertain-new-child-worktree']
+    })
+  })
+
+  it('gives a design task a new child worktree even when the parent says it writes nothing', () => {
+    // Why: the same prompt once came with writes from one parent agent and without from another.
+    const decision = routed(
+      decideDelegation(
+        routeInput({
+          summary: 'Design the clinical report page',
+          title: 'clinical-report design',
+          prompt: 'Diseña la página del informe clínico.'
+        })
+      )
+    )
+    expect(decision).toMatchObject({
+      placement: 'new-child',
+      placementWarning: null,
+      reasons: ['lowest-usage', 'uncertain-new-child-worktree']
+    })
+    expect(
+      routed(
+        decideDelegation(
+          routeInput({ summary: 'Design the clinical report page', writesCode: true })
+        )
+      )
+    ).toMatchObject({
+      placement: 'new-child',
+      reasons: ['lowest-usage', 'writes-new-child-worktree']
+    })
+  })
+
+  it('keeps a clearly read-only research task in the current worktree', () => {
+    const decision = routed(
+      decideDelegation(
+        routeInput({
+          summary: 'Research how other apps lay out clinical reports and report back',
+          title: 'Clinical report research',
+          prompt: 'Investiga y resume cómo se presentan los informes clínicos.'
+        })
+      )
+    )
+    expect(decision).toMatchObject({
+      placement: 'current',
+      reasons: ['lowest-usage', 'read-only-current-worktree']
+    })
+  })
+
+  it('treats a task with no clear read-only verb, or one that also changes things, as uncertain', () => {
+    for (const summary of [
+      'Handle the clinical report',
+      'Review the parser and fix what you find'
+    ]) {
+      expect(routed(decideDelegation(routeInput({ summary }))).placement).toBe('new-child')
+    }
+  })
+
+  it('keeps a folder workspace task in the current folder without a warning when it writes nothing', () => {
+    const decision = routed(
+      decideDelegation(
+        routeInput({ summary: 'Design the clinical report page', workspaceKind: 'folder' })
+      )
+    )
+    expect(decision).toMatchObject({
+      placement: 'current',
+      placementWarning: null,
+      reasons: ['lowest-usage', 'read-only-current-worktree']
     })
   })
 
@@ -128,7 +196,7 @@ describe('decideDelegation', () => {
       model: null,
       effort: null,
       tier: 1,
-      reasons: ['lowest-usage', 'model-unavailable', 'read-only-current-worktree']
+      reasons: ['lowest-usage', 'model-unavailable', 'uncertain-new-child-worktree']
     })
   })
 
@@ -144,7 +212,7 @@ describe('decideDelegation', () => {
     expect(decision).toMatchObject({
       model: 'haiku',
       effort: 'medium',
-      reasons: ['lowest-usage', 'effort-clamped', 'read-only-current-worktree']
+      reasons: ['lowest-usage', 'effort-clamped', 'uncertain-new-child-worktree']
     })
   })
 
