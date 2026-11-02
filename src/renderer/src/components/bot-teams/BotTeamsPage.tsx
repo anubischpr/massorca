@@ -52,14 +52,18 @@ function BotTeamRoomTitle({ children }: { children: React.ReactNode }): React.JS
 
 function TeamDetail({
   team,
+  otherTeams,
   offline,
   selection,
-  onSelect
+  onSelect,
+  onEditTeam
 }: {
   team: BotTeam
+  otherTeams: readonly BotTeam[]
   offline: boolean
   selection: BotTeamsPageSelection
   onSelect: (selection: BotTeamsPageSelection) => void
+  onEditTeam: (teamId: string) => void
 }): React.JSX.Element {
   const { taskId, section } = selection
   const toTeam = (next: Partial<BotTeamsPageSelection> = {}): void =>
@@ -112,6 +116,9 @@ function TeamDetail({
       openTaskId={null}
       onOpenTask={onOpenTask}
       offline={offline}
+      otherTeams={otherTeams}
+      onCreateBot={() => onEditTeam(team.id)}
+      onCreateTeam={() => onSelect({ teamId: null, taskId: null, creating: true })}
       header={
         <BotTeamRoomTitle>
           <span className="min-w-0 flex-1 truncate">
@@ -327,7 +334,14 @@ export default function BotTeamsPage({
           }}
         />
       ) : teams === null ? null : openTeam ? (
-        <TeamDetail team={openTeam} offline={failed} selection={selection} onSelect={select} />
+        <TeamDetail
+          team={openTeam}
+          otherTeams={teams.filter((team) => team.id !== openTeam.id)}
+          offline={failed}
+          selection={selection}
+          onSelect={select}
+          onEditTeam={setEditingTeamId}
+        />
       ) : (
         <TeamGrid
           teams={teams}

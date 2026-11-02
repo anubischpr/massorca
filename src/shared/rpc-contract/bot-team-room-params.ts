@@ -82,6 +82,16 @@ export const BotTeamMessagePost = z.object({
   start: z.boolean().default(true)
 })
 
+/** Files a request the room could not place by itself: to a bot, and to a team when `toTeamId` is set. */
+export const BotTeamRequestAssign = z.object({
+  teamId: requiredString('Missing team id'),
+  text: requiredString('Missing request text'),
+  /** Absent: the least busy bot of the receiving team takes it. */
+  botId: z.string().min(1).optional(),
+  toTeamId: z.string().min(1).optional(),
+  start: z.boolean().default(true)
+})
+
 export const BotTeamRoomSelector = z.object({
   teamId: requiredString('Missing team id')
 })

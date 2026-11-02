@@ -33,11 +33,13 @@ import type {
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
 import { BotAgentIcon } from './BotAgentIcon'
 import { BotTeamAllAuthor } from './BotTeamAllAuthor'
+import { BotTeamPendingChoice, type BotTeamPendingChoiceRequest } from './BotTeamPendingChoice'
 import { BotTeamRoomComposer } from './BotTeamRoomComposer'
 import { BotTeamRoomSidePanel } from './BotTeamRoomSidePanel'
 import { botTeamTaskGlyph, botTeamTaskLabel } from './bot-team-task-status-display'
 
 const NO_PROJECT = 'none'
+const NO_TEAMS: readonly BotTeam[] = []
 
 /** A task's thread: the normal chat, which already holds the composer, Stop and Continue. */
 function BotTeamTaskThread({
@@ -89,8 +91,15 @@ export function BotTeamRoom({
   openTaskId,
   onOpenTask,
   offline,
-  header
+  header,
+  otherTeams = NO_TEAMS,
+  onCreateBot,
+  onCreateTeam
 }: {
+  /** Teams the room can suggest or send a request to. */
+  otherTeams?: readonly BotTeam[]
+  onCreateBot?: () => void
+  onCreateTeam?: () => void
   /** The bar over the conversation; the side panel runs past it to the top. */
   header?: React.ReactNode
   team: BotTeam
@@ -103,6 +112,7 @@ export function BotTeamRoom({
   const [tasks, setTasks] = useState<BotTeamTask[]>([])
   const [projects, setProjects] = useState<BotTeamProject[]>([])
   const [needsOwner, setNeedsOwner] = useState(false)
+  const [pending, setPending] = useState<BotTeamPendingChoiceRequest | null>(null)
   const sidePanel = useRightSidebarPageTarget()
   const statuses = useBotTeamSessionStatuses()
   const botOf = (botId: string | null) => team.bots.find((bot) => bot.id === botId)
@@ -147,7 +157,8 @@ export function BotTeamRoom({
     sending.current = true
     try {
       const sent = await postBotTeamRequest({ teamId: team.id, text, start: true })
-      setNeedsOwner(sent.task === null && !sent.greeted)
+      setNeedsOwner(sent.task === null && !sent.greeted && !sent.choice)
+      setPending(sent.choice ? { choice: sent.choice, text } : null)
       if (sent.startError) {
         toast.error(sent.startError)
       }
@@ -312,6 +323,19 @@ export function BotTeamRoom({
               )
             })}
             {tasks.filter((task) => requestOf(task) === undefined).map(taskCard)}
+            {pending ? (
+              <BotTeamPendingChoice
+                pending={pending}
+                team={team}
+                otherTeams={otherTeams}
+                onFiled={() => {
+                  setPending(null)
+                  reload()
+                }}
+                onCreateBot={() => onCreateBot?.()}
+                onCreateTeam={() => onCreateTeam?.()}
+              />
+            ) : null}
             {needsOwner ? (
               <p className="text-xs text-muted-foreground">
                 {translate(

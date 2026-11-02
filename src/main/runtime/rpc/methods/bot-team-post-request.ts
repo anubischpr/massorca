@@ -4,10 +4,10 @@ import type {
   BotTeamMessage,
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
+import { activeTasksByBot } from '../../../bot-teams/bot-team-assign-request'
 import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-reply'
 import { askDefaultAgentForBotTeamRequest } from '../../../bot-teams/bot-team-request-query'
 import { decideBotTeamRequest } from '../../../bot-teams/bot-team-request-flow'
-import type { OrchestrationDb } from '../../orchestration/db/orchestration-db'
 import type { RpcContext } from '../core'
 
 /** Every field after `startError` is optional, so a client from before it still reads the reply. */
@@ -20,16 +20,6 @@ export type BotTeamPostResult = {
   choice?: BotTeamRequestChoice
   /** The other bots a composite task has parts for. */
   composite?: string[]
-}
-
-export function activeTasksByBot(db: OrchestrationDb, teamId: string): Record<string, number> {
-  const counts: Record<string, number> = {}
-  for (const task of db.listBotTeamTasks(teamId)) {
-    if (task.sessionId !== null) {
-      counts[task.ownerBotId] = (counts[task.ownerBotId] ?? 0) + 1
-    }
-  }
-  return counts
 }
 
 /** Files the person's line, then lets the one host query decide who takes it. */

@@ -16,6 +16,7 @@ export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   'aiVault.resolveSessionTitles',
   'aiVault.prepareSessionResume',
   'botTeams.addBot',
+  'botTeams.assignRequest',
   'botTeams.create',
   'botTeams.delete',
   'botTeams.createProject',

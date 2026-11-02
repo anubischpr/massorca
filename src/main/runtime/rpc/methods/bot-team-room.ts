@@ -21,6 +21,7 @@ import { botSessionOptions } from '../../../bot-teams/bot-team-model-choice'
 import { startBotTeamTask } from '../../../bot-teams/bot-team-task-start'
 import { getStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
 import { defineMethod, type RpcContext } from '../core'
+import { botTeamAssignMethods } from './bot-team-assign-methods'
 import { postBotTeamRequestOnHost } from './bot-team-post-request'
 import { BOT_TEAM_VERSION_METHODS } from './bot-team-versions'
 import { commitStructuredAgentSessionLaunchPrompt } from './agent-launch-structured-prompt'
@@ -152,6 +153,7 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
 
 export const BOT_TEAM_ROOM_METHODS = [
   ...BOT_TEAM_VERSION_METHODS,
+  ...botTeamAssignMethods(startTaskOnHost),
   defineMethod({
     name: 'botTeams.listRoom',
     permission: 'workspace',
@@ -181,7 +183,8 @@ export const BOT_TEAM_ROOM_METHODS = [
     name: 'botTeams.postMessage',
     permission: 'workspace',
     params: BotTeamMessagePost,
-    handler: (params, ctx) => postBotTeamRequestOnHost(ctx, params, (id) => startTaskOnHost(ctx, id))
+    handler: (params, ctx) =>
+      postBotTeamRequestOnHost(ctx, params, (id) => startTaskOnHost(ctx, id))
   }),
   defineMethod({
     name: 'botTeams.createProject',
