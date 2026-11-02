@@ -3,6 +3,8 @@ import { ArrowUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { translate } from '@/i18n/i18n'
+import { useImeEnterGestureOwnership } from '@/lib/ime-composition-keyboard-event'
+import { useNativeChatComposerKeyDown } from '../native-chat/use-native-chat-composer-keydown'
 import {
   applyBotTeamComposerItem,
   BOT_TEAM_ROOM_COMMANDS,
@@ -68,10 +70,42 @@ export function BotTeamRoomComposer({
     })
   }
   const send = async (): Promise<void> => {
+    if (text.trim() === '') {
+      return
+    }
     if (await onSend(text.trim())) {
       setText('')
     }
   }
+  const imeEnterGesture = useImeEnterGestureOwnership()
+  // The Workspaces composer's keys; the room menu rides its mention mode, each item keyed by index.
+  const onKeyDown = useNativeChatComposerKeyDown({
+    autocomplete: menu
+      ? { mode: 'mention', query: '', triggerKey: String(menu.start) }
+      : { mode: 'none' },
+    mentionFiles: {
+      files: menu ? menu.items.map((_item, index) => String(index)) : [],
+      loading: false,
+      failed: false
+    },
+    completeMention: (index) => {
+      const item = menu?.items[Number(index)]
+      if (item) {
+        chooseMenuItem(item)
+      }
+    },
+    activeSuggestion: menuIndex,
+    draft: text,
+    isComposing: imeEnterGesture.isComposing,
+    completePickerItem: () => {},
+    dispatchPickerCommand: () => {},
+    dismissPicker: () => setMenuDismissed(true),
+    interrupt: () => {},
+    send: () => void send(),
+    setActiveSuggestion: setMenuIndex,
+    setDraft: setText,
+    setCaret
+  })
 
   return (
     <div className="shrink-0 px-4 pb-4 pt-2">
@@ -112,21 +146,15 @@ export function BotTeamRoomComposer({
             setMenuDismissed(false)
           }}
           onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
-          onKeyDown={(event) => {
-            if (!menu) {
-              return
-            }
-            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-              event.preventDefault()
-              const step = event.key === 'ArrowDown' ? 1 : -1
-              setMenuIndex((menuIndex + step + menu.items.length) % menu.items.length)
-            } else if (event.key === 'Enter' || event.key === 'Tab') {
-              event.preventDefault()
-              chooseMenuItem(menu.items[menuIndex])
-            } else if (event.key === 'Escape') {
-              setMenuDismissed(true)
+          onKeyDownCapture={(event) => {
+            if (!imeEnterGesture.ownsKeyDown(event)) {
+              onKeyDown(event)
             }
           }}
+          onKeyUp={imeEnterGesture.onKeyUp}
+          onCompositionStart={() => imeEnterGesture.setComposing(true)}
+          onCompositionEnd={imeEnterGesture.onCompositionEnd}
+          onBlur={imeEnterGesture.reset}
         />
         <Button
           size="icon"
