@@ -27,6 +27,9 @@ export const MOBILE_AGENT_SESSION_RPC_METHODS = [
   'agentSession.readVisual',
   // A file the chat's agent wrote, for the phone's Artifacts viewer; only journal-recorded paths.
   'agentSession.readRecordedFile',
+  // The chat's checklist: the person's checks, notes and screenshots, kept on the host.
+  'agentSessionChecklist.read',
+  'agentSessionChecklist.setItem',
   // The Prototypes list: each chat's prototype requests, their sets and the set's files, on the host.
   'prototypes.createRequest',
   'prototypes.list',

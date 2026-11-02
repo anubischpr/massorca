@@ -47,6 +47,7 @@ import {
   AttachmentUploadIdParams,
   AttachmentUploadStartParams
 } from './agent-session-attachment-params'
+import { ChecklistReadParams, ChecklistSetItemParams } from './agent-session-checklist-params'
 import { CreateAgentSessionParams, EnsureAgentSessionParams } from './agent-session-params'
 import { ReadPlanDocumentParams } from './agent-session-plan-document-params'
 import { ReadRecordedFileParams } from './agent-session-recorded-file-params'
@@ -718,6 +719,8 @@ export const RPC_PARAMS_BY_METHOD = {
   'agentSessionAttachment.uploadAppend': AttachmentUploadAppendParams,
   'agentSessionAttachment.uploadCommit': AttachmentUploadIdParams,
   'agentSessionAttachment.uploadStart': AttachmentUploadStartParams,
+  'agentSessionChecklist.read': ChecklistReadParams,
+  'agentSessionChecklist.setItem': ChecklistSetItemParams,
   'agentTeams.prepareLaunch': AgentTeamsPrepareLaunch,
   'agentTeams.tmuxCompat': AgentTeamsTmuxCompat,
   'aiVault.listSessions': AiVaultListSessionsParams,
