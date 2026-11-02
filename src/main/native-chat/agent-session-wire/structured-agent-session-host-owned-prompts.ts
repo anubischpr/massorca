@@ -6,6 +6,7 @@ import {
   delegationRequestIdOfQuestionItem,
   isHostOwnedDelegationQuestion
 } from '../../../shared/delegated-session-journal'
+import { askUserRequestIdOfQuestionItem } from '../../../shared/agent-ask-user-journal'
 import type { AgentJournalItemBody } from '../../../shared/agent-session-journal-types'
 
 export type StructuredAgentSessionHostOwnedPromptOutcome =
@@ -34,7 +35,23 @@ export type StructuredAgentSessionHostOwnedPrompts = {
 
 /** Whether an item is a host-owned question, by its key alone: provider prompts never carry it. */
 export function isHostOwnedPromptItemId(itemId: string): boolean {
-  return delegationRequestIdOfQuestionItem(itemId) !== null
+  return (
+    delegationRequestIdOfQuestionItem(itemId) !== null ||
+    askUserRequestIdOfQuestionItem(itemId) !== null
+  )
+}
+
+/** One resolver for every host-owned card, routed by the key each card's owner gave it. */
+export function routeHostOwnedPrompts(owners: {
+  delegation: StructuredAgentSessionHostOwnedPrompts
+  askUser: StructuredAgentSessionHostOwnedPrompts
+}): StructuredAgentSessionHostOwnedPrompts {
+  const ownerOf = (itemId: string): StructuredAgentSessionHostOwnedPrompts =>
+    askUserRequestIdOfQuestionItem(itemId) !== null ? owners.askUser : owners.delegation
+  return {
+    answer: (input) => ownerOf(input.itemId).answer(input),
+    cancel: (input) => ownerOf(input.itemId).cancel(input)
+  }
 }
 
 export function isHostOwnedPromptItem(itemId: string, body: AgentJournalItemBody): boolean {

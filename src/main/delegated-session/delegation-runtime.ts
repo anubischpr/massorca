@@ -12,6 +12,7 @@ import type { OrchestrationDb } from '../runtime/orchestration/db'
 import type { OrcaRuntimeService } from '../runtime/orca-runtime'
 import { STRUCTURED_AGENT_RUNTIME_REGISTRATIONS } from '../runtime/structured-agent-runtime-registrations'
 import { declaredAccessForStructuredAgent } from '../runtime/rpc/methods/orchestration/worker/worker-start-access-mode'
+import { AskUserService } from './ask-user-service'
 import { DelegationAnswerService } from './delegation-answer-service'
 import { createDelegationLauncher } from './delegation-launch'
 import type { DelegationStoredAgent } from './delegation-options'
@@ -118,6 +119,17 @@ function hostRows(): DelegationRequestDeps['rows'] {
     appendHostRow: (sessionId, identity, body) =>
       structuredAgentSessionHostRows(requireHost()).appendHostRow(sessionId, identity, body)
   }
+}
+
+let askUserService: AskUserService | null = null
+
+/** The host's ask-user service: one per process, as its waiters are. */
+export function getAskUserService(): AskUserService {
+  askUserService ??= new AskUserService({
+    holdsSession: (sessionId) => readParentSession(sessionId) !== null,
+    rows: hostRows()
+  })
+  return askUserService
 }
 
 /** The runtime's delegation request service. */

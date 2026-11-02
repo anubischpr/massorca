@@ -398,6 +398,7 @@ import {
   NotificationsSubscribeParams
 } from './notifications-params'
 import { OrcadMigrationCatalogParams } from './orcad-migration-params'
+import { AskUserParams } from './orchestration-ask-user-params'
 import { DelegateRequestParams } from './orchestration-delegate-request-params'
 import {
   FederationDispatchParams,
@@ -1098,6 +1099,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'orcad.migration.stageSnapshotChunk': OrcadMigrationSnapshotChunkRequestSchema,
   'orcad.terminalCensus': OrcadTerminalCensusParamsSchema,
   'orchestration.ask': AskParams,
+  'orchestration.askUser': AskUserParams,
   'orchestration.callerShow': null,
   'orchestration.check': CheckParams,
   'orchestration.delegateRequest': DelegateRequestParams,

@@ -63,7 +63,8 @@ export const ORCHESTRATION_CALLER_PARAM: Readonly<Record<string, CallerParam>> =
   'orchestration.taskList': 'callerTerminalHandle',
   'orchestration.taskUpdate': 'callerTerminalHandle',
   'orchestration.workerStart': 'from',
-  'orchestration.delegateRequest': 'from'
+  'orchestration.delegateRequest': 'from',
+  'orchestration.askUser': 'from'
 }
 
 export type OrchestrationRequestRoute = {

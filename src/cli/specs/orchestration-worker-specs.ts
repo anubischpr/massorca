@@ -143,5 +143,25 @@ export const ORCHESTRATION_WORKER_COMMAND_SPECS: CommandSpec[] = [
       '--writes says the child will edit code, so it runs in a new worktree (a folder workspace runs in place). Omit it for read-only work.',
       'The child inherits this chat access mode and never gets a wider one. When it finishes, its result reaches this chat as a message.'
     ]
+  },
+  {
+    path: ['orchestration', 'ask-user'],
+    summary: 'Ask the person in this chat a multiple-choice question and wait for the answer',
+    usage:
+      'orca orchestration ask-user (--question <text> --options <a,b,c> [--multi-select] | --questions <json>) [--timeout-ms <ms>] [--json]',
+    allowedFlags: [
+      ...GLOBAL_FLAGS,
+      'question',
+      'options',
+      'multi-select',
+      'questions',
+      'timeout-ms'
+    ],
+    notes: [
+      'Only a MassOrca chat session can ask: the question appears in this chat as an interactive card with the options as buttons and a box for a typed answer, and the command waits until the person answers.',
+      '--question and --options ask one question; --options is comma-separated and --multi-select lets the person pick several. Prefer this form on Windows, where PowerShell strips the quotes out of a JSON argument.',
+      '--questions is JSON for 1-4 questions of 1-12 options each: {"questions":[{"question":"Which color?","options":["Red","Green","Blue"],"multiSelect":false}]}. An option can also be {"label":"...","description":"..."}.',
+      'Prints one line per question with the chosen options (and any typed text) joined by ", ". Exits 1 when the person dismisses the card or nobody answers within --timeout-ms (default 600000, at most 1800000).'
+    ]
   }
 ]

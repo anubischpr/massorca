@@ -4,6 +4,7 @@ import {
   ORCHESTRATION_DISPATCH_HANDLER,
   ORCHESTRATION_DISPATCH_INSPECTION_HANDLERS
 } from './orchestration/dispatch-handlers'
+import { ORCHESTRATION_ASK_USER_HANDLER } from './orchestration/ask-user-handler'
 import { ORCHESTRATION_DELEGATE_HANDLER } from './orchestration/delegate-handler'
 import { ORCHESTRATION_GATE_HANDLERS } from './orchestration/gate-handlers'
 import { ORCHESTRATION_INBOX_HANDLERS } from './orchestration/message-inbox-handlers'
@@ -25,6 +26,7 @@ export const ORCHESTRATION_HANDLERS: Record<string, CommandHandler> = {
   ...ORCHESTRATION_TASK_HANDLERS,
   ...ORCHESTRATION_WORKER_LAUNCH_HANDLER,
   ...ORCHESTRATION_DELEGATE_HANDLER,
+  ...ORCHESTRATION_ASK_USER_HANDLER,
   ...ORCHESTRATION_WORKER_OBSERVATION_HANDLERS,
   ...ORCHESTRATION_WORKER_TERMINAL_HANDLERS,
   ...ORCHESTRATION_DISPATCH_HANDLER,
