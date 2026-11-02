@@ -11,6 +11,7 @@ import type { BotTeamTask } from '../../../src/shared/rpc-contract/bot-team-room
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
 import { MobileAddBotForm, MobileNewTeamForm } from './MobileBotTeamForms'
 import { MobileBotTeamRoom } from './MobileBotTeamRoom'
+import { MobileBotTeamWork, type BotTeamWorkScreen } from './MobileBotTeamWork'
 import { MobileBotTeamModeSwitch } from './MobileBotTeamModeSwitch'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 import {
@@ -40,6 +41,7 @@ type Screen =
   | { name: 'editBot'; teamId: string; botId: string }
   | { name: 'editNewTeamBot'; index: number }
   | { name: 'teamBot'; teamId: string }
+  | BotTeamWorkScreen
 
 function SubBar({ title, onBack }: { title: string; onBack: () => void }) {
   return (
@@ -159,6 +161,10 @@ export function MobileBotTeamsScreen({
   const openTeam = screen.name === 'team' ? teams.find((t) => t.id === screen.teamId) : undefined
   const openBotsTeam =
     screen.name === 'teamBots' ? teams.find((t) => t.id === screen.teamId) : undefined
+  const workTeam =
+    screen.name === 'board' || screen.name === 'project' || screen.name === 'newProject'
+      ? teams.find((t) => t.id === screen.teamId)
+      : undefined
 
   const notice = unreachable ? (
     <View style={styles.notice}>
@@ -263,6 +269,7 @@ export function MobileBotTeamsScreen({
           onPickTeam={(teamId) => setScreen({ name: 'team', teamId })}
           onOpenBots={() => setScreen({ name: 'teamBots', teamId: openTeam.id })}
           onOpenTask={(workspaceId, task) => onOpenTask(workspaceId, task)}
+          onOpenWork={setScreen}
         />
       </>
     )
@@ -288,6 +295,24 @@ export function MobileBotTeamsScreen({
           ))}
         </ScrollView>
       </>
+    )
+  } else if (
+    client !== null &&
+    workTeam &&
+    (screen.name === 'board' || screen.name === 'project' || screen.name === 'newProject')
+  ) {
+    body = (
+      <MobileBotTeamWork
+        key={workTeam.id}
+        client={client}
+        team={workTeam}
+        teams={teams}
+        offline={unreachable}
+        screen={screen}
+        onOpenRoom={() => setScreen({ name: 'team', teamId: workTeam.id })}
+        onOpen={setScreen}
+        onOpenTask={onOpenTask}
+      />
     )
   } else if (client !== null && screen.name === 'settings') {
     body = (

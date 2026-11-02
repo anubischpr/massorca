@@ -1,4 +1,4 @@
-import { createElement } from 'react'
+import { createElement, type ComponentProps } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { MobileBotTeamRoom } from './MobileBotTeamRoom'
@@ -17,6 +17,9 @@ vi.mock('lucide-react-native', () => ({
   ChevronDown: 'ChevronDown',
   ChevronLeft: 'ChevronLeft',
   Ellipsis: 'Ellipsis',
+  Folder: 'Folder',
+  FolderPlus: 'FolderPlus',
+  LayoutGrid: 'LayoutGrid',
   MessageSquare: 'MessageSquare'
 }))
 vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
@@ -76,11 +79,22 @@ function hostAnswering(room: object, post: object = {}) {
   return { sendRequest }
 }
 
+const PROJECT = {
+  id: 'project',
+  teamId: 'team',
+  name: 'Launch',
+  goal: '',
+  codeSource: null,
+  brief: { requirements: [], constraints: [], decisions: [] },
+  briefUpdatedAt: null
+}
+
 async function render(
   client: { sendRequest: unknown },
   onOpenTask = vi.fn(),
   onOpenBots = vi.fn(),
-  onBack = vi.fn()
+  onBack = vi.fn(),
+  extra: Partial<ComponentProps<typeof MobileBotTeamRoom>> = {}
 ) {
   let renderer!: ReactTestRenderer
   await act(async () => {
@@ -93,7 +107,9 @@ async function render(
         onBack,
         onPickTeam: vi.fn(),
         onOpenBots,
-        onOpenTask
+        onOpenTask,
+        onOpenWork: vi.fn(),
+        ...extra
       })
     )
   })
@@ -187,5 +203,39 @@ describe('MobileBotTeamRoom', () => {
     })
 
     expect(JSON.stringify(renderer.toJSON())).toContain('Who should take this?')
+  })
+
+  it('reaches the team board, a project and a new project from the room menu', async () => {
+    const client = hostAnswering({
+      tasks: [],
+      messages: [],
+      projects: [PROJECT],
+      workspaceId: null
+    })
+    const onOpenWork = vi.fn()
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { onOpenWork })
+    await press(renderer, 'Room menu')
+    await press(renderer, 'Team board')
+    expect(onOpenWork).toHaveBeenLastCalledWith({ name: 'board', teamId: 'team' })
+    await press(renderer, 'Room menu')
+    await press(renderer, 'Launch')
+    expect(onOpenWork).toHaveBeenLastCalledWith({
+      name: 'project',
+      teamId: 'team',
+      projectId: 'project',
+      tab: 'board'
+    })
+    await press(renderer, 'Room menu')
+    await press(renderer, 'New project')
+    expect(onOpenWork).toHaveBeenLastCalledWith({ name: 'newProject', teamId: 'team' })
+  })
+
+  it('counts the open work and the tasks on the room menu', async () => {
+    const client = hostAnswering({ tasks: [TASK], messages: [], projects: [], workspaceId: null })
+    const renderer = await render(client)
+    await press(renderer, 'Room menu')
+    const menu = JSON.stringify(renderer.toJSON())
+    expect(menu).toContain('1 open')
+    expect(menu).toContain('1 tasks')
   })
 })

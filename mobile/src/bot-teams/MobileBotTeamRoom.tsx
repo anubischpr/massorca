@@ -1,108 +1,33 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
-import { Bot, Check, ChevronDown, ChevronLeft, Ellipsis, MessageSquare } from 'lucide-react-native'
+import { Check, ChevronDown, ChevronLeft, Ellipsis } from 'lucide-react-native'
 import { BottomDrawer } from '../components/BottomDrawer'
 import { useMobileDictation } from '../hooks/use-mobile-dictation'
 import { MobileNativeChatComposer } from '../session/MobileNativeChatComposer'
 import type { ComposerSuggestion } from '../session/MobileNativeChatComposerSuggestions'
 import { MobileNativeChatMessage } from '../session/MobileNativeChatMessage'
-import { mobileStructuredSessionStatusFeed } from '../session/mobile-structured-session-status-feed'
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
+import { botTeamBoardColumn } from '../../../src/shared/bot-team-board-column'
 import { botTeamComposerMenu } from '../../../src/shared/bot-team-composer-menu'
-import { botTeamTaskStatus } from '../../../src/shared/bot-team-task-status'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import type {
   BotTeamMessage,
   BotTeamTask
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
-import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
-import { botTeamStyles as styles } from './mobile-bot-team-styles'
-import {
-  listMobileBotTeamRoom,
-  postMobileBotTeamRequest,
-  startMobileBotTeamTask
-} from './mobile-bot-team-room-rpc'
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
+import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
+import { MobileBotTeamRoomMenu } from './MobileBotTeamRoomMenu'
+import { MobileBotTeamTaskCard } from './MobileBotTeamTaskCard'
+import type { BotTeamWorkScreen } from './MobileBotTeamWork'
+import { botTeamStyles as styles } from './mobile-bot-team-styles'
+import { postMobileBotTeamRequest, startMobileBotTeamTask } from './mobile-bot-team-room-rpc'
+import { useMobileBotTeamRoom } from './use-mobile-bot-team-room'
+import { useMobileBotTeamTaskStatus } from './use-mobile-bot-team-task-status'
 
 const NO_GENERATION = () => 0
-const ROOM_CHECK_MS = 5_000
 const NOT_WORKING = () => false
-
-function statusDotColor(status: string): string {
-  if (status === 'Working' || status === 'Done') {
-    return colors.statusGreen
-  }
-  return status === 'Waiting for you' ? colors.statusAmber : colors.textMuted
-}
-
-function TaskCard({
-  client,
-  task,
-  team,
-  offline,
-  onStart,
-  onOpen
-}: {
-  client: RpcClient
-  task: BotTeamTask
-  team: BotTeam
-  offline: boolean
-  onStart: () => void
-  onOpen: () => void
-}) {
-  const owner = team.bots.find((bot) => bot.id === task.ownerBotId)
-  const feed = mobileStructuredSessionStatusFeed(client)
-  const subscribe = useCallback((listener: () => void) => feed.subscribe(listener), [feed])
-  const readSummary = () => (task.sessionId ? feed.getSnapshot().get(task.sessionId) : undefined)
-  const summary = useSyncExternalStore(subscribe, readSummary, readSummary)
-  const status = botTeamTaskStatus(task.sessionId, summary)
-  return (
-    <View style={[styles.taskCard, status === 'Waiting for you' && styles.taskCardWaiting]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Open ${task.title}`}
-        accessibilityState={{ disabled: offline || task.sessionId === null }}
-        disabled={offline || task.sessionId === null}
-        onPress={onOpen}
-        style={styles.taskCardBody}
-      >
-        <View style={styles.taskCardTitle}>
-          {owner ? <MobileBotAgentIcon agentId={owner.agent} size={14} /> : null}
-          <Text style={styles.rowTitle} numberOfLines={2}>
-            {task.title}
-          </Text>
-        </View>
-        {owner ? (
-          <Text style={styles.rowMeta}>
-            {owner.name}
-            {owner.job ? `, ${owner.job}` : ''}
-          </Text>
-        ) : null}
-        <View style={styles.taskCardStatus}>
-          <View style={[styles.statusDot, { backgroundColor: statusDotColor(status) }]} />
-          <Text style={styles.rowMeta}>
-            {status}
-            {offline && task.sessionId !== null ? ', can’t confirm now' : ''}
-          </Text>
-        </View>
-      </Pressable>
-      {task.sessionId === null ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Start ${task.title}`}
-          accessibilityState={{ disabled: offline }}
-          disabled={offline}
-          onPress={onStart}
-          style={styles.secondary}
-        >
-          <Text style={styles.rowTitle}>Start</Text>
-        </Pressable>
-      ) : null}
-    </View>
-  )
-}
 
 function roomChatMessage(message: BotTeamMessage): NativeChatMessage {
   return {
@@ -124,7 +49,8 @@ export function MobileBotTeamRoom({
   onBack,
   onPickTeam,
   onOpenBots,
-  onOpenTask
+  onOpenTask,
+  onOpenWork
 }: {
   client: RpcClient
   team: BotTeam
@@ -137,13 +63,18 @@ export function MobileBotTeamRoom({
   onPickTeam: (teamId: string) => void
   onOpenBots: () => void
   onOpenTask: (workspaceId: string, task: BotTeamTask) => void
+  /** Opens one of the room menu's work screens: the team board, a project, or a new project. */
+  onOpenWork: (screen: BotTeamWorkScreen) => void
 }) {
-  const [messages, setMessages] = useState<BotTeamMessage[]>([])
-  const [tasks, setTasks] = useState<BotTeamTask[]>([])
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null)
   const [text, setText] = useState('')
   const [needsLead, setNeedsLead] = useState(false)
   const [sheet, setSheet] = useState<'rooms' | 'menu' | null>(null)
+  const { room, reload } = useMobileBotTeamRoom(client, team.id, offline)
+  const statusOf = useMobileBotTeamTaskStatus(client)
+  const messages = room?.messages ?? []
+  const tasks = room?.tasks ?? []
+  const projects = room?.projects ?? []
+  const workspaceId = room?.workspaceId ?? null
   const dictation = useMobileDictation({
     client,
     enabled: !offline,
@@ -152,28 +83,7 @@ export function MobileBotTeamRoom({
     onError: (error) => Alert.alert('Dictation failed', error.message)
   })
 
-  const latestRead = useRef(0)
   const sending = useRef(false)
-  const reload = useCallback(async () => {
-    const read = ++latestRead.current
-    const room = await listMobileBotTeamRoom(client, team.id)
-    // An older answer must not undo a newer one.
-    if (room && read === latestRead.current) {
-      setMessages(room.messages)
-      setTasks(room.tasks)
-      setWorkspaceId(room.workspaceId)
-    }
-  }, [client, team.id])
-
-  useEffect(() => {
-    if (offline) {
-      return
-    }
-    void reload()
-    // Bots post and add tasks on their own; the host has no push for the room.
-    const timer = setInterval(() => void reload(), ROOM_CHECK_MS)
-    return () => clearInterval(timer)
-  }, [reload, offline])
 
   // The phone has no Sessions panel to open, so the room's two commands stay on the desktop.
   const roomSuggestions = useCallback(
@@ -248,7 +158,7 @@ export function MobileBotTeamRoom({
   }, [messages, tasks])
 
   const card = (task: BotTeamTask) => (
-    <TaskCard
+    <MobileBotTeamTaskCard
       key={task.id}
       client={client}
       task={task}
@@ -262,6 +172,8 @@ export function MobileBotTeamRoom({
       }}
     />
   )
+
+  const openCount = tasks.filter((task) => botTeamBoardColumn(statusOf(task)) !== 'Done').length
 
   return (
     <View style={styles.grow}>
@@ -368,34 +280,35 @@ export function MobileBotTeamRoom({
           </Pressable>
         ))}
       </BottomDrawer>
-      <BottomDrawer visible={sheet === 'menu'} onClose={() => setSheet(null)}>
-        <View style={styles.sheetHeader}>
-          <MobileBotTeamCharacterIcon
-            character={team.character}
-            size={28}
-            working={workingOf(team.id)}
-            unreachable={offline}
-          />
-          <Text style={styles.sheetTitle}>{team.name}</Text>
-        </View>
-        <Text style={styles.label}>Work</Text>
-        <Pressable accessibilityRole="button" onPress={() => setSheet(null)} style={styles.row}>
-          <MessageSquare size={18} color={colors.textSecondary} />
-          <Text style={styles.rowTitle}>Conference room</Text>
-        </Pressable>
-        <Text style={styles.label}>Team</Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            setSheet(null)
-            onOpenBots()
-          }}
-          style={styles.row}
-        >
-          <Bot size={18} color={colors.textSecondary} />
-          <Text style={styles.rowTitle}>Bots</Text>
-        </Pressable>
-      </BottomDrawer>
+      <MobileBotTeamRoomMenu
+        visible={sheet === 'menu'}
+        onClose={() => setSheet(null)}
+        team={team}
+        working={workingOf(team.id)}
+        unreachable={offline}
+        openCount={openCount}
+        taskCount={tasks.length}
+        projects={projects}
+        projectTaskCount={(projectId) =>
+          tasks.filter((task) => task.projectId === projectId).length
+        }
+        onOpenBoard={() => {
+          setSheet(null)
+          onOpenWork({ name: 'board', teamId: team.id })
+        }}
+        onOpenProject={(projectId) => {
+          setSheet(null)
+          onOpenWork({ name: 'project', teamId: team.id, projectId, tab: 'board' })
+        }}
+        onNewProject={() => {
+          setSheet(null)
+          onOpenWork({ name: 'newProject', teamId: team.id })
+        }}
+        onOpenBots={() => {
+          setSheet(null)
+          onOpenBots()
+        }}
+      />
     </View>
   )
 }
