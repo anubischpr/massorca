@@ -1,8 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
-import { assignBotTeamRequest } from './bot-team-assign-request'
+import { fileBotTeamRequest, type BotTeamRequestFiling } from './bot-team-assign-request'
 
-describe('assignBotTeamRequest', () => {
+const NOT_STARTED = async (taskId: string): Promise<never> => {
+  throw new Error(`Task ${taskId} should not start here.`)
+}
+
+describe('fileBotTeamRequest', () => {
   let db: OrchestrationDb | undefined
   afterEach(() => {
     db?.close()
@@ -38,14 +42,22 @@ describe('assignBotTeamRequest', () => {
     return { db, marketing, warehouse, empty }
   }
 
-  it('files a task for the chosen bot of the same team', () => {
+  /** Files without starting, as a request saved to Todo: the defaults for every other field. */
+  function file(
+    database: OrchestrationDb,
+    input: Pick<BotTeamRequestFiling, 'teamId' | 'text'> & Partial<BotTeamRequestFiling>
+  ) {
+    return fileBotTeamRequest(
+      database,
+      { start: false, later: false, askProject: false, ...input },
+      NOT_STARTED
+    )
+  }
+
+  it('files a task for the chosen bot of the same team', async () => {
     const { db, marketing } = setup()
     const max = marketing.bots[1]
-    const task = assignBotTeamRequest(db, {
-      teamId: marketing.id,
-      text: 'Write a post',
-      botId: max.id
-    })
+    const { task } = await file(db, { teamId: marketing.id, text: 'Write a post', botId: max.id })
     expect(task).toMatchObject({
       teamId: marketing.id,
       ownerBotId: max.id,
@@ -55,7 +67,7 @@ describe('assignBotTeamRequest', () => {
     })
   })
 
-  it('gives the least busy bot of the team a request with no bot chosen', () => {
+  it('gives the least busy bot of the team a request with no bot chosen', async () => {
     const { db, marketing } = setup()
     const [iris, max] = marketing.bots
     const busy = db.createBotTeamTask({
@@ -65,13 +77,13 @@ describe('assignBotTeamRequest', () => {
       ownerBotId: iris.id
     })
     db.setBotTeamTaskSession(busy.id, 'session-1')
-    const task = assignBotTeamRequest(db, { teamId: marketing.id, text: 'Write a post' })
-    expect(task.ownerBotId).toBe(max.id)
+    const { task } = await file(db, { teamId: marketing.id, text: 'Write a post' })
+    expect(task?.ownerBotId).toBe(max.id)
   })
 
-  it('files the task in the receiving team, with one of its bots', () => {
+  it('files the task in the receiving team, with one of its bots', async () => {
     const { db, marketing, warehouse } = setup()
-    const task = assignBotTeamRequest(db, {
+    const { task } = await file(db, {
       teamId: marketing.id,
       toTeamId: warehouse.id,
       text: 'Check inventory'
@@ -80,26 +92,26 @@ describe('assignBotTeamRequest', () => {
     expect(db.listBotTeamTasks(marketing.id)).toEqual([])
   })
 
-  it('refuses a bot that is not on the receiving team, and changes nothing', () => {
+  it('refuses a bot that is not on the receiving team, and changes nothing', async () => {
     const { db, marketing, warehouse } = setup()
-    expect(() =>
-      assignBotTeamRequest(db, {
+    await expect(
+      file(db, {
         teamId: marketing.id,
         toTeamId: warehouse.id,
         botId: marketing.bots[0].id,
         text: 'Check inventory'
       })
-    ).toThrow(/not on team/)
+    ).rejects.toThrow(/not on team/)
     expect(db.listBotTeamTasks(warehouse.id)).toEqual([])
   })
 
-  it('refuses a team with no bot, and a team that does not exist', () => {
+  it('refuses a team with no bot, and a team that does not exist', async () => {
     const { db, marketing, empty } = setup()
-    expect(() =>
-      assignBotTeamRequest(db, { teamId: marketing.id, toTeamId: empty.id, text: 'Anything' })
-    ).toThrow('Empty has no bots yet.')
-    expect(() =>
-      assignBotTeamRequest(db, { teamId: marketing.id, toTeamId: 'ghost', text: 'Anything' })
-    ).toThrow('Team ghost was not found.')
+    await expect(
+      file(db, { teamId: marketing.id, toTeamId: empty.id, text: 'Anything' })
+    ).rejects.toThrow('Empty has no bots yet.')
+    await expect(
+      file(db, { teamId: marketing.id, toTeamId: 'ghost', text: 'Anything' })
+    ).rejects.toThrow('Team ghost was not found.')
   })
 })

@@ -36,6 +36,7 @@ const TASK: BotTeamTask = {
 function deps(overrides: Partial<BotTeamTaskStartDeps> = {}): BotTeamTaskStartDeps {
   return {
     ensureTeamWorkspace: vi.fn(async () => 'folder:1'),
+    workspaceExists: vi.fn(async () => true),
     createSession: vi.fn(async () => 'session-1'),
     sendPrompt: vi.fn(async () => true),
     linkSession: vi.fn((_taskId, sessionId) => ({ ...TASK, sessionId })),
@@ -212,5 +213,63 @@ describe('startBotTeamTask', () => {
       'no longer on'
     )
     expect(d.createSession).not.toHaveBeenCalled()
+  })
+
+  it('runs a task of a project linked to a git worktree in that worktree, not the team folder', async () => {
+    const d = deps()
+    await startBotTeamTask(d, {
+      team: TEAM,
+      task: { ...TASK, projectId: 'project' },
+      project: { ...PROJECT, workspace: { key: 'worktree:repo-1::/work/nexus', name: 'NexusCare' } }
+    })
+
+    expect(d.ensureTeamWorkspace).not.toHaveBeenCalled()
+    expect(d.workspaceExists).toHaveBeenCalledWith('worktree:repo-1::/work/nexus')
+    expect(d.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: 'repo-1::/work/nexus' })
+    )
+  })
+
+  it('runs a task of a project linked to a folder workspace in that folder workspace', async () => {
+    const d = deps()
+    await startBotTeamTask(d, {
+      team: TEAM,
+      task: { ...TASK, projectId: 'project' },
+      project: { ...PROJECT, workspace: { key: 'folder:fw-1', name: 'Notes' } }
+    })
+
+    expect(d.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: 'folder:fw-1' })
+    )
+  })
+
+  it('keeps the task in Todo, with the reason, when the linked workspace is gone', async () => {
+    const d = deps({ workspaceExists: vi.fn(async () => false) })
+
+    await expect(
+      startBotTeamTask(d, {
+        team: TEAM,
+        task: { ...TASK, projectId: 'project' },
+        project: { ...PROJECT, workspace: { key: 'folder:fw-1', name: 'Notes' } }
+      })
+    ).rejects.toThrow(
+      'The Workspaces project linked to Summer campaign is gone. Link another one or clear the link.'
+    )
+    expect(d.createSession).not.toHaveBeenCalled()
+    expect(d.linkSession).not.toHaveBeenCalled()
+  })
+
+  it('keeps the team folder for a project with no link', async () => {
+    const d = deps()
+    await startBotTeamTask(d, {
+      team: TEAM,
+      task: { ...TASK, projectId: 'project' },
+      project: { ...PROJECT, workspace: null }
+    })
+
+    expect(d.workspaceExists).not.toHaveBeenCalled()
+    expect(d.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: 'folder:1' })
+    )
   })
 })

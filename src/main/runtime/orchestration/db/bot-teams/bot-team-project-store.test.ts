@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { SCHEMA_VERSION } from '../contract-constants'
 import { OrchestrationDb } from '../orchestration-db'
+import { migrateV56 } from '../schema/migrate-v56'
+
+/** Why: the project store reads the workspace link columns, which the v56 step adds. */
+function openDb(): OrchestrationDb {
+  const open = new OrchestrationDb(':memory:')
+  migrateV56.call(open, SCHEMA_VERSION)
+  return open
+}
 
 describe('bot team project store', () => {
   let db: OrchestrationDb | undefined
@@ -28,7 +36,7 @@ describe('bot team project store', () => {
   }
 
   it('creates and lists a team’s projects', () => {
-    db = new OrchestrationDb(':memory:')
+    db = openDb()
     const { team } = seed(db)
     const project = db.createBotTeamProject({
       teamId: team.id,
@@ -44,13 +52,14 @@ describe('bot team project store', () => {
       goal: 'More sales',
       codeSource: null,
       brief: { requirements: [], constraints: [], decisions: [] },
-      briefUpdatedAt: null
+      briefUpdatedAt: null,
+      workspace: null
     })
     expect(db.listBotTeamProjects(team.id)).toEqual([project])
   })
 
   it('moves a task into a project and out again, without changing the rest of it', () => {
-    db = new OrchestrationDb(':memory:')
+    db = openDb()
     const { team, task } = seed(db)
     expect(task.projectId).toBeNull()
     const project = db.createBotTeamProject({
@@ -68,7 +77,7 @@ describe('bot team project store', () => {
   })
 
   it('refuses another team’s project and an unknown task', () => {
-    db = new OrchestrationDb(':memory:')
+    db = openDb()
     const { task } = seed(db)
     const other = seed(db, 'Sales')
     const foreign = db.createBotTeamProject({
@@ -84,7 +93,7 @@ describe('bot team project store', () => {
   })
 
   it('removes projects with their team', () => {
-    db = new OrchestrationDb(':memory:')
+    db = openDb()
     const { team, task } = seed(db)
     const project = db.createBotTeamProject({
       teamId: team.id,
@@ -100,7 +109,7 @@ describe('bot team project store', () => {
   })
 
   it('keeps the code source a project was created with, and connects one later', () => {
-    db = new OrchestrationDb(':memory:')
+    db = openDb()
     const { team } = seed(db)
     const made = db.createBotTeamProject({
       teamId: team.id,
@@ -126,7 +135,7 @@ describe('bot team project store', () => {
   })
 
   it('adds the code source column to a v48 database and survives a replay', () => {
-    db = new OrchestrationDb(':memory:')
+    db = openDb()
     const { team } = seed(db)
     db.createBotTeamProject({ teamId: team.id, name: 'Summer', goal: 'Sales', codeSource: null })
     db.db.exec('ALTER TABLE bot_team_projects DROP COLUMN code_source')
@@ -144,7 +153,7 @@ describe('bot team project store', () => {
   })
 
   it('stores a project brief with its goal, drops blank lines and stamps the time', () => {
-    db = new OrchestrationDb(':memory:')
+    db = openDb()
     const { team } = seed(db)
     const project = db.createBotTeamProject({
       teamId: team.id,
@@ -182,7 +191,7 @@ describe('bot team project store', () => {
   })
 
   it('reads an unreadable stored brief as empty instead of failing the list', () => {
-    db = new OrchestrationDb(':memory:')
+    db = openDb()
     const { team } = seed(db)
     const project = db.createBotTeamProject({
       teamId: team.id,
@@ -202,7 +211,7 @@ describe('bot team project store', () => {
   })
 
   it('adds the brief columns to a v49 database and survives a replay', () => {
-    db = new OrchestrationDb(':memory:')
+    db = openDb()
     const { team } = seed(db)
     db.createBotTeamProject({ teamId: team.id, name: 'Summer', goal: 'Sales', codeSource: 'repo' })
     db.db.exec('ALTER TABLE bot_team_projects DROP COLUMN brief_json')
@@ -217,5 +226,29 @@ describe('bot team project store', () => {
     db.db.pragma('user_version = 6')
     expect(() => db?.migrate()).not.toThrow()
     expect(db.db.pragma('user_version', { simple: true })).toBe(SCHEMA_VERSION)
+  })
+
+  it('links a project to a workspace on the host, names it, and unlinks it', () => {
+    db = openDb()
+    const { team } = seed(db)
+    const project = db.createBotTeamProject({
+      teamId: team.id,
+      name: 'Summer',
+      goal: '',
+      codeSource: 'repo'
+    })
+    expect(project.workspace).toBeNull()
+
+    const linked = db.setBotTeamProjectWorkspace(project.id, {
+      key: 'worktree:repo-1::/work/nexus',
+      name: 'NexusCare'
+    })
+    expect(linked.workspace).toEqual({ key: 'worktree:repo-1::/work/nexus', name: 'NexusCare' })
+    expect(db.getBotTeamProject(project.id)).toEqual(linked)
+    expect(db.listBotTeamProjects(team.id)).toEqual([linked])
+
+    expect(db.setBotTeamProjectWorkspace(project.id, null).workspace).toBeNull()
+    expect(() => db?.setBotTeamProjectWorkspace('missing', null)).toThrow('was not found')
+    expect(() => db?.getBotTeamProject('missing')).toThrow('was not found')
   })
 })

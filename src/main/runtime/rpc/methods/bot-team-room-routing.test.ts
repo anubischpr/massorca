@@ -28,7 +28,11 @@ describe('botTeams.postMessage routing', () => {
     askBot.mockReset()
   })
 
-  async function post(reply: string | null, text = 'Count the boxes') {
+  async function post(
+    reply: string | null,
+    text = 'Count the boxes',
+    options: { start?: boolean; projects?: string[]; askProject?: boolean } = {}
+  ) {
     db = new OrchestrationDb(':memory:')
     ask.mockResolvedValue(reply)
     const team = db.createBotTeam({
@@ -41,6 +45,9 @@ describe('botTeams.postMessage routing', () => {
         { name: 'Max', job: 'Writes copy', agent: 'claude' }
       ]
     })
+    for (const name of options.projects ?? []) {
+      db.createBotTeamProject({ teamId: team.id, name, goal: '', codeSource: null })
+    }
     const other = db.createBotTeam({
       name: 'Warehouse',
       purpose: 'Inventory',
@@ -57,8 +64,27 @@ describe('botTeams.postMessage routing', () => {
         getCommitMessageAgentEnvironmentResolvers: () => undefined
       }
     } as unknown as RpcContext
-    const result = await method?.handler({ teamId: team.id, text, start: false }, ctx)
+    const result = await method?.handler(
+      {
+        teamId: team.id,
+        text,
+        start: options.start ?? false,
+        askProject: options.askProject ?? false
+      },
+      ctx
+    )
     return { team, other, result }
+  }
+
+  function context(): RpcContext {
+    return {
+      runtime: {
+        getOrchestrationDb: () => db,
+        getClientSettings: () => ({}),
+        getAccountsSnapshot: () => ({ rateLimits: {} }),
+        getCommitMessageAgentEnvironmentResolvers: () => undefined
+      }
+    } as unknown as RpcContext
   }
 
   it('asks the one query about the bots and the other teams', async () => {
@@ -101,12 +127,128 @@ describe('botTeams.postMessage routing', () => {
     expect(db?.listBotTeamMessages(none.team.id)).toHaveLength(1)
   })
 
-  it('still answers in the old shape when the query fails, so the room asks', async () => {
+  it('offers the bots to choose from when the query fails, so the person always sees an outcome', async () => {
     const { result } = await post(null)
     expect(result).toEqual({
       message: expect.objectContaining({ authorBotId: null }),
       task: null,
-      startError: null
+      startError: null,
+      choice: { kind: 'new-bot' }
+    })
+  })
+
+  it('offers the team when the query names another team the parser cannot match, not nothing', async () => {
+    const { result } = await post(
+      '{"kind":"other-team","team":"Mercadotecnia"}',
+      'Haz la presentación'
+    )
+    expect(result).toMatchObject({ task: null, choice: { kind: 'new-bot' } })
+  })
+
+  describe('later requests, confirmations and projects', () => {
+    it('files a later request in Todo for the bot that covers it: one card, not started', async () => {
+      const { team, result } = await post(
+        '{"kind":"bot","bots":["Iris"],"later":true}',
+        'Design a flyer para mañana, agrégalo al Todo',
+        { start: true }
+      )
+      expect(result).toMatchObject({ task: { sessionId: null }, startError: null })
+      expect(db?.listBotTeamTasks(team.id)).toHaveLength(1)
+    })
+
+    it('has the owning bot confirm a later request under its own name, with the day', async () => {
+      const { team } = await post(
+        '{"kind":"bot","bots":["Iris"],"later":true}',
+        'tengo pendiente diseñar un volante, pero para mañana, agréguenlo al Todo',
+        { start: true }
+      )
+      const iris = team.bots.find((bot) => bot.name === 'Iris')
+      expect(db?.listBotTeamMessages(team.id).at(-1)).toMatchObject({
+        authorBotId: iris?.id,
+        text: 'Added to Todo for tomorrow.'
+      })
+    })
+
+    it('has the owning bot confirm a request saved to Todo without a day', async () => {
+      const { team } = await post('{"kind":"bot","bots":["Max"]}', 'Write the post', {
+        start: false
+      })
+      const max = team.bots.find((bot) => bot.name === 'Max')
+      expect(db?.listBotTeamMessages(team.id).at(-1)).toMatchObject({
+        authorBotId: max?.id,
+        text: 'Added to Todo.'
+      })
+    })
+
+    it('files a request into the project it names, and says so', async () => {
+      const { team, result } = await post('{"kind":"bot","bots":["Iris"]}', 'Revisa NexusCare', {
+        projects: ['NexusCare'],
+        askProject: true
+      })
+      const project = db?.listBotTeamProjects(team.id)[0]
+      expect(result).toMatchObject({ task: { projectId: project?.id } })
+      expect(db?.listBotTeamMessages(team.id).at(-1)?.text).toBe('Added to Todo in NexusCare.')
+    })
+
+    it('asks which project a request is for when the team has projects and the request names none', async () => {
+      const { team, result } = await post('{"kind":"bot","bots":["Iris"]}', 'Count the boxes', {
+        projects: ['NexusCare'],
+        askProject: true
+      })
+      const iris = team.bots.find((bot) => bot.name === 'Iris')
+      expect(result).toMatchObject({ task: null, choice: { kind: 'project', botId: iris?.id } })
+      expect(db?.listBotTeamTasks(team.id)).toEqual([])
+    })
+
+    it('files without asking when the client cannot show the question, as before projects', async () => {
+      const { team, result } = await post('{"kind":"bot","bots":["Iris"]}', 'Count the boxes', {
+        projects: ['NexusCare']
+      })
+      expect(result).toMatchObject({ task: { projectId: null } })
+      expect(db?.listBotTeamTasks(team.id)).toHaveLength(1)
+    })
+
+    it('files the answer to the project question with the project picked, or with none', async () => {
+      db = new OrchestrationDb(':memory:')
+      const team = db.createBotTeam({
+        name: 'Marketing',
+        purpose: 'Flyers',
+        character: 'circle',
+        workspacesEnabled: false,
+        bots: [{ name: 'Iris', job: 'Designs flyers', agent: 'claude' }]
+      })
+      const iris = team.bots[0]
+      const nexus = db.createBotTeamProject({
+        teamId: team.id,
+        name: 'NexusCare',
+        goal: '',
+        codeSource: null
+      })
+      const assign = BOT_TEAM_ROOM_METHODS.find((entry) => entry.name === 'botTeams.assignRequest')
+      const filed = await assign?.handler(
+        {
+          teamId: team.id,
+          text: 'Count the boxes',
+          botId: iris.id,
+          start: false,
+          askProject: true,
+          projectId: nexus.id
+        },
+        context()
+      )
+      expect(filed).toMatchObject({ task: { ownerBotId: iris.id, projectId: nexus.id } })
+      const none = await assign?.handler(
+        {
+          teamId: team.id,
+          text: 'Count the boxes again',
+          botId: iris.id,
+          start: false,
+          askProject: true,
+          projectId: null
+        },
+        context()
+      )
+      expect(none).toMatchObject({ task: { projectId: null } })
     })
   })
 
@@ -159,14 +301,15 @@ describe('botTeams.postMessage routing', () => {
       expect(askBot.mock.calls[0][0].prompt).toContain('No tasks yet.')
     })
 
-    it('asks the person when no bot could answer, adding nothing to the room', async () => {
+    it('offers a bot choice when no bot could answer, adding nothing to the room', async () => {
       askBot.mockResolvedValue(null)
       const { team, result } = await post('{"kind":"conversation"}', 'Hola equipo, cómo están?')
       expect(db?.listBotTeamMessages(team.id)).toHaveLength(1)
       expect(result).toEqual({
         message: expect.objectContaining({ authorBotId: null }),
         task: null,
-        startError: null
+        startError: null,
+        choice: { kind: 'new-bot' }
       })
     })
   })

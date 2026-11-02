@@ -1,14 +1,13 @@
-import { botTeamTaskTitle, withoutBotTeamMention } from '../../../../shared/bot-team-request-route'
+import { withoutBotTeamMention } from '../../../../shared/bot-team-request-route'
 import type { BotTeamRequestChoice } from '../../../../shared/bot-team-request-choice'
 import type {
   BotTeamMessage,
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
-import { activeTasksByBot, assignBotTeamRequest } from '../../../bot-teams/bot-team-assign-request'
-import { botTeamCompositeNotes } from '../../../bot-teams/bot-team-composite'
+import { activeTasksByBot, fileBotTeamRequest } from '../../../bot-teams/bot-team-assign-request'
 import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-reply'
-import { askDefaultAgentForBotTeamRequest } from '../../../bot-teams/bot-team-request-query'
 import { decideBotTeamRequest } from '../../../bot-teams/bot-team-request-flow'
+import { askDefaultAgentForBotTeamRequest } from '../../../bot-teams/bot-team-request-query'
 import type { RpcContext } from '../core'
 import { replyToBotTeamConversation } from './bot-team-conversation-reply'
 
@@ -26,12 +25,19 @@ export type BotTeamPostResult = {
   answered?: true
   /** The request went to another team, because the person named it with @. */
   sentTo?: { teamId: string; teamName: string }
+  /** The person asked for the work later: it waits in Todo and nothing starts. */
+  later?: true
 }
 
 /** Files the person's line, then lets the one host query decide who takes it. */
 export async function postBotTeamRequestOnHost(
   ctx: RpcContext,
-  { teamId, text, start }: { teamId: string; text: string; start: boolean },
+  {
+    teamId,
+    text,
+    start,
+    askProject = false
+  }: { teamId: string; text: string; start: boolean; askProject?: boolean },
   startTask: (taskId: string) => Promise<BotTeamTask>
 ): Promise<BotTeamPostResult> {
   const db = ctx.runtime.getOrchestrationDb()
@@ -57,18 +63,27 @@ export async function postBotTeamRequestOnHost(
         getAgentEnvResolvers: () => ctx.runtime.getCommitMessageAgentEnvironmentResolvers()
       })
   })
+  const later = 'later' in decision && decision.later === true
+  const laterFlag = later ? { later: true as const } : {}
   if (decision.type === 'team') {
     const target = teams.find((entry) => entry.id === decision.teamId)
     const sentTo = { teamId: decision.teamId, teamName: target?.name ?? '' }
-    const task = assignBotTeamRequest(db, {
-      teamId,
-      toTeamId: decision.teamId,
-      text: withoutBotTeamMention(text, sentTo.teamName)
-    })
-    return { message, ...(await startFiled(task, start, startTask)), sentTo }
+    const filed = await fileBotTeamRequest(
+      db,
+      {
+        teamId,
+        toTeamId: decision.teamId,
+        text: withoutBotTeamMention(text, sentTo.teamName),
+        start,
+        later,
+        askProject: false
+      },
+      startTask
+    )
+    return { message, ...filed, sentTo }
   }
   if (decision.type === 'choice') {
-    return { message, task: null, startError: null, choice: decision.choice }
+    return { message, task: null, startError: null, choice: decision.choice, ...laterFlag }
   }
   if (decision.type === 'conversation') {
     const reply = await replyToBotTeamConversation(ctx, {
@@ -76,37 +91,41 @@ export async function postBotTeamRequestOnHost(
       text,
       subjectBotIds: decision.subjectBotIds
     })
-    return reply
-      ? { message, task: null, startError: null, answered: true }
-      : { message, task: null, startError: null }
+    if (reply) {
+      return { message, task: null, startError: null, answered: true }
+    }
+    // No bot could answer, so the person picks who takes it: the room always shows an outcome.
+    const [suggested] = decision.subjectBotIds
+    return {
+      message,
+      task: null,
+      startError: null,
+      choice: { kind: 'new-bot', ...(suggested ? { suggestedBotId: suggested } : {}) },
+      ...laterFlag
+    }
   }
-  if (decision.type !== 'task') {
+  if (decision.type === 'ask') {
     return { message, task: null, startError: null }
   }
-  const task = db.createBotTeamTask({
-    teamId,
-    title: botTeamTaskTitle(text, team.bots),
-    prompt: text,
-    ownerBotId: decision.bot.id
-  })
-  const composite = decision.alsoNeeds.length > 0 ? { composite: decision.alsoNeeds } : {}
-  // Saved with the task, so the owner reads it whether the task starts now or from Todo later.
-  db.setBotTeamTaskStartNotes(task.id, botTeamCompositeNotes(team.bots, decision.alsoNeeds))
-  return { message, ...(await startFiled(task, start, startTask)), ...composite }
-}
-
-/** Starts a filed task when asked; one that cannot start waits in Todo with the reason. */
-export async function startFiled(
-  task: BotTeamTask,
-  start: boolean,
-  startTask: (taskId: string) => Promise<BotTeamTask>
-): Promise<{ task: BotTeamTask; startError: string | null }> {
-  if (!start) {
-    return { task, startError: null }
-  }
-  try {
-    return { task: await startTask(task.id), startError: null }
-  } catch (error) {
-    return { task, startError: error instanceof Error ? error.message : String(error) }
+  const filed = await fileBotTeamRequest(
+    db,
+    {
+      teamId,
+      botId: decision.bot.id,
+      text,
+      alsoNeeds: decision.alsoNeeds,
+      start,
+      later,
+      askProject
+    },
+    startTask
+  )
+  return {
+    message,
+    ...filed,
+    ...(decision.alsoNeeds.length > 0 && filed.task !== null
+      ? { composite: decision.alsoNeeds }
+      : {}),
+    ...laterFlag
   }
 }

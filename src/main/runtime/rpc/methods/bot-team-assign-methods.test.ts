@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { OrchestrationDb } from '../../orchestration/db/orchestration-db'
 import type { RpcContext } from '../core'
+import { BotTeamTaskReassign } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { botTeamAssignRequestMethod, botTeamReassignTaskMethod } from './bot-team-assign-methods'
 
 describe('botTeams.assignRequest', () => {
@@ -59,7 +60,7 @@ describe('botTeams.assignRequest', () => {
     expect(startTask).not.toHaveBeenCalled()
   })
 
-  it('reassigns an idle task to a bot of another team and starts it there', async () => {
+  it('reassigns an idle task to a bot of another team without starting it, as the clients send it', async () => {
     const { method: _assign, ctx, team, startTask } = setup()
     const other = db!.createBotTeam({
       name: 'Warehouse',
@@ -74,14 +75,19 @@ describe('botTeams.assignRequest', () => {
       prompt: 'Count',
       ownerBotId: team.bots[0].id
     })
-    const reassign = botTeamReassignTaskMethod(startTask)
+    const reassign = botTeamReassignTaskMethod()
     expect(reassign.name).toBe('botTeams.reassignTask')
-    expect(reassign.params?.parse({ taskId: task.id, botId: 'x' })).toMatchObject({ start: true })
-    const result = await reassign.handler(
-      { taskId: task.id, botId: other.bots[0].id, start: true },
-      ctx
-    )
-    expect(startTask).toHaveBeenCalledWith(ctx, task.id)
-    expect(result).toMatchObject({ task: { teamId: other.id, ownerBotId: other.bots[0].id } })
+    // The desktop and the phone send start: true; a reassign only changes the owner and never starts.
+    const params = BotTeamTaskReassign.parse({
+      taskId: task.id,
+      botId: other.bots[0].id,
+      start: true
+    })
+    const result = await reassign.handler(params, ctx)
+    expect(startTask).not.toHaveBeenCalled()
+    expect(result).toMatchObject({
+      task: { teamId: other.id, ownerBotId: other.bots[0].id, sessionId: null },
+      startError: null
+    })
   })
 })

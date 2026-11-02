@@ -4,24 +4,38 @@ import {
   type BotTeamBrief,
   type BotTeamCodeSource,
   type BotTeamProject,
-  type BotTeamProjectInput
+  type BotTeamProjectInput,
+  type BotTeamProjectWorkspace
 } from '../../../../../shared/rpc-contract/bot-team-room-params'
 import { generateId } from '../generated-id'
 import type { OrchestrationDb } from '../orchestration-db'
 
 const PROJECT_SELECT = `SELECT id, team_id AS teamId, name, goal, code_source AS codeSource,
-  brief_json AS briefJson, brief_updated_at AS briefUpdatedAt FROM bot_team_projects`
+  brief_json AS briefJson, brief_updated_at AS briefUpdatedAt,
+  workspace_key AS workspaceKey, workspace_name AS workspaceName FROM bot_team_projects`
 
 function projectFromRow(row: unknown): BotTeamProject {
-  const { briefJson, ...rest } = z.looseObject({ briefJson: z.string().nullable() }).parse(row)
+  const { briefJson, workspaceKey, workspaceName, ...rest } = z
+    .looseObject({
+      briefJson: z.string().nullable(),
+      workspaceKey: z.string().nullable(),
+      workspaceName: z.string().nullable()
+    })
+    .parse(row)
   let brief: unknown = undefined
   try {
     brief = briefJson === null ? undefined : JSON.parse(briefJson)
   } catch {
     // An unreadable brief reads as empty: it must not hide the project.
   }
-  const parsed = BotTeamProjectSchema.safeParse({ ...rest, brief })
-  return parsed.success ? parsed.data : BotTeamProjectSchema.parse({ ...rest, brief: undefined })
+  const workspace =
+    workspaceKey === null || workspaceName === null
+      ? null
+      : { key: workspaceKey, name: workspaceName }
+  const parsed = BotTeamProjectSchema.safeParse({ ...rest, brief, workspace })
+  return parsed.success
+    ? parsed.data
+    : BotTeamProjectSchema.parse({ ...rest, brief: undefined, workspace })
 }
 
 export function createBotTeamProject(
@@ -52,11 +66,34 @@ export function setBotTeamProjectCodeSource(
   return projectFromRow(this.db.prepare(`${PROJECT_SELECT} WHERE id = ?`).get(projectId))
 }
 
+export function getBotTeamProject(this: OrchestrationDb, projectId: string): BotTeamProject {
+  const row = this.db.prepare(`${PROJECT_SELECT} WHERE id = ?`).get(projectId)
+  if (row === undefined) {
+    throw new Error(`Project ${projectId} was not found.`)
+  }
+  return projectFromRow(row)
+}
+
 export function listBotTeamProjects(this: OrchestrationDb, teamId: string): BotTeamProject[] {
   return this.db
     .prepare(`${PROJECT_SELECT} WHERE team_id = ? ORDER BY rowid`)
     .all(teamId)
     .map(projectFromRow)
+}
+
+/** Links a project to a workspace on the team's host, or unlinks it with null. */
+export function setBotTeamProjectWorkspace(
+  this: OrchestrationDb,
+  projectId: string,
+  workspace: BotTeamProjectWorkspace | null
+): BotTeamProject {
+  const changed = this.db
+    .prepare('UPDATE bot_team_projects SET workspace_key = ?, workspace_name = ? WHERE id = ?')
+    .run(workspace?.key ?? null, workspace?.name ?? null, projectId)
+  if (changed.changes === 0) {
+    throw new Error(`Project ${projectId} was not found.`)
+  }
+  return projectFromRow(this.db.prepare(`${PROJECT_SELECT} WHERE id = ?`).get(projectId))
 }
 
 const withoutBlanks = (lines: string[]): string[] =>
@@ -106,18 +143,22 @@ export function setBotTeamTaskProject(
 
 export type BotTeamProjectStoreMethods = {
   createBotTeamProject: typeof createBotTeamProject
+  getBotTeamProject: typeof getBotTeamProject
   listBotTeamProjects: typeof listBotTeamProjects
   setBotTeamProjectBrief: typeof setBotTeamProjectBrief
   setBotTeamProjectCodeSource: typeof setBotTeamProjectCodeSource
+  setBotTeamProjectWorkspace: typeof setBotTeamProjectWorkspace
   setBotTeamTaskProject: typeof setBotTeamTaskProject
 }
 
 export function attachBotTeamProjectStore(ctor: { prototype: object }): void {
   Object.assign(ctor.prototype, {
     createBotTeamProject,
+    getBotTeamProject,
     listBotTeamProjects,
     setBotTeamProjectBrief,
     setBotTeamProjectCodeSource,
+    setBotTeamProjectWorkspace,
     setBotTeamTaskProject
   })
 }

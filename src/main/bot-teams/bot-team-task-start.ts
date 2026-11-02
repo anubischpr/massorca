@@ -1,11 +1,14 @@
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
 import type { BotTeamProject, BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import { botAgentPiRuntime } from '../../shared/bot-team-character-art'
+import { normalizeWorkspaceSessionKeyToWorkspaceId } from '../../shared/workspace-scope'
 import { botLaunchOptions } from './bot-team-model-choice'
 
 export type BotTeamTaskStartDeps = {
   /** The team's folder workspace, created the first time a task starts. */
   ensureTeamWorkspace: (team: BotTeam) => Promise<string>
+  /** Whether a project's linked workspace key still names a workspace on the host. */
+  workspaceExists: (workspaceKey: string) => Promise<boolean>
   createSession: (args: {
     workspaceId: string
     agent: BotTeamBot['agent']
@@ -71,6 +74,20 @@ export function botTeamTaskPrompt(
   ].join('\n\n')
 }
 
+/** A linked project's workspace id for a session; a gone workspace fails the start and stays in Todo. */
+async function linkedWorkspaceId(
+  deps: BotTeamTaskStartDeps,
+  projectName: string,
+  workspaceKey: string
+): Promise<string> {
+  if (!(await deps.workspaceExists(workspaceKey))) {
+    throw new Error(
+      `The Workspaces project linked to ${projectName} is gone. Link another one or clear the link.`
+    )
+  }
+  return normalizeWorkspaceSessionKeyToWorkspaceId(workspaceKey)
+}
+
 /** Starts the owner bot's session for a task that was waiting in Todo. */
 export async function startBotTeamTask(
   deps: BotTeamTaskStartDeps,
@@ -83,7 +100,11 @@ export async function startBotTeamTask(
   if (!bot) {
     throw new Error(`The bot for task ${task.id} is no longer on the team.`)
   }
-  const workspaceId = await deps.ensureTeamWorkspace(team)
+  const linked = extras.project?.workspace ?? null
+  const workspaceId =
+    extras.project && linked
+      ? await linkedWorkspaceId(deps, extras.project.name, linked.key)
+      : await deps.ensureTeamWorkspace(team)
   const options = botLaunchOptions(bot)
   const piRuntime = botAgentPiRuntime(bot.agent)
   const sessionId = await deps.createSession({

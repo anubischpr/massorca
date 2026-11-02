@@ -28,6 +28,17 @@ vi.mock('lucide-react-native', () => ({
 }))
 vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
 vi.mock('./MobileBotTeamCharacterIcon', () => ({ MobileBotTeamCharacterIcon: () => null }))
+vi.mock('react-native-reanimated', () => ({
+  default: { View: 'AnimatedView' },
+  cancelAnimation: () => {},
+  useAnimatedStyle: (style: () => object) => style(),
+  useSharedValue: (value: number) => ({ value }),
+  withDelay: (_delay: number, value: unknown) => value,
+  withRepeat: (value: unknown) => value,
+  withSequence: (...values: unknown[]) => values[0],
+  withTiming: (value: number) => value
+}))
+vi.mock('../onboarding/use-reduced-motion', () => ({ useReducedMotionEnabled: () => false }))
 vi.mock('../components/BottomDrawer', () => ({
   BottomDrawer: ({ visible, children }: { visible: boolean; children: unknown }) =>
     visible ? children : null
@@ -193,6 +204,34 @@ describe('MobileBotTeamRoom', () => {
     )
   })
 
+  it('clears the composer at once, and puts the text back when the send fails', async () => {
+    const client = hostAnswering({ tasks: [], messages: [], workspaceId: null })
+    let answer: (reply: object) => void = () => {}
+    const listRoom = client.sendRequest.getMockImplementation()!
+    client.sendRequest.mockImplementation(async (method: string) =>
+      method === 'botTeams.postMessage'
+        ? new Promise((resolve) => (answer = resolve))
+        : listRoom(method)
+    )
+    const renderer = await render(client)
+    const composer = () => renderer.root.findByType('Composer' as never)
+    await act(async () => composer().props.onChangeText('Hi'))
+    let sending!: Promise<boolean>
+    await act(async () => {
+      sending = composer().props.onSend('Hi')
+    })
+    expect(composer().props.value).toBe('')
+    expect(
+      renderer.root.findAll((node) => node.children.includes('All is typing'))
+    ).not.toHaveLength(0)
+    await act(async () => {
+      answer({ ok: false, error: { code: 'unavailable', message: 'gone' } })
+      await sending
+    })
+    expect(composer().props.value).toBe('Hi')
+    expect(renderer.root.findAll((node) => node.children.includes('All is typing'))).toHaveLength(0)
+  })
+
   it('reaches the bots from the room menu and goes back', async () => {
     const client = hostAnswering({ tasks: [], messages: [], workspaceId: null })
     const onOpenBots = vi.fn()
@@ -241,6 +280,14 @@ describe('MobileBotTeamRoom', () => {
 
     await press(renderer, 'Open Poster')
     expect(onOpenTask).toHaveBeenCalledWith('folder:1', started)
+  })
+
+  it('shows a task under only its owner name, not the job the owner was given', async () => {
+    const jobTeam = { ...TEAM, bots: [{ ...TEAM.bots[0], job: 'Designs flyers' }] }
+    const client = hostAnswering({ tasks: [TASK], messages: [], projects: [], workspaceId: null })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { team: jobTeam })
+    expect(JSON.stringify(renderer.toJSON())).toContain('Flyer')
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('Designs flyers')
   })
 
   it('asks who takes a request when the host gives it to no bot', async () => {
@@ -373,7 +420,8 @@ describe('MobileBotTeamRoom', () => {
     await press(renderer, 'Room menu')
     const menu = JSON.stringify(renderer.toJSON())
     expect(menu).toContain('1 open')
-    expect(menu).toContain('1 tasks')
+    expect(menu).toContain('1 task')
+    expect(menu).not.toContain('1 tasks')
   })
 
   it('offers the suggested team, and files the request there when the person sends it', async () => {

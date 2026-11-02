@@ -30,6 +30,11 @@ import { commitStructuredAgentSessionLaunchPrompt } from './agent-launch-structu
 import { isDefinitiveAgentSessionCreateRefusal } from '../../../../shared/agent-session-definitive-refusal'
 import { createStructuredAgentSessionForWorktree } from './structured-agent-session-create'
 import { structuredCallerFor } from './structured-agent-session-gate'
+import {
+  BOT_TEAM_PROJECT_WORKSPACE_METHODS,
+  linkableWorkspaceExists,
+  linkableWorkspaceSource
+} from './bot-team-project-workspace'
 
 const BOT_TEAMS_GROUP_NAME = 'Bot teams'
 
@@ -104,6 +109,8 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
   return startBotTeamTask(
     {
       ensureTeamWorkspace: (entry) => ensureTeamWorkspace(ctx, entry),
+      workspaceExists: (workspaceKey) =>
+        linkableWorkspaceExists(linkableWorkspaceSource(ctx.runtime), workspaceKey),
       createSession: async ({ workspaceId, agent, accessMode, piRuntime, options }) => {
         const attempt = (seed: typeof options) =>
           createStructuredAgentSessionForWorktree({
@@ -159,6 +166,7 @@ export const BOT_TEAM_ROOM_METHODS = [
   ...BOT_TEAM_VERSION_METHODS,
   ...botTeamAssignMethods(startTaskOnHost),
   ...BOT_TEAM_MEMORY_METHODS,
+  ...BOT_TEAM_PROJECT_WORKSPACE_METHODS,
   defineMethod({
     name: 'botTeams.listRoom',
     permission: 'workspace',

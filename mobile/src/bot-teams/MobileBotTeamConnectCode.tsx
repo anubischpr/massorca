@@ -2,12 +2,20 @@ import { useState } from 'react'
 import { Alert, Pressable, Text, View } from 'react-native'
 import type {
   BotTeamCodeSource,
-  BotTeamProject
+  BotTeamProject,
+  BotTeamProjectWorkspace
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import type { RpcClient } from '../transport/rpc-client'
-import { setMobileBotProjectCodeSource } from './mobile-bot-team-room-rpc'
+import {
+  setMobileBotProjectCodeSource,
+  setMobileBotProjectWorkspace
+} from './mobile-bot-team-room-rpc'
 import { BOT_TEAM_CODE_SOURCES, botTeamCodeSourceLabel } from './mobile-bot-team-code-source'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
+import {
+  MobileBotTeamWorkspaceOptions,
+  useMobileLinkableWorkspaces
+} from './MobileBotTeamProjectWorkspace'
 
 /** Connects a project to code, or says where it is connected. The host records the choice only. */
 export function MobileBotTeamConnectCode({
@@ -23,6 +31,8 @@ export function MobileBotTeamConnectCode({
 }) {
   const [expanded, setExpanded] = useState(false)
   const [source, setSource] = useState<BotTeamCodeSource>('repo')
+  const [workspace, setWorkspace] = useState<BotTeamProjectWorkspace | null>(null)
+  const listing = useMobileLinkableWorkspaces(client, project.teamId)
   const [saving, setSaving] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -40,6 +50,12 @@ export function MobileBotTeamConnectCode({
       setSaving(false)
     )
     if (result.kind === 'ok') {
+      if (source === 'repo' && workspace !== null) {
+        const linked = await setMobileBotProjectWorkspace(client, project.id, workspace.key)
+        if (linked.kind === 'refused') {
+          Alert.alert('Not linked', linked.message)
+        }
+      }
       setExpanded(false)
       setNotice(null)
       onChanged()
@@ -83,6 +99,14 @@ export function MobileBotTeamConnectCode({
               </View>
             </Pressable>
           ))}
+          {source === 'repo' ? (
+            <MobileBotTeamWorkspaceOptions
+              listing={listing}
+              value={workspace}
+              disabled={offline || saving}
+              onChange={setWorkspace}
+            />
+          ) : null}
           {notice === null ? null : <Text style={styles.rowMeta}>{notice}</Text>}
           <View style={styles.chips}>
             <Pressable

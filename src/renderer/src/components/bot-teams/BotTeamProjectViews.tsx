@@ -9,7 +9,8 @@ import { AgentIcon } from '@/lib/agent-catalog'
 import { translate } from '@/i18n/i18n'
 import {
   createBotTeamProject,
-  setBotTeamProjectCodeSource
+  setBotTeamProjectCodeSource,
+  setBotTeamProjectWorkspace
 } from '@/runtime/runtime-bot-team-client'
 import {
   BOT_TEAM_BOARD_COLUMNS,
@@ -20,10 +21,17 @@ import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type {
   BotTeamCodeSource,
   BotTeamProject,
+  BotTeamProjectWorkspace,
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { CodeSourcePick, ConnectToCodeCard, codeSourceLabel } from './BotTeamCodeSource'
 import { BotTeamProjectTabs, type BotTeamProjectTab } from './BotTeamProjectBrief'
+import {
+  HOST_CANNOT_LINK,
+  ProjectWorkspaceLink,
+  useLinkableWorkspaces,
+  WorkspacesAdvancedOptions
+} from './BotTeamProjectWorkspace'
 import { BotTeamViewHeader as ViewHeader } from './BotTeamViewHeader'
 import { useTeamWork } from './use-bot-team-work'
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
@@ -46,6 +54,8 @@ export function NewBotProjectForm({
   const [name, setName] = useState('')
   const [goal, setGoal] = useState('')
   const [source, setSource] = useState<BotTeamCodeSource>('repo')
+  const [workspace, setWorkspace] = useState<BotTeamProjectWorkspace | null>(null)
+  const listing = useLinkableWorkspaces(team.id, team.workspacesEnabled)
   const trimmedName = name.trim()
   const create = async (): Promise<void> => {
     const codeSource = team.workspacesEnabled ? source : null
@@ -60,7 +70,16 @@ export function NewBotProjectForm({
       if (codeSource !== null && project.codeSource !== codeSource) {
         toast.error(HOST_CANNOT_CONNECT())
       }
-      onCreated(project)
+      let created = project
+      if (codeSource === 'repo' && workspace !== null) {
+        const linked = await setBotTeamProjectWorkspace(project.id, workspace.key)
+        if (linked === 'unavailable') {
+          toast.error(HOST_CANNOT_LINK())
+        } else {
+          created = linked
+        }
+      }
+      onCreated(created)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error))
     }
@@ -106,6 +125,13 @@ export function NewBotProjectForm({
             />
           </div>
           {team.workspacesEnabled ? <CodeSourcePick value={source} onChange={setSource} /> : null}
+          {team.workspacesEnabled && source === 'repo' ? (
+            <WorkspacesAdvancedOptions
+              listing={listing}
+              value={workspace}
+              onChange={setWorkspace}
+            />
+          ) : null}
           <p className="text-xs text-muted-foreground">
             {translate(
               'components.botTeams.projectBelongsTo',
@@ -145,14 +171,23 @@ export function BotTeamProjectBoard({
   const { tasks, projects } = useTeamWork(team.id, String(refresh))
   const statuses = useBotTeamSessionStatuses()
   const project = projects.find((entry) => entry.id === projectId)
-  const connect = async (source: BotTeamCodeSource): Promise<void> => {
+  const connect = async (
+    source: BotTeamCodeSource,
+    workspace: BotTeamProjectWorkspace | null
+  ): Promise<void> => {
     try {
       const done = await setBotTeamProjectCodeSource(projectId, source)
       if (done === 'unavailable') {
         toast.error(HOST_CANNOT_CONNECT())
-      } else {
-        setRefresh((current) => current + 1)
+        return
       }
+      if (workspace !== null) {
+        const linked = await setBotTeamProjectWorkspace(projectId, workspace.key)
+        if (linked === 'unavailable') {
+          toast.error(HOST_CANNOT_LINK())
+        }
+      }
+      setRefresh((current) => current + 1)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error))
     }
@@ -177,7 +212,7 @@ export function BotTeamProjectBoard({
         </p>
       ) : null}
       {project && team.workspacesEnabled && project.codeSource === null ? (
-        <ConnectToCodeCard onConnect={connect} />
+        <ConnectToCodeCard teamId={team.id} onConnect={connect} />
       ) : null}
       {project && team.workspacesEnabled && project.codeSource !== null ? (
         <p className="px-4 pt-2.5 text-xs text-muted-foreground">
@@ -185,6 +220,13 @@ export function BotTeamProjectBoard({
             source: codeSourceLabel(project.codeSource)
           })}
         </p>
+      ) : null}
+      {project && team.workspacesEnabled && project.codeSource === 'repo' ? (
+        <ProjectWorkspaceLink
+          team={team}
+          project={project}
+          onChanged={() => setRefresh((current) => current + 1)}
+        />
       ) : null}
       <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto">
         <div className="grid grid-cols-4 items-start gap-3 px-4 pb-5 pt-3.5">

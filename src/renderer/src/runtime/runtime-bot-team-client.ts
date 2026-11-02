@@ -8,6 +8,7 @@ import type {
 import type {
   BotTeamBrief,
   BotTeamCodeSource,
+  BotTeamLinkableWorkspace,
   BotTeamMessage,
   BotTeamProject,
   BotTeamTask
@@ -87,6 +88,46 @@ export async function setBotTeamProjectCodeSource(
   }
 }
 
+/** The Workspaces projects the team's host offers; 'unavailable' on a host from before they existed. */
+export async function listBotTeamLinkableWorkspaces(
+  teamId: string
+): Promise<BotTeamLinkableWorkspace[] | 'unavailable'> {
+  try {
+    return (
+      await call<{ workspaces: BotTeamLinkableWorkspace[] }>('botTeams.listLinkableWorkspaces', {
+        teamId
+      })
+    ).workspaces
+  } catch (error) {
+    if (error instanceof RuntimeRpcCallError && error.code === 'method_not_found') {
+      return 'unavailable'
+    }
+    throw error
+  }
+}
+
+/** Links a project to a Workspaces project, or unlinks it with null; 'unavailable' on an older host. */
+export async function setBotTeamProjectWorkspace(
+  projectId: string,
+  workspaceKey: string | null
+): Promise<BotTeamProject | 'unavailable'> {
+  try {
+    return withProjectDefaults(
+      (
+        await call<{ project: BotTeamProject }>('botTeams.setProjectWorkspace', {
+          projectId,
+          workspaceKey
+        })
+      ).project
+    )
+  } catch (error) {
+    if (error instanceof RuntimeRpcCallError && error.code === 'method_not_found') {
+      return 'unavailable'
+    }
+    throw error
+  }
+}
+
 export async function setBotTeamTaskProject(
   taskId: string,
   projectId: string | null
@@ -98,6 +139,8 @@ export function postBotTeamRequest(input: {
   teamId: string
   text: string
   start: boolean
+  /** Only this client can answer the project question, so it asks; an older client never does. */
+  askProject?: boolean
 }): Promise<{
   task: BotTeamTask | null
   startError: string | null
@@ -109,8 +152,33 @@ export function postBotTeamRequest(input: {
   answered?: boolean
   /** The request went to another team, because the person named it with @. */
   sentTo?: { teamId: string; teamName: string }
+  /** The person asked for the work later: it waits in Todo and nothing starts. */
+  later?: boolean
 }> {
   return call('botTeams.postMessage', input)
+}
+
+/** What the person answered on a choice card, or the project question, for one held request. */
+export type BotTeamRequestFiling = {
+  teamId: string
+  text: string
+  botId?: string
+  toTeamId?: string
+  alsoNeeds?: string[]
+  start: boolean
+  later?: boolean
+  askProject?: boolean
+  /** A project of the team, or null for none; absent until the project question is asked. */
+  projectId?: string | null
+}
+
+/** Files a request the room held: the host may ask the project question again before filing. */
+export function fileBotTeamRequest(input: BotTeamRequestFiling): Promise<{
+  task: BotTeamTask | null
+  startError: string | null
+  choice?: BotTeamRequestChoice
+}> {
+  return call('botTeams.assignRequest', input)
 }
 
 export async function startBotTeamTask(taskId: string): Promise<BotTeamTask> {

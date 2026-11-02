@@ -14,6 +14,7 @@ import { spacing } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
 import { MobileBotTeamBrief } from './MobileBotTeamBrief'
 import { MobileBotTeamConnectCode } from './MobileBotTeamConnectCode'
+import { MobileBotTeamWorkspaceLink } from './MobileBotTeamProjectWorkspace'
 import { MobileBotTeamTaskCard } from './MobileBotTeamTaskCard'
 import { MobileBotTeamWorkBar } from './MobileBotTeamWorkBar'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
@@ -85,6 +86,15 @@ export function MobileBotTeamProject({
           {team.workspacesEnabled ? (
             <MobileBotTeamConnectCode
               client={client}
+              project={project}
+              offline={offline}
+              onChanged={onChanged}
+            />
+          ) : null}
+          {team.workspacesEnabled && project.codeSource === 'repo' ? (
+            <MobileBotTeamWorkspaceLink
+              client={client}
+              teamId={team.id}
               project={project}
               offline={offline}
               onChanged={onChanged}

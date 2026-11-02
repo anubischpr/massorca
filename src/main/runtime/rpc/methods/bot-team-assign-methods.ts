@@ -3,41 +3,50 @@ import {
   BotTeamTaskReassign
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import type { BotTeamTask } from '../../../../shared/rpc-contract/bot-team-room-params'
-import { assignBotTeamRequest } from '../../../bot-teams/bot-team-assign-request'
+import { fileBotTeamRequest } from '../../../bot-teams/bot-team-assign-request'
 import { reassignBotTeamTask } from '../../../bot-teams/bot-team-reassign'
 import { defineMethod, type RpcContext } from '../core'
-import { startFiled } from './bot-team-post-request'
 
 type StartTask = (ctx: RpcContext, taskId: string) => Promise<BotTeamTask>
 
-/** Files a request the room could not place by itself, with the bot or team the person chose. */
+/** Files a request the room could not place by itself, with the bot, team or project the person chose. */
 export function botTeamAssignRequestMethod(startTask: StartTask) {
   return defineMethod({
     name: 'botTeams.assignRequest',
     permission: 'workspace',
     params: BotTeamRequestAssign,
-    handler: async ({ start, ...request }, ctx) =>
-      startFiled(assignBotTeamRequest(ctx.runtime.getOrchestrationDb(), request), start, (taskId) =>
-        startTask(ctx, taskId)
+    handler: (request, ctx) =>
+      fileBotTeamRequest(
+        ctx.runtime.getOrchestrationDb(),
+        {
+          teamId: request.teamId,
+          text: request.text,
+          ...(request.botId !== undefined ? { botId: request.botId } : {}),
+          ...(request.toTeamId !== undefined ? { toTeamId: request.toTeamId } : {}),
+          ...(request.alsoNeeds !== undefined ? { alsoNeeds: request.alsoNeeds } : {}),
+          ...(request.projectId !== undefined ? { projectId: request.projectId } : {}),
+          start: request.start,
+          later: request.later === true,
+          askProject: request.askProject === true
+        },
+        (taskId) => startTask(ctx, taskId)
       )
   })
 }
 
-/** Gives a task nobody is working on to a bot of any team, who starts it fresh. */
-export function botTeamReassignTaskMethod(startTask: StartTask) {
+/** Gives a task nobody is working on to a bot of any team. Only its owner, and its team, change: nothing starts. */
+export function botTeamReassignTaskMethod() {
   return defineMethod({
     name: 'botTeams.reassignTask',
     permission: 'workspace',
     params: BotTeamTaskReassign,
-    handler: async ({ taskId, botId, start }, ctx) =>
-      startFiled(
-        reassignBotTeamTask(ctx.runtime.getOrchestrationDb(), { taskId, botId }),
-        start,
-        (id) => startTask(ctx, id)
-      )
+    handler: ({ taskId, botId }, ctx) => ({
+      task: reassignBotTeamTask(ctx.runtime.getOrchestrationDb(), { taskId, botId }),
+      startError: null
+    })
   })
 }
 
 export function botTeamAssignMethods(startTask: StartTask) {
-  return [botTeamAssignRequestMethod(startTask), botTeamReassignTaskMethod(startTask)]
+  return [botTeamAssignRequestMethod(startTask), botTeamReassignTaskMethod()]
 }

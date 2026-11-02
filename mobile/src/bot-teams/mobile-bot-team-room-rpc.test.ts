@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
   createMobileBotProject,
+  listMobileBotLinkableWorkspaces,
   listMobileBotTeamRoom,
   postMobileBotTeamRequest,
-  setMobileBotProjectCodeSource
+  setMobileBotProjectCodeSource,
+  setMobileBotProjectWorkspace
 } from './mobile-bot-team-room-rpc'
 
 type HostClient = Parameters<typeof listMobileBotTeamRoom>[0]
@@ -171,5 +173,69 @@ describe('postMobileBotTeamRequest', () => {
       result: { task: null, startError: null, choice: { kind: 'elsewhere' } }
     })
     expect(await postMobileBotTeamRequest(client, POST)).toEqual({ ok: false })
+  })
+})
+
+describe('listMobileBotLinkableWorkspaces', () => {
+  it('reads the workspaces the team’s host lists', async () => {
+    const workspaces = [{ key: 'folder:fw-1', name: 'Notes', kind: 'folder' }]
+    const { client } = clientAnswering({ ok: true, result: { workspaces } })
+    expect(await listMobileBotLinkableWorkspaces(client, 'team_1')).toEqual({
+      kind: 'ok',
+      workspaces
+    })
+  })
+
+  it('reports an older host as unsupported rather than failing', async () => {
+    const { client } = clientAnswering({
+      ok: false,
+      error: { code: 'method_not_found', message: 'Unknown method botTeams.listLinkableWorkspaces' }
+    })
+    expect(await listMobileBotLinkableWorkspaces(client, 'team_1')).toEqual({ kind: 'unsupported' })
+  })
+
+  it('reports a list it cannot read as failed', async () => {
+    const { client } = clientAnswering({ ok: true, result: { workspaces: [{ key: 1 }] } })
+    expect(await listMobileBotLinkableWorkspaces(client, 'team_1')).toEqual({ kind: 'failed' })
+  })
+})
+
+describe('setMobileBotProjectWorkspace', () => {
+  it('links the project and returns it with its workspace', async () => {
+    const linked = { ...PROJECT, workspace: { key: 'folder:fw-1', name: 'Notes' } }
+    const { client, sendRequest } = clientAnswering({ ok: true, result: { project: linked } })
+    expect(await setMobileBotProjectWorkspace(client, 'project_1', 'folder:fw-1')).toEqual({
+      kind: 'ok',
+      project: linked
+    })
+    expect(sendRequest).toHaveBeenCalledWith(
+      'botTeams.setProjectWorkspace',
+      { projectId: 'project_1', workspaceKey: 'folder:fw-1' },
+      expect.anything()
+    )
+  })
+
+  it('shows the host’s refusal, such as Workspaces being off, as its own sentence', async () => {
+    const { client } = clientAnswering({
+      ok: false,
+      error: {
+        code: 'invalid_params',
+        message: 'Turn on Workspaces for Marketing to link a Workspaces project.'
+      }
+    })
+    expect(await setMobileBotProjectWorkspace(client, 'project_1', 'folder:fw-1')).toEqual({
+      kind: 'refused',
+      message: 'Turn on Workspaces for Marketing to link a Workspaces project.'
+    })
+  })
+
+  it('reports an older host as unsupported', async () => {
+    const { client } = clientAnswering({
+      ok: false,
+      error: { code: 'method_not_found', message: 'Unknown method botTeams.setProjectWorkspace' }
+    })
+    expect(await setMobileBotProjectWorkspace(client, 'project_1', null)).toEqual({
+      kind: 'unsupported'
+    })
   })
 })

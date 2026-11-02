@@ -113,10 +113,62 @@ describe('decideBotTeamRequest', () => {
     })
   })
 
-  it('asks the person when the query fails, throws or is unreadable', async () => {
+  it('offers a bot choice when the query fails, throws or is unreadable, so the person always sees an outcome', async () => {
     for (const reply of [null, new Error('timeout'), 'no idea']) {
-      expect((await decide(reply)).decision, String(reply)).toEqual({ type: 'ask' })
+      expect((await decide(reply)).decision, String(reply)).toEqual({
+        type: 'choice',
+        choice: { kind: 'new-bot' }
+      })
     }
+  })
+
+  it('preselects the bot the query named as closest, not the first bot in team order', async () => {
+    const { decision } = await decide('{"kind":"team-scope","bots":["Max"]}', {
+      text: 'Plan the spring season'
+    })
+    expect(decision).toEqual({
+      type: 'choice',
+      choice: { kind: 'new-bot', suggestedBotId: 'max' }
+    })
+  })
+
+  it('reads another team named with its word team, and offers a bot choice when no team matches', async () => {
+    expect((await decide('{"kind":"other-team","team":"Warehouse team"}')).decision).toEqual({
+      type: 'choice',
+      choice: { kind: 'other-team', teamId: 'wh' }
+    })
+    expect((await decide('{"kind":"other-team","team":"Almacén"}')).decision).toEqual({
+      type: 'choice',
+      choice: { kind: 'new-bot' }
+    })
+  })
+
+  describe('the QA request about front work', () => {
+    const CRISTHOFER = bot(
+      'cristhofer',
+      'Cristhofer',
+      'Se encarga del front de las aplicaciónes, web, mobile, desktop.'
+    )
+    const JUAN = bot('juan', 'Juan', 'backend')
+    const DESARROLLO = team('dev', 'Desarrollo', 'NexusCare', [JUAN, CRISTHOFER])
+    const REQUEST =
+      'tengo como pendiente la tarea de analizar mejoras de front, pero no para hoy, sino para mañana, agréguenlo al Todo.'
+
+    it('gives it to the bot whose job names its subject, though the query said no bot covers it', async () => {
+      const { decision } = await decide('{"kind":"team-scope"}', {
+        text: REQUEST,
+        team: DESARROLLO
+      })
+      expect(decision).toEqual({ type: 'task', bot: CRISTHOFER, alsoNeeds: [], later: true })
+    })
+
+    it('gives it to the bot the query names, and keeps it for later', async () => {
+      const { decision } = await decide('{"kind":"bot","bots":["Cristhofer"],"later":true}', {
+        text: REQUEST,
+        team: DESARROLLO
+      })
+      expect(decision).toEqual({ type: 'task', bot: CRISTHOFER, alsoNeeds: [], later: true })
+    })
   })
 
   it('keeps the request of a one-bot team with its bot when the query cannot answer', async () => {

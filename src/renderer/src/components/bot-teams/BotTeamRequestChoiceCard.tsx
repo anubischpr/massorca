@@ -62,7 +62,10 @@ export function BotTeamRequestChoiceCard({
 }): React.JSX.Element {
   const baseId = useId()
   const rows = options(choice, team, otherTeams)
-  const [picked, setPicked] = useState<string | null>(null)
+  // The bot the host reads as closest is picked first; the first bot of the team otherwise.
+  const [picked, setPicked] = useState<string | null>(
+    choice.kind === 'new-bot' ? (choice.suggestedBotId ?? null) : null
+  )
   const selected = rows.find((row) => row.id === picked) ?? rows.at(0) ?? null
   const name = selected?.name ?? ''
   const question =
