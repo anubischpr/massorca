@@ -97,6 +97,21 @@ describe('showing another workspace’s session in a pane', () => {
     expect(show(A, 'a-pane', { worktreeId: B, tabId: 'gone' })).toBe(false)
   })
 
+  it('refuses a session whose tab sits in a side panel group, as the picker does not offer it', () => {
+    seedStore(store, {
+      unifiedTabsByWorktree: {
+        ...store.getState().unifiedTabsByWorktree,
+        [B]: [chat('b-chat', B, `side-panel:${B}`), chat('b-two', B, 'b-main')]
+      }
+    })
+    expect(
+      store.getState().showSessionInPane(A, 'a-pane', { worktreeId: B, tabId: 'b-chat' })
+    ).toBe(false)
+    expect(store.getState().showSessionInPane(A, 'a-pane', { worktreeId: B, tabId: 'b-two' })).toBe(
+      true
+    )
+  })
+
   it('clears the reference without touching the session', () => {
     store.getState().showSessionInPane(A, 'a-pane', { worktreeId: B, tabId: 'b-chat' })
     store.getState().clearPaneSessionRef(A, 'a-pane')

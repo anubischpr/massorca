@@ -15,6 +15,21 @@ function normalizeWorktree(store: NormalizableStore, worktreeId: string): void {
   }
 }
 
+/** A focus that followed a shown session returns to the pane's own workspace once the reference is gone. */
+function handFocusBackFromClearedReference(store: NormalizableStore, before: AppState): void {
+  const focus = before.paneFocus
+  if (!focus) {
+    return
+  }
+  const after = store.getState()
+  const pane = after.groupsByWorktree[focus.layoutWorktreeId]?.find(
+    (group) => group.id === focus.groupId
+  )
+  if (pane && !pane.sessionRef && after.paneFocus) {
+    after.focusGroup(focus.layoutWorktreeId, focus.groupId)
+  }
+}
+
 /** True when the panel group gained a tab and that tab is now the one it shows. */
 function panelShowsNewTab(state: AppState, previous: AppState, worktreeId: string): boolean {
   const panelId = sidePanelGroupId(worktreeId)
@@ -43,6 +58,7 @@ export function installSidePanelNormalizer(store: NormalizableStore): () => void
       const cleanup = planSessionRefCleanup(state)
       if (cleanup) {
         store.setState(cleanup)
+        handFocusBackFromClearedReference(store, state)
         return
       }
     }

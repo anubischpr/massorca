@@ -83,6 +83,16 @@ export function planSessionRefCleanup(state: RefState): Partial<AppState> | null
   return groupsByWorktree ? { groupsByWorktree } : null
 }
 
+/** True while a pane of this workspace's layout shows a live session of another workspace. */
+export function hasLiveReferencePane(state: RefState, layoutWorktreeId: string): boolean {
+  return (state.groupsByWorktree[layoutWorktreeId] ?? []).some(
+    (group) =>
+      group.sessionRef !== undefined &&
+      group.tabOrder.length === 0 &&
+      resolveSessionRefTab(state, group.sessionRef) !== null
+  )
+}
+
 /** The workspace whose layout is on screen; differs from `activeWorktreeId` while a referenced pane has focus. */
 export function selectLayoutWorktreeId(
   state: Pick<AppState, 'paneFocus' | 'activeWorktreeId'>
