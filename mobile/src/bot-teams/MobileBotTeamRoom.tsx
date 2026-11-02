@@ -139,6 +139,8 @@ export function MobileBotTeamRoom({
       return false
     }
     sending.current = true
+    // Clears at once; a refused send puts the text back unless more was typed.
+    setText('')
     const sent = await postMobileBotTeamRequest(client, {
       teamId: team.id,
       text: typed,
@@ -147,10 +149,10 @@ export function MobileBotTeamRoom({
       sending.current = false
     })
     if (!sent.ok) {
+      setText((current) => (current === '' ? typed : current))
       Alert.alert('That did not send', 'Check the connection to this host and try again.')
       return false
     }
-    setText('')
     setNeedsOwner(
       sent.task === null &&
         !sent.greeted &&

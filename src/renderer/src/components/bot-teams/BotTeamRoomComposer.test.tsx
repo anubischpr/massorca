@@ -76,6 +76,24 @@ describe('the room composer keys', () => {
     expect(onSend).toHaveBeenCalledWith('Make the flyer')
   })
 
+  it('clears the box at once, before the host answers', async () => {
+    let answer: (sent: boolean) => void = () => {}
+    const { box } = mount(vi.fn(() => new Promise<boolean>((resolve) => (answer = resolve))))
+    type(box, 'En qué nos quedamos?')
+    press(box, { key: 'Enter', keyCode: 13 })
+    expect(box.value).toBe('')
+    await act(async () => answer(true))
+    expect(box.value).toBe('')
+  })
+
+  it('puts the text back when the send fails', async () => {
+    const { box } = mount(vi.fn(async () => false))
+    type(box, 'Make the flyer')
+    press(box, { key: 'Enter', keyCode: 13 })
+    await act(async () => {})
+    expect(box.value).toBe('Make the flyer')
+  })
+
   it('keeps Shift+Enter as a new line', () => {
     const { onSend, box } = mount()
     type(box, 'Line one')

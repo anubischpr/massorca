@@ -193,6 +193,30 @@ describe('MobileBotTeamRoom', () => {
     )
   })
 
+  it('clears the composer at once, and puts the text back when the send fails', async () => {
+    const client = hostAnswering({ tasks: [], messages: [], workspaceId: null })
+    let answer: (reply: object) => void = () => {}
+    const listRoom = client.sendRequest.getMockImplementation()!
+    client.sendRequest.mockImplementation(async (method: string) =>
+      method === 'botTeams.postMessage'
+        ? new Promise((resolve) => (answer = resolve))
+        : listRoom(method)
+    )
+    const renderer = await render(client)
+    const composer = () => renderer.root.findByType('Composer' as never)
+    await act(async () => composer().props.onChangeText('Hi'))
+    let sending!: Promise<boolean>
+    await act(async () => {
+      sending = composer().props.onSend('Hi')
+    })
+    expect(composer().props.value).toBe('')
+    await act(async () => {
+      answer({ ok: false, error: { code: 'unavailable', message: 'gone' } })
+      await sending
+    })
+    expect(composer().props.value).toBe('Hi')
+  })
+
   it('reaches the bots from the room menu and goes back', async () => {
     const client = hostAnswering({ tasks: [], messages: [], workspaceId: null })
     const onOpenBots = vi.fn()

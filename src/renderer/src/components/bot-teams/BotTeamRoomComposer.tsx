@@ -70,11 +70,15 @@ export function BotTeamRoomComposer({
     })
   }
   const send = async (): Promise<void> => {
-    if (text.trim() === '') {
+    const sent = text
+    if (sent.trim() === '') {
       return
     }
-    if (await onSend(text.trim())) {
-      setText('')
+    // Clears at once, as Workspaces does; a refused send puts the text back unless more was typed.
+    setText('')
+    setCaret(0)
+    if (!(await onSend(sent.trim()))) {
+      setText((current) => (current === '' ? sent : current))
     }
   }
   const imeEnterGesture = useImeEnterGestureOwnership()
