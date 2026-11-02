@@ -24,6 +24,8 @@ export type BotTeamsSection =
   | { kind: 'routines' }
   | { kind: 'routine-new' }
   | { kind: 'routine'; routineId: string }
+  /** A team's web address that starts a task; no id means making a new one. */
+  | { kind: 'webhook'; webhookId?: string }
   | { kind: 'project'; projectId: string; tab?: 'brief' }
 
 export type BotTeamsSelection = {

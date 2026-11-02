@@ -106,6 +106,11 @@ import {
   BotTeamVersionFileSelector,
   BotTeamVersionsSelector
 } from './bot-team-version-params'
+import {
+  BotTeamWebhookCreate,
+  BotTeamWebhookList,
+  BotTeamWebhookSelector
+} from './bot-team-webhook-params'
 import { CertificateProceed } from './browser-core-params'
 import { MouseClick } from './browser-extras-params'
 import { BrowserIdentitySet, ProfileCreate } from './browser-identity-params'
@@ -740,6 +745,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.createProject': BotTeamProjectCreate,
   'botTeams.createRoutine': BotTeamRoutineCreate,
   'botTeams.createTask': BotTeamTaskCreate,
+  'botTeams.createWebhook': BotTeamWebhookCreate,
   'botTeams.delete': BotTeamSelector,
   'botTeams.deleteMemory': BotTeamMemoryDelete,
   'botTeams.fileVersions': BotTeamFileVersionsSelector,
@@ -748,9 +754,11 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.listRoom': BotTeamRoomSelector,
   'botTeams.listRoutineRuns': BotTeamRoutineSelector,
   'botTeams.listRoutines': BotTeamRoutineList,
+  'botTeams.listWebhooks': BotTeamWebhookList,
   'botTeams.postMessage': BotTeamMessagePost,
   'botTeams.reassignTask': BotTeamTaskReassign,
   'botTeams.removeBot': BotTeamRemoveBot,
+  'botTeams.replaceWebhookSecret': BotTeamWebhookSelector,
   'botTeams.restoreFileVersion': BotTeamVersionFileSelector,
   'botTeams.setProjectBrief': BotTeamProjectSetBrief,
   'botTeams.setProjectCodeSource': BotTeamProjectSetCodeSource,

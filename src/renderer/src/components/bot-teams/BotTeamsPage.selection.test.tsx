@@ -64,6 +64,11 @@ vi.mock('@/runtime/runtime-bot-team-client-routines', () => ({
   createBotTeamRoutine: vi.fn(),
   setBotTeamRoutinePaused: vi.fn()
 }))
+vi.mock('@/runtime/runtime-bot-team-client-webhooks', () => ({
+  listBotTeamWebhooks: () => Promise.resolve({ webhooks: [], endpoint: { state: 'unavailable' } }),
+  createBotTeamWebhook: vi.fn(),
+  replaceBotTeamWebhookSecret: vi.fn()
+}))
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string, values?: Record<string, string>) =>
     fallback.replace(/\{\{(\w+)\}\}/g, (_all, name: string) => values?.[name] ?? '')
@@ -134,6 +139,7 @@ describe('the Bot teams page with a controlled selection', () => {
       />
     )
     expect(container.textContent).toContain('No routines yet')
+    expect(container.textContent).toContain('No web addresses yet')
     expect(container.querySelector('[data-testid="room"]')).toBeNull()
     const form = await mount(
       <BotTeamsPage
@@ -147,6 +153,13 @@ describe('the Bot teams page with a controlled selection', () => {
       />
     )
     expect(form.textContent).toContain('What should it do?')
+    const address = await mount(
+      <BotTeamsPage
+        selection={{ teamId: 't1', taskId: null, creating: false, section: { kind: 'webhook' } }}
+        onSelectionChange={() => {}}
+      />
+    )
+    expect(address.textContent).toContain('Create web address')
   })
 
   it('shows the team the selection names', async () => {

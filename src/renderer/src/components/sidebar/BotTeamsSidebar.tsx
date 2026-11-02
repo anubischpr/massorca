@@ -152,6 +152,7 @@ function OpenTeamRows({
           selection.taskId === null &&
           (section?.kind === 'routines' ||
             section?.kind === 'routine-new' ||
+            section?.kind === 'webhook' ||
             section?.kind === 'routine')
         }
         onClick={() => openBotTeamsView({ teamId, section: { kind: 'routines' } })}

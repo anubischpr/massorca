@@ -27,6 +27,8 @@ import { BotTeamRoom } from './BotTeamRoom'
 import { BotTeamRoutineNew } from './BotTeamRoutineNew'
 import { BotTeamRoutineRuns } from './BotTeamRoutineRuns'
 import { BotTeamRoutines } from './BotTeamRoutines'
+import { BotTeamWebhook } from './BotTeamWebhook'
+import { BotTeamWebhookSection } from './BotTeamWebhookSection'
 import { NewBotTeamForm } from './NewBotTeamForm'
 import { useBotTeamCardStatus } from './use-bot-team-card-status'
 import { useBotTeams } from './use-bot-teams'
@@ -93,6 +95,23 @@ function TeamDetail({
         team={team}
         onNew={() => toTeam({ section: { kind: 'routine-new' } })}
         onOpen={(routineId) => toTeam({ section: { kind: 'routine', routineId } })}
+        webAddresses={
+          <BotTeamWebhookSection
+            team={team}
+            onOpen={(webhookId) =>
+              toTeam({ section: { kind: 'webhook', ...(webhookId ? { webhookId } : {}) } })
+            }
+          />
+        }
+      />
+    )
+  }
+  if (section?.kind === 'webhook') {
+    return (
+      <BotTeamWebhook
+        team={team}
+        {...(section.webhookId ? { webhookId: section.webhookId } : {})}
+        onBack={() => toTeam({ section: { kind: 'routines' } })}
       />
     )
   }
