@@ -47,6 +47,11 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
           { effectsApplied: false }
         )
       }
+      // The teammate works under the caller's project, which only a teammate on the same team can.
+      const project =
+        team.id === caller.teamId && caller.projectId
+          ? (db.listBotTeamProjects(team.id).find((entry) => entry.id === caller.projectId) ?? null)
+          : null
       await runtime.ensureStructuredAgentSessionHost()
       return {
         task: await delegateToBotTeammate(
@@ -62,12 +67,19 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
                 ...(request.launch ? { launch: request.launch } : {}),
                 ...(request.piRuntime ? { piRuntime: request.piRuntime } : {})
               }),
-            createTask: (args) => db.createBotTeamTask({ teamId: team.id, ...args }),
+            createTask: (args) => {
+              const created = db.createBotTeamTask({ teamId: team.id, ...args })
+              if (!project) {
+                return created
+              }
+              db.setBotTeamTaskProject(created.id, project.id)
+              return db.getBotTeamTask(created.id)
+            },
             linkTask: (taskId, requestId) => db.linkBotTeamTaskDelegation(taskId, requestId),
             startRequest: (requestId, agent) =>
               getDelegationAnswerService(runtime).startChosenAgent(requestId, agent)
           },
-          { team, botName: bot, text }
+          { team, botName: bot, text, project }
         )
       }
     }

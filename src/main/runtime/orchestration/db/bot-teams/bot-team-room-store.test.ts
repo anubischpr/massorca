@@ -249,6 +249,21 @@ describe('bot team room store', () => {
     expect(db.listBotTeamTasks(team.id)).toEqual([])
   })
 
+  it('keeps notes for a task start, and clears them with null', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    const task = db.createBotTeamTask({
+      teamId: team.id,
+      title: 'Flyer',
+      prompt: 'Design it',
+      ownerBotId: team.bots[0].id
+    })
+    db.setBotTeamTaskStartNotes(task.id, 'Needs Max')
+    expect(db.getBotTeamTaskStartNotes(task.id)).toBe('Needs Max')
+    db.setBotTeamTaskStartNotes(task.id, null)
+    expect(db.getBotTeamTaskStartNotes(task.id)).toBeNull()
+  })
+
   it('does not bring back the old session of a task that was delegated, once it is moved', () => {
     db = new OrchestrationDb(':memory:')
     const team = createTeam(db)

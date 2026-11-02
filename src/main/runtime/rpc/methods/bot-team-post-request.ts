@@ -5,6 +5,7 @@ import type {
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { activeTasksByBot, assignBotTeamRequest } from '../../../bot-teams/bot-team-assign-request'
+import { botTeamCompositeNotes } from '../../../bot-teams/bot-team-composite'
 import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-reply'
 import { askDefaultAgentForBotTeamRequest } from '../../../bot-teams/bot-team-request-query'
 import { decideBotTeamRequest } from '../../../bot-teams/bot-team-request-flow'
@@ -76,6 +77,8 @@ export async function postBotTeamRequestOnHost(
     ownerBotId: decision.bot.id
   })
   const composite = decision.alsoNeeds.length > 0 ? { composite: decision.alsoNeeds } : {}
+  // Saved with the task, so the owner reads it whether the task starts now or from Todo later.
+  db.setBotTeamTaskStartNotes(task.id, botTeamCompositeNotes(team.bots, decision.alsoNeeds))
   return { message, ...(await startFiled(task, start, startTask)), ...composite }
 }
 

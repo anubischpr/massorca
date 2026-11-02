@@ -158,6 +158,14 @@ export function getBotTeamTaskStartNotes(this: OrchestrationDb, taskId: string):
   return row?.start_notes ?? null
 }
 
+export function setBotTeamTaskStartNotes(
+  this: OrchestrationDb,
+  taskId: string,
+  notes: string | null
+): void {
+  this.db.prepare('UPDATE bot_team_tasks SET start_notes = ? WHERE id = ?').run(notes, taskId)
+}
+
 /**
  * Gives a task to another bot, in this team or another. Its session and delegation belong to the old
  * owner, so they are dropped and the new owner starts fresh; its project belongs to the old team.
@@ -205,6 +213,7 @@ export type BotTeamRoomStoreMethods = {
   getBotTeamTask: typeof getBotTeamTask
   isBotTeamTaskHandedOff: typeof isBotTeamTaskHandedOff
   getBotTeamTaskStartNotes: typeof getBotTeamTaskStartNotes
+  setBotTeamTaskStartNotes: typeof setBotTeamTaskStartNotes
   moveBotTeamTask: typeof moveBotTeamTask
   getBotTeamWorkspace: typeof getBotTeamWorkspace
   setBotTeamWorkspace: typeof setBotTeamWorkspace
@@ -220,6 +229,7 @@ export function attachBotTeamRoomStore(ctor: { prototype: object }): void {
   Object.assign(ctor.prototype, {
     isBotTeamTaskHandedOff,
     getBotTeamTaskStartNotes,
+    setBotTeamTaskStartNotes,
     moveBotTeamTask,
     linkBotTeamTaskDelegation,
     getBotTeamTask,

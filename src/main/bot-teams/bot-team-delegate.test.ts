@@ -49,6 +49,34 @@ describe('delegateToBotTeammate', () => {
     expect(vi.mocked(d.fileRequest).mock.calls[0][0].piRuntime).toBe('gentle-shell')
   })
 
+  it('gives the teammate the project brief the caller works under', async () => {
+    const d = deps()
+    await delegateToBotTeammate(d, {
+      team: TEAM,
+      botName: 'Max',
+      text: 'Write the file',
+      project: {
+        id: 'p1',
+        teamId: 'team',
+        name: 'Summer',
+        goal: 'Sell more ice cream',
+        codeSource: null,
+        brief: { requirements: ['Flyers in two colors'], constraints: [], decisions: [] },
+        briefUpdatedAt: null
+      }
+    })
+    const prompt = vi.mocked(d.fileRequest).mock.calls[0][0].prompt
+    expect(prompt).toContain('Summer')
+    expect(prompt).toContain('Goal: Sell more ice cream')
+    expect(prompt).toContain('- Flyers in two colors')
+  })
+
+  it('names no brief when the caller has no project', async () => {
+    const d = deps()
+    await delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Write the file' })
+    expect(vi.mocked(d.fileRequest).mock.calls[0][0].prompt).not.toContain('project')
+  })
+
   it('names no Pi runtime for any other agent', async () => {
     const d = deps()
     await delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Write the file' })

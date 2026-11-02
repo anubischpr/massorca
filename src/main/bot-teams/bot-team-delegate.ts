@@ -2,7 +2,7 @@ import { botAgentPiRuntime } from '../../shared/bot-team-character-art'
 import { botTeamTaskTitle } from '../../shared/bot-team-request-route'
 import type { PiRuntimeSelection } from '../../shared/pi-runtime-selection'
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
-import type { BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
+import type { BotTeamProject, BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import { botLaunchOptions } from './bot-team-model-choice'
 import { botTeamTaskPrompt } from './bot-team-task-start'
 
@@ -22,7 +22,18 @@ export type BotTeamDelegateDeps = {
 /** Hands work to a teammate as a child session. The request is filed first: when it is refused, nothing was changed. */
 export async function delegateToBotTeammate(
   deps: BotTeamDelegateDeps,
-  { team, botName, text }: { team: BotTeam; botName: string; text: string }
+  {
+    team,
+    botName,
+    text,
+    project = null
+  }: {
+    team: BotTeam
+    botName: string
+    text: string
+    /** The caller's project: its brief goes to the teammate, who works on the same project. */
+    project?: BotTeamProject | null
+  }
 ): Promise<BotTeamTask> {
   const teammate = team.bots.find((bot) => bot.name.toLowerCase() === botName.toLowerCase())
   if (!teammate) {
@@ -33,7 +44,7 @@ export async function delegateToBotTeammate(
   const piRuntime = botAgentPiRuntime(teammate.agent)
   const requestId = await deps.fileRequest({
     title,
-    prompt: botTeamTaskPrompt(team, teammate, { title, prompt: text }),
+    prompt: botTeamTaskPrompt(team, teammate, { title, prompt: text }, project),
     agent: teammate.agent,
     ...(launch ? { launch } : {}),
     ...(piRuntime ? { piRuntime } : {})

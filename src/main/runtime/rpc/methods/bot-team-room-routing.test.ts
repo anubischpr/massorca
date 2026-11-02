@@ -71,6 +71,9 @@ describe('botTeams.postMessage routing', () => {
     const iris = team.bots.find((bot) => bot.name === 'Iris')
     // Both are idle, so team order breaks the tie.
     expect(result).toMatchObject({ task: { ownerBotId: iris?.id }, composite: [max?.id] })
+    // The owner reads who covers the other parts when the task starts, even if it starts later.
+    const [task] = db?.listBotTeamTasks(team.id) ?? []
+    expect(db?.getBotTeamTaskStartNotes(task.id)).toContain('Max (Writes copy)')
   })
 
   it('offers a new bot, a suggested team or a new team, and files nothing', async () => {
