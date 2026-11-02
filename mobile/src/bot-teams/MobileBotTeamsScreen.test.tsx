@@ -7,6 +7,10 @@ const client = {
   sendRequest: vi.fn(async () => ({ ok: true, result: { teams: [] } }))
 }
 
+vi.mock('../components/BottomDrawer', () => ({
+  BottomDrawer: ({ visible, children }: { visible: boolean; children: unknown }) =>
+    visible ? children : null
+}))
 vi.mock('react-native', () => ({
   Alert: { alert: () => {} },
   Pressable: 'Pressable',

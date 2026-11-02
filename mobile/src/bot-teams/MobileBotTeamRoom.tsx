@@ -12,6 +12,7 @@ import type { RpcClient } from '../transport/rpc-client'
 import { botTeamBoardColumn } from '../../../src/shared/bot-team-board-column'
 import { BOT_TEAM_ALL_AUTHOR } from '../../../src/shared/bot-team-greeting'
 import { botTeamComposerMenu } from '../../../src/shared/bot-team-composer-menu'
+import type { BotTeamRequestChoice } from '../../../src/shared/bot-team-request-choice'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import type {
@@ -20,11 +21,13 @@ import type {
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
+import { MobileBotTeamRequestChoice } from './MobileBotTeamRequestChoice'
 import { MobileBotTeamRoomMenu } from './MobileBotTeamRoomMenu'
 import { MobileBotTeamTaskCard } from './MobileBotTeamTaskCard'
 import type { BotTeamWorkScreen } from './MobileBotTeamWork'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 import { postMobileBotTeamRequest, startMobileBotTeamTask } from './mobile-bot-team-room-rpc'
+import { assignMobileBotTeamRequest } from './mobile-bot-team-request-rpc'
 import { useMobileBotTeamRoom } from './use-mobile-bot-team-room'
 import { useMobileBotTeamTaskStatus } from './use-mobile-bot-team-task-status'
 
@@ -74,7 +77,9 @@ export function MobileBotTeamRoom({
   onPickTeam,
   onOpenBots,
   onOpenTask,
-  onOpenWork
+  onOpenWork,
+  onAddBot,
+  onNewTeam
 }: {
   client: RpcClient
   team: BotTeam
@@ -89,9 +94,17 @@ export function MobileBotTeamRoom({
   onOpenTask: (workspaceId: string, task: BotTeamTask) => void
   /** Opens one of the room menu's work screens: the team board, a project, or a new project. */
   onOpenWork: (screen: BotTeamWorkScreen) => void
+  /** The choice card's "Create a new bot" and "Create a new team" open the existing forms. */
+  onAddBot: () => void
+  onNewTeam: () => void
 }) {
   const [text, setText] = useState('')
   const [needsOwner, setNeedsOwner] = useState(false)
+  // The person's line, held until they choose where it goes; leaving the room drops it.
+  const [pending, setPending] = useState<{ choice: BotTeamRequestChoice; text: string } | null>(
+    null
+  )
+  const [choiceBusy, setChoiceBusy] = useState(false)
   const [sheet, setSheet] = useState<'rooms' | 'menu' | null>(null)
   const { room, reload } = useMobileBotTeamRoom(client, team.id, offline)
   const statusOf = useMobileBotTeamTaskStatus(client)
@@ -170,12 +183,42 @@ export function MobileBotTeamRoom({
       return false
     }
     setText('')
-    setNeedsOwner(sent.task === null && !sent.greeted)
+    setNeedsOwner(
+      sent.task === null &&
+        !sent.greeted &&
+        sent.choice === null &&
+        !sent.answered &&
+        sent.sentTo === null
+    )
+    setPending(sent.choice ? { choice: sent.choice, text: typed } : null)
     if (sent.startError) {
       Alert.alert('The bot did not start', sent.startError)
     }
     await reload()
     return true
+  }
+
+  // Files the held request where the person chose; an empty target keeps it in this team.
+  const fileChoice = async (target: { botId?: string; toTeamId?: string }) => {
+    if (pending === null) {
+      return
+    }
+    setChoiceBusy(true)
+    const filed = await assignMobileBotTeamRequest(client, {
+      teamId: team.id,
+      text: pending.text,
+      ...target
+    })
+    setChoiceBusy(false)
+    if (!filed.ok) {
+      Alert.alert('That did not send', 'Check the connection to this host and try again.')
+      return
+    }
+    setPending(null)
+    if (filed.startError) {
+      Alert.alert('The bot did not start', filed.startError)
+    }
+    await reload()
   }
 
   const start = async (taskId: string) => {
@@ -207,8 +250,10 @@ export function MobileBotTeamRoom({
       client={client}
       task={task}
       team={team}
+      teams={teams}
       offline={offline}
       onStart={() => void start(task.id)}
+      onReassigned={() => void reload()}
       onOpen={() => {
         if (workspaceId) {
           onOpenTask(workspaceId, task)
@@ -276,6 +321,19 @@ export function MobileBotTeamRoom({
           )
         })}
         {tasksOf.rest.map(card)}
+        {pending ? (
+          <MobileBotTeamRequestChoice
+            choice={pending.choice}
+            team={team}
+            otherTeams={teams.filter((entry) => entry.id !== team.id)}
+            busy={choiceBusy}
+            onSendToBot={(botId) => void fileChoice({ botId })}
+            onSendToTeam={(toTeamId) => void fileChoice({ toTeamId })}
+            onKeep={() => void fileChoice({})}
+            onCreateBot={onAddBot}
+            onCreateTeam={onNewTeam}
+          />
+        ) : null}
         {needsOwner ? (
           <Text style={styles.rowMeta}>
             Who should take this? Mention a bot with @ and its name.

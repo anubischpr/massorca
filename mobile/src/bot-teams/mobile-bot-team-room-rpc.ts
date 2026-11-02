@@ -24,15 +24,26 @@ const RoomReply = z.object({
   projects: z.array(BotTeamProjectSchema).default([]),
   workspaceId: z.string().nullable()
 })
+const RequestChoiceSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('new-bot') }),
+  z.object({ kind: z.literal('new-team') }),
+  z.object({ kind: z.literal('other-team'), teamId: z.string() })
+])
 const PostReply = z.object({
   task: BotTeamTaskSchema.nullable(),
   startError: z.string().nullable(),
   // True when the team answered a bare greeting: nothing is routed, so nobody is asked.
-  greeted: z.boolean().default(false)
+  greeted: z.boolean().default(false),
+  // The defaults read a host from before the request routing: nothing was decided.
+  choice: RequestChoiceSchema.nullable().default(null),
+  composite: z.array(z.string()).default([]),
+  answered: z.boolean().default(false),
+  sentTo: z.object({ teamId: z.string(), teamName: z.string() }).nullable().default(null)
 })
 const ProjectReply = z.object({ project: BotTeamProjectSchema })
 
 export type MobileBotTeamRoomData = z.output<typeof RoomReply>
+export type MobileBotTeamPostResult = ({ ok: true } & z.output<typeof PostReply>) | { ok: false }
 
 /** A project change: the saved project, or why it was not saved. */
 export type MobileBotTeamProjectResult =
@@ -64,15 +75,7 @@ export async function listMobileBotTeamRoom(
 export async function postMobileBotTeamRequest(
   client: HostClient,
   input: { teamId: string; text: string; start: boolean }
-): Promise<
-  | {
-      ok: true
-      task: z.output<typeof BotTeamTaskSchema> | null
-      startError: string | null
-      greeted: boolean
-    }
-  | { ok: false }
-> {
+): Promise<MobileBotTeamPostResult> {
   try {
     const response = await client.sendRequest('botTeams.postMessage', input, {
       timeoutMs: START_TIMEOUT_MS

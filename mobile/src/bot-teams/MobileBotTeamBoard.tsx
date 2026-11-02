@@ -15,16 +15,19 @@ import { botTeamStyles as styles } from './mobile-bot-team-styles'
 export function MobileBotTeamBoard({
   client,
   team,
+  teams,
   tasks,
   projects,
   workspaceId,
   working,
   offline,
   onBack,
-  onOpenTask
+  onOpenTask,
+  onChanged
 }: {
   client: RpcClient
   team: BotTeam
+  teams: readonly BotTeam[]
   tasks: readonly BotTeamTask[]
   projects: readonly BotTeamProject[]
   workspaceId: string | null
@@ -32,6 +35,8 @@ export function MobileBotTeamBoard({
   offline: boolean
   onBack: () => void
   onOpenTask: (workspaceId: string, task: BotTeamTask) => void
+  /** After a task changes hands, so the host's state is read again. */
+  onChanged: () => void
 }) {
   const [filter, setFilter] = useState('all')
   const chips = [
@@ -87,8 +92,10 @@ export function MobileBotTeamBoard({
             client={client}
             task={task}
             team={team}
+            teams={teams}
             offline={offline}
             projectName={projectName(task)}
+            onReassigned={onChanged}
             onOpen={() => {
               if (workspaceId) {
                 onOpenTask(workspaceId, task)

@@ -23,6 +23,7 @@ import { useMobileBotTeamTaskStatus } from './use-mobile-bot-team-task-status'
 export function MobileBotTeamProject({
   client,
   team,
+  teams,
   project,
   tasks,
   tab,
@@ -35,6 +36,7 @@ export function MobileBotTeamProject({
 }: {
   client: RpcClient
   team: BotTeam
+  teams: readonly BotTeam[]
   project: BotTeamProject
   tasks: readonly BotTeamTask[]
   tab: 'board' | 'brief'
@@ -111,7 +113,9 @@ export function MobileBotTeamProject({
               client={client}
               task={task}
               team={team}
+              teams={teams}
               offline={offline}
+              onReassigned={onChanged}
               onOpen={() => {
                 if (workspaceId) {
                   onOpenTask(workspaceId, task)

@@ -1,4 +1,5 @@
 import { createElement, type ComponentProps } from 'react'
+import { Alert } from 'react-native'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
@@ -85,12 +86,17 @@ function hostWithFiles(room: object, paths: string[]) {
   return { sendRequest }
 }
 
+/** `post` is the reply to a posted request only; filing and starting always return the task. */
 function hostAnswering(room: object, post: object = {}) {
-  const sendRequest = vi.fn(async (method: string) =>
-    method === 'botTeams.listRoom'
-      ? { ok: true, result: room }
-      : { ok: true, result: { task: TASK, startError: null, ...post } }
-  )
+  const sendRequest = vi.fn(async (method: string) => {
+    if (method === 'botTeams.listRoom') {
+      return { ok: true, result: room }
+    }
+    if (method === 'botTeams.postMessage') {
+      return { ok: true, result: { task: TASK, startError: null, ...post } }
+    }
+    return { ok: true, result: { task: TASK, startError: null } }
+  })
   return { sendRequest }
 }
 
@@ -103,6 +109,31 @@ const PROJECT = {
   brief: { requirements: [], constraints: [], decisions: [] },
   briefUpdatedAt: null
 }
+
+const OTHER_TEAM = {
+  ...TEAM,
+  id: 'team_2',
+  name: 'Warehouse',
+  purpose: 'Stock and shipping',
+  character: 'square' as const,
+  bots: [{ ...TEAM.bots[0], id: 'max', name: 'Max', job: 'Stock' }]
+}
+
+/** Every request the room files answers with a refusal, and the room reads as before. */
+function hostRefusingFilings(post: object) {
+  const sendRequest = vi.fn(async (method: string) => {
+    if (method === 'botTeams.listRoom') {
+      return { ok: true, result: { tasks: [], messages: [], projects: [], workspaceId: null } }
+    }
+    if (method === 'botTeams.postMessage') {
+      return { ok: true, result: { task: null, startError: null, ...post } }
+    }
+    return { ok: false, error: { code: 'internal', message: 'nope' } }
+  })
+  return { sendRequest }
+}
+
+const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 0)))
 
 async function render(
   client: { sendRequest: unknown },
@@ -124,6 +155,8 @@ async function render(
         onOpenBots,
         onOpenTask,
         onOpenWork: vi.fn(),
+        onAddBot: vi.fn(),
+        onNewTeam: vi.fn(),
         ...extra
       })
     )
@@ -305,5 +338,207 @@ describe('MobileBotTeamRoom', () => {
     const menu = JSON.stringify(renderer.toJSON())
     expect(menu).toContain('1 open')
     expect(menu).toContain('1 tasks')
+  })
+
+  it('offers the suggested team, and files the request there when the person sends it', async () => {
+    const client = hostAnswering(
+      { tasks: [], messages: [], projects: [], workspaceId: null },
+      { task: null, choice: { kind: 'other-team', teamId: 'team_2' } }
+    )
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
+      teams: [TEAM, OTHER_TEAM]
+    })
+    await act(async () => {
+      await renderer.root.findByType('Composer' as never).props.onSend('Inventory?')
+    })
+    const card = JSON.stringify(renderer.toJSON())
+    expect(card).toContain(
+      'Choose where this task goes: Send to Warehouse, or keep it in Marketing.'
+    )
+    expect(card).not.toContain('Who should take this?')
+
+    await press(renderer, 'Send to Warehouse')
+    await settle()
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'botTeams.assignRequest',
+      { teamId: 'team', text: 'Inventory?', start: true, toTeamId: 'team_2' },
+      expect.anything()
+    )
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('Choose where this task goes')
+  })
+
+  it('keeps the request in the team when the person picks Keep', async () => {
+    const client = hostAnswering(
+      { tasks: [], messages: [], projects: [], workspaceId: null },
+      { task: null, choice: { kind: 'other-team', teamId: 'team_2' } }
+    )
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
+      teams: [TEAM, OTHER_TEAM]
+    })
+    await act(async () => {
+      await renderer.root.findByType('Composer' as never).props.onSend('Hi')
+    })
+    await press(renderer, 'Keep in Marketing')
+    await settle()
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'botTeams.assignRequest',
+      { teamId: 'team', text: 'Hi', start: true },
+      expect.anything()
+    )
+  })
+
+  it('offers the bots of the team, and opens the add-bot form from the choice', async () => {
+    const client = hostAnswering(
+      { tasks: [], messages: [], projects: [], workspaceId: null },
+      { task: null, choice: { kind: 'new-bot' } }
+    )
+    const onAddBot = vi.fn()
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { onAddBot })
+    await act(async () => {
+      await renderer.root.findByType('Composer' as never).props.onSend('Hi')
+    })
+    expect(JSON.stringify(renderer.toJSON())).toContain(
+      'Choose who takes this task: create a new bot, or send it to an existing bot.'
+    )
+    await press(renderer, 'Create a new bot')
+    expect(onAddBot).toHaveBeenCalled()
+    await press(renderer, 'Send to Iris')
+    await settle()
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'botTeams.assignRequest',
+      { teamId: 'team', text: 'Hi', start: true, botId: 'bot' },
+      expect.anything()
+    )
+  })
+
+  it('offers a new team or an existing one for a request that fits no team', async () => {
+    const client = hostAnswering(
+      { tasks: [], messages: [], projects: [], workspaceId: null },
+      { task: null, choice: { kind: 'new-team' } }
+    )
+    const onNewTeam = vi.fn()
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
+      teams: [TEAM, OTHER_TEAM],
+      onNewTeam
+    })
+    await act(async () => {
+      await renderer.root.findByType('Composer' as never).props.onSend('Taxes')
+    })
+    expect(JSON.stringify(renderer.toJSON())).toContain(
+      'Choose where this task goes: create a new team, or send it to an existing team.'
+    )
+    await press(renderer, 'Create a new team')
+    expect(onNewTeam).toHaveBeenCalled()
+    await press(renderer, 'Send to Warehouse')
+    await settle()
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'botTeams.assignRequest',
+      { teamId: 'team', text: 'Taxes', start: true, toTeamId: 'team_2' },
+      expect.anything()
+    )
+  })
+
+  it('says the request did not send when the host refuses it', async () => {
+    vi.mocked(Alert.alert).mockClear()
+    const client = hostRefusingFilings({ choice: { kind: 'new-team' } })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
+      teams: [TEAM, OTHER_TEAM]
+    })
+    await act(async () => {
+      await renderer.root.findByType('Composer' as never).props.onSend('Taxes')
+    })
+    await press(renderer, 'Send to Warehouse')
+    await settle()
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'That did not send',
+      'Check the connection to this host and try again.'
+    )
+    expect(JSON.stringify(renderer.toJSON())).toContain('Choose where this task goes')
+  })
+
+  it('hands an idle task to a bot of another team and reads the room again', async () => {
+    const client = hostAnswering({
+      tasks: [TASK],
+      messages: [],
+      projects: [],
+      workspaceId: null
+    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
+      teams: [TEAM, OTHER_TEAM]
+    })
+    await press(renderer, 'Reassign')
+    const sheet = JSON.stringify(renderer.toJSON())
+    expect(sheet).toContain('Who should own Flyer?')
+    expect(sheet).toContain('The new owner reads the task so far and continues from there.')
+    expect(sheet).toContain('Warehouse, Stock')
+    expect(sheet).not.toContain('Give to Iris')
+
+    const reads = client.sendRequest.mock.calls.filter(([m]) => m === 'botTeams.listRoom').length
+    await press(renderer, 'Give to Max')
+    await settle()
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'botTeams.reassignTask',
+      { taskId: 'task', botId: 'max', start: true },
+      expect.anything()
+    )
+    expect(
+      client.sendRequest.mock.calls.filter(([m]) => m === 'botTeams.listRoom').length
+    ).toBeGreaterThan(reads)
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('Who should own')
+  })
+
+  it('closes the reassign sheet on Cancel without handing anything over', async () => {
+    const client = hostAnswering({
+      tasks: [TASK],
+      messages: [],
+      projects: [],
+      workspaceId: null
+    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
+      teams: [TEAM, OTHER_TEAM]
+    })
+    await press(renderer, 'Reassign')
+    await press(renderer, 'Cancel')
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('Who should own')
+    expect(client.sendRequest).not.toHaveBeenCalledWith(
+      'botTeams.reassignTask',
+      expect.anything(),
+      expect.anything()
+    )
+  })
+
+  it('does not offer Reassign for a task that is working', async () => {
+    const working = { ...TASK, id: 'task3', title: 'Poster', sessionId: 's' }
+    const client = hostAnswering({
+      tasks: [working],
+      messages: [],
+      projects: [],
+      workspaceId: 'folder:1'
+    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
+      teams: [TEAM, OTHER_TEAM]
+    })
+    expect(JSON.stringify(renderer.toJSON())).not.toContain('Reassign')
+  })
+
+  it('says the task did not move when the host refuses the hand-over', async () => {
+    vi.mocked(Alert.alert).mockClear()
+    const client = {
+      sendRequest: vi.fn(async (method: string) =>
+        method === 'botTeams.listRoom'
+          ? { ok: true, result: { tasks: [TASK], messages: [], projects: [], workspaceId: null } }
+          : { ok: false, error: { code: 'internal', message: 'nope' } }
+      )
+    }
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
+      teams: [TEAM, OTHER_TEAM]
+    })
+    await press(renderer, 'Reassign')
+    await press(renderer, 'Give to Max')
+    await settle()
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'That did not save',
+      'Check the connection to this host and try again.'
+    )
   })
 })

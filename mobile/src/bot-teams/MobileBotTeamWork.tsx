@@ -56,6 +56,8 @@ export function MobileBotTeamWork({
       <MobileBotTeamBoard
         client={client}
         team={team}
+        teams={teams}
+        onChanged={() => void reload()}
         tasks={tasks}
         projects={projects}
         workspaceId={workspaceId}
@@ -109,6 +111,7 @@ export function MobileBotTeamWork({
     <MobileBotTeamProject
       client={client}
       team={team}
+      teams={teams}
       project={project}
       tasks={tasks}
       tab={screen.tab}

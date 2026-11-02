@@ -3,6 +3,10 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
 import { MobileBotTeamBoard } from './MobileBotTeamBoard'
 
+vi.mock('../components/BottomDrawer', () => ({
+  BottomDrawer: ({ visible, children }: { visible: boolean; children: unknown }) =>
+    visible ? children : null
+}))
 vi.mock('react-native', () => ({
   Pressable: 'Pressable',
   ScrollView: 'ScrollView',

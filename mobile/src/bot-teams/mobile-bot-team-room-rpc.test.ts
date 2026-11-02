@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   createMobileBotProject,
   listMobileBotTeamRoom,
+  postMobileBotTeamRequest,
   setMobileBotProjectCodeSource
 } from './mobile-bot-team-room-rpc'
 
@@ -100,5 +101,75 @@ describe('setMobileBotProjectCodeSource', () => {
       expect.anything()
     )
     expect(result).toEqual({ kind: 'ok', project: connected })
+  })
+})
+
+describe('postMobileBotTeamRequest', () => {
+  const POST = { teamId: 'team_1', text: 'Hi', start: true }
+
+  it('reads the choice, composite, answered and sent-to fields the host adds', async () => {
+    const { client } = clientAnswering({
+      ok: true,
+      result: {
+        task: null,
+        startError: null,
+        choice: { kind: 'other-team', teamId: 'team_2' },
+        composite: ['Max'],
+        answered: false,
+        sentTo: null
+      }
+    })
+    expect(await postMobileBotTeamRequest(client, POST)).toEqual({
+      ok: true,
+      task: null,
+      startError: null,
+      greeted: false,
+      choice: { kind: 'other-team', teamId: 'team_2' },
+      composite: ['Max'],
+      answered: false,
+      sentTo: null
+    })
+  })
+
+  it('reads a sent-to team and a bot-less answer', async () => {
+    const { client } = clientAnswering({
+      ok: true,
+      result: {
+        task: null,
+        startError: null,
+        answered: true,
+        sentTo: { teamId: 'team_2', teamName: 'Warehouse' }
+      }
+    })
+    expect(await postMobileBotTeamRequest(client, POST)).toMatchObject({
+      ok: true,
+      answered: true,
+      sentTo: { teamId: 'team_2', teamName: 'Warehouse' }
+    })
+  })
+
+  it('reads an older host that sends none of the fields as nothing decided', async () => {
+    const { client } = clientAnswering({
+      ok: true,
+      result: { task: null, startError: null }
+    })
+    expect(await postMobileBotTeamRequest(client, POST)).toEqual({
+      ok: true,
+      task: null,
+      startError: null,
+      greeted: false,
+      choice: null,
+      composite: [],
+      answered: false,
+      sentTo: null
+    })
+  })
+
+  it('reports a choice it cannot read as not sent', async () => {
+    const { client } = clientAnswering({
+      ok: true,
+      result: { task: null, startError: null, choice: { kind: 'elsewhere' } }
+    })
+    expect(await postMobileBotTeamRequest(client, POST)).toEqual({ ok: false })
   })
 })
