@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { subscribeStructuredAgentSessionStatus } from '@/runtime/structured-agent-session-client'
-import { getActiveRuntimeTarget } from '@/runtime/runtime-client-target'
-import { useAppStore } from '@/store'
+import { botTeamHostTarget, useBotTeamHost } from '@/runtime/bot-team-host'
 import {
   foldAgentSessionStatusEvent,
   type AgentSessionStatusSnapshot
@@ -9,12 +8,13 @@ import {
 
 /** The host's live status per session, the same feed the dashboard reads. */
 export function useBotTeamSessionStatuses(): AgentSessionStatusSnapshot {
+  const host = useBotTeamHost()
   const [snapshot, setSnapshot] = useState<AgentSessionStatusSnapshot>(() => new Map())
   useEffect(() => {
     let closed = false
     let unsubscribe: (() => void) | null = null
     void subscribeStructuredAgentSessionStatus(
-      getActiveRuntimeTarget(useAppStore.getState().settings),
+      botTeamHostTarget(host),
       (event) => setSnapshot((current) => foldAgentSessionStatusEvent(current, event)),
       () => {},
       () => {}
@@ -32,6 +32,6 @@ export function useBotTeamSessionStatuses(): AgentSessionStatusSnapshot {
       closed = true
       unsubscribe?.()
     }
-  }, [])
+  }, [host])
   return snapshot
 }

@@ -1,119 +1,154 @@
 import { useState } from 'react'
-import { ChevronLeft, Plus, Trash2 } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { Pencil, Plus } from 'lucide-react'
+import { usePageTopBandTitleTarget } from '../../app-shell/page-top-band-slot'
 import { Button } from '@/components/ui/button'
-import { AgentIcon } from '@/lib/agent-catalog'
+import StatusIndicator, { type Status } from '@/components/sidebar/StatusIndicator'
 import { translate } from '@/i18n/i18n'
 import {
   addBotToTeam,
   createBotTeam,
   deleteBotTeam,
-  removeBotFromTeam
+  removeBotFromTeam,
+  updateBotOnTeam,
+  updateBotTeam
 } from '@/runtime/runtime-bot-team-client'
-import { botAgentLabel } from '../../../../shared/bot-team-character-art'
+import type { BotTeamOverallStatus } from '../../../../shared/bot-team-overall-status'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
-import { AddBotDialog } from './AddBotDialog'
+import { BotAgentIcon } from './BotAgentIcon'
 import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
+import { BotTeamHostPicker } from './BotTeamHostPicker'
 import { BotTeamRoom } from './BotTeamRoom'
 import { NewBotTeamForm } from './NewBotTeamForm'
-import { useBotTeams, type BotTeamsState } from './use-bot-teams'
+import { useBotTeamCardStatus } from './use-bot-team-card-status'
+import { useBotTeams } from './use-bot-teams'
 
-function TeamDetail({
-  team,
-  openTaskId,
-  onOpenTask,
-  applyChange,
-  onBack
-}: {
-  team: BotTeam
-  openTaskId: string | null
-  onOpenTask: (taskId: string | null) => void
-  applyChange: BotTeamsState['applyChange']
-  onBack: () => void
-}): React.JSX.Element {
-  const [addingBot, setAddingBot] = useState(false)
-  // A task's thread is a full chat, so it takes the page rather than the team's column.
-  if (openTaskId !== null) {
-    return <BotTeamRoom team={team} openTaskId={openTaskId} onOpenTask={onOpenTask} />
-  }
-  return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-4 p-6">
-      <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={translate('components.botTeams.back', 'Back')}
-          onClick={onBack}
-        >
-          <ChevronLeft className="size-4" />
-        </Button>
-        <BotTeamCharacterIcon character={team.character} size={28} />
-        <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{team.name}</h1>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={translate('components.botTeams.deleteTeam', 'Delete team')}
-          onClick={() => {
-            void applyChange(() => deleteBotTeam(team.id)).then((done) => done && onBack())
-          }}
-        >
-          <Trash2 className="size-4" />
-        </Button>
-      </div>
-      {team.purpose ? <p className="text-sm text-muted-foreground">{team.purpose}</p> : null}
-      <BotTeamRoom team={team} openTaskId={null} onOpenTask={onOpenTask} />
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium">{translate('components.botTeams.bots', 'Bots')}</h2>
-        <Button variant="outline" size="sm" onClick={() => setAddingBot(true)}>
-          <Plus className="size-3.5" />
-          {translate('components.botTeams.addBot', 'Add a bot')}
-        </Button>
-      </div>
-      {team.bots.map((bot) => (
-        <div key={bot.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
-          <AgentIcon agent={bot.agent} size={20} />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-medium">{bot.name}</div>
-            <div className="truncate text-xs text-muted-foreground">{bot.job}</div>
-          </div>
-          <span className="text-xs text-muted-foreground">{botAgentLabel(bot.agent)}</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={translate('components.botTeams.removeBot', 'Remove bot')}
-            onClick={() => void applyChange(() => removeBotFromTeam(team.id, bot.id))}
-          >
-            <Trash2 className="size-4" />
-          </Button>
-        </div>
-      ))}
-      {addingBot ? (
-        <AddBotDialog
-          onCancel={() => setAddingBot(false)}
-          onAdd={(bot) => {
-            setAddingBot(false)
-            void applyChange(() => addBotToTeam(team.id, bot))
-          }}
-        />
-      ) : null}
+const TEAM_STATUS_GLYPH: Record<BotTeamOverallStatus, Status> = {
+  'Waiting for you': 'permission',
+  Working: 'working',
+  'Nothing running': 'inactive'
+}
+
+/** The room's title sits in the one top bar when there is one, otherwise over the conversation. */
+function BotTeamRoomTitle({ children }: { children: React.ReactNode }): React.JSX.Element {
+  const target = usePageTopBandTitleTarget()
+  return target ? (
+    createPortal(
+      <div className="flex min-w-0 flex-1 items-center gap-2 px-2 text-sm font-medium">
+        {children}
+      </div>,
+      target
+    )
+  ) : (
+    <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-4 text-sm font-medium">
+      {children}
     </div>
   )
 }
 
-function TeamGrid({
-  teams,
-  onNew,
-  onOpen
+function TeamDetail({
+  team,
+  offline,
+  openTaskId,
+  onOpenTask
 }: {
-  teams: BotTeam[]
-  onNew: () => void
-  onOpen: (teamId: string) => void
+  team: BotTeam
+  offline: boolean
+  openTaskId: string | null
+  onOpenTask: (taskId: string | null) => void
+}): React.JSX.Element {
+  // A task's thread is a full chat, so it takes the page rather than the team's column.
+  if (openTaskId !== null) {
+    return (
+      <BotTeamRoom team={team} openTaskId={openTaskId} onOpenTask={onOpenTask} offline={offline} />
+    )
+  }
+  return (
+    <BotTeamRoom
+      team={team}
+      openTaskId={null}
+      onOpenTask={onOpenTask}
+      offline={offline}
+      header={
+        <BotTeamRoomTitle>
+          <span className="min-w-0 flex-1 truncate">
+            {translate('components.botTeams.conferenceRoom', 'Conference room')}
+          </span>
+          <BotTeamCharacterIcon character={team.character} size={20} unreachable={offline} />
+          <span className="truncate text-xs text-muted-foreground">{team.name}</span>
+        </BotTeamRoomTitle>
+      }
+    />
+  )
+}
+
+/** Losing contact says nothing about the bots, which run on the host: they may still be working. */
+function HostUnreachableNotice({
+  lastSeenAt,
+  onRetry
+}: {
+  lastSeenAt: number | null
+  onRetry: () => void
 }): React.JSX.Element {
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">
+    <div className="mx-auto flex w-full max-w-4xl items-center gap-3 px-6 pt-4 text-sm">
+      <p className="min-w-0 flex-1 text-muted-foreground">
+        {lastSeenAt === null
+          ? translate(
+              'components.botTeams.hostUnreachable',
+              'Can’t reach this host. Its bots may still be working.'
+            )
+          : translate(
+              'components.botTeams.hostUnreachableSince',
+              'Can’t reach this host. Its bots may still be working. Last update at {{time}}.',
+              {
+                time: new Date(lastSeenAt).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })
+              }
+            )}
+      </p>
+      <Button variant="outline" size="sm" onClick={onRetry}>
+        {translate('components.botTeams.tryAgain', 'Try again')}
+      </Button>
+    </div>
+  )
+}
+
+function teamStatusLabel(status: BotTeamOverallStatus): string {
+  switch (status) {
+    case 'Waiting for you':
+      return translate('components.botTeams.waitingForYou', 'Waiting for you')
+    case 'Working':
+      return translate('components.botTeams.working', 'Working')
+    case 'Nothing running':
+      return translate('components.botTeams.nothingRunning', 'Nothing running')
+  }
+}
+
+function TeamGrid({
+  teams,
+  offline,
+  onNew,
+  onOpen,
+  onEdit
+}: {
+  teams: BotTeam[]
+  /** Contact is lost: the bots may still be working, so no state is claimed. */
+  offline: boolean
+  onNew: () => void
+  onOpen: (teamId: string) => void
+  onEdit: (teamId: string) => void
+}): React.JSX.Element {
+  const statusOf = useBotTeamCardStatus(teams)
+  return (
+    <div className="flex w-full max-w-[1040px] flex-col gap-5 p-8">
+      <div className="flex items-center gap-2">
+        <h1 className="min-w-0 flex-1 text-xl font-semibold">
           {translate('components.botTeams.allTeams', 'All teams')}
         </h1>
+        <BotTeamHostPicker />
         <Button variant="outline" size="sm" onClick={onNew}>
           <Plus className="size-3.5" />
           {translate('components.botTeams.newTeam', 'New team')}
@@ -127,26 +162,53 @@ function TeamGrid({
           )}
         </p>
       ) : (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-3">
-          {teams.map((team) => (
-            <button
-              key={team.id}
-              type="button"
-              onClick={() => onOpen(team.id)}
-              className="flex flex-col gap-2 rounded-lg border border-border p-3 text-left transition-colors hover:bg-accent"
-            >
-              <span className="flex items-center gap-2 text-sm font-semibold">
-                <BotTeamCharacterIcon character={team.character} size={20} />
-                <span className="truncate">{team.name}</span>
-              </span>
-              <span className="flex-1 text-xs text-muted-foreground">{team.purpose}</span>
-              <span className="flex items-center gap-1">
-                {team.bots.map((bot) => (
-                  <AgentIcon key={bot.id} agent={bot.agent} size={16} />
-                ))}
-              </span>
-            </button>
-          ))}
+        <div className="grid grid-cols-3 gap-3">
+          {teams.map((team) => {
+            const status = statusOf(team.id)
+            return (
+              <div key={team.id} className="relative">
+                <button
+                  type="button"
+                  onClick={() => onOpen(team.id)}
+                  className="flex h-full min-h-[148px] w-full flex-col gap-2.5 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:bg-muted"
+                >
+                  <BotTeamCharacterIcon
+                    character={team.character}
+                    size={64}
+                    working={status === 'Working'}
+                    unreachable={offline}
+                  />
+                  <span className="truncate text-sm font-semibold">{team.name}</span>
+                  <span className="flex-1 text-xs leading-normal text-muted-foreground">
+                    {team.purpose}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    {team.bots.map((bot) => (
+                      <BotAgentIcon key={bot.id} agent={bot.agent} size={16} />
+                    ))}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <StatusIndicator
+                      status={offline ? 'inactive' : TEAM_STATUS_GLYPH[status]}
+                      showTooltip={false}
+                    />
+                    {offline
+                      ? translate('components.botTeams.cannotConfirmNow', 'Can’t confirm now')
+                      : teamStatusLabel(status)}
+                  </span>
+                </button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="absolute right-2 top-2"
+                  aria-label={translate('components.botTeams.editTeam', 'Edit team')}
+                  onClick={() => onEdit(team.id)}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -170,7 +232,7 @@ export default function BotTeamsPage({
   selection?: BotTeamsPageSelection
   onSelectionChange?: (selection: BotTeamsPageSelection) => void
 } = {}): React.JSX.Element {
-  const { teams, failed, reload, applyChange } = useBotTeams()
+  const { teams, failed, lastSeenAt, reload, applyChange } = useBotTeams()
   const [own, setOwn] = useState<BotTeamsPageSelection>(NOTHING_OPEN)
   const selection = controlled ?? own
   const select = (next: BotTeamsPageSelection): void => {
@@ -180,20 +242,42 @@ export default function BotTeamsPage({
     onSelectionChange?.(next)
   }
   const openTeam = teams?.find((team) => team.id === selection.teamId)
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null)
+  const editingTeam = teams?.find((team) => team.id === editingTeamId)
   return (
-    <div className="scrollbar-sleek h-full overflow-y-auto">
-      {teams === null ? (
-        failed ? (
-          <div className="flex flex-col items-start gap-2 p-6 text-sm text-muted-foreground">
-            {translate('components.botTeams.loadFailed', 'Could not reach this host.')}
-            <Button variant="outline" size="sm" onClick={reload}>
-              {translate('components.botTeams.retry', 'Retry')}
-            </Button>
-          </div>
-        ) : null
+    <div className="scrollbar-sleek h-full overflow-y-auto bg-chat-canvas">
+      {failed && !selection.creating ? (
+        <HostUnreachableNotice lastSeenAt={lastSeenAt} onRetry={reload} />
+      ) : null}
+      {/* Before the list: choosing another host in the form must not lose what was typed. */}
+      {editingTeam ? (
+        <NewBotTeamForm
+          key={editingTeam.id}
+          usedCharacters={[]}
+          editing={{
+            team: editingTeam,
+            onSave: (input) => {
+              void applyChange(() => updateBotTeam({ teamId: editingTeam.id, ...input })).then(
+                (done) => done && setEditingTeamId(null)
+              )
+            },
+            onAddBot: (bot) => void applyChange(() => addBotToTeam(editingTeam.id, bot)),
+            onUpdateBot: (botId, bot) =>
+              void applyChange(() => updateBotOnTeam(editingTeam.id, botId, bot)),
+            onRemoveBot: (botId) =>
+              void applyChange(() => removeBotFromTeam(editingTeam.id, botId)),
+            onDelete: () => {
+              void applyChange(() => deleteBotTeam(editingTeam.id)).then(
+                (done) => done && setEditingTeamId(null)
+              )
+            }
+          }}
+          onCancel={() => setEditingTeamId(null)}
+          onCreate={() => {}}
+        />
       ) : selection.creating ? (
         <NewBotTeamForm
-          usedCharacters={teams.map((team) => team.character)}
+          usedCharacters={(teams ?? []).map((team) => team.character)}
           onCancel={() => select(NOTHING_OPEN)}
           onCreate={(input) => {
             void applyChange(() => createBotTeam(input)).then((done) => {
@@ -203,17 +287,18 @@ export default function BotTeamsPage({
             })
           }}
         />
-      ) : openTeam ? (
+      ) : teams === null ? null : openTeam ? (
         <TeamDetail
           team={openTeam}
+          offline={failed}
           openTaskId={selection.taskId}
           onOpenTask={(taskId) => select({ teamId: openTeam.id, taskId, creating: false })}
-          applyChange={applyChange}
-          onBack={() => select(NOTHING_OPEN)}
         />
       ) : (
         <TeamGrid
           teams={teams}
+          offline={failed}
+          onEdit={setEditingTeamId}
           onNew={() => select({ teamId: null, taskId: null, creating: true })}
           onOpen={(teamId) => select({ teamId, taskId: null, creating: false })}
         />

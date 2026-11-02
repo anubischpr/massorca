@@ -31,6 +31,9 @@ const teams: BotTeam[] = [
 
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
   listBotTeams: () => Promise.resolve(teams),
+  listBotTeamRoom: () => Promise.resolve({ tasks: [], messages: [] }),
+  updateBotOnTeam: vi.fn(),
+  updateBotTeam: vi.fn(),
   addBotToTeam: vi.fn(),
   createBotTeam: vi.fn(),
   deleteBotTeam: vi.fn(),
@@ -39,9 +42,20 @@ vi.mock('@/runtime/runtime-bot-team-client', () => ({
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
 vi.mock('@/lib/agent-catalog', () => ({ AgentIcon: () => null }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
+vi.mock('./use-bot-team-task-status', () => ({ useBotTeamSessionStatuses: () => new Map() }))
+vi.mock('@/components/sidebar/StatusIndicator', () => ({ default: () => null }))
 vi.mock('./BotTeamRoom', () => ({
-  BotTeamRoom: ({ openTaskId }: { openTaskId: string | null }) => (
-    <div data-testid="room">{openTaskId ?? 'room'}</div>
+  BotTeamRoom: ({
+    openTaskId,
+    header
+  }: {
+    openTaskId: string | null
+    header?: React.ReactNode
+  }) => (
+    <div>
+      {header}
+      <div data-testid="room">{openTaskId ?? 'room'}</div>
+    </div>
   )
 }))
 
@@ -69,6 +83,20 @@ afterEach(() => {
   }
 })
 
+describe('the team cards', () => {
+  it('shows each team’s state and description, and edits without opening it', async () => {
+    const container = await mount(<BotTeamsPage />)
+    expect(container.textContent).toContain('Nothing running')
+    expect(container.textContent).toContain('Leads')
+
+    const edit = container.querySelector('[aria-label="Edit team"]')
+    await act(async () => edit?.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+
+    expect(container.textContent).toContain('Edit team')
+    expect(container.querySelector('[data-testid="room"]')).toBeNull()
+  })
+})
+
 describe('the Bot teams page with a controlled selection', () => {
   it('shows the team the selection names', async () => {
     const container = await mount(
@@ -77,7 +105,7 @@ describe('the Bot teams page with a controlled selection', () => {
         onSelectionChange={() => {}}
       />
     )
-    expect(container.querySelector('h1')?.textContent).toBe('Sales')
+    expect(container.textContent).toContain('Sales')
     expect(container.querySelector('[data-testid="room"]')?.textContent).toBe('room')
   })
 
@@ -125,6 +153,6 @@ describe('the Bot teams page with a controlled selection', () => {
       b.textContent?.includes('Marketing')
     )
     await act(async () => card?.click())
-    expect(container.querySelector('h1')?.textContent).toBe('Marketing')
+    expect(container.textContent).toContain('Marketing')
   })
 })

@@ -16,7 +16,7 @@ const team: BotTeam = {
   character: 'square',
   workspacesEnabled: false,
   accessMode: 'default',
-  bots: [{ id: 'bot-1', name: 'Iris', job: '', agent: 'claude' }]
+  bots: [{ id: 'bot-1', name: 'Iris', job: '', agent: 'claude', modelMode: 'auto', model: null, effort: null, skills: [] }]
 }
 const task: BotTeamTask = {
   id: 'task-1',

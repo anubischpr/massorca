@@ -10,15 +10,22 @@ import {
   type BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import { chooseBotTeamLead } from '../../../../shared/bot-team-lead-selection'
+import {
+  buildBotTeamLeadPrompt,
+  parseBotTeamLeadReply
+} from '../../../../shared/bot-team-lead-query'
 import { BOT_TEAMS_FOLDER_NAME } from '../../../../shared/bot-team-folder'
 import { botTeamTaskTitle, routeBotTeamRequest } from '../../../../shared/bot-team-request-route'
 import { createStructuredAgentSessionId } from '../../../../shared/structured-agent-session-create'
 import { createStructuredAgentSessionOperationId } from '../../../../shared/structured-agent-session-mutation'
 import { folderWorkspaceKey } from '../../../../shared/workspace-scope'
+import { askDefaultAgentForBotTeamLead } from '../../../bot-teams/bot-team-lead-query'
 import { startBotTeamTask } from '../../../bot-teams/bot-team-task-start'
 import { getStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
 import { defineMethod, type RpcContext } from '../core'
 import { commitStructuredAgentSessionLaunchPrompt } from './agent-launch-structured-prompt'
+import { isDefinitiveAgentSessionCreateRefusal } from '../../../../shared/agent-session-definitive-refusal'
 import { createStructuredAgentSessionForWorktree } from './structured-agent-session-create'
 import { structuredCallerFor } from './structured-agent-session-gate'
 
@@ -67,23 +74,31 @@ async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeam
   return startBotTeamTask(
     {
       ensureTeamWorkspace: (entry) => ensureTeamWorkspace(ctx, entry),
-      createSession: async ({ workspaceId, agent, accessMode }) => {
-        const created = await createStructuredAgentSessionForWorktree({
-          runtime: ctx.runtime,
-          ensureHost: async () => requireHost(),
-          caller,
-          envelope: {
-            sessionId: createStructuredAgentSessionId(agent, randomUUID),
-            clientOperationId: createStructuredAgentSessionOperationId(randomUUID),
-            expectedRuntimeFence: null,
-            payloadFingerprint: ''
-          },
-          worktree: `id:${workspaceId}`,
-          agent,
-          accessMode,
-          // A task runs in the background; opening it is up to the person.
-          activate: false
-        })
+      createSession: async ({ workspaceId, agent, accessMode, piRuntime, options }) => {
+        const attempt = (seed: typeof options) =>
+          createStructuredAgentSessionForWorktree({
+            runtime: ctx.runtime,
+            ensureHost: async () => requireHost(),
+            caller,
+            envelope: {
+              sessionId: createStructuredAgentSessionId(agent, randomUUID),
+              clientOperationId: createStructuredAgentSessionOperationId(randomUUID),
+              expectedRuntimeFence: null,
+              payloadFingerprint: ''
+            },
+            worktree: `id:${workspaceId}`,
+            agent,
+            accessMode,
+            ...(piRuntime ? { piRuntime } : {}),
+            ...(seed ? { options: seed } : {}),
+            // A task runs in the background; opening it is up to the person.
+            activate: false
+          })
+        let created = await attempt(options)
+        // A model this host's agent no longer offers must not block the task: it runs its default.
+        if (!created.ok && options && isDefinitiveAgentSessionCreateRefusal(created.refusal.code)) {
+          created = await attempt(undefined)
+        }
         if (!created.ok) {
           throw new Error(created.refusal.message)
         }
@@ -102,6 +117,36 @@ async function startTaskOnHost(ctx: RpcContext, taskId: string): Promise<BotTeam
     },
     { team, task }
   )
+}
+
+/** One query over the bots' descriptions on the Settings default agent; ties go to the least busy. */
+async function chooseLeadByDescription(
+  ctx: RpcContext,
+  team: BotTeam,
+  text: string
+): Promise<BotTeam['bots'][number] | null> {
+  if (team.bots.length < 2) {
+    return null
+  }
+  const reply = await askDefaultAgentForBotTeamLead({
+    prompt: buildBotTeamLeadPrompt(team, team.bots, text),
+    settings: ctx.runtime.getClientSettings(),
+    getAgentEnvResolvers: () => ctx.runtime.getCommitMessageAgentEnvironmentResolvers()
+  })
+  if (reply === null) {
+    return null
+  }
+  const activeTasksByBot: Record<string, number> = {}
+  for (const task of ctx.runtime.getOrchestrationDb().listBotTeamTasks(team.id)) {
+    if (task.sessionId !== null) {
+      activeTasksByBot[task.ownerBotId] = (activeTasksByBot[task.ownerBotId] ?? 0) + 1
+    }
+  }
+  return chooseBotTeamLead({
+    matchedBotIds: parseBotTeamLeadReply(reply, team.bots),
+    bots: team.bots,
+    activeTasksByBot
+  })
 }
 
 export const BOT_TEAM_ROOM_METHODS = [
@@ -135,7 +180,10 @@ export const BOT_TEAM_ROOM_METHODS = [
       const db = ctx.runtime.getOrchestrationDb()
       const message = db.postBotTeamMessage({ teamId, text, authorBotId: null })
       const bots = db.listBotTeams().find((entry) => entry.id === teamId)?.bots ?? []
-      const lead = routeBotTeamRequest(text, bots)
+      const team = db.listBotTeams().find((entry) => entry.id === teamId)
+      const lead =
+        routeBotTeamRequest(text, bots) ??
+        (team ? await chooseLeadByDescription(ctx, team, text) : null)
       if (!lead) {
         return { message, task: null, startError: null }
       }

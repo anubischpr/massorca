@@ -1,0 +1,311 @@
+/* Only transform and opacity animate, so a character never costs layout or paint work. */
+.bc-body,
+.bc-eyes,
+.bc-happy {
+  transform-box: view-box;
+  transform-origin: 32px 32px;
+}
+.bc-body {
+  transform-origin: 32px 56px;
+}
+.bc-happy {
+  opacity: 0;
+}
+.bc-fx {
+  transform-box: view-box;
+  transform-origin: 32px 32px;
+}
+.bc-mark {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.bc-move-blink .bc-eyes {
+  animation: bc-blink 0.28s linear 2;
+}
+.bc-move-look .bc-eyes {
+  animation: bc-look 1.3s ease-in-out;
+}
+.bc-move-hop .bc-body {
+  animation: bc-hop 0.7s ease-out;
+}
+.bc-move-happy .bc-eyes {
+  opacity: 0;
+}
+.bc-move-happy .bc-happy {
+  opacity: 1;
+}
+.bc-move-happy .bc-body,
+.bc-move-breathe .bc-body {
+  animation: bc-breathe 1.3s ease-in-out;
+}
+.bc-move-tilt .bc-body {
+  animation: bc-tilt 1.3s ease-in-out;
+}
+.bc-move-cross .bc-eye-0 {
+  animation: bc-cross-0 1.2s ease-in-out;
+}
+.bc-move-cross .bc-eye-1 {
+  animation: bc-cross-1 1.2s ease-in-out;
+}
+.bc-move-doze .bc-eyes {
+  animation: bc-doze 1.45s ease-in-out;
+}
+.bc-move-doze .bc-body {
+  animation: bc-doze-body 1.45s ease-in-out;
+}
+.bc-move-shake .bc-body {
+  animation: bc-shake 0.6s linear;
+}
+.bc-move-attend .bc-eyes {
+  animation: bc-attend 1.4s ease-in-out;
+}
+.bc-working .bc-body {
+  animation: bc-lean 1s ease-in-out infinite;
+}
+.bc-spin-0 {
+  animation: bc-spin 1.1s linear infinite;
+}
+.bc-spin-1 {
+  animation: bc-spin 1.5s linear infinite reverse;
+}
+.bc-spin-2 {
+  animation: bc-spin 0.9s linear infinite;
+}
+.bc-electron {
+  animation: bc-electron 1s linear infinite;
+}
+.bc-electron-1 {
+  animation-duration: 1.35s;
+  animation-direction: reverse;
+}
+.bc-pulse {
+  animation: bc-pulse 1s ease-in-out infinite;
+}
+.bc-zap {
+  opacity: 0;
+  animation: bc-zap 0.85s steps(1) infinite;
+}
+.bc-twinkle {
+  animation: bc-twinkle 0.9s ease-in-out infinite;
+}
+.bc-delay-1 {
+  animation-delay: -0.2s;
+}
+.bc-delay-2 {
+  animation-delay: -0.45s;
+}
+.bc-delay-3 {
+  animation-delay: -0.65s;
+}
+.bc-still *,
+.bc-still {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bc-root * {
+    animation: none !important;
+  }
+}
+@keyframes bc-blink {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.08);
+  }
+}
+@keyframes bc-look {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25%,
+  45% {
+    transform: translateX(-4px);
+  }
+  60%,
+  85% {
+    transform: translateX(4px);
+  }
+}
+@keyframes bc-hop {
+  0%,
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+  12% {
+    transform: translateY(0) scaleY(0.9);
+  }
+  45% {
+    transform: translateY(-9px) scaleY(1.04);
+  }
+  80% {
+    transform: translateY(0) scaleY(0.95);
+  }
+}
+@keyframes bc-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+@keyframes bc-tilt {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  30%,
+  70% {
+    transform: rotate(-8deg);
+  }
+}
+@keyframes bc-cross-0 {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25%,
+  75% {
+    transform: translateX(3px);
+  }
+}
+@keyframes bc-cross-1 {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25%,
+  75% {
+    transform: translateX(-3px);
+  }
+}
+@keyframes bc-doze {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  30%,
+  75% {
+    transform: scaleY(0.12);
+  }
+}
+@keyframes bc-doze-body {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  30%,
+  75% {
+    transform: rotate(4deg) translateY(1px);
+  }
+}
+@keyframes bc-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  15% {
+    transform: translateX(-3px);
+  }
+  35% {
+    transform: translateX(3px);
+  }
+  55% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+}
+@keyframes bc-attend {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  20%,
+  80% {
+    transform: translateY(3px) scale(1.12);
+  }
+}
+@keyframes bc-lean {
+  0%,
+  100% {
+    transform: rotate(5deg);
+  }
+  50% {
+    transform: rotate(8deg) translateX(1px);
+  }
+}
+@keyframes bc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes bc-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.95;
+  }
+}
+@keyframes bc-zap {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  18% {
+    opacity: 0.25;
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  45%,
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes bc-twinkle {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.55);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+@keyframes bc-electron {
+  0%,
+  100% {
+    transform: translate(43.5px, 0);
+  }
+  12.5% {
+    transform: translate(30.8px, 8.1px);
+  }
+  25% {
+    transform: translate(0, 11.5px);
+  }
+  37.5% {
+    transform: translate(-30.8px, 8.1px);
+  }
+  50% {
+    transform: translate(-43.5px, 0);
+  }
+  62.5% {
+    transform: translate(-30.8px, -8.1px);
+  }
+  75% {
+    transform: translate(0, -11.5px);
+  }
+  87.5% {
+    transform: translate(30.8px, -8.1px);
+  }
+}

@@ -77,7 +77,9 @@ const getAllOrchestrationPaneSearchEntries = createLocalizedCatalog(() => [
       ...translateSearchKeyword(
         'auto.components.settings.orchestration.search.f5d39af41e',
         'child agents'
-      )
+      ),
+      'jev',
+      'typesafe'
     ]
   },
   {

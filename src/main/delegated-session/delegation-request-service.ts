@@ -19,7 +19,7 @@ import { PROTOTYPE_PROMPT_MAX_LENGTH } from '../../shared/rpc-contract/prototype
 import { prototypeAgentOfChild } from './delegated-child-first-prompt'
 import {
   buildDelegationCardContent,
-  routeDelegationRequest,
+  routeDelegationRequestWithAdvice,
   type DelegationStoredAgent
 } from './delegation-options'
 import type { DelegationRequestDeps } from './delegation-service-types'
@@ -132,6 +132,42 @@ async function designSystemFor(
 export class DelegationRequestService {
   constructor(private readonly deps: DelegationRequestDeps) {}
 
+  /** Files a request whose agent is already decided, so no card asks; the answer service starts it. */
+  async requestForAgent(
+    input: DelegationRequestInput & {
+      agent: string
+      /** The model and effort this child must run with, rather than ones sized from its summary. */
+      launch?: Readonly<Record<string, string>>
+    }
+  ): Promise<string> {
+    const parent = this.deps.readParent(input.parentSessionId)
+    if (!parent) {
+      throw new OrchestrationError(
+        'delegation_parent_unavailable',
+        `Chat ${input.parentSessionId} is not held by this host, so it cannot start a child session. No effects were applied.`,
+        { effectsApplied: false }
+      )
+    }
+    const agents = await this.deps.listAgents(parent)
+    if (!agents.some((entry) => entry.agent === input.agent)) {
+      throw new OrchestrationError(
+        'delegation_no_agent',
+        `${input.agent} cannot run a chat in this workspace, so no child session can start. No effects were applied.`,
+        { effectsApplied: false }
+      )
+    }
+    return this.deps.requireDb().createDelegationRequest({
+      parentSessionId: parent.sessionId,
+      title: titleFor(input),
+      summary: input.summary,
+      prompt: input.prompt,
+      writes: input.writes,
+      workspaceKind: parent.workspaceKind,
+      optionsJson: JSON.stringify({ agents }),
+      decisionJson: input.launch ? JSON.stringify({ launch: input.launch }) : null
+    }).id
+  }
+
   /** Files a request and posts its card to the parent chat; returns without waiting for a choice. */
   async request(input: DelegationRequestInput): Promise<DelegationRequestReceipt> {
     const parent = this.deps.readParent(input.parentSessionId)
@@ -152,15 +188,18 @@ export class DelegationRequestService {
     }
     const title = titleFor(input)
     await waitForDelegationUsageRefresh(this.deps.refreshUsage)
-    const route = routeDelegationRequest({
-      summary: input.summary,
-      writes: input.writes,
-      workspaceKind: parent.workspaceKind,
-      parentAgent: parent.agent,
-      agents,
-      rateLimits: this.deps.readRateLimits(),
-      now: this.deps.now()
-    })
+    const route = await routeDelegationRequestWithAdvice(
+      {
+        summary: input.summary,
+        writes: input.writes,
+        workspaceKind: parent.workspaceKind,
+        parentAgent: parent.agent,
+        agents,
+        rateLimits: this.deps.readRateLimits(),
+        now: this.deps.now()
+      },
+      this.deps.adviseTier
+    )
     const userMessage = await userMessageOf(this.deps.readParentUserMessage, input.parentSessionId)
     const prototypeTask = asksForPrototypes(input, agents, userMessage)
     const prototypeCount = prototypeCountFor(

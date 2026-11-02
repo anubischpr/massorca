@@ -113,6 +113,7 @@ export const ROOT_HELP_TEXT_PRIMARY = [
   '  orchestration dispatch    Dispatch a task to a terminal',
   '  orchestration dispatch-show Show dispatch context for a task',
   '  orchestration worker-start Start a supervised worker locally or on a connected MassOrca server',
+  '  orchestration team-delegate Hand work to a teammate on your Bot team',
   '  orchestration team-post Post to your Bot teams Conference room',
   "  orchestration team-tasks List your team's tasks from its board",
   "  orchestration team-task-create Save a task to your team's Todo",

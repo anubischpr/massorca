@@ -132,6 +132,15 @@ export const ORCHESTRATION_WORKER_COMMAND_SPECS: CommandSpec[] = [
     ]
   },
   {
+    path: ['orchestration', 'team-delegate'],
+    summary: 'Hand work to a teammate on your Bot team',
+    usage: 'orca orchestration team-delegate --bot <name> --text <task> [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'bot', 'text', 'retry-request'],
+    notes: [
+      'The teammate runs as a child session of this chat, on its own engine, with no choice card.'
+    ]
+  },
+  {
     path: ['orchestration', 'team-post'],
     summary: 'Post to your Bot teams Conference room',
     usage: 'orca orchestration team-post --text <message> [--json]',

@@ -15,6 +15,12 @@ test('creates a team with a bot from the Bot teams mode', async ({ orcaPage: pag
   await page.getByLabel('Name', { exact: true }).fill('Iris')
   await page.getByLabel('Job').fill('Designs flyers')
   await page.getByRole('button', { name: 'Add bot' }).click()
+  // A bot added by mistake can be corrected in the same form, before the team exists.
+  await page.getByRole('button', { name: 'Edit bot' }).click()
+  await expect(page.getByLabel('Name', { exact: true })).toHaveValue('Iris')
+  await page.getByLabel('Job').fill('Designs flyers and posters')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(page.getByText('Designs flyers and posters')).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('new-team.png') })
   await page.getByRole('button', { name: 'Create team' }).click()
 

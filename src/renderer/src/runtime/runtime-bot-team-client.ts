@@ -5,17 +5,12 @@ import type {
   BotTeamUpdateInput
 } from '../../../shared/rpc-contract/bot-team-params'
 import type { BotTeamMessage, BotTeamTask } from '../../../shared/rpc-contract/bot-team-room-params'
-import { useAppStore } from '@/store'
-import { getActiveRuntimeTarget } from './runtime-client-target'
+import { botTeamHostTarget, currentBotTeamHost } from './bot-team-host'
 import { callRuntimeRpc } from './runtime-rpc-client'
 
-// Teams live on the host this window is connected to, local or remote.
+// Teams live on one host; see `resolveBotTeamHost` for which.
 function call<TResult>(method: string, params?: unknown): Promise<TResult> {
-  return callRuntimeRpc<TResult>(
-    getActiveRuntimeTarget(useAppStore.getState().settings),
-    method,
-    params
-  )
+  return callRuntimeRpc<TResult>(botTeamHostTarget(currentBotTeamHost()), method, params)
 }
 
 export function listBotTeamRoom(
@@ -54,6 +49,14 @@ export async function deleteBotTeam(teamId: string): Promise<void> {
 
 export async function addBotToTeam(teamId: string, bot: BotDraftInput): Promise<BotTeam> {
   return (await call<{ team: BotTeam }>('botTeams.addBot', { teamId, bot })).team
+}
+
+export async function updateBotOnTeam(
+  teamId: string,
+  botId: string,
+  bot: BotDraftInput
+): Promise<BotTeam> {
+  return (await call<{ team: BotTeam }>('botTeams.updateBot', { teamId, botId, bot })).team
 }
 
 export async function removeBotFromTeam(teamId: string, botId: string): Promise<BotTeam> {

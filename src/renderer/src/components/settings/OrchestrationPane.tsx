@@ -26,6 +26,8 @@ import type { GlobalSettings } from '../../../../shared/global-settings-types'
 import { resolveNestedWorkerMaxDepth } from '../../../../shared/nested-worker-depth'
 import { isPairedWebClientWindow } from '@/lib/desktop-window-chrome'
 import { NumberField } from './SettingsFormControls'
+import { JevDecisionsSection } from './JevDecisionsSection'
+import { getActiveRuntimeTarget } from '@/runtime/runtime-client-target'
 import {
   getNestedWorkerDepthDescription,
   getNestedWorkerDepthTitle
@@ -173,6 +175,17 @@ export function OrchestrationPane({
           integer
           onChange={(nestedWorkerMaxDepth) => {
             void updateSettings({ nestedWorkerMaxDepth })
+          }}
+        />
+      ) : null}
+
+      {/* The key and the decision live on the host the chats run on: this window's, or the connected server's. */}
+      {showNestedWorkerDepth ? (
+        <JevDecisionsSection
+          target={getActiveRuntimeTarget(settings)}
+          enabled={settings.jevDecisionsEnabled === true}
+          onEnabledChange={(jevDecisionsEnabled) => {
+            void updateSettings({ jevDecisionsEnabled })
           }}
         />
       ) : null}

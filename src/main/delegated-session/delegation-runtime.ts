@@ -24,7 +24,9 @@ import { launchedAccessPosture } from '../native-chat/agent-session-wire/structu
 import { ChildBringBackService } from './child-bring-back'
 import { ChildBringBackAutomatic, childBringBackPolicyOf } from './child-bring-back-automatic'
 import { storedOptionsWithAutomaticBringBack } from './delegation-stored-request'
+import { readJevApiKey } from '../jev/jev-api-key-store'
 import { DelegationAnswerService } from './delegation-answer-service'
+import { createJevDelegationTierAdvisor } from './delegation-jev-tier'
 import { createDelegationLauncher } from './delegation-launch'
 import { discardFailedDelegatedStart } from './delegation-failed-start'
 import type { DelegationStoredAgent } from './delegation-options'
@@ -43,6 +45,7 @@ type DelegationRuntime = Pick<
   | 'getExistingOrchestrationDb'
   | 'getAccountsSnapshot'
   | 'refreshAccountsForMobileSubscriber'
+  | 'isJevDecisionsEnabled'
   | 'getStructuredAgentSessionCreateSupport'
   | 'resolveStructuredAgentSessionLocalWorkspacePath'
 >
@@ -211,7 +214,12 @@ export function getDelegationRequestService(runtime: OrcaRuntimeService): Delega
     readParentUserMessage,
     readRateLimits: () => readRateLimits(runtime),
     refreshUsage: () => runtime.refreshAccountsForMobileSubscriber(),
-    now: () => Date.now()
+    now: () => Date.now(),
+    // Why here: the host holding the chat decides, with its own setting and key.
+    adviseTier: createJevDelegationTierAdvisor({
+      isEnabled: () => runtime.isJevDecisionsEnabled(),
+      readApiKey: readJevApiKey
+    })
   })
   requestServices.set(runtime, service)
   return service

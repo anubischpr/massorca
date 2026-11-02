@@ -10,7 +10,18 @@ const TEAM: BotTeam = {
   character: 'circle',
   workspacesEnabled: false,
   accessMode: 'full-access',
-  bots: [{ id: 'bot', name: 'Iris', job: 'Designs flyers', agent: 'codex' }]
+  bots: [
+    {
+      id: 'bot',
+      name: 'Iris',
+      job: 'Designs flyers',
+      agent: 'codex',
+      modelMode: 'auto',
+      model: null,
+      effort: null,
+      skills: []
+    }
+  ]
 }
 const TASK: BotTeamTask = {
   id: 'task',
@@ -32,6 +43,19 @@ function deps(overrides: Partial<BotTeamTaskStartDeps> = {}): BotTeamTaskStartDe
 }
 
 describe('startBotTeamTask', () => {
+  it("starts with the bot's model and asks it to use its skills", async () => {
+    const d = deps()
+    const bot = { ...TEAM.bots[0], model: 'gpt-6.1-sol', effort: 'high', skills: ['PDF', 'Brand'] }
+    await startBotTeamTask(d, { team: { ...TEAM, bots: [bot] }, task: TASK })
+
+    expect(d.createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ options: { model: 'gpt-6.1-sol', effort: 'high' } })
+    )
+    expect(vi.mocked(d.sendPrompt).mock.calls[0][1]).toContain(
+      'Use these skills when they fit: PDF, Brand.'
+    )
+  })
+
   it("runs on the owner's engine with the team's access, in the team's workspace", async () => {
     const d = deps()
     const started = await startBotTeamTask(d, { team: TEAM, task: TASK })

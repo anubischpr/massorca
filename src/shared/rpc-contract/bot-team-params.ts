@@ -13,10 +13,17 @@ export const BOT_TEAM_CHARACTERS = [
 ] as const
 export type BotTeamCharacter = (typeof BOT_TEAM_CHARACTERS)[number]
 
+export const BOT_MODEL_MODES = ['auto', 'manual'] as const
+
 const BotDraft = z.object({
   name: requiredString('Missing bot name'),
   job: z.string().trim().default(''),
-  agent: z.string().refine(isTuiAgent, { message: 'Unknown agent' })
+  agent: z.string().refine(isTuiAgent, { message: 'Unknown agent' }),
+  // Optional so an older client's save keeps what the bot already has.
+  modelMode: z.enum(BOT_MODEL_MODES).optional(),
+  model: z.string().trim().min(1).nullable().optional(),
+  effort: z.string().trim().min(1).nullable().optional(),
+  skills: z.array(z.string().trim().min(1)).max(50).optional()
 })
 
 export const BotTeamCreate = z.object({
@@ -32,11 +39,19 @@ export const BotTeamSelector = z.object({
 })
 
 export const BotTeamUpdate = BotTeamSelector.extend({
+  name: requiredString('Missing team name').optional(),
+  purpose: z.string().trim().optional(),
+  character: z.enum(BOT_TEAM_CHARACTERS).optional(),
   accessMode: z.enum(AGENT_SESSION_ACCESS_MODES).optional(),
   workspacesEnabled: z.boolean().optional()
 })
 
 export const BotTeamAddBot = BotTeamSelector.extend({
+  bot: BotDraft
+})
+
+export const BotTeamUpdateBot = BotTeamSelector.extend({
+  botId: requiredString('Missing bot id'),
   bot: BotDraft
 })
 
@@ -52,7 +67,12 @@ export const BotTeamBotSchema = z.object({
   id: z.string(),
   name: z.string(),
   job: z.string(),
-  agent: z.string().refine(isTuiAgent)
+  agent: z.string().refine(isTuiAgent),
+  // Defaults read a host from before these existed.
+  modelMode: z.enum(BOT_MODEL_MODES).default('auto'),
+  model: z.string().nullable().default(null),
+  effort: z.string().nullable().default(null),
+  skills: z.array(z.string()).default([])
 })
 
 export const BotTeamSchema = z.object({

@@ -31,6 +31,7 @@ import { GIT_METHODS } from './git'
 import { GITHUB_METHODS } from './github'
 import { GITLAB_METHODS } from './gitlab'
 import { HOSTED_REVIEW_METHODS } from './hosted-review'
+import { JEV_DECISIONS_METHODS } from './jev-decisions'
 import { LINEAR_METHODS } from './linear'
 import { LINEAR_AGENT_ACCESS_METHODS } from './linear-agent-access'
 import { JIRA_METHODS } from './jira'
@@ -109,6 +110,7 @@ export const ALL_RPC_METHODS = [
   ...GITHUB_METHODS,
   ...GITLAB_METHODS,
   ...HOSTED_REVIEW_METHODS,
+  ...JEV_DECISIONS_METHODS,
   ...LINEAR_METHODS,
   ...LINEAR_AGENT_ACCESS_METHODS,
   ...JIRA_METHODS,

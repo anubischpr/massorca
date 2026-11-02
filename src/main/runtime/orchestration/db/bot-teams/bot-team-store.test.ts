@@ -33,8 +33,47 @@ describe('bot team store', () => {
       workspacesEnabled: false,
       accessMode: 'full-access'
     })
-    expect(team.bots).toEqual([{ id: expect.any(String), ...IRIS }])
+    expect(team.bots).toEqual([
+      {
+        id: expect.any(String),
+        ...IRIS,
+        modelMode: 'auto',
+        model: 'sonnet',
+        effort: 'high',
+        skills: []
+      }
+    ])
     expect(db.listBotTeams()).toEqual([team])
+  })
+
+  it('stores a chosen model and skills, and keeps them across a plain edit', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    const botId = team.bots[0].id
+    db.updateBotOnTeam(team.id, botId, {
+      ...IRIS,
+      modelMode: 'manual',
+      model: 'opus',
+      effort: 'high',
+      skills: ['PDF']
+    })
+    const edited = db.updateBotOnTeam(team.id, botId, { ...IRIS, name: 'Iris 2' })
+
+    expect(edited.bots[0]).toMatchObject({
+      name: 'Iris 2',
+      modelMode: 'manual',
+      model: 'opus',
+      effort: 'high',
+      skills: ['PDF']
+    })
+  })
+
+  it('picks a model for a bot stored before models were chosen', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    db.db.prepare('UPDATE bot_team_bots SET model = NULL, effort = NULL').run()
+
+    expect(db.listBotTeams()[0].bots[0]).toMatchObject({ id: team.bots[0].id, model: 'sonnet' })
   })
 
   it('lists teams and bots in creation order', () => {
@@ -74,6 +113,34 @@ describe('bot team store', () => {
     const added = db.addBotToTeam(team.id, IRIS)
     expect(added.bots.map((bot) => bot.name)).toEqual(['Iris'])
     expect(db.removeBotFromTeam(team.id, added.bots[0].id).bots).toEqual([])
+  })
+
+  it('updates every attribute of a bot and keeps its id', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    const botId = team.bots[0].id
+
+    const updated = db.updateBotOnTeam(team.id, botId, {
+      name: 'Juan',
+      job: 'Backend',
+      agent: 'codex'
+    })
+
+    expect(updated.bots).toMatchObject([
+      { id: botId, name: 'Juan', job: 'Backend', agent: 'codex' }
+    ])
+    expect(db.listBotTeams()[0].bots[0].name).toBe('Juan')
+  })
+
+  it('refuses to update a bot through another team', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    const other = createTeam(db, [])
+
+    expect(() =>
+      db?.updateBotOnTeam(other.id, team.bots[0].id, { name: 'X', job: '', agent: 'codex' })
+    ).toThrow('is not on team')
+    expect(db.listBotTeams()[0].bots[0].name).toBe('Iris')
   })
 
   it('removes a team together with its bots', () => {

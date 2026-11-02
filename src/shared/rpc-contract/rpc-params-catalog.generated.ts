@@ -68,13 +68,18 @@ import {
   AutomationRuns,
   AutomationUpdate
 } from './automation-params'
-import { BotTeamAgentPost, BotTeamAgentTaskCreate } from './bot-team-agent-params'
+import {
+  BotTeamAgentDelegate,
+  BotTeamAgentPost,
+  BotTeamAgentTaskCreate
+} from './bot-team-agent-params'
 import {
   BotTeamAddBot,
   BotTeamCreate,
   BotTeamRemoveBot,
   BotTeamSelector,
-  BotTeamUpdate
+  BotTeamUpdate,
+  BotTeamUpdateBot
 } from './bot-team-params'
 import {
   BotTeamMessagePost,
@@ -331,6 +336,7 @@ import {
   HostedReviewCreationEligibility,
   HostedReviewForBranch
 } from './hosted-review-params'
+import { JevDecisionsSaveApiKey, JevDecisionsSetEnabled } from './jev-decisions-params'
 import {
   AssignableUsers,
   Connect,
@@ -719,6 +725,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.removeBot': BotTeamRemoveBot,
   'botTeams.startTask': BotTeamTaskStart,
   'botTeams.update': BotTeamUpdate,
+  'botTeams.updateBot': BotTeamUpdateBot,
   'browser.back': BrowserTarget,
   'browser.capture.start': BrowserTarget,
   'browser.capture.stop': BrowserTarget,
@@ -1011,6 +1018,10 @@ export const RPC_PARAMS_BY_METHOD = {
   'hostedReview.createStacked': HostedReviewCreate,
   'hostedReview.forBranch': HostedReviewForBranch,
   'hostedReview.getCreationEligibility': HostedReviewCreationEligibility,
+  'jevDecisions.clearApiKey': null,
+  'jevDecisions.getStatus': null,
+  'jevDecisions.saveApiKey': JevDecisionsSaveApiKey,
+  'jevDecisions.setEnabled': JevDecisionsSetEnabled,
   'jira.addIssueComment': IssueCommentOfJiraParams,
   'jira.connect': Connect,
   'jira.createIssue': CreateIssueOfJiraParams,
@@ -1105,6 +1116,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'orcad.migration.stageSnapshotChunk': OrcadMigrationSnapshotChunkRequestSchema,
   'orcad.terminalCensus': OrcadTerminalCensusParamsSchema,
   'orchestration.ask': AskParams,
+  'orchestration.botTeamDelegate': BotTeamAgentDelegate,
   'orchestration.botTeamPost': BotTeamAgentPost,
   'orchestration.botTeamTaskCreate': BotTeamAgentTaskCreate,
   'orchestration.botTeamTasks': null,
