@@ -17,6 +17,7 @@ import {
 import type { StructuredAgentContextSummary } from '../../../../shared/structured-agent-session-context-usage'
 import type { StructuredAgentSubagentRoster } from '../../../../shared/structured-agent-session-subagent-roster'
 import { createNativeChatFileHref } from '../../../../shared/native-chat-href-routing'
+import { formatAgentTypeLabel } from '../../../../shared/agent-type-label'
 import type { CommentMarkdownLinkClickHandler } from '@/components/sidebar/CommentMarkdown'
 import { AgentChildRowContent } from '@/components/AgentChildRowContent'
 import { agentChildRowName } from '@/components/agent-child-row-text'
@@ -36,6 +37,7 @@ import { NativeChatSessionConnectorRow } from './NativeChatSessionConnectorRow'
 import { NativeChatSessionContextSection } from './NativeChatSessionContextSection'
 import { NativeChatSessionEnvironment } from './NativeChatSessionEnvironment'
 import { NativeChatSessionPlanSection } from './NativeChatSessionPlanSection'
+import { NativeChatSessionChecklistSection } from './NativeChatSessionChecklistSection'
 import { NativeChatSessionSection } from './NativeChatSessionSection'
 import { NativeChatSessionServers } from './NativeChatSessionServers'
 import { NativeChatSessionVisualRow } from './NativeChatSessionVisualRow'
@@ -72,6 +74,8 @@ export function NativeChatSessionSummary(props: {
   target: RuntimeClientTarget
   /** The structured session whose host serves the plan document. */
   sessionId?: string
+  /** The chat's agent as the person knows it, named by the checklist. */
+  agentLabel?: string
   fileContext: NativeChatFileLinkContext | null
   journalItems: readonly AgentJournalRenderItem[]
   connectorSnapshot?: AgentSessionConnectorSnapshot
@@ -381,6 +385,15 @@ export function NativeChatSessionSummary(props: {
             props.sessionId ? { target: props.target, sessionId: props.sessionId } : undefined
           }
         />
+        {props.sessionId ? (
+          <NativeChatSessionChecklistSection
+            target={props.target}
+            sessionId={props.sessionId}
+            journalItems={props.journalItems}
+            agentLabel={props.agentLabel ?? formatAgentTypeLabel(null)}
+            worktreeId={worktreeId ?? null}
+          />
+        ) : null}
         <NativeChatSessionContextSection
           summary={props.contextSummary}
           sessionId={props.sessionId}

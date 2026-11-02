@@ -2,7 +2,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react'
 
 // `/context` and `/mention` ask a part of one chat to open itself. A request waits until a mounted
 // part takes it, so the part that opens a closed surface still receives the request it was opened for.
-export type NativeChatOpenSurface = 'context' | 'mention'
+export type NativeChatOpenSurface = 'context' | 'mention' | 'checklist'
 
 const pending = new Map<string, readonly string[]>()
 const listeners = new Set<() => void>()

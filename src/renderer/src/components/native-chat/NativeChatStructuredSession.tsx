@@ -62,6 +62,7 @@ import { NativeChatSessionSummary } from './NativeChatSessionSummary'
 import { NativeChatStructuredPaneHeaderBar } from './NativeChatStructuredPaneHeaderBar'
 import { useStructuredSessionChildRowContext } from './use-structured-session-child-row-context'
 import { delegationRequestIdOfQuestionItem } from '../../../../shared/delegated-session-journal'
+import { formatAgentRowTypeLabel } from '../../../../shared/agent-type-label'
 
 export function NativeChatStructuredSession(
   props: Omit<NativeChatStructuredViewProps, 'mode'>
@@ -405,6 +406,10 @@ export function NativeChatStructuredSession(
         {summaryVisible ? (
           <NativeChatSessionSummary
             key={props.sessionId}
+            agentLabel={formatAgentRowTypeLabel(
+              { agentType: props.agent },
+              controller.hostPiRuntime
+            )}
             target={props.target}
             sessionId={props.sessionId}
             fileContext={fileLinkContext}
