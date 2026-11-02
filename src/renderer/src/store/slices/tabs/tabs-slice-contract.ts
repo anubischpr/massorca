@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand'
 import type { AppState } from '../../types'
 import type {
+  PaneSessionFocus,
   Tab,
   TabContentType,
   TabGroup,
@@ -16,8 +17,13 @@ export type TabsSlice = {
   groupsByWorktree: Record<string, TabGroup[]>
   activeGroupIdByWorktree: Record<string, string>
   layoutByWorktree: Record<string, TabGroupLayoutNode>
-  /** Explicit open/closed choice per workspace; absent means "open exactly when it has tabs". */
+  /**
+   * Open/closed choice per session tab id, or per workspace id for a workspace with no session;
+   * absent means hidden. The name stays for the saved UI field it round-trips through.
+   */
   sidePanelOpenByWorktree: Record<string, boolean>
+  /** The session the panel served when it took the focus, so its choice holds while focused. */
+  sidePanelSessionByWorktree: Record<string, string>
   sidePanelWidth: number
   setSidePanelOpen: (worktreeId: string, open: boolean) => void
   toggleSidePanel: (worktreeId: string) => void
@@ -127,7 +133,7 @@ export type TabsSlice = {
    * Set while a pane that shows another workspace's session has focus: the layout on screen is
    * `layoutWorktreeId`'s, while `activeWorktreeId` follows the workspace that owns the session.
    */
-  paneFocus: { layoutWorktreeId: string; ownerWorktreeId: string; groupId: string } | null
+  paneFocus: PaneSessionFocus | null
   focusGroup: (worktreeId: string, groupId: string) => void
   closeEmptyGroup: (worktreeId: string, groupId: string) => boolean
   createEmptySplitGroup: (

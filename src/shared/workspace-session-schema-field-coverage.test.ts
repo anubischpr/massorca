@@ -48,6 +48,7 @@ const PERSISTED_WORKSPACE_SESSION_FIELDS = {
   activeGroupIdByWorktree: true,
   activeConnectionIdsAtShutdown: true,
   remoteSessionIdsByTabId: true,
+  paneFocus: true,
   lastVisitedAtByWorktreeId: true,
   defaultTerminalTabsAppliedByWorktreeId: true,
   sleepingAgentSessionsByPaneKey: true,

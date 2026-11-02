@@ -45,6 +45,8 @@ export const WORKSPACE_SESSION_WORKTREE_REFERENCE_KIND = {
   tabGroups: 'owner-keyed-row-arrays',
   tabGroupLayouts: 'owner-keyed',
   activeGroupIdByWorktree: 'owner-keyed',
+  // Why none: restore checks it against the restored panes, so it never makes a worktree's rows live.
+  paneFocus: 'none',
   activeConnectionIdsAtShutdown: 'none',
   remoteSessionIdsByTabId: 'none',
   lastVisitedAtByWorktreeId: 'owner-keyed',

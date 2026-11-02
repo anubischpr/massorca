@@ -7,6 +7,7 @@ type ActiveTerminalRepairInput = {
   activeTabType: WorkspaceVisibleTabType
   activeTabId: string | null
   activeTabIdByWorktree: Record<string, string | null>
+  activeWorktreeId: string | null
   renderedActiveWorktreeId: string | null
   setActiveTab: (tabId: string) => void
   tabs: TerminalTab[]
@@ -16,10 +17,16 @@ export function repairActiveTerminalTab({
   activeTabType,
   activeTabId,
   activeTabIdByWorktree,
+  activeWorktreeId,
   renderedActiveWorktreeId,
   setActiveTab,
   tabs
 }: ActiveTerminalRepairInput): boolean {
+  if (activeWorktreeId !== renderedActiveWorktreeId) {
+    // Why: the focus follows another workspace's session shown in a pane, so the active tab is
+    // that workspace's and was never one of `tabs`; repairing it would take the focus back.
+    return false
+  }
   const rememberedTabId =
     renderedActiveWorktreeId !== null &&
     Object.hasOwn(activeTabIdByWorktree, renderedActiveWorktreeId)
@@ -43,6 +50,7 @@ export function useActiveTerminalRepair(input: ActiveTerminalRepairInput): void 
     activeTabId,
     activeTabIdByWorktree,
     activeTabType,
+    activeWorktreeId,
     renderedActiveWorktreeId,
     setActiveTab,
     tabs
@@ -57,6 +65,7 @@ export function useActiveTerminalRepair(input: ActiveTerminalRepairInput): void 
     setActiveTab,
     tabs,
     activeTabIdByWorktree,
+    activeWorktreeId,
     renderedActiveWorktreeId
   ])
 }

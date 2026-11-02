@@ -13,3 +13,9 @@ export const tabGroupSchema = z.object({
     .optional()
     .catch(undefined)
 })
+
+export const paneSessionFocusSchema = z.object({
+  layoutWorktreeId: z.string().min(1),
+  ownerWorktreeId: z.string().min(1),
+  groupId: z.string().min(1)
+})
