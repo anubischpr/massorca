@@ -140,14 +140,18 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
       const bots = db.listBotTeams().find((team) => team.id === caller.teamId)?.bots ?? []
       // The caller keeps the task unless the text mentions a teammate. It waits in Todo (S10).
       const owner = routeBotTeamRequest(text, bots)?.id ?? caller.ownerBotId
-      return {
-        task: db.createBotTeamTask({
-          teamId: caller.teamId,
-          title: botTeamTaskTitle(text, bots),
-          prompt: text,
-          ownerBotId: owner
-        })
+      const task = db.createBotTeamTask({
+        teamId: caller.teamId,
+        title: botTeamTaskTitle(text, bots),
+        prompt: text,
+        ownerBotId: owner
+      })
+      // Work a task saves for later belongs to the same project as that task.
+      if (!caller.projectId) {
+        return { task }
       }
+      db.setBotTeamTaskProject(task.id, caller.projectId)
+      return { task: db.getBotTeamTask(task.id) }
     }
   })
 ]
