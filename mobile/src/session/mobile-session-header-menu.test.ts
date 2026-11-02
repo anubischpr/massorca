@@ -3,6 +3,7 @@ import { resolveMobileSessionHeaderMenu } from './mobile-session-header-menu'
 
 const none = {
   hasChatSession: false,
+  hasChecklist: false,
   showAgentHistory: false,
   hasSourceControl: false,
   showChecks: false
@@ -13,6 +14,7 @@ describe('resolveMobileSessionHeaderMenu', () => {
     const chatItems = {
       agentHistory: false,
       plan: true,
+      checklist: false,
       summary: true,
       artifacts: true,
       prototypes: true,
@@ -22,6 +24,19 @@ describe('resolveMobileSessionHeaderMenu', () => {
       chatItems
     )
     expect(resolveMobileSessionHeaderMenu(none).chat).toEqual(chatItems)
+  })
+
+  it('offers the Checklist row only when the chat has a checklist', () => {
+    expect(resolveMobileSessionHeaderMenu({ ...none, hasChatSession: true }).chat.checklist).toBe(
+      false
+    )
+    expect(
+      resolveMobileSessionHeaderMenu({
+        ...none,
+        hasChatSession: true,
+        hasChecklist: true
+      }).chat.checklist
+    ).toBe(true)
   })
 
   it('keeps the ⋯ button, since the chat items always apply', () => {

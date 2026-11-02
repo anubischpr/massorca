@@ -224,6 +224,7 @@ export function MobileSessionActiveContent({
             onOpenArtifact={openArtifactViewer}
             onOpenPrototypeSettings={openPrototypeSettings}
             onOpenPrototypeSet={openPrototypeSet}
+            checklist={controller.chatChecklist}
           />
         </MobileChildBringBackClientContext.Provider>
       </MobileDelegatedChildContext.Provider>

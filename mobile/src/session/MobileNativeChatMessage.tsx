@@ -31,6 +31,11 @@ import { ToolRun } from './MobileNativeChatToolRun'
 import type { NativeChatTurnStatus } from './use-mobile-native-chat-turn-status'
 import { isRenderableImageUri } from './mobile-native-chat-image-preview'
 import { styles, TEXT_SIZE } from './mobile-native-chat-message-styles'
+import { splitNativeChatChecklistUpdate } from '../../../src/shared/native-chat-checklist'
+import { MobileNativeChatChecklistChip } from './MobileNativeChatChecklistChip'
+import { MobileNativeChatChecklistRow } from './MobileNativeChatChecklistRow'
+import { MobileNativeChatChecklistContext } from './mobile-native-chat-checklist-context'
+import { splitNativeChatChecklistMarkdown } from './mobile-native-chat-checklist-model'
 import { agentMessageAttribution } from './mobile-agent-message-attribution'
 import { withoutPendingNativeChatVisualDirectiveTail } from '../../../src/shared/native-chat-visual-directive'
 import {
@@ -58,6 +63,7 @@ function Prose({
   /** Android only: routes a long press on a link span to the row's actions sheet. */
   onLongPress?: () => void
 }): React.JSX.Element | null {
+  const checklist = useContext(MobileNativeChatChecklistContext)
   if (isTextBlock(block)) {
     // A delegated session's notice replaces the plain line; a block without the payload draws as before.
     if (block.delegation) {
@@ -88,22 +94,67 @@ function Prose({
     // Inverted (user) bubbles use a fixed dark-on-light text rather than the
     // markdown renderer's light-on-dark palette.
     if (invert) {
+      // A message that leads with the host's checklist update shows it as a chip, and the rest as text.
+      const { update, rest } = splitNativeChatChecklistUpdate(block.text)
       return (
-        <Text
-          selectable={INLINE_TEXT_SELECTION}
-          style={[styles.userText, { fontSize: TEXT_SIZE * fontScale }]}
-        >
-          {block.text}
-        </Text>
+        <>
+          {update === null ? null : <MobileNativeChatChecklistChip update={update} />}
+          {update === null || rest.length > 0 ? (
+            <Text
+              selectable={INLINE_TEXT_SELECTION}
+              style={[styles.userText, { fontSize: TEXT_SIZE * fontScale }]}
+            >
+              {update === null ? block.text : rest}
+            </Text>
+          ) : null}
+        </>
       )
+    }
+    const content =
+      holdPendingVisual && renderVisual
+        ? withoutPendingNativeChatVisualDirectiveTail(block.text)
+        : block.text
+    const drawn = checklist?.checklist ?? null
+    // The checklist fence draws as one row, in the place the block was; the prose around it stays markdown.
+    if (checklist !== null && drawn !== null) {
+      // Keyed by where each segment starts in the text, which a re-render keeps stable.
+      let offset = 0
+      const segments = splitNativeChatChecklistMarkdown(content).map((segment) => {
+        const start = offset
+        offset += segment.text.length
+        return { ...segment, start }
+      })
+      if (segments.some((segment) => segment.kind === 'checklist')) {
+        return (
+          <>
+            {segments.map((segment) =>
+              segment.kind === 'checklist' ? (
+                <MobileNativeChatChecklistRow
+                  key={`checklist:${segment.start}`}
+                  title={drawn.title}
+                  checked={drawn.checked}
+                  total={drawn.items.length}
+                  onPress={checklist.openList}
+                />
+              ) : (
+                <MobileMarkdown
+                  key={`markdown:${segment.start}`}
+                  content={segment.text}
+                  renderVisual={renderVisual}
+                  rangeSelectable
+                  textScale={1.25 * fontScale}
+                  onOpenFile={onOpenFile}
+                  onLongPress={onLongPress}
+                />
+              )
+            )}
+          </>
+        )
+      }
     }
     return (
       <MobileMarkdown
-        content={
-          holdPendingVisual && renderVisual
-            ? withoutPendingNativeChatVisualDirectiveTail(block.text)
-            : block.text
-        }
+        content={content}
         renderVisual={renderVisual}
         rangeSelectable
         textScale={1.25 * fontScale}

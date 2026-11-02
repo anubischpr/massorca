@@ -17,6 +17,8 @@ import { NativeChatCopyButton } from './NativeChatCopyButton'
 import { NativeChatMessageTimestamp } from './NativeChatMessageTimestamp'
 import { NativeChatAgentMessageSenders } from './NativeChatAgentMessageSenders'
 import { NativeChatImageAttachments } from './NativeChatTranscriptChrome'
+import { NativeChatChecklistUpdateChip } from './NativeChatChecklistTranscriptRow'
+import { splitNativeChatChecklistUpdate } from '../../../../shared/native-chat-checklist'
 import type { deriveNativeChatRowContent } from '../../../../shared/native-chat-row-content'
 
 const USER_META_REVEAL =
@@ -88,6 +90,8 @@ export function NativeChatUserMessageRow({
   // Another agent's message is the agent's turn input too, but is not the person's: it reads
   // left-aligned under its sender rather than as their bubble.
   const from = message.from
+  // The host puts the checklist changes in front of the person's text; the chip shows them apart.
+  const { update, rest } = splitNativeChatChecklistUpdate(markdown)
   return (
     <div
       ref={rowRef}
@@ -108,7 +112,8 @@ export function NativeChatUserMessageRow({
             : 'rounded-xl border border-chat-user-border bg-chat-user-surface px-3.5 py-2.5 text-chat-foreground-strong'
         )}
       >
-        {markdown ? (
+        {update ? <NativeChatChecklistUpdateChip update={update} /> : null}
+        {rest ? (
           <>
             <NativeChatImageAttachments
               blocks={prose}
@@ -117,11 +122,11 @@ export function NativeChatUserMessageRow({
             />
             <NativeChatUserMessageFold
               messageId={message.id}
-              markdown={markdown}
+              markdown={rest}
               onRefolded={onRefolded}
             >
               <NativeChatMarkdown
-                content={markdown}
+                content={rest}
                 variant="document"
                 className="text-sm native-chat-message-text"
                 renderCodeBlock={NativeChatCodeBlock}
@@ -151,7 +156,7 @@ export function NativeChatUserMessageRow({
         </div>
       ) : null}
       <UserMessageMeta
-        markdown={markdown}
+        markdown={rest}
         timestamp={message.timestamp}
         sending={deliveryNotice?.sending === true}
         {...(rewind ? { rewind: { itemId: message.id, surface: rewind } } : {})}
