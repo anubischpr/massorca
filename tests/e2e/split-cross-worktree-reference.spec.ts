@@ -263,6 +263,55 @@ test('the pane that shows another workspace’s session is saved, and is back af
     await page.locator('[data-session-pane-picker="true"] button').first().click()
     await expect.poll(async () => (await refPaneOf(page, first.id)).length).toBe(1)
 
+    // Closing a terminal of the showing workspace, from its own tab strip, must leave the pane in place.
+    const panelTerminal = await page.evaluate((id) => {
+      const state = window.__store?.getState()
+      const tab = (state?.unifiedTabsByWorktree[id] ?? []).find(
+        (candidate) => candidate.contentType === 'terminal' && candidate.viewMode === undefined
+      )
+      return tab ? { id: tab.id, label: tab.label } : null
+    }, first.id)
+    expect(panelTerminal, 'the showing workspace has a plain terminal to close').not.toBeNull()
+    // The pane holding the focus decides whose side panel is on screen, so focus this workspace's own pane first.
+    await page.evaluate(({ id, groupId }) => window.__store?.getState().focusGroup(id, groupId), {
+      id: first.id,
+      groupId: first.sessions[0].groupId
+    })
+    const strip = page.locator('[data-side-panel="true"]').filter({ visible: true }).first()
+    await strip
+      .getByText(panelTerminal?.label ?? '', { exact: true })
+      .first()
+      .hover()
+    await strip
+      .getByRole('button', { name: /^Close/ })
+      .first()
+      .click()
+    await expect
+      .poll(async () =>
+        page.evaluate(
+          ([id, tabId]) =>
+            (window.__store?.getState().unifiedTabsByWorktree[id] ?? []).some(
+              (tab) => tab.id === tabId
+            ),
+          [first.id, panelTerminal?.id ?? '']
+        )
+      )
+      .toBe(false)
+    expect((await refPaneOf(page, first.id)).length).toBe(1)
+    // And the saved profile keeps it too, once the close has been written.
+    await expect
+      .poll(
+        async () => {
+          await page.evaluate(() => window.api.session.flush())
+          return page.evaluate(async (id) => {
+            const saved = await window.api.session.get()
+            return (saved.tabGroups?.[id] ?? []).some((group) => group.sessionRef !== undefined)
+          }, first.id)
+        },
+        { timeout: 20_000 }
+      )
+      .toBe(true)
+
     // A page reload re-reads the saved profile through the same checkpoint a quit uses.
     await page.reload()
     await waitForSessionReady(page)
