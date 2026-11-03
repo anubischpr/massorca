@@ -14,7 +14,7 @@ vi.mock('react-native', () => ({
   Text: 'Text',
   View: 'View'
 }))
-vi.mock('lucide-react-native', () => ({ ChevronLeft: 'ChevronLeft' }))
+vi.mock('lucide-react-native', () => ({ ChevronLeft: 'ChevronLeft', ChevronRight: 'ChevronRight' }))
 vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
 vi.mock('./MobileBotTeamCharacterIcon', () => ({ MobileBotTeamCharacterIcon: () => null }))
 vi.mock('../session/mobile-structured-session-status-feed', () => ({
@@ -71,15 +71,37 @@ const POSTER = {
   sessionId: 's2',
   projectId: null
 }
+const ROUTINE = {
+  id: 'routine',
+  teamId: 'team',
+  botId: 'bot',
+  name: 'Wednesday check-in',
+  prompt: 'List what is open.',
+  schedule: { frequency: 'once', time: '10:00', weekday: null, monthDay: null, date: '2026-11-04' },
+  paused: false,
+  nextRun: { date: '2026-11-04', time: '10:00' },
+  lastRun: null
+}
+
+/** A host that answers the routines read with `routines`, and refuses every other request. */
+function hostWithRoutines(routines: readonly unknown[]) {
+  const sendRequest = vi.fn(async (method: string) =>
+    method === 'botTeams.listRoutines'
+      ? { ok: true, result: { routines } }
+      : { ok: false, error: { code: 'method_not_found', message: 'nope' } }
+  )
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: The board only sends requests through sendRequest.
+  return { client: { sendRequest } as never }
+}
 
 async function render(props: Partial<Parameters<typeof MobileBotTeamBoard>[0]> = {}) {
   let renderer!: ReactTestRenderer
   await act(async () => {
     renderer = create(
       createElement(MobileBotTeamBoard, {
-        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: The board only passes the client to the mocked status feed.
-        client: {} as never,
+        client: hostWithRoutines([]).client,
         team: TEAM,
+        teams: [TEAM],
         tasks: [FLYER, POSTER],
         projects: [PROJECT],
         workspaceId: 'folder:1',
@@ -87,10 +109,13 @@ async function render(props: Partial<Parameters<typeof MobileBotTeamBoard>[0]> =
         offline: false,
         onBack: vi.fn(),
         onOpenTask: vi.fn(),
+        onChanged: vi.fn(),
         ...props
       })
     )
   })
+  // The routines are read once the board is shown.
+  await act(() => new Promise((resolve) => setTimeout(resolve, 0)))
   return renderer
 }
 
@@ -131,5 +156,19 @@ describe('MobileBotTeamBoard', () => {
   it('says when the board holds no tasks', async () => {
     const renderer = await render({ tasks: [] })
     expect(JSON.stringify(renderer.toJSON())).toContain('No tasks here.')
+  })
+
+  it('shows the scheduled one-time routines under All and No project, never under a project', async () => {
+    const renderer = await render({ client: hostWithRoutines([ROUTINE]).client })
+    const text = () => JSON.stringify(renderer.toJSON())
+    expect(text()).toContain('Wednesday check-in')
+    expect(text()).toContain('Scheduled · Wed 4 Nov, 10:00')
+
+    await press(renderer, 'No project 1')
+    expect(text()).toContain('Wednesday check-in')
+
+    await press(renderer, 'Launch 1')
+    expect(text()).not.toContain('Wednesday check-in')
+    expect(text()).toContain('Flyer')
   })
 })

@@ -5,9 +5,11 @@ import type { BotTeamTask } from '../../../src/shared/rpc-contract/bot-team-room
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
 import {
+  mobileRoutineNextRunDetail,
   mobileRoutineRunStatus,
   mobileRoutineScheduleLine,
-  mobileRoutineWhenLabel
+  mobileRoutineWhenLabel,
+  mobileViewerWall
 } from './MobileBotTeamRoutineLabels'
 import { listMobileBotTeamRoutineRuns } from './MobileBotTeamRoutineRpc'
 import { MobileBotTeamRoutineSwitch, useMobileBotTeamRoutines } from './MobileBotTeamRoutines'
@@ -82,11 +84,7 @@ export function MobileBotTeamRoutineRuns({
               <Text style={styles.rowMeta}>
                 {`${bot?.name ?? ''}. ${team.accessMode === 'full-access' ? 'Full access' : 'Ask first'}, set for ${team.name}.`}
               </Text>
-              <Text style={styles.rowMeta}>
-                {routine.nextRun
-                  ? `Next run ${mobileRoutineWhenLabel(routine.nextRun)}`
-                  : 'Paused.'}
-              </Text>
+              <Text style={styles.rowMeta}>{mobileRoutineNextRunDetail(routine)}</Text>
             </View>
           </>
         ) : null}
@@ -109,7 +107,7 @@ export function MobileBotTeamRoutineRuns({
                   <View style={styles.taskCardStatus}>
                     <View style={[styles.statusDot, { backgroundColor: dotColor(status) }]} />
                     <Text style={[styles.rowTitle, styles.grow]}>
-                      {mobileRoutineWhenLabel(run.scheduledFor)}
+                      {mobileRoutineWhenLabel(mobileViewerWall(run.scheduledFor, run.scheduledAt))}
                     </Text>
                     {status ? <Text style={styles.rowMeta}>{status}</Text> : null}
                   </View>

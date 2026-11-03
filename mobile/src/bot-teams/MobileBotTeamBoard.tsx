@@ -5,11 +5,16 @@ import type {
   BotTeamProject,
   BotTeamTask
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
+import type { BotTeamRoutine } from '../../../src/shared/rpc-contract/bot-team-routine-params'
 import type { RpcClient } from '../transport/rpc-client'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
+import { useMobileBotTeamRoutines } from './MobileBotTeamRoutines'
+import { MobileBotTeamScheduledRows } from './MobileBotTeamScheduledRows'
 import { MobileBotTeamTaskCard } from './MobileBotTeamTaskCard'
 import { MobileBotTeamWorkBar } from './MobileBotTeamWorkBar'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
+
+const NO_ROUTINES: readonly BotTeamRoutine[] = []
 
 /** The team's tasks, filtered by project: all of them, each project, then the tasks with none. */
 export function MobileBotTeamBoard({
@@ -39,6 +44,8 @@ export function MobileBotTeamBoard({
   onChanged: () => void
 }) {
   const [filter, setFilter] = useState('all')
+  const { read } = useMobileBotTeamRoutines(client, team.id, offline)
+  const routines = read?.kind === 'ready' ? read.value : NO_ROUTINES
   const chips = [
     { id: 'all', name: `All ${tasks.length}` },
     ...projects.map((project) => ({
@@ -57,6 +64,8 @@ export function MobileBotTeamBoard({
   })
   const projectName = (task: BotTeamTask) =>
     projects.find((project) => project.id === task.projectId)?.name ?? null
+  // A routine belongs to the team, not to a project, so it shows on the team's views only.
+  const teamViews = filter === 'all' || filter === 'none'
 
   return (
     <View style={styles.grow}>
@@ -85,6 +94,7 @@ export function MobileBotTeamBoard({
             </Pressable>
           ))}
         </View>
+        {teamViews ? <MobileBotTeamScheduledRows routines={routines} /> : null}
         {shown.length === 0 ? <Text style={styles.message}>No tasks here.</Text> : null}
         {shown.map((task) => (
           <MobileBotTeamTaskCard
