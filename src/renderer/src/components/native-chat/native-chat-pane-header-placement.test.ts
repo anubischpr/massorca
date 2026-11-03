@@ -73,6 +73,30 @@ describe('nativeChatPaneHeaderPlacement', () => {
       })
     ).toBe('hidden')
   })
+
+  it('renders a split chat into the top row when its pane touches the top edge', () => {
+    expect(
+      nativeChatPaneHeaderPlacement({
+        isVisible: true,
+        inline: false,
+        inSplit: true,
+        ownsSessionBar: false,
+        topBarMounted: true
+      })
+    ).toBe('top-bar')
+  })
+
+  it('keeps a split chat in its own pane row when its pane is not at the top edge', () => {
+    expect(
+      nativeChatPaneHeaderPlacement({
+        isVisible: true,
+        inline: false,
+        inSplit: true,
+        ownsSessionBar: false,
+        topBarMounted: false
+      })
+    ).toBe('pane-row')
+  })
 })
 
 describe('isPaneGroupInSplit', () => {
