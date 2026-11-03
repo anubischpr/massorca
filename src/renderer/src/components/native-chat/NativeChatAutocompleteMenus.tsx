@@ -148,10 +148,18 @@ function getPickerEmptyText(
 
 function PickerGroupHeading({ kind }: { kind: 'commands' | 'skills' }): React.JSX.Element {
   return (
-    <div className="px-2 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+    <PickerHeading>
       {kind === 'commands'
         ? translate('components.native-chat.composer.commands', 'Commands')
         : translate('components.native-chat.composer.skills', 'Skills')}
+    </PickerHeading>
+  )
+}
+
+export function PickerHeading({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <div className="px-2 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+      {children}
     </div>
   )
 }
@@ -236,16 +244,22 @@ function PickerOption({
 
 export function PickerListbox({
   id,
+  placement = 'above',
   children
 }: {
   id: string
+  /** Below suits a box at the top of a page, such as the Tasks home's. */
+  placement?: 'above' | 'below'
   children: React.ReactNode
 }): React.JSX.Element {
   return (
     <div
       id={id}
       role="listbox"
-      className="scrollbar-sleek absolute bottom-full left-0 right-0 z-20 mb-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-[0_10px_24px_rgba(0,0,0,0.18)]"
+      className={cn(
+        'scrollbar-sleek absolute left-0 right-0 z-20 max-h-72 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-[0_10px_24px_rgba(0,0,0,0.18)]',
+        placement === 'above' ? 'bottom-full mb-1' : 'top-full mt-1'
+      )}
     >
       {children}
     </div>
@@ -323,11 +337,13 @@ export const NativeChatMentionMenu = memo(function NativeChatMentionMenu({
   mention,
   activeIndex,
   listboxId,
+  placement,
   onChoose
 }: {
   mention: NativeChatMentionFiles
   activeIndex: number
   listboxId: string
+  placement?: 'above' | 'below'
   onChoose: (path: string) => void
 }): React.JSX.Element {
   const activeItemRef = useRef<HTMLButtonElement | null>(null)
@@ -348,7 +364,7 @@ export const NativeChatMentionMenu = memo(function NativeChatMentionMenu({
           : translate('components.native-chat.composer.noFiles', 'No matching files')
 
   return (
-    <PickerListbox id={listboxId}>
+    <PickerListbox id={listboxId} placement={placement}>
       {files.map((path, index) => {
         const FileIcon = getFileTypeIcon(path)
         return (

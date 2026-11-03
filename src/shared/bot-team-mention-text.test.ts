@@ -37,6 +37,31 @@ describe('splitBotTeamMentionText', () => {
   it('does not match a name that is only a prefix of a longer word', () => {
     expect(splitBotTeamMentionText('@Irisa', NAMES)).toEqual([{ kind: 'text', value: '@Irisa' }])
   })
+
+  it('reads a project as a name, and a file path only when asked', () => {
+    const names = [...NAMES, { name: 'NexusCare', kind: 'project' as const }]
+    expect(splitBotTeamMentionText('En @NexusCare usa @site/flyer.html.', names)).toEqual([
+      { kind: 'text', value: 'En ' },
+      { kind: 'mention', value: '@NexusCare', name: 'NexusCare' },
+      { kind: 'text', value: ' usa @site/flyer.html.' }
+    ])
+    expect(
+      splitBotTeamMentionText('En @NexusCare usa @site/flyer.html.', names, { files: true })
+    ).toEqual([
+      { kind: 'text', value: 'En ' },
+      { kind: 'mention', value: '@NexusCare', name: 'NexusCare' },
+      { kind: 'text', value: ' usa ' },
+      { kind: 'file', value: '@site/flyer.html', path: 'site/flyer.html' },
+      { kind: 'text', value: '.' }
+    ])
+  })
+
+  it('finds files with no names known, and leaves words with no extension plain', () => {
+    expect(splitBotTeamMentionText('@brief.md y @v1 y a@b.md', [], { files: true })).toEqual([
+      { kind: 'file', value: '@brief.md', path: 'brief.md' },
+      { kind: 'text', value: ' y @v1 y a@b.md' }
+    ])
+  })
 })
 
 describe('removeBotTeamMentionBeforeCaret', () => {

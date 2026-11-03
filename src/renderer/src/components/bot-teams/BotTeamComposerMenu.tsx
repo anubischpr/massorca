@@ -1,7 +1,9 @@
-import { createElement, useEffect, useRef } from 'react'
+import { createElement, Fragment, useEffect, useRef } from 'react'
 import { translate } from '@/i18n/i18n'
 import { getFileTypeIcon } from '@/lib/file-type-icons'
+import { RepoIconGlyph } from '@/components/repo/repo-icon'
 import {
+  PickerHeading,
   PickerListbox,
   PickerOptionButton
 } from '@/components/native-chat/NativeChatAutocompleteMenus'
@@ -13,7 +15,31 @@ import { BotAgentIcon } from './BotAgentIcon'
 import { BotTeamCharacterIcon } from './BotTeamCharacterIcon'
 
 function itemKey(item: BotTeamComposerItem): string {
-  return item.kind === 'bot' ? item.bot.id : item.kind === 'team' ? item.team.id : item.insert
+  switch (item.kind) {
+    case 'bot':
+      return item.bot.id
+    case 'team':
+      return item.team.id
+    case 'project':
+      return `project:${item.project.id}`
+    default:
+      return item.insert
+  }
+}
+
+function groupHeading(kind: BotTeamComposerItem['kind']): string | null {
+  switch (kind) {
+    case 'bot':
+      return translate('components.botTeams.mentionBots', 'Bots')
+    case 'team':
+      return translate('components.botTeams.mentionTeams', 'Teams')
+    case 'project':
+      return translate('components.botTeams.projects', 'Projects')
+    case 'file':
+      return translate('components.botTeams.mentionFiles', 'Files')
+    case 'command':
+      return null
+  }
 }
 
 function ItemRow({ item }: { item: BotTeamComposerItem }): React.JSX.Element {
@@ -35,6 +61,17 @@ function ItemRow({ item }: { item: BotTeamComposerItem }): React.JSX.Element {
       <>
         <BotTeamCharacterIcon character={item.team.character} size={16} />
         <span className="min-w-0 flex-1 truncate font-medium">{item.team.name}</span>
+      </>
+    )
+  }
+  if (item.kind === 'project') {
+    return (
+      <>
+        {/* A project without a logo shows its name alone. */}
+        {item.project.logo ? (
+          <RepoIconGlyph repoIcon={item.project.logo} className="mt-0.5 size-3.5 shrink-0" />
+        ) : null}
+        <span className="min-w-0 flex-1 truncate font-medium">{item.project.name}</span>
       </>
     )
   }
@@ -66,35 +103,44 @@ function ItemRow({ item }: { item: BotTeamComposerItem }): React.JSX.Element {
   )
 }
 
-/** The room's @ and / menu, on the session composer's own list and row. */
+/** The room's @ and / menu, on the session composer's own list and row; kinds get headings when mixed. */
 export function BotTeamComposerMenu({
   menu,
   activeIndex,
   listboxId,
+  placement,
   onChoose
 }: {
   menu: Menu
   activeIndex: number
   listboxId: string
+  placement?: 'above' | 'below'
   onChoose: (item: BotTeamComposerItem) => void
 }): React.JSX.Element {
   const activeItemRef = useRef<HTMLButtonElement | null>(null)
   useEffect(() => {
     activeItemRef.current?.scrollIntoView({ block: 'nearest' })
   }, [activeIndex, menu.items])
+  const mixed = new Set(menu.items.map((item) => item.kind)).size > 1
   return (
-    <PickerListbox id={listboxId}>
-      {menu.items.map((item, index) => (
-        <PickerOptionButton
-          key={itemKey(item)}
-          id={`${listboxId}-option-${index}`}
-          selected={index === activeIndex}
-          activeItemRef={activeItemRef}
-          onChoose={() => onChoose(item)}
-        >
-          <ItemRow item={item} />
-        </PickerOptionButton>
-      ))}
+    <PickerListbox id={listboxId} placement={placement}>
+      {menu.items.map((item, index) => {
+        const heading =
+          mixed && item.kind !== menu.items[index - 1]?.kind ? groupHeading(item.kind) : null
+        return (
+          <Fragment key={itemKey(item)}>
+            {heading ? <PickerHeading>{heading}</PickerHeading> : null}
+            <PickerOptionButton
+              id={`${listboxId}-option-${index}`}
+              selected={index === activeIndex}
+              activeItemRef={activeItemRef}
+              onChoose={() => onChoose(item)}
+            >
+              <ItemRow item={item} />
+            </PickerOptionButton>
+          </Fragment>
+        )
+      })}
     </PickerListbox>
   )
 }

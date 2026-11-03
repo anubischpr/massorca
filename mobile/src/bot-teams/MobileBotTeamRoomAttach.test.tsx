@@ -14,6 +14,7 @@ vi.mock('react-native', () => ({
   Text: 'Text',
   View: 'View'
 }))
+vi.mock('../components/MobileRepoIcon', () => ({ MobileRepoIcon: () => null }))
 vi.mock('lucide-react-native', () => ({
   ChevronDown: 'ChevronDown',
   ChevronLeft: 'ChevronLeft',

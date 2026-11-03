@@ -29,10 +29,10 @@ import { useBotTeamReplying } from './BotTeamRoomReplying'
 import { BotTeamReassignButton } from './BotTeamReassignButton'
 import { BotTeamPendingChoice, type BotTeamPendingChoiceRequest } from './BotTeamPendingChoice'
 import { BotTeamRoomComposer } from './BotTeamRoomComposer'
+import { useBotTeamRoomMentions } from './bot-team-mention-projects'
 import { BotTeamSentTrackers } from './BotTeamRoomTracker'
 import { BotTeamRoomMessage } from './BotTeamRoomMessage'
 import { useBotTeamRoomPrototypeLinks } from './BotTeamRoomPrototypeLinks'
-import type { BotTeamMentionIcon } from './BotTeamMentionChip'
 import { useBotTeamRoomAttachments } from './bot-team-room-attach-state'
 import type { BotTeamRoomAttachment } from '../../../../shared/bot-team-room-attachments'
 import { BotTeamTaskCard } from './BotTeamTaskCard'
@@ -131,18 +131,7 @@ export function BotTeamRoom({
   const [pending, setPending] = useState<BotTeamPendingChoiceRequest | null>(null)
   // The text with the host, if any; the room shows who is typing until the reply comes back.
   const [typing, setTyping] = useState<string | null>(null)
-  // The names a message can chip: this team's bots, then the other teams the @ menu offers.
-  const mentionIcons = useMemo<BotTeamMentionIcon[]>(
-    () => [
-      ...team.bots.map((bot) => ({ name: bot.name, kind: 'bot' as const, agent: bot.agent })),
-      ...otherTeams.map((entry) => ({
-        name: entry.name,
-        kind: 'team' as const,
-        character: entry.character
-      }))
-    ],
-    [team.bots, otherTeams]
-  )
+  const { mentionProjects, mentionIcons } = useBotTeamRoomMentions(team, otherTeams, projects)
   const replying = useBotTeamReplying(team.bots)
   const readReplying = replying.readRoom
   const sidePanel = useRightSidebarPageTarget()
@@ -408,6 +397,7 @@ export function BotTeamRoom({
         <BotTeamRoomComposer
           team={team}
           otherTeams={otherTeams}
+          projects={mentionProjects}
           offline={offline}
           onSend={send}
           onAttachFiles={onAttachFiles}

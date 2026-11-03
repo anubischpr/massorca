@@ -7,6 +7,9 @@ import {
 export const BOT_TEAM_MENTION_PROPERTY = 'dataBotTeamMention'
 /** The attribute the chip component reads, as react-markdown passes it. */
 export const BOT_TEAM_MENTION_ATTRIBUTE = 'data-bot-team-mention'
+/** The same pair for a file mention, which carries its path. */
+export const BOT_TEAM_MENTION_FILE_PROPERTY = 'dataBotTeamMentionFile'
+export const BOT_TEAM_MENTION_FILE_ATTRIBUTE = 'data-bot-team-mention-file'
 
 type MarkdownNode = {
   type: string
@@ -26,14 +29,20 @@ function splitMentionsInChildren(node: MarkdownNode, names: readonly BotTeamMent
       next.push(child)
       continue
     }
-    for (const segment of splitBotTeamMentionText(child.value, names)) {
+    for (const segment of splitBotTeamMentionText(child.value, names, { files: true })) {
       if (segment.kind === 'text') {
         next.push({ type: 'text', value: segment.value })
       } else {
         next.push({
           type: 'botTeamMention',
           children: [{ type: 'text', value: segment.value }],
-          data: { hName: 'span', hProperties: { [BOT_TEAM_MENTION_PROPERTY]: segment.name } }
+          data: {
+            hName: 'span',
+            hProperties:
+              segment.kind === 'file'
+                ? { [BOT_TEAM_MENTION_FILE_PROPERTY]: segment.path }
+                : { [BOT_TEAM_MENTION_PROPERTY]: segment.name }
+          }
         })
       }
     }
