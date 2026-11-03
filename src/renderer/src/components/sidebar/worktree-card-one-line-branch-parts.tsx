@@ -10,6 +10,8 @@ import {
   normalizeManualDisplayName,
   resolveOneLineRowLabel
 } from '../../../../shared/worktree/branch-display-label'
+import { BotTeamCharacterIcon } from '../bot-teams/BotTeamCharacterIcon'
+import { useBotTeamCharacterForFolder } from '../bot-teams/use-bot-teams'
 import { SessionStatusGlyphIcon } from './SessionStatusGlyphIcon'
 import { TruncatedSidebarLabel } from './truncated-sidebar-label'
 import { useWorktreeActivityStatus } from './use-worktree-activity-status'
@@ -39,9 +41,15 @@ export function BranchRowLeadingIcon({
   onToggleSessions: () => void
 }): React.JSX.Element {
   const { isFolder, detachedHeadDisplay, stopQuickActionPointerPropagation } = card
+  // Why: a team's folder row shows its team's character where a plain folder would be.
+  const teamCharacter = useBotTeamCharacterForFolder(card.worktree.path)
   const Icon = isFolder ? Folder : detachedHeadDisplay ? GitCommitHorizontal : GitBranch
   if (!hasSessions) {
-    return <Icon className={cn(ROW_ICON_CLASS_NAME, 'text-muted-foreground')} aria-hidden />
+    return isFolder && teamCharacter !== null ? (
+      <BotTeamCharacterIcon character={teamCharacter} size={13} still />
+    ) : (
+      <Icon className={cn(ROW_ICON_CLASS_NAME, 'text-muted-foreground')} aria-hidden />
+    )
   }
   const label = sessionsCollapsed
     ? translate('auto.components.sidebar.worktree.card.one.line.expandSessions', 'Show sessions')

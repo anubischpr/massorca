@@ -5,6 +5,7 @@ import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import { clearNativeChatDraftCacheForTests } from '../native-chat/native-chat-draft-cache'
 import { promptTextContent } from '../native-chat/native-chat-prompt-document-text'
 import { promptEditor, promptValue } from '../native-chat/native-chat-prompt-editor.test-support'
 
@@ -33,6 +34,7 @@ const TEAM: BotTeam = {
 const mounted: { container: HTMLDivElement; root: Root }[] = []
 
 afterEach(() => {
+  clearNativeChatDraftCacheForTests()
   for (const { container, root } of mounted.splice(0)) {
     act(() => root.unmount())
     container.remove()
