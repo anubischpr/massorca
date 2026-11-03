@@ -18,9 +18,12 @@ export const DelegateRequestParams = z.object({
 
 export type DelegateRequestInput = z.infer<typeof DelegateRequestParams>
 
-export type DelegateRequestResult = {
-  requestId: string
-  status: 'awaiting_choice'
-  /** The journal key of the choice card in the parent chat. */
-  questionItemId: string
-}
+export type DelegateRequestResult =
+  | {
+      requestId: string
+      status: 'awaiting_choice'
+      /** The journal key of the choice card in the parent chat. */
+      questionItemId: string
+    }
+  /** A bot-run chat's request: no card, the router's choice starts it. */
+  | { requestId: string; status: 'starting' }

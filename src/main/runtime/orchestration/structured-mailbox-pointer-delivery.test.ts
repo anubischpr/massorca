@@ -29,6 +29,10 @@ function harness(options: {
   /** The coordinator of this worker's Run is mid-batch: it checked and has not acked yet. */
   outstandingRunDelivery?: boolean
   outstandingOwnDelivery?: boolean
+  /** The message ids in the mailbox's own unacked batch; the unread mail by default. */
+  batchMembers?: string[]
+  /** The consumer is mid-turn. */
+  turnRunning?: boolean
   /** The mailbox this worker owns; its own handle for direct peer mail outside a dispatch. */
   mailbox?: string
   dispatchId?: string | null
@@ -58,11 +62,27 @@ function harness(options: {
     () => undefined
   )
   const stored = new Map<string, StructuredPointerOperationRow>()
+  let turnRunning = options.turnRunning ?? false
+  const superseded = new Set<string>()
+  const batchMembers = new Set(options.batchMembers ?? mail.map((message) => message.id))
+  const hasOutstanding = (handle: string) =>
+    !superseded.has(handle) &&
+    (((options.outstandingRunDelivery ?? false) && handle.startsWith('run:')) ||
+      ((options.outstandingOwnDelivery ?? false) && !handle.startsWith('run:')))
+  const supersedeMailboxDeliveryHiding = vi.fn((handle: string, ids: readonly string[]) => {
+    if (!hasOutstanding(handle)) {
+      return true
+    }
+    if (ids.every((id) => batchMembers.has(id))) {
+      return false
+    }
+    superseded.add(handle)
+    return true
+  })
   const db = {
     getDispatchContextById: () => ({ run_id: 'run_1' }),
-    hasOutstandingMailboxDelivery: (handle: string) =>
-      ((options.outstandingRunDelivery ?? false) && handle.startsWith('run:')) ||
-      ((options.outstandingOwnDelivery ?? false) && !handle.startsWith('run:')),
+    hasOutstandingMailboxDelivery: hasOutstanding,
+    supersedeMailboxDeliveryHiding,
     getUndeliveredUnreadMessages: () => mail.filter((message) => !pointed.has(message.id)),
     markAsDelivered,
     getStructuredPointerOperation: (key: string) => stored.get(key),
@@ -78,7 +98,7 @@ function harness(options: {
     getCliCommand: () => 'orca-dev',
     senderName: (party) => (party.address === 'term_coord' ? 'Coordinator' : null),
     host: {
-      readSessionFacts: async () => (attached ? { submissions } : null),
+      readSessionFacts: async () => (attached ? { submissions, turnRunning } : null),
       currentFence: () => 4,
       currentContextClearOperationId: readContext,
       send
@@ -90,6 +110,10 @@ function harness(options: {
     send: sendMock,
     readContext,
     stored,
+    supersedeMailboxDeliveryHiding,
+    setTurnRunning: (next: boolean) => {
+      turnRunning = next
+    },
     setAttached: (next: boolean) => {
       attached = next
     },
@@ -271,6 +295,42 @@ describe('structured mailbox pointer delivery', () => {
     delivery.deliverForHandle('dispatch:d1')
     await flush()
     expect(send).not.toHaveBeenCalled()
+  })
+
+  it("points an idle parent at a child's report waiting behind a batch it never acked", async () => {
+    // pv79: the parent checked one child's report and went idle without an ack. The other child's
+    // report arrived after, and the unacked batch kept it from ever being pointed.
+    const { delivery, send, markAsDelivered, supersedeMailboxDeliveryHiding } = harness({
+      mailbox: 'run:run_1',
+      dispatchId: null,
+      outstandingRunDelivery: true,
+      batchMembers: ['m0']
+    })
+    delivery.deliverForHandle('run:run_1')
+    await flush()
+    expect(supersedeMailboxDeliveryHiding).toHaveBeenCalledWith('run:run_1', ['m1'])
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(markAsDelivered).toHaveBeenCalledWith(['m1'])
+  })
+
+  it('holds the report while the parent is mid-turn, and points it once the turn ends', async () => {
+    // A running turn may still ack the batch it checked, so nothing is superseded under it.
+    const { delivery, send, supersedeMailboxDeliveryHiding, setTurnRunning } = harness({
+      mailbox: 'run:run_1',
+      dispatchId: null,
+      outstandingRunDelivery: true,
+      batchMembers: ['m0'],
+      turnRunning: true
+    })
+    delivery.deliverForHandle('run:run_1')
+    await flush()
+    expect(send).not.toHaveBeenCalled()
+    expect(supersedeMailboxDeliveryHiding).not.toHaveBeenCalled()
+
+    setTurnRunning(false)
+    delivery.onJournalActivity(IDENTITY.sessionId)
+    await flush()
+    expect(send).toHaveBeenCalledTimes(1)
   })
 
   it('retries a rejected nudge on the next journal edge, under the same id', async () => {
@@ -473,7 +533,7 @@ describe('forgetting one settled worker', () => {
       getCliCommand: () => 'orca',
       senderName: () => null,
       host: {
-        readSessionFacts: async () => (attached ? { submissions: [] } : null),
+        readSessionFacts: async () => (attached ? { submissions: [], turnRunning: false } : null),
         currentFence: () => 4,
         currentContextClearOperationId: () => undefined,
         send
@@ -574,7 +634,7 @@ describe('a mailbox a /clear moves while its nudge is in flight', () => {
       getCliCommand: () => 'orca-dev',
       senderName: () => null,
       host: {
-        readSessionFacts: async () => ({ submissions: [] }),
+        readSessionFacts: async () => ({ submissions: [], turnRunning: false }),
         currentFence: () => 4,
         currentContextClearOperationId: () => contextClearOperationId,
         send

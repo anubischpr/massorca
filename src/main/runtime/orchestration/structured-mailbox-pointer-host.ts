@@ -50,7 +50,7 @@ export async function readStructuredSessionGateFacts(
   return snapshot ? structuredSessionGateFacts(snapshot.items) : null
 }
 
-/** What each recorded send settled as. */
+/** What each recorded send settled as, and whether a turn is running. */
 async function readPointerSessionFacts(
   sessionId: string
 ): Promise<StructuredPointerSessionFacts | null> {
@@ -63,7 +63,8 @@ async function readPointerSessionFacts(
   return {
     submissions: boundary
       ? snapshot.submissions.filter((submission) => submission.fence > boundary.afterFence)
-      : snapshot.submissions
+      : snapshot.submissions,
+    turnRunning: structuredSessionGateFacts(snapshot.items).turnRunning
   }
 }
 

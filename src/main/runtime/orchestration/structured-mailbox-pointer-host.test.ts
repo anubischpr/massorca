@@ -73,10 +73,17 @@ describe('structured mailbox pointer host', () => {
     // far from the tail, so any page-sized read reports a busy worker as idle — and `@idle` then
     // wakes it mid-turn.
     const items = [runningTurn(), ...transcript(500)]
-    hostRef.current = { journalSnapshot: () => ({ items, submissions: [] }) }
+    hostRef.current = {
+      deps: { store: { getRecord: () => null } },
+      journalSnapshot: () => ({ items, submissions: [] })
+    }
     expect(await readStructuredSessionGateFacts('s1')).toEqual({
       turnRunning: true,
       awaitingHuman: false
+    })
+    // The pointer lane reads the same fact before it supersedes an unacked batch.
+    expect(await createStructuredMailboxPointerHost().readSessionFacts('s1')).toMatchObject({
+      turnRunning: true
     })
   })
 
@@ -87,7 +94,8 @@ describe('structured mailbox pointer host', () => {
       journalSnapshot: () => ({ items: [], submissions })
     }
     expect(await createStructuredMailboxPointerHost().readSessionFacts('s1')).toEqual({
-      submissions
+      submissions,
+      turnRunning: false
     })
   })
 
@@ -115,7 +123,10 @@ describe('structured mailbox pointer host', () => {
       journalSnapshot: () => ({ items, submissions: [pointerSubmission('earlier', 2, 6), current] })
     }
     const host = createStructuredMailboxPointerHost()
-    expect(await host.readSessionFacts('s1')).toEqual({ submissions: [current] })
+    expect(await host.readSessionFacts('s1')).toEqual({
+      submissions: [current],
+      turnRunning: false
+    })
     expect(host.currentContextClearOperationId('s1')).toBe('clear-1')
   })
 
@@ -133,7 +144,10 @@ describe('structured mailbox pointer host', () => {
       })
     }
     const host = createStructuredMailboxPointerHost()
-    expect(await host.readSessionFacts('s1')).toEqual({ submissions: [current] })
+    expect(await host.readSessionFacts('s1')).toEqual({
+      submissions: [current],
+      turnRunning: false
+    })
     expect(host.currentContextClearOperationId('s1')).toBe('clear-1')
   })
 
