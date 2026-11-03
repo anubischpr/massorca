@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,6 +36,7 @@ export function BotTeamEngramMemory({ team }: { team: BotTeam }): React.JSX.Elem
   const [draft, setDraft] = useState('')
   const [query, setQuery] = useState('')
   const [reply, setReply] = useState<BotTeamEngramReply | null>(null)
+  const firstLoad = useRef(true)
 
   useEffect(() => {
     if (!team.workspacesEnabled) {
@@ -63,10 +64,14 @@ export function BotTeamEngramMemory({ team }: { team: BotTeam }): React.JSX.Elem
     }
     let closed = false
     setReply(null)
+    // The view's first load asks the host to import from the Engram server first.
+    const refresh = firstLoad.current
+    firstLoad.current = false
     void listBotTeamEngramMemory({
       teamId: team.id,
       projectId,
-      ...(query ? { query } : {})
+      ...(query ? { query } : {}),
+      ...(refresh ? { refresh: true } : {})
     }).then(
       (next) => !closed && setReply(next),
       () => !closed && setReply({ status: 'failed', memories: [] })
@@ -154,6 +159,14 @@ export function BotTeamEngramMemory({ team }: { team: BotTeam }): React.JSX.Elem
               ))
             : null}
           {line ? <div className="px-4 py-3 text-sm text-muted-foreground">{line}</div> : null}
+          {reply.refreshFailed ? (
+            <div className="px-4 py-3 text-sm text-muted-foreground">
+              {translate(
+                'components.botTeams.engramRefreshFailed',
+                'Could not refresh from the Engram server.'
+              )}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

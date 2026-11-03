@@ -7,13 +7,13 @@ import type { RpcClient } from '../transport/rpc-client'
 
 type HostClient = Pick<RpcClient, 'sendRequest'>
 
-// Above the host's own 10 s limit on the Engram CLI.
-const REQUEST_TIMEOUT_MS = 15_000
+// Above the host's 20 s server import plus its 10 s read, so a slow refresh still returns its memories.
+const REQUEST_TIMEOUT_MS = 35_000
 
 /** A host from before this method, or one that cannot be reached, never throws: it reads as a status. */
 export async function listMobileBotTeamEngramMemory(
   client: HostClient,
-  input: { teamId: string; projectId: string; query?: string }
+  input: { teamId: string; projectId: string; query?: string; refresh?: boolean }
 ): Promise<BotTeamEngramReply> {
   try {
     const response = await client.sendRequest('botTeams.listEngramMemory', input, {

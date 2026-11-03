@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Pressable, Text, TextInput, View } from 'react-native'
 import type { BotTeamEngramReply } from '../../../src/shared/rpc-contract/bot-team-engram-params'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
@@ -38,6 +38,7 @@ export function MobileBotTeamEngramMemory({
   const [draft, setDraft] = useState('')
   const [query, setQuery] = useState('')
   const [reply, setReply] = useState<BotTeamEngramReply | null>(null)
+  const firstLoad = useRef(true)
 
   useEffect(() => {
     if (offline || !team.workspacesEnabled) {
@@ -62,10 +63,14 @@ export function MobileBotTeamEngramMemory({
     }
     let current = true
     setReply(null)
+    // The view's first load asks the host to import from the Engram server first.
+    const refresh = firstLoad.current
+    firstLoad.current = false
     void listMobileBotTeamEngramMemory(client, {
       teamId: team.id,
       projectId,
-      ...(query ? { query } : {})
+      ...(query ? { query } : {}),
+      ...(refresh ? { refresh: true } : {})
     }).then((next) => {
       if (current) {
         setReply(next)
@@ -132,6 +137,9 @@ export function MobileBotTeamEngramMemory({
           ))
         : null}
       {line ? <Text style={styles.message}>{line}</Text> : null}
+      {reply?.refreshFailed ? (
+        <Text style={styles.message}>Could not refresh from the Engram server.</Text>
+      ) : null}
     </View>
   )
 }

@@ -67,7 +67,17 @@ describe('BotTeamEngramMemory', () => {
     expect(text).toContain('decision')
     expect(text).toContain('Kept after a finish.')
     expect(container.querySelectorAll('button')).toHaveLength(1)
-    expect(engram.listBotTeamEngramMemory).toHaveBeenCalledWith({ teamId: 'dev', projectId: 'p1' })
+    expect(engram.listBotTeamEngramMemory).toHaveBeenCalledWith({
+      teamId: 'dev',
+      projectId: 'p1',
+      refresh: true
+    })
+  })
+
+  it('says the Engram server could not be refreshed, while showing the local memories', async () => {
+    const container = await mount({ ...MEMORIES, refreshFailed: true })
+    expect(container.textContent).toContain('Branch is kept')
+    expect(container.textContent).toContain('Could not refresh from the Engram server.')
   })
 
   it('searches the project when the person submits a query', async () => {

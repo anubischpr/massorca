@@ -16,6 +16,13 @@ describe('listMobileBotTeamEngramMemory', () => {
     expect(sendRequest).toHaveBeenCalledWith('botTeams.listEngramMemory', INPUT, expect.anything())
   })
 
+  it('keeps the refreshFailed flag the host sets when the Engram import failed', async () => {
+    const reply = { status: 'ok', projectName: 'demo', memories: [], refreshFailed: true }
+    const sendRequest = vi.fn(async () => ({ ok: true, result: reply }))
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: The call only uses sendRequest.
+    expect(await listMobileBotTeamEngramMemory({ sendRequest } as never, INPUT)).toEqual(reply)
+  })
+
   it('reads a host without the method as unavailable, and trouble as failed', async () => {
     const missing = {
       sendRequest: async () => ({ ok: false, error: { code: 'method_not_found', message: 'x' } })

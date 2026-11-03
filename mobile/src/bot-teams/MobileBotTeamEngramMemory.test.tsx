@@ -77,9 +77,15 @@ describe('MobileBotTeamEngramMemory', () => {
     expect(screen).toContain('decision')
     expect(client.sendRequest).toHaveBeenCalledWith(
       'botTeams.listEngramMemory',
-      { teamId: 'team', projectId: 'p1' },
+      { teamId: 'team', projectId: 'p1', refresh: true },
       expect.anything()
     )
+  })
+
+  it('says the Engram server could not be refreshed, while showing the local memories', async () => {
+    const screen = JSON.stringify((await render(host({ ...OK, refreshFailed: true }))).toJSON())
+    expect(screen).toContain('Branch is kept')
+    expect(screen).toContain('Could not refresh from the Engram server.')
   })
 
   it('searches when the person submits a query', async () => {

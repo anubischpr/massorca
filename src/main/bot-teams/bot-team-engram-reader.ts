@@ -5,15 +5,20 @@ const ENGRAM_TIMEOUT_MS = 10_000
 const EXCERPT_MAX_CHARS = 240
 
 export type EngramRun = { code: number | null; stdout: string; timedOut: boolean }
+export type EngramRunOptions = { timeoutMs: number }
 /** Runs `engram <args>`; rejects only when the program could not start. */
-export type EngramRunner = (args: readonly string[]) => Promise<EngramRun>
+export type EngramRunner = (
+  args: readonly string[],
+  options?: EngramRunOptions
+) => Promise<EngramRun>
 
 export type EngramReadResult =
   | { status: 'ok'; memories: BotTeamEngramMemory[] }
   | { status: 'unavailable' | 'failed' }
 
-export const runEngramCli: EngramRunner = async (args) => {
-  const result = await runProcess({ program: 'engram', args, timeoutMs: ENGRAM_TIMEOUT_MS })
+export const runEngramCli: EngramRunner = async (args, options) => {
+  const timeoutMs = options?.timeoutMs ?? ENGRAM_TIMEOUT_MS
+  const result = await runProcess({ program: 'engram', args, timeoutMs })
   return { code: result.code, stdout: result.stdout, timedOut: result.timedOut }
 }
 

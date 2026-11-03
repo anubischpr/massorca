@@ -8,6 +8,7 @@ export async function listBotTeamEngramMemory(input: {
   teamId: string
   projectId: string
   query?: string
+  refresh?: boolean
 }): Promise<BotTeamEngramReply> {
   try {
     return await callRuntimeRpc<BotTeamEngramReply>(

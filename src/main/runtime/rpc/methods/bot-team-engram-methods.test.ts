@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RpcContext } from '../core'
+import { createEngramCloudSync } from '../../../bot-teams/bot-team-engram-sync'
 import { botTeamListEngramMemoryMethod, engramCli } from './bot-team-engram-methods'
 import { BOT_TEAM_MEMORY_METHODS } from './bot-team-memory-methods'
 
@@ -16,19 +17,30 @@ function context(workspacesEnabled: boolean, workspace: { key: string; name: str
 }
 const LINKED = { key: 'repo:r1', name: 'Display Name' }
 const IDS = { teamId: 't1', projectId: 'p1' }
+const IMPORT_ARGS = ['sync', '--import', '--cloud', '--project', 'massorca']
+const CONTEXT = {
+  code: 0,
+  stdout: '### Recent Observations\n- [passive] **A**: body\n',
+  timedOut: false
+}
+const IMPORTED = { code: 0, stdout: 'Imported 62 chunks\n', timedOut: false }
+const IMPORT_FAILED = { code: 1, stdout: '', timedOut: false }
 
 describe('botTeams.listEngramMemory', () => {
   const originalRun = engramCli.run
+  const originalSync = engramCli.sync
+  let now = 0
+  beforeEach(() => {
+    now = 1_000_000
+    engramCli.sync = createEngramCloudSync({ now: () => now })
+  })
   afterEach(() => {
     engramCli.run = originalRun
+    engramCli.sync = originalSync
   })
 
   it('reads the linked repo folder name through the injected runner', async () => {
-    const run = vi.fn(async () => ({
-      code: 0,
-      stdout: '### Recent Observations\n- [passive] **A**: body\n',
-      timedOut: false
-    }))
+    const run = vi.fn(async () => CONTEXT)
     engramCli.run = run
     const result = await botTeamListEngramMemoryMethod.handler(IDS, context(true, LINKED))
     expect(run).toHaveBeenCalledWith(['context', 'massorca'])
@@ -87,6 +99,70 @@ describe('botTeams.listEngramMemory', () => {
     const params = botTeamListEngramMemoryMethod.params
     expect(() => params?.parse({ ...IDS, limit: 21 })).toThrow()
     expect(() => params?.parse({ ...IDS, query: 'x'.repeat(201) })).toThrow()
+    expect(params?.parse({ ...IDS, refresh: true })).toMatchObject({ refresh: true })
     expect(BOT_TEAM_MEMORY_METHODS).toContain(botTeamListEngramMemoryMethod)
+  })
+
+  it('imports the linked project from the cloud before it reads the local memories', async () => {
+    const calls: string[][] = []
+    engramCli.run = async (args) => {
+      calls.push([...args])
+      return CONTEXT
+    }
+    await botTeamListEngramMemoryMethod.handler({ ...IDS, refresh: true }, context(true, LINKED))
+    expect(calls).toEqual([IMPORT_ARGS, ['context', 'massorca']])
+  })
+
+  it('skips the import within five minutes, but the view refresh runs it again', async () => {
+    const run = vi.fn(async (args: readonly string[]) => (args[0] === 'sync' ? IMPORTED : CONTEXT))
+    engramCli.run = run
+    const syncCalls = () => run.mock.calls.filter(([args]) => args[0] === 'sync').length
+    await botTeamListEngramMemoryMethod.handler(IDS, context(true, LINKED))
+    await botTeamListEngramMemoryMethod.handler(IDS, context(true, LINKED))
+    expect(syncCalls()).toBe(1)
+    await botTeamListEngramMemoryMethod.handler({ ...IDS, refresh: true }, context(true, LINKED))
+    expect(syncCalls()).toBe(2)
+  })
+
+  it('shares one import when two refreshes overlap', async () => {
+    let finish!: (result: typeof IMPORTED) => void
+    const run = vi.fn(async (args: readonly string[]) =>
+      args[0] === 'sync'
+        ? new Promise<typeof IMPORTED>((resolve) => {
+            finish = resolve
+          })
+        : CONTEXT
+    )
+    engramCli.run = run
+    const first = botTeamListEngramMemoryMethod.handler(
+      { ...IDS, refresh: true },
+      context(true, LINKED)
+    )
+    const second = botTeamListEngramMemoryMethod.handler(
+      { ...IDS, refresh: true },
+      context(true, LINKED)
+    )
+    finish(IMPORTED)
+    await Promise.all([first, second])
+    expect(run.mock.calls.filter(([args]) => args[0] === 'sync')).toHaveLength(1)
+  })
+
+  it('still returns the local memories, flagged refreshFailed, when the import fails', async () => {
+    engramCli.run = async (args) => (args[0] === 'sync' ? IMPORT_FAILED : CONTEXT)
+    const result = await botTeamListEngramMemoryMethod.handler(
+      { ...IDS, refresh: true },
+      context(true, LINKED)
+    )
+    expect(result).toMatchObject({ status: 'ok', refreshFailed: true })
+    expect(result.memories).toHaveLength(1)
+  })
+
+  it('leaves refreshFailed out when the import worked', async () => {
+    engramCli.run = async () => CONTEXT
+    const result = await botTeamListEngramMemoryMethod.handler(
+      { ...IDS, refresh: true },
+      context(true, LINKED)
+    )
+    expect(result).not.toHaveProperty('refreshFailed')
   })
 })
