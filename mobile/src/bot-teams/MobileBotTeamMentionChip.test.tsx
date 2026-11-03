@@ -16,10 +16,15 @@ vi.mock('react-native', async () => {
 })
 vi.mock('./MobileBotAgentIcon', () => ({ MobileBotAgentIcon: 'AgentIcon' }))
 vi.mock('./MobileBotTeamCharacterIcon', () => ({ MobileBotTeamCharacterIcon: 'CharacterIcon' }))
+vi.mock('../components/MobileRepoIcon', () => ({ MobileRepoIcon: 'RepoIcon' }))
+vi.mock('../components/MobileFileTypeIcon', () => ({ MobileFileTypeIcon: 'FileTypeIcon' }))
 
+const LOGO = { type: 'emoji' as const, emoji: '🚀' }
 const TARGETS: MobileBotTeamMentionTarget[] = [
   { name: 'Iris', kind: 'bot', agent: 'claude', character: null },
-  { name: 'Warehouse', kind: 'team', agent: null, character: 'square' }
+  { name: 'Warehouse', kind: 'team', agent: null, character: 'square' },
+  { name: 'Launch', kind: 'project', agent: null, character: null, logo: LOGO },
+  { name: 'Launchpad', kind: 'project', agent: null, character: null, logo: null }
 ]
 
 function renderMentions(text: string): ReactTestRenderer {
@@ -51,18 +56,45 @@ function chipsOf(renderer: ReactTestRenderer): ReactTestInstance[] {
 }
 
 describe('botTeamMentionNodes', () => {
-  it('draws a known bot mention as a chip carrying that bot', () => {
+  it('draws a known bot mention as a chip with its agent icon and name', () => {
     const renderer = renderMentions('Hola @Iris, mira')
 
-    expect(chipsOf(renderer).map((chip) => chip.props.target.name)).toEqual(['Iris'])
+    expect(chipsOf(renderer).map((chip) => chip.props.label)).toEqual(['Iris'])
+    expect(chipsOf(renderer)[0].props.icon.type).toBe('AgentIcon')
     expect(shownText(renderer)).toBe('Hola Iris, mira')
   })
 
-  it('draws a known team mention as a chip carrying that team', () => {
+  it('draws a known team mention as a chip with its character icon', () => {
     const renderer = renderMentions('Pásalo a @Warehouse.')
 
-    expect(chipsOf(renderer).map((chip) => chip.props.target.kind)).toEqual(['team'])
+    expect(chipsOf(renderer).map((chip) => chip.props.label)).toEqual(['Warehouse'])
+    expect(chipsOf(renderer)[0].props.icon.type).toBe('CharacterIcon')
     expect(shownText(renderer)).toBe('Pásalo a Warehouse.')
+  })
+
+  it('draws a project with a logo as a chip with that logo', () => {
+    const chip = chipsOf(renderMentions('mira @Launch'))[0]
+
+    expect(chip.props.label).toBe('Launch')
+    expect(chip.props.icon.type).toBe('RepoIcon')
+    expect(chip.props.icon.props.repoIcon).toEqual(LOGO)
+  })
+
+  it('draws a project without a logo as a chip with no icon', () => {
+    const chip = chipsOf(renderMentions('mira @Launchpad'))[0]
+
+    expect(chip.props.label).toBe('Launchpad')
+    expect(chip.props.icon).toBeNull()
+  })
+
+  it('draws a sent @path.ext as a chip with its file-type icon and the path as label', () => {
+    const renderer = renderMentions('ve @site/flyer.html ya')
+    const chip = chipsOf(renderer)[0]
+
+    expect(chip.props.label).toBe('site/flyer.html')
+    expect(chip.props.icon.type).toBe('FileTypeIcon')
+    expect(chip.props.icon.props.path).toBe('site/flyer.html')
+    expect(shownText(renderer)).toBe('ve site/flyer.html ya')
   })
 
   it('keeps an unknown @name plain, with no chip', () => {
@@ -73,7 +105,7 @@ describe('botTeamMentionNodes', () => {
   it('keeps every chip and plain run in the order the text has them', () => {
     const renderer = renderMentions('@Iris y @Warehouse ya')
 
-    expect(chipsOf(renderer).map((chip) => chip.props.target.name)).toEqual(['Iris', 'Warehouse'])
+    expect(chipsOf(renderer).map((chip) => chip.props.label)).toEqual(['Iris', 'Warehouse'])
     expect(shownText(renderer)).toBe('Iris y Warehouse ya')
   })
 })

@@ -34,6 +34,7 @@ vi.mock('lucide-react-native', () => ({
   Trash2: 'Trash2'
 }))
 vi.mock('../components/MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
+vi.mock('../components/MobileRepoIcon', () => ({ MobileRepoIcon: () => null }))
 vi.mock('./MobileBotTeamCharacterIcon', () => ({ MobileBotTeamCharacterIcon: () => null }))
 vi.mock('react-native-reanimated', () => ({
   default: { View: 'AnimatedView' },
