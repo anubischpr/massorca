@@ -191,6 +191,7 @@ function SplitNode({
         isFocused={isWorktreeActive && node.groupId === focusedGroupId}
         hasSplitGroups={hasSplitGroups}
         markdownAnnotationsEnabled={markdownAnnotationsEnabled}
+        touchesTopEdge={touchesTopEdge}
         touchesRightEdge={touchesRightEdge}
         touchesLeftEdge={touchesLeftEdge}
         touchesBottomEdge={touchesBottomEdge}

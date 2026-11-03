@@ -143,7 +143,8 @@ test('a pane shows another workspace’s live session by reference, and the focu
   await orcaPage.screenshot({ path: testInfo.outputPath('reference-side-by-side.png') })
   // The divider reaches up to the top bar, and no pane header crosses it.
   const topBarBottom = await orcaPage
-    .locator('[data-session-bar="true"]')
+    .locator('[data-pane-top-bar="true"]')
+    .first()
     .evaluate((el) => el.getBoundingClientRect().bottom)
   const divider = await orcaPage
     .locator('.tab-group-split-resize-handle')

@@ -3,6 +3,8 @@ import { MessageSquare, MessageSquarePlus, SquareSplitVertical, SquareTerminal }
 import { translate } from '@/i18n/i18n'
 import { SessionBarAction } from '../../app-shell/SessionBarAction'
 import { useSessionBarActionsTarget } from '../../app-shell/session-bar-slot'
+import { findTabGroupById } from '../../app-shell/split-top-bar-chrome'
+import { useSplitTopBarActionsTarget } from '../../app-shell/split-top-bar-slot'
 import { useAppStore } from '../../store'
 import { isSessionTab, selectFocusedSessionTab } from '../../store/slices/tabs/side-panel-group'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
@@ -13,21 +15,38 @@ import {
 
 export type TerminalSessionBar = { target: HTMLElement; ownsBar: boolean }
 
-/** Where this terminal's actions render: the shell's session bar for a session, else null (its pane headers). */
+/** Where this terminal's actions render: its pane's top row in a split, the shell's session bar otherwise, else null (its pane headers). */
 export function useTerminalSessionBar(
   worktreeId: string,
   tabId: string
 ): TerminalSessionBar | null {
-  const target = useSessionBarActionsTarget()
+  const barTarget = useSessionBarActionsTarget()
   const isSession = useAppStore((state) =>
     (state.unifiedTabsByWorktree[worktreeId] ?? []).some(
       (tab) => tab.contentType === 'terminal' && tab.entityId === tabId && isSessionTab(tab)
     )
   )
-  const ownsBar = useAppStore((state) => {
+  const groupId = useAppStore(
+    (state) =>
+      (state.unifiedTabsByWorktree[worktreeId] ?? []).find(
+        (tab) => tab.contentType === 'terminal' && tab.entityId === tabId
+      )?.groupId
+  )
+  const topBarTarget = useSplitTopBarActionsTarget(groupId)
+  const focusedOwnsBar = useAppStore((state) => {
     const tab = selectFocusedSessionTab(state, worktreeId)
     return tab?.contentType === 'terminal' && tab.entityId === tabId
   })
+  // Why: each top pane of a split shows the actions of its own visible terminal session.
+  const groupShowsTerminal = useAppStore((state) => {
+    const group = groupId ? findTabGroupById(state, groupId) : undefined
+    const row = (state.unifiedTabsByWorktree[worktreeId] ?? []).find(
+      (tab) => tab.contentType === 'terminal' && tab.entityId === tabId
+    )
+    return row !== undefined && (group?.sessionRef?.tabId ?? group?.activeTabId) === row.id
+  })
+  const target = topBarTarget ?? barTarget
+  const ownsBar = topBarTarget ? groupShowsTerminal : focusedOwnsBar
   if (!isSession || !target || worktreeId === FLOATING_TERMINAL_WORKTREE_ID) {
     return null
   }

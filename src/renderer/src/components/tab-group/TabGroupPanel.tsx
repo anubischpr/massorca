@@ -10,6 +10,8 @@ import { useEditorGroupFileDropOwner } from '../editor/use-editor-group-file-dro
 import { isSidePanelGroupId } from '../../store/slices/tabs/side-panel-group'
 import { SessionPanePicker } from './SessionPanePicker'
 import { FloatingChecklistPane } from '../floating-terminal/checklist/FloatingChecklistPane'
+import { SplitPaneTopBar } from './SplitPaneTopBar'
+import { useSplitTopBarChrome } from '../../app-shell/split-top-bar-chrome'
 
 const EditorPanel = lazy(() => import('../editor/EditorPanel'))
 
@@ -20,6 +22,7 @@ export default function TabGroupPanel({
   isFocused,
   hasSplitGroups,
   markdownAnnotationsEnabled = true,
+  touchesTopEdge = false,
   touchesRightEdge,
   touchesLeftEdge,
   touchesBottomEdge = false,
@@ -35,6 +38,7 @@ export default function TabGroupPanel({
   hasSplitGroups: boolean
   /** Off for scratch workspaces (the floating panel) whose markdown is not a review surface. */
   markdownAnnotationsEnabled?: boolean
+  touchesTopEdge?: boolean
   touchesRightEdge: boolean
   touchesLeftEdge: boolean
   touchesBottomEdge?: boolean
@@ -68,6 +72,9 @@ export default function TabGroupPanel({
     },
     [groupId, setBodyDropRef]
   )
+  // Why: a top pane of a split draws its own top row in place of the window session bar; null outside the main area.
+  const topBarChrome = useSplitTopBarChrome()
+  const showsTopBar = isVisible && hasSplitGroups && touchesTopEdge && topBarChrome !== null
   const attachEditorFileDropOwner = useEditorGroupFileDropOwner({ worktreeId, groupId })
   // Why: per-group anchor-name lets the worktree-level overlay position panes via CSS anchor positioning, so moving a tab between groups re-targets the anchor instead of remounting xterm (loses alt-screen TUI state) or reloading `<webview>`.
   const bodyAnchorName = tabGroupBodyAnchorName(groupId)
@@ -96,6 +103,15 @@ export default function TabGroupPanel({
       // Why: keyboard/AT focus can enter a split group without a pointer event, so sync group focus to DOM focus for global shortcuts.
       onFocusCapture={commands.focusGroup}
     >
+      {showsTopBar && topBarChrome ? (
+        <SplitPaneTopBar
+          groupId={groupId}
+          isFocused={isFocused}
+          leftmost={touchesLeftEdge}
+          rightmost={touchesRightEdge}
+          chrome={topBarChrome}
+        />
+      ) : null}
       <div
         ref={setBodyRef}
         data-tab-group-body-id={groupId}
