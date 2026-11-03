@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
+import { Alert, Pressable, Text, View } from 'react-native'
 import { ChevronDown, ChevronLeft, Ellipsis } from 'lucide-react-native'
 import { useMobileDictation } from '../hooks/use-mobile-dictation'
 import { MobileNativeChatComposer } from '../session/MobileNativeChatComposer'
@@ -36,6 +36,7 @@ import {
   type MobileBotTeamRequestFiling
 } from './mobile-bot-team-request-rpc'
 import { useMobileBotTeamRoom } from './use-mobile-bot-team-room'
+import { MobileBotTeamRoomScroll } from './MobileBotTeamRoomScroll'
 import { useMobileBotTeamTaskStatus } from './use-mobile-bot-team-task-status'
 
 const NO_GENERATION = () => 0
@@ -303,11 +304,7 @@ export function MobileBotTeamRoom({
           <Ellipsis size={20} color={colors.textPrimary} />
         </Pressable>
       </View>
-      <ScrollView
-        style={styles.grow}
-        contentContainerStyle={styles.roomFeed}
-        keyboardShouldPersistTaps="handled"
-      >
+      <MobileBotTeamRoomScroll teamId={team.id} hasItems={messages.length > 0 || tasks.length > 0}>
         {messages.length === 0 && tasks.length === 0 ? (
           <Text style={styles.message}>
             Ask {team.name} for something. Each request becomes one or more tasks.
@@ -357,7 +354,7 @@ export function MobileBotTeamRoom({
             Who should take this? Mention a bot with @ and its name.
           </Text>
         ) : null}
-      </ScrollView>
+      </MobileBotTeamRoomScroll>
       <MobileNativeChatComposer
         value={text}
         onChangeText={setText}

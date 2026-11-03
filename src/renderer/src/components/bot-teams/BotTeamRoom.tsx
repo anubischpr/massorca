@@ -35,6 +35,8 @@ import { BotTeamTaskCard } from './BotTeamTaskCard'
 import { BotTeamRoomQuestion } from './BotTeamRoomQuestion'
 import { BotTeamRoomSidePanel } from './BotTeamRoomSidePanel'
 import { placeBotTeamRoomTasks } from '../../../../shared/bot-team-room-order'
+import { NativeChatJumpToLatest } from '../native-chat/NativeChatJumpToLatest'
+import { useBotTeamRoomScroll } from './use-bot-team-room-scroll'
 
 const NO_PROJECT = 'none'
 const NO_TEAMS: readonly BotTeam[] = []
@@ -122,6 +124,10 @@ export function BotTeamRoom({
   const readReplying = replying.readRoom
   const sidePanel = useRightSidebarPageTarget()
   const statuses = useBotTeamSessionStatuses()
+  const scroll = useBotTeamRoomScroll({
+    teamId: team.id,
+    hasContent: messages.length > 0 || tasks.length > 0
+  })
   const botOf = (botId: string | null) => team.bots.find((bot) => bot.id === botId)
 
   const latestRead = useRef(0)
@@ -271,82 +277,92 @@ export function BotTeamRoom({
     <div className="flex h-full min-h-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {header}
-        <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto flex w-full max-w-[736px] flex-col gap-5 px-4 py-6">
-            {messages.length === 0 && tasks.length === 0 ? (
-              <div className="py-12 text-center">
-                <h2 className="text-lg font-semibold">
-                  {translate('components.botTeams.askTeam', 'Ask {{team}} for something', {
-                    team: team.name
-                  })}
-                </h2>
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <div
+            ref={scroll.attachScroll}
+            onScroll={scroll.onScroll}
+            className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto"
+          >
+            <div
+              ref={scroll.attachContent}
+              className="mx-auto flex w-full max-w-[736px] flex-col gap-5 px-4 py-6"
+            >
+              {messages.length === 0 && tasks.length === 0 ? (
+                <div className="py-12 text-center">
+                  <h2 className="text-lg font-semibold">
+                    {translate('components.botTeams.askTeam', 'Ask {{team}} for something', {
+                      team: team.name
+                    })}
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    {translate(
+                      'components.botTeams.askTeamHelp',
+                      'Each request becomes one or more tasks.'
+                    )}
+                  </p>
+                </div>
+              ) : null}
+              {messages.map((message) => {
+                const author = botOf(message.authorBotId)
+                const fromAll = message.authorBotId === BOT_TEAM_ALL_AUTHOR
+                return (
+                  <div key={message.id} className="flex flex-col gap-3">
+                    {author ? (
+                      <div className="flex items-center gap-2 text-[13px] font-medium">
+                        <BotAgentIcon agent={author.agent} size={16} />
+                        {author.name}
+                      </div>
+                    ) : null}
+                    {fromAll ? <BotTeamAllAuthor bots={team.bots} /> : null}
+                    <div
+                      className={
+                        author || fromAll
+                          ? 'whitespace-pre-wrap text-sm leading-relaxed text-foreground/80'
+                          : 'max-w-[80%] self-end whitespace-pre-wrap rounded-xl border border-border bg-muted px-3.5 py-2.5 text-sm leading-relaxed'
+                      }
+                    >
+                      {message.text}
+                    </div>
+                    {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
+                  </div>
+                )
+              })}
+              {placement.trailing.map(taskCard)}
+              {tasks.map((task) => {
+                const bot = botOf(task.ownerBotId)
+                return bot && task.sessionId !== null && statusOf(task) === 'Waiting for you' ? (
+                  <BotTeamRoomQuestion key={task.id} task={task} bot={bot} />
+                ) : null
+              })}
+              {typingAuthor ? <BotTeamTypingLine author={typingAuthor} bots={team.bots} /> : null}
+              {pending ? (
+                <BotTeamPendingChoice
+                  pending={pending}
+                  team={team}
+                  otherTeams={otherTeams}
+                  projects={projects}
+                  onAsked={(choice) =>
+                    setPending((current) => (current ? { ...current, choice } : current))
+                  }
+                  onFiled={() => {
+                    setPending(null)
+                    reload()
+                  }}
+                  onCreateBot={() => onCreateBot?.()}
+                  onCreateTeam={() => onCreateTeam?.()}
+                />
+              ) : null}
+              {needsOwner ? (
                 <p className="text-xs text-muted-foreground">
                   {translate(
-                    'components.botTeams.askTeamHelp',
-                    'Each request becomes one or more tasks.'
+                    'components.botTeams.whoTakesIt',
+                    'Who should take this? Mention a bot with @ and its name.'
                   )}
                 </p>
-              </div>
-            ) : null}
-            {messages.map((message) => {
-              const author = botOf(message.authorBotId)
-              const fromAll = message.authorBotId === BOT_TEAM_ALL_AUTHOR
-              return (
-                <div key={message.id} className="flex flex-col gap-3">
-                  {author ? (
-                    <div className="flex items-center gap-2 text-[13px] font-medium">
-                      <BotAgentIcon agent={author.agent} size={16} />
-                      {author.name}
-                    </div>
-                  ) : null}
-                  {fromAll ? <BotTeamAllAuthor bots={team.bots} /> : null}
-                  <div
-                    className={
-                      author || fromAll
-                        ? 'whitespace-pre-wrap text-sm leading-relaxed text-foreground/80'
-                        : 'max-w-[80%] self-end whitespace-pre-wrap rounded-xl border border-border bg-muted px-3.5 py-2.5 text-sm leading-relaxed'
-                    }
-                  >
-                    {message.text}
-                  </div>
-                  {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
-                </div>
-              )
-            })}
-            {placement.trailing.map(taskCard)}
-            {tasks.map((task) => {
-              const bot = botOf(task.ownerBotId)
-              return bot && task.sessionId !== null && statusOf(task) === 'Waiting for you' ? (
-                <BotTeamRoomQuestion key={task.id} task={task} bot={bot} />
-              ) : null
-            })}
-            {typingAuthor ? <BotTeamTypingLine author={typingAuthor} bots={team.bots} /> : null}
-            {pending ? (
-              <BotTeamPendingChoice
-                pending={pending}
-                team={team}
-                otherTeams={otherTeams}
-                projects={projects}
-                onAsked={(choice) =>
-                  setPending((current) => (current ? { ...current, choice } : current))
-                }
-                onFiled={() => {
-                  setPending(null)
-                  reload()
-                }}
-                onCreateBot={() => onCreateBot?.()}
-                onCreateTeam={() => onCreateTeam?.()}
-              />
-            ) : null}
-            {needsOwner ? (
-              <p className="text-xs text-muted-foreground">
-                {translate(
-                  'components.botTeams.whoTakesIt',
-                  'Who should take this? Mention a bot with @ and its name.'
-                )}
-              </p>
-            ) : null}
+              ) : null}
+            </div>
           </div>
+          <NativeChatJumpToLatest visible={scroll.showJump} onJump={scroll.jumpToEnd} />
         </div>
         <BotTeamRoomComposer team={team} otherTeams={otherTeams} offline={offline} onSend={send} />
       </div>
