@@ -80,4 +80,6 @@ export type InitialTerminalOptions = {
   /** The user deliberately opened this workspace with no surface choice, so it may open their
    *  default agent chat instead of a bare shell. */
   seedUserDefaultSurface?: boolean
+  /** The person picked Blank Terminal: the one shell an empty workspace still gets. */
+  blankTerminalRequested?: boolean
 }

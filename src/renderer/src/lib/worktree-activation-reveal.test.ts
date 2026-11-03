@@ -16,7 +16,8 @@ describe('activateAndRevealWorktree', () => {
     })
   })
 
-  it('queues a one-shot initial cwd for the primary activation-created tab', () => {
+  it('queues no initial cwd when an empty workspace opens with one', () => {
+    const createTab = vi.fn(() => ({ id: 'tab-1' }))
     const queueTabInitialCwd = vi.fn()
     const revealWorktreeInSidebar = vi.fn()
     useAppStore.setState({
@@ -59,7 +60,7 @@ describe('activateAndRevealWorktree', () => {
       markWorktreeVisited: vi.fn(),
       recordWorktreeVisit: vi.fn(),
       reconcileWorktreeTabModel: vi.fn(() => ({ renderableTabCount: 0 })),
-      createTab: vi.fn(() => ({ id: 'tab-1' })),
+      createTab,
       setActiveTab: vi.fn(),
       setTabCustomTitle: vi.fn(),
       setTabColor: vi.fn(),
@@ -76,8 +77,9 @@ describe('activateAndRevealWorktree', () => {
       executionHostId: 'ssh:box'
     })
 
-    expect(result).toEqual({ primaryTabId: 'tab-1' })
-    expect(queueTabInitialCwd).toHaveBeenCalledWith('tab-1', '/repo/packages/web')
+    expect(result).toEqual({ primaryTabId: null })
+    expect(createTab).not.toHaveBeenCalled()
+    expect(queueTabInitialCwd).not.toHaveBeenCalled()
     expect(revealWorktreeInSidebar).toHaveBeenCalledWith('wt-1', {
       executionHostId: 'ssh:box'
     })

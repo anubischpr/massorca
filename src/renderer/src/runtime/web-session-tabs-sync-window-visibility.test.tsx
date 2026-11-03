@@ -376,46 +376,6 @@ describe('useWebSessionTabsSync window visibility', () => {
     hook.unmount()
   })
 
-  it('does not bootstrap twice when global snapshots race active resume', async () => {
-    const pendingCreate = createDeferred<unknown>()
-    mocks.createTerminal.mockReturnValue(pendingCreate.promise)
-    const hook = renderHook(() => useWebSessionTabsSync())
-    await act(settle)
-    const snapshot = makeEmptySnapshot()
-
-    await publish(findSubscription('session.tabs.subscribeAll', ENV_A), {
-      type: 'snapshots',
-      snapshots: [snapshot]
-    })
-    await publish(findSubscription('session.tabs.subscribe', ENV_A), {
-      type: 'snapshot',
-      ...snapshot
-    })
-    expect(mocks.createTerminal).toHaveBeenCalledTimes(1)
-
-    act(() => {
-      setDocumentVisibility('hidden')
-      vi.advanceTimersByTime(WINDOW_VISIBILITY_SUBSCRIPTION_PARK_DELAY_MS)
-      setDocumentVisibility('visible')
-      vi.advanceTimersByTime(WEB_SESSION_TABS_VISIBILITY_RESUME_STAGGER_MS)
-    })
-    await act(settle)
-
-    await publish(findSubscription('session.tabs.subscribeAll', ENV_A, 1), {
-      type: 'snapshots',
-      snapshots: [snapshot]
-    })
-    await publish(findSubscription('session.tabs.subscribe', ENV_A, 1), {
-      type: 'snapshot',
-      ...snapshot
-    })
-    expect(mocks.createTerminal).toHaveBeenCalledTimes(1)
-
-    pendingCreate.resolve(undefined)
-    await act(settle)
-    hook.unmount()
-  })
-
   it('keeps a newer active snapshot when an older frame is received later', async () => {
     const newerRecovery = createDeferred<RuntimeMobileSessionTabsResult>()
     const olderRecovery = createDeferred<RuntimeMobileSessionTabsResult>()
@@ -879,7 +839,7 @@ describe('useWebSessionTabsSync window visibility', () => {
     hook.unmount()
   })
 
-  it('fences recovery that finishes after the stream is parked', async () => {
+  it('creates no terminal when recovery finishes after the stream is parked', async () => {
     const deferredRecovery = createDeferred<RuntimeMobileSessionTabsResult>()
     mocks.recoverSnapshot.mockImplementationOnce(() => deferredRecovery.promise)
     const hook = renderHook(() => useWebSessionTabsSync())
@@ -904,7 +864,7 @@ describe('useWebSessionTabsSync window visibility', () => {
       type: 'snapshot',
       ...snapshot
     })
-    expect(mocks.createTerminal).toHaveBeenCalledTimes(1)
+    expect(mocks.createTerminal).not.toHaveBeenCalled()
     hook.unmount()
   })
 })

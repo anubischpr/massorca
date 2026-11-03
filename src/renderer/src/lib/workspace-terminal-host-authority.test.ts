@@ -1,6 +1,7 @@
 /**
  * The seeding predicate answers one question for both remote flavors: does some other party own
- * terminal creation for this workspace right now? Three answers, and only `none` seeds.
+ * terminal creation for this workspace right now? Three answers, and only `none` lets activation
+ * open the workspace's default surfaces.
  */
 import { describe, expect, it, vi } from 'vitest'
 import type * as AgentStatusModule from '@/lib/agent-status'
@@ -70,20 +71,20 @@ function terminalTabCount(store: TestStore, worktreeId: string): number {
 }
 
 describe('workspace terminal seeding authority', () => {
-  it('seeds a purely local workspace immediately, exactly once', () => {
+  it('creates no shell for a purely local workspace, however often it activates', () => {
     const store = createTestStore()
     seedLocal(store)
 
     expect(resolveWorkspaceTerminalHostAuthority(store.getState(), LOCAL_WORKTREE_ID)).toBe('none')
 
-    // No await, no host round trip: the client is the execution host for a local workspace.
+    // No await, no host round trip: the client is the execution host, and still no shell appears.
     const tabId = ensureWorktreeHasInitialTerminal(store.getState(), LOCAL_WORKTREE_ID)
-    expect(tabId).toBeTruthy()
-    expect(terminalTabCount(store, LOCAL_WORKTREE_ID)).toBe(1)
+    expect(tabId).toBeNull()
+    expect(terminalTabCount(store, LOCAL_WORKTREE_ID)).toBe(0)
 
-    // A second activation pass must not add another.
+    // A second activation pass must not add one either.
     ensureWorktreeHasInitialTerminal(store.getState(), LOCAL_WORKTREE_ID)
-    expect(terminalTabCount(store, LOCAL_WORKTREE_ID)).toBe(1)
+    expect(terminalTabCount(store, LOCAL_WORKTREE_ID)).toBe(0)
   })
 
   it('distinguishes an unanswered SSH host from one that answered with nothing', () => {
@@ -96,11 +97,11 @@ describe('workspace terminal seeding authority', () => {
     expect(ensureWorktreeHasInitialTerminal(store.getState(), SSH_WORKTREE_ID)).toBeNull()
     expect(terminalTabCount(store, SSH_WORKTREE_ID)).toBe(0)
 
-    // The host answers and holds nothing here. That is positive evidence, so the workspace seeds.
+    // The host answers and holds nothing here. That is positive evidence, so the authority is none.
     store.getState().markRemoteWorkspaceHydrated(TARGET_ID)
     expect(resolveWorkspaceTerminalHostAuthority(store.getState(), SSH_WORKTREE_ID)).toBe('none')
-    expect(ensureWorktreeHasInitialTerminal(store.getState(), SSH_WORKTREE_ID)).toBeTruthy()
-    expect(terminalTabCount(store, SSH_WORKTREE_ID)).toBe(1)
+    expect(ensureWorktreeHasInitialTerminal(store.getState(), SSH_WORKTREE_ID)).toBeNull()
+    expect(terminalTabCount(store, SSH_WORKTREE_ID)).toBe(0)
   })
 
   it.each(['offline', 'error'] as const)(
@@ -116,8 +117,8 @@ describe('workspace terminal seeding authority', () => {
       store.getState().setRemoteWorkspaceSyncStatus(TARGET_ID, { phase, direction: 'pull' })
 
       expect(resolveWorkspaceTerminalHostAuthority(store.getState(), SSH_WORKTREE_ID)).toBe('none')
-      expect(ensureWorktreeHasInitialTerminal(store.getState(), SSH_WORKTREE_ID)).toBeTruthy()
-      expect(terminalTabCount(store, SSH_WORKTREE_ID)).toBe(1)
+      expect(ensureWorktreeHasInitialTerminal(store.getState(), SSH_WORKTREE_ID)).toBeNull()
+      expect(terminalTabCount(store, SSH_WORKTREE_ID)).toBe(0)
     }
   )
 
@@ -160,7 +161,7 @@ describe('workspace terminal seeding authority', () => {
     expect(terminalTabCount(store, SSH_WORKTREE_ID)).toBe(0)
   })
 
-  it('seeds a worktree the conflicting snapshot placed, and only that one', () => {
+  it('resolves only the worktree the conflicting snapshot placed to none', () => {
     const store = createTestStore()
     seedDirectSsh(store)
     store.getState().setRemoteWorkspaceSyncStatus(TARGET_ID, {
@@ -170,11 +171,11 @@ describe('workspace terminal seeding authority', () => {
     })
 
     expect(resolveWorkspaceTerminalHostAuthority(store.getState(), SSH_WORKTREE_ID)).toBe('none')
-    expect(ensureWorktreeHasInitialTerminal(store.getState(), SSH_WORKTREE_ID)).toBeTruthy()
-    expect(terminalTabCount(store, SSH_WORKTREE_ID)).toBe(1)
+    expect(ensureWorktreeHasInitialTerminal(store.getState(), SSH_WORKTREE_ID)).toBeNull()
+    expect(terminalTabCount(store, SSH_WORKTREE_ID)).toBe(0)
   })
 
-  it('leaves a worktree emptied on purpose empty at startup, even once the host answered for it', () => {
+  it('leaves a worktree emptied on purpose empty, even on an explicit reseed after the host answered', () => {
     const store = createTestStore()
     seedDirectSsh(store)
     store.getState().setRemoteWorkspaceSyncStatus(TARGET_ID, {
@@ -192,6 +193,7 @@ describe('workspace terminal seeding authority', () => {
     // Startup restore passes no reseed option; only an explicit activation does.
     expect(ensureWorktreeHasInitialTerminal(store.getState(), SSH_WORKTREE_ID)).toBeNull()
     expect(terminalTabCount(store, SSH_WORKTREE_ID)).toBe(0)
+    // A reseed opens no plain shell either: the workspace stays empty until the person adds one.
     expect(
       ensureWorktreeHasInitialTerminal(
         store.getState(),
@@ -202,7 +204,8 @@ describe('workspace terminal seeding authority', () => {
         undefined,
         { reseedEmptiedWorkspace: true }
       )
-    ).toBeTruthy()
+    ).toBeNull()
+    expect(terminalTabCount(store, SSH_WORKTREE_ID)).toBe(0)
   })
 
   it.each([
