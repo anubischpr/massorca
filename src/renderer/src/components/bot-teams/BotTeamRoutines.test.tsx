@@ -121,6 +121,31 @@ describe('Routines', () => {
     expect(container.textContent).toContain('Paused.')
   })
 
+  it('shows a one-time routine with its date, and as done or past once its moment is gone', async () => {
+    const once = { frequency: 'once', time: '10:00', weekday: null, monthDay: null } as const
+    const { container } = await mount([
+      routine({ name: 'Front review', schedule: { ...once, date: '2026-11-04' }, lastRun: null }),
+      routine({
+        id: 'r2',
+        name: 'Copy review',
+        schedule: { ...once, date: '2026-11-02' },
+        nextRun: null
+      }),
+      routine({
+        id: 'r3',
+        name: 'Missed',
+        schedule: { ...once, date: '2026-11-01' },
+        nextRun: null,
+        lastRun: null
+      })
+    ])
+    const text = container.textContent ?? ''
+    expect(text).toMatch(/Once on .+ at 10:00, Nora/)
+    expect(text).toContain('Not run yet. Next run')
+    expect(text).toMatch(/Done\. Ran .+, not started\./)
+    expect(text).toContain('Past. It did not run.')
+  })
+
   it('opens a routine and starts a new one', async () => {
     const { button, onNew, onOpen, container } = await mount([routine()])
     const row = [...container.querySelectorAll('button')].find((entry) =>
