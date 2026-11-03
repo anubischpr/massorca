@@ -14,7 +14,8 @@ const RIGHT_SIDEBAR_SUPPRESSED_VIEWS = new Set<ActiveView>([
   'artifacts',
   'prototypes',
   'mobile',
-  'create-chat'
+  'create-chat',
+  'calendar'
 ])
 
 export function canShowRightSidebarForView(activeView: ActiveView): boolean {

@@ -121,7 +121,8 @@ export const TopLevelViewSchema = z.enum([
   'prototypes',
   'bot-teams',
   'mobile',
-  'create-chat'
+  'create-chat',
+  'calendar'
 ])
 
 export const UiUpdateFields = z

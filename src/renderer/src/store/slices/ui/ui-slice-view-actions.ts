@@ -152,6 +152,7 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
         tasksHomeOpen: true
       }))
     },
+    openCalendarPage: () => set({ activeView: 'calendar' }),
     openMobilePage: () =>
       set((state) => ({
         activeView: 'mobile',

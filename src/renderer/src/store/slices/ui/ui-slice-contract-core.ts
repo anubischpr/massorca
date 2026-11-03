@@ -135,6 +135,7 @@ export type UiViewHistory =
   | 'bot-teams'
   | 'mobile'
   | 'create-chat'
+  | 'calendar'
 
 export type UISliceCore = {
   sidebarOpen: boolean
@@ -243,6 +244,8 @@ export type UISliceCore = {
   /** Changes what the open Bot teams page shows, without moving the page. */
   setBotTeamsSelection: (selection: BotTeamsSelection) => void
   openTasksHome: () => void
+  /** The rail's Calendar page: scheduled bot runs and automations. */
+  openCalendarPage: () => void
   setNewWorkspaceDraft: (draft: NonNullable<UISliceCore['newWorkspaceDraft']>) => void
   clearNewWorkspaceDraft: () => void
   pendingRevealWorktree: PendingSidebarWorktreeReveal | null
