@@ -38,6 +38,7 @@ import { isDefinitiveAgentSessionCreateRefusal } from '../../../../shared/agent-
 import { createStructuredAgentSessionForWorktree } from './structured-agent-session-create'
 import { structuredCallerFor } from './structured-agent-session-gate'
 import { BOT_TEAM_PROJECT_WORKSPACE_METHODS } from './bot-team-project-workspace'
+import { BOT_TEAM_SESSION_TEAM_METHODS } from './bot-team-session-team-methods'
 
 const BOT_TEAMS_GROUP_NAME = 'Bot teams'
 
@@ -172,6 +173,7 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
 }
 
 export const BOT_TEAM_ROOM_METHODS = [
+  ...BOT_TEAM_SESSION_TEAM_METHODS,
   ...BOT_TEAM_VERSION_METHODS,
   ...botTeamAssignMethods(startTaskOnHost),
   ...BOT_TEAM_MEMORY_METHODS,

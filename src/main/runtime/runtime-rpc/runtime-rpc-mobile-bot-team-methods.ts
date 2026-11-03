@@ -24,6 +24,7 @@ export const MOBILE_BOT_TEAM_RPC_METHODS = [
   'botTeams.reassignTask',
   'botTeams.removeBot',
   'botTeams.replaceWebhookSecret',
+  'botTeams.sessionTeams',
   'botTeams.setProjectBrief',
   'botTeams.setProjectCodeSource',
   'botTeams.setProjectWorkspace',

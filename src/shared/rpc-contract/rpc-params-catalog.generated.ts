@@ -774,6 +774,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.removeBot': BotTeamRemoveBot,
   'botTeams.replaceWebhookSecret': BotTeamWebhookSelector,
   'botTeams.restoreFileVersion': BotTeamVersionFileSelector,
+  'botTeams.sessionTeams': null,
   'botTeams.setProjectBrief': BotTeamProjectSetBrief,
   'botTeams.setProjectCodeSource': BotTeamProjectSetCodeSource,
   'botTeams.setProjectWorkspace': BotTeamProjectSetWorkspace,
