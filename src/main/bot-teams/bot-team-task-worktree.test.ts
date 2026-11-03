@@ -48,6 +48,17 @@ describe('prepareLinkedTaskWorkspace', () => {
     expect(d.relinkProject).not.toHaveBeenCalled()
   })
 
+  it('runs a clearly read-only task in the main checkout, and an uncertain one in a child worktree', async () => {
+    const d = deps()
+    const review = { ...TASK, taskTitle: 'Review the login flow', taskPrompt: 'Review the code.' }
+
+    await expect(prepareLinkedTaskWorkspace(d, review)).resolves.toBe('repo-1::/work/nexus')
+    expect(d.createChildWorktree).not.toHaveBeenCalled()
+
+    await prepareLinkedTaskWorkspace(d, { ...review, taskPrompt: 'Review and fix the code.' })
+    expect(d.createChildWorktree).toHaveBeenCalledTimes(1)
+  })
+
   it('gives two tasks of one repo two different worktrees', async () => {
     const d = deps()
 

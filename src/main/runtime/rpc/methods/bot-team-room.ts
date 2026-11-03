@@ -112,11 +112,12 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
   return startBotTeamTask(
     {
       ensureTeamWorkspace: (entry) => ensureTeamWorkspace(ctx, entry),
-      prepareLinkedWorkspace: ({ projectId, workspaceKey, taskTitle }) =>
+      prepareLinkedWorkspace: ({ projectId, workspaceKey, taskTitle, taskPrompt }) =>
         prepareLinkedTaskWorkspace(linkedTaskWorkspaceDeps(ctx.runtime), {
           projectId,
           workspaceKey,
-          taskTitle
+          taskTitle,
+          taskPrompt
         }),
       createSession: async ({ workspaceId, agent, accessMode, piRuntime, options }) => {
         const attempt = (seed: typeof options) =>

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { BotTeamProjectWorkspace } from '../../shared/rpc-contract/bot-team-room-params'
 import { delegationWorktreeName } from '../delegated-session/delegation-launch'
+import { isClearlyReadOnlyDelegationTask } from '../delegated-session/delegation-read-only-task'
 import type { RpcContext } from '../runtime/rpc/core'
 import { waitForStructuredSetup } from '../runtime/rpc/methods/agent-launch-worktree-creation'
 import {
@@ -24,12 +25,12 @@ export type LinkedTaskWorkspaceDeps = {
 
 /**
  * The workspace a linked project's task runs in, or null when the linked project is gone. A git
- * repo gives every task its own child worktree (no signal here tells a read-only task apart, so
- * none shares the main checkout); a folder project has no worktree to branch and runs in place.
+ * repo gives a task its own child worktree unless it clearly only reads (the child-session rule),
+ * which runs in the main checkout; a folder project has no worktree to branch and runs in place.
  */
 export async function prepareLinkedTaskWorkspace(
   deps: LinkedTaskWorkspaceDeps,
-  task: { projectId: string; taskTitle: string; workspaceKey: string }
+  task: { projectId: string; taskTitle: string; taskPrompt?: string; workspaceKey: string }
 ): Promise<string | null> {
   const project = await findBotTeamWorkspaceProject(deps.source, task.workspaceKey)
   if (!project) {
@@ -40,6 +41,10 @@ export async function prepareLinkedTaskWorkspace(
   }
   if (project.home.type === 'folder') {
     return project.home.workspaceId
+  }
+  const text = { summary: task.taskTitle, title: task.taskTitle, prompt: task.taskPrompt ?? '' }
+  if (project.home.mainWorktreeId && isClearlyReadOnlyDelegationTask(text)) {
+    return project.home.mainWorktreeId
   }
   return deps.createChildWorktree({
     repoId: project.home.repoId,

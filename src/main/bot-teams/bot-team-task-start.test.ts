@@ -227,7 +227,8 @@ describe('startBotTeamTask', () => {
     expect(d.prepareLinkedWorkspace).toHaveBeenCalledWith({
       projectId: 'project',
       workspaceKey: 'repo:repo-1',
-      taskTitle: 'Flyer'
+      taskTitle: 'Flyer',
+      taskPrompt: expect.any(String)
     })
     expect(d.createSession).toHaveBeenCalledWith(
       expect.objectContaining({ workspaceId: 'repo-1::/work/nexus-task' })

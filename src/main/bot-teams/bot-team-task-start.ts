@@ -14,6 +14,7 @@ export type BotTeamTaskStartDeps = {
     projectId: string
     workspaceKey: string
     taskTitle: string
+    taskPrompt: string
   }) => Promise<string | null>
   createSession: (args: {
     workspaceId: string
@@ -92,12 +93,13 @@ async function linkedWorkspaceId(
   deps: BotTeamTaskStartDeps,
   project: BotTeamProject,
   workspaceKey: string,
-  taskTitle: string
+  task: Pick<BotTeamTask, 'title' | 'prompt'>
 ): Promise<string> {
   const workspaceId = await deps.prepareLinkedWorkspace({
     projectId: project.id,
     workspaceKey,
-    taskTitle
+    taskTitle: task.title,
+    taskPrompt: task.prompt
   })
   if (workspaceId === null) {
     throw new Error(
@@ -122,7 +124,7 @@ export async function startBotTeamTask(
   const linked = extras.project?.workspace ?? null
   const workspaceId =
     extras.project && linked
-      ? await linkedWorkspaceId(deps, extras.project, linked.key, task.title)
+      ? await linkedWorkspaceId(deps, extras.project, linked.key, task)
       : await deps.ensureTeamWorkspace(team)
   const options = botLaunchOptions(bot)
   const piRuntime = botAgentPiRuntime(bot.agent)
