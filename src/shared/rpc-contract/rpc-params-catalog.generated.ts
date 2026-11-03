@@ -108,6 +108,7 @@ import {
   BotTeamRoutineSelector,
   BotTeamRoutineSetPaused
 } from './bot-team-routine-params'
+import { BotTeamScheduledRunsQuery } from './bot-team-scheduled-run-params'
 import {
   BotTeamFileVersionsSelector,
   BotTeamVersionFileSelector,
@@ -768,6 +769,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.listRoom': BotTeamRoomListSelector,
   'botTeams.listRoutineRuns': BotTeamRoutineSelector,
   'botTeams.listRoutines': BotTeamRoutineList,
+  'botTeams.listScheduledRuns': BotTeamScheduledRunsQuery,
   'botTeams.listWebhooks': BotTeamWebhookList,
   'botTeams.postMessage': BotTeamMessagePost,
   'botTeams.reassignTask': BotTeamTaskReassign,

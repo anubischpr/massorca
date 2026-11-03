@@ -222,9 +222,16 @@ export function claimDueBotTeamRoutines(
     const scheduledFor = latestRoutineRunAtOrBefore(schedule, (row.next_run_at ?? now) - 1, now)
     const next = nextRoutineRunAfter(schedule, now)
     const runId = generateId('botrun')
-    db.db.exec('BEGIN')
+    db.db.exec('BEGIN IMMEDIATE')
     try {
-      db.db.prepare('UPDATE bot_team_routines SET next_run_at = ? WHERE id = ?').run(next, row.id)
+      // Why: the desktop app and orcad may share this database; only the process that moves the time runs it.
+      const moved = db.db
+        .prepare('UPDATE bot_team_routines SET next_run_at = ? WHERE id = ? AND next_run_at = ?')
+        .run(next, row.id, row.next_run_at)
+      if (Number(moved.changes) === 0) {
+        db.db.exec('COMMIT')
+        continue
+      }
       if (scheduledFor !== null) {
         db.db
           .prepare(
@@ -242,6 +249,18 @@ export function claimDueBotTeamRoutines(
     }
   }
   return claimed
+}
+
+/** True while any team still on the host has a routine that is not paused. */
+export function hasActiveBotTeamRoutine(db: OrchestrationDb): boolean {
+  return (
+    db.db
+      .prepare(
+        `SELECT 1 FROM bot_team_routines r JOIN bot_teams t ON t.id = r.team_id
+           WHERE r.paused = 0 LIMIT 1`
+      )
+      .get() !== undefined
+  )
 }
 
 /** What came of a claimed run: the task it made, and why that task could not start, if so. */

@@ -34,6 +34,10 @@ import type { OrcadManagedStopContext } from '../../shared/orcad-stop-request'
 import { beginOrcadIdleExit, bindOrcadIdleShutdown } from './orcad-managed-idle-exit-host'
 import { orcadAutomationsKeepHostBusy, startOrcadAutomations } from './orcad-automations'
 import {
+  botTeamRoutinesKeepHostBusy,
+  startBotTeamRoutineScheduler
+} from '../bot-teams/bot-team-routine-host'
+import {
   changedAiVaultSearchSettings,
   type AiVaultSearchSettings
 } from '../../shared/ai-vault-search-settings'
@@ -366,6 +370,7 @@ async function startOrcadRuntime(
   registerCleanup(() => rpc.stop())
   await rpc.start()
   startOrcadAutomations(runtime, profileStore, registerCleanup)
+  startBotTeamRoutineScheduler(runtime)
   const pushService = DesktopPushService.create({
     runtime,
     runtimeRpc: rpc,
@@ -393,7 +398,8 @@ async function startOrcadRuntime(
     rpc,
     agentStates: () => agentHookServer.getStatusSnapshot(),
     hasStagedMigration: () => profileStore.hasStagedOrcadMigrationCatalog(),
-    automationsBusy: () => orcadAutomationsKeepHostBusy(profileStore),
+    automationsBusy: () =>
+      orcadAutomationsKeepHostBusy(profileStore) || botTeamRoutinesKeepHostBusy(runtime),
     registerCleanup
   })
   return { readiness }
