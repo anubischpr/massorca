@@ -1,15 +1,28 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useAppStore } from '@/store'
 import { listBotTeamRoom, listBotTeams } from '@/runtime/runtime-bot-team-client'
 import { useBotTeamIdsKey } from '../bot-teams/use-bot-teams'
+import { useBotTeamHost } from '@/runtime/bot-team-host'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { BotTeamTask } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { useBotTeamSessionStatuses } from '../bot-teams/use-bot-team-task-status'
 import { deriveBotTeamApprovalRows, type BotTeamApprovalRow } from './tasks-home-bot-team-approvals'
 
-type LoadedTeams = { teams: BotTeam[]; tasksByTeamId: Record<string, BotTeamTask[]> }
+type LoadedTeams = {
+  /** The host these teams were read from; teams of another host are never paired with this one's statuses. */
+  host: string
+  teams: BotTeam[]
+  tasksByTeamId: Record<string, BotTeamTask[]>
+}
 
-const NOTHING_LOADED: LoadedTeams = { teams: [], tasksByTeamId: {} }
+const NOTHING_LOADED: LoadedTeams = { host: '', teams: [], tasksByTeamId: {} }
+
+/** One team's tasks; a room that cannot be read adds none, and the other teams still count. */
+function readRoomTasks(teamId: string): Promise<BotTeamTask[]> {
+  return listBotTeamRoom(teamId).then(
+    (room) => room.tasks,
+    () => []
+  )
+}
 
 /**
  * Bot Team tasks waiting for the person. Teams and tasks come from the connected host through
@@ -17,7 +30,8 @@ const NOTHING_LOADED: LoadedTeams = { teams: [], tasksByTeamId: {} }
  * answer adds no rows.
  */
 export function useBotTeamApprovalRows(): BotTeamApprovalRow[] {
-  const environmentId = useAppStore((s) => s.settings?.activeRuntimeEnvironmentId ?? null)
+  // Why: teams are read from this same host, so switching host must read them again.
+  const host = useBotTeamHost()
   const statuses = useBotTeamSessionStatuses()
   const [loaded, setLoaded] = useState<LoadedTeams>(NOTHING_LOADED)
   // A task that starts adds a session to the feed, so the task list is read again then.
@@ -31,10 +45,10 @@ export function useBotTeamApprovalRows(): BotTeamApprovalRow[] {
       void listBotTeams()
         .then(async (teams) => {
           const rooms = await Promise.all(
-            teams.map(async (team) => [team.id, (await listBotTeamRoom(team.id)).tasks] as const)
+            teams.map(async (team) => [team.id, await readRoomTasks(team.id)] as const)
           )
           if (active) {
-            setLoaded({ teams, tasksByTeamId: Object.fromEntries(rooms) })
+            setLoaded({ host, teams, tasksByTeamId: Object.fromEntries(rooms) })
           }
         })
         .catch(() => {
@@ -49,7 +63,16 @@ export function useBotTeamApprovalRows(): BotTeamApprovalRow[] {
       active = false
       window.removeEventListener('focus', load)
     }
-  }, [environmentId, sessionCount, teamIdsKey])
+  }, [host, sessionCount, teamIdsKey])
 
-  return useMemo(() => deriveBotTeamApprovalRows({ ...loaded, statuses }), [loaded, statuses])
+  const shown = loaded.host === host ? loaded : NOTHING_LOADED
+  return useMemo(
+    () =>
+      deriveBotTeamApprovalRows({
+        teams: shown.teams,
+        tasksByTeamId: shown.tasksByTeamId,
+        statuses
+      }),
+    [shown, statuses]
+  )
 }

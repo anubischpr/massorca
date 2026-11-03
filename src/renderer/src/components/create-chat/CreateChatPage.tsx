@@ -11,5 +11,7 @@ type CreateChatPageProps = {
 export default function CreateChatPage({ onSubmit }: CreateChatPageProps): React.JSX.Element {
   const resetNonce = useAppStore((state) => state.createChatResetNonce)
   const options = useCreateChatOptions()
-  return <CreateChatSession key={resetNonce} options={options} onSubmit={onSubmit} />
+  return (
+    <CreateChatSession key={resetNonce} options={options} onSubmit={onSubmit} draftKey="create" />
+  )
 }

@@ -52,3 +52,20 @@ export function isFreshNonDoneAgentStatus(
       now - agentStatusEvidenceObservedAt(entry) <= staleAfterMs)
   )
 }
+
+/** Display freshness: a blocked or waiting row holds until its pane reports again or closes, not by age. */
+export function isFreshOrAwaitingNonDoneAgentStatus(
+  entry: Parameters<typeof isFreshNonDoneAgentStatus>[0],
+  now = Date.now(),
+  staleAfterMs = AGENT_STATUS_STALE_AFTER_MS
+): boolean {
+  // Why: control-flow readers stay on isFreshNonDoneAgentStatus; a leftover prompt must not capture them.
+  if (
+    entry &&
+    (entry.state === 'blocked' || entry.state === 'waiting') &&
+    entry.restoredUnconfirmed !== true
+  ) {
+    return true
+  }
+  return isFreshNonDoneAgentStatus(entry, now, staleAfterMs)
+}

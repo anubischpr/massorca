@@ -80,7 +80,6 @@ export default function TabGroupPanel({
   return (
     <div
       // Why: vertical borders stay `border-border` so the focus highlight (--accent ~#f5f5f5 in light) doesn't paint a near-white strip by the resize handle; only the bottom border changes on focus.
-      // Why: unfocused split groups dim subtly so the focused one reads as selected; only when hasSplitGroups since a lone group has nothing to contrast against.
       className={`group/tab-group relative flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden${
         hasSplitGroups
           ? // Why: skip border-l/border-r on edge-touching groups; the split-layout wrapper and right sidebar already paint borders at those seams (double line otherwise).
@@ -90,7 +89,7 @@ export default function TabGroupPanel({
               touchesBottomEdge || suppressBottomBorder ? '' : 'border-b'
             } border-border ${
               isFocused && !touchesBottomEdge && !suppressBottomBorder ? 'border-b-accent' : ''
-            } ${isFocused ? '' : 'opacity-95'}`
+            }`
           : ''
       }`}
       onPointerDown={commands.focusGroup}
@@ -155,6 +154,14 @@ export default function TabGroupPanel({
         ) : null}
 
         {/* Why: terminal/browser/simulator/structured-chat panes render at the worktree level; tab activation only changes overlay visibility and never remounts a live surface. */}
+        {/* Why: those session hosts paint at z-10 above the tree, so the veil sits at z-20; no opacity on this group, which would trap it beneath them. */}
+        {hasSplitGroups && !isFocused ? (
+          <div
+            aria-hidden="true"
+            data-tab-group-unfocused-veil=""
+            className="pointer-events-none absolute inset-0 z-20 bg-background/40"
+          />
+        ) : null}
       </div>
     </div>
   )

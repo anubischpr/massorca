@@ -25,6 +25,7 @@ export default function TasksHomePage(): React.JSX.Element {
     <CreateChatSession
       options={options}
       onSubmit={submitCreateChatDraft}
+      draftKey="tasks"
       heading={translate('components.tasksHome.heading', 'What do you want to do?')}
       subheading={null}
       layout="top"
