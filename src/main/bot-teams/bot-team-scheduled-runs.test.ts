@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { BotTeamScheduledRunsQuery } from '../../shared/rpc-contract/bot-team-scheduled-run-params'
+import {
+  BotTeamScheduledRunsQuery,
+  BotTeamScheduledRunsResult
+} from '../../shared/rpc-contract/bot-team-scheduled-run-params'
 import {
   createBotTeamRoutine,
   setBotTeamRoutinePaused
@@ -72,6 +75,40 @@ describe('listBotTeamScheduledRuns', () => {
       projectId: null,
       frequency: 'daily'
     })
+  })
+
+  it('lists a one-time routine once, in the Calendar shape, and not after it ran', () => {
+    const { db, team, bot } = setup()
+    const now = new Date(2026, 10, 3, 8, 0).getTime()
+    createBotTeamRoutine(
+      db,
+      {
+        teamId: team.id,
+        botId: bot.id,
+        name: 'Front review',
+        prompt: 'Review the front end',
+        schedule: {
+          frequency: 'once',
+          time: '10:00',
+          weekday: null,
+          monthDay: null,
+          date: '2026-11-04'
+        }
+      },
+      now
+    )
+
+    const result = listBotTeamScheduledRuns(db, { from: now, to: now + 10 * DAY }, now)
+
+    expect(result.runs).toHaveLength(1)
+    expect(result.runs[0]).toMatchObject({
+      routineName: 'Front review',
+      frequency: 'once',
+      hostTime: { date: '2026-11-04', time: '10:00' }
+    })
+    expect(BotTeamScheduledRunsResult.parse(result)).toEqual(result)
+    const later = new Date(2026, 10, 5, 8, 0).getTime()
+    expect(listBotTeamScheduledRuns(db, { from: later, to: later + DAY }, later).runs).toEqual([])
   })
 
   it('filters by team and lists nothing for a team with no routines', () => {

@@ -30,7 +30,7 @@ export function listBotTeamScheduledRuns(
       // Why: the window is capped at 62 days and routines run at most daily, so the walk stays short.
       for (
         let at = nextRoutineRunAfter(routine.schedule, start - 1);
-        at < query.to;
+        at !== null && at < query.to;
         at = nextRoutineRunAfter(routine.schedule, at)
       ) {
         runs.push({
@@ -45,7 +45,13 @@ export function listBotTeamScheduledRuns(
           projectName: null,
           frequency: routine.schedule.frequency,
           at,
-          hostTime: hostWallTime(at)
+          hostTime: hostWallTime(at),
+          ...(routine.schedule.timeZone
+            ? {
+                timeZone: routine.schedule.timeZone,
+                routineTime: hostWallTime(at, routine.schedule.timeZone)
+              }
+            : {})
         })
       }
     }
