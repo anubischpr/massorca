@@ -51,6 +51,7 @@ import type {
 import type { PetApi } from './api/pet-api'
 import type { PluginsApi } from './api/plugin-host-api'
 import type { PreflightApi } from './api/preflight-api'
+import type { MarketplaceApi } from '../shared/marketplace-types'
 import type { PtyApi } from './api/pty-api'
 import type { ProjectGroupsApi, ProjectsApi, RepositoryApi } from './api/repository-api'
 import type { RuntimeApi } from './api/runtime-api'
@@ -117,6 +118,7 @@ export type PreloadApi = {
   cli: CliApi
   codexConfigSync: CodexConfigSyncApi
   preflight: PreflightApi
+  marketplace: MarketplaceApi
   notifications: NotificationsApi
   onboarding: OnboardingApi
   dashboard: DashboardApi
