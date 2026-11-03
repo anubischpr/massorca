@@ -7,7 +7,10 @@ import {
   applyAutocomplete,
   detectAutocompleteTrigger
 } from '../session/mobile-native-chat-autocomplete'
-import type { ComposerSuggestion } from '../session/MobileNativeChatComposerSuggestions'
+import {
+  MobileNativeChatComposerSuggestions,
+  type ComposerSuggestion
+} from '../session/MobileNativeChatComposerSuggestions'
 import { botTeamMentionNodes, BotTeamMentionChip } from './MobileBotTeamMentionChip'
 import { botTeamMentionTargets } from './mobile-bot-team-mention'
 import { botTeamRoomSuggestions } from './MobileBotTeamRoomSuggestions'
@@ -16,6 +19,10 @@ vi.mock('react-native', async () => {
   const React = await import('react')
   return {
     StyleSheet: { create: (styles: unknown) => styles, hairlineWidth: 1 },
+    Pressable: ({ children, style: _style, ...props }: { children?: ReactNode; style?: unknown }) =>
+      React.createElement('Pressable', props, children),
+    ScrollView: ({ children, ...props }: { children?: ReactNode }) =>
+      React.createElement('ScrollView', props, children),
     Text: ({ children, ...props }: { children?: ReactNode }) =>
       React.createElement('Text', props, children),
     View: ({ children, ...props }: { children?: ReactNode }) =>
@@ -204,5 +211,30 @@ describe('the phone @ menu lists projects and files', () => {
 
     expect(drawnType(iconOf(rowNamed(rows, 'site/flyer.html')))).toBe('FileCode')
     expect(drawnType(iconOf(rowNamed(rows, 'brief.md')))).toBe('FileText')
+  })
+})
+
+describe('the phone @ menu headings', () => {
+  it('heads each kind once when the list mixes them, in the desktop order', () => {
+    let renderer!: ReactTestRenderer
+    act(() => {
+      renderer = create(
+        createElement(MobileNativeChatComposerSuggestions, {
+          suggestions: menuFor('@', ['site/flyer.html', 'brief.md']),
+          onPick: () => {}
+        })
+      )
+    })
+    const headings = renderer.root
+      .findAll((node) => node.type === 'Text' && node.props.accessibilityRole === 'header')
+      .map((node) => node.props.children)
+
+    expect(headings).toEqual(['Bots', 'Teams', 'Projects', 'Files'])
+  })
+
+  it('draws no heading when every row is one kind', () => {
+    expect(menuFor('@Ir').every((row) => row.kind === 'custom' && row.group === undefined)).toBe(
+      true
+    )
   })
 })
