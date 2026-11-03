@@ -152,6 +152,7 @@ export type UiViewHistory =
   | 'mobile'
   | 'create-chat'
   | 'calendar'
+  | 'marketplace'
 
 export type UISliceCore = {
   sidebarOpen: boolean
@@ -193,6 +194,7 @@ export type UISliceCore = {
   previousViewBeforeMobile: Exclude<UiViewHistory, 'mobile'>
   previousViewBeforeArtifacts: Exclude<UiViewHistory, 'artifacts'>
   previousViewBeforePrototypes: Exclude<UiViewHistory, 'prototypes'>
+  previousViewBeforeMarketplace: Exclude<UiViewHistory, 'marketplace'>
   setActiveView: (view: UISliceCore['activeView']) => void
   taskPageData: TaskPageData
   taskResumeState: TaskResumeState | undefined
@@ -262,6 +264,8 @@ export type UISliceCore = {
   openTasksHome: () => void
   /** The rail's Calendar page: scheduled bot runs and automations. */
   openCalendarPage: () => void
+  openMarketplacePage: () => void
+  closeMarketplacePage: () => void
   setNewWorkspaceDraft: (draft: NonNullable<UISliceCore['newWorkspaceDraft']>) => void
   clearNewWorkspaceDraft: () => void
   pendingRevealWorktree: PendingSidebarWorktreeReveal | null

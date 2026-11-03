@@ -129,3 +129,4 @@ export type TopLevelView =
   | 'mobile'
   | 'create-chat'
   | 'calendar'
+  | 'marketplace'

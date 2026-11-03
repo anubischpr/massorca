@@ -1,5 +1,5 @@
 import React from 'react'
-import { Bot, Calendar, LayoutGrid, ListChecks, Settings } from 'lucide-react'
+import { Bot, Calendar, LayoutGrid, ListChecks, Settings, Store } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -80,6 +80,7 @@ export function AppRail(): React.JSX.Element {
   const markHintShown = useAppStore((s) => s.markRailWorkspacesHintShown)
   const openTasksHome = useAppStore((s) => s.openTasksHome)
   const openCalendarPage = useAppStore((s) => s.openCalendarPage)
+  const openMarketplacePage = useAppStore((s) => s.openMarketplacePage)
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const settingsShortcut = useShortcutKeyDetails('app.settings')
   return (
@@ -129,6 +130,13 @@ export function AppRail(): React.JSX.Element {
         onClick={openCalendarPage}
       >
         <Calendar className="size-5" />
+      </RailButton>
+      <RailButton
+        label={translate('components.app-rail.marketplace', 'Marketplace')}
+        active={activeView === 'marketplace'}
+        onClick={openMarketplacePage}
+      >
+        <Store className="size-5" />
       </RailButton>
       <div className="flex-1" />
       <AppRailUsage />
