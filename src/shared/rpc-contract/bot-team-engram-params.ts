@@ -1,0 +1,50 @@
+import { z } from 'zod'
+import { requiredString } from './rpc-param-primitives'
+
+export const ENGRAM_QUERY_MAX_LENGTH = 200
+export const ENGRAM_DEFAULT_LIMIT = 5
+export const ENGRAM_MAX_LIMIT = 20
+/** While a reply says `refreshing`, the view asks again this often, at most ENGRAM_REFRESH_MAX_POLLS times. */
+export const ENGRAM_REFRESH_POLL_MS = 10_000
+export const ENGRAM_REFRESH_MAX_POLLS = 15
+
+export const BotTeamEngramList = z.object({
+  teamId: requiredString('Missing team id'),
+  projectId: requiredString('Missing project id'),
+  /** Absent or blank: the latest memories instead of a search. */
+  query: z.string().max(ENGRAM_QUERY_MAX_LENGTH).optional(),
+  limit: z.number().int().min(1).max(ENGRAM_MAX_LIMIT).optional(),
+  /** The view's first load: import from the Engram server now, bypassing the five-minute throttle. */
+  refresh: z.boolean().optional()
+})
+
+export const BotTeamEngramMemorySchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  type: z.string().optional(),
+  excerpt: z.string(),
+  createdAt: z.string().optional()
+})
+
+/** Why the last server import failed: cloud sync is not set up on this host, or the server is unreachable. */
+export const BOT_TEAM_ENGRAM_REFRESH_PROBLEMS = ['not-configured', 'unreachable'] as const
+
+/**
+ * unavailable: no engram CLI on the host. not-linked: workspaces off or no linked project.
+ * refreshFailed: the last server import failed, so the memories are local and may be stale; a host
+ * from before refreshProblem sends only this. refreshProblem: why that import failed; a host with no
+ * cloud setup sends this and not refreshFailed, so an older client shows no refresh error for it.
+ * refreshing: a server import is still running; the memories are local and the view asks again.
+ */
+export const BotTeamEngramReplySchema = z.object({
+  status: z.enum(['ok', 'unavailable', 'not-linked', 'failed']),
+  projectName: z.string().optional(),
+  memories: z.array(BotTeamEngramMemorySchema),
+  refreshFailed: z.boolean().optional(),
+  refreshProblem: z.enum(BOT_TEAM_ENGRAM_REFRESH_PROBLEMS).optional(),
+  refreshing: z.boolean().optional()
+})
+
+export type BotTeamEngramMemory = z.output<typeof BotTeamEngramMemorySchema>
+export type BotTeamEngramReply = z.output<typeof BotTeamEngramReplySchema>
+export type BotTeamEngramRefreshProblem = (typeof BOT_TEAM_ENGRAM_REFRESH_PROBLEMS)[number]

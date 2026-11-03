@@ -153,6 +153,55 @@ describe('bot team store', () => {
     expect(orphans).toEqual({ n: 0 })
   })
 
+  it('removes a team that has memory, routines and web addresses', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    db.db
+      .prepare(
+        "INSERT INTO bot_team_memory (id, team_id, bot_id, text, source_kind) VALUES ('m1', ?, ?, 'Likes blue', 'person')"
+      )
+      .run(team.id, team.bots[0].id)
+    db.db
+      .prepare(
+        "INSERT INTO bot_team_routines (id, team_id, bot_id, name, prompt, frequency, time_of_day, created_at) VALUES ('r1', ?, ?, 'Check-in', 'Check in', 'daily', '09:00', 1)"
+      )
+      .run(team.id, team.bots[0].id)
+    db.db
+      .prepare(
+        "INSERT INTO bot_team_routine_runs (id, routine_id, scheduled_for) VALUES ('run1', 'r1', 1)"
+      )
+      .run()
+    db.db
+      .prepare(
+        "INSERT INTO bot_team_webhooks (id, team_id, bot_id, secret_hash, created_at) VALUES ('w1', ?, ?, 'h', 1)"
+      )
+      .run(team.id, team.bots[0].id)
+
+    db.deleteBotTeam(team.id)
+    expect(db.listBotTeams()).toEqual([])
+    for (const table of [
+      'bot_team_memory',
+      'bot_team_routines',
+      'bot_team_routine_runs',
+      'bot_team_webhooks'
+    ]) {
+      expect(db.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()).toEqual({ n: 0 })
+    }
+  })
+
+  it('removes a bot that the team remembers things about', () => {
+    db = new OrchestrationDb(':memory:')
+    const team = createTeam(db)
+    db.db
+      .prepare(
+        "INSERT INTO bot_team_memory (id, team_id, bot_id, text, source_kind) VALUES ('m1', ?, ?, 'Likes blue', 'person')"
+      )
+      .run(team.id, team.bots[0].id)
+
+    expect(db.removeBotFromTeam(team.id, team.bots[0].id).bots).toEqual([])
+    expect(db.listBotTeamMemory(team.id)).toEqual([])
+  })
+
   it('refuses a change to a team that does not exist', () => {
     db = new OrchestrationDb(':memory:')
 
@@ -164,7 +213,9 @@ describe('bot team store', () => {
 
   it('adds the tables to a database from the previous version and keeps its rows', () => {
     db = new OrchestrationDb(':memory:')
-    db.db.exec('DROP TABLE bot_team_bots; DROP TABLE bot_teams;')
+    db.db.exec(
+      'DROP TABLE bot_team_task_delegations; DROP TABLE bot_team_workspaces; DROP TABLE bot_team_messages; DROP TABLE bot_team_tasks; DROP TABLE bot_team_projects; DROP TABLE bot_team_bots; DROP TABLE bot_teams;'
+    )
     db.db.pragma('user_version = 43')
 
     db.migrate()

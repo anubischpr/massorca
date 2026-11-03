@@ -19840,16 +19840,16 @@
       "done": "Done",
       "backToRoom": "Back to Conference room",
       "open": "Open",
+      "editBot": "Edit bot",
+      "saveBot": "Save",
+      "host": "Host",
+      "thisComputer": "This computer",
       "board": "Board",
       "projects": "Projects",
       "newProject": "New project",
       "files": "Files",
       "memory": "Memory",
-      "permissions": "Permissions",
-      "editBot": "Edit bot",
-      "saveBot": "Save",
-      "host": "Host",
-      "thisComputer": "This computer"
+      "permissions": "Permissions"
     }
   },
   "dashboardPopout": {

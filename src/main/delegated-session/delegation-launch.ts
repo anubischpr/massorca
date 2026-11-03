@@ -112,8 +112,11 @@ export function createDelegationLauncher(deps: {
     }
     // Why: a folder child writing in place shares the parent's folder, so its task names that folder.
     const sharesFolder =
-      delegationPlacementFor(request.writes === 1, request.workspace_kind).placementWarning ===
-      'folder-workspace-writes'
+      delegationPlacementFor({
+        ...request,
+        writesCode: request.writes === 1,
+        workspaceKind: request.workspace_kind
+      }).placementWarning === 'folder-workspace-writes'
     const folderPath = sharesFolder ? await deps.folderPath(parent.workspaceId) : null
     if (sharesFolder && folderPath === null) {
       throw new OrchestrationError(
@@ -173,6 +176,7 @@ export function createDelegationLauncher(deps: {
         ...(target.model && target.effort ? { effort: target.effort } : {}),
         preferredMode: 'chat',
         ...(accessMode ? { accessMode } : {}),
+        ...(target.piRuntime ? { piRuntime: target.piRuntime } : {}),
         worktree: newWorktree ? 'new-child' : 'current',
         ...(newWorktree ? { name: delegationWorktreeName(request.title, request.id) } : {})
       }

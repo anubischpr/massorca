@@ -1,12 +1,19 @@
 import { OrchestrationError } from '../../../orchestration/orchestration-error'
-import type { BotTeamTask } from '../../../../../shared/rpc-contract/bot-team-room-params'
+import type {
+  BotTeamProject,
+  BotTeamTask
+} from '../../../../../shared/rpc-contract/bot-team-room-params'
+import type { OrchestrationDb } from '../../../orchestration/db/orchestration-db'
 import {
   BotTeamAgentDelegate,
   BotTeamAgentPost,
+  BotTeamAgentRemember,
   BotTeamAgentTaskCreate
 } from '../../../../../shared/rpc-contract/bot-team-agent-params'
 import { botTeamTaskTitle, routeBotTeamRequest } from '../../../../../shared/bot-team-request-route'
-import { delegateToBotTeammate } from '../../../../bot-teams/bot-team-delegate'
+import { readBotTeamMemoryLines } from '../../../../bot-teams/bot-team-memory-read'
+import { botTeamRoomExcerpt } from '../../../../bot-teams/bot-team-prompt-notes'
+import { delegateToBotTeammate, findDelegationTeam } from '../../../../bot-teams/bot-team-delegate'
 import {
   getDelegationAnswerService,
   getDelegationRequestService
@@ -29,20 +36,70 @@ export function requireBotTeamCallerTask(
   return task
 }
 
+/** The caller's project, which only a teammate on the same team works under; shared and archived count. */
+export function botTeamDelegationProject(
+  db: OrchestrationDb,
+  caller: Pick<BotTeamTask, 'teamId' | 'projectId'>,
+  teamId: string
+): BotTeamProject | null {
+  if (teamId !== caller.teamId || !caller.projectId) {
+    return null
+  }
+  return (
+    db
+      .listBotTeamProjects(teamId, { includeLinked: true, includeArchived: true })
+      .find((entry) => entry.id === caller.projectId) ?? null
+  )
+}
+
+const LAUNCH_WAIT_MS = 20_000
+const LAUNCH_POLL_MS = 200
+
+/** Waits for a filed request to leave pending/starting, so a refused launch reaches the caller. */
+export async function waitForDelegationLaunch(
+  db: {
+    getDelegationRequest: (id: string) => { status: string; failure: string | null } | undefined
+  },
+  requestId: string,
+  { timeoutMs = LAUNCH_WAIT_MS, pollMs = LAUNCH_POLL_MS } = {}
+): Promise<{ failed: string | null }> {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    const row = db.getDelegationRequest(requestId)
+    if (row && row.status !== 'pending' && row.status !== 'starting') {
+      return {
+        failed:
+          row.status === 'failed' || row.status === 'cancelled'
+            ? (row.failure ?? 'The launch was refused.')
+            : null
+      }
+    }
+    if (Date.now() >= deadline) {
+      return { failed: null }
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollMs))
+  }
+}
+
 export const ORCHESTRATION_BOT_TEAM_METHODS = [
   defineMethod({
     name: 'orchestration.botTeamDelegate',
     permission: 'workspace',
     params: BotTeamAgentDelegate,
-    handler: async ({ bot, text }, { runtime, orchestrationCaller }) => {
+    handler: async ({ bot, text, team: teamName }, { runtime, orchestrationCaller }) => {
       const db = runtime.getOrchestrationDb()
       const caller = requireBotTeamCallerTask(db, orchestrationCaller?.sessionId)
-      const team = db.listBotTeams().find((entry) => entry.id === caller.teamId)
-      if (!team) {
-        throw new OrchestrationError('invalid_argument', 'This team no longer exists.', {
-          effectsApplied: false
-        })
+      let team
+      try {
+        team = findDelegationTeam(db.listBotTeams(), caller.teamId, teamName)
+      } catch (error) {
+        throw new OrchestrationError(
+          'invalid_argument',
+          error instanceof Error ? error.message : String(error),
+          { effectsApplied: false }
+        )
       }
+      const project = botTeamDelegationProject(db, caller, team.id)
       await runtime.ensureStructuredAgentSessionHost()
       return {
         task: await delegateToBotTeammate(
@@ -55,14 +112,30 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
                 title: request.title,
                 writes: false,
                 agent: request.agent,
-                ...(request.launch ? { launch: request.launch } : {})
+                ...(request.launch ? { launch: request.launch } : {}),
+                ...(request.piRuntime ? { piRuntime: request.piRuntime } : {})
               }),
-            createTask: (args) => db.createBotTeamTask({ teamId: team.id, ...args }),
+            createTask: (args) => {
+              const created = db.createBotTeamTask({ teamId: team.id, ...args })
+              if (!project) {
+                return created
+              }
+              db.setBotTeamTaskProject(created.id, project.id)
+              return db.getBotTeamTask(created.id)
+            },
+            memoryFor: (botId) => readBotTeamMemoryLines(db, team.id, botId),
             linkTask: (taskId, requestId) => db.linkBotTeamTaskDelegation(taskId, requestId),
             startRequest: (requestId, agent) =>
-              getDelegationAnswerService(runtime).startChosenAgent(requestId, agent)
+              getDelegationAnswerService(runtime).startChosenAgent(requestId, agent),
+            launchOutcome: (requestId) => waitForDelegationLaunch(db, requestId)
           },
-          { team, botName: bot, text }
+          {
+            team,
+            botName: bot,
+            text,
+            project,
+            roomExcerpt: botTeamRoomExcerpt(db.listBotTeamMessages(team.id), team.bots)
+          }
         )
       }
     }
@@ -79,6 +152,23 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
           teamId: task.teamId,
           authorBotId: task.ownerBotId,
           text
+        })
+      }
+    }
+  }),
+  defineMethod({
+    name: 'orchestration.botTeamRemember',
+    permission: 'workspace',
+    params: BotTeamAgentRemember,
+    handler: ({ text, me, told }, { runtime, orchestrationCaller }) => {
+      const db = runtime.getOrchestrationDb()
+      const task = requireBotTeamCallerTask(db, orchestrationCaller?.sessionId)
+      return {
+        memory: db.addBotTeamMemory({
+          teamId: task.teamId,
+          botId: me ? task.ownerBotId : null,
+          text,
+          source: { kind: told ? 'person' : 'task', taskTitle: told ? null : task.title }
         })
       }
     }
@@ -103,14 +193,18 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
       const bots = db.listBotTeams().find((team) => team.id === caller.teamId)?.bots ?? []
       // The caller keeps the task unless the text mentions a teammate. It waits in Todo (S10).
       const owner = routeBotTeamRequest(text, bots)?.id ?? caller.ownerBotId
-      return {
-        task: db.createBotTeamTask({
-          teamId: caller.teamId,
-          title: botTeamTaskTitle(text, bots),
-          prompt: text,
-          ownerBotId: owner
-        })
+      const task = db.createBotTeamTask({
+        teamId: caller.teamId,
+        title: botTeamTaskTitle(text, bots),
+        prompt: text,
+        ownerBotId: owner
+      })
+      // Work a task saves for later belongs to the same project as that task.
+      if (!caller.projectId) {
+        return { task }
       }
+      db.setBotTeamTaskProject(task.id, caller.projectId)
+      return { task: db.getBotTeamTask(task.id) }
     }
   })
 ]

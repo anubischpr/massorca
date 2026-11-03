@@ -20,6 +20,8 @@ export type WorkspaceViewSettings = {
   filterRepoIds?: string[]
   collapsedGroups?: string[]
   workspaceStatuses?: WorkspaceStatusDefinition[]
+  /** Absent on a desktop that predates the switch, which reads as off. */
+  showBotTeamWorkspaces?: boolean
 }
 
 const GROUP_TO_DESKTOP: Record<MobileGroupMode, NonNullable<WorkspaceViewSettings['groupBy']>> = {
@@ -96,6 +98,9 @@ export function buildWorkspaceViewSettingsUpdate(
   if ('workspaceStatuses' in patch) {
     update.workspaceStatuses = [...next.workspaceStatuses]
   }
+  if ('showBotTeamWorkspaces' in patch) {
+    update.showBotTeamWorkspaces = next.showBotTeamWorkspaces
+  }
   return update
 }
 
@@ -108,6 +113,8 @@ export type MobileViewState = {
   filterRepoIds: string[]
   collapsedGroups: string[]
   workspaceStatuses: readonly WorkspaceStatusDefinition[]
+  /** Absent until a desktop state arrives; reads as off. */
+  showBotTeamWorkspaces?: boolean
 }
 
 // Apply a desktop PersistedUIState onto the local view state, leaving any field
@@ -132,7 +139,8 @@ export function applyDesktopViewSettings(
       settings.alwaysShowDefaultBranchWorkspace ?? current.alwaysShowDefaultBranch,
     filterRepoIds: settings.filterRepoIds ?? current.filterRepoIds,
     collapsedGroups: settings.collapsedGroups ?? current.collapsedGroups,
-    workspaceStatuses
+    workspaceStatuses,
+    showBotTeamWorkspaces: settings.showBotTeamWorkspaces ?? current.showBotTeamWorkspaces
   }
   return next
 }

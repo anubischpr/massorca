@@ -14,6 +14,8 @@ export type DelegationLaunchTarget = {
   placement: DelegationPlacement
   /** Whether the host picked the agent (Automatic) or the person did. */
   automatic: boolean
+  /** Which Pi the child must run; absent, the host picks whichever it has. */
+  piRuntime?: 'pi' | 'gentle-shell'
 }
 
 export type DelegationLaunchResult = {

@@ -6,9 +6,9 @@ describe('botTeamTaskStatus', () => {
     expect(botTeamTaskStatus(null, undefined)).toBe('Not started')
   })
 
-  it('says Working while the host has not reported yet, since the request was delivered', () => {
-    expect(botTeamTaskStatus('s', undefined)).toBe('Working')
-    expect(botTeamTaskStatus('s', { status: null })).toBe('Working')
+  it('says Unknown until the host answers for the session, never Working', () => {
+    expect(botTeamTaskStatus('s', undefined)).toBe('Unknown')
+    expect(botTeamTaskStatus('s', { status: null })).toBe('Unknown')
   })
 
   it('follows the live status', () => {

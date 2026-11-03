@@ -134,10 +134,21 @@ export const ORCHESTRATION_WORKER_COMMAND_SPECS: CommandSpec[] = [
   {
     path: ['orchestration', 'team-delegate'],
     summary: 'Hand work to a teammate on your Bot team',
-    usage: 'orca orchestration team-delegate --bot <name> --text <task> [--json]',
-    allowedFlags: [...GLOBAL_FLAGS, 'bot', 'text', 'retry-request'],
+    usage: 'orca orchestration team-delegate --bot <name> --text <task> [--team <name>] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'bot', 'text', 'team', 'retry-request'],
     notes: [
-      'The teammate runs as a child session of this chat, on its own engine, with no choice card.'
+      'The teammate runs as a child session of this chat, on its own engine, with no choice card.',
+      'With --team, the bot is looked up on that other team and the task is filed in its Conference room.'
+    ]
+  },
+  {
+    path: ['orchestration', 'team-remember'],
+    summary: 'Keep something your Bot team should remember for later tasks',
+    usage: 'orca orchestration team-remember --text <what> [--me] [--told] [--json]',
+    allowedFlags: [...GLOBAL_FLAGS, 'text', 'me', 'told', 'retry-request'],
+    notes: [
+      'Without --me the whole team uses it; with --me only this bot does. Use --told when the person asked you to remember it.',
+      'The person can read and delete it on the team Memory page.'
     ]
   },
   {
@@ -174,6 +185,26 @@ export const ORCHESTRATION_WORKER_COMMAND_SPECS: CommandSpec[] = [
       '--summary is a one-line abstract of at most 160 characters that the router uses to pick a model and effort. Describe the kind of work, not the repository: no secrets, credentials, personal data, file paths, or project names. Put the full task in --prompt.',
       '--writes says the child will edit code, so it runs in a new worktree (a folder workspace runs in place). Omit it for read-only work.',
       'The child inherits this chat access mode and never gets a wider one. When it finishes, its result reaches this chat as a message.'
+    ]
+  },
+  {
+    path: ['orchestration', 'ask-user'],
+    summary: 'Ask the person in this chat a multiple-choice question and wait for the answer',
+    usage:
+      'orca orchestration ask-user (--question <text> --options <a,b,c> [--multi-select] | --questions <json>) [--timeout-ms <ms>] [--json]',
+    allowedFlags: [
+      ...GLOBAL_FLAGS,
+      'question',
+      'options',
+      'multi-select',
+      'questions',
+      'timeout-ms'
+    ],
+    notes: [
+      'Only a MassOrca chat session can ask: the question appears in this chat as an interactive card with the options as buttons and a box for a typed answer, and the command waits until the person answers.',
+      '--question and --options ask one question; --options is comma-separated and --multi-select lets the person pick several. Prefer this form on Windows, where PowerShell strips the quotes out of a JSON argument.',
+      '--questions is JSON for 1-4 questions of 1-12 options each: {"questions":[{"question":"Which color?","options":["Red","Green","Blue"],"multiSelect":false}]}. An option can also be {"label":"...","description":"..."}.',
+      'Prints one line per question with the chosen options (and any typed text) joined by ", ". Exits 1 when the person dismisses the card or nobody answers within --timeout-ms (default 600000, at most 1800000).'
     ]
   }
 ]

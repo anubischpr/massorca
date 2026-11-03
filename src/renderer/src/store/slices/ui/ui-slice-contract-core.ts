@@ -15,6 +15,20 @@ import type { TaskSourceContext } from '../../../../../shared/task-source-contex
 import type { ExecutionHostId } from '../../../../../shared/execution-host'
 import type { TaskResumeState, TopLevelView } from '../../../../../shared/ui-chrome-types'
 
+/** A page of the open team other than its Conference room. */
+export type BotTeamsSection =
+  | { kind: 'board' }
+  | { kind: 'new-project' }
+  /** `path` opens that file of the team folder, as a file chip in the room does. */
+  | { kind: 'files'; path?: string }
+  | { kind: 'memory' }
+  | { kind: 'routines' }
+  | { kind: 'routine-new' }
+  | { kind: 'routine'; routineId: string }
+  /** A team's web address that starts a task; no id means making a new one. */
+  | { kind: 'webhook'; webhookId?: string }
+  | { kind: 'project'; projectId: string; tab?: 'brief' }
+
 export type BotTeamsSelection = {
   /** The open team, or null for All teams. */
   teamId: string | null
@@ -22,6 +36,8 @@ export type BotTeamsSelection = {
   taskId: string | null
   /** The new team form is open. */
   creating: boolean
+  /** The open team's Board, a project, New project, Files, Memory or Routines; none means the Conference room. */
+  section?: BotTeamsSection
 }
 
 export type PendingSidebarWorktreeReveal = {

@@ -28,6 +28,14 @@ export type CommitMessagePlanInput = {
   customAgentCommand?: string
   agentCommandOverride?: string
   agentArgs?: string
+  /** A research turn: web search and fetch where the agent has a confirmed web-only mode, else text only. */
+  webResearch?: boolean
+  /** A code question: the agent reads the checkout it runs in, where its spec has a code read mode. */
+  codeRead?: boolean
+  /** A bot-team room turn: adds the spec's room-turn arguments, which commit-message generation never gets. */
+  roomTurn?: boolean
+  /** Host-derived arguments that limit a code turn's MCP servers; required where the spec is `hostChecked`. */
+  codeReadHostArgs?: readonly string[]
 }
 
 export type CommitMessagePlan = {
@@ -40,6 +48,10 @@ export type CommitMessagePlan = {
   /** Leading command assignments, applied on the execution host. */
   env?: Record<string, string>
   outputFormat?: 'opencode-json'
+  /** True when the plan lets the agent search the web; absent for a text-only plan. */
+  webResearch?: true
+  /** True when the plan lets the agent read the checkout, read-only. */
+  codeRead?: true
 }
 
 export type CommitMessagePlanResult =
@@ -250,11 +262,28 @@ export function planCommitMessageGeneration(
   }
 
   const argvPrompt = spec.promptDelivery === 'argv' ? prompt : ''
-  const baseArgs = spec.buildArgs({
+  const codeRead = input.codeRead ? spec.codeReadArgs : undefined
+  // Why: a host-checked agent can load a write MCP server unless its host reads limit it, so no
+  // code turn is planned without those limits.
+  if (codeRead?.hostChecked && input.codeReadHostArgs === undefined) {
+    return { ok: false, error: `${spec.label} code reads need the host's MCP limits.` }
+  }
+  const researchArgs = input.webResearch ? spec.webResearchArgs : undefined
+  const generated = spec.buildArgs({
     prompt: argvPrompt,
     model: input.model,
     thinkingLevel: input.thinkingLevel
   })
+  const roomArgs = input.roomTurn ? (spec.roomTurnArgs ?? []) : []
+  // A code turn carries its web tools in its own arguments, so they are not added twice.
+  const baseArgs = codeRead
+    ? [
+        ...generated.filter((arg) => !codeRead.drop?.includes(arg)),
+        ...roomArgs,
+        ...codeRead.add(researchArgs !== undefined),
+        ...(codeRead.hostChecked ? (input.codeReadHostArgs ?? []) : [])
+      ]
+    : [...generated, ...roomArgs, ...(researchArgs ?? [])]
   const agentArgs = planAdditionalAgentArgs(input.agentArgs, input.backslash)
   if (!agentArgs.ok) {
     return agentArgs
@@ -294,6 +323,8 @@ export function planCommitMessageGeneration(
       args: generationArgs,
       stdinPayload: spec.promptDelivery === 'stdin' ? prompt : null,
       label: spec.label,
+      ...(researchArgs ? { webResearch: true as const } : {}),
+      ...(codeRead ? { codeRead: true as const } : {}),
       ...(formatOption?.value === 'json' ? { outputFormat: 'opencode-json' as const } : {}),
       ...(command.env ? { env: command.env } : {})
     }

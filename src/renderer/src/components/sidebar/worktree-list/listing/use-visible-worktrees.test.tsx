@@ -51,6 +51,7 @@ describe('useVisibleSidebarWorktrees', () => {
           hideCliCreatedWorkspaces: false,
           hideDetachedHeadWorkspaces: false,
           hideWorkspacesFromOtherDevices: false,
+          showBotTeamWorkspaces: false,
           alwaysShowDefaultBranchWorkspace: true,
           visibleWorkspaceHostIds: null,
           workspaceHostScope: 'all'
@@ -86,6 +87,7 @@ describe('useVisibleSidebarWorktrees', () => {
           hideCliCreatedWorkspaces: false,
           hideDetachedHeadWorkspaces: false,
           hideWorkspacesFromOtherDevices: false,
+          showBotTeamWorkspaces: false,
           alwaysShowDefaultBranchWorkspace: true,
           visibleWorkspaceHostIds: ['ssh:box'],
           workspaceHostScope: 'all'
@@ -117,6 +119,7 @@ describe('useVisibleSidebarWorktrees', () => {
         hideCliCreatedWorkspaces: false,
         hideDetachedHeadWorkspaces: false,
         hideWorkspacesFromOtherDevices: false,
+        showBotTeamWorkspaces: false,
         alwaysShowDefaultBranchWorkspace: true,
         visibleWorkspaceHostIds: null,
         workspaceHostScope: 'all'
@@ -176,6 +179,7 @@ describe('useVisibleSidebarWorktrees', () => {
           hideCliCreatedWorkspaces: false,
           hideDetachedHeadWorkspaces: false,
           hideWorkspacesFromOtherDevices: false,
+          showBotTeamWorkspaces: false,
           alwaysShowDefaultBranchWorkspace: true,
           visibleWorkspaceHostIds: null,
           workspaceHostScope: 'all'

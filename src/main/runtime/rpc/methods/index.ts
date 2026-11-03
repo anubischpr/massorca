@@ -1,6 +1,9 @@
 import { STATUS_METHODS } from './status'
 import { BOT_TEAM_METHODS } from './bot-teams'
 import { BOT_TEAM_ROOM_METHODS } from './bot-team-room'
+import { BOT_TEAM_ROUTINE_METHODS } from './bot-team-routine-methods'
+import { botTeamListScheduledRunsMethod } from './bot-team-scheduled-run-methods'
+import { BOT_TEAM_WEBHOOK_METHODS } from './bot-team-webhook-methods'
 import { ORCAD_TERMINAL_CENSUS_METHODS } from './orcad-terminal-census'
 import { ORCAD_MIGRATION_METHODS } from './orcad-migration'
 import { AI_VAULT_METHODS } from './ai-vault'
@@ -54,6 +57,7 @@ import { AGENT_SESSION_METHODS } from './agent-session'
 import { STRUCTURED_AGENT_SESSION_METHODS } from './structured-agent-session'
 import { STRUCTURED_AGENT_SESSION_ATTACHMENT_METHODS } from './structured-agent-session-attachments'
 import { STRUCTURED_AGENT_SESSION_VISUAL_METHODS } from './structured-agent-session-visual'
+import { STRUCTURED_AGENT_SESSION_CHECKLIST_METHODS } from './structured-agent-session-checklist'
 import { STRUCTURED_AGENT_SESSION_PLAN_DOCUMENT_METHODS } from './structured-agent-session-plan-document'
 import { STRUCTURED_AGENT_SESSION_RECORDED_FILE_METHODS } from './structured-agent-session-recorded-file'
 import { STRUCTURED_AGENT_SESSION_AGENTS_METHODS } from './structured-agent-session-agents'
@@ -73,6 +77,9 @@ export const ALL_RPC_METHODS = [
   ...AI_VAULT_METHODS,
   ...BOT_TEAM_METHODS,
   ...BOT_TEAM_ROOM_METHODS,
+  ...BOT_TEAM_ROUTINE_METHODS,
+  botTeamListScheduledRunsMethod,
+  ...BOT_TEAM_WEBHOOK_METHODS,
   ...ARTIFACT_METHODS,
   ...AUTOMATION_METHODS,
   ...REPO_METHODS,
@@ -81,6 +88,7 @@ export const ALL_RPC_METHODS = [
   ...STRUCTURED_AGENT_SESSION_METHODS,
   ...STRUCTURED_AGENT_SESSION_ATTACHMENT_METHODS,
   ...STRUCTURED_AGENT_SESSION_VISUAL_METHODS,
+  ...STRUCTURED_AGENT_SESSION_CHECKLIST_METHODS,
   ...STRUCTURED_AGENT_SESSION_PLAN_DOCUMENT_METHODS,
   ...STRUCTURED_AGENT_SESSION_RECORDED_FILE_METHODS,
   ...STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS,

@@ -25,7 +25,7 @@ import type {
   PhysicalModifierToken
 } from '../../../shared/keybindings'
 import { shortcutPlatform } from './app-window-chrome'
-import { isLeftSidebarView } from './left-sidebar-views'
+import { hasLeftSidebarToggle } from './left-sidebar-views'
 
 type AppStoreState = ReturnType<typeof useAppStore.getState>
 
@@ -127,7 +127,9 @@ export function createAppCommandHandlers(
     workspaceChromeActive
   } = state
   const floatingWorkspaceFocused = isFloatingWorkspacePanelFocused()
-  const canRevealRightSidebar = !creationLayoutActive && canShowRightSidebarForView(activeView)
+  const canRevealRightSidebar =
+    !creationLayoutActive &&
+    canShowRightSidebarForView(activeView, useAppStore.getState().botTeamsSelection)
   const claim = (actionId: KeybindingActionId, run: () => void): boolean => {
     input?.preventDefault()
     if (
@@ -176,7 +178,7 @@ export function createAppCommandHandlers(
     ],
     [
       'sidebar.left.toggle',
-      () => isLeftSidebarView(activeView) && claim('sidebar.left.toggle', actions.toggleSidebar)
+      () => hasLeftSidebarToggle(activeView) && claim('sidebar.left.toggle', actions.toggleSidebar)
     ],
     [
       'sidebar.sleepingWorkspaces.toggle',

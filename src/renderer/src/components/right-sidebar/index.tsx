@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { useSidebarResize } from '@/hooks/useSidebarResize'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu'
+import { rightSidebarOpenInView } from '@/lib/right-sidebar-visibility'
 import { setRightSidebarPageTarget } from '../../app-shell/right-sidebar-page-slot'
 import { getTopActivityBarLayout } from './activity-bar-overflow'
 import { ActivityBarButton } from './activity-bar-buttons'
@@ -44,14 +45,9 @@ function RightSidebarInner({
     isWebClient: isPairedWebClientWindow()
   })
   const rightSidebarShortcut = useShortcutLabel('sidebar.right.toggle')
-  const rightSidebarOpen = useAppStore((s) => s.rightSidebarOpen)
+  const rightSidebarOpen = useAppStore(rightSidebarOpenInView)
   // Why: a Conference room's tasks and bots live here, so the room has one sidebar like a session.
-  const pageOwnsSidebar = useAppStore(
-    (s) =>
-      s.activeView === 'bot-teams' &&
-      s.botTeamsSelection.teamId !== null &&
-      s.botTeamsSelection.taskId === null
-  )
+  const pageOwnsSidebar = useAppStore((s) => s.activeView === 'bot-teams')
   const rightSidebarWidth = useAppStore((s) => s.rightSidebarWidth)
   const setRightSidebarWidth = useAppStore((s) => s.setRightSidebarWidth)
   const visual = useAppStore(selectVisibleRightSidebarVisual)

@@ -1,77 +1,140 @@
-import { useEffect, useRef } from 'react'
-import {
-  BookOpen,
-  Files,
-  LayoutGrid,
-  Plus,
-  ShieldAlert,
-  UserCheck,
-  type LucideIcon
-} from 'lucide-react'
+import { Brain, CalendarClock, Files, LayoutGrid, Plus, UserCheck } from 'lucide-react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAppStore } from '@/store'
-import { cn } from '@/lib/utils'
+import type { BotTeamsSelection } from '@/store/slices/ui/ui-slice-contract-core'
+import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { translate } from '@/i18n/i18n'
+import { botTeamBoardColumn } from '../../../../shared/bot-team-board-column'
+import { botTeamTaskStatus } from '../../../../shared/bot-team-task-status'
 import { BotTeamCharacterIcon } from '../bot-teams/BotTeamCharacterIcon'
+import { BotTeamWaitingMark } from '../bot-teams/BotTeamRoomQuestionMark'
+import { useBotTeamAttention } from '../bot-teams/use-bot-team-attention'
+import { useBotTeamSessionStatuses } from '../bot-teams/use-bot-team-task-status'
 import { useBotTeams } from '../bot-teams/use-bot-teams'
+import { BotTeamsSidebarProjects } from './BotTeamsSidebarProjects'
+import { RowMeta, SidebarRow } from './BotTeamsSidebarProjectsRow'
 import { SidebarSearchRow } from './SidebarSearchRow'
+import { useOpenTeamCounts } from './use-bot-team-sidebar-counts'
 
-const ROW_CLASS =
-  'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-medium tracking-tight transition-colors'
-const ROW_IDLE_CLASS = 'text-worktree-sidebar-foreground/60 hover:bg-worktree-sidebar-foreground/8'
-const ROW_ACTIVE_CLASS = 'bg-worktree-sidebar-accent text-worktree-sidebar-accent-foreground'
-
-function SidebarRow({
-  active = false,
-  indented = false,
-  onClick,
-  children
+/** The open team's rows, in the order of the design: room, board, projects. */
+function OpenTeamRows({
+  team,
+  teams,
+  selection,
+  onPage
 }: {
-  active?: boolean
-  indented?: boolean
-  onClick: () => void
-  children: React.ReactNode
+  team: BotTeam
+  teams: readonly BotTeam[]
+  selection: BotTeamsSelection
+  onPage: boolean
 }): React.JSX.Element {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-current={active ? 'page' : undefined}
-      className={cn(ROW_CLASS, indented && 'pl-8', active ? ROW_ACTIVE_CLASS : ROW_IDLE_CLASS)}
-    >
-      {children}
-    </button>
+  const teamId = team.id
+  const openBotTeamsView = useAppStore((s) => s.openBotTeamsView)
+  const { section } = selection
+  const [changes, setChanges] = useState(0)
+  // Relists when the page moves, so a project made or a task started shows without a reload.
+  const { known, tasks, projects, projectTasks, sharedProjects } = useOpenTeamCounts(
+    teamId,
+    `${section?.kind ?? 'room'}:${selection.taskId ?? ''}:${changes}`
   )
-}
-
-function PendingRow({ icon: Icon, label }: { icon: LucideIcon; label: string }): React.JSX.Element {
-  return (
-    <button
-      type="button"
-      disabled
-      className={cn(ROW_CLASS, 'pl-8 text-worktree-sidebar-foreground/60 disabled:opacity-50')}
-    >
-      <Icon className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
-      <span className="flex-1">{label}</span>
-    </button>
+  const statuses = useBotTeamSessionStatuses()
+  const open = tasks.filter(
+    (task) =>
+      botTeamBoardColumn(
+        botTeamTaskStatus(
+          task.sessionId,
+          task.sessionId === null ? undefined : statuses.get(task.sessionId)
+        )
+      ) !== 'Done'
+  ).length
+  const waiting = tasks.some(
+    (task) =>
+      task.sessionId !== null &&
+      botTeamTaskStatus(task.sessionId, statuses.get(task.sessionId)) === 'Waiting for you'
   )
-}
-
-/** Rows of an open team whose screens are still being built; each turns on with its screen. */
-function PendingTeamRows(): React.JSX.Element {
+  const inRoom = onPage && selection.taskId === null && !section
   return (
     <>
-      <PendingRow icon={LayoutGrid} label={translate('components.botTeams.board', 'Board')} />
-      <div className="px-8 pt-2 pb-0.5 text-[10px] font-semibold tracking-wider text-worktree-sidebar-foreground/45 uppercase">
-        {translate('components.botTeams.projects', 'Projects')}
-      </div>
-      <PendingRow icon={Plus} label={translate('components.botTeams.newProject', 'New project')} />
-      <PendingRow icon={Files} label={translate('components.botTeams.files', 'Files')} />
-      <PendingRow icon={BookOpen} label={translate('components.botTeams.memory', 'Memory')} />
-      <PendingRow
-        icon={ShieldAlert}
-        label={translate('components.botTeams.permissions', 'Permissions')}
+      <SidebarRow indented active={inRoom} onClick={() => openBotTeamsView({ teamId })}>
+        <UserCheck className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+        <span className="flex-1">
+          {translate('components.botTeams.conferenceRoom', 'Conference room')}
+        </span>
+        {waiting ? <BotTeamWaitingMark /> : null}
+        {known ? (
+          <RowMeta>
+            {open > 0
+              ? translate('components.botTeams.openCount', '{{count}} open', { count: open })
+              : translate('components.botTeams.nothingOpen', 'Nothing open')}
+          </RowMeta>
+        ) : null}
+      </SidebarRow>
+      <SidebarRow
+        indented
+        active={onPage && selection.taskId === null && section?.kind === 'board'}
+        onClick={() => openBotTeamsView({ teamId, section: { kind: 'board' } })}
+      >
+        <LayoutGrid className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+        <span className="flex-1">{translate('components.botTeams.board', 'Board')}</span>
+        {known ? (
+          <RowMeta>
+            {tasks.length === 0
+              ? translate('components.botTeams.noTasks', 'No tasks')
+              : tasks.length === 1
+                ? translate('components.botTeams.taskCount_one', '{{count}} task', { count: 1 })
+                : translate('components.botTeams.taskCount_other', '{{count}} tasks', {
+                    count: tasks.length
+                  })}
+          </RowMeta>
+        ) : null}
+      </SidebarRow>
+      <BotTeamsSidebarProjects
+        team={team}
+        teams={teams}
+        projects={projects}
+        tasks={[...tasks, ...projectTasks]}
+        sharedProjects={sharedProjects}
+        selection={selection}
+        onPage={onPage}
+        onOpen={(projectId) =>
+          openBotTeamsView({ teamId, section: { kind: 'project', projectId } })
+        }
+        onNewProject={() => openBotTeamsView({ teamId, section: { kind: 'new-project' } })}
+        onLeaveProject={() => openBotTeamsView({ teamId })}
+        onChanged={() => setChanges((current) => current + 1)}
       />
+      <SidebarRow
+        indented
+        active={onPage && selection.taskId === null && section?.kind === 'files'}
+        onClick={() => openBotTeamsView({ teamId, section: { kind: 'files' } })}
+      >
+        <Files className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+        <span className="flex-1">{translate('components.botTeams.files', 'Files')}</span>
+      </SidebarRow>
+      <SidebarRow
+        indented
+        active={onPage && selection.taskId === null && section?.kind === 'memory'}
+        onClick={() => openBotTeamsView({ teamId, section: { kind: 'memory' } })}
+      >
+        <Brain className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+        <span className="flex-1">{translate('components.botTeams.memory', 'Memory')}</span>
+      </SidebarRow>
+      <SidebarRow
+        indented
+        active={
+          onPage &&
+          selection.taskId === null &&
+          (section?.kind === 'routines' ||
+            section?.kind === 'routine-new' ||
+            section?.kind === 'webhook' ||
+            section?.kind === 'routine')
+        }
+        onClick={() => openBotTeamsView({ teamId, section: { kind: 'routines' } })}
+      >
+        <CalendarClock className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+        <span className="flex-1">{translate('components.botTeams.routines', 'Routines')}</span>
+      </SidebarRow>
     </>
   )
 }
@@ -82,18 +145,8 @@ export function BotTeamsSidebar(): React.JSX.Element {
   const activeView = useAppStore((s) => s.activeView)
   const selection = useAppStore((s) => s.botTeamsSelection)
   const openBotTeamsView = useAppStore((s) => s.openBotTeamsView)
-  const environmentId = useAppStore((s) => s.settings?.activeRuntimeEnvironmentId ?? null)
-  const { teams, reload } = useBotTeams()
-
-  // The page creates and deletes teams; what it shows changes right after, so list again then.
-  const listed = useRef(true)
-  useEffect(() => {
-    if (listed.current) {
-      listed.current = false
-      return
-    }
-    reload()
-  }, [reload, selection.teamId, selection.creating, environmentId])
+  const { teams } = useBotTeams()
+  const waitingTeam = useBotTeamAttention(teams ?? [])
 
   const onPage = activeView === 'bot-teams'
   const allTeamsActive = onPage && selection.teamId === null && !selection.creating
@@ -126,21 +179,15 @@ export function BotTeamsSidebar(): React.JSX.Element {
               <SidebarRow onClick={() => openBotTeamsView({ teamId: team.id })}>
                 <BotTeamCharacterIcon character={team.character} size={16} />
                 <span className="min-w-0 flex-1 truncate">{team.name}</span>
+                {waitingTeam(team.id) ? <BotTeamWaitingMark /> : null}
               </SidebarRow>
               {open ? (
-                <>
-                  <SidebarRow
-                    indented
-                    active={onPage && selection.taskId === null}
-                    onClick={() => openBotTeamsView({ teamId: team.id })}
-                  >
-                    <UserCheck className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
-                    <span className="flex-1">
-                      {translate('components.botTeams.conferenceRoom', 'Conference room')}
-                    </span>
-                  </SidebarRow>
-                  <PendingTeamRows />
-                </>
+                <OpenTeamRows
+                  team={team}
+                  teams={teams ?? []}
+                  selection={selection}
+                  onPage={onPage}
+                />
               ) : null}
             </div>
           )

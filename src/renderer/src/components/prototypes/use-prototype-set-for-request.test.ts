@@ -3,10 +3,14 @@ import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type {
   PrototypeListedDesignSystem,
-  PrototypeListedProposal
+  PrototypeListedProposal,
+  PrototypeListedSet
 } from '../../../../shared/rpc-contract/prototype-params'
 import { listPrototypeSetsFromAllHosts, type PrototypeHostListing } from './prototype-host-targets'
-import { usePrototypeProposalOfRequest } from './use-prototype-set-for-request'
+import {
+  usePrototypeProposalOfRequest,
+  usePrototypeSetsOfSession
+} from './use-prototype-set-for-request'
 
 // The shared poll reads the hosts through this module. Each test answers that read with its own
 // listing, so the real hook is what decides whether a proposal is returned.
@@ -84,5 +88,43 @@ describe('usePrototypeProposalOfRequest', () => {
   it('returns null while no design system is listed at all', async () => {
     const listing = listingOf([], [proposal('req-a', 'P1')])
     expect(await proposalFor('req-a', listing)).toBeNull()
+  })
+})
+
+function listedSet(requestId: string, sessionId: string, originSessionId?: string): PrototypeListedSet {
+  return {
+    requestId,
+    sessionId,
+    agent: 'claude',
+    worktreeId: null,
+    chatTitle: null,
+    originalPrompt: 'Two directions',
+    createdAt: `2026-11-03T0${requestId.length}:00:00.000Z`,
+    count: 2,
+    ...(originSessionId !== undefined ? { origin: { sessionId: originSessionId } } : {}),
+    directions: []
+  }
+}
+
+describe('usePrototypeSetsOfSession', () => {
+  afterEach(cleanup)
+
+  it('lists a task session sets made by its children, and nothing for a null scope', async () => {
+    vi.mocked(listPrototypeSetsFromAllHosts).mockResolvedValue({
+      ...listingOf([], []),
+      sets: [listedSet('a', 'child-1'), listedSet('bb', 'child-2', 'task'), listedSet('ccc', 'other')]
+    })
+    type Props = { scope: { sessionId: string; childSessionIds?: string[] } | null }
+    const initialProps: Props = { scope: { sessionId: 'task', childSessionIds: ['child-1'] } }
+    const { result, rerender } = renderHook(
+      ({ scope }: Props) => usePrototypeSetsOfSession(scope),
+      { initialProps }
+    )
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(result.current.map((set) => set.requestId)).toEqual(['bb', 'a'])
+    rerender({ scope: null })
+    expect(result.current).toEqual([])
   })
 })

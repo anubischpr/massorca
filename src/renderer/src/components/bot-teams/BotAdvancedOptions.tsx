@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -25,6 +26,7 @@ import { botTeamHostTarget, currentBotTeamHost } from '@/runtime/bot-team-host'
 import { discoverSkillsForRuntimeTarget } from '@/runtime/runtime-skills-client'
 import { useAppStore } from '@/store'
 import { botAgentLabel } from '../../../../shared/bot-team-character-art'
+import { arrangeBotSkills, filterBotSkills } from '../../../../shared/bot-team-skill-picker'
 import type { BotDraftInput } from '../../../../shared/rpc-contract/bot-team-params'
 import type { SkillDiscoveryResult } from '../../../../shared/skills'
 import { useBotModelOptions } from './use-bot-model-options'
@@ -52,6 +54,7 @@ function SkillsDialog({
   const [result, setResult] = useState<SkillDiscoveryResult | null>(null)
   const [failed, setFailed] = useState(false)
   const [chosen, setChosen] = useState<string[]>([...selected])
+  const [query, setQuery] = useState('')
   const openSkillsPage = useAppStore((state) => state.openSkillsPage)
 
   // The team's host owns its skills, so the list is that host's, not this computer's.
@@ -87,40 +90,58 @@ function SkillsDialog({
             {translate('components.botTeams.skillsFailed', 'Could not read this host’s skills.')}
           </p>
         ) : null}
+        <Input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={translate('components.botTeams.searchSkills', 'Search skills')}
+          aria-label={translate('components.botTeams.searchSkills', 'Search skills')}
+        />
         <div className="scrollbar-sleek flex max-h-72 flex-col gap-1 overflow-y-auto">
-          {result?.skills.map((skill) => {
-            const usable = isNativeChatSkillForAgent(agent, skill, result)
-            return (
-              <Label
-                key={skill.id}
-                className="flex items-start gap-3 rounded-md p-2 font-normal hover:bg-accent"
-              >
-                <Checkbox
-                  disabled={!usable}
-                  checked={chosen.includes(skill.name)}
-                  onCheckedChange={(checked) =>
-                    setChosen((current) =>
-                      checked === true
-                        ? [...current, skill.name]
-                        : current.filter((name) => name !== skill.name)
-                    )
-                  }
-                />
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium">{skill.name}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {usable
-                      ? skill.description
-                      : translate(
-                          'components.botTeams.skillOtherAgent',
-                          'Not installed for {{agent}}.',
-                          { agent: botAgentLabel(agent) }
-                        )}
+          {/* Ordered by the saved selection, so rows do not jump while boxes are ticked. */}
+          {arrangeBotSkills(filterBotSkills(result?.skills ?? [], query), selected).map(
+            ({ skill, source }) => {
+              const usable = result !== null && isNativeChatSkillForAgent(agent, skill, result)
+              return (
+                <Label
+                  key={skill.id}
+                  className="flex items-start gap-3 rounded-md p-2 font-normal hover:bg-accent"
+                >
+                  <Checkbox
+                    disabled={!usable}
+                    checked={chosen.includes(skill.name)}
+                    onCheckedChange={(checked) =>
+                      setChosen((current) =>
+                        checked === true
+                          ? [...current, skill.name]
+                          : current.filter((name) => name !== skill.name)
+                      )
+                    }
+                  />
+                  <span className="min-w-0 grow">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium">{skill.name}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {source === 'added'
+                          ? translate('components.botTeams.skillSourceAdded', 'Added')
+                          : source === 'marketplace'
+                            ? translate('components.botTeams.skillSourceMarketplace', 'Marketplace')
+                            : translate('components.botTeams.skillSourceInstalled', 'Installed')}
+                      </span>
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {usable
+                        ? skill.description
+                        : translate(
+                            'components.botTeams.skillOtherAgent',
+                            'Not installed for {{agent}}.',
+                            { agent: botAgentLabel(agent) }
+                          )}
+                    </span>
                   </span>
-                </span>
-              </Label>
-            )
-          })}
+                </Label>
+              )
+            }
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" className="mr-auto" onClick={openSkillsPage}>

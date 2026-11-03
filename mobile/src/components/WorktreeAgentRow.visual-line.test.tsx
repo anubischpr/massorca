@@ -13,6 +13,9 @@ vi.mock('react-native', () => ({
 vi.mock('lucide-react-native', () => ({ GitBranch: 'GitBranch' }))
 vi.mock('./SessionStatusMark', () => ({ SessionStatusMark: () => null }))
 vi.mock('./MobileAgentIcon', () => ({ MobileAgentIcon: () => null }))
+vi.mock('../bot-teams/MobileBotTeamSessionCharacter', () => ({
+  MobileBotTeamSessionCharacter: () => null
+}))
 
 function agent(lastAssistantMessage: string | null): RuntimeWorktreeAgentRow {
   return {

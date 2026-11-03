@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { SYNC_FIT_PANES_EVENT } from '@/constants/terminal'
-import { canShowRightSidebarForView } from '@/lib/right-sidebar-visibility'
+import { canShowRightSidebarForView, rightSidebarOpenInView } from '@/lib/right-sidebar-visibility'
 import { resolveLeftSidebarStyleVariables } from '@/lib/left-sidebar-appearance'
 import { resolveLeftTitlebarChromeLayout } from '@/lib/titlebar-left-chrome'
 import { shouldShowWorktreeCreationSurface } from '@/lib/worktree-creation-surface'
@@ -23,8 +23,9 @@ export type AppChromeLayout = ReturnType<typeof useAppChromeLayout>
  */
 export function useAppChromeLayout() {
   const activeView = useAppStore((s) => s.activeView)
+  const botTeamsSelection = useAppStore((s) => s.botTeamsSelection)
   const sidebarOpen = useAppStore((s) => s.sidebarOpen)
-  const rightSidebarOpen = useAppStore((s) => s.rightSidebarOpen)
+  const rightSidebarOpen = useAppStore(rightSidebarOpenInView)
   const rightSidebarTab = useAppStore((s) => s.rightSidebarTab)
   const rightSidebarExplorerView = useAppStore((s) => s.rightSidebarExplorerView)
   const isFullScreen = useAppStore((s) => s.isFullScreen)
@@ -135,7 +136,8 @@ export function useAppChromeLayout() {
     shouldMountTerminalWorkbench,
     showSidebar,
     // Full-page navigation surfaces own the whole content area, so suppress right-sidebar controls.
-    showRightSidebarControls: !creationLayoutActive && canShowRightSidebarForView(activeView),
+    showRightSidebarControls:
+      !creationLayoutActive && canShowRightSidebarForView(activeView, botTeamsSelection),
     showTitlebarAppName: settings?.showTitlebarAppName !== false,
     showTitlebarExpandButton: workspaceChromeActive && effectiveActiveTabExpanded,
     sidebarOpen,

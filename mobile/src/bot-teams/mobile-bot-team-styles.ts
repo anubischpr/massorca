@@ -185,5 +185,8 @@ export const botTeamStyles = StyleSheet.create({
     color: colors.bgBase,
     fontSize: typography.bodySize,
     fontWeight: '600'
-  }
+  },
+  choiceActions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  choiceAction: { flexGrow: 1, marginTop: 0, paddingHorizontal: spacing.md },
+  disabledAction: { opacity: 0.4, paddingHorizontal: spacing.md }
 })

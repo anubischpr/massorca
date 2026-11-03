@@ -196,6 +196,14 @@ it('shows plan progress and the current item, then the full checklist inline', (
   expect(screen.getByText('Run tests').className).not.toContain('line-through')
 })
 
+it('shows the checklist card under Plan in a structured chat that has no checklist yet', () => {
+  render(<NativeChatSessionSummary {...props} sessionId="chat-1" journalItems={[]} />)
+  const plan = screen.getByRole('button', { name: /^Plan/ })
+  const checklist = screen.getByRole('button', { name: /^Checklist/ })
+  expect(plan.compareDocumentPosition(checklist) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(screen.getByText('No checklist yet')).toBeTruthy()
+})
+
 it('says so when the provider reported no plan', () => {
   render(<NativeChatSessionSummary {...props} />)
   expect(screen.getByText('No plan reported')).toBeTruthy()

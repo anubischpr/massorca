@@ -136,7 +136,8 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
         botTeamsSelection: {
           teamId: selection.teamId ?? null,
           taskId: selection.taskId ?? null,
-          creating: selection.creating ?? false
+          creating: selection.creating ?? false,
+          ...(selection.section ? { section: selection.section } : {})
         }
       })
       get().setActiveView('bot-teams')

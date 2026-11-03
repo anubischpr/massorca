@@ -1,0 +1,127 @@
+import { mkdir } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import path from 'node:path'
+import { BOT_TEAMS_FOLDER_NAME } from '../../shared/bot-team-folder'
+import {
+  type CommitMessageAgentChoice,
+  getCommitMessageAgentSpec,
+  resolveCommitMessageAgentChoice
+} from '../../shared/commit-message-agent-spec'
+import type { GlobalSettings } from '../../shared/global-settings-types'
+import { isTuiAgent } from '../../shared/tui-agent-config'
+import { resolveGenerationTarget } from '../agent-hooks/first-work-generation-target'
+import { resolveCodeReadHostArgs } from './bot-team-code-read-config'
+import { replySuggestionCommandOverride } from '../native-chat/reply-suggestion-agent-selection'
+import { queryBotTeamLead } from '../text-generation/bot-team-lead-generation-request'
+import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
+import { spawnSourceControlAgent } from '../text-generation/source-control-agent-launch'
+
+type RequestQuerySettings = Pick<GlobalSettings, 'defaultTuiAgent' | 'disabledTuiAgents'> &
+  Partial<Pick<GlobalSettings, 'agentCmdOverrides'>>
+
+type QueryArgs = {
+  prompt: string
+  settings: RequestQuerySettings
+  getAgentEnvResolvers: () => CommitMessageAgentEnvironmentResolvers | undefined
+  /** A researched reply: web search where the agent has a web-only mode, else text only. */
+  research?: boolean
+  /** A code question: the agent runs in this checkout and reads it, never writes (agents with a code read mode only). */
+  codeRead?: { cwd: string }
+}
+
+/** A bot's own agent for one reply, at the model and effort chosen for it. */
+export type BotQueryAgent = {
+  id: string
+  model: string | null
+  effort: string | null
+  /** A Gentle Shell bot: it answers through Gentle Shell or not at all, never stock Pi or another agent. */
+  piRuntime?: 'gentle-shell'
+}
+
+/** Which one-shot agent and command answer for a bot; the Settings default only stands in for no bot. */
+export function botTeamQueryAgent(
+  bot: BotQueryAgent | null,
+  settings: RequestQuerySettings
+): { agentId: CommitMessageAgentChoice | null; override: string | undefined } {
+  if (bot?.piRuntime === 'gentle-shell') {
+    return {
+      agentId: 'pi',
+      override: replySuggestionCommandOverride('pi', 'gentle-shell', settings)
+    }
+  }
+  const ownId = bot && isTuiAgent(bot.id) && getCommitMessageAgentSpec(bot.id) ? bot.id : null
+  const agentId =
+    ownId ??
+    resolveCommitMessageAgentChoice(null, settings.defaultTuiAgent, settings.disabledTuiAgents)
+  return {
+    agentId,
+    override: agentId ? settings.agentCmdOverrides?.[agentId]?.trim() || undefined : undefined
+  }
+}
+
+/** Asks the Settings default agent one short question. Null when it cannot answer, so the room asks. */
+export async function askDefaultAgentForBotTeamRequest(args: QueryArgs): Promise<string | null> {
+  return askAgent(args)
+}
+
+/**
+ * Asks a bot's own agent one short question. An agent the one-shot call does not know falls back to
+ * the Settings default agent; a Gentle Shell bot runs through Gentle Shell, text only.
+ */
+export async function askBotAgentForBotTeamReply(
+  args: QueryArgs & { agent: BotQueryAgent | null }
+): Promise<string | null> {
+  return askAgent(args, args.agent)
+}
+
+async function askAgent(args: QueryArgs, bot: BotQueryAgent | null = null): Promise<string | null> {
+  try {
+    return await runAgentQuery(args, bot)
+  } catch {
+    return null
+  }
+}
+
+async function runAgentQuery(args: QueryArgs, bot: BotQueryAgent | null): Promise<string | null> {
+  const { prompt, settings, getAgentEnvResolvers } = args
+  const { agentId, override } = botTeamQueryAgent(bot, settings)
+  const own = bot !== null && agentId === (bot.piRuntime ? 'pi' : bot.id) ? bot : null
+  const spec = agentId && agentId !== 'custom' ? getCommitMessageAgentSpec(agentId) : undefined
+  if (!agentId || agentId === 'custom' || !spec) {
+    return null
+  }
+  // The teams' folder, not the person's home, so a plain query has nothing else at hand; a code
+  // question runs in the project's checkout, but only where the agent can restrict itself to reading.
+  const codeRead = args.codeRead && spec.codeReadArgs ? args.codeRead : undefined
+  const cwd = codeRead?.cwd ?? path.join(homedir(), BOT_TEAMS_FOLDER_NAME)
+  if (!codeRead) {
+    await mkdir(cwd, { recursive: true })
+  }
+  const target = await resolveGenerationTarget(cwd, agentId, null, { getAgentEnvResolvers })
+  if (!target) {
+    return null
+  }
+  // A host-checked agent's code turn gets its MCP limits from this host; none means no code turn.
+  let codeReadHostArgs: readonly string[] | undefined
+  if (codeRead && spec.codeReadArgs?.hostChecked) {
+    const hostArgs = await resolveCodeReadHostArgs({ target })
+    if (!hostArgs) {
+      return null
+    }
+    codeReadHostArgs = hostArgs
+  }
+  return queryBotTeamLead({
+    prompt,
+    params: {
+      agentId,
+      model: own?.model ?? spec.defaultModelId,
+      ...(own?.model && own.effort ? { thinkingLevel: own.effort } : {}),
+      ...(override ? { agentCommandOverride: override } : {})
+    },
+    target,
+    spawnAgent: spawnSourceControlAgent,
+    ...(args.research ? { webResearch: true } : {}),
+    ...(codeRead ? { codeRead: true } : {}),
+    ...(codeReadHostArgs ? { codeReadHostArgs } : {})
+  })
+}

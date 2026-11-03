@@ -6,6 +6,9 @@ import type { MobileSessionTab } from './mobile-session-route-types'
 import { useMobileSessionChatSurfaces } from './use-mobile-session-chat-surfaces'
 import type { MobileSessionPanelRouteActionsModel } from './use-mobile-session-panel-route-actions'
 
+// The checklist hook's picker loads react-native itself; these surfaces never pick a screenshot.
+vi.mock('../platform/media-picker', () => ({ useMediaPicker: () => ({}) }))
+
 type Surfaces = ReturnType<typeof useMobileSessionChatSurfaces>
 
 const chatTab: MobileSessionTab = {

@@ -33,6 +33,8 @@ export type RightSidebarVisualState = RightSidebarVisualRoute & {
 
 export type RightSidebarState = {
   rightSidebarOpen: boolean
+  /** A Conference room's Tasks and Bots, which live in the same sidebar but open on their own. */
+  botTeamsPanelOpen: boolean
   rightSidebarWidth: number
   rightSidebarTab: ActiveRightSidebarTab
   rightSidebarExplorerView: RightSidebarExplorerView
@@ -67,6 +69,7 @@ export type RightSidebarState = {
 export function createRightSidebarState(set: EditorSet, _get: EditorGet): RightSidebarState {
   return {
     rightSidebarOpen: false,
+    botTeamsPanelOpen: true,
     rightSidebarWidth: 280,
     rightSidebarTab: 'explorer',
     rightSidebarExplorerView: 'files',
@@ -78,10 +81,14 @@ export function createRightSidebarState(set: EditorSet, _get: EditorGet): RightS
     rightSidebarEffectiveTab: null,
     activityBarPosition: 'top',
     toggleRightSidebar: () =>
-      set((s) => ({
-        rightSidebarOpen: !s.rightSidebarOpen,
-        ...(s.rightSidebarOpen ? { rightSidebarVisual: null } : {})
-      })),
+      set((s) =>
+        s.activeView === 'bot-teams'
+          ? { botTeamsPanelOpen: !s.botTeamsPanelOpen }
+          : {
+              rightSidebarOpen: !s.rightSidebarOpen,
+              ...(s.rightSidebarOpen ? { rightSidebarVisual: null } : {})
+            }
+      ),
     setRightSidebarOpen: (open) =>
       set({ rightSidebarOpen: open, ...(open ? {} : { rightSidebarVisual: null }) }),
     setRightSidebarWidth: (width) => set({ rightSidebarWidth: width }),

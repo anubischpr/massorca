@@ -104,6 +104,7 @@ export default function PrototypesPage(): React.JSX.Element {
   const sidePanelHidden = usePrototypeViewStore((s) => s.sidePanelHidden)
   const listPanelHidden = usePrototypeViewStore((s) => s.listPanelHidden)
   const setListPanelHidden = usePrototypeViewStore((s) => s.setListPanelHidden)
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen)
   const mergeUnderWay = selectedId !== null && (states[selectedId]?.merge ?? null) !== null
   const frameBoxRef = useRef<HTMLDivElement | null>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
@@ -224,16 +225,18 @@ export default function PrototypesPage(): React.JSX.Element {
   if (system !== undefined) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1">
-        <PrototypeListPanel
-          groups={groups}
-          filter={filter}
-          onFilter={setFilter}
-          selectedRequestId={null}
-          selectedProjectKey={system.projectKey}
-          onSelect={selectRequest}
-          onSelectSystem={selectDesignSystem}
-          archive={archive}
-        />
+        {sidebarOpen ? (
+          <PrototypeListPanel
+            groups={groups}
+            filter={filter}
+            onFilter={setFilter}
+            selectedRequestId={null}
+            selectedProjectKey={system.projectKey}
+            onSelect={selectRequest}
+            onSelectSystem={selectDesignSystem}
+            archive={archive}
+          />
+        ) : null}
         <PrototypeDesignSystemScreen system={system} sets={activeSets} sendText={sendToChat} />
       </div>
     )
@@ -343,7 +346,12 @@ export default function PrototypesPage(): React.JSX.Element {
     )
   }
 
-  const panels = prototypePanelsShown({ sidePanelHidden, listPanelHidden, mergeUnderWay })
+  const panels = prototypePanelsShown({
+    sidePanelHidden,
+    listPanelHidden,
+    mergeUnderWay,
+    sidebarOpen
+  })
   return (
     <div className="flex min-h-0 min-w-0 flex-1">
       {panels.list ? (

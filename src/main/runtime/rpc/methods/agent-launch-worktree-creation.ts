@@ -143,7 +143,7 @@ function withoutHostActivation(params: WorktreeCreateParams): WorktreeCreatePara
   }
 }
 
-async function waitForStructuredSetup(
+export async function waitForStructuredSetup(
   runtime: Pick<OrcaRuntimeService, 'waitForSetupTerminalCompletion'>,
   receipt: Awaited<ReturnType<OrcaRuntimeService['createManagedWorktree']>>['setupReceipt']
 ): Promise<void> {

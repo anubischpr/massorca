@@ -12,6 +12,7 @@ import { isTuiAgent } from '../../../../../shared/tui-agent-config'
 import { resolveBotModelChoice } from '../../../../bot-teams/bot-team-model-choice'
 import { generateId } from '../generated-id'
 import type { OrchestrationDb } from '../orchestration-db'
+import { deleteProjectRows } from './bot-team-project-teams-store'
 
 const TeamRow = z.object({
   id: z.string(),
@@ -143,14 +144,30 @@ export function updateBotTeam(this: OrchestrationDb, input: BotTeamUpdateInput):
 
 export function deleteBotTeam(this: OrchestrationDb, teamId: string): void {
   inSavepoint(this, 'delete_bot_team', () => {
+    // Why: other teams may have filed tasks in the projects this team owns; they go with the project.
+    for (const owned of this.db
+      .prepare('SELECT id FROM bot_team_projects WHERE team_id = ?')
+      .all(teamId)) {
+      deleteProjectRows(this, z.object({ id: z.string() }).parse(owned).id)
+    }
+    this.db.prepare('DELETE FROM bot_team_project_teams WHERE team_id = ?').run(teamId)
     this.db
       .prepare(
         'DELETE FROM bot_team_task_delegations WHERE task_id IN (SELECT id FROM bot_team_tasks WHERE team_id = ?)'
       )
       .run(teamId)
     this.db.prepare('DELETE FROM bot_team_workspaces WHERE team_id = ?').run(teamId)
+    this.db.prepare('DELETE FROM bot_team_memory WHERE team_id = ?').run(teamId)
+    this.db
+      .prepare(
+        'DELETE FROM bot_team_routine_runs WHERE routine_id IN (SELECT id FROM bot_team_routines WHERE team_id = ?)'
+      )
+      .run(teamId)
+    this.db.prepare('DELETE FROM bot_team_routines WHERE team_id = ?').run(teamId)
+    this.db.prepare('DELETE FROM bot_team_webhooks WHERE team_id = ?').run(teamId)
     this.db.prepare('DELETE FROM bot_team_messages WHERE team_id = ?').run(teamId)
     this.db.prepare('DELETE FROM bot_team_tasks WHERE team_id = ?').run(teamId)
+    this.db.prepare('DELETE FROM bot_team_projects WHERE team_id = ?').run(teamId)
     this.db.prepare('DELETE FROM bot_team_bots WHERE team_id = ?').run(teamId)
     this.db.prepare('DELETE FROM bot_teams WHERE id = ?').run(teamId)
   })
@@ -199,6 +216,8 @@ export function removeBotFromTeam(this: OrchestrationDb, teamId: string, botId: 
   if (owned !== undefined) {
     throw new Error('This bot still has tasks, so it cannot be removed.')
   }
+  // What the team remembered about this bot goes with it; the bot row cannot outlive it otherwise.
+  this.db.prepare('DELETE FROM bot_team_memory WHERE bot_id = ? AND team_id = ?').run(botId, teamId)
   this.db.prepare('DELETE FROM bot_team_bots WHERE id = ? AND team_id = ?').run(botId, teamId)
   return requireBotTeam(this, teamId)
 }

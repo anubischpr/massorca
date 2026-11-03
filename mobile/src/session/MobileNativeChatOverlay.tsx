@@ -11,14 +11,18 @@ import type { MobileNativeChatController } from './use-mobile-native-chat-contro
 import { useMobileNativeChatStreamingBubble } from './use-mobile-native-chat-streaming-bubble'
 import { useMobileNativeChatComposerTray } from './use-mobile-native-chat-composer-tray'
 import { useMobileNativeChatVisualRenderer } from './MobileNativeChatVisual'
-import { MobileNativeChatVisualContext } from './mobile-native-chat-visual-context'
+import { MobileNativeChatTranscriptContexts } from './MobileNativeChatTranscriptContexts'
+import type { MobileNativeChatChecklistView } from './use-mobile-native-chat-checklist'
 import {
   MobileDelegatedChildrenContext,
   useDelegatedChildrenFromJournal
 } from './mobile-delegated-child-rows'
 import { MobilePrototypeCountCard } from '../prototypes/MobilePrototypeCountCard'
 import { MobilePrototypeRequestLink } from '../prototypes/MobilePrototypeRequestLink'
-import { matchPrototypeSetsToUserTurns } from '../prototypes/mobile-prototype-request-links'
+import {
+  matchChildPrototypeSetsToNotices,
+  matchPrototypeSetsToUserTurns
+} from '../prototypes/mobile-prototype-request-links'
 import type { PrototypeListedSet } from '../../../src/shared/rpc-contract/prototype-params'
 
 type Props = {
@@ -54,6 +58,8 @@ type Props = {
   onOpenPrototypeSettings?: () => void
   /** Opens the set a prototype request made, from the link card under that request. */
   onOpenPrototypeSet?: (set: PrototypeListedSet) => void
+  /** The chat's checklist: its transcript rows open the Checklist sheet. */
+  checklist?: MobileNativeChatChecklistView
 }
 
 /** Keeps the terminal mounted underneath chat so its PTY subscription survives
@@ -79,7 +85,8 @@ export function MobileNativeChatOverlay({
   chromeTopInset,
   onOpenArtifact,
   onOpenPrototypeSettings,
-  onOpenPrototypeSet
+  onOpenPrototypeSet,
+  checklist
 }: Props): React.JSX.Element | null {
   const session = controller.nativeChatSession
   const folded = useMemo(() => foldMobileNativeChatMessages(session.messages), [session.messages])
@@ -87,20 +94,27 @@ export function MobileNativeChatOverlay({
   const artifactSource = controller.nativeChatVisualSource
   const prototypeSessionId = controller.nativeChatPrototypeSend?.sessionId ?? null
   const prototypeSets = controller.nativeChatPrototypeSets
-  const prototypeLinks = useMemo(
-    () =>
-      prototypeSessionId === null
-        ? new Map<string, PrototypeListedSet>()
-        : matchPrototypeSetsToUserTurns(prototypeSets, folded, prototypeSessionId),
-    [folded, prototypeSessionId, prototypeSets]
-  )
+  const prototypeLinks = useMemo(() => {
+    if (prototypeSessionId === null) {
+      return new Map<string, PrototypeListedSet[]>()
+    }
+    const links = matchChildPrototypeSetsToNotices(prototypeSets, folded)
+    for (const [messageId, set] of matchPrototypeSetsToUserTurns(
+      prototypeSets,
+      folded,
+      prototypeSessionId
+    )) {
+      links.set(messageId, [set])
+    }
+    return links
+  }, [folded, prototypeSessionId, prototypeSets])
   const renderTurnArtifacts = useMemo(
     () =>
       onOpenArtifact || onOpenPrototypeSet
         ? (messageId: string) => {
             const pages = onOpenArtifact ? artifactCards.get(messageId) : undefined
-            const link = onOpenPrototypeSet ? prototypeLinks.get(messageId) : undefined
-            return pages || link ? (
+            const links = onOpenPrototypeSet ? prototypeLinks.get(messageId) : undefined
+            return pages || links ? (
               <>
                 {pages && onOpenArtifact ? (
                   <MobileChatTurnArtifacts
@@ -109,9 +123,15 @@ export function MobileNativeChatOverlay({
                     onOpen={onOpenArtifact}
                   />
                 ) : null}
-                {link && onOpenPrototypeSet ? (
-                  <MobilePrototypeRequestLink set={link} onOpen={onOpenPrototypeSet} />
-                ) : null}
+                {links && onOpenPrototypeSet
+                  ? links.map((link) => (
+                      <MobilePrototypeRequestLink
+                        key={link.requestId}
+                        set={link}
+                        onOpen={onOpenPrototypeSet}
+                      />
+                    ))
+                  : null}
               </>
             ) : null
           }
@@ -155,7 +175,7 @@ export function MobileNativeChatOverlay({
   return (
     <View style={styles.overlay}>
       <MobileDelegatedChildrenContext.Provider value={delegatedChildren}>
-        <MobileNativeChatVisualContext.Provider value={visuals}>
+        <MobileNativeChatTranscriptContexts visuals={visuals} checklist={checklist ?? null}>
           <MobileNativeChatView
             messages={session.messages}
             folded={folded}
@@ -229,7 +249,7 @@ export function MobileNativeChatOverlay({
               ) : null
             }
           />
-        </MobileNativeChatVisualContext.Provider>
+        </MobileNativeChatTranscriptContexts>
       </MobileDelegatedChildrenContext.Provider>
     </View>
   )

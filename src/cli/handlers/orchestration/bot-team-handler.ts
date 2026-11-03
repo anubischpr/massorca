@@ -1,6 +1,6 @@
 import type { CommandHandler } from '../../dispatch'
 import { printResult } from '../../format'
-import { getRequiredStringFlag } from '../../flags'
+import { getOptionalStringFlag, getRequiredStringFlag } from '../../flags'
 import { RuntimeClientError } from '../../runtime-client'
 import { readInjectedAgentSessionId } from '../../../shared/agent-session-caller-env'
 import { callOrchestrationMutation } from './mutation-request'
@@ -17,6 +17,12 @@ function requireChat(command: string): void {
   }
 }
 
+// The team is optional: without it the bot is looked up on the caller's own team.
+function teamFlag(flags: Map<string, string | boolean>): { team?: string } {
+  const team = getOptionalStringFlag(flags, 'team')
+  return team ? { team } : {}
+}
+
 export const ORCHESTRATION_BOT_TEAM_HANDLER: Record<string, CommandHandler> = {
   'orchestration team-post': async ({ flags, client, json }) => {
     requireChat('orchestration team-post')
@@ -31,9 +37,22 @@ export const ORCHESTRATION_BOT_TEAM_HANDLER: Record<string, CommandHandler> = {
       client,
       flags,
       'orchestration.botTeamDelegate',
-      { bot: getRequiredStringFlag(flags, 'bot'), text: getRequiredStringFlag(flags, 'text') }
+      {
+        bot: getRequiredStringFlag(flags, 'bot'),
+        text: getRequiredStringFlag(flags, 'text'),
+        ...teamFlag(flags)
+      }
     )
     printResult(result, json, (value) => `Handed to teammate: ${value.task.title}`)
+  },
+  'orchestration team-remember': async ({ flags, client, json }) => {
+    requireChat('orchestration team-remember')
+    const result = await callOrchestrationMutation(client, flags, 'orchestration.botTeamRemember', {
+      text: getRequiredStringFlag(flags, 'text'),
+      me: flags.get('me') === true,
+      told: flags.get('told') === true
+    })
+    printResult(result, json, () => 'Remembered.')
   },
   'orchestration team-tasks': async ({ flags, client, json }) => {
     requireChat('orchestration team-tasks')

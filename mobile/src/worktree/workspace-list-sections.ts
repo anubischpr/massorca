@@ -11,6 +11,10 @@ import {
 } from './mobile-workspace-lineage'
 import { getPRGroupKey, PR_GROUP_LABELS, PR_GROUP_ORDER } from './workspace-pr-status-groups'
 import type { FilterState, Section, Worktree } from './workspace-list-types'
+import {
+  getMobileBotTeamVisibility,
+  isMobileBotTeamWorktree
+} from '../bot-teams/mobile-bot-team-session-team-visibility'
 import type { MobileGroupMode, MobileSortMode } from './workspace-view-settings'
 import { sortWorktrees } from './workspace-list-ordering'
 import { getWorktreeRowIdentity } from './worktree-host-row-identity'
@@ -96,6 +100,11 @@ export function filterWorktrees(
   search: string
 ): Worktree[] {
   let result = worktrees.filter((w) => !w.isArchived)
+  const botTeams = getMobileBotTeamVisibility()
+  if (!botTeams.showBotTeamWorkspaces) {
+    // Why: a team's folder and the worktrees its sessions run in belong to Bot teams mode, not Workspaces.
+    result = result.filter((w) => !isMobileBotTeamWorktree(w, botTeams.sessionTeams))
+  }
   if (filters.hideSleeping) {
     result = result.filter(
       (w) => isSleepingSweepExempt(w, filters.alwaysShowDefaultBranch) || isWorktreeActive(w)

@@ -237,6 +237,7 @@ export function getDefaultUIState(): PersistedUIState {
     hideCliCreatedWorkspaces: false,
     hideDetachedHeadWorkspaces: false,
     hideWorkspacesFromOtherDevices: false,
+    showBotTeamWorkspaces: false,
     alwaysShowDefaultBranchWorkspace: true,
     _explorerDisplayRootMigrated: true,
     explorerDisplayRootByWorktree: {},

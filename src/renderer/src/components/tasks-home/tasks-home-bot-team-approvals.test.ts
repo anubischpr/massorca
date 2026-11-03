@@ -11,11 +11,30 @@ const team: BotTeam = {
   character: 'square',
   workspacesEnabled: false,
   accessMode: 'default',
-  bots: [{ id: 'bot-1', name: 'Iris', job: '', agent: 'claude', modelMode: 'auto', model: null, effort: null, skills: [] }]
+  bots: [
+    {
+      id: 'bot-1',
+      name: 'Iris',
+      job: '',
+      agent: 'claude',
+      modelMode: 'auto',
+      model: null,
+      effort: null,
+      skills: []
+    }
+  ]
 }
 
 function task(id: string, sessionId: string | null): BotTeamTask {
-  return { id, teamId: 'team-1', title: `Task ${id}`, prompt: '', ownerBotId: 'bot-1', sessionId }
+  return {
+    id,
+    teamId: 'team-1',
+    title: `Task ${id}`,
+    prompt: '',
+    projectId: null,
+    ownerBotId: 'bot-1',
+    sessionId
+  }
 }
 
 type Statuses = ReadonlyMap<string, Pick<AgentSessionStatusSummary, 'status' | 'turnOutcome'>>

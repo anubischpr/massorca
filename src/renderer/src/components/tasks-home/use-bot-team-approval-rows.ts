@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { listBotTeamRoom, listBotTeams } from '@/runtime/runtime-bot-team-client'
 import { useBotTeamHost } from '@/runtime/bot-team-host'
+import { useBotTeamIdsKey } from '../bot-teams/use-bot-teams'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { BotTeamTask } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { useBotTeamSessionStatuses } from '../bot-teams/use-bot-team-task-status'
@@ -35,6 +36,8 @@ export function useBotTeamApprovalRows(): BotTeamApprovalRow[] {
   const [loaded, setLoaded] = useState<LoadedTeams>(NOTHING_LOADED)
   // A task that starts adds a session to the feed, so the task list is read again then.
   const sessionCount = statuses.size
+  // A team removed on another surface takes its rows with it.
+  const teamIdsKey = useBotTeamIdsKey()
 
   useEffect(() => {
     let active = true
@@ -60,7 +63,7 @@ export function useBotTeamApprovalRows(): BotTeamApprovalRow[] {
       active = false
       window.removeEventListener('focus', load)
     }
-  }, [host, sessionCount])
+  }, [host, sessionCount, teamIdsKey])
 
   const shown = loaded.host === host ? loaded : NOTHING_LOADED
   return useMemo(

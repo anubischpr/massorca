@@ -8,6 +8,7 @@ import {
   getPairedDeviceIdsByEnvironment
 } from './workspace-creator-visibility'
 import type { VisibleWorktreeOptions } from './visible-worktrees'
+import { getBotTeamWorkspaceIds } from '../bot-teams/use-bot-teams'
 
 /**
  * Read the store into the filter inputs `computeVisibleWorktrees` decides from.
@@ -49,6 +50,8 @@ export function buildVisibleWorktreeOptionsFromState(
     visibleWorkspaceHostIds: state.visibleWorkspaceHostIds,
     defaultHostId: getSettingsFocusedExecutionHostId(state.settings),
     worktreeLineageById: state.worktreeLineageById,
-    preserveLineageParentOrder: state.sortBy === 'manual'
+    preserveLineageParentOrder: state.sortBy === 'manual',
+    botTeamWorkspaceIds: getBotTeamWorkspaceIds(),
+    showBotTeamWorkspaces: state.showBotTeamWorkspaces
   }
 }

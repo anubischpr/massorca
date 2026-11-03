@@ -1,3 +1,4 @@
+import type { PiRuntimeSelection } from '../../../../shared/pi-runtime-selection'
 /**
  * `orchestration.workerStart`'s view of the shared launch-mode decision.
  *
@@ -68,7 +69,8 @@ export async function resolveWorkerStartModeOnHost(
   mode: WorkerStartModeReceipt,
   worktreeId: string | undefined,
   agent: TuiAgent | undefined,
-  access?: WorkerStartAccess
+  access?: WorkerStartAccess,
+  piRuntime?: PiRuntimeSelection
 ): Promise<WorkerStartModeReceipt> {
   return resolveAgentLaunchModeOnHost(
     runtime,
@@ -76,7 +78,8 @@ export async function resolveWorkerStartModeOnHost(
     worktreeId,
     agent,
     WORKER_START_VOCABULARY,
-    access?.hostAccessMode
+    access?.hostAccessMode,
+    piRuntime
   )
 }
 

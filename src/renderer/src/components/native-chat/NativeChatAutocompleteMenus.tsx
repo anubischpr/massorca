@@ -234,7 +234,7 @@ function PickerOption({
   )
 }
 
-function PickerListbox({
+export function PickerListbox({
   id,
   children
 }: {
@@ -252,7 +252,7 @@ function PickerListbox({
   )
 }
 
-function PickerOptionButton({
+export function PickerOptionButton({
   id,
   selected,
   activeItemRef,

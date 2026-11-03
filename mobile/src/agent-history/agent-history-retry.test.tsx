@@ -30,6 +30,9 @@ vi.mock('expo-router', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), canGoBack: () => false }),
   usePathname: () => '/'
 }))
+vi.mock('../bot-teams/MobileBotTeamSessionCharacter', () => ({
+  MobileBotTeamSessionCharacter: () => null
+}))
 vi.mock('react-native', () => ({
   ActivityIndicator: 'ActivityIndicator',
   Pressable: 'Pressable',

@@ -1,3 +1,4 @@
+import { readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
   readAgentSessionConnectorSnapshot,
@@ -32,6 +33,38 @@ export async function readAntigravityConfiguredConnectors(
   return servers.length > 0
     ? readAgentSessionConnectorSnapshot({ observedAt: Date.now(), servers })
     : undefined
+}
+
+/** True only when every MCP config agy could read names no server; a config that exists but cannot be
+ *  read answers false, since its servers are unknown. */
+export async function antigravityNamesNoMcpServer(home: string): Promise<boolean> {
+  const configDir = join(home, '.gemini', 'config')
+  const pluginsDir = join(configDir, 'plugins')
+  const plugins = await readdir(pluginsDir, { withFileTypes: true }).catch(() => [])
+  const files = [
+    join(configDir, 'mcp_config.json'),
+    ...plugins
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => join(pluginsDir, entry.name, 'mcp_config.json'))
+  ]
+  const states = await Promise.all(files.map(readMcpConfigState))
+  return states.every((state) => state === 'none')
+}
+
+async function readMcpConfigState(file: string): Promise<'none' | 'servers' | 'unknown'> {
+  const exists = await stat(file).then(
+    () => true,
+    (error: NodeJS.ErrnoException) => (error.code === 'ENOENT' ? false : undefined)
+  )
+  if (exists === false) {
+    return 'none'
+  }
+  const read = await readAntigravityJsonFile(file, { allowBom: false })
+  if (!read) {
+    return 'unknown'
+  }
+  const servers = isJsonRecord(read.value) ? read.value.mcpServers : undefined
+  return isJsonRecord(servers) && Object.keys(servers).length > 0 ? 'servers' : 'none'
 }
 
 async function readPluginConnectors(

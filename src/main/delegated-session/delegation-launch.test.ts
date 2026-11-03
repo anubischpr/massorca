@@ -166,6 +166,17 @@ describe('createDelegationLauncher', () => {
     })
   })
 
+  it('keeps a child that only reads in its parent workspace, with no worktree of its own', async () => {
+    const { launch, startWorker } = launcher()
+
+    await run(launch, { request: { writes: 0 } })
+
+    const input = startWorker.mock.calls[0]?.[0]
+    expect(input?.caller.workspaceId).toBe(PARENT.workspaceId)
+    expect(input?.params).toMatchObject({ worktree: 'current' })
+    expect(input?.params).not.toHaveProperty('name')
+  })
+
   it('hands the count the person answered to the worker start', async () => {
     const { launch, startWorker } = launcher()
     await run(launch, { request: { options_json: '{"agents":[],"count":3}' } })

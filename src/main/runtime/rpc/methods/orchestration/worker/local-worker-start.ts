@@ -128,7 +128,14 @@ export async function startLocalWorker(args: {
   }
   // A new worktree shares its coordinator's host: an explicit access is judged there first.
   const hostId = resolvedWorktree?.id ?? (access.accessMode ? creationWorktree?.id : undefined)
-  const hostMode = resolveWorkerStartModeOnHost(runtime, args.mode, hostId, agent, access)
+  const hostMode = resolveWorkerStartModeOnHost(
+    runtime,
+    args.mode,
+    hostId,
+    agent,
+    access,
+    params.piRuntime
+  )
   let mode = chatWorkerMode(await hostMode, chat)
   assertStructuredForAccess(access, mode, false)
 
@@ -196,6 +203,7 @@ export async function startLocalWorker(args: {
       agent,
       launchPreferences: launch.preferences,
       accessMode: access.accessMode,
+      ...(params.piRuntime ? { piRuntime: params.piRuntime } : {}),
       effects,
       onStage: (stage) => {
         failedStage = stage

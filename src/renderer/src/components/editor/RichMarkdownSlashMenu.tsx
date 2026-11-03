@@ -1,10 +1,45 @@
-import React from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Editor } from '@tiptap/react'
 import { Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { runSlashCommand } from './rich-markdown-slash-commands'
 import type { SlashCommand, SlashMenuState } from './rich-markdown-slash-commands'
 import { translate } from '@/i18n/i18n'
+
+const SLASH_MENU_GAP_PX = 8
+const SLASH_MENU_CARET_LINE_PX = 24
+const SLASH_MENU_VIEWPORT_MARGIN_PX = 12
+
+type SlashMenuBox = { width: number; height: number }
+
+/** Viewport position of a portaled menu: under the caret, or above it when the window has no room below. */
+function resolvePortaledSlashMenuPosition(
+  slashMenu: SlashMenuState,
+  anchorRect: DOMRect | null,
+  box: SlashMenuBox
+): React.CSSProperties {
+  if (anchorRect === null) {
+    return { position: 'fixed', left: slashMenu.left, top: slashMenu.top }
+  }
+  const margin = SLASH_MENU_VIEWPORT_MARGIN_PX
+  // Why: slashMenu.top is the caret bottom plus the gap, both relative to the editor root.
+  const caretBottom = anchorRect.top + slashMenu.top - SLASH_MENU_GAP_PX
+  const caretTop = caretBottom - SLASH_MENU_CARET_LINE_PX
+  const belowTop = caretBottom + SLASH_MENU_GAP_PX
+  const aboveTop = caretTop - SLASH_MENU_GAP_PX - box.height
+  const fitsBelow = belowTop + box.height <= window.innerHeight - margin
+  const fitsAbove = aboveTop >= margin
+  const top = !fitsBelow && fitsAbove ? aboveTop : belowTop
+  const maxLeft = Math.max(margin, window.innerWidth - box.width - margin)
+  return {
+    position: 'fixed',
+    // Why: a body layer must clear the workbench panes, as the link bubble's z-index does.
+    zIndex: 60,
+    left: Math.min(Math.max(anchorRect.left + slashMenu.left, margin), maxLeft),
+    top: Math.max(margin, Math.min(top, window.innerHeight - box.height - margin))
+  }
+}
 
 type RichMarkdownSlashMenuProps = {
   editor: Editor | null
@@ -13,6 +48,10 @@ type RichMarkdownSlashMenuProps = {
   selectedIndex: number
   onImagePick: () => void
   onEmojiPick: () => void
+  /** Renders in a body-level layer so no clipping editor box can cut it off. */
+  portalToDocument?: boolean
+  /** The editor root that `slashMenu` offsets are measured from; needed when portaled. */
+  anchorElement?: HTMLElement | null
 }
 
 export function RichMarkdownSlashMenu({
@@ -21,14 +60,54 @@ export function RichMarkdownSlashMenu({
   filteredCommands,
   selectedIndex,
   onImagePick,
-  onEmojiPick
+  onEmojiPick,
+  portalToDocument = false,
+  anchorElement = null
 }: RichMarkdownSlashMenuProps): React.JSX.Element {
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  const [box, setBox] = useState<SlashMenuBox>({ width: 0, height: 0 })
+  const [, setViewportVersion] = useState(0)
   let currentGroup: SlashCommand['group'] | null = null
 
-  return (
+  // Why: the menu's size follows its items, so it measures again when they change, before paint.
+  useLayoutEffect(() => {
+    const menu = menuRef.current
+    if (!portalToDocument || !menu) {
+      return
+    }
+    const { offsetWidth: width, offsetHeight: height } = menu
+    setBox((current) =>
+      current.width === width && current.height === height ? current : { width, height }
+    )
+  }, [portalToDocument, slashMenu, filteredCommands])
+
+  useEffect(() => {
+    if (!portalToDocument) {
+      return
+    }
+    // Why: the menu is fixed to the viewport, so it follows the caret when the page scrolls.
+    const refresh = (): void => setViewportVersion((version) => version + 1)
+    window.addEventListener('scroll', refresh, true)
+    window.addEventListener('resize', refresh)
+    return () => {
+      window.removeEventListener('scroll', refresh, true)
+      window.removeEventListener('resize', refresh)
+    }
+  }, [portalToDocument])
+
+  const style: React.CSSProperties = portalToDocument
+    ? resolvePortaledSlashMenuPosition(
+        slashMenu,
+        anchorElement?.getBoundingClientRect() ?? null,
+        box
+      )
+    : { left: slashMenu.left, top: slashMenu.top }
+
+  const menu = (
     <div
+      ref={menuRef}
       className="rich-markdown-slash-menu"
-      style={{ left: slashMenu.left, top: slashMenu.top }}
+      style={style}
       role="dialog"
       aria-label={translate(
         'auto.components.editor.RichMarkdownSlashMenu.2e0400b958',
@@ -99,4 +178,5 @@ export function RichMarkdownSlashMenu({
       </div>
     </div>
   )
+  return portalToDocument ? createPortal(menu, document.body) : menu
 }

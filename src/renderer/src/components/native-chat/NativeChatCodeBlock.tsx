@@ -53,7 +53,7 @@ export function NativeChatCodeBlock({
   )
 }
 
-function extractCodeText(node: React.ReactNode): string {
+export function extractCodeText(node: React.ReactNode): string {
   if (typeof node === 'string' || typeof node === 'number') {
     return String(node)
   }

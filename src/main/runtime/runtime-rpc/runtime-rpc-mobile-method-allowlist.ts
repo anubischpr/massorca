@@ -1,3 +1,4 @@
+import { MOBILE_BOT_TEAM_RPC_METHODS } from './runtime-rpc-mobile-bot-team-methods'
 import { MOBILE_AGENT_SESSION_RPC_METHODS } from './runtime-rpc-mobile-agent-session-methods'
 
 export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
@@ -15,17 +16,6 @@ export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   'aiVault.searchStatus',
   'aiVault.resolveSessionTitles',
   'aiVault.prepareSessionResume',
-  'botTeams.addBot',
-  'botTeams.create',
-  'botTeams.delete',
-  'botTeams.createTask',
-  'botTeams.list',
-  'botTeams.listRoom',
-  'botTeams.postMessage',
-  'botTeams.startTask',
-  'botTeams.removeBot',
-  'botTeams.update',
-  'botTeams.updateBot',
   'browser.back',
   'browser.dialogAccept',
   'browser.dialogDismiss',
@@ -231,6 +221,7 @@ export const MOBILE_RPC_METHOD_ALLOWLIST = new Set([
   'session.tabs.unsubscribe',
   'session.tabs.unsubscribeAll',
   ...MOBILE_AGENT_SESSION_RPC_METHODS,
+  ...MOBILE_BOT_TEAM_RPC_METHODS,
   'nativeChat.readSession',
   'nativeChat.subscribe',
   'nativeChat.unsubscribe',

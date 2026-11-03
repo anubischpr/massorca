@@ -1,7 +1,9 @@
 import { classifyDelegationTask } from '../delegated-session/delegation-task-classifier'
 import { resolveLaunchableDelegationModel } from '../delegated-session/delegation-launch-preferences'
 import type { DelegationTier } from '../../shared/delegated-session-types'
-import type { BotDraftInput, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
+import { getAgentSessionOptionLaunchCatalog } from '../../shared/agent-session-option-launch'
+import { isTuiAgent } from '../../shared/tui-agent-config'
+import type { BotDraftInput, BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
 
 // Why: the shared classifier's keywords are English, and job descriptions are often Spanish.
 const SENIOR_JOB =
@@ -37,16 +39,45 @@ export function resolveBotModelChoice(
   const mode = draft.modelMode ?? kept?.modelMode ?? 'auto'
   const model = draft.model ?? kept?.model ?? null
   if (mode === 'manual' && model !== null) {
-    return { modelMode: 'manual', model, effort: draft.effort ?? kept?.effort ?? null, skills }
+    return {
+      modelMode: 'manual',
+      model,
+      effort: draft.effort === undefined ? (kept?.effort ?? null) : draft.effort,
+      skills
+    }
   }
   return automaticChoice(draft.agent, draft.job, skills)
 }
 
-/** The session options a bot's task starts with; absent, the agent runs its own default. */
+/** The team's access rides in the options: the create call only records it for Pi. */
+export function botSessionOptions(
+  launch: Readonly<Record<string, string>> | undefined,
+  accessMode: BotTeam['accessMode']
+): Record<string, string> {
+  return { ...launch, accessMode }
+}
+
+/**
+ * The session options a bot's task starts with; absent, the agent runs its own default. An agent
+ * that cannot take a model at launch (Gentle Shell) keeps the one from its own config.
+ */
 export function botLaunchOptions(
-  bot: Pick<BotTeamBot, 'model' | 'effort'>
+  bot: Pick<BotTeamBot, 'agent' | 'model' | 'effort'>
 ): Record<string, string> | undefined {
-  return bot.model === null
-    ? undefined
-    : { model: bot.model, ...(bot.effort === null ? {} : { effort: bot.effort }) }
+  const catalog = isTuiAgent(bot.agent) ? getAgentSessionOptionLaunchCatalog(bot.agent) : null
+  if (bot.model === null || !catalog?.supportsWorkerLaunchPreferences) {
+    return undefined
+  }
+  return { model: bot.model, ...(bot.effort === null ? {} : { effort: bot.effort }) }
+}
+
+// Why: the capable tier, not the smallest, since a bot's one reply should still be a good one.
+const CONVERSATION_TIER: DelegationTier = 4
+
+/** The model and effort a bot answers a plain conversation with, from the same catalog as its tasks. */
+export function botConversationChoice(agent: BotDraftInput['agent']): {
+  model: string | null
+  effort: string | null
+} {
+  return resolveLaunchableDelegationModel({ agent, tier: CONVERSATION_TIER })
 }

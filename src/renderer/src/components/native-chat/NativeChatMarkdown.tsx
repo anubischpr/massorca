@@ -34,16 +34,21 @@ export function NativeChatMarkdown({
   visualMessageId,
   streaming = false,
   content,
+  extension: surfaceExtension,
   ...props
 }: NativeChatMarkdownProps): React.JSX.Element {
   const wordFadeArmed = useWordFadeArmed(fadeWords)
-  const extension = useNativeChatVisualMarkdownExtension(visualMessageId)
+  const visualExtension = useNativeChatVisualMarkdownExtension(visualMessageId)
+  // Why: a surface outside a structured chat (a bot team room) brings its own markdown additions.
+  const extension = visualExtension ?? surfaceExtension
   const fileLinkExists = useNativeChatFileLinkExists(linkifyFilePaths, streaming)
   return (
     <CommentMarkdown
       {...props}
       content={
-        extension && streaming ? withoutPendingNativeChatVisualDirectiveTail(content) : content
+        visualExtension && streaming
+          ? withoutPendingNativeChatVisualDirectiveTail(content)
+          : content
       }
       extension={extension}
       fileLinkExists={fileLinkExists}

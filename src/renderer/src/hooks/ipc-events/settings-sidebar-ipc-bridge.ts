@@ -153,7 +153,7 @@ export function registerSettingsAndSidebarIpcBridge(unsubs: (() => void)[]): voi
   unsubs.push(
     window.api.ui.onToggleRightSidebar(() => {
       const store = useAppStore.getState()
-      if (!canShowRightSidebarForView(store.activeView)) {
+      if (!canShowRightSidebarForView(store.activeView, store.botTeamsSelection)) {
         return
       }
       store.toggleRightSidebar()

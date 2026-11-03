@@ -17,7 +17,16 @@ function team(id: string, name: string, bots: string[]): BotTeam {
     character: id === 't1' ? 'square' : 'circle',
     workspacesEnabled: false,
     accessMode: 'default',
-    bots: bots.map((bot) => ({ id: `${id}-${bot}`, name: bot, job: '', agent: 'claude', modelMode: 'auto', model: null, effort: null, skills: [] }))
+    bots: bots.map((bot) => ({
+      id: `${id}-${bot}`,
+      name: bot,
+      job: '',
+      agent: 'claude',
+      modelMode: 'auto',
+      model: null,
+      effort: null,
+      skills: []
+    }))
   }
 }
 
@@ -90,6 +99,7 @@ function task(over: Partial<BotTeamTask> = {}): BotTeamTask {
     title: 'Publish',
     prompt: '',
     ownerBotId: 't1-Iris',
+    projectId: null,
     sessionId: null,
     ...over
   }

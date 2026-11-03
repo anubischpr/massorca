@@ -17,6 +17,13 @@ import {
   useMobileChatEnvironment,
   type MobileChatEnvironmentState
 } from './use-mobile-chat-environment'
+import { formatAgentTypeLabel } from '../../../src/shared/agent-type-label'
+import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
+import { MobileChatSummaryChecklist } from './MobileChatSummaryChecklist'
+import { mobileNativeChatPlan } from './mobile-native-chat-plan'
+import { useMobileNativeChatChecklist } from './use-mobile-native-chat-checklist'
+
+const NO_MESSAGES: readonly NativeChatMessage[] = []
 
 export type MobileChatSummaryViewProps = {
   hostId: string
@@ -31,6 +38,12 @@ export function MobileChatSummaryView({ hostId, worktreeId, tabId }: MobileChatS
   const { client } = useHostClient(hostId)
   const environment = useMobileChatEnvironment(client, worktreeId)
   const now = useNow(1_000, snapshot?.working === true)
+  // The chat's checklist from the host that owns it; the same reads the chat's sheets make.
+  const checklist = useMobileNativeChatChecklist({
+    source: snapshot?.recordedSource ?? null,
+    messages: snapshot?.messages ?? NO_MESSAGES,
+    worktreeId
+  })
 
   if (!snapshot) {
     return (
@@ -49,6 +62,8 @@ export function MobileChatSummaryView({ hostId, worktreeId, tabId }: MobileChatS
   })
   const tiles = tilesFor(environment)
   const connectedCount = model.connectors.length + model.runningSubagents.length
+  const transcriptPlan = mobileNativeChatPlan(snapshot.messages)
+  const plan = transcriptPlan && transcriptPlan.tasks.length > 0 ? transcriptPlan : null
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -56,6 +71,12 @@ export function MobileChatSummaryView({ hostId, worktreeId, tabId }: MobileChatS
 
       <SheetSectionLabel label="Environment" count={tiles?.length} />
       <EnvironmentBody environment={environment} tiles={tiles} />
+
+      <MobileChatSummaryChecklist
+        plan={plan}
+        view={checklist}
+        agentLabel={formatAgentTypeLabel(snapshot.agent)}
+      />
 
       <SheetSectionLabel label="Connected" count={connectedCount} />
       {connectedCount === 0 ? (
