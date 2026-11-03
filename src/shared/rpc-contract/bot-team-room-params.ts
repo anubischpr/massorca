@@ -1,5 +1,11 @@
 import { z } from 'zod'
 import { requiredString } from './rpc-param-primitives'
+import {
+  BOT_TEAM_ROOM_ATTACHMENT_LIMIT,
+  BotTeamRoomAttachmentSchema,
+  type BotTeamRoomAttachment
+} from '../bot-team-room-attachments'
+import { BOT_TEAM_TASK_LAST_STATUSES } from '../bot-team-task-status'
 
 export const BotTeamTaskSchema = z.object({
   id: z.string(),
@@ -12,7 +18,9 @@ export const BotTeamTaskSchema = z.object({
   // The default reads a host from before projects existed.
   projectId: z.string().nullable().default(null),
   // The host's time the task was made; a host from before it sends none.
-  createdAt: z.number().nullable().optional()
+  createdAt: z.number().nullable().optional(),
+  // The terminal status the host kept for its session; null while the session works or has none yet.
+  lastStatus: z.enum(BOT_TEAM_TASK_LAST_STATUSES).nullable().optional()
 })
 
 /** Where a project's code comes from: a repository that exists, or a new folder set up with git. */
@@ -136,7 +144,9 @@ export const BotTeamMessageSchema = z.object({
   authorBotId: z.string().nullable(),
   text: z.string(),
   /** The host's time the message was written; a host from before it sends none. */
-  createdAt: z.number().nullable().optional()
+  createdAt: z.number().nullable().optional(),
+  /** Files from the team folder the message names; absent for a message with none. */
+  attachments: z.array(BotTeamRoomAttachmentSchema).optional()
 })
 
 export const BotTeamTaskCreate = z.object({
@@ -154,7 +164,9 @@ export const BotTeamMessagePost = z.object({
   /** Only a client that can show the project question sends true; an older one never gets the question. */
   askProject: z.boolean().optional(),
   /** One id per send, reused when the client retries that send: the host then posts it once. */
-  clientRequestId: z.string().min(1).max(100).optional()
+  clientRequestId: z.string().min(1).max(100).optional(),
+  /** Files the person added from the team folder's attachments; only a client the host admits sends them. */
+  attachments: z.array(BotTeamRoomAttachmentSchema).max(BOT_TEAM_ROOM_ATTACHMENT_LIMIT).optional()
 })
 
 /** Files a request the room could not place by itself: to a bot, and to a team when `toTeamId` is set. */
@@ -205,4 +217,5 @@ export type BotTeamMessageInput = {
   teamId: string
   text: string
   authorBotId: string | null
+  attachments?: BotTeamRoomAttachment[]
 }

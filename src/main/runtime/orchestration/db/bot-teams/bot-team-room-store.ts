@@ -7,7 +7,12 @@ import {
   type BotTeamTask,
   type BotTeamTaskInput
 } from '../../../../../shared/rpc-contract/bot-team-room-params'
+import type { BotTeamTaskLastStatus } from '../../../../../shared/bot-team-task-status'
 import { BOT_TEAM_ALL_AUTHOR } from '../../../../../shared/bot-team-greeting'
+import {
+  encodeBotTeamRoomAttachments,
+  splitBotTeamRoomAttachments
+} from '../../../../../shared/bot-team-room-attachments'
 import { generateId } from '../generated-id'
 import {
   BOT_TEAM_MEMORY_STORE_METHODS,
@@ -16,7 +21,7 @@ import {
 import type { OrchestrationDb } from '../orchestration-db'
 
 const TASK_SELECT =
-  'SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId, session_id AS sessionId, project_id AS projectId, created_at AS createdAt FROM bot_team_tasks'
+  'SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId, session_id AS sessionId, project_id AS projectId, created_at AS createdAt, last_status AS lastStatus FROM bot_team_tasks'
 // The greeting line has no bot row to point at, so it reads back as the All author.
 const MESSAGE_SELECT = `SELECT id, team_id AS teamId, text, created_at AS createdAt,
   CASE WHEN author_kind = '${BOT_TEAM_ALL_AUTHOR}' THEN '${BOT_TEAM_ALL_AUTHOR}' ELSE author_bot_id END AS authorBotId
@@ -118,6 +123,17 @@ export function setBotTeamTaskSession(
   return requireBotTeamTask(this, taskId)
 }
 
+/** Keeps the terminal status of the task running this session; null clears it while the session works. */
+export function setBotTeamTaskLastStatus(
+  this: OrchestrationDb,
+  sessionId: string,
+  status: BotTeamTaskLastStatus | null
+): void {
+  this.db
+    .prepare('UPDATE bot_team_tasks SET last_status = ? WHERE session_id = ? AND last_status IS NOT ?')
+    .run(status, sessionId, status)
+}
+
 export function findBotTeamTaskBySession(
   this: OrchestrationDb,
   sessionId: string
@@ -145,16 +161,29 @@ export function postBotTeamMessage(
       input.teamId,
       fromAll ? null : input.authorBotId,
       fromAll ? BOT_TEAM_ALL_AUTHOR : null,
-      input.text,
+      encodeBotTeamRoomAttachments(input.text, input.attachments ?? []),
       Date.now()
     )
-  return BotTeamMessageSchema.parse(this.db.prepare(`${MESSAGE_SELECT} WHERE id = ?`).get(id))
+  return messageWithAttachments(
+    BotTeamMessageSchema.parse(this.db.prepare(`${MESSAGE_SELECT} WHERE id = ?`).get(id))
+  )
 }
 
 export function listBotTeamMessages(this: OrchestrationDb, teamId: string): BotTeamMessage[] {
   return z
     .array(BotTeamMessageSchema)
     .parse(this.db.prepare(`${MESSAGE_SELECT} WHERE team_id = ? ORDER BY rowid`).all(teamId))
+    .map(messageWithAttachments)
+}
+
+/** The visible text, with the files a message stores after it; a message with none is unchanged. */
+function messageWithAttachments(message: BotTeamMessage): BotTeamMessage {
+  const split = splitBotTeamRoomAttachments(message.text)
+  return {
+    ...message,
+    text: split.text,
+    ...(split.attachments.length > 0 ? { attachments: split.attachments } : {})
+  }
 }
 
 export function getBotTeamWorkspace(this: OrchestrationDb, teamId: string): string | null {
@@ -252,6 +281,7 @@ export type BotTeamRoomStoreMethods = BotTeamMemoryStoreMethods & {
   createBotTeamTask: typeof createBotTeamTask
   listBotTeamTasks: typeof listBotTeamTasks
   setBotTeamTaskSession: typeof setBotTeamTaskSession
+  setBotTeamTaskLastStatus: typeof setBotTeamTaskLastStatus
   findBotTeamTaskBySession: typeof findBotTeamTaskBySession
   postBotTeamMessage: typeof postBotTeamMessage
   listBotTeamMessages: typeof listBotTeamMessages
@@ -270,6 +300,7 @@ export function attachBotTeamRoomStore(ctor: { prototype: object }): void {
     createBotTeamTask,
     listBotTeamTasks,
     setBotTeamTaskSession,
+    setBotTeamTaskLastStatus,
     findBotTeamTaskBySession,
     postBotTeamMessage,
     listBotTeamMessages

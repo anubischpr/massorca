@@ -387,8 +387,8 @@ export function MobileBotTeamRoom({
         team={team}
         working={workingOf(team.id)}
         unreachable={offline}
-        openCount={openCount}
-        taskCount={tasks.length}
+        openCount={room ? openCount : null}
+        taskCount={room ? tasks.length : null}
         waiting={waitingTasks.length > 0}
         projects={allProjects}
         projectTaskCount={(projectId) =>

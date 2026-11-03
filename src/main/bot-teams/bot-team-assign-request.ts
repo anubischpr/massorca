@@ -1,6 +1,10 @@
 import { chooseBotTeamOwner, findNamedProject } from '../../shared/bot-team-owner-selection'
 import type { BotTeamRequestChoice } from '../../shared/bot-team-request-choice'
 import { botTeamRequestTiming } from '../../shared/bot-team-request-later'
+import {
+  botTeamRoomAttachmentsNote,
+  type BotTeamRoomAttachment
+} from '../../shared/bot-team-room-attachments'
 import { botTeamTaskTitle } from '../../shared/bot-team-request-route'
 import type { BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
@@ -34,6 +38,8 @@ export type BotTeamRequestFiling = {
   askProject: boolean
   /** The answer to the project question: a project of this team, or null for none. Absent until asked. */
   projectId?: string | null
+  /** Files from the team folder the person attached to the request. */
+  attachments?: BotTeamRoomAttachment[]
 }
 
 export type BotTeamFiling = {
@@ -57,6 +63,17 @@ export async function startFiled(
   } catch (error) {
     return { task, startError: error instanceof Error ? error.message : String(error) }
   }
+}
+
+/** The task's start notes: a composite task's parts, then the files the person attached. */
+function taskStartNotes(
+  bots: Parameters<typeof botTeamCompositeNotes>[0],
+  alsoNeeds: readonly string[],
+  attachments: readonly BotTeamRoomAttachment[]
+): string | null {
+  const notes = [botTeamCompositeNotes(bots, alsoNeeds), botTeamRoomAttachmentsNote(attachments)]
+  const present = notes.filter((note): note is string => note !== null)
+  return present.length > 0 ? present.join('\n\n') : null
 }
 
 /**
@@ -117,7 +134,10 @@ export async function fileBotTeamRequest(
     db.setBotTeamTaskProject(created.id, projectId)
   }
   // Saved with the task, so the owner reads it whether the task starts now or from Todo later.
-  db.setBotTeamTaskStartNotes(created.id, botTeamCompositeNotes(receiving.bots, alsoNeeds))
+  db.setBotTeamTaskStartNotes(
+    created.id,
+    taskStartNotes(receiving.bots, alsoNeeds, input.attachments ?? [])
+  )
   // Read again: the project was set after the task was created.
   const task = db.getBotTeamTask(created.id)
   const timing = botTeamRequestTiming(input.text)
@@ -134,7 +154,8 @@ export async function fileBotTeamRequest(
       later,
       when: timing.when,
       projectName: projects.find((project) => project.id === projectId)?.name ?? null,
-      startError: filed.startError
+      startError: filed.startError,
+      text: input.text
     })
   })
   return { task: filed.task, startError: filed.startError }

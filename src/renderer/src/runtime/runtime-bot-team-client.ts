@@ -1,3 +1,4 @@
+import type { BotTeamRoomAttachment } from '../../../shared/bot-team-room-attachments'
 import type { BotTeamRequestChoice } from '../../../shared/bot-team-request-choice'
 import type {
   BotDraftInput,
@@ -124,6 +125,8 @@ export function postBotTeamRequest(input: {
   askProject?: boolean
   /** One id per send, reused on a retry of that send; a host from before it posts again. */
   clientRequestId?: string
+  /** Files from the team folder; sent only to a host that takes them in its room. */
+  attachments?: BotTeamRoomAttachment[]
 }): Promise<{
   task: BotTeamTask | null
   startError: string | null
@@ -226,6 +229,16 @@ async function teamFolderSelector(teamId: string): Promise<string | null> {
     teamId
   })
   return workspaceId === null ? null : toRuntimeWorktreeSelector(workspaceId)
+}
+
+/** The team folder's workspace id on its host; null before any task made it, or when the host cannot say. */
+export async function botTeamFolderWorkspaceId(teamId: string): Promise<string | null> {
+  try {
+    return (await call<{ workspaceId: string | null }>('botTeams.workspace', { teamId }))
+      .workspaceId
+  } catch {
+    return null
+  }
 }
 
 /** A host from before team files lacks a method: the answer is 'unavailable', not a failure. */

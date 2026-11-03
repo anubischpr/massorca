@@ -73,7 +73,7 @@ describe('the room composer keys', () => {
     type(box, 'Make the flyer')
     expect(press(box, { key: 'Enter', keyCode: 13 })).toBe(true)
     await act(async () => {})
-    expect(onSend).toHaveBeenCalledWith('Make the flyer')
+    expect(onSend).toHaveBeenCalledWith('Make the flyer', [])
   })
 
   it('clears the box at once, before the host answers', async () => {

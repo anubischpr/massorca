@@ -33,6 +33,9 @@ import { BotTeamPendingChoice, type BotTeamPendingChoiceRequest } from './BotTea
 import { BotTeamRoomComposer } from './BotTeamRoomComposer'
 import { BotTeamRoomMessageBody } from './BotTeamRoomMessageBody'
 import type { BotTeamMentionIcon } from './BotTeamMentionChip'
+import { useBotTeamRoomAttachments } from './bot-team-room-attach-state'
+import { BotTeamRoomAttachChips } from './BotTeamRoomAttachChips'
+import type { BotTeamRoomAttachment } from '../../../../shared/bot-team-room-attachments'
 import { BotTeamTaskCard } from './BotTeamTaskCard'
 import { BotTeamRoomQuestion } from './BotTeamRoomQuestion'
 import { BotTeamRoomSidePanel } from './BotTeamRoomSidePanel'
@@ -143,6 +146,7 @@ export function BotTeamRoom({
     hasContent: messages.length > 0 || tasks.length > 0
   })
   const botOf = (botId: string | null) => team.bots.find((bot) => bot.id === botId)
+  const onAttachFiles = useBotTeamRoomAttachments({ teamId: team.id, taskCount: tasks.length })
 
   const latestRead = useRef(0)
   const sending = useRef(false)
@@ -178,7 +182,10 @@ export function BotTeamRoom({
     return () => window.clearInterval(timer)
   }, [offline, reload, replying.pollMs])
 
-  const send = async (text: string): Promise<boolean> => {
+  const send = async (
+    text: string,
+    attachments: BotTeamRoomAttachment[] = []
+  ): Promise<boolean> => {
     if (sending.current) {
       return false
     }
@@ -192,7 +199,8 @@ export function BotTeamRoom({
         text,
         start: true,
         askProject: true,
-        clientRequestId: replying.requestIdFor(text)
+        clientRequestId: replying.requestIdFor(text),
+        ...(attachments.length > 0 ? { attachments } : {})
       })
       replying.settle(sent.replying?.botId ?? null)
       setNeedsOwner(
@@ -336,6 +344,9 @@ export function BotTeamRoom({
                       }
                     >
                       <BotTeamRoomMessageBody text={message.text} mentions={mentionIcons} />
+                      {message.attachments && message.attachments.length > 0 ? (
+                        <BotTeamRoomAttachChips files={message.attachments} />
+                      ) : null}
                     </div>
                     {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
                   </div>
@@ -378,7 +389,13 @@ export function BotTeamRoom({
           </div>
           <NativeChatJumpToLatest visible={scroll.showJump} onJump={scroll.jumpToEnd} />
         </div>
-        <BotTeamRoomComposer team={team} otherTeams={otherTeams} offline={offline} onSend={send} />
+        <BotTeamRoomComposer
+          team={team}
+          otherTeams={otherTeams}
+          offline={offline}
+          onSend={send}
+          onAttachFiles={onAttachFiles}
+        />
       </div>
       {sidePanel
         ? createPortal(

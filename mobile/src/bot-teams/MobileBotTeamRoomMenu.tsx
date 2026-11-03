@@ -24,6 +24,22 @@ import { botTeamStyles as styles } from './mobile-bot-team-styles'
 
 const NO_TEAMS: readonly BotTeam[] = []
 
+/** The conversation row's count, or null while the room is still loading. */
+function openCountMeta(count: number | null): string | null {
+  if (count === null) {
+    return null
+  }
+  return count > 0 ? `${count} open` : 'Nothing open'
+}
+
+/** The board row's count, or null while the room is still loading. */
+function taskCountMeta(count: number | null): string | null {
+  if (count === null) {
+    return null
+  }
+  return count === 0 ? 'No tasks' : taskCountText(count)
+}
+
 /** "1 task" or "2 tasks": singular for one. */
 function taskCountText(count: number): string {
   return count === 1 ? '1 task' : `${count} tasks`
@@ -62,8 +78,9 @@ export function MobileBotTeamRoomMenu({
   team: BotTeam
   working: boolean
   unreachable: boolean
-  openCount: number
-  taskCount: number
+  /** Null until the room has loaded, so the rows show no count rather than an empty one. */
+  openCount: number | null
+  taskCount: number | null
   /** A task of the team waits for the person. */
   waiting?: boolean
   projects: readonly BotTeamProject[]
@@ -148,14 +165,14 @@ export function MobileBotTeamRoomMenu({
       <MenuRow
         icon={<MessageSquare size={18} color={colors.textSecondary} />}
         title="Conference room"
-        meta={openCount > 0 ? `${openCount} open` : 'Nothing open'}
+        meta={openCountMeta(openCount)}
         ownerMark={waiting ? <MobileBotTeamWaitingMark /> : null}
         onPress={onClose}
       />
       <MenuRow
         icon={<LayoutGrid size={18} color={colors.textSecondary} />}
         title="Team board"
-        meta={taskCount === 0 ? 'No tasks' : taskCountText(taskCount)}
+        meta={taskCountMeta(taskCount)}
         onPress={onOpenBoard}
       />
       <View style={styles.sheetHeader}>

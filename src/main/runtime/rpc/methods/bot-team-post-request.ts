@@ -1,6 +1,10 @@
 import { parseBotTeamClassifyResearch } from '../../../../shared/bot-team-request-classify'
 import { withoutBotTeamMention } from '../../../../shared/bot-team-request-route'
 import type { BotTeamRequestChoice } from '../../../../shared/bot-team-request-choice'
+import {
+  botTeamRoomTextWithAttachments,
+  type BotTeamRoomAttachment
+} from '../../../../shared/bot-team-room-attachments'
 import type {
   BotTeamMessage,
   BotTeamTask
@@ -39,12 +43,19 @@ export async function postBotTeamRequestOnHost(
     teamId,
     text,
     start,
-    askProject = false
-  }: { teamId: string; text: string; start: boolean; askProject?: boolean },
+    askProject = false,
+    attachments = []
+  }: {
+    teamId: string
+    text: string
+    start: boolean
+    askProject?: boolean
+    attachments?: BotTeamRoomAttachment[]
+  },
   startTask: (taskId: string) => Promise<BotTeamTask>
 ): Promise<BotTeamPostResult> {
   const db = ctx.runtime.getOrchestrationDb()
-  const message = db.postBotTeamMessage({ teamId, text, authorBotId: null })
+  const message = db.postBotTeamMessage({ teamId, text, authorBotId: null, attachments })
   // A greeting gets the team's one line and stops here: no query, task or usage.
   if (replyToBotTeamGreeting(db, { teamId, text })) {
     return { message, task: null, startError: null, greeted: true }
@@ -83,7 +94,8 @@ export async function postBotTeamRequestOnHost(
         text: withoutBotTeamMention(text, sentTo.teamName),
         start,
         later,
-        askProject: false
+        askProject: false,
+        attachments
       },
       startTask
     )
@@ -96,7 +108,7 @@ export async function postBotTeamRequestOnHost(
     // The reply can take a minute, so it runs on: the room shows the bot typing until it lands.
     const started = startBotTeamConversationReply(ctx, {
       team,
-      text,
+      text: botTeamRoomTextWithAttachments(text, attachments),
       subjectBotIds: decision.subjectBotIds,
       research: classifyReply !== null && parseBotTeamClassifyResearch(classifyReply)
     })
@@ -118,7 +130,8 @@ export async function postBotTeamRequestOnHost(
       alsoNeeds: decision.alsoNeeds,
       start,
       later,
-      askProject
+      askProject,
+      attachments
     },
     startTask
   )
