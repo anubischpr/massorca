@@ -7,6 +7,7 @@ import {
   showWorkspaceListChangedToast
 } from './stale-workspace-list-toast'
 import { getWorkspaceDeleteLineage } from './workspace-delete-lineage'
+import { selectChildSessionWorktreesByWorktree } from './worktree-child-placement'
 import { resolveSshWorkspaceForget } from './ssh-workspace-forget-resolution'
 import { isPairedWebClientWindow } from '@/lib/desktop-window-chrome'
 import { parseWorkspaceKey } from '../../../../shared/workspace-scope'
@@ -96,7 +97,8 @@ export function runWorktreeDelete(worktreeId: string, options: WorktreeDeleteOpt
   const deleteLineage = getWorkspaceDeleteLineage(
     target,
     getAllWorktreesFromState(state),
-    state.worktreeLineageById
+    state.worktreeLineageById,
+    selectChildSessionWorktreesByWorktree(state)
   )
   const hasLineageChildren = deleteLineage.descendants.length > 0
   const skipConfirm = state.settings?.skipDeleteWorktreeConfirm ?? false
@@ -148,7 +150,8 @@ export function runWorktreeBatchDelete(
       ? getWorkspaceDeleteLineage(
           targets[0],
           getAllWorktreesFromState(state),
-          state.worktreeLineageById
+          state.worktreeLineageById,
+          selectChildSessionWorktreesByWorktree(state)
         )
       : null
   const singleTargetHasLineageChildren = (singleTargetLineage?.descendants.length ?? 0) > 0
