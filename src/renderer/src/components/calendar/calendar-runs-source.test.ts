@@ -6,12 +6,37 @@ import {
   expandAutomationRuns,
   listCalendarAutomations
 } from './calendar-automation-runs'
-import { botScheduledRunToCalendarRun, loadBotRuns } from './calendar-bot-runs-source'
+import type { BotTeamScheduledRun } from '../../../../shared/rpc-contract/bot-team-scheduled-run-params'
+import {
+  BOT_RUNS_MAX_WINDOW_MS,
+  botScheduledRunToCalendarRun,
+  loadBotRuns
+} from './calendar-bot-runs-source'
 import { loadCalendarRuns } from './calendar-runs-source'
 import type { CalendarRun } from './calendar-types'
 
+const mocks = vi.hoisted(() => ({ listScheduledRuns: vi.fn() }))
+vi.mock('@/runtime/runtime-bot-team-client-routines', () => ({
+  listBotTeamScheduledRuns: mocks.listScheduledRuns
+}))
+
 const local = (y: number, m: number, d: number, h = 0, min = 0): number =>
   new Date(y, m - 1, d, h, min).getTime()
+
+const scheduledRun: BotTeamScheduledRun = {
+  routineId: 'r2',
+  routineName: 'Stock count',
+  teamId: 't2',
+  teamName: 'Warehouse',
+  botId: 'b2',
+  botName: 'Bea',
+  botAgent: 'claude',
+  projectId: null,
+  projectName: null,
+  frequency: 'daily',
+  at: local(2026, 10, 2, 8),
+  hostTime: { date: '2026-10-02', time: '08:00' }
+}
 
 const WEEK = { from: local(2026, 10, 26), to: local(2026, 11, 2) }
 
@@ -106,7 +131,23 @@ describe('automation hosts', () => {
 })
 
 describe('bot routine runs', () => {
-  it('reports unavailable until the Bot teams scheduled-runs RPC is wired', async () => {
+  it('asks the host in windows of at most 62 days and maps every run', async () => {
+    mocks.listScheduledRuns.mockResolvedValue({ runs: [scheduledRun], truncated: false })
+    const from = local(2026, 10, 1)
+    const to = from + 100 * 24 * 60 * 60 * 1000
+    const runs = await loadBotRuns({ from, to })
+    expect(mocks.listScheduledRuns.mock.calls.map(([query]) => query)).toEqual([
+      { from, to: from + BOT_RUNS_MAX_WINDOW_MS },
+      { from: from + BOT_RUNS_MAX_WINDOW_MS, to }
+    ])
+    expect(runs).toEqual([
+      botScheduledRunToCalendarRun(scheduledRun),
+      botScheduledRunToCalendarRun(scheduledRun)
+    ])
+  })
+
+  it('reports unavailable for a host from before scheduled runs', async () => {
+    mocks.listScheduledRuns.mockResolvedValue('unavailable')
     expect(await loadBotRuns(WEEK)).toBe('unavailable')
   })
 
@@ -120,8 +161,8 @@ describe('bot routine runs', () => {
         botId: 'b1',
         botName: 'Nora',
         botAgent: 'claude',
-        projectId: 'p1',
-        projectName: 'Site',
+        projectId: null,
+        projectName: null,
         frequency: 'weekly',
         at: local(2026, 10, 31, 14, 24),
         hostTime: { date: '2026-10-31', time: '14:24' }

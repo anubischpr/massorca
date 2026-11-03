@@ -11,7 +11,7 @@ describe('the Calendar page', () => {
     store.getState().openCalendarPage()
     expect(store.getState().activeView).toBe('calendar')
     expect(isLeftSidebarView('calendar')).toBe(false)
-    expect(canShowRightSidebarForView('calendar')).toBe(false)
+    expect(canShowRightSidebarForView('calendar', store.getState().botTeamsSelection)).toBe(false)
   })
 
   it('survives a relaunch as a saved view', () => {

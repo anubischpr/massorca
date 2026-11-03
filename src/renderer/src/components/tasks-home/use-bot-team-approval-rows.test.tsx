@@ -50,6 +50,7 @@ const otherTask: BotTeamTask = {
   title: 'Answer the ticket',
   prompt: '',
   ownerBotId: 'bot-2',
+  projectId: null,
   sessionId: 'session-2'
 }
 
