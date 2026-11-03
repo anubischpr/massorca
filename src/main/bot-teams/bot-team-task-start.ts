@@ -28,14 +28,21 @@ export type BotTeamTaskStartDeps = {
 
 /** The project's goal and brief, which the person wrote for the bots; empty sections are left out. */
 function botTeamProjectBriefText(project: BotTeamProject): string {
+  const intro = [
+    `This task is part of the project "${project.name}". Read its brief before you start.`,
+    ...(project.goal ? [`Goal: ${project.goal}`] : [])
+  ]
+  const { markdown } = project.brief
+  if (typeof markdown === 'string') {
+    return [...intro, markdown.trim()].filter((line) => line !== '').join('\n')
+  }
   const sections: [string, string[]][] = [
     ['Requirements', project.brief.requirements],
     ['Constraints', project.brief.constraints],
     ['Decisions', project.brief.decisions]
   ]
   return [
-    `This task is part of the project "${project.name}". Read its brief before you start.`,
-    ...(project.goal ? [`Goal: ${project.goal}`] : []),
+    ...intro,
     ...sections
       .filter(([, lines]) => lines.length > 0)
       .map(([title, lines]) => `${title}:\n${lines.map((line) => `- ${line}`).join('\n')}`)

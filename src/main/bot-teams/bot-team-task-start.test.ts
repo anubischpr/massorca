@@ -292,4 +292,56 @@ describe('the task prompt and the room', () => {
     expect(prompt).toContain('when you finish')
     expect(prompt).not.toContain('when you take this on')
   })
+
+  it('gives the bots the Brief Markdown when the project has one, and the lists otherwise', async () => {
+    const { botTeamTaskPrompt } = await import('./bot-team-task-start')
+    const bot = {
+      id: 'b',
+      name: 'Iris',
+      job: 'Designs flyers',
+      agent: 'claude' as const,
+      modelMode: 'auto' as const,
+      model: null,
+      effort: null,
+      skills: []
+    }
+    const team = {
+      id: 't',
+      name: 'Marketing',
+      purpose: '',
+      character: 'circle' as const,
+      workspacesEnabled: false,
+      accessMode: 'default' as const,
+      bots: [bot]
+    }
+    const project = {
+      id: 'p',
+      teamId: 't',
+      name: 'Summer campaign',
+      goal: 'Sell the offers',
+      codeSource: null,
+      briefUpdatedAt: null,
+      brief: {
+        requirements: ['Old list item'],
+        constraints: [],
+        decisions: [],
+        markdown:
+          '## Requirements\n- Flyer for the offers\n\n## Decisions\n1. Iris lays out the flyer'
+      }
+    }
+    const task = { title: 'Colors', prompt: 'Show a colors card' }
+
+    const withMarkdown = botTeamTaskPrompt(team, bot, task, { project })
+    expect(withMarkdown).toContain('This task is part of the project "Summer campaign"')
+    expect(withMarkdown).toContain('Goal: Sell the offers')
+    expect(withMarkdown).toContain('## Requirements\n- Flyer for the offers')
+    expect(withMarkdown).toContain('1. Iris lays out the flyer')
+    expect(withMarkdown).not.toContain('Old list item')
+
+    const withoutMarkdown = botTeamTaskPrompt(team, bot, task, {
+      project: { ...project, brief: { ...project.brief, markdown: undefined } }
+    })
+    expect(withoutMarkdown).toContain('Requirements:\n- Old list item')
+    expect(withoutMarkdown).not.toContain('## Requirements')
+  })
 })

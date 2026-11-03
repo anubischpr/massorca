@@ -22,7 +22,9 @@ export const BotTeamCodeSourceSchema = z.enum(['repo', 'folder'])
 export const BotTeamBriefSchema = z.object({
   requirements: z.array(z.string()),
   constraints: z.array(z.string()),
-  decisions: z.array(z.string())
+  decisions: z.array(z.string()),
+  // Optional: the Brief as Markdown. A host from before it omits it; bots then read the lists.
+  markdown: z.string().optional()
 })
 
 const EMPTY_BRIEF = { requirements: [], constraints: [], decisions: [] }

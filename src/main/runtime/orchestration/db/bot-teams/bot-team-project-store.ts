@@ -201,7 +201,9 @@ export function setBotTeamProjectBrief(
   const brief: BotTeamBrief = {
     requirements: withoutBlanks(input.brief.requirements),
     constraints: withoutBlanks(input.brief.constraints),
-    decisions: withoutBlanks(input.brief.decisions)
+    decisions: withoutBlanks(input.brief.decisions),
+    // A list-only save from an older client leaves no Markdown, so the lists are the Brief again.
+    ...(typeof input.brief.markdown === 'string' ? { markdown: input.brief.markdown.trim() } : {})
   }
   const changed = this.db
     .prepare(
