@@ -9,13 +9,13 @@ import { botTeamBoardColumn } from '../../../../shared/bot-team-board-column'
 import { botTeamTaskStatus } from '../../../../shared/bot-team-task-status'
 import { BotTeamCharacterIcon } from '../bot-teams/BotTeamCharacterIcon'
 import { BotTeamWaitingMark } from '../bot-teams/BotTeamRoomQuestionMark'
-import { useTeamProjectWork } from '../bot-teams/BotTeamProjectTeamsWork'
 import { useBotTeamAttention } from '../bot-teams/use-bot-team-attention'
 import { useBotTeamSessionStatuses } from '../bot-teams/use-bot-team-task-status'
 import { useBotTeams } from '../bot-teams/use-bot-teams'
 import { BotTeamsSidebarProjects } from './BotTeamsSidebarProjects'
 import { RowMeta, SidebarRow } from './BotTeamsSidebarProjectsRow'
 import { SidebarSearchRow } from './SidebarSearchRow'
+import { useOpenTeamCounts } from './use-bot-team-sidebar-counts'
 
 /** The open team's rows, in the order of the design: room, board, projects. */
 function OpenTeamRows({
@@ -34,7 +34,7 @@ function OpenTeamRows({
   const { section } = selection
   const [changes, setChanges] = useState(0)
   // Relists when the page moves, so a project made or a task started shows without a reload.
-  const { tasks, projects, projectTasks, sharedProjects } = useTeamProjectWork(
+  const { known, tasks, projects, projectTasks, sharedProjects } = useOpenTeamCounts(
     teamId,
     `${section?.kind ?? 'room'}:${selection.taskId ?? ''}:${changes}`
   )
@@ -62,11 +62,13 @@ function OpenTeamRows({
           {translate('components.botTeams.conferenceRoom', 'Conference room')}
         </span>
         {waiting ? <BotTeamWaitingMark /> : null}
-        <RowMeta>
-          {open > 0
-            ? translate('components.botTeams.openCount', '{{count}} open', { count: open })
-            : translate('components.botTeams.nothingOpen', 'Nothing open')}
-        </RowMeta>
+        {known ? (
+          <RowMeta>
+            {open > 0
+              ? translate('components.botTeams.openCount', '{{count}} open', { count: open })
+              : translate('components.botTeams.nothingOpen', 'Nothing open')}
+          </RowMeta>
+        ) : null}
       </SidebarRow>
       <SidebarRow
         indented
@@ -75,15 +77,17 @@ function OpenTeamRows({
       >
         <LayoutGrid className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
         <span className="flex-1">{translate('components.botTeams.board', 'Board')}</span>
-        <RowMeta>
-          {tasks.length === 0
-            ? translate('components.botTeams.noTasks', 'No tasks')
-            : tasks.length === 1
-              ? translate('components.botTeams.taskCount_one', '{{count}} task', { count: 1 })
-              : translate('components.botTeams.taskCount_other', '{{count}} tasks', {
-                  count: tasks.length
-                })}
-        </RowMeta>
+        {known ? (
+          <RowMeta>
+            {tasks.length === 0
+              ? translate('components.botTeams.noTasks', 'No tasks')
+              : tasks.length === 1
+                ? translate('components.botTeams.taskCount_one', '{{count}} task', { count: 1 })
+                : translate('components.botTeams.taskCount_other', '{{count}} tasks', {
+                    count: tasks.length
+                  })}
+          </RowMeta>
+        ) : null}
       </SidebarRow>
       <BotTeamsSidebarProjects
         team={team}

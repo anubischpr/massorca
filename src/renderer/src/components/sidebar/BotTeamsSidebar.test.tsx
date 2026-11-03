@@ -54,6 +54,7 @@ vi.mock('@/store', () => ({ useAppStore: store }))
 
 const { BotTeamsSidebar } = await import('./BotTeamsSidebar')
 const { useBotTeams } = await import('../bot-teams/use-bot-teams')
+const { resetBotTeamRoomCountsForTests } = await import('./bot-team-sidebar-counts')
 type BotTeamsState = ReturnType<typeof useBotTeams>
 
 const mounted: { container: HTMLDivElement; root: Root }[] = []
@@ -91,6 +92,7 @@ const rowByLabel = (container: ParentNode, label: string): HTMLButtonElement => 
 }
 
 beforeEach(() => {
+  resetBotTeamRoomCountsForTests()
   listBotTeams.mockReset()
   listBotTeams.mockResolvedValue([team('t1', 'Marketing', 'square'), team('t2', 'Sales', 'circle')])
   listBotTeamRoom.mockReset()
@@ -403,6 +405,105 @@ describe('the Bot teams sidebar', () => {
       const container = await openTeamWith([project({ linkedTeamIds: undefined })])
       rightClick(rowByLabel(container, 'NexusCare'))
       expect(menuItems()).toEqual([])
+    })
+  })
+
+  describe('counts', () => {
+    const flyer = (id: string, teamId: string) => ({
+      id,
+      teamId,
+      title: 'Flyer',
+      prompt: 'Flyer',
+      ownerBotId: 'b1',
+      sessionId: null,
+      projectId: null
+    })
+    // Marketing has one task and Sales two.
+    const roomOf = (teamId: string) => ({
+      messages: [],
+      projects: [],
+      tasks: Array.from({ length: teamId === 't2' ? 2 : 1 }, (_, index) =>
+        flyer(`${teamId}-${index}`, teamId)
+      )
+    })
+    const answerNever = (): void => {
+      listBotTeamRoom.mockImplementation(() => new Promise(() => {}))
+    }
+
+    it('shows neither Nothing open nor No tasks before the team answers', async () => {
+      seedStore(store, { botTeamsSelection: { teamId: 't2', taskId: null, creating: false } })
+      let answer!: (room: unknown) => void
+      listBotTeamRoom.mockReturnValue(
+        new Promise((resolve) => {
+          answer = resolve
+        })
+      )
+      const container = await mount()
+      expect(container.textContent).toContain('Conference room')
+      expect(container.textContent).not.toContain('Nothing open')
+      expect(container.textContent).not.toContain('No tasks')
+      await act(async () => answer({ messages: [], projects: [], tasks: [] }))
+      expect(container.textContent).toContain('Nothing open')
+      expect(container.textContent).toContain('No tasks')
+    })
+
+    it('shows another team’s counts at once, from the answers loaded before the switch', async () => {
+      seedStore(store, { botTeamsSelection: { teamId: 't1', taskId: null, creating: false } })
+      listBotTeamRoom.mockImplementation(async (teamId: string) => roomOf(teamId))
+      const container = await mount()
+      expect(container.textContent).toContain('1 task')
+      // No request answers from here on, so Sales' counts can only come from what is kept.
+      answerNever()
+      act(() => rowByLabel(container, 'Sales').click())
+      expect(container.textContent).toContain('2 tasks')
+      expect(container.textContent).not.toContain('No tasks')
+      act(() => rowByLabel(container, 'Marketing').click())
+      expect(container.textContent).toContain('1 task')
+    })
+
+    it('starts every team’s room at once and asks for each team only once', async () => {
+      seedStore(store, { botTeamsSelection: { teamId: 't1', taskId: null, creating: false } })
+      answerNever()
+      await mount()
+      expect(listBotTeamRoom.mock.calls.map(([teamId]) => teamId).sort()).toEqual(['t1', 't2'])
+    })
+
+    it('answers a refresh made while a request is in flight with a newer request', async () => {
+      seedStore(store, { botTeamsSelection: { teamId: 't1', taskId: null, creating: false } })
+      listBotTeamRoom.mockImplementation(async (teamId: string) => roomOf(teamId))
+      const container = await mount()
+      expect(container.textContent).toContain('1 task')
+      let releaseStale!: (room: unknown) => void
+      listBotTeamRoom.mockReturnValueOnce(
+        new Promise((resolve) => {
+          releaseStale = resolve
+        })
+      )
+      // Board starts a request that stays in flight; Files asks again while it runs.
+      act(() => rowByLabel(container, 'Board').click())
+      listBotTeamRoom.mockResolvedValueOnce({
+        messages: [],
+        projects: [],
+        tasks: [flyer('t1-a', 't1'), flyer('t1-b', 't1')]
+      })
+      act(() => rowByLabel(container, 'Files').click())
+      await act(async () => {
+        releaseStale({ messages: [], projects: [], tasks: [flyer('t1-0', 't1')] })
+        await new Promise((done) => setTimeout(done, 0))
+      })
+      expect(listBotTeamRoom.mock.calls.filter(([teamId]) => teamId === 't1')).toHaveLength(3)
+      expect(container.textContent).toContain('2 tasks')
+    })
+
+    it('counts one open task as 1 open', async () => {
+      seedStore(store, { botTeamsSelection: { teamId: 't2', taskId: null, creating: false } })
+      listBotTeamRoom.mockResolvedValue({
+        messages: [],
+        projects: [],
+        tasks: [flyer('t2-0', 't2')]
+      })
+      const container = await mount()
+      expect(container.textContent).toContain('1 open')
     })
   })
 })

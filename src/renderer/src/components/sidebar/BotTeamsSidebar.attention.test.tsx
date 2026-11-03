@@ -52,6 +52,7 @@ const store = createTestStore()
 vi.mock('@/store', () => ({ useAppStore: store }))
 
 const { BotTeamsSidebar } = await import('./BotTeamsSidebar')
+const { resetBotTeamRoomCountsForTests } = await import('./bot-team-sidebar-counts')
 
 const mounted: { container: HTMLDivElement; root: Root }[] = []
 
@@ -79,6 +80,7 @@ const waitingIn = (row: HTMLElement): boolean =>
   row.querySelector('[data-bot-team-waiting]') !== null
 
 beforeEach(() => {
+  resetBotTeamRoomCountsForTests()
   statuses.current = new Map()
   listBotTeams.mockResolvedValue([team('t1', 'Marketing'), team('t2', 'Sales')])
   listBotTeamRoom.mockImplementation(async (teamId: string) => ({

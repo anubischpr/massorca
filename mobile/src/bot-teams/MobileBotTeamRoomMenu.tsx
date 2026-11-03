@@ -24,6 +24,11 @@ import { botTeamStyles as styles } from './mobile-bot-team-styles'
 
 const NO_TEAMS: readonly BotTeam[] = []
 
+/** "1 task" or "2 tasks": singular for one. */
+function taskCountText(count: number): string {
+  return count === 1 ? '1 task' : `${count} tasks`
+}
+
 /** The room's menu: the team's work, its projects, and what belongs to the team. */
 export function MobileBotTeamRoomMenu({
   client,
@@ -150,7 +155,7 @@ export function MobileBotTeamRoomMenu({
       <MenuRow
         icon={<LayoutGrid size={18} color={colors.textSecondary} />}
         title="Team board"
-        meta={taskCount === 0 ? 'No tasks' : taskCount === 1 ? '1 task' : `${taskCount} tasks`}
+        meta={taskCount === 0 ? 'No tasks' : taskCountText(taskCount)}
         onPress={onOpenBoard}
       />
       <View style={styles.sheetHeader}>
@@ -192,8 +197,8 @@ export function MobileBotTeamRoomMenu({
               archived
                 ? 'Archived'
                 : linkedHere
-                  ? `${count} tasks, owner ${nameOfOwner(project)}`
-                  : `${count} tasks`
+                  ? `${taskCountText(count)}, owner ${nameOfOwner(project)}`
+                  : taskCountText(count)
             }
             dimmed={archived}
             ownerMark={

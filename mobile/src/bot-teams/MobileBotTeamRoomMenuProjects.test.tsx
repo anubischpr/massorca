@@ -263,3 +263,26 @@ describe('the room menu’s projects', () => {
     expect(onChanged).toHaveBeenCalled()
   })
 })
+
+describe('the room menu’s task counts', () => {
+  it('says 1 task, not 1 tasks, for a project of this team with one task', async () => {
+    const renderer = await render(baseProps({ projectTaskCount: () => 1 }))
+    expect(text(renderer)).toContain('"1 task"')
+    expect(text(renderer)).not.toContain('"1 tasks"')
+  })
+
+  it('says 1 task with its owner for a linked project with one task', async () => {
+    const linked = project({ id: 'p9', teamId: 't2', name: 'Website', linkedTeamIds: ['t1'] })
+    const renderer = await render(
+      baseProps({ teams: [MARKETING, DEVELOPMENT], projects: [linked], projectTaskCount: () => 1 })
+    )
+    expect(text(renderer)).toContain('1 task, owner Development')
+    expect(text(renderer)).not.toContain('1 tasks')
+  })
+
+  it('says 1 task on the team board with one task', async () => {
+    const renderer = await render(baseProps({ taskCount: 1 }))
+    expect(text(renderer)).toContain('"1 task"')
+    expect(text(renderer)).not.toContain('"1 tasks"')
+  })
+})
