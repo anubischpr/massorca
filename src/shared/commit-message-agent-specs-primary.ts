@@ -137,6 +137,20 @@ export function buildPrimaryCommitMessageAgentSpecs({
       ],
       // Why: `exec` has no --search flag; this override turns on the native web_search tool (CLI 0.159).
       webResearchArgs: ['-c', 'web_search="live"'],
+      // Why: a room turn must not reach the user's plugins, connectors or MCP write tools. Verified on codex-cli
+      // 0.159.2: --ignore-user-config drops the user's config, and the disabled features drop the built-in apps,
+      // image and goal tools; the read-only sandbox still rejects apply_patch and exec_command writes.
+      roomTurnArgs: [
+        '--ignore-user-config',
+        '--disable',
+        'apps',
+        '--disable',
+        'plugins',
+        '--disable',
+        'image_generation',
+        '--disable',
+        'goals'
+      ],
       // Why: no code read mode: Codex's `mcp_servers` overrides leave its plugin and connector tools
       // enabled (codex-cli 0.159.2 smoke), so a code turn could reach a write tool.
       // `-c` is intentionally absent: Codex accepts repeated overrides.

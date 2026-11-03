@@ -36,6 +36,8 @@ export async function queryBotTeamLead(input: {
     {
       ...input.params,
       backslash: commandBackslashMode(input.target),
+      // Why: every bot-team one-shot is a room turn, so each agent's room isolation applies.
+      roomTurn: true,
       ...(input.webResearch ? { webResearch: true } : {}),
       ...(input.codeRead ? { codeRead: true } : {}),
       ...(input.codeReadHostArgs ? { codeReadHostArgs: input.codeReadHostArgs } : {})
