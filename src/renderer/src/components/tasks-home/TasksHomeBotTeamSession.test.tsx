@@ -52,6 +52,9 @@ vi.mock('@/store', () => ({ useAppStore: store }))
 const { TasksHomeBotTeamSession } = await import('./TasksHomeBotTeamSession')
 const { promptTextContent } = await import('../native-chat/native-chat-prompt-document-text')
 const { promptEditor } = await import('../native-chat/native-chat-prompt-editor.test-support')
+const { clearNativeChatDraftCacheForTests, readNativeChatDraftCache, writeNativeChatDraftCache } =
+  await import('../native-chat/native-chat-draft-cache')
+const DRAFT_KEY = 'composer:tasks:bot-team'
 
 const mounted: { container: HTMLDivElement; root: Root }[] = []
 
@@ -128,6 +131,7 @@ beforeEach(() => {
   postBotTeamRequest.mockReset()
   listBotTeamRoom.mockReset()
   toastError.mockReset()
+  clearNativeChatDraftCacheForTests()
   listBotTeamRoom.mockResolvedValue({
     messages: [],
     tasks: [],
@@ -282,6 +286,20 @@ describe('the Tasks home Bot Team composer', () => {
       (heading) => heading.textContent
     )
     expect(headings).toEqual(['Bots', 'Teams', 'Projects', 'Files'])
+  })
+
+  it('keeps the unsent task as a draft, brings it back, and clears it once sent', async () => {
+    writeNativeChatDraftCache(DRAFT_KEY, '@Iris publish the flyer')
+    const first = await mount()
+    const field = first.querySelector<HTMLElement>('[role="combobox"]')
+    expect(field?.textContent).toBe('@Iris publish the flyer')
+    await type(first, '@Iris publish the new flyer')
+    expect(readNativeChatDraftCache(DRAFT_KEY)).toBe('@Iris publish the new flyer')
+    await send(first)
+    expect(postBotTeamRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ text: '@Iris publish the new flyer' })
+    )
+    expect(readNativeChatDraftCache(DRAFT_KEY)).toBe('')
   })
 
   it('cannot create a task while there are no teams', async () => {

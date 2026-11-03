@@ -7,6 +7,7 @@ import { routeBotTeamRequest } from '../../../../shared/bot-team-request-route'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { BotTeamCharacterIcon } from '../bot-teams/BotTeamCharacterIcon'
 import { useBotTeamMentionProjects } from '../bot-teams/bot-team-mention-projects'
+import { useBotTeamComposerDraft } from '../bot-teams/bot-team-room-draft'
 import { useBotTeams } from '../bot-teams/use-bot-teams'
 import { useBotTeamMentionField } from '../bot-teams/use-bot-team-mention-field'
 import { useTeamWork } from '../bot-teams/use-bot-team-work'
@@ -170,6 +171,8 @@ function TeamComposer({
     placeholder: copy.placeholder,
     send: () => void submit()
   })
+  // Same draft store as the room, so the text survives a reload or a switch to WorkSpaces.
+  useBotTeamComposerDraft(field.editor, 'tasks:bot-team')
   const canSubmit = !pending && field.text.trim() !== ''
 
   // Hoisted: the field's Enter calls it.
@@ -196,6 +199,8 @@ function TeamComposer({
       if (sent.startError) {
         toast.error(sent.startError)
       }
+      // An empty document clears the saved draft.
+      field.editor?.commands.clearContent(true)
       openBotTeamsView({
         teamId: team.id,
         taskId: sent.task?.sessionId ? sent.task.id : null
