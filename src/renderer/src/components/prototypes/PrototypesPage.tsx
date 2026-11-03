@@ -104,6 +104,7 @@ export default function PrototypesPage(): React.JSX.Element {
   const sidePanelHidden = usePrototypeViewStore((s) => s.sidePanelHidden)
   const listPanelHidden = usePrototypeViewStore((s) => s.listPanelHidden)
   const setListPanelHidden = usePrototypeViewStore((s) => s.setListPanelHidden)
+  const setFocusedSetSessions = usePrototypeViewStore((s) => s.setFocusedSetSessions)
   const sidebarOpen = useAppStore((s) => s.sidebarOpen)
   const mergeUnderWay = selectedId !== null && (states[selectedId]?.merge ?? null) !== null
   const frameBoxRef = useRef<HTMLDivElement | null>(null)
@@ -167,6 +168,18 @@ export default function PrototypesPage(): React.JSX.Element {
       selectRequest(firstRequestId)
     }
   }, [selectedRequestId, firstRequestId, selectedProjectKey, selectRequest])
+
+  const focusedSessionId = selected?.sessionId
+  const focusedOriginSessionId = selected?.origin?.sessionId
+  useEffect(() => {
+    setFocusedSetSessions(
+      focusedSessionId === undefined
+        ? null
+        : { sessionId: focusedSessionId, originSessionId: focusedOriginSessionId ?? null }
+    )
+  }, [focusedSessionId, focusedOriginSessionId, setFocusedSetSessions])
+  // Why: off this page nothing is in focus, so the floating checklist goes back to the chat.
+  useEffect(() => () => setFocusedSetSessions(null), [setFocusedSetSessions])
 
   useEffect(() => {
     if (selectedRequestId !== undefined) {

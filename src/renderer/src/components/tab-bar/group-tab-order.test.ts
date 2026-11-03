@@ -225,6 +225,32 @@ describe('getGroupVisibleTabOrder', () => {
     ])
   })
 
+  it('includes a checklist tab in the strip slot a simulator tab uses, in declared order', () => {
+    const group: TabGroup = {
+      id: 'g1',
+      worktreeId: 'wt',
+      activeTabId: 'tab-c1',
+      tabOrder: ['tab-t1', 'tab-c1']
+    }
+    const tabs: Tab[] = [
+      terminalTab('tab-t1', 'g1', 'term-1', 0),
+      { ...simulatorTab('tab-c1', 'g1', 1), contentType: 'checklist' }
+    ]
+    expect(
+      getGroupVisibleTabOrder(
+        group,
+        tabs,
+        new Set(['term-1']),
+        new Set(),
+        new Set(),
+        new Set(['tab-c1'])
+      )
+    ).toEqual([
+      { type: 'terminal', id: 'term-1', tabId: 'tab-t1' },
+      { type: 'simulator', id: 'tab-c1', tabId: 'tab-c1' }
+    ])
+  })
+
   it('matches the strip lookup when duplicate entities resolve to the last tab copy', () => {
     const group: TabGroup = {
       id: 'g1',

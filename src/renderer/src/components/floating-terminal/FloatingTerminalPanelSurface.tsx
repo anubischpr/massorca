@@ -3,14 +3,21 @@ import { TabGroupSplitNodeTree } from '@/components/tab-group/TabGroupSplitNodeT
 import { WorkspaceTabDragLayer } from '@/components/tab-group/WorkspaceTabDragLayer'
 import { WorkspacePaneOverlayLayers } from '@/components/WorkspacePaneOverlayLayers'
 import { isTerminalImeInputContextRefreshing } from '@/components/terminal-pane/terminal-ime-input-context-refresh'
+import { translate } from '@/i18n/i18n'
 import { buildDuplicatedBrowserTabOptions } from '@/lib/duplicate-browser-tab-options'
+import { openFloatingChecklistTab } from '@/lib/floating-workspace-checklist-tab'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
+import { layoutOverlayRootRef } from '@/components/tab-group/layout-overlay-root'
 import { FloatingTerminalEmptyState } from './FloatingTerminalEmptyState'
 import { renderFloatingTerminalOrchestrationCard } from './FloatingTerminalOrchestrationCard'
 import { FloatingTerminalOrchestrationDialog } from './FloatingTerminalOrchestrationDialog'
 import { FloatingTerminalResizeHandles } from './FloatingTerminalResizeHandles'
 import { FloatingTerminalWindowControls } from './FloatingTerminalWindowControls'
 import type { useFloatingTerminalPanelController } from './use-floating-terminal-panel-controller'
+import {
+  FloatingOpenSessionPicker,
+  useFloatingOpenSessionPickerStore
+} from './session-picker/FloatingOpenSessionPicker'
 
 const NO_ACTIVITY_TERMINAL_PORTALS: [] = []
 
@@ -150,6 +157,12 @@ export function renderFloatingTerminalPanelSurface({
                   onNewBrowserTab={createFloatingBrowserTab}
                   onNewFileTab={createFloatingMarkdownTab}
                   onOpenFileTab={openFloatingMarkdownTab}
+                  onNewChecklistTab={() =>
+                    openFloatingChecklistTab(translate('components.tabBar.checklist', 'Checklist'))
+                  }
+                  onOpenSessionPicker={() =>
+                    useFloatingOpenSessionPickerStore.getState().setOpen(true)
+                  }
                   newTabMenuOrder="markdown-first"
                   onSetCustomTitle={setTabCustomTitle}
                   onSetTabColor={setTabColor}
@@ -162,10 +175,15 @@ export function renderFloatingTerminalPanelSurface({
                   groupActiveTabId={activeTab?.id ?? null}
                   activeFileId={activeEditorUnifiedId}
                   activeBrowserTabId={activeBrowserId}
+                  // Why: the strip lights a checklist tab through its self-backed simulator slot.
                   activeSimulatorTabId={
-                    activeTab?.contentType === 'simulator' ? activeTab.id : null
+                    activeTab?.contentType === 'simulator' || activeTab?.contentType === 'checklist'
+                      ? activeTab.id
+                      : null
                   }
-                  activeTabType={activeTabType}
+                  activeTabType={
+                    activeTab?.contentType === 'checklist' ? 'simulator' : activeTabType
+                  }
                   onActivateFile={model.commands.activateEditor}
                   onCloseFile={closeFloatingItemConfirmed}
                   onActivateBrowserTab={model.commands.activateBrowser}
@@ -196,6 +214,7 @@ export function renderFloatingTerminalPanelSurface({
                 onMinimize={() => onOpenChange(false)}
               />
             </div>
+            <FloatingOpenSessionPicker />
 
             <div
               className="relative min-h-0 flex-1 overflow-hidden bg-background"
@@ -209,7 +228,13 @@ export function renderFloatingTerminalPanelSurface({
                 // Why the flex frame: the tree's nodes size themselves as flex items (flex-1), so
                 // the host must own their rect with a flex container — same contract as
                 // WorktreeSplitSurface. In a block parent every pane collapses to 0px.
-                <div className="absolute inset-0 flex" data-floating-workspace-surface-frame>
+                // Why the overlay root: a session shown by reference portals its host in here;
+                // without it the host stays in its owner's hidden layer.
+                <div
+                  ref={layoutOverlayRootRef(FLOATING_TERMINAL_WORKTREE_ID)}
+                  className="absolute inset-0 flex"
+                  data-floating-workspace-surface-frame
+                >
                   <TabGroupSplitNodeTree
                     layout={surface.layout}
                     worktreeId={FLOATING_TERMINAL_WORKTREE_ID}
