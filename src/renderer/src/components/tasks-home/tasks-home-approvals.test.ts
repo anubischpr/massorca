@@ -49,15 +49,28 @@ describe('deriveApprovalRows', () => {
     expect(rows.map((row) => row.paneKey).sort()).toEqual([pk('tab-1'), pk('tab-2')])
   })
 
-  it('ignores a stale or unconfirmed restored status', () => {
+  it('ignores an unconfirmed restored status', () => {
     const rows = deriveApprovalRows(
-      state([
-        entry({ paneKey: pk('tab-1'), updatedAt: NOW - 24 * 60 * 60 * 1000 }),
-        entry({ paneKey: pk('tab-2'), restoredUnconfirmed: true })
-      ]),
+      state([entry({ paneKey: pk('tab-1'), restoredUnconfirmed: true })]),
       NOW
     )
     expect(rows).toEqual([])
+  })
+
+  it('keeps a blocked session listed however long its prompt has waited', () => {
+    const waitedSince = NOW - 2 * 60 * 60 * 1000
+    const rows = deriveApprovalRows(
+      state([
+        entry({
+          paneKey: pk('tab-1'),
+          state: 'blocked',
+          updatedAt: waitedSince,
+          stateStartedAt: waitedSince
+        })
+      ]),
+      NOW
+    )
+    expect(rows.map((row) => row.paneKey)).toEqual([pk('tab-1')])
   })
 
   it('names the row after its session tab and says what it waits on', () => {
