@@ -1,28 +1,27 @@
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
+import { GitHubAccountsCard } from './GitHubAccountsCard'
 import { GITHUB_CLI_URL } from './marketplace-catalog'
 import type { MarketplaceBadgeState } from './marketplace-status'
 
 export function GitHubDetail({ state }: { state: MarketplaceBadgeState }): React.JSX.Element {
-  if (state === 'signed-in') {
+  if (state === 'signed-in' || state === 'not-signed-in') {
     return (
-      <p className="text-sm">
-        {translate(
-          'auto.components.marketplace.GitHubDetail.signedIn',
-          'The GitHub CLI is signed in on this computer.'
-        )}
-      </p>
-    )
-  }
-  if (state === 'not-signed-in') {
-    return (
-      <p className="text-sm">
-        {translate(
-          'auto.components.marketplace.GitHubDetail.signIn',
-          'Sign in with {{command}} on this computer.',
-          { command: 'gh auth login' }
-        )}
-      </p>
+      <div className="flex flex-col gap-4">
+        <p className="text-sm">
+          {state === 'signed-in'
+            ? translate(
+                'auto.components.marketplace.GitHubDetail.signedIn',
+                'The GitHub CLI is signed in on this computer.'
+              )
+            : translate(
+                'auto.components.marketplace.GitHubDetail.signIn',
+                'Sign in with {{command}} on this computer.',
+                { command: 'gh auth login' }
+              )}
+        </p>
+        <GitHubAccountsCard />
+      </div>
     )
   }
   if (state === 'not-installed') {
