@@ -7,7 +7,6 @@ import type { WorktreeLineage } from '../../../../../../shared/worktree/lineage-
 import type { ExecutionHostId } from '../../../../../../shared/execution-host'
 import { computeVisibleWorktrees } from '../../visible-worktrees'
 import { useBotTeamWorkspaceIds } from '../../../bot-teams/use-bot-teams'
-import { useBotTeamWorktreeIds } from '../../use-bot-team-visibility'
 import {
   EMPTY_PAIRED_DEVICE_IDS_BY_ENVIRONMENT,
   getPairedDeviceIdsByEnvironment
@@ -79,7 +78,6 @@ export function useVisibleSidebarWorktrees(args: {
   )
 
   const botTeamWorkspaceIds = useBotTeamWorkspaceIds()
-  const botTeamWorktreeIds = useBotTeamWorktreeIds()
   const recomputedVisibleWorktrees = useMemo(() => {
     // Keyed on the epoch, not `agentStatusNow`: two bumps in one millisecond
     // share a sample, so the timestamp alone would not re-key this memo.
@@ -116,14 +114,12 @@ export function useVisibleSidebarWorktrees(args: {
         ? [args.agentSendTargetWorktreeId]
         : undefined,
       botTeamWorkspaceIds,
-      showBotTeamWorkspaces,
-      botTeamWorktreeIds
+      showBotTeamWorkspaces
     })
   }, [
     args.agentSendTargetWorktreeId,
     agentStatusEpoch,
     botTeamWorkspaceIds,
-    botTeamWorktreeIds,
     showBotTeamWorkspaces,
     agentStatusNow,
     filterRepoIds,
