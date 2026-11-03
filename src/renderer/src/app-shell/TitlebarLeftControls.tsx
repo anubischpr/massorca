@@ -9,6 +9,7 @@ import {
   ContextMenuTrigger
 } from '@/components/ui/context-menu'
 import { shouldShowWorktreeHistoryControls } from '../lib/titlebar-worktree-history-controls'
+import { hasLeftSidebarToggle } from './left-sidebar-views'
 import {
   canGoBackWorktreeHistory,
   canGoForwardWorktreeHistory
@@ -89,7 +90,7 @@ export function TitlebarLeftControls({ layout }: { layout: AppChromeLayout }): R
             </ContextMenuContent>
           </ContextMenu>
         )}
-        {layout.showSidebar && (
+        {hasLeftSidebarToggle(layout.activeView) && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button

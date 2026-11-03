@@ -290,6 +290,9 @@ export const AGENT_SESSION_QUESTION_ANSWERS_RUNTIME_CAPABILITY =
 // (agentSessionAttachment.*); an older server has no store, so clients must refuse
 // the attach rather than hand the agent a path from this machine.
 export const AGENT_SESSION_ATTACHMENTS_RUNTIME_CAPABILITY = 'agent-session.attachments.v1' as const
+// Why: agentSessionChecklist.* keeps the person's checklist marks on the host that owns the chat; an
+// older host answers method_not_found, so clients show the checklist read-only.
+export const AGENT_SESSION_CHECKLIST_RUNTIME_CAPABILITY = 'agent-session.checklist.v1' as const
 // Why: agentSession.readRecordedFile serves a file the chat's agent wrote outside the worktree; an
 // older host answers method_not_found, so clients tell it apart to say "update the host".
 export const AGENT_SESSION_RECORDED_FILE_READ_RUNTIME_CAPABILITY =
@@ -417,6 +420,7 @@ export const RUNTIME_CAPABILITIES = [
   AGENT_SESSION_BACKGROUND_TASK_STOP_CAPABILITY,
   AGENT_SESSION_QUESTION_ANSWERS_RUNTIME_CAPABILITY,
   AGENT_SESSION_ATTACHMENTS_RUNTIME_CAPABILITY,
+  AGENT_SESSION_CHECKLIST_RUNTIME_CAPABILITY,
   AGENT_SESSION_RECORDED_FILE_READ_RUNTIME_CAPABILITY,
   REPO_INIT_GIT_RUNTIME_CAPABILITY,
   AGENT_SESSION_TURN_ITEM_CAPABILITY,

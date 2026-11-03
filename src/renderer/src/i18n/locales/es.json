@@ -6486,7 +6486,8 @@
         },
         "OneLineSessionMenu": {
           "copyTitle": "Copiar título",
-          "sleep": "Dormir"
+          "sleep": "Dormir",
+          "splitView": "Vista dividida"
         }
       },
       "shared": {
@@ -12304,11 +12305,11 @@
           "keyDescription": "Pegue la clave API de la página Claves API de la consola seleccionada. Almacenado localmente, cifrado cuando el sistema operativo lo admite y enviado únicamente a ese sitio para actualizaciones de uso.",
           "keyPlaceholder": "Pegue la clave API de su plan de codificación GLM",
           "replace": "Reemplazar",
-          "save": "Ahorrar",
+          "save": "Guardar",
           "keyHelp": "La misma clave que usan sus herramientas de codificación para el plan (por ejemplo, Claude Code con ANTHROPIC_BASE_URL apuntando al sitio). Cambiar el sitio anterior cambia qué host lo recibe.",
           "usageTitle": "Uso del plan",
           "usageDescription": "Ventanas de cuota activas para el plan de codificación vinculado, actualizadas con el ciclo de uso de la barra de estado.",
-          "planLevel": "Plano: {{value0}}",
+          "planLevel": "Plan: {{value0}}",
           "hostOnly": "Cambie el sitio del plan y la clave API en la aplicación de escritorio de la computadora que ejecuta MassOrca.",
           "detailsUnavailable": "Los detalles de las credenciales del plan solo se pueden leer en la computadora que ejecuta MassOrca.",
           "siteUnavailable": "El sitio del plan de host no está disponible"
@@ -16367,7 +16368,7 @@
                 "annotation": {
                   "tray": {
                     "024467ceac": "Cancelar",
-                    "c16f932cb3": "Ahorrar",
+                    "c16f932cb3": "Guardar",
                     "09a7c1df70": "Editar anotación {{value0}}",
                     "449d2c2629": "Intención de la anotación"
                   }

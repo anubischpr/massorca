@@ -253,7 +253,7 @@ export function AppWorkspaceShell(props: {
                   'Retry the sidebar or switch tabs to reload this surface.'
                 )}
               >
-                <RightSidebar hideCloseButton={layout.workspaceChromeActive} />
+                <RightSidebar hideCloseButton />
               </RecoverableRenderErrorBoundary>
             ) : null}
           </div>

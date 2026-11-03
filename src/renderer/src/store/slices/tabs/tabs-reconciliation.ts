@@ -151,9 +151,10 @@ export function projectWorktreeTabModelReconciliation(
       ? group
       : { ...group, tabOrder, activeTabId, recentTabIds }
   })
+  // Why: a pane that shows another workspace's session holds no tab of its own.
   const prunedGroups =
     validTabs.length > 0
-      ? nextGroupsWithEmpty.filter((group) => group.tabOrder.length > 0)
+      ? nextGroupsWithEmpty.filter((group) => group.tabOrder.length > 0 || group.sessionRef)
       : nextGroupsWithEmpty
   const groupsChanged =
     prunedGroups.length !== groups.length ||

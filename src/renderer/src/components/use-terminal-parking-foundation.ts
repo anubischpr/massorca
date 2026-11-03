@@ -25,6 +25,7 @@ export function useTerminalParkingFoundation(controller: TerminalEditorCloseCont
     activeTabIdByWorktree,
     activeTabType,
     activeView,
+    activeWorktreeId,
     closeDialogDebounceTimersRef,
     measurableBackgroundWorktreeIdsRef,
     mountedWorktreeIdsRef,
@@ -40,6 +41,7 @@ export function useTerminalParkingFoundation(controller: TerminalEditorCloseCont
     setActiveTab,
     tabs,
     activeTabIdByWorktree,
+    activeWorktreeId,
     renderedActiveWorktreeId
   })
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type {
   PrototypeListedDesignSystem,
   PrototypeListedProposal,
@@ -59,6 +59,23 @@ export function usePrototypeSetForRequest(requestId: string): PrototypeListedSet
   const [listing, setListing] = useState<Listing>(latest)
   useEffect(() => subscribe(setListing), [])
   return listing.sets.find((set) => set.requestId === requestId) ?? null
+}
+
+/** The sets a delegated child chat made, newest first, so its finish notice in the parent can open them. */
+export function usePrototypeSetsOfChildSession(
+  childSessionId: string | null
+): readonly PrototypeListedSet[] {
+  const [listing, setListing] = useState<Listing>(latest)
+  useEffect(() => subscribe(setListing), [])
+  return useMemo(
+    () =>
+      childSessionId === null
+        ? []
+        : listing.sets
+            .filter((set) => set.sessionId === childSessionId)
+            .toSorted((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [listing.sets, childSessionId]
+  )
 }
 
 /**

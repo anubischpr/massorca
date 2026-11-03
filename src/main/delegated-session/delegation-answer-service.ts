@@ -196,6 +196,8 @@ export class DelegationAnswerService {
     }
     const route = routeDelegationRequest({
       summary: row.summary,
+      title: row.title,
+      prompt: row.prompt,
       writes: row.writes === 1,
       workspaceKind: row.workspace_kind,
       parentAgent: this.deps.readParent(sessionId)?.agent ?? null,

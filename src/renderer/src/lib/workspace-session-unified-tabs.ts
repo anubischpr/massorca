@@ -28,7 +28,11 @@ function prunePersistedLayoutForGroups(
   return { ...root, first, second }
 }
 
-function buildPersistedGroupsForWorktree(tabs: Tab[], groups: TabGroup[]): TabGroup[] {
+function buildPersistedGroupsForWorktree(
+  tabs: Tab[],
+  groups: TabGroup[],
+  showsSavedSession: (ref: NonNullable<TabGroup['sessionRef']>) => boolean
+): TabGroup[] {
   const validTabIds = new Set(tabs.map((tab) => tab.id))
   const tabIdsByGroup = new Map<string, string[]>()
   for (const tab of tabs) {
@@ -53,7 +57,10 @@ function buildPersistedGroupsForWorktree(tabs: Tab[], groups: TabGroup[]): TabGr
         recentTabIds: group.recentTabIds?.filter((tabId) => orderedTabIds.has(tabId))
       }
     })
-    .filter((group) => group.tabOrder.length > 0)
+    .filter((group) =>
+      // Why: a pane that shows another workspace's session holds no tab, and is saved only while that session is.
+      group.sessionRef ? showsSavedSession(group.sessionRef) : group.tabOrder.length > 0
+    )
 }
 
 export function buildPersistedUnifiedTabSessionData(
@@ -79,18 +86,21 @@ export function buildPersistedUnifiedTabSessionData(
   for (const worktreeId of worktreeIds) {
     // Why: a recorded-file tab reopens from its host, so it never reaches the saved session.
     const tabs = (sourceTabs[worktreeId] ?? []).filter((tab) => tab.contentType !== 'recorded-file')
-    if (tabs.length === 0) {
+    const sourceWorktreeGroups = sourceGroups[worktreeId] ?? []
+    if (tabs.length === 0 && !sourceWorktreeGroups.some((group) => group.sessionRef)) {
       continue
     }
 
-    const groups = buildPersistedGroupsForWorktree(tabs, sourceGroups[worktreeId] ?? [])
+    const groups = buildPersistedGroupsForWorktree(tabs, sourceWorktreeGroups, (ref) =>
+      (sourceTabs[ref.worktreeId] ?? []).some((tab) => tab.id === ref.tabId)
+    )
     if (groups.length === 0) {
       continue
     }
 
     const groupIds = new Set(groups.map((group) => group.id))
     const persistedTabs = tabs.filter((tab) => groupIds.has(tab.groupId))
-    if (persistedTabs.length === 0) {
+    if (persistedTabs.length === 0 && !groups.some((group) => group.sessionRef)) {
       continue
     }
 

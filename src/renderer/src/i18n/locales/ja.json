@@ -6461,7 +6461,8 @@
         },
         "OneLineSessionMenu": {
           "copyTitle": "タイトルをコピー",
-          "sleep": "スリープ"
+          "sleep": "スリープ",
+          "splitView": "分割表示"
         }
       },
       "shared": {

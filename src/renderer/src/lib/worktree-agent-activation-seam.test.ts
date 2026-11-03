@@ -222,7 +222,7 @@ describe('worktree agent activation seam', () => {
     expect(tabs[0]?.ptyId).toBe(livePtyId)
   })
 
-  it('spawns a fallback when the workspace has no agent', async () => {
+  it('creates no fallback shell when the workspace has no agent', async () => {
     const worktree = makeWorktree()
     useAppStore.setState(baseState())
     stubInventory()
@@ -230,12 +230,10 @@ describe('worktree agent activation seam', () => {
     expect(activateAndRevealWorktree(worktree.id)).toEqual({ primaryTabId: null })
     await waitForWorktreeAgentActivationGateForTests(worktree.id)
 
-    const tabs = useAppStore.getState().tabsByWorktree[worktree.id] ?? []
-    expect(tabs).toHaveLength(1)
-    expect(tabs[0]?.ptyId).toBeNull()
+    expect(useAppStore.getState().tabsByWorktree[worktree.id] ?? []).toHaveLength(0)
   })
 
-  it('re-seeds an explicitly activated workspace with a closed terminal tombstone', async () => {
+  it('creates no shell for an explicitly activated workspace with a closed terminal tombstone', async () => {
     const worktree = makeWorktree()
     useAppStore.setState({
       ...baseState(),
@@ -247,10 +245,8 @@ describe('worktree agent activation seam', () => {
     expect(activateAndRevealWorktree(worktree.id)).toEqual({ primaryTabId: null })
     await waitForWorktreeAgentActivationGateForTests(worktree.id)
 
-    const tabs = useAppStore.getState().tabsByWorktree[worktree.id] ?? []
-    expect(tabs).toHaveLength(1)
-    // A fresh shell, never a second surface forked onto the live agent's PTY.
-    expect(tabs[0]?.ptyId).toBeNull()
+    // With no shell, no second surface can attach to a live agent's PTY.
+    expect(useAppStore.getState().tabsByWorktree[worktree.id] ?? []).toHaveLength(0)
   })
 
   it('does not race an explicitly promised surface with a fallback terminal', async () => {
@@ -267,9 +263,9 @@ describe('worktree agent activation seam', () => {
   })
 
   // A paired-runtime owner is always omitted from its own scoped census, and an SSH relay that
-  // never answered omits everything. Declining to mint is right; leaving the workspace with no
-  // surface at all is not — the user asked for a pane and must get one.
-  it('still seeds a usable pane when the census cannot prove who owns a live PTY', async () => {
+  // never answered omits everything. Declining to mint is right, and an empty workspace gets no
+  // plain shell in its place.
+  it('creates no shell when the census cannot prove who owns a live PTY', async () => {
     const worktree = makeWorktree()
     const livePtyId = `${worktree.id}@@live-codex`
     useAppStore.setState(baseState())
@@ -278,9 +274,7 @@ describe('worktree agent activation seam', () => {
     expect(activateAndRevealWorktree(worktree.id)).toEqual({ primaryTabId: null })
     await waitForWorktreeAgentActivationGateForTests(worktree.id)
 
-    const tabs = useAppStore.getState().tabsByWorktree[worktree.id] ?? []
-    expect(tabs).toHaveLength(1)
-    expect(tabs[0]?.ptyId).toBeNull()
+    expect(useAppStore.getState().tabsByWorktree[worktree.id] ?? []).toHaveLength(0)
   })
 
   it('does not spawn before a structured chat tab hydrates', async () => {
@@ -317,7 +311,7 @@ describe('worktree agent activation seam', () => {
     expect(listSessions).not.toHaveBeenCalled()
   })
 
-  it('blocks seeding while detached and allows activation after the owning relay answers', async () => {
+  it('blocks while detached and adds no shell once the owning relay answers', async () => {
     const worktree = makeWorktree()
     useAppStore.setState({
       ...baseState(),
@@ -341,10 +335,9 @@ describe('worktree agent activation seam', () => {
     activateAndRevealWorktree(worktree.id)
     await expect(waitForWorktreeAgentActivationGateForTests(worktree.id)).resolves.toBe('empty')
     expect(listSessions.mock.calls).toEqual([[{ connectionId: 'box' }], [{ connectionId: 'box' }]])
-    await vi.waitFor(() =>
-      expect(useAppStore.getState().tabsByWorktree[worktree.id] ?? []).toHaveLength(1)
-    )
-    expect(useAppStore.getState().tabsByWorktree[worktree.id]?.[0]?.ptyId).toBeNull()
+    // Flush pending seeding work so an async shell would show before the empty check.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(useAppStore.getState().tabsByWorktree[worktree.id] ?? []).toHaveLength(0)
   })
 
   it('preserves a sleeping OMP session until its execution host can answer', async () => {

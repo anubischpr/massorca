@@ -56,6 +56,7 @@ import { AGENT_SESSION_METHODS } from './agent-session'
 import { STRUCTURED_AGENT_SESSION_METHODS } from './structured-agent-session'
 import { STRUCTURED_AGENT_SESSION_ATTACHMENT_METHODS } from './structured-agent-session-attachments'
 import { STRUCTURED_AGENT_SESSION_VISUAL_METHODS } from './structured-agent-session-visual'
+import { STRUCTURED_AGENT_SESSION_CHECKLIST_METHODS } from './structured-agent-session-checklist'
 import { STRUCTURED_AGENT_SESSION_PLAN_DOCUMENT_METHODS } from './structured-agent-session-plan-document'
 import { STRUCTURED_AGENT_SESSION_RECORDED_FILE_METHODS } from './structured-agent-session-recorded-file'
 import { STRUCTURED_AGENT_SESSION_AGENTS_METHODS } from './structured-agent-session-agents'
@@ -85,6 +86,7 @@ export const ALL_RPC_METHODS = [
   ...STRUCTURED_AGENT_SESSION_METHODS,
   ...STRUCTURED_AGENT_SESSION_ATTACHMENT_METHODS,
   ...STRUCTURED_AGENT_SESSION_VISUAL_METHODS,
+  ...STRUCTURED_AGENT_SESSION_CHECKLIST_METHODS,
   ...STRUCTURED_AGENT_SESSION_PLAN_DOCUMENT_METHODS,
   ...STRUCTURED_AGENT_SESSION_RECORDED_FILE_METHODS,
   ...STRUCTURED_AGENT_SESSION_PROTOTYPE_METHODS,

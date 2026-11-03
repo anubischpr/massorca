@@ -253,8 +253,10 @@ function reasonText(code: DelegationReasonCode): string | undefined {
       return 'Effort is lowered to what this agent supports'
     case 'read-only-current-worktree':
       return 'Read-only task, so it runs in this worktree'
+    // Why: a placement alone cannot tell these apart, so both word it for either case.
     case 'writes-new-child-worktree':
-      return 'Writes code, so it gets its own worktree'
+    case 'uncertain-new-child-worktree':
+      return 'May change files, so it gets its own worktree'
     case 'folder-workspace-writes':
       return 'Folder workspace, so writes land in this folder'
     // Shown by the usage line instead of as a reason.

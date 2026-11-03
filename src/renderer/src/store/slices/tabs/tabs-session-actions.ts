@@ -7,6 +7,7 @@ import {
   collectPersistedWorktreeIdsForSessionHydration
 } from '../degraded-repo-worktree-validity'
 import { buildHydratedTabState } from '../tabs-hydration'
+import { restorablePaneFocus } from '../tabs-hydration-session-refs'
 import { projectWorktreeTabModelReconciliation } from './tabs-reconciliation'
 import { createWorktreeTabModelReconciliationBatch } from './tabs-reconciliation-batch'
 import type { AppState } from '../../types'
@@ -87,7 +88,23 @@ export function createTabsSessionActions(
       addAdditionalValidWorkspaceKeys(validWorktreeIds, options)
       const hydrated = buildHydratedTabState(session, validWorktreeIds)
       if (!options?.replaceWorkspaceKeys) {
-        set(hydrated)
+        const paneFocus = restorablePaneFocus(
+          session.paneFocus,
+          hydrated.groupsByWorktree,
+          state.activeWorktreeId
+        )
+        set(
+          paneFocus
+            ? {
+                ...hydrated,
+                paneFocus,
+                activeGroupIdByWorktree: {
+                  ...hydrated.activeGroupIdByWorktree,
+                  [paneFocus.layoutWorktreeId]: paneFocus.groupId
+                }
+              }
+            : hydrated
+        )
         return
       }
       const replaceWorkspaceKeys = new Set(options.replaceWorkspaceKeys)

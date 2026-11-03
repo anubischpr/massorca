@@ -195,7 +195,7 @@ export function buildCmdJQuickActionContext(args: {
     openCreateWorkspace: args.openCreateWorkspace,
     deleteActiveWorkspace: args.deleteActiveWorkspace,
     openAddQuickCommand: args.openAddQuickCommand,
-    canSplitActiveChat: canRunNativeChatSplitTarget(args.state, activeChatTarget),
+    canSplitActiveChat: canRunNativeChatSplitTarget(activeChatTarget),
     splitActiveChat: (direction) =>
       runActiveNativeChatSplit(activeWorktreeId, activeGroupId, direction)
   }

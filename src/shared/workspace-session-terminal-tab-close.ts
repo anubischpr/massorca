@@ -210,7 +210,8 @@ export function closeTerminalTabInWorkspaceSession(
         recentTabIds: group.recentTabIds?.filter((id) => remainingIds.has(id))
       }
     })
-    .filter((group) => group.tabOrder.length > 0)
+    // Why: a pane that shows another workspace's session holds no tab of its own.
+    .filter((group) => group.tabOrder.length > 0 || group.sessionRef !== undefined)
   const validGroupIds = new Set(nextGroups.map((group) => group.id))
   const priorActiveGroupId = session.activeGroupIdByWorktree?.[worktreeId]
   const nextActiveGroupId = validGroupIds.has(priorActiveGroupId ?? '')

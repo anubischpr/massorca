@@ -207,6 +207,7 @@ export function buildMirroredHostGroups({
     if (
       !seen.has(group.id) &&
       (group.tabOrder.length > 0 ||
+        group.sessionRef !== undefined ||
         isWebSessionBrowserPlacementGroupReserved({ worktreeId, groupId: group.id }))
     ) {
       orderedGroups.push(group)

@@ -26,6 +26,7 @@ vi.mock('../store', () => ({ useAppStore: store }))
 const { SessionBar } = await import('./SessionBar')
 const { useSessionBarActionsTarget } = await import('./session-bar-slot')
 const { TOP_BAR_SURFACE_CLASS } = await import('./top-bar-surface')
+const { selectSidePanelOpen } = await import('../store/slices/tabs/side-panel-state')
 
 const WT = 'repo::/work/a'
 const mounted: { container: HTMLDivElement; root: Root }[] = []
@@ -111,7 +112,7 @@ describe('SessionBar', () => {
     expect(sidePanel?.getAttribute('aria-pressed')).toBe('false')
     expect(rightSidebar?.getAttribute('aria-pressed')).toBe('false')
     act(() => sidePanel?.click())
-    expect(store.getState().sidePanelOpenByWorktree[WT]).toBe(true)
+    expect(selectSidePanelOpen(store.getState(), WT)).toBe(true)
     expect(sidePanel?.getAttribute('aria-pressed')).toBe('true')
     act(() => rightSidebar?.click())
     expect(store.getState().rightSidebarOpen).toBe(true)
@@ -194,5 +195,62 @@ describe('SessionBar surface', () => {
       expect(bar?.className).toContain(token)
     }
     expect(bar?.className).not.toContain('bg-background')
+  })
+})
+
+describe('SessionBar closing a split pane', () => {
+  function splitInto(activeGroup: 'main' | 'pane2') {
+    seedStore(store, {
+      unifiedTabsByWorktree: {
+        [WT]: [
+          makeUnifiedTab({
+            id: 'chat',
+            worktreeId: WT,
+            groupId: 'main',
+            contentType: 'agent-session',
+            label: 'First'
+          }),
+          makeUnifiedTab({
+            id: 'chat2',
+            worktreeId: WT,
+            groupId: 'pane2',
+            contentType: 'agent-session',
+            label: 'Second'
+          })
+        ]
+      },
+      groupsByWorktree: {
+        [WT]: [
+          makeTabGroup({ id: 'main', worktreeId: WT, tabOrder: ['chat'], activeTabId: 'chat' }),
+          makeTabGroup({ id: 'pane2', worktreeId: WT, tabOrder: ['chat2'], activeTabId: 'chat2' })
+        ]
+      },
+      activeGroupIdByWorktree: { [WT]: activeGroup },
+      layoutByWorktree: {
+        [WT]: {
+          type: 'split',
+          direction: 'horizontal',
+          first: { type: 'leaf', groupId: 'main' },
+          second: { type: 'leaf', groupId: 'pane2' }
+        }
+      }
+    })
+  }
+
+  it('has no Close split pane button while there is one pane', () => {
+    expect(mountBar().querySelector('button[aria-label="Close split pane"]')).toBeNull()
+  })
+
+  it('closes the focused pane from a mouse button and keeps every session', () => {
+    splitInto('pane2')
+    const close = mountBar().querySelector<HTMLButtonElement>(
+      'button[aria-label="Close split pane"]'
+    )
+    expect(close).not.toBeNull()
+    act(() => close?.click())
+    const state = store.getState()
+    expect(state.groupsByWorktree[WT].map((group) => group.id)).toEqual(['main'])
+    expect(state.groupsByWorktree[WT][0].tabOrder).toEqual(['chat', 'chat2'])
+    expect(state.layoutByWorktree[WT]).toEqual({ type: 'leaf', groupId: 'main' })
   })
 })

@@ -1,9 +1,11 @@
 import { useMobilePrototypeMenuCount } from '../prototypes/use-mobile-prototype-menu-count'
 import { resolveMobileSessionQuickCommandsAction } from './mobile-session-quick-commands-action'
 import { MobileSessionHeaderMoreActionsSheet } from './MobileSessionHeaderMoreActionsSheet'
+import { MobileNativeChatChecklistSheets } from './MobileNativeChatChecklistSheets'
 import { MobilePlanSheet } from './MobilePlanSheet'
 import { MobileSessionsSheet } from './MobileSessionsSheet'
 import type { MobileSessionController } from './use-mobile-session-controller'
+import { formatAgentTypeLabel } from '../../../src/shared/agent-type-label'
 
 /** The sheets the native chat opens from its header: the session switcher, the plan, and the ⋯ menu. */
 export function MobileSessionChatSheets({ controller }: { controller: MobileSessionController }) {
@@ -29,6 +31,9 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
     openPlanSheet,
     planSheetOpen,
     setPlanSheetOpen,
+    chatChecklist,
+    checklistHint,
+    openChecklist,
     headerMenu,
     recordedFileCount,
     openSummary,
@@ -64,14 +69,23 @@ export function MobileSessionChatSheets({ controller }: { controller: MobileSess
         plan={planSteps}
         onClose={() => setPlanSheetOpen(false)}
       />
+      <MobileNativeChatChecklistSheets
+        view={chatChecklist}
+        agentLabel={formatAgentTypeLabel(controller.nativeChatController.nativeChatAgent)}
+        onSendNow={() => {
+          void controller.nativeChatController.handleNativeChatSend('Checklist updated.')
+        }}
+      />
       <MobileSessionHeaderMoreActionsSheet
         visible={showHeaderMoreActions}
         menu={headerMenu}
         planHint={planProgress ? `${planProgress.done} of ${planProgress.total} done` : undefined}
+        checklistHint={checklistHint}
         recordedFileCount={recordedFileCount}
         prototypesBadge={prototypeCount > 0 ? String(prototypeCount) : undefined}
         onOpenPrototypes={openPrototypes}
         onOpenPlan={openPlanSheet}
+        onOpenChecklist={openChecklist}
         onOpenSummary={openSummary}
         onOpenArtifacts={openArtifacts}
         quickCommandsDisabled={creationBlocked}

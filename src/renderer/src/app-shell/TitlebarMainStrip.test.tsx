@@ -78,6 +78,22 @@ describe('TitlebarMainStrip page actions', () => {
       workspaceChromeActive: false
     })
     const slot = container.querySelector('[data-page-top-band-actions]')
-    expect(slot?.nextElementSibling?.getAttribute('aria-label')).toBe('Toggle right sidebar')
+    expect(
+      slot?.nextElementSibling?.querySelector('button[aria-label="Toggle right sidebar"]')
+    ).not.toBeNull()
+    // Why: the band is a window drag region, and Electron would swallow the click otherwise.
+    expect(slot?.nextElementSibling?.className).toContain('[-webkit-app-region:no-drag]')
+  })
+
+  it('keeps the right sidebar toggle in the band while the sidebar is open, marked pressed', () => {
+    store.setState({ rightSidebarOpen: true })
+    const container = mount({
+      activeView: 'prototypes',
+      showRightSidebarControls: true,
+      rightSidebarOpen: true,
+      workspaceChromeActive: false
+    })
+    const toggle = container.querySelector('button[aria-label="Toggle right sidebar"]')
+    expect(toggle?.getAttribute('aria-pressed')).toBe('true')
   })
 })

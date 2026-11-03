@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import '@testing-library/jest-dom/vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as ActivationModule from '@/lib/structured-agent-session-tab-activation'
 import { useAppStore } from '@/store'
@@ -8,14 +8,26 @@ import type {
   DelegationNoticePayload,
   DelegationStartedPayload
 } from '../../../../shared/delegated-session-journal'
+import type { PrototypeListedSet } from '../../../../shared/rpc-contract/prototype-params'
 import type { Tab } from '../../../../shared/tab-types'
+import { usePrototypeViewStore } from '../prototypes/prototype-view-store'
 import { DelegatedChildrenProvider } from './delegated-children-context'
 import { NativeChatDelegationNotice } from './NativeChatDelegationNotice'
 
 const mocks = vi.hoisted(() => ({
   activate: vi.fn(() => true),
   reveal: vi.fn(() => true),
-  chatName: vi.fn((): string | null => null)
+  chatName: vi.fn((): string | null => null),
+  prototypeSets: new Array<PrototypeListedSet>()
+}))
+
+vi.mock('../prototypes/prototype-host-targets', () => ({
+  listPrototypeSetsFromAllHosts: async () => ({
+    answered: true,
+    sets: mocks.prototypeSets,
+    designSystems: [],
+    proposals: []
+  })
 }))
 
 vi.mock('@/lib/structured-agent-session-tab-activation', async (importOriginal) => ({
@@ -42,6 +54,21 @@ const childTab: Tab = {
   createdAt: 1
 }
 
+function childSet(requestId: string, sessionId: string, createdAt: string): PrototypeListedSet {
+  return {
+    requestId,
+    sessionId,
+    agent: 'codex',
+    worktreeId: 'wt-child',
+    chatTitle: 'Checkout redesign',
+    originalPrompt: `Prototype ${requestId}`,
+    createdAt,
+    count: 3,
+    directions: [],
+    origin: { sessionId: 'parent-1' }
+  }
+}
+
 const finished: DelegationNoticePayload = {
   requestId: 'req-1',
   title: 'Explore Gentle Shell v5',
@@ -58,6 +85,7 @@ afterEach(() => {
   mocks.reveal.mockClear()
   mocks.chatName.mockReset()
   mocks.chatName.mockReturnValue(null)
+  mocks.prototypeSets = []
   useAppStore.setState({ unifiedTabsByWorktree: {}, activeWorktreeId: null })
 })
 
@@ -128,6 +156,25 @@ describe('NativeChatDelegationNotice', () => {
     expect(screen.getByText('12 min · succeeded')).toBeInTheDocument()
     expect(screen.getByText('Three features worth adopting.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open child chat' })).toBeNull()
+  })
+
+  it('links the prototype a child made, from its finish in the parent, to the same set', async () => {
+    mocks.prototypeSets = [
+      childSet('req-other', 'someone-else', '2026-11-02T09:00:00.000Z'),
+      childSet('req-proto', 'child-1', '2026-11-02T10:00:00.000Z')
+    ]
+    render(<NativeChatDelegationNotice payload={finished} />)
+    const cards = await screen.findAllByText('Open in Prototypes ›')
+    expect(cards).toHaveLength(1)
+    fireEvent.click(cards[0])
+    expect(usePrototypeViewStore.getState().selectedRequestId).toBe('req-proto')
+    expect(useAppStore.getState().activeView).toBe('prototypes')
+  })
+
+  it('shows no prototype link for a child that made none', async () => {
+    mocks.prototypeSets = [childSet('req-other', 'someone-else', '2026-11-02T09:00:00.000Z')]
+    render(<NativeChatDelegationNotice payload={finished} />)
+    await waitFor(() => expect(screen.queryByText('Open in Prototypes ›')).toBeNull())
   })
 
   it('opens the child in whichever worktree lists it', () => {

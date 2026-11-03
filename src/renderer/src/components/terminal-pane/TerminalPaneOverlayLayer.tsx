@@ -10,6 +10,11 @@ import {
 import { shouldMountBackgroundWorktreeTab } from '../terminal/background-terminal-worktree-mount'
 import { useNativeChatToggleShortcut } from '../native-chat/use-native-chat-toggle-shortcut'
 import { RetainedPaneHost } from '../tab-group/RetainedPaneHost'
+import {
+  referencedPlacement,
+  selectLayoutWorktreeId,
+  selectReferencedSessions
+} from '../../store/slices/tabs/pane-session-ref'
 import { TerminalOverlaySlot } from './TerminalOverlaySlot'
 import { captureWorkspaceEmptiedReaction } from '../tab-group/workspace-emptied-reaction'
 import { TerminalRestoringPlaceholder } from './TerminalRestoringPlaceholder'
@@ -63,6 +68,9 @@ const TerminalPaneOverlayLayer = memo(function TerminalPaneOverlayLayer({
     }))
   )
   const focusGroup = useAppStore((state) => state.focusGroup)
+  const referenced = useAppStore(selectReferencedSessions)
+  const layoutWorktreeId = useAppStore(selectLayoutWorktreeId)
+  const activeGroupIdByWorktree = useAppStore((state) => state.activeGroupIdByWorktree)
   const consumeSuppressedPtyExit = useAppStore((state) => state.consumeSuppressedPtyExit)
 
   useNativeChatToggleShortcut(worktreeId, isWorktreeActive && ownsNativeChatToggleShortcut)
@@ -73,8 +81,12 @@ const TerminalPaneOverlayLayer = memo(function TerminalPaneOverlayLayer({
   )
 
   const focusOwningGroup = useCallback(
-    (groupId: string) => focusGroup(worktreeId, groupId),
-    [focusGroup, worktreeId]
+    (groupId: string) => {
+      // Why: a pane that shows this workspace's session from another workspace's layout takes the focus there.
+      const shownIn = [...referenced.values()].find((entry) => entry.groupId === groupId)
+      focusGroup(shownIn?.layoutWorktreeId ?? worktreeId, groupId)
+    },
+    [focusGroup, referenced, worktreeId]
   )
 
   const groupActiveTabById = useMemo(() => {
@@ -133,14 +145,28 @@ const TerminalPaneOverlayLayer = memo(function TerminalPaneOverlayLayer({
     <>
       {terminalTabs.map((terminalTab) => {
         const assignment = assignments.get(terminalTab.id)
-        const isVisible = Boolean(isWorktreeActive && assignment?.isActiveInGroup)
-        if (!shouldMountBackgroundWorktreeTab(backgroundMountTabIds, terminalTab.id)) {
+        // Why: a session some pane shows by reference is placed by that pane, and only while its layout is on screen.
+        const shown = assignment
+          ? referencedPlacement(
+              referenced,
+              assignment.unifiedTabId,
+              layoutWorktreeId,
+              activeGroupIdByWorktree
+            )
+          : null
+        const isVisible = shown
+          ? shown.isVisible
+          : Boolean(isWorktreeActive && assignment?.isActiveInGroup)
+        if (
+          !shown?.isVisible &&
+          !shouldMountBackgroundWorktreeTab(backgroundMountTabIds, terminalTab.id)
+        ) {
           // Why only the startup hold lands here visible: reveal admits every other visible
           // deferred tab in the same render pass.
           return isVisible ? (
             <RetainedPaneHost
               key={terminalTab.id}
-              groupId={assignment?.groupId}
+              groupId={shown ? shown.groupId : assignment?.groupId}
               isVisible
               onFocusOwningGroup={focusOwningGroup}
             >
@@ -148,12 +174,15 @@ const TerminalPaneOverlayLayer = memo(function TerminalPaneOverlayLayer({
             </RetainedPaneHost>
           ) : null
         }
-        const isActive = Boolean(isVisible && assignment?.groupId === activeGroupId)
+        const isActive = shown
+          ? shown.isFocusedGroup
+          : Boolean(isVisible && assignment?.groupId === activeGroupId)
         const activityTerminalPortal = findActivityTerminalPortal(activityTerminalPortals, {
           worktreeId,
           tabId: terminalTab.id
         })
-        if (parkedTerminalTabIds.has(terminalTab.id)) {
+        // Why: a shown reference is exempt from parking, or its pane would stay blank while the workspace that owns it is hidden.
+        if (parkedTerminalTabIds.has(terminalTab.id) && !shown?.isVisible) {
           return null
         }
         return (
@@ -164,11 +193,16 @@ const TerminalPaneOverlayLayer = memo(function TerminalPaneOverlayLayer({
             worktreeId={worktreeId}
             worktreePath={worktreePath}
             startupCwd={terminalTab.startupCwd}
-            groupId={assignment?.groupId}
-            isWorktreeActive={isWorktreeActive}
+            groupId={shown ? shown.groupId : assignment?.groupId}
+            isWorktreeActive={isWorktreeActive || Boolean(shown?.isVisible)}
             isVisible={isVisible}
             isActive={isActive}
             activityTerminalPortal={activityTerminalPortal}
+            portalWorktreeId={
+              shown?.isVisible && shown.focusWorktreeId !== worktreeId
+                ? shown.focusWorktreeId
+                : null
+            }
             onFocusOwningGroup={focusOwningGroup}
             consumeSuppressedPtyExit={consumeSuppressedPtyExit}
             captureEmptiedReaction={captureEmptiedReaction}

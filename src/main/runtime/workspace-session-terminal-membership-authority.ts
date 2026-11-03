@@ -89,7 +89,8 @@ function rebaseTabGroups(
 ): TabGroup[] {
   return groups.flatMap((group) => {
     const tabOrder = group.tabOrder.filter((tabId) => validTabIds.has(tabId))
-    if (tabOrder.length === 0) {
+    // Why: a pane that shows another workspace's session holds no tab; the renderer checks its target.
+    if (tabOrder.length === 0 && !group.sessionRef) {
       return []
     }
     const tabIds = new Set(tabOrder)

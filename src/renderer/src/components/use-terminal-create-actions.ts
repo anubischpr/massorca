@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { toast } from 'sonner'
 import type { TuiAgent } from '../../../shared/tui-agent'
 import { useAppStore } from '../store'
+import { claimFocusedReferencePane } from '../store/slices/tabs/pane-session-ref-new-session'
 import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
 import {
   createWebRuntimeSessionBrowserTab,
@@ -92,18 +93,22 @@ export function useTerminalCreateActions(controller: TerminalColdActivationContr
       if (!activeWorktreeId) {
         return
       }
+      const claimed = claimFocusedReferencePane(useAppStore.getState)
       const state = useAppStore.getState()
+      const worktreeId = claimed?.worktreeId ?? activeWorktreeId
       const targetGroupId =
-        state.activeGroupIdByWorktree[activeWorktreeId] ??
-        state.groupsByWorktree[activeWorktreeId]?.[0]?.id
+        claimed?.groupId ??
+        state.activeGroupIdByWorktree[worktreeId] ??
+        state.groupsByWorktree[worktreeId]?.[0]?.id
       const result = launchAgentInNewTab({
         requestId: newAgentLaunchRequestId(),
         agent,
-        worktreeId: activeWorktreeId,
+        worktreeId,
         groupId: targetGroupId,
         launchSource: 'shortcut'
       })
       if (!result) {
+        claimed?.restore()
         toast.error(
           translate(
             'auto.components.Terminal.e57db40c11',

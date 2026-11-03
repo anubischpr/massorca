@@ -11,6 +11,8 @@ import { resolveDelegationTarget } from './delegation-stored-request'
 
 const INPUT: DelegationRoutingInput = {
   summary: 'Implement the parser fix',
+  title: 'Parser fix',
+  prompt: 'Implement the parser fix.',
   writes: true,
   workspaceKind: 'git',
   parentAgent: 'claude',

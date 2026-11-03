@@ -71,8 +71,6 @@ function Watcher(): null {
     hydrationSucceeded: false,
     workspaceSurfaceIds: [],
     tabsByWorktree: {},
-    createTab: mocks.createTab,
-    reconcileWorktreeTabModel: () => ({ renderableTabCount: 0, activeRenderableTabId: null }),
     activationDeferredMountTabIdsByWorktreeRef: { current: new Map() },
     activeTabId: null,
     activeTabIdByWorktree: {},

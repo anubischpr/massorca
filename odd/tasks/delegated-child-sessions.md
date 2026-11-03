@@ -206,6 +206,10 @@ Out of scope (v1): switching to a second account of the same agent (follow-up); 
   - `df977304f83`: delegated rows and notices show the child's generated name when its host has one. The record already had the name on pv56. Review approved with warnings: the row's generated-name branch and the cross-worktree lookup are not directly tested.
   - Real-app check: local hidden app with a fake agent; the button opened the child in `current` and `new-child`, also after a restart. Not run: a paired remote host, real agents, parents in splits, clicks from a non-terminal view, or a generated name on screen.
   - Prototype capture is owned by the Prototipos session.
+- [x] T10 — pv57 delegation card QA (2026-10-31). Route: inline.
+  - `2195289cb44`: "No usage data" came from the router's 15-minute freshness limit against a meter that polls every 15 minutes at best. The host now refreshes stale meters before routing (8 s wait at most), and the limit is 30 minutes. Review approved.
+  - `6ad65e42ddc`: the card's Cancel did nothing with no live turn, on desktop and on mobile. It now cancels, and the host tells the parent agent once. Review abandoned: STATUS timed out (`operation_timeout`).
+  - Not run live: both fixes were tested with unit tests only, not on the preview or a paired client.
 
 ## Acceptance criteria
 

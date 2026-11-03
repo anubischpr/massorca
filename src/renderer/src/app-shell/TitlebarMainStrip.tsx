@@ -1,33 +1,28 @@
 import { PanelRight } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ActivityTitlebarControls } from '../components/activity/ActivityTitlebarControls'
 import { useShortcutLabel } from '../hooks/useShortcutLabel'
 import { useAppStore } from '../store'
 import { hasCustomTitleBar } from './app-window-chrome'
+import { BarToggle } from './BarToggle'
 import { setPageTopBandActionsTarget, setPageTopBandTitleTarget } from './page-top-band-slot'
 import type { AppChromeLayout } from './use-app-chrome-layout'
 
 export function RightSidebarToggle(): React.JSX.Element {
+  const rightSidebarOpen = useAppStore((s) => s.rightSidebarOpen)
   const toggleRightSidebar = useAppStore((s) => s.toggleRightSidebar)
   const rightSidebarShortcutLabel = useShortcutLabel('sidebar.right.toggle')
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          className="sidebar-toggle mr-2"
-          onClick={toggleRightSidebar}
-          aria-label={translate('auto.App.9e0b441a91', 'Toggle right sidebar')}
-        >
-          <PanelRight size={16} />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" sideOffset={6}>
-        {translate('auto.App.c184e056de', 'Toggle right sidebar ({{value0}})', {
-          value0: rightSidebarShortcutLabel
-        })}
-      </TooltipContent>
-    </Tooltip>
+    <BarToggle
+      label={translate('auto.App.9e0b441a91', 'Toggle right sidebar')}
+      tooltip={translate('auto.App.c184e056de', 'Toggle right sidebar ({{value0}})', {
+        value0: rightSidebarShortcutLabel
+      })}
+      pressed={rightSidebarOpen}
+      onClick={toggleRightSidebar}
+    >
+      <PanelRight />
+    </BarToggle>
   )
 }
 
@@ -59,11 +54,11 @@ export function TitlebarMainStrip({
         data-page-top-band-actions="true"
         className="flex shrink-0 items-center gap-1 [-webkit-app-region:no-drag]"
       />
-      {/* Why: the open right sidebar's header renders its own close button, and a workspace's session bar carries the toggle. */}
-      {layout.showRightSidebarControls &&
-      !layout.rightSidebarOpen &&
-      !layout.workspaceChromeActive ? (
-        <RightSidebarToggle />
+      {/* Why: one toggle, always left of the sidebar line; a workspace session bar has its own. */}
+      {layout.showRightSidebarControls && !layout.workspaceChromeActive ? (
+        <div className="mr-4 flex shrink-0 items-center [-webkit-app-region:no-drag]">
+          <RightSidebarToggle />
+        </div>
       ) : null}
       {/* Why: reserve space so the Windows/Linux window-controls overlay doesn't obscure content. */}
       {/* Why: an open right sidebar already covers the corner under the overlay. */}

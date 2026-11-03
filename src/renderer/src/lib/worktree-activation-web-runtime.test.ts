@@ -389,7 +389,7 @@ describe('ensureWorktreeHasInitialTerminal', () => {
     })
   })
 
-  it('creates a local initial terminal for explicitly local worktrees while a runtime is focused', () => {
+  it('creates no local initial terminal for an explicitly local worktree while a runtime is focused', () => {
     useAppStore.setState((state) => ({
       settings: state.settings
         ? { ...state.settings, activeRuntimeEnvironmentId: 'web-runtime-1' }
@@ -403,10 +403,8 @@ describe('ensureWorktreeHasInitialTerminal', () => {
 
     const result = ensureWorktreeHasInitialTerminal(store, 'wt-1')
 
-    expect(result).toBe('tab-1')
-    expect(store.createTab).toHaveBeenCalledWith('wt-1', undefined, undefined, {
-      pendingActivationSpawn: true
-    })
-    expect(store.setActiveTab).toHaveBeenCalledWith('tab-1')
+    expect(result).toBeNull()
+    expect(store.createTab).not.toHaveBeenCalled()
+    expect(store.setActiveTab).not.toHaveBeenCalled()
   })
 })

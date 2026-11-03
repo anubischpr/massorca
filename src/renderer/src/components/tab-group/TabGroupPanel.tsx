@@ -7,6 +7,8 @@ import { tabGroupBodyAnchorName } from './tab-group-body-anchor'
 import { registerTabGroupBody } from './tab-group-body-geometry'
 import { translate } from '@/i18n/i18n'
 import { useEditorGroupFileDropOwner } from '../editor/use-editor-group-file-drop-owner'
+import { isSidePanelGroupId } from '../../store/slices/tabs/side-panel-group'
+import { SessionPanePicker } from './SessionPanePicker'
 
 const EditorPanel = lazy(() => import('../editor/EditorPanel'))
 
@@ -41,7 +43,7 @@ export default function TabGroupPanel({
   isTabDragActive?: boolean
 }): React.JSX.Element {
   const model = useTabGroupWorkspaceModel({ groupId, worktreeId })
-  const { activeTab, commands } = model
+  const { activeTab, commands, shownElsewhere, showsReference } = model
   const { setNodeRef: setBodyDropRef } = useDroppable({
     id: getTabPaneBodyDroppableId(groupId),
     data: {
@@ -107,6 +109,13 @@ export default function TabGroupPanel({
             className="pointer-events-none absolute inset-x-0 top-1/4 h-px"
             data-contextual-tour-target="workspace-agent-terminal-tip"
           />
+        ) : null}
+        {/* Why: a split opens an empty pane, and the person picks which session goes in it. */}
+        {!activeTab &&
+        !showsReference &&
+        (hasSplitGroups || shownElsewhere) &&
+        !isSidePanelGroupId(groupId) ? (
+          <SessionPanePicker worktreeId={worktreeId} groupId={groupId} />
         ) : null}
         {activeTab &&
           activeTab.contentType !== 'terminal' &&

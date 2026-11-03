@@ -6461,7 +6461,8 @@
         },
         "OneLineSessionMenu": {
           "copyTitle": "复制标题",
-          "sleep": "休眠"
+          "sleep": "休眠",
+          "splitView": "分屏视图"
         }
       },
       "shared": {

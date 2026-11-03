@@ -9,15 +9,21 @@ test.beforeEach(async ({ orcaPage }) => {
   await ensureTerminalVisible(orcaPage)
 })
 
-test('the sidebar toggle stays clickable after hiding the sidebar from Tasks and coming back', async ({
+test('the sidebar toggle stays clickable after hiding the sidebar and leaving for Tasks and coming back', async ({
   orcaPage
 }) => {
   const rail = orcaPage.locator('nav[data-app-rail="true"]')
-  await rail.getByRole('button', { name: 'Tasks', exact: true }).click()
   await orcaPage.getByRole('button', { name: 'Toggle sidebar' }).first().click()
   await expect
     .poll(() => orcaPage.evaluate(() => window.__store?.getState().sidebarOpen))
     .toBe(false)
+
+  await rail.getByRole('button', { name: 'Tasks', exact: true }).click()
+  // Why: Tasks has no left sidebar, so its toggle is gone and the shortcut leaves the state alone.
+  await expect(orcaPage.getByRole('button', { name: 'Toggle sidebar' })).toHaveCount(0)
+  await orcaPage.keyboard.press('Control+b')
+  await orcaPage.waitForTimeout(400)
+  expect(await orcaPage.evaluate(() => window.__store?.getState().sidebarOpen)).toBe(false)
 
   await rail.getByRole('button', { name: 'Workspaces', exact: true }).click()
   await expect(orcaPage.locator('header[data-session-bar="true"]')).toBeVisible()
@@ -28,6 +34,50 @@ test('the sidebar toggle stays clickable after hiding the sidebar from Tasks and
   await expect
     .poll(() => orcaPage.evaluate(() => window.__store?.getState().sidebarOpen))
     .toBe(true)
+})
+
+test('the left sidebar and its toggle exist only on the Workspaces and Bot Teams views', async ({
+  orcaPage
+}) => {
+  const views = [
+    'home',
+    'create',
+    'botTeams',
+    'tasksHome',
+    'tasksBoard',
+    'prototypes',
+    'skills',
+    'automations',
+    'mobile',
+    'settings'
+  ]
+  const homeViews = ['home', 'create', 'botTeams']
+  for (const name of views) {
+    await orcaPage.evaluate(
+      ([key]) => {
+        const actions: Record<string, () => void> = {
+          home: () => window.__store?.getState().setActiveView('terminal'),
+          create: () => window.__store?.getState().openCreateChatPage(),
+          botTeams: () => window.__store?.getState().openBotTeamsView(),
+          tasksHome: () => window.__store?.getState().openTasksHome(),
+          tasksBoard: () => window.__store?.getState().openTaskPage(),
+          prototypes: () => window.__store?.getState().openPrototypesPage(),
+          skills: () => window.__store?.getState().openSkillsPage(),
+          automations: () => window.__store?.getState().openAutomationsPage(),
+          mobile: () => window.__store?.getState().openMobilePage(),
+          settings: () => window.__store?.getState().openSettingsPage()
+        }
+        actions[key]?.()
+      },
+      [name]
+    )
+    const toggles = orcaPage.getByRole('button', { name: 'Toggle sidebar' })
+    await expect(toggles, name).toHaveCount(homeViews.includes(name) ? 1 : 0)
+    // Why: the application menu stays reachable on every page, in the band where the sidebar header was.
+    if (process.platform !== 'darwin') {
+      await expect(orcaPage.getByRole('button', { name: 'Application menu' }), name).toHaveCount(1)
+    }
+  }
 })
 
 test('the rail button morphs Workspaces into Bot teams, keeps the mode across pages, and the sidebar has no switch', async ({

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Bell, Copy, Pencil, X } from 'lucide-react'
+import { Bell, Columns2, Copy, Pencil, X } from 'lucide-react'
 
 import type { DashboardAgentRow } from '@/components/dashboard/useDashboardData'
 import {
@@ -14,6 +14,11 @@ import { useAppStore } from '@/store'
 import { parsePaneKey } from '../../../../shared/stable-pane-id'
 import { WORKTREE_CONTEXT_MENU_SCOPE_ATTR } from './worktree-context-menu-policy'
 import { OneLineSessionWorktreeItems } from './worktree-card-one-line-session-worktree-items'
+import {
+  canOpenSessionInSplitView,
+  openSessionInSplitView,
+  type SplitViewSession
+} from '../tab-group/session-split-view'
 
 type SessionMenuKind = {
   /** The session owns a tab, so it can be renamed and closed like any tab. */
@@ -43,6 +48,27 @@ function copyText(text: string): void {
   void navigator.clipboard.writeText(text).catch(() => undefined)
 }
 
+/** Opens the session beside the focused one; absent for a session already on screen. */
+function SessionSplitViewItem({
+  session
+}: {
+  session: SplitViewSession
+}): React.JSX.Element | null {
+  const available = useAppStore((state) => canOpenSessionInSplitView(state, session))
+  if (!available) {
+    return null
+  }
+  return (
+    <>
+      <ContextMenuItem onSelect={() => openSessionInSplitView(session)}>
+        <Columns2 className="size-3.5" />
+        {translate('auto.components.sidebar.OneLineSessionMenu.splitView', 'Split view')}
+      </ContextMenuItem>
+      <ContextMenuSeparator />
+    </>
+  )
+}
+
 export function OneLineSessionMenu({
   agent,
   title,
@@ -66,6 +92,9 @@ export function OneLineSessionMenu({
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-52">
+        {kind.ownsTab || agent.crossWorktree ? (
+          <SessionSplitViewItem session={{ worktreeId, tabId: agent.tab.id }} />
+        ) : null}
         {kind.ownsTab ? (
           <ContextMenuItem onSelect={onStartRename}>
             <Pencil className="size-3.5" />
