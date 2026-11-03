@@ -124,6 +124,9 @@ Made by the orchestrator session on the user's behalf, for morning review.
 - pv79 phone Workspaces bar (board M52, canvas version 48): built to the board; the top chrome grows from about 78 to about 142 points to keep every control. Rejected: dropping controls to keep the old height.
 - pv79 phone space: the last selected space (Workspaces or Bot teams) is remembered once for the phone, not per host. Rejected: per-host memory, which the report did not ask for.
 - pv79 item 33 (phone pills): the phone composer stays plain text, so a mention shows as "@Name" while typing and as a chip once sent; a tap now inserts it with one space. Rejected: a rich phone input, a larger change to the shared session composer.
+- pv79 shared drafts (desktop room): the room composer keeps its unsent text in the shared composer draft store under `room:<teamId>`, with `useComposerDraft` from the desktop simplification branch, and also keeps the editor document so mentions come back as chips. Rejected: storing only plain text and rebuilding the chips from "@Name".
+- pv79 item 32 (desktop): "Open in Prototypes" uses the phone's placement rule, now in `src/shared/bot-team-room-prototype-tasks.ts` for both. Rejected: a second copy of the rule in the renderer.
+- pv79 delegated child folder: a delegated bot is told to save in its own working folder, not the project's main checkout. Rejected: launching every delegated child in a new worktree.
 
 
 ## Questions for the user
