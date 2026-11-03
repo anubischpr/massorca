@@ -27,6 +27,7 @@ import type {
 import { botTeamHostTarget, currentBotTeamHost } from './bot-team-host'
 import { withProjectDefaults } from './runtime-bot-team-project-client'
 import { callRuntimeRpc } from './runtime-rpc-client'
+import { postWithFileNamesIfTextRequired } from './runtime-bot-team-files-only-retry'
 import { RuntimeRpcCallError } from './runtime-rpc-result'
 import { toRuntimeWorktreeSelector } from './runtime-worktree-selector'
 
@@ -117,7 +118,7 @@ export async function setBotTeamTaskProject(
   return (await call<{ task: BotTeamTask }>('botTeams.setTaskProject', { taskId, projectId })).task
 }
 
-export function postBotTeamRequest(input: {
+export async function postBotTeamRequest(input: {
   teamId: string
   text: string
   start: boolean
@@ -143,7 +144,7 @@ export function postBotTeamRequest(input: {
   /** The person asked for the work later: it waits in Todo and nothing starts. */
   later?: boolean
 }> {
-  return call('botTeams.postMessage', input)
+  return postWithFileNamesIfTextRequired(input, (next) => call('botTeams.postMessage', next))
 }
 
 /** What the person answered on a choice card, or the project question, for one held request. */

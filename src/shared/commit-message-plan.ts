@@ -32,6 +32,8 @@ export type CommitMessagePlanInput = {
   webResearch?: boolean
   /** A code question: the agent reads the checkout it runs in, where its spec has a code read mode. */
   codeRead?: boolean
+  /** A bot-team room turn: adds the spec's room-turn arguments, which commit-message generation never gets. */
+  roomTurn?: boolean
   /** Host-derived arguments that limit a code turn's MCP servers; required where the spec is `hostChecked`. */
   codeReadHostArgs?: readonly string[]
 }
@@ -272,14 +274,16 @@ export function planCommitMessageGeneration(
     model: input.model,
     thinkingLevel: input.thinkingLevel
   })
+  const roomArgs = input.roomTurn ? (spec.roomTurnArgs ?? []) : []
   // A code turn carries its web tools in its own arguments, so they are not added twice.
   const baseArgs = codeRead
     ? [
         ...generated.filter((arg) => !codeRead.drop?.includes(arg)),
+        ...roomArgs,
         ...codeRead.add(researchArgs !== undefined),
         ...(codeRead.hostChecked ? (input.codeReadHostArgs ?? []) : [])
       ]
-    : [...generated, ...(researchArgs ?? [])]
+    : [...generated, ...roomArgs, ...(researchArgs ?? [])]
   const agentArgs = planAdditionalAgentArgs(input.agentArgs, input.backslash)
   if (!agentArgs.ok) {
     return agentArgs

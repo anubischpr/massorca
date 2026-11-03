@@ -4,6 +4,7 @@ import {
 } from '../../../../shared/bot-team-request-classify'
 import { withoutBotTeamMention } from '../../../../shared/bot-team-request-route'
 import type { BotTeamRequestChoice } from '../../../../shared/bot-team-request-choice'
+import { botTeamFilesOnlyText } from '../../../../shared/bot-team-room-attachments-line'
 import {
   botTeamRoomTextWithAttachments,
   type BotTeamRoomAttachment
@@ -16,6 +17,7 @@ import { activeTasksByBot, fileBotTeamRequest } from '../../../bot-teams/bot-tea
 import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-reply'
 import { decideBotTeamRequest } from '../../../bot-teams/bot-team-request-flow'
 import { askDefaultAgentForBotTeamRequest } from '../../../bot-teams/bot-team-request-query'
+import type { OrchestrationDb } from '../../orchestration/db/orchestration-db'
 import type { RpcContext } from '../core'
 import { startBotTeamConversationReply } from './bot-team-conversation-reply'
 
@@ -39,12 +41,22 @@ export type BotTeamPostResult = {
   later?: true
 }
 
+/** The person's last few lines in the room: what the language of a line with no words is read from. */
+function earlierPersonText(db: OrchestrationDb, teamId: string): string {
+  return db
+    .listBotTeamMessages(teamId)
+    .filter((message) => message.authorBotId === null)
+    .slice(-5)
+    .map((message) => message.text)
+    .join(' ')
+}
+
 /** Files the person's line, then lets the one host query decide who takes it. */
 export async function postBotTeamRequestOnHost(
   ctx: RpcContext,
   {
     teamId,
-    text,
+    text: typed,
     start,
     askProject = false,
     attachments = []
@@ -58,6 +70,11 @@ export async function postBotTeamRequestOnHost(
   startTask: (taskId: string) => Promise<BotTeamTask>
 ): Promise<BotTeamPostResult> {
   const db = ctx.runtime.getOrchestrationDb()
+  // Files with no words are filed as a request that names them, in the language the person wrote before.
+  const text =
+    typed.trim() === '' && attachments.length > 0
+      ? botTeamFilesOnlyText(attachments, earlierPersonText(db, teamId))
+      : typed
   const message = db.postBotTeamMessage({ teamId, text, authorBotId: null, attachments })
   // A greeting gets the team's one line and stops here: no query, task or usage.
   if (replyToBotTeamGreeting(db, { teamId, text })) {
@@ -98,7 +115,8 @@ export async function postBotTeamRequestOnHost(
         start,
         later,
         askProject: false,
-        attachments
+        attachments,
+        originMessageId: message.id
       },
       startTask
     )

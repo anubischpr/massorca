@@ -18,6 +18,10 @@ import {
   BOT_TEAM_MEMORY_STORE_METHODS,
   type BotTeamMemoryStoreMethods
 } from './bot-team-memory-store'
+import {
+  BOT_TEAM_TRACKER_STORE_METHODS,
+  type BotTeamTrackerStoreMethods
+} from './bot-team-tracker-store'
 import type { OrchestrationDb } from '../orchestration-db'
 
 const TASK_SELECT =
@@ -172,10 +176,15 @@ export function postBotTeamMessage(
 }
 
 export function listBotTeamMessages(this: OrchestrationDb, teamId: string): BotTeamMessage[] {
+  const sources = this.listBotTeamReturnSources(teamId)
   return z
     .array(BotTeamMessageSchema)
     .parse(this.db.prepare(`${MESSAGE_SELECT} WHERE team_id = ? ORDER BY rowid`).all(teamId))
     .map(messageWithAttachments)
+    .map((message) => {
+      const fromTeamId = sources.get(message.id)
+      return fromTeamId === undefined ? message : { ...message, fromTeamId }
+    })
 }
 
 /** The visible text, with the files a message stores after it; a message with none is unchanged. */
@@ -271,26 +280,27 @@ export function isBotTeamTaskHandedOff(this: OrchestrationDb, taskId: string): b
   )
 }
 
-export type BotTeamRoomStoreMethods = BotTeamMemoryStoreMethods & {
-  linkBotTeamTaskDelegation: typeof linkBotTeamTaskDelegation
-  getBotTeamTask: typeof getBotTeamTask
-  isBotTeamTaskHandedOff: typeof isBotTeamTaskHandedOff
-  getBotTeamTaskStartNotes: typeof getBotTeamTaskStartNotes
-  setBotTeamTaskStartNotes: typeof setBotTeamTaskStartNotes
-  moveBotTeamTask: typeof moveBotTeamTask
-  getBotTeamWorkspace: typeof getBotTeamWorkspace
-  setBotTeamWorkspace: typeof setBotTeamWorkspace
-  createBotTeamTask: typeof createBotTeamTask
-  listBotTeamTasks: typeof listBotTeamTasks
-  setBotTeamTaskSession: typeof setBotTeamTaskSession
-  setBotTeamTaskLastStatus: typeof setBotTeamTaskLastStatus
-  findBotTeamTaskBySession: typeof findBotTeamTaskBySession
-  postBotTeamMessage: typeof postBotTeamMessage
-  listBotTeamMessages: typeof listBotTeamMessages
-}
+export type BotTeamRoomStoreMethods = BotTeamMemoryStoreMethods &
+  BotTeamTrackerStoreMethods & {
+    linkBotTeamTaskDelegation: typeof linkBotTeamTaskDelegation
+    getBotTeamTask: typeof getBotTeamTask
+    isBotTeamTaskHandedOff: typeof isBotTeamTaskHandedOff
+    getBotTeamTaskStartNotes: typeof getBotTeamTaskStartNotes
+    setBotTeamTaskStartNotes: typeof setBotTeamTaskStartNotes
+    moveBotTeamTask: typeof moveBotTeamTask
+    getBotTeamWorkspace: typeof getBotTeamWorkspace
+    setBotTeamWorkspace: typeof setBotTeamWorkspace
+    createBotTeamTask: typeof createBotTeamTask
+    listBotTeamTasks: typeof listBotTeamTasks
+    setBotTeamTaskSession: typeof setBotTeamTaskSession
+    setBotTeamTaskLastStatus: typeof setBotTeamTaskLastStatus
+    findBotTeamTaskBySession: typeof findBotTeamTaskBySession
+    postBotTeamMessage: typeof postBotTeamMessage
+    listBotTeamMessages: typeof listBotTeamMessages
+  }
 
 export function attachBotTeamRoomStore(ctor: { prototype: object }): void {
-  Object.assign(ctor.prototype, BOT_TEAM_MEMORY_STORE_METHODS, {
+  Object.assign(ctor.prototype, BOT_TEAM_MEMORY_STORE_METHODS, BOT_TEAM_TRACKER_STORE_METHODS, {
     isBotTeamTaskHandedOff,
     getBotTeamTaskStartNotes,
     setBotTeamTaskStartNotes,

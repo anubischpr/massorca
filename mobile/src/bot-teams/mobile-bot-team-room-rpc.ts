@@ -3,6 +3,7 @@ import {
   BotTeamLinkableWorkspaceSchema,
   BotTeamMessageSchema,
   BotTeamProjectSchema,
+  BotTeamSentRequestSchema,
   BotTeamTaskSchema,
   type BotTeamCodeSource,
   type BotTeamLinkableWorkspace,
@@ -10,6 +11,8 @@ import {
   type BotTeamProjectInput,
   type BotTeamProjectWorkspace
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
+import type { BotTeamRoomAttachment } from '../../../src/shared/bot-team-room-attachments'
+import { botTeamFileNamesText } from '../../../src/shared/bot-team-room-attachments-line'
 import { isMobileMethodUnavailableError } from '../transport/mobile-method-unavailable'
 import type { RpcClient } from '../transport/rpc-client'
 
@@ -27,6 +30,8 @@ const RoomReply = z.object({
   projects: z.array(BotTeamProjectSchema).default([]),
   // Tasks other teams filed in this team's projects; only a host that shares projects sends them.
   projectTasks: z.array(BotTeamTaskSchema).default([]),
+  // Tasks other teams hold for this room's requests; an older host never sends them.
+  sentRequests: z.array(BotTeamSentRequestSchema).default([]),
   // The bots the host is answering in the background; an older host never sends it.
   replying: z.array(z.object({ botId: z.string(), since: z.number() })).default([]),
   workspaceId: z.string().nullable()
@@ -114,12 +119,27 @@ export async function postMobileBotTeamRequest(
     askProject?: boolean
     /** One id per send, reused when that send is retried, so the host posts it once. */
     clientRequestId?: string
+    /** Files from the team folder's attachments folder; sent only to a host that advertises them. */
+    attachments?: BotTeamRoomAttachment[]
   }
 ): Promise<MobileBotTeamPostResult> {
   try {
-    const response = await client.sendRequest('botTeams.postMessage', input, {
+    let response = await client.sendRequest('botTeams.postMessage', input, {
       timeoutMs: START_TIMEOUT_MS
     })
+    // A host from before files-only messages refuses empty text: retry once with the file names.
+    if (
+      !response.ok &&
+      input.text.trim() === '' &&
+      (input.attachments?.length ?? 0) > 0 &&
+      response.error?.message === 'Missing message text'
+    ) {
+      response = await client.sendRequest(
+        'botTeams.postMessage',
+        { ...input, text: botTeamFileNamesText(input.attachments ?? []) },
+        { timeoutMs: START_TIMEOUT_MS }
+      )
+    }
     if (!response.ok) {
       return { ok: false }
     }

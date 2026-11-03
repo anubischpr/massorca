@@ -4,6 +4,7 @@ import { getAgentStatusEpochNow } from '@/lib/agent-status-epoch-clock'
 import type { Repo } from '../../../../shared/repo-types'
 import type { Worktree } from '../../../../shared/worktree/types'
 import { computeVisibleWorktrees } from './visible-worktrees'
+import { useBotTeamWorktreeIds } from './use-bot-team-visibility'
 import { getWorktreeIdsWithLiveAgent } from '@/lib/worktree-activity-state'
 import { getSettingsFocusedExecutionHostId } from '../../../../shared/execution-host'
 import type { AppState } from '@/store/types'
@@ -32,6 +33,8 @@ export function useVisibleWorkspaceKanbanWorktreeIds({
   const hideDefaultBranchWorkspace = useAppStore((s) => s.hideDefaultBranchWorkspace)
   const hideAutomationGeneratedWorkspaces = useAppStore((s) => s.hideAutomationGeneratedWorkspaces)
   const hideCliCreatedWorkspaces = useAppStore((s) => s.hideCliCreatedWorkspaces)
+  const showBotTeamWorkspaces = useAppStore((s) => s.showBotTeamWorkspaces)
+  const botTeamWorktreeIds = useBotTeamWorktreeIds()
   const hideDetachedHeadWorkspaces = useAppStore((s) => s.hideDetachedHeadWorkspaces)
   const hideWorkspacesFromOtherDevices = useAppStore((s) => s.hideWorkspacesFromOtherDevices)
   const runtimeEnvironments = useAppStore((s) =>
@@ -92,6 +95,8 @@ export function useVisibleWorkspaceKanbanWorktreeIds({
         hideCliCreatedWorkspaces,
         hideDetachedHeadWorkspaces,
         hideWorkspacesFromOtherDevices,
+        showBotTeamWorkspaces,
+        botTeamWorktreeIds,
         pairedDeviceIdsByEnvironment: hideWorkspacesFromOtherDevices
           ? getPairedDeviceIdsByEnvironment(runtimeEnvironments, runtimeStatusByEnvironmentId)
           : EMPTY_PAIRED_DEVICE_IDS_BY_ENVIRONMENT,
@@ -115,6 +120,8 @@ export function useVisibleWorkspaceKanbanWorktreeIds({
     hideCliCreatedWorkspaces,
     hideDetachedHeadWorkspaces,
     hideWorkspacesFromOtherDevices,
+    showBotTeamWorkspaces,
+    botTeamWorktreeIds,
     alwaysShowDefaultBranchWorkspace,
     workspaceHostScope,
     visibleWorkspaceHostIds,

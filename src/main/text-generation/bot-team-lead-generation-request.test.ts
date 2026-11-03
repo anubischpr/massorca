@@ -72,6 +72,18 @@ describe('queryBotTeamLead', () => {
     expect(timeoutMs).toBe(180_000)
   })
 
+  it('isolates a Codex room turn from the user config, without leaking the flag to the plan', async () => {
+    await queryBotTeamLead({
+      prompt: 'p',
+      params: { agentId: 'codex', model: 'gpt-5.5' },
+      target,
+      spawnAgent
+    })
+    const [{ plan }] = execute.mock.calls[0]
+    expect(plan.args).toEqual(expect.arrayContaining(['--ignore-user-config', '--disable', 'apps']))
+    expect(plan).not.toHaveProperty('roomTurn')
+  })
+
   it('stays text-only with the short timeout for a code turn on an agent with no code read mode', async () => {
     await queryBotTeamLead({
       prompt: 'p',

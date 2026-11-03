@@ -21,6 +21,7 @@ vi.mock('@/i18n/i18n', () => ({
     fallback.replace(/\{\{(\w+)\}\}/g, (_all, name: string) => values?.[name] ?? '')
 }))
 vi.mock('@/runtime/bot-team-host', () => ({
+  BOT_TEAM_LOCAL_HOST: 'local',
   botTeamHostTarget: () => ({ kind: 'local' }),
   useBotTeamHost: () => 'local'
 }))

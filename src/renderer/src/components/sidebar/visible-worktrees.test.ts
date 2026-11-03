@@ -167,7 +167,7 @@ describe('computeVisibleWorktreeIds', () => {
       computeVisibleWorktreeIds(
         worktrees,
         ids,
-        visibleOptions({ botTeamWorkspaceIds: new Set(['team_on']) })
+        visibleOptions({ botTeamWorkspaceIds: new Set(['team_on']), showBotTeamWorkspaces: true })
       )
     ).toEqual([on.id])
   })

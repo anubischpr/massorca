@@ -113,7 +113,7 @@ describe('saving a version for a finished task', () => {
     const folder = path.join(root, 'folder')
     await mkdir(folder)
     await writeFile(path.join(folder, 'flyer.html'), '<p>June</p>')
-    const deps = { folder, gitDir: path.join(root, 'versions', 'team.git') }
+    const deps = { folder, storeDir: path.join(root, 'versions', 'team') }
 
     await saveVersionOfFinishedTask(db, 'unknown-session', () => deps)
     expect(await listBotTeamVersions(deps)).toEqual([])
@@ -145,7 +145,7 @@ describe('saving a version for a finished task', () => {
       ownerBotId: team.bots[0].id
     })
     db.setBotTeamTaskSession(task.id, 'session-1')
-    const deps = { folder: path.join(root, 'missing'), gitDir: path.join(root, 'v.git') }
+    const deps = { folder: path.join(root, 'missing'), storeDir: path.join(root, 'v') }
     await saveVersionOfFinishedTask(db, 'session-1', () => deps)
     expect(await listBotTeamVersions(deps)).toEqual([])
   })

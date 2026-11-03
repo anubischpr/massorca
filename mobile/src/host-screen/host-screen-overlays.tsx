@@ -19,11 +19,13 @@ import {
 } from '../worktree/workspace-list-picker-options'
 import { isWorktreePinned } from '../worktree/workspace-list-sections'
 import type { Worktree } from '../worktree/workspace-list-types'
+import { useMobileBotTeamVisibility } from '../bot-teams/mobile-bot-team-session-team-visibility'
 import { hostScreenStyles as styles } from './host-screen-styles'
 import type { HostScreenController } from './use-host-screen-controller'
 import { canDeleteFromWorktreeSheet } from './worktree-row-policy'
 
 export function HostScreenOverlays({ controller }: { controller: HostScreenController }) {
+  const { showBotTeamWorkspaces } = useMobileBotTeamVisibility()
   const {
     actions,
     catalog,
@@ -153,6 +155,11 @@ export function HostScreenOverlays({ controller }: { controller: HostScreenContr
           <Pressable style={styles.filterRow} onPress={settings.toggleHideDefaultBranch}>
             <Text style={styles.filterRowText}>Hide default branch</Text>
             {state.filters.hideDefaultBranch && <Check size={14} color={colors.textPrimary} />}
+          </Pressable>
+          <View style={styles.filterSeparator} />
+          <Pressable style={styles.filterRow} onPress={settings.toggleShowBotTeamWorkspaces}>
+            <Text style={styles.filterRowText}>Show bot teams</Text>
+            {showBotTeamWorkspaces && <Check size={14} color={colors.textPrimary} />}
           </Pressable>
         </View>
 

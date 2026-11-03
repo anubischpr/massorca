@@ -202,6 +202,13 @@ describe('comparing a version with the current file', () => {
     expect(container.textContent).toContain('Valid until')
   })
 
+  it('says a binary version by its size instead of comparing lines', async () => {
+    readBotTeamVersionFile.mockResolvedValue({ kind: 'binary', size: 1048576 })
+    const container = await openCompare()
+    expect(container.textContent).toContain('Binary file. This version is 1.0 MB.')
+    expect(container.textContent).not.toContain('Change one of')
+  })
+
   it('goes back to the versions, and restores after the same confirmation', async () => {
     const container = await openCompare()
     await act(async () => button(container, 'Restore this version').click())

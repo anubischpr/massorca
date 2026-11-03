@@ -3,21 +3,17 @@ import { Alert, Pressable, Text, View } from 'react-native'
 import { ChevronDown, ChevronLeft, Ellipsis } from 'lucide-react-native'
 import { useMobileDictation } from '../hooks/use-mobile-dictation'
 import { MobileNativeChatComposer } from '../session/MobileNativeChatComposer'
-import { MobileNativeChatMessage } from '../session/MobileNativeChatMessage'
 import { useMobileNativeChatFileSearch } from '../session/use-mobile-native-chat-file-search'
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
 import { botTeamBoardColumn } from '../../../src/shared/bot-team-board-column'
 import { placeBotTeamRoomTasks } from '../../../src/shared/bot-team-room-order'
-import { BOT_TEAM_ALL_AUTHOR } from '../../../src/shared/bot-team-greeting'
 import type { BotTeamRequestChoice } from '../../../src/shared/bot-team-request-choice'
-import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import type {
-  BotTeamMessage,
+  BotTeamSentRequest,
   BotTeamTask
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
-import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
 import { useMobileBotTeamReplying } from './use-mobile-bot-team-room-replying'
 import { MobileBotTeamTypingLine } from './MobileBotTeamTypingLine'
@@ -36,8 +32,14 @@ import {
   type MobileBotTeamRequestFiling
 } from './mobile-bot-team-request-rpc'
 import { useMobileBotTeamRoom } from './use-mobile-bot-team-room'
-import { MobileBotTeamRoomScroll } from './MobileBotTeamRoomScroll'
+import { MobileBotTeamRoomScroll, RoomMessageText } from './MobileBotTeamRoomScroll'
 import { useMobileBotTeamTaskStatus } from './use-mobile-bot-team-task-status'
+import { RoomWho } from './MobileBotTeamRoomWho'
+import { MobileBotTeamSentTrackers } from './MobileBotTeamRoomTracker'
+import { MobileBotTeamAttachChips } from './MobileBotTeamAttachChips'
+import { useBotTeamMentionRenderer } from './MobileBotTeamMentionChip'
+import { useMobileBotTeamRoomAttachments } from './mobile-bot-team-attach-room'
+import { MarkdownPlainTextContext } from '../components/MobileMarkdownPlainText'
 
 const NO_GENERATION = () => 0
 const NOT_WORKING = () => false
@@ -50,37 +52,6 @@ type FilingTarget = Pick<
   MobileBotTeamRequestFiling,
   'botId' | 'toTeamId' | 'alsoNeeds' | 'projectId'
 >
-
-function roomChatMessage(message: BotTeamMessage): NativeChatMessage {
-  return {
-    id: message.id,
-    role: message.authorBotId === null ? 'user' : 'assistant',
-    blocks: [{ type: 'text', text: message.text }],
-    timestamp: null,
-    source: 'transcript'
-  }
-}
-
-/** Who wrote a message: one bot, or every bot's icon under "All" for the team's greeting. */
-function RoomWho({ bots, authorBotId }: { bots: BotTeam['bots']; authorBotId: string | null }) {
-  if (authorBotId === BOT_TEAM_ALL_AUTHOR) {
-    return (
-      <View style={styles.roomWho}>
-        {bots.map((bot) => (
-          <MobileBotAgentIcon key={bot.id} agentId={bot.agent} size={14} />
-        ))}
-        <Text style={styles.roomWhoText}>All</Text>
-      </View>
-    )
-  }
-  const author = bots.find((bot) => bot.id === authorBotId)
-  return author ? (
-    <View style={styles.roomWho}>
-      <MobileBotAgentIcon agentId={author.agent} size={14} />
-      <Text style={styles.roomWhoText}>{author.name}</Text>
-    </View>
-  ) : null
-}
 
 /** A team's Conference room, drawn from the session chat's own composer and message row. */
 export function MobileBotTeamRoom({
@@ -143,6 +114,8 @@ export function MobileBotTeamRoom({
   })
 
   const sending = useRef(false)
+  const attachments = useMobileBotTeamRoomAttachments({ client, workspaceId, enabled: !offline })
+  const renderMentions = useBotTeamMentionRenderer(team, teams)
 
   // The phone has no Sessions panel to open, so the room's two commands stay on the desktop.
   const files = workspaceId === null ? NO_FILES : nativeChatFilePaths
@@ -166,7 +139,8 @@ export function MobileBotTeamRoom({
       text: typed,
       start: true,
       askProject: true,
-      clientRequestId: replying.requestIdFor(typed)
+      clientRequestId: replying.requestIdFor(typed),
+      ...(attachments.postable.length > 0 ? { attachments: attachments.postable } : {})
     }).finally(() => {
       sending.current = false
       setTyping(null)
@@ -177,6 +151,7 @@ export function MobileBotTeamRoom({
       return false
     }
     replying.settle(sent.replying?.botId ?? null)
+    attachments.clearPosted(attachments.postable)
     setNeedsOwner(
       sent.task === null &&
         !sent.greeted &&
@@ -264,6 +239,17 @@ export function MobileBotTeamRoom({
     />
   )
 
+  const sentRequests = room?.sentRequests ?? []
+  const trackers = (requests: readonly BotTeamSentRequest[]) => (
+    <MobileBotTeamSentTrackers
+      requests={requests}
+      teams={teams}
+      statusOf={statusOf}
+      offline={offline}
+      onOpenTeam={onPickTeam}
+    />
+  )
+
   const waitingTasks = tasks.filter((task) => statusOf(task) === 'Waiting for you')
   const openCount = tasks.filter((task) => botTeamBoardColumn(statusOf(task)) !== 'Done').length
 
@@ -310,16 +296,27 @@ export function MobileBotTeamRoom({
             Ask {team.name} for something. Each request becomes one or more tasks.
           </Text>
         ) : null}
-        {messages.map((message) => {
-          return (
-            <View key={message.id} style={styles.roomEntry}>
-              <RoomWho bots={team.bots} authorBotId={message.authorBotId} />
-              <MobileNativeChatMessage message={roomChatMessage(message)} />
-              {placement.cardsByMessageId.get(message.id)?.map(card)}
-            </View>
-          )
-        })}
+        <MarkdownPlainTextContext.Provider value={renderMentions}>
+          {messages.map((message) => {
+            const from = teams.find((entry) => entry.id === message.fromTeamId)
+            return (
+              <View key={message.id} style={styles.roomEntry}>
+                <RoomWho bots={(from ?? team).bots} authorBotId={message.authorBotId} from={from} />
+                <RoomMessageText message={message} />
+                <MobileBotTeamAttachChips
+                  files={message.attachments ?? []}
+                  tag={from ? `From ${from.name}` : undefined}
+                />
+                {placement.cardsByMessageId.get(message.id)?.map(card)}
+                {trackers(sentRequests.filter((request) => request.messageId === message.id))}
+              </View>
+            )
+          })}
+        </MarkdownPlainTextContext.Provider>
         {placement.trailing.map(card)}
+        {trackers(
+          sentRequests.filter((request) => !messages.some((m) => m.id === request.messageId))
+        )}
         {offline ? null : (
           <MobileBotTeamRoomQuestions
             client={client}
@@ -355,6 +352,7 @@ export function MobileBotTeamRoom({
           </Text>
         ) : null}
       </MobileBotTeamRoomScroll>
+      <MobileBotTeamAttachChips inset files={attachments.files} onRemove={attachments.removeFile} />
       <MobileNativeChatComposer
         value={text}
         onChangeText={setText}
@@ -368,6 +366,10 @@ export function MobileBotTeamRoom({
         onNeedFiles={workspaceId === null ? undefined : loadNativeChatFiles}
         onMicPress={() => void (dictation.isRecording ? dictation.stop() : dictation.start())}
         micActive={dictation.isRecording}
+        layout="single-line"
+        isAttaching={attachments.attaching}
+        onAttachFile={attachments.attachFile}
+        sendWithoutText={attachments.postable.length > 0}
       />
       <MobileBotTeamRoomSwitcher
         visible={sheet === 'rooms'}

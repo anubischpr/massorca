@@ -22,6 +22,7 @@ import {
 } from '../../../src/shared/agent-session-host-status-rows'
 import type { NativeChatBlock, NativeChatMessage } from '../../../src/shared/native-chat-types'
 import { MobileMarkdown } from '../components/MobileMarkdown'
+import { MarkdownPlainTextContext } from '../components/MobileMarkdownPlainText'
 import { deriveNativeChatRowContent } from '../../../src/shared/native-chat-row-content'
 import { MobileNativeChatDelegationNotice } from './MobileNativeChatDelegationNotice'
 import { MobileNativeChatReasoningRow } from './MobileNativeChatReasoningRow'
@@ -64,6 +65,7 @@ function Prose({
   onLongPress?: () => void
 }): React.JSX.Element | null {
   const checklist = useContext(MobileNativeChatChecklistContext)
+  const plainText = useContext(MarkdownPlainTextContext)
   if (isTextBlock(block)) {
     // A delegated session's notice replaces the plain line; a block without the payload draws as before.
     if (block.delegation) {
@@ -104,7 +106,9 @@ function Prose({
               selectable={INLINE_TEXT_SELECTION}
               style={[styles.userText, { fontSize: TEXT_SIZE * fontScale }]}
             >
-              {update === null ? block.text : rest}
+              {update === null
+                ? (plainText?.(block.text, 'person') ?? block.text)
+                : (plainText?.(rest, 'person') ?? rest)}
             </Text>
           ) : null}
         </>

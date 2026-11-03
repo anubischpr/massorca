@@ -1,6 +1,4 @@
-import { isMissingCommandBinaryError } from '../git/exec-error'
-import { createBotTeamSnapshotGit, type BotTeamSnapshotGit } from './bot-team-snapshot-git'
-import type { BotTeamSnapshotDeps, BotTeamSnapshotFailure } from './bot-team-snapshot-types'
+import type { BotTeamSnapshotFailure } from './bot-team-snapshot-types'
 
 export class SnapshotFailure extends Error {
   constructor(
@@ -11,32 +9,25 @@ export class SnapshotFailure extends Error {
   }
 }
 
-// A team's versions change one at a time: two saves at once would race for the same ref.
+// A team's versions change one at a time: two saves at once would take the same number.
 const lanes = new Map<string, Promise<unknown>>()
 
-export function inLane<T>(gitDir: string, work: () => Promise<T>): Promise<T> {
-  const previous = lanes.get(gitDir) ?? Promise.resolve()
+export function inLane<T>(storeDir: string, work: () => Promise<T>): Promise<T> {
+  const previous = lanes.get(storeDir) ?? Promise.resolve()
   const next = previous.then(work, work)
   const tail = next.catch(() => {})
-  lanes.set(gitDir, tail)
+  lanes.set(storeDir, tail)
   void tail.then(() => {
-    if (lanes.get(gitDir) === tail) {
-      lanes.delete(gitDir)
+    if (lanes.get(storeDir) === tail) {
+      lanes.delete(storeDir)
     }
   })
   return next
 }
 
-export function gitOf(deps: BotTeamSnapshotDeps): BotTeamSnapshotGit {
-  return deps.git ?? createBotTeamSnapshotGit(deps.gitDir)
-}
-
 export function toFailure(error: unknown): SnapshotFailure {
   if (error instanceof SnapshotFailure) {
     return error
-  }
-  if (isMissingCommandBinaryError(error)) {
-    return new SnapshotFailure('git-unavailable', 'Git is not installed on this host.')
   }
   return new SnapshotFailure('failed', error instanceof Error ? error.message : String(error))
 }

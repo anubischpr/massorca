@@ -149,7 +149,8 @@ export function BotTeamRoomComposer({
       return
     }
     const sent = promptTextMap(editor.state.doc).text
-    if (sent.trim() === '') {
+    // Files alone are a valid message, as in Workspaces.
+    if (sent.trim() === '' && pending.length === 0) {
       return
     }
     const snapshot = editor.getJSON()
@@ -309,7 +310,7 @@ export function BotTeamRoomComposer({
             size="icon"
             className="rounded-full"
             aria-label={translate('components.botTeams.send', 'Send')}
-            disabled={offline || text.trim() === ''}
+            disabled={offline || (text.trim() === '' && pending.length === 0)}
             onClick={() => void send()}
           >
             <ArrowUp className="size-4" />

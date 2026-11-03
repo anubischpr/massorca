@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import type { FolderWorkspace } from '../../../../../../shared/folder-workspace-types'
-import { isBotTeamFolderShown } from '../../../../../../shared/bot-team-folder'
+import { useAppStore } from '@/store'
 import type { ProjectGroup } from '../../../../../../shared/project-group-types'
 import { useBotTeamWorkspaceIds } from '../../../bot-teams/use-bot-teams'
+import { isBotTeamFolderVisibleInWorkspaces } from '../../bot-team-workspace-visibility'
 import type { Repo } from '../../../../../../shared/repo-types'
 import {
   getRepoExecutionHostId,
@@ -48,10 +49,15 @@ export function useSidebarHostVisibleScope(args: {
     [defaultHostId, projectGroups, visibleHostIdSet]
   )
   const botTeamWorkspaceIds = useBotTeamWorkspaceIds()
+  const showBotTeamWorkspaces = useAppStore((s) => s.showBotTeamWorkspaces)
   const visibleFolderWorkspacesForRows = useMemo(() => {
     const hostVisibleWorkspaces = filterFolderWorkspacesForVisibleHosts(
       folderWorkspaces.filter((folderWorkspace) =>
-        isBotTeamFolderShown(folderWorkspace.folderPath, botTeamWorkspaceIds)
+        isBotTeamFolderVisibleInWorkspaces(
+          folderWorkspace.folderPath,
+          botTeamWorkspaceIds,
+          showBotTeamWorkspaces
+        )
       ),
       projectGroups,
       visibleHostIdSet,
@@ -67,6 +73,7 @@ export function useSidebarHostVisibleScope(args: {
   }, [
     args.pairedDeviceIdsByEnvironment,
     botTeamWorkspaceIds,
+    showBotTeamWorkspaces,
     defaultHostId,
     folderWorkspaces,
     hideWorkspacesFromOtherDevices,

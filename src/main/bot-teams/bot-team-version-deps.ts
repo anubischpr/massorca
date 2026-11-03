@@ -17,6 +17,6 @@ export function botTeamFolderPath(teamId: string): string {
 export function botTeamVersionDeps(teamId: string): BotTeamSnapshotDeps {
   return {
     folder: botTeamFolderPath(teamId),
-    gitDir: path.join(getAppEnvironment().getPath('userData'), 'bot-team-versions', `${teamId}.git`)
+    storeDir: path.join(getAppEnvironment().getPath('userData'), 'bot-team-versions', teamId)
   }
 }

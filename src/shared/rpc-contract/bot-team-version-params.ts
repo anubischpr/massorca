@@ -19,8 +19,9 @@ export const BotTeamVersionFileSelector = z.object({
 export type BotTeamVersionReason = 'task-finished' | 'before-restore' | 'restored' | 'other'
 
 export type BotTeamVersion = {
-  /** The hidden ref's last segment; grows with each new version. */
+  /** Grows with each new version. */
   id: string
+  /** The sha256 of the version's manifest; `tree` repeats it for older peers. */
   commit: string
   tree: string
   createdAt: number
@@ -44,12 +45,14 @@ export type BotTeamVersionsResult =
 
 export type BotTeamFileVersion = { version: BotTeamVersion; deleted: boolean }
 
+/** Binary and too-large files carry their size in bytes; hosts from before sizes omit it. */
 export type BotTeamVersionFile =
   | { kind: 'text'; text: string }
-  | { kind: 'binary' }
-  | { kind: 'too-large' }
+  | { kind: 'binary'; size?: number }
+  | { kind: 'too-large'; size?: number }
   | { kind: 'missing' }
 
+/** Hosts from before the content store may still send 'git-unavailable'. */
 export type BotTeamVersionFailure = 'git-unavailable' | 'too-large' | 'failed' | 'missing-version'
 
 export type BotTeamVersionRestoreResult =

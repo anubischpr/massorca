@@ -4,6 +4,7 @@ import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire
 import { botTeamVersionDeps } from './bot-team-version-deps'
 import { watchBotTeamTaskFinishes } from './bot-team-version-watcher'
 import { watchBotTeamTaskLastStatus } from './bot-team-task-status-record'
+import { returnFinishedBotTeamTask } from './bot-team-return'
 import { takeBotTeamSnapshot } from './bot-team-snapshots'
 import type { BotTeamSnapshotDeps } from './bot-team-snapshot-types'
 
@@ -48,6 +49,10 @@ export function ensureBotTeamVersionWatcher(getDb: () => OrchestrationDb): void 
   watchBotTeamTaskFinishes(host, (sessionId) => {
     void saveVersionOfFinishedTask(getDb(), sessionId).catch((error: unknown) =>
       console.warn('[bot-teams] saving a version failed', error)
+    )
+    // A task another team asked for tells that team's room once it is done.
+    void returnFinishedBotTeamTask(getDb(), sessionId).catch((error: unknown) =>
+      console.warn('[bot-teams] returning a finished task failed', error)
     )
   })
   // A board's first paint reads the last status a task's session reached.

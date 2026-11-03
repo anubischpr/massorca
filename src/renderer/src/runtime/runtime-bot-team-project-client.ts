@@ -1,6 +1,7 @@
 import type {
   BotTeamMessage,
   BotTeamProject,
+  BotTeamSentRequest,
   BotTeamTask
 } from '../../../shared/rpc-contract/bot-team-room-params'
 import { botTeamHostTarget, currentBotTeamHost } from './bot-team-host'
@@ -27,6 +28,8 @@ export async function listBotTeamRoom(
   projects?: BotTeamProject[]
   /** Tasks other teams filed in the projects this team owns or is linked to. */
   projectTasks?: BotTeamTask[]
+  /** Tasks other teams hold for this room's requests; a host from before it never sends this. */
+  sentRequests?: BotTeamSentRequest[]
   /** Bots the host is answering in the background; a host from before it never sends this. */
   replying?: { botId: string; since: number }[]
 }> {
@@ -35,6 +38,7 @@ export async function listBotTeamRoom(
     messages: BotTeamMessage[]
     projects?: BotTeamProject[]
     projectTasks?: BotTeamTask[]
+    sentRequests?: BotTeamSentRequest[]
     /** Bots the host is answering in the background; a host from before it never sends this. */
     replying?: { botId: string; since: number }[]
   }>(botTeamHostTarget(currentBotTeamHost()), 'botTeams.listRoom', {

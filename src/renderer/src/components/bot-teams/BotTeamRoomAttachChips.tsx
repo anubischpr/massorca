@@ -4,9 +4,12 @@ import type { BotTeamRoomAttachment } from '../../../../shared/bot-team-room-att
 /** The files a room message names, listed under its text; a chip opens the file when `onOpen` is given. */
 export function BotTeamRoomAttachChips({
   files,
-  onOpen
+  onOpen,
+  tag
 }: {
   files: readonly BotTeamRoomAttachment[]
+  /** Names where the files came from, such as "From Warehouse". */
+  tag?: string
   /** Opens the file in the team's Files view. */
   onOpen?: (path: string) => void
 }): React.JSX.Element {
@@ -28,6 +31,7 @@ export function BotTeamRoomAttachChips({
               onClick={() => onOpen(file.path)}
             >
               <span className="truncate">{file.name}</span>
+              {tag ? <span className="ml-1.5 shrink-0 text-muted-foreground">{tag}</span> : null}
             </button>
           ) : (
             <span
@@ -35,6 +39,7 @@ export function BotTeamRoomAttachChips({
               className="flex max-w-full items-center rounded-md border border-input px-2 py-0.5 text-xs"
             >
               <span className="truncate">{file.name}</span>
+              {tag ? <span className="ml-1.5 shrink-0 text-muted-foreground">{tag}</span> : null}
             </span>
           )}
         </li>
