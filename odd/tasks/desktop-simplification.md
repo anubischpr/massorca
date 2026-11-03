@@ -20,6 +20,7 @@ The canvas is the visual source; nothing outside it gets added ("por favor, que 
 - S13 Shortcuts: Mod+T and Mod+Shift+B open the panel and add the tab; Mod+W closes the focused panel tab and never a session; reopen and tab switching target the panel.
 - S15 Status bar stays, its four segments right-aligned (keep awake, resource usage, ports, remote hosts), without usage meters: "antes esa barra de estado iba de extremo a extremo, ahora debería ir del final del side panel izquierdo al borde final derecho". It runs under the main area, side panel and right sidebar, never under the rail or left sidebar. Built in T4 with the shell layout.
 - S14 Every change considers SSH, folder workspaces, Windows, macOS and Linux.
+- S16 Calendar (boards 13 Week, 14 Day, 15 Month): "build the \"Calendario\" view from your desktop prototype: the bots' scheduled tasks, shown in calendar mode", with Previous, Today, Next, a Day/Week/Month switch, a team legend, run chips (time, name, bot · team) and Upcoming runs. Bot runs come from `botTeams.listScheduledRuns` (Bot teams session); "Consider also showing ordinary Orca automations in the same calendar, if it fits the board."
 
 ## Tasks
 
@@ -29,6 +30,8 @@ The canvas is the visual source; nothing outside it gets added ("por favor, que 
 - T4 S12 S15 Remove the title bar. Route delegated. Done, 8d79dac1bfe and 15049c0737d. Verified on Windows only.
 - T5 S4 S5 S6 + Create. Route delegated, context backstop with T3 in parallel. Done in tests, 81 create-chat tests pass; not yet seen in the app. Locale keys pending. The notice drops "You can move back with Switch to chat view." because the control is absent for unsupported agents and for some agents on SSH.
 - T6 S3 Tasks page. Route delegated. Done, 8d79dac1bfe. WorkSpaces and Bot Team switch waits for PR #93 behind TASKS_HOME_CREATE_MODES; the old board stays reachable through openTaskPage.
+- T7 pv79 QA: approvals on Tasks, drafts, split view, Bot Teams filter. Route: drafts inline (8bbca617e98); approvals, split view and the Workspaces draft loss delegated in parallel (disjoint surfaces); the filter belongs to the Bot teams branch (commit 49553fc89e0) and was handed to that session.
+- T8 S16 Calendar view. Route pending.
 
 ## Log
 
@@ -37,3 +40,11 @@ L2 (2026-10-31, user): "Igual lo importante aquí más que nada es tener claro e
 L3 Map: no bot team mode on this branch. WindowControls, TitlebarMainStrip and TitlebarLeftControls own the title bar. Seam for tabs: per-worktree panel group through createUnifiedTab targetGroupId, FloatingTerminalPanel as template. About 40 tab-bar test files and several e2e specs assert current structure.
 L4 (2026-11-01) Verification: orchestration-worker-terminal-visibility duplicate spawn and settled-worker-tab-survives-restart codex probe fail identically at 60b4fb3f70d, so they are baseline defects. paired-* specs and two layout oracle fixtures cannot run on this Windows host. remote-agent-session-focus-authority and golden-quit-relaunch-session are not rewritten. Not checked: SSH, folder workspaces, macOS, Linux, window dragging, populated split groups.
 L5 (2026-11-01) Native review: the slice 60b4fb3f70d..HEAD (174 files, 8640 lines) failed with lens_context_budget_exceeded, so its consent was declined after the failure. No native review covers this feature; the independent verifier is the outside view. Open point for the user: the session bar stops at the right sidebar, while canvas board 5b draws it across the whole width.
+L6 (2026-11-03, orchestrator relaying pv79 QA): tasks awaiting approval missing on Tasks; unsent text lost on click-away in Workspaces sessions, + Crear, Tareas and the Bot teams room; "Mostrar Bot Teams" should hide only the no-project Bot teams group; split view needs a dimmer unfocused pane and toolbars kept in their halves with the divider reaching the top bar.
+L7 (2026-11-03, orchestrator): overnight mandate, then build the Calendar view from the prototype (S16).
+
+Overnight decisions 2026-11-03
+- Drafts: one hook, useComposerDraft, on top of the existing native chat draft store (IndexedDB, journal). Rejected: a second localStorage store with a 7-day expiry, as first proposed with the Bot teams session.
+- Bot Teams filter: handed to the Bot teams session, because the switch lives on its branch (49553fc89e0). Rejected: rebuilding the switch on this branch.
+- Calendar sources: bot routine runs and ordinary Orca automations in the same calendar. Automations get their own legend entry beside the teams. Rejected: bot runs only, because the board's run chip fits an automation as well.
+- Calendar dependency: merge claude/bot-teams-character-motion once its scheduled-runs API lands (standing rule, merge dependency branches). Rejected: copying its RPC types here.
