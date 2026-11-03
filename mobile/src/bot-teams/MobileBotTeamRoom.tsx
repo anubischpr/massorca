@@ -40,6 +40,7 @@ import { MobileBotTeamAttachChips } from './MobileBotTeamAttachChips'
 import { useBotTeamMentionRenderer } from './MobileBotTeamMentionChip'
 import { useMobileBotTeamRoomAttachments } from './mobile-bot-team-attach-room'
 import { MarkdownPlainTextContext } from '../components/MobileMarkdownPlainText'
+import { useBotTeamRoomPrototypeLinks } from './MobileBotTeamRoomPrototypeLinks'
 
 const NO_GENERATION = () => 0
 const NOT_WORKING = () => false
@@ -220,6 +221,7 @@ export function MobileBotTeamRoom({
 
   // A card sits right after the request that made it; the rest follow the conversation.
   const placement = useMemo(() => placeBotTeamRoomTasks(messages, tasks), [messages, tasks])
+  const prototypeLinks = useBotTeamRoomPrototypeLinks(offline ? null : client, room, team.id)
 
   const card = (task: BotTeamTask) => (
     <MobileBotTeamTaskCard
@@ -231,11 +233,7 @@ export function MobileBotTeamRoom({
       offline={offline}
       onStart={() => void start(task.id)}
       onReassigned={() => void reload()}
-      onOpen={() => {
-        if (workspaceId) {
-          onOpenTask(workspaceId, task)
-        }
-      }}
+      onOpen={() => workspaceId && onOpenTask(workspaceId, task)}
     />
   )
 
@@ -307,6 +305,7 @@ export function MobileBotTeamRoom({
                   files={message.attachments ?? []}
                   tag={from ? `From ${from.name}` : undefined}
                 />
+                {prototypeLinks(message.id)}
                 {placement.cardsByMessageId.get(message.id)?.map(card)}
                 {trackers(sentRequests.filter((request) => request.messageId === message.id))}
               </View>
