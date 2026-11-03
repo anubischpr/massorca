@@ -158,6 +158,8 @@ export type BotTeamRequestFiling = {
   askProject?: boolean
   /** A project of the team, or null for none; absent until the project question is asked. */
   projectId?: string | null
+  /** Files the person attached to the request before the choice was asked. */
+  attachments?: BotTeamRoomAttachment[]
 }
 
 /** Files a request the room held: the host may ask the project question again before filing. */
@@ -232,6 +234,13 @@ async function teamFolderSelector(teamId: string): Promise<string | null> {
 }
 
 /** The team folder's workspace id on its host; null before any task made it, or when the host cannot say. */
+/** The team folder's workspace and path on its host, made now when the team has none: the first attach needs it. */
+export function ensureBotTeamFolderWorkspace(
+  teamId: string
+): Promise<{ workspaceId: string; folderPath: string }> {
+  return call('botTeams.workspace', { teamId, ensure: true })
+}
+
 export async function botTeamFolderWorkspaceId(teamId: string): Promise<string | null> {
   try {
     return (await call<{ workspaceId: string | null }>('botTeams.workspace', { teamId }))

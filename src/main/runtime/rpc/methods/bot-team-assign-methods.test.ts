@@ -54,6 +54,21 @@ describe('botTeams.assignRequest', () => {
     expect(db?.listBotTeamTasks(team.id)).toHaveLength(1)
   })
 
+  it('keeps the files a choice card carries, so the task names them', async () => {
+    const { method, ctx, team } = setup()
+    const result = await method.handler(
+      {
+        teamId: team.id,
+        text: 'Make a flyer',
+        botId: team.bots[0].id,
+        start: false,
+        attachments: [{ path: 'attachments/logo.png', name: 'logo.png' }]
+      },
+      ctx
+    )
+    expect(db?.getBotTeamTaskStartNotes(result.task!.id)).toContain('attachments/logo.png')
+  })
+
   it('does not start a task when asked to only save it', async () => {
     const { method, ctx, team, startTask } = setup()
     await method.handler({ teamId: team.id, text: 'Later', start: false }, ctx)

@@ -3,24 +3,28 @@ import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import { basename } from '@/lib/path'
 import { useBotTeamHost } from '@/runtime/bot-team-host'
-import { botTeamFolderWorkspaceId } from '@/runtime/runtime-bot-team-client'
+import { ensureBotTeamFolderWorkspace } from '@/runtime/runtime-bot-team-client'
 import type { BotTeamRoomAttachment } from '../../../../shared/bot-team-room-attachments'
 import {
   attachBotTeamRoomFiles,
-  botTeamFolderPathOnHost,
   botTeamRoomAttachmentsSupported
 } from './bot-team-room-attach-upload'
 
-/** Picks files on this computer and copies them into the team folder; a file that did not copy is named once. */
-async function pickAndAttach(host: string, workspaceId: string): Promise<BotTeamRoomAttachment[]> {
+/**
+ * Picks files on this computer; the team folder is made only once something was picked, so a
+ * cancelled pick leaves no folder behind.
+ */
+async function pickAndAttach(host: string, teamId: string): Promise<BotTeamRoomAttachment[]> {
   const picked = await window.api.shell.pickAttachments()
   if (picked.length === 0) {
     return []
   }
   try {
+    const folder = await ensureBotTeamFolderWorkspace(teamId)
     const { attachments, failed } = await attachBotTeamRoomFiles({
       host,
-      workspaceId,
+      workspaceId: folder.workspaceId,
+      folderPath: folder.folderPath,
       sourcePaths: picked
     })
     if (failed.length > 0) {
@@ -38,36 +42,30 @@ async function pickAndAttach(host: string, workspaceId: string): Promise<BotTeam
 }
 
 /**
- * The room's file action: undefined until the team folder exists on its host and that host takes
- * files in its room, so the composer's "+" appears only when a pick can land.
+ * The room's file action: undefined until the team's host takes files in its room. The team
+ * folder does not have to exist yet; the first pick creates it.
  */
 export function useBotTeamRoomAttachments({
-  teamId,
-  taskCount
+  teamId
 }: {
   teamId: string
-  taskCount: number
 }): (() => Promise<BotTeamRoomAttachment[]>) | undefined {
   const host = useBotTeamHost()
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null)
+  const [supported, setSupported] = useState(false)
   useEffect(() => {
     let current = true
-    setWorkspaceId(null)
-    void (async () => {
-      const found = await botTeamFolderWorkspaceId(teamId)
-      if (found === null || botTeamFolderPathOnHost(found, host) === null) {
-        return
+    setSupported(false)
+    void botTeamRoomAttachmentsSupported(host).then((yes) => {
+      if (current) {
+        setSupported(yes)
       }
-      if ((await botTeamRoomAttachmentsSupported(host)) && current) {
-        setWorkspaceId(found)
-      }
-    })()
+    })
     return () => {
       current = false
     }
-  }, [teamId, host, taskCount])
-  if (workspaceId === null) {
+  }, [teamId, host])
+  if (!supported) {
     return undefined
   }
-  return () => pickAndAttach(host, workspaceId)
+  return () => pickAndAttach(host, teamId)
 }

@@ -227,10 +227,21 @@ export const BOT_TEAM_ROOM_METHODS = [
     name: 'botTeams.workspace',
     permission: 'workspace',
     params: BotTeamRoomSelector,
-    // Null until a task starts: listing a team's files never creates its folder.
-    handler: ({ teamId }, { runtime }) => ({
-      workspaceId: runtime.getOrchestrationDb().getBotTeamWorkspace(teamId)
-    })
+    // Null until a task starts: listing a team's files never creates its folder; only `ensure` makes it.
+    handler: async ({ teamId, ensure }, ctx) => {
+      const db = ctx.runtime.getOrchestrationDb()
+      if (ensure !== true) {
+        return { workspaceId: db.getBotTeamWorkspace(teamId) }
+      }
+      const team = db.listBotTeams().find((entry) => entry.id === teamId)
+      if (!team) {
+        throw new Error(`Team ${teamId} was not found.`)
+      }
+      return {
+        workspaceId: await ensureTeamWorkspace(ctx, team),
+        folderPath: botTeamFolderPath(teamId)
+      }
+    }
   }),
   defineMethod({
     name: 'botTeams.setProjectBrief',

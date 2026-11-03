@@ -1,14 +1,14 @@
-import { useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useId, useLayoutEffect, useMemo, useState, type KeyboardEvent } from 'react'
 import { ArrowUp, Plus, X } from 'lucide-react'
+import { EditorContent } from '@tiptap/react'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import { translate } from '@/i18n/i18n'
 import { useImeEnterGestureOwnership } from '@/lib/ime-composition-keyboard-event'
 import { useNativeChatComposerKeyDown } from '../native-chat/use-native-chat-composer-keydown'
+import { promptTextMap, promptTextOffset } from '../native-chat/native-chat-prompt-document'
 import {
-  applyBotTeamComposerItem,
-  BOT_TEAM_ROOM_COMMANDS,
   botTeamComposerMenu,
+  BOT_TEAM_ROOM_COMMANDS,
   botTeamMentionOpen,
   type BotTeamComposerItem
 } from '../../../../shared/bot-team-composer-menu'
@@ -22,6 +22,8 @@ import {
 } from '../../../../shared/bot-team-room-attachments'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { BotTeamComposerMenu } from './BotTeamComposerMenu'
+import { botTeamComposerChipAttrs } from './bot-team-composer-document'
+import { useBotTeamComposerEditor } from './bot-team-composer-editor'
 import { openBotTeamRoomSessions } from './open-bot-team-room-sessions'
 import { useBotTeamFilePaths } from './use-bot-team-files'
 
@@ -57,13 +59,13 @@ export function BotTeamRoomComposer({
   /** Picks files into the team folder; without it the room takes no files and the "+" stays hidden. */
   onAttachFiles?: () => Promise<BotTeamRoomAttachment[]>
 }): React.JSX.Element {
+  // The plain text the room sends (each picked mention as its "@Name") and the caret within it.
   const [text, setText] = useState('')
   const [caret, setCaret] = useState(0)
   const [menuIndex, setMenuIndex] = useState(0)
   const [menuDismissed, setMenuDismissed] = useState(false)
   const [pending, setPending] = useState<BotTeamRoomAttachment[]>([])
   const [attaching, setAttaching] = useState(false)
-  const composerRef = useRef<HTMLTextAreaElement | null>(null)
   const menuId = useId()
   const files = useBotTeamFilePaths(team.id, !offline && botTeamMentionOpen(text, caret))
   const mentionNames = useMemo<BotTeamMentionName[]>(
@@ -84,46 +86,81 @@ export function BotTeamRoomComposer({
           files,
           commands: BOT_TEAM_ROOM_COMMANDS
         })
-  // Why: the box starts one line tall and grows only with typed lines, up to the Tailwind max height.
+  const editor = useBotTeamComposerEditor({
+    ariaLabel: translate('components.botTeams.messageTeam', 'Message the team'),
+    placeholder: offline
+      ? translate('components.botTeams.writeWhenBack', 'You can write again when this host is back')
+      : translate(
+          'components.botTeams.messageTeamHint',
+          'Message the team, or type @ to ask one bot'
+        ),
+    disabled: offline,
+    onChange: (current) => {
+      setText(promptTextMap(current.state.doc).text)
+      setCaret(promptTextOffset(current.state.doc, current.state.selection.from))
+      setMenuIndex(0)
+      setMenuDismissed(false)
+    },
+    onSelect: (current) =>
+      setCaret(promptTextOffset(current.state.doc, current.state.selection.from))
+  })
+  // The ARIA links follow the open menu, so a screen reader reads the option the caret is on.
   useLayoutEffect(() => {
-    const box = composerRef.current
-    if (!box) {
+    const dom = editor?.view.dom
+    if (!dom) {
       return
     }
-    box.style.height = 'auto'
-    box.style.height = `${box.scrollHeight}px`
-  }, [text])
+    dom.setAttribute('aria-expanded', String(menu !== null))
+    if (menu) {
+      dom.setAttribute('aria-controls', menuId)
+      dom.setAttribute('aria-activedescendant', `${menuId}-option-${menuIndex}`)
+    } else {
+      dom.removeAttribute('aria-controls')
+      dom.removeAttribute('aria-activedescendant')
+    }
+  }, [editor, menu, menuId, menuIndex])
   const chooseMenuItem = (item: BotTeamComposerItem): void => {
-    if (!menu) {
+    if (!menu || !editor) {
       return
     }
     if (item.kind === 'command') {
-      setText('')
-      setCaret(0)
+      editor.commands.clearContent(true)
       void openBotTeamRoomSessions()
       return
     }
-    const next = applyBotTeamComposerItem(text, menu, item)
-    setText(next.text)
-    setCaret(next.caret)
+    const chip = botTeamComposerChipAttrs(item)
+    if (!chip) {
+      return
+    }
+    // The typed "@query" is plain text, so the menu's character span maps onto document positions.
+    const { positions } = promptTextMap(editor.state.doc)
+    editor
+      .chain()
+      .focus()
+      .insertContentAt({ from: positions[menu.start], to: positions[menu.end] }, [
+        { type: 'botTeamMention', attrs: chip },
+        { type: 'text', text: ' ' }
+      ])
+      .run()
     setMenuIndex(0)
-    requestAnimationFrame(() => {
-      composerRef.current?.focus()
-      composerRef.current?.setSelectionRange(next.caret, next.caret)
-    })
   }
   const send = async (): Promise<void> => {
-    const sent = text
+    if (!editor) {
+      return
+    }
+    const sent = promptTextMap(editor.state.doc).text
     if (sent.trim() === '') {
       return
     }
+    const snapshot = editor.getJSON()
     const files = pending
     // Clears at once, as Workspaces does; a refused send puts the text and files back unless more was added.
-    setText('')
-    setCaret(0)
+    editor.commands.clearContent(true)
     setPending([])
     if (!(await onSend(sent.trim(), files))) {
-      setText((current) => (current === '' ? sent : current))
+      if (editor.isEmpty) {
+        editor.commands.setContent(snapshot, { emitUpdate: true })
+      }
       setPending((current) => (current.length === 0 ? files : current))
     }
   }
@@ -140,24 +177,26 @@ export function BotTeamRoomComposer({
       setAttaching(false)
     }
   }
-  // Why: a picked mention is plain "@Name" text, so Backspace right after it takes the whole mention.
-  const removeMentionBeforeCaret = (event: KeyboardEvent<HTMLTextAreaElement>): boolean => {
-    const box = event.currentTarget
-    if (
-      event.key !== 'Backspace' ||
-      event.nativeEvent.isComposing ||
-      box.selectionStart !== box.selectionEnd
-    ) {
+  // Why: a picked mention is one atom, and a typed "@Name" is removed whole too, so Backspace takes it at once.
+  const removeMentionBeforeCaret = (event: KeyboardEvent<HTMLElement>): boolean => {
+    if (!editor || event.key !== 'Backspace' || event.nativeEvent.isComposing) {
       return false
     }
-    const next = removeBotTeamMentionBeforeCaret(box.value, box.selectionStart, mentionNames)
+    const { selection, doc } = editor.state
+    if (!selection.empty) {
+      return false
+    }
+    const map = promptTextMap(doc)
+    const next = removeBotTeamMentionBeforeCaret(
+      map.text,
+      promptTextOffset(doc, selection.from),
+      mentionNames
+    )
     if (!next) {
       return false
     }
     event.preventDefault()
-    setText(next.text)
-    setCaret(next.caret)
-    requestAnimationFrame(() => box.setSelectionRange(next.caret, next.caret))
+    editor.view.dispatch(editor.state.tr.delete(map.positions[next.caret], selection.from))
     return true
   }
   const imeEnterGesture = useImeEnterGestureOwnership()
@@ -244,37 +283,20 @@ export function BotTeamRoomComposer({
               <Plus className="size-4" />
             </Button>
           ) : null}
-          <Textarea
-            rows={1}
-            className="scrollbar-sleek max-h-40 min-h-9 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-1.5 shadow-none focus-visible:ring-0 dark:bg-transparent"
-            aria-label={translate('components.botTeams.messageTeam', 'Message the team')}
-            placeholder={
-              offline
-                ? translate(
-                    'components.botTeams.writeWhenBack',
-                    'You can write again when this host is back'
-                  )
-                : translate(
-                    'components.botTeams.messageTeamHint',
-                    'Message the team, or type @ to ask one bot'
-                  )
-            }
-            disabled={offline}
-            value={text}
-            ref={composerRef}
-            role="combobox"
-            aria-expanded={menu !== null}
-            aria-controls={menu ? menuId : undefined}
-            aria-activedescendant={menu ? `${menuId}-option-${menuIndex}` : undefined}
-            onChange={(event) => {
-              setText(event.target.value)
-              setCaret(event.target.selectionStart)
-              setMenuIndex(0)
-              setMenuDismissed(false)
-            }}
-            onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
+          <EditorContent
+            editor={editor}
+            className="scrollbar-sleek max-h-40 min-h-9 flex-1 overflow-y-auto px-2 py-1.5 text-sm"
             onKeyDownCapture={(event) => {
-              if (!imeEnterGesture.ownsKeyDown(event) && !removeMentionBeforeCaret(event)) {
+              if (imeEnterGesture.ownsKeyDown(event)) {
+                return
+              }
+              // Shift+Enter is the newline the box takes; a plain Enter sends.
+              if (event.key === 'Enter' && event.shiftKey && !imeEnterGesture.isComposing()) {
+                event.preventDefault()
+                editor?.commands.setHardBreak()
+                return
+              }
+              if (!removeMentionBeforeCaret(event)) {
                 onKeyDown(event)
               }
             }}

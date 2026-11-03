@@ -182,7 +182,9 @@ export const BotTeamRequestAssign = z.object({
   /** The other bots a composite task has parts for, as the question carried them. */
   alsoNeeds: z.array(z.string().min(1)).optional(),
   later: z.boolean().optional(),
-  askProject: z.boolean().optional()
+  askProject: z.boolean().optional(),
+  /** Files the person attached to the request, kept when a choice card answers it. */
+  attachments: z.array(BotTeamRoomAttachmentSchema).max(BOT_TEAM_ROOM_ATTACHMENT_LIMIT).optional()
 })
 
 /** Gives an idle task to a bot of any team; its team follows the bot. Nothing starts: Start does that. */
@@ -192,7 +194,9 @@ export const BotTeamTaskReassign = z.object({
 })
 
 export const BotTeamRoomSelector = z.object({
-  teamId: requiredString('Missing team id')
+  teamId: requiredString('Missing team id'),
+  /** Makes the team folder when it is missing, as the first attached file needs; a plain read never does. */
+  ensure: z.boolean().optional()
 })
 
 /** Only a client that understands shared and archived projects asks for them. */

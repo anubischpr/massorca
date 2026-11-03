@@ -47,9 +47,11 @@ export async function botTeamRoomAttachmentsSupported(host: string): Promise<boo
 export async function attachBotTeamRoomFiles(args: {
   host: string
   workspaceId: string
+  /** The folder's path on its host when the caller just made it; otherwise read from the store. */
+  folderPath?: string
   sourcePaths: string[]
 }): Promise<{ attachments: BotTeamRoomAttachment[]; failed: BotTeamRoomAttachFailure[] }> {
-  const folderPath = botTeamFolderPathOnHost(args.workspaceId, args.host)
+  const folderPath = args.folderPath ?? botTeamFolderPathOnHost(args.workspaceId, args.host)
   if (folderPath === null) {
     throw new Error('The team folder is not ready on its host yet.')
   }

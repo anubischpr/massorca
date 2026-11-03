@@ -31,6 +31,27 @@ function mentionIconsByName(
   return icons
 }
 
+/** The chip's look, shared by the sent message and the composer's picked mention. */
+export const BOT_TEAM_MENTION_CHIP_CLASS =
+  'mx-px inline-flex items-center gap-1 rounded-full border border-border bg-muted px-1.5 align-baseline text-[0.92em] font-medium'
+
+/** The icon a chip shows before its name; a file or unknown name shows none. */
+export function BotTeamMentionChipFace({
+  icon,
+  children
+}: {
+  icon: BotTeamMentionIcon | null
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <>
+      {icon?.kind === 'bot' ? <BotAgentIcon agent={icon.agent} size={12} /> : null}
+      {icon?.kind === 'team' ? <BotTeamCharacterIcon character={icon.character} size={12} /> : null}
+      {children}
+    </>
+  )
+}
+
 function createMentionSpan(icons: ReadonlyMap<string, BotTeamMentionIcon>) {
   return function BotTeamMentionSpan({
     node: _node,
@@ -44,16 +65,8 @@ function createMentionSpan(icons: ReadonlyMap<string, BotTeamMentionIcon>) {
       return <span {...props}>{children}</span>
     }
     return (
-      <span
-        {...props}
-        className="mx-px inline-flex items-center gap-1 rounded-full border border-border bg-muted px-1.5 align-baseline text-[0.92em] font-medium"
-      >
-        {icon.kind === 'bot' ? (
-          <BotAgentIcon agent={icon.agent} size={12} />
-        ) : (
-          <BotTeamCharacterIcon character={icon.character} size={12} />
-        )}
-        {children}
+      <span {...props} className={BOT_TEAM_MENTION_CHIP_CLASS}>
+        <BotTeamMentionChipFace icon={icon}>{children}</BotTeamMentionChipFace>
       </span>
     )
   }

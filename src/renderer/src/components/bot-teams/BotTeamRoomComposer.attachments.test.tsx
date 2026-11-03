@@ -6,6 +6,8 @@ import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { BotTeamRoomAttachment } from '../../../../shared/bot-team-room-attachments'
+import { promptTextContent } from '../native-chat/native-chat-prompt-document-text'
+import { promptEditor } from '../native-chat/native-chat-prompt-editor.test-support'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
@@ -60,11 +62,10 @@ function sendButton(container: HTMLElement): HTMLButtonElement {
 }
 
 function typeText(container: HTMLElement, value: string): void {
-  const box = container.querySelector('textarea')!
-  const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!
+  const box = container.querySelector<HTMLElement>('[role="combobox"]')!
   act(() => {
-    setValue.call(box, value)
-    box.dispatchEvent(new Event('input', { bubbles: true }))
+    promptEditor(box).commands.setContent(promptTextContent(value), { emitUpdate: true })
+    promptEditor(box).commands.focus('end')
   })
 }
 
@@ -77,7 +78,7 @@ describe('bot team room composer attachments', () => {
 
   it('puts the attach button at the left end of the composer', () => {
     const { container } = mount({ onAttachFiles: async () => [] })
-    const box = container.querySelector('textarea')!
+    const box = container.querySelector('[role="combobox"]')!
 
     const attach = attachButton(container)
     expect(attach).not.toBeNull()
@@ -94,6 +95,12 @@ describe('bot team room composer attachments', () => {
       container.querySelector<HTMLButtonElement>('button[aria-label="Remove attachment"]')!.click()
     )
     expect(container.textContent).not.toContain('flyer.png')
+  })
+
+  it('shows the attach action on a team whose folder does not exist yet', () => {
+    const { container } = mount({ onAttachFiles: async () => [FLYER] })
+
+    expect(attachButton(container)).not.toBeNull()
   })
 
   it('sends the text with its files, then clears both', async () => {

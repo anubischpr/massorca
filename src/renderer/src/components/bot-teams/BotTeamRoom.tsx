@@ -104,7 +104,8 @@ export function BotTeamRoom({
   header,
   otherTeams = NO_TEAMS,
   onCreateBot,
-  onCreateTeam
+  onCreateTeam,
+  onOpenFile
 }: {
   /** Teams the room can suggest or send a request to. */
   otherTeams?: readonly BotTeam[]
@@ -117,6 +118,8 @@ export function BotTeamRoom({
   offline: boolean
   openTaskId: string | null
   onOpenTask: (taskId: string | null) => void
+  /** Opens a file a message names in the team's Files view; without it the file chips stay plain. */
+  onOpenFile?: (path: string) => void
 }): React.JSX.Element {
   const [messages, setMessages] = useState<BotTeamMessage[]>([])
   const [tasks, setTasks] = useState<BotTeamTask[]>([])
@@ -146,7 +149,7 @@ export function BotTeamRoom({
     hasContent: messages.length > 0 || tasks.length > 0
   })
   const botOf = (botId: string | null) => team.bots.find((bot) => bot.id === botId)
-  const onAttachFiles = useBotTeamRoomAttachments({ teamId: team.id, taskCount: tasks.length })
+  const onAttachFiles = useBotTeamRoomAttachments({ teamId: team.id })
 
   const latestRead = useRef(0)
   const sending = useRef(false)
@@ -207,7 +210,14 @@ export function BotTeamRoom({
         sent.task === null && !sent.greeted && !sent.choice && !sent.answered && !sent.replying
       )
       setPending(
-        sent.choice ? { choice: sent.choice, text, ...(sent.later ? { later: true } : {}) } : null
+        sent.choice
+          ? {
+              choice: sent.choice,
+              text,
+              ...(sent.later ? { later: true } : {}),
+              ...(attachments.length > 0 ? { attachments } : {})
+            }
+          : null
       )
       if (sent.startError) {
         toast.error(sent.startError)
@@ -345,7 +355,7 @@ export function BotTeamRoom({
                     >
                       <BotTeamRoomMessageBody text={message.text} mentions={mentionIcons} />
                       {message.attachments && message.attachments.length > 0 ? (
-                        <BotTeamRoomAttachChips files={message.attachments} />
+                        <BotTeamRoomAttachChips files={message.attachments} onOpen={onOpenFile} />
                       ) : null}
                     </div>
                     {placement.cardsByMessageId.get(message.id)?.map(taskCard)}

@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import { fileBotTeamRequest, type BotTeamRequestFiling } from '@/runtime/runtime-bot-team-client'
 import type { BotTeamRequestChoice } from '../../../../shared/bot-team-request-choice'
+import type { BotTeamRoomAttachment } from '../../../../shared/bot-team-room-attachments'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { BotTeamProject } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { BotTeamProjectQuestion } from './BotTeamProjectQuestion'
@@ -13,6 +14,8 @@ export type BotTeamPendingChoiceRequest = {
   text: string
   /** The person asked for the work later: filed in Todo, never started. */
   later?: boolean
+  /** The files the person attached to the request; they stay with it until it is filed. */
+  attachments?: BotTeamRoomAttachment[]
 }
 
 /** Puts the room's question to the person and files the request where they decide. */
@@ -49,6 +52,7 @@ export function BotTeamPendingChoice({
         start: true,
         askProject: true,
         ...(pending.later ? { later: true } : {}),
+        ...(pending.attachments?.length ? { attachments: pending.attachments } : {}),
         ...target
       })
       if (filed.choice) {
