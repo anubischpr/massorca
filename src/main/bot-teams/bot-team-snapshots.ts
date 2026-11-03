@@ -1,140 +1,173 @@
-import { randomUUID } from 'node:crypto'
-import { access, lstat, mkdir, rm } from 'node:fs/promises'
-import path from 'node:path'
-import { gitOf, guarded, inLane, SnapshotFailure, toFailure } from './bot-team-snapshot-run'
 import {
-  BOT_TEAM_EMPTY_TREE,
+  ensureStoreDirectories,
+  FileOverLimitError,
+  hasObject,
+  hashFile,
+  isMissingFile,
+  storeFile
+} from './bot-team-content-store'
+import { savableFilesOf, type SavableFile } from './bot-team-snapshot-files'
+import { guarded, inLane, SnapshotFailure, toFailure } from './bot-team-snapshot-run'
+import {
   BOT_TEAM_SNAPSHOT_LIMITS,
-  BOT_TEAM_VERSION_REF_PREFIX,
   type BotTeamSnapshotDeps,
   type BotTeamSnapshotInput,
   type BotTeamSnapshotLimits,
   type BotTeamSnapshotResult,
-  type BotTeamVersion,
-  type BotTeamVersionReason
+  type BotTeamVersion
 } from './bot-team-snapshot-types'
+import {
+  changesBetween,
+  formatVersionId,
+  readStoredVersion,
+  readVersionIds,
+  toBotTeamVersion,
+  writeStoredVersion,
+  type StoredFile,
+  type StoredVersion
+} from './bot-team-version-manifest'
 
 /**
- * Versions of a team's folder. They live in a private Git repository outside the folder, so the
- * person's own repository, branches, index and working tree are never read or changed.
+ * Versions of a team's folder. Their files are copied into a store kept outside the folder, so the
+ * person's own files are read and never changed.
  */
 
-const READ_BATCH = 64
 const VERSIONS_SHOWN = 200
-const AUTHOR_ENV = {
-  GIT_AUTHOR_NAME: 'MassOrca',
-  GIT_AUTHOR_EMAIL: 'bot-teams@massorca.invalid',
-  GIT_COMMITTER_NAME: 'MassOrca',
-  GIT_COMMITTER_EMAIL: 'bot-teams@massorca.invalid'
-}
-
-async function ensureRepository(deps: BotTeamSnapshotDeps): Promise<void> {
-  try {
-    await access(path.join(deps.gitDir, 'HEAD'))
-    return
-  } catch {
-    // Not made yet.
-  }
-  await mkdir(path.dirname(deps.gitDir), { recursive: true })
-  await gitOf(deps).text(['init', '--bare', deps.gitDir], { cwd: path.dirname(deps.gitDir) })
-}
+const LABEL_LENGTH = 120
+const TOO_LARGE = 'This folder is too large to save as a version.'
+const CHANGED_WHILE_SAVING = 'A file changed while it was being saved. Try again.'
 
 function oneLine(text: string): string {
   return (
     text
       .replace(/[\0\r\n]+/g, ' ')
       .trim()
-      .slice(0, 120) || 'Saved'
+      .slice(0, LABEL_LENGTH) || 'Saved'
   )
-}
-
-function parseReason(value: string): BotTeamVersionReason {
-  return value === 'task-finished' || value === 'before-restore' || value === 'restored'
-    ? value
-    : 'other'
-}
-
-function parseVersions(listing: string): BotTeamVersion[] {
-  return listing
-    .split('\x02')
-    .map((record) => record.replace(/^\n/, ''))
-    .filter((record) => record.length > 0)
-    .map((record) => {
-      const [ref, commit, tree, seconds, ...rest] = record.split('\0')
-      const [label = '', ...body] = rest.join('\0').split('\n')
-      const field = (name: string): string =>
-        body.find((line) => line.startsWith(`${name}: `))?.slice(name.length + 2) ?? ''
-      return {
-        id: ref.slice(BOT_TEAM_VERSION_REF_PREFIX.length),
-        commit,
-        tree,
-        createdAt: Number(seconds) * 1000,
-        reason: parseReason(field('reason')),
-        label,
-        skipped: Number(field('skipped')) || 0,
-        author: field('author') || null
-      }
-    })
 }
 
 /** Newest first. */
 export async function listBotTeamVersions(deps: BotTeamSnapshotDeps): Promise<BotTeamVersion[]> {
   return guarded(async () => {
-    try {
-      await access(path.join(deps.gitDir, 'HEAD'))
-    } catch {
-      return []
+    const ids = (await readVersionIds(deps.storeDir)).slice(0, VERSIONS_SHOWN)
+    const versions: BotTeamVersion[] = []
+    for (const id of ids) {
+      const stored = await readStoredVersion(deps.storeDir, id)
+      if (stored) {
+        versions.push(toBotTeamVersion(stored))
+      }
     }
-    const listing = await gitOf(deps).text(
-      [
-        'for-each-ref',
-        '--sort=-refname',
-        `--count=${VERSIONS_SHOWN}`,
-        '--format=%(refname)%00%(objectname)%00%(tree)%00%(committerdate:unix)%00%(contents)%02',
-        BOT_TEAM_VERSION_REF_PREFIX
-      ],
-      { cwd: deps.folder }
-    )
-    return parseVersions(listing)
+    return versions
   })
 }
 
-async function savableFiles(
+type Measured =
+  | { kind: 'measured'; hash: string; size: number }
+  | { kind: 'over-limit' }
+  | { kind: 'vanished' }
+
+async function measure(file: SavableFile, maxFileBytes: number): Promise<Measured> {
+  try {
+    return { kind: 'measured', ...(await hashFile(file.absolutePath, maxFileBytes)) }
+  } catch (error) {
+    if (error instanceof FileOverLimitError) {
+      return { kind: 'over-limit' }
+    }
+    if (isMissingFile(error)) {
+      return { kind: 'vanished' }
+    }
+    throw error
+  }
+}
+
+function sortedFiles(entries: Map<string, StoredFile>): Record<string, StoredFile> {
+  return Object.fromEntries([...entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)))
+}
+
+/**
+ * Stores the folder's files and writes a new version, unless the newest version already holds
+ * exactly these files. Files are hashed first, so a refused version writes no object.
+ */
+export async function saveFolderVersion(
   deps: BotTeamSnapshotDeps,
-  limits: BotTeamSnapshotLimits
-): Promise<{ paths: string[]; skipped: number }> {
-  const listing = await gitOf(deps).text(['ls-files', '-z', '--others', '--exclude-standard'], {
-    cwd: deps.folder
-  })
-  const candidates = listing.split('\0').filter((entry) => entry.length > 0)
-  const paths: string[] = []
-  let skipped = 0
-  let total = 0
-  for (let start = 0; start < candidates.length; start += READ_BATCH) {
-    const batch = candidates.slice(start, start + READ_BATCH)
-    const stats = await Promise.all(
-      batch.map((entry) =>
-        // A trailing slash is a nested repository, which Git would only record as a link.
-        entry.endsWith('/') ? null : lstat(path.join(deps.folder, entry)).catch(() => null)
-      )
-    )
-    batch.forEach((entry, index) => {
-      const stat = stats[index]
-      if (!stat || !(stat.isFile() || stat.isSymbolicLink())) {
-        return
-      }
-      if (stat.size > limits.maxFileBytes) {
-        skipped += 1
-        return
-      }
-      total += stat.size
-      paths.push(entry)
-    })
-    if (paths.length > limits.maxFiles || total > limits.maxTotalBytes) {
-      throw new SnapshotFailure('too-large', 'This folder is too large to save as a version.')
+  input: BotTeamSnapshotInput
+): Promise<{ stored: StoredVersion | null; unchanged: boolean }> {
+  const limits: BotTeamSnapshotLimits = deps.limits ?? BOT_TEAM_SNAPSHOT_LIMITS
+  await ensureStoreDirectories(deps.storeDir)
+  const savable = await savableFilesOf(deps.folder, limits)
+  const entries = new Map<string, StoredFile>()
+  // One file per new content: identical new files are copied once.
+  const fresh = new Map<string, SavableFile>()
+  let skipped = savable.skipped
+  let newBytes = 0
+
+  for (const file of savable.files) {
+    const measured = await measure(file, limits.maxFileBytes)
+    if (measured.kind === 'over-limit') {
+      skipped += 1
+      continue
+    }
+    if (measured.kind === 'vanished') {
+      continue
+    }
+    entries.set(file.relativePath, { hash: measured.hash, size: measured.size })
+    if (!fresh.has(measured.hash) && !(await hasObject(deps.storeDir, measured.hash))) {
+      fresh.set(measured.hash, file)
+      newBytes += measured.size
     }
   }
-  return { paths, skipped }
+  if (newBytes > limits.maxNewBytes) {
+    throw new SnapshotFailure('too-large', TOO_LARGE)
+  }
+
+  for (const [hash, file] of fresh) {
+    if (await hasObject(deps.storeDir, hash)) {
+      continue
+    }
+    try {
+      entries.set(
+        file.relativePath,
+        await storeFile(deps.storeDir, file.absolutePath, limits.maxFileBytes)
+      )
+    } catch (error) {
+      if (error instanceof FileOverLimitError) {
+        entries.delete(file.relativePath)
+        skipped += 1
+      } else if (isMissingFile(error)) {
+        entries.delete(file.relativePath)
+      } else {
+        throw error
+      }
+    }
+  }
+  // A file that changed under the save leaves an entry without its object: no version is written.
+  for (const entry of entries.values()) {
+    if (!(await hasObject(deps.storeDir, entry.hash))) {
+      throw new SnapshotFailure('failed', CHANGED_WHILE_SAVING)
+    }
+  }
+
+  const files = sortedFiles(entries)
+  const latestId = (await readVersionIds(deps.storeDir))[0]
+  const latest = latestId === undefined ? null : await readStoredVersion(deps.storeDir, latestId)
+  const unchanged = latest
+    ? changesBetween(latest.manifest.files, files).length === 0
+    : Object.keys(files).length === 0
+  if (unchanged) {
+    return { stored: latest, unchanged: true }
+  }
+
+  const createdAt = Math.floor((deps.now ?? Date.now)() / 1000) * 1000
+  const stored = await writeStoredVersion(deps.storeDir, {
+    id: formatVersionId(latestId === undefined ? 1 : Number(latestId) + 1),
+    createdAt,
+    reason: input.reason,
+    label: oneLine(input.label),
+    author: input.author ? oneLine(input.author) : null,
+    skipped,
+    files
+  })
+  return { stored, unchanged: false }
 }
 
 /** Callers hold the team's lane, so the next number cannot be taken by another save. */
@@ -142,48 +175,10 @@ export async function saveBotTeamSnapshot(
   deps: BotTeamSnapshotDeps,
   input: BotTeamSnapshotInput
 ): Promise<{ version: BotTeamVersion | null; unchanged: boolean }> {
-  await ensureRepository(deps)
-  const git = gitOf(deps)
-  const { paths, skipped } = await savableFiles(deps, deps.limits ?? BOT_TEAM_SNAPSHOT_LIMITS)
-  const indexFile = path.join(deps.gitDir, `index.${randomUUID()}`)
-  try {
-    if (paths.length > 0) {
-      await git.text(['update-index', '--add', '--remove', '-z', '--stdin'], {
-        cwd: deps.folder,
-        indexFile,
-        stdin: `${paths.join('\0')}\0`
-      })
-    }
-    const tree = (await git.text(['write-tree'], { cwd: deps.folder, indexFile })).trim()
-    const latest = (await listBotTeamVersions(deps))[0]
-    if (latest ? latest.tree === tree : tree === BOT_TEAM_EMPTY_TREE) {
-      return { version: latest ?? null, unchanged: true }
-    }
-    const seconds = Math.floor((deps.now ?? Date.now)() / 1000)
-    const author = input.author ? `author: ${oneLine(input.author)}\n` : ''
-    const message = `${oneLine(input.label)}\n\nreason: ${input.reason}\nskipped: ${skipped}\n${author}`
-    const commit = (
-      await git.text(
-        ['commit-tree', tree, ...(latest ? ['-p', latest.commit] : []), '-m', message],
-        {
-          cwd: deps.folder,
-          env: {
-            ...AUTHOR_ENV,
-            GIT_AUTHOR_DATE: `${seconds} +0000`,
-            GIT_COMMITTER_DATE: `${seconds} +0000`
-          }
-        }
-      )
-    ).trim()
-    const id = String(latest ? Number(latest.id) + 1 : 1).padStart(6, '0')
-    // The empty old value makes a name that already exists fail instead of being replaced.
-    await git.text(['update-ref', `${BOT_TEAM_VERSION_REF_PREFIX}${id}`, commit, ''], {
-      cwd: deps.folder
-    })
-    const saved = (await listBotTeamVersions(deps)).find((version) => version.id === id)
-    return { version: saved ?? null, unchanged: false }
-  } finally {
-    await rm(indexFile, { force: true })
+  const saved = await saveFolderVersion(deps, input)
+  return {
+    version: saved.stored ? toBotTeamVersion(saved.stored) : null,
+    unchanged: saved.unchanged
   }
 }
 
@@ -192,7 +187,7 @@ export function takeBotTeamSnapshot(
   deps: BotTeamSnapshotDeps,
   input: BotTeamSnapshotInput
 ): Promise<BotTeamSnapshotResult> {
-  return inLane(deps.gitDir, async () => {
+  return inLane(deps.storeDir, async () => {
     try {
       const saved = await guarded(() => saveBotTeamSnapshot(deps, input))
       return { ok: true as const, ...saved }

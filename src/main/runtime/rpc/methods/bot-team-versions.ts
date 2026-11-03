@@ -5,9 +5,6 @@ import {
   BotTeamVersionsSelector,
   type BotTeamVersionsResult
 } from '../../../../shared/rpc-contract/bot-team-version-params'
-import { gitExecFileAsync } from '../../../git/command-runner/git-exec-file'
-import { probeGitAvailability } from '../../../git/git-availability'
-import { toFailure } from '../../../bot-teams/bot-team-snapshot-run'
 import { listBotTeamVersions } from '../../../bot-teams/bot-team-snapshots'
 import { botTeamVersionDeps } from '../../../bot-teams/bot-team-version-deps'
 import {
@@ -18,40 +15,23 @@ import {
 import { restoreBotTeamFile } from '../../../bot-teams/bot-team-version-restore'
 import { defineMethod } from '../core'
 
-const GIT_PROBE_MS = 5000
-
-/** Resolves false only when the host proved it has no Git; any other answer leaves versions on. */
-async function hostHasGit(cwd: string): Promise<boolean> {
-  try {
-    return await probeGitAvailability(
-      (args, options) => gitExecFileAsync(args, { cwd: options.cwd, timeout: options.timeout }),
-      { cwd, timeout: GIT_PROBE_MS }
-    )
-  } catch {
-    return true
-  }
-}
-
+/** A store that cannot be read is 'unavailable', so the screens leave versions out. */
 async function readVersions(teamId: string): Promise<BotTeamVersionsResult> {
-  const deps = botTeamVersionDeps(teamId)
-  // A team whose first task has not started has no folder, and so nothing to save.
-  if (!existsSync(deps.folder)) {
-    return { git: 'ok', versions: [], lastVersionOfFile: {} }
-  }
   try {
+    const deps = botTeamVersionDeps(teamId)
+    // A team whose first task has not started has no folder, and so nothing to save.
+    if (!existsSync(deps.folder)) {
+      return { git: 'ok', versions: [], lastVersionOfFile: {} }
+    }
     const versions = await listBotTeamVersions(deps)
-    if (versions.length === 0) {
-      return (await hostHasGit(deps.folder))
-        ? { git: 'ok', versions, lastVersionOfFile: {} }
-        : { git: 'unavailable' }
+    return {
+      git: 'ok',
+      versions,
+      lastVersionOfFile: versions.length === 0 ? {} : await botTeamLastVersionOfFile(deps)
     }
-    return { git: 'ok', versions, lastVersionOfFile: await botTeamLastVersionOfFile(deps) }
   } catch (error) {
-    const failure = toFailure(error)
-    if (failure.reason === 'git-unavailable') {
-      return { git: 'unavailable' }
-    }
-    throw failure
+    console.warn('[bot-teams] could not read the versions store', error)
+    return { git: 'unavailable' }
   }
 }
 

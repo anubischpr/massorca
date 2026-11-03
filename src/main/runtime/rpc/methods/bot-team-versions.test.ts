@@ -5,14 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { takeBotTeamSnapshot } from '../../../bot-teams/bot-team-snapshots'
 import type { RpcContext } from '../core'
 
-const probe = vi.hoisted(() => vi.fn(async () => true))
 const where = vi.hoisted(() => ({ root: '' }))
 
-vi.mock('../../../git/git-availability', () => ({ probeGitAvailability: probe }))
 vi.mock('../../../bot-teams/bot-team-version-deps', () => ({
   botTeamVersionDeps: (teamId: string) => ({
     folder: path.join(where.root, 'folders', teamId),
-    gitDir: path.join(where.root, 'versions', `${teamId}.git`)
+    storeDir: path.join(where.root, 'versions', teamId)
   })
 }))
 
@@ -27,7 +25,6 @@ async function call(name: string, params: Record<string, string>): Promise<unkno
 describe('the version methods', () => {
   beforeEach(async () => {
     where.root = await mkdtemp(path.join(tmpdir(), 'bot-team-version-rpc-'))
-    probe.mockResolvedValue(true)
   })
 
   afterEach(async () => {
@@ -36,22 +33,26 @@ describe('the version methods', () => {
 
   const folder = (teamId: string) => path.join(where.root, 'folders', teamId)
 
-  it('answers with no versions for a team that has no folder yet, without asking Git', async () => {
+  it('answers with no versions for a team that has no folder yet', async () => {
     expect(await call('botTeams.versions', { teamId: 't1' })).toEqual({
       git: 'ok',
       versions: [],
       lastVersionOfFile: {}
     })
-    expect(probe).not.toHaveBeenCalled()
   })
 
-  it('says versions are unavailable only when the host has no Git', async () => {
+  it('says versions are unavailable only while the store cannot be read', async () => {
     await mkdir(folder('t1'), { recursive: true })
-    probe.mockResolvedValue(false)
+    expect(await call('botTeams.versions', { teamId: 't1' })).toEqual({
+      git: 'ok',
+      versions: [],
+      lastVersionOfFile: {}
+    })
+    // A file where the store's versions folder should be: the store cannot be read.
+    await mkdir(path.join(where.root, 'versions', 't1'), { recursive: true })
+    await writeFile(path.join(where.root, 'versions', 't1', 'versions'), 'blocked')
     expect(await call('botTeams.versions', { teamId: 't1' })).toEqual({ git: 'unavailable' })
-    probe.mockResolvedValue(true)
-    expect(await call('botTeams.versions', { teamId: 't1' })).toMatchObject({ git: 'ok' })
-    probe.mockRejectedValue(new Error('timed out'))
+    await rm(path.join(where.root, 'versions', 't1', 'versions'))
     expect(await call('botTeams.versions', { teamId: 't1' })).toMatchObject({ git: 'ok' })
   })
 
@@ -59,7 +60,7 @@ describe('the version methods', () => {
     await mkdir(folder('t1'), { recursive: true })
     const deps = {
       folder: folder('t1'),
-      gitDir: path.join(where.root, 'versions', 't1.git')
+      storeDir: path.join(where.root, 'versions', 't1')
     }
     await writeFile(path.join(deps.folder, 'flyer.html'), 'v1')
     const first = await takeBotTeamSnapshot(deps, {

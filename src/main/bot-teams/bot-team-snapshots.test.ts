@@ -1,10 +1,8 @@
-import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { BotTeamSnapshotGit } from './bot-team-snapshot-git'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { listBotTeamVersions, takeBotTeamSnapshot } from './bot-team-snapshots'
 import type { BotTeamSnapshotDeps } from './bot-team-snapshot-types'
 import {
@@ -15,10 +13,8 @@ import {
 } from './bot-team-version-read'
 import { restoreBotTeamFile, restoreBotTeamVersion } from './bot-team-version-restore'
 
-// Every case runs real Git many times, which is slow on a busy Windows machine.
-vi.setConfig({ testTimeout: 120_000 })
-
 const SAVE = { reason: 'task-finished', label: 'Flyer done' } as const
+const MB = 1024 * 1024
 
 describe('versions of a team folder', () => {
   let root: string
@@ -33,7 +29,7 @@ describe('versions of a team folder', () => {
     clock = 1_700_000_000_000
     deps = {
       folder,
-      gitDir: path.join(root, 'private', 'team.git'),
+      storeDir: path.join(root, 'bot-team-versions', 'team'),
       now: () => (clock += 60_000)
     }
   })
@@ -59,23 +55,39 @@ describe('versions of a team folder', () => {
     }
     return result
   }
+  const objectPath = (hash: string): string =>
+    path.join(deps.storeDir, 'objects', hash.slice(0, 2), hash)
+  const manifestOf = async (id: string): Promise<{ files: Record<string, { hash: string }> }> =>
+    JSON.parse(await readFile(path.join(deps.storeDir, 'versions', `${id}.json`), 'utf8'))
 
-  async function listTree(directory: string): Promise<string[]> {
+  async function listFiles(directory: string): Promise<string[]> {
     const out: string[] = []
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const entries = await readdir(directory, { withFileTypes: true }).catch(() => [])
+    for (const entry of entries) {
       const full = path.join(directory, entry.name)
-      out.push(path.relative(folder, full))
       if (entry.isDirectory()) {
-        out.push(...(await listTree(full)))
+        out.push(...(await listFiles(full)))
+      } else {
+        out.push(full)
       }
     }
     return out.sort()
   }
 
-  it('saves a folder that has no Git and creates nothing inside it', async () => {
+  async function contentsOf(directory: string): Promise<Record<string, string>> {
+    const contents: Record<string, string> = {}
+    for (const file of await listFiles(directory)) {
+      contents[path.relative(directory, file)] = (await readFile(file)).toString('base64')
+    }
+    return contents
+  }
+
+  const objectFiles = (): Promise<string[]> => listFiles(path.join(deps.storeDir, 'objects'))
+
+  it('saves a folder and creates nothing inside it', async () => {
     await write('flyer.html', '<p>Summer</p>')
     await write('brand/notes.md', 'Colors')
-    const before = await listTree(folder)
+    const before = await contentsOf(folder)
 
     const result = await save()
 
@@ -86,50 +98,30 @@ describe('versions of a team folder', () => {
       reason: 'task-finished',
       skipped: 0
     })
-    expect(await listTree(folder)).toEqual(before)
+    expect(await contentsOf(folder)).toEqual(before)
     expect(await exists('.git')).toBe(false)
     expect(await listBotTeamVersions(deps)).toHaveLength(1)
   })
 
-  it('leaves the branches, index and files of a repository the person owns untouched', async () => {
-    const git = (...args: string[]) =>
-      execFileSync('git', args, { cwd: folder, encoding: 'utf8' }).trim()
-    git('init', '-q')
-    git('config', 'user.email', 'me@example.com')
-    git('config', 'user.name', 'Me')
-    await write('tracked.txt', 'one')
-    git('add', 'tracked.txt')
-    git('commit', '-q', '-m', 'first')
-    await write('tracked.txt', 'two')
-    await write('new.txt', 'untracked')
-    git('add', 'tracked.txt')
+  it('leaves a Git repository the person owns untouched and saves none of its files', async () => {
+    await write('.git/HEAD', 'ref: refs/heads/main\n')
+    await write('.git/index', Buffer.from([1, 2, 3, 4, 5]))
     await write('tracked.txt', 'three')
-
-    const index = async () =>
-      createHash('sha1')
-        .update(await readFile(path.join(folder, '.git', 'index')))
-        .digest('hex')
-    const snapshotOfRepository = async () => ({
-      status: git('status', '--porcelain'),
-      refs: git('for-each-ref'),
-      head: git('rev-parse', 'HEAD'),
-      branches: git('branch', '--list'),
-      index: await index(),
-      dotGit: (await listTree(path.join(folder, '.git'))).filter(
-        (entry) => !entry.includes(`objects${path.sep}`) || entry.endsWith('pack')
-      ),
-      files: await readdir(folder)
-    })
-    const before = await snapshotOfRepository()
+    await write('nested/.git/HEAD', 'ref: refs/heads/dev\n')
+    await write('nested/inside.txt', 'nested')
+    const before = await contentsOf(path.join(folder, '.git'))
 
     const result = await save()
 
-    expect(result.version).not.toBeNull()
-    expect(await snapshotOfRepository()).toEqual(before)
-    const saved = await readBotTeamVersionFile(deps, result.version!.id, 'tracked.txt')
-    expect(saved).toEqual({ kind: 'text', text: 'three' })
-    // The person's own files are saved, not their repository.
+    expect(await contentsOf(path.join(folder, '.git'))).toEqual(before)
+    expect(await readBotTeamVersionFile(deps, result.version!.id, 'tracked.txt')).toEqual({
+      kind: 'text',
+      text: 'three'
+    })
     expect(await readBotTeamVersionFile(deps, result.version!.id, '.git/HEAD')).toEqual({
+      kind: 'missing'
+    })
+    expect(await readBotTeamVersionFile(deps, result.version!.id, 'nested/inside.txt')).toEqual({
       kind: 'missing'
     })
   })
@@ -160,7 +152,7 @@ describe('versions of a team folder', () => {
   })
 
   it('skips files over the size limit and says how many', async () => {
-    deps.limits = { maxFileBytes: 10, maxTotalBytes: 1000, maxFiles: 100 }
+    deps.limits = { maxFileBytes: 10, maxFiles: 100, maxNewBytes: 1000 }
     await write('small.txt', 'tiny')
     await write('big.bin', Buffer.alloc(11, 1))
     const result = await save()
@@ -170,22 +162,27 @@ describe('versions of a team folder', () => {
     ])
   })
 
-  it('refuses a folder over the total limit and stores no version', async () => {
-    deps.limits = { maxFileBytes: 10, maxTotalBytes: 12, maxFiles: 100 }
+  it('refuses a version over the new-bytes or file-count limit, and writes no object', async () => {
+    deps.limits = { maxFileBytes: 10, maxFiles: 100, maxNewBytes: 12 }
     await write('a.txt', '123456789')
-    await write('b.txt', '123456789')
-    const result = await takeBotTeamSnapshot(deps, SAVE)
-    expect(result).toMatchObject({ ok: false, reason: 'too-large' })
+    await write('b.txt', 'abcdefghi')
+    expect(await takeBotTeamSnapshot(deps, SAVE)).toMatchObject({
+      ok: false,
+      reason: 'too-large'
+    })
     expect(await listBotTeamVersions(deps)).toEqual([])
+    expect(await objectFiles()).toEqual([])
 
-    deps.limits = { maxFileBytes: 10, maxTotalBytes: 1000, maxFiles: 1 }
+    deps.limits = { maxFileBytes: 10, maxFiles: 1, maxNewBytes: 1000 }
     expect(await takeBotTeamSnapshot(deps, SAVE)).toMatchObject({ ok: false, reason: 'too-large' })
+    expect(await objectFiles()).toEqual([])
   })
 
   it('does not save what the folder ignores', async () => {
-    await write('.gitignore', 'secret.txt\nnode_modules/\n')
+    await write('.gitignore', 'secret.txt\nnode_modules/\n*.log\n')
     await write('secret.txt', 'key')
     await write('node_modules/pkg/index.js', 'x')
+    await write('debug/run.log', 'log')
     await write('kept.txt', 'kept')
     const result = await save()
     const changes = await botTeamVersionChanges(deps, result.version!.id)
@@ -200,19 +197,14 @@ describe('versions of a team folder', () => {
     ).toEqual({ kind: 'text', text: 'precio' })
   })
 
-  it('reports a missing Git as unavailable', async () => {
-    const missing = Object.assign(new Error('spawn git ENOENT'), {
-      code: 'ENOENT',
-      syscall: 'spawn git'
-    })
-    const git: BotTeamSnapshotGit = {
-      text: () => Promise.reject(missing),
-      bytes: () => Promise.reject(missing)
-    }
-    expect(await takeBotTeamSnapshot({ ...deps, git }, SAVE)).toMatchObject({
-      ok: false,
-      reason: 'git-unavailable'
-    })
+  it('reports a store that cannot be written as failed', async () => {
+    await write('a.txt', 'a')
+    await writeFile(path.join(root, 'blocked'), 'a file, not a folder')
+    const result = await takeBotTeamSnapshot(
+      { ...deps, storeDir: path.join(root, 'blocked', 'team') },
+      SAVE
+    )
+    expect(result).toMatchObject({ ok: false, reason: 'failed' })
   })
 
   it('lists changes per version, the versions of one file, and reads either side', async () => {
@@ -253,7 +245,8 @@ describe('versions of a team folder', () => {
       text: 'v2'
     })
     expect(await readBotTeamVersionFile(deps, first.version!.id, 'logo.png')).toEqual({
-      kind: 'binary'
+      kind: 'binary',
+      size: 4
     })
     expect(await readBotTeamVersionFile(deps, third.version!.id, 'flyer.html')).toEqual({
       kind: 'missing'
@@ -261,6 +254,70 @@ describe('versions of a team folder', () => {
     const listed = await listBotTeamVersions(deps)
     expect(listed.map((version) => version.id)).toEqual(['000003', '000002', '000001'])
     expect(listed[0].createdAt).toBeGreaterThan(listed[1].createdAt)
+  })
+
+  it('stores an unchanged large binary file once across versions', async () => {
+    const clip = Buffer.alloc(6 * MB, 7)
+    clip[0] = 0
+    await write('clip.mov', clip)
+    await write('note.txt', 'one')
+    await save('First')
+    await write('note.txt', 'two')
+    const second = await save('Second')
+
+    const objects = await objectFiles()
+    expect(objects).toHaveLength(3)
+    const sizes = await Promise.all(objects.map(async (file) => (await stat(file)).size))
+    expect(sizes.filter((size) => size === 6 * MB)).toHaveLength(1)
+    expect(await readBotTeamVersionFile(deps, second.version!.id, 'clip.mov')).toEqual({
+      kind: 'binary',
+      size: 6 * MB
+    })
+  })
+
+  it('reads a text version over the preview size as too large, and a binary one as binary', async () => {
+    await write('long.txt', 'a'.repeat(MB + 1))
+    await write('data.bin', Buffer.from([0, 1, 2]))
+    const saved = await save()
+    expect(await readBotTeamVersionFile(deps, saved.version!.id, 'long.txt')).toEqual({
+      kind: 'too-large',
+      size: MB + 1
+    })
+    expect(await readBotTeamVersionFile(deps, saved.version!.id, 'data.bin')).toEqual({
+      kind: 'binary',
+      size: 3
+    })
+  })
+
+  it('names a version by the sha256 of its manifest in commit and tree', async () => {
+    await write('a.txt', 'a')
+    const saved = await save()
+    const bytes = await readFile(path.join(deps.storeDir, 'versions', `${saved.version!.id}.json`))
+    const digest = createHash('sha256').update(bytes).digest('hex')
+    expect(saved.version).toMatchObject({ commit: digest, tree: digest })
+  })
+
+  it('keeps every object a saved version points at', async () => {
+    await write('a.txt', 'one')
+    await write('img.png', Buffer.from([0, 9, 9]))
+    await save('First')
+    await write('a.txt', 'two')
+    await save('Second')
+    await rm(path.join(folder, 'img.png'))
+    await save('Third')
+
+    const versions = await listBotTeamVersions(deps)
+    expect(versions).toHaveLength(3)
+    for (const version of versions) {
+      for (const entry of Object.values((await manifestOf(version.id)).files)) {
+        expect(
+          await stat(objectPath(entry.hash)).then(
+            () => true,
+            () => false
+          )
+        ).toBe(true)
+      }
+    }
   })
 
   it('restores an earlier version after saving the current state, so nothing is lost', async () => {
@@ -321,6 +378,18 @@ describe('versions of a team folder', () => {
     expect(await read('flyer.html')).toBe('v2')
   })
 
+  it('restores a binary file byte for byte', async () => {
+    const original = Buffer.from([0, 255, 1, 128, 0, 42])
+    await write('pack.bin', original)
+    const first = await save('First')
+    await write('pack.bin', Buffer.from([9, 9]))
+
+    expect(await restoreBotTeamFile(deps, first.version!.id, 'pack.bin')).toMatchObject({
+      ok: true
+    })
+    expect(await readFile(path.join(folder, 'pack.bin'))).toEqual(original)
+  })
+
   it('refuses to restore a file a version never held, or a path outside the folder', async () => {
     await write('a.txt', 'a')
     const first = await save()
@@ -346,7 +415,7 @@ describe('versions of a team folder', () => {
   })
 
   it('leaves a file that is over the size limit alone when restoring', async () => {
-    deps.limits = { maxFileBytes: 10, maxTotalBytes: 1000, maxFiles: 100 }
+    deps.limits = { maxFileBytes: 10, maxFiles: 100, maxNewBytes: 1000 }
     await write('a.txt', 'one')
     const first = await save()
     await write('a.txt', 'two')

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, ChevronLeft, ChevronUp, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
+import { formatByteSize } from '@/components/artifacts/artifact-display-labels'
 import { Button } from '@/components/ui/button'
 import { translate } from '@/i18n/i18n'
 import { cn } from '@/lib/utils'
@@ -75,6 +76,27 @@ function rowBadges(row: BotTeamCompareRow): { left: string | null; right: string
     left: row.change === 'added' ? added : row.change === 'changed' ? changed : null,
     right: row.change === 'removed' ? removed : row.change === 'changed' ? changed : null
   }
+}
+
+/** Binary and large versions cannot be read line by line, so they say what they are instead. */
+function notComparedText(file: BotTeamVersionFile): string {
+  if (file.kind === 'binary' && file.size !== undefined) {
+    return translate(
+      'components.botTeams.binaryVersion',
+      'Binary file. This version is {{size}}.',
+      {
+        size: formatByteSize(file.size)
+      }
+    )
+  }
+  if (file.kind === 'too-large' && file.size !== undefined) {
+    return translate(
+      'components.botTeams.tooLargeVersion',
+      'Too large to compare here. This version is {{size}}.',
+      { size: formatByteSize(file.size) }
+    )
+  }
+  return translate('components.botTeams.cannotCompare', 'This version can’t be compared here.')
 }
 
 /** The file as it is now beside an earlier version, with the differences marked. */
@@ -205,9 +227,7 @@ export function BotTeamVersionCompare({
       </div>
       <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto pb-4">
         {earlier !== null && earlier.kind !== 'text' ? (
-          <p className="px-4 text-sm text-muted-foreground">
-            {translate('components.botTeams.cannotCompare', 'This version can’t be compared here.')}
-          </p>
+          <p className="px-4 text-sm text-muted-foreground">{notComparedText(earlier)}</p>
         ) : null}
         {rows.map((row, at) => {
           const focused = row.index === position && row.change !== null
