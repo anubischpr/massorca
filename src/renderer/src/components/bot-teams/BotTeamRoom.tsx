@@ -31,6 +31,7 @@ import { BotTeamPendingChoice, type BotTeamPendingChoiceRequest } from './BotTea
 import { BotTeamRoomComposer } from './BotTeamRoomComposer'
 import { BotTeamSentTrackers } from './BotTeamRoomTracker'
 import { BotTeamRoomMessage } from './BotTeamRoomMessage'
+import { useBotTeamRoomPrototypeLinks } from './BotTeamRoomPrototypeLinks'
 import type { BotTeamMentionIcon } from './BotTeamMentionChip'
 import { useBotTeamRoomAttachments } from './bot-team-room-attach-state'
 import type { BotTeamRoomAttachment } from '../../../../shared/bot-team-room-attachments'
@@ -281,6 +282,7 @@ export function BotTeamRoom({
 
   // A card sits right after the request that made it; the rest follow the conversation.
   const placement = useMemo(() => placeBotTeamRoomTasks(messages, tasks), [messages, tasks])
+  const prototypeLinks = useBotTeamRoomPrototypeLinks(messages, tasks, sent, team.id)
   const openTask = tasks.find((task) => task.id === openTaskId)
   const openAgent = botOf(openTask?.ownerBotId ?? null)?.agent
   if (openTask && openAgent) {
@@ -362,6 +364,7 @@ export function BotTeamRoom({
                 >
                   {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
                   {trackers(sent.filter((request) => request.messageId === message.id))}
+                  {prototypeLinks(message.id)}
                 </BotTeamRoomMessage>
               ))}
               {placement.trailing.map(taskCard)}

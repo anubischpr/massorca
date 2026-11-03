@@ -1,7 +1,4 @@
-import type {
-  BotTeamMessage,
-  BotTeamTask
-} from '../../../src/shared/rpc-contract/bot-team-room-params'
+import type { BotTeamMessage, BotTeamTask } from './rpc-contract/bot-team-room-params'
 
 /** The message fields read: who wrote it, from which team, and the host's time. */
 export type BotTeamRoomReportMessage = Pick<
