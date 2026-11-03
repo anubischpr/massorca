@@ -118,6 +118,21 @@ describe('MobileNativeChatComposer single-line layout', () => {
   })
 })
 
+describe('MobileNativeChatComposer sending without text', () => {
+  const send = (root: ReactTestRenderer) =>
+    root.root.findByProps({ accessibilityLabel: 'Send message' })
+
+  it('keeps Send off for an empty draft', () => {
+    expect(send(renderComposer({ layout: 'single-line' })).props.disabled).toBe(true)
+  })
+
+  it('turns Send on for an empty draft when the room has files to send', () => {
+    const root = renderComposer({ layout: 'single-line', sendWithoutText: true })
+
+    expect(send(root).props.disabled).toBe(false)
+  })
+})
+
 describe('MobileNativeChatComposer default layout (Workspaces) is unchanged', () => {
   it('keeps the input row above an action row holding attach, dictate and send', () => {
     const root = renderComposer({ onAttachImage: vi.fn(), onMicPress: vi.fn() })

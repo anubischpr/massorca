@@ -165,6 +165,55 @@ describe('MobileBotTeamRoom attachments', () => {
     )
   })
 
+  it('sends the picked file alone, with no text, and lets Send through', async () => {
+    host.capabilities = [BOT_TEAM_ROOM_ATTACHMENTS_RUNTIME_CAPABILITY]
+    const client = hostWith(EMPTY_ROOM)
+    const renderer = await render(client)
+
+    expect(renderer.root.findByType('Composer' as never).props.sendWithoutText).toBeFalsy()
+    await act(async () => {
+      await composerProps(renderer).onAttachFile?.()
+    })
+    expect(renderer.root.findByType('Composer' as never).props.sendWithoutText).toBe(true)
+    await act(async () => {
+      await composerProps(renderer).onSend('')
+    })
+
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'botTeams.postMessage',
+      expect.objectContaining({
+        text: '',
+        attachments: [{ path: 'attachments/notes.txt', name: 'notes.txt' }]
+      }),
+      expect.anything()
+    )
+  })
+
+  it('retries with the file names when the host still requires text', async () => {
+    host.capabilities = [BOT_TEAM_ROOM_ATTACHMENTS_RUNTIME_CAPABILITY]
+    const client = hostWith(EMPTY_ROOM)
+    const base = client.sendRequest.getMockImplementation()!
+    client.sendRequest.mockImplementation(async (method: string, ...rest: unknown[]) =>
+      method === 'botTeams.postMessage' && (rest[0] as { text: string }).text === ''
+        ? { ok: false, error: { code: 'invalid_argument', message: 'Missing message text' } }
+        : base(method)
+    )
+    const renderer = await render(client)
+
+    await act(async () => {
+      await composerProps(renderer).onAttachFile?.()
+    })
+    await act(async () => {
+      await composerProps(renderer).onSend('')
+    })
+
+    expect(client.sendRequest).toHaveBeenCalledWith(
+      'botTeams.postMessage',
+      expect.objectContaining({ text: 'notes.txt' }),
+      expect.anything()
+    )
+  })
+
   it('shows the files a message carries under it', async () => {
     host.capabilities = []
     const room = {

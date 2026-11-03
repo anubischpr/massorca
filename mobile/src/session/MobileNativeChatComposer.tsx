@@ -53,6 +53,8 @@ type Props = {
   attachments?: PendingNativeChatImage[]
   onRemoveAttachment?: (id: string) => void
   isAttaching?: boolean
+  /** Send is on for an empty draft: the room has files to send alone. */
+  sendWithoutText?: boolean
   onMicPress?: () => void
   micActive?: boolean
   /** Dictation trigger style — 'hold' uses press-in/out, 'toggle' uses tap. */
@@ -88,6 +90,7 @@ export function MobileNativeChatComposer({
   attachments = NO_ATTACHMENTS,
   onRemoveAttachment,
   isAttaching = false,
+  sendWithoutText = false,
   onMicPress,
   micActive = false,
   dictationMode = 'toggle',
@@ -125,7 +128,7 @@ export function MobileNativeChatComposer({
   // An attached image alone is a valid send (desktop parity), so the image rides
   // along even when the user sends no accompanying text.
   const canSend =
-    (trimmed.length > 0 || attachments.length > 0) &&
+    (trimmed.length > 0 || attachments.length > 0 || sendWithoutText) &&
     !disabled &&
     !sendDisabled &&
     !sending &&

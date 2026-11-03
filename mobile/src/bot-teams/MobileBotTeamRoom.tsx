@@ -369,6 +369,7 @@ export function MobileBotTeamRoom({
         layout="single-line"
         isAttaching={attachments.attaching}
         onAttachFile={attachments.attachFile}
+        sendWithoutText={attachments.postable.length > 0}
       />
       <MobileBotTeamRoomSwitcher
         visible={sheet === 'rooms'}

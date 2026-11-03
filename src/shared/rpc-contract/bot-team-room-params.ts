@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { requiredString } from './rpc-param-primitives'
+import { requiredString, requiredStringAllowingEmpty } from './rpc-param-primitives'
 import {
   BOT_TEAM_ROOM_ATTACHMENT_LIMIT,
   BotTeamRoomAttachmentSchema,
@@ -156,18 +156,24 @@ export const BotTeamTaskCreate = z.object({
   ownerBotId: requiredString('Missing bot id')
 })
 
-export const BotTeamMessagePost = z.object({
-  teamId: requiredString('Missing team id'),
-  text: requiredString('Missing message text'),
-  /** False saves the task to Todo without starting a bot. */
-  start: z.boolean().default(true),
-  /** Only a client that can show the project question sends true; an older one never gets the question. */
-  askProject: z.boolean().optional(),
-  /** One id per send, reused when the client retries that send: the host then posts it once. */
-  clientRequestId: z.string().min(1).max(100).optional(),
-  /** Files the person added from the team folder's attachments; only a client the host admits sends them. */
-  attachments: z.array(BotTeamRoomAttachmentSchema).max(BOT_TEAM_ROOM_ATTACHMENT_LIMIT).optional()
-})
+export const BotTeamMessagePost = z
+  .object({
+    teamId: requiredString('Missing team id'),
+    // Empty only with files; an older host still requires text, so a client may send the file names.
+    text: requiredStringAllowingEmpty('Missing message text'),
+    /** False saves the task to Todo without starting a bot. */
+    start: z.boolean().default(true),
+    /** Only a client that can show the project question sends true; an older one never gets the question. */
+    askProject: z.boolean().optional(),
+    /** One id per send, reused when the client retries that send: the host then posts it once. */
+    clientRequestId: z.string().min(1).max(100).optional(),
+    /** Files the person added from the team folder's attachments; only a client the host admits sends them. */
+    attachments: z.array(BotTeamRoomAttachmentSchema).max(BOT_TEAM_ROOM_ATTACHMENT_LIMIT).optional()
+  })
+  .refine((value) => value.text.trim() !== '' || (value.attachments?.length ?? 0) > 0, {
+    message: 'Missing message text',
+    path: ['text']
+  })
 
 /** Files a request the room could not place by itself: to a bot, and to a team when `toTeamId` is set. */
 export const BotTeamRequestAssign = z.object({

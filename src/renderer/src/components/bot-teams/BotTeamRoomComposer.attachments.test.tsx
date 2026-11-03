@@ -114,6 +114,18 @@ describe('bot team room composer attachments', () => {
     expect(container.textContent).not.toContain('flyer.png')
   })
 
+  it('sends files alone, with no text', async () => {
+    const { container, onSend } = mount({ onAttachFiles: async () => [FLYER] })
+
+    expect(sendButton(container).disabled).toBe(true)
+    await act(async () => attachButton(container)!.click())
+    expect(sendButton(container).disabled).toBe(false)
+    await act(async () => sendButton(container).click())
+
+    expect(onSend).toHaveBeenCalledWith('', [FLYER])
+    expect(container.textContent).not.toContain('flyer.png')
+  })
+
   it('keeps at most ten files on one message', async () => {
     const many = Array.from({ length: 11 }, (_, index) => ({
       path: `attachments/f${index}.txt`,
