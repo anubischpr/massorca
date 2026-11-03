@@ -21,6 +21,7 @@ export const MOBILE_BOT_TEAM_RPC_METHODS = [
   'botTeams.listScheduledRuns',
   'botTeams.listWebhooks',
   'botTeams.postMessage',
+  'botTeams.projectFiles',
   'botTeams.startTask',
   'botTeams.reassignTask',
   'botTeams.removeBot',

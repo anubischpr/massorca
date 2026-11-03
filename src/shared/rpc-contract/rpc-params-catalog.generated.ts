@@ -76,6 +76,7 @@ import {
   BotTeamAgentTaskCreate
 } from './bot-team-agent-params'
 import { BotTeamEngramList } from './bot-team-engram-params'
+import { BotTeamProjectFilesSelector } from './bot-team-files-project-params'
 import { BotTeamMemoryDelete, BotTeamMemoryList } from './bot-team-memory-params'
 import {
   BotTeamAddBot,
@@ -772,6 +773,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.listScheduledRuns': BotTeamScheduledRunsQuery,
   'botTeams.listWebhooks': BotTeamWebhookList,
   'botTeams.postMessage': BotTeamMessagePost,
+  'botTeams.projectFiles': BotTeamProjectFilesSelector,
   'botTeams.reassignTask': BotTeamTaskReassign,
   'botTeams.removeBot': BotTeamRemoveBot,
   'botTeams.replaceWebhookSecret': BotTeamWebhookSelector,

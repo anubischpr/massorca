@@ -19773,6 +19773,9 @@
     },
     "botTeams": {
       "conferenceRoom": "Conference room",
+      "newFile": "New file",
+      "openToPreview": "Open the file to see it.",
+      "unreadFiles": "{{count}} new files",
       "sidebarAria": "Bot teams",
       "addBot": "Add a bot",
       "addBotHelp": "This bot keeps its name and job between tasks.",

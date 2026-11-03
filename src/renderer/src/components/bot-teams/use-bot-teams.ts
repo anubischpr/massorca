@@ -3,8 +3,9 @@ import { toast } from 'sonner'
 import { create } from 'zustand'
 import { useBotTeamHost } from '@/runtime/bot-team-host'
 import { listBotTeams } from '@/runtime/runtime-bot-team-client'
-import { botTeamIdFromFolderPath } from '../../../../shared/bot-team-folder'
+import { isBotTeamFolderPath } from '../../../../shared/bot-team-folder'
 import type { BotTeam, BotTeamCharacter } from '../../../../shared/rpc-contract/bot-team-params'
+import { botTeamForFolderPath } from './bot-team-folder-team'
 
 const HOST_CHECK_MS = 20_000
 
@@ -115,9 +116,26 @@ export function useBotTeamWorkspaceIds(): ReadonlySet<string> {
   return useMemo(() => workspaceIdsOf(teams), [teams])
 }
 
+/** Keeps the shared list loaded while `enabled`, for a reader outside the Bot teams surfaces. */
+export function useBotTeamListWhile(enabled: boolean): void {
+  const host = useBotTeamHost()
+  useEffect(() => {
+    if (!enabled) {
+      return
+    }
+    openSurface(host)
+    return closeSurface
+  }, [enabled, host])
+}
+
+/** The team a team folder belongs to; a team folder row loads the list itself, as Workspaces shows it alone. */
+export function useBotTeamForFolder(workspacePath: string): BotTeam | null {
+  useBotTeamListWhile(isBotTeamFolderPath(workspacePath))
+  const teams = useBotTeamsStore((state) => state.teams)
+  return botTeamForFolderPath(teams, workspacePath)
+}
+
 /** The character of the team a folder belongs to, read without loading the list. */
 export function useBotTeamCharacterForFolder(workspacePath: string): BotTeamCharacter | null {
-  const teams = useBotTeamsStore((state) => state.teams)
-  const teamId = botTeamIdFromFolderPath(workspacePath)
-  return teams?.find((team) => team.id === teamId)?.character ?? null
+  return useBotTeamForFolder(workspacePath)?.character ?? null
 }

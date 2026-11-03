@@ -2,6 +2,7 @@ import React from 'react'
 
 import { DetachedHeadBadge } from '@/components/DetachedHeadBadge'
 import { RepoBadgeMark } from '@/components/repo/RepoBadgeLabel'
+import { isBotTeamFolderPath } from '../../../../shared/bot-team-folder'
 import CacheTimer from './CacheTimer'
 import { WorktreeHostContextBadge } from './WorktreeHostContextBadge'
 import { WorktreeConflictOperationBadge } from './worktree-card-conflict-badge'
@@ -62,7 +63,8 @@ export function WorktreeCardMetaRow({
             className="text-[11px] text-muted-foreground leading-none"
             tooltipEnabled={!hasHoverDetails}
           />
-        ) : isFolder && !newCardStyle ? (
+        ) : isFolder && !newCardStyle && !isBotTeamFolderPath(worktree.path) ? (
+          // Why: a team's folder row is named for its team above; its folder id would only repeat as noise.
           <span
             className="min-w-0 truncate font-mono text-[11px] leading-none text-muted-foreground"
             title={worktree.path}

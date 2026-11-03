@@ -22,11 +22,13 @@ function team(id: string, name: string, character: BotTeam['character']): BotTea
 
 const listBotTeams = vi.hoisted(() => vi.fn())
 const listBotTeamRoom = vi.hoisted(() => vi.fn())
+const listBotTeamFiles = vi.hoisted(() => vi.fn(async () => ({ files: [], truncated: false })))
 const archiveBotTeamProject = vi.hoisted(() => vi.fn())
 const deleteBotTeamProject = vi.hoisted(() => vi.fn())
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
   listBotTeams,
   listBotTeamRoom,
+  listBotTeamFiles,
   setBotTeamProjectWorkspace: vi.fn()
 }))
 vi.mock('@/runtime/runtime-bot-team-project-client', () => ({
