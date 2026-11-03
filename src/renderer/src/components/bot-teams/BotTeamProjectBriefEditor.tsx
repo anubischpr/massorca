@@ -2,10 +2,12 @@ import { Suspense, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { RichMarkdownEditor } from '@/components/editor/editor-lazy-views'
 import { translate } from '@/i18n/i18n'
+import { dropBriefDraft, keepBriefDraft, readBriefDraft } from './bot-team-brief-draft'
 
 /**
  * The project Brief as Markdown in the app's rich editor. Nothing is saved until Save; Cancel
- * puts back the saved text. The editor has no file behind it, so its file-only hooks get empty ids.
+ * puts back the saved text. Unsaved edits are kept per project while the app runs. The editor
+ * has no file behind it, so its file-only hooks get empty ids.
  */
 export function BotTeamProjectBriefEditor({
   projectId,
@@ -18,13 +20,16 @@ export function BotTeamProjectBriefEditor({
   onSave: (markdown: string) => Promise<boolean>
 }): React.JSX.Element {
   const [session, setSession] = useState(0)
-  const [dirty, setDirty] = useState(false)
-  const draftRef = useRef(markdown)
+  const [dirty, setDirty] = useState(() => readBriefDraft(projectId) !== null)
+  // Why: the editor opens on the kept draft; only Cancel resets it, so typing never swaps its content.
+  const [content, setContent] = useState(() => readBriefDraft(projectId) ?? markdown)
+  const draftRef = useRef(content)
   const scope = `bot-team-project-brief:${projectId}`
 
   const save = async (next: string): Promise<void> => {
     draftRef.current = next
     if (await onSave(next)) {
+      dropBriefDraft(projectId)
       setDirty(false)
     }
   }
@@ -38,11 +43,12 @@ export function BotTeamProjectBriefEditor({
             fileId={scope}
             viewStateId={scope}
             scrollCacheKey={scope}
-            content={markdown}
+            content={content}
             filePath=""
             worktreeId=""
             onContentChange={(next) => {
               draftRef.current = next
+              keepBriefDraft(projectId, next, markdown)
             }}
             onDirtyStateHint={setDirty}
             onSave={(next) => void save(next)}
@@ -59,6 +65,8 @@ export function BotTeamProjectBriefEditor({
           variant="ghost"
           onClick={() => {
             draftRef.current = markdown
+            dropBriefDraft(projectId)
+            setContent(markdown)
             setDirty(false)
             setSession((current) => current + 1)
           }}

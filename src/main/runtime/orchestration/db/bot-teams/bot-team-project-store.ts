@@ -198,12 +198,16 @@ export function setBotTeamProjectBrief(
   projectId: string,
   input: { goal: string; brief: BotTeamBrief }
 ): BotTeamProject {
+  // Why: an older client sends no Markdown; keeping the stored one keeps what bots read and the person's structure.
+  const markdown =
+    typeof input.brief.markdown === 'string'
+      ? input.brief.markdown.trim()
+      : readProject(this, projectId).brief.markdown
   const brief: BotTeamBrief = {
     requirements: withoutBlanks(input.brief.requirements),
     constraints: withoutBlanks(input.brief.constraints),
     decisions: withoutBlanks(input.brief.decisions),
-    // A list-only save from an older client leaves no Markdown, so the lists are the Brief again.
-    ...(typeof input.brief.markdown === 'string' ? { markdown: input.brief.markdown.trim() } : {})
+    ...(markdown === undefined ? {} : { markdown })
   }
   const changed = this.db
     .prepare(

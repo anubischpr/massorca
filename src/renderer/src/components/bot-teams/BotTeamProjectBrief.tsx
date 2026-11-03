@@ -169,6 +169,7 @@ export function BotTeamProjectBrief({
               onSave={(lines) => void save({ goal: lines.join(' ') })}
             />
             <BotTeamProjectBriefEditor
+              key={project.id}
               projectId={project.id}
               markdown={briefEditorMarkdown(project.brief)}
               onSave={(markdown) => save({ markdown })}

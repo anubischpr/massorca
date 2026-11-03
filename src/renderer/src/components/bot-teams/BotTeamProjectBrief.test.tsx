@@ -188,6 +188,29 @@ describe('the project brief', () => {
     expect(setBotTeamProjectBrief).not.toHaveBeenCalled()
   })
 
+  it('keeps unsaved editor changes when the person leaves the Brief and comes back', async () => {
+    const first = await mount()
+    const editor = first.querySelector<HTMLTextAreaElement>('[aria-label="Brief editor"]')
+    await act(async () => typeInto(editor, 'Half-written flyer copy'))
+    act(() => {
+      for (const { root } of mounted.splice(0)) {
+        root.unmount()
+      }
+    })
+
+    const again = await mount()
+    expect(again.querySelector<HTMLTextAreaElement>('[aria-label="Brief editor"]')?.value).toBe(
+      'Half-written flyer copy'
+    )
+    expect(again.textContent).toContain('Unsaved changes')
+    expect(setBotTeamProjectBrief).not.toHaveBeenCalled()
+    await act(async () =>
+      [...again.querySelectorAll<HTMLButtonElement>('button')]
+        .find((button) => button.textContent?.trim() === 'Cancel')
+        ?.click()
+    )
+  })
+
   it('saves the Goal as text', async () => {
     setBotTeamProjectBrief.mockResolvedValue(project())
     const container = await mount()
