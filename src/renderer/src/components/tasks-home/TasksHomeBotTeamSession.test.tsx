@@ -31,9 +31,16 @@ function team(id: string, name: string, bots: string[]): BotTeam {
 }
 
 const listBotTeams = vi.hoisted(() => vi.fn())
+const listBotTeamRoom = vi.hoisted(() => vi.fn())
 const postBotTeamRequest = vi.hoisted(() => vi.fn())
 const toastError = vi.hoisted(() => vi.fn())
-vi.mock('@/runtime/runtime-bot-team-client', () => ({ listBotTeams, postBotTeamRequest }))
+vi.mock('@/runtime/runtime-bot-team-client', () => ({
+  listBotTeams,
+  listBotTeamRoom,
+  postBotTeamRequest
+}))
+vi.mock('../bot-teams/use-bot-team-files', () => ({ useBotTeamFilePaths: () => ['brief.md'] }))
+vi.mock('../bot-teams/BotAgentIcon', () => ({ BotAgentIcon: () => null }))
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
 vi.mock('sonner', () => ({ toast: { error: toastError } }))
 vi.mock('@/lib/agent-catalog', () => ({ AgentIcon: () => null }))
@@ -43,6 +50,8 @@ const store = createTestStore()
 vi.mock('@/store', () => ({ useAppStore: store }))
 
 const { TasksHomeBotTeamSession } = await import('./TasksHomeBotTeamSession')
+const { promptTextContent } = await import('../native-chat/native-chat-prompt-document-text')
+const { promptEditor } = await import('../native-chat/native-chat-prompt-editor.test-support')
 
 const mounted: { container: HTMLDivElement; root: Root }[] = []
 
@@ -59,7 +68,16 @@ async function mount(): Promise<HTMLDivElement> {
   return container
 }
 
+/** Types into the team's field, or the plain box shown while no team is picked. */
 async function type(container: HTMLElement, text: string): Promise<void> {
+  const field = container.querySelector<HTMLElement>('[role="combobox"]')
+  if (field) {
+    await act(async () => {
+      promptEditor(field).commands.setContent(promptTextContent(text), { emitUpdate: true })
+      promptEditor(field).commands.focus('end')
+    })
+    return
+  }
   const box = container.querySelector('textarea')
   if (!box) {
     throw new Error('Composer missing')
@@ -108,7 +126,22 @@ function task(over: Partial<BotTeamTask> = {}): BotTeamTask {
 beforeEach(() => {
   listBotTeams.mockReset()
   postBotTeamRequest.mockReset()
+  listBotTeamRoom.mockReset()
   toastError.mockReset()
+  listBotTeamRoom.mockResolvedValue({
+    messages: [],
+    tasks: [],
+    projects: [
+      {
+        id: 'p1',
+        teamId: 't1',
+        name: 'Shop',
+        goal: '',
+        workspace: { key: 'repo:r1', name: 'shop' }
+      },
+      { id: 'p2', teamId: 't1', name: 'Spring', goal: '' }
+    ]
+  })
   listBotTeams.mockResolvedValue([
     team('t1', 'Marketing', ['Iris', 'Nora']),
     team('t2', 'Sales', ['Leo'])
@@ -132,7 +165,7 @@ afterEach(() => {
 describe('the Tasks home Bot Team composer', () => {
   it('shows the canvas row: team chip, Save to Todo, the team placeholder, and no project chip', async () => {
     const container = await mount()
-    expect(container.querySelector('textarea')?.getAttribute('placeholder')).toBe(
+    expect(container.querySelector('[role="combobox"]')?.getAttribute('aria-label')).toBe(
       'Describe the task for the team…'
     )
     expect(container.querySelector('button[aria-label="Team"]')?.textContent).toContain('Marketing')
@@ -226,6 +259,29 @@ describe('the Tasks home Bot Team composer', () => {
     await send(container)
     expect(container.querySelector('[role="alert"]')?.textContent).toBe('Host unreachable')
     expect(store.getState().activeView).toBe('tasks')
+  })
+
+  it('offers the room menu after @: bots, other teams, projects with a logo or the name alone, files', async () => {
+    seedStore(store, {
+      repos: [
+        {
+          id: 'r1',
+          path: '/shop',
+          displayName: 'shop',
+          badgeColor: '#000',
+          addedAt: 0,
+          repoIcon: { type: 'emoji', emoji: 'S' }
+        }
+      ]
+    })
+    const container = await mount()
+    await type(container, '@')
+    const options = [...container.querySelectorAll('[role="option"]')].map((o) => o.textContent)
+    expect(options).toEqual(['Iris', 'Nora', 'Sales', 'SShop', 'Spring', 'brief.md'])
+    const headings = [...container.querySelectorAll('[role="listbox"] > div')].map(
+      (heading) => heading.textContent
+    )
+    expect(headings).toEqual(['Bots', 'Teams', 'Projects', 'Files'])
   })
 
   it('cannot create a task while there are no teams', async () => {

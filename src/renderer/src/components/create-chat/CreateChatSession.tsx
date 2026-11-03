@@ -6,6 +6,7 @@ import { CreateChatPermissionsChip, CreateChatPlaceChips } from './CreateChatLef
 import { CreateChatSessionViewSwitch } from './CreateChatSessionViewSwitch'
 import { CreateChatTerminalNotice } from './CreateChatTerminalNotice'
 import { useCreateChatAgents } from './use-create-chat-agents'
+import { useCreateChatMentionWorktreeId } from './use-create-chat-mention'
 import { useCreateChatModelCatalog } from './use-create-chat-model-catalog'
 import {
   buildDefaultCreateChatSelection,
@@ -62,6 +63,7 @@ export function CreateChatSession({
     selection.executionHostId,
     modelListingContext
   )
+  const mentionWorktreeId = useCreateChatMentionWorktreeId(selection)
   const view: CreateChatSessionView = selection.sessionView ?? 'chat'
   const terminalBlock = view === 'terminal' ? createChatTerminalBlock(selection.agent) : null
   const canSubmit =
@@ -102,6 +104,7 @@ export function CreateChatSession({
         pending={pending}
         error={error}
         onSubmit={submit}
+        mentionWorktreeId={mentionWorktreeId}
         placeChips={
           <CreateChatPlaceChips
             selection={selection}
