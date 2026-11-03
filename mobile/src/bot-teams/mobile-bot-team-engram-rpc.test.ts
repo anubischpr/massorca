@@ -23,6 +23,22 @@ describe('listMobileBotTeamEngramMemory', () => {
     expect(await listMobileBotTeamEngramMemory({ sendRequest } as never, INPUT)).toEqual(reply)
   })
 
+  it('keeps the refreshing flag the host sets while its import runs', async () => {
+    const reply = { status: 'ok', projectName: 'demo', memories: [], refreshing: true }
+    const sendRequest = vi.fn(async () => ({ ok: true, result: reply }))
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: The call only uses sendRequest.
+    expect(await listMobileBotTeamEngramMemory({ sendRequest } as never, INPUT)).toEqual(reply)
+  })
+
+  it('waits at most 20 s for the host, which answers without waiting for the import', async () => {
+    const sendRequest = vi.fn(async () => ({ ok: true, result: { status: 'ok', memories: [] } }))
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: The call only uses sendRequest.
+    await listMobileBotTeamEngramMemory({ sendRequest } as never, INPUT)
+    expect(sendRequest).toHaveBeenCalledWith('botTeams.listEngramMemory', INPUT, {
+      timeoutMs: 20_000
+    })
+  })
+
   it('reads a host without the method as unavailable, and trouble as failed', async () => {
     const missing = {
       sendRequest: async () => ({ ok: false, error: { code: 'method_not_found', message: 'x' } })

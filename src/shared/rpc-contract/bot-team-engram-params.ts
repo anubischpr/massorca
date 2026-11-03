@@ -4,6 +4,9 @@ import { requiredString } from './rpc-param-primitives'
 export const ENGRAM_QUERY_MAX_LENGTH = 200
 export const ENGRAM_DEFAULT_LIMIT = 5
 export const ENGRAM_MAX_LIMIT = 20
+/** While a reply says `refreshing`, the view asks again this often, at most ENGRAM_REFRESH_MAX_POLLS times. */
+export const ENGRAM_REFRESH_POLL_MS = 10_000
+export const ENGRAM_REFRESH_MAX_POLLS = 15
 
 export const BotTeamEngramList = z.object({
   teamId: requiredString('Missing team id'),
@@ -25,13 +28,15 @@ export const BotTeamEngramMemorySchema = z.object({
 
 /**
  * unavailable: no engram CLI on the host. not-linked: workspaces off or no linked project.
- * refreshFailed: the server import failed, so the memories are local and may be stale.
+ * refreshFailed: the last server import failed, so the memories are local and may be stale.
+ * refreshing: a server import is still running; the memories are local and the view asks again.
  */
 export const BotTeamEngramReplySchema = z.object({
   status: z.enum(['ok', 'unavailable', 'not-linked', 'failed']),
   projectName: z.string().optional(),
   memories: z.array(BotTeamEngramMemorySchema),
-  refreshFailed: z.boolean().optional()
+  refreshFailed: z.boolean().optional(),
+  refreshing: z.boolean().optional()
 })
 
 export type BotTeamEngramMemory = z.output<typeof BotTeamEngramMemorySchema>

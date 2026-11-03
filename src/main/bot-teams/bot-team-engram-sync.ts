@@ -1,7 +1,7 @@
 import type { EngramRunner } from './bot-team-engram-reader'
 
-/** Longer than the reader's 10 s, because the server import can take a while. */
-export const ENGRAM_IMPORT_TIMEOUT_MS = 20_000
+/** A real import takes about 43 s on a PC; killing it partway wastes the work. */
+export const ENGRAM_IMPORT_TIMEOUT_MS = 120_000
 /** Minimum gap between cloud imports of one project on this host. */
 export const ENGRAM_SYNC_INTERVAL_MS = 5 * 60_000
 
@@ -17,6 +17,8 @@ type ProjectImport = {
 export type EngramCloudSync = {
   /** Pulls the project from the Engram server into the local store; resolves true when it failed. Never rejects. */
   refresh: (run: EngramRunner, project: string, options: { force: boolean }) => Promise<boolean>
+  /** Synchronous: whether an import is running now, and whether the last settled one failed. */
+  status: (project: string) => { importing: boolean; failed: boolean }
 }
 
 /** In memory, per host: a restart starts with no throttle. */
@@ -36,6 +38,10 @@ export function createEngramCloudSync(options: { now?: () => number } = {}): Eng
   }
 
   return {
+    status: (project) => {
+      const state = projects.get(project)
+      return { importing: state?.inFlight != null, failed: state?.failed ?? false }
+    },
     refresh: async (run, project, { force }) => {
       const state = projects.get(project) ?? { startedAt: null, failed: false, inFlight: null }
       projects.set(project, state)

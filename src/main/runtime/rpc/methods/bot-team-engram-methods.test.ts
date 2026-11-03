@@ -147,14 +147,60 @@ describe('botTeams.listEngramMemory', () => {
     expect(run.mock.calls.filter(([args]) => args[0] === 'sync')).toHaveLength(1)
   })
 
-  it('still returns the local memories, flagged refreshFailed, when the import fails', async () => {
-    engramCli.run = async (args) => (args[0] === 'sync' ? IMPORT_FAILED : CONTEXT)
+  it('never waits for a slow import: it returns the local memories at once, flagged refreshing', async () => {
+    const run = vi.fn(async (args: readonly string[]) =>
+      args[0] === 'sync' ? new Promise<typeof IMPORTED>(() => undefined) : CONTEXT
+    )
+    engramCli.run = run
     const result = await botTeamListEngramMemoryMethod.handler(
       { ...IDS, refresh: true },
       context(true, LINKED)
     )
-    expect(result).toMatchObject({ status: 'ok', refreshFailed: true })
+    expect(result).toMatchObject({ status: 'ok', refreshing: true })
+    expect(result).not.toHaveProperty('refreshFailed')
     expect(result.memories).toHaveLength(1)
+    expect(run.mock.calls.filter(([args]) => args[0] === 'sync')).toHaveLength(1)
+  })
+
+  it('keeps the import running after the reply, and reports its failure on a later read', async () => {
+    let finish!: (result: typeof IMPORT_FAILED) => void
+    engramCli.run = async (args) =>
+      args[0] === 'sync'
+        ? new Promise<typeof IMPORT_FAILED>((resolve) => {
+            finish = resolve
+          })
+        : CONTEXT
+    const first = await botTeamListEngramMemoryMethod.handler(
+      { ...IDS, refresh: true },
+      context(true, LINKED)
+    )
+    expect(first).toMatchObject({ status: 'ok', refreshing: true })
+    finish(IMPORT_FAILED)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    const later = await botTeamListEngramMemoryMethod.handler(IDS, context(true, LINKED))
+    expect(later).toMatchObject({ status: 'ok', refreshFailed: true })
+    expect(later).not.toHaveProperty('refreshing')
+    expect(later.memories).toHaveLength(1)
+  })
+
+  it('leaves refreshing out once the import has settled, after a successful import', async () => {
+    let finish!: (result: typeof IMPORTED) => void
+    engramCli.run = async (args) =>
+      args[0] === 'sync'
+        ? new Promise<typeof IMPORTED>((resolve) => {
+            finish = resolve
+          })
+        : CONTEXT
+    const first = await botTeamListEngramMemoryMethod.handler(
+      { ...IDS, refresh: true },
+      context(true, LINKED)
+    )
+    expect(first).toMatchObject({ refreshing: true })
+    finish(IMPORTED)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    const later = await botTeamListEngramMemoryMethod.handler(IDS, context(true, LINKED))
+    expect(later).not.toHaveProperty('refreshing')
+    expect(later).not.toHaveProperty('refreshFailed')
   })
 
   it('leaves refreshFailed out when the import worked', async () => {

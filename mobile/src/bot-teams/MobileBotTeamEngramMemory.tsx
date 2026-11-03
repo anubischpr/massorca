@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Pressable, Text, TextInput, View } from 'react-native'
-import type { BotTeamEngramReply } from '../../../src/shared/rpc-contract/bot-team-engram-params'
+import {
+  ENGRAM_REFRESH_MAX_POLLS,
+  ENGRAM_REFRESH_POLL_MS,
+  type BotTeamEngramReply
+} from '../../../src/shared/rpc-contract/bot-team-engram-params'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
 import type { BotTeamProject } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import type { RpcClient } from '../transport/rpc-client'
@@ -62,29 +66,42 @@ export function MobileBotTeamEngramMemory({
       return
     }
     let current = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let polls = 0
+    const load = (refresh: boolean) => {
+      void listMobileBotTeamEngramMemory(client, {
+        teamId: team.id,
+        projectId,
+        ...(query ? { query } : {}),
+        ...(refresh ? { refresh: true } : {})
+      }).then((next) => {
+        if (!current) {
+          return
+        }
+        setReply(next)
+        // Only a reply that says `refreshing` schedules the next ask.
+        if (next.refreshing && polls < ENGRAM_REFRESH_MAX_POLLS) {
+          polls += 1
+          timer = setTimeout(() => load(false), ENGRAM_REFRESH_POLL_MS)
+        }
+      })
+    }
     setReply(null)
     // The view's first load asks the host to import from the Engram server first.
     const refresh = firstLoad.current
     firstLoad.current = false
-    void listMobileBotTeamEngramMemory(client, {
-      teamId: team.id,
-      projectId,
-      ...(query ? { query } : {}),
-      ...(refresh ? { refresh: true } : {})
-    }).then((next) => {
-      if (current) {
-        setReply(next)
-      }
-    })
+    load(refresh)
     return () => {
       current = false
+      clearTimeout(timer)
     }
   }, [client, offline, team.id, projectId, query])
 
   if (!team.workspacesEnabled || projects.length === 0) {
     return null
   }
-  const line = reply ? statusLine(reply, query !== '') : null
+  // While the import runs, an empty list is not yet "no memories", so only the updating note shows.
+  const line = reply && !reply.refreshing ? statusLine(reply, query !== '') : null
   return (
     <View style={styles.form}>
       <Text style={styles.rowTitle}>Engram</Text>
@@ -137,6 +154,9 @@ export function MobileBotTeamEngramMemory({
           ))
         : null}
       {line ? <Text style={styles.message}>{line}</Text> : null}
+      {reply?.refreshing ? (
+        <Text style={styles.message}>Updating from the Engram server…</Text>
+      ) : null}
       {reply?.refreshFailed ? (
         <Text style={styles.message}>Could not refresh from the Engram server.</Text>
       ) : null}

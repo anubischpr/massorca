@@ -1,7 +1,17 @@
 import { createElement } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  ENGRAM_REFRESH_MAX_POLLS,
+  ENGRAM_REFRESH_POLL_MS
+} from '../../../src/shared/rpc-contract/bot-team-engram-params'
 import { MobileBotTeamEngramMemory } from './MobileBotTeamEngramMemory'
+
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+const UPDATING = 'Updating from the Engram server…'
 
 vi.mock('react-native', () => ({
   Pressable: 'Pressable',
@@ -54,6 +64,43 @@ function host(engramReply: object, projects: object[] = [PROJECT]) {
         : { ok: true, result: engramReply }
     )
   }
+}
+
+/** Answers the room with the linked project, and each memory read with the next reply (the last one repeats). */
+function polled(replies: object[]) {
+  let index = 0
+  return {
+    sendRequest: vi.fn(async (method: string) =>
+      method === 'botTeams.listRoom'
+        ? {
+            ok: true,
+            result: {
+              tasks: [],
+              messages: [],
+              projects: [PROJECT],
+              projectTasks: [],
+              replying: [],
+              workspaceId: null
+            }
+          }
+        : { ok: true, result: replies[Math.min(index++, replies.length - 1)] }
+    )
+  }
+}
+
+async function renderPolled(client: { sendRequest: unknown }) {
+  let renderer!: ReactTestRenderer
+  await act(async () => {
+    renderer = create(
+      // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: The section only calls sendRequest.
+      createElement(MobileBotTeamEngramMemory, {
+        client: client as never,
+        team: TEAM,
+        offline: false
+      })
+    )
+  })
+  return renderer
 }
 
 async function render(client: { sendRequest: unknown }, team = TEAM) {
@@ -112,6 +159,45 @@ describe('MobileBotTeamEngramMemory', () => {
     expect(missing).toContain('Engram is not available on this host.')
     const failed = JSON.stringify((await render(host({ status: 'failed', memories: [] }))).toJSON())
     expect(failed).toContain('Could not read Engram. Try again.')
+  })
+
+  it('says the Engram server is being read, and asks again until the refresh lands', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const client = polled([{ ...OK, refreshing: true }, OK])
+    const renderer = await renderPolled(client)
+    expect(JSON.stringify(renderer.toJSON())).toContain(UPDATING)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ENGRAM_REFRESH_POLL_MS)
+    })
+    expect(client.sendRequest).toHaveBeenCalledTimes(3)
+    expect(client.sendRequest).toHaveBeenLastCalledWith(
+      'botTeams.listEngramMemory',
+      { teamId: 'team', projectId: 'p1' },
+      expect.anything()
+    )
+    expect(JSON.stringify(renderer.toJSON())).not.toContain(UPDATING)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ENGRAM_REFRESH_POLL_MS * 3)
+    })
+    expect(client.sendRequest).toHaveBeenCalledTimes(3)
+  })
+
+  it('stops asking after fifteen refreshes, and when the view unmounts', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    const client = polled([{ ...OK, refreshing: true }])
+    const renderer = await renderPolled(client)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ENGRAM_REFRESH_POLL_MS * (ENGRAM_REFRESH_MAX_POLLS + 5))
+    })
+    const engramCalls = () =>
+      client.sendRequest.mock.calls.filter(([method]) => method === 'botTeams.listEngramMemory')
+        .length
+    expect(engramCalls()).toBe(1 + ENGRAM_REFRESH_MAX_POLLS)
+    act(() => renderer.unmount())
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ENGRAM_REFRESH_POLL_MS * 2)
+    })
+    expect(engramCalls()).toBe(1 + ENGRAM_REFRESH_MAX_POLLS)
   })
 
   it('shows nothing when workspaces are off or no project is linked', async () => {

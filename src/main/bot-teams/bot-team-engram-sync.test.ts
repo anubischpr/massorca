@@ -24,12 +24,29 @@ function clock(start = 1_000_000) {
 }
 
 describe('createEngramCloudSync', () => {
-  it('runs the cloud import for the project as argv with a 20 s timeout', async () => {
+  it('runs the cloud import for the project as argv with a 120 s timeout', async () => {
     const run = vi.fn(async () => IMPORTED)
     const sync = createEngramCloudSync({ now: clock().now })
     expect(await sync.refresh(run, 'massorca', { force: false })).toBe(false)
-    expect(run).toHaveBeenCalledWith(IMPORT_ARGS, { timeoutMs: 20_000 })
-    expect(ENGRAM_IMPORT_TIMEOUT_MS).toBe(20_000)
+    expect(run).toHaveBeenCalledWith(IMPORT_ARGS, { timeoutMs: 120_000 })
+    expect(ENGRAM_IMPORT_TIMEOUT_MS).toBe(120_000)
+  })
+
+  it('reports whether an import is running, and whether the last settled one failed', async () => {
+    let finish!: (result: EngramRun) => void
+    const run = vi.fn(
+      () =>
+        new Promise<EngramRun>((resolve) => {
+          finish = resolve
+        })
+    )
+    const sync = createEngramCloudSync({ now: clock().now })
+    expect(sync.status('massorca')).toEqual({ importing: false, failed: false })
+    void sync.refresh(run, 'massorca', { force: false })
+    expect(sync.status('massorca')).toEqual({ importing: true, failed: false })
+    finish({ code: 1, stdout: '', timedOut: false })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(sync.status('massorca')).toEqual({ importing: false, failed: true })
   })
 
   it('skips the import until five minutes have passed for the same project', async () => {
@@ -53,7 +70,7 @@ describe('createEngramCloudSync', () => {
     await sync.refresh(run, 'demo', { force: false })
     expect(run).toHaveBeenCalledTimes(2)
     expect(run).toHaveBeenLastCalledWith(['sync', '--import', '--cloud', '--project', 'demo'], {
-      timeoutMs: 20_000
+      timeoutMs: 120_000
     })
   })
 

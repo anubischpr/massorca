@@ -7,8 +7,8 @@ import type { RpcClient } from '../transport/rpc-client'
 
 type HostClient = Pick<RpcClient, 'sendRequest'>
 
-// Above the host's 20 s server import plus its 10 s read, so a slow refresh still returns its memories.
-const REQUEST_TIMEOUT_MS = 35_000
+// The host answers from its local store without waiting for the server import, so its read time is all that counts.
+const REQUEST_TIMEOUT_MS = 20_000
 
 /** A host from before this method, or one that cannot be reached, never throws: it reads as a status. */
 export async function listMobileBotTeamEngramMemory(

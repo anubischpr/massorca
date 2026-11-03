@@ -4,7 +4,11 @@
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { BotTeamEngramReply } from '../../../../shared/rpc-contract/bot-team-engram-params'
+import {
+  ENGRAM_REFRESH_MAX_POLLS,
+  ENGRAM_REFRESH_POLL_MS,
+  type BotTeamEngramReply
+} from '../../../../shared/rpc-contract/bot-team-engram-params'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -45,8 +49,11 @@ afterEach(() => {
     act(() => root.unmount())
     container.remove()
   }
+  vi.useRealTimers()
   vi.clearAllMocks()
 })
+
+const UPDATING = 'Updating from the Engram server…'
 
 async function mount(reply: BotTeamEngramReply, team: BotTeam = TEAM, projects = [LINKED]) {
   room.listBotTeamRoom.mockResolvedValue({ tasks: [], messages: [], projects })
@@ -110,6 +117,45 @@ describe('BotTeamEngramMemory', () => {
     expect(missing.textContent).toContain('Engram is not available on this host.')
     const failed = await mount({ status: 'failed', projectName: 'massorca', memories: [] })
     expect(failed.textContent).toContain('Could not read Engram. Try again.')
+  })
+
+  it('says the Engram server is being read, and asks again until the refresh lands', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    engram.listBotTeamEngramMemory.mockResolvedValueOnce({ ...MEMORIES, refreshing: true })
+    const container = await mount(MEMORIES)
+    expect(container.textContent).toContain(UPDATING)
+    expect(container.textContent).toContain('Branch is kept')
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ENGRAM_REFRESH_POLL_MS)
+    })
+    expect(engram.listBotTeamEngramMemory).toHaveBeenCalledTimes(2)
+    expect(engram.listBotTeamEngramMemory).toHaveBeenLastCalledWith({
+      teamId: 'dev',
+      projectId: 'p1'
+    })
+    expect(container.textContent).not.toContain(UPDATING)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ENGRAM_REFRESH_POLL_MS * 3)
+    })
+    expect(engram.listBotTeamEngramMemory).toHaveBeenCalledTimes(2)
+  })
+
+  it('stops asking after fifteen refreshes, and when the view unmounts', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    await mount({ ...MEMORIES, refreshing: true })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ENGRAM_REFRESH_POLL_MS * (ENGRAM_REFRESH_MAX_POLLS + 5))
+    })
+    expect(engram.listBotTeamEngramMemory).toHaveBeenCalledTimes(1 + ENGRAM_REFRESH_MAX_POLLS)
+
+    const entry = mounted.pop()
+    act(() => entry?.root.unmount())
+    entry?.container.remove()
+    const calls = engram.listBotTeamEngramMemory.mock.calls.length
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ENGRAM_REFRESH_POLL_MS * 2)
+    })
+    expect(engram.listBotTeamEngramMemory).toHaveBeenCalledTimes(calls)
   })
 
   it('shows nothing when workspaces are off or no project is linked', async () => {

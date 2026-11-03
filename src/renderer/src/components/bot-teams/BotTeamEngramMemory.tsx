@@ -5,7 +5,11 @@ import { Input } from '@/components/ui/input'
 import { translate } from '@/i18n/i18n'
 import { listBotTeamEngramMemory } from '@/runtime/runtime-bot-team-engram-client'
 import { listBotTeamRoom } from '@/runtime/runtime-bot-team-project-client'
-import type { BotTeamEngramReply } from '../../../../shared/rpc-contract/bot-team-engram-params'
+import {
+  ENGRAM_REFRESH_MAX_POLLS,
+  ENGRAM_REFRESH_POLL_MS,
+  type BotTeamEngramReply
+} from '../../../../shared/rpc-contract/bot-team-engram-params'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { BotTeamProject } from '../../../../shared/rpc-contract/bot-team-room-params'
 
@@ -37,6 +41,7 @@ export function BotTeamEngramMemory({ team }: { team: BotTeam }): React.JSX.Elem
   const [query, setQuery] = useState('')
   const [reply, setReply] = useState<BotTeamEngramReply | null>(null)
   const firstLoad = useRef(true)
+  // Only a reply that says `refreshing` schedules the next ask; each poll replaces the list in place.
 
   useEffect(() => {
     if (!team.workspacesEnabled) {
@@ -63,28 +68,44 @@ export function BotTeamEngramMemory({ team }: { team: BotTeam }): React.JSX.Elem
       return
     }
     let closed = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    let polls = 0
+    const load = (refresh: boolean) => {
+      void listBotTeamEngramMemory({
+        teamId: team.id,
+        projectId,
+        ...(query ? { query } : {}),
+        ...(refresh ? { refresh: true } : {})
+      }).then(
+        (next) => {
+          if (closed) {
+            return
+          }
+          setReply(next)
+          if (next.refreshing && polls < ENGRAM_REFRESH_MAX_POLLS) {
+            polls += 1
+            timer = setTimeout(() => load(false), ENGRAM_REFRESH_POLL_MS)
+          }
+        },
+        () => !closed && setReply({ status: 'failed', memories: [] })
+      )
+    }
     setReply(null)
     // The view's first load asks the host to import from the Engram server first.
     const refresh = firstLoad.current
     firstLoad.current = false
-    void listBotTeamEngramMemory({
-      teamId: team.id,
-      projectId,
-      ...(query ? { query } : {}),
-      ...(refresh ? { refresh: true } : {})
-    }).then(
-      (next) => !closed && setReply(next),
-      () => !closed && setReply({ status: 'failed', memories: [] })
-    )
+    load(refresh)
     return () => {
       closed = true
+      clearTimeout(timer)
     }
   }, [team.id, projectId, query])
 
   if (!team.workspacesEnabled || projects.length === 0) {
     return null
   }
-  const line = reply ? statusLine(reply, query !== '') : null
+  // While the import runs, an empty list is not yet "no memories", so only the updating note shows.
+  const line = reply && !reply.refreshing ? statusLine(reply, query !== '') : null
   return (
     <div className="flex flex-col gap-3" data-testid="bot-team-engram-memory">
       <div>
@@ -159,6 +180,14 @@ export function BotTeamEngramMemory({ team }: { team: BotTeam }): React.JSX.Elem
               ))
             : null}
           {line ? <div className="px-4 py-3 text-sm text-muted-foreground">{line}</div> : null}
+          {reply.refreshing ? (
+            <div className="px-4 py-3 text-sm text-muted-foreground">
+              {translate(
+                'components.botTeams.engramRefreshing',
+                'Updating from the Engram server…'
+              )}
+            </div>
+          ) : null}
           {reply.refreshFailed ? (
             <div className="px-4 py-3 text-sm text-muted-foreground">
               {translate(
