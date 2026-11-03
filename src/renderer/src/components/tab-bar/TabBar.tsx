@@ -5,6 +5,7 @@ import type { TabBarProps } from './tab-bar-props'
 import type { TabBarItem } from './tab-bar-item-model'
 import { useTabBarRuntimeModel } from './use-tab-bar-runtime-model'
 import { useTabBarCreateMenuController } from './use-tab-bar-create-menu-controller'
+import { withHostAgentLaunch } from './tab-bar-host-agent-launch'
 import { useTabBarItemProjection } from './use-tab-bar-item-projection'
 import { renderTabBarSurface } from './tab-bar-surface'
 import { useTabBarItemActions } from './use-tab-bar-item-actions'
@@ -24,8 +25,12 @@ function TabBarInner(props: TabBarProps): React.JSX.Element {
     onOpenFileTab,
     onPinFile
   } = props
-  const runtime = useTabBarRuntimeModel({ worktreeId, groupId })
-  const createMenu = useTabBarCreateMenuController({
+  const runtime = useTabBarRuntimeModel({
+    worktreeId,
+    groupId,
+    hostWorktreeId: props.createHost?.worktreeId
+  })
+  const ownCreateMenu = useTabBarCreateMenuController({
     worktreeId,
     resolvedGroupId: runtime.resolvedGroupId,
     terminalOnly,
@@ -46,6 +51,11 @@ function TabBarInner(props: TabBarProps): React.JSX.Element {
     onNewFileTab,
     onOpenFileTab
   })
+  const createMenu = withHostAgentLaunch(
+    ownCreateMenu,
+    props.createHost,
+    runtime.agentLaunchOptions
+  )
   const itemProjection = useTabBarItemProjection({
     props,
     resolvedGroupId: runtime.resolvedGroupId,

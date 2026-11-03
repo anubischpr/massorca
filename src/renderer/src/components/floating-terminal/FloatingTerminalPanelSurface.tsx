@@ -1,4 +1,4 @@
-import TabBar from '@/components/tab-bar/TabBar'
+import { FloatingHostTabBar } from './host/FloatingHostTabBar'
 import { TabGroupSplitNodeTree } from '@/components/tab-group/TabGroupSplitNodeTree'
 import { WorkspaceTabDragLayer } from '@/components/tab-group/WorkspaceTabDragLayer'
 import { WorkspacePaneOverlayLayers } from '@/components/WorkspacePaneOverlayLayers'
@@ -139,7 +139,7 @@ export function renderFloatingTerminalPanelSurface({
               onDoubleClick={handleTitlebarDoubleClick}
             >
               <div className="flex h-full min-w-0 flex-1">
-                <TabBar
+                <FloatingHostTabBar
                   tabs={terminalItems}
                   activeTabId={
                     activeTab?.contentType === 'agent-session' ? activeTab.id : activeTerminalId
