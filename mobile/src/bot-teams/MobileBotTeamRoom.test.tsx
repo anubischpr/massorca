@@ -216,7 +216,8 @@ describe('MobileBotTeamRoom', () => {
         text: 'Hi',
         start: true,
         askProject: true,
-        clientRequestId: expect.any(String)
+        clientRequestId: expect.any(String),
+        timeZone: expect.any(String)
       },
       expect.anything()
     )

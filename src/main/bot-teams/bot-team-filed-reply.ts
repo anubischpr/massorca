@@ -52,3 +52,26 @@ export function botTeamFiledReply(input: {
     language
   )
 }
+
+/** What the owning bot says when a request is scheduled to run once: the day and time it starts. */
+export function botTeamScheduledReply(input: {
+  date: string
+  time: string
+  text?: string | null
+  uiLanguage?: string | null
+}): string {
+  const language = botTeamReplyLanguage({ text: input.text, uiLanguage: input.uiLanguage })
+  const [year, month, day] = input.date.split('-').map(Number)
+  // The host's own date, drawn as written whatever zone formats it.
+  const label = new Date(Date.UTC(year, month - 1, day)).toLocaleDateString(
+    language === 'es' ? 'es' : 'en-US',
+    { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }
+  )
+  return pickBotTeamLine(
+    {
+      en: `Scheduled for ${label} at ${input.time}. It starts then; until it does it waits in Todo and in the Calendar.`,
+      es: `Programado para el ${label} a las ${input.time}. Empieza a esa hora; hasta entonces espera en Todo y en el Calendario.`
+    },
+    language
+  )
+}
