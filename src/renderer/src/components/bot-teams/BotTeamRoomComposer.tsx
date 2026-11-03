@@ -32,6 +32,7 @@ import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { BotTeamComposerMenu } from './BotTeamComposerMenu'
 import { botTeamComposerChipAttrs } from './bot-team-composer-document'
 import { useBotTeamComposerEditor } from './bot-team-composer-editor'
+import { useBotTeamRoomDraft } from './bot-team-room-draft'
 import { openBotTeamRoomSessions } from './open-bot-team-room-sessions'
 import { useBotTeamFilePaths } from './use-bot-team-files'
 
@@ -112,6 +113,7 @@ export function BotTeamRoomComposer({
     onSelect: (current) =>
       setCaret(promptTextOffset(current.state.doc, current.state.selection.from))
   })
+  useBotTeamRoomDraft(editor, team.id)
   const composerRef = useRef<HTMLDivElement | null>(null)
   const menuOpen = menu !== null
   // Why: a click anywhere outside the box closes its @ and / menu, as it closes a popover.
