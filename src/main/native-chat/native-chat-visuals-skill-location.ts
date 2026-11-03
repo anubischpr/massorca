@@ -73,28 +73,19 @@ export function resetNativeChatVisualsSkillLocationForTests(): void {
   found = null
 }
 
-/** Ships in the same plugin, so plugin and skill-root agents load it with the visuals skill. */
-export const NATIVE_CHAT_CHECKLIST_SKILL_NAME = 'orca-chat-checklist'
-
-async function readSkillBody(skill: NativeChatVisualsSkillLocation, name: string) {
+/** The skill's SKILL.md body, frontmatter dropped, for an agent that takes instructions as text;
+ *  null when the skill cannot be read. */
+export async function readNativeChatVisualsInstructions(
+  skill: NativeChatVisualsSkillLocation
+): Promise<string | null> {
   try {
-    const text = await readFile(join(skill.skillsRoot, name, 'SKILL.md'), 'utf8')
+    const text = await readFile(
+      join(skill.skillsRoot, NATIVE_CHAT_VISUALS_SKILL_NAME, 'SKILL.md'),
+      'utf8'
+    )
     const body = text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '').trim()
     return body.length > 0 ? body : null
   } catch {
     return null
   }
-}
-
-/** The plugin's SKILL.md bodies (visuals, then the checklist), frontmatter dropped, for an agent
- *  that takes instructions as text; null when the visuals skill cannot be read. */
-export async function readNativeChatVisualsInstructions(
-  skill: NativeChatVisualsSkillLocation
-): Promise<string | null> {
-  const visuals = await readSkillBody(skill, NATIVE_CHAT_VISUALS_SKILL_NAME)
-  if (visuals === null) {
-    return null
-  }
-  const checklist = await readSkillBody(skill, NATIVE_CHAT_CHECKLIST_SKILL_NAME)
-  return checklist === null ? visuals : `${visuals}\n\n${checklist}`
 }

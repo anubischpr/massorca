@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Image as ImageIcon, MessageSquare, Square, SquareCheck } from 'lucide-react'
+import { Image as ImageIcon, MessageSquare, Square, SquareCheck, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -11,6 +11,7 @@ import type { AgentJournalRenderItem } from '../../../../shared/agent-session-jo
 import type { NativeChatChecklistItem } from '../../../../shared/native-chat-checklist'
 import { sendStructuredAgentSessionMessage } from './structured-agent-session-message-sender'
 import { NativeChatSessionSection } from './NativeChatSessionSection'
+import { NativeChatChecklistAddItem } from './NativeChatChecklistAddItem'
 import {
   NativeChatChecklistItemEditor,
   type NativeChatChecklistDraft
@@ -54,16 +55,14 @@ export function NativeChatSessionChecklistSection({
   const [open, setOpen] = useState(false)
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [saveFailed, setSaveFailed] = useState(false)
-  const { checklist, writtenAt, readOnly, setItem } = useNativeChatChecklist({
+  const { checklist, writtenAt, readOnly, setItem, addedAt } = useNativeChatChecklist({
     target,
     sessionId,
     journalItems,
     polling: open
   })
-
-  if (!checklist || checklist.items.length === 0) {
-    return null
-  }
+  const items = checklist?.items ?? []
+  const empty = items.length === 0
 
   const attachmentOwner = (): NativeChatAttachmentOwner =>
     nativeChatChecklistAttachmentOwner({
@@ -80,7 +79,7 @@ export function NativeChatSessionChecklistSection({
   }
 
   const toggle = (item: NativeChatChecklistItem): void => {
-    void write({ title: checklist.title, text: item.text, checked: !item.checked })
+    void write({ title: checklist?.title ?? null, text: item.text, checked: !item.checked })
   }
 
   const saveDraft = async (
@@ -88,7 +87,7 @@ export function NativeChatSessionChecklistSection({
     draft: NativeChatChecklistDraft
   ): Promise<boolean> => {
     const saved = await write({
-      title: checklist.title,
+      title: checklist?.title ?? null,
       text: item.text,
       note: draft.note,
       screenshots: draft.screenshots
@@ -102,6 +101,13 @@ export function NativeChatSessionChecklistSection({
   const sendNow = (): void => {
     sendStructuredAgentSessionMessage({ sessionId, target, text: SEND_NOW_TEXT })
   }
+
+  const removeOwnItem = (item: NativeChatChecklistItem): void => {
+    void write({ text: item.text, remove: true })
+  }
+
+  const addOwnItem = (text: string): Promise<boolean> =>
+    write({ title: checklist?.title ?? null, text, add: true })
 
   const markLine = (item: NativeChatChecklistItem): string | null => {
     if (item.by === 'person' && item.at !== null) {
@@ -136,10 +142,15 @@ export function NativeChatSessionChecklistSection({
         time: checklistTime(item.noteAt)
       })
     }
-    return null
+    const added = item.source === 'person' ? addedAt[item.key] : undefined
+    return added === undefined
+      ? null
+      : t('components.nativeChatSummary.checklistAddedByYou', 'Added by you · {{time}}', {
+          time: checklistTime(added)
+        })
   }
 
-  const nextUnchecked = checklist.items.find((item) => !item.checked)
+  const nextUnchecked = items.find((item) => !item.checked)
   const fromAgent =
     writtenAt === null
       ? null
@@ -147,8 +158,8 @@ export function NativeChatSessionChecklistSection({
           agent: agentLabel,
           time: checklistTime(writtenAt)
         })
-  const subtitle = [checklist.title, fromAgent].filter(Boolean).join(' · ')
-  const unseenCount = checklist.unseen
+  const subtitle = [checklist?.title, fromAgent].filter(Boolean).join(' · ')
+  const unseenCount = checklist?.unseen ?? 0
   const unseenText =
     unseenCount === 1
       ? t(
@@ -165,12 +176,20 @@ export function NativeChatSessionChecklistSection({
   return (
     <NativeChatSessionSection
       title={t('components.nativeChatSummary.checklist', 'Checklist')}
-      summary={t('components.nativeChatSummary.checklistProgress', '{{checked}} of {{total}}', {
-        checked: checklist.checked,
-        total: checklist.items.length
-      })}
+      summary={
+        empty
+          ? undefined
+          : t('components.nativeChatSummary.checklistProgress', '{{checked}} of {{total}}', {
+              checked: checklist?.checked ?? 0,
+              total: items.length
+            })
+      }
       compact={
-        nextUnchecked ? (
+        empty ? (
+          <p className="text-foreground">
+            {t('components.nativeChatSummary.checklistNone', 'No checklist yet')}
+          </p>
+        ) : nextUnchecked ? (
           <p className="truncate text-foreground" title={nextUnchecked.text}>
             {nextUnchecked.text}
           </p>
@@ -192,17 +211,26 @@ export function NativeChatSessionChecklistSection({
           )}
         </p>
       ) : null}
+      {empty ? (
+        <p className="text-muted-foreground">
+          {t(
+            'components.nativeChatSummary.checklistEmpty',
+            'No checklist yet. Ask the agent for one, or add your own items.'
+          )}
+        </p>
+      ) : null}
       <ul
         aria-label={t('components.nativeChatSummary.checklistItems', 'Checklist items')}
         className="space-y-2"
       >
-        {checklist.items.map((item) => {
+        {items.map((item) => {
           const mark = markLine(item)
           const addNote = t('components.nativeChatSummary.checklistAddNote', 'Add note')
           const attach = t(
             'components.nativeChatSummary.checklistAttachScreenshot',
             'Attach screenshot'
           )
+          const removeLabel = t('components.nativeChatSummary.checklistRemoveItem', 'Remove item')
           return (
             <li key={item.key} className="group space-y-1">
               <div className="flex min-w-0 items-start gap-1.5 rounded-md px-1 py-0.5 hover:bg-accent">
@@ -268,6 +296,24 @@ export function NativeChatSessionChecklistSection({
                         {attach}
                       </TooltipContent>
                     </Tooltip>
+                    {item.source === 'person' ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={removeLabel}
+                            onClick={() => removeOwnItem(item)}
+                          >
+                            <X />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" sideOffset={4}>
+                          {removeLabel}
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -305,6 +351,7 @@ export function NativeChatSessionChecklistSection({
           )
         })}
       </ul>
+      {readOnly ? null : <NativeChatChecklistAddItem onAdd={addOwnItem} />}
       {saveFailed ? (
         <p role="alert" className="text-destructive">
           {t(

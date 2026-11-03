@@ -204,4 +204,95 @@ describe('useMobileNativeChatChecklist', () => {
     await flush()
     expect(mocks.read.mock.calls.length).toBeGreaterThan(reads)
   })
+
+  it('reads the marks of a chat with no agent checklist, since the person can add items to it', async () => {
+    mocks.read.mockResolvedValue({ ok: true, result: { ok: true, state: EMPTY_STATE } })
+    const harness = mountChecklist({ source: SOURCE, messages: [], worktreeId: 'wt-1' })
+    mounted = harness.renderer
+    await flush()
+    expect(mocks.read).toHaveBeenCalledWith(CLIENT, { sessionId: 'session-1' })
+  })
+
+  it('adds an item the person wrote through setItem with add: true, and lists it after the agent’s', async () => {
+    mocks.read.mockResolvedValue({ ok: true, result: { ok: true, state: EMPTY_STATE } })
+    mocks.setItem.mockResolvedValue({
+      ok: true,
+      result: {
+        ok: true,
+        state: {
+          revision: 1,
+          deliveredRevision: 0,
+          title: null,
+          marks: {
+            'check the banner': {
+              text: 'Check the banner',
+              addedAt: 3000,
+              revision: 1
+            }
+          }
+        }
+      }
+    })
+    const harness = mountChecklist({ source: SOURCE, messages: [REPLY], worktreeId: 'wt-1' })
+    mounted = harness.renderer
+    await flush()
+    await act(async () => {
+      await harness.view().addItem('Check the banner')
+    })
+    expect(mocks.setItem).toHaveBeenCalledWith(
+      CLIENT,
+      expect.objectContaining({ sessionId: 'session-1', text: 'Check the banner', add: true })
+    )
+    const items = harness.view().checklist?.items ?? []
+    expect(items.map((item) => item.text)).toEqual(['Write tests', 'Build', 'Check the banner'])
+    expect(items[2]).toMatchObject({ source: 'person', addedAt: 3000 })
+  })
+
+  it('takes back an item the person added through setItem with remove: true, and closes its sheet', async () => {
+    mocks.read.mockResolvedValue({
+      ok: true,
+      result: {
+        ok: true,
+        state: {
+          revision: 1,
+          deliveredRevision: 0,
+          title: null,
+          marks: {
+            'check the banner': { text: 'Check the banner', addedAt: 3000, revision: 1 }
+          }
+        }
+      }
+    })
+    mocks.setItem.mockResolvedValue({
+      ok: true,
+      result: {
+        ok: true,
+        state: {
+          revision: 2,
+          deliveredRevision: 0,
+          title: null,
+          marks: {
+            'check the banner': { text: 'Check the banner', addedAt: 3000, removed: true, revision: 2 }
+          }
+        }
+      }
+    })
+    const harness = mountChecklist({ source: SOURCE, messages: [], worktreeId: 'wt-1' })
+    mounted = harness.renderer
+    await flush()
+    const item = harness.view().checklist?.items[0]
+    expect(item?.text).toBe('Check the banner')
+    await act(async () => {
+      harness.view().openItem('check the banner')
+    })
+    await act(async () => {
+      await harness.view().removeItem('check the banner')
+    })
+    expect(mocks.setItem).toHaveBeenCalledWith(
+      CLIENT,
+      expect.objectContaining({ text: 'Check the banner', remove: true })
+    )
+    expect(harness.view().checklist).toBeNull()
+    expect(harness.view().activeKey).toBeNull()
+  })
 })

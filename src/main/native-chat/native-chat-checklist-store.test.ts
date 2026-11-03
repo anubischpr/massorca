@@ -48,6 +48,16 @@ describe('NativeChatChecklistStore', () => {
     expect(state.marks.one.note).toBeUndefined()
   })
 
+  it('adds an item for the person and takes it back', async () => {
+    const added = await store.setItem({ sessionId: 's1', text: 'Mine', add: true })
+    expect(added.marks.mine).toMatchObject({ text: 'Mine', addedAt: 1000 })
+    const removed = await store.setItem({ sessionId: 's1', text: 'Mine', remove: true })
+    expect(removed.marks.mine.removed).toBe(true)
+    // Only an item the person added can be taken back.
+    const agentItem = await store.setItem({ sessionId: 's1', text: 'Agent item', remove: true })
+    expect(agentItem.marks['agent item'].removed).toBeUndefined()
+  })
+
   it('claims each change once, and the same operation gets the same update', async () => {
     expect(await store.claimUpdate('s1', 'op-0')).toBeNull()
     await store.setItem({ sessionId: 's1', text: 'One', checked: true })

@@ -139,7 +139,7 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
     expect(rowLabels(mounted)).not.toContain('Plan')
   })
 
-  it('shows the Checklist row directly under Plan, with its count, only when the chat has a checklist', () => {
+  it('shows the Checklist row directly under Plan, with its count, whenever the chat has a session', () => {
     const withChecklist = mount({
       menu: { ...FULL, chat: { ...FULL.chat, checklist: true } }
     })
@@ -149,6 +149,16 @@ describe('MobileSessionHeaderMoreActionsSheet', () => {
       .map(textOf)
     expect(texts).toContain('1 of 3')
     expect(rowLabels(mount().mounted)).not.toContain('Checklist')
+  })
+
+  it('hints No items on the Checklist row while the chat has no items', () => {
+    const empty = mount({
+      menu: { ...FULL, chat: { ...FULL.chat, checklist: true } },
+      checklistHint: 'No items'
+    })
+    const texts = empty.mounted.root.findAll((node) => String(node.type) === 'Text').map(textOf)
+    expect(texts).toContain('No items')
+    expect(rowLabels(empty.mounted)).toContain('Checklist')
   })
 
   it('leaves out the environment section when no environment item applies', () => {

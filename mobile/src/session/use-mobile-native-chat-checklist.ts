@@ -33,6 +33,16 @@ export type MobileChecklistItemChange = {
   screenshots?: NativeChatChecklistScreenshot[]
 }
 
+/** A change to the list itself: the person adds an item, or takes back one they added. */
+type MobileChecklistPersistChange = MobileChecklistItemChange & { add?: true; remove?: true }
+
+/** A checklist item; `addedAt` is when the person added it, null for the agent's items. */
+export type MobileNativeChatChecklistItem = NativeChatChecklistItem & { addedAt?: number | null }
+
+export type MobileNativeChatChecklist = Omit<NativeChatChecklist, 'items'> & {
+  items: MobileNativeChatChecklistItem[]
+}
+
 /** A screenshot picked on this phone: the host path to send, its name, and a local preview. */
 export type MobileChecklistScreenshotDraft = {
   path: string
@@ -49,8 +59,8 @@ export type MobileNativeChatChecklistArgs = {
 }
 
 export type MobileNativeChatChecklistView = {
-  /** The chat's checklist with the person's marks applied; null until the agent writes one. */
-  checklist: NativeChatChecklist | null
+  /** The chat's checklist with the person's marks applied; null until the agent writes one or the person adds an item. */
+  checklist: MobileNativeChatChecklist | null
   /** When the agent last wrote the checklist, for the sheet's source line. */
   writtenAt: number | null
   /** The host cannot take the person's marks, so the sheets show the checklist read-only. */
@@ -67,6 +77,10 @@ export type MobileNativeChatChecklistView = {
   toggleItem: (item: NativeChatChecklistItem) => Promise<boolean>
   /** Saves one item; closes its sheet when that sheet is the one open. */
   saveItem: (key: string, change: MobileChecklistItemChange) => Promise<boolean>
+  /** Adds an item the person wrote; resolves true once the host has stored it. */
+  addItem: (text: string) => Promise<boolean>
+  /** Takes back an item the person added; closes its sheet when that sheet is the one open. */
+  removeItem: (key: string) => Promise<boolean>
   /** Picks one image from the photo library and uploads it; empty when nothing was added. */
   pickScreenshot: () => Promise<MobileChecklistScreenshotDraft[]>
 }
@@ -94,7 +108,19 @@ export function useMobileNativeChatChecklist({
 
   const replies = useMemo(() => nativeChatChecklistRepliesOf(messages), [messages])
   const person = loaded !== null && loaded.scope === scopeKey ? loaded.state : null
-  const checklist = useMemo(() => nativeChatChecklist(replies, person), [replies, person])
+  const shared = useMemo(() => nativeChatChecklist(replies, person), [replies, person])
+  const checklist = useMemo((): MobileNativeChatChecklist | null => {
+    if (shared === null) {
+      return null
+    }
+    return {
+      ...shared,
+      items: shared.items.map((item) => ({
+        ...item,
+        addedAt: person?.marks[item.key]?.addedAt ?? null
+      }))
+    }
+  }, [shared, person])
   const writtenAt = useMemo(() => nativeChatChecklistWrittenAt(replies), [replies])
   const readOnly = scopeKey !== null && unsupportedScope === scopeKey
 
@@ -142,15 +168,15 @@ export function useMobileNativeChatChecklist({
   }, [applyState])
 
   // Read on open, and whenever the chat's messages change (a reply or the person's send moves the marks).
-  // A chat without a checklist has no marks to read until the agent writes one.
-  const hasReplies = replies.length > 0
+  // Every chat reads, since the person can add items before the agent writes any; a host that refuses
+  // the methods stays read-only and is not asked again.
   const readTrigger = `${messages.length}:${messages[messages.length - 1]?.id ?? ''}`
   useEffect(() => {
-    if (!hasReplies && !listOpen && activeKey === null) {
+    if (readOnly) {
       return
     }
     void readState()
-  }, [readState, scopeKey, readTrigger, hasReplies, listOpen, activeKey])
+  }, [readState, scopeKey, readTrigger, readOnly, listOpen, activeKey])
 
   const polling = (listOpen || activeKey !== null) && !readOnly
   useEffect(() => {
@@ -164,7 +190,7 @@ export function useMobileNativeChatChecklist({
   }, [polling, readState])
 
   const persist = useCallback(
-    async (text: string, change: MobileChecklistItemChange): Promise<boolean> => {
+    async (text: string, change: MobileChecklistPersistChange): Promise<boolean> => {
       const current = sourceRef.current
       if (current === null) {
         return false
@@ -200,6 +226,23 @@ export function useMobileNativeChatChecklist({
 
   const toggleItem = useCallback(
     (item: NativeChatChecklistItem) => persist(item.text, { checked: !item.checked }),
+    [persist]
+  )
+
+  const addItem = useCallback((text: string) => persist(text, { add: true }), [persist])
+
+  const removeItem = useCallback(
+    async (key: string): Promise<boolean> => {
+      const item = checklistRef.current?.items.find((candidate) => candidate.key === key)
+      if (item === undefined) {
+        return false
+      }
+      const removed = await persist(item.text, { remove: true })
+      if (removed) {
+        setActiveKey((open) => (open === key ? null : open))
+      }
+      return removed
+    },
     [persist]
   )
 
@@ -270,6 +313,8 @@ export function useMobileNativeChatChecklist({
       closeItem,
       toggleItem,
       saveItem,
+      addItem,
+      removeItem,
       pickScreenshot
     }),
     [
@@ -285,6 +330,8 @@ export function useMobileNativeChatChecklist({
       closeItem,
       toggleItem,
       saveItem,
+      addItem,
+      removeItem,
       pickScreenshot
     ]
   )

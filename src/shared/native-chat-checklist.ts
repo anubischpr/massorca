@@ -36,6 +36,10 @@ export type NativeChatChecklistMark = {
   note?: string
   screenshots?: NativeChatChecklistScreenshot[]
   noteAt?: number
+  /** The person added this item themselves; it is listed after the agent's items. */
+  addedAt?: number
+  /** The person removed an item they had added. */
+  removed?: boolean
   /** Store revision of the last change, so the host can tell what the agent has not seen. */
   revision: number
 }
@@ -52,6 +56,8 @@ export type NativeChatChecklistPersonState = {
 export type NativeChatChecklistItem = {
   key: string
   text: string
+  /** Who wrote the item: the agent's block, or the person's own addition. */
+  source: 'agent' | 'person'
   checked: boolean
   /** Who set the shown state; null for an item nobody has checked or unchecked. */
   by: 'agent' | 'person' | null
@@ -146,7 +152,8 @@ export function nativeChatChecklistBlocksInReply(markdown: string): NativeChatCh
 
 /**
  * The chat's checklist: the latest block's items, each with the latest of the agent's state (from
- * the reply that last changed it) and the person's mark. Null until the agent writes a block.
+ * the reply that last changed it) and the person's mark, then the items the person added. Null
+ * until the agent writes a block or the person adds an item.
  */
 export function nativeChatChecklist(
   replies: readonly NativeChatChecklistReply[],
@@ -172,11 +179,19 @@ export function nativeChatChecklist(
       }
     }
   }
-  if (!latest) {
+  const added = Object.entries(person?.marks ?? {})
+    .filter(([key, mark]) => mark.addedAt !== undefined && !mark.removed && !agentChange.has(key))
+    .sort(([, left], [, right]) => (left.addedAt ?? 0) - (right.addedAt ?? 0))
+  if (!latest && added.length === 0) {
     return null
   }
   const delivered = person?.deliveredRevision ?? 0
-  const items = latest.items.map((item): NativeChatChecklistItem => {
+  const agentItems = latest?.items ?? []
+  const listed = [
+    ...agentItems.map((item) => ({ ...item, source: 'agent' as const })),
+    ...added.map(([, mark]) => ({ text: mark.text, checked: false, source: 'person' as const }))
+  ]
+  const items = listed.map((item): NativeChatChecklistItem => {
     const key = nativeChatChecklistItemKey(item.text)
     const agent = agentChange.get(key)
     const mark = person?.marks[key]
@@ -186,6 +201,7 @@ export function nativeChatChecklist(
     return {
       key,
       text: item.text,
+      source: item.source,
       checked: personWins ? Boolean(mark?.checked) : item.checked,
       by: personWins ? 'person' : agentSet ? 'agent' : null,
       at: personWins ? (mark?.checkedAt ?? null) : agentSet ? agentAt : null,
@@ -220,6 +236,10 @@ export function nativeChatChecklistUpdateText(state: NativeChatChecklistPersonSt
     `Checklist${state.title ? ` "${state.title}"` : ''}: changes by the person since your last turn.`
   ]
   for (const mark of changed) {
+    if (mark.removed) {
+      lines.push(`- ${mark.text} (removed by the person)`)
+      continue
+    }
     const box = mark.checked === undefined ? '' : mark.checked ? '[x] ' : '[ ] '
     const verb =
       mark.checked === undefined
@@ -227,7 +247,8 @@ export function nativeChatChecklistUpdateText(state: NativeChatChecklistPersonSt
         : mark.checked
           ? ' (checked by the person)'
           : ' (unchecked by the person)'
-    lines.push(`- ${box}${mark.text}${verb}`)
+    const added = mark.addedAt !== undefined ? ' (added by the person)' : ''
+    lines.push(`- ${box}${mark.text}${added}${verb}`)
     if (mark.note) {
       lines.push(`  note: ${mark.note.replace(/\s*\n\s*/g, ' ')}`)
     }

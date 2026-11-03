@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { NativeChatMessage } from '../../../src/shared/native-chat-types'
 import {
   mobileNativeChatChecklistItemMeta,
+  mobileNativeChatChecklistMenuHint,
   mobileNativeChatChecklistScreenshotName,
   mobileNativeChatChecklistSourceLine,
   mobileNativeChatChecklistUnseenText,
@@ -128,6 +129,39 @@ describe('mobileNativeChatChecklistItemMeta', () => {
     expect(
       mobileNativeChatChecklistItemMeta({ by: null, at: null, note: null, screenshots: [] }, 'Claude')
     ).toBeNull()
+  })
+
+  it('says an item the person added is added by them, until a check or a note applies', () => {
+    const added = new Date(2026, 10, 2, 14, 5).getTime()
+    const shot = { path: '/tmp/a.png', name: 'a.png' }
+    expect(
+      mobileNativeChatChecklistItemMeta(
+        { by: null, at: null, note: null, screenshots: [], addedAt: added },
+        'Claude'
+      )
+    ).toBe('Added by you · 14:05')
+    expect(
+      mobileNativeChatChecklistItemMeta(
+        { by: null, at: null, note: 'Sheet opens', screenshots: [], addedAt: added },
+        'Claude'
+      )
+    ).toBe('Note')
+    expect(
+      mobileNativeChatChecklistItemMeta(
+        { by: 'person', at, note: null, screenshots: [shot], addedAt: added },
+        'Claude'
+      )
+    ).toBe('You · 14:02 · 1 screenshot')
+  })
+})
+
+describe('mobileNativeChatChecklistMenuHint', () => {
+  it('counts the checked items, and says No items while the list is empty or missing', () => {
+    expect(mobileNativeChatChecklistMenuHint({ checked: 1, items: ['Open', 'Plan'] })).toBe(
+      '1 of 2'
+    )
+    expect(mobileNativeChatChecklistMenuHint({ checked: 0, items: [] })).toBe('No items')
+    expect(mobileNativeChatChecklistMenuHint(null)).toBe('No items')
   })
 })
 

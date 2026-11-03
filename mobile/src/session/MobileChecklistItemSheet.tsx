@@ -24,6 +24,8 @@ type Props = {
   onClose: () => void
   /** Saves what changed; resolves true once the host has stored it. */
   onSave: (change: MobileChecklistItemChange) => Promise<boolean>
+  /** Takes back an item the person added; resolves true once the host has stored it. */
+  onRemove: () => Promise<boolean>
   onPickScreenshot: () => Promise<MobileChecklistScreenshotDraft[]>
 }
 
@@ -42,12 +44,27 @@ export function MobileChecklistItemSheet({
   readOnly,
   onClose,
   onSave,
+  onRemove,
   onPickScreenshot
 }: Props): React.JSX.Element {
   const [checked, setChecked] = useState(item?.checked ?? false)
   const [note, setNote] = useState(item?.note ?? '')
   const [shots, setShots] = useState<ScreenshotDraft[]>(() => storedShots(item))
   const [saving, setSaving] = useState(false)
+  // Only the person's own items can be taken back, and an older host cannot take anything back.
+  const removable = item?.source === 'person' && !readOnly
+
+  const remove = async (): Promise<void> => {
+    if (!item || saving) {
+      return
+    }
+    setSaving(true)
+    try {
+      await onRemove()
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const save = async (): Promise<void> => {
     if (!item || saving) {
@@ -151,6 +168,18 @@ export function MobileChecklistItemSheet({
               <Text style={styles.saveText}>Save</Text>
             </Pressable>
           </View>
+          {removable ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Remove item"
+              accessibilityState={{ disabled: saving, busy: saving }}
+              disabled={saving}
+              style={({ pressed }) => [styles.removeButton, pressed && styles.pressed]}
+              onPress={() => void remove()}
+            >
+              <Text style={styles.removeText}>Remove item</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
     </BottomDrawer>
@@ -305,6 +334,20 @@ const styles = StyleSheet.create({
   },
   saveText: {
     color: colors.onAccent,
+    fontSize: typography.bodySize,
+    fontWeight: '600'
+  },
+  removeButton: {
+    minHeight: 44,
+    marginTop: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.button,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.statusRedBorder
+  },
+  removeText: {
+    color: colors.statusRed,
     fontSize: typography.bodySize,
     fontWeight: '600'
   },

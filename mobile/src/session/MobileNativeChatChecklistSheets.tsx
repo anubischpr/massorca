@@ -25,6 +25,7 @@ export function MobileNativeChatChecklistSheets({
           void view.toggleItem(item)
         }}
         onOpenItem={view.openItem}
+        onAddItem={view.addItem}
         onSendNow={onSendNow}
       />
       <MobileNativeChatChecklistItemSheet view={view} agentLabel={agentLabel} />
@@ -54,6 +55,7 @@ export function MobileNativeChatChecklistItemSheet({
       readOnly={view.readOnly}
       onClose={view.closeItem}
       onSave={(change) => (activeItem ? view.saveItem(activeItem.key, change) : Promise.resolve(false))}
+      onRemove={() => (activeItem ? view.removeItem(activeItem.key) : Promise.resolve(false))}
       onPickScreenshot={view.pickScreenshot}
     />
   )

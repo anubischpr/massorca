@@ -137,10 +137,13 @@ export function mobileNativeChatChecklistSourceLine(input: {
 
 /**
  * The meta line of one item row: who checked it and when ("You · 14:02"), then its note and
- * screenshots. Null when nobody has checked it and it carries neither.
+ * screenshots. An item the person added and nothing else touched reads "Added by you · 14:02".
+ * Null when none of that applies.
  */
 export function mobileNativeChatChecklistItemMeta(
-  item: Pick<NativeChatChecklistItem, 'by' | 'at' | 'note' | 'screenshots'>,
+  item: Pick<NativeChatChecklistItem, 'by' | 'at' | 'note' | 'screenshots'> & {
+    addedAt?: number | null
+  },
   agentLabel: string
 ): string | null {
   const parts: string[] = []
@@ -155,7 +158,20 @@ export function mobileNativeChatChecklistItemMeta(
   } else if (screenshots) {
     parts.push(screenshots)
   }
+  if (parts.length === 0 && item.addedAt !== undefined && item.addedAt !== null) {
+    parts.push(`Added by you · ${mobileNativeChatChecklistClock(item.addedAt)}`)
+  }
   return parts.length > 0 ? parts.join(' · ') : null
+}
+
+/** The ⋯ menu's hint on the Checklist row: "2 of 5", or "No items" while the list is empty. */
+export function mobileNativeChatChecklistMenuHint(
+  checklist: { checked: number; items: readonly unknown[] } | null
+): string {
+  if (checklist === null || checklist.items.length === 0) {
+    return 'No items'
+  }
+  return `${checklist.checked} of ${checklist.items.length}`
 }
 
 /** The footer above "Send now": the changes the agent has not seen yet. */

@@ -103,6 +103,13 @@ export class NativeChatChecklistStore {
       const at = this.now()
       const revision = state.revision + 1
       const mark: NativeChatChecklistMark = { ...state.marks[key], text: params.text.trim(), revision }
+      if (params.add) {
+        mark.addedAt = mark.addedAt ?? at
+        delete mark.removed
+      }
+      if (params.remove && mark.addedAt !== undefined) {
+        mark.removed = true
+      }
       if (params.checked !== undefined) {
         mark.checked = params.checked
         mark.checkedAt = at

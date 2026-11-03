@@ -1,8 +1,6 @@
 export type MobileSessionHeaderMenuInput = {
   /** The worktree has a chat for Plan, Summary and Artifacts to act on. */
   hasChatSession: boolean
-  /** The chat has a checklist (the agent wrote one): its Checklist row shows under Plan. */
-  hasChecklist: boolean
   /** The workspace offers its agent session history to resume (the old Agent History route). */
   showAgentHistory: boolean
   /** Git worktrees only: folder and floating workspaces have no source control. */
@@ -20,7 +18,7 @@ export type MobileSessionHeaderMenu = {
     /** Only without a chat in the worktree: beside one, the Sessions sheet holds the resume row. */
     agentHistory: boolean
     plan: boolean
-    /** Only with a checklist in the chat: beside Plan, it opens the Checklist sheet. */
+    /** With a chat: beside Plan, it opens the Checklist sheet, empty or not. */
     checklist: boolean
     summary: boolean
     artifacts: boolean
@@ -40,7 +38,7 @@ export function resolveMobileSessionHeaderMenu(
   const chat = {
     agentHistory: !input.hasChatSession && input.showAgentHistory,
     plan: true,
-    checklist: input.hasChecklist,
+    checklist: input.hasChatSession,
     summary: true,
     artifacts: true,
     prototypes: true,

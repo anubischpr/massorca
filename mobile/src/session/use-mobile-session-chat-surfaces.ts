@@ -7,6 +7,7 @@ import {
   publishMobileChatSurfaceSnapshot
 } from './mobile-chat-surface-snapshot'
 import { chatSessionTargetOf, type ChatSessionTab } from './mobile-chat-session-target'
+import { mobileNativeChatChecklistMenuHint } from './mobile-native-chat-checklist-model'
 import { mobileNativeChatPlan, mobileNativeChatPlanProgress } from './mobile-native-chat-plan'
 import { mobileNativeChatRecordedFileCount } from './mobile-native-chat-recorded-files'
 import { resolveMobileSessionHeaderMenu } from './mobile-session-header-menu'
@@ -76,9 +77,7 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
     worktreeId: isFloatingWorkspaceRoute ? null : worktreeId
   })
   const openChecklistList = chatChecklist.openList
-  const checklistHint = chatChecklist.checklist
-    ? `${chatChecklist.checklist.checked} of ${chatChecklist.checklist.items.length}`
-    : undefined
+  const checklistHint = mobileNativeChatChecklistMenuHint(chatChecklist.checklist)
   const transcriptPlan = useMemo(
     () => (showNativeChat ? mobileNativeChatPlan(messages) : null),
     [messages, showNativeChat]
@@ -126,7 +125,6 @@ export function useMobileSessionChatSurfaces(scope: MobileSessionPanelRouteActio
   // The same menu in every pane: its items follow the worktree, not the pane that is open.
   const headerMenu = resolveMobileSessionHeaderMenu({
     hasChatSession: chatTarget !== null,
-    hasChecklist: chatChecklist.checklist !== null,
     showAgentHistory: showAgentSessionHistoryAction,
     hasSourceControl: !isFolderWorkspaceRoute && !isFloatingWorkspaceRoute,
     showChecks: showChecksAction

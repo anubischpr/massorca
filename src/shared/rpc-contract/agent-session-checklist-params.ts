@@ -26,7 +26,10 @@ export const ChecklistSetItemParams = z
     checked: z.boolean().optional(),
     /** Empty string clears the note. */
     note: z.string().max(NATIVE_CHAT_CHECKLIST_NOTE_MAX_LENGTH).optional(),
-    /** Host paths from `agentSessionAttachment.uploadCommit`; replaces the item's screenshots. */
+    /** `add`: the person adds this item; `remove`: takes back an item they added. */
+    add: z.literal(true).optional(),
+    remove: z.literal(true).optional(),
+    /** Host paths of uploaded screenshots; replaces the item's screenshots. */
     screenshots: z.array(Screenshot).max(NATIVE_CHAT_CHECKLIST_MAX_SCREENSHOTS).optional()
   })
   .strict()
