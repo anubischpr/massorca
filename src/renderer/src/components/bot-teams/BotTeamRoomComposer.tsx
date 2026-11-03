@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { ArrowUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -12,6 +12,10 @@ import {
   botTeamMentionOpen,
   type BotTeamComposerItem
 } from '../../../../shared/bot-team-composer-menu'
+import {
+  removeBotTeamMentionBeforeCaret,
+  type BotTeamMentionName
+} from '../../../../shared/bot-team-mention-text'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { BotTeamComposerMenu } from './BotTeamComposerMenu'
 import { openBotTeamRoomSessions } from './open-bot-team-room-sessions'
@@ -39,6 +43,13 @@ export function BotTeamRoomComposer({
   const composerRef = useRef<HTMLTextAreaElement | null>(null)
   const menuId = useId()
   const files = useBotTeamFilePaths(team.id, !offline && botTeamMentionOpen(text, caret))
+  const mentionNames = useMemo<BotTeamMentionName[]>(
+    () => [
+      ...team.bots.map((bot) => ({ name: bot.name, kind: 'bot' as const })),
+      ...otherTeams.map((entry) => ({ name: entry.name, kind: 'team' as const }))
+    ],
+    [team.bots, otherTeams]
+  )
   const menu =
     menuDismissed || offline
       ? null
@@ -50,6 +61,15 @@ export function BotTeamRoomComposer({
           files,
           commands: BOT_TEAM_ROOM_COMMANDS
         })
+  // Why: the box starts one line tall and grows only with typed lines, up to the Tailwind max height.
+  useLayoutEffect(() => {
+    const box = composerRef.current
+    if (!box) {
+      return
+    }
+    box.style.height = 'auto'
+    box.style.height = `${box.scrollHeight}px`
+  }, [text])
   const chooseMenuItem = (item: BotTeamComposerItem): void => {
     if (!menu) {
       return
@@ -80,6 +100,26 @@ export function BotTeamRoomComposer({
     if (!(await onSend(sent.trim()))) {
       setText((current) => (current === '' ? sent : current))
     }
+  }
+  // Why: a picked mention is plain "@Name" text, so Backspace right after it takes the whole mention.
+  const removeMentionBeforeCaret = (event: KeyboardEvent<HTMLTextAreaElement>): boolean => {
+    const box = event.currentTarget
+    if (
+      event.key !== 'Backspace' ||
+      event.nativeEvent.isComposing ||
+      box.selectionStart !== box.selectionEnd
+    ) {
+      return false
+    }
+    const next = removeBotTeamMentionBeforeCaret(box.value, box.selectionStart, mentionNames)
+    if (!next) {
+      return false
+    }
+    event.preventDefault()
+    setText(next.text)
+    setCaret(next.caret)
+    requestAnimationFrame(() => box.setSelectionRange(next.caret, next.caret))
+    return true
   }
   const imeEnterGesture = useImeEnterGestureOwnership()
   // The Workspaces composer's keys; the room menu rides its mention mode, each item keyed by index.
@@ -123,7 +163,8 @@ export function BotTeamRoomComposer({
           />
         ) : null}
         <Textarea
-          className="min-h-12 flex-1 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
+          rows={1}
+          className="scrollbar-sleek max-h-40 min-h-9 flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-1.5 shadow-none focus-visible:ring-0 dark:bg-transparent"
           aria-label={translate('components.botTeams.messageTeam', 'Message the team')}
           placeholder={
             offline
@@ -151,7 +192,7 @@ export function BotTeamRoomComposer({
           }}
           onSelect={(event) => setCaret(event.currentTarget.selectionStart)}
           onKeyDownCapture={(event) => {
-            if (!imeEnterGesture.ownsKeyDown(event)) {
+            if (!imeEnterGesture.ownsKeyDown(event) && !removeMentionBeforeCaret(event)) {
               onKeyDown(event)
             }
           }}

@@ -122,3 +122,23 @@ describe('the room composer keys', () => {
     expect(onSend).not.toHaveBeenCalled()
   })
 })
+
+describe('the room composer layout and mentions', () => {
+  it('is one line with the send button inline and no attach button it cannot honor', () => {
+    const { box } = mount()
+    expect(box.getAttribute('rows')).toBe('1')
+    const send = box.parentElement!.querySelector('button[aria-label="Send"]')
+    expect(send).not.toBeNull()
+    expect(send!.parentElement).toBe(box.parentElement)
+    expect(box.parentElement!.querySelector('button[aria-label="Attach file"]')).toBeNull()
+  })
+
+  it('removes a picked mention whole on Backspace right after it', () => {
+    const { box } = mount()
+    type(box, '@Ir')
+    press(box, { key: 'Enter', keyCode: 13 })
+    expect(box.value).toBe('@Iris ')
+    expect(press(box, { key: 'Backspace', keyCode: 8 })).toBe(true)
+    expect(box.value).toBe('')
+  })
+})

@@ -31,6 +31,8 @@ import { useBotTeamReplying } from './BotTeamRoomReplying'
 import { BotTeamReassignButton } from './BotTeamReassignButton'
 import { BotTeamPendingChoice, type BotTeamPendingChoiceRequest } from './BotTeamPendingChoice'
 import { BotTeamRoomComposer } from './BotTeamRoomComposer'
+import { BotTeamRoomMessageBody } from './BotTeamRoomMessageBody'
+import type { BotTeamMentionIcon } from './BotTeamMentionChip'
 import { BotTeamTaskCard } from './BotTeamTaskCard'
 import { BotTeamRoomQuestion } from './BotTeamRoomQuestion'
 import { BotTeamRoomSidePanel } from './BotTeamRoomSidePanel'
@@ -120,6 +122,18 @@ export function BotTeamRoom({
   const [pending, setPending] = useState<BotTeamPendingChoiceRequest | null>(null)
   // The text with the host, if any; the room shows who is typing until the reply comes back.
   const [typing, setTyping] = useState<string | null>(null)
+  // The names a message can chip: this team's bots, then the other teams the @ menu offers.
+  const mentionIcons = useMemo<BotTeamMentionIcon[]>(
+    () => [
+      ...team.bots.map((bot) => ({ name: bot.name, kind: 'bot' as const, agent: bot.agent })),
+      ...otherTeams.map((entry) => ({
+        name: entry.name,
+        kind: 'team' as const,
+        character: entry.character
+      }))
+    ],
+    [team.bots, otherTeams]
+  )
   const replying = useBotTeamReplying(team.bots)
   const readReplying = replying.readRoom
   const sidePanel = useRightSidebarPageTarget()
@@ -317,11 +331,11 @@ export function BotTeamRoom({
                     <div
                       className={
                         author || fromAll
-                          ? 'whitespace-pre-wrap text-sm leading-relaxed text-foreground/80'
-                          : 'max-w-[80%] self-end whitespace-pre-wrap rounded-xl border border-border bg-muted px-3.5 py-2.5 text-sm leading-relaxed'
+                          ? 'text-sm leading-relaxed text-foreground/80'
+                          : 'max-w-[80%] self-end rounded-xl border border-border bg-muted px-3.5 py-2.5 text-sm leading-relaxed'
                       }
                     >
-                      {message.text}
+                      <BotTeamRoomMessageBody text={message.text} mentions={mentionIcons} />
                     </div>
                     {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
                   </div>
