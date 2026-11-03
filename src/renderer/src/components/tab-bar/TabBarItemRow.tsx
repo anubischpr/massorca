@@ -162,14 +162,15 @@ function TabBarItemRow({
     onCloseAll: actions.closeAllFiles
   }
   if (item.type === 'simulator') {
-    const simulatorLabel = item.data.label || 'Mobile Emulator'
+    const isChecklist = item.data.contentType === 'checklist'
+    const simulatorLabel = item.data.label || (isChecklist ? 'Checklist' : 'Mobile Emulator')
     const simulatorFile: OpenFile & { tabId: string } = {
       id: item.id,
       tabId: item.id,
       filePath: simulatorLabel,
       relativePath: simulatorLabel,
       worktreeId,
-      language: 'simulator',
+      language: isChecklist ? 'checklist' : 'simulator',
       isPreview: false,
       isDirty: false,
       mode: 'edit'

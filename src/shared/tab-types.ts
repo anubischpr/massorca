@@ -27,6 +27,8 @@ export type TabContentType =
   | 'agent-session'
   | 'browser'
   | 'simulator'
+  /** A chat's checklist shown in the floating workspace; self-backed like a simulator tab. */
+  | 'checklist'
 
 export type WorkspaceVisibleTabType =
   | 'terminal'

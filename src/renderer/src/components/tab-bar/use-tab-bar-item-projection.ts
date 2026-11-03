@@ -71,7 +71,11 @@ export function useTabBarItemProjection({
   const simulatorTabIds = useMemo(
     () =>
       unifiedTabs
-        .filter((tab) => tab.groupId === resolvedGroupId && tab.contentType === 'simulator')
+        .filter(
+          (tab) =>
+            tab.groupId === resolvedGroupId &&
+            (tab.contentType === 'simulator' || tab.contentType === 'checklist')
+        )
         .map((tab) => tab.id),
     [unifiedTabs, resolvedGroupId]
   )

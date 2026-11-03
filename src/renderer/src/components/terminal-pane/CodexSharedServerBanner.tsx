@@ -7,7 +7,7 @@ import { isCodexSharedServerWarningEnabled } from '../../../../shared/codex-term
 import type { CodexSharedServerStatus } from '../../../../shared/codex-shared-server-command'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
 import { makePaneKey } from '../../../../shared/stable-pane-id'
-import { createFloatingWorkspaceTerminalTab } from '@/lib/floating-workspace-tab-creation'
+import { focusTerminalTabSurface } from '@/lib/focus-terminal-tab-surface'
 import { revealFloatingWorkspacePanel } from '@/lib/floating-workspace-panel-reveal'
 import { activateAndRevealWorkspace } from '@/lib/worktree-activation'
 import { useModalReturnFocus } from '@/hooks/useModalReturnFocus'
@@ -83,7 +83,12 @@ function openTerminalBesideTab(terminalTabId: string): boolean {
   }
   if (tab.worktreeId === FLOATING_TERMINAL_WORKTREE_ID) {
     revealFloatingWorkspacePanel(state)
-    void createFloatingWorkspaceTerminalTab(state)
+    // Why not the floating creator: it follows the header's host, and this terminal must stay local.
+    const created = state.createTab(
+      FLOATING_TERMINAL_WORKTREE_ID,
+      state.activeGroupIdByWorktree[FLOATING_TERMINAL_WORKTREE_ID]
+    )
+    focusTerminalTabSurface(created.id)
     return true
   }
   // Why always: Activity can show this pane behind its own view even when its workspace is active.

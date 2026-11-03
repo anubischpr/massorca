@@ -3,15 +3,24 @@ import type * as ReactModule from 'react'
 import { toast } from 'sonner'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../../shared/constants'
 import { resolveStructuredNativeChatSupport } from '../../../../shared/structured-native-chat-launch-route'
+import {
+  FLOATING_HOST_NO_WORKSPACE_REASON,
+  FLOATING_HOST_THIS_COMPUTER
+} from '@/lib/floating-workspace-host'
 import { FloatingTerminalWindowControls } from './FloatingTerminalWindowControls'
+import { FloatingHostSelect } from './host/FloatingHostSelect'
 
 type ReactElementLike = {
   type: unknown
   props: Record<string, unknown>
 }
 
-const storeBox = vi.hoisted(() => ({
-  state: null as unknown
+const storeBox = vi.hoisted((): { state: Record<string, unknown> } => ({ state: {} }))
+
+const hostBox = vi.hoisted((): { state: Record<string, unknown> } => ({ state: {} }))
+
+const ownerBox = vi.hoisted((): { runtimeByWorktree: Record<string, string> } => ({
+  runtimeByWorktree: {}
 }))
 
 const mocks = vi.hoisted(() => ({
@@ -21,7 +30,11 @@ const mocks = vi.hoisted(() => ({
   setTabBarOrder: vi.fn(),
   queueTabStartupCommand: vi.fn(),
   focusTerminalTabSurface: vi.fn(),
-  launchAgentInNewTab: vi.fn()
+  launchAgentInNewTab: vi.fn(),
+  showSessionInFloatingWorkspace: vi.fn(),
+  awaitNewSessionTab: vi.fn(),
+  chooseHost: vi.fn(),
+  markHostUsed: vi.fn()
 }))
 
 vi.mock('react', async () => {
@@ -37,6 +50,23 @@ vi.mock('@/store', () => ({
   useAppStore: Object.assign((selector: (state: unknown) => unknown) => selector(storeBox.state), {
     getState: () => storeBox.state
   })
+}))
+
+vi.mock('@/lib/floating-workspace-host-store', () => ({
+  useFloatingWorkspaceHostStore: Object.assign(
+    (selector: (state: unknown) => unknown) => selector(hostBox.state),
+    { getState: () => hostBox.state }
+  )
+}))
+
+vi.mock('@/lib/worktree-runtime-owner', () => ({
+  getRuntimeEnvironmentIdForWorktree: (_state: unknown, worktreeId: string | null | undefined) =>
+    worktreeId ? (ownerBox.runtimeByWorktree[worktreeId] ?? null) : null
+}))
+
+vi.mock('@/lib/show-session-in-floating-workspace', () => ({
+  showSessionInFloatingWorkspace: mocks.showSessionInFloatingWorkspace,
+  awaitNewSessionTab: mocks.awaitNewSessionTab
 }))
 
 vi.mock('@/lib/focus-terminal-tab-surface', () => ({
@@ -133,8 +163,56 @@ function findOnClickByAriaLabel(node: unknown, ariaLabel: string): () => void {
   return found
 }
 
+function findPropsByAriaLabel(node: unknown, ariaLabel: string): Record<string, unknown> {
+  let found: Record<string, unknown> | null = null
+  visit(node, (entry) => {
+    if (entry.props['aria-label'] === ariaLabel) {
+      found = entry.props
+    }
+  })
+  if (!found) {
+    throw new Error(`element with aria-label "${ariaLabel}" not found`)
+  }
+  return found
+}
+
+function isElementLike(node: unknown): node is ReactElementLike {
+  return (
+    typeof node === 'object' &&
+    node !== null &&
+    'props' in node &&
+    typeof node.props === 'object' &&
+    node.props !== null
+  )
+}
+
+function containsText(node: unknown, text: string): boolean {
+  if (typeof node === 'string') {
+    return node === text
+  }
+  if (Array.isArray(node)) {
+    return node.some((entry) => containsText(entry, text))
+  }
+  if (isElementLike(node)) {
+    return containsText(node.props.children, text)
+  }
+  return false
+}
+
+function hasHostSelect(node: unknown): boolean {
+  let found = false
+  visit(node, (entry) => {
+    if (entry.type === FloatingHostSelect) {
+      found = true
+    }
+  })
+  return found
+}
+
 const NEW_AGENT_TAB_ID = 'floating-agent-tab'
 const EXISTING_TAB_ID = 'floating-existing-tab'
+const VPS = 'env-vps'
+const REMOTE_WORKSPACE = 'repo-a::/srv/app'
 
 beforeEach(() => {
   for (const mock of Object.values(mocks)) {
@@ -145,6 +223,14 @@ beforeEach(() => {
     startupPlan: { launchCommand: 'claude', launchConfig: {} },
     pasteDraftAfterLaunch: false
   })
+  mocks.showSessionInFloatingWorkspace.mockReturnValue({ ok: true, groupId: 'floating-pane' })
+  ownerBox.runtimeByWorktree = {}
+  hostBox.state = {
+    chosen: null,
+    lastUsedHost: null,
+    choose: mocks.chooseHost,
+    markUsed: mocks.markHostUsed
+  }
   storeBox.state = {
     settings: {
       defaultTuiAgent: 'claude',
@@ -159,7 +245,12 @@ beforeEach(() => {
     setTabBarOrder: mocks.setTabBarOrder,
     queueTabStartupCommand: mocks.queueTabStartupCommand,
     tabsByWorktree: { [FLOATING_TERMINAL_WORKTREE_ID]: [{ id: EXISTING_TAB_ID }] },
-    tabBarOrderByWorktree: { [FLOATING_TERMINAL_WORKTREE_ID]: [EXISTING_TAB_ID] }
+    tabBarOrderByWorktree: { [FLOATING_TERMINAL_WORKTREE_ID]: [EXISTING_TAB_ID] },
+    runtimeEnvironments: [],
+    runtimeStatusByEnvironmentId: new Map(),
+    activeWorktreeId: null,
+    worktreesByRepo: {},
+    unifiedTabsByWorktree: {}
   }
 })
 
@@ -174,6 +265,32 @@ function clickLaunch(): void {
     onMinimize: vi.fn()
   })
   findOnClickByAriaLabel(element, 'Open Claude in floating workspace')()
+}
+
+function renderHeader(): unknown {
+  return FloatingTerminalWindowControls({
+    maximized: false,
+    onToggleMaximized: vi.fn(),
+    onMinimize: vi.fn()
+  })
+}
+
+/** A paired server, with the focused workspace on it, and the host the person picked. */
+function pairServer(args: {
+  chosen: string | null
+  focusedWorkspace: string | null
+  owner: Record<string, string>
+}): void {
+  ownerBox.runtimeByWorktree = args.owner
+  storeBox.state = {
+    ...storeBox.state,
+    runtimeEnvironments: [{ id: VPS, name: 'VPS' }],
+    activeWorktreeId: args.focusedWorkspace,
+    worktreesByRepo: {
+      'repo-a': Object.keys(args.owner).map((id) => ({ id, repoId: 'repo-a', lastActivityAt: 1 }))
+    }
+  }
+  hostBox.state = { ...hostBox.state, chosen: args.chosen }
 }
 
 describe('FloatingTerminalWindowControls default-agent launch', () => {
@@ -229,5 +346,72 @@ describe('FloatingTerminalWindowControls default-agent launch', () => {
         workspaceKind: 'floating'
       })
     ).toEqual({ supported: false, blocker: 'runtime-capability-unknown' })
+  })
+})
+
+describe('FloatingTerminalWindowControls host selection', () => {
+  it('shows no host select when no host is paired', () => {
+    expect(hasHostSelect(renderHeader())).toBe(false)
+  })
+
+  it('shows the host select when a host is paired', () => {
+    pairServer({ chosen: null, focusedWorkspace: null, owner: {} })
+
+    expect(hasHostSelect(renderHeader())).toBe(true)
+  })
+
+  it('launches the agent in the selected host workspace and shows it in the floating pane', () => {
+    pairServer({
+      chosen: VPS,
+      focusedWorkspace: REMOTE_WORKSPACE,
+      owner: { [REMOTE_WORKSPACE]: VPS }
+    })
+
+    clickLaunch()
+
+    expect(mocks.launchAgentInNewTab).toHaveBeenCalledExactlyOnceWith({
+      requestId: expect.any(String),
+      agent: 'claude',
+      worktreeId: REMOTE_WORKSPACE,
+      launchSource: 'shortcut',
+      activate: false
+    })
+    expect(mocks.showSessionInFloatingWorkspace).toHaveBeenCalledWith(
+      { worktreeId: REMOTE_WORKSPACE, tabId: NEW_AGENT_TAB_ID },
+      expect.anything()
+    )
+    expect(mocks.createTab).not.toHaveBeenCalled()
+    expect(mocks.activateTab).not.toHaveBeenCalled()
+  })
+
+  it('keeps the agent on the floating workspace when This computer is selected', () => {
+    pairServer({
+      chosen: FLOATING_HOST_THIS_COMPUTER,
+      focusedWorkspace: REMOTE_WORKSPACE,
+      owner: { [REMOTE_WORKSPACE]: VPS }
+    })
+
+    clickLaunch()
+
+    expect(mocks.launchAgentInNewTab).toHaveBeenCalledExactlyOnceWith({
+      requestId: expect.any(String),
+      agent: 'claude',
+      worktreeId: FLOATING_TERMINAL_WORKTREE_ID,
+      launchSource: 'shortcut',
+      activate: false
+    })
+    expect(mocks.showSessionInFloatingWorkspace).not.toHaveBeenCalled()
+  })
+
+  it('disables the agent with the reason when the selected host has no workspace', () => {
+    pairServer({ chosen: VPS, focusedWorkspace: null, owner: {} })
+
+    const element = renderHeader()
+    const props = findPropsByAriaLabel(element, 'Open Claude in floating workspace')
+
+    expect(props.disabled).toBe(true)
+    expect(props.onClick).toBeUndefined()
+    expect(containsText(element, FLOATING_HOST_NO_WORKSPACE_REASON)).toBe(true)
+    expect(mocks.launchAgentInNewTab).not.toHaveBeenCalled()
   })
 })

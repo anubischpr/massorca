@@ -22,6 +22,10 @@ export type TabBarProps = {
   onNewTerminalWithShell?: (shell: string) => void
   onNewBrowserTab: () => void
   onNewSimulatorTab?: () => void
+  /** Adds "Checklist" to the end of the "+" menu; only the floating workspace offers it. */
+  onNewChecklistTab?: () => void
+  /** Adds "Open a session..." after Checklist; only the floating workspace offers it. */
+  onOpenSessionPicker?: () => void
   onOpenEntry?: (args: TabCreateEntryArgs) => Promise<void>
   terminalOnly?: boolean
   showAgentLaunchItems?: boolean

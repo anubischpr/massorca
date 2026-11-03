@@ -47,7 +47,11 @@ export function resolveFloatingWorkspaceSurfaceModel(
     if (tab.contentType === 'browser') {
       return browserIds.has(tab.entityId)
     }
-    if (tab.contentType === 'agent-session' || tab.contentType === 'simulator') {
+    if (
+      tab.contentType === 'agent-session' ||
+      tab.contentType === 'simulator' ||
+      tab.contentType === 'checklist'
+    ) {
       return true
     }
     return fileIds.has(tab.entityId)
