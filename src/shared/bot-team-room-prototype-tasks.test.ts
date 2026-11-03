@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { botTeamRoomPrototypeTasks } from './mobile-bot-team-room-prototype-tasks'
+import { botTeamRoomPrototypeTasks } from './bot-team-room-prototype-tasks'
 
 function post(id: string, authorBotId: string | null, createdAt: number, fromTeamId?: string) {
   return { id, authorBotId, createdAt, ...(fromTeamId ? { fromTeamId } : {}) }
