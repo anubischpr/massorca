@@ -1,5 +1,5 @@
 import React from 'react'
-import { Bot, LayoutGrid, ListChecks, Settings } from 'lucide-react'
+import { Bot, Calendar, LayoutGrid, ListChecks, Settings } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -71,7 +71,7 @@ function RailModeIcon({ mode }: { mode: 'workspaces' | 'bot-teams' }): React.JSX
   )
 }
 
-/** Always visible navigation at the far left. Bot team, Workflows, Canvas and Calendar join it when they ship. */
+/** Always visible navigation at the far left. Workflows and Canvas join it when they ship. */
 export function AppRail(): React.JSX.Element {
   const activeView = useAppStore((s) => s.activeView)
   const railMode = useAppStore((s) => s.railMode)
@@ -79,6 +79,7 @@ export function AppRail(): React.JSX.Element {
   const hintShown = useAppStore((s) => s.railWorkspacesHintShown)
   const markHintShown = useAppStore((s) => s.markRailWorkspacesHintShown)
   const openTasksHome = useAppStore((s) => s.openTasksHome)
+  const openCalendarPage = useAppStore((s) => s.openCalendarPage)
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
   const settingsShortcut = useShortcutKeyDetails('app.settings')
   return (
@@ -121,6 +122,13 @@ export function AppRail(): React.JSX.Element {
         onClick={openTasksHome}
       >
         <ListChecks className="size-5" />
+      </RailButton>
+      <RailButton
+        label={translate('components.app-rail.calendar', 'Calendar')}
+        active={activeView === 'calendar'}
+        onClick={openCalendarPage}
+      >
+        <Calendar className="size-5" />
       </RailButton>
       <div className="flex-1" />
       <AppRailUsage />

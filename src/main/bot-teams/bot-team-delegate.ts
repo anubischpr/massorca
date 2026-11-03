@@ -23,6 +23,14 @@ export type BotTeamDelegateDeps = {
   memoryFor?: (botId: string) => BotTeamMemoryLines
 }
 
+/**
+ * A child saves where it starts (its parent's workspace or its own worktree), not in the project's
+ * workspace, which is the repo's main checkout. The brief still goes to it.
+ */
+function projectForChild(project: BotTeamProject | null): BotTeamProject | null {
+  return project ? { ...project, workspace: null } : null
+}
+
 /** Hands work to a teammate as a child session. The request is filed first: when it is refused, nothing was changed. */
 export async function delegateToBotTeammate(
   deps: BotTeamDelegateDeps,
@@ -55,7 +63,12 @@ export async function delegateToBotTeammate(
       team,
       teammate,
       { title, prompt: text },
-      { project, memory: deps.memoryFor?.(teammate.id), roomExcerpt, delegated: true }
+      {
+        project: projectForChild(project),
+        memory: deps.memoryFor?.(teammate.id),
+        roomExcerpt,
+        delegated: true
+      }
     ),
     agent: teammate.agent,
     ...(launch ? { launch } : {}),

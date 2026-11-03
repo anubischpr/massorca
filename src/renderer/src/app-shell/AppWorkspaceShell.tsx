@@ -33,6 +33,7 @@ const PrototypesPage = lazy(() => import('../components/prototypes/PrototypesPag
 const BotTeamsPage = lazy(() => import('../components/bot-teams/BotTeamsPage'))
 const WorkspaceSpacePage = lazy(() => import('../components/workspace-space/WorkspaceSpacePage'))
 const MobilePage = lazy(() => import('../components/mobile/MobilePage'))
+const CalendarPage = lazy(() => import('../components/calendar/CalendarPage'))
 const CreateChatPage = lazy(() => import('../components/create-chat/CreateChatPage'))
 const Terminal = lazy(() => import('../components/Terminal'))
 
@@ -93,6 +94,7 @@ function ActivePage({ layout }: { layout: AppChromeLayout }): React.JSX.Element 
       {activeView === 'activity' ? <ActivityPrototypePage /> : null}
       {activeView === 'space' ? <WorkspaceSpacePage /> : null}
       {activeView === 'mobile' ? <MobilePage /> : null}
+      {activeView === 'calendar' ? <CalendarPage /> : null}
       {activeView === 'create-chat' ? <CreateChatPage onSubmit={submitCreateChatDraft} /> : null}
       {activeView === 'terminal' && creationLayoutActive && activePendingCreationId ? (
         <WorktreeCreationPanel

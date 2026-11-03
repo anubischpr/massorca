@@ -128,3 +128,4 @@ export type TopLevelView =
   | 'bot-teams'
   | 'mobile'
   | 'create-chat'
+  | 'calendar'

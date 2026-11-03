@@ -50,8 +50,8 @@ const otherTask: BotTeamTask = {
   title: 'Answer the ticket',
   prompt: '',
   ownerBotId: 'bot-2',
-  sessionId: 'session-2',
-  projectId: null
+  projectId: null,
+  sessionId: 'session-2'
 }
 
 const listBotTeams = vi.hoisted(() => vi.fn())

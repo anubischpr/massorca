@@ -14,7 +14,8 @@ const RIGHT_SIDEBAR_SUPPRESSED_VIEWS = new Set<ActiveView>([
   'artifacts',
   'prototypes',
   'mobile',
-  'create-chat'
+  'create-chat',
+  'calendar'
 ])
 
 /** In Bot teams the sidebar is a Conference room's Tasks and Bots; anywhere else there it has nothing. */

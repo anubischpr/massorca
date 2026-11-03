@@ -141,6 +141,30 @@ test('a pane shows another workspace’s live session by reference, and the focu
     .toBe(true)
   await orcaPage.waitForTimeout(2500)
   await orcaPage.screenshot({ path: testInfo.outputPath('reference-side-by-side.png') })
+  // The divider reaches up to the top bar, and no pane header crosses it.
+  const topBarBottom = await orcaPage
+    .locator('[data-session-bar="true"]')
+    .evaluate((el) => el.getBoundingClientRect().bottom)
+  const divider = await orcaPage
+    .locator('.tab-group-split-resize-handle')
+    .first()
+    .evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      return { top: r.top, left: r.left, right: r.right }
+    })
+  expect(divider.top).toBeLessThanOrEqual(topBarBottom + 1)
+  const headers = await orcaPage.locator('.pane-title-bar').evaluateAll((els) =>
+    els.map((el) => {
+      const r = el.getBoundingClientRect()
+      return { left: r.left, right: r.right }
+    })
+  )
+  const crossingHeaders = headers.filter(
+    (header) => !(header.right <= divider.left + 0.5 || header.left >= divider.right - 0.5)
+  )
+  expect(crossingHeaders).toEqual([])
+  // Two panes, one focused: the unfocused one carries the veil that dims its session text.
+  await expect(orcaPage.locator('[data-tab-group-unfocused-veil]')).toHaveCount(1)
 
   // Focusing the pane: commands, right sidebar and side panel follow the session's workspace.
   await overlay.click({ position: { x: 40, y: 40 } })
@@ -151,6 +175,12 @@ test('a pane shows another workspace’s live session by reference, and the focu
       ownerWorktreeId: second.id,
       groupId: referenced
     })
+  // Focus moved to the reference pane, so the first workspace's own pane is now the veiled one.
+  await expect(
+    orcaPage.locator(
+      `[data-tab-group-body-id="${first.sessions[0].groupId}"] > [data-tab-group-unfocused-veil]`
+    )
+  ).toHaveCount(1)
   // The side panel starts hidden; whichever is on screen must be the session's own workspace's.
   const owners = await orcaPage.evaluate(() =>
     [...document.querySelectorAll('[data-side-panel="true"] [data-worktree-id]')]
