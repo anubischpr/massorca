@@ -13,6 +13,8 @@ export function botTeamTaskLabel(status: BotTeamTaskStatus): string {
   switch (status) {
     case 'Not started':
       return translate('components.botTeams.notStarted', 'Not started')
+    case 'Unknown':
+      return translate('components.botTeams.checkingStatus', 'Checking status')
     case 'Working':
       return translate('components.botTeams.working', 'Working')
     case 'Waiting for you':

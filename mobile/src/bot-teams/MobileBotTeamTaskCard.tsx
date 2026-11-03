@@ -71,11 +71,25 @@ export function MobileBotTeamTaskCard({
         {owner ? <Text style={styles.rowMeta}>{owner.name}</Text> : null}
         {projectName ? <Text style={styles.rowMeta}>{projectName}</Text> : null}
         <View style={styles.taskCardStatus}>
-          <View style={[styles.statusDot, { backgroundColor: statusDotColor(status) }]} />
-          <Text style={styles.rowMeta}>
-            {status}
-            {offline && task.sessionId !== null ? ', can’t confirm now' : ''}
-          </Text>
+          {status === 'Unknown' ? (
+            <View
+              accessibilityLabel="Checking status"
+              style={{
+                width: 56,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: colors.borderSubtle
+              }}
+            />
+          ) : (
+            <>
+              <View style={[styles.statusDot, { backgroundColor: statusDotColor(status) }]} />
+              <Text style={styles.rowMeta}>
+                {status}
+                {offline && task.sessionId !== null ? ', can’t confirm now' : ''}
+              </Text>
+            </>
+          )}
         </View>
       </Pressable>
       {task.sessionId === null && onStart ? (

@@ -58,7 +58,11 @@ export function MobileBotTeamProject({
 }) {
   const [column, setColumn] = useState<BotTeamBoardColumn>('In Progress')
   const statusOf = useMobileBotTeamTaskStatus(client)
-  const columnOf = (task: BotTeamTask) => botTeamBoardColumn(statusOf(task))
+  // An unknown status is placed by the task's stored last status, never as in progress.
+  const columnOf = (task: BotTeamTask) => {
+    const status = statusOf(task)
+    return botTeamBoardColumn(status === 'Unknown' ? (task.lastStatus ?? 'Unknown') : status)
+  }
   const inProject = [...tasks, ...projectTasks].filter((task) => task.projectId === project.id)
   const shown = inProject.filter((task) => columnOf(task) === column)
   // The owner team's Workspaces setting and workspace link apply to the project.

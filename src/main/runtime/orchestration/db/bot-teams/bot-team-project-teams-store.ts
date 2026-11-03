@@ -72,7 +72,8 @@ export function listBotTeamProjectTasksOfOtherTeams(
     this.db
       .prepare(
         `SELECT id, team_id AS teamId, title, prompt, owner_bot_id AS ownerBotId,
-           session_id AS sessionId, project_id AS projectId, created_at AS createdAt
+           session_id AS sessionId, project_id AS projectId, created_at AS createdAt,
+           last_status AS lastStatus
          FROM bot_team_tasks
          WHERE team_id != ? AND project_id IN (
            SELECT id FROM bot_team_projects WHERE team_id = ?

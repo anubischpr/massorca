@@ -21,6 +21,18 @@ import { botTeamTaskGlyph, botTeamTaskLabel } from './bot-team-task-status-displ
 
 const NO_PROJECT = 'none'
 
+/** The chip while the host has not answered: a neutral bar, with no status word that names a column. */
+export function BotTeamTaskStatusPlaceholder(): React.JSX.Element {
+  return (
+    <span
+      data-bot-team-status-placeholder
+      role="status"
+      aria-label={translate('components.botTeams.checkingStatus', 'Checking status')}
+      className="h-2.5 w-14 rounded-full bg-muted"
+    />
+  )
+}
+
 /** A task in the room: its owner, status and project; the card turns orange while it waits for the person. */
 export function BotTeamTaskCard({
   task,
@@ -59,11 +71,17 @@ export function BotTeamTaskCard({
         <div className="truncate text-xs text-muted-foreground">{owner?.name}</div>
       </div>
       <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-        <StatusIndicator status={botTeamTaskGlyph(status)} showTooltip={false} />
-        {botTeamTaskLabel(status)}
-        {offline && task.sessionId !== null
-          ? translate('components.botTeams.cannotConfirm', ', can’t confirm now')
-          : ''}
+        {status === 'Unknown' ? (
+          <BotTeamTaskStatusPlaceholder />
+        ) : (
+          <>
+            <StatusIndicator status={botTeamTaskGlyph(status)} showTooltip={false} />
+            {botTeamTaskLabel(status)}
+            {offline && task.sessionId !== null
+              ? translate('components.botTeams.cannotConfirm', ', can’t confirm now')
+              : ''}
+          </>
+        )}
       </span>
       {projects.length > 0 ? (
         <Select value={task.projectId ?? NO_PROJECT} disabled={offline} onValueChange={onMove}>

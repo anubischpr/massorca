@@ -130,7 +130,9 @@ export function setBotTeamTaskLastStatus(
   status: BotTeamTaskLastStatus | null
 ): void {
   this.db
-    .prepare('UPDATE bot_team_tasks SET last_status = ? WHERE session_id = ? AND last_status IS NOT ?')
+    .prepare(
+      'UPDATE bot_team_tasks SET last_status = ? WHERE session_id = ? AND last_status IS NOT ?'
+    )
     .run(status, sessionId, status)
 }
 

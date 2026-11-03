@@ -3,6 +3,7 @@ import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
 import { botTeamVersionDeps } from './bot-team-version-deps'
 import { watchBotTeamTaskFinishes } from './bot-team-version-watcher'
+import { watchBotTeamTaskLastStatus } from './bot-team-task-status-record'
 import { takeBotTeamSnapshot } from './bot-team-snapshots'
 import type { BotTeamSnapshotDeps } from './bot-team-snapshot-types'
 
@@ -49,4 +50,8 @@ export function ensureBotTeamVersionWatcher(getDb: () => OrchestrationDb): void 
       console.warn('[bot-teams] saving a version failed', error)
     )
   })
+  // A board's first paint reads the last status a task's session reached.
+  watchBotTeamTaskLastStatus(host, (sessionId, status) =>
+    getDb().setBotTeamTaskLastStatus(sessionId, status)
+  )
 }
