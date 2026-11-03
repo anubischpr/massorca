@@ -14,7 +14,9 @@ const { BotTeamRoomMessageBody } = await import('./BotTeamRoomMessageBody')
 
 const MENTIONS = [
   { name: 'Iris', kind: 'bot' as const, agent: 'claude' as const },
-  { name: 'Marketing', kind: 'team' as const, character: 'square' as const }
+  { name: 'Marketing', kind: 'team' as const, character: 'square' as const },
+  { name: 'Shop', kind: 'project' as const, logo: { type: 'emoji' as const, emoji: '🛒' } },
+  { name: 'Spring', kind: 'project' as const, logo: null }
 ]
 
 const mounted: { container: HTMLDivElement; root: Root }[] = []
@@ -59,6 +61,23 @@ describe('the room message body', () => {
     expect(container.querySelector('[data-bot-team-mention="Marketing"]')).not.toBeNull()
     expect(container.querySelector('[data-bot-team-mention="Nadie"]')).toBeNull()
     expect(container.textContent).toContain('@Nadie')
+  })
+
+  it('draws a project with its logo, and one without a logo as its name alone', () => {
+    const container = render('Revisa @Shop y @Spring')
+    const shop = container.querySelector('[data-bot-team-mention="Shop"]')
+    expect(shop?.textContent).toBe('🛒Shop')
+    const spring = container.querySelector('[data-bot-team-mention="Spring"]')
+    expect(spring?.textContent).toBe('Spring')
+    expect(spring?.querySelector('svg, img')).toBeNull()
+  })
+
+  it('draws a file mention as a chip with its file-type icon, leaving the trailing period', () => {
+    const container = render('Usa @site/flyer.html.')
+    const chip = container.querySelector('[data-bot-team-mention-file="site/flyer.html"]')
+    expect(chip?.textContent).toBe('site/flyer.html')
+    expect(chip?.querySelector('svg.lucide-file-code')).not.toBeNull()
+    expect(container.textContent).toContain('Usa site/flyer.html.')
   })
 
   it('does not render raw HTML from a message', () => {

@@ -16,8 +16,7 @@ import { archiveBotTeamProject } from '@/runtime/runtime-bot-team-project-client
 import { useAppStore } from '@/store'
 import type { BotTeamsSelection } from '@/store/slices/ui/ui-slice-contract-core'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
-import { botTeamRepoProjectKey } from '../../../../shared/bot-team-project-workspace-key'
-import type { Repo } from '../../../../shared/repo-types'
+import { linkedRepoIcon } from '../bot-teams/bot-team-mention-projects'
 import type {
   BotTeamProject,
   BotTeamTask
@@ -97,12 +96,6 @@ function ProjectsHeader({
 }
 
 /** The open team's projects: heading toolbar, one row each with its right-click menu. */
-/** The icon of the Workspaces repo a project is linked to; null for a team folder or a repo without one. */
-function linkedRepoIcon(repos: readonly Repo[], project: BotTeamProject): Repo['repoIcon'] {
-  const key = project.workspace?.key
-  return repos.find((repo) => botTeamRepoProjectKey(repo.id) === key)?.repoIcon ?? null
-}
-
 export function BotTeamsSidebarProjects({
   team,
   teams,
