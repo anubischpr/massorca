@@ -32,4 +32,42 @@ describe('botTeamFiledReply', () => {
       'Added to Todo. It did not start: The bot is busy.'
     )
   })
+
+  it('answers an English request in English, with the same templates', () => {
+    const text = 'Can you check NexusCare tomorrow?'
+    expect(botTeamFiledReply({ ...FILED, started: true, projectName: 'NexusCare', text })).toBe(
+      'On it, in NexusCare.'
+    )
+    expect(
+      botTeamFiledReply({ ...FILED, later: true, when: 'tomorrow', projectName: 'NexusCare', text })
+    ).toBe('Added to Todo for tomorrow in NexusCare.')
+    expect(botTeamFiledReply({ ...FILED, started: true, startError: 'Bot busy', text })).toBe(
+      'Added to Todo. It did not start: Bot busy'
+    )
+  })
+
+  it('answers a Spanish request in Spanish, with the same templates', () => {
+    const text = 'Revisa NexusCare mañana, por favor'
+    expect(botTeamFiledReply({ ...FILED, started: true, text })).toBe('En ello.')
+    expect(botTeamFiledReply({ ...FILED, started: true, projectName: 'NexusCare', text })).toBe(
+      'En ello, en NexusCare.'
+    )
+    expect(
+      botTeamFiledReply({ ...FILED, later: true, when: 'tomorrow', projectName: 'NexusCare', text })
+    ).toBe('Añadido a Todo para mañana en NexusCare.')
+    expect(botTeamFiledReply({ ...FILED, later: true, when: 'later', text })).toBe(
+      'Añadido a Todo para más tarde.'
+    )
+    expect(botTeamFiledReply({ ...FILED, later: true, text })).toBe('Añadido a Todo.')
+    expect(botTeamFiledReply({ ...FILED, started: true, startError: 'Bot busy', text })).toBe(
+      'Añadido a Todo. No se inició: Bot busy'
+    )
+  })
+
+  it('uses the app language when the request is unclear, and English without either', () => {
+    expect(
+      botTeamFiledReply({ ...FILED, started: true, text: 'NexusCare?', uiLanguage: 'es' })
+    ).toBe('En ello.')
+    expect(botTeamFiledReply({ ...FILED, started: true, text: 'NexusCare?' })).toBe('On it.')
+  })
 })

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
 import type { BotTeamMessage, BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import {
+  botCanSearch,
   buildBotTeamConversationPrompt,
   chooseConversationBot,
   cleanConversationReply
@@ -195,7 +196,7 @@ describe('buildBotTeamConversationPrompt for research', () => {
     expect(prompt).toMatch(/sources/i)
     expect(prompt).toMatch(/links/i)
     expect(prompt).toMatch(/could not verify|cannot verify/i)
-    expect(prompt).toMatch(/cannot search/i)
+    expect(prompt).not.toMatch(/cannot search/i)
   })
 
   it('leaves the plain prompt as it was', () => {
@@ -233,5 +234,107 @@ describe('cleanConversationReply', () => {
   it('is null when nothing was said', () => {
     expect(cleanConversationReply('  \n ')).toBeNull()
     expect(cleanConversationReply(null)).toBeNull()
+  })
+})
+
+describe('chooseConversationBot for research', () => {
+  const PI = bot('pi', 'Estrellita', 'Helps the team', 'pi')
+  const research = {
+    bots: [PI, IRIS, MAX],
+    subjectBotIds: [] as string[],
+    busyBotIds: new Set<string>(),
+    usagePercentByAgent: new Map<string, number>(),
+    lastBotId: null as string | null,
+    research: true
+  }
+
+  it('answers with a bot whose agent can search, even when a Gentle Shell bot fits the subject', () => {
+    expect(chooseConversationBot({ ...research, subjectBotIds: ['pi'] })).not.toBe(PI)
+  })
+
+  it('rotates among the bots that can search only', () => {
+    expect(chooseConversationBot({ ...research, lastBotId: 'iris' })).toBe(MAX)
+    expect(chooseConversationBot({ ...research, lastBotId: 'max' })).toBe(IRIS)
+  })
+
+  it('keeps the usual choice for a question that is not research', () => {
+    expect(chooseConversationBot({ ...research, research: false, subjectBotIds: ['pi'] })).toBe(PI)
+  })
+
+  it('falls back to a bot that cannot search when no bot in the team can', () => {
+    expect(chooseConversationBot({ ...research, bots: [PI] })).toBe(PI)
+  })
+})
+
+describe('botCanSearch', () => {
+  it('is true for the agents with a web research mode, and false for Gentle Shell and the others', () => {
+    expect(botCanSearch(bot('a', 'A', '', 'claude'))).toBe(true)
+    expect(botCanSearch(bot('b', 'B', '', 'codex'))).toBe(true)
+    expect(botCanSearch(bot('c', 'C', '', 'antigravity'))).toBe(true)
+    expect(botCanSearch(bot('d', 'D', '', 'pi'))).toBe(false)
+    expect(botCanSearch(bot('e', 'E', '', 'jcode'))).toBe(false)
+  })
+})
+
+describe('buildBotTeamConversationPrompt language, context and sources', () => {
+  const base = {
+    team: { name: 'Marketing', purpose: '' },
+    bot: IRIS,
+    bots: BOTS,
+    messages: [] as BotTeamMessage[],
+    tasks: [] as BotTeamTask[]
+  }
+
+  it('tells the bot to answer in the same language as the last message, in Spanish or English', () => {
+    const spanish = buildBotTeamConversationPrompt({ ...base, text: 'En qué nos quedamos?' })
+    const english = buildBotTeamConversationPrompt({ ...base, text: 'What did we finish?' })
+    for (const prompt of [spanish, english]) {
+      expect(prompt).toContain('in the same language as their last message')
+      expect(prompt).not.toMatch(/spanish|español/i)
+    }
+  })
+
+  it('reads the project context of the question when one is given, and not otherwise', () => {
+    const withProject = buildBotTeamConversationPrompt({
+      ...base,
+      text: 'En qué quedamos con NexusCare?',
+      projectContext: 'Project "NexusCare" (the question names it).\nNo brief saved yet.'
+    })
+    expect(withProject).toContain('Project "NexusCare"')
+    expect(withProject).toMatch(/project context/i)
+    const without = buildBotTeamConversationPrompt({ ...base, text: 'En qué quedamos?' })
+    expect(without).not.toContain('Project "NexusCare"')
+  })
+
+  it('writes the sources and unverified headings in the language of the question, and leaves an empty sources list out', () => {
+    const prompt = buildBotTeamConversationPrompt({
+      ...base,
+      text: '¿Qué es Jev AI?',
+      research: true
+    })
+    expect(prompt).toContain('in the language of the question')
+    expect(prompt).toContain('"Fuentes"')
+    expect(prompt).toContain('"Sources"')
+    expect(prompt).toMatch(/leave out the sources list/i)
+    expect(prompt).toMatch(/never write "none"/i)
+    const english = buildBotTeamConversationPrompt({
+      ...base,
+      text: 'What is Jev AI?',
+      research: true
+    })
+    expect(english).toContain('in the language of the question')
+    expect(english).toMatch(/leave out the sources list/i)
+  })
+
+  it('tells a bot that cannot search to say once that it could not, with no sources list', () => {
+    const prompt = buildBotTeamConversationPrompt({
+      ...base,
+      text: '¿Qué es Jev AI?',
+      research: true,
+      canSearch: false
+    })
+    expect(prompt).toMatch(/cannot search the web in this turn/i)
+    expect(prompt).toMatch(/say once/i)
+    expect(prompt).not.toMatch(/search the web for it/i)
   })
 })

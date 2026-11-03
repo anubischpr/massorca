@@ -211,4 +211,54 @@ describe('botTeams.listEngramMemory', () => {
     )
     expect(result).not.toHaveProperty('refreshFailed')
   })
+
+  describe('refreshProblem', () => {
+    const NOT_CONFIGURED = {
+      code: 1,
+      stdout: '',
+      stderr: '[autosync] ERROR: cloud token is not configured (set ENGRAM_CLOUD_TOKEN)',
+      timedOut: false
+    }
+    const isImport = (args: readonly string[]) => args[0] === 'sync'
+    async function settle() {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
+
+    it('says cloud sync is not set up here, without calling it a refresh failure', async () => {
+      const run = vi.fn(async (args: readonly string[]) =>
+        isImport(args) ? NOT_CONFIGURED : CONTEXT
+      )
+      engramCli.run = run
+      await botTeamListEngramMemoryMethod.handler({ ...IDS, refresh: true }, context(true, LINKED))
+      await settle()
+      const later = await botTeamListEngramMemoryMethod.handler(IDS, context(true, LINKED))
+      expect(later).toMatchObject({ status: 'ok', refreshProblem: 'not-configured' })
+      expect(later).not.toHaveProperty('refreshFailed')
+      expect(run.mock.calls.filter(([args]) => isImport(args))).toHaveLength(1)
+    })
+
+    it('says the server could not be reached, with the older refreshFailed flag too', async () => {
+      engramCli.run = vi.fn(async (args: readonly string[]) =>
+        isImport(args) ? IMPORT_FAILED : CONTEXT
+      )
+      await botTeamListEngramMemoryMethod.handler({ ...IDS, refresh: true }, context(true, LINKED))
+      await settle()
+      const later = await botTeamListEngramMemoryMethod.handler(IDS, context(true, LINKED))
+      expect(later).toMatchObject({
+        status: 'ok',
+        refreshProblem: 'unreachable',
+        refreshFailed: true
+      })
+    })
+
+    it('says nothing about the refresh when the import worked', async () => {
+      engramCli.run = vi.fn(async (args: readonly string[]) =>
+        isImport(args) ? IMPORTED : CONTEXT
+      )
+      await botTeamListEngramMemoryMethod.handler({ ...IDS, refresh: true }, context(true, LINKED))
+      await settle()
+      const later = await botTeamListEngramMemoryMethod.handler(IDS, context(true, LINKED))
+      expect(later).not.toHaveProperty('refreshProblem')
+    })
+  })
 })

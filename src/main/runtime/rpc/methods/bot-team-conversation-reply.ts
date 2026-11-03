@@ -1,17 +1,32 @@
 import { botAgentPiRuntime } from '../../../../shared/bot-team-character-art'
 import { BOT_TEAM_ALL_AUTHOR } from '../../../../shared/bot-team-greeting'
+import { findNamedProject } from '../../../../shared/bot-team-owner-selection'
 import type { BotTeam, BotTeamBot } from '../../../../shared/rpc-contract/bot-team-params'
-import type { BotTeamMessage } from '../../../../shared/rpc-contract/bot-team-room-params'
+import type { BotTeamEngramMemory } from '../../../../shared/rpc-contract/bot-team-engram-params'
+import type {
+  BotTeamMessage,
+  BotTeamProject
+} from '../../../../shared/rpc-contract/bot-team-room-params'
 import {
+  botCanSearch,
   buildBotTeamConversationPrompt,
   chooseConversationBot,
   cleanConversationReply
 } from '../../../bot-teams/bot-team-conversation'
 import { botConversationChoice } from '../../../bot-teams/bot-team-model-choice'
+import { readBotTeamMemoryLines } from '../../../bot-teams/bot-team-memory-read'
+import { engramProjectName } from '../../../bot-teams/bot-team-engram-project'
+import { readEngramMemories } from '../../../bot-teams/bot-team-engram-reader'
+import {
+  botTeamProjectContext,
+  ENGRAM_CONTEXT_MAX_ENTRIES
+} from '../../../bot-teams/bot-team-reply-context'
 import { askBotAgentForBotTeamReply } from '../../../bot-teams/bot-team-request-query'
 import { rankDelegationAgents } from '../../../delegated-session/delegation-agent-ranking'
 import { delegationUsageCandidates } from '../../../delegated-session/delegation-usage-input'
+import { mainI18n } from '../../../i18n/main-i18n'
 import type { RpcContext } from '../core'
+import { engramCli } from './bot-team-engram-methods'
 import { botTeamReplyFailureLine } from './bot-team-reply-failure-line'
 import { clearBotTeamReplying, markBotTeamReplying } from './bot-team-reply-in-flight'
 
@@ -39,6 +54,52 @@ function usagePercentByAgent(ctx: RpcContext, bots: BotTeam['bots']): Map<string
   }
 }
 
+/** The latest Engram memories of a project, read the way the Memory view reads them; none when not readable. */
+async function readEngramLines(project: string): Promise<readonly BotTeamEngramMemory[] | null> {
+  const read = await readEngramMemories(engramCli.run, {
+    project,
+    limit: ENGRAM_CONTEXT_MAX_ENTRIES
+  })
+  return read.status === 'ok' ? read.memories : null
+}
+
+/**
+ * The named project, read for the reply. A research question gets its brief only; a room answer gets
+ * its tasks, the team's and the bot's memory, and its Engram lines (read only, never imported here).
+ */
+async function projectContextOf(
+  ctx: RpcContext,
+  args: { team: BotTeam; bot: BotTeamBot; project: BotTeamProject; research: boolean }
+): Promise<string> {
+  const { team, bot, project } = args
+  if (args.research) {
+    return botTeamProjectContext({
+      project,
+      tasks: [],
+      bots: team.bots,
+      memory: { team: [], bot: [] },
+      botName: bot.name,
+      engram: null,
+      briefOnly: true
+    })
+  }
+  const db = ctx.runtime.getOrchestrationDb()
+  const tasks = [
+    ...db.listBotTeamTasks(team.id),
+    ...db.listBotTeamProjectTasksOfOtherTeams(team.id)
+  ].filter((task) => task.projectId === project.id)
+  const engramName = engramProjectName(team, project, ctx.runtime.listRepos())
+  return botTeamProjectContext({
+    project,
+    tasks,
+    bots: team.bots,
+    memory: readBotTeamMemoryLines(db, team.id, bot.id),
+    botName: bot.name,
+    engram: engramName ? await readEngramLines(engramName) : null,
+    briefOnly: false
+  })
+}
+
 /** Asks the chosen bot's agent once; null when nothing came back. */
 async function askConversationBot(
   ctx: RpcContext,
@@ -53,6 +114,16 @@ async function askConversationBot(
     ...(piRuntime ? { piRuntime } : {})
   }
   const db = ctx.runtime.getOrchestrationDb()
+  // Only a bot whose agent can search runs a web search; any other says once that it could not.
+  const canSearch = research && botCanSearch(bot)
+  // With no project named nothing is read, so the query goes out at once.
+  const project = findNamedProject(
+    args.text,
+    db.listBotTeamProjects(team.id, { includeLinked: true })
+  )
+  const projectContext = project
+    ? await projectContextOf(ctx, { team, bot, project, research })
+    : null
   return cleanConversationReply(
     await askBotAgentForBotTeamReply({
       prompt: buildBotTeamConversationPrompt({
@@ -62,12 +133,14 @@ async function askConversationBot(
         messages: db.listBotTeamMessages(team.id).slice(0, -1),
         tasks: db.listBotTeamTasks(team.id),
         text: args.text,
-        research
+        research,
+        canSearch,
+        projectContext
       }),
       agent: own,
       settings: ctx.runtime.getClientSettings(),
       getAgentEnvResolvers: () => ctx.runtime.getCommitMessageAgentEnvironmentResolvers(),
-      research
+      research: canSearch
     }),
     { research }
   )
@@ -87,24 +160,21 @@ export function startBotTeamConversationReply(
     return null
   }
   const db = ctx.runtime.getOrchestrationDb()
+  const research = args.research === true
   const bot = chooseConversationBot({
     bots: team.bots,
     subjectBotIds: args.subjectBotIds,
     busyBotIds: answering,
     usagePercentByAgent: usagePercentByAgent(ctx, team.bots),
-    lastBotId: lastToAnswer.get(team.id) ?? null
+    lastBotId: lastToAnswer.get(team.id) ?? null,
+    research
   })
   answering.add(bot.id)
   lastToAnswer.set(team.id, bot.id)
   markBotTeamReplying(team.id, bot.id)
   const settle = async (): Promise<BotTeamMessage> => {
     try {
-      const reply = await askConversationBot(ctx, {
-        team,
-        bot,
-        text,
-        research: args.research === true
-      })
+      const reply = await askConversationBot(ctx, { team, bot, text, research })
       if (reply) {
         return db.postBotTeamMessage({ teamId: team.id, authorBotId: bot.id, text: reply })
       }
@@ -118,7 +188,7 @@ export function startBotTeamConversationReply(
     return db.postBotTeamMessage({
       teamId: team.id,
       authorBotId: BOT_TEAM_ALL_AUTHOR,
-      text: botTeamReplyFailureLine(text)
+      text: botTeamReplyFailureLine(text, mainI18n.language)
     })
   }
   return { botId: bot.id, done: settle() }

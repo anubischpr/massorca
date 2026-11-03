@@ -33,6 +33,24 @@ function statusLine(reply: BotTeamEngramReply, searched: boolean): string | null
   return null
 }
 
+/** Why the last refresh from the Engram server did not land; a host from before refreshProblem says only refreshFailed. */
+function refreshProblemLine(reply: BotTeamEngramReply): string | null {
+  const problem = reply.refreshProblem ?? (reply.refreshFailed ? 'unreachable' : null)
+  if (problem === 'not-configured') {
+    return translate(
+      'components.botTeams.engramNotConfigured',
+      'Engram cloud sync is not set up on this host.'
+    )
+  }
+  if (problem === 'unreachable') {
+    return translate(
+      'components.botTeams.engramRefreshFailed',
+      'Could not refresh from the Engram server.'
+    )
+  }
+  return null
+}
+
 /** The linked Workspaces project's Engram memories, read-only: the latest few, or a search. */
 export function BotTeamEngramMemory({ team }: { team: BotTeam }): React.JSX.Element | null {
   const [projects, setProjects] = useState<BotTeamProject[]>([])
@@ -106,6 +124,7 @@ export function BotTeamEngramMemory({ team }: { team: BotTeam }): React.JSX.Elem
   }
   // While the import runs, an empty list is not yet "no memories", so only the updating note shows.
   const line = reply && !reply.refreshing ? statusLine(reply, query !== '') : null
+  const refreshNote = reply ? refreshProblemLine(reply) : null
   return (
     <div className="flex flex-col gap-3" data-testid="bot-team-engram-memory">
       <div>
@@ -188,13 +207,8 @@ export function BotTeamEngramMemory({ team }: { team: BotTeam }): React.JSX.Elem
               )}
             </div>
           ) : null}
-          {reply.refreshFailed ? (
-            <div className="px-4 py-3 text-sm text-muted-foreground">
-              {translate(
-                'components.botTeams.engramRefreshFailed',
-                'Could not refresh from the Engram server.'
-              )}
-            </div>
+          {refreshNote ? (
+            <div className="px-4 py-3 text-sm text-muted-foreground">{refreshNote}</div>
           ) : null}
         </div>
       ) : null}

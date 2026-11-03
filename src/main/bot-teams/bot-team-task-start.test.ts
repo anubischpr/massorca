@@ -345,4 +345,35 @@ describe('the task prompt and the room', () => {
     expect(withoutMarkdown).toContain('Requirements:\n- Old list item')
     expect(withoutMarkdown).not.toContain('## Requirements')
   })
+
+  it("asks the bot to write its finish line in the language of the task's request, in Spanish and English", async () => {
+    const { botTeamTaskPrompt } = await import('./bot-team-task-start')
+    const bot = {
+      id: 'b',
+      name: 'José',
+      job: 'Front',
+      agent: 'claude' as const,
+      modelMode: 'auto' as const,
+      model: null,
+      effort: null,
+      skills: []
+    }
+    const team = {
+      id: 't',
+      name: 'Dev',
+      purpose: '',
+      character: 'circle' as const,
+      workspacesEnabled: false,
+      accessMode: 'default' as const,
+      bots: [bot]
+    }
+    const spanish = botTeamTaskPrompt(team, bot, {
+      title: 'Colores',
+      prompt: 'Muestra una tarjeta de colores'
+    })
+    const english = botTeamTaskPrompt(team, bot, { title: 'Colors', prompt: 'Show a colors card' })
+    for (const prompt of [spanish, english]) {
+      expect(prompt).toContain("in the same language as the task's request")
+    }
+  })
 })

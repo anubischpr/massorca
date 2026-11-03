@@ -41,12 +41,16 @@ describe('createEngramCloudSync', () => {
         })
     )
     const sync = createEngramCloudSync({ now: clock().now })
-    expect(sync.status('massorca')).toEqual({ importing: false, failed: false })
+    expect(sync.status('massorca')).toEqual({ importing: false, failed: false, problem: null })
     void sync.refresh(run, 'massorca', { force: false })
-    expect(sync.status('massorca')).toEqual({ importing: true, failed: false })
+    expect(sync.status('massorca')).toEqual({ importing: true, failed: false, problem: null })
     finish({ code: 1, stdout: '', timedOut: false })
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(sync.status('massorca')).toEqual({ importing: false, failed: true })
+    expect(sync.status('massorca')).toEqual({
+      importing: false,
+      failed: true,
+      problem: 'unreachable'
+    })
   })
 
   it('skips the import until five minutes have passed for the same project', async () => {
@@ -122,5 +126,78 @@ describe('createEngramCloudSync', () => {
     expect(await sync.refresh(run, 'massorca', { force: false })).toBe(true)
     expect(await sync.refresh(run, 'massorca', { force: false })).toBe(true)
     expect(run).toHaveBeenCalledTimes(1)
+  })
+
+  it('tells a host with no cloud setup apart from a server it cannot reach', async () => {
+    const notConfigured: EngramRunner[] = [
+      async () => ({
+        code: 1,
+        stdout: '',
+        stderr:
+          '[autosync] ERROR: cloud server URL is not configured (set ENGRAM_CLOUD_SERVER or run `engram cloud config --server <url>`)',
+        timedOut: false
+      }),
+      async () => ({ code: 0, stdout: 'cloud sync is not configured\n', timedOut: false }),
+      async () => ({
+        code: 1,
+        stdout:
+          'cloud server is missing: configure server URL with `engram cloud config --server <url>`',
+        timedOut: false
+      })
+    ]
+    for (const run of notConfigured) {
+      const sync = createEngramCloudSync({ now: clock().now })
+      expect(await sync.refresh(run, 'massorca', { force: false })).toBe(true)
+      expect(sync.status('massorca')).toEqual({
+        importing: false,
+        failed: true,
+        problem: 'not-configured'
+      })
+    }
+    const unreachable = createEngramCloudSync({ now: clock().now })
+    const refused: EngramRunner = async () => ({
+      code: 1,
+      stdout: '',
+      stderr: 'dial tcp: connection refused',
+      timedOut: false
+    })
+    await unreachable.refresh(refused, 'massorca', { force: false })
+    expect(unreachable.status('massorca')).toEqual({
+      importing: false,
+      failed: true,
+      problem: 'unreachable'
+    })
+  })
+
+  it('does not start the CLI again for a host with no cloud setup on a poll, only when forced', async () => {
+    const time = clock()
+    const run = vi.fn(async () => ({
+      code: 1,
+      stdout: '',
+      stderr: 'cloud token is not configured',
+      timedOut: false
+    }))
+    const sync = createEngramCloudSync({ now: time.now })
+    await sync.refresh(run, 'massorca', { force: false })
+    time.advance(ENGRAM_SYNC_INTERVAL_MS * 3)
+    await sync.refresh(run, 'massorca', { force: false })
+    expect(run).toHaveBeenCalledTimes(1)
+    await sync.refresh(run, 'massorca', { force: true })
+    expect(run).toHaveBeenCalledTimes(2)
+  })
+
+  it('clears the problem once an import works', async () => {
+    let result: EngramRun = {
+      code: 1,
+      stdout: '',
+      stderr: 'cloud token is not configured',
+      timedOut: false
+    }
+    const run = vi.fn(async () => result)
+    const sync = createEngramCloudSync({ now: clock().now })
+    await sync.refresh(run, 'massorca', { force: false })
+    result = IMPORTED
+    await sync.refresh(run, 'massorca', { force: true })
+    expect(sync.status('massorca')).toEqual({ importing: false, failed: false, problem: null })
   })
 })

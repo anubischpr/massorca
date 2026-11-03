@@ -26,9 +26,14 @@ export const BotTeamEngramMemorySchema = z.object({
   createdAt: z.string().optional()
 })
 
+/** Why the last server import failed: cloud sync is not set up on this host, or the server is unreachable. */
+export const BOT_TEAM_ENGRAM_REFRESH_PROBLEMS = ['not-configured', 'unreachable'] as const
+
 /**
  * unavailable: no engram CLI on the host. not-linked: workspaces off or no linked project.
- * refreshFailed: the last server import failed, so the memories are local and may be stale.
+ * refreshFailed: the last server import failed, so the memories are local and may be stale; a host
+ * from before refreshProblem sends only this. refreshProblem: why that import failed; a host with no
+ * cloud setup sends this and not refreshFailed, so an older client shows no refresh error for it.
  * refreshing: a server import is still running; the memories are local and the view asks again.
  */
 export const BotTeamEngramReplySchema = z.object({
@@ -36,8 +41,10 @@ export const BotTeamEngramReplySchema = z.object({
   projectName: z.string().optional(),
   memories: z.array(BotTeamEngramMemorySchema),
   refreshFailed: z.boolean().optional(),
+  refreshProblem: z.enum(BOT_TEAM_ENGRAM_REFRESH_PROBLEMS).optional(),
   refreshing: z.boolean().optional()
 })
 
 export type BotTeamEngramMemory = z.output<typeof BotTeamEngramMemorySchema>
 export type BotTeamEngramReply = z.output<typeof BotTeamEngramReplySchema>
+export type BotTeamEngramRefreshProblem = (typeof BOT_TEAM_ENGRAM_REFRESH_PROBLEMS)[number]

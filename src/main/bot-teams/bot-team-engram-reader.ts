@@ -4,7 +4,7 @@ import type { BotTeamEngramMemory } from '../../shared/rpc-contract/bot-team-eng
 const ENGRAM_TIMEOUT_MS = 10_000
 const EXCERPT_MAX_CHARS = 240
 
-export type EngramRun = { code: number | null; stdout: string; timedOut: boolean }
+export type EngramRun = { code: number | null; stdout: string; stderr?: string; timedOut: boolean }
 export type EngramRunOptions = { timeoutMs: number }
 /** Runs `engram <args>`; rejects only when the program could not start. */
 export type EngramRunner = (
@@ -19,7 +19,12 @@ export type EngramReadResult =
 export const runEngramCli: EngramRunner = async (args, options) => {
   const timeoutMs = options?.timeoutMs ?? ENGRAM_TIMEOUT_MS
   const result = await runProcess({ program: 'engram', args, timeoutMs })
-  return { code: result.code, stdout: result.stdout, timedOut: result.timedOut }
+  return {
+    code: result.code,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    timedOut: result.timedOut
+  }
 }
 
 function clip(text: string): string {

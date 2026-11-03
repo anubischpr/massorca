@@ -27,6 +27,18 @@ function statusLine(reply: BotTeamEngramReply, searched: boolean): string | null
   return null
 }
 
+/** Why the last refresh from the Engram server did not land; a host from before refreshProblem says only refreshFailed. */
+function refreshProblemLine(reply: BotTeamEngramReply): string | null {
+  const problem = reply.refreshProblem ?? (reply.refreshFailed ? 'unreachable' : null)
+  if (problem === 'not-configured') {
+    return 'Engram cloud sync is not set up on this host.'
+  }
+  if (problem === 'unreachable') {
+    return 'Could not refresh from the Engram server.'
+  }
+  return null
+}
+
 /** The linked Workspaces project's Engram memories, read-only: the latest few, or a search. */
 export function MobileBotTeamEngramMemory({
   client,
@@ -102,6 +114,7 @@ export function MobileBotTeamEngramMemory({
   }
   // While the import runs, an empty list is not yet "no memories", so only the updating note shows.
   const line = reply && !reply.refreshing ? statusLine(reply, query !== '') : null
+  const refreshNote = reply ? refreshProblemLine(reply) : null
   return (
     <View style={styles.form}>
       <Text style={styles.rowTitle}>Engram</Text>
@@ -157,9 +170,7 @@ export function MobileBotTeamEngramMemory({
       {reply?.refreshing ? (
         <Text style={styles.message}>Updating from the Engram server…</Text>
       ) : null}
-      {reply?.refreshFailed ? (
-        <Text style={styles.message}>Could not refresh from the Engram server.</Text>
-      ) : null}
+      {refreshNote ? <Text style={styles.message}>{refreshNote}</Text> : null}
     </View>
   )
 }

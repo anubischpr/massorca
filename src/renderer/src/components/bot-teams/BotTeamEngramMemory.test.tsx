@@ -87,6 +87,30 @@ describe('BotTeamEngramMemory', () => {
     expect(container.textContent).toContain('Could not refresh from the Engram server.')
   })
 
+  it('says cloud sync is not set up on this host, not that the refresh failed', async () => {
+    const container = await mount({ ...MEMORIES, refreshProblem: 'not-configured' })
+    expect(container.textContent).toContain('Branch is kept')
+    expect(container.textContent).toContain('Engram cloud sync is not set up on this host.')
+    expect(container.textContent).not.toContain('Could not refresh from the Engram server.')
+  })
+
+  it('says the server could not be reached when the refresh problem says so', async () => {
+    const container = await mount({ ...MEMORIES, refreshProblem: 'unreachable' })
+    expect(container.textContent).toContain('Could not refresh from the Engram server.')
+  })
+
+  it('shows an empty store without an error when cloud sync is not set up', async () => {
+    const container = await mount({
+      status: 'ok',
+      projectName: 'NexusCare',
+      memories: [],
+      refreshProblem: 'not-configured'
+    })
+    expect(container.textContent).toContain('No Engram memories for NexusCare yet.')
+    expect(container.textContent).toContain('Engram cloud sync is not set up on this host.')
+    expect(container.textContent).not.toContain('Could not refresh')
+  })
+
   it('searches the project when the person submits a query', async () => {
     const container = await mount(MEMORIES)
     const input = container.querySelector('input') as HTMLInputElement

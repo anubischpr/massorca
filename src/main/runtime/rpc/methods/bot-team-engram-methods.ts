@@ -38,18 +38,21 @@ export const botTeamListEngramMemoryMethod = defineMethod({
     }
     // Starts or joins the throttled import without waiting: a slow server never blocks the view.
     void engramCli.sync.refresh(engramCli.run, name, { force: refresh === true })
-    const { importing, failed } = engramCli.sync.status(name)
+    const { importing, failed, problem } = engramCli.sync.status(name)
     const read = await readEngramMemories(engramCli.run, {
       project: name,
       query,
       limit: limit ?? ENGRAM_DEFAULT_LIMIT
     })
     // A missing CLI is 'unavailable' on its own; refresh notes would add nothing there.
+    // An older client reads only refreshFailed, so a host with no cloud setup does not set it.
+    const refreshProblem = failed ? (problem ?? 'unreachable') : null
     const refreshNotes =
       read.status === 'unavailable'
         ? {}
         : {
-            ...(failed ? { refreshFailed: true } : {}),
+            ...(refreshProblem ? { refreshProblem } : {}),
+            ...(refreshProblem === 'unreachable' ? { refreshFailed: true } : {}),
             ...(importing ? { refreshing: true } : {})
           }
     return read.status === 'ok'

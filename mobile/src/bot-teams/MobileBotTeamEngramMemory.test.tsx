@@ -135,6 +135,38 @@ describe('MobileBotTeamEngramMemory', () => {
     expect(screen).toContain('Could not refresh from the Engram server.')
   })
 
+  it('says cloud sync is not set up on this host, not that the refresh failed', async () => {
+    const screen = JSON.stringify(
+      (await render(host({ ...OK, refreshProblem: 'not-configured' }))).toJSON()
+    )
+    expect(screen).toContain('Engram cloud sync is not set up on this host.')
+    expect(screen).not.toContain('Could not refresh from the Engram server.')
+  })
+
+  it('says the server could not be reached when the refresh problem says so', async () => {
+    const screen = JSON.stringify(
+      (await render(host({ ...OK, refreshProblem: 'unreachable' }))).toJSON()
+    )
+    expect(screen).toContain('Could not refresh from the Engram server.')
+  })
+
+  it('shows an empty store without an error when cloud sync is not set up', async () => {
+    const screen = JSON.stringify(
+      (
+        await render(
+          host({
+            status: 'ok',
+            projectName: 'NexusCare',
+            memories: [],
+            refreshProblem: 'not-configured'
+          })
+        )
+      ).toJSON()
+    )
+    expect(screen).toContain('No Engram memories for NexusCare yet.')
+    expect(screen).not.toContain('Could not refresh')
+  })
+
   it('searches when the person submits a query', async () => {
     const client = host(OK)
     const renderer = await render(client)
