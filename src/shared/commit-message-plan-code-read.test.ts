@@ -33,7 +33,15 @@ describe('code read mode', () => {
     expect(codeRead).toBe(true)
     expect(args[args.indexOf('--permission-mode') + 1]).toBe('plan')
     expect(after(args, '--tools')).toEqual(['Read', 'Grep', 'Glob'])
-    expect(after(args, '--allowedTools')).toEqual(['Read', 'Grep', 'Glob', 'mcp__openmetadata__*'])
+    expect(after(args, '--allowedTools')).toEqual([
+      'Read',
+      'Grep',
+      'Glob',
+      'mcp__openmetadata__*',
+      'mcp__engram__mem_search',
+      'mcp__engram__mem_context',
+      'mcp__engram__mem_get_observation'
+    ])
     expect(after(args, '--disallowedTools')).toEqual(
       expect.arrayContaining([
         'mcp__openmetadata-escritura__*',

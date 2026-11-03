@@ -23,6 +23,12 @@ const CODE_READ_TOOLS = ['Read', 'Grep', 'Glob']
 // Why: the agent's own `openmetadata` read server is the only MCP allowed; the write server and any
 // mutating tool the read server lists are denied, and a denial beats an allow.
 const OPENMETADATA_READ = 'mcp__openmetadata__*'
+// Why: Engram's read tools only, so a bot can recall project history; saving memory stays denied.
+const ENGRAM_READ = [
+  'mcp__engram__mem_search',
+  'mcp__engram__mem_context',
+  'mcp__engram__mem_get_observation'
+]
 const MUTATING_DENIED = [
   'mcp__openmetadata-escritura__*',
   'mcp__openmetadata__create_entity',
@@ -41,7 +47,7 @@ function claudeToolArgs(tools: readonly string[]): string[] {
     '--tools',
     tools.join(','),
     '--allowedTools',
-    [...tools, OPENMETADATA_READ].join(','),
+    [...tools, OPENMETADATA_READ, ...ENGRAM_READ].join(','),
     '--disallowedTools',
     MUTATING_DENIED.join(',')
   ]
