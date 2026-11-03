@@ -14,7 +14,7 @@ import {
   composeWorktreeHostIdentity,
   getWorktreeHostIdentity
 } from '../../../../shared/worktree/host-qualified-identity'
-import { getWorkspaceDeleteLineage } from './workspace-delete-lineage'
+import { useDeleteWorktreeLineage } from './use-delete-worktree-lineage'
 import { DeleteWorktreeLineageNotice } from './DeleteWorktreeLineageNotice'
 import { DeleteWorktreeSkipConfirmOption } from './DeleteWorktreeSkipConfirmOption'
 import { DeleteWorktreeDialogFooter } from './DeleteWorktreeDialogFooter'
@@ -50,7 +50,6 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
   const clearWorktreeDeleteState = useAppStore((s) => s.clearWorktreeDeleteState)
   const allWorktrees = useAllWorktrees()
   const repos = useAppStore((s) => s.repos)
-  const worktreeLineageById = useAppStore((s) => s.worktreeLineageById)
   const updateSettings = useAppStore((s) => s.updateSettings)
   const openSettingsTarget = useAppStore((s) => s.openSettingsTarget)
   const openSettingsPage = useAppStore((s) => s.openSettingsPage)
@@ -126,13 +125,7 @@ const DeleteWorktreeDialog = React.memo(function DeleteWorktreeDialog() {
     isFolderWorkspaceDelete
   })
   const deleteStateByWorktreeId = useAppStore((s) => s.deleteStateByWorktreeId)
-  const lineageDelete = useMemo(
-    () =>
-      !isBatchDelete && worktree
-        ? getWorkspaceDeleteLineage(worktree, allWorktrees, worktreeLineageById)
-        : { descendants: [], deleteAllTargets: [] },
-    [allWorktrees, isBatchDelete, worktree, worktreeLineageById]
-  )
+  const lineageDelete = useDeleteWorktreeLineage(worktree, allWorktrees, isBatchDelete)
   const confirmButtonRef = useRef<HTMLButtonElement>(null)
   // Why: the main worktree is the repo's original clone directory — `git worktree remove`
   // always rejects it. We block the delete button upfront so the user doesn't have to

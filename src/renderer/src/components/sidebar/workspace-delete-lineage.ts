@@ -2,6 +2,8 @@ import type { WorktreeLineage } from '../../../../shared/worktree/lineage-types'
 import type { Worktree } from '../../../../shared/worktree/types'
 import { getProjectedWorktreeLineageChildrenByParentId } from './worktree-lineage-projection'
 
+const NO_CHILD_SESSION_WORKTREES: ReadonlyMap<string, readonly string[]> = new Map()
+
 type WorkspaceDeleteLineage = {
   descendants: Worktree[]
   deleteAllTargets: Worktree[]
@@ -10,7 +12,9 @@ type WorkspaceDeleteLineage = {
 export function getWorkspaceDeleteLineage(
   parent: Worktree,
   worktrees: readonly Worktree[],
-  lineageById: Record<string, WorktreeLineage>
+  lineageById: Record<string, WorktreeLineage>,
+  /** Worktrees of delegated child sessions, by their parent session's worktree. */
+  childSessionWorktreesById: ReadonlyMap<string, readonly string[]> = NO_CHILD_SESSION_WORKTREES
 ): WorkspaceDeleteLineage {
   // Why (STA-4343): lineage is recorded against the bare `repoId::path` id, so a
   // colliding id resolves to one of two hosts here. A lineage child of a workspace
@@ -48,7 +52,13 @@ export function getWorkspaceDeleteLineage(
       return
     }
     visiting.add(worktreeId)
-    const children = childrenByParentId.get(worktreeId) ?? []
+    const children = [
+      ...(childrenByParentId.get(worktreeId) ?? []),
+      ...(childSessionWorktreesById.get(worktreeId) ?? []).flatMap((id) => {
+        const child = worktreeById.get(id)
+        return child ? [child] : []
+      })
+    ]
     for (const child of children) {
       if (emitted.has(child.id)) {
         continue
