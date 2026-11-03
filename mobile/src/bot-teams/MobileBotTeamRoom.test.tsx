@@ -440,10 +440,10 @@ describe('MobileBotTeamRoom', () => {
       'Warehouse',
       'flyer.md'
     ])
-    expect(suggestions[1].insert).toBe('@Warehouse ')
+    expect(suggestions[1].insert).toBe('@Warehouse')
     expect(
       renderer.root.findByType('Composer' as never).props.customSuggestions('@war', 4)
-    ).toEqual([expect.objectContaining({ label: 'Warehouse', insert: '@Warehouse ' })])
+    ).toEqual([expect.objectContaining({ label: 'Warehouse', insert: '@Warehouse' })])
   })
 
   it('reaches the team memory from the room menu', async () => {
