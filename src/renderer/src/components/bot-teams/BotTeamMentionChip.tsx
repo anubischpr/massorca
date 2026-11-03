@@ -66,7 +66,8 @@ function createMentionSpan(icons: ReadonlyMap<string, BotTeamMentionIcon>) {
     }
     return (
       <span {...props} className={BOT_TEAM_MENTION_CHIP_CLASS}>
-        <BotTeamMentionChipFace icon={icon}>{children}</BotTeamMentionChipFace>
+        {/* The chip shows the name alone; the message text keeps its "@Name". */}
+        <BotTeamMentionChipFace icon={icon}>{icon.name}</BotTeamMentionChipFace>
       </span>
     )
   }

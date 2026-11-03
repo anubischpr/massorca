@@ -85,13 +85,25 @@ describe('delegateToBotTeammate', () => {
   it('names no brief when the caller has no project', async () => {
     const d = deps()
     await delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Write the file' })
-    expect(vi.mocked(d.fileRequest).mock.calls[0][0].prompt).not.toContain('project')
+    expect(vi.mocked(d.fileRequest).mock.calls[0][0].prompt).not.toContain('part of the project')
   })
 
   it('names no Pi runtime for any other agent', async () => {
     const d = deps()
     await delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Write the file' })
     expect(vi.mocked(d.fileRequest).mock.calls[0][0].piRuntime).toBeUndefined()
+  })
+
+  it('files no model for Gentle Shell, which runs the one from its own config', async () => {
+    const d = deps()
+    const shell = {
+      ...TEAM.bots[0],
+      name: 'Rosa',
+      agent: 'pi' as const,
+      model: 'nan/deepseek-v4-flash'
+    }
+    await delegateToBotTeammate(d, { team: { ...TEAM, bots: [shell] }, botName: 'Rosa', text: 'x' })
+    expect(vi.mocked(d.fileRequest).mock.calls[0][0].launch).toBeUndefined()
   })
 
   it("files the child with the teammate's own model", async () => {
@@ -125,6 +137,23 @@ describe('delegateToBotTeammate', () => {
       delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Do it' })
     ).rejects.toThrow('cannot run a chat')
     expect(d.createTask).not.toHaveBeenCalled()
+  })
+
+  it('tells the caller when the teammate did not start, so it never says the work was handed over', async () => {
+    const d = deps({
+      launchOutcome: vi.fn(async () => ({
+        failed: 'Agent pi does not support launch-time model selection.'
+      }))
+    })
+    await expect(
+      delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Do it' })
+    ).rejects.toThrow(/Max did not start .*launch-time model selection.*Not started/s)
+  })
+
+  it('returns the task when the launch outcome is a start', async () => {
+    const d = deps({ launchOutcome: vi.fn(async () => ({ failed: null })) })
+    const task = await delegateToBotTeammate(d, { team: TEAM, botName: 'Max', text: 'Do it' })
+    expect(task.ownerBotId).toBe('max')
   })
 
   it('refuses a bot that is not on the team, with no effects', async () => {

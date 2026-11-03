@@ -10,6 +10,7 @@ import {
   clampHostSidebarWidth,
   loadDisabledTerminalLiveInputHandles,
   loadHostSidebarWidth,
+  loadHostSpace,
   loadPushNotificationsEnabled,
   loadTerminalAutocompleteEnabled,
   loadTerminalLinkOpenMode,
@@ -18,6 +19,7 @@ import {
   readDisabledTerminalLiveInputHandlesPreference,
   saveDisabledTerminalLiveInputHandles,
   saveHostSidebarWidth,
+  saveHostSpace,
   savePushNotificationsEnabled,
   saveTerminalAutocompleteEnabled,
   saveTerminalLinkOpenMode
@@ -47,6 +49,36 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   })
   return { promise, resolve }
 }
+
+describe('host space preference', () => {
+  beforeEach(() => {
+    vi.mocked(AsyncStorage.getItem).mockReset()
+    vi.mocked(AsyncStorage.setItem).mockReset()
+  })
+
+  it('restores the space last chosen, and answers null for anything else', async () => {
+    vi.mocked(AsyncStorage.getItem).mockResolvedValue('workspaces')
+    await expect(loadHostSpace()).resolves.toBe('workspaces')
+    expect(AsyncStorage.getItem).toHaveBeenCalledWith('orca:hostSpace')
+
+    vi.mocked(AsyncStorage.getItem).mockResolvedValue('teams')
+    await expect(loadHostSpace()).resolves.toBe('teams')
+
+    vi.mocked(AsyncStorage.getItem).mockResolvedValue('bogus')
+    await expect(loadHostSpace()).resolves.toBeNull()
+
+    vi.mocked(AsyncStorage.getItem).mockResolvedValue(null)
+    await expect(loadHostSpace()).resolves.toBeNull()
+
+    vi.mocked(AsyncStorage.getItem).mockRejectedValue(new Error('storage unavailable'))
+    await expect(loadHostSpace()).resolves.toBeNull()
+  })
+
+  it('writes the chosen space under its own key', async () => {
+    await saveHostSpace('workspaces')
+    expect(AsyncStorage.setItem).toHaveBeenCalledWith('orca:hostSpace', 'workspaces')
+  })
+})
 
 describe('session view preference', () => {
   beforeEach(() => {

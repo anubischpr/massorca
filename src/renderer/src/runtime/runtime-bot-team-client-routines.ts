@@ -3,6 +3,7 @@ import type {
   BotTeamRoutineInput,
   BotTeamRoutineRun
 } from '../../../shared/rpc-contract/bot-team-routine-params'
+import type { BotTeamScheduledRunsResult } from '../../../shared/rpc-contract/bot-team-scheduled-run-params'
 import { botTeamHostTarget, currentBotTeamHost } from './bot-team-host'
 import { callRuntimeRpc } from './runtime-rpc-client'
 import { RuntimeRpcCallError } from './runtime-rpc-result'
@@ -44,6 +45,15 @@ export async function setBotTeamRoutinePaused(
   return (
     await call<{ routine: BotTeamRoutine }>('botTeams.setRoutinePaused', { routineId, paused })
   ).routine
+}
+
+/** Upcoming routine runs for a calendar, over at most 62 days; every team when `teamId` is omitted. */
+export function listBotTeamScheduledRuns(query: {
+  from: number
+  to: number
+  teamId?: string
+}): Promise<BotTeamScheduledRunsResult | 'unavailable'> {
+  return orUnavailable(() => call<BotTeamScheduledRunsResult>('botTeams.listScheduledRuns', query))
 }
 
 export function listBotTeamRoutineRuns(

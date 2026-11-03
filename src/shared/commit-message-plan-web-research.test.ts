@@ -18,7 +18,9 @@ describe('web research', () => {
     expect(args).not.toContain('--mcp-config')
     // The user's own MCP config stays; only the OpenMetadata read server is allowed.
     expect(args).not.toContain('--strict-mcp-config')
-    expect(args[args.indexOf('--allowedTools') + 1]).toBe('WebSearch,WebFetch,mcp__openmetadata__*')
+    expect(args[args.indexOf('--allowedTools') + 1]).toBe(
+      'WebSearch,WebFetch,mcp__openmetadata__*,mcp__engram__mem_search,mcp__engram__mem_context,mcp__engram__mem_get_observation'
+    )
     const denied = args[args.indexOf('--disallowedTools') + 1].split(',')
     expect(denied).toEqual(
       expect.arrayContaining(['mcp__openmetadata-escritura__*', 'Bash', 'Edit', 'Write'])

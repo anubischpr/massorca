@@ -27,7 +27,8 @@ export function botTeamMentionNodes(
     if (segment.kind === 'text' || target === undefined) {
       return <Fragment key={key}>{segment.value}</Fragment>
     }
-    return <BotTeamMentionChip key={key} target={target} label={segment.value} />
+    // The chip shows the name alone; the message text keeps its "@Name".
+    return <BotTeamMentionChip key={key} target={target} label={target.name} />
   })
 }
 

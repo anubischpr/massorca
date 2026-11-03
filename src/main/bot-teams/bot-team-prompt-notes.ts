@@ -1,0 +1,47 @@
+import { BOT_TEAM_ALL_AUTHOR } from '../../shared/bot-team-greeting'
+import type { BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
+import type { BotTeamMessage } from '../../shared/rpc-contract/bot-team-room-params'
+
+const EXCERPT_MESSAGES = 12
+const EXCERPT_MESSAGE_CHARS = 300
+
+/** What every bot can do, so none answers that it cannot or that it is not its job. */
+export const BOT_TEAM_UNIVERSAL_CAPABILITY_NOTE =
+  'Every bot on a team can create option cards and MassOrca artifacts, whatever its job. Never say that creating one is not your task or that you cannot do it.'
+
+/**
+ * Where a bot looks for what the team already knows about a project. The Engram tools carry the
+ * name the agent registers them under, and OpenMetadata is read through its read server only.
+ */
+export const BOT_TEAM_HISTORY_SOURCES_NOTE =
+  'For a question about a project\'s history or what was last done on it, check what the team already knows before answering: Engram memory with `mcp__engram__mem_search` and `mcp__engram__mem_context` (read them, do not save from a question), OpenMetadata through its read server named "openmetadata" only (never "openmetadata-escritura" and never a tool that creates or changes anything), and the project itself. Use the sources you have; say once which one you could not reach.'
+
+function authorOf(
+  message: BotTeamMessage,
+  bots: readonly Pick<BotTeamBot, 'id' | 'name'>[]
+): string {
+  if (message.authorBotId === null) {
+    return 'Person'
+  }
+  if (message.authorBotId === BOT_TEAM_ALL_AUTHOR) {
+    return 'Team'
+  }
+  return bots.find((bot) => bot.id === message.authorBotId)?.name ?? 'Bot'
+}
+
+/** The last room messages, one line each and cut short, as a task's bot reads what others said. */
+export function botTeamRoomExcerpt(
+  messages: readonly BotTeamMessage[],
+  bots: readonly Pick<BotTeamBot, 'id' | 'name'>[]
+): string[] {
+  return messages.slice(-EXCERPT_MESSAGES).map((message) => {
+    const flat = message.text.replace(/\s+/g, ' ').trim()
+    const text =
+      flat.length > EXCERPT_MESSAGE_CHARS ? `${flat.slice(0, EXCERPT_MESSAGE_CHARS - 1)}…` : flat
+    return `${authorOf(message, bots)}: ${text}`
+  })
+}
+
+/** How a bot speaks in the room: for its own part, in first person, never about who handed what to whom. */
+export const BOT_TEAM_ROOM_VOICE_NOTE =
+  'In the Conference room speak only for your own part, in the first person and in the language of the request ("Yo tomaré…", "Yo haré…", "Yo me encargaré de…" for Spanish). Never describe internal hand-offs or delegation there (not "se lo pasé a…", "entregué a…" or "yo cubro… y él…"). When you finish, post one line that says what you did and names the final deliverable: file paths or links.'

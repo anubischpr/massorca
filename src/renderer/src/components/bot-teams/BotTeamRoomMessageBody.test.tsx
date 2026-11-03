@@ -47,11 +47,11 @@ describe('the room message body', () => {
     expect(link?.getAttribute('href')).toBe('https://example.com/docs')
   })
 
-  it('renders a known bot mention as a chip and keeps the plain @Name text', () => {
+  it('renders a known bot mention as a chip that shows the name without the @', () => {
     const container = render('Hola @Iris, revisa esto')
     const chip = container.querySelector('[data-bot-team-mention="Iris"]')
-    expect(chip?.textContent).toBe('@Iris')
-    expect(container.textContent).toContain('Hola @Iris, revisa esto')
+    expect(chip?.textContent).toBe('Iris')
+    expect(container.textContent).toContain('Hola Iris, revisa esto')
   })
 
   it('renders a known team mention as a chip and leaves unknown @words plain', () => {

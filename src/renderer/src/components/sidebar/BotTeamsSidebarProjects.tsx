@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Folder, Plus, SlidersHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { RepoIconGlyph } from '@/components/repo/repo-icon'
 import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu'
 import {
   DropdownMenu,
@@ -12,8 +13,11 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { translate } from '@/i18n/i18n'
 import { archiveBotTeamProject } from '@/runtime/runtime-bot-team-project-client'
+import { useAppStore } from '@/store'
 import type { BotTeamsSelection } from '@/store/slices/ui/ui-slice-contract-core'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import { botTeamRepoProjectKey } from '../../../../shared/bot-team-project-workspace-key'
+import type { Repo } from '../../../../shared/repo-types'
 import type {
   BotTeamProject,
   BotTeamTask
@@ -93,6 +97,12 @@ function ProjectsHeader({
 }
 
 /** The open team's projects: heading toolbar, one row each with its right-click menu. */
+/** The icon of the Workspaces repo a project is linked to; null for a team folder or a repo without one. */
+function linkedRepoIcon(repos: readonly Repo[], project: BotTeamProject): Repo['repoIcon'] {
+  const key = project.workspace?.key
+  return repos.find((repo) => botTeamRepoProjectKey(repo.id) === key)?.repoIcon ?? null
+}
+
 export function BotTeamsSidebarProjects({
   team,
   teams,
@@ -125,6 +135,7 @@ export function BotTeamsSidebarProjects({
   const [showArchived, setShowArchived] = useState(false)
   const [editing, setEditing] = useState<BotTeamProject | null>(null)
   const [deleting, setDeleting] = useState<BotTeamProject | null>(null)
+  const repos = useAppStore((state) => state.repos)
   const { section } = selection
   const shown = projects.filter((project) => showArchived || project.archivedAt == null)
   const openProjectId = section?.kind === 'project' ? section.projectId : null
@@ -163,6 +174,7 @@ export function BotTeamsSidebarProjects({
       />
       {shown.map((project) => {
         const owner = teams.find((entry) => entry.id === project.teamId)
+        const icon = linkedRepoIcon(repos, project)
         const linkedHere = project.teamId !== team.id
         const archived = project.archivedAt != null
         const row = (
@@ -177,7 +189,11 @@ export function BotTeamsSidebarProjects({
             }
             onClick={() => onOpen(project.id)}
           >
-            <Folder className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+            {icon ? (
+              <RepoIconGlyph repoIcon={icon} className="size-4 shrink-0" />
+            ) : (
+              <Folder className="size-4 shrink-0 text-worktree-sidebar-foreground/30" />
+            )}
             <span className="min-w-0 flex-1 truncate">{project.name}</span>
             {archived ? (
               <RowMeta>{translate('components.botTeams.archived', 'Archived')}</RowMeta>

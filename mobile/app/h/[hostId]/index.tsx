@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import {
   structuredAgentSessionPaneKey,
@@ -12,6 +11,7 @@ import { useResponsiveLayout } from '../../../src/layout/responsive-layout'
 import { MobileWebShellScreen } from '../../../src/mobile-web-shell/MobileWebShellScreen'
 import { shellScreenRoute } from '../../../src/mobile-web-shell/shell-screen-route'
 import { shellSwitchDecision } from '../../../src/mobile-web-shell/shell-switch-decision'
+import { useHostSpace } from '../../../src/host-screen/use-host-space'
 
 /**
  * The worktree list, from the desktop's bundle or from this app.
@@ -62,16 +62,19 @@ export default function HostWorktreeRoute() {
   const { isWideLayout } = useResponsiveLayout()
   const params = useLocalSearchParams<{ hostId?: string | string[] }>()
   const router = useRouter()
-  // Teams are the first screen of a host; a new visit starts there again.
-  const [showTeams, setShowTeams] = useState(true)
+  // The space last chosen opens again on every launch and visit; Bot teams until one is chosen.
+  const { space, chooseSpace } = useHostSpace()
   if (isWideLayout) {
     return <WorkspaceDetailPlaceholder />
   }
-  if (showTeams) {
+  if (space === null) {
+    return null
+  }
+  if (space === 'teams') {
     return (
       <MobileBotTeamsScreen
         hostId={firstParam(params.hostId)}
-        onShowWorkspaces={() => setShowTeams(false)}
+        onShowWorkspaces={() => chooseSpace('workspaces')}
         onOpenTask={(workspaceId, task) => {
           // A task's thread is the normal session screen, on that task's chat.
           const paneKey = structuredAgentSessionPaneKey(
@@ -87,5 +90,5 @@ export default function HostWorktreeRoute() {
       />
     )
   }
-  return <HostListScreen onShowTeams={() => setShowTeams(true)} />
+  return <HostListScreen onShowTeams={() => chooseSpace('teams')} />
 }

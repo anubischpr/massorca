@@ -133,11 +133,26 @@ export function setBotTeamTaskLastStatus(
   sessionId: string,
   status: BotTeamTaskLastStatus | null
 ): void {
+  // Why: a parent whose delegated parts never started or failed has not finished the work.
+  const kept =
+    status === 'Done' && hasUnstartedBotTeamDelegation(this, sessionId) ? 'Stuck' : status
   this.db
     .prepare(
       'UPDATE bot_team_tasks SET last_status = ? WHERE session_id = ? AND last_status IS NOT ?'
     )
-    .run(status, sessionId, status)
+    .run(kept, sessionId, kept)
+}
+
+function hasUnstartedBotTeamDelegation(db: OrchestrationDb, parentSessionId: string): boolean {
+  return (
+    db.db
+      .prepare(
+        `SELECT 1 FROM delegation_requests d
+         JOIN bot_team_task_delegations l ON l.request_id = d.id
+         WHERE d.parent_session_id = ? AND d.status IN ('pending', 'failed', 'cancelled') LIMIT 1`
+      )
+      .get(parentSessionId) !== undefined
+  )
 }
 
 export function findBotTeamTaskBySession(

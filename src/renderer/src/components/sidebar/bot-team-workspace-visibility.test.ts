@@ -3,15 +3,10 @@ import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
 import type { Repo } from '../../../../shared/repo-types'
 import type { Worktree } from '../../../../shared/worktree/types'
 import { computeVisibleWorktreeIds } from './visible-worktrees'
-import {
-  isBotTeamFolderVisibleInWorkspaces,
-  visibleSessionAgents,
-  worktreeIdsHostingBotTeamSessions
-} from './bot-team-workspace-visibility'
+import { isBotTeamFolderVisibleInWorkspaces } from './bot-team-workspace-visibility'
 
 const TEAM_ID = 'team-a'
 const TEAM_FOLDER = '/home/me/MassOrca Bot Teams/team-a/repo'
-const team = { teamId: TEAM_ID, teamName: 'Team A', character: 'square' as const }
 
 describe('isBotTeamFolderVisibleInWorkspaces', () => {
   it('shows an ordinary folder whatever the switch says', () => {
@@ -25,30 +20,6 @@ describe('isBotTeamFolderVisibleInWorkspaces', () => {
   it('shows a team folder only with the switch on and its team Workspaces option on', () => {
     expect(isBotTeamFolderVisibleInWorkspaces(TEAM_FOLDER, new Set([TEAM_ID]), true)).toBe(true)
     expect(isBotTeamFolderVisibleInWorkspaces(TEAM_FOLDER, new Set(), true)).toBe(false)
-  })
-})
-
-describe('worktreeIdsHostingBotTeamSessions', () => {
-  it('names only the worktrees whose agent-session tab runs a team session', () => {
-    const tabs = {
-      'wt-task': [{ id: 'tab-1', contentType: 'agent-session', entityId: 'session-1' }],
-      'wt-user': [{ id: 'tab-2', contentType: 'agent-session', entityId: 'session-2' }],
-      'wt-terminal': [{ id: 'tab-3', contentType: 'terminal', entityId: 'session-1' }]
-    }
-    expect([...worktreeIdsHostingBotTeamSessions(tabs, { 'session-1': team })]).toEqual(['wt-task'])
-  })
-})
-
-describe('visibleSessionAgents', () => {
-  const agents = [{ tab: { id: 'tab-1' } }, { tab: { id: 'tab-2' } }]
-  const botTeamByTabId = { 'tab-1': team }
-
-  it('drops team sessions while Show bot teams is off', () => {
-    expect(visibleSessionAgents(agents, botTeamByTabId, false)).toEqual([agents[1]])
-  })
-
-  it('keeps every session while Show bot teams is on', () => {
-    expect(visibleSessionAgents(agents, botTeamByTabId, true)).toEqual(agents)
   })
 })
 
@@ -111,13 +82,16 @@ describe('computeVisibleWorktreeIds with bot-team workspaces', () => {
       defaultHostId: LOCAL_EXECUTION_HOST_ID,
       worktreeLineageById: {},
       botTeamWorkspaceIds: new Set([TEAM_ID]),
-      botTeamWorktreeIds: new Set(['bot-child', 'main']),
       ...overrides
     } as Parameters<typeof computeVisibleWorktreeIds>[2])
   }
 
-  it('hides team folders and bot-created child worktrees while Show bot teams is off', () => {
-    expect(visibleIds({ showBotTeamWorkspaces: false })).toEqual(['main', 'user-child'])
+  it('hides only team folders while Show bot teams is off: a bot task in a project stays', () => {
+    expect(visibleIds({ showBotTeamWorkspaces: false })).toEqual([
+      'main',
+      'bot-child',
+      'user-child'
+    ])
   })
 
   it('shows team folders and bot-created child worktrees while Show bot teams is on', () => {

@@ -4,6 +4,7 @@ import { OrchestrationDb } from '../orchestration-db'
 import {
   claimDueBotTeamRoutines,
   createBotTeamRoutine,
+  hasActiveBotTeamRoutine,
   listBotTeamRoutineRuns,
   listBotTeamRoutines,
   recordBotTeamRoutineRun,
@@ -141,6 +142,15 @@ describe('bot team routine store', () => {
     expect(resumed).toMatchObject({ paused: false, nextRun: { date: '2026-12-07', time: '09:00' } })
     expect(claimDueBotTeamRoutines(db, at(11, 30, 12, 1))).toEqual([])
     expect(listBotTeamRoutines(db, team.id)[0].lastRun?.taskId).toBe('task-1')
+  })
+
+  it('keeps the host busy only while a routine is on', () => {
+    const { db, input } = setup()
+    expect(hasActiveBotTeamRoutine(db)).toBe(false)
+    const routine = createBotTeamRoutine(db, input, at(11, 1, 12, 0))
+    expect(hasActiveBotTeamRoutine(db)).toBe(true)
+    setBotTeamRoutinePaused(db, routine.id, true, at(11, 1, 13, 0))
+    expect(hasActiveBotTeamRoutine(db)).toBe(false)
   })
 
   it('does not stop a team from being deleted, and forgets its routines afterwards', () => {

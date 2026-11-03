@@ -269,6 +269,25 @@ export async function saveTerminalLinkOpenMode(mode: MobileTerminalLinkOpenMode)
   await persistMirrored(TERMINAL_LINK_OPEN_MODE_KEY, mode)
 }
 
+const HOST_SPACE_KEY = 'orca:hostSpace'
+
+/** The two spaces a host opens into on the phone: its bot teams, or its workspaces. */
+export type MobileHostSpace = 'teams' | 'workspaces'
+
+// Why: a phone-only choice the page never reads, so it is not mirrored.
+export async function loadHostSpace(): Promise<MobileHostSpace | null> {
+  try {
+    const raw = await AsyncStorage.getItem(HOST_SPACE_KEY)
+    return raw === 'teams' || raw === 'workspaces' ? raw : null
+  } catch {
+    return null
+  }
+}
+
+export async function saveHostSpace(space: MobileHostSpace): Promise<void> {
+  await AsyncStorage.setItem(HOST_SPACE_KEY, space)
+}
+
 function stringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string')

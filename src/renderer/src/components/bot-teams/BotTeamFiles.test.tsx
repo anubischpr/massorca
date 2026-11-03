@@ -14,6 +14,7 @@ const listBotTeamVersions = vi.hoisted(() => vi.fn())
 const listBotTeamFileVersions = vi.hoisted(() => vi.fn())
 const readBotTeamVersionFile = vi.hoisted(() => vi.fn())
 const toastError = vi.hoisted(() => vi.fn())
+const readBotTeamFilePreview = vi.hoisted(() => vi.fn())
 
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
   listBotTeamFiles,
@@ -23,6 +24,7 @@ vi.mock('@/runtime/runtime-bot-team-client', () => ({
   readBotTeamVersionFile,
   restoreBotTeamFileVersion: vi.fn()
 }))
+vi.mock('./bot-team-file-preview-read', () => ({ readBotTeamFilePreview }))
 vi.mock('@/i18n/i18n', () => ({
   translate: (_key: string, fallback: string, values?: Record<string, string>) =>
     fallback.replace(/\{\{(\w+)\}\}/g, (_all, name: string) => values?.[name] ?? '')
@@ -158,7 +160,8 @@ describe('the team files', () => {
     await act(async () => fileButton(container, 'flyer.html').click())
     expect(listBotTeamFileVersions).toHaveBeenCalledWith('t1', 'flyer.html')
     expect(container.textContent).toContain('Versions')
-    expect(container.textContent).toContain('<p>Summer</p>')
+    // HTML is shown as the page it makes, in its frame, not as its source.
+    expect(container.querySelector('iframe')).not.toBeNull()
   })
 
   it('opens a file read-only, and goes back to the list', async () => {
@@ -168,7 +171,7 @@ describe('the team files', () => {
     await act(async () => fileButton(container, 'flyer.html').click())
 
     expect(readBotTeamFile).toHaveBeenCalledWith('t1', 'flyer.html')
-    expect(container.textContent).toContain('<p>Summer</p>')
+    expect(container.querySelector('iframe')).not.toBeNull()
     expect(container.querySelector('textarea, input')).toBeNull()
 
     await act(async () =>
@@ -177,9 +180,21 @@ describe('the team files', () => {
     expect(container.textContent).toContain('brand/notes.md')
   })
 
-  it('does not open a file it cannot show as text', async () => {
+  it('opens a picture as its preview, not as a refused text read', async () => {
+    readBotTeamFilePreview.mockResolvedValue({
+      content: 'AAAA',
+      isBinary: true,
+      isImage: true,
+      mimeType: 'image/png'
+    })
     const container = await mount()
-    expect(fileButton(container, 'logo.png').disabled).toBe(true)
+    expect(fileButton(container, 'logo.png').disabled).toBe(false)
+
+    await act(async () => fileButton(container, 'logo.png').click())
+
+    expect(readBotTeamFilePreview).toHaveBeenCalledWith('t1', 'logo.png')
+    expect(readBotTeamFile).not.toHaveBeenCalledWith('t1', 'logo.png')
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('data:image/png;base64,AAAA')
   })
 
   it('says so when the team has no files yet', async () => {

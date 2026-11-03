@@ -160,6 +160,9 @@ describe('the room composer layout and mentions', () => {
     press(box, { key: 'Enter', keyCode: 13 })
     expect(docJson(box)).toContain('botTeamMention')
     expect(promptValue(box)).toBe('Make the flyer @Iris ')
+    await act(async () => {})
+    // The chip shows the name alone; what is sent keeps "@Name".
+    expect(box.querySelector('[data-bot-team-mention="Iris"]')?.textContent).toBe('Iris')
     press(box, { key: 'Enter', keyCode: 13 })
     await act(async () => {})
     expect(onSend).toHaveBeenCalledWith('Make the flyer @Iris', [])

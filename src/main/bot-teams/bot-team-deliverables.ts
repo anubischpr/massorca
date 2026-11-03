@@ -7,7 +7,7 @@ import {
 } from '../../shared/bot-team-room-attachments'
 
 const MAX_DEPTH = 4
-const MAX_FILE_BYTES = 25 * 1024 * 1024
+export const MAX_FILE_BYTES = 25 * 1024 * 1024
 // The filesystem's time can trail the host's clock a little.
 const CLOCK_SLACK_MS = 1000
 const SKIPPED_FOLDERS = new Set(['node_modules', BOT_TEAM_ROOM_ATTACHMENT_FOLDER])

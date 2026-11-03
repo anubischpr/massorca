@@ -18,6 +18,7 @@ export const MOBILE_BOT_TEAM_RPC_METHODS = [
   'botTeams.listRoom',
   'botTeams.listRoutineRuns',
   'botTeams.listRoutines',
+  'botTeams.listScheduledRuns',
   'botTeams.listWebhooks',
   'botTeams.postMessage',
   'botTeams.startTask',

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BotTeamTask } from '../../../../../shared/rpc-contract/bot-team-room-params'
-import { requireBotTeamCallerTask } from './bot-team-agent-methods'
+import { requireBotTeamCallerTask, waitForDelegationLaunch } from './bot-team-agent-methods'
 
 const TASK: BotTeamTask = {
   id: 'task',
@@ -105,5 +105,33 @@ describe('orchestration.botTeamTaskCreate', () => {
     } finally {
       open.close()
     }
+  })
+})
+
+describe('waitForDelegationLaunch', () => {
+  const rows = (...statuses: { status: string; failure?: string | null }[]) => {
+    let call = 0
+    return {
+      getDelegationRequest: () => {
+        const row = statuses[Math.min(call, statuses.length - 1)]
+        call += 1
+        return { failure: null, ...row }
+      }
+    }
+  }
+  const fast = { timeoutMs: 200, pollMs: 1 }
+
+  it('reports the reason of a request that failed to start', async () => {
+    const db = rows({ status: 'starting' }, { status: 'failed', failure: 'no model' })
+    expect(await waitForDelegationLaunch(db, 'r', fast)).toEqual({ failed: 'no model' })
+  })
+
+  it('reports a started request as fine, and an unsettled one as unknown', async () => {
+    expect(await waitForDelegationLaunch(rows({ status: 'started' }), 'r', fast)).toEqual({
+      failed: null
+    })
+    expect(await waitForDelegationLaunch(rows({ status: 'starting' }), 'r', fast)).toEqual({
+      failed: null
+    })
   })
 })
