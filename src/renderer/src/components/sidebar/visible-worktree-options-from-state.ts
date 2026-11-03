@@ -9,7 +9,6 @@ import {
 } from './workspace-creator-visibility'
 import type { VisibleWorktreeOptions } from './visible-worktrees'
 import { getBotTeamWorkspaceIds } from '../bot-teams/use-bot-teams'
-import { getPublishedBotTeamWorktreeIds } from './bot-team-workspace-visibility'
 
 /**
  * Read the store into the filter inputs `computeVisibleWorktrees` decides from.
@@ -53,7 +52,6 @@ export function buildVisibleWorktreeOptionsFromState(
     worktreeLineageById: state.worktreeLineageById,
     preserveLineageParentOrder: state.sortBy === 'manual',
     botTeamWorkspaceIds: getBotTeamWorkspaceIds(),
-    showBotTeamWorkspaces: state.showBotTeamWorkspaces,
-    botTeamWorktreeIds: getPublishedBotTeamWorktreeIds()
+    showBotTeamWorkspaces: state.showBotTeamWorkspaces
   }
 }
