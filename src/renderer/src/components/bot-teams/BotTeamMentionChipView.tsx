@@ -17,7 +17,7 @@ export function BotTeamMentionChipView({ node }: ReactNodeViewProps): React.JSX.
         : null
   return (
     <NodeViewWrapper as="span" className={BOT_TEAM_MENTION_CHIP_CLASS} data-bot-team-mention={name}>
-      <BotTeamMentionChipFace icon={icon}>{token}</BotTeamMentionChipFace>
+      <BotTeamMentionChipFace icon={icon}>{name}</BotTeamMentionChipFace>
     </NodeViewWrapper>
   )
 }

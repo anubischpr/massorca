@@ -55,14 +55,14 @@ describe('botTeamMentionNodes', () => {
     const renderer = renderMentions('Hola @Iris, mira')
 
     expect(chipsOf(renderer).map((chip) => chip.props.target.name)).toEqual(['Iris'])
-    expect(shownText(renderer)).toBe('Hola @Iris, mira')
+    expect(shownText(renderer)).toBe('Hola Iris, mira')
   })
 
   it('draws a known team mention as a chip carrying that team', () => {
     const renderer = renderMentions('Pásalo a @Warehouse.')
 
     expect(chipsOf(renderer).map((chip) => chip.props.target.kind)).toEqual(['team'])
-    expect(shownText(renderer)).toBe('Pásalo a @Warehouse.')
+    expect(shownText(renderer)).toBe('Pásalo a Warehouse.')
   })
 
   it('keeps an unknown @name plain, with no chip', () => {
@@ -74,6 +74,6 @@ describe('botTeamMentionNodes', () => {
     const renderer = renderMentions('@Iris y @Warehouse ya')
 
     expect(chipsOf(renderer).map((chip) => chip.props.target.name)).toEqual(['Iris', 'Warehouse'])
-    expect(shownText(renderer)).toBe('@Iris y @Warehouse ya')
+    expect(shownText(renderer)).toBe('Iris y Warehouse ya')
   })
 })
