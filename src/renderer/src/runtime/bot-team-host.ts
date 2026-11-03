@@ -57,7 +57,7 @@ export function currentBotTeamHost(): string {
   return resolveBotTeamHost({
     chosen: useBotTeamHostStore.getState().chosen,
     activeEnvironmentId: state.settings?.activeRuntimeEnvironmentId,
-    environmentIds: state.runtimeEnvironments.map((environment) => environment.id)
+    environmentIds: (state.runtimeEnvironments ?? []).map((environment) => environment.id)
   })
 }
 
@@ -69,6 +69,6 @@ export function useBotTeamHost(): string {
   return resolveBotTeamHost({
     chosen,
     activeEnvironmentId,
-    environmentIds: environments.map((environment) => environment.id)
+    environmentIds: (environments ?? []).map((environment) => environment.id)
   })
 }
