@@ -20,10 +20,7 @@ import {
   FLOATING_HOST_NO_WORKSPACE_REASON,
   FLOATING_HOST_THIS_COMPUTER
 } from '@/lib/floating-workspace-host'
-import { useFloatingWorkspaceHostStore } from '@/lib/floating-workspace-host-store'
-import { showHostSessionInFloating } from '@/lib/floating-workspace-host-session'
-import { awaitNewSessionTab } from '@/lib/show-session-in-floating-workspace'
-import type { TuiAgent } from '../../../../shared/tui-agent'
+import { launchAgentOnHostWorkspace } from '@/lib/floating-workspace-host-session'
 import { FloatingHostSelect } from './host/FloatingHostSelect'
 import { useFloatingHostSelection } from './host/use-floating-host-selection'
 
@@ -31,58 +28,6 @@ type FloatingTerminalWindowControlsProps = {
   maximized: boolean
   onToggleMaximized: () => void
   onMinimize: () => void
-}
-
-// Why: a host-published launch opens its session after the host answers; past this it is not shown.
-const HOST_SESSION_WAIT_MS = 30_000
-
-/** Starts the agent in a paired host's workspace, then shows that session in the floating workspace. */
-function launchAgentOnHostWorkspace(
-  agent: TuiAgent,
-  agentLabel: string,
-  worktreeId: string,
-  environmentId: string
-): void {
-  const knownTabIds = new Set(
-    (useAppStore.getState().unifiedTabsByWorktree[worktreeId] ?? []).map((tab) => tab.id)
-  )
-  const result = launchAgentInNewTab({
-    requestId: newAgentLaunchRequestId(),
-    agent,
-    worktreeId,
-    launchSource: 'shortcut',
-    activate: false
-  })
-  if (!result) {
-    toast.error(
-      translate(
-        'auto.components.floating.terminal.FloatingTerminalWindowControls.82da3701e7',
-        'Could not build launch command for {{value0}}.',
-        { value0: agentLabel }
-      )
-    )
-    return
-  }
-  useFloatingWorkspaceHostStore.getState().markUsed(environmentId)
-  if (result.surface.kind === 'local-terminal') {
-    showHostSessionInFloating(worktreeId, result.surface.tabId)
-    return
-  }
-  void awaitNewSessionTab(
-    { worktreeId, knownTabIds, timeoutMs: HOST_SESSION_WAIT_MS },
-    useAppStore
-  ).then((tabId) => {
-    if (tabId) {
-      showHostSessionInFloating(worktreeId, tabId)
-      return
-    }
-    toast.error(
-      translate(
-        'components.floatingWorkspace.sessionNotReady',
-        'The new session did not show up on that host.'
-      )
-    )
-  })
 }
 
 const controlButtonClassName =

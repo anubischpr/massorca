@@ -682,7 +682,7 @@ describe('FloatingTerminalPanel markdown editor', () => {
     runEffects()
     await flushAsyncWork()
     element = await renderPanel(true)
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onNewFileTab as () => void)()
     await flushAsyncWork()
 
@@ -708,7 +708,7 @@ describe('FloatingTerminalPanel markdown editor', () => {
     })
 
     const element = await renderPanel(true)
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onOpenFileTab as () => void)()
     await flushAsyncWork()
 
@@ -751,7 +751,7 @@ describe('FloatingTerminalPanel markdown editor', () => {
     ])
 
     const element = await renderPanel(true)
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onCloseAllFiles as () => void)()
 
     expect(requestedEditorCloses()).toEqual(['file-a', 'file-b'])
@@ -767,7 +767,7 @@ describe('FloatingTerminalPanel markdown editor', () => {
     ])
 
     const element = await renderPanel(true)
-    const tabBar = findByTypeName(element, 'TabBar')
+    const tabBar = findByTypeName(element, 'FloatingHostTabBar')
     ;(tabBar.props.onCloseOthers as (tabId: string) => void)('tab-file-b')
     expect(requestedEditorCloses()).toEqual(['file-a', 'file-c'])
 
@@ -775,7 +775,7 @@ describe('FloatingTerminalPanel markdown editor', () => {
     mocks.closeFile.mockClear()
     hookRuntime.values = []
     const nextElement = await renderPanel(true)
-    const nextTabBar = findByTypeName(nextElement, 'TabBar')
+    const nextTabBar = findByTypeName(nextElement, 'FloatingHostTabBar')
     ;(nextTabBar.props.onCloseToRight as (tabId: string) => void)('tab-file-a')
     expect(requestedEditorCloses()).toEqual(['file-b', 'file-c'])
     expect(mocks.closeFile).not.toHaveBeenCalledWith('file-c')
