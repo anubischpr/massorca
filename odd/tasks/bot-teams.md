@@ -121,6 +121,9 @@ Made by the orchestrator session on the user's behalf, for morning review.
 - pv79 item 23 ("Show bot teams"): the switch hides only the Bot teams group of team folders; a bot task's worktree and sessions inside a project stay with that project. Rejected: keeping the session-level filter.
 - pv79 D (Engram in room turns): Claude room and code turns may call Engram's read tools (mem_search, mem_context, mem_get_observation); saving memory stays denied. Rejected: Engram only in task sessions.
 - pv79 B (router): an order to make something becomes a bot task, never conversation; option cards and artifacts go to the least busy bot. Rejected: letting the fallback answerer reply.
+- pv79 phone Workspaces bar (board M52, canvas version 48): built to the board; the top chrome grows from about 78 to about 142 points to keep every control. Rejected: dropping controls to keep the old height.
+- pv79 phone space: the last selected space (Workspaces or Bot teams) is remembered once for the phone, not per host. Rejected: per-host memory, which the report did not ask for.
+- pv79 item 33 (phone pills): the phone composer stays plain text, so a mention shows as "@Name" while typing and as a chip once sent; a tap now inserts it with one space. Rejected: a rich phone input, a larger change to the shared session composer.
 
 
 ## Questions for the user
