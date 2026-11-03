@@ -190,6 +190,8 @@ export const BOT_TEAM_ROOM_METHODS = [
       return {
         tasks: db.listBotTeamTasks(teamId),
         messages: db.listBotTeamMessages(teamId),
+        // Tasks other teams hold for this room's requests; a client from before it ignores the field.
+        sentRequests: db.listBotTeamSentRequests(teamId),
         ...roomProjectsFor(db, { teamId, withLinkedProjects }),
         // Null until a task starts; a client opens a task's session in this workspace.
         workspaceId: db.getBotTeamWorkspace(teamId),

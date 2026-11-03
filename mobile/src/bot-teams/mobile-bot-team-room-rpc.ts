@@ -3,6 +3,7 @@ import {
   BotTeamLinkableWorkspaceSchema,
   BotTeamMessageSchema,
   BotTeamProjectSchema,
+  BotTeamSentRequestSchema,
   BotTeamTaskSchema,
   type BotTeamCodeSource,
   type BotTeamLinkableWorkspace,
@@ -29,6 +30,8 @@ const RoomReply = z.object({
   projects: z.array(BotTeamProjectSchema).default([]),
   // Tasks other teams filed in this team's projects; only a host that shares projects sends them.
   projectTasks: z.array(BotTeamTaskSchema).default([]),
+  // Tasks other teams hold for this room's requests; an older host never sends them.
+  sentRequests: z.array(BotTeamSentRequestSchema).default([]),
   // The bots the host is answering in the background; an older host never sends it.
   replying: z.array(z.object({ botId: z.string(), since: z.number() })).default([]),
   workspaceId: z.string().nullable()

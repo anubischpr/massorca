@@ -9,11 +9,12 @@ import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
 import { botTeamBoardColumn } from '../../../src/shared/bot-team-board-column'
 import { placeBotTeamRoomTasks } from '../../../src/shared/bot-team-room-order'
-import { BOT_TEAM_ALL_AUTHOR } from '../../../src/shared/bot-team-greeting'
 import type { BotTeamRequestChoice } from '../../../src/shared/bot-team-request-choice'
 import type { BotTeam } from '../../../src/shared/rpc-contract/bot-team-params'
-import type { BotTeamTask } from '../../../src/shared/rpc-contract/bot-team-room-params'
-import { MobileBotAgentIcon } from './MobileBotAgentIcon'
+import type {
+  BotTeamSentRequest,
+  BotTeamTask
+} from '../../../src/shared/rpc-contract/bot-team-room-params'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
 import { useMobileBotTeamReplying } from './use-mobile-bot-team-room-replying'
 import { MobileBotTeamTypingLine } from './MobileBotTeamTypingLine'
@@ -34,6 +35,8 @@ import {
 import { useMobileBotTeamRoom } from './use-mobile-bot-team-room'
 import { MobileBotTeamRoomScroll, roomChatMessage } from './MobileBotTeamRoomScroll'
 import { useMobileBotTeamTaskStatus } from './use-mobile-bot-team-task-status'
+import { RoomWho } from './MobileBotTeamRoomWho'
+import { MobileBotTeamSentTrackers } from './MobileBotTeamRoomTracker'
 import { MobileBotTeamAttachChips } from './MobileBotTeamAttachChips'
 import { useBotTeamMentionRenderer } from './MobileBotTeamMentionChip'
 import { useMobileBotTeamRoomAttachments } from './mobile-bot-team-attach-room'
@@ -50,27 +53,6 @@ type FilingTarget = Pick<
   MobileBotTeamRequestFiling,
   'botId' | 'toTeamId' | 'alsoNeeds' | 'projectId'
 >
-
-/** Who wrote a message: one bot, or every bot's icon under "All" for the team's greeting. */
-function RoomWho({ bots, authorBotId }: { bots: BotTeam['bots']; authorBotId: string | null }) {
-  if (authorBotId === BOT_TEAM_ALL_AUTHOR) {
-    return (
-      <View style={styles.roomWho}>
-        {bots.map((bot) => (
-          <MobileBotAgentIcon key={bot.id} agentId={bot.agent} size={14} />
-        ))}
-        <Text style={styles.roomWhoText}>All</Text>
-      </View>
-    )
-  }
-  const author = bots.find((bot) => bot.id === authorBotId)
-  return author ? (
-    <View style={styles.roomWho}>
-      <MobileBotAgentIcon agentId={author.agent} size={14} />
-      <Text style={styles.roomWhoText}>{author.name}</Text>
-    </View>
-  ) : null
-}
 
 /** A team's Conference room, drawn from the session chat's own composer and message row. */
 export function MobileBotTeamRoom({
@@ -258,6 +240,17 @@ export function MobileBotTeamRoom({
     />
   )
 
+  const sentRequests = room?.sentRequests ?? []
+  const trackers = (requests: readonly BotTeamSentRequest[]) => (
+    <MobileBotTeamSentTrackers
+      requests={requests}
+      teams={teams}
+      statusOf={statusOf}
+      offline={offline}
+      onOpenTeam={onPickTeam}
+    />
+  )
+
   const waitingTasks = tasks.filter((task) => statusOf(task) === 'Waiting for you')
   const openCount = tasks.filter((task) => botTeamBoardColumn(statusOf(task)) !== 'Done').length
 
@@ -306,17 +299,25 @@ export function MobileBotTeamRoom({
         ) : null}
         <MarkdownPlainTextContext.Provider value={renderMentions}>
           {messages.map((message) => {
+            const from = teams.find((entry) => entry.id === message.fromTeamId)
             return (
               <View key={message.id} style={styles.roomEntry}>
-                <RoomWho bots={team.bots} authorBotId={message.authorBotId} />
+                <RoomWho bots={(from ?? team).bots} authorBotId={message.authorBotId} from={from} />
                 <MobileNativeChatMessage message={roomChatMessage(message)} />
-                <MobileBotTeamAttachChips files={message.attachments ?? []} />
+                <MobileBotTeamAttachChips
+                  files={message.attachments ?? []}
+                  tag={from ? `From ${from.name}` : undefined}
+                />
                 {placement.cardsByMessageId.get(message.id)?.map(card)}
+                {trackers(sentRequests.filter((request) => request.messageId === message.id))}
               </View>
             )
           })}
         </MarkdownPlainTextContext.Provider>
         {placement.trailing.map(card)}
+        {trackers(
+          sentRequests.filter((request) => !messages.some((m) => m.id === request.messageId))
+        )}
         {offline ? null : (
           <MobileBotTeamRoomQuestions
             client={client}

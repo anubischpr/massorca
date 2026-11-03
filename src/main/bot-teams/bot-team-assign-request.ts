@@ -40,6 +40,8 @@ export type BotTeamRequestFiling = {
   projectId?: string | null
   /** Files from the team folder the person attached to the request. */
   attachments?: BotTeamRoomAttachment[]
+  /** The room message that asked, kept with a task sent to another team so its card sits under it. */
+  originMessageId?: string
 }
 
 export type BotTeamFiling = {
@@ -132,6 +134,10 @@ export async function fileBotTeamRequest(
   })
   if (projectId !== null) {
     db.setBotTeamTaskProject(created.id, projectId)
+  }
+  // The asking team's room tracks a task another team holds for it.
+  if (receiving.id !== input.teamId) {
+    db.setBotTeamTaskOrigin(created.id, input.teamId, input.originMessageId ?? null)
   }
   // Saved with the task, so the owner reads it whether the task starts now or from Todo later.
   db.setBotTeamTaskStartNotes(

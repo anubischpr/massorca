@@ -10,11 +10,14 @@ import { colors, radii, spacing } from '../theme/mobile-theme'
 export function MobileBotTeamAttachChips({
   files,
   onRemove,
-  inset = false
+  inset = false,
+  tag
 }: {
   files: readonly BotTeamRoomAttachment[]
   onRemove?: (path: string) => void
   inset?: boolean
+  /** Names where the files came from, such as "From Warehouse". */
+  tag?: string
 }) {
   if (files.length === 0) {
     return null
@@ -27,6 +30,7 @@ export function MobileBotTeamAttachChips({
           <Text style={styles.name} numberOfLines={1}>
             {file.name}
           </Text>
+          {tag ? <Text style={styles.tag}>{tag}</Text> : null}
           {onRemove ? (
             <Pressable
               accessibilityLabel={`Remove ${file.name}`}
@@ -62,6 +66,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.button,
     backgroundColor: colors.bgRaised
   },
+  tag: { color: colors.textMuted, fontSize: 11 },
   name: {
     flexShrink: 1,
     color: colors.textPrimary,

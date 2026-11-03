@@ -13,28 +13,26 @@ import {
   setBotTeamTaskProject,
   startBotTeamTask
 } from '@/runtime/runtime-bot-team-client'
-import { BOT_TEAM_ALL_AUTHOR } from '../../../../shared/bot-team-greeting'
 import { botTeamTaskStatus, type BotTeamTaskStatus } from '../../../../shared/bot-team-task-status'
 import { structuredAgentSessionTabId } from '../../../../shared/structured-agent-session-projection'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type {
   BotTeamMessage,
   BotTeamProject,
+  BotTeamSentRequest,
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
-import { BotAgentIcon } from './BotAgentIcon'
-import { BotTeamAllAuthor } from './BotTeamAllAuthor'
 import { BotTeamTypingLine } from './BotTeamTypingLine'
 import { botTeamTypingAuthor } from '../../../../shared/bot-team-typing'
 import { useBotTeamReplying } from './BotTeamRoomReplying'
 import { BotTeamReassignButton } from './BotTeamReassignButton'
 import { BotTeamPendingChoice, type BotTeamPendingChoiceRequest } from './BotTeamPendingChoice'
 import { BotTeamRoomComposer } from './BotTeamRoomComposer'
-import { BotTeamRoomMessageBody } from './BotTeamRoomMessageBody'
+import { BotTeamSentTrackers } from './BotTeamRoomTracker'
+import { BotTeamRoomMessage } from './BotTeamRoomMessage'
 import type { BotTeamMentionIcon } from './BotTeamMentionChip'
 import { useBotTeamRoomAttachments } from './bot-team-room-attach-state'
-import { BotTeamRoomAttachChips } from './BotTeamRoomAttachChips'
 import type { BotTeamRoomAttachment } from '../../../../shared/bot-team-room-attachments'
 import { BotTeamTaskCard } from './BotTeamTaskCard'
 import { BotTeamRoomQuestion } from './BotTeamRoomQuestion'
@@ -105,7 +103,8 @@ export function BotTeamRoom({
   otherTeams = NO_TEAMS,
   onCreateBot,
   onCreateTeam,
-  onOpenFile
+  onOpenFile,
+  onOpenTeam
 }: {
   /** Teams the room can suggest or send a request to. */
   otherTeams?: readonly BotTeam[]
@@ -120,10 +119,13 @@ export function BotTeamRoom({
   onOpenTask: (taskId: string | null) => void
   /** Opens a file a message names in the team's Files view; without it the file chips stay plain. */
   onOpenFile?: (path: string) => void
+  /** Opens another team's room, or one of its tasks; without it the tracker has no way in. */
+  onOpenTeam?: (teamId: string, taskId: string | null) => void
 }): React.JSX.Element {
   const [messages, setMessages] = useState<BotTeamMessage[]>([])
   const [tasks, setTasks] = useState<BotTeamTask[]>([])
   const [projects, setProjects] = useState<BotTeamProject[]>([])
+  const [sent, setSent] = useState<BotTeamSentRequest[]>([])
   const [needsOwner, setNeedsOwner] = useState(false)
   const [pending, setPending] = useState<BotTeamPendingChoiceRequest | null>(null)
   // The text with the host, if any; the room shows who is typing until the reply comes back.
@@ -162,6 +164,7 @@ export function BotTeamRoom({
           setMessages(room.messages)
           setTasks(room.tasks)
           setProjects(room.projects ?? [])
+          setSent(room.sentRequests ?? [])
           readReplying(room.replying)
         }
       },
@@ -291,6 +294,20 @@ export function BotTeamRoom({
     )
   }
 
+  // A tracker sits right after the message that asked another team; any without one follow the conversation.
+  const trackers = (requests: BotTeamSentRequest[]): React.JSX.Element => (
+    <BotTeamSentTrackers
+      requests={requests}
+      teams={otherTeams}
+      statusOf={statusOf}
+      offline={offline}
+      onOpenTeam={onOpenTeam}
+    />
+  )
+  const unplacedSent = sent.filter(
+    (request) => !messages.some((message) => message.id === request.messageId)
+  )
+
   const taskCard = (task: BotTeamTask): React.JSX.Element => (
     <BotTeamTaskCard
       key={task.id}
@@ -334,35 +351,21 @@ export function BotTeamRoom({
                   </p>
                 </div>
               ) : null}
-              {messages.map((message) => {
-                const author = botOf(message.authorBotId)
-                const fromAll = message.authorBotId === BOT_TEAM_ALL_AUTHOR
-                return (
-                  <div key={message.id} className="flex flex-col gap-3">
-                    {author ? (
-                      <div className="flex items-center gap-2 text-[13px] font-medium">
-                        <BotAgentIcon agent={author.agent} size={16} />
-                        {author.name}
-                      </div>
-                    ) : null}
-                    {fromAll ? <BotTeamAllAuthor bots={team.bots} /> : null}
-                    <div
-                      className={
-                        author || fromAll
-                          ? 'text-sm leading-relaxed text-foreground/80'
-                          : 'max-w-[80%] self-end rounded-xl border border-border bg-muted px-3.5 py-2.5 text-sm leading-relaxed'
-                      }
-                    >
-                      <BotTeamRoomMessageBody text={message.text} mentions={mentionIcons} />
-                      {message.attachments && message.attachments.length > 0 ? (
-                        <BotTeamRoomAttachChips files={message.attachments} onOpen={onOpenFile} />
-                      ) : null}
-                    </div>
-                    {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
-                  </div>
-                )
-              })}
+              {messages.map((message) => (
+                <BotTeamRoomMessage
+                  key={message.id}
+                  message={message}
+                  team={team}
+                  otherTeams={otherTeams}
+                  mentions={mentionIcons}
+                  onOpenFile={onOpenFile}
+                >
+                  {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
+                  {trackers(sent.filter((request) => request.messageId === message.id))}
+                </BotTeamRoomMessage>
+              ))}
               {placement.trailing.map(taskCard)}
+              {trackers(unplacedSent)}
               {tasks.map((task) => {
                 const bot = botOf(task.ownerBotId)
                 return bot && task.sessionId !== null && statusOf(task) === 'Waiting for you' ? (

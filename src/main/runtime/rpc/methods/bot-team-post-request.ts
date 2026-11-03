@@ -115,7 +115,8 @@ export async function postBotTeamRequestOnHost(
         start,
         later,
         askProject: false,
-        attachments
+        attachments,
+        originMessageId: message.id
       },
       startTask
     )

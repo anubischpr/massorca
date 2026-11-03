@@ -169,6 +169,7 @@ function TeamDetail({
       offline={offline}
       otherTeams={otherTeams}
       onOpenFile={(path) => toTeam({ section: { kind: 'files', path } })}
+      onOpenTeam={(teamId, openTaskId) => onSelect({ teamId, taskId: openTaskId, creating: false })}
       onCreateBot={() => onEditTeam(team.id)}
       onCreateTeam={() => onSelect({ teamId: null, taskId: null, creating: true })}
       header={
