@@ -1,4 +1,12 @@
-import { useId, useLayoutEffect, useMemo, useState, type KeyboardEvent } from 'react'
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent
+} from 'react'
 import { ArrowUp, Plus, X } from 'lucide-react'
 import { EditorContent } from '@tiptap/react'
 import { Button } from '@/components/ui/button'
@@ -104,6 +112,22 @@ export function BotTeamRoomComposer({
     onSelect: (current) =>
       setCaret(promptTextOffset(current.state.doc, current.state.selection.from))
   })
+  const composerRef = useRef<HTMLDivElement | null>(null)
+  const menuOpen = menu !== null
+  // Why: a click anywhere outside the box closes its @ and / menu, as it closes a popover.
+  useEffect(() => {
+    if (!menuOpen) {
+      return
+    }
+    const onPointerDown = (event: PointerEvent): void => {
+      const inside = event.target instanceof Node && composerRef.current?.contains(event.target)
+      if (!inside) {
+        setMenuDismissed(true)
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [menuOpen])
   // The ARIA links follow the open menu, so a screen reader reads the option the caret is on.
   useLayoutEffect(() => {
     const dom = editor?.view.dom
@@ -263,7 +287,10 @@ export function BotTeamRoomComposer({
             ))}
           </ul>
         ) : null}
-        <div className="relative flex items-end gap-2 rounded-xl border border-input p-1.5">
+        <div
+          ref={composerRef}
+          className="relative flex items-end gap-2 rounded-xl border border-input p-1.5"
+        >
           {menu ? (
             <BotTeamComposerMenu
               menu={menu}

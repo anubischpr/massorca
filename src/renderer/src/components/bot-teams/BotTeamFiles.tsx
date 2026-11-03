@@ -7,8 +7,11 @@ import { getFileTypeIcon } from '@/lib/file-type-icons'
 import { listBotTeamFiles, readBotTeamFile } from '@/runtime/runtime-bot-team-client'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { RuntimeFileListEntry } from '../../../../shared/runtime-file-contracts'
+import { BotTeamFilePreview } from './BotTeamFilePreview'
 import { BotTeamFilesBar } from './BotTeamFilesBar'
 import { BotTeamFileVersions } from './BotTeamFileVersions'
+import { unseenBotTeamFiles, useBotTeamSeenFilesStore } from './bot-team-file-read-state'
+import { isBotTeamFileVisible } from './bot-team-file-visibility'
 import { botTeamFileChangeMeta } from './bot-team-version-labels'
 import { useBotTeamVersions } from './use-bot-team-versions'
 
@@ -24,6 +27,9 @@ function OpenFile({
 }): React.JSX.Element {
   const [content, setContent] = useState<string | null>(null)
   useEffect(() => {
+    if (file.kind === 'binary') {
+      return
+    }
     let closed = false
     void readBotTeamFile(teamId, file.relativePath).then(
       (read) => {
@@ -36,7 +42,7 @@ function OpenFile({
     return () => {
       closed = true
     }
-  }, [teamId, file.relativePath])
+  }, [teamId, file.relativePath, file.kind])
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <BotTeamFilesBar>
@@ -51,9 +57,12 @@ function OpenFile({
         <span className="min-w-0 truncate">{file.relativePath}</span>
       </BotTeamFilesBar>
       <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto p-5">
-        <pre className="min-h-[420px] whitespace-pre-wrap break-words rounded-xl border border-border bg-card p-4 font-mono text-xs">
-          {content}
-        </pre>
+        <BotTeamFilePreview
+          teamId={teamId}
+          relativePath={file.relativePath}
+          kind={file.kind}
+          text={content}
+        />
       </div>
     </div>
   )
@@ -71,15 +80,28 @@ export function BotTeamFiles({
   const [files, setFiles] = useState<RuntimeFileListEntry[] | null>(null)
   const [open, setOpen] = useState<RuntimeFileListEntry | null>(null)
   const versions = useBotTeamVersions(team.id)
+  const seen = useBotTeamSeenFilesStore((state) => state.seen[team.id])
+  const seedTeam = useBotTeamSeenFilesStore((state) => state.seedTeam)
+  const markSeen = useBotTeamSeenFilesStore((state) => state.markSeen)
   useEffect(() => {
     let closed = false
     void listBotTeamFiles(team.id).then(
       (listed) => {
         // A host from before team files has none to show, and nothing to report.
         if (!closed) {
-          const found = listed === 'unavailable' ? [] : listed.files
+          const found = (listed === 'unavailable' ? [] : listed.files).filter((file) =>
+            isBotTeamFileVisible(file.relativePath)
+          )
+          seedTeam(
+            team.id,
+            found.map((file) => file.relativePath)
+          )
+          const match = found.find((file) => file.relativePath === openPath) ?? null
+          if (match) {
+            markSeen(team.id, match.relativePath)
+          }
           setFiles(found)
-          setOpen(found.find((file) => file.relativePath === openPath) ?? null)
+          setOpen(match)
         }
       },
       (error: unknown) => toast.error(error instanceof Error ? error.message : String(error))
@@ -87,18 +109,29 @@ export function BotTeamFiles({
     return () => {
       closed = true
     }
-  }, [team.id, openPath])
+  }, [team.id, openPath, seedTeam, markSeen])
   const keptState =
     versions.state !== null && versions.state !== 'unavailable' && versions.state.git === 'ok'
       ? versions.state
       : null
   const kept = keptState !== null
   const saved = keptState !== null && keptState.versions.length > 0
+  const unread = new Set(
+    unseenBotTeamFiles(
+      (files ?? []).map((file) => file.relativePath),
+      seen
+    )
+  )
+  const openEntry = (file: RuntimeFileListEntry): void => {
+    markSeen(team.id, file.relativePath)
+    setOpen(file)
+  }
   if (open) {
     return kept ? (
       <BotTeamFileVersions
         teamId={team.id}
         relativePath={open.relativePath}
+        binary={open.kind === 'binary'}
         onBack={() => setOpen(null)}
         onRestored={versions.reload}
       />
@@ -122,9 +155,8 @@ export function BotTeamFiles({
                   <button
                     key={file.relativePath}
                     type="button"
-                    disabled={file.kind === 'binary'}
-                    onClick={() => setOpen(file)}
-                    className="flex w-full items-center gap-3 border-t border-border px-4 py-3 text-left text-sm font-medium first:border-t-0 hover:bg-muted disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent"
+                    onClick={() => openEntry(file)}
+                    className="flex w-full items-center gap-3 border-t border-border px-4 py-3 text-left text-sm font-medium first:border-t-0 hover:bg-muted"
                   >
                     <FileIcon className="size-4 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1">
@@ -135,6 +167,13 @@ export function BotTeamFiles({
                         </span>
                       ) : null}
                     </span>
+                    {unread.has(file.relativePath) ? (
+                      <span
+                        role="img"
+                        aria-label={translate('components.botTeams.newFile', 'New file')}
+                        className="size-2 shrink-0 rounded-full bg-primary"
+                      />
+                    ) : null}
                   </button>
                 )
               })}

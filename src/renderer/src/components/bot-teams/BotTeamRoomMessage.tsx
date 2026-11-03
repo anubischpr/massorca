@@ -63,6 +63,7 @@ export function BotTeamRoomMessage({
             files={message.attachments}
             onOpen={onOpenFile}
             tag={fromTeam ? fromTeamTag(fromTeam) : undefined}
+            teamId={team.id}
           />
         ) : null}
       </div>
