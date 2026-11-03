@@ -126,6 +126,16 @@ describe('the project brief', () => {
     expect([...container.querySelectorAll('h2')].map((h) => h.textContent)).toEqual(['Goal'])
   })
 
+  it('gives the Brief editor the page height, at least 60% of the viewport', async () => {
+    const container = await mount()
+    const box = container
+      .querySelector<HTMLElement>('textarea[aria-label="Brief editor"]')
+      ?.closest<HTMLElement>('.min-h-\\[60vh\\]')
+    expect(box).not.toBeNull()
+    expect(box?.className).toContain('flex-1')
+    expect(box?.className).not.toContain('min-h-72')
+  })
+
   it('opens the editor on the Markdown built from the lists when none is saved yet', async () => {
     const container = await mount()
     expect(container.querySelector<HTMLTextAreaElement>('[aria-label="Brief editor"]')?.value).toBe(

@@ -15,6 +15,7 @@ const setBotTeamProjectCodeSource = vi.hoisted(() => vi.fn())
 const listBotTeamLinkableWorkspaces = vi.hoisted(() => vi.fn())
 const setBotTeamProjectWorkspace = vi.hoisted(() => vi.fn())
 const toastError = vi.hoisted(() => vi.fn())
+const liveStatuses = vi.hoisted(() => ({ current: new Map<string, unknown>() }))
 
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
   createBotTeamProject,
@@ -30,7 +31,9 @@ vi.mock('@/i18n/i18n', () => ({
 }))
 vi.mock('@/lib/agent-catalog', () => ({ AgentIcon: () => null }))
 vi.mock('sonner', () => ({ toast: { error: toastError } }))
-vi.mock('./use-bot-team-task-status', () => ({ useBotTeamSessionStatuses: () => new Map() }))
+vi.mock('./use-bot-team-task-status', () => ({
+  useBotTeamSessionStatuses: () => liveStatuses.current
+}))
 
 const { BotTeamProjectBoard, NewBotProjectForm } = await import('./BotTeamProjectViews')
 
@@ -531,5 +534,63 @@ describe('projects shared between teams', () => {
       button.textContent?.includes('Booking page')
     )
     expect(card?.textContent).not.toContain('Development')
+  })
+})
+
+describe('the project board', () => {
+  const task = {
+    id: 'task1',
+    teamId: 't1',
+    title: 'Write the flyer',
+    prompt: '',
+    ownerBotId: 'b1',
+    sessionId: 's1',
+    projectId: 'p1'
+  }
+
+  const columnOf = (container: ParentNode, name: string): HTMLElement => {
+    const header = [...container.querySelectorAll('span')].find(
+      (span) => span.textContent === name && span.className.includes('text-[13px]')
+    )
+    const column = header?.parentElement?.parentElement
+    if (!column) {
+      throw new Error(`Column ${name} missing`)
+    }
+    return column
+  }
+
+  const mountBoard = (): Promise<HTMLDivElement> =>
+    mount(
+      <BotTeamProjectBoard
+        team={team(false)}
+        projectId="p1"
+        onBack={() => {}}
+        onTab={() => {}}
+        onOpenTask={() => {}}
+      />
+    )
+
+  it('paints a finished task under Done at once when the board comes back from the Brief', async () => {
+    listBotTeamRoom.mockResolvedValue({
+      tasks: [task],
+      messages: [],
+      projects: [project(null)],
+      projectTasks: []
+    })
+    liveStatuses.current = new Map([['s1', { status: 'idle', turnOutcome: 'success' }]])
+    const first = await mountBoard()
+    expect(columnOf(first, 'Done').textContent).toContain('Write the flyer')
+
+    // Why: the Board/Brief toggle unmounts the board; the list is slow and no live status has arrived yet.
+    for (const entry of mounted.splice(0)) {
+      act(() => entry.root.unmount())
+      entry.container.remove()
+    }
+    listBotTeamRoom.mockReturnValue(new Promise(() => {}))
+    liveStatuses.current = new Map()
+    const second = await mountBoard()
+
+    expect(columnOf(second, 'Done').textContent).toContain('Write the flyer')
+    expect(columnOf(second, 'In Progress').textContent).not.toContain('Write the flyer')
   })
 })

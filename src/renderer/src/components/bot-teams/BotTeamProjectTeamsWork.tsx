@@ -5,6 +5,7 @@ import type {
   BotTeamProject,
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
+import { keepTeamWork, keptTeamWork } from './bot-team-project-board-cache'
 
 export type TeamProjectWork = {
   tasks: BotTeamTask[]
@@ -23,21 +24,26 @@ const NOTHING: TeamProjectWork = {
   sharedProjects: false
 }
 
-/** Like `useTeamWork`, plus the shared and archived projects; `refresh` lists again when it changes. */
+/**
+ * Like `useTeamWork`, plus the shared and archived projects; `refresh` lists again when it changes.
+ * The last list stays kept per team, so a remount paints it before the refreshed list lands.
+ */
 export function useTeamProjectWork(teamId: string, refresh?: string): TeamProjectWork {
-  const [work, setWork] = useState<TeamProjectWork>(NOTHING)
+  const [work, setWork] = useState<TeamProjectWork>(() => keptTeamWork(teamId) ?? NOTHING)
   useEffect(() => {
     let closed = false
     void listBotTeamRoom(teamId, { includeArchived: true }).then(
       ({ tasks, projects, projectTasks }) => {
         if (!closed) {
           const listed = projects ?? []
-          setWork({
+          const next: TeamProjectWork = {
             tasks,
             projects: listed,
             projectTasks: projectTasks ?? [],
             sharedProjects: listed.every((project) => project.linkedTeamIds !== undefined)
-          })
+          }
+          keepTeamWork(teamId, next)
+          setWork(next)
         }
       },
       (error: unknown) => toast.error(String(error))

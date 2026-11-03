@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -38,6 +38,7 @@ import { BotTeamProjectTeamsField } from './BotTeamProjectTeamsField'
 import { useTeamProjectWork } from './BotTeamProjectTeamsWork'
 import { useTeamWork } from './use-bot-team-work'
 import { useBotTeamSessionStatuses } from './use-bot-team-task-status'
+import { keepSessionStatuses, sessionStatusSummary } from './bot-team-project-board-cache'
 
 const HOST_CANNOT_CONNECT = (): string =>
   translate(
@@ -189,6 +190,7 @@ export function BotTeamProjectBoard({
   const [refresh, setRefresh] = useState(0)
   const { tasks, projects, projectTasks } = useTeamProjectWork(team.id, String(refresh))
   const statuses = useBotTeamSessionStatuses()
+  useEffect(() => keepSessionStatuses(statuses), [statuses])
   const project = projects.find((entry) => entry.id === projectId)
   // The owner team's Workspaces setting and workspace link apply to the project.
   const teamsOnHost = allTeams ?? [team]
@@ -217,10 +219,7 @@ export function BotTeamProjectBoard({
     }
   }
   const statusOf = (task: BotTeamTask) =>
-    botTeamTaskStatus(
-      task.sessionId,
-      task.sessionId === null ? undefined : statuses.get(task.sessionId)
-    )
+    botTeamTaskStatus(task.sessionId, sessionStatusSummary(statuses, task.sessionId))
   const own = [...tasks, ...projectTasks].filter((task) => task.projectId === projectId)
   return (
     <div className="flex min-h-0 flex-1 flex-col">

@@ -35,9 +35,9 @@ export function BotTeamProjectBriefEditor({
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="min-h-72 overflow-hidden rounded-xl border border-border bg-card">
-        <Suspense fallback={<div className="min-h-72" />}>
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex min-h-[60vh] flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
+        <Suspense fallback={<div className="flex-1" />}>
           <RichMarkdownEditor
             key={session}
             fileId={scope}

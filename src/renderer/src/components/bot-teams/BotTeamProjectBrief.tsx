@@ -149,9 +149,10 @@ export function BotTeamProjectBrief({
         onBack={onBack}
         trailing={<BotTeamProjectTabs value="brief" onChange={onTab} />}
       />
-      <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto">
+      <div className="scrollbar-sleek flex min-h-0 flex-1 flex-col overflow-y-auto">
         {project ? (
-          <div className="mx-auto flex w-full max-w-[736px] flex-col gap-5 px-4 py-8">
+          // Why: the column fills the page so the editor box grows to the window, with a 60vh floor.
+          <div className="mx-auto flex h-full min-h-0 w-full max-w-[736px] flex-col gap-5 px-4 py-8">
             <div>
               <h1 className="text-xl font-semibold">
                 {translate('components.botTeams.brief', 'Brief')}
