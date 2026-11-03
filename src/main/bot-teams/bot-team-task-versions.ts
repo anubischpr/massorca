@@ -1,12 +1,14 @@
+import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
 import { botTeamVersionDeps } from './bot-team-version-deps'
 import { watchBotTeamTaskFinishes } from './bot-team-version-watcher'
 import { watchBotTeamTaskLastStatus } from './bot-team-task-status-record'
-import { returnFinishedBotTeamTask } from './bot-team-return'
+import { botTeamReturnDeps, returnFinishedBotTeamTask } from './bot-team-return'
 import { takeBotTeamSnapshot } from './bot-team-snapshots'
 import type { BotTeamSnapshotDeps } from './bot-team-snapshot-types'
+import { rememberSessionWorkspaces } from './bot-team-worktree-deliverables'
 
 /** Saves the team's folder as a version once the task of this session is done. */
 export async function saveVersionOfFinishedTask(
@@ -46,13 +48,21 @@ export function ensureBotTeamVersionWatcher(getDb: () => OrchestrationDb): void 
     return
   }
   watchedHosts.add(host)
+  // The finish event does not name the workspace, so the status feed says which one each session ran in.
+  const workspaces = new Map<string, string>()
+  host.subscribeStatus({
+    id: `bot-team-workspaces-${randomUUID()}`,
+    emit: (event) => rememberSessionWorkspaces(workspaces, event)
+  })
   watchBotTeamTaskFinishes(host, (sessionId) => {
+    const workspaceId = workspaces.get(sessionId) ?? null
+    workspaces.delete(sessionId)
     void saveVersionOfFinishedTask(getDb(), sessionId).catch((error: unknown) =>
       console.warn('[bot-teams] saving a version failed', error)
     )
     // A task another team asked for tells that team's room once it is done.
-    void returnFinishedBotTeamTask(getDb(), sessionId).catch((error: unknown) =>
-      console.warn('[bot-teams] returning a finished task failed', error)
+    void returnFinishedBotTeamTask(getDb(), sessionId, botTeamReturnDeps(workspaceId)).catch(
+      (error: unknown) => console.warn('[bot-teams] returning a finished task failed', error)
     )
   })
   // A board's first paint reads the last status a task's session reached.

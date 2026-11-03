@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
-import { returnFinishedBotTeamTask } from './bot-team-return'
+import { returnFinishedBotTeamTask, returnUnstartedBotTeamTask } from './bot-team-return'
 
 describe('returnFinishedBotTeamTask', () => {
   let db: OrchestrationDb | undefined
@@ -128,6 +128,19 @@ describe('returnFinishedBotTeamTask', () => {
     await returnFinishedBotTeamTask(db, 'session-1', deps)
 
     expect(db.listBotTeamMessages(a.id).filter((m) => m.fromTeamId === b.id)).toHaveLength(1)
+  })
+
+  it('still reports a finish after an earlier could-not-start notice for the same task', async () => {
+    const { db, a, b, task, deps } = setup()
+    expect(returnUnstartedBotTeamTask(db, task.id, 'No host')).not.toBeNull()
+
+    await returnFinishedBotTeamTask(db, 'session-1', deps)
+
+    const posted = db.listBotTeamMessages(a.id).filter((m) => m.fromTeamId === b.id)
+    expect(posted.map((m) => m.text)).toEqual([
+      'Bea could not start "Count boxes". No host',
+      'Bea finished "Count boxes".'
+    ])
   })
 
   it('ignores a task nobody asked another team for', async () => {

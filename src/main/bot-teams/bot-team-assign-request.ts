@@ -10,6 +10,7 @@ import type { BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
 import { botTeamCompositeNotes } from './bot-team-composite'
 import { botTeamFiledReply } from './bot-team-filed-reply'
+import { returnUnstartedBotTeamTask } from './bot-team-return'
 
 /** Tasks that have started, per bot: what "least busy" counts. */
 export function activeTasksByBot(db: OrchestrationDb, teamId: string): Record<string, number> {
@@ -164,5 +165,9 @@ export async function fileBotTeamRequest(
       text: input.text
     })
   })
+  // A task another team asked for that cannot start must not leave the asking room waiting.
+  if (filed.startError !== null && receiving.id !== input.teamId) {
+    returnUnstartedBotTeamTask(db, created.id, filed.startError)
+  }
   return { task: filed.task, startError: filed.startError }
 }
