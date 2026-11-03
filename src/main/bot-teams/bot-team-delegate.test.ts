@@ -5,6 +5,7 @@ import {
   type BotTeamDelegateDeps
 } from './bot-team-delegate'
 import type { BotTeam } from '../../shared/rpc-contract/bot-team-params'
+import type { BotTeamProject } from '../../shared/rpc-contract/bot-team-room-params'
 
 const TEAM: BotTeam = {
   id: 'team',
@@ -69,6 +70,40 @@ describe('delegateToBotTeammate', () => {
     expect(prompt).toContain('Summer')
     expect(prompt).toContain('Goal: Sell more ice cream')
     expect(prompt).toContain('- Flyers in two colors')
+  })
+
+  describe('the folder a child writes in', () => {
+    const LINKED: BotTeamProject = {
+      id: 'p1',
+      teamId: 'team',
+      name: 'NexusCare',
+      goal: '',
+      codeSource: null,
+      brief: { requirements: ['Audit the intake flow'], constraints: [], decisions: [] },
+      briefUpdatedAt: null,
+      workspace: { key: 'repo:nexuscare', name: 'NexusCare' }
+    }
+    const PAIR: BotTeam = {
+      ...TEAM,
+      bots: [TEAM.bots[0], { ...TEAM.bots[0], id: 'rosa', name: 'Rosa', agent: 'pi' }]
+    }
+
+    it.each(['Max', 'Rosa'])(
+      '%s, on any agent, is told to write where its child starts, not in the project workspace',
+      async (botName) => {
+        const d = deps()
+        await delegateToBotTeammate(d, {
+          team: PAIR,
+          botName,
+          text: 'Write the audit files',
+          project: LINKED
+        })
+        const prompt = vi.mocked(d.fileRequest).mock.calls[0][0].prompt
+        expect(prompt).toContain('- Audit the intake flow')
+        expect(prompt).not.toContain("this project's workspace")
+        expect(prompt).toContain('current working directory')
+      }
+    )
   })
 
   it('gives the teammate what the team and the teammate remember', async () => {
