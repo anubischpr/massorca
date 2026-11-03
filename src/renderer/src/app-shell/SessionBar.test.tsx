@@ -254,3 +254,58 @@ describe('SessionBar closing a split pane', () => {
     expect(state.layoutByWorktree[WT]).toEqual({ type: 'leaf', groupId: 'main' })
   })
 })
+
+describe('SessionBar naming a split', () => {
+  function seedSplitWithFocus(focused: 'main' | 'pane2') {
+    seedStore(store, {
+      unifiedTabsByWorktree: {
+        [WT]: [
+          makeUnifiedTab({
+            id: 'chat',
+            worktreeId: WT,
+            groupId: 'main',
+            contentType: 'agent-session',
+            label: 'First'
+          }),
+          makeUnifiedTab({
+            id: 'note',
+            worktreeId: WT,
+            groupId: 'pane2',
+            contentType: 'terminal',
+            viewMode: 'chat',
+            label: 'Build log'
+          })
+        ]
+      },
+      groupsByWorktree: {
+        [WT]: [
+          makeTabGroup({ id: 'main', worktreeId: WT, tabOrder: ['chat'], activeTabId: 'chat' }),
+          makeTabGroup({ id: 'pane2', worktreeId: WT, tabOrder: ['note'], activeTabId: 'note' })
+        ]
+      },
+      activeGroupIdByWorktree: { [WT]: focused },
+      layoutByWorktree: {
+        [WT]: {
+          type: 'split',
+          direction: 'horizontal',
+          first: { type: 'leaf', groupId: 'main' },
+          second: { type: 'leaf', groupId: 'pane2' }
+        }
+      }
+    })
+  }
+
+  it('leaves the name of a focused chat to its own pane row', () => {
+    seedSplitWithFocus('main')
+    const container = mountBar()
+    expect(container.querySelector('[data-session-bar]')?.firstElementChild?.textContent).toBe('')
+  })
+
+  it('still names a focused pane that is not a chat', () => {
+    seedSplitWithFocus('pane2')
+    const container = mountBar()
+    expect(container.querySelector('[data-session-bar]')?.firstElementChild?.textContent).toBe(
+      'Build log'
+    )
+  })
+})

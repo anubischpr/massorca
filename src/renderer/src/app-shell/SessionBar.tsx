@@ -4,7 +4,6 @@ import { translate } from '@/i18n/i18n'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import { resolveUnifiedTabLabel } from '../../../shared/tab-title-resolution'
 import { useShortcutLabel } from '../hooks/useShortcutLabel'
 import { useAppStore } from '../store'
 import { isSidePanelGroupId, selectFocusedSessionTab } from '../store/slices/tabs/side-panel-group'
@@ -13,6 +12,7 @@ import { closeSessionPane } from '../components/tab-group/session-picker-pane'
 import { selectLayoutWorktreeId } from '../store/slices/tabs/pane-session-ref'
 import { BarToggle } from './BarToggle'
 import { setSessionBarActionsTarget } from './session-bar-slot'
+import { sessionTabTitle } from './session-bar-title'
 import { TOP_BAR_SURFACE_CLASS } from './top-bar-surface'
 
 /**
@@ -39,19 +39,13 @@ export function SessionBar({
       // Why: with no session to name, the bar names the workspace the main area belongs to.
       return s.allWorktrees().find((worktree) => worktree.id === worktreeId)?.displayName ?? ''
     }
-    const terminal =
-      tab.contentType === 'terminal'
-        ? s.tabsByWorktree[worktreeId]?.find((row) => row.id === tab.entityId)
-        : undefined
-    return resolveUnifiedTabLabel(
-      {
-        ...tab,
-        quickCommandLabel: tab.quickCommandLabel ?? terminal?.quickCommandLabel,
-        generatedLabel: tab.generatedLabel ?? terminal?.generatedTitle
-      },
-      s.settings?.tabAutoGenerateTitle === true,
-      tab.label
-    )
+    // Why: in a split each chat pane names itself in its own header row, so the bar leaves a chat unnamed.
+    const layoutGroups = s.groupsByWorktree[selectLayoutWorktreeId(s) ?? worktreeId] ?? []
+    const inSplit = layoutGroups.filter((group) => !isSidePanelGroupId(group.id)).length > 1
+    if (inSplit && tab.contentType === 'agent-session') {
+      return ''
+    }
+    return sessionTabTitle(s, worktreeId, tab)
   })
   // Why: with tabs gone, this is the mouse way out of a split; it merges the focused pane into its neighbour.
   const layoutWorktreeId = useAppStore((s) => selectLayoutWorktreeId(s) ?? worktreeId)
