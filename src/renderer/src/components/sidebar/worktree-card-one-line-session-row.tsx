@@ -57,6 +57,30 @@ export function getOneLineSessionTitleClassName(args: {
   return 'text-muted-foreground'
 }
 
+/** A folded parent's "+N" sits in the chevron's own hit target, so clicking the count unfolds it. */
+export function OneLineChildDisclosure({
+  count,
+  expanded,
+  onToggle
+}: {
+  count: number
+  expanded: boolean
+  onToggle: () => void
+}): React.JSX.Element {
+  return (
+    <DashboardAgentChildDisclosure
+      childAgentCount={count}
+      childAgentsExpanded={expanded}
+      onToggleChildAgents={onToggle}
+      timestamp={
+        expanded ? undefined : (
+          <span className="text-[10px] tabular-nums text-muted-foreground/70">+{count}</span>
+        )
+      }
+    />
+  )
+}
+
 export const OneLineSessionRow = React.memo(function OneLineSessionRow({
   agent,
   now,
@@ -141,7 +165,8 @@ export const OneLineSessionRow = React.memo(function OneLineSessionRow({
       draggable={false}
       className={cn(
         'group/one-line-session flex min-w-0 cursor-pointer items-center gap-1.5 rounded-sm px-1 text-xs leading-none',
-        'worktree-agent-row-hover',
+        // Why: agent-disclosure-row reveals a folded parent's chevron on hover; without it the chevron stays invisible.
+        'worktree-agent-row-hover agent-disclosure-row',
         isFocusedPane && 'bg-worktree-sidebar-accent',
         dimmed && 'opacity-60',
         sendTargetStatus === 'sending' && 'cursor-progress opacity-75',
@@ -200,16 +225,11 @@ export const OneLineSessionRow = React.memo(function OneLineSessionRow({
           onRename={(name) => setTabCustomTitle(agent.tab.id, name)}
         />
       )}
-      {hasChildDisclosure && !childAgentsExpanded ? (
-        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
-          +{childAgentCount}
-        </span>
-      ) : null}
       {hasChildDisclosure ? (
-        <DashboardAgentChildDisclosure
-          childAgentCount={childAgentCount}
-          childAgentsExpanded={childAgentsExpanded}
-          onToggleChildAgents={onToggleChildAgents}
+        <OneLineChildDisclosure
+          count={childAgentCount}
+          expanded={childAgentsExpanded}
+          onToggle={onToggleChildAgents}
         />
       ) : null}
       {shownGlyph ? <SessionStatusGlyphIcon glyph={shownGlyph} /> : null}
