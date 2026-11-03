@@ -38,4 +38,8 @@ export type DelegationRequestDeps = DelegationHostDeps & {
   /** What the person last typed in the parent chat, or undefined when this host holds no such message. */
   readParentUserMessage: (parentSessionId: string) => Promise<string | undefined>
   adviseTier?: DelegationTierAdvisor
+  /** Whether a bot team task runs this chat, so no person is there to answer its cards. */
+  isBotRunSession?: (sessionId: string) => boolean
+  /** Starts a filed request on the router's choice. */
+  startAutomatic?: (requestId: string) => void
 }

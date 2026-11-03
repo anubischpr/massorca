@@ -149,8 +149,11 @@ describe('DelegationAnswerService', () => {
   }
 
   async function filed() {
-    const { requestId, questionItemId } = await requests.request(task)
-    return { requestId, itemId: questionItemId }
+    const receipt = await requests.request(task)
+    if (receipt.status !== 'awaiting_choice') {
+      throw new Error('expected a card')
+    }
+    return { requestId: receipt.requestId, itemId: receipt.questionItemId }
   }
 
   function noticeRows(): { status: string | undefined; text: string }[] {
