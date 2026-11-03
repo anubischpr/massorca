@@ -12,6 +12,7 @@ import {
 } from '../../../../../shared/rpc-contract/bot-team-agent-params'
 import { botTeamTaskTitle, routeBotTeamRequest } from '../../../../../shared/bot-team-request-route'
 import { readBotTeamMemoryLines } from '../../../../bot-teams/bot-team-memory-read'
+import { botTeamRoomExcerpt } from '../../../../bot-teams/bot-team-prompt-notes'
 import { delegateToBotTeammate, findDelegationTeam } from '../../../../bot-teams/bot-team-delegate'
 import {
   getDelegationAnswerService,
@@ -49,6 +50,35 @@ export function botTeamDelegationProject(
       .listBotTeamProjects(teamId, { includeLinked: true, includeArchived: true })
       .find((entry) => entry.id === caller.projectId) ?? null
   )
+}
+
+const LAUNCH_WAIT_MS = 20_000
+const LAUNCH_POLL_MS = 200
+
+/** Waits for a filed request to leave pending/starting, so a refused launch reaches the caller. */
+export async function waitForDelegationLaunch(
+  db: {
+    getDelegationRequest: (id: string) => { status: string; failure: string | null } | undefined
+  },
+  requestId: string,
+  { timeoutMs = LAUNCH_WAIT_MS, pollMs = LAUNCH_POLL_MS } = {}
+): Promise<{ failed: string | null }> {
+  const deadline = Date.now() + timeoutMs
+  for (;;) {
+    const row = db.getDelegationRequest(requestId)
+    if (row && row.status !== 'pending' && row.status !== 'starting') {
+      return {
+        failed:
+          row.status === 'failed' || row.status === 'cancelled'
+            ? (row.failure ?? 'The launch was refused.')
+            : null
+      }
+    }
+    if (Date.now() >= deadline) {
+      return { failed: null }
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollMs))
+  }
 }
 
 export const ORCHESTRATION_BOT_TEAM_METHODS = [
@@ -96,9 +126,16 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
             memoryFor: (botId) => readBotTeamMemoryLines(db, team.id, botId),
             linkTask: (taskId, requestId) => db.linkBotTeamTaskDelegation(taskId, requestId),
             startRequest: (requestId, agent) =>
-              getDelegationAnswerService(runtime).startChosenAgent(requestId, agent)
+              getDelegationAnswerService(runtime).startChosenAgent(requestId, agent),
+            launchOutcome: (requestId) => waitForDelegationLaunch(db, requestId)
           },
-          { team, botName: bot, text, project }
+          {
+            team,
+            botName: bot,
+            text,
+            project,
+            roomExcerpt: botTeamRoomExcerpt(db.listBotTeamMessages(team.id), team.bots)
+          }
         )
       }
     }

@@ -8,6 +8,10 @@ import {
   parseBotTeamClassifyLater,
   parseBotTeamClassifyReply
 } from '../../shared/bot-team-request-classify'
+import {
+  asksForUniversalBotCapability,
+  isBotTeamActionRequest
+} from '../../shared/bot-team-request-action'
 import type { BotTeamRequestChoice } from '../../shared/bot-team-request-choice'
 import { botTeamRequestTiming } from '../../shared/bot-team-request-later'
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
@@ -48,6 +52,26 @@ function clearBotFor(text: string, bots: readonly BotTeamBot[]): BotTeamBot | nu
     return null
   }
   return second === undefined || second.score < first.score ? first.bot : null
+}
+
+/**
+ * The bot that takes an order the query read as chat or as outside the team. Option cards and
+ * artifacts are every bot's, so the least busy one takes them; other work needs a clear subject match.
+ */
+function actionOwner(
+  text: string,
+  team: BotTeam,
+  activeTasksByBot: Readonly<Record<string, number>>,
+  namedBotIds: readonly string[]
+): BotTeamBot | null {
+  if (!isBotTeamActionRequest(text)) {
+    return null
+  }
+  const matched = namedBotIds.length > 0 ? namedBotIds : team.bots.map((bot) => bot.id)
+  if (namedBotIds.length === 0 && !asksForUniversalBotCapability(text)) {
+    return clearBotFor(text, team.bots)
+  }
+  return chooseBotTeamOwner({ matchedBotIds: matched, bots: team.bots, activeTasksByBot })
 }
 
 /** The bot a new-bot question picks first: the one the query named, else the best word match. */
@@ -95,6 +119,10 @@ export async function decideBotTeamRequest(args: {
       ? null
       : parseBotTeamClassifyReply(reply, { bots: team.bots, teams: args.otherTeams })
   if (result === null) {
+    const ordered = actionOwner(text, team, args.activeTasksByBot, [])
+    if (ordered) {
+      return { type: 'task', bot: ordered, alsoNeeds: [], ...laterOf(later) }
+    }
     // A team of one has only one answer, as before the query existed.
     if (team.bots.length === 1) {
       return { type: 'task', bot: team.bots[0], alsoNeeds: [], ...laterOf(later) }
@@ -137,6 +165,13 @@ export async function decideBotTeamRequest(args: {
       }
     }
     case 'no-team': {
+      // Option cards and artifacts belong to every bot, so "outside the team" cannot apply to them.
+      const ordered = asksForUniversalBotCapability(text)
+        ? actionOwner(text, team, args.activeTasksByBot, [])
+        : null
+      if (ordered) {
+        return { type: 'task', bot: ordered, alsoNeeds: [], ...laterOf(later) }
+      }
       const clear = clearBotFor(text, team.bots)
       if (clear) {
         return { type: 'task', bot: clear, alsoNeeds: [], ...laterOf(later) }
@@ -149,7 +184,20 @@ export async function decideBotTeamRequest(args: {
         choice: { kind: 'other-team', teamId: result.teamId },
         ...laterOf(later)
       }
-    case 'conversation':
+    case 'conversation': {
+      // An order to make something is work, however the query read it: it never gets a chat answer.
+      const ordered = actionOwner(text, team, args.activeTasksByBot, result.botIds)
+      if (ordered) {
+        return { type: 'task', bot: ordered, alsoNeeds: [], ...laterOf(later) }
+      }
+      if (isBotTeamActionRequest(text)) {
+        return {
+          type: 'choice',
+          choice: { kind: 'new-bot', ...suggestedBot(text, team.bots, result.botIds) },
+          ...laterOf(later)
+        }
+      }
       return { type: 'conversation', subjectBotIds: result.botIds, ...laterOf(later) }
+    }
   }
 }

@@ -103,11 +103,12 @@ describe('decideBotTeamRequest', () => {
   })
 
   it('leaves plain conversation to its own answer', async () => {
-    expect((await decide('{"kind":"conversation"}')).decision).toEqual({
+    const text = 'How is the flyer going?'
+    expect((await decide('{"kind":"conversation"}', { text })).decision).toEqual({
       type: 'conversation',
       subjectBotIds: []
     })
-    expect((await decide('{"kind":"conversation","bots":["Max"]}')).decision).toEqual({
+    expect((await decide('{"kind":"conversation","bots":["Max"]}', { text })).decision).toEqual({
       type: 'conversation',
       subjectBotIds: ['max']
     })
@@ -185,5 +186,48 @@ describe('decideBotTeamRequest', () => {
     const { decision, classify } = await decide('{"kind":"bot","bots":["Iris"]}', { team: empty })
     expect(classify).not.toHaveBeenCalled()
     expect(decision).toEqual({ type: 'ask' })
+  })
+
+  describe('an order to make something', () => {
+    it('is a task, not a chat, when the query read it as a conversation with no bots', async () => {
+      const { decision } = await decide('{"kind":"conversation","bots":[]}', {
+        text: 'Crea una tarjeta de opciones para el menú'
+      })
+      expect(decision).toMatchObject({ type: 'task' })
+    })
+
+    it('goes to the least busy bot for an option card, which every bot can make', async () => {
+      const { decision } = await decide('{"kind":"none"}', {
+        text: 'Create an option card for the menu',
+        load: { iris: 3, max: 1 }
+      })
+      expect(decision).toEqual({ type: 'task', bot: MAX, alsoNeeds: [] })
+    })
+
+    it('is a task for the bot the query named, even when it read the order as a chat', async () => {
+      const { decision } = await decide('{"kind":"conversation","bots":["Iris"]}', {
+        text: 'Make a flyer'
+      })
+      expect(decision).toEqual({ type: 'task', bot: IRIS, alsoNeeds: [] })
+    })
+
+    it('is a task when the query could not answer, for an option card', async () => {
+      const { decision } = await decide(null, { text: 'Crea una tarjeta de opciones' })
+      expect(decision).toMatchObject({ type: 'task' })
+    })
+
+    it('asks about a new bot when nothing covers an order that is not for every bot', async () => {
+      const { decision } = await decide('{"kind":"conversation","bots":[]}', {
+        text: 'Prepara una presentación sobre jirafas'
+      })
+      expect(decision).toMatchObject({ type: 'choice', choice: { kind: 'new-bot' } })
+    })
+
+    it('keeps a question as a conversation', async () => {
+      const { decision } = await decide('{"kind":"conversation","bots":[]}', {
+        text: '¿Cómo creo una tarjeta?'
+      })
+      expect(decision).toEqual({ type: 'conversation', subjectBotIds: [] })
+    })
   })
 })

@@ -4,6 +4,10 @@ import { isTuiAgent } from '../../shared/tui-agent-config'
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
 import type { BotTeamMessage, BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import { buildBotTeamCodeAnswerPrompt, CODE_NOT_READ_NOTE } from './bot-team-code-answer'
+import {
+  BOT_TEAM_HISTORY_SOURCES_NOTE,
+  BOT_TEAM_UNIVERSAL_CAPABILITY_NOTE
+} from './bot-team-prompt-notes'
 
 const HISTORY_MESSAGES = 20
 const REPLY_MAX_CHARS = 1200
@@ -214,7 +218,9 @@ export function buildBotTeamConversationPrompt(args: {
   ]
   return [
     `You are ${bot.name}, a bot on the ${team.name} team${team.purpose ? ` (${team.purpose})` : ''}. Your job: ${bot.job || 'not described'}.`,
-    `The person is chatting with the whole team in its Conference room. Answer their last message once, in the same language as their last message, in at most three short sentences, as ${bot.name}. Use only the room history, the task board${args.projectContext ? ', and the project context below' : ''}. If they do not say whether something is finished, say what you can tell and that you cannot tell the rest. Do not offer to do work, do not create tasks, and do not run anything.`,
+    `The person is chatting with the whole team in its Conference room. Answer their last message once, in the same language as their last message, in at most three short sentences, as ${bot.name}. Use the room history, the task board${args.projectContext ? ', and the project context below' : ''}. If they do not say whether something is finished, say what you can tell and that you cannot tell the rest. Do not offer to do work, do not create tasks, and do not run anything.`,
+    BOT_TEAM_UNIVERSAL_CAPABILITY_NOTE,
+    BOT_TEAM_HISTORY_SOURCES_NOTE,
     `Room history, oldest first:\n${history.join('\n') || 'Nothing yet.'}`,
     `Task board (a started task may already be done; a bot's own line in the history says when it finished):\n${board.join('\n') || 'No tasks yet.'}`,
     ...context,

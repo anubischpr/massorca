@@ -32,7 +32,7 @@ export function buildBotTeamCodeAnswerPrompt(
     `The person asked how something works, or where it is, in the code of project "${args.projectName}". Your working directory is a read-only checkout of that project. Use these sources, in this order:`,
     [
       '1. The project code: search and read the files in your working directory (Read, Grep, Glob or your equivalent).',
-      '2. Engram: the latest Engram memories for the project, listed in the project context below, when there are any.',
+      '2. Engram: the latest Engram memories for the project, listed in the project context below, when there are any; if you have the Engram tools, also search with `mcp__engram__mem_search` and `mcp__engram__mem_context` (read only).',
       '3. OpenMetadata: your own configured MCP server named "openmetadata", only its read tools search_metadata, find_context and company_context. If you have no OpenMetadata tools, say so once, briefly, and go on with the other two sources.'
     ].join('\n'),
     `Answer in the same language as the question, in at most ten short sentences, as ${args.bot.name}.${web} End with a sources list under a heading in the language of the question (for example "Fuentes" for Spanish, "Sources" for English): the file paths you read for the repository (with the function or line when you know it), the Engram memories you used by title, and the OpenMetadata assets you used by name. List only sources you actually used; if the code does not answer the question, say so plainly instead of guessing.`,

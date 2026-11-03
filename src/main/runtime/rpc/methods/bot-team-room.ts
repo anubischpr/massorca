@@ -37,6 +37,7 @@ import { commitStructuredAgentSessionLaunchPrompt } from './agent-launch-structu
 import { isDefinitiveAgentSessionCreateRefusal } from '../../../../shared/agent-session-definitive-refusal'
 import { createStructuredAgentSessionForWorktree } from './structured-agent-session-create'
 import { structuredCallerFor } from './structured-agent-session-gate'
+import { botTeamRoomExcerpt } from '../../../bot-teams/bot-team-prompt-notes'
 import { BOT_TEAM_PROJECT_WORKSPACE_METHODS } from './bot-team-project-workspace'
 import { BOT_TEAM_SESSION_TEAM_METHODS } from './bot-team-session-team-methods'
 
@@ -167,7 +168,8 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
       // By id: a team unlinked from the project still keeps its task there, with the brief.
       project: task.projectId ? db.getBotTeamProject(task.projectId) : null,
       notes: db.getBotTeamTaskStartNotes(task.id),
-      memory: readBotTeamMemoryLines(db, team.id, task.ownerBotId)
+      memory: readBotTeamMemoryLines(db, team.id, task.ownerBotId),
+      roomExcerpt: botTeamRoomExcerpt(db.listBotTeamMessages(team.id), team.bots)
     }
   )
 }

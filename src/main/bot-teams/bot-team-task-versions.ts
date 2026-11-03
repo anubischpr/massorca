@@ -2,9 +2,10 @@ import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import type { OrchestrationDb } from '../runtime/orchestration/db/orchestration-db'
 import { getStructuredAgentSessionHost } from '../native-chat/agent-session-wire/structured-agent-session-registry'
-import { botTeamVersionDeps } from './bot-team-version-deps'
+import { botTeamFolderPath, botTeamVersionDeps } from './bot-team-version-deps'
 import { watchBotTeamTaskFinishes } from './bot-team-version-watcher'
 import { watchBotTeamTaskLastStatus } from './bot-team-task-status-record'
+import { reportFinishedBotTeamTask } from './bot-team-finish-report'
 import { botTeamReturnDeps, returnFinishedBotTeamTask } from './bot-team-return'
 import { takeBotTeamSnapshot } from './bot-team-snapshots'
 import type { BotTeamSnapshotDeps } from './bot-team-snapshot-types'
@@ -59,6 +60,13 @@ export function ensureBotTeamVersionWatcher(getDb: () => OrchestrationDb): void 
     workspaces.delete(sessionId)
     void saveVersionOfFinishedTask(getDb(), sessionId).catch((error: unknown) =>
       console.warn('[bot-teams] saving a version failed', error)
+    )
+    void reportFinishedBotTeamTask(getDb(), sessionId, {
+      folderOf: botTeamFolderPath,
+      settleMs: 3000,
+      sessionWorkspaceId: workspaceId
+    }).catch((error: unknown) =>
+      console.warn('[bot-teams] reporting a finished task failed', error)
     )
     // A task another team asked for tells that team's room once it is done.
     void returnFinishedBotTeamTask(getDb(), sessionId, botTeamReturnDeps(workspaceId)).catch(

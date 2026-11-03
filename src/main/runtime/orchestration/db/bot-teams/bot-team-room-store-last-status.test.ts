@@ -51,4 +51,29 @@ describe('bot team task last status', () => {
 
     expect(() => db!.setBotTeamTaskLastStatus('other-session', 'Stuck')).not.toThrow()
   })
+
+  it('keeps a parent as Stuck, not Done, while a delegated part failed to start', () => {
+    const task = startedTask('session-1')
+    const request = db!.createDelegationRequest({
+      parentSessionId: 'session-1',
+      title: 'Part',
+      summary: 'Part',
+      prompt: 'Part',
+      writes: false,
+      workspaceKind: 'folder',
+      optionsJson: '{}',
+      decisionJson: null
+    })
+    const child = db!.createBotTeamTask({
+      teamId: task.teamId,
+      title: 'Part',
+      prompt: 'Part',
+      ownerBotId: task.ownerBotId
+    })
+    db!.linkBotTeamTaskDelegation(child.id, request.id)
+    db!.transitionDelegationRequest(request.id, 'pending', 'failed', { failure: 'no model' })
+
+    db!.setBotTeamTaskLastStatus('session-1', 'Done')
+    expect(db!.getBotTeamTask(task.id).lastStatus).toBe('Stuck')
+  })
 })
