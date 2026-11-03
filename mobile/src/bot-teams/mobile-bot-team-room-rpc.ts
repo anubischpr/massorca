@@ -10,6 +10,7 @@ import {
   type BotTeamProjectInput,
   type BotTeamProjectWorkspace
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
+import type { BotTeamRoomAttachment } from '../../../src/shared/bot-team-room-attachments'
 import { isMobileMethodUnavailableError } from '../transport/mobile-method-unavailable'
 import type { RpcClient } from '../transport/rpc-client'
 
@@ -114,6 +115,8 @@ export async function postMobileBotTeamRequest(
     askProject?: boolean
     /** One id per send, reused when that send is retried, so the host posts it once. */
     clientRequestId?: string
+    /** Files from the team folder's attachments folder; sent only to a host that advertises them. */
+    attachments?: BotTeamRoomAttachment[]
   }
 ): Promise<MobileBotTeamPostResult> {
   try {

@@ -54,6 +54,10 @@ vi.mock('../hooks/use-mobile-dictation', () => ({
   useMobileDictation: () => ({ isRecording: false, start: vi.fn(), stop: vi.fn() })
 }))
 vi.mock('../session/MobileNativeChatComposer', () => ({ MobileNativeChatComposer: 'Composer' }))
+// Why: the room's capability probe also calls sendRequest; these tests count the posts they make.
+vi.mock('../transport/runtime-capability-probe', () => ({
+  startRuntimeCapabilityProbe: () => () => {}
+}))
 vi.mock('../session/MobileNativeChatMessage', () => ({ MobileNativeChatMessage: 'ChatMessage' }))
 vi.mock('./MobileBotTeamRoomQuestion', () => ({ MobileBotTeamRoomQuestions: () => null }))
 vi.mock('../session/mobile-structured-session-status-feed', () => ({
