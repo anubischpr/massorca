@@ -14,9 +14,9 @@ Boards: https://claude.ai/artifact/RSW5BkKUDK94wGd8jfYzME, boards Floating 1-3.
 
 ## Tasks
 
-- T1 S1-S3 shared session picker, Checklist tab kind, follow/pin, Prototipos focus. Route: delegated (parallel unit). Status: done, commit 1 below.
-- T2 S5 host selector and remote creation. Route: delegated (parallel unit). Status: done in code, commit 2 below; no live VPS check.
-- T3 S4 Open a session using the T1 picker. Route: inline, after T1. Status: done, commit 1 below.
+- T1 S1-S3 shared session picker, Checklist tab kind, follow/pin, Prototipos focus. Route: delegated (parallel unit). Status: done, 50952990caf.
+- T2 S5 host selector and remote creation. Route: delegated (parallel unit). Status: done in code, 741fbccdd80; no live VPS check.
+- T3 S4 Open a session using the T1 picker. Route: inline, after T1. Status: done, 50952990caf.
 
 ## Log
 
