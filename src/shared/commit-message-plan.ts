@@ -30,6 +30,8 @@ export type CommitMessagePlanInput = {
   agentArgs?: string
   /** A research turn: web search and fetch where the agent has a confirmed web-only mode, else text only. */
   webResearch?: boolean
+  /** A code question: the agent reads the checkout it runs in, where its spec has a code read mode. */
+  codeRead?: boolean
 }
 
 export type CommitMessagePlan = {
@@ -44,6 +46,8 @@ export type CommitMessagePlan = {
   outputFormat?: 'opencode-json'
   /** True when the plan lets the agent search the web; absent for a text-only plan. */
   webResearch?: true
+  /** True when the plan lets the agent read the checkout, read-only. */
+  codeRead?: true
 }
 
 export type CommitMessagePlanResult =
@@ -254,15 +258,20 @@ export function planCommitMessageGeneration(
   }
 
   const argvPrompt = spec.promptDelivery === 'argv' ? prompt : ''
+  const codeRead = input.codeRead ? spec.codeReadArgs : undefined
   const researchArgs = input.webResearch ? spec.webResearchArgs : undefined
-  const baseArgs = [
-    ...spec.buildArgs({
-      prompt: argvPrompt,
-      model: input.model,
-      thinkingLevel: input.thinkingLevel
-    }),
-    ...(researchArgs ?? [])
-  ]
+  const generated = spec.buildArgs({
+    prompt: argvPrompt,
+    model: input.model,
+    thinkingLevel: input.thinkingLevel
+  })
+  // A code turn carries its web tools in its own arguments, so they are not added twice.
+  const baseArgs = codeRead
+    ? [
+        ...generated.filter((arg) => !codeRead.drop?.includes(arg)),
+        ...codeRead.add(researchArgs !== undefined)
+      ]
+    : [...generated, ...(researchArgs ?? [])]
   const agentArgs = planAdditionalAgentArgs(input.agentArgs, input.backslash)
   if (!agentArgs.ok) {
     return agentArgs
@@ -303,6 +312,7 @@ export function planCommitMessageGeneration(
       stdinPayload: spec.promptDelivery === 'stdin' ? prompt : null,
       label: spec.label,
       ...(researchArgs ? { webResearch: true as const } : {}),
+      ...(codeRead ? { codeRead: true as const } : {}),
       ...(formatOption?.value === 'json' ? { outputFormat: 'opencode-json' as const } : {}),
       ...(command.env ? { env: command.env } : {})
     }

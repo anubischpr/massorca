@@ -275,6 +275,7 @@ export function buildSecondaryCommitMessageAgentSpecs({
       singletonOptions: [['--model'], ['--effort']],
       // Why: --print --sandbox already grounds answers with Google search (agy 1.4.12), so no flag is added.
       webResearchArgs: [],
+      // Why: no code read mode: agy 1.4.12 has no flag to limit MCP tools, so a code turn could reach a write server.
       modelSource: 'dynamic',
       modelDiscovery: { binary: 'agy', args: ['models'], parse: parseAntigravityModels },
       models: [{ id: 'default', label: 'Config default' }],

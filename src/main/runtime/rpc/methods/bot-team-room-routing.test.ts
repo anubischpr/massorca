@@ -180,7 +180,8 @@ describe('botTeams.postMessage routing', () => {
       const iris = team.bots.find((bot) => bot.name === 'Iris')
       expect(db?.listBotTeamMessages(team.id).at(-1)).toMatchObject({
         authorBotId: iris?.id,
-        text: 'Added to Todo for tomorrow.'
+        // The confirmation follows the language of the request.
+        text: 'Añadido a Todo para mañana.'
       })
     })
 
@@ -202,7 +203,7 @@ describe('botTeams.postMessage routing', () => {
       })
       const project = db?.listBotTeamProjects(team.id)[0]
       expect(result).toMatchObject({ task: { projectId: project?.id } })
-      expect(db?.listBotTeamMessages(team.id).at(-1)?.text).toBe('Added to Todo in NexusCare.')
+      expect(db?.listBotTeamMessages(team.id).at(-1)?.text).toBe('Añadido a Todo en NexusCare.')
     })
 
     it('asks which project a request is for when the team has projects and the request names none', async () => {

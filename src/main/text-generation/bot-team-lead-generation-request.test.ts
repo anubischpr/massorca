@@ -57,4 +57,30 @@ describe('queryBotTeamLead', () => {
     expect(plan.args).toContain('--no-tools')
     expect(timeoutMs).toBe(45_000)
   })
+
+  it('gives a code turn the read-only code tools and the longest timeout, without leaking the flag', async () => {
+    await queryBotTeamLead({
+      prompt: 'p',
+      params: { agentId: 'claude', model: 'sonnet' },
+      target,
+      spawnAgent,
+      codeRead: true
+    })
+    const [{ plan, timeoutMs }] = execute.mock.calls[0]
+    expect(plan.args).toEqual(expect.arrayContaining(['--tools', 'Read,Grep,Glob']))
+    expect(plan).not.toHaveProperty('codeRead')
+    expect(timeoutMs).toBe(180_000)
+  })
+
+  it('stays text-only with the short timeout for a code turn on an agent with no code read mode', async () => {
+    await queryBotTeamLead({
+      prompt: 'p',
+      params: { agentId: 'opencode', model: 'default' },
+      target,
+      spawnAgent,
+      codeRead: true
+    })
+    const [{ timeoutMs }] = execute.mock.calls[0]
+    expect(timeoutMs).toBe(45_000)
+  })
 })

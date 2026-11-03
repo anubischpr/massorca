@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { BotTeamProjectWorkspace } from '../../shared/rpc-contract/bot-team-room-params'
 import { delegationWorktreeName } from '../delegated-session/delegation-launch'
 import { isClearlyReadOnlyDelegationTask } from '../delegated-session/delegation-read-only-task'
+import { folderWorkspaceKey } from '../../shared/workspace-scope'
 import type { RpcContext } from '../runtime/rpc/core'
 import { waitForStructuredSetup } from '../runtime/rpc/methods/agent-launch-worktree-creation'
 import {
@@ -53,6 +54,32 @@ export async function prepareLinkedTaskWorkspace(
     displayName: task.taskTitle,
     parentWorktreeId: project.home.mainWorktreeId
   })
+}
+
+/**
+ * The path of a linked project's main checkout on this host, for a read-only turn; null when the
+ * project is gone, has no checkout row, or lives on a remote (SSH) host this query cannot reach.
+ */
+export async function linkedProjectReadPath(
+  source: WorkspaceProjectSource,
+  workspaceKey: string,
+  isRemoteRepo: (repoId: string) => boolean
+): Promise<string | null> {
+  const project = await findBotTeamWorkspaceProject(source, workspaceKey)
+  if (!project || (project.home.type === 'repo' && isRemoteRepo(project.home.repoId))) {
+    return null
+  }
+  const checkoutId =
+    project.home.type === 'repo' ? project.home.mainWorktreeId : project.home.workspaceId
+  const row = (await source.listWorktreeRows()).find((entry) => entry.id === checkoutId)
+  if (row) {
+    return row.path
+  }
+  // A group's folder workspace has no worktree row: its own folder is the checkout.
+  return (
+    source.listFolderWorkspaces().find((entry) => folderWorkspaceKey(entry.id) === checkoutId)
+      ?.folderPath ?? null
+  )
 }
 
 /** The host's own wiring: its repos and worktrees, and the same worktree create a delegated child uses. */

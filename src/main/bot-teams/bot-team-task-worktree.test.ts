@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from 'vitest'
 import type { FolderWorkspace } from '../../shared/folder-workspace-types'
 import type { Repo } from '../../shared/repo-types'
 import type { Worktree } from '../../shared/worktree/types'
-import { prepareLinkedTaskWorkspace, type LinkedTaskWorkspaceDeps } from './bot-team-task-worktree'
+import {
+  linkedProjectReadPath,
+  prepareLinkedTaskWorkspace,
+  type LinkedTaskWorkspaceDeps
+} from './bot-team-task-worktree'
 
 /** Why: a fixture sets only the fields the listing reads; the rest of the record is never touched. */
 function fixture<T>(fields: Partial<T>): T {
@@ -113,5 +117,26 @@ describe('prepareLinkedTaskWorkspace', () => {
     })
 
     await expect(prepareLinkedTaskWorkspace(d, TASK)).rejects.toThrow('branch exists')
+  })
+})
+
+describe('linkedProjectReadPath', () => {
+  const never = () => false
+
+  it('is the main checkout path of a linked repo, never a child worktree', async () => {
+    await expect(linkedProjectReadPath(deps().source, 'repo:repo-1', never)).resolves.toBe(
+      '/work/nexus'
+    )
+  })
+
+  it('is the folder of a folder repo', async () => {
+    await expect(linkedProjectReadPath(deps().source, 'repo:repo-2', never)).resolves.toBe('/notes')
+  })
+
+  it('is null for a repo on a remote host, and for a project that is gone', async () => {
+    await expect(
+      linkedProjectReadPath(deps().source, 'repo:repo-1', (repoId) => repoId === 'repo-1')
+    ).resolves.toBeNull()
+    await expect(linkedProjectReadPath(deps().source, 'repo:ghost', never)).resolves.toBeNull()
   })
 })

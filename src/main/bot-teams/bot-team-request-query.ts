@@ -24,6 +24,8 @@ type QueryArgs = {
   getAgentEnvResolvers: () => CommitMessageAgentEnvironmentResolvers | undefined
   /** A researched reply: web search where the agent has a web-only mode, else text only. */
   research?: boolean
+  /** A code question: the agent runs in this checkout and reads it, never writes (agents with a code read mode only). */
+  codeRead?: { cwd: string }
 }
 
 /** A bot's own agent for one reply, at the model and effort chosen for it. */
@@ -87,9 +89,13 @@ async function runAgentQuery(args: QueryArgs, bot: BotQueryAgent | null): Promis
   if (!agentId || agentId === 'custom' || !spec) {
     return null
   }
-  // Runs in the teams' folder, not the person's home, so the query has nothing else at hand.
-  const cwd = path.join(homedir(), BOT_TEAMS_FOLDER_NAME)
-  await mkdir(cwd, { recursive: true })
+  // The teams' folder, not the person's home, so a plain query has nothing else at hand; a code
+  // question runs in the project's checkout, but only where the agent can restrict itself to reading.
+  const codeRead = args.codeRead && spec.codeReadArgs ? args.codeRead : undefined
+  const cwd = codeRead?.cwd ?? path.join(homedir(), BOT_TEAMS_FOLDER_NAME)
+  if (!codeRead) {
+    await mkdir(cwd, { recursive: true })
+  }
   const target = await resolveGenerationTarget(cwd, agentId, null, { getAgentEnvResolvers })
   if (!target) {
     return null
@@ -104,6 +110,7 @@ async function runAgentQuery(args: QueryArgs, bot: BotQueryAgent | null): Promis
     },
     target,
     spawnAgent: spawnSourceControlAgent,
-    ...(args.research ? { webResearch: true } : {})
+    ...(args.research ? { webResearch: true } : {}),
+    ...(codeRead ? { codeRead: true } : {})
   })
 }

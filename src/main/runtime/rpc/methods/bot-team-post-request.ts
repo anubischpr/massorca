@@ -1,4 +1,7 @@
-import { parseBotTeamClassifyResearch } from '../../../../shared/bot-team-request-classify'
+import {
+  parseBotTeamClassifyCode,
+  parseBotTeamClassifyResearch
+} from '../../../../shared/bot-team-request-classify'
 import { withoutBotTeamMention } from '../../../../shared/bot-team-request-route'
 import type { BotTeamRequestChoice } from '../../../../shared/bot-team-request-choice'
 import {
@@ -65,7 +68,7 @@ export async function postBotTeamRequestOnHost(
   if (!team) {
     return { message, task: null, startError: null }
   }
-  // The classify reply also says whether a conversation needs outside knowledge.
+  // The classify reply also says whether a conversation needs outside knowledge or the project code.
   let classifyReply: string | null = null
   const decision = await decideBotTeamRequest({
     text,
@@ -110,7 +113,8 @@ export async function postBotTeamRequestOnHost(
       team,
       text: botTeamRoomTextWithAttachments(text, attachments),
       subjectBotIds: decision.subjectBotIds,
-      research: classifyReply !== null && parseBotTeamClassifyResearch(classifyReply)
+      research: classifyReply !== null && parseBotTeamClassifyResearch(classifyReply),
+      code: classifyReply !== null && parseBotTeamClassifyCode(classifyReply)
     })
     if (!started) {
       return { message, task: null, startError: null }

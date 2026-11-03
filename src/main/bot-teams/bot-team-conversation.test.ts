@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
 import type { BotTeamMessage, BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import {
+  botCanReadCode,
   botCanSearch,
   buildBotTeamConversationPrompt,
   chooseConversationBot,
@@ -336,5 +337,100 @@ describe('buildBotTeamConversationPrompt language, context and sources', () => {
     expect(prompt).toMatch(/cannot search the web in this turn/i)
     expect(prompt).toMatch(/say once/i)
     expect(prompt).not.toMatch(/search the web for it/i)
+  })
+
+  const choose = {
+    subjectBotIds: [] as string[],
+    busyBotIds: new Set<string>(),
+    usagePercentByAgent: new Map<string, number>(),
+    lastBotId: null as string | null
+  }
+
+  it('reads which agents can read code from their spec, Gentle Shell included', () => {
+    expect(botCanReadCode(bot('a', 'A', '', 'claude'))).toBe(true)
+    expect(botCanReadCode(bot('a', 'A', '', 'pi'))).toBe(true)
+    // Neither can limit MCP tools per tool, so a code turn could reach a write server.
+    expect(botCanReadCode(bot('a', 'A', '', 'codex'))).toBe(false)
+    expect(botCanReadCode(bot('a', 'A', '', 'antigravity'))).toBe(false)
+    expect(botCanReadCode(bot('a', 'A', '', 'opencode'))).toBe(false)
+  })
+
+  it('gives a code question to a bot that reads code, then rotates among them by usage', () => {
+    const gentle = bot('gs', 'Gs', 'Writes', 'pi')
+    const bots = [MAX, IRIS, gentle]
+    const chosen = chooseConversationBot({
+      ...choose,
+      bots,
+      subjectBotIds: ['max'],
+      code: true,
+      usagePercentByAgent: new Map([
+        ['claude', 70],
+        ['pi', 10]
+      ])
+    })
+    expect(chosen).not.toBe(MAX)
+    const free = chooseConversationBot({
+      ...choose,
+      bots,
+      code: true,
+      usagePercentByAgent: new Map([
+        ['claude', 70],
+        ['pi', 10]
+      ])
+    })
+    expect(free).toBe(gentle)
+  })
+
+  it('prefers a bot that both reads code and searches when the question needs both', () => {
+    const gentle = bot('gs', 'Gs', 'Writes', 'pi')
+    expect(
+      chooseConversationBot({ ...choose, bots: [gentle, IRIS], code: true, research: true })
+    ).toBe(IRIS)
+    expect(chooseConversationBot({ ...choose, bots: [gentle], code: true, research: true })).toBe(
+      gentle
+    )
+  })
+
+  it('falls back to every bot when none can read code', () => {
+    const open = bot('oc', 'Oc', 'Writes', 'opencode')
+    expect(chooseConversationBot({ ...choose, bots: [open], code: true })).toBe(open)
+  })
+
+  it('names the three sources in order and asks to cite them in a code prompt', () => {
+    const prompt = buildBotTeamConversationPrompt({
+      team: { name: 'Care', purpose: '' },
+      bot: IRIS,
+      bots: BOTS,
+      messages: [],
+      tasks: [],
+      text: 'How does the login work in NexusCare?',
+      codeRead: { projectName: 'NexusCare' },
+      projectContext: 'CONTEXT'
+    })
+    const order = ['1. The project code', '2. Engram', '3. OpenMetadata'].map((s) =>
+      prompt.indexOf(s)
+    )
+    expect(order).toEqual([...order].sort((a, b) => a - b))
+    expect(order.every((i) => i >= 0)).toBe(true)
+    expect(prompt).toContain('search_metadata, find_context and company_context')
+    expect(prompt).toContain('say so once')
+    expect(prompt).toContain('file paths you read')
+    expect(prompt).toContain('CONTEXT')
+  })
+
+  it('tells the bot it did not read the code, in a plain or a research prompt', () => {
+    for (const research of [false, true]) {
+      const prompt = buildBotTeamConversationPrompt({
+        team: { name: 'Care', purpose: '' },
+        bot: IRIS,
+        bots: BOTS,
+        messages: [],
+        tasks: [],
+        text: 'How does the login work?',
+        research,
+        codeNotRead: true
+      })
+      expect(prompt).toContain('you did not read the code')
+    }
   })
 })

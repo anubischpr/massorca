@@ -18,6 +18,35 @@ type PrimaryAgentSpecDeps = {
   ) => Pick<CommitMessageModel, 'thinkingLevels' | 'defaultThinkingLevel'>
 }
 
+const WEB_TOOLS = ['WebSearch', 'WebFetch']
+const CODE_READ_TOOLS = ['Read', 'Grep', 'Glob']
+// Why: the agent's own `openmetadata` read server is the only MCP allowed; the write server and any
+// mutating tool the read server lists are denied, and a denial beats an allow.
+const OPENMETADATA_READ = 'mcp__openmetadata__*'
+const MUTATING_DENIED = [
+  'mcp__openmetadata-escritura__*',
+  'mcp__openmetadata__create_entity',
+  'mcp__openmetadata__create_lineage',
+  'mcp__openmetadata__create_test_case',
+  'mcp__openmetadata__patch_entity',
+  'Bash',
+  'Edit',
+  'Write',
+  'NotebookEdit'
+]
+
+/** The Claude tool flags of a turn: `tools` are the built-ins it keeps; MCP stays the user's own, read server only. */
+function claudeToolArgs(tools: readonly string[]): string[] {
+  return [
+    '--tools',
+    tools.join(','),
+    '--allowedTools',
+    [...tools, OPENMETADATA_READ].join(','),
+    '--disallowedTools',
+    MUTATING_DENIED.join(',')
+  ]
+}
+
 export function buildPrimaryCommitMessageAgentSpecs({
   CLAUDE_THINKING_LEVELS,
   OPENAI_THINKING_LEVELS,
@@ -45,15 +74,14 @@ export function buildPrimaryCommitMessageAgentSpecs({
         'plan',
         ...(thinkingLevel ? ['--effort', thinkingLevel] : [])
       ],
-      // Why: a research turn gets the two web tools and nothing else; --strict-mcp-config keeps the
-      // user's MCP servers out, and plan mode still refuses edits.
-      webResearchArgs: [
-        '--tools',
-        'WebSearch,WebFetch',
-        '--allowedTools',
-        'WebSearch,WebFetch',
-        '--strict-mcp-config'
-      ],
+      // Why: a research turn gets the two web tools and the OpenMetadata read server; plan mode still
+      // refuses edits and the user's other MCP servers are never allowed.
+      webResearchArgs: claudeToolArgs(WEB_TOOLS),
+      // Why: a code turn also reads the checkout (Read, Grep, Glob) and keeps the user's MCP config.
+      codeReadArgs: {
+        add: (research) =>
+          claudeToolArgs(research ? [...CODE_READ_TOOLS, ...WEB_TOOLS] : CODE_READ_TOOLS)
+      },
       modelSource: 'dynamic',
       // Why: the Claude CLI has no listing subcommand; one list_models control
       // request over --print stream-json returns the /model picker catalog.
@@ -109,6 +137,7 @@ export function buildPrimaryCommitMessageAgentSpecs({
       ],
       // Why: `exec` has no --search flag; this override turns on the native web_search tool (CLI 0.159).
       webResearchArgs: ['-c', 'web_search="live"'],
+      // Why: no code read mode: Codex cannot limit MCP tools per tool, so a code turn could reach a write server.
       // `-c` is intentionally absent: Codex accepts repeated overrides.
       singletonOptions: [['--model', '-m']],
       modelSource: 'dynamic',
@@ -242,6 +271,8 @@ export function buildPrimaryCommitMessageAgentSpecs({
         ...(model && model !== 'default' ? ['--model', model] : []),
         ...(thinkingLevel ? ['--thinking', thinkingLevel] : [])
       ],
+      // Why: Pi's `--tools` allowlist (docs/cli.md) keeps only the four read-only built-ins.
+      codeReadArgs: { add: () => ['--tools', 'read,grep,find,ls'], drop: ['--no-tools'] },
       modelSource: 'dynamic',
       modelDiscovery: { binary: 'pi', args: ['--list-models'], parse: parsePiModels },
       models: [

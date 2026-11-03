@@ -14,6 +14,8 @@ import type {
 const BOT_TEAM_LEAD_TIMEOUT_MS = 45_000
 /** A researched reply is posted when it is ready, so it may search and read for longer. */
 const BOT_TEAM_RESEARCH_TIMEOUT_MS = 120_000
+/** A code question reads files across the checkout, so it may run longest. */
+export const BOT_TEAM_CODE_READ_TIMEOUT_MS = 180_000
 
 /**
  * One short non-interactive agent call. Null on any failure, so the room asks the person.
@@ -25,12 +27,15 @@ export async function queryBotTeamLead(input: {
   target: CommitMessageGenerationTarget
   spawnAgent: SpawnSourceControlAgent
   webResearch?: boolean
+  /** Read-only code reading where the agent has a code read mode, else text only. */
+  codeRead?: boolean
 }): Promise<string | null> {
   const planned = planCommitMessageGeneration(
     {
       ...input.params,
       backslash: commandBackslashMode(input.target),
-      ...(input.webResearch ? { webResearch: true } : {})
+      ...(input.webResearch ? { webResearch: true } : {}),
+      ...(input.codeRead ? { codeRead: true } : {})
     },
     input.prompt
   )
@@ -38,7 +43,7 @@ export async function queryBotTeamLead(input: {
     return null
   }
   // The marker is local: the plan that reaches a remote relay keeps its old shape.
-  const { webResearch, ...plan } = planned.plan
+  const { webResearch, codeRead, ...plan } = planned.plan
   const result = await executeGenerationPlan({
     params: input.params,
     plan,
@@ -46,7 +51,11 @@ export async function queryBotTeamLead(input: {
     spawnAgent: input.spawnAgent,
     emptyResultName: 'team lead choice',
     operation: 'reply-suggestion',
-    timeoutMs: webResearch ? BOT_TEAM_RESEARCH_TIMEOUT_MS : BOT_TEAM_LEAD_TIMEOUT_MS
+    timeoutMs: codeRead
+      ? BOT_TEAM_CODE_READ_TIMEOUT_MS
+      : webResearch
+        ? BOT_TEAM_RESEARCH_TIMEOUT_MS
+        : BOT_TEAM_LEAD_TIMEOUT_MS
   })
   return result.success ? cleanGeneratedCommitMessage(result.rawOutput) : null
 }

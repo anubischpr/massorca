@@ -56,6 +56,15 @@ export type CommitMessageAgentSpec = {
   /** Appended for a research turn: web search and fetch only, never shell, file writes or MCP.
    *  Set only where the CLI has a confirmed web-only mode and takes its prompt on stdin. */
   webResearchArgs?: readonly string[]
+  /**
+   * A code question: the agent reads the checkout it runs in and edits or runs nothing. `add` is
+   * appended (it carries the web tools itself when `research` is set, so the plan adds no separate
+   * research args); `drop` lists base arguments the mode replaces. Absent: the agent cannot read code.
+   */
+  codeReadArgs?: {
+    add: (research: boolean) => readonly string[]
+    drop?: readonly string[]
+  }
   /** Alias groups the CLI accepts at most once. Recipe CLI arguments repeating one
    *  replace the generated flag instead of being appended: yargs-based CLIs collapse
    *  a repeated flag into an array and crash. Defaults to the model flag alone. */

@@ -8,6 +8,7 @@ import type {
   BotTeamProject
 } from '../../../../shared/rpc-contract/bot-team-room-params'
 import {
+  botCanReadCode,
   botCanSearch,
   buildBotTeamConversationPrompt,
   chooseConversationBot,
@@ -22,6 +23,8 @@ import {
   ENGRAM_CONTEXT_MAX_ENTRIES
 } from '../../../bot-teams/bot-team-reply-context'
 import { askBotAgentForBotTeamReply } from '../../../bot-teams/bot-team-request-query'
+import { workspaceProjectSource } from '../../../bot-teams/bot-team-project-workspace'
+import { linkedProjectReadPath } from '../../../bot-teams/bot-team-task-worktree'
 import { rankDelegationAgents } from '../../../delegated-session/delegation-agent-ranking'
 import { delegationUsageCandidates } from '../../../delegated-session/delegation-usage-input'
 import { mainI18n } from '../../../i18n/main-i18n'
@@ -64,15 +67,15 @@ async function readEngramLines(project: string): Promise<readonly BotTeamEngramM
 }
 
 /**
- * The named project, read for the reply. A research question gets its brief only; a room answer gets
- * its tasks, the team's and the bot's memory, and its Engram lines (read only, never imported here).
+ * The named project, read for the reply. A research question gets its brief only; a room or code
+ * answer gets its tasks, the team's and the bot's memory, and its Engram lines (read only, never imported here).
  */
 async function projectContextOf(
   ctx: RpcContext,
-  args: { team: BotTeam; bot: BotTeamBot; project: BotTeamProject; research: boolean }
+  args: { team: BotTeam; bot: BotTeamBot; project: BotTeamProject; briefOnly: boolean }
 ): Promise<string> {
   const { team, bot, project } = args
-  if (args.research) {
+  if (args.briefOnly) {
     return botTeamProjectContext({
       project,
       tasks: [],
@@ -100,12 +103,30 @@ async function projectContextOf(
   })
 }
 
+/** Whether a repo lives on an SSH host, which a read-only checkout turn here cannot reach. */
+function remoteRepoTest(ctx: RpcContext): (repoId: string) => boolean {
+  const remote = new Set(
+    ctx.runtime
+      .listRepos()
+      .filter((repo) => repo.connectionId)
+      .map((repo) => repo.id)
+  )
+  return (repoId) => remote.has(repoId)
+}
+
 /** Asks the chosen bot's agent once; null when nothing came back. */
 async function askConversationBot(
   ctx: RpcContext,
-  args: { team: BotTeam; bot: BotTeamBot; text: string; research: boolean }
+  args: {
+    team: BotTeam
+    bot: BotTeamBot
+    text: string
+    research: boolean
+    code: boolean
+    project: BotTeamProject | null
+  }
 ): Promise<string | null> {
-  const { team, bot, research } = args
+  const { team, bot, research, project } = args
   // A Gentle Shell bot answers through Gentle Shell itself, never stock Pi or another agent.
   const piRuntime = botAgentPiRuntime(bot.agent)
   const own = {
@@ -116,13 +137,20 @@ async function askConversationBot(
   const db = ctx.runtime.getOrchestrationDb()
   // Only a bot whose agent can search runs a web search; any other says once that it could not.
   const canSearch = research && botCanSearch(bot)
+  // A code question reads the linked project's main checkout, only with an agent that can read
+  // read-only; anything else answers from the context and says the code was not read.
+  const checkout =
+    args.code && project?.workspace && botCanReadCode(bot)
+      ? await linkedProjectReadPath(
+          workspaceProjectSource(ctx.runtime),
+          project.workspace.key,
+          remoteRepoTest(ctx)
+        )
+      : null
+  const codeNotRead = args.code && checkout === null
   // With no project named nothing is read, so the query goes out at once.
-  const project = findNamedProject(
-    args.text,
-    db.listBotTeamProjects(team.id, { includeLinked: true })
-  )
   const projectContext = project
-    ? await projectContextOf(ctx, { team, bot, project, research })
+    ? await projectContextOf(ctx, { team, bot, project, briefOnly: research && !args.code })
     : null
   return cleanConversationReply(
     await askBotAgentForBotTeamReply({
@@ -135,14 +163,17 @@ async function askConversationBot(
         text: args.text,
         research,
         canSearch,
-        projectContext
+        projectContext,
+        ...(checkout !== null && project ? { codeRead: { projectName: project.name } } : {}),
+        ...(codeNotRead ? { codeNotRead: true } : {})
       }),
       agent: own,
       settings: ctx.runtime.getClientSettings(),
       getAgentEnvResolvers: () => ctx.runtime.getCommitMessageAgentEnvironmentResolvers(),
-      research: canSearch
+      research: canSearch,
+      ...(checkout !== null ? { codeRead: { cwd: checkout } } : {})
     }),
-    { research }
+    { research: research || args.code }
   )
 }
 
@@ -153,7 +184,14 @@ async function askConversationBot(
  */
 export function startBotTeamConversationReply(
   ctx: RpcContext,
-  args: { team: BotTeam; text: string; subjectBotIds: readonly string[]; research?: boolean }
+  args: {
+    team: BotTeam
+    text: string
+    subjectBotIds: readonly string[]
+    research?: boolean
+    /** The classifier marked a question about a project's code. */
+    code?: boolean
+  }
 ): { botId: string; done: Promise<BotTeamMessage> } | null {
   const { team, text } = args
   if (team.bots.length === 0) {
@@ -161,20 +199,23 @@ export function startBotTeamConversationReply(
   }
   const db = ctx.runtime.getOrchestrationDb()
   const research = args.research === true
+  const code = args.code === true
+  const project = findNamedProject(text, db.listBotTeamProjects(team.id, { includeLinked: true }))
   const bot = chooseConversationBot({
     bots: team.bots,
     subjectBotIds: args.subjectBotIds,
     busyBotIds: answering,
     usagePercentByAgent: usagePercentByAgent(ctx, team.bots),
     lastBotId: lastToAnswer.get(team.id) ?? null,
-    research
+    research,
+    code: code && Boolean(project?.workspace)
   })
   answering.add(bot.id)
   lastToAnswer.set(team.id, bot.id)
   markBotTeamReplying(team.id, bot.id)
   const settle = async (): Promise<BotTeamMessage> => {
     try {
-      const reply = await askConversationBot(ctx, { team, bot, text, research })
+      const reply = await askConversationBot(ctx, { team, bot, text, research, code, project })
       if (reply) {
         return db.postBotTeamMessage({ teamId: team.id, authorBotId: bot.id, text: reply })
       }

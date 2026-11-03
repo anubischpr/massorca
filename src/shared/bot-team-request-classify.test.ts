@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildBotTeamClassifyPrompt,
+  parseBotTeamClassifyCode,
   parseBotTeamClassifyLater,
   parseBotTeamClassifyResearch,
   parseBotTeamClassifyReply
@@ -146,5 +147,31 @@ describe('parseBotTeamClassifyReply', () => {
     const prompt = buildBotTeamClassifyPrompt({ name: 'T', purpose: '' }, [], [], 'x')
     expect(prompt).toContain('"research":true')
     expect(prompt).toContain('Greetings')
+  })
+
+  it('reads a code question in Spanish and in English, false unless the reply says so', () => {
+    for (const request of [
+      '¿cómo funciona el login de NexusCare?',
+      'How does the login work in NexusCare?'
+    ]) {
+      const reply = `{"kind":"conversation","bots":[],"code":true} for ${request}`
+      expect(parseBotTeamClassifyCode(reply), request).toBe(true)
+    }
+    expect(parseBotTeamClassifyCode('{"kind":"conversation"}')).toBe(false)
+    expect(parseBotTeamClassifyCode('{"kind":"conversation","code":"yes"}')).toBe(false)
+    expect(parseBotTeamClassifyCode('not json')).toBe(false)
+  })
+
+  it('reads a question that needs both the code and the web', () => {
+    const reply = '{"kind":"conversation","code":true,"research":true}'
+    expect(parseBotTeamClassifyCode(reply)).toBe(true)
+    expect(parseBotTeamClassifyResearch(reply)).toBe(true)
+    expect(parseBotTeamClassifyReply(reply, input)).toEqual({ kind: 'conversation', botIds: [] })
+  })
+
+  it('tells the query when a conversation is a code question, with both languages as examples', () => {
+    const prompt = buildBotTeamClassifyPrompt({ name: 'T', purpose: '' }, [], [], 'x')
+    expect(prompt).toContain('"code":true')
+    expect(prompt).toContain('¿cómo funciona el login de NexusCare?')
   })
 })
