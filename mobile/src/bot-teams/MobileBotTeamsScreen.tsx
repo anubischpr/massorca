@@ -31,6 +31,7 @@ import {
   setBotCharacterAnimations,
   useBotCharacterAnimations
 } from './mobile-bot-character-preference'
+import { MobileBotTeamWaitingMark } from './MobileBotTeamRoomMark'
 import { useMobileBotTeamStatus } from './use-mobile-bot-team-status'
 
 const HOST_CHECK_MS = 20_000
@@ -86,6 +87,7 @@ function TeamCarousel({
           <Text style={styles.carouselName} numberOfLines={1}>
             {team.name}
           </Text>
+          {statusOf(team.id) === 'Waiting for you' ? <MobileBotTeamWaitingMark /> : null}
         </Pressable>
       ))}
     </ScrollView>

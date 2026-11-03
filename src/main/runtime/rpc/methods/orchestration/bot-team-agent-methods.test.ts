@@ -26,6 +26,43 @@ describe('requireBotTeamCallerTask', () => {
   })
 })
 
+describe('botTeamDelegationProject', () => {
+  it('keeps a project another team owns and linked to the caller, even archived', async () => {
+    const { OrchestrationDb } = await import('../../../orchestration/db/orchestration-db')
+    const { botTeamDelegationProject } = await import('./bot-team-agent-methods')
+    const open = new OrchestrationDb(':memory:')
+    try {
+      const make = (name: string) =>
+        open.createBotTeam({
+          name,
+          purpose: '',
+          character: 'circle',
+          workspacesEnabled: false,
+          bots: [{ name: `${name} bot`, job: '', agent: 'claude' }]
+        })
+      const marketing = make('Marketing')
+      const development = make('Development')
+      const project = open.createBotTeamProject({
+        teamId: marketing.id,
+        name: 'NexusCare',
+        goal: '',
+        codeSource: null,
+        linkedTeamIds: [development.id]
+      })
+      open.setBotTeamProjectArchived(project.id, true)
+      const caller = { ...TASK, teamId: development.id, projectId: project.id }
+
+      expect(botTeamDelegationProject(open, caller, development.id)?.id).toBe(project.id)
+      expect(botTeamDelegationProject(open, caller, marketing.id)).toBeNull()
+      expect(
+        botTeamDelegationProject(open, { ...caller, projectId: null }, development.id)
+      ).toBeNull()
+    } finally {
+      open.close()
+    }
+  })
+})
+
 describe('orchestration.botTeamTaskCreate', () => {
   it('files the new card in the project of the task that made it', async () => {
     const { OrchestrationDb } = await import('../../../orchestration/db/orchestration-db')

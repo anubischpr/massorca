@@ -16,7 +16,7 @@ function statusDotColor(status: string): string {
   if (status === 'Working' || status === 'Done') {
     return colors.statusGreen
   }
-  return status === 'Waiting for you' ? colors.statusAmber : colors.textMuted
+  return status === 'Waiting for you' ? colors.statusOrange : colors.textMuted
 }
 
 /** A task's owner, project and status; it opens in its workspace, and only the room starts it. */
@@ -48,7 +48,12 @@ export function MobileBotTeamTaskCard({
   const status = statusOf(task)
   const [reassigning, setReassigning] = useState(false)
   return (
-    <View style={[styles.taskCard, status === 'Waiting for you' && styles.taskCardWaiting]}>
+    <View
+      style={[
+        styles.taskCard,
+        status === 'Waiting for you' && { borderColor: colors.statusOrange }
+      ]}
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Open ${task.title}`}

@@ -55,6 +55,7 @@ vi.mock('../hooks/use-mobile-dictation', () => ({
 }))
 vi.mock('../session/MobileNativeChatComposer', () => ({ MobileNativeChatComposer: 'Composer' }))
 vi.mock('../session/MobileNativeChatMessage', () => ({ MobileNativeChatMessage: 'ChatMessage' }))
+vi.mock('./MobileBotTeamRoomQuestion', () => ({ MobileBotTeamRoomQuestions: () => null }))
 vi.mock('../session/mobile-structured-session-status-feed', () => ({
   mobileStructuredSessionStatusFeed: () => ({
     subscribe: () => () => {},
@@ -206,7 +207,13 @@ describe('MobileBotTeamRoom', () => {
 
     expect(client.sendRequest).toHaveBeenCalledWith(
       'botTeams.postMessage',
-      { teamId: 'team', text: 'Hi', start: true, askProject: true },
+      {
+        teamId: 'team',
+        text: 'Hi',
+        start: true,
+        askProject: true,
+        clientRequestId: expect.any(String)
+      },
       expect.anything()
     )
   })
@@ -237,6 +244,68 @@ describe('MobileBotTeamRoom', () => {
     })
     expect(composer().props.value).toBe('Hi')
     expect(renderer.root.findAll((node) => node.children.includes('All is typing'))).toHaveLength(0)
+  })
+
+  it('keeps the typing line while the host reports the reply in flight, polling faster, then clears it', async () => {
+    vi.useFakeTimers()
+    try {
+      let replying: { botId: string; since: number }[] = [{ botId: 'bot', since: 1 }]
+      const sendRequest = vi.fn(async (method: string) =>
+        method === 'botTeams.listRoom'
+          ? { ok: true, result: { tasks: [], messages: [], workspaceId: null, replying } }
+          : { ok: true, result: { task: null, startError: null, replying: { botId: 'bot' } } }
+      )
+      const renderer = await render({ sendRequest })
+      const typing = () =>
+        renderer.root.findAll((node) => node.children.includes('Iris is typing')).length
+      await act(async () => {
+        await renderer.root.findByType('Composer' as never).props.onSend('Qué es Jev AI?')
+      })
+      expect(typing()).toBeGreaterThan(0)
+      expect(
+        renderer.root.findAll((n) => n.children.includes('Who should take this?'))
+      ).toHaveLength(0)
+      const reads = () => sendRequest.mock.calls.filter(([m]) => m === 'botTeams.listRoom').length
+      const before = reads()
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3_100)
+      })
+      expect(reads()).toBeGreaterThanOrEqual(before + 2)
+      expect(typing()).toBeGreaterThan(0)
+      replying = []
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_600)
+      })
+      expect(typing()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('sends one id per send and reuses it when the same send is retried', async () => {
+    let posts = 0
+    const sendRequest = vi.fn(async (method: string) => {
+      if (method === 'botTeams.listRoom') {
+        return { ok: true, result: { tasks: [], messages: [], workspaceId: null } }
+      }
+      if (posts++ === 0) {
+        return { ok: false, error: { code: 'unavailable', message: 'gone' } }
+      }
+      return { ok: true, result: { task: null, startError: null, answered: true } }
+    })
+    const renderer = await render({ sendRequest })
+    const send = (text: string) =>
+      act(async () => {
+        await renderer.root.findByType('Composer' as never).props.onSend(text)
+      })
+    await send('Hola equipo')
+    await send('Hola equipo')
+    await send('Hola equipo')
+    const ids = sendRequest.mock.calls
+      .filter(([m]) => m === 'botTeams.postMessage')
+      .map(([, params]) => (params as { clientRequestId: string }).clientRequestId)
+    expect(ids[1]).toBe(ids[0])
+    expect(ids[2]).not.toBe(ids[0])
   })
 
   it('reaches the bots from the room menu and goes back', async () => {
@@ -354,9 +423,7 @@ describe('MobileBotTeamRoom', () => {
       { tasks: [], messages: [], projects: [], workspaceId: 'folder:1' },
       ['flyer.md']
     )
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await act(async () => {
       renderer.root.findByType('Composer' as never).props.onNeedFiles('')
       await new Promise((resolve) => setTimeout(resolve, 200))
@@ -537,9 +604,7 @@ describe('MobileBotTeamRoom', () => {
       { tasks: [], messages: [], projects: [], workspaceId: null },
       { task: null, choice: { kind: 'other-team', teamId: 'team_2' } }
     )
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await act(async () => {
       await renderer.root.findByType('Composer' as never).props.onSend('Inventory?')
     })
@@ -564,9 +629,7 @@ describe('MobileBotTeamRoom', () => {
       { tasks: [], messages: [], projects: [], workspaceId: null },
       { task: null, choice: { kind: 'other-team', teamId: 'team_2' } }
     )
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await act(async () => {
       await renderer.root.findByType('Composer' as never).props.onSend('Hi')
     })
@@ -633,9 +696,7 @@ describe('MobileBotTeamRoom', () => {
   it('says the request did not send when the host refuses it', async () => {
     vi.mocked(Alert.alert).mockClear()
     const client = hostRefusingFilings({ choice: { kind: 'new-team' } })
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await act(async () => {
       await renderer.root.findByType('Composer' as never).props.onSend('Taxes')
     })
@@ -664,9 +725,7 @@ describe('MobileBotTeamRoom', () => {
         return { ok: false, error: { code: 'method_not_found', message: 'nope' } }
       })
     }
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await act(async () => {
       await renderer.root.findByType('Composer' as never).props.onSend('Taxes')
     })
@@ -687,9 +746,7 @@ describe('MobileBotTeamRoom', () => {
           : { ok: false, error: { code: 'method_not_found', message: 'nope' } }
       )
     }
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await press(renderer, 'Reassign')
     await press(renderer, 'Give to Max')
     await settle()
@@ -706,9 +763,7 @@ describe('MobileBotTeamRoom', () => {
       projects: [],
       workspaceId: null
     })
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await press(renderer, 'Reassign')
     const sheet = JSON.stringify(renderer.toJSON())
     expect(sheet).toContain('Who should own Flyer?')
@@ -737,9 +792,7 @@ describe('MobileBotTeamRoom', () => {
       projects: [],
       workspaceId: null
     })
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await press(renderer, 'Reassign')
     await press(renderer, 'Cancel')
     expect(JSON.stringify(renderer.toJSON())).not.toContain('Who should own')
@@ -758,9 +811,7 @@ describe('MobileBotTeamRoom', () => {
       projects: [],
       workspaceId: 'folder:1'
     })
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     expect(JSON.stringify(renderer.toJSON())).not.toContain('Reassign')
   })
 
@@ -773,9 +824,7 @@ describe('MobileBotTeamRoom', () => {
           : { ok: false, error: { code: 'internal', message: 'nope' } }
       )
     }
-    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), {
-      teams: [TEAM, OTHER_TEAM]
-    })
+    const renderer = await render(client, vi.fn(), vi.fn(), vi.fn(), { teams: [TEAM, OTHER_TEAM] })
     await press(renderer, 'Reassign')
     await press(renderer, 'Give to Max')
     await settle()

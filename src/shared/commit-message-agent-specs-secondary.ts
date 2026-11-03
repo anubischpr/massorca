@@ -273,6 +273,8 @@ export function buildSecondaryCommitMessageAgentSpecs({
         ...(thinkingLevel ? ['--effort', thinkingLevel] : [])
       ],
       singletonOptions: [['--model'], ['--effort']],
+      // Why: --print --sandbox already grounds answers with Google search (agy 1.4.12), so no flag is added.
+      webResearchArgs: [],
       modelSource: 'dynamic',
       modelDiscovery: { binary: 'agy', args: ['models'], parse: parseAntigravityModels },
       models: [{ id: 'default', label: 'Config default' }],

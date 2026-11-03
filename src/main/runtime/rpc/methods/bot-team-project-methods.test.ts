@@ -111,6 +111,18 @@ describe('bot team project methods', () => {
     expect(db.listBotTeamProjects(marketing.id)).toHaveLength(1)
   })
 
+  it('saves nothing when a linked team does not exist', () => {
+    const { marketing, project } = shared()
+
+    expect(() =>
+      botTeamUpdateProjectMethod.handler(
+        { projectId: project.id, teamId: marketing.id, name: 'Renamed', linkedTeamIds: ['gone'] },
+        ctx
+      )
+    ).toThrow('Team gone was not found.')
+    expect(db.getBotTeamProject(project.id).name).toBe('NexusCare')
+  })
+
   it('lets a linked team edit but never take the owner out or add itself as owner', async () => {
     const { marketing, development, project } = shared()
 

@@ -1,5 +1,9 @@
 import { OrchestrationError } from '../../../orchestration/orchestration-error'
-import type { BotTeamTask } from '../../../../../shared/rpc-contract/bot-team-room-params'
+import type {
+  BotTeamProject,
+  BotTeamTask
+} from '../../../../../shared/rpc-contract/bot-team-room-params'
+import type { OrchestrationDb } from '../../../orchestration/db/orchestration-db'
 import {
   BotTeamAgentDelegate,
   BotTeamAgentPost,
@@ -31,6 +35,22 @@ export function requireBotTeamCallerTask(
   return task
 }
 
+/** The caller's project, which only a teammate on the same team works under; shared and archived count. */
+export function botTeamDelegationProject(
+  db: OrchestrationDb,
+  caller: Pick<BotTeamTask, 'teamId' | 'projectId'>,
+  teamId: string
+): BotTeamProject | null {
+  if (teamId !== caller.teamId || !caller.projectId) {
+    return null
+  }
+  return (
+    db
+      .listBotTeamProjects(teamId, { includeLinked: true, includeArchived: true })
+      .find((entry) => entry.id === caller.projectId) ?? null
+  )
+}
+
 export const ORCHESTRATION_BOT_TEAM_METHODS = [
   defineMethod({
     name: 'orchestration.botTeamDelegate',
@@ -49,11 +69,7 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
           { effectsApplied: false }
         )
       }
-      // The teammate works under the caller's project, which only a teammate on the same team can.
-      const project =
-        team.id === caller.teamId && caller.projectId
-          ? (db.listBotTeamProjects(team.id).find((entry) => entry.id === caller.projectId) ?? null)
-          : null
+      const project = botTeamDelegationProject(db, caller, team.id)
       await runtime.ensureStructuredAgentSessionHost()
       return {
         task: await delegateToBotTeammate(

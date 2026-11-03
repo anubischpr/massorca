@@ -1,17 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, Play } from 'lucide-react'
+import { ChevronLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRightSidebarPageTarget } from '../../app-shell/right-sidebar-page-slot'
-import StatusIndicator from '@/components/sidebar/StatusIndicator'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import NativeChatView from '@/components/native-chat/NativeChatView'
 import { botTeamHostTarget, useBotTeamHost } from '@/runtime/bot-team-host'
 import { translate } from '@/i18n/i18n'
@@ -35,12 +27,16 @@ import { BotAgentIcon } from './BotAgentIcon'
 import { BotTeamAllAuthor } from './BotTeamAllAuthor'
 import { BotTeamTypingLine } from './BotTeamTypingLine'
 import { botTeamTypingAuthor } from '../../../../shared/bot-team-typing'
+import { useBotTeamReplying } from './BotTeamRoomReplying'
 import { BotTeamReassignButton } from './BotTeamReassignButton'
 import { BotTeamPendingChoice, type BotTeamPendingChoiceRequest } from './BotTeamPendingChoice'
 import { BotTeamRoomComposer } from './BotTeamRoomComposer'
+import { BotTeamTaskCard } from './BotTeamTaskCard'
+import { BotTeamRoomQuestion } from './BotTeamRoomQuestion'
 import { BotTeamRoomSidePanel } from './BotTeamRoomSidePanel'
-import { botTeamTaskGlyph, botTeamTaskLabel } from './bot-team-task-status-display'
 import { placeBotTeamRoomTasks } from '../../../../shared/bot-team-room-order'
+import { NativeChatJumpToLatest } from '../native-chat/NativeChatJumpToLatest'
+import { useBotTeamRoomScroll } from './use-bot-team-room-scroll'
 
 const NO_PROJECT = 'none'
 const NO_TEAMS: readonly BotTeam[] = []
@@ -124,8 +120,14 @@ export function BotTeamRoom({
   const [pending, setPending] = useState<BotTeamPendingChoiceRequest | null>(null)
   // The text with the host, if any; the room shows who is typing until the reply comes back.
   const [typing, setTyping] = useState<string | null>(null)
+  const replying = useBotTeamReplying(team.bots)
+  const readReplying = replying.readRoom
   const sidePanel = useRightSidebarPageTarget()
   const statuses = useBotTeamSessionStatuses()
+  const scroll = useBotTeamRoomScroll({
+    teamId: team.id,
+    hasContent: messages.length > 0 || tasks.length > 0
+  })
   const botOf = (botId: string | null) => team.bots.find((bot) => bot.id === botId)
 
   const latestRead = useRef(0)
@@ -139,6 +141,7 @@ export function BotTeamRoom({
           setMessages(room.messages)
           setTasks(room.tasks)
           setProjects(room.projects ?? [])
+          readReplying(room.replying)
         }
       },
       (error: unknown) => {
@@ -147,7 +150,7 @@ export function BotTeamRoom({
         }
       }
     )
-  }, [team.id])
+  }, [team.id, readReplying])
 
   useEffect(reload, [reload])
   // Catches up on what happened while the host was out of reach.
@@ -157,9 +160,9 @@ export function BotTeamRoom({
     }
     reload()
     // Bots post and add tasks on their own; the host has no push for the room.
-    const timer = window.setInterval(reload, ROOM_CHECK_MS)
+    const timer = window.setInterval(reload, replying.pollMs ?? ROOM_CHECK_MS)
     return () => window.clearInterval(timer)
-  }, [offline, reload])
+  }, [offline, reload, replying.pollMs])
 
   const send = async (text: string): Promise<boolean> => {
     if (sending.current) {
@@ -174,9 +177,13 @@ export function BotTeamRoom({
         teamId: team.id,
         text,
         start: true,
-        askProject: true
+        askProject: true,
+        clientRequestId: replying.requestIdFor(text)
       })
-      setNeedsOwner(sent.task === null && !sent.greeted && !sent.choice && !sent.answered)
+      replying.settle(sent.replying?.botId ?? null)
+      setNeedsOwner(
+        sent.task === null && !sent.greeted && !sent.choice && !sent.answered && !sent.replying
+      )
       setPending(
         sent.choice ? { choice: sent.choice, text, ...(sent.later ? { later: true } : {}) } : null
       )
@@ -219,6 +226,8 @@ export function BotTeamRoom({
     }
   }
 
+  // A send with the host shows who is typing; once it returns, the host's reply in flight does.
+  const typingAuthor = typing === null ? replying.author : botTeamTypingAuthor(typing, team.bots)
   const statusOf = (task: BotTeamTask): BotTeamTaskStatus =>
     botTeamTaskStatus(
       task.sessionId,
@@ -250,151 +259,110 @@ export function BotTeamRoom({
     )
   }
 
-  const taskCard = (task: BotTeamTask): React.JSX.Element => {
-    const owner = botOf(task.ownerBotId)
-    return (
-      <div key={task.id} className="flex items-center gap-3 rounded-lg border border-border p-3">
-        <BotAgentIcon agent={owner?.agent} size={20} />
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-medium">{task.title}</div>
-          <div className="truncate text-xs text-muted-foreground">{owner?.name}</div>
-        </div>
-        <span className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-          <StatusIndicator status={botTeamTaskGlyph(statusOf(task))} showTooltip={false} />
-          {botTeamTaskLabel(
-            botTeamTaskStatus(
-              task.sessionId,
-              task.sessionId === null ? undefined : statuses.get(task.sessionId)
-            )
-          )}
-          {offline && task.sessionId !== null
-            ? translate('components.botTeams.cannotConfirm', ', can’t confirm now')
-            : ''}
-        </span>
-        {projects.length > 0 ? (
-          <Select
-            value={task.projectId ?? NO_PROJECT}
-            disabled={offline}
-            onValueChange={(next) => void moveTask(task.id, next)}
-          >
-            <SelectTrigger
-              size="sm"
-              aria-label={translate('components.botTeams.projectForTask', 'Project for this task')}
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_PROJECT}>
-                {translate('components.botTeams.noProject', 'No project')}
-              </SelectItem>
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : null}
-        {reassignButton(task)}
-        {task.sessionId === null ? (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={offline}
-            onClick={() => void startTask(task.id)}
-          >
-            <Play className="size-3.5" />
-            {translate('components.botTeams.start', 'Start')}
-          </Button>
-        ) : (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={offline}
-            onClick={() => onOpenTask(task.id)}
-          >
-            {translate('components.botTeams.open', 'Open')}
-          </Button>
-        )}
-      </div>
-    )
-  }
+  const taskCard = (task: BotTeamTask): React.JSX.Element => (
+    <BotTeamTaskCard
+      key={task.id}
+      task={task}
+      owner={botOf(task.ownerBotId)}
+      status={statusOf(task)}
+      projects={projects}
+      offline={offline}
+      reassign={reassignButton(task)}
+      onMove={(next) => void moveTask(task.id, next)}
+      onStart={() => void startTask(task.id)}
+      onOpen={() => onOpenTask(task.id)}
+    />
+  )
   return (
     <div className="flex h-full min-h-0 flex-1">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {header}
-        <div className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto">
-          <div className="mx-auto flex w-full max-w-[736px] flex-col gap-5 px-4 py-6">
-            {messages.length === 0 && tasks.length === 0 ? (
-              <div className="py-12 text-center">
-                <h2 className="text-lg font-semibold">
-                  {translate('components.botTeams.askTeam', 'Ask {{team}} for something', {
-                    team: team.name
-                  })}
-                </h2>
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <div
+            ref={scroll.attachScroll}
+            onScroll={scroll.onScroll}
+            className="scrollbar-sleek min-h-0 flex-1 overflow-y-auto"
+          >
+            <div
+              ref={scroll.attachContent}
+              className="mx-auto flex w-full max-w-[736px] flex-col gap-5 px-4 py-6"
+            >
+              {messages.length === 0 && tasks.length === 0 ? (
+                <div className="py-12 text-center">
+                  <h2 className="text-lg font-semibold">
+                    {translate('components.botTeams.askTeam', 'Ask {{team}} for something', {
+                      team: team.name
+                    })}
+                  </h2>
+                  <p className="text-xs text-muted-foreground">
+                    {translate(
+                      'components.botTeams.askTeamHelp',
+                      'Each request becomes one or more tasks.'
+                    )}
+                  </p>
+                </div>
+              ) : null}
+              {messages.map((message) => {
+                const author = botOf(message.authorBotId)
+                const fromAll = message.authorBotId === BOT_TEAM_ALL_AUTHOR
+                return (
+                  <div key={message.id} className="flex flex-col gap-3">
+                    {author ? (
+                      <div className="flex items-center gap-2 text-[13px] font-medium">
+                        <BotAgentIcon agent={author.agent} size={16} />
+                        {author.name}
+                      </div>
+                    ) : null}
+                    {fromAll ? <BotTeamAllAuthor bots={team.bots} /> : null}
+                    <div
+                      className={
+                        author || fromAll
+                          ? 'whitespace-pre-wrap text-sm leading-relaxed text-foreground/80'
+                          : 'max-w-[80%] self-end whitespace-pre-wrap rounded-xl border border-border bg-muted px-3.5 py-2.5 text-sm leading-relaxed'
+                      }
+                    >
+                      {message.text}
+                    </div>
+                    {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
+                  </div>
+                )
+              })}
+              {placement.trailing.map(taskCard)}
+              {tasks.map((task) => {
+                const bot = botOf(task.ownerBotId)
+                return bot && task.sessionId !== null && statusOf(task) === 'Waiting for you' ? (
+                  <BotTeamRoomQuestion key={task.id} task={task} bot={bot} />
+                ) : null
+              })}
+              {typingAuthor ? <BotTeamTypingLine author={typingAuthor} bots={team.bots} /> : null}
+              {pending ? (
+                <BotTeamPendingChoice
+                  pending={pending}
+                  team={team}
+                  otherTeams={otherTeams}
+                  projects={projects}
+                  onAsked={(choice) =>
+                    setPending((current) => (current ? { ...current, choice } : current))
+                  }
+                  onFiled={() => {
+                    setPending(null)
+                    reload()
+                  }}
+                  onCreateBot={() => onCreateBot?.()}
+                  onCreateTeam={() => onCreateTeam?.()}
+                />
+              ) : null}
+              {needsOwner ? (
                 <p className="text-xs text-muted-foreground">
                   {translate(
-                    'components.botTeams.askTeamHelp',
-                    'Each request becomes one or more tasks.'
+                    'components.botTeams.whoTakesIt',
+                    'Who should take this? Mention a bot with @ and its name.'
                   )}
                 </p>
-              </div>
-            ) : null}
-            {messages.map((message) => {
-              const author = botOf(message.authorBotId)
-              const fromAll = message.authorBotId === BOT_TEAM_ALL_AUTHOR
-              return (
-                <div key={message.id} className="flex flex-col gap-3">
-                  {author ? (
-                    <div className="flex items-center gap-2 text-[13px] font-medium">
-                      <BotAgentIcon agent={author.agent} size={16} />
-                      {author.name}
-                    </div>
-                  ) : null}
-                  {fromAll ? <BotTeamAllAuthor bots={team.bots} /> : null}
-                  <div
-                    className={
-                      author || fromAll
-                        ? 'whitespace-pre-wrap text-sm leading-relaxed text-foreground/80'
-                        : 'max-w-[80%] self-end whitespace-pre-wrap rounded-xl border border-border bg-muted px-3.5 py-2.5 text-sm leading-relaxed'
-                    }
-                  >
-                    {message.text}
-                  </div>
-                  {placement.cardsByMessageId.get(message.id)?.map(taskCard)}
-                </div>
-              )
-            })}
-            {placement.trailing.map(taskCard)}
-            {typing !== null ? (
-              <BotTeamTypingLine author={botTeamTypingAuthor(typing, team.bots)} bots={team.bots} />
-            ) : null}
-            {pending ? (
-              <BotTeamPendingChoice
-                pending={pending}
-                team={team}
-                otherTeams={otherTeams}
-                projects={projects}
-                onAsked={(choice) =>
-                  setPending((current) => (current ? { ...current, choice } : current))
-                }
-                onFiled={() => {
-                  setPending(null)
-                  reload()
-                }}
-                onCreateBot={() => onCreateBot?.()}
-                onCreateTeam={() => onCreateTeam?.()}
-              />
-            ) : null}
-            {needsOwner ? (
-              <p className="text-xs text-muted-foreground">
-                {translate(
-                  'components.botTeams.whoTakesIt',
-                  'Who should take this? Mention a bot with @ and its name.'
-                )}
-              </p>
-            ) : null}
+              ) : null}
+            </div>
           </div>
+          <NativeChatJumpToLatest visible={scroll.showJump} onJump={scroll.jumpToEnd} />
         </div>
         <BotTeamRoomComposer team={team} otherTeams={otherTeams} offline={offline} onSend={send} />
       </div>

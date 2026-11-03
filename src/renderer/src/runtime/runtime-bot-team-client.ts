@@ -122,6 +122,8 @@ export function postBotTeamRequest(input: {
   start: boolean
   /** Only this client can answer the project question, so it asks; an older client never does. */
   askProject?: boolean
+  /** One id per send, reused on a retry of that send; a host from before it posts again. */
+  clientRequestId?: string
 }): Promise<{
   task: BotTeamTask | null
   startError: string | null
@@ -131,6 +133,8 @@ export function postBotTeamRequest(input: {
   composite?: string[]
   /** A bot answered a plain conversation in the room; nothing was filed. */
   answered?: boolean
+  /** A bot is answering in the background; the room shows it typing until its line lands. */
+  replying?: { botId: string }
   /** The request went to another team, because the person named it with @. */
   sentTo?: { teamId: string; teamName: string }
   /** The person asked for the work later: it waits in Todo and nothing starts. */

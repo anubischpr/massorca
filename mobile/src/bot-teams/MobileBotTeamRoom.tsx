@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native'
-import { Check, ChevronDown, ChevronLeft, Ellipsis } from 'lucide-react-native'
-import { BottomDrawer } from '../components/BottomDrawer'
+import { Alert, Pressable, Text, View } from 'react-native'
+import { ChevronDown, ChevronLeft, Ellipsis } from 'lucide-react-native'
 import { useMobileDictation } from '../hooks/use-mobile-dictation'
 import { MobileNativeChatComposer } from '../session/MobileNativeChatComposer'
 import { MobileNativeChatMessage } from '../session/MobileNativeChatMessage'
@@ -20,10 +19,13 @@ import type {
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import { MobileBotAgentIcon } from './MobileBotAgentIcon'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
+import { useMobileBotTeamReplying } from './use-mobile-bot-team-room-replying'
 import { MobileBotTeamTypingLine } from './MobileBotTeamTypingLine'
 import { MobileBotTeamProjectQuestion } from './MobileBotTeamProjectQuestion'
 import { MobileBotTeamRequestChoice } from './MobileBotTeamRequestChoice'
 import { MobileBotTeamRoomMenu } from './MobileBotTeamRoomMenu'
+import { MobileBotTeamRoomSwitcher } from './MobileBotTeamRoomSwitcher'
+import { MobileBotTeamRoomQuestions } from './MobileBotTeamRoomQuestion'
 import { botTeamRoomSuggestions } from './MobileBotTeamRoomSuggestions'
 import { MobileBotTeamTaskCard } from './MobileBotTeamTaskCard'
 import type { BotTeamWorkScreen } from './MobileBotTeamWork'
@@ -34,6 +36,7 @@ import {
   type MobileBotTeamRequestFiling
 } from './mobile-bot-team-request-rpc'
 import { useMobileBotTeamRoom } from './use-mobile-bot-team-room'
+import { MobileBotTeamRoomScroll } from './MobileBotTeamRoomScroll'
 import { useMobileBotTeamTaskStatus } from './use-mobile-bot-team-task-status'
 
 const NO_GENERATION = () => 0
@@ -121,6 +124,7 @@ export function MobileBotTeamRoom({
   const { room, reload } = useMobileBotTeamRoom(client, team.id, offline)
   const statusOf = useMobileBotTeamTaskStatus(client)
   const messages = room?.messages ?? []
+  const replying = useMobileBotTeamReplying(room?.replying, team.bots)
   const tasks = room?.tasks ?? []
   const allProjects = room?.projects ?? []
   const projects = allProjects.filter((project) => project.archivedAt == null)
@@ -161,7 +165,8 @@ export function MobileBotTeamRoom({
       teamId: team.id,
       text: typed,
       start: true,
-      askProject: true
+      askProject: true,
+      clientRequestId: replying.requestIdFor(typed)
     }).finally(() => {
       sending.current = false
       setTyping(null)
@@ -171,11 +176,13 @@ export function MobileBotTeamRoom({
       Alert.alert('That did not send', 'Check the connection to this host and try again.')
       return false
     }
+    replying.settle(sent.replying?.botId ?? null)
     setNeedsOwner(
       sent.task === null &&
         !sent.greeted &&
         sent.choice === null &&
         !sent.answered &&
+        sent.replying === null &&
         sent.sentTo === null
     )
     setPending(sent.choice ? { choice: sent.choice, text: typed, later: sent.later } : null)
@@ -257,6 +264,7 @@ export function MobileBotTeamRoom({
     />
   )
 
+  const waitingTasks = tasks.filter((task) => statusOf(task) === 'Waiting for you')
   const openCount = tasks.filter((task) => botTeamBoardColumn(statusOf(task)) !== 'Done').length
 
   return (
@@ -296,11 +304,7 @@ export function MobileBotTeamRoom({
           <Ellipsis size={20} color={colors.textPrimary} />
         </Pressable>
       </View>
-      <ScrollView
-        style={styles.grow}
-        contentContainerStyle={styles.roomFeed}
-        keyboardShouldPersistTaps="handled"
-      >
+      <MobileBotTeamRoomScroll teamId={team.id} hasItems={messages.length > 0 || tasks.length > 0}>
         {messages.length === 0 && tasks.length === 0 ? (
           <Text style={styles.message}>
             Ask {team.name} for something. Each request becomes one or more tasks.
@@ -316,7 +320,15 @@ export function MobileBotTeamRoom({
           )
         })}
         {placement.trailing.map(card)}
-        {typing !== null ? <MobileBotTeamTypingLine text={typing} bots={team.bots} /> : null}
+        {offline ? null : (
+          <MobileBotTeamRoomQuestions
+            client={client}
+            team={team}
+            tasks={waitingTasks}
+            scope={`${team.id}:${workspaceId ?? ''}`}
+          />
+        )}
+        <MobileBotTeamTypingLine text={typing} author={replying.author} bots={team.bots} />
         {pending && pending.choice.kind === 'project' ? (
           <MobileBotTeamProjectQuestion
             projects={projects}
@@ -342,7 +354,7 @@ export function MobileBotTeamRoom({
             Who should take this? Mention a bot with @ and its name.
           </Text>
         ) : null}
-      </ScrollView>
+      </MobileBotTeamRoomScroll>
       <MobileNativeChatComposer
         value={text}
         onChangeText={setText}
@@ -357,29 +369,15 @@ export function MobileBotTeamRoom({
         onMicPress={() => void (dictation.isRecording ? dictation.stop() : dictation.start())}
         micActive={dictation.isRecording}
       />
-      <BottomDrawer visible={sheet === 'rooms'} onClose={() => setSheet(null)}>
-        <Text style={styles.sheetTitle}>Conference rooms</Text>
-        {teams.map((entry) => (
-          <Pressable
-            key={entry.id}
-            accessibilityRole="button"
-            onPress={() => {
-              setSheet(null)
-              onPickTeam(entry.id)
-            }}
-            style={styles.row}
-          >
-            <MobileBotTeamCharacterIcon
-              character={entry.character}
-              size={28}
-              working={workingOf(entry.id)}
-              unreachable={offline}
-            />
-            <Text style={[styles.rowTitle, styles.grow]}>{entry.name}</Text>
-            {entry.id === team.id ? <Check size={18} color={colors.textPrimary} /> : null}
-          </Pressable>
-        ))}
-      </BottomDrawer>
+      <MobileBotTeamRoomSwitcher
+        visible={sheet === 'rooms'}
+        teams={teams}
+        currentTeamId={team.id}
+        workingOf={workingOf}
+        unreachable={offline}
+        onClose={() => setSheet(null)}
+        onPick={onPickTeam}
+      />
       <MobileBotTeamRoomMenu
         client={offline ? undefined : client}
         teams={teams}
@@ -391,6 +389,7 @@ export function MobileBotTeamRoom({
         unreachable={offline}
         openCount={openCount}
         taskCount={tasks.length}
+        waiting={waitingTasks.length > 0}
         projects={allProjects}
         projectTaskCount={(projectId) =>
           [...tasks, ...projectTasks].filter((task) => task.projectId === projectId).length

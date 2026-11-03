@@ -53,6 +53,9 @@ export type CommitMessageAgentSpec = {
   /** Where the prompt is delivered. Large diffs go via stdin to avoid argv limits. */
   promptDelivery: 'argv' | 'stdin'
   buildArgs: (params: { prompt: string; model: string; thinkingLevel?: string }) => string[]
+  /** Appended for a research turn: web search and fetch only, never shell, file writes or MCP.
+   *  Set only where the CLI has a confirmed web-only mode and takes its prompt on stdin. */
+  webResearchArgs?: readonly string[]
   /** Alias groups the CLI accepts at most once. Recipe CLI arguments repeating one
    *  replace the generated flag instead of being appended: yargs-based CLIs collapse
    *  a repeated flag into an array and crash. Defaults to the model flag alone. */

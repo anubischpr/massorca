@@ -28,6 +28,8 @@ export type CommitMessagePlanInput = {
   customAgentCommand?: string
   agentCommandOverride?: string
   agentArgs?: string
+  /** A research turn: web search and fetch where the agent has a confirmed web-only mode, else text only. */
+  webResearch?: boolean
 }
 
 export type CommitMessagePlan = {
@@ -40,6 +42,8 @@ export type CommitMessagePlan = {
   /** Leading command assignments, applied on the execution host. */
   env?: Record<string, string>
   outputFormat?: 'opencode-json'
+  /** True when the plan lets the agent search the web; absent for a text-only plan. */
+  webResearch?: true
 }
 
 export type CommitMessagePlanResult =
@@ -250,11 +254,15 @@ export function planCommitMessageGeneration(
   }
 
   const argvPrompt = spec.promptDelivery === 'argv' ? prompt : ''
-  const baseArgs = spec.buildArgs({
-    prompt: argvPrompt,
-    model: input.model,
-    thinkingLevel: input.thinkingLevel
-  })
+  const researchArgs = input.webResearch ? spec.webResearchArgs : undefined
+  const baseArgs = [
+    ...spec.buildArgs({
+      prompt: argvPrompt,
+      model: input.model,
+      thinkingLevel: input.thinkingLevel
+    }),
+    ...(researchArgs ?? [])
+  ]
   const agentArgs = planAdditionalAgentArgs(input.agentArgs, input.backslash)
   if (!agentArgs.ok) {
     return agentArgs
@@ -294,6 +302,7 @@ export function planCommitMessageGeneration(
       args: generationArgs,
       stdinPayload: spec.promptDelivery === 'stdin' ? prompt : null,
       label: spec.label,
+      ...(researchArgs ? { webResearch: true as const } : {}),
       ...(formatOption?.value === 'json' ? { outputFormat: 'opencode-json' as const } : {}),
       ...(command.env ? { env: command.env } : {})
     }

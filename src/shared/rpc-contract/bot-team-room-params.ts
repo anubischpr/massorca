@@ -22,7 +22,9 @@ export const BotTeamCodeSourceSchema = z.enum(['repo', 'folder'])
 export const BotTeamBriefSchema = z.object({
   requirements: z.array(z.string()),
   constraints: z.array(z.string()),
-  decisions: z.array(z.string())
+  decisions: z.array(z.string()),
+  // Optional: the Brief as Markdown. A host from before it omits it; bots then read the lists.
+  markdown: z.string().optional()
 })
 
 const EMPTY_BRIEF = { requirements: [], constraints: [], decisions: [] }
@@ -33,11 +35,28 @@ export const BotTeamProjectWorkspaceSchema = z.object({
   name: z.string()
 })
 
-/** A git worktree or a folder workspace on the team's host that a project can link to. */
+/** The icon the Workspaces sidebar shows for a project; an arm this build does not know reads as none. */
+const BotTeamProjectIconSchema = z
+  .union([
+    z.object({ type: z.literal('lucide'), name: z.string() }),
+    z.object({ type: z.literal('emoji'), emoji: z.string() }),
+    z.object({
+      type: z.literal('image'),
+      src: z.string(),
+      source: z.enum(['upload', 'file', 'favicon', 'github']),
+      label: z.string().optional()
+    })
+  ])
+  .optional()
+  .catch(undefined)
+
+/** A Workspaces project (a repo or a folder project) on the team's host that a bot project can link to. */
 export const BotTeamLinkableWorkspaceSchema = z.object({
   key: z.string(),
   name: z.string(),
-  kind: z.enum(['git', 'folder'])
+  kind: z.enum(['git', 'folder']),
+  // Optional: a host from before project icons omits it, and a project without one shows the default.
+  icon: BotTeamProjectIconSchema
 })
 
 export const BotTeamProjectSchema = z.object({
@@ -133,7 +152,9 @@ export const BotTeamMessagePost = z.object({
   /** False saves the task to Todo without starting a bot. */
   start: z.boolean().default(true),
   /** Only a client that can show the project question sends true; an older one never gets the question. */
-  askProject: z.boolean().optional()
+  askProject: z.boolean().optional(),
+  /** One id per send, reused when the client retries that send: the host then posts it once. */
+  clientRequestId: z.string().min(1).max(100).optional()
 })
 
 /** Files a request the room could not place by itself: to a bot, and to a team when `toTeamId` is set. */

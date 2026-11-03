@@ -45,6 +45,15 @@ export function buildPrimaryCommitMessageAgentSpecs({
         'plan',
         ...(thinkingLevel ? ['--effort', thinkingLevel] : [])
       ],
+      // Why: a research turn gets the two web tools and nothing else; --strict-mcp-config keeps the
+      // user's MCP servers out, and plan mode still refuses edits.
+      webResearchArgs: [
+        '--tools',
+        'WebSearch,WebFetch',
+        '--allowedTools',
+        'WebSearch,WebFetch',
+        '--strict-mcp-config'
+      ],
       modelSource: 'dynamic',
       // Why: the Claude CLI has no listing subcommand; one list_models control
       // request over --print stream-json returns the /model picker catalog.
@@ -98,6 +107,8 @@ export function buildPrimaryCommitMessageAgentSpecs({
         model,
         ...(thinkingLevel ? ['-c', `model_reasoning_effort=${thinkingLevel}`] : [])
       ],
+      // Why: `exec` has no --search flag; this override turns on the native web_search tool (CLI 0.159).
+      webResearchArgs: ['-c', 'web_search="live"'],
       // `-c` is intentionally absent: Codex accepts repeated overrides.
       singletonOptions: [['--model', '-m']],
       modelSource: 'dynamic',

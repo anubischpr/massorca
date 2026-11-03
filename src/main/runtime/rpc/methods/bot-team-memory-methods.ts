@@ -3,6 +3,7 @@ import {
   BotTeamMemoryList
 } from '../../../../shared/rpc-contract/bot-team-memory-params'
 import { defineMethod } from '../core'
+import { BOT_TEAM_ENGRAM_METHODS } from './bot-team-engram-methods'
 
 export const botTeamListMemoryMethod = defineMethod({
   name: 'botTeams.listMemory',
@@ -23,4 +24,8 @@ export const botTeamDeleteMemoryMethod = defineMethod({
 })
 
 /** What the person can read and delete; Engram's own contents and settings are never touched. */
-export const BOT_TEAM_MEMORY_METHODS = [botTeamListMemoryMethod, botTeamDeleteMemoryMethod]
+export const BOT_TEAM_MEMORY_METHODS = [
+  botTeamListMemoryMethod,
+  botTeamDeleteMemoryMethod,
+  ...BOT_TEAM_ENGRAM_METHODS
+]

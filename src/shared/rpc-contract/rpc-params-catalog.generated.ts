@@ -75,6 +75,7 @@ import {
   BotTeamAgentRemember,
   BotTeamAgentTaskCreate
 } from './bot-team-agent-params'
+import { BotTeamEngramList } from './bot-team-engram-params'
 import { BotTeamMemoryDelete, BotTeamMemoryList } from './bot-team-memory-params'
 import {
   BotTeamAddBot,
@@ -435,6 +436,7 @@ import {
   NotificationsSubscribeParams
 } from './notifications-params'
 import { OrcadMigrationCatalogParams } from './orcad-migration-params'
+import { AskUserParams } from './orchestration-ask-user-params'
 import { ChildBringBackParams } from './orchestration-child-bring-back-params'
 import { DelegateRequestParams } from './orchestration-delegate-request-params'
 import {
@@ -760,6 +762,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.deleteProject': BotTeamProjectDelete,
   'botTeams.fileVersions': BotTeamFileVersionsSelector,
   'botTeams.list': null,
+  'botTeams.listEngramMemory': BotTeamEngramList,
   'botTeams.listLinkableWorkspaces': BotTeamRoomSelector,
   'botTeams.listMemory': BotTeamMemoryList,
   'botTeams.listRoom': BotTeamRoomListSelector,
@@ -1173,6 +1176,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'orcad.migration.stageSnapshotChunk': OrcadMigrationSnapshotChunkRequestSchema,
   'orcad.terminalCensus': OrcadTerminalCensusParamsSchema,
   'orchestration.ask': AskParams,
+  'orchestration.askUser': AskUserParams,
   'orchestration.botTeamDelegate': BotTeamAgentDelegate,
   'orchestration.botTeamPost': BotTeamAgentPost,
   'orchestration.botTeamRemember': BotTeamAgentRemember,

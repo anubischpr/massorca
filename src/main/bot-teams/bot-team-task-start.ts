@@ -1,14 +1,20 @@
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
 import type { BotTeamProject, BotTeamTask } from '../../shared/rpc-contract/bot-team-room-params'
 import { botAgentPiRuntime } from '../../shared/bot-team-character-art'
-import { normalizeWorkspaceSessionKeyToWorkspaceId } from '../../shared/workspace-scope'
 import { botLaunchOptions } from './bot-team-model-choice'
 
 export type BotTeamTaskStartDeps = {
   /** The team's folder workspace, created the first time a task starts. */
   ensureTeamWorkspace: (team: BotTeam) => Promise<string>
-  /** Whether a project's linked workspace key still names a workspace on the host. */
-  workspaceExists: (workspaceKey: string) => Promise<boolean>
+  /**
+   * The workspace a linked project's task runs in (its own child worktree for a repo, the folder
+   * for a folder project), or null when the linked Workspaces project is gone.
+   */
+  prepareLinkedWorkspace: (args: {
+    projectId: string
+    workspaceKey: string
+    taskTitle: string
+  }) => Promise<string | null>
   createSession: (args: {
     workspaceId: string
     agent: BotTeamBot['agent']
@@ -22,14 +28,21 @@ export type BotTeamTaskStartDeps = {
 
 /** The project's goal and brief, which the person wrote for the bots; empty sections are left out. */
 function botTeamProjectBriefText(project: BotTeamProject): string {
+  const intro = [
+    `This task is part of the project "${project.name}". Read its brief before you start.`,
+    ...(project.goal ? [`Goal: ${project.goal}`] : [])
+  ]
+  const { markdown } = project.brief
+  if (typeof markdown === 'string') {
+    return [...intro, markdown.trim()].filter((line) => line !== '').join('\n')
+  }
   const sections: [string, string[]][] = [
     ['Requirements', project.brief.requirements],
     ['Constraints', project.brief.constraints],
     ['Decisions', project.brief.decisions]
   ]
   return [
-    `This task is part of the project "${project.name}". Read its brief before you start.`,
-    ...(project.goal ? [`Goal: ${project.goal}`] : []),
+    ...intro,
     ...sections
       .filter(([, lines]) => lines.length > 0)
       .map(([title, lines]) => `${title}:\n${lines.map((line) => `- ${line}`).join('\n')}`)
@@ -74,18 +87,24 @@ export function botTeamTaskPrompt(
   ].join('\n\n')
 }
 
-/** A linked project's workspace id for a session; a gone workspace fails the start and stays in Todo. */
+/** A linked project's workspace id for a session; a gone project fails the start and stays in Todo. */
 async function linkedWorkspaceId(
   deps: BotTeamTaskStartDeps,
-  projectName: string,
-  workspaceKey: string
+  project: BotTeamProject,
+  workspaceKey: string,
+  taskTitle: string
 ): Promise<string> {
-  if (!(await deps.workspaceExists(workspaceKey))) {
+  const workspaceId = await deps.prepareLinkedWorkspace({
+    projectId: project.id,
+    workspaceKey,
+    taskTitle
+  })
+  if (workspaceId === null) {
     throw new Error(
-      `The Workspaces project linked to ${projectName} is gone. Link another one or clear the link.`
+      `The Workspaces project linked to ${project.name} is gone. Link another one or clear the link.`
     )
   }
-  return normalizeWorkspaceSessionKeyToWorkspaceId(workspaceKey)
+  return workspaceId
 }
 
 /** Starts the owner bot's session for a task that was waiting in Todo. */
@@ -103,7 +122,7 @@ export async function startBotTeamTask(
   const linked = extras.project?.workspace ?? null
   const workspaceId =
     extras.project && linked
-      ? await linkedWorkspaceId(deps, extras.project.name, linked.key)
+      ? await linkedWorkspaceId(deps, extras.project, linked.key, task.title)
       : await deps.ensureTeamWorkspace(team)
   const options = botLaunchOptions(bot)
   const piRuntime = botAgentPiRuntime(bot.agent)

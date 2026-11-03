@@ -1,98 +1,16 @@
-import { isBotTeamFolderPath } from '../../../../shared/bot-team-folder'
-import type { FolderWorkspace } from '../../../../shared/folder-workspace-types'
-import {
-  folderWorkspaceToWorktree,
-  projectGroupIdFromRepoId
-} from '../../../../shared/folder-workspace-worktree'
-import { isFolderRepo } from '../../../../shared/repo-kind'
-import type { Repo } from '../../../../shared/repo-types'
+import { parseBotTeamProjectKey } from '../../../../shared/bot-team-project-workspace-key'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import {
   BotTeamProjectSetWorkspace,
-  BotTeamRoomSelector,
-  type BotTeamLinkableWorkspace
+  BotTeamRoomSelector
 } from '../../../../shared/rpc-contract/bot-team-room-params'
-import type { Worktree } from '../../../../shared/worktree/types'
-import { isWorkspaceKey, worktreeWorkspaceKey } from '../../../../shared/workspace-scope'
+import {
+  findBotTeamWorkspaceProject,
+  listBotTeamLinkableWorkspaces,
+  workspaceProjectSource
+} from '../../../bot-teams/bot-team-project-workspace'
 import type { OrchestrationDb } from '../../orchestration/db/orchestration-db'
-import { defineMethod, type RpcContext } from '../core'
-
-/** Why: a capped page would hide workspaces from the picker, so every row is read. */
-const EVERY_ROW_LIMIT = Number.MAX_SAFE_INTEGER
-
-type WorktreeRowFields = Pick<
-  Worktree,
-  'id' | 'repoId' | 'path' | 'displayName' | 'manualDisplayName'
->
-
-/** What the listing reads from the host; the same calls worktree.list and folderWorkspace.list make. */
-export type LinkableWorkspaceSource = {
-  listRepos: () => readonly Pick<Repo, 'id' | 'kind'>[]
-  listWorktreeRows: () => Promise<readonly WorktreeRowFields[]>
-  listFolderWorkspaces: () => readonly FolderWorkspace[]
-}
-
-export function linkableWorkspaceSource(runtime: RpcContext['runtime']): LinkableWorkspaceSource {
-  return {
-    listRepos: () => runtime.listRepos(),
-    listWorktreeRows: async () =>
-      (await runtime.listManagedWorktrees(undefined, EVERY_ROW_LIMIT)).worktrees,
-    listFolderWorkspaces: () => runtime.listFolderWorkspaces()
-  }
-}
-
-/** The name a workspace shows under: the person's own name when it has one. */
-function displayNameOf(row: Pick<Worktree, 'displayName' | 'manualDisplayName'>): string {
-  return row.manualDisplayName?.trim() || row.displayName
-}
-
-/** Git worktrees and folder workspaces on the host, minus the teams' own folders, by name. */
-export async function listBotTeamLinkableWorkspaces(
-  source: LinkableWorkspaceSource
-): Promise<BotTeamLinkableWorkspace[]> {
-  const folderRepoIds = new Set(
-    source
-      .listRepos()
-      .filter(isFolderRepo)
-      .map((repo) => repo.id)
-  )
-  const found = new Map<string, BotTeamLinkableWorkspace>()
-  const add = (entry: BotTeamLinkableWorkspace): void => {
-    if (!found.has(entry.key)) {
-      found.set(entry.key, entry)
-    }
-  }
-  for (const row of await source.listWorktreeRows()) {
-    if (isBotTeamFolderPath(row.path)) {
-      continue
-    }
-    const isFolder = folderRepoIds.has(row.repoId) || projectGroupIdFromRepoId(row.repoId) !== null
-    add({
-      // Why: a folder workspace's row id is already its workspace key; a git row needs the prefix.
-      key: isWorkspaceKey(row.id) ? row.id : worktreeWorkspaceKey(row.id),
-      name: displayNameOf(row),
-      kind: isFolder ? 'folder' : 'git'
-    })
-  }
-  for (const folder of source.listFolderWorkspaces()) {
-    if (isBotTeamFolderPath(folder.folderPath)) {
-      continue
-    }
-    const row = folderWorkspaceToWorktree(folder)
-    add({ key: row.id, name: displayNameOf(row), kind: 'folder' })
-  }
-  return [...found.values()].sort(
-    (left, right) => left.name.localeCompare(right.name) || left.key.localeCompare(right.key)
-  )
-}
-
-/** Whether a stored workspace key still names a workspace on the host; a gone one stops a start. */
-export async function linkableWorkspaceExists(
-  source: LinkableWorkspaceSource,
-  workspaceKey: string
-): Promise<boolean> {
-  return (await listBotTeamLinkableWorkspaces(source)).some((entry) => entry.key === workspaceKey)
-}
+import { defineMethod } from '../core'
 
 function teamNamed(db: OrchestrationDb, teamId: string): BotTeam {
   const team = db.listBotTeams().find((entry) => entry.id === teamId)
@@ -109,13 +27,36 @@ function requireWorkspacesOn(team: BotTeam): void {
   }
 }
 
+/**
+ * Why: a link saved when the picker listed worktrees names one; its project is only known to the
+ * host, not to the orchestration database, so such links are rewritten as the picker opens.
+ */
+async function relinkWorktreeLinks(
+  db: OrchestrationDb,
+  teamId: string,
+  source: ReturnType<typeof workspaceProjectSource>
+): Promise<void> {
+  for (const project of db.listBotTeamProjects(teamId, { includeArchived: true })) {
+    if (!project.workspace || parseBotTeamProjectKey(project.workspace.key)) {
+      continue
+    }
+    const found = await findBotTeamWorkspaceProject(source, project.workspace.key)
+    if (found) {
+      db.setBotTeamProjectWorkspace(project.id, { key: found.entry.key, name: found.entry.name })
+    }
+  }
+}
+
 export const botTeamListLinkableWorkspacesMethod = defineMethod({
   name: 'botTeams.listLinkableWorkspaces',
   permission: 'workspace',
   params: BotTeamRoomSelector,
   handler: async ({ teamId }, { runtime }) => {
-    requireWorkspacesOn(teamNamed(runtime.getOrchestrationDb(), teamId))
-    return { workspaces: await listBotTeamLinkableWorkspaces(linkableWorkspaceSource(runtime)) }
+    const db = runtime.getOrchestrationDb()
+    requireWorkspacesOn(teamNamed(db, teamId))
+    const source = workspaceProjectSource(runtime)
+    await relinkWorktreeLinks(db, teamId, source)
+    return { workspaces: await listBotTeamLinkableWorkspaces(source) }
   }
 })
 
@@ -130,14 +71,15 @@ export const botTeamSetProjectWorkspaceMethod = defineMethod({
       return { project: db.setBotTeamProjectWorkspace(projectId, null) }
     }
     requireWorkspacesOn(teamNamed(db, db.getBotTeamProject(projectId).teamId))
-    const chosen = (await listBotTeamLinkableWorkspaces(linkableWorkspaceSource(runtime))).find(
-      (entry) => entry.key === workspaceKey
-    )
+    const chosen = await findBotTeamWorkspaceProject(workspaceProjectSource(runtime), workspaceKey)
     if (!chosen) {
       throw new Error('That workspace is not on this host. Pick another one.')
     }
     return {
-      project: db.setBotTeamProjectWorkspace(projectId, { key: chosen.key, name: chosen.name })
+      project: db.setBotTeamProjectWorkspace(projectId, {
+        key: chosen.entry.key,
+        name: chosen.entry.name
+      })
     }
   }
 })

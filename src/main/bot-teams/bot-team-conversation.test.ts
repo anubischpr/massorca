@@ -159,6 +159,52 @@ describe('buildBotTeamConversationPrompt', () => {
   })
 })
 
+describe('buildBotTeamConversationPrompt for research', () => {
+  const args = {
+    team: { name: 'Marketing', purpose: 'Flyers' },
+    bot: IRIS,
+    bots: BOTS,
+    messages: [{ id: 'm1', teamId: 't', authorBotId: null, text: 'Secret room history' }],
+    tasks: [
+      {
+        id: 'k2',
+        teamId: 't',
+        title: 'Secret board item',
+        prompt: '',
+        ownerBotId: 'iris',
+        sessionId: null,
+        projectId: null
+      }
+    ],
+    text: 'Cómo podría utilizar Jev AI para mejorar un sistema de RAG?',
+    research: true
+  }
+
+  it('keeps the bot identity and the question, but not the room history or the board', () => {
+    const prompt = buildBotTeamConversationPrompt(args)
+    expect(prompt).toContain('You are Iris')
+    expect(prompt).toContain('Designs flyers')
+    expect(prompt).toContain(args.text)
+    expect(prompt).not.toContain('Secret room history')
+    expect(prompt).not.toContain('Secret board item')
+  })
+
+  it('asks for the answer, the sources as links and what could not be verified', () => {
+    const prompt = buildBotTeamConversationPrompt(args)
+    expect(prompt).toMatch(/search the web/i)
+    expect(prompt).toMatch(/sources/i)
+    expect(prompt).toMatch(/links/i)
+    expect(prompt).toMatch(/could not verify|cannot verify/i)
+    expect(prompt).toMatch(/cannot search/i)
+  })
+
+  it('leaves the plain prompt as it was', () => {
+    const prompt = buildBotTeamConversationPrompt({ ...args, research: false })
+    expect(prompt).toContain('Secret room history')
+    expect(prompt).not.toMatch(/search the web/i)
+  })
+})
+
 describe('cleanConversationReply', () => {
   it('trims, and keeps a short reply whole', () => {
     expect(cleanConversationReply('  Sí, ya terminó.\n')).toBe('Sí, ya terminó.')
@@ -168,6 +214,20 @@ describe('cleanConversationReply', () => {
     const cleaned = cleanConversationReply(`${'palabra '.repeat(400)}`)
     expect(cleaned?.length).toBeLessThanOrEqual(1201)
     expect(cleaned?.endsWith('…')).toBe(true)
+  })
+
+  it('keeps the links of a researched answer, and allows it more room', () => {
+    const answer = [
+      'Resumen.',
+      '',
+      'Fuentes:',
+      '- [Jev AI](https://jev.ai/docs)',
+      '- https://example.com/rag?x=1&y=2'
+    ].join('\n')
+    expect(cleanConversationReply(answer, { research: true })).toBe(answer)
+    const long = `${'palabra '.repeat(300)}https://example.com/fuente`
+    expect(cleanConversationReply(long, { research: true })).toBe(long)
+    expect(cleanConversationReply(long)?.endsWith('…')).toBe(true)
   })
 
   it('is null when nothing was said', () => {

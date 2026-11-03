@@ -21,22 +21,23 @@ import { botTeamFolderPath, botTeamsParentPath } from '../../../bot-teams/bot-te
 import { readBotTeamMemoryLines } from '../../../bot-teams/bot-team-memory-read'
 import { botSessionOptions } from '../../../bot-teams/bot-team-model-choice'
 import { startBotTeamTask } from '../../../bot-teams/bot-team-task-start'
+import {
+  linkedTaskWorkspaceDeps,
+  prepareLinkedTaskWorkspace
+} from '../../../bot-teams/bot-team-task-worktree'
 import { getStructuredAgentSessionHost } from '../../../native-chat/agent-session-wire/structured-agent-session-registry'
 import { defineMethod, type RpcContext } from '../core'
 import { botTeamAssignMethods } from './bot-team-assign-methods'
 import { BOT_TEAM_MEMORY_METHODS } from './bot-team-memory-methods'
 import { BOT_TEAM_PROJECT_METHODS, roomProjectsFor } from './bot-team-project-methods'
 import { postBotTeamRequestOnHost } from './bot-team-post-request'
+import { listBotTeamReplying, rememberBotTeamPost } from './bot-team-reply-in-flight'
 import { BOT_TEAM_VERSION_METHODS } from './bot-team-versions'
 import { commitStructuredAgentSessionLaunchPrompt } from './agent-launch-structured-prompt'
 import { isDefinitiveAgentSessionCreateRefusal } from '../../../../shared/agent-session-definitive-refusal'
 import { createStructuredAgentSessionForWorktree } from './structured-agent-session-create'
 import { structuredCallerFor } from './structured-agent-session-gate'
-import {
-  BOT_TEAM_PROJECT_WORKSPACE_METHODS,
-  linkableWorkspaceExists,
-  linkableWorkspaceSource
-} from './bot-team-project-workspace'
+import { BOT_TEAM_PROJECT_WORKSPACE_METHODS } from './bot-team-project-workspace'
 
 const BOT_TEAMS_GROUP_NAME = 'Bot teams'
 
@@ -111,8 +112,12 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
   return startBotTeamTask(
     {
       ensureTeamWorkspace: (entry) => ensureTeamWorkspace(ctx, entry),
-      workspaceExists: (workspaceKey) =>
-        linkableWorkspaceExists(linkableWorkspaceSource(ctx.runtime), workspaceKey),
+      prepareLinkedWorkspace: ({ projectId, workspaceKey, taskTitle }) =>
+        prepareLinkedTaskWorkspace(linkedTaskWorkspaceDeps(ctx.runtime), {
+          projectId,
+          workspaceKey,
+          taskTitle
+        }),
       createSession: async ({ workspaceId, agent, accessMode, piRuntime, options }) => {
         const attempt = (seed: typeof options) =>
           createStructuredAgentSessionForWorktree({
@@ -157,10 +162,8 @@ async function startUnclaimedTaskOnHost(ctx: RpcContext, taskId: string): Promis
     {
       team,
       task,
-      project:
-        db
-          .listBotTeamProjects(team.id, { includeLinked: true, includeArchived: true })
-          .find((entry) => entry.id === task.projectId) ?? null,
+      // By id: a team unlinked from the project still keeps its task there, with the brief.
+      project: task.projectId ? db.getBotTeamProject(task.projectId) : null,
       notes: db.getBotTeamTaskStartNotes(task.id),
       memory: readBotTeamMemoryLines(db, team.id, task.ownerBotId)
     }
@@ -186,7 +189,9 @@ export const BOT_TEAM_ROOM_METHODS = [
         messages: db.listBotTeamMessages(teamId),
         ...roomProjectsFor(db, { teamId, withLinkedProjects }),
         // Null until a task starts; a client opens a task's session in this workspace.
-        workspaceId: db.getBotTeamWorkspace(teamId)
+        workspaceId: db.getBotTeamWorkspace(teamId),
+        // The bots answering in the background; a client from before it ignores the field.
+        replying: listBotTeamReplying(teamId)
       }
     }
   }),
@@ -203,7 +208,9 @@ export const BOT_TEAM_ROOM_METHODS = [
     permission: 'workspace',
     params: BotTeamMessagePost,
     handler: (params, ctx) =>
-      postBotTeamRequestOnHost(ctx, params, (id) => startTaskOnHost(ctx, id))
+      rememberBotTeamPost(params.teamId, params.clientRequestId, () =>
+        postBotTeamRequestOnHost(ctx, params, (id) => startTaskOnHost(ctx, id))
+      )
   }),
   defineMethod({
     name: 'botTeams.createProject',

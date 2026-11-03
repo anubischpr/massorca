@@ -18,6 +18,7 @@ import type { BotTeamProject } from '../../../src/shared/rpc-contract/bot-team-r
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
 import { MobileBotTeamEditProject } from './MobileBotTeamEditProject'
 import { MobileBotTeamProjectSheet } from './MobileBotTeamProjectSheet'
+import { MobileBotTeamWaitingMark } from './MobileBotTeamRoomMark'
 import { archiveMobileBotProject, deleteMobileBotProject } from './mobile-bot-team-project-rpc'
 import { botTeamStyles as styles } from './mobile-bot-team-styles'
 
@@ -35,6 +36,7 @@ export function MobileBotTeamRoomMenu({
   unreachable,
   openCount,
   taskCount,
+  waiting = false,
   projects,
   projectTaskCount,
   onOpenBoard,
@@ -57,6 +59,8 @@ export function MobileBotTeamRoomMenu({
   unreachable: boolean
   openCount: number
   taskCount: number
+  /** A task of the team waits for the person. */
+  waiting?: boolean
   projects: readonly BotTeamProject[]
   projectTaskCount: (projectId: string) => number
   onOpenBoard: () => void
@@ -140,6 +144,7 @@ export function MobileBotTeamRoomMenu({
         icon={<MessageSquare size={18} color={colors.textSecondary} />}
         title="Conference room"
         meta={openCount > 0 ? `${openCount} open` : 'Nothing open'}
+        ownerMark={waiting ? <MobileBotTeamWaitingMark /> : null}
         onPress={onClose}
       />
       <MenuRow

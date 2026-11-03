@@ -23,14 +23,23 @@ function sameExtent(left: number | null, right: number | null): boolean {
   )
 }
 
-function isAtTail(event: TailScrollMetrics): boolean {
+export function isAtTail(event: TailScrollMetrics): boolean {
   const { contentOffset, contentSize, layoutMeasurement } = event
   return contentSize.height - (contentOffset.y + layoutMeasurement.height) <= AT_TAIL_SLOP
 }
 
-export type MobileNativeChatTailFollow<TItem> = {
+/** The list the tail pins: a FlatList for the chat, a ScrollView for the Conference room. */
+export type MobileTailScrollTarget = {
+  scrollToEnd: (options?: { animated?: boolean }) => void
+  scrollTo?: (options: { y?: number; animated?: boolean }) => void
+}
+
+export type MobileNativeChatTailFollow<
+  TItem,
+  TList extends MobileTailScrollTarget = FlatList<TItem>
+> = {
   /** Attach to the transcript list; the hook scrolls through this ref alone. */
-  listRef: RefObject<FlatList<TItem> | null>
+  listRef: RefObject<TList | null>
   /** Render flag for the jump-to-latest control. */
   showJumpToTail: boolean
   /** Spread onto the transcript list; anchors visible rows only once the tail is left. */
@@ -68,14 +77,17 @@ export type MobileNativeChatTailFollow<TItem> = {
  *  virtualized list re-windowed and re-measured, and that re-measure pinned again,
  *  so the view bounced even with nothing streaming.
  */
-export function useMobileNativeChatTailFollow<TItem>(args: {
+export function useMobileNativeChatTailFollow<
+  TItem,
+  TList extends MobileTailScrollTarget = FlatList<TItem>
+>(args: {
   /** Guards `scrollToEnd` against an empty list. */
   hasItems: boolean
   /** Conversation identity; the transcript list remounts per conversation. */
   sendSurfaceId: string
-}): MobileNativeChatTailFollow<TItem> {
+}): MobileNativeChatTailFollow<TItem, TList> {
   const { hasItems, sendSurfaceId: scopeKey } = args
-  const listRef = useRef<FlatList<TItem> | null>(null)
+  const listRef = useRef<TList | null>(null)
   const [following, setFollowingFlag] = useState(true)
   const [atTail, setAtTailFlag] = useState(true)
   // Event handlers read intent at event time, before a re-render lands.

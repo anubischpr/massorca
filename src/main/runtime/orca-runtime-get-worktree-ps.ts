@@ -40,9 +40,11 @@ import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
 import { buildWorktreeListingPage } from './worktree-listing-host-scope'
 import { structuredWorkerOwesWork } from './structured-worker-custody'
 import {
+  getAskUserService,
   getDelegationAnswerService,
   reconcileDelegationRequests
 } from '../delegated-session/delegation-runtime'
+import { routeHostOwnedPrompts } from '../native-chat/agent-session-wire/structured-agent-session-host-owned-prompts'
 import {
   resolvedTuiAgentArgsBypassPermissions,
   resolveTuiAgentLaunchEnv
@@ -325,8 +327,11 @@ export class OrcaRuntimeWithGetWorktreePs extends OrcaRuntimeWithStartTuiIdleVis
       // its agent running. No database answers no.
       hasOpenDispatch: (record) =>
         structuredWorkerOwesWork(this.getOrchestrationDbIfAvailable?.() ?? null, record),
-      // A delegated session's agent-choice card is answered here, never by a provider.
-      hostOwnedPrompts: getDelegationAnswerService(this).hostOwnedPrompts
+      // Cards the host raises itself (agent choice, ask-user) are answered here, never by a provider.
+      hostOwnedPrompts: routeHostOwnedPrompts({
+        delegation: getDelegationAnswerService(this).hostOwnedPrompts,
+        askUser: getAskUserService().hostOwnedPrompts
+      })
     })
     reconcileDelegationRequests(this)
   }

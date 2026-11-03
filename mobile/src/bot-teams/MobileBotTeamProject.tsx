@@ -12,7 +12,7 @@ import type {
 } from '../../../src/shared/rpc-contract/bot-team-room-params'
 import { spacing } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
-import { MobileBotTeamBrief } from './MobileBotTeamBrief'
+import { MobileBotTeamProjectBrief } from './MobileBotTeamProjectBrief'
 import { MobileBotTeamCharacterIcon } from './MobileBotTeamCharacterIcon'
 import { MobileBotTeamConnectCode } from './MobileBotTeamConnectCode'
 import { MobileBotTeamWorkspaceLink } from './MobileBotTeamProjectWorkspace'
@@ -91,7 +91,7 @@ export function MobileBotTeamProject({
         </Pressable>
       </View>
       {tab === 'brief' ? (
-        <MobileBotTeamBrief project={project} />
+        <MobileBotTeamProjectBrief project={project} />
       ) : (
         <ScrollView contentContainerStyle={styles.form}>
           {linkedHere ? (
