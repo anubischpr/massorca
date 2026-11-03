@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import type { RuntimeWorktreeAgentRow } from '../../../src/shared/runtime-types'
 import { colors, spacing } from '../theme/mobile-theme'
+import { botTeamForPaneKey } from '../bot-teams/mobile-bot-team-session-team'
+import { useMobileBotTeamVisibility } from '../bot-teams/mobile-bot-team-session-team-visibility'
 import { buildSessionListView, VISIBLE_SESSION_LIMIT } from '../worktree/session-status-glyph'
 import { SESSION_INDENT, WorktreeAgentRow } from './WorktreeAgentRow'
 
@@ -29,9 +31,18 @@ export function WorktreeAgentList({
   onLongPress
 }: Props) {
   const [allShown, setAllShown] = useState(false)
+  const { showBotTeamWorkspaces, sessionTeams } = useMobileBotTeamVisibility()
+  // Why: a bot team's session is not a Workspaces row while "Show bot teams" is off.
+  const shownAgents = useMemo(
+    () =>
+      showBotTeamWorkspaces
+        ? agents
+        : agents.filter((agent) => botTeamForPaneKey(sessionTeams, agent.paneKey) === undefined),
+    [agents, sessionTeams, showBotTeamWorkspaces]
+  )
   const view = useMemo(
-    () => buildSessionListView({ agents, now, unvisited, disconnected, allShown }),
-    [agents, now, unvisited, disconnected, allShown]
+    () => buildSessionListView({ agents: shownAgents, now, unvisited, disconnected, allShown }),
+    [shownAgents, now, unvisited, disconnected, allShown]
   )
   const canFold = allShown && view.rootCount > VISIBLE_SESSION_LIMIT
 
@@ -45,6 +56,7 @@ export function WorktreeAgentList({
           now={now}
           glyph={row.glyph}
           runsOnBranch={runsOnBranchByPaneKey?.get(row.agent.paneKey) ?? null}
+          botTeam={botTeamForPaneKey(sessionTeams, row.agent.paneKey)}
           onPress={onOpen}
           onLongPress={onLongPress}
         />

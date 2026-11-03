@@ -1,8 +1,19 @@
 import { useCallback, useMemo, useState } from 'react'
-import { ActivityIndicator, Pressable, RefreshControl, SectionList, Text, View } from 'react-native'
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  SectionList,
+  StyleSheet,
+  Text,
+  View
+} from 'react-native'
 import { Play } from 'lucide-react-native'
-import { colors } from '../theme/mobile-theme'
+import { colors, spacing } from '../theme/mobile-theme'
 import { MobileAgentIcon } from '../components/MobileAgentIcon'
+import { MobileBotTeamSessionCharacter } from '../bot-teams/MobileBotTeamSessionCharacter'
+import { botTeamForStructuredSession } from '../bot-teams/mobile-bot-team-session-team'
+import { useMobileBotTeamVisibility } from '../bot-teams/mobile-bot-team-session-team-visibility'
 import { recentSessionConversationTurns } from '../../../src/shared/ai-vault-session-display'
 import type { AiVaultSession } from '../../../src/shared/ai-vault-types'
 import type { MobileAgentHistorySection } from './agent-history-sections'
@@ -125,6 +136,8 @@ function AgentHistoryCardRow({
     () => (expanded && session ? recentSessionConversationTurns(session, PREVIEW_TURN_LIMIT) : []),
     [expanded, session]
   )
+  const { sessionTeams } = useMobileBotTeamVisibility()
+  const botTeam = botTeamForStructuredSession(sessionTeams, session?.structuredSession)
   const child = card.delegatedChild
 
   return (
@@ -142,9 +155,12 @@ function AgentHistoryCardRow({
       ) : (
         <View style={styles.cardTopRow}>
           <MobileAgentIcon agentId={card.agent} size={16} piRuntime={card.piRuntime} />
-          <Text style={styles.cardTitle} numberOfLines={1}>
-            {card.title}
-          </Text>
+          <View style={titleStyles.group}>
+            <Text style={[styles.cardTitle, titleStyles.title]} numberOfLines={1}>
+              {card.title}
+            </Text>
+            <MobileBotTeamSessionCharacter sessionTeam={botTeam} />
+          </View>
           {card.timeAgo ? <Text style={styles.cardTimeAgo}>{card.timeAgo}</Text> : null}
         </View>
       )}
@@ -273,3 +289,19 @@ function ResumeButton({
     </Pressable>
   )
 }
+
+// Why: the team mark sits right after the title, and the title truncates before it.
+const titleStyles = StyleSheet.create({
+  group: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs
+  },
+  title: {
+    flex: 0,
+    flexShrink: 1,
+    minWidth: 0
+  }
+})

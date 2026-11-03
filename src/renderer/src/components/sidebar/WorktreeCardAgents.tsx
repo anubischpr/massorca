@@ -30,6 +30,7 @@ import {
 } from './worktree-card-agent-ack-inputs'
 import { OneLineSessionTree } from './worktree-card-one-line-sessions'
 import { useBotTeamByTabId, useBotTeamSessionTeams } from '../bot-teams/BotTeamSessionCharacter'
+import { useVisibleSessionAgents } from './use-bot-team-visibility'
 import { SIDEBAR_TREE_INDENT } from './worktree-list/rows/indentation'
 
 export const SUPPRESS_WORKTREE_LIST_SCROLL_ADJUSTMENT_EVENT =
@@ -94,7 +95,7 @@ type BodyProps = {
 
 const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
   worktreeId,
-  agents,
+  agents: allAgents,
   className,
   layout,
   dimmed
@@ -103,7 +104,8 @@ const WorktreeCardAgentsBody = React.memo(function WorktreeCardAgentsBody({
     useAppStore((s) => s.agentActivityDisplayMode) ?? DEFAULT_AGENT_ACTIVITY_DISPLAY_MODE
   const dropAgentStatus = useAppStore((s) => s.dropAgentStatus)
   const dismissRetainedAgent = useAppStore((s) => s.dismissRetainedAgent)
-  const botTeamByTabId = useBotTeamByTabId(useBotTeamSessionTeams(agents.length))
+  const botTeamByTabId = useBotTeamByTabId(useBotTeamSessionTeams(allAgents.length))
+  const agents = useVisibleSessionAgents(allAgents, botTeamByTabId)
   const { targetMode: agentSendPopoverTargetMode, agentStatusEpoch } = useAppStore(
     useShallow((s) => selectSendTargetControlInputs(s, worktreeId))
   )

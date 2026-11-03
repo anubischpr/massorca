@@ -17,12 +17,34 @@ export function sessionIdFromPaneKey(paneKey: string): string | null {
   return tabId.startsWith(STRUCTURED_TAB_PREFIX) ? tabId.slice(STRUCTURED_TAB_PREFIX.length) : null
 }
 
+/** The bot team that started a history row's session, found through its structured owner's session id. */
+export function botTeamForStructuredSession(
+  sessionTeams: SessionTeamMap,
+  structuredSession: { sessionId: string } | undefined
+): SessionTeamMap[string] | undefined {
+  return structuredSession ? sessionTeams[structuredSession.sessionId] : undefined
+}
+
 export function botTeamForPaneKey(
   sessionTeams: SessionTeamMap,
   paneKey: string
 ): SessionTeamMap[string] | undefined {
   const sessionId = sessionIdFromPaneKey(paneKey)
   return sessionId === null ? undefined : sessionTeams[sessionId]
+}
+
+// Why: every row on a host reads the same map, so concurrent reads share one request per host client.
+const sharedReads = new WeakMap<HostClient, Promise<SessionTeamMap>>()
+
+export function loadSharedMobileBotTeamSessionTeams(client: HostClient): Promise<SessionTeamMap> {
+  let read = sharedReads.get(client)
+  if (!read) {
+    read = listMobileBotTeamSessionTeams(client).finally(() => {
+      sharedReads.delete(client)
+    })
+    sharedReads.set(client, read)
+  }
+  return read
 }
 
 /** The host's bot-team sessions; a host from before the method has none to show. */

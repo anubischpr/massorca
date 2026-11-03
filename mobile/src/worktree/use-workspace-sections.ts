@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useMobileBotTeamVisibility } from '../bot-teams/mobile-bot-team-session-team-visibility'
 import type { WorkspaceStatusDefinition } from '../../../src/shared/worktree/types'
 import { getBranchRowLabels } from './branch-row-label'
 import {
@@ -76,6 +77,8 @@ export function useWorkspaceSections(args: {
     [uniqueRepos]
   )
 
+  // Why: the sections read the bot-team switch and session map outside their inputs, so re-key on them.
+  const botTeamVisibility = useMobileBotTeamVisibility()
   const listedSections = useMemo(
     () =>
       buildSections(
@@ -94,6 +97,7 @@ export function useWorkspaceSections(args: {
       displayWorktrees,
       sortMode,
       filters,
+      botTeamVisibility,
       search,
       groupMode,
       pinnedIds,

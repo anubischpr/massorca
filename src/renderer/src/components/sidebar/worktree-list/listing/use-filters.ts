@@ -43,6 +43,7 @@ export function useSidebarWorktreeFilters() {
   const alwaysShowDefaultBranchWorkspace = useAppStore((s) => s.alwaysShowDefaultBranchWorkspace)
   const visibleWorkspaceHostIds = useAppStore((s) => s.visibleWorkspaceHostIds)
   const workspaceHostScope = useAppStore((s) => s.workspaceHostScope)
+  const showBotTeamWorkspaces = useAppStore((s) => s.showBotTeamWorkspaces)
 
   const setShowSleepingWorkspaces = useAppStore((s) => s.setShowSleepingWorkspaces)
   const setHideDefaultBranchWorkspace = useAppStore((s) => s.setHideDefaultBranchWorkspace)
@@ -155,7 +156,8 @@ export function useSidebarWorktreeFilters() {
       hideWorkspacesFromOtherDevices,
       alwaysShowDefaultBranchWorkspace,
       visibleWorkspaceHostIds,
-      workspaceHostScope
+      workspaceHostScope,
+      showBotTeamWorkspaces
     }),
     [
       showSleepingWorkspaces,
@@ -167,7 +169,8 @@ export function useSidebarWorktreeFilters() {
       hideWorkspacesFromOtherDevices,
       alwaysShowDefaultBranchWorkspace,
       visibleWorkspaceHostIds,
-      workspaceHostScope
+      workspaceHostScope,
+      showBotTeamWorkspaces
     ]
   )
 

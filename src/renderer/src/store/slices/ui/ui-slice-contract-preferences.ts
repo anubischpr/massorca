@@ -56,6 +56,8 @@ export type UISlicePreferences = {
   hideDetachedHeadWorkspaces: boolean
   setHideDetachedHeadWorkspaces: (v: boolean) => void
   hideWorkspacesFromOtherDevices: boolean
+  showBotTeamWorkspaces: boolean
+  setShowBotTeamWorkspaces: (v: boolean) => void
   setHideWorkspacesFromOtherDevices: (v: boolean) => void
   alwaysShowDefaultBranchWorkspace: boolean
   setAlwaysShowDefaultBranchWorkspace: (v: boolean) => void

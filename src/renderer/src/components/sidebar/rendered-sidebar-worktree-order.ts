@@ -5,7 +5,7 @@ import {
   ALL_EXECUTION_HOSTS_SCOPE,
   getSettingsFocusedExecutionHostId
 } from '../../../../shared/execution-host'
-import { isBotTeamFolderShown } from '../../../../shared/bot-team-folder'
+import { isBotTeamFolderVisibleInWorkspaces } from './bot-team-workspace-visibility'
 import { getBotTeamWorkspaceIds } from '../bot-teams/use-bot-teams'
 import { getRepoMapFromState, getWorktreeMapFromState } from '@/store/selectors'
 import { getProjectHostSetupProjectionFromState } from '@/store/project-host-setup-selector'
@@ -90,7 +90,11 @@ export function computeRenderedSidebarRows(
     { projects: projection.projects, projectHostSetups: projection.setups },
     filterFolderWorkspacesForVisibleHosts(
       state.folderWorkspaces.filter((folderWorkspace) =>
-        isBotTeamFolderShown(folderWorkspace.folderPath, botTeamWorkspaceIds)
+        isBotTeamFolderVisibleInWorkspaces(
+          folderWorkspace.folderPath,
+          botTeamWorkspaceIds,
+          state.showBotTeamWorkspaces
+        )
       ),
       projectGroups,
       visibleHostIdSet,

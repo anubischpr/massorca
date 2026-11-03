@@ -12,6 +12,11 @@ import {
   type WorkspaceViewSettings
 } from '../worktree/workspace-view-settings'
 import type { Worktree } from '../worktree/workspace-list-sections'
+import { loadSharedMobileBotTeamSessionTeams } from '../bot-teams/mobile-bot-team-session-team'
+import {
+  setMobileBotTeamSessionTeams,
+  setMobileBotTeamShown
+} from '../bot-teams/mobile-bot-team-session-team-visibility'
 import { hostViewSettingsRead, hostViewSettingsWrite } from './host-screen-operations'
 import type { HostScreenState } from './use-host-screen-state'
 
@@ -46,13 +51,15 @@ export function useHostViewSettings(args: {
       alwaysShowDefaultBranch: filters.alwaysShowDefaultBranch !== false,
       filterRepoIds: [...filters.filterRepoIds],
       collapsedGroups: [...collapsedGroups],
-      workspaceStatuses
+      workspaceStatuses,
+      showBotTeamWorkspaces: viewStateRef.current.showBotTeamWorkspaces
     }
   }, [groupMode, sortMode, filters, collapsedGroups, workspaceStatuses])
 
   // Apply a MobileViewState onto the individual states and the snapshot ref in one shot.
   const applyViewState = useCallback((next: MobileViewState) => {
     viewStateRef.current = next
+    setMobileBotTeamShown(next.showBotTeamWorkspaces === true)
     setGroupMode(next.groupMode)
     setSortMode(next.sortMode)
     setWorkspaceStatuses(next.workspaceStatuses)
@@ -109,6 +116,12 @@ export function useHostViewSettings(args: {
         return
       }
       applyViewState(applyDesktopViewSettings(viewStateRef.current, ui))
+      // Why: the host's bot-team sessions are read once per host and shared by every row.
+      void loadSharedMobileBotTeamSessionTeams(requestClient).then((sessionTeams) => {
+        if (clientRef.current === requestClient) {
+          setMobileBotTeamSessionTeams(sessionTeams)
+        }
+      })
     } catch {
       // Transient transport failure; retry on the next focus/connect.
     }
@@ -127,6 +140,10 @@ export function useHostViewSettings(args: {
 
   const toggleHideDefaultBranch = useCallback(() => {
     persistViewSettings({ hideDefaultBranch: !viewStateRef.current.hideDefaultBranch })
+  }, [persistViewSettings])
+
+  const toggleShowBotTeamWorkspaces = useCallback(() => {
+    persistViewSettings({ showBotTeamWorkspaces: !viewStateRef.current.showBotTeamWorkspaces })
   }, [persistViewSettings])
 
   const toggleRepoFilter = useCallback(
@@ -193,6 +210,7 @@ export function useHostViewSettings(args: {
     toggleHideDefaultBranch,
     toggleHideSleeping,
     toggleRepoFilter,
+    toggleShowBotTeamWorkspaces,
     toggleWorktreeLineage
   }
 }
