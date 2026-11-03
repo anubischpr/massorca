@@ -60,7 +60,14 @@ function OpenFile({
 }
 
 /** Files: what the team's bots and the person put in the team folder. */
-export function BotTeamFiles({ team }: { team: BotTeam }): React.JSX.Element {
+export function BotTeamFiles({
+  team,
+  openPath
+}: {
+  team: BotTeam
+  /** A file to open once the list arrives, such as a file attached in the room. */
+  openPath?: string
+}): React.JSX.Element {
   const [files, setFiles] = useState<RuntimeFileListEntry[] | null>(null)
   const [open, setOpen] = useState<RuntimeFileListEntry | null>(null)
   const versions = useBotTeamVersions(team.id)
@@ -70,7 +77,9 @@ export function BotTeamFiles({ team }: { team: BotTeam }): React.JSX.Element {
       (listed) => {
         // A host from before team files has none to show, and nothing to report.
         if (!closed) {
-          setFiles(listed === 'unavailable' ? [] : listed.files)
+          const found = listed === 'unavailable' ? [] : listed.files
+          setFiles(found)
+          setOpen(found.find((file) => file.relativePath === openPath) ?? null)
         }
       },
       (error: unknown) => toast.error(error instanceof Error ? error.message : String(error))
@@ -78,7 +87,7 @@ export function BotTeamFiles({ team }: { team: BotTeam }): React.JSX.Element {
     return () => {
       closed = true
     }
-  }, [team.id])
+  }, [team.id, openPath])
   const keptState =
     versions.state !== null && versions.state !== 'unavailable' && versions.state.git === 'ok'
       ? versions.state

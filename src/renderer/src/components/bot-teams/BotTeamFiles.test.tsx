@@ -52,12 +52,12 @@ const LIST = {
 
 const mounted: { container: HTMLDivElement; root: Root }[] = []
 
-async function mount(): Promise<HTMLDivElement> {
+async function mount(openPath?: string): Promise<HTMLDivElement> {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
   mounted.push({ container, root })
-  await act(async () => root.render(<BotTeamFiles team={TEAM} />))
+  await act(async () => root.render(<BotTeamFiles team={TEAM} openPath={openPath} />))
   return container
 }
 
@@ -100,6 +100,12 @@ describe('the team files', () => {
     for (const path of ['flyer.html', 'brand/notes.md', 'logo.png']) {
       expect(container.textContent).toContain(path)
     }
+  })
+
+  it('opens the file a room chip names once the list arrives', async () => {
+    readBotTeamFile.mockResolvedValue({ kind: 'text', text: 'Notes' })
+    await mount('brand/notes.md')
+    expect(readBotTeamFile).toHaveBeenCalledWith('t1', 'brand/notes.md')
   })
 
   const NOTE = 'One bot or person edits a file at a time. Every change is saved as a version.'

@@ -19,7 +19,8 @@ import type { TaskResumeState, TopLevelView } from '../../../../../shared/ui-chr
 export type BotTeamsSection =
   | { kind: 'board' }
   | { kind: 'new-project' }
-  | { kind: 'files' }
+  /** `path` opens that file of the team folder, as a file chip in the room does. */
+  | { kind: 'files'; path?: string }
   | { kind: 'memory' }
   | { kind: 'routines' }
   | { kind: 'routine-new' }

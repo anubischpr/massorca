@@ -84,7 +84,7 @@ function TeamDetail({
     return <BotTeamBoard team={team} onBack={toRoom} onOpenTask={onOpenTask} />
   }
   if (section?.kind === 'files') {
-    return <BotTeamFiles team={team} />
+    return <BotTeamFiles team={team} openPath={section.path} />
   }
   if (section?.kind === 'memory') {
     return <BotTeamMemory team={team} />
@@ -168,6 +168,7 @@ function TeamDetail({
       onOpenTask={onOpenTask}
       offline={offline}
       otherTeams={otherTeams}
+      onOpenFile={(path) => toTeam({ section: { kind: 'files', path } })}
       onCreateBot={() => onEditTeam(team.id)}
       onCreateTeam={() => onSelect({ teamId: null, taskId: null, creating: true })}
       header={
