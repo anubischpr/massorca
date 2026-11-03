@@ -64,6 +64,8 @@ export type CommitMessageAgentSpec = {
   codeReadArgs?: {
     add: (research: boolean) => readonly string[]
     drop?: readonly string[]
+    /** The host must confirm its own MCP config and pass the limits as `codeReadHostArgs`. */
+    hostChecked?: true
   }
   /** Alias groups the CLI accepts at most once. Recipe CLI arguments repeating one
    *  replace the generated flag instead of being appended: yargs-based CLIs collapse

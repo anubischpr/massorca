@@ -10,6 +10,7 @@ import {
 import type { GlobalSettings } from '../../shared/global-settings-types'
 import { isTuiAgent } from '../../shared/tui-agent-config'
 import { resolveGenerationTarget } from '../agent-hooks/first-work-generation-target'
+import { resolveCodeReadHostArgs } from './bot-team-code-read-config'
 import { replySuggestionCommandOverride } from '../native-chat/reply-suggestion-agent-selection'
 import { queryBotTeamLead } from '../text-generation/bot-team-lead-generation-request'
 import type { CommitMessageAgentEnvironmentResolvers } from '../text-generation/commit-message-agent-environment'
@@ -100,6 +101,15 @@ async function runAgentQuery(args: QueryArgs, bot: BotQueryAgent | null): Promis
   if (!target) {
     return null
   }
+  // A host-checked agent's code turn gets its MCP limits from this host; none means no code turn.
+  let codeReadHostArgs: readonly string[] | undefined
+  if (codeRead && spec.codeReadArgs?.hostChecked) {
+    const hostArgs = await resolveCodeReadHostArgs({ target })
+    if (!hostArgs) {
+      return null
+    }
+    codeReadHostArgs = hostArgs
+  }
   return queryBotTeamLead({
     prompt,
     params: {
@@ -111,6 +121,7 @@ async function runAgentQuery(args: QueryArgs, bot: BotQueryAgent | null): Promis
     target,
     spawnAgent: spawnSourceControlAgent,
     ...(args.research ? { webResearch: true } : {}),
-    ...(codeRead ? { codeRead: true } : {})
+    ...(codeRead ? { codeRead: true } : {}),
+    ...(codeReadHostArgs ? { codeReadHostArgs } : {})
   })
 }

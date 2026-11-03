@@ -391,6 +391,38 @@ describe('buildBotTeamConversationPrompt language, context and sources', () => {
     )
   })
 
+  it('lets Antigravity read code only where the host confirmed no MCP server, never Codex', () => {
+    const agy = bot('a', 'A', '', 'antigravity')
+    expect(botCanReadCode(agy)).toBe(false)
+    expect(botCanReadCode(agy, new Set())).toBe(false)
+    expect(botCanReadCode(agy, new Set(['antigravity']))).toBe(true)
+    expect(botCanReadCode(bot('c', 'C', '', 'codex'), new Set(['codex', 'antigravity']))).toBe(
+      false
+    )
+  })
+
+  it('routes a code question to a host-confirmed Antigravity bot, never to an unconfirmed one', () => {
+    const open = bot('oc', 'Oc', 'Writes', 'opencode')
+    const agy = bot('a', 'A', 'Writes', 'antigravity')
+    expect(
+      chooseConversationBot({
+        ...choose,
+        bots: [open, agy],
+        code: true,
+        codeReadHostAgents: new Set(['antigravity'])
+      })
+    ).toBe(agy)
+    // Unconfirmed Antigravity is not a code reader, so the question falls back to every bot.
+    expect(
+      chooseConversationBot({
+        ...choose,
+        bots: [open, agy],
+        code: true,
+        codeReadHostAgents: new Set()
+      })
+    ).toBe(open)
+  })
+
   it('falls back to every bot when none can read code', () => {
     const open = bot('oc', 'Oc', 'Writes', 'opencode')
     expect(chooseConversationBot({ ...choose, bots: [open], code: true })).toBe(open)

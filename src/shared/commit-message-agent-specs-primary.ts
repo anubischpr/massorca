@@ -137,7 +137,8 @@ export function buildPrimaryCommitMessageAgentSpecs({
       ],
       // Why: `exec` has no --search flag; this override turns on the native web_search tool (CLI 0.159).
       webResearchArgs: ['-c', 'web_search="live"'],
-      // Why: no code read mode: Codex cannot limit MCP tools per tool, so a code turn could reach a write server.
+      // Why: no code read mode: Codex's `mcp_servers` overrides leave its plugin and connector tools
+      // enabled (codex-cli 0.159.2 smoke), so a code turn could reach a write tool.
       // `-c` is intentionally absent: Codex accepts repeated overrides.
       singletonOptions: [['--model', '-m']],
       modelSource: 'dynamic',

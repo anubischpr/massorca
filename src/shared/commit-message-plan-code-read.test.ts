@@ -62,12 +62,32 @@ describe('code read mode', () => {
     expect(args.filter((arg) => arg === '--allowedTools')).toHaveLength(1)
   })
 
-  it('gives no code read mode to Codex or Antigravity, which cannot limit MCP write tools', () => {
-    for (const agentId of ['codex', 'antigravity'] as const) {
-      const asked = plan(agentId, { codeRead: true })
-      expect(asked.codeRead).toBeUndefined()
-      expect(asked.args).toEqual(plan(agentId).args)
+  it('gives no code read mode to Codex, whose plugin and connector tools host limits cannot reach', () => {
+    const asked = plan('codex', { codeRead: true })
+    expect(asked.codeRead).toBeUndefined()
+    expect(asked.args).toEqual(plan('codex').args)
+  })
+
+  it('gives Antigravity a code turn plan mode on top of its sandbox, once it is host-checked', () => {
+    const asked = planCommitMessageGeneration(
+      { agentId: 'antigravity', model: 'default', codeRead: true, codeReadHostArgs: [] },
+      'P'
+    )
+    if (!asked.ok) {
+      throw new Error(asked.error)
     }
+    expect(asked.plan.codeRead).toBe(true)
+    expect(asked.plan.args).toEqual(expect.arrayContaining(['--sandbox', '--mode', 'plan']))
+    expect(asked.plan.args).not.toContain('--tools')
+    expect(plan('antigravity').args).not.toContain('--mode')
+  })
+
+  it('refuses an Antigravity code turn that was not host-checked', () => {
+    const asked = planCommitMessageGeneration(
+      { agentId: 'antigravity', model: 'default', codeRead: true },
+      'P'
+    )
+    expect(asked.ok).toBe(false)
   })
 
   it('swaps Pi no-tools for its read-only allowlist, after the Gentle Shell separator', () => {

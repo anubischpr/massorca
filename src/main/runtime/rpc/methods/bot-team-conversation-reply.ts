@@ -22,6 +22,7 @@ import {
   botTeamProjectContext,
   ENGRAM_CONTEXT_MAX_ENTRIES
 } from '../../../bot-teams/bot-team-reply-context'
+import { codeReadHostAgents } from '../../../bot-teams/bot-team-code-read-config'
 import { askBotAgentForBotTeamReply } from '../../../bot-teams/bot-team-request-query'
 import { workspaceProjectSource } from '../../../bot-teams/bot-team-project-workspace'
 import { linkedProjectReadPath } from '../../../bot-teams/bot-team-task-worktree'
@@ -140,7 +141,7 @@ async function askConversationBot(
   // A code question reads the linked project's main checkout, only with an agent that can read
   // read-only; anything else answers from the context and says the code was not read.
   const checkout =
-    args.code && project?.workspace && botCanReadCode(bot)
+    args.code && project?.workspace && botCanReadCode(bot, codeReadHostAgents())
       ? await linkedProjectReadPath(
           workspaceProjectSource(ctx.runtime),
           project.workspace.key,
@@ -208,7 +209,8 @@ export function startBotTeamConversationReply(
     usagePercentByAgent: usagePercentByAgent(ctx, team.bots),
     lastBotId: lastToAnswer.get(team.id) ?? null,
     research,
-    code: code && Boolean(project?.workspace)
+    code: code && Boolean(project?.workspace),
+    codeReadHostAgents: codeReadHostAgents()
   })
   answering.add(bot.id)
   lastToAnswer.set(team.id, bot.id)

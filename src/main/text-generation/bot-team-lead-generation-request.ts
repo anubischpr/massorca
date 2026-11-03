@@ -29,13 +29,16 @@ export async function queryBotTeamLead(input: {
   webResearch?: boolean
   /** Read-only code reading where the agent has a code read mode, else text only. */
   codeRead?: boolean
+  /** The host's MCP limits for a code turn of a host-checked agent (see `resolveCodeReadHostArgs`). */
+  codeReadHostArgs?: readonly string[]
 }): Promise<string | null> {
   const planned = planCommitMessageGeneration(
     {
       ...input.params,
       backslash: commandBackslashMode(input.target),
       ...(input.webResearch ? { webResearch: true } : {}),
-      ...(input.codeRead ? { codeRead: true } : {})
+      ...(input.codeRead ? { codeRead: true } : {}),
+      ...(input.codeReadHostArgs ? { codeReadHostArgs: input.codeReadHostArgs } : {})
     },
     input.prompt
   )

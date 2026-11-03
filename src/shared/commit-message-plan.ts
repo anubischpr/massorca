@@ -32,6 +32,8 @@ export type CommitMessagePlanInput = {
   webResearch?: boolean
   /** A code question: the agent reads the checkout it runs in, where its spec has a code read mode. */
   codeRead?: boolean
+  /** Host-derived arguments that limit a code turn's MCP servers; required where the spec is `hostChecked`. */
+  codeReadHostArgs?: readonly string[]
 }
 
 export type CommitMessagePlan = {
@@ -259,6 +261,11 @@ export function planCommitMessageGeneration(
 
   const argvPrompt = spec.promptDelivery === 'argv' ? prompt : ''
   const codeRead = input.codeRead ? spec.codeReadArgs : undefined
+  // Why: a host-checked agent can load a write MCP server unless its host reads limit it, so no
+  // code turn is planned without those limits.
+  if (codeRead?.hostChecked && input.codeReadHostArgs === undefined) {
+    return { ok: false, error: `${spec.label} code reads need the host's MCP limits.` }
+  }
   const researchArgs = input.webResearch ? spec.webResearchArgs : undefined
   const generated = spec.buildArgs({
     prompt: argvPrompt,
@@ -269,7 +276,8 @@ export function planCommitMessageGeneration(
   const baseArgs = codeRead
     ? [
         ...generated.filter((arg) => !codeRead.drop?.includes(arg)),
-        ...codeRead.add(researchArgs !== undefined)
+        ...codeRead.add(researchArgs !== undefined),
+        ...(codeRead.hostChecked ? (input.codeReadHostArgs ?? []) : [])
       ]
     : [...generated, ...(researchArgs ?? [])]
   const agentArgs = planAdditionalAgentArgs(input.agentArgs, input.backslash)

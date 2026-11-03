@@ -25,14 +25,26 @@ type ChooseArgs = {
   research?: boolean
   /** A question about a linked project's code: a bot whose agent can read code read-only takes it. */
   code?: boolean
+  /** Host-checked agents that may read code on this host (see `botCanReadCode`). */
+  codeReadHostAgents?: ReadonlySet<string>
 }
 
 /**
  * Whether a bot's agent has a read-only code read mode (read from its one-shot spec, never a list).
- * Gentle Shell reads through its own runtime with Pi's read-only tool allowlist.
+ * Gentle Shell reads through its own runtime with Pi's read-only tool allowlist. A host-checked agent
+ * (Codex, Antigravity) reads only where `hostAgents` says this host limits its MCP servers.
  */
-export function botCanReadCode(bot: Pick<BotTeamBot, 'agent'>): boolean {
-  return isTuiAgent(bot.agent) && getCommitMessageAgentSpec(bot.agent)?.codeReadArgs !== undefined
+export function botCanReadCode(
+  bot: Pick<BotTeamBot, 'agent'>,
+  hostAgents?: ReadonlySet<string>
+): boolean {
+  const spec = isTuiAgent(bot.agent)
+    ? getCommitMessageAgentSpec(bot.agent)?.codeReadArgs
+    : undefined
+  if (spec === undefined) {
+    return false
+  }
+  return spec.hostChecked !== true || (hostAgents?.has(bot.agent) ?? false)
 }
 
 /**
@@ -68,7 +80,9 @@ function rotate(
  */
 export function chooseConversationBot(args: ChooseArgs): BotTeamBot {
   const searchers = args.research ? args.bots.filter((bot) => botCanSearch(bot)) : []
-  const readers = args.code ? args.bots.filter((bot) => botCanReadCode(bot)) : []
+  const readers = args.code
+    ? args.bots.filter((bot) => botCanReadCode(bot, args.codeReadHostAgents))
+    : []
   // A code question first goes to a bot that reads code and, when it needs the web, also searches.
   const both = readers.filter((bot) => searchers.includes(bot))
   const bots = [both, readers, searchers].find((pool) => pool.length > 0) ?? args.bots
