@@ -164,6 +164,19 @@ export function createUiViewActions(set: UISliceSet, get: UISliceGet): Partial<U
       set((state) => ({
         activeView: state.previousViewBeforeMobile
       })),
+    // Why: no visit is recorded, like Mobile, so back/forward history skips Marketplace.
+    openMarketplacePage: () =>
+      set((state) => ({
+        activeView: 'marketplace',
+        previousViewBeforeMarketplace:
+          state.activeView === 'marketplace'
+            ? state.previousViewBeforeMarketplace
+            : state.activeView
+      })),
+    closeMarketplacePage: () =>
+      set((state) => ({
+        activeView: state.previousViewBeforeMarketplace
+      })),
     setNewWorkspaceDraft: (draft) => set({ newWorkspaceDraft: draft }),
     clearNewWorkspaceDraft: () => set({ newWorkspaceDraft: null })
   }
