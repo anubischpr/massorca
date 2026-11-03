@@ -16,6 +16,7 @@ import {
 } from './floating-workspace-host'
 import { useFloatingWorkspaceHostStore } from './floating-workspace-host-store'
 import { showHostSessionInFloating } from './floating-workspace-host-session'
+import { releaseLegacyPaneReference } from '../store/slices/tabs/pane-session-ref-new-session'
 
 type FloatingWorkspaceTerminalStore = Pick<AppState, 'activeGroupIdByWorktree' | 'createTab'>
 
@@ -54,6 +55,7 @@ export async function createFloatingWorkspaceTerminalTab(
   }
 
   const targetGroupId = groupId ?? store.activeGroupIdByWorktree[FLOATING_TERMINAL_WORKTREE_ID]
+  releaseLegacyPaneReference(live, FLOATING_TERMINAL_WORKTREE_ID, targetGroupId)
 
   // Why: the floating workspace is a local scratchpad; a focused remote runtime
   // must not own its SSH/tmux terminals or prune them via session snapshots.
@@ -71,6 +73,7 @@ export async function createFloatingWorkspaceBrowserTab(
     'managed-browser'
   )
   const targetGroupId = store.activeGroupIdByWorktree[FLOATING_TERMINAL_WORKTREE_ID]
+  releaseLegacyPaneReference(useAppStore.getState(), FLOATING_TERMINAL_WORKTREE_ID, targetGroupId)
   const url = store.browserDefaultUrl ?? 'about:blank'
 
   // Why: browser tabs in the floating workspace share the same local-only
@@ -88,6 +91,7 @@ export async function createFloatingWorkspaceMarkdownTab(
   markdownDirectory?: string | null
 ): Promise<void> {
   const targetGroupId = store.activeGroupIdByWorktree[FLOATING_TERMINAL_WORKTREE_ID]
+  releaseLegacyPaneReference(useAppStore.getState(), FLOATING_TERMINAL_WORKTREE_ID, targetGroupId)
   const floatingMarkdownDirectory =
     markdownDirectory ?? (await window.api.app.getFloatingMarkdownDirectory())
   if (!floatingMarkdownDirectory) {

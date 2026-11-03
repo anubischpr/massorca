@@ -4,7 +4,8 @@ import {
   resolveSessionRefTab,
   selectReferencedSessions
 } from '../store/slices/tabs/pane-session-ref'
-import { isSessionTab, isSidePanelGroupId } from '../store/slices/tabs/side-panel-group'
+import { resolveNewTabTargetGroupId } from '../store/slices/tabs/pane-session-ref-new-session'
+import { isSessionTab } from '../store/slices/tabs/side-panel-group'
 
 /** The store surface these helpers read and write: the app store, or a test store. */
 export type FloatingSessionStore = {
@@ -17,8 +18,8 @@ export type ShowSessionInFloatingResult =
   | { ok: false; reason: 'floating-workspace' | 'already-shown' | 'no-session' | 'no-pane' }
 
 /**
- * Shows a session of another workspace in the floating workspace by reference, as split view does
- * in a pane: the owner keeps the session, one floating pane shows it, and that pane takes focus.
+ * Shows a session of another workspace in the floating workspace by reference: the owner keeps the
+ * session, and a new tab of the focused floating group shows it, beside that group's other tabs.
  */
 export function showSessionInFloatingWorkspace(
   ref: { worktreeId: string; tabId: string },
@@ -31,15 +32,23 @@ export function showSessionInFloatingWorkspace(
   if (selectReferencedSessions(state).has(ref.tabId)) {
     return { ok: false, reason: 'already-shown' }
   }
-  if (!resolveSessionRefTab(state, ref)) {
+  const target = resolveSessionRefTab(state, ref)
+  if (!target) {
     return { ok: false, reason: 'no-session' }
   }
-  const paneId = findEmptyFloatingPane(state) ?? createFloatingPane(store)
-  if (!paneId || !store.getState().showSessionInPane(FLOATING_TERMINAL_WORKTREE_ID, paneId, ref)) {
-    return { ok: false, reason: 'no-pane' }
-  }
-  store.getState().focusGroup(FLOATING_TERMINAL_WORKTREE_ID, paneId)
-  return { ok: true, groupId: paneId }
+  const groupId =
+    resolveNewTabTargetGroupId(store.getState(), FLOATING_TERMINAL_WORKTREE_ID) ??
+    store.getState().ensureWorktreeRootGroup(FLOATING_TERMINAL_WORKTREE_ID)
+  store.getState().createUnifiedTab(FLOATING_TERMINAL_WORKTREE_ID, 'session-ref', {
+    entityId: ref.tabId,
+    label: target.label,
+    ...(target.agentSessionAgent ? { agentSessionAgent: target.agentSessionAgent } : {}),
+    sessionRef: { worktreeId: ref.worktreeId, tabId: ref.tabId },
+    targetGroupId: groupId,
+    activate: true
+  })
+  store.getState().focusGroup(FLOATING_TERMINAL_WORKTREE_ID, groupId)
+  return { ok: true, groupId }
 }
 
 /**
@@ -72,27 +81,4 @@ export function awaitNewSessionTab(
     })
     const timer = setTimeout(() => finish(null), args.timeoutMs)
   })
-}
-
-function findEmptyFloatingPane(state: AppState): string | null {
-  return (
-    (state.groupsByWorktree[FLOATING_TERMINAL_WORKTREE_ID] ?? []).find(
-      (group) => !isSidePanelGroupId(group.id) && group.tabOrder.length === 0 && !group.sessionRef
-    )?.id ?? null
-  )
-}
-
-/** The floating workspace's first pane when it has none, else an empty split beside its focused pane. */
-function createFloatingPane(store: FloatingSessionStore): string | null {
-  const state = store.getState()
-  const groups = state.groupsByWorktree[FLOATING_TERMINAL_WORKTREE_ID] ?? []
-  if (groups.length === 0) {
-    return state.ensureWorktreeRootGroup(FLOATING_TERMINAL_WORKTREE_ID)
-  }
-  const sourceGroupId =
-    state.activeGroupIdByWorktree[FLOATING_TERMINAL_WORKTREE_ID] ?? groups[0]?.id ?? null
-  if (!sourceGroupId) {
-    return null
-  }
-  return state.createEmptySplitGroup(FLOATING_TERMINAL_WORKTREE_ID, sourceGroupId, 'right')
 }

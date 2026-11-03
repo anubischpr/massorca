@@ -1,5 +1,5 @@
 import type { AppState } from '../../types'
-import { planSessionRefCleanup } from './pane-session-ref'
+import { planSessionRefCleanup, selectDeadSessionRefTabIds } from './pane-session-ref'
 import { planSidePanelNormalization, sidePanelGroupId } from './side-panel-group'
 import { selectSidePanelSessionKey } from './side-panel-state'
 
@@ -86,6 +86,14 @@ export function installSidePanelNormalizer(store: NormalizableStore): () => void
       state.unifiedTabsByWorktree !== previous.unifiedTabsByWorktree ||
       state.groupsByWorktree !== previous.groupsByWorktree
     ) {
+      // Why: a floating session tab shows nothing once its session is gone, so it closes with it.
+      const deadTabIds = selectDeadSessionRefTabIds(state)
+      if (deadTabIds.length > 0) {
+        for (const tabId of deadTabIds) {
+          store.getState().closeUnifiedTab(tabId)
+        }
+        return
+      }
       const cleanup = planSessionRefCleanup(state)
       if (cleanup) {
         store.setState(cleanup)

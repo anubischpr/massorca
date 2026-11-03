@@ -74,7 +74,9 @@ export function useTabBarItemProjection({
         .filter(
           (tab) =>
             tab.groupId === resolvedGroupId &&
-            (tab.contentType === 'simulator' || tab.contentType === 'checklist')
+            (tab.contentType === 'simulator' ||
+              tab.contentType === 'checklist' ||
+              tab.contentType === 'session-ref')
         )
         .map((tab) => tab.id),
     [unifiedTabs, resolvedGroupId]

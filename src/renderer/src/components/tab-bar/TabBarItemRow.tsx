@@ -163,7 +163,9 @@ function TabBarItemRow({
   }
   if (item.type === 'simulator') {
     const isChecklist = item.data.contentType === 'checklist'
-    const simulatorLabel = item.data.label || (isChecklist ? 'Checklist' : 'Mobile Emulator')
+    const isSessionRef = item.data.contentType === 'session-ref'
+    const simulatorLabel =
+      item.data.label || (isSessionRef ? 'Session' : isChecklist ? 'Checklist' : 'Mobile Emulator')
     const simulatorFile: OpenFile & { tabId: string } = {
       id: item.id,
       tabId: item.id,

@@ -171,7 +171,13 @@ const tabSchema = z.object({
   // newer build that wrote an unrecognized mode) by degrading to the safe
   // default instead of failing the whole-session parse. Legacy/missing stays
   // undefined → 'terminal' in the renderer.
-  viewMode: z.enum(['terminal', 'chat']).catch('terminal').optional()
+  viewMode: z.enum(['terminal', 'chat']).catch('terminal').optional(),
+  // Why catch: a session tab whose reference this build cannot read closes on hydration instead
+  // of failing the whole-session parse.
+  sessionRef: z
+    .object({ worktreeId: z.string().min(1), tabId: z.string().min(1) })
+    .optional()
+    .catch(undefined)
 })
 
 const tabGroupSplitDirectionSchema = z.enum(['horizontal', 'vertical'])

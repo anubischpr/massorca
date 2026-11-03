@@ -194,7 +194,11 @@ export function buildOrderedTabItems({
     }
     // Why: a checklist tab is self-backed like a simulator tab, so it rides the same strip item.
     const simulatorTab = unifiedTabByVisibleId.get(id)
-    if (simulatorTab?.contentType === 'simulator' || simulatorTab?.contentType === 'checklist') {
+    if (
+      simulatorTab?.contentType === 'simulator' ||
+      simulatorTab?.contentType === 'checklist' ||
+      simulatorTab?.contentType === 'session-ref'
+    ) {
       items.push({
         type: 'simulator',
         id,

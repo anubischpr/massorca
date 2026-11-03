@@ -99,7 +99,11 @@ export function useTabGroupActivationCommands({
       focusGroup(worktreeId, groupId)
       activateTab(item.id)
       // Why: a checklist tab rides the simulator slot and has no editor file either.
-      if (item.contentType === 'simulator' || item.contentType === 'checklist') {
+      if (
+        item.contentType === 'simulator' ||
+        item.contentType === 'checklist' ||
+        item.contentType === 'session-ref'
+      ) {
         setActiveTabType('simulator', worktreeId)
         // simulator has no editor file entity
       } else {

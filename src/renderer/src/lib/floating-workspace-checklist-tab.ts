@@ -2,6 +2,7 @@ import { FLOATING_TERMINAL_WORKTREE_ID } from '../../../shared/constants'
 import type { Tab } from '../../../shared/tab-types'
 import { useAppStore } from '@/store'
 import type { AppState } from '@/store/types'
+import { resolveNewTabTargetGroupId } from '../store/slices/tabs/pane-session-ref-new-session'
 
 type TabsState = Pick<AppState, 'unifiedTabsByWorktree'>
 
@@ -23,7 +24,7 @@ export function openFloatingChecklistTab(label: string): string {
   }
   const tab = store.createUnifiedTab(FLOATING_TERMINAL_WORKTREE_ID, 'checklist', {
     label,
-    targetGroupId: store.activeGroupIdByWorktree[FLOATING_TERMINAL_WORKTREE_ID],
+    targetGroupId: resolveNewTabTargetGroupId(store, FLOATING_TERMINAL_WORKTREE_ID),
     activate: true
   })
   store.activateTab(tab.id)

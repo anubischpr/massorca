@@ -175,14 +175,19 @@ export function renderFloatingTerminalPanelSurface({
                   groupActiveTabId={activeTab?.id ?? null}
                   activeFileId={activeEditorUnifiedId}
                   activeBrowserTabId={activeBrowserId}
-                  // Why: the strip lights a checklist tab through its self-backed simulator slot.
+                  // Why: the strip lights checklist and session tabs through the self-backed simulator slot.
                   activeSimulatorTabId={
-                    activeTab?.contentType === 'simulator' || activeTab?.contentType === 'checklist'
+                    activeTab?.contentType === 'simulator' ||
+                    activeTab?.contentType === 'checklist' ||
+                    activeTab?.contentType === 'session-ref'
                       ? activeTab.id
                       : null
                   }
                   activeTabType={
-                    activeTab?.contentType === 'checklist' ? 'simulator' : activeTabType
+                    activeTab?.contentType === 'checklist' ||
+                    activeTab?.contentType === 'session-ref'
+                      ? 'simulator'
+                      : activeTabType
                   }
                   onActivateFile={model.commands.activateEditor}
                   onCloseFile={closeFloatingItemConfirmed}
@@ -274,6 +279,10 @@ export function renderFloatingTerminalPanelSurface({
                   onOpenMarkdown={openFloatingMarkdownTab}
                   onNewBrowser={createFloatingBrowserTab}
                   showNewBrowser={managedBrowserCreationEnabled}
+                  onNewChecklist={() =>
+                    openFloatingChecklistTab(translate('components.tabBar.checklist', 'Checklist'))
+                  }
+                  onOpenSession={() => useFloatingOpenSessionPickerStore.getState().setOpen(true)}
                   onClose={() => onOpenChange(false)}
                   onFocusPanel={focusPanelForShortcuts}
                   newTerminalShortcut={newTerminalShortcut}
