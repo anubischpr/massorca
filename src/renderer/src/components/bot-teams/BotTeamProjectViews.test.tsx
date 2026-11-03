@@ -18,6 +18,7 @@ const setBotTeamProjectCodeSource = vi.hoisted(() => vi.fn())
 const listBotTeamLinkableWorkspaces = vi.hoisted(() => vi.fn())
 const setBotTeamProjectWorkspace = vi.hoisted(() => vi.fn())
 const toastError = vi.hoisted(() => vi.fn())
+const listBotTeamRoutines = vi.hoisted(() => vi.fn(async (): Promise<unknown> => []))
 const liveStatuses = vi.hoisted(() => ({ current: new Map<string, unknown>() }))
 
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
@@ -27,6 +28,7 @@ vi.mock('@/runtime/runtime-bot-team-client', () => ({
   setBotTeamProjectCodeSource,
   setBotTeamProjectWorkspace
 }))
+vi.mock('@/runtime/runtime-bot-team-client-routines', () => ({ listBotTeamRoutines }))
 vi.mock('@/i18n/i18n', () => ({
   i18n: { language: 'en' },
   translate: (_key: string, fallback: string, options?: Record<string, unknown>) =>
@@ -687,6 +689,45 @@ describe('a task whose session has not answered yet', () => {
     expect(columnFor(board, 'In Progress').textContent).toContain('Plan the menu')
     expect(board.textContent).toContain('Working')
     expect(board.querySelector('[data-bot-team-status-placeholder]')).toBeNull()
+  })
+
+  it('the team board lists the scheduled one-time work first, with its date, and no past or repeating routine', async () => {
+    const routine = (id: string, name: string, schedule: object, nextRun: object | null) => ({
+      id,
+      teamId: 'team-scheduled',
+      botId: 'b1',
+      name,
+      prompt: '',
+      schedule: { time: '10:00', weekday: null, monthDay: null, ...schedule },
+      paused: false,
+      nextRun,
+      lastRun: null
+    })
+    listBotTeamRoutines.mockResolvedValueOnce([
+      routine(
+        'r1',
+        'Front review',
+        { frequency: 'once', date: '2026-11-04' },
+        { date: '2026-11-04', time: '10:00' }
+      ),
+      routine('r2', 'Done review', { frequency: 'once', date: '2026-11-01' }, null),
+      routine('r3', 'Daily digest', { frequency: 'daily' }, { date: '2026-11-04', time: '10:00' })
+    ])
+    listBotTeamRoom.mockResolvedValue({ tasks: [], messages: [], projects: [] })
+
+    const board = await mount(
+      <BotTeamBoard
+        team={{ ...team(false), id: 'team-scheduled' }}
+        onBack={() => {}}
+        onOpenTask={() => {}}
+      />
+    )
+
+    expect(board.textContent).toContain('Front review')
+    expect(board.textContent).toMatch(/Scheduled, .+, 10:00/)
+    expect(board.textContent).not.toContain('Done review')
+    expect(board.textContent).not.toContain('Daily digest')
+    expect(board.textContent).not.toContain('No tasks here.')
   })
 
   it('the team board paints the list it kept at once, with no status word until the feed answers', async () => {

@@ -5,6 +5,8 @@ import { AgentIcon } from '@/lib/agent-catalog'
 import { translate } from '@/i18n/i18n'
 import { botTeamTaskStatus } from '../../../../shared/bot-team-task-status'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
+import { upcomingOnceRoutines, routineWhenLabel } from './BotTeamRoutineLabels'
+import { useBotTeamRoutines } from './BotTeamRoutines'
 import { BotTeamTaskStatusPlaceholder } from './BotTeamTaskCard'
 import { BotTeamViewHeader as ViewHeader } from './BotTeamViewHeader'
 import { keepSessionStatuses } from './bot-team-project-board-cache'
@@ -22,6 +24,7 @@ export function BotTeamBoard({
   onOpenTask: (taskId: string) => void
 }): React.JSX.Element {
   const { tasks, projects } = useKeptTeamWork(team.id)
+  const { routines } = useBotTeamRoutines(team.id)
   const statuses = useBotTeamSessionStatuses()
   useEffect(() => keepSessionStatuses(statuses), [statuses])
   // null: all; 'none': without a project; otherwise a project id.
@@ -29,6 +32,11 @@ export function BotTeamBoard({
   const shown = tasks.filter((task) =>
     filter === null ? true : filter === 'none' ? task.projectId === null : task.projectId === filter
   )
+  // A scheduled run makes its task without a project, so it shows with the tasks that have none.
+  const scheduled =
+    Array.isArray(routines) && (filter === null || filter === 'none')
+      ? upcomingOnceRoutines(routines)
+      : []
   const chips = [
     { id: null, name: translate('components.botTeams.allTasks', 'All') },
     ...projects.map((project) => ({ id: project.id, name: project.name })),
@@ -58,6 +66,28 @@ export function BotTeamBoard({
             ))}
           </div>
           <div className="flex flex-col rounded-xl border border-border bg-card">
+            {scheduled.map((routine) => {
+              const owner = team.bots.find((bot) => bot.id === routine.botId)
+              return (
+                <div
+                  key={routine.id}
+                  className="flex w-full items-center gap-3 border-t border-border px-4 py-3 first:border-t-0"
+                >
+                  <AgentIcon agent={owner?.agent} size={20} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{routine.name}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {owner?.name}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {translate('components.botTeams.scheduledFor', 'Scheduled, {{when}}', {
+                      when: routineWhenLabel(routine.nextRun, routine.nextRunAt)
+                    })}
+                  </span>
+                </div>
+              )
+            })}
             {shown.map((task) => {
               const owner = team.bots.find((bot) => bot.id === task.ownerBotId)
               const status = botTeamTaskStatus(
@@ -90,7 +120,7 @@ export function BotTeamBoard({
                 </button>
               )
             })}
-            {shown.length === 0 ? (
+            {shown.length === 0 && scheduled.length === 0 ? (
               <p className="px-4 py-3 text-sm text-muted-foreground">
                 {translate('components.botTeams.noTasksHere', 'No tasks here.')}
               </p>

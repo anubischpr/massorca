@@ -99,7 +99,14 @@ describe('New routine', () => {
       botId: 'iris',
       name: 'Monday check-in',
       prompt: 'List what is open.',
-      schedule: { frequency: 'weekly', time: '09:00', weekday: 5, monthDay: null }
+      schedule: {
+        frequency: 'weekly',
+        time: '09:00',
+        weekday: 5,
+        monthDay: null,
+        date: null,
+        timeZone: expect.any(String)
+      }
     })
     expect(onCreated).toHaveBeenCalled()
   })
@@ -111,20 +118,59 @@ describe('New routine', () => {
     await type('#routine-prompt', 'Check the prices.')
     act(() => button('Every month')?.click())
     act(() => button('15')?.click())
-    await type('input[type="time"]', '16:30')
+    act(() => button('Afternoon 15:00')?.click())
     await act(async () => button('Create routine')?.click())
     expect(createBotTeamRoutine).toHaveBeenCalledWith(
       expect.objectContaining({
-        schedule: { frequency: 'monthly', time: '16:30', weekday: null, monthDay: 15 }
+        schedule: {
+          frequency: 'monthly',
+          time: '15:00',
+          weekday: null,
+          monthDay: 15,
+          date: null,
+          timeZone: expect.any(String)
+        }
       })
     )
     act(() => button('Every day')?.click())
     await act(async () => button('Create routine')?.click())
     expect(createBotTeamRoutine).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        schedule: { frequency: 'daily', time: '16:30', weekday: null, monthDay: null }
+        schedule: {
+          frequency: 'daily',
+          time: '15:00',
+          weekday: null,
+          monthDay: null,
+          date: null,
+          timeZone: expect.any(String)
+        }
       })
     )
+  })
+
+  it('creates a one-time routine on the chosen date', async () => {
+    createBotTeamRoutine.mockResolvedValue({})
+    const { button, type } = await mount()
+    await type('#routine-name', 'Front review')
+    await type('#routine-prompt', 'Review the front end.')
+    act(() => button('Once')?.click())
+    await type('input[type="date"]', '2026-11-04')
+    act(() => button('Noon 12:00')?.click())
+    await act(async () => button('Create routine')?.click())
+    expect(createBotTeamRoutine).toHaveBeenCalledWith(
+      expect.objectContaining({
+        schedule: {
+          frequency: 'once',
+          time: '12:00',
+          weekday: null,
+          monthDay: null,
+          date: '2026-11-04',
+          timeZone: expect.any(String)
+        }
+      })
+    )
+    await type('input[type="date"]', '')
+    expect(button('Create routine')?.disabled).toBe(true)
   })
 
   it('shows the bot job, the access it uses and where to change it', async () => {
@@ -133,7 +179,7 @@ describe('New routine', () => {
     expect(container.textContent).toContain('Full access')
     expect(container.textContent).toContain('Set for Marketing in Settings. This routine uses it.')
     expect(container.textContent).toContain(
-      'Runs at this time, on the clock of the host Marketing uses.'
+      `Runs at this time in ${Intl.DateTimeFormat().resolvedOptions().timeZone}, your time zone, wherever the host is.`
     )
     act(() => button('Iris')?.click())
     expect(container.textContent).toContain('Designs flyers')

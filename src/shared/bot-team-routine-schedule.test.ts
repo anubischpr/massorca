@@ -3,6 +3,7 @@ import {
   hostWallTime,
   latestRoutineRunAtOrBefore,
   nextRoutineRunAfter,
+  onceRoutineRunAt,
   routineCron
 } from './bot-team-routine-schedule'
 
@@ -36,6 +37,63 @@ describe('bot team routine schedule', () => {
     )
     expect(latestRoutineRunAtOrBefore(mondays, at(11, 2, 9, 0), at(11, 5, 10, 0))).toBeNull()
     expect(latestRoutineRunAtOrBefore(daily, at(11, 5, 9, 0), at(11, 5, 10, 0))).toBeNull()
+  })
+
+  it('runs a one-time routine at its date and never again', () => {
+    const once = { ...daily, frequency: 'once', date: '2026-11-04' } as const
+    expect(onceRoutineRunAt(once)).toBe(at(11, 4, 9, 0))
+    expect(nextRoutineRunAfter(once, at(11, 3, 12, 0))).toBe(at(11, 4, 9, 0))
+    expect(nextRoutineRunAfter(once, at(11, 4, 9, 0))).toBeNull()
+    // Asleep through it: it still runs late, once.
+    expect(latestRoutineRunAtOrBefore(once, at(11, 4, 8, 59), at(11, 5, 10, 0))).toBe(
+      at(11, 4, 9, 0)
+    )
+    expect(latestRoutineRunAtOrBefore(once, at(11, 4, 9, 0), at(11, 5, 10, 0))).toBeNull()
+  })
+
+  it('refuses a one-time date that is missing or not on the calendar', () => {
+    expect(onceRoutineRunAt({ ...daily, frequency: 'once', date: null })).toBeNull()
+    expect(onceRoutineRunAt({ ...daily, frequency: 'once', date: '2026-02-30' })).toBeNull()
+  })
+
+  it("runs on the clock of the routine's zone, across a DST change", () => {
+    const madrid = { ...daily, timeZone: 'Europe/Madrid' } as const
+    // Madrid is UTC+2 until 25 Oct 2026 and UTC+1 after.
+    expect(nextRoutineRunAfter(madrid, Date.UTC(2026, 9, 24, 12, 0))).toBe(
+      Date.UTC(2026, 9, 25, 8, 0)
+    )
+    expect(nextRoutineRunAfter(madrid, Date.UTC(2026, 9, 23, 12, 0))).toBe(
+      Date.UTC(2026, 9, 24, 7, 0)
+    )
+    const mondays = { frequency: 'weekly', time: '18:30', weekday: 1, monthDay: null } as const
+    expect(
+      nextRoutineRunAfter({ ...mondays, timeZone: 'America/Bogota' }, Date.UTC(2026, 10, 2, 23, 0))
+    ).toBe(Date.UTC(2026, 10, 2, 23, 30))
+    const once = {
+      ...daily,
+      frequency: 'once',
+      date: '2026-11-04',
+      timeZone: 'Asia/Tokyo'
+    } as const
+    expect(onceRoutineRunAt(once)).toBe(Date.UTC(2026, 10, 4, 0, 0))
+    // Asleep through two runs: only the latest, in the zone.
+    expect(
+      latestRoutineRunAtOrBefore(madrid, Date.UTC(2026, 10, 2, 8, 0), Date.UTC(2026, 10, 4, 9, 0))
+    ).toBe(Date.UTC(2026, 10, 4, 8, 0))
+  })
+
+  it('keeps a routine with no zone, or one this host does not know, on the host clock', () => {
+    expect(nextRoutineRunAfter({ ...daily, timeZone: null }, at(11, 2, 8, 0))).toBe(at(11, 2, 9, 0))
+    expect(nextRoutineRunAfter({ ...daily, timeZone: 'Mars/Olympus' }, at(11, 2, 8, 0))).toBe(
+      at(11, 2, 9, 0)
+    )
+  })
+
+  it('reads a moment on a zone clock', () => {
+    expect(hostWallTime(Date.UTC(2026, 10, 4, 0, 0), 'Asia/Tokyo')).toEqual({
+      date: '2026-11-04',
+      time: '09:00'
+    })
   })
 
   it('reads a moment as the host sees it', () => {

@@ -2,7 +2,6 @@ import {
   parseBotTeamClassifyCode,
   parseBotTeamClassifyResearch
 } from '../../../../shared/bot-team-request-classify'
-import { withoutBotTeamMention } from '../../../../shared/bot-team-request-route'
 import type { BotTeamRequestChoice } from '../../../../shared/bot-team-request-choice'
 import { botTeamFilesOnlyText } from '../../../../shared/bot-team-room-attachments-line'
 import {
@@ -13,10 +12,14 @@ import type {
   BotTeamMessage,
   BotTeamTask
 } from '../../../../shared/rpc-contract/bot-team-room-params'
+import { botTeamTaskTitle, withoutBotTeamMention } from '../../../../shared/bot-team-request-route'
 import { activeTasksByBot, fileBotTeamRequest } from '../../../bot-teams/bot-team-assign-request'
+import { botTeamScheduledReply } from '../../../bot-teams/bot-team-filed-reply'
 import { replyToBotTeamGreeting } from '../../../bot-teams/bot-team-greeting-reply'
 import { decideBotTeamRequest } from '../../../bot-teams/bot-team-request-flow'
 import { askDefaultAgentForBotTeamRequest } from '../../../bot-teams/bot-team-request-query'
+import { isKnownTimeZone } from '../../../../shared/bot-team-routine-zone'
+import { createBotTeamRoutine } from '../../orchestration/db/bot-teams/bot-team-routine-store'
 import type { OrchestrationDb } from '../../orchestration/db/orchestration-db'
 import type { RpcContext } from '../core'
 import { startBotTeamConversationReply } from './bot-team-conversation-reply'
@@ -39,6 +42,8 @@ export type BotTeamPostResult = {
   sentTo?: { teamId: string; teamName: string }
   /** The person asked for the work later: it waits in Todo and nothing starts. */
   later?: true
+  /** The person named a day: a one-time routine starts the task then, on the host's clock. */
+  scheduled?: { routineId: string; date: string; time: string }
 }
 
 /** The person's last few lines in the room: what the language of a line with no words is read from. */
@@ -59,13 +64,15 @@ export async function postBotTeamRequestOnHost(
     text: typed,
     start,
     askProject = false,
-    attachments = []
+    attachments = [],
+    timeZone
   }: {
     teamId: string
     text: string
     start: boolean
     askProject?: boolean
     attachments?: BotTeamRoomAttachment[]
+    timeZone?: string
   },
   startTask: (taskId: string) => Promise<BotTeamTask>
 ): Promise<BotTeamPostResult> {
@@ -92,6 +99,7 @@ export async function postBotTeamRequestOnHost(
     team,
     otherTeams: teams.filter((entry) => entry.id !== teamId),
     activeTasksByBot: activeTasksByBot(db, teamId),
+    timeZone: timeZone ?? null,
     classify: async (prompt) => {
       classifyReply = await askDefaultAgentForBotTeamRequest({
         prompt,
@@ -142,6 +150,39 @@ export async function postBotTeamRequestOnHost(
   }
   if (decision.type === 'ask') {
     return { message, task: null, startError: null }
+  }
+  if (decision.scheduledFor) {
+    const { date, time } = decision.scheduledFor
+    const routine = createBotTeamRoutine(
+      db,
+      {
+        teamId,
+        botId: decision.bot.id,
+        name: botTeamTaskTitle(text, team.bots),
+        prompt: botTeamRoomTextWithAttachments(text, attachments),
+        schedule: {
+          frequency: 'once',
+          time,
+          weekday: null,
+          monthDay: null,
+          date,
+          timeZone: timeZone && isKnownTimeZone(timeZone) ? timeZone : null
+        }
+      },
+      Date.now()
+    )
+    db.postBotTeamMessage({
+      teamId,
+      authorBotId: decision.bot.id,
+      text: botTeamScheduledReply({ date, time, text })
+    })
+    return {
+      message,
+      task: null,
+      startError: null,
+      later: true,
+      scheduled: { routineId: routine.id, date, time }
+    }
   }
   const filed = await fileBotTeamRequest(
     db,

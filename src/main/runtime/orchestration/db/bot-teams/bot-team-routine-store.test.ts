@@ -67,14 +67,19 @@ describe('bot team routine store', () => {
     const { db, input } = setup()
     const routine = createBotTeamRoutine(
       db,
-      { ...input, schedule: { frequency: 'daily', time: '07:30', weekday: 3, monthDay: 9 } },
+      {
+        ...input,
+        schedule: { frequency: 'daily', time: '07:30', weekday: 3, monthDay: 9, date: '2026-11-04' }
+      },
       at(11, 1, 12, 0)
     )
     expect(routine.schedule).toEqual({
       frequency: 'daily',
       time: '07:30',
       weekday: null,
-      monthDay: null
+      monthDay: null,
+      date: null,
+      timeZone: null
     })
   })
 
@@ -121,6 +126,7 @@ describe('bot team routine store', () => {
     ])
     expect(listBotTeamRoutines(db, team.id)[0].lastRun).toEqual({
       scheduledFor: { date: '2026-11-09', time: '09:00' },
+      scheduledAt: at(11, 9, 9, 0),
       taskId: 'task-2',
       error: 'No login.'
     })
@@ -151,6 +157,58 @@ describe('bot team routine store', () => {
     expect(hasActiveBotTeamRoutine(db)).toBe(true)
     setBotTeamRoutinePaused(db, routine.id, true, at(11, 1, 13, 0))
     expect(hasActiveBotTeamRoutine(db)).toBe(false)
+  })
+
+  it('runs a one-time routine once, then shows no next run and lets the host rest', () => {
+    const { db, input } = setup()
+    const once = {
+      ...input,
+      name: 'Front review',
+      schedule: {
+        frequency: 'once',
+        time: '10:00',
+        weekday: 3,
+        monthDay: 4,
+        date: '2026-11-04'
+      } as const
+    }
+    const routine = createBotTeamRoutine(db, once, at(11, 3, 12, 0))
+    // The days a one-time routine does not use are dropped.
+    expect(routine.schedule).toEqual({
+      frequency: 'once',
+      time: '10:00',
+      weekday: null,
+      monthDay: null,
+      date: '2026-11-04',
+      timeZone: null
+    })
+    expect(routine.nextRun).toEqual({ date: '2026-11-04', time: '10:00' })
+    expect(hasActiveBotTeamRoutine(db)).toBe(true)
+
+    expect(claimDueBotTeamRoutines(db, at(11, 4, 9, 59))).toEqual([])
+    const [claimed] = claimDueBotTeamRoutines(db, at(11, 4, 10, 1))
+    expect(claimed.scheduledFor).toBe(at(11, 4, 10, 0))
+    expect(claimed.routine.nextRun).toBeNull()
+    expect(claimDueBotTeamRoutines(db, at(11, 12, 10, 0))).toEqual([])
+    expect(hasActiveBotTeamRoutine(db)).toBe(false)
+    // Resuming a past one-time routine does not run it again.
+    setBotTeamRoutinePaused(db, routine.id, true, at(11, 5, 0, 0))
+    expect(setBotTeamRoutinePaused(db, routine.id, false, at(11, 5, 0, 0)).nextRun).toBeNull()
+  })
+
+  it('runs a routine on the clock of the zone it was made in, whatever the host clock is', () => {
+    const { db, input } = setup()
+    // Made in Bogota (UTC-5, no DST) for Mondays at 09:00; the host may be anywhere.
+    const routine = createBotTeamRoutine(
+      db,
+      { ...input, schedule: { ...input.schedule, timeZone: 'America/Bogota' } },
+      Date.UTC(2026, 10, 1, 12, 0)
+    )
+    expect(routine.schedule.timeZone).toBe('America/Bogota')
+    expect(routine.nextRun).toEqual({ date: '2026-11-02', time: '09:00' })
+    expect(routine.nextRunAt).toBe(Date.UTC(2026, 10, 2, 14, 0))
+    const [claimed] = claimDueBotTeamRoutines(db, Date.UTC(2026, 10, 2, 14, 1))
+    expect(claimed.scheduledFor).toBe(Date.UTC(2026, 10, 2, 14, 0))
   })
 
   it('does not stop a team from being deleted, and forgets its routines afterwards', () => {

@@ -11,11 +11,14 @@ import { useAppStore } from '@/store'
 import {
   BOT_TEAM_ROUTINE_FREQUENCIES,
   BOT_TEAM_ROUTINE_MAX_MONTH_DAY,
+  hostWallTime,
   type BotTeamRoutineFrequency
 } from '../../../../shared/bot-team-routine-schedule'
+import { localTimeZone } from '../../../../shared/bot-team-routine-zone'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import { BotAgentIcon } from './BotAgentIcon'
 import { ROUTINE_WEEKDAYS, routineAccessLabel, routineWeekdayName } from './BotTeamRoutineLabels'
+import { BotTeamRoutineTimePicker } from './BotTeamRoutineTimePicker'
 import { BotTeamViewHeader } from './BotTeamViewHeader'
 
 function frequencyLabel(frequency: BotTeamRoutineFrequency): string {
@@ -26,7 +29,14 @@ function frequencyLabel(frequency: BotTeamRoutineFrequency): string {
       return translate('components.botTeams.routineEveryWeekChoice', 'Every week')
     case 'monthly':
       return translate('components.botTeams.routineEveryMonthChoice', 'Every month')
+    case 'once':
+      return translate('components.botTeams.routineOnceChoice', 'Once')
   }
+}
+
+/** Tomorrow on this computer's clock, as a date input reads it. */
+function tomorrowDate(): string {
+  return hostWallTime(Date.now() + 86_400_000).date
 }
 
 const MONTH_DAYS = Array.from({ length: BOT_TEAM_ROUTINE_MAX_MONTH_DAY }, (_, index) => index + 1)
@@ -48,9 +58,16 @@ export function BotTeamRoutineNew({
   const [time, setTime] = useState('09:00')
   const [weekday, setWeekday] = useState(1)
   const [monthDay, setMonthDay] = useState(1)
+  const [date, setDate] = useState(tomorrowDate)
+  const zone = localTimeZone()
   const [botId, setBotId] = useState(team.bots[0]?.id ?? '')
   const bot = team.bots.find((entry) => entry.id === botId)
-  const ready = name.trim() !== '' && prompt.trim() !== '' && time !== '' && bot !== undefined
+  const ready =
+    name.trim() !== '' &&
+    prompt.trim() !== '' &&
+    time !== '' &&
+    bot !== undefined &&
+    (frequency !== 'once' || date !== '')
   const create = async (): Promise<void> => {
     try {
       await createBotTeamRoutine({
@@ -62,7 +79,9 @@ export function BotTeamRoutineNew({
           frequency,
           time,
           weekday: frequency === 'weekly' ? weekday : null,
-          monthDay: frequency === 'monthly' ? monthDay : null
+          monthDay: frequency === 'monthly' ? monthDay : null,
+          date: frequency === 'once' ? date : null,
+          timeZone: zone
         }
       })
       onCreated()
@@ -137,14 +156,17 @@ export function BotTeamRoutineNew({
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
-              <Input
-                type="time"
-                className="w-28"
-                aria-label={translate('components.botTeams.routineTime', 'Time')}
-                value={time}
-                onChange={(event) => setTime(event.target.value)}
-              />
+              {frequency === 'once' ? (
+                <Input
+                  type="date"
+                  className="w-40"
+                  aria-label={translate('components.botTeams.routineDate', 'Date')}
+                  value={date}
+                  onChange={(event) => setDate(event.target.value)}
+                />
+              ) : null}
             </div>
+            <BotTeamRoutineTimePicker value={time} onChange={setTime} />
             {frequency === 'weekly' ? (
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {ROUTINE_WEEKDAYS.map((day) => (
@@ -178,11 +200,17 @@ export function BotTeamRoutineNew({
               </div>
             ) : null}
             <p className="text-xs text-muted-foreground">
-              {translate(
-                'components.botTeams.routineClockHelp',
-                'Runs at this time, on the clock of the host {{team}} uses.',
-                { team: team.name }
-              )}
+              {zone === null
+                ? translate(
+                    'components.botTeams.routineClockHelp',
+                    'Runs at this time, on the clock of the host {{team}} uses.',
+                    { team: team.name }
+                  )
+                : translate(
+                    'components.botTeams.routineZoneHelp',
+                    'Runs at this time in {{zone}}, your time zone, wherever the host is.',
+                    { zone }
+                  )}
             </p>
           </div>
           <div className="flex flex-col gap-1.5">

@@ -177,7 +177,12 @@ export const BotTeamMessagePost = z
     /** One id per send, reused when the client retries that send: the host then posts it once. */
     clientRequestId: z.string().min(1).max(100).optional(),
     /** Files the person added from the team folder's attachments; only a client the host admits sends them. */
-    attachments: z.array(BotTeamRoomAttachmentSchema).max(BOT_TEAM_ROOM_ATTACHMENT_LIMIT).optional()
+    attachments: z
+      .array(BotTeamRoomAttachmentSchema)
+      .max(BOT_TEAM_ROOM_ATTACHMENT_LIMIT)
+      .optional(),
+    /** The sender's IANA zone, so "mañana a las 10" is read on their clock. An older client sends none. */
+    timeZone: z.string().min(1).max(64).optional()
   })
   .refine((value) => value.text.trim() !== '' || (value.attachments?.length ?? 0) > 0, {
     message: 'Missing message text',
