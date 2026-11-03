@@ -8,15 +8,13 @@ import {
 registerWorktreeActivationReset()
 
 describe('ensureWorktreeHasInitialTerminal', () => {
-  it('creates a single tab without setup split when no setup is provided', () => {
+  it('creates no tab when no setup, launch, or default tab is provided', () => {
     const store = createMockStore()
 
-    ensureWorktreeHasInitialTerminal(store, 'wt-1')
+    expect(ensureWorktreeHasInitialTerminal(store, 'wt-1')).toBeNull()
 
-    expect(store.createTab).toHaveBeenCalledWith('wt-1', undefined, undefined, {
-      pendingActivationSpawn: true
-    })
-    expect(store.setActiveTab).toHaveBeenCalledWith('tab-1')
+    expect(store.createTab).not.toHaveBeenCalled()
+    expect(store.setActiveTab).not.toHaveBeenCalled()
     expect(store.queueTabStartupCommand).not.toHaveBeenCalled()
     expect(store.queueTabSetupSplit).not.toHaveBeenCalled()
   })
@@ -155,7 +153,7 @@ describe('ensureWorktreeHasInitialTerminal', () => {
       ]
     })
 
-    expect(store.createTab).toHaveBeenCalledTimes(1)
+    expect(store.createTab).not.toHaveBeenCalled()
     expect(store.setTabCustomTitle).not.toHaveBeenCalledWith('tab-1', 'Claude', {
       recordInteraction: false
     })

@@ -34,8 +34,10 @@ function getSetupRunnerCommandPlatformForLaunch(setup: WorktreeSetupLaunch): 'wi
 
 export type GatedEmptyWorkspaceReseedIntent = {
   callerProvidesSurface: boolean
-  seedUserDefaultSurface: boolean
+  seedUserDefaultSurface?: boolean
   executionHostId?: ExecutionHostId
+  /** The person picked Blank Terminal; the gate must not drop that shell. */
+  blankTerminalRequested?: boolean
 }
 
 /** Re-seed after an empty gate unless its activation owns the surface or no longer owns the host. */
@@ -43,7 +45,8 @@ export function reseedGatedEmptyWorkspace(
   workspaceKey: string,
   intent: GatedEmptyWorkspaceReseedIntent
 ): void {
-  const { callerProvidesSurface, seedUserDefaultSurface, executionHostId } = intent
+  const { callerProvidesSurface, seedUserDefaultSurface, executionHostId, blankTerminalRequested } =
+    intent
   const state = useAppStore.getState()
   if (
     callerProvidesSurface === true ||
@@ -62,7 +65,8 @@ export function reseedGatedEmptyWorkspace(
     undefined,
     {
       reseedEmptiedWorkspace: true,
-      ...(seedUserDefaultSurface ? { seedUserDefaultSurface: true } : {})
+      ...(seedUserDefaultSurface ? { seedUserDefaultSurface: true } : {}),
+      ...(blankTerminalRequested ? { blankTerminalRequested: true } : {})
     }
   )
 }
@@ -241,6 +245,12 @@ export function ensureWorktreeHasInitialTerminal(
     if (defaultChat) {
       return defaultChat.primaryTabId
     }
+  }
+
+  // Why: an empty workspace gets no shell the person did not ask for; its main area offers + Create.
+  // Default tab templates, the default chat above and a Blank Terminal pick are choices, so they apply.
+  if (!hasExplicitLaunchWork && opts?.blankTerminalRequested !== true) {
+    return null
   }
 
   // Why: tag this activation-created tab so its PTY spawn doesn't count as activity and reshuffle the Recent sort.

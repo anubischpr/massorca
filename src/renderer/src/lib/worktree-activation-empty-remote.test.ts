@@ -50,25 +50,9 @@ function makeWorktree(): Worktree {
 }
 
 describe('empty remote worktree activation', () => {
-  it('creates a host terminal when waking an empty remote workspace', async () => {
+  it('creates no host terminal when waking a never-used remote workspace', async () => {
     const worktree = makeWorktree()
-    const callRuntimeEnvironment = vi.fn().mockResolvedValueOnce({
-      ok: true,
-      result: {
-        tab: {
-          type: 'terminal',
-          id: 'host-tab-1::leaf-1',
-          parentTabId: 'host-tab-1',
-          leafId: 'leaf-1',
-          title: 'Terminal 1',
-          terminal: 'term_host',
-          status: 'ready',
-          isActive: true
-        },
-        publicationEpoch: 'epoch-1',
-        snapshotVersion: 1
-      }
-    })
+    const callRuntimeEnvironment = vi.fn()
     ;(globalThis as { __ORCA_WEB_CLIENT__?: boolean }).__ORCA_WEB_CLIENT__ = true
     vi.stubGlobal('window', {
       api: {
@@ -103,26 +87,13 @@ describe('empty remote worktree activation', () => {
     })
 
     ensureWebRuntimeWorktreeTerminalAfterWake(worktree.id)
-    await vi.waitFor(() => {
-      expect(callRuntimeEnvironment).toHaveBeenCalled()
-    })
+    await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(callRuntimeEnvironment).toHaveBeenCalledWith(
-      expect.objectContaining({
-        selector: 'web-runtime-1',
-        method: 'session.tabs.createTerminal',
-        params: expect.objectContaining({
-          worktree: `id:${worktree.id}`,
-          activate: false,
-          select: true,
-          navigation: 'caller'
-        })
-      })
-    )
+    expect(callRuntimeEnvironment).not.toHaveBeenCalled()
     expect(toast.error).not.toHaveBeenCalled()
   })
 
-  it('surfaces a failed host terminal request without retrying ambiguously', async () => {
+  it('surfaces a failed respawn of a woken terminal without retrying ambiguously', async () => {
     const worktree = makeWorktree()
     const callRuntimeEnvironment = vi.fn().mockResolvedValueOnce({
       ok: false,
@@ -149,15 +120,28 @@ describe('empty remote worktree activation', () => {
         }
       ],
       worktreesByRepo: { 'repo-1': [worktree] },
-      tabsByWorktree: {},
+      tabsByWorktree: {
+        [worktree.id]: [
+          {
+            id: 'local-tab',
+            ptyId: 'dead-pty',
+            worktreeId: worktree.id,
+            title: 'Terminal',
+            customTitle: null,
+            color: null,
+            sortOrder: 0,
+            createdAt: 1
+          }
+        ]
+      },
       ptyIdsByTabId: {},
       settings: {
         ...getDefaultSettings(ORCA_WORKSPACES_PATH),
         activeRuntimeEnvironmentId: 'web-runtime-1'
       },
       reconcileWorktreeTabModel: vi.fn(() => ({
-        renderableTabCount: 0,
-        activeRenderableTabId: null
+        renderableTabCount: 1,
+        activeRenderableTabId: 'local-tab'
       }))
     })
 

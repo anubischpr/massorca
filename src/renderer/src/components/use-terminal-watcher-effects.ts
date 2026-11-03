@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { findActivityTerminalPortal } from './activity/activity-terminal-portal'
-import { shouldAutoCreateInitialTerminal } from './terminal/initial-terminal'
 import {
   canWatcherCoverParkedTerminalTab,
   disposeAllParkedTerminalWatchers,
@@ -10,10 +9,8 @@ import {
   type ParkedTerminalTabWatcherSyncEntry
 } from './terminal-pane/terminal-parked-tab-watchers'
 import { useAppStore } from '@/store'
-import { isTerminalWorkspaceEmptiedOnPurpose } from '../../../shared/closed-terminal-tab-tombstones'
 import { gateWorktreeAgentActivation } from '@/lib/worktree-agent-activation-gate'
 import { createWorkspaceTerminalHostAuthoritySelector } from '@/lib/workspace-terminal-host-authority'
-import { hasStructuredAgentLaunchInWorktree } from '@/lib/structured-agent-session-launch'
 import { isEmptyWorkspaceDefaultSurfacePending } from '@/lib/empty-workspace-default-surface-claims'
 import type { TerminalColdActivationController } from './terminal-cold-activation'
 import { selectParkedEquivalentMountTabIds } from './terminal/startup-terminal-tab-hold'
@@ -31,7 +28,6 @@ type TerminalWatcherController = Pick<
   | 'activityTerminalPortals'
   | 'anyMountedWorktreeHasLayout'
   | 'backgroundMountRevision'
-  | 'createTab'
   | 'effectiveParkedTerminalWorktreeIds'
   | 'evictionExemptTerminalTabIds'
   | 'getEffectiveLayoutForWorktree'
@@ -41,7 +37,6 @@ type TerminalWatcherController = Pick<
   | 'mountedWorktreeIdsRef'
   | 'pairedRuntimeParkingEnvironmentIds'
   | 'pendingStartupByTabId'
-  | 'reconcileWorktreeTabModel'
   | 'renderedActiveWorktreeId'
   | 'startupTerminalTabHold'
   | 'tabsByWorktree'
@@ -64,7 +59,6 @@ export function useTerminalWatcherEffects(controller: TerminalWatcherController)
     activityTerminalPortals,
     anyMountedWorktreeHasLayout,
     backgroundMountRevision,
-    createTab,
     effectiveParkedTerminalWorktreeIds,
     evictionExemptTerminalTabIds,
     getEffectiveLayoutForWorktree,
@@ -74,7 +68,6 @@ export function useTerminalWatcherEffects(controller: TerminalWatcherController)
     mountedWorktreeIdsRef,
     pairedRuntimeParkingEnvironmentIds,
     pendingStartupByTabId,
-    reconcileWorktreeTabModel,
     renderedActiveWorktreeId,
     startupTerminalTabHold,
     tabsByWorktree,
@@ -230,26 +223,8 @@ export function useTerminalWatcherEffects(controller: TerminalWatcherController)
       }
       // Why mark only once a decision applies: a cancelled or blocked check must stay retryable,
       // and a rerun shares the gate's in-flight promise instead of repeating its work.
+      // Why no shell after the gate: an empty workspace gets no terminal the person did not ask for.
       startupActivationGateWorktreeIdsRef.current.add(activeWorktreeId)
-      if (outcome !== 'empty') {
-        return
-      }
-      // A pending or unanswered chat create owns the surface even before its tab is published.
-      if (hasStructuredAgentLaunchInWorktree(activeWorktreeId)) {
-        return
-      }
-      // Why: the activation gate reconciles durable/live agent state first; only an actually empty, never-visited workspace receives a default shell.
-      const { renderableTabCount } = reconcileWorktreeTabModel(activeWorktreeId)
-      // Why (main): only a workspace emptied by a recorded close stays empty; an empty row with no
-      // record is unknown and seeds. Read at decision time: the row can change while the check runs.
-      const activeWorktreeHasTerminalState = isTerminalWorkspaceEmptiedOnPurpose(
-        useAppStore.getState(),
-        activeWorktreeId
-      )
-      if (shouldAutoCreateInitialTerminal(renderableTabCount, activeWorktreeHasTerminalState)) {
-        // Why: tag this never-visited-worktree tab so its PTY spawn doesn't count as activity and reshuffle the sidebar (explicit New Tab still bumps).
-        createTab(activeWorktreeId, undefined, undefined, { pendingActivationSpawn: true })
-      }
     })
     return () => {
       cancelled = true
@@ -257,8 +232,6 @@ export function useTerminalWatcherEffects(controller: TerminalWatcherController)
   }, [
     activeWorktreeId,
     activeWorktreeHostAuthority,
-    createTab,
-    reconcileWorktreeTabModel,
     terminalStartupRestorationReady,
     workspaceSessionReady
   ])

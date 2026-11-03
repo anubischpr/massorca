@@ -15,7 +15,7 @@ registerWorktreeActivationReset()
 
 const WT = 'wt-1'
 
-/** Startup hydration's seeding decision: no reseed opt-in, so only the row and records decide. */
+/** Startup hydration (no reseed opt-in): true when seeding created a tab for the workspace. */
 function seeds(
   tabsByWorktree: Record<string, { id: string }[]>,
   closedTerminalTabTombstonesByTabId?: ClosedTerminalTabTombstonesByTabId,
@@ -30,22 +30,22 @@ function closedAt(closedAtMs: number): ClosedTerminalTabTombstonesByTabId {
   return { 'closed-tab': { closedAt: closedAtMs, worktreeId: WT, reason: 'user' } }
 }
 
-describe('seeding an empty workspace reads close records', () => {
+describe('an empty workspace gets no plain shell, whatever its close records', () => {
   it('an empty row with a close record stays empty', () => {
     expect(seeds({ [WT]: [] }, closedAt(Date.now()))).toBe(false)
   })
 
-  it('a legacy empty row with no record seeds', () => {
-    expect(seeds({ [WT]: [] })).toBe(true)
+  it('a legacy empty row with no record gets no plain shell', () => {
+    expect(seeds({ [WT]: [] })).toBe(false)
   })
 
-  it('an empty row whose only record is past its TTL seeds', () => {
+  it('an empty row whose only record is past its TTL gets no plain shell', () => {
     expect(
       seeds({ [WT]: [] }, closedAt(Date.now() - CLOSED_TERMINAL_TAB_TOMBSTONE_TTL_MS - 1))
-    ).toBe(true)
+    ).toBe(false)
   })
 
-  it('an empty row whose record the per-host cap evicted seeds', () => {
+  it('an empty row whose record the per-host cap evicted gets no plain shell', () => {
     const now = Date.now()
     let records = closedAt(now - 1_000)
     for (let index = 0; index < MAX_CLOSED_TERMINAL_TAB_TOMBSTONES; index += 1) {
@@ -57,14 +57,14 @@ describe('seeding an empty workspace reads close records', () => {
       )
     }
     expect(records['closed-tab']).toBeUndefined()
-    expect(seeds({ [WT]: [] }, records)).toBe(true)
+    expect(seeds({ [WT]: [] }, records)).toBe(false)
   })
 
   // Known weakness until every membership shrink is a close: an older close plus an empty row
   // written by something that is not a close still reads as emptied on purpose.
-  it('a stale record from an earlier close suppresses the startup seed; activation reseeds', () => {
+  it('a stale close record and an explicit reseed both leave no plain shell', () => {
     const earlierClose = closedAt(Date.now() - 60_000)
     expect(seeds({ [WT]: [] }, earlierClose)).toBe(false)
-    expect(seeds({ [WT]: [] }, earlierClose, { reseedEmptiedWorkspace: true })).toBe(true)
+    expect(seeds({ [WT]: [] }, earlierClose, { reseedEmptiedWorkspace: true })).toBe(false)
   })
 })
