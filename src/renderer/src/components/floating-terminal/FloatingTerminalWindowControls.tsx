@@ -16,11 +16,73 @@ import {
 } from '../../../../shared/tui-agent-selection'
 import { translate } from '@/i18n/i18n'
 import { useOptionalShortcutLabel } from '@/hooks/useShortcutLabel'
+import {
+  FLOATING_HOST_NO_WORKSPACE_REASON,
+  FLOATING_HOST_THIS_COMPUTER
+} from '@/lib/floating-workspace-host'
+import { useFloatingWorkspaceHostStore } from '@/lib/floating-workspace-host-store'
+import { showHostSessionInFloating } from '@/lib/floating-workspace-host-session'
+import { awaitNewSessionTab } from '@/lib/show-session-in-floating-workspace'
+import type { TuiAgent } from '../../../../shared/tui-agent'
+import { FloatingHostSelect } from './host/FloatingHostSelect'
+import { useFloatingHostSelection } from './host/use-floating-host-selection'
 
 type FloatingTerminalWindowControlsProps = {
   maximized: boolean
   onToggleMaximized: () => void
   onMinimize: () => void
+}
+
+// Why: a host-published launch opens its session after the host answers; past this it is not shown.
+const HOST_SESSION_WAIT_MS = 30_000
+
+/** Starts the agent in a paired host's workspace, then shows that session in the floating workspace. */
+function launchAgentOnHostWorkspace(
+  agent: TuiAgent,
+  agentLabel: string,
+  worktreeId: string,
+  environmentId: string
+): void {
+  const knownTabIds = new Set(
+    (useAppStore.getState().unifiedTabsByWorktree[worktreeId] ?? []).map((tab) => tab.id)
+  )
+  const result = launchAgentInNewTab({
+    requestId: newAgentLaunchRequestId(),
+    agent,
+    worktreeId,
+    launchSource: 'shortcut',
+    activate: false
+  })
+  if (!result) {
+    toast.error(
+      translate(
+        'auto.components.floating.terminal.FloatingTerminalWindowControls.82da3701e7',
+        'Could not build launch command for {{value0}}.',
+        { value0: agentLabel }
+      )
+    )
+    return
+  }
+  useFloatingWorkspaceHostStore.getState().markUsed(environmentId)
+  if (result.surface.kind === 'local-terminal') {
+    showHostSessionInFloating(worktreeId, result.surface.tabId)
+    return
+  }
+  void awaitNewSessionTab(
+    { worktreeId, knownTabIds, timeoutMs: HOST_SESSION_WAIT_MS },
+    useAppStore
+  ).then((tabId) => {
+    if (tabId) {
+      showHostSessionInFloating(worktreeId, tabId)
+      return
+    }
+    toast.error(
+      translate(
+        'components.floatingWorkspace.sessionNotReady',
+        'The new session did not show up on that host.'
+      )
+    )
+  })
 }
 
 const controlButtonClassName =
@@ -45,6 +107,16 @@ export function FloatingTerminalWindowControls({
   const activateTab = useAppStore((s) => s.activateTab)
   const maximizeShortcutLabel = useOptionalShortcutLabel('floatingWorkspace.maximize')
   const minimizeShortcutLabel = useOptionalShortcutLabel('floatingWorkspace.minimize')
+  const hostSelection = useFloatingHostSelection()
+  const {
+    selectedHost,
+    environments,
+    statuses,
+    chooseHost,
+    remoteWorkspaceId,
+    hostHasNoWorkspace
+  } = hostSelection
+  const hasPairedHost = environments.length > 0
 
   const disabledTuiAgents = useAppStore(
     (s) => s.settings?.disabledTuiAgents ?? DEFAULT_DISABLED_TUI_AGENTS
@@ -62,6 +134,17 @@ export function FloatingTerminalWindowControls({
 
   const launchDefaultAgent = useCallback(() => {
     if (!defaultAgent) {
+      return
+    }
+    if (selectedHost !== FLOATING_HOST_THIS_COMPUTER) {
+      if (remoteWorkspaceId) {
+        launchAgentOnHostWorkspace(
+          defaultAgent,
+          defaultAgentLabel ?? defaultAgent,
+          remoteWorkspaceId,
+          selectedHost
+        )
+      }
       return
     }
     // Why: the shared launcher owns the startup plan, the route and the tab identity, so this
@@ -98,10 +181,25 @@ export function FloatingTerminalWindowControls({
     setActiveTabForWorktree(FLOATING_TERMINAL_WORKTREE_ID, result.surface.tabId)
     activateTab(result.surface.tabId)
     focusTerminalTabSurface(result.surface.tabId)
-  }, [activateTab, defaultAgent, defaultAgentLabel, setActiveTabForWorktree])
+  }, [
+    activateTab,
+    defaultAgent,
+    defaultAgentLabel,
+    remoteWorkspaceId,
+    selectedHost,
+    setActiveTabForWorktree
+  ])
 
   return (
     <div className="flex items-center gap-1 px-2" data-floating-terminal-no-drag>
+      {hasPairedHost ? (
+        <FloatingHostSelect
+          value={selectedHost}
+          environments={environments}
+          statuses={statuses}
+          onValueChange={chooseHost}
+        />
+      ) : null}
       {defaultAgent ? (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -115,17 +213,23 @@ export function FloatingTerminalWindowControls({
                 'Open {{value0}} in floating workspace',
                 { value0: defaultAgentLabel ?? defaultAgent }
               )}
-              onClick={launchDefaultAgent}
+              disabled={hostHasNoWorkspace}
+              onClick={hostHasNoWorkspace ? undefined : launchDefaultAgent}
             >
               <AgentIcon agent={defaultAgent} size={14} />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="bottom" sideOffset={6}>
-            {translate(
-              'auto.components.floating.terminal.FloatingTerminalWindowControls.648352c51f',
-              'Open {{value0}} in floating workspace',
-              { value0: defaultAgentLabel ?? defaultAgent }
-            )}
+            {hostHasNoWorkspace
+              ? translate(
+                  'components.floatingWorkspace.noWorkspaceOnHost',
+                  FLOATING_HOST_NO_WORKSPACE_REASON
+                )
+              : translate(
+                  'auto.components.floating.terminal.FloatingTerminalWindowControls.648352c51f',
+                  'Open {{value0}} in floating workspace',
+                  { value0: defaultAgentLabel ?? defaultAgent }
+                )}
           </TooltipContent>
         </Tooltip>
       ) : null}
