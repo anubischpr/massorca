@@ -107,6 +107,7 @@ vi.mock('./use-create-chat-model-catalog', () => ({
   useCreateChatModelCatalog: () => ({ status: 'none', models: [] })
 }))
 
+import { clearNativeChatDraftCacheForTests } from '@/components/native-chat/native-chat-draft-cache'
 import { CreateChatSession } from './CreateChatSession'
 
 const options: CreateChatOptions = {
@@ -169,15 +170,26 @@ const TERMINAL_NOTICE =
 
 const mountedRoots: Root[] = []
 
-async function renderSession(): Promise<HTMLDivElement> {
+async function renderSession(draftKey?: string): Promise<HTMLDivElement> {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
   mountedRoots.push(root)
   await act(async () => {
-    root.render(<CreateChatSession options={options} onSubmit={mocks.submit} />)
+    root.render(
+      <CreateChatSession options={options} onSubmit={mocks.submit} draftKey={draftKey} />
+    )
   })
   return container
+}
+
+async function unmountAll(): Promise<void> {
+  await act(async () => {
+    for (const root of mountedRoots.splice(0)) {
+      root.unmount()
+    }
+  })
+  document.body.innerHTML = ''
 }
 
 function button(container: ParentNode, name: string): HTMLButtonElement {
@@ -266,6 +278,25 @@ describe('CreateChatSession', () => {
       }
     })
     document.body.innerHTML = ''
+  })
+
+  it('keeps unsent text when the person clicks away and comes back', async () => {
+    clearNativeChatDraftCacheForTests()
+    await typeDraft(await renderSession('create'), 'half a thought')
+    await unmountAll()
+
+    expect(composer(await renderSession('create')).value).toBe('half a thought')
+  })
+
+  it('clears the kept text once the session starts', async () => {
+    clearNativeChatDraftCacheForTests()
+    const container = await renderSession('create')
+    await typeDraft(container, 'Fix the login redirect')
+    await click(button(container, 'Create session'))
+    await unmountAll()
+
+    expect(mocks.submit).toHaveBeenCalledWith('Fix the login redirect', expect.anything())
+    expect(composer(await renderSession('create')).value).toBe('')
   })
 
   it('renders the empty state and the default footer chips', async () => {

@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react'
+import { useComposerDraft } from '@/lib/composer-draft'
 import { CreateChatAgentChip } from './CreateChatAgentChip'
 import { CreateChatComposer } from './CreateChatComposer'
 import { CreateChatPageFrame } from './CreateChatPageFrame'
@@ -31,12 +32,15 @@ type CreateChatSessionProps = {
   aboveComposer?: ReactNode
   /** Content under the composer. */
   below?: ReactNode
+  /** Keeps unsent text when the person clicks away; see useComposerDraft. */
+  draftKey?: string
 }
 
-/** One blank create-chat draft. The page keys this by a reset nonce, so reopening starts blank. */
+/** One create-chat draft; its choices reset with the page's nonce, its unsent text is kept. */
 export function CreateChatSession({
   options,
   onSubmit,
+  draftKey,
   heading,
   subheading,
   layout = 'centered',
@@ -46,7 +50,7 @@ export function CreateChatSession({
   const [selection, setSelection] = useState<CreateChatSelection>(() =>
     buildDefaultCreateChatSelection(options)
   )
-  const [draft, setDraft] = useState('')
+  const [draft, setDraft, clearDraft] = useComposerDraft(draftKey ?? null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Why: state updates land after the render, so a second Enter in the same tick would still see canSubmit.
@@ -78,7 +82,9 @@ export function CreateChatSession({
     setError(null)
     try {
       const outcome = await onSubmit(draft.trim(), selection)
-      if (!outcome.started) {
+      if (outcome.started) {
+        clearDraft()
+      } else {
         setError(outcome.message)
       }
     } finally {

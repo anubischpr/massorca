@@ -2,6 +2,7 @@ import { useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { translate } from '@/i18n/i18n'
 import { postBotTeamRequest } from '@/runtime/runtime-bot-team-client'
+import { useComposerDraft } from '@/lib/composer-draft'
 import { useAppStore } from '@/store'
 import { routeBotTeamRequest } from '../../../../shared/bot-team-request-route'
 import { BotTeamCharacterIcon } from '../bot-teams/BotTeamCharacterIcon'
@@ -29,7 +30,7 @@ export function TasksHomeBotTeamSession({
   const [pickedTeamId, setPickedTeamId] = useState<string | null>(null)
   // The canvas row offers Save to Todo, so a task waits there until the person starts it.
   const [startNow, setStartNow] = useState(false)
-  const [draft, setDraft] = useState('')
+  const [draft, setDraft, clearDraft] = useComposerDraft('tasks:bot-team')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const inFlight = useRef(false)
@@ -57,6 +58,7 @@ export function TasksHomeBotTeamSession({
     setError(null)
     try {
       const sent = await postBotTeamRequest({ teamId: team.id, text, start: startNow })
+      clearDraft()
       if (sent.startError) {
         toast.error(sent.startError)
       }
