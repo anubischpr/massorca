@@ -11,6 +11,37 @@ type ClaimState = Pick<
   | 'focusGroup'
 >
 
+type ReleaseState = Pick<AppState, 'groupsByWorktree' | 'clearPaneSessionRef'>
+
+/**
+ * Clears a legacy session reference on the group a new tab lands in, so the tab is an ordinary one
+ * and never a split: a reference pane takes no tab of its own.
+ */
+export function releaseLegacyPaneReference(
+  state: ReleaseState,
+  worktreeId: string,
+  groupId: string | undefined
+): void {
+  const groups = state.groupsByWorktree[worktreeId] ?? []
+  if (groupId && groups.some((group) => group.id === groupId && group.sessionRef)) {
+    state.clearPaneSessionRef(worktreeId, groupId)
+  }
+}
+
+/** The group a new tab of a workspace lands in: the given or focused group, else the first. */
+export function resolveNewTabTargetGroupId(
+  state: ReleaseState & Pick<AppState, 'activeGroupIdByWorktree'>,
+  worktreeId: string,
+  groupId?: string
+): string | undefined {
+  const targetId =
+    groupId ??
+    state.activeGroupIdByWorktree[worktreeId] ??
+    state.groupsByWorktree[worktreeId]?.[0]?.id
+  releaseLegacyPaneReference(state, worktreeId, targetId)
+  return targetId
+}
+
 export type ClaimedReferencePane = {
   worktreeId: string
   groupId: string

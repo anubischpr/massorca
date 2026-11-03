@@ -123,7 +123,9 @@ export default function TabGroupPanel({
           activeTab.contentType !== 'agent-session' &&
           activeTab.contentType !== 'browser' &&
           activeTab.contentType !== 'simulator' &&
-          activeTab.contentType !== 'checklist' && (
+          activeTab.contentType !== 'checklist' &&
+          // Why: a session tab's content is the referenced session's overlay, drawn over this body.
+          activeTab.contentType !== 'session-ref' && (
             // Why: a capture-phase owner, so Monaco never sees the drop and the file opens as a tab here.
             <div ref={attachEditorFileDropOwner} className="absolute inset-0 flex min-h-0 min-w-0">
               {/* Why: split groups render editor content in a plain relative pane body, not the legacy Terminal.tsx flex column. */}

@@ -41,6 +41,7 @@ export function useFloatingWorkspaceChromeModel() {
     activeTab.contentType !== 'browser' &&
     activeTab.contentType !== 'simulator' &&
     activeTab.contentType !== 'checklist' &&
+    activeTab.contentType !== 'session-ref' &&
     activeTab.contentType !== 'agent-session'
       ? activeTab.id
       : null
@@ -81,7 +82,8 @@ export function useFloatingWorkspaceChromeModel() {
         if (
           tab.contentType === 'simulator' ||
           tab.contentType === 'agent-session' ||
-          tab.contentType === 'checklist'
+          tab.contentType === 'checklist' ||
+          tab.contentType === 'session-ref'
         ) {
           return true
         }

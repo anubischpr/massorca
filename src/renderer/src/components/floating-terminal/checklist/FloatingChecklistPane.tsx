@@ -6,6 +6,7 @@ import type { AgentJournalRenderItem } from '../../../../../shared/agent-session
 import { Button } from '@/components/ui/button'
 import { AgentIcon } from '@/lib/agent-catalog'
 import { agentTypeToIconAgent } from '@/lib/agent-status'
+import { usePiDisplayRuntime } from '@/lib/use-pi-runtime'
 import { formatAgentRowTypeLabel } from '../../../../../shared/agent-type-label'
 import { useAppStore } from '@/store'
 import { NativeChatChecklistBody } from '../../native-chat/NativeChatChecklistBody'
@@ -173,6 +174,11 @@ function SessionChecklistView({
     journalItems,
     polling: true
   })
+  // Why: Gentle Shell keeps the agent id `pi`, so its name comes from the session's own host.
+  const piRuntime = usePiDisplayRuntime({
+    enabled: owner.tab.agentSessionAgent === 'pi',
+    worktreeId: owner.tab.worktreeId
+  })
   const total = state.checklist?.items.length ?? 0
   return (
     <>
@@ -185,7 +191,10 @@ function SessionChecklistView({
         <NativeChatChecklistBody
           target={owner.target}
           sessionId={sessionId}
-          agentLabel={formatAgentRowTypeLabel({ agentType: owner.tab.agentSessionAgent })}
+          agentLabel={formatAgentRowTypeLabel(
+            { agentType: owner.tab.agentSessionAgent },
+            piRuntime
+          )}
           worktreeId={owner.tab.worktreeId}
           state={state}
         />
