@@ -1,0 +1,146 @@
+// @vitest-environment happy-dom
+
+import { act } from 'react'
+import { createRoot, type Root } from 'react-dom/client'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { GhAuthAccount } from '../../../../shared/github/auth-types'
+
+type TestRepo = { displayName: string; ghAccount?: { host: string; user: string } }
+
+const mocks = vi.hoisted(() => {
+  const repos: TestRepo[] = []
+  return { listHostBindableAccounts: vi.fn(), switchActiveAccount: vi.fn(), repos }
+})
+
+vi.mock('@/store', () => ({
+  useAppStore: (selector: (state: { repos: typeof mocks.repos }) => unknown) =>
+    selector({ repos: mocks.repos })
+}))
+
+const { GitHubAccountsCard } = await import('./GitHubAccountsCard')
+
+const roots: Root[] = []
+
+function account(user: string, overrides: Partial<GhAuthAccount> = {}): GhAuthAccount {
+  return {
+    host: 'github.com',
+    user,
+    active: false,
+    envToken: null,
+    source: 'keyring',
+    scopes: ['repo'],
+    ...overrides
+  }
+}
+
+async function renderCard(): Promise<HTMLDivElement> {
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+  const root = createRoot(container)
+  roots.push(root)
+  await act(async () => {
+    root.render(<GitHubAccountsCard />)
+  })
+  return container
+}
+
+function buttonByText(container: ParentNode, text: string): HTMLButtonElement | undefined {
+  return [...container.querySelectorAll('button')].find((b) => b.textContent?.includes(text))
+}
+
+describe('GitHubAccountsCard', () => {
+  beforeEach(() => {
+    globalThis.IS_REACT_ACT_ENVIRONMENT = true
+    vi.clearAllMocks()
+    mocks.repos = [
+      { displayName: 'massorca', ghAccount: { host: 'github.com', user: 'work' } },
+      { displayName: 'notes' }
+    ]
+    mocks.listHostBindableAccounts.mockResolvedValue({
+      capability: 'supported',
+      accounts: [account('personal', { active: true }), account('work')]
+    })
+    mocks.switchActiveAccount.mockResolvedValue({ ok: true })
+    Object.assign(window, {
+      api: {
+        gh: {
+          listHostBindableAccounts: mocks.listHostBindableAccounts,
+          switchActiveAccount: mocks.switchActiveAccount
+        },
+        ui: { writeClipboardText: vi.fn() }
+      }
+    })
+  })
+
+  afterEach(() => {
+    for (const root of roots.splice(0)) {
+      act(() => root.unmount())
+    }
+    document.body.innerHTML = ''
+  })
+
+  it('lists every account, marks the active one and shows the projects each one serves', async () => {
+    const container = await renderCard()
+    const items = [...container.querySelectorAll('li')].map((li) => li.textContent ?? '')
+    expect(items).toHaveLength(2)
+    expect(items[0]).toContain('personal')
+    expect(items[0]).toContain('Active')
+    expect(items[1]).toContain('work')
+    expect(items[1]).not.toContain('Active')
+    expect(items[1]).toContain('massorca')
+    expect(container.textContent).toContain('These projects use the active account: notes')
+  })
+
+  it('offers Make active only on inactive keyring accounts and reloads after switching', async () => {
+    const container = await renderCard()
+    const makeActive = [...container.querySelectorAll('button')].filter((b) =>
+      b.textContent?.includes('Make active')
+    )
+    expect(makeActive).toHaveLength(1)
+    await act(async () => {
+      makeActive[0].click()
+    })
+    expect(mocks.switchActiveAccount).toHaveBeenCalledWith({ host: 'github.com', user: 'work' })
+    expect(mocks.listHostBindableAccounts).toHaveBeenCalledTimes(2)
+  })
+
+  it('explains a failed switch without showing gh output', async () => {
+    mocks.switchActiveAccount.mockResolvedValue({ ok: false, reason: 'unsupported' })
+    const container = await renderCard()
+    await act(async () => {
+      buttonByText(container, 'Make active')?.click()
+    })
+    expect(container.textContent).toContain('Update the GitHub CLI to switch accounts from here.')
+  })
+
+  it('does not offer switching for an environment token account or an old GitHub CLI', async () => {
+    mocks.listHostBindableAccounts.mockResolvedValue({
+      capability: 'unsupported',
+      accounts: [
+        account('personal', { active: true }),
+        account('ci', { source: 'env', envToken: 'GH_TOKEN' })
+      ]
+    })
+    const container = await renderCard()
+    expect(buttonByText(container, 'Make active')).toBeUndefined()
+    expect(container.textContent).toContain('Comes from GH_TOKEN')
+    expect(container.textContent).toContain('Update it to 2.40 or newer')
+  })
+
+  it('flags a project bound to a login that is not signed in here', async () => {
+    mocks.repos = [{ displayName: 'client', ghAccount: { host: 'github.com', user: 'gone' } }]
+    const container = await renderCard()
+    expect(container.textContent).toContain(
+      'client is set to gone on github.com, which is not signed in here.'
+    )
+  })
+
+  it('shows the existing sign-in command to add another account', async () => {
+    const container = await renderCard()
+    expect(container.querySelector('code')?.textContent).toBe('gh auth login')
+    await act(async () => {
+      buttonByText(container, 'Refresh')?.click()
+    })
+    expect(mocks.listHostBindableAccounts).toHaveBeenCalledTimes(2)
+  })
+})
