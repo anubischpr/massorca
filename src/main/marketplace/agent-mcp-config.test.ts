@@ -93,6 +93,34 @@ describe('withCodexEngramMcp', () => {
     )
   })
 
+  it.each([
+    ['CRLF', 'model = "gpt"\r\n\r\n[mcp_servers.other]\r\ncommand = "x"\r\n'],
+    ['no final newline', '[mcp_servers.other]\ncommand = "x"'],
+    ['CRLF without final newline', '[mcp_servers.other]\r\ncommand = "x"'],
+    ['empty', ''],
+    ['ending in a blank line', 'model = "gpt"\n\n']
+  ])('round-trips a %s file byte for byte across repeated toggles', (_label, original) => {
+    let text = original
+    for (let cycle = 0; cycle < 3; cycle++) {
+      text = withCodexEngramMcp(withCodexEngramMcp(text, true), false) ?? 'refused'
+    }
+    expect(text).toBe(original)
+  })
+
+  it('keeps comments that sit above the next table when removing engram', () => {
+    const source =
+      'model = "gpt"\n\n[mcp_servers.engram]\ncommand = "engram"\n# OpenMetadata reader\n[mcp_servers.openmetadata]\ncommand = "om"\n'
+    expect(withCodexEngramMcp(source, false)).toBe(
+      'model = "gpt"\n# OpenMetadata reader\n[mcp_servers.openmetadata]\ncommand = "om"\n'
+    )
+  })
+
+  it('removes a comment that sits inside the engram table', () => {
+    const source =
+      '[mcp_servers.engram]\n# memory\ncommand = "engram"\n\n[profiles.x]\nmodel = "y"\n'
+    expect(withCodexEngramMcp(source, false)).toBe('\n[profiles.x]\nmodel = "y"\n')
+  })
+
   it('refuses shapes it cannot edit safely', () => {
     expect(withCodexEngramMcp('mcp_servers = { other = { command = "x" } }\n', true)).toBeNull()
     expect(withCodexEngramMcp('[mcp_servers]\nengram.command = "engram"\n', false)).toBeNull()

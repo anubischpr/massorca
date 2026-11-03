@@ -13,7 +13,6 @@ import {
   createTomlLineScanState,
   getTomlTableHeader,
   isTomlStructuralLine,
-  joinPreservingTrailingNewline,
   updateTomlLineScanState
 } from '../codex/config-toml-line-scan'
 import { readMcpServerTomlOwnership } from '../codex/config-toml-mcp-servers'
@@ -132,38 +131,65 @@ export function withCodexEngramMcp(text: string | null, enabled: boolean): strin
     }
     const eol = usesCrlf ? '\r\n' : '\n'
     const block = ['[mcp_servers.engram]', 'command = "engram"', 'args = ["mcp", "--tools=agent"]']
-    const prefix = source.length === 0 ? '' : source.endsWith('\n') ? eol : `${eol}${eol}`
-    return `${source}${prefix}${block.join(eol)}${eol}`
+    if (source.length === 0) {
+      return `${block.join(eol)}${eol}`
+    }
+    // Why: one blank separator line and the file's own final-newline choice, so removal restores it.
+    return source.endsWith('\n')
+      ? `${source}${eol}${block.join(eol)}${eol}`
+      : `${source}${eol}${eol}${block.join(eol)}`
   }
   if (!names.has(ENGRAM_MCP_NAME)) {
     return source
   }
-  const kept: string[] = []
+  const lines = source.split('\n')
+  const dropped = new Set<number>()
   let tablePath: string[] | null = []
   let skipping = false
+  // Blank or comment lines inside the span; dropped only if more engram content follows.
+  let pending: number[] = []
+  let previousStructuralBlank = false
   let state = createTomlLineScanState()
-  for (const line of source.split('\n')) {
-    if (isTomlStructuralLine(state)) {
-      const header = getTomlTableHeader(line)
-      if (header) {
-        tablePath = parseTomlTableHeaderPath(header)?.segments ?? null
-        skipping = tablePath?.[0] === 'mcp_servers' && tablePath[1] === ENGRAM_MCP_NAME
-      } else if (!skipping) {
-        const key = parseTomlKeyPath(line)
-        const path =
-          tablePath && key && line[key.end] === '=' ? [...tablePath, ...key.segments] : []
-        // Why: a dotted or inline engram entry cannot be cut by table without guessing its extent.
-        if (path[0] === 'mcp_servers' && path[1] === ENGRAM_MCP_NAME) {
-          return null
-        }
+  for (const [index, line] of lines.entries()) {
+    const structural = isTomlStructuralLine(state)
+    const header = structural ? getTomlTableHeader(line) : null
+    if (header) {
+      tablePath = parseTomlTableHeaderPath(header)?.segments ?? null
+      const startsEngram = tablePath?.[0] === 'mcp_servers' && tablePath[1] === ENGRAM_MCP_NAME
+      if (startsEngram && !skipping && previousStructuralBlank) {
+        dropped.add(index - 1)
+      }
+      if (startsEngram) {
+        pending.forEach((pendingIndex) => dropped.add(pendingIndex))
+        dropped.add(index)
+      }
+      pending = []
+      skipping = startsEngram
+    } else if (skipping) {
+      const trimmed = line.trim()
+      if (structural && (trimmed === '' || trimmed.startsWith('#'))) {
+        pending.push(index)
+      } else {
+        pending.forEach((pendingIndex) => dropped.add(pendingIndex))
+        pending = []
+        dropped.add(index)
+      }
+    } else if (structural) {
+      const key = parseTomlKeyPath(line)
+      const path = tablePath && key && line[key.end] === '=' ? [...tablePath, ...key.segments] : []
+      // Why: a dotted or inline engram entry cannot be cut by table without guessing its extent.
+      if (path[0] === 'mcp_servers' && path[1] === ENGRAM_MCP_NAME) {
+        return null
       }
     }
+    previousStructuralBlank = structural && line.trim() === ''
     state = updateTomlLineScanState(state, line)
-    if (!skipping) {
-      kept.push(line)
-    }
   }
-  return joinPreservingTrailingNewline(kept, usesCrlf)
+  const result = lines.filter((_, index) => !dropped.has(index)).join('\n')
+  // Why: a span cut at the end of a file without a final newline leaves the separator's CR behind.
+  return !source.endsWith('\n') && dropped.has(lines.length - 1) && result.endsWith('\r')
+    ? result.slice(0, -1)
+    : result
 }
 
 const CLAUDE_WRITE_ATTEMPTS = 3
