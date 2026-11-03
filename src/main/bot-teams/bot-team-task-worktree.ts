@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { BotTeamProjectWorkspace } from '../../shared/rpc-contract/bot-team-room-params'
 import { delegationWorktreeName } from '../delegated-session/delegation-launch'
 import type { RpcContext } from '../runtime/rpc/core'
+import { waitForStructuredSetup } from '../runtime/rpc/methods/agent-launch-worktree-creation'
 import {
   findBotTeamWorkspaceProject,
   workspaceProjectSource,
@@ -67,6 +68,8 @@ export function linkedTaskWorkspaceDeps(runtime: RpcContext['runtime']): LinkedT
         // A task runs in the background; the main checkout is only its parent in the lineage.
         lineage: parentWorktreeId ? { parentWorktree: parentWorktreeId } : { noParent: true }
       })
+      // As a Workspaces chat launch does: the agent starts once the repo's setup has finished.
+      await waitForStructuredSetup(runtime, created.setupReceipt)
       return created.worktree.id
     },
     relinkProject: (projectId, workspace) =>
