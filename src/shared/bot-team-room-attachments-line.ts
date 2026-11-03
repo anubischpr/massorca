@@ -19,3 +19,16 @@ export function botTeamFilesOnlyText(
 export function botTeamFileNamesText(attachments: readonly BotTeamRoomAttachment[]): string {
   return attachments.map((attachment) => attachment.name).join(', ')
 }
+
+/** True for the text a message of only files was filed with, which the room shows as its chips alone. */
+export function isBotTeamFilesOnlyText(
+  text: string,
+  attachments: readonly BotTeamRoomAttachment[] | undefined
+): boolean {
+  if (!attachments || attachments.length === 0) {
+    return false
+  }
+  const names = botTeamFileNamesText(attachments)
+  const typed = text.trim()
+  return typed === names || Object.values(LINES).some((line) => line(names) === typed)
+}

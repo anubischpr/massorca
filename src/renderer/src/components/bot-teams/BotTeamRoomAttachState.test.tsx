@@ -16,7 +16,10 @@ const calls = vi.hoisted(() => ({
 
 vi.mock('@/i18n/i18n', () => ({ translate: (_key: string, fallback: string) => fallback }))
 vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
-vi.mock('@/runtime/bot-team-host', () => ({ useBotTeamHost: () => 'local' }))
+vi.mock('@/runtime/bot-team-host', () => ({
+  BOT_TEAM_LOCAL_HOST: 'local',
+  useBotTeamHost: () => 'local'
+}))
 vi.mock('@/runtime/runtime-bot-team-client', () => ({
   botTeamFolderWorkspaceId: vi.fn(async () => null),
   ensureBotTeamFolderWorkspace: calls.ensure

@@ -1,5 +1,6 @@
 import { translate } from '@/i18n/i18n'
 import { BOT_TEAM_ALL_AUTHOR } from '../../../../shared/bot-team-greeting'
+import { isBotTeamFilesOnlyText } from '../../../../shared/bot-team-room-attachments-line'
 import type { BotTeam } from '../../../../shared/rpc-contract/bot-team-params'
 import type { BotTeamMessage } from '../../../../shared/rpc-contract/bot-team-room-params'
 import { BotAgentIcon } from './BotAgentIcon'
@@ -54,7 +55,9 @@ export function BotTeamRoomMessage({
             : 'max-w-[80%] self-end rounded-xl border border-border bg-muted px-3.5 py-2.5 text-sm leading-relaxed'
         }
       >
-        <BotTeamRoomMessageBody text={message.text} mentions={mentions} />
+        {isBotTeamFilesOnlyText(message.text, message.attachments) ? null : (
+          <BotTeamRoomMessageBody text={message.text} mentions={mentions} />
+        )}
         {message.attachments && message.attachments.length > 0 ? (
           <BotTeamRoomAttachChips
             files={message.attachments}

@@ -3,7 +3,6 @@ import { Alert, Pressable, Text, View } from 'react-native'
 import { ChevronDown, ChevronLeft, Ellipsis } from 'lucide-react-native'
 import { useMobileDictation } from '../hooks/use-mobile-dictation'
 import { MobileNativeChatComposer } from '../session/MobileNativeChatComposer'
-import { MobileNativeChatMessage } from '../session/MobileNativeChatMessage'
 import { useMobileNativeChatFileSearch } from '../session/use-mobile-native-chat-file-search'
 import { colors } from '../theme/mobile-theme'
 import type { RpcClient } from '../transport/rpc-client'
@@ -33,7 +32,7 @@ import {
   type MobileBotTeamRequestFiling
 } from './mobile-bot-team-request-rpc'
 import { useMobileBotTeamRoom } from './use-mobile-bot-team-room'
-import { MobileBotTeamRoomScroll, roomChatMessage } from './MobileBotTeamRoomScroll'
+import { MobileBotTeamRoomScroll, RoomMessageText } from './MobileBotTeamRoomScroll'
 import { useMobileBotTeamTaskStatus } from './use-mobile-bot-team-task-status'
 import { RoomWho } from './MobileBotTeamRoomWho'
 import { MobileBotTeamSentTrackers } from './MobileBotTeamRoomTracker'
@@ -303,7 +302,7 @@ export function MobileBotTeamRoom({
             return (
               <View key={message.id} style={styles.roomEntry}>
                 <RoomWho bots={(from ?? team).bots} authorBotId={message.authorBotId} from={from} />
-                <MobileNativeChatMessage message={roomChatMessage(message)} />
+                <RoomMessageText message={message} />
                 <MobileBotTeamAttachChips
                   files={message.attachments ?? []}
                   tag={from ? `From ${from.name}` : undefined}
