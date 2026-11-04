@@ -22,6 +22,7 @@ import { localProvider } from './registry'
 import { clearProviderPtyState } from './state-cleanup'
 import { awaitExplicitPiOmpGuestReadiness } from '../../../agent-hooks/wsl-pi-omp-guest-readiness'
 import { prepareAntigravityAccountForLaunch } from '../../../antigravity/native-account-launch'
+import { buildMarketplaceAgentEnv } from '../../../marketplace/marketplace-agent-env'
 
 export function configureLocalPtyProvider(args: {
   runtime?: OrcaRuntimeService
@@ -116,6 +117,9 @@ export function configureLocalPtyProvider(args: {
       )
       if (ctx?.isWsl === true) {
         addOrcaWslInteropEnv(env)
+      } else {
+        // Why: connected Marketplace apps reach agents as env vars, never as tokens in their config files.
+        Object.assign(env, buildMarketplaceAgentEnv())
       }
       return env
     },

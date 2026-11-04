@@ -1,165 +1,41 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Copy, RotateCw } from 'lucide-react'
-import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { translate } from '@/i18n/i18n'
-import { useAppStore } from '@/store'
 import type { GhAccountBindingInventory, GhAuthAccount } from '../../../../shared/github/auth-types'
 import { groupReposByGitHubAccount } from './github-account-repos'
+import { gitHubAccountKey, type GitHubAccounts } from './use-github-accounts'
 
-const LOGIN_COMMAND = 'gh auth login'
-
-type Inventory =
-  | { kind: 'loading' }
-  | { kind: 'failed' }
-  | { kind: 'loaded'; value: GhAccountBindingInventory }
-
-function accountKey(account: GhAuthAccount): string {
-  return `${account.host}/${account.user}`
-}
-
-async function copyLoginCommand(): Promise<void> {
-  try {
-    await window.api.ui.writeClipboardText(LOGIN_COMMAND)
-    toast.success(
-      translate('auto.components.marketplace.GitHubAccountsCard.copied', 'Copied to clipboard')
-    )
-  } catch {
-    toast.error(
-      translate('auto.components.marketplace.GitHubAccountsCard.copyFailed', 'Could not copy')
-    )
-  }
-}
-
-/** Lists gh logins on this computer and which projects use each; tokens never reach the renderer. */
-export function GitHubAccountsCard(): React.JSX.Element {
-  const repos = useAppStore((s) => s.repos)
-  const [inventory, setInventory] = useState<Inventory>({ kind: 'loading' })
-  const [pendingKey, setPendingKey] = useState<string | null>(null)
-  const [switchError, setSwitchError] = useState<string | null>(null)
-
-  const load = useCallback(async (): Promise<void> => {
-    try {
-      setInventory({ kind: 'loaded', value: await window.api.gh.listHostBindableAccounts() })
-    } catch {
-      setInventory({ kind: 'failed' })
-    }
-  }, [])
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  // Why: SSH and runtime repos resolve their login on their own host, not on this computer.
-  const localRepos = useMemo(
-    () =>
-      repos.filter(
-        (repo) => !repo.connectionId && (!repo.executionHostId || repo.executionHostId === 'local')
-      ),
-    [repos]
-  )
-
-  const makeActive = async (account: GhAuthAccount): Promise<void> => {
-    setPendingKey(accountKey(account))
-    setSwitchError(null)
-    try {
-      const result = await window.api.gh.switchActiveAccount({
-        host: account.host,
-        user: account.user
-      })
-      if (!result.ok) {
-        setSwitchError(
-          result.reason === 'unsupported'
-            ? translate(
-                'auto.components.marketplace.GitHubAccountsCard.switchUnsupported',
-                'Update the GitHub CLI to switch accounts from here.'
-              )
-            : translate(
-                'auto.components.marketplace.GitHubAccountsCard.switchFailed',
-                'Could not switch to {{user}}.',
-                { user: account.user }
-              )
-        )
-      }
-    } catch {
-      setSwitchError(
-        translate(
-          'auto.components.marketplace.GitHubAccountsCard.switchFailed',
-          'Could not switch to {{user}}.',
-          { user: account.user }
-        )
-      )
-    }
-    setPendingKey(null)
-    await load()
-  }
-
+/** This computer's GitHub logins, the active one, and the projects each login serves. */
+export function GitHubAccountsCard({ accounts }: { accounts: GitHubAccounts }): React.JSX.Element {
+  const { inventory, pendingKey, switchError } = accounts
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
+    <div className="flex flex-col gap-3">
+      {inventory.kind === 'loading' ? (
+        <p className="text-sm text-muted-foreground">
           {translate(
-            'auto.components.marketplace.GitHubAccountsCard.title',
-            'GitHub accounts on this computer'
+            'auto.components.marketplace.GitHubAccountsCard.loading',
+            'Checking accounts…'
           )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col gap-4">
-          {inventory.kind === 'loading' ? (
-            <p className="text-sm text-muted-foreground">
-              {translate(
-                'auto.components.marketplace.GitHubAccountsCard.loading',
-                'Checking accounts…'
-              )}
-            </p>
-          ) : null}
-          {inventory.kind === 'failed' ? (
-            <p className="text-sm text-muted-foreground">
-              {translate(
-                'auto.components.marketplace.GitHubAccountsCard.failed',
-                'Could not read the GitHub accounts on this computer.'
-              )}
-            </p>
-          ) : null}
-          {inventory.kind === 'loaded' ? (
-            <AccountList
-              inventory={inventory.value}
-              repos={localRepos}
-              pendingKey={pendingKey}
-              onMakeActive={makeActive}
-            />
-          ) : null}
-          {switchError ? <p className="text-sm text-destructive">{switchError}</p> : null}
-          <div className="flex flex-col gap-2 border-t border-border pt-4">
-            <p className="text-sm">
-              {translate(
-                'auto.components.marketplace.GitHubAccountsCard.addAccount',
-                'To add another account, run this in a terminal on this computer, then refresh:'
-              )}
-            </p>
-            <div className="flex items-center gap-2">
-              <code className="rounded bg-muted px-2 py-1 font-mono text-xs">{LOGIN_COMMAND}</code>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => void copyLoginCommand()}
-              >
-                <Copy />
-                {translate('auto.components.marketplace.GitHubAccountsCard.copy', 'Copy')}
-              </Button>
-              <Button type="button" variant="ghost" size="sm" onClick={() => void load()}>
-                <RotateCw />
-                {translate('auto.components.marketplace.GitHubAccountsCard.refresh', 'Refresh')}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </p>
+      ) : null}
+      {inventory.kind === 'failed' ? (
+        <p className="text-sm text-muted-foreground">
+          {translate(
+            'auto.components.marketplace.GitHubAccountsCard.failed',
+            'Could not read the GitHub accounts on this computer.'
+          )}
+        </p>
+      ) : null}
+      {inventory.kind === 'loaded' ? (
+        <AccountList
+          inventory={inventory.value}
+          repos={accounts.localRepos}
+          pendingKey={pendingKey}
+          onMakeActive={accounts.makeActive}
+        />
+      ) : null}
+      {switchError ? <p className="text-sm text-destructive">{switchError}</p> : null}
+    </div>
   )
 }
 
@@ -170,7 +46,7 @@ function AccountList({
   onMakeActive
 }: {
   inventory: GhAccountBindingInventory
-  repos: Parameters<typeof groupReposByGitHubAccount>[1]
+  repos: GitHubAccounts['localRepos']
   pendingKey: string | null
   onMakeActive: (account: GhAuthAccount) => Promise<void>
 }): React.JSX.Element {
@@ -198,7 +74,7 @@ function AccountList({
       ) : null}
       <ul className="flex flex-col gap-3">
         {groups.rows.map(({ account, repoNames }) => (
-          <li key={accountKey(account)} className="flex items-start justify-between gap-3">
+          <li key={gitHubAccountKey(account)} className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 flex-col gap-0.5">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">{account.user}</span>

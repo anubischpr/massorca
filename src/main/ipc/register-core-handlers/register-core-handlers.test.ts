@@ -187,6 +187,12 @@ vi.mock('../preflight', () => ({
   registerPreflightHandlers: registerPreflightHandlersMock
 }))
 
+vi.mock('../marketplace', () => ({ registerMarketplaceHandlers: vi.fn() }))
+vi.mock('../marketplace-apps', () => ({ registerMarketplaceAppsHandlers: vi.fn() }))
+vi.mock('../../marketplace/marketplace-apps-defaults', () => ({
+  createDefaultMarketplaceAppsService: vi.fn()
+}))
+
 vi.mock('../usage-provider-handlers', () => ({
   registerUsageProviderHandlers: registerUsageProviderHandlersMock
 }))

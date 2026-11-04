@@ -14,6 +14,20 @@ import type { LaunchSource } from '../../../../../shared/telemetry-events'
 import type { TaskSourceContext } from '../../../../../shared/task-source-context'
 import type { ExecutionHostId } from '../../../../../shared/execution-host'
 import type { TaskResumeState, TopLevelView } from '../../../../../shared/ui-chrome-types'
+import type { MarketplaceAppStatus } from '../../../../../shared/marketplace-apps'
+
+/** A Marketplace sidebar section; the catalog list shows its items. */
+export type MarketplaceSection = 'all' | 'tools' | 'agents' | 'skills' | 'services'
+
+/** A catalog item. Git keeps its own page; the other three use the standard app page. */
+export type MarketplaceItemId = 'git' | 'github' | 'engram' | 'openmetadata'
+
+/** The Marketplace apps status; the sidebar, the catalog and the app pages read this one copy. */
+export type MarketplaceAppsState =
+  | { status: 'loading' }
+  | { status: 'unavailable' }
+  | { status: 'failed' }
+  | { status: 'ready'; apps: readonly MarketplaceAppStatus[] }
 
 /** A page of the open team other than its Conference room. */
 export type BotTeamsSection =
@@ -266,6 +280,14 @@ export type UISliceCore = {
   openCalendarPage: () => void
   openMarketplacePage: () => void
   closeMarketplacePage: () => void
+  /** The Marketplace sidebar's section; the catalog list shows its items. */
+  marketplaceSection: MarketplaceSection
+  setMarketplaceSection: (section: MarketplaceSection) => void
+  /** The item whose page the Marketplace main area shows; null shows the catalog. */
+  marketplaceSelectedItemId: MarketplaceItemId | null
+  selectMarketplaceItem: (id: MarketplaceItemId | null) => void
+  marketplaceApps: MarketplaceAppsState
+  refreshMarketplaceApps: () => Promise<void>
   setNewWorkspaceDraft: (draft: NonNullable<UISliceCore['newWorkspaceDraft']>) => void
   clearNewWorkspaceDraft: () => void
   pendingRevealWorktree: PendingSidebarWorktreeReveal | null
