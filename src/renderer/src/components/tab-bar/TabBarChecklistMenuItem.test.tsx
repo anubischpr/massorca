@@ -59,4 +59,20 @@ describe('the "+" menu Checklist entry', () => {
     fireEvent.click(items[1])
     expect(onOpenSessionPicker).toHaveBeenCalledTimes(1)
   })
+
+  it('starts with "New Session" when the panel offers it, in place of agent rows', async () => {
+    const onNewSession = vi.fn()
+    render(
+      <DropdownMenu open modal={false}>
+        <DropdownMenuTrigger>open</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <TabBarChecklistMenuItem onNewSession={onNewSession} onNewChecklistTab={vi.fn()} />
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+    const items = await screen.findAllByRole('menuitem')
+    expect(items.map((item) => item.textContent)).toEqual(['New Session', 'ChecklistCtrl+Shift+H'])
+    fireEvent.click(items[0])
+    expect(onNewSession).toHaveBeenCalledTimes(1)
+  })
 })

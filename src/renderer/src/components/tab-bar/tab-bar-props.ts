@@ -25,6 +25,8 @@ export type TabBarProps = {
   onNewSimulatorTab?: () => void
   /** Adds "Checklist" to the end of the "+" menu; only the floating workspace offers it. */
   onNewChecklistTab?: () => void
+  /** Adds "New Session" before Checklist; only the floating workspace offers it. */
+  onNewSession?: () => void
   /** Adds "Open a session..." after Checklist; only the floating workspace offers it. */
   onOpenSessionPicker?: () => void
   /**
