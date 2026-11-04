@@ -107,7 +107,8 @@ import {
   BotTeamRoutineCreate,
   BotTeamRoutineList,
   BotTeamRoutineSelector,
-  BotTeamRoutineSetPaused
+  BotTeamRoutineSetPaused,
+  BotTeamRoutineUpdate
 } from './bot-team-routine-params'
 import { BotTeamScheduledRunsQuery } from './bot-team-scheduled-run-params'
 import {
@@ -762,6 +763,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.delete': BotTeamSelector,
   'botTeams.deleteMemory': BotTeamMemoryDelete,
   'botTeams.deleteProject': BotTeamProjectDelete,
+  'botTeams.deleteRoutine': BotTeamRoutineSelector,
   'botTeams.fileVersions': BotTeamFileVersionsSelector,
   'botTeams.list': null,
   'botTeams.listEngramMemory': BotTeamEngramList,
@@ -788,6 +790,7 @@ export const RPC_PARAMS_BY_METHOD = {
   'botTeams.update': BotTeamUpdate,
   'botTeams.updateBot': BotTeamUpdateBot,
   'botTeams.updateProject': BotTeamProjectUpdate,
+  'botTeams.updateRoutine': BotTeamRoutineUpdate,
   'botTeams.versionFile': BotTeamVersionFileSelector,
   'botTeams.versions': BotTeamVersionsSelector,
   'botTeams.workspace': BotTeamRoomSelector,

@@ -24,7 +24,7 @@ import { BotTeamProjectBrief, type BotTeamProjectTab } from './BotTeamProjectBri
 import { BotTeamBoard, BotTeamProjectBoard, NewBotProjectForm } from './BotTeamProjectViews'
 import { BotTeamMemory } from './BotTeamMemory'
 import { BotTeamRoom } from './BotTeamRoom'
-import { BotTeamRoutineNew } from './BotTeamRoutineNew'
+import { BotTeamRoutineForm } from './BotTeamRoutineForm'
 import { BotTeamRoutineRuns } from './BotTeamRoutineRuns'
 import { BotTeamRoutines } from './BotTeamRoutines'
 import { BotTeamWebhook } from './BotTeamWebhook'
@@ -95,6 +95,7 @@ function TeamDetail({
         team={team}
         onNew={() => toTeam({ section: { kind: 'routine-new' } })}
         onOpen={(routineId) => toTeam({ section: { kind: 'routine', routineId } })}
+        onEdit={(routineId) => toTeam({ section: { kind: 'routine-new', routineId } })}
         webAddresses={
           <BotTeamWebhookSection
             team={team}
@@ -117,7 +118,7 @@ function TeamDetail({
   }
   if (section?.kind === 'routine-new') {
     const toRoutines = (): void => toTeam({ section: { kind: 'routines' } })
-    return <BotTeamRoutineNew team={team} onBack={toRoutines} onCreated={toRoutines} />
+    return <BotTeamRoutineForm team={team} routineId={section.routineId} onDone={toRoutines} />
   }
   if (section?.kind === 'routine') {
     return (
