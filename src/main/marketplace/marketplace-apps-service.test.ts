@@ -157,6 +157,18 @@ describe('Engram', () => {
     expect(vault.buildAgentEnv()).toEqual({})
   })
 
+  it('drops the stored token when the server changes without a new one', async () => {
+    await service().setEngramServer({ url: 'https://engram.example.com', token: TOKEN })
+    await service().setEngramServer({ url: 'https://engram.example.com' })
+    expect(vault.buildAgentEnv()).toEqual({
+      ENGRAM_CLOUD_TOKEN: TOKEN,
+      ENGRAM_CLOUD_SERVER: 'https://engram.example.com'
+    })
+    const result = await service().setEngramServer({ url: 'https://elsewhere.example.com' })
+    expect(result).toMatchObject({ ok: true, status: { credential: { stored: false } } })
+    expect(vault.buildAgentEnv()).not.toHaveProperty('ENGRAM_CLOUD_TOKEN')
+  })
+
   it('reports the agent that failed and still finishes the others', async () => {
     const paths = testAgentPaths(home)
     writeFixture(paths.mcpConfig('claude'), '{"mcpServers":[]}')
