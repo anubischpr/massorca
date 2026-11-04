@@ -218,3 +218,31 @@ describe('the Calendar page', () => {
     expect(c.textContent).not.toContain('Upcoming runs')
   })
 })
+
+describe('the Calendar page as a run starts', () => {
+  afterEach(() => {
+    for (const { container, root } of mounted.splice(0)) {
+      act(() => root.unmount())
+      container.remove()
+    }
+    vi.useRealTimers()
+  })
+
+  it('takes a bot run off the grid and Upcoming runs together when it starts', async () => {
+    vi.useFakeTimers({ now: NOW })
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    mounted.push({ container, root })
+    await act(async () => root.render(<CalendarPage />))
+    await settle()
+    expect(container.textContent).toContain('Launch brief')
+    // Launch brief starts at 3:00 PM, 36 minutes after NOW.
+    await act(async () => {
+      vi.advanceTimersByTime(36 * 60 * 1000 + 1000)
+    })
+    await settle()
+    expect(container.textContent).not.toContain('Launch brief')
+    expect(container.textContent).toContain('Competitor scan')
+  })
+})

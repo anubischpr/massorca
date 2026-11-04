@@ -18104,7 +18104,6 @@
       "workspaces": "Workspaces"
     },
     "side-panel": {
-      "close": "Close panel",
       "label": "Side panel",
       "new-tab": "New tab"
     },

@@ -1,7 +1,5 @@
 import { Globe, FileText, Smartphone, Terminal, X } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
-import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { SidePanelNewTabMenu } from './SidePanelNewTabMenu'
 import type { SidePanelNewTabKind, SidePanelNewTabOption } from './side-panel-new-tab-options'
 import type { SidePanelTabItem, SidePanelTabKind } from './use-side-panel-model'
@@ -27,8 +25,7 @@ export function SidePanelTabStrip({
   newTabOptions,
   onActivate,
   onClose,
-  onCreate,
-  onClosePanel
+  onCreate
 }: {
   groupId: string
   worktreeId: string
@@ -37,10 +34,8 @@ export function SidePanelTabStrip({
   onActivate: (id: string) => void
   onClose: (id: string) => void
   onCreate: (kind: SidePanelNewTabKind) => void
-  onClosePanel: () => void
 }): React.JSX.Element {
   const closeTabLabel = translate('auto.components.tab.bar.SortableTab.95db5f2f7d', 'Close tab')
-  const closePanelLabel = translate('components.side-panel.close', 'Close panel')
   return (
     <div
       className="flex h-9 shrink-0 items-center gap-0.5 border-b border-border px-1"
@@ -80,23 +75,6 @@ export function SidePanelTabStrip({
         ))}
       </div>
       <SidePanelNewTabMenu options={newTabOptions} onCreate={onCreate} />
-      <span className="min-w-0 flex-1" />
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            aria-label={closePanelLabel}
-            onClick={onClosePanel}
-          >
-            <X />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={6}>
-          {closePanelLabel}
-        </TooltipContent>
-      </Tooltip>
     </div>
   )
 }
