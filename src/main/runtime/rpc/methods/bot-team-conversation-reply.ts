@@ -1,4 +1,5 @@
 import { botAgentPiRuntime } from '../../../../shared/bot-team-character-art'
+import { botTeamClockNote } from '../../../../shared/bot-team-person-clock'
 import { BOT_TEAM_ALL_AUTHOR } from '../../../../shared/bot-team-greeting'
 import { findNamedProject } from '../../../../shared/bot-team-owner-selection'
 import type { BotTeam, BotTeamBot } from '../../../../shared/rpc-contract/bot-team-params'
@@ -125,6 +126,7 @@ async function askConversationBot(
     research: boolean
     code: boolean
     project: BotTeamProject | null
+    timeZone: string | null
   }
 ): Promise<string | null> {
   const { team, bot, research, project } = args
@@ -166,7 +168,8 @@ async function askConversationBot(
         canSearch,
         projectContext,
         ...(checkout !== null && project ? { codeRead: { projectName: project.name } } : {}),
-        ...(codeNotRead ? { codeNotRead: true } : {})
+        ...(codeNotRead ? { codeNotRead: true } : {}),
+        clock: botTeamClockNote(Date.now(), args.timeZone)
       }),
       agent: own,
       settings: ctx.runtime.getClientSettings(),
@@ -192,6 +195,8 @@ export function startBotTeamConversationReply(
     research?: boolean
     /** The classifier marked a question about a project's code. */
     code?: boolean
+    /** The asking person's zone, so a day the question names is read on their clock. */
+    timeZone?: string | null
   }
 ): { botId: string; done: Promise<BotTeamMessage> } | null {
   const { team, text } = args
@@ -217,7 +222,15 @@ export function startBotTeamConversationReply(
   markBotTeamReplying(team.id, bot.id)
   const settle = async (): Promise<BotTeamMessage> => {
     try {
-      const reply = await askConversationBot(ctx, { team, bot, text, research, code, project })
+      const reply = await askConversationBot(ctx, {
+        team,
+        bot,
+        text,
+        research,
+        code,
+        project,
+        timeZone: args.timeZone ?? null
+      })
       if (reply) {
         return db.postBotTeamMessage({ teamId: team.id, authorBotId: bot.id, text: reply })
       }

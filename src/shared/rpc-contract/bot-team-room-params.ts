@@ -204,7 +204,9 @@ export const BotTeamRequestAssign = z.object({
   later: z.boolean().optional(),
   askProject: z.boolean().optional(),
   /** Files the person attached to the request, kept when a choice card answers it. */
-  attachments: z.array(BotTeamRoomAttachmentSchema).max(BOT_TEAM_ROOM_ATTACHMENT_LIMIT).optional()
+  attachments: z.array(BotTeamRoomAttachmentSchema).max(BOT_TEAM_ROOM_ATTACHMENT_LIMIT).optional(),
+  /** The sender's IANA zone, so a day the request names is read on their clock. An older client sends none. */
+  timeZone: z.string().min(1).max(64).optional()
 })
 
 /** Gives an idle task to a bot of any team; its team follows the bot. Nothing starts: Start does that. */

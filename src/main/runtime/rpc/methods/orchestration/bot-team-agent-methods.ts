@@ -10,6 +10,7 @@ import {
   BotTeamAgentRemember,
   BotTeamAgentTaskCreate
 } from '../../../../../shared/rpc-contract/bot-team-agent-params'
+import { botTeamClockNoteIn } from '../../../../../shared/bot-team-person-clock'
 import { botTeamTaskTitle, routeBotTeamRequest } from '../../../../../shared/bot-team-request-route'
 import { readBotTeamMemoryLines } from '../../../../bot-teams/bot-team-memory-read'
 import { botTeamRoomExcerpt } from '../../../../bot-teams/bot-team-prompt-notes'
@@ -134,7 +135,8 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
             botName: bot,
             text,
             project,
-            roomExcerpt: botTeamRoomExcerpt(db.listBotTeamMessages(team.id), team.bots)
+            roomExcerpt: botTeamRoomExcerpt(db.listBotTeamMessages(team.id), team.bots),
+            clock: botTeamClockNoteIn(db.getBotTeamTaskStartNotes(caller.id))
           }
         )
       }
@@ -199,6 +201,11 @@ export const ORCHESTRATION_BOT_TEAM_METHODS = [
         prompt: text,
         ownerBotId: owner
       })
+      // The saved work reads its days on the clock the caller's request was asked on.
+      const clock = botTeamClockNoteIn(db.getBotTeamTaskStartNotes(caller.id))
+      if (clock) {
+        db.setBotTeamTaskStartNotes(task.id, clock)
+      }
       // Work a task saves for later belongs to the same project as that task.
       if (!caller.projectId) {
         return { task }

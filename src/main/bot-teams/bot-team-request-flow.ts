@@ -19,8 +19,7 @@ import {
   botTeamRequestScheduledMoment,
   type BotTeamScheduledMoment
 } from '../../shared/bot-team-request-schedule'
-import { hostWallTime } from '../../shared/bot-team-routine-schedule'
-import { isKnownTimeZone } from '../../shared/bot-team-routine-zone'
+import { botTeamClockLine } from '../../shared/bot-team-person-clock'
 import type { BotTeam, BotTeamBot } from '../../shared/rpc-contract/bot-team-params'
 
 /** `later` is set only when the person wants the work later, so an unset decision means now. */
@@ -115,13 +114,6 @@ type DecideArgs = {
   timeZone?: string | null
 }
 
-function personNowLine(now: number, timeZone: string | null): string {
-  const zone = timeZone && isKnownTimeZone(timeZone) ? timeZone : undefined
-  const wall = hostWallTime(now, zone)
-  const weekday = new Date(now).toLocaleDateString('en-US', { weekday: 'long', timeZone: zone })
-  return `${weekday} ${wall.date} ${wall.time}`
-}
-
 /**
  * Who takes a request, and when: a one-bot task whose day the query read, or the words name, is
  * scheduled for that moment. A mention skips the query; no bot is ever a configured lead.
@@ -167,7 +159,7 @@ async function decideOwner(args: DecideArgs & { now: number }): Promise<BotTeamR
       team.bots,
       args.otherTeams,
       text,
-      personNowLine(args.now, args.timeZone ?? null)
+      botTeamClockLine(args.now, args.timeZone ?? null)
     )
   )
   const later = timing.later || (reply !== null && parseBotTeamClassifyLater(reply))

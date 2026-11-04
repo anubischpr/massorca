@@ -135,10 +135,12 @@ function researchPrompt(args: {
   canSearch: boolean
   projectContext: string | null
   codeNotRead: boolean
+  clock: string | null
 }): string {
   const { team, bot } = args
   const identity = `You are ${bot.name}, a bot on the ${team.name} team${team.purpose ? ` (${team.purpose})` : ''}. Your job: ${bot.job || 'not described'}.`
   const context = [
+    ...(args.clock ? [args.clock] : []),
     ...(args.codeNotRead ? [CODE_NOT_READ_NOTE] : []),
     ...(args.projectContext ? [args.projectContext] : [])
   ]
@@ -190,6 +192,8 @@ function conversationPrompt(args: {
   codeRead?: { projectName: string }
   /** A question about a project's code that this turn could not read: the bot says so. */
   codeNotRead?: boolean
+  /** The sender's clock, so a day the question names is read on it. */
+  clock?: string | null
 }): string {
   const { team, bot, bots } = args
   if (args.codeRead) {
@@ -200,7 +204,8 @@ function conversationPrompt(args: {
       projectContext: args.projectContext ?? null,
       projectName: args.codeRead.projectName,
       research: args.research === true,
-      canSearch: args.canSearch ?? true
+      canSearch: args.canSearch ?? true,
+      clock: args.clock ?? null
     })
   }
   if (args.research) {
@@ -210,7 +215,8 @@ function conversationPrompt(args: {
       text: args.text,
       canSearch: args.canSearch ?? true,
       projectContext: args.projectContext ?? null,
-      codeNotRead: args.codeNotRead === true
+      codeNotRead: args.codeNotRead === true,
+      clock: args.clock ?? null
     })
   }
   const history = args.messages
@@ -221,6 +227,7 @@ function conversationPrompt(args: {
     return `- ${task.title}, ${owner}, ${task.sessionId === null ? 'not started' : 'started'}`
   })
   const context = [
+    ...(args.clock ? [args.clock] : []),
     ...(args.codeNotRead ? [CODE_NOT_READ_NOTE] : []),
     ...(args.projectContext ? [args.projectContext] : [])
   ]

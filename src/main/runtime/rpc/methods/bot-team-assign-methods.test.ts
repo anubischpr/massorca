@@ -54,6 +54,32 @@ describe('botTeams.assignRequest', () => {
     expect(db?.listBotTeamTasks(team.id)).toHaveLength(1)
   })
 
+  it("reads the sender's zone from a choice card's answer, so the task keeps its clock", async () => {
+    const { method, ctx, team } = setup()
+    expect(
+      method.params?.parse({ teamId: team.id, text: 'Do it', timeZone: 'America/Lima' })
+    ).toMatchObject({
+      timeZone: 'America/Lima'
+    })
+    vi.useFakeTimers({ now: Date.UTC(2026, 10, 4, 4, 38), toFake: ['Date'] })
+    try {
+      const result = await method.handler(
+        {
+          teamId: team.id,
+          text: 'Escribe el informe para mañana',
+          start: false,
+          timeZone: 'America/Lima'
+        },
+        ctx
+      )
+      expect(db?.getBotTeamTaskStartNotes(result.task?.id ?? '')).toContain(
+        'Tuesday 2026-11-03 23:38 America/Lima'
+      )
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('keeps the files a choice card carries, so the task names them', async () => {
     const { method, ctx, team } = setup()
     const result = await method.handler(
