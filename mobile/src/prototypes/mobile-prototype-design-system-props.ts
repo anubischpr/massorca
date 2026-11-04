@@ -8,6 +8,7 @@ import type {
   PrototypeListedDesignSystem,
   PrototypeListedSet
 } from '../../../src/shared/rpc-contract/prototype-params'
+import type { MobileDesignSystemImageControls } from './mobile-prototype-design-system-images'
 
 export type MobileDesignSystemUpdate = (
   transform: (state: DesignSystemViewState) => DesignSystemViewState
@@ -23,6 +24,8 @@ export type MobileDesignSystemPanelProps = {
   target: DesignSystemChat | undefined
   /** The project's sets built on the current version: the ones a rebuild offers. */
   rebuildSets: readonly PrototypeListedSet[]
+  /** Attaches images to the draft, from "Anything else" or a note. */
+  images: MobileDesignSystemImageControls
   /** Sends one message to the target chat; a refusal keeps the draft. */
   runSend: (kind: DesignSystemSendKind, text: string) => Promise<void>
 }

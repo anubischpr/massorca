@@ -11,12 +11,14 @@ import { Check } from 'lucide-react-native'
 import { keyedEntries } from '../../../src/shared/prototype-entry-keys'
 import { designSystemDraftGroups } from '../../../src/shared/prototype-design-system-draft'
 import { prototypeTitle } from '../../../src/shared/prototype-list-model'
+import { removeDraftImage } from '../../../src/shared/prototype-design-system-view-state'
 import { colors, spacing, typography } from '../theme/mobile-theme'
 import {
   mobileDesignSystemDraftCount,
   mobileDesignSystemNothingToSend
 } from './mobile-prototype-design-system-send'
 import type { MobileDesignSystemPanelProps } from './mobile-prototype-design-system-props'
+import { MobilePrototypeDesignSystemImages } from './MobilePrototypeDesignSystemImages'
 
 /** How far the sheet may grow: a share of the screen, so the screen behind it stays in view. */
 const SHEET_MAX_HEIGHT_SHARE = 0.85
@@ -32,12 +34,13 @@ export function MobilePrototypeDesignSystemDraftSheet({
   update,
   target,
   rebuildSets,
+  images,
   agentName,
   onClose,
   onSend
 }: Pick<
   MobileDesignSystemPanelProps,
-  'system' | 'content' | 'state' | 'update' | 'target' | 'rebuildSets'
+  'system' | 'content' | 'state' | 'update' | 'target' | 'rebuildSets' | 'images'
 > & {
   agentName: string
   onClose: () => void
@@ -50,7 +53,10 @@ export function MobilePrototypeDesignSystemDraftSheet({
   )
   const titles = rebuildSets.map((set) => prototypeTitle(set)).join(', ')
   const sendDisabled =
-    state.sending || target === undefined || mobileDesignSystemNothingToSend({ content, state })
+    state.sending ||
+    images.attaching ||
+    target === undefined ||
+    mobileDesignSystemNothingToSend({ content, state })
   return (
     <View style={styles.sheet}>
       <View style={styles.header}>
@@ -110,6 +116,11 @@ export function MobilePrototypeDesignSystemDraftSheet({
           value={state.freeText}
           onChangeText={(text) => update((latest) => ({ ...latest, freeText: text }))}
           style={styles.prompt}
+        />
+        <MobilePrototypeDesignSystemImages
+          images={state.images}
+          control={images}
+          onRemove={(id) => update((latest) => removeDraftImage(latest, id))}
         />
         <Pressable
           accessibilityRole="button"

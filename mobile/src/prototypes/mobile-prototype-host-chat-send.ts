@@ -2,6 +2,7 @@
 // the way desktop sends to the chat a set came from. The runtime fence a send names comes from the
 // newest page of the chat's history, so no stream has to be open.
 import type { AgentSessionHistoryResult } from '../../../src/shared/agent-session-wire'
+import type { StructuredAgentSessionAttachment } from '../../../src/shared/structured-agent-session-send-mutation'
 import {
   callAgentSession,
   STRUCTURED_SEND_TIMEOUT_MS
@@ -29,7 +30,8 @@ async function readRuntimeFence(client: HostClient, sessionId: string): Promise<
 export async function sendToStructuredSessionOnHost(
   client: HostClient,
   sessionId: string,
-  text: string
+  text: string,
+  attachments: readonly StructuredAgentSessionAttachment[] = []
 ): Promise<boolean> {
   try {
     const fence = await readRuntimeFence(client, sessionId)
@@ -41,7 +43,7 @@ export async function sendToStructuredSessionOnHost(
       sessionId,
       expectedRuntimeFence: fence,
       text,
-      attachments: [],
+      attachments,
       onError: () => undefined
     })
     return outcome === 'accepted' || outcome === 'queued'

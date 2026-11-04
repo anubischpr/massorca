@@ -8,6 +8,7 @@ import {
   setDraftVariants,
   toggleDraftRemoved
 } from '../../../src/shared/prototype-design-system-draft'
+import { removeDraftImage } from '../../../src/shared/prototype-design-system-view-state'
 import { colors } from '../theme/mobile-theme'
 import {
   MobilePrototypeDesignSystemChip,
@@ -21,6 +22,7 @@ import {
   mobileColorTokens
 } from './mobile-prototype-design-system-model'
 import type { MobileDesignSystemPanelProps } from './mobile-prototype-design-system-props'
+import { MobilePrototypeDesignSystemImages } from './MobilePrototypeDesignSystemImages'
 
 type Tab = 'edit' | 'note'
 
@@ -32,8 +34,9 @@ export function MobilePrototypeDesignSystemComponentSheet({
   content,
   state,
   update,
+  images,
   onClose
-}: Pick<MobileDesignSystemPanelProps, 'content' | 'state' | 'update'> & {
+}: Pick<MobileDesignSystemPanelProps, 'content' | 'state' | 'update' | 'images'> & {
   section: ComponentSection
   onClose: () => void
 }) {
@@ -116,6 +119,11 @@ export function MobilePrototypeDesignSystemComponentSheet({
               }))
             }
             style={styles.note}
+          />
+          <MobilePrototypeDesignSystemImages
+            images={state.images}
+            control={images}
+            onRemove={(id) => update((latest) => removeDraftImage(latest, id))}
           />
         </>
       )}

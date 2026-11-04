@@ -24,6 +24,7 @@ import {
 import { MobilePrototypeDesignSystemTokenSheet } from './MobilePrototypeDesignSystemTokenSheet'
 import { MobilePrototypeHeader } from './MobilePrototypeHeader'
 import { mobileDesignSystemSubtitle } from './mobile-prototype-design-system-model'
+import { useMobileDesignSystemImages } from './mobile-prototype-design-system-images-hook'
 import {
   mobileDesignSystemDraftCount,
   mobileDesignSystemDraftText,
@@ -78,6 +79,7 @@ export function MobilePrototypeDesignSystemScreen({
       updateView(viewKey, transform),
     [updateView, viewKey]
   )
+  const images = useMobileDesignSystemImages({ client, target, update })
   const [sheet, setSheet] = useState<Sheet | null>(null)
   const readyContent = content.status === 'ready' ? content.content : null
   const selection = state.selection
@@ -93,7 +95,7 @@ export function MobilePrototypeDesignSystemScreen({
   const panel =
     system === null || readyContent === null
       ? null
-      : { system, content: readyContent, state, update, target, rebuildSets }
+      : { system, content: readyContent, state, update, target, rebuildSets, images }
   const draftCount = panel === null ? 0 : mobileDesignSystemDraftCount(panel)
   const agentName =
     target === undefined ? (system?.agent ?? '') : mobilePrototypeAgentLabel(target.agent)
@@ -173,9 +175,9 @@ export function MobilePrototypeDesignSystemScreen({
           <MobilePrototypeDesignSystemSource content={panel.content} />
         )}
       </ScrollView>
-      {draftCount === 0 ? null : (
+      {draftCount === 0 && state.images.length === 0 ? null : (
         <MobilePrototypeDesignSystemBar
-          count={draftCount}
+          count={draftCount + state.images.length}
           agentName={agentName}
           onPress={() => setSheet('draft')}
         />
@@ -200,6 +202,7 @@ export function MobilePrototypeDesignSystemScreen({
                 update={update}
                 target={target}
                 rebuildSets={rebuildSets}
+                images={panel.images}
                 agentName={agentName}
                 onClose={() => setSheet(null)}
                 onSend={() => void sendDraft()}
@@ -235,6 +238,7 @@ export function MobilePrototypeDesignSystemScreen({
               content={panel.content}
               state={state}
               update={update}
+              images={panel.images}
               onClose={() => setSheet(null)}
             />
           )

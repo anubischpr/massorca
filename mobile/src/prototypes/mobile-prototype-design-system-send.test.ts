@@ -12,9 +12,13 @@ import {
   type MobileDesignSystemSendFlow
 } from './mobile-prototype-design-system-send'
 import { NEXUS_SYSTEM, nexusContent, nexusSet } from './mobile-prototype-design-system.test-fixture'
+import type { RpcClient } from '../transport/rpc-client'
 
 const chat = vi.hoisted(() => ({ send: vi.fn() }))
 vi.mock('./mobile-prototype-chat-text-send', () => ({ sendMobilePrototypeText: chat.send }))
+
+const host = vi.hoisted(() => ({ send: vi.fn() }))
+vi.mock('./mobile-prototype-host-chat-send', () => ({ sendToStructuredSessionOnHost: host.send }))
 
 const TARGET = { sessionId: 'session-nexus', agent: 'codex' as const, worktreeId: 'wt-1' }
 
@@ -43,6 +47,7 @@ function withAddedComponent(): DesignSystemViewState {
 
 beforeEach(() => {
   chat.send.mockReset()
+  host.send.mockReset()
 })
 
 describe('the draft text', () => {
@@ -82,6 +87,47 @@ describe('the draft text', () => {
     expect(mobileDesignSystemNothingToSend({ content, state: { ...empty, freeText: 'Hi' } })).toBe(
       false
     )
+  })
+
+  it('counts an attached image as something to send', () => {
+    const empty = emptyDesignSystemViewState()
+    const withImage = { ...empty, images: [{ id: 'a', name: 'Image 1', path: '/h/a.png' }] }
+    expect(mobileDesignSystemNothingToSend({ content, state: withImage })).toBe(false)
+  })
+})
+
+describe('sending the draft images', () => {
+  const ready = { id: 'a', name: 'Image 1', path: '/h/a.png', connectionId: 'conn-1' }
+
+  const client = {} as RpcClient
+
+  it('sends the ready images with the draft through the host and clears them once it takes it', async () => {
+    host.send.mockResolvedValue(true)
+    const { flow, current } = flowOver({
+      ...withAddedComponent(),
+      images: [ready, { id: 'b', name: 'Image 2' }]
+    })
+    expect(await sendMobileDesignSystemText({ ...flow, client }, 'draft', 'Update')).toBe(true)
+    expect(host.send).toHaveBeenCalledWith(client, TARGET.sessionId, 'Update', [
+      { path: '/h/a.png', previewUri: '/h/a.png', connectionId: 'conn-1' }
+    ])
+    expect(chat.send).not.toHaveBeenCalled()
+    expect(current().images).toEqual([])
+  })
+
+  it('keeps the images when the host refuses the draft', async () => {
+    host.send.mockResolvedValue(false)
+    const { flow, current } = flowOver({ ...withAddedComponent(), images: [ready] })
+    expect(await sendMobileDesignSystemText({ ...flow, client }, 'draft', 'Update')).toBe(false)
+    expect(current().images).toEqual([ready])
+  })
+
+  it('carries no draft images on a re-detect', async () => {
+    chat.send.mockResolvedValue(true)
+    const { flow } = flowOver({ ...emptyDesignSystemViewState(), images: [ready] })
+    await sendMobileDesignSystemText(flow, 'redetect', 'Detect again')
+    expect(chat.send).toHaveBeenCalledWith(null, TARGET, 'Detect again')
+    expect(host.send).not.toHaveBeenCalled()
   })
 })
 
