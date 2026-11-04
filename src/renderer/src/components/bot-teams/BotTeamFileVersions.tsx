@@ -14,6 +14,7 @@ import type {
   BotTeamVersion
 } from '../../../../shared/rpc-contract/bot-team-version-params'
 import { BotTeamFilesBar } from './BotTeamFilesBar'
+import { VersionHistoryList } from '../version-history/VersionHistoryList'
 import { BotTeamRestoreDialog } from './BotTeamRestoreDialog'
 import { BotTeamVersionCompare } from './BotTeamVersionCompare'
 import { botTeamVersionLabel, botTeamVersionMeta } from './bot-team-version-labels'
@@ -141,38 +142,31 @@ export function BotTeamFileVersions({
           <h2 className="mb-2 text-sm font-semibold">
             {translate('components.botTeams.versions', 'Versions')}
           </h2>
-          <div className="flex flex-col rounded-xl border border-border bg-card">
-            <div className="flex items-center gap-3 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium">
-                  {translate('components.botTeams.current', 'Current')}
-                </div>
-                {newest ? (
-                  <div className="text-xs text-muted-foreground">{botTeamVersionMeta(newest)}</div>
-                ) : null}
-              </div>
-            </div>
-            {earlier.map((version, index) => (
-              <div
-                key={version.id}
-                className="flex items-center gap-3 border-t border-border px-4 py-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{botTeamVersionLabel(version)}</div>
-                  <div className="truncate text-xs text-muted-foreground">
-                    {botTeamVersionMeta(version)}
-                  </div>
-                </div>
-                <Button variant="outline" size="xs" onClick={() => setComparing(index)}>
-                  {translate('components.botTeams.compare', 'Compare')}
-                </Button>
-                <Button variant="outline" size="xs" onClick={() => setRestoring(version)}>
-                  <RotateCcw className="size-3" />
-                  {translate('components.botTeams.restore', 'Restore')}
-                </Button>
-              </div>
-            ))}
-          </div>
+          <VersionHistoryList
+            items={[
+              {
+                key: 'current',
+                label: translate('components.botTeams.current', 'Current'),
+                meta: newest ? botTeamVersionMeta(newest) : undefined
+              },
+              ...earlier.map((version, index) => ({
+                key: version.id,
+                label: botTeamVersionLabel(version),
+                meta: botTeamVersionMeta(version),
+                actions: (
+                  <>
+                    <Button variant="outline" size="xs" onClick={() => setComparing(index)}>
+                      {translate('components.botTeams.compare', 'Compare')}
+                    </Button>
+                    <Button variant="outline" size="xs" onClick={() => setRestoring(version)}>
+                      <RotateCcw className="size-3" />
+                      {translate('components.botTeams.restore', 'Restore')}
+                    </Button>
+                  </>
+                )
+              }))
+            ]}
+          />
         </div>
       </div>
       {dialog}

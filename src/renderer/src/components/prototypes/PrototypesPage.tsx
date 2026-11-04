@@ -18,7 +18,7 @@ import { PrototypeDesignSystemScreen } from './PrototypeDesignSystemScreen'
 import type { PrototypeArchiveControls } from './PrototypeArchivedGroup'
 import { PrototypeListPanel } from './PrototypeListPanel'
 import { PrototypeSidePanel } from './PrototypeSidePanel'
-import { PrototypeViewer } from './PrototypeViewer'
+import { PrototypeViewer, type PrototypeVersionRestoreControls } from './PrototypeViewer'
 import {
   buildMergeMessage,
   buildMergeSuggestionMessage
@@ -146,6 +146,10 @@ export default function PrototypesPage(): React.JSX.Element {
   )
   // Hosts that answered an archive action with method_not_found: their sets are not offered the actions.
   const [outdatedHosts, setOutdatedHosts] = useState<ReadonlySet<string>>(() => new Set())
+  // Hosts that answered a restore with method_not_found: their sets keep Preview and lose Restore.
+  const [restoreOutdatedHosts, setRestoreOutdatedHosts] = useState<ReadonlySet<string>>(
+    () => new Set()
+  )
 
   const system =
     selectedProjectKey === null
@@ -220,6 +224,15 @@ export default function PrototypesPage(): React.JSX.Element {
     },
     onUnarchive: (set) => void runSetAction('unarchive', set),
     onDelete: (set) => void runSetAction('delete', set)
+  }
+  const versionRestore: PrototypeVersionRestoreControls = {
+    supports: (set) =>
+      !restoreOutdatedHosts.has(prototypeHostKey(prototypeTargetForSession(set.sessionId))),
+    onOutdated: (set) =>
+      setRestoreOutdatedHosts((previous) =>
+        new Set(previous).add(prototypeHostKey(prototypeTargetForSession(set.sessionId)))
+      ),
+    onRestored: reload
   }
 
   if (system !== undefined) {
@@ -382,6 +395,7 @@ export default function PrototypesPage(): React.JSX.Element {
           nextLetter={nextLetter}
           onMerge={() => void startMerge()}
           onSendMerge={() => void sendMerge()}
+          versions={versionRestore}
         />
       </section>
       {panels.draft ? (
