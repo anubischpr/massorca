@@ -46,7 +46,7 @@ export type ListPrototypeSetsOptions = {
   worktreeId?: string
   /** Whether a chat's request folders may be listed, given whether the request is archived; omitted, all are. */
   isChatListed?: (sessionId: string, archived: boolean) => boolean
-  /** Whether the host would delete this chat's requests; asked once per chat, for archived sets only. */
+  /** Whether the host would delete this chat's requests; asked once per chat. */
   isDeletable?: (sessionId: string) => Promise<boolean>
   /** A chat's launch directory from its record; a Gentle Shell design/ folder is read only under it. */
   launchDirectoryOf?: (sessionId: string) => string | undefined | Promise<string | undefined>

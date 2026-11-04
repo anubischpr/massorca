@@ -230,7 +230,7 @@ export const PrototypeListedSetSchema = z.object({
   archived: z.literal(true).optional(),
   /**
    * Set when the host would accept `prototypes.delete` for this set: its chat or its worktree no longer
-   * exists. The host decides; listed for archived sets only, which are the ones a client offers Delete on.
+   * exists. The host decides. Hosts before pv85 list it for archived sets only.
    */
   deletable: z.literal(true).optional(),
   directions: z.array(PrototypeListedDirectionSchema)

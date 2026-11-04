@@ -156,7 +156,7 @@ describe('setPrototypeRequestArchived', () => {
 })
 
 describe('listing archived sets', () => {
-  it('marks an archived set, and asks about deletability once per chat and for archived sets only', async () => {
+  it('marks an archived set, and asks about deletability once per chat', async () => {
     await writeSet(REQUEST, { archived: true })
     await writeSet('20261028-201500-bbbbbb', { archived: true })
     await writeSet('20261028-201500-cccccc')
@@ -168,8 +168,14 @@ describe('listing archived sets', () => {
       true,
       true
     ])
-    expect(sets.find((set) => set.archived !== true)).not.toHaveProperty('deletable')
     expect(isDeletable).toHaveBeenCalledTimes(1)
+  })
+
+  it('lists a set whose chat is gone as deletable without archiving it first', async () => {
+    await writeSet(REQUEST)
+    const { sets } = await listPrototypeSets({ stateDirectory, isDeletable: async () => true })
+    expect(sets[0]).not.toHaveProperty('archived')
+    expect(sets[0]).toMatchObject({ deletable: true })
   })
 
   it('lists an archived set as not deletable when the check fails', async () => {
